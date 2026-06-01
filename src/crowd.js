@@ -261,6 +261,12 @@ export class Crowd {
     this._tmpDanceMat = new THREE.Matrix4();
     this._tmpScale = new THREE.Vector3();
     this._mouthMat = new THREE.Matrix4();
+    // Mouth is positioned as a child of the body matrix (see _writeMatrices):
+    // _mouthLocalMat holds the face-local offset + smile-pop scale, identity
+    // rotation, multiplied onto the body matrix so the smile inherits bob,
+    // sway tilt, yaw wiggle, NPC scale, and seat/hammock lift.
+    this._mouthLocalMat = new THREE.Matrix4();
+    this._identityQuat = new THREE.Quaternion();
     // Supine-pose scratch (used by hammock_riding NPCs to compose the supine
     // rotation: X=+π/2 to face up, then Y=yaw to align spine with hammock).
     this._supineQuatX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
@@ -1043,19 +1049,18 @@ export class Crowd {
     this.headMesh.setMatrixAt(npc.idx, m);
     this.eyesMesh.setMatrixAt(npc.idx, m);
 
-    // ---- Mouth: separate matrix with per-NPC scale for smile-pop effect ----
-    // Mouth geometry is baked at origin; we translate it to its face position
-    // (in NPC local space → world space) then apply scale so it pops when smiling.
-    // The mouth bobs with the body by including bounceY in the world Y.
+    // ---- Mouth: child of the body matrix, with its own smile-pop scale ----
+    // Mouth geometry is baked at origin. We build a local matrix that places it
+    // at the face offset (NPC body frame) with the smile-pop scale, then
+    // multiply it ONTO the body matrix `m`. Deriving from `m` means the smile
+    // inherits everything the head/eyes do — bob, the dance hip-sway tilt
+    // (danceTilt), yaw wiggle, NPC scale, and the riding/hammock seat lift — so
+    // it stays glued to the face instead of floating beside a swaying head.
     const smileScale = npc.smileTimeCooldown > 0 ? 1.0 : 0.3;
-    // Rotate the face-local offset (0, 1.55, -0.215) by the NPC's yaw quaternion
-    // to get the world offset from npc.pos.
-    this._tmpV3.set(0, 1.55, -0.215).applyQuaternion(this._tmpQuat);
-    this._tmpV3.x += npc.pos.x;
-    this._tmpV3.y += npc.pos.y + bobY + bounceY;
-    this._tmpV3.z += npc.pos.z;
+    this._tmpV3.set(0, 1.55, -0.215); // face-local offset, NPC body frame
     this._tmpScale.set(smileScale, smileScale, smileScale);
-    this._mouthMat.compose(this._tmpV3, this._tmpQuat, this._tmpScale);
+    this._mouthLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
+    this._mouthMat.multiplyMatrices(m, this._mouthLocalMat);
     this.mouthMesh.setMatrixAt(npc.idx, this._mouthMat);
   }
 

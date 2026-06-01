@@ -215,6 +215,16 @@ export class BrassBand {
     this._dodgeTimer = 0;
     this._dodgeDirX = 0;
     this._dodgeDirZ = 0;
+
+    // Continuous second-line groove that follows the band around the world.
+    // Attached ONCE here — a constant seed keeps the tune stable across
+    // reloads (only one brass band exists, so per-band variation is moot).
+    // The band is built at module load, before the start-tap Sound.init, so
+    // attachStageMusic returns a deferred handle that Sound.init adopts when
+    // the AudioContext comes online; position updates before then are buffered.
+    this._music = Sound.attachStageMusic(
+      this.path[0].x, 1, this.path[0].z, 0xb4a55, 'second_line',
+    );
   }
 
   scatter(zerble) {
@@ -237,13 +247,6 @@ export class BrassBand {
       this._dodgeDirZ = dz * inv;
       return;  // one trigger sidesteps the whole unit
     }
-
-    // Second-line groove that follows the band around the world. The seed
-    // is just a constant so the band's tune is stable across reloads — only
-    // one brass band exists in the game so per-band variation is moot.
-    this._music = Sound.attachStageMusic(
-      this.path[0].x, 1, this.path[0].z, 0xb4a55, 'second_line',
-    );
   }
 
   update(dt) {
