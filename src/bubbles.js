@@ -56,12 +56,18 @@ export class Bubbles {
 
     // Cheap material — plain Standard (no transmission/iridescence). Pre-built
     // here so setCheapMaterial() just swaps a reference with zero allocation.
+    // It's already `transparent`, so opacity is free to lower — the draw path
+    // is unchanged. Was opacity 0.55 + metalness 0.25, which read as fairly
+    // solid white/grey marbles under daylight (the metalness reflected the
+    // bright sky). Dropped opacity to 0.32 so they're properly see-through and
+    // trimmed metalness to 0.1 so they stop picking up the grey sky as a
+    // specular wash — closer to the fancy material's glassy look, still cheap.
     this._cheapMat = new THREE.MeshStandardMaterial({
       color: 0xd0eeff,
       roughness: 0.1,
-      metalness: 0.25,
+      metalness: 0.1,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.15,
       side: THREE.DoubleSide,
     });
 

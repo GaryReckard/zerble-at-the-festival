@@ -27,6 +27,20 @@ let _tripLowpass = null;
 let _tripDelay = null;
 let _tripFeedback = null;
 let sfxBus = null;       // shared bus for all SFX (engine, collisions, honks, bumps)
+// SFX trip chain — the SFX-tuned sibling of the music trip chain above. Sits
+// between sfxBus and masterGain, same wet/dry topology. Tuned to keep the
+// engine drone legible (gentler lowpass, more dry signal) while smearing
+// collision transients into stuttering echoes. Driven by `setSfxTrip(env, p)`;
+// idle (gain 0) when no trip is active. The engine ALSO reads
+// `_sfxTripEnv`/`_sfxTripProgress` directly for a pitch-detune wobble — see
+// createEngine.
+let _sfxTripDryGain = null;
+let _sfxTripWetGain = null;
+let _sfxTripLowpass = null;
+let _sfxTripDelay = null;
+let _sfxTripFeedback = null;
+let _sfxTripEnv = 0;
+let _sfxTripProgress = 0;
 let engineNodes = null;
 let initialized = false;
 let silentUnlockEl = null;   // HTMLAudioElement kept alive to hold the iOS "Playback" audio session
@@ -226,7 +240,38 @@ export const Sound = {
 
     sfxBus = ctx.createGain();
     sfxBus.gain.value = 1.0;
-    sfxBus.connect(masterGain);
+
+    // SFX trip chain (wet/dry) — mirrors the music chain's topology but the
+    // constants in setSfxTrip are SFX-tuned. Dry is the bypass; wet routes
+    // through a lowpass + feedback delay, summed back at masterGain. Idle
+    // gains keep it silent until setSfxTrip ramps the wet branch, so the
+    // steady-state cost is two Gain nodes + a BiquadFilter + a DelayNode all
+    // running at gain 0 (cheap).
+    _sfxTripDryGain = ctx.createGain();
+    _sfxTripDryGain.gain.value = 1.0;
+    _sfxTripWetGain = ctx.createGain();
+    _sfxTripWetGain.gain.value = 0.0;
+    _sfxTripLowpass = ctx.createBiquadFilter();
+    _sfxTripLowpass.type = 'lowpass';
+    _sfxTripLowpass.frequency.value = 18000;   // wide open at idle
+    _sfxTripLowpass.Q.value = 1.0;
+    _sfxTripDelay = ctx.createDelay(1.0);
+    _sfxTripDelay.delayTime.value = 0.16;       // snappier slapback than music's 0.28
+    _sfxTripFeedback = ctx.createGain();
+    _sfxTripFeedback.gain.value = 0.0;
+
+    // Wiring (same shape as the music chain above):
+    //   sfxBus ─┬─→ _sfxTripDryGain ──→ masterGain                       (dry path)
+    //           └─→ _sfxTripLowpass ──┬─→ _sfxTripWetGain ──→ masterGain
+    //                                 └─→ _sfxTripDelay ──→ _sfxTripFeedback ──→ _sfxTripLowpass  (delay loop)
+    sfxBus.connect(_sfxTripDryGain);
+    _sfxTripDryGain.connect(masterGain);
+    sfxBus.connect(_sfxTripLowpass);
+    _sfxTripLowpass.connect(_sfxTripWetGain);
+    _sfxTripWetGain.connect(masterGain);
+    _sfxTripLowpass.connect(_sfxTripDelay);
+    _sfxTripDelay.connect(_sfxTripFeedback);
+    _sfxTripFeedback.connect(_sfxTripLowpass);
 
     // MIDI output node — midiPlayer.js routes Tone.js's output here so Master
     // and the dedicated MIDI fader both affect playback. Kept separate from
@@ -396,6 +441,48 @@ export const Sound = {
     // Delay time drifts a hair so the echo isn't perfectly metronomic.
     const dt = 0.28 + 0.08 * Math.sin(p * Math.PI * 2 * 0.7);
     _tripDelay.delayTime.setTargetAtTime(dt, t, 0.1);
+  },
+
+  // SFX-tuned sibling of setMusicTrip — warps the engine drone + collision
+  // one-shots during a trip. Two jobs:
+  //   1. Ramp the SFX trip wet/dry chain (lowpass + feedback delay): muffles
+  //      the high end and turns each bonk into a stuttering echo.
+  //   2. Stash env/progress in module state so the engine's per-frame update
+  //      can layer a slow pitch-detune wobble on top (poll pattern, like
+  //      nightness — see createEngine).
+  // Kept deliberately gentler than the music chain: the engine has to stay
+  // legible enough that the cart still feels driveable mid-trip.
+  //
+  // No-op on the node chain until Sound.init() has wired it, but the scalar
+  // stash still runs so the engine wobble works the instant audio comes up.
+  setSfxTrip(env, progress) {
+    const e = Math.max(0, Math.min(1, env || 0));
+    const p = Math.max(0, Math.min(1, progress || 0));
+    _sfxTripEnv = e;
+    _sfxTripProgress = p;
+    if (!_sfxTripWetGain || !_sfxTripLowpass || !_sfxTripFeedback || !_sfxTripDelay) return;
+    const t = ctx.currentTime;
+
+    // Wet/dry — keep more dry than music (0.4 vs 0.55 cut) so the engine
+    // doesn't vanish into the wet wash.
+    _sfxTripWetGain.gain.setTargetAtTime(e * 0.85, t, 0.05);
+    _sfxTripDryGain.gain.setTargetAtTime(1.0 - e * 0.4, t, 0.05);
+
+    // Lowpass closes to ~1000Hz (vs music's 700) — collision bite + engine
+    // grind harmonics survive as "muffled", not "gone".
+    const wobble = 0.5 + 0.5 * Math.sin(p * Math.PI * 2 * 1.7);
+    const cutoff = 18000 + (1000 - 18000) * e * (0.5 + 0.5 * wobble);
+    _sfxTripLowpass.frequency.setTargetAtTime(cutoff, t, 0.1);
+
+    // Feedback delay — shorter than music (snappier slapback that stutters
+    // each bonk) and capped lower (0.55) so the *continuous* engine drone
+    // feeding the loop can't build into a runaway howl.
+    const peakBell = Math.exp(-Math.pow((p - 1 / 3) / 0.18, 2));
+    const fb = e * (0.28 + 0.32 * peakBell);
+    _sfxTripFeedback.gain.setTargetAtTime(Math.min(0.55, fb), t, 0.1);
+
+    const dly = 0.16 + 0.05 * Math.sin(p * Math.PI * 2 * 0.9);
+    _sfxTripDelay.delayTime.setTargetAtTime(dly, t, 0.1);
   },
 
   // ---- Spatial stage music ----
@@ -614,6 +701,7 @@ function createEngine(ctx, dest) {
   let misfireUntil = 0;       // engine "stutter" silence ends at this time
   let nextMisfireCheck = ctx.currentTime + 2 + Math.random() * 2;
   let warblePhase = 0;
+  let tripWobblePhase = 0;    // advances only while a trip is active (see below)
 
   // Boost smoothing — sudden 0→1 jumps in input.boost would make the engine
   // pitch jump audibly. Glide between current and target boost.
@@ -660,9 +748,20 @@ function createEngine(ctx, dest) {
       warblePhase += dt * (1.8 + t * 1.5);
       const warble = Math.sin(warblePhase) * (0.04 + t * 0.05); // ±5-9 % at high revs
 
+      // Trip seasickness — a slow wandering detune layered on top of the
+      // warble while a trip is active. Reads module-level _sfxTripEnv /
+      // _sfxTripProgress (poll pattern, same as nightness). Two summed sines
+      // (like the trip's dynamic visual curves) so the wobble doesn't sit at
+      // one rate; the rate itself creeps up with progress. ±~16% at full
+      // trip ≈ a couple of seasick semitones.
+      tripWobblePhase += dt * (0.5 + _sfxTripProgress * 1.3);
+      const tripDetune = _sfxTripEnv > 0
+        ? 1 + _sfxTripEnv * (0.11 * Math.sin(tripWobblePhase) + 0.05 * Math.sin(tripWobblePhase * 2.3 + 0.7))
+        : 1;
+
       const baseFreq = 48 + boostSmoothed * 10;
       const maxFreq = 145 + boostSmoothed * 40;
-      const f = (baseFreq + (maxFreq - baseFreq) * t) * (1 + warble);
+      const f = (baseFreq + (maxFreq - baseFreq) * t) * (1 + warble) * tripDetune;
       osc1.frequency.setTargetAtTime(f, now, 0.07);
       osc2.frequency.setTargetAtTime(f * 1.5, now, 0.07);
 

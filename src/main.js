@@ -491,6 +491,11 @@ function tickBody(dt) {
     // delay on the music bus, gated by the same envelope. Sound.setMusicTrip
     // is a no-op until Sound.init() has wired the nodes.
     Sound.setMusicTrip(Trip._envelope || 0, Trip.progress());
+    // ...and the SFX bus (engine drone + collision one-shots). SFX-tuned
+    // sibling — gentler lowpass + more dry signal so the cart stays
+    // driveable, plus a pitch-detune wobble on the engine so it sounds
+    // seasick mid-trip. Same two scalars drive all three warp paths.
+    Sound.setSfxTrip(Trip._envelope || 0, Trip.progress());
 
     // G key (held) cranks the bubble machine to ~2.8× output AND switches
     // the disco light into a fast, bright-white strobe so the effect reads
