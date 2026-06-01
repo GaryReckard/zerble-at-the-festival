@@ -266,6 +266,17 @@ let score = 0;
 HUD.loadBest();
 let running = false;
 
+// Opening intro: while true, the world simulates but the player can't drive
+// (the camera is mid-reveal). Zerble gets a neutral input so it idles in place.
+let controlsLocked = false;
+const NEUTRAL_INPUT = { throttle: 0, steer: 0, boost: false };
+
+// Intro timing (ms): hold the opaque PNG, then cross-dissolve, then the camera
+// orbits to chase over INTRO_ORBIT_SEC.
+const INTRO_HOLD_MS = 450;
+const INTRO_FADE_MS = 1000;
+const INTRO_ORBIT_SEC = 2.0;
+
 // Touch overlay (no-op on desktop; reveals thumbstick/buttons on touch devices).
 Touch.install();
 
@@ -311,7 +322,8 @@ HUD.onStart(() => {
   document.body.classList.add('game-started');
   const tc = document.getElementById('touch-controls');
   if (tc) tc.setAttribute('aria-hidden', 'false');
-  HUD.toast('Drive around — make people smile, dodge the parade.', 2800);
+
+  startIntroReveal();
 
   // Audio debug surfaced on-screen: ?sounddebug=1 in the URL pops a compact
   // toast a beat after Start with the unlock state, so we can diagnose iOS
@@ -332,6 +344,58 @@ HUD.onStart(() => {
     }, 250);
   }
 });
+
+// ---------- Opening reveal ----------
+// 1. Snap the camera to the PNG-match pose and show the 2D Zerble cutout over
+//    the lined-up 3D model. 2. Hold, then cross-dissolve the cutout out to
+//    reveal the real model. 3. Orbit the camera around to chase, then hand
+//    control back. A tap/key during the sequence skips straight to chase.
+let _introHoldT = 0;
+let _introFadeT = 0;
+function startIntroReveal() {
+  controlsLocked = true;
+  chaseCam.poseIntroMatch();
+
+  const img = document.getElementById('intro-zerble');
+  const beginOrbit = () => chaseCam.beginIntroOrbit(INTRO_ORBIT_SEC, finishIntroReveal);
+
+  if (img) {
+    img.style.setProperty('--intro-fade', INTRO_FADE_MS / 1000 + 's');
+    img.classList.remove('is-fading');
+    img.classList.add('is-shown');
+    _introHoldT = setTimeout(() => {
+      img.classList.add('is-fading');          // cross-dissolve to the 3D model
+      _introFadeT = setTimeout(() => {
+        img.classList.remove('is-shown', 'is-fading');
+        beginOrbit();
+      }, INTRO_FADE_MS);
+    }, INTRO_HOLD_MS);
+  } else {
+    beginOrbit();
+  }
+
+  // Skip on the next tap/key — settles straight to chase.
+  window.addEventListener('keydown', skipIntroReveal, { once: true });
+  window.addEventListener('pointerdown', skipIntroReveal, { once: true });
+}
+
+function skipIntroReveal() {
+  if (!controlsLocked) return;
+  clearTimeout(_introHoldT);
+  clearTimeout(_introFadeT);
+  const img = document.getElementById('intro-zerble');
+  if (img) img.classList.remove('is-shown', 'is-fading');
+  chaseCam.skipIntro();      // snaps camera to chase (no-op if not in intro)
+  finishIntroReveal();
+}
+
+function finishIntroReveal() {
+  if (!controlsLocked) return;
+  controlsLocked = false;
+  window.removeEventListener('keydown', skipIntroReveal);
+  window.removeEventListener('pointerdown', skipIntroReveal);
+  HUD.toast('Drive around — make people smile, dodge the parade.', 2800);
+}
 
 // iOS suspends the AudioContext on tab switch / device lock. Resume on return.
 document.addEventListener('visibilitychange', () => {
@@ -358,7 +422,9 @@ function tickBody(dt) {
   if (running) {
     const tod = getTimeOfDay();
     const nightness = tod ? tod.nightness : 0;
-    zerble.update(dt, Input, nightness);
+    // During the opening reveal the player can't steer — feed Zerble a neutral
+    // input so it idles while the camera does its thing.
+    zerble.update(dt, controlsLocked ? NEUTRAL_INPUT : Input, nightness);
     Sound.setEngineSpeed(zerble.speed, zerble.isBoosting ? 1 : 0);
     // Push nightness into the audio module so the forest drum engine can
     // gate voices + the crackling-fire bed against the day/night cycle.
@@ -373,7 +439,7 @@ function tickBody(dt) {
     const spaceHonk = Input.consumePressed('SPACE');
     const bellHonk  = Input.consumePressed('B');
     const hornHonk  = Input.consumePressed('H');
-    if ((spaceHonk || bellHonk || hornHonk) && zerble.canHonk()) {
+    if (!controlsLocked && (spaceHonk || bellHonk || hornHonk) && zerble.canHonk()) {
       zerble.honk();
       honkAge = 0;
       crowd.applyHonk(zerble);
@@ -745,7 +811,7 @@ if (window.visualViewport) {
 
 window.__game = {
   camera, zerble, scene, renderer, crowd, registry, chaseCam, lurleen,
-  getTimeOfDay, Trip,
+  getTimeOfDay, Trip, midi,
   sound: Sound,
 };
 

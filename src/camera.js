@@ -39,6 +39,24 @@ const TOP_ZOOM_RATE = 1.4;    // (height units per second while UP/DOWN held) �
 const TOP_POSITION_LERP = 5;
 const TOP_LOOK_LERP = 7;
 
+// ---- Opening "drawing comes to life" intro ----
+// On game start the camera snaps to a front-quarter "match" pose that lines the
+// 3D model up behind assets/zerble.png, holds while the PNG cross-dissolves,
+// then orbits around to the chase pose while the FOV widens from a long lens
+// (which flattens perspective toward the flat 2D art) back to the gameplay
+// default. All four numbers below are tuned against the PNG overlay; treat them
+// as the knobs for the match.
+const INTRO_MATCH_FOV    = 32;            // long lens ≈ the cartoon's near-orthographic look
+const INTRO_MATCH_AZIM   = Math.PI - 0.5; // front-right 3/4 (matches the PNG's facing)
+const INTRO_MATCH_RADIUS = 15.5;          // horizontal distance from Zerble
+const INTRO_MATCH_HEIGHT = 2.4;           // camera sits BELOW the roofline (3.75m)…
+const INTRO_MATCH_LOOK_H = 2.7;           // …and aims up, so the canopy underside shows (like the PNG)
+
+// easeInOutCubic — smooth accel/decel for the orbit + FOV sweep.
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
 export class ChaseCamera {
   constructor(camera, zerble) {
     this.camera = camera;
@@ -54,6 +72,16 @@ export class ChaseCamera {
     this._desiredPos = new THREE.Vector3();
     this._desiredLook = new THREE.Vector3();
     this._currentLook = new THREE.Vector3();
+
+    // Opening intro state. `_introPhase`: null (normal) | 'match' (holding the
+    // PNG-match pose while the cutout fades) | 'orbit' (sweeping to chase).
+    this._introPhase = null;
+    this._introT = 0;
+    this._introDur = 2.0;
+    this._introOnDone = null;
+    this._introMatch = null;   // cached {pos, look, fov} for the hold
+    this._introCache = null;   // cached {match, chase} polar poses for the orbit
+    this._defaultFov = camera.fov;
 
     this._wireWheelZoom();
     this.snap();
@@ -102,7 +130,131 @@ export class ChaseCamera {
     this.camera.lookAt(this._currentLook);
   }
 
+  // ---- Opening intro ----------------------------------------------------
+
+  // Polar description of the front-quarter PNG-match shot.
+  _introMatchPose() {
+    const P = this.zerble.position;
+    const phi = this.zerble.heading + INTRO_MATCH_AZIM;
+    const r = INTRO_MATCH_RADIUS;
+    return {
+      phi, r, height: INTRO_MATCH_HEIGHT, fov: INTRO_MATCH_FOV,
+      pos: new THREE.Vector3(
+        P.x + Math.sin(phi) * r,
+        P.y + INTRO_MATCH_HEIGHT,
+        P.z + Math.cos(phi) * r,
+      ),
+      look: new THREE.Vector3(P.x, P.y + INTRO_MATCH_LOOK_H, P.z),
+    };
+  }
+
+  // Polar description of the default chase shot (yaw/pitch offsets neutral).
+  _introChasePose() {
+    const P = this.zerble.position;
+    const h = this.zerble.heading;
+    const pitch = 0.05;
+    return {
+      phi: h,
+      r: DEFAULT_DISTANCE * Math.cos(pitch),
+      height: DEFAULT_HEIGHT + Math.sin(pitch) * DEFAULT_DISTANCE,
+      fov: this._defaultFov,
+      look: new THREE.Vector3(
+        P.x - Math.sin(h) * LOOK_AHEAD,
+        P.y + LOOK_HEIGHT,
+        P.z - Math.cos(h) * LOOK_AHEAD,
+      ),
+    };
+  }
+
+  _applyPose(pos, look, fov) {
+    this.camera.position.copy(pos);
+    if (this.camera.fov !== fov) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
+    this._currentLook.copy(look);
+    this.camera.lookAt(look);
+  }
+
+  // Snap to the PNG-match pose and hold there (the cutout overlay covers the
+  // model during this phase, so the snap is invisible).
+  poseIntroMatch() {
+    this.mode = 'third';
+    this.yawOffset = 0;
+    this.pitchOffset = 0.05;
+    this._introPhase = 'match';
+    this._introMatch = this._introMatchPose();
+    this._applyPose(this._introMatch.pos, this._introMatch.look, this._introMatch.fov);
+  }
+
+  // Begin the orbit from the match pose around to chase, widening FOV as it
+  // goes. Calls onDone when the sweep completes (hand control back to player).
+  beginIntroOrbit(durationSec = 2.0, onDone = null) {
+    this._introPhase = 'orbit';
+    this._introT = 0;
+    this._introDur = durationSec;
+    this._introOnDone = onDone;
+    this._introCache = { match: this._introMatchPose(), chase: this._introChasePose() };
+  }
+
+  // Abort the intro immediately and settle into chase (used by a skip tap/key).
+  skipIntro() {
+    if (!this._introPhase) return;
+    this._introPhase = null;
+    this.yawOffset = 0;
+    this.pitchOffset = 0.05;
+    this.camera.fov = this._defaultFov;
+    this.camera.updateProjectionMatrix();
+    this.snap();
+    const cb = this._introOnDone;
+    this._introOnDone = null;
+    if (cb) cb();
+  }
+
+  introActive() {
+    return this._introPhase !== null;
+  }
+
+  // Drives match-hold / orbit; returns true if it consumed the frame so update()
+  // can skip the normal chase logic (and ignore player input) during the intro.
+  _updateIntro(dt) {
+    if (this._introPhase === 'match') {
+      const m = this._introMatch;
+      this._applyPose(m.pos, m.look, m.fov);
+      return true;
+    }
+    if (this._introPhase === 'orbit') {
+      this._introT = Math.min(this._introDur, this._introT + dt);
+      const s = easeInOutCubic(this._introT / this._introDur);
+      const { match: a, chase: b } = this._introCache;
+      const P = this.zerble.position;
+      const phi = a.phi + (b.phi - a.phi) * s;   // linear sweep (not shortest-arc)
+      const r = a.r + (b.r - a.r) * s;
+      const height = a.height + (b.height - a.height) * s;
+      this._desiredPos.set(P.x + Math.sin(phi) * r, P.y + height, P.z + Math.cos(phi) * r);
+      this._currentLook.lerpVectors(a.look, b.look, s);
+      const fov = a.fov + (b.fov - a.fov) * s;
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+      this.camera.position.copy(this._desiredPos);
+      this.camera.lookAt(this._currentLook);
+      if (this._introT >= this._introDur) {
+        this._introPhase = null;
+        this.camera.fov = this._defaultFov;
+        this.camera.updateProjectionMatrix();
+        const cb = this._introOnDone;
+        this._introOnDone = null;
+        if (cb) cb();
+      }
+      return true;
+    }
+    return false;
+  }
+
   update(dt, input) {
+    // Opening intro owns the camera + ignores player input until it finishes.
+    if (this._updateIntro(dt)) return;
+
     // Keyboard arrow keys: rate-based yaw/pitch. In top-down mode the up/down
     // arrows mean ZOOM rather than pitch, so we route them differently.
     this.yawOffset += input.camYaw * YAW_RATE * dt;

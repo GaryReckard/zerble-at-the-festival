@@ -28,6 +28,7 @@ export class MidiPlayer {
   constructor() {
     this.Tone = null;
     this.Midi = null;
+    this.transport = null;           // the CURRENT context's transport (see _ensureLoaded)
     this.synth = null;
     this.effects = null;
     this.parts = [];                 // Tone.Part / Tone.Sequence — disposed on stop
@@ -63,12 +64,25 @@ export class MidiPlayer {
         // Tone.start() is REQUIRED on a user gesture (first M press) —
         // browsers suspend the AudioContext until user interaction.
         await this.Tone.start();
+        // CRITICAL: bind to the CURRENT context's transport. `Tone.Transport`
+        // is a legacy singleton created on Tone's default context at module
+        // load — setContext() above does NOT migrate it. Scheduling/starting
+        // that stale transport runs a clock separate from the synth (which is
+        // on the shared game context), so notes land in the wrong clock and
+        // never sound while playback "looks" started. getTransport() follows
+        // setContext and returns the same context's transport as the synth.
+        this.transport = this.Tone.getTransport();
         this._buildEffectChain();
         this._buildSynth();
         // Best-effort manifest load. No file == empty manifest, procedural
         // fallback kicks in. Don't noisy-warn on 404.
+        // Cache-bust the URL: the Claude Preview proxy (and some browsers)
+        // ignore `cache: 'no-store'`, so without a unique query string a STALE
+        // manifest can be served — e.g. an older empty `tracks: []` snapshot,
+        // which silently drops playback into the procedural test loop even
+        // though real tracks are listed. A fresh URL each load avoids that.
         try {
-          const res = await fetch('assets/music/manifest.json', { cache: 'no-store' });
+          const res = await fetch('assets/music/manifest.json?v=' + Date.now(), { cache: 'no-store' });
           if (res.ok) this.manifest = await res.json();
         } catch (e) {
           this.manifest = null;
@@ -127,15 +141,20 @@ export class MidiPlayer {
     // distinct under heavy effect warping. Could be expanded later to a
     // per-channel sampler (different instruments per MIDI track) but FMSynth
     // covers a lot of ground for one allocation.
-    // 256 voices to cover dense full-band MIDIs (drums + bass + chords +
-    // lead + pad all sustaining at once). 32 → 128 wasn't enough; real pop
-    // arrangements layer up fast. The shorter release (0.4s vs 1.0s) also
-    // frees voices back to the pool quicker so the cap is reached less.
+    // The second arg to `new PolySynth(voice, options)` is the *voice's*
+    // options — it's forwarded to each FMSynth, NOT to the PolySynth. So
+    // `maxPolyphony` and the PolySynth's own `volume` placed here are silently
+    // ignored, leaving maxPolyphony at the default 32. That's far too few for
+    // dense 13–17 track full-band MIDIs (chords + bass + drums + pads all
+    // sustaining at once): the 32 voices exhaust instantly and Tone drops every
+    // further note → playback is sparse or effectively silent. Set both on the
+    // PolySynth directly after construction. 256 voices cover the dense case;
+    // the short 0.4s release frees voices back to the pool quickly.
     this.synth = new T.PolySynth(T.FMSynth, {
-      volume: -8,
-      maxPolyphony: 256,
       envelope: { attack: 0.02, decay: 0.12, sustain: 0.5, release: 0.4 },
     });
+    this.synth.maxPolyphony = 256;
+    this.synth.volume.value = -8;
     this.synth.connect(this._inputNode);
   }
 
@@ -203,12 +222,13 @@ export class MidiPlayer {
   // so playback continues until the user presses M again.
   _schedule(midi) {
     const T = this.Tone;
-    T.Transport.stop();
-    T.Transport.cancel();
-    T.Transport.position = 0;
+    const tr = this.transport;
+    tr.stop();
+    tr.cancel();
+    tr.position = 0;
     const tempo = midi.header.tempos.length > 0 ? midi.header.tempos[0].bpm : 120;
     this._baseBpm = tempo;
-    T.Transport.bpm.value = tempo;
+    tr.bpm.value = tempo;
 
     this.parts = [];
     for (const track of midi.tracks) {
@@ -227,30 +247,31 @@ export class MidiPlayer {
       part.start(0);
       this.parts.push(part);
     }
-    T.Transport.start('+0.05');
+    tr.start('+0.05');
   }
 
   // Tiny festive arpeggio so the M key does *something* before the user
   // adds their own MIDIs.
   _playProceduralLoop() {
     const T = this.Tone;
-    T.Transport.stop();
-    T.Transport.cancel();
+    const tr = this.transport;
+    tr.stop();
+    tr.cancel();
     this._baseBpm = 120;
-    T.Transport.bpm.value = 120;
+    tr.bpm.value = 120;
     const seq = new T.Sequence((time, note) => {
       this.synth.triggerAttackRelease(note, '8n', time, 0.7);
     }, ['C4', 'E4', 'G4', 'B4', 'C5', 'B4', 'G4', 'E4'], '8n');
     seq.loop = true;
     seq.start(0);
     this.parts = [seq];
-    T.Transport.start('+0.05');
+    tr.start('+0.05');
   }
 
   stop() {
-    if (!this.Tone) return;
-    this.Tone.Transport.stop();
-    this.Tone.Transport.cancel();
+    if (!this.Tone || !this.transport) return;
+    this.transport.stop();
+    this.transport.cancel();
     for (const p of this.parts) {
       try { p.dispose(); } catch (e) { /* ignore */ }
     }
@@ -336,9 +357,9 @@ export class MidiPlayer {
     // 5. Tempo — bottoms out at the climax (slowest), recovers toward
     //    fadeOut. The world stops at the peak. Base curve dips to -18% at
     //    p=1/3 via the same Gaussian bell.
-    if (this.Tone && this.Tone.Transport && this._baseBpm > 0) {
+    if (this.transport && this._baseBpm > 0) {
       const tempoDrop = env * peakBell * 0.18 + env * p * 0.05;
-      this.Tone.Transport.bpm.rampTo(this._baseBpm * (1 - tempoDrop), 0.5);
+      this.transport.bpm.rampTo(this._baseBpm * (1 - tempoDrop), 0.5);
     }
   }
 
