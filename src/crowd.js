@@ -612,8 +612,10 @@ export class Crowd {
           npc.state = 'watching';
         }
 
-        // Boarding trigger: idle Zerble + curious NPC + open seat + under passenger cap
+        // Boarding trigger: idle Zerble + curious NPC + open seat + under passenger
+        // cap. Nobody climbs aboard a bubble-less cart — the party's no fun dry.
         if (
+          !this.bubblesEmpty &&
           ctx.zerbleIdle &&
           npc.curiosity > 0.45 &&
           ctx.activePassengersRef.count < MAX_PASSENGERS &&
@@ -1191,8 +1193,9 @@ export class Crowd {
     // Slight dance bob even while riding (extra dance-y characters wiggle a bit)
     npc.bob += dt * (1.2 + 0.6 * npc.dance);
 
-    // Disembark only when Zerble is idle AND ride timer expired
-    if (npc.rideTimer <= 0 && Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED) {
+    // Disembark when the ride times out (and Zerble's idle), OR immediately if
+    // the bubble tank ran dry — riders bail on a bubble-less cart.
+    if (this.bubblesEmpty || (npc.rideTimer <= 0 && Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED)) {
       this._releaseSeat(npc.seatSlot);
       const seatPos = { x: out.x, z: out.z };
       npc.seatSlot = null;
