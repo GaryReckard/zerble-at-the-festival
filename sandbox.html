@@ -155,6 +155,7 @@
         <option value="camp_chair">Camp chair (folding)</option>
         <option value="chiminea">Chiminea / firepit</option>
         <option value="tiki_torch">Tiki torch</option>
+        <option value="torch_field">Tiki torch field (instanced)</option>
         <option value="ezup">EZ-up canopy</option>
         <option value="tapestry">Tapestry</option>
         <option value="campsite_small">Campsite (small)</option>
@@ -309,7 +310,7 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     import { buildFrisbeePlayer, buildFrisbeeDisc, tickFrisbeePlayer, tickFrisbeeDisc } from './src/models/frisbeePlayer.js';
     import { buildPerformer } from './src/models/performer.js';
     import {
-      buildCampTent, buildCampChair, buildChiminea, buildTikiTorch,
+      buildCampTent, buildCampChair, buildChiminea, buildTikiTorch, buildTorchField,
       buildEzUp, buildTapestry, buildCampsite, updateCampsiteProps,
     } from './src/models/campsite.js';
     import { buildTallPine, buildOak, buildBirch, buildForestTree } from './src/models/tree.js';
@@ -1289,6 +1290,27 @@ import { buildSugarShack } from './src/models/sugarShack.js';
           };
           cam.target.set(0, 1.0, 0);
           cam.dist = 4;
+          applyCam();
+          break;
+        }
+        case 'torch_field': {
+          // 6 torches in a ring — the instanced version (3 InstancedMesh for
+          // the woodwork + per-torch flames). Mirrors a forest path / campsite
+          // perimeter so the instanced statics + independent flame flicker can
+          // be verified in isolation across the ToD presets.
+          const positions = [];
+          for (let i = 0; i < 6; i++) {
+            const theta = (i / 6) * Math.PI * 2;
+            positions.push({ x: Math.cos(theta) * 2.4, z: Math.sin(theta) * 2.4 });
+          }
+          const tf = buildTorchField(positions, Math.random);
+          scene.add(tf.group);
+          entityRoot = tf.group;
+          updateFn = (dt) => {
+            updateCampsiteProps(performance.now() / 1000, tod.nightness, tf.animatables);
+          };
+          cam.target.set(0, 1.2, 0);
+          cam.dist = 8;
           applyCam();
           break;
         }

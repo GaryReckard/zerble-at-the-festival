@@ -362,6 +362,77 @@ export function buildTikiTorch(rng = Math.random) {
   return { group, flame, flameMat, flameLight, phase, footprint: 0.25 };
 }
 
+// Build a cluster of tiki torches as ONE group, collapsing the static parts
+// (pole + 2 joints + cup) of every torch into 3 InstancedMesh — so a campsite
+// with 4 torches draws 3 calls for the woodwork instead of 16. The flames stay
+// per-torch Meshes because each one animates its own emissive / opacity / scale
+// (an instanced flame would need a per-instance shader patch for that). Per the
+// threejs-geometry skill's "InstancedMesh for many identical objects."
+//
+// `positions` is an array of { x, z } in the parent group's local space, and
+// optionally a `phase` per entry. If `phase` is supplied (forest path lanterns,
+// which interleave their own rng draws), it's used verbatim and NO rng is
+// consumed here; if omitted (campsites), a phase is drawn from `rng` per torch
+// in array order. Either way the draw order matches the old per-torch loop, so
+// existing worlds regenerate identically.
+export function buildTorchField(positions, rng = Math.random) {
+  const group = new THREE.Group();
+  const animatables = [];
+  const n = positions.length;
+  if (n === 0) return { group, animatables };
+
+  // Static woodwork → one InstancedMesh per part. Poles + cups are 1 per
+  // torch; the bamboo gets 2 joint rings each.
+  const poleInst  = new THREE.InstancedMesh(_TORCH_POLE_GEO,  matFor(0xa37a3a), n);
+  const jointInst = new THREE.InstancedMesh(_TORCH_JOINT_GEO, matFor(0x6a4a1a), n * 2);
+  const cupInst   = new THREE.InstancedMesh(_TORCH_CUP_GEO,   matFor(0x4a3018), n);
+  // Thin bamboo detail — shadow contribution is invisible (matches the
+  // per-mesh torch, which skipped castShadow too).
+  poleInst.castShadow = jointInst.castShadow = cupInst.castShadow = false;
+
+  const m = new THREE.Matrix4();
+  for (let i = 0; i < n; i++) {
+    const { x, z } = positions[i];
+    m.makeTranslation(x, 0.85, z); poleInst.setMatrixAt(i, m);
+    m.makeTranslation(x, 0.50, z); jointInst.setMatrixAt(i * 2, m);
+    m.makeTranslation(x, 1.10, z); jointInst.setMatrixAt(i * 2 + 1, m);
+    m.makeTranslation(x, 1.78, z); cupInst.setMatrixAt(i, m);
+  }
+  poleInst.instanceMatrix.needsUpdate = true;
+  jointInst.instanceMatrix.needsUpdate = true;
+  cupInst.instanceMatrix.needsUpdate = true;
+  group.add(poleInst, jointInst, cupInst);
+
+  // Per-torch flame (+ optional fancy-light), animated independently.
+  for (let i = 0; i < n; i++) {
+    const { x, z } = positions[i];
+    const phase = positions[i].phase ?? (rng() * Math.PI * 2);
+    const flameMat = new THREE.MeshStandardMaterial({
+      color: 0xffb04a,
+      emissive: 0xff5a1a,
+      emissiveIntensity: 2.0,
+      roughness: 0.4,
+      transparent: true,
+      opacity: 0.95,
+    });
+    const flame = new THREE.Mesh(_TORCH_FLAME_GEO, flameMat);
+    flame.position.set(x, 2.0, z);
+    group.add(flame);
+
+    let flameLight = null;
+    if (PERF.fancyLights) {
+      flameLight = new THREE.PointLight(0xff8830, 0, 3.5, 1.5);
+      flameLight.position.set(x, 2.0, z);
+      flameLight.castShadow = false;
+      group.add(flameLight);
+      registerContextLight(flameLight);
+    }
+    animatables.push({ flame, flameMat, flameLight, phase });
+  }
+
+  return { group, animatables };
+}
+
 // ---------- EZ-up canopy ----------
 //
 // Square fabric roof on 4 corner poles, slight peak in the middle. 3m × 3m
@@ -653,14 +724,23 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
     root.add(chair.group);
   }
 
-  // Tiki torches — scattered at the perimeter, evenly spaced
+  // Tiki torches — scattered at the perimeter, evenly spaced. Static woodwork
+  // collapses into 3 InstancedMesh via buildTorchField; flames stay per-torch.
+  // Positions carry no `phase`, so the field draws phases from `rng` in torch
+  // order — the same draw sequence the old per-torch loop used (torchOffset,
+  // then one phase per torch), keeping layouts deterministic across this change.
   const torchCount = pickCount(cfg.torches, rng);
   const torchOffset = rng() * Math.PI * 2;
+  const torchPositions = [];
   for (let i = 0; i < torchCount; i++) {
-    const torch = buildTikiTorch(rng);
     const theta = torchOffset + (i / torchCount) * Math.PI * 2;
-    placeAt(torch.group, cfg.radius * 1.05, theta, false);
-    animatables.push(torch);
+    const r = cfg.radius * 1.05;
+    torchPositions.push({ x: Math.cos(theta) * r, z: Math.sin(theta) * r });
+  }
+  const torchField = buildTorchField(torchPositions, rng);
+  root.add(torchField.group);
+  for (let i = 0; i < torchField.animatables.length; i++) {
+    animatables.push(torchField.animatables[i]);
   }
 
   // Tapestries — between the torches, picked spots

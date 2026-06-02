@@ -17,6 +17,7 @@
 // theme system.
 
 import * as THREE from 'three';
+import { PERF } from './perf.js';
 import { registry } from './registry.js';
 import { hash2, worldHash, mulberry32 } from './rng.js';
 import { CHUNK_SIZE, buildCurvedPath } from './chunks.js';
@@ -26,7 +27,7 @@ import { buildLeafDrumCircle } from './models/leafDrumCircle.js';
 import {
   buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
 } from './models/tribalFigures.js';
-import { buildTikiTorch, updateCampsiteProps } from './models/campsite.js';
+import { buildTorchField, updateCampsiteProps } from './models/campsite.js';
 import { Sound } from './sound.js';
 // `chunkInLake` is misleadingly named — it's a generic point-in-lake test
 // that takes any world (x, z). We reuse it for both "is this chunk center
@@ -379,7 +380,12 @@ function placePathLanterns(ctx, forest, startX, startZ, rng) {
   const ax = dx / len, az = dz / len;
   const perpX = -az, perpZ = ax;
   const torchCount = 6;
-  const torchAnimatables = [];
+  // Compute world-space torch positions. Each entry carries its own `phase`
+  // drawn here so the rng sequence (offDist, then phase, per torch) is the
+  // same as the old per-torch loop — buildTorchField then consumes no rng.
+  // The 6 torches share 3 InstancedMesh for the woodwork (one path = 3 draws
+  // for poles/joints/cups instead of 24), with per-torch flames preserved.
+  const torchPositions = [];
   for (let i = 0; i < torchCount; i++) {
     // Place at i/(N-1) along the path, alternating sides, with a small
     // jitter so they don't look surveyor-perfect.
@@ -390,17 +396,16 @@ function placePathLanterns(ctx, forest, startX, startZ, rng) {
     const baseZ = startZ + az * len * t;
     const tx = baseX + perpX * offDist * sideSign;
     const tz = baseZ + perpZ * offDist * sideSign;
-    const torch = buildTikiTorch(rng);
-    torch.group.position.set(tx, 0, tz);
-    ctx.group.add(torch.group);
-    torchAnimatables.push(torch);
+    torchPositions.push({ x: tx, z: tz, phase: rng() * Math.PI * 2 });
   }
+  const torchField = buildTorchField(torchPositions, rng);
+  ctx.group.add(torchField.group);
   // Batch all torches for this path into one animatables entry so main.js
   // ticks them in one call per forest.
-  if (torchAnimatables.length > 0) {
+  if (torchField.animatables.length > 0) {
     forestAnimatables.push({
       chunkKey: ctx.key,
-      animatables: torchAnimatables,
+      animatables: torchField.animatables,
       centerX: ctx.cxWorld,
       centerZ: ctx.czWorld,
     });
@@ -763,6 +768,13 @@ const FOREST_TREE_TARGET_DENSITY = 0.022; // trees per m² inside body radius
 // → ~80 placed → ~400 meshes/chunk. Across 9 loaded chunks that's
 // ~3600 draw calls just for the forest, which the renderer absorbs without
 // dropping frames. Going higher than this requires InstancedMesh.
+//
+// The effective target is scaled by PERF.forestTreeDensityMul (1.0 on
+// mid/high, 0.7 on low). Because the placement loop draws the same rng
+// stream regardless of the cap, a lower target yields the SAME first-N
+// trees the full run would place — a strict subset, not a reshuffle. So
+// low-tier forests look like a thinned version of the same woods, and only
+// low-tier devices are affected.
 
 function scatterForestTrees(ctx, forest) {
   // Use a forest-stable rng (NOT ctx.rng — that one differs per chunk).
@@ -779,7 +791,7 @@ function scatterForestTrees(ctx, forest) {
 
   // How many trees to TRY placing in this chunk
   const chunkArea = CHUNK_SIZE * CHUNK_SIZE;
-  const target = Math.floor(chunkArea * FOREST_TREE_TARGET_DENSITY);
+  const target = Math.floor(chunkArea * FOREST_TREE_TARGET_DENSITY * PERF.forestTreeDensityMul);
 
   // Track placed positions for spacing check (just this chunk's trees;
   // perfect spacing across chunk borders isn't worth the cost).

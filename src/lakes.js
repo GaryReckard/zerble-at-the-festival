@@ -670,6 +670,8 @@ function destroyLake(scene, lake) {
       } else if (!m?.userData?.shared) {
         m?.dispose?.();
       }
+      // Free per-instance buffers too — see chunks._unload for why.
+      if (o.isInstancedMesh) o.dispose();
     }
   });
   scene.remove(lake.group);

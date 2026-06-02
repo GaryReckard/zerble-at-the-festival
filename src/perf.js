@@ -45,6 +45,11 @@ const TABLE = {
     crowdMax: 180,
     chunkLoadRadius: 1,
     chunkUnloadRadius: 2,
+    // Forest tree count multiplier. Trees doubled in size (2026-06-01), so
+    // each one fills more screen — fill-rate, not draw count, is what hurts
+    // integrated GPUs. Trim the count 30% on low; the bigger crowns fill the
+    // gaps so the woods still read dense. mid/high keep the full count.
+    forestTreeDensityMul: 0.7,
     // Bubble pool — small on low so transmission shader cost stays bounded.
     bubblePoolMax: 200,
   },
@@ -60,6 +65,7 @@ const TABLE = {
     crowdMax: 320,
     chunkLoadRadius: 2,
     chunkUnloadRadius: 3,
+    forestTreeDensityMul: 1.0,
     bubblePoolMax: 350,
   },
   high: {
@@ -74,6 +80,7 @@ const TABLE = {
     crowdMax: 500,
     chunkLoadRadius: 2,
     chunkUnloadRadius: 3,
+    forestTreeDensityMul: 1.0,
     // Roomy enough that blast mode is visibly denser than ambient — the
     // old 200 cap was already saturated at normal play, so G had no
     // visible effect even though the spawn rate doubled.

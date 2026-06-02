@@ -294,6 +294,12 @@ export class ChunkManager {
         } else if (!m?.userData?.shared) {
           m?.dispose?.();
         }
+        // InstancedMesh holds its own instanceMatrix/instanceColor GPU
+        // buffers, separate from the (often shared) geometry/material above.
+        // dispose() frees only those — it does NOT touch geometry/material —
+        // so torch fields, string bulbs, and benches don't leak instance
+        // buffers when their chunk unloads.
+        if (obj.isInstancedMesh) obj.dispose();
       }
     });
     this.scene.remove(chunk.group);
