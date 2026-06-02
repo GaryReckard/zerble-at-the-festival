@@ -20,7 +20,7 @@ const SPAWN_PER_SEC = 40;
 // Jugs each add a full meter (stacking past 1), so you can load up deep;
 // the vendor only tops the current meter (cap 1). The HUD shows the working
 // meter as a bar + spare meters as reserve pips.
-const JUICE_DRAIN_PER_SEC = 0.009;   // ~110s of normal bubbling per meter
+const JUICE_DRAIN_PER_SEC = 0.0072;  // ~140s of normal bubbling per meter (20% slower than the 0.009 first pass — drains a touch too quick)
 const JUICE_BLAST_DRAIN = 3.0;       // the G blast burns it ~3x faster
 export const JUICE_STACK_MAX = 4;    // max meters you can stockpile
 const GRAVITY = -0.45;

@@ -57,8 +57,14 @@ export class PuppetParade {
     this.group = new THREE.Group();
     this.group.name = 'PuppetParade';
 
-    // A patrol path that loops through the festival center. Project out of
-    // any lake footprints so the parade doesn't walk on water.
+    // A patrol path that loops through the festival. The loop shape is fixed,
+    // but the whole thing slides by a random offset each session so the parade
+    // isn't always marching right on top of the main stage at spawn. The
+    // distance ranges from near-origin to a good drive away — sometimes you
+    // round a corner and find it, sometimes it's right there. Mirrors the
+    // Math.random() placement the Wooks / Kids / Frisbees already use (the
+    // parade isn't seed-deterministic, so this stays consistent with them).
+    // avoidLakes runs after the slide so the shifted path still dodges water.
     this.path = [
       new THREE.Vector3(-70, 0, -10),
       new THREE.Vector3(-30, 0, 20),
@@ -68,6 +74,11 @@ export class PuppetParade {
       new THREE.Vector3(-20, 0, -50),
       new THREE.Vector3(-60, 0, -30),
     ];
+    const offAng = Math.random() * TAU;
+    const offDist = Math.random() * 150;   // 0..150m from origin
+    const offX = Math.cos(offAng) * offDist;
+    const offZ = Math.sin(offAng) * offDist;
+    for (const p of this.path) { p.x += offX; p.z += offZ; }
     avoidLakes(this.path);
     this.speed = 2.4;
 
