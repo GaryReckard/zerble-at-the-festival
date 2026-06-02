@@ -95,6 +95,24 @@ function buildSilentWavBlobUrl() {
 // shape velocities, and decide whether the crackling-fire bed plays.
 let currentNightness = 0;
 
+// ---- Nature ambience (birds, crickets, frogs) ----
+// All nature sound routes through `natureBus`, which has its OWN trip wet/dry
+// chain (mirrors the music + sfx chains) so a Zerble trip warps birdsong /
+// crickets / frogs into a lush, pitch-bent wash. `setNatureTrip` ramps it.
+let natureBus = null;
+let _natTripDry = null, _natTripWet = null, _natTripLowpass = null, _natTripDelay = null, _natTripFeedback = null;
+let _natTripEnv = 0;        // polled by the synth fns to pitch-bend the calls
+let _natTripProgress = 0;
+// Proximity-driven ambient levels, set every frame from main.js.
+let _cricketLevel = 0;      // 0..1 "treeness" — crickets near trees/forest at night
+let _frogLevel = 0;         // 0..1 "lakeness" — frogs near a shoreline
+// Bird-song scheduler state.
+let _birdCandidates = [];   // [{species,x,y,z,priority}] fed from birds.js
+let _birdActivity = 0;      // time-of-day activity 0..1 (gates song rate)
+let _birdPanners = [];      // pool of positional PannerNodes → natureBus
+let _natureStereoPanners = []; // fixed-pan stereo nodes for cricket/frog spread
+let _natureSchedulers = [];    // setInterval ids, cleared on teardown (hygiene)
+
 // Stage music attachment is sometimes requested BEFORE Sound.init() runs —
 // the initial chunks (including the main stage at 0,0) generate during world
 // boot, but Sound.init must wait for a user gesture (Start tap on iOS). We
@@ -346,6 +364,8 @@ export const Sound = {
     // browser we've tested. Below ~50ms desktop Chrome still misses the
     // first notes; above ~150ms the player perceives a gap. 80ms threads it.
     setTimeout(drainQueue, 80);
+
+    initNatureAudio();
   },
 
   // Returns a snapshot of the audio init state. Wired through
@@ -483,6 +503,57 @@ export const Sound = {
 
     const dly = 0.16 + 0.05 * Math.sin(p * Math.PI * 2 * 0.9);
     _sfxTripDelay.delayTime.setTargetAtTime(dly, t, 0.1);
+  },
+
+  // Drive the nature-bus trip chain — warps birdsong / crickets / frogs during
+  // a trip. Lusher than the sfx chain: the lowpass closes further and the
+  // feedback runs longer, so calls smear into a shimmering, pitch-bent wash.
+  // The pitch-bend itself is applied inside the synth fns via `_natTripEnv`.
+  setNatureTrip(env, progress) {
+    const e = Math.max(0, Math.min(1, env || 0));
+    const p = Math.max(0, Math.min(1, progress || 0));
+    _natTripEnv = e;
+    _natTripProgress = p;
+    if (!_natTripWet || !_natTripLowpass || !_natTripFeedback || !_natTripDelay) return;
+    const t = ctx.currentTime;
+    _natTripWet.gain.setTargetAtTime(e * 0.95, t, 0.06);
+    _natTripDry.gain.setTargetAtTime(1.0 - e * 0.5, t, 0.06);
+    const wobble = 0.5 + 0.5 * Math.sin(p * Math.PI * 2 * 1.3);
+    const cutoff = 18000 + (520 - 18000) * e * (0.55 + 0.45 * wobble);
+    _natTripLowpass.frequency.setTargetAtTime(cutoff, t, 0.12);
+    const peakBell = Math.exp(-Math.pow((p - 1 / 3) / 0.18, 2));
+    const fb = e * (0.4 + 0.45 * peakBell);
+    _natTripFeedback.gain.setTargetAtTime(Math.min(0.82, fb), t, 0.12);
+    const dt2 = 0.34 + 0.1 * Math.sin(p * Math.PI * 2 * 0.6);
+    _natTripDelay.delayTime.setTargetAtTime(dt2, t, 0.12);
+  },
+
+  // Per-frame ambient levels from main.js. `level` 0..1.
+  setCricketBed(level) { _cricketLevel = Math.max(0, Math.min(1, level || 0)); },
+  setFrogBed(level) { _frogLevel = Math.max(0, Math.min(1, level || 0)); },
+
+  // Live snapshot of the nature layer — for verifying gating from the console
+  // (window.__game.sound.natureDiagnostics()).
+  natureDiagnostics() {
+    return {
+      built: !!natureBus,
+      schedulers: _natureSchedulers.length,
+      cricketLevel: +_cricketLevel.toFixed(2),
+      frogLevel: +_frogLevel.toFixed(2),
+      nightness: +currentNightness.toFixed(2),
+      birdActivity: +_birdActivity.toFixed(2),
+      birdCandidates: _birdCandidates.length,
+      natTripEnv: +_natTripEnv.toFixed(2),
+      panners: _birdPanners.length,
+    };
+  },
+
+  // birds.js hands the scheduler a fresh list of audible singing candidates +
+  // the current time-of-day activity each frame. The setInterval scheduler
+  // (initNatureAudio) fires songs from this list, rate-gated by activity.
+  setBirdSongCandidates(list, activity) {
+    _birdCandidates = list || [];
+    _birdActivity = Math.max(0, Math.min(1, activity || 0));
   },
 
   // ---- Spatial stage music ----
@@ -1853,6 +1924,281 @@ function forestDrumStage(ctx, panner, seed) {
       try { panner.disconnect(); } catch (e) {}
     },
   };
+}
+
+// ---------- Nature ambience (birds / crickets / frogs) ----------
+//
+// Built once from Sound.init(). Everything routes through `natureBus` →
+// nature trip chain → masterGain, so a trip warps the whole soundscape. Three
+// schedulers tick on setInterval (the same pattern the crackling-fire bed
+// uses): bird songs (positional, gated by time-of-day activity + nearby
+// candidates), crickets (gated by nightness + treeness), frogs (gated by
+// lakeness). When all gates are closed the schedulers early-out, so the
+// steady-state cost in open daytime festival is ~nil.
+
+function initNatureAudio() {
+  natureBus = ctx.createGain();
+  natureBus.gain.value = 0.9;
+
+  // Trip wet/dry chain — same topology as the music/sfx chains.
+  _natTripDry = ctx.createGain(); _natTripDry.gain.value = 1.0;
+  _natTripWet = ctx.createGain(); _natTripWet.gain.value = 0.0;
+  _natTripLowpass = ctx.createBiquadFilter();
+  _natTripLowpass.type = 'lowpass';
+  _natTripLowpass.frequency.value = 18000;
+  _natTripLowpass.Q.value = 1.0;
+  _natTripDelay = ctx.createDelay(1.0);
+  _natTripDelay.delayTime.value = 0.34;
+  _natTripFeedback = ctx.createGain();
+  _natTripFeedback.gain.value = 0.0;
+
+  natureBus.connect(_natTripDry);
+  _natTripDry.connect(masterGain);
+  natureBus.connect(_natTripLowpass);
+  _natTripLowpass.connect(_natTripWet);
+  _natTripWet.connect(masterGain);
+  _natTripLowpass.connect(_natTripDelay);
+  _natTripDelay.connect(_natTripFeedback);
+  _natTripFeedback.connect(_natTripLowpass);
+
+  // Positional panner pool for bird songs (birds live at world coordinates;
+  // the AudioListener is updated every frame so these pan + attenuate).
+  _birdPanners = [];
+  for (let i = 0; i < 4; i++) {
+    const p = ctx.createPanner();
+    p.panningModel = 'HRTF';
+    p.distanceModel = 'inverse';
+    p.refDistance = 8;
+    p.maxDistance = 80;
+    p.rolloffFactor = 1.3;
+    p.connect(natureBus);
+    _birdPanners.push({ node: p, busyUntil: 0 });
+  }
+
+  // Fixed-pan stereo spread for the cricket + frog beds (cheaper than 3D
+  // panners; these are "all around you" ambient, not point sources).
+  _natureStereoPanners = [];
+  const StereoP = ctx.createStereoPanner ? true : false;
+  for (const pan of [-0.85, -0.4, 0, 0.4, 0.85]) {
+    let node;
+    if (StereoP) { node = ctx.createStereoPanner(); node.pan.value = pan; }
+    else { node = ctx.createGain(); }      // very old browsers: mono fallback
+    node.connect(natureBus);
+    _natureStereoPanners.push(node);
+  }
+
+  // Schedulers.
+  _natureSchedulers.push(setInterval(birdSongTick, 260));
+  _natureSchedulers.push(setInterval(cricketTick, 230));
+  _natureSchedulers.push(setInterval(frogTick, 300));
+}
+
+function randStereo() {
+  return _natureStereoPanners[(Math.random() * _natureStereoPanners.length) | 0];
+}
+
+// ---- Bird songs ----
+
+// One bird note: a pitched whistle with a quick envelope, optional pitch glide
+// and vibrato. During a trip, `_natTripEnv` bends the pitch so the calls go
+// woozy on top of the bus-level filter/delay smear.
+function birdNote(dest, t, freq, dur, vol, { type = 'sine', glideTo = null, vibrato = 0 } = {}) {
+  const bend = 1 - 0.35 * _natTripEnv * Math.sin(_natTripProgress * Math.PI * 2 + t);
+  freq *= bend;
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  if (glideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(60, glideTo * bend), t + dur);
+  if (vibrato > 0) {
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = vibrato;
+    const lg = ctx.createGain();
+    lg.gain.value = freq * 0.03;
+    lfo.connect(lg).connect(osc.frequency);
+    lfo.start(t); lfo.stop(t + dur + 0.05);
+  }
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + Math.min(0.012, dur * 0.25));
+  g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  osc.connect(g).connect(dest);
+  osc.start(t); osc.stop(t + dur + 0.06);
+}
+
+// A short bandpassed-noise burst for the harsh corvid calls (jay / crow).
+function birdNoise(dest, t, centerHz, q, dur, vol) {
+  const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = centerHz * (1 - 0.3 * _natTripEnv);
+  bp.Q.value = q;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  src.connect(bp).connect(g).connect(dest);
+  src.start(t); src.stop(t + dur + 0.02);
+}
+
+function scheduleBirdSong(dest, species, t0) {
+  const stretch = 1 + _natTripEnv * 0.8;      // a trip slows the phrasing
+  let t = t0;
+  switch (species) {
+    case 'sparrow': {                          // chip-chip-chirrup
+      const n = 3 + ((Math.random() * 3) | 0);
+      for (let i = 0; i < n; i++) {
+        const f = 2600 + Math.random() * 1200;
+        birdNote(dest, t, f, 0.06, 0.16, { type: 'triangle', glideTo: f * 1.12 });
+        t += (0.09 + Math.random() * 0.05) * stretch;
+      }
+      birdNote(dest, t, 3000, 0.12, 0.15, { type: 'triangle', glideTo: 3500, vibrato: 35 });
+      break;
+    }
+    case 'finch': {                            // fast trill into a sweet note
+      for (let i = 0; i < 8; i++) {
+        birdNote(dest, t, 3800 + (i % 2 ? 420 : 0), 0.03, 0.11, { type: 'sine' });
+        t += 0.045 * stretch;
+      }
+      birdNote(dest, t, 3200, 0.18, 0.15, { type: 'sine', glideTo: 4200, vibrato: 42 });
+      break;
+    }
+    case 'jay': {                              // harsh jay! jay!
+      for (let i = 0; i < 2; i++) {
+        birdNoise(dest, t, 1700, 6, 0.18, 0.2);
+        birdNote(dest, t, 1500, 0.18, 0.09, { type: 'sawtooth', glideTo: 1050 });
+        t += 0.28 * stretch;
+      }
+      break;
+    }
+    case 'crow': {                             // caw caw caw
+      const n = 2 + ((Math.random() * 2) | 0);
+      for (let i = 0; i < n; i++) {
+        birdNoise(dest, t, 820, 4, 0.26, 0.2);
+        birdNote(dest, t, 720, 0.26, 0.13, { type: 'sawtooth', glideTo: 560 });
+        t += 0.42 * stretch;
+      }
+      break;
+    }
+    case 'dove':                               // soft mournful coo, coo-coo
+    default: {
+      birdNote(dest, t, 560, 0.34, 0.15, { type: 'sine', glideTo: 500, vibrato: 8 });
+      t += 0.5 * stretch;
+      for (let i = 0; i < 2; i++) {
+        birdNote(dest, t, 600, 0.28, 0.13, { type: 'sine', glideTo: 520, vibrato: 8 });
+        t += 0.34 * stretch;
+      }
+      break;
+    }
+  }
+}
+
+function birdSongTick() {
+  if (!natureBus || _birdCandidates.length === 0) return;
+  // Fire rate scales with time-of-day activity: dawn chorus busy, midday/
+  // night sparse. ~0 at activity 0 (handed off to crickets/frogs).
+  const fireChance = 0.12 + _birdActivity * 0.6;
+  if (Math.random() > fireChance) return;
+  const now = ctx.currentTime;
+  // Weighted pick toward the front (priority-sorted) candidates.
+  const pick = _birdCandidates[(Math.pow(Math.random(), 1.8) * _birdCandidates.length) | 0]
+            || _birdCandidates[0];
+  // Grab a free panner.
+  let slot = null;
+  for (const s of _birdPanners) if (now >= s.busyUntil) { slot = s; break; }
+  if (!slot) return;
+  const p = slot.node;
+  if (p.positionX) { p.positionX.value = pick.x; p.positionY.value = pick.y; p.positionZ.value = pick.z; }
+  else if (p.setPosition) p.setPosition(pick.x, pick.y, pick.z);
+  scheduleBirdSong(p, pick.species, now + 0.02);
+  slot.busyUntil = now + 1.4;
+}
+
+// ---- Crickets ----
+// Gated on nightness (>~0.45) AND treeness (_cricketLevel). Each chirp is a
+// short ~4.6kHz sine pair pulsed a few times (the cricket "trill"), panned
+// across the fixed stereo spread.
+let _nextCricket = 0;
+function cricketTick() {
+  if (!natureBus) return;
+  const nightGate = Math.max(0, (currentNightness - 0.45) / 0.55);
+  const lvl = _cricketLevel * nightGate;
+  if (lvl < 0.03) { _nextCricket = ctx.currentTime + 0.2; return; }
+  const now = ctx.currentTime;
+  while (_nextCricket < now + 0.5) {
+    cricketChirp(_nextCricket, lvl);
+    // Denser when nearer trees / deeper night.
+    _nextCricket += (0.14 + Math.random() * 0.5) * (1.2 - lvl * 0.6);
+  }
+}
+function cricketChirp(t, lvl) {
+  const dest = randStereo();
+  const base = 4500 + Math.random() * 600;
+  const bend = 1 - 0.4 * _natTripEnv;
+  const pulses = 3 + ((Math.random() * 3) | 0);
+  const vol = 0.05 + lvl * 0.06;
+  for (let i = 0; i < 2; i++) {                // two detuned sines = shimmer
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = (base + i * 18) * bend;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    for (let k = 0; k < pulses; k++) {         // amplitude-pulsed trill
+      const pt = t + k * 0.028;
+      g.gain.linearRampToValueAtTime(vol, pt + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0008, pt + 0.022);
+    }
+    osc.connect(g).connect(dest);
+    osc.start(t); osc.stop(t + pulses * 0.028 + 0.05);
+  }
+}
+
+// ---- Frogs ----
+// Gated on lakeness (_frogLevel). A croak is a low ~180Hz pulse with a quick
+// formant wobble; present day + night with a small dusk/night bump. Sparser
+// and lower than crickets.
+let _nextFrog = 0;
+function frogTick() {
+  if (!natureBus) return;
+  const lvl = _frogLevel * (0.7 + 0.3 * currentNightness);
+  if (lvl < 0.04) { _nextFrog = ctx.currentTime + 0.3; return; }
+  const now = ctx.currentTime;
+  while (_nextFrog < now + 0.6) {
+    if (Math.random() < 0.7) frogCroak(_nextFrog, lvl);
+    _nextFrog += 0.5 + Math.random() * 1.6;
+  }
+}
+function frogCroak(t, lvl) {
+  const dest = randStereo();
+  const bend = 1 - 0.45 * _natTripEnv;
+  const base = (150 + Math.random() * 80) * bend;
+  const vol = 0.10 + lvl * 0.10;
+  // A short "ribbit": a couple of rapid low pulses with a formant lowpass.
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(900 * bend, t);
+  lp.frequency.exponentialRampToValueAtTime(400 * bend, t + 0.18);
+  lp.Q.value = 6;
+  const pulses = 1 + ((Math.random() * 2) | 0);
+  for (let k = 0; k < pulses; k++) {
+    const pt = t + k * 0.12;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(base, pt);
+    osc.frequency.linearRampToValueAtTime(base * 1.25, pt + 0.05);
+    osc.frequency.linearRampToValueAtTime(base, pt + 0.1);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, pt);
+    g.gain.linearRampToValueAtTime(vol, pt + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0008, pt + 0.13);
+    osc.connect(g).connect(lp);
+    osc.start(pt); osc.stop(pt + 0.16);
+  }
+  lp.connect(dest);
 }
 
 // ---------- Per-obstacle dispatch ----------

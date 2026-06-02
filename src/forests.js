@@ -20,7 +20,7 @@ import * as THREE from 'three';
 import { registry } from './registry.js';
 import { hash2, worldHash, mulberry32 } from './rng.js';
 import { CHUNK_SIZE, buildCurvedPath } from './chunks.js';
-import { buildForestTree } from './models/tree.js';
+import { buildForestTree, worldPerches, worldCrown } from './models/tree.js';
 import { buildCampsite } from './models/campsite.js';
 import { buildLeafDrumCircle } from './models/leafDrumCircle.js';
 import {
@@ -851,13 +851,19 @@ function scatterForestTrees(ctx, forest) {
 
     // Forest trees DO get a hard collider — driving into them hurts.
     // Distinct kind so it can be tuned independently of the chunk-tree
-    // "soft footprint, no collider" rule.
+    // "soft footprint, no collider" rule. Collider + footprint bumped for
+    // the 2x trunk (base radius ~0.8-1.1m now).
     registry.add({
       kind: 'forest_tree',
       position: new THREE.Vector3(x, 0, z),
-      footprint: 1.4,
-      collider: { radius: 0.9, damage: 3 },
+      footprint: 2.0,
+      collider: { radius: 1.3, damage: 3 },
       chunkKey: ctx.key,
+      // Canopy perch anchors (world-space) for the bird system — birds land
+      // on the outer-lower foliage. Local offsets from tree.js, offset by the
+      // trunk position (ring is radially symmetric, so yaw is irrelevant).
+      perches: worldPerches(tree, x, z),
+      crown: worldCrown(tree, x, z),
     });
 
     placed.push({ x, z });

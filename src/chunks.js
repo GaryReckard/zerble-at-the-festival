@@ -30,7 +30,7 @@ import { buildHammock as buildHammockModel } from './models/hammock.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
 import { buildTentStage } from './models/tentStage.js';
-import { buildTree } from './models/tree.js';
+import { buildTree, worldPerches, worldCrown } from './models/tree.js';
 import { leafBannerTextures } from './models/leafBanner.js';
 
 export const CHUNK_SIZE = 80;
@@ -641,9 +641,12 @@ function scatterTrees(ctx, density) {
     registry.add({
       kind: 'tree',
       position: new THREE.Vector3(x, 0, z),
-      footprint: 1.2,
+      footprint: 1.8,
       attractor: { radius: 4, weight: 0.15 },
       chunkKey: ctx.key,
+      // Canopy perch anchors (world-space) for the bird system.
+      perches: worldPerches(tree, x, z),
+      crown: worldCrown(tree, x, z),
     });
     placed++;
   }

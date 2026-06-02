@@ -31,6 +31,7 @@ import { MidiPlayer } from './midiPlayer.js';
 import { Smiles } from './smiles.js';
 import { Crowd } from './crowd.js';
 import { Lurleen } from './lurleen.js';
+import { Birds } from './birds.js';
 import { ChaseCamera } from './camera.js';
 import { registry } from './registry.js';
 import { Sound } from './sound.js';
@@ -232,6 +233,10 @@ const hoopers = HulaHoopers.create();
 scene.add(hoopers.group);
 const frisbees = new Frisbees();
 scene.add(frisbees.group);
+// Birds — global flock that circles the festival + perches in trees. Built
+// after buildWorld so the registry already has trees to perch in.
+const birds = new Birds();
+scene.add(birds.group);
 
 // ---------- Camera ----------
 const chaseCam = new ChaseCamera(camera, zerble);
@@ -265,6 +270,11 @@ let honkAge = 999;
 let score = 0;
 HUD.loadBest();
 let running = false;
+
+// Nature-ambience proximity, recomputed every ~0.1s (see tick body).
+let _natureScanTimer = 0;
+let _treeness = 0;
+let _lakeness = 0;
 
 // Opening intro: while true, the world simulates but the player can't drive
 // (the camera is mid-reveal). Zerble gets a neutral input so it idles in place.
@@ -496,6 +506,9 @@ function tickBody(dt) {
     // driveable, plus a pitch-detune wobble on the engine so it sounds
     // seasick mid-trip. Same two scalars drive all three warp paths.
     Sound.setSfxTrip(Trip._envelope || 0, Trip.progress());
+    // ...and the nature bus (birdsong + crickets + frogs). Lushest of the
+    // three warps — the calls smear and pitch-bend into a psychedelic wash.
+    Sound.setNatureTrip(Trip._envelope || 0, Trip.progress());
 
     // G key (held) cranks the bubble machine to ~2.8× output AND switches
     // the disco light into a fast, bright-white strobe so the effect reads
@@ -519,6 +532,7 @@ function tickBody(dt) {
     wooks.update(dt, zerble.position, Math.abs(zerble.speed));
     hoopers.update(dt, zerble.position, nightness);
     frisbees.update(dt, zerble.position, nightness);
+    birds.update(dt, zerble.position, tod, Math.abs(zerble.speed));
     // Collect wook world positions for proximity detection
     const _wookPositions = wooks.wooks.map(w => w.position);
     Trip.update(dt, zerble.position, Math.abs(zerble.speed), _wookPositions);
@@ -588,6 +602,39 @@ function tickBody(dt) {
       const cutoff = 14000 * (1 - outsideness) + 2500 * outsideness;
       entry.handle.setLowpassCutoff(cutoff);
     }
+
+    // Nature ambience proximity. Crickets ramp up near trees/forests (and only
+    // at night — sound.js gates on nightness); frogs ramp near a lake edge.
+    // Scanning the registry every frame for nearest-tree / nearest-edge is
+    // wasteful, so throttle to every 6th frame and reuse the last value.
+    _natureScanTimer -= dt;
+    if (_natureScanTimer <= 0) {
+      _natureScanTimer = 0.1;
+      let dForest = Infinity, dTree = Infinity, dLake = Infinity;
+      const px = zerble.position.x, pz = zerble.position.z;
+      const nearest = (kind, cur) => {
+        const ids = registry.byKind.get(kind);
+        if (!ids) return cur;
+        for (const id of ids) {
+          const e = registry.entries.get(id);
+          if (!e) continue;
+          const ddx = e.position.x - px, ddz = e.position.z - pz;
+          const d = ddx * ddx + ddz * ddz;
+          if (d < cur) cur = d;
+        }
+        return cur;
+      };
+      dForest = nearest('forest_tree', dForest);
+      dTree = nearest('tree', dTree);
+      dLake = nearest('lake_edge', dLake);
+      const treenessForest = Math.max(0, 1 - Math.sqrt(dForest) / 35);
+      const treenessGrove = Math.max(0, 1 - Math.sqrt(dTree) / 15) * 0.5;
+      _treeness = Math.max(treenessForest, treenessGrove);
+      _lakeness = Math.max(0, 1 - Math.sqrt(dLake) / 30);
+    }
+    Sound.setCricketBed(_treeness);
+    Sound.setFrogBed(_lakeness);
+    Sound.setBirdSongCandidates(birds.songCandidates(zerble.position), birds.activityLevel);
 
     // Procedural world expands around Zerble.
     updateWorld(zerble.position, dt);
@@ -816,7 +863,7 @@ if (window.visualViewport) {
 
 window.__game = {
   camera, zerble, scene, renderer, crowd, registry, chaseCam, lurleen,
-  getTimeOfDay, Trip, midi,
+  getTimeOfDay, Trip, midi, birds,
   sound: Sound,
 };
 

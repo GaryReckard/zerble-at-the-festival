@@ -70,7 +70,7 @@
       const v = isLocal ? '?v=' + Date.now() : '';
       const mods = ['zerble','lurleen','bubbles','smiles','registry','rng','perf','sound','chunks','crowd','lakes','debug','timeOfDay','trip','midiPlayer'];
       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','heart','stage','performer',
-        'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','hulaHooper','frisbeePlayer'];
+        'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','hulaHooper','frisbeePlayer','bird'];
       const base = new URL('./src/', document.baseURI).href;
       const imports = {
         'three': 'https://unpkg.com/three@0.160.0/build/three.module.js',
@@ -166,6 +166,16 @@
         <option value="forest_tree_oak">Forest tree — oak</option>
         <option value="forest_tree_birch">Forest tree — birch</option>
         <option value="forest_tree_random">Forest tree — random variety</option>
+      </optgroup>
+      <optgroup label="Wildlife">
+        <option value="bird_sparrow">Bird — sparrow (flying)</option>
+        <option value="bird_finch">Bird — finch (flying)</option>
+        <option value="bird_jay">Bird — jay (flying)</option>
+        <option value="bird_crow">Bird — crow (flying)</option>
+        <option value="bird_dove">Bird — dove (flying)</option>
+        <option value="bird_perched">Bird — perched (resting pose)</option>
+        <option value="bird_flock">Bird flock (7 sparrows)</option>
+        <option value="bird_in_tree">Bird in tree (perch anchors on oak)</option>
       </optgroup>
       <optgroup label="Particles">
         <option value="heart">Heart particle</option>
@@ -299,6 +309,7 @@ import { buildSugarShack } from './src/models/sugarShack.js';
       buildEzUp, buildTapestry, buildCampsite, updateCampsiteProps,
     } from './src/models/campsite.js';
     import { buildTallPine, buildOak, buildBirch, buildForestTree } from './src/models/tree.js';
+    import { buildBird, buildBirdFlock, BIRD_KEYS, BIRD_SPECIES } from './src/models/bird.js';
     import { buildLeafDrumCircle, updateLeafDrumCircle } from './src/models/leafDrumCircle.js';
     import {
       buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
@@ -799,8 +810,8 @@ import { buildSugarShack } from './src/models/sugarShack.js';
           const g = buildTree(Math.random);
           scene.add(g);
           entityRoot = g;
-          cam.target.set(0, 3, 0);
-          cam.dist = 12;
+          cam.target.set(0, 6, 0);
+          cam.dist = 24;
           applyCam();
           break;
         }
@@ -1316,8 +1327,8 @@ import { buildSugarShack } from './src/models/sugarShack.js';
           const g = buildTallPine(Math.random);
           scene.add(g);
           entityRoot = g;
-          cam.target.set(0, 4, 0);
-          cam.dist = 14;
+          cam.target.set(0, 11, 0);
+          cam.dist = 38;
           applyCam();
           break;
         }
@@ -1325,8 +1336,8 @@ import { buildSugarShack } from './src/models/sugarShack.js';
           const g = buildOak(Math.random);
           scene.add(g);
           entityRoot = g;
-          cam.target.set(0, 3, 0);
-          cam.dist = 12;
+          cam.target.set(0, 8, 0);
+          cam.dist = 28;
           applyCam();
           break;
         }
@@ -1334,8 +1345,8 @@ import { buildSugarShack } from './src/models/sugarShack.js';
           const g = buildBirch(Math.random);
           scene.add(g);
           entityRoot = g;
-          cam.target.set(0, 3.5, 0);
-          cam.dist = 11;
+          cam.target.set(0, 8, 0);
+          cam.dist = 26;
           applyCam();
           break;
         }
@@ -1343,8 +1354,70 @@ import { buildSugarShack } from './src/models/sugarShack.js';
           const g = buildForestTree(Math.random);
           scene.add(g);
           entityRoot = g;
-          cam.target.set(0, 3.5, 0);
-          cam.dist = 13;
+          cam.target.set(0, 9, 0);
+          cam.dist = 32;
+          applyCam();
+          break;
+        }
+        case 'bird_sparrow':
+        case 'bird_finch':
+        case 'bird_jay':
+        case 'bird_crow':
+        case 'bird_dove': {
+          const sp = name.slice('bird_'.length);
+          const g = buildBird(sp, { perched: false });
+          g.position.y = 0.5;
+          scene.add(g);
+          entityRoot = g;
+          updateFn = (dt) => g.userData.anim?.(dt);
+          const sz = BIRD_SPECIES[sp]?.size || 0.6;
+          cam.target.set(0, 0.5, 0);
+          cam.dist = 2.4 + sz * 2.4;
+          applyCam();
+          break;
+        }
+        case 'bird_perched': {
+          const g = buildBird('sparrow', { perched: true });
+          g.position.y = 0.5;
+          scene.add(g);
+          entityRoot = g;
+          updateFn = (dt) => g.userData.anim?.(dt);
+          cam.target.set(0, 0.5, 0);
+          cam.dist = 3.0;
+          applyCam();
+          break;
+        }
+        case 'bird_flock': {
+          const g = buildBirdFlock('sparrow', 7);
+          g.position.y = 1.0;
+          scene.add(g);
+          entityRoot = g;
+          updateFn = (dt) => g.userData.anim?.(dt);
+          cam.target.set(0, 1.5, 0);
+          cam.dist = 9;
+          applyCam();
+          break;
+        }
+        case 'bird_in_tree': {
+          const g = new THREE.Group();
+          const tree = buildOak(Math.random);
+          g.add(tree);
+          const perches = tree.userData.perches || [];
+          const birds = [];
+          for (let i = 0; i < perches.length; i++) {
+            const p = perches[i];
+            const sp = BIRD_KEYS[i % BIRD_KEYS.length];
+            const b = buildBird(sp, { perched: true });
+            b.position.set(p.x, p.y, p.z);
+            b.rotation.y = Math.atan2(p.x, p.z);   // face outward from trunk
+            g.add(b);
+            birds.push(b);
+          }
+          scene.add(g);
+          entityRoot = g;
+          updateFn = (dt) => birds.forEach((b) => b.userData.anim?.(dt));
+          cam.target.set(0, 9, 0);
+          cam.dist = 26;
           applyCam();
           break;
         }
