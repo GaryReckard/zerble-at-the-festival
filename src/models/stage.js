@@ -85,6 +85,45 @@ export function buildStage(opts = {}) {
     g.add(b);
   }
 
+  // Main stage gets a real wooden structure — a back wall behind the band and
+  // a gabled roof on the truss top — so it reads as a built stage, not just a
+  // platform with a floating banner. Side stages stay open.
+  if (isMain) {
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x6e4a2c, roughness: 0.92, flatShading: true });
+
+    // Back wall — full width, up to the truss top, just behind the banner.
+    const back = new THREE.Mesh(
+      new THREE.BoxGeometry(w, trussH, 0.4 * scale),
+      woodMat,
+    );
+    back.position.set(0, trussH / 2, -d / 2 - 0.3 * scale);
+    back.castShadow = true;
+    back.receiveShadow = true;
+    g.add(back);
+
+    // Gabled roof — ridge along the width, sloping down to front + back eaves
+    // with a small overhang. Springs from the truss top.
+    const eaveY = trussH;
+    const peak = 2.6 * scale;
+    const overhang = 1.0 * scale;
+    const halfD = d / 2 + overhang;
+    const slopeLen = Math.hypot(halfD, peak);
+    const slabThk = 0.22 * scale;
+    const slabW = w + 2 * overhang;
+    const angle = Math.atan2(peak, halfD);
+    for (const dir of [1, -1]) {              // +1 = front slope (+Z), -1 = back
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(slabW, slabThk, slopeLen), woodMat);
+      slab.position.set(0, eaveY + peak / 2, (dir * halfD) / 2);
+      slab.rotation.x = dir * angle;          // tilt so both slopes meet at the ridge (z=0)
+      slab.castShadow = true;
+      g.add(slab);
+    }
+    // Ridge beam capping the peak.
+    const ridge = new THREE.Mesh(new THREE.BoxGeometry(slabW, 0.3 * scale, 0.3 * scale), woodMat);
+    ridge.position.set(0, eaveY + peak, 0);
+    g.add(ridge);
+  }
+
   // Speaker stacks
   const spkW = 1.6 * scale;
   const spkH = 1.4 * scale;
