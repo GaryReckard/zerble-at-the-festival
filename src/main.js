@@ -275,6 +275,8 @@ let running = false;
 let _natureScanTimer = 0;
 let _treeness = 0;
 let _lakeness = 0;
+// Debounce for the bubble-vendor "free refill" toast.
+let _vendorToastCd = 0;
 
 // Opening intro: while true, the world simulates but the player can't drive
 // (the camera is mid-reveal). Zerble gets a neutral input so it idles in place.
@@ -517,6 +519,7 @@ function tickBody(dt) {
     bubbles.setBlast(blasting);
     zerble.setBubbleBlast(blasting);
     bubbles.update(dt, zerble, nightness);
+    HUD.setJuice(bubbles.juice);
     if (!npcsFrozen()) crowd.update(dt, zerble, bubbles);
     smiles.update(dt, zerble, (n) => {
       score += n;
@@ -635,6 +638,46 @@ function tickBody(dt) {
     Sound.setCricketBed(_treeness);
     Sound.setFrogBed(_lakeness);
     Sound.setBirdSongCandidates(birds.songCandidates(zerble.position), birds.activityLevel);
+
+    // Bubble-juice pickups + vendor refuel. Both are registry entries carrying
+    // their group in `obj`; tick the float anim, then proximity-check Zerble.
+    const jugIds = registry.byKind.get('bubble_jug');
+    if (jugIds && jugIds.size > 0) {
+      for (const id of [...jugIds]) {       // copy — we may remove mid-iteration
+        const e = registry.entries.get(id);
+        if (!e) continue;
+        e.obj?.userData.anim?.(dt);
+        const dx = e.position.x - zerble.position.x;
+        const dz = e.position.z - zerble.position.z;
+        if (dx * dx + dz * dz < 2.2 * 2.2) {
+          bubbles.addJuice(e.juice || 0.45);
+          if (e.obj?.parent) e.obj.parent.remove(e.obj);
+          registry.remove(id);
+          Sound.playJuicePickup();
+          HUD.toast('Bubble juice topped up!', 1400);
+        }
+      }
+    }
+    const vendorIds = registry.byKind.get('bubble_vendor');
+    if (vendorIds && vendorIds.size > 0) {
+      let nearVendor = false;
+      for (const id of vendorIds) {
+        const e = registry.entries.get(id);
+        if (!e) continue;
+        e.obj?.userData.anim?.(dt);
+        const dx = e.position.x - zerble.position.x;
+        const dz = e.position.z - zerble.position.z;
+        if (dx * dx + dz * dz < 5 * 5) {
+          nearVendor = true;
+          if (bubbles.juice < 1) bubbles.addJuice((e.refuel || 0.4) * dt);
+        }
+      }
+      if (nearVendor && _vendorToastCd <= 0) {
+        HUD.toast('Free bubble-juice refill!', 1600);
+        _vendorToastCd = 10;
+      }
+    }
+    if (_vendorToastCd > 0) _vendorToastCd -= dt;
 
     // Procedural world expands around Zerble.
     updateWorld(zerble.position, dt);
@@ -863,7 +906,7 @@ if (window.visualViewport) {
 
 window.__game = {
   camera, zerble, scene, renderer, crowd, registry, chaseCam, lurleen,
-  getTimeOfDay, Trip, midi, birds,
+  getTimeOfDay, Trip, midi, birds, bubbles,
   sound: Sound,
 };
 

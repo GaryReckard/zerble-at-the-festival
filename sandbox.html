@@ -70,7 +70,7 @@
       const v = isLocal ? '?v=' + Date.now() : '';
       const mods = ['zerble','lurleen','bubbles','smiles','registry','rng','perf','sound','chunks','crowd','lakes','debug','timeOfDay','trip','midiPlayer'];
       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','heart','stage','performer',
-        'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','hulaHooper','frisbeePlayer','bird'];
+        'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','hulaHooper','frisbeePlayer','bird','bubbleJug','bubbleVendor'];
       const base = new URL('./src/', document.baseURI).href;
       const imports = {
         'three': 'https://unpkg.com/three@0.160.0/build/three.module.js',
@@ -176,6 +176,10 @@
         <option value="bird_perched">Bird — perched (resting pose)</option>
         <option value="bird_flock">Bird flock (7 sparrows)</option>
         <option value="bird_in_tree">Bird in tree (perch anchors on oak)</option>
+      </optgroup>
+      <optgroup label="Bubble juice">
+        <option value="bubble_jug">Bubble-juice jug (floating pickup)</option>
+        <option value="bubble_vendor">Bubble vendor (spacesuit stand)</option>
       </optgroup>
       <optgroup label="Particles">
         <option value="heart">Heart particle</option>
@@ -310,6 +314,8 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     } from './src/models/campsite.js';
     import { buildTallPine, buildOak, buildBirch, buildForestTree } from './src/models/tree.js';
     import { buildBird, buildBirdFlock, BIRD_KEYS, BIRD_SPECIES } from './src/models/bird.js';
+    import { buildBubbleJug } from './src/models/bubbleJug.js';
+    import { buildBubbleVendor } from './src/models/bubbleVendor.js';
     import { buildLeafDrumCircle, updateLeafDrumCircle } from './src/models/leafDrumCircle.js';
     import {
       buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
@@ -1395,6 +1401,27 @@ import { buildSugarShack } from './src/models/sugarShack.js';
           updateFn = (dt) => g.userData.anim?.(dt);
           cam.target.set(0, 1.5, 0);
           cam.dist = 9;
+          applyCam();
+          break;
+        }
+        case 'bubble_jug': {
+          const g = buildBubbleJug();
+          g.position.y = 0.4;
+          scene.add(g);
+          entityRoot = g;
+          updateFn = (dt) => g.userData.anim?.(dt);
+          cam.target.set(0, 0.5, 0);
+          cam.dist = 2.4;
+          applyCam();
+          break;
+        }
+        case 'bubble_vendor': {
+          const g = buildBubbleVendor(Math.random);
+          scene.add(g);
+          entityRoot = g;
+          updateFn = (dt) => g.userData.anim?.(dt);
+          cam.target.set(0, 1.4, 0);
+          cam.dist = 6.5;
           applyCam();
           break;
         }

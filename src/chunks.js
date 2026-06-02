@@ -25,6 +25,8 @@ import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forest
 import { buildCampsite, buildCampChair } from './models/campsite.js';
 import { buildTent } from './models/tent.js';
 import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
+import { buildBubbleJug } from './models/bubbleJug.js';
+import { buildBubbleVendor } from './models/bubbleVendor.js';
 import { buildSugarShack, SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH, sugarShackCooks } from './models/sugarShack.js';
 import { buildHammock as buildHammockModel } from './models/hammock.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
@@ -388,6 +390,9 @@ export class ChunkManager {
       // Ambient crowd
       const crowdCount = inWater ? 0 : THEME_PROPS[theme].ambientCrowd;
       spawnAmbientCrowd(ctx, crowdCount);
+
+      // Rare floating bubble-juice jug pickup.
+      scatterBubbleJugs(ctx, inWater);
     }
 
     this.scene.add(group);
@@ -939,6 +944,51 @@ function buildFoodPlaza(ctx) {
       attractor: { radius: 8 * FOOD_TRUCK_SCALE, weight: 1.2 },
       chunkKey: ctx.key,
     });
+  }
+
+  // ~40% of plazas get a bubble-juice vendor at the edge — drive up to refill
+  // (free). Faces the plaza centre (its -Z customer side toward the player).
+  if (ctx.rng() < 0.4) {
+    const ang = ctx.rng() * Math.PI * 2;
+    const vr = ring + 3;
+    const x = centerX + Math.cos(ang) * vr;
+    const z = centerZ + Math.sin(ang) * vr;
+    const vendor = buildBubbleVendor(ctx.rng);
+    vendor.position.set(x, 0, z);
+    vendor.rotation.y = Math.atan2(centerX - x, centerZ - z);
+    ctx.group.add(vendor);
+    registry.add({
+      kind: 'bubble_vendor',
+      position: new THREE.Vector3(x, 0, z),
+      footprint: 2.4,
+      attractor: { radius: 7, weight: 1.0 },
+      chunkKey: ctx.key,
+      obj: vendor,
+      refuel: 0.4,            // juice/sec while Zerble lingers in range
+    });
+  }
+}
+
+// Rare floating bubble-juice jug pickup — roughly 1 in 9 chunks gets one, at a
+// random open spot. Drive over it to refill (handled in main.js). The jug
+// floats + bobs (its obj.userData.anim is ticked from the main loop).
+function scatterBubbleJugs(ctx, inWater) {
+  if (inWater || ctx.rng() > 0.11) return;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const x = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE - 10);
+    const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE - 10);
+    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 3)) continue;
+    const jug = buildBubbleJug();
+    jug.position.set(x, 0.7, z);
+    ctx.group.add(jug);
+    registry.add({
+      kind: 'bubble_jug',
+      position: new THREE.Vector3(x, 0.7, z),
+      chunkKey: ctx.key,
+      obj: jug,
+      juice: 0.45,           // fraction of the tank a jug refills
+    });
+    return;
   }
 }
 

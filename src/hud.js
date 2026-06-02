@@ -6,6 +6,10 @@ const $toast = document.getElementById('toast');
 const $flash = document.getElementById('hit-flash');
 const $title = document.getElementById('title-card');
 const $start = document.getElementById('start-btn');
+const $juiceMeter = document.getElementById('juice-meter');
+const $juiceFill = document.getElementById('juice-fill');
+
+let _juiceLow = false;
 
 let toastTimer = 0;
 let toastTapHandler = null;   // currently-attached tap listener for tappable toasts
@@ -36,6 +40,19 @@ export const HUD = {
 
   setSmiles(n) {
     $smiles.textContent = String(Math.floor(n));
+  },
+
+  // Bubble-juice gauge. frac 0..1. Scales the fill and flips a low-juice
+  // warning state below 22%. Called every frame from the main loop — guards
+  // against redundant class writes so it stays cheap.
+  setJuice(frac) {
+    const f = Math.max(0, Math.min(1, frac || 0));
+    if ($juiceFill) $juiceFill.style.transform = `scaleX(${f})`;
+    const low = f < 0.22;
+    if (low !== _juiceLow) {
+      _juiceLow = low;
+      if ($juiceMeter) $juiceMeter.classList.toggle('low', low);
+    }
   },
 
   loadBest() {

@@ -661,6 +661,23 @@ export const Sound = {
     thump(ctx, sfxBus, 110, 0.12, 0.18);
   },
 
+  // Bright ascending sparkle for grabbing a bubble-juice jug / refilling.
+  playJuicePickup() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    boop(ctx, sfxBus, 660, 990, 0.1, 0.22, 'triangle');
+    boop(ctx, sfxBus, 990, 1480, 0.12, 0.18, 'sine');
+    // a little glassy top note
+    const osc = ctx.createOscillator(); osc.type = 'sine';
+    osc.frequency.setValueAtTime(1980, t + 0.06);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t + 0.06);
+    g.gain.linearRampToValueAtTime(0.12, t + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + 0.26);
+    osc.connect(g).connect(sfxBus);
+    osc.start(t + 0.06); osc.stop(t + 0.3);
+  },
+
   // Returns the raw AudioContext so midiPlayer can share it with Tone.js via
   // Tone.setContext(). Sharing the context lets Tone route into masterGain/midiGain
   // instead of creating its own parallel audio graph that no slider can touch.

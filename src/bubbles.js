@@ -9,6 +9,15 @@ import { PERF } from './perf.js';
 // 600 so blast mode actually reads as a visible fountain.
 const MAX_BUBBLES = PERF.bubblePoolMax || 200;
 const SPAWN_PER_SEC = 40;
+
+// Bubble-juice meter (resource layer on the core verb). The tank drains while
+// bubbling and ~3x faster while the G blast is held; it never fully empties —
+// at 0 the spawner throttles to a thin trickle (JUICE_FLOOR fraction) rather
+// than cutting off, so you always have *some* bubbles. Refueled by drive-over
+// jugs + the bubble vendor (see models/bubbleJug.js, models/bubbleVendor.js).
+const JUICE_DRAIN_PER_SEC = 0.009;   // ~110s of normal bubbling on a full tank
+const JUICE_BLAST_DRAIN = 3.0;       // the G blast burns it ~3x faster
+const JUICE_FLOOR = 0.18;            // min spawn-rate fraction at empty (the sputter)
 const GRAVITY = -0.45;
 const BUOYANCY = 1.0;
 const LIFETIME = 22;     // ~2.75x the original 8s — bubbles linger long enough to feel like a trail
@@ -119,10 +128,18 @@ export class Bubbles {
     // dramatic bubble fountain. Toggled per-frame from main.js based on the
     // G key. ~2.8× sits between the requested 2-3×.
     this.blastMode = false;
+
+    // Bubble-juice reserve (0..1). Session-scoped — fresh full tank each run.
+    this.juice = 1.0;
   }
 
   setBlast(on) {
     this.blastMode = !!on;
+  }
+
+  // Refuel from a jug pickup or the bubble vendor. Clamps at full.
+  addJuice(amt) {
+    this.juice = Math.min(1, this.juice + (amt || 0));
   }
 
   // Called by main.js via the AdaptiveQuality onLevelChange hook.
@@ -151,7 +168,11 @@ export class Bubbles {
     const speed = Math.abs(zerble.speed);
     const BLAST_MULT = 2.8;
     const blast = this.blastMode ? BLAST_MULT : 1.0;
-    const rate = SPAWN_PER_SEC * (0.55 + Math.min(1, speed / 8) * 0.45) * blast;
+    // Drain the juice tank (faster on blast); throttle the spawn rate by what's
+    // left, flooring at a trickle so empty sputters rather than cuts off.
+    this.juice = Math.max(0, this.juice - JUICE_DRAIN_PER_SEC * (this.blastMode ? JUICE_BLAST_DRAIN : 1.0) * dt);
+    const juiceFactor = JUICE_FLOOR + (1 - JUICE_FLOOR) * this.juice;
+    const rate = SPAWN_PER_SEC * (0.55 + Math.min(1, speed / 8) * 0.45) * blast * juiceFactor;
     this._spawnAcc += rate * dt;
 
     while (this._spawnAcc >= 1) {

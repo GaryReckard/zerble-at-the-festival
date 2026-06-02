@@ -60,7 +60,7 @@
         'mountains','camera','input','touch','hud','sound','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
         'threeShim','midiPlayer','birds'];
       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','heart','stage','performer',
-        'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','bird'];
+        'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','bird','bubbleJug','bubbleVendor'];
       const base = new URL('./src/', document.baseURI).href;
       // 'three' → local shim that overrides MeshStandardMaterial on low tier
       // (see src/threeShim.js). 'three-actual' is the real three.js URL the
@@ -92,13 +92,24 @@
 
   <div id="hud">
     <div id="score-panel">
-      <div class="row">
-        <span class="label">Smiles</span>
-        <span id="smiles" class="value">0</span>
+      <div class="score-rows">
+        <div class="row">
+          <span class="label">Smiles</span>
+          <span id="smiles" class="value">0</span>
+        </div>
+        <div class="row small">
+          <span class="label">Best</span>
+          <span id="best" class="value">0</span>
+        </div>
       </div>
-      <div class="row small">
-        <span class="label">Best</span>
-        <span id="best" class="value">0</span>
+      <div id="juice-meter">
+        <div class="juice-head">
+          <span class="juice-dot"></span>
+          <span class="label">Bubble Juice</span>
+        </div>
+        <div class="juice-track">
+          <div id="juice-fill" class="juice-fill"></div>
+        </div>
       </div>
     </div>
 
