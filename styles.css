@@ -110,6 +110,21 @@ body {
   margin-bottom: 6px;
 }
 
+/* Stockpile reserve pips — spare full meters beyond the working one. */
+.juice-reserve {
+  margin-left: auto;
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.juice-reserve .pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%, #ffffff 0%, #7fe8ff 40%, #2bb8e6 100%);
+  box-shadow: 0 0 6px rgba(127, 232, 255, 0.7);
+}
+
 .juice-dot {
   width: 10px;
   height: 10px;
@@ -148,21 +163,40 @@ body {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
 }
 
-/* Running low: shift amber and pulse gently as a warning. */
-#juice-meter.low .juice-fill {
+/* Running low: amber fill + a clear amber border on the track. */
+#juice-meter.low .juice-fill,
+#juice-meter.empty .juice-fill {
   background: linear-gradient(90deg, #d68a1f 0%, #f0a83f 60%, #ffd27a 100%);
   box-shadow: 0 0 12px rgba(240, 168, 63, 0.6) inset, 0 0 11px rgba(255, 210, 122, 0.6);
-  animation: juice-low-pulse 1s ease-in-out infinite;
 }
-
+#juice-meter.low .juice-track {
+  border-color: rgba(255, 180, 70, 0.95);
+  box-shadow: 0 0 10px rgba(255, 180, 70, 0.6);
+}
 #juice-meter.low .juice-dot {
   background: radial-gradient(circle at 32% 30%, #fff 0%, #ffd27a 38%, #d68a1f 100%);
   box-shadow: 0 0 8px rgba(255, 210, 122, 0.85);
 }
 
-@keyframes juice-low-pulse {
+/* Bone dry: red, and the whole meter pulses as an unmissable warning. */
+#juice-meter.empty .juice-fill {
+  background: linear-gradient(90deg, #c0392b 0%, #e74c3c 100%);
+}
+#juice-meter.empty .juice-track {
+  border-color: rgba(231, 76, 60, 1);
+  box-shadow: 0 0 14px rgba(231, 76, 60, 0.85);
+}
+#juice-meter.empty .juice-dot {
+  background: radial-gradient(circle at 32% 30%, #fff 0%, #ff8a7a 38%, #c0392b 100%);
+  box-shadow: 0 0 9px rgba(231, 76, 60, 0.95);
+}
+#juice-meter.empty {
+  animation: juice-empty-pulse 0.85s ease-in-out infinite;
+}
+
+@keyframes juice-empty-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  50% { opacity: 0.55; }
 }
 
 #toast {

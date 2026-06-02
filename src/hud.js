@@ -8,8 +8,10 @@ const $title = document.getElementById('title-card');
 const $start = document.getElementById('start-btn');
 const $juiceMeter = document.getElementById('juice-meter');
 const $juiceFill = document.getElementById('juice-fill');
+const $juiceReserve = document.getElementById('juice-reserve');
 
-let _juiceLow = false;
+let _juiceState = '';     // '', 'low', or 'empty'
+let _juiceReserveN = -1;
 
 let toastTimer = 0;
 let toastTapHandler = null;   // currently-attached tap listener for tappable toasts
@@ -42,16 +44,35 @@ export const HUD = {
     $smiles.textContent = String(Math.floor(n));
   },
 
-  // Bubble-juice gauge. frac 0..1. Scales the fill and flips a low-juice
-  // warning state below 22%. Called every frame from the main loop — guards
-  // against redundant class writes so it stays cheap.
-  setJuice(frac) {
-    const f = Math.max(0, Math.min(1, frac || 0));
-    if ($juiceFill) $juiceFill.style.transform = `scaleX(${f})`;
-    const low = f < 0.22;
-    if (low !== _juiceLow) {
-      _juiceLow = low;
-      if ($juiceMeter) $juiceMeter.classList.toggle('low', low);
+  // Bubble-juice gauge. `total` is in meters (0..JUICE_STACK_MAX). The bar
+  // shows the working meter (min(1, total)); spare whole meters above ~2 show
+  // as reserve pips. Below 0.45 (and no reserve) → amber low; ~empty → red
+  // pulsing. Called every frame — guards against redundant DOM writes.
+  setJuice(total) {
+    const t = Math.max(0, total || 0);
+    const bar = Math.min(1, t);
+    if ($juiceFill) $juiceFill.style.transform = `scaleX(${bar})`;
+
+    const state = t <= 0.02 ? 'empty' : (t < 0.45 ? 'low' : '');
+    if (state !== _juiceState) {
+      _juiceState = state;
+      if ($juiceMeter) {
+        $juiceMeter.classList.toggle('low', state === 'low');
+        $juiceMeter.classList.toggle('empty', state === 'empty');
+      }
+    }
+
+    const reserves = Math.max(0, Math.min(3, Math.floor(t) - 1));
+    if (reserves !== _juiceReserveN) {
+      _juiceReserveN = reserves;
+      if ($juiceReserve) {
+        $juiceReserve.innerHTML = '';
+        for (let i = 0; i < reserves; i++) {
+          const pip = document.createElement('span');
+          pip.className = 'pip';
+          $juiceReserve.appendChild(pip);
+        }
+      }
     }
   },
 

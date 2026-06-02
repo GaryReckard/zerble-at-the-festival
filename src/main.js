@@ -238,6 +238,43 @@ scene.add(frisbees.group);
 const birds = new Birds();
 scene.add(birds.group);
 
+// Refuel bubble-stream — a pool of glowing bubbles that arc from the bubble
+// vendor to the cart while it's topping off the tank. One InstancedMesh
+// (1 draw); count goes to 0 when not refueling.
+const REFUEL_STREAM_N = 12;
+const _refuelStreamGeo = new THREE.SphereGeometry(0.13, 8, 6);
+const _refuelStreamMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff, transparent: true, opacity: 0.55, roughness: 0.1,
+  emissive: 0x9fe4ff, emissiveIntensity: 0.8, depthWrite: false,
+});
+const _refuelStream = new THREE.InstancedMesh(_refuelStreamGeo, _refuelStreamMat, REFUEL_STREAM_N);
+_refuelStream.frustumCulled = false;
+_refuelStream.count = 0;
+scene.add(_refuelStream);
+const _refuelParticles = Array.from({ length: REFUEL_STREAM_N }, (_, i) => ({ t: i / REFUEL_STREAM_N }));
+const _refuelMat = new THREE.Matrix4();
+
+function updateRefuelStream(fromPos, toPos, dt) {
+  if (!fromPos) { _refuelStream.count = 0; return; }
+  const sx = fromPos.x, sy = 1.3, sz = fromPos.z;   // up off the vendor counter
+  const tx = toPos.x, ty = 1.0, tz = toPos.z;        // toward the cart
+  for (let i = 0; i < REFUEL_STREAM_N; i++) {
+    const p = _refuelParticles[i];
+    p.t += dt * 0.85;
+    if (p.t > 1) p.t -= 1;
+    const tt = p.t;
+    const x = sx + (tx - sx) * tt + Math.sin(tt * 11 + i) * 0.12;
+    const z = sz + (tz - sz) * tt + Math.cos(tt * 11 + i) * 0.12;
+    const y = sy + (ty - sy) * tt + Math.sin(tt * Math.PI) * 0.6;   // gentle arc
+    const s = 0.45 + 0.55 * Math.sin(tt * Math.PI);                 // grow then shrink
+    _refuelMat.makeScale(s, s, s);
+    _refuelMat.setPosition(x, y, z);
+    _refuelStream.setMatrixAt(i, _refuelMat);
+  }
+  _refuelStream.count = REFUEL_STREAM_N;
+  _refuelStream.instanceMatrix.needsUpdate = true;
+}
+
 // ---------- Camera ----------
 const chaseCam = new ChaseCamera(camera, zerble);
 
@@ -271,12 +308,21 @@ let score = 0;
 HUD.loadBest();
 let running = false;
 
+// A bubble-less Zerble makes nearby NPCs frown — each frown costs a smile.
+crowd.onFrown = () => {
+  if (score <= 0) return;
+  score = Math.max(0, score - 1);
+  HUD.setSmiles(score);
+};
+
 // Nature-ambience proximity, recomputed every ~0.1s (see tick body).
 let _natureScanTimer = 0;
 let _treeness = 0;
 let _lakeness = 0;
 // Debounce for the bubble-vendor "free refill" toast.
 let _vendorToastCd = 0;
+let _vendorWasFilling = false;   // were we actively drawing juice last frame?
+let _wasEmpty = false;           // edge-detect the bubble tank running dry
 
 // Opening intro: while true, the world simulates but the player can't drive
 // (the camera is mid-reveal). Zerble gets a neutral input so it idles in place.
@@ -520,6 +566,12 @@ function tickBody(dt) {
     zerble.setBubbleBlast(blasting);
     bubbles.update(dt, zerble, nightness);
     HUD.setJuice(bubbles.juice);
+    // Dry tank → no bubbles → NPCs frown (crowd.js reads this). One-time toast
+    // on running out so the player connects the empty meter to the frowns.
+    const bubblesEmpty = bubbles.juice <= 0.02;
+    crowd.bubblesEmpty = bubblesEmpty;
+    if (bubblesEmpty && !_wasEmpty) HUD.toast('Out of bubble juice — grab a jug!', 2200);
+    _wasEmpty = bubblesEmpty;
     if (!npcsFrozen()) crowd.update(dt, zerble, bubbles);
     smiles.update(dt, zerble, (n) => {
       score += n;
@@ -659,6 +711,7 @@ function tickBody(dt) {
       }
     }
     const vendorIds = registry.byKind.get('bubble_vendor');
+    let refuelFromPos = null;     // vendor we're actively drawing juice from this frame
     if (vendorIds && vendorIds.size > 0) {
       let nearVendor = false;
       for (const id of vendorIds) {
@@ -669,15 +722,28 @@ function tickBody(dt) {
         const dz = e.position.z - zerble.position.z;
         if (dx * dx + dz * dz < 5 * 5) {
           nearVendor = true;
-          if (bubbles.juice < 1) bubbles.addJuice((e.refuel || 0.4) * dt);
+          if (bubbles.juice < 1) {                 // vendor tops the current meter only
+            bubbles.addJuice((e.refuel || 0.4) * dt, 1.0);
+            refuelFromPos = e.position;
+          }
         }
       }
       if (nearVendor && _vendorToastCd <= 0) {
         HUD.toast('Free bubble-juice refill!', 1600);
         _vendorToastCd = 10;
       }
+      // "Full" cue — the moment the stream tops the meter off.
+      if (_vendorWasFilling && !refuelFromPos && nearVendor) {
+        HUD.toast('Bubble juice full!', 1400);
+        Sound.playJuicePickup();
+      }
+      _vendorWasFilling = !!refuelFromPos;
+    } else {
+      _vendorWasFilling = false;
     }
     if (_vendorToastCd > 0) _vendorToastCd -= dt;
+    // Animate the vendor→cart refuel stream (no-op / hidden when not refueling).
+    updateRefuelStream(refuelFromPos, zerble.position, dt);
 
     // Procedural world expands around Zerble.
     updateWorld(zerble.position, dt);

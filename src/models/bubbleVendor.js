@@ -81,47 +81,52 @@ export function buildBubbleVendor(rng = Math.random) {
 
   const W = 2.6;   // stand width
 
-  // ----- Counter (front, -Z side) -----
+  // Everything faces +Z — the customer side, where the BUBBLES sign points and
+  // where Zerble drives up. The vendor stands behind the counter facing out.
+
+  // ----- Counter (front, +Z) -----
   const counter = new THREE.Mesh(geo('counter', () => new THREE.BoxGeometry(W, 1.0, 0.55)), counterMat);
-  counter.position.set(0, 0.5, -0.6);
+  counter.position.set(0, 0.5, 0.55);
   counter.castShadow = true;
   group.add(counter);
   const top = new THREE.Mesh(geo('top', () => new THREE.BoxGeometry(W + 0.15, 0.09, 0.7)), topMat);
-  top.position.set(0, 1.02, -0.6);
+  top.position.set(0, 1.02, 0.55);
   group.add(top);
 
-  // ----- Corner posts -----
-  const postGeo = geo('post', () => new THREE.BoxGeometry(0.12, 2.2, 0.12));
+  // ----- Corner posts — tall enough that all four (incl. the front pair)
+  // reach up to the awning. -----
+  const postGeo = geo('post', () => new THREE.BoxGeometry(0.12, 2.5, 0.12));
   for (const px of [-W / 2 + 0.1, W / 2 - 0.1]) {
-    for (const pz of [-0.85, 0.5]) {
+    for (const pz of [-0.55, 0.85]) {       // back pair + front pair
       const post = new THREE.Mesh(postGeo, woodMat);
-      post.position.set(px, 1.1, pz);
+      post.position.set(px, 1.25, pz);
       group.add(post);
     }
   }
 
-  // ----- Striped awning (slanted forward over the counter) -----
+  // ----- Striped awning over the top; front edge (+Z) dips down -----
   const awning = new THREE.Mesh(geo('awning', () => new THREE.BoxGeometry(W + 0.4, 0.12, 1.7)), awningMat);
-  awning.position.set(0, 2.32, -0.3);
-  awning.rotation.x = -0.18;            // tilt the front edge down
+  awning.position.set(0, 2.5, 0.1);
+  awning.rotation.x = 0.16;             // +Z (front) edge tilts down
   awning.castShadow = true;
   group.add(awning);
   // Scalloped valance hanging off the awning front.
   const valance = new THREE.Mesh(geo('valance', () => new THREE.BoxGeometry(W + 0.4, 0.28, 0.06)), awningMat);
-  valance.position.set(0, 2.18, -1.12);
+  valance.position.set(0, 2.34, 0.92);
   group.add(valance);
 
-  // ----- "BUBBLES" sign on top -----
+  // ----- "BUBBLES" sign up top, facing the customer (+Z) -----
   const sign = new THREE.Mesh(geo('sign', () => new THREE.BoxGeometry(W - 0.2, 0.72, 0.08)), [
     signBackMat, signBackMat, signBackMat, signBackMat, signMat, signBackMat,
   ]);
-  sign.position.set(0, 2.85, -0.05);
+  sign.position.set(0, 2.92, 0.0);
   sign.castShadow = true;
   group.add(sign);
 
-  // ----- The spacesuit vendor behind the counter (faces -Z, the customer) -----
+  // ----- The spacesuit vendor behind the counter, facing the customer (+Z) -----
   const vendor = buildSimpleNPC(0xeaf0f5, 0xd8b48a, { armPose: 'rest', pantsHex: 0xdfe7ee });
-  vendor.position.set(0, 0, 0.25);
+  vendor.position.set(0, 0, -0.3);
+  vendor.rotation.y = Math.PI;          // buildSimpleNPC faces -Z; flip to face +Z
   group.add(vendor);
   // Clear bubble helmet over the head (head sits at y≈1.65).
   const helmet = new THREE.Mesh(
@@ -131,21 +136,21 @@ export function buildBubbleVendor(rng = Math.random) {
       emissive: 0x9fe4ff, emissiveIntensity: 0.25, depthWrite: false,
     })),
   );
-  helmet.position.set(0, 1.66, 0.25);
+  helmet.position.set(0, 1.66, -0.3);
   group.add(helmet);
   const collar = new THREE.Mesh(
     geo('collar', () => new THREE.TorusGeometry(0.2, 0.05, 8, 16)),
     mat('collarmat', () => new THREE.MeshStandardMaterial({ color: 0xc9d2da, roughness: 0.5, metalness: 0.3, flatShading: true })),
   );
-  collar.position.set(0, 1.42, 0.25);
+  collar.position.set(0, 1.42, -0.3);
   collar.rotation.x = Math.PI / 2;
   group.add(collar);
-  // Oxygen tank backpack.
+  // Oxygen tank backpack (on the vendor's back, -Z).
   const tank = new THREE.Mesh(
     geo('tank', () => new THREE.CylinderGeometry(0.12, 0.12, 0.5, 8)),
     mat('tankmat', () => new THREE.MeshStandardMaterial({ color: 0xcfd6dd, roughness: 0.4, metalness: 0.4, flatShading: true })),
   );
-  tank.position.set(0, 1.0, 0.5);
+  tank.position.set(0, 1.0, -0.55);
   group.add(tank);
 
   // ----- A couple of glowing jugs on the counter -----
@@ -153,7 +158,7 @@ export function buildBubbleVendor(rng = Math.random) {
   for (const jx of [-0.7, 0.55]) {
     const jug = buildBubbleJug();
     jug.scale.setScalar(0.5);
-    jug.position.set(jx, 1.06, -0.6);
+    jug.position.set(jx, 1.06, 0.55);
     jug.rotation.y = rng() * Math.PI;
     group.add(jug);
     jugs.push(jug);

@@ -11,13 +11,18 @@ const MAX_BUBBLES = PERF.bubblePoolMax || 200;
 const SPAWN_PER_SEC = 40;
 
 // Bubble-juice meter (resource layer on the core verb). The tank drains while
-// bubbling and ~3x faster while the G blast is held; it never fully empties —
-// at 0 the spawner throttles to a thin trickle (JUICE_FLOOR fraction) rather
-// than cutting off, so you always have *some* bubbles. Refueled by drive-over
-// jugs + the bubble vendor (see models/bubbleJug.js, models/bubbleVendor.js).
-const JUICE_DRAIN_PER_SEC = 0.009;   // ~110s of normal bubbling on a full tank
+// bubbling and ~3x faster while the G blast is held. When it runs dry the
+// bubbles STOP (the last 0.25 sputters out to nothing) — and a dry Zerble
+// makes NPCs frown (see crowd.js). Refueled by drive-over jugs + the bubble
+// vendor (models/bubbleJug.js, models/bubbleVendor.js).
+//
+// Zelda-style stockpile: the tank holds up to JUICE_STACK_MAX *meters* worth.
+// Jugs each add a full meter (stacking past 1), so you can load up deep;
+// the vendor only tops the current meter (cap 1). The HUD shows the working
+// meter as a bar + spare meters as reserve pips.
+const JUICE_DRAIN_PER_SEC = 0.009;   // ~110s of normal bubbling per meter
 const JUICE_BLAST_DRAIN = 3.0;       // the G blast burns it ~3x faster
-const JUICE_FLOOR = 0.18;            // min spawn-rate fraction at empty (the sputter)
+export const JUICE_STACK_MAX = 4;    // max meters you can stockpile
 const GRAVITY = -0.45;
 const BUOYANCY = 1.0;
 const LIFETIME = 22;     // ~2.75x the original 8s — bubbles linger long enough to feel like a trail
@@ -129,7 +134,8 @@ export class Bubbles {
     // G key. ~2.8× sits between the requested 2-3×.
     this.blastMode = false;
 
-    // Bubble-juice reserve (0..1). Session-scoped — fresh full tank each run.
+    // Bubble-juice reserve (0..JUICE_STACK_MAX, in meters). Session-scoped —
+    // fresh single tank each run.
     this.juice = 1.0;
   }
 
@@ -137,9 +143,12 @@ export class Bubbles {
     this.blastMode = !!on;
   }
 
-  // Refuel from a jug pickup or the bubble vendor. Clamps at full.
-  addJuice(amt) {
-    this.juice = Math.min(1, this.juice + (amt || 0));
+  // Refuel. `cap` is the most this call will fill TO (default = full stockpile).
+  // Jugs pass the default (stack deep); the vendor passes 1.0 (tops only the
+  // current meter). Never reduces juice if it's already above `cap`.
+  addJuice(amt, cap = JUICE_STACK_MAX) {
+    if (this.juice >= cap) return;
+    this.juice = Math.min(cap, this.juice + (amt || 0));
   }
 
   // Called by main.js via the AdaptiveQuality onLevelChange hook.
@@ -168,10 +177,11 @@ export class Bubbles {
     const speed = Math.abs(zerble.speed);
     const BLAST_MULT = 2.8;
     const blast = this.blastMode ? BLAST_MULT : 1.0;
-    // Drain the juice tank (faster on blast); throttle the spawn rate by what's
-    // left, flooring at a trickle so empty sputters rather than cuts off.
+    // Drain the juice tank (faster on blast). Bubbles flow full while there's
+    // any meaningful charge and sputter to a stop over the final 0.25 — so an
+    // empty tank means NO bubbles (the stakes that make NPCs frown).
     this.juice = Math.max(0, this.juice - JUICE_DRAIN_PER_SEC * (this.blastMode ? JUICE_BLAST_DRAIN : 1.0) * dt);
-    const juiceFactor = JUICE_FLOOR + (1 - JUICE_FLOOR) * this.juice;
+    const juiceFactor = Math.min(1, this.juice / 0.25);
     const rate = SPAWN_PER_SEC * (0.55 + Math.min(1, speed / 8) * 0.45) * blast * juiceFactor;
     this._spawnAcc += rate * dt;
 

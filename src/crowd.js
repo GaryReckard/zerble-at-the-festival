@@ -60,6 +60,8 @@ const BUBBLE_RANGE = 6;
 const HAPPINESS_THRESHOLD = 0.7;
 const SMILE_RESET_DIST = 28;         // Zerble must drive this far for the same NPC to smile again
 const SMILE_TIME_COOLDOWN = 3;       // ...AND wait this long
+const FROWN_THRESHOLD = 1.0;         // builds a touch slower than a smile, but reliably
+const FROWN_DURATION = 1.7;          // how long the disappointed face holds
 const HONK_BOOST = 0.8;
 const HONK_RANGE = 14;
 
@@ -82,6 +84,10 @@ const ARRIVE_RADIUS = 1.5;
 export class Crowd {
   constructor(smiles) {
     this.smiles = smiles;
+    // Set true from main.js when Zerble's bubble tank is dry — NPCs frown
+    // instead of smile. `onFrown(npc)` fires when a frown lands (score sink).
+    this.bubblesEmpty = false;
+    this.onFrown = null;
     this.npcs = [];
     this.free = []; // indices available
     this.groups = new Map(); // groupId -> { center: Vector3, members: [npcs] }
@@ -267,6 +273,9 @@ export class Crowd {
     // sway tilt, yaw wiggle, NPC scale, and seat/hammock lift.
     this._mouthLocalMat = new THREE.Matrix4();
     this._identityQuat = new THREE.Quaternion();
+    // 180° about Z flips the smile arc into a frown (mouth geo is symmetric
+    // about Y, so the x-mirror is harmless).
+    this._frownQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
     // Supine-pose scratch (used by hammock_riding NPCs to compose the supine
     // rotation: X=+π/2 to face up, then Y=yaw to align spine with hammock).
     this._supineQuatX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
@@ -350,6 +359,8 @@ export class Crowd {
 
       // Charm
       happiness: 0,
+      displeasure: 0,        // builds when a bubble-less Zerble is in view
+      frownTimer: 0,         // >0 = mouth is rendered as a frown
       smileTimeCooldown: 0,
       lastSmilePos: null,    // Zerble's position when this NPC last smiled
       // Watching state: how long they've been staring at Zerble, what
@@ -898,6 +909,8 @@ export class Crowd {
     }
 
     // --- charm logic ---
+    if (npc.frownTimer > 0) npc.frownTimer -= dt;
+
     if (
       npc.smileTimeCooldown <= 0 &&
       (npc.lastSmilePos === null || zerble.position.distanceTo(npc.lastSmilePos) > SMILE_RESET_DIST) &&
@@ -908,35 +921,52 @@ export class Crowd {
       const ndz = npc.pos.z - zerble.position.z;
       const ndlen = Math.hypot(ndx, ndz) || 1;
       const dot = (ndx / ndlen) * fwd.x + (ndz / ndlen) * fwd.z;
+      const inView = dot > cosCone && npc.state !== 'fleeing';
+      const closeness = 1 - dToZerble / SMILE_RANGE;
+      const aim = inView ? (dot - cosCone) / (1 - cosCone) : 0;
 
-      let gain = 0;
-      if (dot > cosCone) {
-        const closeness = 1 - dToZerble / SMILE_RANGE;
-        const aim = (dot - cosCone) / (1 - cosCone);
-        gain += 1.4 * closeness * (0.4 + 0.6 * aim);
-      }
-      for (const bp of bubblePositions) {
-        const bd = Math.hypot(bp.x - npc.pos.x, bp.z - npc.pos.z);
-        if (bd < BUBBLE_RANGE) {
-          gain += 1.0 * (1 - bd / BUBBLE_RANGE);
-          break;
+      if (this.bubblesEmpty) {
+        // Dry cart → disappointment. Eye contact builds displeasure; at
+        // threshold the NPC frowns and a smile is lost (onFrown). Slower to
+        // build than a smile so it's a real "uh oh, I'm out" beat, not instant.
+        npc.happiness = Math.max(0, npc.happiness - dt * 0.5);
+        if (inView) npc.displeasure += 1.4 * closeness * (0.55 + 0.45 * aim) * dt;
+        else npc.displeasure = Math.max(0, npc.displeasure - dt * 0.25);
+        if (npc.displeasure >= FROWN_THRESHOLD) {
+          npc.displeasure = 0;
+          npc.frownTimer = FROWN_DURATION;
+          npc.smileTimeCooldown = SMILE_TIME_COOLDOWN;
+          npc.lastSmilePos = zerble.position.clone();
+          if (this.onFrown) this.onFrown(npc);
         }
-      }
-      // Curious & approaching NPCs charm faster (they're really looking)
-      if (npc.state === 'approaching' || npc.state === 'watching') gain *= 1.2;
-      // Fleeing NPCs don't smile
-      if (npc.state === 'fleeing') gain = 0;
+      } else {
+        npc.displeasure = Math.max(0, npc.displeasure - dt * 0.6);
+        let gain = 0;
+        if (inView) gain += 1.4 * closeness * (0.4 + 0.6 * aim);
+        for (const bp of bubblePositions) {
+          const bd = Math.hypot(bp.x - npc.pos.x, bp.z - npc.pos.z);
+          if (bd < BUBBLE_RANGE) {
+            gain += 1.0 * (1 - bd / BUBBLE_RANGE);
+            break;
+          }
+        }
+        // Curious & approaching NPCs charm faster (they're really looking)
+        if (npc.state === 'approaching' || npc.state === 'watching') gain *= 1.2;
+        // Fleeing NPCs don't smile
+        if (npc.state === 'fleeing') gain = 0;
 
-      if (gain > 0) npc.happiness += gain * dt;
+        if (gain > 0) npc.happiness += gain * dt;
 
-      if (npc.happiness >= HAPPINESS_THRESHOLD) {
-        npc.happiness = 0;
-        npc.smileTimeCooldown = SMILE_TIME_COOLDOWN;
-        npc.lastSmilePos = zerble.position.clone();
-        this.smiles.spawn(npc.pos);
+        if (npc.happiness >= HAPPINESS_THRESHOLD) {
+          npc.happiness = 0;
+          npc.smileTimeCooldown = SMILE_TIME_COOLDOWN;
+          npc.lastSmilePos = zerble.position.clone();
+          this.smiles.spawn(npc.pos);
+        }
       }
     } else {
       npc.happiness = Math.max(0, npc.happiness - dt * 0.2);
+      npc.displeasure = Math.max(0, npc.displeasure - dt * 0.4);
     }
 
     // Write transform
@@ -1056,10 +1086,13 @@ export class Crowd {
     // inherits everything the head/eyes do — bob, the dance hip-sway tilt
     // (danceTilt), yaw wiggle, NPC scale, and the riding/hammock seat lift — so
     // it stays glued to the face instead of floating beside a swaying head.
-    const smileScale = npc.smileTimeCooldown > 0 ? 1.0 : 0.3;
+    // Frowning (dry-cart disappointment) flips the arc + shows it full-size;
+    // otherwise it's a smile, big right after smiling and small at rest.
+    const frowning = npc.frownTimer > 0;
+    const mouthScale = (frowning || npc.smileTimeCooldown > 0) ? 1.0 : 0.3;
     this._tmpV3.set(0, 1.55, -0.215); // face-local offset, NPC body frame
-    this._tmpScale.set(smileScale, smileScale, smileScale);
-    this._mouthLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
+    this._tmpScale.set(mouthScale, mouthScale, mouthScale);
+    this._mouthLocalMat.compose(this._tmpV3, frowning ? this._frownQuat : this._identityQuat, this._tmpScale);
     this._mouthMat.multiplyMatrices(m, this._mouthLocalMat);
     this.mouthMesh.setMatrixAt(npc.idx, this._mouthMat);
   }

@@ -986,7 +986,7 @@ function scatterBubbleJugs(ctx, inWater) {
       position: new THREE.Vector3(x, 0.7, z),
       chunkKey: ctx.key,
       obj: jug,
-      juice: 0.45,           // fraction of the tank a jug refills
+      juice: 1.0,            // a full meter — jugs stack past 1 (stockpile)
     });
     return;
   }
