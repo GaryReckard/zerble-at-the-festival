@@ -60,8 +60,8 @@ const BUBBLE_RANGE = 6;
 const HAPPINESS_THRESHOLD = 0.7;
 const SMILE_RESET_DIST = 28;         // Zerble must drive this far for the same NPC to smile again
 const SMILE_TIME_COOLDOWN = 3;       // ...AND wait this long
-const FROWN_THRESHOLD = 1.0;         // builds a touch slower than a smile, but reliably
-const FROWN_DURATION = 1.7;          // how long the disappointed face holds
+const FROWN_THRESHOLD = 0.9;         // builds a touch slower than a smile, but reliably
+const FROWN_DURATION = 2.6;          // how long they frown + turn away before resuming
 const HONK_BOOST = 0.8;
 const HONK_RANGE = 14;
 
@@ -586,6 +586,26 @@ export class Crowd {
       // fall through to normal walking logic
     }
 
+    // --- Unhappy: a frown is active (dry-cart disappointment). Turn the back
+    // to Zerble and walk off, no vibing, and don't re-engage the proximity
+    // machine — they're done with this bubble-less cart for now. ---
+    if (npc.frownTimer > 0) {
+      npc.frownTimer -= dt;
+      const awx = npc.pos.x - zerble.position.x;
+      const awz = npc.pos.z - zerble.position.z;
+      const al = Math.hypot(awx, awz) || 1;
+      const sp = 1.9 * npc.energy;
+      npc.vel.x = THREE.MathUtils.lerp(npc.vel.x, (awx / al) * sp, Math.min(1, dt * 4));
+      npc.vel.z = THREE.MathUtils.lerp(npc.vel.z, (awz / al) * sp, Math.min(1, dt * 4));
+      npc.pos.x += npc.vel.x * dt;
+      npc.pos.z += npc.vel.z * dt;
+      const yawAway = Math.atan2(-npc.vel.x, -npc.vel.z);   // face the way they're walking (away)
+      npc.yaw += wrapAngle(yawAway - npc.yaw) * Math.min(1, dt * 5);
+      npc.state = 'walking';
+      this._writeMatrices(npc);
+      return;
+    }
+
     // --- state transitions driven by Zerble proximity ---
     // Honk-scatter and panic-cascade put the NPC into 'fleeing' with a
     // stateTimer ticking down. While that timer is positive we LOCK the
@@ -910,9 +930,7 @@ export class Crowd {
       npc.yaw += diff * Math.min(1, dt * 6);
     }
 
-    // --- charm logic ---
-    if (npc.frownTimer > 0) npc.frownTimer -= dt;
-
+    // --- charm logic --- (frownTimer is ticked + handled in the unhappy block above)
     if (
       npc.smileTimeCooldown <= 0 &&
       (npc.lastSmilePos === null || zerble.position.distanceTo(npc.lastSmilePos) > SMILE_RESET_DIST) &&
@@ -937,8 +955,9 @@ export class Crowd {
         if (npc.displeasure >= FROWN_THRESHOLD) {
           npc.displeasure = 0;
           npc.frownTimer = FROWN_DURATION;
-          npc.smileTimeCooldown = SMILE_TIME_COOLDOWN;
+          npc.smileTimeCooldown = 0;            // clear any leftover happy bounce/smile — they're not happy
           npc.lastSmilePos = zerble.position.clone();
+          this.smiles.spawnLost(zerble.position, npc);   // reddish "lost smile" flies out to them
           if (this.onFrown) this.onFrown(npc);
         }
       } else {
@@ -1003,6 +1022,8 @@ export class Crowd {
         ? Math.sin(npc.bob * 2) * 0.05 * (npc.dance - 0.5)
         : 0;
     }
+    // Unhappy NPCs don't vibe — kill the bounce + sway while frowning.
+    if (npc.frownTimer > 0) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
 
     let quat;
     if (npc.state === 'hammock_riding') {
