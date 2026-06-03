@@ -1,14 +1,34 @@
 // Thin wrapper around gtag.js. No-ops gracefully if the GA tag failed to load
-// (ad blockers, offline dev, etc.) so analytics never breaks gameplay.
+// (ad blockers, offline dev, local hosts) so analytics never breaks gameplay.
+//
+// Conventions worth keeping as this grows:
+//   - One event name, a param for the variant (collision{kind}, refuel{source},
+//     feature_used{feature}) — keeps us well under GA4's 500-event-name cap and
+//     far easier to explore than a name per variant.
+//   - Never per-frame. High-frequency things are either edge-detected by the
+//     caller, reported once per session (see `firsts`/`features`), or rolled up
+//     into session_end. `time_in_run_s` rides along on most events.
 
 const SMILE_MILESTONES = [10, 25, 50, 100, 250, 500, 1000, 2500];
+const MAX_EXCEPTIONS = 8;        // cap field-error spam per page load
 
 const state = {
   reachedSmileMilestones: new Set(),
   lastBestReported: 0,
   honked: false,
   sessionStartMs: performance.now(),
+  // Discovery / once-per-run flags (reset each gameStart).
+  firsts: new Set(),
+  features: new Set(),
+  // Per-run rollup, read by sessionEnd. Reset each gameStart.
+  run: emptyRun(),
+  context: {},
+  exceptionsSent: 0,    // NOT reset per run — errors happen before/after a run too
 };
+
+function emptyRun() {
+  return { jugs: 0, vendorRefuels: 0, ranDry: 0, trips: 0, passengers: 0, blastUsed: false };
+}
 
 function send(name, params) {
   try {
@@ -25,9 +45,14 @@ function secondsIn() {
 }
 
 export const Analytics = {
-  gameStart() {
+  // `context` segments the whole session: { perf_tier, touch, seeded, returning }.
+  gameStart(context = {}) {
     state.sessionStartMs = performance.now();
-    send('game_start');
+    state.run = emptyRun();
+    state.firsts = new Set();
+    state.features = new Set();
+    state.context = context;
+    send('game_start', context);
   },
 
   debugMenuToggle(open) {
@@ -67,8 +92,13 @@ export const Analytics = {
   },
 
   tripStart(source) {
-    // source: 'wook' | 'manual_static' | 'manual_dynamic'
+    // source: 'wook_accept' | 'manual_static' | 'manual_dynamic'
+    state.run.trips++;
     send('trip_start', { source, time_in_run_s: secondsIn() });
+  },
+
+  tripEnd(source, durationS) {
+    send('trip_end', { source, duration_s: Math.round(durationS || 0), time_in_run_s: secondsIn() });
   },
 
   collision(kind) {
@@ -83,5 +113,116 @@ export const Analytics = {
 
   viewToggle(mode) {
     send('view_toggle', { mode, time_in_run_s: secondsIn() });
+  },
+
+  // ----- Bubble-juice economy -----
+
+  // Tank hit empty. Can fire more than once per run (run dry → refuel → dry
+  // again); each is a friction signal, and `count` shows how many times.
+  bubbleRanDry() {
+    state.run.ranDry++;
+    send('bubble_ran_dry', { count: state.run.ranDry, time_in_run_s: secondsIn() });
+  },
+
+  // source: 'jug' (drove over a floating jug) | 'vendor' (lingered at a stand).
+  // Caller edge-detects the vendor case so this isn't a per-frame stream.
+  refuel(source) {
+    if (source === 'vendor') state.run.vendorRefuels++;
+    else state.run.jugs++;
+    send('refuel', { source, time_in_run_s: secondsIn() });
+  },
+
+  // The marquee "bring the bubbles" verb (G held). Event once per run; the
+  // rollup just notes it was used.
+  bubbleBlast() {
+    state.run.blastUsed = true;
+    if (state.firsts.has('blast')) return;
+    state.firsts.add('blast');
+    send('bubble_blast', { time_in_run_s: secondsIn() });
+  },
+
+  // ----- Passengers -----
+
+  // An NPC climbed aboard. Event on the first board per run (engagement
+  // signal); every board feeds the session_end passenger count.
+  passengerBoard() {
+    state.run.passengers++;
+    if (state.firsts.has('passenger')) return;
+    state.firsts.add('passenger');
+    send('passenger_board', { time_in_run_s: secondsIn() });
+  },
+
+  // ----- Lightweight feature discovery (one event per feature per run) -----
+  // feature: 'honk_bell' | 'honk_clown' | 'music_toggle' | 'camera_zoom' | 'boost'
+  featureUsed(feature) {
+    if (state.features.has(feature)) return;
+    state.features.add(feature);
+    send('feature_used', { feature, time_in_run_s: secondsIn() });
+  },
+
+  // Player kept playing into nightfall — a clean proxy for "stuck around".
+  sawNight() {
+    if (state.firsts.has('night')) return;
+    state.firsts.add('night');
+    send('saw_night', { time_in_run_s: secondsIn() });
+  },
+
+  // ----- Field health -----
+
+  // The adaptive-quality monitor stepped DOWN a level under load — tells us
+  // whether the perf budget holds up on real hardware.
+  qualityDowngrade(level, fps) {
+    send('quality_downgrade', {
+      level,
+      avg_fps: Math.round(fps || 0),
+      perf_tier: state.context?.perf_tier,
+      time_in_run_s: secondsIn(),
+    });
+  },
+
+  // Uncaught errors → GA4's recommended `exception` event. The only way we see
+  // field crashes on devices we can't repro (e.g. the Safari frozen-module
+  // class — see threeShim.js). Capped so a render-loop error can't flood GA.
+  installErrorTracking() {
+    if (typeof window === 'undefined') return;
+    const report = (description, fatal) => {
+      if (state.exceptionsSent >= MAX_EXCEPTIONS) return;
+      state.exceptionsSent++;
+      send('exception', { description: String(description).slice(0, 220), fatal: !!fatal });
+    };
+    window.addEventListener('error', (e) => {
+      const file = e.filename ? String(e.filename).split('/').pop() : '';
+      const where = file ? ` @ ${file}:${e.lineno || 0}` : '';
+      report((e.message || 'error') + where, true);
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      const r = e.reason;
+      report('unhandledrejection: ' + (r && r.message ? r.message : r), false);
+    });
+  },
+
+  // ----- Session summary -----
+
+  // Fire on tab-hide with beacon transport (survives the page going away;
+  // beforeunload is unreliable on mobile). `summary` carries the live values
+  // the caller owns; the rest comes from this run's rollup. Caller dedupes
+  // (resets its guard when the tab returns) so a long session that briefly
+  // backgrounded gets a fuller snapshot on the real exit.
+  sessionEnd(summary = {}) {
+    send('session_end', {
+      duration_s: secondsIn(),
+      smiles: Math.floor(summary.smiles || 0),
+      best: Math.floor(summary.best || 0),
+      max_juice: Math.round((summary.maxJuice || 0) * 10) / 10,
+      honks: summary.honks || 0,
+      jugs: state.run.jugs,
+      vendor_refuels: state.run.vendorRefuels,
+      ran_dry: state.run.ranDry,
+      trips: state.run.trips,
+      passengers: state.run.passengers,
+      blast_used: state.run.blastUsed,
+      perf_tier: state.context?.perf_tier,
+      transport_type: 'beacon',
+    });
   },
 };

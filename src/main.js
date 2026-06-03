@@ -79,6 +79,11 @@ import { setSessionSeed, getSessionSeed } from './rng.js';
   window.__seed = resolved;
 })();
 
+// Surface uncaught errors as GA4 `exception` events — installed early so it
+// catches anything thrown during scene/world build, not just steady-state.
+// No-ops off production (gtag absent) and is capped against flooding.
+Analytics.installErrorTracking();
+
 const canvas = document.getElementById('game');
 
 // ---------- Renderer ----------
@@ -314,6 +319,9 @@ crowd.onFrown = () => {
   score = Math.max(0, score - 1);
   HUD.setSmiles(score);
 };
+// An NPC climbed aboard — feed the passenger analytics (first board fires an
+// event; every board feeds the session_end count).
+crowd.onBoard = () => Analytics.passengerBoard();
 
 // Nature-ambience proximity, recomputed every ~0.1s (see tick body).
 let _natureScanTimer = 0;
@@ -323,6 +331,12 @@ let _lakeness = 0;
 let _vendorToastCd = 0;
 let _vendorWasFilling = false;   // were we actively drawing juice last frame?
 let _wasEmpty = false;           // edge-detect the bubble tank running dry
+// Analytics edge-detect / rollup state (see src/analytics.js).
+let _wasBlasting = false;        // edge-detect the bubble blast (G) starting
+let _maxJuiceReached = 1;        // peak stockpile this run → session_end
+let _honkCount = 0;              // honks this run → session_end
+let _lastQualityLevel = 0;       // adaptive-quality level, to spot downgrades
+let _sessionEndReported = false; // session_end fires once per leave; resets on return
 
 // Opening intro: while true, the world simulates but the player can't drive
 // (the camera is mid-reveal). Zerble gets a neutral input so it idles in place.
@@ -351,8 +365,12 @@ AdaptiveQuality.install({
   // the quality-level ladder encodes the 'bubbles' property correctly from
   // day one. The optional-chain guard means Phase 3 just needs to add the
   // method — no change needed here.
-  onLevelChange: (_level, lvl) => {
+  onLevelChange: (level, lvl, avgMs) => {
     bubbles.setCheapMaterial?.(lvl.bubbles === 'cheap');
+    // Only the DOWN steps are the interesting field-perf signal (the budget
+    // slipped on real hardware); recoveries back up are expected.
+    if (level > _lastQualityLevel) Analytics.qualityDowngrade(level, avgMs ? 1000 / avgMs : 0);
+    _lastQualityLevel = level;
   },
 });
 
@@ -369,7 +387,14 @@ HUD.showTitle();
 HUD.onStart(() => {
   HUD.hideTitle();
   running = true;
-  Analytics.gameStart();
+  // Context segments every later event by device/tier/returning-ness.
+  Analytics.gameStart({
+    perf_tier: PERF.name,
+    touch: Touch.isTouchDevice(),
+    seeded: window.__seedInput != null,
+    returning: HUD.loadBest() > 0,
+  });
+  _sessionEndReported = false;
   // Sound.init() MUST run synchronously inside the tap handler on iOS — any
   // await/setTimeout boundary loses the "user gesture" status and the
   // AudioContext starts suspended (silent).
@@ -455,10 +480,24 @@ function finishIntroReveal() {
   HUD.toast('Drive around — make people smile, dodge the parade.', 2800);
 }
 
+// Session summary: fire once when the player leaves (tab hidden / page going
+// away) with the live run snapshot. Beacon transport (in Analytics.sessionEnd)
+// is the mobile-reliable way to get a request out as the page disappears —
+// `beforeunload` is flaky on mobile. The guard resets when the tab returns, so
+// a session that briefly backgrounded still logs a fuller snapshot on the real
+// exit (the run rollup keeps accumulating across the gap).
+function reportSessionEnd() {
+  if (!running || _sessionEndReported) return;
+  _sessionEndReported = true;
+  Analytics.sessionEnd({ smiles: score, best: HUD.loadBest(), maxJuice: _maxJuiceReached, honks: _honkCount });
+}
+
 // iOS suspends the AudioContext on tab switch / device lock. Resume on return.
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) Sound.resume();
+  if (document.hidden) reportSessionEnd();
+  else { _sessionEndReported = false; Sound.resume(); }
 });
+window.addEventListener('pagehide', reportSessionEnd);
 window.addEventListener('pageshow', () => Sound.resume());
 // Belt-and-suspenders: any touch/click after we're running revives audio if
 // iOS dropped it for a reason we didn't see (route changes, headset unplug).
@@ -480,10 +519,12 @@ function tickBody(dt) {
   if (running) {
     const tod = getTimeOfDay();
     const nightness = tod ? tod.nightness : 0;
+    if (nightness > 0.5) Analytics.sawNight();   // once: played into nightfall
     // During the opening reveal the player can't steer — feed Zerble a neutral
     // input so it idles while the camera does its thing.
     zerble.update(dt, controlsLocked ? NEUTRAL_INPUT : Input, nightness);
     Sound.setEngineSpeed(zerble.speed, zerble.isBoosting ? 1 : 0);
+    if (zerble.isBoosting) Analytics.featureUsed('boost');   // once per run
     // Push nightness into the audio module so the forest drum engine can
     // gate voices + the crackling-fire bed against the day/night cycle.
     Sound.setNightness(nightness);
@@ -512,10 +553,11 @@ function tickBody(dt) {
         puppets.scatter(zerble);
         band.scatter(zerble);
       }
-      if (bellHonk)      Sound.playBicycleBell();
-      else if (hornHonk) Sound.playClownHorn();
+      if (bellHonk)      { Sound.playBicycleBell(); Analytics.featureUsed('honk_bell'); }
+      else if (hornHonk) { Sound.playClownHorn();   Analytics.featureUsed('honk_clown'); }
       else               Sound.playHonk();   // SPACE → random
       Analytics.firstHonk();
+      _honkCount++;
     }
 
     // V cycles camera modes: chase → first-person → top-down → chase.
@@ -536,6 +578,7 @@ function tickBody(dt) {
     // itself counts as the user gesture browsers require.
     if (Input.consumePressed('M')) {
       midi.toggle(HUD);
+      Analytics.featureUsed('music_toggle');
     }
     // Feed both the trip's envelope (fade-in/out gate) AND its progress
     // (0..1 position across the full trip) into the MIDI player each frame.
@@ -562,16 +605,22 @@ function tickBody(dt) {
     // the disco light into a fast, bright-white strobe so the effect reads
     // even in bright sunlight. Per-frame: hold for blast, release for normal.
     const blasting = Input.isDown('G');
+    if (blasting && !_wasBlasting) Analytics.bubbleBlast();   // marquee verb, once per run
+    _wasBlasting = blasting;
     bubbles.setBlast(blasting);
     zerble.setBubbleBlast(blasting);
     zerble.setJuiceLevel(bubbles.juice);   // drives the bubble-machine liquid level + reserve jugs
     bubbles.update(dt, zerble, nightness);
     HUD.setJuice(bubbles.juice);
+    if (bubbles.juice > _maxJuiceReached) _maxJuiceReached = bubbles.juice;   // peak → session_end
     // Dry tank → no bubbles → NPCs frown (crowd.js reads this). One-time toast
     // on running out so the player connects the empty meter to the frowns.
     const bubblesEmpty = bubbles.juice <= 0.02;
     crowd.bubblesEmpty = bubblesEmpty;
-    if (bubblesEmpty && !_wasEmpty) HUD.toast('Out of bubble juice — grab a jug!', 2200);
+    if (bubblesEmpty && !_wasEmpty) {
+      HUD.toast('Out of bubble juice — grab a jug!', 2200);
+      Analytics.bubbleRanDry();
+    }
     _wasEmpty = bubblesEmpty;
     if (!npcsFrozen()) crowd.update(dt, zerble, bubbles);
     smiles.update(dt, zerble, (n) => {
@@ -708,6 +757,7 @@ function tickBody(dt) {
           registry.remove(id);
           Sound.playJuicePickup();
           HUD.toast('Bubble juice topped up!', 1400);
+          Analytics.refuel('jug');
         }
       }
     }
@@ -742,6 +792,8 @@ function tickBody(dt) {
         HUD.toast('Bubble juice full!', 1400);
         Sound.playJuicePickup();
       }
+      // One refuel event per fill session — the rising edge of the stream.
+      if (refuelFromPos && !_vendorWasFilling) Analytics.refuel('vendor');
       _vendorWasFilling = !!refuelFromPos;
     } else {
       _vendorWasFilling = false;

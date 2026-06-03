@@ -187,7 +187,8 @@ function _apply(newLevel, avgMs) {
 
   // Notify caller — main.js uses this to swap bubble material without
   // creating a direct dependency between this module and bubbles.js.
-  state.hooks.onLevelChange?.(newLevel, lvl);
+  // avgMs lets the caller log the frame time that triggered the change.
+  state.hooks.onLevelChange?.(newLevel, lvl, avgMs);
 }
 
 // Toggle shadows in a way that doesn't leave stale ghost shadows on the

@@ -201,6 +201,7 @@ export const Trip = {
   _envelope:        0,
   _fadeOutFrom:     1,        // envelope value at the moment we entered fading_out
   _tripElapsed:     0,        // seconds since trip start (cleared in idle/cooldown)
+  _tripSource:      null,     // analytics: start path ('wook_accept'|'manual_static'|'manual_dynamic')
   _timeAccum:       0,
   _nearestWookDist: Infinity,
   // Live per-effect values (what's actually being written to uniforms this frame).
@@ -226,6 +227,7 @@ export const Trip = {
     if (this.state !== 'awaiting_confirm') return;
     this.dynamic = true;
     this._enterFadingIn();
+    this._tripSource = 'wook_accept';
     Analytics.tripStart('wook_accept');
     if (typeof this.onAccept === 'function') this.onAccept();
   },
@@ -246,6 +248,7 @@ export const Trip = {
   trigger() {
     this.dynamic = false;
     this._enterFadingIn();
+    this._tripSource = 'manual_static';
     Analytics.tripStart('manual_static');
   },
 
@@ -253,6 +256,7 @@ export const Trip = {
   triggerDynamic() {
     this.dynamic = true;
     this._enterFadingIn();
+    this._tripSource = 'manual_dynamic';
     Analytics.tripStart('manual_dynamic');
   },
 
@@ -520,6 +524,8 @@ export const Trip = {
           this._envelope = 0;
           this.state = 'cooldown';
           this._phaseTimer = 0;
+          // Trip fully came down — log its length (covers come-down-cut trips too).
+          Analytics.tripEnd(this._tripSource, this._tripElapsed);
         }
         break;
       }

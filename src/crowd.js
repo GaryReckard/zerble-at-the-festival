@@ -88,6 +88,8 @@ export class Crowd {
     // instead of smile. `onFrown(npc)` fires when a frown lands (score sink).
     this.bubblesEmpty = false;
     this.onFrown = null;
+    // `onBoard(npc)` fires when an NPC actually climbs aboard (boarding→riding).
+    this.onBoard = null;
     this.npcs = [];
     this.free = []; // indices available
     this.groups = new Map(); // groupId -> { center: Vector3, members: [npcs] }
@@ -1194,6 +1196,7 @@ export class Crowd {
       npc.state = 'riding';
       npc.rideTimer = RIDE_MIN_TIME + Math.random() * (RIDE_MAX_TIME - RIDE_MIN_TIME);
       this._writeMatrices(npc); // snap into place
+      if (this.onBoard) this.onBoard(npc);
       return;
     }
 

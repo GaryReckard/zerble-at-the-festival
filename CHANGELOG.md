@@ -2,6 +2,15 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-03
+
+### Added — GA4 tracking caught up to everything shipped since launch
+The original GA4 wiring (2026-05-25) covered honks, smiles, collisions, views, Lurleen, and trips. A pile of systems landed since — the whole bubble-juice loop, passengers, the blast verb, vendors, the perf/adaptive-quality work — none of it tracked. Closed the gap across four fronts, all through the existing no-op-safe [analytics.js](src/analytics.js) wrapper (still gated off local hosts), keeping the one-event-with-a-param pattern so we stay nowhere near GA4's 500-event-name cap.
+- **The bubble-juice economy.** `bubble_ran_dry` (friction — fires each time the tank empties, with a climbing `count`), `refuel{source: jug|vendor}` (the vendor case edge-detected off the refill stream so it isn't per-frame, [main.js](src/main.js)), and `bubble_blast` for the marquee G-hold verb (once per run, like `first_honk`).
+- **Session shape + context.** A `session_end` summary fires on tab-hide via **beacon transport** (mobile-reliable, unlike `beforeunload`) carrying duration, smiles, best, max juice, honks, and the run's jug/vendor/trip/passenger/ran-dry counts; the guard resets when the tab returns so a briefly-backgrounded session still logs a fuller snapshot on the real exit. `game_start` now carries `{perf_tier, touch, seeded, returning}` so every downstream event is segmentable by device and player type.
+- **Field health.** Uncaught errors (`window.onerror` + `unhandledrejection`) now report as GA4 `exception` events, capped at 8/load so a render-loop error can't flood — the only way we'll see field crashes on devices we can't repro (e.g. the Safari frozen-module class, [threeShim.js](src/threeShim.js)). `quality_downgrade` fires when the adaptive monitor steps quality DOWN under load ([adaptiveQuality.js](src/adaptiveQuality.js) now passes the triggering frame time through `onLevelChange`), with the avg fps + perf tier.
+- **Feature discovery + engagement.** A single `feature_used{feature}` event (once per run) for the bell/clown honks, the M music toggle, camera zoom (the new chase/FPV zoom), and boost; plus `passenger_board` (first board per run; every board feeds the session_end count, via a new `crowd.onBoard` callback mirroring `onFrown`), `trip_end{source, duration_s}` (logged when a trip fully comes down, [trip.js](src/trip.js)), and `saw_night` (played into nightfall — a clean "stuck around" proxy).
+
 ## 2026-06-02
 
 ### Added — Zerble, rebuilt: off-road tires, a working bubble machine, reserve jugs

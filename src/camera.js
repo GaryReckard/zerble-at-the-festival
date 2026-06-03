@@ -6,6 +6,7 @@
 // HOME chord (configurable below) to recenter.
 
 import * as THREE from 'three';
+import { Analytics } from './analytics.js';
 
 const DEFAULT_DISTANCE = 12;
 const DEFAULT_HEIGHT = 6.5;
@@ -152,8 +153,10 @@ export class ChaseCamera {
       this.topHeight = THREE.MathUtils.clamp(this.topHeight / factor, TOP_MIN_HEIGHT, TOP_MAX_HEIGHT);
     } else if (this.mode === 'first') {
       this.fpvFov = THREE.MathUtils.clamp(this.fpvFov / factor, FPV_MIN_FOV, this._defaultFov);
+      Analytics.featureUsed('camera_zoom');   // the new chase/FPV zoom (once per run)
     } else {
       this.chaseZoom = THREE.MathUtils.clamp(this.chaseZoom / factor, CHASE_MIN_ZOOM, CHASE_MAX_ZOOM);
+      Analytics.featureUsed('camera_zoom');
     }
   }
 
