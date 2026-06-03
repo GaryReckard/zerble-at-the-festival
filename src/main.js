@@ -566,6 +566,9 @@ function tickBody(dt) {
       HUD.toast(chaseCam.modeLabel + ' (V to cycle)', 1500);
       Analytics.viewToggle(chaseCam.mode);
     }
+    // Arrow keys = manual camera control (pan/tilt in chase/FPV, zoom/rotate in
+    // top-down). Tracked once per run as a discovery signal.
+    if (!controlsLocked && (Input.camYaw !== 0 || Input.camPitch !== 0)) Analytics.featureUsed('camera_arrows');
 
     // Y accepts a pending wook trip offer. Outside of awaiting_confirm the
     // press is consumed silently — Y has no other binding so this is fine.

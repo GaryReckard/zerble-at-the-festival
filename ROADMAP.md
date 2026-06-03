@@ -117,6 +117,23 @@ The MIDI player (M key) ships with a single shared PolySynth(FMSynth) for all tr
 - **Boost streaks.** Visible trail behind Zerble at high speed — short fading emissive ring instances, ~8 in a pool, spawned at the rear during boost and fading over ~0.4s. Reads as motion without changing collision or perf budget.
 - **Day/night HUD indicator.** Tiny sun/moon icon in the corner arcing across a strip showing time of day. Pure DOM/SVG, syncs to `getTimeOfDay().t`. Tells the player when the trippy night content (drum circles, stage lights, fireworks once shipped) is coming.
 
+## Player identity
+
+### Name entry on the title card *(medium effort)*
+
+A text field on the title card — "What's your name?" — before the "Let's go ZERBLIN'!" button. Persist to `localStorage` so returning players keep it. Blank name = today's behavior exactly (no greeting, no name in copy). Then weave it through the world for a personal touch:
+
+- **Festival arch greeting.** The (0,0) entrance arch banner reads "Welcome, {name}!" instead of "FESTIVAL" — same canvas-baked-texture path as the existing arch sign (chunks.js / the arch model), falling back to the default when unset.
+- **Wook toast banter.** The wook offer/narration toasts drop the name in occasionally ("{name}, the bubbles are calling…"). Same idea for the other toast banks — vendor crack-wise lines, milestone toasts ("Nice one, {name} — 100 smiles!"), the out-of-juice nudge, Lurleen. Sprinkle, don't saturate.
+
+The in-world name use is 100% client-side — no privacy implications. The *tracking* is where the line is:
+
+**GA4 + the name — the legal bit (important):** do **not** send the raw name to GA4. Google's Analytics ToS prohibits sending PII (personally identifiable information), and a free-text name field is PII — sending it risks account suspension and is a privacy problem regardless. So:
+
+- Track only non-PII signals: `name_entered` (boolean), `name_length` (number), and maybe a salted hash if we ever need to count distinct players — never the string itself.
+- If we ever want the name for GA4 segmentation (a user property), same rule: a hash or opt-in pseudonym is the only defensible route, not the raw name.
+- Worth a quiet "stays on your device, we don't send it anywhere" note by the field if we want to be upfront (it lives in `localStorage`, never leaves the browser).
+
 ## Performance
 
 - **Crowd InstancedMesh churn.** When NPCs change state, their per-instance matrix flag has to flip. Worth profiling on low-end devices to see if writes per frame are an issue.

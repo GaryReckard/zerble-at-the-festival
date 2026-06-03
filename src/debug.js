@@ -633,13 +633,15 @@ function bindKeys() {
       e.preventDefault();
       toggleTripPanel();
     }
-    // Only-when-visible shortcuts (so they don't fight gameplay keys)
+    // Only-when-visible shortcuts (so they don't fight gameplay keys).
+    // Each fires a once-per-run feature_used so we can see which debug tools
+    // players actually discover (the panel-open is already tracked).
     if (!state.visible) return;
-    if (e.code === 'KeyP') window.__debug.pause(!state.paused);
-    if (e.code === 'Period' && state.paused) window.__debug.step(1);
-    if (e.code === 'KeyC') window.__debug.showColliders(!state.showColliders);
-    if (e.code === 'KeyG') window.__debug.god(!state.god);
-    if (e.code === 'KeyF') window.__debug.freezeNPCs(!state.freezeNPCs);
+    if (e.code === 'KeyP') { window.__debug.pause(!state.paused); Analytics.featureUsed('debug_pause'); }
+    if (e.code === 'Period' && state.paused) { window.__debug.step(1); Analytics.featureUsed('debug_step'); }
+    if (e.code === 'KeyC') { window.__debug.showColliders(!state.showColliders); Analytics.featureUsed('debug_colliders'); }
+    if (e.code === 'KeyG') { window.__debug.god(!state.god); Analytics.featureUsed('debug_god'); }
+    if (e.code === 'KeyF') { window.__debug.freezeNPCs(!state.freezeNPCs); Analytics.featureUsed('debug_freeze'); }
   });
 }
 
