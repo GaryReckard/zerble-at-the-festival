@@ -16,13 +16,15 @@ const SPAWN_PER_SEC = 40;
 // makes NPCs frown (see crowd.js). Refueled by drive-over jugs + the bubble
 // vendor (models/bubbleJug.js, models/bubbleVendor.js).
 //
-// Zelda-style stockpile: the tank holds up to JUICE_STACK_MAX *meters* worth.
-// Jugs each add a full meter (stacking past 1), so you can load up deep;
-// the vendor only tops the current meter (cap 1). The HUD shows the working
-// meter as a bar + spare meters as reserve pips.
+// Zelda-style stockpile: no cap — gather as many jugs as you can find.
+// Jugs each add a full meter (stacking past 1), so you can load up arbitrarily
+// deep; the vendor only tops the current meter (cap 1). The HUD shows the
+// working meter as a bar + the spare whole meters as a "N× jug" count. (The
+// physical under-seat jugs in zerble.js still cap at a poolful — the cavity
+// just packs full — but the stockpile number itself is unbounded.)
 const JUICE_DRAIN_PER_SEC = 0.0072;  // ~140s of normal bubbling per meter (20% slower than the 0.009 first pass — drains a touch too quick)
 const JUICE_BLAST_DRAIN = 3.0;       // the G blast burns it ~3x faster
-export const JUICE_STACK_MAX = 4;    // max meters you can stockpile
+export const JUICE_STACK_MAX = Infinity;   // no stockpile cap — Gary wanted unlimited jugs
 const GRAVITY = -0.45;
 const BUOYANCY = 1.0;
 const LIFETIME = 22;     // ~2.75x the original 8s — bubbles linger long enough to feel like a trail

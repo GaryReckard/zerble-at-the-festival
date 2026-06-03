@@ -9,6 +9,7 @@ const $start = document.getElementById('start-btn');
 const $juiceMeter = document.getElementById('juice-meter');
 const $juiceFill = document.getElementById('juice-fill');
 const $juiceReserve = document.getElementById('juice-reserve');
+const $juiceReserveN = document.getElementById('juice-reserve-n');
 
 let _juiceState = '';     // '', 'low', or 'empty'
 let _juiceReserveN = -1;
@@ -44,10 +45,11 @@ export const HUD = {
     $smiles.textContent = String(Math.floor(n));
   },
 
-  // Bubble-juice gauge. `total` is in meters (0..JUICE_STACK_MAX). The bar
-  // shows the working meter (min(1, total)); spare whole meters above ~2 show
-  // as reserve pips. Below 0.45 (and no reserve) → amber low; ~empty → red
-  // pulsing. Called every frame — guards against redundant DOM writes.
+  // Bubble-juice gauge. `total` is in meters (unbounded — gather as many jugs
+  // as you like). The bar shows the working meter (min(1, total)); spare whole
+  // meters show as a "N× jug" count to the right (no cap, unlike the old pips).
+  // Below 0.45 (and no reserve) → amber low; ~empty → red pulsing. Called every
+  // frame — guards against redundant DOM writes.
   setJuice(total) {
     const t = Math.max(0, total || 0);
     const bar = Math.min(1, t);
@@ -62,16 +64,17 @@ export const HUD = {
       }
     }
 
-    const reserves = Math.max(0, Math.min(3, Math.floor(t) - 1));
+    // Reserve = whole spare meters beyond the working one. No cap now — the
+    // count just keeps climbing as you stockpile jugs.
+    const reserves = Math.max(0, Math.floor(t) - 1);
     if (reserves !== _juiceReserveN) {
       _juiceReserveN = reserves;
       if ($juiceReserve) {
-        $juiceReserve.innerHTML = '';
-        for (let i = 0; i < reserves; i++) {
-          const pip = document.createElement('span');
-          pip.className = 'pip';
-          $juiceReserve.appendChild(pip);
-        }
+        $juiceReserve.classList.toggle('has-reserve', reserves > 0);
+        $juiceReserve.setAttribute('aria-hidden', reserves > 0 ? 'false' : 'true');
+        $juiceReserve.setAttribute('aria-label',
+          reserves > 0 ? `${reserves} reserve bubble-juice jug${reserves === 1 ? '' : 's'}` : '');
+        if ($juiceReserveN) $juiceReserveN.textContent = `${reserves}×`;
       }
     }
   },

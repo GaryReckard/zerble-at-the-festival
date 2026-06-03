@@ -110,19 +110,28 @@ body {
   margin-bottom: 6px;
 }
 
-/* Stockpile reserve pips — spare full meters beyond the working one. */
+/* Stockpile reserve — spare whole meters beyond the working one, shown as a
+   "N× jug" badge to the right of the label. Hidden when you have no spares. */
 .juice-reserve {
   margin-left: auto;
-  display: flex;
-  gap: 3px;
+  display: none;                 /* revealed via .has-reserve when reserves > 0 */
   align-items: center;
+  gap: 3px;
 }
-.juice-reserve .pip {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 32% 30%, #ffffff 0%, #7fe8ff 40%, #2bb8e6 100%);
-  box-shadow: 0 0 6px rgba(127, 232, 255, 0.7);
+.juice-reserve.has-reserve {
+  display: flex;
+}
+.rsv-n {
+  font-size: 12px;
+  font-weight: 700;
+  color: #aef0ff;
+  text-shadow: 0 0 6px rgba(127, 232, 255, 0.7);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.rsv-jug {
+  display: block;
+  filter: drop-shadow(0 0 4px rgba(127, 232, 255, 0.6));
 }
 
 .juice-dot {
