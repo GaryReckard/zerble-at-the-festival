@@ -967,6 +967,10 @@ function buildFoodPlaza(ctx) {
       kind: 'bubble_vendor',
       position: new THREE.Vector3(x, 0, z),
       footprint: 2.4,
+      // Solid booth — Zerble bounces off it (light bonk) instead of driving
+      // through. Radius is smaller than the refuel range so you can still nose
+      // up close enough to refill. Light damage; it's a friendly stand.
+      collider: { radius: 1.5, damage: 2 },
       attractor: { radius: 7, weight: 1.0 },
       chunkKey: ctx.key,
       obj: vendor,

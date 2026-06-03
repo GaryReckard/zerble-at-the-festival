@@ -564,6 +564,7 @@ function tickBody(dt) {
     const blasting = Input.isDown('G');
     bubbles.setBlast(blasting);
     zerble.setBubbleBlast(blasting);
+    zerble.setJuiceLevel(bubbles.juice);   // drives the bubble-machine liquid level + reserve jugs
     bubbles.update(dt, zerble, nightness);
     HUD.setJuice(bubbles.juice);
     // Dry tank → no bubbles → NPCs frown (crowd.js reads this). One-time toast
@@ -714,17 +715,21 @@ function tickBody(dt) {
     let refuelFromPos = null;     // vendor we're actively drawing juice from this frame
     if (vendorIds && vendorIds.size > 0) {
       let nearVendor = false;
+      const REFUEL_RANGE = 7;     // refill from a bit further out than the booth (was 5)
       for (const id of vendorIds) {
         const e = registry.entries.get(id);
         if (!e) continue;
         e.obj?.userData.anim?.(dt);
         const dx = e.position.x - zerble.position.x;
         const dz = e.position.z - zerble.position.z;
-        if (dx * dx + dz * dz < 5 * 5) {
+        if (dx * dx + dz * dz < REFUEL_RANGE * REFUEL_RANGE) {
           nearVendor = true;
           if (bubbles.juice < 1) {                 // vendor tops the current meter only
+            const before = bubbles.juice;
             bubbles.addJuice((e.refuel || 0.4) * dt, 1.0);
-            refuelFromPos = e.position;
+            // Only flow the stream while the meter is actually rising — the
+            // instant it tops off, refuelFromPos stays null so the stream stops.
+            if (bubbles.juice > before) refuelFromPos = e.position;
           }
         }
       }
@@ -864,6 +869,17 @@ const HULA_HOOP_TOASTS = [
   "That hoop was somebody's chakra!",
 ];
 
+const BUBBLE_VENDOR_TOASTS = [
+  "Whoa! The juice is for drinking, not crashing!",
+  "Careful — you almost spilled the whole batch!",
+  "The vendor says: refills are free, dents are not.",
+  "Park it, don't plow it!",
+  "Easy there — the bubble juice doesn't pour any faster.",
+  "You rattled the jugs! No bubbles were harmed.",
+  "That's a stand, not a drive-thru!",
+  "Tip jar's empty and now so's your patience.",
+];
+
 function resolveCollision(zerble, colliders) {
   // forward = (-sin(h), 0, -cos(h)); velocity = forward * speed
   const fx = -Math.sin(zerble.heading);
@@ -935,6 +951,7 @@ function toastForKind(kind) {
     case 'forest_tree': return 'Ow — that\'s a big tree!';
     case 'firepit': return 'Hot stone, ouch!';
     case 'hula_hoop': return HULA_HOOP_TOASTS[Math.floor(Math.random() * HULA_HOOP_TOASTS.length)];
+    case 'bubble_vendor': return BUBBLE_VENDOR_TOASTS[Math.floor(Math.random() * BUBBLE_VENDOR_TOASTS.length)];
     case 'bench_ring': return 'Easy on the benches!';
     case 'island': return 'Tiny island, busy day.';
     case 'lurleen': return 'Easy, lover — that\'s Lurleen.';

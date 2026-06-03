@@ -2,6 +2,8 @@
 
 import * as THREE from 'three';
 import { Input } from './input.js';
+import { PERF } from './perf.js';
+import { buildBubbleJug } from './models/bubbleJug.js';
 
 // --- Driving feel knobs ---
 const ACCEL = 18;          // m/s^2 throttle
@@ -33,6 +35,27 @@ const LED_HUES = [0xff5577, 0xffaa33, 0xffe066, 0x66ff88, 0x66d9ff, 0xc080ff];
 
 // Reusable color object for disco light updates — avoids per-frame churn.
 const _tmpDiscoColor = new THREE.Color();
+const _tmpWellColor = new THREE.Color();   // wheel-well underglow hue cycle
+
+// Mini "ZERBLE" novelty plate, baked to a small canvas so it reads at any zoom
+// with no external asset (same trick as the seat pattern below). Real Zerble
+// sports a tiny "ZERBLE / NORTH CAROLINA" plate at the back of the platform.
+function _makeZerblePlateTexture() {
+  const cv = document.createElement('canvas');
+  cv.width = 160; cv.height = 80;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#f4ead2'; g.fillRect(0, 0, 160, 80);                 // cream plate
+  g.strokeStyle = '#c0392b'; g.lineWidth = 6; g.strokeRect(6, 6, 148, 68);
+  g.textAlign = 'center';
+  g.fillStyle = '#7a2018'; g.font = 'bold 13px sans-serif';
+  g.fillText('NORTH CAROLINA', 80, 22);
+  g.fillStyle = '#c0392b'; g.font = 'bold 34px sans-serif';
+  g.fillText('ZERBLE', 80, 58);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
 
 export class Zerble {
   constructor() {
@@ -51,6 +74,10 @@ export class Zerble {
     // I-key ramps it toward 1, held O ramps it toward 0. Eased so the full
     // range takes a touch under 2s.
     this.eyeGlowLevel = 0.5;
+    // Bubble-juice meter level (0..JUICE_STACK_MAX, in meters), fed from main.js
+    // each frame. Drives the bubble-machine liquid level + reserve jugs. Default
+    // full so the sandbox shows liquid without the bubbles module wired in.
+    this._juiceLevel = 1.0;
 
     // For bubbles & smile attraction: a stable world point on Zerble.
     this.nozzleWorld = new THREE.Vector3();
@@ -76,7 +103,7 @@ export class Zerble {
     // "pickup bed" so back-seat riders have foot room. The rear gets a
     // black floorboard on top with LED light trim.
     const chassisFront = new THREE.Mesh(
-      this._roundedBoxGeometry(3.0, 0.9, 2.6, 0.18),
+      this._roundedBoxGeometry(2.6, 0.9, 2.6, 0.18),
       mat(COLOR_BODY, { roughness: 0.55 })
     );
     chassisFront.position.set(0, 0.85, -0.8);
@@ -85,7 +112,7 @@ export class Zerble {
     this.root.add(chassisFront);
 
     const chassisRear = new THREE.Mesh(
-      this._roundedBoxGeometry(3.0, 0.45, 1.6, 0.12),
+      this._roundedBoxGeometry(2.6, 0.45, 1.6, 0.12),
       mat(COLOR_BODY, { roughness: 0.55 })
     );
     chassisRear.position.set(0, 0.6, 1.3);
@@ -123,10 +150,10 @@ export class Zerble {
     // The back seat-back sits IN FRONT of the back cushion, immediately behind the
     // front seat-back (back-to-back). Riders straddle the cushion facing +Z.
     const backSeat = new THREE.Mesh(
-      this._roundedBoxGeometry(2.2, 0.55, 1.0, 0.1),
+      this._roundedBoxGeometry(2.2, 0.28, 1.0, 0.08),   // half-thickness so reserve jugs show underneath
       mat(0xd7c79a, { roughness: 0.9 })   // classic beige golf-cart back bench
     );
-    backSeat.position.set(0, 1.45, 1.1);
+    backSeat.position.set(0, 1.585, 1.1);   // raised so the seating surface stays put; clearance opens below
     this.root.add(backSeat);
 
     const backSeatBack = new THREE.Mesh(
@@ -190,13 +217,14 @@ export class Zerble {
       this.root.add(led);
       this._floorLeds.push(led);
     };
-    // Trim the front edge (z = ~0.6), back edge (z = ~2.2) and the two sides
+    // LEDs line only the BACK HALF of the rear platform (back edge + the rear
+    // stretch of each side) — on the real cart they don't wrap all the way
+    // around. Platform spans z 0.6..2.2; "back half" starts at z≈1.4.
     const ledSpacing = 0.22;
     const halfW = 1.15;
     let i = 0;
-    for (let x = -halfW; x <= halfW + 0.001; x += ledSpacing) placeLed(x, 0.6, i++);
-    for (let x = -halfW; x <= halfW + 0.001; x += ledSpacing) placeLed(x, 2.2, i++);
-    for (let z = 0.6 + ledSpacing; z <= 2.2 - ledSpacing + 0.001; z += ledSpacing) {
+    for (let x = -halfW; x <= halfW + 0.001; x += ledSpacing) placeLed(x, 2.2, i++);   // back edge
+    for (let z = 1.4; z <= 2.2 - ledSpacing + 0.001; z += ledSpacing) {                 // rear half of the sides
       placeLed(-halfW, z, i++);
       placeLed( halfW, z, i++);
     }
@@ -221,47 +249,154 @@ export class Zerble {
     // Thin curved bar — skip shadow casting.
     this.root.add(ohBar);
 
-    // ----- Wheels -----
+    // ----- Wheels — big knobby off-road tires. The real Zerble runs aftermarket
+    // AT tires on its EZ-GO, so the tread is the signature. Each wheel: a fat
+    // tire carcass + a ring of chunky tread lugs collapsed into ONE InstancedMesh
+    // (all the tread is a single draw call per wheel — this is the hero vehicle,
+    // always on screen against the tight draw budget) + a small dark off-road rim
+    // with a bright center cap.
     this.wheels = [];
-    const wheelGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.45, 18);
-    wheelGeo.rotateZ(Math.PI / 2);
-    const wheelMat = mat(COLOR_WHEEL, { roughness: 0.9 });
+    const TIRE_R = 0.62;     // up from 0.55 — chunkier
+    const TIRE_W = 0.50;     // up from 0.45 — fatter
+    this._tireR = TIRE_R;    // wheel-spin calc reads this so rolling matches ground speed
 
-    // Inner hub (lighter ring for a hint of detail)
-    const hubGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.48, 12);
-    hubGeo.rotateZ(Math.PI / 2);
-    const hubMat = mat(0x55525a, { roughness: 0.7, metalness: 0.6 });
+    const tireGeo = new THREE.CylinderGeometry(TIRE_R, TIRE_R, TIRE_W, 20);
+    tireGeo.rotateZ(Math.PI / 2);   // axle along X
+    const tireMat = mat(COLOR_WHEEL, { roughness: 0.95 });
+
+    // Tread lug box: local X = axial (along axle), Y = radial protrusion, Z = tangential.
+    const LUG_ROWS = 2;
+    const LUGS_PER_ROW = 14;
+    const lugGeo = new THREE.BoxGeometry(TIRE_W * 0.40, 0.14, 0.18);
+    const lugMat = mat(0x101013, { roughness: 1.0 });   // matte-black tread
+
+    // Small off-road rim + bright center cap.
+    const rimGeo = new THREE.CylinderGeometry(0.28, 0.28, TIRE_W + 0.04, 14);
+    rimGeo.rotateZ(Math.PI / 2);
+    const rimMat = mat(0xd9a93a, { roughness: 0.3, metalness: 0.9 });    // gold rim
+    const capGeo = new THREE.CylinderGeometry(0.11, 0.11, TIRE_W + 0.10, 10);
+    capGeo.rotateZ(Math.PI / 2);
+    const capMat = mat(0xf2e09a, { roughness: 0.3, metalness: 0.9 });    // bright gold cap
 
     const wheelPositions = [
-      { x: -1.4, z: -1.5, front: true },
-      { x: 1.4, z: -1.5, front: true },
-      { x: -1.55, z: 1.4, front: false },
-      { x: 1.55, z: 1.4, front: false },
+      { x: -1.45, z: -1.5, front: true },
+      { x: 1.45, z: -1.5, front: true },
+      { x: -1.6, z: 1.4, front: false },
+      { x: 1.6, z: 1.4, front: false },
     ];
 
+    const _lugObj = new THREE.Object3D();
     for (const wp of wheelPositions) {
       const wheelGroup = new THREE.Group();
-      wheelGroup.position.set(wp.x, 0.55, wp.z);
+      wheelGroup.position.set(wp.x, TIRE_R, wp.z);   // sit the tire on the ground
 
-      const tire = new THREE.Mesh(wheelGeo, wheelMat);
-      tire.castShadow = true;
-      wheelGroup.add(tire);
-
-      const hub = new THREE.Mesh(hubGeo, hubMat);
-      wheelGroup.add(hub);
-
-      // Spin pivot is a child so steering can rotate the group without un-spinning the tire.
+      // Spin pivot holds everything that rotates with the tire, so steering
+      // (wheelGroup.rotation.y) and roll (spinPivot.rotation.x) compose cleanly.
       const spinPivot = new THREE.Group();
-      spinPivot.add(tire);
-      spinPivot.add(hub);
-      wheelGroup.add(spinPivot);
-      // Remove duplicates we added earlier — we want them only via spinPivot.
-      wheelGroup.remove(tire);
-      wheelGroup.remove(hub);
 
+      const tire = new THREE.Mesh(tireGeo, tireMat);
+      tire.castShadow = true;
+      spinPivot.add(tire);
+
+      // Knobby tread — two staggered rows of lugs orbiting the axle, all in one
+      // InstancedMesh. Orbit each lug's position by hand and set rotation = angle
+      // so its +Y face points radially outward.
+      const lugs = new THREE.InstancedMesh(lugGeo, lugMat, LUG_ROWS * LUGS_PER_ROW);
+      lugs.castShadow = false;
+      let li = 0;
+      for (let row = 0; row < LUG_ROWS; row++) {
+        const xOff = (row === 0 ? -1 : 1) * TIRE_W * 0.22;
+        const angOff = row === 0 ? 0 : Math.PI / LUGS_PER_ROW;   // stagger rows
+        for (let k = 0; k < LUGS_PER_ROW; k++) {
+          const a = angOff + (k / LUGS_PER_ROW) * Math.PI * 2;
+          const r = TIRE_R + 0.04;
+          _lugObj.position.set(xOff, Math.cos(a) * r, Math.sin(a) * r);
+          _lugObj.rotation.set(a, 0, 0);
+          _lugObj.updateMatrix();
+          lugs.setMatrixAt(li++, _lugObj.matrix);
+        }
+      }
+      lugs.instanceMatrix.needsUpdate = true;
+      spinPivot.add(lugs);
+
+      spinPivot.add(new THREE.Mesh(rimGeo, rimMat));
+      spinPivot.add(new THREE.Mesh(capGeo, capMat));
+
+      wheelGroup.add(spinPivot);
       this.root.add(wheelGroup);
       this.wheels.push({ group: wheelGroup, spin: spinPivot, front: wp.front, baseY: wheelGroup.position.y });
     }
+
+    // ----- Fender flares — a body-coloured arch over each wheel so the chunky
+    // tires read as sitting in wheel wells instead of clipping the body sides
+    // (EZ-GO style). Half-torus in the wheel's plane, widened along the axle to
+    // span the tire, arcing just outside the tire's top.
+    const fenderGeo = new THREE.TorusGeometry(0.80, 0.12, 8, 20, Math.PI);
+    fenderGeo.rotateY(Math.PI / 2);     // ring into the Y-Z plane → arch over the top
+    const fenderMat = mat(COLOR_BODY, { roughness: 0.55 });
+    for (const wp of wheelPositions) {
+      const fender = new THREE.Mesh(fenderGeo, fenderMat);
+      fender.position.set(wp.x, TIRE_R, wp.z);
+      fender.scale.set(2.3, 1.06, 1.06);   // widen along the axle to span the tire width
+      fender.castShadow = true;
+      this.root.add(fender);
+    }
+
+    // ----- Wheel-well LED underglow — a bright rocker strip down each side, level
+    // with the wheel wells, so the ground + tires wash with color at night
+    // (real-Zerble signature). Emissive + bloom carry the glow; intensity ramps
+    // with nightness (subtle by day, vivid after dark) and the hue slow-cycles.
+    // Plus a downward colored PointLight per side for actual ground/tire wash —
+    // gated by nightness so it costs nothing in daylight. Cheap: 2 strips + 2 lights.
+    this._wellLeds = [];
+    const wellGeo = new THREE.BoxGeometry(0.07, 0.06, 3.5);
+    for (let side = 0; side < 2; side++) {
+      const sx = side === 0 ? -1.5 : 1.5;
+      const wellMat = new THREE.MeshStandardMaterial({
+        color: 0xff3b6b, emissive: 0xff3b6b, emissiveIntensity: 0.4, roughness: 0.4,
+      });
+      const strip = new THREE.Mesh(wellGeo, wellMat);
+      strip.position.set(sx, 0.5, -0.1);          // lower body edge, over the wheels
+      strip.rotation.z = sx < 0 ? -0.3 : 0.3;     // cant the glow down-and-out
+      strip.userData = { phase: side * 1.6, mat: wellMat };
+      this.root.add(strip);
+      this._wellLeds.push(strip);
+    }
+    // One downward wash light gives the ground/tires actual colour at night.
+    // Real lights are the per-frame budget hog (see .claude/rules/performance.md)
+    // and the cart already runs 3 (two headlights + disco), so this 4th light is
+    // mid/high only — low tier leans on the emissive strips + bloom alone.
+    this._wellLight = null;
+    if (PERF.shadows) {   // shadows on == mid/high tier
+      const wl = new THREE.PointLight(0xff3b6b, 0, 5.5, 1.5);
+      wl.position.set(0, 0.3, 0.2);
+      wl.castShadow = false;
+      this.root.add(wl);
+      this._wellLight = wl;
+    }
+
+    // ----- Rear brake/tail lights — two red emissive blocks low on the back of
+    // the red body. Glow faintly by day, brighter at night.
+    this._brakeLights = [];
+    const brakeGeo = new THREE.BoxGeometry(0.46, 0.26, 0.12);
+    for (const bx of [-0.9, 0.9]) {
+      const brakeMat = new THREE.MeshStandardMaterial({
+        color: 0xff2a2a, emissive: 0xff0a0a, emissiveIntensity: 0.7, roughness: 0.4,
+      });
+      const bl = new THREE.Mesh(brakeGeo, brakeMat);
+      bl.position.set(bx, 0.62, 2.06);   // rear face of the red body
+      bl.userData = { mat: brakeMat };
+      this.root.add(bl);
+      this._brakeLights.push(bl);
+    }
+
+    // ----- Mini "ZERBLE" license plate at the very back, below the tail lights -----
+    const plate = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.26, 0.04),
+      new THREE.MeshStandardMaterial({ map: _makeZerblePlateTexture(), roughness: 0.6 }),
+    );
+    plate.position.set(0, 0.32, 2.12);
+    this.root.add(plate);
 
     // ----- Eyes — big globes with VISIBLE black pupils in front of blue irises -----
     this.eyes = [];
@@ -390,31 +525,152 @@ export class Zerble {
     }
 
 
-    // ----- Bubble machine — sits ON the curved top of the oh-shit bar, pointing BACKWARDS -----
-    const bm = new THREE.Mesh(
-      this._roundedBoxGeometry(0.9, 0.45, 0.6, 0.07),
-      mat(0x6b4ea0, { roughness: 0.4 })
-    );
-    bm.position.set(0, 3.0, 1.95);
-    bm.castShadow = true;
-    this.root.add(bm);
+    // ----- Bubble machine — a HOLLOW purple box, black inside, with a real open
+    // circular hole in the rear face. The wand wheel is recessed on a white axle
+    // that runs to the inner back wall, and bubble liquid pools in the bottom
+    // (its level tracks the juice meter; set each frame in update()). Sits over
+    // the platform, its back just past the oh-shit bar. BM_Z drives the disco too.
+    const BM_Z = 2.0;
+    const BM_Y = 3.08;
+    const BM_W = 0.9, BM_H = 0.62, BM_D = 0.55;
+    const wall = 0.04;
+    const hw = BM_W / 2, hh = BM_H / 2, hd = BM_D / 2;
+    const HOLE_R = 0.18;
+    const HOLE_CY = 0.11;                  // hole centre, box-local +y (leaves room for liquid below)
 
-    // Strap from box down to the bar
+    const bmGroup = new THREE.Group();
+    bmGroup.position.set(0, BM_Y, BM_Z);
+    this.root.add(bmGroup);
+
+    const purpleMat = mat(0x6b4ea0, { roughness: 0.4 });
+
+    // Black interior: a BackSide box renders its inner walls, so you see black
+    // through the hole. The purple shell occludes it from every other angle.
+    const interior = new THREE.Mesh(
+      new THREE.BoxGeometry(BM_W - wall, BM_H - wall, BM_D - wall),
+      new THREE.MeshStandardMaterial({ color: 0x0a0a0e, roughness: 0.95, side: THREE.BackSide }),
+    );
+    bmGroup.add(interior);
+
+    // Purple outer shell — 5 solid panels (open at +Z, which gets the holed face).
+    const addPanel = (w, h, d, x, y, z) => {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), purpleMat);
+      p.position.set(x, y, z);
+      p.castShadow = true;
+      bmGroup.add(p);
+    };
+    addPanel(BM_W, wall, BM_D, 0,  hh, 0);   // top
+    addPanel(BM_W, wall, BM_D, 0, -hh, 0);   // bottom
+    addPanel(wall, BM_H, BM_D, -hw, 0, 0);   // left
+    addPanel(wall, BM_H, BM_D,  hw, 0, 0);   // right
+    addPanel(BM_W, BM_H, wall, 0, 0, -hd);   // front (-Z)
+
+    // Rear (+Z) face with a real circular hole (rect outline minus a circle).
+    const rectShape = new THREE.Shape();
+    rectShape.moveTo(-hw, -hh);
+    rectShape.lineTo(hw, -hh);
+    rectShape.lineTo(hw, hh);
+    rectShape.lineTo(-hw, hh);
+    rectShape.closePath();
+    const holePath = new THREE.Path();
+    holePath.absarc(0, HOLE_CY, HOLE_R, 0, Math.PI * 2, true);
+    rectShape.holes.push(holePath);
+    const rear = new THREE.Mesh(new THREE.ShapeGeometry(rectShape), purpleMat);
+    rear.position.set(0, 0, hd);             // ShapeGeometry lies in XY, normal +Z (out the back)
+    bmGroup.add(rear);
+
+    // Strap from box down to the bar (world space).
     const strap = new THREE.Mesh(
       new THREE.BoxGeometry(0.5, 0.08, 0.18),
       mat(COLOR_FRAME, { roughness: 0.5, metalness: 0.4 })
     );
-    strap.position.set(0, 2.81, 1.95);
+    strap.position.set(0, BM_Y - hh - 0.05, BM_Z - 0.05);
     this.root.add(strap);
 
-    // Nozzle — horizontal, aimed +Z (backwards out the rear)
-    this.nozzle = new THREE.Mesh(
-      new THREE.ConeGeometry(0.22, 0.5, 14),
-      mat(0xb89cf5, { roughness: 0.3, metalness: 0.5 })
+    const wandMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, emissive: 0xdfe2ff, emissiveIntensity: 0.3, roughness: 0.45,
+    });
+
+    // White axle from the recessed wheel back to the inner rear wall.
+    const WHEEL_Z = hd - 0.05;               // recessed ~the same distance it used to sit proud
+    const axleBackZ = -hd + wall;
+    const axleLen = WHEEL_Z - axleBackZ;
+    const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, axleLen, 8), wandMat);
+    axle.rotation.x = Math.PI / 2;           // along Z
+    axle.position.set(0, HOLE_CY, (WHEEL_Z + axleBackZ) / 2);
+    bmGroup.add(axle);
+
+    // Wand wheel: a central hub with spokes, each tipped with a small loop.
+    // Recessed in the hole, aligned with its centre. Spins on the axle in update().
+    const wheel = new THREE.Group();
+    wheel.position.set(0, HOLE_CY, WHEEL_Z);
+    bmGroup.add(wheel);
+    this._bubbleWheel = wheel;
+    const SPOKES = 9;
+    const rSpoke = 0.135;                    // loop-centre radius
+    const rLoop = 0.032;                     // wand-loop radius (outer edge ≈ 0.167 < HOLE_R 0.18)
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.025, 12), wandMat);
+    hub.rotation.x = Math.PI / 2;
+    wheel.add(hub);
+    const loopGeo = new THREE.TorusGeometry(rLoop, 0.007, 6, 16);
+    // Stick runs from the hub toward the loop, then stops 1/3-of-a-loop-diameter
+    // short — it doesn't reach the ring (per Gary), leaving a small gap.
+    const spokeLen = (rSpoke - rLoop) - (2 * rLoop) / 3;
+    const spokeGeo = new THREE.CylinderGeometry(0.007, 0.007, spokeLen, 6);
+    for (let k = 0; k < SPOKES; k++) {
+      const a = (k / SPOKES) * Math.PI * 2;
+      const spoke = new THREE.Mesh(spokeGeo, wandMat);
+      spoke.position.set(Math.cos(a) * spokeLen / 2, Math.sin(a) * spokeLen / 2, 0);
+      spoke.rotation.z = a - Math.PI / 2;
+      wheel.add(spoke);
+      const loop = new THREE.Mesh(loopGeo, wandMat);
+      loop.position.set(Math.cos(a) * rSpoke, Math.sin(a) * rSpoke, 0);
+      wheel.add(loop);
+    }
+
+    // Bubble liquid pooling in the bottom — level set each frame from the meter
+    // (see update()). Floor = interior bottom; full = the hole's bottom lip.
+    this._liqFloorY = -hh + wall;
+    this._liqRange = (HOLE_CY - HOLE_R) - this._liqFloorY;   // full-meter column height
+    const liquid = new THREE.Mesh(
+      new THREE.BoxGeometry(BM_W - 2 * wall, 1, BM_D - 2 * wall),   // unit height, scaled in update()
+      new THREE.MeshStandardMaterial({
+        color: 0x49d0ff, transparent: true, opacity: 0.72, roughness: 0.2,
+        emissive: 0x1a6ea0, emissiveIntensity: 0.35,
+      }),
     );
-    this.nozzle.position.set(0, 3.0, 2.45);
-    this.nozzle.rotation.x = Math.PI / 2;
-    this.root.add(this.nozzle);
+    bmGroup.add(liquid);
+    this._bubbleLiquid = liquid;
+
+    // Reserve bubble-juice jugs stashed in the cavity under the back seat — one
+    // shown per stockpiled meter (matches the HUD reserve pips), revealed by
+    // count in update(). Placement: each jug drops into a random spot in the
+    // cavity that doesn't clip an already-placed jug; if no clear spot turns up
+    // after a bunch of tries, it goes down anyway (clipping) — so a big stockpile
+    // just packs the cavity full. Pool is generous so it scales if the stockpile
+    // cap ever rises; only `reserves` are visible at a time.
+    this._reserveJugs = [];
+    const JUG_POOL = 12;
+    const JUG_R = 0.14;                 // footprint radius for the non-clip check
+    const cav = { x0: -0.85, x1: 0.85, z0: 0.8, z1: 1.5, y: 0.95 };
+    const jugSpots = [];
+    for (let i = 0; i < JUG_POOL; i++) {
+      let px = 0, pz = 0;
+      for (let tries = 0; tries < 24; tries++) {
+        px = cav.x0 + Math.random() * (cav.x1 - cav.x0);
+        pz = cav.z0 + Math.random() * (cav.z1 - cav.z0);
+        const clear = jugSpots.every((s) => (s.x - px) ** 2 + (s.z - pz) ** 2 >= (2 * JUG_R) ** 2);
+        if (clear) break;              // found a non-clipping spot
+      }                                 // ...otherwise keep the last candidate (let it clip)
+      jugSpots.push({ x: px, z: pz });
+      const jug = buildBubbleJug();
+      jug.scale.setScalar(0.5);
+      jug.position.set(px, cav.y, pz);
+      jug.rotation.y = Math.random() * Math.PI * 2;
+      jug.visible = false;
+      this.root.add(jug);
+      this._reserveJugs.push(jug);
+    }
 
     // ----- RGB disco light — replaces the old white nozzle ring -----
     // Faceted hemisphere atop a small black base, like the USB DJ ball
@@ -425,7 +681,7 @@ export class Zerble {
     const discoGroup = new THREE.Group();
     // Tucked just under the bubble machine (bm bottom ≈ y=2.775).
     // z=1.95 matches the bubble machine's z so it mounts cleanly beneath it.
-    discoGroup.position.set(0, 2.7, 1.95);
+    discoGroup.position.set(0, 2.7, BM_Z);   // stacked directly under the bubble machine
     // 135° around X: hemisphere open face points DOWN+back so the SpotLight
     // (target at local +Y=5) throws light onto the ground behind the cart.
     discoGroup.rotation.x = (3 * Math.PI) / 4;
@@ -1018,9 +1274,12 @@ export class Zerble {
     );
 
     // ----- Animate wheels -----
-    const wheelAngularSpeed = this.speed / 0.55; // rad/s for r=0.55
+    const wheelAngularSpeed = this.speed / (this._tireR || 0.55); // rad/s, matches tire radius
     for (const w of this.wheels) {
-      w.spin.rotation.x += wheelAngularSpeed * dt;
+      // Negative: with the tire axis along +X, forward travel (-Z) rolls the
+      // wheel tops toward -Z, which is a negative rotation about +X. (Was +=,
+      // which made the tires visibly spin backward while driving forward.)
+      w.spin.rotation.x -= wheelAngularSpeed * dt;
       // Front wheels steer
       if (w.front) {
         w.group.rotation.y = THREE.MathUtils.lerp(w.group.rotation.y, this.steerAngle, Math.min(1, dt * 10));
@@ -1051,6 +1310,54 @@ export class Zerble {
         const phase = led.userData.phase + t * 4 + i * 0.55;
         led.userData.mat.emissiveIntensity = 1.2 + 1.0 * (0.5 + 0.5 * Math.sin(phase));
       }
+    }
+
+    // ----- Wheel-well underglow — slow hue cycle, brightness ramps with night.
+    if (this._wellLeds) {
+      const wellNight = THREE.MathUtils.smoothstep(nightness, 0.15, 0.7);
+      for (let i = 0; i < this._wellLeds.length; i++) {
+        const led = this._wellLeds[i];
+        const hue = ((t * 0.12) + i * 0.5) % 1;
+        const col = _tmpWellColor.setHSL(hue, 0.9, 0.55);
+        led.userData.mat.color.copy(col);
+        led.userData.mat.emissive.copy(col);
+        led.userData.mat.emissiveIntensity =
+          0.35 + wellNight * 2.1 * (0.7 + 0.3 * Math.sin(t * 3 + led.userData.phase));
+      }
+      // Single wash light (mid/high only) — colour tracks the cycle, intensity
+      // ramps in after dark so daylight pays nothing.
+      if (this._wellLight) {
+        this._wellLight.color.copy(_tmpWellColor.setHSL((t * 0.12) % 1, 0.9, 0.55));
+        this._wellLight.intensity = wellNight * 4.0 * (0.85 + 0.15 * Math.sin(t * 3));
+      }
+    }
+
+    // ----- Bubble-machine wand wheel — always turning, faster during a blast.
+    if (this._bubbleWheel) {
+      this._bubbleWheel.rotation.z += dt * (2.4 + (this._bubbleBlast ? 4.0 : 0));
+    }
+
+    // ----- Bubble-machine liquid level + reserve jugs track the juice meter.
+    const juice = this._juiceLevel != null ? this._juiceLevel : 1.0;
+    if (this._bubbleLiquid) {
+      const frac = Math.max(0, Math.min(1, juice));   // working meter (0..1), matches the HUD bar
+      const h = Math.max(0.0001, frac * this._liqRange);
+      this._bubbleLiquid.scale.y = h;
+      this._bubbleLiquid.position.y = this._liqFloorY + h / 2;
+      this._bubbleLiquid.visible = frac > 0.01;
+    }
+    if (this._reserveJugs) {
+      // Reserve = whole meters beyond the working one (same as the HUD pips).
+      const reserves = Math.max(0, Math.min(this._reserveJugs.length, Math.floor(juice) - 1));
+      for (let i = 0; i < this._reserveJugs.length; i++) {
+        this._reserveJugs[i].visible = i < reserves;
+      }
+    }
+
+    // ----- Brake/tail lights — faint red glow by day, brighter at night.
+    if (this._brakeLights) {
+      const brakeI = 0.5 + nightness * 1.8;
+      for (const bl of this._brakeLights) bl.userData.mat.emissiveIntensity = brakeI;
     }
 
     // ----- Disco light — color cycle + slow spin + nightness-gated spot --
@@ -1157,6 +1464,12 @@ export class Zerble {
   // every frame with Input.isDown('G').
   setBubbleBlast(on) {
     this._bubbleBlast = !!on;
+  }
+
+  // Current bubble-juice meter (0..JUICE_STACK_MAX, in meters). Drives the
+  // bubble-machine liquid level + how many reserve jugs show under the seat.
+  setJuiceLevel(meters) {
+    this._juiceLevel = meters;
   }
 
   honk() {
