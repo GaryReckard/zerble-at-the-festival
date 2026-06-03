@@ -15,6 +15,9 @@ The original GA4 wiring (2026-05-25) covered honks, smiles, collisions, views, L
 ### Changed
 - **`window.__dbg` is now the one door for agent/dev automation, documented in a new [DEBUGGING.md](DEBUGGING.md).** The repo had three overlapping debug globals — `__game` (live refs), `__debug` (interactive backtick-overlay API, ships to prod), and `__dbg` (localhost-only automation). They stay separate (different gating + owners; `__game` even has a runtime role), but `__dbg` now aliases `.game` and `.debug` onto itself and adds a self-documenting `help()`, so there's a single entry point for headless verification ([main.js](src/main.js)). DEBUGGING.md is the full reference (wired into CLAUDE.md's required reading + a Run+verify summary so every agent loads it).
 
+### Fixed
+- **The bubble-vendor refuel stream never stopped when the tank was full.** The bubble machine drains the tank a hair every frame ([bubbles.js](src/bubbles.js) — it's always on, even parked), and `bubbles.update()` runs *earlier* in the tick than the vendor refill loop. So at a full tank parked at a vendor, each frame the drain dropped juice just below 1.0 and the vendor topped it back up — which the old "is the meter rising?" check (`juice > before`) read as an active refill, so the stream flowed forever. Now it only draws while filling a *meaningful* deficit (`before < 1 − 0.02`, [main.js](src/main.js)). The tank still gets topped off invisibly, so a parked-at-vendor meter stays full — it just reads as full with no stream, and no flicker (the vendor keeps `before` pinned just under 1.0, never re-crossing the threshold).
+
 ## 2026-06-02
 
 ### Added — Zerble, rebuilt: off-road tires, a working bubble machine, reserve jugs

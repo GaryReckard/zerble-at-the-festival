@@ -247,6 +247,13 @@ scene.add(birds.group);
 // vendor to the cart while it's topping off the tank. One InstancedMesh
 // (1 draw); count goes to 0 when not refueling.
 const REFUEL_STREAM_N = 12;
+// Show the refuel stream only while filling a deficit at least this deep. The
+// bubble machine drains the tank a hair every frame (bubbles.js — it's always
+// on), so a full tank parked at a vendor gets topped off every frame; without
+// this gate the meter is technically "rising" forever and the stream never
+// stops. EPS comfortably exceeds one frame's drain, so a topped-off tank reads
+// as full (no stream) with no flicker.
+const REFUEL_STREAM_EPS = 0.02;
 const _refuelStreamGeo = new THREE.SphereGeometry(0.13, 8, 6);
 const _refuelStreamMat = new THREE.MeshStandardMaterial({
   color: 0xffffff, transparent: true, opacity: 0.55, roughness: 0.1,
@@ -780,9 +787,12 @@ function tickBody(dt) {
           if (bubbles.juice < 1) {                 // vendor tops the current meter only
             const before = bubbles.juice;
             bubbles.addJuice((e.refuel || 0.4) * dt, 1.0);
-            // Only flow the stream while the meter is actually rising — the
-            // instant it tops off, refuelFromPos stays null so the stream stops.
-            if (bubbles.juice > before) refuelFromPos = e.position;
+            // Flow the stream only while filling a MEANINGFUL deficit, not while
+            // the vendor is just countering the always-on drain at a full tank
+            // (that read as "rising" every frame and never stopped). The tank
+            // still gets topped off invisibly; we just don't draw the stream for
+            // it. See REFUEL_STREAM_EPS.
+            if (bubbles.juice > before && before < 1 - REFUEL_STREAM_EPS) refuelFromPos = e.position;
           }
         }
       }
