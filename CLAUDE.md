@@ -207,6 +207,22 @@ geometry/texture/heap counts against per-tier budgets (low 80 draws / 150k
 tris, mid 200/400k, high 400/1.2M). After a change that adds geometry or
 draws, glance at the panel before declaring done.
 
+## Before you commit — update CHANGELOG first
+
+**Every commit that ships user-visible behavior, perf, or dev-workflow change
+must update [CHANGELOG.md](CHANGELOG.md) in the *same* commit** — newest entry
+at the top under today's date, grouped `Added`/`Changed`/`Fixed`/`Performance`.
+If the work was on [ROADMAP.md](ROADMAP.md), remove (or trim) that bullet in the
+same commit. This holds even when Gary just says "commit" without mentioning the
+changelog — write the entry anyway; don't wait to be told.
+
+Skip the changelog only for pure-internal refactors with no observable effect,
+comment/format-only changes, or doc edits. When in doubt, write the entry.
+
+The commit-time checklist, voice/date guidance, and ROADMAP rules live in
+**[.claude/rules/changelog-and-roadmap.md](.claude/rules/changelog-and-roadmap.md)**
+— read it before committing.
+
 ## Conventions
 
 ### Style
