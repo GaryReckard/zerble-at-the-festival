@@ -12,6 +12,9 @@ The original GA4 wiring (2026-05-25) covered honks, smiles, collisions, views, L
 - **Feature discovery + engagement.** A single `feature_used{feature}` event (once per run) for the bell/clown honks, the M music toggle, camera zoom (the new chase/FPV zoom), and boost; plus `passenger_board` (first board per run; every board feeds the session_end count, via a new `crowd.onBoard` callback mirroring `onFrown`), `trip_end{source, duration_s}` (logged when a trip fully comes down, [trip.js](src/trip.js)), and `saw_night` (played into nightfall — a clean "stuck around" proxy).
 - **Every action keystroke is now covered.** Audited all key handlers: the debug-panel sub-keys (`P` pause, `.` step, `C` colliders, `G` god, `F` freeze — [debug.js](src/debug.js)) and the camera **arrow keys** ([main.js](src/main.js)) now fire `feature_used` too, joining the already-tracked menu opens (`` ` `` → `debug_menu_open`, `T` → `trip_menu_open`) and the gameplay keys above. Only WASD driving is intentionally left out — it's the continuous core loop (captured by `session_end` + duration), not a discrete feature.
 
+### Changed
+- **`window.__dbg` is now the one door for agent/dev automation, documented in a new [DEBUGGING.md](DEBUGGING.md).** The repo had three overlapping debug globals — `__game` (live refs), `__debug` (interactive backtick-overlay API, ships to prod), and `__dbg` (localhost-only automation). They stay separate (different gating + owners; `__game` even has a runtime role), but `__dbg` now aliases `.game` and `.debug` onto itself and adds a self-documenting `help()`, so there's a single entry point for headless verification ([main.js](src/main.js)). DEBUGGING.md is the full reference (wired into CLAUDE.md's required reading + a Run+verify summary so every agent loads it).
+
 ## 2026-06-02
 
 ### Added — Zerble, rebuilt: off-road tires, a working bubble machine, reserve jugs

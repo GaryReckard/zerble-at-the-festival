@@ -1144,6 +1144,30 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
       zerble.speed = 0;
       return `teleported to (${x}, ${z})`;
     },
+
+    // ---- One door: __dbg also reaches the other two surfaces ----
+    // Getters (not captured at definition time) because installDebug() runs
+    // after this block, so window.__debug doesn't exist yet right here.
+    // `__dbg.game`  → live object refs (same object as window.__game).
+    // `__dbg.debug` → the interactive overlay API (window.__debug):
+    //   freezeNPCs / pause / step / god / showColliders / dropSmile / spawnNPC.
+    get game() { return window.__game; },
+    get debug() { return window.__debug; },
+
+    // Self-documenting map of the whole agent debug surface. Start here.
+    help() {
+      const out = [
+        'window.__dbg — agent control surface (localhost only). The one door.',
+        '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · fillSeats(kind?) · rider(kind)',
+        '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock()   (pins a pose; overrides chase cam)',
+        '  reach:   __dbg.game  (live refs: camera, zerble, scene, crowd, bubbles, …)',
+        '           __dbg.debug (interactive API: freezeNPCs, pause, step, god, showColliders, dropSmile, spawnNPC)',
+        '  verify:  __dbg.start() → __dbg.fillSeats() → __dbg.camLock(...) → screenshot → console-logs',
+        '  full reference: DEBUGGING.md',
+      ].join('\n');
+      console.log(out);
+      return out;
+    },
   };
 }
 

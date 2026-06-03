@@ -16,15 +16,20 @@ Live deploy: GA4 is wired (G-CY1FNMY8H8) and analytics calls go through
 ## Required reading (in order)
 
 1. **[README.md](README.md)** — premise, controls, the player-facing pitch.
-2. **[ARCHITECTURE.md](ARCHITECTURE.md)** — the canonical walkthrough. Render
+2. **[DEBUGGING.md](DEBUGGING.md)** — the agent iteration & debugging surface.
+   **Read before verifying any change.** `window.__dbg` is the one door for
+   driving the running game; the sandbox is the one door for models; plus URL
+   flags, the backtick overlay, and the canonical verify loop. See the inlined
+   summary under [Run + verify](#run--verify).
+3. **[ARCHITECTURE.md](ARCHITECTURE.md)** — the canonical walkthrough. Render
    pipeline, world chunks/forests/lakes, registry, collision model, crowd AI,
    audio synthesis, perf tiers. If a question is "how does X work," it's
    probably already in here.
-3. **[ROADMAP.md](ROADMAP.md)** — what's queued. Check before proposing new
+4. **[ROADMAP.md](ROADMAP.md)** — what's queued. Check before proposing new
    work to see if Gary has already considered (and parked) it.
-4. **[CHANGELOG.md](CHANGELOG.md)** — what shipped, dated. The "why" of recent
+5. **[CHANGELOG.md](CHANGELOG.md)** — what shipped, dated. The "why" of recent
    commits lives here, more than in `git log`.
-5. **[.claude/scratch-notes.md](.claude/scratch-notes.md)** — Gary's original
+6. **[.claude/scratch-notes.md](.claude/scratch-notes.md)** — Gary's original
    reading notes. Useful as a quick index of "what's in each file."
 
 ## Operating principle: build the harness, then the feature
@@ -63,6 +68,24 @@ loop on `setTimeout(16ms)` rather than RAF specifically so the preview MCP
 it" — verify and share proof. For visual work, take a screenshot at two ToD
 presets (Noon + Midnight) since emissive/lighting interactions only show up
 across the cycle.
+
+**Driving the running game — `window.__dbg` is the one door** (local dev only;
+full reference in [DEBUGGING.md](DEBUGGING.md)). The live game resists
+automation — the title card needs a trusted gesture, the chase cam overrides
+any camera you set, and stub-input `zerble.update` NaNs the physics — so use
+`__dbg` instead of fighting it:
+
+- `__dbg.start()` — boot past the title-card gesture straight into gameplay.
+- `__dbg.camLock(px,py,pz, tx,ty,tz)` / `camUnlock()` — pin a fixed camera for
+  close-ups (overrides the chase cam).
+- `__dbg.fillSeats(kind?)` / `rider(kind)` · `setJuice(m)` · `tod(t)` ·
+  `teleport(x,z)` — nudge game state for a scenario.
+- `__dbg.game` (live refs) and `__dbg.debug` (the backtick overlay's API:
+  `freezeNPCs`, `pause`, `step`, `god`, `showColliders`) are aliased onto it —
+  one namespace. Call `__dbg.help()` for the full map.
+
+Canonical loop: `__dbg.start()` → `fillSeats()`/`teleport()`/`tod()` →
+`camLock(...)` → `preview_screenshot` → `preview_console_logs` (errors).
 
 Force a perf tier with `?perf=low|mid|high`. Bugs that only show on low (e.g.
 the Safari module-namespace-freeze that took down `litFallback.js`) are easy
