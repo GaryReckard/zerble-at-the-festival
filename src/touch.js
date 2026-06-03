@@ -23,6 +23,9 @@ const state = {
   // accumulated camera drag, consumed per frame.
   camYawDelta: 0,
   camPitchDelta: 0,
+  // accumulated two-finger pinch zoom (multiplicative factor), consumed per
+  // frame. 1 = no change; >1 zoom in (fingers spreading), <1 zoom out.
+  zoomMul: 1,
 };
 
 // Active touch tracking — we allow simultaneous stick + button + drag, so we
@@ -39,6 +42,14 @@ const stickBaseCenter = { x: 0, y: 0 };
 let dragTouchId = null;
 let dragLastX = 0;
 let dragLastY = 0;
+
+// Two-finger pinch zoom. While two canvas fingers are down we suspend the
+// single-finger orbit drag and feed a multiplicative zoom factor instead.
+let pinchIdA = null;
+let pinchIdB = null;
+let pinchAx = 0, pinchAy = 0;
+let pinchBx = 0, pinchBy = 0;
+let pinchLastDist = 0;
 
 let honkTouchId = null;
 let boostTouchId = null;
@@ -145,7 +156,30 @@ export const Touch = {
     state.camPitchDelta = 0;
     return { yaw, pitch };
   },
+
+  // Consumed each frame by Input.consumeZoom() (camera.js reads this).
+  _consumeZoom() {
+    const v = state.zoomMul;
+    state.zoomMul = 1;
+    return v;
+  },
 };
+
+// Touches that started on a control element (stick, buttons) must never be
+// claimed by the canvas drag/pinch handlers.
+function isControlTarget(target) {
+  return !!(target && (
+    target.closest('#stick-base') ||
+    target.closest('#btn-honk') ||
+    target.closest('#btn-boost') ||
+    target.closest('#btn-cam') ||
+    target.closest('#btn-music')
+  ));
+}
+
+function pinchDist() {
+  return Math.hypot(pinchBx - pinchAx, pinchBy - pinchAy);
+}
 
 // ---------- Thumbstick handlers ----------
 
@@ -285,23 +319,46 @@ function onMusicEnd(e) {
 // ---------- Canvas drag (camera orbit/tilt) ----------
 
 function onCanvasStart(e) {
-  // Only claim a touch that isn't already on a control. Since the stick/
-  // buttons stop propagation via preventDefault on their own touchstart, we
-  // shouldn't normally see them here — but be defensive.
-  if (dragTouchId !== null) return;
-  // Pick the first changedTouch — ignore if it landed on a control element.
-  const t = e.changedTouches[0];
-  const target = t.target;
-  if (target && (target.closest('#stick-base') || target.closest('#btn-honk') || target.closest('#btn-boost') || target.closest('#btn-cam') || target.closest('#btn-music'))) {
-    return;
+  // First non-control canvas finger → single-finger orbit drag. A second one
+  // (while the first is still down) → two-finger pinch zoom, which suspends
+  // the orbit. Stick/buttons stop their own touches via preventDefault, but
+  // we still guard against touches that land on a control element.
+  for (const t of e.changedTouches) {
+    if (isControlTarget(t.target)) continue;
+    if (dragTouchId === null) {
+      e.preventDefault();
+      dragTouchId = t.identifier;
+      dragLastX = t.clientX;
+      dragLastY = t.clientY;
+    } else if (pinchIdA === null && t.identifier !== dragTouchId) {
+      // Anchor the pinch off the drag finger's last position + the new finger.
+      e.preventDefault();
+      pinchIdA = dragTouchId;
+      pinchIdB = t.identifier;
+      pinchAx = dragLastX; pinchAy = dragLastY;
+      pinchBx = t.clientX;  pinchBy = t.clientY;
+      pinchLastDist = pinchDist();
+    }
   }
-  e.preventDefault();
-  dragTouchId = t.identifier;
-  dragLastX = t.clientX;
-  dragLastY = t.clientY;
 }
 
 function onCanvasMove(e) {
+  // Pinch takes priority: update both finger positions, feed the zoom ratio,
+  // and skip orbit so the camera doesn't spin while pinching.
+  if (pinchIdA !== null) {
+    let moved = false;
+    for (const t of e.changedTouches) {
+      if (t.identifier === pinchIdA) { pinchAx = t.clientX; pinchAy = t.clientY; moved = true; }
+      else if (t.identifier === pinchIdB) { pinchBx = t.clientX; pinchBy = t.clientY; moved = true; }
+    }
+    if (moved) {
+      e.preventDefault();
+      const d = pinchDist();
+      if (d > 0 && pinchLastDist > 0) state.zoomMul *= d / pinchLastDist;
+      pinchLastDist = d;
+    }
+    return;
+  }
   if (dragTouchId === null) return;
   for (const t of e.changedTouches) {
     if (t.identifier !== dragTouchId) continue;
@@ -320,9 +377,20 @@ function onCanvasMove(e) {
 
 function onCanvasEnd(e) {
   for (const t of e.changedTouches) {
+    // Lifting either pinch finger drops out of pinch. The surviving finger (if
+    // still down) becomes the orbit-drag finger so orbit resumes without a jump.
+    if (pinchIdA !== null && (t.identifier === pinchIdA || t.identifier === pinchIdB)) {
+      const survivorIsB = t.identifier === pinchIdA;
+      dragTouchId = survivorIsB ? pinchIdB : pinchIdA;
+      dragLastX  = survivorIsB ? pinchBx : pinchAx;
+      dragLastY  = survivorIsB ? pinchBy : pinchAy;
+      pinchIdA = null;
+      pinchIdB = null;
+      pinchLastDist = 0;
+      continue;
+    }
     if (t.identifier === dragTouchId) {
       dragTouchId = null;
-      return;
     }
   }
 }

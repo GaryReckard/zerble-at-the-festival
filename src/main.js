@@ -993,6 +993,105 @@ window.__game = {
   sound: Sound,
 };
 
+// ---- Local-dev debug backdoor (window.__dbg) ----
+// Hooks for verifying the *running* game programmatically, because the real
+// UX actively resists automation: the title card needs a trusted gesture to
+// dismiss (iOS audio gating), the chase cam overrides any camera you set, and
+// driving zerble with a stub input corrupts its physics. These bypass all of
+// that. Local dev ONLY — never present on the deployed site.
+if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+  window.__dbg = {
+    // Start the game without a trusted gesture — mirrors HUD.onStart (line ~369)
+    // minus the iOS audio-gesture dependency, and drops straight into gameplay
+    // (no intro reveal). Audio is best-effort; it can stay silent in headless dev.
+    start() {
+      if (running) return 'already running';
+      HUD.hideTitle();
+      running = true;
+      document.body.classList.add('game-started');
+      const tc = document.getElementById('touch-controls');
+      if (tc) tc.setAttribute('aria-hidden', 'false');
+      try { Sound.init(); } catch (_) { /* silent audio is fine for dev */ }
+      // Skip the opening reveal entirely: controls live immediately.
+      controlsLocked = false;
+      chaseCam.skipIntro();   // no-op if no intro armed; settles to chase
+      return 'started';
+    },
+
+    // Pin the camera to a fixed world pose for close-up screenshots; the chase
+    // loop is overridden until camUnlock(). Look target defaults to the cart's
+    // roughly-torso height at the origin.
+    camLock(px, py, pz, tx = 0, ty = 1.8, tz = 0) {
+      chaseCam.dbgCamLock(px, py, pz, tx, ty, tz);
+      return `cam locked @ (${px}, ${py}, ${pz}) → look (${tx}, ${ty}, ${tz})`;
+    },
+    camUnlock() {
+      chaseCam.dbgCamUnlock();
+      return 'cam unlocked';
+    },
+
+    // Bubble-juice level in meters — drives the machine liquid, reserve jugs,
+    // and the HUD meter (all poll bubbles.juice each frame).
+    setJuice(meters = 1) {
+      bubbles.juice = Math.max(0, meters);
+      return `juice = ${bubbles.juice}`;
+    },
+
+    // Force idle crowd NPC(s) into riding state in seats of the given kind.
+    // No arg → one of each seated kind (bench / driver_seat / roof). Great for
+    // pose-testing the seated-rider lean without waiting for organic boarding.
+    fillSeats(kind) {
+      const kinds = kind ? [kind] : ['driver_seat', 'bench', 'roof'];
+      const seated = [];
+      for (const k of kinds) {
+        const name = this.rider(k);
+        if (name) seated.push(name);
+      }
+      return `seated: ${seated.join(', ') || 'none (no free seat/NPC)'}`;
+    },
+
+    // Seat one free NPC in the first open slot of `kind`. Replicates the
+    // boarding hand-off: claim slot → riding state → snap to worldSeatPosition
+    // → write matrices → flag every crowd InstancedMesh dirty.
+    rider(kind = 'bench') {
+      const slot = zerble.seatSlots?.find((s) => s.kind === kind && !s.occupied);
+      if (!slot) return null;
+      const npc = crowd.npcs.find((p) =>
+        !p.seatSlot && p.state !== 'riding' && p.state !== 'boarding' && p.state !== 'hammock_riding'
+      );
+      if (!npc) return null;
+      slot.occupied = true;
+      npc.seatSlot = slot;
+      npc.state = 'riding';
+      npc.rideTimer = 99999;   // stay put — don't time out mid-screenshot
+      const out = new THREE.Vector3();
+      zerble.worldSeatPosition(slot, out);
+      npc.pos.set(out.x, 0, out.z);
+      npc.seatY = out.y;
+      npc.yaw = zerble.heading + slot.yaw;
+      crowd._writeMatrices(npc);
+      for (const m of [crowd.legsMesh, crowd.shoesMesh, crowd.bodyMesh,
+                       crowd.armsMesh, crowd.headMesh, crowd.eyesMesh, crowd.mouthMesh]) {
+        m.instanceMatrix.needsUpdate = true;
+      }
+      return slot.name;
+    },
+
+    // Time of day, 0..1 (0 dawn · .25 noon · .5 dusk · .75 midnight).
+    tod(t = 0.25) {
+      getTimeOfDay()?.setT(t);
+      return `tod = ${t}`;
+    },
+
+    // Move the cart to world (x, z), zeroing speed.
+    teleport(x = 0, z = 0) {
+      zerble.position.set(x, zerble.position.y, z);
+      zerble.speed = 0;
+      return `teleported to (${x}, ${z})`;
+    },
+  };
+}
+
 installDebug({
   scene, camera, renderer, bloomPass,
   zerble, crowd, bubbles, smiles, registry,

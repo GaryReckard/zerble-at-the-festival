@@ -39,6 +39,20 @@ const TOP_ZOOM_RATE = 1.4;    // (height units per second while UP/DOWN held) �
 const TOP_POSITION_LERP = 5;
 const TOP_LOOK_LERP = 7;
 
+// Zoom (mouse wheel + two-finger pinch). Top-down already zooms via topHeight;
+// chase and first-person didn't until now. UP/DOWN arrows are pitch in those
+// modes, so the wheel + pinch are the zoom axis there (see _applyZoom).
+//   - Chase: `chaseZoom` is a dolly multiplier on the default distance/height
+//     (1.0 = tuned default, <1 pulls in low + close, >1 backs out + up).
+//   - First-person: the camera is rigidly mounted on Zerble's head and can't
+//     dolly, so zoom is a FOV (telephoto) change instead — smaller FOV = more
+//     zoomed in. Top of the range is the camera's natural lens.
+// Both persist across mode switches, same as topHeight.
+const CHASE_MIN_ZOOM = 0.5;
+const CHASE_MAX_ZOOM = 2.4;
+const FPV_MIN_FOV = 28;
+const WHEEL_ZOOM_STEP = 1.10;   // one wheel notch → ±10% zoom
+
 // ---- Opening "drawing comes to life" intro ----
 // On game start the camera snaps to a front-quarter "match" pose that lines the
 // 3D model up behind assets/zerble.png, holds while the PNG cross-dissolves,
@@ -68,6 +82,16 @@ export class ChaseCamera {
     // Top-down state: persistent across mode switches so the view comes back
     // exactly as the user left it last time they were in top-down.
     this.topHeight = TOP_DEFAULT_HEIGHT;
+    // Chase / first-person zoom (wheel + pinch). Persist across mode switches.
+    this.chaseZoom = 1;        // dolly multiplier on default distance/height
+    this.fpvFov = camera.fov;  // first-person telephoto FOV
+
+    // Debug camera lock (window.__dbg.camLock) — when set, the per-frame update
+    // re-asserts a fixed pose every frame and ignores chase/intro logic, so a
+    // close-up screenshot pose can't be stolen back by the chase follow.
+    this._dbgCamLocked = false;
+    this._dbgPos = new THREE.Vector3();
+    this._dbgLook = new THREE.Vector3();
 
     this._desiredPos = new THREE.Vector3();
     this._desiredLook = new THREE.Vector3();
@@ -105,22 +129,53 @@ export class ChaseCamera {
     return 'Chase view';
   }
 
-  // Mouse-wheel zoom — only active in top-down mode (in chase / first-person
-  // the camera doesn't have a meaningful zoom axis to map onto).
+  // Mouse-wheel zoom — active in every mode now. _applyZoom routes the factor
+  // to whatever the current mode's zoom axis is (top height / chase dolly /
+  // FPV fov). Disabled during the intro and while the debug cam is locked.
   _wireWheelZoom() {
     window.addEventListener('wheel', (e) => {
-      if (this.mode !== 'top') return;
-      // deltaY positive = scroll down = zoom out. Tune step so a single
-      // notch is a noticeable but not jarring change.
-      const step = e.deltaY > 0 ? 1.10 : 1 / 1.10;
-      this.topHeight = THREE.MathUtils.clamp(
-        this.topHeight * step,
-        TOP_MIN_HEIGHT,
-        TOP_MAX_HEIGHT,
-      );
+      if (this._introPhase || this._dbgCamLocked) return;
+      // deltaY > 0 = scroll down = zoom OUT. factor > 1 = zoom in (closer).
+      const factor = e.deltaY > 0 ? 1 / WHEEL_ZOOM_STEP : WHEEL_ZOOM_STEP;
+      this._applyZoom(factor);
       // Prevent the page from scrolling when interacting with the canvas.
       e.preventDefault();
     }, { passive: false });
+  }
+
+  // Apply a zoom factor to the active mode. factor > 1 zooms IN (subject gets
+  // bigger); < 1 zooms out. Each mode maps it to its own axis: top-down lowers
+  // altitude, chase pulls the dolly in, first-person tightens the FOV.
+  _applyZoom(factor) {
+    if (!(factor > 0) || factor === 1) return;
+    if (this.mode === 'top') {
+      this.topHeight = THREE.MathUtils.clamp(this.topHeight / factor, TOP_MIN_HEIGHT, TOP_MAX_HEIGHT);
+    } else if (this.mode === 'first') {
+      this.fpvFov = THREE.MathUtils.clamp(this.fpvFov / factor, FPV_MIN_FOV, this._defaultFov);
+    } else {
+      this.chaseZoom = THREE.MathUtils.clamp(this.chaseZoom / factor, CHASE_MIN_ZOOM, CHASE_MAX_ZOOM);
+    }
+  }
+
+  // ---- Debug camera lock (window.__dbg.camLock / camUnlock) -------------
+  // Pin the camera to a fixed world pose for close-up screenshots. update()
+  // re-asserts it every frame so the chase follow can't drag it back.
+  dbgCamLock(px, py, pz, tx, ty, tz) {
+    this._dbgPos.set(px, py, pz);
+    this._dbgLook.set(tx, ty, tz);
+    this._dbgCamLocked = true;
+    // Predictable framing: drop any FPV telephoto / intro lens back to default.
+    if (this.camera.fov !== this._defaultFov) {
+      this.camera.fov = this._defaultFov;
+      this.camera.updateProjectionMatrix();
+    }
+    this.camera.position.copy(this._dbgPos);
+    this.camera.lookAt(this._dbgLook);
+  }
+
+  dbgCamUnlock() {
+    this._dbgCamLocked = false;
+    this.snap();
   }
 
   snap() {
@@ -252,8 +307,31 @@ export class ChaseCamera {
   }
 
   update(dt, input) {
+    // Debug cam lock owns the camera entirely — re-assert the pinned pose so
+    // nothing (chase follow, intro) can drag it back, and ignore everything else.
+    if (this._dbgCamLocked) {
+      this.camera.position.copy(this._dbgPos);
+      this.camera.lookAt(this._dbgLook);
+      return;
+    }
+
     // Opening intro owns the camera + ignores player input until it finishes.
     if (this._updateIntro(dt)) return;
+
+    // FOV management: first-person uses fpvFov (telephoto zoom); every other
+    // mode uses the default lens. Kept in sync here so a mode switch out of
+    // first-person restores the natural FOV no matter how we got there.
+    const wantFov = this.mode === 'first' ? this.fpvFov : this._defaultFov;
+    if (this.camera.fov !== wantFov) {
+      this.camera.fov = wantFov;
+      this.camera.updateProjectionMatrix();
+    }
+
+    // Two-finger pinch zoom (touch) — one multiplicative factor accumulated
+    // since last frame. Same axis-routing as the mouse wheel via _applyZoom.
+    if (typeof input.consumeZoom === 'function') {
+      this._applyZoom(input.consumeZoom());
+    }
 
     // Keyboard arrow keys: rate-based yaw/pitch. In top-down mode the up/down
     // arrows mean ZOOM rather than pitch, so we route them differently.
@@ -329,10 +407,13 @@ export class ChaseCamera {
     }
     // ---- Third-person chase (default) ----
     // Effective camera yaw around Zerble (heading + user offset). Pitch tilts up/down.
+    // chaseZoom dollies the whole rig in/out along its ray (distance + height
+    // scale together so the look angle stays roughly constant).
     const yaw = this.zerble.heading + this.yawOffset;
     const pitch = this.pitchOffset;
-    const dist = DEFAULT_DISTANCE * Math.cos(pitch);
-    const height = DEFAULT_HEIGHT + Math.sin(pitch) * DEFAULT_DISTANCE;
+    const z = this.chaseZoom;
+    const dist = DEFAULT_DISTANCE * z * Math.cos(pitch);
+    const height = (DEFAULT_HEIGHT + Math.sin(pitch) * DEFAULT_DISTANCE) * z;
 
     // Behind Zerble. forward = (-sin(yaw), 0, -cos(yaw)), back = (sin, 0, cos).
     this._desiredPos.set(

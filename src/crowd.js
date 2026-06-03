@@ -282,6 +282,18 @@ export class Crowd {
     this._supineQuatY = new THREE.Quaternion();
     this._axisY = new THREE.Vector3(0, 1, 0);
 
+    // Seated-rider leg bend: seated cart passengers (bench / driver) get their
+    // legs pivoted forward at the hip (~70°) so they sit instead of standing on
+    // the seat. The legs+shoes are their own InstancedMeshes, so they take this
+    // extra local transform on top of the (upright) body matrix. Constant, so
+    // precompute once: translate to hip → rotate X forward → translate back.
+    const HIP_Y = 0.62, SIT_BEND = 1.25;   // ~72° forward
+    this._sitLegMat = new THREE.Matrix4()
+      .makeTranslation(0, HIP_Y, 0)
+      .multiply(new THREE.Matrix4().makeRotationX(SIT_BEND))
+      .multiply(new THREE.Matrix4().makeTranslation(0, -HIP_Y, 0));
+    this._legMat = new THREE.Matrix4();
+
     // High-water mark: highest slot index ever written. count is set to
     // _maxIdx + 1 each frame so three.js skips unwritten slots above it.
     this._maxIdx = -1;
@@ -1055,9 +1067,17 @@ export class Crowd {
     //   - riding:        torso should sit at ≈ seatY - 0.05  →  feet Y = seatY - 1.05
     //   - hammock_riding: torso should sit at ≈ hammockY - 0.1 →  feet Y = hammockY - 1.1
     //   - normal:        feet at ground (npc.pos.y = 0 always from behavior code)
+    // Seated riders (bench / driver / roof) sit with their butt on the seat;
+    // running-board riders stand. Computed here so it drives both the lift and
+    // the leg bend below.
+    const seated = npc.state === 'riding' && npc.seatSlot &&
+      (npc.seatSlot.kind === 'bench' || npc.seatSlot.kind === 'driver_seat' || npc.seatSlot.kind === 'roof');
     let feetY;
     if (npc.state === 'riding' && npc.seatY != null) {
-      feetY = npc.seatY - 1.05 + bobY + bounceY;
+      // Seated: butt rests on top of the seat cushion (the torso bottom sits ≈
+      // at the cushion surface so the seat doesn't cut through the belly); the
+      // bent legs hang forward below. Standing running-board riders stay low.
+      feetY = (seated ? npc.seatY - 0.4 : npc.seatY - 1.05) + bobY + bounceY;
     } else if (npc.state === 'hammock_riding' && npc.hammockY != null) {
       // Supine: body lies horizontal with back pressed into the cloth. After
       // X=π/2 the body's "up" direction (away from back) is +Y. The torso
@@ -1095,8 +1115,17 @@ export class Crowd {
 
     // Write the same transform to legs/shoes/body/arms/head/eyes — per-part offsets live in geometry.
     // Eyes also use this matrix (eyes geometry has offsets baked in, no scale reaction).
-    this.legsMesh.setMatrixAt(npc.idx, m);
-    this.shoesMesh.setMatrixAt(npc.idx, m);
+    // Exception: seated riders (bench / driver / roof — see `seated` above) get
+    // their legs+shoes bent forward at the hip so they sit; the upright
+    // body/arms/head still use `m`. Standing running-board riders keep straight legs.
+    if (seated) {
+      this._legMat.multiplyMatrices(m, this._sitLegMat);
+      this.legsMesh.setMatrixAt(npc.idx, this._legMat);
+      this.shoesMesh.setMatrixAt(npc.idx, this._legMat);
+    } else {
+      this.legsMesh.setMatrixAt(npc.idx, m);
+      this.shoesMesh.setMatrixAt(npc.idx, m);
+    }
     this.bodyMesh.setMatrixAt(npc.idx, m);
     this.armsMesh.setMatrixAt(npc.idx, m);
     this.headMesh.setMatrixAt(npc.idx, m);

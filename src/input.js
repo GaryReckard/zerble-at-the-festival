@@ -96,4 +96,11 @@ export const Input = {
   consumeCamDeltas() {
     return Touch._consumeCamDeltas();
   },
+
+  // ----- Camera zoom (touch pinch — multiplicative factor since last frame) -----
+  // 1 = no change, >1 = zoom in (fingers spreading), <1 = zoom out.
+  // ChaseCamera routes this to the active mode's zoom axis via _applyZoom.
+  consumeZoom() {
+    return Touch._consumeZoom();
+  },
 };
