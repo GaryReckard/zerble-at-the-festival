@@ -2,6 +2,26 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-04
+
+### Changed
+- **Trip chromatic aberration hits a lot harder.** The shader's RGB-split offset
+  constant went 5× (`0.005` → `0.025` in [trip.js](src/trip.js)), so the color
+  fringing at full strength is far more pronounced. The slider/envelope range is
+  untouched — only the ceiling moved up.
+- **Trip lens distortion breathes deeper.** The barrel "breathe" amplitude went
+  `0.08` → `0.28`, so the bulge pulses in and out ~3.5× more dramatically over the
+  course of a trip.
+- **Dynamic-mode chromatic aberration now bursts.** The mid-trip CA curve keeps
+  its four smooth 0.25→1.0 breathing swings, but layers occasional fast bursts on
+  top — brief, irregularly-timed windows where a 22-cycle wiggle punches the value
+  up to ~1.38 (above the old hard 1.0 ceiling) and bounces back. Two high-power
+  raised humps at 3 and 5 cycles gate the bursts so they land off-beat instead of
+  on a metronome, and every term zeroes out at the segment seams (`p` = 0.25 /
+  0.75) so a burst can't introduce a discontinuity. Verified by sampling the
+  shipped curve: range 0–1.38, smooth (max adjacent step 0.018), 14 peaks across
+  the middle half.
+
 ## 2026-06-03
 
 ### Added — Real songform: stages play actual *songs* now, with genre variety

@@ -72,7 +72,7 @@ const fragmentShader = /* glsl */`
     if (ldStr > 0.0) {
       vec2 centered = uv - 0.5;
       float dist2 = dot(centered, centered);
-      float breathe = 1.0 + sin(time * 0.5) * 0.08 * ldStr;
+      float breathe = 1.0 + sin(time * 0.5) * 0.28 * ldStr;
       uv = uv + centered * dist2 * ldStr * 0.6 * breathe;
     }
 
@@ -87,7 +87,7 @@ const fragmentShader = /* glsl */`
     vec3 col;
     if (caStr > 0.001) {
       vec2 dir = normalize(uv - 0.5);
-      float offset = caStr * 0.005;
+      float offset = caStr * 0.025;
       float r = texture2D(tDiffuse, clamp(uv + dir * offset,       0.0, 1.0)).r;
       float g = texture2D(tDiffuse, clamp(uv,                      0.0, 1.0)).g;
       float b = texture2D(tDiffuse, clamp(uv - dir * offset,       0.0, 1.0)).b;
@@ -378,14 +378,30 @@ export const Trip = {
     }
 
     // 4. Chromatic aberration — ease to 0.25 over first 1/4, oscillate 0.25..1 in
-    //    middle 1/2, ease back to 0 over last 1/4.
+    //    middle 1/2 (with occasional faster bursts on top), ease back to 0 over
+    //    last 1/4.
     if (p < 0.25) {
       live.chromaticAberration = this._easeInOutCubic(p * 4) * 0.25;
     } else if (p > 0.75) {
       live.chromaticAberration = this._easeInOutCubic((1 - p) * 4) * 0.25;
     } else {
       const localP = (p - 0.25) / 0.5;  // 0..1 across middle half
-      live.chromaticAberration = 0.25 + 0.75 * (0.5 - 0.5 * Math.cos(localP * Math.PI * 2 * 4));
+      // Base breathing: 4 smooth swings between 0.25 and 1.0 (the original feel).
+      const base = 0.25 + 0.75 * (0.5 - 0.5 * Math.cos(localP * Math.PI * 2 * 4));
+      // Occasional faster bursts. Two raised humps (3 and 5 cycles), each taken
+      // to a high power so they sit near 0 most of the time and open only
+      // briefly; the differing, non-base frequencies make the open windows land
+      // at irregular spots instead of on a metronome. Both humps (and the fast
+      // wiggle below) hit exactly 0 at localP 0 and 1, so a burst can never
+      // introduce a discontinuity at the segment seams.
+      const burstGate = Math.min(1,
+        Math.pow(0.5 - 0.5 * Math.cos(localP * Math.PI * 2 * 3), 5)
+        + Math.pow(0.5 - 0.5 * Math.cos(localP * Math.PI * 2 * 5), 7)
+      );
+      // While a gate is open, a fast 22-cycle wiggle rides on top — a quick,
+      // smooth bounce that can punch the value above the steady 1.0 ceiling.
+      const burst = burstGate * 0.4 * (0.5 - 0.5 * Math.cos(localP * Math.PI * 2 * 22));
+      live.chromaticAberration = base + burst;
     }
 
     // 5/6/7. Lens / Vignette / Brightness — smooth pseudo-random via sum of sins.
