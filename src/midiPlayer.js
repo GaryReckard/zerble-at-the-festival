@@ -10,10 +10,12 @@
 // swelling reverb, ping-pong delay runaway, tempo drift.
 //
 // Architecture:
-//   Synth (PolySynth/FMSynth) → Vibrato → AutoFilter → PingPongDelay →
-//     Reverb → Destination
-//   LFO on the synth's `detune` provides cheap continuous pitch drift
-//   without paying for a PitchShift node.
+//   Per-category synths (drums/bass/lead/pad) → Vibrato → AutoFilter →
+//     PingPongDelay → Reverb(short) ──┬── midiOut
+//                                  Reverb(long, wet=0 at idle) ─┘
+//   At trip peak: long reverb wet ramps up, short reverb wet eases back.
+//   Granular AudioWorklet spliced between reverb output and midiOut (if
+//   AudioWorklet API is available); transparent passthrough at mix=0.
 
 import { Sound } from './sound.js';
 
@@ -24,26 +26,186 @@ const MIDI_CDN = 'https://esm.sh/@tonejs/midi@2.0.28';
 // festival doesn't go totally silent, but the MIDI clearly dominates.
 const DUCK_LEVEL = 0.18;
 
+// GM program number → synthesis category.
+// Percussion channel (isPercussion=true from @tonejs/midi) always → 'drums'.
+// Program ranges follow General MIDI 1 spec groupings.
+function GM_CATEGORY(program, isPercussion) {
+  if (isPercussion) return 'drums';
+  const p = program ?? 0;
+  if (p <= 7)   return 'lead';   // Piano family
+  if (p <= 15)  return 'pad';    // Chromatic percussion (vibes, marimba)
+  if (p <= 23)  return 'pad';    // Organ
+  if (p <= 31)  return 'lead';   // Guitar
+  if (p <= 39)  return 'bass';   // Bass
+  if (p <= 47)  return 'pad';    // Strings
+  if (p <= 55)  return 'pad';    // Ensemble (choir, string ensemble)
+  if (p <= 63)  return 'lead';   // Brass
+  if (p <= 71)  return 'lead';   // Reed (sax, oboe, clarinet)
+  if (p <= 79)  return 'lead';   // Pipe (flute, recorder)
+  if (p <= 87)  return 'lead';   // Synth lead
+  if (p <= 95)  return 'pad';    // Synth pad
+  if (p <= 103) return 'pad';    // Synth effects
+  if (p <= 111) return 'pad';    // Ethnic (sitar, banjo, shamisen)
+  if (p <= 119) return 'lead';   // Percussive (melodic: tinkle bell, agogo, steel drums)
+  return 'lead';                 // Sound effects (0 and above edge case)
+}
+
+// GM standard drum note mapping for MembraneSynth vs NoiseSynth routing.
+// Returns 'kick', 'snare', 'hihat', 'cymbal', or 'tom'.
+function GM_DRUM_KIND(midiNote) {
+  switch (midiNote) {
+    case 35: case 36: return 'kick';
+    case 38: case 40: return 'snare';
+    case 42: case 44: return 'hihat_closed';
+    case 46: return 'hihat_open';
+    case 49: case 51: case 55: case 57: case 59: return 'cymbal';
+    default: return 'tom'; // 41,43,45,47,48,50 toms + everything else
+  }
+}
+
+// Guard against double-registering the granular worklet module URL (one
+// registration per AudioContext is all the spec allows).
+let _granularModuleAdded = false;
+
+// Inline AudioWorklet source — a ring-buffer grain stutter. Captures
+// recent input samples into a circular buffer, then at mix>0 replays
+// randomised short grains (random offset within the buffer, random
+// playback rate 0.8–1.25, random grain size 512–2048 samples). At mix=0
+// the node is a transparent passthrough (output = input, zero latency).
+// The `mix` AudioParam (k-rate, range 0..1) is the only control surface;
+// everything else is hardwired for the "galaxy-brain" trip effect.
+const GRANULAR_PROCESSOR_SRC = `
+class GranularProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [{ name: 'mix', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' }];
+  }
+  constructor() {
+    super();
+    // Ring buffer: 2s at 48kHz ≈ 96000 samples per channel. We allocate
+    // for a nominal 48kHz; actual rate comes from globalThis.sampleRate.
+    const bufLen = Math.ceil(sampleRate * 2);
+    this._buf = [new Float32Array(bufLen), new Float32Array(bufLen)];
+    this._writePos = 0;
+    this._bufLen = bufLen;
+    // Active grains: each is { readPos, remaining, rate }
+    this._grains = [];
+    this._spawnCounter = 0;
+  }
+  process(inputs, outputs, parameters) {
+    const input  = inputs[0];
+    const output = outputs[0];
+    const mix = parameters.mix[0];
+    const channels = Math.min(input.length, output.length, 2);
+    if (channels === 0) return true;
+    const blockSize = input[0].length;
+    const bufLen = this._bufLen;
+
+    // Write input into the ring buffer (both channels).
+    for (let c = 0; c < channels; c++) {
+      const inp = input[c];
+      const buf = this._buf[c];
+      for (let i = 0; i < blockSize; i++) {
+        buf[(this._writePos + i) % bufLen] = inp[i];
+      }
+    }
+
+    if (mix <= 0.001) {
+      // Transparent passthrough — copy input to output unchanged.
+      for (let c = 0; c < channels; c++) {
+        output[c].set(input[c]);
+      }
+      this._writePos = (this._writePos + blockSize) % bufLen;
+      return true;
+    }
+
+    // Spawn new grains every ~512 samples (rate proportional to mix).
+    this._spawnCounter += blockSize;
+    const spawnInterval = Math.max(128, Math.floor(512 * (1 - mix * 0.7)));
+    while (this._spawnCounter >= spawnInterval) {
+      this._spawnCounter -= spawnInterval;
+      // Only add a grain if we have enough buffered history.
+      const available = Math.min(bufLen - 1, this._writePos > 512 ? this._writePos : bufLen);
+      if (available > 512) {
+        const grainSize = 512 + Math.floor(Math.random() * 1536); // 512–2048 samples
+        const offset    = Math.floor(Math.random() * Math.max(1, available - grainSize));
+        const rate      = 0.8 + Math.random() * 0.45; // 0.80–1.25
+        const startPos  = (this._writePos - offset - grainSize + bufLen * 2) % bufLen;
+        this._grains.push({ readPos: startPos, remaining: grainSize, rate, frac: 0 });
+      }
+    }
+
+    // Mix passthrough + grain output.
+    for (let c = 0; c < channels; c++) {
+      const inp = input[c];
+      const buf = this._buf[c];
+      const out = output[c];
+      for (let i = 0; i < blockSize; i++) {
+        out[i] = inp[i] * (1 - mix);
+      }
+    }
+    // Add grain contributions (sum across all active grains, divided later).
+    const grainGain = mix / Math.max(1, this._grains.length);
+    for (let g = this._grains.length - 1; g >= 0; g--) {
+      const grain = this._grains[g];
+      for (let c = 0; c < channels; c++) {
+        const buf = this._buf[c];
+        const out = output[c];
+        let { readPos, frac, rate } = grain;
+        const rem = grain.remaining;
+        const toWrite = Math.min(blockSize, rem);
+        for (let i = 0; i < toWrite; i++) {
+          // Linear interpolation between adjacent ring-buffer samples.
+          const i0 = Math.floor(readPos) % bufLen;
+          const i1 = (i0 + 1) % bufLen;
+          out[i] += (buf[i0] * (1 - frac) + buf[i1] * frac) * grainGain;
+          frac += rate;
+          const step = Math.floor(frac);
+          readPos = (readPos + step) % bufLen;
+          frac -= step;
+        }
+        if (c === 0) {
+          // Advance grain state only once (channel 0 drives position).
+          grain.readPos = readPos;
+          grain.frac = frac;
+          grain.remaining -= toWrite;
+        }
+      }
+      if (grain.remaining <= 0) this._grains.splice(g, 1);
+    }
+
+    this._writePos = (this._writePos + blockSize) % bufLen;
+    return true;
+  }
+}
+registerProcessor('granular-processor', GranularProcessor);
+`;
+
 export class MidiPlayer {
   constructor() {
     this.Tone = null;
     this.Midi = null;
     this.transport = null;           // the CURRENT context's transport (see _ensureLoaded)
-    this.synth = null;
+    // Per-category synth pool. Built in _buildSynths().
+    this._synths = null;             // { lead, bass, pad, drums }
+    this.synth = null;               // backward-compat alias → this._synths.lead
     this.effects = null;
     this.parts = [];                 // Tone.Part / Tone.Sequence — disposed on stop
+    this.trackMeta = [];             // { i, name, category, muted } aligned to parts[]
     this.manifest = null;
     this.isPlaying = false;
     this.currentTrack = null;
     this._loadingPromise = null;     // shared promise so concurrent toggles don't double-load
     this._tripEnvelope = 0;
     this._baseBpm = 120;
+    this._granularNode = null;       // AudioWorkletNode or null if unsupported/failed
   }
 
   // First call lazy-loads Tone.js + @tonejs/midi + the manifest. Subsequent
   // calls resolve immediately. Returns true on success, false on failure.
   async _ensureLoaded() {
-    if (this.Tone && this.Midi) return true;
+    // All three must be set — transport is built after Tone.start() so it's the
+    // reliable sentinel that full initialization completed.
+    if (this.Tone && this.Midi && this.transport) return true;
     if (this._loadingPromise) return this._loadingPromise;
     this._loadingPromise = (async () => {
       try {
@@ -73,7 +235,13 @@ export class MidiPlayer {
         // setContext and returns the same context's transport as the synth.
         this.transport = this.Tone.getTransport();
         this._buildEffectChain();
-        this._buildSynth();
+        this._buildSynths();
+        // Register granular AudioWorklet via Blob URL. Must happen after
+        // Tone.start() since we need the shared AudioContext to exist. Wrapped
+        // in try/catch — if AudioWorklet API is absent (old Safari) or the
+        // module registration throws, we skip the splice entirely and the
+        // chain remains fully functional without granular.
+        await this._initGranular();
         // Best-effort manifest load. No file == empty manifest, procedural
         // fallback kicks in. Don't noisy-warn on 404.
         // Cache-bust the URL: the Claude Preview proxy (and some browsers)
@@ -90,15 +258,49 @@ export class MidiPlayer {
         return true;
       } catch (e) {
         console.warn('[midi] failed to load Tone.js / @tonejs/midi', e);
+        this._loadingPromise = null;  // allow retry on next toggle press
         return false;
       }
     })();
     return this._loadingPromise;
   }
 
-  // Build the master effect chain. Order is signal-flow: synth → effects →
+  // Register the granular worklet and splice it into the effect chain.
+  // Silent no-op if AudioWorklet API is unavailable or registration fails.
+  async _initGranular() {
+    const rawCtx = Sound.getContext();
+    if (!rawCtx || !rawCtx.audioWorklet) return;
+    try {
+      if (!_granularModuleAdded) {
+        const blob = new Blob([GRANULAR_PROCESSOR_SRC], { type: 'application/javascript' });
+        const url  = URL.createObjectURL(blob);
+        await rawCtx.audioWorklet.addModule(url);
+        _granularModuleAdded = true;
+      }
+      this._granularNode = new AudioWorkletNode(rawCtx, 'granular-processor', {
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+      });
+      // Resplice: reverb → granularNode → midiOut (instead of reverb → midiOut).
+      // Tone nodes expose .output (a native AudioNode) for .connect().
+      const midiOut = Sound.getMidiInputNode();
+      const dest = midiOut ?? this.Tone.Destination.input;
+      // Disconnect reverb from its current destination, route through granular.
+      this.effects.reverb.disconnect();
+      this.effects.reverb.connect(this._granularNode);
+      this._granularNode.connect(dest);
+      // Also connect long reverb through granular.
+      this.effects.reverbLong.disconnect();
+      this.effects.reverbLong.connect(this._granularNode);
+    } catch (e) {
+      // Granular unavailable — leave chain intact (already wired in _buildEffectChain).
+      console.info('[midi] granular worklet unavailable, skipping splice:', e.message);
+      this._granularNode = null;
+    }
+  }
+
+  // Build the master effect chain. Order is signal-flow: synths → effects →
   // Destination. All effects ship with subtle defaults so playback is clean
-  // until setTripEnvelope() ramps them up.
+  // until setTripState() ramps them up.
   _buildEffectChain() {
     const T = this.Tone;
 
@@ -119,43 +321,102 @@ export class MidiPlayer {
       delayTime: '8n', feedback: 0.22, wet: 0.10,
     });
 
-    // Reverb — short hall by default; wet swells massively during trip so
-    // notes hang and overlap into chord-clouds. Tone.Reverb.decay is fixed
-    // at construction, so we lean on the wet ramp to convey "more reverb".
+    // Short reverb — hall by default; wet swells massively during trip.
     const reverb = new T.Reverb({ decay: 4.5, wet: 0.18 });
+
+    // Long reverb — cathedral parallel path. wet=0 at idle (completely
+    // silent); crossfades up via peakBell at the trip climax while the
+    // short reverb eases back a touch. Pre-generate the impulse response
+    // immediately (it's async internally — generate() kicks it off and the
+    // node is safe to connect before it resolves; silence until ready).
+    const reverbLong = new T.Reverb({ decay: 12, wet: 0 });
+    reverbLong.generate();
 
     // Route the output into Sound.js's midiGain node (→ masterGain) so Master
     // and the MIDI fader both affect playback. Falls back to T.Destination if
     // Sound hasn't initialized yet (shouldn't happen in normal flow).
     const midiOut = Sound.getMidiInputNode();
     vibrato.chain(filter, delay, reverb);
+    // Both reverbs connect in parallel from the delay output.
+    // reverbLong needs its own feed from delay, then merges at midiOut.
+    delay.connect(reverbLong);
     reverb.connect(midiOut ?? T.Destination);
+    reverbLong.connect(midiOut ?? T.Destination);
 
-    this.effects = { vibrato, filter, delay, reverb };
-    this._inputNode = vibrato;       // synth.connect(this._inputNode)
+    this.effects = { vibrato, filter, delay, reverb, reverbLong };
+    this._inputNode = vibrato;       // synths.connect(this._inputNode)
   }
 
-  _buildSynth() {
+  // Build the per-category synth pool. All synths feed into this._inputNode
+  // (the vibrato/filter/delay/reverb effect chain).
+  _buildSynths() {
     const T = this.Tone;
-    // PolySynth wrapping FMSynth — bright, festival-y timbre that stays
-    // distinct under heavy effect warping. Could be expanded later to a
-    // per-channel sampler (different instruments per MIDI track) but FMSynth
-    // covers a lot of ground for one allocation.
-    // The second arg to `new PolySynth(voice, options)` is the *voice's*
-    // options — it's forwarded to each FMSynth, NOT to the PolySynth. So
-    // `maxPolyphony` and the PolySynth's own `volume` placed here are silently
-    // ignored, leaving maxPolyphony at the default 32. That's far too few for
-    // dense 13–17 track full-band MIDIs (chords + bass + drums + pads all
-    // sustaining at once): the 32 voices exhaust instantly and Tone drops every
-    // further note → playback is sparse or effectively silent. Set both on the
-    // PolySynth directly after construction. 256 voices cover the dense case;
-    // the short 0.4s release frees voices back to the pool quickly.
-    this.synth = new T.PolySynth(T.FMSynth, {
+
+    // Lead — bright FM synth for melody, keys, brass, reed, guitar lines.
+    const lead = new T.PolySynth(T.FMSynth, {
       envelope: { attack: 0.02, decay: 0.12, sustain: 0.5, release: 0.4 },
     });
-    this.synth.maxPolyphony = 256;
-    this.synth.volume.value = -8;
-    this.synth.connect(this._inputNode);
+    lead.maxPolyphony = 128;
+    lead.volume.value = -8;
+    lead.connect(this._inputNode);
+
+    // Pad — softer, slower attack for strings, ensembles, choir voices.
+    const pad = new T.PolySynth(T.AMSynth, {
+      envelope: { attack: 0.18, decay: 0.3, sustain: 0.8, release: 1.2 },
+      harmonicity: 2.0,
+    });
+    pad.maxPolyphony = 64;
+    pad.volume.value = -10;
+    pad.connect(this._inputNode);
+
+    // Bass — monophonic FM for bass lines (32–39 GM range). MonoSynth
+    // with punchy envelope and a low-pass-filtered FM character.
+    const bass = new T.PolySynth(T.FMSynth, {
+      envelope: { attack: 0.01, decay: 0.18, sustain: 0.7, release: 0.25 },
+      modulationEnvelope: { attack: 0.02, decay: 0.1, sustain: 0.5, release: 0.2 },
+      harmonicity: 0.5,
+    });
+    bass.maxPolyphony = 16;
+    bass.volume.value = -5;
+    bass.connect(this._inputNode);
+
+    // Drum synths — MembraneSynth for kick, separate NoiseSynths per drum
+    // category so Tone.js's "start time must be strictly greater" constraint
+    // is never violated by two drum events at the same AudioContext timestamp.
+    const drumKick = new T.MembraneSynth({
+      pitchDecay: 0.05, octaves: 8,
+      envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.1 },
+    });
+    drumKick.volume.value = -4;
+    drumKick.connect(this._inputNode);
+
+    // Short-decay noise for hi-hats (closed) and snare/toms.
+    const drumHihat = new T.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.02 },
+    });
+    drumHihat.volume.value = -14;
+    drumHihat.connect(this._inputNode);
+
+    // Medium-decay noise for snare/toms and open hat.
+    const drumSnare = new T.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.05 },
+    });
+    drumSnare.volume.value = -10;
+    drumSnare.connect(this._inputNode);
+
+    // Long-decay noise for cymbals and open hat crashes.
+    const drumCymbal = new T.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.001, decay: 0.35, sustain: 0, release: 0.1 },
+    });
+    drumCymbal.volume.value = -12;
+    drumCymbal.connect(this._inputNode);
+
+    this._synths = { lead, pad, bass, drumKick, drumHihat, drumSnare, drumCymbal };
+    // backward-compat alias used by _playProceduralLoop
+    this.synth = lead;
   }
 
   // M key entry point. Toggles playback. `hud` is the HUD module (for toast).
@@ -218,8 +479,8 @@ export class MidiPlayer {
   }
 
   // Wire MIDI notes from the parsed file into Tone.Transport-scheduled parts.
-  // Each MIDI track becomes a Tone.Part that loops on the whole-MIDI duration
-  // so playback continues until the user presses M again.
+  // Each MIDI track becomes a Tone.Part routed to a synth chosen by GM category.
+  // trackMeta[] stays aligned to parts[] for getTracks()/setTrackMute().
   _schedule(midi) {
     const T = this.Tone;
     const tr = this.transport;
@@ -231,21 +492,60 @@ export class MidiPlayer {
     tr.bpm.value = tempo;
 
     this.parts = [];
+    this.trackMeta = [];
+
+    let partIndex = 0;
     for (const track of midi.tracks) {
       const events = track.notes.map(n => ({
         time: n.time,
         name: n.name,
+        midi: n.midi,                  // raw MIDI note number (needed for drum mapping)
         duration: n.duration,
         velocity: n.velocity,
       }));
       if (events.length === 0) continue;
+
+      // Determine category via GM program map.
+      const isPerc = !!(track.instrument && track.instrument.percussion);
+      const program = track.instrument ? (track.instrument.number ?? 0) : 0;
+      const category = GM_CATEGORY(program, isPerc);
+      const trackName = track.name || `Track ${partIndex + 1}`;
+
+      // Capture synths for the closure — category was captured in the loop above.
+      const synths  = this._synths;
+
       const part = new T.Part((time, ev) => {
-        this.synth.triggerAttackRelease(ev.name, ev.duration, time, ev.velocity);
+        switch (category) {
+          case 'drums': {
+            const kind = GM_DRUM_KIND(ev.midi);
+            if (kind === 'kick') {
+              synths.drumKick.triggerAttackRelease('C1', '8n', time, ev.velocity);
+            } else if (kind === 'hihat_closed') {
+              synths.drumHihat.triggerAttackRelease('32n', time, ev.velocity * 0.65);
+            } else if (kind === 'hihat_open' || kind === 'cymbal') {
+              synths.drumCymbal.triggerAttackRelease('8n', time, ev.velocity * 0.85);
+            } else {
+              // snare / toms
+              synths.drumSnare.triggerAttackRelease('16n', time, ev.velocity);
+            }
+            break;
+          }
+          case 'bass':
+            synths.bass.triggerAttackRelease(ev.name, ev.duration, time, ev.velocity);
+            break;
+          case 'pad':
+            synths.pad.triggerAttackRelease(ev.name, ev.duration, time, ev.velocity);
+            break;
+          default: // 'lead'
+            synths.lead.triggerAttackRelease(ev.name, ev.duration, time, ev.velocity);
+        }
       }, events);
       part.loop = true;
       part.loopEnd = midi.duration;
       part.start(0);
       this.parts.push(part);
+      this.trackMeta.push({ i: partIndex, name: trackName, category, muted: false });
+      partIndex++;
     }
     tr.start('+0.05');
   }
@@ -265,7 +565,22 @@ export class MidiPlayer {
     seq.loop = true;
     seq.start(0);
     this.parts = [seq];
+    this.trackMeta = [{ i: 0, name: 'Procedural loop', category: 'lead', muted: false }];
     tr.start('+0.05');
+  }
+
+  // Introspection: returns a snapshot of each scheduled track's metadata.
+  // The debug overlay polls this to render the per-track mute panel.
+  getTracks() {
+    return this.trackMeta.map(m => ({ ...m }));
+  }
+
+  // Mute or unmute a track by its index in parts[].
+  // Tone.Part.mute = true silences all events without stopping the Part clock.
+  setTrackMute(i, muted) {
+    if (i < 0 || i >= this.parts.length) return;
+    this.parts[i].mute = !!muted;
+    if (this.trackMeta[i]) this.trackMeta[i].muted = !!muted;
   }
 
   stop() {
@@ -276,7 +591,12 @@ export class MidiPlayer {
       try { p.dispose(); } catch (e) { /* ignore */ }
     }
     this.parts = [];
-    if (this.synth) this.synth.releaseAll();
+    this.trackMeta = [];
+    if (this._synths) {
+      try { this._synths.lead.releaseAll(); }    catch (e) {}
+      try { this._synths.pad.releaseAll(); }     catch (e) {}
+      try { this._synths.bass.releaseAll(); }    catch (e) {}
+    }
     this.isPlaying = false;
     this.currentTrack = null;
   }
@@ -321,14 +641,21 @@ export class MidiPlayer {
     const vibFreq = 5 - p * 4 + peakBell * (-0.5);
     e.vibrato.frequency.rampTo(env * vibFreq + (1 - env) * 5, 0.1);
 
-    // 2. Reverb wet — sigmoid up to ~0.55 by p=0.5, holds, gentle taper
-    //    after p=0.85. Cathedral opens and stays open through the meat of
-    //    the trip. Bell adds another 0.15 to swell the climax further.
+    // 2. Short reverb wet — sigmoid up to ~0.55 by p=0.5, holds, gentle
+    //    taper after p=0.85. Cathedral opens early, stays through the meat,
+    //    then eases slightly at peak as the long reverb dominates.
     const revRamp = this._smoothstep(p, 0.0, 0.5) - this._smoothstep(p, 0.85, 1.0) * 0.4;
-    const revWet = 0.18 + env * (revRamp * 0.45 + peakBell * 0.15);
-    e.reverb.wet.rampTo(revWet, 0.2);
+    const revWetBase = 0.18 + env * (revRamp * 0.45 + peakBell * 0.15);
+    // Ease the short reverb back slightly at the peak so long reverb can shine.
+    const revWet = revWetBase - env * peakBell * 0.10;
+    e.reverb.wet.rampTo(Math.max(0.12, revWet), 0.2);
 
-    // 3. Delay feedback — sum-of-sines oscillation (like the visual
+    // 3. Long reverb — crossfades IN at the peak via peakBell, then fades
+    //    out as the bell passes. "Cathedral opens" is the sensation.
+    const longWet = env * peakBell * 0.55;
+    e.reverbLong.wet.rampTo(longWet, 0.4);
+
+    // 4. Delay feedback — sum-of-sines oscillation (like the visual
     //    vignettePulse) so echo clouds wax and wane through the trip.
     //    Baseline range 0.30..0.55; peak bell pushes it to ~0.78 (the
     //    runaway zone) at climax.
@@ -341,7 +668,7 @@ export class MidiPlayer {
     const delayWet = 0.10 + env * (0.25 + peakBell * 0.35);
     e.delay.wet.rampTo(delayWet, 0.15);
 
-    // 4. AutoFilter wet — smooth pseudo-random sum-of-sines (mirrors the
+    // 5. AutoFilter wet — smooth pseudo-random sum-of-sines (mirrors the
     //    visual brightness pulse). Ramps in over the first quarter, breathes
     //    through middle half, ramps out over last quarter.
     const filterShape =
@@ -354,12 +681,19 @@ export class MidiPlayer {
     else               filterGate = 1.0;
     e.filter.wet.rampTo(env * filterGate * Math.max(0, Math.min(1, filterShape * 0.85)), 0.2);
 
-    // 5. Tempo — bottoms out at the climax (slowest), recovers toward
-    //    fadeOut. The world stops at the peak. Base curve dips to -18% at
-    //    p=1/3 via the same Gaussian bell.
+    // 6. Tempo — bottoms out at the climax (slowest), recovers toward
+    //    fadeOut. The world stops at the peak.
     if (this.transport && this._baseBpm > 0) {
       const tempoDrop = env * peakBell * 0.18 + env * p * 0.05;
       this.transport.bpm.rampTo(this._baseBpm * (1 - tempoDrop), 0.5);
+    }
+
+    // 7. Granular mix — ramp up ONLY at peak via peakBell; transparent at
+    //    mix=0. Capped at 0.65 so the source material stays intelligible.
+    if (this._granularNode) {
+      const granularMix = env * peakBell * 0.65;
+      const mixParam = this._granularNode.parameters.get('mix');
+      if (mixParam) mixParam.linearRampToValueAtTime(granularMix, (Sound.getContext()?.currentTime ?? 0) + 0.3);
     }
   }
 

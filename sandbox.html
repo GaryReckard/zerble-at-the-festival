@@ -117,6 +117,7 @@
         <option value="lamppost_pair">Lamppost pair + festoon string lights</option>
       </optgroup>
       <optgroup label="People">
+        <option value="cheer_demo">Crowd cheer demo (jump + arms-up)</option>
         <option value="puppet">Puppet (parade)</option>
         <option value="puppet_lineup">Puppet lineup (3)</option>
         <option value="band_member_trumpet">Band member — trumpet</option>
@@ -247,15 +248,30 @@
         <span id="music-state" style="float:right;opacity:0.7;font-size:10px">—</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">
-        <button data-style="jam"         class="music-btn" style="flex:1 0 40%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(120,180,255,0.18);color:inherit;border:1px solid rgba(120,180,255,0.4);border-radius:4px">Jam</button>
-        <button data-style="brass"       class="music-btn" style="flex:1 0 40%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,200,100,0.18);color:inherit;border:1px solid rgba(255,200,100,0.4);border-radius:4px">Brass</button>
-        <button data-style="drum"        class="music-btn" style="flex:1 0 40%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(180,140,220,0.18);color:inherit;border:1px solid rgba(180,140,220,0.4);border-radius:4px">Drum</button>
-        <button data-style="forest_drum" class="music-btn" style="flex:1 0 40%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(120,220,160,0.18);color:inherit;border:1px solid rgba(120,220,160,0.4);border-radius:4px">Forest</button>
+        <button data-style="jam"         class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(120,180,255,0.18);color:inherit;border:1px solid rgba(120,180,255,0.4);border-radius:4px">Jam</button>
+        <button data-style="brass"       class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,200,100,0.18);color:inherit;border:1px solid rgba(255,200,100,0.4);border-radius:4px">Brass</button>
+        <button data-style="drum"        class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(180,140,220,0.18);color:inherit;border:1px solid rgba(180,140,220,0.4);border-radius:4px">Drum</button>
+        <button data-style="forest_drum" class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(120,220,160,0.18);color:inherit;border:1px solid rgba(120,220,160,0.4);border-radius:4px">Forest</button>
+        <button data-style="dance"       class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,120,200,0.18);color:inherit;border:1px solid rgba(255,120,200,0.4);border-radius:4px">Dance</button>
+        <button data-style="world"       class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,180,80,0.18);color:inherit;border:1px solid rgba(255,180,80,0.4);border-radius:4px">World</button>
+        <button data-style="dub"         class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(80,200,160,0.18);color:inherit;border:1px solid rgba(80,200,160,0.4);border-radius:4px">Dub</button>
       </div>
-      <div style="display:flex;gap:3px">
+      <div style="display:flex;gap:3px;margin-bottom:4px">
         <button id="music-stop" style="flex:1;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,140,140,0.18);color:inherit;border:1px solid rgba(255,140,140,0.4);border-radius:4px">Stop music</button>
+        <button id="end-song-btn" style="flex:1;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,220,80,0.22);color:inherit;border:1px solid rgba(255,220,80,0.5);border-radius:4px">End song now</button>
         <button id="midi-toggle" style="flex:1;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.18);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">♪ MIDI</button>
       </div>
+      <!-- Trip-envelope sweep: drives MIDI reverb-swell + granular effect
+           across 0→1 without the wook flow. Also drives Sound.setMusicTrip
+           so procedural music warps in parallel. -->
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
+        <span style="flex:0 0 60px;font-size:10px;opacity:0.8">Trip sweep</span>
+        <input id="trip-sweep" type="range" min="0" max="1" step="0.01" value="0"
+          style="flex:1;accent-color:#c8a0ff;cursor:pointer">
+        <span id="trip-sweep-r" style="width:30px;text-align:right;font-size:10px">0.00</span>
+      </div>
+      <!-- Live song-state readout — polls Sound.songStates() ~4Hz. -->
+      <pre id="song-state-readout" style="margin:0;font-size:9px;line-height:1.35;white-space:pre;color:#adf;background:rgba(0,0,0,0.25);border-radius:4px;padding:4px;min-height:18px">—</pre>
     </div>
 
     <!-- Trip panel — hidden by default. Toggle with the header button or T key.
@@ -324,6 +340,7 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     } from './src/models/tribalFigures.js';
     import { Bubbles } from './src/bubbles.js';
     import { Smiles } from './src/smiles.js';
+    import { Crowd } from './src/crowd.js';
     // Trip + MIDI imports for the audition panels added at the bottom of the
     // HUD. Trip needs its post-process pass slotted into a composer, so we
     // also import EffectComposer / RenderPass / OutputPass and switch the
@@ -498,7 +515,7 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     const select = document.getElementById('entity');
     const info = document.getElementById('info');
     // Expose for debugging / verification.
-    window.__sandbox = { scene, camera, get currentEntity() { return currentEntity; }, Trip, get midi() { return midiPlayer; } };
+    window.__sandbox = { scene, camera, get currentEntity() { return currentEntity; }, Trip, get midi() { return midiPlayer; }, Sound, get songStates() { return Sound.songStates ? Sound.songStates() : []; } };
 
     // Sound needs a user gesture to construct its AudioContext. Hook the
     // first interactive event on the sandbox so subsequent entity loads can
@@ -537,6 +554,11 @@ import { buildSugarShack } from './src/models/sugarShack.js';
         try { Sound.detachStageMusic(entityMusic); } catch (e) {}
         entityMusic = null;
       }
+      // Remove any entity-specific DOM nodes (e.g. the cheer_demo button).
+      if (currentEntity && currentEntity._sandboxCheerBtn) {
+        currentEntity._sandboxCheerBtn.remove();
+      }
+      if (window.__sandbox) window.__sandbox.fireCheer = undefined;
       currentEntity = null;
       entityRoot = null;
       updateFn = null;
@@ -553,6 +575,10 @@ import { buildSugarShack } from './src/models/sugarShack.js';
       leaf_drum_circle:          'forest_drum',
       leaf_drum_circle_day:      'forest_drum',
       leaf_drum_circle_night:    'forest_drum',
+      // New songform genres — auditionable as standalone stage entities.
+      stage_dance:               'dance',
+      stage_world:               'world',
+      stage_dub:                 'dub',
     };
     function attachEntityMusic(name) {
       const style = ENTITY_MUSIC_STYLE[name];
@@ -858,6 +884,57 @@ import { buildSugarShack } from './src/models/sugarShack.js';
           entityRoot = stage.group;
           cam.target.set(0, 4, 0);
           cam.dist = isMain ? 26 : 18;
+          applyCam();
+          break;
+        }
+        case 'cheer_demo': {
+          // Small NPC cluster driven by a real Crowd instance so the jump +
+          // arms-up + smile pose is verifiable in isolation.
+          // Crowd needs a Smiles instance to call smiles.spawn on.
+          const cheerSmiles = new Smiles();
+          scene.add(cheerSmiles.group);
+          // Minimal fake "zerble" stub: crowd.update only needs position + speed
+          // for despawn + passenger gating; no real driving happens here.
+          // 30m away so NPCs stay within despawn radius (200m) but beyond
+          // NOTICE_RANGE (22m) — demo is about the cheer pose, not proximity.
+          const fakeZerble = {
+            position: new THREE.Vector3(0, 0, 30),
+            speed: 0,
+            forwardWorld: new THREE.Vector3(0, 0, -1),
+            seatSlots: [],
+          };
+          const cheerCrowd = new Crowd(cheerSmiles);
+          scene.add(cheerCrowd.group);
+          // Spawn 8 NPCs in a loose ring so they don't stack.
+          for (let i = 0; i < 8; i++) {
+            const ang = (i / 8) * Math.PI * 2;
+            const r = 3 + (i % 3) * 0.8;
+            const pos = new THREE.Vector3(Math.cos(ang) * r, 0, Math.sin(ang) * r);
+            cheerCrowd.spawn({ pos, chunkKey: 'demo', rng: Math.random });
+          }
+          entityRoot = cheerCrowd.group;
+          currentEntity = cheerCrowd;
+          let cheerDemoTime = 0;
+          updateFn = (dt) => {
+            cheerDemoTime += dt;
+            // Crowd.update needs a bubbles stub; passing null is safe (it guards
+            // the forEachAlive call with `if (bubbles)`).
+            cheerCrowd.update(dt, fakeZerble, null);
+            cheerSmiles.update(dt, fakeZerble, () => {});
+          };
+          // Expose a fire-cheer helper on __sandbox so preview_eval can call it.
+          window.__sandbox.fireCheer = () => cheerCrowd.cheerNear(0, 0);
+          // Also wire a button in the HUD info line for quick clicking.
+          const cheerBtn = document.createElement('button');
+          cheerBtn.textContent = 'Fire cheer';
+          cheerBtn.style.cssText = 'margin-top:6px;width:100%;background:rgba(255,200,80,0.25);border:1px solid rgba(255,200,80,0.5);border-radius:6px;padding:5px;cursor:pointer;font:inherit;color:inherit';
+          cheerBtn.addEventListener('click', () => cheerCrowd.cheerNear(0, 0));
+          info.after(cheerBtn);
+          // Clean up button on next entity load (clearEntity removes scene objects
+          // but not DOM nodes we inserted — store a ref for cleanup).
+          cheerCrowd._sandboxCheerBtn = cheerBtn;
+          cam.target.set(0, 1.2, 0);
+          cam.dist = 12;
           applyCam();
           break;
         }
@@ -1802,6 +1879,26 @@ import { buildSugarShack } from './src/models/sugarShack.js';
       updateMusicState('—');
     });
 
+    document.getElementById('end-song-btn').addEventListener('click', () => {
+      ensureSoundInit();
+      Sound._debugEndSong();
+    });
+
+    // Song-state readout — polls Sound.songStates() ~4 times per second.
+    // Shows live section, tempo, key, and phase for each running songform engine.
+    const songStateEl = document.getElementById('song-state-readout');
+    setInterval(() => {
+      const states = Sound.songStates ? Sound.songStates() : [];
+      if (!states || states.length === 0) {
+        songStateEl.textContent = '—';
+        return;
+      }
+      songStateEl.textContent = states.map(s =>
+        `[${s.genre}] song#${s.songIdx} ${s.tempo}bpm key×${s.keyShift} ${s.tonicHz}Hz\n` +
+        `  sec:${s.section} bar:${s.barInSection} beat:${s.beatInSong}/${s.totalBeats} ${s.phase}`
+      ).join('\n');
+    }, 250);
+
     // MIDI player — same code path as the in-game M key. Lazy-loads Tone.js
     // + @tonejs/midi on first press. The MidiPlayer reads Trip.progress()
     // each frame to warp its effect chain, so firing a trip from the panel
@@ -1815,6 +1912,19 @@ import { buildSugarShack } from './src/models/sugarShack.js';
       ensureSoundInit();
       await midiPlayer.toggle(midiHud);
       midiBtn.textContent = midiPlayer.isPlaying ? '■ MIDI' : '♪ MIDI';
+    });
+
+    // Trip-envelope sweep slider — drives both MIDI effect chain and
+    // procedural music trip warp directly, bypassing the wook flow.
+    const tripSweepSlider = document.getElementById('trip-sweep');
+    const tripSweepReadout = document.getElementById('trip-sweep-r');
+    tripSweepSlider.addEventListener('input', () => {
+      const v = parseFloat(tripSweepSlider.value);
+      tripSweepReadout.textContent = v.toFixed(2);
+      if (midiPlayer && midiPlayer.isPlaying) {
+        midiPlayer.setTripState(v, v);
+      }
+      Sound.setMusicTrip(v, v);
     });
 
     // ---- Trip panel wiring ----
@@ -1913,14 +2023,19 @@ import { buildSugarShack } from './src/models/sugarShack.js';
       if (updateFn) updateFn(dt);
       Trip.update(dt, _tripPos, 0, []);
       // Feed trip progress into the MIDI player's effect chain so they warp
-      // together — same wiring as main.js. No-op if MIDI isn't playing.
-      if (midiPlayer && midiPlayer.isPlaying) {
-        midiPlayer.setTripState(Trip._envelope, Trip.progress());
+      // together — same wiring as main.js. Only auto-drive from a REAL
+      // (panel-fired) trip: when the envelope is idle, leave setTripState /
+      // setMusicTrip alone so the manual trip-sweep slider stays in control
+      // instead of being clobbered every frame by an env=0 reset.
+      if (Trip._envelope > 0) {
+        if (midiPlayer && midiPlayer.isPlaying) {
+          midiPlayer.setTripState(Trip._envelope, Trip.progress());
+        }
+        // Drive the procedural music bus's trip effects — same source of truth
+        // as main.js, so the band/drum styles selected from the sandbox Music
+        // panel will warp during FIRE/DYNAMIC trips just like in the game.
+        Sound.setMusicTrip(Trip._envelope, Trip.progress());
       }
-      // Drive the procedural music bus's trip effects — same source of truth
-      // as main.js, so the band/drum styles selected from the sandbox Music
-      // panel will warp during FIRE/DYNAMIC trips just like in the game.
-      Sound.setMusicTrip(Trip._envelope, Trip.progress());
       // Refresh trip panel readouts only when visible (cheap when closed).
       if (tripPanelOpen) {
         tripStateEl.textContent =

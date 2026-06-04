@@ -6,32 +6,17 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
 
 ## Music
 
-### Section system *(medium effort, biggest payoff)*
+### Section transitions *(polish on shipped songform)*
 
-Each music generator gets named sections — `intro / groove / build / break / outro` — each with its own pattern bank and tempo. A meta-scheduler picks the next section probabilistically, with musical transitions: a snare fill into a new section, a tempo ramp into a breakdown. Voices come in and out (just kick for a bar, then horns enter). Different sources can be in different sections at the same time — no global lockstep.
-
-This is the "real" answer to "less repetitive" — the cheap-wins variation pass (multiple variants, rest probability, gain LFO) addresses surface-level repetition, but doesn't give the music a sense of arc.
-
-### Real songform *(big effort, smaller marginal payoff)*
-
-Markov/motif-based phrase generation so the melody actually develops instead of looping. Per-source "songs" — 2–3 minute arcs with intro → verse → chorus → bridge → outro, then a new song picked from the bank. Key changes between songs.
-
-### Smaller music polish
-
-- **Dynamics-aware breath** — couple the rest-probability to the LFO so quiet phases drop more notes and loud phases pack in more accents.
-- **Tempo wobble** — slow drift (±3 BPM over 32 bars) so the groove isn't perfectly metronomic. Tricky because `beat` is captured in envelope math; a clean implementation requires factoring tempo into a function.
-- **Shuffled variant order** — currently rotates 0→1→2→0→1→2. Picking the next variant from a weighted shuffle (avoiding immediate repeats) would feel less mechanical.
-- **Stage-music presets that drift** — even within a single source, the lead can occasionally swap timbre (triangle → sine → square) at section boundaries.
-
-### MIDI player follow-ups
-
-The MIDI player (M key) ships with a single shared PolySynth(FMSynth) for all tracks of a parsed MIDI. Worth exploring:
-
-- **Per-channel instruments.** Map MIDI channels to distinct synths (or `Tone.Sampler` with a soundfont) so drums sound like drums and a bass sounds like a bass instead of all-FMSynth-everything. Drives the timbre toward "playable instrument" instead of "synth interpretation."
-- **General MIDI program map.** Honor program-change messages in the MIDI file — e.g. program 0 = acoustic grand → sampler, program 32 = acoustic bass → bass synth, channel 10 = drums → drum kit sampler. Big jump in playback fidelity for arranged MIDIs.
-- **Per-track muting in the debug overlay.** Toggle individual MIDI tracks on/off for live remixing during a trip.
-- **Pre-render reverb impulse for blast-mode swell.** `Tone.Reverb.decay` is fixed at construction; swelling decay during a trip currently leans on wet ramp. A second `Reverb` with a long decay routed in parallel would let us crossfade for a true "cathedral opens" effect.
-- **Granular synthesis chain for peak moments.** At the climax, route the synth through a granular/glitch effect (Tone has nothing native — would need a custom `AudioWorklet`) for that "reality fracturing" feel. Significant scope — punt unless someone wants to chase the high.
+Real songform shipped 2026-06-03 — each melodic stage plays finite songs with
+named sections (intro/verse/chorus/bridge/outro, or intro/build/drop/break for
+dance), per-song tempo + key changes, voices coming in/out by section, and a
+crowd cheer between songs. What's left from the original "section system" idea:
+a **probabilistic** meta-scheduler that picks the next section instead of the
+current fixed per-genre order, with **musical transitions** (a snare fill into
+the chorus, a tempo ramp into a breakdown) rather than clean cross-fades, plus
+**per-section** tempo changes (today tempo is per-song + a wobble). Diminishing
+returns vs. what shipped — nice-to-have, not urgent.
 
 ---
 
@@ -41,18 +26,6 @@ The MIDI player (M key) ships with a single shared PolySynth(FMSynth) for all tr
   - **Tap-the-wook** — raycast a tap on the canvas; if it hits a wook (or its proximity zone) during `awaiting_confirm`, accept. More diegetic.
   - **Dedicated ACCEPT button** — fourth touch button that appears only during `awaiting_confirm`. Most discoverable but adds permanent UI for a rare interaction.
 - **Trip narration polish.** The TRIP_NARRATIVE_TEXTS array in `main.js` could rotate by trip-elapsed-time so early-trip text differs from late-trip text. Right now it's uniform random.
-
----
-
-## Audio polish
-
-- **Nature-bus volume slider.** Birdsong / crickets / frogs route through `natureBus` (its own trip chain) but there's no user fader yet — it sits at a fixed internal level and only Master controls it. Add a 5th slider (or fold under SFX) + persist `zerble.vol.nature`, mirroring the existing master/music/sfx/midi controls.
-- **Night owl / nightjar call.** A rare low hoot during deep night (`nightness > 0.85`) when the songbirds have roosted — fills the "everything went quiet" gap between the dusk chorus and the crickets. One more entry in the bird-song bank, fired on a slow timer rather than from a perched bird.
-- **Directional crickets/frogs.** Currently both are non-positional ambient beds (fixed stereo spread, level-gated by proximity). Could pan them toward the actual nearest forest / lake-edge direction for a stronger "the pond is over *there*" cue.
-- **Music cross-fade between stages.** Currently when Zerble enters a new stage's audible range, the spatial music handle abruptly swaps — feels like changing radio stations. Cross-fade the two PannerNodes' gains over ~1.5s so the new stage's music swells in as the old one fades. Already have per-stage `attachStageMusic` handles.
-- **`Sound.setVolume(0)` proper-mute API.** The localStorage clamp (≥0.05) is a safety net against an accidentally-dragged slider; a real "fully mute" path should bypass the clamp so intentional muting works.
-- **Output-routing detection.** If iOS sound is still broken after the v2 unlock, log whether the audio is routed to a ghost Bluetooth device. Surface in `Sound.diagnostics()`.
-- **`?sounddebug=1` discoverability.** The mobile audio debug toast only shows when the URL param is set. Consider gating it on a debug build flag rather than a query string, so it never accidentally appears in production.
 
 ---
 

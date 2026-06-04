@@ -45,6 +45,7 @@ let engineNodes = null;
 let initialized = false;
 let silentUnlockEl = null;   // HTMLAudioElement kept alive to hold the iOS "Playback" audio session
 let silentUnlockUrl = null;  // Blob URL — revoked on tear-down (not currently torn down, but for hygiene)
+let _muted = false;          // global mute state — persisted as zerble.muted
 
 // Diagnostics state — populated by init() so we can surface what unlocked
 // (and what didn't) from window.__game.sound.diagnostics() on the iPhone.
@@ -106,12 +107,22 @@ let _natTripProgress = 0;
 // Proximity-driven ambient levels, set every frame from main.js.
 let _cricketLevel = 0;      // 0..1 "treeness" — crickets near trees/forest at night
 let _frogLevel = 0;         // 0..1 "lakeness" — frogs near a shoreline
+let _cricketPan = 0;        // listener-relative stereo pan toward nearest forest (-1..1)
+let _frogPan = 0;           // listener-relative stereo pan toward nearest lake (-1..1)
 // Bird-song scheduler state.
 let _birdCandidates = [];   // [{species,x,y,z,priority}] fed from birds.js
 let _birdActivity = 0;      // time-of-day activity 0..1 (gates song rate)
 let _birdPanners = [];      // pool of positional PannerNodes → natureBus
 let _natureStereoPanners = []; // fixed-pan stereo nodes for cricket/frog spread
 let _natureSchedulers = [];    // setInterval ids, cleared on teardown (hygiene)
+
+// Registry of active stage handles with world positions, for cross-fade.
+// Each entry: { handle, x, z } — handle has setAudibility(g).
+const _stageHandleRegistry = [];
+
+// Pending nature volume — stashed during init restore so we can apply it after
+// initNatureAudio() builds the natureBus node. Defaults to null (use built-in 0.9).
+let _pendingNatureVol = null;
 
 // Stage music attachment is sometimes requested BEFORE Sound.init() runs —
 // the initial chunks (including the main stage at 0,0) generate during world
@@ -313,10 +324,26 @@ export const Sound = {
         gain.gain.value = clamped;
         return { raw, applied: clamped };
       };
-      _diag.restoredFromLocalStorage.master = restore('zerble.vol.master', masterGain);
-      _diag.restoredFromLocalStorage.music  = restore('zerble.vol.music',  musicBus);
-      _diag.restoredFromLocalStorage.sfx    = restore('zerble.vol.sfx',    sfxBus);
-      _diag.restoredFromLocalStorage.midi   = restore('zerble.vol.midi',   midiGain);
+      _diag.restoredFromLocalStorage.master  = restore('zerble.vol.master',  masterGain);
+      _diag.restoredFromLocalStorage.music   = restore('zerble.vol.music',   musicBus);
+      _diag.restoredFromLocalStorage.sfx     = restore('zerble.vol.sfx',     sfxBus);
+      _diag.restoredFromLocalStorage.midi    = restore('zerble.vol.midi',    midiGain);
+      // natureBus is built in initNatureAudio (called below), so we stash the
+      // raw value and apply it there after the bus node exists.
+      const rawNature = localStorage.getItem('zerble.vol.nature');
+      _diag.restoredFromLocalStorage.nature  = rawNature;
+      if (rawNature !== null) {
+        const v = parseFloat(rawNature);
+        if (Number.isFinite(v)) _pendingNatureVol = v < 0.05 ? 0.05 : v;
+      }
+      // Mute — if previously muted, force masterGain to zero AFTER the clamp
+      // restore above (which kept it ≥0.05). The clamp is intentional for
+      // normal sessions; mute is an explicit override on top.
+      const mutedRaw = localStorage.getItem('zerble.muted');
+      if (mutedRaw === '1') {
+        _muted = true;
+        masterGain.gain.value = 0;
+      }
     } catch (e) { /* localStorage unavailable */ }
 
     engineNodes = createEngine(ctx, sfxBus);
@@ -374,6 +401,27 @@ export const Sound = {
   // ctx state + gain values so we can spot a stuck-suspended context or a
   // dropped-to-zero master after the fact.
   diagnostics() {
+    // Output-routing: destination channel info + best-effort device enumeration.
+    // enumerateDevices requires a secure context and may be unavailable; wrap
+    // in try/catch so a thrown PermissionDeniedError never crashes diagnostics.
+    const outputRouting = {
+      maxChannelCount: ctx && ctx.destination ? ctx.destination.maxChannelCount : null,
+      sampleRate: ctx ? ctx.sampleRate : null,
+      outputLabels: null,
+      likelyBluetooth: false,
+    };
+    if (ctx && typeof navigator !== 'undefined' && navigator.mediaDevices?.enumerateDevices) {
+      try {
+        // Fire-and-forget; result populates asynchronously but is useful on
+        // second call (e.g. after user has granted permission). Synchronous
+        // callers get whatever was cached from the last fulfillment.
+        navigator.mediaDevices.enumerateDevices().then((devs) => {
+          const labels = devs.filter(d => d.kind === 'audiooutput').map(d => d.label).filter(Boolean);
+          outputRouting.outputLabels = labels;
+          outputRouting.likelyBluetooth = labels.some(l => /bluetooth|airpods|wireless|bt\b/i.test(l));
+        }).catch(() => {});
+      } catch (e) { /* secure-context or permission denied */ }
+    }
     return {
       ...JSON.parse(JSON.stringify(_diag)),
       live: {
@@ -384,10 +432,13 @@ export const Sound = {
         masterGain: masterGain ? masterGain.gain.value : null,
         musicBus: musicBus ? musicBus.gain.value : null,
         sfxBus: sfxBus ? sfxBus.gain.value : null,
+        natureBus: natureBus ? natureBus.gain.value : null,
+        muted: _muted,
         silentUnlockPaused: silentUnlockEl ? silentUnlockEl.paused : null,
         silentUnlockCurrentTime: silentUnlockEl ? silentUnlockEl.currentTime : null,
         silentUnlockReadyState: silentUnlockEl ? silentUnlockEl.readyState : null,
       },
+      outputRouting,
     };
   },
 
@@ -528,9 +579,16 @@ export const Sound = {
     _natTripDelay.delayTime.setTargetAtTime(dt2, t, 0.12);
   },
 
-  // Per-frame ambient levels from main.js. `level` 0..1.
-  setCricketBed(level) { _cricketLevel = Math.max(0, Math.min(1, level || 0)); },
-  setFrogBed(level) { _frogLevel = Math.max(0, Math.min(1, level || 0)); },
+  // Per-frame ambient levels from main.js. `level` 0..1. `panX` -1..1 biases
+  // chirp/croak placement toward the direction of the nearest forest/lake.
+  setCricketBed(level, panX = 0) {
+    _cricketLevel = Math.max(0, Math.min(1, level || 0));
+    _cricketPan = Math.max(-1, Math.min(1, panX || 0));
+  },
+  setFrogBed(level, panX = 0) {
+    _frogLevel = Math.max(0, Math.min(1, level || 0));
+    _frogPan = Math.max(-1, Math.min(1, panX || 0));
+  },
 
   // Live snapshot of the nature layer — for verifying gating from the console
   // (window.__game.sound.natureDiagnostics()).
@@ -538,8 +596,11 @@ export const Sound = {
     return {
       built: !!natureBus,
       schedulers: _natureSchedulers.length,
+      natureVolume: natureBus ? +natureBus.gain.value.toFixed(2) : null,
       cricketLevel: +_cricketLevel.toFixed(2),
+      cricketPan: +_cricketPan.toFixed(2),
       frogLevel: +_frogLevel.toFixed(2),
+      frogPan: +_frogPan.toFixed(2),
       nightness: +currentNightness.toFixed(2),
       birdActivity: +_birdActivity.toFixed(2),
       birdCandidates: _birdCandidates.length,
@@ -591,20 +652,33 @@ export const Sound = {
             this._real.setLowpassCutoff(freq);
           }
         },
+        // Forward setAudibility to the real handle once adopted; silently drop
+        // pre-adoption calls (distance cross-fade hasn't started yet).
+        setAudibility(g) {
+          if (this._real && this._real.setAudibility) this._real.setAudibility(g);
+        },
         stop() {
           if (this._real) this._real.stop();
           else this.cancelled = true;
+          // Remove from registry.
+          const idx = _stageHandleRegistry.findIndex(e => e.handle === this);
+          if (idx !== -1) _stageHandleRegistry.splice(idx, 1);
         },
       };
       _pendingStages.push({ x, y, z, seed, style, handle });
+      _stageHandleRegistry.push({ handle, x, z });
       return handle;
     }
-    return createStageMusic(ctx, musicBus, x, y, z, seed, style);
+    const real = createStageMusic(ctx, musicBus, x, y, z, seed, style);
+    _stageHandleRegistry.push({ handle: real, x, z });
+    return real;
   },
 
   detachStageMusic(handle) {
     if (!handle) return;
     handle.stop();
+    const idx = _stageHandleRegistry.findIndex(e => e.handle === handle);
+    if (idx !== -1) _stageHandleRegistry.splice(idx, 1);
   },
 
   updateAudioListener(px, py, pz, fx, fy, fz) {
@@ -692,6 +766,27 @@ export const Sound = {
   setMusicVolume(v)  { if (musicBus)   musicBus.gain.value   = v; this._saveVolumes(); },
   setSfxVolume(v)    { if (sfxBus)     sfxBus.gain.value     = v; this._saveVolumes(); },
   setMidiVolume(v)   { if (midiGain)   midiGain.gain.value   = v; this._saveVolumes(); },
+  setNatureVolume(v) { if (natureBus)  natureBus.gain.value  = v; this._saveVolumes(); },
+
+  // Global mute. `setMuted(true)` silences masterGain regardless of its saved
+  // level. `setMuted(false)` restores the saved master volume. Persisted so
+  // a page reload respects the last mute state.
+  setMuted(on) {
+    _muted = !!on;
+    try { localStorage.setItem('zerble.muted', _muted ? '1' : '0'); } catch (e) {}
+    if (!masterGain) return;
+    if (_muted) {
+      masterGain.gain.value = 0;
+    } else {
+      // Restore from localStorage, falling back to a sensible default.
+      try {
+        const raw = localStorage.getItem('zerble.vol.master');
+        const v = raw !== null ? parseFloat(raw) : 0.55;
+        masterGain.gain.value = Number.isFinite(v) ? Math.max(0.05, v) : 0.55;
+      } catch (e) { masterGain.gain.value = 0.55; }
+    }
+  },
+  isMuted() { return _muted; },
 
   // Runtime music attenuator — independent of the user's saved volume.
   // The MIDI player calls this with ~0.18 on start and 1.0 on stop so the
@@ -704,18 +799,119 @@ export const Sound = {
     musicDuckGain.gain.setValueAtTime(musicDuckGain.gain.value, now);
     musicDuckGain.gain.linearRampToValueAtTime(factor, now + 0.4);
   },
-  getMasterVolume()  { return masterGain ? masterGain.gain.value : 0.55; },
-  getMusicVolume()   { return musicBus   ? musicBus.gain.value   : 1.6; },
-  getSfxVolume()     { return sfxBus     ? sfxBus.gain.value     : 1.0; },
-  getMidiVolume()    { return midiGain   ? midiGain.gain.value   : 1.0; },
+  getMasterVolume()  { return masterGain ? masterGain.gain.value  : 0.55; },
+  getMusicVolume()   { return musicBus   ? musicBus.gain.value    : 1.6; },
+  getSfxVolume()     { return sfxBus     ? sfxBus.gain.value      : 1.0; },
+  getMidiVolume()    { return midiGain   ? midiGain.gain.value    : 1.0; },
+  getNatureVolume()  { return natureBus  ? natureBus.gain.value   : 0.9; },
 
   _saveVolumes() {
     try {
-      localStorage.setItem('zerble.vol.master', String(masterGain ? masterGain.gain.value : 0.55));
-      localStorage.setItem('zerble.vol.music',  String(musicBus   ? musicBus.gain.value   : 1.6));
-      localStorage.setItem('zerble.vol.sfx',    String(sfxBus     ? sfxBus.gain.value     : 1.0));
-      localStorage.setItem('zerble.vol.midi',   String(midiGain   ? midiGain.gain.value   : 1.0));
+      localStorage.setItem('zerble.vol.master',  String(masterGain ? masterGain.gain.value  : 0.55));
+      localStorage.setItem('zerble.vol.music',   String(musicBus   ? musicBus.gain.value    : 1.6));
+      localStorage.setItem('zerble.vol.sfx',     String(sfxBus     ? sfxBus.gain.value      : 1.0));
+      localStorage.setItem('zerble.vol.midi',    String(midiGain   ? midiGain.gain.value    : 1.0));
+      localStorage.setItem('zerble.vol.nature',  String(natureBus  ? natureBus.gain.value   : 0.9));
     } catch (e) { /* localStorage unavailable */ }
+  },
+
+  // Direct access to the stage handle registry for main.js cross-fade loop.
+  // Returns the live array — each entry { handle, x, z }.
+  getStageHandleRegistry() { return _stageHandleRegistry; },
+
+  // Register a callback that fires at the end of each song (all songform styles).
+  // `cb(x, z, style)` receives the live panner position + genre name so callers
+  // (e.g. crowd.cheerNear) can react to the nearest stage.
+  onSongEnd(cb) { _songEndCb = cb; },
+
+  // Live introspection for each active songform stage — used by the sandbox
+  // readout and `preview_eval Sound.songStates()` to verify correctness without audio.
+  songStates() {
+    return _activeStageSongs.map(s => ({ ...s }));
+  },
+
+  // Synth crowd applause at (x, z) → sfxBus. Self-disconnecting.
+  // Big-spectacle loud but distance-attenuated via a temporary PannerNode.
+  playCrowdCheer(x, z) {
+    if (!ctx || !sfxBus) return;
+    const now = ctx.currentTime;
+    const cheerPanner = ctx.createPanner();
+    cheerPanner.panningModel = 'HRTF';
+    cheerPanner.distanceModel = 'inverse';
+    cheerPanner.refDistance = 14;
+    cheerPanner.maxDistance = 160;
+    cheerPanner.rolloffFactor = 1.0;
+    if (cheerPanner.positionX) {
+      cheerPanner.positionX.value = x;
+      cheerPanner.positionY.value = 4;
+      cheerPanner.positionZ.value = z;
+    } else if (cheerPanner.setPosition) {
+      cheerPanner.setPosition(x, 4, z);
+    }
+    cheerPanner.connect(sfxBus);
+
+    // Applause bed: bandpassed white noise with attack + hold + long tail.
+    const apLen = Math.ceil(ctx.sampleRate * 5.5);
+    const apBuf = ctx.createBuffer(1, apLen, ctx.sampleRate);
+    const apData = apBuf.getChannelData(0);
+    for (let i = 0; i < apLen; i++) apData[i] = Math.random() * 2 - 1;
+    const apSrc = ctx.createBufferSource(); apSrc.buffer = apBuf;
+    const apBpf = ctx.createBiquadFilter(); apBpf.type = 'bandpass'; apBpf.frequency.value = 1800; apBpf.Q.value = 0.5;
+    const apGain = ctx.createGain();
+    apGain.gain.setValueAtTime(0.0001, now);
+    apGain.gain.linearRampToValueAtTime(0.55, now + 0.4);
+    apGain.gain.setValueAtTime(0.50, now + 3.2);
+    apGain.gain.exponentialRampToValueAtTime(0.0001, now + 5.4);
+    apSrc.connect(apBpf).connect(apGain).connect(cheerPanner);
+    apSrc.start(now); apSrc.stop(now + 5.5);
+
+    // Rapid clap transients over the first ~2s.
+    const clapLen = Math.ceil(ctx.sampleRate * 0.06);
+    const clapBuf = ctx.createBuffer(1, clapLen, ctx.sampleRate);
+    const clapData = clapBuf.getChannelData(0);
+    for (let i = 0; i < clapLen; i++) clapData[i] = Math.random() * 2 - 1;
+    const clapBpf = ctx.createBiquadFilter(); clapBpf.type = 'bandpass'; clapBpf.frequency.value = 2400; clapBpf.Q.value = 1.8;
+    for (let k = 0; k < 22; k++) {
+      const ct = now + k * 0.09 + (Math.random() * 0.04 - 0.02);
+      if (ct > now + 5.0) break;
+      const cSrc = ctx.createBufferSource(); cSrc.buffer = clapBuf;
+      const cGain = ctx.createGain();
+      cGain.gain.setValueAtTime(0.0001, ct);
+      cGain.gain.exponentialRampToValueAtTime(0.35 + Math.random() * 0.20, ct + 0.004);
+      cGain.gain.exponentialRampToValueAtTime(0.0001, ct + 0.06);
+      cSrc.connect(clapBpf).connect(cGain).connect(cheerPanner);
+      cSrc.start(ct); cSrc.stop(ct + 0.08);
+    }
+
+    // 2–3 detuned-saw "wooo" voices with a vowel bandpass sweep.
+    for (let w = 0; w < 2 + Math.floor(Math.random() * 2); w++) {
+      const wDel = 0.1 + w * 0.22 + Math.random() * 0.1;
+      const wOsc = ctx.createOscillator(); wOsc.type = 'sawtooth';
+      const baseW = 300 + Math.random() * 120;
+      wOsc.frequency.value = baseW;
+      const wBpf = ctx.createBiquadFilter(); wBpf.type = 'bandpass'; wBpf.Q.value = 4;
+      wBpf.frequency.setValueAtTime(700, now + wDel);
+      wBpf.frequency.linearRampToValueAtTime(1400, now + wDel + 1.0);
+      wBpf.frequency.exponentialRampToValueAtTime(600, now + wDel + 1.8);
+      const wGain = ctx.createGain();
+      wGain.gain.setValueAtTime(0.0001, now + wDel);
+      wGain.gain.linearRampToValueAtTime(0.22, now + wDel + 0.1);
+      wGain.gain.exponentialRampToValueAtTime(0.0001, now + wDel + 1.9);
+      wOsc.connect(wBpf).connect(wGain).connect(cheerPanner);
+      wOsc.start(now + wDel); wOsc.stop(now + wDel + 2.0);
+    }
+
+    // Disconnect the temporary panner when done.
+    setTimeout(() => { try { cheerPanner.disconnect(); } catch (e) {} }, 5600);
+  },
+
+  // Force all active songform stages into their cheer gap immediately — for
+  // verification without waiting out a full song length. Each runStageSong
+  // scheduler reads `snap._forceEnd` on the next tick (within ~180ms).
+  _debugEndSong() {
+    for (const snap of _activeStageSongs) {
+      snap._forceEnd = true;
+    }
   },
 };
 
@@ -1170,15 +1366,54 @@ function ringOnce(ctx, dest, t, carrierHz, strikeGain, releaseGain) {
 // Each style returns the same handle shape ({ panner, stop }) so callers don't
 // care which engine is running underneath.
 function createStageMusic(ctx, dest, x, y, z, seed, style = 'jam') {
-  const panner = createStagePanner(ctx, dest, x, y, z);
+  // Per-stage master GainNode for cross-fade. Inserted between music and
+  // panner so moving between stages fades them independently without touching
+  // the user's music-bus volume level. Starts at full gain (1.0); main.js
+  // ramps it by distance via setAudibility.
+  const master = ctx.createGain();
+  master.gain.value = 1.0;
+  master.connect(dest);
+
+  // Stages are all-on, distance-attenuated by PannerNode inverse model.
+  // The master gain is an extra layer on top so nearby stages are clear
+  // and farther ones are cross-faded smoothly as you move between them.
+  const panner = createStagePanner(ctx, master, x, y, z);
+  // Helper so onSongEnd can read the LIVE panner position at the moment the
+  // song ends (the brass band moves; we want its current location, not boot-time).
+  const curX = () => panner.positionX ? panner.positionX.value : x;
+  const curZ = () => panner.positionZ ? panner.positionZ.value : z;
+
   let handle;
   switch (style) {
-    case 'brass':       handle = brassStage(ctx, panner, seed); break;
+    case 'brass': {
+      const def = Object.assign({}, BRASS, { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) });
+      handle = runStageSong(ctx, panner, seed, def);
+      break;
+    }
+    case 'dance': {
+      const def = Object.assign({}, DANCE, { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) });
+      handle = runStageSong(ctx, panner, seed, def);
+      break;
+    }
+    case 'world': {
+      const def = Object.assign({}, WORLD, { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) });
+      handle = runStageSong(ctx, panner, seed, def);
+      break;
+    }
+    case 'dub': {
+      const def = Object.assign({}, DUB, { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) });
+      handle = runStageSong(ctx, panner, seed, def);
+      break;
+    }
     case 'drum':        handle = drumStage(ctx, panner, seed); break;
     case 'forest_drum': handle = forestDrumStage(ctx, panner, seed); break;
     case 'second_line': handle = secondLineStage(ctx, panner, seed); break;
     case 'jam':
-    default:            handle = jamStage(ctx, panner, seed); break;
+    default: {
+      const def = Object.assign({}, JAM, { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) });
+      handle = runStageSong(ctx, panner, seed, def);
+      break;
+    }
   }
   // Universal position setter so callers (e.g. the marching brass band) can
   // move the source around the world each frame.
@@ -1196,6 +1431,20 @@ function createStageMusic(ctx, dest, x, y, z, seed, style = 'jam') {
   if (typeof handle.setLowpassCutoff !== 'function') {
     handle.setLowpassCutoff = () => {};
   }
+  // Smooth cross-fade gain control. Called each frame by main.js with a
+  // 0..1 value based on listener distance so stages blend as you move between them.
+  handle.setAudibility = (g) => {
+    if (!ctx) return;
+    master.gain.setTargetAtTime(Math.max(0, Math.min(1, g)), ctx.currentTime, 0.6);
+  };
+  // Wrap the upstream stop to also disconnect the master gain node.
+  const _upstreamStop = handle.stop;
+  handle.stop = () => {
+    _upstreamStop();
+    try { master.disconnect(); } catch (e) {}
+    const idx = _stageHandleRegistry.findIndex(e => e.handle === handle);
+    if (idx !== -1) _stageHandleRegistry.splice(idx, 1);
+  };
   return handle;
 }
 
@@ -1205,7 +1454,9 @@ function createStagePanner(ctx, dest, x, y, z) {
   panner.distanceModel = 'inverse';
   panner.refDistance = 14;
   panner.maxDistance = 140;
-  panner.rolloffFactor = 1.1;
+  // Slightly gentler than the original 1.1 so nearby and mid-distance stages
+  // blend more naturally; the master gain cross-fade handles close-vs-far.
+  panner.rolloffFactor = 0.9;
   if (panner.positionX) {
     panner.positionX.value = x;
     panner.positionY.value = y;
@@ -1221,211 +1472,871 @@ function createStagePanner(ctx, dest, x, y, z) {
 const SCALE_PENT = [1, 9 / 8, 5 / 4, 3 / 2, 5 / 3, 2, 9 / 4];
 // Mixolydian-ish — flat-seventh adds a slightly hornier feel.
 const SCALE_MIXO = [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2, 5 / 3, 16 / 9, 2];
+// Minor-ish scale (natural minor / Aeolian) for dub.
+const SCALE_MINOR = [1, 9 / 8, 6 / 5, 4 / 3, 3 / 2, 8 / 5, 16 / 9, 2];
 
-// ----- JAM-BAND GROOVE (main stage) ----------------------------------------
-// Warm triangle lead, saw bass, sub-kick, sustained chord pad, longer melody.
-//
-// Variation pass: instead of a single 16-note melody on infinite loop, we
-// generate 3 melody variants + 2 bass variants up front (still deterministic
-// per seed) and rotate which one is "active" every 32 beats so the phrase
-// changes ~every 22s. Lead notes have a 22% chance to drop entirely so the
-// solo breathes instead of hammering. Every note's peak gain is multiplied
-// by a slow LFO so the mix ebbs and flows over ~28 seconds.
-function jamStage(ctx, panner, seed) {
+// Euclidean rhythm: distribute `hits` evenly across `steps` ticks. Returns
+// a length-`steps` boolean array. Optional `shift` rotates the pattern.
+// Hoisted to module scope so dance / world genre defs can reuse it; also
+// used by forestDrumStage's local copy (left intact there for clarity).
+function E(hits, steps, shift = 0) {
+  const pattern = new Array(steps).fill(false);
+  for (let i = 0; i < hits; i++) pattern[Math.floor((i * steps) / hits)] = true;
+  if (!shift) return pattern;
+  const out = new Array(steps);
+  for (let i = 0; i < steps; i++) out[i] = pattern[((i - shift) % steps + steps) % steps];
+  return out;
+}
+
+// ---- Song-end / cheer API ----
+
+let _songEndCb = null;
+// Module-level list of live song-state snapshots for Sound.songStates() introspection.
+const _activeStageSongs = [];
+
+// Called at the end of each song. Gates applause on listener proximity (~140m)
+// then fires the registered callback so crowd behavior can respond.
+function _emitSongEnd(x, z, style) {
+  if (ctx) {
+    const lis = ctx.listener;
+    const lx = lis.positionX ? lis.positionX.value : 0;
+    const lz = lis.positionZ ? lis.positionZ.value : 0;
+    const dist = Math.sqrt((lx - x) * (lx - x) + (lz - z) * (lz - z));
+    if (dist < 140) Sound.playCrowdCheer(x, z);
+  }
+  if (_songEndCb) _songEndCb(x, z, style);
+}
+
+// ---- Shared songform engine ----
+
+// Key-shift options for per-song key changes. Picked with pickNext so the
+// same ratio doesn't repeat back-to-back.
+const KEY_SHIFTS = [1, 9 / 8, 6 / 5, 4 / 3, 3 / 2];
+// Section-ordering helpers — avoid immediate index repeats.
+function pickNext(prev, n, rng) {
+  if (n <= 1) return 0;
+  let idx;
+  do { idx = Math.floor(rng() * n); } while (idx === prev);
+  return idx;
+}
+
+// runStageSong — shared songform engine for melodic stage styles.
+// `genreDef` describes the genre personality (see JAM / BRASS / DANCE / WORLD / DUB below).
+// Returns the same { panner, stop } handle shape as the legacy generators.
+function runStageSong(ctx, panner, seed, genreDef) {
   const rng = mulberry32(seed >>> 0);
-  const baseFreq = 174 * Math.pow(2, Math.floor(rng() * 12) / 12); // ~F3 ± octave
-  const tempo = 86 + Math.floor(rng() * 18);
-  const beat = 60 / tempo;
 
-  const MELODY_VARIANTS = 3;
-  const BASS_VARIANTS = 2;
-  const BEATS_PER_ROTATION = 32;        // ≈ 2 melody loops per variant
-  const REST_PROB = 0.10;               // chance any given lead note drops
-  const LFO_PERIOD_S = 28;
-  const LFO_DEPTH = 0.30;               // ±30% on peak gain
+  // Song-level state — re-rolled at the start of each song.
+  let song = null;
+  let songIdx = -1;
+  let beatInSong = 0;
+  let nextBeatTime = ctx.currentTime + 0.15;
+  let barInSection = 0;
+  let sectionIdx = 0;
+  let prevKeyShift = -1;
+  let prevLeadType = -1;
+  let leadType = 0;
+  let phase = 'playing';    // 'playing' | 'cheerGap'
+  let cheerGapEnd = 0;
+  let voices = null;
+  let teardown = [];
 
-  const melodies = Array.from({ length: MELODY_VARIANTS }, () =>
-    new Array(16).fill(0).map(() => baseFreq * SCALE_PENT[Math.floor(rng() * SCALE_PENT.length)])
-  );
-  const basses = Array.from({ length: BASS_VARIANTS }, () =>
-    new Array(8).fill(0).map(() => baseFreq * 0.5 * SCALE_PENT[Math.floor(rng() * 4)])
-  );
+  // Introspection snapshot — updated each beat, read by Sound.songStates().
+  const snap = {
+    genre: genreDef.name,
+    songIdx: 0,
+    tempo: 0,
+    keyShift: 1,
+    tonicHz: genreDef.baseHz,
+    section: 'intro',
+    barInSection: 0,
+    beatInSong: 0,
+    totalBeats: 0,
+    phase: 'playing',
+  };
+  _activeStageSongs.push(snap);
 
-  const lead = ctx.createOscillator();
-  lead.type = 'triangle';
-  const leadGain = ctx.createGain(); leadGain.gain.value = 0;
-  lead.connect(leadGain).connect(panner); lead.start();
+  function newSong() {
+    songIdx++;
+    snap.songIdx = songIdx;
 
-  // Second harmonic layer an octave up for a richer "two-guitarist" feel.
-  const harm = ctx.createOscillator();
-  harm.type = 'sine';
-  const harmGain = ctx.createGain(); harmGain.gain.value = 0;
-  harm.connect(harmGain).connect(panner); harm.start();
+    // Tear down previous song's voices if any.
+    for (const fn of teardown) { try { fn(); } catch (e) {} }
+    teardown = [];
 
-  const bassOsc = ctx.createOscillator(); bassOsc.type = 'sawtooth';
-  const bassLpf = ctx.createBiquadFilter(); bassLpf.type = 'lowpass'; bassLpf.frequency.value = 380;
-  const bassGain = ctx.createGain(); bassGain.gain.value = 0;
-  bassOsc.connect(bassLpf).connect(bassGain).connect(panner); bassOsc.start();
+    // Re-roll tempo within the genre's range.
+    const [tMin, tMax] = genreDef.tempoRange;
+    const tempo = tMin + Math.floor(rng() * (tMax - tMin + 1));
 
-  const kick = ctx.createOscillator(); kick.type = 'sine';
-  const kickGain = ctx.createGain(); kickGain.gain.value = 0;
-  kick.connect(kickGain).connect(panner); kick.start();
+    // Key shift — pick a ratio that's different from last song's.
+    const ksIdx = pickNext(prevKeyShift, KEY_SHIFTS.length, rng);
+    prevKeyShift = ksIdx;
+    const keyShift = KEY_SHIFTS[ksIdx];
+    const tonicHz = genreDef.baseHz * keyShift;
 
-  let nextNote = ctx.currentTime + 0.15;
-  let beatIdx = 0;
+    // Lead timbre — pick one from the genre's leadTypes list.
+    if (genreDef.leadTypes && genreDef.leadTypes.length > 1) {
+      leadType = pickNext(prevLeadType, genreDef.leadTypes.length, rng);
+      prevLeadType = leadType;
+    } else {
+      leadType = 0;
+    }
+
+    // Build sections from the genre's template.
+    const sections = genreDef.sectionTemplate(rng);
+    let totalBeats = 0;
+    for (const s of sections) totalBeats += s.bars * 4;
+
+    song = { tempo, keyShift, tonicHz, sections, totalBeats };
+    beatInSong = 0;
+    barInSection = 0;
+    sectionIdx = 0;
+    phase = 'playing';
+
+    snap.tempo = tempo;
+    snap.keyShift = +keyShift.toFixed(4);
+    snap.tonicHz = +tonicHz.toFixed(2);
+    snap.totalBeats = totalBeats;
+    snap.phase = 'playing';
+
+    // Build genre voices.
+    const v = genreDef.makeVoices(ctx, panner, rng, tonicHz);
+    voices = v.voices;
+    teardown = v.teardown || [];
+  }
+
+  newSong();
+
+  function currentSection() {
+    return song ? song.sections[sectionIdx] || song.sections[song.sections.length - 1] : null;
+  }
+
   function schedule() {
-    const horizon = ctx.currentTime + 0.6;
-    while (nextNote < horizon) {
-      const t = nextNote;
-      const rot = Math.floor(beatIdx / BEATS_PER_ROTATION);
-      const melody = melodies[rot % MELODY_VARIANTS];
-      const bass   = basses[rot % BASS_VARIANTS];
-      const m = melody[beatIdx % melody.length];
-      // Slow breath — sin maps to [-1,1], so peak gain is multiplied by [0.7, 1.3].
-      const breath = 1 + LFO_DEPTH * Math.sin((t / LFO_PERIOD_S) * 2 * Math.PI);
+    if (!song) return;
+    const now = ctx.currentTime;
+    const horizon = now + 0.6;
 
-      // Lead drops out 22% of beats. Kick + bass + harm keep going so the
-      // pulse doesn't disappear — only the melody breathes.
-      if (Math.random() >= REST_PROB) {
-        lead.frequency.setValueAtTime(m, t);
-        leadGain.gain.cancelScheduledValues(t);
-        leadGain.gain.setValueAtTime(0.0001, t);
-        leadGain.gain.exponentialRampToValueAtTime(0.24 * breath, t + 0.015);
-        leadGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.85);
+    // External force-end (e.g. Sound._debugEndSong()).
+    if (snap._forceEnd && phase !== 'cheerGap') {
+      snap._forceEnd = false;
+      phase = 'cheerGap';
+      snap.phase = 'cheerGap';
+      cheerGapEnd = now + 4.5;
+      setTimeout(() => { if (genreDef.onSongEnd) genreDef.onSongEnd(); }, 4300);
+    }
+
+    // In cheerGap: don't schedule notes. When the gap ends, start a new song.
+    if (phase === 'cheerGap') {
+      if (now >= cheerGapEnd) {
+        newSong();
       }
-      // Harmonic an octave up on accent beats
-      if (beatIdx % 4 === 0) {
-        harm.frequency.setValueAtTime(m * 2, t);
-        harmGain.gain.cancelScheduledValues(t);
-        harmGain.gain.setValueAtTime(0.0001, t);
-        harmGain.gain.exponentialRampToValueAtTime(0.08 * breath, t + 0.02);
-        harmGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.7);
+      return;
+    }
+
+    while (nextBeatTime < horizon) {
+      const t = nextBeatTime;
+      const sec = currentSection();
+      if (!sec) {
+        // Outro finished — enter cheer gap.
+        phase = 'cheerGap';
+        snap.phase = 'cheerGap';
+        const gapDur = 4.5;
+        cheerGapEnd = t + gapDur;
+        // onSongEnd fires ~0.2s before the gap ends so crowd reacts as music fades.
+        const delay = Math.max(0, (t - now + gapDur - 0.2) * 1000);
+        setTimeout(() => {
+          if (genreDef.onSongEnd) genreDef.onSongEnd();
+        }, delay);
+        return;
       }
-      if (beatIdx % 2 === 0) {
-        const b = bass[Math.floor(beatIdx / 2) % bass.length];
-        bassOsc.frequency.setValueAtTime(b, t);
-        bassGain.gain.cancelScheduledValues(t);
-        bassGain.gain.setValueAtTime(0.0001, t);
-        bassGain.gain.exponentialRampToValueAtTime(0.30 * breath, t + 0.02);
-        bassGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.8);
+
+      // Tempo wobble — slight sinusoidal drift across the song.
+      const beat = 60 / (song.tempo * (1 + 0.018 * Math.sin((beatInSong / 32) * 2 * Math.PI)));
+
+      // Dynamics breath — rest probability coupled to section intensity.
+      const intensity = sec.intensity;
+      const baseRest = genreDef.baseRestProb || 0.12;
+      const restProb = Math.max(0, Math.min(0.6, baseRest * (1.35 - intensity)));
+      const gainMod = 1 + 0.25 * Math.sin((t / 28) * 2 * Math.PI);
+
+      // Beat-in-bar (0..3)
+      const beatInBar = (beatInSong - beatsBeforeSection(sectionIdx)) % 4;
+
+      // Lead timbre drift at section boundary.
+      if (beatInBar === 0 && barInSection === 0 && sectionIdx > 0 && genreDef.leadTypes && genreDef.leadTypes.length > 1) {
+        if (rng() < 0.5) {
+          leadType = pickNext(leadType, genreDef.leadTypes.length, rng);
+        }
       }
-      kick.frequency.setValueAtTime(110, t);
-      kick.frequency.exponentialRampToValueAtTime(40, t + 0.08);
+
+      // Call the genre's per-beat synthesizer.
+      genreDef.playBeat({
+        t, beatInBar, barInSection, section: sec, intensity,
+        beat, tonicHz: song.tonicHz, scale: genreDef.scale,
+        rng, voices, leadType: genreDef.leadTypes ? genreDef.leadTypes[leadType] : 'default',
+        dest: panner, gainMod, restProb, ctx,
+      });
+
+      // Update snap.
+      snap.section = sec.name;
+      snap.barInSection = barInSection;
+      snap.beatInSong = beatInSong;
+      snap.phase = 'playing';
+
+      // Advance time + counters.
+      nextBeatTime += beat;
+      beatInSong++;
+      const beatsThisBar = 4;
+      const beatsIntoSection = beatInSong - beatsBeforeSection(sectionIdx);
+      barInSection = Math.floor(beatsIntoSection / beatsThisBar);
+      if (barInSection >= sec.bars) {
+        sectionIdx++;
+        barInSection = 0;
+        // Re-pick lead type at section boundaries.
+        if (genreDef.leadTypes && genreDef.leadTypes.length > 1 && rng() < 0.4) {
+          leadType = pickNext(leadType, genreDef.leadTypes.length, rng);
+        }
+      }
+    }
+  }
+
+  // Helper: beats before a given section index.
+  function beatsBeforeSection(idx) {
+    let b = 0;
+    if (!song) return 0;
+    for (let i = 0; i < idx && i < song.sections.length; i++) b += song.sections[i].bars * 4;
+    return b;
+  }
+
+  schedule();
+  const intervalId = setInterval(schedule, 180);
+
+  return {
+    panner,
+    snap,
+    stop() {
+      clearInterval(intervalId);
+      for (const fn of teardown) { try { fn(); } catch (e) {} }
+      teardown = [];
+      try { panner.disconnect(); } catch (e) {}
+      const i = _activeStageSongs.indexOf(snap);
+      if (i !== -1) _activeStageSongs.splice(i, 1);
+    },
+  };
+}
+
+// ---- Genre definitions ----
+
+// Shared section builder helpers.
+function makeSections(template) {
+  return template.map(([name, bars, intensity]) => ({ name, bars, intensity }));
+}
+
+// JAM genre def — wraps the existing jam-band timbre/scale.
+const JAM = {
+  name: 'jam',
+  baseHz: 174,
+  tempoRange: [84, 104],
+  scale: SCALE_PENT,
+  leadTypes: ['triangle', 'sine'],
+  baseRestProb: 0.10,
+  sectionTemplate(rng) {
+    return makeSections([
+      ['intro',  4, 0.45],
+      ['verse',  8, 0.65],
+      ['chorus', 8, 0.90],
+      ['verse',  8, 0.65],
+      ['bridge', 4, 0.75],
+      ['chorus', 8, 0.90],
+      ['outro',  4, 0.40],
+    ]);
+  },
+  makeVoices(ctx, dest, rng, tonicHz) {
+    const baseFreq = tonicHz;
+    const lead = ctx.createOscillator(); lead.type = 'triangle';
+    const leadGain = ctx.createGain(); leadGain.gain.value = 0;
+    lead.connect(leadGain).connect(dest); lead.start();
+
+    const harm = ctx.createOscillator(); harm.type = 'sine';
+    const harmGain = ctx.createGain(); harmGain.gain.value = 0;
+    harm.connect(harmGain).connect(dest); harm.start();
+
+    const bassOsc = ctx.createOscillator(); bassOsc.type = 'sawtooth';
+    const bassLpf = ctx.createBiquadFilter(); bassLpf.type = 'lowpass'; bassLpf.frequency.value = 380;
+    const bassGain = ctx.createGain(); bassGain.gain.value = 0;
+    bassOsc.connect(bassLpf).connect(bassGain).connect(dest); bassOsc.start();
+
+    const kick = ctx.createOscillator(); kick.type = 'sine';
+    const kickGain = ctx.createGain(); kickGain.gain.value = 0;
+    kick.connect(kickGain).connect(dest); kick.start();
+
+    // Sustained chord pad for chorus/bridge — two detuned sines through a gentle lowpass.
+    const padA = ctx.createOscillator(); padA.type = 'sine';
+    const padB = ctx.createOscillator(); padB.type = 'sine';
+    const padGain = ctx.createGain(); padGain.gain.value = 0;
+    const padLpf = ctx.createBiquadFilter(); padLpf.type = 'lowpass'; padLpf.frequency.value = 900;
+    padA.connect(padLpf); padB.connect(padLpf);
+    padLpf.connect(padGain).connect(dest);
+    padA.start(); padB.start();
+
+    // Build melody variants (seeded, stable across a song).
+    const melodies = Array.from({ length: 3 }, () =>
+      new Array(16).fill(0).map(() => baseFreq * SCALE_PENT[Math.floor(rng() * SCALE_PENT.length)])
+    );
+    const basses = Array.from({ length: 2 }, () =>
+      new Array(8).fill(0).map(() => baseFreq * 0.5 * SCALE_PENT[Math.floor(rng() * 4)])
+    );
+    const padNotes = SCALE_PENT.slice(0, 4).map(r => baseFreq * r * 0.75);
+
+    const voices = { lead, leadGain, harm, harmGain, bassOsc, bassGain, kick, kickGain,
+                     padA, padB, padGain, melodies, basses, padNotes };
+    const teardown = [
+      () => { try { lead.stop(); } catch (e) {} },
+      () => { try { harm.stop(); } catch (e) {} },
+      () => { try { bassOsc.stop(); } catch (e) {} },
+      () => { try { kick.stop(); } catch (e) {} },
+      () => { try { padA.stop(); } catch (e) {} },
+      () => { try { padB.stop(); } catch (e) {} },
+    ];
+    return { voices, teardown };
+  },
+  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx }) {
+    const { lead, leadGain, harm, harmGain, bassOsc, bassGain, kick, kickGain,
+            padA, padB, padGain, melodies, basses, padNotes } = voices;
+    const rotIdx = (barInSection >> 1) % melodies.length;
+    const melody = melodies[rotIdx];
+    const bass   = basses[rotIdx % basses.length];
+    const noteIdx = (barInSection * 4 + beatInBar) % melody.length;
+    const m = melody[noteIdx];
+    const breath = gainMod;
+    const inChorus = section.name === 'chorus' || section.name === 'bridge';
+
+    if (rng() >= restProb) {
+      lead.frequency.setValueAtTime(m, t);
+      leadGain.gain.cancelScheduledValues(t);
+      leadGain.gain.setValueAtTime(0.0001, t);
+      leadGain.gain.exponentialRampToValueAtTime(0.24 * breath, t + 0.015);
+      leadGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.85);
+    }
+    if (beatInBar === 0) {
+      harm.frequency.setValueAtTime(m * 2, t);
+      harmGain.gain.cancelScheduledValues(t);
+      harmGain.gain.setValueAtTime(0.0001, t);
+      harmGain.gain.exponentialRampToValueAtTime(0.08 * breath, t + 0.02);
+      harmGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.7);
+    }
+    if (beatInBar % 2 === 0) {
+      const b = bass[Math.floor(beatInBar / 2 + barInSection * 2) % bass.length];
+      bassOsc.frequency.setValueAtTime(b, t);
+      bassGain.gain.cancelScheduledValues(t);
+      bassGain.gain.setValueAtTime(0.0001, t);
+      bassGain.gain.exponentialRampToValueAtTime(0.30 * breath, t + 0.02);
+      bassGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.8);
+    }
+    kick.frequency.setValueAtTime(110, t);
+    kick.frequency.exponentialRampToValueAtTime(40, t + 0.08);
+    kickGain.gain.cancelScheduledValues(t);
+    kickGain.gain.setValueAtTime(0.0001, t);
+    kickGain.gain.exponentialRampToValueAtTime(0.5 * breath, t + 0.005);
+    kickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    // Chord pad — active in chorus + bridge sections for fullness.
+    if (inChorus) {
+      const pn = padNotes[beatInBar % padNotes.length];
+      padA.frequency.setValueAtTime(pn * 1.003, t);
+      padB.frequency.setValueAtTime(pn * 0.997, t);
+      padGain.gain.cancelScheduledValues(t);
+      padGain.gain.setValueAtTime(padGain.gain.value > 0.001 ? padGain.gain.value : 0.0001, t);
+      padGain.gain.linearRampToValueAtTime(0.10 * breath, t + 0.08);
+      padGain.gain.setTargetAtTime(0.06 * breath, t + 0.12, 0.5);
+    } else {
+      padGain.gain.cancelScheduledValues(t);
+      padGain.gain.setTargetAtTime(0.0001, t, 0.3);
+    }
+  },
+  onSongEnd: null,   // set per-instance by createStageMusic
+};
+
+// BRASS genre def — side-stage horn-led groove.
+const BRASS = {
+  name: 'brass',
+  baseHz: 233,
+  tempoRange: [112, 140],
+  scale: SCALE_MIXO,
+  leadTypes: ['horn', 'muted'],
+  baseRestProb: 0.12,
+  sectionTemplate(rng) {
+    return makeSections([
+      ['intro',  2, 0.50],
+      ['verse',  8, 0.70],
+      ['chorus', 8, 0.95],
+      ['bridge', 4, 0.75],
+      ['chorus', 8, 0.95],
+      ['outro',  2, 0.45],
+    ]);
+  },
+  makeVoices(ctx, dest, rng, tonicHz) {
+    const baseFreq = tonicHz;
+    const sawOsc = ctx.createOscillator(); sawOsc.type = 'sawtooth';
+    const sqrOsc = ctx.createOscillator(); sqrOsc.type = 'square';
+    const hornMix = ctx.createGain(); hornMix.gain.value = 0;
+    const hornBpf = ctx.createBiquadFilter();
+    hornBpf.type = 'bandpass'; hornBpf.frequency.value = 1400; hornBpf.Q.value = 1.6;
+    sawOsc.connect(hornMix); sqrOsc.connect(hornMix);
+    hornMix.connect(hornBpf).connect(dest);
+    sawOsc.start(); sqrOsc.start();
+
+    const tuba = ctx.createOscillator(); tuba.type = 'square';
+    const tubaLpf = ctx.createBiquadFilter(); tubaLpf.type = 'lowpass'; tubaLpf.frequency.value = 320;
+    const tubaGain = ctx.createGain(); tubaGain.gain.value = 0;
+    tuba.connect(tubaLpf).connect(tubaGain).connect(dest); tuba.start();
+
+    const melodies = Array.from({ length: 3 }, () =>
+      new Array(8).fill(0).map(() => baseFreq * SCALE_MIXO[Math.floor(rng() * SCALE_MIXO.length)])
+    );
+    const basses = Array.from({ length: 2 }, () =>
+      new Array(4).fill(0).map(() => baseFreq * 0.5 * SCALE_MIXO[Math.floor(rng() * 4)])
+    );
+
+    const voices = { sawOsc, sqrOsc, hornMix, tuba, tubaGain, melodies, basses };
+    const teardown = [
+      () => { try { sawOsc.stop(); } catch (e) {} },
+      () => { try { sqrOsc.stop(); } catch (e) {} },
+      () => { try { tuba.stop(); } catch (e) {} },
+    ];
+    return { voices, teardown };
+  },
+  playBeat({ t, beatInBar, barInSection, beat, rng, voices, gainMod, restProb }) {
+    const { sawOsc, sqrOsc, hornMix, tuba, tubaGain, melodies, basses } = voices;
+    const rotIdx = (barInSection >> 1) % melodies.length;
+    const melody = melodies[rotIdx];
+    const bass   = basses[rotIdx % basses.length];
+    const m = melody[(barInSection * 4 + beatInBar) % melody.length];
+    const breath = gainMod;
+
+    if (rng() >= restProb) {
+      sawOsc.frequency.setValueAtTime(m * 1.004, t);
+      sqrOsc.frequency.setValueAtTime(m * 0.996, t);
+      hornMix.gain.cancelScheduledValues(t);
+      hornMix.gain.setValueAtTime(0.0001, t);
+      hornMix.gain.exponentialRampToValueAtTime(0.20 * breath, t + 0.012);
+      hornMix.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.55);
+    }
+    if (beatInBar % 2 === 0) {
+      const b = bass[Math.floor(beatInBar / 2 + barInSection * 2) % bass.length];
+      tuba.frequency.setValueAtTime(b, t);
+      tubaGain.gain.cancelScheduledValues(t);
+      tubaGain.gain.setValueAtTime(0.0001, t);
+      tubaGain.gain.exponentialRampToValueAtTime(0.32 * breath, t + 0.025);
+      tubaGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.4);
+    }
+  },
+  onSongEnd: null,
+};
+
+// DANCE genre def — four-on-floor kick, acid bass, 16th arp pluck, supersaw stab.
+const DANCE = {
+  name: 'dance',
+  baseHz: 220,
+  tempoRange: [122, 130],
+  scale: SCALE_PENT,
+  leadTypes: ['square', 'sawtooth'],
+  baseRestProb: 0.08,
+  sectionTemplate(rng) {
+    return makeSections([
+      ['intro',  4, 0.45],
+      ['build',  8, 0.70],
+      ['drop',  16, 0.95],
+      ['break',  8, 0.55],
+      ['build',  8, 0.80],
+      ['drop',  16, 0.95],
+      ['outro',  4, 0.40],
+    ]);
+  },
+  makeVoices(ctx, dest, rng, tonicHz) {
+    // 4-on-floor kick.
+    const kick = ctx.createOscillator(); kick.type = 'sine';
+    const kickGain = ctx.createGain(); kickGain.gain.value = 0;
+    kick.connect(kickGain).connect(dest); kick.start();
+
+    // Closed hi-hat (short HP noise).
+    const hatBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.04), ctx.sampleRate);
+    const hatData = hatBuf.getChannelData(0);
+    for (let i = 0; i < hatData.length; i++) hatData[i] = Math.random() * 2 - 1;
+    const hatSrc = ctx.createBufferSource(); hatSrc.buffer = hatBuf; hatSrc.loop = true;
+    const hatHpf = ctx.createBiquadFilter(); hatHpf.type = 'highpass'; hatHpf.frequency.value = 7000;
+    const hatGain = ctx.createGain(); hatGain.gain.value = 0;
+    hatSrc.connect(hatHpf).connect(hatGain).connect(dest); hatSrc.start();
+
+    // Clap/snare on 2 and 4.
+    const clapBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.06), ctx.sampleRate);
+    const clapData = clapBuf.getChannelData(0);
+    for (let i = 0; i < clapData.length; i++) clapData[i] = Math.random() * 2 - 1;
+    const clapSrc = ctx.createBufferSource(); clapSrc.buffer = clapBuf; clapSrc.loop = true;
+    const clapBpf = ctx.createBiquadFilter(); clapBpf.type = 'bandpass'; clapBpf.frequency.value = 1800; clapBpf.Q.value = 1.8;
+    const clapGain = ctx.createGain(); clapGain.gain.value = 0;
+    clapSrc.connect(clapBpf).connect(clapGain).connect(dest); clapSrc.start();
+
+    // Acid bass (saw → resonant lowpass with env mod).
+    const acidOsc = ctx.createOscillator(); acidOsc.type = 'sawtooth';
+    const acidLpf = ctx.createBiquadFilter(); acidLpf.type = 'lowpass'; acidLpf.frequency.value = 400; acidLpf.Q.value = 8;
+    const acidGain = ctx.createGain(); acidGain.gain.value = 0;
+    acidOsc.connect(acidLpf).connect(acidGain).connect(dest); acidOsc.start();
+
+    // 16th arp pluck (square).
+    const arpOsc = ctx.createOscillator(); arpOsc.type = 'square';
+    const arpLpf = ctx.createBiquadFilter(); arpLpf.type = 'lowpass'; arpLpf.frequency.value = 2200;
+    const arpGain = ctx.createGain(); arpGain.gain.value = 0;
+    arpOsc.connect(arpLpf).connect(arpGain).connect(dest); arpOsc.start();
+
+    // Supersaw stab (two detuned saws, for drop only).
+    const stabA = ctx.createOscillator(); stabA.type = 'sawtooth';
+    const stabB = ctx.createOscillator(); stabB.type = 'sawtooth';
+    const stabGain = ctx.createGain(); stabGain.gain.value = 0;
+    const stabLpf = ctx.createBiquadFilter(); stabLpf.type = 'lowpass'; stabLpf.frequency.value = 3000;
+    stabA.connect(stabGain); stabB.connect(stabGain);
+    stabGain.connect(stabLpf).connect(dest);
+    stabA.start(); stabB.start();
+
+    // Build noise riser — white noise through rising HP filter.
+    const riserBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.5), ctx.sampleRate);
+    const riserData = riserBuf.getChannelData(0);
+    for (let i = 0; i < riserData.length; i++) riserData[i] = Math.random() * 2 - 1;
+    const riserSrc = ctx.createBufferSource(); riserSrc.buffer = riserBuf; riserSrc.loop = true;
+    const riserHpf = ctx.createBiquadFilter(); riserHpf.type = 'highpass'; riserHpf.frequency.value = 8000;
+    const riserGain = ctx.createGain(); riserGain.gain.value = 0;
+    riserSrc.connect(riserHpf).connect(riserGain).connect(dest); riserSrc.start();
+
+    // Build bass note grid for the acid line.
+    const bassNotes = new Array(8).fill(0).map(() =>
+      tonicHz * 0.5 * SCALE_PENT[Math.floor(rng() * 4)]
+    );
+    const arpNotes = SCALE_PENT.map(r => tonicHz * r);
+
+    const voices = { kick, kickGain, hatGain, clapGain, acidOsc, acidLpf, acidGain,
+                     arpOsc, arpGain, arpNotes, stabA, stabB, stabGain, stabLpf,
+                     riserHpf, riserGain, bassNotes };
+    const teardown = [
+      () => { try { kick.stop(); } catch (e) {} },
+      () => { try { hatSrc.stop(); } catch (e) {} },
+      () => { try { clapSrc.stop(); } catch (e) {} },
+      () => { try { acidOsc.stop(); } catch (e) {} },
+      () => { try { arpOsc.stop(); } catch (e) {} },
+      () => { try { stabA.stop(); stabB.stop(); } catch (e) {} },
+      () => { try { riserSrc.stop(); } catch (e) {} },
+    ];
+    return { voices, teardown };
+  },
+  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx }) {
+    const { kick, kickGain, hatGain, clapGain, acidOsc, acidLpf, acidGain,
+            arpOsc, arpGain, arpNotes, stabA, stabB, stabGain, stabLpf,
+            riserHpf, riserGain, bassNotes } = voices;
+    const isDrop = section.name === 'drop';
+    const isBuild = section.name === 'build';
+    const isBreak = section.name === 'break';
+    const inDrop = isDrop || isBuild;
+    const breath = gainMod;
+    const tick = beat / 4;  // 16th note
+
+    // 4-on-floor kick (every beat).
+    if (!isBreak) {
+      kick.frequency.setValueAtTime(140, t);
+      kick.frequency.exponentialRampToValueAtTime(42, t + 0.10);
       kickGain.gain.cancelScheduledValues(t);
       kickGain.gain.setValueAtTime(0.0001, t);
-      kickGain.gain.exponentialRampToValueAtTime(0.5 * breath, t + 0.005);
-      kickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-      nextNote += beat;
-      beatIdx++;
+      kickGain.gain.exponentialRampToValueAtTime(0.55 * breath, t + 0.005);
+      kickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.20);
     }
-  }
-  schedule();
-  const intervalId = setInterval(schedule, 200);
-  return {
-    panner,
-    stop() {
-      clearInterval(intervalId);
-      try { lead.stop(); } catch (e) {}
-      try { harm.stop(); } catch (e) {}
-      try { bassOsc.stop(); } catch (e) {}
-      try { kick.stop(); } catch (e) {}
-      try { panner.disconnect(); } catch (e) {}
-    },
-  };
-}
-
-// ----- BRASS / HORN-LED (side stages) --------------------------------------
-// Square + saw lead through a band-pass filter — gives that buzzy horn timbre.
-// Faster tempo, mixolydian, staccato accents, no sub-bass kick.
-//
-// Variation pass: 3 horn melodies, 2 tuba lines, rotated every 16 beats.
-// Horn dropouts 28% (brass naturally takes breaths between phrases).
-// Slow ±25% gain LFO over 22s — slightly faster than jam since brass is
-// inherently punchier.
-function brassStage(ctx, panner, seed) {
-  const rng = mulberry32(seed >>> 0);
-  const baseFreq = 233 * Math.pow(2, Math.floor(rng() * 12) / 12); // Bb3 ± octave
-  const tempo = 116 + Math.floor(rng() * 24);
-  const beat = 60 / tempo;
-
-  const MELODY_VARIANTS = 3;
-  const BASS_VARIANTS = 2;
-  const BEATS_PER_ROTATION = 16;
-  const REST_PROB = 0.12;
-  const LFO_PERIOD_S = 22;
-  const LFO_DEPTH = 0.25;
-
-  const melodies = Array.from({ length: MELODY_VARIANTS }, () =>
-    new Array(8).fill(0).map(() => baseFreq * SCALE_MIXO[Math.floor(rng() * SCALE_MIXO.length)])
-  );
-  const basses = Array.from({ length: BASS_VARIANTS }, () =>
-    new Array(4).fill(0).map(() => baseFreq * 0.5 * SCALE_MIXO[Math.floor(rng() * 4)])
-  );
-
-  // Two-osc "horn" — saw + square detuned slightly through a bandpass.
-  const sawOsc = ctx.createOscillator(); sawOsc.type = 'sawtooth';
-  const sqrOsc = ctx.createOscillator(); sqrOsc.type = 'square';
-  const hornMix = ctx.createGain(); hornMix.gain.value = 0;
-  const hornBpf = ctx.createBiquadFilter();
-  hornBpf.type = 'bandpass'; hornBpf.frequency.value = 1400; hornBpf.Q.value = 1.6;
-  sawOsc.connect(hornMix); sqrOsc.connect(hornMix);
-  hornMix.connect(hornBpf).connect(panner);
-  sawOsc.start(); sqrOsc.start();
-
-  // Tuba-ish bass: square + low-pass.
-  const tuba = ctx.createOscillator(); tuba.type = 'square';
-  const tubaLpf = ctx.createBiquadFilter(); tubaLpf.type = 'lowpass'; tubaLpf.frequency.value = 320;
-  const tubaGain = ctx.createGain(); tubaGain.gain.value = 0;
-  tuba.connect(tubaLpf).connect(tubaGain).connect(panner); tuba.start();
-
-  let nextNote = ctx.currentTime + 0.15;
-  let beatIdx = 0;
-  function schedule() {
-    const horizon = ctx.currentTime + 0.6;
-    while (nextNote < horizon) {
-      const t = nextNote;
-      const rot = Math.floor(beatIdx / BEATS_PER_ROTATION);
-      const melody = melodies[rot % MELODY_VARIANTS];
-      const bass   = basses[rot % BASS_VARIANTS];
-      const m = melody[beatIdx % melody.length];
-      const breath = 1 + LFO_DEPTH * Math.sin((t / LFO_PERIOD_S) * 2 * Math.PI);
-
-      if (Math.random() >= REST_PROB) {
-        // Detune the two oscs ~7 cents for chorus.
-        sawOsc.frequency.setValueAtTime(m * 1.004, t);
-        sqrOsc.frequency.setValueAtTime(m * 0.996, t);
-        hornMix.gain.cancelScheduledValues(t);
-        hornMix.gain.setValueAtTime(0.0001, t);
-        hornMix.gain.exponentialRampToValueAtTime(0.20 * breath, t + 0.012);
-        // Staccato decay — short bursts.
-        hornMix.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.55);
-      }
-      // Tuba on the downbeats only.
-      if (beatIdx % 2 === 0) {
-        const b = bass[Math.floor(beatIdx / 2) % bass.length];
-        tuba.frequency.setValueAtTime(b, t);
-        tubaGain.gain.cancelScheduledValues(t);
-        tubaGain.gain.setValueAtTime(0.0001, t);
-        tubaGain.gain.exponentialRampToValueAtTime(0.32 * breath, t + 0.025);
-        tubaGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.4);
-      }
-      nextNote += beat;
-      beatIdx++;
+    // Closed hi-hat off-beats (8th note grid = every 2 sixteenths → every half beat).
+    if (inDrop && beatInBar % 1 === 0) {
+      hatGain.gain.cancelScheduledValues(t + tick);
+      hatGain.gain.setValueAtTime(0.0001, t + tick);
+      hatGain.gain.exponentialRampToValueAtTime(0.10 * breath, t + tick + 0.003);
+      hatGain.gain.exponentialRampToValueAtTime(0.0001, t + tick + 0.025);
     }
-  }
-  schedule();
-  const intervalId = setInterval(schedule, 200);
-  return {
-    panner,
-    stop() {
-      clearInterval(intervalId);
-      try { sawOsc.stop(); } catch (e) {}
-      try { sqrOsc.stop(); } catch (e) {}
-      try { tuba.stop(); } catch (e) {}
-      try { panner.disconnect(); } catch (e) {}
-    },
-  };
-}
+    // Clap on 2 and 4.
+    if (beatInBar === 1 || beatInBar === 3) {
+      clapGain.gain.cancelScheduledValues(t);
+      clapGain.gain.setValueAtTime(0.0001, t);
+      clapGain.gain.exponentialRampToValueAtTime(0.28 * breath, t + 0.004);
+      clapGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    }
+    // Acid bass.
+    if (!isBreak || rng() < 0.25) {
+      const bn = bassNotes[(barInSection * 4 + beatInBar) % bassNotes.length];
+      acidOsc.frequency.setValueAtTime(bn, t);
+      // Envelope mod on the filter cutoff for the acid squelch.
+      acidLpf.frequency.cancelScheduledValues(t);
+      acidLpf.frequency.setValueAtTime(200, t);
+      acidLpf.frequency.exponentialRampToValueAtTime(isDrop ? 2400 : 800, t + beat * 0.3);
+      acidLpf.frequency.exponentialRampToValueAtTime(300, t + beat * 0.9);
+      acidGain.gain.cancelScheduledValues(t);
+      acidGain.gain.setValueAtTime(0.0001, t);
+      acidGain.gain.exponentialRampToValueAtTime((isBreak ? 0.12 : 0.22) * breath, t + 0.01);
+      acidGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.9);
+    }
+    // 16th arp pluck in drop.
+    if (isDrop && rng() >= restProb * 0.5) {
+      const an = arpNotes[(barInSection * 16 + beatInBar * 4) % arpNotes.length];
+      arpOsc.frequency.setValueAtTime(an * 2, t);
+      arpGain.gain.cancelScheduledValues(t);
+      arpGain.gain.setValueAtTime(0.0001, t);
+      arpGain.gain.exponentialRampToValueAtTime(0.13 * breath, t + 0.004);
+      arpGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.3);
+    }
+    // Supersaw stab — on every 2 beats in the drop.
+    if (isDrop && beatInBar === 0) {
+      const sn = tonicHz * SCALE_PENT[barInSection % SCALE_PENT.length];
+      stabA.frequency.setValueAtTime(sn * 1.012, t);
+      stabB.frequency.setValueAtTime(sn * 0.988, t);
+      stabGain.gain.cancelScheduledValues(t);
+      stabGain.gain.setValueAtTime(0.0001, t);
+      stabGain.gain.exponentialRampToValueAtTime(0.16 * breath, t + 0.01);
+      stabGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.8);
+      stabLpf.frequency.setValueAtTime(3000, t);
+      stabLpf.frequency.exponentialRampToValueAtTime(800, t + beat * 1.5);
+    }
+    // Noise riser in build sections.
+    if (isBuild) {
+      const riseProgress = barInSection / 8;
+      riserHpf.frequency.setValueAtTime(Math.max(200, 8000 * (1 - riseProgress)), t);
+      riserGain.gain.cancelScheduledValues(t);
+      riserGain.gain.setTargetAtTime(0.05 * riseProgress * breath, t, 0.1);
+    } else {
+      riserGain.gain.setTargetAtTime(0.0001, t, 0.05);
+    }
+  },
+  onSongEnd: null,
+};
+
+// WORLD genre def — polyrhythmic clave/conga/marimba groove.
+const WORLD = {
+  name: 'world',
+  baseHz: 293.66,  // D4
+  tempoRange: [96, 116],
+  scale: SCALE_PENT,
+  leadTypes: ['triangle', 'sine'],
+  baseRestProb: 0.15,
+  sectionTemplate(rng) {
+    return makeSections([
+      ['intro',  4, 0.45],
+      ['verse',  8, 0.65],
+      ['chorus', 8, 0.85],
+      ['break',  4, 0.50],
+      ['verse',  8, 0.70],
+      ['chorus', 8, 0.85],
+      ['outro',  4, 0.40],
+    ]);
+  },
+  makeVoices(ctx, dest, rng, tonicHz) {
+    // Son-clave woodblock (triangle oscillator, very short).
+    const claveOsc = ctx.createOscillator(); claveOsc.type = 'triangle';
+    const claveGain = ctx.createGain(); claveGain.gain.value = 0;
+    claveOsc.connect(claveGain).connect(dest); claveOsc.start();
+
+    // Conga/djembe — sine sweep + HP noise.
+    const congaOsc = ctx.createOscillator(); congaOsc.type = 'sine';
+    const congaGain = ctx.createGain(); congaGain.gain.value = 0;
+    congaOsc.connect(congaGain).connect(dest); congaOsc.start();
+
+    // Agogô bell — two-pitch triangle.
+    const agogo1 = ctx.createOscillator(); agogo1.type = 'triangle'; agogo1.frequency.value = 880;
+    const agogo2 = ctx.createOscillator(); agogo2.type = 'triangle'; agogo2.frequency.value = 1100;
+    const agogoGain = ctx.createGain(); agogoGain.gain.value = 0;
+    agogo1.connect(agogoGain); agogo2.connect(agogoGain);
+    agogoGain.connect(dest); agogo1.start(); agogo2.start();
+
+    // Marimba/kalimba — triangle oscillator, pentatonic ostinato.
+    const marimbaOsc = ctx.createOscillator(); marimbaOsc.type = 'triangle';
+    const marimbaGain = ctx.createGain(); marimbaGain.gain.value = 0;
+    marimbaOsc.connect(marimbaGain).connect(dest); marimbaOsc.start();
+
+    // Walking bass — sawtooth through lowpass.
+    const bassOsc = ctx.createOscillator(); bassOsc.type = 'sawtooth';
+    const bassLpf = ctx.createBiquadFilter(); bassLpf.type = 'lowpass'; bassLpf.frequency.value = 350;
+    const bassGain = ctx.createGain(); bassGain.gain.value = 0;
+    bassOsc.connect(bassLpf).connect(bassGain).connect(dest); bassOsc.start();
+
+    // Euclidean patterns for the clave (son clave: 3-2).
+    const clavePattern = E(5, 12, 0);
+    const shakerPattern = E(8, 12);
+    const marimbaPattern = SCALE_PENT.map(r => tonicHz * r);
+    const bassNotes = [tonicHz * 0.5, tonicHz * 0.5 * (4 / 3), tonicHz * 0.5 * (3 / 2), tonicHz * 0.5 * (2)];
+
+    const voices = { claveOsc, claveGain, congaOsc, congaGain, agogo1, agogo2, agogoGain,
+                     marimbaOsc, marimbaGain, bassOsc, bassGain, bassLpf,
+                     clavePattern, shakerPattern, marimbaPattern, bassNotes };
+    const teardown = [
+      () => { try { claveOsc.stop(); } catch (e) {} },
+      () => { try { congaOsc.stop(); } catch (e) {} },
+      () => { try { agogo1.stop(); agogo2.stop(); } catch (e) {} },
+      () => { try { marimbaOsc.stop(); } catch (e) {} },
+      () => { try { bassOsc.stop(); } catch (e) {} },
+    ];
+    return { voices, teardown };
+  },
+  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx }) {
+    const { claveOsc, claveGain, congaOsc, congaGain, agogoGain,
+            marimbaOsc, marimbaGain, bassOsc, bassGain, bassLpf,
+            clavePattern, marimbaPattern, bassNotes } = voices;
+    const tick = beat / 3;   // 12-tick Euclidean grid uses triplet subdivision
+    const ti = (barInSection * 12 + beatInBar * 3) % 12;
+    const breath = gainMod;
+    const intensity = section.intensity;
+
+    // Clave (woodblock feel on the Euclidean pattern).
+    if (clavePattern[ti]) {
+      claveOsc.frequency.setValueAtTime(1200 + (rng() * 200), t);
+      claveGain.gain.cancelScheduledValues(t);
+      claveGain.gain.setValueAtTime(0.0001, t);
+      claveGain.gain.exponentialRampToValueAtTime(0.18 * breath, t + 0.002);
+      claveGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+    }
+    // Conga on beats 1 and 3 (tick 0 and 6).
+    if (ti === 0 || ti === 6) {
+      congaOsc.frequency.setValueAtTime(ti === 0 ? 230 : 180, t);
+      congaOsc.frequency.exponentialRampToValueAtTime(ti === 0 ? 140 : 110, t + 0.08);
+      congaGain.gain.cancelScheduledValues(t);
+      congaGain.gain.setValueAtTime(0.0001, t);
+      congaGain.gain.exponentialRampToValueAtTime(0.30 * breath, t + 0.005);
+      congaGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    }
+    // Agogô bell on accented ticks in verse/chorus.
+    if (intensity > 0.6 && (ti === 2 || ti === 9) && rng() >= restProb) {
+      const isHigh = ti === 2;
+      agogoGain.gain.cancelScheduledValues(t);
+      agogoGain.gain.setValueAtTime(0.0001, t);
+      agogoGain.gain.exponentialRampToValueAtTime(0.12 * breath, t + 0.002);
+      agogoGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.20);
+    }
+    // Marimba/kalimba ostinato — denser in chorus.
+    if (intensity > 0.5 && rng() >= restProb) {
+      const mn = marimbaPattern[(barInSection * 4 + beatInBar) % marimbaPattern.length];
+      marimbaOsc.frequency.setValueAtTime(mn * 2, t);
+      marimbaGain.gain.cancelScheduledValues(t);
+      marimbaGain.gain.setValueAtTime(0.0001, t);
+      marimbaGain.gain.exponentialRampToValueAtTime(0.16 * breath, t + 0.004);
+      marimbaGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    }
+    // Walking bass — every beat.
+    const bn = bassNotes[(barInSection * 4 + beatInBar) % bassNotes.length];
+    bassOsc.frequency.setValueAtTime(bn, t);
+    bassGain.gain.cancelScheduledValues(t);
+    bassGain.gain.setValueAtTime(0.0001, t);
+    bassGain.gain.exponentialRampToValueAtTime(0.25 * breath, t + 0.015);
+    bassGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.8);
+  },
+  onSongEnd: null,
+};
+
+// DUB genre def — off-beat skank, deep sub-bass, echo effects, sparse melodica.
+const DUB = {
+  name: 'dub',
+  baseHz: 116.54,  // Bb2 — deep and rootsy
+  tempoRange: [68, 84],
+  scale: SCALE_MINOR,
+  leadTypes: ['square', 'sawtooth'],
+  baseRestProb: 0.18,
+  sectionTemplate(rng) {
+    return makeSections([
+      ['intro',  4, 0.40],
+      ['verse',  8, 0.65],
+      ['chorus', 8, 0.80],
+      ['break',  4, 0.35],   // iconic dub break — bass + echo only
+      ['verse',  8, 0.65],
+      ['chorus', 8, 0.80],
+      ['outro',  4, 0.35],
+    ]);
+  },
+  makeVoices(ctx, dest, rng, tonicHz) {
+    // Off-beat skank chord stabs — square/saw through lowpass + feedback delay for echo.
+    const skankOsc = ctx.createOscillator(); skankOsc.type = 'sawtooth';
+    const skankLpf = ctx.createBiquadFilter(); skankLpf.type = 'lowpass'; skankLpf.frequency.value = 1400;
+    const skankGain = ctx.createGain(); skankGain.gain.value = 0;
+    const skankDelay = ctx.createDelay(1.0); skankDelay.delayTime.value = 0.32;
+    const skankFeedback = ctx.createGain(); skankFeedback.gain.value = 0.45;
+    skankOsc.connect(skankLpf).connect(skankGain).connect(dest);
+    skankGain.connect(skankDelay).connect(skankFeedback).connect(skankDelay);
+    skankDelay.connect(dest);
+    skankOsc.start();
+
+    // Deep sine sub-bass.
+    const subOsc = ctx.createOscillator(); subOsc.type = 'sine';
+    const subGain = ctx.createGain(); subGain.gain.value = 0;
+    subOsc.connect(subGain).connect(dest); subOsc.start();
+
+    // Cross-stick rim — short noise burst.
+    const rimBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.05), ctx.sampleRate);
+    const rimData = rimBuf.getChannelData(0);
+    for (let i = 0; i < rimData.length; i++) rimData[i] = Math.random() * 2 - 1;
+    const rimSrc = ctx.createBufferSource(); rimSrc.buffer = rimBuf; rimSrc.loop = true;
+    const rimBpf = ctx.createBiquadFilter(); rimBpf.type = 'bandpass'; rimBpf.frequency.value = 2400; rimBpf.Q.value = 2;
+    const rimGain = ctx.createGain(); rimGain.gain.value = 0;
+    rimSrc.connect(rimBpf).connect(rimGain).connect(dest); rimSrc.start();
+
+    // Sparse melodica lead — square through bandpass.
+    const melodicaOsc = ctx.createOscillator(); melodicaOsc.type = 'square';
+    const melodicaBpf = ctx.createBiquadFilter(); melodicaBpf.type = 'bandpass'; melodicaBpf.frequency.value = 800; melodicaBpf.Q.value = 1.4;
+    const melodicaGain = ctx.createGain(); melodicaGain.gain.value = 0;
+    melodicaOsc.connect(melodicaBpf).connect(melodicaGain).connect(dest); melodicaOsc.start();
+
+    const bassNotes = SCALE_MINOR.slice(0, 4).map(r => tonicHz * r * 0.5);
+    const skankNotes = SCALE_MINOR.map(r => tonicHz * r);
+    const melodicaNotes = SCALE_MINOR.map(r => tonicHz * r * 2);
+
+    const voices = { skankOsc, skankLpf, skankGain, subOsc, subGain,
+                     rimGain, melodicaOsc, melodicaGain,
+                     bassNotes, skankNotes, melodicaNotes };
+    const teardown = [
+      () => { try { skankOsc.stop(); } catch (e) {} },
+      () => { try { subOsc.stop(); } catch (e) {} },
+      () => { try { rimSrc.stop(); } catch (e) {} },
+      () => { try { melodicaOsc.stop(); } catch (e) {} },
+    ];
+    return { voices, teardown };
+  },
+  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx }) {
+    const { skankOsc, skankGain, subOsc, subGain, rimGain,
+            melodicaOsc, melodicaGain, bassNotes, skankNotes, melodicaNotes } = voices;
+    const breath = gainMod;
+    const isBreak = section.name === 'break';
+    const inChorus = section.name === 'chorus';
+
+    // Off-beat skank — plays on the "&" of each beat (half-beat offset).
+    // In a break section, the skank drops out (just bass + echo).
+    if (!isBreak && beatInBar % 1 === 0) {
+      const sn = skankNotes[(barInSection * 4 + beatInBar) % skankNotes.length];
+      skankOsc.frequency.setValueAtTime(sn, t + beat * 0.5);
+      skankGain.gain.cancelScheduledValues(t + beat * 0.5);
+      skankGain.gain.setValueAtTime(0.0001, t + beat * 0.5);
+      skankGain.gain.exponentialRampToValueAtTime(0.14 * breath, t + beat * 0.5 + 0.01);
+      skankGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.5 + 0.14);
+    }
+    // Deep sub-bass — plays every beat or half-beat in chorus.
+    const bn = bassNotes[(barInSection * 4 + beatInBar) % bassNotes.length];
+    subOsc.frequency.setValueAtTime(bn, t);
+    subGain.gain.cancelScheduledValues(t);
+    subGain.gain.setValueAtTime(0.0001, t);
+    subGain.gain.exponentialRampToValueAtTime(0.40 * breath, t + 0.015);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * (isBreak ? 1.8 : 0.9));
+    // Cross-stick rim on beat 3 (and 2 in chorus).
+    if (beatInBar === 2 || (inChorus && beatInBar === 1)) {
+      rimGain.gain.cancelScheduledValues(t);
+      rimGain.gain.setValueAtTime(0.0001, t);
+      rimGain.gain.exponentialRampToValueAtTime(0.18 * breath, t + 0.003);
+      rimGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+    }
+    // Melodica lead — sparse, only in verse/chorus.
+    if (!isBreak && rng() >= (restProb + 0.15) && (beatInBar === 0 || beatInBar === 2)) {
+      const mn = melodicaNotes[(barInSection * 2 + Math.floor(beatInBar / 2)) % melodicaNotes.length];
+      melodicaOsc.frequency.setValueAtTime(mn, t);
+      melodicaGain.gain.cancelScheduledValues(t);
+      melodicaGain.gain.setValueAtTime(0.0001, t);
+      melodicaGain.gain.exponentialRampToValueAtTime(0.12 * breath, t + 0.012);
+      melodicaGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.2);
+    }
+  },
+  onSongEnd: null,
+};
 
 // ----- SECOND-LINE BRASS BAND ----------------------------------------------
 // Marching New Orleans groove that follows the band around the world. Built
@@ -1955,7 +2866,9 @@ function forestDrumStage(ctx, panner, seed) {
 
 function initNatureAudio() {
   natureBus = ctx.createGain();
-  natureBus.gain.value = 0.9;
+  // Apply any persisted nature volume from the restore block; fall back to 0.9.
+  natureBus.gain.value = (_pendingNatureVol !== null) ? _pendingNatureVol : 0.9;
+  _pendingNatureVol = null;
 
   // Trip wet/dry chain — same topology as the music/sfx chains.
   _natTripDry = ctx.createGain(); _natTripDry.gain.value = 1.0;
@@ -2008,10 +2921,25 @@ function initNatureAudio() {
   _natureSchedulers.push(setInterval(birdSongTick, 260));
   _natureSchedulers.push(setInterval(cricketTick, 230));
   _natureSchedulers.push(setInterval(frogTick, 300));
+  _natureSchedulers.push(setInterval(owlTick, 400));
 }
 
-function randStereo() {
-  return _natureStereoPanners[(Math.random() * _natureStereoPanners.length) | 0];
+// Randomly pick a stereo panner slot, biased toward `panX` (-1..1).
+// panX=0 → uniform pick. panX=±1 → strongly weighted toward the matching side.
+// Each slot has a fixed pan value; we weight by proximity to the target pan.
+const _STEREO_PANS = [-0.85, -0.4, 0, 0.4, 0.85];
+function randStereo(panX = 0) {
+  if (!_natureStereoPanners.length) return null;
+  if (panX === 0) return _natureStereoPanners[(Math.random() * _natureStereoPanners.length) | 0];
+  // Compute a weight for each slot: inverse-square distance from panX.
+  const weights = _STEREO_PANS.map(p => 1 / (0.01 + Math.abs(p - panX) * Math.abs(p - panX)));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < weights.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return _natureStereoPanners[i];
+  }
+  return _natureStereoPanners[_natureStereoPanners.length - 1];
 }
 
 // ---- Bird songs ----
@@ -2101,6 +3029,17 @@ function scheduleBirdSong(dest, species, t0) {
       }
       break;
     }
+    case 'owl': {                              // deep low "hoo… hoo-hoo" — night only
+      // Primary hoo: slow-onset sine, slight pitch glide downward.
+      birdNote(dest, t, 360 + Math.random() * 40, 0.55, 0.13, { type: 'sine', glideTo: 310, vibrato: 5 });
+      t += (1.2 + Math.random() * 0.4) * stretch;
+      // Double hoo (two shorter notes close together).
+      for (let i = 0; i < 2; i++) {
+        birdNote(dest, t, 330 + Math.random() * 30, 0.32, 0.11, { type: 'sine', glideTo: 290 });
+        t += (0.38 + Math.random() * 0.1) * stretch;
+      }
+      break;
+    }
     case 'dove':                               // soft mournful coo, coo-coo
     default: {
       birdNote(dest, t, 560, 0.34, 0.15, { type: 'sine', glideTo: 500, vibrato: 8 });
@@ -2135,6 +3074,37 @@ function birdSongTick() {
   slot.busyUntil = now + 1.4;
 }
 
+// ---- Owl / nightjar ----
+// Gated on nightness > 0.85 (deep night only). Fires very sparsely — every
+// 18–40s — through a free _birdPanners slot at a far ambient position.
+let _nextOwl = 0;
+function owlTick() {
+  if (!natureBus) return;
+  if (currentNightness <= 0.85) return;
+  const now = ctx.currentTime;
+  if (now < _nextOwl) return;
+  // Next hoot in 18–40s.
+  _nextOwl = now + 18 + Math.random() * 22;
+  owlHoot(now + 0.05);
+}
+
+function owlHoot(t0) {
+  // Grab a free panner slot for a far-off ambient position.
+  const now = ctx.currentTime;
+  let slot = null;
+  for (const s of _birdPanners) if (now >= s.busyUntil) { slot = s; break; }
+  if (!slot) return;
+  // Place the owl at an ambient 40–70m out, random compass direction.
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 40 + Math.random() * 30;
+  const p = slot.node;
+  const ox = Math.cos(angle) * dist, oz = Math.sin(angle) * dist;
+  if (p.positionX) { p.positionX.value = ox; p.positionY.value = 5; p.positionZ.value = oz; }
+  else if (p.setPosition) p.setPosition(ox, 5, oz);
+  scheduleBirdSong(p, 'owl', t0);
+  slot.busyUntil = now + 2.5;
+}
+
 // ---- Crickets ----
 // Gated on nightness (>~0.45) AND treeness (_cricketLevel). Each chirp is a
 // short ~4.6kHz sine pair pulsed a few times (the cricket "trill"), panned
@@ -2153,7 +3123,7 @@ function cricketTick() {
   }
 }
 function cricketChirp(t, lvl) {
-  const dest = randStereo();
+  const dest = randStereo(_cricketPan);
   const base = 4500 + Math.random() * 600;
   const bend = 1 - 0.4 * _natTripEnv;
   const pulses = 3 + ((Math.random() * 3) | 0);
@@ -2190,7 +3160,7 @@ function frogTick() {
   }
 }
 function frogCroak(t, lvl) {
-  const dest = randStereo();
+  const dest = randStereo(_frogPan);
   const bend = 1 - 0.45 * _natTripEnv;
   const base = (150 + Math.random() * 80) * bend;
   const vol = 0.10 + lvl * 0.10;

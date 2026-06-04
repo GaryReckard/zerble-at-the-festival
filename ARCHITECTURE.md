@@ -187,7 +187,7 @@ This is what lets you brush against people at a crawl without losing smiles, whi
 A pool of stateful NPCs spawned by chunks.
 
 - **Personality:** `curiosity`, `skittishness`, `energy`, `social`, `talkativeness` — random per NPC.
-- **States:** `idle → walking → watching → approaching → fleeing → smiling → riding/boarding`.
+- **States:** `idle → walking → watching → approaching → fleeing → smiling → riding/boarding`. Plus a transient **cheer** (driven by `cheerNear`, fired on a stage song-end): jump + arms-up pose + smile for ~5s, layered on whatever state the NPC was in.
 - **Steering:** seek target + repel from registry footprints + neighbor separation + path attraction.
 - **Smile mechanic:** eye contact with Zerble plus bubble proximity raises an internal happiness counter. On threshold → emit a smile pickup, record Zerble's at-smile position. The same NPC won't smile again until Zerble has driven `SMILE_RESET_DIST` away (prevents parking-near-crowd farming) **and** a cooldown elapses.
 - **Hit response:** `onZerbleHit(npc, nx, nz)` panics the victim, applies knockback, and infects nearby NPCs into a brief fleeing state.
@@ -227,13 +227,16 @@ Drives:
 
 ## Audio (`sound.js`)
 
-All synthesized — no audio files shipped. ~1300 lines of Web Audio nodes.
+All synthesized — no audio files shipped. ~3000 lines of Web Audio nodes.
 
 - **Engine.** A pair of detuned sawtooth oscillators (gas-engine buzz) mixed with LPF-filtered noise (rumble). Speed scales gain + pitch + a putt-putt LFO. Boost engages a second tier with extra harmonics. At zero speed, fades to silence in ~80ms.
 - **Collisions.** Per-`kind` one-shot synth hits: drums for stages, metallic clangs for trucks/lampposts, nasal boops for kids/puppets, brass for the band, wood knocks for the arch, a "duuude" drone for wooks.
 - **Honks.** Bicycle bell (struck-tine + trill envelope) or clown horn (2-phase honk + inhale fifth up).
 - **Drum circles.** A per-circle music scheduler. Voice density gates on `nightness`. A **lowpass cutoff** is set every frame from main.js based on distance from the body perimeter — drums sound wide-open from inside the circle, muffled by trees as you leave.
-- **Stage music.** Bussed through `musicBus`, balanced against `sfxBus`.
+- **Stage music = songform.** The melodic stage genres (`jam`, `brass`, `dance`, `world`, `dub`) run through one shared engine, `runStageSong(ctx, panner, seed, genreDef)`. Each genre def supplies its voices + a per-beat synth callback; the engine owns the song lifecycle: a finite arc of named **sections** (intro→verse/build→chorus/drop→bridge/break→outro) with per-section active-voice sets and intensity, **per-song tempo + key** (re-rolled within the genre's range each song, never repeating the last key), tempo wobble, dynamics-coupled rest probability, shuffled variant selection, and lead-timbre drift. At the outro it enters a ~4.5s **cheer gap**, fires `onSongEnd`, then starts a fresh song. `drum` / `forest_drum` / `second_line` stay continuous (no songform). `chunks.js` picks each stage's genre from a seeded palette (origin 0,0 stays `jam`). Per-stage a `master` gain rides distance for ~1.5s cross-fades between stages. Bussed through `musicBus`, balanced against `sfxBus`.
+- **Crowd cheer.** `Sound.onSongEnd(cb)` lets a song-end signal the world; `_emitSongEnd(x,z)` plays a positional applause/"wooo" swell (`playCrowdCheer`) and calls the registered callback → `crowd.cheerNear`. `Sound._debugEndSong()` forces it for testing.
+- **MIDI player (`midiPlayer.js`).** The M-key player routes each parsed track to a synth pool by GM program/percussion (`GM_CATEGORY` → drum kit / bass / lead / pad). Effect chain: vibrato → autofilter → ping-pong delay → short reverb (+ a parallel 12s reverb) → an inline-AudioWorklet **granular** node → midiGain. The trip envelope swells the long reverb + granular at the climax. Tracks are individually mutable (`getTracks` / `setTrackMute`). Output routes into Sound's `midiGain` so Master + a MIDI fader both apply.
+- **Nature bed.** Birdsong (positional, time-of-day-gated), crickets + frogs (now panned toward the nearest forest/lake), and a deep-night owl, all through `natureBus` (own trip chain, own volume fader `zerble.vol.nature`).
 - **Listener.** Camera position + forward feed into the Web Audio AudioListener every frame for spatial pan.
 
 iOS specifics: `Sound.init()` must run **synchronously inside the tap handler** so the AudioContext starts in `running` state. The visibilitychange / pageshow / pointerdown / touchstart handlers all call `Sound.resume()` to recover from iOS suspending the context.

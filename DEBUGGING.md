@@ -114,9 +114,17 @@ http://127.0.0.1:8765/sandbox.html?entity=<name>
 - Time-of-day slider + Morning/Noon/Dusk/Midnight presets.
 - Audio panel + a per-entity **"Hit it"** SFX button.
 - Camera presets `1`–`6`, `R` reset, `L` ground toggle.
-- `window.__sandbox` exposes `{ scene, camera, currentEntity, Trip, midi }`.
+- `window.__sandbox` exposes `{ scene, camera, currentEntity, Trip, midi, Sound,
+  songStates, fireCheer }`.
 - Composite scenes for context (`puppet_lineup`, `campsite_small/medium/large`,
-  `leaf_drum_circle_day/night`, `lake_with_beach`).
+  `leaf_drum_circle_day/night`, `lake_with_beach`, `cheer_demo` — a small NPC
+  cluster + a "Fire cheer" button / `__sandbox.fireCheer()` to iterate the
+  jump + arms-up cheer pose in isolation).
+- **Music panel** drives any stage genre (jam / brass / drum / forest / dance /
+  world / dub), an **"End song now"** button (`Sound._debugEndSong()`), a live
+  **song-state readout**, and a **trip-sweep** slider (0→1) that drives the MIDI
+  + procedural trip warp without the wook flow — verify the reverb swell +
+  granular climax there (a real panel-fired trip overrides the slider).
 
 Adding a model? It's not done until it has a sandbox entry — see
 [.claude/rules/sandbox-and-testing.md](.claude/rules/sandbox-and-testing.md).
@@ -129,13 +137,24 @@ Adding a model? It's not done until it has a sandbox entry — see
 |---|---|
 | `?perf=low\|mid\|high` (or `window.__perfProfile`) | Force a performance tier ([perf.js](src/perf.js)). Test low/mid — high hides regressions that crush integrated GPUs. |
 | `?seed=<string\|int>` | Pin the procedural world layout ([main.js](src/main.js)); echoed in the debug HUD so a world is reproducible. |
-| `?sounddebug=1` | On-screen toast a beat after Start with the iOS audio-unlock state — diagnose mobile audio without Safari Web Inspector. |
+| `?sounddebug=1` | On-screen toast a beat after Start with the iOS audio-unlock state — diagnose mobile audio without Safari Web Inspector. Also enabled by `?debug` or a `zerble.debug` localStorage flag; off by default in production. |
 
 ## Audio diagnostics
 
 - `window.__game.sound.diagnostics()` — AudioContext state, gains, each unlock
-  stage, sample rate.
-- `window.__game.sound.natureDiagnostics()` — bird/cricket/frog gating state.
+  stage, sample rate, and `outputRouting` (channel count + audio-output device
+  labels with a likely-Bluetooth flag).
+- `window.__game.sound.natureDiagnostics()` — bird/cricket/frog/owl gating state.
+- `window.__game.sound.songStates()` — live snapshot of every active stage
+  **song**: `{genre, songIdx, tempo, keyShift, tonicHz, section, beatInSong,
+  totalBeats, phase}`. The way to verify songform structure without listening —
+  poll it to watch sections advance, a song end (`phase: 'cheerGap'`), and a new
+  song start at a different tonic/tempo.
+- `window.__game.sound._debugEndSong()` — force every active stage song into its
+  cheer gap *now* (fires the crowd cheer + applause at real stage positions),
+  so you don't wait out a full song to verify the cheer.
+- `window.__game.sound.setMuted(true)` / `setNatureVolume(v)` — runtime audio
+  controls (also persisted; surfaced as backtick-overlay sliders/checkbox).
 
 ---
 

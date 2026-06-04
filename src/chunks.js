@@ -45,6 +45,17 @@ export const stagePerformers = [];
 // Spatial music handles, one per stage, tagged by chunkKey so we can detach on unload.
 const stageMusic = [];
 
+// Fresh salt — must not match any existing worldHash salt in this file so
+// style selection is independent of all other chunk-rng streams.
+const STYLE_SALT = 0xC4FE7B2A | 0;
+
+// Picks a music style from `palette` using the chunk's worldHash seed.
+// A fresh salt keeps this stream isolated from theme, prop, and drum seeds.
+function pickStageStyle(seed, palette) {
+  const rng = mulberry32(seed >>> 0);
+  return palette[Math.floor(rng() * palette.length)];
+}
+
 // Stage light lens meshes — the day/night system samples these for the night
 // "light show" pulse + color. Each entry: { lens: Mesh, chunkKey, baseColor }.
 export const stageLightLenses = [];
@@ -883,10 +894,12 @@ function buildTentStageTheme(ctx) {
     }
   }
 
-  // Spatial music — same brass style the tent vibes with.
+  // Spatial music — style varies per chunk from the tent palette.
   const musicSeed = worldHash(ctx.cx * 13 + 23, ctx.cz * 19 + 17);
+  const tentStyleSeed = worldHash(ctx.cx * 13 + 23 + STYLE_SALT, ctx.cz * 19 + 17 + STYLE_SALT);
+  const tentStyle = pickStageStyle(tentStyleSeed, ['jam', 'dance', 'world']);
   const m3 = worldXZ(0, tent.stagePos.z);
-  const handle = Sound.attachStageMusic(m3.x, 4, m3.z, musicSeed, 'jam');
+  const handle = Sound.attachStageMusic(m3.x, 4, m3.z, musicSeed, tentStyle);
   if (handle) stageMusic.push({ handle, chunkKey: ctx.key });
 }
 
@@ -1452,7 +1465,18 @@ function buildStage(ctx, x, z, isMain) {
   const pinOrigin = isMain && ctx.cx === 0 && ctx.cz === 0;
   const stageHash = pinOrigin ? hash2 : worldHash;
   const musicSeed = stageHash(ctx.cx * 7 + (isMain ? 1 : 2), ctx.cz * 11 + (isMain ? 3 : 5));
-  const handle = Sound.attachStageMusic(x, 4, z, musicSeed, isMain ? 'jam' : 'brass');
+  // Origin (0,0) main stage is always jam — deterministic across sessions.
+  // Other main stages roll from a jam-weighted palette; side stages from a brass-weighted one.
+  let stageStyle;
+  if (pinOrigin) {
+    stageStyle = 'jam';
+  } else {
+    const styleSeed = worldHash(ctx.cx * 7 + (isMain ? 1 : 2) + STYLE_SALT, ctx.cz * 11 + (isMain ? 3 : 5) + STYLE_SALT);
+    stageStyle = isMain
+      ? pickStageStyle(styleSeed, ['jam', 'jam', 'dance', 'world', 'dub'])
+      : pickStageStyle(styleSeed, ['brass', 'brass', 'dance', 'world', 'dub']);
+  }
+  const handle = Sound.attachStageMusic(x, 4, z, musicSeed, stageStyle);
   if (handle) stageMusic.push({ handle, chunkKey: ctx.key });
 
   // ----- The band on stage -----

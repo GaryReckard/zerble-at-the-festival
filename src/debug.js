@@ -73,11 +73,17 @@ const state = {
   tripPanelEl: null,
   tripStateEl: null,
   tripSliders: {},
+  // MIDI panel
+  midiWrapper: null,
+  midiContent: null,
+  midiLastTrackCount: -1,
+  midiLastPlaying: false,
+  midiPollAccum: 0,
 };
 
 export function installDebug(hooks) {
   // hooks: { scene, camera, renderer, bloomPass, zerble, crowd, bubbles, smiles,
-  //          registry, puppets, band, kids, wooks, getRunning, getTimeOfDay, Trip }
+  //          registry, puppets, band, kids, wooks, getRunning, getTimeOfDay, Trip, midi }
   state.hooks = hooks;
   buildPanel();
   buildTripPanel();
@@ -91,7 +97,15 @@ export function installDebug(hooks) {
 // (paused). `dt` is whatever the loop computed; we don't override it.
 export function shouldRunFrame(dt) {
   sampleFPS(dt);
-  if (state.visible) updatePanel(dt);
+  if (state.visible) {
+    updatePanel(dt);
+    // Poll the MIDI tracks panel ~1/s while the debug panel is open.
+    state.midiPollAccum += dt;
+    if (state.midiPollAccum >= 1.0) {
+      state.midiPollAccum = 0;
+      refreshMidiPanel();
+    }
+  }
   if (state.tripVisible) updateTripPanel();
   if (state.showColliders) refreshColliderViz();
   if (!state.paused) return true;
@@ -233,6 +247,7 @@ function api() {
       state.visible = !state.visible;
       state.panelEl.style.display = state.visible ? 'block' : 'none';
       Analytics.debugMenuToggle(state.visible);
+      if (state.visible) { state.midiPollAccum = 1.0; } // force immediate refresh
     },
     dropSmile(n = 10) {
       for (let i = 0; i < n; i++) {
@@ -414,10 +429,12 @@ function buildPanel() {
   // ----- Audio volume controls -----
   const { wrapper: audioWrapper, content: audioContent } = makeSection('Audio');
 
-  const masterVol = Sound.isReady() ? Sound.getMasterVolume() : 0.55;
-  const musicVol  = Sound.isReady() ? Sound.getMusicVolume()  : 1.6;
-  const sfxVol    = Sound.isReady() ? Sound.getSfxVolume()    : 1.0;
-  const midiVol   = Sound.isReady() ? Sound.getMidiVolume()   : 1.0;
+  const masterVol  = Sound.isReady() ? Sound.getMasterVolume()  : 0.55;
+  const musicVol   = Sound.isReady() ? Sound.getMusicVolume()   : 1.6;
+  const sfxVol     = Sound.isReady() ? Sound.getSfxVolume()     : 1.0;
+  const midiVol    = Sound.isReady() ? Sound.getMidiVolume()    : 1.0;
+  const natureVol  = Sound.isReady() ? Sound.getNatureVolume()  : 0.9;
+  const mutedNow   = Sound.isReady() ? Sound.isMuted()          : false;
 
   audioContent.innerHTML = `
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
@@ -438,12 +455,22 @@ function buildPanel() {
         style="flex:1;accent-color:#ffe066;cursor:pointer" />
       <span id="dbg-vol-midi-readout" style="width:32px;text-align:right">${midiVol.toFixed(2)}</span>
     </div>
-    <div style="display:flex;align-items:center;gap:6px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
       <span style="width:48px;opacity:0.8">SFX</span>
       <input id="dbg-vol-sfx" type="range" min="0" max="2" step="0.01" value="${sfxVol.toFixed(2)}"
         style="flex:1;accent-color:#ffe066;cursor:pointer" />
       <span id="dbg-vol-sfx-readout" style="width:32px;text-align:right">${sfxVol.toFixed(2)}</span>
     </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <span style="width:48px;opacity:0.8">Nature</span>
+      <input id="dbg-vol-nature" type="range" min="0" max="2" step="0.01" value="${natureVol.toFixed(2)}"
+        style="flex:1;accent-color:#ffe066;cursor:pointer" />
+      <span id="dbg-vol-nature-readout" style="width:32px;text-align:right">${natureVol.toFixed(2)}</span>
+    </div>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:2px">
+      <input id="dbg-mute" type="checkbox" style="cursor:pointer" ${mutedNow ? 'checked' : ''} />
+      <span style="opacity:0.8">Mute all</span>
+    </label>
   `;
   el.appendChild(audioWrapper);
 
@@ -467,6 +494,14 @@ function buildPanel() {
     const v = parseFloat(e.target.value);
     Sound.setSfxVolume(v);
     audioContent.querySelector('#dbg-vol-sfx-readout').textContent = v.toFixed(2);
+  });
+  audioContent.querySelector('#dbg-vol-nature').addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    Sound.setNatureVolume(v);
+    audioContent.querySelector('#dbg-vol-nature-readout').textContent = v.toFixed(2);
+  });
+  audioContent.querySelector('#dbg-mute').addEventListener('change', (e) => {
+    Sound.setMuted(e.target.checked);
   });
 
   // ----- Render / adaptive quality overrides -----
@@ -619,7 +654,73 @@ function buildPanel() {
   bindLightsToggle('#dbg-context-lights', 'zerble.contextLights', 'Context lights');
   bindLightsToggle('#dbg-fancy-lights',   'zerble.fancyLights',   'Fancy lights');
 
+  // ----- MIDI tracks panel -----
+  // Renders when MIDI is playing; lists each track with a mute checkbox.
+  // Content is rebuilt whenever the panel opens or the playing state changes.
+  // The ~1s poll in shouldRunFrame keeps it fresh after songs start/stop.
+  const { wrapper: midiWrapper, content: midiContent } = makeSection('MIDI tracks', true);
+  state.midiWrapper = midiWrapper;
+  state.midiContent = midiContent;
+  state.midiLastTrackCount = -1;
+  state.midiLastPlaying = false;
+  el.appendChild(midiWrapper);
+
   state.panelEl = el;
+}
+
+// Rebuild the MIDI tracks list in the debug panel. Called when the panel
+// is open and either the playing state or track count has changed.
+function refreshMidiPanel() {
+  const midi = state.hooks && state.hooks.midi;
+  const content = state.midiContent;
+  if (!content) return;
+
+  if (!midi || !midi.isPlaying) {
+    content.innerHTML = '<div style="opacity:0.5;font-size:10px">MIDI not playing</div>';
+    state.midiLastTrackCount = -1;
+    state.midiLastPlaying = false;
+    return;
+  }
+
+  const tracks = midi.getTracks();
+  // Skip full rebuild if nothing changed — avoids flickering checkboxes.
+  if (state.midiLastPlaying === midi.isPlaying && state.midiLastTrackCount === tracks.length) return;
+  state.midiLastPlaying = midi.isPlaying;
+  state.midiLastTrackCount = tracks.length;
+
+  content.innerHTML = '';
+  if (tracks.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'opacity:0.5;font-size:10px';
+    empty.textContent = 'No tracks';
+    content.appendChild(empty);
+    return;
+  }
+
+  const CATEGORY_COLORS = { lead: '#ffe066', bass: '#80d4ff', pad: '#d4a0ff', drums: '#ff9966' };
+  for (const t of tracks) {
+    const row = document.createElement('label');
+    row.style.cssText = 'display:flex;align-items:center;gap:5px;margin-bottom:2px;cursor:pointer;font-size:10px';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !t.muted;
+    cb.style.cursor = 'pointer';
+    cb.addEventListener('change', () => {
+      midi.setTrackMute(t.i, !cb.checked);
+    });
+
+    const cat = document.createElement('span');
+    cat.textContent = t.category;
+    cat.style.cssText = `flex:0 0 34px;color:${CATEGORY_COLORS[t.category] ?? '#dff'};font-size:9px`;
+
+    const name = document.createElement('span');
+    name.textContent = t.name;
+    name.style.cssText = 'flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;opacity:0.85';
+
+    row.append(cb, cat, name);
+    content.appendChild(row);
+  }
 }
 
 function bindKeys() {

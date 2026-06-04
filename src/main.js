@@ -216,6 +216,17 @@ scene.add(smiles.group);
 const crowd = new Crowd(smiles);
 scene.add(crowd.group);
 
+// When a stage song ends, nearby crowd cheers. First fire also logs a GA4 event
+// so we know the end-to-end path is working in the wild.
+let _cheerAnalyticsFired = false;
+Sound.onSongEnd((x, z) => {
+  if (!npcsFrozen()) crowd.cheerNear(x, z);
+  if (!_cheerAnalyticsFired) {
+    _cheerAnalyticsFired = true;
+    Analytics.featureUsed('song_cheer');
+  }
+});
+
 // ---------- World (sky/lights/ground/mountains + chunk manager) ----------
 buildWorld(scene, crowd);
 
@@ -334,6 +345,8 @@ crowd.onBoard = () => Analytics.passengerBoard();
 let _natureScanTimer = 0;
 let _treeness = 0;
 let _lakeness = 0;
+let _cricketPanVal = 0;   // listener-relative pan toward nearest forest (-1..1)
+let _frogPanVal = 0;      // listener-relative pan toward nearest lake (-1..1)
 // Debounce for the bubble-vendor "free refill" toast.
 let _vendorToastCd = 0;
 let _vendorWasFilling = false;   // were we actively drawing juice last frame?
@@ -419,7 +432,11 @@ HUD.onStart(() => {
   // toast a beat after Start with the unlock state, so we can diagnose iOS
   // audio without Safari Web Inspector. The promise resolutions land on the
   // next microtask, hence the short delay.
-  if (new URLSearchParams(location.search).get('sounddebug') === '1') {
+  const _params = new URLSearchParams(location.search);
+  const _soundDebugEnabled = _params.get('sounddebug') === '1' ||
+    _params.has('debug') ||
+    (() => { try { return !!localStorage.getItem('zerble.debug'); } catch (e) { return false; } })();
+  if (_soundDebugEnabled) {
     setTimeout(() => {
       const d = Sound.diagnostics();
       const ms = d.restoredFromLocalStorage.master;
@@ -718,6 +735,24 @@ function tickBody(dt) {
       entry.handle.setLowpassCutoff(cutoff);
     }
 
+    // Stage music cross-fade. Each active stage has a master GainNode; ramp
+    // it by distance so moving between stages fades over ~1.5s. Uses
+    // setTargetAtTime(τ=0.6) on the gain AudioParam — that's the same smooth-
+    // follow pattern as the forest-drum lowpass loop above.
+    // Distance threshold: within 90m = full gain, past 180m = 0. Linear blend.
+    const stageRegistry = Sound.getStageHandleRegistry();
+    if (stageRegistry.length > 0) {
+      const _spx = zerble.position.x, _spz = zerble.position.z;
+      for (let i = 0; i < stageRegistry.length; i++) {
+        const entry = stageRegistry[i];
+        if (!entry.handle?.setAudibility) continue;
+        const sdx = entry.x - _spx, sdz = entry.z - _spz;
+        const sdist = Math.sqrt(sdx * sdx + sdz * sdz);
+        const audibility = Math.max(0, Math.min(1, 1 - (sdist - 90) / 90));
+        entry.handle.setAudibility(audibility);
+      }
+    }
+
     // Nature ambience proximity. Crickets ramp up near trees/forests (and only
     // at night — sound.js gates on nightness); frogs ramp near a lake edge.
     // Scanning the registry every frame for nearest-tree / nearest-edge is
@@ -726,8 +761,11 @@ function tickBody(dt) {
     if (_natureScanTimer <= 0) {
       _natureScanTimer = 0.1;
       let dForest = Infinity, dTree = Infinity, dLake = Infinity;
+      let forestNearX = 0, forestNearZ = 0, lakeNearX = 0, lakeNearZ = 0;
       const px = zerble.position.x, pz = zerble.position.z;
-      const nearest = (kind, cur) => {
+      // Returns the squared distance to the nearest entity of `kind`; also
+      // writes the world position of that nearest entity into `posOut`.
+      const nearestPos = (kind, cur, posOut) => {
         const ids = registry.byKind.get(kind);
         if (!ids) return cur;
         for (const id of ids) {
@@ -735,20 +773,38 @@ function tickBody(dt) {
           if (!e) continue;
           const ddx = e.position.x - px, ddz = e.position.z - pz;
           const d = ddx * ddx + ddz * ddz;
-          if (d < cur) cur = d;
+          if (d < cur) { cur = d; posOut[0] = e.position.x; posOut[1] = e.position.z; }
         }
         return cur;
       };
-      dForest = nearest('forest_tree', dForest);
-      dTree = nearest('tree', dTree);
-      dLake = nearest('lake_edge', dLake);
+      const fp = [0, 0], tp = [0, 0], lp = [0, 0];
+      dForest = nearestPos('forest_tree', dForest, fp);
+      dTree   = nearestPos('tree',        dTree,   tp);
+      dLake   = nearestPos('lake_edge',   dLake,   lp);
       const treenessForest = Math.max(0, 1 - Math.sqrt(dForest) / 35);
-      const treenessGrove = Math.max(0, 1 - Math.sqrt(dTree) / 15) * 0.5;
+      const treenessGrove  = Math.max(0, 1 - Math.sqrt(dTree)   / 15) * 0.5;
       _treeness = Math.max(treenessForest, treenessGrove);
       _lakeness = Math.max(0, 1 - Math.sqrt(dLake) / 30);
+      // Listener-relative stereo pan: dot the direction-to-target against the
+      // camera right vector (heading + 90°). Result in [-1, 1].
+      const heading = zerble.heading || 0;
+      const rightX = Math.cos(heading), rightZ = -Math.sin(heading);
+      // Tree pan — weight by which was closer (forest vs grove).
+      if (treenessForest >= treenessGrove) {
+        forestNearX = fp[0]; forestNearZ = fp[1];
+      } else {
+        forestNearX = tp[0]; forestNearZ = tp[1];
+      }
+      const ftDx = forestNearX - px, ftDz = forestNearZ - pz;
+      const ftDist = Math.sqrt(ftDx * ftDx + ftDz * ftDz) || 1;
+      _cricketPanVal = Math.max(-1, Math.min(1, (ftDx * rightX + ftDz * rightZ) / ftDist));
+      lakeNearX = lp[0]; lakeNearZ = lp[1];
+      const lkDx = lakeNearX - px, lkDz = lakeNearZ - pz;
+      const lkDist = Math.sqrt(lkDx * lkDx + lkDz * lkDz) || 1;
+      _frogPanVal = Math.max(-1, Math.min(1, (lkDx * rightX + lkDz * rightZ) / lkDist));
     }
-    Sound.setCricketBed(_treeness);
-    Sound.setFrogBed(_lakeness);
+    Sound.setCricketBed(_treeness, _cricketPanVal);
+    Sound.setFrogBed(_lakeness, _frogPanVal);
     Sound.setBirdSongCandidates(birds.songCandidates(zerble.position), birds.activityLevel);
 
     // Bubble-juice pickups + vendor refuel. Both are registry entries carrying
@@ -1190,6 +1246,7 @@ installDebug({
   getRunning: () => running,
   getTimeOfDay,
   Trip,
+  midi,
 });
 
 tick();

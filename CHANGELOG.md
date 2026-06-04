@@ -4,6 +4,115 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-06-03
 
+### Added — Real songform: stages play actual *songs* now, with genre variety
+The big one. Every melodic stage was an infinite `setInterval` loop rotating a
+few melody variants forever; now each runs a finite **song** with an arc, ends,
+and a fresh song begins — driven by a new shared `runStageSong` engine in
+[sound.js](src/sound.js) that the genre defs plug into.
+- **Sectioned arcs.** A song is an ordered run of named sections (jam:
+  intro→verse→chorus→verse→bridge→chorus→outro; dance:
+  intro→build→drop→break→build→drop→outro), each with its own active-voice set
+  and intensity. Voices come in and out by section (just kick in the intro,
+  full band in the chorus, drop-to-bass in a dub break). Each stage runs its
+  own song independently — no global lockstep.
+- **Per-song tempo *and* key.** Every new song re-rolls its tempo within the
+  genre's range (so two jam stages can groove at 91 and 98 BPM at the same
+  time) and transposes to a new key from a pleasant-interval set, never
+  repeating the last key. Verified live: a song ending at tonic 232Hz/91BPM
+  restarted at 209Hz/99BPM.
+- **Three new genres** alongside jam + brass: **dance** (four-on-the-floor,
+  off-beat hats, resonant acid bass, 16th arp, noise-riser builds into drops,
+  ~122–130 BPM), **world** (son-clave woodblock, conga/djembe, shaker, agogô
+  bell, marimba ostinato, walking bass, ~96–116 BPM), and **dub** (echoey
+  off-beat skank stabs through a per-voice feedback delay, deep sub-bass,
+  cross-stick, ~68–84 BPM). The Euclidean rhythm helper `E()` was hoisted to
+  module scope so dance/world share it with the forest engine.
+- **Stages roll a style for variety.** [chunks.js](src/chunks.js) now picks
+  each stage's genre from a seeded palette (`pickStageStyle`, fresh salt) —
+  main stages from jam/dance/world/dub (jam-weighted), side stages from
+  brass/dance/world/dub — so the festival sounds like a real lineup instead of
+  the same jam band everywhere. **The origin (0,0) main stage stays jam** (the
+  calibrated home tune). Audio-only, so no chunk geometry re-rolls. Drum
+  circles, forest circles, and the marching band keep their characters.
+- **The four "smaller music polish" items fell out of the engine for free**,
+  applied across every melodic genre at once: dynamics-aware breath (rest
+  probability couples to section intensity + a gain LFO — loud sections pack
+  notes, quiet ones breathe), tempo wobble (±~2% sinusoidal drift recomputed
+  per beat, so the groove isn't metronomic), shuffled variant order (never
+  repeats the last pattern/key index), and lead-timbre drift (the lead
+  oscillator can swap triangle↔sine↔square at section boundaries).
+
+### Added — When a song ends, the crowd goes wild
+A song-end now sends a signal to the audience: nearby NPCs **focus the stage,
+jump up and down, throw their arms up, and cheer** for ~5s, then the next song
+fades in. `runStageSong` fires `Sound.onSongEnd(x,z)` at the song's audible end
+(reading the stage's *live* panner position, so the moving brass band reports
+where it actually is); [main.js](src/main.js) routes that to a new
+`crowd.cheerNear(x,z)` ([crowd.js](src/crowd.js)) which flips available NPCs
+within 16m into a `cheering` state — a positive-half-sine **jump** (~0.32m,
+desynced by NPC index so it isn't lockstep), an **arms-up pose** (a precomputed
+`_armsUpMat` multiplied onto the arms InstancedMesh only, mirroring the
+existing seated-leg-bend `_sitLegMat` trick), and a smile pop. A synthesized
+**applause + "wooo" swell** (`Sound.playCrowdCheer`, a temporary positional
+panner → `sfxBus`) plays from the stage, distance-gated so far stages stay
+quiet. Matrix-only crowd change — zero new draws/instances; verified to run
+clean on `?perf=low`.
+
+### Added — MIDI player: real instruments, GM routing, a granular climax
+The M-key player was one `PolySynth(FMSynth)` for every track. Now
+([midiPlayer.js](src/midiPlayer.js)):
+- **Per-channel instruments + General MIDI program map.** Each parsed track
+  routes by `GM_CATEGORY(program, isPercussion)` to a small synth pool — a drum
+  kit (MembraneSynth kick/toms + per-class NoiseSynths for snare/hat/cymbal,
+  switched on GM drum note numbers), a bass synth, a melodic PolySynth, and a
+  softer pad. Verified on the 17-track Toto Africa MIDI: routed to
+  drums/bass/lead/pad with names matching ("Electric Drum Kit"→drums, "Bass
+  Guitar"→bass). Drums sound like drums instead of all-FMSynth-everything.
+- **Parallel long reverb for the trip swell.** A second `Reverb({decay:12})`
+  runs in parallel with the short hall; its wet crossfades **up** at the trip
+  peak (the `peakBell` at progress≈1/3) for a true "cathedral opens" — verified
+  ramping 0→0.55 at peak, back to 0.
+- **Granular synthesis at the climax.** An inline `AudioWorklet` (registered via
+  a Blob URL, so it stays no-build) splices a ring-buffer grain-stutter between
+  the reverb and output; its `mix` ramps up only at the trip peak (verified
+  0→0.65) and is transparent passthrough at idle. Clean fallback — if
+  `audioWorklet`/`addModule` is unavailable, the splice is skipped and playback
+  is unaffected.
+- **Per-track muting** (`midi.getTracks()` / `setTrackMute(i, on)`) with a live
+  "MIDI tracks" panel in the backtick overlay ([debug.js](src/debug.js)) for
+  remixing a song on the fly during a trip.
+
+### Added — Audio polish
+- **Night owl.** A low "hoo… hoo-hoo" on a slow timer during deep night
+  (`nightness > 0.85`), filling the quiet gap after the songbirds roost —
+  a new `owl` voice + scheduler in [sound.js](src/sound.js)'s nature engine.
+- **Directional crickets & frogs.** The cricket/frog beds now pan toward the
+  nearest forest / lake edge instead of a fixed stereo spread —
+  [main.js](src/main.js)'s nature scan captures the nearest source's direction
+  and feeds a listener-relative pan to `setCricketBed(level, panX)` /
+  `setFrogBed(level, panX)`. The pond is now audibly *over there*.
+- **Nature-bus volume control** (`Sound.get/setNatureVolume`, persisted as
+  `zerble.vol.nature`) + a 5th slider in the backtick overlay, alongside
+  master/music/sfx/midi.
+- **A real mute.** `Sound.setMuted(true)` (persisted as `zerble.muted`) forces
+  master to 0 and bypasses the ≥0.05 anti-stuck restore clamp, so an
+  intentional full-mute actually sticks across reloads. Backtick mute checkbox.
+- **Output-routing diagnostics.** `Sound.diagnostics()` now reports
+  `outputRouting` (channel count, sample rate, and best-effort audio-output
+  device labels with a likely-Bluetooth flag) to help chase "iOS is silent —
+  is it routed to a ghost device?".
+
+### Changed
+- **Stage music cross-fades between stages instead of popping.** Each stage now
+  has a per-stage `master` gain ([sound.js](src/sound.js)); [main.js](src/main.js)
+  walks the active stage registry each frame and rides each gain by distance
+  with a ~0.6s time-constant (and the PannerNode rolloff was softened), so
+  driving from one stage's range into another's swells/fades over ~1.5s rather
+  than abruptly swapping like a radio station.
+- **`?sounddebug` is no longer the only way to surface the mobile audio toast.**
+  It now also enables via `?debug` or a `zerble.debug` localStorage flag —
+  still off by default in production ([main.js](src/main.js)).
+
 ### Added — GA4 tracking caught up to everything shipped since launch
 The original GA4 wiring (2026-05-25) covered honks, smiles, collisions, views, Lurleen, and trips. A pile of systems landed since — the whole bubble-juice loop, passengers, the blast verb, vendors, the perf/adaptive-quality work — none of it tracked. Closed the gap across four fronts, all through the existing no-op-safe [analytics.js](src/analytics.js) wrapper (still gated off local hosts), keeping the one-event-with-a-param pattern so we stay nowhere near GA4's 500-event-name cap.
 - **The bubble-juice economy.** `bubble_ran_dry` (friction — fires each time the tank empties, with a climbing `count`), `refuel{source: jug|vendor}` (the vendor case edge-detected off the refill stream so it isn't per-frame, [main.js](src/main.js)), and `bubble_blast` for the marquee G-hold verb (once per run, like `first_honk`).

@@ -81,6 +81,13 @@ const SEPARATION_RADIUS = 1.9;       // soft separation force kicks in within th
 const HARD_SEPARATION = 0.85;        // never let two NPCs get closer than this
 const ARRIVE_RADIUS = 1.5;
 
+// Cheer: NPCs within this radius of a song-end position cheer for 5s.
+const CHEER_RADIUS = 16;
+const CHEER_RADIUS_SQ = CHEER_RADIUS * CHEER_RADIUS;
+// Jump parameters: positive-half sine only so NPCs hop up, not bob through floor.
+const HOP_HZ = 2 * Math.PI * 2.6;
+const HOP_HEIGHT = 0.32;
+
 export class Crowd {
   constructor(smiles) {
     this.smiles = smiles;
@@ -296,6 +303,17 @@ export class Crowd {
       .multiply(new THREE.Matrix4().makeTranslation(0, -HIP_Y, 0));
     this._legMat = new THREE.Matrix4();
 
+    // Arms-up cheer pose: translate to the shoulder pivot (arms geometry is
+    // centered at y≈1.10), rotate ~−150° about X (arms point up and slightly
+    // back), translate back. Precomputed once; multiplied onto the arms
+    // instance matrix when npc.cheerTimer > 0, mirroring _sitLegMat exactly.
+    const SHOULDER_Y = 1.10, ARMS_UP_BEND = -2.618; // −150° in radians
+    this._armsUpMat = new THREE.Matrix4()
+      .makeTranslation(0, SHOULDER_Y, 0)
+      .multiply(new THREE.Matrix4().makeRotationX(ARMS_UP_BEND))
+      .multiply(new THREE.Matrix4().makeTranslation(0, -SHOULDER_Y, 0));
+    this._armsMat = new THREE.Matrix4();
+
     // High-water mark: highest slot index ever written. count is set to
     // _maxIdx + 1 each frame so three.js skips unwritten slots above it.
     this._maxIdx = -1;
@@ -419,6 +437,25 @@ export class Crowd {
     this._writeMatrices(npc);
 
     return npc;
+  }
+
+  // Trigger a cheer wave centered at (x, z) — called by main.js when a song ends.
+  // NPCs in available states (idle/walking/watching/onDancefloor) within
+  // CHEER_RADIUS get 5s of jump+arms-up+smile. Riding/boarding/fleeing/hammock
+  // states are skipped so riders don't ghost off their seats.
+  cheerNear(x, z) {
+    for (const npc of this.npcs) {
+      const dx = npc.pos.x - x;
+      const dz = npc.pos.z - z;
+      if (dx * dx + dz * dz > CHEER_RADIUS_SQ) continue;
+      const s = npc.state;
+      if (s === 'riding' || s === 'boarding' || s === 'disembarking' ||
+          s === 'fleeing' || s === 'walking_to_hammock' || s === 'hammock_riding') continue;
+      npc.cheerTimer = 5.0;
+      npc.cheerX = x;
+      npc.cheerZ = z;
+      npc.smileTimeCooldown = SMILE_TIME_COOLDOWN;
+    }
   }
 
   // Kept as a no-op for chunk-unload back-compat. Lifecycle is now driven by
@@ -598,6 +635,19 @@ export class Crowd {
     if (npc.state === 'disembarking') {
       this._tickDisembarking(dt, npc);
       // fall through to normal walking logic
+    }
+
+    // --- Cheering: NPC is reacting to a song end ---
+    // Holds pose + facing for cheerTimer seconds; skips all other state logic.
+    if (npc.cheerTimer > 0) {
+      npc.cheerTimer -= dt;
+      // Face the stage position that triggered the cheer (reuse watching math).
+      const cdx = npc.cheerX - npc.pos.x;
+      const cdz = npc.cheerZ - npc.pos.z;
+      const ctarget = Math.atan2(-cdx, -cdz);
+      npc.yaw += wrapAngle(ctarget - npc.yaw) * Math.min(1, dt * 4);
+      this._writeMatrices(npc);
+      return;
     }
 
     // --- Unhappy: a frown is active (dry-cart disappointment). Turn the back
@@ -1058,6 +1108,13 @@ export class Crowd {
       ? Math.abs(Math.sin(performance.now() * 0.012 + npc.bob)) * 0.06
       : 0;
 
+    // Cheer jump: positive-half sine so NPCs hop upward without clipping the floor.
+    // Seeded by npc.idx so the crowd doesn't hop in perfect lockstep.
+    const cheering = npc.cheerTimer > 0;
+    const cheerY = cheering
+      ? Math.max(0, Math.sin(performance.now() * 0.001 * HOP_HZ + npc.idx * 1.3)) * HOP_HEIGHT
+      : 0;
+
     // All 5 body meshes share one matrix. The matrix's Y = "feet level" for this NPC.
     // Each geometry has its part offset baked in (legs at y≈0.325, torso at y=1.0,
     // arms at y=1.10, head at y=1.65, shoes at y≈0.035). Scale is applied uniformly
@@ -1087,7 +1144,7 @@ export class Crowd {
       // slightly — so lift by only 0.16, not the full half-thickness.
       feetY = npc.hammockY + 0.16 + bobY + bounceY;
     } else {
-      feetY = bobY + bounceY; // feet on the ground; npc.pos.y is always 0
+      feetY = bobY + bounceY + cheerY; // feet on the ground; npc.pos.y is always 0
     }
 
     // CRITICAL: position and scale must be DISTINCT Vector3 instances.
@@ -1120,6 +1177,7 @@ export class Crowd {
     // Exception: seated riders (bench / driver / roof — see `seated` above) get
     // their legs+shoes bent forward at the hip so they sit; the upright
     // body/arms/head still use `m`. Standing running-board riders keep straight legs.
+    // Cheering NPCs get arms rotated up via _armsUpMat (same pattern as _sitLegMat).
     if (seated) {
       this._legMat.multiplyMatrices(m, this._sitLegMat);
       this.legsMesh.setMatrixAt(npc.idx, this._legMat);
@@ -1129,7 +1187,12 @@ export class Crowd {
       this.shoesMesh.setMatrixAt(npc.idx, m);
     }
     this.bodyMesh.setMatrixAt(npc.idx, m);
-    this.armsMesh.setMatrixAt(npc.idx, m);
+    if (cheering) {
+      this._armsMat.multiplyMatrices(m, this._armsUpMat);
+      this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
+    } else {
+      this.armsMesh.setMatrixAt(npc.idx, m);
+    }
     this.headMesh.setMatrixAt(npc.idx, m);
     this.eyesMesh.setMatrixAt(npc.idx, m);
 
