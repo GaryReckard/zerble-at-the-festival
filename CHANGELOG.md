@@ -22,6 +22,13 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   are tunable by ear from here.
 
 ### Changed
+- **MIDI drums rebalanced — the kit no longer drowns the melody.** The new GM
+  kit (above) shipped with the kick at −4 dB, *louder* than the bass (−5), lead
+  (−8), and pad (−10), so the drums sat on top of everything. Pulled the kick to
+  −9 and the rest of the kit down 3–6 dB (snare −11, toms/congas −12,
+  cymbal/bell −15, hats −16 / −18, shaker −19) so bass + lead + kick lead the
+  mix and the rest tucks underneath. Levels are still a by-ear work-in-progress.
+  ([midiPlayer.js](src/midiPlayer.js))
 - **Trip chromatic aberration hits a lot harder.** The shader's RGB-split offset
   constant went 5× (`0.005` → `0.025` in [trip.js](src/trip.js)), so the color
   fringing at full strength is far more pronounced. The slider/envelope range is

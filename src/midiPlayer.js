@@ -438,7 +438,7 @@ export class MidiPlayer {
       pitchDecay: 0.05, octaves: 8,
       envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.1 },
     });
-    kick.volume.value = -4;
+    kick.volume.value = -9;
     kick.connect(this._inputNode);
 
     // Pitched-membrane pool (round-robin ×3) for toms, congas, bongos,
@@ -451,7 +451,7 @@ export class MidiPlayer {
         pitchDecay: 0.03, octaves: 4,
         envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 },
       });
-      tom.volume.value = -7;
+      tom.volume.value = -12;
       tom.connect(this._inputNode);
       tomPool.push(tom);
     }
@@ -465,7 +465,7 @@ export class MidiPlayer {
       modulationEnvelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.2 },
     });
     bell.maxPolyphony = 12;
-    bell.volume.value = -13;
+    bell.volume.value = -15;
     bell.connect(this._inputNode);
 
     // Noise voices, each FILTERED for character (the old kit was flat white
@@ -482,11 +482,11 @@ export class MidiPlayer {
       n.volume.value = vol;
       return { n, f };
     };
-    const snare     = mkNoise(0.14, 0.05, 'bandpass', 1900, 0.7, -9);
-    const hatClosed = mkNoise(0.03, 0.02, 'highpass', 8000, 1.0, -15);
-    const hatOpen   = mkNoise(0.30, 0.10, 'highpass', 7000, 1.0, -14);
-    const cymbal    = mkNoise(0.80, 0.20, 'highpass', 5000, 0.8, -13);
-    const shaker    = mkNoise(0.05, 0.03, 'highpass', 6000, 1.0, -17);
+    const snare     = mkNoise(0.14, 0.05, 'bandpass', 1900, 0.7, -11);
+    const hatClosed = mkNoise(0.03, 0.02, 'highpass', 8000, 1.0, -18);
+    const hatOpen   = mkNoise(0.30, 0.10, 'highpass', 7000, 1.0, -16);
+    const cymbal    = mkNoise(0.80, 0.20, 'highpass', 5000, 0.8, -15);
+    const shaker    = mkNoise(0.05, 0.03, 'highpass', 6000, 1.0, -19);
 
     this._synths = {
       lead, pad, bass, kick, tomPool, bell,
