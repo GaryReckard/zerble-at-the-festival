@@ -45,6 +45,18 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   0.75) so a burst can't introduce a discontinuity. Verified by sampling the
   shipped curve: range 0–1.38, smooth (max adjacent step 0.018), 14 peaks across
   the middle half.
+- **Brass band + puppet parade spawn anywhere, and now rarely wander elsewhere.**
+  The brass band's march loop was hardcoded near world origin, so it always
+  blared right on the start area; it now uses the same random-anchor placement
+  the puppet parade already had (0–150m from origin). And both loops *relocate*:
+  once you've driven 500m away from a loop — deliberately rarer than the wook
+  recycle (300m) — it hops to a fresh anchor 150–300m around your new position
+  ([obstacles.js](src/obstacles.js)), so it reappears across the field rather
+  than popping in on top of you. The band's spatial music rides along; since the
+  hop only fires at 500m+ (well out of earshot) it's silent and fades back in as
+  you approach the new spot. Both units now share a `_basePath` +
+  `placeLoop`/`maybeRecycleLoop`, and their `update()` takes the player position
+  to drive the recycle test.
 
 ### Fixed
 - **Audio could boot effectively silent until you nudged the master slider.**

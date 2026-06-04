@@ -48,6 +48,44 @@ function avoidLakes(path) {
   }
 }
 
+// ---- Loop relocation (puppet parade + brass band) ---------------------------
+// Both the parade and the band march a fixed-shape loop that is *placed* at a
+// random anchor rather than hardcoded near origin. The loop spawns 0..150m from
+// world origin (so it isn't always sitting on the start area), and once the
+// player has driven a long way off — LOOP_RECYCLE_DIST, deliberately farther
+// than the wook recycle (300m) so relocation is a rarer event — the whole loop
+// hops to a fresh anchor 150..300m around the player. That "far" reappear range
+// means the unit shows up across the field (and, for the band, the music —
+// inaudible at recycle distance — fades in naturally as you approach) rather
+// than popping in right on top of you.
+const LOOP_INITIAL_SPREAD = 150;   // initial spawn radius around world origin
+const LOOP_RECYCLE_DIST   = 500;   // player must get this far from the loop to relocate
+const LOOP_REAPPEAR_NEAR  = 150;   // relocate ring min, around the player
+const LOOP_REAPPEAR_FAR   = 300;   // relocate ring max
+
+// Rewrite `path` in place to `basePath` (the loop's local shape) shifted to a
+// lake-free anchor picked at radius [rNear, rFar] from (cx, cz). Returns the
+// chosen anchor so the caller can track the loop's center for the recycle test.
+function placeLoop(path, basePath, cx, cz, rNear, rFar) {
+  const a = _pickPositionAvoidingLakes(cx, cz, rNear, rFar);
+  for (let i = 0; i < path.length; i++) {
+    path[i].set(basePath[i].x + a.x, 0, basePath[i].z + a.z);
+  }
+  avoidLakes(path);
+  return a;
+}
+
+// If the player has wandered past LOOP_RECYCLE_DIST from `anchor`, relocate the
+// loop 150..300m around the player and return the new anchor; else return null.
+// A null zerblePos (sandbox / no-player tick) never recycles.
+function maybeRecycleLoop(path, basePath, anchor, zerblePos) {
+  if (!zerblePos) return null;
+  const dx = anchor.x - zerblePos.x;
+  const dz = anchor.z - zerblePos.z;
+  if (dx * dx + dz * dz <= LOOP_RECYCLE_DIST * LOOP_RECYCLE_DIST) return null;
+  return placeLoop(path, basePath, zerblePos.x, zerblePos.z, LOOP_REAPPEAR_NEAR, LOOP_REAPPEAR_FAR);
+}
+
 // =================================================================
 // PUPPET PARADE  — the Street Creature Puppet Collective
 // =================================================================
@@ -57,15 +95,13 @@ export class PuppetParade {
     this.group = new THREE.Group();
     this.group.name = 'PuppetParade';
 
-    // A patrol path that loops through the festival. The loop shape is fixed,
-    // but the whole thing slides by a random offset each session so the parade
-    // isn't always marching right on top of the main stage at spawn. The
-    // distance ranges from near-origin to a good drive away — sometimes you
-    // round a corner and find it, sometimes it's right there. Mirrors the
-    // Math.random() placement the Wooks / Kids / Frisbees already use (the
-    // parade isn't seed-deterministic, so this stays consistent with them).
-    // avoidLakes runs after the slide so the shifted path still dodges water.
-    this.path = [
+    // A patrol path that loops through the festival. The loop shape is fixed
+    // (_basePath, local coords); placeLoop() shifts the whole thing to a random
+    // anchor. It spawns 0..150m from origin (not always on the start area) and
+    // relocates far around the player once you've driven off — see
+    // maybeRecycleLoop() in update(). Uses Math.random() like the Wooks / Kids /
+    // Frisbees (these mobile units aren't seed-deterministic, by design).
+    this._basePath = [
       new THREE.Vector3(-70, 0, -10),
       new THREE.Vector3(-30, 0, 20),
       new THREE.Vector3(20, 0, 10),
@@ -74,12 +110,8 @@ export class PuppetParade {
       new THREE.Vector3(-20, 0, -50),
       new THREE.Vector3(-60, 0, -30),
     ];
-    const offAng = Math.random() * TAU;
-    const offDist = Math.random() * 150;   // 0..150m from origin
-    const offX = Math.cos(offAng) * offDist;
-    const offZ = Math.sin(offAng) * offDist;
-    for (const p of this.path) { p.x += offX; p.z += offZ; }
-    avoidLakes(this.path);
+    this.path = this._basePath.map((p) => p.clone());
+    this._anchor = placeLoop(this.path, this._basePath, 0, 0, 0, LOOP_INITIAL_SPREAD);
     this.speed = 2.4;
 
     this.puppets = [];
@@ -131,7 +163,9 @@ export class PuppetParade {
     }
   }
 
-  update(dt) {
+  update(dt, zerblePos) {
+    const recycled = maybeRecycleLoop(this.path, this._basePath, this._anchor, zerblePos);
+    if (recycled) this._anchor = recycled;
     const totalLen = pathLength(this.path);
     for (let i = 0; i < this.puppets.length; i++) {
       const p = this.puppets[i];
@@ -172,7 +206,14 @@ export class BrassBand {
     this.group = new THREE.Group();
     this.group.name = 'BrassBand';
 
-    this.path = [
+    // Fixed loop shape (local coords). This was hardcoded near origin, so the
+    // band always blared right at world spawn; now placeLoop() shifts it to a
+    // random anchor 0..150m from origin, and it relocates far around the player
+    // once you've driven off — same model as the puppet parade (maybeRecycleLoop
+    // in update()). The music source (attached below) tracks the band leader,
+    // so it travels with the relocation; recycle only fires at 500m+, where the
+    // band is already inaudible, so the teleport is silent.
+    this._basePath = [
       new THREE.Vector3(80, 0, 70),
       new THREE.Vector3(40, 0, 95),
       new THREE.Vector3(-30, 0, 95),
@@ -183,7 +224,8 @@ export class BrassBand {
       new THREE.Vector3(60, 0, 30),
       new THREE.Vector3(85, 0, 50),
     ];
-    avoidLakes(this.path);
+    this.path = this._basePath.map((p) => p.clone());
+    this._anchor = placeLoop(this.path, this._basePath, 0, 0, 0, LOOP_INITIAL_SPREAD);
     this.speed = 1.8;
 
     this.members = [];
@@ -260,7 +302,9 @@ export class BrassBand {
     }
   }
 
-  update(dt) {
+  update(dt, zerblePos) {
+    const recycled = maybeRecycleLoop(this.path, this._basePath, this._anchor, zerblePos);
+    if (recycled) this._anchor = recycled;
     const totalLen = pathLength(this.path);
     this.distance = (this.distance + this.speed * dt + totalLen * 100) % totalLen;
     const { pos: leadPos, dir: leadDir } = samplePath(this.path, this.distance, this._tmpA, this._tmpB);

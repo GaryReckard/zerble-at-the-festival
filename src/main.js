@@ -658,8 +658,8 @@ function tickBody(dt) {
       Analytics.personalBest(score);
     });
 
-    puppets.update(dt);
-    band.update(dt);
+    puppets.update(dt, zerble.position);
+    band.update(dt, zerble.position);
     kids.update(dt, bubbles, zerble, smiles);
     wooks.update(dt, zerble.position, Math.abs(zerble.speed));
     hoopers.update(dt, zerble.position, nightness);
