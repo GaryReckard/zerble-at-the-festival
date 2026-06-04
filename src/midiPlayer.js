@@ -50,16 +50,66 @@ function GM_CATEGORY(program, isPercussion) {
   return 'lead';                 // Sound effects (0 and above edge case)
 }
 
-// GM standard drum note mapping for MembraneSynth vs NoiseSynth routing.
-// Returns 'kick', 'snare', 'hihat', 'cymbal', or 'tom'.
-function GM_DRUM_KIND(midiNote) {
-  switch (midiNote) {
-    case 35: case 36: return 'kick';
-    case 38: case 40: return 'snare';
-    case 42: case 44: return 'hihat_closed';
-    case 46: return 'hihat_open';
-    case 49: case 51: case 55: case 57: case 59: return 'cymbal';
-    default: return 'tom'; // 41,43,45,47,48,50 toms + everything else
+// General MIDI percussion key map (channel 10, notes 35–81) → a voice
+// descriptor: { v, note?, dur?, vel? }.
+//   v    — which kit voice plays it (see _triggerDrum / _buildSynths)
+//   note — pitch for the pitched voices (tom-pool membrane, bell FM); ignored
+//          by the noise voices
+//   dur  — note length (ring time); defaults per-voice in _triggerDrum
+//   vel  — velocity multiplier (some percussion sits quieter in the mix)
+// The point: instead of dumping 30+ notes into one white-noise snare, every
+// GM family gets a sensible timbre — pitched membrane toms/congas/bongos, an
+// FM bell for cowbell/agogô/triangle/ride, filtered noise for hats/snare/
+// cymbal/shaker, and woody "toks" for claves/woodblocks.
+function GM_DRUM(n) {
+  switch (n) {
+    // --- Kick ---
+    case 35: case 36: return { v: 'kick' };
+    // --- Snare family (noise crack) ---
+    case 38: case 40: return { v: 'snare' };           // acoustic / electric snare
+    case 37: return { v: 'tom', note: 'C4', dur: '32n', vel: 0.7 }; // side stick → woody tok
+    case 39: return { v: 'snare', vel: 0.85 };          // hand clap ≈ snare-ish
+    // --- Toms (low → high) ---
+    case 41: return { v: 'tom', note: 'A1' };
+    case 43: return { v: 'tom', note: 'D2' };
+    case 45: return { v: 'tom', note: 'A2' };
+    case 47: return { v: 'tom', note: 'C3' };
+    case 48: return { v: 'tom', note: 'E3' };
+    case 50: return { v: 'tom', note: 'G3' };
+    // --- Hi-hats ---
+    case 42: case 44: return { v: 'hatClosed' };        // closed / pedal
+    case 46: return { v: 'hatOpen' };
+    // --- Cymbals (noise wash) ---
+    case 49: case 57: return { v: 'cymbal' };           // crash 1 / 2
+    case 52: case 55: return { v: 'cymbal', vel: 0.9 }; // china / splash
+    // --- Ride (metallic ping → bell) ---
+    case 51: case 59: return { v: 'bell', note: 'C4', dur: '4n', vel: 0.7 };
+    case 53: return { v: 'bell', note: 'C5', dur: '8n' }; // ride bell
+    // --- Congas / bongos / timbales (pitched membrane) ---
+    case 64: return { v: 'tom', note: 'A2' };           // low conga
+    case 63: return { v: 'tom', note: 'E3' };           // open hi conga
+    case 62: return { v: 'tom', note: 'A3', dur: '32n' }; // mute hi conga (short)
+    case 61: return { v: 'tom', note: 'E3' };           // low bongo
+    case 60: return { v: 'tom', note: 'A3' };           // hi bongo
+    case 66: return { v: 'tom', note: 'E3', vel: 0.9 }; // low timbale
+    case 65: return { v: 'tom', note: 'A3', vel: 0.9 }; // hi timbale
+    // --- Metallic / tonal bells ---
+    case 56: return { v: 'bell', note: 'E4', dur: '16n' };  // cowbell
+    case 68: return { v: 'bell', note: 'E4' };              // low agogô
+    case 67: return { v: 'bell', note: 'A4' };              // hi agogô
+    case 80: return { v: 'bell', note: 'A5', dur: '16n' };  // mute triangle
+    case 81: return { v: 'bell', note: 'A5', dur: '1n' };   // open triangle (rings)
+    // --- Woody clicks ---
+    case 75: return { v: 'tom', note: 'D4', dur: '32n', vel: 0.75 }; // claves
+    case 76: return { v: 'tom', note: 'C4', dur: '32n', vel: 0.75 }; // hi woodblock
+    case 77: return { v: 'tom', note: 'A3', dur: '32n', vel: 0.75 }; // lo woodblock
+    // --- Shakers / scrapers (short noise) ---
+    case 69: case 70: case 73: case 74: case 58: return { v: 'shaker' }; // cabasa/maracas/guiro/vibraslap
+    case 54: return { v: 'shaker', vel: 0.85 };          // tambourine
+    // --- Whistles / cuíca (rare) ---
+    case 71: case 72: return { v: 'bell', note: 'E6', dur: '8n', vel: 0.5 };
+    case 78: case 79: return { v: 'tom', note: 'A2', vel: 0.5 }; // cuíca → conga-ish
+    default: return { v: 'tom', note: 'A2', vel: 0.6 };  // unknown pitched perc fallback
   }
 }
 
@@ -197,6 +247,8 @@ export class MidiPlayer {
     this._loadingPromise = null;     // shared promise so concurrent toggles don't double-load
     this._tripEnvelope = 0;
     this._baseBpm = 120;
+    this._tomRR = 0;                  // round-robin index for the tom/conga pool
+    this._drumLast = {};             // per-voice last trigger time (collision guard)
     this._granularNode = null;       // AudioWorkletNode or null if unsupported/failed
   }
 
@@ -380,43 +432,119 @@ export class MidiPlayer {
     bass.volume.value = -5;
     bass.connect(this._inputNode);
 
-    // Drum synths — MembraneSynth for kick, separate NoiseSynths per drum
-    // category so Tone.js's "start time must be strictly greater" constraint
-    // is never violated by two drum events at the same AudioContext timestamp.
-    const drumKick = new T.MembraneSynth({
+    // --- Drum kit (routed per GM note by GM_DRUM / _triggerDrum) ---
+    // Kick: pitched-membrane "boom".
+    const kick = new T.MembraneSynth({
       pitchDecay: 0.05, octaves: 8,
       envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.1 },
     });
-    drumKick.volume.value = -4;
-    drumKick.connect(this._inputNode);
+    kick.volume.value = -4;
+    kick.connect(this._inputNode);
 
-    // Short-decay noise for hi-hats (closed) and snare/toms.
-    const drumHihat = new T.NoiseSynth({
-      noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.02 },
+    // Pitched-membrane pool (round-robin ×3) for toms, congas, bongos,
+    // timbales, and woody woodblock/clave "toks". MembraneSynth is
+    // monophonic, so round-robin keeps a fast conga roll / tom fill from
+    // cutting off its own tail. Pitch is set per hit from the GM map.
+    const tomPool = [];
+    for (let i = 0; i < 3; i++) {
+      const tom = new T.MembraneSynth({
+        pitchDecay: 0.03, octaves: 4,
+        envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 },
+      });
+      tom.volume.value = -7;
+      tom.connect(this._inputNode);
+      tomPool.push(tom);
+    }
+
+    // Bell: inharmonic FM ping for cowbell, agogô, triangle, ride + ride
+    // bell. Polyphonic so a steady ride pattern overlaps cleanly.
+    const bell = new T.PolySynth(T.FMSynth, {
+      harmonicity: 3.01, modulationIndex: 12,
+      oscillator: { type: 'sine' }, modulation: { type: 'sine' },
+      envelope: { attack: 0.001, decay: 0.5, sustain: 0, release: 0.4 },
+      modulationEnvelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.2 },
     });
-    drumHihat.volume.value = -14;
-    drumHihat.connect(this._inputNode);
+    bell.maxPolyphony = 12;
+    bell.volume.value = -13;
+    bell.connect(this._inputNode);
 
-    // Medium-decay noise for snare/toms and open hat.
-    const drumSnare = new T.NoiseSynth({
-      noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.05 },
-    });
-    drumSnare.volume.value = -10;
-    drumSnare.connect(this._inputNode);
+    // Noise voices, each FILTERED for character (the old kit was flat white
+    // noise — "shh" hats, bodyless snare). Snare = band-passed crack; hats +
+    // cymbal + shaker = high-passed metallic. Decay length separates a closed
+    // tick from an open hat from a long crash.
+    const mkNoise = (decay, release, filterType, freq, q, vol) => {
+      const n = new T.NoiseSynth({
+        noise: { type: 'white' },
+        envelope: { attack: 0.001, decay, sustain: 0, release },
+      });
+      const f = new T.Filter({ type: filterType, frequency: freq, Q: q });
+      n.connect(f); f.connect(this._inputNode);
+      n.volume.value = vol;
+      return { n, f };
+    };
+    const snare     = mkNoise(0.14, 0.05, 'bandpass', 1900, 0.7, -9);
+    const hatClosed = mkNoise(0.03, 0.02, 'highpass', 8000, 1.0, -15);
+    const hatOpen   = mkNoise(0.30, 0.10, 'highpass', 7000, 1.0, -14);
+    const cymbal    = mkNoise(0.80, 0.20, 'highpass', 5000, 0.8, -13);
+    const shaker    = mkNoise(0.05, 0.03, 'highpass', 6000, 1.0, -17);
 
-    // Long-decay noise for cymbals and open hat crashes.
-    const drumCymbal = new T.NoiseSynth({
-      noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.35, sustain: 0, release: 0.1 },
-    });
-    drumCymbal.volume.value = -12;
-    drumCymbal.connect(this._inputNode);
-
-    this._synths = { lead, pad, bass, drumKick, drumHihat, drumSnare, drumCymbal };
+    this._synths = {
+      lead, pad, bass, kick, tomPool, bell,
+      snare: snare.n, hatClosed: hatClosed.n, hatOpen: hatOpen.n,
+      cymbal: cymbal.n, shaker: shaker.n,
+    };
+    // Keep the noise-voice filters referenced so they aren't GC'd.
+    this._drumFilters = [snare.f, hatClosed.f, hatOpen.f, cymbal.f, shaker.f];
     // backward-compat alias used by _playProceduralLoop
     this.synth = lead;
+  }
+
+  // Strictly-increasing time per voice key. The monophonic drum voices
+  // (kick / snare / hats / cymbal / shaker / each tom-pool member) throw if
+  // two hits share a timestamp; nudge a coincident second hit forward 1.5ms
+  // (inaudible) so a dense pattern never violates Tone's constraint.
+  _safe(key, time) {
+    const min = (this._drumLast[key] || 0) + 0.0015;
+    const t = time > min ? time : min;
+    this._drumLast[key] = t;
+    return t;
+  }
+
+  // Route one GM percussion note to its kit voice. Pitched voices (tom pool,
+  // bell) take a note from the GM map; noise voices take only a duration.
+  _triggerDrum(midiNote, time, velocity) {
+    const d = GM_DRUM(midiNote);
+    const s = this._synths;
+    if (!s) return;
+    const vel = Math.max(0.01, Math.min(1, velocity * (d.vel ?? 1)));
+    switch (d.v) {
+      case 'kick':
+        s.kick.triggerAttackRelease('C1', d.dur || '8n', this._safe('kick', time), vel);
+        break;
+      case 'tom': {
+        const i = this._tomRR++ % s.tomPool.length;
+        s.tomPool[i].triggerAttackRelease(d.note, d.dur || '8n', this._safe('tom' + i, time), vel);
+        break;
+      }
+      case 'bell':   // PolySynth — polyphonic, no collision guard needed
+        s.bell.triggerAttackRelease(d.note, d.dur || '8n', time, vel);
+        break;
+      case 'snare':
+        s.snare.triggerAttackRelease(d.dur || '16n', this._safe('snare', time), vel);
+        break;
+      case 'hatClosed':
+        s.hatClosed.triggerAttackRelease(d.dur || '32n', this._safe('hatClosed', time), vel);
+        break;
+      case 'hatOpen':
+        s.hatOpen.triggerAttackRelease(d.dur || '8n', this._safe('hatOpen', time), vel);
+        break;
+      case 'cymbal':
+        s.cymbal.triggerAttackRelease(d.dur || '2n', this._safe('cymbal', time), vel);
+        break;
+      case 'shaker':
+        s.shaker.triggerAttackRelease(d.dur || '32n', this._safe('shaker', time), vel);
+        break;
+    }
   }
 
   // M key entry point. Toggles playback. `hud` is the HUD module (for toast).
@@ -516,20 +644,9 @@ export class MidiPlayer {
 
       const part = new T.Part((time, ev) => {
         switch (category) {
-          case 'drums': {
-            const kind = GM_DRUM_KIND(ev.midi);
-            if (kind === 'kick') {
-              synths.drumKick.triggerAttackRelease('C1', '8n', time, ev.velocity);
-            } else if (kind === 'hihat_closed') {
-              synths.drumHihat.triggerAttackRelease('32n', time, ev.velocity * 0.65);
-            } else if (kind === 'hihat_open' || kind === 'cymbal') {
-              synths.drumCymbal.triggerAttackRelease('8n', time, ev.velocity * 0.85);
-            } else {
-              // snare / toms
-              synths.drumSnare.triggerAttackRelease('16n', time, ev.velocity);
-            }
+          case 'drums':
+            this._triggerDrum(ev.midi, time, ev.velocity);
             break;
-          }
           case 'bass':
             synths.bass.triggerAttackRelease(ev.name, ev.duration, time, ev.velocity);
             break;

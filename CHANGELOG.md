@@ -4,6 +4,23 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-06-04
 
+### Added
+- **Proper GM percussion kit in the MIDI player.** The per-channel rework
+  (2026-06-03) routed drums to a kit, but the kit was thin — kick plus three
+  flat white-noise voices, and *everything* outside kick/snare/hat (toms,
+  congas, bongos, shakers, cowbell, agogô, tambourine, woodblocks, claves…)
+  collapsed into one snare hiss, so a percussion-heavy track came out wrong.
+  Built a real General-MIDI kit ([midiPlayer.js](src/midiPlayer.js)): a
+  pitched-membrane **tom/conga/bongo/timbale** pool (round-robin ×3 so fills
+  don't cut their own tails off), an FM **bell** for cowbell/agogô/triangle/
+  ride + ride bell, **filtered** noise for hats (high-passed tick, not "shh"),
+  snare (band-passed crack), cymbal, and shaker, and woody "toks" for
+  claves/woodblocks. `GM_DRUM` maps the full 35–81 percussion range to
+  per-note pitches; a per-voice time-nudge guard keeps coincident hits from
+  tripping Tone's monophonic "strictly greater" constraint. Verified every GM
+  family fires cleanly (including simultaneous hits) — the individual timbres
+  are tunable by ear from here.
+
 ### Changed
 - **Trip chromatic aberration hits a lot harder.** The shader's RGB-split offset
   constant went 5× (`0.005` → `0.025` in [trip.js](src/trip.js)), so the color
@@ -21,6 +38,25 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   0.75) so a burst can't introduce a discontinuity. Verified by sampling the
   shipped curve: range 0–1.38, smooth (max adjacent step 0.018), 14 peaks across
   the middle half.
+
+### Fixed
+- **Audio could boot effectively silent until you nudged the master slider.**
+  The mute added 2026-06-03 set `masterGain` *itself* to 0, and `masterGain` is
+  the value `_saveVolumes()` persists — so muting and then touching any volume
+  slider wrote `zerble.vol.master = "0"`, which every later boot restored to the
+  0.05 "anti-stuck" floor (inaudible). Mute now lives on a **dedicated
+  downstream node** (`masterGain → muteGain → destination`, mirroring
+  `musicDuckGain`), so `masterGain` always holds the real level and can never be
+  persisted as 0. The restore also now heals a sub-audible saved value (an
+  existing corrupted `"0"`) up to the default instead of the 0.05 floor, so an
+  already-affected browser fixes itself on the next load — no manual clear
+  needed. ([sound.js](src/sound.js))
+- **Mute is session-only now — the game always boots unmuted.** Muting then
+  reloading used to start the game silent while the (lazily-built) backtick
+  checkbox read unchecked, so you had to check-then-uncheck to get sound back.
+  Mute is no longer persisted (any legacy `zerble.muted` flag is cleared on
+  boot), so a reload always comes up with sound and the checkbox always matches
+  reality. ([sound.js](src/sound.js))
 
 ## 2026-06-03
 
@@ -114,9 +150,10 @@ The M-key player was one `PolySynth(FMSynth)` for every track. Now
 - **Nature-bus volume control** (`Sound.get/setNatureVolume`, persisted as
   `zerble.vol.nature`) + a 5th slider in the backtick overlay, alongside
   master/music/sfx/midi.
-- **A real mute.** `Sound.setMuted(true)` (persisted as `zerble.muted`) forces
-  master to 0 and bypasses the ≥0.05 anti-stuck restore clamp, so an
-  intentional full-mute actually sticks across reloads. Backtick mute checkbox.
+- **A real mute.** `Sound.setMuted(true)` silences playback via a dedicated
+  mute node, so you can fully mute past the ≥0.05 anti-stuck restore clamp.
+  Backtick mute checkbox. (Reworked 2026-06-04 — see that day's *Fixed* — to be
+  session-only and to stop it corrupting the saved master volume.)
 - **Output-routing diagnostics.** `Sound.diagnostics()` now reports
   `outputRouting` (channel count, sample rate, and best-effort audio-output
   device labels with a likely-Bluetooth flag) to help chase "iOS is silent —

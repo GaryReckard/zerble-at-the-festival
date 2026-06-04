@@ -14,6 +14,7 @@ import { mulberry32 } from './rng.js';
 
 let ctx = null;
 let masterGain = null;
+let muteGain = null;     // dedicated downstream mute node — toggled 0/1 by setMuted so muting never clobbers the user's saved master level
 let musicBus = null;     // shared bus for stage music sources (so we can balance vs. SFX)
 let musicDuckGain = null; // downstream attenuator — ducks when an external player (MIDI) is active
 let midiGain = null;     // MIDI player output node — connects into masterGain so Master + MIDI sliders both work
@@ -45,7 +46,7 @@ let engineNodes = null;
 let initialized = false;
 let silentUnlockEl = null;   // HTMLAudioElement kept alive to hold the iOS "Playback" audio session
 let silentUnlockUrl = null;  // Blob URL — revoked on tear-down (not currently torn down, but for hygiene)
-let _muted = false;          // global mute state — persisted as zerble.muted
+let _muted = false;          // global mute state — session-only, never persisted (always boots unmuted)
 
 // Diagnostics state — populated by init() so we can surface what unlocked
 // (and what didn't) from window.__game.sound.diagnostics() on the iPhone.
@@ -217,7 +218,13 @@ export const Sound = {
     // Now build the actual mix graph.
     masterGain = ctx.createGain();
     masterGain.gain.value = 0.55;
-    masterGain.connect(ctx.destination);
+    // Dedicated mute node downstream of masterGain (mirrors musicDuckGain).
+    // setMuted toggles THIS 0/1; masterGain always holds the user's real
+    // level, so muting can never persist a 0 into zerble.vol.master.
+    muteGain = ctx.createGain();
+    muteGain.gain.value = 1;
+    masterGain.connect(muteGain);
+    muteGain.connect(ctx.destination);
 
     musicBus = ctx.createGain();
     // Was 1.6 when the music was a wall-of-sound four-loop pattern at boot.
@@ -315,14 +322,18 @@ export const Sound = {
     // that an intentionally-muted player won't notice. Use Sound.setVolume()
     // to explicitly go all the way to zero.
     try {
-      const restore = (key, gain, fallback) => {
+      const restore = (key, gain) => {
         const raw = localStorage.getItem(key);
         if (raw === null) return null;
         const v = parseFloat(raw);
         if (!Number.isFinite(v)) return null;
-        const clamped = v < 0.05 ? 0.05 : v;
-        gain.gain.value = clamped;
-        return { raw, applied: clamped };
+        // A stored value below the audible floor is treated as corruption / an
+        // accidental zero (an earlier mute bug could persist 0 into
+        // zerble.vol.master) — fall back to the node's default rather than
+        // booting effectively silent. Use the mute toggle for real silence.
+        const applied = v < 0.05 ? gain.gain.value : v;
+        gain.gain.value = applied;
+        return { raw, applied };
       };
       _diag.restoredFromLocalStorage.master  = restore('zerble.vol.master',  masterGain);
       _diag.restoredFromLocalStorage.music   = restore('zerble.vol.music',   musicBus);
@@ -339,11 +350,11 @@ export const Sound = {
       // Mute — if previously muted, force masterGain to zero AFTER the clamp
       // restore above (which kept it ≥0.05). The clamp is intentional for
       // normal sessions; mute is an explicit override on top.
-      const mutedRaw = localStorage.getItem('zerble.muted');
-      if (mutedRaw === '1') {
-        _muted = true;
-        masterGain.gain.value = 0;
-      }
+      // Mute is session-only: always boot unmuted, regardless of any stored
+      // flag. A persisted mute that boots the game silent (with an out-of-sync
+      // checkbox) is a worse footgun than just starting with sound. Clear any
+      // legacy value older builds may have left so it can't linger.
+      localStorage.removeItem('zerble.muted');
     } catch (e) { /* localStorage unavailable */ }
 
     engineNodes = createEngine(ctx, sfxBus);
@@ -771,20 +782,12 @@ export const Sound = {
   // Global mute. `setMuted(true)` silences masterGain regardless of its saved
   // level. `setMuted(false)` restores the saved master volume. Persisted so
   // a page reload respects the last mute state.
+  // Session-only mute — deliberately NOT persisted, so the game always boots
+  // with sound. Toggles the dedicated mute node; masterGain keeps the user's
+  // real level, so unmuting restores it for free.
   setMuted(on) {
     _muted = !!on;
-    try { localStorage.setItem('zerble.muted', _muted ? '1' : '0'); } catch (e) {}
-    if (!masterGain) return;
-    if (_muted) {
-      masterGain.gain.value = 0;
-    } else {
-      // Restore from localStorage, falling back to a sensible default.
-      try {
-        const raw = localStorage.getItem('zerble.vol.master');
-        const v = raw !== null ? parseFloat(raw) : 0.55;
-        masterGain.gain.value = Number.isFinite(v) ? Math.max(0.05, v) : 0.55;
-      } catch (e) { masterGain.gain.value = 0.55; }
-    }
+    if (muteGain) muteGain.gain.value = _muted ? 0 : 1;
   },
   isMuted() { return _muted; },
 
