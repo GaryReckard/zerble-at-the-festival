@@ -394,7 +394,7 @@ export const Sound = {
     const drainQueue = () => {
       for (const q of queued) {
         if (q.handle.cancelled) continue;
-        const real = createStageMusic(ctx, musicBus, q.x, q.y, q.z, q.seed, q.style);
+        const real = createStageMusic(ctx, musicBus, q.x, q.y, q.z, q.seed, q.style, q.opts);
         q.handle._adopt(real);
       }
     };
@@ -631,7 +631,7 @@ export const Sound = {
   // ---- Spatial stage music ----
   // `style` picks the synth + pattern personality: 'jam' (main stage),
   // 'brass' (side stage), 'drum' (drum circle). Unknown styles default to jam.
-  attachStageMusic(x, y, z, seed, style = 'jam') {
+  attachStageMusic(x, y, z, seed, style = 'jam', opts = {}) {
     if (!ctx) {
       // Deferred handle — Sound.init will adopt a real music instance into
       // this same object once the AudioContext exists. Position updates that
@@ -676,11 +676,11 @@ export const Sound = {
           if (idx !== -1) _stageHandleRegistry.splice(idx, 1);
         },
       };
-      _pendingStages.push({ x, y, z, seed, style, handle });
+      _pendingStages.push({ x, y, z, seed, style, opts, handle });
       _stageHandleRegistry.push({ handle, x, z });
       return handle;
     }
-    const real = createStageMusic(ctx, musicBus, x, y, z, seed, style);
+    const real = createStageMusic(ctx, musicBus, x, y, z, seed, style, opts);
     _stageHandleRegistry.push({ handle: real, x, z });
     return real;
   },
@@ -833,79 +833,47 @@ export const Sound = {
     return _activeStageSongs.map(s => ({ ...s }));
   },
 
-  // Synth crowd applause at (x, z) → sfxBus. Self-disconnecting.
-  // Big-spectacle loud but distance-attenuated via a temporary PannerNode.
+  // Crowd applause at (x, z) → sfxBus. Distance-attenuated via a temporary
+  // PannerNode. The sound itself is a dense cluster of individual clap events
+  // rendered into one buffer (see buildApplauseBuffer) and played through a
+  // single source — far cheaper than the previous ~25-node bed-and-claps stack,
+  // and it actually sounds like a crowd clapping rather than rain.
   playCrowdCheer(x, z) {
     if (!ctx || !sfxBus) return;
     const now = ctx.currentTime;
-    const cheerPanner = ctx.createPanner();
-    cheerPanner.panningModel = 'HRTF';
-    cheerPanner.distanceModel = 'inverse';
-    cheerPanner.refDistance = 14;
-    cheerPanner.maxDistance = 160;
-    cheerPanner.rolloffFactor = 1.0;
-    if (cheerPanner.positionX) {
-      cheerPanner.positionX.value = x;
-      cheerPanner.positionY.value = 4;
-      cheerPanner.positionZ.value = z;
-    } else if (cheerPanner.setPosition) {
-      cheerPanner.setPosition(x, 4, z);
+    const panner = ctx.createPanner();
+    panner.panningModel = 'HRTF';
+    panner.distanceModel = 'inverse';
+    panner.refDistance = 14;
+    panner.maxDistance = 160;
+    panner.rolloffFactor = 1.0;
+    if (panner.positionX) {
+      panner.positionX.value = x;
+      panner.positionY.value = 4;
+      panner.positionZ.value = z;
+    } else if (panner.setPosition) {
+      panner.setPosition(x, 4, z);
     }
-    cheerPanner.connect(sfxBus);
+    panner.connect(sfxBus);
 
-    // Applause bed: bandpassed white noise with attack + hold + long tail.
-    const apLen = Math.ceil(ctx.sampleRate * 5.5);
-    const apBuf = ctx.createBuffer(1, apLen, ctx.sampleRate);
-    const apData = apBuf.getChannelData(0);
-    for (let i = 0; i < apLen; i++) apData[i] = Math.random() * 2 - 1;
-    const apSrc = ctx.createBufferSource(); apSrc.buffer = apBuf;
-    const apBpf = ctx.createBiquadFilter(); apBpf.type = 'bandpass'; apBpf.frequency.value = 1800; apBpf.Q.value = 0.5;
-    const apGain = ctx.createGain();
-    apGain.gain.setValueAtTime(0.0001, now);
-    apGain.gain.linearRampToValueAtTime(0.55, now + 0.4);
-    apGain.gain.setValueAtTime(0.50, now + 3.2);
-    apGain.gain.exponentialRampToValueAtTime(0.0001, now + 5.4);
-    apSrc.connect(apBpf).connect(apGain).connect(cheerPanner);
-    apSrc.start(now); apSrc.stop(now + 5.5);
+    const dur = 5.2;
+    const src = ctx.createBufferSource();
+    src.buffer = getApplauseBuffer(ctx, dur);
+    const rate = 0.97 + Math.random() * 0.06;   // ±3% so reused buffers vary
+    src.playbackRate.value = rate;
+    const pd = dur / rate;                       // actual playback duration
+    // Buffer already carries the swell→thin loudness arc; the gain node just
+    // adds a click-safe attack and a clean tail-out.
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.9, now + 0.12);
+    gain.gain.setValueAtTime(0.9, now + pd - 0.2);
+    gain.gain.linearRampToValueAtTime(0.0001, now + pd);
+    src.connect(gain).connect(panner);
+    src.start(now);
+    src.stop(now + pd);
 
-    // Rapid clap transients over the first ~2s.
-    const clapLen = Math.ceil(ctx.sampleRate * 0.06);
-    const clapBuf = ctx.createBuffer(1, clapLen, ctx.sampleRate);
-    const clapData = clapBuf.getChannelData(0);
-    for (let i = 0; i < clapLen; i++) clapData[i] = Math.random() * 2 - 1;
-    const clapBpf = ctx.createBiquadFilter(); clapBpf.type = 'bandpass'; clapBpf.frequency.value = 2400; clapBpf.Q.value = 1.8;
-    for (let k = 0; k < 22; k++) {
-      const ct = now + k * 0.09 + (Math.random() * 0.04 - 0.02);
-      if (ct > now + 5.0) break;
-      const cSrc = ctx.createBufferSource(); cSrc.buffer = clapBuf;
-      const cGain = ctx.createGain();
-      cGain.gain.setValueAtTime(0.0001, ct);
-      cGain.gain.exponentialRampToValueAtTime(0.35 + Math.random() * 0.20, ct + 0.004);
-      cGain.gain.exponentialRampToValueAtTime(0.0001, ct + 0.06);
-      cSrc.connect(clapBpf).connect(cGain).connect(cheerPanner);
-      cSrc.start(ct); cSrc.stop(ct + 0.08);
-    }
-
-    // 2–3 detuned-saw "wooo" voices with a vowel bandpass sweep.
-    for (let w = 0; w < 2 + Math.floor(Math.random() * 2); w++) {
-      const wDel = 0.1 + w * 0.22 + Math.random() * 0.1;
-      const wOsc = ctx.createOscillator(); wOsc.type = 'sawtooth';
-      const baseW = 300 + Math.random() * 120;
-      wOsc.frequency.value = baseW;
-      const wBpf = ctx.createBiquadFilter(); wBpf.type = 'bandpass'; wBpf.Q.value = 4;
-      wBpf.frequency.setValueAtTime(700, now + wDel);
-      wBpf.frequency.linearRampToValueAtTime(1400, now + wDel + 1.0);
-      wBpf.frequency.exponentialRampToValueAtTime(600, now + wDel + 1.8);
-      const wGain = ctx.createGain();
-      wGain.gain.setValueAtTime(0.0001, now + wDel);
-      wGain.gain.linearRampToValueAtTime(0.22, now + wDel + 0.1);
-      wGain.gain.exponentialRampToValueAtTime(0.0001, now + wDel + 1.9);
-      wOsc.connect(wBpf).connect(wGain).connect(cheerPanner);
-      wOsc.start(now + wDel); wOsc.stop(now + wDel + 2.0);
-    }
-
-    // Disconnect the temporary panner when done.
-    setTimeout(() => { try { cheerPanner.disconnect(); } catch (e) {} }, 5600);
+    setTimeout(() => { try { panner.disconnect(); } catch (e) {} }, pd * 1000 + 300);
   },
 
   // Force all active songform stages into their cheer gap immediately — for
@@ -916,7 +884,137 @@ export const Sound = {
       snap._forceEnd = true;
     }
   },
+
+  // Render one applause buffer and return numeric stats — for verifying the
+  // clap synthesis without ears: peak, the loudness arc in 8 windows, a coarse
+  // transient (clap) count, zero-crossings/sec as a spectral-centroid proxy,
+  // and synthesis time. ZCR ~2–4k/s ⇒ energy centered ~1–2 kHz (clappy); a
+  // bright hiss would read ~8k+. Arc should swell then decay.
+  _debugApplauseStats() {
+    if (!ctx) return { error: 'no ctx' };
+    const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    const dur = 5.2;
+    const buf = buildApplauseBuffer(ctx, dur);
+    const synthMs = t0 ? +((performance.now() - t0).toFixed(1)) : null;
+    const d = buf.getChannelData(0), sr = buf.sampleRate, N = d.length;
+    let peak = 0, zc = 0;
+    for (let i = 0; i < N; i++) {
+      const a = d[i] < 0 ? -d[i] : d[i];
+      if (a > peak) peak = a;
+      if (i && (d[i] >= 0) !== (d[i - 1] >= 0)) zc++;
+    }
+    const W = 8, win = Math.floor(N / W), rmsArc = [];
+    for (let w = 0; w < W; w++) {
+      let s = 0;
+      for (let i = w * win; i < (w + 1) * win; i++) s += d[i] * d[i];
+      rmsArc.push(+Math.sqrt(s / win).toFixed(4));
+    }
+    let transientCount = 0, above = false;
+    const th = peak * 0.18;
+    for (let i = 0; i < N; i++) {
+      const a = d[i] < 0 ? -d[i] : d[i];
+      if (!above && a > th) { transientCount++; above = true; }
+      else if (above && a < th * 0.4) above = false;
+    }
+    return { durationS: dur, sampleRate: sr, peak: +peak.toFixed(3), synthMs,
+             zeroCrossPerSec: Math.round(zc / dur), transientCount, rmsArc };
+  },
 };
+
+// ---------- Applause synthesis ----------
+
+// Real applause is a Poisson process of discrete claps, not a wash of noise.
+// Each clap is a short burst of exponentially-decaying noise colored by a broad
+// resonance (~0.9–2.4 kHz — the spectral range of palm/finger claps per Repp
+// 1987); a sizeable crowd is hundreds of these superimposed, sparse at first and
+// blurring toward a roar as more people join in. The previous implementation
+// used one continuous band-passed noise buffer, which reads as rain/static —
+// it's the transient density that makes it sound like clapping. We render the
+// whole cluster into a single buffer so playback is one source node regardless
+// of clap count. Approach follows the clap/applause synthesis literature
+// (Peltola/Välimäki; Lee & Reiss, "Real-Time Sound Synthesis of Audience
+// Applause", AES).
+function buildApplauseBuffer(ctx, dur = 5.2) {
+  const sr = ctx.sampleRate;
+  const N = Math.ceil(sr * dur);
+  const buf = ctx.createBuffer(1, N, sr);
+  const data = buf.getChannelData(0);
+
+  // Clap-density arc (0..1): quick swell as the crowd catches on, a sustain,
+  // then a thinning tail as it dies down. Drives both clap rate and the roar.
+  const arc = (t) => {
+    const swell = Math.min(1, t / 0.3);
+    const fade = t < 2.4 ? 1 : Math.max(0, 1 - (t - 2.4) / 2.8);
+    return swell * fade;
+  };
+  const peakRate = 80;                       // claps/sec at the height of the crowd
+  const rateAt = (t) => 5 + peakRate * arc(t);
+
+  // Poisson onsets (exponential inter-arrival gaps). Each clap = white noise
+  // through a 2-pole RBJ bandpass (broad Q so it stays noisy, not pitched) with
+  // an exponential-decay envelope. ~10% are louder "standout" claps that poke
+  // through the texture the way nearby claps do in a real crowd.
+  let t = 0;
+  while (t < dur) {
+    t += -Math.log(1 - Math.random()) / rateAt(t);
+    if (t >= dur) break;
+    const start = Math.floor(t * sr);
+    const fc = 700 + Math.random() * 1300;              // 0.7–2.0 kHz center
+    const Q = 1.0 + Math.random() * 1.6;
+    const decay = 0.012 + Math.random() * 0.026;        // 12–38 ms
+    const amp = (0.45 + Math.random() * 0.5) * (Math.random() < 0.1 ? 1.7 : 1.0);
+    const w0 = 2 * Math.PI * fc / sr, cw = Math.cos(w0), alpha = Math.sin(w0) / (2 * Q);
+    const a0 = 1 + alpha, b0 = alpha / a0, b2 = -alpha / a0, a1 = -2 * cw / a0, a2 = (1 - alpha) / a0;
+    const decaySamp = decay * sr;
+    const len = Math.min(Math.floor(decaySamp * 4), N - start);
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < len; i++) {
+      const xn = Math.random() * 2 - 1;
+      const yn = b0 * xn + b2 * x2 - a1 * y1 - a2 * y2;
+      x2 = x1; x1 = xn; y2 = y1; y1 = yn;
+      data[start + i] += amp * yn * Math.exp(-i / decaySamp);
+    }
+  }
+
+  // Faint lowpassed roar underneath — the blur of distant claps. Lowpassed so
+  // it's a soft body rather than a bright hiss, and scaled by the same arc.
+  const roarA = 1 - Math.exp(-2 * Math.PI * 850 / sr);
+  let roar = 0;
+  for (let i = 0; i < N; i++) {
+    roar += roarA * ((Math.random() * 2 - 1) - roar);
+    data[i] += roar * 0.35 * arc(i / sr);
+  }
+
+  // Roll the harsh top off (one-pole lowpass ~2.8 kHz, in place) so the cluster
+  // reads as a warm crowd centered ~1.5–2 kHz rather than a bright hiss, then
+  // normalize to a headroom-safe peak (final level is set by the playback gain).
+  const lpA = 1 - Math.exp(-2 * Math.PI * 2800 / sr);
+  let lp = 0, peak = 0;
+  for (let i = 0; i < N; i++) {
+    lp += lpA * (data[i] - lp);
+    data[i] = lp;
+    const a = lp < 0 ? -lp : lp;
+    if (a > peak) peak = a;
+  }
+  if (peak > 0) { const g = 0.7 / peak; for (let i = 0; i < N; i++) data[i] *= g; }
+
+  return buf;
+}
+
+// Lazily-grown pool of pre-rendered applause buffers. Rendering the cluster is
+// ~30 ms of JS; building a few once and reusing them (with slight playback-rate
+// variety per cheer) keeps song-ends from hitching on lower-end devices, while
+// staying varied enough — applause fires at most every minute or two per stage.
+const _applausePool = [];
+const APPLAUSE_POOL_MAX = 3;
+function getApplauseBuffer(ctx, dur) {
+  if (_applausePool.length < APPLAUSE_POOL_MAX) {
+    const b = buildApplauseBuffer(ctx, dur);
+    _applausePool.push(b);
+    return b;
+  }
+  return _applausePool[(Math.random() * _applausePool.length) | 0];
+}
 
 // ---------- Engine ----------
 
@@ -1368,7 +1466,7 @@ function ringOnce(ctx, dest, t, carrierHz, strikeGain, releaseGain) {
 //
 // Each style returns the same handle shape ({ panner, stop }) so callers don't
 // care which engine is running underneath.
-function createStageMusic(ctx, dest, x, y, z, seed, style = 'jam') {
+function createStageMusic(ctx, dest, x, y, z, seed, style = 'jam', opts = {}) {
   // Per-stage master GainNode for cross-fade. Inserted between music and
   // panner so moving between stages fades them independently without touching
   // the user's music-bus volume level. Starts at full gain (1.0); main.js
@@ -1386,25 +1484,31 @@ function createStageMusic(ctx, dest, x, y, z, seed, style = 'jam') {
   const curX = () => panner.positionX ? panner.positionX.value : x;
   const curZ = () => panner.positionZ ? panner.positionZ.value : z;
 
+  // Per-instance genre overrides merged onto the shared genre def. onSongEnd is
+  // always present; introFinaleSeconds is only set for the pinned origin stage
+  // so its first song opens at the closing section (see runStageSong.newSong).
+  const extra = { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) };
+  if (opts.introFinaleSeconds) extra.introFinaleSeconds = opts.introFinaleSeconds;
+
   let handle;
   switch (style) {
     case 'brass': {
-      const def = Object.assign({}, BRASS, { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) });
+      const def = Object.assign({}, BRASS, extra);
       handle = runStageSong(ctx, panner, seed, def);
       break;
     }
     case 'dance': {
-      const def = Object.assign({}, DANCE, { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) });
+      const def = Object.assign({}, DANCE, extra);
       handle = runStageSong(ctx, panner, seed, def);
       break;
     }
     case 'world': {
-      const def = Object.assign({}, WORLD, { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) });
+      const def = Object.assign({}, WORLD, extra);
       handle = runStageSong(ctx, panner, seed, def);
       break;
     }
     case 'dub': {
-      const def = Object.assign({}, DUB, { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) });
+      const def = Object.assign({}, DUB, extra);
       handle = runStageSong(ctx, panner, seed, def);
       break;
     }
@@ -1413,7 +1517,7 @@ function createStageMusic(ctx, dest, x, y, z, seed, style = 'jam') {
     case 'second_line': handle = secondLineStage(ctx, panner, seed); break;
     case 'jam':
     default: {
-      const def = Object.assign({}, JAM, { onSongEnd: () => _emitSongEnd(curX(), curZ(), style) });
+      const def = Object.assign({}, JAM, extra);
       handle = runStageSong(ctx, panner, seed, def);
       break;
     }
@@ -1595,11 +1699,33 @@ function runStageSong(ctx, panner, seed, genreDef) {
     barInSection = 0;
     sectionIdx = 0;
     phase = 'playing';
+    // Restart cleanly on the next tick. The cheer gap freezes nextBeatTime, so
+    // without this a post-gap song would "catch up" the frozen beats in one
+    // scheduler tick and start several beats into its intro.
+    nextBeatTime = ctx.currentTime + 0.15;
+
+    // Intro finale: the pinned origin main stage starts its FIRST song already
+    // at its closing section, so a player who just spawned hears the band wrap
+    // up and the crowd applaud within ~introFinaleSeconds — instead of waiting
+    // out a full ~2-minute song before any applause ever happens. Later songs
+    // play full length. Snaps to a section downbeat so it begins cleanly.
+    if (genreDef.introFinaleSeconds && songIdx === 0) {
+      const beatDur = 60 / tempo;
+      const target = totalBeats - Math.round(genreDef.introFinaleSeconds / beatDur);
+      let acc = 0, si = 0;
+      while (si < sections.length - 1 && acc + sections[si].bars * 4 <= target) {
+        acc += sections[si].bars * 4;
+        si++;
+      }
+      sectionIdx = si;
+      beatInSong = acc;
+    }
 
     snap.tempo = tempo;
     snap.keyShift = +keyShift.toFixed(4);
     snap.tonicHz = +tonicHz.toFixed(2);
     snap.totalBeats = totalBeats;
+    snap.beatInSong = beatInSong;
     snap.phase = 'playing';
 
     // Build genre voices.
@@ -1611,7 +1737,12 @@ function runStageSong(ctx, panner, seed, genreDef) {
   newSong();
 
   function currentSection() {
-    return song ? song.sections[sectionIdx] || song.sections[song.sections.length - 1] : null;
+    // Return null once we run past the last section — that's the signal the
+    // schedule loop uses to end the song and enter the cheer gap. (A previous
+    // version fell back to the last section here, which made the end branch
+    // dead code: songs never finished and the crowd never applauded.)
+    if (!song) return null;
+    return song.sections[sectionIdx] || null;
   }
 
   function schedule() {
@@ -1625,7 +1756,7 @@ function runStageSong(ctx, panner, seed, genreDef) {
       phase = 'cheerGap';
       snap.phase = 'cheerGap';
       cheerGapEnd = now + 4.5;
-      setTimeout(() => { if (genreDef.onSongEnd) genreDef.onSongEnd(); }, 4300);
+      setTimeout(() => { if (genreDef.onSongEnd) genreDef.onSongEnd(); }, 200);
     }
 
     // In cheerGap: don't schedule notes. When the gap ends, start a new song.
@@ -1645,8 +1776,9 @@ function runStageSong(ctx, panner, seed, genreDef) {
         snap.phase = 'cheerGap';
         const gapDur = 4.5;
         cheerGapEnd = t + gapDur;
-        // onSongEnd fires ~0.2s before the gap ends so crowd reacts as music fades.
-        const delay = Math.max(0, (t - now + gapDur - 0.2) * 1000);
+        // Crowd reacts the instant the song ends: applause + cheer swell ~0.2s
+        // after the last note, then the next song fades in under the tail.
+        const delay = Math.max(0, (t - now + 0.2) * 1000);
         setTimeout(() => {
           if (genreDef.onSongEnd) genreDef.onSongEnd();
         }, delay);

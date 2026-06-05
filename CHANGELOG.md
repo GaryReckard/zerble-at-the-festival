@@ -5,6 +5,15 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-04
 
 ### Added
+- **The intro now opens on applause.** The pinned origin (0,0) main stage
+  starts its very first song already at its closing **outro**, so a
+  freshly-spawned player hears the band wrap up over ~10s and the crowd erupt —
+  the festival's first applause moment, right in the intro, instead of waiting
+  out a full ~2-minute song before any applause ever happens. Threaded as an
+  `introFinaleSeconds` option through `attachStageMusic → createStageMusic →
+  runStageSong`; only the origin stage sets it (it snaps to the final section's
+  downbeat so it opens cleanly), every other stage plays full songs from the
+  top. ([chunks.js](src/chunks.js), [sound.js](src/sound.js))
 - **Proper GM percussion kit in the MIDI player.** The per-channel rework
   (2026-06-03) routed drums to a kit, but the kit was thin — kick plus three
   flat white-noise voices, and *everything* outside kick/snare/hat (toms,
@@ -22,6 +31,28 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   are tunable by ear from here.
 
 ### Changed
+- **Crowd applause resynthesized — it sounds like a crowd now, not rain.** The
+  old `playCrowdCheer` was dominated by one continuous band-passed white-noise
+  bed (which reads as static/hiss), plus 22 identical clap bursts and a few
+  sawtooth "woo" voices that sounded synthetic. Rebuilt on the model the
+  clap/applause synthesis literature uses (Peltola/Välimäki; Lee & Reiss,
+  "Real-Time Sound Synthesis of Audience Applause", AES): applause is a
+  **Poisson process of hundreds of individual claps**, each a short
+  exponentially-decaying noise burst through a broad resonance (~0.7–2.0 kHz,
+  the spectral range of real claps), rendered into one buffer with a swell→thin
+  density arc and a ~2.8 kHz lowpass so the cluster sits warm (~1.8 kHz
+  centroid) instead of hissing. The sawtooth "woo" voices are gone. Playback is
+  now a **single source node** (down from ~25), and the rendered buffers are
+  pooled (≤3, built lazily) so a song-end never hitches re-synthesizing on
+  lower-end devices. ([sound.js](src/sound.js))
+- **Applause swells the instant a song ends, not ~4 seconds later.** The
+  cheer/applause callback used to fire ~0.2s *before* the 4.5s cheer gap ended,
+  leaving an awkward near-silent gap between the last note and the crowd's
+  reaction. It now fires ~0.2s *after* the final note, so the crowd reacts as
+  the song lands and the applause tail bleeds into the next song's intro (the
+  debug force-end matches). Also reset `nextBeatTime` on each new song so a
+  post-gap restart begins cleanly at beat 0 instead of catching up the frozen
+  gap beats and starting several beats into its intro. ([sound.js](src/sound.js))
 - **MIDI drums rebalanced — the kit no longer drowns the melody.** The new GM
   kit (above) shipped with the kick at −4 dB, *louder* than the bass (−5), lead
   (−8), and pad (−10), so the drums sat on top of everything. Pulled the kick to
@@ -59,6 +90,17 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   to drive the recycle test.
 
 ### Fixed
+- **Stage songs never actually ended, so the crowd never applauded.**
+  `currentSection()` fell back to the last section forever once a song ran past
+  its outro, making the song-end branch dead code: every melodic stage looped
+  its closing section indefinitely, and the "crowd goes wild" applause + cheer
+  (built 2026-06-03) could only ever fire via the debug force-end — which is
+  what the "verified live" note in that entry was unknowingly observing. Songs
+  now end when they run out of sections: the cheer gap opens, the synthesized
+  applause + NPC arms-up cheer fire, and a fresh song fades in a new key.
+  Verified live — the origin stage ends ~10s in (its intro finale), 13 audience
+  NPCs flip into the cheer state, and the song restarts at songIdx 1.
+  ([sound.js](src/sound.js))
 - **Audio could boot effectively silent until you nudged the master slider.**
   The mute added 2026-06-03 set `masterGain` *itself* to 0, and `masterGain` is
   the value `_saveVolumes()` persists — so muting and then touching any volume

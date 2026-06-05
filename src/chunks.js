@@ -1476,7 +1476,11 @@ function buildStage(ctx, x, z, isMain) {
       ? pickStageStyle(styleSeed, ['jam', 'jam', 'dance', 'world', 'dub'])
       : pickStageStyle(styleSeed, ['brass', 'brass', 'dance', 'world', 'dub']);
   }
-  const handle = Sound.attachStageMusic(x, 4, z, musicSeed, stageStyle);
+  // The origin (0,0) main stage opens its first song at the closing section so
+  // a freshly-spawned player hears the band finish and the crowd applaud within
+  // ~10s — the festival's first applause moment. Other stages play full songs.
+  const handle = Sound.attachStageMusic(x, 4, z, musicSeed, stageStyle,
+    pinOrigin ? { introFinaleSeconds: 10 } : undefined);
   if (handle) stageMusic.push({ handle, chunkKey: ctx.key });
 
   // ----- The band on stage -----
