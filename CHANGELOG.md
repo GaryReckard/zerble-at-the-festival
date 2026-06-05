@@ -27,6 +27,13 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   COMPLETE src + models set so transitive imports get busted too and the lists
   can't quietly go stale again. (Sandbox's `'three'` still points straight at
   unpkg — no threeShim — by design.)
+- **Favicons + web manifest now load on the live deploy.** The favicon /
+  apple-touch-icon / manifest `<link href>`s in [index.html](index.html) and the
+  icon `src`s in [site.webmanifest](site.webmanifest) were root-absolute
+  (`/favicon.svg`, `/site.webmanifest`, `/web-app-manifest-*.png`) — on the
+  GitHub Pages project subpath (`/zerble-at-the-festival/`) those resolve to the
+  org root and 404 even though the files ship in the repo. Switched to
+  document-relative paths so they resolve under the project path.
 
 ## 2026-06-04
 
