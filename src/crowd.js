@@ -25,7 +25,7 @@ import { registry } from './registry.js';
 import { SpatialGrid } from './spatialGrid.js';
 import { PERF } from './perf.js';
 import { CHUNK_SIZE } from './chunks.js';
-import { STINK_DUR } from './models/portaPotty.js';
+import { STINK_DUR, POTTY_DOOR_STAND, POTTY_SEAT_BACK, POTTY_SEAT_Y } from './models/portaPotty.js';
 
 const MAX_NPCS = PERF.crowdMax;
 
@@ -87,9 +87,8 @@ const ARRIVE_RADIUS = 1.5;
 // the nearest unit. Tuned LOW so it reads as the occasional realistic detour,
 // not a stampede — at this rate you'll see one or two of a crowd peel off over
 // a minute. The search radius is generous (a potty a chunk over still counts).
-const POTTY_URGE_RATE = 0.004;       // per-second chance from idle (kept low — ~a few % of the crowd in a potty trip at any time)
+const POTTY_URGE_RATE = 0.0025;      // per-second chance from idle (kept low — ~a couple % of the crowd in a potty trip at any time)
 const POTTY_SEARCH_R2 = 90 * 90;     // only consider units within 90m
-const POTTY_STAND_DIST = 1.35;       // where the NPC waits at the door
 const POTTY_USE_MIN = 6;             // seconds spent inside
 const POTTY_USE_MAX = 13;
 const POTTY_LOCK_CHANCE = 0.7;       // odds the occupant locks the door
@@ -1189,10 +1188,16 @@ export class Crowd {
     // Seated riders (bench / driver / roof) sit with their butt on the seat;
     // running-board riders stand. Computed here so it drives both the lift and
     // the leg bend below.
-    const seated = npc.state === 'riding' && npc.seatSlot &&
-      (npc.seatSlot.kind === 'bench' || npc.seatSlot.kind === 'driver_seat' || npc.seatSlot.kind === 'roof');
+    const seated = (npc.state === 'riding' && npc.seatSlot &&
+      (npc.seatSlot.kind === 'bench' || npc.seatSlot.kind === 'driver_seat' || npc.seatSlot.kind === 'roof'))
+      || npc.pottySitting;   // caught sitting on the potty — same forward leg bend
     let feetY;
-    if (npc.state === 'riding' && npc.seatY != null) {
+    if (npc.pottySitting && npc.seatY != null) {
+      // Butt on the toilet seat; bent legs hang forward. seatY is the seat-top
+      // height; drop the feet ~0.62 so the hip (bend pivot) lands on the seat.
+      // No cheer-hop — they're seated.
+      feetY = npc.seatY - 0.62 + bobY;
+    } else if (npc.state === 'riding' && npc.seatY != null) {
       // Seated: butt rests on top of the seat cushion (the torso bottom sits ≈
       // at the cushion surface so the seat doesn't cut through the belly); the
       // bent legs hang forward below. Standing running-board riders stay low.
@@ -1558,6 +1563,8 @@ export class Crowd {
     npc.pottyWait = 0;
     npc.useTimer = 0;
     npc.pottyPeeked = 0;
+    npc.pottySitting = false;
+    npc.seatY = undefined;
   }
 
   // Give up the whole errand and return to ambient wandering.
@@ -1580,8 +1587,8 @@ export class Crowd {
     const p = e.potty;
 
     // Walk to the door stand point.
-    const standX = e.position.x + p.outX * POTTY_STAND_DIST;
-    const standZ = e.position.z + p.outZ * POTTY_STAND_DIST;
+    const standX = e.position.x + p.outX * POTTY_DOOR_STAND;
+    const standZ = e.position.z + p.outZ * POTTY_DOOR_STAND;
     const tdx = standX - npc.pos.x;
     const tdz = standZ - npc.pos.z;
     const td = Math.hypot(tdx, tdz);
@@ -1682,15 +1689,24 @@ export class Crowd {
     const e = npc.pottyEntry;
     const p = e.potty;
 
-    // Someone yanked the (unlocked) door open — pop into the doorway, startled,
-    // for a beat, then duck back inside and carry on.
+    // Someone yanked the (unlocked) door open — caught sitting on the toilet,
+    // startled (arms up), facing the intruder, for a beat. Then they recover and
+    // duck back to invisible-inside and carry on.
     if (npc.pottyPeeked > 0) {
       npc.pottyPeeked -= dt;
+      npc.pottySitting = true;
       npc.cheerTimer = Math.max(0, npc.pottyPeeked);   // arms-up "EEP!" pose
-      npc.pos.x = e.position.x + p.outX * 0.25;
-      npc.pos.z = e.position.z + p.outZ * 0.25;
-      npc.yaw = Math.atan2(-p.outX, -p.outZ);          // face the intruder
-      if (npc.pottyPeeked <= 0) { npc.cheerTimer = 0; npc.pos.x = e.position.x; npc.pos.z = e.position.z; }
+      npc.seatY = POTTY_SEAT_Y;
+      npc.pos.x = e.position.x - p.outX * POTTY_SEAT_BACK;  // on the toilet (back of unit)
+      npc.pos.z = e.position.z - p.outZ * POTTY_SEAT_BACK;
+      npc.yaw = Math.atan2(-p.outX, -p.outZ);          // face the door/intruder
+      if (npc.pottyPeeked <= 0) {
+        npc.cheerTimer = 0;
+        npc.pottySitting = false;
+        npc.seatY = undefined;
+        npc.pos.x = e.position.x;
+        npc.pos.z = e.position.z;
+      }
       this._writeMatrices(npc);
       return;
     }
@@ -1719,8 +1735,8 @@ export class Crowd {
     if (npc.exitPhase === 0) {
       npc.exitPhase = 1;
       // Step out to the stand point, free the unit, puff the stink, walk off.
-      npc.pos.x = e.position.x + p.outX * (POTTY_STAND_DIST * 0.6);
-      npc.pos.z = e.position.z + p.outZ * (POTTY_STAND_DIST * 0.6);
+      npc.pos.x = e.position.x + p.outX * (POTTY_DOOR_STAND * 0.55);
+      npc.pos.z = e.position.z + p.outZ * (POTTY_DOOR_STAND * 0.55);
       npc.yaw = Math.atan2(-p.outX, -p.outZ);   // face outward (away)
       p.occupied = false;
       p.occupantId = null;
@@ -1806,6 +1822,8 @@ export class Crowd {
       occ.pottyTried = null;
       occ.useTimer = 0;
       occ.pottyPeeked = 0;
+      occ.pottySitting = false;
+      occ.seatY = undefined;
       occ.state = 'fleeing';
       occ.stateTimer = 3;
       occ.fleeJitter = undefined;

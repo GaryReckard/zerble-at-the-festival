@@ -28,7 +28,7 @@ import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
 import { buildBubbleVendor } from './models/bubbleVendor.js';
 import { buildSugarShack, SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH, sugarShackCooks } from './models/sugarShack.js';
-import { buildPortaPotty, createPottyState } from './models/portaPotty.js';
+import { buildPortaPotty, createPottyState, POTTY_SPACING, POTTY_FOOTPRINT, POTTY_COLLIDER_R } from './models/portaPotty.js';
 import { buildHammock as buildHammockModel } from './models/hammock.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
@@ -1109,18 +1109,19 @@ function scatterBubbleJugs(ctx, inWater) {
 //
 // Per-theme: how likely a chunk gets a bank, and the {size: weight} mix. Themes
 // not listed get none.
+// Chances kept on the low side so a bank is a "there's the toilets" moment, not
+// a fixture of every chunk. Sizes are the {group-size: weight} mix.
 const POTTY_THEME = {
-  main_stage:   { chance: 1.00, sizes: [[5, 0.6], [2, 0.4]] },
-  side_stage:   { chance: 0.70, sizes: [[2, 0.5], [5, 0.3], [1, 0.2]] },
-  tent_stage:   { chance: 0.80, sizes: [[2, 0.5], [5, 0.4], [1, 0.1]] },
-  food_plaza:   { chance: 0.85, sizes: [[2, 0.45], [5, 0.35], [1, 0.2]] },
-  vendor_row:   { chance: 0.55, sizes: [[2, 0.6], [1, 0.3], [5, 0.1]] },
-  drum_circle:  { chance: 0.50, sizes: [[1, 0.5], [2, 0.5]] },
-  camp_village: { chance: 0.90, sizes: [[5, 0.5], [2, 0.4], [1, 0.1]] },
-  grove:        { chance: 0.18, sizes: [[1, 0.8], [2, 0.2]] },
-  open_lawn:    { chance: 0.30, sizes: [[1, 0.7], [2, 0.3]] },
+  main_stage:   { chance: 0.80, sizes: [[5, 0.6], [2, 0.4]] },
+  side_stage:   { chance: 0.45, sizes: [[2, 0.5], [5, 0.3], [1, 0.2]] },
+  tent_stage:   { chance: 0.55, sizes: [[2, 0.5], [5, 0.4], [1, 0.1]] },
+  food_plaza:   { chance: 0.60, sizes: [[2, 0.45], [5, 0.35], [1, 0.2]] },
+  vendor_row:   { chance: 0.35, sizes: [[2, 0.6], [1, 0.3], [5, 0.1]] },
+  drum_circle:  { chance: 0.30, sizes: [[1, 0.5], [2, 0.5]] },
+  camp_village: { chance: 0.70, sizes: [[5, 0.5], [2, 0.4], [1, 0.1]] },
+  grove:        { chance: 0.10, sizes: [[1, 0.8], [2, 0.2]] },
+  open_lawn:    { chance: 0.18, sizes: [[1, 0.7], [2, 0.3]] },
 };
-const POTTY_SPACING = 1.25;   // unit-to-unit spacing in a bank
 
 function pickPottyCount(prng, sizes) {
   const total = sizes.reduce((s, e) => s + e[1], 0);
@@ -1182,7 +1183,7 @@ function pottyRowClear(bx, bz, yaw, count) {
   for (let i = 0; i < count; i++) {
     const off = (i - (count - 1) / 2) * POTTY_SPACING;
     const x = bx + rx * off, z = bz + rz * off;
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 1.6)) return false;
+    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.0)) return false;
     if (isPointInLake(x, z)) return false;
   }
   return true;
@@ -1208,7 +1209,7 @@ function buildPottyBank(ctx, prng, bx, bz, yaw, count) {
       footprint: built.footprint,
       // Hard collider — a solid plastic box. Light damage (it's not a stage),
       // but it bonks. main.js reads `.potty` on the entry for the occupied gag.
-      collider: { radius: 0.85, damage: 4 },
+      collider: { radius: POTTY_COLLIDER_R, damage: 4 },
       chunkKey: ctx.key,
       potty,
     });

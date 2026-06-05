@@ -30,10 +30,13 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 - **Porta-potties, with a whole little life of their own.** New model
   ([portaPotty.js](src/models/portaPotty.js)): a festival-blue / blue-grey unit
-  with a light-grey domed roof, light corner posts, a front vent, and a door on
-  a real hinge. Blue body colors vary slightly per unit so a row reads with
-  variety. The door swings open on a pivot; a vacant/occupied indicator on the
-  door reads green when free, red when in use.
+  (~2× a person, so it reads as a real structure) with a light-grey domed roof, a
+  side vent, and a door on a real hinge. The body is a **hollow shell** (merged to
+  one draw call) with a real doorway opening, so when the door swings open you
+  **see inside** — blue walls, a grey floor, and a molded toilet with a dark seat
+  (interior only renders while the door's open, so closed units cost nothing).
+  Blue body colors vary slightly per unit so a row reads with variety. A
+  vacant/occupied indicator on the door reads green when free, red when in use.
 - **They spawn where it makes sense.** [chunks.js](src/chunks.js)
   `scatterPortaPotties` drops banks of **1, 2, or 5** near a chunk's gathering
   spot — stages, food plazas, drum circles, vendor rows, camp villages — but
@@ -51,15 +54,17 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   get the urge and head for the nearest unit. They walk to the door, the door
   opens, they step in, the door closes (occupied + a subtle in-use wobble +
   occasional comedic poop noises from within), then after 6–13s the door opens,
-  a puff of **green stink lines** rises, and they walk off. Every state has a
+  a puff of **thin squiggly green stink lines** rises, and they walk off. Every state has a
   give-up timeout and releases its unit on abort / despawn / chunk-unload, so a
   unit can never get stuck phantom-"occupied."
-- **The unlocked-door gag.** When an NPC reaches an occupied unit, there's a
-  chance the occupant didn't lock it — the new arrival yanks the door open, both
-  jump back arms-up ("EEP!"), the door slams, the occupant scrambles to lock it,
-  and the startled NPC trundles off to try the next-closest unit. Locked units
-  just get a brief wait, then the NPC moves on.
-- **Faintly lit at night, cheaply.** The vent + a small interior panel use an
+- **The unlocked-door gag — now you see the victim.** When an NPC reaches an
+  occupied unit, there's a chance the occupant didn't lock it — the new arrival
+  yanks the door open and you see the **startled occupant sitting right there on
+  the toilet** (reusing the seated pose, arms thrown up). Both jump back, the door
+  slams, the occupant scrambles to lock it, and the startled NPC trundles off to
+  try the next-closest unit. Locked units just get a brief wait, then the NPC
+  moves on. (Ramming an occupied unit with the cart triggers the same eject.)
+- **Faintly lit at night, cheaply.** The side vent + an interior wall panel use an
   emissive material (no `Light` object) that ramps with `nightness²` — dark by
   day, a soft "candle/LED inside" glow after dusk, a touch brighter when
   occupied. Bloom catches it.
