@@ -5,6 +5,15 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-04
 
 ### Added
+- **A couple of bubble-juice jugs now spawn near where you start.** Two
+  guaranteed jugs drop at seeded-random spots in a 25–60m ring around the spawn
+  point (0,0,65) — a different spot every load (fixed under `?seed=`) — so a new
+  player meets the refill pickup early and doesn't run dry before stumbling on a
+  random one. The existing rare per-chunk scatter (~1 in 9 chunks) is unchanged
+  and still runs everywhere, including near spawn (so you'll sometimes see a
+  third nearby). Targets are computed once from the session seed and dropped as
+  their chunk loads (all within the boot-load ring); placement uses no chunk RNG,
+  so existing world layouts are untouched. ([chunks.js](src/chunks.js))
 - **Crowd "woo!" cheers over the applause.** A few voiced shouts now layer on
   top of the clap cluster at each song-end — two slightly-detuned sawtooths
   shaped by parallel vowel formant bandpasses (an /oo/) with a rise-then-sag

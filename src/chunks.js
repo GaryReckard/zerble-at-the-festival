@@ -48,6 +48,42 @@ const stageMusic = [];
 // Fresh salt — must not match any existing worldHash salt in this file so
 // style selection is independent of all other chunk-rng streams.
 const STYLE_SALT = 0xC4FE7B2A | 0;
+// Salt for the seeded near-spawn jug positions (distinct from STYLE_SALT).
+const SPAWN_JUG_SALT = 0x5A17B0BB | 0;
+
+// World-spawn point (zerble.position in main.js). The guaranteed intro jugs ring
+// around here.
+const SPAWN_POINT = { x: 0, z: 65 };
+
+// A couple of guaranteed bubble-juice jugs near world-spawn, so a new player
+// meets the pickup early and doesn't run dry before stumbling on a random one.
+// Positions are session-seeded — a different spot every load, fixed under
+// ?seed= — within a 25–60m ring around spawn (random direction, not parked in
+// front of the cart). Dropped when their containing chunk first generates; with
+// a 25–60m radius those all sit inside the boot-load ring, so they're present
+// from the start. The rare per-chunk scatter (scatterBubbleJugs) still runs
+// everywhere on top of these.
+function computeSpawnJugTargets() {
+  const u = (a, b) => worldHash(a, b, SPAWN_JUG_SALT) / 4294967296;
+  const jugs = [];
+  for (let i = 0; i < 2; i++) {
+    const ang = u(8101 + i, 3) * Math.PI * 2;
+    const rad = 25 + u(4099, 19 + i) * 35;           // 25–60 m
+    jugs.push({
+      x: SPAWN_POINT.x + Math.cos(ang) * rad,
+      z: SPAWN_POINT.z + Math.sin(ang) * rad,
+      placed: false,
+    });
+  }
+  // Keep the two from clumping: if they land close, swing the second around.
+  const dx = jugs[1].x - jugs[0].x, dz = jugs[1].z - jugs[0].z;
+  if (dx * dx + dz * dz < 20 * 20) {
+    const ang = Math.atan2(jugs[1].z - SPAWN_POINT.z, jugs[1].x - SPAWN_POINT.x) + 2.3;
+    jugs[1].x = SPAWN_POINT.x + Math.cos(ang) * 45;
+    jugs[1].z = SPAWN_POINT.z + Math.sin(ang) * 45;
+  }
+  return jugs;
+}
 
 // Picks a music style from `palette` using the chunk's worldHash seed.
 // A fresh salt keeps this stream isolated from theme, prop, and drum seeds.
@@ -226,6 +262,10 @@ export class ChunkManager {
     this.scene = scene;
     this.crowd = crowd;
     this.loaded = new Map(); // key -> { group, cx, cz, theme }
+    // Seeded near-spawn intro jugs (see computeSpawnJugTargets). Computed once
+    // here so they're stable for the session; SESSION_SEED is already set by
+    // the time the world (and this manager) is built.
+    this._spawnJugs = computeSpawnJugTargets();
   }
 
   update(playerPos) {
@@ -412,8 +452,43 @@ export class ChunkManager {
       scatterBubbleJugs(ctx, inWater);
     }
 
+    // Guaranteed near-spawn intro jugs — independent of theme/forest; drop here
+    // if a seeded target lands in this chunk.
+    this._placeSpawnJugs(ctx);
+
     this.scene.add(group);
     this.loaded.set(key, { group, cx, cz, theme });
+  }
+
+  // Drop any guaranteed near-spawn jug whose seeded target lands in this chunk.
+  // Uses no ctx.rng so it can't shift the chunk's deterministic prop layout
+  // (footgun #4); nudges off buildings/water with fixed offsets if needed.
+  _placeSpawnJugs(ctx) {
+    const half = CHUNK_SIZE / 2;
+    for (const j of this._spawnJugs) {
+      if (j.placed) continue;
+      if (Math.abs(j.x - ctx.cxWorld) > half || Math.abs(j.z - ctx.czWorld) > half) continue;
+      j.placed = true;   // claimed by this chunk — its target can't fall in another
+      const free = (px, pz) => !registry.closestBuilding(new THREE.Vector3(px, 0, pz), 3) && !isPointInLake(px, pz);
+      let x = j.x, z = j.z;
+      if (!free(x, z)) {
+        const spot = [[5, 0], [-5, 0], [0, 5], [0, -5], [7, 7], [-7, -7], [7, -7], [-7, 7]]
+          .map(([ox, oz]) => [j.x + ox, j.z + oz])
+          .find(([px, pz]) => free(px, pz));
+        if (!spot) continue;   // no clear spot nearby — skip cleanly (rare)
+        x = spot[0]; z = spot[1];
+      }
+      const jug = buildBubbleJug();
+      jug.position.set(x, 0.7, z);
+      ctx.group.add(jug);
+      registry.add({
+        kind: 'bubble_jug',
+        position: new THREE.Vector3(x, 0.7, z),
+        chunkKey: ctx.key,
+        obj: jug,
+        juice: 1.0,
+      });
+    }
   }
 }
 
