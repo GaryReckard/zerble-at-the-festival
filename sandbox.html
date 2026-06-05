@@ -179,7 +179,7 @@
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid'];
             const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
-                'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures'];
+                'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty'];
             const base = new URL('./src/', document.baseURI).href;
             const imports = {
                 'three': 'https://unpkg.com/three@0.160.0/build/three.module.js',
@@ -224,6 +224,8 @@
             <option value="lake_with_beach">Lake (big + sand beach)</option>
             <option value="picnic_blanket">Picnic blanket</option>
             <option value="lamppost_pair">Lamppost pair + festoon string lights</option>
+            <option value="porta_potty">Porta-potty (demo: door + occupied + stink cycle)</option>
+            <option value="porta_potty_bank">Porta-potty bank (5 — staggered use cycle)</option>
         </optgroup>
         <optgroup label="People">
             <option value="cheer_demo">Crowd cheer demo (jump + arms-up)</option>
@@ -518,6 +520,7 @@
     import {buildBird, buildBirdFlock, BIRD_KEYS, BIRD_SPECIES} from './src/models/bird.js';
     import {buildBubbleJug} from './src/models/bubbleJug.js';
     import {buildBubbleVendor} from './src/models/bubbleVendor.js';
+    import {buildPortaPotty, createPottyState, updatePortaPotty, STINK_DUR} from './src/models/portaPotty.js';
     import {buildLeafDrumCircle, updateLeafDrumCircle} from './src/models/leafDrumCircle.js';
     import {
         buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
@@ -822,6 +825,7 @@
         forest_tree_birch: 'forest_tree', forest_tree_random: 'forest_tree',
         lamppost_pair: 'lamppost',
         chunk_drum_circle: 'firepit',
+        porta_potty: 'porta_potty', porta_potty_bank: 'porta_potty',
     };
 
     function loadEntity(name) {
@@ -1665,6 +1669,49 @@
                 const r = {small: 5, medium: 7, large: 9}[size];
                 cam.target.set(0, 1.2, 0);
                 cam.dist = r * 1.7;
+                applyCam();
+                break;
+            }
+
+            case 'porta_potty':
+            case 'porta_potty_bank': {
+                const n = name === 'porta_potty_bank' ? 5 : 1;
+                const root = new THREE.Group();
+                const states = [];
+                const prevPhase = [];
+                for (let i = 0; i < n; i++) {
+                    const built = buildPortaPotty(Math.random);
+                    built.group.position.x = (i - (n - 1) / 2) * 1.25;
+                    root.add(built.group);
+                    const p = createPottyState(built);
+                    p.outX = 0; p.outZ = 1;   // doors face +Z (toward the camera)
+                    states.push(p);
+                    prevPhase.push(0);
+                }
+                scene.add(root);
+                entityRoot = root;
+                // Demo cycle (12s, staggered per unit): approach (shut) → enter
+                // (open) → occupied (shut + wobble) → exit (open + stink) → vacant.
+                // Drives the same updatePortaPotty the game uses against the ToD
+                // slider, so door swing, night vent glow, indicator, wobble, and
+                // the stink puff are all verifiable without booting the game.
+                updateFn = (dt) => {
+                    const now = performance.now() / 1000;
+                    for (let i = 0; i < states.length; i++) {
+                        const p = states[i];
+                        const phase = (now + i * 2.4) % 12;
+                        if (phase < 1.5)      { p.occupied = false; p.doorTarget = 0; }
+                        else if (phase < 2.5) { p.occupied = true;  p.doorTarget = 1; }
+                        else if (phase < 8)   { p.occupied = true;  p.doorTarget = 0; }
+                        else if (phase < 9)   { p.occupied = true;  p.doorTarget = 1; }
+                        else                  { p.occupied = false; p.doorTarget = 0; }
+                        if (prevPhase[i] < 8 && phase >= 8) p.stinkTimer = STINK_DUR;
+                        prevPhase[i] = phase;
+                        updatePortaPotty(p, dt, now, tod.nightness);
+                    }
+                };
+                cam.target.set(0, 1.2, 0);
+                cam.dist = n > 1 ? 9 : 4;
                 applyCam();
                 break;
             }

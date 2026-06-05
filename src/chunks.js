@@ -28,6 +28,7 @@ import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
 import { buildBubbleVendor } from './models/bubbleVendor.js';
 import { buildSugarShack, SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH, sugarShackCooks } from './models/sugarShack.js';
+import { buildPortaPotty, createPottyState } from './models/portaPotty.js';
 import { buildHammock as buildHammockModel } from './models/hammock.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
@@ -50,6 +51,10 @@ const stageMusic = [];
 const STYLE_SALT = 0xC4FE7B2A | 0;
 // Salt for the seeded near-spawn jug positions (distinct from STYLE_SALT).
 const SPAWN_JUG_SALT = 0x5A17B0BB | 0;
+// Fresh salt for the porta-potty placement RNG. Distinct from every other salt
+// so adding/removing potties never shifts theme, prop, jug, or style streams
+// (footgun #4 — new randomness gets its own salt, never reorders an existing one).
+const POTTY_SALT = 0x9E3779B1 | 0;
 
 // World-spawn point (zerble.position in main.js). The guaranteed intro jugs ring
 // around here.
@@ -443,6 +448,11 @@ export class ChunkManager {
       // Scatter trees — will dodge the buildings + lake footprints registered.
       const treeDensity = inWater ? 0 : THEME_PROPS[theme].treeDensity;
       scatterTrees(ctx, treeDensity);
+
+      // Porta-potties — placed near the chunk's gathering spot (stage, plaza,
+      // drum circle, camp village) but off to the side. Runs after the theme
+      // builder + trees so it can read this chunk's attractors + dodge props.
+      scatterPortaPotties(ctx, inWater);
 
       // Ambient crowd
       const crowdCount = inWater ? 0 : THEME_PROPS[theme].ambientCrowd;
@@ -1087,6 +1097,121 @@ function scatterBubbleJugs(ctx, inWater) {
       juice: 1.0,            // a full meter — jugs stack past 1 (stockpile)
     });
     return;
+  }
+}
+
+// ---------- Porta-potties ----------
+//
+// Festival sanitation: banks of 1, 2, or 5 units placed near a gathering spot
+// (stage, food plaza, drum circle, vendor row, camp village) but pushed off to
+// the side, the way real festivals tuck them just past the crowd. Uses a fully
+// salted RNG (POTTY_SALT) so it's independent of the chunk's prop stream.
+//
+// Per-theme: how likely a chunk gets a bank, and the {size: weight} mix. Themes
+// not listed get none.
+const POTTY_THEME = {
+  main_stage:   { chance: 1.00, sizes: [[5, 0.6], [2, 0.4]] },
+  side_stage:   { chance: 0.70, sizes: [[2, 0.5], [5, 0.3], [1, 0.2]] },
+  tent_stage:   { chance: 0.80, sizes: [[2, 0.5], [5, 0.4], [1, 0.1]] },
+  food_plaza:   { chance: 0.85, sizes: [[2, 0.45], [5, 0.35], [1, 0.2]] },
+  vendor_row:   { chance: 0.55, sizes: [[2, 0.6], [1, 0.3], [5, 0.1]] },
+  drum_circle:  { chance: 0.50, sizes: [[1, 0.5], [2, 0.5]] },
+  camp_village: { chance: 0.90, sizes: [[5, 0.5], [2, 0.4], [1, 0.1]] },
+  grove:        { chance: 0.18, sizes: [[1, 0.8], [2, 0.2]] },
+  open_lawn:    { chance: 0.30, sizes: [[1, 0.7], [2, 0.3]] },
+};
+const POTTY_SPACING = 1.25;   // unit-to-unit spacing in a bank
+
+function pickPottyCount(prng, sizes) {
+  const total = sizes.reduce((s, e) => s + e[1], 0);
+  let r = prng() * total;
+  for (const [n, w] of sizes) { r -= w; if (r <= 0) return n; }
+  return sizes[0][0];
+}
+
+// The chunk's strongest gathering point (highest-weight attractor registered by
+// the theme builder), or the chunk centre + a generous radius as a fallback.
+function pickPottyAnchor(ctx) {
+  let best = null, bestW = 0;
+  for (const e of registry.byChunk(ctx.key)) {
+    if (!e.attractor) continue;
+    if (e.kind === 'path_node') continue;             // paths aren't gathering spots
+    if (e.attractor.weight > bestW) { bestW = e.attractor.weight; best = e; }
+  }
+  if (best) return { x: best.position.x, z: best.position.z, r: best.attractor.radius };
+  // No strong attractor (rare) — fall back to the chunk centre. Camp villages
+  // normally land here via a campsite attractor (weight 0.5), so their bank
+  // sits among the tents rather than at the geometric centre.
+  return { x: ctx.cxWorld, z: ctx.czWorld, r: 10 };
+}
+
+function scatterPortaPotties(ctx, inWater) {
+  if (inWater) return;
+  const cfg = POTTY_THEME[ctx.theme];
+  if (!cfg) return;
+  const prng = mulberry32(worldHash(ctx.cx, ctx.cz, POTTY_SALT));
+  if (prng() > cfg.chance) return;
+  const count = pickPottyCount(prng, cfg.sizes);
+  const anchor = pickPottyAnchor(ctx);
+
+  // Try a few bearings/distances to find a clear spot just outside the anchor,
+  // off the path cross, clear of buildings + water for the whole row.
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const bearing = prng() * Math.PI * 2;
+    const dist = anchor.r + 3.5 + prng() * 8;
+    const bx = anchor.x + Math.cos(bearing) * dist;
+    const bz = anchor.z + Math.sin(bearing) * dist;
+    // Keep the bank inside this chunk's footprint and off the path stripes.
+    if (Math.abs(bx - ctx.cxWorld) > CHUNK_SIZE * 0.5 ||
+        Math.abs(bz - ctx.czWorld) > CHUNK_SIZE * 0.5) continue;
+    if (Math.abs(bx - ctx.cxWorld) < 5 && Math.abs(bz - ctx.czWorld) < CHUNK_SIZE * 0.5) continue;
+    if (Math.abs(bz - ctx.czWorld) < 5 && Math.abs(bx - ctx.cxWorld) < CHUNK_SIZE * 0.5) continue;
+    // Doors face the anchor (people exit toward the crowd, approach from it).
+    const yaw = Math.atan2(anchor.x - bx, anchor.z - bz);
+    if (!pottyRowClear(bx, bz, yaw, count)) continue;
+    buildPottyBank(ctx, prng, bx, bz, yaw, count);
+    return;
+  }
+}
+
+// Local +X in world for a given yaw — the row extends along this axis.
+function _pottyRowRight(yaw) { return { rx: Math.cos(yaw), rz: -Math.sin(yaw) }; }
+
+function pottyRowClear(bx, bz, yaw, count) {
+  const { rx, rz } = _pottyRowRight(yaw);
+  for (let i = 0; i < count; i++) {
+    const off = (i - (count - 1) / 2) * POTTY_SPACING;
+    const x = bx + rx * off, z = bz + rz * off;
+    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 1.6)) return false;
+    if (isPointInLake(x, z)) return false;
+  }
+  return true;
+}
+
+function buildPottyBank(ctx, prng, bx, bz, yaw, count) {
+  const { rx, rz } = _pottyRowRight(yaw);
+  const outX = Math.sin(yaw), outZ = Math.cos(yaw);   // door-outward (local +Z)
+  for (let i = 0; i < count; i++) {
+    const off = (i - (count - 1) / 2) * POTTY_SPACING;
+    const x = bx + rx * off, z = bz + rz * off;
+    const built = buildPortaPotty(prng);
+    built.group.position.set(x, 0, z);
+    built.group.rotation.y = yaw;
+    ctx.group.add(built.group);
+
+    const potty = createPottyState(built);
+    potty.outX = outX;
+    potty.outZ = outZ;
+    registry.add({
+      kind: 'porta_potty',
+      position: new THREE.Vector3(x, 0, z),
+      footprint: built.footprint,
+      // Hard collider — a solid plastic box. Light damage (it's not a stage),
+      // but it bonks. main.js reads `.potty` on the entry for the occupied gag.
+      collider: { radius: 0.85, damage: 4 },
+      chunkKey: ctx.key,
+      potty,
+    });
   }
 }
 

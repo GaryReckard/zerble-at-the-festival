@@ -21,6 +21,7 @@ import { buildWorld, updateWorld, getTimeOfDay } from './world.js';
 import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
 import { lakeAnimatables, setLakeNightness } from './lakes.js';
 import { updateCampsiteProps } from './models/campsite.js';
+import { updatePortaPotty } from './models/portaPotty.js';
 import { updateLeafDrumCircle } from './models/leafDrumCircle.js';
 import { updateTribalFigures } from './models/tribalFigures.js';
 import { updateStagePerformers, updateStageLightShow, stageLightLenses } from './chunks.js';
@@ -878,6 +879,33 @@ function tickBody(dt) {
     // Animate the vendor→cart refuel stream (no-op / hidden when not refueling).
     updateRefuelStream(refuelFromPos, zerble.position, dt);
 
+    // Porta-potties — door swing, night vent glow, occupied indicator + wobble,
+    // and stink puff on exit. The door target + occupied state are driven by the
+    // crowd AI; this just renders them. A fully-idle unit far from the player is
+    // skipped. Occupied units near the player emit an occasional comedic noise.
+    const pottyIds = registry.byKind.get('porta_potty');
+    if (pottyIds && pottyIds.size > 0) {
+      const ppx = zerble.position.x, ppz = zerble.position.z;
+      for (const id of pottyIds) {
+        const e = registry.entries.get(id);
+        if (!e || !e.potty) continue;
+        const p = e.potty;
+        const dx = e.position.x - ppx, dz = e.position.z - ppz;
+        const d2 = dx * dx + dz * dz;
+        // Skip far units that are fully at rest (door shut, vacant, no stink).
+        if (d2 > 75 * 75 && p.doorOpen < 0.01 && !p.occupied && p.stinkTimer <= 0) continue;
+        updatePortaPotty(p, dt, nowS, nightness);
+        // Comedic noise from an occupied (shut) unit within earshot, throttled.
+        if (p.occupied && p.doorOpen < 0.5 && d2 < 40 * 40) {
+          p.noiseCd -= dt;
+          if (p.noiseCd <= 0) {
+            p.noiseCd = 2.2 + Math.random() * 3.0;
+            Sound.playPottyNoise(e.position.x, e.position.z);
+          }
+        }
+      }
+    }
+
     // Procedural world expands around Zerble.
     updateWorld(zerble.position, dt);
 
@@ -921,7 +949,14 @@ function tickBody(dt) {
         score = Math.max(0, score - hit.damage);
         HUD.setSmiles(score);
         HUD.flashHit();
-        HUD.toast(toastForKind(hit.kind), 1400);
+        // Ramming an OCCUPIED porta-potty ejects the flustered occupant +
+        // gets its own mortified toast bank; otherwise the normal per-kind line.
+        if (hit.kind === 'porta_potty' && hit.entry?.potty?.occupied) {
+          crowd.onPottyHit(hit.entry);
+          HUD.toast(PORTA_POTTY_OCCUPIED_TOASTS[Math.floor(Math.random() * PORTA_POTTY_OCCUPIED_TOASTS.length)], 1700);
+        } else {
+          HUD.toast(toastForKind(hit.kind), 1400);
+        }
         Sound.playCollision(hit.kind);
         Analytics.collision(hit.kind);
       } else if (hit && hit.notify) {
@@ -1006,6 +1041,25 @@ const BUBBLE_VENDOR_TOASTS = [
   "Tip jar's empty and now so's your patience.",
 ];
 
+// Porta-potty bonks — empty unit (plain) vs occupied (mortifying).
+const PORTA_POTTY_TOASTS = [
+  "You bonked a porta-potty. Rude.",
+  "Watch the loo!",
+  "That's not a ramp — it's a toilet.",
+  "Plastic throne, meet bumper.",
+  "Easy! Someone's gotta tip those back up.",
+  "You rattled the royal flush.",
+  "The festival's plumbing thanks you. Not.",
+];
+const PORTA_POTTY_OCCUPIED_TOASTS = [
+  "Someone was IN there!",
+  "You tipped an occupied one — yikes!",
+  "A flustered camper bolts out. Whoops.",
+  "OCCUPIED! ...well, not anymore.",
+  "You interrupted someone's quiet time!",
+  "That'll be a story they tell for years.",
+];
+
 // ---- Per-frame collision scratch ----
 // Reused across frames so the collision pass allocates nothing steady-state:
 // `_collScratch` is the candidate list handed to resolveCollision; the two
@@ -1026,6 +1080,7 @@ function _regColWrap(e) {
   w.kind = e.kind;
   w.passive = false;
   w.npc = null;
+  w.entry = e;          // porta-potty hit handling reads .potty off the entry
   return w;
 }
 function _npcColWrap(n) {
@@ -1038,6 +1093,7 @@ function _npcColWrap(n) {
   w.kind = 'person';
   w.passive = false;
   w.npc = n;
+  w.entry = null;       // crowd NPCs carry no registry entry
   return w;
 }
 
@@ -1080,7 +1136,7 @@ function resolveCollision(zerble, colliders) {
       // for the named ones — return `notify` so the caller can react.
       const damaging = c.damage > 0;
       const notify = !damaging && (c.kind === 'lurleen');
-      return { damaging, damage: c.damage, kind: c.kind, notify };
+      return { damaging, damage: c.damage, kind: c.kind, notify, entry: c.entry || null };
     }
 
     // Non-damaging contact: nudge Zerble out of overlap, kill any small approach speed.
@@ -1114,6 +1170,7 @@ function toastForKind(kind) {
     case 'hula_hoop': return HULA_HOOP_TOASTS[Math.floor(Math.random() * HULA_HOOP_TOASTS.length)];
     case 'bubble_vendor': return BUBBLE_VENDOR_TOASTS[Math.floor(Math.random() * BUBBLE_VENDOR_TOASTS.length)];
     case 'bench_ring': return 'Easy on the benches!';
+    case 'porta_potty': return PORTA_POTTY_TOASTS[Math.floor(Math.random() * PORTA_POTTY_TOASTS.length)];
     case 'island': return 'Tiny island, busy day.';
     case 'lurleen': return 'Easy, lover — that\'s Lurleen.';
     default: return 'Ouch.';

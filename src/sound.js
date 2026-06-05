@@ -784,6 +784,14 @@ export const Sound = {
     osc.start(t + 0.06); osc.stop(t + 0.3);
   },
 
+  // Comedic positional "blat" from an occupied porta-potty at (x, z). Routed
+  // through a temporary PannerNode (like playCrowdCheer) so it pans + attenuates
+  // with distance. Kept quiet — it's a background gag, not a feature.
+  playPottyNoise(x, z) {
+    if (!ctx || !sfxBus) return;
+    pottyNoise(ctx, sfxBus, x, z);
+  },
+
   // Returns the raw AudioContext so midiPlayer can share it with Tone.js via
   // Tone.setContext(). Sharing the context lets Tone route into masterGain/midiGain
   // instead of creating its own parallel audio graph that no slider can touch.
@@ -1405,6 +1413,59 @@ function duudeSound(ctx, dest) {
   osc2.connect(lpf).connect(env2);
   osc2.start();
   osc2.stop(t + 0.85);
+}
+
+// Comedic porta-potty "blat" — a buzzy sawtooth with a fast descending pitch and
+// a square-wave flutter ("pbbbt"), pushed through a closing lowpass so it reads
+// muffled (it's behind a plastic door). Positional via a temporary PannerNode.
+function pottyNoise(ctx, dest, x, z) {
+  const t = ctx.currentTime;
+  const panner = ctx.createPanner();
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = 6;
+  panner.maxDistance = 45;
+  panner.rolloffFactor = 1.4;
+  if (panner.positionX) {
+    panner.positionX.value = x;
+    panner.positionY.value = 1;
+    panner.positionZ.value = z;
+  } else if (panner.setPosition) {
+    panner.setPosition(x, 1, z);
+  }
+  panner.connect(dest);
+
+  const dur = 0.45 + Math.random() * 0.4;
+  const f0 = 130 + Math.random() * 60;
+
+  const osc = ctx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(f0, t);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(45, f0 * 0.5), t + dur);
+
+  // Flutter LFO modulates the pitch — the squelchy "pbbbt" character.
+  const lfo = ctx.createOscillator();
+  lfo.type = 'square';
+  lfo.frequency.setValueAtTime(18 + Math.random() * 16, t);
+  lfo.frequency.linearRampToValueAtTime(7, t + dur);
+  const lfoGain = ctx.createGain();
+  lfoGain.gain.value = f0 * 0.4;
+  lfo.connect(lfoGain).connect(osc.frequency);
+
+  const lpf = ctx.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.setValueAtTime(900, t);
+  lpf.frequency.linearRampToValueAtTime(420, t + dur);
+
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.16, t + 0.03);
+  g.gain.setValueAtTime(0.16, t + dur * 0.6);
+  g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+
+  osc.connect(lpf).connect(g).connect(panner);
+  osc.start(t); osc.stop(t + dur + 0.05);
+  lfo.start(t); lfo.stop(t + dur + 0.05);
 }
 
 // Two horn variants picked at random — clown squeeze-bulb or bicycle bell.
@@ -3466,5 +3527,8 @@ const COLLISION_SOUNDS = {
   forest_tree: (c, d) => { thump(c, d, 65, 0.45, 0.55); woodKnock(c, d); },
   firepit:     (c, d) => { thump(c, d, 50, 0.5, 0.55); thump(c, d, 75, 0.3, 0.4); },
   bench_ring:  (c, d) => woodKnock(c, d),
+  // Porta-potty — hollow plastic knock + a sloshy descending squawk. Reads as
+  // "you bonked a plastic box with liquid in it," not a solid clang.
+  porta_potty: (c, d) => { thump(c, d, 90, 0.18, 0.4); boop(c, d, 300, 130, 0.2, 0.22, 'square'); },
   default:     (c, d) => thump(c, d, 180, 0.2, 0.3),
 };

@@ -26,6 +26,48 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   image (the current art is near-square and will letterbox) is the follow-up
   polish.
 
+### Added — Porta-potties
+
+- **Porta-potties, with a whole little life of their own.** New model
+  ([portaPotty.js](src/models/portaPotty.js)): a festival-blue / blue-grey unit
+  with a light-grey domed roof, light corner posts, a front vent, and a door on
+  a real hinge. Blue body colors vary slightly per unit so a row reads with
+  variety. The door swings open on a pivot; a vacant/occupied indicator on the
+  door reads green when free, red when in use.
+- **They spawn where it makes sense.** [chunks.js](src/chunks.js)
+  `scatterPortaPotties` drops banks of **1, 2, or 5** near a chunk's gathering
+  spot — stages, food plazas, drum circles, vendor rows, camp villages — but
+  pushed off to the side, doors facing the crowd, the way real festivals tuck
+  them just past the action. Placement uses a fresh salted RNG (`POTTY_SALT`)
+  so adding them never reshuffles any existing prop layout (footgun #4). Banks
+  dodge buildings, paths, and water for the whole row before committing.
+- **They're solid, and bonking one is funny.** Registered as a hard collider
+  (light damage 4). A dedicated toast bank fires on a hit; if the unit is
+  **occupied**, the flustered occupant gets ejected mid-business (fleeing) and a
+  separate, more mortified toast bank plays. New hollow-plastic collision SFX in
+  [sound.js](src/sound.js).
+- **NPCs actually use them.** New crowd states ([crowd.js](src/crowd.js)):
+  NPCs occasionally (rarely, realistically — gated low via `POTTY_URGE_RATE`)
+  get the urge and head for the nearest unit. They walk to the door, the door
+  opens, they step in, the door closes (occupied + a subtle in-use wobble +
+  occasional comedic poop noises from within), then after 6–13s the door opens,
+  a puff of **green stink lines** rises, and they walk off. Every state has a
+  give-up timeout and releases its unit on abort / despawn / chunk-unload, so a
+  unit can never get stuck phantom-"occupied."
+- **The unlocked-door gag.** When an NPC reaches an occupied unit, there's a
+  chance the occupant didn't lock it — the new arrival yanks the door open, both
+  jump back arms-up ("EEP!"), the door slams, the occupant scrambles to lock it,
+  and the startled NPC trundles off to try the next-closest unit. Locked units
+  just get a brief wait, then the NPC moves on.
+- **Faintly lit at night, cheaply.** The vent + a small interior panel use an
+  emissive material (no `Light` object) that ramps with `nightness²` — dark by
+  day, a soft "candle/LED inside" glow after dusk, a touch brighter when
+  occupied. Bloom catches it.
+- **Sandbox coverage.** Two new entities — `porta_potty` and `porta_potty_bank`
+  (5 units) — run a staggered approach→enter→occupied→exit demo cycle against
+  the time-of-day slider so the door swing, vent glow, indicator, wobble, and
+  stink puff are all verifiable in isolation. "Hit it" wired to the new SFX.
+
 ### Changed
 - **Reverse→forward steering no longer fights you mid-switch.** The steering
   direction (`dir` in [zerble.js](src/zerble.js) `update()`) was keyed to the
