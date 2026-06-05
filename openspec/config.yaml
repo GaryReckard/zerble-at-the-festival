@@ -1,0 +1,107 @@
+schema: spec-driven
+
+# Zerble at the Festival — OpenSpec Configuration
+# Updated: 2026-06-05
+
+project:
+  name: Zerble at the Festival
+  description: A no-build browser game — drive a mustachioed cart through a procedural festival
+  repository: zerble-at-the-festival
+
+context: |
+  ## What this is
+  A no-build browser game. Plain ES modules + an importmap, three.js from a CDN
+  (unpkg 0.160.0), Web Audio for everything you hear. No bundler, no transpiler,
+  no framework. ~25 hand-rolled source files in `src/`. Open `index.html` and it
+  runs. Live deploy: GitHub Pages (https://garyreckard.github.io/zerble-at-the-festival/),
+  GA4 wired (G-CY1FNMY8H8). Treat the production deploy as observed by real players.
+
+  ## Required reading (in order)
+  - CLAUDE.md — agent-facing notes; the "non-obvious things that will bite you" list
+  - DEBUGGING.md — the iteration & verify surface (window.__dbg, the sandbox, URL flags)
+  - ARCHITECTURE.md — canonical walkthrough: render pipeline, world chunks/forests/lakes,
+    registry, collision, crowd AI, audio synthesis, perf tiers
+  - ROADMAP.md — what's queued + the parked "we talked about it" list
+  - CHANGELOG.md — what shipped, dated; the "why" of recent commits
+
+  ## The tripwires (non-negotiable — not derivable from any single file)
+  - NO BUILD STEP. Don't add a bundler/transpiler. A new `src/` module must be added
+    to the importmap `mods`/`models` array in BOTH index.html AND sandbox.html, or
+    the dev cache-buster won't reload edits locally.
+  - ES MODULE NAMESPACES ARE FROZEN. Never `THREE.X = Y` after `import * as THREE`.
+    Tier-aware overrides go through the `three` importmap entry (src/threeShim.js).
+    Safari mobile throws "Cannot assign to property of [object Module]" otherwise.
+  - iOS AUDIO INITS SYNCHRONOUSLY INSIDE THE START GESTURE. No await/setTimeout/async
+    hop between the title-card tap and Sound.init(), or iOS Safari ships silent.
+  - DETERMINISM IS LOAD-BEARING. rng.js hash2(cx,cz)+mulberry32 seeds every chunk's
+    theme/props/lakes/forests. Changing salts or hash inputs REGENERATES existing
+    chunks differently. Salt new randomness with a fresh constant; don't reorder
+    existing rng() calls.
+  - THREE LIFECYCLE SYSTEMS own world content and are NOT transactional: chunks
+    (80m grid, never unload), forests (3x3 chunk blocks), lakes (320m macrocell,
+    load/unload by distance — lakes deliberately OMIT chunkKey so colliders survive
+    host-chunk unload). Don't tag a lake entry with a chunkKey.
+  - SHARED POOLED RESOURCES are tagged userData.shared = true; chunk/lake disposal
+    walks SKIP those. A mis-disposed shared material storms shader recompiles.
+  - InstancedMesh writes need instanceMatrix.needsUpdate = true.
+  - PER-TIER PERF BUDGETS (HUD, backtick overlay): low 80 draws/150k tris,
+    mid 200/400k, high 400/1.2M. Don't reflexively castShadow=true (audit holds at 56).
+  - SANDBOX-PASS ≠ GAME-PASS. The sandbox is one code path. chunks.js / world.js /
+    crowd.js / main.js only run when the main game boots. Always boot the game too.
+
+  ## Dev workflow
+  - Serve: `python3 .claude/serve_nocache.py 8765` (sends no-store so module edits land)
+  - Sandbox (default for model/visual work): /sandbox.html?entity=<name>
+  - Full game (emergent systems + boot smoke test): /
+  - Drive the running game via window.__dbg (DEBUGGING.md). Force a tier with ?perf=low|mid|high.
+
+rules:
+  proposal:
+    - State which subsystem(s) this touches (render pipeline, world streaming,
+      registry/collision, crowd AI, audio, perf tiers, models, sandbox harness)
+    - Call out any tripwire it brushes against (determinism, threeShim, iOS audio,
+      disposal safety, importmap, perf budget) explicitly
+    - Note player-visible effect vs internal-only (drives whether CHANGELOG is required)
+    - Include a Scope Check: search for other places the same pattern exists
+      (e.g. a material/disposal pattern repeated across models) and either include
+      them in scope or document why they're excluded
+
+  tasks:
+    - Each task should be completable in a focused sitting
+    - A new src/models/ entity is not done until it has a sandbox entry: importmap
+      in BOTH html files + <option> + loadEntity() case + ENTITY_HIT_KIND + ENTITY_MUSIC_STYLE
+    - Geometry/draw-adding work includes a "check the backtick budget panel" task
+    - Graphics/shader/material/boot-order work includes a "test ?perf=low and ?perf=mid" task
+
+  implementation:
+    - Never break determinism: salt new rng with a fresh constant, don't reorder existing calls
+    - Tier-aware three overrides go through src/threeShim.js, never THREE.X = Y after import
+    - Tag module-scope pooled geometry/materials userData.shared = true
+    - Don't reflexively castShadow = true; only large/visible objects earn it
+    - Keep iOS audio init synchronous inside the start gesture
+    - Player-facing copy keeps the warm-festival tone; never leak Easter eggs
+      (Wook trip system, t debug menu, ?perf= flag) into README/title card
+
+  verification:
+    - Verify model/visual changes in the sandbox first (screenshot at 2+ ToD presets)
+    - ALWAYS boot the main game before "done" — title card → Let's go ZERBLIN' →
+      ~2.5s world gen → preview_console_logs (no TypeError/shader fail) → screenshot
+    - After geometry/draw changes, read the backtick budget panel against the tier
+    - Never push without explicit user request
+
+conventions:
+  # No Jira on this project. The audit trail is CHANGELOG + ROADMAP + git.
+  changelog: "Every user-visible behavior/perf/dev-workflow change updates CHANGELOG.md in the SAME commit (newest on top, grouped Added/Changed/Fixed/Performance)"
+  roadmap: "If the work was on ROADMAP.md, remove (or trim) that bullet in the same commit"
+  commits: "Imperative subject describing the change (e.g. 'Add:', 'Fix:', 'Perf:')"
+
+specs_index:
+  - render-pipeline: threeShim tier swap, MeshStandard/Lambert, renderer + post-process, sky/fog/nightness
+  - world-streaming: chunks (80m grid), forests (3x3 blocks), lakes (320m macrocell), theme builders
+  - registry-collision: registry entries (kind/position/footprint/collider/attractor/chunkKey), spatial-hash broadphase
+  - crowd-ai: NPC spawn/update, instanced crowd, attractors, drum circles
+  - audio-synthesis: Web Audio bus, iOS gesture unlock, spatialized engine, stage music generators
+  - perf-tiers: low/mid/high budgets, shadow audit, instancing/pooling, AA/pixel-ratio strategy
+  - models: src/models/* (return a Group anchored at origin; sandbox-registered)
+  - determinism: rng.js hash2 + mulberry32 seeding contract
+  - sandbox-harness: sandbox.html entity viewer, __dbg driving surface, the verify loop

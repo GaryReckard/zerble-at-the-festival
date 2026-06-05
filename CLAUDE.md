@@ -268,6 +268,35 @@ relevant skill before guessing. The two perf-pass plan docs
 (`.claude/perf-audit-plan.md`, `.claude/perf-pass-2-plan.md`) demonstrate the
 expected workflow: skill → audit → priority-ordered plan → ship + log results.
 
+## Deliberation, review & spec-driven planning
+
+Three agent surfaces, adapted from the fedweb toolkit for this project:
+
+- **`/deliberate`** — a multi-persona council. Loads `multi-person-deliberation`,
+  which selects 3–5 of seven `council-*` personas (Architect, Maverick,
+  Pragmatist, Auditor, Anthropologist, Profiler, Adversary) + a Mediator, runs
+  them in parallel, and synthesizes their friction into Change Groups. Use it to
+  stress-test a plan or design *before* building — especially anything brushing a
+  tripwire (determinism, threeShim/material-tier, boot order, chunk/lake
+  lifecycle, perf budget, iOS audio). The personas are re-domained to this
+  project; they read `CLAUDE.md` + `ARCHITECTURE.md` + `.claude/rules/*.md`.
+- **`/smart-review`** — a multi-specialist code review of a diff. Loads
+  `smart-review`, which fans out to `review-*` specialists (rendering,
+  performance, gameplay, audio, sandbox, docs), dedupes by ownership, and
+  persists a `review-summary.md`. Distinct from the global `/code-review` and
+  `/security-review`.
+- **OpenSpec** (`/opsx:*`) — optional spec-driven planning. It's **lazy and
+  intent-gated**: don't read `openspec/` on first message. Enter OpenSpec mode
+  only when the prompt names an `/opsx:*` command, an artifact (`tasks.md`,
+  `session-log`, `proposal.md`, `openspec/changes`), or asks to plan a change.
+  Full operational details (the `session-log.md` + `questions-for-human.md`
+  persistent-memory system, the continuous-writing protocol, the advisory
+  deliberation gate, the cross-ref convention) live in
+  `.claude/rules/openspec.md`, path-scoped to `openspec/**`. Project context is
+  in `openspec/config.yaml`. No Jira here — the audit trail stays
+  CHANGELOG + ROADMAP + git. `/deliberate` and `/smart-review` persist artifacts
+  into the active change's `deliberations/` and `reviews/` folders.
+
 ## Project-specific rules
 
 See `.claude/rules/`:
@@ -292,3 +321,8 @@ See `.claude/rules/`:
   importmap maintenance rule (both `index.html` *and* `sandbox.html`).
 - [perf-pooling.md](.claude/rules/perf-pooling.md) — the `userData.shared`
   convention and the dispose-safe pattern for new pooled resources.
+- [openspec.md](.claude/rules/openspec.md) — **path-scoped to `openspec/**`;
+  auto-loads only when working in OpenSpec.** Lazy/intent-gated mode, the
+  persistent-memory system (`session-log.md` + `questions-for-human.md`), the
+  continuous-writing protocol, the advisory deliberation gate (re-keyed to
+  zerble's tripwires), and the cross-ref convention (`-> Q3`, `-> Task 7.2.1`).
