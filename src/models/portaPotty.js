@@ -221,7 +221,8 @@ export function buildPortaPotty(rng = Math.random) {
 
   // ---- Stink wisps (hidden until an exit) ----
   const stinkGroup = new THREE.Group();
-  stinkGroup.position.set(0, BASE_TOP + 0.2, HALF_D + 0.35);
+  // Start near the top of the door and waft upward from there (not down at the sill).
+  stinkGroup.position.set(0, DOOR_TOP - 0.6, HALF_D + 0.35);
   stinkGroup.visible = false;
   const stinkParts = [];
   for (let i = 0; i < 3; i++) {
@@ -310,7 +311,7 @@ export function updatePortaPotty(p, dt, t, nightness) {
     const age = 1 - k;                                            // 0 → 1
     p.stink.group.visible = true;
     for (const s of p.stink.parts) {
-      s.mesh.position.y = age * 1.3;
+      s.mesh.position.y = age * 1.6;   // waft up + out the top
       s.mesh.position.x = s.baseX + Math.sin(t * 4 + s.phase) * 0.12;
       s.mesh.rotation.y += dt * 1.5;          // slow twist so the squiggle drifts
       s.mat.opacity = Math.sin(k * Math.PI) * 0.5;

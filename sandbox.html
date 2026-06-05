@@ -520,7 +520,7 @@
     import {buildBird, buildBirdFlock, BIRD_KEYS, BIRD_SPECIES} from './src/models/bird.js';
     import {buildBubbleJug} from './src/models/bubbleJug.js';
     import {buildBubbleVendor} from './src/models/bubbleVendor.js';
-    import {buildPortaPotty, createPottyState, updatePortaPotty, STINK_DUR} from './src/models/portaPotty.js';
+    import {buildPortaPotty, createPottyState, updatePortaPotty, STINK_DUR, POTTY_SPACING} from './src/models/portaPotty.js';
     import {buildLeafDrumCircle, updateLeafDrumCircle} from './src/models/leafDrumCircle.js';
     import {
         buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
@@ -1681,7 +1681,7 @@
                 const prevPhase = [];
                 for (let i = 0; i < n; i++) {
                     const built = buildPortaPotty(Math.random);
-                    built.group.position.x = (i - (n - 1) / 2) * 1.25;
+                    built.group.position.x = (i - (n - 1) / 2) * POTTY_SPACING;
                     root.add(built.group);
                     const p = createPottyState(built);
                     p.outX = 0; p.outZ = 1;   // doors face +Z (toward the camera)
