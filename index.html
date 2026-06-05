@@ -44,6 +44,19 @@
   <link rel="manifest" href="/site.webmanifest" />
 
   <title>Zerble at the Festival — A Bubble Adventure</title>
+  <!-- Social share previews. Static meta — read by crawlers from the served HTML,
+       not routed through the importmap/cache-buster below. Absolute URLs point at
+       the GitHub Pages deploy; a dedicated opaque ~1200x630 landscape share image
+       is follow-up polish (assets/zerble.png is a near-square stopgap). -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://garyreckard.github.io/zerble-at-the-festival/" />
+  <meta property="og:title" content="Zerble at the Festival — A Bubble Adventure" />
+  <meta property="og:description" content="Drive a mustachioed cart through a procedural festival. Bring the bubbles, collect the smiles." />
+  <meta property="og:image" content="https://garyreckard.github.io/zerble-at-the-festival/assets/zerble.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Zerble at the Festival" />
+  <meta name="twitter:description" content="Bring the bubbles, collect the smiles." />
+  <meta name="twitter:image" content="https://garyreckard.github.io/zerble-at-the-festival/assets/zerble.png" />
   <link rel="stylesheet" href="styles.css" />
   <script>
     // Dev cache-buster: inject importmap + main script with a per-load query string.
@@ -64,11 +77,16 @@
         h.includes('claude-preview') ||
         h.includes('happycog');
       const v = isLocal ? '?v=' + Date.now() : '';
-      const mods = ['main','world','zerble','bubbles','smiles','crowd','chunks',
+      // Complete src/ + models/ lists — every module gets the ?v= cache-buster so
+      // transitive imports (e.g. chunks → forests, contextLights) reload too. Keep
+      // in sync with the directory; unused entries are inert (importmap mappings
+      // only resolve when something actually imports them).
+      const mods = ['main','world','zerble','bubbles','smiles','crowd','chunks','forests',
         'mountains','camera','input','touch','hud','sound','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
-        'threeShim','midiPlayer','birds'];
+        'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay'];
       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','heart','stage','performer',
-        'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','bird','bubbleJug','bubbleVendor'];
+        'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','bird','bubbleJug','bubbleVendor',
+        'campsite','frisbeePlayer','hulaHooper','leafDrumCircle','tribalFigures'];
       const base = new URL('./src/', document.baseURI).href;
       // 'three' → local shim that overrides MeshStandardMaterial on low tier
       // (see src/threeShim.js). 'three-actual' is the real three.js URL the

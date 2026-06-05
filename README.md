@@ -8,6 +8,8 @@
 
 Drive a smiling, mustachioed golf cart through a procedural festival. Trail bubbles past dancing crowds, drum circles, food trucks, brass bands, and giant puppet parades. Collect smiles. Don't run over the kids.
 
+**▶ Play it live: <https://garyreckard.github.io/zerble-at-the-festival/>**
+
 ## Premise
 
 You are Zerble — a glow-eyed festival cart with bubble-blowing breath and the world's biggest mustache. The festival sprawls procedurally in every direction: main stage at the origin, side stages, vendor rows, food plazas, drum circles, hammock groves, lakes, forests, and mountains on the horizon.
@@ -48,7 +50,7 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 
 ## Play it
 
-Open `index.html` in any modern browser. That's it — no install, no build step.
+Live: <https://garyreckard.github.io/zerble-at-the-festival/> — or open `index.html` in any modern browser. That's it — no install, no build step.
 
 To run a local dev server (recommended, so ES modules load with `file://` blocked):
 

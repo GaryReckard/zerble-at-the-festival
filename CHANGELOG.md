@@ -2,6 +2,32 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-05
+
+### Added
+- **Social share previews (Open Graph + Twitter cards).** Added `og:`/`twitter:`
+  meta to [index.html](index.html) so a shared link unfurls with the Zerble art
+  and the "bring the bubbles, collect the smiles" tagline instead of a bare URL.
+  Image + URL are absolute against the GitHub Pages deploy
+  (`garyreckard.github.io/zerble-at-the-festival/`); the image is the existing
+  `assets/zerble.png` for now — a dedicated opaque ~1200×630 landscape share
+  image (the current art is near-square and will letterbox) is the follow-up
+  polish.
+
+### Fixed
+- **Dev cache-buster covers every module again — local edits to 10 files
+  silently weren't reloading.** The `mods`/`models` arrays in
+  [index.html](index.html) (and the parallel pair in [sandbox.html](sandbox.html))
+  had drifted out of sync with `src/`: the `adaptiveQuality`, `analytics`,
+  `contextLights`, `forests`, `timeOfDay` modules and the `campsite`,
+  `frisbeePlayer`, `hulaHooper`, `leafDrumCircle`, `tribalFigures` models were
+  missing, so on local/preview hosts they loaded without the `?v=<timestamp>`
+  suffix and Chrome could heuristic-cache their bodies past `no-store`
+  (CLAUDE.md footgun #1) — edits didn't show on reload. Both files now list the
+  COMPLETE src + models set so transitive imports get busted too and the lists
+  can't quietly go stale again. (Sandbox's `'three'` still points straight at
+  unpkg — no threeShim — by design.)
+
 ## 2026-06-04
 
 ### Added

@@ -10,7 +10,8 @@ Plain ES modules + importmap, three.js from a CDN, Web Audio for everything you
 hear. No bundler. No transpiler. No framework. ~25 hand-rolled source files in
 `src/`.
 
-Live deploy: GA4 is wired (G-CY1FNMY8H8) and analytics calls go through
+Live deploy: <https://garyreckard.github.io/zerble-at-the-festival/> (GitHub
+Pages). GA4 is wired (G-CY1FNMY8H8) and analytics calls go through
 `src/analytics.js`. Treat the production deploy as observed by real players.
 
 ## Required reading (in order)
