@@ -1,201 +1,310 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <!-- Google tag (gtag.js) — gated to non-local hosts only. Same isLocal
-       detection as index.html so dev / sandbox sessions don't pollute
-       production analytics. -->
-  <script>
-    (function () {
-      const h = location.hostname;
-      const isLocal =
-        h === 'localhost' ||
-        h === '127.0.0.1' ||
-        h === '0.0.0.0' ||
-        h.endsWith('.local') ||
-        /^10\./.test(h) ||
-        /^192\.168\./.test(h) ||
-        /^172\.(1[6-9]|2\d|3[0-1])\./.test(h) ||
-        h.includes('claude-preview') ||
-        h.includes('happycog');
-      if (isLocal) return;
-      const s = document.createElement('script');
-      s.async = true;
-      s.src = 'https://www.googletagmanager.com/gtag/js?id=G-CY1FNMY8H8';
-      document.head.appendChild(s);
-      window.dataLayer = window.dataLayer || [];
-      window.gtag = function () { window.dataLayer.push(arguments); };
-      window.gtag('js', new Date());
-      window.gtag('config', 'G-CY1FNMY8H8');
-    })();
-  </script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sandbox — Zerble at LEAF</title>
-  <style>
-    :root { color-scheme: dark; }
-    html, body { margin: 0; padding: 0; width: 100%; height: 100vh; overflow: hidden;
-      background: #1a1430; color: #fff6e6;
-      font-family: "Trebuchet MS", "Helvetica Neue", Helvetica, Arial, sans-serif; }
-    #canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
-    #canvas:active { cursor: grabbing; }
-    #hud {
-      position: fixed; top: 16px; left: 16px; z-index: 10;
-      background: rgba(28, 19, 48, 0.7); padding: 12px 16px; border-radius: 12px;
-      border: 1px solid rgba(255, 246, 230, 0.15); backdrop-filter: blur(6px);
-      max-width: 320px;
-    }
-    #hud h1 { font-size: 14px; margin: 0 0 8px 0; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7; }
-    #hud select { width: 100%; padding: 6px 8px; font-family: inherit; font-size: 14px;
-      background: rgba(255, 246, 230, 0.1); color: inherit; border: 1px solid rgba(255, 246, 230, 0.25);
-      border-radius: 6px; cursor: pointer; }
-    #hud .controls { margin-top: 10px; font-size: 12px; line-height: 1.5; opacity: 0.7; }
-    #hud kbd { background: rgba(255, 246, 230, 0.1); border: 1px solid rgba(255, 246, 230, 0.2);
-      border-radius: 4px; padding: 1px 5px; font-size: 11px; }
-    #info { margin-top: 10px; font-size: 12px; padding: 6px 8px; background: rgba(0,0,0,0.3); border-radius: 6px; min-height: 18px; }
-    label { display: block; font-size: 11px; opacity: 0.6; margin-bottom: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
-    .row { display: flex; gap: 8px; margin-top: 8px; }
-    .row > * { flex: 1; }
-    button { padding: 6px 8px; font-family: inherit; font-size: 12px;
-      background: rgba(255, 210, 138, 0.2); color: inherit; border: 1px solid rgba(255, 210, 138, 0.4);
-      border-radius: 6px; cursor: pointer; }
-    button:hover { background: rgba(255, 210, 138, 0.35); }
-  </style>
-  <script>
-    // Same import-map cache-buster pattern as index.html so edits show up
-    // immediately during development. Only enabled on local hosts.
-    (function () {
-      const h = location.hostname;
-      const isLocal = h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' ||
-        h.endsWith('.local') || /^10\./.test(h) || /^192\.168\./.test(h);
-      const v = isLocal ? '?v=' + Date.now() : '';
-      const mods = ['zerble','lurleen','bubbles','smiles','registry','rng','perf','sound','chunks','crowd','lakes','debug','timeOfDay','trip','midiPlayer'];
-      const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','heart','stage','performer',
-        'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','hulaHooper','frisbeePlayer','bird','bubbleJug','bubbleVendor'];
-      const base = new URL('./src/', document.baseURI).href;
-      const imports = {
-        'three': 'https://unpkg.com/three@0.160.0/build/three.module.js',
-        'three/addons/': 'https://unpkg.com/three@0.160.0/examples/jsm/',
-      };
-      for (const m of mods) imports[base + m + '.js'] = base + m + '.js' + v;
-      for (const m of models) imports[base + 'models/' + m + '.js'] = base + 'models/' + m + '.js' + v;
-      const im = document.createElement('script');
-      im.type = 'importmap';
-      im.textContent = JSON.stringify({ imports });
-      document.head.appendChild(im);
-    })();
-  </script>
+    <meta charset="UTF-8"/>
+    <!-- Google tag (gtag.js) — gated to non-local hosts only. Same isLocal
+         detection as index.html so dev / sandbox sessions don't pollute
+         production analytics. -->
+    <script>
+        (function () {
+            const h = location.hostname;
+            const isLocal =
+                h === 'localhost' ||
+                h === '127.0.0.1' ||
+                h === '0.0.0.0' ||
+                h.endsWith('.local') ||
+                /^10\./.test(h) ||
+                /^192\.168\./.test(h) ||
+                /^172\.(1[6-9]|2\d|3[0-1])\./.test(h) ||
+                h.includes('claude-preview') ||
+                h.includes('happycog');
+            if (isLocal) return;
+            const s = document.createElement('script');
+            s.async = true;
+            s.src = 'https://www.googletagmanager.com/gtag/js?id=G-CY1FNMY8H8';
+            document.head.appendChild(s);
+            window.dataLayer = window.dataLayer || [];
+            window.gtag = function () {
+                window.dataLayer.push(arguments);
+            };
+            window.gtag('js', new Date());
+            window.gtag('config', 'G-CY1FNMY8H8');
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96"/>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+    <link rel="shortcut icon" href="/favicon.ico"/>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
+    <meta name="apple-mobile-web-app-title" content="Zerble"/>
+    <link rel="manifest" href="/site.webmanifest"/>
+
+    <title>Sandbox — Zerble at LEAF</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            background: #1a1430;
+            color: #fff6e6;
+            font-family: "Trebuchet MS", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        #canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+            cursor: grab;
+        }
+
+        #canvas:active {
+            cursor: grabbing;
+        }
+
+        #hud {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 10;
+            background: rgba(28, 19, 48, 0.7);
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 246, 230, 0.15);
+            backdrop-filter: blur(6px);
+            max-width: 320px;
+        }
+
+        #hud h1 {
+            font-size: 14px;
+            margin: 0 0 8px 0;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        #hud select {
+            width: 100%;
+            padding: 6px 8px;
+            font-family: inherit;
+            font-size: 14px;
+            background: rgba(255, 246, 230, 0.1);
+            color: inherit;
+            border: 1px solid rgba(255, 246, 230, 0.25);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        #hud .controls {
+            margin-top: 10px;
+            font-size: 12px;
+            line-height: 1.5;
+            opacity: 0.7;
+        }
+
+        #hud kbd {
+            background: rgba(255, 246, 230, 0.1);
+            border: 1px solid rgba(255, 246, 230, 0.2);
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 11px;
+        }
+
+        #info {
+            margin-top: 10px;
+            font-size: 12px;
+            padding: 6px 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            min-height: 18px;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            opacity: 0.6;
+            margin-bottom: 4px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .row > * {
+            flex: 1;
+        }
+
+        button {
+            padding: 6px 8px;
+            font-family: inherit;
+            font-size: 12px;
+            background: rgba(255, 210, 138, 0.2);
+            color: inherit;
+            border: 1px solid rgba(255, 210, 138, 0.4);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: rgba(255, 210, 138, 0.35);
+        }
+    </style>
+    <script>
+        // Same import-map cache-buster pattern as index.html so edits show up
+        // immediately during development. Only enabled on local hosts.
+        (function () {
+            const h = location.hostname;
+            const isLocal = h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' ||
+                h.endsWith('.local') || /^10\./.test(h) || /^192\.168\./.test(h);
+            const v = isLocal ? '?v=' + Date.now() : '';
+            // Complete src/ + models/ lists (same as index.html) so the ?v= cache-buster
+            // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
+            // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
+            // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
+            const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'crowd', 'chunks', 'forests',
+                'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
+                'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay'];
+            const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'heart', 'stage', 'performer',
+                'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
+                'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures'];
+            const base = new URL('./src/', document.baseURI).href;
+            const imports = {
+                'three': 'https://unpkg.com/three@0.160.0/build/three.module.js',
+                'three/addons/': 'https://unpkg.com/three@0.160.0/examples/jsm/',
+            };
+            for (const m of mods) imports[base + m + '.js'] = base + m + '.js' + v;
+            for (const m of models) imports[base + 'models/' + m + '.js'] = base + 'models/' + m + '.js' + v;
+            const im = document.createElement('script');
+            im.type = 'importmap';
+            im.textContent = JSON.stringify({imports});
+            document.head.appendChild(im);
+        })();
+    </script>
 </head>
 <body>
-  <canvas id="canvas"></canvas>
+<canvas id="canvas"></canvas>
 
-  <div id="hud">
+<div id="hud">
     <h1>Entity Sandbox</h1>
     <label for="entity">Entity</label>
     <select id="entity">
-      <optgroup label="Carts">
-        <option value="zerble">Zerble</option>
-        <option value="lurleen">Lurleen</option>
-        <option value="lurleen_zerble">Zerble + Lurleen (side by side)</option>
-      </optgroup>
-      <optgroup label="Festival props">
-        <option value="hammock">Hammock</option>
-        <option value="hammock_with_npc">Hammock + person (lounging)</option>
-        <option value="tent">Vendor tent</option>
-        <option value="tent_row">Vendor tent row (5 — shows layout variety)</option>
-        <option value="food_truck">Food truck</option>
-<option value="sugar_shack">Sugar Shack</option>
-        <option value="tree">Tree</option>
-        <option value="entrance_arch">Entrance arch</option>
-        <option value="stage_main">Main stage (with band)</option>
-        <option value="stage_side">Side stage (with band)</option>
-        <option value="tent_stage">Tent stage (big white tent)</option>
-        <option value="canoe">Canoe</option>
-        <option value="lake">Lake (mini disc)</option>
-        <option value="big_lake">Lake (big + small + causeway + island)</option>
-        <option value="lake_with_beach">Lake (big + sand beach)</option>
-        <option value="picnic_blanket">Picnic blanket</option>
-        <option value="lamppost_pair">Lamppost pair + festoon string lights</option>
-      </optgroup>
-      <optgroup label="People">
-        <option value="cheer_demo">Crowd cheer demo (jump + arms-up)</option>
-        <option value="puppet">Puppet (parade)</option>
-        <option value="puppet_lineup">Puppet lineup (3)</option>
-        <option value="band_member_trumpet">Band member — trumpet</option>
-        <option value="band_member_tuba">Band member — tuba</option>
-        <option value="band_member_sax">Band member — sax</option>
-        <option value="band_member_drum">Band member — drum</option>
-        <option value="band_member_trombone">Band member — trombone</option>
-        <option value="parasol_marshal">Parasol grand marshal</option>
-        <option value="brass_band">Brass band formation</option>
-        <option value="shopkeeper">Vendor shopkeeper (alone)</option>
-        <option value="kid">Kid</option>
-        <option value="wook">Wook</option>
-        <option value="hula_hooper">Hula-hooper</option>
-        <option value="hula_hooper_night">Hula-hooper (night — hoop glows)</option>
-        <option value="frisbee_player">Frisbee player</option>
-        <option value="frisbee_pair">Frisbee pair (tossing disc)</option>
-        <option value="performer_lead_vocal">Performer — lead vocal</option>
-        <option value="performer_guitar">Performer — guitar</option>
-        <option value="performer_bass">Performer — bass</option>
-        <option value="performer_drum">Performer — drum kit</option>
-        <option value="performer_sax">Performer — sax</option>
-      </optgroup>
-      <optgroup label="Drum circle">
-        <option value="leaf_drum_circle">LEAF drum circle (full)</option>
-        <option value="leaf_drum_circle_day">LEAF drum circle — daytime</option>
-        <option value="leaf_drum_circle_night">LEAF drum circle — full night</option>
-        <option value="drum_circle_populated">Drum circle populated (drummers + dancers + firekeeper)</option>
-        <option value="chunk_drum_circle">Chunk drum circle (simple — fire + stones + djembe)</option>
-        <option value="fire_dancer">Fire dancer</option>
-        <option value="hand_drummer">Hand drummer (seated)</option>
-        <option value="firekeeper">Firekeeper (black, with pole)</option>
-        <option value="spotter">Spotter (black, no pole)</option>
-      </optgroup>
-      <optgroup label="Camping">
-        <option value="camp_tent">Camp tent (sleeping)</option>
-        <option value="camp_chair">Camp chair (folding)</option>
-        <option value="chiminea">Chiminea / firepit</option>
-        <option value="tiki_torch">Tiki torch</option>
-        <option value="torch_field">Tiki torch field (instanced)</option>
-        <option value="ezup">EZ-up canopy</option>
-        <option value="tapestry">Tapestry</option>
-        <option value="campsite_small">Campsite (small)</option>
-        <option value="campsite_medium">Campsite (medium)</option>
-        <option value="campsite_large">Campsite (large)</option>
-      </optgroup>
-      <optgroup label="Forest">
-        <option value="forest_tree_pine">Forest tree — tall pine</option>
-        <option value="forest_tree_oak">Forest tree — oak</option>
-        <option value="forest_tree_birch">Forest tree — birch</option>
-        <option value="forest_tree_random">Forest tree — random variety</option>
-      </optgroup>
-      <optgroup label="Wildlife">
-        <option value="bird_sparrow">Bird — sparrow (flying)</option>
-        <option value="bird_finch">Bird — finch (flying)</option>
-        <option value="bird_jay">Bird — jay (flying)</option>
-        <option value="bird_crow">Bird — crow (flying)</option>
-        <option value="bird_dove">Bird — dove (flying)</option>
-        <option value="bird_perched">Bird — perched (resting pose)</option>
-        <option value="bird_flock">Bird flock (7 sparrows)</option>
-        <option value="bird_in_tree">Bird in tree (perch anchors on oak)</option>
-      </optgroup>
-      <optgroup label="Bubble juice">
-        <option value="bubble_jug">Bubble-juice jug (floating pickup)</option>
-        <option value="bubble_vendor">Bubble vendor (spacesuit stand)</option>
-      </optgroup>
-      <optgroup label="Particles">
-        <option value="heart">Heart particle</option>
-        <option value="smile_pickup">Smile pickup (rising + homing)</option>
-        <option value="bubbles">Bubbles (Zerble's trail)</option>
-      </optgroup>
+        <optgroup label="Carts">
+            <option value="zerble">Zerble</option>
+            <option value="lurleen">Lurleen</option>
+            <option value="lurleen_zerble">Zerble + Lurleen (side by side)</option>
+        </optgroup>
+        <optgroup label="Festival props">
+            <option value="hammock">Hammock</option>
+            <option value="hammock_with_npc">Hammock + person (lounging)</option>
+            <option value="tent">Vendor tent</option>
+            <option value="tent_row">Vendor tent row (5 — shows layout variety)</option>
+            <option value="food_truck">Food truck</option>
+            <option value="sugar_shack">Sugar Shack</option>
+            <option value="tree">Tree</option>
+            <option value="entrance_arch">Entrance arch</option>
+            <option value="stage_main">Main stage (with band)</option>
+            <option value="stage_side">Side stage (with band)</option>
+            <option value="tent_stage">Tent stage (big white tent)</option>
+            <option value="canoe">Canoe</option>
+            <option value="lake">Lake (mini disc)</option>
+            <option value="big_lake">Lake (big + small + causeway + island)</option>
+            <option value="lake_with_beach">Lake (big + sand beach)</option>
+            <option value="picnic_blanket">Picnic blanket</option>
+            <option value="lamppost_pair">Lamppost pair + festoon string lights</option>
+        </optgroup>
+        <optgroup label="People">
+            <option value="cheer_demo">Crowd cheer demo (jump + arms-up)</option>
+            <option value="puppet">Puppet (parade)</option>
+            <option value="puppet_lineup">Puppet lineup (3)</option>
+            <option value="band_member_trumpet">Band member — trumpet</option>
+            <option value="band_member_tuba">Band member — tuba</option>
+            <option value="band_member_sax">Band member — sax</option>
+            <option value="band_member_drum">Band member — drum</option>
+            <option value="band_member_trombone">Band member — trombone</option>
+            <option value="parasol_marshal">Parasol grand marshal</option>
+            <option value="brass_band">Brass band formation</option>
+            <option value="shopkeeper">Vendor shopkeeper (alone)</option>
+            <option value="kid">Kid</option>
+            <option value="wook">Wook</option>
+            <option value="hula_hooper">Hula-hooper</option>
+            <option value="hula_hooper_night">Hula-hooper (night — hoop glows)</option>
+            <option value="frisbee_player">Frisbee player</option>
+            <option value="frisbee_pair">Frisbee pair (tossing disc)</option>
+            <option value="performer_lead_vocal">Performer — lead vocal</option>
+            <option value="performer_guitar">Performer — guitar</option>
+            <option value="performer_bass">Performer — bass</option>
+            <option value="performer_drum">Performer — drum kit</option>
+            <option value="performer_sax">Performer — sax</option>
+        </optgroup>
+        <optgroup label="Drum circle">
+            <option value="leaf_drum_circle">LEAF drum circle (full)</option>
+            <option value="leaf_drum_circle_day">LEAF drum circle — daytime</option>
+            <option value="leaf_drum_circle_night">LEAF drum circle — full night</option>
+            <option value="drum_circle_populated">Drum circle populated (drummers + dancers + firekeeper)</option>
+            <option value="chunk_drum_circle">Chunk drum circle (simple — fire + stones + djembe)</option>
+            <option value="fire_dancer">Fire dancer</option>
+            <option value="hand_drummer">Hand drummer (seated)</option>
+            <option value="firekeeper">Firekeeper (black, with pole)</option>
+            <option value="spotter">Spotter (black, no pole)</option>
+        </optgroup>
+        <optgroup label="Camping">
+            <option value="camp_tent">Camp tent (sleeping)</option>
+            <option value="camp_chair">Camp chair (folding)</option>
+            <option value="chiminea">Chiminea / firepit</option>
+            <option value="tiki_torch">Tiki torch</option>
+            <option value="torch_field">Tiki torch field (instanced)</option>
+            <option value="ezup">EZ-up canopy</option>
+            <option value="tapestry">Tapestry</option>
+            <option value="campsite_small">Campsite (small)</option>
+            <option value="campsite_medium">Campsite (medium)</option>
+            <option value="campsite_large">Campsite (large)</option>
+        </optgroup>
+        <optgroup label="Forest">
+            <option value="forest_tree_pine">Forest tree — tall pine</option>
+            <option value="forest_tree_oak">Forest tree — oak</option>
+            <option value="forest_tree_birch">Forest tree — birch</option>
+            <option value="forest_tree_random">Forest tree — random variety</option>
+        </optgroup>
+        <optgroup label="Wildlife">
+            <option value="bird_sparrow">Bird — sparrow (flying)</option>
+            <option value="bird_finch">Bird — finch (flying)</option>
+            <option value="bird_jay">Bird — jay (flying)</option>
+            <option value="bird_crow">Bird — crow (flying)</option>
+            <option value="bird_dove">Bird — dove (flying)</option>
+            <option value="bird_perched">Bird — perched (resting pose)</option>
+            <option value="bird_flock">Bird flock (7 sparrows)</option>
+            <option value="bird_in_tree">Bird in tree (perch anchors on oak)</option>
+        </optgroup>
+        <optgroup label="Bubble juice">
+            <option value="bubble_jug">Bubble-juice jug (floating pickup)</option>
+            <option value="bubble_vendor">Bubble vendor (spacesuit stand)</option>
+        </optgroup>
+        <optgroup label="Particles">
+            <option value="heart">Heart particle</option>
+            <option value="smile_pickup">Smile pickup (rising + homing)</option>
+            <option value="bubbles">Bubbles (Zerble's trail)</option>
+        </optgroup>
     </select>
     <div class="row">
-      <button id="reset-cam">Reset camera</button>
-      <button id="snapshot">Copy link</button>
+        <button id="reset-cam">Reset camera</button>
+        <button id="snapshot">Copy link</button>
     </div>
     <div id="info">drag to orbit · scroll to zoom · shift-drag to pan</div>
     <div class="controls">
-      <kbd>1</kbd>–<kbd>6</kbd> snap to angles · <kbd>R</kbd> reset · <kbd>L</kbd> toggle ground
+        <kbd>1</kbd>–<kbd>6</kbd> snap to angles · <kbd>R</kbd> reset · <kbd>L</kbd> toggle ground
     </div>
 
     <!-- Time-of-day panel — slider + preset buttons that drive the local
@@ -203,38 +312,57 @@
          without bouncing back to the game. Mirrors the in-game ToD block
          that used to live in the backtick debug menu. -->
     <div class="tod-panel" style="margin-top:8px;border-top:1px solid #2a4a5a;padding-top:6px">
-      <div style="opacity:0.7;margin-bottom:4px">Time of day <span id="tod-readout" style="float:right;opacity:0.7"></span></div>
-      <input id="tod-slider" type="range" min="0" max="1" step="0.001" value="0.15"
-        style="width:100%;accent-color:#ffe066;cursor:pointer">
-      <div style="display:flex;gap:4px;margin-top:6px">
-        <button data-t="0.10" class="tod-preset" style="flex:1;font:inherit;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">Morning</button>
-        <button data-t="0.30" class="tod-preset" style="flex:1;font:inherit;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">Noon</button>
-        <button data-t="0.50" class="tod-preset" style="flex:1;font:inherit;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">Dusk</button>
-        <button data-t="0.75" class="tod-preset" style="flex:1;font:inherit;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">Midnight</button>
-      </div>
+        <div style="opacity:0.7;margin-bottom:4px">Time of day <span id="tod-readout"
+                                                                     style="float:right;opacity:0.7"></span></div>
+        <input id="tod-slider" type="range" min="0" max="1" step="0.001" value="0.15"
+               style="width:100%;accent-color:#ffe066;cursor:pointer">
+        <div style="display:flex;gap:4px;margin-top:6px">
+            <button data-t="0.10" class="tod-preset"
+                    style="flex:1;font:inherit;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">
+                Morning
+            </button>
+            <button data-t="0.30" class="tod-preset"
+                    style="flex:1;font:inherit;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">
+                Noon
+            </button>
+            <button data-t="0.50" class="tod-preset"
+                    style="flex:1;font:inherit;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">
+                Dusk
+            </button>
+            <button data-t="0.75" class="tod-preset"
+                    style="flex:1;font:inherit;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">
+                Midnight
+            </button>
+        </div>
     </div>
 
     <!-- Audio panel — mirrors the in-game ` debug menu volume sliders so a
          sandbox-only tester can balance mix without bouncing back to the game.
          Sound.init() runs on the first interaction with the page. -->
     <div class="audio-panel" style="margin-top:8px;border-top:1px solid #2a4a5a;padding-top:6px">
-      <div style="opacity:0.7;margin-bottom:4px">Audio</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-        <span style="flex:0 0 48px;opacity:0.8">Master</span>
-        <input id="vol-master" type="range" min="0" max="1.5" step="0.01" value="0.55" style="flex:1;accent-color:#ffe066;cursor:pointer">
-        <span id="vol-master-r" style="width:36px;text-align:right">0.55</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-        <span style="flex:0 0 48px;opacity:0.8">Music</span>
-        <input id="vol-music" type="range" min="0" max="3" step="0.01" value="1.6" style="flex:1;accent-color:#ffe066;cursor:pointer">
-        <span id="vol-music-r" style="width:36px;text-align:right">1.60</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-        <span style="flex:0 0 48px;opacity:0.8">SFX</span>
-        <input id="vol-sfx" type="range" min="0" max="2" step="0.01" value="1.0" style="flex:1;accent-color:#ffe066;cursor:pointer">
-        <span id="vol-sfx-r" style="width:36px;text-align:right">1.00</span>
-      </div>
-      <button id="hit-it-btn" style="margin-top:4px;width:100%;display:none;background:rgba(255,100,100,0.20);color:#fdd;border:1px solid rgba(255,100,100,0.45);border-radius:3px;padding:4px;cursor:pointer;font:inherit">Hit it</button>
+        <div style="opacity:0.7;margin-bottom:4px">Audio</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="flex:0 0 48px;opacity:0.8">Master</span>
+            <input id="vol-master" type="range" min="0" max="1.5" step="0.01" value="0.55"
+                   style="flex:1;accent-color:#ffe066;cursor:pointer">
+            <span id="vol-master-r" style="width:36px;text-align:right">0.55</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="flex:0 0 48px;opacity:0.8">Music</span>
+            <input id="vol-music" type="range" min="0" max="3" step="0.01" value="1.6"
+                   style="flex:1;accent-color:#ffe066;cursor:pointer">
+            <span id="vol-music-r" style="width:36px;text-align:right">1.60</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="flex:0 0 48px;opacity:0.8">SFX</span>
+            <input id="vol-sfx" type="range" min="0" max="2" step="0.01" value="1.0"
+                   style="flex:1;accent-color:#ffe066;cursor:pointer">
+            <span id="vol-sfx-r" style="width:36px;text-align:right">1.00</span>
+        </div>
+        <button id="hit-it-btn"
+                style="margin-top:4px;width:100%;display:none;background:rgba(255,100,100,0.20);color:#fdd;border:1px solid rgba(255,100,100,0.45);border-radius:3px;padding:4px;cursor:pointer;font:inherit">
+            Hit it
+        </button>
     </div>
 
     <!-- Music + MIDI panel: trigger any stage-music style or the MIDI player
@@ -244,34 +372,65 @@
          The 4 style buttons mirror Sound.attachStageMusic(); MIDI button
          lazy-loads Tone.js on first press just like the in-game M key. -->
     <div class="music-panel" style="margin-top:8px;border-top:1px solid #2a4a5a;padding-top:6px">
-      <div style="opacity:0.7;margin-bottom:4px">Music
-        <span id="music-state" style="float:right;opacity:0.7;font-size:10px">—</span>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">
-        <button data-style="jam"         class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(120,180,255,0.18);color:inherit;border:1px solid rgba(120,180,255,0.4);border-radius:4px">Jam</button>
-        <button data-style="brass"       class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,200,100,0.18);color:inherit;border:1px solid rgba(255,200,100,0.4);border-radius:4px">Brass</button>
-        <button data-style="drum"        class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(180,140,220,0.18);color:inherit;border:1px solid rgba(180,140,220,0.4);border-radius:4px">Drum</button>
-        <button data-style="forest_drum" class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(120,220,160,0.18);color:inherit;border:1px solid rgba(120,220,160,0.4);border-radius:4px">Forest</button>
-        <button data-style="dance"       class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,120,200,0.18);color:inherit;border:1px solid rgba(255,120,200,0.4);border-radius:4px">Dance</button>
-        <button data-style="world"       class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,180,80,0.18);color:inherit;border:1px solid rgba(255,180,80,0.4);border-radius:4px">World</button>
-        <button data-style="dub"         class="music-btn" style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(80,200,160,0.18);color:inherit;border:1px solid rgba(80,200,160,0.4);border-radius:4px">Dub</button>
-      </div>
-      <div style="display:flex;gap:3px;margin-bottom:4px">
-        <button id="music-stop" style="flex:1;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,140,140,0.18);color:inherit;border:1px solid rgba(255,140,140,0.4);border-radius:4px">Stop music</button>
-        <button id="end-song-btn" style="flex:1;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,220,80,0.22);color:inherit;border:1px solid rgba(255,220,80,0.5);border-radius:4px">End song now</button>
-        <button id="midi-toggle" style="flex:1;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.18);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">♪ MIDI</button>
-      </div>
-      <!-- Trip-envelope sweep: drives MIDI reverb-swell + granular effect
-           across 0→1 without the wook flow. Also drives Sound.setMusicTrip
-           so procedural music warps in parallel. -->
-      <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
-        <span style="flex:0 0 60px;font-size:10px;opacity:0.8">Trip sweep</span>
-        <input id="trip-sweep" type="range" min="0" max="1" step="0.01" value="0"
-          style="flex:1;accent-color:#c8a0ff;cursor:pointer">
-        <span id="trip-sweep-r" style="width:30px;text-align:right;font-size:10px">0.00</span>
-      </div>
-      <!-- Live song-state readout — polls Sound.songStates() ~4Hz. -->
-      <pre id="song-state-readout" style="margin:0;font-size:9px;line-height:1.35;white-space:pre;color:#adf;background:rgba(0,0,0,0.25);border-radius:4px;padding:4px;min-height:18px">—</pre>
+        <div style="opacity:0.7;margin-bottom:4px">Music
+            <span id="music-state" style="float:right;opacity:0.7;font-size:10px">—</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">
+            <button data-style="jam" class="music-btn"
+                    style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(120,180,255,0.18);color:inherit;border:1px solid rgba(120,180,255,0.4);border-radius:4px">
+                Jam
+            </button>
+            <button data-style="brass" class="music-btn"
+                    style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,200,100,0.18);color:inherit;border:1px solid rgba(255,200,100,0.4);border-radius:4px">
+                Brass
+            </button>
+            <button data-style="drum" class="music-btn"
+                    style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(180,140,220,0.18);color:inherit;border:1px solid rgba(180,140,220,0.4);border-radius:4px">
+                Drum
+            </button>
+            <button data-style="forest_drum" class="music-btn"
+                    style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(120,220,160,0.18);color:inherit;border:1px solid rgba(120,220,160,0.4);border-radius:4px">
+                Forest
+            </button>
+            <button data-style="dance" class="music-btn"
+                    style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,120,200,0.18);color:inherit;border:1px solid rgba(255,120,200,0.4);border-radius:4px">
+                Dance
+            </button>
+            <button data-style="world" class="music-btn"
+                    style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,180,80,0.18);color:inherit;border:1px solid rgba(255,180,80,0.4);border-radius:4px">
+                World
+            </button>
+            <button data-style="dub" class="music-btn"
+                    style="flex:1 0 28%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(80,200,160,0.18);color:inherit;border:1px solid rgba(80,200,160,0.4);border-radius:4px">
+                Dub
+            </button>
+        </div>
+        <div style="display:flex;gap:3px;margin-bottom:4px">
+            <button id="music-stop"
+                    style="flex:1;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,140,140,0.18);color:inherit;border:1px solid rgba(255,140,140,0.4);border-radius:4px">
+                Stop music
+            </button>
+            <button id="end-song-btn"
+                    style="flex:1;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,220,80,0.22);color:inherit;border:1px solid rgba(255,220,80,0.5);border-radius:4px">
+                End song now
+            </button>
+            <button id="midi-toggle"
+                    style="flex:1;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.18);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">
+                ♪ MIDI
+            </button>
+        </div>
+        <!-- Trip-envelope sweep: drives MIDI reverb-swell + granular effect
+             across 0→1 without the wook flow. Also drives Sound.setMusicTrip
+             so procedural music warps in parallel. -->
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
+            <span style="flex:0 0 60px;font-size:10px;opacity:0.8">Trip sweep</span>
+            <input id="trip-sweep" type="range" min="0" max="1" step="0.01" value="0"
+                   style="flex:1;accent-color:#c8a0ff;cursor:pointer">
+            <span id="trip-sweep-r" style="width:30px;text-align:right;font-size:10px">0.00</span>
+        </div>
+        <!-- Live song-state readout — polls Sound.songStates() ~4Hz. -->
+        <pre id="song-state-readout"
+             style="margin:0;font-size:9px;line-height:1.35;white-space:pre;color:#adf;background:rgba(0,0,0,0.25);border-radius:4px;padding:4px;min-height:18px">—</pre>
     </div>
 
     <!-- Trip panel — hidden by default. Toggle with the header button or T key.
@@ -280,80 +439,106 @@
          sandbox tick drives Trip.update each frame with empty wookPositions
          so nothing auto-fires — only the buttons here can start a trip. -->
     <div class="trip-panel" style="margin-top:8px;border-top:1px solid #2a4a5a;padding-top:6px">
-      <button id="trip-toggle" style="width:100%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(200,100,255,0.18);color:inherit;border:1px solid rgba(200,100,255,0.4);border-radius:4px;text-align:left">▶ Trip (T)</button>
-      <div id="trip-body" style="display:none;margin-top:6px">
-        <pre id="trip-state" style="margin:0 0 6px;font-size:10px;line-height:1.4;white-space:pre;color:#cef">state: idle | env: 0.00</pre>
-        <div style="display:flex;gap:3px;margin-bottom:4px">
-          <button data-preset="microdose" class="trip-preset" style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">Micro</button>
-          <button data-preset="standard"  class="trip-preset" style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">Std</button>
-          <button data-preset="full"      class="trip-preset" style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">Full</button>
+        <button id="trip-toggle"
+                style="width:100%;font:inherit;font-size:11px;padding:3px 4px;cursor:pointer;background:rgba(200,100,255,0.18);color:inherit;border:1px solid rgba(200,100,255,0.4);border-radius:4px;text-align:left">
+            ▶ Trip (T)
+        </button>
+        <div id="trip-body" style="display:none;margin-top:6px">
+            <pre id="trip-state" style="margin:0 0 6px;font-size:10px;line-height:1.4;white-space:pre;color:#cef">state: idle | env: 0.00</pre>
+            <div style="display:flex;gap:3px;margin-bottom:4px">
+                <button data-preset="microdose" class="trip-preset"
+                        style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">
+                    Micro
+                </button>
+                <button data-preset="standard" class="trip-preset"
+                        style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">
+                    Std
+                </button>
+                <button data-preset="full" class="trip-preset"
+                        style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(255,224,102,0.15);color:inherit;border:1px solid rgba(255,224,102,0.4);border-radius:4px">
+                    Full
+                </button>
+            </div>
+            <div style="display:flex;gap:3px;margin-bottom:4px">
+                <button id="trip-fire"
+                        style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(255,100,100,0.22);color:#fdd;border:1px solid rgba(255,100,100,0.5);border-radius:4px">
+                    FIRE
+                </button>
+                <button id="trip-dynamic"
+                        style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(200,100,255,0.22);color:#fdf;border:1px solid rgba(200,100,255,0.5);border-radius:4px">
+                    DYNAMIC
+                </button>
+                <button id="trip-comedown"
+                        style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(80,180,180,0.18);color:#bdf;border:1px solid rgba(80,180,180,0.4);border-radius:4px">
+                    COME DOWN
+                </button>
+            </div>
+            <div id="trip-sliders"></div>
         </div>
-        <div style="display:flex;gap:3px;margin-bottom:4px">
-          <button id="trip-fire"     style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(255,100,100,0.22);color:#fdd;border:1px solid rgba(255,100,100,0.5);border-radius:4px">FIRE</button>
-          <button id="trip-dynamic"  style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(200,100,255,0.22);color:#fdf;border:1px solid rgba(200,100,255,0.5);border-radius:4px">DYNAMIC</button>
-          <button id="trip-comedown" style="flex:1;font:inherit;font-size:10px;padding:3px 4px;cursor:pointer;background:rgba(80,180,180,0.18);color:#bdf;border:1px solid rgba(80,180,180,0.4);border-radius:4px">COME DOWN</button>
-        </div>
-        <div id="trip-sliders"></div>
-      </div>
     </div>
-  </div>
+</div>
 
-  <script type="module">
+<script type="module">
     import * as THREE from 'three';
-    import { Sound } from './src/sound.js';
-    import { TimeOfDay } from './src/timeOfDay.js';
-    import { Zerble } from './src/zerble.js';
-    import { Lurleen, createHeartGeometry } from './src/lurleen.js';
-    import { buildHammockStandalone } from './src/chunks.js';
-    import { buildHammock as buildHammockRaw } from './src/models/hammock.js';
-    import { buildSimpleNPC } from './src/models/puppet.js';
-    import { _buildCanoeMeshForSandbox, buildLake, setLakeNightness } from './src/lakes.js';
-import { mulberry32 } from './src/rng.js';
-    import { buildTent } from './src/models/tent.js';
-    import { buildFoodTruck } from './src/models/foodTruck.js';
-import { buildSugarShack } from './src/models/sugarShack.js';
-    import { buildTree } from './src/models/tree.js';
-    import { buildEntranceArch } from './src/models/entranceArch.js';
-    import { leafBannerTextures } from './src/models/leafBanner.js';
-    import { buildStage, placeBandOnStage } from './src/models/stage.js';
-    import { buildTentStage } from './src/models/tentStage.js';
-    import { buildPuppet, tickPuppet } from './src/models/puppet.js';
-    import { buildBandMember, tickBandMember } from './src/models/bandMember.js';
-    import { buildParasolMarshal, tickParasolMarshal } from './src/models/parasolMarshal.js';
-    import { buildKid, tickKid } from './src/models/kid.js';
-    import { buildWook, tickWook } from './src/models/wook.js';
-    import { buildHulaHooper, tickHulaHooper } from './src/models/hulaHooper.js';
-    import { buildFrisbeePlayer, buildFrisbeeDisc, tickFrisbeePlayer, tickFrisbeeDisc } from './src/models/frisbeePlayer.js';
-    import { buildPerformer } from './src/models/performer.js';
+    import {Sound} from './src/sound.js';
+    import {TimeOfDay} from './src/timeOfDay.js';
+    import {Zerble} from './src/zerble.js';
+    import {Lurleen, createHeartGeometry} from './src/lurleen.js';
+    import {buildHammockStandalone} from './src/chunks.js';
+    import {buildHammock as buildHammockRaw} from './src/models/hammock.js';
+    import {buildSimpleNPC} from './src/models/puppet.js';
+    import {_buildCanoeMeshForSandbox, buildLake, setLakeNightness} from './src/lakes.js';
+    import {mulberry32} from './src/rng.js';
+    import {buildTent} from './src/models/tent.js';
+    import {buildFoodTruck} from './src/models/foodTruck.js';
+    import {buildSugarShack} from './src/models/sugarShack.js';
+    import {buildTree} from './src/models/tree.js';
+    import {buildEntranceArch} from './src/models/entranceArch.js';
+    import {leafBannerTextures} from './src/models/leafBanner.js';
+    import {buildStage, placeBandOnStage} from './src/models/stage.js';
+    import {buildTentStage} from './src/models/tentStage.js';
+    import {buildPuppet, tickPuppet} from './src/models/puppet.js';
+    import {buildBandMember, tickBandMember} from './src/models/bandMember.js';
+    import {buildParasolMarshal, tickParasolMarshal} from './src/models/parasolMarshal.js';
+    import {buildKid, tickKid} from './src/models/kid.js';
+    import {buildWook, tickWook} from './src/models/wook.js';
+    import {buildHulaHooper, tickHulaHooper} from './src/models/hulaHooper.js';
     import {
-      buildCampTent, buildCampChair, buildChiminea, buildTikiTorch, buildTorchField,
-      buildEzUp, buildTapestry, buildCampsite, updateCampsiteProps,
+        buildFrisbeePlayer,
+        buildFrisbeeDisc,
+        tickFrisbeePlayer,
+        tickFrisbeeDisc
+    } from './src/models/frisbeePlayer.js';
+    import {buildPerformer} from './src/models/performer.js';
+    import {
+        buildCampTent, buildCampChair, buildChiminea, buildTikiTorch, buildTorchField,
+        buildEzUp, buildTapestry, buildCampsite, updateCampsiteProps,
     } from './src/models/campsite.js';
-    import { buildTallPine, buildOak, buildBirch, buildForestTree } from './src/models/tree.js';
-    import { buildBird, buildBirdFlock, BIRD_KEYS, BIRD_SPECIES } from './src/models/bird.js';
-    import { buildBubbleJug } from './src/models/bubbleJug.js';
-    import { buildBubbleVendor } from './src/models/bubbleVendor.js';
-    import { buildLeafDrumCircle, updateLeafDrumCircle } from './src/models/leafDrumCircle.js';
+    import {buildTallPine, buildOak, buildBirch, buildForestTree} from './src/models/tree.js';
+    import {buildBird, buildBirdFlock, BIRD_KEYS, BIRD_SPECIES} from './src/models/bird.js';
+    import {buildBubbleJug} from './src/models/bubbleJug.js';
+    import {buildBubbleVendor} from './src/models/bubbleVendor.js';
+    import {buildLeafDrumCircle, updateLeafDrumCircle} from './src/models/leafDrumCircle.js';
     import {
-      buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
-      updateTribalFigures,
+        buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
+        updateTribalFigures,
     } from './src/models/tribalFigures.js';
-    import { Bubbles } from './src/bubbles.js';
-    import { Smiles } from './src/smiles.js';
-    import { Crowd } from './src/crowd.js';
+    import {Bubbles} from './src/bubbles.js';
+    import {Smiles} from './src/smiles.js';
+    import {Crowd} from './src/crowd.js';
     // Trip + MIDI imports for the audition panels added at the bottom of the
     // HUD. Trip needs its post-process pass slotted into a composer, so we
     // also import EffectComposer / RenderPass / OutputPass and switch the
     // sandbox render loop from `renderer.render(scene, camera)` to a
     // composer.render() pipeline below.
-    import { Trip } from './src/trip.js';
-    import { MidiPlayer } from './src/midiPlayer.js';
-    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import {Trip} from './src/trip.js';
+    import {MidiPlayer} from './src/midiPlayer.js';
+    import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+    import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+    import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
     const canvas = document.getElementById('canvas');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -392,8 +577,8 @@ import { buildSugarShack } from './src/models/sugarShack.js';
 
     // Time-of-day controller — drives sun/hemi/ambient/fog just like main.js.
     // No sky shader in the sandbox, so sky is null (TimeOfDay tolerates it).
-    const tod = new TimeOfDay(scene, { startT: 0.15 });
-    tod.attach({ sky: null, sun, hemi, ambient });
+    const tod = new TimeOfDay(scene, {startT: 0.15});
+    tod.attach({sky: null, sun, hemi, ambient});
 
     // Post-processing chain so the sandbox can drive the Trip ShaderPass.
     // Order: RenderPass → Trip.pass → OutputPass. The Trip panel below can
@@ -410,98 +595,109 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     // Ground reference (flat grass disc) — toggle with L
     const groundGroup = new THREE.Group();
     {
-      const ground = new THREE.Mesh(
-        new THREE.CircleGeometry(35, 48),
-        new THREE.MeshStandardMaterial({ color: 0x7cb37a, roughness: 0.95, flatShading: true }),
-      );
-      ground.rotation.x = -Math.PI / 2;
-      ground.receiveShadow = true;
-      groundGroup.add(ground);
-      // Subtle grid so motion is readable
-      const grid = new THREE.GridHelper(30, 30, 0x4a8048, 0x4a8048);
-      grid.position.y = 0.01;
-      grid.material.opacity = 0.3;
-      grid.material.transparent = true;
-      groundGroup.add(grid);
+        const ground = new THREE.Mesh(
+            new THREE.CircleGeometry(35, 48),
+            new THREE.MeshStandardMaterial({color: 0x7cb37a, roughness: 0.95, flatShading: true}),
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        groundGroup.add(ground);
+        // Subtle grid so motion is readable
+        const grid = new THREE.GridHelper(30, 30, 0x4a8048, 0x4a8048);
+        grid.position.y = 0.01;
+        grid.material.opacity = 0.3;
+        grid.material.transparent = true;
+        groundGroup.add(grid);
     }
     scene.add(groundGroup);
 
     // Orbit camera (no OrbitControls dep — hand-rolled, works on touch + mouse)
-    const cam = { yaw: -0.4, pitch: 0.45, dist: 10, target: new THREE.Vector3(0, 1.6, 0) };
+    const cam = {yaw: -0.4, pitch: 0.45, dist: 10, target: new THREE.Vector3(0, 1.6, 0)};
+
     function applyCam() {
-      const cp = Math.cos(cam.pitch);
-      camera.position.set(
-        cam.target.x + Math.sin(cam.yaw) * cp * cam.dist,
-        cam.target.y + Math.sin(cam.pitch) * cam.dist,
-        cam.target.z + Math.cos(cam.yaw) * cp * cam.dist,
-      );
-      camera.lookAt(cam.target);
+        const cp = Math.cos(cam.pitch);
+        camera.position.set(
+            cam.target.x + Math.sin(cam.yaw) * cp * cam.dist,
+            cam.target.y + Math.sin(cam.pitch) * cam.dist,
+            cam.target.z + Math.cos(cam.yaw) * cp * cam.dist,
+        );
+        camera.lookAt(cam.target);
     }
+
     applyCam();
 
     function resize() {
-      const w = window.innerWidth, h = window.innerHeight;
-      renderer.setSize(w, h);
-      composer.setSize(w, h);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+        const w = window.innerWidth, h = window.innerHeight;
+        renderer.setSize(w, h);
+        composer.setSize(w, h);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
     }
+
     resize();
     window.addEventListener('resize', resize);
 
     // Input — pointer-based, works for mouse + touch
     let dragging = false, lastX = 0, lastY = 0, panning = false;
     canvas.addEventListener('pointerdown', (e) => {
-      dragging = true; panning = e.shiftKey || e.button === 1;
-      lastX = e.clientX; lastY = e.clientY;
-      canvas.setPointerCapture(e.pointerId);
+        dragging = true;
+        panning = e.shiftKey || e.button === 1;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        canvas.setPointerCapture(e.pointerId);
     });
     canvas.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
-      const dx = e.clientX - lastX, dy = e.clientY - lastY;
-      lastX = e.clientX; lastY = e.clientY;
-      if (panning) {
-        const panScale = cam.dist * 0.0025;
-        // Pan in camera-relative axes
-        const right = new THREE.Vector3();
-        camera.getWorldDirection(right);
-        right.cross(new THREE.Vector3(0, 1, 0)).normalize();
-        const up = new THREE.Vector3(0, 1, 0);
-        cam.target.addScaledVector(right, -dx * panScale).addScaledVector(up, dy * panScale);
-      } else {
-        cam.yaw -= dx * 0.008;
-        cam.pitch = Math.max(-1.3, Math.min(1.4, cam.pitch + dy * 0.008));
-      }
-      applyCam();
+        if (!dragging) return;
+        const dx = e.clientX - lastX, dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        if (panning) {
+            const panScale = cam.dist * 0.0025;
+            // Pan in camera-relative axes
+            const right = new THREE.Vector3();
+            camera.getWorldDirection(right);
+            right.cross(new THREE.Vector3(0, 1, 0)).normalize();
+            const up = new THREE.Vector3(0, 1, 0);
+            cam.target.addScaledVector(right, -dx * panScale).addScaledVector(up, dy * panScale);
+        } else {
+            cam.yaw -= dx * 0.008;
+            cam.pitch = Math.max(-1.3, Math.min(1.4, cam.pitch + dy * 0.008));
+        }
+        applyCam();
     });
-    canvas.addEventListener('pointerup', () => { dragging = false; panning = false; });
+    canvas.addEventListener('pointerup', () => {
+        dragging = false;
+        panning = false;
+    });
     canvas.addEventListener('wheel', (e) => {
-      cam.dist = Math.max(2, Math.min(50, cam.dist * (1 + e.deltaY * 0.001)));
-      applyCam();
-      e.preventDefault();
-    }, { passive: false });
+        cam.dist = Math.max(2, Math.min(50, cam.dist * (1 + e.deltaY * 0.001)));
+        applyCam();
+        e.preventDefault();
+    }, {passive: false});
 
     // Keyboard snaps + toggles
     const snaps = {
-      '1': { yaw: 0, pitch: 0.15 },         // front
-      '2': { yaw: Math.PI / 2, pitch: 0.15 },  // right
-      '3': { yaw: Math.PI, pitch: 0.15 },   // back
-      '4': { yaw: -Math.PI / 2, pitch: 0.15 }, // left
-      '5': { yaw: -0.5, pitch: 0.9 },       // top-iso
-      '6': { yaw: -0.5, pitch: 0.45 },      // 3/4
+        '1': {yaw: 0, pitch: 0.15},         // front
+        '2': {yaw: Math.PI / 2, pitch: 0.15},  // right
+        '3': {yaw: Math.PI, pitch: 0.15},   // back
+        '4': {yaw: -Math.PI / 2, pitch: 0.15}, // left
+        '5': {yaw: -0.5, pitch: 0.9},       // top-iso
+        '6': {yaw: -0.5, pitch: 0.45},      // 3/4
     };
     window.addEventListener('keydown', (e) => {
-      if (snaps[e.key]) {
-        cam.yaw = snaps[e.key].yaw;
-        cam.pitch = snaps[e.key].pitch;
-        applyCam();
-      } else if (e.key === 'r' || e.key === 'R') {
-        cam.yaw = -0.4; cam.pitch = 0.45; cam.dist = 10;
-        cam.target.set(0, 1.6, 0);
-        applyCam();
-      } else if (e.key === 'l' || e.key === 'L') {
-        groundGroup.visible = !groundGroup.visible;
-      }
+        if (snaps[e.key]) {
+            cam.yaw = snaps[e.key].yaw;
+            cam.pitch = snaps[e.key].pitch;
+            applyCam();
+        } else if (e.key === 'r' || e.key === 'R') {
+            cam.yaw = -0.4;
+            cam.pitch = 0.45;
+            cam.dist = 10;
+            cam.target.set(0, 1.6, 0);
+            applyCam();
+        } else if (e.key === 'l' || e.key === 'L') {
+            groundGroup.visible = !groundGroup.visible;
+        }
     });
 
     // ----- Entity management -----
@@ -517,1266 +713,1325 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     // Expose for debugging / verification. `cam` + `applyCam` let an agent frame
     // a precise close-up via preview_eval (set cam.target / yaw / pitch / dist,
     // then call applyCam()) — applyCam only runs on input otherwise.
-    window.__sandbox = { scene, camera, cam, applyCam, get currentEntity() { return currentEntity; }, Trip, get midi() { return midiPlayer; }, Sound, get songStates() { return Sound.songStates ? Sound.songStates() : []; } };
+    window.__sandbox = {
+        scene, camera, cam, applyCam, get currentEntity() {
+            return currentEntity;
+        }, Trip, get midi() {
+            return midiPlayer;
+        }, Sound, get songStates() {
+            return Sound.songStates ? Sound.songStates() : [];
+        }
+    };
 
     // Sound needs a user gesture to construct its AudioContext. Hook the
     // first interactive event on the sandbox so subsequent entity loads can
     // play music + SFX. Idempotent — only initialises once.
     let soundInitialised = false;
+
     function ensureSoundInit() {
-      if (soundInitialised) return;
-      soundInitialised = true;
-      Sound.init();
-      // Sync the volume readouts now that the gain nodes actually exist.
-      updateVolumeReadouts();
+        if (soundInitialised) return;
+        soundInitialised = true;
+        Sound.init();
+        // Sync the volume readouts now that the gain nodes actually exist.
+        updateVolumeReadouts();
     }
+
     for (const ev of ['pointerdown', 'keydown']) {
-      window.addEventListener(ev, ensureSoundInit, { once: true });
+        window.addEventListener(ev, ensureSoundInit, {once: true});
     }
 
     function clearEntity() {
-      // Aggressive cleanup — remove every non-light, non-ground object so
-      // entities that add multiple top-level roots (e.g. Lurleen's heart
-      // group + her cart root) all get torn down on switch.
-      for (let i = scene.children.length - 1; i >= 0; i--) {
-        const c = scene.children[i];
-        if (c.isLight || c === groundGroup) continue;
-        scene.remove(c);
-        c.traverse?.((o) => {
-          if (o.geometry) o.geometry.dispose?.();
-          if (o.material) {
-            if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose?.());
-            else o.material.dispose?.();
-          }
-        });
-      }
-      // Stop the previous entity's spatial music. detachStageMusic tears
-      // down the oscillators + intervals + panner connections.
-      if (entityMusic) {
-        try { Sound.detachStageMusic(entityMusic); } catch (e) {}
-        entityMusic = null;
-      }
-      // Remove any entity-specific DOM nodes (e.g. the cheer_demo button).
-      if (currentEntity && currentEntity._sandboxCheerBtn) {
-        currentEntity._sandboxCheerBtn.remove();
-      }
-      if (window.__sandbox) window.__sandbox.fireCheer = undefined;
-      currentEntity = null;
-      entityRoot = null;
-      updateFn = null;
+        // Aggressive cleanup — remove every non-light, non-ground object so
+        // entities that add multiple top-level roots (e.g. Lurleen's heart
+        // group + her cart root) all get torn down on switch.
+        for (let i = scene.children.length - 1; i >= 0; i--) {
+            const c = scene.children[i];
+            if (c.isLight || c === groundGroup) continue;
+            scene.remove(c);
+            c.traverse?.((o) => {
+                if (o.geometry) o.geometry.dispose?.();
+                if (o.material) {
+                    if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose?.());
+                    else o.material.dispose?.();
+                }
+            });
+        }
+        // Stop the previous entity's spatial music. detachStageMusic tears
+        // down the oscillators + intervals + panner connections.
+        if (entityMusic) {
+            try {
+                Sound.detachStageMusic(entityMusic);
+            } catch (e) {
+            }
+            entityMusic = null;
+        }
+        // Remove any entity-specific DOM nodes (e.g. the cheer_demo button).
+        if (currentEntity && currentEntity._sandboxCheerBtn) {
+            currentEntity._sandboxCheerBtn.remove();
+        }
+        if (window.__sandbox) window.__sandbox.fireCheer = undefined;
+        currentEntity = null;
+        entityRoot = null;
+        updateFn = null;
     }
 
     // Map of entity name → audio style. Entities not in this map get no music.
     // Stages get their corresponding band style; drum-circle variants get
     // 'drum' or the rich 'forest_drum' engine; everything else stays silent.
     const ENTITY_MUSIC_STYLE = {
-      stage_main:                'jam',
-      stage_side:                'brass',
-      tent_stage:                'jam',
-      drum_circle_populated:     'forest_drum',
-      leaf_drum_circle:          'forest_drum',
-      leaf_drum_circle_day:      'forest_drum',
-      leaf_drum_circle_night:    'forest_drum',
-      // New songform genres — auditionable as standalone stage entities.
-      stage_dance:               'dance',
-      stage_world:               'world',
-      stage_dub:                 'dub',
+        stage_main: 'jam',
+        stage_side: 'brass',
+        tent_stage: 'jam',
+        drum_circle_populated: 'forest_drum',
+        leaf_drum_circle: 'forest_drum',
+        leaf_drum_circle_day: 'forest_drum',
+        leaf_drum_circle_night: 'forest_drum',
+        // New songform genres — auditionable as standalone stage entities.
+        stage_dance: 'dance',
+        stage_world: 'world',
+        stage_dub: 'dub',
     };
+
     function attachEntityMusic(name) {
-      const style = ENTITY_MUSIC_STYLE[name];
-      if (!style || !soundInitialised) return;
-      // Seed varies by name so two sandbox loads of the same entity sound
-      // identical, but different entities sound different.
-      let seed = 0;
-      for (let i = 0; i < name.length; i++) seed = (seed * 31 + name.charCodeAt(i)) | 0;
-      entityMusic = Sound.attachStageMusic(0, 1.5, 0, seed, style);
+        const style = ENTITY_MUSIC_STYLE[name];
+        if (!style || !soundInitialised) return;
+        // Seed varies by name so two sandbox loads of the same entity sound
+        // identical, but different entities sound different.
+        let seed = 0;
+        for (let i = 0; i < name.length; i++) seed = (seed * 31 + name.charCodeAt(i)) | 0;
+        entityMusic = Sound.attachStageMusic(0, 1.5, 0, seed, style);
     }
 
     // Per-entity collision kind for the "Hit it" SFX button. Empty / missing
     // means no button rendered.
     const ENTITY_HIT_KIND = {
-      puppet: 'puppet', puppet_lineup: 'puppet',
-      tent: 'tent', tent_row: 'tent',
-      food_truck: 'truck',
-      kid: 'kid',
-      wook: 'wook',
-      stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage',
-      entrance_arch: 'arch',
-      canoe: 'lake_edge',
-      band_member_trumpet: 'brass', band_member_tuba: 'brass',
-      band_member_sax: 'brass', band_member_drum: 'brass',
-      band_member_trombone: 'brass', brass_band: 'brass',
-      camp_tent: 'tent',
-      chiminea: 'firepit',
-      forest_tree_pine: 'forest_tree', forest_tree_oak: 'forest_tree',
-      forest_tree_birch: 'forest_tree', forest_tree_random: 'forest_tree',
-      lamppost_pair: 'lamppost',
-      chunk_drum_circle: 'firepit',
+        puppet: 'puppet', puppet_lineup: 'puppet',
+        tent: 'tent', tent_row: 'tent',
+        food_truck: 'truck',
+        kid: 'kid',
+        wook: 'wook',
+        stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage',
+        entrance_arch: 'arch',
+        canoe: 'lake_edge',
+        band_member_trumpet: 'brass', band_member_tuba: 'brass',
+        band_member_sax: 'brass', band_member_drum: 'brass',
+        band_member_trombone: 'brass', brass_band: 'brass',
+        camp_tent: 'tent',
+        chiminea: 'firepit',
+        forest_tree_pine: 'forest_tree', forest_tree_oak: 'forest_tree',
+        forest_tree_birch: 'forest_tree', forest_tree_random: 'forest_tree',
+        lamppost_pair: 'lamppost',
+        chunk_drum_circle: 'firepit',
     };
 
     function loadEntity(name) {
-      clearEntity();
-      info.textContent = `Loading ${name}...`;
-      switch (name) {
-        case 'zerble': {
-          const z = new Zerble();
-          z.position.set(0, 0, 0);
-          scene.add(z.root);
-          entityRoot = z.root;
-          currentEntity = z;
-          // Animate via the same update path but with no input
-          const mockInput = { throttle: 0, steer: 0, boost: false, isDown: () => false, consumePressed: () => false };
-          updateFn = (dt) => { try { z.update(dt, mockInput); } catch (e) { /* mock may not satisfy */ } };
-          cam.target.set(0, 1.6, 0);
-          break;
-        }
-        case 'lurleen': {
-          const l = new Lurleen(scene);
-          // CRITICAL: setSpawnAt updates her wander home too, otherwise she'd
-          // immediately drive toward her seeded ring spawn. autoRehome=false
-          // keeps the off-camera relocation from teleporting her toward the
-          // fake-far Zerble below (which is past the 300m gate).
-          l.autoRehome = false;
-          l.setSpawnAt(0, 0);
-          entityRoot = l.root;
-          currentEntity = l;
-          // Drive her with a "Zerble" position that's just out of sight so she
-          // wanders in place without entering aware/follow. Sandbox camera
-          // follows her root each frame so she doesn't disappear off-screen
-          // when her wander timer fires.
-          const fakeZerbleFar = new THREE.Vector3(2000, 0, 2000);
-          updateFn = (dt) => {
-            l.update(dt, fakeZerbleFar);
-            cam.target.x = l.position.x;
-            cam.target.z = l.position.z;
-            applyCam();
-          };
-          cam.target.set(0, 2.5, 0);
-          cam.dist = 8;
-          applyCam();
-          break;
-        }
-        case 'lurleen_zerble': {
-          const z = new Zerble();
-          z.position.set(-3, 0, 0);
-          z.root.position.set(-3, 0, 0);
-          scene.add(z.root);     // Zerble's constructor doesn't add to scene; do it here.
-          const l = new Lurleen(scene);   // Lurleen.constructor adds her root + heart group already.
-          l.autoRehome = false;
-          l.setSpawnAt(3, 0);
-          entityRoot = z.root;
-          currentEntity = { z, l };
-          const mockInput = { throttle: 0, steer: 0, boost: false, isDown: () => false, consumePressed: () => false };
-          updateFn = (dt) => {
-            try { z.update(dt, mockInput); } catch (_) {}
-            l.update(dt, new THREE.Vector3(2000, 0, 2000));
-          };
-          cam.dist = 14;
-          cam.target.set(0, 2, 0);
-          applyCam();
-          break;
-        }
-        case 'hammock': {
-          const g = buildHammockStandalone(0, 0, Math.random);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 1.0, 0);
-          break;
-        }
-        case 'hammock_with_npc': {
-          // Build a hammock at origin and drop a SUPINE NPC at the seat — back
-          // on the cloth, head + feet along the hammock long axis, face up.
-          // Composition: a "supineGroup" sits at the seat and rotates by `yaw`;
-          // inside it, the body has rotation.x = π/2 (face up, head extending
-          // in +Z) and is offset by -0.825 in z so the body's CENTER lands at
-          // the supineGroup origin (= seat).
-          const { group: hammockGroup, seatPos, yaw } = buildHammockRaw(0, 0, Math.random);
-          const body = buildSimpleNPC(0x6fcf6a, 0xe6c098);
-          body.rotation.x = Math.PI / 2;
-          body.position.set(0, 0, -0.825);
-          const supineGroup = new THREE.Group();
-          supineGroup.position.set(seatPos.x, seatPos.y + 0.16, seatPos.z);
-          // Hammock poles are at offsets (±cos(yaw), 0, ±sin(yaw)) so the long
-          // axis points in direction (cos(yaw), 0, sin(yaw)). A supine body
-          // with rotation.y = θ has its head extending in (sin(θ), 0, cos(θ))
-          // direction — so θ = π/2 − yaw aligns the spine with the poles.
-          supineGroup.rotation.y = Math.PI / 2 - yaw;
-          supineGroup.add(body);
-          const root = new THREE.Group();
-          root.add(hammockGroup);
-          root.add(supineGroup);
-          scene.add(root);
-          entityRoot = root;
-          cam.target.set(0, seatPos.y, 0);
-          cam.dist = 7;
-          applyCam();
-          break;
-        }
-        case 'heart': {
-          const heart = new THREE.Mesh(
-            createHeartGeometry(),
-            new THREE.MeshStandardMaterial({
-              color: 0xff4d8a,
-              emissive: 0xff2266,
-              emissiveIntensity: 1.4,
-            }),
-          );
-          heart.scale.setScalar(8);     // big enough to inspect detail
-          heart.position.y = 2;
-          scene.add(heart);
-          entityRoot = heart;
-          updateFn = (dt) => { heart.rotation.y += dt; };
-          cam.target.set(0, 2, 0);
-          cam.dist = 6;
-          applyCam();
-          break;
-        }
-        case 'canoe': {
-          const g = new THREE.Group();
-          _buildCanoeMeshForSandbox(g, Math.random);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 0.7, 0);
-          cam.dist = 8;
-          applyCam();
-          break;
-        }
-        case 'lake': {
-          // Mini lake-water disc for testing material/edge appearance
-          const water = new THREE.Mesh(
-            new THREE.CircleGeometry(12, 48),
-            new THREE.MeshStandardMaterial({
-              color: 0x4d96d6, emissive: 0x1a3550, emissiveIntensity: 0.25,
-              roughness: 0.3, metalness: 0.05, transparent: true, opacity: 0.88,
-              flatShading: true,
-            }),
-          );
-          water.rotation.x = -Math.PI / 2;
-          water.position.y = 0.08;
-          scene.add(water);
-          entityRoot = water;
-          cam.target.set(0, 0, 0);
-          cam.dist = 18;
-          applyCam();
-          break;
-        }
-        case 'big_lake': {
-          // Full lake build — irregular elongated outline, sealed collider
-          // ring, optional island, beach, campsite ring on the path side,
-          // forest ring (sparse near, denser far), and 0/1/2 canoes drifting.
-          // Seed picked so this view rolls the FULL treatment (camps + forest);
-          // dial in another via `?entity=big_lake` and edit if you want a
-          // bare-water variant for comparison.
-          const lakeGroup = new THREE.Group();
-          buildLake(lakeGroup, 1, 1, mulberry32(0x101));
-          // The lake builds with absolute coordinates within a macrocell —
-          // recenter the lake group on the sandbox origin so it's visible.
-          const box = new THREE.Box3().setFromObject(lakeGroup);
-          const center = box.getCenter(new THREE.Vector3());
-          lakeGroup.position.set(-center.x, 0, -center.z);
-          scene.add(lakeGroup);
-          entityRoot = lakeGroup;
-          cam.target.set(0, 0, 0);
-          cam.dist = 220;
-          applyCam();
-          break;
-        }
-        case 'lake_with_beach': {
-          // Lake with forceBeach=true so the 5% beach is guaranteed.
-          const lakeGroup = new THREE.Group();
-          buildLake(lakeGroup, 2, 2, mulberry32(0xBEACE5), { forceBeach: true });
-          const box = new THREE.Box3().setFromObject(lakeGroup);
-          const center = box.getCenter(new THREE.Vector3());
-          lakeGroup.position.set(-center.x, 0, -center.z);
-          scene.add(lakeGroup);
-          entityRoot = lakeGroup;
-          cam.target.set(0, 0, 0);
-          cam.dist = 220;
-          applyCam();
-          break;
-        }
-        case 'tent': {
-          const g = buildTent(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 1.5, 0);
-          cam.dist = 9;
-          applyCam();
-          break;
-        }
-        case 'tent_row': {
-          // 5 vendor tents spaced ~5m apart along X. Each picks its own
-          // booth layout + product spread + trim color + shopkeeper, so a
-          // single load shows the variety the layout grammar produces.
-          // Spacing matches buildVendorRow in chunks.js (5.0m).
-          const tents = new THREE.Group();
-          for (let i = 0; i < 5; i++) {
-            const t = buildTent(Math.random);
-            t.position.set((i - 2) * 5, 0, 0);
-            tents.add(t);
-          }
-          scene.add(tents);
-          entityRoot = tents;
-          cam.target.set(0, 1.8, 0);
-          cam.dist = 18;
-          applyCam();
-          break;
-        }
-        case 'food_truck': {
-          const g = buildFoodTruck(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 2, 0);
-          cam.dist = 14;
-          applyCam();
-          break;
-        }
-        case 'sugar_shack': {
-          const g = buildSugarShack(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          // Shack is ~8m wide, so we pull the cam back further than a truck.
-          cam.target.set(0, 1.5, 0);
-          cam.dist = 18;
-          applyCam();
-          break;
-        }
-        case 'tree': {
-          const g = buildTree(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 6, 0);
-          cam.dist = 24;
-          applyCam();
-          break;
-        }
-        case 'entrance_arch': {
-          const tex = leafBannerTextures('#fff4d0', '#ff6f9c', '#ffe066');
-          const g = buildEntranceArch(tex);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 6, 0);
-          cam.dist = 18;
-          applyCam();
-          break;
-        }
-        case 'tent_stage': {
-          const tex = leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a');
-          const t = buildTentStage({ rng: Math.random, leafTexture: tex });
-          scene.add(t.group);
-          entityRoot = t.group;
-          cam.target.set(0, 4, 0);
-          cam.dist = 38;
-          applyCam();
-          break;
-        }
-        case 'stage_main':
-        case 'stage_side': {
-          const isMain = name === 'stage_main';
-          const tex = isMain ? leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a') : null;
-          const stage = buildStage({ isMain, leafTexture: tex, rng: Math.random });
-          scene.add(stage.group);
-          const instruments = isMain
-            ? ['lead_vocal', 'guitar', 'guitar', 'bass', 'drum', 'sax']
-            : ['lead_vocal', 'guitar', 'drum'];
-          placeBandOnStage(stage.group, instruments, {
-            deckWidth: stage.deckWidth, deckDepth: stage.deckDepth,
-            deckHeight: stage.deckHeight, rng: Math.random,
-          });
-          entityRoot = stage.group;
-          cam.target.set(0, 4, 0);
-          cam.dist = isMain ? 26 : 18;
-          applyCam();
-          break;
-        }
-        case 'cheer_demo': {
-          // Small NPC cluster driven by a real Crowd instance so the jump +
-          // arms-up + smile pose is verifiable in isolation.
-          // Crowd needs a Smiles instance to call smiles.spawn on.
-          const cheerSmiles = new Smiles();
-          scene.add(cheerSmiles.group);
-          // Minimal fake "zerble" stub: crowd.update only needs position + speed
-          // for despawn + passenger gating; no real driving happens here.
-          // 30m away so NPCs stay within despawn radius (200m) but beyond
-          // NOTICE_RANGE (22m) — demo is about the cheer pose, not proximity.
-          const fakeZerble = {
-            position: new THREE.Vector3(0, 0, 30),
-            speed: 0,
-            forwardWorld: new THREE.Vector3(0, 0, -1),
-            seatSlots: [],
-          };
-          const cheerCrowd = new Crowd(cheerSmiles);
-          scene.add(cheerCrowd.group);
-          // Spawn 8 NPCs in a loose ring so they don't stack.
-          for (let i = 0; i < 8; i++) {
-            const ang = (i / 8) * Math.PI * 2;
-            const r = 3 + (i % 3) * 0.8;
-            const pos = new THREE.Vector3(Math.cos(ang) * r, 0, Math.sin(ang) * r);
-            cheerCrowd.spawn({ pos, chunkKey: 'demo', rng: Math.random });
-          }
-          entityRoot = cheerCrowd.group;
-          currentEntity = cheerCrowd;
-          let cheerDemoTime = 0;
-          updateFn = (dt) => {
-            cheerDemoTime += dt;
-            // Crowd.update needs a bubbles stub; passing null is safe (it guards
-            // the forEachAlive call with `if (bubbles)`).
-            cheerCrowd.update(dt, fakeZerble, null);
-            cheerSmiles.update(dt, fakeZerble, () => {});
-          };
-          // Expose a fire-cheer helper on __sandbox so preview_eval can call it.
-          window.__sandbox.fireCheer = () => cheerCrowd.cheerNear(0, 0);
-          // Also wire a button in the HUD info line for quick clicking.
-          const cheerBtn = document.createElement('button');
-          cheerBtn.textContent = 'Fire cheer';
-          cheerBtn.style.cssText = 'margin-top:6px;width:100%;background:rgba(255,200,80,0.25);border:1px solid rgba(255,200,80,0.5);border-radius:6px;padding:5px;cursor:pointer;font:inherit;color:inherit';
-          cheerBtn.addEventListener('click', () => cheerCrowd.cheerNear(0, 0));
-          info.after(cheerBtn);
-          // Clean up button on next entity load (clearEntity removes scene objects
-          // but not DOM nodes we inserted — store a ref for cleanup).
-          cheerCrowd._sandboxCheerBtn = cheerBtn;
-          cam.target.set(0, 1.2, 0);
-          cam.dist = 12;
-          applyCam();
-          break;
-        }
-        case 'puppet': {
-          const g = buildPuppet(Math.random() * 6);
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => tickPuppet(g, dt);
-          cam.target.set(0, 3, 0);
-          cam.dist = 12;
-          applyCam();
-          break;
-        }
-        case 'puppet_lineup': {
-          const puppets = [];
-          for (let i = 0; i < 3; i++) {
-            const g = buildPuppet(i);
-            g.position.x = (i - 1) * 4;
-            scene.add(g);
-            puppets.push(g);
-          }
-          entityRoot = puppets[1];
-          updateFn = (dt) => puppets.forEach((g) => tickPuppet(g, dt));
-          cam.target.set(0, 3, 0);
-          cam.dist = 16;
-          applyCam();
-          break;
-        }
-        case 'band_member_trumpet':
-        case 'band_member_tuba':
-        case 'band_member_sax':
-        case 'band_member_drum':
-        case 'band_member_trombone': {
-          const inst = name.replace('band_member_', '');
-          const g = buildBandMember(inst);
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => tickBandMember(g, dt);
-          cam.target.set(0, 1.5, 0);
-          cam.dist = 5;
-          applyCam();
-          break;
-        }
-        case 'parasol_marshal': {
-          const g = buildParasolMarshal();
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => tickParasolMarshal(g, dt);
-          cam.target.set(0, 2, 0);
-          cam.dist = 6;
-          applyCam();
-          break;
-        }
-        case 'brass_band': {
-          const formation = [
-            [0, 1.6, 'parasol'],
-            [-1.4, 0, 'trumpet'], [1.4, 0, 'trumpet'],
-            [0, -1.0, 'sax'],
-            [-2.6, -2.2, 'trombone'], [0, -2.4, 'tuba'], [2.6, -2.2, 'drum'],
-          ];
-          const members = [];
-          for (const [ox, oz, inst] of formation) {
-            const m = inst === 'parasol' ? buildParasolMarshal() : buildBandMember(inst);
-            m.position.set(ox, 0, oz);
-            scene.add(m);
-            members.push(m);
-          }
-          entityRoot = members[0];
-          updateFn = (dt) => members.forEach((m) => {
-            if (m.userData.parasol) tickParasolMarshal(m, dt);
-            else tickBandMember(m, dt);
-          });
-          cam.target.set(0, 1.8, -1.0);
-          cam.dist = 12;
-          applyCam();
-          break;
-        }
-        case 'shopkeeper': {
-          // Same palette buildTent uses for its NPC. Rolled per-load so the
-          // variation is visible across reloads. No update tick — they stand
-          // their booth in the game (no idle bob in v1).
-          const SHIRTS = [0xc63a2a, 0x3a72c2, 0xe09818, 0x6b513a, 0x5a7e3a, 0x2a4b6e, 0xa53a7a, 0x3a8b73];
-          const SKINS  = [0xe6c098, 0xc09478, 0x8b6f50, 0xf2d4b2];
-          const shirt = SHIRTS[Math.floor(Math.random() * SHIRTS.length)];
-          const skin  = SKINS[Math.floor(Math.random() * SKINS.length)];
-          const g = buildSimpleNPC(shirt, skin);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 1.2, 0);
-          cam.dist = 4;
-          applyCam();
-          break;
-        }
-        case 'kid': {
-          const g = buildKid(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          // Sandbox: idle kid, not chasing anything. Demo state.
-          updateFn = (dt) => tickKid(g, dt, { excited: false });
-          cam.target.set(0, 0.8, 0);
-          cam.dist = 4;
-          applyCam();
-          break;
-        }
-        case 'wook': {
-          const g = buildWook(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => tickWook(g, dt);
-          cam.target.set(0, 1.5, 0);
-          cam.dist = 5;
-          applyCam();
-          break;
-        }
-        case 'hula_hooper':
-        case 'hula_hooper_night': {
-          const g = buildHulaHooper(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          // Pin night for the glow demo so the emissive hoop reads dark even
-          // if the sandbox time-of-day is mid-day.
-          const isNight = name === 'hula_hooper_night';
-          if (isNight) {
-            tod._nightness = 1;
-            tod.t = 0.5;
-          }
-          // Sandbox and game share the same tick function (see
-          // models/hulaHooper.js). Animation parameters (gyrSpeed,
-          // hoopSpinMult, phase) are picked at build time, so this
-          // hooper has its own personal tempo. No more inline copy of
-          // the math — if hooping changes, both places update together.
-          updateFn = (dt) => {
-            const n = isNight ? 1 : tod.nightness;
-            tickHulaHooper(g, dt, n);
-          };
-          cam.target.set(0, 1.2, 0);
-          cam.dist = 5.5;
-          applyCam();
-          break;
-        }
-        case 'frisbee_player': {
-          const g = buildFrisbeePlayer(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => tickFrisbeePlayer(g, dt);
-          cam.target.set(0, 1.0, 0);
-          cam.dist = 4.5;
-          applyCam();
-          break;
-        }
-        case 'frisbee_pair': {
-          // Two players ~12m apart playing catch; disc lobs back and forth
-          // with a small random aim jitter so the catcher has to chase.
-          const playerA = buildFrisbeePlayer(Math.random);
-          const playerB = buildFrisbeePlayer(Math.random);
-          const disc = buildFrisbeeDisc(Math.random);
-          playerA.position.set(-6, 0, 0);
-          playerB.position.set(6, 0, 0);
-          disc.position.set(-6, 1.45, 0);
-          scene.add(playerA); scene.add(playerB); scene.add(disc);
-          entityRoot = playerA;
-
-          const state = {
-            holder: playerA,
-            catcher: playerB,
-            phase: 'held',       // 'held' | 'flying' | 'landed'
-            pauseTimer: 1.2,
-            vel: new THREE.Vector3(),
-          };
-          const GRAVITY = 9.8 * 0.6;
-          const TOSS_SPEED = 9.5;
-          const AIM_JITTER = 0.20;
-          const PLAYER_SPEED = 2.6;
-          const CATCH_RADIUS = 0.7;
-
-          const lookAt = (player, tx, tz) => {
-            player.rotation.y = Math.atan2(tx - player.position.x, tz - player.position.z) + Math.PI;
-          };
-          const toss = () => {
-            const dx = state.catcher.position.x - state.holder.position.x;
-            const dz = state.catcher.position.z - state.holder.position.z;
-            const baseAng = Math.atan2(dx, dz);
-            const ang = baseAng + (Math.random() - 0.5) * 2 * AIM_JITTER;
-            const planar = TOSS_SPEED * (0.85 + Math.random() * 0.35);
-            state.vel.set(Math.sin(ang) * planar, 4.5 + Math.random() * 1.6, Math.cos(ang) * planar);
-            disc.position.set(state.holder.position.x, 1.45, state.holder.position.z);
-            state.phase = 'flying';
-          };
-
-          updateFn = (dt) => {
-            // Player bob + disc spin/glow live in tickFrisbeePlayer / tickFrisbeeDisc.
-            // Game (Frisbees.update in obstacles.js) calls the same ones —
-            // toss/catch sim below is the only sandbox-specific code now.
-            tickFrisbeePlayer(playerA, dt);
-            tickFrisbeePlayer(playerB, dt);
-            tickFrisbeeDisc(disc, dt, state.phase, tod.nightness);
-            if (state.phase === 'held') {
-              disc.position.set(state.holder.position.x, 1.45, state.holder.position.z);
-              lookAt(state.holder, state.catcher.position.x, state.catcher.position.z);
-              lookAt(state.catcher, state.holder.position.x, state.holder.position.z);
-              state.pauseTimer -= dt;
-              if (state.pauseTimer <= 0) toss();
-            } else if (state.phase === 'flying') {
-              disc.position.x += state.vel.x * dt;
-              disc.position.y += state.vel.y * dt;
-              disc.position.z += state.vel.z * dt;
-              state.vel.y -= GRAVITY * dt;
-              // Predict landing point + chase
-              const g_ = GRAVITY, catchY = 0.4, vy = state.vel.y, y0 = disc.position.y;
-              const A = -0.5 * g_, B = vy, C = y0 - catchY;
-              const D = B * B - 4 * A * C;
-              let tHit = 0;
-              if (D >= 0) {
-                const r1 = (-B - Math.sqrt(D)) / (2 * A);
-                const r2 = (-B + Math.sqrt(D)) / (2 * A);
-                const cands = [];
-                if (r1 > 0 && isFinite(r1)) cands.push(r1);
-                if (r2 > 0 && isFinite(r2)) cands.push(r2);
-                if (cands.length) tHit = Math.min(...cands);
-              }
-              const tx = disc.position.x + state.vel.x * tHit;
-              const tz = disc.position.z + state.vel.z * tHit;
-              const dx = tx - state.catcher.position.x;
-              const dz = tz - state.catcher.position.z;
-              const d = Math.hypot(dx, dz);
-              if (d > 0.05) {
-                const inv = 1 / d;
-                const step = Math.min(d, PLAYER_SPEED * dt);
-                state.catcher.position.x += dx * inv * step;
-                state.catcher.position.z += dz * inv * step;
-              }
-              lookAt(state.catcher, disc.position.x, disc.position.z);
-              lookAt(state.holder, disc.position.x, disc.position.z);
-              const dxD = disc.position.x - state.catcher.position.x;
-              const dzD = disc.position.z - state.catcher.position.z;
-              if (disc.position.y < 1.7 && disc.position.y > 0.6 && Math.hypot(dxD, dzD) < CATCH_RADIUS) {
-                // Caught — swap and pause
-                [state.holder, state.catcher] = [state.catcher, state.holder];
-                state.phase = 'held';
-                state.pauseTimer = 0.7 + Math.random() * 1.0;
-              } else if (disc.position.y <= 0.05) {
-                disc.position.y = 0.05;
-                state.phase = 'landed';
-              }
-            } else if (state.phase === 'landed') {
-              const dx = disc.position.x - state.catcher.position.x;
-              const dz = disc.position.z - state.catcher.position.z;
-              const d = Math.hypot(dx, dz);
-              if (d < 0.7) {
-                [state.holder, state.catcher] = [state.catcher, state.holder];
-                state.phase = 'held';
-                state.pauseTimer = 0.8 + Math.random() * 1.2;
-              } else {
-                const inv = 1 / d;
-                const step = Math.min(d, PLAYER_SPEED * dt);
-                state.catcher.position.x += dx * inv * step;
-                state.catcher.position.z += dz * inv * step;
-              }
-              lookAt(state.catcher, disc.position.x, disc.position.z);
-              lookAt(state.holder, state.catcher.position.x, state.catcher.position.z);
+        clearEntity();
+        info.textContent = `Loading ${name}...`;
+        switch (name) {
+            case 'zerble': {
+                const z = new Zerble();
+                z.position.set(0, 0, 0);
+                scene.add(z.root);
+                entityRoot = z.root;
+                currentEntity = z;
+                // Animate via the same update path but with no input
+                const mockInput = {
+                    throttle: 0,
+                    steer: 0,
+                    boost: false,
+                    isDown: () => false,
+                    consumePressed: () => false
+                };
+                updateFn = (dt) => {
+                    try {
+                        z.update(dt, mockInput);
+                    } catch (e) { /* mock may not satisfy */
+                    }
+                };
+                cam.target.set(0, 1.6, 0);
+                break;
             }
-          };
-          cam.target.set(0, 1.0, 0);
-          cam.dist = 18;
-          applyCam();
-          break;
-        }
-        case 'performer_lead_vocal':
-        case 'performer_guitar':
-        case 'performer_bass':
-        case 'performer_drum':
-        case 'performer_sax': {
-          const inst = name.replace('performer_', '');
-          const g = buildPerformer(inst, Math.random);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 1.2, 0);
-          cam.dist = 5;
-          applyCam();
-          break;
-        }
-
-        // ----- Drum circle -----
-        case 'leaf_drum_circle':
-        case 'leaf_drum_circle_day':
-        case 'leaf_drum_circle_night': {
-          const dc = buildLeafDrumCircle(Math.random, { facingAngle: -Math.PI / 2 });
-          scene.add(dc.group);
-          entityRoot = dc.group;
-          // Pin nightness: day = 0, night = 1, plain = use sandbox time-of-day.
-          let pinned = null;
-          if (name === 'leaf_drum_circle_day') pinned = 0;
-          else if (name === 'leaf_drum_circle_night') pinned = 1;
-          if (pinned !== null) {
-            // Override the TOD update so the fire stays at the requested level.
-            // We snap nightness on the TOD object itself so any other system
-            // that reads tod.nightness sees the pinned value.
-            tod._nightness = pinned;
-            // Also lock t so the sun doesn't drift the scene back to daylight.
-            tod.t = pinned > 0.5 ? 0.5 : 0.2;
-          }
-          updateFn = (dt) => {
-            const n = pinned !== null ? pinned : tod.nightness;
-            updateLeafDrumCircle(performance.now() / 1000, n, dc);
-          };
-          cam.target.set(0, 2.0, 0);
-          cam.dist = 14;
-          cam.pitch = 0.25;
-          applyCam();
-          break;
-        }
-
-        // ----- Drum-circle figures (standalone) -----
-        case 'fire_dancer':
-        case 'hand_drummer':
-        case 'firekeeper':
-        case 'spotter': {
-          const builders = {
-            fire_dancer: buildFireDancer,
-            hand_drummer: buildHandDrummer,
-            firekeeper: buildFirekeeper,
-            spotter: buildSpotter,
-          };
-          const f = builders[name](Math.random);
-          scene.add(f.group);
-          entityRoot = f.group;
-          updateFn = (dt) => updateTribalFigures(performance.now() / 1000, tod.nightness, [f]);
-          cam.target.set(0, 1.0, 0);
-          cam.dist = 3.5;
-          applyCam();
-          break;
-        }
-
-        // ----- Drum circle populated with figures -----
-        case 'drum_circle_populated': {
-          const dc = buildLeafDrumCircle(Math.random, { facingAngle: -Math.PI / 2 });
-          scene.add(dc.group);
-          entityRoot = dc.group;
-          // Build a mini "populate" — borrow the layout from forests.js. We
-          // hand-roll it here since the sandbox doesn't load forests.js.
-          const facingAngle = -Math.PI / 2;
-          const figures = [];
-          const benchCentre = facingAngle + Math.PI;
-          const ringRadii = [5.5, 6.5, 7.5];
-          const counts = [4, 5, 6];
-          for (let ring = 0; ring < ringRadii.length; ring++) {
-            const r = ringRadii[ring];
-            for (let i = 0; i < counts[ring]; i++) {
-              const t = (i + 0.5) / counts[ring];
-              const a = benchCentre - Math.PI / 2 + t * Math.PI;
-              const d = buildHandDrummer(Math.random);
-              d.group.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
-              // Face the fire — see comment in forests.js for the math.
-              d.group.rotation.y = Math.PI / 2 - a;
-              dc.group.add(d.group);
-              figures.push(d);
+            case 'lurleen': {
+                const l = new Lurleen(scene);
+                // CRITICAL: setSpawnAt updates her wander home too, otherwise she'd
+                // immediately drive toward her seeded ring spawn. autoRehome=false
+                // keeps the off-camera relocation from teleporting her toward the
+                // fake-far Zerble below (which is past the 300m gate).
+                l.autoRehome = false;
+                l.setSpawnAt(0, 0);
+                entityRoot = l.root;
+                currentEntity = l;
+                // Drive her with a "Zerble" position that's just out of sight so she
+                // wanders in place without entering aware/follow. Sandbox camera
+                // follows her root each frame so she doesn't disappear off-screen
+                // when her wander timer fires.
+                const fakeZerbleFar = new THREE.Vector3(2000, 0, 2000);
+                updateFn = (dt) => {
+                    l.update(dt, fakeZerbleFar);
+                    cam.target.x = l.position.x;
+                    cam.target.z = l.position.z;
+                    applyCam();
+                };
+                cam.target.set(0, 2.5, 0);
+                cam.dist = 8;
+                applyCam();
+                break;
             }
-          }
-          for (let i = 0; i < 7; i++) {
-            const dancer = buildFireDancer(Math.random);
-            dancer.phase = (i / 7) * Math.PI * 2;
-            dc.group.add(dancer.group);
-            figures.push(dancer);
-          }
-          const fk = buildFirekeeper(Math.random);
-          fk.group.position.set(Math.cos(facingAngle) * 4.2, 0, Math.sin(facingAngle) * 4.2);
-          fk.group.rotation.y = Math.PI / 2 - facingAngle;
-          dc.group.add(fk.group);
-          figures.push(fk);
-          const sp = buildSpotter(Math.random);
-          const spA = facingAngle + 0.5;
-          sp.group.position.set(Math.cos(spA) * 5.4, 0, Math.sin(spA) * 5.4);
-          sp.group.rotation.y = Math.PI / 2 - spA;
-          dc.group.add(sp.group);
-          figures.push(sp);
+            case 'lurleen_zerble': {
+                const z = new Zerble();
+                z.position.set(-3, 0, 0);
+                z.root.position.set(-3, 0, 0);
+                scene.add(z.root);     // Zerble's constructor doesn't add to scene; do it here.
+                const l = new Lurleen(scene);   // Lurleen.constructor adds her root + heart group already.
+                l.autoRehome = false;
+                l.setSpawnAt(3, 0);
+                entityRoot = z.root;
+                currentEntity = {z, l};
+                const mockInput = {
+                    throttle: 0,
+                    steer: 0,
+                    boost: false,
+                    isDown: () => false,
+                    consumePressed: () => false
+                };
+                updateFn = (dt) => {
+                    try {
+                        z.update(dt, mockInput);
+                    } catch (_) {
+                    }
+                    l.update(dt, new THREE.Vector3(2000, 0, 2000));
+                };
+                cam.dist = 14;
+                cam.target.set(0, 2, 0);
+                applyCam();
+                break;
+            }
+            case 'hammock': {
+                const g = buildHammockStandalone(0, 0, Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 1.0, 0);
+                break;
+            }
+            case 'hammock_with_npc': {
+                // Build a hammock at origin and drop a SUPINE NPC at the seat — back
+                // on the cloth, head + feet along the hammock long axis, face up.
+                // Composition: a "supineGroup" sits at the seat and rotates by `yaw`;
+                // inside it, the body has rotation.x = π/2 (face up, head extending
+                // in +Z) and is offset by -0.825 in z so the body's CENTER lands at
+                // the supineGroup origin (= seat).
+                const {group: hammockGroup, seatPos, yaw} = buildHammockRaw(0, 0, Math.random);
+                const body = buildSimpleNPC(0x6fcf6a, 0xe6c098);
+                body.rotation.x = Math.PI / 2;
+                body.position.set(0, 0, -0.825);
+                const supineGroup = new THREE.Group();
+                supineGroup.position.set(seatPos.x, seatPos.y + 0.16, seatPos.z);
+                // Hammock poles are at offsets (±cos(yaw), 0, ±sin(yaw)) so the long
+                // axis points in direction (cos(yaw), 0, sin(yaw)). A supine body
+                // with rotation.y = θ has its head extending in (sin(θ), 0, cos(θ))
+                // direction — so θ = π/2 − yaw aligns the spine with the poles.
+                supineGroup.rotation.y = Math.PI / 2 - yaw;
+                supineGroup.add(body);
+                const root = new THREE.Group();
+                root.add(hammockGroup);
+                root.add(supineGroup);
+                scene.add(root);
+                entityRoot = root;
+                cam.target.set(0, seatPos.y, 0);
+                cam.dist = 7;
+                applyCam();
+                break;
+            }
+            case 'heart': {
+                const heart = new THREE.Mesh(
+                    createHeartGeometry(),
+                    new THREE.MeshStandardMaterial({
+                        color: 0xff4d8a,
+                        emissive: 0xff2266,
+                        emissiveIntensity: 1.4,
+                    }),
+                );
+                heart.scale.setScalar(8);     // big enough to inspect detail
+                heart.position.y = 2;
+                scene.add(heart);
+                entityRoot = heart;
+                updateFn = (dt) => {
+                    heart.rotation.y += dt;
+                };
+                cam.target.set(0, 2, 0);
+                cam.dist = 6;
+                applyCam();
+                break;
+            }
+            case 'canoe': {
+                const g = new THREE.Group();
+                _buildCanoeMeshForSandbox(g, Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 0.7, 0);
+                cam.dist = 8;
+                applyCam();
+                break;
+            }
+            case 'lake': {
+                // Mini lake-water disc for testing material/edge appearance
+                const water = new THREE.Mesh(
+                    new THREE.CircleGeometry(12, 48),
+                    new THREE.MeshStandardMaterial({
+                        color: 0x4d96d6, emissive: 0x1a3550, emissiveIntensity: 0.25,
+                        roughness: 0.3, metalness: 0.05, transparent: true, opacity: 0.88,
+                        flatShading: true,
+                    }),
+                );
+                water.rotation.x = -Math.PI / 2;
+                water.position.y = 0.08;
+                scene.add(water);
+                entityRoot = water;
+                cam.target.set(0, 0, 0);
+                cam.dist = 18;
+                applyCam();
+                break;
+            }
+            case 'big_lake': {
+                // Full lake build — irregular elongated outline, sealed collider
+                // ring, optional island, beach, campsite ring on the path side,
+                // forest ring (sparse near, denser far), and 0/1/2 canoes drifting.
+                // Seed picked so this view rolls the FULL treatment (camps + forest);
+                // dial in another via `?entity=big_lake` and edit if you want a
+                // bare-water variant for comparison.
+                const lakeGroup = new THREE.Group();
+                buildLake(lakeGroup, 1, 1, mulberry32(0x101));
+                // The lake builds with absolute coordinates within a macrocell —
+                // recenter the lake group on the sandbox origin so it's visible.
+                const box = new THREE.Box3().setFromObject(lakeGroup);
+                const center = box.getCenter(new THREE.Vector3());
+                lakeGroup.position.set(-center.x, 0, -center.z);
+                scene.add(lakeGroup);
+                entityRoot = lakeGroup;
+                cam.target.set(0, 0, 0);
+                cam.dist = 220;
+                applyCam();
+                break;
+            }
+            case 'lake_with_beach': {
+                // Lake with forceBeach=true so the 5% beach is guaranteed.
+                const lakeGroup = new THREE.Group();
+                buildLake(lakeGroup, 2, 2, mulberry32(0xBEACE5), {forceBeach: true});
+                const box = new THREE.Box3().setFromObject(lakeGroup);
+                const center = box.getCenter(new THREE.Vector3());
+                lakeGroup.position.set(-center.x, 0, -center.z);
+                scene.add(lakeGroup);
+                entityRoot = lakeGroup;
+                cam.target.set(0, 0, 0);
+                cam.dist = 220;
+                applyCam();
+                break;
+            }
+            case 'tent': {
+                const g = buildTent(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 1.5, 0);
+                cam.dist = 9;
+                applyCam();
+                break;
+            }
+            case 'tent_row': {
+                // 5 vendor tents spaced ~5m apart along X. Each picks its own
+                // booth layout + product spread + trim color + shopkeeper, so a
+                // single load shows the variety the layout grammar produces.
+                // Spacing matches buildVendorRow in chunks.js (5.0m).
+                const tents = new THREE.Group();
+                for (let i = 0; i < 5; i++) {
+                    const t = buildTent(Math.random);
+                    t.position.set((i - 2) * 5, 0, 0);
+                    tents.add(t);
+                }
+                scene.add(tents);
+                entityRoot = tents;
+                cam.target.set(0, 1.8, 0);
+                cam.dist = 18;
+                applyCam();
+                break;
+            }
+            case 'food_truck': {
+                const g = buildFoodTruck(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 2, 0);
+                cam.dist = 14;
+                applyCam();
+                break;
+            }
+            case 'sugar_shack': {
+                const g = buildSugarShack(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                // Shack is ~8m wide, so we pull the cam back further than a truck.
+                cam.target.set(0, 1.5, 0);
+                cam.dist = 18;
+                applyCam();
+                break;
+            }
+            case 'tree': {
+                const g = buildTree(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 6, 0);
+                cam.dist = 24;
+                applyCam();
+                break;
+            }
+            case 'entrance_arch': {
+                const tex = leafBannerTextures('#fff4d0', '#ff6f9c', '#ffe066');
+                const g = buildEntranceArch(tex);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 6, 0);
+                cam.dist = 18;
+                applyCam();
+                break;
+            }
+            case 'tent_stage': {
+                const tex = leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a');
+                const t = buildTentStage({rng: Math.random, leafTexture: tex});
+                scene.add(t.group);
+                entityRoot = t.group;
+                cam.target.set(0, 4, 0);
+                cam.dist = 38;
+                applyCam();
+                break;
+            }
+            case 'stage_main':
+            case 'stage_side': {
+                const isMain = name === 'stage_main';
+                const tex = isMain ? leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a') : null;
+                const stage = buildStage({isMain, leafTexture: tex, rng: Math.random});
+                scene.add(stage.group);
+                const instruments = isMain
+                    ? ['lead_vocal', 'guitar', 'guitar', 'bass', 'drum', 'sax']
+                    : ['lead_vocal', 'guitar', 'drum'];
+                placeBandOnStage(stage.group, instruments, {
+                    deckWidth: stage.deckWidth, deckDepth: stage.deckDepth,
+                    deckHeight: stage.deckHeight, rng: Math.random,
+                });
+                entityRoot = stage.group;
+                cam.target.set(0, 4, 0);
+                cam.dist = isMain ? 26 : 18;
+                applyCam();
+                break;
+            }
+            case 'cheer_demo': {
+                // Small NPC cluster driven by a real Crowd instance so the jump +
+                // arms-up + smile pose is verifiable in isolation.
+                // Crowd needs a Smiles instance to call smiles.spawn on.
+                const cheerSmiles = new Smiles();
+                scene.add(cheerSmiles.group);
+                // Minimal fake "zerble" stub: crowd.update only needs position + speed
+                // for despawn + passenger gating; no real driving happens here.
+                // 30m away so NPCs stay within despawn radius (200m) but beyond
+                // NOTICE_RANGE (22m) — demo is about the cheer pose, not proximity.
+                const fakeZerble = {
+                    position: new THREE.Vector3(0, 0, 30),
+                    speed: 0,
+                    forwardWorld: new THREE.Vector3(0, 0, -1),
+                    seatSlots: [],
+                };
+                const cheerCrowd = new Crowd(cheerSmiles);
+                scene.add(cheerCrowd.group);
+                // Spawn 8 NPCs in a loose ring so they don't stack.
+                for (let i = 0; i < 8; i++) {
+                    const ang = (i / 8) * Math.PI * 2;
+                    const r = 3 + (i % 3) * 0.8;
+                    const pos = new THREE.Vector3(Math.cos(ang) * r, 0, Math.sin(ang) * r);
+                    cheerCrowd.spawn({pos, chunkKey: 'demo', rng: Math.random});
+                }
+                entityRoot = cheerCrowd.group;
+                currentEntity = cheerCrowd;
+                let cheerDemoTime = 0;
+                updateFn = (dt) => {
+                    cheerDemoTime += dt;
+                    // Crowd.update needs a bubbles stub; passing null is safe (it guards
+                    // the forEachAlive call with `if (bubbles)`).
+                    cheerCrowd.update(dt, fakeZerble, null);
+                    cheerSmiles.update(dt, fakeZerble, () => {
+                    });
+                };
+                // Expose a fire-cheer helper on __sandbox so preview_eval can call it.
+                window.__sandbox.fireCheer = () => cheerCrowd.cheerNear(0, 0);
+                // Also wire a button in the HUD info line for quick clicking.
+                const cheerBtn = document.createElement('button');
+                cheerBtn.textContent = 'Fire cheer';
+                cheerBtn.style.cssText = 'margin-top:6px;width:100%;background:rgba(255,200,80,0.25);border:1px solid rgba(255,200,80,0.5);border-radius:6px;padding:5px;cursor:pointer;font:inherit;color:inherit';
+                cheerBtn.addEventListener('click', () => cheerCrowd.cheerNear(0, 0));
+                info.after(cheerBtn);
+                // Clean up button on next entity load (clearEntity removes scene objects
+                // but not DOM nodes we inserted — store a ref for cleanup).
+                cheerCrowd._sandboxCheerBtn = cheerBtn;
+                cam.target.set(0, 1.2, 0);
+                cam.dist = 12;
+                applyCam();
+                break;
+            }
+            case 'puppet': {
+                const g = buildPuppet(Math.random() * 6);
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => tickPuppet(g, dt);
+                cam.target.set(0, 3, 0);
+                cam.dist = 12;
+                applyCam();
+                break;
+            }
+            case 'puppet_lineup': {
+                const puppets = [];
+                for (let i = 0; i < 3; i++) {
+                    const g = buildPuppet(i);
+                    g.position.x = (i - 1) * 4;
+                    scene.add(g);
+                    puppets.push(g);
+                }
+                entityRoot = puppets[1];
+                updateFn = (dt) => puppets.forEach((g) => tickPuppet(g, dt));
+                cam.target.set(0, 3, 0);
+                cam.dist = 16;
+                applyCam();
+                break;
+            }
+            case 'band_member_trumpet':
+            case 'band_member_tuba':
+            case 'band_member_sax':
+            case 'band_member_drum':
+            case 'band_member_trombone': {
+                const inst = name.replace('band_member_', '');
+                const g = buildBandMember(inst);
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => tickBandMember(g, dt);
+                cam.target.set(0, 1.5, 0);
+                cam.dist = 5;
+                applyCam();
+                break;
+            }
+            case 'parasol_marshal': {
+                const g = buildParasolMarshal();
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => tickParasolMarshal(g, dt);
+                cam.target.set(0, 2, 0);
+                cam.dist = 6;
+                applyCam();
+                break;
+            }
+            case 'brass_band': {
+                const formation = [
+                    [0, 1.6, 'parasol'],
+                    [-1.4, 0, 'trumpet'], [1.4, 0, 'trumpet'],
+                    [0, -1.0, 'sax'],
+                    [-2.6, -2.2, 'trombone'], [0, -2.4, 'tuba'], [2.6, -2.2, 'drum'],
+                ];
+                const members = [];
+                for (const [ox, oz, inst] of formation) {
+                    const m = inst === 'parasol' ? buildParasolMarshal() : buildBandMember(inst);
+                    m.position.set(ox, 0, oz);
+                    scene.add(m);
+                    members.push(m);
+                }
+                entityRoot = members[0];
+                updateFn = (dt) => members.forEach((m) => {
+                    if (m.userData.parasol) tickParasolMarshal(m, dt);
+                    else tickBandMember(m, dt);
+                });
+                cam.target.set(0, 1.8, -1.0);
+                cam.dist = 12;
+                applyCam();
+                break;
+            }
+            case 'shopkeeper': {
+                // Same palette buildTent uses for its NPC. Rolled per-load so the
+                // variation is visible across reloads. No update tick — they stand
+                // their booth in the game (no idle bob in v1).
+                const SHIRTS = [0xc63a2a, 0x3a72c2, 0xe09818, 0x6b513a, 0x5a7e3a, 0x2a4b6e, 0xa53a7a, 0x3a8b73];
+                const SKINS = [0xe6c098, 0xc09478, 0x8b6f50, 0xf2d4b2];
+                const shirt = SHIRTS[Math.floor(Math.random() * SHIRTS.length)];
+                const skin = SKINS[Math.floor(Math.random() * SKINS.length)];
+                const g = buildSimpleNPC(shirt, skin);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 1.2, 0);
+                cam.dist = 4;
+                applyCam();
+                break;
+            }
+            case 'kid': {
+                const g = buildKid(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                // Sandbox: idle kid, not chasing anything. Demo state.
+                updateFn = (dt) => tickKid(g, dt, {excited: false});
+                cam.target.set(0, 0.8, 0);
+                cam.dist = 4;
+                applyCam();
+                break;
+            }
+            case 'wook': {
+                const g = buildWook(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => tickWook(g, dt);
+                cam.target.set(0, 1.5, 0);
+                cam.dist = 5;
+                applyCam();
+                break;
+            }
+            case 'hula_hooper':
+            case 'hula_hooper_night': {
+                const g = buildHulaHooper(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                // Pin night for the glow demo so the emissive hoop reads dark even
+                // if the sandbox time-of-day is mid-day.
+                const isNight = name === 'hula_hooper_night';
+                if (isNight) {
+                    tod._nightness = 1;
+                    tod.t = 0.5;
+                }
+                // Sandbox and game share the same tick function (see
+                // models/hulaHooper.js). Animation parameters (gyrSpeed,
+                // hoopSpinMult, phase) are picked at build time, so this
+                // hooper has its own personal tempo. No more inline copy of
+                // the math — if hooping changes, both places update together.
+                updateFn = (dt) => {
+                    const n = isNight ? 1 : tod.nightness;
+                    tickHulaHooper(g, dt, n);
+                };
+                cam.target.set(0, 1.2, 0);
+                cam.dist = 5.5;
+                applyCam();
+                break;
+            }
+            case 'frisbee_player': {
+                const g = buildFrisbeePlayer(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => tickFrisbeePlayer(g, dt);
+                cam.target.set(0, 1.0, 0);
+                cam.dist = 4.5;
+                applyCam();
+                break;
+            }
+            case 'frisbee_pair': {
+                // Two players ~12m apart playing catch; disc lobs back and forth
+                // with a small random aim jitter so the catcher has to chase.
+                const playerA = buildFrisbeePlayer(Math.random);
+                const playerB = buildFrisbeePlayer(Math.random);
+                const disc = buildFrisbeeDisc(Math.random);
+                playerA.position.set(-6, 0, 0);
+                playerB.position.set(6, 0, 0);
+                disc.position.set(-6, 1.45, 0);
+                scene.add(playerA);
+                scene.add(playerB);
+                scene.add(disc);
+                entityRoot = playerA;
 
-          // Lock to night so we see the fire glowing
-          tod._nightness = 1;
-          tod.t = 0.5;
-          updateFn = (dt) => {
-            const t = performance.now() / 1000;
-            updateLeafDrumCircle(t, 1, dc);
-            updateTribalFigures(t, 1, figures);
-          };
-          cam.target.set(0, 1.5, 0);
-          cam.dist = 18;
-          cam.pitch = 0.25;
-          applyCam();
-          break;
-        }
+                const state = {
+                    holder: playerA,
+                    catcher: playerB,
+                    phase: 'held',       // 'held' | 'flying' | 'landed'
+                    pauseTimer: 1.2,
+                    vel: new THREE.Vector3(),
+                };
+                const GRAVITY = 9.8 * 0.6;
+                const TOSS_SPEED = 9.5;
+                const AIM_JITTER = 0.20;
+                const PLAYER_SPEED = 2.6;
+                const CATCH_RADIUS = 0.7;
 
-        // ----- Camping -----
-        case 'camp_tent': {
-          const t = buildCampTent(Math.random);
-          scene.add(t.group);
-          entityRoot = t.group;
-          cam.target.set(0, 1.0, 0);
-          cam.dist = 5;
-          applyCam();
-          break;
-        }
-        case 'camp_chair': {
-          const c = buildCampChair(Math.random);
-          scene.add(c.group);
-          entityRoot = c.group;
-          cam.target.set(0, 0.5, 0);
-          cam.dist = 2.5;
-          applyCam();
-          break;
-        }
-        case 'chiminea': {
-          const ch = buildChiminea(Math.random);
-          scene.add(ch.group);
-          entityRoot = ch.group;
-          // Tick the ember flicker each frame against the sandbox nightness.
-          updateFn = (dt) => {
-            updateCampsiteProps(performance.now() / 1000, tod.nightness, [ch]);
-          };
-          cam.target.set(0, 0.5, 0);
-          cam.dist = 3;
-          applyCam();
-          break;
-        }
-        case 'tiki_torch': {
-          const tk = buildTikiTorch(Math.random);
-          scene.add(tk.group);
-          entityRoot = tk.group;
-          updateFn = (dt) => {
-            updateCampsiteProps(performance.now() / 1000, tod.nightness, [tk]);
-          };
-          cam.target.set(0, 1.0, 0);
-          cam.dist = 4;
-          applyCam();
-          break;
-        }
-        case 'torch_field': {
-          // 6 torches in a ring — the instanced version (3 InstancedMesh for
-          // the woodwork + per-torch flames). Mirrors a forest path / campsite
-          // perimeter so the instanced statics + independent flame flicker can
-          // be verified in isolation across the ToD presets.
-          const positions = [];
-          for (let i = 0; i < 6; i++) {
-            const theta = (i / 6) * Math.PI * 2;
-            positions.push({ x: Math.cos(theta) * 2.4, z: Math.sin(theta) * 2.4 });
-          }
-          const tf = buildTorchField(positions, Math.random);
-          scene.add(tf.group);
-          entityRoot = tf.group;
-          updateFn = (dt) => {
-            updateCampsiteProps(performance.now() / 1000, tod.nightness, tf.animatables);
-          };
-          cam.target.set(0, 1.2, 0);
-          cam.dist = 8;
-          applyCam();
-          break;
-        }
-        case 'ezup': {
-          const ez = buildEzUp(Math.random);
-          scene.add(ez.group);
-          entityRoot = ez.group;
-          cam.target.set(0, 1.4, 0);
-          cam.dist = 7;
-          applyCam();
-          break;
-        }
-        case 'tapestry': {
-          const tp = buildTapestry(Math.random);
-          scene.add(tp.group);
-          entityRoot = tp.group;
-          cam.target.set(0, 1.0, 0);
-          cam.dist = 4.5;
-          applyCam();
-          break;
-        }
-        case 'campsite_small':
-        case 'campsite_medium':
-        case 'campsite_large': {
-          const size = name.split('_')[1];
-          const cs = buildCampsite(Math.random, size);
-          scene.add(cs.group);
-          entityRoot = cs.group;
-          updateFn = (dt) => {
-            updateCampsiteProps(performance.now() / 1000, tod.nightness, cs.animatables);
-          };
-          // Frame the whole site — radius scales with size.
-          const r = { small: 5, medium: 7, large: 9 }[size];
-          cam.target.set(0, 1.2, 0);
-          cam.dist = r * 1.7;
-          applyCam();
-          break;
-        }
+                const lookAt = (player, tx, tz) => {
+                    player.rotation.y = Math.atan2(tx - player.position.x, tz - player.position.z) + Math.PI;
+                };
+                const toss = () => {
+                    const dx = state.catcher.position.x - state.holder.position.x;
+                    const dz = state.catcher.position.z - state.holder.position.z;
+                    const baseAng = Math.atan2(dx, dz);
+                    const ang = baseAng + (Math.random() - 0.5) * 2 * AIM_JITTER;
+                    const planar = TOSS_SPEED * (0.85 + Math.random() * 0.35);
+                    state.vel.set(Math.sin(ang) * planar, 4.5 + Math.random() * 1.6, Math.cos(ang) * planar);
+                    disc.position.set(state.holder.position.x, 1.45, state.holder.position.z);
+                    state.phase = 'flying';
+                };
 
-        // ----- Forest trees -----
-        case 'forest_tree_pine': {
-          const g = buildTallPine(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 11, 0);
-          cam.dist = 38;
-          applyCam();
-          break;
-        }
-        case 'forest_tree_oak': {
-          const g = buildOak(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 8, 0);
-          cam.dist = 28;
-          applyCam();
-          break;
-        }
-        case 'forest_tree_birch': {
-          const g = buildBirch(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 8, 0);
-          cam.dist = 26;
-          applyCam();
-          break;
-        }
-        case 'forest_tree_random': {
-          const g = buildForestTree(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 9, 0);
-          cam.dist = 32;
-          applyCam();
-          break;
-        }
-        case 'bird_sparrow':
-        case 'bird_finch':
-        case 'bird_jay':
-        case 'bird_crow':
-        case 'bird_dove': {
-          const sp = name.slice('bird_'.length);
-          const g = buildBird(sp, { perched: false });
-          g.position.y = 0.5;
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => g.userData.anim?.(dt);
-          const sz = BIRD_SPECIES[sp]?.size || 0.6;
-          cam.target.set(0, 0.5, 0);
-          cam.dist = 2.4 + sz * 2.4;
-          applyCam();
-          break;
-        }
-        case 'bird_perched': {
-          const g = buildBird('sparrow', { perched: true });
-          g.position.y = 0.5;
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => g.userData.anim?.(dt);
-          cam.target.set(0, 0.5, 0);
-          cam.dist = 3.0;
-          applyCam();
-          break;
-        }
-        case 'bird_flock': {
-          const g = buildBirdFlock('sparrow', 7);
-          g.position.y = 1.0;
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => g.userData.anim?.(dt);
-          cam.target.set(0, 1.5, 0);
-          cam.dist = 9;
-          applyCam();
-          break;
-        }
-        case 'bubble_jug': {
-          const g = buildBubbleJug();
-          g.position.y = 0.4;
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => g.userData.anim?.(dt);
-          cam.target.set(0, 0.5, 0);
-          cam.dist = 2.4;
-          applyCam();
-          break;
-        }
-        case 'bubble_vendor': {
-          const g = buildBubbleVendor(Math.random);
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => g.userData.anim?.(dt);
-          cam.target.set(0, 1.4, 0);
-          cam.dist = 6.5;
-          applyCam();
-          break;
-        }
-        case 'bird_in_tree': {
-          const g = new THREE.Group();
-          const tree = buildOak(Math.random);
-          g.add(tree);
-          const perches = tree.userData.perches || [];
-          const birds = [];
-          for (let i = 0; i < perches.length; i++) {
-            const p = perches[i];
-            const sp = BIRD_KEYS[i % BIRD_KEYS.length];
-            const b = buildBird(sp, { perched: true });
-            b.position.set(p.x, p.y, p.z);
-            b.rotation.y = Math.atan2(p.x, p.z);   // face outward from trunk
-            g.add(b);
-            birds.push(b);
-          }
-          scene.add(g);
-          entityRoot = g;
-          updateFn = (dt) => birds.forEach((b) => b.userData.anim?.(dt));
-          cam.target.set(0, 9, 0);
-          cam.dist = 26;
-          applyCam();
-          break;
-        }
-        case 'picnic_blanket': {
-          // Inline replica of the picnic-blanket prop scattered in
-          // chunks.js:buildOpenLawn — a 2.6m colored fabric square. The
-          // game's open-lawn theme registers these as crowd attractors
-          // (kind: 'picnic'); the sandbox version is purely visual.
-          const g = new THREE.Group();
-          const colors = [0xff6f9c, 0xffd28a, 0x6fcf6a, 0x66d9ff, 0xb285ff, 0xff8a5b];
-          const blanket = new THREE.Mesh(
-            new THREE.PlaneGeometry(2.6, 2.6),
-            new THREE.MeshStandardMaterial({
-              color: colors[Math.floor(Math.random() * colors.length)],
-              roughness: 0.9,
-              side: THREE.DoubleSide,
-            }),
-          );
-          blanket.rotation.x = -Math.PI / 2;
-          blanket.rotation.z = Math.random() * Math.PI * 2;
-          blanket.position.y = 0.06;
-          blanket.receiveShadow = true;
-          g.add(blanket);
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 0.5, 0);
-          cam.dist = 6;
-          applyCam();
-          break;
-        }
-        case 'lamppost_pair': {
-          // Inline replica of placePolePair() in chunks.js — two 6m poles
-          // 8m apart with a slack catenary cable between them and 6
-          // colored festoon bulbs hung from the cable. This is the
-          // signature LEAF lighting look (and the most-hit collider on
-          // open lawns at night), so worth previewable.
-          const g = new THREE.Group();
-          const poleMat = new THREE.MeshStandardMaterial({
-            color: 0x2a1f3a, roughness: 0.7, flatShading: true,
-          });
-          const h = 6;
-          const ax = -4, az = 0, bx = 4, bz = 0;   // 8m apart along X
-          for (const [px, pz] of [[ax, az], [bx, bz]]) {
-            const pole = new THREE.Mesh(
-              new THREE.CylinderGeometry(0.12, 0.15, h, 8),
-              poleMat,
-            );
-            pole.position.set(px, h / 2, pz);
-            pole.castShadow = true;
-            g.add(pole);
-          }
-          // Catenary cable — quadratic curve with a sag proportional to span.
-          const startTop = new THREE.Vector3(ax, h - 0.1, az);
-          const endTop = new THREE.Vector3(bx, h - 0.1, bz);
-          const mid = startTop.clone().add(endTop).multiplyScalar(0.5);
-          mid.y -= 0.6 + startTop.distanceTo(endTop) * 0.02;
-          const curve = new THREE.QuadraticBezierCurve3(startTop, mid, endTop);
-          const cable = new THREE.Mesh(
-            new THREE.TubeGeometry(curve, 12, 0.03, 4, false),
-            new THREE.MeshStandardMaterial({ color: 0x1a1a1a }),
-          );
-          g.add(cable);
+                updateFn = (dt) => {
+                    // Player bob + disc spin/glow live in tickFrisbeePlayer / tickFrisbeeDisc.
+                    // Game (Frisbees.update in obstacles.js) calls the same ones —
+                    // toss/catch sim below is the only sandbox-specific code now.
+                    tickFrisbeePlayer(playerA, dt);
+                    tickFrisbeePlayer(playerB, dt);
+                    tickFrisbeeDisc(disc, dt, state.phase, tod.nightness);
+                    if (state.phase === 'held') {
+                        disc.position.set(state.holder.position.x, 1.45, state.holder.position.z);
+                        lookAt(state.holder, state.catcher.position.x, state.catcher.position.z);
+                        lookAt(state.catcher, state.holder.position.x, state.holder.position.z);
+                        state.pauseTimer -= dt;
+                        if (state.pauseTimer <= 0) toss();
+                    } else if (state.phase === 'flying') {
+                        disc.position.x += state.vel.x * dt;
+                        disc.position.y += state.vel.y * dt;
+                        disc.position.z += state.vel.z * dt;
+                        state.vel.y -= GRAVITY * dt;
+                        // Predict landing point + chase
+                        const g_ = GRAVITY, catchY = 0.4, vy = state.vel.y, y0 = disc.position.y;
+                        const A = -0.5 * g_, B = vy, C = y0 - catchY;
+                        const D = B * B - 4 * A * C;
+                        let tHit = 0;
+                        if (D >= 0) {
+                            const r1 = (-B - Math.sqrt(D)) / (2 * A);
+                            const r2 = (-B + Math.sqrt(D)) / (2 * A);
+                            const cands = [];
+                            if (r1 > 0 && isFinite(r1)) cands.push(r1);
+                            if (r2 > 0 && isFinite(r2)) cands.push(r2);
+                            if (cands.length) tHit = Math.min(...cands);
+                        }
+                        const tx = disc.position.x + state.vel.x * tHit;
+                        const tz = disc.position.z + state.vel.z * tHit;
+                        const dx = tx - state.catcher.position.x;
+                        const dz = tz - state.catcher.position.z;
+                        const d = Math.hypot(dx, dz);
+                        if (d > 0.05) {
+                            const inv = 1 / d;
+                            const step = Math.min(d, PLAYER_SPEED * dt);
+                            state.catcher.position.x += dx * inv * step;
+                            state.catcher.position.z += dz * inv * step;
+                        }
+                        lookAt(state.catcher, disc.position.x, disc.position.z);
+                        lookAt(state.holder, disc.position.x, disc.position.z);
+                        const dxD = disc.position.x - state.catcher.position.x;
+                        const dzD = disc.position.z - state.catcher.position.z;
+                        if (disc.position.y < 1.7 && disc.position.y > 0.6 && Math.hypot(dxD, dzD) < CATCH_RADIUS) {
+                            // Caught — swap and pause
+                            [state.holder, state.catcher] = [state.catcher, state.holder];
+                            state.phase = 'held';
+                            state.pauseTimer = 0.7 + Math.random() * 1.0;
+                        } else if (disc.position.y <= 0.05) {
+                            disc.position.y = 0.05;
+                            state.phase = 'landed';
+                        }
+                    } else if (state.phase === 'landed') {
+                        const dx = disc.position.x - state.catcher.position.x;
+                        const dz = disc.position.z - state.catcher.position.z;
+                        const d = Math.hypot(dx, dz);
+                        if (d < 0.7) {
+                            [state.holder, state.catcher] = [state.catcher, state.holder];
+                            state.phase = 'held';
+                            state.pauseTimer = 0.8 + Math.random() * 1.2;
+                        } else {
+                            const inv = 1 / d;
+                            const step = Math.min(d, PLAYER_SPEED * dt);
+                            state.catcher.position.x += dx * inv * step;
+                            state.catcher.position.z += dz * inv * step;
+                        }
+                        lookAt(state.catcher, disc.position.x, disc.position.z);
+                        lookAt(state.holder, state.catcher.position.x, state.catcher.position.z);
+                    }
+                };
+                cam.target.set(0, 1.0, 0);
+                cam.dist = 18;
+                applyCam();
+                break;
+            }
+            case 'performer_lead_vocal':
+            case 'performer_guitar':
+            case 'performer_bass':
+            case 'performer_drum':
+            case 'performer_sax': {
+                const inst = name.replace('performer_', '');
+                const g = buildPerformer(inst, Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 1.2, 0);
+                cam.dist = 5;
+                applyCam();
+                break;
+            }
 
-          // Bulbs strung along the cable.
-          const bulbHues = [0xffd28a, 0xff6f9c, 0x8ecae6, 0x6fcf6a, 0xc77dff, 0xffd166];
-          const bulbGeo = new THREE.SphereGeometry(0.12, 8, 6);
-          const count = 6;
-          for (let i = 0; i < count; i++) {
-            const t = (i + 0.5) / count;
-            const p = curve.getPoint(t);
-            const hue = bulbHues[i % bulbHues.length];
-            const bulb = new THREE.Mesh(
-              bulbGeo,
-              new THREE.MeshStandardMaterial({
-                color: hue, emissive: hue, emissiveIntensity: 1.2,
-              }),
-            );
-            bulb.position.copy(p);
-            bulb.position.y -= 0.13;
-            g.add(bulb);
-          }
-          scene.add(g);
-          entityRoot = g;
-          cam.target.set(0, 3, 0);
-          cam.dist = 14;
-          applyCam();
-          break;
+            // ----- Drum circle -----
+            case 'leaf_drum_circle':
+            case 'leaf_drum_circle_day':
+            case 'leaf_drum_circle_night': {
+                const dc = buildLeafDrumCircle(Math.random, {facingAngle: -Math.PI / 2});
+                scene.add(dc.group);
+                entityRoot = dc.group;
+                // Pin nightness: day = 0, night = 1, plain = use sandbox time-of-day.
+                let pinned = null;
+                if (name === 'leaf_drum_circle_day') pinned = 0;
+                else if (name === 'leaf_drum_circle_night') pinned = 1;
+                if (pinned !== null) {
+                    // Override the TOD update so the fire stays at the requested level.
+                    // We snap nightness on the TOD object itself so any other system
+                    // that reads tod.nightness sees the pinned value.
+                    tod._nightness = pinned;
+                    // Also lock t so the sun doesn't drift the scene back to daylight.
+                    tod.t = pinned > 0.5 ? 0.5 : 0.2;
+                }
+                updateFn = (dt) => {
+                    const n = pinned !== null ? pinned : tod.nightness;
+                    updateLeafDrumCircle(performance.now() / 1000, n, dc);
+                };
+                cam.target.set(0, 2.0, 0);
+                cam.dist = 14;
+                cam.pitch = 0.25;
+                applyCam();
+                break;
+            }
+
+            // ----- Drum-circle figures (standalone) -----
+            case 'fire_dancer':
+            case 'hand_drummer':
+            case 'firekeeper':
+            case 'spotter': {
+                const builders = {
+                    fire_dancer: buildFireDancer,
+                    hand_drummer: buildHandDrummer,
+                    firekeeper: buildFirekeeper,
+                    spotter: buildSpotter,
+                };
+                const f = builders[name](Math.random);
+                scene.add(f.group);
+                entityRoot = f.group;
+                updateFn = (dt) => updateTribalFigures(performance.now() / 1000, tod.nightness, [f]);
+                cam.target.set(0, 1.0, 0);
+                cam.dist = 3.5;
+                applyCam();
+                break;
+            }
+
+            // ----- Drum circle populated with figures -----
+            case 'drum_circle_populated': {
+                const dc = buildLeafDrumCircle(Math.random, {facingAngle: -Math.PI / 2});
+                scene.add(dc.group);
+                entityRoot = dc.group;
+                // Build a mini "populate" — borrow the layout from forests.js. We
+                // hand-roll it here since the sandbox doesn't load forests.js.
+                const facingAngle = -Math.PI / 2;
+                const figures = [];
+                const benchCentre = facingAngle + Math.PI;
+                const ringRadii = [5.5, 6.5, 7.5];
+                const counts = [4, 5, 6];
+                for (let ring = 0; ring < ringRadii.length; ring++) {
+                    const r = ringRadii[ring];
+                    for (let i = 0; i < counts[ring]; i++) {
+                        const t = (i + 0.5) / counts[ring];
+                        const a = benchCentre - Math.PI / 2 + t * Math.PI;
+                        const d = buildHandDrummer(Math.random);
+                        d.group.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+                        // Face the fire — see comment in forests.js for the math.
+                        d.group.rotation.y = Math.PI / 2 - a;
+                        dc.group.add(d.group);
+                        figures.push(d);
+                    }
+                }
+                for (let i = 0; i < 7; i++) {
+                    const dancer = buildFireDancer(Math.random);
+                    dancer.phase = (i / 7) * Math.PI * 2;
+                    dc.group.add(dancer.group);
+                    figures.push(dancer);
+                }
+                const fk = buildFirekeeper(Math.random);
+                fk.group.position.set(Math.cos(facingAngle) * 4.2, 0, Math.sin(facingAngle) * 4.2);
+                fk.group.rotation.y = Math.PI / 2 - facingAngle;
+                dc.group.add(fk.group);
+                figures.push(fk);
+                const sp = buildSpotter(Math.random);
+                const spA = facingAngle + 0.5;
+                sp.group.position.set(Math.cos(spA) * 5.4, 0, Math.sin(spA) * 5.4);
+                sp.group.rotation.y = Math.PI / 2 - spA;
+                dc.group.add(sp.group);
+                figures.push(sp);
+
+                // Lock to night so we see the fire glowing
+                tod._nightness = 1;
+                tod.t = 0.5;
+                updateFn = (dt) => {
+                    const t = performance.now() / 1000;
+                    updateLeafDrumCircle(t, 1, dc);
+                    updateTribalFigures(t, 1, figures);
+                };
+                cam.target.set(0, 1.5, 0);
+                cam.dist = 18;
+                cam.pitch = 0.25;
+                applyCam();
+                break;
+            }
+
+            // ----- Camping -----
+            case 'camp_tent': {
+                const t = buildCampTent(Math.random);
+                scene.add(t.group);
+                entityRoot = t.group;
+                cam.target.set(0, 1.0, 0);
+                cam.dist = 5;
+                applyCam();
+                break;
+            }
+            case 'camp_chair': {
+                const c = buildCampChair(Math.random);
+                scene.add(c.group);
+                entityRoot = c.group;
+                cam.target.set(0, 0.5, 0);
+                cam.dist = 2.5;
+                applyCam();
+                break;
+            }
+            case 'chiminea': {
+                const ch = buildChiminea(Math.random);
+                scene.add(ch.group);
+                entityRoot = ch.group;
+                // Tick the ember flicker each frame against the sandbox nightness.
+                updateFn = (dt) => {
+                    updateCampsiteProps(performance.now() / 1000, tod.nightness, [ch]);
+                };
+                cam.target.set(0, 0.5, 0);
+                cam.dist = 3;
+                applyCam();
+                break;
+            }
+            case 'tiki_torch': {
+                const tk = buildTikiTorch(Math.random);
+                scene.add(tk.group);
+                entityRoot = tk.group;
+                updateFn = (dt) => {
+                    updateCampsiteProps(performance.now() / 1000, tod.nightness, [tk]);
+                };
+                cam.target.set(0, 1.0, 0);
+                cam.dist = 4;
+                applyCam();
+                break;
+            }
+            case 'torch_field': {
+                // 6 torches in a ring — the instanced version (3 InstancedMesh for
+                // the woodwork + per-torch flames). Mirrors a forest path / campsite
+                // perimeter so the instanced statics + independent flame flicker can
+                // be verified in isolation across the ToD presets.
+                const positions = [];
+                for (let i = 0; i < 6; i++) {
+                    const theta = (i / 6) * Math.PI * 2;
+                    positions.push({x: Math.cos(theta) * 2.4, z: Math.sin(theta) * 2.4});
+                }
+                const tf = buildTorchField(positions, Math.random);
+                scene.add(tf.group);
+                entityRoot = tf.group;
+                updateFn = (dt) => {
+                    updateCampsiteProps(performance.now() / 1000, tod.nightness, tf.animatables);
+                };
+                cam.target.set(0, 1.2, 0);
+                cam.dist = 8;
+                applyCam();
+                break;
+            }
+            case 'ezup': {
+                const ez = buildEzUp(Math.random);
+                scene.add(ez.group);
+                entityRoot = ez.group;
+                cam.target.set(0, 1.4, 0);
+                cam.dist = 7;
+                applyCam();
+                break;
+            }
+            case 'tapestry': {
+                const tp = buildTapestry(Math.random);
+                scene.add(tp.group);
+                entityRoot = tp.group;
+                cam.target.set(0, 1.0, 0);
+                cam.dist = 4.5;
+                applyCam();
+                break;
+            }
+            case 'campsite_small':
+            case 'campsite_medium':
+            case 'campsite_large': {
+                const size = name.split('_')[1];
+                const cs = buildCampsite(Math.random, size);
+                scene.add(cs.group);
+                entityRoot = cs.group;
+                updateFn = (dt) => {
+                    updateCampsiteProps(performance.now() / 1000, tod.nightness, cs.animatables);
+                };
+                // Frame the whole site — radius scales with size.
+                const r = {small: 5, medium: 7, large: 9}[size];
+                cam.target.set(0, 1.2, 0);
+                cam.dist = r * 1.7;
+                applyCam();
+                break;
+            }
+
+            // ----- Forest trees -----
+            case 'forest_tree_pine': {
+                const g = buildTallPine(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 11, 0);
+                cam.dist = 38;
+                applyCam();
+                break;
+            }
+            case 'forest_tree_oak': {
+                const g = buildOak(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 8, 0);
+                cam.dist = 28;
+                applyCam();
+                break;
+            }
+            case 'forest_tree_birch': {
+                const g = buildBirch(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 8, 0);
+                cam.dist = 26;
+                applyCam();
+                break;
+            }
+            case 'forest_tree_random': {
+                const g = buildForestTree(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 9, 0);
+                cam.dist = 32;
+                applyCam();
+                break;
+            }
+            case 'bird_sparrow':
+            case 'bird_finch':
+            case 'bird_jay':
+            case 'bird_crow':
+            case 'bird_dove': {
+                const sp = name.slice('bird_'.length);
+                const g = buildBird(sp, {perched: false});
+                g.position.y = 0.5;
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => g.userData.anim?.(dt);
+                const sz = BIRD_SPECIES[sp]?.size || 0.6;
+                cam.target.set(0, 0.5, 0);
+                cam.dist = 2.4 + sz * 2.4;
+                applyCam();
+                break;
+            }
+            case 'bird_perched': {
+                const g = buildBird('sparrow', {perched: true});
+                g.position.y = 0.5;
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => g.userData.anim?.(dt);
+                cam.target.set(0, 0.5, 0);
+                cam.dist = 3.0;
+                applyCam();
+                break;
+            }
+            case 'bird_flock': {
+                const g = buildBirdFlock('sparrow', 7);
+                g.position.y = 1.0;
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => g.userData.anim?.(dt);
+                cam.target.set(0, 1.5, 0);
+                cam.dist = 9;
+                applyCam();
+                break;
+            }
+            case 'bubble_jug': {
+                const g = buildBubbleJug();
+                g.position.y = 0.4;
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => g.userData.anim?.(dt);
+                cam.target.set(0, 0.5, 0);
+                cam.dist = 2.4;
+                applyCam();
+                break;
+            }
+            case 'bubble_vendor': {
+                const g = buildBubbleVendor(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => g.userData.anim?.(dt);
+                cam.target.set(0, 1.4, 0);
+                cam.dist = 6.5;
+                applyCam();
+                break;
+            }
+            case 'bird_in_tree': {
+                const g = new THREE.Group();
+                const tree = buildOak(Math.random);
+                g.add(tree);
+                const perches = tree.userData.perches || [];
+                const birds = [];
+                for (let i = 0; i < perches.length; i++) {
+                    const p = perches[i];
+                    const sp = BIRD_KEYS[i % BIRD_KEYS.length];
+                    const b = buildBird(sp, {perched: true});
+                    b.position.set(p.x, p.y, p.z);
+                    b.rotation.y = Math.atan2(p.x, p.z);   // face outward from trunk
+                    g.add(b);
+                    birds.push(b);
+                }
+                scene.add(g);
+                entityRoot = g;
+                updateFn = (dt) => birds.forEach((b) => b.userData.anim?.(dt));
+                cam.target.set(0, 9, 0);
+                cam.dist = 26;
+                applyCam();
+                break;
+            }
+            case 'picnic_blanket': {
+                // Inline replica of the picnic-blanket prop scattered in
+                // chunks.js:buildOpenLawn — a 2.6m colored fabric square. The
+                // game's open-lawn theme registers these as crowd attractors
+                // (kind: 'picnic'); the sandbox version is purely visual.
+                const g = new THREE.Group();
+                const colors = [0xff6f9c, 0xffd28a, 0x6fcf6a, 0x66d9ff, 0xb285ff, 0xff8a5b];
+                const blanket = new THREE.Mesh(
+                    new THREE.PlaneGeometry(2.6, 2.6),
+                    new THREE.MeshStandardMaterial({
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        roughness: 0.9,
+                        side: THREE.DoubleSide,
+                    }),
+                );
+                blanket.rotation.x = -Math.PI / 2;
+                blanket.rotation.z = Math.random() * Math.PI * 2;
+                blanket.position.y = 0.06;
+                blanket.receiveShadow = true;
+                g.add(blanket);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 0.5, 0);
+                cam.dist = 6;
+                applyCam();
+                break;
+            }
+            case 'lamppost_pair': {
+                // Inline replica of placePolePair() in chunks.js — two 6m poles
+                // 8m apart with a slack catenary cable between them and 6
+                // colored festoon bulbs hung from the cable. This is the
+                // signature LEAF lighting look (and the most-hit collider on
+                // open lawns at night), so worth previewable.
+                const g = new THREE.Group();
+                const poleMat = new THREE.MeshStandardMaterial({
+                    color: 0x2a1f3a, roughness: 0.7, flatShading: true,
+                });
+                const h = 6;
+                const ax = -4, az = 0, bx = 4, bz = 0;   // 8m apart along X
+                for (const [px, pz] of [[ax, az], [bx, bz]]) {
+                    const pole = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.12, 0.15, h, 8),
+                        poleMat,
+                    );
+                    pole.position.set(px, h / 2, pz);
+                    pole.castShadow = true;
+                    g.add(pole);
+                }
+                // Catenary cable — quadratic curve with a sag proportional to span.
+                const startTop = new THREE.Vector3(ax, h - 0.1, az);
+                const endTop = new THREE.Vector3(bx, h - 0.1, bz);
+                const mid = startTop.clone().add(endTop).multiplyScalar(0.5);
+                mid.y -= 0.6 + startTop.distanceTo(endTop) * 0.02;
+                const curve = new THREE.QuadraticBezierCurve3(startTop, mid, endTop);
+                const cable = new THREE.Mesh(
+                    new THREE.TubeGeometry(curve, 12, 0.03, 4, false),
+                    new THREE.MeshStandardMaterial({color: 0x1a1a1a}),
+                );
+                g.add(cable);
+
+                // Bulbs strung along the cable.
+                const bulbHues = [0xffd28a, 0xff6f9c, 0x8ecae6, 0x6fcf6a, 0xc77dff, 0xffd166];
+                const bulbGeo = new THREE.SphereGeometry(0.12, 8, 6);
+                const count = 6;
+                for (let i = 0; i < count; i++) {
+                    const t = (i + 0.5) / count;
+                    const p = curve.getPoint(t);
+                    const hue = bulbHues[i % bulbHues.length];
+                    const bulb = new THREE.Mesh(
+                        bulbGeo,
+                        new THREE.MeshStandardMaterial({
+                            color: hue, emissive: hue, emissiveIntensity: 1.2,
+                        }),
+                    );
+                    bulb.position.copy(p);
+                    bulb.position.y -= 0.13;
+                    g.add(bulb);
+                }
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 3, 0);
+                cam.dist = 14;
+                applyCam();
+                break;
+            }
+            case 'chunk_drum_circle': {
+                // Inline replica of the simple chunk-theme drum_circle (see
+                // chunks.js:buildDrumCircle). Distinct from the LEAF drum
+                // circle entity — no benches, no firekeeper, just a small
+                // emissive fire + stones + a single djembe. This is what
+                // appears in `drum_circle` themed chunks throughout the
+                // world.
+                const g = new THREE.Group();
+                // Fire core (emissive icosahedron).
+                const fire = new THREE.Mesh(
+                    new THREE.IcosahedronGeometry(0.6, 1),
+                    new THREE.MeshStandardMaterial({
+                        color: 0xff7733, emissive: 0xff5511,
+                        emissiveIntensity: 2.5, roughness: 0.8,
+                    }),
+                );
+                fire.position.set(0, 0.6, 0);
+                g.add(fire);
+                // Stone ring.
+                for (let i = 0; i < 8; i++) {
+                    const ang = (i / 8) * Math.PI * 2;
+                    const sx = Math.cos(ang) * 1.4;
+                    const sz = Math.sin(ang) * 1.4;
+                    const stone = new THREE.Mesh(
+                        new THREE.IcosahedronGeometry(0.3 + Math.random() * 0.15, 0),
+                        new THREE.MeshStandardMaterial({
+                            color: 0x6a6a78, roughness: 1, flatShading: true,
+                        }),
+                    );
+                    stone.position.set(sx, 0.3, sz);
+                    g.add(stone);
+                }
+                // Standalone djembe.
+                const drum = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.7, 0.55, 1.4, 14),
+                    new THREE.MeshStandardMaterial({
+                        color: 0x8b5a2b, roughness: 0.9, flatShading: true,
+                    }),
+                );
+                drum.position.set(3, 0.7, 1);
+                drum.castShadow = true;
+                g.add(drum);
+                scene.add(g);
+                entityRoot = g;
+                // Gentle fire flicker so the entity isn't statically lit in
+                // preview — mimics the world's `forestAnimatables` pulse on
+                // chunk firepits.
+                const fireMat = fire.material;
+                updateFn = (dt) => {
+                    const t = performance.now() * 0.003;
+                    fireMat.emissiveIntensity = 2.2 + Math.sin(t * 4) * 0.4 + Math.sin(t * 7.2) * 0.2;
+                };
+                cam.target.set(0, 1, 0);
+                cam.dist = 8;
+                applyCam();
+                break;
+            }
+            case 'smile_pickup': {
+                // Live Smiles instance with a fake "Zerble" target far above
+                // origin so the smiles rise and home toward a fixed point
+                // without ever being collected — the preview shows the full
+                // rise-then-seek motion. Re-spawn each smile a few seconds
+                // after it expires so the inspection never goes empty.
+                const smiles = new Smiles();
+                scene.add(smiles.group);
+                entityRoot = smiles.group;
+                currentEntity = smiles;
+                // Fake homing target ~4m above origin. Smiles rise, then home
+                // toward this point; once they reach the pickup radius the
+                // onCollect callback fires (a no-op here) and the smile
+                // despawns. The spawn loop below drips a fresh one in every
+                // ~1.2s so the field is never empty.
+                const fakeZerble = {position: new THREE.Vector3(0, 4, 0)};
+                // Spawn one immediately at a random ground spot, then keep
+                // dripping a new one every ~1.2s so the field is never empty.
+                const spawnOne = () => {
+                    const ang = Math.random() * Math.PI * 2;
+                    const r = 1 + Math.random() * 3;
+                    smiles.spawn(new THREE.Vector3(Math.cos(ang) * r, 0, Math.sin(ang) * r));
+                };
+                spawnOne();
+                let spawnAcc = 0;
+                updateFn = (dt) => {
+                    spawnAcc += dt;
+                    if (spawnAcc > 1.2) {
+                        spawnAcc = 0;
+                        spawnOne();
+                    }
+                    smiles.update(dt, fakeZerble, () => { /* no-op: spawn loop refills */
+                    });
+                };
+                cam.target.set(0, 2, 0);
+                cam.dist = 8;
+                applyCam();
+                break;
+            }
+            case 'bubbles': {
+                // Live Bubbles instance with a fake stationary "Zerble" that
+                // has the minimum surface the system needs: a position,
+                // speed (drives spawn rate), a nozzleWorld emission point,
+                // and a forwardWorld direction. Bubbles spew out the back
+                // and waft upward + outward; the preview shows the full
+                // personality mix (follower / wanderer / spinner / sprinter)
+                // and pop-on-life-end behavior.
+                const bubbles = new Bubbles();
+                scene.add(bubbles.mesh);
+                entityRoot = bubbles.mesh;
+                currentEntity = bubbles;
+                const fakeZerble = {
+                    position: new THREE.Vector3(0, 0, 0),
+                    speed: 4,   // moderate spawn rate (full at 8 m/s)
+                    nozzleWorld: new THREE.Vector3(0, 1.6, 0.6),
+                    forwardWorld: new THREE.Vector3(0, 0, 1),  // bubbles launch in -forwardWorld = -Z
+                };
+                updateFn = (dt) => {
+                    bubbles.update(dt, fakeZerble, tod.nightness);
+                };
+                cam.target.set(0, 2, 0);
+                cam.dist = 8;
+                applyCam();
+                break;
+            }
         }
-        case 'chunk_drum_circle': {
-          // Inline replica of the simple chunk-theme drum_circle (see
-          // chunks.js:buildDrumCircle). Distinct from the LEAF drum
-          // circle entity — no benches, no firekeeper, just a small
-          // emissive fire + stones + a single djembe. This is what
-          // appears in `drum_circle` themed chunks throughout the
-          // world.
-          const g = new THREE.Group();
-          // Fire core (emissive icosahedron).
-          const fire = new THREE.Mesh(
-            new THREE.IcosahedronGeometry(0.6, 1),
-            new THREE.MeshStandardMaterial({
-              color: 0xff7733, emissive: 0xff5511,
-              emissiveIntensity: 2.5, roughness: 0.8,
-            }),
-          );
-          fire.position.set(0, 0.6, 0);
-          g.add(fire);
-          // Stone ring.
-          for (let i = 0; i < 8; i++) {
-            const ang = (i / 8) * Math.PI * 2;
-            const sx = Math.cos(ang) * 1.4;
-            const sz = Math.sin(ang) * 1.4;
-            const stone = new THREE.Mesh(
-              new THREE.IcosahedronGeometry(0.3 + Math.random() * 0.15, 0),
-              new THREE.MeshStandardMaterial({
-                color: 0x6a6a78, roughness: 1, flatShading: true,
-              }),
-            );
-            stone.position.set(sx, 0.3, sz);
-            g.add(stone);
-          }
-          // Standalone djembe.
-          const drum = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.7, 0.55, 1.4, 14),
-            new THREE.MeshStandardMaterial({
-              color: 0x8b5a2b, roughness: 0.9, flatShading: true,
-            }),
-          );
-          drum.position.set(3, 0.7, 1);
-          drum.castShadow = true;
-          g.add(drum);
-          scene.add(g);
-          entityRoot = g;
-          // Gentle fire flicker so the entity isn't statically lit in
-          // preview — mimics the world's `forestAnimatables` pulse on
-          // chunk firepits.
-          const fireMat = fire.material;
-          updateFn = (dt) => {
-            const t = performance.now() * 0.003;
-            fireMat.emissiveIntensity = 2.2 + Math.sin(t * 4) * 0.4 + Math.sin(t * 7.2) * 0.2;
-          };
-          cam.target.set(0, 1, 0);
-          cam.dist = 8;
-          applyCam();
-          break;
-        }
-        case 'smile_pickup': {
-          // Live Smiles instance with a fake "Zerble" target far above
-          // origin so the smiles rise and home toward a fixed point
-          // without ever being collected — the preview shows the full
-          // rise-then-seek motion. Re-spawn each smile a few seconds
-          // after it expires so the inspection never goes empty.
-          const smiles = new Smiles();
-          scene.add(smiles.group);
-          entityRoot = smiles.group;
-          currentEntity = smiles;
-          // Fake homing target ~4m above origin. Smiles rise, then home
-          // toward this point; once they reach the pickup radius the
-          // onCollect callback fires (a no-op here) and the smile
-          // despawns. The spawn loop below drips a fresh one in every
-          // ~1.2s so the field is never empty.
-          const fakeZerble = { position: new THREE.Vector3(0, 4, 0) };
-          // Spawn one immediately at a random ground spot, then keep
-          // dripping a new one every ~1.2s so the field is never empty.
-          const spawnOne = () => {
-            const ang = Math.random() * Math.PI * 2;
-            const r = 1 + Math.random() * 3;
-            smiles.spawn(new THREE.Vector3(Math.cos(ang) * r, 0, Math.sin(ang) * r));
-          };
-          spawnOne();
-          let spawnAcc = 0;
-          updateFn = (dt) => {
-            spawnAcc += dt;
-            if (spawnAcc > 1.2) { spawnAcc = 0; spawnOne(); }
-            smiles.update(dt, fakeZerble, () => { /* no-op: spawn loop refills */ });
-          };
-          cam.target.set(0, 2, 0);
-          cam.dist = 8;
-          applyCam();
-          break;
-        }
-        case 'bubbles': {
-          // Live Bubbles instance with a fake stationary "Zerble" that
-          // has the minimum surface the system needs: a position,
-          // speed (drives spawn rate), a nozzleWorld emission point,
-          // and a forwardWorld direction. Bubbles spew out the back
-          // and waft upward + outward; the preview shows the full
-          // personality mix (follower / wanderer / spinner / sprinter)
-          // and pop-on-life-end behavior.
-          const bubbles = new Bubbles();
-          scene.add(bubbles.mesh);
-          entityRoot = bubbles.mesh;
-          currentEntity = bubbles;
-          const fakeZerble = {
-            position:     new THREE.Vector3(0, 0, 0),
-            speed:        4,   // moderate spawn rate (full at 8 m/s)
-            nozzleWorld:  new THREE.Vector3(0, 1.6, 0.6),
-            forwardWorld: new THREE.Vector3(0, 0, 1),  // bubbles launch in -forwardWorld = -Z
-          };
-          updateFn = (dt) => {
-            bubbles.update(dt, fakeZerble, tod.nightness);
-          };
-          cam.target.set(0, 2, 0);
-          cam.dist = 8;
-          applyCam();
-          break;
-        }
-      }
-      attachEntityMusic(name);
-      updateHitButton(name);
-      info.textContent = `Loaded: ${name}`;
+        attachEntityMusic(name);
+        updateHitButton(name);
+        info.textContent = `Loaded: ${name}`;
     }
 
     // ---- Audio panel: volume sliders + "Hit it" SFX button ----
     const volSliders = {
-      master: { input: document.getElementById('vol-master'), readout: document.getElementById('vol-master-r'), set: 'setMasterVolume', get: 'getMasterVolume' },
-      music:  { input: document.getElementById('vol-music'),  readout: document.getElementById('vol-music-r'),  set: 'setMusicVolume',  get: 'getMusicVolume'  },
-      sfx:    { input: document.getElementById('vol-sfx'),    readout: document.getElementById('vol-sfx-r'),    set: 'setSfxVolume',    get: 'getSfxVolume'    },
+        master: {
+            input: document.getElementById('vol-master'),
+            readout: document.getElementById('vol-master-r'),
+            set: 'setMasterVolume',
+            get: 'getMasterVolume'
+        },
+        music: {
+            input: document.getElementById('vol-music'),
+            readout: document.getElementById('vol-music-r'),
+            set: 'setMusicVolume',
+            get: 'getMusicVolume'
+        },
+        sfx: {
+            input: document.getElementById('vol-sfx'),
+            readout: document.getElementById('vol-sfx-r'),
+            set: 'setSfxVolume',
+            get: 'getSfxVolume'
+        },
     };
     for (const [key, s] of Object.entries(volSliders)) {
-      s.input.addEventListener('input', () => {
-        const v = parseFloat(s.input.value);
-        s.readout.textContent = v.toFixed(2);
-        if (soundInitialised) Sound[s.set](v);
-      });
+        s.input.addEventListener('input', () => {
+            const v = parseFloat(s.input.value);
+            s.readout.textContent = v.toFixed(2);
+            if (soundInitialised) Sound[s.set](v);
+        });
     }
+
     function updateVolumeReadouts() {
-      for (const s of Object.values(volSliders)) {
-        const v = Sound[s.get]();
-        s.input.value = v;
-        s.readout.textContent = v.toFixed(2);
-      }
+        for (const s of Object.values(volSliders)) {
+            const v = Sound[s.get]();
+            s.input.value = v;
+            s.readout.textContent = v.toFixed(2);
+        }
     }
 
     // "Hit it" button — fires the entity's collision SFX. Visibility toggled
@@ -1784,14 +2039,15 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     const hitBtn = document.getElementById('hit-it-btn');
     let currentHitKind = null;
     hitBtn.addEventListener('click', () => {
-      if (!currentHitKind) return;
-      ensureSoundInit();
-      Sound.playCollision(currentHitKind);
+        if (!currentHitKind) return;
+        ensureSoundInit();
+        Sound.playCollision(currentHitKind);
     });
+
     function updateHitButton(name) {
-      currentHitKind = ENTITY_HIT_KIND[name] || null;
-      hitBtn.style.display = currentHitKind ? 'block' : 'none';
-      if (currentHitKind) hitBtn.textContent = `Hit it (${currentHitKind})`;
+        currentHitKind = ENTITY_HIT_KIND[name] || null;
+        hitBtn.style.display = currentHitKind ? 'block' : 'none';
+        if (currentHitKind) hitBtn.textContent = `Hit it (${currentHitKind})`;
     }
 
     // URL param + selector wiring
@@ -1801,52 +2057,54 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     loadEntity(select.value);
 
     select.addEventListener('change', (e) => {
-      const v = e.target.value;
-      history.replaceState(null, '', `?entity=${v}`);
-      loadEntity(v);
+        const v = e.target.value;
+        history.replaceState(null, '', `?entity=${v}`);
+        loadEntity(v);
     });
 
     document.getElementById('reset-cam').addEventListener('click', () => {
-      cam.yaw = -0.4; cam.pitch = 0.45; cam.dist = 10;
-      cam.target.set(0, 1.6, 0);
-      applyCam();
+        cam.yaw = -0.4;
+        cam.pitch = 0.45;
+        cam.dist = 10;
+        cam.target.set(0, 1.6, 0);
+        applyCam();
     });
 
     document.getElementById('snapshot').addEventListener('click', () => {
-      navigator.clipboard?.writeText(location.href);
-      info.textContent = 'URL copied to clipboard';
-      setTimeout(() => info.textContent = `Loaded: ${select.value}`, 1200);
+        navigator.clipboard?.writeText(location.href);
+        info.textContent = 'URL copied to clipboard';
+        setTimeout(() => info.textContent = `Loaded: ${select.value}`, 1200);
     });
 
     // Time-of-day slider + preset buttons (mirroring the in-game ToD block
-     //  from the backtick debug menu). The full debug overlay is intentionally
-     // omitted from the sandbox — the entity panel above is the entire UI.
+    //  from the backtick debug menu). The full debug overlay is intentionally
+    // omitted from the sandbox — the entity panel above is the entire UI.
     {
-      const slider = document.getElementById('tod-slider');
-      const readout = document.getElementById('tod-readout');
-      const updateReadout = () => {
-        const t = parseFloat(slider.value);
-        readout.textContent = `t=${t.toFixed(2)} night=${tod.nightness.toFixed(2)}`;
-      };
-      slider.addEventListener('input', () => {
-        tod.setT(parseFloat(slider.value));
-        updateReadout();
-      });
-      for (const btn of document.querySelectorAll('.tod-preset')) {
-        btn.addEventListener('click', () => {
-          const t = parseFloat(btn.dataset.t);
-          tod.setT(t);
-          slider.value = String(t);
-          updateReadout();
+        const slider = document.getElementById('tod-slider');
+        const readout = document.getElementById('tod-readout');
+        const updateReadout = () => {
+            const t = parseFloat(slider.value);
+            readout.textContent = `t=${t.toFixed(2)} night=${tod.nightness.toFixed(2)}`;
+        };
+        slider.addEventListener('input', () => {
+            tod.setT(parseFloat(slider.value));
+            updateReadout();
         });
-      }
-      // Initial sync — set the slider value to whatever TimeOfDay starts at,
-      // and prime the readout so it's not blank before any interaction.
-      slider.value = String(tod.t);
-      updateReadout();
-      // Keep the readout fresh as the auto-advance ticks (when the user
-      // hasn't pinned a value via slider/buttons).
-      setInterval(updateReadout, 250);
+        for (const btn of document.querySelectorAll('.tod-preset')) {
+            btn.addEventListener('click', () => {
+                const t = parseFloat(btn.dataset.t);
+                tod.setT(t);
+                slider.value = String(t);
+                updateReadout();
+            });
+        }
+        // Initial sync — set the slider value to whatever TimeOfDay starts at,
+        // and prime the readout so it's not blank before any interaction.
+        slider.value = String(tod.t);
+        updateReadout();
+        // Keep the readout fresh as the auto-advance ticks (when the user
+        // hasn't pinned a value via slider/buttons).
+        setInterval(updateReadout, 250);
     }
 
     // ---- Music + MIDI panel wiring ----
@@ -1858,47 +2116,73 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     // panel header reflects which style is playing.
     let manualMusic = null;
     const musicStateEl = document.getElementById('music-state');
+
     function updateMusicState(text) {
-      musicStateEl.textContent = text || '—';
+        musicStateEl.textContent = text || '—';
     }
+
     for (const btn of document.querySelectorAll('.music-btn')) {
-      btn.addEventListener('click', () => {
-        ensureSoundInit();
-        // Stop any prior manual or auto engine before attaching a fresh one.
-        if (manualMusic) { try { Sound.detachStageMusic(manualMusic); } catch (e) {} manualMusic = null; }
-        if (entityMusic) { try { Sound.detachStageMusic(entityMusic); } catch (e) {} entityMusic = null; }
-        const style = btn.dataset.style;
-        // Seed by style name so two clicks of "Jam" produce the same pattern.
-        let seed = 0;
-        for (let i = 0; i < style.length; i++) seed = (seed * 31 + style.charCodeAt(i)) | 0;
-        manualMusic = Sound.attachStageMusic(0, 1.5, 0, seed, style);
-        updateMusicState(style);
-      });
+        btn.addEventListener('click', () => {
+            ensureSoundInit();
+            // Stop any prior manual or auto engine before attaching a fresh one.
+            if (manualMusic) {
+                try {
+                    Sound.detachStageMusic(manualMusic);
+                } catch (e) {
+                }
+                manualMusic = null;
+            }
+            if (entityMusic) {
+                try {
+                    Sound.detachStageMusic(entityMusic);
+                } catch (e) {
+                }
+                entityMusic = null;
+            }
+            const style = btn.dataset.style;
+            // Seed by style name so two clicks of "Jam" produce the same pattern.
+            let seed = 0;
+            for (let i = 0; i < style.length; i++) seed = (seed * 31 + style.charCodeAt(i)) | 0;
+            manualMusic = Sound.attachStageMusic(0, 1.5, 0, seed, style);
+            updateMusicState(style);
+        });
     }
     document.getElementById('music-stop').addEventListener('click', () => {
-      if (manualMusic) { try { Sound.detachStageMusic(manualMusic); } catch (e) {} manualMusic = null; }
-      if (entityMusic) { try { Sound.detachStageMusic(entityMusic); } catch (e) {} entityMusic = null; }
-      updateMusicState('—');
+        if (manualMusic) {
+            try {
+                Sound.detachStageMusic(manualMusic);
+            } catch (e) {
+            }
+            manualMusic = null;
+        }
+        if (entityMusic) {
+            try {
+                Sound.detachStageMusic(entityMusic);
+            } catch (e) {
+            }
+            entityMusic = null;
+        }
+        updateMusicState('—');
     });
 
     document.getElementById('end-song-btn').addEventListener('click', () => {
-      ensureSoundInit();
-      Sound._debugEndSong();
+        ensureSoundInit();
+        Sound._debugEndSong();
     });
 
     // Song-state readout — polls Sound.songStates() ~4 times per second.
     // Shows live section, tempo, key, and phase for each running songform engine.
     const songStateEl = document.getElementById('song-state-readout');
     setInterval(() => {
-      const states = Sound.songStates ? Sound.songStates() : [];
-      if (!states || states.length === 0) {
-        songStateEl.textContent = '—';
-        return;
-      }
-      songStateEl.textContent = states.map(s =>
-        `[${s.genre}] song#${s.songIdx} ${s.tempo}bpm key×${s.keyShift} ${s.tonicHz}Hz\n` +
-        `  sec:${s.section} bar:${s.barInSection} beat:${s.beatInSong}/${s.totalBeats} ${s.phase}`
-      ).join('\n');
+        const states = Sound.songStates ? Sound.songStates() : [];
+        if (!states || states.length === 0) {
+            songStateEl.textContent = '—';
+            return;
+        }
+        songStateEl.textContent = states.map(s =>
+            `[${s.genre}] song#${s.songIdx} ${s.tempo}bpm key×${s.keyShift} ${s.tonicHz}Hz\n` +
+            `  sec:${s.section} bar:${s.barInSection} beat:${s.beatInSong}/${s.totalBeats} ${s.phase}`
+        ).join('\n');
     }, 250);
 
     // MIDI player — same code path as the in-game M key. Lazy-loads Tone.js
@@ -1909,11 +2193,15 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     const midiBtn = document.getElementById('midi-toggle');
     // Stub HUD so MidiPlayer.toggle's toast calls don't throw. Pipes its
     // status messages into the entity info panel's text field.
-    const midiHud = { toast: (msg) => { info.textContent = msg; } };
+    const midiHud = {
+        toast: (msg) => {
+            info.textContent = msg;
+        }
+    };
     midiBtn.addEventListener('click', async () => {
-      ensureSoundInit();
-      await midiPlayer.toggle(midiHud);
-      midiBtn.textContent = midiPlayer.isPlaying ? '■ MIDI' : '♪ MIDI';
+        ensureSoundInit();
+        await midiPlayer.toggle(midiHud);
+        midiBtn.textContent = midiPlayer.isPlaying ? '■ MIDI' : '♪ MIDI';
     });
 
     // Trip-envelope sweep slider — drives both MIDI effect chain and
@@ -1921,12 +2209,12 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     const tripSweepSlider = document.getElementById('trip-sweep');
     const tripSweepReadout = document.getElementById('trip-sweep-r');
     tripSweepSlider.addEventListener('input', () => {
-      const v = parseFloat(tripSweepSlider.value);
-      tripSweepReadout.textContent = v.toFixed(2);
-      if (midiPlayer && midiPlayer.isPlaying) {
-        midiPlayer.setTripState(v, v);
-      }
-      Sound.setMusicTrip(v, v);
+        const v = parseFloat(tripSweepSlider.value);
+        tripSweepReadout.textContent = v.toFixed(2);
+        if (midiPlayer && midiPlayer.isPlaying) {
+            midiPlayer.setTripState(v, v);
+        }
+        Sound.setMusicTrip(v, v);
     });
 
     // ---- Trip panel wiring ----
@@ -1942,49 +2230,53 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     const tripSlidersHost = document.getElementById('trip-sliders');
     const tripSliders = {};
     const TRIP_EFFECT_KEYS = [
-      ['hueShift',            'Hue'],
-      ['saturation',          'Sat'],
-      ['uvRipple',            'Ripple'],
-      ['chromaticAberration', 'Chroma'],
-      ['lensDistortion',      'Lens'],
-      ['posterize',           'Poster'],
-      ['vignettePulse',       'Vign'],
-      ['brightnessPulse',     'Bright'],
+        ['hueShift', 'Hue'],
+        ['saturation', 'Sat'],
+        ['uvRipple', 'Ripple'],
+        ['chromaticAberration', 'Chroma'],
+        ['lensDistortion', 'Lens'],
+        ['posterize', 'Poster'],
+        ['vignettePulse', 'Vign'],
+        ['brightnessPulse', 'Bright'],
     ];
     for (const [key, label] of TRIP_EFFECT_KEYS) {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:2px';
-      const lbl = document.createElement('span');
-      lbl.textContent = label;
-      lbl.style.cssText = 'flex:0 0 42px;font-size:10px;opacity:0.8';
-      const input = document.createElement('input');
-      input.type = 'range';
-      input.min = 0; input.max = 1; input.step = 0.01;
-      input.value = Trip.config[key];
-      input.style.cssText = 'flex:1;accent-color:#c8a0ff;cursor:pointer';
-      const readout = document.createElement('span');
-      readout.textContent = Trip.config[key].toFixed(2);
-      readout.style.cssText = 'width:30px;text-align:right;font-size:10px';
-      input.addEventListener('input', () => {
-        const v = parseFloat(input.value);
-        Trip.config[key] = v;
-        readout.textContent = v.toFixed(2);
-      });
-      row.append(lbl, input, readout);
-      tripSlidersHost.appendChild(row);
-      tripSliders[key] = { input, readout };
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:2px';
+        const lbl = document.createElement('span');
+        lbl.textContent = label;
+        lbl.style.cssText = 'flex:0 0 42px;font-size:10px;opacity:0.8';
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.min = 0;
+        input.max = 1;
+        input.step = 0.01;
+        input.value = Trip.config[key];
+        input.style.cssText = 'flex:1;accent-color:#c8a0ff;cursor:pointer';
+        const readout = document.createElement('span');
+        readout.textContent = Trip.config[key].toFixed(2);
+        readout.style.cssText = 'width:30px;text-align:right;font-size:10px';
+        input.addEventListener('input', () => {
+            const v = parseFloat(input.value);
+            Trip.config[key] = v;
+            readout.textContent = v.toFixed(2);
+        });
+        row.append(lbl, input, readout);
+        tripSlidersHost.appendChild(row);
+        tripSliders[key] = {input, readout};
     }
+
     function syncTripSlidersFromConfig() {
-      for (const [key, s] of Object.entries(tripSliders)) {
-        s.input.value = Trip.config[key];
-        s.readout.textContent = Trip.config[key].toFixed(2);
-      }
+        for (const [key, s] of Object.entries(tripSliders)) {
+            s.input.value = Trip.config[key];
+            s.readout.textContent = Trip.config[key].toFixed(2);
+        }
     }
+
     for (const btn of document.querySelectorAll('.trip-preset')) {
-      btn.addEventListener('click', () => {
-        Trip.setPreset(btn.dataset.preset);
-        syncTripSlidersFromConfig();
-      });
+        btn.addEventListener('click', () => {
+            Trip.setPreset(btn.dataset.preset);
+            syncTripSlidersFromConfig();
+        });
     }
     document.getElementById('trip-fire').addEventListener('click', () => Trip.trigger());
     document.getElementById('trip-dynamic').addEventListener('click', () => Trip.triggerDynamic());
@@ -1992,17 +2284,19 @@ import { buildSugarShack } from './src/models/sugarShack.js';
 
     // Toggle panel — click the header or press T (when not focused in an input).
     let tripPanelOpen = false;
+
     function setTripPanel(open) {
-      tripPanelOpen = open;
-      tripBody.style.display = open ? 'block' : 'none';
-      tripToggleBtn.textContent = (open ? '▼' : '▶') + ' Trip (T)';
+        tripPanelOpen = open;
+        tripBody.style.display = open ? 'block' : 'none';
+        tripToggleBtn.textContent = (open ? '▼' : '▶') + ' Trip (T)';
     }
+
     tripToggleBtn.addEventListener('click', () => setTripPanel(!tripPanelOpen));
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyT' && !e.target.matches('input, textarea, select, button')) {
-        e.preventDefault();
-        setTripPanel(!tripPanelOpen);
-      }
+        if (e.code === 'KeyT' && !e.target.matches('input, textarea, select, button')) {
+            e.preventDefault();
+            setTripPanel(!tripPanelOpen);
+        }
     });
 
     // Render loop
@@ -2012,51 +2306,53 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     // empty so the proximity-trigger path never fires; only the FIRE /
     // DYNAMIC panel buttons can start a trip.
     const _tripPos = new THREE.Vector3();
+
     function tick() {
-      // Preview MCP runs the page document.hidden — RAF throttles to ~0 fps
-      // when hidden. Fall back to setTimeout in that case so the sandbox
-      // keeps ticking inside the preview (same pattern as main.js).
-      if (document.hidden) setTimeout(tick, 16);
-      else requestAnimationFrame(tick);
-      const dt = Math.min(clock.getDelta(), 0.05);
-      tod.update(dt);
-      // Drive the shared lake water material's night-shimmer uniforms.
-      setLakeNightness(tod.nightness, performance.now() * 0.001);
-      if (updateFn) updateFn(dt);
-      Trip.update(dt, _tripPos, 0, []);
-      // Feed trip progress into the MIDI player's effect chain so they warp
-      // together — same wiring as main.js. Only auto-drive from a REAL
-      // (panel-fired) trip: when the envelope is idle, leave setTripState /
-      // setMusicTrip alone so the manual trip-sweep slider stays in control
-      // instead of being clobbered every frame by an env=0 reset.
-      if (Trip._envelope > 0) {
-        if (midiPlayer && midiPlayer.isPlaying) {
-          midiPlayer.setTripState(Trip._envelope, Trip.progress());
-        }
-        // Drive the procedural music bus's trip effects — same source of truth
-        // as main.js, so the band/drum styles selected from the sandbox Music
-        // panel will warp during FIRE/DYNAMIC trips just like in the game.
-        Sound.setMusicTrip(Trip._envelope, Trip.progress());
-      }
-      // Refresh trip panel readouts only when visible (cheap when closed).
-      if (tripPanelOpen) {
-        tripStateEl.textContent =
-          `state: ${Trip.state.padEnd(11)} env: ${Trip._envelope.toFixed(2)}  ${Trip.dynamic ? 'DYN' : 'stat'}`;
-        // While Dynamic mode is driving a trip, mirror live values into the
-        // sliders so you can see the scripted timeline animating.
-        if (Trip.dynamic && Trip.isActive() && Trip.live) {
-          for (const [key, s] of Object.entries(tripSliders)) {
-            if (key in Trip.live) {
-              const v = Trip.live[key];
-              s.input.value = v;
-              s.readout.textContent = v.toFixed(2);
+        // Preview MCP runs the page document.hidden — RAF throttles to ~0 fps
+        // when hidden. Fall back to setTimeout in that case so the sandbox
+        // keeps ticking inside the preview (same pattern as main.js).
+        if (document.hidden) setTimeout(tick, 16);
+        else requestAnimationFrame(tick);
+        const dt = Math.min(clock.getDelta(), 0.05);
+        tod.update(dt);
+        // Drive the shared lake water material's night-shimmer uniforms.
+        setLakeNightness(tod.nightness, performance.now() * 0.001);
+        if (updateFn) updateFn(dt);
+        Trip.update(dt, _tripPos, 0, []);
+        // Feed trip progress into the MIDI player's effect chain so they warp
+        // together — same wiring as main.js. Only auto-drive from a REAL
+        // (panel-fired) trip: when the envelope is idle, leave setTripState /
+        // setMusicTrip alone so the manual trip-sweep slider stays in control
+        // instead of being clobbered every frame by an env=0 reset.
+        if (Trip._envelope > 0) {
+            if (midiPlayer && midiPlayer.isPlaying) {
+                midiPlayer.setTripState(Trip._envelope, Trip.progress());
             }
-          }
+            // Drive the procedural music bus's trip effects — same source of truth
+            // as main.js, so the band/drum styles selected from the sandbox Music
+            // panel will warp during FIRE/DYNAMIC trips just like in the game.
+            Sound.setMusicTrip(Trip._envelope, Trip.progress());
         }
-      }
-      composer.render();
+        // Refresh trip panel readouts only when visible (cheap when closed).
+        if (tripPanelOpen) {
+            tripStateEl.textContent =
+                `state: ${Trip.state.padEnd(11)} env: ${Trip._envelope.toFixed(2)}  ${Trip.dynamic ? 'DYN' : 'stat'}`;
+            // While Dynamic mode is driving a trip, mirror live values into the
+            // sliders so you can see the scripted timeline animating.
+            if (Trip.dynamic && Trip.isActive() && Trip.live) {
+                for (const [key, s] of Object.entries(tripSliders)) {
+                    if (key in Trip.live) {
+                        const v = Trip.live[key];
+                        s.input.value = v;
+                        s.readout.textContent = v.toFixed(2);
+                    }
+                }
+            }
+        }
+        composer.render();
     }
+
     tick();
-  </script>
+</script>
 </body>
 </html>
