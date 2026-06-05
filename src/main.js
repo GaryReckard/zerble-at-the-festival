@@ -673,6 +673,9 @@ function tickBody(dt) {
     const _wookPositions = wooks.wooks.map(w => w.position);
     Trip.update(dt, zerble.position, Math.abs(zerble.speed), _wookPositions);
     lurleen.update(dt, zerble.position, zerble.heading);
+    // Her motor — spatialized to her position, pitch/volume track her real
+    // speed whether she's wandering on her own or chasing Zerble.
+    Sound.setLurleenEngine(lurleen.speed, lurleen.position.x, lurleen.position.z);
     if (!lurleenMet && lurleen.state === 'aware') {
       lurleenMet = true;
       HUD.toast('You found Lurleen! 💗', 3500);

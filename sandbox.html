@@ -868,6 +868,9 @@
                 const fakeZerbleFar = new THREE.Vector3(2000, 0, 2000);
                 updateFn = (dt) => {
                     l.update(dt, fakeZerbleFar);
+                    // Audition her motor: she wanders here, so speed > 0 and the
+                    // engine is audible once audio is initialized (no-op until then).
+                    try { Sound.setLurleenEngine(l.speed, l.position.x, l.position.z); } catch (_) {}
                     cam.target.x = l.position.x;
                     cam.target.z = l.position.z;
                     applyCam();
@@ -900,6 +903,8 @@
                     } catch (_) {
                     }
                     l.update(dt, new THREE.Vector3(2000, 0, 2000));
+                    // Audition her motor against Zerble's (he idles silent here).
+                    try { Sound.setLurleenEngine(l.speed, l.position.x, l.position.z); } catch (_) {}
                 };
                 cam.dist = 14;
                 cam.target.set(0, 2, 0);

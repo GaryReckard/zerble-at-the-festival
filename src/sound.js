@@ -43,6 +43,7 @@ let _sfxTripFeedback = null;
 let _sfxTripEnv = 0;
 let _sfxTripProgress = 0;
 let engineNodes = null;
+let lurleenEngineNodes = null;   // Lurleen's spatialized motor (see createEngine)
 let initialized = false;
 let silentUnlockEl = null;   // HTMLAudioElement kept alive to hold the iOS "Playback" audio session
 let silentUnlockUrl = null;  // Blob URL — revoked on tear-down (not currently torn down, but for hygiene)
@@ -358,6 +359,16 @@ export const Sound = {
     } catch (e) { /* localStorage unavailable */ }
 
     engineNodes = createEngine(ctx, sfxBus);
+    // Lurleen's motor — a lighter, brighter, peppier sibling of Zerble's wheezy
+    // gas-engine. Higher fundamental (pitchMul 1.5), gentler soft-clip (drive 4)
+    // and less rumble (noiseLevel) read as "her"; spatialized so it pans +
+    // attenuates from her position, and accelBoost makes it rev when she speeds
+    // up to catch the player (she has no throttle of her own). Tune by ear here.
+    lurleenEngineNodes = createEngine(ctx, sfxBus, {
+      pitchMul: 1.5, harmonic: 1.5, drive: 4, noiseLevel: 0.32,
+      chugBase: 5, chugSpan: 16, lpfBase: 520, lpfSpan: 900,
+      volScale: 0.2, speedRef: 16, spatial: true, accelBoost: 1,
+    });
     initialized = true;
 
     // Prime the music chain. The 1-sample buffer above (unlock B) wakes the
@@ -719,6 +730,16 @@ export const Sound = {
     engineNodes.update(Math.abs(speed), boost);
   },
 
+  // Lurleen's motor. Position drives the panner (so it comes from where she is)
+  // and speed drives pitch/volume; the engine derives its own rev from how fast
+  // her speed is changing (she has no throttle input). Call once per frame
+  // after lurleen.update().
+  setLurleenEngine(speed, x, z) {
+    if (!lurleenEngineNodes) return;
+    lurleenEngineNodes.setPosition(x, z);
+    lurleenEngineNodes.update(Math.abs(speed));
+  },
+
   playCollision(kind) {
     if (!ctx) return;
     (COLLISION_SOUNDS[kind] || COLLISION_SOUNDS.default)(ctx, sfxBus);
@@ -1075,7 +1096,19 @@ function playWhoop(ctx, dest, t0, f0, dur, level) {
 
 // ---------- Engine ----------
 
-function createEngine(ctx, dest) {
+function createEngine(ctx, dest, opts = {}) {
+  // Tunable timbre profile. The defaults reproduce Zerble's original wheezy
+  // gas-engine exactly; Lurleen passes a higher/brighter/cleaner profile (see
+  // init) so her motor reads as a distinct, lighter sibling. `spatial` wraps the
+  // output in a PannerNode that tracks her world position; `accelBoost` derives
+  // a rev signal from positive acceleration for carts that have no throttle
+  // input of their own.
+  const {
+    pitchMul = 1, harmonic = 1.5, drive = 8, noiseLevel = 0.65,
+    chugBase = 4, chugSpan = 14, lpfBase = 320, lpfSpan = 700,
+    volScale = 0.24, speedRef = 18, spatial = false, accelBoost = 0,
+  } = opts;
+
   // Two sawtooth oscillators give the gas-engine timbre. The harmonic at 1.5x
   // adds bite without sounding electronic.
   const osc1 = ctx.createOscillator();
@@ -1099,7 +1132,7 @@ function createEngine(ctx, dest) {
   // A steeper tanh = more distortion. Run the sawtooth-through-LPF signal
   // through the shaper, then through a band-pass to focus the grit.
   const shaper = ctx.createWaveShaper();
-  shaper.curve = makeTanhCurve(8, 2048);
+  shaper.curve = makeTanhCurve(drive, 2048);
   shaper.oversample = '2x';
   lpf.connect(shaper);
 
@@ -1123,7 +1156,7 @@ function createEngine(ctx, dest) {
   noiseBpf.Q.value = 0.8;
   noise.connect(noiseBpf);
   const noiseGain = ctx.createGain();
-  noiseGain.gain.value = 0.65;
+  noiseGain.gain.value = noiseLevel;
   noiseBpf.connect(noiseGain);
 
   // Master engine volume — driven by speed each frame
@@ -1131,7 +1164,25 @@ function createEngine(ctx, dest) {
   engineGain.gain.value = 0;
   grindBpf.connect(engineGain);
   noiseGain.connect(engineGain);
-  engineGain.connect(dest);
+
+  // Spatial carts (Lurleen) pan + attenuate from their world position so the
+  // motor comes from where she actually is. equalpower, not HRTF — a constant
+  // drone sounds phasey through HRTF; equalpower gives clean pan + distance.
+  let panner = null;
+  if (spatial) {
+    panner = ctx.createPanner();
+    panner.panningModel = 'equalpower';
+    panner.distanceModel = 'inverse';
+    panner.refDistance = 10;
+    panner.maxDistance = 130;
+    panner.rolloffFactor = 1.2;
+    if (panner.positionY) panner.positionY.value = 0.6;
+    else if (panner.setPosition) panner.setPosition(0, 0.6, 0);
+    engineGain.connect(panner);
+    panner.connect(dest);
+  } else {
+    engineGain.connect(dest);
+  }
 
   osc1.start();
   osc2.start();
@@ -1148,6 +1199,7 @@ function createEngine(ctx, dest) {
   // Boost smoothing — sudden 0→1 jumps in input.boost would make the engine
   // pitch jump audibly. Glide between current and target boost.
   let boostSmoothed = 0;
+  let lastAbsSpeed = 0;       // for the accel-derived boost (autonomous carts)
 
   return {
     update(absSpeed, boost = 0) {
@@ -1155,16 +1207,25 @@ function createEngine(ctx, dest) {
       const dt = Math.min(0.1, now - lastUpdate);
       lastUpdate = now;
 
+      // Carts without a throttle (Lurleen) derive a rev "boost" from positive
+      // acceleration — engine revs as she speeds up to catch the player, eases
+      // off when she coasts. Zerble passes boost explicitly (accelBoost === 0).
+      if (accelBoost > 0) {
+        const accel = (absSpeed - lastAbsSpeed) / Math.max(dt, 1e-3);
+        boost = Math.max(0, Math.min(1, (accel / (speedRef * 2)) * accelBoost));
+      }
+      lastAbsSpeed = absSpeed;
+
       // Glide boost toward target so engagement/disengagement isn't a step.
       boostSmoothed += (boost - boostSmoothed) * Math.min(1, dt * 6);
 
       // Boost raises the effective "throttle" so the engine reads as revving
-      // harder even when Zerble is at max speed cap. Adds up to +30% to t.
-      const baseT = Math.min(1, absSpeed / 18);
+      // harder even when at the max speed cap. Adds up to +30% to t.
+      const baseT = Math.min(1, absSpeed / speedRef);
       const t = Math.min(1, baseT + boostSmoothed * 0.3);
 
       // Chug speeds up with throttle. Irregular rhythm: slight noise on the rate.
-      const lfoHz = 4 + t * 14 + Math.sin(lfoPhase * 0.31) * 1.2;
+      const lfoHz = chugBase + t * chugSpan + Math.sin(lfoPhase * 0.31) * 1.2;
       lfoPhase += lfoHz * dt;
       // Chug envelope shape: peaky, not smooth sine (more "putt-putt")
       const chugSin = Math.sin(lfoPhase);
@@ -1182,7 +1243,7 @@ function createEngine(ctx, dest) {
       // Volume ramps with speed * chug * misfire. At 0 speed → 0 volume → silent.
       // Boost also adds a flat +20% gain so the engine sounds "louder", not just
       // higher-pitched, when the player floors it.
-      const targetVol = t * 0.24 * chug * misfireMul * (1 + boostSmoothed * 0.2);
+      const targetVol = t * volScale * chug * misfireMul * (1 + boostSmoothed * 0.2);
       engineGain.gain.setTargetAtTime(targetVol, now, 0.04);
 
       // Pitch climbs with speed + slow warble for the wheezy old-cart wobble.
@@ -1203,16 +1264,22 @@ function createEngine(ctx, dest) {
 
       const baseFreq = 48 + boostSmoothed * 10;
       const maxFreq = 145 + boostSmoothed * 40;
-      const f = (baseFreq + (maxFreq - baseFreq) * t) * (1 + warble) * tripDetune;
+      const f = (baseFreq + (maxFreq - baseFreq) * t) * (1 + warble) * tripDetune * pitchMul;
       osc1.frequency.setTargetAtTime(f, now, 0.07);
-      osc2.frequency.setTargetAtTime(f * 1.5, now, 0.07);
+      osc2.frequency.setTargetAtTime(f * harmonic, now, 0.07);
 
       // Open the filter at high revs (brighter), tighten at low (muddier)
-      const filterFreq = 320 + t * 700;
+      const filterFreq = lpfBase + t * lpfSpan;
       lpf.frequency.setTargetAtTime(filterFreq, now, 0.1);
 
       // Drive the grind band-pass slightly with speed so the crunch peaks shift
       grindBpf.frequency.setTargetAtTime(230 + t * 280, now, 0.1);
+    },
+    // No-op unless spatial. Drives the PannerNode to the cart's world position.
+    setPosition(x, z) {
+      if (!panner) return;
+      if (panner.positionX) { panner.positionX.value = x; panner.positionZ.value = z; }
+      else if (panner.setPosition) panner.setPosition(x, 0.6, z);
     },
   };
 }

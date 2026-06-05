@@ -5,6 +5,18 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-05
 
 ### Added
+- **Lurleen has her own engine.** Her cart now runs a spatialized motor — a
+  lighter, brighter, peppier sibling of Zerble's wheezy gas-engine
+  (`createEngine` in [sound.js](src/sound.js) is now profile-driven: higher
+  fundamental via `pitchMul` 1.5, gentler tanh soft-clip, less noise rumble,
+  faster putt-putt). It pans + attenuates from her world position through an
+  `equalpower` PannerNode, so you hear it come from where she actually is and
+  fade out past ~130 m. Pitch and volume track her *real* speed whether she's
+  wandering on her own or chasing you, and since she has no throttle the engine
+  derives a rev "boost" from her acceleration — it growls up as she speeds to
+  catch Zerble, eases off when she coasts. Driven from
+  [main.js](src/main.js) right after `lurleen.update()`, and auditionable in the
+  sandbox `lurleen` / `lurleen_zerble` views.
 - **Social share previews (Open Graph + Twitter cards).** Added `og:`/`twitter:`
   meta to [index.html](index.html) so a shared link unfurls with the Zerble art
   and the "bring the bubbles, collect the smiles" tagline instead of a bare URL.
