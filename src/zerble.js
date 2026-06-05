@@ -1249,7 +1249,11 @@ export class Zerble {
 
     // Steering scales with speed — feels arcade-y and forgiving.
     const speedFactor = THREE.MathUtils.clamp(Math.abs(this.speed) / 6, 0.2, 1);
-    const dir = Math.sign(this.speed) || 1;
+    // Steer relative to throttle INTENT, not leftover velocity. Pressing forward
+    // re-orients steering to forward-style instantly, even while the cart is still
+    // drifting backward after a reverse — kills the "left does the opposite" lag
+    // during a reverse→forward direction switch. Falls back to velocity when coasting.
+    const dir = throttle !== 0 ? Math.sign(throttle) : (Math.sign(this.speed) || 1);
     this.heading += steer * TURN_RATE * speedFactor * dir * dt;
     this.steerAngle = THREE.MathUtils.lerp(this.steerAngle, steer * 0.35, Math.min(1, dt * 10));
 

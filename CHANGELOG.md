@@ -14,6 +14,21 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   image (the current art is near-square and will letterbox) is the follow-up
   polish.
 
+### Changed
+- **Reverse→forward steering no longer fights you mid-switch.** The steering
+  direction (`dir` in [zerble.js](src/zerble.js) `update()`) was keyed to the
+  sign of *current velocity* — realistic "back up and the rear swings the other
+  way" car behavior, but it meant that when you flipped from reverse-and-turn
+  (S+D) to forward-and-turn-the-other-way (W+A), your new steering input stayed
+  inverted for the ~130 ms the cart was still drifting backward, then snapped
+  direction the instant speed crossed zero. Now `dir` follows *throttle intent*
+  (`Math.sign(throttle)`) whenever you're on the gas, falling back to velocity
+  only while coasting: press forward and steering re-orients to forward-style
+  immediately, even before momentum reverses. The intentional reverse-pivot feel
+  is preserved when you're actually holding reverse. Verified with a scripted
+  S+D→W+A scenario — heading now climbs monotonically across the zero-crossing
+  instead of kinking at it.
+
 ### Fixed
 - **Dev cache-buster covers every module again — local edits to 10 files
   silently weren't reloading.** The `mods`/`models` arrays in
