@@ -834,10 +834,10 @@ export const Sound = {
   },
 
   // Crowd applause at (x, z) → sfxBus. Distance-attenuated via a temporary
-  // PannerNode. The sound itself is a dense cluster of individual clap events
-  // rendered into one buffer (see buildApplauseBuffer) and played through a
-  // single source — far cheaper than the previous ~25-node bed-and-claps stack,
-  // and it actually sounds like a crowd clapping rather than rain.
+  // PannerNode. The sound is a dense cluster of individual clap events rendered
+  // into one buffer (see buildApplauseBuffer), played through a single source,
+  // with a few voiced "woo!" cheers (playWhoop) layered live on top — far
+  // cheaper than the previous ~25-node bed, and it sounds like a crowd, not rain.
   playCrowdCheer(x, z) {
     if (!ctx || !sfxBus) return;
     const now = ctx.currentTime;
@@ -872,6 +872,15 @@ export const Sound = {
     src.connect(gain).connect(panner);
     src.start(now);
     src.stop(now + pd);
+
+    // A few voiced "woo!" cheers poke through the claps, staggered over the
+    // first ~3s — a mix of lower and higher voices, kept low under the bed.
+    const nWhoops = 2 + (Math.random() < 0.5 ? 1 : 0);
+    for (let i = 0; i < nWhoops; i++) {
+      const wt = now + 0.15 + Math.random() * 2.8;
+      const f0 = Math.random() < 0.5 ? 150 + Math.random() * 90 : 270 + Math.random() * 150;
+      playWhoop(ctx, panner, wt, f0, 0.6 + Math.random() * 0.6, 0.09 + Math.random() * 0.06);
+    }
 
     setTimeout(() => { try { panner.disconnect(); } catch (e) {} }, pd * 1000 + 300);
   },
@@ -1014,6 +1023,54 @@ function getApplauseBuffer(ctx, dur) {
     return b;
   }
   return _applausePool[(Math.random() * _applausePool.length) | 0];
+}
+
+// A single voiced crowd "woo!" — two slightly-detuned sawtooths shaped by vowel
+// formant bandpasses (an /oo/ with a faint upper formant) with a rise-then-sag
+// pitch contour and a vibrato that fades in. The previous cheer voices were one
+// sawtooth through a single sweeping bandpass, which buzzed like a kazoo; real
+// vowels need parallel formants + a pitch gesture to read as a shout. Connected
+// to the stage panner by the caller so it shares the applause's distance falloff.
+function playWhoop(ctx, dest, t0, f0, dur, level) {
+  const o1 = ctx.createOscillator(); o1.type = 'sawtooth';
+  const o2 = ctx.createOscillator(); o2.type = 'sawtooth';
+  o2.detune.value = 8 + Math.random() * 12;             // cents — slight chorus
+  for (const o of [o1, o2]) {
+    o.frequency.setValueAtTime(f0 * 0.88, t0);
+    o.frequency.linearRampToValueAtTime(f0 * 1.08, t0 + dur * 0.22);
+    o.frequency.linearRampToValueAtTime(f0 * 0.82, t0 + dur);
+  }
+  // Vibrato, fading in after the attack so the onset is clean.
+  const vib = ctx.createOscillator(); vib.type = 'sine'; vib.frequency.value = 5 + Math.random() * 1.6;
+  const vibAmt = ctx.createGain();
+  vibAmt.gain.setValueAtTime(0, t0);
+  vibAmt.gain.linearRampToValueAtTime(f0 * 0.028, t0 + dur * 0.4);
+  vib.connect(vibAmt); vibAmt.connect(o1.frequency); vibAmt.connect(o2.frequency);
+
+  const mix = ctx.createGain(); mix.gain.value = 0.5;
+  o1.connect(mix); o2.connect(mix);
+
+  const amp = ctx.createGain();
+  amp.gain.setValueAtTime(0.0001, t0);
+  amp.gain.linearRampToValueAtTime(level, t0 + 0.08);
+  amp.gain.setValueAtTime(level, t0 + dur * 0.65);
+  amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+  // Vowel formants, gliding up from the /w/ onset into the /oo/.
+  for (const [fStart, fEnd, Q, g] of [[250, 330, 5, 1.0], [620, 850, 8, 0.7], [2300, 2500, 10, 0.2]]) {
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = Q;
+    bp.frequency.setValueAtTime(fStart, t0);
+    bp.frequency.linearRampToValueAtTime(fEnd, t0 + dur * 0.3);
+    const fg = ctx.createGain(); fg.gain.value = g;
+    mix.connect(bp).connect(fg).connect(amp);
+  }
+
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2800;
+  amp.connect(lp).connect(dest);
+
+  o1.start(t0); o2.start(t0); vib.start(t0);
+  const tEnd = t0 + dur + 0.06;
+  o1.stop(tEnd); o2.stop(tEnd); vib.stop(tEnd);
 }
 
 // ---------- Engine ----------

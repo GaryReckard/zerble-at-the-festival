@@ -5,6 +5,13 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-04
 
 ### Added
+- **Crowd "woo!" cheers over the applause.** A few voiced shouts now layer on
+  top of the clap cluster at each song-end — two slightly-detuned sawtooths
+  shaped by parallel vowel formant bandpasses (an /oo/) with a rise-then-sag
+  pitch contour and fade-in vibrato, so they read as excited shouts instead of
+  the buzzy single-bandpass sawtooth that was tried before. 2–3 per cheer, a mix
+  of lower and higher voices, kept low under the bed, fired live on the stage
+  panner so they share the applause's distance falloff. ([sound.js](src/sound.js))
 - **The intro now opens on applause.** The pinned origin (0,0) main stage
   starts its very first song already at its closing **outro**, so a
   freshly-spawned player hears the band wrap up over ~10s and the crowd erupt —
@@ -31,6 +38,14 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   are tunable by ear from here.
 
 ### Changed
+- **Bubble-wand sticks now meet their loops.** On the cart's bubble-machine
+  wand wheel, each spoke stopped ~1/3 of a loop-diameter short of its ring,
+  leaving a visible gap; the sticks now extend to overlap the loop's inner edge
+  so each handle and ring visibly join. ([zerble.js](src/zerble.js))
+- **Sandbox exposes its orbit camera for scripted framing.** `window.__sandbox`
+  now includes `cam` + `applyCam()`, so a precise close-up can be set from
+  `preview_eval` (target/yaw/pitch/dist, then `applyCam()`) instead of fighting
+  the input-only camera. ([sandbox.html](sandbox.html))
 - **Crowd applause resynthesized — it sounds like a crowd now, not rain.** The
   old `playCrowdCheer` was dominated by one continuous band-passed white-noise
   bed (which reads as static/hiss), plus 22 identical clap bursts and a few

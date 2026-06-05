@@ -514,8 +514,10 @@ import { buildSugarShack } from './src/models/sugarShack.js';
     let entityMusic = null;
     const select = document.getElementById('entity');
     const info = document.getElementById('info');
-    // Expose for debugging / verification.
-    window.__sandbox = { scene, camera, get currentEntity() { return currentEntity; }, Trip, get midi() { return midiPlayer; }, Sound, get songStates() { return Sound.songStates ? Sound.songStates() : []; } };
+    // Expose for debugging / verification. `cam` + `applyCam` let an agent frame
+    // a precise close-up via preview_eval (set cam.target / yaw / pitch / dist,
+    // then call applyCam()) — applyCam only runs on input otherwise.
+    window.__sandbox = { scene, camera, cam, applyCam, get currentEntity() { return currentEntity; }, Trip, get midi() { return midiPlayer; }, Sound, get songStates() { return Sound.songStates ? Sound.songStates() : []; } };
 
     // Sound needs a user gesture to construct its AudioContext. Hook the
     // first interactive event on the sandbox so subsequent entity loads can

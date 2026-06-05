@@ -613,9 +613,10 @@ export class Zerble {
     hub.rotation.x = Math.PI / 2;
     wheel.add(hub);
     const loopGeo = new THREE.TorusGeometry(rLoop, 0.007, 6, 16);
-    // Stick runs from the hub toward the loop, then stops 1/3-of-a-loop-diameter
-    // short — it doesn't reach the ring (per Gary), leaving a small gap.
-    const spokeLen = (rSpoke - rLoop) - (2 * rLoop) / 3;
+    // Stick runs from the hub out to the loop and overlaps its inner edge a
+    // touch so the handle and ring visibly join (Gary: the sticks should meet
+    // the outer ring now, not stop short of it).
+    const spokeLen = (rSpoke - rLoop) + rLoop / 4;
     const spokeGeo = new THREE.CylinderGeometry(0.007, 0.007, spokeLen, 6);
     for (let k = 0; k < SPOKES; k++) {
       const a = (k / SPOKES) * Math.PI * 2;
