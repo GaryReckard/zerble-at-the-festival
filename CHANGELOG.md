@@ -35,6 +35,31 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   org root and 404 even though the files ship in the repo. Switched to
   document-relative paths so they resolve under the project path.
 
+### Performance
+- **Crowd + collision sim: a spatial-hash broadphase kills the O(n²)
+  steady-state cost.** Parked at the main stage with 500 NPCs / ~4.4k registry
+  entries, `crowd.update()` measured **~39.7 ms/frame** — the dominant slice of
+  the ~52 ms frame that pinned the cart near 19 fps (the measurement in
+  [.claude/perf-pass-4-plan.md](.claude/perf-pass-4-plan.md)). Two loops were
+  quadratic: NPC-NPC separation walked *every other* NPC, and per-NPC building
+  avoidance (`nearestFootprintAvoidance`) walked the *entire* registry footprint
+  list every NPC every frame ([crowd.js](src/crowd.js)); the kid push-out
+  ([obstacles.js](src/obstacles.js)) and Zerble's own collision
+  ([main.js](src/main.js)) likewise scanned all ~4k colliders. Added a uniform
+  hash grid ([spatialGrid.js](src/spatialGrid.js)) + a registry broadphase
+  (`rebuildSpatialIndex` / `footprintsNear` / `collidersNear` in
+  [registry.js](src/registry.js)), rebuilt once per frame from live positions in
+  [main.js](src/main.js). Separation now queries a ~9-cell neighbourhood;
+  avoidance + collisions query only nearby cells; and Zerble's collision pulls
+  nearby colliders into reused scratch + pooled wrappers instead of spreading all
+  ~4k into a fresh array each frame. **Result: `crowd.update()` ~39.7 ms → ~6.96 ms
+  (~5.7×, with *more* NPCs loaded), plus a ~0.65 ms/frame rebuild — net crowd CPU
+  ~39.7 → ~8.8 ms.** The grids are pure query accelerators (no rng, no placement),
+  so determinism is untouched; verified the footprint avoidance result is
+  byte-identical to the old full scan across all 500 NPCs (max diff 8e-15) and the
+  collider query is a faithful superset (0 misses across 7,569 probe points).
+  Booted clean at high/mid/low. (PLAN.md §2.1, the unshipped half of perf-pass-4.)
+
 ## 2026-06-04
 
 ### Added

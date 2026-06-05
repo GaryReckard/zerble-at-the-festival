@@ -691,12 +691,16 @@ export class KidGaggle {
 // of every registry collider it currently overlaps. Mutates position +
 // flips heading so the next step isn't right back into the wall.
 function pushOutOfHardColliders(obj, kidRadius) {
-  for (const c of registry.colliders()) {
+  // Localized: only colliders in nearby cells (reach padded internally by the
+  // registry's max collider radius). Same overlap-resolve math as the old full
+  // registry.colliders() scan.
+  registry.collidersNear(obj.position.x, obj.position.z, kidRadius, (c) => {
+    const r = c.collider.radius;
     const dx = obj.position.x - c.position.x;
     const dz = obj.position.z - c.position.z;
-    const minD = c.radius + kidRadius;
+    const minD = r + kidRadius;
     const d2 = dx * dx + dz * dz;
-    if (d2 >= minD * minD) continue;
+    if (d2 >= minD * minD) return;
     const d = Math.sqrt(d2) || 0.001;
     const inv = 1 / d;
     // Hard-resolve the overlap so the kid is exactly outside the radius.
@@ -710,7 +714,7 @@ function pushOutOfHardColliders(obj, kidRadius) {
         + (Math.random() - 0.5) * 0.6;
       obj.userData.turnTimer = 0.3 + Math.random() * 0.4;
     }
-  }
+  });
 }
 
 // =================================================================

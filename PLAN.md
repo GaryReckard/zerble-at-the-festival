@@ -38,7 +38,7 @@
 
 | # | Item | Tier | Effort | Verdict |
 |---|---|---|---|---|
-| 2.1 | Spatial-hash performance pass | 1 | M (~6–9h) | Do first |
+| 2.1 | Spatial-hash performance pass | 1 | M (~6–9h) | ✅ Shipped 2026-06-05 |
 | 2.2 | Test + verification harness (layers 1+2) | 1 | M (~14–22h for 80%) | Do first |
 | 2.3 | JSDoc `@ts-check` type safety | 1 | M (~8–14h) | Do, phased |
 | 3.1 | Settings + Accessibility panel | 2 | M (MVP) / L (full) | Do the MVP |
@@ -55,6 +55,12 @@
 These three close gaps the project's own discipline has already identified (unshipped perf work, zero tests, no types). Lowest regret, highest leverage.
 
 ### 2.1 Spatial-hash performance pass
+
+> ✅ **Shipped 2026-06-05** — `crowd.update()` 39.7 ms → 6.96 ms at 500 NPCs
+> (+0.65 ms/frame index rebuild). Footprint avoidance verified byte-identical to
+> the old full scan; collider query a verified superset; determinism untouched.
+> See CHANGELOG. (Forest geometry merging, §4.2, remains as the render-side
+> follow-up if the HUD draw budget is still over after this.)
 
 **Effort: M (~6–9h). Verdict: do first — the one number everyone feels.**
 
@@ -373,7 +379,7 @@ Complete design docs exist — these are queued, not new ideas. Highest-impact *
 
 ## 9. Recommended sequence
 
-- [ ] **Engineering health:** spatial-hash perf pass ([§2.1](#21-spatial-hash-performance-pass)) → test harness layers 1+2 (rng unit tests + smoke boot, [§2.2](#22-automated-test--verification-harness)) → `@ts-check` Phases A–C ([§2.3](#23-jsdoc-ts-check-type-safety)).
+- [ ] **Engineering health:** spatial-hash perf pass ✅ ([§2.1](#21-spatial-hash-performance-pass)) → test harness layers 1+2 (rng unit tests + smoke boot, [§2.2](#22-automated-test--verification-harness)) → `@ts-check` Phases A–C ([§2.3](#23-jsdoc-ts-check-type-safety)).
 - [ ] **Player value (by appetite):** Settings + Accessibility MVP ([§3.1](#31-settings--accessibility-panel)) → Daily Challenge v1 ([§3.2](#32-daily-seed-challenge)).
 - [ ] **Bigger bets:** PWA MVP ([§4.1](#41-pwa--offline--installable)) → forest geometry merging ([§4.2](#42-forest-geometry-merging--lod)) → weather ([§4.3](#43-weather-system)).
 - [ ] **Insurance, only if it earns it:** chunk-scoped lifecycle refactor, half (1) only ([§5.1](#51-lifecycle--duplication-refactor)).

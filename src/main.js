@@ -649,6 +649,10 @@ function tickBody(dt) {
       Analytics.bubbleRanDry();
     }
     _wasEmpty = bubblesEmpty;
+    // Rebuild the registry broadphase once per frame, before every consumer
+    // (crowd steering, kid push-out, Zerble collision). Cheap O(entries) pass;
+    // the per-NPC queries it enables replace the old O(npcs × entries) scans.
+    registry.rebuildSpatialIndex();
     if (!npcsFrozen()) crowd.update(dt, zerble, bubbles);
     smiles.update(dt, zerble, (n) => {
       score += n;
@@ -882,36 +886,34 @@ function tickBody(dt) {
       // Disembarking NPCs are also skipped entirely for the ~5s disembark window —
       // they're trying to clear Zerble's space, so colliding with them as they
       // hop off (or Zerble starting to roll forward into them) was unfair damage.
-      const npcColliders = [];
+      // Reusable scratch — no per-frame array/object-literal allocation. Pools
+      // reset, then refilled: nearby registry colliders (localized query, not a
+      // spread of all ~4k), the moving-obstacle groups (persistent objects,
+      // pushed by reference), and nearby crowd NPCs (6m broadphase, riders +
+      // disembarkers skipped). Order matches the old spread so resolveCollision's
+      // first-hit semantics are preserved.
+      _collScratch.length = 0;
+      _regColPoolN = 0;
+      _npcColPoolN = 0;
+      registry.collidersNear(zerble.position.x, zerble.position.z, zerble.radius + 1, (e) => {
+        _collScratch.push(_regColWrap(e));
+      });
+      for (let i = 0; i < puppets.colliders.length; i++) _collScratch.push(puppets.colliders[i]);
+      for (let i = 0; i < band.colliders.length; i++) _collScratch.push(band.colliders[i]);
+      for (let i = 0; i < kids.colliders.length; i++) _collScratch.push(kids.colliders[i]);
+      for (let i = 0; i < wooks.colliders.length; i++) _collScratch.push(wooks.colliders[i]);
+      for (let i = 0; i < hoopers.colliders.length; i++) _collScratch.push(hoopers.colliders[i]);
+      for (let i = 0; i < frisbees.colliders.length; i++) _collScratch.push(frisbees.colliders[i]);
       const broadphaseR2 = 36; // 6m broadphase
       for (const n of crowd.npcs) {
         if (n.state === 'riding' || n.state === 'boarding' || n.state === 'disembarking') continue;
         const dx = n.pos.x - zerble.position.x;
         const dz = n.pos.z - zerble.position.z;
         if (dx * dx + dz * dz > broadphaseR2) continue;
-        // Already fleeing? They were trying to get out of the way — overlap-resolve
-        // silently. We do this by leaving damage at 0 and relying on the approach-
-        // threshold logic to either nudge or skip.
-        const alreadyFleeing = n.state === 'fleeing';
-        npcColliders.push({
-          position: { x: n.pos.x, y: 0.85, z: n.pos.z },
-          radius: 0.45,
-          damage: alreadyFleeing ? 0 : 1,
-          kind: 'person',
-          npc: n,
-        });
+        // Fleeing NPCs overlap-resolve silently (damage 0) — see _npcColWrap.
+        _collScratch.push(_npcColWrap(n));
       }
-      const allColliders = [
-        ...registry.colliders(),
-        ...puppets.colliders,
-        ...band.colliders,
-        ...kids.colliders,
-        ...wooks.colliders,
-        ...hoopers.colliders,
-        ...frisbees.colliders,
-        ...npcColliders,
-      ];
-      const hit = resolveCollision(zerble, allColliders);
+      const hit = resolveCollision(zerble, _collScratch);
       if (hit && hit.damaging && !isGod()) {
         score = Math.max(0, score - hit.damage);
         HUD.setSmiles(score);
@@ -1000,6 +1002,41 @@ const BUBBLE_VENDOR_TOASTS = [
   "That's a stand, not a drive-thru!",
   "Tip jar's empty and now so's your patience.",
 ];
+
+// ---- Per-frame collision scratch ----
+// Reused across frames so the collision pass allocates nothing steady-state:
+// `_collScratch` is the candidate list handed to resolveCollision; the two
+// pools hand out reusable wrapper objects (registry-collider + crowd-NPC
+// shapes) refilled each frame. Counters reset at the top of the collision block.
+const _collScratch = [];
+const _regColPool = [];
+let _regColPoolN = 0;
+const _npcColPool = [];
+let _npcColPoolN = 0;
+function _regColWrap(e) {
+  let w = _regColPool[_regColPoolN];
+  if (!w) { w = {}; _regColPool[_regColPoolN] = w; }
+  _regColPoolN++;
+  w.position = e.position;
+  w.radius = e.collider.radius;
+  w.damage = e.collider.damage;
+  w.kind = e.kind;
+  w.passive = false;
+  w.npc = null;
+  return w;
+}
+function _npcColWrap(n) {
+  let w = _npcColPool[_npcColPoolN];
+  if (!w) { w = {}; _npcColPool[_npcColPoolN] = w; }
+  _npcColPoolN++;
+  w.position = n.pos;          // Vector3; resolveCollision reads .x/.z only
+  w.radius = 0.45;
+  w.damage = (n.state === 'fleeing') ? 0 : 1;
+  w.kind = 'person';
+  w.passive = false;
+  w.npc = n;
+  return w;
+}
 
 function resolveCollision(zerble, colliders) {
   // forward = (-sin(h), 0, -cos(h)); velocity = forward * speed

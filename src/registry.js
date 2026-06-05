@@ -3,6 +3,7 @@
 // queries it for hard colliders.
 
 import * as THREE from 'three';
+import { SpatialGrid } from './spatialGrid.js';
 
 let nextId = 1;
 
@@ -10,6 +11,15 @@ export class Registry {
   constructor() {
     this.entries = new Map(); // id -> entry
     this.byKind = new Map(); // kind -> Set<id>
+    // Broadphase grids for nearest-X queries, rebuilt once per frame by
+    // rebuildSpatialIndex() (called from main.js). ~8m cells. Rebuilding from
+    // live positions every frame keeps moving entries (Lurleen, drifting
+    // hula-hoopers) correctly placed with nothing to invalidate. Query
+    // accelerators only — they consume no rng, so determinism is untouched.
+    this._fpGrid = new SpatialGrid(8);
+    this._colGrid = new SpatialGrid(8);
+    this._maxFp = 0;   // largest footprint radius — pads query reach
+    this._maxCol = 0;  // largest collider radius — pads query reach
   }
 
   // Add an entry. Returns its id.
@@ -66,6 +76,45 @@ export class Registry {
     for (const e of this.entries.values()) {
       if (e.footprint > 0) yield { position: e.position, radius: e.footprint, kind: e.kind };
     }
+  }
+
+  // ---- Spatial broadphase (rebuilt once per frame) ----
+
+  // Re-index every footprint/collider entry from its CURRENT position. O(n),
+  // called once per frame from main.js before any consumer (crowd steering,
+  // kid push-out, Zerble collision). Cheap vs. the per-NPC full scans it
+  // replaces, and rebuilding from live positions means moving entries need no
+  // invalidation bookkeeping.
+  rebuildSpatialIndex() {
+    this._fpGrid.clear();
+    this._colGrid.clear();
+    let maxFp = 0, maxCol = 0;
+    for (const e of this.entries.values()) {
+      if (e.footprint > 0) {
+        this._fpGrid.insert(e.position.x, e.position.z, e);
+        if (e.footprint > maxFp) maxFp = e.footprint;
+      }
+      if (e.collider) {
+        this._colGrid.insert(e.position.x, e.position.z, e);
+        if (e.collider.radius > maxCol) maxCol = e.collider.radius;
+      }
+    }
+    this._maxFp = maxFp;
+    this._maxCol = maxCol;
+  }
+
+  // Visit footprint-bearing entries that could reach within `reach` of (x, z).
+  // `reach` is padded by the largest footprint radius so big entries (stages,
+  // trucks) are never missed from a neighbouring cell — the visited set is a
+  // superset; fn does the exact test. fn receives the RAW entry (read
+  // e.position / e.footprint / e.kind). Localized equivalent of footprints().
+  footprintsNear(x, z, reach, fn) {
+    this._fpGrid.forEachNear(x, z, reach + this._maxFp, fn);
+  }
+
+  // As above for collider-bearing entries (read e.position / e.collider / e.kind).
+  collidersNear(x, z, reach, fn) {
+    this._colGrid.forEachNear(x, z, reach + this._maxCol, fn);
   }
 
   // Attractors — POIs where crowds tend to congregate.

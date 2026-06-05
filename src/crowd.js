@@ -22,6 +22,7 @@ import * as THREE from 'three';
 // the `BufferGeometryUtils.mergeGeometries(...)` call style.
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { registry } from './registry.js';
+import { SpatialGrid } from './spatialGrid.js';
 import { PERF } from './perf.js';
 import { CHUNK_SIZE } from './chunks.js';
 
@@ -100,6 +101,9 @@ export class Crowd {
     this.npcs = [];
     this.free = []; // indices available
     this.groups = new Map(); // groupId -> { center: Vector3, members: [npcs] }
+    // Per-frame separation broadphase (cell = SEPARATION_RADIUS). Rebuilt from
+    // live NPC positions at the top of update().
+    this._sepGrid = new SpatialGrid(SEPARATION_RADIUS);
 
     this._buildInstanced();
   }
@@ -546,6 +550,14 @@ export class Crowd {
       if (n.state === 'boarding' || n.state === 'riding') activePassengers++;
     }
 
+    // Rebuild the separation broadphase from this frame's positions (riding
+    // NPCs excluded — the separation pass skips them anyway). One O(n) pass
+    // that turns each NPC's O(n) neighbour scan into a ~9-cell query.
+    this._sepGrid.clear();
+    for (const n of this.npcs) {
+      if (n.state !== 'riding') this._sepGrid.insert(n.pos.x, n.pos.z, n);
+    }
+
     for (const npc of this.npcs) {
       this._updateNpc(dt, npc, zerble, bubblePositions, cosCone, {
         zerbleIdle,
@@ -912,8 +924,10 @@ export class Crowd {
     // --- NPC-NPC separation (always active — prevents the cluster-stack bug) ---
     let sepX = 0, sepZ = 0, sepCount = 0;
     let overlapPushX = 0, overlapPushZ = 0;
-    for (const other of this.npcs) {
-      if (other === npc || other.state === 'riding') continue;
+    // Broadphase: only the ~9 cells around this NPC (grid built from this
+    // frame's positions at the top of update()). Same math, pruned candidates.
+    this._sepGrid.forEachNear(npc.pos.x, npc.pos.z, SEPARATION_RADIUS, (other) => {
+      if (other === npc || other.state === 'riding') return;
       const ox = npc.pos.x - other.pos.x;
       const oz = npc.pos.z - other.pos.z;
       const d2 = ox * ox + oz * oz;
@@ -931,7 +945,7 @@ export class Crowd {
           overlapPushZ += oz * inv * push;
         }
       }
-    }
+    });
     // Apply hard-overlap push instantly (so NPCs never visually stack)
     npc.pos.x += overlapPushX;
     npc.pos.z += overlapPushZ;
@@ -1551,12 +1565,15 @@ function wrapAngle(a) {
 // Looks up nearby building footprints and returns a normalized repulsion direction.
 function nearestFootprintAvoidance(pos, lookAheadRadius) {
   let pushX = 0, pushZ = 0, strength = 0;
-  for (const fp of registry.footprints()) {
-    if (fp.kind === 'tree' || fp.kind === 'path_node') continue;
-    const dx = pos.x - fp.position.x;
-    const dz = pos.z - fp.position.z;
+  // Localized scan: only footprints in nearby cells (reach padded internally by
+  // the registry's max footprint radius). Same per-entry math as the old full
+  // registry.footprints() walk, including the tree/path_node skip.
+  registry.footprintsNear(pos.x, pos.z, lookAheadRadius, (e) => {
+    if (e.kind === 'tree' || e.kind === 'path_node') return;
+    const dx = pos.x - e.position.x;
+    const dz = pos.z - e.position.z;
     const d = Math.hypot(dx, dz);
-    const intrusion = fp.radius + lookAheadRadius - d;
+    const intrusion = e.footprint + lookAheadRadius - d;
     if (intrusion > 0) {
       const inv = 1 / (d || 0.0001);
       const w = intrusion / lookAheadRadius;
@@ -1564,7 +1581,7 @@ function nearestFootprintAvoidance(pos, lookAheadRadius) {
       pushZ += dz * inv * w;
       strength += w;
     }
-  }
+  });
   if (strength <= 0) return null;
   const n = Math.hypot(pushX, pushZ) || 1;
   return { x: pushX / n, z: pushZ / n, strength: Math.min(1.2, strength) };
