@@ -62,14 +62,14 @@ rules:
     - Call out any tripwire it brushes against (determinism, threeShim, iOS audio,
       disposal safety, importmap, perf budget) explicitly
     - Note player-visible effect vs internal-only (drives whether CHANGELOG is required)
-    - Include a Scope Check: search for other places the same pattern exists
+    - "Include a Scope Check: search for other places the same pattern exists
       (e.g. a material/disposal pattern repeated across models) and either include
-      them in scope or document why they're excluded
+      them in scope or document why they're excluded"
 
   tasks:
     - Each task should be completable in a focused sitting
-    - A new src/models/ entity is not done until it has a sandbox entry: importmap
-      in BOTH html files + <option> + loadEntity() case + ENTITY_HIT_KIND + ENTITY_MUSIC_STYLE
+    - "A new src/models/ entity is not done until it has a sandbox entry: importmap
+      in BOTH html files + <option> + loadEntity() case + ENTITY_HIT_KIND + ENTITY_MUSIC_STYLE"
     - Geometry/draw-adding work includes a "check the backtick budget panel" task
     - Graphics/shader/material/boot-order work includes a "test ?perf=low and ?perf=mid" task
 
