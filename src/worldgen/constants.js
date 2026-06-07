@@ -8,10 +8,18 @@
 
 export const CONFIG = {
   // --- Hearts ---------------------------------------------------------------
-  HEART_CELL: 440,            // macrocell size (m)
+  // Tightened from 440 (Gary 2026-06-07: v2 read WAY too sparse — wide-open fields with
+  // just scattered people). 340 (not Gary's first-pass 260) is deliberate: it keeps the
+  // nearestHeart scan window at 4 cells (`ceil(1000/340)+1`), where 260 would blow it to
+  // 5 (121 cells/query) AND 260+noneBelow:0 hung the 2D sandbox + spiked chunk-gen to
+  // 335ms with zero breathing room (the road negative-control self-test lost its teeth —
+  // no road-sparse region left anywhere). 340 + 75%-filled is ~2.6× denser than 440/52%
+  // (festivals ~390m apart vs ~610m) while staying affordable + leaving open stretches.
+  HEART_CELL: 340,            // macrocell size (m)
   HEART_JITTER: 0.40,         // candidate offset, fraction of cell (±); keep ≤ 0.5
-  // Cumulative rank thresholds over a [0,1) roll. Most cells = none (sparse).
-  HEART_RANK: { noneBelow: 0.48, minorBelow: 0.96 },  // ≈48% none, 48% minor, 4% major
+  // Cumulative rank thresholds over a [0,1) roll. ~75% of cells now host a heart (was
+  // ~52%) so the world reads festival-dense, but ~25% stay empty for breathing room.
+  HEART_RANK: { noneBelow: 0.25, minorBelow: 0.96 },  // ≈25% none, ≈71% minor, 4% major
   HEART_DOMAIN: {
     minor: { core: 95,  district: 290 },
     major: { core: 350, district: 1000 },   // majors are big regional hubs

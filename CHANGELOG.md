@@ -4,6 +4,23 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-06-07
 
+### Changed
+- **v2 world is ~2.6× denser — festivals every ~390m instead of ~610m (behind
+  `?worldgen=1`).** Playtest feedback: the v2 world read WAY too sparse — wide-open
+  fields with just scattered people. Tightened the heart macrocell from 440m → **340m**
+  and dropped the empty-cell share from ~48% → **25%** (so ~75% of cells now host a
+  festival heart). The first-pass idea (260m / 0% empty) was tried and rejected: it hung
+  the 2D map sandbox, spiked chunk generation to 335ms, and left zero breathing room (the
+  determinism self-test's road negative-control lost its teeth — no road-sparse region
+  remained anywhere). 340m is the deliberate stopping point — it keeps the `nearestHeart`
+  scan window at 4 cells (260m blows it to 5 = 121 cells/query) so per-point cost stays
+  flat (~1.7ms tree-density sampling/chunk, unchanged), while still leaving ~25% of cells
+  empty for open stretches between festivals. The map-sandbox's live "heart cell" /
+  "empty cells" sliders let you push it further by eye. `?worldgen=0` unchanged. This
+  regenerated the v2 world, so the determinism goldens moved (the new baseline is recorded
+  in `selftest.js`); v2 is still flag-off so no shipped world changed. Part of
+  `v2-worldgen-3d-integration`.
+
 ### Added
 - **v2 ambient crowd, concentrated at the hearts (behind `?worldgen=1`).** v2 chunks now
   spawn a wandering ambient crowd whose size scales with worldgen *heart influence* — a

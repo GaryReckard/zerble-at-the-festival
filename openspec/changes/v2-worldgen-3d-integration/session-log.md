@@ -477,3 +477,27 @@ placeRoadWaypoints along-road waypoints, spawnAmbientCrowd in _generateWorldgen 
 CHANGELOG.md (Group G Added), tasks.md (G.1/G.2/G.3 ✓), session-log. Commit: `e0bcc01`.
 **Refs:** -> G.1-G.3, R13 (no phantom-road march — solved by attractors, not per-NPC queries). Next: H gates
 (H.2 cross-engine road-EXISTENCE integer test — the one non-cosmetic cross-engine gate; H.3 budget pass) → I landing.
+
+### 2026-06-07 — Heart-density tuning (Gary: v2 read WAY too sparse)
+**Intent:** Gary playtested v2 and found it too sparse — "wide-open fields with just people." He proposed
+HEART_CELL 440→260 + empty cells (noneBelow) 0.48→0.
+**Result:** Tried 260/0 first (his numbers) → REJECTED on four signals: (1) hung the 2D map-sandbox (eval
+"navigated or closed" — the dense per-pixel heart/road/forest compute choked/crashed); (2) spiked game chunk-gen
+to 335ms (throttled, but a huge relative jump); (3) the road negative-control self-test FAILED — "window 1 never
+differed, lacks teeth" = roads so dense (fully-connected, every cell a heart) there's NO road-sparse region left,
+i.e. zero breathing room; (4) nearestHeart scan window blows from 4→5 cells (121/query) at 260 (`ceil(1000/260)+1`).
+Dialed to **HEART_CELL 340 / noneBelow 0.25** (75% filled, ~25% empty): keeps the nearestHeart window at 4 (cost
+FLAT — treeDensity 1.69ms/chunk vs 1.6 @440), ~2.6× denser than 440/0.52 (festivals ~390m apart vs ~610m), breathing
+room intact (negative control regained teeth → **self-test 24/24**). Verified: map-sandbox loads clean (1862 hearts in
+view, no hang); 3D game boots, the spawn heart reads as a populated festival (stage + 2 vendor rows + trucks + arch +
+crowd lining the roads), chunk-gen warnings 8-27ms (one 99.9ms heart-heavy chunk — throttled ≈ ~1-20ms real, vs 260/0's
+335ms), ZERO JS errors.
+**Goldens MOVED (intended — CONFIG tuning regenerated the v2 world; flag-off, no shipped world changed):**
+queryPoint node `fb9724fb` / browser `ad9e50cc`; POI node `4e335f21` / browser `f105c425`. NOTE: the POI golden now
+FORKS cross-engine (node≠browser) where at the sparse 440/0.48 it matched (`f8dc276d` both) — the denser world exercises
+more hearts → more of the documented cosmetic cross-engine forks (treeDensity spot-pick, road bearings). Single-engine
+reproducibility holds. **This AMPLIFIES the H.2 surface** (the non-cosmetic road-EXISTENCE fork) — H.2 matters more now.
+**Changed:** src/worldgen/constants.js (HEART_CELL 340, HEART_RANK.noneBelow 0.25 + rationale), src/worldgen/selftest.js
+(new golden baseline in the POI comment); CHANGELOG.md (Changed — denser world), session-log. Commit: (pending).
+**Refs:** -> H.2 (amplified by density). Lever for Gary to push denser: the map-sandbox live sliders; past ~300/~0.10
+needs frame-splitting the cluster build (R11) + shrinking the major district (1000) to keep the scan window + chunk-gen sane.
