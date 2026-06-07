@@ -25,7 +25,7 @@
     const base = './src/';
     const wg = ['rng', 'worldgen/constants', 'worldgen/hearts', 'worldgen/water',
       'worldgen/roads', 'worldgen/roles', 'worldgen/density', 'worldgen/index',
-      'worldgen/selftest', 'worldgen/festival'];
+      'worldgen/selftest', 'worldgen/festival', 'worldgen/placement'];
     const imports = {};
     for (const m of wg) imports[base + m + '.js'] = base + m + '.js' + v;
     const im = document.createElement('script');
@@ -415,7 +415,7 @@ function runTest() {
   const out = document.getElementById('selftest');
   const r = runSelfTest();
   const lines = r.results.map(t => `${t.pass ? '✓' : '✗'} ${t.name}${t.detail ? '\n    ' + t.detail : ''}`);
-  out.innerHTML = `<span class="${r.pass ? 'ok' : 'bad'}">self-test ${r.pass ? 'PASS' : 'FAIL'}</span>  golden ${r.goldenHash}\n` + lines.join('\n');
+  out.innerHTML = `<span class="${r.pass ? 'ok' : 'bad'}">self-test ${r.pass ? 'PASS' : 'FAIL'}</span>  golden ${r.goldenHash}  POI ${r.poiGoldenHash}\n` + lines.join('\n');
 }
 
 // --- live tuning sliders bound to CONFIG (GATE-1 by-eye tuning) --------------

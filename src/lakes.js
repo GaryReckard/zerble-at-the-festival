@@ -434,8 +434,9 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   }
 
   // ---- Materials ----
-  // Water is the shared, shader-patched WATER_MAT (defined at module scope)
-  // so all lakes drive their star shimmer from one set of uniforms.
+  // Water is the shared module-scope WATER_MAT (tagged userData.shared so a lake
+  // unload doesn't dispose it out from under other lakes). The old star-shimmer
+  // shader patch was removed (see the WATER_MAT block above).
   const waterMat = WATER_MAT;
   const grassMat = new THREE.MeshStandardMaterial({
     color: 0x82c277,

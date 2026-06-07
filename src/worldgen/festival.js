@@ -31,6 +31,14 @@
 //    INTEGER-key sort, never a raw-float bearing compare (R20). Bearings feed only
 //    cos/sin into a position that is then quantized, so cross-engine atan2 noise is
 //    absorbed below the integer-meter grid.
+//  - ACCEPTED cosmetic cross-engine fork (R20, named for D2.7): `treedDistrictSpot`
+//    branches on a raw `qp.treeDensity >= 0.25` (sin/cos noise, not hashed). Right at
+//    the boundary a V8/JSC epsilon could pick a different drum-circle spot AND consume
+//    a different rng-draw count — but the drum is the LAST consumer of this heart's
+//    poiLayout stream (no sibling desync), its result is quantized, and any single
+//    engine is fully reproducible. Same accepted class as the node-vs-browser golden
+//    disparity + the 1m lake-shore wobble; it never regenerates a seeded world on one
+//    engine. Left as-is deliberately rather than over-quantizing a cosmetic.
 
 import { cellRng, quantize, worldHash } from '../rng.js';
 import { CONFIG, SALT, worldgenEpoch } from './constants.js';

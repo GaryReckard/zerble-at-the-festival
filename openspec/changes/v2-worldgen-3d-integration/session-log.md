@@ -386,7 +386,27 @@ lakes in ±2km CCW (normalize never fires); my `pointInPolyRel` vs worldgen `lak
 `?worldgen=0` — spawn (0,65), 17 macrocell lakes, all `exactPoly:false`, ZERO errors → byte-identical legacy.
 **Changed:** src/lakes.js (LakeManager branch + worldgen helpers + buildLake branch + isPointInLake), src/main.js
 (spawn walk-to-dry + nudge removed + import), src/chunks.js (:964 comment); CHANGELOG.md (2026-06-07 Group E),
-tasks.md (E.1-E.4 ✓), session-log. Commit: (pending).
+tasks.md (E.1-E.4 ✓), session-log. Commit: `209e850`.
 **Refs:** -> E.1-E.4, R5 (PASSED), footgun #4/#5. Next: D2.4 filler / D2.7 quantize sign-off / D2.8 all-tier boot +
 browser POI golden / R27 spawn-clearance veto / /smart-review the festival+lakes diff / I.6 ARCHITECTURE.md rewrite;
 then F forests → G crowd → H gates → I landing.
+
+### 2026-06-07 — /smart-review 001 (festival + spawn + lakes diff) + review-response
+**Intent:** Run the multi-specialist review of the world-content diff (0ee3c7c..HEAD) now that roads/festival/
+spawn/lakes are all live behind the flag; fix findings.
+**Result:** 6 specialists, one parallel batch → reviews/001-festival-lakes/review-summary.md. rendering/audio/docs
+CLEAN; gameplay/performance only P3; sandbox one P1 (verification-confidence) + a P2 + P3. **P1 CLOSED by
+verification, not code:** the prior passes hadn't streamed a `drum_circle` or worldgen `camp_village`; booted
+`?worldgen=1&seed=1234`, teleported to the spawn heart's drum (1034,-50) → drum_circle entry built, no crash, and a
+camp_village at (156,-842) → 12 campsites packed, no crash, zero console errors → every `buildWorldgenKind`
+return-shape path now exercised. **Fixed (hygiene, no behavior change):** added `worldgen/placement` to map-sandbox
+`wg` array (P2 consistency); map-sandbox self-test readout now prints the POI golden too (P3 — unblocks the D2.8
+browser cross-engine check); documented the `treedDistrictSpot` `treeDensity>=0.25` compare in the festival.js
+determinism header as the ACCEPTED cosmetic cross-engine class + named it in D2.7 (R20); fixed the stale WATER_MAT
+"star shimmer" comment in lakes.js. Deferred (P3, pre-existing/tracked): `placePolePair` pooling, the R11
+one-frame cluster-stack gate (→ D2.0c/D2.8), R9 lakeshore ring (→ Group F).
+**Verified:** self-test 24/24, goldens `63c8dea2`/`f8dc276d` unchanged (all fixes comment/array/doc-only).
+**Changed:** src/worldgen/festival.js (header comment), src/lakes.js (comment), map-sandbox.html (wg array +
+readout), tasks.md (D2.7 text), reviews/001-festival-lakes/review-summary.md (NEW), session-log. Commit: (pending).
+**Refs:** -> R20 (D2.7), R11 (D2.8), R27 (deferred). Next: D2.4 filler / D2.7 sign-off / D2.8 mid-tier+browser golden;
+then F forests.
