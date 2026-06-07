@@ -512,8 +512,7 @@ export class ChunkManager {
       maxX: ctx.cxWorld + half, maxZ: ctx.czWorld + half,
     });
     placeWorldgenRoads(ctx, ctx.region.roads);
-    const props = placeChunkProps(ctx.cx, ctx.cz, CHUNK_SIZE);   // [] until Group D
-    void props;
+    placeWorldgenProps(ctx);   // Group D — heart anchors (center chunk) + role×rank scatter
   }
 
   // Drop any guaranteed near-spawn jug whose seeded target lands in this chunk.
@@ -926,6 +925,155 @@ function placeWorldgenRoads(ctx, roads) {
       position: new THREE.Vector3(mid.x, 0, mid.z),
       footprint: 0,
       attractor: { radius: 6, weight: 0.5 },
+      chunkKey: ctx.key,
+    });
+  }
+}
+
+// ---------- Worldgen prop placement (Group D) ----------
+//
+// The build+register half of the v2 placement split: `placement.js` (pure)
+// decides WHAT/WHERE as plain descriptors; this side maps each descriptor's
+// `kind` → buildX() → a positioned Group → registry.add. The heart-center chunk
+// owns its heart's anchor (stage + court); every chunk scatters its role×rank
+// palette (D-C). placement.js already honored worldgen `noBuild` (off worldgen
+// roads + worldgen lakes); here we add the scene-aware guards the pure module
+// can't see: the legacy LakeManager's RENDERED water (until Group E swaps the
+// lake source) and registry overlap with already-placed buildings.
+function placeWorldgenProps(ctx) {
+  const descs = placeChunkProps(ctx.cx, ctx.cz, CHUNK_SIZE, ctx.region);
+  for (const d of descs) {
+    if (isPointInLake(d.x, d.z)) continue;   // legacy rendered water (Group E removes this)
+    // Anchors are the priority placement; scatter dodges anything already down.
+    if (!d.anchor &&
+        registry.closestBuilding(new THREE.Vector3(d.x, 0, d.z), Math.max(2, d.footprint * 0.5))) continue;
+    buildWorldgenKind(ctx, d);
+  }
+}
+
+// Defensive return-shape extraction is per-builder (R2): buildStage/buildDrumCircleAt
+// register internally; placeSingleCampsite + the *At helpers below extract `.group`
+// or treat the result as a bare Group exactly as each model demands.
+function buildWorldgenKind(ctx, d) {
+  switch (d.kind) {
+    case 'main_stage':  buildStage(ctx, d.x, d.z, true, d.yaw); break;
+    case 'side_stage':  buildStage(ctx, d.x, d.z, false, d.yaw); break;
+    case 'food_court':  buildFoodCourtAt(ctx, d.x, d.z); break;
+    case 'food_truck':  buildFoodTruckAt(ctx, d.x, d.z, d.yaw); break;
+    case 'vendor':      buildVendorAt(ctx, d.x, d.z, d.yaw); break;
+    case 'porta_potty': buildPottyBankAt(ctx, d.x, d.z, d.yaw); break;
+    case 'campsite':    placeSingleCampsite(ctx, d.x, d.z); break;
+    case 'drum_circle': buildDrumCircleAt(ctx, d.x, d.z); break;
+    default: break;     // unknown kind → place nothing (forward-compatible)
+  }
+}
+
+// A single food truck (buildFoodTruck returns a bare Group). Mirrors the foodPlaza
+// truck registration; `yaw` faces the nearest road.
+function buildFoodTruckAt(ctx, x, z, yaw) {
+  const truck = buildFoodTruck(ctx.rng);
+  truck.position.set(x, 0, z);
+  truck.rotation.y = yaw;
+  ctx.group.add(truck);
+  registry.add({
+    kind: 'truck',
+    position: new THREE.Vector3(x, 1.5 * FOOD_TRUCK_SCALE, z),
+    footprint: 4.4 * FOOD_TRUCK_SCALE,
+    collider: { radius: 3.6 * FOOD_TRUCK_SCALE, damage: 12 },
+    attractor: { radius: 8 * FOOD_TRUCK_SCALE, weight: 1.2 },
+    chunkKey: ctx.key,
+  });
+}
+
+// A single roadside vendor — ~1/3 a Sugar Shack (has userData.cookEntry; needs a
+// chunkKey stamped on it so the cook patrol sweeps on unload), else a refuel
+// bubble vendor. Both return bare Groups.
+function buildVendorAt(ctx, x, z, yaw) {
+  if (ctx.rng() < 0.33) {
+    const shack = buildSugarShack(ctx.rng);
+    shack.position.set(x, 0, z);
+    shack.rotation.y = yaw;
+    ctx.group.add(shack);
+    if (shack.userData.cookEntry) shack.userData.cookEntry.chunkKey = ctx.key;
+    const half = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
+    registry.add({
+      kind: 'truck',          // reuses the truck toast + sfx
+      position: new THREE.Vector3(x, 1.5, z),
+      footprint: half + 0.5,
+      collider: { radius: half - 0.2, damage: 10 },
+      attractor: { radius: half + 6, weight: 1.4 },
+      chunkKey: ctx.key,
+    });
+  } else {
+    const vendor = buildBubbleVendor(ctx.rng);
+    vendor.position.set(x, 0, z);
+    vendor.rotation.y = yaw;
+    ctx.group.add(vendor);
+    registry.add({
+      kind: 'bubble_vendor',
+      position: new THREE.Vector3(x, 0, z),
+      footprint: 2.4,
+      collider: { radius: 1.5, damage: 2 },
+      attractor: { radius: 7, weight: 1.0 },
+      chunkKey: ctx.key,
+      obj: vendor,
+      refuel: 0.4,
+    });
+  }
+}
+
+// A small porta-potty bank (1-2 units), reusing the legacy row builder. Doors
+// face the road (the worldgen `yaw`). Skips if the row can't fit clear of
+// buildings/water (pottyRowClear).
+function buildPottyBankAt(ctx, x, z, yaw) {
+  const count = 1 + (ctx.rng() < 0.4 ? 1 : 0);
+  if (!pottyRowClear(x, z, yaw, count)) return;
+  buildPottyBank(ctx, ctx.rng, x, z, yaw, count);
+}
+
+// A food-truck court ring centered at (x,z) — the major-heart anchor companion to
+// the main stage. Mirrors buildFoodPlaza but world-positioned (not chunk-centered).
+function buildFoodCourtAt(ctx, x, z) {
+  const count = 3 + Math.floor(ctx.rng() * 3);
+  const ring = 14 * FOOD_TRUCK_SCALE;
+  const wantShack = ctx.rng() < 0.35;
+  const shackSlot = wantShack ? Math.floor(ctx.rng() * count) : -1;
+  for (let i = 0; i < count; i++) {
+    const ang = (i / count) * Math.PI * 2 + ctx.rng() * 0.4;
+    if (i === shackSlot) {
+      const shackRing = ring + 2.5;
+      const sx = x + Math.cos(ang) * shackRing;
+      const sz = z + Math.sin(ang) * shackRing;
+      if (isPointInLake(sx, sz)) continue;
+      const shack = buildSugarShack(ctx.rng);
+      shack.position.set(sx, 0, sz);
+      shack.rotation.y = Math.atan2(x - sx, z - sz);   // front faces the court center
+      ctx.group.add(shack);
+      if (shack.userData.cookEntry) shack.userData.cookEntry.chunkKey = ctx.key;
+      const half = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
+      registry.add({
+        kind: 'truck',
+        position: new THREE.Vector3(sx, 1.5, sz),
+        footprint: half + 0.5,
+        collider: { radius: half - 0.2, damage: 10 },
+        attractor: { radius: half + 6, weight: 1.4 },
+        chunkKey: ctx.key,
+      });
+      continue;
+    }
+    const tx = x + Math.cos(ang) * ring;
+    const tz = z + Math.sin(ang) * ring;
+    if (isPointInLake(tx, tz)) continue;
+    const truck = buildFoodTruck(ctx.rng);
+    truck.position.set(tx, 0, tz);
+    truck.rotation.y = Math.atan2(x - tx, z - tz);   // face inward
+    ctx.group.add(truck);
+    registry.add({
+      kind: 'truck',
+      position: new THREE.Vector3(tx, 1.5 * FOOD_TRUCK_SCALE, tz),
+      footprint: 4.4 * FOOD_TRUCK_SCALE,
+      collider: { radius: 3.6 * FOOD_TRUCK_SCALE, damage: 12 },
+      attractor: { radius: 8 * FOOD_TRUCK_SCALE, weight: 1.2 },
       chunkKey: ctx.key,
     });
   }
@@ -1453,10 +1601,16 @@ function buildVendorRow(ctx) {
 }
 
 function buildDrumCircle(ctx) {
-  // A small fire pit + bench ring + a big drum
+  // A small fire pit + bench ring + a big drum, jittered around the chunk center.
   const x = ctx.cxWorld + (ctx.rng() - 0.5) * 8;
   const z = ctx.czWorld + (ctx.rng() - 0.5) * 8;
+  buildDrumCircleAt(ctx, x, z);
+}
 
+// World-positioned drum circle (fire pit + proxy light + stones + djembe +
+// polyrhythm music). The legacy theme centers it on the chunk; the worldgen
+// scatter path places it at an arbitrary off-road point.
+function buildDrumCircleAt(ctx, x, z) {
   // Fire (emissive)
   const fire = new THREE.Mesh(
     new THREE.IcosahedronGeometry(0.6, 1),
@@ -1735,7 +1889,7 @@ function buildCampVillage(ctx) {
 
 // ---------- Reusable builders ----------
 
-function buildStage(ctx, x, z, isMain) {
+function buildStage(ctx, x, z, isMain, yaw = 0) {
   // ----- Visual model — the deck, banner, truss, speakers, lights -----
   // Per-stage scale gives the festival real variety. Main stage gets a
   // mild boost (1.15-1.4) because it anchors spawn; side stages range from
@@ -1746,8 +1900,15 @@ function buildStage(ctx, x, z, isMain) {
   const leafTex = isMain ? leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a') : null;
   const stage = buildStageModel({ isMain, leafTexture: leafTex, rng: ctx.rng, scale });
   stage.group.position.set(x, 0, z);
-  // Match the original orientation: the front (banner side) faces -Z so the
-  // crowd attractor in +Z is "in front" of the stage.
+  // The stage's audience side is local +Z (the crowd attractor sits in +Z). `yaw`
+  // (0 in the legacy theme path → byte-identical; the worldgen anchor passes a
+  // road-facing yaw) rotates the whole group — deck, banner, lights, beams, and
+  // band all ride the group transform. Registry world positions below are NOT
+  // children of the group, so they're rotated explicitly via `rot()` (the proven
+  // buildTentStageTheme worldXZ pattern).
+  stage.group.rotation.y = yaw;
+  const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+  const rot = (lx, lz) => ({ x: x + lx * cosY + lz * sinY, z: z - lx * sinY + lz * cosY });
   ctx.group.add(stage.group);
 
   const w = stage.deckWidth;
@@ -1778,9 +1939,10 @@ function buildStage(ctx, x, z, isMain) {
     for (let rr = 0; rr < rows; rr++) {
       const lx = -innerW / 2 + (cc / (cols - 1)) * innerW;
       const lz = -innerD / 2 + (rr / (rows - 1)) * innerD;
+      const w3 = rot(lx, lz);
       registry.add({
         kind: 'stage',
-        position: new THREE.Vector3(x + lx, 1, z + lz),
+        position: new THREE.Vector3(w3.x, 1, w3.z),
         footprint: sphereR,
         collider: { radius: sphereR, damage: collDamage },
         chunkKey: ctx.key,
@@ -1789,9 +1951,10 @@ function buildStage(ctx, x, z, isMain) {
   }
 
   // Attractor in front of the stage so crowds gather there (scaled too).
+  const frontW = rot(0, d / 2 + 6 * scale);
   registry.add({
     kind: 'stage_front',
-    position: new THREE.Vector3(x, 0, z + d / 2 + 6 * scale),
+    position: new THREE.Vector3(frontW.x, 0, frontW.z),
     footprint: 0,
     attractor: { radius: 14 * scale, weight: isMain ? 3.5 : 2.0 },
     chunkKey: ctx.key,
@@ -1803,7 +1966,7 @@ function buildStage(ctx, x, z, isMain) {
   // audience fans out in a wide arc, denser near the front rail.
   if (ctx.crowd) {
     const audienceCount = isMain ? 22 : 12;
-    const frontZ = z + d / 2 + 4 * scale;
+    const frontLocalZ = d / 2 + 4 * scale;   // audience band start, local +Z
     const arcWidth = 14 * scale;
     for (let i = 0; i < audienceCount; i++) {
       // Three-row fan: front row close, back rows further out. Random per-NPC
@@ -1812,8 +1975,9 @@ function buildStage(ctx, x, z, isMain) {
       const rowDist = 1.5 + row * 3.0;
       const u = (Math.random() - 0.5) * arcWidth;
       const v = Math.random() * 2.5;
+      const ap = rot(u, frontLocalZ + rowDist + v);
       ctx.crowd.spawn({
-        pos: new THREE.Vector3(x + u, 0, frontZ + rowDist + v),
+        pos: new THREE.Vector3(ap.x, 0, ap.z),
         chunkKey: ctx.key,
         rng: ctx.rng,
       });
@@ -1847,18 +2011,17 @@ function buildStage(ctx, x, z, isMain) {
       const chairOffZ = (ctx.rng() - 0.5) * 2.0;
       // buildCampChair returns { group, color, footprint } — not the Group.
       const chair = buildCampChair(ctx.rng);
-      const cx = x + clumpX + chairOffX;
-      const cz = z + clumpZ + chairOffZ;
-      chair.group.position.set(cx, 0, cz);
+      const cw = rot(clumpX + chairOffX, clumpZ + chairOffZ);
+      chair.group.position.set(cw.x, 0, cw.z);
       // Face the stage: stage is at -Z direction in this local frame, but
-      // chair default faces +Z (per buildCampChair), so we rotate π. Then
-      // add a small per-chair yaw jitter so they're not all parallel.
-      chair.group.rotation.y = Math.PI + (ctx.rng() - 0.5) * 0.7;
+      // chair default faces +Z (per buildCampChair), so we rotate π. The whole
+      // layout rides `yaw`, so the chair's facing is yaw + π + a small jitter.
+      chair.group.rotation.y = yaw + Math.PI + (ctx.rng() - 0.5) * 0.7;
       ctx.group.add(chair.group);
       // Soft footprint so NPCs steer around the chair without big penalties.
       registry.add({
         kind: 'chair',
-        position: new THREE.Vector3(cx, 0, cz),
+        position: new THREE.Vector3(cw.x, 0, cw.z),
         footprint: 0.5,
         chunkKey: ctx.key,
       });

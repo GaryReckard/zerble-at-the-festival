@@ -1,7 +1,7 @@
 ---
 change: v2-worldgen-3d-integration
 status: in_progress
-current_task: Group D (placement.js anchors + role×rank scatter)
+current_task: Group E (LakeManager reads worldgen)
 blocked_by: null
 open_questions: 0
 started: 2026-06-06
@@ -20,15 +20,20 @@ ref: procedural-map-generator change (2D generator + sandbox, complete); ROADMAP
 **Phase:** APPLY. Artifacts done (proposal/design/specs/tasks); `/deliberate` complete
 (5 council + mediator, synthesis — all "Proceed with mitigations", 0 blocks; results.md
 folded into tasks.md as Groups A–I). Group A (paperwork) done. Now implementing.
-**Doing:** Group C DONE + verified (roads visible in-game, both flag states boot clean). Next: Group D (placement).
-**Resolved delivery order:** A(paperwork ✓) → B scaffold ✓ → C roads ✓ → **D placement** →
-E lakes → F forests → G crowd → H gates → I docs. Junction-merge DEFERRED to a 2D-only
+**Doing:** Group D DONE + verified (heart anchors + role×rank scatter visible in-game at a
+major heart; both flag states boot clean; self-test 20/20 golden unchanged). Next: Group E (lakes).
+**Resolved delivery order:** A(paperwork ✓) → B scaffold ✓ → C roads ✓ → D placement ✓ →
+**E lakes** → F forests → G crowd → H gates → I docs. Junction-merge DEFERRED to a 2D-only
 fast-follow change.
 **Flag:** `DEFAULT_WORLDGEN_V2 = false` in perf.js (legacy ships by default while building);
 test v2 with `?worldgen=1`; flip default to true at landing (task I.0).
-**Next:** Group D — placement.js drives heart anchors (center chunk) + role×rank scatter.
-The headline + highest crash-risk group (R2 return-shape, R4 tuple-key). `_generateWorldgen`
-already calls `queryRegion` once and stores `ctx.region` (hearts/lakes ready for D/F).
+**Next:** Group E — `LakeManager` reads worldgen lakes (smallest blast radius). The binding
+gate is R5 (lake collider winding sign-flip: worldgen `_computeLake` winding vs `lakes.js`
+CCW-inward-normal + reverse-walk assumption — assert signed area BEFORE the swap, fix
+reverse-walk + normal sign as a PAIR; DoubleSide masks the visual so it only shows as missing
+collision). Also R5-adjacent: lakes keep NO chunkKey (footgun #5). `_generateWorldgen` already
+stores `ctx.region.lakes` (ready, currently unused by placement — placement honors worldgen
+`noBuild` which already includes worldgen `lakeAt`).
 **Blocked:** Nothing.
 **Binding apply-gates (the 6 High/Critical risks):** R1 road source-of-truth=RAW (done in
 design), R2 heart-anchor boot crash, R3 forest ~80/chunk cap, R4 (roleTier,rank) tuple key,
@@ -54,6 +59,18 @@ R5 lake winding sign, R6 ROAD_MAT userData.shared. See results.md Risk Register.
   `nearestRoad`/`roadsInBounds` unchanged → self-test green by construction, golden stable,
   no merge math in the hot path. The junction-merge is DEFERRED to a separate 2D-only
   fast-follow change. (Adversary V1 / Architect #7 / Pragmatist; design.md "D-I REVISED".)
+- **D7 — Placement is a pure→build split (Group D).** `worldgen/placement.js` (pure, may
+  import sibling worldgen modules but NOT three/models) decides WHAT/WHERE as plain descriptors
+  `{kind,x,z,yaw,footprint,role,rank,anchor}`; `chunks.js placeWorldgenProps` does build +
+  `registry.add`. Rationale: keeps the self-test/map-sandbox runnable (Architect #3) and isolates
+  the crash-prone build half on the three side. The anchor was scoped to **one signature
+  structure per heart** (major→main_stage+food_court, minor→side_stage) rather than the design's
+  fuller main+court+vendor_rows cluster — vendor_rows folded into core scatter to avoid a
+  multi-chunk-spanning anchor for the first cut. Scatter uses 10 fixed candidate slots/chunk with
+  per-role density (core 0.62/max4, district 0.48/max3, outskirts 0.14/max2) — bounded for R7.
+  `facing` → three.js yaw via `π/2 − facing` (derived: a group at yaw θ maps local +Z to world
+  (sinθ,cosθ); set equal to the road direction (cos f, sin f)). `buildStage` gained a `yaw=0`
+  param (legacy byte-identical) routing its registry world-positions through a rotation helper.
 
 ## Assumptions
 | # | Assumption | Confidence | Status | Resolution |
@@ -78,6 +95,15 @@ R5 lake winding sign, R6 ROAD_MAT userData.shared. See results.md Risk Register.
   rarely viewed). If confirmed, the fix is the same: build it lazily at runtime. Out of scope for
   Group C (legacy forests are being retired by Group F); flagged as a follow-up. (Tagging it
   `userData.shared` this commit is still correct for the dispose-storm regardless.)
+- **Spawn-overlap protection not ported to v2 (Group D).** Legacy `pickTheme` special-cases the
+  spawn corridor (chunk (0,1)) to keep large stage/plaza geometry away from the player's start at
+  (0,65). v2 placement has no such guard — if a heart center jitters onto/near world spawn, a main
+  stage could build on top of the player. Hearts are rare + jittered; seed 1234's nearest hearts
+  are (701,-204)/(−103,134), far from spawn, so it doesn't bite the verify seed. Low-priority
+  follow-up: skip/relocate an anchor whose center is within ~50 m of (0,65). Parkable.
+- **Cross-engine `facing` is float `atan2`** (cosmetic per roads.js header — not hashed). The
+  stage-yaw uses it; a low-bit JSC/V8 difference would only wobble a stage's facing by a hair, not
+  flip placement. R8 (road EXISTENCE flip) is the real cross-engine gate (Group H.2), unaffected.
 
 ## Work Log
 <!-- APPEND-ONLY. Newest at BOTTOM. -->
@@ -170,3 +196,47 @@ _generateWorldgen), src/forests.js (_forestPathMat shared tag); CHANGELOG.md (20
 tasks.md (C✓), session-log.md.
 **Refs:** -> R1 (RAW source-of-truth, ribbon traces raw arterial), R6 (shared mat + dispose-storm
 fix), R7 (sampler cost gate passed), R10 (single branch), R14 (no stray bump). Next: Group D placement.
+
+### 2026-06-07 — Group D: placement.js heart anchors + role×rank scatter (the headline)
+**Intent:** Land the correctness headline + highest-crash-risk group — replace the per-chunk theme
+dice-roll with worldgen-driven placement: the heart-center chunk builds its heart's anchor; every
+chunk scatters its role×rank palette off roads/water. Honor the binding gates R2 (boot crash /
+return-shape) + R4 (roleTier×rank tuple key). (Group D; D.1–D.6.)
+**Result:**
+- **placement.js (pure)** filled in (D.1–D.3): `placeChunkProps(cx,cz,chunkSize,region)` →
+  descriptors. Anchors gated by `isHeartCenterChunk` (D.1); `ROLE_THEME` keyed on the
+  `${roleTier}×${rank}` TUPLE via `roleKey()`, both enums named+cited in the header (D.3/R4);
+  scatter samples `queryPoint` per slot to re-derive role/rank — pure, no registry reach (D.2/R2).
+  10 candidate slots/chunk, per-role density caps (R7-bounded). `nudgeOffNoBuild` rings the anchor
+  off road/water; `roadFacingYaw = π/2 − facing` converts worldgen facing → three.js yaw.
+- **chunks.js (build side)** (D.4): new `placeWorldgenProps` → `buildWorldgenKind` dispatch wired
+  into `_generateWorldgen` (replaced the empty `void props`). Reuses legacy builders, world-
+  positioned: made `buildStage(ctx,x,z,isMain,yaw=0)` yaw-aware (routes its registry positions
+  through a `rot()` helper — legacy callers pass no yaw → byte-identical); split
+  `buildDrumCircle`→`buildDrumCircleAt`; added `buildFoodTruckAt`/`buildVendorAt`/`buildPottyBankAt`/
+  `buildFoodCourtAt`; `placeSingleCampsite` reused as-is. Defensive scene guards: `isPointInLake`
+  (legacy rendered water until Group E) + `closestBuilding` (overlap) before building scatter.
+- Return-shape footgun (R2) handled per-builder: stage/drum register internally; the *At helpers +
+  campsite extract `.group`/bare-Group exactly as each model demands.
+**Verified (sandbox-pass ≠ game-pass — booted the REAL game):**
+- Headless (seed 1234 INTEGER — `?seed=1234` parses int-first, NOT the FNV string; this was my
+  first-test mistake): chunk (8,-3) = the (701,-204) major-heart center → main_stage + food_court
+  + vendor×3 + porta_potty (R4 NOT silently empty); heart sat ON a road (`noBuild`) → nudged off
+  to (703.5,-213.7). Deterministic (same chunk twice identical). District/outskirts chunks scatter
+  correctly + sparsely.
+- In-game at (701,-204), noon (nightness 0) + midnight (nightness 1), `?perf=low`+`mid`+default:
+  main stage (band, "FESTIVAL" banner, chairs in the audience facing the rotated stage), food-truck
+  court, vendors, porta-potties, worldgen road — stage OFF the road + FACING it (stages-on-roads
+  structurally gone), lake clear (nothing in water). Night: stage light show + beam pool on the
+  road + lit truck windows all read. ZERO console errors every boot (R2 passed — longest call
+  chain clean). Legacy `?worldgen=0` origin stage+arch+crowd byte-identical (yaw-0 path), clean.
+- Self-test 20/20, golden **63c8dea2 unchanged** (placement only reads the contract). Per-chunk
+  placement sampler cost (headless — browser HUD throttle-inflated): 2.5–4.4 ms warm / 8 ms
+  cold-once, under the 8 ms R7 gate. Full per-tier draw/tri budget pass → Group H (H.3).
+**Changed:** src/worldgen/placement.js (anchors+scatter+roadFacingYaw+nudge), src/chunks.js
+(yaw-aware buildStage, buildDrumCircleAt split, placeWorldgenProps + buildWorldgenKind +
+buildFoodTruckAt/buildVendorAt/buildPottyBankAt/buildFoodCourtAt, wired into _generateWorldgen);
+CHANGELOG.md (2026-06-07 Group D), tasks.md (D.1–D.6 ✓), session-log.md (D7, dangling threads).
+**Refs:** -> R2 (boot crash gate passed, return-shapes per-builder), R4 (tuple key verified
+in-game), R7 (sampler under gate), R11 (anchor frame-spike accepted; split only if shown — H.3).
+Next: Group E lakes (binding gate R5 winding sign-flip).

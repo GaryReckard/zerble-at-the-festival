@@ -5,6 +5,31 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-07
 
 ### Added
+- **v2 worldgen festival placement — heart anchors + role×rank prop scatter
+  (behind `?worldgen=1`).** The headline content slice: v2 chunks now place real
+  festival content from the worldgen layout instead of the old per-chunk theme
+  dice-roll. A new **pure** `src/worldgen/placement.js` (no three.js, no model
+  imports) maps each location's **`(roleTier × heart.rank)` tuple** —
+  `core/district/outskirts` (a distance band) crossed with `minor/major` (a heart
+  size class), two distinct enums kept explicitly apart — to a prop palette and
+  returns plain descriptors; `chunks.js` does the build + `registry.add`. The one
+  chunk that owns a heart's *center* builds that heart's **anchor**: a main stage
+  + food-truck court for a `core×major` hub, a side stage for `core×minor`,
+  placed at the heart center, **nudged off any road/water corridor**, and rotated
+  to **face the nearest road** — the structural fix for the old "stages-on-roads"
+  bug (`buildStage` is now yaw-aware; the legacy theme path passes yaw 0 and stays
+  byte-identical). Every chunk additionally **scatters** its role's palette
+  (vendors, food trucks, porta-potties in the core; campsites + drum circles in
+  the districts; sparse camps in the outskirts) at jittered buildable points,
+  re-deriving role/rank from `queryPoint` at each point — never a registry lookup
+  of the possibly-unloaded anchor. Verified by booting the *real* game at a major
+  heart (seed 1234, chunk (8,-3)) at noon + midnight across low/mid/high tiers
+  with zero console errors: stages land off roads, nothing lands in water, the
+  stage light show + food-truck glow read at night. Determinism self-test stays
+  20/20 (golden `63c8dea2` unchanged — placement only *reads* the contract);
+  per-chunk placement sampler costs ~2.5–4.4 ms warm / ~8 ms cold-once, under the
+  8 ms gate. Still **default-off** while the rest of the v2 world is built out.
+  Part of the `v2-worldgen-3d-integration` OpenSpec change (Group D).
 - **v2 worldgen roads in the 3D game (behind `?worldgen=1`).** First content
   slice wiring the 2D `src/worldgen/` generator into the live world: each chunk
   now renders the portions of the worldgen **arterial road network** crossing it
