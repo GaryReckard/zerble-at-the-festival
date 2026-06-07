@@ -5,6 +5,20 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-07
 
 ### Added
+- **v2 ambient crowd, concentrated at the hearts (behind `?worldgen=1`).** v2 chunks now
+  spawn a wandering ambient crowd whose size scales with worldgen *heart influence* — a
+  major heart's grounds throng with people, a minor heart draws a modest gathering, and
+  the deep outskirts are empty (count drops to zero past the district edge). The crowd
+  clusters at the festival attractors (stage front, drum circle, camps) and **drifts
+  along the roads** via `path_node` waypoints seeded every ~26m down each road run.
+  Notably this does NOT use a per-NPC nearest-road query (that measured 215µs/call →
+  ~107ms/frame for a full crowd — a non-starter); instead the legacy "+-grid path pull"
+  is disabled in v2 (its grid lines have no road there — it would march everyone toward
+  phantom paths) and the crowd follows the road-waypoint attractor chain instead. The
+  global per-tier crowd cap still hard-bounds the total (the spawn pool refuses past it,
+  so a busy core can't drain its neighbours). Verified seed 1234: dense crowd lining the
+  spawn heart's stage + road junction thinning to the tree line, modest at a minor heart,
+  empty in deep woods; zero console errors. Part of `v2-worldgen-3d-integration` (Group G).
 - **v2 woods (behind `?worldgen=1`) — continuous, density-driven forests replace the
   legacy 5×5 forest blocks.** With worldgen on, every chunk scatters trees from
   worldgen's `treeDensity(x,z)` field — organic gap-fill noise that clears at heart

@@ -23,7 +23,7 @@ import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { registry } from './registry.js';
 import { SpatialGrid } from './spatialGrid.js';
-import { PERF } from './perf.js';
+import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { CHUNK_SIZE } from './chunks.js';
 import { STINK_DUR, POTTY_DOOR_STAND, POTTY_SEAT_BACK, POTTY_SEAT_Y } from './models/portaPotty.js';
 
@@ -997,20 +997,27 @@ export class Crowd {
 
     // --- steering modifiers ---
     if (speed > 0) {
-      // Path attraction: nudge toward the nearest path grid line
-      const px = Math.round(npc.pos.x / PATH_GRID) * PATH_GRID;
-      const pz = Math.round(npc.pos.z / PATH_GRID) * PATH_GRID;
-      const offX = px - npc.pos.x;
-      const offZ = pz - npc.pos.z;
-      const closestPathOffset = Math.abs(offX) < Math.abs(offZ)
-        ? { x: offX, z: 0 }
-        : { x: 0, z: offZ };
-      const pathDist = Math.hypot(closestPathOffset.x, closestPathOffset.z);
-      if (pathDist > PATH_PULL_WIDTH) {
-        const pull = THREE.MathUtils.clamp((pathDist - PATH_PULL_WIDTH) / 20, 0, 0.4);
-        const pn = pathDist || 1;
-        desiredX += (closestPathOffset.x / pn) * pull;
-        desiredZ += (closestPathOffset.z / pn) * pull;
+      // Path attraction (LEGACY ONLY): nudge toward the nearest +-grid line so people
+      // tend to use the dirt paths. In v2 the roads are worldgen arterials that are NOT
+      // grid-aligned, so this would march everyone toward phantom grid lines that have no
+      // road (the R13 trap). v2 instead seeds `path_node` attractors ALONG each road
+      // (chunks.js placeWorldgenRoads), so the crowd clusters along roads through the
+      // normal attractor system — no per-NPC `nearestRoad` (215us/call → unviable per-frame).
+      if (!USE_WORLDGEN_V2) {
+        const px = Math.round(npc.pos.x / PATH_GRID) * PATH_GRID;
+        const pz = Math.round(npc.pos.z / PATH_GRID) * PATH_GRID;
+        const offX = px - npc.pos.x;
+        const offZ = pz - npc.pos.z;
+        const closestPathOffset = Math.abs(offX) < Math.abs(offZ)
+          ? { x: offX, z: 0 }
+          : { x: 0, z: offZ };
+        const pathDist = Math.hypot(closestPathOffset.x, closestPathOffset.z);
+        if (pathDist > PATH_PULL_WIDTH) {
+          const pull = THREE.MathUtils.clamp((pathDist - PATH_PULL_WIDTH) / 20, 0, 0.4);
+          const pn = pathDist || 1;
+          desiredX += (closestPathOffset.x / pn) * pull;
+          desiredZ += (closestPathOffset.z / pn) * pull;
+        }
       }
 
       // Building avoidance

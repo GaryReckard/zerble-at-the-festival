@@ -1,7 +1,7 @@
 ---
 change: v2-worldgen-3d-integration
 status: in_progress
-current_task: Group F DONE (worldgen woods, R3 cap held). Next: G crowd → H gates → I landing (+ F.5 real-device draw check, D2.4 filler)
+current_task: Group G DONE (heart-weighted crowd + along-road waypoints, R13). Next: H gates (cross-engine road-existence) → I landing (+ F.5 real-device draw check)
 blocked_by: null
 open_questions: 0
 started: 2026-06-06
@@ -20,12 +20,14 @@ ref: procedural-map-generator change (2D generator + sandbox, complete); ROADMAP
 **Phase:** APPLY. Artifacts done (proposal/design/specs/tasks); `/deliberate` complete
 (5 council + mediator, synthesis — all "Proceed with mitigations", 0 blocks; results.md
 folded into tasks.md as Groups A–I). Group A (paperwork) done. Now implementing.
-**Doing:** Group F DONE + verified (worldgen woods — per-chunk treeDensity scatter replacing the 5×5 system; R3
-~80/chunk cap held EXACTLY 80/56; drum nestled in woods; decision cost ~2.5ms/chunk; self-test 24/24 goldens unchanged).
-OPEN: F.5 live-draw budget on a real low-end device (preview throttle can't measure live draws).
-Next: G crowd (heart-weighting) → H gates (cross-engine road-existence) → I landing.
+**Doing:** Group G DONE + verified (heart-influence-weighted ambient crowd + along-road `path_node` waypoints;
+R13 solved via attractors not per-NPC nearestRoad which is 215µs/call; crowd concentrates at hearts, lines roads,
+empty deep-outskirts, cap-bounded; self-test 24/24 goldens unchanged). Content groups DONE — only the closing
+gates remain.
+Next: H gates (H.2 cross-engine road-EXISTENCE integer test — the one non-cosmetic cross-engine gate; H.3 budget
+pass) → I landing (flip DEFAULT_WORLDGEN_V2, ARCHITECTURE.md I.6 rewrite, ROADMAP trim, F.5 real-device draw check).
 **Resolved delivery order:** A(paperwork ✓) → B scaffold ✓ → C roads ✓ → D placement ✓ +festival redesign ✓ →
-**E lakes ✓ → F forests ✓** → G crowd → H gates → I docs. Junction-merge DEFERRED to a 2D-only
+**E lakes ✓ → F forests ✓ → G crowd ✓** → H gates → I docs. Junction-merge DEFERRED to a 2D-only
 fast-follow change.
 **Flag:** `DEFAULT_WORLDGEN_V2 = false` in perf.js (legacy ships by default while building);
 test v2 with `?worldgen=1`; flip default to true at landing (task I.0).
@@ -450,3 +452,28 @@ tasks.md (F.1/F.2/F.4 ✓, F.3/F.5 partial), session-log. Commit: `8ce84cf`.
 **Refs:** -> F.1-F.5, R3 (cap held), R7 (decision cost), R9 (lakeshore ring — real-device), R10 (single branch),
 footgun #4. Next: G crowd (heart-weighting); then H gates (cross-engine road-existence) → I landing (flag flip,
 ARCHITECTURE.md I.6, the F.5 real-device draw check).
+
+### 2026-06-07 — Group G: heart-weighted ambient crowd + along-road waypoints (R13)
+**Intent:** Wire ambient crowd into v2 (it had none — only festival-cluster NPCs), concentrated at hearts, drifting
+along roads, honoring R13 (don't trust `nearestRoad.dirAngle` / march to phantom roads).
+**Result:**
+- **G.2 measurement-driven pivot:** `nearestRoad` costs **215 µs/call** (headless) → 107 ms/frame for 500 NPCs — a
+  per-NPC road-pull (even cached) is unviable. So instead: (a) crowd.js — the legacy `Math.round(pos/PATH_GRID)`
+  grid-pull is now gated `if (!USE_WORLDGEN_V2)` (in v2 the +-grid lines have no road; pulling there IS the R13 trap);
+  (b) chunks.js `placeWorldgenRoads` → new `placeRoadWaypoints` seeds `path_node` attractors every ~26 m ALONG each
+  in-chunk road run (replacing the single midpoint waypoint), so the crowd lines the roads via the normal attractor
+  system — zero per-NPC road queries, deterministic, chunk-keyed.
+- **G.1:** `_generateWorldgen` calls `spawnAmbientCrowd(ctx, count)` with `count = heartInfluence<0.04 ? 0 :
+  round(1 + heartInfluence*15)` (one `queryPoint`/chunk at gen-time, ~0.25 ms — has nearestRoad inside, fine once/chunk).
+  `crowd.spawn` returns null on an empty `MAX_NPCS` free-list → cap is a HARD bound (no leak).
+**Verified (seed 1234, real game):** at the (701,-204) major heart — dense crowd around the stage + vendor row,
+lining the road junction, thinning to the Group-F tree line (establishing screenshot); 37 path_node road waypoints
+seeded. Minor-heart fringe (near (3377,2851)) ~17 NPCs; deep outskirts (influence 0) spawn 0. No phantom-grid march.
+ZERO console errors. Self-test 24/24, goldens `63c8dea2`/`f8dc276d` unchanged (crowd/chunks are game-side; crowd is
+Math.random-driven, never in the determinism contract). spawnAmbientCrowd water-reject + per-frame projectOutOfLake
+unchanged, now worldgen-aligned (Group E).
+**Changed:** src/crowd.js (USE_WORLDGEN_V2 import + grid-pull gated to legacy), src/chunks.js (queryPoint import,
+placeRoadWaypoints along-road waypoints, spawnAmbientCrowd in _generateWorldgen with influence count);
+CHANGELOG.md (Group G Added), tasks.md (G.1/G.2/G.3 ✓), session-log. Commit: (pending).
+**Refs:** -> G.1-G.3, R13 (no phantom-road march — solved by attractors, not per-NPC queries). Next: H gates
+(H.2 cross-engine road-EXISTENCE integer test — the one non-cosmetic cross-engine gate; H.3 budget pass) → I landing.

@@ -21,7 +21,7 @@ import { Sound } from './sound.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps } from './worldgen/placement.js';
-import { queryRegion } from './worldgen/index.js';
+import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
 import { CONFIG } from './worldgen/constants.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
@@ -512,6 +512,13 @@ export class ChunkManager {
     placeWorldgenRoads(ctx, ctx.region.roads);
     placeWorldgenProps(ctx);     // Group D/D2 — festival clusters along the heart's roads
     scatterWorldgenTrees(ctx);   // Group F — treeDensity woods (dodge roads, water, clusters)
+    // Group G — ambient crowd, CONCENTRATED at hearts: count ∝ heart influence (~16 at a
+    // core center → 0 in deep outskirts). The festival clusters + road waypoints register
+    // the attractors `spawnAmbientCrowd` fills; this sets how many wander this chunk. One
+    // queryPoint/chunk (chunk-gen, not per-frame); PERF.crowdMax caps steady state.
+    const qpc = queryPoint(ctx.cxWorld, ctx.czWorld);
+    const crowdCount = qpc.heartInfluence < 0.04 ? 0 : Math.round(1 + qpc.heartInfluence * 15);
+    spawnAmbientCrowd(ctx, crowdCount);
   }
 
   // Drop any guaranteed near-spawn jug whose seeded target lands in this chunk.
@@ -914,27 +921,40 @@ function placeWorldgenRoads(ctx, roads) {
   const minX = ctx.cxWorld - half, maxX = ctx.cxWorld + half;
   const minZ = ctx.czWorld - half, maxZ = ctx.czWorld + half;
   const mat = roadMat();
-  let longest = null, longestLen = 0;
   for (const road of roads) {
     const runs = clipPolylineToBox(road.points, minX, minZ, maxX, maxZ);
     for (const run of runs) {
       ctx.group.add(buildRibbonFromPolyline(run, ROAD_RIBBON_WIDTH, mat));
-      // Track the longest in-chunk run to anchor the crowd waypoint on the road.
-      let len = 0;
-      for (let i = 0; i < run.length - 1; i++) len += Math.hypot(run[i + 1].x - run[i].x, run[i + 1].z - run[i].z);
-      if (len > longestLen) { longestLen = len; longest = run; }
+      placeRoadWaypoints(ctx, run);   // Group G — crowd drifts ALONG the road via these
     }
   }
-  if (longest) {
-    // Waypoint at the midpoint vertex of the longest road run in this chunk.
-    const mid = longest[Math.floor(longest.length / 2)];
-    registry.add({
-      kind: 'path_node',
-      position: new THREE.Vector3(mid.x, 0, mid.z),
-      footprint: 0,
-      attractor: { radius: 6, weight: 0.5 },
-      chunkKey: ctx.key,
-    });
+}
+
+// Seed `path_node` crowd attractors at ~WAYPOINT_SPACING intervals along an in-chunk
+// road run. This is the v2 replacement for the legacy +-grid crowd pull (crowd.js):
+// the ambient crowd clusters along the chain of waypoints → people line the roads,
+// with NO per-NPC `nearestRoad` query (that's 215us/call — unviable per-frame, R13).
+// Cheap + deterministic: registered at chunk-gen, chunk-keyed so it unloads cleanly.
+const WAYPOINT_SPACING = 26;
+function placeRoadWaypoints(ctx, run) {
+  let acc = WAYPOINT_SPACING * 0.5;   // first waypoint ~half a step in from the run start
+  for (let i = 0; i < run.length - 1; i++) {
+    const ax = run[i].x, az = run[i].z;
+    const ex = run[i + 1].x - ax, ez = run[i + 1].z - az;
+    const segLen = Math.hypot(ex, ez);
+    if (segLen < 1e-3) continue;
+    while (acc < segLen) {
+      const t = acc / segLen;
+      registry.add({
+        kind: 'path_node',
+        position: new THREE.Vector3(ax + ex * t, 0, az + ez * t),
+        footprint: 0,
+        attractor: { radius: 6, weight: 0.5 },
+        chunkKey: ctx.key,
+      });
+      acc += WAYPOINT_SPACING;
+    }
+    acc -= segLen;
   }
 }
 

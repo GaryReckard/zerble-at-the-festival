@@ -84,9 +84,9 @@
 
 ## G. Crowd — heart-influence weighting + road attraction (baseline ships; tuning parks)
 
-- [ ] G.1 Scale ambient crowd count per chunk by sampled heart influence / role tier; don't let a core chunk spawn hundreds at once (PERF.crowdMax bounds steady-state).
-- [ ] G.2 Gate road attraction on a REAL road: `nearestRoad` in empty outskirts returns `dist=Infinity` but a finite meaningless `dirAngle` — gate on `onRoad` or `dist<threshold`, never trust `dirAngle` blindly; keep heart attractors dominant. Tuning parkable. (R13)
-- [ ] G.3 Verify NPCs cluster at hearts, drift along roads, never spawn/path into water OR toward a phantom outskirts road.
+- [x] G.1 Scale ambient crowd by heart influence. DONE: `_generateWorldgen` calls `spawnAmbientCrowd(ctx, count)` with `count = heartInfluence < 0.04 ? 0 : round(1 + heartInfluence*15)` (one `queryPoint`/chunk at gen-time). Verified gradient: ~dense at the major heart, ~17 at a minor heart's fringe, 0 in deep outskirts (influence 0). `crowd.spawn` returns null when the `MAX_NPCS` free-list is empty → `PERF.crowdMax` HARD-caps steady state (no leak; a busy core can't drain neighbours unboundedly).
+- [x] G.2 Road attraction without the R13 trap. DONE — but NOT via per-NPC `nearestRoad` (measured 215 µs/call → 107 ms/frame for 500 NPCs, unviable). Instead: (a) the legacy phantom +-grid pull (crowd.js, `Math.round(pos/PATH_GRID)`) is gated to `!USE_WORLDGEN_V2` (in v2 the grid lines have no road — marching there IS the R13 trap); (b) `placeWorldgenRoads`/`placeRoadWaypoints` seeds `path_node` crowd attractors at ~26 m intervals ALONG each in-chunk road run (37 at the spawn heart), so the crowd clusters along roads through the normal attractor system — zero per-NPC road queries, deterministic, chunk-keyed. Heart/cluster attractors stay dominant. (R13)
+- [x] G.3 Verify. DONE: at the major heart, NPCs cluster dense around the stage/vendors and line the road junction, thinning toward the woods (establishing screenshot); minor-heart fringe modest; deep outskirts empty. No phantom-grid march (grid-pull off in v2). `spawnAmbientCrowd` rejects spawns in water/buildings (unchanged) + the per-frame `projectOutOfLake` avoidance is unchanged, and lakes are now worldgen-aligned (Group E) so the water test is accurate. Cap-bounded (no leak). ZERO console errors.
 
 ## H. Determinism + cross-engine + perf gate (closing correctness gates)
 
