@@ -498,6 +498,6 @@ FORKS cross-engine (node≠browser) where at the sparse 440/0.48 it matched (`f8
 more hearts → more of the documented cosmetic cross-engine forks (treeDensity spot-pick, road bearings). Single-engine
 reproducibility holds. **This AMPLIFIES the H.2 surface** (the non-cosmetic road-EXISTENCE fork) — H.2 matters more now.
 **Changed:** src/worldgen/constants.js (HEART_CELL 340, HEART_RANK.noneBelow 0.25 + rationale), src/worldgen/selftest.js
-(new golden baseline in the POI comment); CHANGELOG.md (Changed — denser world), session-log. Commit: (pending).
+(new golden baseline in the POI comment); CHANGELOG.md (Changed — denser world), session-log. Commit: `0a0cac9`.
 **Refs:** -> H.2 (amplified by density). Lever for Gary to push denser: the map-sandbox live sliders; past ~300/~0.10
 needs frame-splitting the cluster build (R11) + shrinking the major district (1000) to keep the scan window + chunk-gen sane.
