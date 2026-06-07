@@ -1,11 +1,11 @@
 ---
 change: v2-worldgen-3d-integration
 status: in_progress
-current_task: artifacts (proposal done; design/specs/tasks next)
+current_task: Group D (placement.js anchors + role×rank scatter)
 blocked_by: null
 open_questions: 0
 started: 2026-06-06
-last_updated: 2026-06-06
+last_updated: 2026-06-07
 ref: procedural-map-generator change (2D generator + sandbox, complete); ROADMAP "World generation (procedural map)" → "Wire the generator into the live 3D world as v2 worldgen"
 ---
 
@@ -20,14 +20,15 @@ ref: procedural-map-generator change (2D generator + sandbox, complete); ROADMAP
 **Phase:** APPLY. Artifacts done (proposal/design/specs/tasks); `/deliberate` complete
 (5 council + mediator, synthesis — all "Proceed with mitigations", 0 blocks; results.md
 folded into tasks.md as Groups A–I). Group A (paperwork) done. Now implementing.
-**Doing:** Group B DONE (scaffolding verified). Starting Group C (roads).
-**Resolved delivery order:** A(paperwork ✓) → B scaffold ✓ → **C roads** → D placement →
+**Doing:** Group C DONE + verified (roads visible in-game, both flag states boot clean). Next: Group D (placement).
+**Resolved delivery order:** A(paperwork ✓) → B scaffold ✓ → C roads ✓ → **D placement** →
 E lakes → F forests → G crowd → H gates → I docs. Junction-merge DEFERRED to a 2D-only
 fast-follow change.
 **Flag:** `DEFAULT_WORLDGEN_V2 = false` in perf.js (legacy ships by default while building);
 test v2 with `?worldgen=1`; flip default to true at landing (task I.0).
-**Next:** Group C — chunk-clipped RAW arterial road ribbons (C.1 ROAD_MAT shared, C.2 clip+
-ribbon replacing placePaths, C.3 single-branch + chunk-keyed road attractor, C.4 budget+seam).
+**Next:** Group D — placement.js drives heart anchors (center chunk) + role×rank scatter.
+The headline + highest crash-risk group (R2 return-shape, R4 tuple-key). `_generateWorldgen`
+already calls `queryRegion` once and stores `ctx.region` (hearts/lakes ready for D/F).
 **Blocked:** Nothing.
 **Binding apply-gates (the 6 High/Critical risks):** R1 road source-of-truth=RAW (done in
 design), R2 heart-anchor boot crash, R3 forest ~80/chunk cap, R4 (roleTier,rank) tuple key,
@@ -71,6 +72,12 @@ R5 lake winding sign, R6 ROAD_MAT userData.shared. See results.md Risk Register.
   collider's existence (not just cosmetics).
 - Two lake macrocell sizes today (game 320m vs worldgen 1050m) — the worldgen one wins;
   confirm density/size feel in 3D vs the old lakes players have seen.
+- **`_forestPathMat` (forests.js:330) is created at MODULE-EVAL with `depthWrite:false`** — the
+  same class that made the worldgen road invisible. The legacy FOREST interior paths may
+  therefore be invisible in the shipped game (unverified — forests are sparse, interior paths
+  rarely viewed). If confirmed, the fix is the same: build it lazily at runtime. Out of scope for
+  Group C (legacy forests are being retired by Group F); flagged as a follow-up. (Tagging it
+  `userData.shared` this commit is still correct for the dispose-storm regardless.)
 
 ## Work Log
 <!-- APPEND-ONLY. Newest at BOTTOM. -->
@@ -131,3 +138,35 @@ full legacy world (stage 39, tent 65, tree 209, path_node 26, … 6748 entries).
 **Changed:** index.html, sandbox.html, src/perf.js, src/worldgen/{constants,placement}.js,
 src/chunks.js; openspec change docs (tasks B✓ + I.0, HANDOFF, session-log).
 **Refs:** -> R2 (empty-boot gate passed), R10 (single branch), footgun #1/#4. Next: Group C roads.
+
+### 2026-06-07 — Group C: chunk-clipped RAW arterial road ribbons
+**Intent:** Land the biggest visible win (roads) on the v2 path — clip the worldgen
+arterials per chunk, build dirt ribbons, register a road crowd waypoint; keep the
+single-branch + shared-material + source-of-truth discipline. (Group C; R1/R6/R7/R10.)
+**Result:**
+- C.1: shared road material (R6); tagged the pre-existing untagged `_forestPathMat`
+  (real latent dispose-storm in the SHIPPED legacy game). `_generateWorldgen` now calls
+  `queryRegion` ONCE/chunk (D-A/R7), stores `ctx.region` for D/F.
+- C.2: `placeWorldgenRoads` + `clipPolylineToBox` (Liang–Barsky) + `buildRibbonFromPolyline`
+  (traces the ACTUAL worldgen vertices, not a re-jittered curve → R1 alignment). Verified at
+  vertex level: ribbon centerline == clipped arterial (boundary crossings + interior verts),
+  width=ROAD_WIDTH(7). Kink-free seams PROVEN: adjacent chunks' ribbon ends coincide to 0.01 m.
+- C.3: chunk-keyed road `path_node` (reuses kind → 2 skip-sites stay consistent); legacy
+  path_node only in the `else` branch. Verified registry: worldgen=1 has NO themed kinds; worldgen=0 full legacy.
+- C.4: net draw delta NEGATIVE (1 ribbon/chunk vs legacy 3). R7 sampler cost measured HEADLESSLY:
+  roadsInBounds cold 4.9ms (first chunk) / warm <0.4ms; hearts+lakes negligible — under the 8ms gate.
+  No game-path `bumpWorldgen()` clears the memo (R14 ruled out). Booted clean at `?perf=low` (Lambert) + default.
+- **FOOTGUN FOUND + FIXED (the bug Gary caught — roads invisible everywhere):** a
+  `depthWrite:false` MeshStandardMaterial created at MODULE-EVAL renders INVISIBLY in-game
+  (meshes draw under the player-centered ground plane). Proven by in-game A/B + corroborated:
+  the legacy `+`-grid paths render only because their material is built per-chunk at RUNTIME;
+  `_forestPathMat` (module-eval) is likely also invisible in legacy (see Dangling Threads). Fix:
+  create the shared road material LAZILY on first chunk-gen (still one shared instance — R6 intact).
+**Verified:** syntax OK; self-test 20/20 golden 63c8dea2 unchanged; roads VISIBLE in the running
+game on fresh source (arterial Y-junction, kink-free); BOTH `?worldgen=1` and `?worldgen=0` boot
+with ZERO console errors.
+**Changed:** src/chunks.js (imports, lazy roadMat, clip+ribbon helpers, placeWorldgenRoads,
+_generateWorldgen), src/forests.js (_forestPathMat shared tag); CHANGELOG.md (2026-06-07);
+tasks.md (C✓), session-log.md.
+**Refs:** -> R1 (RAW source-of-truth, ribbon traces raw arterial), R6 (shared mat + dispose-storm
+fix), R7 (sampler cost gate passed), R10 (single branch), R14 (no stray bump). Next: Group D placement.

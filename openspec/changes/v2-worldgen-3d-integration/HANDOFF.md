@@ -12,9 +12,13 @@ Wiring the verified, deterministic 2D `src/worldgen/` generator (built by the
 `procedural-map-generator` change) into the **live 3D game** as v2 worldgen — the
 ROADMAP "big one." Full OpenSpec pipeline so far: `/opsx:ff` (proposal/design/specs/
 tasks) → tier-3 `/deliberate` (5 council + mediator, all "Proceed with mitigations",
-results folded into tasks as Groups A–I). **Groups A (paperwork) + B (scaffolding) are
-DONE** (the `_generate` v2 branch boots empty + clean; flag toggles verified). Next is
-**Group C (roads)**. Flag lives in perf.js: **`DEFAULT_WORLDGEN_V2 = false`** (legacy ships
+results folded into tasks as Groups A–I). **Groups A (paperwork) + B (scaffolding) +
+C (roads) are DONE** (v2 chunks render chunk-clipped RAW arterial ribbons — visible
+in-game, kink-free seams, source-of-truth aligned; both flag states boot clean). Next is
+**Group D (placement.js anchors + role×rank scatter)** — the headline + highest crash-risk
+group (R2 return-shape, R4 tuple-key). `_generateWorldgen` already calls `queryRegion`
+once and stores `ctx.region` (hearts/lakes ready for D/F). Flag lives in perf.js:
+**`DEFAULT_WORLDGEN_V2 = false`** (legacy ships
 by default while building) — test v2 with **`?worldgen=1`**, force legacy with `?worldgen=0`.
 Flip the default to `true` at landing (task I.0) once the world is populated + verified, so the
 production deploy never shows a half-empty v2 world.

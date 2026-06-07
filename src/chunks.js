@@ -21,6 +21,8 @@ import { Sound } from './sound.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps } from './worldgen/placement.js';
+import { queryRegion } from './worldgen/index.js';
+import { CONFIG } from './worldgen/constants.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
 import { buildCampsite, buildCampChair } from './models/campsite.js';
@@ -497,12 +499,19 @@ export class ChunkManager {
   }
 
   // v2 worldgen-driven chunk content. Built incrementally:
-  //   Group C — chunk-clipped RAW arterial road ribbons
+  //   Group C — chunk-clipped RAW arterial road ribbons (DONE)
   //   Group D — heart anchors (center chunk) + role×rank scatter (placement.js)
   //   Group F — treeDensity tree scatter (clamped to the old ~80/chunk cap)
   //   Group G — heart-influence-weighted ambient crowd
-  // Group B (now): empty — proves the wiring boots clean before content lands.
+  // One `queryRegion` per chunk (D-A / R7 — never sample per-m²); the hearts/lakes
+  // it also returns are consumed by Groups D/F. Stored on ctx for those groups.
   _generateWorldgen(ctx) {
+    const half = CHUNK_SIZE / 2;
+    ctx.region = queryRegion({
+      minX: ctx.cxWorld - half, minZ: ctx.czWorld - half,
+      maxX: ctx.cxWorld + half, maxZ: ctx.czWorld + half,
+    });
+    placeWorldgenRoads(ctx, ctx.region.roads);
     const props = placeChunkProps(ctx.cx, ctx.cz, CHUNK_SIZE);   // [] until Group D
     void props;
   }
@@ -760,6 +769,166 @@ export function buildCurvedPath(x1, z1, x2, z2, width, rng, material) {
   mesh.position.y = 0.06;
   mesh.receiveShadow = true;
   return mesh;
+}
+
+// ---------- v2 worldgen roads (Group C) ----------
+//
+// Chunk-clipped RAW arterial ribbons. The whole arterial is one deterministic,
+// pair-owned worldgen polyline; each chunk renders only the portion crossing its
+// own AABB. Because adjacent chunks clip the SAME polyline at the SAME shared
+// boundary, the two halves meet at the identical point with the identical tangent
+// → no seam kink (D-D), and the ribbon traces the exact segments `nearestRoad`
+// uses, so the rendered road and the `noBuild`/`facing` gate agree (R1, RAW
+// source-of-truth). Roads are passable (no collider).
+
+// Shared dirt-road material. Created LAZILY on first use (during chunk
+// generation), NOT at module-eval — a `depthWrite:false` MeshStandardMaterial
+// constructed at module-eval time renders INVISIBLY in-game (its meshes draw
+// under the player-centered ground plane; verified by an in-game A/B). The
+// legacy `+`-grid path material (placePaths) renders fine precisely because it
+// is built per-chunk at RUNTIME; this mirrors that timing while staying a single
+// shared instance. Tagged `userData.shared` so the chunk-unload disposal walk
+// skips it (footgun #6 / R6) — otherwise the first chunk unload frees it and
+// every other chunk's road forces a shader recompile.
+let _roadMat = null;
+function roadMat() {
+  if (!_roadMat) {
+    _roadMat = new THREE.MeshStandardMaterial({
+      color: 0xb89570,
+      roughness: 1,
+      metalness: 0,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+      depthWrite: false,
+    });
+    _roadMat.userData.shared = true;
+  }
+  return _roadMat;
+}
+
+// Visible ribbon width. The worldgen noBuild corridor is ±CONFIG.ROAD_WIDTH of the
+// centerline; rendering the ribbon at the full ROAD_WIDTH leaves a cleared shoulder
+// on each side (corridor − ribbon) so props sit beside the road, never on it.
+const ROAD_RIBBON_WIDTH = CONFIG.ROAD_WIDTH;
+
+// Liang-Barsky clip of segment a→b to the box. Returns the clipped endpoints plus
+// the t0/t1 params on the original segment (so the caller can tell whether a
+// clipped end is a box-boundary crossing vs. an original interior vertex), or null
+// if the segment misses the box entirely.
+function clipSegmentLB(x0, z0, x1, z1, minX, minZ, maxX, maxZ) {
+  let t0 = 0, t1 = 1;
+  const dx = x1 - x0, dz = z1 - z0;
+  const p = [-dx, dx, -dz, dz];
+  const q = [x0 - minX, maxX - x0, z0 - minZ, maxZ - z0];
+  for (let k = 0; k < 4; k++) {
+    if (p[k] === 0) {
+      if (q[k] < 0) return null;       // parallel and outside this edge
+    } else {
+      const r = q[k] / p[k];
+      if (p[k] < 0) { if (r > t1) return null; if (r > t0) t0 = r; }
+      else          { if (r < t0) return null; if (r < t1) t1 = r; }
+    }
+  }
+  return { x0: x0 + t0 * dx, z0: z0 + t0 * dz, x1: x0 + t1 * dx, z1: z0 + t1 * dz, t0, t1 };
+}
+
+// Clip a polyline to an axis-aligned box, returning the in-box runs (each ≥2
+// points). A run breaks whenever the polyline leaves the box (so a road that
+// enters, exits, and re-enters this chunk yields two separate ribbons).
+function clipPolylineToBox(pts, minX, minZ, maxX, maxZ) {
+  const EPS = 1e-6;
+  const runs = [];
+  let run = null;
+  const add = (x, z) => {
+    if (!run) { run = []; runs.push(run); }
+    const last = run[run.length - 1];
+    if (!last || Math.abs(last.x - x) > EPS || Math.abs(last.z - z) > EPS) run.push({ x, z });
+  };
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const seg = clipSegmentLB(a.x, a.z, b.x, b.z, minX, minZ, maxX, maxZ);
+    if (!seg) { run = null; continue; }      // segment misses the chunk → break run
+    if (seg.t0 > EPS) run = null;            // entered mid-segment → start a fresh run
+    add(seg.x0, seg.z0);
+    add(seg.x1, seg.z1);
+    if (seg.t1 < 1 - EPS) run = null;        // exited mid-segment → close the run
+  }
+  return runs.filter((r) => r.length >= 2);
+}
+
+// Build a flat ribbon that follows a polyline's actual vertices (NOT a re-jittered
+// curve — the worldgen polyline IS the road). Interior vertices use an averaged
+// (miter) tangent for a smooth joint; run endpoints — which on a clipped run are
+// always the chunk-boundary crossings — use the single adjacent-segment tangent, so
+// they match the neighbor chunk's ribbon edge exactly.
+function buildRibbonFromPolyline(pts, width, material) {
+  const halfW = width / 2;
+  const n = pts.length;
+  const verts = [];
+  const indices = [];
+  for (let i = 0; i < n; i++) {
+    const prev = pts[i - 1], cur = pts[i], next = pts[i + 1];
+    let tx, tz;
+    if (prev && next) {
+      const d1x = cur.x - prev.x, d1z = cur.z - prev.z, l1 = Math.hypot(d1x, d1z) || 1;
+      const d2x = next.x - cur.x, d2z = next.z - cur.z, l2 = Math.hypot(d2x, d2z) || 1;
+      tx = d1x / l1 + d2x / l2; tz = d1z / l1 + d2z / l2;
+    } else if (next) {
+      tx = next.x - cur.x; tz = next.z - cur.z;
+    } else {
+      tx = cur.x - prev.x; tz = cur.z - prev.z;
+    }
+    const tl = Math.hypot(tx, tz) || 1;
+    const pxn = -(tz / tl), pzn = (tx / tl);   // perpendicular in XZ
+    verts.push(cur.x + pxn * halfW, 0, cur.z + pzn * halfW);  // left edge
+    verts.push(cur.x - pxn * halfW, 0, cur.z - pzn * halfW);  // right edge
+  }
+  for (let i = 0; i < n - 1; i++) {
+    const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
+    indices.push(a, c, b, b, c, d);
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+  const mesh = new THREE.Mesh(geom, material);
+  mesh.position.y = 0.06;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+// Render the worldgen arterials passing through this chunk + register one
+// chunk-keyed road waypoint so the crowd drifts along roads (replaces the legacy
+// `+`-grid `path_node`; the legacy one only runs in the ?worldgen=0 branch — C.3).
+function placeWorldgenRoads(ctx, roads) {
+  if (!roads || roads.length === 0) return;
+  const half = CHUNK_SIZE / 2;
+  const minX = ctx.cxWorld - half, maxX = ctx.cxWorld + half;
+  const minZ = ctx.czWorld - half, maxZ = ctx.czWorld + half;
+  const mat = roadMat();
+  let longest = null, longestLen = 0;
+  for (const road of roads) {
+    const runs = clipPolylineToBox(road.points, minX, minZ, maxX, maxZ);
+    for (const run of runs) {
+      ctx.group.add(buildRibbonFromPolyline(run, ROAD_RIBBON_WIDTH, mat));
+      // Track the longest in-chunk run to anchor the crowd waypoint on the road.
+      let len = 0;
+      for (let i = 0; i < run.length - 1; i++) len += Math.hypot(run[i + 1].x - run[i].x, run[i + 1].z - run[i].z);
+      if (len > longestLen) { longestLen = len; longest = run; }
+    }
+  }
+  if (longest) {
+    // Waypoint at the midpoint vertex of the longest road run in this chunk.
+    const mid = longest[Math.floor(longest.length / 2)];
+    registry.add({
+      kind: 'path_node',
+      position: new THREE.Vector3(mid.x, 0, mid.z),
+      footprint: 0,
+      attractor: { radius: 6, weight: 0.5 },
+      chunkKey: ctx.key,
+    });
+  }
 }
 
 // ---------- Tree scattering ----------

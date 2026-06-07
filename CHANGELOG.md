@@ -2,6 +2,37 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-07
+
+### Added
+- **v2 worldgen roads in the 3D game (behind `?worldgen=1`).** First content
+  slice wiring the 2D `src/worldgen/` generator into the live world: each chunk
+  now renders the portions of the worldgen **arterial road network** crossing it
+  as dirt ribbons, replacing the old rigid `+`-grid of trails. Each arterial is
+  one deterministic, pair-owned polyline; a chunk clips it to its own 80 m cell
+  (Liang–Barsky) and builds a ribbon that traces the *actual* worldgen vertices —
+  so adjacent chunks meet at the identical shared boundary point with the
+  identical tangent (no seam kink, verified to 0.01 m), and the rendered road
+  lands exactly where `nearestRoad`/`noBuild` reports it (one **raw** source of
+  truth). Roads are passable (no collider); NPCs get a chunk-keyed road waypoint
+  so they drift along them. Net draw delta is negative — ~1 ribbon per
+  road-bearing chunk vs the old 2 ribbons + a pad. Still **default-off**
+  (`?worldgen=1` to see it; `?worldgen=0`/no flag is the shipped world) while the
+  rest of the v2 world is built out. Part of the `v2-worldgen-3d-integration`
+  OpenSpec change (Group C).
+
+### Fixed
+- **Forest-path material was a latent shader-recompile-storm.** The shared
+  `_forestPathMat` ([forests.js](src/forests.js)) is reused by every forest
+  center chunk but was never tagged `userData.shared`, so the first forest-chunk
+  unload disposed it out from under every other forest — forcing a shader
+  recompile the next frame any forest path drew (footgun #6). Tagged it shared so
+  the chunk-unload disposal walk skips it. Surfaced while building the worldgen
+  road material (which hit the same class of bug: a `depthWrite:false` material
+  built at module-eval renders invisibly, so the road material is now created
+  lazily at chunk-generation time, mirroring how the legacy per-chunk path
+  material has always been built).
+
 ## 2026-06-06
 
 ### Added
