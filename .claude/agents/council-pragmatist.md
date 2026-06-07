@@ -69,7 +69,7 @@ sections:
     [What must happen in sequence, and why]
 
     ### Deferred / Park on ROADMAP
-    (Between Priority Sequence and Anticipated Tensions)
+    (Between Priority Sequence and Verdict)
     -   [Task]: [Why it can wait — what's NOT blocked by deferring it]
 
     ### Incremental Delivery Plan

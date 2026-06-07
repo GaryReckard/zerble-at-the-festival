@@ -68,7 +68,7 @@ You prioritize **finding what breaks**. Your lens:
 
 **Load the `council-protocol` skill** before starting. Write your output to
 `OUTPUT_PATH` using its Deliberation Output Structure. Your domain-specific
-section (between Priority Sequence and Anticipated Tensions):
+section (between Priority Sequence and Verdict):
 
     ### Vulnerabilities Found
     -   **[Vulnerability]**: [How it breaks, and on which browser/tier/lifecycle moment] — Severity: [Critical/High/Medium/Low]

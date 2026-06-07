@@ -65,7 +65,7 @@ You prioritize **maximum impact with minimum surface area**. Your lens:
 
 **Load the `council-protocol` skill** before starting. Write your output to
 `OUTPUT_PATH` using its Deliberation Output Structure. Your domain-specific
-section (between Priority Sequence and Anticipated Tensions):
+section (between Priority Sequence and Verdict):
 
     ### Alternative Approach
 

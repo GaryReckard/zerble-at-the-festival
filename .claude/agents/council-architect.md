@@ -81,7 +81,7 @@ You prioritize **structural soundness** over speed or novelty. Your lens:
 
 **Load the `council-protocol` skill** before starting. Write your output to
 `OUTPUT_PATH` using its Deliberation Output Structure. Your domain-specific
-sections (between Priority Sequence and Anticipated Tensions):
+sections (between Priority Sequence and Verdict):
 
     ### Structural Risks Identified
 
