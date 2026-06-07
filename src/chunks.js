@@ -60,35 +60,32 @@ const SPAWN_JUG_SALT = 0x5A17B0BB | 0;
 const POTTY_SALT = 0x9E3779B1 | 0;
 
 // World-spawn point (zerble.position in main.js). The guaranteed intro jugs ring
-// around here.
+// around here. Mutable: with v2 worldgen, main.js relocates spawn to the nearest
+// major heart's entrance arch and calls setSpawnPoint BEFORE the ChunkManager is
+// built, so the intro jugs ring the real arrival point, not the legacy origin.
 const SPAWN_POINT = { x: 0, z: 65 };
+export function setSpawnPoint(x, z) { SPAWN_POINT.x = x; SPAWN_POINT.z = z; }
 
-// A couple of guaranteed bubble-juice jugs near world-spawn, so a new player
-// meets the pickup early and doesn't run dry before stumbling on a random one.
-// Positions are session-seeded — a different spot every load, fixed under
-// ?seed= — within a 25–60m ring around spawn (random direction, not parked in
-// front of the cart). Dropped when their containing chunk first generates; with
-// a 25–60m radius those all sit inside the boot-load ring, so they're present
-// from the start. The rare per-chunk scatter (scatterBubbleJugs) still runs
-// everywhere on top of these.
+// Guaranteed bubble-juice jugs near world-spawn, so a new player meets the pickup
+// early and doesn't run dry before stumbling on a random one. Positions are
+// session-seeded — a different spread every load, fixed under ?seed= — fanned
+// around spawn at distinct angles within a 22–58m ring (so they don't clump or
+// park in front of the cart). Dropped when their containing chunk first generates;
+// that ring sits inside the boot-load ring, so they're present from the start. The
+// rare per-chunk scatter (scatterBubbleJugs) still runs everywhere on top of these.
+const SPAWN_JUG_COUNT = 4;   // bumped from 2 — a more generous welcome at the arrival heart
 function computeSpawnJugTargets() {
   const u = (a, b) => worldHash(a, b, SPAWN_JUG_SALT) / 4294967296;
   const jugs = [];
-  for (let i = 0; i < 2; i++) {
-    const ang = u(8101 + i, 3) * Math.PI * 2;
-    const rad = 25 + u(4099, 19 + i) * 35;           // 25–60 m
+  for (let i = 0; i < SPAWN_JUG_COUNT; i++) {
+    // Even angular fan + per-jug jitter so they encircle the arrival, never clump.
+    const ang = (i / SPAWN_JUG_COUNT) * Math.PI * 2 + (u(8101 + i, 3) - 0.5) * 1.1;
+    const rad = 22 + u(4099, 19 + i) * 36;           // 22–58 m
     jugs.push({
       x: SPAWN_POINT.x + Math.cos(ang) * rad,
       z: SPAWN_POINT.z + Math.sin(ang) * rad,
       placed: false,
     });
-  }
-  // Keep the two from clumping: if they land close, swing the second around.
-  const dx = jugs[1].x - jugs[0].x, dz = jugs[1].z - jugs[0].z;
-  if (dx * dx + dz * dz < 20 * 20) {
-    const ang = Math.atan2(jugs[1].z - SPAWN_POINT.z, jugs[1].x - SPAWN_POINT.x) + 2.3;
-    jugs[1].x = SPAWN_POINT.x + Math.cos(ang) * 45;
-    jugs[1].z = SPAWN_POINT.z + Math.sin(ang) * 45;
   }
   return jugs;
 }
@@ -527,10 +524,19 @@ export class ChunkManager {
       const free = (px, pz) => !registry.closestBuilding(new THREE.Vector3(px, 0, pz), 3) && !isPointInLake(px, pz);
       let x = j.x, z = j.z;
       if (!free(x, z)) {
-        const spot = [[5, 0], [-5, 0], [0, 5], [0, -5], [7, 7], [-7, -7], [7, -7], [-7, 7]]
-          .map(([ox, oz]) => [j.x + ox, j.z + oz])
-          .find(([px, pz]) => free(px, pz));
-        if (!spot) continue;   // no clear spot nearby — skip cleanly (rare)
+        // Spiral out (deterministic ring sweep) for a clear gap. A v2 spawn sits at
+        // a dense festival heart, so the old ±7m offsets weren't enough — search to
+        // ~26m so the welcome jug lands in a gap between stalls rather than vanishing.
+        let spot = null;
+        for (const r of [5, 9, 14, 20, 26]) {
+          for (let k = 0; k < 8 && !spot; k++) {
+            const a = (k / 8) * Math.PI * 2;
+            const px = j.x + Math.cos(a) * r, pz = j.z + Math.sin(a) * r;
+            if (free(px, pz)) spot = [px, pz];
+          }
+          if (spot) break;
+        }
+        if (!spot) continue;   // no clear spot within range — skip cleanly (rare)
         x = spot[0]; z = spot[1];
       }
       const jug = buildBubbleJug();

@@ -317,3 +317,25 @@ console errors. Self-test 24/24 (queryPoint 63c8dea2, POI f8dc276d). Per-chunk D
 **Refs:** -> R16 (ownership scan), R19 (clusterSeed rng-regime), R22 (no boot crash), R29 (shack shared).
 Next: D2.6 spawn-at-heart (the visible win — relocate Zerble to the nearest major's arch); then D2.4 filler /
 D2.7 quantize sign-off / D2.8 all-tier boot + browser POI golden; then /smart-review.
+
+### 2026-06-07 — D2.6: spawn at the festival heart (the visible win)
+**Intent:** Relocate spawn from the legacy (0,65) to the nearest major heart's arch facing the stage
+(Gary: arch + stage + lights + more jugs), iOS-safe (before Sound.init).
+**Result:** `main.js` module-eval block (after the seed IIFE, before the title tap): `nearestMajorHeart(0,0)`
+→ `festivalPlan` → spawn 14m beyond the arch facing the stage; `setSpawnPoint` + intro jugs 2→4 fanned;
+`_placeSpawnJugs` spirals to ~26m for a clear gap. **Found:** spawn landed IN a legacy lake (the worldgen
+arch avoids worldgen lakes, but the rendered water is still legacy LakeManager — the interim dual-lake
+mismatch). Added a post-`buildWorld` nudge: walk forward (toward the dry-shore stage) out of any lake.
+**Verified (seed 1234):** spawn (724,-207) on dry shore facing the festival (stage + vendor row + trucks +
+2 jugs around), ZERO console errors; `?worldgen=0` unchanged ((0,65), clean). Self-test 24/24
+(queryPoint 63c8dea2, POI f8dc276d).
+**KEY INTERIM ISSUE (raises Group E's priority):** the legacy LakeManager lakes ≠ worldgen lakes, so in the
+v2 path RIGHT NOW the rendered water can (a) eat festival clusters near a legacy shore (the lake-guard fix
+mitigates the court/row case; isPointInLake still skips a cluster IN legacy water) and (b) put spawn in
+water (mitigated by the nudge). **Group E (lakes → worldgen) is the clean fix** and should arguably come
+before more festival polish — once the rendered water == worldgen water, festival.js's noBuild planning and
+the in-game water line up, and the spawn-nudge + cluster-skips become unnecessary.
+**Changed:** src/main.js (imports + spawn-at-heart block + post-buildWorld nudge), src/chunks.js
+(setSpawnPoint + 4 jugs + wider _placeSpawnJugs search), CHANGELOG.md, tasks.md (D2.6 ✓), session-log.
+**Refs:** -> D-O, R31 (iOS — module-eval not gesture), R27 (clearance veto deferred). Next: D2.4 filler /
+D2.7 quantize sign-off / D2.8 all-tier boot + browser POI golden / Group E (lakes) / /smart-review / ARCHITECTURE.

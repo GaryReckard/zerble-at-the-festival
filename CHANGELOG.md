@@ -5,6 +5,18 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-07
 
 ### Changed
+- **v2 spawn now drops you AT a festival (behind `?worldgen=1`) — outside a major
+  heart's entrance arch, facing its main stage.** Instead of the legacy fixed
+  `(0,65)`, the game finds the nearest major heart to origin and relocates Zerble
+  just beyond its arch facing the stage, so you drive in through the gateway into a
+  live festival — the main stage, string lights, food-truck court, and vendor street
+  are right there from frame one. The guaranteed welcome jugs (bumped 2 → 4, fanned
+  around the arrival) ring the new spawn, and the spawn-jug placement now spirals out
+  to ~26m to find a clear gap between stalls rather than giving up in a dense core.
+  (Interim: until the lakes layer is swapped to worldgen, a legacy lake can overlap
+  the planned spawn, so the spawn nudges forward onto dry shore if it lands in water.)
+  `?worldgen=0` is unchanged (still spawns at the origin stage). Part of the
+  `v2-worldgen-3d-integration` change (CG3, D2.6).
 - **v2 festival now places structured, feature-anchored CLUSTERS in-game (behind
   `?worldgen=1`) — the redesign replacing the Group-D random scatter.** Where Group
   D sprinkled single props per chunk (solo sugar shacks, drum circles on arbitrary

@@ -19,7 +19,7 @@ import { Touch } from './touch.js';
 import { HUD } from './hud.js';
 import { buildWorld, updateWorld, getTimeOfDay } from './world.js';
 import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
-import { lakeAnimatables, setLakeNightness } from './lakes.js';
+import { lakeAnimatables, setLakeNightness, isPointInLake } from './lakes.js';
 import { updateCampsiteProps } from './models/campsite.js';
 import { updatePortaPotty } from './models/portaPotty.js';
 import { updateLeafDrumCircle } from './models/leafDrumCircle.js';
@@ -45,7 +45,10 @@ import {
   Frisbees,
 } from './obstacles.js';
 import { installDebug, shouldRunFrame, isGod, npcsFrozen } from './debug.js';
-import { PERF } from './perf.js';
+import { PERF, USE_WORLDGEN_V2 } from './perf.js';
+import { setSpawnPoint } from './chunks.js';
+import { nearestMajorHeart } from './worldgen/hearts.js';
+import { festivalPlan } from './worldgen/festival.js';
 import { Trip } from './trip.js';
 import { Analytics } from './analytics.js';
 import * as ContextLights from './contextLights.js';
@@ -203,6 +206,30 @@ zerble.position.set(0, 0, 65);
 zerble.heading = 0;
 scene.add(zerble.root);
 
+// v2 worldgen: spawn at the nearest MAJOR heart's entrance arch, facing its main
+// stage — the "drive in through the arch into the festival" arrival, instead of the
+// legacy fixed (0,65). Runs at module-eval (the session seed is already resolved
+// above; this is NOT inside the title-tap handler, so it never pushes Sound.init off
+// the synchronous gesture — iOS audio tripwire / R31). The arch + stage + string
+// lights come free from that heart's festivalPlan (built when its chunk loads).
+// Falls back to the pinned (0,65) spawn if no major heart / arch resolves.
+if (USE_WORLDGEN_V2) {
+  const heart = nearestMajorHeart(0, 0);
+  const plan = heart ? festivalPlan(heart) : [];
+  const stage = plan.find((p) => p.kind === 'main_stage' || p.kind === 'side_stage');
+  const arch = plan.find((p) => p.kind === 'arch');
+  if (stage && arch) {
+    // Spawn just OUTSIDE the arch (away from the stage), facing the stage so driving
+    // forward carries you through the arch toward the main stage.
+    let ox = arch.x - stage.x, oz = arch.z - stage.z;
+    const ol = Math.hypot(ox, oz) || 1; ox /= ol; oz /= ol;
+    const sx = Math.round(arch.x + ox * 14), sz = Math.round(arch.z + oz * 14);
+    zerble.position.set(sx, 0, sz);
+    zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));  // forward = (-sin,-cos)
+    setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs around the real arrival
+  }
+}
+
 const bubbles = new Bubbles();
 scene.add(bubbles.mesh);
 
@@ -230,6 +257,20 @@ Sound.onSongEnd((x, z) => {
 
 // ---------- World (sky/lights/ground/mountains + chunk manager) ----------
 buildWorld(scene, crowd);
+
+// Spawn-safety: the legacy LakeManager (until Group E swaps lakes to worldgen)
+// can render water where the worldgen-planned heart spawn sits — the worldgen arch
+// avoids WORLDGEN lakes, but the rendered water is still the legacy macrocell lakes,
+// which can overlap. Now that lakes exist, if spawn landed in water, walk forward
+// (toward the stage, which is on dry shore) until clear so the player never starts
+// mid-lake. (Interim — Group E removes the dual-lake mismatch entirely.)
+if (USE_WORLDGEN_V2 && isPointInLake(zerble.position.x, zerble.position.z)) {
+  const fx = -Math.sin(zerble.heading), fz = -Math.cos(zerble.heading);
+  for (let d = 6; d <= 140; d += 6) {
+    const nx = zerble.position.x + fx * d, nz = zerble.position.z + fz * d;
+    if (!isPointInLake(nx, nz)) { zerble.position.set(nx, 0, nz); break; }
+  }
+}
 
 // ---------- Lurleen (love interest, persistent across the world) ----------
 const lurleen = new Lurleen(scene);
