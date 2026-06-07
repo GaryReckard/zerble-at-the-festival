@@ -18,8 +18,9 @@ import * as THREE from 'three';
 import { registry } from './registry.js';
 import { hash2, worldHash, mulberry32 } from './rng.js';
 import { Sound } from './sound.js';
-import { PERF } from './perf.js';
+import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { register as registerContextLight } from './contextLights.js';
+import { placeChunkProps } from './worldgen/placement.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
 import { buildCampsite, buildCampChair } from './models/campsite.js';
@@ -402,19 +403,44 @@ export class ChunkManager {
 
   _generate(cx, cz) {
     const key = chunkKey(cx, cz);
-    // Forests preempt the normal theme: if this chunk is part of a forest's
-    // 3x3 block, we hand it off to forests.js entirely (which builds dense
-    // trees + perimeter colliders + — eventually — the clearing).
-    const forest = getForestAt(cx, cz);
-    const theme = forest ? 'forest' : pickTheme(cx, cz);
     const group = new THREE.Group();
-    group.name = `chunk(${cx},${cz},${theme})`;
 
     // Origin chunk (the main stage + entrance arch) is intentionally pinned
     // across sessions — its rng uses pure hash2, ignoring the session seed.
     // Every other chunk's props re-roll with the seed via worldHash.
     const isOriginChunk = (cx === 0 && cz === 0);
     const chunkSeed = isOriginChunk ? hash2(cx, cz) : worldHash(cx, cz);
+
+    // ── v2 worldgen path (USE_WORLDGEN_V2, default ON; ?worldgen=0 → legacy) ──
+    // A SINGLE branch (R10): the legacy +-grid / pickTheme / THEME_BUILDERS /
+    // 5x5 forests / path_node attractors do NOT co-run with v2. Built up across
+    // Groups C (roads) / D (anchors+scatter) / F (trees) / G (crowd); Group B
+    // ships it empty to prove the buildWorld → _generate → placement wiring
+    // boots clean (R2) before any content lands.
+    if (USE_WORLDGEN_V2) {
+      group.name = `chunk-v2(${cx},${cz})`;
+      const ctx = {
+        cx, cz, key,
+        cxWorld: cx * CHUNK_SIZE,
+        czWorld: cz * CHUNK_SIZE,
+        rng: mulberry32(chunkSeed),
+        group,
+        crowd: this.crowd,
+      };
+      this._generateWorldgen(ctx);
+      this._placeSpawnJugs(ctx);   // intro pickups near spawn stay (theme-independent)
+      this.scene.add(group);
+      this.loaded.set(key, { group, cx, cz, theme: 'worldgen' });
+      return;
+    }
+
+    // ── v1 legacy path (?worldgen=0) — the per-chunk theme dice roll ──────────
+    // Forests preempt the normal theme: if this chunk is part of a forest's
+    // 3x3 block, we hand it off to forests.js entirely (which builds dense
+    // trees + perimeter colliders + — eventually — the clearing).
+    const forest = getForestAt(cx, cz);
+    const theme = forest ? 'forest' : pickTheme(cx, cz);
+    group.name = `chunk(${cx},${cz},${theme})`;
     const ctx = {
       cx, cz, key,
       theme,
@@ -468,6 +494,17 @@ export class ChunkManager {
 
     this.scene.add(group);
     this.loaded.set(key, { group, cx, cz, theme });
+  }
+
+  // v2 worldgen-driven chunk content. Built incrementally:
+  //   Group C — chunk-clipped RAW arterial road ribbons
+  //   Group D — heart anchors (center chunk) + role×rank scatter (placement.js)
+  //   Group F — treeDensity tree scatter (clamped to the old ~80/chunk cap)
+  //   Group G — heart-influence-weighted ambient crowd
+  // Group B (now): empty — proves the wiring boots clean before content lands.
+  _generateWorldgen(ctx) {
+    const props = placeChunkProps(ctx.cx, ctx.cz, CHUNK_SIZE);   // [] until Group D
+    void props;
   }
 
   // Drop any guaranteed near-spawn jug whose seeded target lands in this chunk.

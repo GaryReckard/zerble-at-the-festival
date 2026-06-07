@@ -20,12 +20,14 @@ ref: procedural-map-generator change (2D generator + sandbox, complete); ROADMAP
 **Phase:** APPLY. Artifacts done (proposal/design/specs/tasks); `/deliberate` complete
 (5 council + mediator, synthesis — all "Proceed with mitigations", 0 blocks; results.md
 folded into tasks.md as Groups A–I). Group A (paperwork) done. Now implementing.
-**Doing:** Group B — scaffolding (importmap-in-both, `USE_WORLDGEN_V2` flag, `placement.js`
-skeleton, reserved salt, empty-placement boot smoke test).
-**Resolved delivery order:** A(paperwork ✓) → **B scaffold** → C roads → D placement →
+**Doing:** Group B DONE (scaffolding verified). Starting Group C (roads).
+**Resolved delivery order:** A(paperwork ✓) → B scaffold ✓ → **C roads** → D placement →
 E lakes → F forests → G crowd → H gates → I docs. Junction-merge DEFERRED to a 2D-only
 fast-follow change.
-**Next:** B.1 importmap → B.2 flag → B.3 placement.js skeleton → B.5 empty-boot smoke test.
+**Flag:** `DEFAULT_WORLDGEN_V2 = false` in perf.js (legacy ships by default while building);
+test v2 with `?worldgen=1`; flip default to true at landing (task I.0).
+**Next:** Group C — chunk-clipped RAW arterial road ribbons (C.1 ROAD_MAT shared, C.2 clip+
+ribbon replacing placePaths, C.3 single-branch + chunk-keyed road attractor, C.4 budget+seam).
 **Blocked:** Nothing.
 **Binding apply-gates (the 6 High/Critical risks):** R1 road source-of-truth=RAW (done in
 design), R2 heart-anchor boot crash, R3 forest ~80/chunk cap, R4 (roleTier,rank) tuple key,
@@ -103,3 +105,29 @@ Did Group A (paperwork): D-I REVISED in design.md, append-only/self-test-green r
 **Changed:** design.md (D-I REVISED), tasks.md (rewritten as Groups A–I), session-log.md;
 deliberations/001-initial/{briefing,council-*,results}.md.
 **Refs:** -> D6; results.md Risk Register R1–R15 (R1–R6 are binding gates). Next: Group B.
+
+### 2026-06-06 — Group B: scaffolding (flag + importmap + placement.js + empty-boot)
+**Intent:** Land the force-multiplier scaffolding gate so all content groups have a clean,
+flag-gated, boots-clean foundation (Group B; R2/R10/footgun #1/#4).
+**Result:**
+- B.1: added all 8 `src/worldgen/*` + `worldgen/placement` to the importmap `mods` array in
+  BOTH index.html AND sandbox.html (was 0/8).
+- B.2: `USE_WORLDGEN_V2` in perf.js — resolved once at module load; `DEFAULT_WORLDGEN_V2=false`
+  (legacy ships by default while building; flip at landing I.0); `?worldgen=1`/`=0` override.
+  Chose default OFF over the design's "default ON for dev" for production safety (the deploy is
+  observed by real players; a half-empty v2 world must never ship by accident).
+- B.3: `src/worldgen/placement.js` skeleton — pure + three-free (no `three`/`models` import),
+  returns []; landed `isHeartCenterChunk` (R2/D-C) + `ROLE_THEME` (roleTier×rank) table stub
+  with the R4 axis-collision warning in the header.
+- B.4: reserved `SALT.placement = 0x4D41_0A` (fresh stream, footgun #4).
+- B.5: restructured `chunks.js _generate` into a SINGLE `if (USE_WORLDGEN_V2)` branch (R10) →
+  `_generateWorldgen(ctx)` (empty for now); legacy path fully under `else`.
+**Verified:** syntax OK (perf/placement/chunks); worldgen self-test 20/20 green, golden
+**63c8dea2 unchanged** (placement.js inert to the contract). Booted the REAL game:
+`?worldgen=1` → v2 empty path, registry `chunkThemedPresent: []` (no stage/tent/truck/tree/
+path_node/chair/drum/hammock/picnic), only LakeManager+obstacles+spawn-jugs; `?worldgen=0` →
+full legacy world (stage 39, tent 65, tree 209, path_node 26, … 6748 entries). BOTH boot with
+**zero console errors**. Screenshot captured.
+**Changed:** index.html, sandbox.html, src/perf.js, src/worldgen/{constants,placement}.js,
+src/chunks.js; openspec change docs (tasks B✓ + I.0, HANDOFF, session-log).
+**Refs:** -> R2 (empty-boot gate passed), R10 (single branch), footgun #1/#4. Next: Group C roads.

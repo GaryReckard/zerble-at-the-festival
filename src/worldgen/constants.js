@@ -73,4 +73,5 @@ export const SALT = {
   density:     0x4D41_06,
   roadProxy:   0x4D41_08,   // dead-centre fallback angle for a lake-heart's shore proxy
   roadSide:    0x4D41_09,   // which way a detour wraps a lake when both ways are equal
+  placement:   0x4D41_0A,   // 3D placement jitter (placement.js) — fresh stream, no collision
 };

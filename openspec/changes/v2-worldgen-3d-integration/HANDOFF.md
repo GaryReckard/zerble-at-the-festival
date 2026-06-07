@@ -12,13 +12,17 @@ Wiring the verified, deterministic 2D `src/worldgen/` generator (built by the
 `procedural-map-generator` change) into the **live 3D game** as v2 worldgen — the
 ROADMAP "big one." Full OpenSpec pipeline so far: `/opsx:ff` (proposal/design/specs/
 tasks) → tier-3 `/deliberate` (5 council + mediator, all "Proceed with mitigations",
-results folded into tasks as Groups A–I). **Group A (paperwork) is DONE.** Next is
-**Group B (scaffolding)** — no code written into the game yet. Everything ships behind
-a `USE_WORLDGEN_V2` flag (`?worldgen=0` disables).
+results folded into tasks as Groups A–I). **Groups A (paperwork) + B (scaffolding) are
+DONE** (the `_generate` v2 branch boots empty + clean; flag toggles verified). Next is
+**Group C (roads)**. Flag lives in perf.js: **`DEFAULT_WORLDGEN_V2 = false`** (legacy ships
+by default while building) — test v2 with **`?worldgen=1`**, force legacy with `?worldgen=0`.
+Flip the default to `true` at landing (task I.0) once the world is populated + verified, so the
+production deploy never shows a half-empty v2 world.
 
 Committed on branch `procedural-map-generator`:
 - `68b22eb` — the 2D road/forest refinement (lake-heart proxy + route-around + tree-dots).
 - `4a1742a` — this change's planning artifacts + deliberation.
+- (HANDOFF doc) + a Group-B scaffolding commit.
 
 ## The endeavor, in one screen
 
@@ -42,7 +46,8 @@ sampler — NOT a separate heart lifecycle manager (D-A, endorsed by all 5 counc
 python3 .claude/serve_nocache.py 8765   (or preview_start name "zerble")
 ```
 - 3D game: `http://127.0.0.1:8765/` — boot via title button OR `__dbg.start()`.
-  Force a tier: `?perf=low|mid|high`. Disable v2: `?worldgen=0`.
+  Force a tier: `?perf=low|mid|high`. **Enable v2: `?worldgen=1`** (default OFF while building;
+  `?worldgen=0` forces legacy). Boot smoke test = test BOTH `?worldgen=1` and `?worldgen=0`.
 - 2D worldgen sandbox: `http://127.0.0.1:8765/map-sandbox.html?seed=1234`.
 - Per-entity 3D sandbox: `http://127.0.0.1:8765/sandbox.html?entity=<name>`.
 - Headless self-test: `node --input-type=module -e "import('./src/worldgen/selftest.js').then(m=>{const r=m.runSelfTest();console.log(r.pass,r.goldenHash)})"`

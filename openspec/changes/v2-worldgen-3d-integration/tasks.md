@@ -13,12 +13,12 @@
 
 ## B. Scaffolding / flag / importmap / salt / empty-placement boot (force-multiplier gate)
 
-- [ ] B.1 Add all 8 `src/worldgen/*` modules (`constants,hearts,water,roads,density,roles,index,selftest`) to the importmap `mods` array in BOTH `index.html` AND `sandbox.html` (today 0/8 present in either); confirm the cache-buster resolves nested `worldgen/index` paths (mirror `map-sandbox.html`). (R6-adjacent, footgun #1)
-- [ ] B.2 Add `USE_WORLDGEN_V2` flag — resolved ONCE at module load (const + `?worldgen=0` override), read once per chunk, never per-placement-point.
-- [ ] B.3 Create `src/worldgen/placement.js` — pure + three-free (lives in `src/worldgen/`, returns plain descriptors `{kind,localX,localZ,yaw,footprint,...}` only; MUST NOT import `three` or `models/*`). Add `worldgen/placement` to BOTH importmaps in the same commit it's created. (R-architecture)
-- [ ] B.4 Reserve `placement.js`'s jitter salt as a named constant in the `0x4D41_xx` worldgen `SALT` namespace (constants.js) with a header comment asserting non-collision with theme=1 / STYLE_SALT / SPAWN_JUG_SALT / POTTY_SALT. (footgun #4)
-- [ ] B.5 Empty-placement boot smoke test: flag ON + a stubbed placement that places NOTHING → prove `_generate → placement` runs empty without crashing; `?worldgen=0` → byte-for-byte today's world; `__dbg.teleport` to a known heart-center chunk and boot there (origin (0,0) is pinned spawn, may not be a heart). (R2, sandbox-pass≠game-pass)
-- [ ] B.6 No worldgen work in the start gesture: keep seed resolution + worldgen warm-up at module-eval / inside `buildWorld`; NO await/setTimeout/cache-warm between the title tap and `Sound.init()`. (R12, footgun #3)
+- [x] B.1 Add all 8 `src/worldgen/*` modules (`constants,hearts,water,roads,density,roles,index,selftest`) to the importmap `mods` array in BOTH `index.html` AND `sandbox.html` (today 0/8 present in either); confirm the cache-buster resolves nested `worldgen/index` paths (mirror `map-sandbox.html`). (R6-adjacent, footgun #1)
+- [x] B.2 Add `USE_WORLDGEN_V2` flag — resolved ONCE at module load (const + `?worldgen=0` override), read once per chunk, never per-placement-point.
+- [x] B.3 Create `src/worldgen/placement.js` — pure + three-free (lives in `src/worldgen/`, returns plain descriptors `{kind,localX,localZ,yaw,footprint,...}` only; MUST NOT import `three` or `models/*`). Add `worldgen/placement` to BOTH importmaps in the same commit it's created. (R-architecture)
+- [x] B.4 Reserve `placement.js`'s jitter salt as a named constant in the `0x4D41_xx` worldgen `SALT` namespace (constants.js) with a header comment asserting non-collision with theme=1 / STYLE_SALT / SPAWN_JUG_SALT / POTTY_SALT. (footgun #4)
+- [x] B.5 Empty-placement boot smoke test: flag ON + a stubbed placement that places NOTHING → prove `_generate → placement` runs empty without crashing; `?worldgen=0` → byte-for-byte today's world; `__dbg.teleport` to a known heart-center chunk and boot there (origin (0,0) is pinned spawn, may not be a heart). (R2, sandbox-pass≠game-pass)
+- [x] B.6 No worldgen work in the start gesture: keep seed resolution + worldgen warm-up at module-eval / inside `buildWorld`; NO await/setTimeout/cache-warm between the title tap and `Sound.init()`. (R12, footgun #3)
 
 ## C. Roads — chunk-clipped RAW arterial ribbons (biggest visible win)
 
@@ -65,6 +65,7 @@
 
 ## I. Verify / review / docs / landing
 
+- [ ] I.0 Flip `DEFAULT_WORLDGEN_V2` to `true` in perf.js (v2 becomes the default world) — ONLY after the world is populated + verified at all tiers. Until then legacy ships by default; test v2 with `?worldgen=1`.
 - [ ] I.1 Run `/opsx:verify` against these artifacts.
 - [ ] I.2 Run `/smart-review` (rendering, performance, gameplay, audio, sandbox, docs); fix findings. Any NEW road/junction MESH builder needs a `sandbox.html` entry per the new-model checklist; `placement.js` is pure data (its surface = map-sandbox `wouldHost` inspector + the booted game).
 - [ ] I.3 Final boot smoke test at all tiers (title → start → ~2.5s → `preview_console_logs` clean → screenshot at noon + midnight).
