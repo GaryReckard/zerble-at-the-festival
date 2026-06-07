@@ -25,7 +25,7 @@
     const base = './src/';
     const wg = ['rng', 'worldgen/constants', 'worldgen/hearts', 'worldgen/water',
       'worldgen/roads', 'worldgen/roles', 'worldgen/density', 'worldgen/index',
-      'worldgen/selftest'];
+      'worldgen/selftest', 'worldgen/festival'];
     const imports = {};
     for (const m of wg) imports[base + m + '.js'] = base + m + '.js' + v;
     const im = document.createElement('script');
@@ -85,6 +85,7 @@
     <label><input type="checkbox" id="ly-water" checked /> water (lakes)</label>
     <label><input type="checkbox" id="ly-density" checked /> forests</label>
     <label><input type="checkbox" id="ly-roles" /> role tiers</label>
+    <label><input type="checkbox" id="ly-festival" checked /> festival (POIs — D2)</label>
     <label><input type="checkbox" id="ly-grid" checked /> heart-cell grid</label>
     <hr />
     <div class="row"><button id="btn-reset">reset view</button><button id="btn-selftest">self-test</button></div>
@@ -101,6 +102,7 @@
 
 <script type="module">
 import { setSeed, getSeed, queryPoint, queryRegion } from './src/worldgen/index.js';
+import { festivalPlan, campVillagesNear } from './src/worldgen/festival.js';
 import { treeDensity } from './src/worldgen/density.js';
 import { runSelfTest } from './src/worldgen/selftest.js';
 import { CONFIG, bumpWorldgen } from './src/worldgen/constants.js';
@@ -112,7 +114,7 @@ const ctx = cv.getContext('2d');
 // --- view state (world coords at screen center + pixels-per-meter zoom) ------
 const DEFAULTS = { cx: 0, cz: 0, zoom: 0.06 };   // zoomed out to read macro structure
 const view = { ...DEFAULTS };
-const layers = { hearts: true, roads: true, water: true, density: true, roles: false, grid: true };
+const layers = { hearts: true, roads: true, water: true, density: true, roles: false, festival: true, grid: true };
 let dirty = true;
 let lastInspect = null;
 
@@ -262,6 +264,53 @@ function draw() {
     }
   }
 
+  // festival POIs (D2 — the cluster LAYOUT festivalPlan produces, drawn as
+  // features so the spatial arrangement is visible, not a text readout). Each
+  // heart in view contributes its plan; villages come from the coarse grid.
+  if (layers.festival) {
+    const z = view.zoom;
+    const pois = [];
+    for (const ht of region.hearts) for (const p of festivalPlan(ht)) pois.push(p);
+    for (const v of campVillagesNear(b)) pois.push(v);
+    for (const p of pois) {
+      const x = w2sx(p.x), y = w2sy(p.z);
+      const fr = Math.max(2, p.footprint * z);   // footprint ring radius in px
+      // yaw → a short orientation tick (local +Z = (sin,cos)); the row aligns to it.
+      const dirx = Math.sin(p.yaw), diry = Math.cos(p.yaw);
+      if (p.kind === 'main_stage' || p.kind === 'side_stage') {
+        ctx.fillStyle = '#ffd24a';
+        const s = p.kind === 'main_stage' ? 6 : 4;
+        ctx.fillRect(x - s, y - s, s * 2, s * 2);
+        ctx.strokeStyle = 'rgba(255,210,74,0.5)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dirx * (s + 8), y + diry * (s + 8)); ctx.stroke();  // faces road
+      } else if (p.kind === 'arch') {
+        ctx.strokeStyle = '#ff8ac0'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(x, y, 5, Math.PI, 0); ctx.stroke();
+      } else if (p.kind === 'food_court') {
+        ctx.strokeStyle = '#ff7a3b'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(x, y, Math.max(4, 14 * z), 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#ff7a3b'; ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+      } else if (p.kind === 'vendor_row') {
+        ctx.strokeStyle = '#c9a24a'; ctx.lineWidth = 3;
+        const L = Math.max(8, 16 * z);
+        ctx.beginPath(); ctx.moveTo(x - dirx * L, y - diry * L); ctx.lineTo(x + dirx * L, y + diry * L); ctx.stroke();
+      } else if (p.kind === 'bubble_vendor') {
+        ctx.fillStyle = '#5fd0ff'; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+      } else if (p.kind === 'drum_circle') {
+        ctx.fillStyle = '#ff6a2a'; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,106,42,0.6)'; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.stroke();
+      } else if (p.kind === 'porta_bank') {
+        ctx.fillStyle = '#7aa0ff'; ctx.fillRect(x - 2, y - 2, 4, 4);
+      } else if (p.kind === 'camp_village') {
+        ctx.strokeStyle = '#9ed06a'; ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath(); ctx.arc(x, y, fr, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#9ed06a'; ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
   // origin crosshair
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
   ctx.beginPath();
@@ -350,7 +399,11 @@ function inspect(wx, wz) {
 
 // --- controls ----------------------------------------------------------------
 const seedInput = document.getElementById('seed');
-seedInput.addEventListener('change', () => { setSeed(seedInput.value); markDirty(); writeURL(); });
+// Match the game's seed door (main.js): a pure-integer string parses as a NUMBER,
+// everything else FNV-hashes as a string — so seed "1234" here is the SAME world
+// as ?seed=1234 in the game (worldgen/index.js: the one door, or maps don't reproduce).
+function resolveSeed(raw) { return (raw !== '' && /^-?\d+$/.test(raw)) ? Number(raw) : raw; }
+seedInput.addEventListener('change', () => { setSeed(resolveSeed(seedInput.value)); markDirty(); writeURL(); });
 for (const k of Object.keys(layers)) {
   const el = document.getElementById('ly-' + k);
   if (el) el.addEventListener('change', () => { layers[k] = el.checked; markDirty(); writeURL(); });
@@ -434,7 +487,7 @@ function syncLayerCheckboxes() {
   for (const k of Object.keys(layers)) { const el = document.getElementById('ly-' + k); if (el) el.checked = layers[k]; }
 }
 readURL();
-setSeed(seedInput.value);
+setSeed(resolveSeed(seedInput.value));
 syncLayerCheckboxes();
 resize();
 tick();

@@ -256,3 +256,32 @@ CHANGELOG.md (2026-06-07 Group D), tasks.md (D.1–D.6 ✓), session-log.md (D7,
 **Refs:** -> R2 (boot crash gate passed, return-shapes per-builder), R4 (tuple key verified
 in-game), R7 (sampler under gate), R11 (anchor frame-spike accepted; split only if shown — H.3).
 Next: Group E lakes (binding gate R5 winding sign-flip).
+
+### 2026-06-07 — Festival redesign CG1: foundation + harness gates (deliberation 002)
+**Intent:** Per /deliberate 002, land the foundation BEFORE any content: the pure POI decision
+layer, the additive worldgen exports, the determinism harness (POI golden + window-invariance,
+the R18 block-release), and the map-sandbox overlay (R21 harness-first). The game stays Group-D
+behavior — festival.js isn't wired in yet — so this is a clean bootable checkpoint.
+**Result:**
+- D2.2: `roads.approachRoadsOf(heart)` (+`oriented` heart-first polyline, `fromHeart`, `lenQ`),
+  `hearts.nearestMajorHeart(x,z)` (bounded Chebyshev-ring scan, +2 rings after first hit). ZERO
+  new rng draws → golden `63c8dea2` unchanged. Verified `nearestMajorHeart(0,0)`=(701,-204)@1234.
+- D2.1: NEW pure `src/worldgen/festival.js` — `festivalPlan(heart)` (memoized, (seed,epoch)-gated)
+  + `campVillagesNear` + `poisInBounds`. Salts `poiLayout=0x4D41_0B`, `poiVillage=0x4D41_0C`.
+  Catalog: stage@center + arch on primary road + food courts/vendor rows along approach roads
+  (clusterSeed per descriptor; cellRng heart-owned) + 1 guaranteed bubble vendor + drum circle in a
+  treed off-road district cell + porta banks attached. Headless: major heart = 11 POIs, all <97m
+  reach, deterministic. (R28 purity: imports only rng/constants/index/roads.)
+- D2.0a: `selftest.js` grew `poiGoldenHash` (node **fe82f8cc**, stable) + T6 major window-invariance
+  (r28==r44). 24/24 pass; `queryPoint` golden `63c8dea2` held. R18 gate green → cluster-build unblocked.
+- D2.0b: `map-sandbox.html` `festival` overlay (stage/court/row/arch/vendor/drum/village markers);
+  `worldgen/festival` in all 3 importmaps. Verified at seed 1234 (701,-204) — clusters line the
+  approach roads as designed. **Found+fixed:** map-sandbox parsed numeric seeds as FNV strings while
+  the game parses int-first → different worlds for the same seed; added `resolveSeed` (the seed-door
+  reproduction promise). Fixed the stale chunks.js:416 "default ON" comment (R23 — flag is correctly OFF).
+**Verified:** game boots clean both flag states (festival.js not yet wired → unchanged); self-test
+24/24; map-sandbox overlay screenshot confirms designed layout.
+**Changed:** src/worldgen/{festival.js NEW, roads.js, hearts.js, constants.js, selftest.js},
+map-sandbox.html, index.html, sandbox.html, src/chunks.js (comment), CHANGELOG.md, tasks.md (D2.0a/b/1/2 ✓), session-log.
+**Refs:** -> R16-R28 (CG1 satisfies R17/R18/R20/R21/R23/R28). Next: CG2/CG3 — wire placeChunkProps
+to the plan (D2.5) + re-anchor builders with clusterSeed rng-regime (D2.1b/D2.3) + spawn-at-heart (D2.6).

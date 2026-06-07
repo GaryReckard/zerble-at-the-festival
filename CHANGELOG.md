@@ -5,6 +5,20 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-07
 
 ### Added
+- **Map-sandbox `festival` POI overlay — see the festival LAYOUT in 2D before the
+  3D build.** `map-sandbox.html` gained a `festival` layer toggle that draws the
+  planned cluster layout from the new pure `src/worldgen/festival.js` POI layer:
+  stage squares (with a road-facing tick), food-court rings, vendor-row segments
+  (aligned to the road), entrance-arch arcs, bubble-vendor/porta dots, drum-circle
+  rings, and camp-village footprint envelopes. This is the "build the harness,
+  then the feature" surface for the festival-layout redesign — a structured,
+  feature-anchored cluster system (stages/courts/vendor rows lining a heart's
+  approach roads, camp villages out in the districts) that replaces the v2 Group-D
+  per-chunk random scatter. The POI layer is render-agnostic data; the
+  determinism self-test grew a separate POI golden (`fe82f8cc` on node) + a
+  major-heart window-invariance check, and the `queryPoint` golden is unchanged
+  (`63c8dea2`). Not wired into the game yet — that's the next slice. Part of the
+  `v2-worldgen-3d-integration` OpenSpec change (festival-layout redesign, CG1).
 - **v2 worldgen festival placement — heart anchors + role×rank prop scatter
   (behind `?worldgen=1`).** The headline content slice: v2 chunks now place real
   festival content from the worldgen layout instead of the old per-chunk theme
@@ -47,6 +61,13 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   OpenSpec change (Group C).
 
 ### Fixed
+- **Map-sandbox now resolves a numeric seed the same way the game does.** Typing
+  `1234` (or `?seed=1234`) in the map sandbox FNV-hashed it as a string, so it
+  showed a *different* world than the game — which parses a pure-integer seed as a
+  number. Since the whole point of the sandbox is "tune a map here, reproduce it in
+  the game under the same seed" (the one seed door), that silently broke
+  reproduction for numeric seeds. Added a `resolveSeed` matching the game's
+  integer-first parse, so seed `1234` is now the identical world in both.
 - **Forest-path material was a latent shader-recompile-storm.** The shared
   `_forestPathMat` ([forests.js](src/forests.js)) is reused by every forest
   center chunk but was never tagged `userData.shared`, so the first forest-chunk

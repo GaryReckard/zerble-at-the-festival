@@ -105,3 +105,36 @@ export function influenceFrom(heart, dist) {
   const v = 1 - dist / heart.district;
   return v <= 0 ? 0 : v >= 1 ? 1 : v;
 }
+
+// The nearest MAJOR-rank heart to a world point — for spawn relocation (D2.2 /
+// D-O). Majors are ~4% of cells (HEART_RANK), so the nearest can sit several
+// cells out — well past `nearestHeart`'s district-sized window — which re-opens
+// the window-truncation class (R17). So this is a BOUNDED, fully-deterministic
+// Chebyshev-ring scan: expand ring by ring; once a major is found, scan two more
+// rings (a major in a farther cell ring can be Euclidean-closer in another
+// direction once jitter is applied) then stop. Same point → same heart, every
+// call (exact-integer squared-distance + (cx,cz) lexicographic tiebreak, never
+// iteration order). Returns the heart | null (no major within maxRings).
+export function nearestMajorHeart(x, z, maxRings = 28) {
+  const cell = CONFIG.HEART_CELL;
+  const qx = quantize(x), qz = quantize(z);
+  const ccx = Math.floor(qx / cell), ccz = Math.floor(qz / cell);
+  let best = null, bestSq = Infinity, stopRing = maxRings;
+  for (let ring = 0; ring <= stopRing; ring++) {
+    for (let dcz = -ring; dcz <= ring; dcz++) {
+      for (let dcx = -ring; dcx <= ring; dcx++) {
+        if (Math.max(Math.abs(dcx), Math.abs(dcz)) !== ring) continue;   // shell only
+        const h = heartInCell(ccx + dcx, ccz + dcz);
+        if (!h || h.rank !== 'major') continue;
+        const dx = qx - h.x, dz = qz - h.z, sq = dx * dx + dz * dz;
+        if (sq < bestSq ||
+            (sq === bestSq && best &&
+              (h.cx < best.cx || (h.cx === best.cx && h.cz < best.cz)))) {
+          bestSq = sq; best = h;
+        }
+      }
+    }
+    if (best && stopRing === maxRings) stopRing = Math.min(maxRings, ring + 2);
+  }
+  return best;
+}

@@ -74,4 +74,6 @@ export const SALT = {
   roadProxy:   0x4D41_08,   // dead-centre fallback angle for a lake-heart's shore proxy
   roadSide:    0x4D41_09,   // which way a detour wraps a lake when both ways are equal
   placement:   0x4D41_0A,   // 3D placement jitter (placement.js) — fresh stream, no collision
+  poiLayout:   0x4D41_0B,   // per-heart festival POI layout (festival.js) — fresh, no collision
+  poiVillage:  0x4D41_0C,   // camp-village coarse-grid placement (festival.js) — fresh, no collision
 };

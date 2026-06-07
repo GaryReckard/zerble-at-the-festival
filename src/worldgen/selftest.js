@@ -19,8 +19,9 @@
 // (the road-seam determinism proof) lands with roads.js at GATE 2 / CG3.
 
 import { setSeed, getSeed, queryPoint } from './index.js';
-import { nearestHeart } from './hearts.js';
+import { nearestHeart, nearestMajorHeart, heartsInBounds } from './hearts.js';
 import { nearestRoad } from './roads.js';
+import { festivalPlan, campVillagesNear } from './festival.js';
 import { CONFIG, heartNeighborhoodCells, roadNeighborhoodCells } from './constants.js';
 
 // Deterministic sample points (no Math.random) spread across ~±6 km.
@@ -49,6 +50,9 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
   const prevSeed = getSeed();
   const results = [];
   let goldenAcc = '';
+  let poiAcc = '';   // SEPARATE golden over the festival POI layer (D2.0a / R18) —
+                     // the queryPoint golden is additive-blind to it, so it proves
+                     // nothing about festivalPlan/nearestMajorHeart determinism.
 
   for (const s of seeds) {
     setSeed(s);
@@ -115,10 +119,40 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
       }
     }
     results.push(t5);
+
+    // T6 — major-heart window-invariance (R17): the bounded nearestMajorHeart scan
+    // must be sufficient — widening the ring cap does NOT find a closer major.
+    // Majors are ~4% so this re-opens the window-truncation class; spawn orientation
+    // forks if it isn't invariant.
+    let t6 = { name: `major window-invariance (seed ${s})`, pass: true, detail: '' };
+    for (const p of pts) {
+      const a = nearestMajorHeart(p.x, p.z, 28);
+      const b = nearestMajorHeart(p.x, p.z, 44);
+      const same = (!a) === (!b) && (!a || (a.cx === b.cx && a.cz === b.cz));
+      if (!same) {
+        t6.pass = false;
+        t6.detail = `major differs at (${p.x},${p.z}): r28 ${a ? `(${a.cx},${a.cz})` : 'null'} vs r44 ${b ? `(${b.cx},${b.cz})` : 'null'}`;
+        break;
+      }
+    }
+    results.push(t6);
+
+    // POI golden — festivalPlan per heart in a fixed box (stable cell order) +
+    // nearestMajorHeart(0,0) + camp villages. Catches cross-engine forks in the
+    // festival LAYOUT (the queryPoint golden can't see this layer). Recorded on
+    // node here; D2.8 records the browser value (a per-engine transcendental fork
+    // is expected, exactly like queryPoint's node 63c8dea2 ≠ browser a527d31e).
+    const boxHearts = heartsInBounds(-3000, -3000, 3000, 3000)
+      .slice().sort((h1, h2) => h1.cx - h2.cx || h1.cz - h2.cz);
+    for (const h of boxHearts) poiAcc += JSON.stringify(festivalPlan(h));
+    const mh = nearestMajorHeart(0, 0);
+    poiAcc += mh ? `|M${mh.cx},${mh.cz}|` : '|Mnull|';
+    poiAcc += JSON.stringify(campVillagesNear({ minX: -1500, minZ: -1500, maxX: 1500, maxZ: 1500 }));
   }
 
   setSeed(prevSeed);
   const goldenHash = fnv1a(goldenAcc);
+  const poiGoldenHash = fnv1a(poiAcc);
   const pass = results.every(r => r.pass);
-  return { pass, results, goldenHash };
+  return { pass, results, goldenHash, poiGoldenHash };
 }

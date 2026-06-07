@@ -70,6 +70,37 @@ export function heartProxy(h) {
 // Back-compat single anchor — now identical to the convergence proxy.
 export function roadAnchor(h) { return heartProxy(h); }
 
+// The roads LEADING INTO a heart — for the festival layer to line clusters along
+// a heart's streets (D2.2). For each neighbor edge: the arterial polyline, the
+// bearing it leaves the heart at, and its QUANTIZED length (a stable integer key
+// the caller sorts by to pick the "primary" approach road — never a raw-float
+// bearing compare, which forks cross-engine; R20). A pure compose of
+// neighborsOf + arterial + heartProxy — introduces NO new rng draws (heartProxy
+// may read the existing SALT.roadProxy for a lake-centre heart). Returns [] for a
+// heart with no dry roads. The polyline is canonical-ordered (lexLess A<=B), so
+// it may run heart->neighbor OR neighbor->heart; we match the end nearest the
+// heart's proxy (the two ends are a full edge apart, so "nearest" is unambiguous
+// and integer-exact).
+export function approachRoadsOf(heart) {
+  const origin = heartProxy(heart);
+  const out = [];
+  for (const nb of neighborsOf(heart)) {
+    const poly = arterial(heart, nb);
+    if (!poly || poly.length < 2) continue;
+    const n = poly.length;
+    const dHead = (poly[0].x - origin.x) ** 2 + (poly[0].z - origin.z) ** 2;
+    const dTail = (poly[n - 1].x - origin.x) ** 2 + (poly[n - 1].z - origin.z) ** 2;
+    const headIsHeart = dHead <= dTail;
+    const oriented = headIsHeart ? poly : poly.slice().reverse();   // heart-first
+    const p0 = oriented[0], p1 = oriented[1];
+    const bearing = Math.atan2(p1.z - p0.z, p1.x - p0.x);
+    let len = 0;
+    for (let i = 0; i < n - 1; i++) len += Math.hypot(poly[i + 1].x - poly[i].x, poly[i + 1].z - poly[i].z);
+    out.push({ neighbor: nb, polyline: poly, oriented, fromHeart: { x: p0.x, z: p0.z }, bearing, lenQ: quantize(len) });
+  }
+  return out;
+}
+
 // True if any point along a polyline (sampled densely BETWEEN vertices too, so a
 // straight run can't skip over a small lake) lies in open water. Quantized.
 function crossesWater(poly) {
