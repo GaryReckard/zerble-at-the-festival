@@ -91,3 +91,13 @@ parallel, isolated generator to perfect in 2D first; replacing the live pipeline
 follow-up change. The only shared code reused is the determinism primitives in
 `rng.js`, so the eventual integration inherits one seeding contract rather than a
 second, divergent one.
+
+## Decision Record
+The Tier-3 council deliberation (`deliberations/001-initial/results.md`, 2026-06-06)
+endorsed the architecture (D1–D4, D11) unanimously and reorganized the work into 5
+Change Groups around two hard gates. Per Gary's decisions (see
+`questions-for-human.md` Q1/Q4): **rivers + bridges and the mega-heart 2×2 are cut
+from this change** — kept in the spec as the target and in the contract as
+always-false stubs, deferred to the 3D-integration follow-up; **heart spacing is
+tuned by eye at GATE 1** from a medium default. `tasks.md` reflects the CG1→CG5
+implementation order.

@@ -4,6 +4,43 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
 
 ---
 
+## World generation (procedural map)
+
+The 2D map sandbox + `src/worldgen/` generator shipped 2026-06-06 (a render-agnostic,
+deterministic layout brain: hearts → roads → lobed lakes → organic gap-fill forests;
+see OpenSpec `procedural-map-generator`). It is **not yet wired into the live game.**
+What's queued, roughly in order:
+
+- **Wire the generator into the live 3D world as v2 worldgen.** This **replaces**
+  the per-chunk `+`-path grid in `chunks.js` and the placement in `lakes.js` /
+  `forests.js` (not an additive fourth water/forest system). It's a deliberate,
+  world-regenerating break (footgun #4) — themes (stages, food trucks, vendor rows,
+  porta-potty banks, campsites) get placed *per-point* from the generator's role
+  tier + heart rank + `facing` + `noBuild`, which structurally kills the
+  stages-on-roads bug and keeps actual structures off the water. Every new
+  `src/worldgen/*` module must be added to BOTH `index.html` and `sandbox.html`
+  importmap arrays at wire-in. Re-run the determinism golden-hash on Safari/Firefox
+  then (Math transcendental divergence is the cross-engine risk).
+- **Rivers + bridges.** Cut from the 2D prototype on determinism grounds
+  (river-around-heart avoidance can depend on a heart outside the local window →
+  could violate "never through a heart core"); the contract fields
+  (`onRiver`/`bridge`) already exist as stubs. Needs a river×heart window-invariance
+  gate before it lands. The payoff (driving over a bridge) is a 3D thing.
+- **Mega-heart rank** (a rare 2×2-cell super-hub with the biggest stage/court). Cut
+  from this change (the multi-cell suppression is a determinism hot-spot); rank table
+  is one constant to re-add.
+- **In-game map view.** Consume the same generator for a high-level landmark map. The
+  tuple already carries a continuous `heartInfluence` scalar so this is a read, not a
+  re-derivation.
+- **Collector + footpath road tiers.** Only arterials shipped. Footpath density feel
+  is an open question (sparse "midway" vs denser web).
+- **Map-sandbox polish:** a player-scale drive-time / traversal probe (guards the
+  "dead air" between hearts), forest-interior drum-circle clearing POIs (the "drum
+  circle nested in dense forest" we liked — deferred), and tighter lakeshore-ring
+  causeway tuning.
+
+---
+
 ## Music
 
 ### Section transitions *(polish on shipped songform)*

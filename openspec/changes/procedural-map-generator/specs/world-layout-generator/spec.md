@@ -36,6 +36,11 @@ are distributed by rank: minor, major, and a rare **mega** rank. A mega-heart SH
 occupy a 2×2 macrocell block and suppress lesser hearts within its footprint. A
 heart's rank SHALL determine its domain radius and the scale of what spawns there.
 
+> **Deferred this change:** the **mega** rank + its 2×2 suppression are NOT
+> implemented yet (minor/major only). The multi-cell suppression is a determinism
+> hot-spot; mega lands with the 3D-integration follow-up. See the proposal Decision
+> Record and questions-for-human Q4. This requirement describes the target.
+
 #### Scenario: Hearts are sparse and rank-distributed
 - **WHEN** the heart field is sampled across a large region
 - **THEN** most macrocells contain no heart, minor hearts are common, major hearts are uncommon, and mega-hearts are rare
@@ -80,6 +85,13 @@ curves that connect lakes and are routed to avoid heart cores. A river SHALL car
 no-build corridor: no prop, road-side placement, or heart core may occupy a river's
 footprint. Rivers SHALL never pass through a heart core.
 
+> **Deferred this change:** lakes ARE implemented (elongated/lobed). **Rivers are
+> NOT** — river-around-heart avoidance can depend on a heart outside the local
+> window, which would non-deterministically violate "never through a heart core";
+> it needs a window-invariance gate first. `onRiver` ships as an always-false
+> contract stub. Rivers land with the 3D-integration follow-up. See Q4 / Decision
+> Record. This clause describes the target.
+
 #### Scenario: River connects lakes and avoids hearts
 - **WHEN** a river is generated between two lakes
 - **THEN** its curve avoids every heart core and stays within the water layer
@@ -91,6 +103,10 @@ footprint. Rivers SHALL never pass through a heart core.
 ### Requirement: Bridges at road–river crossings
 Where a road crosses a river the generator SHALL produce a deterministic bridge
 marker at the crossing point, so that roads remain traversable across rivers.
+
+> **Deferred this change:** depends on rivers (above), so also NOT implemented.
+> `bridge` ships as an always-false contract stub; arterials simply don't cross
+> open water this change. Lands with rivers in the 3D-integration follow-up.
 
 #### Scenario: Crossing produces a bridge
 - **WHEN** a road segment intersects a river curve

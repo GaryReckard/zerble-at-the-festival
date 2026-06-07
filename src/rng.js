@@ -82,3 +82,68 @@ export function chunkRng(cx, cz, salt = 0) {
 export function terrainHeight(_x, _z) {
   return 0;
 }
+
+// ---------------------------------------------------------------------------
+// Worldgen determinism primitives (procedural-map-generator).
+//
+// Thin wrappers on hash2/worldHash/mulberry32 so the infinite-layout generator
+// shares ONE seeding regime with the rest of the game (footgun #4) — NOT a
+// forked hash module with its own mixing constants. Everything here takes
+// INTEGER cell coordinates; callers MUST quantize() any float before it reaches
+// a hash input or a comparison threshold, because Math.sin/cos/atan2/hypot/pow
+// are not bit-identical across V8 / JavaScriptCore / SpiderMonkey and a low-bit
+// difference that crosses a hash or a `<` would fork the layout per-engine
+// (the sandbox-pass-≠-game-pass trap at world scale).
+//
+// The salt argument carves an independent stream per layer. Pass salts from
+// worldgen/constants.js SALT — chosen to NOT collide with lakes.js / forests.js
+// salt literals so worldgen features don't spatially correlate with the
+// existing (soon-to-be-retired) lake/forest placement.
+// ---------------------------------------------------------------------------
+
+// Snap a float to an integer bucket index. `step` is the bucket size in world
+// units. Use before hashing a coordinate or comparing across a seam.
+export function quantize(v, step = 1) {
+  return Math.round(v / step) | 0;
+}
+
+// Hash of an integer macrocell coordinate (session-salted). Just worldHash with
+// a named, cell-semantics wrapper so call sites read clearly.
+export function cellHash(cx, cz, salt = 0) {
+  return worldHash(cx | 0, cz | 0, salt);
+}
+
+// Deterministic RNG seeded by a macrocell. Use for per-cell jitter / rank rolls.
+export function cellRng(cx, cz, salt = 0) {
+  return mulberry32(cellHash(cx, cz, salt));
+}
+
+// Order-independent hash of the EDGE / endpoint-PAIR between two integer cells.
+// Canonicalized to (min, max) so both sides of a region seam — and both
+// endpoints of an arterial — compute the identical value with no dependence on
+// argument order or generation order. Use to seed a road/river meander between
+// two anchors, or a crossing point on a shared chunk edge.
+export function edgeHash(ax, az, bx, bz, salt = 0) {
+  ax |= 0; az |= 0; bx |= 0; bz |= 0;
+  // total order on the two endpoints, then swap so a <= b
+  if (bx < ax || (bx === ax && bz < az)) {
+    const tx = ax, tz = az; ax = bx; az = bz; bx = tx; bz = tz;
+  }
+  const ha = worldHash(ax, az, salt);
+  const hb = worldHash(bx, bz, salt);
+  let h = Math.imul(ha ^ 0x9E3779B1, 0x85EBCA77) >>> 0;
+  h = (h ^ Math.imul(hb ^ (hb >>> 13), 0x21F0AAAD)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x735A2D97) >>> 0;
+  return (h ^ (h >>> 15)) >>> 0;
+}
+
+// Alias: an arterial/river between two anchors is seeded by its endpoint pair.
+// Same canonical operation as edgeHash — named for the pair-of-features case.
+export function pairHash(ax, az, bx, bz, salt = 0) {
+  return edgeHash(ax, az, bx, bz, salt);
+}
+
+// Deterministic RNG seeded by an endpoint pair (meander control points, etc.).
+export function pairRng(ax, az, bx, bz, salt = 0) {
+  return mulberry32(pairHash(ax, az, bx, bz, salt));
+}

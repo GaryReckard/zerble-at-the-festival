@@ -2,6 +2,30 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-06
+
+### Added
+- **World-map sandbox — a 2D top-down brain for designing the procedural
+  festival layout.** New `map-sandbox.html` + a render-agnostic `src/worldgen/`
+  module (no three.js, no DOM) that deterministically lays out an *infinite*
+  world as plain *data*: rare rank-weighted **hearts** (festival anchors —
+  minor/major) on a macrocell grid, meandering **arterial roads** connecting
+  them (routed around water), elongated/lobed **lakes** (peanut/oval/kidney, not
+  just circles), and an organic gap-filling **forest** field with tree-rings
+  hugging the lakeshores. The Canvas-2D viewer renders it across *kilometers*
+  with pan/zoom, deep-link URLs, **live tuning sliders** (drag to re-roll the
+  map), a **point inspector** (hover → role tier + what each spot would host),
+  and an on-screen **determinism self-test**. This is the planning surface for a
+  future "natural roads + intentional structure" worldgen — it intentionally
+  does **not** touch the live game yet (wiring it in is a separate change). The
+  central idea: a hierarchy of centers (à la real geography) gives an infinite
+  world intentional structure with no global plan; sparsity is the space between
+  hearts. Built spec-first via OpenSpec (`procedural-map-generator`) with a
+  tier-3 council review; determinism (footgun #4) is proven by a
+  window-invariance + negative-control + cross-engine golden-hash harness.
+  Distinct from `sandbox.html` (one model in 3D) — this is the *whole world
+  layout* in 2D top-down.
+
 ## 2026-06-05
 
 ### Added

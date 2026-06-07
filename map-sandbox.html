@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zerble — World Map Sandbox (2D)</title>
+<!--
+  Worldgen 2D top-down sandbox (procedural-map-generator change).
+  Develops + tunes the render-agnostic src/worldgen/ layout generator across
+  kilometers — the global structure the chunk-loaded 3D game can't show.
+  Canvas 2D, no three.js (sidesteps the threeShim/material-tier/shadow tripwires).
+  NOTE: distinct from sandbox.html — that's ONE model in 3D; this is the WHOLE
+  world layout in 2D top-down.
+-->
+<script>
+  // Same import-map cache-buster pattern as index.html / sandbox.html so edits
+  // to src/worldgen/*.js hot-reload on the dev server (Chrome can heuristic-
+  // cache module bodies past no-store). Localhost only; prod loads unsuffixed.
+  (function () {
+    const h = location.hostname;
+    const isLocal = h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' ||
+      h.endsWith('.local') || /^10\./.test(h) || /^192\.168\./.test(h) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.includes('claude-preview') || h.includes('happycog');
+    const v = isLocal ? '?v=' + Date.now() : '';
+    const base = './src/';
+    const wg = ['rng', 'worldgen/constants', 'worldgen/hearts', 'worldgen/water',
+      'worldgen/roads', 'worldgen/roles', 'worldgen/density', 'worldgen/index',
+      'worldgen/selftest'];
+    const imports = {};
+    for (const m of wg) imports[base + m + '.js'] = base + m + '.js' + v;
+    const im = document.createElement('script');
+    im.type = 'importmap';
+    im.textContent = JSON.stringify({ imports });
+    document.head.appendChild(im);
+  })();
+</script>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d1411;
+    font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: #cfe3d8; }
+  #map { display: block; position: fixed; inset: 0; cursor: crosshair; }
+  #panel { position: fixed; top: 10px; left: 10px; width: 230px; padding: 10px 12px;
+    background: rgba(10, 20, 16, 0.86); border: 1px solid #2c4a3c; border-radius: 8px;
+    backdrop-filter: blur(3px); }
+  #panel h1 { font-size: 12px; margin: 0 0 8px; color: #9be8c0; letter-spacing: .04em; }
+  #panel label { display: flex; align-items: center; gap: 6px; margin: 2px 0; cursor: pointer; }
+  #panel input[type=text] { width: 120px; background: #07110d; color: #cfe3d8;
+    border: 1px solid #2c4a3c; border-radius: 4px; padding: 3px 5px; font: inherit; }
+  #panel .row { display: flex; align-items: center; justify-content: space-between; margin: 4px 0; }
+  #panel button { background: #15402e; color: #cfe3d8; border: 1px solid #2c6a48;
+    border-radius: 4px; padding: 4px 8px; font: inherit; cursor: pointer; }
+  #panel button:hover { background: #1d5a3f; }
+  #panel hr { border: none; border-top: 1px solid #244035; margin: 8px 0; }
+  #stats { color: #7fae97; white-space: pre; margin-top: 6px; font-size: 11px; }
+  #selftest { margin-top: 6px; font-size: 11px; white-space: pre-wrap; }
+  #inspector { position: fixed; bottom: 10px; left: 10px; max-width: 360px; padding: 8px 10px;
+    background: rgba(10, 20, 16, 0.86); border: 1px solid #2c4a3c; border-radius: 8px;
+    white-space: pre-wrap; font-size: 11px; color: #bfe0cf; }
+  #tune { position: fixed; top: 10px; right: 10px; width: 250px; max-height: calc(100vh - 20px);
+    overflow-y: auto; padding: 10px 12px; background: rgba(10, 20, 16, 0.86);
+    border: 1px solid #2c4a3c; border-radius: 8px; backdrop-filter: blur(3px); }
+  #tune h1 { font-size: 12px; margin: 0 0 8px; color: #9be8c0; letter-spacing: .04em; }
+  #tune .tr { margin: 7px 0; }
+  #tune .tr label { display: flex; justify-content: space-between; font-size: 11px; color: #a9cdb9; }
+  #tune .tr label span:last-child { color: #ffcf6a; }
+  #tune .tr input[type=range] { width: 100%; accent-color: #2c9a64; }
+  #tune .btns { display: flex; gap: 6px; margin-top: 10px; }
+  #tune .btns button { flex: 1; background: #15402e; color: #cfe3d8; border: 1px solid #2c6a48;
+    border-radius: 4px; padding: 4px 6px; font: inherit; cursor: pointer; }
+  #tune .btns button:hover { background: #1d5a3f; }
+  #tune textarea { width: 100%; height: 78px; margin-top: 6px; resize: vertical;
+    background: #07110d; color: #8fbfa3; border: 1px solid #2c4a3c; border-radius: 4px;
+    font: 10px/1.3 ui-monospace, monospace; display: none; }
+  .ok { color: #76e6a2; } .bad { color: #ff8c8c; }
+</style>
+</head>
+<body>
+  <canvas id="map"></canvas>
+  <div id="panel">
+    <h1>ZERBLE · WORLD MAP (2D)</h1>
+    <div class="row"><span>seed</span><input id="seed" type="text" value="0" /></div>
+    <label><input type="checkbox" id="ly-hearts" checked /> hearts (rank)</label>
+    <label><input type="checkbox" id="ly-roads" checked /> roads (arterial — CG3)</label>
+    <label><input type="checkbox" id="ly-water" checked /> water (lakes)</label>
+    <label><input type="checkbox" id="ly-density" checked /> forests</label>
+    <label><input type="checkbox" id="ly-roles" /> role tiers</label>
+    <label><input type="checkbox" id="ly-grid" checked /> heart-cell grid</label>
+    <hr />
+    <div class="row"><button id="btn-reset">reset view</button><button id="btn-selftest">self-test</button></div>
+    <div id="stats"></div>
+    <div id="selftest"></div>
+  </div>
+  <div id="inspector">hover the map…</div>
+  <div id="tune">
+    <h1>TUNING · LIVE</h1>
+    <div id="tune-rows"></div>
+    <div class="btns"><button id="btn-copy">copy CONFIG</button><button id="btn-defaults">defaults</button></div>
+    <textarea id="tune-out" readonly></textarea>
+  </div>
+
+<script type="module">
+import { setSeed, getSeed, queryPoint, queryRegion } from './src/worldgen/index.js';
+import { treeDensity } from './src/worldgen/density.js';
+import { runSelfTest } from './src/worldgen/selftest.js';
+import { CONFIG, bumpWorldgen } from './src/worldgen/constants.js';
+
+const cv = document.getElementById('map');
+const ctx = cv.getContext('2d');
+
+// --- view state (world coords at screen center + pixels-per-meter zoom) ------
+const DEFAULTS = { cx: 0, cz: 0, zoom: 0.06 };   // zoomed out to read macro structure
+const view = { ...DEFAULTS };
+const layers = { hearts: true, roads: true, water: true, density: true, roles: false, grid: true };
+let dirty = true;
+let lastInspect = null;
+
+// --- URL deep-link (CG2.4) ---------------------------------------------------
+function readURL() {
+  const p = new URLSearchParams(location.search);
+  if (p.has('seed')) document.getElementById('seed').value = p.get('seed');
+  if (p.has('cx')) view.cx = +p.get('cx');
+  if (p.has('cz')) view.cz = +p.get('cz');
+  if (p.has('zoom')) view.zoom = +p.get('zoom');
+  if (p.has('layers')) {
+    const on = new Set(p.get('layers').split(','));
+    for (const k of Object.keys(layers)) layers[k] = on.has(k);
+  }
+}
+let urlTimer = 0;
+function writeURL() {
+  clearTimeout(urlTimer);
+  urlTimer = setTimeout(() => {
+    const on = Object.keys(layers).filter(k => layers[k]).join(',');
+    const p = new URLSearchParams({
+      seed: document.getElementById('seed').value,
+      cx: Math.round(view.cx), cz: Math.round(view.cz),
+      zoom: view.zoom.toFixed(4), layers: on,
+    });
+    history.replaceState(null, '', '?' + p.toString());
+  }, 200);
+}
+
+// --- coordinate transforms ---------------------------------------------------
+function W() { return cv.width; } function H() { return cv.height; }
+function w2sx(wx) { return W() / 2 + (wx - view.cx) * view.zoom; }
+function w2sy(wz) { return H() / 2 + (wz - view.cz) * view.zoom; }
+function s2wx(sx) { return view.cx + (sx - W() / 2) / view.zoom; }
+function s2wz(sy) { return view.cz + (sy - H() / 2) / view.zoom; }
+function visibleBounds() {
+  return { minX: s2wx(0), minZ: s2wz(0), maxX: s2wx(W()), maxZ: s2wz(H()) };
+}
+
+const RANK_STYLE = {
+  minor: { r: 5, fill: '#ffcf6a', ring: 'rgba(255,207,106,0.10)' },
+  major: { r: 9, fill: '#ff8a3d', ring: 'rgba(255,138,61,0.12)' },
+};
+
+function draw() {
+  const w = W(), h = H();
+  ctx.fillStyle = '#0d1411'; ctx.fillRect(0, 0, w, h);
+  const b = visibleBounds();
+
+  // tree-density field — coarse sampling (~1 query / 12 screen px), CG2.6
+  if (layers.density) {
+    const step = 16;
+    for (let sy = 0; sy < h; sy += step) {
+      for (let sx = 0; sx < w; sx += step) {
+        const d = treeDensity(s2wx(sx + step / 2), s2wz(sy + step / 2));
+        if (d > 0.02) { ctx.fillStyle = `rgba(46,112,62,${Math.min(0.82, d * 0.85).toFixed(3)})`; ctx.fillRect(sx, sy, step, step); }
+      }
+    }
+  }
+
+  // heart-cell grid
+  if (layers.grid) {
+    ctx.strokeStyle = 'rgba(120,160,140,0.12)'; ctx.lineWidth = 1;
+    const c0 = Math.floor(b.minX / CONFIG.HEART_CELL), c1 = Math.ceil(b.maxX / CONFIG.HEART_CELL);
+    const r0 = Math.floor(b.minZ / CONFIG.HEART_CELL), r1 = Math.ceil(b.maxZ / CONFIG.HEART_CELL);
+    ctx.beginPath();
+    for (let c = c0; c <= c1; c++) { const x = w2sx(c * CONFIG.HEART_CELL); ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+    for (let r = r0; r <= r1; r++) { const y = w2sy(r * CONFIG.HEART_CELL); ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    ctx.stroke();
+  }
+
+  const region = queryRegion(b);
+
+  // water — lakes
+  if (layers.water) {
+    ctx.fillStyle = 'rgba(74,150,210,0.55)'; ctx.strokeStyle = 'rgba(150,205,240,0.7)'; ctx.lineWidth = 1;
+    for (const l of region.lakes) {
+      ctx.beginPath();
+      l.outline.forEach((pt, i) => { const x = w2sx(pt.x), y = w2sy(pt.z); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+  }
+
+  // roads — arterials (stub until GATE 2 / CG3)
+  if (layers.roads) {
+    ctx.strokeStyle = '#b89570'; ctx.lineWidth = 2;
+    for (const seg of region.roads) {
+      ctx.beginPath();
+      seg.points.forEach((pt, i) => { const x = w2sx(pt.x), y = w2sy(pt.z); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.stroke();
+    }
+  }
+
+  // hearts
+  if (layers.hearts) {
+    for (const ht of region.hearts) {
+      const st = RANK_STYLE[ht.rank];
+      const x = w2sx(ht.x), y = w2sy(ht.z);
+      if (layers.roles) {
+        ctx.fillStyle = st.ring;
+        ctx.beginPath(); ctx.arc(x, y, ht.district * view.zoom, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, ht.core * view.zoom, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,150,80,0.18)'; ctx.fill();
+      }
+      ctx.fillStyle = st.fill;
+      ctx.beginPath(); ctx.arc(x, y, st.r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // origin crosshair
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w2sx(0) - 8, w2sy(0)); ctx.lineTo(w2sx(0) + 8, w2sy(0));
+  ctx.moveTo(w2sx(0), w2sy(0) - 8); ctx.lineTo(w2sx(0), w2sy(0) + 8); ctx.stroke();
+
+  // scale bar
+  const barM = 1000; const barPx = barM * view.zoom;
+  ctx.strokeStyle = '#cfe3d8'; ctx.fillStyle = '#cfe3d8'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(w - 20 - barPx, h - 20); ctx.lineTo(w - 20, h - 20); ctx.stroke();
+  ctx.fillText('1 km', w - 20 - barPx, h - 26);
+
+  document.getElementById('stats').textContent =
+    `seed   ${getSeed()} (0x${(getSeed() >>> 0).toString(16)})\n` +
+    `center ${Math.round(view.cx)}, ${Math.round(view.cz)}\n` +
+    `zoom   ${view.zoom.toFixed(4)} px/m\n` +
+    `hearts ${region.hearts.length}  lakes ${region.lakes.length}`;
+}
+
+function markDirty() { dirty = true; }
+
+// keep-alive tick (CG2.3): RAF when visible, setTimeout when hidden so the
+// preview MCP (document.hidden) keeps redrawing and screenshots aren't blank.
+function tick() {
+  if (dirty) { dirty = false; draw(); }
+  if (document.hidden) setTimeout(tick, 16); else requestAnimationFrame(tick);
+}
+
+// --- interaction -------------------------------------------------------------
+function resize() { cv.width = innerWidth; cv.height = innerHeight; markDirty(); }
+addEventListener('resize', resize);
+
+let dragging = false, lastX = 0, lastY = 0;
+cv.addEventListener('mousedown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+addEventListener('mouseup', () => { dragging = false; });
+cv.addEventListener('mousemove', e => {
+  if (dragging) {
+    view.cx -= (e.clientX - lastX) / view.zoom;
+    view.cz -= (e.clientY - lastY) / view.zoom;
+    lastX = e.clientX; lastY = e.clientY; markDirty(); writeURL();
+  }
+  inspect(s2wx(e.clientX), s2wz(e.clientY));
+});
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const wx = s2wx(e.clientX), wz = s2wz(e.clientY);
+  view.zoom *= e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  view.zoom = Math.max(0.02, Math.min(4, view.zoom));
+  // keep cursor world-point under the cursor
+  view.cx = wx - (e.clientX - W() / 2) / view.zoom;
+  view.cz = wz - (e.clientY - H() / 2) / view.zoom;
+  markDirty(); writeURL();
+}, { passive: false });
+
+// Illustrative map from the generator's SUBSTRATE (role tier + heart rank) to
+// the props the FUTURE 3D theme layer would place here. The generator does not
+// emit "food truck" features — it emits roles; themes are derived at 3D
+// integration. This line shows that mapping so it's legible while tuning.
+function wouldHost(t) {
+  if (t.inLake) return 'water — nothing';
+  if (!t.heart || t.roleTier === 'outskirts')
+    return t.treeDensity > 0.55 ? 'deep forest — drum-circle clearing / campsite' : 'open field';
+  const big = t.heart.rank === 'major';
+  if (t.roleTier === 'core') return big
+    ? 'main stage · food-truck court · vendor rows'
+    : 'side stage · food trucks · vendor tents';
+  return big
+    ? 'campsites · drum circles · porta-potty banks'
+    : 'campsites · small vendors · porta-potties';
+}
+
+function inspect(wx, wz) {
+  const t = queryPoint(wx, wz);
+  lastInspect = t;
+  const heart = t.heart ? `${t.heart.rank} @ (${t.heart.x},${t.heart.z}) cell(${t.heart.cx},${t.heart.cz})` : 'none';
+  document.getElementById('inspector').textContent =
+    `(${t.x}, ${t.z})\n` +
+    `heart      ${heart}\n` +
+    `dist       ${isFinite(t.heartDist) ? Math.round(t.heartDist) + 'm' : '∞'}   influence ${t.heartInfluence.toFixed(3)}\n` +
+    `role       ${t.roleTier}   footprint ${t.footprint}m\n` +
+    `would host ${wouldHost(t)}  (future theme layer)\n` +
+    `road       ${t.onRoad ? t.roadTier : 'no'}   facing ${t.facing == null ? '—' : t.facing.toFixed(2)}\n` +
+    `water      lake:${t.inLake} river:${t.onRiver} bridge:${t.bridge}   noBuild:${t.noBuild}\n` +
+    `treeDens   ${t.treeDensity.toFixed(3)}   lifecycle ${t.lifecycle}`;
+}
+
+// --- controls ----------------------------------------------------------------
+const seedInput = document.getElementById('seed');
+seedInput.addEventListener('change', () => { setSeed(seedInput.value); markDirty(); writeURL(); });
+for (const k of Object.keys(layers)) {
+  const el = document.getElementById('ly-' + k);
+  if (el) el.addEventListener('change', () => { layers[k] = el.checked; markDirty(); writeURL(); });
+}
+document.getElementById('btn-reset').addEventListener('click', () => { Object.assign(view, DEFAULTS); markDirty(); writeURL(); });
+document.getElementById('btn-selftest').addEventListener('click', runTest);
+
+function runTest() {
+  const out = document.getElementById('selftest');
+  const r = runSelfTest();
+  const lines = r.results.map(t => `${t.pass ? '✓' : '✗'} ${t.name}${t.detail ? '\n    ' + t.detail : ''}`);
+  out.innerHTML = `<span class="${r.pass ? 'ok' : 'bad'}">self-test ${r.pass ? 'PASS' : 'FAIL'}</span>  golden ${r.goldenHash}\n` + lines.join('\n');
+}
+
+// --- live tuning sliders bound to CONFIG (GATE-1 by-eye tuning) --------------
+const DEFAULT_CONFIG = JSON.parse(JSON.stringify(CONFIG));
+const tuneSpec = [
+  { label: 'heart cell (m)', min: 200, max: 1200, step: 20, dec: 0, get: () => CONFIG.HEART_CELL, set: v => CONFIG.HEART_CELL = v },
+  { label: 'heart jitter', min: 0, max: 0.5, step: 0.02, dec: 2, get: () => CONFIG.HEART_JITTER, set: v => CONFIG.HEART_JITTER = v },
+  { label: 'empty cells', min: 0, max: 0.95, step: 0.01, dec: 2, get: () => CONFIG.HEART_RANK.noneBelow, set: v => { CONFIG.HEART_RANK.noneBelow = Math.min(v, CONFIG.HEART_RANK.minorBelow); } },
+  { label: 'major share', min: 0.02, max: 0.6, step: 0.01, dec: 2, get: () => 1 - CONFIG.HEART_RANK.minorBelow, set: v => { CONFIG.HEART_RANK.minorBelow = Math.max(1 - v, CONFIG.HEART_RANK.noneBelow); } },
+  { label: 'minor core (m)', min: 30, max: 300, step: 5, dec: 0, get: () => CONFIG.HEART_DOMAIN.minor.core, set: v => CONFIG.HEART_DOMAIN.minor.core = v },
+  { label: 'minor district (m)', min: 80, max: 600, step: 10, dec: 0, get: () => CONFIG.HEART_DOMAIN.minor.district, set: v => CONFIG.HEART_DOMAIN.minor.district = v },
+  { label: 'major core (m)', min: 60, max: 500, step: 5, dec: 0, get: () => CONFIG.HEART_DOMAIN.major.core, set: v => CONFIG.HEART_DOMAIN.major.core = v },
+  { label: 'major district (m)', min: 150, max: 1000, step: 10, dec: 0, get: () => CONFIG.HEART_DOMAIN.major.district, set: v => CONFIG.HEART_DOMAIN.major.district = v },
+  { label: 'lake prob', min: 0, max: 0.6, step: 0.02, dec: 2, get: () => CONFIG.LAKE_PROB, set: v => CONFIG.LAKE_PROB = v },
+  { label: 'lake cell (m)', min: 400, max: 1800, step: 50, dec: 0, get: () => CONFIG.LAKE_CELL, set: v => CONFIG.LAKE_CELL = v },
+  { label: 'forest grain (m)', min: 60, max: 320, step: 10, dec: 0, get: () => CONFIG.DENSITY_CELL, set: v => CONFIG.DENSITY_CELL = v },
+  { label: 'forest threshold', min: 0.2, max: 0.7, step: 0.02, dec: 2, get: () => CONFIG.DENSITY_THRESHOLD, set: v => CONFIG.DENSITY_THRESHOLD = v },
+  { label: 'lakeshore trees (m)', min: 0, max: 160, step: 10, dec: 0, get: () => CONFIG.LAKE_RING_BAND, set: v => CONFIG.LAKE_RING_BAND = v },
+];
+const tuneSyncers = [];
+{
+  const rows = document.getElementById('tune-rows');
+  for (const s of tuneSpec) {
+    const row = document.createElement('div'); row.className = 'tr';
+    const lab = document.createElement('label');
+    const nm = document.createElement('span'); nm.textContent = s.label;
+    const vl = document.createElement('span');
+    lab.append(nm, vl);
+    const inp = document.createElement('input');
+    inp.type = 'range'; inp.min = s.min; inp.max = s.max; inp.step = s.step;
+    const sync = () => { const v = s.get(); inp.value = v; vl.textContent = v.toFixed(s.dec); };
+    inp.addEventListener('input', () => { s.set(parseFloat(inp.value)); sync(); bumpWorldgen(); markDirty(); });
+    row.append(lab, inp); rows.append(row);
+    tuneSyncers.push(sync); sync();
+  }
+}
+function syncTune() { for (const f of tuneSyncers) f(); }
+document.getElementById('btn-defaults').addEventListener('click', () => {
+  CONFIG.HEART_CELL = DEFAULT_CONFIG.HEART_CELL;
+  CONFIG.HEART_JITTER = DEFAULT_CONFIG.HEART_JITTER;
+  CONFIG.HEART_RANK.noneBelow = DEFAULT_CONFIG.HEART_RANK.noneBelow;
+  CONFIG.HEART_RANK.minorBelow = DEFAULT_CONFIG.HEART_RANK.minorBelow;
+  CONFIG.HEART_DOMAIN.minor.core = DEFAULT_CONFIG.HEART_DOMAIN.minor.core;
+  CONFIG.HEART_DOMAIN.minor.district = DEFAULT_CONFIG.HEART_DOMAIN.minor.district;
+  CONFIG.HEART_DOMAIN.major.core = DEFAULT_CONFIG.HEART_DOMAIN.major.core;
+  CONFIG.HEART_DOMAIN.major.district = DEFAULT_CONFIG.HEART_DOMAIN.major.district;
+  CONFIG.LAKE_PROB = DEFAULT_CONFIG.LAKE_PROB;
+  CONFIG.LAKE_CELL = DEFAULT_CONFIG.LAKE_CELL;
+  CONFIG.DENSITY_CELL = DEFAULT_CONFIG.DENSITY_CELL;
+  CONFIG.DENSITY_THRESHOLD = DEFAULT_CONFIG.DENSITY_THRESHOLD;
+  CONFIG.LAKE_RING_BAND = DEFAULT_CONFIG.LAKE_RING_BAND;
+  bumpWorldgen(); syncTune(); markDirty();
+});
+document.getElementById('btn-copy').addEventListener('click', () => {
+  const out = document.getElementById('tune-out');
+  const json = JSON.stringify({
+    HEART_CELL: CONFIG.HEART_CELL, HEART_JITTER: CONFIG.HEART_JITTER,
+    HEART_RANK: CONFIG.HEART_RANK, HEART_DOMAIN: CONFIG.HEART_DOMAIN,
+    LAKE_PROB: CONFIG.LAKE_PROB, LAKE_CELL: CONFIG.LAKE_CELL,
+    DENSITY_CELL: CONFIG.DENSITY_CELL, DENSITY_THRESHOLD: CONFIG.DENSITY_THRESHOLD,
+    LAKE_RING_BAND: CONFIG.LAKE_RING_BAND,
+  }, null, 2);
+  out.style.display = 'block'; out.value = json;
+  try { navigator.clipboard.writeText(json); } catch (e) { /* file:// / preview may block */ }
+});
+
+// --- boot --------------------------------------------------------------------
+function syncLayerCheckboxes() {
+  for (const k of Object.keys(layers)) { const el = document.getElementById('ly-' + k); if (el) el.checked = layers[k]; }
+}
+readURL();
+setSeed(seedInput.value);
+syncLayerCheckboxes();
+resize();
+tick();
+
+// introspection handle for preview_eval scripting (CG2.5)
+window.__mapSandbox = {
+  get seed() { return getSeed(); },
+  get view() { return { ...view }; },
+  get layers() { return { ...layers }; },
+  get lastInspect() { return lastInspect; },
+  queryPoint, queryRegion,
+  setSeed(s) { seedInput.value = String(s); setSeed(s); markDirty(); writeURL(); },
+  setView(cx, cz, zoom) { view.cx = cx; view.cz = cz; if (zoom) view.zoom = zoom; markDirty(); writeURL(); },
+  setLayer(k, on) { if (k in layers) { layers[k] = on; syncLayerCheckboxes(); markDirty(); } },
+  config: CONFIG,
+  setConfig(patch) { Object.assign(CONFIG, patch); bumpWorldgen(); syncTune(); markDirty(); },
+  runSelfTest, redraw: markDirty,
+};
+</script>
+</body>
+</html>

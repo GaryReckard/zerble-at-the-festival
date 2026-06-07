@@ -1,0 +1,124 @@
+// Determinism harness (deliberation CG1.5) — REAL teeth, not "query twice in
+// two orders" (queryPoint is already pure, so that proves nothing).
+//
+// Tests, with failure LOCALIZATION (offending coord + field + the two values),
+// so an on-screen red light is actionable:
+//   T1 round-trip   — queryPoint == JSON.parse(JSON.stringify(queryPoint))
+//                      (catches -0/NaN/format drift) and re-call equality.
+//   T2 window-inv   — near a heart, nearestHeart at the default window and
+//                      window+1 agree (the heart window is sufficient near-field,
+//                      where roleTier/influence depend on it).
+//   T3 negative ctl — window 0 (own cell only) DIFFERS from the default for at
+//                      least one sampled point; if it never differs the sample
+//                      isn't exercising cross-cell lookup → the test has no teeth.
+//   golden hash     — FNV-1a over queryPoint tuples across a fixed sample grid ×
+//                      seeds; the future 3D port re-computes this on Safari /
+//                      Firefox to catch Math-transcendental cross-engine forks.
+//
+// The FULL proximity-graph window-invariance + derived-radius negative control
+// (the road-seam determinism proof) lands with roads.js at GATE 2 / CG3.
+
+import { setSeed, getSeed, queryPoint } from './index.js';
+import { nearestHeart } from './hearts.js';
+import { nearestRoad } from './roads.js';
+import { CONFIG, heartNeighborhoodCells, roadNeighborhoodCells } from './constants.js';
+
+// Deterministic sample points (no Math.random) spread across ~±6 km.
+function samplePoints(n = 240) {
+  const pts = [];
+  let a = 0x12345678 >>> 0;
+  for (let i = 0; i < n; i++) {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a; t = Math.imul(t ^ (t >>> 15), t | 1);
+    t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+    const r = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    const x = Math.round((r - 0.5) * 12000);
+    const z = Math.round((((a >>> 8) & 0xffff) / 65536 - 0.5) * 12000);
+    pts.push({ x, z });
+  }
+  return pts;
+}
+
+function fnv1a(str) {
+  let h = 0x811C9DC5;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
+  const prevSeed = getSeed();
+  const results = [];
+  let goldenAcc = '';
+
+  for (const s of seeds) {
+    setSeed(s);
+    const pts = samplePoints();
+
+    // T1 — round-trip + re-call equality
+    let t1 = { name: `round-trip (seed ${s})`, pass: true, detail: '' };
+    for (const p of pts) {
+      const a = queryPoint(p.x, p.z);
+      const b = queryPoint(p.x, p.z);
+      const sa = JSON.stringify(a), sb = JSON.stringify(b);
+      const sr = JSON.stringify(JSON.parse(sa));
+      goldenAcc += sa;
+      if (sa !== sb) { t1.pass = false; t1.detail = `re-call differs at (${p.x},${p.z})`; break; }
+      if (sa !== sr) { t1.pass = false; t1.detail = `serialize round-trip differs at (${p.x},${p.z})`; break; }
+    }
+    results.push(t1);
+
+    // T2 — near-field heart window invariance
+    let t2 = { name: `heart window-invariance (seed ${s})`, pass: true, detail: '' };
+    for (const p of pts) {
+      const base = nearestHeart(p.x, p.z, heartNeighborhoodCells());
+      if (!base.heart) continue;   // assert invariance across the FULL sample (incl. far field)
+      const wider = nearestHeart(p.x, p.z, heartNeighborhoodCells() + 1);
+      if (!wider.heart ||
+          wider.heart.cx !== base.heart.cx || wider.heart.cz !== base.heart.cz ||
+          wider.dist !== base.dist) {
+        t2.pass = false;
+        t2.detail = `at (${p.x},${p.z}): window ${heartNeighborhoodCells()} → cell (${base.heart.cx},${base.heart.cz}) d=${base.dist}; window ${heartNeighborhoodCells() + 1} → ${wider.heart ? `cell (${wider.heart.cx},${wider.heart.cz}) d=${wider.dist}` : 'null'}`;
+        break;
+      }
+    }
+    results.push(t2);
+
+    // T3 — negative control: window 0 must DIFFER somewhere (proves teeth)
+    let t3 = { name: `negative control (seed ${s})`, pass: false, detail: 'window 0 never differed — sample lacks teeth' };
+    for (const p of pts) {
+      const base = nearestHeart(p.x, p.z, heartNeighborhoodCells());
+      const tiny = nearestHeart(p.x, p.z, 0);
+      const differ = (!base.heart) !== (!tiny.heart) ||
+        (base.heart && tiny.heart &&
+          (base.heart.cx !== tiny.heart.cx || base.heart.cz !== tiny.heart.cz));
+      if (differ) { t3.pass = true; t3.detail = `confirmed at (${p.x},${p.z})`; break; }
+    }
+    results.push(t3);
+
+    // T4 — road window-invariance: the DERIVED road radius is sufficient
+    // (same nearest-road distance at radius R and R+1).
+    const R = roadNeighborhoodCells();
+    let t4 = { name: `road window-invariance (seed ${s})`, pass: true, detail: '' };
+    for (const p of pts) {
+      const a = nearestRoad(p.x, p.z, R).dist;
+      const b = nearestRoad(p.x, p.z, R + 1).dist;
+      if (a !== b) { t4.pass = false; t4.detail = `nearest-road dist differs at (${p.x},${p.z}): R=${R}→${a} vs R+1→${b}`; break; }
+    }
+    results.push(t4);
+
+    // T5 — road negative control: a too-small (1-cell) window MUST disagree
+    // somewhere, proving the road lookup genuinely needs the multi-cell window.
+    let t5 = { name: `road negative control (seed ${s})`, pass: false, detail: 'window 1 never differed — lacks teeth' };
+    for (const p of pts) {
+      if (nearestRoad(p.x, p.z, R).dist !== nearestRoad(p.x, p.z, 1).dist) {
+        t5.pass = true; t5.detail = `confirmed at (${p.x},${p.z})`; break;
+      }
+    }
+    results.push(t5);
+  }
+
+  setSeed(prevSeed);
+  const goldenHash = fnv1a(goldenAcc);
+  const pass = results.every(r => r.pass);
+  return { pass, results, goldenHash };
+}

@@ -58,6 +58,7 @@ Two entry points:
 |---|---|
 | `http://127.0.0.1:8765/sandbox.html?entity=<name>` | **Default for any model/visual change.** Isolated viewer, deep-linkable, time-of-day slider, "Hit it" SFX button, free-orbit camera. Don't try to verify a model edit in the main game — verify it here. |
 | `http://127.0.0.1:8765/` | The full game. Use when the change is emergent (world streaming, collision, chunk generation, crowd AI behavior) and not visible at the entity level. **Also load the main game any time the edit touches a code path the sandbox doesn't exercise** (e.g. `chunks.js`, `crowd.js`, `world.js`, `main.js`) — sandbox-only verification can pass while the game itself crashes at boot. |
+| `http://127.0.0.1:8765/map-sandbox.html` | The **world-layout** sandbox (NOT the entity one above). A 2D top-down view of the procedural map generator (`src/worldgen/`) — pan/zoom across km, seed + live tuning sliders, layer toggles, point inspector, on-screen determinism self-test. Use when working on `src/worldgen/` layout (hearts/roads/lakes/forests). Distinct: `sandbox.html` = one model in 3D; this = the whole world layout in 2D. Not yet wired into the game. |
 
 The dev server sends `no-store` so module edits land on reload — `python3 -m
 http.server` won't, because Chrome heuristic-caches module bodies.
