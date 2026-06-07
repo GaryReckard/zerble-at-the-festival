@@ -36,6 +36,7 @@ export const CONFIG = {
   ROAD_MAX_NEIGHBORS: 3,
   ROAD_MAX_EDGE_CELLS: 3,
   ROAD_WIDTH: 7,
+  ROAD_LAKE_DETOUR: 35,       // clearance an around-the-lake detour rides outside the shore
 };
 
 // Worldgen "epoch" — bumped whenever CONFIG is mutated (the sandbox sliders call
@@ -70,4 +71,6 @@ export const SALT = {
   lakeShape:   0x4D41_07,
   roadPair:    0x4D41_05,
   density:     0x4D41_06,
+  roadProxy:   0x4D41_08,   // dead-centre fallback angle for a lake-heart's shore proxy
+  roadSide:    0x4D41_09,   // which way a detour wraps a lake when both ways are equal
 };

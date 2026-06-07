@@ -20,6 +20,9 @@ ref: /opsx:explore thread "more sensible festival paths" (no CHANGELOG/ROADMAP e
 `/opsx:apply` (CG1–CG5) → `/opsx:verify` → `/smart-review` (Approve; all fixes
 applied + re-verified). The 2D prototype is done.
 **Doing:** Nothing — back to Gary. Tunable live via the sandbox sliders.
+Latest landing (2026-06-06): lake-heart roads converge on a single shore proxy +
+route AROUND lakes (Gary's asks 1+2), and forests render as green tree-dots not a
+wash (ask 3). See the newest Work Log entry + -> D-road-proxy.
 **Next (future CHANGE, not this one):** wire the generator into the live 3D game as
 v2 worldgen (ROADMAP). Optional: more by-eye tuning.
 **Blocked:** Nothing. Not archived (the 3D wire-in is the next change). Rivers/mega/
@@ -81,6 +84,19 @@ is now near-term (in 2D), not deferred to 3D.
 - **D-scope — This change ships the generator + 2D sandbox ONLY.** No live-game
   changes; the v2-worldgen integration (the breaking step) is a follow-up. proposal
   Impact + design Non-Goals.
+- **D-road-proxy — A lake-heart's roads converge on ONE shore proxy; roads route
+  AROUND water instead of being nulled** (Gary 2026-06-06, supersedes the prior
+  per-neighbor directional `landingPoint`). The proxy is the heart pushed radially
+  out from its lake's center to just past the shore (`heartProxy`), so it's a
+  single deterministic point independent of which neighbor is asking. When the
+  direct proxy→proxy line crosses a lake, `arterial` bends around the blocking
+  lake on an arc at `maxR + ROAD_LAKE_DETOUR` (guaranteed outside the whole
+  outline), short way, pair-hash tiebreak for opposite shores; if even the detour
+  can't find a dry path the road is still nulled (bridges stay cut). NOTE: this
+  extends road *existence*'s dependence on the lake-outline `sin/cos` — reinforces
+  the existing "re-verify the golden on Safari/Firefox at 3D wire-in" caveat
+  (within-engine determinism holds; cross-engine golden already differed). New
+  salts: `SALT.roadProxy` (dead-centre fallback), `SALT.roadSide` (detour tiebreak).
 - Full set D1–D11 in design.md.
 
 ## Assumptions
@@ -251,3 +267,43 @@ lakes, lobed lakes, lakeside hearts, zero console errors. Screenshots captured.
 **Changed:** src/worldgen/{constants,hearts,water,density,roads}.js; map-sandbox.html;
 CHANGELOG.md; ROADMAP.md; tasks.md (CG4/CG5 + GATE checks).
 **Next:** /opsx:verify → /smart-review.
+
+### 2026-06-06 — Lake-heart road convergence + route-around + forest tree-dots
+**Intent:** Gary's post-handoff asks: (1) a heart in a lake should pick ONE proxy
+point on the shore where its roads converge (not the scatter of per-neighbor
+directional landings); (2) route arterials AROUND a lake so far-side neighbors —
+and two hearts on opposite shores — connect instead of being nulled; (3) render
+forests as green tree-DOTS, not the unreadable density wash. Work it out in 2D
+first (-> D-road-proxy).
+**Result:**
+- `heartProxy(h)` replaces the directional `landingPoint`: a lake-heart's single
+  shore proxy = heart pushed radially out from the lake center past the waterline
+  (hash-stable fallback angle if dead-centre). `arterialPolyline` + `arterial`
+  draw between proxies, so ALL of a heart's roads converge on that one point
+  (verified: a major lake-heart's 3 arterials all start at the same point, 0.0 m).
+- `arterial` now routes around water: if the direct proxy→proxy line crosses a
+  lake, bend around it on an arc at `maxR + ROAD_LAKE_DETOUR` outside the shore
+  (`arcAround`), short way with a pair-hash tiebreak for ~opposite shores; try the
+  other side, else null (bridges still cut). Also: if only the *meander* dips into
+  a shore (not the direct line), just drop the meander. `crossesWater` now samples
+  densely BETWEEN vertices (a straight run can't skip a small lake anymore).
+- Forest render in map-sandbox.html: world-anchored jittered tree-dot scatter,
+  probability ∝ `treeDensity`, spacing tracks zoom, sampled off a coarse density
+  grid + batched into one fill. Generation (density.js) UNCHANGED — render only.
+- New: `CONFIG.ROAD_LAKE_DETOUR`, `SALT.roadProxy`, `SALT.roadSide`.
+**Verified:** headless self-test **PASS 20/20** (golden 63c8dea2, re-rolled —
+road output legitimately changed); in-browser self-test PASS 20/20 (golden
+a527d31e — differs cross-engine = the KNOWN, pre-existing lake-outline sin/cos
+wobble, now reinforced; see -> D-road-proxy). Stats at seed 1234: 18 km box ->
+**0/90,026** densely-sampled road points in water; 11/11 lake-hearts have roads;
+113 around-the-lake detours, all of them straddle-a-lake connections that were
+previously nulled. Browser screenshots captured (major lake-heart 3-road
+convergence + detour; two-hearts-across-a-lake link; tree-dot forests w/ lakeshore
+rings); zero console errors. Game NOT booted — worldgen has no importmap entry in
+index.html (by design) and no game file was touched, so the boot-check precondition
+isn't met.
+**Changed:** src/worldgen/{constants,roads}.js; map-sandbox.html; CHANGELOG.md;
+HANDOFF.md; session-log.md.
+**Next:** back to Gary. Remaining open items: parked ROADMAP set (rivers+bridges,
+mega-heart, in-game map view, footpath tiers, drive-time probe) + THE BIG ONE
+(wire generator into the live 3D game as v2 worldgen).

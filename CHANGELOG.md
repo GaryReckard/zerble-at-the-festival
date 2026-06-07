@@ -26,6 +26,33 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   Distinct from `sandbox.html` (one model in 3D) — this is the *whole world
   layout* in 2D top-down.
 
+### Changed
+- **Lake-heart roads now converge on a single shore proxy, and roads route
+  *around* a lake instead of vanishing at it.** A heart that sits in a lake used
+  to land each of its roads at a different shore point (the roads aimed at the
+  heart's in-water center and stopped at a scatter of edge points); now every one
+  of that heart's arterials converges on **one** representative point on the
+  shore — the heart pushed radially out from the lake center to just past the
+  waterline (`heartProxy` in [roads.js](src/worldgen/roads.js)). And when the
+  straight line between two hearts would cross open water, the arterial now bends
+  **around** the blocking lake on an arc that rides just outside the shore
+  (`arterial` → `arcAround`) rather than being nulled — so a lakeside heart
+  reaches its across-the-lake neighbors and two hearts on opposite shores finally
+  connect (113 such around-the-lake links in a single 18 km box at seed 1234,
+  every one of them previously a missing road). Bridges are still cut, so if even
+  the detour can't find a dry path the road simply doesn't exist; verified **0 of
+  90,026** densely-sampled road points land in water. Determinism harness stays
+  **20/20** green (golden re-rolled — road output legitimately changed).
+- **Forests render as scattered tree-dots, not a flat green wash.** The map
+  sandbox now stipples woods as world-anchored green dots whose density follows
+  the `treeDensity` field (more trees = denser dots, thinning to bare field),
+  so you can actually read where forest is and watch roads thread through it —
+  the lakeshore tree-rings in particular now read as rings. Dots are anchored in
+  world space (they stay put while you pan) on a grid whose spacing tracks zoom
+  (constant on-screen density), sampled cheaply off a coarse density grid and
+  batched into one fill. The underlying forest *generation* is unchanged — this
+  is a viewer-render change only.
+
 ## 2026-06-05
 
 ### Added

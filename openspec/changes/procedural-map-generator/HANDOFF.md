@@ -10,8 +10,11 @@ world layout**, developed and tuned in a **2D top-down sandbox** — the plannin
 for a future "natural roads + intentional structure" worldgen. It is **NOT wired into
 the live 3D game** (that's the next, separate change). The full OpenSpec pipeline ran:
 `/opsx:ff` → tier-3 `/deliberate` → `/opsx:apply` (CG1–CG5) → `/opsx:verify` →
-`/smart-review` (Approve). Determinism harness: **20/20 green**, current golden
-`8c951da5`. Live + verified in Chrome via the preview MCP.
+`/smart-review` (Approve), then Gary's post-handoff polish (lake-heart road
+convergence + route-around + forest tree-dots). Determinism harness: **20/20
+green**, current golden **`63c8dea2`** (Node) / **`a527d31e`** (browser — the two
+differ by the known, pre-existing lake-outline `sin/cos` cross-engine wobble;
+within-engine determinism holds). Live + verified in Chrome via the preview MCP.
 
 ## Why we're doing it (origin)
 
@@ -98,23 +101,23 @@ Hearts (rank-weighted, lakeside-allowed) · arterials connecting them (routed ar
 water) · lobed/peanut/oval lakes (point-in-polygon) · organic gap-fill forests with
 lakeshore rings · the full tuning/inspector/self-test harness · glossary · CHANGELOG
 (2026-06-06) + ROADMAP section · all CG1–CG5 tasks (1 parked) · deliberation +
-review artifacts. On-lake hearts now get roads via shore landings (22/22 connected).
+review artifacts. **Lake-heart roads converge on a single shore proxy** (`heartProxy`)
+and **route AROUND lakes** (`arterial`→`arcAround`) so far-side neighbors + opposite-
+shore hearts connect (seed 1234, 18 km box: 11/11 lake-hearts roaded, 113 around-the-
+lake links that were all previously nulled, **0/90,026** road samples in water).
+**Forests render as green tree-dots** in the sandbox, not the old wash (render-only;
+generation unchanged).
 
 ## OPEN / next (prioritized)
 
-1. **Lake-heart road landing — single convergence proxy + route-around (in 2D).** Gary's
-   intent: a heart in a lake → **ONE proxy point on the lake edge** where all its roads
-   **converge** (not the current per-neighbor directional landings that end at scattered
-   edge points). This needs **route-around-the-lake arterial routing** so a far-side
-   neighbor's road curves *around* the water to reach the heart's own-shore proxy instead
-   of being nulled. Gary explicitly wants this **worked out in 2D first.** It ALSO fixes:
-2. **Two hearts on opposite shores of a lake don't connect** (right side of Gary's
-   2026-06-06 screenshot) — the straight arterial crosses water → nulled; route-around fixes it.
-3. **Forest viz: render trees as green DOTS** (scattered markers from the density field),
-   not the current blurry green wash — Gary can't read the wash. Sandbox-render change only.
-4. **(Parked, ROADMAP)** rivers + bridges, mega-heart (2×2), in-game map view, collector +
+> ✅ **DONE 2026-06-06** (Gary's top asks): single shore-proxy convergence for
+> lake-hearts + route-around-the-lake routing (`heartProxy` / `arcAround` in
+> `roads.js`), and forest tree-dots in the sandbox. See the latest Work Log entry +
+> -> D-road-proxy. The two-hearts-across-a-lake gap is fixed by the same route-around.
+
+1. **(Parked, ROADMAP)** rivers + bridges, mega-heart (2×2), in-game map view, collector +
    footpath road tiers, drive-time/traversal probe.
-5. **THE BIG ONE — wire the generator into the live 3D game as v2 worldgen.** Replaces
+2. **THE BIG ONE — wire the generator into the live 3D game as v2 worldgen.** Replaces
    `chunks.js` `+`-grid + `lakes.js`/`forests.js` placement (not additive). Themes
    (stages/food trucks/vendors/potties/campsites) placed per-point from roleTier + rank +
    facing + noBuild → structurally kills stages-on-roads + keeps structures off water.

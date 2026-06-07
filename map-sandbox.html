@@ -104,6 +104,7 @@ import { setSeed, getSeed, queryPoint, queryRegion } from './src/worldgen/index.
 import { treeDensity } from './src/worldgen/density.js';
 import { runSelfTest } from './src/worldgen/selftest.js';
 import { CONFIG, bumpWorldgen } from './src/worldgen/constants.js';
+import { worldHash } from './src/rng.js';
 
 const cv = document.getElementById('map');
 const ctx = cv.getContext('2d');
@@ -155,21 +156,61 @@ const RANK_STYLE = {
   minor: { r: 5, fill: '#ffcf6a', ring: 'rgba(255,207,106,0.10)' },
   major: { r: 9, fill: '#ff8a3d', ring: 'rgba(255,138,61,0.12)' },
 };
+// Render-only salt for the world-anchored tree-dot scatter (never hashed into
+// the generator output — this is a viewer concern, not a layout feature).
+const TREE_SALT = 0x7711EE;
 
 function draw() {
   const w = W(), h = H();
   ctx.fillStyle = '#0d1411'; ctx.fillRect(0, 0, w, h);
   const b = visibleBounds();
 
-  // tree-density field — coarse sampling (~1 query / 12 screen px), CG2.6
+  // forests — render as scattered tree DOTS (probability ∝ tree density) rather
+  // than a flat green wash, so woods read as woods and you can see where roads
+  // thread through them. The density field is sampled cheaply on a coarse screen
+  // grid (CG2.6); the dots come off a WORLD-anchored jittered grid (so trees
+  // stay put while you pan) whose spacing tracks zoom (so the on-screen scatter
+  // stays a constant density). All draws batch into ONE fill.
   if (layers.density) {
-    const step = 16;
-    for (let sy = 0; sy < h; sy += step) {
-      for (let sx = 0; sx < w; sx += step) {
-        const d = treeDensity(s2wx(sx + step / 2), s2wz(sy + step / 2));
-        if (d > 0.02) { ctx.fillStyle = `rgba(46,112,62,${Math.min(0.82, d * 0.85).toFixed(3)})`; ctx.fillRect(sx, sy, step, step); }
+    const gstep = 18;                                  // density sample grid (screen px)
+    const cols = Math.ceil(w / gstep) + 1, rows = Math.ceil(h / gstep) + 1;
+    const dg = new Float32Array(cols * rows);
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        dg[r * cols + c] = treeDensity(s2wx(c * gstep), s2wz(r * gstep));
+    const densAt = (sx, sy) => {                        // bilinear lookup from the grid
+      const fx = Math.max(0, Math.min(cols - 1.001, sx / gstep));
+      const fy = Math.max(0, Math.min(rows - 1.001, sy / gstep));
+      const c0 = fx | 0, r0 = fy | 0, tx = fx - c0, ty = fy - r0;
+      const a = dg[r0 * cols + c0] * (1 - tx) + dg[r0 * cols + c0 + 1] * tx;
+      const b = dg[(r0 + 1) * cols + c0] * (1 - tx) + dg[(r0 + 1) * cols + c0 + 1] * tx;
+      return a * (1 - ty) + b * ty;
+    };
+    // candidate spacing ≈ 7px on screen, snapped to a 1/2/5·10^k ladder so it
+    // doesn't shimmer on fine zoom; world-anchored so pans don't move trees.
+    let S = 7 / view.zoom;
+    const mag = Math.pow(10, Math.floor(Math.log10(S))), f = S / mag;
+    S = (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * mag;
+    const gx0 = Math.floor(b.minX / S), gx1 = Math.ceil(b.maxX / S);
+    const gz0 = Math.floor(b.minZ / S), gz1 = Math.ceil(b.maxZ / S);
+    ctx.fillStyle = '#3a9a4e';
+    ctx.beginPath();
+    for (let gz = gz0; gz <= gz1; gz++) {
+      for (let gx = gx0; gx <= gx1; gx++) {
+        const hsh = worldHash(gx, gz, TREE_SALT) >>> 0;
+        const wx = gx * S + ((hsh & 0xff) / 255 - 0.5) * S * 0.85;
+        const wz = gz * S + (((hsh >>> 8) & 0xff) / 255 - 0.5) * S * 0.85;
+        const sx = w2sx(wx), sy = w2sy(wz);
+        if (sx < -4 || sy < -4 || sx > w + 4 || sy > h + 4) continue;
+        const d = densAt(sx, sy);
+        if (d < 0.06) continue;
+        if (((hsh >>> 16) & 0xffff) / 65536 > d) continue;   // thin out by density
+        const rad = 1.1 + d * 1.7;
+        ctx.moveTo(sx + rad, sy);
+        ctx.arc(sx, sy, rad, 0, Math.PI * 2);
       }
     }
+    ctx.fill();
   }
 
   // heart-cell grid

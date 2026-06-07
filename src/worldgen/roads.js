@@ -10,8 +10,8 @@
 //
 // Reads CONFIG.* per-call. Endpoints/control points QUANTIZED to integers.
 
-import { quantize, pairRng } from '../rng.js';
-import { CONFIG, SALT, roadNeighborhoodCells } from './constants.js';
+import { quantize, pairRng, cellRng, getSessionSeed } from '../rng.js';
+import { CONFIG, SALT, roadNeighborhoodCells, worldgenEpoch } from './constants.js';
 import { heartInCell } from './hearts.js';
 import { lakeAt, lakeContaining } from './water.js';
 
@@ -42,41 +42,88 @@ export function neighborsOf(heart, windowCells = roadNeighborhoodCells()) {
   return cands.slice(0, CONFIG.ROAD_MAX_NEIGHBORS).map(c => c.h);
 }
 
-// Where the road to a heart lands. A dry heart uses its center. A heart in a
-// lake gets a dry shore "landing" on the side FACING the connecting neighbor —
-// so the road approaches from that neighbor's side and never has to cross the
-// water (which fixes lakeside hearts whose neighbors are across the lake, not
-// just the near-shore ones). Deterministic: walk from the heart toward the
-// neighbor until we exit the water, then add a dry margin; quantized.
-export function landingPoint(h, towardX, towardZ) {
-  if (!lakeAt(h.x, h.z)) return { x: h.x, z: h.z };
-  let dx = towardX - h.x, dz = towardZ - h.z;
+// The SINGLE shore point that represents a heart sitting in a lake. ALL of that
+// heart's roads converge here (Gary 2026-06-06) — one proxy on the shore, not a
+// scatter of per-neighbor landings that each ended at a different edge point.
+// Deterministic: push the heart radially out from its lake's center to just past
+// the shore, so the proxy lands on "its" side of the water. If the heart sits
+// ~dead-centre (radial direction undefined) fall back to a hash-stable angle so
+// the proxy is still reproducible. A dry heart is its own proxy.
+export function heartProxy(h) {
+  const lake = lakeContaining(h.x, h.z);
+  if (!lake) return { x: h.x, z: h.z };
+  let dx = h.x - lake.x, dz = h.z - lake.z;
   let len = Math.hypot(dx, dz);
-  if (len < 1) { dx = 1; dz = 0; len = 1; }   // neighbor ~coincident → arbitrary dir
+  if (len < 1) {                               // heart ~at lake centre → stable angle
+    const ang = cellRng(h.cx, h.cz, SALT.roadProxy)() * Math.PI * 2;
+    dx = Math.cos(ang); dz = Math.sin(ang); len = 1;
+  }
   const ux = dx / len, uz = dz / len;
   let r = 0;
-  for (let i = 0; i < 40; i++) {               // walk toward the neighbor until dry
-    r += 20;
+  for (let i = 0; i < 80; i++) {               // walk outward until dry
     if (!lakeAt(quantize(h.x + ux * r), quantize(h.z + uz * r))) break;
+    r += 15;
   }
-  return { x: quantize(h.x + ux * (r + 25)), z: quantize(h.z + uz * (r + 25)) };
+  return { x: quantize(h.x + ux * (r + 22)), z: quantize(h.z + uz * (r + 22)) };
 }
 
-// Back-compat single anchor (toward nearest shore) — kept for callers that want
-// a heart's generic road point; arterials use the directional landingPoint.
-export function roadAnchor(h) {
-  const lake = lakeAt(h.x, h.z) && lakeContaining(h.x, h.z);
-  return lake ? landingPoint(h, 2 * h.x - lake.x, 2 * h.z - lake.z) : { x: h.x, z: h.z };
+// Back-compat single anchor — now identical to the convergence proxy.
+export function roadAnchor(h) { return heartProxy(h); }
+
+// True if any point along a polyline (sampled densely BETWEEN vertices too, so a
+// straight run can't skip over a small lake) lies in open water. Quantized.
+function crossesWater(poly) {
+  for (let i = 0; i < poly.length - 1; i++) {
+    const a = poly[i], b = poly[i + 1];
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 18));
+    for (let k = 0; k <= n; k++) {
+      const t = k / n;
+      if (lakeAt(quantize(a.x + (b.x - a.x) * t), quantize(a.z + (b.z - a.z) * t))) return true;
+    }
+  }
+  return false;
 }
 
-// The meander polyline for the arterial between two hearts (pair-seeded). Each
-// endpoint is that heart's landing on the shore facing the OTHER heart, so the
-// road approaches each lakeside heart from the correct side. Seed is the
-// heart-cell pair so the curve is stable.
+// The lake blocking a straight chord (the lake containing the first in-water
+// sample). Deterministic — the chord and lakes are pure functions of the seed.
+function blockingLake(pa, pb) {
+  const n = Math.max(1, Math.ceil(Math.hypot(pb.x - pa.x, pb.z - pa.z) / 15));
+  for (let k = 0; k <= n; k++) {
+    const t = k / n;
+    const l = lakeContaining(quantize(pa.x + (pb.x - pa.x) * t), quantize(pa.z + (pb.z - pa.z) * t));
+    if (l) return l;
+  }
+  return null;
+}
+
+// A detour polyline pa→pb that rides an arc OUTSIDE a lake (radius maxR +
+// clearance is past every outline vertex, so the arc itself is always dry). dir
+// = +1 sweeps CCW from pa's angle to pb's, -1 sweeps CW. The endpoints are on
+// the dry shore already, so the short radial pa→arc and arc→pb hops stay clear.
+function arcAround(pa, pb, lake, dir) {
+  const cx = lake.x, cz = lake.z, R = lake.maxR + CONFIG.ROAD_LAKE_DETOUR;
+  const TWO = Math.PI * 2;
+  const aP = Math.atan2(pa.z - cz, pa.x - cx);
+  const aQ = Math.atan2(pb.z - cz, pb.x - cx);
+  let ccw = (aQ - aP) % TWO; if (ccw < 0) ccw += TWO;     // [0, 2π)
+  const sweep = dir > 0 ? ccw : ccw - TWO;                 // CCW positive / CW negative
+  const steps = Math.max(2, Math.ceil(Math.abs(sweep) / 0.3));
+  const pts = [{ x: pa.x, z: pa.z }];
+  for (let i = 1; i < steps; i++) {
+    const a = aP + sweep * (i / steps);
+    pts.push({ x: quantize(cx + Math.cos(a) * R), z: quantize(cz + Math.sin(a) * R) });
+  }
+  pts.push({ x: pb.x, z: pb.z });
+  return pts;
+}
+
+// The meander polyline for the arterial between two hearts (pair-seeded), drawn
+// between each heart's single shore proxy. Seed is the heart-cell pair so the
+// curve is stable and order-independent.
 export function arterialPolyline(a, b) {
   const A = lexLess(a, b) ? a : b;          // canonical orientation
   const B = lexLess(a, b) ? b : a;
-  const pa = landingPoint(A, B.x, B.z), pb = landingPoint(B, A.x, A.z);
+  const pa = heartProxy(A), pb = heartProxy(B);
   const rng = pairRng(A.cx, A.cz, B.cx, B.cz, SALT.roadPair);
   const dx = pb.x - pa.x, dz = pb.z - pa.z;
   const len = Math.hypot(dx, dz) || 1;
@@ -92,13 +139,57 @@ export function arterialPolyline(a, b) {
   return pts;
 }
 
-// The arterial polyline, or null if it would cross a lake. Bridges are cut this
-// change, so a road that hits water simply doesn't exist (the graph routes via
-// other hearts). Deterministic + symmetric (polyline canonicalizes A,B).
+// The arterial between two CANONICAL (A ≤ B) hearts. The straight pair-seeded
+// meander if it stays dry; otherwise an around-the-lake detour (so lakeside
+// hearts connect to far-side neighbors, and two hearts on opposite shores get a
+// road instead of a gap — Gary 2026-06-06). Bridges are still cut, so if even
+// the detour can't find a dry path the road simply doesn't exist (the graph
+// routes via other hearts).
+function _computeArterial(A, B) {
+  const straight = arterialPolyline(A, B);
+  if (!crossesWater(straight)) return straight;
+
+  // The meander can bulge into a lake-heart's OWN shore near its proxy even when
+  // the direct proxy→proxy line is dry; in that case just drop the meander.
+  const pa = heartProxy(A), pb = heartProxy(B);
+  const direct = [{ x: pa.x, z: pa.z }, { x: pb.x, z: pb.z }];
+  if (!crossesWater(direct)) return direct;
+
+  // The direct line genuinely crosses a lake → detour around it.
+  const lake = blockingLake(pa, pb);
+  if (!lake) return null;
+  // Prefer the shorter way around; if the endpoints are ~opposite (both ways
+  // equal) break the tie on the pair hash so both endpoints agree on the side.
+  const TWO = Math.PI * 2;
+  const aP = Math.atan2(pa.z - lake.z, pa.x - lake.x);
+  const aQ = Math.atan2(pb.z - lake.z, pb.x - lake.x);
+  let ccw = (aQ - aP) % TWO; if (ccw < 0) ccw += TWO;
+  const dir = Math.abs(ccw - Math.PI) < 0.05
+    ? (pairRng(A.cx, A.cz, B.cx, B.cz, SALT.roadSide)() < 0.5 ? 1 : -1)
+    : (ccw < Math.PI ? 1 : -1);
+  let detour = arcAround(pa, pb, lake, dir);
+  if (crossesWater(detour)) detour = arcAround(pa, pb, lake, -dir);   // try the other side
+  return crossesWater(detour) ? null : detour;
+}
+
+// Memoized arterial (polyline | null), symmetric on the A,B pair. The dense
+// water-crossing tests + around-the-lake search make _computeArterial ~10× the
+// cost of the old vertex-only check, and both roadsInBounds (per redraw) and
+// nearestRoad (per hover) re-request the same edges — so cache the pure result,
+// gated on (seed, epoch) exactly like hearts.js/water.js (sliders bump epoch).
+const _arterialCache = new Map();
+let _arterialGate = '';
 export function arterial(a, b) {
-  const poly = arterialPolyline(a, b);
-  for (const p of poly) if (lakeAt(p.x, p.z)) return null;
-  return poly;
+  const g = getSessionSeed() + ':' + worldgenEpoch();
+  if (g !== _arterialGate) { _arterialCache.clear(); _arterialGate = g; }
+  const A = lexLess(a, b) ? a : b;
+  const B = lexLess(a, b) ? b : a;
+  const key = edgeKey(A, B);
+  if (_arterialCache.has(key)) return _arterialCache.get(key);
+  if (_arterialCache.size > 200000) _arterialCache.clear();   // bound long-pan growth
+  const v = _computeArterial(A, B);
+  _arterialCache.set(key, v);
+  return v;
 }
 
 function distToSeg(px, pz, ax, az, bx, bz) {
