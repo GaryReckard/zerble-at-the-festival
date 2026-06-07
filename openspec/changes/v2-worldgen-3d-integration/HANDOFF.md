@@ -26,22 +26,41 @@ spawn drops you at a festival, ZERO console errors; self-test 24/24 (queryPoint 
 002), `bc2f9f3` (CG1), `c5d8df1` (CG2/CG3), `8548ecb` (D2.6).
 
 **NEXT (priority order):**
-1. **`/smart-review`** the festival + spawn + lakes diff (rendering / perf / gameplay / audio /
-   sandbox / docs); fix findings. This is the natural gate now that the world content (roads,
-   festival clusters, spawn, lakes) is all live behind the flag.
-2. D2.4 filler scatter (sparse hammocks/picnics — minor); D2.7 quantize sign-off (mostly
-   by construction); D2.8 full all-tier boot + **browser POI golden** (cross-engine);
-   R27 spawn-clearance veto (deferred — the `lakeAt` walk-to-dry covers water, the
-   large-collider-near-spawn veto is still TODO); ARCHITECTURE.md rewrite (I.6); then
-   **F forests** (binding gate R3 ~80-tree/chunk cap) → G crowd → H gates → I landing (flip the flag).
+1. **Group G — crowd** (heart-influence-weighted ambient crowd + road attraction). v2's
+   `_generateWorldgen` does NOT yet call `spawnAmbientCrowd` — the only NPCs in v2 today come from
+   festival cluster builders (stage audience, vendor shopkeepers, drum figures). G.1 scale ambient
+   count per chunk by sampled heart influence/role tier (bound by PERF.crowdMax); G.2 **binding R13**:
+   gate road attraction on a REAL road (`nearestRoad` in empty outskirts returns `dist=Infinity` but a
+   finite meaningless `dirAngle` — gate on `onRoad`/`dist<thr`, never trust `dirAngle` blindly); G.3
+   verify NPCs cluster at hearts, drift along roads, never into water OR toward a phantom outskirts road.
+2. **Group H — gates**: H.2 cross-engine road-*existence* integer test (the one cross-engine thing that's
+   NOT cosmetic — `nearestRoad().onRoad` + the `roads.js:167` detour tie-break could flip whether a road
+   EXISTS per-engine; widen/quantize it). H.3 full per-tier budget pass.
+3. **Group I — landing**: flip `DEFAULT_WORLDGEN_V2=true`, the **ARCHITECTURE.md rewrite (I.6, hard gate —
+   stale: still describes pickTheme/5×5 forests/320m lakes, all now retired behind the flag)**, ROADMAP trim.
+4. **The F.5 real-device draw check** (needs Gary's hardware): boot `?worldgen=1&perf=low` on a real
+   integrated-GPU phone, boost through a dense + lakeshore woods region, confirm FPS holds. v2 woods are
+   CONTINUOUS (vs legacy 1-per-5×5) so a dense region loads more 80-tree chunks at once — the throttled
+   preview can't measure live draws (`renderer.info` reads 1/1). This is the one gate the harness can't close.
+5. Parked fast-follows: D2.4 filler scatter (hammocks/picnics — minor); D2.7 quantize sign-off (mostly done,
+   the treeDensity compare is documented-accepted); R27 spawn-clearance veto (large-collider-near-spawn — the
+   `lakeAt` walk-to-dry already covers water); junction-merge (2D); lakeshore/causeway camps (`shoreBand`).
 
-**Group E DONE + committed:** `LakeManager` now reads `src/worldgen` lakes behind `?worldgen=1`
-(rendered water == the water `festival.js`/roads plan around — the interim dual-lake mismatch is GONE).
-R5 winding gate passed (signed-area assert-then-normalize to CCW; all 22 lakes CCW by construction).
-Both band-aids removed (the spawn-nudge folded into a worldgen `lakeAt` walk-to-dry; the cluster guard now
-reads worldgen-aligned water). `?worldgen=0` byte-identical (legacy keeps its self-seeded macrocell lakes).
-Verified seed 1234 noon+midnight, default+low tier: spawn dry at the heart, sealed colliders trace the lobed
-worldgen shore + block/damage/eject, zero errors; self-test 24/24 goldens unchanged.
+**Groups E + F DONE + committed this session, plus a `/smart-review`:**
+- **E (lakes, `209e850`):** `LakeManager` reads `src/worldgen` lakes behind `?worldgen=1` (rendered water ==
+  the water `festival.js`/roads plan around — the dual-lake mismatch is GONE). R5 winding gate passed
+  (signed-area assert-then-normalize to CCW; all 22 lakes CCW by construction). Both band-aids removed
+  (spawn-nudge → worldgen `lakeAt` walk-to-dry; cluster guard reads worldgen water). `?worldgen=0` byte-identical.
+- **F (woods, `8ce84cf`):** continuous per-chunk `treeDensity` scatter replaces the 5×5 forest system.
+  `scatterWorldgenTrees` places collidable `buildForestTree` ∝ `treeDensity(x,z)`, hard-capped at 80/chunk
+  (56 low) — **R3 binding gate held exactly**. Legacy forest interior (paths/camps/LEAF drum) superseded by
+  festival.js (drum at a treed-district spot Group F surrounds) + lake rings. `CLUSTER_GUARD_SKIP` now skips
+  `forest_tree` so woods can't block a cluster (load-order independence). OPEN: F.5 real-device draw check (#4 above).
+- **`/smart-review` (`cd58138`):** 6 specialists; rendering/audio/docs clean, P3s elsewhere; fixes applied
+  (map-sandbox `wg`+POI-golden readout, festival.js R20 doc, lakes.js comment). reviews/001-festival-lakes/.
+- Verified seed 1234 across tiers: spawn dry at the heart, sealed lake colliders block/damage/eject, woods read
+  as designed with the drum nestled, ZERO console errors. Self-test 24/24, goldens `63c8dea2`/`f8dc276d`
+  unchanged; **browser POI golden `f8dc276d` matches node** (festival layout cross-engine stable).
 
 The festival-redesign detail lives in design.md "Festival Layout Redesign (D-K..D-Q)",
 tasks.md `## D2.`, deliberations/002-festival-layout/results.md, and the session-log

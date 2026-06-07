@@ -446,7 +446,7 @@ here; carry to a real-device check before I.0 landing. v2 woods are CONTINUOUS (
 loads more tree-chunks at once — the new steady-state risk.
 **Changed:** src/chunks.js (treeDensity+buildForestTree imports, scatterWorldgenTrees + pointNearWorldgenRoad +
 TREE_GUARD_SKIP, wired into _generateWorldgen, CLUSTER_GUARD_SKIP +forest_tree); CHANGELOG.md (Group F Added+Changed),
-tasks.md (F.1/F.2/F.4 ✓, F.3/F.5 partial), session-log. Commit: (pending).
+tasks.md (F.1/F.2/F.4 ✓, F.3/F.5 partial), session-log. Commit: `8ce84cf`.
 **Refs:** -> F.1-F.5, R3 (cap held), R7 (decision cost), R9 (lakeshore ring — real-device), R10 (single branch),
 footgun #4. Next: G crowd (heart-weighting); then H gates (cross-engine road-existence) → I landing (flag flip,
 ARCHITECTURE.md I.6, the F.5 real-device draw check).
