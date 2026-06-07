@@ -38,11 +38,16 @@ import { getSessionSeed } from '../rng.js';
 import { queryPoint } from './index.js';
 import { approachRoadsOf } from './roads.js';
 
-// Max distance a heart's cluster can sit from the heart center. The per-chunk
-// ownership scan (placement.js) asserts MAX_POI_REACH <= the heartsInBounds pad
-// (HEART_CELL = 440 m) so no chunk that contains a cluster center fails to
-// enumerate the owning heart (R16).
-export const MAX_POI_REACH = 120;
+// Max distance a heart's cluster center can sit from the heart center. Courts /
+// vendor rows / the arch stay near (<=120 m, on the approach roads); the DRUM
+// CIRCLE is the far one — it wants a treed spot, and treeDensity is zero inside a
+// heart's core (density.js), so for a MAJOR (core 350 m) the nearest treed pocket
+// is past the core. We bound the drum to core + DRUM_BAND, so the furthest any
+// cluster reaches is maxCore(350) + DRUM_BAND. placement.js enumerates owning
+// hearts by EXPANDING the chunk AABB by MAX_POI_REACH, so a cluster centered in a
+// chunk is guaranteed to enumerate its heart regardless of HEART_CELL (R16).
+const DRUM_BAND = 130;
+export const MAX_POI_REACH = 350 + DRUM_BAND;   // 480: major core + drum band
 
 // Footprint (clear-radius, m) hint per cluster kind — for the build half's
 // spacing + the map-sandbox overlay. The build side registers each prop with the
@@ -114,21 +119,26 @@ function nudgeOff(x, z, rng) {
   return null;
 }
 
-// A treed, off-road point in the heart's district ring (for a drum circle — a
-// quiet destination, not the main drag). Bounded deterministic search; null if
-// none found (skip the drum circle rather than force it onto the road).
+// A quiet off-road spot just past the heart's core (for a drum circle — a
+// destination, not the main drag), preferring a treed pocket. BOUNDED to
+// core + DRUM_BAND so it stays within MAX_POI_REACH (so its owning chunk always
+// enumerates this heart — R16). Deterministic: tries treed off-road spots first,
+// then falls back to the first off-road spot found (so a major in open country
+// still gets its drum circle rather than dropping it).
 function treedDistrictSpot(heart, rng) {
-  const r0 = heart.core + 20, r1 = Math.min(heart.district * 0.75, heart.core + 240);
-  for (let attempt = 0; attempt < 10; attempt++) {
+  const r0 = heart.core + 15;
+  const r1 = Math.min(heart.core + DRUM_BAND, heart.district * 0.7);
+  let fallback = null;
+  for (let attempt = 0; attempt < 12; attempt++) {
     const a = rng() * Math.PI * 2;
     const r = r0 + rng() * Math.max(0, r1 - r0);
     const x = heart.x + Math.cos(a) * r, z = heart.z + Math.sin(a) * r;
     const qp = queryPoint(x, z);
     if (qp.noBuild) continue;
-    if (qp.treeDensity < 0.3) continue;     // wants a treed pocket
-    return { x, z };
+    if (!fallback) fallback = { x, z };       // first buildable spot, in case nothing is treed
+    if (qp.treeDensity >= 0.25) return { x, z };
   }
-  return null;
+  return fallback;
 }
 
 // ── Per-heart festival plan (memoized, gated on (seed, epoch)) ───────────────

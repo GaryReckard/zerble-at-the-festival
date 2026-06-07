@@ -930,127 +930,168 @@ function placeWorldgenRoads(ctx, roads) {
   }
 }
 
-// ---------- Worldgen prop placement (Group D) ----------
+// ---------- Worldgen festival placement (D2 — feature-anchored clusters) ----------
 //
-// The build+register half of the v2 placement split: `placement.js` (pure)
-// decides WHAT/WHERE as plain descriptors; this side maps each descriptor's
-// `kind` → buildX() → a positioned Group → registry.add. The heart-center chunk
-// owns its heart's anchor (stage + court); every chunk scatters its role×rank
-// palette (D-C). placement.js already honored worldgen `noBuild` (off worldgen
-// roads + worldgen lakes); here we add the scene-aware guards the pure module
-// can't see: the legacy LakeManager's RENDERED water (until Group E swaps the
-// lake source) and registry overlap with already-placed buildings.
+// The build+register half of the v2 placement split: `worldgen/festival.js` (pure)
+// decides the festival LAYOUT — a heart's stage/arch/courts/vendor-rows/drum/potties
+// lining its approach roads, plus camp villages in the districts — as plain cluster
+// descriptors; `placement.js` filters them to this chunk (cluster-center ownership);
+// this side maps each descriptor's `kind` → buildX() → registry.add. Replaces the
+// Group-D per-point random scatter (deliberation 002 / design.md D-K..D-Q).
+// The cluster-center guard exists to stop a cluster stacking on a big SOLID
+// structure (stage / food-truck / market tent). festival.js already lays a heart's
+// clusters out without self-overlap, and isPointInLake handles water — so the guard
+// must IGNORE everything else: trees, the dense `lake_edge` sphere ring around every
+// shore (a lakeside cluster is desirable), shore/beach markers, non-solid waypoints/
+// decals, AND a cluster's own small companions (porta banks, arches, bubble vendors,
+// drum circles). `closestBuilding` measures EDGE distance, so without this the 9 m
+// companion porta a court plants beside itself would read as a blocker and silently
+// eat the court. Only stage / truck / tent block a new cluster.
+const CLUSTER_GUARD_SKIP = new Set([
+  'tree', 'lake', 'lake_edge', 'shore', 'beach', 'path_node', 'chair', 'picnic', 'stage_front',
+  'porta_potty', 'arch', 'bubble_vendor', 'drum_circle', 'hammock', 'campsite', 'bubble_jug', 'lamppost',
+]);
+
 function placeWorldgenProps(ctx) {
   const descs = placeChunkProps(ctx.cx, ctx.cz, CHUNK_SIZE, ctx.region);
   for (const d of descs) {
-    if (isPointInLake(d.x, d.z)) continue;   // legacy rendered water (Group E removes this)
-    // Anchors are the priority placement; scatter dodges anything already down.
-    if (!d.anchor &&
-        registry.closestBuilding(new THREE.Vector3(d.x, 0, d.z), Math.max(2, d.footprint * 0.5))) continue;
+    if (isPointInLake(d.x, d.z)) continue;   // legacy LakeManager rendered water (Group E removes this)
+    // Anchors (stage/arch, near the heart center) are priority; other clusters
+    // dodge an already-placed BUILDING at their CENTER (the cluster builders manage
+    // their own internal spacing, so cap the guard so a big village isn't rejected
+    // by one neighbour). Lake colliders/markers are NOT buildings (see the skip set).
+    if (!d.anchor) {
+      const guard = Math.min(8, Math.max(2, (d.footprint || 4) * 0.5));
+      if (registry.closestBuilding(new THREE.Vector3(d.x, 0, d.z), guard, CLUSTER_GUARD_SKIP)) continue;
+    }
     buildWorldgenKind(ctx, d);
   }
 }
 
-// Defensive return-shape extraction is per-builder (R2): buildStage/buildDrumCircleAt
-// register internally; placeSingleCampsite + the *At helpers below extract `.group`
-// or treat the result as a bare Group exactly as each model demands.
+// Map a cluster descriptor → its builder. Each cluster gets a CLUSTER-LOCAL rng
+// (`mulberry32(clusterSeed)`) instead of the chunk's `ctx.rng`, so the build half's
+// model variation never rides `ctx.rng` draw order — a change in the descriptor list
+// length can't desync the chunk's other consumers (R19). Return-shape extraction is
+// per-builder (R2): buildStage/buildDrumCircleAt register internally; the *At helpers
+// extract `.group`/bare-Group exactly as each model demands.
 function buildWorldgenKind(ctx, d) {
+  const cctx = { ...ctx, rng: mulberry32((d.clusterSeed >>> 0) || 0x1A2B3C) };
   switch (d.kind) {
-    case 'main_stage':  buildStage(ctx, d.x, d.z, true, d.yaw); break;
-    case 'side_stage':  buildStage(ctx, d.x, d.z, false, d.yaw); break;
-    case 'food_court':  buildFoodCourtAt(ctx, d.x, d.z); break;
-    case 'food_truck':  buildFoodTruckAt(ctx, d.x, d.z, d.yaw); break;
-    case 'vendor':      buildVendorAt(ctx, d.x, d.z, d.yaw); break;
-    case 'porta_potty': buildPottyBankAt(ctx, d.x, d.z, d.yaw); break;
-    case 'campsite':    placeSingleCampsite(ctx, d.x, d.z); break;
-    case 'drum_circle': buildDrumCircleAt(ctx, d.x, d.z); break;
-    default: break;     // unknown kind → place nothing (forward-compatible)
+    case 'main_stage':    buildStage(cctx, d.x, d.z, true, d.yaw); break;
+    case 'side_stage':    buildStage(cctx, d.x, d.z, false, d.yaw); break;
+    case 'arch':          buildEntranceArchAt(cctx, d.x, d.z, d.yaw); break;
+    case 'food_court':    buildFoodCourtAt(cctx, d.x, d.z); break;
+    case 'vendor_row':    buildVendorRowAt(cctx, d.x, d.z, d.yaw); break;
+    case 'bubble_vendor': buildBubbleVendorAt(cctx, d.x, d.z, d.yaw); break;
+    case 'porta_bank':    buildPottyBankAt(cctx, d.x, d.z, d.yaw); break;
+    case 'drum_circle':   buildDrumCircleAt(cctx, d.x, d.z); break;
+    case 'camp_village':  buildCampVillageAt(cctx, d.x, d.z); break;
+    default: break;       // unknown kind → place nothing (forward-compatible)
   }
 }
 
-// A single food truck (buildFoodTruck returns a bare Group). Mirrors the foodPlaza
-// truck registration; `yaw` faces the nearest road.
-function buildFoodTruckAt(ctx, x, z, yaw) {
-  const truck = buildFoodTruck(ctx.rng);
-  truck.position.set(x, 0, z);
-  truck.rotation.y = yaw;
-  ctx.group.add(truck);
+// Entrance arch + a string-light pole pair across its opening, rotated to face the
+// stage. The "you've arrived" gateway (the spawn heart's arch is where Zerble spawns).
+function buildEntranceArchAt(ctx, x, z, yaw) {
+  const arch = buildEntranceArchModel(leafBannerTextures('#fff4d0', '#ff6f9c', '#ffe066'));
+  arch.position.set(x, 0, z);
+  arch.rotation.y = yaw;
+  ctx.group.add(arch);
+  const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+  const rot = (lx, lz) => ({ x: x + lx * cosY + lz * sinY, z: z - lx * sinY + lz * cosY });
+  for (const lx of [-6, 6]) {
+    const w3 = rot(lx, 0);
+    registry.add({ kind: 'arch', position: new THREE.Vector3(w3.x, 1, w3.z), footprint: 0.8, collider: { radius: 1.0, damage: 4 }, chunkKey: ctx.key });
+  }
+  // A festive string-light pair straddling the arch (poles just outside the posts).
+  const a = rot(-9, 0), b = rot(9, 0);
+  placePolePair(ctx, a.x, a.z, b.x, b.z);
+}
+
+// A single refuel bubble vendor (buildBubbleVendor returns a bare Group). `yaw`
+// faces the road. Refuel is the core verb, so festival.js guarantees one per heart.
+function buildBubbleVendorAt(ctx, x, z, yaw) {
+  const vendor = buildBubbleVendor(ctx.rng);
+  vendor.position.set(x, 0, z);
+  vendor.rotation.y = yaw;
+  ctx.group.add(vendor);
   registry.add({
-    kind: 'truck',
-    position: new THREE.Vector3(x, 1.5 * FOOD_TRUCK_SCALE, z),
-    footprint: 4.4 * FOOD_TRUCK_SCALE,
-    collider: { radius: 3.6 * FOOD_TRUCK_SCALE, damage: 12 },
-    attractor: { radius: 8 * FOOD_TRUCK_SCALE, weight: 1.2 },
+    kind: 'bubble_vendor',
+    position: new THREE.Vector3(x, 0, z),
+    footprint: 2.4,
+    collider: { radius: 1.5, damage: 2 },
+    attractor: { radius: 7, weight: 1.0 },
     chunkKey: ctx.key,
+    obj: vendor,
+    refuel: 0.4,
   });
 }
 
-// A single roadside vendor — ~1/3 a Sugar Shack (has userData.cookEntry; needs a
-// chunkKey stamped on it so the cook patrol sweeps on unload), else a refuel
-// bubble vendor. Both return bare Groups.
-function buildVendorAt(ctx, x, z, yaw) {
-  if (ctx.rng() < 0.33) {
-    const shack = buildSugarShack(ctx.rng);
-    shack.position.set(x, 0, z);
-    shack.rotation.y = yaw;
-    ctx.group.add(shack);
-    if (shack.userData.cookEntry) shack.userData.cookEntry.chunkKey = ctx.key;
-    const half = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
-    registry.add({
-      kind: 'truck',          // reuses the truck toast + sfx
-      position: new THREE.Vector3(x, 1.5, z),
-      footprint: half + 0.5,
-      collider: { radius: half - 0.2, damage: 10 },
-      attractor: { radius: half + 6, weight: 1.4 },
-      chunkKey: ctx.key,
-    });
-  } else {
-    const vendor = buildBubbleVendor(ctx.rng);
-    vendor.position.set(x, 0, z);
-    vendor.rotation.y = yaw;
-    ctx.group.add(vendor);
-    registry.add({
-      kind: 'bubble_vendor',
-      position: new THREE.Vector3(x, 0, z),
-      footprint: 2.4,
-      collider: { radius: 1.5, damage: 2 },
-      attractor: { radius: 7, weight: 1.0 },
-      chunkKey: ctx.key,
-      obj: vendor,
-      refuel: 0.4,
-    });
-  }
-}
-
-// A small porta-potty bank (1-2 units), reusing the legacy row builder. Doors
-// face the road (the worldgen `yaw`). Skips if the row can't fit clear of
-// buildings/water (pottyRowClear).
+// A small porta-potty bank (1-2 units), reusing the legacy row builder. Doors face
+// the road (the worldgen `yaw`). Skips if the row can't fit clear of buildings/water.
 function buildPottyBankAt(ctx, x, z, yaw) {
   const count = 1 + (ctx.rng() < 0.4 ? 1 : 0);
   if (!pottyRowClear(x, z, yaw, count)) return;
   buildPottyBank(ctx, ctx.rng, x, z, yaw, count);
 }
 
-// A food-truck court ring centered at (x,z) — the major-heart anchor companion to
-// the main stage. Mirrors buildFoodPlaza but world-positioned (not chunk-centered).
+// Two parallel rows of market tents, world-positioned, running ALONG the road (the
+// row axis is local +Z; `yaw` = π/2 − roadBearing from festival.js aligns +Z to the
+// road tangent). Ported from the legacy buildVendorRow (5-7/side, 5 m spacing, 7 m
+// offset). Sugar shacks do NOT appear here — only in the food court (kills the
+// solo-shack bug).
+function buildVendorRowAt(ctx, x, z, yaw) {
+  const count = 5 + Math.floor(ctx.rng() * 3);
+  const spacing = 5.0, rowOffset = 7;
+  const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+  const place = (lx, lz) => ({ x: x + lx * cosY + lz * sinY, z: z - lx * sinY + lz * cosY });  // +Z = along road
+  for (let i = 0; i < count; i++) {
+    const t = i - (count - 1) / 2;
+    for (const side of [-1, 1]) {
+      const w = place(side * rowOffset, t * spacing);
+      if (isPointInLake(w.x, w.z)) continue;
+      const tent = buildTent(ctx.rng);
+      tent.position.set(w.x, 0, w.z);
+      tent.rotation.y = yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2);   // face the central aisle
+      ctx.group.add(tent);
+      registry.add({
+        kind: 'tent',
+        position: new THREE.Vector3(w.x, 0, w.z),
+        footprint: 2.6,
+        collider: { radius: 2.2, damage: 5 },
+        attractor: { radius: 4, weight: 0.5 },
+        chunkKey: ctx.key,
+      });
+    }
+  }
+}
+
+// A food-truck court ring centered at (x,z) — the festival's food street. Ported from
+// buildFoodPlaza (3-5 trucks on a ~24 m ring, inward-facing, ~35% one sugar shack,
+// a bubble vendor at the edge), world-positioned, with an inter-truck overlap guard
+// the legacy ring lacked (the only thing that kept it from overlapping was the
+// spawn-corridor hack — D2.3 surgery).
 function buildFoodCourtAt(ctx, x, z) {
   const count = 3 + Math.floor(ctx.rng() * 3);
   const ring = 14 * FOOD_TRUCK_SCALE;
   const wantShack = ctx.rng() < 0.35;
   const shackSlot = wantShack ? Math.floor(ctx.rng() * count) : -1;
+  const placed = [];
+  const overlaps = (px, pz, r) => placed.some((p) => {
+    const dx = p.x - px, dz = p.z - pz; return dx * dx + dz * dz < (p.r + r) * (p.r + r);
+  });
   for (let i = 0; i < count; i++) {
     const ang = (i / count) * Math.PI * 2 + ctx.rng() * 0.4;
     if (i === shackSlot) {
       const shackRing = ring + 2.5;
-      const sx = x + Math.cos(ang) * shackRing;
-      const sz = z + Math.sin(ang) * shackRing;
-      if (isPointInLake(sx, sz)) continue;
+      const sx = x + Math.cos(ang) * shackRing, sz = z + Math.sin(ang) * shackRing;
+      const half = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
+      if (isPointInLake(sx, sz) || overlaps(sx, sz, half)) continue;
       const shack = buildSugarShack(ctx.rng);
       shack.position.set(sx, 0, sz);
       shack.rotation.y = Math.atan2(x - sx, z - sz);   // front faces the court center
       ctx.group.add(shack);
       if (shack.userData.cookEntry) shack.userData.cookEntry.chunkKey = ctx.key;
-      const half = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
       registry.add({
         kind: 'truck',
         position: new THREE.Vector3(sx, 1.5, sz),
@@ -1059,11 +1100,12 @@ function buildFoodCourtAt(ctx, x, z) {
         attractor: { radius: half + 6, weight: 1.4 },
         chunkKey: ctx.key,
       });
+      placed.push({ x: sx, z: sz, r: half });
       continue;
     }
-    const tx = x + Math.cos(ang) * ring;
-    const tz = z + Math.sin(ang) * ring;
-    if (isPointInLake(tx, tz)) continue;
+    const tx = x + Math.cos(ang) * ring, tz = z + Math.sin(ang) * ring;
+    const tr = 4.4 * FOOD_TRUCK_SCALE;
+    if (isPointInLake(tx, tz) || overlaps(tx, tz, tr)) continue;
     const truck = buildFoodTruck(ctx.rng);
     truck.position.set(tx, 0, tz);
     truck.rotation.y = Math.atan2(x - tx, z - tz);   // face inward
@@ -1071,11 +1113,47 @@ function buildFoodCourtAt(ctx, x, z) {
     registry.add({
       kind: 'truck',
       position: new THREE.Vector3(tx, 1.5 * FOOD_TRUCK_SCALE, tz),
-      footprint: 4.4 * FOOD_TRUCK_SCALE,
+      footprint: tr,
       collider: { radius: 3.6 * FOOD_TRUCK_SCALE, damage: 12 },
       attractor: { radius: 8 * FOOD_TRUCK_SCALE, weight: 1.2 },
       chunkKey: ctx.key,
     });
+    placed.push({ x: tx, z: tz, r: tr });
+  }
+  // A bubble vendor at the court edge ~40% of the time (refuel near the food).
+  if (ctx.rng() < 0.4) {
+    const ang = ctx.rng() * Math.PI * 2, vr = ring + 3;
+    const vx = x + Math.cos(ang) * vr, vz = z + Math.sin(ang) * vr;
+    if (!isPointInLake(vx, vz) && !overlaps(vx, vz, 2.4)) {
+      buildBubbleVendorAt(ctx, vx, vz, Math.atan2(x - vx, z - vz));
+    }
+  }
+}
+
+// A packed camp village centered at (x,z) — the "back of the festival" residential
+// cluster. Ports the legacy buildCampVillage packing engine (12-20 sites, 50/35/15
+// small/medium/large, 5.5 m spacing, 30 m envelope) but anchored to a worldgen
+// district cell instead of a chunk CORNER. The chunk-corner anchor was a chunk-grid
+// artifact — the packing rule was always good (CHANGELOG.md:611-613, the three failed
+// framings). Sites spill into neighbour chunks but stay parented to this chunk's
+// group, unloading as a unit.
+function buildCampVillageAt(ctx, x, z) {
+  const target = 12 + Math.floor(ctx.rng() * 9);   // 12-20
+  const placed = [];
+  const MIN_SPACING = 5.5, RADIUS = 30;
+  let attempts = 0;
+  while (placed.length < target && attempts < target * 16) {
+    attempts++;
+    const px = x + (ctx.rng() - 0.5) * 2 * RADIUS, pz = z + (ctx.rng() - 0.5) * 2 * RADIUS;
+    if (isPointInLake(px, pz)) continue;
+    if (registry.closestBuilding(new THREE.Vector3(px, 0, pz), 4, CLUSTER_GUARD_SKIP)) continue;
+    let tooClose = false;
+    for (const p of placed) { const dx = p.x - px, dz = p.z - pz; if (dx * dx + dz * dz < MIN_SPACING * MIN_SPACING) { tooClose = true; break; } }
+    if (tooClose) continue;
+    const r = ctx.rng();
+    const size = r < 0.50 ? 'small' : (r < 0.85 ? 'medium' : 'large');
+    placeSingleCampsite(ctx, px, pz, size);
+    placed.push({ x: px, z: pz });
   }
 }
 

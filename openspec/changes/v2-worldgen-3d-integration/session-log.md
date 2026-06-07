@@ -285,3 +285,35 @@ behavior — festival.js isn't wired in yet — so this is a clean bootable chec
 map-sandbox.html, index.html, sandbox.html, src/chunks.js (comment), CHANGELOG.md, tasks.md (D2.0a/b/1/2 ✓), session-log.
 **Refs:** -> R16-R28 (CG1 satisfies R17/R18/R20/R21/R23/R28). Next: CG2/CG3 — wire placeChunkProps
 to the plan (D2.5) + re-anchor builders with clusterSeed rng-regime (D2.1b/D2.3) + spawn-at-heart (D2.6).
+
+### 2026-06-07 — Festival redesign CG2/CG3: wire festival.js into the game (placement is LIVE)
+**Intent:** Make festival.js drive in-game placement (D2.5), re-anchor the cluster builders with the
+clusterSeed rng-regime (D2.1b/D2.3). The festival should now read as designed in-game behind ?worldgen=1.
+**Result:**
+- D2.5: `placeChunkProps` rewritten as the thin per-chunk filter — `heartsInBounds(chunkAABB ± MAX_POI_REACH)`
+  → memoized `festivalPlan` → keep clusters whose center is in this chunk (half-open, one owner/seam);
+  + `campVillagesNear`. Per-heart distance pre-filter spreads the memoized plan cost.
+- D2.1b/D2.3: `placeWorldgenProps` + `buildWorldgenKind` rewritten — each cluster built with a
+  CLUSTER-LOCAL `cctx={...ctx, rng:mulberry32(d.clusterSeed)}` (R19, severs from ctx.rng). New builders:
+  `buildEntranceArchAt` (arch+colliders+string lights), `buildVendorRowAt` (double row along road),
+  `buildBubbleVendorAt`, `buildCampVillageAt` (12-20 packing, world-positioned); `buildFoodCourtAt` gained
+  an inter-truck overlap guard + edge bubble vendor; solo-shack branch deleted (shacks ONLY in courts).
+- **MAX_POI_REACH fix (R16):** found that a major's drum circle reaches ~core+130 (350+130=480, treeDensity
+  is 0 inside a core so the treed spot is past it) — beyond the old 120 + the ±440 pad → would vanish. Set
+  MAX_POI_REACH=480, drum bounded to core+DRUM_BAND with a fallback, ownership scan expands by MAX_POI_REACH.
+- **GUARD BUG found+fixed (the courts/vendor-rows were invisible):** `registry.closestBuilding` measures
+  EDGE distance (hypot − footprint) and only excluded 'tree'. The `lake` water-mesh entry has a HUGE
+  footprint, so a court near a lakeshore road read as "near the lake building" → skipped (even though
+  `isPointInLake` said the center was dry). Also companion portas tripped it. Fix: `CLUSTER_GUARD_SKIP`
+  blocks only on stage/truck/tent (the big solid structures); lake/lake_edge/shore/companions ignored.
+  Diagnosed with a temporary `[WGDBG]` log → "food_court SKIPPED by lake" → removed the log after.
+**Verified (REAL game, seed 1234):** at the (62,1463) major heart — main stage + chairs, 2 arches w/ string
+lights, food-court truck ring (truck×7), double vendor rows (tent×22), bubble vendors, porta banks, lakeside
+campsites. Clusters LINE THE ROADS as designed (screenshots: close + establishing), nothing in water, ZERO
+console errors. Self-test 24/24 (queryPoint 63c8dea2, POI f8dc276d). Per-chunk DECISION cost headless:
+0.5-0.9 ms warm, 37 ms cold-once (down from 84 via the per-heart pre-filter), << 8 ms steady-state gate.
+**Changed:** src/worldgen/{festival.js, placement.js}, src/chunks.js (placeWorldgenProps/buildWorldgenKind
++ builders + CLUSTER_GUARD_SKIP), CHANGELOG.md, tasks.md (D2.1b/3/5 ✓), session-log.
+**Refs:** -> R16 (ownership scan), R19 (clusterSeed rng-regime), R22 (no boot crash), R29 (shack shared).
+Next: D2.6 spawn-at-heart (the visible win — relocate Zerble to the nearest major's arch); then D2.4 filler /
+D2.7 quantize sign-off / D2.8 all-tier boot + browser POI golden; then /smart-review.

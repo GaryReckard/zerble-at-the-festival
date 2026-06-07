@@ -4,6 +4,29 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-06-07
 
+### Changed
+- **v2 festival now places structured, feature-anchored CLUSTERS in-game (behind
+  `?worldgen=1`) — the redesign replacing the Group-D random scatter.** Where Group
+  D sprinkled single props per chunk (solo sugar shacks, drum circles on arbitrary
+  grass, no clustering), the festival now reads as *designed*: a heart builds a main
+  stage at its center, an entrance arch + string lights on its primary approach
+  road, **food-truck court rings and double-row vendor markets lining its streets**,
+  a guaranteed refuel bubble vendor, a drum circle off in a treed district pocket,
+  and porta-potty banks tucked beside each cluster — while **packed 12–20-site camp
+  villages** fill the districts out back. The pure `src/worldgen/festival.js` POI
+  layer decides the layout (memoized per heart); `placement.js` filters it per chunk
+  by cluster-center ownership; `chunks.js` builds each cluster from a stable
+  per-cluster `clusterSeed` (so model variation never rides chunk-rng draw order).
+  **Sugar shacks now appear ONLY inside food courts** (killing the solo-shack bug),
+  the food-court ring gained an inter-truck overlap guard the legacy plaza lacked,
+  and the cluster placement guard no longer counts lake colliders/markers as
+  "buildings" (which had been silently eating courts/vendor rows placed near
+  lakeshore roads). Verified in the real game at a major heart (seed 1234): clusters
+  line the roads, nothing in water, zero console errors; per-chunk decision cost
+  ~0.9 ms warm / ~37 ms cold-once (memoized), well under the 8 ms steady-state gate.
+  Determinism self-test still 20/20 (`queryPoint` golden `63c8dea2`; new POI golden
+  `f8dc276d` on node). Part of the `v2-worldgen-3d-integration` change (CG2/CG3).
+
 ### Added
 - **Map-sandbox `festival` POI overlay — see the festival LAYOUT in 2D before the
   3D build.** `map-sandbox.html` gained a `festival` layer toggle that draws the
