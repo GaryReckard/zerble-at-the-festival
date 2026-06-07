@@ -8,20 +8,38 @@
 
 ## TL;DR — what this is and where it stands
 
-Wiring the verified, deterministic 2D `src/worldgen/` generator (built by the
-`procedural-map-generator` change) into the **live 3D game** as v2 worldgen — the
-ROADMAP "big one." Full OpenSpec pipeline so far: `/opsx:ff` (proposal/design/specs/
-tasks) → tier-3 `/deliberate` (5 council + mediator, all "Proceed with mitigations",
-results folded into tasks as Groups A–I). **Groups A (paperwork) + B (scaffolding) +
-C (roads) are DONE** (v2 chunks render chunk-clipped RAW arterial ribbons — visible
-in-game, kink-free seams, source-of-truth aligned; both flag states boot clean). Next is
-**Group D (placement.js anchors + role×rank scatter)** — the headline + highest crash-risk
-group (R2 return-shape, R4 tuple-key). `_generateWorldgen` already calls `queryRegion`
-once and stores `ctx.region` (hearts/lakes ready for D/F). Flag lives in perf.js:
-**`DEFAULT_WORLDGEN_V2 = false`** (legacy ships
-by default while building) — test v2 with **`?worldgen=1`**, force legacy with `?worldgen=0`.
-Flip the default to `true` at landing (task I.0) once the world is populated + verified, so the
-production deploy never shows a half-empty v2 world.
+Wiring the verified, deterministic 2D `src/worldgen/` generator into the **live 3D
+game** as v2 worldgen (ROADMAP "big one"), behind `?worldgen=1` (`DEFAULT_WORLDGEN_V2
+= false` in perf.js — legacy ships by default until landing I.0).
+
+**DONE + committed** (branch `procedural-map-generator`): Groups A (paperwork), B
+(scaffolding), C (RAW arterial road ribbons), D (heart anchors + first scatter), then
+the **FESTIVAL-LAYOUT REDESIGN** (Gary feedback: the D scatter was too random) — a
+second tier-3 `/deliberate` (002, 5 council + mediator) → CG1 (pure `festival.js` POI
+layer + harness gates: POI golden, map-sandbox `festival` overlay) → CG2/CG3 (festival
+drives in-game placement: stages/courts/vendor-rows/drum/villages lining a heart's
+approach roads; sugar shacks only in courts) → **D2.6 spawn-at-heart** (Zerble spawns
+outside the nearest major heart's arch facing the stage, +4 welcome jugs). Verified
+in-game at seed 1234 (noon + midnight, default + low tier): clusters line the roads,
+spawn drops you at a festival, ZERO console errors; self-test 24/24 (queryPoint golden
+`63c8dea2`, POI golden `fe82f8cc`→`f8dc276d` node). Commits: `7ba2805` (plan+deliberate
+002), `bc2f9f3` (CG1), `c5d8df1` (CG2/CG3), `8548ecb` (D2.6).
+
+**NEXT (priority order changed by a discovery):**
+1. **Group E — lakes → worldgen, ELEVATED.** The interim dual-lake mismatch (legacy
+   LakeManager lakes ≠ worldgen lakes) is the one rough edge: festival.js plans around
+   *worldgen* water but the *rendered* water is still legacy, so a legacy lake can sit
+   where a cluster/spawn was planned (mitigated by an `isPointInLake` cluster-skip + a
+   spawn-out-of-water nudge, but those are band-aids). Group E makes rendered water ==
+   worldgen water and removes both band-aids. Binding gate R5 (collider winding sign-flip).
+2. D2.4 filler scatter (sparse hammocks/picnics — minor); D2.7 quantize sign-off (mostly
+   by construction); D2.8 full all-tier boot + **browser POI golden** (cross-engine);
+   R27 spawn-clearance veto (deferred); `/smart-review` the festival diff; ARCHITECTURE.md
+   rewrite (I.6); then F forests → G crowd → H gates → I landing (flip the flag).
+
+The festival-redesign detail lives in design.md "Festival Layout Redesign (D-K..D-Q)",
+tasks.md `## D2.`, deliberations/002-festival-layout/results.md, and the session-log
+Work Log (2026-06-07 CG1/CG2-CG3/D2.6 entries).
 
 Committed on branch `procedural-map-generator`:
 - `68b22eb` — the 2D road/forest refinement (lake-heart proxy + route-around + tree-dots).
