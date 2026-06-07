@@ -5,6 +5,31 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-07
 
 ### Changed
+- **v2 lakes are now the worldgen lakes (behind `?worldgen=1`) — the rendered water
+  finally matches what the festival planned around.** `LakeManager` used to self-seed
+  its own macrocell lakes (320m cells, ~45% density) that had nothing to do with the
+  worldgen water `festival.js`/roads avoid — so a legacy lake could sit right where a
+  cluster or the spawn was planned. It now reads `src/worldgen`'s lakes (1050m cells,
+  ~60% density → fewer, bigger lakes) so the water you see *is* the water the layout
+  dodges. The mesh, sealed colliders, decoration (lakeside camps + forest ring), and
+  canoes are unchanged — only the source of the lake's center + outline was swapped.
+  This removes the two interim band-aids: the post-`buildWorld` spawn-nudge is gone
+  (the spawn-clearance is now a single worldgen `lakeAt` walk-to-dry folded into the
+  spawn-at-heart step, which works regardless of which lakes are loaded), and the
+  cluster placement guard now reads worldgen-aligned water. `?worldgen=0` is byte-for-
+  byte unchanged (legacy keeps its self-seeded lakes; verified: 17 macrocell lakes,
+  spawn still `(0,65)`). **Determinism gate (R5):** the worldgen outline (absolute
+  world vertices) is converted to lakes.js's center-relative form and its winding is
+  asserted-then-normalized to CCW before the sealed colliders are placed — all 22
+  lakes near origin proved CCW by construction, so the normalize is defensive insurance
+  against a future shape silently sealing colliders *outside* the water (which the
+  water's `DoubleSide` would mask). In-game point-in-poly now matches worldgen `lakeAt`
+  to within 0.3m (a quantize-boundary fuzz at the waterline, harmless). Verified in the
+  real game (seed 1234, noon + midnight, default + low tier): spawn lands dry at the
+  major heart, the two loaded lakes match the worldgen self-test cells, the collider
+  ring traces the lobed shore and the cart is blocked + damaged + ejected when it hits
+  it, zero console errors. Self-test still 24/24 (`queryPoint` golden `63c8dea2`, POI
+  golden `f8dc276d` — worldgen untouched). Part of `v2-worldgen-3d-integration` (Group E).
 - **v2 spawn now drops you AT a festival (behind `?worldgen=1`) — outside a major
   heart's entrance arch, facing its main stage.** Instead of the legacy fixed
   `(0,65)`, the game finds the nearest major heart to origin and relocates Zerble

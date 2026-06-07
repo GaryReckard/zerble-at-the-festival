@@ -19,7 +19,7 @@ import { Touch } from './touch.js';
 import { HUD } from './hud.js';
 import { buildWorld, updateWorld, getTimeOfDay } from './world.js';
 import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
-import { lakeAnimatables, setLakeNightness, isPointInLake } from './lakes.js';
+import { lakeAnimatables, setLakeNightness } from './lakes.js';
 import { updateCampsiteProps } from './models/campsite.js';
 import { updatePortaPotty } from './models/portaPotty.js';
 import { updateLeafDrumCircle } from './models/leafDrumCircle.js';
@@ -49,6 +49,7 @@ import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { setSpawnPoint } from './chunks.js';
 import { nearestMajorHeart } from './worldgen/hearts.js';
 import { festivalPlan } from './worldgen/festival.js';
+import { lakeAt } from './worldgen/water.js';
 import { Trip } from './trip.js';
 import { Analytics } from './analytics.js';
 import * as ContextLights from './contextLights.js';
@@ -223,9 +224,22 @@ if (USE_WORLDGEN_V2) {
     // forward carries you through the arch toward the main stage.
     let ox = arch.x - stage.x, oz = arch.z - stage.z;
     const ol = Math.hypot(ox, oz) || 1; ox /= ol; oz /= ol;
-    const sx = Math.round(arch.x + ox * 14), sz = Math.round(arch.z + oz * 14);
-    zerble.position.set(sx, 0, sz);
+    let sx = Math.round(arch.x + ox * 14), sz = Math.round(arch.z + oz * 14);
     zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));  // forward = (-sin,-cos)
+    // Spawn-clearance: the arch sits on a road (roads route around lakes, so it's
+    // dry), but the 14m-beyond-arch point can clip a worldgen shore. Test WORLDGEN
+    // water directly (lakeAt — always available, unlike the registry isPointInLake
+    // which only knows loaded lakes at this origin-based boot pass) and walk forward
+    // toward the (dry) stage until clear. Group E made rendered water == worldgen
+    // water, so this single worldgen check now keeps the actual arrival on dry land.
+    if (lakeAt(sx, sz)) {
+      const fx = -Math.sin(zerble.heading), fz = -Math.cos(zerble.heading);
+      for (let d = 6; d <= 140; d += 6) {
+        const nx = Math.round(sx + fx * d), nz = Math.round(sz + fz * d);
+        if (!lakeAt(nx, nz)) { sx = nx; sz = nz; break; }
+      }
+    }
+    zerble.position.set(sx, 0, sz);
     setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs around the real arrival
   }
 }
@@ -257,20 +271,6 @@ Sound.onSongEnd((x, z) => {
 
 // ---------- World (sky/lights/ground/mountains + chunk manager) ----------
 buildWorld(scene, crowd);
-
-// Spawn-safety: the legacy LakeManager (until Group E swaps lakes to worldgen)
-// can render water where the worldgen-planned heart spawn sits — the worldgen arch
-// avoids WORLDGEN lakes, but the rendered water is still the legacy macrocell lakes,
-// which can overlap. Now that lakes exist, if spawn landed in water, walk forward
-// (toward the stage, which is on dry shore) until clear so the player never starts
-// mid-lake. (Interim — Group E removes the dual-lake mismatch entirely.)
-if (USE_WORLDGEN_V2 && isPointInLake(zerble.position.x, zerble.position.z)) {
-  const fx = -Math.sin(zerble.heading), fz = -Math.cos(zerble.heading);
-  for (let d = 6; d <= 140; d += 6) {
-    const nx = zerble.position.x + fx * d, nz = zerble.position.z + fz * d;
-    if (!isPointInLake(nx, nz)) { zerble.position.set(nx, 0, nz); break; }
-  }
-}
 
 // ---------- Lurleen (love interest, persistent across the world) ----------
 const lurleen = new Lurleen(scene);

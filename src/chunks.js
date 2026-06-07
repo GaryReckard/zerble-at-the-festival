@@ -961,7 +961,7 @@ const CLUSTER_GUARD_SKIP = new Set([
 function placeWorldgenProps(ctx) {
   const descs = placeChunkProps(ctx.cx, ctx.cz, CHUNK_SIZE, ctx.region);
   for (const d of descs) {
-    if (isPointInLake(d.x, d.z)) continue;   // legacy LakeManager rendered water (Group E removes this)
+    if (isPointInLake(d.x, d.z)) continue;   // worldgen water (Group E: rendered water == worldgen lakeAt)
     // Anchors (stage/arch, near the heart center) are priority; other clusters
     // dodge an already-placed BUILDING at their CENTER (the cluster builders manage
     // their own internal spacing, so cap the guard so a big village isn't rejected

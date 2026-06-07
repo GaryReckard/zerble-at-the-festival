@@ -1,7 +1,7 @@
 ---
 change: v2-worldgen-3d-integration
 status: in_progress
-current_task: Festival-layout redesign (placement quality) — deep-plan → deliberate → apply → verify → smart-review (Gary feedback 2026-06-07)
+current_task: Group E DONE (lakes → worldgen, R5 passed). Next: D2.4 filler / D2.7-D2.8 sign-off / smart-review / F forests
 blocked_by: null
 open_questions: 0
 started: 2026-06-06
@@ -20,10 +20,11 @@ ref: procedural-map-generator change (2D generator + sandbox, complete); ROADMAP
 **Phase:** APPLY. Artifacts done (proposal/design/specs/tasks); `/deliberate` complete
 (5 council + mediator, synthesis — all "Proceed with mitigations", 0 blocks; results.md
 folded into tasks.md as Groups A–I). Group A (paperwork) done. Now implementing.
-**Doing:** Group D DONE + verified (heart anchors + role×rank scatter visible in-game at a
-major heart; both flag states boot clean; self-test 20/20 golden unchanged). Next: Group E (lakes).
-**Resolved delivery order:** A(paperwork ✓) → B scaffold ✓ → C roads ✓ → D placement ✓ →
-**E lakes** → F forests → G crowd → H gates → I docs. Junction-merge DEFERRED to a 2D-only
+**Doing:** Group E DONE + verified (LakeManager reads worldgen lakes; R5 winding gate passed; rendered
+water == worldgen water; both band-aids removed; legacy byte-identical; self-test 24/24 goldens unchanged).
+Next: D2.4 filler / D2.7 quantize sign-off / D2.8 all-tier boot + browser POI golden / /smart-review; then F forests.
+**Resolved delivery order:** A(paperwork ✓) → B scaffold ✓ → C roads ✓ → D placement ✓ +festival redesign ✓ →
+**E lakes ✓** → F forests → G crowd → H gates → I docs. Junction-merge DEFERRED to a 2D-only
 fast-follow change.
 **Flag:** `DEFAULT_WORLDGEN_V2 = false` in perf.js (legacy ships by default while building);
 test v2 with `?worldgen=1`; flip default to true at landing (task I.0).
@@ -103,8 +104,10 @@ R5 lake winding sign, R6 ROAD_MAT userData.shared. See results.md Risk Register.
   path adds more transcendental-dependent road existence. Must re-verify golden on
   the game path + document; consider integer orientation test if it ever flips a
   collider's existence (not just cosmetics).
-- Two lake macrocell sizes today (game 320m vs worldgen 1050m) — the worldgen one wins;
-  confirm density/size feel in 3D vs the old lakes players have seen.
+- ~~Two lake macrocell sizes today (game 320m vs worldgen 1050m) — the worldgen one wins;
+  confirm density/size feel in 3D vs the old lakes players have seen.~~ RESOLVED in Group E: v2 reads
+  worldgen lakes (1050@0.60 → fewer/bigger), legacy keeps 320@0.45 byte-identical. Density/size *feel*
+  A/B parked to a fast-follow (E.4) — the swap ships; tuning is optional.
 - **`_forestPathMat` (forests.js:330) is created at MODULE-EVAL with `depthWrite:false`** — the
   same class that made the worldgen road invisible. The legacy FOREST interior paths may
   therefore be invisible in the shipped game (unverified — forests are sparse, interior paths
@@ -339,3 +342,51 @@ the in-game water line up, and the spawn-nudge + cluster-skips become unnecessar
 (setSpawnPoint + 4 jugs + wider _placeSpawnJugs search), CHANGELOG.md, tasks.md (D2.6 ✓), session-log.
 **Refs:** -> D-O, R31 (iOS — module-eval not gesture), R27 (clearance veto deferred). Next: D2.4 filler /
 D2.7 quantize sign-off / D2.8 all-tier boot + browser POI golden / Group E (lakes) / /smart-review / ARCHITECTURE.
+
+### 2026-06-07 — Group E: LakeManager reads worldgen lakes (binding gate R5) — INTENT
+**Intent:** Make the RENDERED water == WORLDGEN water (kill the interim dual-lake mismatch). `LakeManager.update`
+branches on `USE_WORLDGEN_V2`: legacy → today's self-seeded macrocell lakes BYTE-IDENTICAL; v2 → `wgLakesInBounds`
+around the player (margin for big worldgen lakes, load/unload by center-dist ∓ lake.maxR so the bigger LAKE_CELL=1050
+doesn't leave the load ring empty — E.4). `buildLake` gains a top branch: `opts.worldgenLake` → center+true outline
+from worldgen; else legacy. **R5 plan (assert-then-normalize, stronger than assert):** convert worldgen absolute
+outline → center-relative + normalize signed-area to CCW (worldgen `_computeLake` is CCW by ellipse cos/sin
+construction; normalize defensively so a future shape can't silently seal colliders OUTSIDE the water — masked by the
+water DoubleSide). The TRUE polygon drives the water ShapeGeometry + sealed colliders + a point-in-poly `isPointInLake`
+(so game water-test == worldgen `lakeAt`); decoration (camps/beach/forest/canoe via outlineRAt's index→angle
+assumption) uses a polar-resampled outline so a rotated/lobed worldgen lake places its ring correctly WITHOUT touching
+the legacy path. Decoration rng = a fresh per-cell `worldHash(cx*167+13, cz*379+71)` stream (footgun #4). E.3: lake
+colliders keep NO chunkKey (unchanged — buildLake never passes one). Band-aids removed: the post-buildWorld
+`isPointInLake` spawn-nudge in main.js → folded into the spawn-at-heart block as a WORLDGEN `lakeAt` walk-to-dry
+(always available, not lifecycle-gated); chunks.js:964 guard kept (now reads worldgen-aligned water) with comment
+fixed. Self-test golden `63c8dea2`/POI `f8dc276d` MUST stay (water.js untouched; decoration rng is game-side).
+**Refs:** -> E.1-E.4, R5 (binding gate), footgun #4/#5, D-P (no-water invariant). Result entry to follow.
+
+### 2026-06-07 — Group E: LakeManager reads worldgen lakes — RESULT (DONE + verified)
+**Result:** Swapped + verified end-to-end; both interim band-aids removed.
+- **lakes.js:** `LakeManager.update` now branches `if (USE_WORLDGEN_V2)` → `_loadUnloadWorldgen` (scan
+  `wgLakesInBounds` over player±(LOAD_RADIUS+`WG_MAX_LAKE_R`=340); load/unload by center-dist ∓ lake.maxR so the
+  1050m cell never leaves the ring empty — E.4) vs `_loadUnloadLegacy` (today's macrocell scan VERBATIM); canoe drift
+  shared. `buildLake` gained a top branch: `opts.worldgenLake` → center+TRUE outline from worldgen via
+  `worldgenOutlineToCCWRelative` (R5: shoelace signed-area assert-then-normalize to CCW) + a `polarResample` for the
+  decoration's `outlineRAt` index→angle path; else legacy (rng draw order byte-identical, `decoOutline===outline`).
+  Decoration body renamed `outline`→`decoOutline` at the 4 placement `outlineRAt` calls + canoe; registry `lake`
+  entry carries `exactPoly:!!wl`; `isPointInLake` branches (worldgen → `pointInPolyRel` true polygon == worldgen
+  `lakeAt`; legacy → unchanged radial test). Decoration rng = fresh `mulberry32(worldHash(cx*167+13, cz*379+71))`
+  (footgun #4). Lakes still NO chunkKey (E.3).
+- **main.js:** folded the spawn-clearance into the spawn-at-heart block as a worldgen `lakeAt` walk-to-dry (always
+  available, not lifecycle-gated); deleted the post-`buildWorld` `isPointInLake` nudge + dropped the now-unused import.
+- **chunks.js:** :964 guard kept (now reads worldgen-aligned water), comment fixed.
+**Verified:** self-test 24/24, goldens `63c8dea2`/`f8dc276d` UNCHANGED (water.js untouched). Headless R5 proof: all 22
+lakes in ±2km CCW (normalize never fires); my `pointInPolyRel` vs worldgen `lakeContaining` = 6/3668 disagreements, all
+≤0.293m from the shoreline (quantize-the-query fuzz, harmless). REAL game seed 1234: (1) v2 default — spawn dry at
+(746,-216) by the (701,-204) major, 2 worldgen lakes loaded whose centers/radii EXACTLY match self-test cells (0,-1)
+& (-1,-1), both `exactPoly`, 733 `lake_edge` colliders, ZERO errors; noon + midnight arrival read great. (2) E.3 — top-down
+`showColliders` shows the sealed ring tracing the lobed worldgen shore; teleporting onto a `lake_edge` blocked + damaged
+(juice 0.9→0.854) + EJECTED the cart away from water. (3) v2 `?perf=low` (Lambert) — same spawn/lakes, clean. (4)
+`?worldgen=0` — spawn (0,65), 17 macrocell lakes, all `exactPoly:false`, ZERO errors → byte-identical legacy.
+**Changed:** src/lakes.js (LakeManager branch + worldgen helpers + buildLake branch + isPointInLake), src/main.js
+(spawn walk-to-dry + nudge removed + import), src/chunks.js (:964 comment); CHANGELOG.md (2026-06-07 Group E),
+tasks.md (E.1-E.4 ✓), session-log. Commit: (pending).
+**Refs:** -> E.1-E.4, R5 (PASSED), footgun #4/#5. Next: D2.4 filler / D2.7 quantize sign-off / D2.8 all-tier boot +
+browser POI golden / R27 spawn-clearance veto / /smart-review the festival+lakes diff / I.6 ARCHITECTURE.md rewrite;
+then F forests → G crowd → H gates → I landing.

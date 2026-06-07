@@ -23,6 +23,8 @@ import { hash2, worldHash, mulberry32 } from './rng.js';
 import { buildCanoe } from './models/canoe.js';
 import { buildCampsite } from './models/campsite.js';
 import { buildForestTree } from './models/tree.js';
+import { lakesInBounds as wgLakesInBounds } from './worldgen/water.js';
+import { USE_WORLDGEN_V2 } from './perf.js';
 
 // Per-frame animatables from lakeside campsites. Each entry:
 //   { lakeKey: string, animatables: [...] }
@@ -33,6 +35,13 @@ const LAKE_CELL = 320;
 const LAKE_DENSITY = 0.45;       // ~45% of macrocells get a lake
 const LOAD_RADIUS = 720;          // build lakes within this distance of the player
 const UNLOAD_RADIUS = 1500;       // tear them down beyond this (rebuilt deterministically on return)
+
+// v2 worldgen lakes are bigger than legacy (CONFIG.LAKE_RADIUS.max=150, elongated up
+// to √1.9 + lobes → ~310m max bounding radius). The load/unload window scans by lake
+// CENTER, so widen the search box + offset the load/unload tests by each lake's maxR
+// so a big lake whose center sits beyond LOAD_RADIUS still loads when its SHORE is in
+// range (E.4 — otherwise the bigger LAKE_CELL=1050 leaves the load ring empty).
+const WG_MAX_LAKE_R = 340;
 
 // Edge-collider sphere radius. Matched against cart outer radius (~1.9m) so
 // `cart_edge meets visible water = cart_center at (shoreR - sphereR)`. Pushed
@@ -83,6 +92,22 @@ export class LakeManager {
   }
 
   update(scene, playerPos, dt = 0.016) {
+    // v2 reads lake positions/outlines from src/worldgen (the single source of
+    // truth festival.js + roads plan around); legacy keeps the self-seeded
+    // macrocell lakes byte-for-byte (?worldgen=0 must not change). Same
+    // `if (USE_WORLDGEN_V2)` single-branch discipline as chunks.js (R10).
+    if (USE_WORLDGEN_V2) this._loadUnloadWorldgen(scene, playerPos);
+    else this._loadUnloadLegacy(scene, playerPos);
+
+    // Drift canoes on every loaded lake (both paths). Each lake has 0/1/2 canoes.
+    for (const [, lake] of this.lakes) {
+      if (lake && lake.canoes) {
+        for (const c of lake.canoes) updateCanoe(c, dt);
+      }
+    }
+  }
+
+  _loadUnloadLegacy(scene, playerPos) {
     const mcxMin = Math.floor((playerPos.x - LOAD_RADIUS) / LAKE_CELL);
     const mcxMax = Math.floor((playerPos.x + LOAD_RADIUS) / LAKE_CELL);
     const mczMin = Math.floor((playerPos.z - LOAD_RADIUS) / LAKE_CELL);
@@ -118,14 +143,109 @@ export class LakeManager {
         this.lakes.delete(key);
       }
     }
+  }
 
-    // Drift canoes on every loaded lake. Each lake has 0/1/2 canoes.
-    for (const [, lake] of this.lakes) {
-      if (lake && lake.canoes) {
-        for (const c of lake.canoes) updateCanoe(c, dt);
+  _loadUnloadWorldgen(scene, playerPos) {
+    // Scan worldgen lake cells whose lake could reach the load window (center may
+    // sit beyond LOAD_RADIUS while its shore is in range — hence the WG_MAX_LAKE_R
+    // margin and the maxR-offset distance tests below).
+    const margin = LOAD_RADIUS + WG_MAX_LAKE_R;
+    const wlakes = wgLakesInBounds(
+      playerPos.x - margin, playerPos.z - margin,
+      playerPos.x + margin, playerPos.z + margin,
+    );
+    for (const wl of wlakes) {
+      const key = _key(wl.cx, wl.cz);
+      if (this.lakes.has(key)) continue;
+      if (Math.hypot(wl.x - playerPos.x, wl.z - playerPos.z) - wl.maxR > LOAD_RADIUS) continue;
+      // Decoration rng — a FRESH per-cell stream (footgun #4). Independent of
+      // worldgen's internal lake salts (those live in cellRng) AND of the legacy
+      // worldHash(mcx*17+91,…) seed; deterministic per worldgen lake cell. It only
+      // drives camp/island/beach/tree/canoe variety — never the lake's shape.
+      const rng = mulberry32(worldHash(wl.cx * 167 + 13, wl.cz * 379 + 71));
+      this.lakes.set(key, buildLake(scene, wl.cx, wl.cz, rng, { worldgenLake: wl }));
+    }
+
+    // Unload distant lakes (rebuilt deterministically when the player returns).
+    for (const [key, lake] of this.lakes) {
+      if (!lake) continue;
+      const dx = lake.center.x - playerPos.x;
+      const dz = lake.center.z - playerPos.z;
+      if (Math.hypot(dx, dz) - lake.radius > UNLOAD_RADIUS) {
+        destroyLake(scene, lake);
+        this.lakes.delete(key);
       }
     }
   }
+}
+
+// ---- Worldgen outline conversion (R5 — the binding gate) -------------------
+//
+// The worldgen lake outline is ABSOLUTE world vertices wound by `_computeLake`'s
+// ellipse cos/sin (CCW: positive signed area). lakes.js wants CENTER-RELATIVE,
+// CCW points. Convert + ASSERT-then-NORMALIZE the winding: `placeSealedColliders`
+// derives the inward normal as (-edz,+edx) and the water ShapeGeometry walks the
+// outline in reverse for CW — both assume CCW. A CW outline would seal the
+// colliders OUTSIDE the water (the cart drives straight in) and the water DoubleSide
+// would MASK it as a missing collision for the whole session (no chunkKey). Worldgen
+// is CCW by construction; we still normalize so a future shape change can't flip it
+// silently.
+function worldgenOutlineToCCWRelative(wl) {
+  const rel = wl.outline.map((p) => ({ x: p.x - wl.x, z: p.z - wl.z }));
+  let area2 = 0;
+  for (let i = 0, n = rel.length; i < n; i++) {
+    const a = rel[i], b = rel[(i + 1) % n];
+    area2 += a.x * b.z - b.x * a.z;   // shoelace (×2); >0 ⇒ CCW in the (x,z) plane
+  }
+  if (area2 < 0) rel.reverse();
+  return rel;
+}
+
+// Resample a center-relative polygon into the polar form `outlineRAt` assumes
+// (vertex i sits exactly at angle i/N·2π). The worldgen polygon is rotated + lobed,
+// so its vertices are NOT angularly ordered — feeding it straight to outlineRAt's
+// index→angle interpolation would place camps/trees at the wrong radius (into the
+// water). Resampling by the FARTHEST ray–polygon crossing matches the "place beyond
+// the shore" intent (and the camps' own ±wedge max trick). Used for DECORATION only;
+// the true polygon still drives the water mesh, colliders, and isPointInLake. Legacy
+// outlines are already in this form so they never take this path.
+function polarResample(rel, N = 64) {
+  const out = [];
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    const r = rayPolyMaxDist(rel, Math.cos(a), Math.sin(a));
+    out.push({ x: Math.cos(a) * r, z: Math.sin(a) * r });
+  }
+  return out;
+}
+
+// Farthest crossing distance of the ray from the origin in direction (dx,dz)
+// (unit) with the closed polygon `rel`. 0 if the ray misses (origin outside —
+// shouldn't happen for a star-ish lake centered at its own centroid).
+function rayPolyMaxDist(rel, dx, dz) {
+  let best = 0;
+  for (let i = 0, n = rel.length; i < n; i++) {
+    const p0 = rel[i], p1 = rel[(i + 1) % n];
+    const ex = p1.x - p0.x, ez = p1.z - p0.z;
+    const denom = dx * ez - dz * ex;          // cross(d, edge)
+    if (Math.abs(denom) < 1e-9) continue;     // ray parallel to edge
+    const t = (p0.x * ez - p0.z * ex) / denom; // cross(p0, edge)/denom — distance along ray
+    const s = (p0.x * dz - p0.z * dx) / denom; // cross(p0, d)/denom — param along edge
+    if (t >= 0 && s >= -1e-6 && s <= 1 + 1e-6 && t > best) best = t;
+  }
+  return best;
+}
+
+// Point-in-polygon for a center-relative polygon, with the query point already
+// expressed relative to the lake center. Used by the v2 isPointInLake so the
+// in-game water test matches worldgen `lakeAt` exactly (rendered == worldgen).
+function pointInPolyRel(px, pz, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, zi = poly[i].z, xj = poly[j].x, zj = poly[j].z;
+    if (((zi > pz) !== (zj > pz)) && (px < (xj - xi) * (pz - zi) / (zj - zi) + xi)) inside = !inside;
+  }
+  return inside;
 }
 
 // ---- Outline generation ----------------------------------------------------
@@ -268,31 +388,50 @@ function placeSealedColliders(registryIds, cx, cz, outline) {
 // ---- buildLake ------------------------------------------------------------
 
 export function buildLake(scene, mcx, mcz, rng, opts = {}) {
-  const cellOriginX = mcx * LAKE_CELL;
-  const cellOriginZ = mcz * LAKE_CELL;
+  // Two sources for center + outline. v2 (opts.worldgenLake) reads the worldgen
+  // lake (the source festival.js/roads plan around); legacy self-seeds via `rng`,
+  // byte-for-byte unchanged. Everything past this preamble is shared.
+  const wl = opts.worldgenLake;
+  let cx, cz, outline, decoOutline, baseR, maxR = 0, minR = Infinity;
 
-  // Lake size: 55-100m base radius. The outline can stretch up to ~1.7× this
-  // along the major axis (ellipse), so total span is up to ~340m on a long lake.
-  const baseR = 55 + rng() * 45;
-
-  // Build the outline (irregular polygon).
-  const outline = buildLakeOutline(rng, baseR);
-
-  // Bounding circle for external chunk-overlap tests, and inscribed circle
-  // (used to size islands so they stay clear of every shore).
-  let maxR = 0;
-  let minR = Infinity;
-  for (const p of outline) {
-    const r = Math.hypot(p.x, p.z);
-    if (r > maxR) maxR = r;
-    if (r < minR) minR = r;
+  if (wl) {
+    // v2: center + TRUE outline come from worldgen — deterministic per worldgen
+    // cell, NO rng draws here. Convert absolute → center-relative + normalize to
+    // CCW (R5 gate, see worldgenOutlineToCCWRelative).
+    cx = wl.x; cz = wl.z;
+    outline = worldgenOutlineToCCWRelative(wl);
+    let sumR = 0;
+    for (const p of outline) {
+      const r = Math.hypot(p.x, p.z);
+      if (r > maxR) maxR = r;
+      if (r < minR) minR = r;
+      sumR += r;
+    }
+    baseR = sumR / outline.length;   // proxy for the legacy baseR (sizes beach sand)
+    // The true (rotated/lobed) polygon drives the water mesh, sealed colliders and
+    // isPointInLake; decoration placement (camps/beach/forest/canoe) goes through
+    // outlineRAt's index→angle assumption, so it gets a polar-resampled outline.
+    decoOutline = polarResample(outline);
+  } else {
+    // legacy: today's self-seeded outline + center, same rng draw order (byte-identical).
+    // Lake size: 55-100m base radius. The outline can stretch up to ~1.7× this along
+    // the major axis (ellipse), so total span is up to ~340m on a long lake.
+    baseR = 55 + rng() * 45;
+    outline = buildLakeOutline(rng, baseR);
+    // Bounding circle for external chunk-overlap tests, and inscribed circle
+    // (used to size islands so they stay clear of every shore).
+    for (const p of outline) {
+      const r = Math.hypot(p.x, p.z);
+      if (r > maxR) maxR = r;
+      if (r < minR) minR = r;
+    }
+    // Position the lake inside the macrocell with `margin` clearance. The bounding
+    // radius drives this so neighbour macrocells have room.
+    const margin = maxR + 30;
+    cx = mcx * LAKE_CELL + margin + rng() * (LAKE_CELL - 2 * margin);
+    cz = mcz * LAKE_CELL + margin + rng() * (LAKE_CELL - 2 * margin);
+    decoOutline = outline;
   }
-
-  // Position the lake inside the macrocell with `margin` clearance. The
-  // bounding radius drives this so neighbour macrocells have room.
-  const margin = maxR + 30;
-  const cx = cellOriginX + margin + rng() * (LAKE_CELL - 2 * margin);
-  const cz = cellOriginZ + margin + rng() * (LAKE_CELL - 2 * margin);
 
   // ---- Materials ----
   // Water is the shared, shader-patched WATER_MAT (defined at module scope)
@@ -380,7 +519,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       flatShading: true,
     });
     const beachAng = rng() * Math.PI * 2;
-    const shoreR = outlineRAt(outline, beachAng);
+    const shoreR = outlineRAt(decoOutline, beachAng);
     const sandR = baseR * 0.16;
     // Center sand straddling the shore (60% on grass, 40% peeking into water).
     const bX = cx + Math.cos(beachAng) * (shoreR + sandR * 0.2);
@@ -406,6 +545,10 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
     position: new THREE.Vector3(cx, 0, cz),
     footprint: maxR,
     outline,
+    // v2 outlines are the true (rotated/lobed) worldgen polygon, so isPointInLake
+    // tests point-in-poly against it (matching worldgen lakeAt). Legacy outlines are
+    // angularly-ordered, so they keep the cheaper outlineRAt radial test.
+    exactPoly: !!wl,
   }));
 
   // Sealed collider ring — no gaps for causeways or paths. The cart cannot
@@ -426,7 +569,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   const shoreSamples = 4;
   for (let i = 0; i < shoreSamples; i++) {
     const ang = (i / shoreSamples) * Math.PI * 2 + rng() * 0.3;
-    const sR = outlineRAt(outline, ang);
+    const sR = outlineRAt(decoOutline, ang);
     registryIds.push(registry.add({
       kind: 'shore',
       position: new THREE.Vector3(cx + Math.cos(ang) * (sR + 5), 0, cz + Math.sin(ang) * (sR + 5)),
@@ -465,7 +608,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       // these distances (~footprint / r ≈ 0.07rad for footprint=5, r=70).
       let maxShoreNearby = 0;
       for (let dt = -0.30; dt <= 0.30; dt += 0.05) {
-        maxShoreNearby = Math.max(maxShoreNearby, outlineRAt(outline, theta + dt));
+        maxShoreNearby = Math.max(maxShoreNearby, outlineRAt(decoOutline, theta + dt));
       }
       const r = maxShoreNearby + 6 + camp.footprint;
       const camX = cx + Math.cos(theta) * r;
@@ -499,7 +642,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       // ±0.15rad so a lobe doesn't poke under a tree at the chosen angle.
       let sR = 0;
       for (let dt = -0.15; dt <= 0.15; dt += 0.05) {
-        sR = Math.max(sR, outlineRAt(outline, ang + dt));
+        sR = Math.max(sR, outlineRAt(decoOutline, ang + dt));
       }
       const radialT = Math.pow(rng(), 0.6);
       const dRadial = 14 + radialT * 25;
@@ -534,8 +677,10 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       lakeAnimatables.push({
         lakeKey,
         animatables: lakeAnimEntries.flat(),
-        centerX: (mcx + 0.5) * LAKE_CELL,
-        centerZ: (mcz + 0.5) * LAKE_CELL,
+        // Legacy uses the macrocell center (its lakes sit near it); v2 uses the
+        // actual lake center (worldgen cells are 1050m and lakes are jittered).
+        centerX: wl ? cx : (mcx + 0.5) * LAKE_CELL,
+        centerZ: wl ? cz : (mcz + 0.5) * LAKE_CELL,
       });
     }
   }
@@ -545,7 +690,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   const canoeRoll = rng();
   const canoeCount = canoeRoll < 0.30 ? 0 : (canoeRoll < 0.80 ? 1 : 2);
   for (let i = 0; i < canoeCount; i++) {
-    canoes.push(createLakeCanoe(group, cx, cz, outline, rng));
+    canoes.push(createLakeCanoe(group, cx, cz, decoOutline, rng));
   }
 
   return {
@@ -723,9 +868,15 @@ export function isPointInLake(x, z) {
     const d = Math.hypot(dx, dz);
     if (d > e.footprint) continue;       // outside bounding circle — safe
     if (!e.outline) return true;         // no outline stored — fall back to bounding circle
-    const ang = Math.atan2(dz, dx);
-    const shoreR = outlineRAt(e.outline, ang);
-    if (d < shoreR) return true;
+    if (e.exactPoly) {
+      // v2 worldgen lake: exact point-in-poly against the TRUE polygon, so this
+      // matches worldgen lakeAt (rendered water == planned water).
+      if (pointInPolyRel(dx, dz, e.outline)) return true;
+    } else {
+      // legacy: angular radial test against the angularly-ordered outline.
+      const ang = Math.atan2(dz, dx);
+      if (d < outlineRAt(e.outline, ang)) return true;
+    }
   }
   return false;
 }

@@ -25,17 +25,23 @@ spawn drops you at a festival, ZERO console errors; self-test 24/24 (queryPoint 
 `63c8dea2`, POI golden `fe82f8cc`→`f8dc276d` node). Commits: `7ba2805` (plan+deliberate
 002), `bc2f9f3` (CG1), `c5d8df1` (CG2/CG3), `8548ecb` (D2.6).
 
-**NEXT (priority order changed by a discovery):**
-1. **Group E — lakes → worldgen, ELEVATED.** The interim dual-lake mismatch (legacy
-   LakeManager lakes ≠ worldgen lakes) is the one rough edge: festival.js plans around
-   *worldgen* water but the *rendered* water is still legacy, so a legacy lake can sit
-   where a cluster/spawn was planned (mitigated by an `isPointInLake` cluster-skip + a
-   spawn-out-of-water nudge, but those are band-aids). Group E makes rendered water ==
-   worldgen water and removes both band-aids. Binding gate R5 (collider winding sign-flip).
+**NEXT (priority order):**
+1. **`/smart-review`** the festival + spawn + lakes diff (rendering / perf / gameplay / audio /
+   sandbox / docs); fix findings. This is the natural gate now that the world content (roads,
+   festival clusters, spawn, lakes) is all live behind the flag.
 2. D2.4 filler scatter (sparse hammocks/picnics — minor); D2.7 quantize sign-off (mostly
    by construction); D2.8 full all-tier boot + **browser POI golden** (cross-engine);
-   R27 spawn-clearance veto (deferred); `/smart-review` the festival diff; ARCHITECTURE.md
-   rewrite (I.6); then F forests → G crowd → H gates → I landing (flip the flag).
+   R27 spawn-clearance veto (deferred — the `lakeAt` walk-to-dry covers water, the
+   large-collider-near-spawn veto is still TODO); ARCHITECTURE.md rewrite (I.6); then
+   **F forests** (binding gate R3 ~80-tree/chunk cap) → G crowd → H gates → I landing (flip the flag).
+
+**Group E DONE + committed:** `LakeManager` now reads `src/worldgen` lakes behind `?worldgen=1`
+(rendered water == the water `festival.js`/roads plan around — the interim dual-lake mismatch is GONE).
+R5 winding gate passed (signed-area assert-then-normalize to CCW; all 22 lakes CCW by construction).
+Both band-aids removed (the spawn-nudge folded into a worldgen `lakeAt` walk-to-dry; the cluster guard now
+reads worldgen-aligned water). `?worldgen=0` byte-identical (legacy keeps its self-seeded macrocell lakes).
+Verified seed 1234 noon+midnight, default+low tier: spawn dry at the heart, sealed colliders trace the lobed
+worldgen shore + block/damage/eject, zero errors; self-test 24/24 goldens unchanged.
 
 The festival-redesign detail lives in design.md "Festival Layout Redesign (D-K..D-Q)",
 tasks.md `## D2.`, deliberations/002-festival-layout/results.md, and the session-log
