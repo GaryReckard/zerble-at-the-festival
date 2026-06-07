@@ -161,6 +161,134 @@ uses it); shadow discipline preserved. Per-chunk `queryRegion` is bounded (60k-c
 memoized cells + the arterial memo already added). Measure draws/tris in the backtick HUD at
 `?perf=low` and `?perf=mid` every milestone; the budget panel is the gate.
 
+## Festival Layout Redesign (D-K..D-Q — 2026-06-07, supersedes the Group D random scatter)
+
+> **Why this section exists.** Group D (`0ee3c7c`) wired placement end-to-end, but its scatter was
+> `10 random slots × per-role probability` — mechanically correct (right kinds in right role bands,
+> off road/water) but spatially *uncorrelated*: a confetti of single props, sugar shacks appearing
+> solo anywhere a "vendor" slot rolled, drum circles on arbitrary grass, no clustering. Gary flagged
+> it from the running game. This section redesigns placement as **structured, feature-anchored
+> clusters**. Three deep investigations grounded it: (1) the legacy theme-builder spatial rules, (2)
+> the worldgen feature API, (3) the git/CHANGELOG history of how placement was tuned. The history's
+> smoking gun: the **camp_village took three framings** to get right (CHANGELOG 2026-05-28, `f0c763a`)
+> precisely because the *chunk grid was the wrong anchor* — the packing RULE was good, the
+> chunk-centering was the bug. That is the thesis of this redesign: **port the tuned rules, re-anchor
+> them to hearts / roads / lakes.**
+
+### D-K — Principle: feature-anchored POI clusters, not per-chunk random scatter
+Nothing places per-point-random except sparse low-weight texture (a lone hammock/picnic). Every
+festival structure is a **cluster anchored to a worldgen feature** — a heart, one of its approach
+roads, or a lakeshore/causeway band. This realizes the worldgen thesis already in the codebase
+("a hierarchy of centers … sparsity is the space between hearts" — CHANGELOG 2026-06-06) and the
+festival-density bar ("reads as a real festival, not an empty fairgrounds" — `chunks.js:618`). The
+legacy distance-ring density (`pickTheme` inner/middle/outer, `chunks.js:585-615`) becomes a
+**heart-influence falloff** (cluster count ∝ rank, density ∝ `heartInfluence`), not a world-origin
+ring. **Keep the rules that were tuned across multiple passes; drop the chunk-dice anchoring.**
+
+### D-L — New pure sub-layer `src/worldgen/festival.js` (the POI layer)
+A new render-agnostic module (no `three`, no `models/*`; may import `hearts/roads/water/density/roles`).
+It computes, **memoized per heart and gated on (seed, epoch)** like the other worldgen caches:
+- `festivalPlan(heart)` → the heart's full POI list: `[{ kind, x, z, yaw, footprint, role, rank, clusterSeed }]`
+  (anchor stage at center; arch+lights, food courts, vendor rows, bubble vendors along approach
+  roads; drum circles in the treed district; porta-potty banks attached to each). Counts scale with
+  `heart.rank`.
+- `poisInBounds(bounds)` / `campVillagesNear(bounds)` → camp villages + lakeshore/causeway camps in a
+  region (district/outskirts, off the drag).
+- Seeded per heart with `cellRng(heart.cx, heart.cz, SALT.poiLayout = 0x4D41_0B)`; road-shared content
+  (clusters living on the H↔neighbor street) with `pairRng(H.cx,H.cz, nb.cx,nb.cz, SALT.poiLayout)` so
+  both hearts agree (the same trick `arterialPolyline` uses). A second free salt `0x4D41_0C` is
+  reserved for a jitter sub-stream if needed. (`01`–`0A` are taken; `0B`/`0C` confirmed free.)
+
+Three small **new worldgen exports** (additive — they don't reorder any existing rng draw, so the
+self-test golden `63c8dea2` stays stable):
+- `roads.js approachRoadsOf(heart)` → `[{ neighbor, polyline, bearing }]` — the road-graph-per-heart
+  query (compose of `neighborsOf` + `arterial` + `heartProxy`; pick the polyline endpoint matching
+  `heartProxy(H)` for the leaving-bearing). This is how courts/rows line the heart's streets.
+- `hearts.js nearestMajorHeart(x, z)` → the spawn anchor (expanding-window scan of `heartsInBounds`,
+  filter `rank==='major'`, nearest). No rank-filtered query exists today.
+- `water.js shoreBand(x, z, N)` → `{ lake, beyond, shoreR } | null` (point dry but within N m of a
+  lobed shore; reuse the bearing-sampled outline math `density.lakeRingBoost` already uses). Optional
+  helper for causeway/lakeshore camp placement.
+
+### D-M — The cluster catalog (port the tuned legacy numbers; re-anchor)
+Each cluster is built world-positioned by `chunks.js` (the build half stays there; `festival.js` is
+pure decision). Numbers carried from the tuned legacy builders:
+- **Stage anchor** (heart center, off `noBuild`, road-facing `yaw`): major → main stage (6-piece band,
+  **22** guaranteed audience), minor → side stage (trio, **12**). Keep the Group-D yaw-aware `buildStage`.
+- **Entrance arch + string lights**: along the **primary** approach road (longest/first from
+  `approachRoadsOf`), ~25–40 m out from center toward the road, facing the stage. (Legacy main stage
+  had arch at `+30`, lights at `z=-25..25` — `chunks.js:1124`.)
+- **Food court**: the truck **ring** (3–5 trucks, ~24 m radius, inward-facing; 35% one **sugar shack**;
+  one **bubble vendor** at the edge). Positioned **along an approach road**, offset perpendicular off
+  the road corridor (off `noBuild`), within ~60–120 m of center. Major: 1–2; minor: 0–1. **Sugar
+  shacks ONLY here** (fixes the solo-shack bug). **Fix the one-shot bug:** the legacy ring has *no
+  inter-truck overlap check* (`chunks.js:1357`, only the spawn-corridor guard ever saved it) — add a
+  min-arc/overlap guard.
+- **Vendor row**: double-row tents (5–7/side, 5 m spacing, 7 m offset) oriented **parallel to an
+  approach road** (the vendor street). Major: 1–2; minor: 0–1.
+- **Bubble vendor**: **one guaranteed refuel vendor per heart** (court edge or roadside) + the court
+  edge-chance — refuel becomes a first-class spatial constraint (history flagged it under-structured).
+- **Drum circle**: a *destination*, so anchored not scattered — in the **district ring, off-road, in a
+  treed/quiet cell** (`treeDensity` high, off-road). Major: 1–2; minor: 0–1. Keep the fire+8-stone-ring
+  +djembe+one-proxy-light+polyrhythm-music build.
+- **Porta-potty bank**: **attached to each cluster** (court/stage/village), tucked `r+3.5+rng*8` beyond
+  it, doors facing the cluster, per-cluster-type size mix (carry `POTTY_THEME`). The legacy
+  attach-to-strongest-*chunk*-attractor (`pickPottyAnchor`, `chunks.js:1489`) becomes attach-to-cluster
+  (the cluster is known at decision time, no registry/chunk-boundary limit).
+- **Camp village**: the **12–20 packed sites** (50/35/15 small/med/large, 5.5 m spacing, 30 m envelope —
+  keep the packing engine) in district/outskirts cells **away from roads + the heart center** ("back of
+  the festival"), **preferentially in lakeshore bands / causeways** (`shoreBand`). Drop the chunk-corner
+  anchor (the thing the 3-attempt history proved wrong).
+- **Lakeshore camps + tree rings**: `lakes.js` already does this feature-anchored (4–9 camps, 90–140
+  trees sparse-near/denser-far). Keep; this is the template the rest generalizes. Group E may align its
+  source to worldgen lakes; the camp/tree-ring *rules* stay.
+- **Filler scatter**: sparse hammocks/picnics in open grass, road/water-avoiding (`noBuild`). The only
+  random placement, only for low-weight (`weight 0.4–0.6`) texture.
+
+### D-N — Cluster ownership + per-chunk build (stays D-A compliant)
+A cluster has a center; the **chunk containing that center owns + builds the whole cluster**
+(chunk-keyed, spills into neighbors — exactly how the legacy camp village already worked,
+`chunks.js:1845`). This is still a per-chunk *sampler* (D-A), not a heart lifecycle manager: per chunk,
+`placeChunkProps` enumerates the relevant hearts (`heartsInBounds` widened by the max POI reach so a
+major's road-courts aren't missed), calls the **memoized** `festivalPlan(heart)`, and keeps only POIs
+whose center is in this chunk; plus camp villages / lakeshore camps whose center is in this chunk. The
+memoization keeps it cheap (plan computed once per heart, not per chunk). District scatter still
+**re-derives from worldgen math, never a registry lookup** of the possibly-unloaded anchor (R2/D-C).
+
+### D-O — Spawn at a major heart (Gary's call: "relocate to nearest major heart")
+At boot, `nearestMajorHeart(0,0)` → relocate Zerble just outside that heart's **entrance arch**, facing
+the **main stage** (drive-in arrival). The arch + stage + string lights come free from that heart's
+`festivalPlan` (it's a `core×major` anchor). Force-place the **guaranteed intro jugs near the new spawn**
+(keep the 25–60 m seeded ring; Gary: "more jugs"). Keep a **spawn-clearance rule** so no large collider
+lands within N m of the spawn point — this replaces the legacy spawn-corridor hack (`chunks.js:572`,
+which only existed because the dice could stamp a deck at spawn). Worldgen layout itself is untouched;
+spawn is a game-side query (`main.js`/`world.js`). The legacy `(0,0)` pinned-stage special-case is v2-irrelevant.
+
+### D-P — Determinism + the must-not-regress invariants
+- Fresh `SALT.poiLayout = 0x4D41_0B` (and `0x4D41_0C` jitter); **quantize any trig result** (bearings
+  along roads) before a threshold compare — `sin/cos/atan2` aren't bit-identical across engines
+  (footgun #4). Hearts' `x,z` and road vertices are already quantized; the danger is our own intermediate
+  trig. Memoize `festivalPlan` gated on `(seed, epoch)`; bound the map.
+- The POI layer does **not** touch the `queryPoint` tuple → self-test golden `63c8dea2` stays. Add a
+  POI **window-invariance** sanity check (a cluster seeded off a heart outside the scan window would be a
+  determinism bug, exactly the class T2/T4 catch).
+- **Invariants the history shows were hard-won — must not regress:** (a) nothing spawns in water
+  (`noBuild`/`isPointInLake`, lakes pass 2 `0743028`); (b) Zerble never spawns inside/in-front-of a
+  structure (spawn-clearance, the `993ba32` fix); (c) stages face out / not back-deck-at-spawn (yaw-aware
+  `buildStage`, the named "stages-on-roads" fix); (d) stage music attaches once at build, panner-driven
+  (`440f6a7`); (e) every new pooled material tagged `userData.shared` (footgun #6, the `_forestPathMat`
+  storm); (f) salt independence — no reorder of existing draws (footgun #4); (g) people don't shove a
+  parked Zerble (`806a689`).
+
+### D-Q — Perf
+`festivalPlan` memoized per heart (computed once, filtered per chunk) keeps the per-chunk sampler cheap;
+the build cost is the allocation spike when a heart-center or village chunk loads (12–20 campsites, a
+truck ring) — accept per the existing R11 model (rare per frame, ~1 heart per ≥440 m), split across
+frames only if `chunkGenStats` shows it. Re-measure the per-chunk placement cost **headlessly in node**
+(the browser HUD is hidden-tab throttle-inflated — Group C lesson) against the 8 ms R7 gate. Hold the
+shadow-caster budget; the camp-village + lakeshore-ring tree counts are the lever (R3, re-budget with
+Group F).
+
 ## Risks / Trade-offs
 
 - **Boot crash in the longest call chain** (`buildWorld → ChunkManager.update → _generate →

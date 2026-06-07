@@ -1,7 +1,7 @@
 ---
 change: v2-worldgen-3d-integration
 status: in_progress
-current_task: Group E (LakeManager reads worldgen)
+current_task: Festival-layout redesign (placement quality) — deep-plan → deliberate → apply → verify → smart-review (Gary feedback 2026-06-07)
 blocked_by: null
 open_questions: 0
 started: 2026-06-06
@@ -71,6 +71,22 @@ R5 lake winding sign, R6 ROAD_MAT userData.shared. See results.md Risk Register.
   `facing` → three.js yaw via `π/2 − facing` (derived: a group at yaw θ maps local +Z to world
   (sinθ,cosθ); set equal to the road direction (cos f, sin f)). `buildStage` gained a `yaw=0`
   param (legacy byte-identical) routing its registry world-positions through a rotation helper.
+
+- **D8 — Festival layout redesign (placement quality) + /deliberate 002 resolutions.** Gary flagged
+  the Group D scatter as too random (solo sugar shacks, no clustering). Redesign = port the tuned legacy
+  clustering rules, re-anchor off the chunk grid to hearts/roads/lakes (design.md D-K..D-Q). Council 002
+  (5 personas + mediator, all Proceed-with-mitigations) resolved six tensions → re-sequenced D2 into
+  CG1 (harness gates first) → CG2 (decision layer) → CG3 (build + spawn) → CG4 (back-of-festival).
+  Binding resolutions: (a) **harness-first** — extend selftest golden to the POI layer + a window-invariance
+  check, recorded node AND browser, BEFORE cluster-build (R18); a `festival` POI-overlay in map-sandbox is a
+  required harness (R21); headless `chunkGenStats`+memo-hit (R25). (b) **rng-regime** — `festival.js` owns
+  all layout randomness via a per-descriptor `clusterSeed`; the build half uses `ctx.rng` only for
+  count-stable cosmetic jitter (R19). (c) **ownership-plumbing** — enumerate via explicit
+  `heartsInBounds(chunkAABB)`, name `MAX_POI_REACH`, assert `≤440m` (R16). (d) `nearestMajorHeart` bounded +
+  deterministic (R17). (e) name the 3 quantized trig compares (R20). (f) spawn-clearance = placement veto,
+  not removal (R27); `festival.js` stays a pure data sampler, never a lifecycle manager (R28, D-A). Spawn-at-
+  heart is the visible-win Slice 1. Parked to fast-follows: shoreBand/causeway camps, count-tuning,
+  drum-circle dense-forest nesting (Group F dep), cross-frame build-splitter.
 
 ## Assumptions
 | # | Assumption | Confidence | Status | Resolution |

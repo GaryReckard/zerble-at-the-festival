@@ -413,7 +413,7 @@ export class ChunkManager {
     const isOriginChunk = (cx === 0 && cz === 0);
     const chunkSeed = isOriginChunk ? hash2(cx, cz) : worldHash(cx, cz);
 
-    // ── v2 worldgen path (USE_WORLDGEN_V2, default ON; ?worldgen=0 → legacy) ──
+    // ── v2 worldgen path (USE_WORLDGEN_V2; default OFF while building → ?worldgen=1 to test) ──
     // A SINGLE branch (R10): the legacy +-grid / pickTheme / THEME_BUILDERS /
     // 5x5 forests / path_node attractors do NOT co-run with v2. Built up across
     // Groups C (roads) / D (anchors+scatter) / F (trees) / G (crowd); Group B
