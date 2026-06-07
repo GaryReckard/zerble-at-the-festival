@@ -407,6 +407,12 @@ determinism header as the ACCEPTED cosmetic cross-engine class + named it in D2.
 one-frame cluster-stack gate (→ D2.0c/D2.8), R9 lakeshore ring (→ Group F).
 **Verified:** self-test 24/24, goldens `63c8dea2`/`f8dc276d` unchanged (all fixes comment/array/doc-only).
 **Changed:** src/worldgen/festival.js (header comment), src/lakes.js (comment), map-sandbox.html (wg array +
-readout), tasks.md (D2.7 text), reviews/001-festival-lakes/review-summary.md (NEW), session-log. Commit: (pending).
+readout), tasks.md (D2.7 text), reviews/001-festival-lakes/review-summary.md (NEW), session-log. Commit: `cd58138`.
 **Refs:** -> R20 (D2.7), R11 (D2.8), R27 (deferred). Next: D2.4 filler / D2.7 sign-off / D2.8 mid-tier+browser golden;
 then F forests.
+**D2.8 partial (browser POI golden — DONE):** loaded map-sandbox.html?seed=1234, ran the self-test in the preview
+browser. **Browser POI golden = `f8dc276d` == node `f8dc276d`** → the festival POI layer is cross-engine DETERMINISTIC
+(no fork between node-V8 and the browser engine). Browser queryPoint golden = `a527d31e` ≠ node `63c8dea2` — that's
+the PRE-EXISTING, documented lake/road sin/cos cosmetic fork (Dangling Threads), NOT a regression and NOT in the POI
+layer. So the cross-engine cluster layout is safe. Remaining D2.8: ?perf=mid + ?perf=high game boots; headless
+chunkGenStats R11 gate; a minor-heart + lakeshore-region boot.
