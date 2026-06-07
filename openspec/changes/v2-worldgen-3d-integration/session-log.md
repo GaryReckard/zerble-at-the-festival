@@ -474,6 +474,6 @@ Math.random-driven, never in the determinism contract). spawnAmbientCrowd water-
 unchanged, now worldgen-aligned (Group E).
 **Changed:** src/crowd.js (USE_WORLDGEN_V2 import + grid-pull gated to legacy), src/chunks.js (queryPoint import,
 placeRoadWaypoints along-road waypoints, spawnAmbientCrowd in _generateWorldgen with influence count);
-CHANGELOG.md (Group G Added), tasks.md (G.1/G.2/G.3 ✓), session-log. Commit: (pending).
+CHANGELOG.md (Group G Added), tasks.md (G.1/G.2/G.3 ✓), session-log. Commit: `e0bcc01`.
 **Refs:** -> G.1-G.3, R13 (no phantom-road march — solved by attractors, not per-NPC queries). Next: H gates
 (H.2 cross-engine road-EXISTENCE integer test — the one non-cosmetic cross-engine gate; H.3 budget pass) → I landing.

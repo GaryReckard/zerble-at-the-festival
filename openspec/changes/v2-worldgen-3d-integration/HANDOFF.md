@@ -23,30 +23,41 @@ outside the nearest major heart's arch facing the stage, +4 welcome jugs). Verif
 in-game at seed 1234 (noon + midnight, default + low tier): clusters line the roads,
 spawn drops you at a festival, ZERO console errors; self-test 24/24 (queryPoint golden
 `63c8dea2`, POI golden `fe82f8cc`→`f8dc276d` node). Commits: `7ba2805` (plan+deliberate
-002), `bc2f9f3` (CG1), `c5d8df1` (CG2/CG3), `8548ecb` (D2.6).
+002), `bc2f9f3` (CG1), `c5d8df1` (CG2/CG3), `8548ecb` (D2.6). **Then E/F/G + review:** `209e850`
+(E lakes → worldgen, R5 winding), `cd58138` (`/smart-review` 001 + fixes), `8ce84cf` (F continuous
+treeDensity woods, R3 ~80/chunk cap), `e0bcc01` (G heart-weighted crowd + along-road waypoints, R13).
+
+**MILESTONE: all v2 CONTENT groups are done** (roads C, festival/spawn D+D2, lakes E, woods F, crowd G) —
+the v2 world is content-complete behind `?worldgen=1`. Only the closing GATES remain before landing.
 
 **NEXT (priority order):**
-1. **Group G — crowd** (heart-influence-weighted ambient crowd + road attraction). v2's
-   `_generateWorldgen` does NOT yet call `spawnAmbientCrowd` — the only NPCs in v2 today come from
-   festival cluster builders (stage audience, vendor shopkeepers, drum figures). G.1 scale ambient
-   count per chunk by sampled heart influence/role tier (bound by PERF.crowdMax); G.2 **binding R13**:
-   gate road attraction on a REAL road (`nearestRoad` in empty outskirts returns `dist=Infinity` but a
-   finite meaningless `dirAngle` — gate on `onRoad`/`dist<thr`, never trust `dirAngle` blindly); G.3
-   verify NPCs cluster at hearts, drift along roads, never into water OR toward a phantom outskirts road.
-2. **Group H — gates**: H.2 cross-engine road-*existence* integer test (the one cross-engine thing that's
-   NOT cosmetic — `nearestRoad().onRoad` + the `roads.js:167` detour tie-break could flip whether a road
-   EXISTS per-engine; widen/quantize it). H.3 full per-tier budget pass.
-3. **Group I — landing**: flip `DEFAULT_WORLDGEN_V2=true`, the **ARCHITECTURE.md rewrite (I.6, hard gate —
-   stale: still describes pickTheme/5×5 forests/320m lakes, all now retired behind the flag)**, ROADMAP trim.
-4. **The F.5 real-device draw check** (needs Gary's hardware): boot `?worldgen=1&perf=low` on a real
+1. **Group H — gates (DELICATE — start with fresh context):**
+   - **H.2 cross-engine road-EXISTENCE integer test (the one non-cosmetic cross-engine gate).** The
+     `roads.js:167` detour tie-break `Math.abs(ccw - Math.PI) < 0.05` can straddle the threshold per-engine
+     (V8 vs JSC) and FLIP whether a road EXISTS — which changes `noBuild`/the whole layout, not just a cosmetic
+     wobble. Widen/quantize it to an integer orientation test. **WARNING: this touches the worldgen contract —
+     it may MOVE the `queryPoint` golden `63c8dea2`. That's acceptable (v2 is flag-off, not shipped) but must be
+     deliberate: re-record the golden + re-verify node==browser after.** This is why it wants fresh context, not
+     the tail of a long session.
+   - **H.3 full per-tier budget pass** — folds in the F.5 real-device draw check (below).
+2. **Group I — landing**: flip `DEFAULT_WORLDGEN_V2=true` (I.0); the **ARCHITECTURE.md rewrite (I.6, hard gate —
+   stale: still describes pickTheme/5×5 forests/320m lakes, all now retired behind the flag)**; ROADMAP trim (I.5).
+3. **The F.5 real-device draw check** (needs Gary's hardware): boot `?worldgen=1&perf=low` on a real
    integrated-GPU phone, boost through a dense + lakeshore woods region, confirm FPS holds. v2 woods are
    CONTINUOUS (vs legacy 1-per-5×5) so a dense region loads more 80-tree chunks at once — the throttled
-   preview can't measure live draws (`renderer.info` reads 1/1). This is the one gate the harness can't close.
-5. Parked fast-follows: D2.4 filler scatter (hammocks/picnics — minor); D2.7 quantize sign-off (mostly done,
+   preview can't measure live draws (`renderer.info` reads 1/1). The one gate the harness can't close.
+4. Parked fast-follows: D2.4 filler scatter (hammocks/picnics — minor); D2.7 quantize sign-off (mostly done,
    the treeDensity compare is documented-accepted); R27 spawn-clearance veto (large-collider-near-spawn — the
-   `lakeAt` walk-to-dry already covers water); junction-merge (2D); lakeshore/causeway camps (`shoreBand`).
+   `lakeAt` walk-to-dry already covers water); junction-merge (2D); lakeshore/causeway camps (`shoreBand`);
+   crowd count + road-waypoint-spacing feel-tuning.
 
-**Groups E + F DONE + committed this session, plus a `/smart-review`:**
+**Groups E + F + G DONE + committed this session, plus a `/smart-review`:**
+- **G (crowd, `e0bcc01`):** v2 ambient crowd scaled by heart influence (`count = influence<0.04?0:round(1+influence*15)`
+  — dense major / modest minor / empty deep-outskirts; `MAX_NPCS` free-list hard-caps, no leak). R13 solved by
+  MEASUREMENT: `nearestRoad` is 215µs/call → per-NPC road-pull unviable, so the legacy +-grid pull is gated to
+  `!USE_WORLDGEN_V2` and `placeRoadWaypoints` seeds `path_node` attractors every ~26m along each road run → crowd
+  lines the roads via attractors, zero per-NPC queries. Verified: dense crowd at the spawn heart lining the road
+  junction, thinning to the tree line.
 - **E (lakes, `209e850`):** `LakeManager` reads `src/worldgen` lakes behind `?worldgen=1` (rendered water ==
   the water `festival.js`/roads plan around — the dual-lake mismatch is GONE). R5 winding gate passed
   (signed-area assert-then-normalize to CCW; all 22 lakes CCW by construction). Both band-aids removed
