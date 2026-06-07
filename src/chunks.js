@@ -22,6 +22,7 @@ import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps } from './worldgen/placement.js';
 import { queryRegion } from './worldgen/index.js';
+import { treeDensity } from './worldgen/density.js';
 import { CONFIG } from './worldgen/constants.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
@@ -36,7 +37,7 @@ import { buildHammock as buildHammockModel } from './models/hammock.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
 import { buildTentStage } from './models/tentStage.js';
-import { buildTree, worldPerches, worldCrown } from './models/tree.js';
+import { buildTree, buildForestTree, worldPerches, worldCrown } from './models/tree.js';
 import { leafBannerTextures } from './models/leafBanner.js';
 
 export const CHUNK_SIZE = 80;
@@ -497,9 +498,9 @@ export class ChunkManager {
 
   // v2 worldgen-driven chunk content. Built incrementally:
   //   Group C — chunk-clipped RAW arterial road ribbons (DONE)
-  //   Group D — heart anchors (center chunk) + role×rank scatter (placement.js)
-  //   Group F — treeDensity tree scatter (clamped to the old ~80/chunk cap)
-  //   Group G — heart-influence-weighted ambient crowd
+  //   Group D/D2 — festival clusters along the heart's approach roads (placement.js + festival.js) (DONE)
+  //   Group F — treeDensity woods scatter (clamped to the old ~80/chunk cap) (DONE)
+  //   Group G — heart-influence-weighted ambient crowd (TODO)
   // One `queryRegion` per chunk (D-A / R7 — never sample per-m²); the hearts/lakes
   // it also returns are consumed by Groups D/F. Stored on ctx for those groups.
   _generateWorldgen(ctx) {
@@ -509,7 +510,8 @@ export class ChunkManager {
       maxX: ctx.cxWorld + half, maxZ: ctx.czWorld + half,
     });
     placeWorldgenRoads(ctx, ctx.region.roads);
-    placeWorldgenProps(ctx);   // Group D — heart anchors (center chunk) + role×rank scatter
+    placeWorldgenProps(ctx);     // Group D/D2 — festival clusters along the heart's roads
+    scatterWorldgenTrees(ctx);   // Group F — treeDensity woods (dodge roads, water, clusters)
   }
 
   // Drop any guaranteed near-spawn jug whose seeded target lands in this chunk.
@@ -936,6 +938,91 @@ function placeWorldgenRoads(ctx, roads) {
   }
 }
 
+// ---------- Worldgen woods (Group F — treeDensity scatter) ----------
+//
+// Replaces BOTH the legacy decorative chunk-trees AND the 5x5 forest system with
+// one continuous, density-driven scatter. The woodland mass comes from worldgen's
+// `treeDensity(x,z)` field (organic gap-fill noise, cleared at heart cores, ramping
+// in across districts, with a dense ring hugging each lakeshore). Dense regions
+// become drive-around woods; clearings (treeDensity ~0 — cores, between blobs) stay
+// open. The drum-circle-in-woods experience is re-homed via festival.js (its drum
+// lands at a treed district spot that Group F then surrounds with trees), so the
+// legacy forest's interior content (paths, campsites, the LEAF drum circle) is NOT
+// ported here — it's superseded by the festival POI layer + the lake camp/forest rings.
+//
+// R3 (BINDING gate): clamped to the proven ~80-trees/chunk ceiling (the legacy
+// FOREST_TREE_TARGET_DENSITY 0.022 × 6400 m²), scaled by PERF.forestTreeDensityMul
+// (0.7 on low). Each tree is the collidable `buildForestTree` (damage 3) — woods are
+// walls, like the legacy forests; the festival/road/clearing areas are treeDensity ~0
+// so they stay open. Placement rng is a FRESH per-chunk stream (worldHash, session-
+// seeded), never `ctx.rng`, so the candidate count can't desync any other consumer.
+const MAX_WORLDGEN_TREES = 80;       // R3 cap — matches the legacy ~80/chunk ceiling
+const WG_TREE_MIN_SPACING = 4.0;     // metres between trunks (matches the legacy forest)
+// Trees may grow freely near these (the lakeshore ring is the POINT — don't let the
+// lake's huge `footprint` read as a blocker; spacing handles tree-vs-tree). Trees
+// DODGE everything else (stages/trucks/tents/shacks/arches/portas/drum/camps).
+const TREE_GUARD_SKIP = new Set([
+  'lake', 'lake_edge', 'shore', 'beach', 'tree', 'forest_tree', 'path_node', 'bubble_jug',
+]);
+
+function scatterWorldgenTrees(ctx) {
+  const half = CHUNK_SIZE / 2;
+  const minX = ctx.cxWorld - half, minZ = ctx.czWorld - half;
+  const rng = mulberry32(worldHash(ctx.cx * 73 + 19, ctx.cz * 91 + 41));
+  const target = Math.max(0, Math.floor(MAX_WORLDGEN_TREES * PERF.forestTreeDensityMul));
+  const roadHalf = ROAD_RIBBON_WIDTH / 2 + 2.0;   // keep trunks off the ribbon + a small margin
+  const placed = [];
+  for (let attempt = 0; attempt < target * 4 && placed.length < target; attempt++) {
+    const x = minX + rng() * CHUNK_SIZE;
+    const z = minZ + rng() * CHUNK_SIZE;
+    const d = treeDensity(x, z);          // 0..1 — already 0 on worldgen water + heart cores
+    if (d <= 0.05) continue;              // clearing / open lawn
+    if (rng() > d) continue;              // place ∝ density (sparse fringes fall out naturally)
+    if (pointNearWorldgenRoad(x, z, ctx.region.roads, roadHalf)) continue;
+    let tooClose = false;
+    for (let i = 0; i < placed.length; i++) {
+      if (Math.hypot(placed[i].x - x, placed[i].z - z) < WG_TREE_MIN_SPACING) { tooClose = true; break; }
+    }
+    if (tooClose) continue;
+    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.5, TREE_GUARD_SKIP)) continue;
+
+    const tree = buildForestTree(rng);
+    tree.position.set(x, 0, z);
+    tree.rotation.y = rng() * Math.PI * 2;
+    ctx.group.add(tree);
+    registry.add({
+      kind: 'forest_tree',
+      position: new THREE.Vector3(x, 0, z),
+      footprint: 2.0,
+      collider: { radius: 1.3, damage: 3 },
+      chunkKey: ctx.key,
+      perches: worldPerches(tree, x, z),
+      crown: worldCrown(tree, x, z),
+    });
+    placed.push({ x, z });
+  }
+}
+
+// Cheap local "is (x,z) on a road" test against this chunk's raw arterial polylines
+// (ctx.region.roads) — point-to-segment distance, no per-attempt worldgen query (R7).
+function pointNearWorldgenRoad(x, z, roads, halfW) {
+  if (!roads || roads.length === 0) return false;
+  const h2 = halfW * halfW;
+  for (const road of roads) {
+    const pts = road.points;
+    if (!pts) continue;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const ax = pts[i].x, az = pts[i].z, ex = pts[i + 1].x - ax, ez = pts[i + 1].z - az;
+      const L2 = ex * ex + ez * ez || 1;
+      let t = ((x - ax) * ex + (z - az) * ez) / L2;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const dx = x - (ax + ex * t), dz = z - (az + ez * t);
+      if (dx * dx + dz * dz < h2) return true;
+    }
+  }
+  return false;
+}
+
 // ---------- Worldgen festival placement (D2 — feature-anchored clusters) ----------
 //
 // The build+register half of the v2 placement split: `worldgen/festival.js` (pure)
@@ -954,7 +1041,13 @@ function placeWorldgenRoads(ctx, roads) {
 // companion porta a court plants beside itself would read as a blocker and silently
 // eat the court. Only stage / truck / tent block a new cluster.
 const CLUSTER_GUARD_SKIP = new Set([
-  'tree', 'lake', 'lake_edge', 'shore', 'beach', 'path_node', 'chair', 'picnic', 'stage_front',
+  // Trees (both legacy decorative `tree` AND Group-F worldgen `forest_tree`) must NOT
+  // block a cluster: a cluster's PRESENCE can't depend on chunk load order (a neighbor
+  // chunk's trees may register before this cluster's chunk generates — esp. the
+  // off-road drum circle, which lands in a treed pocket). The cluster builds; its own
+  // chunk's trees dodge it (built first), and a rare cross-chunk tree clipping a cluster
+  // edge is cosmetic. Big SOLID structures (stage/truck/tent) still block (no stacking).
+  'tree', 'forest_tree', 'lake', 'lake_edge', 'shore', 'beach', 'path_node', 'chair', 'picnic', 'stage_front',
   'porta_potty', 'arch', 'bubble_vendor', 'drum_circle', 'hammock', 'campsite', 'bubble_jug', 'lamppost',
 ]);
 

@@ -4,7 +4,34 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-06-07
 
+### Added
+- **v2 woods (behind `?worldgen=1`) — continuous, density-driven forests replace the
+  legacy 5×5 forest blocks.** With worldgen on, every chunk scatters trees from
+  worldgen's `treeDensity(x,z)` field — organic gap-fill noise that clears at heart
+  cores, ramps in across districts, and rings each lakeshore — instead of the old
+  "one 3×3 forest per 5×5 block" system. Dense regions become drive-around woods you
+  weave through; clearings (cores, between blobs, on roads) stay open. Trees use the
+  collidable forest-tree (driving into a trunk hurts, like the old forests), dodge the
+  road ribbons + festival clusters, and the drum circle now genuinely sits *in* the
+  woods (its treed-district spot gets surrounded). The legacy forest's hand-placed
+  interior (paths, campsites, the LEAF drum circle) isn't ported — it's superseded by
+  the festival POI layer (`festival.js`) + the lakeside camp/forest rings. **Perf (R3):**
+  hard-capped at the proven ~80 trees/chunk (56 on low tier via `forestTreeDensityMul`,
+  verified exact); the per-chunk decision cost is ~1.6 ms of `treeDensity` sampling
+  (~2.5 ms with the festival plan), well under the 8 ms gate (measured headlessly —
+  the live full-framerate draw budget on a low-end device is the one check the throttled
+  preview can't give and stays open). Verified seed 1234 at default + low tier: woods
+  read as designed, drum nestled, roads/clearings open, zero console errors; legacy
+  `?worldgen=0` unchanged. Part of `v2-worldgen-3d-integration` (Group F).
+
 ### Changed
+- **v2 cluster placement no longer lets trees block a cluster (behind `?worldgen=1`).**
+  The festival cluster-center guard now skips `forest_tree` as well as `tree`: a
+  cluster's *presence* must not depend on chunk load order (a neighbor chunk's woods can
+  register before the cluster's own chunk generates — especially the off-road drum
+  circle that lands in a treed pocket). Clusters always build; their own chunk's trees
+  dodge them, and a rare cross-chunk tree clipping a cluster edge is cosmetic. Part of
+  Group F.
 - **v2 lakes are now the worldgen lakes (behind `?worldgen=1`) — the rendered water
   finally matches what the festival planned around.** `LakeManager` used to self-seed
   its own macrocell lakes (320m cells, ~45% density) that had nothing to do with the

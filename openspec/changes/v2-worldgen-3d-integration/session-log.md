@@ -1,7 +1,7 @@
 ---
 change: v2-worldgen-3d-integration
 status: in_progress
-current_task: Group E DONE (lakes → worldgen, R5 passed). Next: D2.4 filler / D2.7-D2.8 sign-off / smart-review / F forests
+current_task: Group F DONE (worldgen woods, R3 cap held). Next: G crowd → H gates → I landing (+ F.5 real-device draw check, D2.4 filler)
 blocked_by: null
 open_questions: 0
 started: 2026-06-06
@@ -20,11 +20,12 @@ ref: procedural-map-generator change (2D generator + sandbox, complete); ROADMAP
 **Phase:** APPLY. Artifacts done (proposal/design/specs/tasks); `/deliberate` complete
 (5 council + mediator, synthesis — all "Proceed with mitigations", 0 blocks; results.md
 folded into tasks.md as Groups A–I). Group A (paperwork) done. Now implementing.
-**Doing:** Group E DONE + verified (LakeManager reads worldgen lakes; R5 winding gate passed; rendered
-water == worldgen water; both band-aids removed; legacy byte-identical; self-test 24/24 goldens unchanged).
-Next: D2.4 filler / D2.7 quantize sign-off / D2.8 all-tier boot + browser POI golden / /smart-review; then F forests.
+**Doing:** Group F DONE + verified (worldgen woods — per-chunk treeDensity scatter replacing the 5×5 system; R3
+~80/chunk cap held EXACTLY 80/56; drum nestled in woods; decision cost ~2.5ms/chunk; self-test 24/24 goldens unchanged).
+OPEN: F.5 live-draw budget on a real low-end device (preview throttle can't measure live draws).
+Next: G crowd (heart-weighting) → H gates (cross-engine road-existence) → I landing.
 **Resolved delivery order:** A(paperwork ✓) → B scaffold ✓ → C roads ✓ → D placement ✓ +festival redesign ✓ →
-**E lakes ✓** → F forests → G crowd → H gates → I docs. Junction-merge DEFERRED to a 2D-only
+**E lakes ✓ → F forests ✓** → G crowd → H gates → I docs. Junction-merge DEFERRED to a 2D-only
 fast-follow change.
 **Flag:** `DEFAULT_WORLDGEN_V2 = false` in perf.js (legacy ships by default while building);
 test v2 with `?worldgen=1`; flip default to true at landing (task I.0).
@@ -416,3 +417,36 @@ browser. **Browser POI golden = `f8dc276d` == node `f8dc276d`** → the festival
 the PRE-EXISTING, documented lake/road sin/cos cosmetic fork (Dangling Threads), NOT a regression and NOT in the POI
 layer. So the cross-engine cluster layout is safe. Remaining D2.8: ?perf=mid + ?perf=high game boots; headless
 chunkGenStats R11 gate; a minor-heart + lakeshore-region boot.
+
+### 2026-06-07 — D2.8 mid/high banked + Group F: worldgen woods (treeDensity scatter)
+**Intent:** Bank the festival+lakes at mid/high tier (the one-variable rule, before changing forests), then land Group F
+— replace the legacy 5×5 forest system with continuous per-chunk `treeDensity` scatter (binding gate R3 ~80/chunk).
+**Result:**
+- **D2.8 mid/high (banked):** booted `?worldgen=1&perf=mid` and `&perf=high` at seed 1234 — festival arrival renders
+  clean both tiers, ZERO console errors. (low + default were banked in the Group E session.)
+- **Group F (chunks.js):** `_generateWorldgen` now calls `scatterWorldgenTrees(ctx)` after the festival props.
+  `scatterWorldgenTrees` places `buildForestTree` (collidable, damage 3) ∝ `treeDensity(x,z)` — `if (rng()>d) continue`
+  scales count with local density; hard-capped at `MAX_WORLDGEN_TREES=80`/chunk × `forestTreeDensityMul`
+  (verified EXACT: 80 default / 56 low). Fresh per-chunk `worldHash(cx*73+19, cz*91+41)` stream (not ctx.rng).
+  `pointNearWorldgenRoad` (point-to-segment vs ctx.region.roads — no per-attempt worldgen query, R7) keeps trunks off
+  the ribbons; `TREE_GUARD_SKIP` lets trees fill the lakeshore ring (don't treat the lake's huge footprint as a blocker
+  — same lesson as CLUSTER_GUARD_SKIP) while dodging solid structures. Legacy forest interior (paths/camps/LEAF drum)
+  NOT ported — superseded by festival.js + lake rings (F.4: the festival drum at a treedDistrictSpot is now surrounded
+  by Group-F woods, verified 54 trees within 40m at (1034,-50)).
+- **Guard fix found via the low-tier screenshot (a tree sat on the drum):** `CLUSTER_GUARD_SKIP` skipped `tree` but not
+  `forest_tree`, so a neighbor chunk's woods generating BEFORE the drum's chunk could BLOCK the drum (cluster presence
+  was chunk-load-order-dependent). Added `forest_tree` to the skip set → clusters always build; their own chunk's trees
+  dodge them; rare cross-chunk tree-clip is cosmetic.
+**Verified:** self-test 24/24, goldens `63c8dea2`/`f8dc276d` unchanged (chunks.js is game-side). Headless decision cost
+~2.5 ms/chunk (1.6 ms treeDensity + 0.9 ms festival) << 8 ms gate. In-game seed 1234 default+low: dense varied woods,
+R3 cap held EXACTLY (80/56 max per chunk; lake-ring trees are a separate no-chunkKey count), drum nestled, roads/clearings
+open, ZERO console errors. **OPEN (F.5):** the LIVE full-framerate draw budget + a real low-end-device pass — the
+hidden-tab preview throttle-inflates `renderer.info` (reads 1/1) and chunk-gen timing, so live draws are unmeasurable
+here; carry to a real-device check before I.0 landing. v2 woods are CONTINUOUS (vs legacy 1-per-5×5) so a dense region
+loads more tree-chunks at once — the new steady-state risk.
+**Changed:** src/chunks.js (treeDensity+buildForestTree imports, scatterWorldgenTrees + pointNearWorldgenRoad +
+TREE_GUARD_SKIP, wired into _generateWorldgen, CLUSTER_GUARD_SKIP +forest_tree); CHANGELOG.md (Group F Added+Changed),
+tasks.md (F.1/F.2/F.4 ✓, F.3/F.5 partial), session-log. Commit: (pending).
+**Refs:** -> F.1-F.5, R3 (cap held), R7 (decision cost), R9 (lakeshore ring — real-device), R10 (single branch),
+footgun #4. Next: G crowd (heart-weighting); then H gates (cross-engine road-existence) → I landing (flag flip,
+ARCHITECTURE.md I.6, the F.5 real-device draw check).
