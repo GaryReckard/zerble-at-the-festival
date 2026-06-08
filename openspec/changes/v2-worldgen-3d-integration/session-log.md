@@ -519,3 +519,26 @@ this density (road negative-control teeth lost at 5% empty — re-settle later; 
 **Changed:** festival-polish-backlog.md (NEW — the canonical notes list), HANDOFF.md (salvage + redesign + backlog
 pointer), session-log. constants.js holds Gary's live config (uncommitted, intentional). Commit: (pending — docs only).
 **Refs:** -> festival-polish-backlog.md (all 18 notes). Next: festival layout-grammar spec → /deliberate → rebuild festival.js.
+
+### 2026-06-07 — Festival LAYOUT GRAMMAR: spec + /deliberate 003
+**Intent:** Per the salvage decision, draft the festival layout-grammar spec, get Gary's design forks,
+and /deliberate it before rebuilding festival.js (collaboration: bring the spec/options first).
+**Result:** Wrote **festival-layout-grammar.md** — the keystone is ONE computed front axis `F` per hub
+(= bisector of the widest *dry* gap between the hub's roads), with every entity placed by a rule relative
+to `F` + roads + water + a footprint overlap guard. Gary's forks RESOLVED: front-axis = widest-dry-gap;
+arch = ON the approach road at spawn (drive in along the street, stage reads off to the side); process =
+/deliberate first. Ran **/deliberate 003-festival-layout-grammar** (Tier 3 synthesis, 5 council: Architect/
+Adversary/Profiler/Anthropologist/Pragmatist + Mediator) → **Proceed with mitigations**, 5 Change Groups.
+Convergence: thesis sound; (1) `F` must be an INTEGER-keyed sort (bin bearings to a fixed grid, integer
+gap widths, integer water penalty) AND serialized into the descriptor (else the golden is blind — R18);
+(2) the dancefloor clearing (A4) is a CROSS-CHUNK pure query — new `dancefloorRectsNear(AABB)` keyed off
+owning hearts, NEVER a registry lookup or per-tree query (R18 + 8ms R7 gate); (3) the arch deletion + the
+main.js spawn rewrite MUST land together (split = silent legacy (0,65) spawn). Factual snag (verified):
+`MAX_POI_REACH` comment says "major core 350" but live `major.core=100` — size everything off live `heart.core`.
+Folded CG1-CG5 into **tasks.md as D3.1-D3.14**. Build order: CG1 harness-first (overlay + contract) → CG2
+the `F` rewrite → CG3 golden → CG4 judge ONE hub → park CG5. One feel watch-item flagged for Gary: if `F`
+lands near-perpendicular to the approach road, the drive-in could read "empty field, where's the stage" —
+decide by looking in the overlay, not by spec.
+**Changed:** festival-layout-grammar.md (NEW spec), deliberations/003-festival-layout-grammar/{briefing,council-*,results}.md,
+tasks.md (D3.1-D3.14), session-log. Commit: (pending — docs; code starts with CG1).
+**Refs:** -> festival-layout-grammar.md, -> deliberations/003-festival-layout-grammar/results.md, -> D3.1 (next, harness-first).
