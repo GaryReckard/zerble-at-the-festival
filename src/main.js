@@ -47,8 +47,8 @@ import {
 import { installDebug, shouldRunFrame, isGod, npcsFrozen } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { setSpawnPoint } from './chunks.js';
-import { nearestMajorHeart } from './worldgen/hearts.js';
-import { festivalPlan } from './worldgen/festival.js';
+import { nearestHeart } from './worldgen/hearts.js';
+import { festivalPlan, computeFrontAxis } from './worldgen/festival.js';
 import { lakeAt } from './worldgen/water.js';
 import { Trip } from './trip.js';
 import { Analytics } from './analytics.js';
@@ -207,40 +207,36 @@ zerble.position.set(0, 0, 65);
 zerble.heading = 0;
 scene.add(zerble.root);
 
-// v2 worldgen: spawn at the nearest MAJOR heart's entrance arch, facing its main
-// stage — the "drive in through the arch into the festival" arrival, instead of the
-// legacy fixed (0,65). Runs at module-eval (the session seed is already resolved
-// above; this is NOT inside the title-tap handler, so it never pushes Sound.init off
-// the synchronous gesture — iOS audio tripwire / R31). The arch + stage + string
-// lights come free from that heart's festivalPlan (built when its chunk loads).
-// Falls back to the pinned (0,65) spawn if no major heart / arch resolves.
+// v2 worldgen: spawn at the nearest HUB (ANY rank — at dense configs there may be
+// no MAJOR near origin, D3 finding), so the player opens straight INTO a festival,
+// out on the stage's open dancefloor (+F) facing the stage. Runs at module-eval (the
+// session seed is already resolved above; this is NOT inside the title-tap handler,
+// so it never pushes Sound.init off the synchronous gesture — iOS audio tripwire /
+// R31). The stage + clusters come free from the hub's festivalPlan (built when its
+// chunk loads). Falls back to the pinned (0,65) spawn if no hub/stage resolves.
+// (The single entrance ARCH on the approach road — A1, Gary's pick — is deferred to
+// the arch build; this is the interim "spawn at the festival, see the stage" arrival.)
 if (USE_WORLDGEN_V2) {
-  const heart = nearestMajorHeart(0, 0);
+  const heart = nearestHeart(0, 0).heart;
   const plan = heart ? festivalPlan(heart) : [];
   const stage = plan.find((p) => p.kind === 'main_stage' || p.kind === 'side_stage');
-  const arch = plan.find((p) => p.kind === 'arch');
-  if (stage && arch) {
-    // Spawn just OUTSIDE the arch (away from the stage), facing the stage so driving
-    // forward carries you through the arch toward the main stage.
-    let ox = arch.x - stage.x, oz = arch.z - stage.z;
-    const ol = Math.hypot(ox, oz) || 1; ox /= ol; oz /= ol;
-    let sx = Math.round(arch.x + ox * 14), sz = Math.round(arch.z + oz * 14);
-    zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));  // forward = (-sin,-cos)
-    // Spawn-clearance: the arch sits on a road (roads route around lakes, so it's
-    // dry), but the 14m-beyond-arch point can clip a worldgen shore. Test WORLDGEN
-    // water directly (lakeAt — always available, unlike the registry isPointInLake
-    // which only knows loaded lakes at this origin-based boot pass) and walk forward
-    // toward the (dry) stage until clear. Group E made rendered water == worldgen
-    // water, so this single worldgen check now keeps the actual arrival on dry land.
+  if (heart && stage) {
+    // Front axis F = the direction the stage faces (its open dancefloor). Spawn out
+    // along +F from the stage, facing back at it → you arrive looking at the festival.
+    const fa = computeFrontAxis(heart);
+    const fx = Math.cos(fa.bearing), fz = Math.sin(fa.bearing);
+    let sx = Math.round(stage.x + fx * 34), sz = Math.round(stage.z + fz * 34);
+    zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));  // forward = (-sin,-cos), toward the stage
+    // Safety: F is already water-penalized, but if the dancefloor edge clips a
+    // worldgen shore, walk BACK toward the (dry, hub-center) stage until clear.
     if (lakeAt(sx, sz)) {
-      const fx = -Math.sin(zerble.heading), fz = -Math.cos(zerble.heading);
-      for (let d = 6; d <= 140; d += 6) {
-        const nx = Math.round(sx + fx * d), nz = Math.round(sz + fz * d);
+      for (let d = 6; d <= 30; d += 6) {
+        const nx = Math.round(stage.x + fx * (34 - d)), nz = Math.round(stage.z + fz * (34 - d));
         if (!lakeAt(nx, nz)) { sx = nx; sz = nz; break; }
       }
     }
     zerble.position.set(sx, 0, sz);
-    setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs around the real arrival
+    setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs around the arrival
   }
 }
 

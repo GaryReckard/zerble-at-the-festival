@@ -141,12 +141,15 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // nearestMajorHeart(0,0) + camp villages. Catches cross-engine forks in the
     // festival LAYOUT (the queryPoint golden can't see this layer). A per-engine
     // transcendental fork is EXPECTED (the accepted cosmetic class). Baseline @ the
-    // 2026-06-07 heart-density tuning (HEART_CELL 340 / noneBelow 0.25), seed 1234:
-    //   queryPoint golden  node fb9724fb  /  browser ad9e50cc
-    //   POI golden         node 4e335f21  /  browser f105c425
-    // (At the older sparse 440/0.48 params the POI happened to match cross-engine —
-    //  the denser world exercises more hearts → more cosmetic spot-pick/bearing forks,
-    //  which is also why the H.2 road-EXISTENCE integer test matters more now.)
+    // FESTIVAL LAYOUT GRAMMAR rewrite (D3, deliberation 003) — HEART_CELL 200 /
+    // noneBelow 0.05, seed 1234:
+    //   queryPoint golden  node eddf8e50  /  browser <record>
+    //   POI golden         node d9cfa5f2  /  browser <record>
+    // The plan now carries each stage's front-axis bin (`fbin`) + `scale`, so the
+    // golden + T6 window-invariance exercise F. (Prior baselines for reference:
+    // 340/0.25 → POI node 4e335f21; the pre-grammar 200/0.05 → POI node 6fa977c8.)
+    // The node-vs-browser POI fork remains the accepted cosmetic class; the
+    // H.2 road-EXISTENCE integer test is the one non-cosmetic cross-engine gate.
     const boxHearts = heartsInBounds(-3000, -3000, 3000, 3000)
       .slice().sort((h1, h2) => h1.cx - h2.cx || h1.cz - h2.cz);
     for (const h of boxHearts) poiAcc += JSON.stringify(festivalPlan(h));

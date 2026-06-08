@@ -23,6 +23,7 @@ import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps } from './worldgen/placement.js';
 import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
+import { dancefloorRectsNear } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
@@ -991,6 +992,13 @@ function scatterWorldgenTrees(ctx) {
   const rng = mulberry32(worldHash(ctx.cx * 73 + 19, ctx.cz * 91 + 41));
   const target = Math.max(0, Math.floor(MAX_WORLDGEN_TREES * PERF.forestTreeDensityMul));
   const roadHalf = ROAD_RIBBON_WIDTH / 2 + 2.0;   // keep trunks off the ribbon + a small margin
+  // Dancefloor clearings (A4 / D3.7): the no-tree rects in front of every nearby
+  // hub's stage so woods nestle the BACK/sides but never the audience side. A
+  // CROSS-CHUNK query (a stage's dancefloor spills past its own 80m chunk), keyed
+  // off owning hearts via the MAX_POI_REACH AABB-expand — fetched ONCE here, then
+  // a cheap oriented point-in-rect test per candidate (NOT a per-tree worldgen
+  // query; the rects' computeFrontAxis is memoized → ~2ms cold for the chunk, R7).
+  const danceRects = dancefloorRectsNear(minX, minZ, minX + CHUNK_SIZE, minZ + CHUNK_SIZE);
   const placed = [];
   for (let attempt = 0; attempt < target * 4 && placed.length < target; attempt++) {
     const x = minX + rng() * CHUNK_SIZE;
@@ -998,6 +1006,7 @@ function scatterWorldgenTrees(ctx) {
     const d = treeDensity(x, z);          // 0..1 — already 0 on worldgen water + heart cores
     if (d <= 0.05) continue;              // clearing / open lawn
     if (rng() > d) continue;              // place ∝ density (sparse fringes fall out naturally)
+    if (pointInDancefloor(x, z, danceRects)) continue;   // keep the stage's audience side clear (A4)
     if (pointNearWorldgenRoad(x, z, ctx.region.roads, roadHalf)) continue;
     let tooClose = false;
     for (let i = 0; i < placed.length; i++) {
@@ -1021,6 +1030,20 @@ function scatterWorldgenTrees(ctx) {
     });
     placed.push({ x, z });
   }
+}
+
+// Is (x,z) inside any hub's oriented dancefloor rect? Project onto the rect's +F
+// axis (along ∈ [0,depth]) and its perpendicular (|perp| <= halfWidth). Cheap
+// scalar math, no worldgen query (the rects came pre-computed from festival.js).
+function pointInDancefloor(x, z, rects) {
+  for (const r of rects) {
+    const dx = x - r.cx, dz = z - r.cz;
+    const along = dx * r.dirx + dz * r.dirz;
+    if (along < 0 || along > r.depth) continue;
+    const perp = -dx * r.dirz + dz * r.dirx;
+    if (perp >= -r.halfWidth && perp <= r.halfWidth) return true;
+  }
+  return false;
 }
 
 // Cheap local "is (x,z) on a road" test against this chunk's raw arterial polylines

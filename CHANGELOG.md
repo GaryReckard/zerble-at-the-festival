@@ -5,6 +5,31 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-07
 
 ### Changed
+- **v2 festival ARRANGEMENT redesigned around a per-hub front axis — stages face
+  open dancefloors, not water (behind `?worldgen=1`).** The playtest showed the v2
+  layout placed each piece independently — stages faced "the nearest road" (often the
+  lake), vendor rows punched through stages, the arch landed mid-row, food courts had a
+  road + porta inside them. Root cause: no shared sense of which way a hub faced. Fix:
+  each hub now computes ONE **front axis `F`** = the bisector of the widest *dry* gap
+  between its approach roads, and every piece is placed relative to it. The stage faces
+  `+F` (open ground *between* roads — so there's never a road in front of it), with a
+  cleared **dancefloor** (`scatterWorldgenTrees` now skips an oriented no-tree rect in
+  front of each stage, so woods nestle the back/sides but never the audience side). Food
+  courts + vendor rows sit out along the longest road (the "drag"), away from the stage;
+  the drum circle is kept to the back/side of `F`; the per-hub arch was removed (exactly
+  ONE arch belongs to the whole festival, at spawn — coming with the arch build). A final
+  **footprint overlap guard** pushes any two clusters apart so nothing stacks. The
+  front-axis selection is fully integer-keyed (bearings bin to a 256-slot grid) so a hub
+  can't face differently across browsers. Verified in-game at seed 1234: boot drops you
+  in front of a stage with a live band across a clear dancefloor, vendors off to the
+  sides, woods around — no chairs in water, no row through a stage. `?worldgen=0`
+  unchanged. (Determinism: queryPoint golden held at `eddf8e50`; the POI golden moved as
+  expected — `d9cfa5f2` node, flag-off.)
+- **v2 spawn now drops you AT a festival hub of any size (behind `?worldgen=1`).** At the
+  dense config there's often no *major* heart near the origin, so the old "spawn at the
+  nearest major's arch" check silently fell back to an empty field. Spawn now finds the
+  nearest hub of any rank and places you out on its stage's dancefloor facing the stage,
+  so you open straight into the music.
 - **v2 world is ~2.6× denser — festivals every ~390m instead of ~610m (behind
   `?worldgen=1`).** Playtest feedback: the v2 world read WAY too sparse — wide-open
   fields with just scattered people. Tightened the heart macrocell from 440m → **340m**

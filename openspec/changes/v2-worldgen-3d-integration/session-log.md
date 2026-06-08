@@ -577,3 +577,41 @@ into the descriptor, D3.7 tree clearing via ctx.region, D3.8 overlap guard, D3.9
 **Changed:** src/worldgen/festival.js (computeFrontAxis + dancefloor helpers + MAX_POI_REACH comment),
 map-sandbox.html (grammar overlay layer), tasks.md (D3 checkboxes), CHANGELOG, session-log.
 **Refs:** -> D3.1/D3.4/D3.5 done; -> D3.9 (sharpened by the null-major finding); next: Gary judges F → CG2.
+
+### 2026-06-07 — D3 CG2: the F rewrite of _computePlan + dancefloor clearing + overlap guard + spawn-at-hub
+**Intent:** Rewrite festival.js to USE the front axis (CG2) so the festival reads right in 3D —
+Gary judges in the game, not the 2D overlay (he said the 2D abstraction didn't land for him).
+**Result (flag-off, verified in the real game seed 1234):**
+- **D3.6** `_computePlan` re-aimed to F: stage faces `+F` (the widest dry gap → dancefloor faces
+  open ground between roads, A3); per-hub ARCH removed (spawn-only, A1); courts/rows walk out past
+  the dancefloor on the drag (roads[0]); drum kept out of the ±40° front wedge; `fbin`+`scale`
+  serialized on the stage descriptor (so the POI golden + T6 window-invariance exercise F).
+- **D3.8** `resolveOverlaps` — pure deterministic footprint de-overlap, fixed push order, stage is
+  the anchor, never touches clusterSeed. Verified: ZERO pairwise overlaps at the seed-1234 hub.
+- **D3.7** dancefloor tree-clearing: `dancefloorRectsNear(chunkAABB)` (pure, owning-hearts via the
+  MAX_POI_REACH expand) + `pointInDancefloor` skip in `scatterWorldgenTrees` — woods nestle back/
+  sides, audience side clear. No per-tree query (R7).
+- **D3.9 (partial)** spawn rewrite: `main.js` spawns at `nearestHeart(0,0)` (ANY rank) out on the
+  stage's dancefloor facing the stage → boot opens INTO a festival. Verified spawn (-90,52), NOT
+  the (0,65) fallback. The persistent ARCH on the road (A1/A2, Gary's arch-on-road pick) is DEFERRED.
+- **PERF (R7) — caught + fixed a self-inflicted blow-out:** `computeFrontAxis`'s dry probe first used
+  the heavy `queryPoint` (nearestRoad 215µs × ~18/heart) → ~10ms/heart (node) / ~68ms (browser); since
+  `festivalPlan` now calls computeFrontAxis per heart, chunk-gen would stall for seconds. Swapped the
+  probe to the cheap `lakeAt` (water-only; road-avoidance is implicit in facing a GAP) → **0.08ms/heart**.
+  Also cut `treedDistrictSpot`'s 12 `queryPoint` to `treeDensity`+`lakeAt`. computeFrontAxis memoized.
+- **Determinism:** queryPoint golden HELD `eddf8e50` (contract untouched); POI golden moved to `d9cfa5f2`
+  node (expected, flag-off; selftest.js baseline comment updated). 23/24 (the pre-existing dense-config
+  road-negative-control). All window-invariance tests pass incl. T6 (F is window-invariant).
+- **3D verified (the real deliverable for Gary):** boot drops you in front of a stage with a live band
+  across a clear dancefloor, vendors/court off to the sides, drum circle in the district, woods framing
+  the back — no chairs in water, no row through a stage, no arch mid-row. ZERO console errors. Screenshots
+  taken (player arrival + 3/4 hub + stage-front). This is the answer to Gary's playtest disappointment.
+**OPEN watch-item:** full festivalPlan is ~9ms COLD in node (~60ms browser), slightly over the 8ms R7
+gate — but PRE-EXISTING (the old plan had the same ~20 queryPoint calls; my grammar is perf-neutral-to-
+better). The remaining cost is nudgeOff/court `queryPoint` + cold arterials. → D3.13 headless gate +
+the frame-defer escape hatch (parked until measured to stall in real play).
+**Changed:** src/worldgen/festival.js (computeFrontAxis memo+probe, _computePlan rewrite, resolveOverlaps,
+treedDistrictSpot), src/chunks.js (dancefloorRectsNear import + pointInDancefloor in scatter), src/main.js
+(spawn-at-any-hub), src/worldgen/selftest.js (golden baseline comment), CHANGELOG, tasks (D3.2/3/5/6/7/8 done,
+D3.9/D3.10 partial), session-log. Commit: (pending).
+**Refs:** -> D3.6/7/8 done, D3.9 partial (arch deferred); next: build the ONE arch (A1/A2) + the rest of CG5.
