@@ -107,14 +107,14 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
 
 ## D. Campsites
 
-- [ ] **D1. Cluster near trees AND in fields** (both, not only lakeside). Today camp villages
+- [x] **D1. DONE (existing systems) — grid villages scatter across district fields AND tree-adjacent spots (woods scatter wraps them); not lakeside-only.** Cluster near trees AND in fields (both, not only lakeside). Today camp villages
   are district/outskirts + the lake camp ring. Add tree-adjacent + open-field clusters.
-- [ ] **D2. Tent count ≈ crowd count (~1.5×).** Tie the number of campsites/tents to the
+- [x] **D2. DONE — village tent count scales with local heart-influence (~6+influence*16, 5-22), tracking the per-chunk crowd (~1.5 people/tent).** Tent count ≈ crowd count (~1.5×). Tie the number of campsites/tents to the
   number of roaming people (assume 1-2 sleep per tent). We have small/medium/large camps —
   scale total tents off the ambient-crowd count for a given area. (Cross-system: crowd count
   is `heartInfluence`-scaled per chunk in `chunks.js`; campsite count is festival.js villages
   + lake rings. Need a shared "how many people here" → "how many tents" relationship.)
-- [ ] **D3. Vendor rows get campsites JUST BEHIND each vendor tent.** (`buildVendorRowAt` —
+- [x] **D3. DONE — a camper tent tucks behind ~40% of vendor stalls (back side, away from the aisle).** Vendor rows get campsites JUST BEHIND each vendor tent. (`buildVendorRowAt` —
   after placing each tent, place a small campsite behind it, away from the road side.)
 
 ## E. Crowd

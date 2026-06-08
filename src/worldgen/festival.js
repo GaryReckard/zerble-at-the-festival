@@ -456,9 +456,14 @@ export function campVillagesNear(bounds) {
       const qp = queryPoint(x, z);
       if (qp.noBuild || qp.inLake) continue;       // off road + off water
       if (qp.roleTier === 'core') continue;          // villages are back-of-festival, not the core
+      // D2: tent count tracks local crowd density (~1.5 people/tent). The ambient
+      // crowd per chunk is ~round(1 + heartInfluence*15) (chunks.js), so a busy
+      // near-hub district packs a big camp (~22) and the quiet deep outskirts a
+      // small one (~5). Carried as plan data so the build reads it deterministically.
+      const tents = Math.max(5, Math.min(22, Math.round(6 + qp.heartInfluence * 16)));
       out.push({
         kind: 'camp_village', x, z, yaw: 0, footprint: KIND_FOOTPRINT.camp_village,
-        role: qp.roleTier, rank: qp.heart ? qp.heart.rank : 'minor', anchor: false,
+        role: qp.roleTier, rank: qp.heart ? qp.heart.rank : 'minor', anchor: false, tents,
         clusterSeed: (worldHash(cx, cz, SALT.poiVillage) >>> 0),
       });
     }

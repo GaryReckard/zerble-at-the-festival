@@ -5,6 +5,16 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-08
 
 ### Added
+- **Campsites enriched in v2 — camps behind vendor stalls + tent counts that track
+  the crowd (behind `?worldgen=1`).** Two of Gary's camping asks: (1) **camper tents
+  tuck behind ~40% of vendor stalls** (the back side, away from the aisle) — "vendors
+  camp behind their stalls." (2) **Camp-village size now tracks local crowd density** —
+  a village's tent count scales with worldgen heart-influence (~`6 + influence*16`,
+  clamped 5–22), so a busy near-hub district packs a big camp and the quiet deep
+  outskirts a small one (≈ the 1.5-people-per-tent relationship Gary wanted). Villages
+  already scatter across district fields and tree-adjacent spots (not just lakesides),
+  with the woods scatter wrapping them — so the "near trees AND in fields" ask was
+  already met by the grid + density systems.
 - **The FULL drum circle in v2 — drummers, dancers, benches, fire, spatial groove
   (behind `?worldgen=1`).** v2's drum spot was building only the small chunk-pit (fire +
   8 stones), not the big LEAF drum circle Gary remembered from v1. Now the worldgen drum

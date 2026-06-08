@@ -624,3 +624,13 @@ main.js spawn rewritten to Gary's §6 arch-on-road arrival: spawn outside the ar
 road, face inward, drive through the gate (stage off to the side). A2 banner mirror fixed
 in entranceArch.js (two back-to-back FrontSide planes vs one DoubleSide). Verified in 3D
 seed 1234: drive-in shows "FESTIVAL" correct from both sides, zero errors. **Refs:** -> D3.9 done.
+
+### 2026-06-08 -- Boot crash caught by the mandatory game-boot smoke test (R2 return-shape)
+**Event:** discovery. **What:** the D3 vendor-row camps used `buildCampTent(rng)` as a bare
+Group, but it returns `{ group, color, footprint }` — so `camp.position.set` threw at
+buildWorldgenKind during buildWorld, aborting main.js eval BEFORE the `window.__dbg` setup
+(line 1280) → no `__dbg`, and the throw didn't surface in `preview_console_logs` (it was an
+ES-module eval error). Diagnosed via `import('/src/main.js').catch(e=>e.stack)`. Fixed with
+`.group`. This is EXACTLY the documented sandbox-pass≠game-pass / buildCampChair `{group,...}`
+class — the isolated import tests passed; only booting the real game (buildWorld) caught it.
+Reinforces: always re-import/boot after touching a chunk builder. **Refs:** -> D3, CLAUDE.md smoke-test rule.

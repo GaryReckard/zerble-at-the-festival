@@ -27,7 +27,7 @@ import { dancefloorRectsNear } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
-import { buildCampsite, buildCampChair, buildTorchField } from './models/campsite.js';
+import { buildCampsite, buildCampChair, buildTorchField, buildCampTent } from './models/campsite.js';
 import { buildTent } from './models/tent.js';
 import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
@@ -1145,7 +1145,7 @@ function buildWorldgenKind(ctx, d) {
     case 'bubble_vendor': buildBubbleVendorAt(cctx, d.x, d.z, d.yaw); break;
     case 'porta_bank':    buildPottyBankAt(cctx, d.x, d.z, d.yaw); break;
     case 'drum_circle':   buildWorldgenDrumCircle(cctx, d.x, d.z, d.yaw); break;   // B2 — the FULL leaf drum circle
-    case 'camp_village':  buildCampVillageAt(cctx, d.x, d.z); break;
+    case 'camp_village':  buildCampVillageAt(cctx, d.x, d.z, d.tents); break;   // D2 — tent count ∝ local crowd
     default: break;       // unknown kind → place nothing (forward-compatible)
   }
 }
@@ -1232,6 +1232,24 @@ function buildVendorRowAt(ctx, x, z, yaw) {
         attractor: { radius: 4, weight: 0.5 },
         chunkKey: ctx.key,
       });
+      // D3: a camper's tent tucked BEHIND ~40% of the stalls (back side, away from
+      // the aisle) — "vendors camp behind their stalls."
+      if (ctx.rng() < 0.4) {
+        const cw = place(side * (rowOffset + 6), t * spacing + (ctx.rng() - 0.5) * 2);
+        if (!isPointInLake(cw.x, cw.z)) {
+          const camp = buildCampTent(ctx.rng).group;   // buildCampTent returns { group, color, footprint }, not a bare Group (R2)
+          camp.position.set(cw.x, 0, cw.z);
+          camp.rotation.y = yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI + (ctx.rng() - 0.5) * 0.5;
+          ctx.group.add(camp);
+          registry.add({
+            kind: 'campsite',
+            position: new THREE.Vector3(cw.x, 0, cw.z),
+            footprint: 1.6,
+            collider: { radius: 1.3, damage: 3 },
+            chunkKey: ctx.key,
+          });
+        }
+      }
     }
   }
 }
@@ -1320,8 +1338,10 @@ function buildFoodCourtAt(ctx, x, z) {
 // artifact — the packing rule was always good (CHANGELOG.md:611-613, the three failed
 // framings). Sites spill into neighbour chunks but stay parented to this chunk's
 // group, unloading as a unit.
-function buildCampVillageAt(ctx, x, z) {
-  const target = 12 + Math.floor(ctx.rng() * 9);   // 12-20
+function buildCampVillageAt(ctx, x, z, tentTarget) {
+  // D2: target tent count comes from the plan (∝ local crowd density); falls back
+  // to the legacy 12-20 if a caller doesn't supply one (keeps the legacy path intact).
+  const target = tentTarget != null ? tentTarget : 12 + Math.floor(ctx.rng() * 9);
   const placed = [];
   const MIN_SPACING = 5.5, RADIUS = 30;
   let attempts = 0;
