@@ -33,9 +33,13 @@ it and found: stage facing water with chairs IN the water, vendor row punched th
 dumped mid-vendor-row, food court with a row + porta INSIDE it. Verdict: `festival.js` places a heart's pieces
 (stage/arch/rows/court/drum/camps) relative to the heart + roads INDEPENDENTLY, with no rule about how they
 relate — so they collide and face wrong. **Decision: SALVAGE v2** (the world structure is the upgrade he likes);
-the next big work is a **festival LAYOUT GRAMMAR** redesign of `festival.js` (decide a festival's "front" away
+the next big work is a **festival LAYOUT GRAMMAR** redesign of `festival.js` (for each hub: pick a "front" away
 from water/toward the main road, then place every entity by a rule relative to that front-axis + water + road),
 done TOGETHER with Gary. Plus a big backlog of his polish notes.
+**FRAMING (Gary):** it is all ONE infinite festival — hearts are HUBS/gathering areas within it, NOT separate
+festivals; the gaps between are still the festival (chill/camping zones), just less dense. Update the
+"festival"-per-heart language over time (heart → hub). Exactly ONE arch in the whole world: the grand entrance
+at the player's spawn (backlog A1), not per-hub.
 
 ➡ **READ `festival-polish-backlog.md`** (same folder) — Gary's full playtest notes, organized into A (the
 arrangement grammar — keystone), B (missing entities: tent stage, big drum circle, hammocks, picnic blankets

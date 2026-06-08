@@ -1,5 +1,16 @@
 # Festival polish + arrangement backlog (Gary playtest notes, 2026-06-07)
 
+> **FRAMING (Gary, 2026-06-07): it is all ONE infinite festival.** Not many festivals,
+> one per heart — a single, infinitely-large festival, with hubs/gathering areas
+> (the "hearts") scattered through it and connected by roads. The gaps between hubs are
+> still *the festival* (the chill/camping/wandering areas), just less dense. This is why
+> density matters (it should feel continuous, not like discrete events with dead air) AND
+> why arrangement matters (each hub is a coherent zone within the whole). **Language to
+> update over time:** stop calling a heart "a festival"; it's a HUB / stage-area / gathering
+> spot *within* the one festival. (`festivalPlan(heart)` → conceptually a "hub plan"; rename
+> deferred to the redesign so we don't churn now.) The single entrance ARCH belongs to the
+> whole festival, at the player's spawn — see A1.
+>
 > **Status: SALVAGE v2 (decided). Not going back to `main`.** The world *structure*
 > (deterministic hearts → roads → lakes → woods → crowd + the harness) is the upgrade
 > Gary likes. The problem is concentrated in `festival.js`'s ARRANGEMENT logic — it
@@ -35,10 +46,12 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
 
 ## A. Festival arrangement grammar (THE core redesign — `festival.js`)
 
-- [ ] **A1. Exactly ONE festival arch per world, at the START, by the main stage** (the
-  wooden-roof one). Not one-per-heart, not mid-vendor-row. The arch marks the player's
-  entrance to the *first/spawn* festival only. (Today: arch on every heart's primary road
-  → arches everywhere, often mid-row.)
+- [ ] **A1. Exactly ONE arch in the entire world — the entrance to the (one, infinite)
+  festival, at the player's SPAWN, by the main stage there** (the wooden-roof one).
+  Confirmed (Gary): NOT per-hub, just the single grand entrance. Remove the arch from the
+  per-heart plan entirely; build the one arch as part of the spawn setup (main.js spawn
+  block already finds the spawn heart's stage — anchor the arch there). (Today: arch on
+  every heart's primary road → arches everywhere, often mid-row. Delete that.)
 - [ ] **A2. Fix the arch banner** so "FESTIVAL" is not mirrored/backwards when viewed from
   behind. (`models/entranceArch.js` — likely a single-sided text plane or a flipped
   duplicate; needs a back-facing correctly-oriented copy or double-sided non-mirrored text.)
@@ -112,12 +125,15 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
   along them — but it's apparently too weak. Strengthen: higher path_node attractor weight,
   tighter spacing, OR a gentle per-frame road-follow steering that's CHEAP — note `nearestRoad`
   is 215µs/call so per-NPC-per-frame is out; could cache a road-tangent per NPC at retarget.)
-- [ ] **E2. [CODE QUESTION] Do all the people classes share a common 'class'?** Kids, wooks,
-  hula-hoopers, zerble-riders, band members, etc. — map whether they're all the one `Crowd`
-  NPC pool (`crowd.js`, the `npcs[]` with a `state`/personality) or separate systems
-  (`obstacles.js` has KidGaggle / PuppetParade / BrassBand; wooks?). Document the taxonomy so
-  future placement/behavior work knows what's shared vs bespoke. (Likely: Crowd is the ambient
-  pool; kids/band/puppets/wooks are separate moving-obstacle systems. Confirm + write it down.)
+- [ ] **E2. MAP the people taxonomy + write it down.** Gary's hunch (confirmed worth checking):
+  the various people classes each have their OWN logic — he's seen changes to one not transfer
+  to others when he expected them to. Kids, wooks, hula-hoopers, zerble-riders, band members,
+  drum-circle figures, etc. — document which are the one ambient `Crowd` pool (`crowd.js`,
+  `npcs[]` + state/personality) vs separate bespoke systems (`obstacles.js`: KidGaggle /
+  PuppetParade / BrassBand; the drum-circle `tribalFigures`; wooks — find where). Produce a
+  clear taxonomy (what's shared, what's bespoke, why) so future behavior/placement work knows
+  what a change will and won't propagate to. Gary's hunch is probably right — likely several
+  independent systems, not one base class. Just a doc/understanding task for now.
 
 ## F. Woods / density / fields
 
