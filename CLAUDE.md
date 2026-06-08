@@ -290,11 +290,12 @@ Three agent surfaces, adapted from the fedweb toolkit for this project:
   intent-gated**: don't read `openspec/` on first message. Enter OpenSpec mode
   only when the prompt names an `/opsx:*` command, an artifact (`tasks.md`,
   `session-log`, `proposal.md`, `openspec/changes`), or asks to plan a change.
-  Full operational details (the `session-log.md` + `questions-for-human.md`
-  persistent-memory system, the continuous-writing protocol, the advisory
-  deliberation gate, the cross-ref convention) live in
+  Full operational details (the `README.md` front door, the `session-log.md` +
+  `questions-for-human.md` persistent-memory system, the event-driven writing
+  protocol, the skippable deliberation gate, the cross-ref convention) live in
   `.claude/rules/openspec.md`, path-scoped to `openspec/**`. Project context is
-  in `openspec/config.yaml`. No Jira here — the audit trail stays
+  in `openspec/config.yaml`; the workflow schema is forked at
+  `openspec/schemas/zerble/`. No Jira here — the audit trail stays
   CHANGELOG + ROADMAP + git. `/deliberate` and `/smart-review` persist artifacts
   into the active change's `deliberations/` and `reviews/` folders.
 
@@ -324,6 +325,7 @@ See `.claude/rules/`:
   convention and the dispose-safe pattern for new pooled resources.
 - [openspec.md](.claude/rules/openspec.md) — **path-scoped to `openspec/**`;
   auto-loads only when working in OpenSpec.** Lazy/intent-gated mode, the
+  `README.md` front door + `bin/readme-sync` status generator, the
   persistent-memory system (`session-log.md` + `questions-for-human.md`), the
-  continuous-writing protocol, the advisory deliberation gate (re-keyed to
+  event-driven writing protocol, the skippable deliberation gate (re-keyed to
   zerble's tripwires), and the cross-ref convention (`-> Q3`, `-> Task 7.2.1`).

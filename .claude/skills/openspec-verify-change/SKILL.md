@@ -7,6 +7,7 @@ metadata:
   author: openspec
   version: "1.0"
   generatedBy: "1.0.2"
+  customizedFor: zerble
 ---
 
 Verify that an implementation matches the change artifacts (specs, tasks, design).
@@ -142,6 +143,26 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
    - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
    - If all clear: "All checks passed. Ready for archive."
+
+9. **README front-door soft-gate**
+
+   The change's `README.md` is the human-readable front door — verify it's present and current:
+   - If `README.md` is missing or has no `<!--STATUS:-->` markers, that's a WARNING (it should exist under the `zerble` schema). Offer to scaffold it from `openspec/schemas/zerble/templates/readme.md`.
+   - Run `bin/readme-sync <name> --check`. It's a standalone script, so `$?` is reliable (0 = fresh, 1 = stale) — or just read its STDOUT (`fresh` vs `STALE`). If stale, run `bin/readme-sync <name>` to refresh the status block.
+   - Read the durable prose (TL;DR, The Problem, Proposed Fix, Key Decisions, Risks & Watch-outs, Open Questions). If it no longer matches what actually shipped, update it. A stale narrative is a WARNING to resolve before archive.
+
+10. **Smart-review (post-implementation code review)**
+
+   Verification checks the *artifacts*; smart-review checks the *code*. Once the above passes, run `/smart-review` scoped to this change's diff. Persist its output under `openspec/changes/<name>/reviews/NNN-<topic>/` (e.g. `reviews/001-verify/review-summary.md`). Fold any must-fix findings into `tasks.md` (new tasks) or fix inline, and note the review in the README "Where Things Live" map.
+
+   Skip only if the change is docs/config-only with no code diff — and say so explicitly.
+
+11. **Log verification results (event-driven)**
+
+   Update the change's `session-log.md`:
+   - Add ONE Work Log entry summarizing the pass: "Verify: [N critical / N warning]. Smart-review: [headline]."
+   - Add unresolved issues to Dangling Threads; raise a `questions-for-human.md` entry for anything needing human judgment (bump `open_questions`).
+   - Update frontmatter `last_updated`. (One entry for the whole verify pass — no per-check prose churn.)
 
 **Verification Heuristics**
 

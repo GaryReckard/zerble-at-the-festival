@@ -7,9 +7,14 @@ metadata:
   author: openspec
   version: "1.0"
   generatedBy: "1.0.2"
+  customizedFor: zerble
 ---
 
 Archive a completed change in the experimental workflow.
+
+The actual move + spec-sync + validation is done by the **`openspec archive` CLI** — do NOT
+hand-roll `mkdir`/`mv` or a manual spec sync. The skill's job is the Zerble-specific
+pre-archive finalize (README status + session-log close-out), then delegating to the CLI.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -17,79 +22,58 @@ Archive a completed change in the experimental workflow.
 
 1. **If no change name provided, prompt for selection**
 
-   Run `openspec list --json` to get available changes. Use the **AskUserQuestion tool** to let the user select.
-
-   Show only active changes (not already archived).
-   Include the schema used for each change if available.
+   Run `openspec list --json` to get available changes. Use the **AskUserQuestion tool** to let the user select. Show only active changes (not already archived). Include the schema if available.
 
    **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
 
-2. **Check artifact completion status**
+2. **Finalize the README and memory (soft-gate) — BEFORE the move**
 
-   Run `openspec status --change "<name>" --json` to check artifact completion.
+   Do this first so the finalized content is what gets archived.
 
-   Parse the JSON to understand:
-   - `schemaName`: The workflow being used
-   - `artifacts`: List of artifacts with their status (`done` or other)
+   **README (front-door soft-gate):**
+   - Run `bin/readme-sync <name>` so the status block reflects the final task state (it should read 100% / complete).
+   - Read the durable prose one last time — this README is the lasting record a future reader opens first. Make sure TL;DR, Proposed Fix, Key Decisions, Risks & Watch-outs, and "Where Things Live" reflect what actually shipped (including any smart-review outcome). A stale README is the thing to fix before the change is frozen.
 
-   **If any artifacts are not `done`:**
-   - Display warning listing incomplete artifacts
-   - Use **AskUserQuestion tool** to confirm user wants to proceed
-   - Proceed if user confirms
+   **Update `session-log.md`:**
+   - Add a final Work Log entry: "Archived. [one-line final state — tasks complete, specs synced or skipped, review outcome]."
+   - Update frontmatter: `status: complete`, `current_task: null`, `blocked_by: null`, `last_updated` to today.
 
-3. **Check task completion status**
+   **Update `questions-for-human.md`:** if any questions are still open, note they were archived unresolved (leave counts as-is for the historical record).
 
-   Read the tasks file (typically `tasks.md`) to check for incomplete tasks.
+3. **Decide spec handling**
 
-   Count tasks marked with `- [ ]` (incomplete) vs `- [x]` (complete).
+   Look at the change's capabilities (its `specs/` delta + the proposal's Capabilities section):
+   - **Product/system capability** (something `openspec/specs/` should own — a render-pipeline, world-streaming, registry/collision, crowd-ai, audio-synthesis, perf-tier, models, or determinism behavior) → let the CLI sync it into the main specs (default).
+   - **Process / tooling / docs-only change** (no product capability — e.g. an OpenSpec-workflow, `.claude/**` config, or doc-only change) → archive with **`--skip-specs`** (the CLI's exact intended use for these). The delta spec, if any, stays in the archived change as the record.
 
-   **If incomplete tasks found:**
-   - Display warning showing count of incomplete tasks
-   - Use **AskUserQuestion tool** to confirm user wants to proceed
-   - Proceed if user confirms
-
-   **If no tasks file exists:** Proceed without task-related warning.
-
-4. **Assess delta spec sync state**
-
-   Check for delta specs at `openspec/changes/<name>/specs/`. If none exist, proceed without sync prompt.
-
-   **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at `openspec/specs/<capability>/spec.md`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
-   - Show a combined summary before prompting
-
-   **Prompt options:**
-   - If changes needed: "Sync now (recommended)", "Archive without syncing"
-   - If already synced: "Archive now", "Sync anyway", "Cancel"
-
-   If user chooses sync, execute /opsx:sync logic (use the openspec-sync-specs skill). Proceed to archive regardless of choice.
-
-5. **Perform the archive**
-
-   Create the archive directory if it doesn't exist:
-   ```bash
-   mkdir -p openspec/changes/archive
-   ```
-
-   Generate target name using current date: `YYYY-MM-DD-<change-name>`
-
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move the change directory to archive
+4. **Archive via the OpenSpec CLI**
 
    ```bash
-   mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
+   openspec archive "<name>" -y            # syncs delta specs into openspec/specs/
+   # or, for process/tooling/doc changes:
+   openspec archive "<name>" -y --skip-specs
    ```
+
+   The CLI handles everything: validates the change + delta specs, warns on incomplete tasks, syncs specs (unless `--skip-specs`), creates `openspec/changes/archive/YYYY-MM-DD-<name>/`, refuses if that target already exists, and moves the directory.
+
+   - **`-y` is required here** — the agent runs non-interactively and cannot answer the CLI's `confirm()` prompts. `-y` accepts the incomplete-task and spec-update prompts. Only pass `-y` once you (and the user, if tasks are incomplete) actually intend to proceed.
+   - **If the CLI aborts on validation errors**, surface them and fix the change — do NOT reach for `--no-validate` to paper over invalid specs. `--no-validate` is a last resort that itself requires confirmation.
+   - The CLI moves with `fs.rename` (it is **not** a `git mv`). It does not stage anything in git.
+
+5. **Stage the archive in git (only if the user is committing)**
+
+   Because the move isn't a `git mv`, record the rename yourself when committing:
+   ```bash
+   git add "openspec/changes/<name>" "openspec/changes/archive/YYYY-MM-DD-<name>"
+   ```
+   Staging both the old (now-removed) and new paths lets git detect the rename. Since the finalize in Step 2 happened before the move, those edits are included. **Do not commit unless the user asked** — archiving and committing are separate.
 
 6. **Display summary**
 
-   Show archive completion summary including:
-   - Change name
-   - Schema that was used
-   - Archive location
-   - Whether specs were synced (if applicable)
-   - Note about any warnings (incomplete artifacts/tasks)
+   - Change name + schema
+   - Archive location (`openspec/changes/archive/YYYY-MM-DD-<name>/`)
+   - Whether specs were synced or `--skip-specs` was used (and why)
+   - Any incomplete-task / validation warnings the CLI reported
 
 **Output On Success**
 
@@ -99,16 +83,13 @@ Archive a completed change in the experimental workflow.
 **Change:** <change-name>
 **Schema:** <schema-name>
 **Archived to:** openspec/changes/archive/YYYY-MM-DD-<name>/
-**Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
-
-All artifacts complete. All tasks complete.
+**Specs:** ✓ Synced to main specs  (or  "Skipped (--skip-specs): <reason>")
 ```
 
 **Guardrails**
-- Always prompt for change selection if not provided
-- Use artifact graph (openspec status --json) for completion checking
-- Don't block archive on warnings - just inform and confirm
-- Preserve .openspec.yaml when moving to archive (it moves with the directory)
-- Show clear summary of what happened
-- If sync is requested, use openspec-sync-specs approach (agent-driven)
-- If delta specs exist, always run the sync assessment and show the combined summary before prompting
+- Delegate the move + spec-sync + validation to `openspec archive` — never hand-roll `mkdir`/`mv` or a manual sync.
+- Always prompt for change selection if not provided.
+- Run the README + memory finalize (Step 2) BEFORE the CLI move, so the archived content is final.
+- Use `--skip-specs` for process/tooling/doc changes; let the CLI sync product/system capabilities.
+- Don't bypass validation (`--no-validate`) to force an archive — fix the change instead.
+- Don't commit unless explicitly asked; if committing, stage both old + new paths so git records the rename.

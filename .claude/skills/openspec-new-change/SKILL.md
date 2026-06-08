@@ -46,16 +46,19 @@ Start a new change using the experimental artifact-driven approach.
 
    Every change MUST have `session-log.md` and `questions-for-human.md` from the
    start. Create both in the change directory using the templates from
-   `openspec/templates/`. These are the agent's persistent memory — the only
-   things that survive context compaction. See `.claude/rules/openspec.md` for
-   the full Continuous Writing Protocol.
+   `openspec/templates/`. These are the agent's persistent memory — the durable
+   "why" trail that survives context compaction. The README front door and the
+   deliberation record come later, via the schema (not here). See
+   `.claude/rules/openspec.md` for the Event-Driven Writing Protocol.
 
    **`session-log.md`** — initialize with:
    - Frontmatter: `status: not_started`, `current_task: null`, `blocked_by: null`,
      `open_questions: 0`, today's date for `started`/`last_updated`, `ref` set to
      the CHANGELOG entry / ROADMAP bullet / commit this picks up (or null)
-   - All section headers (Current Status, Key Decisions, Assumptions, Dangling Threads, Work Log)
-   - Current Status: Phase = "Planning", Doing = "Creating change artifacts", Next = "First artifact", Blocked = "nothing"
+   - The section headers (Key Decisions, Assumptions, Dangling Threads, Work Log) — left empty
+   - This log is **event-driven**: it stays empty until there's a decision, surprise,
+     blocker, or question worth recording. Don't pre-fill a narrative or log "creating
+     artifacts" — `tasks.md` checkboxes are the per-task record.
 
    **`questions-for-human.md`** — initialize with:
    - Frontmatter: `open: 0`, `answered: 0`, `last_question: null`, `last_answer: null`
@@ -101,23 +104,23 @@ Common parallel patterns in Zerble: a material/disposal pattern repeated across
 nightness-gated behavior repeated across systems, an importmap entry that must
 appear in BOTH `index.html` and `sandbox.html`.
 
-**Deliberation Gate (Advisory)** (Zerble customization)
+**Deliberation Gate (now a schema stage)** (Zerble customization)
 
-After analyzing the change, check for **specific risk signatures**:
-- Determinism changes (rng salts, hash inputs, seed ordering in `rng.js`)
+Under the `zerble` schema, deliberation is a first-class artifact (`deliberation`)
+that gates apply — always present but skippable. You don't run it at new-change
+time; it comes after `tasks`. But flag it early if you already see a **risk signature**:
+- Determinism changes (rng salts, hash2 inputs, seed/`rng()` call ordering in `rng.js`)
 - Render-pipeline / `threeShim.js` / material-tier changes
 - Boot-order or module-load changes
-- World-lifecycle changes (chunk/forest/lake load-unload, disposal, `userData.shared`)
-- Perf-budget-affecting geometry/draw additions
+- World-lifecycle changes (chunk/forest/lake load-unload, disposal, `userData.shared`, lake-omits-chunkKey)
+- Perf-budget-affecting geometry/draw/shadow additions
 - iOS audio init-path changes (`sound.js`)
+- importmap changes (must land in BOTH index.html and sandbox.html)
 
-If a risk signature is detected, suggest:
-> "This change touches **[risk area]**. A multi-persona deliberation may be worth
-> it before finalizing tasks. Run `/deliberate` for the full council, or continue
-> with `/opsx:continue` to skip."
-
-Do NOT trigger for generic "3+ tasks", a single isolated model tweak, copy/README
-changes, or doc-only changes.
+If a signature is present, tell the user this change will likely need a real
+`/deliberate` at the deliberation stage (not a skip). For clearly trivial changes —
+a single isolated model tweak, copy/README edits, doc-only changes — it can be
+skipped there with a recorded rationale (`deliberations/000-skipped.md`).
 
 **Guardrails**
 - Do NOT create any artifacts yet - just show the instructions (the memory files in step 4 are not artifacts)

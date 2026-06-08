@@ -7,6 +7,7 @@ metadata:
   author: openspec
   version: "1.0"
   generatedBy: "1.0.2"
+  customizedFor: zerble
 ---
 
 Continue working on a change by creating the next artifact.
@@ -38,7 +39,21 @@ Continue working on a change by creating the next artifact.
    - `artifacts`: Array of artifacts with their status ("done", "ready", "blocked")
    - `isComplete`: Boolean indicating if all artifacts are complete
 
-3. **Act based on status**:
+3. **Recover context (event-driven memory)**
+
+   Recover where things stand from the change's files, in this order:
+
+   a. **Read `README.md`** (if it exists yet) — the fastest human-readable picture of the change and its state.
+   b. **Read `session-log.md`** — frontmatter (`status`, `current_task`, `blocked_by`, `open_questions`) plus Key Decisions and the latest Work Log entry.
+   c. **Check `questions-for-human.md`** — if `open > 0`, present each unanswered question with the **AskUserQuestion tool** before proceeding. After answers, move them to Answered (update frontmatter) and reflect the new count in `session-log.md` (`open_questions`).
+
+   If the memory files don't exist yet (legacy change), create them from `openspec/templates/`, initialized from the current state.
+
+   **If context feels incomplete** (suspect compaction), recover recent history from the session transcript before proceeding. This supplements the files, it doesn't replace them.
+
+   This context informs what to do next — it may reveal the agent was mid-artifact, hit a blocker, or had questions pending.
+
+4. **Act based on status**:
 
    ---
 
@@ -77,7 +92,7 @@ Continue working on a change by creating the next artifact.
    - This shouldn't happen with a valid schema
    - Show status and suggest checking for issues
 
-4. **After creating an artifact, show progress**
+5. **After creating an artifact, show progress**
    ```bash
    openspec status --change "<name>"
    ```
@@ -97,12 +112,14 @@ The artifact types and their purpose depend on the schema. Use the `instruction`
 
 Common artifact patterns:
 
-**spec-driven schema** (proposal → specs → design → tasks):
-- **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
+**zerble schema** (proposal → specs → design → tasks → deliberation → readme):
+- **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact, and **Scope Check** (search for other places the same pattern lives — e.g. a material/disposal pattern across `src/models/*`, a registry-entry shape across theme builders, an importmap entry that must appear in BOTH `index.html` and `sandbox.html`).
   - The Capabilities section is critical - each capability listed will need a spec file.
 - **specs/<capability>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability name, not the change name).
 - **design.md**: Document technical decisions, architecture, and implementation approach.
-- **tasks.md**: Break down implementation into checkboxed tasks.
+- **tasks.md**: Break down implementation into checkboxed tasks (the source of the README progress block).
+- **deliberation** (risk gate): follow the artifact instruction — run `/deliberate` for risky changes (determinism/rng, threeShim/material-tier, boot order, chunk/lake/forest lifecycle + disposal, perf budget, iOS audio, importmap-in-both-html, high ambiguity) and store output under `deliberations/NNN-<topic>/`; otherwise record a reasoned skip in `deliberations/000-skipped.md`. This gate blocks apply until satisfied.
+- **README.md** (front door): write the plain-language narrative (non-engineer → junior → senior dev), then run `bin/readme-sync <name>` to fill the generated status block. Never hand-edit between the `<!--STATUS:-->` markers.
 
 For other schemas, follow the `instruction` field from the CLI output.
 

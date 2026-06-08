@@ -1,7 +1,11 @@
-schema: spec-driven
+schema: zerble
 
 # Zerble at the Festival — OpenSpec Configuration
-# Updated: 2026-06-05
+# Updated: 2026-06-08
+#
+# Workflow schema: openspec/schemas/zerble/ (forked from spec-driven). Adds a
+# skippable `deliberation` risk-gate and a plain-language `README.md` front door.
+# New changes pick this up; in-flight changes keep whatever they pinned in .openspec.yaml.
 
 project:
   name: Zerble at the Festival
@@ -74,7 +78,7 @@ rules:
     - Graphics/shader/material/boot-order work includes a "test ?perf=low and ?perf=mid" task
 
   implementation:
-    - Never break determinism: salt new rng with a fresh constant, don't reorder existing calls
+    - "Never break determinism: salt new rng with a fresh constant, don't reorder existing calls"
     - Tier-aware three overrides go through src/threeShim.js, never THREE.X = Y after import
     - Tag module-scope pooled geometry/materials userData.shared = true
     - Don't reflexively castShadow = true; only large/visible objects earn it

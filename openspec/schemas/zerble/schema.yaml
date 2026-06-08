@@ -1,0 +1,216 @@
+name: zerble
+version: 1
+description: >-
+  Zerble spec-driven workflow: proposal → specs → design → tasks → deliberation
+  → README, then apply. Extends the base spec-driven schema with a skippable
+  deliberation risk-gate and a plain-language README "front door" for every
+  change. Memory is event-driven (see openspec/templates/session-log-template.md).
+
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: |
+      Create the proposal document that establishes WHY this change is needed.
+
+      Sections:
+      - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
+      - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
+      - **Capabilities**: Identify which specs will be created or modified:
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `crowd-ai`, `lake-lifecycle`).
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Check `openspec/specs/` for existing spec names. Leave empty if no requirement changes.
+      - **Impact**: Affected code, subsystems (render pipeline, world streaming, registry/collision, crowd AI, audio, perf tiers, models, sandbox harness), dependencies.
+      - **Scope Check** (Zerble-required): Confirm you searched for other places the same
+        pattern/behavior exists, and either include them in scope or document why they're
+        excluded. Common Zerble parallels: a material/disposal pattern repeated across
+        `src/models/*`, a registry-entry shape repeated across theme builders, a
+        nightness-gated behavior repeated across systems, an importmap entry that must
+        appear in BOTH `index.html` AND `sandbox.html`.
+
+      Zerble notes: state which subsystem(s) this touches and call out any tripwire it
+      brushes (determinism/rng, threeShim/material-tier, boot order, chunk/lake/forest
+      lifecycle + disposal/`userData.shared`, iOS audio init, per-tier perf budget,
+      importmap-in-both-html). Note player-visible effect vs internal-only (drives whether
+      CHANGELOG is required). There is no Jira here — the audit trail is CHANGELOG + ROADMAP + git.
+
+      IMPORTANT: The Capabilities section is the contract between the proposal and specs
+      phases. Research existing specs before filling it in — each capability listed here
+      needs a corresponding spec file.
+
+      Keep it concise (1-2 pages). Focus on the "why" not the "how" — implementation
+      details belong in design.md.
+    requires: []
+
+  - id: specs
+    generates: specs/**/*.md
+    description: Detailed specifications for the change
+    template: spec.md
+    instruction: |
+      Create specification files that define WHAT the system should do.
+
+      Create one spec file per capability listed in the proposal's Capabilities section.
+      - New capabilities: use the exact kebab-case name from the proposal (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from openspec/specs/<capability>/ when creating the delta spec at specs/<capability>/spec.md.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: New capabilities
+      - **MODIFIED Requirements**: Changed behavior — MUST include full updated content
+      - **REMOVED Requirements**: Deprecated features — MUST include **Reason** and **Migration**
+      - **RENAMED Requirements**: Name changes only — use FROM:/TO: format
+
+      Format requirements:
+      - Each requirement: `### Requirement: <name>` followed by description
+      - Use SHALL/MUST for normative requirements (avoid should/may)
+      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
+      - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
+      - Every requirement MUST have at least one scenario.
+
+      MODIFIED requirements workflow:
+      1. Locate the existing requirement in openspec/specs/<capability>/spec.md
+      2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
+      3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
+      4. Ensure header text matches exactly (whitespace-insensitive)
+
+      Common pitfall: Using MODIFIED with partial content loses detail at archive time.
+      If adding new concerns without changing existing behavior, use ADDED instead.
+
+      Specs should be testable — each scenario is a potential test case.
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: |
+      Create the design document that explains HOW to implement the change.
+
+      When to include design.md (create only if any apply):
+      - Cross-cutting change (multiple subsystems) or new architectural pattern
+      - New external dependency or significant data-model changes
+      - Determinism, performance, render-pipeline, or migration complexity
+      - Ambiguity that benefits from technical decisions before coding
+
+      Sections:
+      - **Context**: Background, current state, constraints
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes
+      - **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered.
+      - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation. For Zerble, call out determinism (will this regenerate existing chunks?), disposal safety, perf-budget impact, and boot-order/threeShim risk.
+      - **Migration Plan**: For determinism-affecting changes, note whether existing seeds regenerate differently and how that's handled.
+      - **Open Questions**: Outstanding decisions or unknowns to resolve
+
+      Focus on architecture and approach, not line-by-line implementation. Reference the
+      proposal for motivation and specs for requirements.
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase and `bin/readme-sync`
+      both parse the checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+      Guidelines:
+      - Group related tasks under `## N. Group Name` headings
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Tasks should be small enough to complete in one focused sitting
+      - Order tasks by dependency (what must be done first?)
+      - Zerble reminders, where relevant:
+        - A new `src/models/` entity is NOT done until it has a sandbox entry — importmap in
+          BOTH index.html AND sandbox.html, an `<option>`, a `loadEntity()` case, and (if it
+          applies) ENTITY_HIT_KIND / ENTITY_MUSIC_STYLE. Make that its own task.
+        - Geometry/draw-adding work includes a "check the backtick budget panel" task.
+        - Graphics/shader/material/boot-order work includes a "test ?perf=low and ?perf=mid" task.
+        - If modifying a pattern, include a task for each place it exists (or document why excluded).
+
+      Reference specs for what needs to be built, design for how to build it. Each task
+      should be verifiable — you know when it's done.
+    requires:
+      - specs
+      - design
+
+  - id: deliberation
+    generates: deliberations/**/*.md
+    description: Risk gate — run a multi-persona deliberation, or record a reasoned skip
+    template: deliberation.md
+    instruction: |
+      This is the Zerble risk gate. It is ALWAYS present but SKIPPABLE — apply cannot
+      begin until this artifact exists as either a real deliberation or a recorded skip.
+      The point is an explicit, auditable decision either way.
+
+      STEP 1 — Assess Zerble risk signatures. Run a deliberation if ANY apply:
+      - Determinism: touching rng.js salts, hash2(cx,cz) inputs, or seed/`rng()` call ordering
+        (regenerates existing chunks/forests/lakes differently for anyone mid-game).
+      - Render pipeline / threeShim.js / material-tier swap, or anything that could throw the
+        "Cannot assign to property of [object Module]" frozen-namespace error.
+      - Boot order / module-load changes (the buildWorld → ChunkManager → theme-builder chain).
+      - World lifecycle: chunk/forest/lake load-unload, disposal safety, `userData.shared`
+        tagging, or the lake-omits-chunkKey contract.
+      - Perf-budget-affecting geometry/draw additions, shadow-caster changes, or post-process passes.
+      - iOS audio init path (sound.js) — the synchronous-inside-the-gesture unlock chain.
+      - importmap changes (must land in BOTH index.html and sandbox.html).
+      - High ambiguity, or two+ credible approaches with real trade-offs.
+
+      STEP 2a — If a signature matches: run `/deliberate` (the multi-persona council). It
+      writes a `deliberations/NNN-<slug>/` folder containing `briefing.md`, one
+      `council-<persona>.md` per persona, and `results.md` — the mediator's synthesis, which
+      is the file the README should cite. Its Change Groups feed (or refine) tasks.md.
+
+      STEP 2b — If NOTHING matches and the change is genuinely low-risk: create
+      `deliberations/000-skipped.md` from the template, with 1-3 sentences naming WHICH
+      signatures you checked and WHY deliberation is unnecessary. That satisfies the gate.
+
+      When in doubt, deliberate — the skip path is for clearly trivial changes only.
+    requires:
+      - tasks
+
+  - id: readme
+    generates: README.md
+    description: Plain-language "front door" summary anyone can grasp (PM → junior → TL)
+    template: readme.md
+    instruction: |
+      Write the README — the human-readable front door to this change. It is the FIRST
+      file anyone opens. Write so a non-engineer understands it, a junior dev can grasp it,
+      and a senior dev can build an accurate mental model FROM THIS FILE ALONE. Avoid jargon;
+      when a term is unavoidable (chunk, nightness, threeShim), gloss it in plain English.
+
+      This file is part durable narrative, part live status:
+      - The PROSE sections (TL;DR, The Problem, Proposed Fix, Key Decisions, Risks &
+        Watch-outs, Open Questions, Where Things Live) are hand-authored and durable.
+        Distill them from proposal.md, design.md, the deliberation outcome, and
+        session-log decisions. Do NOT just copy the proposal — translate it into plain language.
+      - The PROGRESS section is a generated block between the `<!--STATUS:AUTO-->` markers,
+        and the status line in the header is between `<!--STATUS:LINE-->` markers. NEVER
+        hand-edit inside those markers. Run `bin/readme-sync <change-name>` to populate/refresh
+        them from tasks.md + session-log.md.
+
+      After writing the prose, run `bin/readme-sync <change-name>` once to fill the status
+      block. Keep the prose current at the verify and archive gates; the status block is
+      refreshed automatically during apply.
+    requires:
+      - deliberation
+
+apply:
+  requires:
+    - deliberation
+  tracks: tasks.md
+  instruction: |
+    Read the README, proposal, design, tasks, and session-log first. Work through
+    pending tasks in tasks.md, marking each `- [x]` as you complete it.
+
+    Persistent memory is EVENT-DRIVEN, not action-bracketed — do NOT write a log entry
+    for every task. Write to session-log.md only on real events: a decision made, a
+    surprise discovered, a blocker hit, or a question raised for the human. tasks.md
+    checkboxes are the per-task progress record; don't duplicate them in prose.
+
+    Refresh the README status block at natural milestones (e.g. after finishing a task
+    group) by running `bin/readme-sync <change-name>`. Pause if you hit blockers or need
+    clarification — capture the blocker in session-log.md and, if it needs a human, in
+    questions-for-human.md. Remember the Zerble tripwires (determinism, threeShim/material-tier,
+    iOS audio, disposal safety, importmap-in-both-html, per-tier perf budget) and that
+    sandbox-pass ≠ game-pass — always boot the main game before declaring a task done.

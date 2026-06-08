@@ -1,0 +1,321 @@
+#!/usr/bin/env bash
+# bin/readme-sync — regenerate the auto-status portions of an OpenSpec change README.
+#
+# The README.md in each change folder is part durable narrative (hand-authored) and
+# part live status (generated). This script rewrites ONLY the generated parts:
+#   * the one-line status between  <!--STATUS:LINE-->  ...  <!--/STATUS:LINE-->
+#   * the progress block between    <!--STATUS:AUTO-->  ...  <!--/STATUS:AUTO-->
+# Everything else in the README is left untouched.
+#
+# Sources of truth (deterministic — no clock reads, so --check is stable):
+#   * tasks.md          — checkbox counts, overall and per "## N." group
+#   * session-log.md    — frontmatter `status`, `current_task`, `last_updated`
+#
+# Usage:
+#   bin/readme-sync <change-name>      # sync one change
+#   bin/readme-sync --all              # sync every active change that has a README
+#   bin/readme-sync                    # if exactly one active change, sync it
+#   bin/readme-sync <name> --check     # exit 0 if fresh, 1 if stale, 2 if missing (no write)
+#   bin/readme-sync <name> --print     # render to stdout, don't write
+#
+# Exit codes (single-change modes): 0 ok/fresh · 1 stale (--check) · 2 README missing · 3 no markers
+# This is a standalone script (no dispatcher in between), so the verify/archive soft-gate
+# can rely on $? directly — OR parse STDOUT ("STALE" vs "fresh"), whichever is handier.
+#
+# bash 3.2 safe (macOS /bin/bash). Self-contained — no shared lib to source.
+
+set -euo pipefail
+
+# ── colors + pretty-print (inlined; no shared lib) ─────────────────────────────
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[1;33m'
+CYAN=$'\033[0;36m'
+BOLD=$'\033[1m'
+NC=$'\033[0m'
+
+print_success() { echo "${GREEN}✓ $1${NC}"; }
+print_warning() { echo "${YELLOW}⚠ $1${NC}"; }
+print_error()   { echo "${RED}✗ $1${NC}" >&2; }
+print_info()    { echo "${CYAN}$1${NC}"; }
+
+CHANGES_DIR="openspec/changes"
+
+usage() {
+    cat <<EOF
+${BOLD}bin/readme-sync${NC} — refresh the generated status in a change README
+
+  ${CYAN}bin/readme-sync <change-name>${NC}      sync one change
+  ${CYAN}bin/readme-sync --all${NC}              sync every active change with a README
+  ${CYAN}bin/readme-sync${NC}                    sync the sole active change (errors if ambiguous)
+  ${CYAN}bin/readme-sync <name> --check${NC}     report fresh/stale without writing (for soft-gates)
+  ${CYAN}bin/readme-sync <name> --print${NC}     render to stdout without writing
+
+Reads tasks.md (checkbox progress) + session-log.md (frontmatter) from
+${CHANGES_DIR}/<change-name>/ and rewrites only the marked status regions of README.md.
+EOF
+}
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+# fm <file> <key> — print a YAML frontmatter scalar value (first match), or nothing.
+fm() {
+    [ -f "$1" ] || return 0
+    awk -v key="$2" '
+        /^---[[:space:]]*$/ { d++; if (d==2) exit; next }
+        d==1 {
+            pos = index($0, ":")
+            if (pos > 0) {
+                k = substr($0, 1, pos-1)
+                v = substr($0, pos+1)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", k)
+                sub(/[[:space:]]+#.*$/, "", v)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+                gsub(/^"|"$/, "", v)
+                if (k == key) { print v; exit }
+            }
+        }
+    ' "$1"
+}
+
+# parse_tasks <tasks.md> — line 1: "<done> <total>"; following lines: "<gd> <gt> <group name>"
+parse_tasks() {
+    if [ ! -f "$1" ]; then
+        echo "0 0"
+        return 0
+    fi
+    awk '
+        /^##[[:space:]]+/ {
+            g++; name=$0
+            sub(/^##[[:space:]]+/, "", name); sub(/[[:space:]]+$/, "", name)
+            gname[g]=name; gd[g]=0; gt[g]=0; next
+        }
+        /^[[:space:]]*[-*][[:space:]]*\[[ xX]\]/ {
+            total++
+            isdone = ($0 ~ /\[[xX]\]/) ? 1 : 0
+            if (isdone) done++
+            if (g > 0) { gt[g]++; if (isdone) gd[g]++ }
+        }
+        END {
+            print (done+0), (total+0)
+            for (i=1; i<=g; i++) print gd[i]+0, gt[i]+0, gname[i]
+        }
+    ' "$1"
+}
+
+# replace_inline <readme> <newtext> — rewrite text between the inline LINE markers.
+replace_inline() {
+    awk -v nt="$2" '
+        {
+            o="<!--STATUS:LINE-->"; c="<!--/STATUS:LINE-->"
+            po=index($0,o); pc=index($0,c)
+            if (po>0 && pc>po) {
+                before=substr($0,1,po+length(o)-1)
+                after=substr($0,pc)
+                print before nt after
+            } else print
+        }
+    ' "$1"
+}
+
+# replace_block <readme> <openmarker> <closemarker> <payloadfile> — swap a multi-line block.
+replace_block() {
+    awk -v om="$2" -v cm="$3" -v pf="$4" '
+        BEGIN { payload=""; while ((getline l < pf) > 0) payload = payload l "\n" }
+        {
+            if (index($0, om) > 0) { print $0; printf "%s", payload; skip=1; next }
+            if (skip && index($0, cm) > 0) { skip=0; print $0; next }
+            if (skip) next
+            print
+        }
+    ' "$1"
+}
+
+# render_readme <change-dir> — print the updated README to stdout.
+# returns 2 if README missing, 3 if it has no status markers.
+render_readme() {
+    local dir="$1"
+    local readme="$dir/README.md"
+    local tasks="$dir/tasks.md"
+    local log="$dir/session-log.md"
+
+    [ -f "$readme" ] || return 2
+    if ! grep -q '<!--STATUS:AUTO-->' "$readme" && ! grep -q '<!--STATUS:LINE-->' "$readme"; then
+        return 3
+    fi
+
+    local status current updated
+    status="$(fm "$log" status)"; [ -n "$status" ] || status="unknown"
+    status="$(printf '%s' "$status" | tr '_' ' ')"
+    current="$(fm "$log" current_task)"
+    updated="$(fm "$log" last_updated)"
+
+    local pt first completed total pct
+    pt="$(parse_tasks "$tasks")"
+    first="$(printf '%s\n' "$pt" | sed -n '1p')"
+    completed="${first%% *}"; total="${first##* }"
+    [ -n "$completed" ] || completed=0
+    [ -n "$total" ] || total=0
+    if [ "$total" -gt 0 ]; then pct=$(( completed * 100 / total )); else pct=0; fi
+
+    local sline
+    if [ "$total" -gt 0 ]; then
+        sline="${status} · ${completed}/${total} tasks (${pct}%)"
+    else
+        sline="${status}"
+    fi
+
+    local block; block="$(mktemp)"
+    {
+        if [ "$total" -gt 0 ]; then
+            printf -- "**%s** — %s/%s tasks complete (%s%%)" "$status" "$completed" "$total" "$pct"
+            if [ -n "$current" ] && [ "$current" != "null" ]; then
+                printf -- " · current: %s" "$current"
+            fi
+            printf "\n"
+            if [ -n "$updated" ] && [ "$updated" != "null" ]; then
+                printf -- "\n_Last updated: %s_\n" "$updated"
+            fi
+            printf "\n| Group | Progress |\n|---|---|\n"
+            printf '%s\n' "$pt" | sed -n '2,$p' | while IFS= read -r gl; do
+                [ -n "$gl" ] || continue
+                gd="${gl%% *}"; rest="${gl#* }"; gt="${rest%% *}"; gname="${rest#* }"
+                mark=""
+                if [ "$gt" -gt 0 ] && [ "$gd" -eq "$gt" ]; then mark=" ✅"; fi
+                printf -- "| %s | %s/%s%s |\n" "$gname" "$gd" "$gt" "$mark"
+            done
+        else
+            printf -- "_No tasks defined yet._\n"
+        fi
+    } > "$block"
+
+    local t1 t2
+    t1="$(mktemp)"; t2="$(mktemp)"
+    replace_inline "$readme" "$sline" > "$t1"
+    replace_block "$t1" "<!--STATUS:AUTO-->" "<!--/STATUS:AUTO-->" "$block" > "$t2"
+    cat "$t2"
+    rm -f "$block" "$t1" "$t2"
+    return 0
+}
+
+# sync_one <change-dir> <mode> — mode: write | check | print
+sync_one() {
+    local dir="$1" mode="$2"
+    local name; name="$(basename "$dir")"
+    local readme="$dir/README.md"
+    local rendered rc
+    set +e
+    rendered="$(render_readme "$dir")"
+    rc=$?
+    set -e
+
+    if [ "$rc" -eq 2 ]; then
+        print_warning "[$name] no README.md — nothing to sync."
+        return 2
+    fi
+    if [ "$rc" -eq 3 ]; then
+        print_warning "[$name] README.md has no <!--STATUS:--> markers (not from the zerble template?)."
+        return 3
+    fi
+
+    case "$mode" in
+        print)
+            printf '%s\n' "$rendered"
+            ;;
+        check)
+            if printf '%s\n' "$rendered" | diff -q - "$readme" >/dev/null 2>&1; then
+                print_success "[$name] README status is fresh."
+                return 0
+            else
+                print_warning "[$name] README status is STALE — run: bin/readme-sync $name"
+                return 1
+            fi
+            ;;
+        write)
+            if printf '%s\n' "$rendered" | diff -q - "$readme" >/dev/null 2>&1; then
+                print_info "[$name] already up to date."
+            else
+                local tmp; tmp="$(mktemp)"
+                printf '%s\n' "$rendered" > "$tmp"
+                mv "$tmp" "$readme"
+                print_success "[$name] README status updated."
+            fi
+            ;;
+    esac
+    return 0
+}
+
+# ── arg parsing ────────────────────────────────────────────────────────────────
+
+MODE="write"
+ALL=0
+TARGET=""
+for arg in ${@+"$@"}; do
+    case "$arg" in
+        -h|--help) usage; exit 0 ;;
+        --all) ALL=1 ;;
+        --check) MODE="check" ;;
+        --print|--dry-run) MODE="print" ;;
+        -*) print_error "Unknown option: $arg"; usage; exit 64 ;;
+        *) TARGET="$arg" ;;
+    esac
+done
+
+if [ ! -d "$CHANGES_DIR" ]; then
+    print_error "No ${CHANGES_DIR}/ directory. Run from the repo root."
+    exit 66
+fi
+
+# Resolve the set of change directories to operate on.
+declare -a TARGETS=()
+if [ "$ALL" -eq 1 ]; then
+    for d in "$CHANGES_DIR"/*/; do
+        [ -d "$d" ] || continue
+        case "$(basename "$d")" in archive) continue ;; esac
+        [ -f "${d}README.md" ] || continue
+        TARGETS+=("${d%/}")
+    done
+    if [ "${#TARGETS[@]}" -eq 0 ]; then
+        print_warning "No active changes with a README.md found."
+        exit 0
+    fi
+elif [ -n "$TARGET" ]; then
+    # accept either a bare change name or a path
+    if [ -d "$TARGET" ]; then
+        TARGETS+=("${TARGET%/}")
+    elif [ -d "$CHANGES_DIR/$TARGET" ]; then
+        TARGETS+=("$CHANGES_DIR/$TARGET")
+    else
+        print_error "Change not found: $TARGET (looked in $CHANGES_DIR/)"
+        exit 66
+    fi
+else
+    # no target, no --all: use the sole active change if unambiguous
+    for d in "$CHANGES_DIR"/*/; do
+        [ -d "$d" ] || continue
+        case "$(basename "$d")" in archive) continue ;; esac
+        [ -f "${d}README.md" ] || continue
+        TARGETS+=("${d%/}")
+    done
+    if [ "${#TARGETS[@]}" -eq 0 ]; then
+        print_error "No active change with a README.md. Pass a change name."
+        exit 66
+    fi
+    if [ "${#TARGETS[@]}" -gt 1 ]; then
+        print_error "Multiple active changes — name one, or use --all:"
+        for t in ${TARGETS[@]+"${TARGETS[@]}"}; do echo "  - $(basename "$t")"; done
+        exit 64
+    fi
+fi
+
+# ── run ──────────────────────────────────────────────────────────────────────
+
+OVERALL_RC=0
+for t in ${TARGETS[@]+"${TARGETS[@]}"}; do
+    set +e
+    sync_one "$t" "$MODE"
+    rc=$?
+    set -e
+    [ "$rc" -ne 0 ] && OVERALL_RC="$rc"
+done
+exit "$OVERALL_RC"

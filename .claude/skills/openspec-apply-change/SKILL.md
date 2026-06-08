@@ -7,6 +7,7 @@ metadata:
   author: openspec
   version: "1.0"
   generatedBy: "1.0.2"
+  customizedFor: zerble
 ---
 
 Implement tasks from an OpenSpec change.
@@ -32,7 +33,22 @@ Implement tasks from an OpenSpec change.
    - `schemaName`: The workflow being used (e.g., "spec-driven")
    - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
 
-3. **Get apply instructions**
+3. **Recover context (event-driven memory)**
+
+   Recover where things stand from the change's files, in this order:
+
+   a. **Read `README.md`** — the fastest human-readable picture of the change and its state.
+   b. **Read `session-log.md`** — frontmatter (`status`, `current_task`, `blocked_by`, `open_questions`) plus Key Decisions and the latest Work Log entry (the "why" trail).
+   c. **Read `tasks.md`** — the exact checkbox state is the per-task progress record.
+   d. **Check `questions-for-human.md`** — if `open > 0`, present each unanswered question with the **AskUserQuestion tool** before proceeding. After answers, move them to Answered (update frontmatter) and reflect the new count in `session-log.md` (`open_questions`).
+
+   If the memory files don't exist yet (legacy change), create them from `openspec/templates/`, initialized from the current state.
+
+   **If context feels incomplete** (suspect compaction), recover recent history from the session transcript before proceeding. This supplements the files, it doesn't replace them.
+
+   **Update `session-log.md` frontmatter only:** `status: in_progress`, `last_updated` to today. Do NOT add a Work Log entry just for resuming — the log is event-driven (write on decisions / surprises / blockers / questions, not on session start).
+
+4. **Get apply instructions**
 
    ```bash
    openspec instructions apply --change "<name>" --json
@@ -49,14 +65,14 @@ Implement tasks from an OpenSpec change.
    - If `state: "all_done"`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
-4. **Read context files**
+5. **Read context files**
 
    Read the files listed in `contextFiles` from the apply instructions output.
    The files depend on the schema being used:
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
 
-5. **Show current progress**
+6. **Show current progress**
 
    Display:
    - Schema being used
@@ -64,28 +80,43 @@ Implement tasks from an OpenSpec change.
    - Remaining tasks overview
    - Dynamic instruction from CLI
 
-6. **Implement tasks (loop until done or blocked)**
+7. **Implement tasks (loop until done or blocked)**
 
    For each pending task:
-   - Show which task is being worked on
-   - Make the code changes required
-   - Keep changes minimal and focused
-   - Mark task complete in the tasks file: `- [ ]` → `- [x]`
-   - Continue to next task
+   - Show which task is being worked on; update `session-log.md` frontmatter `current_task`.
+   - Make the code changes required; keep them minimal and focused.
+   - Mark the task complete in `tasks.md`: `- [ ]` → `- [x]`. **The checkbox is the per-task progress record — do NOT also write a Work Log entry per task.**
+   - Continue to the next task.
+
+   **Refresh the README at milestones:** after finishing a task **group** (a `## N.` section in tasks.md), run `bin/readme-sync <change-name>` to update the README status block.
+
+   **Write to `session-log.md` only on events** (event-driven, not per-task):
+   - **Key decision** → Key Decisions entry (D-numbered).
+   - **Unexpected discovery** → Work Log entry; Dangling Thread if unresolved.
+   - **Question for the human** → write to `questions-for-human.md`, bump `open_questions` in session-log frontmatter, cross-ref `-> Q[N]`.
+   - **Blocker** → Work Log entry + frontmatter `status: blocked`, `blocked_by: <description>`.
+
+   Remember the Zerble tripwires while you work (determinism, threeShim/material-tier, iOS audio, disposal safety, importmap-in-both-html, per-tier perf budget) and that **sandbox-pass ≠ game-pass** — boot the main game before marking an entity/world task done.
 
    **Pause if:**
    - Task is unclear → ask for clarification
    - Implementation reveals a design issue → suggest updating artifacts
-   - Error or blocker encountered → report and wait for guidance
+   - Error or blocker encountered → report, set `status: blocked` / `blocked_by`, and wait for guidance
    - User interrupts
 
-7. **On completion or pause, show status**
+8. **On completion or pause, finalize**
 
-   Display:
-   - Tasks completed this session
-   - Overall progress: "N/M tasks complete"
-   - If all done: suggest archive
+   **Refresh the README:** run `bin/readme-sync <change-name>` so the status block reflects the final task state.
+
+   **Update `session-log.md`:**
+   - Frontmatter: `status` (complete/paused/blocked), `current_task`, `last_updated`.
+   - Add a Work Log entry ONLY if there's something worth recording (a decision, a surprise, a blocker, or a one-line phase-change note). A clean run that just ticked boxes needs no prose entry.
+
+   **Display to user:**
+   - Tasks completed this session; overall progress "N/M tasks complete"
+   - If all done: suggest `/opsx:verify`, then archive. Set frontmatter `status: complete`.
    - If paused: explain why and wait for guidance
+   - If `open_questions > 0`: mention unanswered questions in `questions-for-human.md`
 
 **Output During Implementation**
 

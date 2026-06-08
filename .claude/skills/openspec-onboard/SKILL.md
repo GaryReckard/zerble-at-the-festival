@@ -41,8 +41,8 @@ I'll walk you through a complete change cycle—from idea to implementation—us
 1. Pick a small, real task in your codebase
 2. Explore the problem briefly
 3. Create a change (the container for our work)
-4. Build the artifacts: proposal → specs → design → tasks
-5. Implement the tasks
+4. Build the artifacts: proposal → specs → design → tasks → deliberation → README
+5. Implement the tasks (the README's status block stays current via `bin/readme-sync`)
 6. Archive the completed change
 
 **Time:** ~15-20 minutes
@@ -161,7 +161,7 @@ Now let's create a change to hold our work.
 ```
 ## Creating a Change
 
-A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives in `openspec/changes/<name>/` and holds your artifacts—proposal, specs, design, tasks.
+A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives in `openspec/changes/<name>/` and holds your artifacts—proposal, specs, design, tasks, a deliberation (risk gate), and a plain-language README front door. It also gets two memory files: an event-driven session-log and a questions-for-human queue.
 
 Let me create one for our task.
 ```

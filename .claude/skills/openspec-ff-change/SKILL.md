@@ -35,12 +35,14 @@ Fast-forward through artifact creation - generate everything needed to start imp
 
    Every change MUST have `session-log.md` and `questions-for-human.md` from the
    start. Create both using the templates from `openspec/templates/`. See
-   `.claude/rules/openspec.md` for the Continuous Writing Protocol.
+   `.claude/rules/openspec.md` for the Event-Driven Writing Protocol.
 
    - **`session-log.md`** — frontmatter `status: not_started`, `current_task: null`,
      `blocked_by: null`, `open_questions: 0`, today's date, `ref` set to the
-     CHANGELOG/ROADMAP/commit this picks up (or null); all section headers;
-     Current Status Phase = "Planning", Doing = "Fast-forwarding through artifacts".
+     CHANGELOG/ROADMAP/commit this picks up (or null); the section headers (Key
+     Decisions, Assumptions, Dangling Threads, Work Log) left empty. The log is
+     **event-driven** — leave it empty until there's a decision, surprise, blocker,
+     or question worth recording; don't log "fast-forwarding through artifacts."
    - **`questions-for-human.md`** — frontmatter `open: 0`, `answered: 0`,
      `last_question: null`, `last_answer: null`; empty Open/Answered sections.
 
@@ -70,9 +72,18 @@ Fast-forward through artifact creation - generate everything needed to start imp
       - Apply `context` and `rules` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
-   b. **Continue until all `applyRequires` artifacts are complete**
+   b. **Continue until the FULL artifact set is created (not just `applyRequires`)**
       - After creating each artifact, re-run `openspec status --change "<name>" --json`
-      - Stop when every artifact ID in `applyRequires` has `status: "done"`
+      - Keep creating any artifact whose dependencies are satisfied — including
+        `deliberation` and `readme`, which sit after `tasks`. `readme` is NOT in
+        `applyRequires`, so don't stop at `applyRequires`; stop only when no artifact
+        is left `ready`.
+      - **deliberation**: for a risky change run `/deliberate` and store output under
+        `deliberations/NNN-<topic>/`; for a trivial change write
+        `deliberations/000-skipped.md` with a one-line rationale (see the deliberation
+        gate below).
+      - **readme**: after writing the plain-language narrative, run
+        `bin/readme-sync <name>` to fill the generated status block.
 
    c. **If an artifact requires user input** (unclear context):
       - Use **AskUserQuestion tool** to clarify, then continue
@@ -108,29 +119,31 @@ parallels: a material/disposal pattern across `src/models/*`, a registry-entry
 shape across theme builders, an importmap entry that must live in BOTH
 `index.html` and `sandbox.html`.
 
-**Deliberation Gate (Advisory)** (Zerble customization)
+**Deliberation Gate (the `deliberation` artifact)** (Zerble customization)
 
-After creating the `proposal` artifact but BEFORE creating `tasks`, check for
-**risk signatures**: determinism (`rng.js`), render-pipeline/`threeShim.js`/
-material-tier, boot-order/module-load, world-lifecycle (chunk/forest/lake
-disposal, `userData.shared`), perf-budget-affecting geometry, iOS audio init
-(`sound.js`).
+Under the `zerble` schema, deliberation is an artifact created **after `tasks`** (it
+reviews the finalized plan and gates apply). When you reach it, decide run-vs-skip by
+checking for **Zerble risk signatures**:
+- Determinism — `rng.js` salts, hash2 inputs, seed/`rng()` call ordering
+- Render pipeline / `threeShim.js` / material-tier swap
+- Boot-order or module-load changes
+- World lifecycle — chunk/forest/lake load-unload, disposal, `userData.shared`, lake-omits-chunkKey
+- Perf-budget-affecting geometry/draw/shadow additions
+- iOS audio init path (`sound.js`)
+- importmap changes (must land in BOTH index.html and sandbox.html)
 
-If a signature is detected:
-> "This change touches **[risk area]**. Run `/deliberate` for a full
-> multi-persona deliberation before finalizing tasks, or continue to skip."
-
-- **If user runs `/deliberate`**: wait for the deliberation, then use
-  `deliberations/NNN-slug/results.md` Change Groups to inform the `tasks` artifact.
-- **If user skips or says "just do it"**: proceed directly to tasks.
-
-Do NOT trigger for generic "3+ tasks", a single isolated model tweak, copy/README,
-or doc-only changes.
+If a signature is present, run `/deliberate` (store output under
+`deliberations/NNN-<topic>/`; its `results.md` Change Groups feed/refine `tasks.md`).
+If none is present and the change is clearly trivial, record the skip in
+`deliberations/000-skipped.md` (name the signatures you checked + why it's safe).
+Since ff favors momentum, a user "just do it" means **skip-with-rationale, not omit
+the gate** — the gate is always satisfied one way or the other.
 
 **Guardrails**
-- Create ALL artifacts needed for implementation (as defined by schema's `apply.requires`)
+- Create the FULL artifact set (proposal → specs → design → tasks → deliberation → readme), not just `apply.requires` — `readme` sits past the apply gate, so stopping at `apply.requires` leaves it uncreated
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer reasonable decisions to keep momentum
 - If a change with that name already exists, suggest continuing that change instead
 - Verify each artifact file exists after writing before proceeding to next
-- If deliberation was run, verify `deliberations/NNN-slug/results.md` exists before finalizing tasks
+- The deliberation gate must end satisfied: verify `deliberations/NNN-slug/results.md` (ran) OR `deliberations/000-skipped.md` (skipped) exists before declaring apply-ready
+- After writing the README, run `bin/readme-sync <name>` and confirm the status block populated
