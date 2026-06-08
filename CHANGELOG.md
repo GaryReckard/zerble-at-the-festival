@@ -28,8 +28,15 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **v2 spawn now drops you AT a festival hub of any size (behind `?worldgen=1`).** At the
   dense config there's often no *major* heart near the origin, so the old "spawn at the
   nearest major's arch" check silently fell back to an empty field. Spawn now finds the
-  nearest hub of any rank and places you out on its stage's dancefloor facing the stage,
-  so you open straight into the music.
+  nearest hub of any rank.
+- **The one entrance arch, at spawn (behind `?worldgen=1`).** Exactly ONE "FESTIVAL"
+  arch in the whole world — the grand gateway — sits on the spawn hub's primary approach
+  road. You spawn just outside it on the road, facing in, and drive *through* the arch into
+  the festival (the stage reads off to the side, since it faces a road gap, not the road).
+  It's a persistent fixture built straight to the scene with non-chunk-keyed colliders, so
+  it never unloads (the lake-collider trick). **Fixed the backwards banner:** the "FESTIVAL"
+  text was mirrored when viewed from behind (a single double-sided plane) — now two
+  back-to-back single-sided planes read correctly from both sides.
 - **v2 world is ~2.6× denser — festivals every ~390m instead of ~610m (behind
   `?worldgen=1`).** Playtest feedback: the v2 world read WAY too sparse — wide-open
   fields with just scattered people. Tightened the heart macrocell from 440m → **340m**

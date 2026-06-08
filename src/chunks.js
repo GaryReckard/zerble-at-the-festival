@@ -1150,6 +1150,16 @@ function buildEntranceArchAt(ctx, x, z, yaw) {
   placePolePair(ctx, a.x, a.z, b.x, b.z);
 }
 
+// The ONE persistent entrance arch — the whole festival's grand gateway at the
+// player's spawn (A1). Built OUTSIDE the chunk system: added straight to the scene
+// with its colliders tagged by a non-chunk key ('spawn_arch'), so it NEVER unloads
+// when a host chunk drops (the same persistence trick the lake colliders use,
+// footgun #5). main.js places it straddling the spawn hub's primary road.
+export function buildSpawnArch(scene, x, z, yaw) {
+  const ctx = { group: scene, key: 'spawn_arch', rng: mulberry32(worldHash(Math.round(x), Math.round(z), 0x5A17A4C8)) };
+  buildEntranceArchAt(ctx, x, z, yaw);
+}
+
 // A single refuel bubble vendor (buildBubbleVendor returns a bare Group). `yaw`
 // faces the road. Refuel is the core verb, so festival.js guarantees one per heart.
 function buildBubbleVendorAt(ctx, x, z, yaw) {

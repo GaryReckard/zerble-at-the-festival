@@ -46,15 +46,16 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
 
 ## A. Festival arrangement grammar (THE core redesign — `festival.js`)
 
-- [ ] **A1. Exactly ONE arch in the entire world — the entrance to the (one, infinite)
-  festival, at the player's SPAWN, by the main stage there** (the wooden-roof one).
+- [x] **A1. DONE — exactly ONE arch in the entire world, at spawn, on the spawn hub's
+  primary road** (`main.js` + `buildSpawnArch` in chunks.js; persistent, non-chunk-keyed).
+  Original note: the entrance to the (one, infinite) festival, at the player's SPAWN.
   Confirmed (Gary): NOT per-hub, just the single grand entrance. Remove the arch from the
   per-heart plan entirely; build the one arch as part of the spawn setup (main.js spawn
   block already finds the spawn heart's stage — anchor the arch there). (Today: arch on
   every heart's primary road → arches everywhere, often mid-row. Delete that.)
-- [ ] **A2. Fix the arch banner** so "FESTIVAL" is not mirrored/backwards when viewed from
-  behind. (`models/entranceArch.js` — likely a single-sided text plane or a flipped
-  duplicate; needs a back-facing correctly-oriented copy or double-sided non-mirrored text.)
+- [x] **A2. DONE — arch banner reads "FESTIVAL" correctly from both sides.**
+  `models/entranceArch.js`: replaced the single DoubleSide plane (mirrored from behind)
+  with two back-to-back FrontSide planes (the back one rotated 180°). Verified in-game.
 - [ ] **A3. Stage never has a road right in front of it.** Many stages sit just off a road
   with the road passing through the dancefloor. The stage's FRONT (dancefloor/audience
   side) must face open grounds, never a road corridor.

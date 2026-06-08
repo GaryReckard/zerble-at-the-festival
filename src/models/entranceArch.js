@@ -26,19 +26,25 @@ export function buildEntranceArch(leafTexture = null) {
   g.add(arch);
 
   if (leafTexture) {
-    const banner = new THREE.Mesh(
-      new THREE.PlaneGeometry(8, 2.2),
-      new THREE.MeshStandardMaterial({
-        map: leafTexture.diffuse,
-        emissive: 0xffe066,
-        emissiveMap: leafTexture.emissive,
-        emissiveIntensity: 0.55,
-        roughness: 0.6,
-        side: THREE.DoubleSide,
-      })
-    );
-    banner.position.set(0, 10.5, 0);
-    g.add(banner);
+    // Two back-to-back FrontSide planes, NOT one DoubleSide plane: a DoubleSide
+    // banner shows the "FESTIVAL" text correct on the front but MIRRORED through
+    // the back (A2). Each FrontSide plane renders only its own face, and the back
+    // one is rotated 180° so its text reads correctly from behind too.
+    const bannerMat = new THREE.MeshStandardMaterial({
+      map: leafTexture.diffuse,
+      emissive: 0xffe066,
+      emissiveMap: leafTexture.emissive,
+      emissiveIntensity: 0.55,
+      roughness: 0.6,
+      side: THREE.FrontSide,
+    });
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(8, 2.2), bannerMat);
+    front.position.set(0, 10.5, 0.06);
+    g.add(front);
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(8, 2.2), bannerMat);
+    back.position.set(0, 10.5, -0.06);
+    back.rotation.y = Math.PI;
+    g.add(back);
   }
 
   return g;

@@ -46,9 +46,10 @@ import {
 } from './obstacles.js';
 import { installDebug, shouldRunFrame, isGod, npcsFrozen } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
-import { setSpawnPoint } from './chunks.js';
+import { setSpawnPoint, buildSpawnArch } from './chunks.js';
 import { nearestHeart } from './worldgen/hearts.js';
 import { festivalPlan, computeFrontAxis } from './worldgen/festival.js';
+import { approachRoadsOf } from './worldgen/roads.js';
 import { lakeAt } from './worldgen/water.js';
 import { Trip } from './trip.js';
 import { Analytics } from './analytics.js';
@@ -220,15 +221,36 @@ if (USE_WORLDGEN_V2) {
   const heart = nearestHeart(0, 0).heart;
   const plan = heart ? festivalPlan(heart) : [];
   const stage = plan.find((p) => p.kind === 'main_stage' || p.kind === 'side_stage');
-  if (heart && stage) {
-    // Front axis F = the direction the stage faces (its open dancefloor). Spawn out
-    // along +F from the stage, facing back at it → you arrive looking at the festival.
+  // The festival's ONE arch (A1) sits on the spawn hub's PRIMARY (longest) approach
+  // road; you spawn just OUTSIDE it on the road, facing in, and drive through the
+  // gateway into the hub (Gary's arch-on-road arrival — the stage reads off to the
+  // side, since it faces a road GAP, not the road). Falls back to a no-arch
+  // stage-front spawn if the hub is roadless, then the pinned (0,65) if none resolves.
+  const roads = heart
+    ? approachRoadsOf(heart).sort((a, b) => b.lenQ - a.lenQ || a.neighbor.cx - b.neighbor.cx || a.neighbor.cz - b.neighbor.cz)
+    : [];
+  if (heart && stage && roads.length) {
+    const bearing = roads[0].bearing;                       // outward along the primary road
+    const dx = Math.cos(bearing), dz = Math.sin(bearing);
+    const archDist = Math.min(heart.core * 0.6, 50);
+    const archX = Math.round(heart.x + dx * archDist), archZ = Math.round(heart.z + dz * archDist);
+    buildSpawnArch(scene, archX, archZ, Math.PI / 2 - bearing);   // arch opening aligned to the road
+    let sx = Math.round(heart.x + dx * (archDist + 16)), sz = Math.round(heart.z + dz * (archDist + 16));
+    zerble.heading = Math.atan2(-(heart.x - sx), -(heart.z - sz));  // face inward, toward the hub
+    if (lakeAt(sx, sz)) {                                    // walk back toward the (dry) hub if a shore clips
+      for (let d = 6; d <= 60; d += 6) {
+        const nx = Math.round(heart.x + dx * (archDist + 16 - d)), nz = Math.round(heart.z + dz * (archDist + 16 - d));
+        if (!lakeAt(nx, nz)) { sx = nx; sz = nz; break; }
+      }
+    }
+    zerble.position.set(sx, 0, sz);
+    setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs around the arrival
+  } else if (heart && stage) {
+    // Roadless hub — spawn out on the stage's open dancefloor (+F), facing the stage.
     const fa = computeFrontAxis(heart);
     const fx = Math.cos(fa.bearing), fz = Math.sin(fa.bearing);
     let sx = Math.round(stage.x + fx * 34), sz = Math.round(stage.z + fz * 34);
-    zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));  // forward = (-sin,-cos), toward the stage
-    // Safety: F is already water-penalized, but if the dancefloor edge clips a
-    // worldgen shore, walk BACK toward the (dry, hub-center) stage until clear.
+    zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));
     if (lakeAt(sx, sz)) {
       for (let d = 6; d <= 30; d += 6) {
         const nx = Math.round(stage.x + fx * (34 - d)), nz = Math.round(stage.z + fz * (34 - d));
@@ -236,7 +258,7 @@ if (USE_WORLDGEN_V2) {
       }
     }
     zerble.position.set(sx, 0, sz);
-    setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs around the arrival
+    setSpawnPoint(sx, sz);
   }
 }
 

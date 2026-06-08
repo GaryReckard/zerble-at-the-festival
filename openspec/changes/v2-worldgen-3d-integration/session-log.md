@@ -615,3 +615,12 @@ treedDistrictSpot), src/chunks.js (dancefloorRectsNear import + pointInDancefloo
 (spawn-at-any-hub), src/worldgen/selftest.js (golden baseline comment), CHANGELOG, tasks (D3.2/3/5/6/7/8 done,
 D3.9/D3.10 partial), session-log. Commit: (pending).
 **Refs:** -> D3.6/7/8 done, D3.9 partial (arch deferred); next: build the ONE arch (A1/A2) + the rest of CG5.
+
+### 2026-06-08 -- The one spawn arch (A1/A2)
+**Event:** phase-change. **What:** built the single persistent entrance arch (A1) on the
+spawn hub's primary road via `buildSpawnArch` (chunks.js) — added straight to the scene,
+colliders keyed `'spawn_arch'` so they never unload (lake-collider persistence trick).
+main.js spawn rewritten to Gary's §6 arch-on-road arrival: spawn outside the arch on the
+road, face inward, drive through the gate (stage off to the side). A2 banner mirror fixed
+in entranceArch.js (two back-to-back FrontSide planes vs one DoubleSide). Verified in 3D
+seed 1234: drive-in shows "FESTIVAL" correct from both sides, zero errors. **Refs:** -> D3.9 done.
