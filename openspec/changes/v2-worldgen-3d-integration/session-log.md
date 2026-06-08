@@ -1,7 +1,7 @@
 ---
 change: v2-worldgen-3d-integration
 status: in_progress
-current_task: Group G DONE (heart-weighted crowd + along-road waypoints, R13). Next: H gates (cross-engine road-existence) → I landing (+ F.5 real-device draw check)
+current_task: SALVAGE decided. Next big work = festival LAYOUT GRAMMAR redesign of festival.js (Gary playtest: arrangement is the problem, not density). See festival-polish-backlog.md. Then H gates → I landing.
 blocked_by: null
 open_questions: 0
 started: 2026-06-06
@@ -501,3 +501,21 @@ reproducibility holds. **This AMPLIFIES the H.2 surface** (the non-cosmetic road
 (new golden baseline in the POI comment); CHANGELOG.md (Changed — denser world), session-log. Commit: `0a0cac9`.
 **Refs:** -> H.2 (amplified by density). Lever for Gary to push denser: the map-sandbox live sliders; past ~300/~0.10
 needs frame-splitting the cluster build (R11) + shrinking the major district (1000) to keep the scan window + chunk-gen sane.
+
+### 2026-06-07 — Playtest pivot: SALVAGE v2, festival ARRANGEMENT is the real problem
+**Intent:** Gary playtested the denser v2 and was disappointed — considered scrapping to `main`.
+**Result:** Diagnosed the real issue (NOT density): `festival.js` arranges a heart's clusters
+(stage/arch/rows/court/drum/camps) INDEPENDENTLY relative to the heart+roads, so they collide + face wrong —
+stage faces water w/ chairs in water, vendor row through the stage, arch mid-row, court with a row+porta inside.
+Gary's close-up screenshots are the evidence. Decision: **SALVAGE** (the world structure is the upgrade he likes;
+the badness is concentrated in one file). Next big work = a festival **LAYOUT GRAMMAR** (front-axis away from
+water/toward main road → place each entity by rule), done together. Captured Gary's full polish-notes backlog
+(18 items across arrangement / missing entities / new entities / campsites / crowd / woods / blankets / Lurleen)
+in **festival-polish-backlog.md** with technical hooks + a suggested execution order. Also explained the levers
+(core/district/golden) to Gary — part of the frustration was the sliders being illegible.
+Gary kept tuning his config live: HEART_CELL 200, noneBelow 0.05, minor 90/160, major 100/200 (inversion fixed),
+LAKE_CELL 600, DENSITY_THRESHOLD 0.2, LAKE_RING_BAND 160 — UNCOMMITTED in the tree, keep it. Self-test 23/24 at
+this density (road negative-control teeth lost at 5% empty — re-settle later; not a determinism break).
+**Changed:** festival-polish-backlog.md (NEW — the canonical notes list), HANDOFF.md (salvage + redesign + backlog
+pointer), session-log. constants.js holds Gary's live config (uncommitted, intentional). Commit: (pending — docs only).
+**Refs:** -> festival-polish-backlog.md (all 18 notes). Next: festival layout-grammar spec → /deliberate → rebuild festival.js.

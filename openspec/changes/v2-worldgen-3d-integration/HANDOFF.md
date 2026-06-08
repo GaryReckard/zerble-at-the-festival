@@ -27,8 +27,29 @@ spawn drops you at a festival, ZERO console errors; self-test 24/24 (queryPoint 
 (E lakes → worldgen, R5 winding), `cd58138` (`/smart-review` 001 + fixes), `8ce84cf` (F continuous
 treeDensity woods, R3 ~80/chunk cap), `e0bcc01` (G heart-weighted crowd + along-road waypoints, R13).
 
-**MILESTONE: all v2 CONTENT groups are done** (roads C, festival/spawn D+D2, lakes E, woods F, crowd G) —
-the v2 world is content-complete behind `?worldgen=1`. Only the closing GATES remain before landing.
+**MILESTONE: all v2 CONTENT groups landed** (roads C, festival/spawn D+D2, lakes E, woods F, crowd G).
+**THEN PLAYTEST (Gary, 2026-06-07) → the festival ARRANGEMENT is the real problem, not density.** Gary drove
+it and found: stage facing water with chairs IN the water, vendor row punched through a stage, festival arch
+dumped mid-vendor-row, food court with a row + porta INSIDE it. Verdict: `festival.js` places a heart's pieces
+(stage/arch/rows/court/drum/camps) relative to the heart + roads INDEPENDENTLY, with no rule about how they
+relate — so they collide and face wrong. **Decision: SALVAGE v2** (the world structure is the upgrade he likes);
+the next big work is a **festival LAYOUT GRAMMAR** redesign of `festival.js` (decide a festival's "front" away
+from water/toward the main road, then place every entity by a rule relative to that front-axis + water + road),
+done TOGETHER with Gary. Plus a big backlog of his polish notes.
+
+➡ **READ `festival-polish-backlog.md`** (same folder) — Gary's full playtest notes, organized into A (the
+arrangement grammar — keystone), B (missing entities: tent stage, big drum circle, hammocks, picnic blankets
+never seen), C (new: picnic table, tiki torches, tree-anchored hammocks), D (campsites: cluster near trees +
+fields, tent-count ≈ crowd count, camps behind vendor tents), E (crowd road-follow + the people-class taxonomy
+question), F (lone trees in empty fields; he likes `DENSITY_THRESHOLD 0.2`/`LAKE_RING_BAND 160`), G (picnic
+blankets sprinkled near stages, not carpeted), H (Lurleen must spawn far + re-leash). Suggested execution order
+is at the bottom of that file. THEN the closing gates (H.2 cross-engine road-existence, H.3 budget + F.5
+real-device, I landing).
+
+**Current config state:** `constants.js` holds Gary's experimental dense tuning (HEART_CELL 200, noneBelow 0.05,
+small hearts, LAKE_CELL 600, DENSITY_THRESHOLD 0.2, LAKE_RING_BAND 160) — UNCOMMITTED in the working tree, keep it.
+Self-test is **23/24** at this density (road negative-control loses teeth at 5% empty — not a determinism break;
+re-settle when tuning, see the backlog). Goldens drift as we tune (flag-off, fine).
 
 **NEXT (priority order):**
 1. **Group H — gates (DELICATE — start with fresh context):**

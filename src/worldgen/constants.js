@@ -8,25 +8,22 @@
 
 export const CONFIG = {
   // --- Hearts ---------------------------------------------------------------
-  // Tightened from 440 (Gary 2026-06-07: v2 read WAY too sparse — wide-open fields with
-  // just scattered people). 340 (not Gary's first-pass 260) is deliberate: it keeps the
-  // nearestHeart scan window at 4 cells (`ceil(1000/340)+1`), where 260 would blow it to
-  // 5 (121 cells/query) AND 260+noneBelow:0 hung the 2D sandbox + spiked chunk-gen to
-  // 335ms with zero breathing room (the road negative-control self-test lost its teeth —
-  // no road-sparse region left anywhere). 340 + 75%-filled is ~2.6× denser than 440/52%
-  // (festivals ~390m apart vs ~610m) while staying affordable + leaving open stretches.
-  HEART_CELL: 340,            // macrocell size (m)
+  // EXPERIMENTAL — Gary's live map-sandbox config (2026-06-07): very dense, small hearts.
+  // HEART_CELL 200 + small districts (max 200) keeps the nearestHeart scan window at
+  // 2 cells (`ceil(200/200)+1`) so the tight spacing stays cheap. NOTE: noneBelow 0.05
+  // (only ~5% empty cells) means the road negative-control self-test loses its teeth on
+  // one seed → 23/24 (NOT a determinism break; just no road-sparse region to sample). To
+  // be re-settled during the festival layout-grammar redesign — see festival-polish-backlog.md.
+  HEART_CELL: 200,            // macrocell size (m)
   HEART_JITTER: 0.40,         // candidate offset, fraction of cell (±); keep ≤ 0.5
-  // Cumulative rank thresholds over a [0,1) roll. ~75% of cells now host a heart (was
-  // ~52%) so the world reads festival-dense, but ~25% stay empty for breathing room.
-  HEART_RANK: { noneBelow: 0.25, minorBelow: 0.96 },  // ≈25% none, ≈71% minor, 4% major
+  HEART_RANK: { noneBelow: 0.05, minorBelow: 0.96 },  // ≈5% none, ≈91% minor, 4% major
   HEART_DOMAIN: {
-    minor: { core: 95,  district: 290 },
-    major: { core: 350, district: 1000 },   // majors are big regional hubs
+    minor: { core: 90,  district: 160 },
+    major: { core: 100, district: 200 },   // major barely bigger than minor at this dense setting
   },
 
   // --- Lakes ----------------------------------------------------------------
-  LAKE_CELL: 1050,
+  LAKE_CELL: 600,
   LAKE_PROB: 0.60,
   LAKE_JITTER: 0.35,
   LAKE_RADIUS: { min: 70, max: 150 },     // base radius before shaping
@@ -37,8 +34,8 @@ export const CONFIG = {
   // --- Forests / density (CG4) ----------------------------------------------
   DENSITY_CELL: 230,          // woodland-noise grain (smaller = patchier forests)
   DENSITY_CLEAR_PAD: 30,
-  DENSITY_THRESHOLD: 0.36,    // noise below this = open field; lower = more forest
-  LAKE_RING_BAND: 70,         // tree-ring width beyond a lakeshore
+  DENSITY_THRESHOLD: 0.2,    // noise below this = open field; lower = more forest
+  LAKE_RING_BAND: 160,         // tree-ring width beyond a lakeshore
 
   // --- Roads (CG3, static until GATE 2) -------------------------------------
   ROAD_MAX_NEIGHBORS: 3,
