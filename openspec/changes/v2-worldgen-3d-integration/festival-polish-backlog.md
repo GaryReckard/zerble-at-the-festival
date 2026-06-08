@@ -82,8 +82,7 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
 - [x] **B1. DONE — minor hubs roll a tent stage ~35% (festival.js emits `tent_stage`; `buildTentStageTheme` parameterized to (cx,cz,yaw); legacy path byte-identical). Verified in-game.** Tent stage never appeared in v2. (v1 had a `tent_stage` theme; v2's
   `festival.js` only emits `main_stage`/`side_stage`. Add tent_stage to the festival
   catalog / heart-rank variety.)
-- [ ] **B2. Big drum circle** (fire, dancers, drummers, benches — the `leafDrumCircle` +
-  `tribalFigures`) never seen. v2 emits a `drum_circle` descriptor → `buildDrumCircleAt`,
+- [x] **B2. DONE — the FULL leaf drum circle now builds at the worldgen drum spot** (fire, dancers, drummers, benches, spatial groove; `buildWorldgenDrumCircle` in forests.js). Verified in-game at night. (was: never seen.) v2 emits a `drum_circle` descriptor → `buildDrumCircleAt`,
   but verify it's actually the FULL LEAF drum circle (fire/dancers/drummers/benches +
   spatial music), not a stub. It's placed at a treed district spot; confirm it builds +
   is reachable. (Group F verified a `drum_circle` registry entry exists at (1034,-50) for

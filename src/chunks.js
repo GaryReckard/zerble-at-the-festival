@@ -26,7 +26,7 @@ import { treeDensity } from './worldgen/density.js';
 import { dancefloorRectsNear } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
-import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
+import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
 import { buildCampsite, buildCampChair, buildTorchField } from './models/campsite.js';
 import { buildTent } from './models/tent.js';
 import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
@@ -1144,7 +1144,7 @@ function buildWorldgenKind(ctx, d) {
     case 'vendor_row':    buildVendorRowAt(cctx, d.x, d.z, d.yaw); break;
     case 'bubble_vendor': buildBubbleVendorAt(cctx, d.x, d.z, d.yaw); break;
     case 'porta_bank':    buildPottyBankAt(cctx, d.x, d.z, d.yaw); break;
-    case 'drum_circle':   buildDrumCircleAt(cctx, d.x, d.z); break;
+    case 'drum_circle':   buildWorldgenDrumCircle(cctx, d.x, d.z, d.yaw); break;   // B2 — the FULL leaf drum circle
     case 'camp_village':  buildCampVillageAt(cctx, d.x, d.z); break;
     default: break;       // unknown kind → place nothing (forward-compatible)
   }

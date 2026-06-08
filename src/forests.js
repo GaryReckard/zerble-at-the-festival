@@ -563,6 +563,44 @@ function buildForestCampsite(ctx, forest) {
   });
 }
 
+// The FULL LEAF drum circle for the v2 worldgen path (B2) — fire + log cone +
+// raised stone firepit + three-row bench semicircle + drummers/dancers/firekeeper/
+// spotter + the Euclidean spatial drum groove. Same crew + music as the legacy forest
+// drum circle (buildForestDrumCirclePlaceholder), but anchored at an explicit (x,z)
+// with a given facing instead of a forest's path geometry — and with NO forest back-
+// path. Pushes onto the shared forestDrumCircles / forestDrumMusic lists that main.js
+// already flickers + distance-attenuates each frame (empty in legacy v2 until now).
+// `ctx` carries the cluster-local rng + chunkKey + group from buildWorldgenKind.
+export function buildWorldgenDrumCircle(ctx, x, z, facingAngle = 0) {
+  const rng = ctx.rng;
+  const dc = buildLeafDrumCircle(rng, { facingAngle });
+  dc.group.position.set(x, 0, z);
+  ctx.group.add(dc.group);
+
+  const figures = populateDrumCircle(rng, dc, null, facingAngle);   // `forest` arg is unused
+  forestDrumCircles.push({ chunkKey: ctx.key, dc, figures, fireCenter: { x, z } });
+
+  const musicHandle = Sound.attachStageMusic(x, 1.4, z, worldHash(Math.round(x), Math.round(z), 0x0D40_C1C7), 'forest_drum');
+  if (musicHandle) {
+    forestDrumMusic.push({ handle: musicHandle, chunkKey: ctx.key, centerX: x, centerZ: z, bodyRadius: 40 });
+  }
+
+  registry.add({
+    kind: 'firepit',
+    position: new THREE.Vector3(x, 0.5, z),
+    footprint: dc.firepitCollider.radius,
+    collider: dc.firepitCollider,
+    chunkKey: ctx.key,
+  });
+  registry.add({
+    kind: 'bench_ring',
+    position: new THREE.Vector3(x, 0.4, z),
+    footprint: 0,
+    collider: dc.benchCollider,
+    chunkKey: ctx.key,
+  });
+}
+
 // LEAF-true drum circle visual — raised stone firepit, log cone, emissive
 // fire + PointLight, three-row bench semicircle. Built from
 // models/leafDrumCircle.js. Registers its own colliders (firepit damage 9,

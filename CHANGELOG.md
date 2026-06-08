@@ -5,6 +5,16 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-08
 
 ### Added
+- **The FULL drum circle in v2 — drummers, dancers, benches, fire, spatial groove
+  (behind `?worldgen=1`).** v2's drum spot was building only the small chunk-pit (fire +
+  8 stones), not the big LEAF drum circle Gary remembered from v1. Now the worldgen drum
+  spot builds the real thing: raised stone firepit + log-cone fire, a three-row bench
+  semicircle, seated hand-drummers, fire dancers, a firekeeper + spotter, and the
+  Euclidean spatial drum groove (distance-attenuated from the fire). It reuses the legacy
+  forest builder's crew + music via a new `buildWorldgenDrumCircle(ctx, x, z, facing)` in
+  `forests.js` that anchors at an explicit point (no forest path needed), pushing onto the
+  same `forestDrumCircles`/`forestDrumMusic` lists main.js already flickers each frame. The
+  woods scatter wraps it in trees, so at night it glows in a forest clearing. Verified in-game.
 - **Tent stages are back in v2 — minor hubs roll one ~35% of the time (behind
   `?worldgen=1`).** v1 had a big white-tent stage theme that v2 never emitted (the plan
   only ever made open main/side stages). The legacy `buildTentStageTheme` is now
