@@ -220,7 +220,7 @@ scene.add(zerble.root);
 if (USE_WORLDGEN_V2) {
   const heart = nearestHeart(0, 0).heart;
   const plan = heart ? festivalPlan(heart) : [];
-  const stage = plan.find((p) => p.kind === 'main_stage' || p.kind === 'side_stage');
+  const stage = plan.find((p) => p.kind === 'main_stage' || p.kind === 'side_stage' || p.kind === 'tent_stage');
   // The festival's ONE arch (A1) sits on the spawn hub's PRIMARY (longest) approach
   // road; you spawn just OUTSIDE it on the road, facing in, and drive through the
   // gateway into the hub (Gary's arch-on-road arrival — the stage reads off to the

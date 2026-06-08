@@ -56,30 +56,30 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
 - [x] **A2. DONE — arch banner reads "FESTIVAL" correctly from both sides.**
   `models/entranceArch.js`: replaced the single DoubleSide plane (mirrored from behind)
   with two back-to-back FrontSide planes (the back one rotated 180°). Verified in-game.
-- [ ] **A3. Stage never has a road right in front of it.** Many stages sit just off a road
+- [x] **A3. DONE (grammar) — stage faces +F, the widest DRY gap BETWEEN roads, so no road is in front by construction.** Stage never has a road right in front of it. Many stages sit just off a road
   with the road passing through the dancefloor. The stage's FRONT (dancefloor/audience
   side) must face open grounds, never a road corridor.
-- [ ] **A4. Clear trees from directly in front of a stage** (~3 stage-lengths of dancefloor),
+- [x] **A4. DONE (grammar) — `scatterWorldgenTrees` skips an oriented dancefloor rect in front of each stage (dancefloorRectsNear); woods nestle the back/sides.** Clear trees from directly in front of a stage (~3 stage-lengths of dancefloor),
   while letting woods nestle the BACK/sides (great atmosphere — confirmed good with
   `DENSITY_THRESHOLD 0.2`). So: stage backs into woods, faces a cleared dancefloor.
   (Needs a stage-front clearing rule that `scatterWorldgenTrees` honors — a no-tree
   oriented rectangle in front of each stage.)
-- [ ] **A5. Vendor rows straddle a STRAIGHT length of road**, and are NOT at/super-close to a
+- [x] **A5. DONE (grammar) — vendor rows sit on the drag (longest road), out past the dancefloor, parallel to the road; overlap guard keeps them off the stage.** Vendor rows straddle a STRAIGHT length of road, and are NOT at/super-close to a
   stage (somewhat nearby OK). (`buildVendorRowAt` already aligns to a road; the redesign
   must pick a straight road segment AWAY from the stage, and keep the rows from crossing
   the stage.)
-- [ ] **A6. Food courts also kept away from right-near a stage** (somewhat nearby OK).
-- [ ] **A7. Food court center patch** — a circular-ish road-like clearing in the middle of a
+- [x] **A6. DONE (grammar) — food courts on the drag, out past the dancefloor, away from the stage.** (somewhat nearby OK).
+- [~] **A7. PARTIAL — the truck ring already leaves an open drivable center (the plaza); picnic tables in it land with C2 (deferred).** Food court center patch — a circular-ish road-like clearing in the middle of a
   food-truck circle, big enough for 1-3 picnic tables (see C2), AND still leaving room for
   Zerble to drive *within* the circle. (`buildFoodCourtAt` — add a center plaza + keep the
   truck ring radius generous.)
-- [ ] **A8. Per-big-entity porta-potty placement rules.** Stages, food-truck circles, the big
+- [~] **A8. PARTIAL — portas attach per-cluster and the overlap guard pushes them to the margin (off the dancefloor / out of the truck ring); bespoke per-entity rules could refine further.** Per-big-entity porta-potty placement rules. Stages, food-truck circles, the big
   drum circle each get sensible potty spots (e.g., off to one side at the margin, not inside
   the dancefloor / not inside the truck circle). Today potties attach generically.
 
 ## B. Missing entities (never seen in playtest — likely placement/gating bugs)
 
-- [ ] **B1. Tent stage** never appears in v2. (v1 had a `tent_stage` theme; v2's
+- [x] **B1. DONE — minor hubs roll a tent stage ~35% (festival.js emits `tent_stage`; `buildTentStageTheme` parameterized to (cx,cz,yaw); legacy path byte-identical). Verified in-game.** Tent stage never appeared in v2. (v1 had a `tent_stage` theme; v2's
   `festival.js` only emits `main_stage`/`side_stage`. Add tent_stage to the festival
   catalog / heart-rank variety.)
 - [ ] **B2. Big drum circle** (fire, dancers, drummers, benches — the `leafDrumCircle` +

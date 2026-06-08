@@ -144,7 +144,7 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // FESTIVAL LAYOUT GRAMMAR rewrite (D3, deliberation 003) — HEART_CELL 200 /
     // noneBelow 0.05, seed 1234:
     //   queryPoint golden  node eddf8e50  /  browser <record>
-    //   POI golden         node d9cfa5f2  /  browser <record>
+    //   POI golden         node 9c9f8cc0  /  browser <record>
     // The plan now carries each stage's front-axis bin (`fbin`) + `scale`, so the
     // golden + T6 window-invariance exercise F. (Prior baselines for reference:
     // 340/0.25 → POI node 4e335f21; the pre-grammar 200/0.05 → POI node 6fa977c8.)

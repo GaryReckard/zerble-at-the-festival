@@ -5,6 +5,13 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-08
 
 ### Added
+- **Tent stages are back in v2 — minor hubs roll one ~35% of the time (behind
+  `?worldgen=1`).** v1 had a big white-tent stage theme that v2 never emitted (the plan
+  only ever made open main/side stages). The legacy `buildTentStageTheme` is now
+  parameterized to take an explicit `(cx, cz, yaw)` so it can drop a tent stage at a
+  hub center facing `+F` like any stage (the legacy chunk-center/random-yaw path is
+  preserved byte-for-byte — the tent model is still built before the fallback yaw draw,
+  so legacy worlds regenerate identically). Verified in-game.
 - **Festival atmosphere pass — tiki torches, picnic blankets, lone field trees
   (behind `?worldgen=1`).** Three of Gary's playtest asks: (1) **tiki torches** now
   mark each stage's dancefloor boundary (4 at the corners) and ring every food court's

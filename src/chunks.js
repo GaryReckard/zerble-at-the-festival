@@ -1138,6 +1138,7 @@ function buildWorldgenKind(ctx, d) {
   switch (d.kind) {
     case 'main_stage':    buildStage(cctx, d.x, d.z, true, d.yaw); break;
     case 'side_stage':    buildStage(cctx, d.x, d.z, false, d.yaw); break;
+    case 'tent_stage':    buildTentStageTheme(cctx, d.x, d.z, d.yaw); break;   // B1 — tent-stage variety
     case 'arch':          buildEntranceArchAt(cctx, d.x, d.z, d.yaw); break;
     case 'food_court':    buildFoodCourtAt(cctx, d.x, d.z); break;
     case 'vendor_row':    buildVendorRowAt(cctx, d.x, d.z, d.yaw); break;
@@ -1392,14 +1393,21 @@ function buildSideStage(ctx) {
   buildStage(ctx, x, z, false);
 }
 
-// Tent stage chunk theme — drops the big white-tent stage at the chunk
-// center, registers wall colliders, attractor, and dense crowd inside.
-function buildTentStageTheme(ctx) {
+// Tent stage theme — the big white-tent stage. Legacy theme path drops it at the
+// chunk center with a random yaw; the v2 worldgen path (B1 tent-stage variety)
+// passes an explicit (cx, cz, yaw) so it lands at a hub facing +F like any stage.
+// The tent model is built FIRST so the legacy rng draw order (tent build, THEN the
+// fallback yaw draw) is byte-identical — never make `yaw` a default param (that
+// would draw rng before the body).
+function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   const tex = leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a');
   const tent = buildTentStage({ rng: ctx.rng, leafTexture: tex });
-  // Random yaw so tent openings face different directions across chunks.
-  const yaw = ctx.rng() * Math.PI * 2;
-  tent.group.position.set(ctx.cxWorld, 0, ctx.czWorld);
+  const cx = cxArg != null ? cxArg : ctx.cxWorld;
+  const cz = czArg != null ? czArg : ctx.czWorld;
+  // Worldgen passes a road-facing yaw; the legacy path draws a random one (same
+  // rng position as before, after the tent build).
+  const yaw = yawArg != null ? yawArg : ctx.rng() * Math.PI * 2;
+  tent.group.position.set(cx, 0, cz);
   tent.group.rotation.y = yaw;
   ctx.group.add(tent.group);
 
@@ -1412,7 +1420,7 @@ function buildTentStageTheme(ctx) {
   // ...and its audience-facing beams. The tent stage's world position is the
   // chunk center (tent.group.position is set to cxWorld/czWorld above).
   if (tent.stageBeams) {
-    const tentWorldPos = new THREE.Vector3(ctx.cxWorld, 0, ctx.czWorld);
+    const tentWorldPos = new THREE.Vector3(cx, 0, cz);
     for (const b of tent.stageBeams) {
       stageBeamRefs.push({ ...b, chunkKey: ctx.key, scale: tent.stageScale || 1.0, stageWorldPos: tentWorldPos });
     }
@@ -1422,8 +1430,8 @@ function buildTentStageTheme(ctx) {
   const cosY = Math.cos(yaw);
   const sinY = Math.sin(yaw);
   const worldXZ = (lx, lz) => ({
-    x: ctx.cxWorld + lx * cosY + lz * sinY,
-    z: ctx.czWorld + -lx * sinY + lz * cosY,
+    x: cx + lx * cosY + lz * sinY,
+    z: cz + -lx * sinY + lz * cosY,
   });
 
   // Stage colliders: re-use the inscribed-spheres approach from buildStage.

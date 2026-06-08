@@ -194,7 +194,7 @@ export function dancefloorRectsNear(minX, minZ, maxX, maxZ) {
 // spacing + the map-sandbox overlay. The build side registers each prop with the
 // model's real footprint; this is the cluster envelope.
 const KIND_FOOTPRINT = {
-  main_stage: 11, side_stage: 8, arch: 6, food_court: 16, vendor_row: 12,
+  main_stage: 11, side_stage: 8, tent_stage: 13, arch: 6, food_court: 16, vendor_row: 12,
   bubble_vendor: 3, drum_circle: 6, porta_bank: 3, camp_village: 32,
 };
 
@@ -369,7 +369,10 @@ function _computePlan(heart) {
   //    here — exactly ONE arch in the world, built at spawn (A1, D3.9).
   const stageSpot = nudgeOff(heart.x, heart.z, rng) || { x: heart.x, z: heart.z };
   const stageYaw = Math.PI / 2 - fa.bearing;   // model front (+Z) → +F
-  const stage = desc(major ? 'main_stage' : 'side_stage', stageSpot.x, stageSpot.z, stageYaw, 'core', heart.rank, true, clusterSeed(heart, idx++));
+  // Major hubs get the big main stage; minor hubs roll a tent stage (~35%) for
+  // variety (B1) vs the open side stage. Deterministic per hub (cellRng stream).
+  const stageKind = major ? 'main_stage' : (rng() < 0.35 ? 'tent_stage' : 'side_stage');
+  const stage = desc(stageKind, stageSpot.x, stageSpot.z, stageYaw, 'core', heart.rank, true, clusterSeed(heart, idx++));
   stage.fbin = fa.bin;                          // serialize F → the POI golden + window-invariance test see it (R18)
   stage.scale = stageScaleOf(heart);
   out.push(stage);
