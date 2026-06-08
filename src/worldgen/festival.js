@@ -40,22 +40,141 @@
 //    disparity + the 1m lake-shore wobble; it never regenerates a seeded world on one
 //    engine. Left as-is deliberately rather than over-quantizing a cosmetic.
 
-import { cellRng, quantize, worldHash } from '../rng.js';
+import { cellRng, quantize, worldHash, mulberry32 } from '../rng.js';
 import { CONFIG, SALT, worldgenEpoch } from './constants.js';
 import { getSessionSeed } from '../rng.js';
 import { queryPoint } from './index.js';
 import { approachRoadsOf } from './roads.js';
+import { heartsInBounds } from './hearts.js';
 
 // Max distance a heart's cluster center can sit from the heart center. Courts /
-// vendor rows / the arch stay near (<=120 m, on the approach roads); the DRUM
-// CIRCLE is the far one — it wants a treed spot, and treeDensity is zero inside a
-// heart's core (density.js), so for a MAJOR (core 350 m) the nearest treed pocket
-// is past the core. We bound the drum to core + DRUM_BAND, so the furthest any
-// cluster reaches is maxCore(350) + DRUM_BAND. placement.js enumerates owning
-// hearts by EXPANDING the chunk AABB by MAX_POI_REACH, so a cluster centered in a
-// chunk is guaranteed to enumerate its heart regardless of HEART_CELL (R16).
+// vendor rows / the arch stay near (on the approach roads); the DRUM CIRCLE is the
+// far one — it wants a treed spot, and treeDensity is zero inside a heart's core
+// (density.js), so the nearest treed pocket is past the core, bounded to
+// core + DRUM_BAND. placement.js enumerates owning hearts by EXPANDING the chunk
+// AABB by MAX_POI_REACH, so a cluster centered in a chunk is guaranteed to
+// enumerate its heart regardless of HEART_CELL (R16).
+//
+// NOTE (deliberation 003, D3.4): the LIVE `major.core` is 100 (constants.js
+// HEART_DOMAIN — a stale earlier comment here said "350"). 480 is therefore a
+// GENEROUS over-bound (drum reaches ~core+130 ≈ 230, the drag clusters ~core+90
+// ≈ 190) — safe, costs only a few extra per-chunk heart enumerations. ALL
+// per-cluster SIZING (dancefloor depth, the front-axis ray-walk) reads the live
+// `heart.core`, NEVER a literal 350. If `major.core` is ever tuned past ~350 via
+// the sliders, revisit this bound (drum would exceed 480).
 const DRUM_BAND = 130;
-export const MAX_POI_REACH = 350 + DRUM_BAND;   // 480: major core + drum band
+export const MAX_POI_REACH = 480;   // generous over-bound; see NOTE above (R16)
+
+// ── Front-axis grammar (deliberation 003 — festival-layout-grammar.md) ───────
+// A hub faces ONE computed direction F: the bisector of the WIDEST DRY GAP
+// between its approach roads. Stage / dancefloor / sectors all key off F, so the
+// dancefloor faces open ground BETWEEN roads — never down a road (A3) or at water.
+// computeFrontAxis + dancefloorRect are PURE and read only `heart` +
+// approachRoadsOf(heart) (window-invariant). The map-sandbox overlay and the
+// (CG2) _computePlan rewrite call the SAME functions so they agree by construction.
+//
+// DETERMINISM (footgun #4 / R20): the WIDEST-gap SELECTION is an INTEGER compare,
+// not a float argmax — road bearings bin to a fixed 256-slot angular grid, gap
+// widths are integer bin differences, and the dry test is a coarse integer count
+// of blocked probe points on quantize()d coordinates. A float argmax over
+// atan2-derived widths could flip which gap is "widest" across V8/JSC and rotate
+// the ENTIRE hub; the integer key cannot. The chosen bin is serialized into the
+// stage descriptor (see _computePlan, CG2) so the POI golden + window-invariance
+// test exercise it. Residual cross-engine class: Math.cos/sin of the chosen
+// bin's bearing feed the dry-probe coordinates below the 1 m quantize grid — the
+// same accepted single-engine-reproducible cosmetic class as the existing
+// treeDensity/road-bearing forks, here gated to a coarse boolean so a flip needs
+// a probe within ~1e-13 of a meter boundary AND exactly at the dry tolerance.
+const ANGLE_BINS = 256;             // fixed angular grid for cross-engine-stable gap selection
+const DRY_PROBES = 6;               // blocked-point samples along a candidate bisector
+const DANCEFLOOR_DEPTH_BASE = 38;   // ~3 stage-lengths of cleared dancefloor (dial-able — A4/G1)
+const DANCEFLOOR_HALFWIDTH_BASE = 17;
+
+function binAngle(bearing) {        // atan2 result (-π,π] → integer bin [0,ANGLE_BINS)
+  let b = Math.round(bearing / (Math.PI * 2) * ANGLE_BINS) % ANGLE_BINS;
+  return b < 0 ? b + ANGLE_BINS : b;
+}
+function binBearing(bin) { return (bin / ANGLE_BINS) * Math.PI * 2; }   // [0,2π)
+
+// Stage scale is plan DATA (D3.3) so the dancefloor rect and the built model
+// agree on size. Derived from the stage's clusterSeed (idx 0), matching
+// buildStage's FIRST rng draw exactly: main 1.15+r*0.25, side 1.0+r*0.5
+// (chunks.js:2094 — keep these two formulas in sync).
+function stageScaleOf(heart) {
+  const r = mulberry32(clusterSeed(heart, 0))();
+  return heart.rank === 'major' ? 1.15 + r * 0.25 : 1.0 + r * 0.5;
+}
+function dancefloorDepth(heart) { return DANCEFLOOR_DEPTH_BASE * stageScaleOf(heart); }
+
+// Count probe points along a ray from the hub center that fall in water or on a
+// road corridor (noBuild) — a dancefloor must open onto neither (A3 + no-water).
+// Integer result; coordinates quantize()d (queryPoint's own engine-stability class).
+function blockedCountAlong(heart, bin, reach) {
+  const dx = Math.cos(binBearing(bin)), dz = Math.sin(binBearing(bin));
+  let blocked = 0;
+  for (let i = 1; i <= DRY_PROBES; i++) {
+    const r = (reach * i) / DRY_PROBES;
+    const qp = queryPoint(quantize(heart.x + dx * r), quantize(heart.z + dz * r));
+    if (qp.inLake || qp.noBuild) blocked++;
+  }
+  return blocked;
+}
+
+// The hub's FRONT AXIS F (the keystone). Returns the chosen bin + bearing + the
+// per-gap detail (so the overlay can draw every gap + highlight the winner).
+// PURE; integer-keyed selection: prefer DRY gaps (0 blocked probes), widest wins,
+// tie → lowest bin. 0-road and 1-road fallbacks face the driest / opposite-the-road.
+export function computeFrontAxis(heart) {
+  const roads = approachRoadsOf(heart);
+  const reach = heart.core + dancefloorDepth(heart);
+  const roadBins = [...new Set(roads.map(r => binAngle(r.bearing)))].sort((a, b) => a - b);
+  const gaps = [];
+  if (roadBins.length === 0) {
+    for (let k = 0; k < 16; k++) {
+      const bin = ((k * ANGLE_BINS / 16) | 0) % ANGLE_BINS;
+      gaps.push({ binMid: bin, widthBins: ANGLE_BINS, blocked: blockedCountAlong(heart, bin, reach) });
+    }
+  } else if (roadBins.length === 1) {
+    const bin = (roadBins[0] + (ANGLE_BINS >> 1)) % ANGLE_BINS;   // opposite the single road
+    gaps.push({ binMid: bin, widthBins: ANGLE_BINS, blocked: blockedCountAlong(heart, bin, reach) });
+  } else {
+    for (let i = 0; i < roadBins.length; i++) {
+      const a = roadBins[i], b = roadBins[(i + 1) % roadBins.length];
+      const width = (b - a + ANGLE_BINS) % ANGLE_BINS;
+      const binMid = (a + (width >> 1)) % ANGLE_BINS;
+      gaps.push({ binMid, widthBins: width, blocked: blockedCountAlong(heart, binMid, reach) });
+    }
+  }
+  const dry = gaps.filter(g => g.blocked === 0);
+  const pool = dry.length ? dry : gaps;
+  pool.sort((a, b) => b.widthBins - a.widthBins || a.blocked - b.blocked || a.binMid - b.binMid);
+  const chosen = pool[0];
+  return { bin: chosen.binMid, bearing: binBearing(chosen.binMid), widthBins: chosen.widthBins, blocked: chosen.blocked, roadBins, gaps };
+}
+
+// The oriented no-tree clearing in front of the stage (A4): a rectangle anchored
+// at the hub center, extending `depth` along +F with `halfWidth` to each side.
+// PREVIEW form (CG1) — the authoritative rect (CG2) anchors at the nudged stage
+// SPOT; here the hub center is a close stand-in for the overlay. Quantized.
+export function dancefloorRect(heart) {
+  const fa = computeFrontAxis(heart);
+  const scale = stageScaleOf(heart);
+  const dx = Math.cos(fa.bearing), dz = Math.sin(fa.bearing);
+  return {
+    cx: heart.x, cz: heart.z, dirx: dx, dirz: dz, bin: fa.bin,
+    depth: quantize(DANCEFLOOR_DEPTH_BASE * scale),
+    halfWidth: quantize(DANCEFLOOR_HALFWIDTH_BASE * scale),
+  };
+}
+
+// Dancefloor clearing rects for every hub whose rect could reach a region — the
+// pure cross-CHUNK query scatterWorldgenTrees will consume (CG2/D3.7), keyed off
+// owning hearts via the MAX_POI_REACH AABB-expand (placement.js pattern). Every
+// hub has a stage, so every enumerated heart contributes one rect.
+export function dancefloorRectsNear(minX, minZ, maxX, maxZ) {
+  const hs = heartsInBounds(minX - MAX_POI_REACH, minZ - MAX_POI_REACH, maxX + MAX_POI_REACH, maxZ + MAX_POI_REACH);
+  return hs.map(dancefloorRect);
+}
 
 // Footprint (clear-radius, m) hint per cluster kind — for the build half's
 // spacing + the map-sandbox overlay. The build side registers each prop with the

@@ -86,6 +86,7 @@
     <label><input type="checkbox" id="ly-density" checked /> forests</label>
     <label><input type="checkbox" id="ly-roles" /> role tiers</label>
     <label><input type="checkbox" id="ly-festival" checked /> festival (POIs — D2)</label>
+    <label><input type="checkbox" id="ly-grammar" checked /> layout grammar (front-axis F — D3)</label>
     <label><input type="checkbox" id="ly-grid" checked /> heart-cell grid</label>
     <hr />
     <div class="row"><button id="btn-reset">reset view</button><button id="btn-selftest">self-test</button></div>
@@ -102,7 +103,9 @@
 
 <script type="module">
 import { setSeed, getSeed, queryPoint, queryRegion } from './src/worldgen/index.js';
-import { festivalPlan, campVillagesNear } from './src/worldgen/festival.js';
+import { festivalPlan, campVillagesNear, computeFrontAxis, dancefloorRect } from './src/worldgen/festival.js';
+import { nearestMajorHeart } from './src/worldgen/hearts.js';
+import { approachRoadsOf } from './src/worldgen/roads.js';
 import { treeDensity } from './src/worldgen/density.js';
 import { runSelfTest } from './src/worldgen/selftest.js';
 import { CONFIG, bumpWorldgen } from './src/worldgen/constants.js';
@@ -114,7 +117,7 @@ const ctx = cv.getContext('2d');
 // --- view state (world coords at screen center + pixels-per-meter zoom) ------
 const DEFAULTS = { cx: 0, cz: 0, zoom: 0.06 };   // zoomed out to read macro structure
 const view = { ...DEFAULTS };
-const layers = { hearts: true, roads: true, water: true, density: true, roles: false, festival: true, grid: true };
+const layers = { hearts: true, roads: true, water: true, density: true, roles: false, festival: true, grammar: true, grid: true };
 let dirty = true;
 let lastInspect = null;
 
@@ -308,6 +311,74 @@ function draw() {
         ctx.setLineDash([]);
         ctx.fillStyle = '#9ed06a'; ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
       }
+    }
+  }
+
+  // layout grammar (D3 — deliberation 003): the front axis F + road angular gaps
+  // + the dancefloor clearing, so a hub's ORIENTATION is visible (not just where
+  // its clusters currently land). Drawn from the SAME computeFrontAxis /
+  // dancefloorRect the festival.js rewrite (CG2) will use → what you see is what
+  // will build. (Probes queryPoint per heart; capped to keep wide-zoom redraw cheap.)
+  if (layers.grammar && region.hearts.length <= 80) {
+    const z = view.zoom;
+    for (const ht of region.hearts) {
+      const cx = w2sx(ht.x), cy = w2sy(ht.z);
+      const fa = computeFrontAxis(ht);
+      // road outward rays (binned — exactly what the gap selection saw)
+      ctx.strokeStyle = 'rgba(120,180,255,0.35)'; ctx.lineWidth = 1;
+      for (const rb of fa.roadBins) {
+        const a = (rb / 256) * Math.PI * 2;
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(a) * ht.core * z, cy + Math.sin(a) * ht.core * z); ctx.stroke();
+      }
+      // gap arcs at 0.55*core: faint for all, bright GREEN for the chosen dry gap
+      // (RED if the only choice was wet — surfaces a surrounded hub).
+      const gr = ht.core * 0.55 * z;
+      for (const g of fa.gaps) {
+        const chosen = g.binMid === fa.bin;
+        const halfW = (g.widthBins / 256) * Math.PI;
+        const mid = (g.binMid / 256) * Math.PI * 2;
+        ctx.strokeStyle = chosen ? (g.blocked ? 'rgba(255,110,110,0.95)' : 'rgba(90,255,150,0.95)')
+                                 : 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = chosen ? 3 : 1.5;
+        ctx.beginPath(); ctx.arc(cx, cy, gr, mid - halfW, mid + halfW); ctx.stroke();
+      }
+      // dancefloor clearing rect (oriented along +F)
+      const df = dancefloorRect(ht);
+      const fx = df.dirx, fz = df.dirz, px = -fz, pz = fx;
+      const corners = [
+        [df.cx + px * df.halfWidth, df.cz + pz * df.halfWidth],
+        [df.cx + fx * df.depth + px * df.halfWidth, df.cz + fz * df.depth + pz * df.halfWidth],
+        [df.cx + fx * df.depth - px * df.halfWidth, df.cz + fz * df.depth - pz * df.halfWidth],
+        [df.cx - px * df.halfWidth, df.cz - pz * df.halfWidth],
+      ];
+      ctx.beginPath();
+      corners.forEach((c, i) => { const sx = w2sx(c[0]), sy = w2sy(c[1]); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); });
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(90,255,150,0.10)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(90,255,150,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+      // F arrow (bold) from center along +F
+      const flen = (ht.core + df.depth) * z;
+      const ex = cx + fx * flen, ey = cy + fz * flen, aa = Math.atan2(fz, fx);
+      ctx.strokeStyle = '#46f08a'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey);
+      ctx.lineTo(ex - Math.cos(aa - 0.4) * 7, ey - Math.sin(aa - 0.4) * 7);
+      ctx.moveTo(ex, ey); ctx.lineTo(ex - Math.cos(aa + 0.4) * 7, ey - Math.sin(aa + 0.4) * 7);
+      ctx.stroke();
+    }
+    // the ONE spawn arch (A1): on the spawn hub's primary road, drive in INWARD.
+    const sh = nearestMajorHeart(0, 0).heart;
+    const sr = sh && approachRoadsOf(sh).sort((a, b) => b.lenQ - a.lenQ || a.neighbor.cx - b.neighbor.cx || a.neighbor.cz - b.neighbor.cz)[0];
+    if (sr) {
+      const a = sr.bearing;
+      const ax = w2sx(sh.x + Math.cos(a) * sh.core * 0.6), ay = w2sy(sh.z + Math.sin(a) * sh.core * 0.6);
+      const spx = w2sx(sh.x + Math.cos(a) * sh.core * 0.95), spy = w2sy(sh.z + Math.sin(a) * sh.core * 0.95);
+      ctx.strokeStyle = '#ff8ac0'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(ax, ay, 7, Math.PI, 0); ctx.stroke();
+      ctx.fillStyle = '#ffe066'; ctx.beginPath(); ctx.arc(spx, spy, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,224,102,0.85)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(spx, spy); ctx.lineTo(ax, ay); ctx.stroke();
+      ctx.fillStyle = '#ffe066'; ctx.font = '11px monospace'; ctx.fillText('spawn', spx + 6, spy - 6);
     }
   }
 

@@ -542,3 +542,38 @@ decide by looking in the overlay, not by spec.
 **Changed:** festival-layout-grammar.md (NEW spec), deliberations/003-festival-layout-grammar/{briefing,council-*,results}.md,
 tasks.md (D3.1-D3.14), session-log. Commit: (pending — docs; code starts with CG1).
 **Refs:** -> festival-layout-grammar.md, -> deliberations/003-festival-layout-grammar/results.md, -> D3.1 (next, harness-first).
+
+### 2026-06-07 — D3 CG1: front-axis F (pure) + map-sandbox grammar overlay
+**Intent:** Harness-first (per deliberation 003): make the front axis F *visible* before
+rewriting _computePlan, so Gary can judge how every hub faces — and so the overlay and the
+(CG2) placement rewrite share the SAME math by construction.
+**Result (CG1, flag-off, 2D-only — no game boot needed):**
+- **D3.5** `computeFrontAxis(heart)` in festival.js — PURE, INTEGER-keyed (256-bin angular grid,
+  integer gap widths, integer blocked-probe count, integer sort + lowest-bin tiebreak → no float
+  argmax that could rotate the hub cross-engine; R20). Prefers DRY gaps (0 blocked), widest wins.
+  0-road + 1-road fallbacks. Verified on the seed-1234 hub at (733,-146): 3 roads (bins 6/174/185)
+  → picked F=bin90 (126.6°), the widest DRY gap (168 bins, 0 blocked), rejecting the narrow wet gap
+  (w11) + the wrap gap (w77, 1 blocked). Sizing reads LIVE heart.core (not the stale 350).
+- **D3.4** fixed the stale MAX_POI_REACH comment (said "major core 350"; live major.core=100 → 480 is
+  a generous over-bound). All per-cluster sizing reads live heart.core.
+- `dancefloorRect(heart)` (preview, hub-center origin) + `dancefloorRectsNear(AABB)` (pure cross-chunk
+  query for CG2/D3.7's tree clearing) + `stageScaleOf(heart)` (replicates buildStage's first rng draw
+  so the rect + model agree without touching the build half yet).
+- **D3.1** extended the map-sandbox `festival` overlay with a new "layout grammar" layer: per hub draws
+  the F arrow, road outward rays, the angular gaps (chosen widest-dry gap GREEN, wet-only choice RED),
+  the oriented dancefloor rect, and the spawn arch/drive-in vector (guarded). Verified at seed 1234,
+  noon (2D): every hub faces an open gap between roads (A3 by construction); lakeside hub flagged red
+  with its dancefloor angled off the water. Determinism INTACT — goldens unchanged (queryPoint eddf8e50,
+  POI 6fa977c8); computeFrontAxis is purely additive (doesn't touch the queryPoint tuple or _computePlan).
+**FINDING (sharpens D3.9 + flags a current regression):** at Gary's dense config (major share 0.04),
+`nearestMajorHeart(0,0)` is NULL for seed 1234 (the hub near origin is now a MINOR at 733,-146). So
+main.js:222 (`if (stage && arch)`) already FALLS BACK to the pinned (0,65) spawn — the "spawn at a
+festival" win is currently broken at this config (it worked at the older 340/0.25 config). CG2/D3.9
+deleting the arch descriptor would make that fallback permanent. → D3.9 must spawn at the nearest hub
+of ANY rank (fits the one-infinite-festival framing — hubs are hubs) and build the arch spawn-side from
+the road bearing, NOT depend on a major near origin or a plan arch descriptor.
+**NOT done this turn (CG2, gated behind Gary judging F):** D3.6 re-aim _computePlan to F + serialize F
+into the descriptor, D3.7 tree clearing via ctx.region, D3.8 overlap guard, D3.9 arch→spawn rewrite.
+**Changed:** src/worldgen/festival.js (computeFrontAxis + dancefloor helpers + MAX_POI_REACH comment),
+map-sandbox.html (grammar overlay layer), tasks.md (D3 checkboxes), CHANGELOG, session-log.
+**Refs:** -> D3.1/D3.4/D3.5 done; -> D3.9 (sharpened by the null-major finding); next: Gary judges F → CG2.

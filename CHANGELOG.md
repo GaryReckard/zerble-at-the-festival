@@ -22,6 +22,18 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   `v2-worldgen-3d-integration`.
 
 ### Added
+- **Festival layout-grammar harness — every hub now has a computed "front" (dev
+  tooling, flag-off).** Groundwork for fixing the v2 arrangement (stages facing water,
+  vendor rows through stages — the playtest disasters): a new pure `computeFrontAxis(heart)`
+  in `worldgen/festival.js` gives each hub a single front axis `F` = the bisector of the
+  *widest dry gap* between its approach roads, so the dancefloor faces open ground *between*
+  roads (never down a road or at a lake) by construction. Selection is fully integer-keyed
+  (bearings bin to a 256-slot grid, integer gap widths, integer blocked-probe count, lowest-bin
+  tiebreak) so it can't flip cross-engine and rotate a hub. The `map-sandbox.html` overlay grew
+  a **"layout grammar"** layer drawing each hub's F arrow, road angular gaps (chosen gap green,
+  water-hemmed red), and the oriented dancefloor clearing — so the whole arrangement is judged
+  by eye on the 2D map before any placement code is rewritten. Determinism goldens unchanged
+  (the layer is purely additive). The `_computePlan` rewrite that *uses* F lands next.
 - **v2 ambient crowd, concentrated at the hearts (behind `?worldgen=1`).** v2 chunks now
   spawn a wandering ambient crowd whose size scales with worldgen *heart influence* — a
   major heart's grounds throng with people, a minor heart draws a modest gathering, and
