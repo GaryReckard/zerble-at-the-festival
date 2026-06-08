@@ -27,7 +27,7 @@ import { dancefloorRectsNear } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
-import { buildCampsite, buildCampChair } from './models/campsite.js';
+import { buildCampsite, buildCampChair, buildTorchField } from './models/campsite.js';
 import { buildTent } from './models/tent.js';
 import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
@@ -1000,21 +1000,7 @@ function scatterWorldgenTrees(ctx) {
   // query; the rects' computeFrontAxis is memoized → ~2ms cold for the chunk, R7).
   const danceRects = dancefloorRectsNear(minX, minZ, minX + CHUNK_SIZE, minZ + CHUNK_SIZE);
   const placed = [];
-  for (let attempt = 0; attempt < target * 4 && placed.length < target; attempt++) {
-    const x = minX + rng() * CHUNK_SIZE;
-    const z = minZ + rng() * CHUNK_SIZE;
-    const d = treeDensity(x, z);          // 0..1 — already 0 on worldgen water + heart cores
-    if (d <= 0.05) continue;              // clearing / open lawn
-    if (rng() > d) continue;              // place ∝ density (sparse fringes fall out naturally)
-    if (pointInDancefloor(x, z, danceRects)) continue;   // keep the stage's audience side clear (A4)
-    if (pointNearWorldgenRoad(x, z, ctx.region.roads, roadHalf)) continue;
-    let tooClose = false;
-    for (let i = 0; i < placed.length; i++) {
-      if (Math.hypot(placed[i].x - x, placed[i].z - z) < WG_TREE_MIN_SPACING) { tooClose = true; break; }
-    }
-    if (tooClose) continue;
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.5, TREE_GUARD_SKIP)) continue;
-
+  const placeTree = (x, z) => {
     const tree = buildForestTree(rng);
     tree.position.set(x, 0, z);
     tree.rotation.y = rng() * Math.PI * 2;
@@ -1029,6 +1015,37 @@ function scatterWorldgenTrees(ctx) {
       crown: worldCrown(tree, x, z),
     });
     placed.push({ x, z });
+  };
+  const clearOfStuff = (x, z, spacing) => {
+    if (pointInDancefloor(x, z, danceRects)) return false;          // keep the stage's audience side clear (A4)
+    if (pointNearWorldgenRoad(x, z, ctx.region.roads, roadHalf)) return false;
+    for (let i = 0; i < placed.length; i++) if (Math.hypot(placed[i].x - x, placed[i].z - z) < spacing) return false;
+    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.5, TREE_GUARD_SKIP)) return false;
+    return true;
+  };
+  for (let attempt = 0; attempt < target * 4 && placed.length < target; attempt++) {
+    const x = minX + rng() * CHUNK_SIZE;
+    const z = minZ + rng() * CHUNK_SIZE;
+    const d = treeDensity(x, z);          // 0..1 — already 0 on worldgen water + heart cores
+    if (d <= 0.05) continue;              // clearing / open lawn
+    if (rng() > d) continue;              // place ∝ density (sparse fringes fall out naturally)
+    if (!clearOfStuff(x, z, WG_TREE_MIN_SPACING)) continue;
+    placeTree(x, z);
+  }
+  // F1 — the occasional LONE tree even in the big open fields: treeDensity below the
+  // woods threshold but above 0 (water + heart cores are forced to exactly 0, so a
+  // small floor excludes both). Big spacing → reads as a landmark tree, not a thin
+  // forest; capped under the R3 budget so dense chunks are unaffected.
+  const loneCap = PERF.forestTreeDensityMul < 0.9 ? 2 : 3;
+  let lone = 0;
+  for (let attempt = 0; attempt < 14 && lone < loneCap && placed.length < target; attempt++) {
+    const x = minX + rng() * CHUNK_SIZE, z = minZ + rng() * CHUNK_SIZE;
+    const d = treeDensity(x, z);
+    if (d <= 0.004 || d > 0.05) continue;        // open field only (not water/cores at 0, not the woods at >0.05)
+    if (rng() > 0.5) continue;                   // sparse
+    if (!clearOfStuff(x, z, 24)) continue;       // 24m spacing → genuinely lone
+    placeTree(x, z);
+    lone++;
   }
 }
 
@@ -1279,6 +1296,19 @@ function buildFoodCourtAt(ctx, x, z) {
     if (!isPointInLake(vx, vz) && !overlaps(vx, vz, 2.4)) {
       buildBubbleVendorAt(ctx, vx, vz, Math.atan2(x - vx, z - vz));
     }
+  }
+  // C3: tiki torches ringing the court perimeter (just outside the truck ring).
+  const courtTorches = [];
+  const torchR = ring + 5;
+  for (let i = 0; i < 6; i++) {
+    const ang = (i / 6) * Math.PI * 2 + 0.3;
+    const tx = x + Math.cos(ang) * torchR, tz = z + Math.sin(ang) * torchR;
+    if (!isPointInLake(tx, tz)) courtTorches.push({ x: tx, z: tz });
+  }
+  if (courtTorches.length) {
+    const tf = buildTorchField(courtTorches, ctx.rng);
+    ctx.group.add(tf.group);
+    if (tf.animatables && tf.animatables.length) forestAnimatables.push({ chunkKey: ctx.key, animatables: tf.animatables });
   }
 }
 
@@ -2119,6 +2149,31 @@ function buildCampVillage(ctx) {
 
 // ---------- Reusable builders ----------
 
+// Pooled picnic-blanket geometry + a small color-keyed material cache (G1 — a few
+// blankets sprinkled near each stage, like the chairs). userData.shared so chunk
+// disposal skips them (footgun #6 / perf-pooling).
+const BLANKET_GEO = new THREE.PlaneGeometry(2.6, 2.6);
+BLANKET_GEO.userData.shared = true;
+const BLANKET_COLORS = [0xff6f9c, 0xffd28a, 0x6fcf6a, 0x66d9ff, 0xb285ff, 0xff8a5b];
+const _blanketMats = new Map();
+function blanketMat(color) {
+  let m = _blanketMats.get(color);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ color, roughness: 0.9, side: THREE.DoubleSide });
+    m.userData.shared = true;
+    _blanketMats.set(color, m);
+  }
+  return m;
+}
+function placePicnicBlanket(ctx, x, z) {
+  const blanket = new THREE.Mesh(BLANKET_GEO, blanketMat(BLANKET_COLORS[Math.floor(ctx.rng() * BLANKET_COLORS.length)]));
+  blanket.rotation.x = -Math.PI / 2;
+  blanket.rotation.z = ctx.rng() * Math.PI * 2;
+  blanket.position.set(x, 0.06, z);
+  ctx.group.add(blanket);
+  registry.add({ kind: 'picnic', position: new THREE.Vector3(x, 0, z), footprint: 0, attractor: { radius: 3, weight: 0.4 }, chunkKey: ctx.key });
+}
+
 function buildStage(ctx, x, z, isMain, yaw = 0) {
   // ----- Visual model — the deck, banner, truss, speakers, lights -----
   // Per-stage scale gives the festival real variety. Main stage gets a
@@ -2256,6 +2311,24 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
         chunkKey: ctx.key,
       });
     }
+  }
+
+  // ----- G1: a few picnic blankets sprinkled near the stage (not carpeted) -----
+  const blanketCount = isMain ? 4 + Math.floor(ctx.rng() * 2) : 2 + Math.floor(ctx.rng() * 2);
+  for (let bi = 0; bi < blanketCount; bi++) {
+    const bw = rot((ctx.rng() - 0.5) * lateralSpread * 2.4, chairBandStart + ctx.rng() * (chairBandEnd - chairBandStart + 6 * scale));
+    placePicnicBlanket(ctx, bw.x, bw.z);
+  }
+
+  // ----- C3: tiki torches marking the dancefloor boundary (4 at the corners) -----
+  const torchWorld = [
+    [-(lateralSpread + 2), d / 2 + 2], [(lateralSpread + 2), d / 2 + 2],
+    [-(lateralSpread + 2), d / 2 + dancefloorDepth + 4], [(lateralSpread + 2), d / 2 + dancefloorDepth + 4],
+  ].map(([lx, lz]) => { const w = rot(lx, lz); return { x: w.x, z: w.z }; });
+  const stageTorches = buildTorchField(torchWorld, ctx.rng);
+  ctx.group.add(stageTorches.group);
+  if (stageTorches.animatables && stageTorches.animatables.length) {
+    forestAnimatables.push({ chunkKey: ctx.key, animatables: stageTorches.animatables });
   }
 
   // ----- Spatial music for this stage -----

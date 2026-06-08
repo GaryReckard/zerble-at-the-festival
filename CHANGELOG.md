@@ -2,6 +2,20 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-08
+
+### Added
+- **Festival atmosphere pass — tiki torches, picnic blankets, lone field trees
+  (behind `?worldgen=1`).** Three of Gary's playtest asks: (1) **tiki torches** now
+  mark each stage's dancefloor boundary (4 at the corners) and ring every food court's
+  perimeter (6) — emissive, so they glow warmly at night (reuses the campsite
+  `buildTorchField` InstancedMesh + flame flicker). (2) **Picnic blankets** are
+  sprinkled near each stage (a handful in the chair band, ~2-6 by stage size) — like
+  the chairs, not carpeted everywhere; pooled geometry + a color-keyed material cache,
+  `userData.shared`. (3) **Lone trees** now dot the big open fields between hubs (a
+  tree or two per open chunk at well-spaced intervals), so the fields aren't totally
+  bare — capped under the per-chunk tree budget so dense woods are unaffected.
+
 ## 2026-06-07
 
 ### Changed

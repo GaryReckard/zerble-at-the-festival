@@ -102,7 +102,7 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
   center patch, A7). Bonus: people SIT at them (crowd state → "seated at picnic table",
   like the stage-front / potty states). New `models/picnicTable.js` + sandbox entry +
   importmap×3 + crowd seating behavior.
-- [ ] **C3. Tiki torches as boundary/edge markers.** Occasionally by ROADS; a handful setting
+- [x] **C3. DONE — tiki torches mark stage dancefloor corners + ring food-court perimeters (emissive, glow at night).** Tiki torches as boundary/edge markers. Occasionally by ROADS; a handful setting
   a STAGE's boundaries; around FOOD COURTS; maybe vendor rows. (`models/campsite.js` has
   `buildTorchField` / tiki torches already — reuse. Emissive, nightness-gated.)
 
@@ -138,7 +138,7 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
 
 ## F. Woods / density / fields
 
-- [ ] **F1. A tree or two even in the big empty fields.** Open fields shouldn't be totally
+- [x] **F1. DONE — lone trees dot the open fields (scatterWorldgenTrees lone pass, capped under R3).** A tree or two even in the big empty fields.** Open fields shouldn't be totally
   bare — sprinkle the occasional lone tree. (Today `scatterWorldgenTrees` skips `treeDensity
   <= 0.05` → clearings are fully bare. Add a low-probability lone-tree pass for near-zero
   density cells, OR a small treeDensity floor in open areas.)
@@ -147,7 +147,7 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
 
 ## G. Picnic blankets + chairs (sprinkle, don't carpet)
 
-- [ ] **G1. Picnic blankets sprinkled like the chairs, NEAR STAGES** — NOT carpeted
+- [x] **G1. DONE — a handful of pooled picnic blankets sprinkled in each stage's chair band (buildStage).** Picnic blankets sprinkled like the chairs, NEAR STAGES — NOT carpeted
   everywhere (v1 put them all over; Gary disliked that). A handful around each stage's
   grounds, same spirit as the stage-front chairs. (This is the tasteful version of the
   parked D2.4 filler.)
