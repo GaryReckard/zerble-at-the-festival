@@ -2,6 +2,16 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-09
+
+### Changed
+- **Crowd follows the roads a bit more in v2 (behind `?worldgen=1`).** The ambient crowd
+  drifts toward `path_node` attractors seeded along each road; they read as too weak in the
+  open stretches between hubs. Tightened their spacing (26m → 20m), nudged their attractor
+  weight (0.5 → 0.85) and radius (6 → 7) so wanderers line the roads more between clusters —
+  kept well under the stage's pull (3.5) so hub crowds stay dense. It's a deliberate lever
+  (`WAYPOINT_SPACING`/`WAYPOINT_WEIGHT`/`WAYPOINT_RADIUS` in chunks.js) — easy to push further.
+
 ## 2026-06-08
 
 ### Fixed

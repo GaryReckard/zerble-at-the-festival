@@ -119,7 +119,7 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
 
 ## E. Crowd
 
-- [ ] **E1. People should tend to walk ALONG roads** (some draw to follow paths — wandering
+- [x] **E1. DONE (lever bumped) — path_node spacing 26→20, weight 0.5→0.85, radius 6→7; documented as a tunable lever (WAYPOINT_* in chunks.js).** People should tend to walk ALONG roads (some draw to follow paths — wandering
   everywhere is good, but a road-follow tendency feels more real). This is a LEVER to tweak.
   (Group G already seeds `path_node` attractors every ~26m along roads so the crowd clusters
   along them — but it's apparently too weak. Strengthen: higher path_node attractor weight,

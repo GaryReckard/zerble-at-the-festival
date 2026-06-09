@@ -936,7 +936,14 @@ function placeWorldgenRoads(ctx, roads) {
 // the ambient crowd clusters along the chain of waypoints → people line the roads,
 // with NO per-NPC `nearestRoad` query (that's 215us/call — unviable per-frame, R13).
 // Cheap + deterministic: registered at chunk-gen, chunk-keyed so it unloads cleanly.
-const WAYPOINT_SPACING = 26;
+// E1 — crowd road-follow strength is a LEVER (Gary): tighter spacing + a bit more
+// weight makes ambient wanderers line the roads more between clusters, without
+// over-pulling them off stages (stage_front weight 3.5 + the forced stage audience
+// keep stage crowds dense). Push WAYPOINT_WEIGHT up / SPACING down for stronger
+// road-following; keep weight well under the stage weight so hubs stay the draw.
+const WAYPOINT_SPACING = 20;
+const WAYPOINT_WEIGHT = 0.85;
+const WAYPOINT_RADIUS = 7;
 function placeRoadWaypoints(ctx, run) {
   let acc = WAYPOINT_SPACING * 0.5;   // first waypoint ~half a step in from the run start
   for (let i = 0; i < run.length - 1; i++) {
@@ -950,7 +957,7 @@ function placeRoadWaypoints(ctx, run) {
         kind: 'path_node',
         position: new THREE.Vector3(ax + ex * t, 0, az + ez * t),
         footprint: 0,
-        attractor: { radius: 6, weight: 0.5 },
+        attractor: { radius: WAYPOINT_RADIUS, weight: WAYPOINT_WEIGHT },
         chunkKey: ctx.key,
       });
       acc += WAYPOINT_SPACING;
