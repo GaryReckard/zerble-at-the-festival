@@ -125,7 +125,7 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
   along them — but it's apparently too weak. Strengthen: higher path_node attractor weight,
   tighter spacing, OR a gentle per-frame road-follow steering that's CHEAP — note `nearestRoad`
   is 215µs/call so per-NPC-per-frame is out; could cache a road-tangent per NPC at retarget.)
-- [ ] **E2. MAP the people taxonomy + write it down.** Gary's hunch (confirmed worth checking):
+- [x] **E2. DONE — written up in `.claude/people-taxonomy.md` (one shared Crowd pool + 8 bespoke systems, cited; edit-isolation answer + implications).** MAP the people taxonomy + write it down. Gary's hunch (confirmed worth checking):
   the various people classes each have their OWN logic — he's seen changes to one not transfer
   to others when he expected them to. Kids, wooks, hula-hoopers, zerble-riders, band members,
   drum-circle figures, etc. — document which are the one ambient `Crowd` pool (`crowd.js`,
