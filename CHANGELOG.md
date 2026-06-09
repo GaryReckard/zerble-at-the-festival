@@ -4,6 +4,14 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-06-09
 
+### Added
+- **Hammocks strung between close trees in v2 (behind `?worldgen=1`).** When the woods
+  scatter drops two trees 3–5.5m apart, a post-less hammock occasionally gets slung
+  between them — the trunks ARE the posts (new `buildTreeHammock` in `models/hammock.js`).
+  It hangs in the un-driveable gap between two trunks, so it's decorative (no collider,
+  disposed with the chunk) and capped at ~2/chunk so it stays a woodland discovery. This
+  (plus the picnic blankets near stages) covers the "hammocks/blankets never seen" gap.
+
 ### Changed
 - **Crowd follows the roads a bit more in v2 (behind `?worldgen=1`).** The ambient crowd
   drifts toward `path_node` attractors seeded along each road; they read as too weak in the

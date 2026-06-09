@@ -75,3 +75,51 @@ export function buildHammock(x, z, rng = Math.random) {
 
   return { group, seatPos, yaw };
 }
+
+// Post-LESS hammock strung directly between two tree trunks (C1). The trees ARE the
+// posts, so we just hang the sagging sling between anchor points (ax,az)-(bx,bz) at
+// trunk height. Verts are in world coords (group stays at origin); returns { group,
+// seatPos } for an optional rester. Decorative — it lives in the un-driveable gap
+// between two close trunks, so it needs no collider.
+export function buildTreeHammock(ax, az, bx, bz, rng = Math.random) {
+  const group = new THREE.Group();
+  group.name = 'tree_hammock';
+  const slingColors = [0xff6f9c, 0xffd28a, 0x6fcf6a, 0x66d9ff, 0xb285ff];
+  const slingColor = slingColors[Math.floor(rng() * slingColors.length)];
+
+  const dx = bx - ax, dz = bz - az;
+  const len = Math.hypot(dx, dz) || 1e-3;
+  const ux = dx / len, uz = dz / len;       // along-axis unit
+  const px = -uz, pz = ux;                   // perpendicular unit (sling width)
+  const restY = 1.45, sagDepth = 0.5, slingW = 0.95;
+  const cx = (ax + bx) / 2, cz = (az + bz) / 2;
+  const halfLen = len / 2;
+
+  const segments = 16;
+  const verts = [], indices = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const u = (t - 0.5) * 2;
+    const along = u * halfLen;
+    const py = restY - Math.cos(u * Math.PI / 2) * sagDepth;
+    for (const side of [-1, 1]) {
+      const so = side * slingW / 2;
+      verts.push(cx + along * ux + so * px, py, cz + along * uz + so * pz);
+    }
+  }
+  for (let i = 0; i < segments; i++) {
+    const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
+    indices.push(a, c, b, b, c, d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  const sling = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    color: slingColor, roughness: 0.95, side: THREE.DoubleSide, flatShading: true,
+  }));
+  sling.castShadow = true;
+  group.add(sling);
+
+  return { group, seatPos: new THREE.Vector3(cx, restY - sagDepth + 0.2, cz) };
+}

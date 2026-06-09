@@ -87,12 +87,12 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
   spatial music), not a stub. It's placed at a treed district spot; confirm it builds +
   is reachable. (Group F verified a `drum_circle` registry entry exists at (1034,-50) for
   the OLD config, but Gary hasn't *seen* the full visual in play — check the model wired.)
-- [ ] **B3. Hammocks** never seen. **B4. Picnic blankets** never seen. (These were the
+- [x] **B3/B4. DONE — hammocks (C1, tree-strung) + picnic blankets (G1, near stages) now appear.** (was: Hammocks never seen. Picnic blankets never seen.) (These were the
   parked D2.4 "filler scatter" — never implemented in v2. See C3 + G1.)
 
 ## C. New entities / features
 
-- [ ] **C1. Hammocks between two close trees (NO posts).** When two trees are close enough to
+- [x] **C1. DONE — buildTreeHammock slings a post-less hammock between trees 3-5.5m apart (the trunks are the posts); decorative, capped ~2/chunk. Verified (12 in a dense-forest area).** Hammocks between two close trees (NO posts). When two trees are close enough to
   string a hammock between them, spawn a post-less hammock. (`models/hammock.js` currently
   has its own posts; needs a variant that uses tree trunks as anchors. Requires the woods
   scatter to expose nearby-tree pairs — a post-pass after `scatterWorldgenTrees` that finds

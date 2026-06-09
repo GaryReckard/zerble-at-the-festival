@@ -34,7 +34,7 @@ import { buildBubbleJug } from './models/bubbleJug.js';
 import { buildBubbleVendor } from './models/bubbleVendor.js';
 import { buildSugarShack, SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH, sugarShackCooks } from './models/sugarShack.js';
 import { buildPortaPotty, createPottyState, POTTY_SPACING, POTTY_FOOTPRINT, POTTY_COLLIDER_R } from './models/portaPotty.js';
-import { buildHammock as buildHammockModel } from './models/hammock.js';
+import { buildHammock as buildHammockModel, buildTreeHammock } from './models/hammock.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
 import { buildTentStage } from './models/tentStage.js';
@@ -1053,6 +1053,21 @@ function scatterWorldgenTrees(ctx) {
     if (!clearOfStuff(x, z, 24)) continue;       // 24m spacing → genuinely lone
     placeTree(x, z);
     lone++;
+  }
+  // C1 — string a post-less hammock between the occasional pair of CLOSE trees (the
+  // trunks ARE the posts). It hangs in the un-driveable gap between two trunks, so
+  // it's decorative (visual-only, no collider/registry entry — disposed with the
+  // chunk group). Capped so it stays a woodland discovery, not a carpet.
+  let hammocks = 0;
+  for (let i = 0; i < placed.length && hammocks < 2; i++) {
+    for (let j = i + 1; j < placed.length; j++) {
+      const d = Math.hypot(placed[i].x - placed[j].x, placed[i].z - placed[j].z);
+      if (d < 3.0 || d > 5.5) continue;
+      if (rng() > 0.22) continue;
+      ctx.group.add(buildTreeHammock(placed[i].x, placed[i].z, placed[j].x, placed[j].z, rng).group);
+      hammocks++;
+      break;
+    }
   }
 }
 
