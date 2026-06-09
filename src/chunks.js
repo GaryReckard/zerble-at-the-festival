@@ -1245,7 +1245,10 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       if (isPointInLake(w.x, w.z)) continue;
       const tent = buildTent(ctx.rng);
       tent.position.set(w.x, 0, w.z);
-      tent.rotation.y = yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2);   // face the central aisle
+      // Face the central aisle (the road, after round-2 C). The two rows were
+      // rotated to face OUTWARD; +π flips each booth's open front in toward the
+      // aisle so the row reads as a market street you drive down.
+      tent.rotation.y = yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI;
       ctx.group.add(tent);
       registry.add({
         kind: 'tent',
@@ -2407,6 +2410,22 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
   ctx.group.add(stageTorches.group);
   if (stageTorches.animatables && stageTorches.animatables.length) {
     forestAnimatables.push({ chunkKey: ctx.key, animatables: stageTorches.animatables });
+  }
+
+  // ----- B (round-2): string lights across the dancefloor front (port the legacy
+  // main-stage look — "the arch, then 3-4 rows of string lights"). Rows of
+  // bulb-strung pole pairs span the dancefloor width at a few +Z depths, framing the
+  // dancefloor the player spawns behind. Main stage gets the full set; side/tent
+  // stages a lighter pair. Reuses placePolePair (poles chunkKey'd; per-call materials
+  // freed on unload — disposal-safe).
+  const lightRows = isMain ? 3 : 2;
+  const lightSpan = lateralSpread + 3;                       // cables reach just past the dancefloor edge
+  const lightZStart = d / 2 + 4;                             // just in front of the deck
+  const lightZEnd = d / 2 + dancefloorDepth + 12 * scale;    // out across the dancefloor + front audience
+  for (let li = 0; li < lightRows; li++) {
+    const lz = lightRows === 1 ? lightZStart : lightZStart + (li * (lightZEnd - lightZStart)) / (lightRows - 1);
+    const la = rot(-lightSpan, lz), lb = rot(lightSpan, lz);
+    placePolePair(ctx, la.x, la.z, lb.x, lb.z);
   }
 
   // ----- Spatial music for this stage -----

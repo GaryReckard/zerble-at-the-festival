@@ -19,6 +19,12 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   It hangs in the un-driveable gap between two trunks, so it's decorative (no collider,
   disposed with the chunk) and capped at ~2/chunk so it stays a woodland discovery. This
   (plus the picnic blankets near stages) covers the "hammocks/blankets never seen" gap.
+- **String lights across stage dancefloors in v2 (behind `?worldgen=1`).** Ported the
+  legacy main-stage look Gary missed — "the arch, then 3-4 rows of string lights." Each stage
+  now strings rows of bulb-strung pole-pairs across its dancefloor front (3 rows at the main
+  stage, 2 at side/tent stages), framing the space the player spawns behind. Reuses the
+  existing `placePolePair` (poles registered with `chunkKey`; the per-call cable/bulb
+  materials free on chunk unload — disposal-safe). Bulbs are emissive so they read at night.
 
 ### Changed
 - **Crowd follows the roads a bit more in v2 (behind `?worldgen=1`).** The ambient crowd
@@ -36,6 +42,18 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   clip a stage/court). The booth-facing flip — so both lines face *in* toward the aisle —
   lands with the build-side pass; this is the placement half. Moved the POI determinism
   golden (flag-off, re-recorded `3b9fc6b6` → `01532955`); `queryPoint` golden unchanged.
+- **Spawn opens facing the MAIN stage across its dancefloor in v2 (behind `?worldgen=1`).**
+  The player used to spawn at whatever hub was nearest origin — almost always a *minor* one
+  with a tent/side stage (a major is only ~4% of hubs) — and on a road facing the hub center,
+  so you'd see the *back/side* of a stage that deliberately faces the road GAP (round-2 A).
+  Now spawn resolves to the nearest MAJOR hub (`nearestMajorHeart` — never null in practice,
+  verified across 2000 seeds) and places Zerble out on the stage's cleared dancefloor (+F),
+  facing back across it at the wood-roof main stage, with the festival arch at the front edge
+  framing the view through it. If an approach road clips the dancefloor front, the arch +
+  spawn snap onto it so you still spawn on a road when one's there. Both sit ~70% out into the
+  cleared dancefloor so you open in clear ground, not at the tree line. Golden-safe (all
+  `main.js` — no generator change). Lurleen + the intro jug ring already key off the real
+  spawn point, so they follow.
 
 ### Fixed
 - **Drum circles no longer land ON a road in v2 (behind `?worldgen=1`).** A perf pass this
@@ -47,6 +65,13 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   keeping the 12-attempt placement loop on the cheap tests. Drum-on-road rate dropped 16% →
   0.4% across a 10-seed sample. Safe because the drum is the last consumer of the heart's
   layout RNG stream, so the variable final draw desyncs no sibling cluster.
+- **Vendor booths face the aisle, not outward, in v2 (behind `?worldgen=1`).** Completes
+  round-2 C: the two booth lines were rotated to face *away* from the central aisle (Gary:
+  "facing outward rather than toward each other"). Flipped the booth facing 180° (`+π`) in
+  `buildVendorRowAt` so both rows' open fronts + merchandise tables face the aisle Zerble
+  drives down. Pairs with the placement fix above (aisle centered on the road) — together the
+  market street now reads as a proper two-sided row you drive through. Build-side only;
+  goldens untouched.
 
 ## 2026-06-08
 
