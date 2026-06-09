@@ -658,3 +658,18 @@ state); A8 bespoke per-entity porta rules (margin via the overlap guard for now)
 GATES (H.2 cross-engine road-existence integer test, H.3 + F.5 real-device draw/tri budget —
 the throttled preview can't read renderer.info, needs Gary's hardware); I landing (flip
 DEFAULT_WORLDGEN_V2, ARCHITECTURE.md rewrite). **Refs:** -> festival-polish-backlog.md (all A-H marked).
+
+### 2026-06-09 -- Playtest round-2 feedback captured (PAUSED for compact)
+**Event:** phase-change. **What:** Gary playtested seed 0xf7ef2a3c and gave a round-2
+feedback batch; per his instruction, documented it all in **playtest-round2-handoff.md**
+and PAUSED (no code started). 12 items: A spawn-at-MAIN-stage (wood roof) facing the stage +
+no vendor clipping [regression/redo]; B string lights at stages (port legacy look) [new];
+C vendor rows flipped + must straddle a road, booths facing in [bug]; D drum circle must
+not be ON a road [regression — my perf fix dropped the road check in treedDistrictSpot];
+E torches never in the road [bug]; F camps behind vendors = FULL campsites not bare tents
+[regression]; G no trees inside a tent-stage tent [regression — dancefloor rect only clears
+the front, not the tent footprint]; H picnic table redo = proper A-frame + bigger (2/side)
+[redo]; I rewrite people-taxonomy.md neutral/standalone [doc]; J a festival tuning UI with
+live sliders + copy/export [new, big — needs hoisting scattered build constants into one
+tunable object]; K sandbox completeness (add tree_hammock entry, re-verify picnic table).
+Suggested order + hooks + determinism reminders all in the handoff. **Refs:** -> playtest-round2-handoff.md.
