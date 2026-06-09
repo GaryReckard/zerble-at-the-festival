@@ -180,7 +180,7 @@
                 'worldgen/constants', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival'];
             const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
-                'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty'];
+                'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable'];
             const base = new URL('./src/', document.baseURI).href;
             const imports = {
                 'three': 'https://unpkg.com/three@0.160.0/build/three.module.js',
@@ -227,6 +227,7 @@
             <option value="lamppost_pair">Lamppost pair + festoon string lights</option>
             <option value="porta_potty">Porta-potty (demo: door + occupied + stink cycle)</option>
             <option value="porta_potty_bank">Porta-potty bank (5 — staggered use cycle)</option>
+            <option value="picnic_table">Picnic table</option>
         </optgroup>
         <optgroup label="People">
             <option value="cheer_demo">Crowd cheer demo (jump + arms-up)</option>
@@ -522,6 +523,7 @@
     import {buildBubbleJug} from './src/models/bubbleJug.js';
     import {buildBubbleVendor} from './src/models/bubbleVendor.js';
     import {buildPortaPotty, createPottyState, updatePortaPotty, STINK_DUR, POTTY_SPACING} from './src/models/portaPotty.js';
+    import {buildPicnicTable} from './src/models/picnicTable.js';
     import {buildLeafDrumCircle, updateLeafDrumCircle} from './src/models/leafDrumCircle.js';
     import {
         buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
@@ -827,6 +829,7 @@
         lamppost_pair: 'lamppost',
         chunk_drum_circle: 'firepit',
         porta_potty: 'porta_potty', porta_potty_bank: 'porta_potty',
+        picnic_table: 'tent',   // wooden thunk — closest existing SFX
     };
 
     function loadEntity(name) {
@@ -921,6 +924,13 @@
                 scene.add(g);
                 entityRoot = g;
                 cam.target.set(0, 1.0, 0);
+                break;
+            }
+            case 'picnic_table': {
+                const { group } = buildPicnicTable(Math.random);
+                scene.add(group);
+                entityRoot = group;
+                cam.target.set(0, 0.6, 0);
                 break;
             }
             case 'hammock_with_npc': {

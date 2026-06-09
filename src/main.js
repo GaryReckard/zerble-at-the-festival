@@ -1231,6 +1231,7 @@ function toastForKind(kind) {
     case 'hula_hoop': return HULA_HOOP_TOASTS[Math.floor(Math.random() * HULA_HOOP_TOASTS.length)];
     case 'bubble_vendor': return BUBBLE_VENDOR_TOASTS[Math.floor(Math.random() * BUBBLE_VENDOR_TOASTS.length)];
     case 'bench_ring': return 'Easy on the benches!';
+    case 'picnic_table': return 'Mind the picnic tables!';
     case 'porta_potty': return PORTA_POTTY_TOASTS[Math.floor(Math.random() * PORTA_POTTY_TOASTS.length)];
     case 'island': return 'Tiny island, busy day.';
     case 'lurleen': return 'Easy, lover — that\'s Lurleen.';

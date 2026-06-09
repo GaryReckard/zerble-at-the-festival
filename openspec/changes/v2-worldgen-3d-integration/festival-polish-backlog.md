@@ -69,7 +69,7 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
   must pick a straight road segment AWAY from the stage, and keep the rows from crossing
   the stage.)
 - [x] **A6. DONE (grammar) — food courts on the drag, out past the dancefloor, away from the stage.** (somewhat nearby OK).
-- [~] **A7. PARTIAL — the truck ring already leaves an open drivable center (the plaza); picnic tables in it land with C2 (deferred).** Food court center patch — a circular-ish road-like clearing in the middle of a
+- [x] **A7. DONE — food courts set 1-3 picnic tables in the open drivable center plaza (C2).** Food court center patch — a circular-ish road-like clearing in the middle of a
   food-truck circle, big enough for 1-3 picnic tables (see C2), AND still leaving room for
   Zerble to drive *within* the circle. (`buildFoodCourtAt` — add a center plaza + keep the
   truck ring radius generous.)
@@ -97,7 +97,7 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
   has its own posts; needs a variant that uses tree trunks as anchors. Requires the woods
   scatter to expose nearby-tree pairs — a post-pass after `scatterWorldgenTrees` that finds
   trunk pairs within hammock-span.)
-- [ ] **C2. NEW entity: picnic table.** Spawns within/around a food-truck circle (esp. the
+- [~] **C2. CORE DONE — picnicTable model + 1-3 in each food-court center plaza (A7) + sandbox + hit-kind + soft attractor. FOLLOW-UP: the butts-on-benches seated crowd state (a held-seated pose like hammock_riding) is deferred (people mill around the tables for now).** NEW entity: picnic table. Spawns within/around a food-truck circle (esp. the
   center patch, A7). Bonus: people SIT at them (crowd state → "seated at picnic table",
   like the stage-front / potty states). New `models/picnicTable.js` + sandbox entry +
   importmap×3 + crowd seating behavior.

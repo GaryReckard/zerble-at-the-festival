@@ -35,6 +35,7 @@ import { buildBubbleVendor } from './models/bubbleVendor.js';
 import { buildSugarShack, SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH, sugarShackCooks } from './models/sugarShack.js';
 import { buildPortaPotty, createPottyState, POTTY_SPACING, POTTY_FOOTPRINT, POTTY_COLLIDER_R } from './models/portaPotty.js';
 import { buildHammock as buildHammockModel, buildTreeHammock } from './models/hammock.js';
+import { buildPicnicTable } from './models/picnicTable.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
 import { buildTentStage } from './models/tentStage.js';
@@ -1129,7 +1130,7 @@ const CLUSTER_GUARD_SKIP = new Set([
   // off-road drum circle, which lands in a treed pocket). The cluster builds; its own
   // chunk's trees dodge it (built first), and a rare cross-chunk tree clipping a cluster
   // edge is cosmetic. Big SOLID structures (stage/truck/tent) still block (no stacking).
-  'tree', 'forest_tree', 'lake', 'lake_edge', 'shore', 'beach', 'path_node', 'chair', 'picnic', 'stage_front',
+  'tree', 'forest_tree', 'lake', 'lake_edge', 'shore', 'beach', 'path_node', 'chair', 'picnic', 'picnic_table', 'stage_front',
   'porta_potty', 'arch', 'bubble_vendor', 'drum_circle', 'hammock', 'campsite', 'bubble_jug', 'lamppost',
 ]);
 
@@ -1338,6 +1339,33 @@ function buildFoodCourtAt(ctx, x, z) {
       buildBubbleVendorAt(ctx, vx, vz, Math.atan2(x - vx, z - vz));
     }
   }
+  // C2 / A7: picnic tables in the open center plaza (inside the truck ring), so the
+  // court has a place to sit + eat. Each is a soft attractor so the ambient crowd
+  // gathers around the tables (the "people at the picnic area" read; the precise
+  // butts-on-benches seated pose is a tracked follow-up). Spaced so Zerble can still
+  // weave between them within the ring.
+  const tableN = 1 + Math.floor(ctx.rng() * 3);   // 1-3
+  const tablesPlaced = [];
+  for (let i = 0; i < tableN; i++) {
+    const ang = ctx.rng() * Math.PI * 2, rad = ctx.rng() * (ring * 0.45);
+    const tx = x + Math.cos(ang) * rad, tz = z + Math.sin(ang) * rad;
+    if (isPointInLake(tx, tz)) continue;
+    if (tablesPlaced.some((p) => Math.hypot(p.x - tx, p.z - tz) < 3.2)) continue;
+    const pt = buildPicnicTable(ctx.rng);
+    pt.group.position.set(tx, 0, tz);
+    pt.group.rotation.y = ctx.rng() * Math.PI * 2;
+    ctx.group.add(pt.group);
+    registry.add({
+      kind: 'picnic_table',
+      position: new THREE.Vector3(tx, 0, tz),
+      footprint: pt.footprint,
+      collider: { radius: 1.0, damage: 3 },
+      attractor: { radius: 4, weight: 0.6 },
+      chunkKey: ctx.key,
+    });
+    tablesPlaced.push({ x: tx, z: tz });
+  }
+
   // C3: tiki torches ringing the court perimeter (just outside the truck ring).
   const courtTorches = [];
   const torchR = ring + 5;

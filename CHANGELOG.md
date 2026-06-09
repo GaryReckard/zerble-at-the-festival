@@ -5,6 +5,14 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-06-09
 
 ### Added
+- **Picnic tables in the food courts (NEW entity, behind `?worldgen=1`).** Each food
+  court now sets 1–3 A-frame picnic tables in its open center plaza (the truck ring leaves
+  room to drive between them), so the court has a place to sit + eat (A7). New pooled
+  `models/picnicTable.js` (shared geo + wood material, `userData.shared`), wired into the
+  entity sandbox (`?entity=picnic_table`), the importmaps, and the hit-kind/toast tables.
+  Each table is a soft crowd attractor so festival-goers gather at the picnic area. (The
+  precise butts-on-benches *seated* pose is a tracked follow-up — it needs a new held-seated
+  crowd state; for now people mill around the tables.)
 - **Hammocks strung between close trees in v2 (behind `?worldgen=1`).** When the woods
   scatter drops two trees 3–5.5m apart, a post-less hammock occasionally gets slung
   between them — the trunks ARE the posts (new `buildTreeHammock` in `models/hammock.js`).
