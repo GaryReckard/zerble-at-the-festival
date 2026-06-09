@@ -1,7 +1,7 @@
 ---
 change: v2-worldgen-3d-integration
 status: in_progress
-current_task: SALVAGE decided. Next big work = festival LAYOUT GRAMMAR redesign of festival.js (Gary playtest: arrangement is the problem, not density). See festival-polish-backlog.md. Then H gates → I landing.
+current_task: ROUND-2 polish (playtest-round2-handoff.md). Landings ①(vendor straddle + drum off-road, POI golden→01532955) + ②(spawn-at-major arrival + string lights + booth-facing) SHIPPED + verified, flag-off. PAUSED for Gary review. Next: ③ regressions (E torches-off-road, G tent tree-clearing, F full campsites), then ④ models (H picnic A-frame + K sandbox), ⑤ J tuning UI, ⑥ I doc + gates.
 blocked_by: null
 open_questions: 0
 started: 2026-06-06
@@ -701,3 +701,22 @@ is ONE golden-moving pass then five golden-SAFE landings:
   ⑥ doc (I taxonomy) + standing gates (H.2, device budget, flag flip — Gary-gated, NOT without his go).
 Key correction this turn: spawn is golden-safe; the handoff's promotion premise was false (-> D9).
 **Refs:** -> D9, -> playtest-round2-handoff.md, `festival.js` _computePlan §3 + treedDistrictSpot.
+
+### 2026-06-09 -- Round-2 landings ① + ② shipped + verified (PAUSED for Gary review)
+**Event:** phase-change. **What:** First two landings committed, flag-off (worldgen=1).
+  ① (commit 336b7c1) — vendor aisle centered ON the road + drum nudged off any road it lands
+     on. Behavior (10-seed node sample): vendor-on-road 15%→78%, drum-on-road 16%→0.4%. POI
+     golden re-recorded 3b9fc6b6→01532955 (selftest.js comment); queryPoint golden eddf8e50
+     UNCHANGED; selftest 23/24 (the road-neg-control miss is the pre-existing noneBelow=0.05
+     baseline — PROVEN via single-file stash against HEAD, not a regression).
+  ② (commit 13b6bec) — spawn now resolves to nearestMajorHeart(0,0) → wood-roof main_stage,
+     placed ~70% out on the +F dancefloor facing the stage with the arch framing it (road-snap
+     when a road clips the front); string-light rows across stage dancefloors (3 main/2 side,
+     via placePolePair); vendor booth facing flipped +π to face the aisle. ALL golden-safe
+     (main.js + build-side chunks.js — both goldens re-confirmed unchanged). Verified in-game at
+     seed 0xf7ef2a3c: forward vector == dir-to-stage exactly; arrival + vendor-aisle screenshots
+     captured; no console errors. Caught + fixed one feel issue mid-stream (spawn was landing at
+     the dancefloor's rear tree-line at 52m → pulled to ~35m / 26·scale, inside the clearing).
+**Open for Gary:** spawn distance (~70% out) + string-light row count (3) are feel calls;
+"always spawn ON a road" vs "face the stage" is a deliberate tradeoff he may want to revisit.
+**Next:** ③ regressions (E/G/F). **Refs:** commits 336b7c1, 13b6bec; -> D9.
