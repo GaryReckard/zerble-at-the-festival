@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { registry } from './registry.js';
 import { createHeartGeometry, sharedHeartGeometry as _heartGeo } from './models/heart.js';
-import { worldHash, mulberry32 } from './rng.js';
+import { worldHash, mulberry32, getSessionSeed } from './rng.js';
 import { isPointInLake, projectOutOfLake } from './lakes.js';
 
 // Lakes load within 720m of the player; main.js boots `buildWorld()` (which
@@ -39,21 +39,21 @@ const HEART_LIFETIME = 2.4;
 const HEART_INTERVAL_AWARE = 0.18;
 const HEART_INTERVAL_FOLLOW = 0.55;
 
-// Seeded initial spawn — 2.5–3.5 chunks (200–280m) from origin on a session-
-// seeded ring. Used by the constructor so each play-through starts her in a
-// fresh direction without changing the (0,0) main-stage layout.
+// Seeded initial spawn — 2.5–3.5 chunks (200–280m) away on a ring. In v2 (H1) the
+// ring is centered on the PLAYER's actual spawn (the hub), in a session-randomized
+// direction, so Lurleen reliably starts "a distance away" wherever the player begins
+// — not next to them. Legacy (no center) keeps the origin ring + fixed seed
+// byte-identical (the (0,0) main-stage layout must not shift).
 const SPAWN_RING_MIN = 200;
 const SPAWN_RING_MAX = 280;
 
-function pickInitialSpawn() {
-  const rng = mulberry32(worldHash(0xC4F18EE7, 0x5A7B19D3));
+function pickInitialSpawn(center) {
+  const seedHash = center ? (0xC4F18EE7 ^ (getSessionSeed() >>> 0)) : 0xC4F18EE7;
+  const rng = mulberry32(worldHash(seedHash >>> 0, 0x5A7B19D3));
   const angle = rng() * Math.PI * 2;
   const radius = SPAWN_RING_MIN + rng() * (SPAWN_RING_MAX - SPAWN_RING_MIN);
-  return new THREE.Vector3(
-    Math.cos(angle) * radius,
-    0,
-    Math.sin(angle) * radius,
-  );
+  const bx = center ? center.x : 0, bz = center ? center.z : 0;
+  return new THREE.Vector3(bx + Math.cos(angle) * radius, 0, bz + Math.sin(angle) * radius);
 }
 
 // Opportunistic re-home — if the player drives far without ever entering
@@ -77,12 +77,12 @@ function range(n, fn) {
 }
 
 export class Lurleen {
-  constructor(scene) {
+  constructor(scene, center = null) {
     this.scene = scene;
     this.root = new THREE.Group();
     this.root.name = 'Lurleen';
 
-    const spawn = pickInitialSpawn();
+    const spawn = pickInitialSpawn(center);
     const dry = avoidLake(spawn.x, spawn.z);
     if (dry) spawn.set(dry.x, 0, dry.z);
     this.position = spawn.clone();

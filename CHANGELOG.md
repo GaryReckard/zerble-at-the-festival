@@ -4,6 +4,15 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-06-08
 
+### Fixed
+- **Lurleen now starts a proper distance from the player in v2 (behind `?worldgen=1`).**
+  Her initial spawn ring was centered on the world origin, but v2 relocates the player to a
+  festival hub — so she could end up near (or oddly far from) the actual start. She now
+  spawns 200–280m from the player's real spawn point, in a session-randomized direction
+  (verified ~277m at seed 1234). The existing off-camera re-home leash (she quietly
+  relocates ~150–220m from the player if they drive >300m away before meeting her) is
+  unchanged, so she stays findable. Legacy spawn (origin ring) is byte-identical.
+
 ### Added
 - **Campsites enriched in v2 — camps behind vendor stalls + tent counts that track
   the crowd (behind `?worldgen=1`).** Two of Gary's camping asks: (1) **camper tents

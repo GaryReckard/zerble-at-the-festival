@@ -153,7 +153,7 @@ major `{core 100, district 200}`, `LAKE_CELL 600`, `DENSITY_THRESHOLD 0.2`,
 
 ## H. Lurleen (love interest) — `lurleen.js`
 
-- [ ] **H1. Lurleen must START a distance away** in a random direction (she's been spawning
+- [x] **H1. DONE — Lurleen spawns 200-280m from the player's actual hub spawn (random dir, session-seeded); existing re-home leash keeps her findable. Verified ~277m @ seed 1234.** Lurleen must START a distance away in a random direction (she's been spawning
   right next to Zerble in v2 respawns — wrong). **And re-spawn elsewhere if the player gets
   too far from her.** v1 had this right; migrate/update that logic for the worldgen spawn
   (which now relocates Zerble to a heart — `main.js` spawn block). (Find v1's Lurleen

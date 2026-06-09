@@ -291,7 +291,9 @@ Sound.onSongEnd((x, z) => {
 buildWorld(scene, crowd);
 
 // ---------- Lurleen (love interest, persistent across the world) ----------
-const lurleen = new Lurleen(scene);
+// v2 (H1): start Lurleen a distance away from the player's actual hub spawn (random
+// direction), not the origin ring — so she's never right next to a hub-relocated Zerble.
+const lurleen = new Lurleen(scene, USE_WORLDGEN_V2 ? zerble.position.clone() : null);
 let lurleenMet = false;     // first-contact toast latch
 
 // ---------- Moving obstacles (global — not chunk-bound) ----------
