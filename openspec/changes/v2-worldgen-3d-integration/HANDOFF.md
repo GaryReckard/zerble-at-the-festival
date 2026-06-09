@@ -6,6 +6,21 @@
 > consolidated "hit the ground running" doc for wiring the 2D worldgen into the
 > live 3D game.
 
+> **UPDATE 2026-06-09 — layout-grammar redesign + the ENTIRE festival-polish backlog (A–H)
+> are DONE** (all flag-off behind `?worldgen=1`, legacy `?worldgen=0` byte-identical). The
+> festival now reads right: each hub faces a computed front-axis `F` (stage → cleared
+> dancefloor, no road/water in front), the ONE arch is at spawn on the road (banner fixed),
+> tent stages + the full leaf drum circle appear, food courts have picnic tables in a center
+> plaza, tiki torches mark stages/courts, hammocks string between close trees, blankets +
+> lone field trees sprinkle, camps tuck behind vendor stalls + scale with crowd, Lurleen
+> starts a distance away, the crowd follows roads more. Determinism held (queryPoint golden
+> `eddf8e50`; POI golden moved to `3b9fc6b6`, flag-off). See the 2026-06-08/09 session-log
+> entries + `festival-polish-backlog.md` (all A–H marked) + the D3 tasks. **What's LEFT:**
+> the closing GATES (H.2 cross-engine road-existence integer test; H.3 + F.5 real-device
+> draw/tri budget — needs Gary's hardware, the throttled preview can't read `renderer.info`),
+> then I landing (flip `DEFAULT_WORLDGEN_V2=true`, ARCHITECTURE.md rewrite, ROADMAP trim).
+> Small deferred polish: C2 butts-on-benches seated crowd pose; A8 bespoke per-entity porta rules.
+
 ## TL;DR — what this is and where it stands
 
 Wiring the verified, deterministic 2D `src/worldgen/` generator into the **live 3D

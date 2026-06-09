@@ -634,3 +634,27 @@ ES-module eval error). Diagnosed via `import('/src/main.js').catch(e=>e.stack)`.
 `.group`. This is EXACTLY the documented sandbox-pass≠game-pass / buildCampChair `{group,...}`
 class — the isolated import tests passed; only booting the real game (buildWorld) caught it.
 Reinforces: always re-import/boot after touching a chunk builder. **Refs:** -> D3, CLAUDE.md smoke-test rule.
+
+### 2026-06-09 -- Festival-polish backlog COMPLETE (A–H) + perf pass
+**Event:** phase-change. **What:** worked through Gary's entire playtest backlog after the
+layout-grammar landing. Shipped (each its own commit, flag-off, in-game verified, CHANGELOG
+same-commit): A1/A2 the one spawn arch on the road + fixed mirrored FESTIVAL banner; A3-A7
+satisfied by the grammar (stage faces F gap, dancefloor cleared, rows/courts off the drag,
+court center plaza); B1 tent stages (parameterized buildTentStageTheme); B2 the FULL leaf
+drum circle (buildWorldgenDrumCircle — drummers/dancers/benches/fire/groove); B3/B4 hammocks
++ blankets now appear; C1 post-less tree hammocks (buildTreeHammock); C2 NEW picnic-table
+entity (merged to 1 draw) in food-court center plazas + sandbox wiring + hit-kind/toast; C3
+tiki torches at stage dancefloor corners + food-court perimeters; D1/D2/D3 camps behind
+vendor stalls + village tent-count ∝ crowd; E1 crowd road-follow lever bumped; E2 people-
+taxonomy doc (.claude/people-taxonomy.md); F1 lone field trees; G1 blankets near stages;
+H1 Lurleen spawns 200-280m from the player's hub (re-leash already existed). PERF: steady
+per-chunk decision 1.35ms (8ms gate); cold ~9ms one-time-per-region; builds bounded; picnic
+table merged to 1 draw. One boot-crash caught + fixed mid-stream (buildCampTent {group,...}
+return-shape, R2). Determinism held throughout: queryPoint golden eddf8e50 unchanged; POI
+golden moved as expected (flag-off) to 3b9fc6b6. Verified ?worldgen=1 reads as a real
+festival AND ?worldgen=0 legacy byte-identical/boots clean.
+**Deferred/tracked (NOT blocking):** C2 butts-on-benches seated crowd pose (needs a held-seated
+state); A8 bespoke per-entity porta rules (margin via the overlap guard for now); the closing
+GATES (H.2 cross-engine road-existence integer test, H.3 + F.5 real-device draw/tri budget —
+the throttled preview can't read renderer.info, needs Gary's hardware); I landing (flip
+DEFAULT_WORLDGEN_V2, ARCHITECTURE.md rewrite). **Refs:** -> festival-polish-backlog.md (all A-H marked).
