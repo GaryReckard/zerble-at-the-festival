@@ -27,6 +27,26 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   weight (0.5 → 0.85) and radius (6 → 7) so wanderers line the roads more between clusters —
   kept well under the stage's pull (3.5) so hub crowds stay dense. It's a deliberate lever
   (`WAYPOINT_SPACING`/`WAYPOINT_WEIGHT`/`WAYPOINT_RADIUS` in chunks.js) — easy to push further.
+- **Vendor rows straddle the road in v2 (behind `?worldgen=1`).** Round-2 feedback: the
+  market street's two booth lines were offset to ONE side of the road, so the row sat
+  *beside* the drag instead of over it. The festival plan (`festival.js`) now centers each
+  vendor row's aisle ON a road point instead of offsetting it — booths straddle the road and
+  Zerble drives the central aisle down the drag (round-2 C). Vendor-on-road rate went 15% →
+  78% across a 10-seed sample (the rest get nudged clear by the de-overlap guard when they'd
+  clip a stage/court). The booth-facing flip — so both lines face *in* toward the aisle —
+  lands with the build-side pass; this is the placement half. Moved the POI determinism
+  golden (flag-off, re-recorded `3b9fc6b6` → `01532955`); `queryPoint` golden unchanged.
+
+### Fixed
+- **Drum circles no longer land ON a road in v2 (behind `?worldgen=1`).** A perf pass this
+  session had swapped `treedDistrictSpot`'s road-aware `queryPoint` test for cheap
+  `treeDensity`/`lakeAt` to kill a 215µs/call cost — which silently dropped road avoidance, so
+  a drum circle could end up with a road running through the middle of it (Gary found one in
+  the woods, round-2 D). Restored the road check as ONE query on the FINAL chosen spot only
+  (`nudgeOff`, which early-returns at zero extra cost when the spot is already off-road),
+  keeping the 12-attempt placement loop on the cheap tests. Drum-on-road rate dropped 16% →
+  0.4% across a 10-seed sample. Safe because the drum is the last consumer of the heart's
+  layout RNG stream, so the variable final draw desyncs no sibling cluster.
 
 ## 2026-06-08
 

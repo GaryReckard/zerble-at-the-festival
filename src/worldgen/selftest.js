@@ -144,10 +144,16 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // FESTIVAL LAYOUT GRAMMAR rewrite (D3, deliberation 003) — HEART_CELL 200 /
     // noneBelow 0.05, seed 1234:
     //   queryPoint golden  node eddf8e50  /  browser <record>
-    //   POI golden         node 3b9fc6b6  /  browser <record>
+    //   POI golden         node 01532955  /  browser <record>
     // The plan now carries each stage's front-axis bin (`fbin`) + `scale`, so the
     // golden + T6 window-invariance exercise F. (Prior baselines for reference:
-    // 340/0.25 → POI node 4e335f21; the pre-grammar 200/0.05 → POI node 6fa977c8.)
+    // 340/0.25 → POI node 4e335f21; the pre-grammar 200/0.05 → POI node 6fa977c8;
+    // the layout-grammar baseline → POI node 3b9fc6b6.)
+    // ROUND-2 landing ① (2026-06-09) moved the POI golden 3b9fc6b6 → 01532955:
+    // vendor_row now centers ON the road (aisle = the drag, C) instead of offset to
+    // one side, and the drum spot gets nudged off any road corridor it lands on (D).
+    // Both are festival.js _computePlan/treedDistrictSpot edits; queryPoint golden
+    // (eddf8e50) is untouched. Flag-off, expected.
     // The node-vs-browser POI fork remains the accepted cosmetic class; the
     // H.2 road-EXISTENCE integer test is the one non-cosmetic cross-engine gate.
     const boxHearts = heartsInBounds(-3000, -3000, 3000, 3000)

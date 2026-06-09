@@ -91,6 +91,17 @@ R5 lake winding sign, R6 ROAD_MAT userData.shared. See results.md Risk Register.
   not removal (R27); `festival.js` stays a pure data sampler, never a lifecycle manager (R28, D-A). Spawn-at-
   heart is the visible-win Slice 1. Parked to fast-follows: shoreBand/causeway camps, count-tuning,
   drum-circle dense-forest nesting (Group F dep), cross-frame build-splitter.
+- **D9 — Spawn at `nearestMajorHeart(0,0)`, NOT a heart-rank promotion (round-2 item A).**
+  The round-2 handoff assumed spawn must FORCE-PROMOTE the nearest heart to `major` because
+  `nearestMajorHeart(0,0)` "returns NULL at the dense config." A node probe over 2000 random
+  seeds disproves that: it is **never null (0/2000)**; the nearest major sits p50 471m / p95
+  940m / max 1574m from origin, and `nearestHeart(0,0)` is a major only **3.7%** of the time
+  (that is why spawn lands at a minor tent stage today). So spawn simply RESOLVES to the
+  nearest major instead — **golden-safe** (no generator / `festivalPlan` change), and the
+  player never sees world-coords so the distance from (0,0) is invisible. Promotion was
+  rejected: it would special-case the pure generator AND move the POI golden for no
+  player-visible gain. The arch + spawn align to the stage front axis +F (item A geometry,
+  all in `main.js`). Corrects playtest-round2-handoff.md item A's "Problem I already hit".
 
 ## Assumptions
 | # | Assumption | Confidence | Status | Resolution |
@@ -673,3 +684,20 @@ the front, not the tent footprint]; H picnic table redo = proper A-frame + bigge
 live sliders + copy/export [new, big — needs hoisting scattered build constants into one
 tunable object]; K sandbox completeness (add tree_hammock entry, re-verify picnic table).
 Suggested order + hooks + determinism reminders all in the handoff. **Refs:** -> playtest-round2-handoff.md.
+
+### 2026-06-09 -- Round-2 plan locked + landing ① started (spawn premise corrected)
+**Event:** discovery + phase-change. **What:** Built a working model of round-2 and locked an
+OPTIMAL sequence with Gary (both forks resolved his way). The 11 items split on ONE fault line —
+does the edit move the POI golden? Only **2 do** (C vendor placement + D drum spot). So the plan
+is ONE golden-moving pass then five golden-SAFE landings:
+  ① plan-layer golden batch — `festival.js` C-placement (vendor aisle = the road) + D (drum
+     off-road, 1 final-spot query) → re-record POI golden ONCE, node↔browser verify ONCE, boot ONCE.
+  ② arrival (golden-safe) — A spawn-at-major (-> D9) + B legacy string-light rows + C booth-facing flip.
+  ③ regressions (golden-safe) — E torches off-road (reuse `pointNearWorldgenRoad`), G clear the
+     tent-stage FOOTPRINT for tree scatter (not just the front rect), F full `buildCampsite('small')`.
+  ④ models — H A-frame picnic (~2.8m, 2/side) + K sandbox sweep (add missing `tree_hammock` entry).
+  ⑤ the lever — J: hoist ~34 scattered constants → `FESTIVAL_TUNING` (behavior-preserving,
+     golden-safe) then an in-game slider/export overlay. AFTER correctness so it binds corrected logic.
+  ⑥ doc (I taxonomy) + standing gates (H.2, device budget, flag flip — Gary-gated, NOT without his go).
+Key correction this turn: spawn is golden-safe; the handoff's promotion premise was false (-> D9).
+**Refs:** -> D9, -> playtest-round2-handoff.md, `festival.js` _computePlan §3 + treedDistrictSpot.

@@ -271,22 +271,30 @@ function treedDistrictSpot(heart, rng, avoidBearing) {
   const r1 = Math.min(heart.core + DRUM_BAND, heart.district * 0.7);
   const FRONT_HALF = 0.7;                       // ~40° wedge around +F kept clear (the dancefloor)
   let fallback = null;
+  let chosen = null;
   for (let attempt = 0; attempt < 12; attempt++) {
     const a = rng() * Math.PI * 2;
     const r = r0 + rng() * Math.max(0, r1 - r0);
     // keep the drum out of the stage's dancefloor wedge (back/side of F, not in front)
     if (avoidBearing != null && Math.abs(Math.atan2(Math.sin(a - avoidBearing), Math.cos(a - avoidBearing))) < FRONT_HALF) continue;
     const x = heart.x + Math.cos(a) * r, z = heart.z + Math.sin(a) * r;
-    // Cheap tests only — `treeDensity` + `lakeAt`, NOT the heavy `queryPoint`
-    // (whose nearestRoad ran 215µs/call × 12 attempts = the bulk of the plan's
-    // cold cost). Road-corridor avoidance is dropped: the overlap guard + the
-    // build-side cluster guard keep the drum off structures, and a drum near a
-    // district road is fine. Water is still avoided (lakeAt).
+    // Cheap tests only in the LOOP — `treeDensity` + `lakeAt`, NOT the heavy
+    // `queryPoint` (whose nearestRoad ran 215µs/call × 12 attempts = the bulk of
+    // the plan's cold cost). Water is avoided here; the road check is ONE query on
+    // the FINAL spot below (D — Gary round-2: "drum circle should not be ON a road").
     if (lakeAt(quantize(x), quantize(z))) continue;
     if (!fallback) fallback = { x, z };       // first dry spot, in case nothing is treed
-    if (treeDensity(x, z) >= 0.25) return { x, z };
+    if (treeDensity(x, z) >= 0.25) { chosen = { x, z }; break; }
   }
-  return fallback;
+  const spot = chosen || fallback;
+  if (!spot) return null;
+  // D: one queryPoint on the FINAL chosen spot only — nudge the drum off the road
+  //    corridor if it landed on one. `nudgeOff` early-returns (0 rng draws) when the
+  //    spot is already off-road — the common case, so the loop stays cheap — and only
+  //    ring-scans when it actually sits on a road. SAFE here because the drum is the
+  //    LAST consumer of this heart's poiLayout stream (file header): a variable final
+  //    draw desyncs no sibling cluster, and the result is quantized.
+  return nudgeOff(spot.x, spot.z, rng);
 }
 
 // ── Per-heart festival plan (memoized, gated on (seed, epoch)) ───────────────
@@ -396,17 +404,19 @@ function _computePlan(heart) {
     idx++;
   }
 
-  // 3. VENDOR ROWS parallel to the drag (the market street), out past the dancefloor (A5).
+  // 3. VENDOR ROWS straddling the drag (the market street, A5/C): the central
+  //    AISLE *is* the road — the descriptor centers ON a road point and the build
+  //    half (buildVendorRowAt) lays two booth lines ±rowOffset facing IN across it,
+  //    so Zerble drives the aisle down the road. Out past the dancefloor depth.
+  //    yaw = the road tangent (π/2 − bearing) so the rows run along the road. No
+  //    perpOff/nudgeOff: a road point is buildable by construction, and sitting ON
+  //    the road is the whole point — that is what makes the aisle drivable.
   const rowN = Math.min(roads.length, major ? 2 : 1);
   for (let i = 0; i < rowN; i++) {
     const rd = roads[i];
     const dist = Math.min(MAX_POI_REACH, (rd.lenQ * 0.34) | 0, (major ? 66 : 50) + rng() * 18);
     const p = walkOriented(rd.oriented, dist);
-    const side = rng() < 0.5 ? 1 : -1;
-    const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + 10, side);
-    const spot = nudgeOff(o.x, o.z, rng);
-    // Row runs PARALLEL to the road → yaw aligns to the road tangent (π/2 − bearing).
-    if (spot) out.push(desc('vendor_row', spot.x, spot.z, Math.PI / 2 - p.bearing, 'core', heart.rank, false, clusterSeed(heart, idx)));
+    out.push(desc('vendor_row', p.x, p.z, Math.PI / 2 - p.bearing, 'core', heart.rank, false, clusterSeed(heart, idx)));
     idx++;
   }
 
