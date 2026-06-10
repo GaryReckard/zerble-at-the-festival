@@ -70,6 +70,78 @@ What's queued, roughly in order:
   circle nested in dense forest" we liked — deferred), and tighter lakeshore-ring
   causeway tuning.
 
+### Festival layout — the plan/build contract refactor *(diagnosed 2026-06-10)*
+
+Two playtest rounds of "jumbled mess" feedback (trucks clipping vendor rows,
+random porta potties, no discernible order) trace to ONE root cause, not N bugs:
+`festival.js` plans the hub as **points with scalar clear-radii**
+(`KIND_FOOTPRINT`, [festival.js:196](src/worldgen/festival.js#L196)) while the
+`chunks.js` builders construct **oriented shapes that exceed those radii** (a
+"16m" food court really spans ~20m+ of truck ring; a "12m" vendor row is an
+~18-20m rectangle with camps behind) — so `resolveOverlaps` settles clusters at
+separations that guarantee clipping, the 38m dancefloor rect only repels *trees*
+(POIs never read it), builders place sub-components blind (the registry-check
+discipline main's theme builders had was dropped), and nothing enforces
+stage-vs-stage distance across hearts. Item-by-item regression fixes can't close
+this; the contract can. The fix, in order: (1) hoist the ~34 scattered layout
+constants into one `FESTIVAL_TUNING` object both planner and builders read
+(round-2 item J's prerequisite), (2) descriptors carry **oriented bounding
+shapes derived from the same constants the builder uses**, and overlap/road/
+water/dancefloor checks run against shapes, (3) replace scatter-then-relax with
+**zone slotting** per hub (stage + hard-reserved front wedge on F; vendor aisles
+along roads with camps auto-reserved behind; courts off-road at a min stage
+distance, optional spur road to center; potties attached to a parent zone's
+edge), (4) restore per-sub-component `registry` clearance in builders as the
+graceful-degradation backstop. One golden-moving batch, flag-off. Full
+diagnosis + design: OpenSpec `festival-zone-grammar`. **Depends on the layout
+harness below — the linter is the verification gate; don't start the grammar
+rewrite without it.**
+
+### Layout-work agent harness *(designed 2026-06-10)*
+
+Every existing surface verifies the *plan* (map-sandbox), an *entity*
+(sandbox.html), *determinism* (selftest goldens), or *perf* (HUD) — none
+verifies the **built composition**, which is where every arrangement bug lives.
+Today the only detector is Gary driving around. Queued additions, in priority
+order (full designs: OpenSpec `worldgen-layout-harness`):
+
+- **Layout linter** — headless node script asserting *quality* invariants
+  (no footprint overlaps, nothing in a dancefloor wedge, booths straddle +
+  face roads, no truck on a road, potties attached to a parent, stage-stage
+  min distance, spawn on road w/ arch + stage ahead) across N seeds; outputs
+  violations w/ seed + coords + deep-link. The regression gate for the grammar
+  refactor — the assertions ARE the spec.
+- **Dry-runnable builders + true-extent map-sandbox overlay** — builders
+  express sub-component layouts as pure data (descriptor in → positions/radii
+  out, no three.js); the 2D sandbox then draws every actual truck/booth/tent
+  so clipping is visible at a glance. Same data feeds the linter and the
+  shape-aware planner.
+- **Hub viewer** — the missing middle between one-entity sandbox and the full
+  game: build ONE complete hub (real `festivalPlan` + real builders) on a flat
+  plane, free-orbit, deep-linkable `?seed=&hub=`. Where grammar iteration and
+  Gary-facing 3D screenshots happen.
+- **`__dbg` additions** — `gotoHub(n)` (teleport + canonical camLock),
+  `topDown(x,z,span)` (ortho snapshot, catches cross-chunk seams),
+  `showFootprints()` (registry footprints + dancefloor rects as ground decals),
+  `dumpRegistry(bounds)` (JSON of built truth — lets the linter audit the LIVE
+  game, closing the sandbox-pass/game-fail class for layout).
+- **Playtest marker hotkey** — drop `{seed, position, heading, note}` markers
+  during Gary's playtests w/ copy-out, so feedback arrives as teleportable
+  coordinates instead of prose archaeology.
+- **Seed-gallery batch snapshots** — contact-sheet montage of map-sandbox/hub
+  renders across 10-20 seeds; layout quality is a distribution property and
+  single-seed verification keeps missing the tail.
+- **`FESTIVAL_TUNING` live-slider UI** (round-2 item J) — wire to the hub
+  viewer (instant single-hub rebuild) rather than the streaming world.
+- **Importmap bootstrap dedupe** *(parked 2026-06-10, beyond the harness
+  change — Gary call)*: the four html pages (index, sandbox, map-sandbox,
+  hub-sandbox) each carry a near-identical inline cache-buster/importmap
+  injector; they could collapse into one shared classic-script bootstrap. Not
+  urgent — the harness change ships a consistency-checker script that fails
+  loudly on list drift — and it touches prod loading, so it must not ride
+  inside a golden-frozen change. See `worldgen-layout-harness`
+  deliberations/001-initial (Q6).
+
 ---
 
 ## Music

@@ -70,6 +70,17 @@ small hearts, LAKE_CELL 600, DENSITY_THRESHOLD 0.2, LAKE_RING_BAND 160) — UNCO
 Self-test is **23/24** at this density (road negative-control loses teeth at 5% empty — not a determinism break;
 re-settle when tuning, see the backlog). Goldens drift as we tune (flag-off, fine).
 
+> **⚠ RE-SEQUENCED 2026-06-10 (Gary-confirmed — supersedes the priority order below).**
+> The playtest verdict (festival arrangement is jumbled) makes the old "Group I
+> landing next" order WRONG: flipping `DEFAULT_WORLDGEN_V2=true` now would ship the
+> jumble to real players on the live deploy. **Corrected cross-change order:**
+> ① **H.2** (below — still first, it moves the queryPoint golden) → ② the
+> **`worldgen-layout-harness`** change (linter/capture/hub-viewer — see its README)
+> → ③ the **`festival-zone-grammar`** change (the layout rewrite, measured against
+> the harness baseline) → ④ **H.3/F.5 + Group I landing** (the flip, ARCHITECTURE
+> rewrite, ROADMAP trim). Items H.3/F.5/I below remain accurate as descriptions —
+> only their TIMING moved. Do not flip the default before the grammar change lands.
+
 **NEXT (priority order):**
 1. **Group H — gates (DELICATE — start with fresh context):**
    - **H.2 cross-engine road-EXISTENCE integer test (the one non-cosmetic cross-engine gate).** The
