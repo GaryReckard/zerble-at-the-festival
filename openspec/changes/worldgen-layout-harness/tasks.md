@@ -41,7 +41,7 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
 
 ## 1. The instrument first — capture + `__dbg` layout verbs
 
-- [ ] 1.1 `__dbg.dumpRegistry(bounds?)` in main.js — JSON-able array {kind, x, z,
+- [x] 1.1 `__dbg.dumpRegistry(bounds?)` in main.js — JSON-able array {kind, x, z,
       footprint, colliderR, damage, attractorR, attractorW, chunkKey} + per-
       cluster draw counts once 1.4 lands. Anchor: `window.__dbg` object at
       [main.js:1307](../../../src/main.js#L1307); register in `help()`
@@ -51,7 +51,7 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
       done = booted game, `JSON.stringify(__dbg.dumpRegistry()).length > 0`,
       includes a known kind (e.g. 'stage'), and a second call returns identical
       output.
-- [ ] 1.2 `bin/layout-snapshot <seed> [out.json]` — boot → `__dbg.start()` →
+- [x] 1.2 `bin/layout-snapshot <seed> [out.json]` — boot → `__dbg.start()` →
       settle (loaded-chunk count stable for 60 frames, no driving) →
       `dumpRegistry()` → normalize (sort kind+x+z, round 1e-4) → write
       `verification/snapshots/<seed>.json`; plus `--diff a b` + `--seeds` loop.

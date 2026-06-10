@@ -1,0 +1,3 @@
+# Raw browser dumps are reproducible scratch inputs to bin/layout-snapshot.
+# The normalized snapshots/ files are the durable, committed baseline artifacts.
+raw/

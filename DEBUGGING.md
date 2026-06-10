@@ -40,6 +40,11 @@ window.__dbg.help()          // prints the whole map — start here
 | `camLock(px,py,pz, tx,ty,tz)` | Pin the camera to a fixed world pose (position → look target). **Overrides the chase cam** every frame so it can't drag back. `tx,ty,tz` default to `(0, 1.8, 0)`. |
 | `camUnlock()` | Release back to the normal chase cam. |
 
+### Inspect the built layout
+| Call | Does |
+|---|---|
+| `dumpRegistry(bounds?)` | **Read-only** JSON-able array of every registry entry — `{kind, x, z, footprint, colliderR, damage, attractorR, attractorW, chunkKey}`. Optional `bounds = {minX,minZ,maxX,maxZ}` clips to a window (one hub). This is the "built truth" the layout linter checks and `bin/layout-snapshot` freezes against; never mutates anything. |
+
 ### Reach into the other surfaces
 | Property | Is |
 |---|---|
@@ -191,3 +196,45 @@ For model/visual work, prefer the **sandbox** loop (edit → screenshot
 `?entity=foo` → repeat). For emergent/world/crowd/collision behavior — anything
 the sandbox doesn't exercise — drive the **main game** with `__dbg`. Always boot
 the main game before declaring done; sandbox-pass + game-crash has happened.
+
+---
+
+## Layout snapshots — capturing built truth
+
+A **layout snapshot** is the registry, captured as data, normalized so two
+captures are byte-comparable. It's the gate the worldgen hoist + the future
+grammar rewrite are measured against: "did the *built* world change?" (The
+determinism *goldens* — `selftest.js` hashes — cover the *plan*, not the build.
+Two different things; keep the words apart. A snapshot is **not** a golden.)
+
+Built truth lives in the **browser** (the registry is populated by `chunks.js`
+running in a live scene — no headless node path exists). So capture is split:
+the browser produces the raw dump; **`bin/layout-snapshot`** does the
+deterministic node half (normalize → write → diff). Get the exact recipe for a
+seed with `bin/layout-snapshot --recipe <seed>`; the multi-seed playbook with
+`bin/layout-snapshot --seeds`. The copy-paste loop:
+
+```
+# 1. Boot pinned: ?worldgen=1&seed=<S>&perf=high  (tier is pinned — built truth
+#    is tier-dependent today: crowd draws from the cluster rng stream).
+preview_eval:  window.location.href='http://127.0.0.1:8765/?worldgen=1&seed=1234&perf=high'
+preview_eval:  window.__dbg.start()
+# 2. Settle ~3s, NO DRIVING. Confirm the registry is stable (the entry count is
+#    a faithful "all chunks in this window loaded" proxy) — read it twice:
+preview_eval:  window.__dbg.dumpRegistry().length         // run twice; capture once it stops climbing
+# 3. Dump (a hub window keeps the payload small — the full world is ~3k entries):
+preview_eval:  JSON.stringify(window.__dbg.dumpRegistry({minX:163,minZ:-186,maxX:403,maxZ:54}))
+#    → save that string to verification/raw/1234.json
+# 4. Normalize → verification/snapshots/1234.json
+bin/layout-snapshot 1234 --window spawn
+# 5. Diff two captures (twice-capture self-diff control — MUST print EMPTY before
+#    any refactor diff is trusted):
+bin/layout-snapshot --diff verification/snapshots/1234.json verification/snapshots/1234.b.json
+```
+
+`bin/layout-snapshot` **drops the two moving kinds** (`lurleen`, `hula_hoop`) on
+normalize — they're actors, not layout, and would make a self-diff differ
+forever. It rounds coords to `1e-4` and sorts by `kind+x+z` so identical builds
+serialize identically. `--diff` exits `0` (`EMPTY`) when layouts match, `1` with
+a per-kind report otherwise; it also flags per-cluster draw-count drift once the
+canary (task 1.4) lands.

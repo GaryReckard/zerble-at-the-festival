@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "1.1 __dbg.dumpRegistry (group 1 — model switch per APPLY-GUARDRAILS routing before starting)"
+current_task: "1.3 twice-capture self-diff control for all 3 seeds (1.1+1.2 done; instrument committed)"
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -146,3 +146,33 @@ road-negative-control teeth-loss documented in the v2 log (noneBelow=0.05
 baseline, proven not-a-regression 2026-06-09) — so every "selftest passes" gate
 in this change reads as "23/24 with ONLY that known miss; both hashes pinned."
 **Refs:** -> Task 0.1, -> D7, v2 session-log 2026-06-10 entry, CHANGELOG 2026-06-10
+
+### 2026-06-10 -- Group 1 instrument (1.1 dumpRegistry + 1.2 layout-snapshot) — capture is browser+node SPLIT
+**Event:** decision + discovery
+**What:** D-A reads "`bin/layout-snapshot` one command wrapping boot → start →
+settle → dump → normalize → write." That literal reading is impossible: the
+registry is populated by `chunks.js` running in a LIVE BROWSER scene; there is
+no headless-node path and no browser driver in this no-build repo (checked:
+node 24 present, no puppeteer/playwright, no node_modules). So capture is split
+and the split is the honest architecture, not a shortcut: the BROWSER produces
+the raw `dumpRegistry()` array (via the preview-MCP recipe, which `--recipe`/
+`--seeds` print and DEBUGGING.md documents); `bin/layout-snapshot` is the
+DETERMINISTIC NODE HALF (normalize → write → `--diff`). Two decisions baked in:
+(1) **movers excluded** — `lurleen` + `hula_hoop` mutate position every frame
+(actors, not layout); normalize drops them or the twice-capture self-diff could
+never be empty (it dropped 3 in the seed-1234 spawn window). (2) **settle proxy
+= registry entry count**, not chunk count — `__dbg.game` exposes `registry` but
+not the chunk manager, and entry-count-stable is a faithful "this window's
+chunks all loaded" signal. CONTROL PROVEN: two fresh captures of seed 1234
+(spawn window, perf=high, no driving) → byte-identical normalized snapshots
+(`--diff` EMPTY, 546 entries); negative control confirms the diff catches a
+0.5m move. `round4` is JSON-format-noise insurance — identical builds already
+yield identical floats. Also FIXED a bug my own 0.1 commit introduced: the
+`## 2026-06-10` CHANGELOG header had overwritten `## 2026-06-09`, mislabeling
+that day's shipped work (picnic tables / vendor straddle / arrival) under the
+10th — header restored. Capture payload note: full-world dump is ~3k entries
+(~500KB), over the preview-eval token cap — hub-window bounds keep it small
+*and* match D-A's "deliberate snapshot windows," so window captures are the
+norm. `verification/raw/` gitignored (reproducible scratch); `snapshots/` is
+the committed baseline.
+**Refs:** -> Task 1.1, -> Task 1.2, design D-A, DEBUGGING.md "Layout snapshots", -> A1 (movers/settle inform the grammar change's extraction)

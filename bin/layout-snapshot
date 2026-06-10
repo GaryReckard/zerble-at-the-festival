@@ -1,0 +1,271 @@
+#!/usr/bin/env node
+/*
+ * bin/layout-snapshot — capture, normalize, and diff "built-truth" layout
+ * snapshots of the procedural festival (worldgen-layout-harness task 1.2).
+ *
+ * WHY a snapshot tool: the determinism goldens cover the *plan* (festival.js);
+ * NOTHING covers the *built* world (chunks.js builders → registry). The hoist
+ * (group 2) and every future grammar commit are gated on "the built world did
+ * not change" — which means we need the built world as comparable data. This
+ * script is that comparison's deterministic half.
+ *
+ * THE ARCHITECTURE (read this before expecting it to "just boot the game"):
+ * the registry is populated by GAME code running in a BROWSER (chunks.js needs
+ * THREE + a live scene). A pure-node CLI cannot boot it — there is no headless
+ * browser in this no-build repo. So capture is split:
+ *
+ *   1. BROWSER half (the agent / a human, via the preview-MCP recipe printed by
+ *      `--recipe`): boot `?worldgen=1&seed=S&perf=high`, __dbg.start(), let the
+ *      world settle (loaded-chunk count stable, NO driving), then
+ *      `__dbg.dumpRegistry()` → save the raw array to verification/raw/<seed>.json.
+ *   2. NODE half (this script): read that raw array, NORMALIZE it (drop the two
+ *      moving kinds, round coords to 1e-4, sort by kind+x+z), and write the
+ *      canonical snapshot to verification/snapshots/<seed>.json. Plus `--diff`.
+ *
+ * That split is deliberate and honest, not a shortcut: only the browser can
+ * produce built truth, and only deterministic normalization makes two captures
+ * byte-comparable. `--recipe`/`--seeds` make the browser half copy-paste cheap
+ * (a tedious gate is a skipped gate).
+ *
+ * MOVERS EXCLUDED: `lurleen` and `hula_hoop` hold live, per-frame-mutated
+ * positions (registry.js:16 "drifting hula-hoopers", lurleen.js:133). They are
+ * ACTORS, not layout — including them would make two captures taken a few frames
+ * apart differ forever, so the twice-capture self-diff control (task 1.3) could
+ * never be empty. They are dropped during normalize. Everything static (stages,
+ * trucks, booths, pottys, camps, trees, arches, lakes, roads/path_nodes) stays.
+ *
+ * No dependencies; CommonJS so it runs as an extensionless bin script without a
+ * package.json "type":"module". Precedent: bin/readme-sync.
+ */
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.resolve(__dirname, '..');
+const RAW_DIR = path.join(ROOT, 'verification', 'raw');
+const SNAP_DIR = path.join(ROOT, 'verification', 'snapshots');
+
+// Kinds whose position is mutated every frame — actors, not built layout.
+// Keep this list tiny and explicit; adding to it is a layout-vs-actor decision.
+const MOVING_KINDS = new Set(['lurleen', 'hula_hoop']);
+
+// The seeds the change captures against (task 1.5). 0xf7ef2a3c is the round-2
+// playtest seed; +1 is the "fresh" third. Kept here so --seeds with no list
+// reproduces the canonical set.
+const DEFAULT_SEEDS = ['1234', '0xf7ef2a3c', '0xf7ef2a3d'];
+
+function die(msg, code = 1) { process.stderr.write(msg + '\n'); process.exit(code); }
+function ensureDir(d) { fs.mkdirSync(d, { recursive: true }); }
+
+// Round a coordinate/radius to 1e-4 and squash -0 → 0 (JSON-stable). null passes
+// through (absent collider/attractor fields).
+function round4(v) {
+  if (v == null) return null;
+  return (Math.round(v * 1e4) / 1e4) + 0;
+}
+
+// Turn a raw dumpRegistry() array into the canonical, comparable entry list.
+function normalizeEntries(raw) {
+  return raw
+    .filter((e) => !MOVING_KINDS.has(e.kind))
+    .map((e) => ({
+      kind: e.kind,
+      x: round4(e.x),
+      z: round4(e.z),
+      footprint: round4(e.footprint != null ? e.footprint : 0),
+      colliderR: round4(e.colliderR),
+      damage: e.damage != null ? e.damage : null,
+      attractorR: round4(e.attractorR),
+      attractorW: round4(e.attractorW),
+      chunkKey: e.chunkKey != null ? e.chunkKey : null,
+    }))
+    .sort((a, b) =>
+      (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0) ||
+      (a.x - b.x) || (a.z - b.z) ||
+      (a.footprint - b.footprint) ||
+      ((a.chunkKey || '') < (b.chunkKey || '') ? -1 : (a.chunkKey || '') > (b.chunkKey || '') ? 1 : 0));
+}
+
+function readRaw(rawPath) {
+  if (!fs.existsSync(rawPath)) {
+    die(`raw capture not found: ${path.relative(ROOT, rawPath)}\n` +
+        `Capture it first — run:  bin/layout-snapshot --recipe ${path.basename(rawPath, '.json')}`);
+  }
+  let parsed;
+  try { parsed = JSON.parse(fs.readFileSync(rawPath, 'utf8')); }
+  catch (e) { die(`raw capture is not valid JSON (${path.relative(ROOT, rawPath)}): ${e.message}`); }
+  // Accept either a bare dumpRegistry() array, or {entries:[...]} (e.g. a
+  // previously-written snapshot being re-normalized).
+  const arr = Array.isArray(parsed) ? parsed : parsed.entries;
+  if (!Array.isArray(arr)) die(`raw capture has no entry array: ${path.relative(ROOT, rawPath)}`);
+  return arr;
+}
+
+// `bin/layout-snapshot <seed> [outfile] [--raw f] [--tier t] [--window w] [--stdin]`
+function cmdCapture(args) {
+  const seed = args.positional[0];
+  if (!seed) die('usage: bin/layout-snapshot <seed> [outfile] [--raw f] [--tier high] [--window name] [--stdin]');
+  const tier = args.flags.tier || 'high';
+  const win = args.flags.window || 'settled';
+  let raw;
+  if (args.flags.stdin) {
+    const txt = fs.readFileSync(0, 'utf8');
+    const parsed = JSON.parse(txt);
+    raw = Array.isArray(parsed) ? parsed : parsed.entries;
+    if (!Array.isArray(raw)) die('stdin has no entry array');
+  } else {
+    const rawPath = args.flags.raw ? path.resolve(args.flags.raw) : path.join(RAW_DIR, `${seed}.json`);
+    raw = readRaw(rawPath);
+  }
+  const entries = normalizeEntries(raw);
+  const dropped = raw.length - entries.length;
+  const snapshot = {
+    seed: String(seed),
+    tier,
+    worldgen: true,
+    window: win,
+    entryCount: entries.length,
+    moversExcluded: dropped,          // lurleen + hula_hoop count, for transparency
+    drawCounts: null,                 // filled by task 1.4 (per-cluster canary)
+    entries,
+  };
+  const outPath = args.positional[1]
+    ? path.resolve(args.positional[1])
+    : path.join(SNAP_DIR, `${seed}.json`);
+  ensureDir(path.dirname(outPath));
+  // Trailing newline; 2-space indent — git-diff friendly, deterministic.
+  fs.writeFileSync(outPath, JSON.stringify(snapshot, null, 2) + '\n');
+  process.stdout.write(
+    `wrote ${path.relative(ROOT, outPath)}  (${entries.length} layout entries, ${dropped} movers dropped, tier=${tier})\n`);
+}
+
+function loadSnapshot(p) {
+  const abs = path.resolve(p);
+  if (!fs.existsSync(abs)) die(`snapshot not found: ${p}`);
+  return JSON.parse(fs.readFileSync(abs, 'utf8'));
+}
+
+// `bin/layout-snapshot --diff <a> <b>` — exit 0 if the LAYOUT is identical,
+// 1 otherwise. Compares the normalized entry list and (when present) the
+// per-cluster draw-count canary. Metadata (window label, capturedAt) is NOT
+// compared — only built truth.
+function cmdDiff(args) {
+  const [pa, pb] = args.positional;
+  if (!pa || !pb) die('usage: bin/layout-snapshot --diff <a.json> <b.json>');
+  const A = loadSnapshot(pa), B = loadSnapshot(pb);
+  const out = [];
+  if (A.tier !== B.tier) out.push(`! tier mismatch: ${A.tier} vs ${B.tier} (snapshots are only comparable at the same pinned tier)`);
+
+  const ea = A.entries || [], eb = B.entries || [];
+  const keyOf = (e) => `${e.kind}|${e.x}|${e.z}|${e.footprint}|${e.colliderR}|${e.damage}|${e.attractorR}|${e.attractorW}|${e.chunkKey}`;
+  const setA = new Map(), setB = new Map();
+  for (const e of ea) setA.set(keyOf(e), (setA.get(keyOf(e)) || 0) + 1);
+  for (const e of eb) setB.set(keyOf(e), (setB.get(keyOf(e)) || 0) + 1);
+  const onlyA = [], onlyB = [];
+  for (const [k, n] of setA) { const m = setB.get(k) || 0; if (n > m) onlyA.push(`${k}  ×${n - m}`); }
+  for (const [k, n] of setB) { const m = setA.get(k) || 0; if (n > m) onlyB.push(`${k}  ×${n - m}`); }
+
+  if (ea.length !== eb.length) out.push(`! entry count: ${ea.length} (${path.basename(pa)}) vs ${eb.length} (${path.basename(pb)})`);
+  const LIM = 25;
+  if (onlyA.length) out.push(`! only in ${path.basename(pa)} (${onlyA.length}):\n    ` + onlyA.slice(0, LIM).join('\n    ') + (onlyA.length > LIM ? `\n    …+${onlyA.length - LIM} more` : ''));
+  if (onlyB.length) out.push(`! only in ${path.basename(pb)} (${onlyB.length}):\n    ` + onlyB.slice(0, LIM).join('\n    ') + (onlyB.length > LIM ? `\n    …+${onlyB.length - LIM} more` : ''));
+
+  // Draw-count canary (task 1.4): compare when both carry it.
+  if (A.drawCounts && B.drawCounts) {
+    const dc = JSON.stringify(A.drawCounts) !== JSON.stringify(B.drawCounts);
+    if (dc) out.push('! per-cluster draw counts differ (canary) — positions matched but a draw was added/dropped/reordered');
+  }
+
+  if (out.length === 0) {
+    process.stdout.write(`EMPTY — layouts identical (${ea.length} entries, tier=${A.tier})\n`);
+    process.exit(0);
+  }
+  process.stdout.write(`DIFF — ${path.basename(pa)} vs ${path.basename(pb)}\n` + out.join('\n') + '\n');
+  process.exit(1);
+}
+
+function recipeFor(seed, win) {
+  const window = win || 'spawn';
+  return [
+    `# ── capture seed ${seed} (window: ${window}) ────────────────────────────`,
+    `# 1. preview_eval:  window.location.href = 'http://127.0.0.1:8765/?worldgen=1&seed=${seed}&perf=high'`,
+    `# 2. preview_eval:  window.__dbg.start()`,
+    `# 3. settle ~3s, NO driving — then confirm the registry is stable (the entry`,
+    `#    count is a faithful proxy for "all chunks in this window have loaded"):`,
+    `#    preview_eval:  window.__dbg.dumpRegistry().length`,
+    `#    (run twice ~1s apart; capture only once the number stops climbing)`,
+    `# 4. preview_eval:  JSON.stringify(window.__dbg.dumpRegistry())`,
+    `#    save that string to  verification/raw/${seed}.json`,
+    `# 5. normalize:  bin/layout-snapshot ${seed}`,
+    ``,
+  ].join('\n');
+}
+
+function cmdRecipe(args) {
+  const seed = args.positional[0];
+  if (!seed) die('usage: bin/layout-snapshot --recipe <seed> [window]');
+  process.stdout.write(recipeFor(seed, args.positional[1]));
+}
+
+// `--seeds [list]` — print the full capture+normalize+diff playbook for each
+// seed so the multi-seed ritual is one command's worth of copy-paste.
+function cmdSeeds(args) {
+  const list = args.positional.length ? args.positional[0].split(',') : DEFAULT_SEEDS;
+  process.stdout.write(`# layout-snapshot multi-seed playbook (${list.length} seeds)\n`);
+  process.stdout.write(`# capture protocol: ?worldgen=1&perf=high, crowd on, no driving.\n\n`);
+  for (const s of list) process.stdout.write(recipeFor(s.trim()));
+  process.stdout.write(`# twice-capture self-diff control (task 1.3) — for each seed, capture a\n`);
+  process.stdout.write(`# SECOND time into verification/raw/<seed>.b.json, then:\n`);
+  for (const s of list) {
+    const seed = s.trim();
+    process.stdout.write(`#   bin/layout-snapshot ${seed} verification/snapshots/${seed}.b.json --raw verification/raw/${seed}.b.json\n`);
+    process.stdout.write(`#   bin/layout-snapshot --diff verification/snapshots/${seed}.json verification/snapshots/${seed}.b.json   # must print EMPTY\n`);
+  }
+}
+
+function printHelp() {
+  process.stdout.write([
+    'bin/layout-snapshot — built-truth layout capture/normalize/diff',
+    '',
+    '  bin/layout-snapshot <seed> [outfile]      normalize verification/raw/<seed>.json → snapshot',
+    '      --raw <file>    raw capture path (default verification/raw/<seed>.json)',
+    '      --stdin         read the raw dumpRegistry() array from stdin instead',
+    '      --tier <t>      pinned tier label (default high)',
+    '      --window <w>    window label stored in the snapshot (default settled)',
+    '  bin/layout-snapshot --diff <a> <b>         exit 0 if layouts identical, 1 + report otherwise',
+    '  bin/layout-snapshot --recipe <seed> [win]  print the preview-MCP capture recipe',
+    '  bin/layout-snapshot --seeds [csv]          print the multi-seed capture+diff playbook',
+    '  bin/layout-snapshot --help',
+    '',
+    'Built truth lives in the browser; this tool is the deterministic node half.',
+    'See the file header and DEBUGGING.md "Layout snapshots" for the full recipe.',
+    '',
+  ].join('\n'));
+}
+
+function parseArgs(argv) {
+  const positional = [];
+  const flags = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--stdin') flags.stdin = true;
+    else if (a === '--raw' || a === '--tier' || a === '--window') flags[a.slice(2)] = argv[++i];
+    else positional.push(a);
+  }
+  return { positional, flags };
+}
+
+function main() {
+  const argv = process.argv.slice(2);
+  if (argv.length === 0 || argv[0] === '--help' || argv[0] === '-h') return printHelp();
+  const mode = argv[0];
+  const rest = parseArgs(argv.slice(1));
+  if (mode === '--diff') return cmdDiff(rest);
+  if (mode === '--recipe') return cmdRecipe(rest);
+  if (mode === '--seeds') return cmdSeeds(rest);
+  // default: capture/normalize — mode is actually the seed
+  return cmdCapture(parseArgs(argv));
+}
+
+main();

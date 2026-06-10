@@ -1394,6 +1394,37 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
       return `teleported to (${x}, ${z})`;
     },
 
+    // READ-ONLY dump of the world registry as a JSON-able array — the captured
+    // "built truth" the layout linter checks and bin/layout-snapshot freezes
+    // against (guardrail #7: this never mutates the registry or touches
+    // chunkKey semantics). Faithful raw read in registry insertion (= build)
+    // order; bin/layout-snapshot is what sorts/rounds/excludes the two moving
+    // kinds (lurleen, hula_hoop). Two synchronous calls are identical because
+    // no frame ticks between them. Optional bounds {minX,minZ,maxX,maxZ} clips
+    // to a window (e.g. one hub). Per-cluster draw counts arrive in task 1.4.
+    dumpRegistry(bounds) {
+      const inBounds = bounds
+        ? (p) => p.x >= bounds.minX && p.x <= bounds.maxX && p.z >= bounds.minZ && p.z <= bounds.maxZ
+        : () => true;
+      const out = [];
+      for (const e of registry.entries.values()) {
+        const p = e.position;
+        if (!inBounds(p)) continue;
+        out.push({
+          kind: e.kind,
+          x: p.x,
+          z: p.z,
+          footprint: e.footprint || 0,
+          colliderR: e.collider ? e.collider.radius : null,
+          damage: e.collider ? e.collider.damage : null,
+          attractorR: e.attractor ? e.attractor.radius : null,
+          attractorW: e.attractor ? e.attractor.weight : null,
+          chunkKey: e.chunkKey || null,
+        });
+      }
+      return out;
+    },
+
     // ---- One door: __dbg also reaches the other two surfaces ----
     // Getters (not captured at definition time) because installDebug() runs
     // after this block, so window.__debug doesn't exist yet right here.
@@ -1409,6 +1440,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
         'window.__dbg — agent control surface (localhost only). The one door.',
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · fillSeats(kind?) · rider(kind)',
         '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock()   (pins a pose; overrides chase cam)',
+        '  layout:  dumpRegistry(bounds?)   (read-only built-truth dump → bin/layout-snapshot)',
         '  reach:   __dbg.game  (live refs: camera, zerble, scene, crowd, bubbles, …)',
         '           __dbg.debug (interactive API: freezeNPCs, pause, step, god, showColliders, dropSmile, spawnNPC)',
         '  verify:  __dbg.start() → __dbg.fillSeats() → __dbg.camLock(...) → screenshot → console-logs',

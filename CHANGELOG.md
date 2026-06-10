@@ -4,6 +4,21 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-06-10
 
+### Added
+- **`__dbg.dumpRegistry()` + `bin/layout-snapshot` — capture the festival as data (dev workflow).**
+  First instrument of the layout-harness work. `window.__dbg.dumpRegistry(bounds?)` is a
+  read-only dump of every world-registry entry (`kind, x, z, footprint, colliderR, damage,
+  attractorR, attractorW, chunkKey`), optionally clipped to a hub window. `bin/layout-snapshot`
+  is the deterministic node half: it normalizes a raw browser dump (drops the two moving kinds
+  `lurleen`/`hula_hoop`, rounds coords to `1e-4`, sorts by `kind+x+z`) into a comparable
+  snapshot, and `--diff` reports whether two captures match. This is the gate the worldgen
+  constants hoist + the future grammar rewrite are measured against — "did the *built* world
+  change?" — which the determinism goldens (plan-only) can't see. Built truth lives in the
+  browser, so capture is a documented preview-MCP recipe (`--recipe`/`--seeds` print it; full
+  loop in DEBUGGING.md "Layout snapshots") feeding the CLI. Twice-capture self-diff control
+  verified EMPTY at seed 1234 (546 layout entries, spawn window); the diff has teeth (catches a
+  0.5m move). Snapshots are **not** "goldens" — the words are kept apart on purpose.
+
 ### Fixed
 - **Road existence can no longer differ between browsers (behind `?worldgen=1`).**
   The around-the-lake detour in `src/worldgen/roads.js` picked its side with
@@ -18,6 +33,8 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   `eddf8e50` node *and* browser, POI `01532955` node) and both `?worldgen=1`/`=0`
   boot clean. This was commit zero for the layout-harness change, which freezes
   snapshots against these hashes.
+
+## 2026-06-09
 
 ### Added
 - **Picnic tables in the food courts (NEW entity, behind `?worldgen=1`).** Each food
