@@ -18,6 +18,16 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   loop in DEBUGGING.md "Layout snapshots") feeding the CLI. Twice-capture self-diff control
   verified EMPTY at seed 1234 (546 layout entries, spawn window); the diff has teeth (catches a
   0.5m move). Snapshots are **not** "goldens" — the words are kept apart on purpose.
+- **Per-cluster draw-count canary in layout snapshots (`__dbg.dumpDrawCounts`).** Each
+  worldgen cluster draws a fixed number of times from its local rng at a pinned tier; a
+  changed count — even when every *position* still matches — means a draw was added,
+  dropped, or reordered (the invisible determinism break a position snapshot can't see,
+  and exactly the tier-dependent crowd-pool drift the hoist must guard against). A
+  transparent counting passthrough wraps each cluster's rng in `buildWorldgenKind`
+  (`chunks.js`) — it counts, it does not draw, so it can't shift order. Counts ride in the
+  snapshot's `drawCounts`; `--diff` flags any drift. Verified: seed-1234 self-diff stays
+  EMPTY with the canary present, and a synthetic +1 draw trips the diff while positions
+  are identical.
 
 ### Fixed
 - **Road existence can no longer differ between browsers (behind `?worldgen=1`).**

@@ -44,6 +44,7 @@ window.__dbg.help()          // prints the whole map — start here
 | Call | Does |
 |---|---|
 | `dumpRegistry(bounds?)` | **Read-only** JSON-able array of every registry entry — `{kind, x, z, footprint, colliderR, damage, attractorR, attractorW, chunkKey}`. Optional `bounds = {minX,minZ,maxX,maxZ}` clips to a window (one hub). This is the "built truth" the layout linter checks and `bin/layout-snapshot` freezes against; never mutates anything. |
+| `dumpDrawCounts(bounds?)` | **Read-only** `{"kind@x,z": n}` map of how many times each worldgen cluster drew from its local rng — the canary. Positions matching but a count moving = an invisible draw add/drop/reorder. Same optional `bounds`. |
 
 ### Reach into the other surfaces
 | Property | Is |
@@ -222,8 +223,9 @@ preview_eval:  window.__dbg.start()
 # 2. Settle ~3s, NO DRIVING. Confirm the registry is stable (the entry count is
 #    a faithful "all chunks in this window loaded" proxy) — read it twice:
 preview_eval:  window.__dbg.dumpRegistry().length         // run twice; capture once it stops climbing
-# 3. Dump (a hub window keeps the payload small — the full world is ~3k entries):
-preview_eval:  JSON.stringify(window.__dbg.dumpRegistry({minX:163,minZ:-186,maxX:403,maxZ:54}))
+# 3. Dump entries + the per-cluster draw-count canary together (a hub window
+#    keeps the payload small — the full world is ~3k entries):
+preview_eval:  (B => JSON.stringify({entries: window.__dbg.dumpRegistry(B), drawCounts: window.__dbg.dumpDrawCounts(B)}))({minX:163,minZ:-186,maxX:403,maxZ:54})
 #    → save that string to verification/raw/1234.json
 # 4. Normalize → verification/snapshots/1234.json
 bin/layout-snapshot 1234 --window spawn

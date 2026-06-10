@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "1.3 twice-capture self-diff control for all 3 seeds (1.1+1.2 done; instrument committed)"
+current_task: "1.3 + 1.5 consolidated capture pass (3 seeds × windows, with canary) — 1.1/1.2/1.4 done"
 blocked_by: null
 open_questions: 0
 started: 2026-06-10

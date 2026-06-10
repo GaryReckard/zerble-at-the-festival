@@ -87,6 +87,17 @@ function normalizeEntries(raw) {
       ((a.chunkKey || '') < (b.chunkKey || '') ? -1 : (a.chunkKey || '') > (b.chunkKey || '') ? 1 : 0));
 }
 
+// Returns { entries, drawCounts } from a raw capture. Accepts a bare
+// dumpRegistry() array (drawCounts absent → null) OR a combined object
+// { entries:[...], drawCounts:{...} } (the recipe's preferred form, so the
+// canary travels with the positions). A previously-written snapshot also works.
+function readRawObj(parsed, label) {
+  const entries = Array.isArray(parsed) ? parsed : parsed.entries;
+  if (!Array.isArray(entries)) die(`raw capture has no entry array: ${label}`);
+  const drawCounts = (!Array.isArray(parsed) && parsed.drawCounts) ? parsed.drawCounts : null;
+  return { entries, drawCounts };
+}
+
 function readRaw(rawPath) {
   if (!fs.existsSync(rawPath)) {
     die(`raw capture not found: ${path.relative(ROOT, rawPath)}\n` +
@@ -95,11 +106,15 @@ function readRaw(rawPath) {
   let parsed;
   try { parsed = JSON.parse(fs.readFileSync(rawPath, 'utf8')); }
   catch (e) { die(`raw capture is not valid JSON (${path.relative(ROOT, rawPath)}): ${e.message}`); }
-  // Accept either a bare dumpRegistry() array, or {entries:[...]} (e.g. a
-  // previously-written snapshot being re-normalized).
-  const arr = Array.isArray(parsed) ? parsed : parsed.entries;
-  if (!Array.isArray(arr)) die(`raw capture has no entry array: ${path.relative(ROOT, rawPath)}`);
-  return arr;
+  return readRawObj(parsed, path.relative(ROOT, rawPath));
+}
+
+// Sort a draw-counts object's keys so two captures serialize identically.
+function normalizeDrawCounts(dc) {
+  if (!dc) return null;
+  const out = {};
+  for (const k of Object.keys(dc).sort()) out[k] = dc[k];
+  return out;
 }
 
 // `bin/layout-snapshot <seed> [outfile] [--raw f] [--tier t] [--window w] [--stdin]`
@@ -110,16 +125,14 @@ function cmdCapture(args) {
   const win = args.flags.window || 'settled';
   let raw;
   if (args.flags.stdin) {
-    const txt = fs.readFileSync(0, 'utf8');
-    const parsed = JSON.parse(txt);
-    raw = Array.isArray(parsed) ? parsed : parsed.entries;
-    if (!Array.isArray(raw)) die('stdin has no entry array');
+    raw = readRawObj(JSON.parse(fs.readFileSync(0, 'utf8')), 'stdin');
   } else {
     const rawPath = args.flags.raw ? path.resolve(args.flags.raw) : path.join(RAW_DIR, `${seed}.json`);
     raw = readRaw(rawPath);
   }
-  const entries = normalizeEntries(raw);
-  const dropped = raw.length - entries.length;
+  const entries = normalizeEntries(raw.entries);
+  const dropped = raw.entries.length - entries.length;
+  const drawCounts = normalizeDrawCounts(raw.drawCounts);
   const snapshot = {
     seed: String(seed),
     tier,
@@ -127,7 +140,8 @@ function cmdCapture(args) {
     window: win,
     entryCount: entries.length,
     moversExcluded: dropped,          // lurleen + hula_hoop count, for transparency
-    drawCounts: null,                 // filled by task 1.4 (per-cluster canary)
+    clusterCount: drawCounts ? Object.keys(drawCounts).length : null,
+    drawCounts,                       // per-cluster rng draw canary (task 1.4)
     entries,
   };
   const outPath = args.positional[1]
@@ -195,7 +209,9 @@ function recipeFor(seed, win) {
     `#    count is a faithful proxy for "all chunks in this window have loaded"):`,
     `#    preview_eval:  window.__dbg.dumpRegistry().length`,
     `#    (run twice ~1s apart; capture only once the number stops climbing)`,
-    `# 4. preview_eval:  JSON.stringify(window.__dbg.dumpRegistry())`,
+    `# 4. preview_eval (entries + canary together, so draw counts travel with positions):`,
+    `#    JSON.stringify({entries: window.__dbg.dumpRegistry(B), drawCounts: window.__dbg.dumpDrawCounts(B)})`,
+    `#    (B = your bounds object, or omit B for the whole world)`,
     `#    save that string to  verification/raw/${seed}.json`,
     `# 5. normalize:  bin/layout-snapshot ${seed}`,
     ``,

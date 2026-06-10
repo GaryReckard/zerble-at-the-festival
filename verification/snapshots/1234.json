@@ -5,7 +5,22 @@
   "window": "spawn",
   "entryCount": 546,
   "moversExcluded": 3,
-  "drawCounts": null,
+  "clusterCount": 13,
+  "drawCounts": {
+    "bubble_vendor@370,19": 22,
+    "bubble_vendor@375,-110": 22,
+    "drum_circle@253,51": 274,
+    "food_court@228,-168": 30,
+    "food_court@331,-17": 23,
+    "food_court@389,9": 28,
+    "main_stage@311,-85": 415,
+    "porta_bank@247,-177": 8,
+    "porta_bank@305,-70": 8,
+    "porta_bank@322,2": 8,
+    "porta_bank@369,14": 8,
+    "vendor_row@267,-137": 1210,
+    "vendor_row@347,-42": 1035
+  },
   "entries": [
     {
       "kind": "arch",

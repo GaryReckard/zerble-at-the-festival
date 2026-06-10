@@ -261,6 +261,15 @@ export const chunkGenStats = {
   },
 };
 
+// Per-cluster rng draw counts — the layout-harness canary (task 1.4). At a
+// fixed perf tier each worldgen cluster draws a FIXED number of times from its
+// cluster-local rng; a changed count (even when every position still matches)
+// means a draw was added, dropped, or reordered — the invisible class of
+// determinism break the position snapshot can't see. Keyed `kind@x,z`. Read by
+// __dbg.dumpDrawCounts / emitted into layout snapshots. The wrapper that fills
+// this COUNTS, it does not draw, so it cannot shift draw order (guardrail #4).
+export const worldgenDrawCounts = new Map();
+
 const SLOW_THRESHOLD_MS = 8;
 
 // ---------- Public API ----------
@@ -1157,7 +1166,12 @@ function placeWorldgenProps(ctx) {
 // per-builder (R2): buildStage/buildDrumCircleAt register internally; the *At helpers
 // extract `.group`/bare-Group exactly as each model demands.
 function buildWorldgenKind(ctx, d) {
-  const cctx = { ...ctx, rng: mulberry32((d.clusterSeed >>> 0) || 0x1A2B3C) };
+  // Transparent counting passthrough over the cluster-local rng (task 1.4
+  // canary). `realRng()` is the same mulberry32 stream in the same order; the
+  // wrapper only tallies calls — zero behavior change.
+  const realRng = mulberry32((d.clusterSeed >>> 0) || 0x1A2B3C);
+  let _draws = 0;
+  const cctx = { ...ctx, rng: () => { _draws++; return realRng(); } };
   switch (d.kind) {
     case 'main_stage':    buildStage(cctx, d.x, d.z, true, d.yaw); break;
     case 'side_stage':    buildStage(cctx, d.x, d.z, false, d.yaw); break;
@@ -1171,6 +1185,7 @@ function buildWorldgenKind(ctx, d) {
     case 'camp_village':  buildCampVillageAt(cctx, d.x, d.z, d.tents); break;   // D2 — tent count ∝ local crowd
     default: break;       // unknown kind → place nothing (forward-compatible)
   }
+  worldgenDrawCounts.set(`${d.kind}@${Math.round(d.x)},${Math.round(d.z)}`, _draws);
 }
 
 // Entrance arch + a string-light pole pair across its opening, rotated to face the

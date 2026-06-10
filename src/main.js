@@ -24,7 +24,7 @@ import { updateCampsiteProps } from './models/campsite.js';
 import { updatePortaPotty } from './models/portaPotty.js';
 import { updateLeafDrumCircle } from './models/leafDrumCircle.js';
 import { updateTribalFigures } from './models/tribalFigures.js';
-import { updateStagePerformers, updateStageLightShow, stageLightLenses } from './chunks.js';
+import { updateStagePerformers, updateStageLightShow, stageLightLenses, worldgenDrawCounts } from './chunks.js';
 import { updateSugarShackCooks } from './models/sugarShack.js';
 import { Zerble } from './zerble.js';
 import { Bubbles } from './bubbles.js';
@@ -1425,6 +1425,26 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
       return out;
     },
 
+    // Per-cluster rng draw counts (task 1.4 canary) — a plain {`kind@x,z`: n}
+    // map of how many times each worldgen cluster drew from its local rng.
+    // Pairs with dumpRegistry: positions match but a count moved = an
+    // invisible draw add/drop/reorder. Optional bounds {minX,minZ,maxX,maxZ}
+    // clips by the cluster's rounded position parsed from the key.
+    dumpDrawCounts(bounds) {
+      const out = {};
+      for (const [key, n] of worldgenDrawCounts) {
+        if (bounds) {
+          const m = /@(-?\d+),(-?\d+)$/.exec(key);
+          if (m) {
+            const x = +m[1], z = +m[2];
+            if (x < bounds.minX || x > bounds.maxX || z < bounds.minZ || z > bounds.maxZ) continue;
+          }
+        }
+        out[key] = n;
+      }
+      return out;
+    },
+
     // ---- One door: __dbg also reaches the other two surfaces ----
     // Getters (not captured at definition time) because installDebug() runs
     // after this block, so window.__debug doesn't exist yet right here.
@@ -1440,7 +1460,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
         'window.__dbg — agent control surface (localhost only). The one door.',
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · fillSeats(kind?) · rider(kind)',
         '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock()   (pins a pose; overrides chase cam)',
-        '  layout:  dumpRegistry(bounds?)   (read-only built-truth dump → bin/layout-snapshot)',
+        '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
         '  reach:   __dbg.game  (live refs: camera, zerble, scene, crowd, bubbles, …)',
         '           __dbg.debug (interactive API: freezeNPCs, pause, step, god, showColliders, dropSmile, spawnNPC)',
         '  verify:  __dbg.start() → __dbg.fillSeats() → __dbg.camLock(...) → screenshot → console-logs',

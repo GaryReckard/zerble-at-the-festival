@@ -62,7 +62,7 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
 - [ ] 1.3 Twice-capture self-diff control: same seed/tier twice → empty
       self-diff REQUIRED before any refactor diff is trusted.
       done = documented empty self-diff for all 3 seeds in `verification/`.
-- [ ] 1.4 Draw-count canary: wrap each cluster's rng (`cctx.rng` created in
+- [x] 1.4 Draw-count canary: wrap each cluster's rng (`cctx.rng` created in
       `buildWorldgenKind`, [chunks.js:1159](../../../src/chunks.js#L1159)) in a
       counting closure; counts emitted in the dump. MUST NOT change draw order
       (a counter wrapper doesn't draw — keep it that way).
