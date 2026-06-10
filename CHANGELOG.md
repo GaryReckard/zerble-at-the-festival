@@ -28,6 +28,14 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   snapshot's `drawCounts`; `--diff` flags any drift. Verified: seed-1234 self-diff stays
   EMPTY with the canary present, and a synthetic +1 draw trips the diff while positions
   are identical.
+- **One-command live capture: `bin/layout-snapshot capture <seed>`.** Drives a headless
+  browser via the globally-installed `agent-browser` CLI (boot → `__dbg.start()` → poll the
+  registry count until settled → dump → normalize → write) so the snapshot ritual is genuinely
+  one command, per the spec. The documented preview-MCP recipe (`--recipe`/`--seeds`) stays as
+  the approved fallback if `agent-browser` is absent/flaky — `capture` dies pointing at it.
+  Cross-validated: two independent cold headless boots of seed 1234 produce byte-identical
+  layouts, and that result matches the manual-recipe baseline byte-for-byte (layout + canary) —
+  the two capture paths confirm each other.
 
 ### Fixed
 - **Road existence can no longer differ between browsers (behind `?worldgen=1`).**

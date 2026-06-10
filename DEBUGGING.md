@@ -209,34 +209,43 @@ determinism *goldens* — `selftest.js` hashes — cover the *plan*, not the bui
 Two different things; keep the words apart. A snapshot is **not** a golden.)
 
 Built truth lives in the **browser** (the registry is populated by `chunks.js`
-running in a live scene — no headless node path exists). So capture is split:
-the browser produces the raw dump; **`bin/layout-snapshot`** does the
-deterministic node half (normalize → write → diff). Get the exact recipe for a
-seed with `bin/layout-snapshot --recipe <seed>`; the multi-seed playbook with
-`bin/layout-snapshot --seeds`. The copy-paste loop:
+running in a live scene — there is no headless *node* path). The dev server must
+be running on `:8765` either way.
+
+### The one-command path (default)
+
+`bin/layout-snapshot capture <seed>` drives a headless browser via the globally
+installed **`agent-browser`** CLI — boot → `__dbg.start()` → settle (poll the
+registry count until stable) → dump → normalize → write, in one command:
 
 ```
-# 1. Boot pinned: ?worldgen=1&seed=<S>&perf=high  (tier is pinned — built truth
-#    is tier-dependent today: crowd draws from the cluster rng stream).
-preview_eval:  window.location.href='http://127.0.0.1:8765/?worldgen=1&seed=1234&perf=high'
-preview_eval:  window.__dbg.start()
-# 2. Settle ~3s, NO DRIVING. Confirm the registry is stable (the entry count is
-#    a faithful "all chunks in this window loaded" proxy) — read it twice:
-preview_eval:  window.__dbg.dumpRegistry().length         // run twice; capture once it stops climbing
-# 3. Dump entries + the per-cluster draw-count canary together (a hub window
-#    keeps the payload small — the full world is ~3k entries):
-preview_eval:  (B => JSON.stringify({entries: window.__dbg.dumpRegistry(B), drawCounts: window.__dbg.dumpDrawCounts(B)}))({minX:163,minZ:-186,maxX:403,maxZ:54})
-#    → save that string to verification/raw/1234.json
-# 4. Normalize → verification/snapshots/1234.json
-bin/layout-snapshot 1234 --window spawn
-# 5. Diff two captures (twice-capture self-diff control — MUST print EMPTY before
-#    any refactor diff is trusted):
-bin/layout-snapshot --diff verification/snapshots/1234.json verification/snapshots/1234.b.json
+bin/layout-snapshot capture 1234 --bounds 163,-186,403,54 --window spawn
+# → verification/snapshots/1234.json   (omit --bounds for the whole world)
 ```
 
-`bin/layout-snapshot` **drops the two moving kinds** (`lurleen`, `hula_hoop`) on
-normalize — they're actors, not layout, and would make a self-diff differ
+The twice-capture self-diff control is then just two runs + a diff:
+
+```
+bin/layout-snapshot capture 1234 verification/snapshots/1234.a.json --bounds 163,-186,403,54
+bin/layout-snapshot capture 1234 verification/snapshots/1234.b.json --bounds 163,-186,403,54
+bin/layout-snapshot --diff verification/snapshots/1234.a.json verification/snapshots/1234.b.json   # MUST be EMPTY
+```
+
+### The manual recipe (approved fallback if agent-browser is flaky/absent)
+
+`bin/layout-snapshot --recipe <seed>` (or `--seeds` for the multi-seed playbook)
+prints the preview-MCP copy-paste version: boot `?worldgen=1&seed=<S>&perf=high`,
+`__dbg.start()`, settle (read `window.__dbg.dumpRegistry().length` until stable —
+NO driving), then
+`({entries: __dbg.dumpRegistry(B), drawCounts: __dbg.dumpDrawCounts(B)})`, save
+to `verification/raw/<seed>.json`, and `bin/layout-snapshot <seed>` to normalize.
+
+### What normalize guarantees
+
+Either path, `bin/layout-snapshot` **drops the two moving kinds** (`lurleen`,
+`hula_hoop`) — they're actors, not layout, and would make a self-diff differ
 forever. It rounds coords to `1e-4` and sorts by `kind+x+z` so identical builds
-serialize identically. `--diff` exits `0` (`EMPTY`) when layouts match, `1` with
-a per-kind report otherwise; it also flags per-cluster draw-count drift once the
-canary (task 1.4) lands.
+serialize identically. The tier is pinned (`perf=high`) because built truth is
+tier-dependent today (crowd draws from the cluster rng stream). `--diff` exits
+`0` (`EMPTY`) when layouts match, `1` with a per-kind report otherwise, and flags
+per-cluster draw-count (canary) drift even when every position still matches.

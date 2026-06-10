@@ -41,6 +41,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const RAW_DIR = path.join(ROOT, 'verification', 'raw');
@@ -154,6 +155,89 @@ function cmdCapture(args) {
     `wrote ${path.relative(ROOT, outPath)}  (${entries.length} layout entries, ${dropped} movers dropped, tier=${tier})\n`);
 }
 
+// ── Live capture via agent-browser (the genuine one-command path) ──────────
+// agent-browser is a globally-installed CLI (NOT a repo dep) that drives a
+// headless browser and returns eval results on stdout — so this script can
+// boot → start → settle → dump → normalize → write in ONE command, per the
+// spec. If agent-browser is missing or flaky, the documented preview-MCP recipe
+// (`--recipe`) is the approved fallback — this command dies pointing at it.
+function ab(jsArgs, label) {
+  try {
+    return execFileSync('agent-browser', jsArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) {
+    die(`agent-browser ${label || jsArgs[0]} failed: ${e.message}\n` +
+        `Fall back to the manual recipe:  bin/layout-snapshot --recipe <seed>`);
+  }
+}
+
+function abAvailable() {
+  try { execFileSync('which', ['agent-browser'], { stdio: 'ignore' }); return true; }
+  catch (_) { return false; }
+}
+
+// `bin/layout-snapshot capture <seed> [outfile] [--bounds a,b,c,d] [--tier t] [--window w] [--port p]`
+function cmdCaptureLive(args) {
+  const seed = args.positional[0];
+  if (!seed) die('usage: bin/layout-snapshot capture <seed> [outfile] [--bounds minX,minZ,maxX,maxZ] [--tier high] [--window w] [--port 8765]');
+  if (!abAvailable()) {
+    die('agent-browser not on PATH — install it, or use the manual recipe:\n' +
+        `  bin/layout-snapshot --recipe ${seed}`);
+  }
+  const port = args.flags.port || '8765';
+  const tier = args.flags.tier || 'high';
+  const win = args.flags.window || (args.flags.bounds ? 'window' : 'full');
+  let B = 'undefined';
+  if (args.flags.bounds) {
+    const n = args.flags.bounds.split(',').map(Number);
+    if (n.length !== 4 || n.some(Number.isNaN)) die('--bounds must be minX,minZ,maxX,maxZ (four numbers)');
+    B = `{minX:${n[0]},minZ:${n[1]},maxX:${n[2]},maxZ:${n[3]}}`;
+  }
+  const url = `http://127.0.0.1:${port}/?worldgen=1&seed=${seed}&perf=high`;
+
+  process.stderr.write(`[capture] open ${url}\n`);
+  ab(['open', url], 'open');
+  const startRes = ab(['eval', "window.__dbg ? window.__dbg.start() : 'NO_DBG'"], 'start').trim();
+  if (startRes.includes('NO_DBG')) die('window.__dbg absent — is the dev server serving from 127.0.0.1? (localhost-only surface)');
+
+  // Settle: poll the registry entry count (a faithful "this window's chunks all
+  // loaded" proxy — __dbg.game doesn't expose the chunk manager) until two
+  // consecutive reads agree and are non-zero. NO driving happens here.
+  let prev = -1, stableReads = 0, count = 0;
+  const MAX_POLLS = 20;
+  for (let i = 0; i < MAX_POLLS; i++) {
+    ab(['wait', '1200'], 'wait');
+    count = parseInt(ab(['eval', 'window.__dbg.dumpRegistry().length'], 'count').trim(), 10) || 0;
+    if (count > 0 && count === prev) { if (++stableReads >= 1) { process.stderr.write(`[capture] settled at ${count} entries\n`); break; } }
+    else stableReads = 0;
+    prev = count;
+    if (i === MAX_POLLS - 1) process.stderr.write(`[capture] WARNING: not fully settled after ${MAX_POLLS} polls (last=${count}); capturing anyway\n`);
+  }
+
+  const dumpJs = `({entries: window.__dbg.dumpRegistry(${B}), drawCounts: window.__dbg.dumpDrawCounts(${B})})`;
+  const dumpOut = ab(['eval', dumpJs], 'dump');
+  ab(['close'], 'close');
+
+  let parsed;
+  try { parsed = JSON.parse(dumpOut); }
+  catch (e) { die(`could not parse agent-browser dump output: ${e.message}`); }
+  const raw = readRawObj(parsed, 'agent-browser capture');
+
+  const entries = normalizeEntries(raw.entries);
+  const drawCounts = normalizeDrawCounts(raw.drawCounts);
+  const snapshot = {
+    seed: String(seed), tier, worldgen: true, window: win,
+    entryCount: entries.length,
+    moversExcluded: raw.entries.length - entries.length,
+    clusterCount: drawCounts ? Object.keys(drawCounts).length : null,
+    drawCounts, entries,
+  };
+  const outPath = args.positional[1] ? path.resolve(args.positional[1]) : path.join(SNAP_DIR, `${seed}.json`);
+  ensureDir(path.dirname(outPath));
+  fs.writeFileSync(outPath, JSON.stringify(snapshot, null, 2) + '\n');
+  process.stdout.write(
+    `wrote ${path.relative(ROOT, outPath)}  (${entries.length} layout entries, ${snapshot.moversExcluded} movers dropped, ${snapshot.clusterCount} clusters, tier=${tier})\n`);
+}
+
 function loadSnapshot(p) {
   const abs = path.resolve(p);
   if (!fs.existsSync(abs)) die(`snapshot not found: ${p}`);
@@ -244,6 +328,11 @@ function printHelp() {
   process.stdout.write([
     'bin/layout-snapshot — built-truth layout capture/normalize/diff',
     '',
+    '  bin/layout-snapshot capture <seed> [outfile]   ONE COMMAND: boot+settle+dump+normalize+write',
+    '      (drives a headless browser via agent-browser; needs the dev server on :8765)',
+    '      --bounds minX,minZ,maxX,maxZ   clip to a hub window (else full world)',
+    '      --tier <t> (default high)  --window <w>  --port <p> (default 8765)',
+    '',
     '  bin/layout-snapshot <seed> [outfile]      normalize verification/raw/<seed>.json → snapshot',
     '      --raw <file>    raw capture path (default verification/raw/<seed>.json)',
     '      --stdin         read the raw dumpRegistry() array from stdin instead',
@@ -266,7 +355,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--stdin') flags.stdin = true;
-    else if (a === '--raw' || a === '--tier' || a === '--window') flags[a.slice(2)] = argv[++i];
+    else if (a === '--raw' || a === '--tier' || a === '--window' || a === '--bounds' || a === '--port') flags[a.slice(2)] = argv[++i];
     else positional.push(a);
   }
   return { positional, flags };
@@ -280,7 +369,8 @@ function main() {
   if (mode === '--diff') return cmdDiff(rest);
   if (mode === '--recipe') return cmdRecipe(rest);
   if (mode === '--seeds') return cmdSeeds(rest);
-  // default: capture/normalize — mode is actually the seed
+  if (mode === 'capture') return cmdCaptureLive(rest);
+  // default: normalize an already-captured raw — mode is actually the seed
   return cmdCapture(parseArgs(argv));
 }
 

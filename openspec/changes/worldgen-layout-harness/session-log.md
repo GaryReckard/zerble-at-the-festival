@@ -176,3 +176,62 @@ that day's shipped work (picnic tables / vendor straddle / arrival) under the
 norm. `verification/raw/` gitignored (reproducible scratch); `snapshots/` is
 the committed baseline.
 **Refs:** -> Task 1.1, -> Task 1.2, design D-A, DEBUGGING.md "Layout snapshots", -> A1 (movers/settle inform the grammar change's extraction)
+
+> The three findings above were flagged by Gary as the "future reader can't
+> reconstruct this" class and broken out below as atomic Event: discovery
+> entries (the entry above is the in-the-moment integrated note).
+
+### 2026-06-10 -- DISCOVERY: two registered kinds hold LIVE per-frame positions (movers in the registry)
+**Event:** discovery
+**What:** The registry isn't all static layout. `lurleen` ([lurleen.js:131](../../../src/lurleen.js#L131))
+and `hula_hoop` ([obstacles.js:1169](../../../src/obstacles.js#L1169)) register
+entries whose `position` is a REFERENCE that the actor mutates every frame
+(registry.js header even names "drifting hula-hoopers"). I confirmed via a full
+`registry.add(` sweep that those are the only two movers — all other registered
+kinds (stages, trucks, booths, pottys, camps, trees, arches, lakes, roads/
+path_nodes) are placed once and frozen. **Why it matters / forward implication:**
+ANY built-truth consumer — `dumpRegistry` snapshots, the `--diff` control, and
+the future grammar-change linter — must treat these two as ACTORS, not layout, or
+it compares wandering positions and never converges. `bin/layout-snapshot`
+normalize drops exactly this set; the linter (group 4) and the grammar change's
+extraction inherit the same exclusion list.
+**Refs:** -> Task 1.2, -> A1, registry.js:16 comment, festival-zone-grammar (linter exclusion)
+
+### 2026-06-10 -- DISCOVERY: settle signal had to switch from chunk-count to registry-count
+**Event:** discovery
+**What:** D-A specifies settle as "loaded-chunk count stable for 60 frames."
+But `__dbg.game` exposes `registry`, `crowd`, `zerble`, etc. — NOT the chunk
+manager (verified: `Object.keys(__dbg.game)` has no `chunks`). So the literal
+chunk-count signal isn't readable from the debug surface. Switched the settle
+proxy to **`__dbg.dumpRegistry().length` stable** — a faithful substitute
+because registry entries are added as chunks build and chunks never unload once
+created (CLAUDE.md footgun #5), so a stable entry count means "this window's
+chunks have all loaded." **Why it matters:** both the manual recipe AND the new
+one-command `capture` settle-loop key off this; if a future change starts
+unloading chunks, this proxy's "never decreases" assumption breaks and the
+settle logic needs revisiting.
+**Refs:** -> Task 1.2, design D-A (settle), CLAUDE.md footgun #5
+
+### 2026-06-10 -- DISCOVERY→DECISION: built truth is browser-only; agent-browser makes capture genuinely one command
+**Event:** discovery + decision
+**What:** DISCOVERY: the registry is populated only by `chunks.js` in a LIVE
+browser scene — there is no headless-*node* path (the worldgen modules run in
+node, but the BUILD that fills the registry does not), and the repo has no
+bundler/driver. So D-A's "one command wrapping boot→dump→write" can't be a pure
+node CLI; capture is inherently browser(raw) + node(normalize). INITIALLY I
+shipped that as a documented preview-MCP recipe + node normalize (1.1/1.2
+commits). DECISION (Gary, this session): the globally-installed `agent-browser`
+CLI (`/opt/homebrew/bin/agent-browser` 0.9.1 — NOT a repo dep) closes the gap:
+`bin/layout-snapshot capture <seed>` now shells out to it (open → eval start →
+poll-settle → eval dump → close → normalize → write) so it's genuinely ONE
+command per the spec. Verified end-to-end: TWO independent cold headless boots
+of seed 1234 → byte-identical layouts (`--diff` EMPTY), and that live snapshot
+is byte-identical (layout + canary) to the manual-recipe baseline — i.e. the two
+capture paths cross-validate each other. agent-browser handled the full ~500KB
+payload (the preview-MCP eval can't — it token-caps), and object-return eval
+emits clean single-encoded JSON. **The documented recipe stays as the approved
+fallback** (Gary) for when agent-browser is absent/flaky — `capture` dies
+pointing at `--recipe`. **Forward implication:** group 4's `bin/lint --seeds`
+and group 8.1's baseline can now auto-capture across seeds without manual
+MCP round-trips.
+**Refs:** -> Task 1.2, design D-A, DEBUGGING.md "Layout snapshots" (one-command path), Gary 2026-06-10
