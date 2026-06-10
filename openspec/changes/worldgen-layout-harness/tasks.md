@@ -26,11 +26,14 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
 
 ## 0. Cross-change preconditions
 
-- [ ] 0.1 **[Fable]** Land v2 H.2 (cross-engine road-existence integer test —
+- [x] 0.1 **[Fable]** Land v2 H.2 (cross-engine road-existence integer test —
       the `roads.js:167` detour tie-break; see v2 HANDOFF "Group H") as commit
       zero; re-record queryPoint golden; re-verify node==browser.
       done = selftest passes in node AND a browser with the SAME new golden
-      hash; v2 session-log records the old→new hash.
+      hash; v2 session-log records the old→new hash. *(done 2026-06-10 —
+      cross/dot rewrite; goldens HELD eddf8e50/01532955, old==new recorded in
+      v2 session-log; node==browser eddf8e50; selftest 23/24 both engines =
+      the pre-existing noneBelow=0.05 T5 miss, no new failures)*
 - [x] 0.2 After Gary confirms -> Q2: write the corrected order (H.2 → harness →
       festival-zone-grammar → H.3/F.5 + I landing) into the v2 change's
       HANDOFF.md so a fresh session doesn't execute the stale "flip the flag"

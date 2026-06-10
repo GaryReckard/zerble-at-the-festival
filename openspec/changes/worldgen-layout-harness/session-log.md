@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
-status: not_started        # not_started | in_progress | blocked | paused | complete
-current_task: null
+status: in_progress        # not_started | in_progress | blocked | paused | complete
+current_task: "1.1 __dbg.dumpRegistry (group 1 — model switch per APPLY-GUARDRAILS routing before starting)"
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -130,3 +130,19 @@ verification (D8-worthy):** design/spec said hub-sandbox should copy
 tier-divergent viewer whose acceptance test could never pass. Corrected in
 design D-E, specs/layout-surfaces, task 6.2, and guardrail #9.
 **Refs:** APPLY-GUARDRAILS.md, tasks.md (all groups), design D-E, -> Q1/Q3/Q4 answers baked into anchors
+
+### 2026-06-10 -- Apply started; task 0.1 (v2 H.2) landed — the expected golden move did NOT happen
+**Event:** discovery + phase-change
+**What:** Commit zero landed (cross/dot rewrite of the roads.js detour side
+decision — details in the v2 change's session-log, same date). The discovery:
+the queryPoint golden this change freezes against did NOT move (`eddf8e50` →
+`eddf8e50`) — the sequencing rationale (-> D7) assumed H.2 would move it before
+snapshots were captured; instead a 5-seed/2,171-detour-edge probe proved the new
+arithmetic decision-equivalent to the old atan2 one everywhere real, so the
+freeze baseline is simply confirmed, not re-recorded. Browser POI hash recorded
+for the first time (`4825fd0b`, Chromium — the accepted cosmetic fork class).
+Also re-confirmed at apply start: node selftest at HEAD is 23/24 — the seed-0
+road-negative-control teeth-loss documented in the v2 log (noneBelow=0.05
+baseline, proven not-a-regression 2026-06-09) — so every "selftest passes" gate
+in this change reads as "23/24 with ONLY that known miss; both hashes pinned."
+**Refs:** -> Task 0.1, -> D7, v2 session-log 2026-06-10 entry, CHANGELOG 2026-06-10

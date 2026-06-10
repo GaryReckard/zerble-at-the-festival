@@ -83,13 +83,13 @@ re-settle when tuning, see the backlog). Goldens drift as we tune (flag-off, fin
 
 **NEXT (priority order):**
 1. **Group H — gates (DELICATE — start with fresh context):**
-   - **H.2 cross-engine road-EXISTENCE integer test (the one non-cosmetic cross-engine gate).** The
-     `roads.js:167` detour tie-break `Math.abs(ccw - Math.PI) < 0.05` can straddle the threshold per-engine
-     (V8 vs JSC) and FLIP whether a road EXISTS — which changes `noBuild`/the whole layout, not just a cosmetic
-     wobble. Widen/quantize it to an integer orientation test. **WARNING: this touches the worldgen contract —
-     it may MOVE the `queryPoint` golden `63c8dea2`. That's acceptable (v2 is flag-off, not shipped) but must be
-     deliberate: re-record the golden + re-verify node==browser after.** This is why it wants fresh context, not
-     the tail of a long session.
+   - ~~**H.2 cross-engine road-EXISTENCE integer test (the one non-cosmetic cross-engine gate).**~~
+     **DONE 2026-06-10** (commit zero of `worldgen-layout-harness`, per the re-sequencing above). The
+     `roads.js` detour side decision is cross/dot-product arithmetic now (no transcendentals — IEEE-754
+     +/−/× are bit-exact cross-engine, so road existence can't fork). The warned golden move did NOT
+     happen: a probe over 2,171 real lake-detour edges across 5 seeds showed the old and new decisions
+     agree everywhere sampled, so queryPoint held `eddf8e50` — verified IDENTICAL node + browser; the
+     browser hashes are now recorded in selftest.js's baseline comment. See the session-log entry.
    - **H.3 full per-tier budget pass** — folds in the F.5 real-device draw check (below).
 2. **Group I — landing**: flip `DEFAULT_WORLDGEN_V2=true` (I.0); the **ARCHITECTURE.md rewrite (I.6, hard gate —
    stale: still describes pickTheme/5×5 forests/320m lakes, all now retired behind the flag)**; ROADMAP trim (I.5).

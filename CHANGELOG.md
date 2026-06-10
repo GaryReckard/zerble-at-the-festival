@@ -2,7 +2,22 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
-## 2026-06-09
+## 2026-06-10
+
+### Fixed
+- **Road existence can no longer differ between browsers (behind `?worldgen=1`).**
+  The around-the-lake detour in `src/worldgen/roads.js` picked its side with
+  `Math.atan2` angles, and `Math.atan2` isn't required to give bit-identical
+  results across JS engines (V8 vs Safari's JSC) — a last-bit difference near the
+  tie-break threshold could flip the detour's side, fail its water check, and make
+  a road *exist on one engine and not the other* (changing the whole layout, not a
+  cosmetic wobble). The decision is now pure cross/dot-product arithmetic, which
+  IEEE-754 guarantees is identical everywhere (v2 worldgen H.2 — the one
+  non-cosmetic cross-engine gate). Verified equivalent on every one of 2,171 real
+  lake-detour edges across 5 seeds; both determinism goldens held (queryPoint
+  `eddf8e50` node *and* browser, POI `01532955` node) and both `?worldgen=1`/`=0`
+  boot clean. This was commit zero for the layout-harness change, which freezes
+  snapshots against these hashes.
 
 ### Added
 - **Picnic tables in the food courts (NEW entity, behind `?worldgen=1`).** Each food

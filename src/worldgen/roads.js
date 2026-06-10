@@ -191,13 +191,21 @@ function _computeArterial(A, B) {
   if (!lake) return null;
   // Prefer the shorter way around; if the endpoints are ~opposite (both ways
   // equal) break the tie on the pair hash so both endpoints agree on the side.
-  const TWO = Math.PI * 2;
-  const aP = Math.atan2(pa.z - lake.z, pa.x - lake.x);
-  const aQ = Math.atan2(pb.z - lake.z, pb.x - lake.x);
-  let ccw = (aQ - aP) % TWO; if (ccw < 0) ccw += TWO;
-  const dir = Math.abs(ccw - Math.PI) < 0.05
+  // Decided with cross/dot products ONLY (v2 H.2): IEEE-754 +/−/× are bit-exact
+  // across engines while Math.atan2 is not, and a fork here flips which side
+  // the detour arcs — i.e. whether the road EXISTS after crossesWater, not a
+  // cosmetic wobble. cross ≥ 0 ⟺ the CCW sweep pa→pb is the short way;
+  // "~opposite" keeps the old |ccw−π| < 0.05 rad band as dot < 0 with
+  // |sin| = |cross|/(|va||vb|) < 0.05, compared squared to avoid sqrt.
+  const vax = pa.x - lake.x, vaz = pa.z - lake.z;
+  const vbx = pb.x - lake.x, vbz = pb.z - lake.z;
+  const cross = vax * vbz - vaz * vbx;
+  const dot = vax * vbx + vaz * vbz;
+  const nearOpposite = dot < 0 &&
+    cross * cross < 0.0025 * (vax * vax + vaz * vaz) * (vbx * vbx + vbz * vbz);
+  const dir = nearOpposite
     ? (pairRng(A.cx, A.cz, B.cx, B.cz, SALT.roadSide)() < 0.5 ? 1 : -1)
-    : (ccw < Math.PI ? 1 : -1);
+    : (cross >= 0 ? 1 : -1);
   let detour = arcAround(pa, pb, lake, dir);
   if (crossesWater(detour)) detour = arcAround(pa, pb, lake, -dir);   // try the other side
   return crossesWater(detour) ? null : detour;

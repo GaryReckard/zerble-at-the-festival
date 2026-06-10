@@ -720,3 +720,26 @@ Key correction this turn: spawn is golden-safe; the handoff's promotion premise 
 **Open for Gary:** spawn distance (~70% out) + string-light row count (3) are feel calls;
 "always spawn ON a road" vs "face the stage" is a deliberate tradeoff he may want to revisit.
 **Next:** ③ regressions (E/G/F). **Refs:** commits 336b7c1, 13b6bec; -> D9.
+
+### 2026-06-10 -- H.2 cross-engine road-existence fix LANDED (commit zero of worldgen-layout-harness)
+**Event:** decision + phase-change. **What:** Per the re-sequencing (HANDOFF ⚠ block /
+harness change D7), H.2 landed first, from the harness change's task 0.1. The
+`_computeArterial` detour side decision (roads.js) no longer uses `Math.atan2`:
+shorter-way + the ~opposite tie-break band are now cross/dot products compared
+squared (IEEE-754 +/−/× are bit-exact cross-engine; transcendentals are not), so
+road EXISTENCE can't fork V8 vs JSC. **Golden record, old→new: queryPoint
+`eddf8e50` → `eddf8e50` (UNCHANGED — the HANDOFF's warned move did not happen);
+POI `01532955` → `01532955` node (unchanged).** Proof the unchanged hash isn't
+vacuous: a probe replayed BOTH formulas on every real lake-detour edge across 5
+seeds (0, 1, 1234, 0x95128419, 0xf7ef2a3c; 12km windows) — 33,679 edges, 2,171
+detours, 31 in the tie band, 0 disagreements. Browser (Chromium) re-verified:
+queryPoint `eddf8e50` == node; browser POI `4825fd0b` (the accepted cosmetic
+transcendental class) — both browser hashes now RECORDED in selftest.js's
+baseline comment (the old `<record>` placeholders). Selftest 23/24 node + browser
+(the same pre-existing noneBelow=0.05 road-neg-control miss, no new failures).
+Both `?worldgen=1` and `?worldgen=0` boot clean, zero console errors. Honest
+caveat: the automatable browser is V8 like node, so node==browser is a smoke
+check; the JSC guarantee is by-construction (no transcendentals left in the
+existence decision). Residual accepted: `arcAround`'s atan2/cos/sin still shape
+detour GEOMETRY (quantized, ulp-scale — cosmetic class).
+**Refs:** -> HANDOFF Group H (H.2 struck through), worldgen-layout-harness task 0.1, CHANGELOG 2026-06-10.
