@@ -42,6 +42,7 @@
 
 import { cellRng, quantize, worldHash, mulberry32 } from '../rng.js';
 import { CONFIG, SALT, worldgenEpoch } from './constants.js';
+import { FESTIVAL_TUNING } from './tuning.js';
 import { getSessionSeed } from '../rng.js';
 import { queryPoint } from './index.js';
 import { approachRoadsOf } from './roads.js';
@@ -64,8 +65,10 @@ import { treeDensity } from './density.js';
 // per-cluster SIZING (dancefloor depth, the front-axis ray-walk) reads the live
 // `heart.core`, NEVER a literal 350. If `major.core` is ever tuned past ~350 via
 // the sliders, revisit this bound (drum would exceed 480).
-const DRUM_BAND = 130;
 export const MAX_POI_REACH = 480;   // generous over-bound; see NOTE above (R16)
+// DRUM_BAND (the drum's reach past core, default 130) is now tunable:
+// FESTIVAL_TUNING.DRUM_BAND (tuning.js). MAX_POI_REACH stays a fixed structural
+// over-bound (R16) — if DRUM_BAND is tuned past ~350 it could exceed it; revisit.
 
 // ── Front-axis grammar (deliberation 003 — festival-layout-grammar.md) ───────
 // A hub faces ONE computed direction F: the bisector of the WIDEST DRY GAP
@@ -89,8 +92,8 @@ export const MAX_POI_REACH = 480;   // generous over-bound; see NOTE above (R16)
 // a probe within ~1e-13 of a meter boundary AND exactly at the dry tolerance.
 const ANGLE_BINS = 256;             // fixed angular grid for cross-engine-stable gap selection
 const DRY_PROBES = 6;               // blocked-point samples along a candidate bisector
-const DANCEFLOOR_DEPTH_BASE = 38;   // ~3 stage-lengths of cleared dancefloor (dial-able — A4/G1)
-const DANCEFLOOR_HALFWIDTH_BASE = 17;
+// Dancefloor depth/halfwidth bases are now tunable: FESTIVAL_TUNING
+// .DANCEFLOOR_DEPTH_BASE (38) / .DANCEFLOOR_HALFWIDTH_BASE (17) (tuning.js).
 
 function binAngle(bearing) {        // atan2 result (-π,π] → integer bin [0,ANGLE_BINS)
   let b = Math.round(bearing / (Math.PI * 2) * ANGLE_BINS) % ANGLE_BINS;
@@ -100,13 +103,17 @@ function binBearing(bin) { return (bin / ANGLE_BINS) * Math.PI * 2; }   // [0,2�
 
 // Stage scale is plan DATA (D3.3) so the dancefloor rect and the built model
 // agree on size. Derived from the stage's clusterSeed (idx 0), matching
-// buildStage's FIRST rng draw exactly: main 1.15+r*0.25, side 1.0+r*0.5
-// (chunks.js:2279, inside buildStage at 2273 — keep these two formulas in sync).
+// buildStage's FIRST rng draw exactly. Both this and buildStage (chunks.js:2279,
+// inside buildStage at 2273) read the SAME FESTIVAL_TUNING.STAGE_SCALE_*
+// (tuning.js) — formerly duplicated literals with a "keep in sync" note; the
+// hoist makes them one source.
 function stageScaleOf(heart) {
   const r = mulberry32(clusterSeed(heart, 0))();
-  return heart.rank === 'major' ? 1.15 + r * 0.25 : 1.0 + r * 0.5;
+  const T = FESTIVAL_TUNING;
+  return heart.rank === 'major' ? T.STAGE_SCALE_MAJOR_BASE + r * T.STAGE_SCALE_MAJOR_SPAN
+                                : T.STAGE_SCALE_MINOR_BASE + r * T.STAGE_SCALE_MINOR_SPAN;
 }
-function dancefloorDepth(heart) { return DANCEFLOOR_DEPTH_BASE * stageScaleOf(heart); }
+function dancefloorDepth(heart) { return FESTIVAL_TUNING.DANCEFLOOR_DEPTH_BASE * stageScaleOf(heart); }
 
 // Count probe points along a ray from the hub center that fall in WATER — the
 // dancefloor must not open onto a lake (A3's "no road in front" is already
@@ -176,8 +183,8 @@ export function dancefloorRect(heart) {
   const dx = Math.cos(fa.bearing), dz = Math.sin(fa.bearing);
   return {
     cx: heart.x, cz: heart.z, dirx: dx, dirz: dz, bin: fa.bin,
-    depth: quantize(DANCEFLOOR_DEPTH_BASE * scale),
-    halfWidth: quantize(DANCEFLOOR_HALFWIDTH_BASE * scale),
+    depth: quantize(FESTIVAL_TUNING.DANCEFLOOR_DEPTH_BASE * scale),
+    halfWidth: quantize(FESTIVAL_TUNING.DANCEFLOOR_HALFWIDTH_BASE * scale),
   };
 }
 
@@ -192,15 +199,10 @@ export function dancefloorRectsNear(minX, minZ, maxX, maxZ) {
 
 // Footprint (clear-radius, m) hint per cluster kind — for the build half's
 // spacing + the map-sandbox overlay. The build side registers each prop with the
-// model's real footprint; this is the cluster envelope.
-const KIND_FOOTPRINT = {
-  main_stage: 11, side_stage: 8, tent_stage: 13, arch: 6, food_court: 16, vendor_row: 12,
-  bubble_vendor: 3, drum_circle: 6, porta_bank: 3, camp_village: 32,
-};
-
-// Camp-village coarse grid (independent of hearts — the "back of the festival").
-const VILLAGE_CELL = 240;
-const VILLAGE_PROB = 0.25;   // a discovery, not a carpet (parked feel-tunable)
+// model's real footprint; this is the cluster envelope. Now in tuning.js:
+// FESTIVAL_TUNING.KIND_FOOTPRINT.
+// Camp-village coarse grid (independent of hearts — the "back of the festival"):
+// FESTIVAL_TUNING.VILLAGE_CELL (240) / .VILLAGE_PROB (0.25, parked feel-tunable).
 
 // worldgen `facing` (atan2(Δz,Δx) toward the road) → three.js Y-rotation turning a
 // model's local +Z (its "front") toward the road. yaw = π/2 − facing (a group at
@@ -218,7 +220,7 @@ function clusterSeed(heart, idx) {
 }
 
 function desc(kind, x, z, yaw, role, rank, anchor, seed) {
-  return { kind, x: quantize(x), z: quantize(z), yaw, footprint: KIND_FOOTPRINT[kind] || 4, role, rank, anchor, clusterSeed: seed };
+  return { kind, x: quantize(x), z: quantize(z), yaw, footprint: FESTIVAL_TUNING.KIND_FOOTPRINT[kind] || 4, role, rank, anchor, clusterSeed: seed };
 }
 
 // Walk `dist` meters from the heart's end (oriented[0]) along an approach-road
@@ -250,7 +252,8 @@ function perpOff(x, z, bearing, dist, side) {
 function nudgeOff(x, z, rng) {
   if (!queryPoint(x, z).noBuild) return { x, z };
   const baseA = rng() * Math.PI * 2;
-  for (let r = 10; r <= 28; r += 9) {
+  const T = FESTIVAL_TUNING;
+  for (let r = T.NUDGE_R_MIN; r <= T.NUDGE_R_MAX; r += T.NUDGE_R_STEP) {
     for (let k = 0; k < 6; k++) {
       const a = baseA + (k / 6) * Math.PI * 2;
       const nx = x + Math.cos(a) * r, nz = z + Math.sin(a) * r;
@@ -267,9 +270,10 @@ function nudgeOff(x, z, rng) {
 // then falls back to the first off-road spot found (so a major in open country
 // still gets its drum circle rather than dropping it).
 function treedDistrictSpot(heart, rng, avoidBearing) {
-  const r0 = heart.core + 15;
-  const r1 = Math.min(heart.core + DRUM_BAND, heart.district * 0.7);
-  const FRONT_HALF = 0.7;                       // ~40° wedge around +F kept clear (the dancefloor)
+  const T = FESTIVAL_TUNING;
+  const r0 = heart.core + T.DRUM_CORE_PAD;
+  const r1 = Math.min(heart.core + T.DRUM_BAND, heart.district * T.DRUM_DISTRICT_FRAC);
+  const FRONT_HALF = T.DRUM_FRONT_HALF;         // ~40° wedge around +F kept clear (the dancefloor)
   let fallback = null;
   let chosen = null;
   for (let attempt = 0; attempt < 12; attempt++) {
@@ -351,6 +355,7 @@ function resolveOverlaps(out, heart) {
 
 function _computePlan(heart) {
   const rng = cellRng(heart.cx, heart.cz, SALT.poiLayout);
+  const T = FESTIVAL_TUNING;
   const major = heart.rank === 'major';
   const fa = computeFrontAxis(heart);          // the hub's front axis F (memoized)
   const out = [];
@@ -365,7 +370,7 @@ function _computePlan(heart) {
   // ON its parent — A8 "at the margin").
   const addPotty = (x, z, parentYaw) => {
     const a = rng() * Math.PI * 2;
-    const spot = nudgeOff(x + Math.cos(a) * 9, z + Math.sin(a) * 9, rng);
+    const spot = nudgeOff(x + Math.cos(a) * T.POTTY_ATTACH_OFFSET, z + Math.sin(a) * T.POTTY_ATTACH_OFFSET, rng);
     if (spot) out.push(desc('porta_bank', spot.x, spot.z, parentYaw, 'core', heart.rank, false, clusterSeed(heart, idx)));
     idx++;
   };
@@ -388,13 +393,13 @@ function _computePlan(heart) {
 
   // 2. FOOD COURTS on the drag (the food street), out PAST the dancefloor depth so
   //    they sit away from the stage (A6). Sugar shacks live ONLY here (build half).
-  const courtN = Math.min(roads.length, major ? 2 : 1);
+  const courtN = Math.min(roads.length, major ? T.COURT_N_MAJOR : T.COURT_N_MINOR);
   for (let i = 0; i < courtN; i++) {
     const rd = roads[i];
-    const dist = Math.min(MAX_POI_REACH, (rd.lenQ * 0.45) | 0, (major ? 86 : 66) + rng() * 28);
+    const dist = Math.min(MAX_POI_REACH, (rd.lenQ * T.FOOD_COURT_DRAG_FRAC) | 0, (major ? T.FOOD_COURT_WALK_MAJOR : T.FOOD_COURT_WALK_MINOR) + rng() * T.FOOD_COURT_WALK_SPAN);
     const p = walkOriented(rd.oriented, dist);
     const side = rng() < 0.5 ? 1 : -1;
-    const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + 16, side);
+    const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + T.FOOD_COURT_PERP, side);
     const spot = nudgeOff(o.x, o.z, rng);
     if (spot) {
       const yaw = roadFacingYaw(queryPoint(spot.x, spot.z).facing, rng);
@@ -411,10 +416,10 @@ function _computePlan(heart) {
   //    yaw = the road tangent (π/2 − bearing) so the rows run along the road. No
   //    perpOff/nudgeOff: a road point is buildable by construction, and sitting ON
   //    the road is the whole point — that is what makes the aisle drivable.
-  const rowN = Math.min(roads.length, major ? 2 : 1);
+  const rowN = Math.min(roads.length, major ? T.ROW_N_MAJOR : T.ROW_N_MINOR);
   for (let i = 0; i < rowN; i++) {
     const rd = roads[i];
-    const dist = Math.min(MAX_POI_REACH, (rd.lenQ * 0.34) | 0, (major ? 66 : 50) + rng() * 18);
+    const dist = Math.min(MAX_POI_REACH, (rd.lenQ * T.VENDOR_ROW_DRAG_FRAC) | 0, (major ? T.VENDOR_ROW_WALK_MAJOR : T.VENDOR_ROW_WALK_MINOR) + rng() * T.VENDOR_ROW_WALK_SPAN);
     const p = walkOriented(rd.oriented, dist);
     out.push(desc('vendor_row', p.x, p.z, Math.PI / 2 - p.bearing, 'core', heart.rank, false, clusterSeed(heart, idx)));
     idx++;
@@ -425,13 +430,13 @@ function _computePlan(heart) {
     let spot = null, yaw = rng() * Math.PI * 2;
     if (roads.length) {
       const rd = roads[roads.length - 1];
-      const p = walkOriented(rd.oriented, Math.min(MAX_POI_REACH, (major ? 55 : 40) + rng() * 20));
+      const p = walkOriented(rd.oriented, Math.min(MAX_POI_REACH, (major ? T.BUBBLE_WALK_MAJOR : T.BUBBLE_WALK_MINOR) + rng() * T.BUBBLE_WALK_SPAN));
       const side = rng() < 0.5 ? 1 : -1;
-      const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + 5, side);
+      const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + T.BUBBLE_PERP, side);
       spot = nudgeOff(o.x, o.z, rng);
       if (spot) yaw = roadFacingYaw(queryPoint(spot.x, spot.z).facing, rng);
     }
-    if (!spot) spot = nudgeOff(heart.x + (rng() - 0.5) * 50, heart.z + (rng() - 0.5) * 50, rng);
+    if (!spot) spot = nudgeOff(heart.x + (rng() - 0.5) * T.BUBBLE_FALLBACK_SPREAD, heart.z + (rng() - 0.5) * T.BUBBLE_FALLBACK_SPREAD, rng);
     if (spot) out.push(desc('bubble_vendor', spot.x, spot.z, yaw, 'core', heart.rank, false, clusterSeed(heart, idx)));
     idx++;
   }
@@ -454,15 +459,16 @@ function _computePlan(heart) {
 //    hearts; a coarse deterministic grid, district/outskirts only) ─────────────
 export function campVillagesNear(bounds) {
   const { minX, minZ, maxX, maxZ } = bounds;
-  const c0x = Math.floor(minX / VILLAGE_CELL) - 1, c1x = Math.floor(maxX / VILLAGE_CELL) + 1;
-  const c0z = Math.floor(minZ / VILLAGE_CELL) - 1, c1z = Math.floor(maxZ / VILLAGE_CELL) + 1;
+  const VC = FESTIVAL_TUNING.VILLAGE_CELL, VP = FESTIVAL_TUNING.VILLAGE_PROB;
+  const c0x = Math.floor(minX / VC) - 1, c1x = Math.floor(maxX / VC) + 1;
+  const c0z = Math.floor(minZ / VC) - 1, c1z = Math.floor(maxZ / VC) + 1;
   const out = [];
   for (let cz = c0z; cz <= c1z; cz++) {
     for (let cx = c0x; cx <= c1x; cx++) {
       const rng = cellRng(cx, cz, SALT.poiVillage);
-      if (rng() > VILLAGE_PROB) continue;
-      const jx = (rng() - 0.5) * VILLAGE_CELL * 0.6, jz = (rng() - 0.5) * VILLAGE_CELL * 0.6;
-      const x = quantize((cx + 0.5) * VILLAGE_CELL + jx), z = quantize((cz + 0.5) * VILLAGE_CELL + jz);
+      if (rng() > VP) continue;
+      const jx = (rng() - 0.5) * VC * 0.6, jz = (rng() - 0.5) * VC * 0.6;
+      const x = quantize((cx + 0.5) * VC + jx), z = quantize((cz + 0.5) * VC + jz);
       const qp = queryPoint(x, z);
       if (qp.noBuild || qp.inLake) continue;       // off road + off water
       if (qp.roleTier === 'core') continue;          // villages are back-of-festival, not the core
@@ -472,7 +478,7 @@ export function campVillagesNear(bounds) {
       // small one (~5). Carried as plan data so the build reads it deterministically.
       const tents = Math.max(5, Math.min(22, Math.round(6 + qp.heartInfluence * 16)));
       out.push({
-        kind: 'camp_village', x, z, yaw: 0, footprint: KIND_FOOTPRINT.camp_village,
+        kind: 'camp_village', x, z, yaw: 0, footprint: FESTIVAL_TUNING.KIND_FOOTPRINT.camp_village,
         role: qp.roleTier, rank: qp.heart ? qp.heart.rank : 'minor', anchor: false, tents,
         clusterSeed: (worldHash(cx, cz, SALT.poiVillage) >>> 0),
       });

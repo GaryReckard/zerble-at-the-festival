@@ -1,11 +1,11 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 2 (FESTIVAL_TUNING hoist — GOLDEN-FROZEN, opens the tuning freeze; announce to Gary before first edit). Group 1 COMPLETE (1.1–1.10)."
+current_task: "Group 2 — commit A (tuning.js + festival.js planner rewire) LANDED + gated; next commit B (chunks.js builder rewire + drift asserts) closes 2.2/2.3. Tuning freeze OPEN. Group 1 COMPLETE (1.1–1.10)."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
-last_updated: 2026-06-10
+last_updated: 2026-06-11
 ref: "ROADMAP 'Layout-work agent harness' (added 2026-06-10); gate for festival-zone-grammar"
 ---
 
@@ -54,6 +54,21 @@ ref: "ROADMAP 'Layout-work agent harness' (added 2026-06-10); gate for festival-
   commit zero (before any snapshot capture); `DEFAULT_WORLDGEN_V2` flip
   re-sequenced to AFTER festival-zone-grammar — the v2 HANDOFF's stale "Group I
   next" order would ship the jumble to real players (-> Q2).
+
+- **D8 — Hoist scope boundary (group 2, task 2.1).** `tuning.js` holds the
+  CROSS-CLUSTER arrangement surface (the planner's dancefloor bases, stage-scale
+  coeffs, walk distances, cluster counts, drum band, nudge ring, village grid,
+  `KIND_FOOTPRINT`) + the per-cluster builder ring/spacing/offset/count constants
+  D-B names (food-court ring, vendor-row spacing/offset/camper, camp-village
+  packing). EXCLUDED with reasons (guardrail #2 + D-B "out"): (a) the *legacy*
+  theme builders `buildVendorRow`/`buildCampVillage` hold the SAME numbers but
+  are a different owner — left as literals, do NOT merge; (b) `buildStage`'s own
+  audience/chair/light sub-layout is the stage cluster's BODY, not inter-cluster
+  spacing — and its `dancefloorDepth=9*scale` is a different owner than the
+  planner's `DANCEFLOOR_DEPTH_BASE=38` (do NOT merge); (c) `ANGLE_BINS`,
+  `DRY_PROBES`, `MAX_POI_REACH`, `SALT.*` are determinism/structural machinery,
+  not tunable arrangement. Full inventory with old file:lines lives in the
+  tuning.js header comment (the 2.1 deliverable).
 
 ## Assumptions
 
@@ -308,3 +323,23 @@ This is also why "boot the game and demonstrate" is non-negotiable: the node
 finder and the self-diffs were internally consistent and EMPTY — only the live
 game exposed the world mismatch.
 **Refs:** -> Task 1.5, -> Task 1.6, main.js:76 (seed parse), rng.js setSessionSeed, af32d85 (corrected), verification/MANIFEST.md
+
+### 2026-06-11 -- Group 2 commit A: tuning.js + planner rewire, gated EMPTY
+**Event:** phase-change (hoist begun) + decision (commit split)
+**What:** Tuning freeze announced OPEN to Gary, then landed the FIRST of the
+two hoist commits. Commit A = create `src/worldgen/tuning.js` (the 2.1
+inventory baked into its header + the `FESTIVAL_TUNING` mutable CONFIG +
+`setFestivalTuning` + `MODEL_DIMS` + `clusterExtent`) and rewire the PLANNER
+(`festival.js`) to read it, + importmap in the three live html files
+(hub-sandbox doesn't exist yet — group 6). Split rationale: commit A = planner
+(positions), commit B = builder (`chunks.js` model variation + the drift
+asserts). Splitting localizes any snapshot drift to one half — D-B explicitly
+allows "one or two commits"; two is safer for a golden-frozen change. The
+planner change is proven value-identical the strongest possible way: the POI
+golden hashes every descriptor's kind/x/z/yaw/footprint/fbin/scale, and it did
+NOT move (`01532955`), so the plan is byte-identical by construction; the
+registry snapshot diff (full built world, incl. per-cluster draw canary) was
+EMPTY across 5 windows / 3 seeds as belt-and-suspenders. Both `?worldgen=1` and
+`?worldgen=0` boot clean (zero console errors). 2.1 ticked; 2.2 stays open
+until commit B (its done-line wants zero literals at the chunks.js sites too).
+**Refs:** -> Task 2.1, -> Task 2.2, -> Task 2.3, -> D8, design D-B, src/worldgen/tuning.js, src/worldgen/festival.js

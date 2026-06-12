@@ -129,7 +129,7 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
 
 ## 2. `FESTIVAL_TUNING` hoist (GOLDEN-FROZEN — full gate ritual per commit; tuning freeze in effect)
 
-- [ ] 2.1 Inventory the arrangement constants in the chunks.js worldgen builders
+- [x] 2.1 Inventory the arrangement constants in the chunks.js worldgen builders
       (`buildVendorRowAt` [chunks.js:1236](../../../src/chunks.js#L1236),
       `buildFoodCourtAt` [chunks.js:1288](../../../src/chunks.js#L1288),
       `buildStage` [chunks.js:2258](../../../src/chunks.js#L2258), potty/camp/

@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-11
+
+### Changed
+- **Festival arrangement constants hoisted to `src/worldgen/tuning.js` (planner half) — golden-frozen, slider-ready (dev workflow).** New render-agnostic module (imports nothing) holding the *space-between-things* tunables — dancefloor depth/halfwidth bases, stage-scale coefficients, per-road walk distances + drag fractions + perp offsets, per-hub cluster counts, drum district band, nudge ring, village cell/prob, and `KIND_FOOTPRINT` — as a mutable `FESTIVAL_TUNING` object with a `setFestivalTuning` setter, so the upcoming hub-viewer sliders (group 6.4) can tune the festival's *composition* live the way `constants.js` CONFIG already tunes the worldgen feature layer. `festival.js` now reads `FESTIVAL_TUNING.*` per-call instead of module-scope literals. Plus `MODEL_DIMS` (model-derived extents copied for the node linter, drift-asserted in chunks.js next) and an approximate `clusterExtent(kind)` envelope helper for the group-4 linter. **Value-identical, zero rng-order change**: both worldgen determinism goldens unchanged (`eddf8e50` / `01532955`) and the registry snapshot diff is EMPTY across 5 windows / 3 seeds incl. the per-cluster draw canary. Near-duplicate constants in the *legacy* theme builders (`buildVendorRow`, `buildCampVillage`) and `buildStage`'s own audience zone are documented "same number, two owners — do NOT merge yet" and left as literals; merging is grammar-change work.
+
 ## 2026-06-10
 
 ### Added
