@@ -238,6 +238,56 @@ bin/layout-snapshot capture 1234 verification/snapshots/1234.b.json --bounds 163
 bin/layout-snapshot --diff verification/snapshots/1234.a.json verification/snapshots/1234.b.json   # MUST be EMPTY
 ```
 
+### When the one-command path stalls (heavy headless render) — the `document.hidden` trick
+
+In a **headless-only** environment (no GPU — Chromium falls back to SwiftShader
+software WebGL, e.g. a Codespace/CI box), `perf=high` is too heavy: the RAF
+render loop saturates the CPU and never yields, so CDP `eval` round-trips hang
+and `agent-browser open` dies on its load-wait timeout — taking
+`bin/layout-snapshot capture` down with it (proven 2026-06-12; goldens cleared
+this way anyway, see below). Two fixes, used together:
+
+1. **Force the game onto its yielding loop.** `main.js:1093` runs
+   `setTimeout(tick, 16)` instead of `requestAnimationFrame` when
+   `document.hidden` is true (the same hook that keeps the page ticking under
+   the preview MCP). Force it with an agent-browser **init-script** so the main
+   thread yields between ticks and `eval` lands:
+
+   ```
+   printf '%s\n' \
+     "Object.defineProperty(document,'hidden',{get:()=>true,configurable:true});" \
+     "Object.defineProperty(document,'visibilityState',{get:()=>'hidden',configurable:true});" \
+     > /tmp/hidden-init.js
+   agent-browser open "http://127.0.0.1:8765/?worldgen=1&seed=1234&perf=high" \
+     --init-script /tmp/hidden-init.js   # exits non-zero on the load-wait — tolerate it; the page IS loaded
+   ```
+
+2. **Drive capture by hand** (since `capture` aborts on that timeout). Settle on
+   the **bounds-clipped** count, not the unbounded one — the whole-world count
+   keeps climbing as distant chunks stream in, but the window you're capturing
+   stabilizes early (and lands on the MANIFEST entry count):
+
+   ```
+   B='{minX:168,minZ:-243,maxX:468,maxZ:57}'
+   agent-browser eval "window.__dbg.start()"
+   agent-browser eval "window.__dbg.dumpRegistry($B).length"   # poll until stable (== MANIFEST count)
+   agent-browser eval --json "({entries:window.__dbg.dumpRegistry($B),drawCounts:window.__dbg.dumpDrawCounts($B)})" \
+     | jq -c '.data.result' \
+     | bin/layout-snapshot 1234 verification/snapshots/1234.spawn.fresh.json --stdin --tier high --window spawn
+   bin/layout-snapshot --diff verification/snapshots/1234.spawn.json verification/snapshots/1234.spawn.fresh.json
+   ```
+
+   (`agent-browser eval --json` wraps the result in `{success,data:{result}}`;
+   `jq .data.result` unwraps it to the raw `{entries,drawCounts}` the normalizer
+   wants. Plain `eval` double-encodes or pretty-prints — use `--json`.)
+
+Note the HUD **draws/tris** counter is *not* readable while hidden — rendering
+is throttled to ~1 call, and forcing a full `renderer.render()` re-wedges the
+thread. The per-cluster **draw-count canary** baked into the snapshot is the
+gate's draw-count instrument; that's why it exists. (`bin/layout-snapshot
+capture` learning to inject the init-script + tolerate the open-timeout itself
+is a parked harness improvement — see ROADMAP.)
+
 ### The manual recipe (approved fallback if agent-browser is flaky/absent)
 
 `bin/layout-snapshot --recipe <seed>` (or `--seeds` for the multi-seed playbook)

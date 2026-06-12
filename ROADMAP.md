@@ -83,9 +83,10 @@ separations that guarantee clipping, the 38m dancefloor rect only repels *trees*
 (POIs never read it), builders place sub-components blind (the registry-check
 discipline main's theme builders had was dropped), and nothing enforces
 stage-vs-stage distance across hearts. Item-by-item regression fixes can't close
-this; the contract can. The fix, in order: (1) hoist the ~34 scattered layout
-constants into one `FESTIVAL_TUNING` object both planner and builders read
-(round-2 item J's prerequisite), (2) descriptors carry **oriented bounding
+this; the contract can. The fix, in order: (1) ✓ **DONE** — hoist the ~34
+scattered layout constants into one `FESTIVAL_TUNING` object both planner and
+builders read (round-2 item J's prerequisite); *shipped 2026-06-11/12 via
+`worldgen-layout-harness` group 2 + 2.4*. (2) descriptors carry **oriented bounding
 shapes derived from the same constants the builder uses**, and overlap/road/
 water/dancefloor checks run against shapes, (3) replace scatter-then-relax with
 **zone slotting** per hub (stage + hard-reserved front wedge on F; vendor aisles
@@ -111,7 +112,15 @@ order (full designs: OpenSpec `worldgen-layout-harness`):
   min distance, spawn on road w/ arch + stage ahead) across N seeds; outputs
   violations w/ seed + coords + deep-link. The regression gate for the grammar
   refactor — the assertions ARE the spec.
-- **Dry-runnable builders + true-extent map-sandbox overlay** — builders
+- **`bin/layout-snapshot capture` — survive headless-only boxes** *(surfaced
+  2026-06-12)*: the one-command path dies when there's no GPU (SwiftShader
+  saturates at `perf=high`, so `agent-browser open` times out on its load-wait).
+  Teach `capture` to inject the `document.hidden` init-script (flip the game onto
+  its `setTimeout(16ms)` loop, `main.js:1093`) and tolerate the open-timeout — the
+  manual workaround that cleared the 2.4 gate is in DEBUGGING.md "Layout snapshots".
+- **Dry-runnable builders + true-extent map-sandbox overlay** *(deferred to
+  `festival-zone-grammar` per worldgen-layout-harness deliberation 001 / D6 —
+  the dry-run extraction lands under that change's already-moving golden)* — builders
   express sub-component layouts as pure data (descriptor in → positions/radii
   out, no three.js); the 2D sandbox then draws every actual truck/booth/tent
   so clipping is visible at a glance. Same data feeds the linter and the
@@ -120,11 +129,11 @@ order (full designs: OpenSpec `worldgen-layout-harness`):
   game: build ONE complete hub (real `festivalPlan` + real builders) on a flat
   plane, free-orbit, deep-linkable `?seed=&hub=`. Where grammar iteration and
   Gary-facing 3D screenshots happen.
-- **`__dbg` additions** — `gotoHub(n)` (teleport + canonical camLock),
-  `topDown(x,z,span)` (ortho snapshot, catches cross-chunk seams),
-  `showFootprints()` (registry footprints + dancefloor rects as ground decals),
-  `dumpRegistry(bounds)` (JSON of built truth — lets the linter audit the LIVE
-  game, closing the sandbox-pass/game-fail class for layout).
+- **`__dbg` additions** ✓ *shipped (group 1, 2026-06-10)* — `gotoHub(n)` (teleport
+  + canonical camLock), `topDown(x,z,span)` (ortho snapshot, catches cross-chunk
+  seams), `showFootprints()` (registry footprints + dancefloor rects as ground
+  decals), `dumpRegistry(bounds)` (JSON of built truth — lets the linter audit
+  the LIVE game, closing the sandbox-pass/game-fail class for layout).
 - **Playtest marker hotkey** — drop `{seed, position, heading, note}` markers
   during Gary's playtests w/ copy-out, so feedback arrives as teleportable
   coordinates instead of prose archaeology.
