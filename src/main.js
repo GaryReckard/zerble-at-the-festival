@@ -1445,11 +1445,11 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
       return out;
     },
 
-    // nth-nearest festival heart to the cart: teleport there + a canonical 3/4
-    // camLock looking at the stage front. `n` indexes hubs by distance from the
-    // cart (0 = the one you're standing in, so gotoHub(0) after start frames the
-    // spawn hub). Prints the planned hub-sandbox URL (?at=x,z — the form the
-    // group-6 hub viewer will accept) so the same hub is re-openable there.
+    // nth-nearest festival hub: teleport there + a canonical 3/4 camLock
+    // looking at the stage front. `n` ranks hubs by distance from the SPAWN
+    // hub (so gotoHub(0) is always the spawn hub, seed-stable). Prints the
+    // planned hub-sandbox URL (?at=x,z — the form the group-6 hub viewer will
+    // accept) so the same hub is re-openable there.
     gotoHub(n = 0) {
       // Anchor on the SPAWN hub (the major the game relocates to), not the
       // cart's live position — spawn-relocation offsets the cart onto the

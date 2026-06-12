@@ -63,9 +63,9 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
       self-diff REQUIRED before any refactor diff is trusted.
       done = documented empty self-diff for all 3 seeds in `verification/`.
       *(done 2026-06-10 — EMPTY for all 3 seeds on a TELEPORTED window (the
-      riskiest path, since teleport forces unload+reload): 1234 shoreline 578 +
-      dense 553, 0xf7ef2a3c dense 314, 0xf7ef2a3d dense 612. Table +
-      reproduction in verification/MANIFEST.md.)*
+      riskiest path, since teleport forces unload+reload): 1234 shoreline 867
+      (re-run after the seed-parse world fix), 0xf7ef2a3c dense 314, 0xf7ef2a3d
+      dense 612. Table + reproduction in verification/MANIFEST.md.)*
 - [x] 1.4 Draw-count canary: wrap each cluster's rng (`cctx.rng` created in
       `buildWorldgenKind`, [chunks.js:1159](../../../src/chunks.js#L1159)) in a
       counting closure; counts emitted in the dump. MUST NOT change draw order
