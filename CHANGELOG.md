@@ -36,6 +36,22 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   Cross-validated: two independent cold headless boots of seed 1234 produce byte-identical
   layouts, and that result matches the manual-recipe baseline byte-for-byte (layout + canary) —
   the two capture paths confirm each other.
+- **Pre-refactor layout baseline committed (`verification/`).** Nine built-truth snapshots —
+  three seeds (`1234`, the round-2 playtest `0xf7ef2a3c`, fresh `0xf7ef2a3d`) × three 300m
+  windows each (spawn hub / a shoreline hub / the densest multi-hub cluster) — plus six
+  Noon/Midnight spawn-hub screenshots (the cosmetic catch a position snapshot can't see) and a
+  `MANIFEST.md`. This is the frozen "before" the constants hoist and the future grammar rewrite
+  diff against. Windows are located deterministically from the worldgen plan in node
+  (`nearestMajorHeart` / nearest-to-shore / densest-heart-box), not eyeballed, so they're exactly
+  reproducible — bounds + teleport target recorded per file. The twice-capture self-diff control
+  is EMPTY for all three seeds on a *teleported* window (the riskiest path).
+- **`capture --at x,z` teleport flag.** Windows more than a load-ring from spawn (shorelines,
+  outlying clusters) never have their chunks generated under the "no driving" protocol, so
+  `capture` can now `__dbg.teleport` to the window center before settling (a debug jump, not
+  driving). Surfaced a stale doc claim along the way: chunks **do** unload beyond `UNLOAD_RADIUS`
+  (`chunks.js:345`) — CLAUDE.md footgun #5's "never unload once created" is wrong; the settle
+  proxy works because a stationary player has no churn, and teleport-capture is clean *because*
+  far chunks drop out.
 
 ### Fixed
 - **Road existence can no longer differ between browsers (behind `?worldgen=1`).**

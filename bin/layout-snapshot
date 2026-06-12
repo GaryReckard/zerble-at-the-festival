@@ -199,9 +199,29 @@ function cmdCaptureLive(args) {
   const startRes = ab(['eval', "window.__dbg ? window.__dbg.start() : 'NO_DBG'"], 'start').trim();
   if (startRes.includes('NO_DBG')) die('window.__dbg absent — is the dev server serving from 127.0.0.1? (localhost-only surface)');
 
-  // Settle: poll the registry entry count (a faithful "this window's chunks all
-  // loaded" proxy — __dbg.game doesn't expose the chunk manager) until two
-  // consecutive reads agree and are non-zero. NO driving happens here.
+  // Teleport to the window center BEFORE settling (a debug jump, NOT driving —
+  // protocol-compliant). The player relocates to the spawn hub; any window more
+  // than ~one load-ring away (shoreline, dense clusters) never has its chunks
+  // generated unless the player is there. Chunks beyond UNLOAD_RADIUS from the
+  // jump target unload, so a bounded dump after teleport is exactly the window's
+  // built truth — not spawn debris. Keep windows ≤ ±150m so the 5×5 load ring
+  // (high tier, ±200m square) fills them fully from one jump.
+  let at = null;
+  if (args.flags.at) {
+    const a = args.flags.at.split(',').map(Number);
+    if (a.length !== 2 || a.some(Number.isNaN)) die('--at must be x,z (two numbers)');
+    at = { x: a[0], z: a[1] };
+    process.stderr.write(`[capture] teleport (${at.x}, ${at.z})\n`);
+    ab(['eval', `window.__dbg.teleport(${at.x}, ${at.z})`], 'teleport');
+  }
+
+  // Settle: poll the registry entry count (a faithful "this vicinity's chunks
+  // have stopped churning" proxy — __dbg.game doesn't expose the chunk manager)
+  // until two consecutive reads agree and are non-zero. NOTE the count is NOT
+  // monotonic: chunks beyond UNLOAD_RADIUS unload (chunks.js:345), so after a
+  // teleport the total dips as spawn chunks drop and rises as the new vicinity
+  // loads — "stable for two reads" is what we wait on, not "stopped climbing".
+  // NO driving happens here.
   let prev = -1, stableReads = 0, count = 0;
   const MAX_POLLS = 20;
   for (let i = 0; i < MAX_POLLS; i++) {
@@ -226,6 +246,8 @@ function cmdCaptureLive(args) {
   const drawCounts = normalizeDrawCounts(raw.drawCounts);
   const snapshot = {
     seed: String(seed), tier, worldgen: true, window: win,
+    bounds: args.flags.bounds || null,   // the clip rect, for reproducible re-capture
+    at,                                   // teleport target (null = captured at spawn hub)
     entryCount: entries.length,
     moversExcluded: raw.entries.length - entries.length,
     clusterCount: drawCounts ? Object.keys(drawCounts).length : null,
@@ -355,7 +377,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--stdin') flags.stdin = true;
-    else if (a === '--raw' || a === '--tier' || a === '--window' || a === '--bounds' || a === '--port') flags[a.slice(2)] = argv[++i];
+    else if (a === '--raw' || a === '--tier' || a === '--window' || a === '--bounds' || a === '--port' || a === '--at') flags[a.slice(2)] = argv[++i];
     else positional.push(a);
   }
   return { positional, flags };

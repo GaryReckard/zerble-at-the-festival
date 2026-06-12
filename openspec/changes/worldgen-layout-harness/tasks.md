@@ -59,20 +59,31 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
       preview-MCP recipe in DEBUGGING.md in the SAME commit.
       done = running it twice for seed 1234 produces two files whose `--diff`
       is empty (this is also task 1.3's control).
-- [ ] 1.3 Twice-capture self-diff control: same seed/tier twice → empty
+- [x] 1.3 Twice-capture self-diff control: same seed/tier twice → empty
       self-diff REQUIRED before any refactor diff is trusted.
       done = documented empty self-diff for all 3 seeds in `verification/`.
+      *(done 2026-06-10 — EMPTY for all 3 seeds on a TELEPORTED window (the
+      riskiest path, since teleport forces unload+reload): 1234 shoreline 578 +
+      dense 553, 0xf7ef2a3c dense 314, 0xf7ef2a3d dense 612. Table +
+      reproduction in verification/MANIFEST.md.)*
 - [x] 1.4 Draw-count canary: wrap each cluster's rng (`cctx.rng` created in
       `buildWorldgenKind`, [chunks.js:1159](../../../src/chunks.js#L1159)) in a
       counting closure; counts emitted in the dump. MUST NOT change draw order
       (a counter wrapper doesn't draw — keep it that way).
       done = dump shows per-cluster counts; self-diff (1.3) still empty.
-- [ ] 1.5 Capture PRE-refactor snapshots at seeds {1234, 0xf7ef2a3c, +1 fresh}:
+- [x] 1.5 Capture PRE-refactor snapshots at seeds {1234, 0xf7ef2a3c, +1 fresh}:
       spawn ring + one shoreline hub + one dense multi-hub window per seed
       (locate via map-sandbox), + one hub's Noon/Midnight screenshot pair per
       seed (cosmetic catch — registry snapshots don't see colors).
       done = `verification/snapshots/` committed with a manifest listing
       seed/window/tier per file.
+      *(done 2026-06-10 — 9 windows (3 seeds × spawn/shoreline/dense, fresh
+      seed = 0xf7ef2a3d), 6 Noon/Midnight PNGs, verification/MANIFEST.md.
+      Windows located deterministically from the worldgen plan in node
+      (nearestMajorHeart / nearest-to-shore / densest-heart-box) rather than
+      eyeballed — more rigorous + reproducible; bounds+at recorded per file.
+      Required a `--at` teleport flag on `capture` since "no driving" leaves
+      far windows unloaded.)*
 - [ ] 1.6 `__dbg.gotoHub(n)` — nth-nearest heart (worldgen `heartsInBounds`)
       teleport + canonical 3/4 camLock facing the stage; prints the equivalent
       hub-sandbox URL. camLock pattern:

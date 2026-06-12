@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "1.3 + 1.5 consolidated capture pass (3 seeds × windows, with canary) — 1.1/1.2/1.4 done"
+current_task: "1.6 gotoHub → 1.7 topDown → 1.8 showFootprints → 1.9 DEBUGGING verbs → 1.10 festival.js comment (close group 1); 1.3/1.5 done"
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -235,3 +235,50 @@ pointing at `--recipe`. **Forward implication:** group 4's `bin/lint --seeds`
 and group 8.1's baseline can now auto-capture across seeds without manual
 MCP round-trips.
 **Refs:** -> Task 1.2, design D-A, DEBUGGING.md "Layout snapshots" (one-command path), Gary 2026-06-10
+
+### 2026-06-10 -- CORRECTION + DISCOVERY: chunks DO unload — which is what makes teleport-capture clean
+**Event:** discovery
+**What:** The 1.3/1.5 capture pass needed shoreline/dense windows that sit
+~700–960m from the spawn hub. With the pinned "no driving" protocol, those
+chunks NEVER GENERATE — only the spawn vicinity loads. So `capture` gained an
+`--at x,z` flag that `__dbg.teleport`s to the window center before settling (a
+debug jump, NOT driving — protocol-compliant). While verifying this I hit a
+load-bearing contradiction: **CLAUDE.md footgun #5 says chunks "never unload
+once created" — that is FALSE.** [chunks.js:345](../../../src/chunks.js#L345)
+unconditionally unloads any chunk beyond `UNLOAD_RADIUS` (high tier = 3) from
+the player, calling `_unload` → `registry.removeChunk` (chunks.js:376). My OWN
+earlier settle-proxy entry (2026-06-10, "settle had to switch to registry-count")
+inherited that wrong "never decreases / never unload" rationale from the
+footgun. **The correction:** the registry-count settle proxy still works, but
+NOT because the count is monotonic — it isn't. It works because a STATIONARY
+player (no driving, post-teleport) produces no load/unload churn, so the count
+goes flat once the current vicinity finishes building. And teleport-capture is
+*clean* precisely BECAUSE far chunks unload: after the jump, spawn chunks drop
+and only the teleport vicinity remains, so a `--bounds`-clipped dump is the
+window's built truth, not spawn debris. Proven: 4 teleported-window self-diffs
+EMPTY across 3 seeds (the unload+reload path is deterministic). **Forward
+implication:** the grammar-change linter and any built-truth consumer must NOT
+assume "every chunk ever generated is still in the registry" — only the current
+load neighborhood is. Footgun #5's wording should be corrected project-wide
+(flagged to Gary; out of THIS change's scope to edit CLAUDE.md).
+**Refs:** -> Task 1.3, -> Task 1.5, chunks.js:340-348/376, CLAUDE.md footgun #5 (stale), prior 2026-06-10 settle-proxy entry (corrected)
+
+### 2026-06-10 -- DISCOVERY: capture windows located from the worldgen plan in node, not eyeballed
+**Event:** discovery
+**What:** Task 1.5 says "locate windows via map-sandbox." Instead I derived all
+nine windows DETERMINISTICALLY from the worldgen plan in node (it runs headless:
+`setSeed` → `heartsInBounds`/`lakesInBounds`/`nearestMajorHeart`), which is more
+rigorous and re-runnable than eyeballing a 2D canvas. Per seed: **spawn** = 300m
+box on `nearestMajorHeart(0,0)` (the game's spawn-relocation target,
+[main.js:232](../../../src/main.js#L232)); **shoreline** = 300m box on the heart
+closest to a lake outline (gap 5–<radius m) so a hub + a shore share the frame
+for the future `water-clear` rule; **dense** = 300m box (20m grid search ±800m)
+maximizing heart-center count (the overlap-prone case). **Why 300m (±150):** the
+high-tier load ring is a 5×5 chunk square (±200m), so a ±150 window fills fully
+from one jump with margin — bigger windows leave empty corners. The chosen
+centers/bounds are recorded per-file in verification/MANIFEST.md (so re-capture
+is exact) along with the derivation rule (so the *method* is reproducible, not
+just the numbers). **Forward implication:** 1.6 `gotoHub` should reuse the same
+`nearestMajorHeart`/`heartsInBounds` selection so its hub indices line up with
+these baseline windows; group-4 lint `--seeds` can auto-pick the same windows.
+**Refs:** -> Task 1.5, -> Task 1.6, hearts.js (heartsInBounds/nearestMajorHeart), water.js (lakesInBounds), verification/MANIFEST.md
