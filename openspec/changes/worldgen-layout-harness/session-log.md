@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 2 — commit A (tuning.js + festival.js planner rewire) LANDED + gated; next commit B (chunks.js builder rewire + drift asserts) closes 2.2/2.3. Tuning freeze OPEN. Group 1 COMPLETE (1.1–1.10)."
+current_task: "Group 2 COMPLETE (2.1–2.3, two gated commits A+B); tuning freeze CLOSED. Next: /smart-review (group-2 milestone), then group 4 (layout linter 4.1–4.6) → 8.1 baseline. Group 1 COMPLETE (1.1–1.10)."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -61,8 +61,10 @@ ref: "ROADMAP 'Layout-work agent harness' (added 2026-06-10); gate for festival-
   `KIND_FOOTPRINT`) + the per-cluster builder ring/spacing/offset/count constants
   D-B names (food-court ring, vendor-row spacing/offset/camper, camp-village
   packing). EXCLUDED with reasons (guardrail #2 + D-B "out"): (a) the *legacy*
-  theme builders `buildVendorRow`/`buildCampVillage` hold the SAME numbers but
-  are a different owner — left as literals, do NOT merge; (b) `buildStage`'s own
+  theme builders `buildVendorRow`/`buildFoodPlaza`/`buildCampVillage` hold the
+  SAME numbers but are a different owner — left as literals, do NOT merge
+  (`buildFoodPlaza` was missed in the first inventory pass and caught during the
+  chunks.js rewire when `ring + 2.5` matched twice); (b) `buildStage`'s own
   audience/chair/light sub-layout is the stage cluster's BODY, not inter-cluster
   spacing — and its `dancefloorDepth=9*scale` is a different owner than the
   planner's `DANCEFLOOR_DEPTH_BASE=38` (do NOT merge); (c) `ANGLE_BINS`,
@@ -343,3 +345,22 @@ EMPTY across 5 windows / 3 seeds as belt-and-suspenders. Both `?worldgen=1` and
 `?worldgen=0` boot clean (zero console errors). 2.1 ticked; 2.2 stays open
 until commit B (its done-line wants zero literals at the chunks.js sites too).
 **Refs:** -> Task 2.1, -> Task 2.2, -> Task 2.3, -> D8, design D-B, src/worldgen/tuning.js, src/worldgen/festival.js
+
+### 2026-06-11 -- Group 2 commit B: builder rewire + drift guard; hoist COMPLETE, freeze CLOSED
+**Event:** phase-change (group 2 done)
+**What:** Second hoist commit. `chunks.js` worldgen builders (`buildFoodCourtAt`,
+`buildVendorRowAt`, `buildCampVillageAt`) now read `FESTIVAL_TUNING.*`; a
+one-shot localhost drift guard (`assertTuningDrift` in `buildWorldgenKind`)
+warns if `MODEL_DIMS` drifts from the live model exports. **Surprise caught:**
+`buildFoodPlaza` (the LEGACY food court) is a third do-not-merge twin I missed
+in the 2.1 inventory — surfaced when `ring + 2.5` matched twice in the rewire.
+Rewired only the worldgen `*At` sibling; added buildFoodPlaza to the excluded
+inventory (tuning.js header + -> D8). Literal audit: `14*FOOD_TRUCK_SCALE`,
+`MIN_SPACING = 5.5`, `spacing = 5.0` each now appear exactly ONCE — in their
+legacy builder only. Builder change is the test the POI golden can't do (it
+hashes the plan, not the build); the registry snapshot — which captures
+build-half model variation — diffed EMPTY × 5 windows / 3 seeds incl. canary,
+both flags boot clean, no drift warning. Tuning freeze CLOSED. Group 2 done in
+two commits (D-B's "one or two"); next is the group-2 `/smart-review` milestone
+(APPLY-GUARDRAILS), then group 4 linter → 8.1 baseline (grammar-unblock).
+**Refs:** -> Task 2.2, -> Task 2.3, -> D8, src/chunks.js buildWorldgenKind, 4419cb3 (commit A)

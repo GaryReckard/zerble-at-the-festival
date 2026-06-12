@@ -25,6 +25,7 @@ import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
 import { dancefloorRectsNear } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
+import { FESTIVAL_TUNING, MODEL_DIMS } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
 import { buildCampsite, buildCampChair, buildTorchField, buildCampTent } from './models/campsite.js';
@@ -1165,7 +1166,33 @@ function placeWorldgenProps(ctx) {
 // length can't desync the chunk's other consumers (R19). Return-shape extraction is
 // per-builder (R2): buildStage/buildDrumCircleAt register internally; the *At helpers
 // extract `.group`/bare-Group exactly as each model demands.
+// Dev-only drift guard (design D-B): tuning.js MODEL_DIMS copies a few model
+// dimensions so the node linter (which can't import src/models/*) can compute
+// cluster extents. If a model body is retuned and MODEL_DIMS isn't updated, the
+// linter's analytic extents silently go stale. chunks.js legally imports both,
+// so it's the one place that can catch the drift. One-shot, localhost-only,
+// console.warn — never throws (a stale extent is a lint-accuracy bug, not a
+// crash). The arrangement multipliers themselves (× FOOD_TRUCK_SCALE) read the
+// live export at the call site, so there's nothing to drift there.
+let _tuningDriftChecked = false;
+function assertTuningDrift() {
+  if (_tuningDriftChecked) return;
+  _tuningDriftChecked = true;
+  if (typeof location === 'undefined' || !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+  const M = MODEL_DIMS;
+  const checks = [
+    ['FOOD_TRUCK_SCALE', M.FOOD_TRUCK_SCALE, FOOD_TRUCK_SCALE],
+    ['SUGAR_SHACK_W', M.SUGAR_SHACK_W, SUGAR_SHACK_WIDTH],
+    ['SUGAR_SHACK_D', M.SUGAR_SHACK_D, SUGAR_SHACK_DEPTH],
+    ['POTTY_SPACING', M.POTTY_SPACING, POTTY_SPACING],
+  ];
+  for (const [name, copied, live] of checks) {
+    if (copied !== live) console.warn(`[tuning drift] MODEL_DIMS.${name}=${copied} but live model export=${live} — update tuning.js MODEL_DIMS (and re-check clusterExtent).`);
+  }
+}
+
 function buildWorldgenKind(ctx, d) {
+  assertTuningDrift();
   // Transparent counting passthrough over the cluster-local rng (task 1.4
   // canary). `realRng()` is the same mulberry32 stream in the same order; the
   // wrapper only tallies calls — zero behavior change.
@@ -1249,8 +1276,9 @@ function buildPottyBankAt(ctx, x, z, yaw) {
 // offset). Sugar shacks do NOT appear here — only in the food court (kills the
 // solo-shack bug).
 function buildVendorRowAt(ctx, x, z, yaw) {
-  const count = 5 + Math.floor(ctx.rng() * 3);
-  const spacing = 5.0, rowOffset = 7;
+  const T = FESTIVAL_TUNING;
+  const count = T.VENDOR_ROW_COUNT_BASE + Math.floor(ctx.rng() * T.VENDOR_ROW_COUNT_SPAN);
+  const spacing = T.VENDOR_ROW_SPACING, rowOffset = T.VENDOR_ROW_OFFSET;
   const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
   const place = (lx, lz) => ({ x: x + lx * cosY + lz * sinY, z: z - lx * sinY + lz * cosY });  // +Z = along road
   for (let i = 0; i < count; i++) {
@@ -1275,8 +1303,8 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       });
       // D3: a camper's tent tucked BEHIND ~40% of the stalls (back side, away from
       // the aisle) — "vendors camp behind their stalls."
-      if (ctx.rng() < 0.4) {
-        const cw = place(side * (rowOffset + 6), t * spacing + (ctx.rng() - 0.5) * 2);
+      if (ctx.rng() < T.VENDOR_CAMPER_PROB) {
+        const cw = place(side * (rowOffset + T.VENDOR_CAMPER_BACK_OFFSET), t * spacing + (ctx.rng() - 0.5) * 2);
         if (!isPointInLake(cw.x, cw.z)) {
           const camp = buildCampTent(ctx.rng).group;   // buildCampTent returns { group, color, footprint }, not a bare Group (R2)
           camp.position.set(cw.x, 0, cw.z);
@@ -1301,9 +1329,10 @@ function buildVendorRowAt(ctx, x, z, yaw) {
 // the legacy ring lacked (the only thing that kept it from overlapping was the
 // spawn-corridor hack — D2.3 surgery).
 function buildFoodCourtAt(ctx, x, z) {
-  const count = 3 + Math.floor(ctx.rng() * 3);
-  const ring = 14 * FOOD_TRUCK_SCALE;
-  const wantShack = ctx.rng() < 0.35;
+  const T = FESTIVAL_TUNING;
+  const count = T.FOOD_COURT_COUNT_BASE + Math.floor(ctx.rng() * T.FOOD_COURT_COUNT_SPAN);
+  const ring = T.FOOD_COURT_RING_MULT * FOOD_TRUCK_SCALE;
+  const wantShack = ctx.rng() < T.FOOD_COURT_SHACK_PROB;
   const shackSlot = wantShack ? Math.floor(ctx.rng() * count) : -1;
   const placed = [];
   const overlaps = (px, pz, r) => placed.some((p) => {
@@ -1312,7 +1341,7 @@ function buildFoodCourtAt(ctx, x, z) {
   for (let i = 0; i < count; i++) {
     const ang = (i / count) * Math.PI * 2 + ctx.rng() * 0.4;
     if (i === shackSlot) {
-      const shackRing = ring + 2.5;
+      const shackRing = ring + T.FOOD_COURT_SHACK_RING_PAD;
       const sx = x + Math.cos(ang) * shackRing, sz = z + Math.sin(ang) * shackRing;
       const half = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
       if (isPointInLake(sx, sz) || overlaps(sx, sz, half)) continue;
@@ -1333,7 +1362,7 @@ function buildFoodCourtAt(ctx, x, z) {
       continue;
     }
     const tx = x + Math.cos(ang) * ring, tz = z + Math.sin(ang) * ring;
-    const tr = 4.4 * FOOD_TRUCK_SCALE;
+    const tr = T.FOOD_COURT_TRUCK_R_MULT * FOOD_TRUCK_SCALE;
     if (isPointInLake(tx, tz) || overlaps(tx, tz, tr)) continue;
     const truck = buildFoodTruck(ctx.rng);
     truck.position.set(tx, 0, tz);
@@ -1350,8 +1379,8 @@ function buildFoodCourtAt(ctx, x, z) {
     placed.push({ x: tx, z: tz, r: tr });
   }
   // A bubble vendor at the court edge ~40% of the time (refuel near the food).
-  if (ctx.rng() < 0.4) {
-    const ang = ctx.rng() * Math.PI * 2, vr = ring + 3;
+  if (ctx.rng() < T.FOOD_COURT_BUBBLE_PROB) {
+    const ang = ctx.rng() * Math.PI * 2, vr = ring + T.FOOD_COURT_BUBBLE_RING_PAD;
     const vx = x + Math.cos(ang) * vr, vz = z + Math.sin(ang) * vr;
     if (!isPointInLake(vx, vz) && !overlaps(vx, vz, 2.4)) {
       buildBubbleVendorAt(ctx, vx, vz, Math.atan2(x - vx, z - vz));
@@ -1362,13 +1391,13 @@ function buildFoodCourtAt(ctx, x, z) {
   // gathers around the tables (the "people at the picnic area" read; the precise
   // butts-on-benches seated pose is a tracked follow-up). Spaced so Zerble can still
   // weave between them within the ring.
-  const tableN = 1 + Math.floor(ctx.rng() * 3);   // 1-3
+  const tableN = T.FOOD_COURT_TABLE_COUNT_BASE + Math.floor(ctx.rng() * T.FOOD_COURT_TABLE_COUNT_SPAN);   // 1-3
   const tablesPlaced = [];
   for (let i = 0; i < tableN; i++) {
-    const ang = ctx.rng() * Math.PI * 2, rad = ctx.rng() * (ring * 0.45);
+    const ang = ctx.rng() * Math.PI * 2, rad = ctx.rng() * (ring * T.FOOD_COURT_TABLE_RING_FRAC);
     const tx = x + Math.cos(ang) * rad, tz = z + Math.sin(ang) * rad;
     if (isPointInLake(tx, tz)) continue;
-    if (tablesPlaced.some((p) => Math.hypot(p.x - tx, p.z - tz) < 3.2)) continue;
+    if (tablesPlaced.some((p) => Math.hypot(p.x - tx, p.z - tz) < T.FOOD_COURT_TABLE_MIN_SPACING)) continue;
     const pt = buildPicnicTable(ctx.rng);
     pt.group.position.set(tx, 0, tz);
     pt.group.rotation.y = ctx.rng() * Math.PI * 2;
@@ -1386,9 +1415,10 @@ function buildFoodCourtAt(ctx, x, z) {
 
   // C3: tiki torches ringing the court perimeter (just outside the truck ring).
   const courtTorches = [];
-  const torchR = ring + 5;
-  for (let i = 0; i < 6; i++) {
-    const ang = (i / 6) * Math.PI * 2 + 0.3;
+  const torchR = ring + T.FOOD_COURT_TORCH_RING_PAD;
+  const torchCount = T.FOOD_COURT_TORCH_COUNT;
+  for (let i = 0; i < torchCount; i++) {
+    const ang = (i / torchCount) * Math.PI * 2 + 0.3;
     const tx = x + Math.cos(ang) * torchR, tz = z + Math.sin(ang) * torchR;
     if (!isPointInLake(tx, tz)) courtTorches.push({ x: tx, z: tz });
   }
@@ -1409,20 +1439,21 @@ function buildFoodCourtAt(ctx, x, z) {
 function buildCampVillageAt(ctx, x, z, tentTarget) {
   // D2: target tent count comes from the plan (∝ local crowd density); falls back
   // to the legacy 12-20 if a caller doesn't supply one (keeps the legacy path intact).
-  const target = tentTarget != null ? tentTarget : 12 + Math.floor(ctx.rng() * 9);
+  const T = FESTIVAL_TUNING;
+  const target = tentTarget != null ? tentTarget : T.CAMP_TARGET_BASE + Math.floor(ctx.rng() * T.CAMP_TARGET_SPAN);
   const placed = [];
-  const MIN_SPACING = 5.5, RADIUS = 30;
+  const MIN_SPACING = T.CAMP_MIN_SPACING, RADIUS = T.CAMP_RADIUS;
   let attempts = 0;
   while (placed.length < target && attempts < target * 16) {
     attempts++;
     const px = x + (ctx.rng() - 0.5) * 2 * RADIUS, pz = z + (ctx.rng() - 0.5) * 2 * RADIUS;
     if (isPointInLake(px, pz)) continue;
-    if (registry.closestBuilding(new THREE.Vector3(px, 0, pz), 4, CLUSTER_GUARD_SKIP)) continue;
+    if (registry.closestBuilding(new THREE.Vector3(px, 0, pz), T.CAMP_GUARD_RADIUS, CLUSTER_GUARD_SKIP)) continue;
     let tooClose = false;
     for (const p of placed) { const dx = p.x - px, dz = p.z - pz; if (dx * dx + dz * dz < MIN_SPACING * MIN_SPACING) { tooClose = true; break; } }
     if (tooClose) continue;
     const r = ctx.rng();
-    const size = r < 0.50 ? 'small' : (r < 0.85 ? 'medium' : 'large');
+    const size = r < T.CAMP_SIZE_SMALL_BELOW ? 'small' : (r < T.CAMP_SIZE_MEDIUM_BELOW ? 'medium' : 'large');
     placeSingleCampsite(ctx, px, pz, size);
     placed.push({ x: px, z: pz });
   }

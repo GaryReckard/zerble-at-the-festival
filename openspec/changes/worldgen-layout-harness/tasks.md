@@ -140,7 +140,7 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
       yet" (guardrail #2).
       done = inventory comment lists every hoisted constant with its old
       file:line and every excluded near-duplicate with its reason.
-- [ ] 2.2 Create `src/worldgen/tuning.js` — imports NOTHING; mutable-CONFIG +
+- [x] 2.2 Create `src/worldgen/tuning.js` — imports NOTHING; mutable-CONFIG +
       setter shape from day one (pattern: map-sandbox `setConfig`
       ~map-sandbox.html:577); analytic per-kind extent helpers; rewire
       festival.js + chunks.js to read it; dev-only drift assertions in
@@ -150,7 +150,7 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
       chunks/registry/lakes/models).
       done = game + map-sandbox + node selftest all run; grep shows zero
       remaining hoisted-constant literals at the old sites.
-- [ ] 2.3 Gate: FULL ritual (APPLY-GUARDRAILS) — empty snapshot diff at 3 seeds
+- [x] 2.3 Gate: FULL ritual (APPLY-GUARDRAILS) — empty snapshot diff at 3 seeds
       incl. canary counts + both goldens unchanged + boot smoke both flag
       states + HUD budgets unchanged.
       done = ritual outputs pasted into the commit/session notes.

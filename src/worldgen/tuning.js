@@ -89,11 +89,15 @@
 //    camp guard radius 4                 chunks.js:1420
 //
 //  EXCLUDED — "same number, two owners, do NOT merge yet" (guardrail #2):
-//    - buildVendorRow (legacy theme, chunks.js:1935-1936): spacing 5.0, offset 7
-//      — SAME numbers as VENDOR_ROW_*, but the legacy non-worldgen theme path.
-//      Left as literals; coupling it to FESTIVAL_TUNING is grammar-change work.
-//    - buildCampVillage (legacy theme, chunks.js:2217-2239): MIN_SPACING 5.5,
-//      RADIUS 30, target 12+rng*9, mix 0.50/0.85 — SAME numbers as CAMP_*,
+//    - buildVendorRow (legacy theme, chunks.js buildVendorRow): spacing 5.0,
+//      offset 7 — SAME numbers as VENDOR_ROW_*, but the legacy non-worldgen
+//      theme path. Left as literals; coupling to FESTIVAL_TUNING is grammar work.
+//    - buildFoodPlaza (legacy theme, chunks.js buildFoodPlaza): count 3+rng*3,
+//      ring 14×scale, shack prob 0.35, shack ring pad 2.5, truck r 4.4×scale —
+//      SAME numbers as FOOD_COURT_*, the legacy non-worldgen food court. Left as
+//      literals (do NOT merge). (buildFoodCourtAt is the worldgen sibling.)
+//    - buildCampVillage (legacy theme, chunks.js buildCampVillage): MIN_SPACING
+//      5.5, RADIUS 30, target 12+rng*9, mix 0.50/0.85 — SAME numbers as CAMP_*,
 //      legacy non-worldgen path. Left as literals (do NOT merge).
 //    - buildStage `dancefloorDepth = 9*scale` (chunks.js:2379): the stage's
 //      chair-free zone depth — a DIFFERENT owner than the planner's
