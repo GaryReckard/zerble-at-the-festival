@@ -21,9 +21,9 @@ the spawn window needs no `--at`.
 
 | File | seed | window | tier | bounds (minX,minZ,maxX,maxZ) | at (teleport) | entries | clusters |
 |---|---|---|---|---|---|---|---|
-| `1234.spawn.json` | 1234 | spawn | high | `111,-246,411,54` | — (spawn hub) | 794 | 15 |
-| `1234.shore.json` | 1234 | shoreline | high | `-844,-31,-544,269` | `-694,119` | 578 | 7 |
-| `1234.dense.json` | 1234 | dense | high | `-30,-950,270,-650` | `120,-800` | 553 | 9 |
+| `1234.spawn.json` | 1234 | spawn | high | `168,-243,468,57` | — (spawn hub) | 842 | 18 |
+| `1234.shore.json` | 1234 | shoreline | high | `-192,-309,108,-9` | `-42,-159` | 867 | 14 |
+| `1234.dense.json` | 1234 | dense | high | `-950,-870,-650,-570` | `-800,-720` | 315 | 18 |
 | `0xf7ef2a3c.spawn.json` | 0xf7ef2a3c | spawn | high | `-444,-394,-144,-94` | — (spawn hub) | 514 | 11 |
 | `0xf7ef2a3c.shore.json` | 0xf7ef2a3c | shoreline | high | `-502,-858,-202,-558` | `-352,-708` | 803 | 7 |
 | `0xf7ef2a3c.dense.json` | 0xf7ef2a3c | dense | high | `-470,630,-170,930` | `-320,780` | 314 | 23 |
@@ -56,8 +56,7 @@ spawn chunks to unload and a fresh vicinity to load):
 
 | seed | control window | result |
 |---|---|---|
-| 1234 | shoreline (`--at -694,119`) | `EMPTY — layouts identical (578 entries, tier=high)` |
-| 1234 | dense (`--at 120,-800`) | `EMPTY — layouts identical (553 entries, tier=high)` |
+| 1234 | shoreline (`--at -42,-159`) | `EMPTY — layouts identical (867 entries, tier=high)` |
 | 0xf7ef2a3c | dense (`--at -320,780`) | `EMPTY — layouts identical (314 entries, tier=high)` |
 | 0xf7ef2a3d | dense (`--at -480,-240`) | `EMPTY — layouts identical (612 entries, tier=high)` |
 
@@ -68,7 +67,16 @@ into two files, then `bin/layout-snapshot --diff a b` → exit 0 / `EMPTY`.
 
 Windows are derived from the **worldgen plan in node** (deterministic), not
 eyeballed in map-sandbox — more rigorous and re-runnable. For each seed, after
-`setSeed(seed)`:
+`setSeed(parseSeed(seed))`:
+
+> **Seed-type footgun (must mirror the browser).** `?seed=` resolves a
+> *pure-digit* string as a **number** but anything else as a **string hash**
+> (main.js:76 `/^-?\d+$/`). So `setSeed('1234')` (string → FNV hash `4257489661`)
+> builds a DIFFERENT world than `?seed=1234` (number `1234`). The node finder
+> MUST parse seeds the same way — `parseSeed = raw => /^-?\d+$/.test(raw) ? Number(raw) : raw`
+> — or its windows land in the wrong world. (`0xf7ef2a3c`/`0xf7ef2a3d` fail the
+> regex, so both engines string-hash them identically — only pure-digit seeds
+> like `1234` are affected.)
 
 - **spawn** = 300 m box centered on `nearestMajorHeart(0,0)` — the game's
   spawn-relocation target (main.js:232). The player is already there at start.

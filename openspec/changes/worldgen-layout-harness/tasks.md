@@ -84,31 +84,48 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
       eyeballed — more rigorous + reproducible; bounds+at recorded per file.
       Required a `--at` teleport flag on `capture` since "no driving" leaves
       far windows unloaded.)*
-- [ ] 1.6 `__dbg.gotoHub(n)` — nth-nearest heart (worldgen `heartsInBounds`)
+- [x] 1.6 `__dbg.gotoHub(n)` — nth-nearest heart (worldgen `heartsInBounds`)
       teleport + canonical 3/4 camLock facing the stage; prints the equivalent
       hub-sandbox URL. camLock pattern:
       [main.js:1328](../../../src/main.js#L1328).
       done = `gotoHub(0)` at seed 1234 frames the spawn hub's stage in one
       call; screenshot attached.
-- [ ] 1.7 `__dbg.topDown(x?, z?, span)` via existing camLock plumbing — camera
+      *(done 2026-06-10 — ranks from the SPAWN hub (nearestMajorHeart(0,0)) not
+      the cart, so gotoHub(0) = spawn hub. Verified: gotoHub(0) seed 1234 →
+      "hub #0 major @ (318,-93) · main_stage" framing the stage front in one
+      call. Catching the cart-anchored mis-rank + the seed-type world mismatch
+      is what booting the game surfaced.)*
+- [x] 1.7 `__dbg.topDown(x?, z?, span)` via existing camLock plumbing — camera
       at height `span / (2·tan(fov/2))` looking straight down (design D-F).
       done = `topDown()` over the spawn hub yields a readable plan-view
       screenshot.
-- [ ] 1.8 `__dbg.showFootprints(on)` — footprint rings + dancefloor rects
+      *(done 2026-06-10 — `dbgCamTopDown` pins north-up (-Z) to dodge the nadir
+      gimbal singularity; camUnlock/camLock restore Y-up. Verified: topDown(318,
+      -93,200) → clean plan view, stage centered, roads + vendor rows readable,
+      no roll artifact.)*
+- [x] 1.8 `__dbg.showFootprints(on)` — footprint rings + dancefloor rects
       (`dancefloorRectsNear` consumption pattern:
       [chunks.js:1009](../../../src/chunks.js#L1009)) as a decal group. Plain
       materials; never `userData.shared`; never registered; NO castShadow
       (guardrails #5/#6).
       done = toggle on → rings visible in screenshot; toggle off →
       `renderer.info` geometry/texture counts return to pre-toggle values.
-- [ ] 1.9 DEBUGGING.md: document all verbs + the layout-snapshot-vs-golden
+      *(done 2026-06-10 — skips scenery kinds (forest_tree/lake_edge/etc.) so
+      it shows festival-cluster footprints, not 44k tree rings. Verified: on →
+      green rings + yellow dancefloor rect visible; geometries 5677→5679 on,
+      →5677 off (exact dispose, no leak).)*
+- [x] 1.9 DEBUGGING.md: document all verbs + the layout-snapshot-vs-golden
       vocabulary note ("layout snapshot" ≠ "golden") in the same commit.
       done = DEBUGGING.md section exists; `__dbg.help()` lists every new verb.
-- [ ] 1.10 festival.js comment fix (comment-only): the `stageScaleOf` mirror
+      *(done 2026-06-10 — gotoHub/topDown/showFootprints added to the verb
+      tables + help(); vocab note already at DEBUGGING.md "Layout snapshots".)*
+- [x] 1.10 festival.js comment fix (comment-only): the `stageScaleOf` mirror
       ([festival.js:105](../../../src/worldgen/festival.js#L105) block) cites a
       stale chunks.js line; buildStage now lives at
       [chunks.js:2258](../../../src/chunks.js#L2258) (scale draw ~2264).
       done = comment cites the current line; `git diff` shows comment-only.
+      *(done 2026-06-10 — verified current lines: buildStage chunks.js:2273,
+      scale draw 2279; comment now cites those. Comment-only.)*
 
 ## 2. `FESTIVAL_TUNING` hoist (GOLDEN-FROZEN — full gate ritual per commit; tuning freeze in effect)
 

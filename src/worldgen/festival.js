@@ -101,7 +101,7 @@ function binBearing(bin) { return (bin / ANGLE_BINS) * Math.PI * 2; }   // [0,2�
 // Stage scale is plan DATA (D3.3) so the dancefloor rect and the built model
 // agree on size. Derived from the stage's clusterSeed (idx 0), matching
 // buildStage's FIRST rng draw exactly: main 1.15+r*0.25, side 1.0+r*0.5
-// (chunks.js:2094 — keep these two formulas in sync).
+// (chunks.js:2279, inside buildStage at 2273 — keep these two formulas in sync).
 function stageScaleOf(heart) {
   const r = mulberry32(clusterSeed(heart, 0))();
   return heart.rank === 'major' ? 1.15 + r * 0.25 : 1.0 + r * 0.5;

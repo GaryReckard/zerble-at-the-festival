@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "1.6 gotoHub → 1.7 topDown → 1.8 showFootprints → 1.9 DEBUGGING verbs → 1.10 festival.js comment (close group 1); 1.3/1.5 done"
+current_task: "Group 2 (FESTIVAL_TUNING hoist — GOLDEN-FROZEN, opens the tuning freeze; announce to Gary before first edit). Group 1 COMPLETE (1.1–1.10)."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -282,3 +282,29 @@ just the numbers). **Forward implication:** 1.6 `gotoHub` should reuse the same
 `nearestMajorHeart`/`heartsInBounds` selection so its hub indices line up with
 these baseline windows; group-4 lint `--seeds` can auto-pick the same windows.
 **Refs:** -> Task 1.5, -> Task 1.6, hearts.js (heartsInBounds/nearestMajorHeart), water.js (lakesInBounds), verification/MANIFEST.md
+
+### 2026-06-10 -- DISCOVERY: seed-type parse footgun caught my seed-1234 windows in the WRONG world
+**Event:** discovery
+**What:** Booting `gotoHub(0)` (task 1.6) under `?seed=1234` framed a hub at
+(318,-93), but my node window-finder had placed seed-1234's spawn window on
+(261,-96). Root cause: `?seed=` parses a **pure-digit** string as a NUMBER but
+everything else as a STRING HASH ([main.js:76](../../../src/main.js#L76),
+`/^-?\d+$/`). `setSeed('1234')` (string → FNV `4257489661`) and `?seed=1234`
+(number `1234`) build DIFFERENT worlds. My finder used the string `'1234'`, so
+its three windows were located in the FNV world while the captures (driven by
+the `?seed=1234` URL) built the number world — the shoreline/dense windows
+landed on arbitrary ground, and spawn was off-center. The two hex seeds
+(`0xf7ef2a3c`/`0xf7ef2a3d`) fail the digit regex, so node and browser both
+string-hash them — those six windows were already correct. **Fix:** re-derived
+seed-1234's windows with the browser-faithful parse
+(`/^-?\d+$/.test(raw) ? Number(raw) : raw`) and re-captured all three + the
+self-diff control + the Noon/Midnight pair (the new shoreline genuinely
+straddles a lake: lake_edge 170 / shore 2 alongside stage 14 / truck 13). The
+mistaken windows were committed in af32d85 and corrected the same day.
+**Forward implication:** the group-4 lint `--seeds` and group-8.1 baseline
+locate windows in node too — they MUST mirror this parse, or pure-digit seeds
+silently diverge from the running game. Noted in MANIFEST.md "Seed-type footgun".
+This is also why "boot the game and demonstrate" is non-negotiable: the node
+finder and the self-diffs were internally consistent and EMPTY — only the live
+game exposed the world mismatch.
+**Refs:** -> Task 1.5, -> Task 1.6, main.js:76 (seed parse), rng.js setSessionSeed, af32d85 (corrected), verification/MANIFEST.md

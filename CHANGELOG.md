@@ -52,8 +52,27 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
   (`chunks.js:345`) — CLAUDE.md footgun #5's "never unload once created" is wrong; the settle
   proxy works because a stationary player has no churn, and teleport-capture is clean *because*
   far chunks drop out.
+- **Layout-inspection `__dbg` verbs: `gotoHub`, `topDown`, `showFootprints` (dev workflow).**
+  Closes the layout harness's in-game inspection surface. `gotoHub(n)` teleports to the nth-
+  nearest festival hub (ranked from the spawn hub, so `gotoHub(0)` is the spawn hub) and frames
+  its stage in a canonical 3/4 camLock, printing the planned `hub-sandbox.html?seed=…&at=x,z`
+  URL. `topDown(x?,z?,span)` pins a north-up plan view (height solved from the FOV; the nadir
+  gimbal singularity handled in camera.js). `showFootprints(on)` overlays green clear-radius
+  rings on festival clusters + the yellow dancefloor rects (scenery skipped), as plain line
+  geometry that disposes fully on toggle-off (verified: `renderer.info` geometries return to
+  pre-toggle exactly). All three are in `__dbg.help()` and DEBUGGING.md.
 
 ### Fixed
+- **Layout baseline: seed `1234` windows were located in the wrong world; re-captured.** The
+  node window-finder string-hashed the seed (`'1234'` → `4257489661`) while the browser parses
+  `?seed=1234` as the **number** `1234` (main.js:76 only number-parses pure-digit strings) — a
+  different world. So seed-1234's three baseline windows (committed hours earlier) sat on the
+  wrong ground; the shoreline window didn't even touch water. Re-derived with the browser-
+  faithful parse and re-captured (spawn now centers the real spawn hub at `(318,-93)`; the
+  shoreline window straddles a lake — 170 `lake_edge` + 2 `shore` alongside the hub). Caught by
+  booting `gotoHub(0)` and seeing it frame a different hub than the snapshot claimed — exactly
+  why the doctrine is "boot the game, don't trust node-only agreement." The two hex seeds fail
+  the digit regex, so both engines string-hash them identically; only `1234` was affected.
 - **Road existence can no longer differ between browsers (behind `?worldgen=1`).**
   The around-the-lake detour in `src/worldgen/roads.js` picked its side with
   `Math.atan2` angles, and `Math.atan2` isn't required to give bit-identical

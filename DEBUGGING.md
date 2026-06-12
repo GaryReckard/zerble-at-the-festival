@@ -38,7 +38,14 @@ window.__dbg.help()          // prints the whole map — start here
 | Call | Does |
 |---|---|
 | `camLock(px,py,pz, tx,ty,tz)` | Pin the camera to a fixed world pose (position → look target). **Overrides the chase cam** every frame so it can't drag back. `tx,ty,tz` default to `(0, 1.8, 0)`. |
-| `camUnlock()` | Release back to the normal chase cam. |
+| `topDown(x?, z?, span)` | Pin a straight-down plan view centered on `(x, z)` (default: the cart), framing a `span`-metre square (default 240). Height solves `span = 2·H·tan(fov/2)`. North-up (the nadir gimbal singularity is handled in camera.js). `camUnlock()` restores Y-up. |
+| `camUnlock()` | Release back to the normal chase cam (restores Y-up). |
+
+### Tour + inspect hubs
+| Call | Does |
+|---|---|
+| `gotoHub(n)` | Teleport to the `n`th-nearest festival hub and `camLock` a canonical 3/4 view of its stage front. `n` is ranked from the **spawn hub** (the major the game relocates to), so `gotoHub(0)` is the spawn hub itself. Prints the planned `hub-sandbox.html?seed=…&at=x,z` URL so the same hub re-opens in the group-6 viewer. |
+| `showFootprints(on)` | Toggle a footprint overlay: a green ring at each festival cluster's clear-radius + the yellow dancefloor rects in front of every nearby stage (scenery — trees, shorelines, path nodes — is skipped). Plain line geometry, never registered/`shared`/shadow-casting; disposes fully on toggle-off (`renderer.info` returns to pre-toggle counts). |
 
 ### Inspect the built layout
 | Call | Does |

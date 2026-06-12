@@ -166,6 +166,7 @@ export class ChaseCamera {
   dbgCamLock(px, py, pz, tx, ty, tz) {
     this._dbgPos.set(px, py, pz);
     this._dbgLook.set(tx, ty, tz);
+    this.camera.up.set(0, 1, 0);   // Y-up (a prior topDown may have left it north-up)
     this._dbgCamLocked = true;
     // Predictable framing: drop any FPV telephoto / intro lens back to default.
     if (this.camera.fov !== this._defaultFov) {
@@ -176,8 +177,25 @@ export class ChaseCamera {
     this.camera.lookAt(this._dbgLook);
   }
 
+  // Straight-down plan view (window.__dbg.topDown). Looking along -Y with the
+  // default +Y up is a gimbal singularity (roll undefined), so we pin up to -Z
+  // (north-up); the camera's up persists across update()'s per-frame re-assert.
+  dbgCamTopDown(px, pz, height) {
+    this._dbgPos.set(px, height, pz);
+    this._dbgLook.set(px, 0, pz);
+    this.camera.up.set(0, 0, -1);
+    this._dbgCamLocked = true;
+    if (this.camera.fov !== this._defaultFov) {
+      this.camera.fov = this._defaultFov;
+      this.camera.updateProjectionMatrix();
+    }
+    this.camera.position.copy(this._dbgPos);
+    this.camera.lookAt(this._dbgLook);
+  }
+
   dbgCamUnlock() {
     this._dbgCamLocked = false;
+    this.camera.up.set(0, 1, 0);   // restore Y-up so the chase cam isn't left north-up
     this.snap();
   }
 

@@ -47,8 +47,8 @@ import {
 import { installDebug, shouldRunFrame, isGod, npcsFrozen } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { setSpawnPoint, buildSpawnArch } from './chunks.js';
-import { nearestHeart, nearestMajorHeart } from './worldgen/hearts.js';
-import { festivalPlan, computeFrontAxis } from './worldgen/festival.js';
+import { nearestHeart, nearestMajorHeart, heartsInBounds } from './worldgen/hearts.js';
+import { festivalPlan, computeFrontAxis, dancefloorRectsNear } from './worldgen/festival.js';
 import { nearestRoad } from './worldgen/roads.js';
 import { lakeAt } from './worldgen/water.js';
 import { CONFIG } from './worldgen/constants.js';
@@ -1445,6 +1445,109 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
       return out;
     },
 
+    // nth-nearest festival heart to the cart: teleport there + a canonical 3/4
+    // camLock looking at the stage front. `n` indexes hubs by distance from the
+    // cart (0 = the one you're standing in, so gotoHub(0) after start frames the
+    // spawn hub). Prints the planned hub-sandbox URL (?at=x,z — the form the
+    // group-6 hub viewer will accept) so the same hub is re-openable there.
+    gotoHub(n = 0) {
+      // Anchor on the SPAWN hub (the major the game relocates to), not the
+      // cart's live position — spawn-relocation offsets the cart onto the
+      // dancefloor, which can leave it nearer the next hub over. Ranking from
+      // the spawn hub makes gotoHub(0) the spawn hub itself (it's at distance 0)
+      // and is seed-stable regardless of where the cart currently sits.
+      const anchor = nearestMajorHeart(0, 0) || nearestHeart(0, 0).heart;
+      if (!anchor) return 'no hubs found near origin';
+      const ax = anchor.x, az = anchor.z, R = 600;
+      const hearts = heartsInBounds(ax - R, az - R, ax + R, az + R)
+        .sort((a, b) => Math.hypot(a.x - ax, a.z - az) - Math.hypot(b.x - ax, b.z - az));
+      const heart = hearts[n];
+      if (!heart) return `no hub #${n} within ${R}m of the spawn hub (found ${hearts.length})`;
+      const plan = festivalPlan(heart);
+      const stage = plan[0] || { x: heart.x, z: heart.z, yaw: 0, kind: '?' };
+      // Stage model-front is +Z; rotating it by stage.yaw about Y gives the world
+      // facing F = (sin yaw, cos yaw). View from out front (the dancefloor side),
+      // offset to one side, elevated — looking back at the stage.
+      const fx = Math.sin(stage.yaw), fz = Math.cos(stage.yaw);
+      const D = 34, side = 12, H = 20;
+      const camX = stage.x + fx * D - fz * side;
+      const camZ = stage.z + fz * D + fx * side;
+      this.teleport(heart.x, heart.z);   // load the hub's chunks around the cart
+      chaseCam.dbgCamLock(camX, H, camZ, stage.x, 4, stage.z);
+      const url = `hub-sandbox.html?seed=${getSessionSeed()}&at=${Math.round(heart.x)},${Math.round(heart.z)}`;
+      return `hub #${n} ${heart.rank} @ (${heart.x}, ${heart.z}) · stage ${stage.kind} · ${url}`;
+    },
+
+    // Top-down plan view centered on (x, z) (default: the cart), framing a
+    // `span`-metre square. Camera height solves span = 2·H·tan(fov/2). North-up
+    // (the straight-down up-vector singularity is handled in camera.js).
+    topDown(x = zerble.position.x, z = zerble.position.z, span = 240) {
+      const fovRad = camera.fov * Math.PI / 180;
+      const H = span / (2 * Math.tan(fovRad / 2));
+      chaseCam.dbgCamTopDown(x, z, H);
+      return `top-down over (${Math.round(x)}, ${Math.round(z)}) · span ${span}m · height ${H.toFixed(1)}m`;
+    },
+
+    // Toggle a footprint overlay: a ring at each registered cluster's clear-
+    // radius + the dancefloor rects in front of every nearby stage. Plain line
+    // geometry, NOT registered, NOT `userData.shared`, NO castShadow — disposes
+    // fully on toggle-off so renderer.info returns to pre-toggle counts
+    // (guardrails #5/#6). Idempotent: re-tears-down before rebuilding.
+    showFootprints(on = true) {
+      if (this._fpGroup) {
+        scene.remove(this._fpGroup);
+        this._fpGroup.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
+        this._fpGroup = null;
+      }
+      if (!on) return 'footprints off';
+      // Skip scenery: the overlay is for festival-cluster composition (the
+      // overlaps the linter cares about), not the thousands of forest trees /
+      // shoreline edges / path nodes that dodge everything anyway.
+      const SKIP = new Set(['forest_tree', 'tree', 'lake', 'lake_edge', 'shore', 'beach', 'path_node', 'bubble_jug']);
+      const SEGS = 28;
+      const fpVerts = [];
+      for (const e of registry.entries.values()) {
+        if (SKIP.has(e.kind)) continue;
+        const r = e.footprint || 0;
+        if (r <= 0) continue;
+        const p = e.position;
+        for (let i = 0; i < SEGS; i++) {
+          const a0 = (i / SEGS) * Math.PI * 2, a1 = ((i + 1) / SEGS) * Math.PI * 2;
+          fpVerts.push(p.x + Math.cos(a0) * r, 0.12, p.z + Math.sin(a0) * r,
+                       p.x + Math.cos(a1) * r, 0.12, p.z + Math.sin(a1) * r);
+        }
+      }
+      const px = zerble.position.x, pz = zerble.position.z, B = 320;
+      const dfVerts = [];
+      for (const rect of dancefloorRectsNear(px - B, pz - B, px + B, pz + B)) {
+        const { cx, cz, dirx, dirz, depth, halfWidth } = rect;
+        const rx = -dirz, rz = dirx;   // right = perpendicular to the facing
+        const c = [
+          [cx + rx * halfWidth, cz + rz * halfWidth],
+          [cx + dirx * depth + rx * halfWidth, cz + dirz * depth + rz * halfWidth],
+          [cx + dirx * depth - rx * halfWidth, cz + dirz * depth - rz * halfWidth],
+          [cx - rx * halfWidth, cz - rz * halfWidth],
+        ];
+        for (let i = 0; i < 4; i++) {
+          const a = c[i], b = c[(i + 1) % 4];
+          dfVerts.push(a[0], 0.14, a[1], b[0], 0.14, b[1]);
+        }
+      }
+      const group = new THREE.Group();
+      const mkLines = (verts, color) => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+        const ls = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color }));
+        ls.castShadow = false;
+        return ls;
+      };
+      if (fpVerts.length) group.add(mkLines(fpVerts, 0x33ff88));
+      if (dfVerts.length) group.add(mkLines(dfVerts, 0xffcc33));
+      scene.add(group);
+      this._fpGroup = group;
+      return `footprints on — ${fpVerts.length / 6} rings, ${dfVerts.length / 8} dancefloor rects`;
+    },
+
     // ---- One door: __dbg also reaches the other two surfaces ----
     // Getters (not captured at definition time) because installDebug() runs
     // after this block, so window.__debug doesn't exist yet right here.
@@ -1459,8 +1562,9 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
       const out = [
         'window.__dbg — agent control surface (localhost only). The one door.',
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · fillSeats(kind?) · rider(kind)',
-        '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock()   (pins a pose; overrides chase cam)',
+        '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock() · topDown(x?,z?,span)   (pins a pose; overrides chase cam)',
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
+        '  hubs:    gotoHub(n) · showFootprints(on)   (teleport+frame nth-nearest hub; footprint/dancefloor overlay)',
         '  reach:   __dbg.game  (live refs: camera, zerble, scene, crowd, bubbles, …)',
         '           __dbg.debug (interactive API: freezeNPCs, pause, step, god, showColliders, dropSmile, spawnNPC)',
         '  verify:  __dbg.start() → __dbg.fillSeats() → __dbg.camLock(...) → screenshot → console-logs',
