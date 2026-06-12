@@ -463,3 +463,27 @@ ritual headless and committed 2.4.
   steps manually: `eval --json '(dumpObj)'` → `jq .data.result` → `bin/layout-snapshot
   <seed> --stdin --tier high --window spawn` → `--diff` vs the committed baseline.
 **Refs:** -> Task 2.4, -> reviews/001-group2-tuning-hoist/review-summary.md, CHANGELOG 2026-06-12, main.js:1093, bin/layout-snapshot
+
+### 2026-06-12 -- Doc-hygiene close-out + POI-golden V8-fork discovery
+**Event:** discovery + decision
+**What:** Audited what the 2.4 run left undocumented and codified two learnings
+(commit 7449590) + closed the review's ROADMAP debt:
+  - **POI golden is a V8-VERSION fork, not node-vs-browser.** Running
+    `runSelfTest()` here returned poi `4825fd0b` — the value selftest.js records
+    as "browser", NOT the recorded "node" `01532955`. Cause: this box's Node is
+    v24 (V8 ~12.x), which now matches Chromium; the older node that recorded
+    `01532955` was a different V8. Both are accepted and `poiGoldenHash` is
+    informational (never pushed as a hard-fail — only the queryPoint golden +
+    the road-neg-control are). Clarified inline in selftest.js so the next agent
+    doesn't read `4825fd0b` as a moved golden. (My 2.4 CHANGELOG cites
+    `4825fd0b`; the group-2 entry cites `01532955` — same dual-recorded golden,
+    different engine, both correct.)
+  - **Headless-capture method** codified in DEBUGGING.md "Layout snapshots"
+    (document.hidden init-script + manual eval→jq→--stdin; the draws/tris HUD is
+    unreadable while hidden so the draw canary is the gate-4 instrument).
+  - **ROADMAP** (review P2/P3): marked the FESTIVAL_TUNING hoist step-1 + the
+    group-1 `__dbg` verbs as shipped; parked "teach `bin/layout-snapshot
+    capture` to survive headless boxes"; noted dry-run builders deferred to
+    festival-zone-grammar (D6).
+  Group 2 (+2.4) fully closed and documented. Next is group 4 (layout linter).
+**Refs:** -> Task 2.4, commit 7449590, selftest.js POI golden comment, DEBUGGING.md "Layout snapshots", ROADMAP
