@@ -103,10 +103,10 @@ function binBearing(bin) { return (bin / ANGLE_BINS) * Math.PI * 2; }   // [0,2�
 
 // Stage scale is plan DATA (D3.3) so the dancefloor rect and the built model
 // agree on size. Derived from the stage's clusterSeed (idx 0), matching
-// buildStage's FIRST rng draw exactly. Both this and buildStage (chunks.js:2279,
-// inside buildStage at 2273) read the SAME FESTIVAL_TUNING.STAGE_SCALE_*
-// (tuning.js) — formerly duplicated literals with a "keep in sync" note; the
-// hoist makes them one source.
+// buildStage's FIRST rng draw exactly. Both this and buildStage's scale draw
+// (chunks.js:2319, inside buildStage at 2309) read the SAME
+// FESTIVAL_TUNING.STAGE_SCALE_* (tuning.js) — formerly duplicated literals with
+// a "keep in sync" note; the hoist makes them one source.
 function stageScaleOf(heart) {
   const r = mulberry32(clusterSeed(heart, 0))();
   const T = FESTIVAL_TUNING;

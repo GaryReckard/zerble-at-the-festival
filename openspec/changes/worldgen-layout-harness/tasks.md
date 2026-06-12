@@ -154,7 +154,7 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
       incl. canary counts + both goldens unchanged + boot smoke both flag
       states + HUD budgets unchanged.
       done = ritual outputs pasted into the commit/session notes.
-- [ ] 2.4 Review follow-up (-> reviews/001-group2-tuning-hoist, P1): rewire
+- [x] 2.4 Review follow-up (-> reviews/001-group2-tuning-hoist, P1): rewire
       `buildStage`'s scale draw (chunks.js:2309–2311) to read
       `FESTIVAL_TUNING.STAGE_SCALE_*` — the group-2 hoist rewired only the
       planner's `stageScaleOf`, but the new comments (festival.js:105–109,

@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group-2 /smart-review milestone DONE (Fable, reviews/001 — Approve with changes; P1 folded as Task 2.4: buildStage scale draw not rewired, comments lie). Next: 2.4 (small, gate-protected, before 6.4) → group 4 (layout linter 4.1–4.6) → 8.1 baseline. Groups 1+2 COMPLETE."
+current_task: "Task 2.4 (review P1) SHIPPED + fully gated (Opus 4.8, agent-browser headless): buildStage scale draw → FESTIVAL_TUNING.STAGE_SCALE_*, comments true, drift-guard host widened. All 4 gates PASS. Group 2 (+follow-up) COMPLETE. Next: group 4 (layout linter 4.1-4.6) → 8.1 baseline."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -390,3 +390,76 @@ commit A's CHANGELOG bullet did NOT prematurely name buildFoodPlaza; commit B am
 it. Artifacts: reviews/001-group2-tuning-hoist/ (review-summary.md,
 specialist-findings.md, diff.patch).
 **Refs:** -> Task 2.4, -> D8, reviews/001-group2-tuning-hoist/review-summary.md, APPLY-GUARDRAILS "Model routing"
+
+### 2026-06-12 -- Task 2.4 (review P1) code complete; BLOCKED on browser gates (no tooling in session)
+**Event:** blocker + phase-change
+**What:** Wrote the P1 fix from reviews/001 (Opus 4.8). `buildStage`'s scale draw
+(chunks.js:2319-2321) now reads `FESTIVAL_TUNING.STAGE_SCALE_*` like the planner's
+`stageScaleOf` already did — the comments (festival.js:104-109, tuning.js:121) that
+claimed "both read tuning / one source" are now TRUE, and their stale line-refs were
+corrected (2279/2273 → 2319/2309). Also widened the dev-only drift-guard hostname gate
+(chunks.js:1181) from `^(localhost|127.0.0.1)$` to the repo's canonical `isLocal`
+predicate (adds 0.0.0.0/.local/10./192.168/172.16-31/claude-preview/happycog) so the
+guard actually fires under the preview host — review P3, same commit.
+**Gate status — the two browser-free gates PASS:**
+  1. node selftest: pass=false (the SOLE pre-existing fail = "road negative control
+     (seed 0)", confirmed identical with-edits vs stashed-HEAD), goldens UNCHANGED
+     queryPoint `eddf8e50` / poi `4825fd0b`. festival.js+tuning.js edits are
+     comment-only and chunks.js isn't imported by selftest, so the plan is provably
+     untouched.
+  2. Build-half value-identity proof (node): `FESTIVAL_TUNING.STAGE_SCALE_*` ===
+     1.15/0.25/1.0/0.5 byte-equal to the old buildStage literals (Object.is), and the
+     diff preserves the single `ctx.rng()` draw in its exact position → scale value
+     byte-identical → every downstream registry field (sphereR=2.5*scale, collider
+     cols×rows count, stage_front pos + attractorR=14*scale, chair-band positions,
+     clumpCount/chairsInClump rng-consumption order) byte-identical.
+**BLOCKER:** gates 2-4 of the APPLY-GUARDRAILS ritual need a live browser
+(snapshot dumpRegistry, boot-smoke both flags, HUD budgets). THIS session has NO
+preview MCP, NO `agent-browser`, NO headless Chrome — so they could not be run.
+Per the DO-NOT-rationalize clause, the change is NOT committed and 2.4 is NOT ticked
+on a construction argument alone. Code is staged in the working tree, ready.
+**REMAINING-GATE RECIPE (next preview-enabled session — dev server on :8765):**
+  - Snapshot (gate 2), per canonical spawn window (bounds from verification/MANIFEST.md):
+      `node bin/layout-snapshot capture 1234 --bounds 168,-243,468,57 --tier high --window spawn`
+      then `node bin/layout-snapshot --diff verification/snapshots/1234.spawn.json <fresh>`  → must be EMPTY (incl. draw canary).
+      Repeat: `0xf7ef2a3c` bounds `-444,-394,-144,-94`; `0xf7ef2a3d` bounds `-583,323,-283,623` (both spawn, no teleport).
+      (No `agent-browser`? Use the preview-MCP manual recipe: `node bin/layout-snapshot --recipe <seed> spawn`.)
+  - Boot smoke (gate 3): `?worldgen=1` AND `?worldgen=0` → start → ~3s → console clean
+      (no TypeError/Reference/shader); confirm NO `[tuning drift]` warn (the widened
+      guard now actually runs under the preview host — that's the point).
+  - HUD budgets (gate 4): backtick overlay, draws/tris unchanged vs HEAD (no game-path
+      geometry added — only a dev console.warn + a value-identical literal swap).
+  Then: CHANGELOG bullet (drafted in review-summary.md §Suggested), tick Task 2.4,
+  commit code + CHANGELOG together.
+**Refs:** -> Task 2.4, -> reviews/001-group2-tuning-hoist/review-summary.md (P1+P3), APPLY-GUARDRAILS "gate ritual"
+
+### 2026-06-12 -- Task 2.4 BLOCKER CLEARED: all 4 gates ran headless (agent-browser) → SHIPPED
+**Event:** phase-change (blocker resolved)
+**What:** Gary installed `agent-browser` + playwright in the session, clearing the
+~~"no browser tooling"~~ blocker from the prior entry. Ran the full APPLY-GUARDRAILS
+ritual headless and committed 2.4.
+  - **Gate 1 (selftest):** goldens UNCHANGED `eddf8e50` / `4825fd0b` (the SOLE fail is
+    the pre-existing road-neg-control seed 0, identical with-edits vs HEAD).
+  - **Gate 2 (built-world snapshot, 3 canonical seeds, spawn windows):** ALL EMPTY incl.
+    the per-cluster draw-count canary — `1234` 842 entries / 18 canary keys, `0xf7ef2a3c`
+    514 / 11, `0xf7ef2a3d` 318 / 16. Clipped counts settled to the EXACT MANIFEST
+    baselines (842/514/318) before capture. This is the real gate for the build-half
+    change and it's byte-identical.
+  - **Gate 3 (boot both flags):** `?worldgen=1` AND `?worldgen=0` boot clean — ZERO
+    `error`-level console messages; every warning is the headless-only `[chunk slow]`
+    perf timing (SwiftShader software-GL is slow); crucially NO `[tuning drift]` warn, so
+    the widened guard ran and MODEL_DIMS is in sync. worldgen=0 generated 5813 entries fine.
+  - **Gate 4 (draws/tris):** the per-cluster draw-count canary (gate 2) IS the worldgen
+    draw count and was byte-identical; the diff adds zero geometry (a literal→named-const
+    swap + a dev `console.warn`). The live HUD per-frame counter is NOT readable here —
+    forcing one full-scene `renderer.render()` wedges SwiftShader for >2min (which is
+    exactly why the canary instrument exists). Canary + no-geometry diff = gate satisfied.
+  **Headless capture method (reusable, worth recording):** the full game at `perf=high`
+  saturates headless SwiftShader so the RAF render loop never yields and CDP `eval` hangs.
+  Fix = force `document.hidden=true` via an `--init-script` (defineProperty getter), which
+  flips the game onto its `setTimeout(16ms)` loop (main.js:1093) so the main thread yields
+  between ticks and eval lands. `bin/layout-snapshot capture` dies on agent-browser's
+  load-wait timeout (the page loads fine; the 'load' event is just slow), so drive the
+  steps manually: `eval --json '(dumpObj)'` → `jq .data.result` → `bin/layout-snapshot
+  <seed> --stdin --tier high --window spawn` → `--diff` vs the committed baseline.
+**Refs:** -> Task 2.4, -> reviews/001-group2-tuning-hoist/review-summary.md, CHANGELOG 2026-06-12, main.js:1093, bin/layout-snapshot

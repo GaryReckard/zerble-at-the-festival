@@ -1178,7 +1178,12 @@ let _tuningDriftChecked = false;
 function assertTuningDrift() {
   if (_tuningDriftChecked) return;
   _tuningDriftChecked = true;
-  if (typeof location === 'undefined' || !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+  if (typeof location === 'undefined') return;
+  const h = location.hostname;
+  const isDevHost = h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' ||
+    h.endsWith('.local') || /^10\./.test(h) || /^192\.168\./.test(h) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.includes('claude-preview') || h.includes('happycog');
+  if (!isDevHost) return;
   const M = MODEL_DIMS;
   const checks = [
     ['FOOD_TRUCK_SCALE', M.FOOD_TRUCK_SCALE, FOOD_TRUCK_SCALE],
@@ -2305,10 +2310,15 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
   // ----- Visual model — the deck, banner, truss, speakers, lights -----
   // Per-stage scale gives the festival real variety. Main stage gets a
   // mild boost (1.15-1.4) because it anchors spawn; side stages range from
-  // 1.0 to 1.5x for more obvious differences.
+  // 1.0 to 1.5x for more obvious differences. The coefficients are plan DATA
+  // (D3.3): this draw MUST stay byte-identical to the planner's `stageScaleOf`
+  // (festival.js) — same FESTIVAL_TUNING.STAGE_SCALE_* fields, same single
+  // first-rng-draw structure — or the dancefloor rect would size a different
+  // stage than the one built here.
+  const T = FESTIVAL_TUNING;
   const scale = isMain
-    ? 1.15 + ctx.rng() * 0.25
-    : 1.0 + ctx.rng() * 0.5;
+    ? T.STAGE_SCALE_MAJOR_BASE + ctx.rng() * T.STAGE_SCALE_MAJOR_SPAN
+    : T.STAGE_SCALE_MINOR_BASE + ctx.rng() * T.STAGE_SCALE_MINOR_SPAN;
   const leafTex = isMain ? leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a') : null;
   const stage = buildStageModel({ isMain, leafTexture: leafTex, rng: ctx.rng, scale });
   stage.group.position.set(x, 0, z);

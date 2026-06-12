@@ -119,8 +119,8 @@ export const FESTIVAL_TUNING = {
   DANCEFLOOR_HALFWIDTH_BASE: 17,    // festival.js:93
 
   // ── Stage scale (planner stageScaleOf == builder buildStage; MUST stay equal) ──
-  STAGE_SCALE_MAJOR_BASE: 1.15, STAGE_SCALE_MAJOR_SPAN: 0.25,   // festival.js:107 / chunks.js:2279
-  STAGE_SCALE_MINOR_BASE: 1.0,  STAGE_SCALE_MINOR_SPAN: 0.5,    // festival.js:107 / chunks.js:2280
+  STAGE_SCALE_MAJOR_BASE: 1.15, STAGE_SCALE_MAJOR_SPAN: 0.25,   // festival.js:110 / chunks.js:2319
+  STAGE_SCALE_MINOR_BASE: 1.0,  STAGE_SCALE_MINOR_SPAN: 0.5,    // festival.js:110 / chunks.js:2320
 
   // ── Walk distances + offsets along approach roads (planner) ──
   FOOD_COURT_WALK_MAJOR: 86, FOOD_COURT_WALK_MINOR: 66, FOOD_COURT_WALK_SPAN: 28,  // festival.js:394

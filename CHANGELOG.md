@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-12
+
+### Changed
+- **Stage-scale hoist finished on the builder side — plan/build now read one source (dev workflow).** The group-2 hoist had wired only the planner's `stageScaleOf` to `FESTIVAL_TUNING.STAGE_SCALE_*` while `buildStage` (the 3D builder) still drew its per-stage scale from bare literals (`1.15 + rng*0.25` / `1.0 + rng*0.5`) — and the new comments wrongly claimed both halves shared the tuning source. A group-2 `/smart-review` caught it: a live slider tune of `STAGE_SCALE_MAJOR_BASE` (group 6.4) would have sized the planner's dancefloor rect / tree-clearing for a different stage than the one built, breaking the D3.3 plan/build agreement. `buildStage` now reads the same `FESTIVAL_TUNING.STAGE_SCALE_*` fields; the single `ctx.rng()` draw stays in place (it's the stage's first draw, matching `stageScaleOf`'s `clusterSeed` derivation), so it's **value-identical, zero rng-order change** — both determinism goldens unchanged (`eddf8e50` / `4825fd0b`) and the built-world snapshot diff is EMPTY across all three canonical seeds (`1234`/`0xf7ef2a3c`/`0xf7ef2a3d`, spawn windows: 842/514/318 entries) including the per-cluster draw-count canary; both flag states boot clean. Also widened the dev-only `MODEL_DIMS` drift-guard host check from `localhost`/`127.0.0.1` to the repo's canonical `isLocal` set (adds `.local`, RFC-1918, `claude-preview`, `happycog`) so it actually fires under preview/forwarded hosts.
+
 ## 2026-06-11
 
 ### Changed
