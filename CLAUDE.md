@@ -161,9 +161,14 @@ adjusting an existing `rng()` call.
 
 ### 5. Three lifecycle systems own world content. They are not transactional.
 
-- **Chunks** (80m grid) lazy-load, never unload once created. Entries register
-  with `chunkKey`. On chunk unload, the registry drops everything tagged with
-  that key.
+- **Chunks** (80m grid) lazy-load around the player and **unload as you move
+  away** — any loaded chunk beyond `UNLOAD_RADIUS` from the player's chunk is
+  dropped (`chunks.js:345`; `UNLOAD_RADIUS` is 2 on low, 3 on mid/high — see
+  `perf.js` `chunkUnloadRadius`, with hysteresis vs the smaller `chunkLoadRadius`
+  so straddling a boundary doesn't thrash). So only the current load neighborhood
+  is resident — don't assume a chunk you generated earlier still exists. Entries
+  register with `chunkKey`; on unload, `_unload` → `registry.removeChunk(key)`
+  (`chunks.js:376`) drops everything tagged with that key.
 - **Forests** (3x3 chunk blocks) pin to the chunk grid.
 - **Lakes** (320m macrocell) load/unload by player distance. **Lakes
   deliberately omit `chunkKey`** so their colliders survive when a host chunk
