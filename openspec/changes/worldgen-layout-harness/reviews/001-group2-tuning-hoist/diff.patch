@@ -1,0 +1,831 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c0e31ae..657dedc 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,12 @@
+ 
+ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
+ 
++## 2026-06-11
++
++### Changed
++- **Festival arrangement constants hoisted to `src/worldgen/tuning.js` (planner half) — golden-frozen, slider-ready (dev workflow).** New render-agnostic module (imports nothing) holding the *space-between-things* tunables — dancefloor depth/halfwidth bases, stage-scale coefficients, per-road walk distances + drag fractions + perp offsets, per-hub cluster counts, drum district band, nudge ring, village cell/prob, and `KIND_FOOTPRINT` — as a mutable `FESTIVAL_TUNING` object with a `setFestivalTuning` setter, so the upcoming hub-viewer sliders (group 6.4) can tune the festival's *composition* live the way `constants.js` CONFIG already tunes the worldgen feature layer. `festival.js` now reads `FESTIVAL_TUNING.*` per-call instead of module-scope literals. Plus `MODEL_DIMS` (model-derived extents copied for the node linter, drift-asserted in chunks.js next) and an approximate `clusterExtent(kind)` envelope helper for the group-4 linter. **Value-identical, zero rng-order change**: both worldgen determinism goldens unchanged (`eddf8e50` / `01532955`) and the registry snapshot diff is EMPTY across 5 windows / 3 seeds incl. the per-cluster draw canary. Near-duplicate constants in the *legacy* theme builders (`buildVendorRow`, `buildFoodPlaza`, `buildCampVillage`) and `buildStage`'s own audience zone are documented "same number, two owners — do NOT merge yet" and left as literals; merging is grammar-change work.
++- **Hoist completed — chunks.js worldgen builders rewired + model-dimension drift guard.** The build half (`buildFoodCourtAt`, `buildVendorRowAt`, `buildCampVillageAt`) now reads `FESTIVAL_TUNING.*` for its ring radii, booth spacing/offset, camper offset, court/vendor/table counts, and camp packing — zero literals left at those sites. The three *legacy* theme builders (which hold the same numbers) keep their literals, untouched. A one-shot localhost-only drift guard in `buildWorldgenKind` `console.warn`s if `tuning.js` `MODEL_DIMS` ever falls out of sync with the live model exports (`FOOD_TRUCK_SCALE`, `SUGAR_SHACK_WIDTH/DEPTH`, `POTTY_SPACING`), so the linter's analytic extents can't silently go stale. Same full gate as the planner half: goldens unchanged, snapshot diff EMPTY × 5 windows / 3 seeds incl. draw canary, both flag states boot clean with no drift warning.
++
+ ## 2026-06-10
+ 
+ ### Added
+diff --git a/index.html b/index.html
+index 4206b2a..2b4652a 100644
+--- a/index.html
++++ b/index.html
+@@ -87,7 +87,7 @@
+       const mods = ['main','world','zerble','bubbles','smiles','crowd','chunks','forests',
+         'mountains','camera','input','touch','hud','sound','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
+         'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid',
+-        'worldgen/constants','worldgen/hearts','worldgen/water','worldgen/roads','worldgen/density','worldgen/roles','worldgen/index','worldgen/selftest','worldgen/placement','worldgen/festival'];
++        'worldgen/constants','worldgen/tuning','worldgen/hearts','worldgen/water','worldgen/roads','worldgen/density','worldgen/roles','worldgen/index','worldgen/selftest','worldgen/placement','worldgen/festival'];
+       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','heart','stage','performer',
+         'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','bird','bubbleJug','bubbleVendor',
+         'campsite','frisbeePlayer','hulaHooper','leafDrumCircle','tribalFigures','portaPotty','picnicTable'];
+diff --git a/map-sandbox.html b/map-sandbox.html
+index 0310de4..5a8c1d9 100644
+--- a/map-sandbox.html
++++ b/map-sandbox.html
+@@ -23,7 +23,7 @@
+       /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.includes('claude-preview') || h.includes('happycog');
+     const v = isLocal ? '?v=' + Date.now() : '';
+     const base = './src/';
+-    const wg = ['rng', 'worldgen/constants', 'worldgen/hearts', 'worldgen/water',
++    const wg = ['rng', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water',
+       'worldgen/roads', 'worldgen/roles', 'worldgen/density', 'worldgen/index',
+       'worldgen/selftest', 'worldgen/festival', 'worldgen/placement'];
+     const imports = {};
+diff --git a/openspec/changes/worldgen-layout-harness/README.md b/openspec/changes/worldgen-layout-harness/README.md
+index 50619ab..d7922d4 100644
+--- a/openspec/changes/worldgen-layout-harness/README.md
++++ b/openspec/changes/worldgen-layout-harness/README.md
+@@ -1,6 +1,6 @@
+ # Build the eyes and the ruler before fixing the festival
+ 
+-> **Status:** <!--STATUS:LINE-->in progress · 12/38 tasks (31%)<!--/STATUS:LINE-->
++> **Status:** <!--STATUS:LINE-->in progress · 15/38 tasks (39%)<!--/STATUS:LINE-->
+ >
+ > _Before we redesign how the festival lays itself out (that's the follow-up
+ > change, `festival-zone-grammar`), this change builds the tools to SEE layout
+@@ -72,15 +72,15 @@ The technical "how" — including determinism safeguards — is in
+ 
+ <!-- This block is generated by `bin/readme-sync` — do NOT edit between the markers. -->
+ <!--STATUS:AUTO-->
+-**in progress** — 12/38 tasks complete (31%) · current: Group 2 (FESTIVAL_TUNING hoist — GOLDEN-FROZEN, opens the tuning freeze; announce to Gary before first edit). Group 1 COMPLETE (1.1–1.10).
++**in progress** — 15/38 tasks complete (39%) · current: Group 2 COMPLETE (2.1–2.3, two gated commits A+B); tuning freeze CLOSED. Next: /smart-review (group-2 milestone), then group 4 (layout linter 4.1–4.6) → 8.1 baseline. Group 1 COMPLETE (1.1–1.10).
+ 
+-_Last updated: 2026-06-10_
++_Last updated: 2026-06-11_
+ 
+ | Group | Progress |
+ |---|---|
+ | 0. Cross-change preconditions | 2/2 ✅ |
+ | 1. The instrument first — capture + `__dbg` layout verbs | 10/10 ✅ |
+-| 2. `FESTIVAL_TUNING` hoist (GOLDEN-FROZEN — full gate ritual per commit; tuning freeze in effect) | 0/3 |
++| 2. `FESTIVAL_TUNING` hoist (GOLDEN-FROZEN — full gate ritual per commit; tuning freeze in effect) | 3/3 ✅ |
+ | 3. ~~Dry-run layout extraction~~ — DEFERRED to festival-zone-grammar | 0/0 |
+ | 4. Layout linter | 0/6 |
+ | 5. Map-sandbox: true-extent overlay + seed gallery | 0/4 |
+diff --git a/openspec/changes/worldgen-layout-harness/session-log.md b/openspec/changes/worldgen-layout-harness/session-log.md
+index 9faf2db..267382f 100644
+--- a/openspec/changes/worldgen-layout-harness/session-log.md
++++ b/openspec/changes/worldgen-layout-harness/session-log.md
+@@ -1,11 +1,11 @@
+ ---
+ change: worldgen-layout-harness
+ status: in_progress        # not_started | in_progress | blocked | paused | complete
+-current_task: "Group 2 (FESTIVAL_TUNING hoist — GOLDEN-FROZEN, opens the tuning freeze; announce to Gary before first edit). Group 1 COMPLETE (1.1–1.10)."
++current_task: "Group 2 COMPLETE (2.1–2.3, two gated commits A+B); tuning freeze CLOSED. Next: /smart-review (group-2 milestone), then group 4 (layout linter 4.1–4.6) → 8.1 baseline. Group 1 COMPLETE (1.1–1.10)."
+ blocked_by: null
+ open_questions: 0
+ started: 2026-06-10
+-last_updated: 2026-06-10
++last_updated: 2026-06-11
+ ref: "ROADMAP 'Layout-work agent harness' (added 2026-06-10); gate for festival-zone-grammar"
+ ---
+ 
+@@ -55,6 +55,23 @@ ref: "ROADMAP 'Layout-work agent harness' (added 2026-06-10); gate for festival-
+   re-sequenced to AFTER festival-zone-grammar — the v2 HANDOFF's stale "Group I
+   next" order would ship the jumble to real players (-> Q2).
+ 
++- **D8 — Hoist scope boundary (group 2, task 2.1).** `tuning.js` holds the
++  CROSS-CLUSTER arrangement surface (the planner's dancefloor bases, stage-scale
++  coeffs, walk distances, cluster counts, drum band, nudge ring, village grid,
++  `KIND_FOOTPRINT`) + the per-cluster builder ring/spacing/offset/count constants
++  D-B names (food-court ring, vendor-row spacing/offset/camper, camp-village
++  packing). EXCLUDED with reasons (guardrail #2 + D-B "out"): (a) the *legacy*
++  theme builders `buildVendorRow`/`buildFoodPlaza`/`buildCampVillage` hold the
++  SAME numbers but are a different owner — left as literals, do NOT merge
++  (`buildFoodPlaza` was missed in the first inventory pass and caught during the
++  chunks.js rewire when `ring + 2.5` matched twice); (b) `buildStage`'s own
++  audience/chair/light sub-layout is the stage cluster's BODY, not inter-cluster
++  spacing — and its `dancefloorDepth=9*scale` is a different owner than the
++  planner's `DANCEFLOOR_DEPTH_BASE=38` (do NOT merge); (c) `ANGLE_BINS`,
++  `DRY_PROBES`, `MAX_POI_REACH`, `SALT.*` are determinism/structural machinery,
++  not tunable arrangement. Full inventory with old file:lines lives in the
++  tuning.js header comment (the 2.1 deliverable).
++
+ ## Assumptions
+ 
+ | # | Assumption | Confidence | Status | Resolution |
+@@ -308,3 +325,42 @@ This is also why "boot the game and demonstrate" is non-negotiable: the node
+ finder and the self-diffs were internally consistent and EMPTY — only the live
+ game exposed the world mismatch.
+ **Refs:** -> Task 1.5, -> Task 1.6, main.js:76 (seed parse), rng.js setSessionSeed, af32d85 (corrected), verification/MANIFEST.md
++
++### 2026-06-11 -- Group 2 commit A: tuning.js + planner rewire, gated EMPTY
++**Event:** phase-change (hoist begun) + decision (commit split)
++**What:** Tuning freeze announced OPEN to Gary, then landed the FIRST of the
++two hoist commits. Commit A = create `src/worldgen/tuning.js` (the 2.1
++inventory baked into its header + the `FESTIVAL_TUNING` mutable CONFIG +
++`setFestivalTuning` + `MODEL_DIMS` + `clusterExtent`) and rewire the PLANNER
++(`festival.js`) to read it, + importmap in the three live html files
++(hub-sandbox doesn't exist yet — group 6). Split rationale: commit A = planner
++(positions), commit B = builder (`chunks.js` model variation + the drift
++asserts). Splitting localizes any snapshot drift to one half — D-B explicitly
++allows "one or two commits"; two is safer for a golden-frozen change. The
++planner change is proven value-identical the strongest possible way: the POI
++golden hashes every descriptor's kind/x/z/yaw/footprint/fbin/scale, and it did
++NOT move (`01532955`), so the plan is byte-identical by construction; the
++registry snapshot diff (full built world, incl. per-cluster draw canary) was
++EMPTY across 5 windows / 3 seeds as belt-and-suspenders. Both `?worldgen=1` and
++`?worldgen=0` boot clean (zero console errors). 2.1 ticked; 2.2 stays open
++until commit B (its done-line wants zero literals at the chunks.js sites too).
++**Refs:** -> Task 2.1, -> Task 2.2, -> Task 2.3, -> D8, design D-B, src/worldgen/tuning.js, src/worldgen/festival.js
++
++### 2026-06-11 -- Group 2 commit B: builder rewire + drift guard; hoist COMPLETE, freeze CLOSED
++**Event:** phase-change (group 2 done)
++**What:** Second hoist commit. `chunks.js` worldgen builders (`buildFoodCourtAt`,
++`buildVendorRowAt`, `buildCampVillageAt`) now read `FESTIVAL_TUNING.*`; a
++one-shot localhost drift guard (`assertTuningDrift` in `buildWorldgenKind`)
++warns if `MODEL_DIMS` drifts from the live model exports. **Surprise caught:**
++`buildFoodPlaza` (the LEGACY food court) is a third do-not-merge twin I missed
++in the 2.1 inventory — surfaced when `ring + 2.5` matched twice in the rewire.
++Rewired only the worldgen `*At` sibling; added buildFoodPlaza to the excluded
++inventory (tuning.js header + -> D8). Literal audit: `14*FOOD_TRUCK_SCALE`,
++`MIN_SPACING = 5.5`, `spacing = 5.0` each now appear exactly ONCE — in their
++legacy builder only. Builder change is the test the POI golden can't do (it
++hashes the plan, not the build); the registry snapshot — which captures
++build-half model variation — diffed EMPTY × 5 windows / 3 seeds incl. canary,
++both flags boot clean, no drift warning. Tuning freeze CLOSED. Group 2 done in
++two commits (D-B's "one or two"); next is the group-2 `/smart-review` milestone
++(APPLY-GUARDRAILS), then group 4 linter → 8.1 baseline (grammar-unblock).
++**Refs:** -> Task 2.2, -> Task 2.3, -> D8, src/chunks.js buildWorldgenKind, 4419cb3 (commit A)
+diff --git a/openspec/changes/worldgen-layout-harness/tasks.md b/openspec/changes/worldgen-layout-harness/tasks.md
+index 2fa874d..7ff937c 100644
+--- a/openspec/changes/worldgen-layout-harness/tasks.md
++++ b/openspec/changes/worldgen-layout-harness/tasks.md
+@@ -129,7 +129,7 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
+ 
+ ## 2. `FESTIVAL_TUNING` hoist (GOLDEN-FROZEN — full gate ritual per commit; tuning freeze in effect)
+ 
+-- [ ] 2.1 Inventory the arrangement constants in the chunks.js worldgen builders
++- [x] 2.1 Inventory the arrangement constants in the chunks.js worldgen builders
+       (`buildVendorRowAt` [chunks.js:1236](../../../src/chunks.js#L1236),
+       `buildFoodCourtAt` [chunks.js:1288](../../../src/chunks.js#L1288),
+       `buildStage` [chunks.js:2258](../../../src/chunks.js#L2258), potty/camp/
+@@ -140,7 +140,7 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
+       yet" (guardrail #2).
+       done = inventory comment lists every hoisted constant with its old
+       file:line and every excluded near-duplicate with its reason.
+-- [ ] 2.2 Create `src/worldgen/tuning.js` — imports NOTHING; mutable-CONFIG +
++- [x] 2.2 Create `src/worldgen/tuning.js` — imports NOTHING; mutable-CONFIG +
+       setter shape from day one (pattern: map-sandbox `setConfig`
+       ~map-sandbox.html:577); analytic per-kind extent helpers; rewire
+       festival.js + chunks.js to read it; dev-only drift assertions in
+@@ -150,7 +150,7 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
+       chunks/registry/lakes/models).
+       done = game + map-sandbox + node selftest all run; grep shows zero
+       remaining hoisted-constant literals at the old sites.
+-- [ ] 2.3 Gate: FULL ritual (APPLY-GUARDRAILS) — empty snapshot diff at 3 seeds
++- [x] 2.3 Gate: FULL ritual (APPLY-GUARDRAILS) — empty snapshot diff at 3 seeds
+       incl. canary counts + both goldens unchanged + boot smoke both flag
+       states + HUD budgets unchanged.
+       done = ritual outputs pasted into the commit/session notes.
+diff --git a/sandbox.html b/sandbox.html
+index 31fa140..581a492 100644
+--- a/sandbox.html
++++ b/sandbox.html
+@@ -177,7 +177,7 @@
+             const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'crowd', 'chunks', 'forests',
+                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
+                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid',
+-                'worldgen/constants', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival'];
++                'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival'];
+             const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'heart', 'stage', 'performer',
+                 'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
+                 'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable'];
+diff --git a/src/chunks.js b/src/chunks.js
+index 0a6a6a9..4970685 100644
+--- a/src/chunks.js
++++ b/src/chunks.js
+@@ -25,6 +25,7 @@ import { queryRegion, queryPoint } from './worldgen/index.js';
+ import { treeDensity } from './worldgen/density.js';
+ import { dancefloorRectsNear } from './worldgen/festival.js';
+ import { CONFIG } from './worldgen/constants.js';
++import { FESTIVAL_TUNING, MODEL_DIMS } from './worldgen/tuning.js';
+ import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
+ import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
+ import { buildCampsite, buildCampChair, buildTorchField, buildCampTent } from './models/campsite.js';
+@@ -1165,7 +1166,33 @@ function placeWorldgenProps(ctx) {
+ // length can't desync the chunk's other consumers (R19). Return-shape extraction is
+ // per-builder (R2): buildStage/buildDrumCircleAt register internally; the *At helpers
+ // extract `.group`/bare-Group exactly as each model demands.
++// Dev-only drift guard (design D-B): tuning.js MODEL_DIMS copies a few model
++// dimensions so the node linter (which can't import src/models/*) can compute
++// cluster extents. If a model body is retuned and MODEL_DIMS isn't updated, the
++// linter's analytic extents silently go stale. chunks.js legally imports both,
++// so it's the one place that can catch the drift. One-shot, localhost-only,
++// console.warn — never throws (a stale extent is a lint-accuracy bug, not a
++// crash). The arrangement multipliers themselves (× FOOD_TRUCK_SCALE) read the
++// live export at the call site, so there's nothing to drift there.
++let _tuningDriftChecked = false;
++function assertTuningDrift() {
++  if (_tuningDriftChecked) return;
++  _tuningDriftChecked = true;
++  if (typeof location === 'undefined' || !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
++  const M = MODEL_DIMS;
++  const checks = [
++    ['FOOD_TRUCK_SCALE', M.FOOD_TRUCK_SCALE, FOOD_TRUCK_SCALE],
++    ['SUGAR_SHACK_W', M.SUGAR_SHACK_W, SUGAR_SHACK_WIDTH],
++    ['SUGAR_SHACK_D', M.SUGAR_SHACK_D, SUGAR_SHACK_DEPTH],
++    ['POTTY_SPACING', M.POTTY_SPACING, POTTY_SPACING],
++  ];
++  for (const [name, copied, live] of checks) {
++    if (copied !== live) console.warn(`[tuning drift] MODEL_DIMS.${name}=${copied} but live model export=${live} — update tuning.js MODEL_DIMS (and re-check clusterExtent).`);
++  }
++}
++
+ function buildWorldgenKind(ctx, d) {
++  assertTuningDrift();
+   // Transparent counting passthrough over the cluster-local rng (task 1.4
+   // canary). `realRng()` is the same mulberry32 stream in the same order; the
+   // wrapper only tallies calls — zero behavior change.
+@@ -1249,8 +1276,9 @@ function buildPottyBankAt(ctx, x, z, yaw) {
+ // offset). Sugar shacks do NOT appear here — only in the food court (kills the
+ // solo-shack bug).
+ function buildVendorRowAt(ctx, x, z, yaw) {
+-  const count = 5 + Math.floor(ctx.rng() * 3);
+-  const spacing = 5.0, rowOffset = 7;
++  const T = FESTIVAL_TUNING;
++  const count = T.VENDOR_ROW_COUNT_BASE + Math.floor(ctx.rng() * T.VENDOR_ROW_COUNT_SPAN);
++  const spacing = T.VENDOR_ROW_SPACING, rowOffset = T.VENDOR_ROW_OFFSET;
+   const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+   const place = (lx, lz) => ({ x: x + lx * cosY + lz * sinY, z: z - lx * sinY + lz * cosY });  // +Z = along road
+   for (let i = 0; i < count; i++) {
+@@ -1275,8 +1303,8 @@ function buildVendorRowAt(ctx, x, z, yaw) {
+       });
+       // D3: a camper's tent tucked BEHIND ~40% of the stalls (back side, away from
+       // the aisle) — "vendors camp behind their stalls."
+-      if (ctx.rng() < 0.4) {
+-        const cw = place(side * (rowOffset + 6), t * spacing + (ctx.rng() - 0.5) * 2);
++      if (ctx.rng() < T.VENDOR_CAMPER_PROB) {
++        const cw = place(side * (rowOffset + T.VENDOR_CAMPER_BACK_OFFSET), t * spacing + (ctx.rng() - 0.5) * 2);
+         if (!isPointInLake(cw.x, cw.z)) {
+           const camp = buildCampTent(ctx.rng).group;   // buildCampTent returns { group, color, footprint }, not a bare Group (R2)
+           camp.position.set(cw.x, 0, cw.z);
+@@ -1301,9 +1329,10 @@ function buildVendorRowAt(ctx, x, z, yaw) {
+ // the legacy ring lacked (the only thing that kept it from overlapping was the
+ // spawn-corridor hack — D2.3 surgery).
+ function buildFoodCourtAt(ctx, x, z) {
+-  const count = 3 + Math.floor(ctx.rng() * 3);
+-  const ring = 14 * FOOD_TRUCK_SCALE;
+-  const wantShack = ctx.rng() < 0.35;
++  const T = FESTIVAL_TUNING;
++  const count = T.FOOD_COURT_COUNT_BASE + Math.floor(ctx.rng() * T.FOOD_COURT_COUNT_SPAN);
++  const ring = T.FOOD_COURT_RING_MULT * FOOD_TRUCK_SCALE;
++  const wantShack = ctx.rng() < T.FOOD_COURT_SHACK_PROB;
+   const shackSlot = wantShack ? Math.floor(ctx.rng() * count) : -1;
+   const placed = [];
+   const overlaps = (px, pz, r) => placed.some((p) => {
+@@ -1312,7 +1341,7 @@ function buildFoodCourtAt(ctx, x, z) {
+   for (let i = 0; i < count; i++) {
+     const ang = (i / count) * Math.PI * 2 + ctx.rng() * 0.4;
+     if (i === shackSlot) {
+-      const shackRing = ring + 2.5;
++      const shackRing = ring + T.FOOD_COURT_SHACK_RING_PAD;
+       const sx = x + Math.cos(ang) * shackRing, sz = z + Math.sin(ang) * shackRing;
+       const half = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
+       if (isPointInLake(sx, sz) || overlaps(sx, sz, half)) continue;
+@@ -1333,7 +1362,7 @@ function buildFoodCourtAt(ctx, x, z) {
+       continue;
+     }
+     const tx = x + Math.cos(ang) * ring, tz = z + Math.sin(ang) * ring;
+-    const tr = 4.4 * FOOD_TRUCK_SCALE;
++    const tr = T.FOOD_COURT_TRUCK_R_MULT * FOOD_TRUCK_SCALE;
+     if (isPointInLake(tx, tz) || overlaps(tx, tz, tr)) continue;
+     const truck = buildFoodTruck(ctx.rng);
+     truck.position.set(tx, 0, tz);
+@@ -1350,8 +1379,8 @@ function buildFoodCourtAt(ctx, x, z) {
+     placed.push({ x: tx, z: tz, r: tr });
+   }
+   // A bubble vendor at the court edge ~40% of the time (refuel near the food).
+-  if (ctx.rng() < 0.4) {
+-    const ang = ctx.rng() * Math.PI * 2, vr = ring + 3;
++  if (ctx.rng() < T.FOOD_COURT_BUBBLE_PROB) {
++    const ang = ctx.rng() * Math.PI * 2, vr = ring + T.FOOD_COURT_BUBBLE_RING_PAD;
+     const vx = x + Math.cos(ang) * vr, vz = z + Math.sin(ang) * vr;
+     if (!isPointInLake(vx, vz) && !overlaps(vx, vz, 2.4)) {
+       buildBubbleVendorAt(ctx, vx, vz, Math.atan2(x - vx, z - vz));
+@@ -1362,13 +1391,13 @@ function buildFoodCourtAt(ctx, x, z) {
+   // gathers around the tables (the "people at the picnic area" read; the precise
+   // butts-on-benches seated pose is a tracked follow-up). Spaced so Zerble can still
+   // weave between them within the ring.
+-  const tableN = 1 + Math.floor(ctx.rng() * 3);   // 1-3
++  const tableN = T.FOOD_COURT_TABLE_COUNT_BASE + Math.floor(ctx.rng() * T.FOOD_COURT_TABLE_COUNT_SPAN);   // 1-3
+   const tablesPlaced = [];
+   for (let i = 0; i < tableN; i++) {
+-    const ang = ctx.rng() * Math.PI * 2, rad = ctx.rng() * (ring * 0.45);
++    const ang = ctx.rng() * Math.PI * 2, rad = ctx.rng() * (ring * T.FOOD_COURT_TABLE_RING_FRAC);
+     const tx = x + Math.cos(ang) * rad, tz = z + Math.sin(ang) * rad;
+     if (isPointInLake(tx, tz)) continue;
+-    if (tablesPlaced.some((p) => Math.hypot(p.x - tx, p.z - tz) < 3.2)) continue;
++    if (tablesPlaced.some((p) => Math.hypot(p.x - tx, p.z - tz) < T.FOOD_COURT_TABLE_MIN_SPACING)) continue;
+     const pt = buildPicnicTable(ctx.rng);
+     pt.group.position.set(tx, 0, tz);
+     pt.group.rotation.y = ctx.rng() * Math.PI * 2;
+@@ -1386,9 +1415,10 @@ function buildFoodCourtAt(ctx, x, z) {
+ 
+   // C3: tiki torches ringing the court perimeter (just outside the truck ring).
+   const courtTorches = [];
+-  const torchR = ring + 5;
+-  for (let i = 0; i < 6; i++) {
+-    const ang = (i / 6) * Math.PI * 2 + 0.3;
++  const torchR = ring + T.FOOD_COURT_TORCH_RING_PAD;
++  const torchCount = T.FOOD_COURT_TORCH_COUNT;
++  for (let i = 0; i < torchCount; i++) {
++    const ang = (i / torchCount) * Math.PI * 2 + 0.3;
+     const tx = x + Math.cos(ang) * torchR, tz = z + Math.sin(ang) * torchR;
+     if (!isPointInLake(tx, tz)) courtTorches.push({ x: tx, z: tz });
+   }
+@@ -1409,20 +1439,21 @@ function buildFoodCourtAt(ctx, x, z) {
+ function buildCampVillageAt(ctx, x, z, tentTarget) {
+   // D2: target tent count comes from the plan (∝ local crowd density); falls back
+   // to the legacy 12-20 if a caller doesn't supply one (keeps the legacy path intact).
+-  const target = tentTarget != null ? tentTarget : 12 + Math.floor(ctx.rng() * 9);
++  const T = FESTIVAL_TUNING;
++  const target = tentTarget != null ? tentTarget : T.CAMP_TARGET_BASE + Math.floor(ctx.rng() * T.CAMP_TARGET_SPAN);
+   const placed = [];
+-  const MIN_SPACING = 5.5, RADIUS = 30;
++  const MIN_SPACING = T.CAMP_MIN_SPACING, RADIUS = T.CAMP_RADIUS;
+   let attempts = 0;
+   while (placed.length < target && attempts < target * 16) {
+     attempts++;
+     const px = x + (ctx.rng() - 0.5) * 2 * RADIUS, pz = z + (ctx.rng() - 0.5) * 2 * RADIUS;
+     if (isPointInLake(px, pz)) continue;
+-    if (registry.closestBuilding(new THREE.Vector3(px, 0, pz), 4, CLUSTER_GUARD_SKIP)) continue;
++    if (registry.closestBuilding(new THREE.Vector3(px, 0, pz), T.CAMP_GUARD_RADIUS, CLUSTER_GUARD_SKIP)) continue;
+     let tooClose = false;
+     for (const p of placed) { const dx = p.x - px, dz = p.z - pz; if (dx * dx + dz * dz < MIN_SPACING * MIN_SPACING) { tooClose = true; break; } }
+     if (tooClose) continue;
+     const r = ctx.rng();
+-    const size = r < 0.50 ? 'small' : (r < 0.85 ? 'medium' : 'large');
++    const size = r < T.CAMP_SIZE_SMALL_BELOW ? 'small' : (r < T.CAMP_SIZE_MEDIUM_BELOW ? 'medium' : 'large');
+     placeSingleCampsite(ctx, px, pz, size);
+     placed.push({ x: px, z: pz });
+   }
+diff --git a/src/worldgen/festival.js b/src/worldgen/festival.js
+index 5bf4c7c..af16fb7 100644
+--- a/src/worldgen/festival.js
++++ b/src/worldgen/festival.js
+@@ -42,6 +42,7 @@
+ 
+ import { cellRng, quantize, worldHash, mulberry32 } from '../rng.js';
+ import { CONFIG, SALT, worldgenEpoch } from './constants.js';
++import { FESTIVAL_TUNING } from './tuning.js';
+ import { getSessionSeed } from '../rng.js';
+ import { queryPoint } from './index.js';
+ import { approachRoadsOf } from './roads.js';
+@@ -64,8 +65,10 @@ import { treeDensity } from './density.js';
+ // per-cluster SIZING (dancefloor depth, the front-axis ray-walk) reads the live
+ // `heart.core`, NEVER a literal 350. If `major.core` is ever tuned past ~350 via
+ // the sliders, revisit this bound (drum would exceed 480).
+-const DRUM_BAND = 130;
+ export const MAX_POI_REACH = 480;   // generous over-bound; see NOTE above (R16)
++// DRUM_BAND (the drum's reach past core, default 130) is now tunable:
++// FESTIVAL_TUNING.DRUM_BAND (tuning.js). MAX_POI_REACH stays a fixed structural
++// over-bound (R16) — if DRUM_BAND is tuned past ~350 it could exceed it; revisit.
+ 
+ // ── Front-axis grammar (deliberation 003 — festival-layout-grammar.md) ───────
+ // A hub faces ONE computed direction F: the bisector of the WIDEST DRY GAP
+@@ -89,8 +92,8 @@ export const MAX_POI_REACH = 480;   // generous over-bound; see NOTE above (R16)
+ // a probe within ~1e-13 of a meter boundary AND exactly at the dry tolerance.
+ const ANGLE_BINS = 256;             // fixed angular grid for cross-engine-stable gap selection
+ const DRY_PROBES = 6;               // blocked-point samples along a candidate bisector
+-const DANCEFLOOR_DEPTH_BASE = 38;   // ~3 stage-lengths of cleared dancefloor (dial-able — A4/G1)
+-const DANCEFLOOR_HALFWIDTH_BASE = 17;
++// Dancefloor depth/halfwidth bases are now tunable: FESTIVAL_TUNING
++// .DANCEFLOOR_DEPTH_BASE (38) / .DANCEFLOOR_HALFWIDTH_BASE (17) (tuning.js).
+ 
+ function binAngle(bearing) {        // atan2 result (-π,π] → integer bin [0,ANGLE_BINS)
+   let b = Math.round(bearing / (Math.PI * 2) * ANGLE_BINS) % ANGLE_BINS;
+@@ -100,13 +103,17 @@ function binBearing(bin) { return (bin / ANGLE_BINS) * Math.PI * 2; }   // [0,2
+ 
+ // Stage scale is plan DATA (D3.3) so the dancefloor rect and the built model
+ // agree on size. Derived from the stage's clusterSeed (idx 0), matching
+-// buildStage's FIRST rng draw exactly: main 1.15+r*0.25, side 1.0+r*0.5
+-// (chunks.js:2279, inside buildStage at 2273 — keep these two formulas in sync).
++// buildStage's FIRST rng draw exactly. Both this and buildStage (chunks.js:2279,
++// inside buildStage at 2273) read the SAME FESTIVAL_TUNING.STAGE_SCALE_*
++// (tuning.js) — formerly duplicated literals with a "keep in sync" note; the
++// hoist makes them one source.
+ function stageScaleOf(heart) {
+   const r = mulberry32(clusterSeed(heart, 0))();
+-  return heart.rank === 'major' ? 1.15 + r * 0.25 : 1.0 + r * 0.5;
++  const T = FESTIVAL_TUNING;
++  return heart.rank === 'major' ? T.STAGE_SCALE_MAJOR_BASE + r * T.STAGE_SCALE_MAJOR_SPAN
++                                : T.STAGE_SCALE_MINOR_BASE + r * T.STAGE_SCALE_MINOR_SPAN;
+ }
+-function dancefloorDepth(heart) { return DANCEFLOOR_DEPTH_BASE * stageScaleOf(heart); }
++function dancefloorDepth(heart) { return FESTIVAL_TUNING.DANCEFLOOR_DEPTH_BASE * stageScaleOf(heart); }
+ 
+ // Count probe points along a ray from the hub center that fall in WATER — the
+ // dancefloor must not open onto a lake (A3's "no road in front" is already
+@@ -176,8 +183,8 @@ export function dancefloorRect(heart) {
+   const dx = Math.cos(fa.bearing), dz = Math.sin(fa.bearing);
+   return {
+     cx: heart.x, cz: heart.z, dirx: dx, dirz: dz, bin: fa.bin,
+-    depth: quantize(DANCEFLOOR_DEPTH_BASE * scale),
+-    halfWidth: quantize(DANCEFLOOR_HALFWIDTH_BASE * scale),
++    depth: quantize(FESTIVAL_TUNING.DANCEFLOOR_DEPTH_BASE * scale),
++    halfWidth: quantize(FESTIVAL_TUNING.DANCEFLOOR_HALFWIDTH_BASE * scale),
+   };
+ }
+ 
+@@ -192,15 +199,10 @@ export function dancefloorRectsNear(minX, minZ, maxX, maxZ) {
+ 
+ // Footprint (clear-radius, m) hint per cluster kind — for the build half's
+ // spacing + the map-sandbox overlay. The build side registers each prop with the
+-// model's real footprint; this is the cluster envelope.
+-const KIND_FOOTPRINT = {
+-  main_stage: 11, side_stage: 8, tent_stage: 13, arch: 6, food_court: 16, vendor_row: 12,
+-  bubble_vendor: 3, drum_circle: 6, porta_bank: 3, camp_village: 32,
+-};
+-
+-// Camp-village coarse grid (independent of hearts — the "back of the festival").
+-const VILLAGE_CELL = 240;
+-const VILLAGE_PROB = 0.25;   // a discovery, not a carpet (parked feel-tunable)
++// model's real footprint; this is the cluster envelope. Now in tuning.js:
++// FESTIVAL_TUNING.KIND_FOOTPRINT.
++// Camp-village coarse grid (independent of hearts — the "back of the festival"):
++// FESTIVAL_TUNING.VILLAGE_CELL (240) / .VILLAGE_PROB (0.25, parked feel-tunable).
+ 
+ // worldgen `facing` (atan2(Δz,Δx) toward the road) → three.js Y-rotation turning a
+ // model's local +Z (its "front") toward the road. yaw = π/2 − facing (a group at
+@@ -218,7 +220,7 @@ function clusterSeed(heart, idx) {
+ }
+ 
+ function desc(kind, x, z, yaw, role, rank, anchor, seed) {
+-  return { kind, x: quantize(x), z: quantize(z), yaw, footprint: KIND_FOOTPRINT[kind] || 4, role, rank, anchor, clusterSeed: seed };
++  return { kind, x: quantize(x), z: quantize(z), yaw, footprint: FESTIVAL_TUNING.KIND_FOOTPRINT[kind] || 4, role, rank, anchor, clusterSeed: seed };
+ }
+ 
+ // Walk `dist` meters from the heart's end (oriented[0]) along an approach-road
+@@ -250,7 +252,8 @@ function perpOff(x, z, bearing, dist, side) {
+ function nudgeOff(x, z, rng) {
+   if (!queryPoint(x, z).noBuild) return { x, z };
+   const baseA = rng() * Math.PI * 2;
+-  for (let r = 10; r <= 28; r += 9) {
++  const T = FESTIVAL_TUNING;
++  for (let r = T.NUDGE_R_MIN; r <= T.NUDGE_R_MAX; r += T.NUDGE_R_STEP) {
+     for (let k = 0; k < 6; k++) {
+       const a = baseA + (k / 6) * Math.PI * 2;
+       const nx = x + Math.cos(a) * r, nz = z + Math.sin(a) * r;
+@@ -267,9 +270,10 @@ function nudgeOff(x, z, rng) {
+ // then falls back to the first off-road spot found (so a major in open country
+ // still gets its drum circle rather than dropping it).
+ function treedDistrictSpot(heart, rng, avoidBearing) {
+-  const r0 = heart.core + 15;
+-  const r1 = Math.min(heart.core + DRUM_BAND, heart.district * 0.7);
+-  const FRONT_HALF = 0.7;                       // ~40° wedge around +F kept clear (the dancefloor)
++  const T = FESTIVAL_TUNING;
++  const r0 = heart.core + T.DRUM_CORE_PAD;
++  const r1 = Math.min(heart.core + T.DRUM_BAND, heart.district * T.DRUM_DISTRICT_FRAC);
++  const FRONT_HALF = T.DRUM_FRONT_HALF;         // ~40° wedge around +F kept clear (the dancefloor)
+   let fallback = null;
+   let chosen = null;
+   for (let attempt = 0; attempt < 12; attempt++) {
+@@ -351,6 +355,7 @@ function resolveOverlaps(out, heart) {
+ 
+ function _computePlan(heart) {
+   const rng = cellRng(heart.cx, heart.cz, SALT.poiLayout);
++  const T = FESTIVAL_TUNING;
+   const major = heart.rank === 'major';
+   const fa = computeFrontAxis(heart);          // the hub's front axis F (memoized)
+   const out = [];
+@@ -365,7 +370,7 @@ function _computePlan(heart) {
+   // ON its parent — A8 "at the margin").
+   const addPotty = (x, z, parentYaw) => {
+     const a = rng() * Math.PI * 2;
+-    const spot = nudgeOff(x + Math.cos(a) * 9, z + Math.sin(a) * 9, rng);
++    const spot = nudgeOff(x + Math.cos(a) * T.POTTY_ATTACH_OFFSET, z + Math.sin(a) * T.POTTY_ATTACH_OFFSET, rng);
+     if (spot) out.push(desc('porta_bank', spot.x, spot.z, parentYaw, 'core', heart.rank, false, clusterSeed(heart, idx)));
+     idx++;
+   };
+@@ -388,13 +393,13 @@ function _computePlan(heart) {
+ 
+   // 2. FOOD COURTS on the drag (the food street), out PAST the dancefloor depth so
+   //    they sit away from the stage (A6). Sugar shacks live ONLY here (build half).
+-  const courtN = Math.min(roads.length, major ? 2 : 1);
++  const courtN = Math.min(roads.length, major ? T.COURT_N_MAJOR : T.COURT_N_MINOR);
+   for (let i = 0; i < courtN; i++) {
+     const rd = roads[i];
+-    const dist = Math.min(MAX_POI_REACH, (rd.lenQ * 0.45) | 0, (major ? 86 : 66) + rng() * 28);
++    const dist = Math.min(MAX_POI_REACH, (rd.lenQ * T.FOOD_COURT_DRAG_FRAC) | 0, (major ? T.FOOD_COURT_WALK_MAJOR : T.FOOD_COURT_WALK_MINOR) + rng() * T.FOOD_COURT_WALK_SPAN);
+     const p = walkOriented(rd.oriented, dist);
+     const side = rng() < 0.5 ? 1 : -1;
+-    const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + 16, side);
++    const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + T.FOOD_COURT_PERP, side);
+     const spot = nudgeOff(o.x, o.z, rng);
+     if (spot) {
+       const yaw = roadFacingYaw(queryPoint(spot.x, spot.z).facing, rng);
+@@ -411,10 +416,10 @@ function _computePlan(heart) {
+   //    yaw = the road tangent (π/2 − bearing) so the rows run along the road. No
+   //    perpOff/nudgeOff: a road point is buildable by construction, and sitting ON
+   //    the road is the whole point — that is what makes the aisle drivable.
+-  const rowN = Math.min(roads.length, major ? 2 : 1);
++  const rowN = Math.min(roads.length, major ? T.ROW_N_MAJOR : T.ROW_N_MINOR);
+   for (let i = 0; i < rowN; i++) {
+     const rd = roads[i];
+-    const dist = Math.min(MAX_POI_REACH, (rd.lenQ * 0.34) | 0, (major ? 66 : 50) + rng() * 18);
++    const dist = Math.min(MAX_POI_REACH, (rd.lenQ * T.VENDOR_ROW_DRAG_FRAC) | 0, (major ? T.VENDOR_ROW_WALK_MAJOR : T.VENDOR_ROW_WALK_MINOR) + rng() * T.VENDOR_ROW_WALK_SPAN);
+     const p = walkOriented(rd.oriented, dist);
+     out.push(desc('vendor_row', p.x, p.z, Math.PI / 2 - p.bearing, 'core', heart.rank, false, clusterSeed(heart, idx)));
+     idx++;
+@@ -425,13 +430,13 @@ function _computePlan(heart) {
+     let spot = null, yaw = rng() * Math.PI * 2;
+     if (roads.length) {
+       const rd = roads[roads.length - 1];
+-      const p = walkOriented(rd.oriented, Math.min(MAX_POI_REACH, (major ? 55 : 40) + rng() * 20));
++      const p = walkOriented(rd.oriented, Math.min(MAX_POI_REACH, (major ? T.BUBBLE_WALK_MAJOR : T.BUBBLE_WALK_MINOR) + rng() * T.BUBBLE_WALK_SPAN));
+       const side = rng() < 0.5 ? 1 : -1;
+-      const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + 5, side);
++      const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + T.BUBBLE_PERP, side);
+       spot = nudgeOff(o.x, o.z, rng);
+       if (spot) yaw = roadFacingYaw(queryPoint(spot.x, spot.z).facing, rng);
+     }
+-    if (!spot) spot = nudgeOff(heart.x + (rng() - 0.5) * 50, heart.z + (rng() - 0.5) * 50, rng);
++    if (!spot) spot = nudgeOff(heart.x + (rng() - 0.5) * T.BUBBLE_FALLBACK_SPREAD, heart.z + (rng() - 0.5) * T.BUBBLE_FALLBACK_SPREAD, rng);
+     if (spot) out.push(desc('bubble_vendor', spot.x, spot.z, yaw, 'core', heart.rank, false, clusterSeed(heart, idx)));
+     idx++;
+   }
+@@ -454,15 +459,16 @@ function _computePlan(heart) {
+ //    hearts; a coarse deterministic grid, district/outskirts only) ─────────────
+ export function campVillagesNear(bounds) {
+   const { minX, minZ, maxX, maxZ } = bounds;
+-  const c0x = Math.floor(minX / VILLAGE_CELL) - 1, c1x = Math.floor(maxX / VILLAGE_CELL) + 1;
+-  const c0z = Math.floor(minZ / VILLAGE_CELL) - 1, c1z = Math.floor(maxZ / VILLAGE_CELL) + 1;
++  const VC = FESTIVAL_TUNING.VILLAGE_CELL, VP = FESTIVAL_TUNING.VILLAGE_PROB;
++  const c0x = Math.floor(minX / VC) - 1, c1x = Math.floor(maxX / VC) + 1;
++  const c0z = Math.floor(minZ / VC) - 1, c1z = Math.floor(maxZ / VC) + 1;
+   const out = [];
+   for (let cz = c0z; cz <= c1z; cz++) {
+     for (let cx = c0x; cx <= c1x; cx++) {
+       const rng = cellRng(cx, cz, SALT.poiVillage);
+-      if (rng() > VILLAGE_PROB) continue;
+-      const jx = (rng() - 0.5) * VILLAGE_CELL * 0.6, jz = (rng() - 0.5) * VILLAGE_CELL * 0.6;
+-      const x = quantize((cx + 0.5) * VILLAGE_CELL + jx), z = quantize((cz + 0.5) * VILLAGE_CELL + jz);
++      if (rng() > VP) continue;
++      const jx = (rng() - 0.5) * VC * 0.6, jz = (rng() - 0.5) * VC * 0.6;
++      const x = quantize((cx + 0.5) * VC + jx), z = quantize((cz + 0.5) * VC + jz);
+       const qp = queryPoint(x, z);
+       if (qp.noBuild || qp.inLake) continue;       // off road + off water
+       if (qp.roleTier === 'core') continue;          // villages are back-of-festival, not the core
+@@ -472,7 +478,7 @@ export function campVillagesNear(bounds) {
+       // small one (~5). Carried as plan data so the build reads it deterministically.
+       const tents = Math.max(5, Math.min(22, Math.round(6 + qp.heartInfluence * 16)));
+       out.push({
+-        kind: 'camp_village', x, z, yaw: 0, footprint: KIND_FOOTPRINT.camp_village,
++        kind: 'camp_village', x, z, yaw: 0, footprint: FESTIVAL_TUNING.KIND_FOOTPRINT.camp_village,
+         role: qp.roleTier, rank: qp.heart ? qp.heart.rank : 'minor', anchor: false, tents,
+         clusterSeed: (worldHash(cx, cz, SALT.poiVillage) >>> 0),
+       });
+diff --git a/src/worldgen/tuning.js b/src/worldgen/tuning.js
+new file mode 100644
+index 0000000..491ffea
+--- /dev/null
++++ b/src/worldgen/tuning.js
+@@ -0,0 +1,237 @@
++// Festival ARRANGEMENT tuning — the single named surface for the distances
++// *between* placed festival things (ring radii, booth spacing, row/camper
++// offsets, dancefloor bases, walk distances along approach roads, per-hub
++// cluster counts, KIND_FOOTPRINT). The planner (festival.js) and the 3D build
++// half (chunks.js worldgen builders) both read this so the hub viewer's
++// slider panel (group 6.4) can tune the festival's COMPOSITION live, the way
++// constants.js CONFIG already lets the 2D map sandbox tune the worldgen
++// FEATURE layer (hearts/lakes/roads/density).
++//
++// ── Dependency direction (BINDING) ───────────────────────────────────────────
++// This module imports NOTHING. `src/worldgen/*` is the render-agnostic layer:
++// it must never import chunks.js / registry.js / lakes.js / models/*. That is
++// what lets the node linter (group 4) and the hub viewer import it freely. The
++// arrows only ever point INTO worldgen/, never out. (constants.js obeys the
++// same rule; tuning.js is its festival-arrangement sibling.)
++//
++// ── In / out rule (design D-B) ───────────────────────────────────────────────
++// IN  — arrangement: the space BETWEEN bodies. Ring radii, booth spacing, row +
++//       camper offsets, dancefloor depth/halfwidth bases, cluster walk
++//       distances, potty attach offset, court/vendor counts, KIND_FOOTPRINT.
++// OUT — model-internal dimensions (a truck's own width, a tent's canopy radius
++//       as a MESH property). Models own their bodies; tuning owns the space
++//       between bodies. Where a model dimension feeds an arrangement decision
++//       (e.g. the food-court ring is `MULT × FOOD_TRUCK_SCALE`), the live model
++//       export is multiplied at the call site so there is nothing to drift; and
++//       where the node linter needs a model-derived extent it cannot import,
++//       MODEL_DIMS holds a COPY that chunks.js drift-asserts against the live
++//       export (dev-only, localhost). See chunks.js `assertTuningDrift`.
++//
++// ── Mutable CONFIG + setter (from day one) ───────────────────────────────────
++// FESTIVAL_TUNING is a mutable object; readers access `FESTIVAL_TUNING.X`
++// per-call (NEVER destructure at module scope) so a live slider edit takes
++// effect on the next plan/build without reload. Mutating it must bump the
++// worldgen epoch (constants.js `bumpWorldgen`) so the festivalPlan / front-axis
++// memo caches invalidate — `setFestivalTuning` does NOT call bump itself
++// (tuning.js imports nothing); the slider panel calls bump after patching, the
++// same contract map-sandbox `setConfig` already follows.
++//
++// ── Determinism (footgun #4) ─────────────────────────────────────────────────
++// Hoisting a literal into FESTIVAL_TUNING is VALUE-IDENTICAL by construction —
++// every default below is the exact number that lived at its old site, and no
++// rng() call was reordered, added, or removed. The golden-frozen snapshot diff
++// (3 seeds, canary counts) is the proof.
++//
++// ── INVENTORY — every hoisted constant, its old file:line, and the do-NOT-merge
++//    near-duplicates (task 2.1; "cite or cut") ──────────────────────────────────
++//
++//  PLANNER (festival.js) — hoisted:
++//    DANCEFLOOR_DEPTH_BASE 38            festival.js:92
++//    DANCEFLOOR_HALFWIDTH_BASE 17        festival.js:93
++//    stage-scale 1.15/0.25, 1.0/0.5      festival.js:107  (twins of chunks.js:2279-2280; see below)
++//    food-court walk 86/66 +rng*28       festival.js:394
++//    food-court drag frac 0.45           festival.js:394
++//    food-court perp 16                  festival.js:397  (added to CONFIG.ROAD_WIDTH/2)
++//    vendor-row walk 66/50 +rng*18       festival.js:417
++//    vendor-row drag frac 0.34           festival.js:417
++//    bubble walk 55/40 +rng*20           festival.js:428
++//    bubble perp 5                       festival.js:430  (added to CONFIG.ROAD_WIDTH/2)
++//    bubble fallback spread 50           festival.js:434
++//    potty attach offset 9               festival.js:368
++//    court count major/minor 2/1         festival.js:391
++//    row count major/minor 2/1           festival.js:414
++//    drum band 130                       festival.js:67   (DRUM_BAND)
++//    drum core pad 15                    festival.js:270
++//    drum district frac 0.7              festival.js:271
++//    drum front-half wedge 0.7           festival.js:272  (FRONT_HALF)
++//    nudge ring 10/28/9                  festival.js:253
++//    village cell 240, prob 0.25         festival.js:202-203
++//    KIND_FOOTPRINT {...}                festival.js:196
++//
++//  BUILDER (chunks.js worldgen path) — hoisted:
++//    food-court count 3 +rng*3           chunks.js:1304
++//    food-court ring mult 14             chunks.js:1305   (× FOOD_TRUCK_SCALE)
++//    food-court shack prob 0.35          chunks.js:1306
++//    food-court shack ring pad 2.5       chunks.js:1315
++//    food-court truck r mult 4.4         chunks.js:1336   (× FOOD_TRUCK_SCALE)
++//    food-court bubble prob/pad 0.4/3    chunks.js:1353-1354
++//    food-court table count 1 +rng*3     chunks.js:1365
++//    food-court table ring frac 0.45     chunks.js:1368
++//    food-court table min-spacing 3.2    chunks.js:1371
++//    food-court torch ring pad 5, n 6    chunks.js:1389-1390
++//    vendor-row count 5 +rng*3           chunks.js:1252
++//    vendor-row spacing 5.0, offset 7    chunks.js:1253
++//    vendor camper prob 0.4              chunks.js:1278
++//    vendor camper back offset 6         chunks.js:1279   (added to VENDOR_ROW_OFFSET)
++//    camp min-spacing 5.5, radius 30     chunks.js:1414
++//    camp fallback target 12 +rng*9      chunks.js:1412
++//    camp size mix 0.50/0.85             chunks.js:1425
++//    camp guard radius 4                 chunks.js:1420
++//
++//  EXCLUDED — "same number, two owners, do NOT merge yet" (guardrail #2):
++//    - buildVendorRow (legacy theme, chunks.js buildVendorRow): spacing 5.0,
++//      offset 7 — SAME numbers as VENDOR_ROW_*, but the legacy non-worldgen
++//      theme path. Left as literals; coupling to FESTIVAL_TUNING is grammar work.
++//    - buildFoodPlaza (legacy theme, chunks.js buildFoodPlaza): count 3+rng*3,
++//      ring 14×scale, shack prob 0.35, shack ring pad 2.5, truck r 4.4×scale —
++//      SAME numbers as FOOD_COURT_*, the legacy non-worldgen food court. Left as
++//      literals (do NOT merge). (buildFoodCourtAt is the worldgen sibling.)
++//    - buildCampVillage (legacy theme, chunks.js buildCampVillage): MIN_SPACING
++//      5.5, RADIUS 30, target 12+rng*9, mix 0.50/0.85 — SAME numbers as CAMP_*,
++//      legacy non-worldgen path. Left as literals (do NOT merge).
++//    - buildStage `dancefloorDepth = 9*scale` (chunks.js:2379): the stage's
++//      chair-free zone depth — a DIFFERENT owner than the planner's
++//      DANCEFLOOR_DEPTH_BASE 38 (the tree-scatter clearing extent). Same concept,
++//      two owners → do NOT merge.
++//
++//  EXCLUDED — out of scope (not "tunable arrangement"):
++//    - buildStage internal audience/chair/light/collider sub-layout
++//      (chunks.js:2312-2444): the stage cluster's own BODY, not inter-cluster
++//      spacing. Deferred to the grammar change / 6.4 sliders if needed.
++//    - ANGLE_BINS 256, DRY_PROBES 6 (festival.js:90-91), MAX_POI_REACH 480
++//      (festival.js:68): cross-engine determinism / R16 correctness machinery,
++//      not arrangement. Touching them is a determinism change, never a tuning.
++//    - SALT.* streams (constants.js:71): not tunable.
++
++export const FESTIVAL_TUNING = {
++  // ── Hub dancefloor clearing (planner) ──
++  DANCEFLOOR_DEPTH_BASE: 38,        // festival.js:92 — ~3 stage-lengths of cleared floor
++  DANCEFLOOR_HALFWIDTH_BASE: 17,    // festival.js:93
++
++  // ── Stage scale (planner stageScaleOf == builder buildStage; MUST stay equal) ──
++  STAGE_SCALE_MAJOR_BASE: 1.15, STAGE_SCALE_MAJOR_SPAN: 0.25,   // festival.js:107 / chunks.js:2279
++  STAGE_SCALE_MINOR_BASE: 1.0,  STAGE_SCALE_MINOR_SPAN: 0.5,    // festival.js:107 / chunks.js:2280
++
++  // ── Walk distances + offsets along approach roads (planner) ──
++  FOOD_COURT_WALK_MAJOR: 86, FOOD_COURT_WALK_MINOR: 66, FOOD_COURT_WALK_SPAN: 28,  // festival.js:394
++  FOOD_COURT_DRAG_FRAC: 0.45,       // festival.js:394 — cap walk at this fraction of road length
++  FOOD_COURT_PERP: 16,              // festival.js:397 — perp offset past ROAD_WIDTH/2
++  VENDOR_ROW_WALK_MAJOR: 66, VENDOR_ROW_WALK_MINOR: 50, VENDOR_ROW_WALK_SPAN: 18, // festival.js:417
++  VENDOR_ROW_DRAG_FRAC: 0.34,       // festival.js:417
++  BUBBLE_WALK_MAJOR: 55, BUBBLE_WALK_MINOR: 40, BUBBLE_WALK_SPAN: 20,             // festival.js:428
++  BUBBLE_PERP: 5,                   // festival.js:430 — perp offset past ROAD_WIDTH/2
++  BUBBLE_FALLBACK_SPREAD: 50,       // festival.js:434 — near-center scatter when no road
++  POTTY_ATTACH_OFFSET: 9,           // festival.js:368 — porta-bank nudge off its parent cluster
++
++  // ── Per-hub cluster counts (planner) ──
++  COURT_N_MAJOR: 2, COURT_N_MINOR: 1,   // festival.js:391 (capped by roads.length)
++  ROW_N_MAJOR: 2,   ROW_N_MINOR: 1,     // festival.js:414 (capped by roads.length)
++
++  // ── Drum-circle district band (planner treedDistrictSpot) ──
++  DRUM_BAND: 130,           // festival.js:67  — max reach past core (bounds MAX_POI_REACH; R16)
++  DRUM_CORE_PAD: 15,        // festival.js:270 — r0 = core + this
++  DRUM_DISTRICT_FRAC: 0.7,  // festival.js:271 — r1 cap = district * this
++  DRUM_FRONT_HALF: 0.7,     // festival.js:272 — ~40° wedge around +F kept clear (the dancefloor)
++
++  // ── nudgeOff search ring (planner) ──
++  NUDGE_R_MIN: 10, NUDGE_R_MAX: 28, NUDGE_R_STEP: 9,   // festival.js:253
++
++  // ── Camp village coarse grid (planner) ──
++  VILLAGE_CELL: 240,        // festival.js:202
++  VILLAGE_PROB: 0.25,       // festival.js:203 — a discovery, not a carpet
++
++  // ── Cluster footprint envelopes (planner KIND_FOOTPRINT, festival.js:196) ──
++  KIND_FOOTPRINT: {
++    main_stage: 11, side_stage: 8, tent_stage: 13, arch: 6, food_court: 16,
++    vendor_row: 12, bubble_vendor: 3, drum_circle: 6, porta_bank: 3, camp_village: 32,
++  },
++
++  // ── Food-court ring (builder buildFoodCourtAt, chunks.js:1303) ──
++  FOOD_COURT_COUNT_BASE: 3, FOOD_COURT_COUNT_SPAN: 3,   // chunks.js:1304 — 3..5 trucks
++  FOOD_COURT_RING_MULT: 14,         // chunks.js:1305 — ring = MULT × FOOD_TRUCK_SCALE
++  FOOD_COURT_SHACK_PROB: 0.35,      // chunks.js:1306
++  FOOD_COURT_SHACK_RING_PAD: 2.5,   // chunks.js:1315 — shack sits ring+pad out
++  FOOD_COURT_TRUCK_R_MULT: 4.4,     // chunks.js:1336 — truck footprint = MULT × FOOD_TRUCK_SCALE
++  FOOD_COURT_BUBBLE_PROB: 0.4, FOOD_COURT_BUBBLE_RING_PAD: 3,   // chunks.js:1353-1354
++  FOOD_COURT_TABLE_COUNT_BASE: 1, FOOD_COURT_TABLE_COUNT_SPAN: 3, // chunks.js:1365 — 1..3 tables
++  FOOD_COURT_TABLE_RING_FRAC: 0.45, // chunks.js:1368 — tables within ring×frac of center
++  FOOD_COURT_TABLE_MIN_SPACING: 3.2,// chunks.js:1371
++  FOOD_COURT_TORCH_RING_PAD: 5, FOOD_COURT_TORCH_COUNT: 6,      // chunks.js:1389-1390
++
++  // ── Vendor row (builder buildVendorRowAt, chunks.js:1251) ──
++  VENDOR_ROW_COUNT_BASE: 5, VENDOR_ROW_COUNT_SPAN: 3,   // chunks.js:1252 — 5..7 per side
++  VENDOR_ROW_SPACING: 5.0,          // chunks.js:1253 — booth-to-booth along road
++  VENDOR_ROW_OFFSET: 7,             // chunks.js:1253 — half-width of the aisle
++  VENDOR_CAMPER_PROB: 0.4,          // chunks.js:1278 — camper tent behind ~40% of stalls
++  VENDOR_CAMPER_BACK_OFFSET: 6,     // chunks.js:1279 — added to VENDOR_ROW_OFFSET, behind the stall
++
++  // ── Camp village packing (builder buildCampVillageAt, chunks.js:1409) ──
++  CAMP_MIN_SPACING: 5.5, CAMP_RADIUS: 30,               // chunks.js:1414
++  CAMP_TARGET_BASE: 12, CAMP_TARGET_SPAN: 9,            // chunks.js:1412 — fallback when plan tents absent
++  CAMP_SIZE_SMALL_BELOW: 0.50, CAMP_SIZE_MEDIUM_BELOW: 0.85,    // chunks.js:1425
++  CAMP_GUARD_RADIUS: 4,             // chunks.js:1420 — skip near existing buildings
++};
++
++// Live patch + epoch bump contract: callers (the 6.4 slider panel) do
++//   setFestivalTuning({ VENDOR_ROW_OFFSET: 9 }); bumpWorldgen();
++// in that order. setFestivalTuning stays import-free (no bump here).
++export function setFestivalTuning(patch) {
++  Object.assign(FESTIVAL_TUNING, patch);
++}
++
++// Model-derived dimensions COPIED here so the node linter (group 4 plan-mode,
++// which cannot import src/models/*) can compute cluster extents. chunks.js
++// drift-asserts these against the live model exports (dev-only, localhost) —
++// if an assert fires, a model body changed and BOTH must be updated. These are
++// NOT tunables (they mirror a mesh property), hence kept out of FESTIVAL_TUNING.
++export const MODEL_DIMS = {
++  FOOD_TRUCK_SCALE: 1.7,    // foodTruck.js:9
++  SUGAR_SHACK_W: 6.4,       // sugarShack.js:37 FACADE_WIDTH
++  SUGAR_SHACK_D: 9.0,       // sugarShack.js:48 DEPTH + 1.0
++  POTTY_SPACING: 2.5,       // portaPotty.js:25
++};
++
++// Conservative per-kind outer-extent (radius from the cluster center, meters)
++// for the group-4 linter plan-mode + the map-sandbox overlay. APPROXIMATE by
++// design — registry mode is the exact authority (design D-D). Derived from
++// FESTIVAL_TUNING + MODEL_DIMS so it tracks live tuning. A stage's scale-driven
++// growth is passed by the caller (default 1).
++export function clusterExtent(kind, scale = 1) {
++  const T = FESTIVAL_TUNING, M = MODEL_DIMS;
++  switch (kind) {
++    case 'food_court': {
++      const ring = T.FOOD_COURT_RING_MULT * M.FOOD_TRUCK_SCALE;
++      const truckR = T.FOOD_COURT_TRUCK_R_MULT * M.FOOD_TRUCK_SCALE;
++      const shackHalf = Math.hypot(M.SUGAR_SHACK_W, M.SUGAR_SHACK_D) / 2;
++      // outermost = the torch ring, but a shack sits ring+pad+its own half out
++      return Math.max(ring + T.FOOD_COURT_TORCH_RING_PAD,
++                      ring + T.FOOD_COURT_SHACK_RING_PAD + shackHalf,
++                      ring + truckR);
++    }
++    case 'vendor_row': {
++      // half-length of the booth line + the camper tucked behind the far side
++      const halfLen = ((T.VENDOR_ROW_COUNT_BASE + T.VENDOR_ROW_COUNT_SPAN - 1) / 2) * T.VENDOR_ROW_SPACING;
++      const lateral = T.VENDOR_ROW_OFFSET + T.VENDOR_CAMPER_BACK_OFFSET + 2;
++      return Math.hypot(halfLen, lateral);
++    }
++    case 'camp_village':
++      return T.CAMP_RADIUS + T.CAMP_MIN_SPACING;
++    case 'main_stage': case 'side_stage': case 'tent_stage':
++      // deck + dancefloor clearing scales with the stage
++      return (T.KIND_FOOTPRINT[kind] || 11) + T.DANCEFLOOR_DEPTH_BASE * scale;
++    case 'porta_bank':
++      return T.POTTY_ATTACH_OFFSET + M.POTTY_SPACING;
++    default:
++      return T.KIND_FOOTPRINT[kind] || 4;
++  }
++}

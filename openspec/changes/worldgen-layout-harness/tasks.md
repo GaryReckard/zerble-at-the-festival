@@ -154,6 +154,18 @@ Opus 4.8. 1.x/2.x/4.x → Opus 4.8. 5.x/7.x/8.x/6.3–6.7 → Opus or Sonnet.
       incl. canary counts + both goldens unchanged + boot smoke both flag
       states + HUD budgets unchanged.
       done = ritual outputs pasted into the commit/session notes.
+- [ ] 2.4 Review follow-up (-> reviews/001-group2-tuning-hoist, P1): rewire
+      `buildStage`'s scale draw (chunks.js:2309–2311) to read
+      `FESTIVAL_TUNING.STAGE_SCALE_*` — the group-2 hoist rewired only the
+      planner's `stageScaleOf`, but the new comments (festival.js:105–109,
+      tuning.js:121) claim BOTH halves read tuning. Value-identical; the draw
+      stays buildStage's FIRST `ctx.rng()` call (zero rng-order change); full
+      2.3 gate ritual applies. Optionally widen the drift-guard hostname gate
+      (chunks.js:1181) to the map-sandbox `isLocal` shape in the same commit
+      (review P3). MUST land before group 6.4 (sliders would desync plan vs
+      build — D3.3).
+      done = grep shows the stage-scale literals only in tuning.js; both
+      goldens unchanged; snapshot diff empty; comments now true.
 
 ## 3. ~~Dry-run layout extraction~~ — DEFERRED to festival-zone-grammar
 

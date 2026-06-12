@@ -1,11 +1,11 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 2 COMPLETE (2.1–2.3, two gated commits A+B); tuning freeze CLOSED. Next: /smart-review (group-2 milestone), then group 4 (layout linter 4.1–4.6) → 8.1 baseline. Group 1 COMPLETE (1.1–1.10)."
+current_task: "Group-2 /smart-review milestone DONE (Fable, reviews/001 — Approve with changes; P1 folded as Task 2.4: buildStage scale draw not rewired, comments lie). Next: 2.4 (small, gate-protected, before 6.4) → group 4 (layout linter 4.1–4.6) → 8.1 baseline. Groups 1+2 COMPLETE."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
-last_updated: 2026-06-11
+last_updated: 2026-06-12
 ref: "ROADMAP 'Layout-work agent harness' (added 2026-06-10); gate for festival-zone-grammar"
 ---
 
@@ -364,3 +364,29 @@ both flags boot clean, no drift warning. Tuning freeze CLOSED. Group 2 done in
 two commits (D-B's "one or two"); next is the group-2 `/smart-review` milestone
 (APPLY-GUARDRAILS), then group 4 linter → 8.1 baseline (grammar-unblock).
 **Refs:** -> Task 2.2, -> Task 2.3, -> D8, src/chunks.js buildWorldgenKind, 4419cb3 (commit A)
+
+### 2026-06-12 -- Group-2 /smart-review milestone DONE (Fable): Approve with changes; P1 → Task 2.4
+**Event:** phase-change + discovery
+**What:** The APPLY-GUARDRAILS group-2 review milestone ran as `/smart-review` in a
+Fable session (satisfies the routing table's "smart-review or a Fable session") on
+`2ded863..26a540d`. Four specialists (gameplay, performance, sandbox, docs) in one
+parallel batch; rendering/audio skipped (nothing owned in the diff). **Verdict:
+Approve with changes.** The hoist itself is verified value-identical — every constant
+spot-checked old-literal vs tuning field, zero rng-order change, legacy twins
+untouched, importmap wired in all three live html files, perf/lifecycle clean.
+**The discovery (P1, orchestrator-confirmed against live files):** the stage-scale
+hoist landed PLANNER-ONLY — `buildStage` (chunks.js:2309–2311) still draws scale from
+literals while the new comments (festival.js:105–109, tuning.js:121) claim both halves
+read `FESTIVAL_TUNING.STAGE_SCALE_*`. Values identical today (goldens legitimately
+passed), but the first 6.4 slider tune of STAGE_SCALE_* would desync plan vs build
+(D3.3) — and the comments now say it's safe. Folded back as **-> Task 2.4** (rewire
+the draw; stays buildStage's first ctx.rng() call, so zero rng-order change; full 2.3
+gate ritual; optionally widen the drift-guard hostname gate, chunks.js:1181, in the
+same commit). Lesser findings: P2 ROADMAP step-(1) hoist bullet not trimmed (+
+pre-existing stale `__dbg` bullet — sweep both in a docs commit); P3 the 2.3 gate
+record never logged the "HUD budgets unchanged" observation (this entry doesn't cure
+that — record it during 2.4's ritual). One docs ambiguity resolved benign via git:
+commit A's CHANGELOG bullet did NOT prematurely name buildFoodPlaza; commit B amended
+it. Artifacts: reviews/001-group2-tuning-hoist/ (review-summary.md,
+specialist-findings.md, diff.patch).
+**Refs:** -> Task 2.4, -> D8, reviews/001-group2-tuning-hoist/review-summary.md, APPLY-GUARDRAILS "Model routing"
