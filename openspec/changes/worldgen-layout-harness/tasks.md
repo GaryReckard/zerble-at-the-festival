@@ -234,6 +234,26 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       *(done 2026-06-13 — gotoHub(0) at seed 1234 returns "... · lint: 3
       (overlap)" and console prints "[lint] hub (1,-1): overlap×3" + per-violation
       teleport links. Read-only: runLint sets+restores the session seed, no regen.)*
+- [x] 4.7 Two NEW rules from Gary's 2026-06-12 playtest (added post-baseline):
+      **`drum-in-trees`** (error) — the large LEAF drum circle must sit in a
+      treed pocket (registry: `forest_tree` count within `DRUM_TREE_RADIUS` ≥
+      `DRUM_TREE_MIN`; plan: `treeDensity` ≥ `DRUM_TREE_MIN_DENSITY`) AND its
+      center must NOT lie inside another cluster's envelope (food-court ring /
+      vendor-row rect / stage+dancefloor — stages use the directional rect).
+      Trigger: a drum spawned INSIDE a food-truck circle; `overlap` misses it
+      (benches nest between trucks). **`arch-placement`** (error, registry-only:
+      the arch isn't a plan descriptor) — the spawn arch must be over a road,
+      outside every dancefloor rect, and ≥ `ARCH_MIN_STAGE_DIST` from the stage.
+      Thresholds live in `FESTIVAL_TUNING` (Gary's call; value-neutral — no build
+      code reads them, goldens/snapshots unaffected). Spec + DEBUGGING.md updated;
+      baseline.md got an APPENDED "2026-06-13" block (the original 8 rules' counts
+      untouched). RECORD-not-fix (guardrail #1).
+      done = both rules fire on a bad case; thresholds tunable; spec/docs/baseline.
+      *(done 2026-06-13 — both fire on REAL baseline cases (richer than a
+      constructed one): registry drum-in-trees=8 (drums with 0–4 trees nearby +
+      drums inside stage envelopes), arch-placement=21 (arches off-road / inside
+      dancefloor / too close to stage) across the 10 baseline seeds; plan
+      drum-in-trees fires too. goldens UNCHANGED eddf8e50/4825fd0b.)*
 
 ## 5. Map-sandbox: true-extent overlay + seed gallery
 

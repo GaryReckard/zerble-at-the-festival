@@ -31,6 +31,31 @@ the modes disagree, registry mode SHALL be authoritative.
 - **THEN** all rules evaluate against actual registered footprints, and the
   output is marked authoritative
 
+### Requirement: Drum-circle and spawn-arch placement rules
+The linter SHALL include a `drum-in-trees` rule (error) and an `arch-placement`
+rule (error), added after the baseline from Gary's 2026-06-12 playtest. The
+`drum-in-trees` rule SHALL fire when the large LEAF drum circle is not in a
+treed pocket (registry: `forest_tree` count within `DRUM_TREE_RADIUS` below
+`DRUM_TREE_MIN`; plan: `treeDensity` below `DRUM_TREE_MIN_DENSITY`) OR when its
+center lies inside another cluster's envelope (food-court ring / vendor-row rect
+/ stage+dancefloor, the last via the directional dancefloor rect). The
+`arch-placement` rule (registry-only — the spawn arch is not a plan descriptor)
+SHALL fire when the spawn arch is not over a road, OR sits inside a dancefloor
+rect, OR is closer than `ARCH_MIN_STAGE_DIST` to the stage. All thresholds SHALL
+live in `FESTIVAL_TUNING` and SHALL be value-neutral for world generation (no
+build path reads them). These rules RECORD, they do not gate (guardrail #1).
+
+#### Scenario: Drum circle dumped in the open or inside a court
+- **WHEN** a built drum circle has too few trees nearby or its center falls in a
+  food-court / vendor-row / stage envelope
+- **THEN** `drum-in-trees` fires with the offending cluster kind and the eyes
+  pipeline links
+
+#### Scenario: Spawn arch buried in the dancefloor
+- **WHEN** the spawn arch is off-road, inside a dancefloor clearing, or within
+  `ARCH_MIN_STAGE_DIST` of the stage
+- **THEN** `arch-placement` fires (RECORD-not-fix; the grammar change re-places it)
+
 ### Requirement: Violations carry the full eyes pipeline
 Every violation SHALL emit `{rule, severity, seed, x, z, kinds, msg}` plus a
 map-sandbox 2D deep-link, a hub-sandbox 3D link (`?at=x,z` form), and a

@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Task 8.1 baseline COMPLETE — verification/baseline.md over 10 seeds (registry mode, perf=high, headless), 106 error/92 warn, worst-offenders + plan/registry gap + 3 screenshots. **GRAMMAR-UNBLOCK MILESTONE (groups 1+2+4+8.1) MET — festival-zone-grammar is unblocked.** Remaining in this change: 8.2 ROADMAP trim sweep, 8.3 final smoke, and in-change fast-follows groups 5 (map overlay) / 6 (hub viewer) / 7 (playtest markers)."
+current_task: "Group 6 in flight: 6.1 (disposeChunkByKey extraction) SHIPPED + golden-frozen gate PASS. Task 4.7 (drum-in-trees + arch-placement lint rules, Gary 2026-06-12 playtest) SHIPPED — both fire on real baseline seeds; baseline.md appended. Next: 6.2 (buildHubPreview + hub-sandbox.html) → 6.3-6.7. (Grammar-unblock milestone 1+2+4+8.1 already met.)"
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -560,3 +560,29 @@ booth-clips-truck, the third a truck-ring-too-tight, two distinct failure modes.
 ROADMAP: festival-zone-grammar "gate now MET" note updated; full 8.2 trim sweep
 still pending. Next: 8.2/8.3 close + fast-follows 5/6/7 (hub viewer first per CG3).
 **Refs:** -> Task 8.1, -> Task 8.2, -> Task 8.3, CHANGELOG 2026-06-13, verification/baseline.md, ROADMAP "Festival layout" gate note
+
+### 2026-06-13 -- Task 4.7: two new lint rules from Gary's playtest (drum-in-trees + arch-placement)
+**Event:** decision (Gary-directed) + phase-change
+**What:** Gary's 2026-06-12 playtest found two arrangement classes the original
+8 rules miss, requested as task 4.7 (added to tasks.md §4). Implemented both in
+lint.js:
+  - **drum-in-trees** (error, plan + registry): the LEAF drum circle must sit in
+    a treed pocket AND not inside another cluster's envelope. Trigger: a drum
+    spawned INSIDE a food-truck circle — plain `overlap` misses it (benches nest
+    between trucks, no collider clash). Registry counts real `forest_tree`
+    colliders within DRUM_TREE_RADIUS; plan uses the `treeDensity` field (no built
+    trees). The envelope check uses clusterExtent for food_court/vendor_row but
+    the DIRECTIONAL dancefloorRect for stages (a radial stage extent falsely
+    flagged drums BEHIND a stage — refined after first run, 9→8).
+  - **arch-placement** (error, registry-only — the arch isn't a plan descriptor;
+    festival.js emits none, it's built in main.js): over a road, outside every
+    dancefloor rect, ≥ ARCH_MIN_STAGE_DIST from the stage.
+  Thresholds (DRUM_TREE_RADIUS/MIN/MIN_DENSITY, ARCH_MIN_STAGE_DIST) live in
+  FESTIVAL_TUNING per Gary — value-neutral (no build path reads them; goldens
+  eddf8e50/4825fd0b UNCHANGED, boot clean). Both fire on REAL baseline seeds
+  (registry drum-in-trees=8, arch-placement=21 — arch fires on ~every seed since
+  it lands ~15·scale off-road in the lit dancefloor today). baseline.md got an
+  APPENDED "2026-06-13" block; the original 8 rules' counts untouched. Spec
+  (layout-linter) + DEBUGGING.md updated. RECORD-not-fix — both are
+  festival-zone-grammar's to fix (DRAFTING-BRIEF already cites the drum case).
+**Refs:** -> Task 4.7, CHANGELOG 2026-06-13, src/worldgen/lint.js, FESTIVAL_TUNING, verification/baseline.md (appended block), festival-zone-grammar/DRAFTING-BRIEF.md

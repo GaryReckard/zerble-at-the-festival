@@ -342,10 +342,17 @@ session seed even though findings *display* the `0x…` form.
 Rules (registry mode): `overlap` (exact collider interpenetration > 0.5 m, minus
 an allowed-pairs table of same-cluster adjacencies — stage-deck tiles, the
 arch's segments, a drum circle's firepit-in-bench-ring), `water-clear`,
-`dancefloor-clear`, `booth-on-road`, `potty-attached`, `truck-off-road`. Scenery
-(`forest_tree`, `lake_edge`, `shore`, `path_node`, `lamppost`) is excluded so the
-report is festival clutter, not 1000-tree forest density. Plan mode adds the
-cross-hub `stage-spacing` and `spawn-arrival` rules.
+`dancefloor-clear`, `booth-on-road`, `potty-attached`, `truck-off-road`,
+`drum-in-trees` (the LEAF drum circle must sit in a treed pocket and not inside
+another cluster's envelope — Gary saw one inside a food-truck circle), and
+`arch-placement` (the spawn arch must be over a road, outside dancefloors, and
+≥ `ARCH_MIN_STAGE_DIST` from the stage). Scenery (`forest_tree`, `lake_edge`,
+`shore`, `path_node`, `lamppost`) is excluded so the report is festival clutter,
+not 1000-tree forest density. Plan mode adds the cross-hub `stage-spacing` and
+`spawn-arrival` rules, plus an approximate `drum-in-trees` (density-field proxy).
+The `drum-in-trees` / `arch-placement` thresholds (`DRUM_TREE_RADIUS`,
+`DRUM_TREE_MIN`, `DRUM_TREE_MIN_DENSITY`, `ARCH_MIN_STAGE_DIST`) are tunable in
+`FESTIVAL_TUNING`.
 
 **This change RECORDS the baseline; it does not fix violations** — the layout fix
 is the follow-up `festival-zone-grammar` change. A firing rule here is the

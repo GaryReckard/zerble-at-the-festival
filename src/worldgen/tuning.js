@@ -180,6 +180,17 @@ export const FESTIVAL_TUNING = {
   CAMP_TARGET_BASE: 12, CAMP_TARGET_SPAN: 9,            // chunks.js:1412 — fallback when plan tents absent
   CAMP_SIZE_SMALL_BELOW: 0.50, CAMP_SIZE_MEDIUM_BELOW: 0.85,    // chunks.js:1425
   CAMP_GUARD_RADIUS: 4,             // chunks.js:1420 — skip near existing buildings
+
+  // ── Linter thresholds (lint.js group 4.7; Gary playtest 2026-06-12) ──────────
+  // NOT arrangement constants — the planner/builders never read these. They are
+  // the tunable cutoffs for the `drum-in-trees` + `arch-placement` quality rules,
+  // parked here (Gary's call) so they live with the rest of the festival knobs.
+  // Adding them is value-neutral for the world (no rng, no build read → goldens
+  // + snapshots unaffected).
+  DRUM_TREE_RADIUS: 30,        // m — radius around a drum circle sampled for tree presence
+  DRUM_TREE_MIN: 6,            // registry: min forest_tree within radius to read as "in trees"
+  DRUM_TREE_MIN_DENSITY: 0.2,  // plan: min treeDensity(x,z) for a treed pocket (no built trees to count)
+  ARCH_MIN_STAGE_DIST: 30,     // m — spawn arch must sit at least this far from the stage (past the string-light rows)
 };
 
 // Live patch + epoch bump contract: callers (the 6.4 slider panel) do

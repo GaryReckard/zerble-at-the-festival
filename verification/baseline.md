@@ -101,3 +101,36 @@ Plan mode over the same per-seed windows (approximate; no capture needed):
 Plan mode is a cheap early-warning that needs no capture; registry mode is what
 the grammar change is graded against. When they disagree, registry wins (D-D).
 
+
+## Added 2026-06-13 — drum-in-trees + arch-placement (2026-06-12 playtest)
+
+> Two rules added AFTER the baseline above was recorded (Gary 2026-06-12 — a
+> drum circle inside a food-truck circle; the spawn arch buried in the
+> dancefloor). Counts below are APPENDED — the original eight rules’ counts are
+> NOT recomputed. Same 10 baseline snapshots, registry mode. RECORD-not-fix.
+
+| Rule | Severity | Total | Worst seed (count) | See it |
+|---|---|---:|---|---|
+| `drum-in-trees` | error | 8 | `0xC0FFEE` ×2 | [2D](map-sandbox.html?seed=3575399200&cx=637&cz=-223&zoom=2) · [3D](sandbox.html?entity=hub_preview&seed=3575399200&at=637,-223) |
+| `arch-placement` | error | 21 | `0xf7ef2a3c` ×3 | [2D](map-sandbox.html?seed=3575399200&cx=763&cz=-245&zoom=2) · [3D](sandbox.html?entity=hub_preview&seed=3575399200&at=763,-245) |
+
+Per-seed:
+
+| Seed | drum-in-trees | arch-placement |
+|---|---:|---:|
+| `0xC0FFEE` | 2 | 2 |
+| `0xf7ef2a3c` | 1 | 3 |
+| `0xf7ef2a3d` | 0 | 3 |
+| `1001` | 0 | 0 |
+| `1234` | 1 | 3 |
+| `256` | 0 | 2 |
+| `31337` | 2 | 2 |
+| `42` | 0 | 2 |
+| `7` | 2 | 2 |
+| `99` | 0 | 2 |
+
+Notes: `arch-placement` fires on nearly every seed — the spawn arch today lands
+~15·scale from the stage, off-road, inside the lit dancefloor (it should be a
+road threshold BEFORE the stage). `drum-in-trees` catches drums dumped in thin
+tree cover or nested inside a cluster envelope. Both are the grammar change’s to
+fix. Reproduce: `bin/lint verification/snapshots/baseline/<seed>.json`.

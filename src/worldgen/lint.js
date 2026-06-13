@@ -16,6 +16,7 @@ import { setSeed, getSeed, queryPoint } from './index.js';
 import { heartsInBounds, nearestMajorHeart } from './hearts.js';
 import { festivalPlan, dancefloorRect, MAX_POI_REACH } from './festival.js';
 import { clusterExtent, FESTIVAL_TUNING } from './tuning.js';
+import { treeDensity } from './density.js';
 
 // ── Link forms (the "eyes pipeline") ─────────────────────────────────────────
 // Every violation gets all three so the next agent can open the exact spot in
@@ -76,6 +77,31 @@ function planContext(heart) {
 // Each rule: { id, severity, mode, check(ctx, emit, env) }. `emit(x,z,detail)`
 // pushes a violation. `env` = { seed, allHubs } for cross-hub reasoning.
 const STAGE_KINDS = new Set(['main_stage', 'side_stage', 'tent_stage']);
+// The big LEAF drum circle. Plan descriptor kind = 'drum_circle'; in the built
+// registry it shows up as a 'firepit' (damage 9) + a 'bench_ring'.
+const DRUM_PLAN_KIND = 'drum_circle';
+
+// Plan clusters whose envelope CONTAINS point (x,z), excluding the given kinds
+// (the drum itself, scenery). Shared by the drum-in-trees rule in both modes:
+// "the drum's center sits inside a food-court ring / vendor-row rect /
+// stage+dancefloor envelope" — the bug Gary saw (a drum inside a food-truck
+// circle), which plain `overlap` misses (benches nest between trucks). For STAGE
+// kinds the envelope is the DIRECTIONAL dancefloor rect (not a radial extent) so
+// a drum BEHIND the stage isn't falsely flagged; `heart` supplies that rect.
+function clustersContaining(plan, heart, x, z, exclude) {
+  const out = [];
+  const floor = heart ? dancefloorRect(heart) : null;
+  for (const p of plan) {
+    if (exclude.has(p.kind)) continue;
+    if (STAGE_KINDS.has(p.kind)) {
+      if (floor && inFloor(floor, x, z)) out.push({ kind: p.kind, r: floor.depth });
+    } else {
+      const r = clusterExtent(p.kind, p.scale || 1);
+      if (Math.hypot(p.x - x, p.z - z) < r) out.push({ kind: p.kind, r });
+    }
+  }
+  return out;
+}
 
 const PLAN_RULES = [
   {
@@ -193,6 +219,27 @@ const PLAN_RULES = [
         }
       } else {
         emit(ctx.heart.x, ctx.heart.z, 'spawn hub has no stage');
+      }
+    },
+  },
+  {
+    id: 'drum-in-trees',
+    severity: 'error',
+    mode: 'plan',
+    // The big LEAF drum circle belongs in a treed pocket (Gary 2026-06-12) and
+    // must NOT sit inside another cluster's envelope (he saw one spawn INSIDE a
+    // food-truck circle). Plan mode is approximate: no built trees to count, so
+    // it uses the density FIELD as the treed-pocket proxy; the envelope check is
+    // exact against the same analytic extents the planner de-overlaps on.
+    check(ctx, emit) {
+      const T = FESTIVAL_TUNING;
+      for (const p of ctx.plan) {
+        if (p.kind !== DRUM_PLAN_KIND) continue;
+        if (treeDensity(p.x, p.z) < T.DRUM_TREE_MIN_DENSITY) {
+          emit(p.x, p.z, `drum circle in a thin-tree spot (density ${treeDensity(p.x, p.z).toFixed(2)} < ${T.DRUM_TREE_MIN_DENSITY}; should sit in woods)`);
+        }
+        const inside = clustersContaining(ctx.plan, ctx.heart, p.x, p.z, new Set([DRUM_PLAN_KIND]));
+        for (const c of inside) emit(p.x, p.z, `drum circle center inside a ${c.kind} envelope (approx)`);
       }
     },
   },
@@ -386,6 +433,57 @@ const REGISTRY_RULES = [
         if (e.kind !== 'truck') continue;
         if (queryPoint(e.x, e.z).facing == null) emit(e.x, e.z, 'food truck has no road in range (stranded)', nearestHubOf(rctx.hubs, e.x, e.z));
       }
+    },
+  },
+  {
+    id: 'drum-in-trees',
+    severity: 'error',
+    mode: 'registry',
+    // The big LEAF drum circle (its built `bench_ring`) must sit in a treed
+    // pocket (forest_tree colliders within DRUM_TREE_RADIUS ≥ DRUM_TREE_MIN) and
+    // NOT inside another cluster's analytic envelope. Gary 2026-06-12 saw one
+    // spawn INSIDE a food-truck circle — `overlap` misses it because the benches
+    // nest between trucks without a collider interpenetration.
+    check(rctx, emit) {
+      const T = FESTIVAL_TUNING;
+      const trees = rctx.entries.filter(e => e.kind === 'forest_tree');
+      for (const e of rctx.solids) {
+        if (e.kind !== 'bench_ring') continue;
+        const hub = nearestHubOf(rctx.hubs, e.x, e.z);
+        let n = 0;
+        for (const t of trees) if (Math.hypot(t.x - e.x, t.z - e.z) <= T.DRUM_TREE_RADIUS) n++;
+        if (n < T.DRUM_TREE_MIN) emit(e.x, e.z, `drum circle has ${n} trees within ${T.DRUM_TREE_RADIUS}m (< ${T.DRUM_TREE_MIN}; not in a treed pocket)`, hub);
+        if (hub) {
+          for (const c of clustersContaining(festivalPlan(hub), hub, e.x, e.z, new Set(['drum_circle']))) {
+            emit(e.x, e.z, `drum circle center inside a ${c.kind} envelope`, hub);
+          }
+        }
+      }
+    },
+  },
+  {
+    id: 'arch-placement',
+    severity: 'error',
+    mode: 'registry',
+    // The ONE spawn arch (built in main.js; registry kind 'arch') should read as
+    // a threshold you drive THROUGH on a road BEFORE the stage scene: OVER a road,
+    // OUTSIDE every dancefloor clearing, and ≥ ARCH_MIN_STAGE_DIST from the stage
+    // (past the string-light rows). Today it lands ~15·scale from the stage inside
+    // the lit dancefloor (RECORD-not-fix; the grammar change re-places it).
+    // Registry-only: the arch is NOT a plan descriptor (festival.js emits none),
+    // so there is nothing for a plan-mode variant to read.
+    check(rctx, emit) {
+      const archs = rctx.entries.filter(e => e.kind === 'arch');
+      if (!archs.length) return;
+      const cx = archs.reduce((s, a) => s + a.x, 0) / archs.length;
+      const cz = archs.reduce((s, a) => s + a.z, 0) / archs.length;
+      const hub = nearestHubOf(rctx.hubs, cx, cz);
+      if (!queryPoint(cx, cz).onRoad) emit(cx, cz, 'spawn arch is not over a road (should straddle the approach road)', hub);
+      const floors = rctx.hubs.map(h => dancefloorRect(h)).filter(Boolean);
+      if (floors.some(f => inFloor(f, cx, cz))) emit(cx, cz, 'spawn arch sits inside a dancefloor clearing (should be the threshold BEFORE it)', hub);
+      let d = Infinity;
+      for (const s of rctx.solids) if (s.kind === 'stage') d = Math.min(d, Math.hypot(s.x - cx, s.z - cz));
+      if (d < FESTIVAL_TUNING.ARCH_MIN_STAGE_DIST) emit(cx, cz, `spawn arch ${d.toFixed(0)}m from the stage (< ${FESTIVAL_TUNING.ARCH_MIN_STAGE_DIST}m; too close, inside the light rows)`, hub);
     },
   },
 ];
