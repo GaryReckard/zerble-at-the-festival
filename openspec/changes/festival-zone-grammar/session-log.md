@@ -1,9 +1,9 @@
 ---
 change: festival-zone-grammar
-status: not_started        # not_started | in_progress | blocked | paused | complete
-current_task: null
-blocked_by: null
-open_questions: 0
+status: in_progress        # not_started | in_progress | blocked | paused | complete
+current_task: "Group 0 + 0.5 done (gate reproduces; spike: extraction is deferrable, critical path is planner-only). Awaiting Q1 re-scope decision before the planner rewrite / golden move."
+blocked_by: "Q1 (re-scope decision — lean planner-only path vs full extraction)"
+open_questions: 1
 started: 2026-06-13
 last_updated: 2026-06-13
 ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now MET)"
@@ -57,6 +57,35 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
 
 ## Work Log
 
+### 2026-06-13 -- Apply started: Group 0 gate validated + Group 0.5 SPIKE → extraction is deferrable
+**Event:** discovery (re-scope) + question
+**What:** Group 0.2 (the CRITICAL gate check) PASSES — `bin/lint` over the repo-root
+baseline snapshots reproduces the recorded worst-offender penetrations exactly (1234
+7.5m / 0xf7ef2a3c 5.8m / 42 6.4m). No STOP.
+**Group 0.5 spike finding (code-grounded, reshapes the plan):** ALL the failing rules
+are PLANNER placement decisions, not builder behaviour:
+  - `arch-placement` (21): the arch is built in **main.js** `buildSpawnArch` at
+    `archDist=15*scale`, deliberately INSIDE the dancefloor (main.js:240,283). Fix =
+    relocate it to a road threshold. Zero builder work.
+  - `overlap` (48): `resolveOverlaps` separates clusters by SCALAR
+    `a.footprint+b.footprint+MARGIN` (festival.js:331,339) using `KIND_FOOTPRINT`. Fix =
+    oriented-extent zone slotting in the planner.
+  - `water-clear`/`drum-in-trees`/`booth-on-road`/`dancefloor-clear`/`potty-attached`:
+    all set in `_computePlan`/`nudgeOff`/`perpOff` (festival.js:356-454) — planner.
+  The `chunks.js` builders only RENDER the planner's descriptors, so they need no change
+  to fix the rules. Crucially, **the POI golden hashes the PLAN (descriptors), not the
+  build, and crowd draws live in the BUILDER** — so the crowd tier-dependence does NOT
+  touch the POI golden the slotting commit moves. **Therefore the full per-record builder
+  extraction (group 2) AND crowd pre-roll (group 1) are NOT on the critical path to a
+  zero-error festival.** The lean critical path = planner slotting + oriented extents +
+  arch relocation + registry backstop, with ONE deliberate POI-golden move. This collapses
+  the riskiest, largest, most-invisible work (the ~8-builder extraction the council flagged)
+  OUT of the layout fix. Raised -> Q1 for Gary: lean path now (defer extraction + crowd
+  pre-roll to a follow-up) vs the full original scope. Also: the planner rewrite is the
+  repo's most consequential action (moves the golden, regenerates the flag-off world) and
+  the change's final gate (task 7.3) is Gary's in-game playtest — a natural human checkpoint.
+**Refs:** -> Q1, -> Task 0.5.1/0.5.2, festival.js:331/356-454, main.js:240/283, deliberations/001-initial/results.md (Tension 2)
+
 ### 2026-06-13 -- Change drafted (proposal/specs/design/tasks) via /opsx:ff
 **Event:** phase-change
 **What:** Artifacts authored from the DRAFTING-BRIEF, the harness baseline.md (106 error /
@@ -67,7 +96,7 @@ env injection + registry backstop). Tasks sequence extraction (golden-frozen, 1 
 commit) → true extents → zone slotting (the single golden move) → backstop → burndown →
 verify/judge. Next: the deliberation gate (signatures fire by design — determinism, boot
 order, lifecycle), then /opsx:apply.
-**Refs:** -> D1..D6, proposal.md, design.md, tasks.md, ../worldgen-layout-harness/{design.md (D-C′), verification/baseline.md}
+**Refs:** -> D1..D6, proposal.md, design.md, tasks.md, ../worldgen-layout-harness/design.md (D-C′), repo-root verification/baseline.md (the measuring stick — NOT under the harness folder)
 
 ### 2026-06-13 -- Deliberation 001-initial: 5 personas, all Proceed-with-mitigations; tasks revised
 **Event:** decision + phase-change

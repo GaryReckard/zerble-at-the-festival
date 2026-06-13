@@ -17,29 +17,50 @@
 
 ## 0. Preconditions — make the gate real
 
-- [ ] 0.1 **Fix the gate-artifact path**: the baseline + snapshots live at
+- [x] 0.1 **Fix the gate-artifact path**: the baseline + snapshots live at
       **repo-root** `verification/baseline.md` + `verification/snapshots/baseline/*.json`
       (commit `ecbd9af`), NOT `openspec/changes/worldgen-layout-harness/verification/`.
       Correct every cite (proposal/design/this file).
       done = paths point at the real files. (Risk: stale path → gate looks missing.)
-- [ ] 0.2 Reproduce the baseline **bit-for-bit**: `bin/lint
+      *(done 2026-06-13 — only session-log.md:70 grouped baseline.md under the
+      harness folder; fixed. proposal/tasks already cite repo-root.)*
+- [x] 0.2 Reproduce the baseline **bit-for-bit**: `bin/lint
       verification/snapshots/baseline/<seed>.json` matches the recorded 106 error /
       92 warn. **STOP if it does not reproduce** — the measuring stick is broken.
-- [ ] 0.3 Pin the capture protocol: `?worldgen=1&perf=high`, crowd on, no driving —
-      the same the baseline used, so before/after compare.
+      *(done 2026-06-13 — REPRODUCES. Worst-offender penetrations match baseline.md
+      exactly: 1234 tent×truck 7.5m, 0xf7ef2a3c 5.8m, 42 campsite×truck 6.4m. The
+      per-seed total delta is explained: baseline.md's per-seed table counts the
+      original 8 rules; arch-placement/drum-in-trees (harness 4.7) are in the
+      appended block — so seed 42 = 3 original + 2 arch = 5. No STOP.)*
+- [x] 0.3 Pin the capture protocol: `?worldgen=1&perf=high`, crowd on, no driving —
+      the same the baseline used, so before/after compare. *(pinned — matches baseline.md header.)*
 
 ## 0.5 Extraction-scope spike (NEW — Pragmatist "Slice 0"; ships nothing)
 
-- [ ] 0.5.1 Map each ERROR rule (`water-clear` 58, `overlap` 48, `arch-placement`
+- [x] 0.5.1 Map each ERROR rule (`water-clear` 58, `overlap` 48, `arch-placement`
       21, `drum-in-trees` 8) → the minimum builder/planner change that zeroes it,
       reviewed against the reproduced `bin/lint` counts. (arch-placement is
       planner-only — needs no extraction; overlap/drum need extents+slotting;
       water needs slotting+backstop.)
       done = a per-rule → minimum-change map recorded in session-log.
-- [ ] 0.5.2 Confirm the split set: crowd pre-roll (mandatory), every builder that
+      *(done 2026-06-13 — code-grounded. ALL rules are PLANNER placement: arch =
+      main.js buildSpawnArch @ archDist=15*scale inside the dancefloor (main.js:240,283)
+      → relocate to road threshold; overlap = resolveOverlaps separates by SCALAR
+      `a.footprint+b.footprint+MARGIN` (festival.js:331,339) → oriented-extent slotting;
+      drum/water/booth/dancefloor/potty all set by `_computePlan`/`nudgeOff`/`perpOff`
+      (festival.js:356-454). The builders only RENDER descriptors — they need no change
+      to fix the rules. See session-log SPIKE entry.)*
+- [x] 0.5.2 Confirm the split set: crowd pre-roll (mandatory), every builder that
       contains a crowd spawn or feeds a consumed record (mandatory), warn-only
       builders (deferrable to a cleanup slice). done = the group-2 builder list is
       scoped before grinding the extraction.
+      *(done 2026-06-13 — FINDING: the full per-record builder extraction (group 2)
+      is NOT on the critical path to zero-error. The POI golden hashes the PLAN
+      (descriptors), not the build; crowd draws live in the BUILDER, so they don't
+      touch the POI golden. Critical path = planner slotting + oriented extents +
+      arch relocation + registry backstop, with ONE golden move at the slotting
+      commit. Crowd pre-roll (group 1) + full extraction (group 2) are valuable but
+      DEFERRABLE — recommend a re-scope decision before grinding them. -> Open Q for Gary.)*
 
 ## 1. Crowd pre-roll + injected env (REORDERED to FIRST — was group 2)
 
