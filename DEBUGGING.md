@@ -100,16 +100,37 @@ trip/psychedelic panel.
 Console API: `teleport(x,z)`, `god(bool)` (invincible), `freezeNPCs(bool)`
 (pause crowd AI — great for clean screenshots), `showColliders(bool)` (wire-ring
 viz over every collider), `pause(bool)` + `step(n)` (single-step the loop),
-`dropSmile(n)`, `spawnNPC(n)`.
+`dropSmile(n)`, `spawnNPC(n)`, `dropMarker(note?)` + `markers()` (see below).
 
 Overlay hotkeys (only while the panel is open): `P` pause · `.` step · `C`
 colliders · `G` god · `F` freeze.
+
+Global hotkeys (work whether or not the overlay is open): `T` trip panel ·
+**`K` drop a playtest marker**.
 
 The panel shows live **perf budgets** (draws/tris vs per-tier targets with
 `ok`/`!`/`!!` markers), frame-time stats (avg/p95/max), GPU memory, chunk-gen
 timing, the session seed, Zerble pos/heading, NPC counts, and collapsible
 **Teleport** (locate-nearest-landmark + jump), **Render** (adaptive-quality
-overrides), and **Lights** sections.
+overrides), **Lights**, and **Markers** sections.
+
+### Playtest markers (group 7)
+
+When you spot a layout problem mid-drive, **press `K`** to drop a pin at the
+cart — `{ seed, x, z, heading, tod, sessionTime, note }` appended to
+`localStorage['zerble_markers']`, with a toast. On **touch** (phone playtests of
+the live deploy), **triple-tap the bottom-left corner** (a deliberately awkward
+gesture so it doesn't fire by accident) — same drop. So feedback arrives as
+*teleportable coordinates*, not "somewhere near a stage."
+
+The backtick overlay's **Markers** section lists every pin with an editable
+note, a per-marker **`tp`** button (teleports the cart back to that exact
+spot + heading + time-of-day — lands within 1 m), a per-marker **`×`** delete,
+and **`copy JSON`** (clipboard + a select-all textarea, so a phone with no
+keyboard can still get the list off the device) / **`clear`**. The seed in each
+record is the numeric session seed; pair it with `?seed=<n>` to reopen the same
+world. The key + gesture are deliberately **absent from all player-facing copy**
+(Easter-egg rule) — they live here only.
 
 ---
 

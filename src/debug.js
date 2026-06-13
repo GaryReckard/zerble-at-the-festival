@@ -87,6 +87,7 @@ export function installDebug(hooks) {
   state.hooks = hooks;
   buildPanel();
   buildTripPanel();
+  buildMarkerTouchZone();
   bindKeys();
   window.__debug = api();
   // first paint
@@ -259,6 +260,8 @@ function api() {
         );
       }
     },
+    dropMarker(note = '') { return dropMarker(note); },
+    markers() { return loadMarkers(); },
     spawnNPC(n = 20) {
       // Crowd has a private spawner; we cheat by promoting idle NPCs near Zerble
       // into 'watching' state so they cluster on us.
@@ -654,6 +657,37 @@ function buildPanel() {
   bindLightsToggle('#dbg-context-lights', 'zerble.contextLights', 'Context lights');
   bindLightsToggle('#dbg-fancy-lights',   'zerble.fancyLights',   'Fancy lights');
 
+  // ----- Playtest markers (group 7) -----
+  // K (or triple-tap the bottom-left corner on touch) drops a pin at the cart:
+  // seed + x/z + heading + time-of-day, persisted to localStorage so phone
+  // playtests of the live deploy produce teleportable coordinates too.
+  const { wrapper: mkWrapper, content: mkContent } = makeSection('Markers', false);
+  const mkHint = document.createElement('div');
+  mkHint.style.cssText = 'font-size:10px;opacity:0.55;margin-bottom:4px';
+  mkHint.textContent = 'K drops a pin at the cart · triple-tap ◣ corner on touch';
+  mkContent.appendChild(mkHint);
+  const mkList = document.createElement('div');
+  state.markersListEl = mkList;
+  mkContent.appendChild(mkList);
+  const mkBtns = document.createElement('div');
+  mkBtns.style.cssText = 'display:flex;gap:4px;margin-top:5px';
+  mkBtns.append(
+    mkMiniBtn('copy JSON', () => {
+      const json = JSON.stringify(loadMarkers(), null, 2);
+      try { navigator.clipboard.writeText(json); } catch (_) { /* preview/file may block */ }
+      state.markersOut.style.display = 'block'; state.markersOut.value = json; state.markersOut.select();
+    }),
+    mkMiniBtn('clear', () => { saveMarkers([]); renderMarkerList(); }),
+  );
+  mkContent.appendChild(mkBtns);
+  const mkOut = document.createElement('textarea');
+  mkOut.readOnly = true;
+  mkOut.style.cssText = 'width:100%;height:54px;margin-top:5px;display:none;background:#0e1c28;color:#9fd;border:1px solid #2a4a5a;border-radius:3px;font:10px/1.3 ui-monospace,monospace';
+  state.markersOut = mkOut;
+  mkContent.appendChild(mkOut);
+  el.appendChild(mkWrapper);
+  renderMarkerList();
+
   // ----- MIDI tracks panel -----
   // Renders when MIDI is playing; lists each track with a mute checkbox.
   // Content is rebuilt whenever the panel opens or the playing state changes.
@@ -733,6 +767,12 @@ function bindKeys() {
     if (e.code === 'KeyT' && !e.target.matches('input, textarea, select')) {
       e.preventDefault();
       toggleTripPanel();
+    }
+    // K key: drop a playtest marker at the cart (works any time — Gary pins a
+    // spot mid-drive without opening the overlay). Touch users triple-tap the
+    // bottom-left corner instead. Deliberately NOT in any player-facing copy.
+    if (e.code === 'KeyK' && !e.target.matches('input, textarea, select')) {
+      dropMarker();
     }
     // Only-when-visible shortcuts (so they don't fight gameplay keys).
     // Each fires a once-per-run feature_used so we can see which debug tools
@@ -1159,4 +1199,101 @@ function logToast(msg) {
   t.classList.remove('hidden');
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 900);
+}
+
+// ----- Playtest markers (group 7) --------------------------------------------
+// Persisted to localStorage so a marker dropped on the live deploy (phone
+// playtest) survives a reload and can be copied off the device. The record is
+// teleport-faithful: seed pins the world, x/z/heading place the cart, tod
+// restores the lighting the issue was seen under.
+const MARKERS_KEY = 'zerble_markers';
+function loadMarkers() {
+  try { const v = JSON.parse(localStorage.getItem(MARKERS_KEY)); return Array.isArray(v) ? v : []; }
+  catch (_) { return []; }
+}
+function saveMarkers(list) {
+  try { localStorage.setItem(MARKERS_KEY, JSON.stringify(list)); } catch (_) { /* private mode */ }
+}
+function dropMarker(note = '') {
+  const h = state.hooks;
+  if (!h || !h.zerble) return null;
+  const tod = h.getTimeOfDay && h.getTimeOfDay();
+  const r2 = v => Math.round(v * 100) / 100;
+  const m = {
+    seed: getSessionSeed(),
+    x: r2(h.zerble.position.x),
+    z: r2(h.zerble.position.z),
+    heading: Math.round((h.zerble.heading || 0) * 1000) / 1000,
+    tod: tod ? Math.round(tod.t * 1000) / 1000 : null,
+    sessionTime: Math.round(performance.now() / 10) / 100,
+    note,
+    ts: Date.now(),
+  };
+  const list = loadMarkers();
+  list.push(m);
+  saveMarkers(list);
+  logToast(`marker #${list.length} dropped @ ${Math.round(m.x)}, ${Math.round(m.z)}`);
+  renderMarkerList();
+  return m;
+}
+function mkMiniBtn(txt, onClick) {
+  const b = document.createElement('button');
+  b.textContent = txt;
+  b.style.cssText = 'flex:0 0 auto;font:inherit;font-size:10px;padding:1px 6px;background:rgba(255,224,102,0.18);color:#ffe066;border:1px solid rgba(255,224,102,0.4);border-radius:3px;cursor:pointer';
+  b.addEventListener('click', onClick);
+  return b;
+}
+function renderMarkerList() {
+  const host = state.markersListEl;
+  if (!host) return;
+  const list = loadMarkers();
+  host.innerHTML = '';
+  if (!list.length) {
+    host.innerHTML = '<div style="opacity:0.5;font-size:10px">no markers yet</div>';
+    return;
+  }
+  list.forEach((m, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:3px';
+    const lab = document.createElement('span');
+    lab.style.cssText = 'flex:0 0 auto;font-size:10px;opacity:0.85';
+    lab.textContent = `#${i + 1} (${Math.round(m.x)},${Math.round(m.z)})`;
+    const note = document.createElement('input');
+    note.type = 'text'; note.value = m.note || ''; note.placeholder = 'note';
+    note.style.cssText = 'flex:1;min-width:40px;font:inherit;font-size:10px;background:#0e1c28;color:#dff;border:1px solid #2a4a5a;border-radius:3px;padding:1px 3px';
+    note.addEventListener('change', () => { const l = loadMarkers(); if (l[i]) { l[i].note = note.value; saveMarkers(l); } });
+    const tp = mkMiniBtn('tp', () => {
+      const h = state.hooks;
+      if (!h || !h.zerble) return;
+      h.zerble.position.set(m.x, h.zerble.position.y, m.z);
+      h.zerble.speed = 0;
+      if (typeof m.heading === 'number') h.zerble.heading = m.heading;
+      const t = h.getTimeOfDay && h.getTimeOfDay();
+      if (t && m.tod != null) t.setT(m.tod);
+      logToast(`→ marker #${i + 1}`);
+    });
+    const del = mkMiniBtn('×', () => { const l = loadMarkers(); l.splice(i, 1); saveMarkers(l); renderMarkerList(); });
+    row.append(lab, note, tp, del);
+    host.appendChild(row);
+  });
+}
+// Touch affordance (-> Q4): a deliberately awkward triple-tap in the bottom-left
+// corner drops a marker, so phone playtests of the live deploy still produce
+// coordinates. Small (44px) corner zone so it rarely catches a real drag.
+function buildMarkerTouchZone() {
+  if (document.getElementById('marker-touch-zone')) return;
+  const zone = document.createElement('div');
+  zone.id = 'marker-touch-zone';
+  Object.assign(zone.style, {
+    position: 'fixed', left: '0', bottom: '0', width: '44px', height: '44px',
+    zIndex: '998', background: 'transparent', touchAction: 'none',
+  });
+  let taps = [];
+  zone.addEventListener('pointerup', () => {
+    const now = performance.now();
+    taps = taps.filter(t => now - t < 700);
+    taps.push(now);
+    if (taps.length >= 3) { taps = []; dropMarker('(touch)'); }
+  });
+  document.body.appendChild(zone);
 }

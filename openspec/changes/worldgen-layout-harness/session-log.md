@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 5 (map-sandbox overlay + gallery) COMPLETE — 5.1 true-extent layer (exact snapshot + analytic envelopes), 5.2 point-inspector naming, 5.3 ?gallery=N contact sheet, 5.4 plan-mode lint badges. Remaining in change: group 7 (playtest markers), 8.2 ROADMAP trim, 8.3 final smoke. Grammar-unblock milestone met since 8.1."
+current_task: "Group 7 (playtest markers) COMPLETE — 7.1 K-key + triple-tap touch drop, 7.2 overlay Markers section (list/note/tp/copy/clear), 7.3 no-leak + DEBUGGING.md. Remaining in change: 8.2 ROADMAP trim, 8.3 final smoke — then opsx-verify + smart-review. Grammar-unblock milestone met since 8.1."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -669,3 +669,29 @@ eddf8e50/4825fd0b). Two non-obvious points worth recording:
   `wg` from groups 2/4). Remaining: group 7 (markers), 8.2 ROADMAP trim, 8.3
   final smoke — then verify + smart-review (Gary's stated plan).
 **Refs:** -> Task 5.1..5.4, CHANGELOG 2026-06-13, map-sandbox.html, src/worldgen/{tuning,lint}.js (consumed, not changed)
+
+### 2026-06-13 -- Group 7 (playtest markers) COMPLETE
+**Event:** phase-change + decision (key binding)
+**What:** Markers ship in debug.js. **Key = `K`, not `m`** — the tasks said "`m`,
+else `k`", and `m` is taken: `Input.consumePressed('M')` maps M to music-toggle
+(input.js:67). The marker handler lives beside the global `T` handler in
+`bindKeys` (NOT gated on overlay visibility) so Gary pins a spot mid-drive
+without opening the panel — the flagship phone-playtest scenario. Touch
+affordance (-> Q4): a 44px transparent bottom-left `#marker-touch-zone`,
+triple-tap within 700ms (deliberately awkward). Record `{seed, x, z, heading,
+tod, sessionTime, note, ts}` → `localStorage['zerble_markers']`. The overlay
+**Markers** section (between Lights + MIDI) lists each pin with an editable note,
+per-marker `tp` (restores pos+heading+tod, verified 0 m landing) + `×`, and
+`copy JSON` (clipboard + select-all textarea so a keyboard-less phone can still
+copy) + `clear`. `__debug.dropMarker(note)` + `markers()` exposed for scripting.
+Verified in the REAL game (perf=low, seed 1234): K drop 1→2, triple-tap 2→3,
+record shape correct, teleport-to-#1 exact, console CLEAN through the whole
+exercise (debug.js is on the game path — adds no draws/rng, so goldens are
+untouched by construction; booted to confirm no module-load break). 7.3: grep of
+index.html/README = no leak; DEBUGGING.md gained a "Playtest markers" subsection.
+**One agent-browser footgun worth noting:** `open --init-script` expects a FILE
+PATH (not inline JS) and a bad value silently leaves the page on about:blank;
+and the game at perf=low boots fine headless WITHOUT the document.hidden trick
+(that trick is only needed for perf=high render saturation). Next: 8.2 ROADMAP
+trim + 8.3 final smoke, then opsx-verify + /smart-review (Gary's plan).
+**Refs:** -> Task 7.1..7.3, CHANGELOG 2026-06-13, src/debug.js, DEBUGGING.md, input.js:67 (M taken)

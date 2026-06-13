@@ -426,7 +426,7 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
 
 ## 7. Playtest markers
 
-- [ ] 7.1 Resolve key against the keydown handlers
+- [x] 7.1 Resolve key against the keydown handlers
       ([input.js:27](../../../src/input.js#L27) gameplay +
       [debug.js:727](../../../src/debug.js#L727) overlay) — `m`, else `k`;
       keypress appends {seed, x, z, heading, tod, sessionTime, note?} to
@@ -436,12 +436,33 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       coordinates too.
       done = marker drops via key on desktop AND via gesture in mobile
       emulation (preview_resize); localStorage shows the full record shape.
-- [ ] 7.2 Debug-overlay MARKERS section: list, per-marker editable note,
+      *(done 2026-06-13 — key = **`K`** (`m` was taken: Input maps M to
+      music-toggle, input.js:67). The handler sits beside the global `T`
+      handler in `bindKeys` (debug.js), so it fires whether or not the overlay
+      is open — Gary pins mid-drive without opening the panel. Touch = a 44px
+      transparent bottom-left `#marker-touch-zone`; triple-tap within 700ms
+      drops `(touch)`. Record shape verified in-game (seed 1234): `{seed:1234,
+      x:318,z:-93,heading:0,tod:0.15,sessionTime:67.86,note,ts}`. Both paths
+      added markers (K 1→2, triple-tap 2→3). `__debug.dropMarker(note)` +
+      `markers()` added for scripting.)*
+- [x] 7.2 Debug-overlay MARKERS section: list, per-marker editable note,
       copy-JSON, clear, per-marker teleport.
       done = drop 2 markers → both listed → teleport to first lands within 1m.
-- [ ] 7.3 Confirm no player-facing copy mentions the key/gesture (Easter-egg
+      *(done 2026-06-13 — collapsible **Markers** section (between Lights +
+      MIDI tracks): per-marker row = `#i (x,z)` + editable note input
+      (persists on change) + `tp` (restores pos+heading+tod) + `×` delete;
+      section buttons `copy JSON` (clipboard + select-all textarea for
+      keyboard-free copy on phone) + `clear`. Verified: 3 markers listed,
+      teleport to #1 landed at (318,-93) = **0 m** from the marker. Console
+      clean across the whole exercise.)*
+- [x] 7.3 Confirm no player-facing copy mentions the key/gesture (Easter-egg
       rule); DEBUGGING.md markers section.
       done = grep of index.html/README/title copy shows nothing; docs updated.
+      *(done 2026-06-13 — grep of index.html + README.md for
+      marker/triple-tap/"key k" = nothing. DEBUGGING.md `__debug` section gains
+      a "Playtest markers (group 7)" subsection + the `K`/`dropMarker` entries;
+      the key + gesture are documented ONLY there, not in any player-facing
+      surface.)*
 
 ## 8. Baseline + close
 
