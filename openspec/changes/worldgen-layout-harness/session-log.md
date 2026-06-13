@@ -84,6 +84,9 @@ ref: "ROADMAP 'Layout-work agent harness' (added 2026-06-10); gate for festival-
 
 - Marker hotkey final binding (`m` vs `k`) — resolve against input.js/debug.js/touch.js at build (-> Task 7.1).
 - ~~Whether `gotoHub` should print that hub's lint violations once lint lands (design open question).~~ Resolved 2026-06-13 — yes; -> Task 4.6 wires plan-mode lint into `gotoHub(n)` (console `[lint]` lines + a `· lint:` summary on the return string).
+- **Hub-viewer acceptance (6.3) is N=1** — faithfulness proven only at seed 1234's spawn hub. The clusterSeed-independence argument is general, but before `festival-zone-grammar` grades against the hub viewer, widen the diff to 2–3 more seeds (cheap: capture viewer + game dumps, run the chunkKey-agnostic compare from `reviews/hub-acceptance-6.3.md`). *(adversarial review 2026-06-13)*
+- **`arch-placement` fires on ~100% of seeds** — a global "arch system wrong" flag, not a per-hub discriminator. After the grammar fix it should drop to ~0; if it doesn't, the `ARCH_MIN_STAGE_DIST` (30 m) threshold is miscalibrated, not the placement. Watch in the grammar before/after. *(adversarial review 2026-06-13)*
+- **`drum-in-trees` registry count depends on capture-window completeness** — tightly-bounded snapshots clip edge trees → possible false positives (caveated in `baseline.md`). If the grammar change needs exact counts, capture those seeds at full load-ring. *(adversarial review 2026-06-13)*
 
 ## Work Log
 

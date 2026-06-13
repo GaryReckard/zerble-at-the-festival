@@ -131,6 +131,16 @@ Per-seed:
 
 Notes: `arch-placement` fires on nearly every seed — the spawn arch today lands
 ~15·scale from the stage, off-road, inside the lit dancefloor (it should be a
-road threshold BEFORE the stage). `drum-in-trees` catches drums dumped in thin
-tree cover or nested inside a cluster envelope. Both are the grammar change’s to
-fix. Reproduce: `bin/lint verification/snapshots/baseline/<seed>.json`.
+road threshold BEFORE the stage). It is therefore a *global* "arch system is
+wrong" flag, not a per-hub discriminator; after the grammar fix it should fall to
+~0 (if it doesn't, suspect the `ARCH_MIN_STAGE_DIST` threshold, not the
+placement). `drum-in-trees` catches drums dumped in thin tree cover or nested
+inside a cluster envelope. Both are the grammar change’s to fix. Reproduce:
+`bin/lint verification/snapshots/baseline/<seed>.json`.
+
+> **Caveat — `drum-in-trees` (registry) vs capture window.** That rule counts
+> `forest_tree` colliders within `DRUM_TREE_RADIUS` *from the snapshot's entries*.
+> The 7 bounded ±280 m captures here can clip trees near the window edge, so a
+> drum near the edge may under-count and false-positive. The 3 full-load-ring
+> seeds (`1234`/`0xf7ef2a3c`/`0xf7ef2a3d`) are unaffected; treat the bounded
+> seeds' `drum-in-trees` count as an upper bound.
