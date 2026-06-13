@@ -346,11 +346,18 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       runtime crash en route — frame-loop `crowd.update` needs a COMPLETE zerble
       stub (forwardWorld/heading/speed/seatSlots/worldSeatPosition), not the
       2-field one; fixed (Gary-reported).)*
-- [ ] 6.4 `FESTIVAL_TUNING` slider panel + copy-CONFIG (mirror map-sandbox
+- [x] 6.4 `FESTIVAL_TUNING` slider panel + copy-CONFIG (mirror map-sandbox
       TUNING·LIVE: h1 ~98 / syncTune ~526 / setConfig ~577; rebuild on
       drag-end or rAF-throttle — decide at build, note in code).
       done = dragging ring-radius slider visibly rebuilds the hub; copy CONFIG
       yields valid JSON.
+      *(done 2026-06-13 — 10-knob panel (dancefloor depth/halfwidth, food-court
+      ring mult/walk, vendor spacing/offset/walk/count, bubble walk, drum band).
+      Rebuilds on RELEASE (`change`, not `input`, so a drag doesn't storm 3D
+      rebuilds — noted in code): setFestivalTuning → bumpWorldgen (invalidates
+      the plan/front-axis memo caches) → build(). Verified: FOOD_COURT_RING_MULT
+      14→22 rebuilt the hub and the 10 food-court trucks visibly moved outward;
+      Copy button writes valid `FESTIVAL_TUNING` JSON to clipboard + console.)*
 - [x] 6.5 Importmap consistency-checker script (node, sibling of
       bin/layout-snapshot): regex-extract module arrays from all FOUR html
       files, diff against src/ + src/worldgen/ contents, fail loudly.
@@ -370,9 +377,14 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       CLAUDE.md Run+verify table row for hub-sandbox.html.
       done = a fresh-session simulation: CLAUDE.md alone leads a reader to the
       hub viewer.
-- [ ] 6.7 Verify: screenshot the same hub at Noon + Midnight; boot the REAL
+- [x] 6.7 Verify: screenshot the same hub at Noon + Midnight; boot the REAL
       game after (sandbox-pass ≠ game-pass).
       done = both screenshots + clean game console logs on both flag states.
+      *(done 2026-06-13 — reviews/hub-6.7-{noon,midnight}.png: seed 1234 hub 0,
+      ToD presets; midnight shows the festoon string lights glowing + the lit
+      dancefloor, so nightness-gated visuals read. Real game booted clean on BOTH
+      `?worldgen=1` AND `?worldgen=0` (0 error lines) in the 6.2 gate, after the
+      chunks.js buildHubPreview change; nothing game-path changed since.)*
 
 ## 7. Playtest markers
 
