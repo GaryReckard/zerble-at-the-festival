@@ -68,3 +68,42 @@ commit) → true extents → zone slotting (the single golden move) → backstop
 verify/judge. Next: the deliberation gate (signatures fire by design — determinism, boot
 order, lifecycle), then /opsx:apply.
 **Refs:** -> D1..D6, proposal.md, design.md, tasks.md, ../worldgen-layout-harness/{design.md (D-C′), verification/baseline.md}
+
+### 2026-06-13 -- Deliberation 001-initial: 5 personas, all Proceed-with-mitigations; tasks revised
+**Event:** decision + phase-change
+**What:** Ran `/deliberate` (Tier 3 synthesis) with Adversary + Architect + Auditor +
+Profiler + Pragmatist + Mediator (determinism/world-gen/major-refactor signature). All
+five returned **Proceed with mitigations**; no blocks. (Aside: the council files all wrote
+fine; the FIRST mediator invocation died on a session limit with 0 tokens — re-ran the
+mediator alone against the 5 intact files, nothing regenerated.) The Mediator surfaced 9
+tensions; results.md carries the full synthesis + a 17-row Risk Register (4 CRITICAL).
+**Folded into tasks.md:**
+  - **D7 — crowd pre-roll REORDERED ahead of the builder extraction** (old group 2 → new
+    group 1). `crowd.spawn` draws a VARIABLE, tier-dependent count from the cluster rng
+    (color-retry loop + zero-draw early-return at pool exhaustion, crowd.js:339), so the
+    extraction's EMPTY-diff gate isn't tier-stable until crowd is hoisted. Profiler's nuance
+    kept: make the LAYOUT/record stream tier-independent; the REALIZED NPC population stays
+    capped by PERF.crowdMax (a per-frame CPU guard, not a draw guard).
+  - **D8 — CRITICAL: baseline path was stale.** The gate artifacts live at REPO-ROOT
+    `verification/`, not `openspec/changes/worldgen-layout-harness/verification/`. Task 0.1
+    fixes every cite; 0.2 reproduces 106/92 bit-for-bit before any edit (STOP if it doesn't).
+  - **D9 — new Group 0.5 scope spike** (Pragmatist Slice 0): the full 8-builder extraction
+    may not be needed before layout wins (arch-placement is planner-only; analytic
+    extents+slotting+backstop may zero the 4 error rules with only crowd pre-roll strictly
+    required). Maps each error rule → minimum change before grinding.
+  - **D10 — canary hardening FIRST in group 2**: the `kind@roundedX,roundedZ` key collides
+    for co-located same-kind clusters (the tight-slotting regime) and silently under-reports;
+    include clusterSeed/role + assert TRIANGLE count (catches a lost segment-count arg).
+  - **D11 — drivable corridor is an explicit slotting RESERVATION** (path_node is in the
+    linter's overlap-exclusion, so a clipping path is caught by NO error rule); path records
+    carry no colliders; drivability = reservation + mesh-half backstop.
+  - **D12 — promote the MODEL_DIMS drift guard from localhost console.warn → thrown
+    node-selftest assertion** before extents go load-bearing (else a stale copy ships an
+    in-game clip the linter, reading the same stale copy, reports as clean).
+  - Plus: buildStage as an isolated 3–5× commit; buildCampVillageAt's layout half partial
+    by construction (closestBuilding in the draw loop); per-builder userData.shared audit;
+    boot the real game both flags/both tiers after EVERY chunks.js commit; clusterSeed keyed
+    on a stable semantic index so zone-omit doesn't churn the golden; ?perf=mid in verify;
+    D2 crowd commit is player-visible (own CHANGELOG entry).
+**Refs:** -> deliberations/001-initial/results.md, tasks.md (revised groups 0–8 + 0.5), README.md
+

@@ -1,123 +1,187 @@
 # Tasks — festival-zone-grammar
 
 > The layout fix. Gated by the `worldgen-layout-harness` instrument (snapshot
-> diff + draw-count canary + linter) and Gary's in-game judgment. **Extraction
-> (groups 1–2) is behaviour-preserving and golden-frozen — full gate ritual per
-> commit, one builder per commit.** The golden moves exactly ONCE, in group 4.
-> Run a `/deliberate` before group 3 (done as the deliberation artifact); a
-> `/smart-review` after group 4 and before close.
+> diff + draw-count canary + linter) and Gary's in-game judgment.
+>
+> **REVISED after deliberation 001-initial** (`deliberations/001-initial/results.md`,
+> 5 personas + Mediator, all "Proceed with mitigations"). The load-bearing change:
+> **crowd pre-roll is REORDERED ahead of the builder extraction** (the old group 2
+> is now group 1) because `crowd.spawn` draws a variable, tier-dependent count from
+> the cluster rng — until that is hoisted, the extraction's EMPTY-diff gate isn't
+> tier-stable. Plus a new Group 0.5 scope spike, canary hardening, an explicit
+> drivable-corridor reservation, and the MODEL_DIMS guard promotion.
+>
+> **Golden discipline:** extraction (groups 1–2) is behaviour-preserving and
+> golden-frozen — full gate ritual per commit, one builder per commit. The POI
+> golden moves exactly ONCE, in group 4. `/smart-review` after group 4 and before close.
 
-## 0. Preconditions
+## 0. Preconditions — make the gate real
 
-- [ ] 0.1 Re-read the durable inputs (DRAFTING-BRIEF, harness design D-C′,
-      baseline.md, ROADMAP "Festival layout", session-log D1–D8). Confirm the
-      harness is on `main`/branch HEAD and `bin/lint` + the baseline snapshots
-      reproduce the recorded counts (the "before" must be reproducible).
-      done = `bin/lint verification/snapshots/baseline/<seed>.json` matches baseline.md.
-- [ ] 0.2 Announce a tuning-freeze window is NOT needed (this change OWNS the
-      tuning) but pin the capture protocol: `?worldgen=1&perf=high`, crowd on,
-      no driving — the same the baseline used, so before/after compare.
+- [ ] 0.1 **Fix the gate-artifact path**: the baseline + snapshots live at
+      **repo-root** `verification/baseline.md` + `verification/snapshots/baseline/*.json`
+      (commit `ecbd9af`), NOT `openspec/changes/worldgen-layout-harness/verification/`.
+      Correct every cite (proposal/design/this file).
+      done = paths point at the real files. (Risk: stale path → gate looks missing.)
+- [ ] 0.2 Reproduce the baseline **bit-for-bit**: `bin/lint
+      verification/snapshots/baseline/<seed>.json` matches the recorded 106 error /
+      92 warn. **STOP if it does not reproduce** — the measuring stick is broken.
+- [ ] 0.3 Pin the capture protocol: `?worldgen=1&perf=high`, crowd on, no driving —
+      the same the baseline used, so before/after compare.
 
-## 1. Builder layout/mesh extraction — pure `layout(rng,env)` (D1, golden-frozen)
+## 0.5 Extraction-scope spike (NEW — Pragmatist "Slice 0"; ships nothing)
+
+- [ ] 0.5.1 Map each ERROR rule (`water-clear` 58, `overlap` 48, `arch-placement`
+      21, `drum-in-trees` 8) → the minimum builder/planner change that zeroes it,
+      reviewed against the reproduced `bin/lint` counts. (arch-placement is
+      planner-only — needs no extraction; overlap/drum need extents+slotting;
+      water needs slotting+backstop.)
+      done = a per-rule → minimum-change map recorded in session-log.
+- [ ] 0.5.2 Confirm the split set: crowd pre-roll (mandatory), every builder that
+      contains a crowd spawn or feeds a consumed record (mandatory), warn-only
+      builders (deferrable to a cleanup slice). done = the group-2 builder list is
+      scoped before grinding the extraction.
+
+## 1. Crowd pre-roll + injected env (REORDERED to FIRST — was group 2)
+
+> `crowd.spawn` (`crowd.js:338`) + 4 call sites (`chunks.js:1698,1706,2466,2723`).
+
+- [ ] 1.1 `crowd.spawn` consumes **pre-rolled params** (count + per-NPC **scalar**
+      seeds — NOT pre-built Vector3/Color, avoid hub-spawn GC) from layout records
+      instead of drawing from the cluster rng with a tier-sized pool.
+- [ ] 1.2 **Tier constraint (Profiler):** the *layout/record stream* is
+      tier-independent; the *realized NPC population* stays capped by
+      `PERF.crowdMax` (180/320/500) — `crowd.spawn` still honors `free.length===0`
+      and drops the surplus at low/mid.
+      done = same seed/hub at `?perf=low` and `?perf=high` → IDENTICAL normalized
+      **layout** (the plan, not the live crowd) AND live NPC count still capped at low.
+- [ ] 1.3 Widen the dry-run env to `{ waterAt, blockedAt }`; grep-confirm no
+      `src/worldgen/*` imports chunks/registry/lakes/models (leaf rule).
+      done = grep clean; `bin/lint` + node selftest still run.
+- [ ] 1.4 **D2 is player-visible** (shipped low/mid worlds change to agree with
+      high) — its commit gets its OWN CHANGELOG `Fixed` entry, not the
+      silent-refactor exemption.
+
+## 2. Builder layout/mesh extraction (was group 1 — now SECOND, golden-frozen)
 
 > One builder per commit. Each: split into `layout(rng, env) → records[]` +
-> `buildMesh(records)`; capture; snapshot diff EMPTY (incl. draw canary); both
-> goldens unchanged; boot both flags. Order easy→hard so the pattern settles.
+> `buildMesh(records)`; capture; snapshot diff EMPTY (incl. the hardened canary);
+> both goldens unchanged; **boot the real game both flags / both tiers**.
 
-- [ ] 1.1 `buildVendorRowAt` → layout/mesh split. Records carry booth + camper
-      positions/yaw/cosmetic params. done = snapshot diff EMPTY, goldens held.
-- [ ] 1.2 `buildFoodCourtAt` → split (truck ring + shack + torches as records).
-      done = diff EMPTY, goldens held.
-- [ ] 1.3 `buildCampVillageAt` → split (tent grid records). done = diff EMPTY.
-- [ ] 1.4 `buildStage` → split. **Transcribe `Math.random()` cosmetic sites
-      as-is** (D-C′ trap — do NOT fold into the seeded stream). Keep the first
-      `ctx.rng()` scale draw in place. done = diff EMPTY incl. canary, goldens held.
-- [ ] 1.5 Potty-bank + drum-circle + bubble-vendor builders → split.
-      done = diff EMPTY across the 3 canonical seeds.
-- [ ] 1.6 Model-builder param splits where a mesh builder draws rng mid-loop
-      (`buildTent`, `buildCampChair`, etc., per D-C′): `pickParams(rng)` pure /
-      `buildXMesh(params)`. done = diff EMPTY; document which builders needed it.
+- [ ] 2.1 **DO FIRST — harden the draw-count canary** (before any builder split):
+      (a) make the key unique-per-cluster — include `clusterSeed`/`role`/`rank`,
+      not `kind@roundedX,roundedZ` (collides under tight slotting); (b) assert
+      **triangle count** as well as draws + positions (catches geometry segment
+      drift). Note that intra-cluster draw ORDER is held by per-commit code review.
+      done = canary key collision-proof + tri-count asserted; self-diff still EMPTY.
+- [ ] 2.2 `buildVendorRowAt` → layout/mesh split. done = snapshot diff EMPTY, goldens held.
+- [ ] 2.3 `buildFoodCourtAt` → split (truck ring + shack + torches as records). done = diff EMPTY.
+- [ ] 2.4 `buildCampVillageAt` → **partial split** — `registry.closestBuilding`
+      stays in the mesh half; the layout half is approximate by construction
+      (D-C′ pt 3). done = diff EMPTY; the impurity is noted, not "fixed."
+- [ ] 2.5 `buildStage` → **isolated commit, budgeted 3–5×**. **Transcribe
+      `Math.random()` cosmetic sites as-is** (the D-C′ trap); `ctx.rng()` scale +
+      clump draws move to layout; crowd draws already gone via group 1. Ship an
+      explicit before/after draw-count table for the interleaved streams.
+      done = diff EMPTY incl. canary, goldens held, draw-count table recorded.
+- [ ] 2.6 Potty-bank + drum-circle + bubble-vendor builders → split. done = diff EMPTY ×3 seeds.
+- [ ] 2.7 Model-builder param splits where a mesh builder draws rng mid-loop
+      (`buildTent`, `buildCampChair`, …): `pickParams(rng)` pure / `buildXMesh(params)`.
+      done = diff EMPTY; document which builders needed it.
+- [ ] 2.8 **Per-builder `userData.shared` audit** — enumerate pooled resources per
+      builder; confirm the tag stays on the `buildMesh` side and survives the split
+      (the canary CANNOT see a disposal-time recompile storm). done = audit recorded.
+- [ ] 2.9 **GATE: boot the real game at both flags / both tiers after EVERY
+      `chunks.js`-touching commit** (sandbox-pass ≠ game-pass; the camp-chair
+      two-entry-shape signature). done = clean console per commit.
 
-## 2. Crowd pre-rolled params + injected env (D2/D-C′, golden-frozen)
+## 3. True oriented extents + MODEL_DIMS guard promotion (golden-frozen — read-only until group 4)
 
-- [ ] 2.1 `crowd.spawn` consumes pre-rolled params from the cluster layout
-      records instead of drawing from the cluster rng with a tier-sized pool.
-      done = same seed/hub captured at `?perf=low` and `?perf=high` yields an
-      IDENTICAL normalized layout (tier-dependence gone — harness R2 closed).
-- [ ] 2.2 Widen the dry-run env to `{ waterAt, blockedAt }`; confirm no
-      `src/worldgen/*` imports chunks/registry/lakes/models (dependency rule).
-      done = grep clean; `bin/lint` + node selftest still run.
+- [ ] 3.1 Promote `clusterExtent` → per-kind oriented extents: court = ring,
+      vendor row = oriented rect (incl. camps-behind band), stage = directional
+      wedge (deck + dancefloor). Unify the D8 dancefloor pair — **value-preserving
+      (any group-3 snapshot diff falsifies "same number, two owners").**
+      done = extents exported; goldens unchanged (extents not yet consumed).
+- [ ] 3.2 Point the linter plan-mode + map-sandbox overlay at the oriented extents
+      (replacing approximate circles). done = plan-vs-registry gap shrinks; no game-path change.
+- [ ] 3.3 **Promote the `MODEL_DIMS` drift guard from a localhost `console.warn`
+      to a THROWN node-selftest assertion** before extents go load-bearing; add
+      `MODEL_DIMS` entries for every dimension the new oriented extents depend on
+      (the stage wedge likely needs deck dims). done = selftest fails loud on a stale copy.
 
-## 3. True oriented extents (D3, golden-frozen — extents are read-only until group 4)
-
-- [ ] 3.1 Promote `clusterExtent` → per-kind oriented extents: court = ring
-      circle, vendor row = oriented rect (incl. camps-behind band), stage =
-      directional wedge (deck + dancefloor). Unify the planner dancefloor with
-      `buildStage`'s internal one (merge the D8 pair). done = extents exported;
-      goldens unchanged (extents not yet consumed by placement).
-- [ ] 3.2 Point the linter's plan-mode + the map-sandbox overlay at the new
-      oriented extents (replacing approximate circles). done = plan-vs-registry
-      gap shrinks; overlay shows oriented shapes; no game-path change.
-
-## 4. Zone-slotting planner — THE GOLDEN MOVE (D4/D6)
+## 4. Zone-slotting planner — THE GOLDEN MOVE (nothing else in the golden-move commit)
 
 - [ ] 4.1 Replace `festivalPlan`'s scatter-then-`resolveOverlaps` with priority
-      zone slotting on the front axis F (stage+hard wedge → vendor aisles +
-      camps-behind → off-road courts + optional spur → forest-clearing drum +
-      path → attached potties → threshold arch → probabilistic bubble vendors).
-      Omit a zone that can't fit clear. done = `festivalPlan` emits slotted
-      non-overlapping oriented zones; iterate in the hub viewer + overlay.
-- [ ] 4.2 **Move the POI golden once.** Re-record, log old→new in session-log,
-      re-verify node==browser; queryPoint golden stays frozen. done = both facts
-      recorded; node==browser on the new poi hash.
-- [ ] 4.3 Spur roads + drum access path as **cosmetic path records** emitted by
-      the planner (NOT new arterials in roads.js — keep the queryPoint golden
-      frozen). Builders render them. done = spur/path render; queryPoint golden held.
-- [ ] 4.4 Cross-hub `stage-spacing` constraint in slotting; `STAGE_MIN_SPACING`,
+      zone slotting on the front axis F (stage+hard wedge → road-straddling vendor
+      aisles + camps-behind → off-road courts ≥ min stage dist + optional spur →
+      forest-clearing drum + access path → attached potties → threshold arch →
+      probabilistic bubble vendors). Omit a zone that can't fit clear, and **drop
+      its dependents (attached potties, camps-behind) transactionally** with it.
+      done = `festivalPlan` emits slotted non-overlapping oriented zones.
+- [ ] 4.2 **Keep `clusterSeed(heart, idx)` keyed on a stable SEMANTIC index**
+      (stage=0, court i, row i…), independent of which zones were omitted — so
+      zone-omit doesn't churn the golden beyond the one deliberate move.
+- [ ] 4.3 **Move the POI golden once.** Re-record, log old→new in session-log,
+      re-verify node==browser; **capture a per-seed POI kind INVENTORY, not just
+      the hash** (proves behavioural superset, not just cross-engine stability);
+      queryPoint golden stays frozen.
+- [ ] 4.4 Spur roads + drum access paths as **cosmetic path records** (NOT roads.js
+      arterials — keep queryPoint frozen). Render as **ONE merged/instanced opaque
+      ribbon per hub, `castShadow=false`, `alphaTest` not transparent** (not one
+      mesh/segment); tag pooled geometry `userData.shared`. done = paths render;
+      queryPoint golden held; draws don't creep.
+- [ ] 4.5 **Make the drivable corridor an explicit slotting RESERVATION** (a pure
+      oriented extent the zone-fit test treats as occupied) — `path_node` is in the
+      linter's overlap-exclusion, so a clipping path is caught by no error rule.
+      Decide + record: path records carry NO colliders; drivability = corridor
+      reservation + the group-5 mesh-half backstop. done = a tent can't land in the corridor.
+- [ ] 4.6 Cross-hub `stage-spacing` constraint; `STAGE_MIN_SPACING`,
       `COURT_MIN_STAGE_DIST`, `ARCH_MIN_STAGE_DIST`, bubble-vendor probability,
-      sugar-shack percentage all in `FESTIVAL_TUNING`. done = plan-mode
-      `stage-spacing` = 0 across baseline seeds.
+      sugar-shack percentage all in `FESTIVAL_TUNING`. done = plan `stage-spacing` = 0.
 
-## 5. Registry-clearance backstop (D5)
+## 5. Registry-clearance backstop
 
 - [ ] 5.1 Restore per-sub-component `registry.closestBuilding()` clearance with
-      bounded retry/skip in the mesh half of each builder (main's pattern).
+      **bounded** retry/skip in the **mesh half** of each blind-placing builder
+      (vendor row, food court, camp village, potty bank) — pattern at
+      `chunks.js:489`,`2718`. Confirm it never leaks into the pure `layout` half.
       done = a forced cross-cluster clip is caught + skipped, not placed overlapping.
+- [ ] 5.2 Confirm `buildHubPreview` stays diff-faithful (shared `buildWorldgenKind`
+      reaches both viewer + game). done = hub-viewer acceptance re-runs clean.
 
-## 6. Baseline burndown to zero
+## 6. Baseline burndown to zero (per-rule sequenced after the single golden move)
 
 - [ ] 6.1 Lint all 10 baseline seeds in registry mode; iterate slotting/extents
-      until every **error** rule = 0 (`overlap`, `water-clear`, `drum-in-trees`,
+      until every ERROR rule = 0 (`overlap`, `water-clear`, `drum-in-trees`,
       `arch-placement`, `truck-off-road`) and warns (`booth-on-road`,
       `dancefloor-clear`, `potty-attached`) = 0 or recorded justification.
-      done = `bin/lint --seed-list` + per-snapshot registry runs all green.
+      Sequence the burndown legibly: arch → overlap → drum → water → backstop,
+      each a falling `bin/lint` count against the now-frozen golden.
 - [ ] 6.2 Re-confirm the 4 named worst offenders (`1234`, `0xf7ef2a3c`, `99`,
-      `256`) are clean at their exact coords. done = teleport + lint each → clear.
+      `256`) clean at their exact coords. done = teleport + lint each → clear.
 - [ ] 6.3 Write `verification/burndown.md` — Gary-legible before/after per-rule
-      table (cite harness baseline.md as "before") + 3 before/after hub-viewer
+      table (cite the harness baseline as "before") + 3 before/after hub-viewer
       screenshots of the worst offenders. done = table + screenshots committed.
 
 ## 7. Verify + judge
 
-- [ ] 7.1 Boot the REAL game at seed 1234, `?worldgen=1`, **both `?perf=low` and
-      `?perf=high`**: no console errors; backtick budget panel within tier
-      (slotting added no draws). done = console clean + HUD screenshot both tiers.
-- [ ] 7.2 Arrival check in-game: spawn is on a road, arch ahead, main stage
-      beyond it (`spawn-arrival` plan rule + visual). done = screenshot.
-- [ ] 7.3 Gary playtest pass with the marker hotkey: drop pins on anything that
-      still reads wrong; fold coordinates back as fixes or recorded warns.
-      done = markers triaged; no error-severity surprises.
-- [ ] 7.4 `/smart-review` of the change (rendering/gameplay/performance/sandbox/
-      docs); fold must-fix findings back into tasks. done = review-summary persisted.
+- [ ] 7.1 Boot the REAL game at seed 1234, `?worldgen=1`, **`?perf=low`,
+      `?perf=mid`, AND `?perf=high`** (mid = where crowdMax jumps to 320 +
+      shadows turn on). No console errors; backtick budget within tier on the
+      **densest everything-fits hub**; path meshes default `castShadow=false`;
+      live NPC count capped at low. done = console clean + HUD screenshots all 3 tiers.
+- [ ] 7.2 Arrival check in-game: spawn on a road, arch ahead, main stage beyond
+      (`spawn-arrival` + visual). done = screenshot.
+- [ ] 7.3 Gary playtest pass with the marker hotkey; fold coordinates back as
+      fixes or recorded warns. done = markers triaged; no error-severity surprises.
+- [ ] 7.4 `/smart-review` of the change; fold must-fix back into tasks. done = review-summary persisted.
 
 ## 8. Close
 
-- [ ] 8.1 CHANGELOG entries landed per-commit (extraction = dev-workflow/internal
-      where behaviour-preserving; the grammar commit = player-visible). Confirm
-      coverage. done = CHANGELOG reflects the landed work.
-- [ ] 8.2 ROADMAP "Festival layout" section trimmed to shipped; the deferred
-      follow-ups (per-truck customization, the `DEFAULT_WORLDGEN_V2` flip as a
-      separate step) kept/added. done = ROADMAP reduced to what remains.
+- [ ] 8.1 CHANGELOG per-commit; **call out the crowd-pre-roll (group 1) commit AND
+      the golden-move commit as the player-visible ones**; behaviour-preserving
+      extraction commits may take the internal/dev-workflow exemption. done = coverage confirmed.
+- [ ] 8.2 ROADMAP "Festival layout" trimmed to shipped; defer per-truck
+      customization + the `DEFAULT_WORLDGEN_V2` flip (separate later change — flag
+      stays OFF). done = ROADMAP reduced to what remains.
 - [ ] 8.3 Session-log close-out; README refreshed (`bin/readme-sync`); note the
-      flip is the next, separate change (v2 HANDOFF order). done = readme-sync
-      fresh; flip recorded as next step.
+      flip is the next, separate change (v2 HANDOFF order). done = readme-sync fresh.
