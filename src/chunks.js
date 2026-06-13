@@ -23,7 +23,7 @@ import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps } from './worldgen/placement.js';
 import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
-import { dancefloorRectsNear } from './worldgen/festival.js';
+import { dancefloorRectsNear, festivalPlan, campVillagesNear, MAX_POI_REACH } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
 import { FESTIVAL_TUNING, MODEL_DIMS } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
@@ -1224,6 +1224,65 @@ function buildWorldgenKind(ctx, d) {
     default: break;       // unknown kind → place nothing (forward-compatible)
   }
   worldgenDrawCounts.set(`${d.kind}@${Math.round(d.x)},${Math.round(d.z)}`, _draws);
+}
+
+// Build ONE festival hub on a flat plane for the hub viewer (task 6.2). Reuses
+// the EXACT game build path: every cluster goes through `buildWorldgenKind`,
+// whose rng is `mulberry32(clusterSeed)` — CHUNK-INDEPENDENT — so a cluster
+// builds byte-identically whether the game builds it (spread across chunks) or
+// the viewer builds the whole hub at once. That's what lets the viewer match the
+// game's `dumpRegistry` at the same seed/hub/tier (the 6.3 acceptance), modulo
+// explainable crowd-pool-state diffs.
+//
+// `opts`: { crowd, lakes }.
+//  - crowd — a real `Crowd` (NEVER omit): `crowd.spawn` draws from the cluster
+//    rng stream AND early-returns drawing nothing when its pool is exhausted
+//    (crowd.js:338), so leaving it out shifts every later draw in `buildStage`.
+//    A fresh crowd matches a fresh hub load; where the GAME's pool was already
+//    drained by neighbours, the diff is explainable (D6 / the pinned tier).
+//  - lakes — a `LakeManager`; its worldgen lakes are loaded+registered BEFORE
+//    building so the water-skip (`isPointInLake`) + dodge match the game.
+// Tear down with `disposeChunkByKey(scene, group, key, crowd)` (6.1) — that path
+// sweeps the same by-key side-lists `buildWorldgenKind` pushes to, so repeated
+// rebuilds don't leak (the 10-rebuild check, 6.3).
+export function buildHubPreview(scene, heart, opts = {}) {
+  const { crowd = null, lakes = null } = opts;
+  const pos = new THREE.Vector3(heart.x, 0, heart.z);
+  if (lakes) lakes.update(scene, pos);     // register this hub's lakes first
+
+  const key = `hub:${heart.cx},${heart.cz}`;
+  const group = new THREE.Group();
+  group.name = `hub-preview(${heart.cx},${heart.cz})`;
+  scene.add(group);
+  const reach = MAX_POI_REACH;
+  const region = queryRegion({ minX: heart.x - reach, minZ: heart.z - reach, maxX: heart.x + reach, maxZ: heart.z + reach });
+  const ctx = {
+    cx: heart.cx, cz: heart.cz, key,
+    cxWorld: heart.x, czWorld: heart.z,
+    // ctx.rng is NOT consumed by the cluster builders (they use the per-cluster
+    // clusterSeed stream); present only for ctx-shape parity with _generateWorldgen.
+    rng: mulberry32(worldHash(heart.cx, heart.cz)),
+    group, region, crowd,
+  };
+
+  // Same per-descriptor water-skip + non-anchor dodge guard as placeWorldgenProps,
+  // but over the WHOLE hub (festivalPlan(heart) is NOT chunk-clipped) + its
+  // back-of-festival camp villages within reach. The dodge runs against the PAGE
+  // registry (this hub only), so a cluster the GAME dropped because a NEIGHBOUR
+  // chunk's building blocked it can build here — an explainable 6.3 difference.
+  const build = (d) => {
+    if (isPointInLake(d.x, d.z)) return;
+    if (!d.anchor) {
+      const guard = Math.min(8, Math.max(2, (d.footprint || 4) * 0.5));
+      if (registry.closestBuilding(new THREE.Vector3(d.x, 0, d.z), guard, CLUSTER_GUARD_SKIP)) return;
+    }
+    buildWorldgenKind(ctx, d);
+  };
+  for (const d of festivalPlan(heart)) build(d);
+  for (const v of campVillagesNear({ minX: heart.x - reach, minZ: heart.z - reach, maxX: heart.x + reach, maxZ: heart.z + reach })) {
+    if (Math.hypot(v.x - heart.x, v.z - heart.z) <= reach) build(v);
+  }
+  return { group, key, heart };
 }
 
 // Entrance arch + a string-light pole pair across its opening, rotated to face the

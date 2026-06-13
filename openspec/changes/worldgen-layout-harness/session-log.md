@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 6 in flight: 6.1 (disposeChunkByKey extraction) SHIPPED + golden-frozen gate PASS. Task 4.7 (drum-in-trees + arch-placement lint rules, Gary 2026-06-12 playtest) SHIPPED — both fire on real baseline seeds; baseline.md appended. Next: 6.2 (buildHubPreview + hub-sandbox.html) → 6.3-6.7. (Grammar-unblock milestone 1+2+4+8.1 already met.)"
+current_task: "Group 6: 6.1 (disposeChunkByKey) + 6.2 (buildHubPreview + hub-sandbox.html) SHIPPED — the hub viewer renders a whole festival hub in 3D via the exact game build path. Task 4.7 lint rules also shipped. Next: 6.3 (acceptance diff vs game dump + 10-rebuild leak check) → 6.4 sliders → 6.5 importmap checker → 6.6 docs → 6.7 verify. (Grammar-unblock milestone 1+2+4+8.1 met.)"
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -586,3 +586,29 @@ lint.js:
   (layout-linter) + DEBUGGING.md updated. RECORD-not-fix — both are
   festival-zone-grammar's to fix (DRAFTING-BRIEF already cites the drum case).
 **Refs:** -> Task 4.7, CHANGELOG 2026-06-13, src/worldgen/lint.js, FESTIVAL_TUNING, verification/baseline.md (appended block), festival-zone-grammar/DRAFTING-BRIEF.md
+
+### 2026-06-13 -- Group 6.2: hub viewer renders (buildHubPreview + hub-sandbox.html)
+**Event:** phase-change
+**What:** The missing middle surface — one whole festival hub in 3D on a flat
+plane, built through the EXACT game code. `buildHubPreview(scene, heart, {crowd,
+lakes})` (chunks.js) iterates `festivalPlan(heart)` (NOT chunk-clipped — the whole
+hub) + camp villages within MAX_POI_REACH, through the same `buildWorldgenKind`
+dispatch. The faithfulness key: `buildWorldgenKind`'s rng is `mulberry32(clusterSeed)`
+— chunk-INDEPENDENT — so a cluster builds byte-identically whether the game spreads
+it across chunks or the viewer builds it all at once. Two non-obvious wiring points:
+  - **crowd parked at the hub.** A real Crowd is passed (never omit — crowd.spawn
+    draws from the cluster rng + early-returns on pool exhaustion, the tier-dependence
+    from D6). First run spawned 22 then the frame loop's `crowd.update(dt, dummyZerble)`
+    CULLED them to 0 because the dummy player sat at (0,0,9999), far from the hub —
+    NPCs out of range get dropped. Fix: park dummyZerble at the heart on each build.
+  - **no Sound.init.** buildStage/drum call `Sound.attachStageMusic`, which returns a
+    DEFERRED no-op handle when the AudioContext is null (sound.js) — so the viewer
+    needs no audio init and doesn't crash. Confirmed.
+  hub-sandbox.html: own importmap with `'three'`→threeShim (index.html's mapping,
+  guardrail #9 — NOT sandbox.html's raw unpkg, so materials match the game),
+  OrbitControls, TimeOfDay presets, 700m ground, `?seed=&hub=`/`?at=x,z`,
+  `window.__hubSandbox` door. Verified headless: seed 1234 hub 0 → spawn hub
+  (1,-1)@(318,-93), 96 objects, full festival renders, `?at=` resolves, 0 errors.
+  buildHubPreview is viewer-only (not on the game path) → game boot + goldens
+  unaffected; 6.1's disposeChunkByKey is the rebuild teardown (feeds 6.3).
+**Refs:** -> Task 6.1, -> Task 6.2, -> Task 6.3, CHANGELOG 2026-06-13, src/chunks.js buildHubPreview, hub-sandbox.html

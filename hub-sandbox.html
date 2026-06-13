@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Hub Sandbox — one festival hub in 3D</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #14101e; color: #ffe9c8;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  #canvas { display: block; width: 100vw; height: 100vh; }
+  #hud { position: fixed; top: 10px; left: 10px; width: 270px; max-height: 94vh; overflow-y: auto;
+    background: rgba(20, 14, 30, 0.82); border: 1px solid rgba(255, 210, 138, 0.25);
+    border-radius: 10px; padding: 12px 14px; font-size: 12px; line-height: 1.5; z-index: 10; }
+  #hud h1 { font-size: 14px; margin: 0 0 8px; color: #ffd28a; }
+  #hud label { display: block; margin: 8px 0 2px; color: #cdbfe0; font-size: 11px; }
+  #hud input, #hud select { width: 100%; box-sizing: border-box; font: inherit; font-size: 12px;
+    padding: 4px 6px; background: rgba(255, 246, 230, 0.08); color: inherit;
+    border: 1px solid rgba(255, 210, 138, 0.35); border-radius: 5px; }
+  .row { display: flex; gap: 5px; margin-top: 6px; }
+  .row button { flex: 1; }
+  button { font: inherit; font-size: 11px; padding: 4px 6px; background: rgba(255, 210, 138, 0.16);
+    color: inherit; border: 1px solid rgba(255, 210, 138, 0.4); border-radius: 5px; cursor: pointer; }
+  button:hover { background: rgba(255, 210, 138, 0.32); }
+  #info { margin-top: 10px; padding: 6px 8px; background: rgba(0,0,0,0.28); border-radius: 6px;
+    font-size: 11px; color: #adf; white-space: pre-line; }
+  .hint { color: #998; font-size: 10px; margin-top: 8px; }
+</style>
+<script>
+  // Cache-buster importmap — same pattern as index.html / sandbox.html. CRUCIAL
+  // (guardrail #9): 'three' maps to src/threeShim.js (the GAME's tier-aware
+  // MeshStandardMaterial override), NOT raw unpkg like sandbox.html — the hub
+  // viewer must render with the SAME materials the game uses or its acceptance
+  // test (6.3, diff vs the game dump) can never line up.
+  (function () {
+    const h = location.hostname;
+    const isLocal = h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' ||
+      h.endsWith('.local') || /^10\./.test(h) || /^192\.168\./.test(h) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.includes('claude-preview') || h.includes('happycog');
+    const v = isLocal ? '?v=' + Date.now() : '';
+    const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'crowd', 'chunks', 'forests',
+      'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
+      'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid',
+      'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
+    const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'heart', 'stage', 'performer',
+      'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
+      'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable'];
+    const base = new URL('./src/', document.baseURI).href;
+    const imports = {
+      'three': base + 'threeShim.js' + v,
+      'three-actual': 'https://unpkg.com/three@0.160.0/build/three.module.js',
+      'three/addons/': 'https://unpkg.com/three@0.160.0/examples/jsm/',
+    };
+    for (const m of mods) imports[base + m + '.js'] = base + m + '.js' + v;
+    for (const m of models) imports[base + 'models/' + m + '.js'] = base + 'models/' + m + '.js' + v;
+    const im = document.createElement('script');
+    im.type = 'importmap';
+    im.textContent = JSON.stringify({ imports });
+    document.head.appendChild(im);
+  })();
+</script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="hud">
+  <h1>Hub Sandbox</h1>
+  <label for="seed">Seed</label>
+  <input id="seed" type="text" value="1234">
+  <label for="hub">Hub # (nearest-to-spawn rank)</label>
+  <input id="hub" type="number" value="0" min="0">
+  <div class="row">
+    <button id="apply">Build hub</button>
+    <button id="rebuild">Rebuild (in place)</button>
+  </div>
+  <label>Time of day</label>
+  <div class="row">
+    <button data-tod="0.18">Morning</button>
+    <button data-tod="0.30">Noon</button>
+    <button data-tod="0.55">Dusk</button>
+    <button data-tod="0.75">Midnight</button>
+  </div>
+  <div id="info">—</div>
+  <p class="hint">Drag to orbit · scroll to zoom · right-drag to pan.
+    `?seed=&hub=` or `?at=x,z` deep-link a hub. No audio.</p>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TimeOfDay } from './src/timeOfDay.js';
+import { setSeed, getSeed } from './src/worldgen/index.js';
+import { nearestMajorHeart, nearestHeart, heartsInBounds } from './src/worldgen/hearts.js';
+import { buildHubPreview, disposeChunkByKey, updateStageLightShow, updateStagePerformers } from './src/chunks.js';
+import { Crowd } from './src/crowd.js';
+import { Smiles } from './src/smiles.js';
+import { LakeManager } from './src/lakes.js';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x232040);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.5, 3000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI / 2 - 0.02;   // don't dip below the ground
+
+// Lights + time-of-day, driven exactly like the game (so emissive/night reads true).
+const hemi = new THREE.HemisphereLight(0xb0d8ff, 0xb09060, 0.6); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff0c0, 1.3);
+sun.position.set(60, 120, 50);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 600;
+sun.shadow.camera.left = -160; sun.shadow.camera.right = 160;
+sun.shadow.camera.top = 160; sun.shadow.camera.bottom = -160;
+scene.add(sun);
+const ambient = new THREE.AmbientLight(0xffffff, 0.25); scene.add(ambient);
+const tod = new TimeOfDay(scene, { startT: 0.30 });   // Noon-ish by default
+tod.attach({ sky: null, sun, hemi, ambient });
+tod.setT(0.30); tod.update(0);
+
+// Flat ground — a big disc so a whole hub (MAX_POI_REACH ~480m) sits on grass.
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(700, 64),
+  new THREE.MeshStandardMaterial({ color: 0x6fae6c, roughness: 0.96, flatShading: true }),
+);
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+scene.add(ground);
+
+// One crowd + smiles + lake manager for the page, reused across rebuilds. Crowd
+// is passed to buildHubPreview so the cluster rng draws match the game (NEVER
+// omit — see chunks.js buildHubPreview / crowd.js:338). No Sound.init: the music
+// handles defer to a no-op (sound.js attachStageMusic guards a null ctx).
+const smiles = new Smiles(); scene.add(smiles.group);
+const crowd = new Crowd(smiles); scene.add(crowd.group);
+const lakes = new LakeManager();
+const dummyZerble = { pos: new THREE.Vector3(0, 0, 9999), position: new THREE.Vector3(0, 0, 9999), juice: 1 };
+
+let current = null;   // { group, key, heart }
+const info = document.getElementById('info');
+const seedInput = document.getElementById('seed');
+const hubInput = document.getElementById('hub');
+
+// Resolve the seed-input the same way main.js / map-sandbox do, so the world
+// matches: a plain integer is a numeric seed; anything else is FNV-hashed.
+function resolveSeedInput(raw) { return (raw !== '' && /^-?\d+$/.test(raw)) ? Number(raw) : raw; }
+
+// nth hub ranked by distance from the SPAWN hub (matches __dbg.gotoHub), or the
+// nearest heart to an explicit ?at=x,z.
+function resolveHeart(hubN, at) {
+  if (at) return nearestHeart(at.x, at.z).heart;
+  const anchor = nearestMajorHeart(0, 0) || nearestHeart(0, 0).heart;
+  if (!anchor) return null;
+  const R = 600;
+  const hubs = heartsInBounds(anchor.x - R, anchor.z - R, anchor.x + R, anchor.z + R)
+    .sort((a, b) => Math.hypot(a.x - anchor.x, a.z - anchor.z) - Math.hypot(b.x - anchor.x, b.z - anchor.z));
+  return hubs[hubN] || hubs[0] || anchor;
+}
+
+function build(seedRaw, hubN, at) {
+  setSeed(resolveSeedInput(seedRaw));
+  if (current) { disposeChunkByKey(scene, current.group, current.key, crowd); current = null; }
+  const heart = resolveHeart(hubN, at);
+  if (!heart) { info.textContent = 'no hub found near origin for this seed'; return; }
+  current = buildHubPreview(scene, heart, { crowd, lakes });
+  // Park the stand-in "player" at the hub so crowd.update keeps + animates the
+  // NPCs here (a far zerble culls them as out-of-range).
+  dummyZerble.pos.set(heart.x, 0, heart.z);
+  dummyZerble.position.copy(dummyZerble.pos);
+  // Frame the hub: orbit target at the heart, pulled back to see the dancefloor.
+  controls.target.set(heart.x, 2, heart.z);
+  camera.position.set(heart.x + 70, 55, heart.z + 70);
+  controls.update();
+  const n = crowd.npcs ? crowd.npcs.length : 0;
+  info.textContent = `hub (${heart.cx},${heart.cz}) ${heart.rank}\n@ (${Math.round(heart.x)}, ${Math.round(heart.z)})\nseed ${'0x' + (getSeed() >>> 0).toString(16)} · crowd ${n}`;
+}
+
+// ── URL + control wiring ─────────────────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+if (params.has('seed')) seedInput.value = params.get('seed');
+let initAt = null;
+if (params.has('at')) {
+  const a = params.get('at').split(',').map(Number);
+  if (a.length === 2 && a.every(Number.isFinite)) initAt = { x: a[0], z: a[1] };
+}
+if (params.has('hub')) hubInput.value = params.get('hub');
+
+function writeURL() {
+  const p = new URLSearchParams();
+  p.set('seed', seedInput.value);
+  p.set('hub', hubInput.value);
+  history.replaceState(null, '', '?' + p.toString());
+}
+
+document.getElementById('apply').addEventListener('click', () => { initAt = null; writeURL(); build(seedInput.value, +hubInput.value, null); });
+document.getElementById('rebuild').addEventListener('click', () => build(seedInput.value, +hubInput.value, initAt));
+seedInput.addEventListener('change', () => { initAt = null; writeURL(); build(seedInput.value, +hubInput.value, null); });
+hubInput.addEventListener('change', () => { initAt = null; writeURL(); build(seedInput.value, +hubInput.value, null); });
+for (const b of document.querySelectorAll('[data-tod]')) {
+  b.addEventListener('click', () => { tod.setT(parseFloat(b.dataset.tod)); tod.update(0); });
+}
+
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+
+// Render loop. Background tabs run on setTimeout (the preview-MCP keeps the page
+// hidden) so capture keeps ticking; foreground uses rAF.
+let last = performance.now();
+function frame() {
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  controls.update();
+  // Keep the festival ALIVE without the game loop: crowd wander + the stage
+  // light show + performers, fed the current nightness (the values main.js feeds).
+  if (crowd.npcs && crowd.npcs.length) crowd.update(dt, dummyZerble, null);
+  updateStageLightShow(now / 1000, tod.nightness, dummyZerble.pos);
+  updateStagePerformers(now / 1000);
+  renderer.render(scene, camera);
+  if (document.hidden) setTimeout(frame, 16); else requestAnimationFrame(frame);
+}
+
+build(seedInput.value, initAt ? 0 : +hubInput.value, initAt);
+frame();
+
+// Introspection door for preview_eval / the acceptance test (6.3).
+window.__hubSandbox = {
+  scene, camera, tod, crowd, lakes,
+  get heart() { return current && current.heart; },
+  get key() { return current && current.key; },
+  build, rebuild: () => build(seedInput.value, +hubInput.value, initAt),
+};
+</script>
+</body>
+</html>

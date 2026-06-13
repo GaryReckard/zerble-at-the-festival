@@ -297,7 +297,7 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       leak-free on rebuild; (3) both flags boot clean, 0 error lines. The four
       forest/cook sweep arrays are live ES-module imports, so in-place splice
       mutates the same objects — behaviour-identical.)*
-- [ ] 6.2 **[Fable/careful-Opus]** Export `buildHubPreview(scene, heart, opts)`
+- [x] 6.2 **[Fable/careful-Opus]** Export `buildHubPreview(scene, heart, opts)`
       from chunks.js: specced synthetic ctx {cx, cz, key, cxWorld, czWorld,
       rng, group, region, crowd} matching `_generateWorldgen`'s
       ([chunks.js:515](../../../src/chunks.js#L515) neighborhood); crowd = real
@@ -312,6 +312,20 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       replaceState), heart coords + rank displayed.
       done = `hub-sandbox.html?seed=1234&hub=0` renders the full spawn hub;
       `?at=` form resolves; no Sound.init needed or called.
+      *(done 2026-06-13 (careful-Opus) — `buildHubPreview(scene, heart, {crowd,
+      lakes})` at chunks.js builds the WHOLE hub (festivalPlan(heart), not
+      chunk-clipped, + camp villages within reach) via the exact `buildWorldgenKind`
+      path; clusterSeed-driven rng → chunk-independent → faithful. crowd = a REAL
+      Crowd (parked dummy-player at the hub so update() doesn't cull it — 22 NPCs
+      persist); lakes = a LakeManager, `.update()` registers them before building.
+      hub-sandbox.html: own importmap, `'three'`→threeShim (index.html, guardrail
+      #9), OrbitControls, TimeOfDay Morning/Noon/Dusk/Midnight, 700m flat ground,
+      `?seed=&hub=` + `?at=x,z` + replaceState, heart coords/rank in the HUD,
+      `window.__hubSandbox` introspection door. Verified headless: seed 1234 hub 0
+      → spawn hub (1,-1)@(318,-93), 96 hub objects, renders stage+trucks+vendor
+      row+pottys+string-lights+crowd; `?at=-42,-159` resolves to the (-1,-1) minor;
+      zero console errors; no Sound.init. Game boot + selftest goldens unaffected
+      (buildHubPreview is viewer-only). reviews/hub-6.2-spawn-noon.png.)*
 - [ ] 6.3 Acceptance test: diff hub-viewer sub-component positions vs a game
       `dumpRegistry` at the same seed/hub/tier — every difference explained
       line-by-line or eliminated (STOP condition in APPLY-GUARDRAILS if not);
