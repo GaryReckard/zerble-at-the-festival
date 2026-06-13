@@ -257,7 +257,7 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
 
 ## 5. Map-sandbox: true-extent overlay + seed gallery
 
-- [ ] 5.1 True-extent layer from two sources: captured snapshot JSON (exact;
+- [x] 5.1 True-extent layer from two sources: captured snapshot JSON (exact;
       fetch or file-drop) + analytic tuning envelopes (live, labeled
       approximate); layer toggle + `layers=` URL integration (existing layer
       plumbing: `layers` object + checkboxes, map-sandbox.html ~120/478);
@@ -265,16 +265,46 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       modules.
       done = seed `0xf7ef2a3c` snapshot loaded → the truck×booth overlap is
       visibly overlapping in 2D; screenshot.
-- [ ] 5.2 Point-inspector: per-record kind on hover for both sources (existing
+      *(done 2026-06-13 — `extent` layer added. Exact source = the committed
+      spawn snapshot, auto-fetched on toggle from `verification/snapshots/
+      <seed>.spawn.json` (dev server serves verification/) OR drag-and-drop a
+      .json onto the canvas (switches the map to the file's seed). Seed-gated:
+      exact colliders draw only when `snapshot._num === getSeed()` (computed via
+      a side-effect-free `seedNumOf`). Analytic = `clusterExtent` dashed-violet
+      rings, live for any seed, capped to ≤80 hearts like the grammar layer.
+      `wg` importmap already had tuning+lint (groups 2/4) — no extent module,
+      clusterExtent lives in tuning.js; check-importmaps clean. Verified headless
+      at `0xf7ef2a3c` (FNV→1658821542, matches the snapshot seed string): the
+      vendor-booth grid visibly interpenetrates the food-court trucks, console
+      clean. /tmp screenshots extent-overlap/extent-zoom.)*
+- [x] 5.2 Point-inspector: per-record kind on hover for both sources (existing
       inspector: map-sandbox.html `#inspector`).
       done = hovering a truck circle names it.
-- [ ] 5.3 `?gallery=N` contact-sheet mode: per-tile seed render centered on
+      *(done 2026-06-13 — `extentInspect` appends a line to the existing
+      inspector when the extent layer is on: smallest EXACT snapshot collider
+      containing the cursor wins (`extent  tent  r=2.2m  (exact · snapshot)`),
+      else the cursor-heart's smallest plan envelope (`(approx · envelope)`),
+      else "no cluster here". Verified: hovering a vendor booth at the
+      0xf7ef2a3c hub named `tent r=2.2m (exact · snapshot)`.)*
+- [x] 5.3 `?gallery=N` contact-sheet mode: per-tile seed render centered on
       spawn hub, seed label, click → full map deep-link; render once, yield
       between tiles.
       done = `?gallery=12` paints 12 labeled tiles; click navigates.
-- [ ] 5.4 Gallery lint counts via PLAN mode (no boots), progressive fill (tile
+      *(done 2026-06-13 — `?gallery=N` (default 12, `?seeds=a,b,c` override,
+      clamp 1..64) hides the single-map UI and lays out an auto-fill grid of
+      230×170 tiles. `paintTile` draws the macro layers (lakes/roads/hearts/POI
+      marks) centred on `nearestMajorHeart(0,0)` at a 620m span. Each step
+      yields via setTimeout(0). Click → `map-sandbox.html?seed=&cx=&cz=&zoom=1`.
+      Verified: gallery=12 → 12 tiles, clicking seed-2 tile navigated to its
+      full-map deep-link.)*
+- [x] 5.4 Gallery lint counts via PLAN mode (no boots), progressive fill (tile
       paints first, count fills in).
       done = counts appear async after tiles; no boot required.
+      *(done 2026-06-13 — after each tile paints, a setTimeout(0) runs
+      `runLint({seeds:[seed], bounds: tileWindow})` (pure plan mode, no game)
+      and fills the tile's badge (`⚠ overlap:51 drum-in-trees:9` top-2, or
+      `✓ clean`). Progressive: top rows showed filled badges while bottom rows
+      were still "…", all 12 resolved within a few seconds. /tmp/gallery2.png.)*
 
 ## 6. Hub viewer (`hub-sandbox.html`)
 

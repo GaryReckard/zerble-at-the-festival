@@ -87,7 +87,9 @@
     <label><input type="checkbox" id="ly-roles" /> role tiers</label>
     <label><input type="checkbox" id="ly-festival" checked /> festival (POIs — D2)</label>
     <label><input type="checkbox" id="ly-grammar" checked /> layout grammar (front-axis F — D3)</label>
+    <label><input type="checkbox" id="ly-extent" /> true extent (snapshot + envelopes)</label>
     <label><input type="checkbox" id="ly-grid" checked /> heart-cell grid</label>
+    <div id="extent-status" style="font-size:10px;color:#7fae97;margin:2px 0 0;display:none;"></div>
     <hr />
     <div class="row"><button id="btn-reset">reset view</button><button id="btn-selftest">self-test</button></div>
     <div id="stats"></div>
@@ -109,6 +111,8 @@ import { approachRoadsOf } from './src/worldgen/roads.js';
 import { treeDensity } from './src/worldgen/density.js';
 import { runSelfTest } from './src/worldgen/selftest.js';
 import { CONFIG, bumpWorldgen } from './src/worldgen/constants.js';
+import { clusterExtent } from './src/worldgen/tuning.js';
+import { runLint } from './src/worldgen/lint.js';
 import { worldHash } from './src/rng.js';
 
 const cv = document.getElementById('map');
@@ -117,9 +121,53 @@ const ctx = cv.getContext('2d');
 // --- view state (world coords at screen center + pixels-per-meter zoom) ------
 const DEFAULTS = { cx: 0, cz: 0, zoom: 0.06 };   // zoomed out to read macro structure
 const view = { ...DEFAULTS };
-const layers = { hearts: true, roads: true, water: true, density: true, roles: false, festival: true, grammar: true, grid: true };
+const layers = { hearts: true, roads: true, water: true, density: true, roles: false, festival: true, grammar: true, extent: false, grid: true };
 let dirty = true;
 let lastInspect = null;
+
+// --- true-extent overlay (D-H / task 5.1) ------------------------------------
+// Two sources: (a) a captured layout-snapshot JSON — EXACT built sub-component
+// positions, so clipping clusters visibly overlap; (b) analytic tuning envelopes
+// (clusterExtent) — live for ANY seed, labelled approximate (registry mode is
+// the authority — design D-D). The snapshot is loaded by fetch (dev server
+// serves verification/) or drag-and-drop, and only its EXACT layer is gated on a
+// seed match so seed-A trucks never paint over seed-B's plan.
+let snapshot = null;       // { seed, _num, entries:[...], window, ... }
+// Scenery/structural kinds the registry linter excludes from clutter — we skip
+// them here too so the overlay reads as festival extents, not 1000 tree rings.
+const EXTENT_SCENERY = new Set(['forest_tree', 'lake_edge', 'shore', 'path_node', 'lamppost']);
+function seedNumOf(raw) { const cur = getSeed(); setSeed(resolveSeed(raw)); const n = getSeed(); setSeed(cur); return n; }
+function setExtentStatus(msg) {
+  const el = document.getElementById('extent-status');
+  el.style.display = layers.extent ? 'block' : 'none';
+  el.textContent = msg || '';
+}
+async function loadSnapshot(seedStr) {
+  // The committed spawn-window snapshot for this seed; filename is the RAW seed
+  // string ("1234" / "0xf7ef2a3c"), exactly what the seed input holds.
+  try {
+    const r = await fetch('verification/snapshots/' + encodeURIComponent(seedStr) + '.spawn.json');
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    adoptSnapshot(data, `fetched ${seedStr}.spawn.json (${data.entries.length} entries)`);
+  } catch (e) {
+    snapshot = null;
+    setExtentStatus(`no snapshot for "${seedStr}" — analytic envelopes only (drop a .json to load exact)`);
+    markDirty();
+  }
+}
+function adoptSnapshot(data, note) {
+  snapshot = data;
+  snapshot._num = seedNumOf(String(data.seed));
+  setExtentStatus(`snapshot: ${note}`);
+  markDirty();
+}
+function maybeFetchSnapshot() {
+  if (!layers.extent) return;
+  const s = document.getElementById('seed').value;
+  if (snapshot && String(snapshot.seed) === s) { setExtentStatus(`snapshot: ${snapshot.entries.length} entries (${s})`); return; }
+  loadSnapshot(s);
+}
 
 // --- URL deep-link (CG2.4) ---------------------------------------------------
 function readURL() {
@@ -382,6 +430,40 @@ function draw() {
     }
   }
 
+  // true-extent overlay (D-H / task 5.1): EXACT built colliders from a captured
+  // snapshot (seed-gated) + live analytic envelopes. The snapshot layer is what
+  // makes a truck-clips-vendor-booth bug VISIBLE — overlapping translucent fills
+  // darken where colliders interpenetrate.
+  if (layers.extent) {
+    const z = view.zoom;
+    // (a) analytic tuning envelopes — live, approximate (dashed violet rings)
+    if (region.hearts.length <= 80) {
+      ctx.strokeStyle = 'rgba(200,150,255,0.45)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      const envs = [];
+      for (const ht of region.hearts) for (const p of festivalPlan(ht)) envs.push(p);
+      for (const v of campVillagesNear(b)) envs.push(v);
+      ctx.beginPath();
+      for (const p of envs) {
+        const r = clusterExtent(p.kind, p.scale || 1) * z;
+        const x = w2sx(p.x), y = w2sy(p.z);
+        ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2);
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    // (b) exact built colliders from the snapshot (only if it's THIS seed)
+    if (snapshot && snapshot._num === getSeed()) {
+      ctx.fillStyle = 'rgba(255,96,72,0.30)'; ctx.strokeStyle = 'rgba(255,140,110,0.55)'; ctx.lineWidth = 0.6;
+      for (const e of snapshot.entries) {
+        if (EXTENT_SCENERY.has(e.kind)) continue;
+        const r = (e.colliderR != null ? e.colliderR : e.footprint) || 0;
+        if (r <= 0) continue;
+        const x = w2sx(e.x), y = w2sy(e.z);
+        if (x < -20 || y < -20 || x > w + 20 || y > h + 20) continue;
+        ctx.beginPath(); ctx.arc(x, y, r * z, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+    }
+  }
+
   // origin crosshair
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
   ctx.beginPath();
@@ -457,7 +539,7 @@ function inspect(wx, wz) {
   const t = queryPoint(wx, wz);
   lastInspect = t;
   const heart = t.heart ? `${t.heart.rank} @ (${t.heart.x},${t.heart.z}) cell(${t.heart.cx},${t.heart.cz})` : 'none';
-  document.getElementById('inspector').textContent =
+  let txt =
     `(${t.x}, ${t.z})\n` +
     `heart      ${heart}\n` +
     `dist       ${isFinite(t.heartDist) ? Math.round(t.heartDist) + 'm' : '∞'}   influence ${t.heartInfluence.toFixed(3)}\n` +
@@ -466,6 +548,36 @@ function inspect(wx, wz) {
     `road       ${t.onRoad ? t.roadTier : 'no'}   facing ${t.facing == null ? '—' : t.facing.toFixed(2)}\n` +
     `water      lake:${t.inLake} river:${t.onRiver} bridge:${t.bridge}   noBuild:${t.noBuild}\n` +
     `treeDens   ${t.treeDensity.toFixed(3)}   lifecycle ${t.lifecycle}`;
+  if (layers.extent) txt += '\n' + extentInspect(wx, wz);
+  document.getElementById('inspector').textContent = txt;
+}
+
+// task 5.2 — name the record under the cursor for both overlay sources. EXACT
+// snapshot entries win (smallest container) over the approximate analytic
+// envelope; falls back to the plan-cluster envelope from the cursor's heart.
+function extentInspect(wx, wz) {
+  if (snapshot && snapshot._num === getSeed()) {
+    let best = null, bestR = Infinity;
+    for (const e of snapshot.entries) {
+      if (EXTENT_SCENERY.has(e.kind)) continue;
+      const r = (e.colliderR != null ? e.colliderR : e.footprint) || 0;
+      if (r <= 0) continue;
+      if (Math.hypot(e.x - wx, e.z - wz) <= r && r < bestR) { best = e; bestR = r; }
+    }
+    if (best) return `extent     ${best.kind}  r=${bestR.toFixed(1)}m  (exact · snapshot)`;
+  }
+  const approx = envelopeAt(wx, wz);
+  return approx || `extent     — (no cluster here)`;
+}
+function envelopeAt(wx, wz) {
+  const h = queryPoint(wx, wz).heart;
+  if (!h) return null;
+  let best = null, bestR = Infinity;
+  for (const p of festivalPlan(h)) {
+    const r = clusterExtent(p.kind, p.scale || 1);
+    if (Math.hypot(p.x - wx, p.z - wz) <= r && r < bestR) { best = p; bestR = r; }
+  }
+  return best ? `extent     ${best.kind}  r≈${bestR.toFixed(1)}m  (approx · envelope)` : null;
 }
 
 // --- controls ----------------------------------------------------------------
@@ -474,11 +586,31 @@ const seedInput = document.getElementById('seed');
 // everything else FNV-hashes as a string — so seed "1234" here is the SAME world
 // as ?seed=1234 in the game (worldgen/index.js: the one door, or maps don't reproduce).
 function resolveSeed(raw) { return (raw !== '' && /^-?\d+$/.test(raw)) ? Number(raw) : raw; }
-seedInput.addEventListener('change', () => { setSeed(resolveSeed(seedInput.value)); markDirty(); writeURL(); });
+seedInput.addEventListener('change', () => { setSeed(resolveSeed(seedInput.value)); markDirty(); writeURL(); maybeFetchSnapshot(); });
 for (const k of Object.keys(layers)) {
   const el = document.getElementById('ly-' + k);
   if (el) el.addEventListener('change', () => { layers[k] = el.checked; markDirty(); writeURL(); });
 }
+document.getElementById('ly-extent').addEventListener('change', () => { setExtentStatus(''); maybeFetchSnapshot(); });
+
+// drop a layout-snapshot .json onto the canvas to load EXACT extents for any
+// seed; we switch the map to the snapshot's seed so they align.
+cv.addEventListener('dragover', e => { e.preventDefault(); });
+cv.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  f.text().then(txt => {
+    try {
+      const data = JSON.parse(txt);
+      if (!Array.isArray(data.entries)) throw new Error('not a layout snapshot (no entries[])');
+      seedInput.value = String(data.seed); setSeed(resolveSeed(String(data.seed)));
+      if (!layers.extent) { layers.extent = true; document.getElementById('ly-extent').checked = true; }
+      adoptSnapshot(data, `dropped ${f.name} (${data.entries.length} entries)`);
+      writeURL();
+    } catch (err) { setExtentStatus('drop failed: ' + err.message); }
+  });
+});
 document.getElementById('btn-reset').addEventListener('click', () => { Object.assign(view, DEFAULTS); markDirty(); writeURL(); });
 document.getElementById('btn-selftest').addEventListener('click', runTest);
 
@@ -553,15 +685,100 @@ document.getElementById('btn-copy').addEventListener('click', () => {
   try { navigator.clipboard.writeText(json); } catch (e) { /* file:// / preview may block */ }
 });
 
+// --- seed gallery (task 5.3 / 5.4) -------------------------------------------
+// ?gallery=N renders an NxM contact sheet — one spawn-hub-centred tile per seed —
+// so layout quality reads across a DISTRIBUTION, not one cherry-picked seed.
+// Tiles paint first (progressive), then each fills a PLAN-mode lint count badge
+// (no game boot needed — runLint is pure node-or-browser). Click a tile to open
+// the full map deep-linked to that seed's spawn hub.
+function paintTile(g, tw, th, vcx, vcz, z) {
+  const sx = wx => tw / 2 + (wx - vcx) * z, sy = wz => th / 2 + (wz - vcz) * z;
+  g.fillStyle = '#0d1411'; g.fillRect(0, 0, tw, th);
+  const b = { minX: vcx - tw / 2 / z, minZ: vcz - th / 2 / z, maxX: vcx + tw / 2 / z, maxZ: vcz + th / 2 / z };
+  const region = queryRegion(b);
+  g.fillStyle = 'rgba(74,150,210,0.55)';
+  for (const l of region.lakes) { g.beginPath(); l.outline.forEach((pt, k) => { const x = sx(pt.x), y = sy(pt.z); k ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); g.fill(); }
+  g.strokeStyle = '#b89570'; g.lineWidth = 1.5;
+  for (const seg of region.roads) { g.beginPath(); seg.points.forEach((pt, k) => { const x = sx(pt.x), y = sy(pt.z); k ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); }
+  for (const ht of region.hearts) {
+    for (const p of festivalPlan(ht)) {
+      const x = sx(p.x), y = sy(p.z);
+      g.fillStyle = p.kind.includes('stage') ? '#ffd24a' : p.kind === 'food_court' ? '#ff7a3b'
+        : p.kind === 'vendor_row' ? '#c9a24a' : p.kind === 'drum_circle' ? '#ff6a2a'
+        : p.kind === 'camp_village' ? '#9ed06a' : '#7aa0ff';
+      g.fillRect(x - 1.5, y - 1.5, 3, 3);
+    }
+    g.fillStyle = RANK_STYLE[ht.rank].fill;
+    g.beginPath(); g.arc(sx(ht.x), sy(ht.z), ht.rank === 'major' ? 4 : 2.5, 0, Math.PI * 2); g.fill();
+  }
+  g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(sx(0) - 4, sy(0)); g.lineTo(sx(0) + 4, sy(0)); g.moveTo(sx(0), sy(0) - 4); g.lineTo(sx(0), sy(0) + 4); g.stroke();
+}
+function initGallery(p) {
+  for (const id of ['map', 'panel', 'tune', 'inspector']) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+  document.title = 'Zerble — Seed Gallery';
+  const N = Math.max(1, Math.min(64, parseInt(p.get('gallery'), 10) || 12));
+  const seeds = p.has('seeds') ? p.get('seeds').split(',').map(s => s.trim()).filter(Boolean)
+                               : Array.from({ length: N }, (_, i) => String(i));
+  const wrap = document.createElement('div'); wrap.id = 'gallery';
+  wrap.style.cssText = 'position:fixed; inset:0; overflow:auto; padding:12px; display:grid; gap:10px; ' +
+    'grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); align-content:start; background:#0d1411;';
+  const header = document.createElement('div');
+  header.style.cssText = 'grid-column:1/-1; color:#9be8c0; font-size:13px;';
+  header.textContent = `SEED GALLERY · ${seeds.length} seeds · spawn-hub centred · click a tile for the full map · counts = PLAN-mode lint (approximate)`;
+  wrap.append(header);
+  document.body.append(wrap);
+
+  const TW = 230, TH = 170, SPAN = 620;   // tile px + world span (m) across a tile
+  const tiles = seeds.map(s => {
+    const cell = document.createElement('div');
+    cell.style.cssText = 'cursor:pointer; border:1px solid #2c4a3c; border-radius:6px; overflow:hidden; background:#07110d;';
+    const cvs = document.createElement('canvas'); cvs.width = TW; cvs.height = TH; cvs.style.cssText = 'display:block; width:100%;';
+    const lab = document.createElement('div'); lab.style.cssText = 'font-size:11px; color:#cfe3d8; padding:3px 6px; display:flex; justify-content:space-between; gap:6px;';
+    const name = document.createElement('span'); name.textContent = 'seed ' + s;
+    const badge = document.createElement('span'); badge.textContent = '…'; badge.style.color = '#7fae97';
+    lab.append(name, badge); cell.append(cvs, lab); wrap.append(cell);
+    return { seed: s, cvs, badge, cell };
+  });
+
+  let i = 0;
+  const prevSeed = getSeed();
+  function step() {
+    if (i >= tiles.length) { setSeed(prevSeed); return; }
+    const t = tiles[i++];
+    setSeed(resolveSeed(t.seed));
+    const hub = nearestMajorHeart(0, 0).heart;
+    const cx = hub ? hub.x : 0, cz = hub ? hub.z : 0;
+    paintTile(t.cvs.getContext('2d'), TW, TH, cx, cz, TW / SPAN);
+    t.cell.onclick = () => { location.href = `map-sandbox.html?seed=${encodeURIComponent(t.seed)}&cx=${Math.round(cx)}&cz=${Math.round(cz)}&zoom=1`; };
+    setTimeout(() => {   // 5.4 — count fills in AFTER the tile paints
+      const b = { minX: cx - SPAN / 2, minZ: cz - SPAN / 2, maxX: cx + SPAN / 2, maxZ: cz + SPAN / 2 };
+      const r = runLint({ seeds: [resolveSeed(t.seed)], bounds: b });
+      const total = Object.values(r.counts).reduce((a, b) => a + b, 0);
+      const top = Object.entries(r.counts).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, v]) => `${k}:${v}`).join(' ');
+      t.badge.textContent = total ? `⚠ ${top}` : '✓ clean';
+      t.badge.style.color = total ? '#ff8c8c' : '#76e6a2';
+    }, 0);
+    setTimeout(step, 0);
+  }
+  step();
+}
+
 // --- boot --------------------------------------------------------------------
 function syncLayerCheckboxes() {
   for (const k of Object.keys(layers)) { const el = document.getElementById('ly-' + k); if (el) el.checked = layers[k]; }
 }
-readURL();
-setSeed(resolveSeed(seedInput.value));
-syncLayerCheckboxes();
-resize();
-tick();
+const _params = new URLSearchParams(location.search);
+if (_params.has('gallery')) {
+  initGallery(_params);
+} else {
+  readURL();
+  setSeed(resolveSeed(seedInput.value));
+  syncLayerCheckboxes();
+  maybeFetchSnapshot();
+  resize();
+  tick();
+}
 
 // introspection handle for preview_eval scripting (CG2.5)
 window.__mapSandbox = {

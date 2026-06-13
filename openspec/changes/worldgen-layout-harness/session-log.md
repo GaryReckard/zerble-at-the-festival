@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 6 (hub viewer) COMPLETE — 6.1 disposeChunkByKey, 6.2 buildHubPreview+hub-sandbox.html, 6.3 acceptance (stage deck 21/21, 10-rebuild leak-free), 6.4 FESTIVAL_TUNING sliders, 6.5 bin/check-importmaps, 6.6 docs, 6.7 Noon/Midnight+game boot. Task 4.7 lint rules also done. Remaining in change: group 5 (map overlay/gallery), group 7 (playtest markers), 8.2 ROADMAP trim, 8.3 final smoke. Grammar-unblock milestone met since 8.1."
+current_task: "Group 5 (map-sandbox overlay + gallery) COMPLETE — 5.1 true-extent layer (exact snapshot + analytic envelopes), 5.2 point-inspector naming, 5.3 ?gallery=N contact sheet, 5.4 plan-mode lint badges. Remaining in change: group 7 (playtest markers), 8.2 ROADMAP trim, 8.3 final smoke. Grammar-unblock milestone met since 8.1."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -637,3 +637,35 @@ seatSlots:[]→no boarding/worldSeatPosition) + smiles.update to drain emitted
 smiles. Lesson for the grammar change: a viewer that reuses crowd.update needs
 the full zerble shape, not a minimal stub.
 **Refs:** -> Task 6.1..6.7, CHANGELOG 2026-06-13, hub-sandbox.html, src/chunks.js (buildHubPreview/disposeChunkByKey), bin/check-importmaps, reviews/hub-acceptance-6.3.md
+
+### 2026-06-13 -- Group 5 (map-sandbox true-extent overlay + seed gallery) COMPLETE
+**Event:** phase-change
+**What:** Built 5.1-5.4 entirely inside `map-sandbox.html` (pure dev surface —
+no src/ change, so both goldens are definitionally untouched, confirmed
+eddf8e50/4825fd0b). Two non-obvious points worth recording:
+  - **The exact overlay is seed-gated by NUMERIC session seed, not the string.**
+    A snapshot's filename/`seed` field is the RAW seed string ("1234" /
+    "0xf7ef2a3c"); the map's seed input holds the same string. But a hex string
+    FNV-hashes (0xf7ef2a3c → 1658821542) while a decimal string parses as a
+    number — so comparing strings would mostly work but is fragile. I store
+    `snapshot._num = seedNumOf(snapshot.seed)` (a setSeed→getSeed→restore helper,
+    side-effect-free) and gate the exact layer on `_num === getSeed()`. Same
+    seed-parse footgun the group-1 capture + group-4 links hit; the overlay
+    inherits the fix rather than re-tripping it.
+  - **Gallery lint uses PLAN mode on purpose (5.4) — no boots.** `runLint({seeds,
+    bounds})` is pure (sets+restores the session seed), so a 12-tile contact
+    sheet computes 12 lint passes with zero game boots. Counts are PLAN-mode
+    (approximate, over-counts overlap vs registry — baseline.md tracks that gap),
+    which is the right precision for a relative across-seeds glance; the header
+    labels them approximate. Progressive fill = paint tile synchronously, then
+    setTimeout(0) the lint so the tile shows before its badge.
+  Verified headless (agent-browser, canvas-2D so no SwiftShader issue): extent
+  overlay at 0xf7ef2a3c shows the vendor-booth grid interpenetrating the
+  food-court trucks (5.1 acceptance), inspector named a `tent r=2.2m (exact)`
+  (5.2), gallery=12 painted 12 tiles with lint badges + tile-click navigated
+  to the full-map deep-link (5.3/5.4), and the analytic-only fallback (extent on,
+  no committed snapshot for the seed) drew envelopes + a clear status line.
+  Console clean on every load. check-importmaps clean (tuning+lint already in
+  `wg` from groups 2/4). Remaining: group 7 (markers), 8.2 ROADMAP trim, 8.3
+  final smoke — then verify + smart-review (Gary's stated plan).
+**Refs:** -> Task 5.1..5.4, CHANGELOG 2026-06-13, map-sandbox.html, src/worldgen/{tuning,lint}.js (consumed, not changed)
