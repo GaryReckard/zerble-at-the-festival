@@ -258,7 +258,7 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
 
 ## 6. Hub viewer (`hub-sandbox.html`)
 
-- [ ] 6.1 **[Fable/careful-Opus]** Extract the shared by-key unload walk from
+- [x] 6.1 **[Fable/careful-Opus]** Extract the shared by-key unload walk from
       the chunk-removal path ([chunks.js:~340–400](../../../src/chunks.js#L340):
       shared-respecting dispose → `registry.removeChunk` (367) → crowd /
       stagePerformers / stageMusic / lenses / beams / cooks /
@@ -267,6 +267,16 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       Behavior-identical refactor — run the FULL gate ritual on this commit.
       done = ritual passes; helper is the only place the sweep lists are
       spliced by key.
+      *(done 2026-06-13 (careful-Opus, Fable unavailable) — `export function
+      disposeChunkByKey(scene, group, key, crowd)` at chunks.js:530; `_unload`
+      is now a 2-line caller. The by-key splices live ONLY in the helper. FULL
+      gate ritual PASS: (1) selftest goldens unchanged eddf8e50/4825fd0b; (2)
+      snapshot diff EMPTY across 3 TELEPORTED windows — 1234 shore 867,
+      0xf7ef2a3c dense 314, 0xf7ef2a3d dense 612 — the teleport forces
+      unload→reload, so EMPTY proves the new teardown path is byte-identical AND
+      leak-free on rebuild; (3) both flags boot clean, 0 error lines. The four
+      forest/cook sweep arrays are live ES-module imports, so in-place splice
+      mutates the same objects — behaviour-identical.)*
 - [ ] 6.2 **[Fable/careful-Opus]** Export `buildHubPreview(scene, heart, opts)`
       from chunks.js: specced synthetic ctx {cx, cz, key, cxWorld, czWorld,
       rng, group, region, crowd} matching `_generateWorldgen`'s

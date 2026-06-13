@@ -350,66 +350,10 @@ export class ChunkManager {
   }
 
   _unload(key, chunk) {
-    // Dispose all per-chunk geometries and materials so the GPU can free
-    // them. Module-level cached geos/mats are tagged `userData.shared` —
-    // those survive across chunks so we skip them (disposing would force a
-    // shader recompile next frame for any other chunk using the same mat).
-    chunk.group.traverse((obj) => {
-      if (obj.isMesh) {
-        if (!obj.geometry?.userData?.shared) obj.geometry?.dispose();
-        const m = obj.material;
-        if (Array.isArray(m)) {
-          for (const sub of m) if (!sub?.userData?.shared) sub?.dispose?.();
-        } else if (!m?.userData?.shared) {
-          m?.dispose?.();
-        }
-        // InstancedMesh holds its own instanceMatrix/instanceColor GPU
-        // buffers, separate from the (often shared) geometry/material above.
-        // dispose() frees only those — it does NOT touch geometry/material —
-        // so torch fields, string bulbs, and benches don't leak instance
-        // buffers when their chunk unloads.
-        if (obj.isInstancedMesh) obj.dispose();
-      }
-    });
-    this.scene.remove(chunk.group);
-
-    // Clean up registry + crowd + stage performers + stage music tagged with this chunk
-    registry.removeChunk(key);
-    if (this.crowd) this.crowd.unloadChunk(key);
-    for (let i = stagePerformers.length - 1; i >= 0; i--) {
-      if (stagePerformers[i].chunkKey === key) stagePerformers.splice(i, 1);
-    }
-    for (let i = stageMusic.length - 1; i >= 0; i--) {
-      if (stageMusic[i].chunkKey === key) {
-        Sound.detachStageMusic(stageMusic[i].handle);
-        stageMusic.splice(i, 1);
-      }
-    }
-    for (let i = stageLightLenses.length - 1; i >= 0; i--) {
-      if (stageLightLenses[i].chunkKey === key) stageLightLenses.splice(i, 1);
-    }
-    for (let i = stageBeamRefs.length - 1; i >= 0; i--) {
-      if (stageBeamRefs[i].chunkKey === key) stageBeamRefs.splice(i, 1);
-    }
-    for (let i = sugarShackCooks.length - 1; i >= 0; i--) {
-      if (sugarShackCooks[i].chunkKey === key) sugarShackCooks.splice(i, 1);
-    }
-    // Sweep forest animatables (campsite firepit / torch flicker state).
-    for (let i = forestAnimatables.length - 1; i >= 0; i--) {
-      if (forestAnimatables[i].chunkKey === key) forestAnimatables.splice(i, 1);
-    }
-    // Sweep LEAF drum-circle animatables (fire mesh pulse + PointLight flicker).
-    for (let i = forestDrumCircles.length - 1; i >= 0; i--) {
-      if (forestDrumCircles[i].chunkKey === key) forestDrumCircles.splice(i, 1);
-    }
-    // Detach forest-drum spatial music and free its oscillators.
-    for (let i = forestDrumMusic.length - 1; i >= 0; i--) {
-      if (forestDrumMusic[i].chunkKey === key) {
-        Sound.detachStageMusic(forestDrumMusic[i].handle);
-        forestDrumMusic.splice(i, 1);
-      }
-    }
-
+    // Shared teardown (task 6.1): dispose non-shared geo/mats, remove from the
+    // scene, sweep every by-key side-list. Extracted so the hub viewer rebuilds
+    // a hub the SAME way (footgun #6: module-level `userData.shared` survives).
+    disposeChunkByKey(this.scene, chunk.group, key, this.crowd);
     this.loaded.delete(key);
   }
 
@@ -570,6 +514,68 @@ export class ChunkManager {
         obj: jug,
         juice: 1.0,
       });
+    }
+  }
+}
+
+// Shared chunk teardown (extracted for the hub viewer, task 6.1). Disposes a
+// built group's non-shared geometry/materials, removes it from the scene, and
+// sweeps every by-key side-list (registry, crowd, stage performers/music/lenses/
+// beams, sugar-shack cooks, forest animatables/drum-circles/drum-music) tagged
+// with `key`. Behaviour-identical to the old inline `_unload` body — `_unload`
+// now just calls this then drops the loaded entry. The hub viewer reuses it to
+// rebuild a hub cleanly (the 10-rebuild leak check, task 6.3). `crowd` may be
+// null (a crowd-less rebuild). Module-level `userData.shared` geos/mats survive
+// (footgun #6); InstancedMesh.dispose frees only its own instance buffers.
+export function disposeChunkByKey(scene, group, key, crowd) {
+  group.traverse((obj) => {
+    if (obj.isMesh) {
+      if (!obj.geometry?.userData?.shared) obj.geometry?.dispose();
+      const m = obj.material;
+      if (Array.isArray(m)) {
+        for (const sub of m) if (!sub?.userData?.shared) sub?.dispose?.();
+      } else if (!m?.userData?.shared) {
+        m?.dispose?.();
+      }
+      if (obj.isInstancedMesh) obj.dispose();
+    }
+  });
+  scene.remove(group);
+
+  // Clean up registry + crowd + stage performers + stage music tagged with this chunk
+  registry.removeChunk(key);
+  if (crowd) crowd.unloadChunk(key);
+  for (let i = stagePerformers.length - 1; i >= 0; i--) {
+    if (stagePerformers[i].chunkKey === key) stagePerformers.splice(i, 1);
+  }
+  for (let i = stageMusic.length - 1; i >= 0; i--) {
+    if (stageMusic[i].chunkKey === key) {
+      Sound.detachStageMusic(stageMusic[i].handle);
+      stageMusic.splice(i, 1);
+    }
+  }
+  for (let i = stageLightLenses.length - 1; i >= 0; i--) {
+    if (stageLightLenses[i].chunkKey === key) stageLightLenses.splice(i, 1);
+  }
+  for (let i = stageBeamRefs.length - 1; i >= 0; i--) {
+    if (stageBeamRefs[i].chunkKey === key) stageBeamRefs.splice(i, 1);
+  }
+  for (let i = sugarShackCooks.length - 1; i >= 0; i--) {
+    if (sugarShackCooks[i].chunkKey === key) sugarShackCooks.splice(i, 1);
+  }
+  // Sweep forest animatables (campsite firepit / torch flicker state).
+  for (let i = forestAnimatables.length - 1; i >= 0; i--) {
+    if (forestAnimatables[i].chunkKey === key) forestAnimatables.splice(i, 1);
+  }
+  // Sweep LEAF drum-circle animatables (fire mesh pulse + PointLight flicker).
+  for (let i = forestDrumCircles.length - 1; i >= 0; i--) {
+    if (forestDrumCircles[i].chunkKey === key) forestDrumCircles.splice(i, 1);
+  }
+  // Detach forest-drum spatial music and free its oscillators.
+  for (let i = forestDrumMusic.length - 1; i >= 0; i--) {
+    if (forestDrumMusic[i].chunkKey === key) {
+      Sound.detachStageMusic(forestDrumMusic[i].handle);
+      forestDrumMusic.splice(i, 1);
     }
   }
 }
