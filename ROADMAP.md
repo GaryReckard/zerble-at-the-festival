@@ -101,59 +101,43 @@ error / 92 warn across 10 seeds) are the verification gate the grammar rewrite
 is graded against. (Harness groups 5/6/7 — map-sandbox overlay, hub viewer,
 playtest markers — are in-change fast-follows, not grammar blockers.)
 
-### Layout-work agent harness *(designed 2026-06-10)*
+### Layout-work agent harness — ✓ SHIPPED *(designed 2026-06-10, landed 2026-06-13)*
 
-Every existing surface verifies the *plan* (map-sandbox), an *entity*
-(sandbox.html), *determinism* (selftest goldens), or *perf* (HUD) — none
-verifies the **built composition**, which is where every arrangement bug lives.
-Today the only detector is Gary driving around. Queued additions, in priority
-order (full designs: OpenSpec `worldgen-layout-harness`):
+None of the existing surfaces verified the **built composition** (where every
+arrangement bug lives) — the only detector was Gary driving around. The
+`worldgen-layout-harness` change built that surface and shipped: the **layout
+linter** (`src/worldgen/lint.js` + `bin/lint`, plan + registry modes, 10 rules,
+the eyes-pipeline links), the **hub viewer** (`hub-sandbox.html` +
+`buildHubPreview`, real builders on a flat plane, live `FESTIVAL_TUNING`
+sliders), the **`FESTIVAL_TUNING` hoist** (`src/worldgen/tuning.js`), the
+**`__dbg` layout verbs** (`dumpRegistry` / `gotoHub` / `topDown` /
+`showFootprints`) + **`bin/layout-snapshot`**, the **map-sandbox true-extent
+overlay + `?gallery=N` seed contact-sheet**, **playtest markers** (`K` /
+triple-tap → localStorage), and **`verification/baseline.md`** (the number the
+grammar rewrite drives down). Full record: CHANGELOG 2026-06-10…06-13 + OpenSpec
+`worldgen-layout-harness`.
 
-- **Layout linter** ✓ *shipped (group 4, 2026-06-13)* — `src/worldgen/lint.js`
-  + `bin/lint`, plan + registry modes (registry = the exact authority over a
-  captured snapshot; plan = approximate, headless, no capture). Rules: overlap,
-  water-clear, dancefloor-clear, booth-on-road, potty-attached, truck-off-road
-  (+ cross-hub stage-spacing / spawn-arrival in plan mode). Each violation
-  carries the 2D/3D/teleport eyes-pipeline; `gotoHub(n)` prints a hub's findings.
-  The regression gate for the grammar refactor — the assertions ARE the spec.
+Genuinely-remaining follow-ups (not blockers):
+
+- **Dry-runnable builders** *(deferred to `festival-zone-grammar` per
+  worldgen-layout-harness deliberation 001 / D6 — the extraction lands under that
+  change's already-moving golden)* — builders express sub-component layouts as
+  pure data (descriptor in → positions/radii out, no three.js). The true-extent
+  overlay already consumes captured registry snapshots; this would feed it (and
+  the linter's plan mode, and the shape-aware planner) *exact* extents headlessly.
 - **`bin/layout-snapshot capture` — survive headless-only boxes** *(surfaced
   2026-06-12)*: the one-command path dies when there's no GPU (SwiftShader
   saturates at `perf=high`, so `agent-browser open` times out on its load-wait).
   Teach `capture` to inject the `document.hidden` init-script (flip the game onto
   its `setTimeout(16ms)` loop, `main.js:1093`) and tolerate the open-timeout — the
-  manual workaround that cleared the 2.4 gate is in DEBUGGING.md "Layout snapshots".
-- **Dry-runnable builders + true-extent map-sandbox overlay** *(deferred to
-  `festival-zone-grammar` per worldgen-layout-harness deliberation 001 / D6 —
-  the dry-run extraction lands under that change's already-moving golden)* — builders
-  express sub-component layouts as pure data (descriptor in → positions/radii
-  out, no three.js); the 2D sandbox then draws every actual truck/booth/tent
-  so clipping is visible at a glance. Same data feeds the linter and the
-  shape-aware planner.
-- **Hub viewer** — the missing middle between one-entity sandbox and the full
-  game: build ONE complete hub (real `festivalPlan` + real builders) on a flat
-  plane, free-orbit, deep-linkable `?seed=&hub=`. Where grammar iteration and
-  Gary-facing 3D screenshots happen.
-- **`__dbg` additions** ✓ *shipped (group 1, 2026-06-10)* — `gotoHub(n)` (teleport
-  + canonical camLock), `topDown(x,z,span)` (ortho snapshot, catches cross-chunk
-  seams), `showFootprints()` (registry footprints + dancefloor rects as ground
-  decals), `dumpRegistry(bounds)` (JSON of built truth — lets the linter audit
-  the LIVE game, closing the sandbox-pass/game-fail class for layout).
-- **Playtest marker hotkey** — drop `{seed, position, heading, note}` markers
-  during Gary's playtests w/ copy-out, so feedback arrives as teleportable
-  coordinates instead of prose archaeology.
-- **Seed-gallery batch snapshots** — contact-sheet montage of map-sandbox/hub
-  renders across 10-20 seeds; layout quality is a distribution property and
-  single-seed verification keeps missing the tail.
-- **`FESTIVAL_TUNING` live-slider UI** (round-2 item J) — wire to the hub
-  viewer (instant single-hub rebuild) rather than the streaming world.
+  manual workaround is in DEBUGGING.md "Layout snapshots".
 - **Importmap bootstrap dedupe** *(parked 2026-06-10, beyond the harness
   change — Gary call)*: the four html pages (index, sandbox, map-sandbox,
   hub-sandbox) each carry a near-identical inline cache-buster/importmap
   injector; they could collapse into one shared classic-script bootstrap. Not
-  urgent — the harness change ships a consistency-checker script that fails
-  loudly on list drift — and it touches prod loading, so it must not ride
-  inside a golden-frozen change. See `worldgen-layout-harness`
-  deliberations/001-initial (Q6).
+  urgent — `bin/check-importmaps` fails loudly on list drift — and it touches
+  prod loading, so it must not ride inside a golden-frozen change. See
+  `worldgen-layout-harness` deliberations/001-initial (Q6).
 
 ---
 

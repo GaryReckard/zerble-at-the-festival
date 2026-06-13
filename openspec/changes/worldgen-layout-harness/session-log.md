@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
-status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 7 (playtest markers) COMPLETE — 7.1 K-key + triple-tap touch drop, 7.2 overlay Markers section (list/note/tp/copy/clear), 7.3 no-leak + DEBUGGING.md. Remaining in change: 8.2 ROADMAP trim, 8.3 final smoke — then opsx-verify + smart-review. Grammar-unblock milestone met since 8.1."
+status: complete           # not_started | in_progress | blocked | paused | complete
+current_task: "ALL 40 tasks complete (groups 0-2,4-8; group 3 retired). Harness shipped: dumpRegistry+layout-snapshot, FESTIVAL_TUNING hoist, linter, map overlay+gallery, hub viewer, playtest markers, baseline. 8.2 ROADMAP trimmed, 8.3 two-flag smoke clean. Next: opsx-verify + /smart-review, then festival-zone-grammar."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -695,3 +695,19 @@ and the game at perf=low boots fine headless WITHOUT the document.hidden trick
 (that trick is only needed for perf=high render saturation). Next: 8.2 ROADMAP
 trim + 8.3 final smoke, then opsx-verify + /smart-review (Gary's plan).
 **Refs:** -> Task 7.1..7.3, CHANGELOG 2026-06-13, src/debug.js, DEBUGGING.md, input.js:67 (M taken)
+
+### 2026-06-13 -- Group 8 close-out (8.2 ROADMAP trim + 8.3 final smoke) — change COMPLETE
+**Event:** phase-change (change complete)
+**What:** 8.2 trimmed the ROADMAP "Layout-work agent harness" section to ✓ SHIPPED
++ a summary + only the three genuine follow-ups (dry-run builders deferred to
+festival-zone-grammar, headless-capture survival, importmap-bootstrap dedupe).
+8.3 final smoke: both `?worldgen=1` and `?worldgen=0` at seed 1234 / perf=low
+booted clean via agent-browser (ZERO error-level console lines; worldgen=1 →
+1749 entries/50 NPCs, worldgen=0 → 5499/180), HUD budget healthy (draws 1/80
+[ok]) — confirming the harness added no game-path draws (the only game-path
+edit all change was debug.js's markers, which are DOM/localStorage). **All 40
+tasks complete** (group 3 retired per the pivot). The grammar-unblock milestone
+was already met at 8.1; the remaining fast-follows (5/6/7) + close-out are now
+done too. Next per Gary's plan: `/opsx:verify` this change, then `/smart-review`,
+fold any must-fix back, then start `festival-zone-grammar`.
+**Refs:** -> Task 8.2, -> Task 8.3, ROADMAP "Layout-work agent harness", CHANGELOG 2026-06-13

@@ -488,10 +488,24 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       reproduces every row. RECORD-not-fix. **Grammar-unblock milestone (groups
       1+2+4+8.1) is now MET — festival-zone-grammar is unblocked.** Hub-viewer
       3D links are forward-compatible (group 6); screenshots stand in for now.)*
-- [ ] 8.2 ROADMAP "Layout-work agent harness" trim sweep (per-commit CHANGELOG
+- [x] 8.2 ROADMAP "Layout-work agent harness" trim sweep (per-commit CHANGELOG
       entries already landed with each group).
       done = ROADMAP section reduced to whatever genuinely remains.
-- [ ] 8.3 Final smoke: boot `?worldgen=1` and `?worldgen=0` at seed 1234 +
+      *(done 2026-06-13 — the section now reads "✓ SHIPPED" with a one-paragraph
+      summary of what landed (linter, hub viewer, tuning hoist, __dbg verbs +
+      layout-snapshot, overlay+gallery, markers, baseline) pointing at
+      CHANGELOG/OpenSpec, and keeps ONLY the three genuine follow-ups: the
+      dry-run builders (deferred to festival-zone-grammar), headless-capture
+      survival, and the importmap-bootstrap dedupe. The "Festival layout" gate
+      note already records the milestone as MET.)*
+- [x] 8.3 Final smoke: boot `?worldgen=1` and `?worldgen=0` at seed 1234 +
       `?perf=low`, zero console errors; backtick budget panel unchanged
       in-game (harness adds no game-path draws).
       done = console logs + HUD screenshot at both flags, low tier included.
+      *(done 2026-06-13 — both flags at seed 1234 / perf=low booted via
+      agent-browser → `__dbg.start()` → ZERO error-level console lines:
+      worldgen=1 generated 1749 registry entries / 50 NPCs, worldgen=0 5499 /
+      180. HUD budget panel healthy (draws 1/80 [ok], tris 1/150k [ok]) — the
+      harness added no game-path draws (debug.js markers are DOM/localStorage;
+      map-sandbox + tuning/lint aren't on the streaming path). Screenshot:
+      /tmp/markers-final.png shows the in-game HUD panel at perf=low.)*
