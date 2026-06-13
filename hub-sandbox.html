@@ -93,6 +93,7 @@ import { buildHubPreview, disposeChunkByKey, updateStageLightShow, updateStagePe
 import { Crowd } from './src/crowd.js';
 import { Smiles } from './src/smiles.js';
 import { LakeManager } from './src/lakes.js';
+import { registry } from './src/registry.js';
 
 const canvas = document.getElementById('canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -141,7 +142,21 @@ scene.add(ground);
 const smiles = new Smiles(); scene.add(smiles.group);
 const crowd = new Crowd(smiles); scene.add(crowd.group);
 const lakes = new LakeManager();
-const dummyZerble = { pos: new THREE.Vector3(0, 0, 9999), position: new THREE.Vector3(0, 0, 9999), juice: 1 };
+// Stand-in "player" so crowd.update + smiles.update run without the game loop.
+// crowd reads position/forwardWorld/heading/speed/seatSlots/worldSeatPosition
+// (verified against crowd.js). seatSlots:[] makes findSeat return null, so NPCs
+// never board (and worldSeatPosition never really fires) — they just wander +
+// smile at the parked cart. Parked AT the hub each build so they aren't culled.
+const dummyZerble = {
+  pos: new THREE.Vector3(0, 0, 9999),
+  position: new THREE.Vector3(0, 0, 9999),
+  forwardWorld: new THREE.Vector3(0, 0, 1),
+  heading: 0,
+  speed: 0,
+  seatSlots: [],
+  worldSeatPosition: (_slot, out) => (out || new THREE.Vector3()).set(0, 0, 9999),
+  juice: 1,
+};
 
 let current = null;   // { group, key, heart }
 const info = document.getElementById('info');
@@ -225,7 +240,8 @@ function frame() {
   // Keep the festival ALIVE without the game loop: crowd wander + the stage
   // light show + performers, fed the current nightness (the values main.js feeds).
   if (crowd.npcs && crowd.npcs.length) crowd.update(dt, dummyZerble, null);
-  updateStageLightShow(now / 1000, tod.nightness, dummyZerble.pos);
+  smiles.update(dt, dummyZerble, () => {});   // drain any smiles the crowd emits at the cart
+  updateStageLightShow(now / 1000, tod.nightness, dummyZerble.position);
   updateStagePerformers(now / 1000);
   renderer.render(scene, camera);
   if (document.hidden) setTimeout(frame, 16); else requestAnimationFrame(frame);
@@ -240,6 +256,27 @@ window.__hubSandbox = {
   get heart() { return current && current.heart; },
   get key() { return current && current.key; },
   build, rebuild: () => build(seedInput.value, +hubInput.value, initAt),
+  // Registry dump in the SAME shape as __dbg.dumpRegistry, so the acceptance
+  // test (6.3) can diff the viewer's built sub-components against a game capture
+  // with bin/layout-snapshot. Optional bounds {minX,minZ,maxX,maxZ}.
+  dumpRegistry(b) {
+    const inB = b ? (p) => p.x >= b.minX && p.x <= b.maxX && p.z >= b.minZ && p.z <= b.maxZ : () => true;
+    const out = [];
+    for (const e of registry.entries.values()) {
+      const p = e.position;
+      if (!inB(p)) continue;
+      out.push({
+        kind: e.kind, x: p.x, z: p.z,
+        footprint: e.footprint || 0,
+        colliderR: e.collider ? e.collider.radius : null,
+        damage: e.collider ? e.collider.damage : null,
+        attractorR: e.attractor ? e.attractor.radius : null,
+        attractorW: e.attractor ? e.attractor.weight : null,
+        chunkKey: e.chunkKey || null,
+      });
+    }
+    return out;
+  },
 };
 </script>
 </body>

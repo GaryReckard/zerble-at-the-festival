@@ -333,6 +333,19 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       result (no leak feedback into `closestBuilding`,
       [registry.js:143](../../../src/registry.js#L143)).
       done = documented empty (or fully-explained) diff + the 10-rebuild check.
+      *(done 2026-06-13 — reviews/hub-acceptance-6.3.md. The unambiguous anchor —
+      the spawn hub's main-stage deck — matches 21/21 tiles EXACTLY (pos +
+      colliderR + damage), proving the clusterSeed build path is faithful; 81
+      festival sub-components matched. Every diff explained: only-game (75) =
+      neighbour-hub clusters in the 300×300 game WINDOW (vs one hub) + the spawn
+      `arch` (main.js builds it, not festivalPlan, so the viewer correctly omits
+      it) + out-of-reach camp cells; only-viewer (3) = a lake beach + 2 lakeside
+      camps the viewer's LakeManager force-loaded that the game hadn't streamed at
+      capture. No unexplained diff → no STOP. 10-rebuild leak check: 172 entries
+      ×10, identical (disposeChunkByKey tears down clean). NOTE caught a real
+      runtime crash en route — frame-loop `crowd.update` needs a COMPLETE zerble
+      stub (forwardWorld/heading/speed/seatSlots/worldSeatPosition), not the
+      2-field one; fixed (Gary-reported).)*
 - [ ] 6.4 `FESTIVAL_TUNING` slider panel + copy-CONFIG (mirror map-sandbox
       TUNING·LIVE: h1 ~98 / syncTune ~526 / setConfig ~577; rebuild on
       drag-end or rAF-throttle — decide at build, note in code).
