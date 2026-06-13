@@ -235,23 +235,24 @@ for (const b of document.querySelectorAll('[data-tod]')) {
 // festivalPlan/front-axis memo caches — the contract setFestivalTuning leaves to
 // the caller), and rebuild the hub. Mirrors map-sandbox's TUNING·LIVE.
 const tuneSpec = [
-  { key: 'DANCEFLOOR_DEPTH_BASE', min: 10, max: 70, step: 1 },
-  { key: 'DANCEFLOOR_HALFWIDTH_BASE', min: 6, max: 40, step: 1 },
-  { key: 'FOOD_COURT_RING_MULT', min: 6, max: 24, step: 0.5 },
-  { key: 'FOOD_COURT_WALK_MAJOR', min: 40, max: 160, step: 2 },
-  { key: 'VENDOR_ROW_SPACING', min: 3, max: 9, step: 0.1 },
-  { key: 'VENDOR_ROW_OFFSET', min: 4, max: 14, step: 0.5 },
-  { key: 'VENDOR_ROW_WALK_MAJOR', min: 30, max: 140, step: 2 },
-  { key: 'VENDOR_ROW_COUNT_BASE', min: 3, max: 9, step: 1 },
-  { key: 'BUBBLE_WALK_MAJOR', min: 20, max: 120, step: 2 },
-  { key: 'DRUM_BAND', min: 60, max: 260, step: 5 },
+  { key: 'DANCEFLOOR_DEPTH_BASE', min: 10, max: 70, step: 1, tip: 'Depth (m) of the cleared dance area in front of the stage. Bigger = more open space before the stage, and food courts / vendor rows get pushed farther out so they stay off the floor.' },
+  { key: 'DANCEFLOOR_HALFWIDTH_BASE', min: 6, max: 40, step: 1, tip: 'Half-width (m) of the cleared dance area, to each side of the stage’s facing direction. Bigger = a wider clear floor.' },
+  { key: 'FOOD_COURT_RING_MULT', min: 6, max: 24, step: 0.5, tip: 'Food-truck ring radius, as a multiple of truck size. Bigger = the trucks fan out into a wider circle (too big and the ring can overlap neighbours).' },
+  { key: 'FOOD_COURT_WALK_MAJOR', min: 40, max: 160, step: 2, tip: 'How far down the main road (m) a food court sits from the hub centre. Bigger = food courts farther from the stage.' },
+  { key: 'VENDOR_ROW_SPACING', min: 3, max: 9, step: 0.1, tip: 'Gap (m) between booths along a vendor row. Bigger = a longer, more spread-out market street.' },
+  { key: 'VENDOR_ROW_OFFSET', min: 4, max: 14, step: 0.5, tip: 'How far each booth sits from the road centreline (m) — half the drive aisle. Bigger = a wider lane between the two booth lines (too small and booths sit in the road).' },
+  { key: 'VENDOR_ROW_WALK_MAJOR', min: 30, max: 140, step: 2, tip: 'How far down the road (m) a vendor row sits from the hub centre.' },
+  { key: 'VENDOR_ROW_COUNT_BASE', min: 3, max: 9, step: 1, tip: 'Base number of booths per side of a vendor row (a small random amount is added on top).' },
+  { key: 'BUBBLE_WALK_MAJOR', min: 20, max: 120, step: 2, tip: 'How far down a quieter road (m) the refuel bubble vendor sits from the hub centre.' },
+  { key: 'DRUM_BAND', min: 60, max: 260, step: 5, tip: 'How far past the hub core (m) the drum circle may wander to find a treed pocket. Bigger = the drum can sit deeper in the woods.' },
 ];
 const tuneEl = document.getElementById('tune');
 for (const s of tuneSpec) {
   const wrap = document.createElement('div');
   wrap.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0';
+  wrap.title = s.tip;   // plain-English explanation on hover (label, slider, value)
   const lab = document.createElement('span');
-  lab.style.cssText = 'flex:0 0 118px;font-size:9px;color:#cdbfe0';
+  lab.style.cssText = 'flex:0 0 118px;font-size:9px;color:#cdbfe0;cursor:help';
   const val = document.createElement('span');
   val.style.cssText = 'flex:0 0 30px;font-size:9px;text-align:right;color:#ffd28a';
   const rng = document.createElement('input');
