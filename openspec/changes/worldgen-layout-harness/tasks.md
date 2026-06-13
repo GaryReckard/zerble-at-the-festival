@@ -326,7 +326,7 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       row+pottys+string-lights+crowd; `?at=-42,-159` resolves to the (-1,-1) minor;
       zero console errors; no Sound.init. Game boot + selftest goldens unaffected
       (buildHubPreview is viewer-only). reviews/hub-6.2-spawn-noon.png.)*
-- [ ] 6.3 Acceptance test: diff hub-viewer sub-component positions vs a game
+- [x] 6.3 Acceptance test: diff hub-viewer sub-component positions vs a game
       `dumpRegistry` at the same seed/hub/tier — every difference explained
       line-by-line or eliminated (STOP condition in APPLY-GUARDRAILS if not);
       rebuilds via the 6.1 shared teardown; ten same-value rebuilds → identical
