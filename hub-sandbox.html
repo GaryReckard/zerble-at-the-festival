@@ -95,6 +95,7 @@ import { setSeed, getSeed } from './src/worldgen/index.js';
 import { FESTIVAL_TUNING, setFestivalTuning } from './src/worldgen/tuning.js';
 import { bumpWorldgen } from './src/worldgen/constants.js';
 import { nearestMajorHeart, nearestHeart, heartsInBounds } from './src/worldgen/hearts.js';
+import { dancefloorRect } from './src/worldgen/festival.js';
 import { buildHubPreview, disposeChunkByKey, updateStageLightShow, updateStagePerformers } from './src/chunks.js';
 import { Crowd } from './src/crowd.js';
 import { Smiles } from './src/smiles.js';
@@ -165,6 +166,7 @@ const dummyZerble = {
 };
 
 let current = null;   // { group, key, heart }
+let floorMesh = null; // translucent dancefloor-clearing overlay (viewer decoration)
 const info = document.getElementById('info');
 const seedInput = document.getElementById('seed');
 const hubInput = document.getElementById('hub');
@@ -188,6 +190,13 @@ function resolveHeart(hubN, at) {
 function build(seedRaw, hubN, at) {
   setSeed(resolveSeedInput(seedRaw));
   if (current) { disposeChunkByKey(scene, current.group, current.key, crowd); current = null; }
+  if (floorMesh) { scene.remove(floorMesh); floorMesh.geometry.dispose(); floorMesh.material.dispose(); floorMesh = null; }
+  // Despawn the old crowd before the rebuild spawns a fresh batch. crowd.unloadChunk
+  // is a no-op (the game culls by DISTANCE instead, in _despawnDistant), and our
+  // dummy is parked AT the hub so NPCs never go distant — so without this, every
+  // rebuild stacks another batch. Park the dummy far + tick once to despawn all.
+  dummyZerble.position.set(0, 0, 1e6); dummyZerble.pos.copy(dummyZerble.position);
+  crowd.update(0, dummyZerble, null);
   const heart = resolveHeart(hubN, at);
   if (!heart) { info.textContent = 'no hub found near origin for this seed'; return; }
   current = buildHubPreview(scene, heart, { crowd, lakes });
@@ -195,6 +204,18 @@ function build(seedRaw, hubN, at) {
   // NPCs here (a far zerble culls them as out-of-range).
   dummyZerble.pos.set(heart.x, 0, heart.z);
   dummyZerble.position.copy(dummyZerble.pos);
+  // Dancefloor-clearing overlay: a translucent patch over the cleared floor in
+  // front of the stage (the same `dancefloorRect` the tree-scatter + linter use),
+  // so the DANCEFLOOR_* sliders visibly resize something AND you can see a cluster
+  // clipping the clear floor. Box yaw'd about Y: local +Z → (dirx,dirz).
+  const f = dancefloorRect(heart);
+  floorMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(f.halfWidth * 2, 0.08, f.depth),
+    new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.15, depthWrite: false }),
+  );
+  floorMesh.rotation.y = Math.atan2(f.dirx, f.dirz);
+  floorMesh.position.set(f.cx + f.dirx * f.depth / 2, 0.06, f.cz + f.dirz * f.depth / 2);
+  scene.add(floorMesh);
   // Frame the hub: orbit target at the heart, pulled back to see the dancefloor.
   controls.target.set(heart.x, 2, heart.z);
   camera.position.set(heart.x + 70, 55, heart.z + 70);
