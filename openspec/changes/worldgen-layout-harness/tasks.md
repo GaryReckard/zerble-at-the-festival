@@ -351,11 +351,18 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       drag-end or rAF-throttle — decide at build, note in code).
       done = dragging ring-radius slider visibly rebuilds the hub; copy CONFIG
       yields valid JSON.
-- [ ] 6.5 Importmap consistency-checker script (node, sibling of
+- [x] 6.5 Importmap consistency-checker script (node, sibling of
       bin/layout-snapshot): regex-extract module arrays from all FOUR html
       files, diff against src/ + src/worldgen/ contents, fail loudly.
       done = deleting one entry from one file makes the script exit non-zero
       naming file + module.
+      *(done 2026-06-13 — `bin/check-importmaps` (CJS). FULL pages
+      (index/sandbox/hub-sandbox) must list every src/*.js + worldgen/*.js in
+      `mods` + every models/*.js in `models`; map-sandbox (`wg`) must list every
+      worldgen/*.js + rng. Reverse-checks listed `worldgen/*` tokens map to real
+      files. Clean: "30 src + 12 worldgen + 27 models across 4 pages"; dropping
+      `worldgen/lint` from map-sandbox → "map-sandbox.html: missing
+      'worldgen/lint'", exit 1. Confirms hub-sandbox.html is fully wired.)*
 - [ ] 6.6 Docs: no-build.md ("every consuming html file" — four enumerated) +
       sandbox-and-testing.md (hub viewer renders new POI kinds by construction)
       + `src/worldgen/README.md` (tuning/lint modules, built-truth substrate,

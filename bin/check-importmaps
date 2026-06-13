@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+/*
+ * bin/check-importmaps — fail loudly when an importmap module array drifts from
+ * the actual src/ tree (worldgen-layout-harness task 6.5). The no-build repo has
+ * NO bundler, so every html page that loads a module must list it in its inline
+ * cache-buster array (guardrail #8 / no-build.md). Forgetting one means edits
+ * silently stop reloading on local dev — a footgun that has bitten repeatedly.
+ *
+ * The FOUR consuming pages, and what each must cover:
+ *   index.html / sandbox.html / hub-sandbox.html  (FULL — load the whole game):
+ *     every src/*.js in `mods`, every src/worldgen/*.js in `mods`,
+ *     every src/models/*.js in `models`.
+ *   map-sandbox.html  (worldgen-only): every src/worldgen/*.js (+ rng) in `wg`.
+ *
+ * Exits 0 when consistent, 1 (naming file + module) otherwise. CommonJS so it
+ * runs as an extensionless bin script, like bin/layout-snapshot / bin/lint.
+ */
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.resolve(__dirname, '..');
+const list = (dir, prefix = '') =>
+  fs.readdirSync(path.join(ROOT, dir)).filter((f) => f.endsWith('.js')).map((f) => prefix + f.replace(/\.js$/, ''));
+
+const TOP = list('src');                       // bare names: 'main', 'chunks', …
+const WG = list('src/worldgen', 'worldgen/');  // 'worldgen/lint', …
+const MODELS = list('src/models');             // bare names: 'canoe', …
+
+// role: 'full' = mods (src + worldgen) + models; 'wg' = worldgen-only (+ rng).
+const PAGES = {
+  'index.html': 'full',
+  'sandbox.html': 'full',
+  'hub-sandbox.html': 'full',
+  'map-sandbox.html': 'wg',
+};
+
+// Pull the quoted tokens out of every `const <name> = [ … ]` whose name is in
+// ARRS, across newlines. Returns the union as a Set.
+const ARRS = ['mods', 'models', 'wg'];
+function declaredTokens(src) {
+  const out = new Set();
+  for (const name of ARRS) {
+    const m = src.match(new RegExp('const\\s+' + name + '\\s*=\\s*\\[([\\s\\S]*?)\\]'));
+    if (!m) continue;
+    for (const t of m[1].matchAll(/'([^']+)'/g)) out.add(t[1]);
+  }
+  return out;
+}
+
+let failed = false;
+const problems = [];
+for (const [page, role] of Object.entries(PAGES)) {
+  const p = path.join(ROOT, page);
+  if (!fs.existsSync(p)) { problems.push(`${page}: MISSING file`); failed = true; continue; }
+  const declared = declaredTokens(fs.readFileSync(p, 'utf8'));
+  if (declared.size === 0) { problems.push(`${page}: no mods/models/wg array found`); failed = true; continue; }
+
+  const need = role === 'full' ? [...TOP, ...WG, ...MODELS] : [...WG, 'rng'];
+  for (const mod of need) {
+    if (!declared.has(mod)) { problems.push(`${page}: missing '${mod}'`); failed = true; }
+  }
+  // Reverse: a listed worldgen/* token must map to a real file (catch a deleted
+  // or mistyped module still referenced).
+  for (const t of declared) {
+    if (t.startsWith('worldgen/') && !WG.includes(t)) {
+      problems.push(`${page}: lists '${t}' but src/${t}.js does not exist`); failed = true;
+    }
+  }
+}
+
+if (failed) {
+  process.stderr.write('importmap drift:\n  ' + problems.join('\n  ') + '\n');
+  process.exit(1);
+}
+process.stdout.write(`importmaps OK — ${TOP.length} src + ${WG.length} worldgen + ${MODELS.length} models across ${Object.keys(PAGES).length} pages\n`);
