@@ -106,12 +106,13 @@ verifies the **built composition**, which is where every arrangement bug lives.
 Today the only detector is Gary driving around. Queued additions, in priority
 order (full designs: OpenSpec `worldgen-layout-harness`):
 
-- **Layout linter** — headless node script asserting *quality* invariants
-  (no footprint overlaps, nothing in a dancefloor wedge, booths straddle +
-  face roads, no truck on a road, potties attached to a parent, stage-stage
-  min distance, spawn on road w/ arch + stage ahead) across N seeds; outputs
-  violations w/ seed + coords + deep-link. The regression gate for the grammar
-  refactor — the assertions ARE the spec.
+- **Layout linter** ✓ *shipped (group 4, 2026-06-13)* — `src/worldgen/lint.js`
+  + `bin/lint`, plan + registry modes (registry = the exact authority over a
+  captured snapshot; plan = approximate, headless, no capture). Rules: overlap,
+  water-clear, dancefloor-clear, booth-on-road, potty-attached, truck-off-road
+  (+ cross-hub stage-spacing / spawn-arrival in plan mode). Each violation
+  carries the 2D/3D/teleport eyes-pipeline; `gotoHub(n)` prints a hub's findings.
+  The regression gate for the grammar refactor — the assertions ARE the spec.
 - **`bin/layout-snapshot capture` — survive headless-only boxes** *(surfaced
   2026-06-12)*: the one-command path dies when there's no GPU (SwiftShader
   saturates at `perf=high`, so `agent-browser open` times out on its load-wait).

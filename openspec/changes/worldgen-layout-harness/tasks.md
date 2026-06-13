@@ -175,37 +175,65 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
 
 ## 4. Layout linter
 
-- [ ] 4.1 `src/worldgen/lint.js` core: rules-as-data `{id, severity, mode,
+- [x] 4.1 `src/worldgen/lint.js` core: rules-as-data `{id, severity, mode,
       check}`; per-hub context from `festivalPlan` + tuning analytic extents +
       road/water queries; violation shape with the FULL eyes pipeline
       (map-sandbox 2D link + hub-sandbox `?at=x,z` 3D link + paste-ready
       `__dbg.teleport(x,z)` snippet); importmap in all four html files.
       done = `runLint({seeds:[1234]})` returns a violations array with all
       three link forms populated.
-- [ ] 4.2 Plan-mode rules: `stage-spacing`, `spawn-arrival`, `water-clear`,
+      *(done 2026-06-13 — lint.js core landed in the wip commit; this commit
+      wired `worldgen/lint` into the THREE live importmaps (index/sandbox/
+      map-sandbox); the 4th file is hub-sandbox.html, deferred to 6.2 which
+      creates it. Hardened seed handling: links carry the DECIMAL session seed —
+      both main.js + map-sandbox resolve `?seed=` via `/^-?\d+$/?Number:FNV`, so
+      a `0x…` hex link would FNV-hash to a DIFFERENT world. Round-trip verified.)*
+- [x] 4.2 Plan-mode rules: `stage-spacing`, `spawn-arrival`, `water-clear`,
       approximate `overlap` + `truck-off-road` on analytic envelopes (labeled
       approximate). Dancefloor geometry reference:
       [festival.js:173](../../../src/worldgen/festival.js#L173) +
       [chunks.js:1009](../../../src/chunks.js#L1009).
       done = plan-mode sweep of 10 seeds completes headless in node in
       seconds and reports per-rule counts.
-- [ ] 4.3 Registry mode (PRIMARY): accept `dumpRegistry` payloads / snapshot
+      *(done 2026-06-13 — `bin/lint --seeds 10` runs instantly headless; the 5
+      plan rules report per-rule counts. RECORD-not-fix: high counts (overlap
+      ~2k, water-clear ~126) are the pre-fix baseline, exactly the signal.)*
+- [x] 4.3 Registry mode (PRIMARY): accept `dumpRegistry` payloads / snapshot
       files; exact `overlap` (+ allowed-pairs table), `dancefloor-clear`,
       `booth-on-road`, `potty-attached`, `truck-off-road`, `water-clear` at
       sub-component granularity. Where modes disagree, registry mode is
       authoritative (spec text).
       done = the same seed linted in both modes produces a mode-tagged report;
       registry mode runs from a snapshot file with no game running.
-- [ ] 4.4 Node CLI + `bin/lint` wrapper (selftest invocation style); document in
+      *(done 2026-06-13 — `lintRegistry({snapshot})` runs over the committed
+      snapshots in pure node, no game. Allowed-pairs + scenery-exclude grounded
+      in MEASURING the 3 canonical seeds (stage-deck tiles, arch segments,
+      bench_ring↔firepit are same-cluster; forest_tree/lake_edge/shore/path_node/
+      lamppost are scenery). Registry kinds are sub-components: vendor booths =
+      `tent`, food trucks = `truck`. Each violation tagged `mode:'registry'`.)*
+- [x] 4.4 Node CLI + `bin/lint` wrapper (selftest invocation style); document in
       DEBUGGING.md.
       done = `bin/lint --seeds 10` works from a clean shell.
-- [ ] 4.5 Acceptance case (guardrail #1 applies — record, don't fix): lint seed
+      *(done 2026-06-13 — `bin/lint` (CJS, dynamic-import of the ESM linter like
+      bin/layout-snapshot): `--seeds N` plan sweep, `--seed-list`, snapshot args
+      → registry mode, `--json`, `--top`; exits 2 on any error-severity finding.
+      DEBUGGING.md "Layout linter" section added same commit.)*
+- [x] 4.5 Acceptance case (guardrail #1 applies — record, don't fix): lint seed
       `0xf7ef2a3c` (round-2 playtest, trucks-clipping-vendor-rows) in registry
       mode — the `overlap` rule MUST fire with a truck×vendor-booth pair.
       done = the violation is reproduced and screenshotted via its own 3D link.
-- [ ] 4.6 `gotoHub(n)` prints that hub's violations (wire to 1.6).
+      *(done 2026-06-13 — `bin/lint verification/snapshots/0xf7ef2a3c.spawn.json`
+      fires `overlap` on a `tent × truck` (vendor-booth × food-truck) pair
+      penetrating 5.8m at the (-2,-2) major hub. Screenshotted in-game at that
+      seed via teleport(-377,-262) + topDown + showFootprints — the hub3d link
+      form (sandbox.html?entity=hub_preview) awaits the group-6 viewer, so the
+      proof is the running game at the same coords. reviews/acceptance-4.5-*.png.)*
+- [x] 4.6 `gotoHub(n)` prints that hub's violations (wire to 1.6).
       done = console output shows rule ids + links when teleporting to a
       known-bad hub.
+      *(done 2026-06-13 — gotoHub(0) at seed 1234 returns "... · lint: 3
+      (overlap)" and console prints "[lint] hub (1,-1): overlap×3" + per-violation
+      teleport links. Read-only: runLint sets+restores the session seed, no regen.)*
 
 ## 5. Map-sandbox: true-extent overlay + seed gallery
 

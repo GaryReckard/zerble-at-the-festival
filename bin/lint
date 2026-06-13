@@ -1,0 +1,135 @@
+#!/usr/bin/env node
+/*
+ * bin/lint — run the worldgen layout linter (src/worldgen/lint.js) headless,
+ * in either mode, from a clean shell (worldgen-layout-harness task 4.4).
+ *
+ * TWO MODES (design D-D — registry is the authority):
+ *   PLAN mode (no game, no capture): reasons over the worldgen PLAN's analytic
+ *     cluster extents. Approximate by design — fast, runs over many seeds at
+ *     once, good for "did this seed get worse" sweeps.
+ *       bin/lint --seeds 10                 # plan-mode sweep, seeds 1..10
+ *       bin/lint --seed-list 1234,0xf7ef2a3c
+ *   REGISTRY mode (PRIMARY): reasons over EXACT built sub-component positions in
+ *     a bin/layout-snapshot file — the same data the snapshot diff gates on. No
+ *     game needs to be running; the snapshot already captured built truth.
+ *       bin/lint verification/snapshots/0xf7ef2a3c.spawn.json
+ *
+ * Auto-detect: positional args ending in .json → registry mode on those files;
+ * otherwise plan mode. `--json` emits the raw violations payload.
+ *
+ * Like bin/layout-snapshot this is CommonJS (no package.json "type":"module")
+ * so it runs as an extensionless bin script; it reaches the ES-module linter via
+ * a dynamic import() of the file URL.
+ */
+'use strict';
+
+const path = require('path');
+const fs = require('fs');
+const { pathToFileURL } = require('url');
+
+const ROOT = path.resolve(__dirname, '..');
+const LINT_URL = pathToFileURL(path.join(ROOT, 'src', 'worldgen', 'lint.js')).href;
+
+function die(msg, code = 1) { process.stderr.write(msg + '\n'); process.exit(code); }
+
+function parseArgs(argv) {
+  const positional = [];
+  const flags = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--json') flags.json = true;
+    else if (a === '--seeds' || a === '--seed-list' || a === '--bounds' || a === '--top') flags[a.slice(2)] = argv[++i];
+    else positional.push(a);
+  }
+  return { positional, flags };
+}
+
+// Resolve the seed set for plan mode. `--seed-list a,b,c` = explicit; `--seeds N`
+// = the first N of the canonical gallery (1234 + the change's two playtest
+// seeds first, so a small sweep exercises known hubs), extended deterministically.
+const GALLERY = [1234, 0xf7ef2a3c, 0xf7ef2a3d, 7, 42, 99, 256, 1001, 31337, 0xC0FFEE, 8675309, 555, 2024, 0xBADF00D, 13, 0x1234ABCD];
+function seedsFor(flags) {
+  if (flags['seed-list']) return flags['seed-list'].split(',').map((s) => (/^-?\d+$/.test(s.trim()) ? Number(s.trim()) : s.trim()));
+  const n = flags.seeds ? parseInt(flags.seeds, 10) : 10;
+  if (!Number.isFinite(n) || n < 1) die('--seeds must be a positive integer (a seed COUNT); use --seed-list for explicit seeds');
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(i < GALLERY.length ? GALLERY[i] : 1000 + i);
+  return out;
+}
+
+function parseBounds(s) {
+  if (!s) return null;
+  const n = s.split(',').map(Number);
+  if (n.length !== 4 || n.some(Number.isNaN)) die('--bounds must be minX,minZ,maxX,maxZ (four numbers)');
+  return { minX: n[0], minZ: n[1], maxX: n[2], maxZ: n[3] };
+}
+
+// Human-readable report: per-rule counts (error rules first), then a few
+// example violations per rule with the 3D hub link so a finding is one click
+// from a look.
+function printReport(res, flags) {
+  const top = flags.top ? parseInt(flags.top, 10) : 3;
+  const sev = (id) => { const v = res.violations.find((x) => x.rule === id); return v ? v.severity : '?'; };
+  const ids = Object.keys(res.counts).sort((a, b) => (sev(a) === 'error' ? 0 : 1) - (sev(b) === 'error' ? 0 : 1) || res.counts[b] - res.counts[a]);
+  process.stdout.write(`\n# layout-lint — ${res.mode} mode${res.seed ? `  seed ${res.seed}` : ''}${res.seeds ? `  ${res.seeds.length} seeds` : ''}\n`);
+  if (res.solidCount != null) process.stdout.write(`# ${res.entryCount} entries, ${res.solidCount} festival solids\n`);
+  if (!ids.length) { process.stdout.write('  no violations.\n'); return; }
+  let totErr = 0, totWarn = 0;
+  for (const id of ids) {
+    const s = sev(id);
+    if (s === 'error') totErr += res.counts[id]; else totWarn += res.counts[id];
+    process.stdout.write(`  ${s === 'error' ? '✗' : '!'} ${id.padEnd(18)} ${String(res.counts[id]).padStart(5)}  (${s})\n`);
+    for (const v of res.violations.filter((x) => x.rule === id).slice(0, top)) {
+      process.stdout.write(`        ${v.detail}\n          ${v.links.hub3d}\n`);
+    }
+  }
+  process.stdout.write(`\n  ${totErr} error, ${totWarn} warn — across ${res.violations.length} findings.\n`);
+}
+
+function printHelp() {
+  process.stdout.write([
+    'bin/lint — worldgen layout linter (plan + registry modes)',
+    '',
+    '  bin/lint --seeds N                 PLAN-mode sweep over N seeds (default 10)',
+    '  bin/lint --seed-list a,b,c         PLAN mode over explicit seeds',
+    '      --bounds minX,minZ,maxX,maxZ   limit the hub window (default ±2km)',
+    '  bin/lint <snapshot.json> [more…]   REGISTRY mode over built-truth snapshot(s)',
+    '  --json                             emit the raw violations payload',
+    '  --top N                            examples shown per rule (default 3)',
+    '',
+    'Registry mode is the authority (design D-D); plan mode is approximate but',
+    'needs no capture. See DEBUGGING.md "Layout linter".',
+    '',
+  ].join('\n'));
+}
+
+async function main() {
+  const argv = process.argv.slice(2);
+  if (argv.includes('--help') || argv.includes('-h')) return printHelp();
+  const { positional, flags } = parseArgs(argv);
+  const m = await import(LINT_URL);
+
+  const jsonFiles = positional.filter((p) => p.endsWith('.json'));
+  if (jsonFiles.length) {
+    // REGISTRY mode — one report per snapshot file.
+    let anyErr = false;
+    for (const f of jsonFiles) {
+      if (!fs.existsSync(f)) die(`snapshot not found: ${f}`);
+      const snap = JSON.parse(fs.readFileSync(f, 'utf8'));
+      const res = m.lintRegistry({ snapshot: snap, bounds: parseBounds(flags.bounds) || undefined });
+      res.file = path.relative(ROOT, path.resolve(f));
+      if (flags.json) process.stdout.write(JSON.stringify(res, null, 2) + '\n');
+      else { process.stdout.write(`\n## ${res.file}`); printReport(res, flags); }
+      if (res.violations.some((v) => v.severity === 'error')) anyErr = true;
+    }
+    process.exit(anyErr ? 2 : 0);
+  }
+
+  // PLAN mode.
+  const res = m.runLint({ seeds: seedsFor(flags), bounds: parseBounds(flags.bounds) || undefined });
+  if (flags.json) process.stdout.write(JSON.stringify(res, null, 2) + '\n');
+  else printReport(res, flags);
+  process.exit(res.violations.some((v) => v.severity === 'error') ? 2 : 0);
+}
+
+main().catch((e) => die('bin/lint failed: ' + (e && e.stack || e)));

@@ -1,11 +1,11 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Task 2.4 (review P1) SHIPPED + fully gated (Opus 4.8, agent-browser headless): buildStage scale draw → FESTIVAL_TUNING.STAGE_SCALE_*, comments true, drift-guard host widened. All 4 gates PASS. Group 2 (+follow-up) COMPLETE. Next: group 4 (layout linter 4.1-4.6) → 8.1 baseline."
+current_task: "Group 4 (layout linter 4.1-4.6) COMPLETE + gated (Opus 4.8, agent-browser headless). lint.js plan+registry modes, bin/lint CLI, gotoHub lint print, acceptance (tent×truck 5.8m at 0xf7ef2a3c). Goldens unchanged eddf8e50/4825fd0b; both flags boot clean. Next: group 8.1 baseline (grammar-unblock milestone = groups 1+2+4+8.1, now 1+2+4 done) → then in-change fast-follows 5/6/7."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
-last_updated: 2026-06-12
+last_updated: 2026-06-13
 ref: "ROADMAP 'Layout-work agent harness' (added 2026-06-10); gate for festival-zone-grammar"
 ---
 
@@ -83,7 +83,7 @@ ref: "ROADMAP 'Layout-work agent harness' (added 2026-06-10); gate for festival-
 ## Dangling Threads
 
 - Marker hotkey final binding (`m` vs `k`) — resolve against input.js/debug.js/touch.js at build (-> Task 7.1).
-- Whether `gotoHub` should print that hub's lint violations once lint lands (design open question).
+- ~~Whether `gotoHub` should print that hub's lint violations once lint lands (design open question).~~ Resolved 2026-06-13 — yes; -> Task 4.6 wires plan-mode lint into `gotoHub(n)` (console `[lint]` lines + a `· lint:` summary on the return string).
 
 ## Work Log
 
@@ -487,3 +487,48 @@ ritual headless and committed 2.4.
     festival-zone-grammar (D6).
   Group 2 (+2.4) fully closed and documented. Next is group 4 (layout linter).
 **Refs:** -> Task 2.4, commit 7449590, selftest.js POI golden comment, DEBUGGING.md "Layout snapshots", ROADMAP
+
+### 2026-06-13 -- Group 4 (layout linter) COMPLETE + gated (Opus 4.8)
+**Event:** phase-change (group 4 done)
+**What:** Built out the linter (4.1-4.6). `src/worldgen/lint.js` plan rules
+existed from the wip commit; this work added registry mode (the PRIMARY one),
+the `bin/lint` CLI, gotoHub wiring, importmaps, and the gate. Two genuinely
+non-obvious findings that shaped the design:
+  - **The link seed must be DECIMAL, not the 0x… hex.** Both main.js
+    (`initSessionSeed`) and map-sandbox (`resolveSeed`) resolve `?seed=` as
+    `/^-?\d+$/.test(raw) ? Number(raw) : FNV(raw)`. The wip lint.js emitted
+    `seed='0x'+(seed>>>0).toString(16)` into the deep-links — a hex string that
+    FNV-hashes to a DIFFERENT world on reopen (and `(seed>>>0)` on a hex STRING
+    seed → 0). Fixed: links carry `String(seedNum)` (the numeric session seed in
+    base-10), which round-trips through the number path to the exact same world.
+    Verified: link decimal 1658821542 → 0x62df9ba6 == the capture seed. The
+    displayed `violation.seed` stays hex for readability.
+  - **Registry kinds are SUB-COMPONENTS, not plan kinds.** A `food_court` plan
+    cluster builds many `truck` registry entries; a `vendor_row` builds `tent`
+    entries (the booths) + `campsite` (campers). So the 4.5 "truck×vendor-booth"
+    acceptance is a `truck × tent` overlap in registry terms. The allowed-pairs
+    whitelist + scenery-exclude were GROUNDED IN MEASURING the 3 canonical seeds
+    (script over the committed snapshots): stage-deck = many `stage` tiles, the
+    spawn arch = 6 `arch` colliders, drum circle nests `firepit` in `bench_ring`
+    → same-cluster, allowed; `forest_tree`(~520/window)/`lake_edge`(~117)/shore/
+    path_node/lamppost = scenery, excluded. Everything else firing is real signal.
+**Verification (group 4 is NOT golden-frozen — no game-path rng/geometry added):**
+  - Gate 1 selftest: goldens UNCHANGED `eddf8e50` / `4825fd0b` (sole fail = the
+    pre-existing road-neg-control seed 0). lint.js is read-only + not on the build
+    path; gotoHub is console-only.
+  - Registry mode verified in PURE NODE against the committed snapshots (no game):
+    `0xf7ef2a3c.spawn` → overlap fires tent×truck 5.8m (ACCEPTANCE), plus
+    booth-on-road×8, dancefloor-clear×2. Plan `bin/lint --seeds 10` runs instantly.
+  - Gate 3 boot smoke (agent-browser headless, document.hidden trick): `?worldgen=1`
+    AND `?worldgen=0` at seed 1234 boot clean — zero errors (only `[chunk slow]`
+    SwiftShader perf warns); worldgen=0 generated 5780 entries. lint.js loading into
+    the game module graph (main.js import) is itself proven by `__dbg.start()` working.
+  - 4.6: gotoHub(0)@1234 → "· lint: 3 (overlap)" + console "[lint] hub (1,-1):
+    overlap×3" with teleport links.
+  - 4.5 screenshot: in-game at 0xf7ef2a3c, teleport(-377,-262)+topDown+showFootprints
+    shows the visible booth/truck jumble (reviews/acceptance-4.5-truck-tent-overlap.png).
+    The hub3d link form (sandbox.html?entity=hub_preview) awaits the group-6 viewer.
+  ROADMAP "Layout linter" bullet marked shipped (matching the group-1 ✓ pattern);
+  full 8.2 trim sweep still pending. **Grammar-unblock milestone is now groups 1+2+4
+  done — only task 8.1 (baseline) remains to unblock festival-zone-grammar.**
+**Refs:** -> Task 4.1-4.6, -> Task 8.1, CHANGELOG 2026-06-13, src/worldgen/lint.js, bin/lint, DEBUGGING.md "Layout linter", APPLY-GUARDRAILS "gate ritual" (group 4 not golden-frozen)

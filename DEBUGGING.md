@@ -306,3 +306,51 @@ serialize identically. The tier is pinned (`perf=high`) because built truth is
 tier-dependent today (crowd draws from the cluster rng stream). `--diff` exits
 `0` (`EMPTY`) when layouts match, `1` with a per-kind report otherwise, and flags
 per-cluster draw-count (canary) drift even when every position still matches.
+
+## Layout linter — checking arrangement against rules
+
+A **layout snapshot** captures *what* the world built; the **linter**
+(`src/worldgen/lint.js`, run via `bin/lint`) checks whether that arrangement is
+*good* — nothing clipping, dancefloors clear, booths off the road, stages spaced.
+It's the detector that used to be "Gary driving around noticing things." Two
+modes (design D-D — **registry is the authority**):
+
+| Mode | Over what | Needs | Precision |
+|---|---|---|---|
+| **plan** | the worldgen PLAN's analytic cluster extents | nothing — pure node | approximate (cluster-center circles) |
+| **registry** | EXACT built sub-component positions in a snapshot | a `bin/layout-snapshot` file | exact |
+
+```
+bin/lint --seeds 10                                  # plan-mode sweep, 10 seeds, headless
+bin/lint --seed-list 1234,0xf7ef2a3c --bounds -1000,-1000,1000,1000
+bin/lint verification/snapshots/0xf7ef2a3c.spawn.json # registry mode (PRIMARY) — no game needed
+bin/lint <snap.json> --json                          # raw violations payload
+```
+
+Exit code: `0` clean, `2` if any **error**-severity rule fired (CI-friendly).
+Every violation carries the full **eyes pipeline** — a 2D `map-sandbox` link, a
+3D `hub-sandbox` link (`?at=x,z`; the viewer lands in group 6, the link is
+forward-compatible today), and a paste-ready `__dbg.teleport(x,z)` snippet — so a
+finding is one click from a look in any surface.
+
+**The link seed is decimal, on purpose.** Both `main.js` and `map-sandbox.html`
+resolve `?seed=` as `/^-?\d+$/.test(raw) ? Number(raw) : FNV(raw)`. A decimal
+string round-trips to the exact same `SESSION_SEED`; a `0x…` hex string would
+fall to the FNV path and open a *different* world. So links emit the decimal
+session seed even though findings *display* the `0x…` form.
+
+Rules (registry mode): `overlap` (exact collider interpenetration > 0.5 m, minus
+an allowed-pairs table of same-cluster adjacencies — stage-deck tiles, the
+arch's segments, a drum circle's firepit-in-bench-ring), `water-clear`,
+`dancefloor-clear`, `booth-on-road`, `potty-attached`, `truck-off-road`. Scenery
+(`forest_tree`, `lake_edge`, `shore`, `path_node`, `lamppost`) is excluded so the
+report is festival clutter, not 1000-tree forest density. Plan mode adds the
+cross-hub `stage-spacing` and `spawn-arrival` rules.
+
+**This change RECORDS the baseline; it does not fix violations** — the layout fix
+is the follow-up `festival-zone-grammar` change. A firing rule here is the
+instrument working, not a bug to chase (the only fixable thing in *this* change
+is a false-positive rule).
+
+`__dbg.gotoHub(n)` prints the plan-mode violations for the hub it teleports to,
+so touring hubs surfaces their findings inline.

@@ -48,10 +48,11 @@ import { installDebug, shouldRunFrame, isGod, npcsFrozen } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { setSpawnPoint, buildSpawnArch } from './chunks.js';
 import { nearestHeart, nearestMajorHeart, heartsInBounds } from './worldgen/hearts.js';
-import { festivalPlan, computeFrontAxis, dancefloorRectsNear } from './worldgen/festival.js';
+import { festivalPlan, computeFrontAxis, dancefloorRectsNear, MAX_POI_REACH } from './worldgen/festival.js';
 import { nearestRoad } from './worldgen/roads.js';
 import { lakeAt } from './worldgen/water.js';
 import { CONFIG } from './worldgen/constants.js';
+import { runLint } from './worldgen/lint.js';
 import { Trip } from './trip.js';
 import { Analytics } from './analytics.js';
 import * as ContextLights from './contextLights.js';
@@ -1474,8 +1475,27 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
       const camZ = stage.z + fz * D + fx * side;
       this.teleport(heart.x, heart.z);   // load the hub's chunks around the cart
       chaseCam.dbgCamLock(camX, H, camZ, stage.x, 4, stage.z);
+      // Plan-mode lint for THIS hub, printed inline so a tour surfaces findings
+      // (4.6). Read-only: runLint sets the session seed to the one passed (the
+      // current one) and restores it — no world regen. RECORD-not-fix; see
+      // DEBUGGING.md "Layout linter".
+      let lintLine = '';
+      try {
+        const R = MAX_POI_REACH;
+        const lr = runLint({ seeds: [getSessionSeed()], bounds: { minX: heart.x - R, minZ: heart.z - R, maxX: heart.x + R, maxZ: heart.z + R } });
+        const mine = lr.violations.filter((v) => v.hub && v.hub.cx === heart.cx && v.hub.cz === heart.cz);
+        if (mine.length) {
+          const byRule = {};
+          for (const v of mine) byRule[v.rule] = (byRule[v.rule] || 0) + 1;
+          console.warn(`[lint] hub (${heart.cx},${heart.cz}): ` + Object.entries(byRule).map(([k, c]) => `${k}×${c}`).join(', '));
+          for (const v of mine.slice(0, 5)) console.warn(`  ! ${v.detail}  → ${v.links.teleport}`);
+          lintLine = ` · lint: ${mine.length} (${Object.keys(byRule).join('/')})`;
+        } else {
+          lintLine = ' · lint: clean';
+        }
+      } catch (e) { lintLine = ' · lint: err ' + e.message; }
       const url = `hub-sandbox.html?seed=${getSessionSeed()}&at=${Math.round(heart.x)},${Math.round(heart.z)}`;
-      return `hub #${n} ${heart.rank} @ (${heart.x}, ${heart.z}) · stage ${stage.kind} · ${url}`;
+      return `hub #${n} ${heart.rank} @ (${heart.x}, ${heart.z}) · stage ${stage.kind} · ${url}${lintLine}`;
     },
 
     // Top-down plan view centered on (x, z) (default: the cart), framing a

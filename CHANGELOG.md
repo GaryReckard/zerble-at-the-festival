@@ -2,6 +2,15 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-13
+
+### Added
+- **Layout linter — the festival now checks its own arrangement against rules (dev workflow).** New `src/worldgen/lint.js` + `bin/lint`: the detector that used to be "Gary driving around noticing things." Two modes (design D-D — **registry is the authority**): *plan* mode reasons over the worldgen plan's analytic cluster extents (pure node, no game, approximate, sweeps N seeds at once); *registry* mode reasons over the **exact** built sub-component positions in a `bin/layout-snapshot` file (no game needed — the snapshot already captured built truth). Registry rules: `overlap` (exact collider interpenetration > 0.5 m, minus an allowed-pairs table of same-cluster adjacencies — stage-deck tiles, the spawn arch's segments, a drum circle's firepit-inside-bench-ring — all grounded in measuring the three canonical seeds), `water-clear`, `dancefloor-clear`, `booth-on-road`, `potty-attached`, `truck-off-road`; plan mode adds cross-hub `stage-spacing` + `spawn-arrival`. Scenery (`forest_tree`, `lake_edge`, `shore`, `path_node`, `lamppost`) is excluded so the report is festival clutter, not 1000-tree forest density. `bin/lint` auto-detects mode (`.json` args → registry; else plan), prints per-rule counts + examples, and exits `2` if any error-severity rule fired (CI-friendly). **Acceptance:** the round-2 "trucks clipping vendor rows" bug reproduces — registry-linting seed `0xf7ef2a3c`'s spawn window fires `overlap` on a `tent × truck` (vendor-booth × food-truck) pair interpenetrating **5.8 m**. This change *records* the baseline; the layout fix is the follow-up `festival-zone-grammar` change.
+- **Every violation is one click from a look (eyes pipeline).** Findings carry a 2D `map-sandbox` link, a 3D `hub-sandbox` link (`?at=x,z` — the viewer lands in group 6; the link is forward-compatible today), and a paste-ready `__dbg.teleport(x,z)` snippet. The link seed is the **decimal** session seed on purpose: both `main.js` and `map-sandbox.html` resolve `?seed=` as `/^-?\d+$/.test(raw) ? Number(raw) : FNV(raw)`, so a decimal round-trips to the exact same world while a `0x…` hex string would FNV-hash to a *different* one.
+
+### Changed
+- **`__dbg.gotoHub(n)` now prints that hub's layout violations inline.** Touring hubs surfaces their plan-mode findings (rule counts + per-violation teleport links) in the console and the return line (`· lint: 3 (overlap)`), so a tour is also a lint pass. Read-only — `runLint` sets the session seed to the current one and restores it; no world regen, no rng draws added.
+
 ## 2026-06-12
 
 ### Changed

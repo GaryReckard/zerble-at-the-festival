@@ -25,7 +25,7 @@
     const base = './src/';
     const wg = ['rng', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water',
       'worldgen/roads', 'worldgen/roles', 'worldgen/density', 'worldgen/index',
-      'worldgen/selftest', 'worldgen/festival', 'worldgen/placement'];
+      'worldgen/selftest', 'worldgen/festival', 'worldgen/placement', 'worldgen/lint'];
     const imports = {};
     for (const m of wg) imports[base + m + '.js'] = base + m + '.js' + v;
     const im = document.createElement('script');
