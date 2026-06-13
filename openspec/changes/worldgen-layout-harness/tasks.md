@@ -331,7 +331,7 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
 
 ## 8. Baseline + close
 
-- [ ] 8.1 **[milestone]** Baseline from REGISTRY mode at `?perf=high`:
+- [x] 8.1 **[milestone]** Baseline from REGISTRY mode at `?perf=high`:
       `bin/layout-snapshot --seeds` across ≥10 seeds → per-rule violation
       counts as `verification/baseline.md` — Gary-legible format (rule |
       severity | total | worst seed | 2D link | 3D link + 2–3 hub-viewer
@@ -340,6 +340,19 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       (guardrail #1).
       done = baseline.md committed; a non-engineer can read it and point at
       the worst hub.
+      *(done 2026-06-13 — `verification/baseline.md` over 10 seeds
+      (1234/0xf7ef2a3c/0xf7ef2a3d + 7/42/99/256/1001/31337/0xC0FFEE),
+      spawn-hub windows captured headless via agent-browser. Registry totals:
+      106 error / 92 warn — overlap 48, water-clear 58, booth-on-road 74,
+      dancefloor-clear 10, potty-attached 8. Per-rule + per-seed tables, a
+      penetration-sorted worst-offenders list (deepest = seed 1234 tent×truck
+      7.5m), and the plan-vs-registry gap (plan overlap 632 vs registry's exact
+      48 — plan circles over-count stage clearings). 3 worst-offender
+      screenshots: verification/baseline-offender-{1234,31337,0xf7ef2a3d}.png.
+      Snapshots committed under verification/snapshots/baseline/ so bin/lint
+      reproduces every row. RECORD-not-fix. **Grammar-unblock milestone (groups
+      1+2+4+8.1) is now MET — festival-zone-grammar is unblocked.** Hub-viewer
+      3D links are forward-compatible (group 6); screenshots stand in for now.)*
 - [ ] 8.2 ROADMAP "Layout-work agent harness" trim sweep (per-commit CHANGELOG
       entries already landed with each group).
       done = ROADMAP section reduced to whatever genuinely remains.

@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 4 (layout linter 4.1-4.6) COMPLETE + gated (Opus 4.8, agent-browser headless). lint.js plan+registry modes, bin/lint CLI, gotoHub lint print, acceptance (tent×truck 5.8m at 0xf7ef2a3c). Goldens unchanged eddf8e50/4825fd0b; both flags boot clean. Next: group 8.1 baseline (grammar-unblock milestone = groups 1+2+4+8.1, now 1+2+4 done) → then in-change fast-follows 5/6/7."
+current_task: "Task 8.1 baseline COMPLETE — verification/baseline.md over 10 seeds (registry mode, perf=high, headless), 106 error/92 warn, worst-offenders + plan/registry gap + 3 screenshots. **GRAMMAR-UNBLOCK MILESTONE (groups 1+2+4+8.1) MET — festival-zone-grammar is unblocked.** Remaining in this change: 8.2 ROADMAP trim sweep, 8.3 final smoke, and in-change fast-follows groups 5 (map overlay) / 6 (hub viewer) / 7 (playtest markers)."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -532,3 +532,31 @@ non-obvious findings that shaped the design:
   full 8.2 trim sweep still pending. **Grammar-unblock milestone is now groups 1+2+4
   done — only task 8.1 (baseline) remains to unblock festival-zone-grammar.**
 **Refs:** -> Task 4.1-4.6, -> Task 8.1, CHANGELOG 2026-06-13, src/worldgen/lint.js, bin/lint, DEBUGGING.md "Layout linter", APPLY-GUARDRAILS "gate ritual" (group 4 not golden-frozen)
+
+### 2026-06-13 -- Task 8.1 baseline DONE → GRAMMAR-UNBLOCK MILESTONE MET
+**Event:** phase-change (milestone)
+**What:** `verification/baseline.md` recorded from REGISTRY mode at perf=high over
+10 seeds. **This completes the grammar-unblock milestone (groups 1+2+4+8.1) —
+festival-zone-grammar is now unblocked.** Results: 106 error / 92 warn —
+overlap 48, water-clear 58, booth-on-road 74, dancefloor-clear 10,
+potty-attached 8; worst single clip = seed 1234 tent×truck 7.5m. The plan-vs-
+registry gap is itself informative (plan overlap 632 vs registry's exact 48 —
+plan's cluster circles over-count because they include stage dancefloor
+clearings; registry is the real sub-component clip count). RECORD-not-fix.
+**Capture method (worth recording — the unbounded dump was the bottleneck):**
+First attempt dumped the WHOLE loaded neighborhood (~3000-4200 entries/seed) and
+ran ~180s/seed → 560s timeout after only 3 seeds. Fix that cut it to ~30-60s/seed:
+(1) **bound the dump** to a ±280m spawn-hub box — found per-seed by calling
+`__dbg.gotoHub(0)` and parsing its "@ (x,z)" return (works even for far spawn hubs,
+e.g. seed 42's at (955,716)); (2) cap the settle poll at 6 reads; (3) batch in
+groups of ~4 under the timeout. The 3 original seeds kept their full-load-ring
+windows (more hubs) — so the doc shows per-seed SOLID counts + a window caveat,
+and leans on the penetration-sorted worst-offenders list (exposure-independent)
+as the actionable view. 10 snapshots committed under
+verification/snapshots/baseline/ so `bin/lint <file>` reproduces every row.
+Screenshots (in-game topDown+showFootprints; group-6 hub viewer will render
+natively): baseline-offender-{1234,31337,0xf7ef2a3d}.png — the first two are
+booth-clips-truck, the third a truck-ring-too-tight, two distinct failure modes.
+ROADMAP: festival-zone-grammar "gate now MET" note updated; full 8.2 trim sweep
+still pending. Next: 8.2/8.3 close + fast-follows 5/6/7 (hub viewer first per CG3).
+**Refs:** -> Task 8.1, -> Task 8.2, -> Task 8.3, CHANGELOG 2026-06-13, verification/baseline.md, ROADMAP "Festival layout" gate note

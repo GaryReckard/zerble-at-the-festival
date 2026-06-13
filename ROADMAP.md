@@ -94,9 +94,12 @@ along roads with camps auto-reserved behind; courts off-road at a min stage
 distance, optional spur road to center; potties attached to a parent zone's
 edge), (4) restore per-sub-component `registry` clearance in builders as the
 graceful-degradation backstop. One golden-moving batch, flag-off. Full
-diagnosis + design: OpenSpec `festival-zone-grammar`. **Depends on the layout
-harness below — the linter is the verification gate; don't start the grammar
-rewrite without it.**
+diagnosis + design: OpenSpec `festival-zone-grammar`. **Gate now MET** — the
+harness's grammar-unblock milestone (groups 1+2+4 + the baseline, task 8.1)
+landed 2026-06-13: the linter + `bin/lint` + `verification/baseline.md` (106
+error / 92 warn across 10 seeds) are the verification gate the grammar rewrite
+is graded against. (Harness groups 5/6/7 — map-sandbox overlay, hub viewer,
+playtest markers — are in-change fast-follows, not grammar blockers.)
 
 ### Layout-work agent harness *(designed 2026-06-10)*
 
