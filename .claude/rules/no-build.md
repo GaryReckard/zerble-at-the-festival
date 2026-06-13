@@ -17,11 +17,17 @@ Don't quietly introduce one.
 
 ## Importmap maintenance
 
-When you add a new source file under `src/` (or `src/models/`), you must add
-its bare module name to the importmap list in `index.html`:
+When you add a new source file under `src/` (or `src/models/`), you must add its
+bare module name to the importmap list in **every consuming html file**. There
+are **four**:
+
+- `index.html` — `mods` (src + worldgen) + `models`
+- `sandbox.html` — `mods` + `models`
+- `hub-sandbox.html` — `mods` + `models` (the 3D hub viewer)
+- `map-sandbox.html` — `wg` (worldgen modules + `rng` only)
 
 ```js
-const mods = ['main','world','zerble', /* ... */, 'midiPlayer'];
+const mods = ['main','world','zerble', /* ... */, 'worldgen/lint'];
 const models = ['canoe','hammock','tent', /* ... */, 'wook'];
 ```
 
@@ -30,6 +36,11 @@ on local dev — meaning your edits won't reload (Chrome's heuristic cache holds
 ES module bodies past `Cache-Control: no-store` in some cases). Production is
 unaffected by the missing entry (it loads modules unsuffixed) but local dev
 will silently bite you.
+
+**Run `bin/check-importmaps`** after touching `src/` or any importmap — it
+extracts the `mods`/`models`/`wg` arrays from all four pages and fails loudly
+(naming the file + module) when one drifts from the actual `src/` tree. It's the
+mechanical guard against this footgun.
 
 ## Three.js comes from a CDN
 

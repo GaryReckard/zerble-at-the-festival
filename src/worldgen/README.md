@@ -74,6 +74,14 @@ python3 .claude/serve_nocache.py 8765
 
 ## How food trucks / vendor rows / porta-potties / campsites are represented
 
+> **UPDATE (2026-06):** the festival POI layer below has since SHIPPED —
+> `festival.js` (`festivalPlan` + `campVillagesNear`) now emits stages / courts /
+> vendor rows / bubble vendors / drum circles / porta-banks / camp villages, and
+> `placement.js` filters them per-chunk for `chunks.js` to build. See "The
+> festival layer + harness modules" at the bottom. The skeleton description below
+> is still accurate; the "theme layer at 3D integration time" framing is now the
+> shipped `festival.js`/`placement.js` path.
+
 **They are not (yet) features the generator emits.** The generator produces the
 *skeleton* — hearts, roles, roads, water, tree-density. The actual prop
 *themes* (food-truck clusters, vendor rows, porta-potty banks, campsites) are
@@ -115,3 +123,58 @@ hearts → water (lakes; rivers cut, contract-stubbed) → roads (arterials; CG3
   fields, never reorder or re-salt the draws that produce existing ones.
 - `selftest.js` has real teeth: window-invariance + negative control + bit-exact
   boundary + serialize round-trip + a checked-in cross-engine golden hash.
+
+## The festival layer + harness modules
+
+Beyond the skeleton, `worldgen/` now owns the festival's **arrangement** and the
+tooling that verifies it (the `worldgen-layout-harness` change):
+
+- **`festival.js`** — the POI layer. `festivalPlan(heart)` is a memoized,
+  `(seed,epoch)`-gated, deterministic list of cluster descriptors (stage / food
+  court / vendor row / bubble vendor / drum circle / porta-bank) anchored off a
+  heart + its approach roads; `campVillagesNear(bounds)` adds the back-of-festival
+  camps on a coarse grid. `placement.js` (`placeChunkProps`) filters by
+  cluster-center ownership so a chunk builds the clusters whose center it owns.
+- **`tuning.js`** — `FESTIVAL_TUNING`, the single mutable surface for the
+  distances *between* placed things (ring radii, row spacing/offset, dancefloor
+  bases, walk distances, cluster counts, `KIND_FOOTPRINT`) + a few linter
+  thresholds. `MODEL_DIMS` copies a handful of model dimensions the node linter
+  can't import; `chunks.js` drift-asserts them. `clusterExtent(kind, scale)` is
+  the analytic outer-radius the plan-mode linter + map overlay use.
+- **`lint.js`** — the quality linter (`bin/lint`). **Plan mode** reasons over
+  `festivalPlan` + `clusterExtent` (headless, approximate, multi-seed);
+  **registry mode** (the authority) reasons over the *exact* built sub-components
+  in a `bin/layout-snapshot` capture. Every violation carries 2D/3D/teleport
+  links. See `verification/baseline.md` for the pre-grammar baseline counts.
+
+### Built-truth substrate
+
+The generator's *plan* is covered by the determinism goldens; the *built* world
+(what `chunks.js` actually constructs) is captured as data by
+`__dbg.dumpRegistry` + `bin/layout-snapshot` → `verification/snapshots/`. That's
+what registry-mode lint audits and what behaviour-preservation refactors diff
+against. The **hub viewer** (`hub-sandbox.html` → `buildHubPreview` in
+`chunks.js`) renders one whole hub through the exact build path for 3D iteration.
+
+### The two binding rules
+
+- **Dependency direction.** `worldgen/` imports **nothing outward** — never
+  `chunks.js` / `registry.js` / `lakes.js` / `models/*`. That's what lets the
+  node linter and the map sandbox import it freely. Arrows point *into*
+  `worldgen/`, never out. (`constants.js` / `tuning.js` import nothing at all.)
+- **Environment injection.** Where layout logic needs a world query the pure
+  layer can't own (is this point in water? blocked?), the *caller* injects it:
+  the game passes its `isPointInLake` closure, the linter/overlay pass worldgen
+  `lakeAt`. A shoreline divergence between the two is tagged informational, not a
+  determinism bug.
+
+### Deferred: the dry-run builder extraction
+
+Making the `chunks.js` builders express their sub-component layouts as pure data
+(descriptor in → positions/radii out, no `three`) was **deferred to
+`festival-zone-grammar`** (deliberation 001 / design D-C′) — it has to land under
+that change's already-moving golden, because the builders' cosmetic `rng` draws,
+the tier-dependent `crowd.spawn`, and `registry.closestBuilding` guards can't be
+extracted without touching draw order. This harness change built the *eyes* (hub
+viewer, overlay) and the *ruler* (linter + baseline) that the extraction is
+measured against.

@@ -105,6 +105,21 @@ If you're tempted to "just check it in-game because the sandbox can't show
 this," **stop and add the composite sandbox view first.** Future-you (and
 future-agent) will thank you.
 
+## The hub viewer — a whole festival hub, by construction
+
+For **festival LAYOUT** (the `src/worldgen/festival.js` plan + the `chunks.js`
+worldgen builders), the composite you want already exists: `hub-sandbox.html`
+builds ONE complete hub on a flat plane through the *exact game path*
+(`buildHubPreview` → the same `buildWorldgenKind` dispatch the streaming world
+uses). So it renders every festival POI kind — stages, food courts, vendor rows,
+bubble vendors, drum circles, camp villages, pottys — *by construction*, with no
+per-kind sandbox case to maintain: add a new worldgen cluster kind to the
+builders and it shows up here automatically. Its registry is diff-faithful to the
+game (the spawn-hub stage deck matches `dumpRegistry` tile-for-tile), so it's the
+right surface for layout iteration. Use `sandbox.html` for one model in isolation,
+`hub-sandbox.html` for how models compose into a hub, the running game for
+streaming/collision/crowd emergence.
+
 ## What goes in the sandbox vs. what doesn't
 
 In:

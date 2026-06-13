@@ -370,13 +370,21 @@ forward: model param splits across ~8 files, crowd pre-rolled params,
       files. Clean: "30 src + 12 worldgen + 27 models across 4 pages"; dropping
       `worldgen/lint` from map-sandbox → "map-sandbox.html: missing
       'worldgen/lint'", exit 1. Confirms hub-sandbox.html is fully wired.)*
-- [ ] 6.6 Docs: no-build.md ("every consuming html file" — four enumerated) +
+- [x] 6.6 Docs: no-build.md ("every consuming html file" — four enumerated) +
       sandbox-and-testing.md (hub viewer renders new POI kinds by construction)
       + `src/worldgen/README.md` (tuning/lint modules, built-truth substrate,
       deferred extraction, env-injection + dependency-direction rules) +
       CLAUDE.md Run+verify table row for hub-sandbox.html.
       done = a fresh-session simulation: CLAUDE.md alone leads a reader to the
       hub viewer.
+      *(done 2026-06-13 — CLAUDE.md Run+verify gains a hub-sandbox.html row
+      (festival-layout iteration, the middle ground); no-build.md enumerates the
+      FOUR consuming pages + points at bin/check-importmaps; sandbox-and-testing.md
+      gains a "hub viewer — by construction" section (renders every POI kind with
+      no per-kind case); src/worldgen/README.md gains "The festival layer + harness
+      modules" (festival/tuning/lint, built-truth substrate, the dependency-
+      direction + env-injection binding rules, the deferred dry-run extraction) +
+      a stale-section UPDATE note since festival.js now emits the POI layer.)*
 - [x] 6.7 Verify: screenshot the same hub at Noon + Midnight; boot the REAL
       game after (sandbox-pass ≠ game-pass).
       done = both screenshots + clean game console logs on both flag states.

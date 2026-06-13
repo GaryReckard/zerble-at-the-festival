@@ -1,7 +1,7 @@
 ---
 change: worldgen-layout-harness
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 6: 6.1 (disposeChunkByKey) + 6.2 (buildHubPreview + hub-sandbox.html) SHIPPED — the hub viewer renders a whole festival hub in 3D via the exact game build path. Task 4.7 lint rules also shipped. Next: 6.3 (acceptance diff vs game dump + 10-rebuild leak check) → 6.4 sliders → 6.5 importmap checker → 6.6 docs → 6.7 verify. (Grammar-unblock milestone 1+2+4+8.1 met.)"
+current_task: "Group 6 (hub viewer) COMPLETE — 6.1 disposeChunkByKey, 6.2 buildHubPreview+hub-sandbox.html, 6.3 acceptance (stage deck 21/21, 10-rebuild leak-free), 6.4 FESTIVAL_TUNING sliders, 6.5 bin/check-importmaps, 6.6 docs, 6.7 Noon/Midnight+game boot. Task 4.7 lint rules also done. Remaining in change: group 5 (map overlay/gallery), group 7 (playtest markers), 8.2 ROADMAP trim, 8.3 final smoke. Grammar-unblock milestone met since 8.1."
 blocked_by: null
 open_questions: 0
 started: 2026-06-10
@@ -612,3 +612,25 @@ it across chunks or the viewer builds it all at once. Two non-obvious wiring poi
   buildHubPreview is viewer-only (not on the game path) → game boot + goldens
   unaffected; 6.1's disposeChunkByKey is the rebuild teardown (feeds 6.3).
 **Refs:** -> Task 6.1, -> Task 6.2, -> Task 6.3, CHANGELOG 2026-06-13, src/chunks.js buildHubPreview, hub-sandbox.html
+
+### 2026-06-13 -- Group 6 (hub viewer) COMPLETE
+**Event:** phase-change
+**What:** All of 6.1-6.7 shipped (careful-Opus; Fable was unavailable, gates are
+the safety net). 6.1 disposeChunkByKey (golden-frozen, snapshot diff EMPTY ×3
+teleported windows). 6.2 buildHubPreview + hub-sandbox.html (renders a whole hub
+via the exact build path). 6.3 acceptance: spawn-hub stage deck matches the game
+21/21 tiles, 81 festival sub-components matched, every diff explained (window≠hub
++ the main.js arch + lake-load timing), 10-rebuild leak check 172×10 identical.
+6.4 live FESTIVAL_TUNING sliders (rebuild on release; ring-mult visibly moved the
+trucks). 6.5 bin/check-importmaps (catches a dropped module, names file+module).
+6.6 docs (CLAUDE.md hub row + no-build four-files + sandbox-and-testing + worldgen
+README). 6.7 Noon/Midnight screenshots + clean game boot both flags.
+**The one surprise (Gary-reported mid-flight):** the hub viewer crashed a few
+seconds in — `crowd._updateNpc` reads zerble.forwardWorld, but the frame loop's
+dummy player only had position/pos. The crash only appeared AFTER 6.2's "park the
+dummy at the hub" fix (which stopped NPC culling) brought NPCs close enough to
+trigger the smile path. Fix: a COMPLETE zerble stub (forwardWorld/heading/speed/
+seatSlots:[]→no boarding/worldSeatPosition) + smiles.update to drain emitted
+smiles. Lesson for the grammar change: a viewer that reuses crowd.update needs
+the full zerble shape, not a minimal stub.
+**Refs:** -> Task 6.1..6.7, CHANGELOG 2026-06-13, hub-sandbox.html, src/chunks.js (buildHubPreview/disposeChunkByKey), bin/check-importmaps, reviews/hub-acceptance-6.3.md
