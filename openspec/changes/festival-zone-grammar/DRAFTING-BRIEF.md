@@ -70,6 +70,20 @@ Verbatim-distilled from his brief; treat as requirements for the zone rules:
   internal 9m one — a known two-owners pair.)
 - Porta potties should read as SERVING something (attached to a stage / court /
   vendor row edge, facing it) — not random scatter.
+- **Drum circles (the large LEAF kind) belong in/near forest** (playtest
+  2026-06-12: one spawned INSIDE a food-truck circle — nonsense). The v1
+  composition Gary explicitly liked and wants recreated: **a clearing in the
+  middle of dense trees, with an access path wide enough for Zerble to drive
+  in.** v1's forests were plain/boring otherwise — keep v2's richer woods, but
+  bring back that clearing-with-a-path drum composition. (Linter rule
+  `drum-in-trees` added to the harness 2026-06-12 guards the placement half;
+  the clearing+path composition is THIS change's design work.)
+- **The festival arch belongs further out, over a road** — not beside the
+  dancefloor inside the string lights (playtest 2026-06-12: it currently lands
+  ~15·scale from the stage, inside the lit area). The arch should read as a
+  threshold you pass through on the road BEFORE arriving at the stage scene.
+  (Linter rule `arch-placement` guards it; the arrival composition is this
+  change's to design.)
 
 ## What made `main`'s world feel ordered (re-borrow these mechanisms)
 
