@@ -1279,21 +1279,21 @@ function renderMarkerList() {
 }
 // Touch affordance (-> Q4): a deliberately awkward triple-tap in the bottom-left
 // corner drops a marker, so phone playtests of the live deploy still produce
-// coordinates. Small (44px) corner zone so it rarely catches a real drag.
+// coordinates. We listen on the document with a corner coordinate filter rather
+// than a hit-testable overlay element, so we never swallow a thumb-rest or a
+// camera-orbit drag that happens to land in the corner (review 002, P3).
+let markerTouchBound = false;
 function buildMarkerTouchZone() {
-  if (document.getElementById('marker-touch-zone')) return;
-  const zone = document.createElement('div');
-  zone.id = 'marker-touch-zone';
-  Object.assign(zone.style, {
-    position: 'fixed', left: '0', bottom: '0', width: '44px', height: '44px',
-    zIndex: '998', background: 'transparent', touchAction: 'none',
-  });
+  if (markerTouchBound) return;
+  markerTouchBound = true;
+  const CORNER = 44;   // px from the bottom-left
   let taps = [];
-  zone.addEventListener('pointerup', () => {
+  window.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'mouse') return;   // touch/pen only — desktop has K
+    if (e.clientX > CORNER || e.clientY < window.innerHeight - CORNER) { taps = []; return; }
     const now = performance.now();
     taps = taps.filter(t => now - t < 700);
     taps.push(now);
     if (taps.length >= 3) { taps = []; dropMarker('(touch)'); }
   });
-  document.body.appendChild(zone);
 }

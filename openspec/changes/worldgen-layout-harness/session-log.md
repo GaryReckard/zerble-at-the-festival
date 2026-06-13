@@ -711,3 +711,21 @@ was already met at 8.1; the remaining fast-follows (5/6/7) + close-out are now
 done too. Next per Gary's plan: `/opsx:verify` this change, then `/smart-review`,
 fold any must-fix back, then start `festival-zone-grammar`.
 **Refs:** -> Task 8.2, -> Task 8.3, ROADMAP "Layout-work agent harness", CHANGELOG 2026-06-13
+
+### 2026-06-13 -- opsx-verify + /smart-review (groups 5+7) — Approve, one P3 applied
+**Event:** decision (review) + discovery
+**What:** Ran `/opsx:verify` (all 14 requirements across the 4 capabilities have
+implementation evidence; 40/40 tasks; README fresh; goldens unchanged) then
+`/smart-review` over `4d5f035..HEAD` (the session's 3 commits) with review-sandbox
++ review-gameplay + review-docs. **Verdict: Approve.** No P0/P1/P2. The one
+substantive finding (review-sandbox, P3/low): the group-7 touch affordance was a
+44px `pointer-events:auto` overlay `div` that could swallow a corner thumb-rest on
+a phone — the exact device it targets. **Fixed:** dropped the overlay element;
+the gesture is now a `document`-level `pointerup` listener filtered to the
+bottom-left 44px corner (touch/pen only; mouse uses K), which can't swallow
+input. Re-verified live: 3 corner touch-taps drop, mouse-in-corner + center-touch
+don't, console clean. Two non-blocking notes left as-is: the `e.target.matches`
+guard mirrors the pre-existing T-handler pattern (not a regression); `README.md:73`
+documenting `?perf=` is a pre-existing tone-rule nit outside this diff (flag for a
+separate README pass). Artifact: reviews/002-groups-5-7-close/.
+**Refs:** reviews/002-groups-5-7-close/review-summary.md, src/debug.js buildMarkerTouchZone, README.md:73 (pre-existing, for a future pass)
