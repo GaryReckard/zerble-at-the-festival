@@ -52,6 +52,43 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   the slotting commit. Crowd tier-dependence (harness R2 / A4) is **explicitly left
   open** and inherited by the follow-up. -> Q1, -> ROADMAP.
 
+- **D14 — Group 4 slotting algorithm (pinned before the rewrite).** `_computePlan`
+  replaces scatter-then-`resolveOverlaps` with a single-pass priority slotter. Determinism
+  is preserved by keeping the SAME `cellRng(cx,cz,SALT.poiLayout)` stream consumed in a
+  FIXED order and `clusterSeed(heart, SEMANTIC_idx)` keyed on a stable semantic index
+  (stage=0, court i, row i, …) so zone-omit never re-rolls a sibling's model variation
+  (R19 / task 4.2). The single POI-golden move is THIS commit and only this commit.
+  Steps, each testing its `clusterShapes` extent against the accumulating `placed[]`
+  (via `clustersOverlap` with a small MARGIN) + water (`lakeAt`) + roads (`queryPoint`)
+  and OMITTING on no-fit (dropping dependents transactionally):
+  1. **Stage** at `nudgeOff(hub center)`, yaw = π/2−F. Its deck circle + forward
+     dancefloor OBB become the first `placed[]` entry AND the hard front-wedge reservation.
+  2. **Vendor aisles** along `roads[0..rowN]`: descriptor stays ON the road point (the
+     drivable aisle, kind=vendor_row, yaw=π/2−tangent). The oriented OBB (booth line +
+     camp band, from clusterShapes) is the reservation; omit a row whose OBB overlaps an
+     earlier zone. (booth-on-road → 0 because the row centers ON the road by construction
+     and the OBB straddles it; the BUILDER places booths at ±offset, never on the surface.)
+  3. **Food courts** off `roads[0..courtN]` at walk dist, perp off ROAD_WIDTH/2+PERP,
+     `nudgeOff` water/road; REJECT if within `COURT_MIN_STAGE_DIST` of the stage or if the
+     ring circle overlaps an earlier zone → try the other side, then omit. (overlap +
+     truck-off-road → 0.)
+  4. **Drum circle** via `treedDistrictSpot` (already forest-seeking + off-wedge); REJECT
+     if its circle is inside any placed zone (drum-in-trees envelope) → re-attempt within
+     the existing 12-try loop, then omit. Access path = a cosmetic path record (task 4.4).
+  5. **Potties**: one per parent zone (stage/court/row), attached at the parent edge along
+     the hub-outward normal, facing the parent. Dropped transactionally if the parent omitted.
+  6. **Arch** (spawn hub only, or every hub — decide at 4.x): a NEW plan descriptor kind
+     'arch' on `roads[0]` at a threshold ≥ `ARCH_MIN_STAGE_DIST` ahead of the stage, over
+     the road, outside every dancefloor. main.js `buildSpawnArch` STOPS building its own
+     (relocation = the planner now owns the arch). arch-placement → 0.
+  7. **Bubble vendors**: `rng() < BUBBLE_PROB` gated (not guaranteed) into a leftover clear
+     slot. New `BUBBLE_PROB` in FESTIVAL_TUNING.
+  New FESTIVAL_TUNING: `STAGE_MIN_SPACING`, `COURT_MIN_STAGE_DIST`, `ARCH_MIN_STAGE_DIST`
+  (exists), `BUBBLE_PROB`, `SUGAR_SHACK_PROB` (sugar-shack % of courts), `ZONE_MARGIN`.
+  Verification loop per iteration: plan-mode `bin/lint` (fast) → re-record POI golden ONCE
+  (log old→new) → re-capture 10 registry snapshots → registry `bin/lint` to drive errors→0.
+  -> Task 4.1–4.6, spec.md (all scenarios), D4/D6.
+
 ## Assumptions
 
 | # | Assumption | Confidence | Status | Resolution |
