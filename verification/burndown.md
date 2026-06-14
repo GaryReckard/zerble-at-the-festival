@@ -37,11 +37,14 @@ Plan-mode sweep (10 seeds, approximate) corroborates the drum win:
 - **`water-clear` (error) — 0 on sampled hubs**, but the broad plan-mode sweep still
   reports ~368/10-seeds: **pre-existing** stages on lake-hearts + dancefloor mouths over
   water (HEAD had the same). Not regressed; the lake-heart fix is a group-6 follow-up.
-- **`booth-on-road` (warn) — 16–27/seed, a LINTER FALSE-POSITIVE.** Vendor booths sit at
-  `±VENDOR_ROW_OFFSET` (7 m) = exactly `ROAD_WIDTH` (7 m), so they straddle the *onRoad
-  corridor boundary* by design (Gary is happy with the rows). The rule flags the straddle;
-  it should flag only booths on the *drivable surface*. Documented refinement — don't
-  "fix" it by gapping the rows.
+- **`booth-on-road` (warn) — REFINED 16–27 → 6–8/seed.** Vendor booths sit at
+  `±VENDOR_ROW_OFFSET` (7 m) = exactly the `±ROAD_WIDTH` noBuild *corridor* edge, but the
+  VISIBLE ribbon is only ±ROAD_WIDTH/2; so a straddling booth is on the cleared *shoulder*,
+  not the drive lane. The rule now measures `nearestRoad().dist` against the ribbon
+  half-width (+grazing margin) instead of the generous `onRoad` corridor — so by-design
+  straddling no longer flags, and the residual 6–8/seed are booths that genuinely drifted
+  onto the visible surface on a curve (a per-booth builder onRoad-skip would zero them, but
+  it costs a `nearestRoad` per booth — deferred for perf).
 - **`dancefloor-clear` (warn) — 2–4/seed.** A booth at a vendor row's end swings into the
   stage clearing on a curved approach (outside the straight OBB the planner models).
   Group-5 builder backstop territory.
@@ -59,8 +62,9 @@ clips, not every cross-chunk case (the residual tent×arch above is one it can't
 1. **Full 10-seed registry re-capture** — this is a 3-seed sample; the baseline was 10.
 2. **`water-clear` lake-hearts** — omit/relocate a stage whose heart sits in a lake
    (the biggest remaining error class, pre-existing).
-3. **`booth-on-road` linter refinement** — measure against the visible road surface, not
-   the ±ROAD_WIDTH corridor, so legitimate straddling stops flagging.
+3. ~~`booth-on-road` linter refinement~~ — DONE (measures the visible ribbon, not the
+   ±ROAD_WIDTH corridor). Residual 6–8/seed are real curve-drift; a per-booth builder
+   onRoad-skip would zero them (deferred for the `nearestRoad`-per-booth cost).
 4. **The 1.1 m tent×arch grazing** on curved approaches — needs the planner to model the
    vendor-row curve (or widen the arch's row-clearance) rather than a build-order backstop.
 5. **Re-baseline `baseline.md`** against the group-3 linter (the "106" headline undercounts;

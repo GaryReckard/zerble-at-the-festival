@@ -13,6 +13,8 @@
 // `__dbg.teleport` snippet for the live game.
 
 import { setSeed, getSeed, queryPoint } from './index.js';
+import { nearestRoad } from './roads.js';
+import { CONFIG } from './constants.js';
 import { heartsInBounds, nearestMajorHeart } from './hearts.js';
 import { festivalPlan, dancefloorRect, MAX_POI_REACH } from './festival.js';
 import { clusterExtent, clusterShapes, clustersOverlap, shapesContainPoint, FESTIVAL_TUNING } from './tuning.js';
@@ -398,12 +400,18 @@ const REGISTRY_RULES = [
     id: 'booth-on-road',
     severity: 'warn',
     mode: 'registry',
-    // A vendor booth (tent) whose center sits ON a road corridor blocks the drive
-    // aisle. Rows are meant to straddle the road at ±offset, not stand in it.
+    // A vendor booth (tent) whose center sits on the DRIVABLE road SURFACE blocks the
+    // aisle. Rows are DESIGNED to straddle the road at ±VENDOR_ROW_OFFSET (7 m) — which
+    // equals the ±ROAD_WIDTH noBuild *corridor* edge, so `queryPoint().onRoad` (the
+    // generous ±ROAD_WIDTH corridor) flags every straddling booth as a false positive.
+    // The VISIBLE ribbon is only ±ROAD_WIDTH/2 wide (chunks.js ROAD_RIBBON_WIDTH leaves
+    // a cleared shoulder), so flag a booth only when it's within the ribbon half-width +
+    // its own radius of the centerline — i.e. actually on the drive lane, not the shoulder.
     check(rctx, emit) {
+      const tol = CONFIG.ROAD_WIDTH / 2 + 1;   // visible ribbon half-width + grazing margin
       for (const e of rctx.solids) {
         if (e.kind !== 'tent') continue;
-        if (queryPoint(e.x, e.z).onRoad) emit(e.x, e.z, 'vendor booth sits on the road (blocks the aisle)', nearestHubOf(rctx.hubs, e.x, e.z));
+        if (nearestRoad(e.x, e.z).dist < tol) emit(e.x, e.z, 'vendor booth sits on the road surface (blocks the aisle)', nearestHubOf(rctx.hubs, e.x, e.z));
       }
     },
   },
