@@ -1,9 +1,9 @@
 ---
 change: festival-zone-grammar
-open: 1
-answered: 0
+open: 0
+answered: 1
 last_question: "Q1"
-last_answer: null
+last_answer: "Lean path now; full scope (extraction + crowd pre-roll) eventually as a follow-up."
 ---
 
 # Questions for Human: festival-zone-grammar
@@ -12,6 +12,10 @@ last_answer: null
 > each unanswered question to the user before starting new work.
 
 ## Open Questions
+
+*(none open)*
+
+## Answered Questions
 
 ### Q1: Re-scope to the lean planner-only critical path?
 **Date:** 2026-06-13
@@ -29,9 +33,11 @@ OR keep the **full original scope** (behaviour-preserving extraction first, then
 **Impact:** The lean path is dramatically lower-risk and faster (no behaviour-preserving
 8-builder refactor, the golden moves once at the planner commit), and still hits the
 numeric success criterion. The full scope additionally delivers the D-C′ substrate +
-the tier-dependence fix, at much higher risk/effort. This also gates the next concrete
-action: rewriting `festival.js` placement + moving the determinism golden is the repo's
-most consequential, hardest-to-reverse step, and the change's final acceptance (task 7.3)
-is your in-game 3D playtest — so this is the right point to confirm direction before I cut it.
+the tier-dependence fix, at much higher risk/effort.
 
-## Answered Questions
+**ANSWER (2026-06-13, Gary):** Lean path now. "I'm cool with starting with this, but
+want to eventually do the full scope. let's gooooooo." So: ship the lean planner-only
+critical path as THIS change; the full builder extraction + crowd pre-roll is parked
+on ROADMAP as the explicit follow-up (not dropped). **Action:** -> groups 1 & 2 marked
+DEFERRED in tasks.md; -> D13 in session-log; -> ROADMAP "Festival worldgen v2" follow-up
+bullet added.

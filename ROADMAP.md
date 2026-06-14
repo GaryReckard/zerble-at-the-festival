@@ -100,6 +100,29 @@ landed 2026-06-13: the linter + `bin/lint` + `verification/baseline.md` (106
 error / 92 warn across 10 seeds) are the verification gate the grammar rewrite
 is graded against. (Harness groups 5/6/7 — map-sandbox overlay, hub viewer,
 playtest markers — are in-change fast-follows, not grammar blockers.)
+**In progress (2026-06-13): the LEAN path** (`festival-zone-grammar` D13) — steps
+(2)(3)(4) above as a planner-only rewrite (true extents + zone slotting + arch
+relocation + registry backstop), with ONE deliberate POI-golden move. The
+behaviour-preserving builder extraction is split out to "Festival worldgen v2"
+below (Gary: lean now, full scope eventually).
+
+### Festival worldgen v2 — builder layout/mesh extraction + crowd pre-roll *(deferred 2026-06-13)*
+
+The follow-up to `festival-zone-grammar` (split out per Q1/D13). The grammar fix
+ships planner-only because the 0.5 spike proved the extraction is **off the
+critical path to zero-error** (the POI golden hashes the PLAN; the `chunks.js`
+builders only render its descriptors; crowd draws live in the builder). What this
+follow-up still delivers — valuable but not blocking: (a) the **D-C′ "dry-runnable
+builders" substrate** — split each worldgen builder into a pure
+`layout(rng, env) → records[]` + `buildMesh(records)`, one builder per commit,
+EMPTY snapshot-diff-gated, so the linter/overlay consume *exact* extents headlessly
+instead of analytic approximations; (b) **crowd pre-roll** — `crowd.spawn` draws a
+variable, tier-dependent count from the cluster rng, so a hub's realized layout
+differs low-vs-high (harness R2); hoisting crowd count + per-NPC scalar seeds into
+the layout records makes the *record stream* tier-independent (the realized NPC pop
+stays capped by `PERF.crowdMax`). The full task list lives in
+`festival-zone-grammar` tasks.md groups 1+2 (kept verbatim for this follow-up to
+inherit). This supersedes the older "Dry-runnable builders" bullet below.
 
 ### Layout-work agent harness — ✓ SHIPPED *(designed 2026-06-10, landed 2026-06-13)*
 
@@ -119,12 +142,10 @@ grammar rewrite drives down). Full record: CHANGELOG 2026-06-10…06-13 + OpenSp
 
 Genuinely-remaining follow-ups (not blockers):
 
-- **Dry-runnable builders** *(deferred to `festival-zone-grammar` per
-  worldgen-layout-harness deliberation 001 / D6 — the extraction lands under that
-  change's already-moving golden)* — builders express sub-component layouts as
-  pure data (descriptor in → positions/radii out, no three.js). The true-extent
-  overlay already consumes captured registry snapshots; this would feed it (and
-  the linter's plan mode, and the shape-aware planner) *exact* extents headlessly.
+- **Dry-runnable builders** — *re-deferred 2026-06-13 (Q1/D13) to "Festival
+  worldgen v2" above* (the lean grammar fix didn't need it). Builders express
+  sub-component layouts as pure data (descriptor in → positions/radii out, no
+  three.js); feeds the overlay + linter plan-mode *exact* extents headlessly.
 - **`bin/layout-snapshot capture` — survive headless-only boxes** *(surfaced
   2026-06-12)*: the one-command path dies when there's no GPU (SwiftShader
   saturates at `perf=high`, so `agent-browser open` times out on its load-wait).

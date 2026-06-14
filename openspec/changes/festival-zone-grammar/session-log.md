@@ -1,9 +1,9 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 0 + 0.5 done (gate reproduces; spike: extraction is deferrable, critical path is planner-only). Awaiting Q1 re-scope decision before the planner rewrite / golden move."
-blocked_by: "Q1 (re-scope decision — lean planner-only path vs full extraction)"
-open_questions: 1
+current_task: "Q1 answered (lean path). Groups 1+2 deferred to ROADMAP. Starting Group 3 (true oriented extents) → Group 4 (zone-slotting planner + golden move)."
+blocked_by: ""
+open_questions: 0
 started: 2026-06-13
 last_updated: 2026-06-13
 ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now MET)"
@@ -39,6 +39,18 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   the POI golden moves.
 - **D6 — `DEFAULT_WORLDGEN_V2` flip is a SEPARATE later change** (Gary-sequenced: H.2 →
   harness → this → H.3/F.5 + I + flip). This change ships flag-off; no mid-game player is on v2.
+- **D13 — LEAN PATH (Q1 answered, Gary).** This change ships the planner-only critical
+  path: true oriented extents (group 3) → zone-slotting planner with ONE deliberate POI
+  golden move (group 4) → arch relocation → registry-clearance backstop (group 5) →
+  burndown to zero (group 6) → verify/judge. The behaviour-preserving ~8-builder
+  layout/mesh extraction (group 2) + crowd pre-roll (group 1) are **DEFERRED to a
+  follow-up change**, not dropped — Gary: "want to eventually do the full scope." Parked
+  on ROADMAP as "Festival worldgen v2 — builder layout/mesh extraction + crowd pre-roll."
+  Rationale: the 0.5 spike proved the extraction is off the critical path to zero-error
+  (POI golden hashes the plan; crowd draws live in the builder). Consequence for THIS
+  change: the goldens for the *builders* never move; only the POI golden moves once, at
+  the slotting commit. Crowd tier-dependence (harness R2 / A4) is **explicitly left
+  open** and inherited by the follow-up. -> Q1, -> ROADMAP.
 
 ## Assumptions
 
@@ -56,6 +68,18 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
 - Inherited from harness adversarial review: hub-viewer acceptance is N=1 (widen to 2–3 seeds before grading against it); `arch-placement` fires ~globally (should drop to ~0 here — if not, `ARCH_MIN_STAGE_DIST` is miscalibrated, not the placement).
 
 ## Work Log
+
+### 2026-06-13 -- Q1 answered: LEAN PATH. Groups 1+2 deferred; starting group 3→4.
+**Event:** decision
+**What:** Gary chose the lean planner-only path ("cool with starting with this, but want
+to eventually do the full scope. let's gooooooo"). So this change = groups 3→8 (extents,
+slotting + single golden move, arch relocate, backstop, burndown, verify); groups 1
+(crowd pre-roll) + 2 (8-builder extraction) are DEFERRED to a follow-up change and parked
+on ROADMAP ("Festival worldgen v2"). The crowd tier-dependence (A4) rides along to the
+follow-up. Recorded as -> D13. Next concrete action: group 3 — promote `clusterExtent`
+to per-kind ORIENTED extents (court=ring, vendor=oriented rect, stage=wedge) so the
+group-4 slotter has real shapes to pack instead of scalar `KIND_FOOTPRINT` radii.
+**Refs:** -> Q1, -> D13, tasks.md (groups 1+2 → DEFERRED), ROADMAP
 
 ### 2026-06-13 -- Apply started: Group 0 gate validated + Group 0.5 SPIKE → extraction is deferrable
 **Event:** discovery (re-scope) + question

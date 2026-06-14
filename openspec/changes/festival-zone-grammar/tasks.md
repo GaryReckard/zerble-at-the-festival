@@ -4,16 +4,19 @@
 > diff + draw-count canary + linter) and Gary's in-game judgment.
 >
 > **REVISED after deliberation 001-initial** (`deliberations/001-initial/results.md`,
-> 5 personas + Mediator, all "Proceed with mitigations"). The load-bearing change:
-> **crowd pre-roll is REORDERED ahead of the builder extraction** (the old group 2
-> is now group 1) because `crowd.spawn` draws a variable, tier-dependent count from
-> the cluster rng — until that is hoisted, the extraction's EMPTY-diff gate isn't
-> tier-stable. Plus a new Group 0.5 scope spike, canary hardening, an explicit
-> drivable-corridor reservation, and the MODEL_DIMS guard promotion.
+> 5 personas + Mediator, all "Proceed with mitigations").
 >
-> **Golden discipline:** extraction (groups 1–2) is behaviour-preserving and
-> golden-frozen — full gate ritual per commit, one builder per commit. The POI
-> golden moves exactly ONCE, in group 4. `/smart-review` after group 4 and before close.
+> **RE-SCOPED 2026-06-13 (Q1 answered → D13 — LEAN PATH).** Gary chose the planner-only
+> critical path. **Groups 1 (crowd pre-roll) + 2 (8-builder layout/mesh extraction) are
+> DEFERRED** to a follow-up change ("Festival worldgen v2" on ROADMAP) — NOT dropped.
+> The 0.5 spike proved they're off the critical path to zero-error (the POI golden hashes
+> the PLAN; the builders only render it; crowd draws live in the builder). So THIS change
+> is groups **3 → 8**: true oriented extents → zone-slotting planner (the single golden
+> move) → arch relocation → registry backstop → burndown → verify/judge.
+>
+> **Golden discipline (lean path):** the BUILDER goldens never move (no extraction here).
+> The POI golden moves exactly ONCE, in group 4. The queryPoint (road/water) golden stays
+> frozen throughout. `/smart-review` after group 6 and before close.
 
 ## 0. Preconditions — make the gate real
 
@@ -62,8 +65,13 @@
       commit. Crowd pre-roll (group 1) + full extraction (group 2) are valuable but
       DEFERRABLE — recommend a re-scope decision before grinding them. -> Open Q for Gary.)*
 
-## 1. Crowd pre-roll + injected env (REORDERED to FIRST — was group 2)
+## 1. Crowd pre-roll + injected env — ⛔ DEFERRED to follow-up (D13 / Q1)
 
+> **DEFERRED to the "Festival worldgen v2" follow-up change (ROADMAP).** Off the
+> critical path to zero-error (0.5 spike): crowd draws live in the builder, not the plan,
+> so they don't touch the POI golden this change moves. The crowd tier-dependence (A4)
+> rides along to the follow-up. Tasks kept here for the follow-up to inherit verbatim.
+>
 > `crowd.spawn` (`crowd.js:338`) + 4 call sites (`chunks.js:1698,1706,2466,2723`).
 
 - [ ] 1.1 `crowd.spawn` consumes **pre-rolled params** (count + per-NPC **scalar**
@@ -82,8 +90,14 @@
       high) — its commit gets its OWN CHANGELOG `Fixed` entry, not the
       silent-refactor exemption.
 
-## 2. Builder layout/mesh extraction (was group 1 — now SECOND, golden-frozen)
+## 2. Builder layout/mesh extraction — ⛔ DEFERRED to follow-up (D13 / Q1)
 
+> **DEFERRED to the "Festival worldgen v2" follow-up change (ROADMAP).** This is the
+> ~8-builder behaviour-preserving refactor the council flagged as the riskiest, largest,
+> most-invisible work; the 0.5 spike proved it's NOT required to drive the error rules to
+> zero (the builders only render the planner's descriptors). Delivers the D-C′ substrate.
+> Tasks kept here for the follow-up to inherit verbatim.
+>
 > One builder per commit. Each: split into `layout(rng, env) → records[]` +
 > `buildMesh(records)`; capture; snapshot diff EMPTY (incl. the hardened canary);
 > both goldens unchanged; **boot the real game both flags / both tiers**.
