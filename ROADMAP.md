@@ -146,6 +146,78 @@ below (Gary: lean now, full scope eventually).
   rather than gapping — a bigger builder change, and the planner could prefer seating rows
   where the road is locally straight (golden-moving).
 
+### Festival realism research — validation + new ideas *(2026-06-14)*
+
+Two independent deep-research passes (ChatGPT + Gemini, drawing on real festival
+safety/planning literature — HSE crowd-design, Manchester acoustics, Sonoma/
+Sacramento vendor-row + fire-lane geometry, Bonnaroo/Glastonbury/Electric Forest
+district patterns) are saved at the repo root (`festival-layout-*-deep-research.md`).
+
+**Headline: they VALIDATE the current direction — do not pivot.** Both converge,
+independently, on "sectorize first, place content second; corridors + service
+layers + landmarks, never asset-scatter" — which is exactly the
+`festival-zone-grammar` plan/build-contract refactor + zone slotting we're mid-build
+on. Specific alignments already in our plan: stages as edge anchors with a clear
+front bowl + cross-hub spacing (our front-axis F + dancefloor reservation +
+`stage-spacing` linter rule); vendor rows straddling roads vs food *courts* getting
+their own off-road pockets (Gary's intent + the grammar); drum circles/hammocks as
+"found" content just off main desire lines in forest (Gary's drum-in-clearing intent
++ the `drum-in-trees` rule). The research is reassurance that the in-flight effort
+isn't wasted, not a course correction.
+
+**Genuinely-new ideas worth parking (NOT now — after the grammar fix lands):**
+
+- **Welfare/amenity bundles attached to hubs.** Real festivals plan a recurring
+  bundle (toilets + water + info + shade) per district from the start, denser near
+  stages/food, sparser in craft stretches — not scattered into leftover gaps. This
+  reframes two things we already have: porta banks become part of a *bundle* (not a
+  lone attachment), and **the bubble vendor is naturally the "water/refill amenity"**
+  — which is exactly Gary's "bubble vendors sparse, in places that make sense":
+  site them as a hub/plaza amenity, not a random prop. A `welfare-bundle` zone rule
+  could grow out of the existing `potty-attached` rule.
+- **Return-home landmarks + the player-facing map.** Infinite scale is only
+  tolerable if every major hub has a legible "you are here / home base" marker
+  (Bonnaroo's numbered balloons, Glastonbury's fixed info points). We already carry
+  stable hub identity + `heartInfluence`; pair a tall from-far-visible landmark per
+  major hub with the **in-game map view** already on ROADMAP (keyed off stable hub
+  IDs). Highest-leverage *legibility* add for the infinite world.
+- **Voronoi clearing-excavation for drum/hammock pockets.** A concrete algorithm for
+  the v1 "clearing in dense trees with a Zerble-width access path" composition Gary
+  wants back: Voronoi over the local tree field → excavate a large cell → nest the
+  drum circle/campfire at its center, hammocks between boundary trees, carve one path
+  in. Feeds `festival-zone-grammar`'s drum work (added to its DRAFTING-BRIEF).
+- **"Quiet behind, loud in front" zoning** (symmetric to dancefloor-front-clear):
+  push camps/drum/quiet content *behind* a stage or behind a tree buffer, out of its
+  front audio cone — a cheap explicit rule, partly implied by our front-axis F.
+- **Cheap acoustic *flavor* (not a sim):** dynamically duck a stage's music volume by
+  the tree density between it and the player (Gemini's idea, shrunk to a one-liner).
+  Nice-to-have, not direction-changing — we already have spatial audio.
+- **Road-feel guards when collector/footpath tiers land** (already queued above):
+  loop-closure / no-dead-ends, and a min turning radius on road splines so bends fit
+  the cart. Borrow when the tiers ship; not before.
+
+**Explicitly DON'T adopt (incompatible with our infinite + deterministic + no-build
+constraints — recorded so nobody's tempted later):**
+
+- **Force-directed / domain-warped hub layout.** Both docs recommend it; it's *wrong
+  for us.* It requires seeing all hubs at once and iterating to equilibrium — which
+  breaks window-invariance (footgun #4) and can't run on an infinite world evaluated
+  in 80m windows. Our jittered-macrocell deterministic hearts are the correct model;
+  the cross-hub overlap issues are solved by yield/share rules (shipped 2026-06-14),
+  not a global solver.
+- **Cellular-automata forest seeding.** Stateful/iterative grid over time; our
+  continuous `treeDensity(x,z)` pure-hash field is better for infinite + deterministic
+  + window-invariant. Don't swap.
+- **Parish-Müller L-system road networks.** Built for bounded city grids; our
+  hearts→arterials model is deterministic and windowable. Overkill + determinism-hostile.
+- **Full acoustic-propagation simulation** (delay towers, sound-across-water modeling).
+  Big sim system for a stylized game; the spatial audio we ship is enough. (The cheap
+  tree-duck flavor above is the only morsel worth a look.)
+
+The common thread: the research assumes a *bounded, planned-once* site; our magic is
+an *infinite, streamed, deterministic* one. Take their layout-grammar wisdom (which we
+already are); leave their global-solver algorithms.
+
 ### Festival worldgen v2 — builder layout/mesh extraction + crowd pre-roll *(deferred 2026-06-13)*
 
 The follow-up to `festival-zone-grammar` (split out per Q1/D13). The grammar fix

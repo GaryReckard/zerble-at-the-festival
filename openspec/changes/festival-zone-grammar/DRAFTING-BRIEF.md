@@ -78,6 +78,13 @@ Verbatim-distilled from his brief; treat as requirements for the zone rules:
   bring back that clearing-with-a-path drum composition. (Linter rule
   `drum-in-trees` added to the harness 2026-06-12 guards the placement half;
   the clearing+path composition is THIS change's design work.)
+  **Suggested technique (festival research 2026-06-14, see ROADMAP "Festival
+  realism research"):** Voronoi-style excavation — over the local tree field find
+  a large open cell, clear trees within a radius bounded by the nearest
+  neighbour, nest the campfire/drum at center + hammocks between boundary trees,
+  carve ONE Zerble-width path in from the nearest road. Keep it
+  deterministic/windowed — compute per-cell from the hash field, do NOT iterate a
+  global CA grid (see the DON'T-adopt list in that ROADMAP section).
 - **The festival arch belongs further out, over a road** — not beside the
   dancefloor inside the string lights (playtest 2026-06-12: it currently lands
   ~15·scale from the stage, inside the lit area). The arch should read as a
