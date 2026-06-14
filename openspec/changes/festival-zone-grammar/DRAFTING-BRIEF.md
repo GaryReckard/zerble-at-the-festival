@@ -136,11 +136,61 @@ blind; no cross-hub awareness.
 4. `DEFAULT_WORLDGEN_V2` flip only AFTER this change lands (Gary-confirmed
    sequencing, written into the v2 HANDOFF 2026-06-10).
 
-## Candidate rules + numbers from festival research round 2 (Gemini)
+## Candidate rules + numbers from festival research
 
-Source docs at repo root (`festival-layout-gemini-round*.md` — round2/round3
-files are near-identical regenerations; round3 has the composition spec + SDF
-winding path. ChatGPT round 2 pending). **These numbers are model-INVENTED, not cited — treat as starting
+Source docs now live in `./research/` (moved out of repo root 2026-06-14).
+Five files: ChatGPT R1 (`-chat-gpt-deep-research`) + **R3 (`-chatgpt-round3-deep-research`
+— the strongest, read this one first)**; Gemini R1 (`-gemini-deep-research`),
+the technique paste (`-gemini-round3-techniques`), and R4 deep research
+(`-gemini-round-4-deep-research`). Gemini converged (R2/R3/R4 ≈ same); ChatGPT R3
+is the cited, design-grounded rule catalog.
+
+### From ChatGPT R3 (Lynch-grounded, CITED where noted — the keeper doc)
+
+The high-value framing: a place reads as *designed* via districts/edges/nodes/
+landmarks/paths (Kevin Lynch), and nearly every "feel" signal is a bounded local
+check. **ChatGPT's 6 high-ROI lints to add first** (map straight onto our linter,
+target the exact playtest failure modes — collision / emptiness / weak legibility
+/ props-not-places):
+- `gateway_precedes_stage` — arch on the approach BEFORE the audience field, not
+  lateral/behind (≈20–60m before the stage-front edge; *derived*).
+- `border_frontage_conflict` — reject two unrelated active fronts meeting raw;
+  require a typed SEAM (see cross-hub below).
+- `market_row_continuity` — no dead-end browse aisles / arbitrary gaps; row ends
+  return to another row, a junction, or a seam court.
+- `amenity_bundle_score` — high-intensity nodes co-locate ≥3-of-5 (toilets/water/
+  shade-seating/info-welfare/special-service); reject singletons in busy zones.
+- `transition_path_present` — inter-hub "dead air" above some traffic potential
+  gets ≥1 formal **6–8ft connector path** (NPS) → turns void into low-intensity
+  district.
+- `drum_circle_clearing_score` — low-center / high-ring tree pattern + one formal
+  path (already our `drum-in-trees`; this adds the clearing-shape score).
+
+**Cited numbers worth lifting into `FESTIVAL_TUNING` candidates** (these have real
+sources, unlike Gemini's invented ones): vendor front clearway 5ft/ facing-rows
+10–12ft (the cross-hub vendor failure threshold); food-truck court 10ft between
+units / 10ft from buildings / 44in egress / 20ft fire road past 150ft; comfort
+stations within 76–152m of farthest campsite, ~1 fixture/7 sites; connector
+trails 6–8ft; vegetated buffer 5–10m; bubble vendor 300–500m (the 400m/5-min
+catchment). **Honest limit (ChatGPT's own):** stage-approach setback, reveal
+distance, bubble spacing, and clearing diameter have NO hard source — those stay
+*derived heuristics to tune by playtest*, not code constants.
+
+**Cross-hub as a DESIGN move (ChatGPT's framing — cleaner than pure geometry):**
+two fronts may meet only if the space between them is promoted to a real street.
+When opposing fronts come within ~15–30m, branch deterministically into one of
+three SEAM types: (a) **shared market street** (one continuous frontage logic,
+preserve the 10–12ft browse aisle, no dead ends), (b) **shared amenity court**
+(both hubs want food/support there → one merged court, not two), (c) **soft green
+buffer** (stage-to-market / camp-to-loud / quiet-to-loud → trees, hammocks, shade,
+potties, info node). Plus **orientation-away**: fronts/lights/arches point inward
+to each hub's core or along a shared spine, never outward into a neighbour unless
+that edge is intentionally a market street. This pairs with the geometric OBB
+machinery below — OBB/SAT detects the conflict; seam-typing decides the *response*.
+
+### From Gemini (technique/geometry layer — converged R2–R4)
+
+Source docs in `./research/`. **These numbers are model-INVENTED, not cited — treat as starting
 points to TUNE in the hub viewer against `FESTIVAL_TUNING`, not facts.** Several
 CONFLICT with our current values (Gemini 80m main dancefloor vs our ~38m base;
 70m food-truck-ring diameter vs our ~28m) — those conflicts are Gary feel-calls
@@ -172,3 +222,20 @@ real work, not a drop-in; (2) DETERMINISM — the SAT overlap boolean is float
 geometry that decides whether a vendor row EXISTS, so it can flip cross-engine
 (footgun #4, same class as the H.2 road-existence flip). Quantize/integerize the
 projection comparisons before they gate existence, and golden-verify node==browser.
+
+**Gemini R4 refinements (over R2/R3):** (a) **vendor-row OBB *trimming*** instead of
+whole-row omit — trim the lower-priority row along its road axis to clear the
+conflict; skip only if the trimmed length can't fit 3 booths. Gentler degradation,
+pairs with ChatGPT's seam-typing (trim toward becoming a shared street). (b) a
+concrete `getHubPriority(hx,hz,seed)` integer bit-mixing hash (unique per hub →
+symmetry broken without communication) — integer, so determinism-safe, unlike the
+float SAT boolean. (c) a **radial zone-band** organizing model (0–50m core stages /
+50–120m commerce / 120–190m welfare+camp / 190–200m+ nature+drum). Note this BANDS
+by distance-from-hub, which somewhat conflicts with our walk-out-along-roads model —
+treat it as a sanity check on "what belongs how far out," not a placement rewrite.
+
+**Net of all research (2026-06-14):** ChatGPT R3's seam-typing + 6-lint priority +
+cited numbers are the headline adopts; Gemini supplies the geometric machinery
+(OBB/SAT, trimming, hub-priority hash, SDF clearing) those rules run on. Standing
+caveats throughout: cited numbers → `FESTIVAL_TUNING` candidates; derived/invented
+numbers → tune in the hub viewer; any float compare that gates existence → quantize.

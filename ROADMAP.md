@@ -151,7 +151,8 @@ below (Gary: lean now, full scope eventually).
 Two independent deep-research passes (ChatGPT + Gemini, drawing on real festival
 safety/planning literature — HSE crowd-design, Manchester acoustics, Sonoma/
 Sacramento vendor-row + fire-lane geometry, Bonnaroo/Glastonbury/Electric Forest
-district patterns) are saved at the repo root (`festival-layout-*-deep-research.md`).
+district patterns) live in `openspec/changes/festival-zone-grammar/research/` (moved
+out of repo root 2026-06-14).
 
 **Headline: they VALIDATE the current direction — do not pivot.** Both converge,
 independently, on "sectorize first, place content second; corridors + service
@@ -218,8 +219,14 @@ The common thread: the research assumes a *bounded, planned-once* site; our magi
 an *infinite, streamed, deterministic* one. Take their layout-grammar wisdom (which we
 already are); leave their global-solver algorithms.
 
-**Round 2 (2026-06-14, `festival-layout-gemini-round*.md` — round3 is a near-identical
-regen of round2 w/ the composition spec; ChatGPT R2 pending):**
+**Rounds 2–4 (2026-06-14, docs in `festival-zone-grammar/research/`):** ChatGPT R3
+deep research is the keeper — a Lynch-grounded catalog of LOCAL encodable rules with
+cited numbers + a 6-lint priority list (gateway-before-stage, border-frontage-seam,
+market-row-continuity, amenity-bundle, transition-path, drum-clearing) and cross-hub
+framed as SEAM-TYPING (shared street / shared court / soft buffer + orientation-away).
+Gemini converged (R2≈R3≈R4) on the geometry layer (OBB/SAT, vendor-row trimming,
+hub-priority hash, SDF clearing). Full keepers + caveats captured in the
+`festival-zone-grammar` DRAFTING-BRIEF, not duplicated here.
 Gemini re-engaged within our constraints this time and produced concrete *windowable*
 candidates — the keepers + caveats are captured in the `festival-zone-grammar`
 DRAFTING-BRIEF ("Candidate rules + numbers"), not duplicated here. Headline keepers:
