@@ -129,14 +129,16 @@ below (Gary: lean now, full scope eventually).
   seniors × ~80 ms base-plan (`nearestRoad`-dominated) → **~8 s per `festivalPlan`** (hangs
   chunk gen); AND (b) **wrong at this density** — nearly every minor hub has a senior
   cluster in reach, so it would OMIT most courts/rows, gutting the festival.
-  **FOOD COURTS shipped 2026-06-14 (Gary's call — SHARE, don't relocate):** the build step
-  now omits a court whose ring reaches an already-built neighbour court; the neighbour's
-  serves both (CHANGELOG). Builder-only, goldens frozen, load-order-dependent by design.
-  **Still open** — the same *sharing* idea applied to **(1)** the drum-circle-vs-neighbour-
-  stage clip (extend the `placeWorldgenProps` guard: a drum whose bench ring reaches a
-  neighbour stage/drum yields), and **(2)** vendor rows that sit too close across hubs. If
-  a bigger structural change is ever wanted instead, the parked options are a hub-subset
-  gate (sparser hubs) or a batched neighbourhood solver — both golden-moving.
+  **FOOD COURTS + DRUM-vs-STAGE shipped 2026-06-14 (Gary's call — SHARE/yield, don't relocate):**
+  the build step now omits a food court whose ring reaches an already-built neighbour court
+  (the neighbour's serves both), and omits a drum circle whose bench ring would clip a
+  neighbour hub's stage deck (`stageDeckClips`, an order-independent heart-position test, so
+  the stage anchor always wins). Builder-only, goldens frozen (CHANGELOG).
+  **Still open** — cross-hub **vendor rows that sit too close** (Gary: "a vendor row tooooo
+  close to both"). Rows are oriented rectangles, not rings, so the same center-distance trick
+  is fuzzier; likely wants an OBB-vs-neighbour check or the curved-row work below. If a bigger
+  structural change is ever wanted instead, the parked options are a hub-subset gate (sparser
+  hubs) or a batched neighbourhood solver — both golden-moving.
 
 - **Vendor row crosses a CURVED road.** Seed 2718382314 @ (49,386): a vendor row is
   centered on a road point with `yaw` = the local road tangent, but the row geometry is

@@ -217,6 +217,28 @@ export function drumClearingsNear(minX, minZ, maxX, maxZ) {
   return out;
 }
 
+// Conservative max stage-deck radius per rank (deck = KIND_FOOTPRINT × MAX scale).
+const _STAGE_DECK_MAX = {
+  major: FESTIVAL_TUNING.KIND_FOOTPRINT.main_stage * (FESTIVAL_TUNING.STAGE_SCALE_MAJOR_BASE + FESTIVAL_TUNING.STAGE_SCALE_MAJOR_SPAN),
+  minor: Math.max(FESTIVAL_TUNING.KIND_FOOTPRINT.tent_stage, FESTIVAL_TUNING.KIND_FOOTPRINT.side_stage) * (FESTIVAL_TUNING.STAGE_SCALE_MINOR_BASE + FESTIVAL_TUNING.STAGE_SCALE_MINOR_SPAN),
+};
+// Would a cluster centered at (x,z) with radius `extra` clip a NEIGHBOUR hub's stage deck?
+// Stages sit at heart centers, so this is a pure heart-position test — cheap (no plan, no rng)
+// and load-order-INDEPENDENT, unlike a registry probe. Used to keep a district drum circle from
+// clipping an adjacent hub's stage (Gary 2026-06-14: "drum circle clipping with a tent stage"):
+// the drum lands ~190 m from its OWN heart (so its own deck never trips this), but at HEART_CELL
+// 200 m it can land ~10 m from a NEIGHBOUR heart. The drum yields (the stage is the anchor that
+// can't move). Conservative per-rank deck radius — slightly over-yields, which is fine (drums are
+// optional; Gary: "drum circles do NOT need to be at every hub").
+export function stageDeckClips(x, z, extra = 0) {
+  const reach = Math.max(_STAGE_DECK_MAX.major, _STAGE_DECK_MAX.minor) + extra;
+  for (const h of heartsInBounds(x - reach, z - reach, x + reach, z + reach)) {
+    const deck = (h.rank === 'major' ? _STAGE_DECK_MAX.major : _STAGE_DECK_MAX.minor) + extra;
+    if (Math.hypot(h.x - x, h.z - z) < deck) return true;
+  }
+  return false;
+}
+
 // Footprint (clear-radius, m) hint per cluster kind — for the build half's
 // spacing + the map-sandbox overlay. The build side registers each prop with the
 // model's real footprint; this is the cluster envelope. Now in tuning.js:
