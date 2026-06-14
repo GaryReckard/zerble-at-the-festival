@@ -216,12 +216,19 @@
 > Runs BEFORE the full 10-seed burndown (6.1) and the Gary playtest (7.3). Ends with
 > the SECOND deliberate golden move. A `/deliberate` before 4B.5 is recommended.
 
-- [ ] 4B.1 **Integer hub-priority + seam-pair enumeration (pure, golden-FROZEN).**
+- [x] 4B.1 **Integer hub-priority + seam-pair enumeration (pure, golden-FROZEN).**
       Add `getHubPriority(cx, cz, seed)` (integer bit-mix hash) and a deterministic
       `seamPairsNear(bounds)` that enumerates each heart + its in-reach neighbours
       (within `2·MAX_POI_REACH`), order-independent. Read-only helpers — emit nothing
       into the plan yet. done = unit-probe: priority unique + stable per seed; pair set
       identical regardless of query origin; both goldens UNCHANGED (`49ec28fc`/`eddf8e50`).
+      *(done 2026-06-14 — `getHubPriority` (cellHash+SALT.hubPriority) + `seamPairsNear`
+      (canonical (cx,cz) pair order, integer squared-distance gate, edgeHash+SALT.seam,
+      keeper=higher-priority/tie→canonical-lower) in festival.js; SALT.hubPriority/.seam
+      added (fresh streams). Probe: priority deterministic+seed-sensitive; 337 shared pairs
+      across shifted query windows ALL agree on keeper+hash; canonical order + keeper rule
+      verified. Full selftest: BOTH goldens FROZEN (eddf8e50/49ec28fc); lone 23/24 =
+      pre-existing road-negctl-seed0 teeth (constants.js:13, not a determinism break).)*
 - [ ] 4B.2 **Seam-type classifier (integer-only).** For each pair, detect the conflicting
       edge zones via integerized oriented-extent overlap (quantized positions, integer
       squared-distance / SAT projections — D8/D21) and classify: commerce↔commerce →

@@ -40,7 +40,7 @@
 //    disparity + the 1m lake-shore wobble; it never regenerates a seeded world on one
 //    engine. Left as-is deliberately rather than over-quantizing a cosmetic.
 
-import { cellRng, quantize, worldHash, mulberry32 } from '../rng.js';
+import { cellRng, quantize, worldHash, mulberry32, cellHash, edgeHash } from '../rng.js';
 import { CONFIG, SALT, worldgenEpoch } from './constants.js';
 import { FESTIVAL_TUNING, clusterShapes, clustersOverlap, clusterExtent } from './tuning.js';
 import { getSessionSeed } from '../rng.js';
@@ -237,6 +237,60 @@ export function stageDeckClips(x, z, extra = 0) {
     if (Math.hypot(h.x - x, h.z - z) < deck) return true;
   }
   return false;
+}
+
+// --- Cross-hub seam grammar (Group 4B — D7/D8/D9, D19–D23) --------------------
+// DENSE & SEAMED (Gary grill 2026-06-14): hubs sit HEART_CELL (200 m) apart but
+// clusters reach ~190 m, so neighbours overlap BY DESIGN. Instead of patching each
+// clip in the builders (blind + load-order-dependent), we promote the seam to a
+// designed place — shared street / merged court / soft buffer — DECIDED IN THE PLANNER
+// so both hubs derive the identical outcome with no communication. The decision is
+// INTEGER-ONLY (no float gates existence — footgun #4): integer priority + quantized
+// positions + integer squared-distance, the hearts.js pattern. 4B.1 is the pure,
+// golden-FROZEN foundation (priority + pair enumeration); it emits nothing into the
+// plan — classification + response land in 4B.2/4B.3.
+
+// Integer priority for a hub (cell + session seed). Breaks symmetry between two
+// seaming hubs without communication: the HIGHER-priority hub is the keeper (anchor),
+// the lower yields (trims its row / cedes its court). Pure uint32; exact-equality ties
+// are broken downstream by (cx,cz) lexicographic — never iteration order.
+export function getHubPriority(cx, cz) {
+  return cellHash(cx | 0, cz | 0, SALT.hubPriority) >>> 0;
+}
+
+// Conservative center-distance at which two hubs' built extents can touch: realistic
+// per-hub cluster reach is ~190 m, so seams form within ~2× that. Over-bounded a touch
+// so enumeration never MISSES a pair the classifier might keep; 4B.2 prunes to the
+// actual oriented-extent overlaps. (Structural; candidate FESTIVAL_TUNING knob.)
+const SEAM_PAIR_REACH = 420;
+
+// Every unordered hub PAIR near a region whose centers are within SEAM_PAIR_REACH —
+// the load-order-independent substrate the seam classifier (4B.2) runs on (mirrors
+// dancefloorRectsNear / stageDeckClips). Canonicalized by (cx,cz) so pair (A,B) ===
+// pair (B,A) regardless of which chunk asked; `keeper`/`yielder` decided by integer
+// priority (higher keeps), exact ties by (cx,cz). PURE: no festivalPlan, no rng draw,
+// no nearestRoad — heart positions + integer hashes only, so it's cheap AND golden-frozen.
+export function seamPairsNear(minX, minZ, maxX, maxZ) {
+  const hs = heartsInBounds(minX - SEAM_PAIR_REACH, minZ - SEAM_PAIR_REACH, maxX + SEAM_PAIR_REACH, maxZ + SEAM_PAIR_REACH);
+  const reachSq = SEAM_PAIR_REACH * SEAM_PAIR_REACH;
+  const out = [];
+  for (let i = 0; i < hs.length; i++) {
+    for (let j = i + 1; j < hs.length; j++) {
+      const a = hs[i], b = hs[j];
+      const dx = a.x - b.x, dz = a.z - b.z;
+      const distSq = dx * dx + dz * dz;          // exact integer (heart coords are quantized)
+      if (distSq > reachSq) continue;
+      // canonical pair order: lower (cx,cz) first → origin-independent identity
+      let lo = a, hi = b;
+      if (b.cx < a.cx || (b.cx === a.cx && b.cz < a.cz)) { lo = b; hi = a; }
+      const pLo = getHubPriority(lo.cx, lo.cz), pHi = getHubPriority(hi.cx, hi.cz);
+      // higher priority keeps; on exact tie the canonical-lower (cx,cz) hub keeps
+      const keeper = (pLo >= pHi) ? lo : hi;
+      const yielder = (keeper === lo) ? hi : lo;
+      out.push({ lo, hi, keeper, yielder, distSq, seamHash: edgeHash(lo.cx, lo.cz, hi.cx, hi.cz, SALT.seam) >>> 0 });
+    }
+  }
+  return out;
 }
 
 // Footprint (clear-radius, m) hint per cluster kind — for the build half's

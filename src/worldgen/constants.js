@@ -81,4 +81,6 @@ export const SALT = {
   placement:   0x4D41_0A,   // 3D placement jitter (placement.js) — fresh stream, no collision
   poiLayout:   0x4D41_0B,   // per-heart festival POI layout (festival.js) — fresh, no collision
   poiVillage:  0x4D41_0C,   // camp-village coarse-grid placement (festival.js) — fresh, no collision
+  hubPriority: 0x4D41_0D,   // integer hub priority for cross-hub seam yield (festival.js 4B) — fresh
+  seam:        0x4D41_0E,   // per-seam (hub-pair) hash for seam-type variation (festival.js 4B) — fresh
 };
