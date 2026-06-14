@@ -234,23 +234,27 @@ if (USE_WORLDGEN_V2) {
   const stage = plan.find((p) => p.kind === 'main_stage' || p.kind === 'side_stage' || p.kind === 'tent_stage');
   const arch = plan.find((p) => p.kind === 'arch');
   if (heart && stage && arch) {
-    // Spawn just OUTSIDE the entrance arch, facing THROUGH it at the stage (Gary
-    // 2026-06-14): the planner sets the arch on a road that leads to the stage, ≥ 2
-    // dancefloor-lengths out, so Zerble opens the game looking at the "FESTIVAL"
-    // gateway with the stage framed beyond it, then drives in. The planner owns the
-    // arch (built when its chunk loads); this only positions the player + spawn point.
-    let odx = arch.x - stage.x, odz = arch.z - stage.z;          // stage → arch (outward, the approach)
-    const ol = Math.hypot(odx, odz) || 1; odx /= ol; odz /= ol;
-    let sx = Math.round(arch.x + odx * SPAWN_PAST_ARCH);          // a few m beyond the gate (the outer side)
-    let sz = Math.round(arch.z + odz * SPAWN_PAST_ARCH);
-    // Keep the spawn dry — step back toward the (dry) arch/stage if a lakeshore clips it.
+    // Spawn just OUTSIDE the entrance arch, facing STRAIGHT THROUGH it (Gary 2026-06-14:
+    // "facing straight through the arch, not necessarily through the arch AT the stage").
+    // The planner sets the arch on a road that leads to the stage, ≥ 2 dancefloor-lengths
+    // out; Zerble opens the game on that road axis, looking through the "FESTIVAL" gateway
+    // into the hub. We align to the ARCH's passage axis (its road tangent), not the
+    // straight line to the stage — so on a curved approach Zerble drives THROUGH the gate
+    // rather than aiming off-axis. The arch tangent = π/2 − arch.yaw; orient it toward the
+    // hub interior. Module-eval only (positions player + spawn point); the planner owns the arch.
+    const bearing = Math.PI / 2 - arch.yaw;                      // road tangent at the arch
+    let tx = Math.cos(bearing), tz = Math.sin(bearing);
+    if (tx * (stage.x - arch.x) + tz * (stage.z - arch.z) < 0) { tx = -tx; tz = -tz; }   // point INTO the hub
+    let sx = Math.round(arch.x - tx * SPAWN_PAST_ARCH);          // just outside the gate, on the road axis
+    let sz = Math.round(arch.z - tz * SPAWN_PAST_ARCH);
+    // Keep the spawn dry — step forward through the gate (toward the dry hub) if a lakeshore clips it.
     if (lakeAt(sx, sz)) {
       for (let d = 4; d <= 48; d += 4) {
-        const nx = Math.round(sx - odx * d), nz = Math.round(sz - odz * d);
+        const nx = Math.round(sx + tx * d), nz = Math.round(sz + tz * d);
         if (!lakeAt(nx, nz)) { sx = nx; sz = nz; break; }
       }
     }
-    zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));  // face the stage, through the arch
+    zerble.heading = Math.atan2(-tx, -tz);                       // face straight through the arch's passage
     zerble.position.set(sx, 0, sz);
     setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs at the gate
   } else if (heart && stage) {
