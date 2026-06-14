@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 3 done (oriented extents + drift guard; goldens frozen; linter consumes shapes). Next: 3.2 map-sandbox overlay half, then Group 4 (zone-slotting planner + the single POI-golden move)."
+current_task: "RESUME HERE → Group 4: rewrite festival.js _computePlan as the D14 7-step zone slotter + relocate the arch (plan owns it; main.js buildSpawnArch stops) + move the POI golden ONCE (current frozen: queryPoint eddf8e50 / POI 4825fd0b; log old→new). Verify loop: plan-mode bin/lint → re-record golden → re-capture 10 registry snapshots → registry bin/lint drive errors→0. (Optional/minor: 3.2 map-sandbox overlay half — oriented-extent rendering — deferrable.) Group 3 DONE, goldens frozen, game boots clean perf=low."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
