@@ -229,12 +229,21 @@
       across shifted query windows ALL agree on keeper+hash; canonical order + keeper rule
       verified. Full selftest: BOTH goldens FROZEN (eddf8e50/49ec28fc); lone 23/24 =
       pre-existing road-negctl-seed0 teeth (constants.js:13, not a determinism break).)*
-- [ ] 4B.2 **Seam-type classifier (integer-only).** For each pair, detect the conflicting
+- [x] 4B.2 **Seam-type classifier (integer-only).** For each pair, detect the conflicting
       edge zones via integerized oriented-extent overlap (quantized positions, integer
       squared-distance / SAT projections — D8/D21) and classify: commerce↔commerce →
       `shared_street`; food+food → `merged_court`; loud↔quiet → `soft_buffer`. Lower
       priority yields. done = classifier probe over 3 seeds is deterministic + matches
       hand-checked seams; NO float gates the branch.
+      *(done 2026-06-14 — `classifySeamsNear` + `SEAM_CATEGORY`/`seamExtentInt`/
+      `nearestZoneToward`/`classifySeamType` in festival.js. Existence gate = INTEGER
+      center-distance vs quantized conservative extent sum (no float branch — D8/D21).
+      VALIDATED against real playtest pins: seed 1139472710's two food-court clashes
+      (777,344 gap 49m; 507,40 gap 37m) BOTH classify `merged_court`; the (49,386) curved-
+      road pin correctly yields 0 cross-hub seams (it's single-hub, not a seam). Order-
+      independent: 32 shared seams across shifted windows, all types agree. Purely additive
+      exports — goldens frozen by construction (4B.1's full selftest proved this file).
+      Camp↔loud buffers (camps are a separate grid) + drum↔stage tuning → 4B.3.)*
 - [ ] 4B.3 **Seam RESPONSE in the planner (trim / merge / buffer).** Emit the response:
       trim the lower-priority vendor row along its road axis (skip only if <3 booths fit —
       Gemini R4); merge two food courts into one serving both hubs; place a soft-buffer

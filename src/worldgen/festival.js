@@ -293,6 +293,87 @@ export function seamPairsNear(minX, minZ, maxX, maxZ) {
   return out;
 }
 
+// Seam category per descriptor kind — the axis the context-grammar classifies on
+// (D20): loud (stages + drum), commerce (market), food (court), quiet/support (camps,
+// potties, bubbles, arch). Camps live on a separate coarse grid (campVillagesNear),
+// not festivalPlan, so 4B.2 v1 classifies festival-POI-zone seams; camp↔loud buffers
+// are a 4B.3 extension.
+const SEAM_CATEGORY = {
+  main_stage: 'loud', tent_stage: 'loud', side_stage: 'loud', drum_circle: 'loud',
+  vendor_row: 'commerce',
+  food_court: 'food',
+  camp_village: 'quiet', porta_bank: 'support', bubble_vendor: 'support', arch: 'support',
+};
+// The big-footprint zones whose fronts actually form a seam (small threshold props —
+// arch, bubble, potty — don't define a front; skip them as the "edge zone").
+const SEAM_ZONE_KINDS = new Set(['main_stage', 'tent_stage', 'side_stage', 'drum_circle', 'vendor_row', 'food_court']);
+const SEAM_MARGIN = 2;   // integer slack (m) on the existence gate
+
+// Conservative per-kind extent, QUANTIZED to whole meters — the existence gate must be
+// integer (D8/D21), so the float `clusterExtent` can't feed the compare directly. Stages
+// use their MAX scale bound (like _STAGE_DECK_MAX); other kinds are pure constants. Read
+// per-call (no cross-epoch memo) so live sandbox tuning still tracks.
+function seamExtentInt(kind) {
+  const T = FESTIVAL_TUNING;
+  let maxScale = 1;
+  if (kind === 'main_stage') maxScale = T.STAGE_SCALE_MAJOR_BASE + T.STAGE_SCALE_MAJOR_SPAN;
+  else if (kind === 'tent_stage' || kind === 'side_stage') maxScale = T.STAGE_SCALE_MINOR_BASE + T.STAGE_SCALE_MINOR_SPAN;
+  return quantize(clusterExtent(kind, maxScale));
+}
+
+// The seam-relevant zone in `plan` whose center is nearest the OTHER hub — the "front"
+// that meets the neighbour. Integer squared-distance (desc() quantizes x,z), so the
+// pick is engine-stable. Returns the descriptor or null.
+function nearestZoneToward(plan, other) {
+  let best = null, bestSq = Infinity;
+  for (const d of plan) {
+    if (!SEAM_ZONE_KINDS.has(d.kind)) continue;
+    const dx = d.x - other.x, dz = d.z - other.z;
+    const sq = dx * dx + dz * dz;          // integer
+    if (sq < bestSq) { bestSq = sq; best = d; }
+  }
+  return best;
+}
+
+// Context-grammar seam TYPE from the two meeting categories (D20). food+food merges to
+// one court; commerce+commerce fuses to a shared street; two loud fronts (drum vs stage)
+// → the lower-priority one yields; loud meeting anything quieter → a soft buffer; other
+// mixes default to a buffer (separate them).
+function classifySeamType(catA, catB) {
+  if (catA === 'food' && catB === 'food') return 'merged_court';
+  if (catA === 'commerce' && catB === 'commerce') return 'shared_street';
+  if (catA === 'loud' && catB === 'loud') return 'yield';
+  if ((catA === 'loud') !== (catB === 'loud')) return 'soft_buffer';
+  return 'soft_buffer';
+}
+
+// Classify every CONFLICTING hub-pair seam near a region (4B.2). For each pair from
+// seamPairsNear: take each hub's front nearest the other, gate the conflict on INTEGER
+// center-distance vs the quantized extent sum (no float gates existence — D8/D21), and
+// tag the seam TYPE. Pure read — calls festivalPlan (memoized) but emits NOTHING into any
+// plan, so both goldens stay frozen. The response (trim/merge/buffer) is 4B.3.
+export function classifySeamsNear(minX, minZ, maxX, maxZ) {
+  const out = [];
+  for (const seam of seamPairsNear(minX, minZ, maxX, maxZ)) {
+    const eK = nearestZoneToward(festivalPlan(seam.keeper), seam.yielder);
+    const eY = nearestZoneToward(festivalPlan(seam.yielder), seam.keeper);
+    if (!eK || !eY) continue;
+    const dx = eK.x - eY.x, dz = eK.z - eY.z;
+    const distSq = dx * dx + dz * dz;                              // integer
+    const thr = seamExtentInt(eK.kind) + seamExtentInt(eY.kind) + SEAM_MARGIN;
+    if (distSq > thr * thr) continue;                             // fronts clear — no seam
+    const catK = SEAM_CATEGORY[eK.kind] || 'support';
+    const catY = SEAM_CATEGORY[eY.kind] || 'support';
+    out.push({
+      keeper: seam.keeper, yielder: seam.yielder,
+      keeperZone: eK, yielderZone: eY,
+      type: classifySeamType(catK, catY),
+      gapInt: Math.round(Math.sqrt(distSq)), thrInt: thr, seamHash: seam.seamHash,
+    });
+  }
+  return out;
+}
+
 // Footprint (clear-radius, m) hint per cluster kind — for the build half's
 // spacing + the map-sandbox overlay. The build side registers each prop with the
 // model's real footprint; this is the cluster envelope. Now in tuning.js:
