@@ -23,8 +23,9 @@ import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps } from './worldgen/placement.js';
 import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
-import { dancefloorRectsNear, festivalPlan, campVillagesNear, MAX_POI_REACH } from './worldgen/festival.js';
+import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, MAX_POI_REACH } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
+import { roadsInBounds } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
@@ -1023,6 +1024,16 @@ function scatterWorldgenTrees(ctx) {
   // a cheap oriented point-in-rect test per candidate (NOT a per-tree worldgen
   // query; the rects' computeFrontAxis is memoized → ~2ms cold for the chunk, R7).
   const danceRects = dancefloorRectsNear(minX, minZ, minX + CHUNK_SIZE, minZ + CHUNK_SIZE);
+  // ALL arterials crossing this chunk (cross-heart, deduped) — not just this
+  // chunk's owning region. `ctx.region.roads` is one heart's roads, so a road from
+  // a NEIGHBOUR heart that clips the chunk was invisible and trees landed on it
+  // (Gary 2026-06-14: "several trees spawned in the middle of road"). Fetched ONCE
+  // like danceRects; `pointNearWorldgenRoad` then does the cheap polyline test.
+  const chunkRoads = roadsInBounds(minX - roadHalf, minZ - roadHalf, minX + CHUNK_SIZE + roadHalf, minZ + CHUNK_SIZE + roadHalf);
+  // Drum-circle inner clearings (Gary 2026-06-14: "trees in the middle of a drum
+  // circle") — keep the firepit/bench ring clear while the surrounding pocket stays
+  // treed. Plan-side, fetched once, load-order-independent (see drumClearingsNear).
+  const drumClears = drumClearingsNear(minX, minZ, minX + CHUNK_SIZE, minZ + CHUNK_SIZE);
   const placed = [];
   const placeTree = (x, z) => {
     const tree = buildForestTree(rng);
@@ -1042,7 +1053,8 @@ function scatterWorldgenTrees(ctx) {
   };
   const clearOfStuff = (x, z, spacing) => {
     if (pointInDancefloor(x, z, danceRects)) return false;          // keep the stage's audience side clear (A4)
-    if (pointNearWorldgenRoad(x, z, ctx.region.roads, roadHalf)) return false;
+    if (pointNearWorldgenRoad(x, z, chunkRoads, roadHalf)) return false;   // off EVERY nearby arterial, not just this region's
+    for (let i = 0; i < drumClears.length; i++) { const dc = drumClears[i]; if ((dc.x - x) * (dc.x - x) + (dc.z - z) * (dc.z - z) < dc.r * dc.r) return false; }
     for (let i = 0; i < placed.length; i++) if (Math.hypot(placed[i].x - x, placed[i].z - z) < spacing) return false;
     if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.5, TREE_GUARD_SKIP)) return false;
     return true;

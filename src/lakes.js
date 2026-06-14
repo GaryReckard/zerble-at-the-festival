@@ -24,7 +24,31 @@ import { buildCanoe } from './models/canoe.js';
 import { buildCampsite } from './models/campsite.js';
 import { buildForestTree } from './models/tree.js';
 import { lakesInBounds as wgLakesInBounds } from './worldgen/water.js';
+import { roadsInBounds } from './worldgen/roads.js';
+import { CONFIG } from './worldgen/constants.js';
 import { USE_WORLDGEN_V2 } from './perf.js';
+
+// Min distance (m) from an arterial centerline to keep a lakeside-ring tree —
+// half the visible ribbon plus a small margin, matching scatterWorldgenTrees.
+const RING_ROAD_HALF = CONFIG.ROAD_WIDTH / 2 + 2.0;
+// Cheap point-to-polyline test against pre-fetched road polylines (the same math
+// as chunks.js pointNearWorldgenRoad — no per-candidate worldgen query).
+function nearAnyRoad(x, z, roads, halfW) {
+  if (!roads) return false;
+  const h2 = halfW * halfW;
+  for (const rd of roads) {
+    const pts = rd.points;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const ax = pts[i].x, az = pts[i].z, ex = pts[i + 1].x - ax, ez = pts[i + 1].z - az;
+      const L2 = ex * ex + ez * ez || 1;
+      let t = ((x - ax) * ex + (z - az) * ez) / L2;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const dx = x - (ax + ex * t), dz = z - (az + ez * t);
+      if (dx * dx + dz * dz < h2) return true;
+    }
+  }
+  return false;
+}
 
 // Per-frame animatables from lakeside campsites. Each entry:
 //   { lakeKey: string, animatables: [...] }
@@ -634,6 +658,17 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
     // so density visibly increases with distance. Candidates within camp
     // footprint + 2.5m are rejected so camps stay clear.
     const TREE_TARGET = 90 + Math.floor(rng() * 50);
+    // Worldgen arterials threading past the lake — fetched ONCE for the ring's
+    // bounding box so lakeside trees don't land on a road (Gary 2026-06-14: trees
+    // in the middle of a road, beside a lake). v2 only (legacy has no arterials);
+    // bounded fetch + cheap polyline test, not a per-candidate nearestRoad.
+    let ringRoads = null;
+    if (USE_WORLDGEN_V2) {
+      let maxShore = 0;
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) maxShore = Math.max(maxShore, outlineRAt(decoOutline, a));
+      const reach = maxShore + 40;   // ring extends to shore + (14..39); +margin
+      ringRoads = roadsInBounds(cx - reach, cz - reach, cx + reach, cz + reach);
+    }
     let placed = 0;
     let attempts = 0;
     while (placed < TREE_TARGET && attempts < TREE_TARGET * 4) {
@@ -655,6 +690,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
         if (Math.hypot(c.x - treeX, c.z - treeZ) < c.r + 2.5) { closeToCamp = true; break; }
       }
       if (closeToCamp) continue;
+      if (nearAnyRoad(treeX, treeZ, ringRoads, RING_ROAD_HALF)) continue;   // keep off arterials (v2)
 
       const tree = buildForestTree(rng);
       tree.position.set(treeX, 0, treeZ);

@@ -197,6 +197,26 @@ export function dancefloorRectsNear(minX, minZ, maxX, maxZ) {
   return hs.map(dancefloorRect);
 }
 
+// Drum-circle clearings for every nearby hub, as { x, z, r } circles — the inner
+// keep-out the Group-F tree scatter carves so woods surround the drum (treed pocket
+// is the POINT, DRUM_TREE_RADIUS) but never fill the firepit/bench ring (Gary
+// 2026-06-14: "trees spawned in the middle of a drum circle"). Plan-side (not
+// registry) so it's load-order-independent: a drum's bench ring spills past its
+// own chunk, and a neighbour chunk may scatter trees before the drum's chunk
+// builds. `r` = the planner's own drum envelope (KIND_FOOTPRINT.drum_circle) + a
+// small margin for the bench arc + figures. Fetched ONCE per chunk like danceRects.
+export function drumClearingsNear(minX, minZ, maxX, maxZ) {
+  const hs = heartsInBounds(minX - MAX_POI_REACH, minZ - MAX_POI_REACH, maxX + MAX_POI_REACH, maxZ + MAX_POI_REACH);
+  const r = (FESTIVAL_TUNING.KIND_FOOTPRINT.drum_circle || 6) + 2;
+  const out = [];
+  for (const h of hs) {
+    for (const d of festivalPlan(h)) {
+      if (d.kind === 'drum_circle') out.push({ x: d.x, z: d.z, r });
+    }
+  }
+  return out;
+}
+
 // Footprint (clear-radius, m) hint per cluster kind — for the build half's
 // spacing + the map-sandbox overlay. The build side registers each prop with the
 // model's real footprint; this is the cluster envelope. Now in tuning.js:
