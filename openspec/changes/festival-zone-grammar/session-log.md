@@ -348,3 +348,30 @@ widen the arch's row-clearance. Logged in burndown.md as remaining group-6 work.
 lake-hearts (biggest error class, pre-existing); booth-on-road linter refinement (booths
 straddle the ±7 m corridor by design — false-positive); the 1.1 m tent×arch curve case.
 **Refs:** -> Task 5.1/6.1/6.3/7.1/7.2, verification/burndown.md, chunks.js (vendor backstop)
+
+### 2026-06-14 -- Playtest round 2 (Gary, seeds 1139472710/2718382314): tree fixes shipped + cross-hub finding
+**Event:** decision + discovery
+**What:** Marker UX fully fixed (own commits, not part of this change's golden): `K` now opens
+a focused note modal (input.js editable-target guard + preventDefault so no stray "k"), with
+copy-for-agent. THREE worldgen tree bugs FIXED + verified in-game (seed 1139472710):
+(1) lakeside-ring trees on roads — `lakes.js` checked only camp distance; now tests every
+arterial via `roadsInBounds` (cross-heart), v2-gated, fetched once (8→0 on-road at the marker,
+two were dead-center 0.1 m). (2) cross-region road blindspot in `scatterWorldgenTrees` — was
+`ctx.region.roads` (own heart only) → now `roadsInBounds`. (3) trees in the drum-circle seating
+ring — drum registers footprint-0 `bench_ring`; new plan-side `drumClearingsNear` (load-order-
+independent, like `dancefloorRectsNear`) carves the ~8 m envelope (trees inside 8 m: →0, 31 still
+in the 8–30 m pocket). Both goldens unchanged (tree scatter rides its own rng stream).
+
+**DISCOVERY (the big one) — cross-hub cluster overlap is a DENSITY-vs-REACH design tension, not a
+quick bug.** Gary's court-clipping / drum-vs-stage / row-too-close pins are all CROSS-HUB: verified
+two adjacent hearts' food courts land 11 m apart (heart (2,-2) vs (3,-2)) because `HEART_CELL=200`
+but clusters reach ~190 m, so a court walked out from heart A nearly touches heart B. The slotter
+packs per-heart only (no cross-hub view). **Tried + REVERTED** a "yield to senior neighbours"
+keep-out (strict total order major>minor>cx>cz, acyclic via a non-recursive `basePlan`): it's
+(a) ~8 s per `festivalPlan` — at 200 m spacing the 2×MAX_POI_REACH box holds ~162 hearts/~81
+seniors × ~80 ms base-plan (nearestRoad-dominated) — would HANG chunk gen; AND (b) wrong at this
+density — nearly every minor hub has a senior cluster in reach → would omit most courts/rows,
+gutting the festival. Needs a Gary design call (hub-subset gate / road-half walk cap / batched
+neighbourhood solver). Vendor-row-on-curved-road (seed 2718382314) is a separate curve-aware-
+planner item. Both fully written up in ROADMAP "Playtest follow-ups."
+**Refs:** -> ROADMAP cross-hub + curved-row entries, lakes.js, chunks.js, festival.js (drumClearingsNear)

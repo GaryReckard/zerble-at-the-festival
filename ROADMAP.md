@@ -112,7 +112,45 @@ below (Gary: lean now, full scope eventually).
   r=2.5m, but a food-court truck body extends past that, so a trunk lands inside
   it. Fix = widen the tree-scatter building guard to the truck footprint, or skip
   tree spots inside any `food_court` ring. Builder-only (no golden impact); folds
-  into the group-5 registry-clearance backstop.
+  into the group-5 registry-clearance backstop. (The road + drum-circle tree cases
+  from the same playtest round shipped 2026-06-14 — see CHANGELOG; this truck case
+  is the remaining tree-vs-cluster gap.)
+
+- **Cross-hub cluster overlap — the BIG remaining layout issue (needs a design call).**
+  Multiple playtest pins (Gary 2026-06-14, seeds 1139472710 / 2718382314): two food
+  courts clipping or near-touching (e.g. heart (2,-2)'s court vs (3,-2)'s court **11 m
+  apart** — heavy ring overlap given ~24 m court extent), a drum circle clipping a
+  neighbour's tent stage, a vendor row "too close to both." **Root cause (verified):**
+  `HEART_CELL = 200` (hubs every 200 m) but festival clusters reach ~190 m from their
+  heart (`MAX_POI_REACH` over-bound 480; drag clusters ≈ core+90 ≈ 190), so a court
+  walked ~190 m out from heart A lands ~10 m from heart B. The slotter
+  (`festival.js _computePlan`) packs each heart's clusters against **only that heart's**
+  `placed[]` — it has zero cross-hub view, so two adjacent hubs' courts/rows/drum
+  collide across the boundary. **Why the obvious fix doesn't work (tried + reverted
+  2026-06-14):** a per-heart "yield to senior neighbours" keep-out (juniors pack around
+  seniors' `clusterShapes`, strict total order major>minor>cx>cz to stay acyclic) is
+  (a) **too slow** — at 200 m spacing the 2×`MAX_POI_REACH` search box holds ~162 hearts
+  (~81 seniors), each needing a base-plan compute (~80 ms, `nearestRoad`-dominated) →
+  **~8 s per `festivalPlan`**, which would hang chunk generation; AND (b) **wrong at this
+  density** — with hubs 200 m apart and clusters reaching 190 m, nearly every minor hub
+  has a senior neighbour cluster inside its reach, so the keep-out would force most hubs
+  to OMIT their courts/rows entirely, gutting the festival. This is a **design tension
+  (density vs reach), not a quick bug.** Options for Gary: (i) space festival HUBS
+  further apart than `HEART_CELL` (a hub-subset gate — not every heart is a full hub);
+  (ii) cap cluster walk distance to a fraction of the road length so clusters stay in
+  their own half of the heart-to-heart road (cheap + deterministic, but at 200 m + 24 m
+  court radius the safe fraction ≤ ~0.35 crowds courts back toward the stage); (iii) a
+  batched cross-hub solver that lays out a whole neighbourhood at once (not per-heart).
+  Whichever path, it's golden-moving and wants its own change. Evidence + the 8 s
+  measurement are in this session's notes.
+
+- **Vendor row crosses a CURVED road.** Seed 2718382314 @ (49,386): a vendor row is
+  centered on a road point with `yaw` = the local road tangent, but the row geometry is
+  a STRAIGHT line ~2×halfLen long; where the road curves through the row's span, the
+  straight row crosses the curving ribbon. Fix = a curve-aware placement: only seat a
+  row where the road is locally straight (low curvature over the row's length), shorten
+  the row on bends, or bend the booth line to follow the polyline. Independent of the
+  cross-hub issue above; also golden-moving (changes row positions).
 
 ### Festival worldgen v2 — builder layout/mesh extraction + crowd pre-roll *(deferred 2026-06-13)*
 
