@@ -107,14 +107,12 @@ behaviour-preserving builder extraction is split out to "Festival worldgen v2"
 below (Gary: lean now, full scope eventually).
 
 **Playtest follow-ups (Gary 2026-06-14, deferred — "document, don't fix now"):**
-- **Tree clipping a food truck.** Seed 1390463068 @ (-2129,1550): `scatterTrees`
-  ([chunks.js](src/chunks.js)) guards new trees only against `closestBuilding`
-  r=2.5m, but a food-court truck body extends past that, so a trunk lands inside
-  it. Fix = widen the tree-scatter building guard to the truck footprint, or skip
-  tree spots inside any `food_court` ring. Builder-only (no golden impact); folds
-  into the group-5 registry-clearance backstop. (The road + drum-circle tree cases
-  from the same playtest round shipped 2026-06-14 — see CHANGELOG; this truck case
-  is the remaining tree-vs-cluster gap.)
+- ~~**Tree clipping a food truck.**~~ FIXED 2026-06-14. Root cause was the **lakeside
+  forest ring** (`lakes.js`), not the in-chunk scatter (which already dodges trucks via
+  the 7.48 m truck footprint): the lake ring checked only camp distance, so a hub's food
+  truck by the water got a trunk through it. The ring now also dodges registered buildings
+  (`closestBuilding`, v2-gated so v1 stays byte-identical) — see CHANGELOG. Load-order-
+  dependent like the other build backstops.
 
 - **Cross-hub cluster overlap — food courts FIXED via sharing; drum/stage + rows remain.**
   Multiple playtest pins (Gary 2026-06-14, seeds 1139472710 / 2718382314): two food

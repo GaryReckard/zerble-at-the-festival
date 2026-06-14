@@ -31,6 +31,15 @@ import { USE_WORLDGEN_V2 } from './perf.js';
 // Min distance (m) from an arterial centerline to keep a lakeside-ring tree —
 // half the visible ribbon plus a small margin, matching scatterWorldgenTrees.
 const RING_ROAD_HALF = CONFIG.ROAD_WIDTH / 2 + 2.0;
+// Kinds a lakeside-ring tree may grow freely near (lake markers, other trees, soft
+// decals, its own camps — camps are dodged explicitly). Everything ELSE with a
+// footprint (truck / stage / tent / shack / arch / firepit) blocks the tree, so a
+// festival cluster by the water doesn't get a trunk through it (Gary 2026-06-14:
+// "tree spawning through a food truck"). closestBuilding already ignores footprint-0.
+const LAKE_TREE_SKIP = new Set([
+  'lake', 'lake_edge', 'shore', 'beach', 'tree', 'forest_tree', 'path_node', 'bubble_jug',
+  'campsite', 'chair', 'picnic', 'picnic_table', 'lamppost', 'hammock',
+]);
 // Cheap point-to-polyline test against pre-fetched road polylines (the same math
 // as chunks.js pointNearWorldgenRoad — no per-candidate worldgen query).
 function nearAnyRoad(x, z, roads, halfW) {
@@ -691,6 +700,9 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       }
       if (closeToCamp) continue;
       if (nearAnyRoad(treeX, treeZ, ringRoads, RING_ROAD_HALF)) continue;   // keep off arterials (v2)
+      // Dodge festival buildings (v2-gated so v1 lakes stay byte-identical — players
+      // are on v1; the short-circuit means no closestBuilding call, no rng-stream shift).
+      if (USE_WORLDGEN_V2 && registry.closestBuilding(new THREE.Vector3(treeX, 0, treeZ), 2.0, LAKE_TREE_SKIP)) continue;
 
       const tree = buildForestTree(rng);
       tree.position.set(treeX, 0, treeZ);
