@@ -1514,6 +1514,7 @@ function buildCampVillageAt(ctx, x, z, tentTarget) {
     attempts++;
     const px = x + (ctx.rng() - 0.5) * 2 * RADIUS, pz = z + (ctx.rng() - 0.5) * 2 * RADIUS;
     if (isPointInLake(px, pz)) continue;
+    if (queryPoint(px, pz).onRoad) continue;   // camps beside roads, never ON them (Gary 2026-06-14)
     if (registry.closestBuilding(new THREE.Vector3(px, 0, pz), T.CAMP_GUARD_RADIUS, CLUSTER_GUARD_SKIP)) continue;
     let tooClose = false;
     for (const p of placed) { const dx = p.x - px, dz = p.z - pz; if (dx * dx + dz * dz < MIN_SPACING * MIN_SPACING) { tooClose = true; break; } }

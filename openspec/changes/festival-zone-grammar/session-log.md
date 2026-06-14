@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 4 LANDED (slotter + arch relocation; POI golden moved 4825fd0b→a0edfaea, queryPoint frozen eddf8e50; registry overlap/water-clear/arch-placement = 0; game boots clean perf=low). RESUME → Group 5 (registry-clearance backstop in mesh builders — addresses booth-on-road 6) + Group 6 (re-baseline against group-3 linter, then burndown to zero across 10 seeds; remaining errors: drum-in-trees 1 [treeless-fallback = Gary feel call] + booth-on-road 6). Also pending: 4.4 cosmetic spur/access path records, 4.5 corridor reservation. Then Group 7 (3-tier boot + Gary 7.3 playtest — HUMAN GATE) + smart-review. PLAYER-FACING heads-up for Gary: arch decoupled from spawn (D15)."
+current_task: "Group 4 + a PLAYTEST-FIX round landed (D18: one-arch-only at spawn hub, arch ≥2 dancefloor + always-places ladder, spawn-at-arch, drum-omit-if-treeless, courts-on-side-roads, potty-past-edge, camps-off-road). POI golden moved again a0edfaea→(selftest.js); queryPoint frozen eddf8e50; clean boot seed 1399551401. RESUME → Group 5 (builder backstop: booth-on-road + the DEFERRED tree-through-truck) + Group 6 (re-baseline vs group-3 linter, burndown to 0 across 10 seeds). DEFERRED dev-workflow: marker-UI typing modal (K opens a focused modal). Then Group 7 (3-tier boot + Gary 7.3 playtest — HUMAN GATE) + smart-review."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -123,6 +123,45 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   clears all placed zones — "drive the market, then reach the food." Capped at the drag
   fraction; omitted only if the road is too short/packed. -> Task 4.1, festival.js.
 
+- **D18 — Playtest corrections (Gary, 2026-06-14, against a338ed2) — SUPERSEDES parts of
+  D15/D16/D17.** Gary playtested the committed Group 4 with the `K` marker tool and found
+  five issues; corrections landed in a follow-up commit:
+  1. **ONE arch in the whole world, not per-hub.** D15's "every hub gets an arch" was a
+     MISREAD — the design was always "exactly one arch, at the spawn hub's main stage"
+     (A1). Gary: "There should only be ONE arch, and that one by the main stage." Fix:
+     `festival.js` gates the `'arch'` descriptor to the spawn hub only (`spawnHubKey()`
+     = `nearestMajorHeart(0,0)`, cached per seed/epoch). All other hubs: no arch.
+  2. **Arch distance rule = ≥ 2 dancefloor-lengths from the stage** (Gary: "past the
+     dance floor by at least one more dancefloor length"), on a road that leads to the
+     stage. Replaces the old `ARCH_MIN_STAGE_DIST + deck` rule.
+  3. **Arch must ALWAYS place on the spawn hub** (it anchors the spawn). Gary's seed
+     1399551401 has a big stage (scale 1.40 → archMin 106 m) + short roads (cap 115 m) →
+     the arch was OMITTED. Fix: `ARCH_DRAG_FRAC` 0.6→0.85 + a relaxation ladder
+     (2×→1.5×→1×floor→deck+min) so the gateway always lands.
+  4. **Zerble spawns just OUTSIDE the arch, facing through it at the stage** (Gary's
+     spec). `main.js` reads the spawn hub's `'arch'` descriptor and positions Zerble
+     `SPAWN_PAST_ARCH` (7 m) beyond it on the approach side; dancefloor-front spawn is
+     now the FALLBACK when no arch fits. INTERPRETATION NOTE: "just past the arch" read
+     as "just outside, facing in" (the iconic gate arrival); flag for Gary if he meant
+     just-inside-facing-back.
+  5. **Drum OMITTED when no treed pocket** (Gary: "Definitely omit it. Drum circles do
+     NOT need to be at every hub."). `treedDistrictSpot` drops the dry fallback — returns
+     null if no `treeDensity ≥ 0.25` spot in 12 tries. (~52/305 hubs keep a drum.)
+  6. **Food courts on SIDE roads** (`roads[length-1-i]`), not `roads[0]` — frees the main
+     drag for the market + arch AND separates the two courts so they can't spawn adjacent
+     (Gary: "two food courts spawning right next to each other... 8 trucks").
+  7. **Potties tuck PAST the parent's solid edge** (`par.r + POTTY_GAP`, fanned + clear-
+     tested), not a fixed 9 m from center — the old offset landed potties INSIDE the food
+     court's ~24 m truck ring (Gary: "a porta potty clipping inside a food truck").
+  8. **Camp tents skip the road surface** (`queryPoint(px,pz).onRoad` in
+     `buildCampVillageAt`) — the center was off-road but tents spread over ~30 m landed on
+     it (Gary: "campsites that spawn in the middle of a roadway... on either side, but not
+     on the road"). Builder-only — no golden impact.
+  Consequence: the POI golden moves AGAIN (a0edfaea → 49ec28fc) — a SECOND move,
+  in the playtest-fix commit. Acceptable: the branch is unmerged + flag-off (D6); these
+  are direct responses to playtest feedback, not gratuitous churn. -> Task 4.x, festival.js,
+  main.js, chunks.js, tuning.js.
+
 ## Assumptions
 
 | # | Assumption | Confidence | Status | Resolution |
@@ -135,7 +174,9 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
 ## Dangling Threads
 
 - ~~Spawn-on-road vs face-the-stage tradeoff (round-2 open) — lean "both via front axis"; resolve in task 4.1 (-> deliberation).~~ RESOLVED by -> D15: DECOUPLED — spawn stays on the dancefloor front facing the stage; the arch is a separate per-hub road gateway. Gary to gut-check the new arrival at 7.3.
-- **Drum treeless-fallback (feel decision for Gary, group 6).** `treedDistrictSpot` falls back to ANY dry spot when no treed pocket exists in the drum band, so a hub in open country gets a TREELESS drum → `drum-in-trees` error (registry: 1 in the seed-1234 spawn window). The original design deliberately kept the drum ("a major in open country still gets its drum") but Gary's later drum-in-trees rule wants it in woods. CHOICE for 7.3: OMIT drums in treeless hubs (fewer, always-treed) vs keep them (every major has one, some treeless). -> Task 6.1, treedDistrictSpot.
+- ~~Drum treeless-fallback (feel decision for Gary, group 6).~~ RESOLVED 2026-06-14 (Gary: "Definitely omit it. Drum circles do NOT need to be at every hub") — `treedDistrictSpot` now returns null if no treed pocket; ~52/305 hubs keep a drum. -> D18.
+- **DEFERRED (Gary 2026-06-14, "document them, don't fix now") — tree-through-truck.** Seed 1390463068 @ (-2129,1550): a forest tree spawns clipping a food truck. `scatterTrees` (chunks.js) avoids the chunk path strip + `closestBuilding` r=2.5, but a food-court truck's body extends past 2.5 m so a tree's trunk lands inside it. Fix = widen the tree-scatter building-guard to the truck footprint (or skip tree spots inside any food_court ring). Builder-only (no golden impact). -> ROADMAP (group 5/6 builder backstop).
+- **DEFERRED (Gary 2026-06-14) — marker UI needs an unhindered-typing modal.** The `K` marker drop is fine, but the backtick-overlay markers list can't be typed into: global key listeners hijack letters (pasting with Ctrl+V fired the `V` cam-change). Gary wants: `K` drops the marker AND immediately opens a MODAL with a focused text field (listeners suppressed while open) to type the note, still appends to the localStorage list, and offers a copy-for-agent button (coords + note). Dev-workflow feature. -> ROADMAP.
 - **Selftest POI-golden box sweep cost.** `runSelfTest` computes `festivalPlan` over a 6 km box (1037 hearts) × 4 seeds ≈ 7 min in node; the slotter added ~26%/hub (84→106 ms, mostly the food-court relocation `nudgeOff`/`queryPoint`). Pre-existing heavy diagnostic (HEAD was ~350 s); in-GAME cost is unchanged in character (one memoized hub at a time). The map-sandbox self-test button inherits this. Park as a perf-of-the-harness item, not a game-perf one. -> Task 6.x.
 - `booth-on-road` warn threshold (baseline's largest rule, 74) — may need a "straddle allowed, on-surface not" refinement; a linter-rule bug is fixable here (-> Open Q).
 - Inherited from harness adversarial review: hub-viewer acceptance is N=1 (widen to 2–3 seeds before grading against it); `arch-placement` fires ~globally (should drop to ~0 here — if not, `ARCH_MIN_STAGE_DIST` is miscalibrated, not the placement).
@@ -277,3 +318,15 @@ new Dangling Thread) and `booth-on-road` (6 — vendor booths drifting onto curv
 builder backstop / 4.5 corridor reservation). Tasks 4.4 (cosmetic spur/access path records) + 4.5
 (corridor reservation) NOT implemented — folded toward group 5.
 **Refs:** -> D15/D16/D17, Task 4.1/4.2/4.3/4.6, festival.js, tuning.js, main.js, chunks.js, selftest.js (golden record)
+
+### 2026-06-14 -- Group 4 playtest round (Gary, seed 1234/1399551401/1390463068) — 8 fixes + 2 deferred
+**Event:** decision + discovery
+**What:** Gary playtested committed Group 4 (a338ed2) with the `K` marker tool and filed
+8 layout/UX issues. Eight FIXED this session (-> D18): one-arch-only, arch ≥2 dancefloor,
+arch always-places ladder, spawn-at-arch, drum-omit-if-treeless, courts-on-side-roads,
+potty-past-parent-edge, camps-off-road-surface. Verified at plan level across all 3 seeds
+(exactly 1 arch each @ 104/109/93 m; 0 potty-in-court-ring; 0 overlapping court pairs) and
+in-game on Gary's seed 1399551401 (clean boot, 1 arch = 2 colliders). TWO items DEFERRED
+(Gary: "you don't have to fix all these now, just document them") — see Dangling Threads.
+POI golden moves a0edfaea → 49ec28fc; queryPoint golden frozen eddf8e50.
+**Refs:** -> D18, festival.js, main.js, chunks.js, tuning.js, Dangling Threads (deferred 2)

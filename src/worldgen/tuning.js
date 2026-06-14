@@ -146,7 +146,8 @@ export const FESTIVAL_TUNING = {
   ZONE_MARGIN: 3,            // m — clearance between placed cluster zones
   COURT_MIN_STAGE_DIST: 28,  // m — a food court center must sit at least this far from the stage
   FOOD_COURT_STEP: 18,       // m — outward walk increment when a court must clear the vendor row on its road
-  ARCH_DRAG_FRAC: 0.6,       // cap the arch's outward walk at this fraction of the drag length
+  ARCH_DRAG_FRAC: 0.85,      // cap the arch's outward walk at this fraction of the drag length
+  POTTY_GAP: 5,              // m past a parent cluster's solid edge to tuck its porta-bank
 
   // ── Drum-circle district band (planner treedDistrictSpot) ──
   DRUM_BAND: 130,           // festival.js:67  — max reach past core (bounds MAX_POI_REACH; R16)

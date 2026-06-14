@@ -49,9 +49,7 @@ import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { setSpawnPoint } from './chunks.js';
 import { nearestHeart, nearestMajorHeart, heartsInBounds } from './worldgen/hearts.js';
 import { festivalPlan, computeFrontAxis, dancefloorRectsNear, MAX_POI_REACH } from './worldgen/festival.js';
-import { nearestRoad } from './worldgen/roads.js';
 import { lakeAt } from './worldgen/water.js';
-import { CONFIG } from './worldgen/constants.js';
 import { runLint } from './worldgen/lint.js';
 import { Trip } from './trip.js';
 import { Analytics } from './analytics.js';
@@ -217,48 +215,52 @@ scene.add(zerble.root);
 // so it never pushes Sound.init off the synchronous gesture — iOS audio tripwire /
 // R31). The stage + clusters come free from the hub's festivalPlan (built when its
 // chunk loads). Falls back to the pinned (0,65) spawn if no hub/stage resolves.
-// The entrance ARCH is now a planner-owned 'arch' descriptor on the drag (roads[0],
-// ≥ ARCH_MIN_STAGE_DIST from the stage) — a road threshold you drive through to enter
-// the festival — built when its chunk loads, not pinned here (group 4 / D14).
+// The entrance ARCH is now a planner-owned 'arch' descriptor (on a road that leads to
+// the stage, ≥ 2 dancefloor-lengths out) — and on the spawn hub Zerble opens the game
+// just OUTSIDE that arch, facing through it at the stage (Gary 2026-06-14), built when
+// its chunk loads. Not pinned here — the planner owns it (group 4 / D14 / D15).
+const SPAWN_PAST_ARCH = 7;   // m beyond the gate (the approach side) Zerble opens at
 if (USE_WORLDGEN_V2) {
   // Spawn at the nearest MAJOR hub so the player opens facing a MAIN STAGE (the
-  // wood-roof one) across its cleared dancefloor — the festival's front door (A1 /
-  // round-2 A). `nearestMajorHeart(0,0)` is never null in practice (verified over
-  // 2000 seeds — D9, correcting the round-2 handoff); fall back to any heart, then
-  // the pinned (0,65) spawn. The stage faces +F (the bisector of the widest road
-  // GAP), so the dancefloor opens along +F — we spawn out on that dancefloor front,
-  // facing back across it at the stage. Runs at module-eval (seed already resolved) —
-  // NOT inside the title tap, so it never pushes Sound.init off the synchronous
-  // gesture (R31).
+  // wood-roof one) through the festival's front gate (A1 / round-2 A).
+  // `nearestMajorHeart(0,0)` is never null in practice (verified over 2000 seeds — D9,
+  // correcting the round-2 handoff); fall back to any heart, then the pinned (0,65)
+  // spawn. Zerble opens just outside the entrance arch (which sits down a road from the
+  // stage), facing through it at the stage; if no arch fit this hub, fall back to the
+  // dancefloor front. Runs at module-eval (seed already resolved) — NOT inside the
+  // title tap, so it never pushes Sound.init off the synchronous gesture (R31).
   const heart = nearestMajorHeart(0, 0) || nearestHeart(0, 0).heart;
   const plan = heart ? festivalPlan(heart) : [];
   const stage = plan.find((p) => p.kind === 'main_stage' || p.kind === 'side_stage' || p.kind === 'tent_stage');
-  if (heart && stage) {
+  const arch = plan.find((p) => p.kind === 'arch');
+  if (heart && stage && arch) {
+    // Spawn just OUTSIDE the entrance arch, facing THROUGH it at the stage (Gary
+    // 2026-06-14): the planner sets the arch on a road that leads to the stage, ≥ 2
+    // dancefloor-lengths out, so Zerble opens the game looking at the "FESTIVAL"
+    // gateway with the stage framed beyond it, then drives in. The planner owns the
+    // arch (built when its chunk loads); this only positions the player + spawn point.
+    let odx = arch.x - stage.x, odz = arch.z - stage.z;          // stage → arch (outward, the approach)
+    const ol = Math.hypot(odx, odz) || 1; odx /= ol; odz /= ol;
+    let sx = Math.round(arch.x + odx * SPAWN_PAST_ARCH);          // a few m beyond the gate (the outer side)
+    let sz = Math.round(arch.z + odz * SPAWN_PAST_ARCH);
+    // Keep the spawn dry — step back toward the (dry) arch/stage if a lakeshore clips it.
+    if (lakeAt(sx, sz)) {
+      for (let d = 4; d <= 48; d += 4) {
+        const nx = Math.round(sx - odx * d), nz = Math.round(sz - odz * d);
+        if (!lakeAt(nx, nz)) { sx = nx; sz = nz; break; }
+      }
+    }
+    zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));  // face the stage, through the arch
+    zerble.position.set(sx, 0, sz);
+    setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs at the gate
+  } else if (heart && stage) {
+    // Fallback (no arch fit this hub): open on the dancefloor front facing the stage,
+    // ~70% out toward the cleared front (its depth ≈ 38·scale, festival.js dancefloorRect).
     const fa = computeFrontAxis(heart);
     const fx = Math.cos(fa.bearing), fz = Math.sin(fa.bearing);   // +F: stage front / dancefloor
     const scale = stage.scale || 1;
-    // Spawn INSIDE the cleared dancefloor (its depth ≈ 38·scale in festival.js
-    // dancefloorRect), so Zerble opens in clear ground looking back at the stage —
-    // not at the tree line where the clearing ends. ~70% out toward the front. The
-    // ENTRANCE ARCH is no longer built here: the festival planner owns it as an 'arch'
-    // descriptor on the drag (roads[0], ≥ ARCH_MIN_STAGE_DIST from the stage), built
-    // when its chunk loads — so the gateway is a road threshold you drive through, not
-    // a marker pinned in front of the spawn (festival-zone-grammar group 4 / D14).
-    const spawnDist = 26 * scale;
-    let sx = Math.round(stage.x + fx * spawnDist);
-    let sz = Math.round(stage.z + fz * spawnDist);
-
-    // On-a-road bonus (Gary likes spawning on a road): if a road clips the dancefloor
-    // front, slide the spawn onto it. F is the road GAP, so this only fires when a road
-    // actually borders the front; most hubs spawn on the open dancefloor. The heading
-    // still faces the stage either way.
-    const nr = nearestRoad(sx, sz);
-    if (nr.dist > 1 && nr.dist <= CONFIG.ROAD_WIDTH + 4) {
-      const ox = Math.cos(nr.dirAngle) * nr.dist, oz = Math.sin(nr.dirAngle) * nr.dist;
-      sx = Math.round(sx + ox); sz = Math.round(sz + oz);
-    }
-
-    // Keep the spawn dry — walk toward the (dry) stage if a lakeshore clips it.
+    let sx = Math.round(stage.x + fx * 26 * scale);
+    let sz = Math.round(stage.z + fz * 26 * scale);
     if (lakeAt(sx, sz)) {
       const tox = stage.x - sx, toz = stage.z - sz, tol = Math.hypot(tox, toz) || 1;
       for (let d = 6; d <= 66; d += 6) {
@@ -266,23 +268,9 @@ if (USE_WORLDGEN_V2) {
         if (!lakeAt(nx, nz)) { sx = nx; sz = nz; break; }
       }
     }
-
-    // No vendor booths clipping the spawn (round-2 A). Vendors straddle ROADS (off the
-    // +F gap), so this is belt-and-suspenders: push the spawn out along +F if a
-    // vendor_row cluster center sits within its footprint, then re-check it stays dry.
-    for (const p of plan) {
-      if (p.kind !== 'vendor_row') continue;
-      const clear = (p.footprint || 12) + 5;
-      const ddx = sx - p.x, ddz = sz - p.z;
-      if (ddx * ddx + ddz * ddz < clear * clear) {
-        const px = Math.round(sx + fx * clear), pz = Math.round(sz + fz * clear);
-        if (!lakeAt(px, pz)) { sx = px; sz = pz; }
-      }
-    }
-
     zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));  // face the stage across the dancefloor
     zerble.position.set(sx, 0, sz);
-    setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs around the arrival
+    setSpawnPoint(sx, sz);
   }
 }
 
