@@ -138,8 +138,9 @@ blind; no cross-hub awareness.
 
 ## Candidate rules + numbers from festival research round 2 (Gemini)
 
-Source docs at repo root (`festival-layout-gemini-round2*.md`, ChatGPT round 2
-pending). **These numbers are model-INVENTED, not cited — treat as starting
+Source docs at repo root (`festival-layout-gemini-round*.md` — round2/round3
+files are near-identical regenerations; round3 has the composition spec + SDF
+winding path. ChatGPT round 2 pending). **These numbers are model-INVENTED, not cited — treat as starting
 points to TUNE in the hub viewer against `FESTIVAL_TUNING`, not facts.** Several
 CONFLICT with our current values (Gemini 80m main dancefloor vs our ~38m base;
 70m food-truck-ring diameter vs our ~28m) — those conflicts are Gary feel-calls

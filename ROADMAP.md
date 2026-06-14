@@ -218,7 +218,8 @@ The common thread: the research assumes a *bounded, planned-once* site; our magi
 an *infinite, streamed, deterministic* one. Take their layout-grammar wisdom (which we
 already are); leave their global-solver algorithms.
 
-**Round 2 (2026-06-14, `festival-layout-gemini-round2*.md`; ChatGPT R2 pending):**
+**Round 2 (2026-06-14, `festival-layout-gemini-round*.md` — round3 is a near-identical
+regen of round2 w/ the composition spec; ChatGPT R2 pending):**
 Gemini re-engaged within our constraints this time and produced concrete *windowable*
 candidates — the keepers + caveats are captured in the `festival-zone-grammar`
 DRAFTING-BRIEF ("Candidate rules + numbers"), not duplicated here. Headline keepers:
