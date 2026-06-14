@@ -116,33 +116,27 @@ below (Gary: lean now, full scope eventually).
   from the same playtest round shipped 2026-06-14 — see CHANGELOG; this truck case
   is the remaining tree-vs-cluster gap.)
 
-- **Cross-hub cluster overlap — the BIG remaining layout issue (needs a design call).**
+- **Cross-hub cluster overlap — food courts FIXED via sharing; drum/stage + rows remain.**
   Multiple playtest pins (Gary 2026-06-14, seeds 1139472710 / 2718382314): two food
-  courts clipping or near-touching (e.g. heart (2,-2)'s court vs (3,-2)'s court **11 m
-  apart** — heavy ring overlap given ~24 m court extent), a drum circle clipping a
-  neighbour's tent stage, a vendor row "too close to both." **Root cause (verified):**
-  `HEART_CELL = 200` (hubs every 200 m) but festival clusters reach ~190 m from their
-  heart (`MAX_POI_REACH` over-bound 480; drag clusters ≈ core+90 ≈ 190), so a court
-  walked ~190 m out from heart A lands ~10 m from heart B. The slotter
-  (`festival.js _computePlan`) packs each heart's clusters against **only that heart's**
-  `placed[]` — it has zero cross-hub view, so two adjacent hubs' courts/rows/drum
-  collide across the boundary. **Why the obvious fix doesn't work (tried + reverted
-  2026-06-14):** a per-heart "yield to senior neighbours" keep-out (juniors pack around
-  seniors' `clusterShapes`, strict total order major>minor>cx>cz to stay acyclic) is
-  (a) **too slow** — at 200 m spacing the 2×`MAX_POI_REACH` search box holds ~162 hearts
-  (~81 seniors), each needing a base-plan compute (~80 ms, `nearestRoad`-dominated) →
-  **~8 s per `festivalPlan`**, which would hang chunk generation; AND (b) **wrong at this
-  density** — with hubs 200 m apart and clusters reaching 190 m, nearly every minor hub
-  has a senior neighbour cluster inside its reach, so the keep-out would force most hubs
-  to OMIT their courts/rows entirely, gutting the festival. This is a **design tension
-  (density vs reach), not a quick bug.** Options for Gary: (i) space festival HUBS
-  further apart than `HEART_CELL` (a hub-subset gate — not every heart is a full hub);
-  (ii) cap cluster walk distance to a fraction of the road length so clusters stay in
-  their own half of the heart-to-heart road (cheap + deterministic, but at 200 m + 24 m
-  court radius the safe fraction ≤ ~0.35 crowds courts back toward the stage); (iii) a
-  batched cross-hub solver that lays out a whole neighbourhood at once (not per-heart).
-  Whichever path, it's golden-moving and wants its own change. Evidence + the 8 s
-  measurement are in this session's notes.
+  courts clipping (heart (2,-1)'s court vs (2,0)'s **~11–37 m apart** — ring overlap given
+  ~31 m court extent), a drum circle clipping a neighbour's tent stage, a vendor row "too
+  close to both." **Root cause (verified):** `HEART_CELL = 200` (hubs every 200 m) but
+  festival clusters reach ~190 m, so a court walked ~190 m out from heart A lands ~10 m
+  from heart B. The slotter (`festival.js _computePlan`) packs each heart's clusters
+  against **only that heart's** `placed[]` — zero cross-hub view. **A cross-hub PACKER is
+  out** (tried + reverted 2026-06-14): a per-heart "yield to senior neighbours" keep-out is
+  (a) **too slow** — at 200 m spacing the 2×`MAX_POI_REACH` box holds ~162 hearts/~81
+  seniors × ~80 ms base-plan (`nearestRoad`-dominated) → **~8 s per `festivalPlan`** (hangs
+  chunk gen); AND (b) **wrong at this density** — nearly every minor hub has a senior
+  cluster in reach, so it would OMIT most courts/rows, gutting the festival.
+  **FOOD COURTS shipped 2026-06-14 (Gary's call — SHARE, don't relocate):** the build step
+  now omits a court whose ring reaches an already-built neighbour court; the neighbour's
+  serves both (CHANGELOG). Builder-only, goldens frozen, load-order-dependent by design.
+  **Still open** — the same *sharing* idea applied to **(1)** the drum-circle-vs-neighbour-
+  stage clip (extend the `placeWorldgenProps` guard: a drum whose bench ring reaches a
+  neighbour stage/drum yields), and **(2)** vendor rows that sit too close across hubs. If
+  a bigger structural change is ever wanted instead, the parked options are a hub-subset
+  gate (sparser hubs) or a batched neighbourhood solver — both golden-moving.
 
 - **Vendor row crosses a CURVED road.** Seed 2718382314 @ (49,386): a vendor row is
   centered on a road point with `yaw` = the local road tangent, but the row geometry is

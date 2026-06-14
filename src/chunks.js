@@ -26,7 +26,7 @@ import { treeDensity } from './worldgen/density.js';
 import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, MAX_POI_REACH } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
 import { roadsInBounds } from './worldgen/roads.js';
-import { FESTIVAL_TUNING, MODEL_DIMS } from './worldgen/tuning.js';
+import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
 import { buildCampsite, buildCampChair, buildTorchField, buildCampTent } from './models/campsite.js';
@@ -1162,15 +1162,37 @@ const CLUSTER_GUARD_SKIP = new Set([
   'porta_potty', 'arch', 'bubble_vendor', 'drum_circle', 'hammock', 'campsite', 'bubble_jug', 'lamppost',
 ]);
 
+// CROSS-HUB food-court SHARING (Gary 2026-06-14): hubs sit every HEART_CELL (200 m) but a
+// food court's ring reaches ~clusterExtent, so two adjacent hubs each plant a court and they
+// clip (~11 m apart). The planner packs per-heart (no cross-hub view), and a cross-hub PACKER
+// is both too slow at this density (~8 s/plan) and would gut the layout. Gary's call: don't
+// relocate — SHARE. If a neighbour hub already planted a court here, skip ours; theirs serves
+// both ("one gets none"). Keyed on `truck` (food-court-unique) so our OWN hub's stage / vendor
+// row never false-block us. Load-order-dependent BY DESIGN (the documented graceful-degradation
+// backstop): which hub keeps the court depends on which chunk built first — either is fine.
+function neighbourCourtHere(x, z) {
+  const R = clusterExtent('food_court');   // a court's outer ring radius
+  const ids = registry.byKind.get('truck');
+  if (!ids) return false;
+  for (const id of ids) {
+    const e = registry.entries.get(id);
+    if (!e) continue;
+    if (Math.hypot(e.position.x - x, e.position.z - z) - (e.footprint || 0) < R) return true;
+  }
+  return false;
+}
+
 function placeWorldgenProps(ctx) {
   const descs = placeChunkProps(ctx.cx, ctx.cz, CHUNK_SIZE, ctx.region);
   for (const d of descs) {
     if (isPointInLake(d.x, d.z)) continue;   // worldgen water (Group E: rendered water == worldgen lakeAt)
-    // Anchors (stage/arch, near the heart center) are priority; other clusters
-    // dodge an already-placed BUILDING at their CENTER (the cluster builders manage
-    // their own internal spacing, so cap the guard so a big village isn't rejected
-    // by one neighbour). Lake colliders/markers are NOT buildings (see the skip set).
-    if (!d.anchor) {
+    // A food court whose ring overlaps a neighbour hub's court is OMITTED (shared) — see
+    // neighbourCourtHere. Other non-anchor clusters dodge an already-placed BUILDING at their
+    // CENTER (a small guard; the cluster builders manage their own internal spacing). Anchors
+    // (stage/arch, near the heart center) are priority and never dodge.
+    if (d.kind === 'food_court') {
+      if (neighbourCourtHere(d.x, d.z)) continue;
+    } else if (!d.anchor) {
       const guard = Math.min(8, Math.max(2, (d.footprint || 4) * 0.5));
       if (registry.closestBuilding(new THREE.Vector3(d.x, 0, d.z), guard, CLUSTER_GUARD_SKIP)) continue;
     }
