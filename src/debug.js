@@ -772,6 +772,10 @@ function bindKeys() {
     // spot mid-drive without opening the overlay). Touch users triple-tap the
     // bottom-left corner instead. Deliberately NOT in any player-facing copy.
     if (e.code === 'KeyK' && !e.target.matches('input, textarea, select')) {
+      // preventDefault BEFORE we focus the modal textarea — otherwise this same
+      // keystroke's character insertion lands in the just-focused box ("k" typed
+      // into the note the instant it opens).
+      e.preventDefault();
       dropMarker();
     }
     // Only-when-visible shortcuts (so they don't fight gameplay keys).
