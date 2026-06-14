@@ -113,12 +113,6 @@ below (Gary: lean now, full scope eventually).
   it. Fix = widen the tree-scatter building guard to the truck footprint, or skip
   tree spots inside any `food_court` ring. Builder-only (no golden impact); folds
   into the group-5 registry-clearance backstop.
-- **Marker UI needs an unhindered-typing modal.** The `K` marker drop is good, but
-  the backtick-overlay markers list can't be typed into — global key listeners
-  hijack letters (Ctrl+**V** to paste fired the cam-change). Want: `K` drops the
-  marker AND opens a focused MODAL (listeners suppressed while open) to type the
-  note, still appends to the `localStorage` list, plus a "copy for agent" button
-  (coords + note). Dev-workflow polish on the playtest-marker tool.
 
 ### Festival worldgen v2 — builder layout/mesh extraction + crowd pre-roll *(deferred 2026-06-13)*
 

@@ -25,6 +25,10 @@ function normalize(e) {
 const BLOCK_DEFAULT = new Set(['W', 'A', 'S', 'D', 'SPACE', 'SHIFT', 'UP', 'DOWN', 'LEFT', 'RIGHT']);
 
 window.addEventListener('keydown', (e) => {
+  // Never let a keystroke aimed at a text field drive the cart. Without this,
+  // typing a marker note (or any future input) fires V/B/H/Y/M/G/I/O as game
+  // actions — the camera flips while you type. Editable target = not gameplay.
+  if (e.target && e.target.matches && e.target.matches('input, textarea, select, [contenteditable]')) return;
   const k = normalize(e);
   if (!held.has(k)) edges.add(k);
   held.add(k);

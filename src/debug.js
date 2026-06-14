@@ -664,7 +664,7 @@ function buildPanel() {
   const { wrapper: mkWrapper, content: mkContent } = makeSection('Markers', false);
   const mkHint = document.createElement('div');
   mkHint.style.cssText = 'font-size:10px;opacity:0.55;margin-bottom:4px';
-  mkHint.textContent = 'K drops a pin at the cart · triple-tap ◣ corner on touch';
+  mkHint.textContent = 'K drops a pin + opens a note box · triple-tap ◣ corner on touch';
   mkContent.appendChild(mkHint);
   const mkList = document.createElement('div');
   state.markersListEl = mkList;
@@ -1232,9 +1232,76 @@ function dropMarker(note = '') {
   const list = loadMarkers();
   list.push(m);
   saveMarkers(list);
-  logToast(`marker #${list.length} dropped @ ${Math.round(m.x)}, ${Math.round(m.z)}`);
   renderMarkerList();
+  openMarkerModal(m, list.length - 1);
   return m;
+}
+
+// K drops a pin AND opens a focused modal so the note can be typed without the
+// game's key listeners stealing every letter (V/B/H/Y/M/G all double as driving
+// keys). The textarea is the editable target the input.js guard exempts; the
+// overlay also stops keydown bubbling so backtick can't toggle the debug panel
+// mid-sentence. "Copy for agent" yields the single marker JSON (note included)
+// ready to paste straight into a chat — the whole point of the pin.
+function closeMarkerModal() {
+  if (state.markerModalEl) { state.markerModalEl.remove(); state.markerModalEl = null; }
+}
+function openMarkerModal(m, idx) {
+  closeMarkerModal();
+  const persist = () => { const l = loadMarkers(); if (l[idx]) { l[idx].note = ta.value; saveMarkers(l); renderMarkerList(); } };
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45)';
+  // Keep every keystroke inside the modal — no game action, no panel toggle.
+  overlay.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Escape') { persist(); closeMarkerModal(); }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); copyBtn.click(); }
+  });
+  overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) { persist(); closeMarkerModal(); } });
+
+  const box = document.createElement('div');
+  box.style.cssText = 'width:min(440px,92vw);background:#0e1c28;border:1px solid #2a4a5a;border-radius:8px;padding:14px 16px;box-shadow:0 8px 40px rgba(0,0,0,0.6);font:13px/1.4 ui-monospace,monospace;color:#dff';
+
+  const title = document.createElement('div');
+  title.style.cssText = 'font-size:13px;color:#ffe066;margin-bottom:2px';
+  title.textContent = `\u{1F4CD} Marker #${idx + 1} dropped`;
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px';
+  sub.textContent = `seed ${m.seed} · (${Math.round(m.x)}, ${Math.round(m.z)}) · tod ${m.tod ?? '—'}`;
+
+  const ta = document.createElement('textarea');
+  ta.placeholder = 'Describe what you see here…  (⌘/Ctrl+Enter copies, Esc closes)';
+  ta.value = m.note || '';
+  ta.style.cssText = 'width:100%;height:88px;box-sizing:border-box;background:#06121b;color:#dff;border:1px solid #2a4a5a;border-radius:4px;padding:6px 8px;font:12px/1.4 ui-monospace,monospace;resize:vertical';
+  ta.addEventListener('input', persist);
+
+  const out = document.createElement('textarea');
+  out.readOnly = true;
+  out.style.cssText = 'width:100%;height:0;opacity:0;position:absolute;pointer-events:none';
+
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;margin-top:9px;align-items:center';
+  const copyBtn = mkMiniBtn('copy for agent', () => {
+    persist();
+    const json = JSON.stringify({ ...m, note: ta.value }, null, 2);
+    let ok = false;
+    try { navigator.clipboard.writeText(json); ok = true; } catch (_) { /* preview/file may block */ }
+    out.value = json;
+    if (!ok) { out.style.cssText = 'width:100%;height:90px;opacity:1;margin-top:8px;background:#06121b;color:#9fd;border:1px solid #2a4a5a;border-radius:4px;font:10px/1.3 ui-monospace,monospace'; out.select(); }
+    copyBtn.textContent = ok ? 'copied ✓' : 'select + ⌘C';
+    setTimeout(() => { copyBtn.textContent = 'copy for agent'; }, 1400);
+  });
+  const doneBtn = mkMiniBtn('done', () => { persist(); closeMarkerModal(); });
+  doneBtn.style.background = 'rgba(120,200,140,0.18)'; doneBtn.style.color = '#9fd6a8'; doneBtn.style.borderColor = 'rgba(120,200,140,0.4)';
+  row.append(copyBtn, doneBtn);
+
+  box.append(title, sub, ta, row, out);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  state.markerModalEl = overlay;
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
 }
 function mkMiniBtn(txt, onClick) {
   const b = document.createElement('button');
