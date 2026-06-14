@@ -42,7 +42,7 @@
 
 import { cellRng, quantize, worldHash, mulberry32 } from '../rng.js';
 import { CONFIG, SALT, worldgenEpoch } from './constants.js';
-import { FESTIVAL_TUNING } from './tuning.js';
+import { FESTIVAL_TUNING, clusterShapes, clustersOverlap } from './tuning.js';
 import { getSessionSeed } from '../rng.js';
 import { queryPoint } from './index.js';
 import { approachRoadsOf } from './roads.js';
@@ -269,7 +269,7 @@ function nudgeOff(x, z, rng) {
 // enumerates this heart — R16). Deterministic: tries treed off-road spots first,
 // then falls back to the first off-road spot found (so a major in open country
 // still gets its drum circle rather than dropping it).
-function treedDistrictSpot(heart, rng, avoidBearing) {
+function treedDistrictSpot(heart, rng, avoidBearing, reject) {
   const T = FESTIVAL_TUNING;
   const r0 = heart.core + T.DRUM_CORE_PAD;
   const r1 = Math.min(heart.core + T.DRUM_BAND, heart.district * T.DRUM_DISTRICT_FRAC);
@@ -287,7 +287,11 @@ function treedDistrictSpot(heart, rng, avoidBearing) {
     // the plan's cold cost). Water is avoided here; the road check is ONE query on
     // the FINAL spot below (D — Gary round-2: "drum circle should not be ON a road").
     if (lakeAt(quantize(x), quantize(z))) continue;
-    if (!fallback) fallback = { x, z };       // first dry spot, in case nothing is treed
+    // group 4 / D14 step 4: reject a spot whose drum envelope sits inside an
+    // already-placed zone (the "drum inside a food-truck circle" bug Gary saw) —
+    // re-attempt within this same 12-try loop, then omit if nothing clears.
+    if (reject && reject(x, z)) continue;
+    if (!fallback) fallback = { x, z };       // first dry, clear spot, in case nothing is treed
     if (treeDensity(x, z) >= 0.25) { chosen = { x, z }; break; }
   }
   const spot = chosen || fallback;
@@ -295,9 +299,12 @@ function treedDistrictSpot(heart, rng, avoidBearing) {
   // D: one queryPoint on the FINAL chosen spot only — nudge the drum off the road
   //    corridor if it landed on one. `nudgeOff` early-returns (0 rng draws) when the
   //    spot is already off-road — the common case, so the loop stays cheap — and only
-  //    ring-scans when it actually sits on a road. SAFE here because the drum is the
-  //    LAST consumer of this heart's poiLayout stream (file header): a variable final
-  //    draw desyncs no sibling cluster, and the result is quantized.
+  //    ring-scans when it actually sits on a road. The drum's attempt count + this
+  //    final nudge are a VARIABLE number of draws; under the group-4 slotter the
+  //    potties (step 5) + bubble (step 7) now consume the stream AFTER it, so a
+  //    cross-engine treeDensity-boundary fork would cosmetically shift those too —
+  //    the SAME accepted single-engine-reproducible class as the node-vs-browser POI
+  //    golden disparity (file header). Same-engine determinism (the golden) is intact.
   return nudgeOff(spot.x, spot.z, rng);
 }
 
@@ -321,111 +328,172 @@ export function festivalPlan(heart) {
   return plan;
 }
 
-// Pure deterministic footprint de-overlap (D3.8): push each later cluster out of
-// any earlier one it intersects, in the FIXED push order, away from the earlier
-// cluster. The stage (index 0) is the anchor and never moves; everything else
-// settles around it. Positions ONLY — clusterSeed/idx are untouched, so dropping
-// or moving a cluster can't re-roll another's model variation (R19). A few
-// relaxation passes settle short chains. This is the structural fix for the
-// "vendor row punched through the stage" disaster.
-function resolveOverlaps(out, heart) {
-  const MARGIN = 2;
-  for (let pass = 0; pass < 4; pass++) {
-    let moved = false;
-    for (let i = 1; i < out.length; i++) {
-      const a = out[i];
-      for (let j = 0; j < i; j++) {
-        const b = out[j];
-        const need = (a.footprint || 4) + (b.footprint || 4) + MARGIN;
-        let dx = a.x - b.x, dz = a.z - b.z;
-        let dist = Math.hypot(dx, dz);
-        if (dist >= need) continue;
-        if (dist < 1e-3) {                       // coincident → push along a stable dir from the hub
-          dx = a.x - heart.x; dz = a.z - heart.z; dist = Math.hypot(dx, dz);
-          if (dist < 1e-3) { dx = 1; dz = 0; dist = 1; }
-        }
-        a.x = quantize(a.x + (dx / dist) * (need - dist));
-        a.z = quantize(a.z + (dz / dist) * (need - dist));
-        moved = true;
-      }
-    }
-    if (!moved) break;
-  }
-}
+// ── Zone-slotting indices (R19 / D14) ────────────────────────────────────────
+// Each cluster slot gets a FIXED semantic index so its clusterSeed (and thus the
+// build half's model variation) never shifts when a SIBLING is omitted for no-fit.
+// Stage stays 0 — `stageScaleOf` reads clusterSeed(heart,0), and main.js +
+// dancefloorRect depend on that scale staying stable across omits.
+const IDX = {
+  stage: 0, arch: 1, bubble: 2,
+  drum: 10,        // + k
+  court: 20,       // + i
+  row: 30,         // + i
+  pottyStage: 40,
+  pottyCourt: 50,  // + i
+  pottyRow: 60,    // + i
+};
 
+// Single-pass priority zone slotter (D14): place clusters in priority order, each
+// testing its TRUE oriented extent (clusterShapes) against the accumulating
+// placed[] via clustersOverlap(+ZONE_MARGIN) and OMITTING on no-fit — dropping any
+// dependent (a parent's potty) transactionally. Replaces the old scatter-then-
+// resolveOverlaps scalar push, which guaranteed clipping under density (ROADMAP
+// "Festival layout" root cause). Mutual exclusion BY CONSTRUCTION = main's "one
+// theme per chunk" at hub scale (D4). The stage's deck circle + forward dancefloor
+// OBB are placed[0]: the keep-out everything packs around, so courts/rows/drum that
+// would intrude the clearing are omitted (the dancefloor stays clear — A4).
 function _computePlan(heart) {
   const rng = cellRng(heart.cx, heart.cz, SALT.poiLayout);
   const T = FESTIVAL_TUNING;
   const major = heart.rank === 'major';
   const fa = computeFrontAxis(heart);          // the hub's front axis F (memoized)
   const out = [];
-  let idx = 0;
+  const placed = [];                            // { kind, s:shapes } occupancy accumulator
+  const pottyParents = [];                       // { x, z, yaw, idx } — potties slotted at step 5
 
   // Approach roads, sorted by a STABLE INTEGER key (R20): longest first, then
-  // neighbor cell. roads[0] = the DRAG (the food/market street).
+  // neighbor cell. roads[0] = the DRAG (the market street + the arch threshold).
   const roads = approachRoadsOf(heart)
     .sort((a, b) => b.lenQ - a.lenQ || a.neighbor.cx - b.neighbor.cx || a.neighbor.cz - b.neighbor.cz);
 
-  // Attach a porta-bank just off a cluster (the overlap guard keeps it from sitting
-  // ON its parent — A8 "at the margin").
-  const addPotty = (x, z, parentYaw) => {
-    const a = rng() * Math.PI * 2;
-    const spot = nudgeOff(x + Math.cos(a) * T.POTTY_ATTACH_OFFSET, z + Math.sin(a) * T.POTTY_ATTACH_OFFSET, rng);
-    if (spot) out.push(desc('porta_bank', spot.x, spot.z, parentYaw, 'core', heart.rank, false, clusterSeed(heart, idx)));
-    idx++;
+  // Does a candidate's oriented shape clear every placed zone (with ZONE_MARGIN)?
+  const fits = (shapes) => !placed.some(pl => clustersOverlap(shapes, pl.s, T.ZONE_MARGIN));
+  // Commit a descriptor: record its shapes in placed[] so later zones pack around it.
+  const commit = (d) => {
+    placed.push({ kind: d.kind, s: clusterShapes(d.kind, d.scale || 1, d.x, d.z, d.yaw) });
+    out.push(d);
+    return d;
   };
 
   // 1. STAGE at the hub center, facing +F — the bisector of the widest DRY gap
-  //    between roads, so the dancefloor faces open ground BETWEEN roads (never down
-  //    a road or at water; A3). `fbin` + `scale` are plan DATA: the dancefloor
-  //    clearing (dancefloorRect), the build, and the golden all read them. NO arch
-  //    here — exactly ONE arch in the world, built at spawn (A1, D3.9).
+  //    between roads, so the dancefloor opens onto open ground BETWEEN roads (never
+  //    down a road or at water; A3). `fbin` + `scale` are plan DATA the dancefloor
+  //    clearing, the build, and the golden all read. Its deck + dancefloor OBB are
+  //    placed[0] — the hard keep-out everything else slots around.
   const stageSpot = nudgeOff(heart.x, heart.z, rng) || { x: heart.x, z: heart.z };
   const stageYaw = Math.PI / 2 - fa.bearing;   // model front (+Z) → +F
   // Major hubs get the big main stage; minor hubs roll a tent stage (~35%) for
   // variety (B1) vs the open side stage. Deterministic per hub (cellRng stream).
   const stageKind = major ? 'main_stage' : (rng() < 0.35 ? 'tent_stage' : 'side_stage');
-  const stage = desc(stageKind, stageSpot.x, stageSpot.z, stageYaw, 'core', heart.rank, true, clusterSeed(heart, idx++));
+  const stage = desc(stageKind, stageSpot.x, stageSpot.z, stageYaw, 'core', heart.rank, true, clusterSeed(heart, IDX.stage));
   stage.fbin = fa.bin;                          // serialize F → the POI golden + window-invariance test see it (R18)
   stage.scale = stageScaleOf(heart);
-  out.push(stage);
-  addPotty(stageSpot.x, stageSpot.z, stageYaw);
+  commit(stage);
+  pottyParents.push({ x: stageSpot.x, z: stageSpot.z, yaw: stageYaw, idx: IDX.pottyStage });
 
-  // 2. FOOD COURTS on the drag (the food street), out PAST the dancefloor depth so
-  //    they sit away from the stage (A6). Sugar shacks live ONLY here (build half).
-  const courtN = Math.min(roads.length, major ? T.COURT_N_MAJOR : T.COURT_N_MINOR);
-  for (let i = 0; i < courtN; i++) {
-    const rd = roads[i];
-    const dist = Math.min(MAX_POI_REACH, (rd.lenQ * T.FOOD_COURT_DRAG_FRAC) | 0, (major ? T.FOOD_COURT_WALK_MAJOR : T.FOOD_COURT_WALK_MINOR) + rng() * T.FOOD_COURT_WALK_SPAN);
-    const p = walkOriented(rd.oriented, dist);
-    const side = rng() < 0.5 ? 1 : -1;
-    const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + T.FOOD_COURT_PERP, side);
-    const spot = nudgeOff(o.x, o.z, rng);
-    if (spot) {
-      const yaw = roadFacingYaw(queryPoint(spot.x, spot.z).facing, rng);
-      out.push(desc('food_court', spot.x, spot.z, yaw, 'core', heart.rank, false, clusterSeed(heart, idx)));
-      addPotty(spot.x, spot.z, yaw);
-    }
-    idx++;
-  }
-
-  // 3. VENDOR ROWS straddling the drag (the market street, A5/C): the central
-  //    AISLE *is* the road — the descriptor centers ON a road point and the build
-  //    half (buildVendorRowAt) lays two booth lines ±rowOffset facing IN across it,
-  //    so Zerble drives the aisle down the road. Out past the dancefloor depth.
-  //    yaw = the road tangent (π/2 − bearing) so the rows run along the road. No
-  //    perpOff/nudgeOff: a road point is buildable by construction, and sitting ON
-  //    the road is the whole point — that is what makes the aisle drivable.
+  // 2. VENDOR AISLES straddling the drag (A5/C): the central aisle *is* the road —
+  //    the descriptor centers ON a road point and the build lays two booth lines
+  //    ±offset facing IN across it, so Zerble drives the aisle. yaw = road tangent
+  //    (π/2 − bearing). Out past the dancefloor depth; OMIT a row whose OBB clips an
+  //    earlier zone. Vendor aisles get road priority over courts (D14 step 2).
   const rowN = Math.min(roads.length, major ? T.ROW_N_MAJOR : T.ROW_N_MINOR);
   for (let i = 0; i < rowN; i++) {
     const rd = roads[i];
     const dist = Math.min(MAX_POI_REACH, (rd.lenQ * T.VENDOR_ROW_DRAG_FRAC) | 0, (major ? T.VENDOR_ROW_WALK_MAJOR : T.VENDOR_ROW_WALK_MINOR) + rng() * T.VENDOR_ROW_WALK_SPAN);
     const p = walkOriented(rd.oriented, dist);
-    out.push(desc('vendor_row', p.x, p.z, Math.PI / 2 - p.bearing, 'core', heart.rank, false, clusterSeed(heart, idx)));
-    idx++;
+    const yaw = Math.PI / 2 - p.bearing;
+    if (!fits(clusterShapes('vendor_row', 1, p.x, p.z, yaw))) continue;
+    const d = commit(desc('vendor_row', p.x, p.z, yaw, 'core', heart.rank, false, clusterSeed(heart, IDX.row + i)));
+    pottyParents.push({ x: d.x, z: d.z, yaw, idx: IDX.pottyRow + i });
   }
 
-  // 4. BUBBLE VENDOR — one guaranteed refuel per hub (a quieter road, or near center).
+  // 3. FOOD COURTS off the drag, PAST the vendor market (A6): the court's wide truck
+  //    ring sits further out than the row aisle, so you drive the market then reach
+  //    the food. Walk OUTWARD along the road in steps until the ring clears every
+  //    earlier zone (the row OBB on the same road) and the stage; try both sides at
+  //    each step; omit if nothing on this road fits within the drag cap.
+  const courtN = Math.min(roads.length, major ? T.COURT_N_MAJOR : T.COURT_N_MINOR);
+  const COURT_CAP = (lenQ) => Math.min(MAX_POI_REACH, (lenQ * T.FOOD_COURT_DRAG_FRAC) | 0);
+  for (let i = 0; i < courtN; i++) {
+    // Courts branch off SIDE roads (assigned from the far end of the list), keeping
+    // the main drag roads[0] for the vendor market + the entrance arch (so roads[0]
+    // reads arch → market → stage, uncluttered). Wraps onto used roads only when
+    // courtN exceeds the spare side roads (e.g. a 1-road minor hub).
+    const rd = roads[(roads.length - 1 - i % roads.length + roads.length) % roads.length];
+    const cap = COURT_CAP(rd.lenQ);
+    const base = (major ? T.FOOD_COURT_WALK_MAJOR : T.FOOD_COURT_WALK_MINOR) + rng() * T.FOOD_COURT_WALK_SPAN;
+    const first = rng() < 0.5 ? 1 : -1;          // preferred side; the other is the fallback
+    let done = false;
+    for (let step = 0; step < 6 && !done; step++) {
+      const dist = Math.min(cap, base + step * T.FOOD_COURT_STEP);
+      const p = walkOriented(rd.oriented, dist);
+      for (const side of [first, -first]) {
+        const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + T.FOOD_COURT_PERP, side);
+        const spot = nudgeOff(o.x, o.z, rng);
+        if (!spot) continue;
+        if (Math.hypot(spot.x - stageSpot.x, spot.z - stageSpot.z) < T.COURT_MIN_STAGE_DIST) continue;
+        const yaw = roadFacingYaw(queryPoint(spot.x, spot.z).facing, rng);
+        if (!fits(clusterShapes('food_court', 1, spot.x, spot.z, yaw))) continue;
+        const d = commit(desc('food_court', spot.x, spot.z, yaw, 'core', heart.rank, false, clusterSeed(heart, IDX.court + i)));
+        pottyParents.push({ x: d.x, z: d.z, yaw, idx: IDX.pottyCourt + i });
+        done = true;
+        break;
+      }
+      if (dist >= cap) break;   // reached the drag cap; don't spin on the same point
+    }
+  }
+
+  // 4. DRUM CIRCLE — a quiet treed destination in the district, kept OUT of the
+  //    dancefloor wedge AND out of any placed zone (the "drum inside a food-truck
+  //    circle" bug; D14 step 4). treedDistrictSpot re-attempts within its 12-try loop.
+  const drumN = major ? 1 : (rng() < 0.5 ? 1 : 0);
+  for (let k = 0; k < drumN; k++) {
+    const rejectInZone = (x, z) => !fits(clusterShapes('drum_circle', 1, x, z, 0));
+    const spot = treedDistrictSpot(heart, rng, fa.bearing, rejectInZone);
+    if (spot) commit(desc('drum_circle', spot.x, spot.z, rng() * Math.PI * 2, 'district', heart.rank, false, clusterSeed(heart, IDX.drum + k)));
+  }
+
+  // 5. POTTIES — one per placed parent zone (stage / court / row), tucked at the
+  //    parent's HUB-OUTWARD edge (behind the cluster, away from the core) so it reads
+  //    as "attached" (A8) and stays within the potty-attached range. Parents omitted
+  //    in steps 1–3 aren't in pottyParents → their potty drops with them (transactional).
+  for (const par of pottyParents) {
+    let ox = par.x - heart.x, oz = par.z - heart.z;
+    const ol = Math.hypot(ox, oz) || 1;
+    ox /= ol; oz /= ol;
+    const spot = nudgeOff(par.x + ox * T.POTTY_ATTACH_OFFSET, par.z + oz * T.POTTY_ATTACH_OFFSET, rng);
+    if (spot) out.push(desc('porta_bank', spot.x, spot.z, par.yaw, 'core', heart.rank, false, clusterSeed(heart, par.idx)));
+  }
+
+  // 6. ARCH — the entrance threshold you drive THROUGH on the drag (roads[0]): the
+  //    OUTER gateway, past the vendor market, so the approach reads arch → market →
+  //    stage. Walk outward from ARCH_MIN_STAGE_DIST to the first road point that is
+  //    dry, ≥ ARCH_MIN_STAGE_DIST from the stage, and CLEAR of every placed zone
+  //    (fits() vs the stage's dancefloor OBB + market + courts) — so it lands just
+  //    past the outermost zone on the drag. The planner now OWNS the arch (main.js
+  //    buildSpawnArch stops); on the spawn hub this descriptor IS the spawn arch.
+  //    Capped at ARCH_DRAG_FRAC of the road; omitted if the drag is too packed/short.
+  if (roads.length) {
+    const rd = roads[0];
+    const cap = Math.min(MAX_POI_REACH, (rd.lenQ * T.ARCH_DRAG_FRAC) | 0);
+    // Clear ARCH_MIN_STAGE_DIST from the DECK EDGE, not the center — the registry
+    // arch-placement rule measures to the nearest stage deck tile, and the deck box
+    // scales with the stage (deckR = KIND_FOOTPRINT × scale, matching stage.js w/d).
+    const deckClear = T.ARCH_MIN_STAGE_DIST + (T.KIND_FOOTPRINT[stage.kind] || 11) * (stage.scale || 1);
+    for (let d = T.ARCH_MIN_STAGE_DIST; d <= cap; d += 6) {
+      const p = walkOriented(rd.oriented, d);
+      if (Math.hypot(p.x - stage.x, p.z - stage.z) < deckClear) continue;
+      if (lakeAt(quantize(p.x), quantize(p.z))) continue;             // dry
+      const yaw = Math.PI / 2 - p.bearing;
+      if (!fits(clusterShapes('arch', 1, p.x, p.z, yaw))) continue;   // clear of floor + market + courts
+      commit(desc('arch', p.x, p.z, yaw, 'core', heart.rank, true, clusterSeed(heart, IDX.arch)));
+      break;
+    }
+  }
+
+  // 7. BUBBLE VENDOR — one GUARANTEED refuel per hub. Refuel is a core verb, so this
+  //    stays guaranteed rather than D14's probabilistic (D15). Off a quieter road if
+  //    that spot is clear, else scattered near center; nudged clear of water/road.
   {
     let spot = null, yaw = rng() * Math.PI * 2;
     if (roads.length) {
@@ -433,25 +501,18 @@ function _computePlan(heart) {
       const p = walkOriented(rd.oriented, Math.min(MAX_POI_REACH, (major ? T.BUBBLE_WALK_MAJOR : T.BUBBLE_WALK_MINOR) + rng() * T.BUBBLE_WALK_SPAN));
       const side = rng() < 0.5 ? 1 : -1;
       const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + T.BUBBLE_PERP, side);
-      spot = nudgeOff(o.x, o.z, rng);
-      if (spot) yaw = roadFacingYaw(queryPoint(spot.x, spot.z).facing, rng);
+      const cand = nudgeOff(o.x, o.z, rng);
+      if (cand && fits(clusterShapes('bubble_vendor', 1, cand.x, cand.z, 0))) {
+        spot = cand;
+        yaw = roadFacingYaw(queryPoint(spot.x, spot.z).facing, rng);
+      } else {
+        spot = cand;   // keep the road spot as the guaranteed fallback even if it grazes
+      }
     }
     if (!spot) spot = nudgeOff(heart.x + (rng() - 0.5) * T.BUBBLE_FALLBACK_SPREAD, heart.z + (rng() - 0.5) * T.BUBBLE_FALLBACK_SPREAD, rng);
-    if (spot) out.push(desc('bubble_vendor', spot.x, spot.z, yaw, 'core', heart.rank, false, clusterSeed(heart, idx)));
-    idx++;
+    if (spot) out.push(desc('bubble_vendor', spot.x, spot.z, yaw, 'core', heart.rank, false, clusterSeed(heart, IDX.bubble)));
   }
 
-  // 5. DRUM CIRCLE — a quiet treed destination in the district, kept OUT of the
-  //    dancefloor wedge (back/side of F, off the drag).
-  const drumN = major ? 1 : (rng() < 0.5 ? 1 : 0);
-  for (let k = 0; k < drumN; k++) {
-    const spot = treedDistrictSpot(heart, rng, fa.bearing);
-    if (spot) out.push(desc('drum_circle', spot.x, spot.z, rng() * Math.PI * 2, 'district', heart.rank, false, clusterSeed(heart, idx)));
-    idx++;
-  }
-
-  // 6. De-overlap (D3.8) — positions only, fixed order, stage is the anchor.
-  resolveOverlaps(out, heart);
   return out;
 }
 

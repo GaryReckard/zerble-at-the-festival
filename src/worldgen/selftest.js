@@ -144,13 +144,16 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // FESTIVAL LAYOUT GRAMMAR rewrite (D3, deliberation 003) — HEART_CELL 200 /
     // noneBelow 0.05, seed 1234:
     //   queryPoint golden  node eddf8e50  /  browser eddf8e50 (recorded 2026-06-10, H.2)
-    //   POI golden         node 01532955  /  browser 4825fd0b
-    // ^ The POI fork is really V8-VERSION, not node-vs-browser: the "node" value
-    //   was recorded on an older V8; newer Node (≥ v24, V8 ~12.x) produces the
-    //   "browser" value 4825fd0b, matching Chromium. BOTH are accepted — running
-    //   `runSelfTest()` under recent Node and seeing 4825fd0b is NOT a regression
-    //   (it's the documented treedDistrictSpot cosmetic class). poiGoldenHash is
-    //   returned for manual comparison, NOT pushed as a hard-fail result.
+    //   POI golden         a0edfaea (recent node V8 ≥ v24 == Chromium class; GROUP 4)
+    // ^ GROUP 4 (festival-zone-grammar, 2026-06-14) moved the POI golden
+    //   4825fd0b → a0edfaea — the ONE deliberate move (D1/D14): `_computePlan` is now a
+    //   single-pass oriented-zone slotter (omit-on-no-fit), the entrance arch is a
+    //   planner-owned 'arch' descriptor on the drag (D15), food courts branch onto side
+    //   roads (D17), and clusterSeed uses stable semantic indices (D14/4.2). The POI
+    //   fork is a V8-VERSION cosmetic class (the older-V8 value differs; the accepted
+    //   treedDistrictSpot/front-axis transcendental class — file header). poiGoldenHash
+    //   is returned for manual comparison, NOT pushed as a hard-fail result.
+    //   queryPoint golden stays FROZEN eddf8e50 (no road/water-existence change — D5).
     // The plan now carries each stage's front-axis bin (`fbin`) + `scale`, so the
     // golden + T6 window-invariance exercise F. (Prior baselines for reference:
     // 340/0.25 → POI node 4e335f21; the pre-grammar 200/0.05 → POI node 6fa977c8;

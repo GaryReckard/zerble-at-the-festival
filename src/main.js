@@ -46,7 +46,7 @@ import {
 } from './obstacles.js';
 import { installDebug, shouldRunFrame, isGod, npcsFrozen } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
-import { setSpawnPoint, buildSpawnArch } from './chunks.js';
+import { setSpawnPoint } from './chunks.js';
 import { nearestHeart, nearestMajorHeart, heartsInBounds } from './worldgen/hearts.js';
 import { festivalPlan, computeFrontAxis, dancefloorRectsNear, MAX_POI_REACH } from './worldgen/festival.js';
 import { nearestRoad } from './worldgen/roads.js';
@@ -217,8 +217,9 @@ scene.add(zerble.root);
 // so it never pushes Sound.init off the synchronous gesture — iOS audio tripwire /
 // R31). The stage + clusters come free from the hub's festivalPlan (built when its
 // chunk loads). Falls back to the pinned (0,65) spawn if no hub/stage resolves.
-// (The single entrance ARCH on the approach road — A1, Gary's pick — is deferred to
-// the arch build; this is the interim "spawn at the festival, see the stage" arrival.)
+// The entrance ARCH is now a planner-owned 'arch' descriptor on the drag (roads[0],
+// ≥ ARCH_MIN_STAGE_DIST from the stage) — a road threshold you drive through to enter
+// the festival — built when its chunk loads, not pinned here (group 4 / D14).
 if (USE_WORLDGEN_V2) {
   // Spawn at the nearest MAJOR hub so the player opens facing a MAIN STAGE (the
   // wood-roof one) across its cleared dancefloor — the festival's front door (A1 /
@@ -226,10 +227,9 @@ if (USE_WORLDGEN_V2) {
   // 2000 seeds — D9, correcting the round-2 handoff); fall back to any heart, then
   // the pinned (0,65) spawn. The stage faces +F (the bisector of the widest road
   // GAP), so the dancefloor opens along +F — we spawn out on that dancefloor front,
-  // facing back across it at the stage. "The space in front of the stage determines
-  // where Zerble + the arch go" (Gary). The arch sits at the front edge so you look
-  // THROUGH it at the stage. Runs at module-eval (seed already resolved) — NOT inside
-  // the title tap, so it never pushes Sound.init off the synchronous gesture (R31).
+  // facing back across it at the stage. Runs at module-eval (seed already resolved) —
+  // NOT inside the title tap, so it never pushes Sound.init off the synchronous
+  // gesture (R31).
   const heart = nearestMajorHeart(0, 0) || nearestHeart(0, 0).heart;
   const plan = heart ? festivalPlan(heart) : [];
   const stage = plan.find((p) => p.kind === 'main_stage' || p.kind === 'side_stage' || p.kind === 'tent_stage');
@@ -237,25 +237,25 @@ if (USE_WORLDGEN_V2) {
     const fa = computeFrontAxis(heart);
     const fx = Math.cos(fa.bearing), fz = Math.sin(fa.bearing);   // +F: stage front / dancefloor
     const scale = stage.scale || 1;
-    // Keep arch + spawn INSIDE the cleared dancefloor (its depth ≈ 38·scale in
-    // festival.js dancefloorRect), so Zerble opens in clear ground looking back at the
-    // stage — not at the tree line where the clearing ends. Arch ~mid, spawn ~70% out.
-    const archDist = 15 * scale;
+    // Spawn INSIDE the cleared dancefloor (its depth ≈ 38·scale in festival.js
+    // dancefloorRect), so Zerble opens in clear ground looking back at the stage —
+    // not at the tree line where the clearing ends. ~70% out toward the front. The
+    // ENTRANCE ARCH is no longer built here: the festival planner owns it as an 'arch'
+    // descriptor on the drag (roads[0], ≥ ARCH_MIN_STAGE_DIST from the stage), built
+    // when its chunk loads — so the gateway is a road threshold you drive through, not
+    // a marker pinned in front of the spawn (festival-zone-grammar group 4 / D14).
     const spawnDist = 26 * scale;
     let sx = Math.round(stage.x + fx * spawnDist);
     let sz = Math.round(stage.z + fz * spawnDist);
-    let ax = Math.round(stage.x + fx * archDist);
-    let az = Math.round(stage.z + fz * archDist);
 
     // On-a-road bonus (Gary likes spawning on a road): if a road clips the dancefloor
-    // front, slide arch + spawn onto it by the SAME lateral offset so they stay aligned.
-    // F is the road GAP, so this only fires when a road actually borders the front; most
-    // hubs spawn on the open dancefloor. The heading still faces the stage either way.
+    // front, slide the spawn onto it. F is the road GAP, so this only fires when a road
+    // actually borders the front; most hubs spawn on the open dancefloor. The heading
+    // still faces the stage either way.
     const nr = nearestRoad(sx, sz);
     if (nr.dist > 1 && nr.dist <= CONFIG.ROAD_WIDTH + 4) {
       const ox = Math.cos(nr.dirAngle) * nr.dist, oz = Math.sin(nr.dirAngle) * nr.dist;
       sx = Math.round(sx + ox); sz = Math.round(sz + oz);
-      ax = Math.round(ax + ox); az = Math.round(az + oz);
     }
 
     // Keep the spawn dry — walk toward the (dry) stage if a lakeshore clips it.
@@ -280,7 +280,6 @@ if (USE_WORLDGEN_V2) {
       }
     }
 
-    buildSpawnArch(scene, ax, az, Math.PI / 2 - fa.bearing);      // arch passage aligned to +F
     zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));  // face the stage across the dancefloor
     zerble.position.set(sx, 0, sz);
     setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs around the arrival

@@ -157,20 +157,33 @@
 
 ## 4. Zone-slotting planner — THE GOLDEN MOVE (nothing else in the golden-move commit)
 
-- [ ] 4.1 Replace `festivalPlan`'s scatter-then-`resolveOverlaps` with priority
+- [x] 4.1 Replace `festivalPlan`'s scatter-then-`resolveOverlaps` with priority
       zone slotting on the front axis F (stage+hard wedge → road-straddling vendor
       aisles + camps-behind → off-road courts ≥ min stage dist + optional spur →
       forest-clearing drum + access path → attached potties → threshold arch →
       probabilistic bubble vendors). Omit a zone that can't fit clear, and **drop
       its dependents (attached potties, camps-behind) transactionally** with it.
       done = `festivalPlan` emits slotted non-overlapping oriented zones.
-- [ ] 4.2 **Keep `clusterSeed(heart, idx)` keyed on a stable SEMANTIC index**
+      *(done 2026-06-14 — single-pass slotter; order stage→vendor aisles→food courts
+      →drum→potties→arch→bubble, each `fits()` vs accumulating `placed[]` w/ ZONE_MARGIN,
+      omit-on-no-fit, potties dropped transactionally. `resolveOverlaps` removed. Registry
+      `overlap` 0; plan-mode overlap warn 276→11 vs HEAD. Food courts RELOCATE outward
+      past the market (-> D17); bubble kept guaranteed (-> D16). Camps-behind NOT slotted
+      [vendor-row camp band is a BUILDER detail, not a separate descriptor].)*
+- [x] 4.2 **Keep `clusterSeed(heart, idx)` keyed on a stable SEMANTIC index**
       (stage=0, court i, row i…), independent of which zones were omitted — so
       zone-omit doesn't churn the golden beyond the one deliberate move.
-- [ ] 4.3 **Move the POI golden once.** Re-record, log old→new in session-log,
+      *(done 2026-06-14 — `IDX` map: stage 0, arch 1, bubble 2, drum 10+k, court 20+i,
+      row 30+i, potty 40/50+i/60+i. Stage kept at 0 so `stageScaleOf` is stable.)*
+- [x] 4.3 **Move the POI golden once.** Re-record, log old→new in session-log,
       re-verify node==browser; **capture a per-seed POI kind INVENTORY, not just
       the hash** (proves behavioural superset, not just cross-engine stability);
       queryPoint golden stays frozen.
+      *(done 2026-06-14 — POI golden `4825fd0b → a0edfaea`;
+      queryPoint golden FROZEN `eddf8e50`. Single-engine round-trip + window-invariance
+      all pass (only pre-existing seed-0 road-neg-control fails, on HEAD too). Behavioural
+      superset confirmed in-game: every hub now has stage+vendor+food court+arch+bubble
+      +potties (+drum where treed) vs HEAD's frequent food-court omission.)*
 - [ ] 4.4 Spur roads + drum access paths as **cosmetic path records** (NOT roads.js
       arterials — keep queryPoint frozen). Render as **ONE merged/instanced opaque
       ribbon per hub, `castShadow=false`, `alphaTest` not transparent** (not one
@@ -181,9 +194,21 @@
       linter's overlap-exclusion, so a clipping path is caught by no error rule.
       Decide + record: path records carry NO colliders; drivability = corridor
       reservation + the group-5 mesh-half backstop. done = a tent can't land in the corridor.
-- [ ] 4.6 Cross-hub `stage-spacing` constraint; `STAGE_MIN_SPACING`,
+- [~] 4.6 Cross-hub `stage-spacing` constraint; `STAGE_MIN_SPACING`,
       `COURT_MIN_STAGE_DIST`, `ARCH_MIN_STAGE_DIST`, bubble-vendor probability,
       sugar-shack percentage all in `FESTIVAL_TUNING`. done = plan `stage-spacing` = 0.
+      *(PARTIAL 2026-06-14 — added `ZONE_MARGIN`, `COURT_MIN_STAGE_DIST`, `FOOD_COURT_STEP`,
+      `ARCH_DRAG_FRAC` (+ `ARCH_MIN_STAGE_DIST` existed). CUT per cite-or-cut (-> D16):
+      `STAGE_MIN_SPACING` (single-hub planner can't enforce cross-hub spacing — that's the
+      stage-spacing WARN rule's job; still 16 in the ±600 sweep, unchanged from HEAD),
+      `BUBBLE_PROB` (bubble kept guaranteed), `SUGAR_SHACK_PROB` (builder owns it via
+      FOOD_COURT_SHACK_PROB). Cross-hub stage-spacing NOT solved by the slotter — defer to
+      group 6 / hub-spacing tuning.)*
+
+> **4.4 + 4.5 NOT done (folded toward group 5).** 4.4 cosmetic spur/access-path
+> records + 4.5 drivable-corridor reservation were not implemented in the slotter
+> commit — `booth-on-road` (6, pre-existing) is the symptom and the group-5 mesh-half
+> backstop (5.1) is the natural home. -> Group 5.
 
 ## 5. Registry-clearance backstop
 

@@ -1,11 +1,11 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "RESUME HERE → Group 4: rewrite festival.js _computePlan as the D14 7-step zone slotter + relocate the arch (plan owns it; main.js buildSpawnArch stops) + move the POI golden ONCE (current frozen: queryPoint eddf8e50 / POI 4825fd0b; log old→new). Verify loop: plan-mode bin/lint → re-record golden → re-capture 10 registry snapshots → registry bin/lint drive errors→0. (Optional/minor: 3.2 map-sandbox overlay half — oriented-extent rendering — deferrable.) Group 3 DONE, goldens frozen, game boots clean perf=low."
+current_task: "Group 4 LANDED (slotter + arch relocation; POI golden moved 4825fd0b→a0edfaea, queryPoint frozen eddf8e50; registry overlap/water-clear/arch-placement = 0; game boots clean perf=low). RESUME → Group 5 (registry-clearance backstop in mesh builders — addresses booth-on-road 6) + Group 6 (re-baseline against group-3 linter, then burndown to zero across 10 seeds; remaining errors: drum-in-trees 1 [treeless-fallback = Gary feel call] + booth-on-road 6). Also pending: 4.4 cosmetic spur/access path records, 4.5 corridor reservation. Then Group 7 (3-tier boot + Gary 7.3 playtest — HUMAN GATE) + smart-review. PLAYER-FACING heads-up for Gary: arch decoupled from spawn (D15)."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
-last_updated: 2026-06-13
+last_updated: 2026-06-14
 ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now MET)"
 ---
 
@@ -89,6 +89,40 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   (log old→new) → re-capture 10 registry snapshots → registry `bin/lint` to drive errors→0.
   -> Task 4.1–4.6, spec.md (all scenarios), D4/D6.
 
+- **D15 — Arch is PER-HUB and DECOUPLED from spawn (Group 4 implementation call).**
+  The planner emits an `'arch'` descriptor on `roads[0]` (the drag), walked OUTWARD
+  past the vendor market to the first point clear of every placed zone (`fits()`),
+  dry, and ≥ `ARCH_MIN_STAGE_DIST` from the stage DECK EDGE (not center). `case 'arch'`
+  already existed in `buildWorldgenKind`, so it builds via the normal chunk path —
+  `main.js buildSpawnArch` + `chunks.js buildSpawnArch` are REMOVED (the planner owns
+  the arch). CONSEQUENCES: (a) every hub now gets an entrance arch (was exactly one, at
+  spawn); (b) arches stream via `chunkKey` like all festival furniture — the old single
+  `'spawn_arch'` non-chunk-key persistence is gone (correct: per-hub arches aren't the
+  lone persistent spawn marker any more); (c) **PLAYER-FACING — the spawn arrival no
+  longer has an arch pinned in front of Zerble.** Zerble still spawns on the dancefloor
+  front facing the stage; the arch is now the road gateway you drive through (arch →
+  market → stage), discovered on the drag, not at the spawn. Resolves the long-standing
+  "spawn-on-road vs face-the-stage" Dangling Thread by DECOUPLING them. Flag for Gary's
+  7.3 playtest. -> Task 4.1, main.js, chunks.js, D14 step 6, Dangling Threads.
+
+- **D16 — Three D14 deviations + one latent-bug fix, logged (cite-or-cut).** (a) Bubble
+  vendor KEPT GUARANTEED (refuel is a core verb; probabilistic would strand players) →
+  `BUBBLE_PROB` CUT. (b) `STAGE_MIN_SPACING` CUT — a single-hub planner can't enforce
+  cross-hub stage spacing (that's the `stage-spacing` WARN rule's job). (c) `SUGAR_SHACK_PROB`
+  CUT — sugar-shack share is a BUILDER decision (`FOOD_COURT_SHACK_PROB` already exists).
+  New constants actually added: `ZONE_MARGIN`, `COURT_MIN_STAGE_DIST`, `FOOD_COURT_STEP`,
+  `ARCH_DRAG_FRAC`. LATENT BUG fixed: `clusterShapes` stage deck circle now SCALES (`×scale`)
+  — the dancefloor scaled but the deck didn't, so the deck circle under-estimated the real
+  (scaled) deck box; surfaced because `arch-placement` measures to actual deck TILES.
+  -> Task 4.6, tuning.js, D14.
+
+- **D17 — Food courts RELOCATE outward past the vendor market.** The vendor row and the
+  food court both target `roads[i]`; the court's wide truck ring (~24 m) clips the row's
+  OBB on the same road, so a single-attempt slotter OMITTED every court. Fix: the court
+  walks outward in `FOOD_COURT_STEP` increments (both sides each step) until its ring
+  clears all placed zones — "drive the market, then reach the food." Capped at the drag
+  fraction; omitted only if the road is too short/packed. -> Task 4.1, festival.js.
+
 ## Assumptions
 
 | # | Assumption | Confidence | Status | Resolution |
@@ -100,7 +134,9 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
 
 ## Dangling Threads
 
-- Spawn-on-road vs face-the-stage tradeoff (round-2 open) — lean "both via front axis"; resolve in task 4.1 (-> deliberation).
+- ~~Spawn-on-road vs face-the-stage tradeoff (round-2 open) — lean "both via front axis"; resolve in task 4.1 (-> deliberation).~~ RESOLVED by -> D15: DECOUPLED — spawn stays on the dancefloor front facing the stage; the arch is a separate per-hub road gateway. Gary to gut-check the new arrival at 7.3.
+- **Drum treeless-fallback (feel decision for Gary, group 6).** `treedDistrictSpot` falls back to ANY dry spot when no treed pocket exists in the drum band, so a hub in open country gets a TREELESS drum → `drum-in-trees` error (registry: 1 in the seed-1234 spawn window). The original design deliberately kept the drum ("a major in open country still gets its drum") but Gary's later drum-in-trees rule wants it in woods. CHOICE for 7.3: OMIT drums in treeless hubs (fewer, always-treed) vs keep them (every major has one, some treeless). -> Task 6.1, treedDistrictSpot.
+- **Selftest POI-golden box sweep cost.** `runSelfTest` computes `festivalPlan` over a 6 km box (1037 hearts) × 4 seeds ≈ 7 min in node; the slotter added ~26%/hub (84→106 ms, mostly the food-court relocation `nudgeOff`/`queryPoint`). Pre-existing heavy diagnostic (HEAD was ~350 s); in-GAME cost is unchanged in character (one memoized hub at a time). The map-sandbox self-test button inherits this. Park as a perf-of-the-harness item, not a game-perf one. -> Task 6.x.
 - `booth-on-road` warn threshold (baseline's largest rule, 74) — may need a "straddle allowed, on-surface not" refinement; a linter-rule bug is fixable here (-> Open Q).
 - Inherited from harness adversarial review: hub-viewer acceptance is N=1 (widen to 2–3 seeds before grading against it); `arch-placement` fires ~globally (should drop to ~0 here — if not, `ARCH_MIN_STAGE_DIST` is miscalibrated, not the placement).
 - **RE-BASELINE before burndown (group 6):** `verification/baseline.md`'s "106 error / 92 warn" headline UNDERCOUNTS — the real all-rules registry total is 136/92 (group-3 linter; was 135/92 pre-group-3). Re-record baseline.md against the group-3 linter so the burndown's before/after share one ruler. (-> Task 6.3)
@@ -217,3 +253,27 @@ tensions; results.md carries the full synthesis + a 17-row Risk Register (4 CRIT
     D2 crowd commit is player-visible (own CHANGELOG entry).
 **Refs:** -> deliberations/001-initial/results.md, tasks.md (revised groups 0–8 + 0.5), README.md
 
+
+### 2026-06-14 -- Group 4 LANDED: zone slotter + arch relocation; the single POI golden move
+**Event:** phase-change + decision
+**What:** Rewrote `festival.js _computePlan` as the D14 single-pass priority zone slotter
+(stage → vendor aisles → food courts → drum → potties → arch → bubble), each testing its
+oriented `clusterShapes` against an accumulating `placed[]` via `clustersOverlap(+ZONE_MARGIN)`
+and OMITTING on no-fit (dependents drop transactionally). Removed `resolveOverlaps`. Relocated
+the arch to a planner `'arch'` descriptor + deleted `buildSpawnArch` (-> D15). Decisions -> D15/D16/D17.
+**RESULTS (verified):**
+  - **queryPoint golden FROZEN `eddf8e50`** (road/water existence untouched — D5 held).
+  - **POI golden MOVED ONCE `4825fd0b → a0edfaea`** (the one deliberate move; -> Task 4.3).
+    Single-engine round-trip + all window-invariance tests pass; only the pre-existing seed-0
+    "road negative control" artifact fails (present on HEAD too — not a regression).
+  - **Registry-mode `bin/lint` over the live seed-1234 spawn build: `overlap` 0, `water-clear` 0,
+    `arch-placement` 0.** The slotter's headline win. Plan-mode delta vs HEAD (3 seeds, ±600):
+    overlap warn **276 → 11**, water-clear 15 → 12.
+  - **Game boots clean** at `?worldgen=1&perf=low` (agent-browser: started, world generated, NO
+    console errors; festival renders — stage, vendor market along the road, drum circle by trees).
+  - Mechanical guards green: `bin/check-importmaps`, `bin/check-model-dims`.
+**STILL OPEN (group 5/6, both PRE-EXISTING):** `drum-in-trees` (1 — treeless-fallback feel call,
+new Dangling Thread) and `booth-on-road` (6 — vendor booths drifting onto curved roads; the group-5
+builder backstop / 4.5 corridor reservation). Tasks 4.4 (cosmetic spur/access path records) + 4.5
+(corridor reservation) NOT implemented — folded toward group 5.
+**Refs:** -> D15/D16/D17, Task 4.1/4.2/4.3/4.6, festival.js, tuning.js, main.js, chunks.js, selftest.js (golden record)

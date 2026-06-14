@@ -137,6 +137,17 @@ export const FESTIVAL_TUNING = {
   COURT_N_MAJOR: 2, COURT_N_MINOR: 1,   // festival.js:391 (capped by roads.length)
   ROW_N_MAJOR: 2,   ROW_N_MINOR: 1,     // festival.js:414 (capped by roads.length)
 
+  // ── Zone slotter (planner _computePlan, group 4 / D14) ──
+  // The slotter packs each cluster's TRUE oriented extent (clusterShapes) against
+  // the accumulating placed[] and OMITS on no-fit, replacing the old scatter-then-
+  // resolveOverlaps scalar push. ZONE_MARGIN is the required clearance between two
+  // placed zones (passed to clustersOverlap); COURT_MIN_STAGE_DIST is the extra
+  // "don't crowd the stage" gate a food court must clear beyond geometric overlap.
+  ZONE_MARGIN: 3,            // m — clearance between placed cluster zones
+  COURT_MIN_STAGE_DIST: 28,  // m — a food court center must sit at least this far from the stage
+  FOOD_COURT_STEP: 18,       // m — outward walk increment when a court must clear the vendor row on its road
+  ARCH_DRAG_FRAC: 0.6,       // cap the arch's outward walk at this fraction of the drag length
+
   // ── Drum-circle district band (planner treedDistrictSpot) ──
   DRUM_BAND: 130,           // festival.js:67  — max reach past core (bounds MAX_POI_REACH; R16)
   DRUM_CORE_PAD: 15,        // festival.js:270 — r0 = core + this
@@ -250,7 +261,7 @@ export function clusterShapes(kind, scale = 1, x = 0, z = 0, yaw = 0) {
     // halfWidth are the planner dancefloorRect values (DANCEFLOOR_*_BASE × scale)
     // — one source, so a drum BEHIND the stage is NOT inside the (forward-only)
     // floor, the false-positive radial extents always produced.
-    const deckR = T.KIND_FOOTPRINT[kind] || 11;
+    const deckR = (T.KIND_FOOTPRINT[kind] || 11) * scale;   // deck box scales with the stage (stage.js w/d × scale)
     const depth = T.DANCEFLOOR_DEPTH_BASE * scale;
     const halfWidth = T.DANCEFLOOR_HALFWIDTH_BASE * scale;
     return [

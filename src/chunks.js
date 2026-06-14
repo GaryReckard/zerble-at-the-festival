@@ -64,9 +64,9 @@ const SPAWN_JUG_SALT = 0x5A17B0BB | 0;
 const POTTY_SALT = 0x9E3779B1 | 0;
 
 // World-spawn point (zerble.position in main.js). The guaranteed intro jugs ring
-// around here. Mutable: with v2 worldgen, main.js relocates spawn to the nearest
-// major heart's entrance arch and calls setSpawnPoint BEFORE the ChunkManager is
-// built, so the intro jugs ring the real arrival point, not the legacy origin.
+// around here. Mutable: with v2 worldgen, main.js relocates spawn onto the nearest
+// hub's dancefloor front and calls setSpawnPoint BEFORE the ChunkManager is built,
+// so the intro jugs ring the real arrival point, not the legacy origin.
 const SPAWN_POINT = { x: 0, z: 65 };
 export function setSpawnPoint(x, z) { SPAWN_POINT.x = x; SPAWN_POINT.z = z; }
 
@@ -1307,16 +1307,6 @@ function buildEntranceArchAt(ctx, x, z, yaw) {
   // A festive string-light pair straddling the arch (poles just outside the posts).
   const a = rot(-9, 0), b = rot(9, 0);
   placePolePair(ctx, a.x, a.z, b.x, b.z);
-}
-
-// The ONE persistent entrance arch — the whole festival's grand gateway at the
-// player's spawn (A1). Built OUTSIDE the chunk system: added straight to the scene
-// with its colliders tagged by a non-chunk key ('spawn_arch'), so it NEVER unloads
-// when a host chunk drops (the same persistence trick the lake colliders use,
-// footgun #5). main.js places it straddling the spawn hub's primary road.
-export function buildSpawnArch(scene, x, z, yaw) {
-  const ctx = { group: scene, key: 'spawn_arch', rng: mulberry32(worldHash(Math.round(x), Math.round(z), 0x5A17A4C8)) };
-  buildEntranceArchAt(ctx, x, z, yaw);
 }
 
 // A single refuel bubble vendor (buildBubbleVendor returns a bare Group). `yaw`
