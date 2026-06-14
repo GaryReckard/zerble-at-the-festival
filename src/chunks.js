@@ -1172,14 +1172,18 @@ function placeWorldgenProps(ctx) {
 // length can't desync the chunk's other consumers (R19). Return-shape extraction is
 // per-builder (R2): buildStage/buildDrumCircleAt register internally; the *At helpers
 // extract `.group`/bare-Group exactly as each model demands.
-// Dev-only drift guard (design D-B): tuning.js MODEL_DIMS copies a few model
-// dimensions so the node linter (which can't import src/models/*) can compute
-// cluster extents. If a model body is retuned and MODEL_DIMS isn't updated, the
-// linter's analytic extents silently go stale. chunks.js legally imports both,
-// so it's the one place that can catch the drift. One-shot, localhost-only,
-// console.warn — never throws (a stale extent is a lint-accuracy bug, not a
-// crash). The arrangement multipliers themselves (× FOOD_TRUCK_SCALE) read the
-// live export at the call site, so there's nothing to drift there.
+// Dev-only drift guard (design D-B; PROMOTED to throw, task 3.3 / D12): tuning.js
+// MODEL_DIMS copies a few model dimensions so the node linter (which can't import
+// src/models/*) can compute ORIENTED cluster extents (clusterShapes). If a model
+// body is retuned and MODEL_DIMS isn't updated, those extents silently go stale —
+// and now that they're load-bearing for placement, the node linter reads the
+// stale copy and reports a hub CLEAN while the game builds a clip. chunks.js
+// legally imports both, so it's the one place that can catch the drift in-game.
+// One-shot, localhost-only, now THROWS (was console.warn) so a stale copy fails
+// loud at dev boot instead of shipping a silent clip — the headless half of the
+// same guard is bin/check-model-dims. PROD is never affected (isDevHost gate).
+// The arrangement multipliers themselves (× FOOD_TRUCK_SCALE) read the live
+// export at the call site, so there's nothing to drift there.
 let _tuningDriftChecked = false;
 function assertTuningDrift() {
   if (_tuningDriftChecked) return;
@@ -1197,8 +1201,10 @@ function assertTuningDrift() {
     ['SUGAR_SHACK_D', M.SUGAR_SHACK_D, SUGAR_SHACK_DEPTH],
     ['POTTY_SPACING', M.POTTY_SPACING, POTTY_SPACING],
   ];
-  for (const [name, copied, live] of checks) {
-    if (copied !== live) console.warn(`[tuning drift] MODEL_DIMS.${name}=${copied} but live model export=${live} — update tuning.js MODEL_DIMS (and re-check clusterExtent).`);
+  const drifts = checks.filter(([, copied, live]) => copied !== live)
+    .map(([name, copied, live]) => `MODEL_DIMS.${name}=${copied} but live model export=${live}`);
+  if (drifts.length) {
+    throw new Error(`[tuning drift] ${drifts.join('; ')} — update tuning.js MODEL_DIMS (and re-check clusterShapes/clusterExtent), then re-run bin/check-model-dims. (dev-host only)`);
   }
 }
 

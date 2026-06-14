@@ -15,7 +15,7 @@
 import { setSeed, getSeed, queryPoint } from './index.js';
 import { heartsInBounds, nearestMajorHeart } from './hearts.js';
 import { festivalPlan, dancefloorRect, MAX_POI_REACH } from './festival.js';
-import { clusterExtent, FESTIVAL_TUNING } from './tuning.js';
+import { clusterExtent, clusterShapes, clustersOverlap, shapesContainPoint, FESTIVAL_TUNING } from './tuning.js';
 import { treeDensity } from './density.js';
 
 // ── Link forms (the "eyes pipeline") ─────────────────────────────────────────
@@ -68,8 +68,10 @@ function planContext(heart) {
     plan,
     stage,
     floor: stage ? dancefloorRect(heart) : null,
-    // analytic extent circles for the overlap rule
+    // legacy scalar extent circles (water-clear / truck-off-road only read p)
     extents: plan.map(p => ({ p, r: clusterExtent(p.kind, p.scale || 1) })),
+    // true ORIENTED extents (group 3 / D3) — what the overlap rule now tests
+    shapes: plan.map(p => ({ p, s: clusterShapes(p.kind, p.scale || 1, p.x, p.z, p.yaw) })),
   };
 }
 
@@ -81,23 +83,20 @@ const STAGE_KINDS = new Set(['main_stage', 'side_stage', 'tent_stage']);
 // registry it shows up as a 'firepit' (damage 9) + a 'bench_ring'.
 const DRUM_PLAN_KIND = 'drum_circle';
 
-// Plan clusters whose envelope CONTAINS point (x,z), excluding the given kinds
-// (the drum itself, scenery). Shared by the drum-in-trees rule in both modes:
-// "the drum's center sits inside a food-court ring / vendor-row rect /
+// Plan clusters whose ORIENTED envelope CONTAINS point (x,z), excluding the given
+// kinds (the drum itself, scenery). Shared by the drum-in-trees rule in both
+// modes: "the drum's center sits inside a food-court ring / vendor-row rect /
 // stage+dancefloor envelope" — the bug Gary saw (a drum inside a food-truck
-// circle), which plain `overlap` misses (benches nest between trucks). For STAGE
-// kinds the envelope is the DIRECTIONAL dancefloor rect (not a radial extent) so
-// a drum BEHIND the stage isn't falsely flagged; `heart` supplies that rect.
+// circle), which plain `overlap` misses (benches nest between trucks). The stage
+// shape (clusterShapes) is its deck circle + the DIRECTIONAL dancefloor OBB, so a
+// drum BEHIND the stage isn't falsely flagged — no special-case rect needed.
+// (`heart` is no longer read; kept in the signature for call-site stability.)
 function clustersContaining(plan, heart, x, z, exclude) {
   const out = [];
-  const floor = heart ? dancefloorRect(heart) : null;
   for (const p of plan) {
     if (exclude.has(p.kind)) continue;
-    if (STAGE_KINDS.has(p.kind)) {
-      if (floor && inFloor(floor, x, z)) out.push({ kind: p.kind, r: floor.depth });
-    } else {
-      const r = clusterExtent(p.kind, p.scale || 1);
-      if (Math.hypot(p.x - x, p.z - z) < r) out.push({ kind: p.kind, r });
+    if (shapesContainPoint(clusterShapes(p.kind, p.scale || 1, p.x, p.z, p.yaw), x, z)) {
+      out.push({ kind: p.kind });
     }
   }
   return out;
@@ -131,28 +130,29 @@ const PLAN_RULES = [
     id: 'overlap',
     severity: 'warn',
     mode: 'plan',
-    // APPROXIMATE: two clusters whose analytic extent circles intersect. The
-    // de-overlap pass (festival.js resolveOverlaps) settles footprint circles,
-    // not these fuller model-extent circles, so residual extent overlaps are a
-    // real (approximate) signal. Registry mode is the exact authority (D-D).
+    // APPROXIMATE: two clusters whose ORIENTED extents (group 3 / D3) intersect —
+    // a food-court ring circle vs a vendor-row OBB, not two bounding circles, so
+    // it no longer over-counts the rectangle's empty corners. The de-overlap pass
+    // (festival.js resolveOverlaps) settles SCALAR footprint circles, not these
+    // fuller shapes, so residual overlaps are a real (approximate) signal.
+    // Registry mode is the exact authority (D-D).
     //
-    // Stage extents include the dancefloor CLEARING, which food courts/vendor
-    // rows are DESIGNED to sit at the edge of — so stage-involving pairs are
-    // expected to "overlap" and would drown the signal. Skip them in plan mode;
-    // the actionable clutter (the 4.5 truck×vendor-row clip) is non-stage pairs.
+    // Stage shapes include the dancefloor CLEARING (its forward OBB), which food
+    // courts/vendor rows are DESIGNED to sit at the edge of — so stage-involving
+    // pairs are expected to "overlap" and would drown the signal. Skip them in
+    // plan mode; the actionable clutter (the 4.5 truck×vendor-row clip) is
+    // non-stage pairs.
     check(ctx, emit) {
-      const ex = ctx.extents;
-      for (let i = 0; i < ex.length; i++) {
-        for (let j = i + 1; j < ex.length; j++) {
-          const a = ex[i], b = ex[j];
+      const sh = ctx.shapes;
+      for (let i = 0; i < sh.length; i++) {
+        for (let j = i + 1; j < sh.length; j++) {
+          const a = sh[i], b = sh[j];
           // porta-banks intentionally tuck at the margin of a parent — exclude.
           if (a.p.kind === 'porta_bank' || b.p.kind === 'porta_bank') continue;
           if (STAGE_KINDS.has(a.p.kind) || STAGE_KINDS.has(b.p.kind)) continue;
-          const d = Math.hypot(a.p.x - b.p.x, a.p.z - b.p.z);
-          const need = a.r + b.r;
-          if (d < need) {
+          if (clustersOverlap(a.s, b.s)) {
             emit((a.p.x + b.p.x) / 2, (a.p.z + b.p.z) / 2,
-              `${a.p.kind} × ${b.p.kind} extents overlap by ${(need - d).toFixed(1)}m (approx)`);
+              `${a.p.kind} × ${b.p.kind} oriented extents overlap (approx)`);
           }
         }
       }

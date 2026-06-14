@@ -212,11 +212,111 @@ export const MODEL_DIMS = {
   POTTY_SPACING: 2.5,       // portaPotty.js:25
 };
 
+// ── Oriented cluster extents (group 3, design D3) ────────────────────────────
+// `clusterExtent` (below) is the legacy SCALAR radius — conservative but it
+// over-estimates the short axis of long clusters (a vendor row is an ~18×40 m
+// rectangle, not a 22 m circle) and ignores orientation, which is exactly why
+// `resolveOverlaps`' scalar-radius packing guaranteed clipping (ROADMAP
+// "Festival layout" root cause). `clusterShapes` promotes each kind to its TRUE
+// oriented occupancy as a list of convex primitives in WORLD coords:
+//   { t:'circle', x, z, r }
+//   { t:'obb',    x, z, ux, uz, hl, hw }   // center; UNIT forward axis (ux,uz);
+//                                          //   hl = half-length along it, hw = half-width perp
+// A cluster with distinct parts is one list — a stage is its deck CIRCLE plus the
+// directional dancefloor OBB in front (D3: "deck + front dancefloor"; the D8
+// "do-NOT-merge" dancefloor pair merges HERE — one dancefloor definition, shared
+// by the planner's dancefloorRect and this extent). The group-4 zone slotter and
+// the linter test occupancy with `clustersOverlap`; the overlay draws the shapes.
+//
+// yaw is the descriptor's three.js Y-rotation: a group at yaw θ maps its local
+// +Z ("front") to world (sinθ, cosθ) — so the forward axis u = (sin yaw, cos yaw),
+// matching festival.js roadFacingYaw. Derived from the SAME FESTIVAL_TUNING +
+// MODEL_DIMS the builder reads, so plan extent == built extent by construction
+// (the MODEL_DIMS drift guard — chunks.js assertTuningDrift + bin/check-model-dims
+// — keeps the copied dims honest).
+export function clusterShapes(kind, scale = 1, x = 0, z = 0, yaw = 0) {
+  const T = FESTIVAL_TUNING;
+  const ux = Math.sin(yaw), uz = Math.cos(yaw);   // unit forward axis (+Z under yaw)
+  if (kind === 'vendor_row') {
+    // Booth lines run ALONG the road (the descriptor yaw = π/2 − road-bearing, so
+    // +Z is the road tangent = the long axis). Width = aisle half + camper band
+    // behind the far side. Centered ON the road point (the drivable aisle).
+    const hl = ((T.VENDOR_ROW_COUNT_BASE + T.VENDOR_ROW_COUNT_SPAN - 1) / 2) * T.VENDOR_ROW_SPACING;
+    const hw = T.VENDOR_ROW_OFFSET + T.VENDOR_CAMPER_BACK_OFFSET + 2;
+    return [{ t: 'obb', x, z, ux, uz, hl, hw }];
+  }
+  if (kind === 'main_stage' || kind === 'side_stage' || kind === 'tent_stage') {
+    // Deck circle at center + the dancefloor clearing OBB extending +F. depth /
+    // halfWidth are the planner dancefloorRect values (DANCEFLOOR_*_BASE × scale)
+    // — one source, so a drum BEHIND the stage is NOT inside the (forward-only)
+    // floor, the false-positive radial extents always produced.
+    const deckR = T.KIND_FOOTPRINT[kind] || 11;
+    const depth = T.DANCEFLOOR_DEPTH_BASE * scale;
+    const halfWidth = T.DANCEFLOOR_HALFWIDTH_BASE * scale;
+    return [
+      { t: 'circle', x, z, r: deckR },
+      { t: 'obb', x: x + ux * depth / 2, z: z + uz * depth / 2, ux, uz, hl: depth / 2, hw: halfWidth },
+    ];
+  }
+  // Radial kinds (food court ring, camp village, porta-bank, bubble, drum, arch):
+  // the legacy scalar extent IS the right circle for these.
+  return [{ t: 'circle', x, z, r: clusterExtent(kind, scale) }];
+}
+
+// Overlap predicates over the convex primitives above. `margin` = required
+// clearance between the two (two shapes are "too close" if within `margin`).
+function _circCirc(a, b, m) { return Math.hypot(a.x - b.x, a.z - b.z) < a.r + b.r + m; }
+function _circObb(c, o, m) {
+  const rx = c.x - o.x, rz = c.z - o.z;
+  const along = rx * o.ux + rz * o.uz;
+  const lat = rx * -o.uz + rz * o.ux;
+  const dx = along - Math.max(-o.hl, Math.min(o.hl, along));
+  const dz = lat - Math.max(-o.hw, Math.min(o.hw, lat));
+  return Math.hypot(dx, dz) < c.r + m;
+}
+function _obbObb(a, b, m) {
+  // Separating-axis test over both boxes' face normals (all unit). Separated on
+  // any axis ⇒ no overlap; `m` inflates the required gap.
+  const axes = [[a.ux, a.uz], [-a.uz, a.ux], [b.ux, b.uz], [-b.uz, b.ux]];
+  const dx = b.x - a.x, dz = b.z - a.z;
+  for (const [px, pz] of axes) {
+    const pa = Math.abs(a.ux * px + a.uz * pz) * a.hl + Math.abs(-a.uz * px + a.ux * pz) * a.hw;
+    const pb = Math.abs(b.ux * px + b.uz * pz) * b.hl + Math.abs(-b.uz * px + b.ux * pz) * b.hw;
+    if (Math.abs(dx * px + dz * pz) > pa + pb + m) return false;
+  }
+  return true;
+}
+export function shapesOverlap(a, b, m = 0) {
+  if (a.t === 'circle' && b.t === 'circle') return _circCirc(a, b, m);
+  if (a.t === 'circle') return _circObb(a, b, m);
+  if (b.t === 'circle') return _circObb(b, a, m);
+  return _obbObb(a, b, m);
+}
+// Any primitive of listA within `margin` of any primitive of listB.
+export function clustersOverlap(listA, listB, m = 0) {
+  for (const a of listA) for (const b of listB) if (shapesOverlap(a, b, m)) return true;
+  return false;
+}
+// Is world point (x,z) inside any primitive of a cluster's shape list?
+export function shapesContainPoint(list, x, z) {
+  for (const s of list) {
+    if (s.t === 'circle') { if (Math.hypot(s.x - x, s.z - z) <= s.r) return true; }
+    else {
+      const rx = x - s.x, rz = z - s.z;
+      const along = rx * s.ux + rz * s.uz, lat = rx * -s.uz + rz * s.ux;
+      if (Math.abs(along) <= s.hl && Math.abs(lat) <= s.hw) return true;
+    }
+  }
+  return false;
+}
+
 // Conservative per-kind outer-extent (radius from the cluster center, meters)
 // for the group-4 linter plan-mode + the map-sandbox overlay. APPROXIMATE by
 // design — registry mode is the exact authority (design D-D). Derived from
 // FESTIVAL_TUNING + MODEL_DIMS so it tracks live tuning. A stage's scale-driven
-// growth is passed by the caller (default 1).
+// growth is passed by the caller (default 1). Retained as the bounding radius
+// `clusterShapes` builds its circles from; the oriented API above is the one the
+// slotter + linter overlap tests should prefer.
 export function clusterExtent(kind, scale = 1) {
   const T = FESTIVAL_TUNING, M = MODEL_DIMS;
   switch (kind) {

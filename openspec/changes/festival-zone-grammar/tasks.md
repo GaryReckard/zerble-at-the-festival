@@ -131,17 +131,29 @@
 
 ## 3. True oriented extents + MODEL_DIMS guard promotion (golden-frozen — read-only until group 4)
 
-- [ ] 3.1 Promote `clusterExtent` → per-kind oriented extents: court = ring,
+- [x] 3.1 Promote `clusterExtent` → per-kind oriented extents: court = ring,
       vendor row = oriented rect (incl. camps-behind band), stage = directional
       wedge (deck + dancefloor). Unify the D8 dancefloor pair — **value-preserving
       (any group-3 snapshot diff falsifies "same number, two owners").**
       done = extents exported; goldens unchanged (extents not yet consumed).
-- [ ] 3.2 Point the linter plan-mode + map-sandbox overlay at the oriented extents
+      *(done 2026-06-14 — `clusterShapes` + `shapesOverlap`/`clustersOverlap`/
+      `shapesContainPoint` in tuning.js. Stage = deck circle + forward dancefloor
+      OBB (DANCEFLOOR_*_BASE×scale — same values as dancefloorRect; D8 merged).
+      Goldens FROZEN eddf8e50/4825fd0b — no world-gen path consumes clusterShapes.)*
+- [x] 3.2 Point the linter plan-mode + map-sandbox overlay at the oriented extents
       (replacing approximate circles). done = plan-vs-registry gap shrinks; no game-path change.
-- [ ] 3.3 **Promote the `MODEL_DIMS` drift guard from a localhost `console.warn`
+      *(LINTER HALF done 2026-06-14 — plan `overlap` rule + shared `clustersContaining`
+      now test oriented shapes. Registry sweep 135→136 err: +1 TRUE catch (seed 1001,
+      drum inside a side_stage envelope the old forward-only rect missed). No
+      game-path change. MAP-SANDBOX OVERLAY HALF still TODO — next commit.)*
+- [x] 3.3 **Promote the `MODEL_DIMS` drift guard from a localhost `console.warn`
       to a THROWN node-selftest assertion** before extents go load-bearing; add
       `MODEL_DIMS` entries for every dimension the new oriented extents depend on
       (the stage wedge likely needs deck dims). done = selftest fails loud on a stale copy.
+      *(done 2026-06-14 — chunks.js assertTuningDrift now THROWS on dev host;
+      headless half = new `bin/check-model-dims` (source-greps the 4 live model
+      consts vs tuning.js MODEL_DIMS, exit 1 on drift). The 4 existing MODEL_DIMS
+      cover the deck/ring/aisle dims clusterShapes needs; no new entry required.)*
 
 ## 4. Zone-slotting planner — THE GOLDEN MOVE (nothing else in the golden-move commit)
 

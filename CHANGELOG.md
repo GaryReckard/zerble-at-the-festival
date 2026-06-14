@@ -2,6 +2,15 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-14
+
+### Added
+- **Layout linter now reasons over TRUE oriented extents, not bounding circles (dev workflow).** `src/worldgen/tuning.js` gains `clusterShapes(kind, scale, x, z, yaw)` — each festival cluster's real occupancy as convex primitives in world coords: a food court is a ring circle, a vendor row is an **oriented rectangle** (booth line along the road + the camper band behind it), and a stage is its deck circle **plus** the directional dancefloor clearing in front (design D3 — the old "two owners, do-NOT-merge" dancefloor pair merges into one definition shared with the planner's `dancefloorRect`). Plus `shapesOverlap`/`clustersOverlap` (circle-circle, circle-OBB, OBB-OBB via separating-axis) and `shapesContainPoint`. The `lint.js` plan-mode `overlap` rule and the shared `clustersContaining` (the `drum-in-trees` envelope test, both modes) now test these oriented shapes instead of `clusterExtent`'s bounding radius — so the rectangle's empty corners stop counting as occupied, and a drum sitting *inside a stage deck* is caught where the old forward-only rect missed it (registry sweep: +1 true catch at seed 1001, a drum inside a side_stage envelope). Approximate-by-design still (registry is the authority, D-D); both determinism goldens unchanged (`eddf8e50` / `4825fd0b`) — `clusterShapes` is read by the linter/overlay only, no world-gen path consumes it yet. This is the substrate the `festival-zone-grammar` zone-slotter packs against.
+- **`bin/check-model-dims` — headless guard against stale linter extents (dev workflow).** The node linter computes its oriented extents from `tuning.js` `MODEL_DIMS`, a hand-copied set of model body dimensions (the linter can't import `src/models/*` — they pull in three.js). Once those extents are load-bearing, a stale copy is dangerous in a silent way: the linter reads the stale value and reports a hub *clean* while the game builds a clip. The new check dynamic-imports `tuning.js` (it imports nothing, so node loads it) and **source-greps** the four live model constants (`FOOD_TRUCK_SCALE`, `FACADE_WIDTH`, `DEPTH`+1, `POTTY_SPACING`), failing loudly (exit 1, naming the field + both values) on any drift — the headless/CI half of the guard, same regex-the-source approach as `bin/check-importmaps`.
+
+### Changed
+- **In-game `MODEL_DIMS` drift guard promoted from `console.warn` to a thrown error (dev-host only).** `chunks.js` `assertTuningDrift` now throws at dev-host world-gen if a copied `MODEL_DIMS` value diverges from its live model export, instead of logging a warning that scrolls past — so a model retune that forgets `tuning.js` fails loud at boot rather than shipping a silent in-game clip the linter (reading the same stale copy) reports as clean. Production is untouched (the `isDevHost` gate is unchanged); with no drift present the game boots clean (verified `?perf=low`).
+
 ## 2026-06-13
 
 ### Added

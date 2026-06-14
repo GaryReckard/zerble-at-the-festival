@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Q1 answered (lean path). Groups 1+2 deferred to ROADMAP. Starting Group 3 (true oriented extents) → Group 4 (zone-slotting planner + golden move)."
+current_task: "Group 3 done (oriented extents + drift guard; goldens frozen; linter consumes shapes). Next: 3.2 map-sandbox overlay half, then Group 4 (zone-slotting planner + the single POI-golden move)."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -66,8 +66,28 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
 - Spawn-on-road vs face-the-stage tradeoff (round-2 open) — lean "both via front axis"; resolve in task 4.1 (-> deliberation).
 - `booth-on-road` warn threshold (baseline's largest rule, 74) — may need a "straddle allowed, on-surface not" refinement; a linter-rule bug is fixable here (-> Open Q).
 - Inherited from harness adversarial review: hub-viewer acceptance is N=1 (widen to 2–3 seeds before grading against it); `arch-placement` fires ~globally (should drop to ~0 here — if not, `ARCH_MIN_STAGE_DIST` is miscalibrated, not the placement).
+- **RE-BASELINE before burndown (group 6):** `verification/baseline.md`'s "106 error / 92 warn" headline UNDERCOUNTS — the real all-rules registry total is 136/92 (group-3 linter; was 135/92 pre-group-3). Re-record baseline.md against the group-3 linter so the burndown's before/after share one ruler. (-> Task 6.3)
 
 ## Work Log
+
+### 2026-06-14 -- Group 3 (oriented extents) + a baseline-accounting discovery
+**Event:** discovery
+**What:** Built `clusterShapes` (oriented convex extents) + overlap/contain predicates
+in tuning.js; wired the linter plan-mode `overlap` + shared `clustersContaining` to them;
+promoted the MODEL_DIMS drift guard to throw (chunks.js) + added headless `bin/check-model-dims`.
+Goldens FROZEN (eddf8e50/4825fd0b) — clusterShapes is linter/overlay-only. Game boots
+clean at perf=low.
+**DISCOVERY (matters for group 6 re-baseline):** the registry-mode `bin/lint` total over
+the 10 baseline snapshots is **135 error / 92 warn** with the CURRENT (pre-group-3) linter
+— NOT the "106 / 92" headline in `verification/baseline.md`. The 106 is a smaller-rule-set
+accounting (baseline.md's per-seed table predates the 4.7 `arch-placement`+`drum-in-trees`
+append; those errors live only in the appended block, never folded into the headline). So
+the real all-rules "before" is 135/92. Group 3 then moved it to **136/92** (the one true
+side_stage-envelope catch). **Consequence:** group 6's burndown must re-record baseline.md
+against the group-3 linter so before/after use ONE ruler — the "106" headline is not a
+valid zero-target. -> new Dangling Thread; -> Task 6.3 (burndown table) will re-state the
+"before" as 136/92 (all rules, group-3 linter).
+**Refs:** -> Task 3.1/3.2/3.3, tuning.js clusterShapes, lint.js, bin/check-model-dims, verification/baseline.md
 
 ### 2026-06-13 -- Q1 answered: LEAN PATH. Groups 1+2 deferred; starting group 3→4.
 **Event:** decision

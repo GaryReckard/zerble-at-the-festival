@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+/*
+ * bin/check-model-dims — fail loudly when tuning.js MODEL_DIMS drifts from the
+ * live model-source dimensions it copies (festival-zone-grammar task 3.3 / D12).
+ *
+ * WHY a node check, not just the in-game guard: tuning.js MODEL_DIMS copies a few
+ * model body dimensions so the node linter (which can't import src/models/* —
+ * they pull in three.js) can compute ORIENTED cluster extents (clusterShapes).
+ * Once those extents go load-bearing for placement, a STALE copy is dangerous in
+ * a silent way: the node linter reads the stale copy and reports a hub CLEAN
+ * while the game (reading the live model) builds a clip. chunks.js's
+ * assertTuningDrift catches it at dev-host boot, but CI / a headless lint sweep
+ * never boots the game — so this is the headless half of the guard.
+ *
+ * It dynamic-imports tuning.js (which imports NOTHING, so it loads fine in node)
+ * for MODEL_DIMS, and SOURCE-GREPS the model files for their live constants
+ * (can't import them — three.js). Same regex-the-source approach as
+ * bin/check-importmaps. Exits 0 in sync, 1 (naming the field + both values) on
+ * drift. CommonJS extensionless bin script, like bin/lint / bin/check-importmaps.
+ */
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { pathToFileURL } = require('url');
+
+const ROOT = path.resolve(__dirname, '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+
+// Pull a `const|export const NAME = <number>;` value out of a model source file.
+function srcNum(rel, name) {
+  const m = read(rel).match(new RegExp(`(?:export\\s+)?const\\s+${name}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)`));
+  if (!m) { process.stderr.write(`check-model-dims: could not find ${name} in ${rel}\n`); process.exit(2); }
+  return parseFloat(m[1]);
+}
+
+(async () => {
+  const { MODEL_DIMS } = await import(pathToFileURL(path.join(ROOT, 'src', 'worldgen', 'tuning.js')).href);
+
+  // [MODEL_DIMS field, live value derived from model source]
+  const checks = [
+    ['FOOD_TRUCK_SCALE', srcNum('src/models/foodTruck.js', 'FOOD_TRUCK_SCALE')],
+    ['SUGAR_SHACK_W', srcNum('src/models/sugarShack.js', 'FACADE_WIDTH')],
+    // SUGAR_SHACK_DEPTH = DEPTH + 1.0 (sugarShack.js:48 "include facade depth")
+    ['SUGAR_SHACK_D', srcNum('src/models/sugarShack.js', 'DEPTH') + 1.0],
+    ['POTTY_SPACING', srcNum('src/models/portaPotty.js', 'POTTY_SPACING')],
+  ];
+
+  let drift = 0;
+  for (const [field, live] of checks) {
+    const copied = MODEL_DIMS[field];
+    if (copied !== live) {
+      process.stderr.write(`✗ MODEL_DIMS.${field} = ${copied} but live model source = ${live} — update tuning.js MODEL_DIMS (and re-check clusterShapes/clusterExtent).\n`);
+      drift++;
+    }
+  }
+
+  if (drift) { process.stderr.write(`\ncheck-model-dims: ${drift} drift(s). The node linter's oriented extents are stale vs the built models.\n`); process.exit(1); }
+  process.stdout.write(`✓ MODEL_DIMS in sync with model sources (${checks.length} dims).\n`);
+})();
