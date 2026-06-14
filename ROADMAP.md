@@ -138,13 +138,13 @@ below (Gary: lean now, full scope eventually).
   structural change is ever wanted instead, the parked options are a hub-subset gate (sparser
   hubs) or a batched neighbourhood solver — both golden-moving.
 
-- **Vendor row crosses a CURVED road.** Seed 2718382314 @ (49,386): a vendor row is
-  centered on a road point with `yaw` = the local road tangent, but the row geometry is
-  a STRAIGHT line ~2×halfLen long; where the road curves through the row's span, the
-  straight row crosses the curving ribbon. Fix = a curve-aware placement: only seat a
-  row where the road is locally straight (low curvature over the row's length), shorten
-  the row on bends, or bend the booth line to follow the polyline. Independent of the
-  cross-hub issue above; also golden-moving (changes row positions).
+- **Vendor row on a CURVED road — crossing FIXED (2026-06-14); curve-FOLLOWING still parked.**
+  Seed 2718382314 @ (49,386): the straight booth line crossed a road that bent through its
+  span. Shipped a builder-side fix — `buildVendorRowAt` skips booths that land on the road
+  ribbon, so the row keeps a gap at the bend instead of crossing (CHANGELOG; golden-free).
+  Still parked (nice-to-have): a booth line that *follows* the road polyline through a bend
+  rather than gapping — a bigger builder change, and the planner could prefer seating rows
+  where the road is locally straight (golden-moving).
 
 ### Festival worldgen v2 — builder layout/mesh extraction + crowd pre-roll *(deferred 2026-06-13)*
 

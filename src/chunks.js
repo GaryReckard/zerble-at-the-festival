@@ -25,7 +25,7 @@ import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
 import { dancefloorRectsNear, drumClearingsNear, stageDeckClips, festivalPlan, campVillagesNear, MAX_POI_REACH } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
-import { roadsInBounds } from './worldgen/roads.js';
+import { roadsInBounds, nearestRoad } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
@@ -1395,6 +1395,13 @@ function buildVendorRowAt(ctx, x, z, yaw) {
     for (const side of [-1, 1]) {
       const w = place(side * rowOffset, t * spacing);
       if (isPointInLake(w.x, w.z)) continue;
+      // The row is a STRAIGHT booth line straddling the road by ±rowOffset. Where the road
+      // CURVES through the row's span it bends toward one side, putting that side's booths
+      // ON the visible road (Gary 2026-06-14: "the road turned in the middle, so it also
+      // crosses a road"). Skip a booth that lands on the road ribbon — the row keeps a gap
+      // at the bend instead of crossing. Chunk-gen only; same skip-before-buildTent pattern
+      // as the backstops below, so the cluster-local rng + goldens are unaffected.
+      if (nearestRoad(w.x, w.z).dist < ROAD_RIBBON_WIDTH / 2 + 1) continue;
       // Group-5 backstop: skip a booth that would clip an already-built solid (a stage
       // deck the row runs past, a neighbour's truck) — the graceful-degradation guard the
       // legacy theme builders had. Chunk-gen only; clusterSeed stream, so goldens unaffected.
