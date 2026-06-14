@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Groups 4–7 PARTIAL. Slotter + playtest fixes + spawn-through-arch landed; POI golden 49ec28fc, queryPoint frozen eddf8e50. 3-tier boot CLEAN; vendor-row closestBuilding backstop added (5.1 partial); 3-seed registry burndown (verification/burndown.md): overlap/water/arch/drum=0 on 2/3 seeds, baseline 5.8–7.5m clips GONE (lone 1.1m tent×arch grazing). RESUME → finish the true zero-error burndown: full 10-seed registry re-capture; water-clear lake-hearts (biggest residual, pre-existing); booth-on-road LINTER refinement (false-positive — booths straddle ±7m corridor by design); the 1.1m tent×arch curve case (model the vendor-row curve in the planner). Then Group 7.3 Gary playtest (HUMAN GATE) + 7.4 smart-review. DEFERRED dev-workflow: tree-through-truck guard; marker-UI typing modal."
+current_task: "DESIGN-LOCKED (Gary grill 2026-06-14 → D19–D23): DENSE & SEAMED. Building Group 4B — cross-hub context seam grammar (integer-only determinism), promoting the builder-side band-aids (neighbourCourtHere food-court omission + stageDeckClips drum-yield) into a principled planner layer. Order: (1) integer getHubPriority + seam-pair enumeration (pure, golden-frozen); (2) seam-type decision + merge/trim/buffer; (3) emergent MAJOR-hub arrival (probability-gated, varied, spawn-guaranteed hero — revises D18 #1); (4) SECOND deliberate golden move (re-record + node==browser verify); (5) Gary playtest 7.3. POI golden 49ec28fc (moves once more here), queryPoint frozen eddf8e50. /deliberate recommended before the golden-move commit. Carried-over zero-error items fold into the seam pass: water-clear lake-hearts; booth-on-road linter false-positive; the 1.1m tent×arch curve case."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -161,6 +161,59 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   in the playtest-fix commit. Acceptable: the branch is unmerged + flag-off (D6); these
   are direct responses to playtest feedback, not gratuitous churn. -> Task 4.x, festival.js,
   main.js, chunks.js, tuning.js.
+
+- **D19 — World feel: DENSE & SEAMED, overlap is a FEATURE (Gary grill, 2026-06-14).**
+  Root cause of every playtest clip: `HEART_CELL` 200 m vs ~190 m cluster reach (±80 m
+  jitter) → adjacent hubs ALWAYS overlap, by design (`constants.js:11` flags the dense
+  setting "to be re-settled during the layout-grammar redesign"). Gary's call: do NOT
+  design the overlap out (rejected: spacing hubs into a discrete archipelago) and do NOT
+  keep whack-a-mole patching (rejected: builder-side band-aids forever). Instead EMBRACE
+  it — one continuous festival, with the overlap promoted to a designed shared place.
+  This is the pivot the rest of D20–D23 hang off. -> drives the cross-hub seam grammar.
+
+- **D20 — Seam grammar is CONTEXT-DEPENDENT (Gary grill).** Where two hubs' edge zones
+  meet, the planner picks a seam TYPE by what's on each side: (a) commerce↔commerce →
+  **shared market street** (one continuous frontage, booths straddle the connecting road,
+  no dead-end aisles); (b) food+food → **one MERGED court** serving both hubs (not two
+  adjacent); (c) loud↔quiet (stage↔camp) → **soft green buffer** (trees/hammocks/shade/
+  potty/connector path absorbs the clash). Plus orientation-away (fronts/lights/arches
+  point inward, never outward into a neighbour unless that edge IS a market street).
+  This SUPERSEDES the builder-side band-aids — `neighbourCourtHere` (food-court omission,
+  chunks.js) and `stageDeckClips` drum-yield are the blind, load-order-dependent versions
+  of (b) and (c); they get promoted into this principled planner layer and removed.
+  Framing = ChatGPT R3 seam-typing; geometry = Gemini OBB/SAT + R4 trimming. -> design D7.
+
+- **D21 — Cross-hub decisions are INTEGER-ONLY (Gary grill — determinism, footgun #4).**
+  No floating-point value EVER gates existence/merge/trim across the seam. Hub priority =
+  integer bit-mix hash of the two cells + seed (`getHubPriority`); positions quantize to
+  whole meters; "do these overlap?" compares integer squared-distance / integerized SAT
+  projections; ties by `(cx,cz)` lexicographic — exactly the pattern `hearts.js` already
+  uses. Rejected: float OBB/SAT + lean on node==browser re-verify (re-opens the
+  road-existence-flip class the project deliberately closed). -> design D8.
+
+- **D22 — Arrival is EMERGENT at MAJOR hubs, varied, spawn-guaranteed (Gary grill —
+  REVISES D18 #1).** D18 made it "exactly ONE arch, at the spawn hub." The dense-&-seamed
+  world wants legible arrivals more widely — but NOT at every hub (the 91% minors over-
+  arched, D18's actual complaint). Resolution: the road→arch→stage approach is a grammar
+  feature of MAJOR-rank hubs (~4% of cells), **probability-gated among majors** (not every
+  major) and VARIED (arch presence/style, approach length, lakeside vs field stage) so it
+  never reads formulaic. The spawn hub keeps its GUARANTEED hero composition (D18 intact
+  there); spawn relocation lands the player on a major facing the core down the approach
+  road — so "on a road" and "facing the stage" are the same act (resolves the round-2
+  spawn-on-road vs face-the-stage tradeoff: the road IS the sightline). Gary hedged ("maybe
+  not EVERY one… whatever you want") → keep the major-hub arch probability a `FESTIVAL_TUNING`
+  slider and gut-check density at 7.3. -> design D7, tuning.js, main.js.
+
+- **D23 — Sequencing: design-lock NOW, then build the seam grammar (Gary grill).** This
+  session writes D19–D22 into design.md + tasks.md as plan-of-record, then implements in
+  order: integer `getHubPriority` + seam-pair enumeration (pure, golden-frozen) → the
+  context seam-type decision + merge/trim/buffer (replacing the band-aids) → emergent
+  major-hub arrival → the SECOND deliberate golden move (re-record + node==browser verify)
+  → Gary playtest (7.3). The earlier "single golden move" (D6) is now explicitly TWO
+  deliberate moves: the slotter (done, 49ec28fc) and this seam grammar. RISK GATE: this
+  brushes determinism + the golden + lifecycle — a `/deliberate` before the golden-move
+  commit is recommended (Gary's call); the grill itself served as the design interrogation.
+  -> tasks Group 4B.
 
 ## Assumptions
 
@@ -374,4 +427,29 @@ density — nearly every minor hub has a senior cluster in reach → would omit 
 gutting the festival. Needs a Gary design call (hub-subset gate / road-half walk cap / batched
 neighbourhood solver). Vendor-row-on-curved-road (seed 2718382314) is a separate curve-aware-
 planner item. Both fully written up in ROADMAP "Playtest follow-ups."
+
+### 2026-06-14 -- DESIGN-LOCK: Gary grill resolves the cross-hub tension → DENSE & SEAMED
+**Event:** decision (phase-change — playtest band-aid burndown → principled seam grammar)
+**What:** Gary asked to step back from "is the per-heart slotter + builder-side omission written
+in stone?" A 5-question grill (AskUserQuestion) walked the decision tree top-down and locked the
+direction the band-aid fixes were dancing around. Answers → -> D19–D23:
+- World feel = **DENSE & SEAMED** (embrace the 200m/190m overlap as one continuous festival;
+  rejected archipelago-spacing and rejected forever-patching). -> D19
+- Seams = **context-dependent grammar** (commerce↔commerce → shared street; food+food → merged
+  court; loud↔quiet → soft green buffer; + orientation-away). Promotes the band-aids
+  (`neighbourCourtHere`, `stageDeckClips` drum-yield) into a principled planner layer. -> D20
+- Determinism = **integer-only** (hub-priority hash + quantized positions + integer distance/SAT;
+  no float gates existence — the `hearts.js` pattern). -> D21
+- Arrival = **emergent at MAJOR hubs, probability-gated + varied, spawn-guaranteed hero** (revises
+  D18's "exactly one arch"; resolves spawn-on-road vs face-the-stage — the approach road IS the
+  sightline). -> D22
+- Sequencing = **lock the design now, then build it** (this session). The "single golden move" (D6)
+  becomes explicitly two: slotter (done) + seam grammar. -> D23
+This phase-change RE-OPENS the cross-hub work as planned architecture, not a parked tension — the
+"needs a Gary design call" from the prior entry is now ANSWERED. Next concrete action: build
+Group 4B step 1 (integer `getHubPriority` + seam-pair enumeration, pure + golden-frozen).
+**RISK GATE:** brushes determinism + golden + lifecycle; a `/deliberate` before the golden-move
+commit is recommended (Gary's call) — the grill served as the design interrogation.
+**Refs:** -> D19–D23, design.md D7/D8, tasks.md Group 4B, ROADMAP "Playtest follow-ups",
+research/festival-layout-chatgpt-round3-deep-research.md (seam-typing), DRAFTING-BRIEF.md.
 **Refs:** -> ROADMAP cross-hub + curved-row entries, lakes.js, chunks.js, festival.js (drumClearingsNear)

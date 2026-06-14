@@ -210,6 +210,44 @@
 > commit — `booth-on-road` (6, pre-existing) is the symptom and the group-5 mesh-half
 > backstop (5.1) is the natural home. -> Group 5.
 
+## 4B. Cross-hub seam grammar — THE DENSE-&-SEAMED PASS (Gary grill 2026-06-14, D19–D23)
+
+> Promotes the builder-side band-aids into a principled, integer-only planner layer.
+> Runs BEFORE the full 10-seed burndown (6.1) and the Gary playtest (7.3). Ends with
+> the SECOND deliberate golden move. A `/deliberate` before 4B.5 is recommended.
+
+- [ ] 4B.1 **Integer hub-priority + seam-pair enumeration (pure, golden-FROZEN).**
+      Add `getHubPriority(cx, cz, seed)` (integer bit-mix hash) and a deterministic
+      `seamPairsNear(bounds)` that enumerates each heart + its in-reach neighbours
+      (within `2·MAX_POI_REACH`), order-independent. Read-only helpers — emit nothing
+      into the plan yet. done = unit-probe: priority unique + stable per seed; pair set
+      identical regardless of query origin; both goldens UNCHANGED (`49ec28fc`/`eddf8e50`).
+- [ ] 4B.2 **Seam-type classifier (integer-only).** For each pair, detect the conflicting
+      edge zones via integerized oriented-extent overlap (quantized positions, integer
+      squared-distance / SAT projections — D8/D21) and classify: commerce↔commerce →
+      `shared_street`; food+food → `merged_court`; loud↔quiet → `soft_buffer`. Lower
+      priority yields. done = classifier probe over 3 seeds is deterministic + matches
+      hand-checked seams; NO float gates the branch.
+- [ ] 4B.3 **Seam RESPONSE in the planner (trim / merge / buffer).** Emit the response:
+      trim the lower-priority vendor row along its road axis (skip only if <3 booths fit —
+      Gemini R4); merge two food courts into one serving both hubs; place a soft-buffer
+      record (trees/hammock/shade/potty/path) between stage and camp. Orientation-away:
+      fronts/lights/arch point inward unless the edge is a `shared_street`. done = the
+      `neighbourCourtHere` + `stageDeckClips` band-aids REMOVED (chunks.js), replaced by
+      these planner outcomes; hub-viewer + map-overlay show clean seams across 3 seeds.
+- [ ] 4B.4 **Emergent MAJOR-hub arrival (D9/D22, revises D18 #1).** Gate the arch+approach
+      composition to major hubs via a `FESTIVAL_TUNING` probability (varied arch/approach);
+      keep the spawn hub's guaranteed hero arch; spawn relocation faces the core down the
+      approach road. done = hub-gallery shows varied, non-formulaic arrivals at a subset of
+      majors; spawn always hero; Gary density gut-check queued for 7.3.
+- [ ] 4B.5 **SECOND deliberate golden move.** Re-record the POI golden, log old→new in
+      session-log, re-verify node==browser. queryPoint golden stays frozen (POI-layer +
+      cosmetic path records only). done = golden re-recorded + both engines agree; CHANGELOG
+      entry for the player-visible seam grammar.
+- [ ] 4B.6 **GATE: boot the real game at `?worldgen=1`, all 3 perf tiers.** No console
+      errors; backtick budget within tier on the densest seamed hub; seam path meshes
+      `castShadow=false` + `userData.shared`. done = console clean + HUD screenshots ×3 tiers.
+
 ## 5. Registry-clearance backstop
 
 - [~] 5.1 Restore per-sub-component `registry.closestBuilding()` clearance with

@@ -31,6 +31,9 @@ change changes placement.
   (hub viewer + playtest markers), not just numerically.
 - Hand the planner **true extents** and a clean **layout/mesh builder split** so
   future layout work is data-driven and headlessly testable.
+- **Make the inherent cross-hub overlap a designed feature** (D7–D9): every seam
+  between two hubs resolves to a shared street / merged court / soft buffer, decided
+  by integer-only logic, so the world reads as one continuous, intentional festival.
 
 **Non-Goals:**
 - The `DEFAULT_WORLDGEN_V2` flip — a **separate, later** step (Gary-sequenced
@@ -101,12 +104,71 @@ cross-cluster blind spots (e.g. a camp band behind one vendor row reaching into
 a neighbour). It runs in `buildMesh` (which legitimately sees the live
 registry), never in the pure `layout` half.
 
-### D6 — The single, deliberate golden move
-The POI golden moves exactly once — the commit that switches `festivalPlan` from
-scatter to slotting. Re-record it, log old→new in the session-log, re-verify
-node==browser (the harness's accepted V8-fork caveat applies to the *node-vs-old*
-poi hash, not node-vs-browser-same-build). The queryPoint golden stays frozen
-(no road/water input changes). All extraction commits (D1) keep both frozen.
+### D6 — Deliberate golden moves (revised — Gary grill 2026-06-14)
+Originally "one move" (scatter → slotting). It is now **a small, named set of
+deliberate moves**, each re-recorded + node==browser re-verified + logged old→new:
+the slotter (landed, → `49ec28fc`), the playtest-fix commit (→ per D18), and the
+**cross-hub seam grammar** (D7 — the next one). Each is a deliberate, gated commit;
+between them the goldens stay frozen and any non-empty diff fails the gate. The
+queryPoint golden stays frozen throughout (D7/D9 add only POI-layer descriptors +
+cosmetic path records — no road/water input changes). A `/deliberate` before the
+seam-grammar golden move is recommended (it brushes determinism + lifecycle).
+
+### D7 — Cross-hub seam grammar (DENSE & SEAMED — Gary grill 2026-06-14, supersedes the band-aids)
+The dense setting (`HEART_CELL` 200 m vs ~190 m reach) means adjacent hubs
+**always overlap**. Rather than space hubs out or keep patching collisions in the
+builders, the overlap is EMBRACED: where two hubs' edge zones meet, the planner
+promotes the seam to a designed place, picking a **seam TYPE by what's on each
+side**:
+- **commerce ↔ commerce** → a **shared market street**: one continuous frontage,
+  booths straddle the connecting road, no dead-end aisles (preserve the 10–12 ft
+  facing browse aisle).
+- **food + food** → **one merged court** serving both hubs (never two adjacent).
+- **stage ↔ camp (loud ↔ quiet)** → a **soft green buffer**: trees, hammocks,
+  shade seating, a potty bank, a connector path absorb the clash.
+- Plus **orientation-away**: a hub's fronts/lights/arch point inward to its core
+  (or along a shared spine), never outward into a neighbour unless that edge IS a
+  market street.
+
+Mechanism: enumerate seam PAIRS (a heart and each in-reach neighbour) deterministically;
+for each pair detect the conflicting edge zones (oriented-extent overlap, D8), classify
+the seam from the two zone kinds, and emit the response into the plan. The response is
+**trim/merge/buffer**, not whole-cluster omit (Gemini R4: trim the lower-priority vendor
+row along its road axis, skip only if the trimmed length can't seat 3 booths — gentler
+degradation that reads as "the street just continues"). This SUPERSEDES the blind,
+load-order-dependent builder band-aids — `neighbourCourtHere` (food-court omission) and
+`stageDeckClips` drum-yield are the symptom-level versions of merge and buffer; they are
+removed when their planner equivalents land. Rationale: the decision belongs in the
+planner because only there can it be order-independent (both hubs derive the identical
+seam outcome from the shared pair + road); a builder sees only the chunks that happen to
+have streamed in. Alternative (keep it builder-side to freeze the golden) rejected — it
+cannot be made order-independent (chunks build in player-proximity order), which is the
+exact bug the band-aids already exhibit.
+
+### D8 — Seam decisions are INTEGER-ONLY (determinism, footgun #4 — Gary grill)
+A float comparison that decides whether a vendor row EXISTS can round differently
+Node-vs-browser and silently diverge the world (the road-existence-flip class the
+project closed). So every seam decision is made from integers, mirroring `hearts.js`:
+- **Hub priority** = an integer bit-mix hash `getHubPriority(cx, cz, seed)` — unique
+  per hub, breaks symmetry between two hubs with no communication.
+- **Positions** quantize to whole meters before any compare.
+- **Overlap / SAT** runs on integerized projections and **integer squared-distances**;
+  ties break by `(cx, cz)` lexicographic, never iteration order.
+No floating-point value ever gates existence, merge, or trim. Alternative (float OBB/SAT
++ rely on the node==browser re-verify spot-check) rejected — a latent per-seed/per-machine
+divergence that the spot-check can miss.
+
+### D9 — Arrival is emergent at MAJOR hubs, varied, spawn-guaranteed (revises D18 #1)
+The road→arch→stage approach becomes a grammar feature of **major-rank hubs** (~4% of
+cells), **probability-gated among majors** (a `FESTIVAL_TUNING` knob — not every major)
+and **varied** (arch presence/style, approach length, lakeside vs field stage) so it
+never reads formulaic. The **spawn hub keeps its guaranteed hero composition** (D18
+intact there). Spawn relocation lands the player on a major hub facing its core down the
+approach road, so "spawn on a road" and "face the stage" are one act — the road is the
+sightline. This revises D18's "exactly one arch in the whole world" (which was a reaction
+to arches at *every* hub, 91% of which are minors); major-only + probability keeps arches
+rare and meaningful. Gary hedged ("maybe not every one… whatever you want") → keep the
+major-arch probability a slider and gut-check density at the 7.3 playtest.
 
 ## Risks / Trade-offs
 
@@ -138,9 +200,10 @@ non-empty on an *extraction* commit, that commit does not land — there is no
 
 ## Open Questions
 
-- **Spawn-on-road vs face-the-stage** — round-2 left this as a tradeoff. Lean:
-  spawn on the road *with the stage ahead through the arch* (both, via the front
-  axis), resolve concretely during D4. (-> deliberation.)
+- ~~**Spawn-on-road vs face-the-stage**~~ **RESOLVED (D9, Gary grill 2026-06-14):**
+  not a tradeoff — the approach road IS the sightline, so spawn-on-road and
+  face-the-stage are the same act. Spawn relocates onto a major hub facing the core
+  down its approach road.
 - **`booth-on-road` as warn vs error** — baseline's largest rule (74). If
   straddling legitimately puts booths near the road edge, is the rule's
   threshold right, or does it need a "straddle is allowed, on-surface is not"
