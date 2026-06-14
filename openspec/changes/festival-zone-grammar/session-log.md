@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "Group 4 + a PLAYTEST-FIX round landed (D18: one-arch-only at spawn hub, arch ≥2 dancefloor + always-places ladder, spawn-at-arch, drum-omit-if-treeless, courts-on-side-roads, potty-past-edge, camps-off-road). POI golden moved again a0edfaea→(selftest.js); queryPoint frozen eddf8e50; clean boot seed 1399551401. RESUME → Group 5 (builder backstop: booth-on-road + the DEFERRED tree-through-truck) + Group 6 (re-baseline vs group-3 linter, burndown to 0 across 10 seeds). DEFERRED dev-workflow: marker-UI typing modal (K opens a focused modal). Then Group 7 (3-tier boot + Gary 7.3 playtest — HUMAN GATE) + smart-review."
+current_task: "Groups 4–7 PARTIAL. Slotter + playtest fixes + spawn-through-arch landed; POI golden 49ec28fc, queryPoint frozen eddf8e50. 3-tier boot CLEAN; vendor-row closestBuilding backstop added (5.1 partial); 3-seed registry burndown (verification/burndown.md): overlap/water/arch/drum=0 on 2/3 seeds, baseline 5.8–7.5m clips GONE (lone 1.1m tent×arch grazing). RESUME → finish the true zero-error burndown: full 10-seed registry re-capture; water-clear lake-hearts (biggest residual, pre-existing); booth-on-road LINTER refinement (false-positive — booths straddle ±7m corridor by design); the 1.1m tent×arch curve case (model the vendor-row curve in the planner). Then Group 7.3 Gary playtest (HUMAN GATE) + 7.4 smart-review. DEFERRED dev-workflow: tree-through-truck guard; marker-UI typing modal."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -330,3 +330,21 @@ in-game on Gary's seed 1399551401 (clean boot, 1 arch = 2 colliders). TWO items 
 (Gary: "you don't have to fix all these now, just document them") — see Dangling Threads.
 POI golden moves a0edfaea → 49ec28fc; queryPoint golden frozen eddf8e50.
 **Refs:** -> D18, festival.js, main.js, chunks.js, tuning.js, Dangling Threads (deferred 2)
+
+### 2026-06-14 -- Group 5/6/7 partial: vendor backstop, 3-seed registry burndown, 3-tier boot
+**Event:** phase-change + discovery
+**What:** (7.1) All 3 perf tiers boot CLEAN (no shader/TypeError; 1 arch). (5.1) Added a
+`closestBuilding` backstop to `buildVendorRowAt` (builder-only, goldens frozen). (6.1/6.3)
+3-seed registry sample → `verification/burndown.md`: overlap/water/arch/drum = 0 on 2/3
+seeds; the baseline's 5.8–7.5 m cluster clips are GONE (lone residual = a 1.1 m grazing
+tent×arch on seed 1399551401's curved approach). (7.2) spawn-POV verified + Gary's
+"face straight through the arch" refinement landed (a2e36e7).
+**DISCOVERY:** the tent×arch grazing can't be fixed by a builder backstop — the streaming
+game builds chunks in PROXIMITY order, not `out[]` order, so a booth's chunk may build
+before the arch's. Tried arch-footprint-8 + arch-first splice; neither fixed it (reverted
+both — goldens stay `49ec28fc`). Real fix = model the vendor-row curve in the planner OR
+widen the arch's row-clearance. Logged in burndown.md as remaining group-6 work.
+**REMAINING for a true zero-error burndown:** full 10-seed registry re-capture; water-clear
+lake-hearts (biggest error class, pre-existing); booth-on-road linter refinement (booths
+straddle the ±7 m corridor by design — false-positive); the 1.1 m tent×arch curve case.
+**Refs:** -> Task 5.1/6.1/6.3/7.1/7.2, verification/burndown.md, chunks.js (vendor backstop)

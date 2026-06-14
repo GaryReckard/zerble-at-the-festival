@@ -1352,6 +1352,10 @@ function buildVendorRowAt(ctx, x, z, yaw) {
     for (const side of [-1, 1]) {
       const w = place(side * rowOffset, t * spacing);
       if (isPointInLake(w.x, w.z)) continue;
+      // Group-5 backstop: skip a booth that would clip an already-built solid (a stage
+      // deck the row runs past, a neighbour's truck) — the graceful-degradation guard the
+      // legacy theme builders had. Chunk-gen only; clusterSeed stream, so goldens unaffected.
+      if (registry.closestBuilding(new THREE.Vector3(w.x, 0, w.z), 2.2, CLUSTER_GUARD_SKIP)) continue;
       const tent = buildTent(ctx.rng);
       tent.position.set(w.x, 0, w.z);
       // Face the central aisle (the road, after round-2 C). The two rows were

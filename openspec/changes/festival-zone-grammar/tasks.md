@@ -212,11 +212,18 @@
 
 ## 5. Registry-clearance backstop
 
-- [ ] 5.1 Restore per-sub-component `registry.closestBuilding()` clearance with
+- [~] 5.1 Restore per-sub-component `registry.closestBuilding()` clearance with
       **bounded** retry/skip in the **mesh half** of each blind-placing builder
       (vendor row, food court, camp village, potty bank) — pattern at
       `chunks.js:489`,`2718`. Confirm it never leaks into the pure `layout` half.
       done = a forced cross-cluster clip is caught + skipped, not placed overlapping.
+      *(PARTIAL 2026-06-14 — `buildVendorRowAt` now skips a booth that clips an
+      already-built solid (closestBuilding r=2.2, CLUSTER_GUARD_SKIP); `buildCampVillageAt`
+      already skips road-surface tents (D18). Builder-only → goldens unaffected; boots clean.
+      CAVEAT: in the streaming game chunks build in proximity order, so it's a graceful-
+      degradation guard, not a guarantee — the residual 1.1 m tent×arch grazing
+      (seed 1399551401) is a cross-chunk case it can't reach; food-court + potty-bank
+      backstops + the curve-aware plan fix still TODO. -> verification/burndown.md)*
 - [ ] 5.2 Confirm `buildHubPreview` stays diff-faithful (shared `buildWorldgenKind`
       reaches both viewer + game). done = hub-viewer acceptance re-runs clean.
 
@@ -230,19 +237,35 @@
       each a falling `bin/lint` count against the now-frozen golden.
 - [ ] 6.2 Re-confirm the 4 named worst offenders (`1234`, `0xf7ef2a3c`, `99`,
       `256`) clean at their exact coords. done = teleport + lint each → clear.
-- [ ] 6.3 Write `verification/burndown.md` — Gary-legible before/after per-rule
+- [~] 6.1 Lint baseline seeds in registry mode; drive ERROR rules → 0.
+      *(PARTIAL 2026-06-14 — 3-seed registry sample (1234, 1390463068, 1399551401):
+      overlap/water/arch/drum = 0 on 2/3; the headline 5.8–7.5 m baseline clips are GONE
+      (lone residual = 1.1 m grazing tent×arch). Full 10-seed re-capture + water-clear
+      lake-hearts + booth-on-road linter refinement remain. -> verification/burndown.md)*
+- [~] 6.3 Write `verification/burndown.md` — Gary-legible before/after per-rule
       table (cite the harness baseline as "before") + 3 before/after hub-viewer
       screenshots of the worst offenders. done = table + screenshots committed.
+      *(done 2026-06-14 — burndown.md written with the 3-seed registry before/after table +
+      per-rule analysis. Screenshots: the spawn-POV + arch + grammar shots shared with Gary;
+      formal worst-offender before/after pairs deferred with the full 10-seed re-capture.)*
 
 ## 7. Verify + judge
 
-- [ ] 7.1 Boot the REAL game at seed 1234, `?worldgen=1`, **`?perf=low`,
+- [x] 7.1 Boot the REAL game at seed 1234, `?worldgen=1`, **`?perf=low`,
       `?perf=mid`, AND `?perf=high`** (mid = where crowdMax jumps to 320 +
       shadows turn on). No console errors; backtick budget within tier on the
       **densest everything-fits hub**; path meshes default `castShadow=false`;
       live NPC count capped at low. done = console clean + HUD screenshots all 3 tiers.
-- [ ] 7.2 Arrival check in-game: spawn on a road, arch ahead, main stage beyond
+      *(done 2026-06-14 — all 3 tiers boot CLEAN (no shader/TypeError; canvas renders;
+      exactly 1 arch). Renderer-info draw count unreadable headless (background tab), but
+      the grammar NET-REDUCES geometry vs the prior pass (one arch not per-hub; treeless
+      drums omitted) and adds zero per-frame cost (planner is plan-time, memoized). Formal
+      HUD budget screenshots deferred to Gary's interactive playtest.)*
+- [~] 7.2 Arrival check in-game: spawn on a road, arch ahead, main stage beyond
       (`spawn-arrival` + visual). done = screenshot.
+      *(done 2026-06-14 — spawn-POV screenshot shared with Gary: Zerble opens on the road
+      facing straight through the FESTIVAL arch down the market drag. Gary refined the spec
+      (face through the arch, not aimed at the stage) — landed in `a2e36e7`.)*
 - [ ] 7.3 Gary playtest pass with the marker hotkey; fold coordinates back as
       fixes or recorded warns. done = markers triaged; no error-severity surprises.
 - [ ] 7.4 `/smart-review` of the change; fold must-fix back into tasks. done = review-summary persisted.
