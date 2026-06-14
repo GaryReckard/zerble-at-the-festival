@@ -218,6 +218,20 @@ The common thread: the research assumes a *bounded, planned-once* site; our magi
 an *infinite, streamed, deterministic* one. Take their layout-grammar wisdom (which we
 already are); leave their global-solver algorithms.
 
+**Round 2 (2026-06-14, `festival-layout-gemini-round2*.md`; ChatGPT R2 pending):**
+Gemini re-engaged within our constraints this time and produced concrete *windowable*
+candidates — the keepers + caveats are captured in the `festival-zone-grammar`
+DRAFTING-BRIEF ("Candidate rules + numbers"), not duplicated here. Headline keepers:
+deterministic sugar-shack % (`hash(hub)%10<3`), bubble-vendor sparsity (junction
+valence ≥3 / arch-stage midpoint, ~500m spacing), lake-ring camp band (3–15m), camps
+15–30m behind merch rows, arch ~100m back over the road, an SDF winding-path drum
+clearing, and a cross-hub **OBB-slot-priority** protocol (the candidate fix for the
+still-open vendor-row overlap). **Two standing caveats:** (1) the numbers are
+model-invented, not cited — tune in the hub viewer, expect conflicts with our values;
+(2) the OBB-overlap boolean + SDF threshold are float compares that can flip
+cross-engine — quantize before they gate existence (footgun #4). Full reconciliation
+into tasks waits for the ChatGPT round-2 result (one consolidated pass).
+
 ### Festival worldgen v2 — builder layout/mesh extraction + crowd pre-roll *(deferred 2026-06-13)*
 
 The follow-up to `festival-zone-grammar` (split out per Q1/D13). The grammar fix

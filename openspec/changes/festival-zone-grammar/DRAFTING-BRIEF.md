@@ -78,13 +78,17 @@ Verbatim-distilled from his brief; treat as requirements for the zone rules:
   bring back that clearing-with-a-path drum composition. (Linter rule
   `drum-in-trees` added to the harness 2026-06-12 guards the placement half;
   the clearing+path composition is THIS change's design work.)
-  **Suggested technique (festival research 2026-06-14, see ROADMAP "Festival
-  realism research"):** Voronoi-style excavation — over the local tree field find
-  a large open cell, clear trees within a radius bounded by the nearest
-  neighbour, nest the campfire/drum at center + hammocks between boundary trees,
-  carve ONE Zerble-width path in from the nearest road. Keep it
-  deterministic/windowed — compute per-cell from the hash field, do NOT iterate a
-  global CA grid (see the DON'T-adopt list in that ROADMAP section).
+  **Preferred technique (festival research round 2, Gemini):** SDF carve, not
+  Voronoi excavation. Clearing = circle SDF `d_clear = |M−C| − R`; access path =
+  capsule SDF from C to the nearest road point P, with a perpendicular sin/cos
+  perturbation so the path winds organically (cart-width ~2m half-width); combine
+  `Φ = min(d_clear, d_path)`; modulate the existing tree-density field by
+  `smoothstep(0, δ, Φ)` so trees fall to zero inside clearing+path. Stateless,
+  O(1)/sample, windowed. Drum cast nests radially (firekeeper+campfire center,
+  hand-drummers ring, fire dancers). DETERMINISM: the tree accept/reject is a
+  float threshold near the edge — quantize before compare (footgun #4); cosmetic
+  (one edge tree) so low-stakes, but quantize anyway. `nearestRoad` is ~215µs so
+  call it ONCE per clearing node, not per sample.
 - **The festival arch belongs further out, over a road** — not beside the
   dancefloor inside the string lights (playtest 2026-06-12: it currently lands
   ~15·scale from the stage, inside the lit area). The arch should read as a
@@ -131,3 +135,39 @@ blind; no cross-hub awareness.
    final judgment = Gary playtest with the marker hotkey.
 4. `DEFAULT_WORLDGEN_V2` flip only AFTER this change lands (Gary-confirmed
    sequencing, written into the v2 HANDOFF 2026-06-10).
+
+## Candidate rules + numbers from festival research round 2 (Gemini)
+
+Source docs at repo root (`festival-layout-gemini-round2*.md`, ChatGPT round 2
+pending). **These numbers are model-INVENTED, not cited — treat as starting
+points to TUNE in the hub viewer against `FESTIVAL_TUNING`, not facts.** Several
+CONFLICT with our current values (Gemini 80m main dancefloor vs our ~38m base;
+70m food-truck-ring diameter vs our ~28m) — those conflicts are Gary feel-calls
+at the slider, not adopt-on-sight. The genuinely-useful, windowable candidates:
+
+- **Sugar shack** = `hash(hub) % 10 < 3` → ~30% of food rings, replace the
+  slot-0 truck. Clean deterministic mechanism for "sugar shack = % of clusters."
+- **Bubble vendor sparsity** (answers "sparse, sensible places"): spawn only at
+  road junctions of valence ≥3, OR the arch↔stage midpoint; enforce ~500m min
+  spacing via a sparse blue-noise prune. Junction valence is locally computable.
+- **Lake-ring camping**: campsites in the 3–15m band between beach and treeline;
+  HARD 3m no-build buffer from the waterline. (= Gary's lakeside camps.)
+- **Camps behind merch rows**: offset 15–30m along the road normal `±d·N_road`.
+- **Arch**: ~100m back from stage center, centered over the approach-road spline,
+  spanning the roadway. (Starting number for the `arch-placement` rule.)
+- **Porta**: banks of 4–8 on service-road-adjacent pads (offset ~8m); olfactory
+  buffer ≥30m from any food ring; ~1 handwash per 4–6 units.
+
+**Cross-hub vendor-row overlap (our one STILL-OPEN problem) — candidate protocol
+(Gemini Part 3):** place clusters as SLOTS on the shared A→B road spline at fixed
+`t` intervals; give each slot a position-hash priority; a slot is pruned if a
+higher-priority slot within range overlaps it by a **Separating-Axis-Theorem
+OBB** test (the oriented-rectangle check our ROADMAP already predicted we'd
+need); ties broken by coord hash; midpoint+close pairs cooperatively MERGE into a
+shared plaza. Order-independent + windowed because both hubs derive the identical
+slot set from the shared spline. **TWO adoption caveats:** (1) this is a PLANNER
+RESTRUCTURE (clusters become slot-claims on splines, not walk-out-and-offset) —
+real work, not a drop-in; (2) DETERMINISM — the SAT overlap boolean is float
+geometry that decides whether a vendor row EXISTS, so it can flip cross-engine
+(footgun #4, same class as the H.2 road-existence flip). Quantize/integerize the
+projection comparisons before they gate existence, and golden-verify node==browser.
