@@ -150,18 +150,16 @@ below (Gary: lean now, full scope eventually).
   ERRORs (from 375)** after the `nearestRoad` cache, no-festival-in-a-lake + dry spawn, the
   treeless-drum omit, two golden-free false-positive corrections (`spawn-arrival` rule premise +
   `porta_bank` extent), and the least-wet front-axis tiebreak that stopped dancefloors opening
-  onto water (CHANGELOG). What remains is a single WARN class to confirm with registry mode:
-  - **`overlap` WARN dominated by `bubble_vendor × food_court` (~1900/10 seeds) — likely an
-    approximate-metric artifact, needs registry confirmation.** The guaranteed bubble vendor
-    (D15 — refuel is a core verb, so it always places at its road spot even if it grazes) often
-    lands in a food court's central plaza (seed 1234: 180 overlaps, median center-dist 28.6 m,
-    min 5.0 m). But `clusterShapes` models the food court as a *filled* circle (~31.8 m) when its
-    real occupancy is a **ring** of trucks (hollow center) — so a bubble in the plaza over-counts
-    as overlap in plan mode without necessarily clipping a truck. Registry mode (exact truck
-    positions, the authority) is the only way to tell if any are real clips; a fresh
-    `bin/layout-snapshot` (post-suppression) + registry lint would settle it. If real, either
-    push the bubble outside the ring or place it in the plaza intentionally; if not, exclude
-    `bubble_vendor` from the plan-mode overlap warn like `porta_bank`/stage pairs already are.
+  onto water (CHANGELOG). The remaining warns (224) are all `stage-spacing` — expected under the
+  DENSE hub design, not defects. The whole worldgen-v2 festival was then booted in-game
+  (`?worldgen=1`, agent-browser) and confirmed: clean boot/no errors, dry hero-arch spawn, lake
+  hubs render as open water (no submerged festival), arches at non-spawn majors. The one-time
+  `bubble_vendor × food_court` overlap WARN was settled by dumping the built registry — every
+  bubble sits ≥ ~9 m clear of the nearest truck, confirming the filled-circle-vs-ring artifact;
+  `bubble_vendor` is now excluded from the plan-mode overlap warn. Still browser/feel-gated for a
+  future pass: **4B.7** soft_buffer geometry + the stage↔camp substrate (visual + per-tier perf
+  budget), arch *style* variation, and Gary's 7.3 playtest gut-check (arrival density
+  `ARCH_MAJOR_PCT`, the dry-spawn relocation distance).
 ### Festival realism research — validation + new ideas *(2026-06-14)*
 
 Two independent deep-research passes (ChatGPT + Gemini, drawing on real festival

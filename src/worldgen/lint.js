@@ -152,6 +152,13 @@ const PLAN_RULES = [
           // porta-banks intentionally tuck at the margin of a parent — exclude.
           if (a.p.kind === 'porta_bank' || b.p.kind === 'porta_bank') continue;
           if (STAGE_KINDS.has(a.p.kind) || STAGE_KINDS.has(b.p.kind)) continue;
+          // bubble_vendor is the GUARANTEED refuel (D15) — it sits in/near the food
+          // court's central PLAZA, and a food court's clusterShape is a FILLED circle
+          // while its real occupancy is a hollow RING of trucks. So the plan-mode
+          // overlap over-counts (filled-circle vs the bubble) without a real clip:
+          // registry-confirmed clear (seed 2951152942, every built bubble ≥ ~9 m from
+          // the nearest truck). Excluded like porta_bank/stage so the warn isn't drowned.
+          if (a.p.kind === 'bubble_vendor' || b.p.kind === 'bubble_vendor') continue;
           if (clustersOverlap(a.s, b.s)) {
             emit((a.p.x + b.p.x) / 2, (a.p.z + b.p.z) / 2,
               `${a.p.kind} × ${b.p.kind} oriented extents overlap (approx)`);

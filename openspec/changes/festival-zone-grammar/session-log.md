@@ -334,6 +334,18 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   integer keys. Remaining: 1 WARN class (bubble×food, needs registry/browser confirmation). -> CHANGELOG
   (Fixed), ROADMAP.
 
+- **D32 — In-game verification (agent-browser) + bubble overlap settled as artifact (2026-06-15).**
+  Discovered agent-browser CLI is available here after all (bin/layout-snapshot uses it), so finally
+  did the mandatory boot check across all 7 session commits: booted `?worldgen=1`, `__dbg.start()`,
+  0 JS errors through world-gen, screenshots confirm dry hero-arch spawn, lake hubs = open water (no
+  submerged festival), arches at non-spawn majors. Then dumped the built registry at a 2-food-court
+  hub: every bubble_vendor ≥ ~9 m clear of the nearest truck (gaps 9.1/19.8/74.9 m), confirming the
+  ~1900 plan-mode `bubble_vendor × food_court` overlap WARNs are the predicted filled-circle-vs-ring
+  artifact (food court clusterShape is a filled circle; real occupancy is a hollow ring; the bubble
+  sits in the plaza). Excluded bubble_vendor from the plan-mode overlap rule (like porta_bank/stage).
+  Sweep now 0 errors / 224 warns (all stage-spacing = expected DENSE-design). Lint-only, goldens
+  frozen. -> CHANGELOG, ROADMAP.
+
 ## Assumptions
 
 | # | Assumption | Confidence | Status | Resolution |
@@ -634,3 +646,16 @@ left is feel/visual-gated (arch style, soft_buffer geometry 4B.7) or needs his p
 snapshot for registry-mode confirmation of the bubble overlaps. -> D29, tasks 4B.4.
 **Refs:** festival.js (`_archAtHub`), constants.js (SALT.archGate), tuning.js (ARCH_MAJOR_PCT),
 selftest.js (POI 21fcd163).
+
+### 2026-06-15 -- In-game verification via agent-browser (the boot check, finally) + bubble artifact settled
+**Event:** discovery + phase-change
+**What:** agent-browser CLI turned out to be available in this environment (the one bin/layout-snapshot
+drives), so I could finally run the mandatory "boot the game before done" check that I'd been unable to
+do all session. Booted `?worldgen=1`, drove `__dbg.start()` + teleports: 0 JS errors through world-gen
+across all 7 commits; screenshots confirmed the dry hero-arch spawn, lake-hub = open water (suppression
+works in 3D), and arches at non-spawn majors (4B.4). Dumped the built registry to settle the lone open
+WARN: bubbles are ≥~9 m clear of trucks → the bubble×food overlap is the filled-circle-vs-ring artifact,
+now excluded from the plan-mode overlap rule. Net lint: 0 errors / 224 warns (all DENSE-design
+stage-spacing). The change's headless + in-game verifiable work is COMPLETE; what's left (4B.7 geometry,
+arch style, playtest feel) is genuinely Gary/visual-iteration territory. -> D32, CHANGELOG, ROADMAP.
+**Refs:** lint.js (bubble overlap exclusion), agent-browser screenshots (spawn/lakehub/arch-major).
