@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "SEAM GRAMMAR (D24/D25) + COLD STALL RESOLVED (D26) + WATER BURNDOWN (D27). PERF: per-cell arterialsNear cache cut nearestRoad 15.3× / cold plan 10.6× → cold stall ~13s→~1-2s, bin/lint >40s→~10s/seed. BURNDOWN: no-festival-in-a-lake (_festivalSuppressed) + dry spawn (spawnHeart) → water-clear 368→1, total ERRORs 375→8 over 10 seeds; POI golden MOVED c1920e52→449f07e1, queryPoint FROZEN eddf8e50. Residual ERRORs parked (ROADMAP): 1 dancefloor-mouth-on-water (front-axis = golden-moving), drum-in-trees ×5, spawn-arrival ×2 (undiagnosed). NEXT: diagnose drum-in-trees/spawn-arrival (cheap?) → dancefloor-mouth front-axis (golden-moving) → 4B.4 (emergent MAJOR-hub arrival, feel-gated) → 4B.7 (soft_buffer geometry) → 7.3 Gary playtest (HUMAN GATE). queryPoint eddf8e50 / POI 449f07e1."
+current_task: "SEAM GRAMMAR (D24/D25) + COLD STALL RESOLVED (D26) + WATER BURNDOWN (D27). PERF: per-cell arterialsNear cache cut nearestRoad 15.3× / cold plan 10.6× → cold stall ~13s→~1-2s, bin/lint >40s→~10s/seed. BURNDOWN: no-festival-in-a-lake (_festivalSuppressed) + dry spawn (spawnHeart) → water-clear 368→1, total ERRORs 375→8 over 10 seeds; POI golden MOVED c1920e52→449f07e1, queryPoint FROZEN eddf8e50. BURNDOWN (D27/D28): no-festival-in-a-lake + dry spawn + treeless-drum omit → total ERRORs 375→4 over 10 seeds; POI golden MOVED c1920e52→449f07e1→b996d7c0, queryPoint FROZEN eddf8e50. Residuals parked (ROADMAP): water-clear ×1 (dancefloor-mouth front-axis = golden-moving), drum-in-trees ×1 (drum-inside-potty-envelope ordering), spawn-arrival ×2 (likely stale heuristic — player teleports to hub; design call). NEXT: spawn-arrival design call (relax rule?) → 4B.4 (emergent MAJOR-hub arrival, feel-gated/golden-moving) → 4B.7 (soft_buffer geometry) → 7.3 Gary playtest (HUMAN GATE). queryPoint eddf8e50 / POI b996d7c0."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -284,6 +284,18 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   never opens on a stage in water (seed 1001's spawn major was wet). Result: water-clear 368→1 over
   10 seeds; total ERRORs 375→8. Residual 1 = dancefloor-mouth-on-water (front-axis is load-bearing →
   parked, ROADMAP). -> CHANGELOG 2026-06-15, ROADMAP burndown residuals, tasks 6.1.
+
+- **D28 — Treeless-drum omit + lint spawn-hub alignment (burndown cont'd, 2026-06-15).** drum-in-trees
+  diagnosis: the 5 thin-tree drums were treed spots (≥0.25) that sat on a road edge and got nudged
+  off-road by `nudgeOff` into the adjacent bare clearing (density 0.00, off-road, road-facing — verified).
+  `treedDistrictSpot` now re-checks density on the FINAL post-nudge spot (same ≥0.25 bar) and omits the
+  drum if bare — consistent with the existing omit-don't-place rule. Omitting skips the conditional
+  drum-yaw rng draw (line 788 `if(spot)`), so potty/bubble shift → POI golden `449f07e1 → b996d7c0`,
+  queryPoint frozen. drum-in-trees 5→1. Also aligned the `spawn-arrival` lint rule to `spawnHeart` (the
+  real dry spawn hub) instead of raw `nearestMajorHeart` (lint-only). Total ERRORs 375→4. Residuals
+  parked (ROADMAP): water-clear ×1 (dancefloor mouth, front-axis = golden-moving), drum-in-trees ×1
+  (drum-inside-potty-envelope ordering), spawn-arrival ×2 (likely a stale heuristic — player teleports
+  to the hub regardless of origin-distance; needs a design call). -> CHANGELOG, ROADMAP.
 
 ## Assumptions
 

@@ -552,7 +552,16 @@ function treedDistrictSpot(heart, rng, avoidBearing, reject) {
   //    cross-engine treeDensity-boundary fork would cosmetically shift those too —
   //    the SAME accepted single-engine-reproducible class as the node-vs-browser POI
   //    golden disparity (file header). Same-engine determinism (the golden) is intact.
-  return nudgeOff(spot.x, spot.z, rng);
+  const finalSpot = nudgeOff(spot.x, spot.z, rng);
+  // The chosen spot met the treed bar (>=0.25), but `nudgeOff` may have shoved it off
+  // a road EDGE into the adjacent CLEARING — landing the drum on bare ground (the
+  // `drum-in-trees` burndown: density 0.00, off-road, road-facing). Re-validate the
+  // FINAL spot against the SAME bar and OMIT if it's now bare — a treeless drum reads
+  // wrong, and drums don't belong at every hub (Gary 2026-06-14: omit, don't place).
+  // treeDensity is pure → deterministic; omitting here skips the drum's yaw draw the
+  // same way a no-spot omission already does (the variable-draw class noted above).
+  if (!finalSpot || treeDensity(finalSpot.x, finalSpot.z) < 0.25) return null;
+  return finalSpot;
 }
 
 // ── Per-heart festival plan (memoized, gated on (seed, epoch)) ───────────────

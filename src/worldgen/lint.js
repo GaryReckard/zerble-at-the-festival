@@ -15,8 +15,8 @@
 import { setSeed, getSeed, queryPoint } from './index.js';
 import { nearestRoad } from './roads.js';
 import { CONFIG } from './constants.js';
-import { heartsInBounds, nearestMajorHeart } from './hearts.js';
-import { festivalPlan, dancefloorRect, MAX_POI_REACH } from './festival.js';
+import { heartsInBounds } from './hearts.js';
+import { festivalPlan, dancefloorRect, spawnHeart, MAX_POI_REACH } from './festival.js';
 import { clusterExtent, clusterShapes, clustersOverlap, shapesContainPoint, FESTIVAL_TUNING } from './tuning.js';
 import { treeDensity } from './density.js';
 
@@ -207,9 +207,11 @@ const PLAN_RULES = [
     mode: 'plan',
     // The player spawns at world (0,0) and must arrive into a festival: the
     // spawn point itself must be buildable ground (not in a lake), and the
-    // nearest major hub's stage must be within reach. Fires once (spawn hub).
+    // spawn hub's stage must be within reach. Uses `spawnHeart` (nearest DRY
+    // major) — the EXACT hub main.js opens on — so the lint reasons about the
+    // real spawn, not a wet near-major the game now skips. Fires once (spawn hub).
     check(ctx, emit, env) {
-      const spawnHub = nearestMajorHeart(0, 0);
+      const spawnHub = spawnHeart();
       if (!spawnHub || ctx.heart.cx !== spawnHub.cx || ctx.heart.cz !== spawnHub.cz) return;
       if (queryPoint(0, 0).inLake) {
         emit(0, 0, 'spawn point (0,0) is in a lake');
