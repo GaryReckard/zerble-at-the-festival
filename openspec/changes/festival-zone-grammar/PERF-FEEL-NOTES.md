@@ -33,7 +33,7 @@
   the seam grammar is net perf-positive worldwide; the one chunk to watch on the HUD is a
   soft_buffer-midpoint host at `?perf=low`.
 
-## ⚠️ #1 PERF-PASS ITEM — seamed-festivalPlan cold chunk-gen stall (4B.3b, MEASURED)
+## ✅ #1 PERF-PASS ITEM — seamed-festivalPlan cold chunk-gen stall (4B.3b → LARGELY RESOLVED 2026-06-15)
 
 - **Symptom (in-game boot `?worldgen=1`):** first chunk (0,0) took **13s** to generate; chunks
   reaching into fresh territory 1–2s; warmed chunks 24–32ms (fine). The `[chunk slow]` console
@@ -42,24 +42,30 @@
   flip, and it makes interim 4B testing/playtest painful.
 - **Root cause:** the seamed `festivalPlan(H)` must read every neighbour hub's seam-blind BASE
   plan within `SEAM_PAIR_REACH` to decide H's suppressions. Base plans (`_computePlan`) are the
-  pre-existing expensive slotter (`approachRoadsOf`/`nearestRoad`-dominated, ~tens-to-170ms cold).
-  Cross-hub seams INHERENTLY need neighbour plans, so the spawn warms ~dozens of base plans
-  synchronously on the chunk-gen critical path. Memoized after → steady-state is fine; the cost is
-  the one-time cold first-touch per region.
-- **Done now (cheap, golden-preserving):** `SEAM_PAIR_REACH` 420 → 300 (empirical max real clip =
-  259m across 5 seeds; 420 warmed ~2× the hearts for zero extra clips). ~50% less warming.
+  pre-existing expensive slotter (`approachRoadsOf`/`nearestRoad`-dominated). Cross-hub seams
+  INHERENTLY need neighbour plans, so the spawn warms ~dozens of base plans synchronously on the
+  chunk-gen critical path. Memoized after → steady-state is fine; the cost is the one-time cold
+  first-touch per region.
+- **THE FIX THAT LANDED (2026-06-15, golden-preserving): per-cell `arterialsNear` cache.** Profiling
+  showed the base-plan cost wasn't `arterial()` computation (already cached) — it was `nearestRoad`
+  re-walking the whole neighbourhood graph (`neighborsOf` + `edgeKey` Set-dedup over a (2·window+1)²
+  cell block) on EVERY call. But `arterialsNear`'s output depends **only on the cell** the query
+  point falls in (qx/qz are used solely to derive `ccx,ccz`), so it's a pure per-cell function.
+  Hoisted into a cache keyed `(ccx,ccz,window)`, gated `(seed,epoch)` like `_arterialCache`
+  (`roads.js`). Measured (node): `nearestRoad` over ±2km/50m grid **8051ms → 528ms (15.3×)**; cold
+  `festivalPlan` over a 79-hub window **7252ms → 685ms (10.6×)**. Both goldens bit-identical
+  (queryPoint `eddf8e50`, POI `c1920e52`). **Cold stall ~13s → ~1–2s; `bin/lint` >40s/seed → ~10s/seed.**
+- **Also done earlier (cheap, golden-preserving):** `SEAM_PAIR_REACH` 420 → 300 (empirical max real
+  clip = 259m across 5 seeds); double-padding fix (±2·reach → ±reach window).
 - **NOT a lever (verified):** a "heart-restricted" seam pass (classify only H's pairs) does NOT
-  help — both versions warm the same neighbour base plans (memoized once); classify is µs. Reach is
-  the only knob on the warming set.
-- **The real fix (perf pass):** (a) FRAME-SPREAD the neighbour base-plan warming off the chunk-gen
-  critical path (warm a few per frame within the 1-chunk/frame budget — the result is identical so
-  golden-safe; the deliberation's prescription); and/or (b) make `_computePlan`/`approachRoadsOf`
-  cheaper (cache nearestRoad per heart; it's ~215µs×many per plan). (c) consider a coarse
-  region-level seam-response cache so neighbouring hearts don't re-enumerate overlapping windows
-  (saves classify, not warming — secondary). Target: spawn < ~1s, no >100ms chunk stalls.
-- **Selftest cost:** the POI-golden selftest went 145s → ~340s because every one of ~855 box
-  hearts now resolves seams (overlapping windows re-classify). Dev-diagnostic only (not game perf),
-  but if it annoys, the region-level seam cache (c) would cut it. The golden capture is a rare op.
+  help — both versions warm the same neighbour base plans (memoized once); classify is µs.
+- **Remaining (perf pass, now nice-to-have not blocker):** FRAME-SPREAD the residual ~1–2s
+  first-region warming off the chunk-gen critical path (warm a few base plans per frame within the
+  1-chunk/frame budget — result identical, golden-safe). No longer a freeze, so it's parked as
+  polish rather than a flag-flip prerequisite. Target if pursued: spawn < ~1s, no >100ms chunk stalls.
+- **Selftest cost:** the POI-golden selftest had gone 145s → ~340s because every box heart resolves
+  seams; the `arterialsNear` cache also speeds this materially (the same `nearestRoad` path). Still
+  dev-diagnostic only (not game perf); the golden capture is a rare op.
 
 ## SPEC — on-device perf trace recorder ("flight recorder" + perf-marker) — queued for the perf pass
 
@@ -101,13 +107,11 @@ masked on some browsers; keep the overlay/copy strings out of player-facing view
 sampler must stay allocation-free in the hot path. Wire near the backtick overlay (`src/debug.js`),
 the main loop (`src/main.js`), the existing `[chunk slow]` log, and the `K`-marker plumbing.
 
-- **⚠️ The seamed plan also BLOCKS the burndown tooling (escalated 2026-06-15).** `bin/lint` over a
-  single seed now exceeds 40s (was fast) because plan-mode lint walks every heart's seamed
-  `festivalPlan`. So **Group 6's 10-seed lint sweep is effectively blocked until the plan cost is
-  addressed** — the perf pass is no longer just a gameplay-polish item, it gates the change's own
-  verification + iteration loop (lint, selftest, map-sandbox self-test all slowed). RECOMMENDATION:
-  pull a TARGETED plan-cost fix forward (the region-level seam-response cache (c) so overlapping
-  per-heart windows don't re-classify, + a `nearestRoad`-per-heart cache to cut the base-plan ~215µs
-  hot spot) BEFORE the rest of the burndown/arrival iteration — otherwise every verify step is
-  multi-minute. This is the strongest argument that the "perf pass after everything" ordering should
-  become "cheap plan-cost fix next, full perf pass before flag flip."
+- **✅ The seamed plan tooling-block is CLEARED (2026-06-15).** `bin/lint` over a single seed had
+  exceeded 40s (plan-mode lint walks every heart's seamed `festivalPlan`), which was blocking Group
+  6's 10-seed sweep. The per-cell `arterialsNear` cache (above) cut it to **~10s/seed** (10-seed
+  sweep ~105s) — the burndown sweep is now feasible and the recommendation to "pull a targeted
+  plan-cost fix forward" was acted on. The targeted fix turned out NOT to be the region-level seam
+  cache I'd guessed here — profiling showed the cost was `nearestRoad`'s per-call graph enumeration,
+  not seam re-classification — but the effect is the same: verify steps are seconds, not minutes,
+  and Group 6 / arrival iteration is unblocked.

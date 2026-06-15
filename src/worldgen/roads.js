@@ -242,11 +242,25 @@ function distToSeg(px, pz, ax, az, bx, bz) {
 }
 
 // Gather the unique arterials whose endpoints lie within the road window of a
-// point (so any segment that could pass near the point is covered).
+// point (so any segment that could pass near the point is covered). The result
+// depends ONLY on the cell the point falls in (ccx,ccz) + the window — qx/qz are
+// used solely to derive the cell — so cache it per cell, gated on (seed, epoch)
+// like _arterialCache. This kills the dominant per-call cost: nearestRoad ran
+// the neighborsOf/edgeKey enumeration on EVERY query, even though every point in
+// the same 200m cell yields the identical poly list. The cached array is shared
+// read-only (nearestRoad never mutates it).
+const _arterialsNearCache = new Map();
+let _arterialsNearGate = '';
 function arterialsNear(x, z, windowCells = roadNeighborhoodCells()) {
   const cell = CONFIG.HEART_CELL;
   const qx = quantize(x), qz = quantize(z);
   const ccx = Math.floor(qx / cell), ccz = Math.floor(qz / cell);
+  const g = getSessionSeed() + ':' + worldgenEpoch();
+  if (g !== _arterialsNearGate) { _arterialsNearCache.clear(); _arterialsNearGate = g; }
+  const ckey = ccx + ',' + ccz + ',' + windowCells;
+  const hit = _arterialsNearCache.get(ckey);
+  if (hit) return hit;
+  if (_arterialsNearCache.size > 200000) _arterialsNearCache.clear();   // bound long-pan growth
   const seen = new Set();
   const out = [];
   for (let dcz = -windowCells; dcz <= windowCells; dcz++) {
@@ -262,6 +276,7 @@ function arterialsNear(x, z, windowCells = roadNeighborhoodCells()) {
       }
     }
   }
+  _arterialsNearCache.set(ckey, out);
   return out;
 }
 

@@ -1,11 +1,11 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "SEAM GRAMMAR LANDED (D24/D25). 4B.0/4B.1/4B.2/4B.3a/4B.3b/4B.3c/4B.5/4B.6 DONE. festivalPlan = seam-blind base + cross-hub suppressions (merge/yield/trim); band-aids removed; POI golden MOVED 49ec28fc→c1920e52, queryPoint FROZEN eddf8e50; game boots clean. soft_buffer DEFERRED to 4B.7 (would gut festival at ~40/window). PERF DEBT: 13s cold first-chunk stall (seamed plan warms neighbour base plans on critical path); mitigated SEAM_PAIR_REACH 420→300; real fix (frame-spread + cheaper nearestRoad) = #1 perf-pass item + flag-flip prereq (PERF-FEEL-NOTES). NEXT: 4B.4 (emergent MAJOR-hub arrival, D9/D22) → 4B.7 (soft_buffer geometry fast-follow) → Group 6 full 10-seed burndown → 7.3 Gary playtest (HUMAN GATE). queryPoint eddf8e50 / POI c1920e52."
+current_task: "SEAM GRAMMAR LANDED (D24/D25) + COLD STALL RESOLVED (D26). 4B.0/4B.1/4B.2/4B.3a/4B.3b/4B.3c/4B.5/4B.6 DONE. festivalPlan = seam-blind base + cross-hub suppressions (merge/yield/trim); band-aids removed; POI golden MOVED 49ec28fc→c1920e52, queryPoint FROZEN eddf8e50; game boots clean. soft_buffer DEFERRED to 4B.7. PERF: per-cell arterialsNear cache (roads.js) cut nearestRoad 15.3× / cold plan 10.6× → cold stall ~13s→~1-2s, bin/lint >40s→~10s/seed (golden-preserving, both frozen). Group 6 burndown UNBLOCKED. Frame-spread now nice-to-have not prereq. NEXT: 4B.4 (emergent MAJOR-hub arrival, D9/D22 — feel-gated/golden-moving) → 4B.7 (soft_buffer geometry fast-follow) → Group 6 full 10-seed burndown → 7.3 Gary playtest (HUMAN GATE). queryPoint eddf8e50 / POI c1920e52."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now MET)"
 ---
 
@@ -251,6 +251,22 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   (empirical max real clip 259m → golden-preserving, ~½ the warming). The real fix (frame-spread +
   cheaper nearestRoad) is the #1 perf-pass item + a flag-flip prerequisite. -> PERF-FEEL-NOTES.md,
   CHANGELOG 2026-06-15, deliberations/002.
+
+- **D26 — Cold stall LARGELY RESOLVED: per-cell `arterialsNear` cache (2026-06-15).** Pulled the #1
+  perf-pass item forward (it had become a tooling blocker — `bin/lint` >40s/seed stalled the Group 6
+  burndown). Profiled the base-plan cost (`measure before optimizing`): the bottleneck was NOT
+  `arterial()` polyline computation (already cached) but `nearestRoad` re-walking the neighbourhood
+  graph (`neighborsOf` + `edgeKey` Set-dedup over a (2·window+1)² cell block) on every call.
+  `arterialsNear`'s output is a **pure function of the cell** the query point falls in (qx/qz only
+  derive `ccx,ccz`), so hoisted it into a per-cell cache keyed `(ccx,ccz,window)`, gated `(seed,epoch)`
+  like `_arterialCache` (`roads.js`). **Golden-preserving by construction** — verified bit-identical:
+  queryPoint `eddf8e50`, POI `c1920e52` via `runSelfTest`. Measured (node): `nearestRoad` ±2km/50m
+  grid **8051→528ms (15.3×)**; cold `festivalPlan` 79-hub window **7252→685ms (10.6×)**. Effect:
+  cold first-chunk stall ~13s → ~1–2s; `bin/lint` >40s → ~10s/seed (10-seed sweep ~105s → burndown
+  unblocked). Frame-spreading the residual ~1–2s is now nice-to-have, not a flag-flip prerequisite.
+  Note: the targeted fix I'd *guessed* in PERF-FEEL-NOTES (region-level seam-response cache) was the
+  wrong hypothesis — the win was in the road layer, one level below the seam pass. -> PERF-FEEL-NOTES.md,
+  CHANGELOG 2026-06-15.
 
 ## Assumptions
 
@@ -510,3 +526,19 @@ surface) then 4B.3a (dark-emit). **Determinism caveat banked:** any stall mitiga
 bit-identical (N7); `_computePlan` must NEVER call a neighbour's plan (N1).
 **Refs:** -> D24, deliberations/002-seam-response/results.md, tasks 4B.0/4B.3a/b/c/4B.5/4B.6/4B.7,
 festival.js (seam helpers), git 0bc68c1/3f5cf73.
+
+### 2026-06-15 -- Cold stall resolved: per-cell arterialsNear cache (#1 perf item, pulled forward)
+**Event:** discovery + decision
+**What:** The seamed-plan cold stall had become a tooling blocker (`bin/lint` >40s/seed stalled the
+Group 6 burndown), so I pulled the #1 perf-pass item forward. Measured first (per RTK protocol):
+the base-plan cost was `nearestRoad`, and crucially NOT its `arterial()` polyline math (already
+cached) but the per-call neighbourhood-graph re-walk (`neighborsOf`+`edgeKey` Set-dedup over a
+(2·window+1)² cell block). `arterialsNear` is a pure function of the *cell* the point sits in — qx/qz
+only derive `ccx,ccz` — so I cached it per cell `(ccx,ccz,window)`, gated `(seed,epoch)` like the
+existing `_arterialCache`. Golden-preserving by construction; verified bit-identical (queryPoint
+`eddf8e50`, POI `c1920e52`). nearestRoad grid 15.3× faster, cold 79-hub plan sweep 10.6× faster;
+cold stall ~13s→~1–2s, lint >40s→~10s/seed. The selftest's one failure (`road negative control seed
+0 — lacks teeth`) is PRE-EXISTING (a coverage quirk of seed 0's road geometry over the fixed sample
+grid; my cache keys window=1 and window=R separately and returns identical values, proven by the
+frozen golden) — not a regression. -> D26, CHANGELOG 2026-06-15, PERF-FEEL-NOTES.md.
+**Refs:** roads.js (`_arterialsNearCache`), src/worldgen/selftest.js (T5), bin/lint.
