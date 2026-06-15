@@ -83,4 +83,5 @@ export const SALT = {
   poiVillage:  0x4D41_0C,   // camp-village coarse-grid placement (festival.js) — fresh, no collision
   hubPriority: 0x4D41_0D,   // integer hub priority for cross-hub seam yield (festival.js 4B) — fresh
   seam:        0x4D41_0E,   // per-seam (hub-pair) hash for seam-type variation (festival.js 4B) — fresh
+  archGate:    0x4D41_0F,   // integer gate: which MAJOR hubs (beyond spawn) get an entrance arch (festival.js 4B.4) — fresh
 };

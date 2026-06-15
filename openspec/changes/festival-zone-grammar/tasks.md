@@ -327,11 +327,19 @@
       (merge collapses seed 1139472710's (3,1) court; drum-yields fire 3-4×/seed) + plan-mode lint.
       A full 10-seed planner⊇band-aid set-diff was NOT run (token budget) — folded into the Group-6
       burndown lint sweep. -> D25)*
-- [ ] 4B.4 **Emergent MAJOR-hub arrival (D9/D22, revises D18 #1).** Gate the arch+approach
+- [x] 4B.4 **Emergent MAJOR-hub arrival (D9/D22, revises D18 #1).** Gate the arch+approach
       composition to major hubs via a `FESTIVAL_TUNING` probability (varied arch/approach);
       keep the spawn hub's guaranteed hero arch; spawn relocation faces the core down the
       approach road. done = hub-gallery shows varied, non-formulaic arrivals at a subset of
       majors; spawn always hero; Gary density gut-check queued for 7.3.
+      *(done 2026-06-15 — `_archAtHub` gates the existing arch block: spawn always + ~25%
+      of majors via an INTEGER hash (`SALT.archGate`, `FESTIVAL_TUNING.ARCH_MAJOR_PCT=25`,
+      Gary's "spawn + sparse subset" call). Spawn relocation (main.js, D18) unchanged — it
+      reads the spawn hub's arch, which is guaranteed. PURELY ADDITIVE (arch block consumes
+      no rng): POI golden moved b996d7c0 → 21fcd163, queryPoint frozen eddf8e50; observed
+      25–39% of majors arched over 3 seeds (spawn inclusion + small-sample variance); no new
+      arch-placement lint errors over 10 seeds. Arch STYLE variation + 3D feel = Gary 7.3
+      playtest gut-check.)*
 - [x] 4B.5 **The second deliberate golden move + inverted gate (CG4).** Re-record the POI
       golden, extend the in-code move-log block (`selftest.js:148-174`) with the third move,
       re-verify node==browser. done = **N6** golden re-recorded + both engines agree; INVERTED

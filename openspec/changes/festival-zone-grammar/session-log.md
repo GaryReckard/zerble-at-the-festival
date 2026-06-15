@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "SEAM GRAMMAR (D24/D25) + COLD STALL RESOLVED (D26) + WATER BURNDOWN (D27). PERF: per-cell arterialsNear cache cut nearestRoad 15.3× / cold plan 10.6× → cold stall ~13s→~1-2s, bin/lint >40s→~10s/seed. BURNDOWN: no-festival-in-a-lake (_festivalSuppressed) + dry spawn (spawnHeart) → water-clear 368→1, total ERRORs 375→8 over 10 seeds; POI golden MOVED c1920e52→449f07e1, queryPoint FROZEN eddf8e50. BURNDOWN (D27/D28): no-festival-in-a-lake + dry spawn + treeless-drum omit → total ERRORs 375→4 over 10 seeds; POI golden MOVED c1920e52→449f07e1→b996d7c0, queryPoint FROZEN eddf8e50. Residuals parked (ROADMAP): water-clear ×1 (dancefloor-mouth front-axis = golden-moving), drum-in-trees ×1 (drum-inside-potty-envelope ordering), spawn-arrival ×2 (likely stale heuristic — player teleports to hub; design call). NEXT: spawn-arrival design call (relax rule?) → 4B.4 (emergent MAJOR-hub arrival, feel-gated/golden-moving) → 4B.7 (soft_buffer geometry) → 7.3 Gary playtest (HUMAN GATE). queryPoint eddf8e50 / POI b996d7c0."
+current_task: "SEAM GRAMMAR (D24/D25) + COLD STALL RESOLVED (D26) + WATER BURNDOWN (D27). PERF: per-cell arterialsNear cache cut nearestRoad 15.3× / cold plan 10.6× → cold stall ~13s→~1-2s, bin/lint >40s→~10s/seed. BURNDOWN: no-festival-in-a-lake (_festivalSuppressed) + dry spawn (spawnHeart) → water-clear 368→1, total ERRORs 375→8 over 10 seeds; POI golden MOVED c1920e52→449f07e1, queryPoint FROZEN eddf8e50. BURNDOWN (D27/D28): no-festival-in-a-lake + dry spawn + treeless-drum omit → total ERRORs 375→4 over 10 seeds; POI golden MOVED c1920e52→449f07e1→b996d7c0, queryPoint FROZEN eddf8e50. Residuals parked (ROADMAP): water-clear ×1 (dancefloor-mouth front-axis = golden-moving), drum-in-trees ×1 (drum-inside-potty-envelope ordering), spawn-arrival ×2 (likely stale heuristic — player teleports to hub; design call). 4B.4 DONE (D29): arches at spawn + ~25% of majors (_archAtHub, additive → POI 21fcd163). NEXT (feel/visual-gated, need Gary playtest or browser): 4B.7 (soft_buffer geometry), arch style variation, registry-mode confirmation of bubble×food overlaps (needs fresh snapshot), spawn-arrival rule design call. queryPoint eddf8e50 / POI 21fcd163. 7.3 Gary playtest = HUMAN GATE."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -297,6 +297,17 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   (drum-inside-potty-envelope ordering), spawn-arrival ×2 (likely a stale heuristic — player teleports
   to the hub regardless of origin-distance; needs a design call). -> CHANGELOG, ROADMAP.
 
+- **D29 — 4B.4 emergent arrival LANDED: arches at spawn + ~25% of majors (2026-06-15).** Per Gary's
+  call (AskUserQuestion: "spawn + a sparse subset", and "start 4B.4 now"). `_archAtHub(heart)` gates the
+  existing arch block (was spawn-hub-only): spawn always (hero, D18 intact) + non-spawn majors via an
+  INTEGER hash (`(cellHash(cx,cz,SALT.archGate)>>>0) % 100 < ARCH_MAJOR_PCT=25`) — no float gates arch
+  existence (footgun #4). The arch block consumes NO rng (pure road-walk + fits + lakeAt), so adding
+  arches is PURELY ADDITIVE: only arch descriptors enter the POI hash → `b996d7c0 → 21fcd163`,
+  queryPoint frozen `eddf8e50`. main.js spawn (D18) unchanged — it reads the spawn hub's guaranteed
+  arch. Observed 25–39% of majors arched (spawn inclusion + small-sample variance over ~20-hub seeds);
+  no new arch-placement errors over 10 seeds; selftest clean (only pre-existing T5). Arch STYLE variation
+  + 3D feel deferred to Gary's 7.3 playtest. -> CHANGELOG (Added), tasks 4B.4, D9/D22.
+
 ## Assumptions
 
 | # | Assumption | Confidence | Status | Resolution |
@@ -585,3 +596,15 @@ on-water (front-axis water-awareness = golden-moving, parked), drum-in-trees ×5
 (undiagnosed, parked). -> D27, CHANGELOG, ROADMAP, tasks 6.1.
 **Refs:** festival.js (`_festivalSuppressed`/`spawnHeart`), hearts.js (`accept` param), main.js (spawn),
 selftest.js (POI golden 449f07e1).
+
+### 2026-06-15 -- 4B.4 emergent arrival: arches at spawn + ~25% of majors
+**Event:** decision + phase-change
+**What:** Gary (AskUserQuestion) chose "spawn + a sparse subset" for arrival scope and "start 4B.4 now"
+(feel-verified later on his playtest, since I can't browser-boot here). `_archAtHub` gates the existing
+arch block (was spawn-only) to spawn + an integer-hashed ~25% of majors (`SALT.archGate`,
+`ARCH_MAJOR_PCT`). Purely additive (no rng in the arch block) → POI golden b996d7c0 → 21fcd163,
+queryPoint frozen; no new arch-placement errors. This completes the headless-verifiable 4B work; what's
+left is feel/visual-gated (arch style, soft_buffer geometry 4B.7) or needs his playtest (7.3) + a fresh
+snapshot for registry-mode confirmation of the bubble overlaps. -> D29, tasks 4B.4.
+**Refs:** festival.js (`_archAtHub`), constants.js (SALT.archGate), tuning.js (ARCH_MAJOR_PCT),
+selftest.js (POI 21fcd163).

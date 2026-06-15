@@ -604,6 +604,20 @@ function spawnHubKey() {
   return _spawnHubKey;
 }
 
+// Which hubs get the road→arch→stage ARRIVAL composition (D9/4B.4). The spawn hub
+// ALWAYS does (the guaranteed hero gateway main.js opens through). Beyond it, the
+// arch is a grammar feature of MAJOR hubs only (~4% of cells), thinned to
+// ~ARCH_MAJOR_PCT% of those by an INTEGER hash gate — so arrivals stay rare and
+// varied, never one-per-hub (Gary: "maybe not EVERY one"). Integer-only: no float
+// gates whether the arch exists (footgun #4); `>>> 0` forces unsigned before the
+// modulo, matching getHubPriority. Pure (heart, seed). Adds only an arch descriptor
+// (the block consumes no rng), so this is a purely-additive POI-golden move.
+function _archAtHub(heart) {
+  if (heart.cx + ',' + heart.cz === spawnHubKey()) return true;
+  if (heart.rank !== 'major') return false;
+  return ((cellHash(heart.cx, heart.cz, SALT.archGate) >>> 0) % 100) < FESTIVAL_TUNING.ARCH_MAJOR_PCT;
+}
+
 // A hub centered in open water is NOT a festival site: the stage deck and the
 // dancefloor clearing are both anchored at the heart center (dancefloorRect uses
 // heart.x/heart.z), so a wet center drops BOTH in the lake (the `water-clear`
@@ -819,14 +833,16 @@ function _computePlan(heart) {
     }
   }
 
-  // 6. ARCH — the ONE entrance gateway in the whole world (Gary 2026-06-14: "only ONE
-  //    arch, by the main stage"). Built ONLY on the spawn hub (nearest major heart to
-  //    origin, where main.js spawns Zerble). On a road that leads to the stage, set back
-  //    at least ONE dancefloor-length PAST the dancefloor (≥ 2 × dancefloor depth from
-  //    the stage) and clear of the market/courts; Zerble opens just outside it facing
-  //    through it at the stage (main.js). Try roads in priority order so the gateway —
-  //    and thus the spawn — is robust. The planner owns it (buildSpawnArch removed).
-  if (spawnHubKey() === heart.cx + ',' + heart.cz) {
+  // 6. ARCH — the festival's entrance gateway, now an ARRIVAL grammar feature of MAJOR
+  //    hubs (D9/4B.4): the spawn hub ALWAYS gets it (the hero gateway Zerble opens
+  //    through, D18 intact there), plus ~ARCH_MAJOR_PCT% of other majors via `_archAtHub`
+  //    — so a handful of big hubs read as a "you've arrived" threshold, but it's never
+  //    one-per-hub (revises D18's world-single-arch, which was a reaction to arches at
+  //    every MINOR hub). On a road that leads to the stage, set back ≥ 2 × dancefloor
+  //    depth (relaxation ladder so the spawn arch always places); clear of market/courts;
+  //    Zerble opens just outside the spawn arch facing through it (main.js). The planner
+  //    owns it (buildSpawnArch removed). Adds no rng draw → purely-additive golden move.
+  if (_archAtHub(heart)) {
     const floorDepth = T.DANCEFLOOR_DEPTH_BASE * (stage.scale || 1);
     const deckR = (T.KIND_FOOTPRINT[stage.kind] || 11) * (stage.scale || 1);
     // PREFER ≥ 2 dancefloor-lengths from the stage (Gary), but the ONE arch MUST exist

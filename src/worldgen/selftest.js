@@ -144,7 +144,7 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // FESTIVAL LAYOUT GRAMMAR rewrite (D3, deliberation 003) — HEART_CELL 200 /
     // noneBelow 0.05, seed 1234:
     //   queryPoint golden  node eddf8e50  /  browser eddf8e50 (recorded 2026-06-10, H.2)
-    //   POI golden         b996d7c0 (recent node V8 ≥ v24 == Chromium class; GROUP 4B)
+    //   POI golden         21fcd163 (recent node V8 ≥ v24 == Chromium class; GROUP 4B)
     // ^ GROUP 4 (festival-zone-grammar, 2026-06-14) moved the POI golden in TWO steps,
     //   then GROUP 4B (2026-06-15) once more — all flag-off on an unmerged branch (D6):
     //     4825fd0b → a0edfaea  the slotting commit (a338ed2): single-pass oriented-zone
@@ -177,6 +177,12 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     //                          as acceptance). Omitting skips that hub's drum-yaw rng draw
     //                          (the existing variable-draw class), so potty/bubble shift too.
     //                          drum-in-trees 5→1 over 10 seeds; queryPoint frozen.
+    //     b996d7c0 → 21fcd163  4B.4 emergent arrival (D9): the road→arch→stage composition is
+    //                          now a MAJOR-hub grammar feature — spawn always + ~ARCH_MAJOR_PCT%
+    //                          (25) of other majors via an integer hash gate (SALT.archGate),
+    //                          revising D18's world-single-arch. PURELY ADDITIVE (the arch block
+    //                          consumes no rng) so only arch descriptors enter the hash; queryPoint
+    //                          frozen. No new arch-placement lint errors over 10 seeds.
     //   The POI fork is a V8-VERSION cosmetic class (the older-V8 value differs; the
     //   accepted treedDistrictSpot/front-axis transcendental class — file header).
     //   poiGoldenHash is returned for manual comparison, NOT a hard-fail result.
