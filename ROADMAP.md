@@ -161,6 +161,17 @@ below (Gary: lean now, full scope eventually).
     overlap check uses, so a potty tucks too close to the drum. An ordering/extent edge —
     either widen the potty's keep-out vs the drum, or have the drum reserve its envelope
     before potties slot. Golden-moving; 1/10 seeds.
+  - **`overlap` WARN dominated by `bubble_vendor × food_court` (~1900/10 seeds) — likely an
+    approximate-metric artifact, needs registry confirmation.** The guaranteed bubble vendor
+    (D15 — refuel is a core verb, so it always places at its road spot even if it grazes) often
+    lands in a food court's central plaza (seed 1234: 180 overlaps, median center-dist 28.6 m,
+    min 5.0 m). But `clusterShapes` models the food court as a *filled* circle (~31.8 m) when its
+    real occupancy is a **ring** of trucks (hollow center) — so a bubble in the plaza over-counts
+    as overlap in plan mode without necessarily clipping a truck. Registry mode (exact truck
+    positions, the authority) is the only way to tell if any are real clips; a fresh
+    `bin/layout-snapshot` (post-suppression) + registry lint would settle it. If real, either
+    push the bubble outside the ring or place it in the plaza intentionally; if not, exclude
+    `bubble_vendor` from the plan-mode overlap warn like `porta_bank`/stage pairs already are.
   - **`spawn-arrival` ×2 — spawn hub stage > MAX_POI_REACH (480 m) from origin.** On two
     seeds the nearest *dry* major is ~1.2 km from origin. Note this may be a stale heuristic:
     `main.js` teleports Zerble to the spawn hub's arch regardless of its distance from (0,0),
