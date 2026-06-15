@@ -600,10 +600,13 @@ function _basePlan(heart) {
 // order-safe replacement for the load-order-dependent `neighbourCourtHere`/`stageDeckClips`
 // builder band-aids (4B.3b / deliberation 002).
 function _suppressSetForHeart(heart) {
-  const reach = SEAM_PAIR_REACH;
   const myCell = heart.cx + ',' + heart.cz;
   const set = new Set();
-  for (const r of seamResponsesNear(heart.x - reach, heart.z - reach, heart.x + reach, heart.z + reach)) {
+  // Pass a POINT (heart center) — seamResponsesNear → seamPairsNear expands by SEAM_PAIR_REACH
+  // ONCE internally, giving the heart ± SEAM_PAIR_REACH window. (Pre-expanding here too would
+  // DOUBLE-pad to ±2·reach = 4× the area = 4× the neighbour base-plans warmed — the cold-stall
+  // bug. Golden-preserving: the extra far pairs never target this heart.)
+  for (const r of seamResponsesNear(heart.x, heart.z, heart.x, heart.z)) {
     if ((r.action === 'suppress' || r.action === 'trim') && r.targetCell &&
         r.targetCell[0] + ',' + r.targetCell[1] === myCell) set.add(r.targetSeed);
   }
