@@ -32,3 +32,31 @@
   only soft_buffer GEOMETRY (4B.7, deferred) ADDS (~+24 draws on the one host chunk per seam). So
   the seam grammar is net perf-positive worldwide; the one chunk to watch on the HUD is a
   soft_buffer-midpoint host at `?perf=low`.
+
+## ⚠️ #1 PERF-PASS ITEM — seamed-festivalPlan cold chunk-gen stall (4B.3b, MEASURED)
+
+- **Symptom (in-game boot `?worldgen=1`):** first chunk (0,0) took **13s** to generate; chunks
+  reaching into fresh territory 1–2s; warmed chunks 24–32ms (fine). The `[chunk slow]` console
+  warnings are the tell. No JS errors — purely a stall, and it's on a FLAG-OFF feature, so it's
+  perf-debt, NOT a ship blocker — but it IS a hard prerequisite before the `DEFAULT_WORLDGEN_V2`
+  flip, and it makes interim 4B testing/playtest painful.
+- **Root cause:** the seamed `festivalPlan(H)` must read every neighbour hub's seam-blind BASE
+  plan within `SEAM_PAIR_REACH` to decide H's suppressions. Base plans (`_computePlan`) are the
+  pre-existing expensive slotter (`approachRoadsOf`/`nearestRoad`-dominated, ~tens-to-170ms cold).
+  Cross-hub seams INHERENTLY need neighbour plans, so the spawn warms ~dozens of base plans
+  synchronously on the chunk-gen critical path. Memoized after → steady-state is fine; the cost is
+  the one-time cold first-touch per region.
+- **Done now (cheap, golden-preserving):** `SEAM_PAIR_REACH` 420 → 300 (empirical max real clip =
+  259m across 5 seeds; 420 warmed ~2× the hearts for zero extra clips). ~50% less warming.
+- **NOT a lever (verified):** a "heart-restricted" seam pass (classify only H's pairs) does NOT
+  help — both versions warm the same neighbour base plans (memoized once); classify is µs. Reach is
+  the only knob on the warming set.
+- **The real fix (perf pass):** (a) FRAME-SPREAD the neighbour base-plan warming off the chunk-gen
+  critical path (warm a few per frame within the 1-chunk/frame budget — the result is identical so
+  golden-safe; the deliberation's prescription); and/or (b) make `_computePlan`/`approachRoadsOf`
+  cheaper (cache nearestRoad per heart; it's ~215µs×many per plan). (c) consider a coarse
+  region-level seam-response cache so neighbouring hearts don't re-enumerate overlapping windows
+  (saves classify, not warming — secondary). Target: spawn < ~1s, no >100ms chunk stalls.
+- **Selftest cost:** the POI-golden selftest went 145s → ~340s because every one of ~855 box
+  hearts now resolves seams (overlapping windows re-classify). Dev-diagnostic only (not game perf),
+  but if it annoys, the region-level seam cache (c) would cut it. The golden capture is a rare op.

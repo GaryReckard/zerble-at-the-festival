@@ -217,27 +217,8 @@ export function drumClearingsNear(minX, minZ, maxX, maxZ) {
   return out;
 }
 
-// Conservative max stage-deck radius per rank (deck = KIND_FOOTPRINT × MAX scale).
-const _STAGE_DECK_MAX = {
-  major: FESTIVAL_TUNING.KIND_FOOTPRINT.main_stage * (FESTIVAL_TUNING.STAGE_SCALE_MAJOR_BASE + FESTIVAL_TUNING.STAGE_SCALE_MAJOR_SPAN),
-  minor: Math.max(FESTIVAL_TUNING.KIND_FOOTPRINT.tent_stage, FESTIVAL_TUNING.KIND_FOOTPRINT.side_stage) * (FESTIVAL_TUNING.STAGE_SCALE_MINOR_BASE + FESTIVAL_TUNING.STAGE_SCALE_MINOR_SPAN),
-};
-// Would a cluster centered at (x,z) with radius `extra` clip a NEIGHBOUR hub's stage deck?
-// Stages sit at heart centers, so this is a pure heart-position test — cheap (no plan, no rng)
-// and load-order-INDEPENDENT, unlike a registry probe. Used to keep a district drum circle from
-// clipping an adjacent hub's stage (Gary 2026-06-14: "drum circle clipping with a tent stage"):
-// the drum lands ~190 m from its OWN heart (so its own deck never trips this), but at HEART_CELL
-// 200 m it can land ~10 m from a NEIGHBOUR heart. The drum yields (the stage is the anchor that
-// can't move). Conservative per-rank deck radius — slightly over-yields, which is fine (drums are
-// optional; Gary: "drum circles do NOT need to be at every hub").
-export function stageDeckClips(x, z, extra = 0) {
-  const reach = Math.max(_STAGE_DECK_MAX.major, _STAGE_DECK_MAX.minor) + extra;
-  for (const h of heartsInBounds(x - reach, z - reach, x + reach, z + reach)) {
-    const deck = (h.rank === 'major' ? _STAGE_DECK_MAX.major : _STAGE_DECK_MAX.minor) + extra;
-    if (Math.hypot(h.x - x, h.z - z) < deck) return true;
-  }
-  return false;
-}
+// (Removed `stageDeckClips` + `_STAGE_DECK_MAX` in 4B.3c — the drum-yields-to-a-neighbour-
+// stage band-aid is now the principled `yield` seam response in festivalPlan; see below.)
 
 // --- Cross-hub seam grammar (Group 4B — D7/D8/D9, D19–D23) --------------------
 // DENSE & SEAMED (Gary grill 2026-06-14): hubs sit HEART_CELL (200 m) apart but
@@ -258,11 +239,16 @@ export function getHubPriority(cx, cz) {
   return cellHash(cx | 0, cz | 0, SALT.hubPriority) >>> 0;
 }
 
-// Conservative center-distance at which two hubs' built extents can touch: realistic
-// per-hub cluster reach is ~190 m, so seams form within ~2× that. Over-bounded a touch
-// so enumeration never MISSES a pair the classifier might keep; 4B.2 prunes to the
-// actual oriented-extent overlaps. (Structural; candidate FESTIVAL_TUNING knob.)
-const SEAM_PAIR_REACH = 420;
+// Center-distance at which two hubs' fronts can clip. EMPIRICAL: the max heart-center
+// distance among ACTUAL classified clips is ~259 m across sampled seeds (4B.3b probe), so
+// 300 is a safe superset with margin while keeping the per-heart base-plan fan-out (the
+// dominant cold cost — festivalPlan warms every neighbour's base plan inside this radius)
+// as small as correctness allows. Was 420 (an arbitrary over-bound that warmed ~2× the
+// hearts for zero extra clips). The residual cold-warming stall (frame-spread + cheaper
+// base plans) is the #1 item for the dedicated perf pass — see PERF-FEEL-NOTES.
+// (Structural; candidate FESTIVAL_TUNING knob. Must stay ≥ the true max clip distance or a
+// real clip is missed — golden-affecting; re-verify the POI golden if changed.)
+const SEAM_PAIR_REACH = 300;
 
 // Every unordered hub PAIR near a region whose centers are within SEAM_PAIR_REACH —
 // the load-order-independent substrate the seam classifier (4B.2) runs on (mirrors
@@ -311,7 +297,7 @@ const SEAM_MARGIN = 2;   // integer slack (m) on the existence gate
 
 // Conservative per-kind extent, QUANTIZED to whole meters — the existence gate must be
 // integer (D8/D21), so the float `clusterExtent` can't feed the compare directly. Stages
-// use their MAX scale bound (like _STAGE_DECK_MAX); other kinds are pure constants. Read
+// use their MAX scale bound (a conservative per-rank deck radius); other kinds are pure constants. Read
 // per-call (no cross-epoch memo) so live sandbox tuning still tracks.
 function seamExtentInt(kind) {
   const T = FESTIVAL_TUNING;
@@ -355,8 +341,8 @@ function classifySeamType(catA, catB) {
 export function classifySeamsNear(minX, minZ, maxX, maxZ) {
   const out = [];
   for (const seam of seamPairsNear(minX, minZ, maxX, maxZ)) {
-    const eK = nearestZoneToward(festivalPlan(seam.keeper), seam.yielder);
-    const eY = nearestZoneToward(festivalPlan(seam.yielder), seam.keeper);
+    const eK = nearestZoneToward(_basePlan(seam.keeper), seam.yielder);
+    const eY = nearestZoneToward(_basePlan(seam.yielder), seam.keeper);
     if (!eK || !eY) continue;
     const dx = eK.x - eY.x, dz = eK.z - eY.z;
     const distSq = dx * dx + dz * dz;                              // integer
@@ -408,27 +394,34 @@ function isqrt(n) {
 //                  trimmed row can't seat 3 booths (Gemini R4).
 function _seamResponse(s, spacing, maxBooths) {
   const { type, keeperZone: K, yielderZone: Y, keeper, yielder, seamHash } = s;
+  const kCell = [keeper.cx, keeper.cz], yCell = [yielder.cx, yielder.cz];
+  // a zone descriptor owned by the keeper came from _basePlan(keeper); else the yielder.
+  const cellOf = (zone) => (zone === K ? kCell : yCell);
   const base = {
-    seamHash, type, keeperCell: [keeper.cx, keeper.cz], yielderCell: [yielder.cx, yielder.cz],
-    action: 'none', targetSeed: null, targetKind: null, trimToBooths: null,
+    seamHash, type, keeperCell: kCell, yielderCell: yCell,
+    action: 'none', targetSeed: null, targetKind: null, targetCell: null, trimToBooths: null,
   };
-  if (type === 'merged_court') return { ...base, action: 'suppress', targetSeed: Y.clusterSeed, targetKind: Y.kind };
+  if (type === 'merged_court') return { ...base, action: 'suppress', targetSeed: Y.clusterSeed, targetKind: Y.kind, targetCell: yCell };
   if (type === 'yield') {
     const drum = K.kind === 'drum_circle' ? K : (Y.kind === 'drum_circle' ? Y : null);
-    return drum ? { ...base, action: 'suppress', targetSeed: drum.clusterSeed, targetKind: 'drum_circle' } : base;
+    return drum ? { ...base, action: 'suppress', targetSeed: drum.clusterSeed, targetKind: 'drum_circle', targetCell: cellOf(drum) } : base;
   }
   if (type === 'soft_buffer') {
+    // DEFERRED to 4B.7 (dress-not-delete): record the target for the buffer dressing but
+    // do NOT suppress — at 200 m density soft_buffer fires ~40×/window and deleting all
+    // would gut the festival (PERF-FEEL-NOTES). action 'buffer' is informational only;
+    // _suppressSetForHeart ignores it.
     const q = (SEAM_RANK[SEAM_CATEGORY[K.kind]] ?? 0) <= (SEAM_RANK[SEAM_CATEGORY[Y.kind]] ?? 0) ? K : Y;
-    return { ...base, action: 'suppress', targetSeed: q.clusterSeed, targetKind: q.kind };
+    return { ...base, action: 'buffer', targetSeed: q.clusterSeed, targetKind: q.kind, targetCell: cellOf(q) };
   }
   if (type === 'shared_street') {
     const dx = K.x - Y.x, dz = K.z - Y.z;            // integer (desc quantizes x,z)
     const overlap = Math.max(0, s.thrInt - isqrt(dx * dx + dz * dz));   // integer m
     const removed = Math.floor((overlap + spacing - 1) / spacing);      // ceil, integer
     const newBooths = maxBooths - removed;
-    return newBooths >= 3
-      ? { ...base, action: 'trim', targetSeed: Y.clusterSeed, targetKind: 'vendor_row', trimToBooths: newBooths }
-      : { ...base, action: 'suppress', targetSeed: Y.clusterSeed, targetKind: 'vendor_row' };
+    // 4B.3b applies trim as a full suppress (the builder doesn't honour a booth count yet);
+    // trimToBooths is recorded for the 4B.7 real-trim upgrade. <3 booths = suppress regardless.
+    return { ...base, action: 'trim', targetSeed: Y.clusterSeed, targetKind: 'vendor_row', targetCell: yCell, trimToBooths: newBooths >= 3 ? newBooths : null };
   }
   return base;
 }
@@ -561,12 +554,17 @@ function treedDistrictSpot(heart, rng, avoidBearing, reject) {
 }
 
 // ── Per-heart festival plan (memoized, gated on (seed, epoch)) ───────────────
+// Two layers (4B.3b): `_planCache` holds the seam-BLIND base plan; `_seamedCache` holds
+// the public plan = base + cross-hub seam suppressions. The seam pass reads the base
+// (never the seamed plan) so it's non-recursive (N1) and the base cache never goes stale
+// w.r.t. a seam (the Architect's stale-memo invariant, deliberation 002).
 const _planCache = new Map();
+const _seamedCache = new Map();
 let _planGate = '';
 let _spawnHubKey = null;     // the ONE hub that gets the entrance arch (Gary 2026-06-14)
 function planGate() {
   const g = getSessionSeed() + ':' + worldgenEpoch();
-  if (g !== _planGate) { _planCache.clear(); _faCache.clear(); _spawnHubKey = null; _planGate = g; }
+  if (g !== _planGate) { _planCache.clear(); _seamedCache.clear(); _faCache.clear(); _spawnHubKey = null; _planGate = g; }
 }
 
 // There is exactly ONE entrance arch in the whole world — the festival's grand gateway
@@ -582,7 +580,9 @@ function spawnHubKey() {
   return _spawnHubKey;
 }
 
-export function festivalPlan(heart) {
+// Seam-BLIND base plan — what the cross-hub seam pass reads (so it stays non-recursive,
+// N1) and the layer the base cache holds. Internal; callers want `festivalPlan` (seamed).
+function _basePlan(heart) {
   if (!heart) return [];
   planGate();
   if (_planCache.size > 4000) _planCache.clear();   // bound long-pan growth
@@ -591,6 +591,40 @@ export function festivalPlan(heart) {
   if (hit) return hit;
   const plan = _computePlan(heart);
   _planCache.set(key, plan);
+  return plan;
+}
+
+// The clusterSeeds this heart's plan must DROP, from cross-hub seam responses that TARGET a
+// descriptor owned by this heart (merge/yield/trim → suppress; soft_buffer deferred to 4B.7).
+// Order-independent (rides the canonical seam pairs); integer-only. This is the principled,
+// order-safe replacement for the load-order-dependent `neighbourCourtHere`/`stageDeckClips`
+// builder band-aids (4B.3b / deliberation 002).
+function _suppressSetForHeart(heart) {
+  const reach = SEAM_PAIR_REACH;
+  const myCell = heart.cx + ',' + heart.cz;
+  const set = new Set();
+  for (const r of seamResponsesNear(heart.x - reach, heart.z - reach, heart.x + reach, heart.z + reach)) {
+    if ((r.action === 'suppress' || r.action === 'trim') && r.targetCell &&
+        r.targetCell[0] + ',' + r.targetCell[1] === myCell) set.add(r.targetSeed);
+  }
+  return set;
+}
+
+// Public plan = base plan with cross-hub seam suppressions applied (4B.3b). This is what the
+// game builds AND what the POI golden hashes — so the seam decision lands in ONE hash
+// (deliberation 002, Decision 1). Memoized separately; a pure function of (heart, seed) —
+// the suppressions derive from neighbours' seam-blind base plans, which are themselves pure.
+export function festivalPlan(heart) {
+  if (!heart) return [];
+  planGate();
+  const key = heart.cx + ',' + heart.cz;
+  const hit = _seamedCache.get(key);
+  if (hit) return hit;
+  const base = _basePlan(heart);
+  const drop = _suppressSetForHeart(heart);
+  const plan = drop.size ? base.filter(d => !drop.has(d.clusterSeed)) : base;
+  if (_seamedCache.size > 4000) _seamedCache.clear();
+  _seamedCache.set(key, plan);
   return plan;
 }
 

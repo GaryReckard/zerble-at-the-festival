@@ -23,7 +23,7 @@ import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps } from './worldgen/placement.js';
 import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
-import { dancefloorRectsNear, drumClearingsNear, stageDeckClips, festivalPlan, campVillagesNear, MAX_POI_REACH } from './worldgen/festival.js';
+import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, MAX_POI_REACH } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
 import { roadsInBounds, nearestRoad } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
@@ -1162,44 +1162,23 @@ const CLUSTER_GUARD_SKIP = new Set([
   'porta_potty', 'arch', 'bubble_vendor', 'drum_circle', 'hammock', 'campsite', 'bubble_jug', 'lamppost',
 ]);
 
-// CROSS-HUB food-court SHARING (Gary 2026-06-14): hubs sit every HEART_CELL (200 m) but a
-// food court's ring reaches ~clusterExtent, so two adjacent hubs each plant a court and they
-// clip (~11 m apart). The planner packs per-heart (no cross-hub view), and a cross-hub PACKER
-// is both too slow at this density (~8 s/plan) and would gut the layout. Gary's call: don't
-// relocate — SHARE. If a neighbour hub already planted a court here, skip ours; theirs serves
-// both ("one gets none"). Keyed on `truck` (food-court-unique) so our OWN hub's stage / vendor
-// row never false-block us. Load-order-dependent BY DESIGN (the documented graceful-degradation
-// backstop): which hub keeps the court depends on which chunk built first — either is fine.
-function neighbourCourtHere(x, z) {
-  const R = clusterExtent('food_court');   // a court's outer ring radius
-  const ids = registry.byKind.get('truck');
-  if (!ids) return false;
-  for (const id of ids) {
-    const e = registry.entries.get(id);
-    if (!e) continue;
-    if (Math.hypot(e.position.x - x, e.position.z - z) - (e.footprint || 0) < R) return true;
-  }
-  return false;
-}
+// (Removed `neighbourCourtHere` in 4B.3c — the cross-hub food-court SHARE is now the
+// principled, order-independent `merged_court` seam response in festivalPlan: the yielder's
+// food_court descriptor is suppressed plan-side, so it never reaches this builder. Same for
+// the drum-yields-to-a-neighbour-stage band-aid, now the `yield` seam response.)
 
 function placeWorldgenProps(ctx) {
   const descs = placeChunkProps(ctx.cx, ctx.cz, CHUNK_SIZE, ctx.region);
   for (const d of descs) {
     if (isPointInLake(d.x, d.z)) continue;   // worldgen water (Group E: rendered water == worldgen lakeAt)
-    // A food court whose ring overlaps a neighbour hub's court is OMITTED (shared) — see
-    // neighbourCourtHere. Other non-anchor clusters dodge an already-placed BUILDING at their
-    // CENTER (a small guard; the cluster builders manage their own internal spacing). Anchors
+    // Cross-hub clashes (food-court merge, drum-yield, vendor trim) are resolved PLAN-SIDE by
+    // the 4B seam grammar — suppressed descriptors never arrive here. This builder keeps only
+    // the load-order graceful-degradation backstop: a non-anchor cluster dodges an already-built
+    // BUILDING at its center (the cluster builders manage their own internal spacing). Anchors
     // (stage/arch, near the heart center) are priority and never dodge.
-    if (d.kind === 'food_court') {
-      if (neighbourCourtHere(d.x, d.z)) continue;
-    } else if (d.kind === 'drum_circle') {
-      // A district drum yields if its bench ring would clip a NEIGHBOUR hub's stage deck
-      // (cross-hub; Gary 2026-06-14: "drum circle clipping with a tent stage"). stageDeckClips
-      // is an order-independent heart-position test (the stage is the anchor that can't move),
-      // so this is robust regardless of which chunk builds first — unlike a registry probe.
+    if (d.kind === 'drum_circle') {
+      // Dodge an already-built neighbour cluster the bench ring would overlap (load-order backstop).
       const drumR = clusterExtent('drum_circle') + 2;   // firepit + bench arc
-      if (stageDeckClips(d.x, d.z, drumR)) continue;
-      // ...and dodge an already-built neighbour cluster the bench would overlap (load-order).
       if (registry.closestBuilding(new THREE.Vector3(d.x, 0, d.z), drumR, CLUSTER_GUARD_SKIP)) continue;
     } else if (!d.anchor) {
       const guard = Math.min(8, Math.max(2, (d.footprint || 4) * 0.5));

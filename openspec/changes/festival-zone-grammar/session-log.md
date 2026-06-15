@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "DESIGN-LOCKED (D19–D23) + DELIBERATED (D24, deliberations/002-seam-response). DENSE & SEAMED cross-hub seam grammar. DONE+committed golden-frozen: 4B.1 getHubPriority+seamPairsNear (0bc68c1), 4B.2 classifySeamsNear (3f5cf73) — integer-only, order-independent, validated vs playtest pins. NEXT: 4B.0 (map-sandbox seam overlay — the two-hub iteration surface, build first) → 4B.3a (dark-emit reconciliation pass + N4 order-independence proof, golden still frozen) → 4B.3b (live yield→merge→trim→bare-buffer + frame-spread/superset-prefilter cost mitigation + N3 integer trim hygiene) → 4B.3c (band-aid removal behind N5 superset-diff, co-committed) → 4B.5 (SECOND golden move + inverted gate: queryPoint stays eddf8e50, POI diff expected) → 4B.6 (3-tier boot) → 4B.7 (soft_buffer geometry + stage↔camp = non-golden fast-follow). Architecture: emit-in-plan via POST-BASE-PLAN annotation pass; _computePlan NEVER calls a neighbour's plan (N1). POI golden 49ec28fc moves once more at 4B.5. Then 4B.4 arrival + Group 6 burndown + 7.3 Gary playtest."
+current_task: "SEAM GRAMMAR LANDED (D24/D25). 4B.0/4B.1/4B.2/4B.3a/4B.3b/4B.3c/4B.5/4B.6 DONE. festivalPlan = seam-blind base + cross-hub suppressions (merge/yield/trim); band-aids removed; POI golden MOVED 49ec28fc→c1920e52, queryPoint FROZEN eddf8e50; game boots clean. soft_buffer DEFERRED to 4B.7 (would gut festival at ~40/window). PERF DEBT: 13s cold first-chunk stall (seamed plan warms neighbour base plans on critical path); mitigated SEAM_PAIR_REACH 420→300; real fix (frame-spread + cheaper nearestRoad) = #1 perf-pass item + flag-flip prereq (PERF-FEEL-NOTES). NEXT: 4B.4 (emergent MAJOR-hub arrival, D9/D22) → 4B.7 (soft_buffer geometry fast-follow) → Group 6 full 10-seed burndown → 7.3 Gary playtest (HUMAN GATE). queryPoint eddf8e50 / POI c1920e52."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -235,6 +235,22 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   bit-identical front-zone proven); the 6 ChatGPT lint rules REJECTED for this change (out of scope,
   moves the ruler mid-burndown). Deliberation gate SATISFIED. -> deliberations/002-seam-response/results.md,
   tasks Group 4B.
+
+- **D25 — 4B.3b/c LANDED: seamed festivalPlan + band-aids removed + 2nd golden move (2026-06-15).**
+  Implemented the deliberation-002 architecture: `festivalPlan` = seam-blind `_basePlan` (memoized,
+  per-heart, non-recursive — N1) + `_suppressSetForHeart` (drops descriptors targeted by cross-hub
+  seam responses). merge (food+food→one court), yield (drum vs neighbour stage), trim/suppress
+  (vendor rows) applied plan-side; **soft_buffer DEFERRED** (action 'buffer', not suppressed — at
+  ~40/window, deleting would gut the festival; → 4B.7 dress-not-delete). Removed `neighbourCourtHere`
+  + `stageDeckClips` + orphaned `_STAGE_DECK_MAX` (4B.3c). POI golden MOVED `49ec28fc → c1920e52`;
+  queryPoint FROZEN `eddf8e50` (N6 inverted gate — no road/water change). Verified: merge collapses
+  seed 1139472710's (3,1) court (keeper (4,1) keeps); yields fire 3-4×/seed; festivalPlan
+  deterministic + order-independent (N4, 0 disagreements). Game boots clean (no JS errors).
+  **PERF DEBT (D-perf):** the seamed plan warms neighbour base plans on the chunk-gen critical path
+  → 13s first-chunk cold stall (steady-state fine, memoized). Mitigated `SEAM_PAIR_REACH` 420→300
+  (empirical max real clip 259m → golden-preserving, ~½ the warming). The real fix (frame-spread +
+  cheaper nearestRoad) is the #1 perf-pass item + a flag-flip prerequisite. -> PERF-FEEL-NOTES.md,
+  CHANGELOG 2026-06-15, deliberations/002.
 
 ## Assumptions
 

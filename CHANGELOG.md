@@ -2,6 +2,17 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-15
+
+### Changed
+- **Cross-hub clashes now resolve in the PLANNER as a context seam grammar — supersedes yesterday's build-time band-aids (worldgen v2, flag-off).** The 2026-06-14 fixes (food courts *share* via `neighbourCourtHere`; a drum *yields* to a neighbour stage via `stageDeckClips`) were correct but build-time and **load-order-dependent by design** — which hub won depended on which chunk streamed in first. Following a full council deliberation (`deliberations/002-seam-response`), those are replaced by a principled, **order-independent** cross-hub layer. The festival is intentionally **dense** (hubs every 200 m, clusters reach ~190 m, so neighbours overlap *by design* — embraced, not designed out); where two hubs' fronts meet, the planner classifies the seam and resolves it: **food + food → one merged court** serving both, **drum vs a neighbour's stage → the drum yields** (the stage is the anchor), **vendor row vs vendor row → trim/suppress the lower-priority row**. Which hub keeps vs yields is decided by an **integer** hub-priority hash on the canonical hub pair (no floating-point ever gates whether a cluster exists — the determinism footgun the road generator hit), so both hubs derive the identical outcome with no communication, regardless of build order. Implemented as `festivalPlan = seam-blind base plan + seam suppressions` (the base plan stays per-heart, memoized, non-recursive; the seam pass reads neighbours' base plans only). This is the **second deliberate POI-golden move** of the change (`49ec28fc → c1920e52`); the queryPoint golden stays **frozen** `eddf8e50` (no road/water change). Verified: seed 1139472710's two clipping food courts collapse to one (the yielder's court is dropped plan-side); drum-yields fire across seeds. `soft_buffer` seams (a stage meeting something quieter — the largest class) are **deferred to a dressing pass** rather than deleted, to avoid thinning the festival.
+
+### Added
+- **Map sandbox draws cross-hub seams (dev workflow).** `map-sandbox.html` gains a `seams` layer: a line between the two clipping fronts coloured by resolution type (merge = orange, shared-street = yellow, soft-buffer = green, yield = red) with an X on the hub that yields — the two-hub view the single-hub hub-sandbox can't show. The load-bearing iteration surface for the seam grammar.
+
+### Performance
+- **Known debt — seamed-`festivalPlan` cold chunk-gen stall (worldgen v2, flag-off; queued for the dedicated perf pass).** Because a hub's plan now reads every neighbour's base plan within reach to resolve seams, the first chunk into a fresh region warms a batch of the (pre-existing, expensive) slotter base plans synchronously — a one-time cold stall (steady-state, once memoized, is unaffected). Tightened `SEAM_PAIR_REACH` 420 → 300 (empirical max real clip is 259 m, so this is golden-preserving and ~halves the warming set). The proper fix — frame-spreading the warming off the chunk-gen critical path + a cheaper `nearestRoad` — is the #1 item for the dedicated perf pass and a prerequisite before the v2 flag flip. Flag-off, so players are unaffected.
+
 ## 2026-06-14
 
 ### Fixed

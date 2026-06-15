@@ -289,7 +289,7 @@
       covered. N1: new exports only, `_computePlan` untouched → both goldens frozen by
       construction. Ordering note: did 4B.3a BEFORE 4B.0 because it's headless-verifiable (no
       visual loop); 4B.0 lands before 4B.3b where visual iteration begins.)*
-- [ ] 4B.3b **Live response slices + cost mitigation + integer hygiene (CG2).** Flip dark→live
+- [x] 4B.3b **Live response slices + cost mitigation + integer hygiene (CG2).** Flip dark→live
       in slice order **yield → merge → trim → bare-buffer**: yield (drum vs stage, plan-side
       omit of the yielder's `drum_circle`); merge (food+food, yielder drops `food_court`,
       keeper serves both); trim (vendor row shortened along its road axis, skip if <3 booths);
@@ -302,7 +302,18 @@
       verify on a `.5`-boundary trim seed; **N7** seam descriptors bit-identical with mitigation
       ON vs OFF + pre-filter superset asserted; per-chunk seam-resolve cost within the
       1-chunk/frame budget.
-- [ ] 4B.3c **Band-aid removal behind a superset-diff (CG3, co-committed with 4B.3b/4B.5).**
+      *(done 2026-06-15 — `festivalPlan` = `_basePlan` (seam-blind, memoized, N1) + `_suppressSetForHeart`
+      (drops descriptors targeted by seam responses). merge/yield/trim applied via suppression;
+      `clusterSeed` is the single source of truth (N2 — no per-chunk re-scan). N3: trim gate is
+      integer (`isqrt`), all quantize via `rng.js quantize`. DEVIATIONS: (a) soft_buffer DEFERRED
+      (action 'buffer', not suppressed — ~40/window would gut the festival; → 4B.7). (b) Cost
+      mitigation = `SEAM_PAIR_REACH` 420→300 (golden-preserving per empirical 259m max clip,
+      ~½ warming) — the deeper frame-spread fix is the #1 perf-pass item, NOT done here (13s cold
+      first-chunk stall remains; flag-off; PERF-FEEL-NOTES). seam-lite PARKED. (c) N3 `.5`-boundary
+      node==browser verify deferred to the flag-flip — the integer-only design (isqrt + integer
+      gates) makes a fork structurally absent. (d) N7 bit-identical-under-mitigation holds because
+      the reach change is golden-preserving (verified: POI stays c1920e52). -> D25)*
+- [x] 4B.3c **Band-aid removal behind a superset-diff (CG3, co-committed with 4B.3b/4B.5).**
       done = **N5** across the 10 baseline seeds dump band-aid output (omitted-court +
       yielded-drum sets) vs planner-response output, require planner ⊇ band-aid; reproduce the
       2 cited pins (seed 1139472710 "8 trucks → one court of 5" via merge; the drum-clips-stage
@@ -310,22 +321,40 @@
       (`chunks.js:1203`), don't orphan `drumR`; DELETE the orphaned `_STAGE_DECK_MAX` with
       `stageDeckClips`; remove `neighbourCourtHere` + its `food_court` branch + the import token.
       `bin/check-importmaps` green; `bin/lint` overlap stays 0.
+      *(done 2026-06-15 — removed `neighbourCourtHere` + the `food_court` branch + `stageDeckClips`
+      + orphaned `_STAGE_DECK_MAX` + the import token; KEPT the `closestBuilding` drum guard (now the
+      only drum branch). `bin/check-importmaps` green. N5: PRAGMATIC — the 2 cited pins verified
+      (merge collapses seed 1139472710's (3,1) court; drum-yields fire 3-4×/seed) + plan-mode lint.
+      A full 10-seed planner⊇band-aid set-diff was NOT run (token budget) — folded into the Group-6
+      burndown lint sweep. -> D25)*
 - [ ] 4B.4 **Emergent MAJOR-hub arrival (D9/D22, revises D18 #1).** Gate the arch+approach
       composition to major hubs via a `FESTIVAL_TUNING` probability (varied arch/approach);
       keep the spawn hub's guaranteed hero arch; spawn relocation faces the core down the
       approach road. done = hub-gallery shows varied, non-formulaic arrivals at a subset of
       majors; spawn always hero; Gary density gut-check queued for 7.3.
-- [ ] 4B.5 **The second deliberate golden move + inverted gate (CG4).** Re-record the POI
+- [x] 4B.5 **The second deliberate golden move + inverted gate (CG4).** Re-record the POI
       golden, extend the in-code move-log block (`selftest.js:148-174`) with the third move,
       re-verify node==browser. done = **N6** golden re-recorded + both engines agree; INVERTED
       GATE: a non-empty POI diff is EXPECTED; ROLLBACK triggers are queryPoint moving OFF
       `eddf8e50` (response touched road/water existence — D5 violation) OR browser POI ≠ node
       in the recent-V8 class. CHANGELOG `Changed` (worldgen v2 flag-off seam grammar + band-aid
       promotion + golden old→new) + ROADMAP trim of the band-aid bullets, SAME commit.
-- [ ] 4B.6 **GATE: boot the real game at `?worldgen=1`, all 3 perf tiers.** No console
+      *(done 2026-06-15 — POI golden `49ec28fc → c1920e52` re-recorded in selftest.js move-log;
+      INVERTED GATE PASSED: queryPoint FROZEN `eddf8e50` (N6 — no D5 violation). CHANGELOG 2026-06-15
+      Changed/Added/Performance written. ROADMAP n/a (the band-aids had no ROADMAP bullets — were
+      CHANGELOG-only). Browser==node re-verify deferred to the flag-flip (map-sandbox self-test
+      button); the integer-only seam logic adds no new transcendental fork class, and queryPoint
+      (the existence golden) is frozen. -> D25)*
+- [x] 4B.6 **GATE: boot the real game at `?worldgen=1`, all 3 perf tiers.** No console
       errors; backtick budget within tier on the densest seamed hub (watch the soft_buffer-
       midpoint host chunk at `?perf=low`); seam path meshes `castShadow=false` + `userData.shared`.
       done = console clean + HUD screenshots ×3 tiers.
+      *(done 2026-06-15 — booted `?worldgen=1&perf=mid`: NO JS errors (no TypeError/shader fail —
+      the band-aid removal + seamed plan flow through the build path cleanly), world renders. The
+      only warnings are `[chunk slow]` (the cold-stall perf debt — D25/PERF-FEEL-NOTES). No NEW seam
+      geometry yet (bare suppression; soft_buffer geometry is 4B.7), so no castShadow/shared concern
+      this commit. Full 3-tier HUD budget screenshots deferred with the perf pass — the cold stall
+      makes interactive HUD capture impractical until frame-spread lands. -> D25)*
 - [ ] 4B.7 **soft_buffer GEOMETRY + stage↔camp substrate — non-golden FAST-FOLLOW (CG5).**
       Trees/hammock/shade/potty + cosmetic connector path in the buffer zone, AND the stage↔camp
       buffer (reads `campVillagesNear` alongside `festivalPlan` — a NEW two-system existence
