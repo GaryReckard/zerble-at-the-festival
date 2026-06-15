@@ -146,20 +146,11 @@ below (Gary: lean now, full scope eventually).
   rather than gapping — a bigger builder change, and the planner could prefer seating rows
   where the road is locally straight (golden-moving).
 
-- **Burndown residuals — down to ONE ERROR *(2026-06-15)*.** The 10-seed plan-mode lint
-  sweep is at **1 ERROR (from 375)** after the `nearestRoad` cache, the no-festival-in-a-lake
-  fix, the treeless-drum omit, and two golden-free false-positive corrections (`spawn-arrival`
-  rule premise + `porta_bank` extent — CHANGELOG). The lone remaining ERROR, parked:
-  - **`water-clear` ×1 — dancefloor *mouth* opens onto water.** A dry-centered MAJOR hub
-    (the scaled, deeper dancefloor reaches further) whose stage front axis (`computeFrontAxis`,
-    the widest-dry-gap-between-roads bisector) points its dancefloor clearing into a
-    neighbouring lake. `computeFrontAxis` already *prefers* fully-dry gaps; this is a hub
-    where NO gap is fully dry, so the widest (partly-wet) one wins. Measured 1 hub across 10
-    seeds. A fix means a *surgical* mouth-aware re-pick (scale-aware, since only scaled major
-    depths reach the water) inside the memoized, shared, load-bearing front-axis — golden-moving
-    and disproportionate to one edge case (the blunt "prefer least-wet over widest" version
-    changes ~3% of hubs' stage facing to fix 1 defect). Left for a focused pass with 3D feel
-    verification.
+- **Burndown to ZERO errors *(2026-06-15)*.** The 10-seed plan-mode lint sweep is at **0
+  ERRORs (from 375)** after the `nearestRoad` cache, no-festival-in-a-lake + dry spawn, the
+  treeless-drum omit, two golden-free false-positive corrections (`spawn-arrival` rule premise +
+  `porta_bank` extent), and the least-wet front-axis tiebreak that stopped dancefloors opening
+  onto water (CHANGELOG). What remains is a single WARN class to confirm with registry mode:
   - **`overlap` WARN dominated by `bubble_vendor × food_court` (~1900/10 seeds) — likely an
     approximate-metric artifact, needs registry confirmation.** The guaranteed bubble vendor
     (D15 — refuel is a core verb, so it always places at its road spot even if it grazes) often

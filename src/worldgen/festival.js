@@ -165,7 +165,14 @@ export function computeFrontAxis(heart) {
   }
   const dry = gaps.filter(g => g.blocked === 0);
   const pool = dry.length ? dry : gaps;
-  pool.sort((a, b) => b.widthBins - a.widthBins || a.blocked - b.blocked || a.binMid - b.binMid);
+  // Prefer the DRIEST gap, then the widest, then lowest bin. In the common case a
+  // fully-dry gap exists (all blocked === 0) so this is width-first — IDENTICAL to
+  // before, byte-for-byte. It only differs when NO gap is dry (a lake-hemmed hub):
+  // then the LEAST-WET gap wins instead of the widest, so the dancefloor opens toward
+  // the driest available ground rather than onto a lake (the residual dancefloor-
+  // mouth-on-water case). `blocked` is already scale-aware (reach = core +
+  // dancefloorDepth), so it reflects mouth wetness. Integer keys; deterministic.
+  pool.sort((a, b) => a.blocked - b.blocked || b.widthBins - a.widthBins || a.binMid - b.binMid);
   const chosen = pool[0];
   const result = { bin: chosen.binMid, bearing: binBearing(chosen.binMid), widthBins: chosen.widthBins, blocked: chosen.blocked, roadBins, gaps };
   if (_faCache.size > 4000) _faCache.clear();

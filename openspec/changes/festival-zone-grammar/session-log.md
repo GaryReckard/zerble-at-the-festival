@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "SEAM GRAMMAR (D24/D25) + COLD STALL RESOLVED (D26) + WATER BURNDOWN (D27). PERF: per-cell arterialsNear cache cut nearestRoad 15.3× / cold plan 10.6× → cold stall ~13s→~1-2s, bin/lint >40s→~10s/seed. BURNDOWN: no-festival-in-a-lake (_festivalSuppressed) + dry spawn (spawnHeart) → water-clear 368→1, total ERRORs 375→8 over 10 seeds; POI golden MOVED c1920e52→449f07e1, queryPoint FROZEN eddf8e50. BURNDOWN (D27/D28): no-festival-in-a-lake + dry spawn + treeless-drum omit → total ERRORs 375→4 over 10 seeds; POI golden MOVED c1920e52→449f07e1→b996d7c0, queryPoint FROZEN eddf8e50. Residuals parked (ROADMAP): water-clear ×1 (dancefloor-mouth front-axis = golden-moving), drum-in-trees ×1 (drum-inside-potty-envelope ordering), spawn-arrival ×2 (likely stale heuristic — player teleports to hub; design call). 4B.4 DONE (D29): arches at spawn + ~25% of majors. BURNDOWN to 1 ERROR (D30): spawn-arrival + porta_bank-extent false positives corrected (both golden-free). 375→1; lone residual = 1 dancefloor-mouth-on-water (parked, golden-moving + 3D-feel-gated). NEXT (feel/visual-gated, need Gary playtest or browser): 4B.7 (soft_buffer geometry), arch style variation, registry-mode confirmation of bubble×food overlaps (needs fresh snapshot), dancefloor-mouth front-axis (surgical, golden-moving). queryPoint eddf8e50 / POI 21fcd163. 7.3 Gary playtest = HUMAN GATE."
+current_task: "HEADLESS WORK COMPLETE for this change. Seam grammar (D24/D25) + cold-stall fix (D26, arterialsNear cache: nearestRoad 15×, stall ~13s→~1-2s, lint >40s→~10s) + 4B.4 emergent arrival (D29, arches at spawn + ~25% majors) + full Group 6 burndown to ZERO plan-mode ERRORs (D27/D28/D30/D31, from 375). Goldens: queryPoint FROZEN eddf8e50, POI 21fcd163 (moved deliberately c1920e52→449f07e1→b996d7c0→21fcd163, each recorded in selftest.js). Remaining = 1 WARN class (bubble×food, approx filled-circle-vs-ring; needs registry/browser to confirm). NEXT (all feel/visual/human-gated — can't verify headlessly here): 4B.7 soft_buffer geometry + perf budget, arch STYLE variation, registry-mode bubble confirmation (needs snapshot), 7.3 Gary playtest (HUMAN GATE), 7.4 /smart-review."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -321,6 +321,18 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   375→1 (the lone residual = 1 dancefloor-mouth-on-water, a major-hub scaled-depth edge; the surgical
   fix threads stage-scale into the load-bearing computeFrontAxis — disproportionate to 1/10-seed, parked
   with 3D-feel verification). Both goldens frozen. -> CHANGELOG (Fixed), ROADMAP residuals.
+
+- **D31 — Burndown to ZERO: least-wet front-axis tiebreak (2026-06-15).** The lone residual
+  (dancefloor-mouth-on-water at a scaled major hub) turned out cheap+safe after all. `computeFrontAxis`
+  already prefers fully-dry gaps via the `pool = dry.length ? dry : gaps` split; the bug was the sort
+  picking WIDEST regardless of wetness in the no-dry fallback. Changed the sort to `blocked ASC` first,
+  then width, then bin. The dry case is byte-identical (all blocked=0 → width still decides), so only
+  no-dry (lake-hemmed) hubs change — ~4% (105/2515), now facing the driest gap. `blocked` is already
+  scale-aware (reach = core + dancefloorDepth) so it reflects mouth wetness; sort keys are pure integers
+  (no new fork). water-clear 1→0; **total ERRORs 0 (from 375)**. Both goldens FROZEN (eddf8e50/21fcd163)
+  — the change is localized to lake-hemmed hubs the POI golden's sample doesn't include, and uses only
+  integer keys. Remaining: 1 WARN class (bubble×food, needs registry/browser confirmation). -> CHANGELOG
+  (Fixed), ROADMAP.
 
 ## Assumptions
 
