@@ -214,8 +214,29 @@
 
 > Promotes the builder-side band-aids into a principled, integer-only planner layer.
 > Runs BEFORE the full 10-seed burndown (6.1) and the Gary playtest (7.3). Ends with
-> the SECOND deliberate golden move. A `/deliberate` before 4B.5 is recommended.
+> the SECOND deliberate golden move.
+>
+> **DELIBERATED 2026-06-15 (debate, deliberations/002-seam-response/results.md).**
+> Architecture fork RESOLVED: emit-in-plan via a **post-base-plan annotation pass**
+> (one hash covers plan+seam); golden MOVES (Architect's "golden-frozen" dissent
+> preserved). The risk lives in the **7 non-negotiables (N1–N7)**, not the home —
+> folded in below as done-criteria. Scope: ship **yield → merge → trim → bare-buffer**
+> in ONE golden move; soft_buffer GEOMETRY + stage↔camp substrate DEFERRED to a
+> non-golden fast-follow (4B.7). N1 seam-step-after-base-plan (no `_computePlan`
+> recursion); N2 single source of truth (filter against the seam's keeperZone/yielderZone
+> by clusterSeed/IDX, never a per-chunk re-scan); N3 integer trim length+booths, all
+> quantize via `rng.js quantize`; N4 dark-emit order-independence proof BEFORE live;
+> N5 superset-diff vs band-aids on the 2 cited pins BEFORE removal; N6 suppression
+> hashed + node==browser-verified (the golden move); N7 stall mitigation bit-identical.
 
+- [ ] 4B.0 **Iteration surface — map-sandbox seam overlay (Slice 0, CG0).** Extend the
+      `map-sandbox.html` 2D overlay to render `classifySeamsNear` output (colour by
+      `seam.type`, keeper/yielder annotated). `hub-sandbox.html` is single-hub
+      (`buildHubPreview`) and structurally can't show a two-hub seam — the map-overlay is
+      the load-bearing seam-iteration surface. done = overlay on the 3 baseline seeds shows
+      the seams-to-resolve, matching the hand-checked pins (seed 1139472710's two
+      `merged_court` clashes); importmap guard (`bin/check-importmaps`) green if a new `wg`
+      module is added. No golden impact; ships nothing player-visible.
 - [x] 4B.1 **Integer hub-priority + seam-pair enumeration (pure, golden-FROZEN).**
       Add `getHubPriority(cx, cz, seed)` (integer bit-mix hash) and a deterministic
       `seamPairsNear(bounds)` that enumerates each heart + its in-reach neighbours
@@ -244,25 +265,61 @@
       independent: 32 shared seams across shifted windows, all types agree. Purely additive
       exports — goldens frozen by construction (4B.1's full selftest proved this file).
       Camp↔loud buffers (camps are a separate grid) + drum↔stage tuning → 4B.3.)*
-- [ ] 4B.3 **Seam RESPONSE in the planner (trim / merge / buffer).** Emit the response:
-      trim the lower-priority vendor row along its road axis (skip only if <3 booths fit —
-      Gemini R4); merge two food courts into one serving both hubs; place a soft-buffer
-      record (trees/hammock/shade/potty/path) between stage and camp. Orientation-away:
-      fronts/lights/arch point inward unless the edge is a `shared_street`. done = the
-      `neighbourCourtHere` + `stageDeckClips` band-aids REMOVED (chunks.js), replaced by
-      these planner outcomes; hub-viewer + map-overlay show clean seams across 3 seeds.
+- [ ] 4B.3a **Dark-emit reconciliation pass + order-independence proof (CG1).** Build the
+      response as a SEPARATE post-base-plan annotation pass that reads the two memoized
+      neighbour plans (the proven `classifySeamsNear` read shape) and computes per-seam
+      `{ suppress, trimTo, type }` from the canonical pair + `getHubPriority` — but DARK
+      (compute + assert; do NOT write into `out[]` yet). done = **N1** structural proof
+      `_computePlan` calls no neighbour `festivalPlan` (separate pass after base-plan memo);
+      **N4** dark-emit assertion: response computed from hub-A's side AND hub-B's side agrees
+      bit-for-bit across a shifted window on all baseline seeds; both goldens STILL frozen
+      (nothing in `out[]` yet).
+- [ ] 4B.3b **Live response slices + cost mitigation + integer hygiene (CG2).** Flip dark→live
+      in slice order **yield → merge → trim → bare-buffer**: yield (drum vs stage, plan-side
+      omit of the yielder's `drum_circle`); merge (food+food, yielder drops `food_court`,
+      keeper serves both); trim (vendor row shortened along its road axis, skip if <3 booths);
+      bare soft_buffer = quiet-zone separation ONLY (no geometry — that's 4B.7). Cost: frame-
+      spread first-touch warming + proven-SUPERSET integer pre-filter before the `festivalPlan`
+      fan-out (the ~2.8s cold stall lives in the shared substrate, both architectures); PARK
+      seam-lite. done = **N2** both consume sides filter against the seam's keeperZone/yielderZone
+      by stable clusterSeed/IDX (no per-chunk `nearestZoneToward` re-scan); **N3** trim length +
+      booth count integer before compare, all quantize via `rng.js quantize`, node==browser
+      verify on a `.5`-boundary trim seed; **N7** seam descriptors bit-identical with mitigation
+      ON vs OFF + pre-filter superset asserted; per-chunk seam-resolve cost within the
+      1-chunk/frame budget.
+- [ ] 4B.3c **Band-aid removal behind a superset-diff (CG3, co-committed with 4B.3b/4B.5).**
+      done = **N5** across the 10 baseline seeds dump band-aid output (omitted-court +
+      yielded-drum sets) vs planner-response output, require planner ⊇ band-aid; reproduce the
+      2 cited pins (seed 1139472710 "8 trucks → one court of 5" via merge; the drum-clips-stage
+      pin via yield). Removal traps: KEEP the co-located `closestBuilding` drum guard
+      (`chunks.js:1203`), don't orphan `drumR`; DELETE the orphaned `_STAGE_DECK_MAX` with
+      `stageDeckClips`; remove `neighbourCourtHere` + its `food_court` branch + the import token.
+      `bin/check-importmaps` green; `bin/lint` overlap stays 0.
 - [ ] 4B.4 **Emergent MAJOR-hub arrival (D9/D22, revises D18 #1).** Gate the arch+approach
       composition to major hubs via a `FESTIVAL_TUNING` probability (varied arch/approach);
       keep the spawn hub's guaranteed hero arch; spawn relocation faces the core down the
       approach road. done = hub-gallery shows varied, non-formulaic arrivals at a subset of
       majors; spawn always hero; Gary density gut-check queued for 7.3.
-- [ ] 4B.5 **SECOND deliberate golden move.** Re-record the POI golden, log old→new in
-      session-log, re-verify node==browser. queryPoint golden stays frozen (POI-layer +
-      cosmetic path records only). done = golden re-recorded + both engines agree; CHANGELOG
-      entry for the player-visible seam grammar.
+- [ ] 4B.5 **The second deliberate golden move + inverted gate (CG4).** Re-record the POI
+      golden, extend the in-code move-log block (`selftest.js:148-174`) with the third move,
+      re-verify node==browser. done = **N6** golden re-recorded + both engines agree; INVERTED
+      GATE: a non-empty POI diff is EXPECTED; ROLLBACK triggers are queryPoint moving OFF
+      `eddf8e50` (response touched road/water existence — D5 violation) OR browser POI ≠ node
+      in the recent-V8 class. CHANGELOG `Changed` (worldgen v2 flag-off seam grammar + band-aid
+      promotion + golden old→new) + ROADMAP trim of the band-aid bullets, SAME commit.
 - [ ] 4B.6 **GATE: boot the real game at `?worldgen=1`, all 3 perf tiers.** No console
-      errors; backtick budget within tier on the densest seamed hub; seam path meshes
-      `castShadow=false` + `userData.shared`. done = console clean + HUD screenshots ×3 tiers.
+      errors; backtick budget within tier on the densest seamed hub (watch the soft_buffer-
+      midpoint host chunk at `?perf=low`); seam path meshes `castShadow=false` + `userData.shared`.
+      done = console clean + HUD screenshots ×3 tiers.
+- [ ] 4B.7 **soft_buffer GEOMETRY + stage↔camp substrate — non-golden FAST-FOLLOW (CG5).**
+      Trees/hammock/shade/potty + cosmetic connector path in the buffer zone, AND the stage↔camp
+      buffer (reads `campVillagesNear` alongside `festivalPlan` — a NEW two-system existence
+      surface, integer on BOTH grid sides). Records single-owner, INTEGER-quantized anchor to
+      the canonical keeper, chunkKey'd (arch precedent — MUST unload with its chunk, NOT the lake
+      omission). Buffer trees via InstancedMesh / `userData.shared` bucketed pool (NOT per-leaf
+      `buildTree`); `castShadow=false`; connector path a cosmetic record, never a `roads.js`
+      arterial. done = golden UNCHANGED (cosmetic POI-layer); stage↔camp existence proven
+      node==browser across the join; budget within tier at `?perf=low`/`?perf=mid`.
 
 ## 5. Registry-clearance backstop
 

@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "DESIGN-LOCKED (Gary grill 2026-06-14 → D19–D23): DENSE & SEAMED. Building Group 4B — cross-hub context seam grammar (integer-only determinism), promoting the builder-side band-aids (neighbourCourtHere food-court omission + stageDeckClips drum-yield) into a principled planner layer. Order: (1) integer getHubPriority + seam-pair enumeration (pure, golden-frozen); (2) seam-type decision + merge/trim/buffer; (3) emergent MAJOR-hub arrival (probability-gated, varied, spawn-guaranteed hero — revises D18 #1); (4) SECOND deliberate golden move (re-record + node==browser verify); (5) Gary playtest 7.3. POI golden 49ec28fc (moves once more here), queryPoint frozen eddf8e50. /deliberate recommended before the golden-move commit. Carried-over zero-error items fold into the seam pass: water-clear lake-hearts; booth-on-road linter false-positive; the 1.1m tent×arch curve case."
+current_task: "DESIGN-LOCKED (D19–D23) + DELIBERATED (D24, deliberations/002-seam-response). DENSE & SEAMED cross-hub seam grammar. DONE+committed golden-frozen: 4B.1 getHubPriority+seamPairsNear (0bc68c1), 4B.2 classifySeamsNear (3f5cf73) — integer-only, order-independent, validated vs playtest pins. NEXT: 4B.0 (map-sandbox seam overlay — the two-hub iteration surface, build first) → 4B.3a (dark-emit reconciliation pass + N4 order-independence proof, golden still frozen) → 4B.3b (live yield→merge→trim→bare-buffer + frame-spread/superset-prefilter cost mitigation + N3 integer trim hygiene) → 4B.3c (band-aid removal behind N5 superset-diff, co-committed) → 4B.5 (SECOND golden move + inverted gate: queryPoint stays eddf8e50, POI diff expected) → 4B.6 (3-tier boot) → 4B.7 (soft_buffer geometry + stage↔camp = non-golden fast-follow). Architecture: emit-in-plan via POST-BASE-PLAN annotation pass; _computePlan NEVER calls a neighbour's plan (N1). POI golden 49ec28fc moves once more at 4B.5. Then 4B.4 arrival + Group 6 burndown + 7.3 Gary playtest."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -214,6 +214,27 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   brushes determinism + the golden + lifecycle — a `/deliberate` before the golden-move
   commit is recommended (Gary's call); the grill itself served as the design interrogation.
   -> tasks Group 4B.
+
+- **D24 — Deliberation 002-seam-response (debate, 2026-06-15): the 4B.3 architecture gate.**
+  Tier-3 `/deliberate --debate` on the seam RESPONSE (5 personas R1; R2 budget-truncated to a
+  comprehensive Adversary cross-examination that adjudicated all four others; Mediator synthesized).
+  **Architecture fork RESOLVED → emit-in-plan via a post-base-plan annotation pass; the POI golden
+  MOVES.** Rationale: the fork is cosmetic on the safety axis (both homes stand on
+  `classifySeamsNear`'s canonical-pair substrate, both order-independent for the same reason, both
+  non-recursive iff the seam step runs after base-plan compute, both incur the same ~2.8s cold
+  fan-out); the discriminator is "keep it non-recursive + fully hashed," and one hash covering
+  plan+seam beats two hashes where the seam one can be forgotten. "Golden frozen" collides with the
+  design.md:144-146 lock (builder-side-to-freeze can't be order-independent). **Architect's
+  golden-frozen headline preserved as a DISSENT** (their consume-time filter is the sanctioned
+  fallback IF suppression still hashes into a first-class gate); their stale-memo cleanliness
+  preserved as an INVARIANT (seam-blind `_computePlan`). The risk lives in the **7 non-negotiables
+  N1–N7** (folded into tasks 4B.0/4B.3a/b/c/4B.5 as done-criteria), NOT the home. Scope cuts:
+  ship yield→merge→trim→bare-buffer in ONE golden move; **stage↔camp soft_buffer + buffer GEOMETRY
+  DEFERRED to non-golden fast-follow 4B.7** (camps on a separate grid = a fresh two-system existence
+  surface that must not ride the golden commit); seam-lite plan PARKED (determinism trap unless
+  bit-identical front-zone proven); the 6 ChatGPT lint rules REJECTED for this change (out of scope,
+  moves the ruler mid-burndown). Deliberation gate SATISFIED. -> deliberations/002-seam-response/results.md,
+  tasks Group 4B.
 
 ## Assumptions
 
@@ -453,3 +474,23 @@ commit is recommended (Gary's call) — the grill served as the design interroga
 **Refs:** -> D19–D23, design.md D7/D8, tasks.md Group 4B, ROADMAP "Playtest follow-ups",
 research/festival-layout-chatgpt-round3-deep-research.md (seam-typing), DRAFTING-BRIEF.md.
 **Refs:** -> ROADMAP cross-hub + curved-row entries, lakes.js, chunks.js, festival.js (drumClearingsNear)
+
+### 2026-06-15 -- 4B.1 + 4B.2 built; deliberation 002 settles the 4B.3 architecture
+**Event:** decision + phase-change
+**What:** Built + committed the golden-FROZEN seam foundation: 4B.1 `getHubPriority`+`seamPairsNear`
+(`0bc68c1`) and 4B.2 `classifySeamsNear` (`3f5cf73`) — integer-only, order-independent, validated
+against Gary's playtest pins (two food-court clashes → `merged_court`). Both goldens proven frozen
+by the full `runSelfTest` (`eddf8e50`/`49ec28fc`).
+Then ran a Tier-3 `/deliberate --debate` on 4B.3 (the golden-MOVING response) → -> D24. **Recovery
+note:** Round-2 hit a transient subagent spend-limit; only the Adversary R2 survived (it had already
+cross-examined all four other personas with citations + adjudicated the fork), so the Mediator
+synthesized over 5 complete R1 + the Adversary R2. The spend block cleared by the Mediator run.
+Outcome folded into tasks.md: split 4B.3 → **4B.0** (map-sandbox seam overlay, Slice 0) + **4B.3a**
+(dark-emit + order-independence proof) + **4B.3b** (live yield→merge→trim→bare-buffer + cost
+mitigation + integer hygiene) + **4B.3c** (band-aid removal behind superset-diff); refined 4B.5
+(inverted golden gate) + 4B.6; added **4B.7** (soft_buffer geometry + stage↔camp = non-golden
+fast-follow). The 7 non-negotiables are the done-criteria. Next concrete action: 4B.0 (the iteration
+surface) then 4B.3a (dark-emit). **Determinism caveat banked:** any stall mitigation must be
+bit-identical (N7); `_computePlan` must NEVER call a neighbour's plan (N1).
+**Refs:** -> D24, deliberations/002-seam-response/results.md, tasks 4B.0/4B.3a/b/c/4B.5/4B.6/4B.7,
+festival.js (seam helpers), git 0bc68c1/3f5cf73.
