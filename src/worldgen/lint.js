@@ -205,25 +205,20 @@ const PLAN_RULES = [
     id: 'spawn-arrival',
     severity: 'error',
     mode: 'plan',
-    // The player spawns at world (0,0) and must arrive into a festival: the
-    // spawn point itself must be buildable ground (not in a lake), and the
-    // spawn hub's stage must be within reach. Uses `spawnHeart` (nearest DRY
-    // major) — the EXACT hub main.js opens on — so the lint reasons about the
-    // real spawn, not a wet near-major the game now skips. Fires once (spawn hub).
+    // Arrival is anchored at the SPAWN HUB: main.js teleports Zerble to that hub's
+    // entrance arch (or its dancefloor front) and opens the game there — it does NOT
+    // spawn the player at world (0,0). So the old checks ("(0,0) is dry", "stage within
+    // MAX_POI_REACH of origin") tested a premise that no longer holds — origin is just
+    // the coordinate root the player never stands on, and the dry-spawn picker
+    // (`spawnHeart`) legitimately skips near wet majors for a farther dry one (seed 42:
+    // ~1.2 km), which is correct, not a defect. The real arrival invariant is that the
+    // spawn hub HAS a stage to arrive at. It's the nearest DRY major and stages are
+    // heart-anchored, so this holds — but guard it: a stageless spawn hub would break
+    // the opening. Uses `spawnHeart` (the EXACT hub main.js opens on). Fires once.
     check(ctx, emit, env) {
       const spawnHub = spawnHeart();
       if (!spawnHub || ctx.heart.cx !== spawnHub.cx || ctx.heart.cz !== spawnHub.cz) return;
-      if (queryPoint(0, 0).inLake) {
-        emit(0, 0, 'spawn point (0,0) is in a lake');
-      }
-      if (ctx.stage) {
-        const d = Math.hypot(ctx.stage.x, ctx.stage.z);
-        if (d > MAX_POI_REACH) {
-          emit(ctx.stage.x, ctx.stage.z, `spawn hub stage is ${d.toFixed(0)}m from origin (> ${MAX_POI_REACH} reach)`);
-        }
-      } else {
-        emit(ctx.heart.x, ctx.heart.z, 'spawn hub has no stage');
-      }
+      if (!ctx.stage) emit(ctx.heart.x, ctx.heart.z, 'spawn hub has no stage — arrival broken');
     },
   },
   {

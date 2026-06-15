@@ -354,7 +354,14 @@ export function clusterExtent(kind, scale = 1) {
       // deck + dancefloor clearing scales with the stage
       return (T.KIND_FOOTPRINT[kind] || 11) + T.DANCEFLOOR_DEPTH_BASE * scale;
     case 'porta_bank':
-      return T.POTTY_ATTACH_OFFSET + M.POTTY_SPACING;
+      // A bank of 3 units at POTTY_SPACING (units ~2.2 m wide) → bounding half-span =
+      // one spacing out to the outer unit + half a unit. (Was POTTY_ATTACH_OFFSET +
+      // POTTY_SPACING = 11.5, which wrongly folded in the 9 m offset-TO-PARENT — a
+      // position, not a size — so the linter saw a ~23 m-wide potty and false-flagged a
+      // drum 10 m away as "inside a porta_bank envelope". The slotter places potties by
+      // KIND_FOOTPRINT.porta_bank and never commits their clusterShapes, so clusterExtent
+      // for porta_bank is read by the linter + overlay ONLY → this fix is golden-free.)
+      return M.POTTY_SPACING + 1.1;
     default:
       return T.KIND_FOOTPRINT[kind] || 4;
   }

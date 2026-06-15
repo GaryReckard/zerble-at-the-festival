@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "SEAM GRAMMAR (D24/D25) + COLD STALL RESOLVED (D26) + WATER BURNDOWN (D27). PERF: per-cell arterialsNear cache cut nearestRoad 15.3× / cold plan 10.6× → cold stall ~13s→~1-2s, bin/lint >40s→~10s/seed. BURNDOWN: no-festival-in-a-lake (_festivalSuppressed) + dry spawn (spawnHeart) → water-clear 368→1, total ERRORs 375→8 over 10 seeds; POI golden MOVED c1920e52→449f07e1, queryPoint FROZEN eddf8e50. BURNDOWN (D27/D28): no-festival-in-a-lake + dry spawn + treeless-drum omit → total ERRORs 375→4 over 10 seeds; POI golden MOVED c1920e52→449f07e1→b996d7c0, queryPoint FROZEN eddf8e50. Residuals parked (ROADMAP): water-clear ×1 (dancefloor-mouth front-axis = golden-moving), drum-in-trees ×1 (drum-inside-potty-envelope ordering), spawn-arrival ×2 (likely stale heuristic — player teleports to hub; design call). 4B.4 DONE (D29): arches at spawn + ~25% of majors (_archAtHub, additive → POI 21fcd163). NEXT (feel/visual-gated, need Gary playtest or browser): 4B.7 (soft_buffer geometry), arch style variation, registry-mode confirmation of bubble×food overlaps (needs fresh snapshot), spawn-arrival rule design call. queryPoint eddf8e50 / POI 21fcd163. 7.3 Gary playtest = HUMAN GATE."
+current_task: "SEAM GRAMMAR (D24/D25) + COLD STALL RESOLVED (D26) + WATER BURNDOWN (D27). PERF: per-cell arterialsNear cache cut nearestRoad 15.3× / cold plan 10.6× → cold stall ~13s→~1-2s, bin/lint >40s→~10s/seed. BURNDOWN: no-festival-in-a-lake (_festivalSuppressed) + dry spawn (spawnHeart) → water-clear 368→1, total ERRORs 375→8 over 10 seeds; POI golden MOVED c1920e52→449f07e1, queryPoint FROZEN eddf8e50. BURNDOWN (D27/D28): no-festival-in-a-lake + dry spawn + treeless-drum omit → total ERRORs 375→4 over 10 seeds; POI golden MOVED c1920e52→449f07e1→b996d7c0, queryPoint FROZEN eddf8e50. Residuals parked (ROADMAP): water-clear ×1 (dancefloor-mouth front-axis = golden-moving), drum-in-trees ×1 (drum-inside-potty-envelope ordering), spawn-arrival ×2 (likely stale heuristic — player teleports to hub; design call). 4B.4 DONE (D29): arches at spawn + ~25% of majors. BURNDOWN to 1 ERROR (D30): spawn-arrival + porta_bank-extent false positives corrected (both golden-free). 375→1; lone residual = 1 dancefloor-mouth-on-water (parked, golden-moving + 3D-feel-gated). NEXT (feel/visual-gated, need Gary playtest or browser): 4B.7 (soft_buffer geometry), arch style variation, registry-mode confirmation of bubble×food overlaps (needs fresh snapshot), dancefloor-mouth front-axis (surgical, golden-moving). queryPoint eddf8e50 / POI 21fcd163. 7.3 Gary playtest = HUMAN GATE."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -307,6 +307,20 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   arch. Observed 25–39% of majors arched (spawn inclusion + small-sample variance over ~20-hub seeds);
   no new arch-placement errors over 10 seeds; selftest clean (only pre-existing T5). Arch STYLE variation
   + 3D feel deferred to Gary's 7.3 playtest. -> CHANGELOG (Added), tasks 4B.4, D9/D22.
+
+- **D30 — Burndown to 1: two golden-free false-positive corrections (2026-06-15).** Drove the last
+  cheap residuals out. **spawn-arrival (2→0):** the rule assumed spawn at (0,0), but main.js teleports
+  Zerble to the spawn hub's arch — origin-distance is moot, and dry-spawn legitimately picks a farther
+  dry major (seed 42 ~1.2km). Rewrote to check the real invariant (spawn hub HAS a stage); dropped the
+  stale origin-distance + (0,0)-dry checks. Lint-only, no golden. **drum-in-trees (1→0):**
+  `clusterExtent('porta_bank')` was `POTTY_ATTACH_OFFSET(9)+POTTY_SPACING(2.5)=11.5` — it folded the
+  9m offset-TO-PARENT (a position) into the SIZE, so the lint saw a 23m potty and false-flagged a drum
+  10m away. Corrected to the real 3-unit bank half-span (~3.6). GOLDEN-FREE: potties are placed by
+  KIND_FOOTPRINT and pushed to `out` WITHOUT commit() → never enter `placed[]` → the slotter never
+  builds clusterShapes('porta_bank'); it's lint+overlay only (verified POI frozen 21fcd163). Burndown
+  375→1 (the lone residual = 1 dancefloor-mouth-on-water, a major-hub scaled-depth edge; the surgical
+  fix threads stage-scale into the load-bearing computeFrontAxis — disproportionate to 1/10-seed, parked
+  with 3D-feel verification). Both goldens frozen. -> CHANGELOG (Fixed), ROADMAP residuals.
 
 ## Assumptions
 

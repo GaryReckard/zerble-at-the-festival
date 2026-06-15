@@ -146,21 +146,20 @@ below (Gary: lean now, full scope eventually).
   rather than gapping — a bigger builder change, and the planner could prefer seating rows
   where the road is locally straight (golden-moving).
 
-- **Burndown residuals after the water + drum pass *(2026-06-15)*.** The 10-seed plan-mode
-  lint sweep is down to **4 ERROR findings** (from 375) after the `nearestRoad` cache, the
-  no-festival-in-a-lake fix, and the treeless-drum omit (CHANGELOG). The remainder, parked:
-  - **`water-clear` ×1 — dancefloor *mouth* opens onto water.** A dry-centered hub whose
-    stage front axis (`computeFrontAxis`, the widest-dry-gap-between-roads bisector) happens
-    to point its dancefloor clearing into a neighbouring lake. The cheap heart-center gate
-    can't catch it. A fix means making the front-axis selection water-aware (reject a bin
-    whose mouth lands in a lake) — the axis is load-bearing (stage yaw + dancefloor + POI
-    golden), so it's golden-moving and higher-risk; left for a focused pass.
-  - **`drum-in-trees` ×1 — drum center inside a porta-bank envelope (approx).** The drum
-    (step 4) is placed before its hub's potties (step 5); a potty's envelope (the lint's
-    `porta_bank` extent) can be larger than the `drum_circle` shape the potty's own
-    overlap check uses, so a potty tucks too close to the drum. An ordering/extent edge —
-    either widen the potty's keep-out vs the drum, or have the drum reserve its envelope
-    before potties slot. Golden-moving; 1/10 seeds.
+- **Burndown residuals — down to ONE ERROR *(2026-06-15)*.** The 10-seed plan-mode lint
+  sweep is at **1 ERROR (from 375)** after the `nearestRoad` cache, the no-festival-in-a-lake
+  fix, the treeless-drum omit, and two golden-free false-positive corrections (`spawn-arrival`
+  rule premise + `porta_bank` extent — CHANGELOG). The lone remaining ERROR, parked:
+  - **`water-clear` ×1 — dancefloor *mouth* opens onto water.** A dry-centered MAJOR hub
+    (the scaled, deeper dancefloor reaches further) whose stage front axis (`computeFrontAxis`,
+    the widest-dry-gap-between-roads bisector) points its dancefloor clearing into a
+    neighbouring lake. `computeFrontAxis` already *prefers* fully-dry gaps; this is a hub
+    where NO gap is fully dry, so the widest (partly-wet) one wins. Measured 1 hub across 10
+    seeds. A fix means a *surgical* mouth-aware re-pick (scale-aware, since only scaled major
+    depths reach the water) inside the memoized, shared, load-bearing front-axis — golden-moving
+    and disproportionate to one edge case (the blunt "prefer least-wet over widest" version
+    changes ~3% of hubs' stage facing to fix 1 defect). Left for a focused pass with 3D feel
+    verification.
   - **`overlap` WARN dominated by `bubble_vendor × food_court` (~1900/10 seeds) — likely an
     approximate-metric artifact, needs registry confirmation.** The guaranteed bubble vendor
     (D15 — refuel is a core verb, so it always places at its road spot even if it grazes) often
@@ -172,13 +171,6 @@ below (Gary: lean now, full scope eventually).
     `bin/layout-snapshot` (post-suppression) + registry lint would settle it. If real, either
     push the bubble outside the ring or place it in the plaza intentionally; if not, exclude
     `bubble_vendor` from the plan-mode overlap warn like `porta_bank`/stage pairs already are.
-  - **`spawn-arrival` ×2 — spawn hub stage > MAX_POI_REACH (480 m) from origin.** On two
-    seeds the nearest *dry* major is ~1.2 km from origin. Note this may be a stale heuristic:
-    `main.js` teleports Zerble to the spawn hub's arch regardless of its distance from (0,0),
-    so the player still opens *at* the festival — the "near origin" assumption predates the
-    spawn-at-hub behavior. Decide whether to relax the rule (spawn-at-hub makes distance
-    irrelevant) or keep a soft cap; needs a quick design call, not a code fix yet.
-
 ### Festival realism research — validation + new ideas *(2026-06-14)*
 
 Two independent deep-research passes (ChatGPT + Gemini, drawing on real festival
