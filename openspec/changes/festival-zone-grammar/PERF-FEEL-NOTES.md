@@ -61,6 +61,46 @@
   hearts now resolves seams (overlapping windows re-classify). Dev-diagnostic only (not game perf),
   but if it annoys, the region-level seam cache (c) would cut it. The golden capture is a rare op.
 
+## SPEC — on-device perf trace recorder ("flight recorder" + perf-marker) — queued for the perf pass
+
+> Gary's idea (2026-06-15): record perf while playing on laptop/iPad/phone, hand the trace to the
+> agent for analysis. **The value is real-device data the codespace agent CANNOT produce** (no
+> target GPU): real frame-time, real-GPU tier behavior, the cold-stall as actually FELT on mobile,
+> memory/thermal over a session. Build this FIRST in the perf pass so the pass is driven by real
+> numbers, not codespace guesses. Self-contained, no-build, client-side; mirrors the `K`-marker UX.
+
+**Gating (Gary's concern: don't slow regular players).** Dev-gated, default OFF — a `?perftrace=1`
+URL flag and/or a toggle in the backtick overlay. When off, a single `if (!tracing) return` early-out
+in the sampler = zero cost. When ON it's still near-free (see below), so the choice is about not
+shipping dev UI to players (easter-egg rule) + not paying for export serialization, NOT about
+frame cost. (Could even run the passive ring-buffer always — it's a couple numbers/frame — to be a
+true black-box that's already capturing when jank hits; but default-off fully honors the concern and
+means players pay nothing. Recommend default-off, flag-on.)
+
+**What it records:**
+- **Frame-time ring buffer** (fixed size, e.g. 600 = ~10s @60fps; one `performance.now()` delta +
+  one array write per frame, no allocation → negligible). Report p50/p95/p99 (jank is the tail, not
+  avg FPS) + a downsampled timeline.
+- **`renderer.info`** snapshots (draws/tris/geometries/textures/programs) — the backtick HUD already
+  computes these; sample a few/sec.
+- **`[chunk slow]` events** — ALREADY logged today (chunks.js); capture them into the trace with ms +
+  chunk coords instead of console-only.
+- **Device fingerprint** (once at init): UA, `devicePixelRatio`, resolved PERF tier, screen size,
+  WebGL `UNMASKED_RENDERER` (real GPU string), `performance.memory` heap if present.
+- **Player position / seed / worldgen flag / session duration** for context.
+
+**The killer feature — a perf-MARKER (twin of `K`).** A button / mobile triple-tap that, when it
+*feels* janky, dumps the last ~10s of frame-times + state + location into the trace. Turns subjective
+"laggy here" into an objective trace at that exact moment.
+
+**Export (no backend — GitHub Pages):** mirror the `K`-marker — in-memory ring buffer + a "download
+perf-trace.json" / "copy for agent" button, localStorage-backed. **NOT** GA4 (too coarse for traces).
+
+**Caveats:** Safari lacks `performance.memory` (heap = Chrome/Android only); the GPU string can be
+masked on some browsers; keep the overlay/copy strings out of player-facing view (easter-egg rule);
+sampler must stay allocation-free in the hot path. Wire near the backtick overlay (`src/debug.js`),
+the main loop (`src/main.js`), the existing `[chunk slow]` log, and the `K`-marker plumbing.
+
 - **⚠️ The seamed plan also BLOCKS the burndown tooling (escalated 2026-06-15).** `bin/lint` over a
   single seed now exceeds 40s (was fast) because plan-mode lint walks every heart's seamed
   `festivalPlan`. So **Group 6's 10-seed lint sweep is effectively blocked until the plan cost is
