@@ -374,6 +374,80 @@ export function classifySeamsNear(minX, minZ, maxX, maxZ) {
   return out;
 }
 
+// Seam-response category rank — for soft_buffer, the QUIETER front yields (lower rank).
+const SEAM_RANK = { loud: 3, commerce: 2, food: 1, support: 0, quiet: 0 };
+
+// Exact integer sqrt — bit-identical across V8 forks (the Math.sqrt seed may differ by a
+// ULP, but the integer correction loops make the RESULT engine-stable). Used so the
+// trim-vs-suppress decision (an existence gate) is integer, never float (N3/D21).
+function isqrt(n) {
+  if (n < 2) return n | 0;
+  let x = Math.floor(Math.sqrt(n)) | 0;
+  while (x * x > n) x--;
+  while ((x + 1) * (x + 1) <= n) x++;
+  return x;
+}
+
+// 4B.3a — the DARK-EMIT seam-response pass (deliberation 002, CG1). For each classified
+// seam, compute the deterministic RESPONSE: which descriptor the YIELDER suppresses or
+// trims, chosen ONCE from the canonical pair (so both hubs' chunks derive the identical
+// outcome with no communication — N2). This is a SEPARATE post-base-plan read: it never
+// mutates festivalPlan/out[] and `_computePlan` never calls a neighbour (N1), so both
+// goldens stay frozen here. 4B.3b consumes these records at build time; until then this
+// exists for the order-independence proof + the map-overlay. INTEGER-ONLY: the target is
+// identified by a stable `clusterSeed`, the trim count by integer booth math over an
+// integer overlap (isqrt), never a float gate (N3).
+//   merged_court → suppress the yielder's food_court (the band-aid `neighbourCourtHere` did
+//                  this blindly; here the keeper is integer-priority-chosen, so it's order-safe).
+//   yield        → suppress the DRUM among the two fronts (a stage is a hard anchor; the
+//                  drum always yields — `stageDeckClips`' principled form). stage+stage =
+//                  unresolved spacing (action 'none', a WARN, not an ERROR).
+//   soft_buffer  → the quieter front (lower SEAM_RANK) yields; bare separation only here,
+//                  buffer dressing is 4B.7.
+//   shared_street→ trim the yielder's vendor_row by the integer overlap; suppress if the
+//                  trimmed row can't seat 3 booths (Gemini R4).
+function _seamResponse(s, spacing, maxBooths) {
+  const { type, keeperZone: K, yielderZone: Y, keeper, yielder, seamHash } = s;
+  const base = {
+    seamHash, type, keeperCell: [keeper.cx, keeper.cz], yielderCell: [yielder.cx, yielder.cz],
+    action: 'none', targetSeed: null, targetKind: null, trimToBooths: null,
+  };
+  if (type === 'merged_court') return { ...base, action: 'suppress', targetSeed: Y.clusterSeed, targetKind: Y.kind };
+  if (type === 'yield') {
+    const drum = K.kind === 'drum_circle' ? K : (Y.kind === 'drum_circle' ? Y : null);
+    return drum ? { ...base, action: 'suppress', targetSeed: drum.clusterSeed, targetKind: 'drum_circle' } : base;
+  }
+  if (type === 'soft_buffer') {
+    const q = (SEAM_RANK[SEAM_CATEGORY[K.kind]] ?? 0) <= (SEAM_RANK[SEAM_CATEGORY[Y.kind]] ?? 0) ? K : Y;
+    return { ...base, action: 'suppress', targetSeed: q.clusterSeed, targetKind: q.kind };
+  }
+  if (type === 'shared_street') {
+    const dx = K.x - Y.x, dz = K.z - Y.z;            // integer (desc quantizes x,z)
+    const overlap = Math.max(0, s.thrInt - isqrt(dx * dx + dz * dz));   // integer m
+    const removed = Math.floor((overlap + spacing - 1) / spacing);      // ceil, integer
+    const newBooths = maxBooths - removed;
+    return newBooths >= 3
+      ? { ...base, action: 'trim', targetSeed: Y.clusterSeed, targetKind: 'vendor_row', trimToBooths: newBooths }
+      : { ...base, action: 'suppress', targetSeed: Y.clusterSeed, targetKind: 'vendor_row' };
+  }
+  return base;
+}
+
+// All actionable seam responses near a region — the single canonical source 4B.3b filters
+// against (by `targetSeed`), and the map-overlay (4B.0) renders. Order-independent by
+// construction (rides classifySeamsNear's canonical pairs); pure read, golden-frozen.
+export function seamResponsesNear(minX, minZ, maxX, maxZ) {
+  const T = FESTIVAL_TUNING;
+  const spacing = quantize(T.VENDOR_ROW_SPACING) || 5;
+  const maxBooths = (T.VENDOR_ROW_COUNT_BASE + T.VENDOR_ROW_COUNT_SPAN - 1) | 0;
+  const out = [];
+  for (const s of classifySeamsNear(minX, minZ, maxX, maxZ)) {
+    const r = _seamResponse(s, spacing, maxBooths);
+    if (r.action !== 'none') out.push(r);
+  }
+  return out;
+}
+
 // Footprint (clear-radius, m) hint per cluster kind — for the build half's
 // spacing + the map-sandbox overlay. The build side registers each prop with the
 // model's real footprint; this is the cluster envelope. Now in tuning.js:

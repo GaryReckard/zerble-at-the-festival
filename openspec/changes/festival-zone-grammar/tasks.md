@@ -265,7 +265,7 @@
       independent: 32 shared seams across shifted windows, all types agree. Purely additive
       exports — goldens frozen by construction (4B.1's full selftest proved this file).
       Camp↔loud buffers (camps are a separate grid) + drum↔stage tuning → 4B.3.)*
-- [ ] 4B.3a **Dark-emit reconciliation pass + order-independence proof (CG1).** Build the
+- [x] 4B.3a **Dark-emit reconciliation pass + order-independence proof (CG1).** Build the
       response as a SEPARATE post-base-plan annotation pass that reads the two memoized
       neighbour plans (the proven `classifySeamsNear` read shape) and computes per-seam
       `{ suppress, trimTo, type }` from the canonical pair + `getHubPriority` — but DARK
@@ -274,6 +274,15 @@
       **N4** dark-emit assertion: response computed from hub-A's side AND hub-B's side agrees
       bit-for-bit across a shifted window on all baseline seeds; both goldens STILL frozen
       (nothing in `out[]` yet).
+      *(done 2026-06-15 — `seamResponsesNear` + `_seamResponse` + `SEAM_RANK` + `isqrt`
+      (exact integer sqrt, engine-stable; the trim-vs-suppress existence gate is integer — N3)
+      in festival.js. merge→suppress yielder food_court; yield→suppress the drum (stage is
+      anchor); soft_buffer→quieter front yields; shared_street→trim by integer overlap, suppress
+      if <3 booths. N4 PROOF: 0 disagreements across 4 seeds (1139472710/2718382314/1390463068/
+      1234), every shared seam's response bit-identical across shifted windows; food-court pins
+      covered. N1: new exports only, `_computePlan` untouched → both goldens frozen by
+      construction. Ordering note: did 4B.3a BEFORE 4B.0 because it's headless-verifiable (no
+      visual loop); 4B.0 lands before 4B.3b where visual iteration begins.)*
 - [ ] 4B.3b **Live response slices + cost mitigation + integer hygiene (CG2).** Flip dark→live
       in slice order **yield → merge → trim → bare-buffer**: yield (drum vs stage, plan-side
       omit of the yielder's `drum_circle`); merge (food+food, yielder drops `food_court`,
