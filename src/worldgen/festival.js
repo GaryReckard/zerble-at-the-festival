@@ -191,10 +191,12 @@ export function dancefloorRect(heart) {
 // Dancefloor clearing rects for every hub whose rect could reach a region — the
 // pure cross-CHUNK query scatterWorldgenTrees will consume (CG2/D3.7), keyed off
 // owning hearts via the MAX_POI_REACH AABB-expand (placement.js pattern). Every
-// hub has a stage, so every enumerated heart contributes one rect.
+// building hub has a stage, so it contributes one rect — but a hub suppressed for
+// sitting in a lake (`_festivalSuppressed`) builds no stage, so it gets no clearing
+// (else the tree scatter would carve a phantom clear patch over open water).
 export function dancefloorRectsNear(minX, minZ, maxX, maxZ) {
   const hs = heartsInBounds(minX - MAX_POI_REACH, minZ - MAX_POI_REACH, maxX + MAX_POI_REACH, maxZ + MAX_POI_REACH);
-  return hs.map(dancefloorRect);
+  return hs.filter(h => !_festivalSuppressed(h)).map(dancefloorRect);
 }
 
 // Drum-circle clearings for every nearby hub, as { x, z, r } circles — the inner
@@ -571,13 +573,42 @@ function planGate() {
 // at the SPAWN hub's main stage (A1; Gary 2026-06-14 playtest: "only ONE arch, by the
 // main stage"). main.js spawns Zerble at the nearest major heart to origin, so the arch
 // belongs to that same hub. Cached per (seed, epoch); deterministic per seed.
+// The hub the game OPENS on: the nearest major heart to origin that ISN'T in a
+// lake — so Zerble never spawns facing a stage in the water (the spawn hub is the
+// one hub exempt from `_festivalSuppressed`, so a wet pick would build a submerged
+// festival as the opening view). Falls back to the nearest major at all (then
+// main.js falls back to any heart) so spawn always resolves even in a pathological
+// all-wet neighbourhood. main.js MUST use this same picker for the spawn arch +
+// Zerble's position to belong to this hub. Pure per seed; deterministic.
+export function spawnHeart() {
+  planGate();
+  return nearestMajorHeart(0, 0, 28, h => !lakeAt(quantize(h.x), quantize(h.z)))
+      || nearestMajorHeart(0, 0);
+}
+
 function spawnHubKey() {
   planGate();
   if (_spawnHubKey === null) {
-    const sh = nearestMajorHeart(0, 0);
+    const sh = spawnHeart();
     _spawnHubKey = sh ? sh.cx + ',' + sh.cz : '';
   }
   return _spawnHubKey;
+}
+
+// A hub centered in open water is NOT a festival site: the stage deck and the
+// dancefloor clearing are both anchored at the heart center (dancefloorRect uses
+// heart.x/heart.z), so a wet center drops BOTH in the lake (the `water-clear`
+// burndown error — every one of which traced to a stage at an in-lake heart). Such
+// hubs emit no festival; the lake stands where the festival would. You don't hold a
+// festival in the middle of a lake. The SPAWN hub is exempt — the world's single
+// entrance arch + Zerble's spawn assume it builds (no baseline seed spawns in a lake,
+// but the guard makes it robust for arbitrary live seeds). `lakeAt` is integer-
+// quantized and already part of the FROZEN queryPoint golden, so gating existence on
+// it moves ONLY the POI golden, never the road/water-existence golden (D21/N6). Pure
+// (heart, seed) — consumes no rng — so every NON-suppressed hub stays byte-identical.
+function _festivalSuppressed(heart) {
+  return heart.cx + ',' + heart.cz !== spawnHubKey() &&
+         lakeAt(quantize(heart.x), quantize(heart.z));
 }
 
 // Seam-BLIND base plan — what the cross-hub seam pass reads (so it stays non-recursive,
@@ -656,6 +687,7 @@ const IDX = {
 // OBB are placed[0]: the keep-out everything packs around, so courts/rows/drum that
 // would intrude the clearing are omitted (the dancefloor stays clear — A4).
 function _computePlan(heart) {
+  if (_festivalSuppressed(heart)) return [];   // hub centered in a lake → no festival
   const rng = cellRng(heart.cx, heart.cz, SALT.poiLayout);
   const T = FESTIVAL_TUNING;
   const major = heart.rank === 'major';

@@ -115,7 +115,12 @@ export function influenceFrom(heart, dist) {
 // direction once jitter is applied) then stop. Same point → same heart, every
 // call (exact-integer squared-distance + (cx,cz) lexicographic tiebreak, never
 // iteration order). Returns the heart | null (no major within maxRings).
-export function nearestMajorHeart(x, z, maxRings = 28) {
+// `accept` (optional) filters candidate majors — the spawn picker passes a
+// "dry" predicate so the game never opens on a stage in a lake. Default null
+// (no filter) keeps the selftest T6 invariance + the golden untouched, and
+// keeps hearts.js water-agnostic (the predicate is supplied by the caller, so
+// no hearts→water import cycle).
+export function nearestMajorHeart(x, z, maxRings = 28, accept = null) {
   const cell = CONFIG.HEART_CELL;
   const qx = quantize(x), qz = quantize(z);
   const ccx = Math.floor(qx / cell), ccz = Math.floor(qz / cell);
@@ -126,6 +131,7 @@ export function nearestMajorHeart(x, z, maxRings = 28) {
         if (Math.max(Math.abs(dcx), Math.abs(dcz)) !== ring) continue;   // shell only
         const h = heartInCell(ccx + dcx, ccz + dcz);
         if (!h || h.rank !== 'major') continue;
+        if (accept && !accept(h)) continue;
         const dx = qx - h.x, dz = qz - h.z, sq = dx * dx + dz * dz;
         if (sq < bestSq ||
             (sq === bestSq && best &&

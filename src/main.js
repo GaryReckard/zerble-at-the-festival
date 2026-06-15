@@ -47,8 +47,8 @@ import {
 import { installDebug, shouldRunFrame, isGod, npcsFrozen } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { setSpawnPoint } from './chunks.js';
-import { nearestHeart, nearestMajorHeart, heartsInBounds } from './worldgen/hearts.js';
-import { festivalPlan, computeFrontAxis, dancefloorRectsNear, MAX_POI_REACH } from './worldgen/festival.js';
+import { nearestHeart, heartsInBounds } from './worldgen/hearts.js';
+import { festivalPlan, computeFrontAxis, dancefloorRectsNear, spawnHeart, MAX_POI_REACH } from './worldgen/festival.js';
 import { lakeAt } from './worldgen/water.js';
 import { runLint } from './worldgen/lint.js';
 import { Trip } from './trip.js';
@@ -229,7 +229,7 @@ if (USE_WORLDGEN_V2) {
   // stage), facing through it at the stage; if no arch fit this hub, fall back to the
   // dancefloor front. Runs at module-eval (seed already resolved) — NOT inside the
   // title tap, so it never pushes Sound.init off the synchronous gesture (R31).
-  const heart = nearestMajorHeart(0, 0) || nearestHeart(0, 0).heart;
+  const heart = spawnHeart() || nearestHeart(0, 0).heart;
   const plan = heart ? festivalPlan(heart) : [];
   const stage = plan.find((p) => p.kind === 'main_stage' || p.kind === 'side_stage' || p.kind === 'tent_stage');
   const arch = plan.find((p) => p.kind === 'arch');
@@ -1448,7 +1448,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname)) {
       // dancefloor, which can leave it nearer the next hub over. Ranking from
       // the spawn hub makes gotoHub(0) the spawn hub itself (it's at distance 0)
       // and is seed-stable regardless of where the cart currently sits.
-      const anchor = nearestMajorHeart(0, 0) || nearestHeart(0, 0).heart;
+      const anchor = spawnHeart() || nearestHeart(0, 0).heart;
       if (!anchor) return 'no hubs found near origin';
       const ax = anchor.x, az = anchor.z, R = 600;
       const hearts = heartsInBounds(ax - R, az - R, ax + R, az + R)

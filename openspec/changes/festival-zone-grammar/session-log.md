@@ -1,7 +1,7 @@
 ---
 change: festival-zone-grammar
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: "SEAM GRAMMAR LANDED (D24/D25) + COLD STALL RESOLVED (D26). 4B.0/4B.1/4B.2/4B.3a/4B.3b/4B.3c/4B.5/4B.6 DONE. festivalPlan = seam-blind base + cross-hub suppressions (merge/yield/trim); band-aids removed; POI golden MOVED 49ec28fc→c1920e52, queryPoint FROZEN eddf8e50; game boots clean. soft_buffer DEFERRED to 4B.7. PERF: per-cell arterialsNear cache (roads.js) cut nearestRoad 15.3× / cold plan 10.6× → cold stall ~13s→~1-2s, bin/lint >40s→~10s/seed (golden-preserving, both frozen). Group 6 burndown UNBLOCKED. Frame-spread now nice-to-have not prereq. NEXT: 4B.4 (emergent MAJOR-hub arrival, D9/D22 — feel-gated/golden-moving) → 4B.7 (soft_buffer geometry fast-follow) → Group 6 full 10-seed burndown → 7.3 Gary playtest (HUMAN GATE). queryPoint eddf8e50 / POI c1920e52."
+current_task: "SEAM GRAMMAR (D24/D25) + COLD STALL RESOLVED (D26) + WATER BURNDOWN (D27). PERF: per-cell arterialsNear cache cut nearestRoad 15.3× / cold plan 10.6× → cold stall ~13s→~1-2s, bin/lint >40s→~10s/seed. BURNDOWN: no-festival-in-a-lake (_festivalSuppressed) + dry spawn (spawnHeart) → water-clear 368→1, total ERRORs 375→8 over 10 seeds; POI golden MOVED c1920e52→449f07e1, queryPoint FROZEN eddf8e50. Residual ERRORs parked (ROADMAP): 1 dancefloor-mouth-on-water (front-axis = golden-moving), drum-in-trees ×5, spawn-arrival ×2 (undiagnosed). NEXT: diagnose drum-in-trees/spawn-arrival (cheap?) → dancefloor-mouth front-axis (golden-moving) → 4B.4 (emergent MAJOR-hub arrival, feel-gated) → 4B.7 (soft_buffer geometry) → 7.3 Gary playtest (HUMAN GATE). queryPoint eddf8e50 / POI 449f07e1."
 blocked_by: ""
 open_questions: 0
 started: 2026-06-13
@@ -267,6 +267,23 @@ ref: "ROADMAP 'Festival layout'; gated by worldgen-layout-harness baseline (now 
   Note: the targeted fix I'd *guessed* in PERF-FEEL-NOTES (region-level seam-response cache) was the
   wrong hypothesis — the win was in the road layer, one level below the seam pass. -> PERF-FEEL-NOTES.md,
   CHANGELOG 2026-06-15.
+
+- **D27 — No festival in a lake + dry spawn (Group 6 water-clear burndown, 2026-06-15).** With
+  tooling unblocked (D26), ran the 10-seed plan-mode sweep: the dominant ERROR was `water-clear`
+  (368/10seeds). Diagnosed (seed 1: 37/507 hubs heart-in-lake) that EVERY violation was a stage at
+  an in-lake heart — never a peripheral cluster (the slotter already dodges water). Stage deck +
+  dancefloor are both heart-anchored, so a wet center drowns both. Fix: `_festivalSuppressed(heart)`
+  → a hub centered in a lake emits no festival (the lake stands where it would). Pure (heart,seed),
+  consumes no rng (non-suppressed hubs byte-identical); gated on `lakeAt` (frozen queryPoint golden)
+  so only the POI golden moves `c1920e52 → 449f07e1`, queryPoint frozen `eddf8e50`. Audited empty-plan
+  safety in all consumers (main.js arrival `&& stage` guard; `dancefloorRectsNear` now filters
+  suppressed hubs so the tree scatter can't carve a phantom clearing over water; chunks build loop;
+  classifySeamsNear already `continue`s on a no-zone plan). **Also: spawn hub = nearest DRY major**
+  (`spawnHeart`, shared by planner + main.js via a new optional `accept` predicate on
+  `nearestMajorHeart` — keeps hearts.js water-agnostic, leaves selftest T6 untouched) so the game
+  never opens on a stage in water (seed 1001's spawn major was wet). Result: water-clear 368→1 over
+  10 seeds; total ERRORs 375→8. Residual 1 = dancefloor-mouth-on-water (front-axis is load-bearing →
+  parked, ROADMAP). -> CHANGELOG 2026-06-15, ROADMAP burndown residuals, tasks 6.1.
 
 ## Assumptions
 
@@ -542,3 +559,17 @@ cold stall ~13s→~1–2s, lint >40s→~10s/seed. The selftest's one failure (`r
 grid; my cache keys window=1 and window=R separately and returns identical values, proven by the
 frozen golden) — not a regression. -> D26, CHANGELOG 2026-06-15, PERF-FEEL-NOTES.md.
 **Refs:** roads.js (`_arterialsNearCache`), src/worldgen/selftest.js (T5), bin/lint.
+
+### 2026-06-15 -- Group 6 water burndown: no festival in a lake + dry spawn (368→1)
+**Event:** discovery + decision
+**What:** First burndown sweep with the fast tooling. `water-clear` (368/10seeds) dominated and was
+100% stages at in-lake hearts (seed-1 diagnostic: 37/507 wet hearts, all 23 violations at heart
+center, kinds tent/side/main_stage, 0 peripheral). Suppressed festivals at lake-centered hearts
+(`_festivalSuppressed`) + moved spawn to the nearest DRY major (`spawnHeart`). Both gate on `lakeAt`
+(frozen in the queryPoint golden) so only POI golden moved (`c1920e52 → 449f07e1`); queryPoint frozen.
+Consumer empty-plan audit done; smoke-tested dancefloorRectsNear/drumClearings/classifySeamsNear over
+a lake-heavy region (no throw). water-clear 368→1, total ERRORs 375→8. Residual: 1 dancefloor-mouth-
+on-water (front-axis water-awareness = golden-moving, parked), drum-in-trees ×5 + spawn-arrival ×2
+(undiagnosed, parked). -> D27, CHANGELOG, ROADMAP, tasks 6.1.
+**Refs:** festival.js (`_festivalSuppressed`/`spawnHeart`), hearts.js (`accept` param), main.js (spawn),
+selftest.js (POI golden 449f07e1).

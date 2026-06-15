@@ -146,6 +146,18 @@ below (Gary: lean now, full scope eventually).
   rather than gapping — a bigger builder change, and the planner could prefer seating rows
   where the road is locally straight (golden-moving).
 
+- **Burndown residuals after the water-clear pass *(2026-06-15)*.** The 10-seed plan-mode
+  lint sweep is down to **8 ERROR findings** (from 375) after the `nearestRoad` cache + the
+  no-festival-in-a-lake fix (CHANGELOG). The remainder, parked:
+  - **`water-clear` ×1 — dancefloor *mouth* opens onto water.** A dry-centered hub whose
+    stage front axis (`computeFrontAxis`, the widest-dry-gap-between-roads bisector) happens
+    to point its dancefloor clearing into a neighbouring lake. The cheap heart-center gate
+    can't catch it. A fix means making the front-axis selection water-aware (reject a bin
+    whose mouth lands in a lake) — the axis is load-bearing (stage yaw + dancefloor + POI
+    golden), so it's golden-moving and higher-risk; left for a focused pass.
+  - **`drum-in-trees` ×5 / `spawn-arrival` ×2.** Separate from water; not yet diagnosed.
+    Next burndown targets once the front-axis work is scheduled.
+
 ### Festival realism research — validation + new ideas *(2026-06-14)*
 
 Two independent deep-research passes (ChatGPT + Gemini, drawing on real festival

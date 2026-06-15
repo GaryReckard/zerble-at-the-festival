@@ -144,7 +144,7 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // FESTIVAL LAYOUT GRAMMAR rewrite (D3, deliberation 003) — HEART_CELL 200 /
     // noneBelow 0.05, seed 1234:
     //   queryPoint golden  node eddf8e50  /  browser eddf8e50 (recorded 2026-06-10, H.2)
-    //   POI golden         c1920e52 (recent node V8 ≥ v24 == Chromium class; GROUP 4B)
+    //   POI golden         449f07e1 (recent node V8 ≥ v24 == Chromium class; GROUP 4B)
     // ^ GROUP 4 (festival-zone-grammar, 2026-06-14) moved the POI golden in TWO steps,
     //   then GROUP 4B (2026-06-15) once more — all flag-off on an unmerged branch (D6):
     //     4825fd0b → a0edfaea  the slotting commit (a338ed2): single-pass oriented-zone
@@ -160,6 +160,16 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     //                          vendor row); neighbourCourtHere + stageDeckClips band-aids
     //                          removed. INTEGER-only (isqrt gate) so no NEW node/browser fork
     //                          class; queryPoint frozen (no road/water change — D5/N6).
+    //     c1920e52 → 449f07e1  no-festival-in-a-lake (Group 6 water-clear burndown,
+    //                          2026-06-15): a hub whose heart center is in a lake emits
+    //                          NO festival (_festivalSuppressed — stage deck + dancefloor
+    //                          are both heart-anchored, so a wet center drowned both), and
+    //                          the SPAWN hub is now the nearest *dry* major (spawnHeart) so
+    //                          the game never opens on a stage in water. Gated on `lakeAt`,
+    //                          already part of the frozen queryPoint golden → integer/no new
+    //                          fork class; queryPoint frozen. water-clear errors 368→1 over a
+    //                          10-seed sweep (the 1 residual is a dancefloor-mouth-on-water,
+    //                          parked — a front-axis fix is higher-risk; ROADMAP).
     //   The POI fork is a V8-VERSION cosmetic class (the older-V8 value differs; the
     //   accepted treedDistrictSpot/front-axis transcendental class — file header).
     //   poiGoldenHash is returned for manual comparison, NOT a hard-fail result.
