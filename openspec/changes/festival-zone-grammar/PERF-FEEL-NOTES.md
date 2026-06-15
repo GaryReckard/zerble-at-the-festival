@@ -60,3 +60,14 @@
 - **Selftest cost:** the POI-golden selftest went 145s → ~340s because every one of ~855 box
   hearts now resolves seams (overlapping windows re-classify). Dev-diagnostic only (not game perf),
   but if it annoys, the region-level seam cache (c) would cut it. The golden capture is a rare op.
+
+- **⚠️ The seamed plan also BLOCKS the burndown tooling (escalated 2026-06-15).** `bin/lint` over a
+  single seed now exceeds 40s (was fast) because plan-mode lint walks every heart's seamed
+  `festivalPlan`. So **Group 6's 10-seed lint sweep is effectively blocked until the plan cost is
+  addressed** — the perf pass is no longer just a gameplay-polish item, it gates the change's own
+  verification + iteration loop (lint, selftest, map-sandbox self-test all slowed). RECOMMENDATION:
+  pull a TARGETED plan-cost fix forward (the region-level seam-response cache (c) so overlapping
+  per-heart windows don't re-classify, + a `nearestRoad`-per-heart cache to cut the base-plan ~215µs
+  hot spot) BEFORE the rest of the burndown/arrival iteration — otherwise every verify step is
+  multi-minute. This is the strongest argument that the "perf pass after everything" ordering should
+  become "cheap plan-cost fix next, full perf pass before flag flip."
