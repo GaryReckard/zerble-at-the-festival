@@ -229,7 +229,7 @@
 > N5 superset-diff vs band-aids on the 2 cited pins BEFORE removal; N6 suppression
 > hashed + node==browser-verified (the golden move); N7 stall mitigation bit-identical.
 
-- [ ] 4B.0 **Iteration surface — map-sandbox seam overlay (Slice 0, CG0).** Extend the
+- [x] 4B.0 **Iteration surface — map-sandbox seam overlay (Slice 0, CG0).** Extend the
       `map-sandbox.html` 2D overlay to render `classifySeamsNear` output (colour by
       `seam.type`, keeper/yielder annotated). `hub-sandbox.html` is single-hub
       (`buildHubPreview`) and structurally can't show a two-hub seam — the map-overlay is
@@ -237,6 +237,12 @@
       the seams-to-resolve, matching the hand-checked pins (seed 1139472710's two
       `merged_court` clashes); importmap guard (`bin/check-importmaps`) green if a new `wg`
       module is added. No golden impact; ships nothing player-visible.
+      *(done 2026-06-15 — new `seams` layer in map-sandbox.html: a line between the two
+      clipping fronts coloured by type (merge=orange, shared_street=yellow, soft_buffer=green,
+      yield=red) + an X on the yielder. `classifySeamsNear` already importable (festival in wg
+      array — no importmap change). Verified at seed 1139472710 cx640/cz190: seams render,
+      console clean. Visually confirms the soft_buffer-volume concern — lots of green X's
+      (-> PERF-FEEL-NOTES.md, 4B.3b feel call).)*
 - [x] 4B.1 **Integer hub-priority + seam-pair enumeration (pure, golden-FROZEN).**
       Add `getHubPriority(cx, cz, seed)` (integer bit-mix hash) and a deterministic
       `seamPairsNear(bounds)` that enumerates each heart + its in-reach neighbours

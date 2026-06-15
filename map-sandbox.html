@@ -87,6 +87,7 @@
     <label><input type="checkbox" id="ly-roles" /> role tiers</label>
     <label><input type="checkbox" id="ly-festival" checked /> festival (POIs — D2)</label>
     <label><input type="checkbox" id="ly-grammar" checked /> layout grammar (front-axis F — D3)</label>
+    <label><input type="checkbox" id="ly-seams" checked /> cross-hub seams (4B — merge/trim/yield/buffer)</label>
     <label><input type="checkbox" id="ly-extent" /> true extent (snapshot + envelopes)</label>
     <label><input type="checkbox" id="ly-grid" checked /> heart-cell grid</label>
     <div id="extent-status" style="font-size:10px;color:#7fae97;margin:2px 0 0;display:none;"></div>
@@ -105,7 +106,7 @@
 
 <script type="module">
 import { setSeed, getSeed, queryPoint, queryRegion } from './src/worldgen/index.js';
-import { festivalPlan, campVillagesNear, computeFrontAxis, dancefloorRect } from './src/worldgen/festival.js';
+import { festivalPlan, campVillagesNear, computeFrontAxis, dancefloorRect, classifySeamsNear } from './src/worldgen/festival.js';
 import { nearestMajorHeart } from './src/worldgen/hearts.js';
 import { approachRoadsOf } from './src/worldgen/roads.js';
 import { treeDensity } from './src/worldgen/density.js';
@@ -121,7 +122,7 @@ const ctx = cv.getContext('2d');
 // --- view state (world coords at screen center + pixels-per-meter zoom) ------
 const DEFAULTS = { cx: 0, cz: 0, zoom: 0.06 };   // zoomed out to read macro structure
 const view = { ...DEFAULTS };
-const layers = { hearts: true, roads: true, water: true, density: true, roles: false, festival: true, grammar: true, extent: false, grid: true };
+const layers = { hearts: true, roads: true, water: true, density: true, roles: false, festival: true, grammar: true, seams: true, extent: false, grid: true };
 let dirty = true;
 let lastInspect = null;
 
@@ -359,6 +360,26 @@ function draw() {
         ctx.setLineDash([]);
         ctx.fillStyle = '#9ed06a'; ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
       }
+    }
+  }
+
+  // cross-hub seams (4B — deliberation 002): classifySeamsNear draws a line between the
+  // two clipping fronts, coloured by seam TYPE, with an X on the YIELDER (the side that
+  // gives way). This is the two-hub view hub-sandbox can't show (it's single-hub). What
+  // you see is what 4B.3b will apply: merge=orange, shared_street(trim)=yellow,
+  // soft_buffer=green, yield=red. Capped to keep wide-zoom redraw cheap.
+  if (layers.seams && region.hearts.length <= 120) {
+    const SEAM_COLOR = { merged_court: '#ff7a3b', shared_street: '#ffd24a', soft_buffer: '#6ad08a', yield: '#ff4a4a' };
+    ctx.lineWidth = 1.5;
+    for (const s of classifySeamsNear(b.minX, b.minZ, b.maxX, b.maxZ)) {
+      ctx.strokeStyle = SEAM_COLOR[s.type] || '#ffffff';
+      const kx = w2sx(s.keeperZone.x), ky = w2sy(s.keeperZone.z);
+      const yx = w2sx(s.yielderZone.x), yy = w2sy(s.yielderZone.z);
+      ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(yx, yy); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(yx - 4, yy - 4); ctx.lineTo(yx + 4, yy + 4);
+      ctx.moveTo(yx + 4, yy - 4); ctx.lineTo(yx - 4, yy + 4);
+      ctx.stroke();   // X marks the yielder
     }
   }
 
