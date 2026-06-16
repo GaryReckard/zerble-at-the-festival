@@ -144,7 +144,7 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // FESTIVAL LAYOUT GRAMMAR rewrite (D3, deliberation 003) — HEART_CELL 200 /
     // noneBelow 0.05, seed 1234:
     //   queryPoint golden  node eddf8e50  /  browser eddf8e50 (recorded 2026-06-10, H.2)
-    //   POI golden         5da2d515 (recent node V8 ≥ v24 == Chromium class; GROUP 4B+)
+    //   POI golden         480291ba (recent node V8 ≥ v24 == Chromium class; GROUP 4B+)
     // ^ GROUP 4 (festival-zone-grammar, 2026-06-14) moved the POI golden in TWO steps,
     //   then GROUP 4B (2026-06-15) once more — all flag-off on an unmerged branch (D6):
     //     4825fd0b → a0edfaea  the slotting commit (a338ed2): single-pass oriented-zone
@@ -205,6 +205,14 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     //                          dead-rear / ~37% side / ~10% front-edge (was ~uniform over the
     //                          non-front arc). Same one angle-draw → same variable-draw class;
     //                          queryPoint frozen.
+    //     5da2d515 → 480291ba  welfare bundle (2026-06-16): the bubble vendor IS the hub's
+    //                          water/refill amenity, so it now co-locates with the STAGE's
+    //                          porta-bank (a deterministic fan tucks it on the plaza-facing
+    //                          side, clear + dry) to read as one welfare station by the busy
+    //                          core, rather than a prop on a quiet road. ~95% of hubs land the
+    //                          bubble < 12 m from a potty (avg ~9.6 m); the ~5% fallback to the
+    //                          old road-walk are hubs whose stage had no potty. Bubble positions
+    //                          shift → POI golden moves; queryPoint frozen.
     //   The POI fork is a V8-VERSION cosmetic class (the older-V8 value differs; the
     //   accepted treedDistrictSpot/front-axis transcendental class — file header).
     //   poiGoldenHash is returned for manual comparison, NOT a hard-fail result.

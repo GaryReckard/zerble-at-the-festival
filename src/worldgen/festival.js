@@ -912,6 +912,7 @@ function _computePlan(heart) {
   //    can't clip the parent or a sibling); a stage sits at the hub center, so its outward
   //    dir is degenerate and the fan finds a clear side/behind. Parents omitted in steps
   //    1–3 aren't in pottyParents → their potty drops with them (transactional).
+  let stageWelfareSpot = null;   // the stage's potty bank — the bubble amenity joins it (step 7)
   for (const par of pottyParents) {
     const reach = par.r + T.POTTY_GAP;
     const base = Math.atan2(par.z - heart.z, par.x - heart.x);   // hub-outward (0 for the centered stage)
@@ -922,6 +923,7 @@ function _computePlan(heart) {
       const ps = [{ t: 'circle', x: spot.x, z: spot.z, r: T.KIND_FOOTPRINT.porta_bank || 3 }];
       if (placed.some((pl) => clustersOverlap(ps, pl.s, 1))) continue;   // don't clip the parent or a sibling
       out.push(desc('porta_bank', spot.x, spot.z, par.yaw, 'core', heart.rank, false, clusterSeed(heart, par.idx)));
+      if (par.idx === IDX.pottyStage) stageWelfareSpot = { x: spot.x, z: spot.z };
       break;
     }
   }
@@ -962,12 +964,28 @@ function _computePlan(heart) {
     }
   }
 
-  // 7. BUBBLE VENDOR — one GUARANTEED refuel per hub. Refuel is a core verb, so this
-  //    stays guaranteed rather than D14's probabilistic (D15). Off a quieter road if
-  //    that spot is clear, else scattered near center; nudged clear of water/road.
+  // 7. BUBBLE VENDOR — one GUARANTEED refuel per hub (refuel is a core verb, so it
+  //    stays guaranteed, D15). Welfare-bundle reframe (Gary 2026-06-16): the bubble
+  //    vendor IS the hub's water/refill AMENITY, so it co-locates with the stage's
+  //    porta-bank to read as one welfare station by the busy core — not a prop on a
+  //    quiet road. A deterministic fan tucks it beside that potty on the plaza-facing
+  //    side, clear of placed zones + dry. Falls back to the old road-walk / center
+  //    scatter when the stage had no potty (rare), so the guaranteed refuel persists.
   {
     let spot = null, yaw = rng() * Math.PI * 2;
-    if (roads.length) {
+    if (stageWelfareSpot) {
+      const gap = (T.KIND_FOOTPRINT.porta_bank || 3) + (T.KIND_FOOTPRINT.bubble_vendor || 3) + 1.5;
+      const toward = Math.atan2(heart.z - stageWelfareSpot.z, heart.x - stageWelfareSpot.x);   // toward the plaza
+      for (let k = 0; k < 6 && !spot; k++) {
+        const ang = toward + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * (Math.PI / 3);
+        const cx = stageWelfareSpot.x + Math.cos(ang) * gap, cz = stageWelfareSpot.z + Math.sin(ang) * gap;
+        if (queryPoint(cx, cz).noBuild) continue;
+        if (placed.some((pl) => clustersOverlap(clusterShapes('bubble_vendor', 1, cx, cz, 0), pl.s, 1))) continue;
+        spot = { x: quantize(cx), z: quantize(cz) };
+        yaw = roadFacingYaw(queryPoint(cx, cz).facing, rng);
+      }
+    }
+    if (!spot && roads.length) {
       const rd = roads[roads.length - 1];
       const p = walkOriented(rd.oriented, Math.min(MAX_POI_REACH, (major ? T.BUBBLE_WALK_MAJOR : T.BUBBLE_WALK_MINOR) + rng() * T.BUBBLE_WALK_SPAN));
       const side = rng() < 0.5 ? 1 : -1;
