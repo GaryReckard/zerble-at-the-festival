@@ -621,6 +621,17 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
     const campCount = 4 + Math.floor(rng() * 6);
     const usedAngles = [];
     const camps = [];
+    // Worldgen arterials threading past the lake — fetched ONCE for the whole ring
+    // (camps AND trees). The tree loop below already dodges roads; the CAMPS never
+    // did, so a lakeside camp could sit on a road threading past the shore (Gary
+    // 2026-06-16, seed 1234: lakeside campsite on a road). v2 only — v1 has no arterials.
+    let ringRoads = null;
+    if (USE_WORLDGEN_V2) {
+      let maxShoreAll = 0;
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) maxShoreAll = Math.max(maxShoreAll, outlineRAt(decoOutline, a));
+      const reach = maxShoreAll + 40;
+      ringRoads = roadsInBounds(cx - reach, cz - reach, cx + reach, cz + reach);
+    }
     for (let i = 0; i < campCount; i++) {
       let theta = null;
       for (let attempt = 0; attempt < 10; attempt++) {
@@ -647,6 +658,10 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       const r = maxShoreNearby + 6 + camp.footprint;
       const camX = cx + Math.cos(theta) * r;
       const camZ = cz + Math.sin(theta) * r;
+      // Footprint-aware road skip: keep the whole camp body off the ribbon. The
+      // angle is still consumed, so a road just thins the ring there. (lake rng
+      // stream unaffected — only the group.add/registry below are skipped.)
+      if (ringRoads && nearAnyRoad(camX, camZ, ringRoads, RING_ROAD_HALF + camp.footprint)) continue;
       camp.group.position.set(camX, 0, camZ);
       camp.group.rotation.y = Math.atan2(cz - camZ, cx - camX);  // face the lake
       group.add(camp.group);
@@ -667,17 +682,8 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
     // so density visibly increases with distance. Candidates within camp
     // footprint + 2.5m are rejected so camps stay clear.
     const TREE_TARGET = 90 + Math.floor(rng() * 50);
-    // Worldgen arterials threading past the lake — fetched ONCE for the ring's
-    // bounding box so lakeside trees don't land on a road (Gary 2026-06-14: trees
-    // in the middle of a road, beside a lake). v2 only (legacy has no arterials);
-    // bounded fetch + cheap polyline test, not a per-candidate nearestRoad.
-    let ringRoads = null;
-    if (USE_WORLDGEN_V2) {
-      let maxShore = 0;
-      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) maxShore = Math.max(maxShore, outlineRAt(decoOutline, a));
-      const reach = maxShore + 40;   // ring extends to shore + (14..39); +margin
-      ringRoads = roadsInBounds(cx - reach, cz - reach, cx + reach, cz + reach);
-    }
+    // ringRoads (worldgen arterials past the lake) computed once above — shared by
+    // the camp loop and this tree loop (Gary 2026-06-14: lakeside trees on a road).
     let placed = 0;
     let attempts = 0;
     while (placed < TREE_TARGET && attempts < TREE_TARGET * 4) {

@@ -1340,13 +1340,14 @@ function buildEntranceArchAt(ctx, x, z, yaw) {
 
 // A single refuel bubble vendor (buildBubbleVendor returns a bare Group). `yaw`
 // faces the road. Refuel is the core verb, so festival.js guarantees one per heart.
-// True if a bubble vendor is already registered within `r` of (x,z). Build-time
-// proximity check (chunk-gen, not per-frame) used to stop a food court adding a
-// second booth on top of the hub's guaranteed one.
-function bubbleVendorNear(x, z, r) {
+// True if an entity of `kind` is already registered within `r` of (x,z).
+// Build-time proximity check (chunk-gen, not per-frame). The "exclusionary
+// principle" for SUPPORT entities (Gary 2026-06-16): if a parent already has a
+// bubble vendor / porta-bank nearby, don't spawn a second one on top of it.
+function kindNear(kind, x, z, r) {
   const r2 = r * r;
   for (const e of registry.entries.values()) {
-    if (e.kind !== 'bubble_vendor') continue;
+    if (e.kind !== kind) continue;
     const dx = e.position.x - x, dz = e.position.z - z;
     if (dx * dx + dz * dz < r2) return true;
   }
@@ -1354,6 +1355,10 @@ function bubbleVendorNear(x, z, r) {
 }
 
 function buildBubbleVendorAt(ctx, x, z, yaw) {
+  // Exclusionary principle: one bubble vendor per neighbourhood. Skip if another
+  // is already within 30 m — covers a food court doubling up on the hub's
+  // guaranteed booth AND two adjacent hubs each placing one near the seam.
+  if (kindNear('bubble_vendor', x, z, 30)) return;
   const vendor = buildBubbleVendor(ctx.rng);
   vendor.position.set(x, 0, z);
   vendor.rotation.y = yaw;
@@ -1374,6 +1379,11 @@ function buildBubbleVendorAt(ctx, x, z, yaw) {
 // the road (the worldgen `yaw`). Skips if the row can't fit clear of buildings/water.
 function buildPottyBankAt(ctx, x, z, yaw) {
   const count = 1 + (ctx.rng() < 0.4 ? 1 : 0);
+  // Exclusionary principle: in a dense hub, neighbouring clusters (stage, food
+  // court, vendor row) each request a porta-bank and they pile into a 2-2-1 clump
+  // (Gary 2026-06-16). Skip this bank if potties already sit within 20 m — the
+  // existing bank serves this cluster too.
+  if (kindNear('porta_potty', x, z, 20)) return;
   if (!pottyRowClear(x, z, yaw, count)) return;
   buildPottyBank(ctx, ctx.rng, x, z, yaw, count);
 }
@@ -1424,7 +1434,9 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       // the aisle) — "vendors camp behind their stalls."
       if (ctx.rng() < T.VENDOR_CAMPER_PROB) {
         const cw = place(side * (rowOffset + T.VENDOR_CAMPER_BACK_OFFSET), t * spacing + (ctx.rng() - 0.5) * 2);
-        if (!isPointInLake(cw.x, cw.z)) {
+        // The row straddles the road and bends across it; the booths already skip
+        // on-road slots (above) but the camper behind them never did (Gary 06-16).
+        if (!isPointInLake(cw.x, cw.z) && nearestRoad(cw.x, cw.z).dist >= ROAD_RIBBON_WIDTH / 2 + 1) {
           const camp = buildCampTent(ctx.rng).group;   // buildCampTent returns { group, color, footprint }, not a bare Group (R2)
           camp.position.set(cw.x, 0, cw.z);
           camp.rotation.y = yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI + (ctx.rng() - 0.5) * 0.5;
@@ -1511,8 +1523,8 @@ function buildFoodCourtAt(ctx, x, z) {
   if (ctx.rng() < T.FOOD_COURT_BUBBLE_PROB) {
     const ang = ctx.rng() * Math.PI * 2, vr = ring + T.FOOD_COURT_BUBBLE_RING_PAD;
     const vx = x + Math.cos(ang) * vr, vz = z + Math.sin(ang) * vr;
-    if (!isPointInLake(vx, vz) && !overlaps(vx, vz, 2.4) && !bubbleVendorNear(vx, vz, 22)) {
-      buildBubbleVendorAt(ctx, vx, vz, Math.atan2(x - vx, z - vz));
+    if (!isPointInLake(vx, vz) && !overlaps(vx, vz, 2.4)) {
+      buildBubbleVendorAt(ctx, vx, vz, Math.atan2(x - vx, z - vz));   // dedups internally (kindNear)
     }
   }
   // C2 / A7: picnic tables in the open center plaza (inside the truck ring), so the
@@ -1577,7 +1589,7 @@ function buildCampVillageAt(ctx, x, z, tentTarget) {
     attempts++;
     const px = x + (ctx.rng() - 0.5) * 2 * RADIUS, pz = z + (ctx.rng() - 0.5) * 2 * RADIUS;
     if (isPointInLake(px, pz)) continue;
-    if (queryPoint(px, pz).onRoad) continue;   // camps beside roads, never ON them (Gary 2026-06-14)
+    if (nearestRoad(px, pz).dist < ROAD_RIBBON_WIDTH / 2 + 4) continue;   // footprint-aware: camps beside roads, never ON them (Gary 2026-06-14, strengthened 06-16 — onRoad corridor had an edge case)
     if (registry.closestBuilding(new THREE.Vector3(px, 0, pz), T.CAMP_GUARD_RADIUS, CLUSTER_GUARD_SKIP)) continue;
     let tooClose = false;
     for (const p of placed) { const dx = p.x - px, dz = p.z - pz; if (dx * dx + dz * dz < MIN_SPACING * MIN_SPACING) { tooClose = true; break; } }
@@ -2002,7 +2014,10 @@ function scatterWorldgenCampsites(ctx, qpc) {
   for (let i = 0; i < n; i++) {
     const r = 4 + ctx.rng() * 5, a = ctx.rng() * Math.PI * 2;
     const x = ccx + Math.cos(a) * r, z = ccz + Math.sin(a) * r;
-    if (queryPoint(x, z).noBuild) continue;
+    // queryPoint.noBuild covers water/river; the authoritative nearestRoad check
+    // (footprint-aware) keeps the tent body off the visible road ribbon — the thin
+    // onRoad corridor test has an edge case that let tents onto roads (Gary 06-16).
+    if (queryPoint(x, z).noBuild || nearestRoad(x, z).dist < ROAD_RIBBON_WIDTH / 2 + 4) continue;
     if (placed.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < 36)) continue;   // 6m between tents
     if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 3)) continue;
     const sr = ctx.rng();
