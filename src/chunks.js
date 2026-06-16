@@ -23,7 +23,7 @@ import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps } from './worldgen/placement.js';
 import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
-import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, MAX_POI_REACH } from './worldgen/festival.js';
+import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, seamHedgesNear, MAX_POI_REACH } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
 import { roadsInBounds, nearestRoad } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
@@ -484,6 +484,7 @@ export class ChunkManager {
     // the crowd so it shares v1's crowd-then-jugs ctx.rng ordering.
     scatterBubbleJugs(ctx, qpc.inLake);
     scatterWorldgenCampsites(ctx, qpc);
+    placeSeamHedges(ctx);
   }
 
   // Drop any guaranteed near-spawn jug whose seeded target lands in this chunk.
@@ -2074,6 +2075,37 @@ function scatterWorldgenCampsites(ctx, qpc) {
     const size = sr < 0.5 ? 'small' : (sr < 0.85 ? 'medium' : 'large');
     placeSingleCampsite(ctx, x, z, size);
     placed.push({ x, z });
+  }
+}
+
+// 4B.7 soft-buffer dressing: a sparse hedge of shrubs along each soft_buffer seam
+// crossing this chunk (where a loud cluster abuts a quieter one). Each shrub is
+// placed by the chunk that CONTAINS its position (ownership by-position → no
+// double-placement) and seeded per-position off the seam hash, so the hedge is
+// identical regardless of which chunk renders which part. Visual-only (soft bushes,
+// no collider/registry), off roads/water. A loose line — a soft hint of separation,
+// not a wall — and these are 1-draw pooled shrubs.
+function placeSeamHedges(ctx) {
+  const half = CHUNK_SIZE / 2;
+  const minX = ctx.cxWorld - half, minZ = ctx.czWorld - half;
+  const maxX = ctx.cxWorld + half, maxZ = ctx.czWorld + half;
+  const hedges = seamHedgesNear(minX, minZ, maxX, maxZ);
+  if (!hedges.length) return;
+  const SPAN = 13, N = 6;                       // ~6 shrubs across a 13 m seam line
+  for (const h of hedges) {
+    for (let i = 0; i <= N; i++) {
+      const sr = mulberry32(((h.seamHash ^ (i * 0x9E3779B1)) >>> 0) || 1);
+      if (sr() < 0.3) { continue; }             // ~30% gaps → a loose hint, not a wall
+      const t = (i / N - 0.5) * SPAN;
+      const x = h.x + h.dirx * t + (sr() - 0.5) * 1.0;
+      const z = h.z + h.dirz * t + (sr() - 0.5) * 1.0;
+      if (x < minX || x >= maxX || z < minZ || z >= maxZ) continue;   // ownership: this chunk only
+      if (isPointInLake(x, z)) continue;
+      if (nearestRoad(x, z).dist < ROAD_RIBBON_WIDTH / 2 + 0.5) continue;
+      const shrub = buildShrub(sr);
+      shrub.position.set(x, 0, z);
+      ctx.group.add(shrub);
+    }
   }
 }
 

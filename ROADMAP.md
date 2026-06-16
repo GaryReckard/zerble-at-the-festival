@@ -157,7 +157,9 @@ below (Gary: lean now, full scope eventually).
   `bubble_vendor × food_court` overlap WARN was settled by dumping the built registry — every
   bubble sits ≥ ~9 m clear of the nearest truck, confirming the filled-circle-vs-ring artifact;
   `bubble_vendor` is now excluded from the plan-mode overlap warn. Still browser/feel-gated for a
-  future pass: **4B.7** soft_buffer geometry + the stage↔camp substrate (visual + per-tier perf
+  future pass: ~~**4B.7** soft_buffer geometry~~ *(landed 2026-06-16 — soft_buffer seams now
+  dress with a shrub hedge along the seam line via `seamHedgesNear` → `placeSeamHedges`;
+  dress-not-delete, golden-neutral)*, the stage↔camp substrate (visual + per-tier perf
   budget), arch *style* variation, and Gary's 7.3 playtest gut-check (arrival density
   `ARCH_MAJOR_PCT`, the dry-spawn relocation distance).
 ### Festival realism research — validation + new ideas *(2026-06-14)*

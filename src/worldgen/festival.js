@@ -355,6 +355,27 @@ function nearestZoneToward(plan, other) {
   return best;
 }
 
+// Soft-buffer seam HEDGES (4B.7 — "dress, don't delete"). Where a loud cluster (a
+// stage) abuts a quieter neighbour, the seam was classified `soft_buffer` but the
+// response was informational only (suppressing all would gut the dense festival).
+// Instead, dress it: a short hedge line of shrubs at the midpoint between the two
+// abutting zones, perpendicular to the line between them, so they read as separate
+// places. Pure read (classifySeamsNear is golden-emitting-nothing); the chunk builder
+// places each shrub whose position lands in its own chunk (ownership by-position, no
+// double-placement), seeded per-position off `seamHash` so it's render-order-independent.
+export function seamHedgesNear(minX, minZ, maxX, maxZ) {
+  const out = [];
+  for (const seam of classifySeamsNear(minX, minZ, maxX, maxZ)) {
+    if (seam.type !== 'soft_buffer') continue;
+    const ax = seam.keeperZone.x, az = seam.keeperZone.z;
+    const bx = seam.yielderZone.x, bz = seam.yielderZone.z;
+    let dx = bx - ax, dz = bz - az;
+    const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+    out.push({ x: (ax + bx) / 2, z: (az + bz) / 2, dirx: -dz, dirz: dx, seamHash: seam.seamHash >>> 0 });
+  }
+  return out;
+}
+
 // Context-grammar seam TYPE from the two meeting categories (D20). food+food merges to
 // one court; commerce+commerce fuses to a shared street; two loud fronts (drum vs stage)
 // → the lower-priority one yields; loud meeting anything quieter → a soft buffer; other
@@ -441,10 +462,12 @@ function _seamResponse(s, spacing, maxBooths) {
     return drum ? { ...base, action: 'suppress', targetSeed: drum.clusterSeed, targetKind: 'drum_circle', targetCell: cellOf(drum) } : base;
   }
   if (type === 'soft_buffer') {
-    // DEFERRED to 4B.7 (dress-not-delete): record the target for the buffer dressing but
-    // do NOT suppress — at 200 m density soft_buffer fires ~40×/window and deleting all
-    // would gut the festival (PERF-FEEL-NOTES). action 'buffer' is informational only;
-    // _suppressSetForHeart ignores it.
+    // DRESS-NOT-DELETE (4B.7, landed 2026-06-16): we do NOT suppress — at 200 m density
+    // soft_buffer fires ~40×/window and deleting all would gut the festival
+    // (PERF-FEEL-NOTES). The dressing is a shrub hedge along the seam (`seamHedgesNear`
+    // → chunks.js `placeSeamHedges`), read off classifySeamsNear directly. This `action:
+    // 'buffer'` stays informational (the map overlay renders it); _suppressSetForHeart
+    // ignores it, so nothing is removed from the plan and the golden is unaffected.
     const q = (SEAM_RANK[SEAM_CATEGORY[K.kind]] ?? 0) <= (SEAM_RANK[SEAM_CATEGORY[Y.kind]] ?? 0) ? K : Y;
     return { ...base, action: 'buffer', targetSeed: q.clusterSeed, targetKind: q.kind, targetCell: cellOf(q) };
   }
