@@ -144,7 +144,7 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // FESTIVAL LAYOUT GRAMMAR rewrite (D3, deliberation 003) — HEART_CELL 200 /
     // noneBelow 0.05, seed 1234:
     //   queryPoint golden  node eddf8e50  /  browser eddf8e50 (recorded 2026-06-10, H.2)
-    //   POI golden         736f05b4 (recent node V8 ≥ v24 == Chromium class; GROUP 4B+)
+    //   POI golden         5da2d515 (recent node V8 ≥ v24 == Chromium class; GROUP 4B+)
     // ^ GROUP 4 (festival-zone-grammar, 2026-06-14) moved the POI golden in TWO steps,
     //   then GROUP 4B (2026-06-15) once more — all flag-off on an unmerged branch (D6):
     //     4825fd0b → a0edfaea  the slotting commit (a338ed2): single-pass oriented-zone
@@ -196,6 +196,15 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     //                          corner-in-water (wet≥3); residual = genuinely lake-hemmed hubs
     //                          (least-wet, same parked class as the dancefloor-mouth case).
     //                          queryPoint frozen (no road/water-existence change — D5).
+    //     736f05b4 → 5da2d515  "quiet behind, loud in front" (2026-06-16): the drum circle —
+    //                          the hub's quiet destination — now biases to the REAR hemisphere
+    //                          (behind the stage, away from the dancefloor) instead of anywhere
+    //                          but the front wedge. treedDistrictSpot maps its angle onto an arc
+    //                          centered on the rear bearing (F+π), out of the front wedge by
+    //                          construction, skewed toward rear (|u|^2.2). ~52% of drums now sit
+    //                          dead-rear / ~37% side / ~10% front-edge (was ~uniform over the
+    //                          non-front arc). Same one angle-draw → same variable-draw class;
+    //                          queryPoint frozen.
     //   The POI fork is a V8-VERSION cosmetic class (the older-V8 value differs; the
     //   accepted treedDistrictSpot/front-axis transcendental class — file header).
     //   poiGoldenHash is returned for manual comparison, NOT a hard-fail result.

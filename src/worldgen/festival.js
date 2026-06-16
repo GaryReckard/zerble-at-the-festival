@@ -596,12 +596,25 @@ function treedDistrictSpot(heart, rng, avoidBearing, reject) {
   const r0 = heart.core + T.DRUM_CORE_PAD;
   const r1 = Math.min(heart.core + T.DRUM_BAND, heart.district * T.DRUM_DISTRICT_FRAC);
   const FRONT_HALF = T.DRUM_FRONT_HALF;         // ~40° wedge around +F kept clear (the dancefloor)
+  // "Quiet behind, loud in front" (Gary 2026-06-16): the drum is the hub's quiet
+  // destination, so bias it to the REAR hemisphere — behind the stage, away from
+  // the dancefloor — instead of anywhere-but-the-front-wedge. With avoidBearing
+  // (= +F), map the raw angle onto an arc centered on the rear bearing (F+π),
+  // spanning ±(π−FRONT_HALF) so it's out of the front wedge BY CONSTRUCTION, and
+  // skew it toward the rear (|u|^1.6) so most drums tuck directly behind. Same one
+  // rng draw for the angle → same variable-draw class as before (file header);
+  // the drum's positions shift, so the POI golden moves deliberately.
+  const rear = avoidBearing != null ? avoidBearing + Math.PI : null;
   let chosen = null;
   for (let attempt = 0; attempt < 12; attempt++) {
-    const a = rng() * Math.PI * 2;
+    let a;
+    if (rear != null) {
+      const u = rng() * 2 - 1;                                   // [-1, 1)
+      a = rear + Math.sign(u) * Math.pow(Math.abs(u), 2.2) * (Math.PI - FRONT_HALF);
+    } else {
+      a = rng() * Math.PI * 2;
+    }
     const r = r0 + rng() * Math.max(0, r1 - r0);
-    // keep the drum out of the stage's dancefloor wedge (back/side of F, not in front)
-    if (avoidBearing != null && Math.abs(Math.atan2(Math.sin(a - avoidBearing), Math.cos(a - avoidBearing))) < FRONT_HALF) continue;
     const x = heart.x + Math.cos(a) * r, z = heart.z + Math.sin(a) * r;
     // Cheap tests only in the LOOP — `treeDensity` + `lakeAt`, NOT the heavy
     // `queryPoint` (whose nearestRoad ran 215µs/call × 12 attempts = the bulk of
