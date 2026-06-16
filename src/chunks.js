@@ -476,6 +476,13 @@ export class ChunkManager {
     const qpc = queryPoint(ctx.cxWorld, ctx.czWorld);
     const crowdCount = qpc.heartInfluence < 0.04 ? 0 : Math.round(1 + qpc.heartInfluence * 15);
     spawnAmbientCrowd(ctx, crowdCount);
+    // Rare floating bubble-juice jug pickup (~1 in 9 chunks). The v1 scatter only
+    // ran in the legacy else-branch, so worldgen=1 had jugs ONLY at the spawn ring
+    // (Gary 2026-06-16: "not seeing any jugs of bubble juice anywhere"). Gated on
+    // the chunk-center lake test (queryPoint already computed it), and placed after
+    // the crowd so it shares v1's crowd-then-jugs ctx.rng ordering.
+    scatterBubbleJugs(ctx, qpc.inLake);
+    scatterWorldgenCampsites(ctx, qpc);
   }
 
   // Drop any guaranteed near-spawn jug whose seeded target lands in this chunk.
@@ -1333,6 +1340,19 @@ function buildEntranceArchAt(ctx, x, z, yaw) {
 
 // A single refuel bubble vendor (buildBubbleVendor returns a bare Group). `yaw`
 // faces the road. Refuel is the core verb, so festival.js guarantees one per heart.
+// True if a bubble vendor is already registered within `r` of (x,z). Build-time
+// proximity check (chunk-gen, not per-frame) used to stop a food court adding a
+// second booth on top of the hub's guaranteed one.
+function bubbleVendorNear(x, z, r) {
+  const r2 = r * r;
+  for (const e of registry.entries.values()) {
+    if (e.kind !== 'bubble_vendor') continue;
+    const dx = e.position.x - x, dz = e.position.z - z;
+    if (dx * dx + dz * dz < r2) return true;
+  }
+  return false;
+}
+
 function buildBubbleVendorAt(ctx, x, z, yaw) {
   const vendor = buildBubbleVendor(ctx.rng);
   vendor.position.set(x, 0, z);
@@ -1483,11 +1503,15 @@ function buildFoodCourtAt(ctx, x, z) {
     });
     placed.push({ x: tx, z: tz, r: tr });
   }
-  // A bubble vendor at the court edge ~40% of the time (refuel near the food).
+  // A bubble vendor at the court edge ~40% of the time (refuel near the food) —
+  // but skip it if the hub's guaranteed bubble vendor (or a neighbour court's)
+  // is already nearby, so two identical booths don't end up cheek-to-cheek
+  // (Gary 2026-06-16: "TWO bubble booths, shouldnt find them so close"). The rng
+  // rolls below still happen regardless, so the chunk's draw stream is unchanged.
   if (ctx.rng() < T.FOOD_COURT_BUBBLE_PROB) {
     const ang = ctx.rng() * Math.PI * 2, vr = ring + T.FOOD_COURT_BUBBLE_RING_PAD;
     const vx = x + Math.cos(ang) * vr, vz = z + Math.sin(ang) * vr;
-    if (!isPointInLake(vx, vz) && !overlaps(vx, vz, 2.4)) {
+    if (!isPointInLake(vx, vz) && !overlaps(vx, vz, 2.4) && !bubbleVendorNear(vx, vz, 22)) {
       buildBubbleVendorAt(ctx, vx, vz, Math.atan2(x - vx, z - vz));
     }
   }
@@ -1944,6 +1968,47 @@ function scatterBubbleJugs(ctx, inWater) {
       juice: 1.0,            // a full meter — jugs stack past 1 (stockpile)
     });
     return;
+  }
+}
+
+// v2 outskirts campsite scatter. The worldgen path uses neither the 5x5 forest
+// system NOR the grove/lawn theme camp scatter (both v1-only), so v2's treed
+// outskirts had ZERO camping — the only campsites in v2 were the camp_village
+// POI clusters packed at hub cores (Gary 2026-06-16, twice: "MORE clusters of
+// campsites of all sizes in areas like this!", out in the deep outskirts).
+// Scatter mixed-size clumps in the low-influence ground AWAY from cores (which
+// already get a village). Uses ctx.rng (after the jug scatter) — deterministic
+// per chunk, and campsites/jugs aren't in any golden, so the layer is golden-safe.
+function scatterWorldgenCampsites(ctx, qpc) {
+  // Skip ONLY the immediate hub core (its camp_village + dense clusters fill it);
+  // the dense hub design keeps heartInfluence high (0.6-0.7) far out, and those
+  // mid-zone/outskirts areas are exactly where Gary wants camping, so the cap is
+  // generous. The building-proximity dodge below keeps clumps out of clusters.
+  if (qpc.inLake || qpc.heartInfluence > 0.85) return;
+  if (ctx.rng() > 0.28) return;                          // ~28% of outskirts chunks get a clump
+  // Pick a clump centre clear of water, roads, and existing structures.
+  let ccx = 0, ccz = 0, ok = false;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const x = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.6);
+    const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.6);
+    if (queryPoint(x, z).noBuild) continue;              // off water + river + road corridor
+    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 12)) continue;
+    ccx = x; ccz = z; ok = true; break;
+  }
+  if (!ok) return;
+  // A tight clump of 3-5 mixed-size sites ("a crew camped out in the woods").
+  const n = 3 + Math.floor(ctx.rng() * 3);
+  const placed = [];
+  for (let i = 0; i < n; i++) {
+    const r = 4 + ctx.rng() * 5, a = ctx.rng() * Math.PI * 2;
+    const x = ccx + Math.cos(a) * r, z = ccz + Math.sin(a) * r;
+    if (queryPoint(x, z).noBuild) continue;
+    if (placed.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < 36)) continue;   // 6m between tents
+    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 3)) continue;
+    const sr = ctx.rng();
+    const size = sr < 0.5 ? 'small' : (sr < 0.85 ? 'medium' : 'large');
+    placeSingleCampsite(ctx, x, z, size);
+    placed.push({ x, z });
   }
 }
 

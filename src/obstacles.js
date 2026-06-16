@@ -1442,11 +1442,18 @@ export class Frisbees {
 
   _recycle(p, zerblePos) {
     // Place the pair at a random nearby spot, oriented at a random angle,
-    // with each player FRISBEE_PLAYER_SEPARATION_MIN..MAX apart.
-    const ang = Math.random() * TAU;
-    const dist = FRISBEE_RECYCLE_MIN + Math.random() * (FRISBEE_RECYCLE_MAX - FRISBEE_RECYCLE_MIN);
-    const cx = zerblePos.x + Math.cos(ang) * dist;
-    const cz = zerblePos.z + Math.sin(ang) * dist;
+    // with each player FRISBEE_PLAYER_SEPARATION_MIN..MAX apart. Reject anchors
+    // on water — a pair playing catch in the middle of a lake looked broken
+    // (Gary 2026-06-16). Try a few angles; the band loop already does the same
+    // via pickLakeFreePosition, the frisbee recycle just never did.
+    let cx, cz;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const ang = Math.random() * TAU;
+      const dist = FRISBEE_RECYCLE_MIN + Math.random() * (FRISBEE_RECYCLE_MAX - FRISBEE_RECYCLE_MIN);
+      cx = zerblePos.x + Math.cos(ang) * dist;
+      cz = zerblePos.z + Math.sin(ang) * dist;
+      if (!isPointInLake(cx, cz)) break;
+    }
     p.anchor.set(cx, 0, cz);
     const sep = FRISBEE_PLAYER_SEPARATION_MIN +
       Math.random() * (FRISBEE_PLAYER_SEPARATION_MAX - FRISBEE_PLAYER_SEPARATION_MIN);
