@@ -13,7 +13,10 @@ import * as THREE from 'three';
 import { Sound } from './sound.js';
 import { Analytics } from './analytics.js';
 import { getForestAt } from './forests.js';
-import { PERF } from './perf.js';
+import { PERF, USE_WORLDGEN_V2 } from './perf.js';
+import { nearestMajorHeart, heartsInBounds } from './worldgen/hearts.js';
+import { festivalPlan, campVillagesNear, computeFrontAxis } from './worldgen/festival.js';
+import { FESTIVAL_TUNING } from './worldgen/tuning.js';
 import { getSessionSeed } from './rng.js';
 import { chunkGenStats } from './chunks.js';
 import {
@@ -178,8 +181,89 @@ function locateLandmark(kind) {
     return { x, z, heading };
   }
 
+  // ---- v2 worldgen locators ----
+  // festivalPlan / heartsInBounds / campVillagesNear are PURE per heart (no live
+  // chunks needed), so we locate festival POIs by scanning hearts in a box around
+  // the cart — the same hash-scan trick the forest locator uses for v1.
+  const STAGE_KINDS = new Set(['main_stage', 'tent_stage', 'side_stage']);
+  const TP_BOX = 1600;   // search half-width (m) around the cart
+
+  // Stand a sensible distance OUT from a POI, facing it. Stages drop in the
+  // dancefloor (the hub's front axis F) looking back at the deck; every other POI
+  // steps back toward the hub center (open plaza) and faces in. Heading convention
+  // matches forestEntrancePoint: forward = (sin h, -cos h) → h = atan2(toX, -toZ).
+  function poiDest(poi, heart, label) {
+    let x, z;
+    if (STAGE_KINDS.has(poi.kind)) {
+      const fa = computeFrontAxis(heart);
+      x = poi.x + Math.cos(fa.bearing) * 30;
+      z = poi.z + Math.sin(fa.bearing) * 30;
+    } else {
+      const fp = (FESTIVAL_TUNING.KIND_FOOTPRINT[poi.kind] || poi.footprint || 6) + 8;
+      let dx = heart.x - poi.x, dz = heart.z - poi.z;
+      const d = Math.hypot(dx, dz) || 1;
+      x = poi.x + (dx / d) * fp;
+      z = poi.z + (dz / d) * fp;
+    }
+    return { x, z, heading: Math.atan2(poi.x - x, z - poi.z), label };
+  }
+
+  function nearestFestivalPOI(kindSet) {
+    const hearts = heartsInBounds(zx - TP_BOX, zz - TP_BOX, zx + TP_BOX, zz + TP_BOX);
+    let best = null;
+    for (const h of hearts) {
+      for (const p of festivalPlan(h)) {
+        if (!kindSet.has(p.kind)) continue;
+        const d = Math.hypot(p.x - zx, p.z - zz);
+        if (!best || d < best.d) best = { poi: p, heart: h, d };
+      }
+    }
+    return best;
+  }
+
   switch (kind) {
+    // ── v2 festival landmarks ──
+    case 'hub': {
+      const heart = nearestMajorHeart(zx, zz);
+      if (!heart) return null;
+      const stage = festivalPlan(heart).find((p) => STAGE_KINDS.has(p.kind));
+      if (!stage) return null;
+      return poiDest(stage, heart, `major hub at (${heart.cx}, ${heart.cz})`);
+    }
+    case 'stage': {
+      const b = nearestFestivalPOI(STAGE_KINDS);
+      return b ? poiDest(b.poi, b.heart, `${b.poi.kind.replace('_', ' ')}`) : null;
+    }
     case 'drum_circle': {
+      const b = nearestFestivalPOI(new Set(['drum_circle']));
+      return b ? poiDest(b.poi, b.heart, 'festival drum circle') : null;
+    }
+    case 'food_court': {
+      const b = nearestFestivalPOI(new Set(['food_court']));
+      return b ? poiDest(b.poi, b.heart, 'food court') : null;
+    }
+    case 'arch': {
+      const b = nearestFestivalPOI(new Set(['arch']));
+      return b ? poiDest(b.poi, b.heart, 'entrance arch') : null;
+    }
+    case 'bubble': {
+      const b = nearestFestivalPOI(new Set(['bubble_vendor']));
+      return b ? poiDest(b.poi, b.heart, 'bubble vendor (refuel)') : null;
+    }
+    case 'camp_village': {
+      const villages = campVillagesNear({ minX: zx - TP_BOX, minZ: zz - TP_BOX, maxX: zx + TP_BOX, maxZ: zz + TP_BOX });
+      let best = null;
+      for (const v of villages) {
+        const d = Math.hypot(v.x - zx, v.z - zz);
+        if (!best || d < best.d) best = { v, d };
+      }
+      if (!best) return null;
+      const v = best.v;
+      const off = (v.footprint || 14) + 8;
+      return { x: v.x, z: v.z + off, heading: 0, label: `camp village (${v.tents} tents)` };
+    }
+    // ── v1 legacy landmarks ──
+    case 'drum_circle_forest': {
       const f = nearestForestCenter((f) => f.interiorContent === 'drum_circle');
       if (!f) return null;
       const p = forestEntrancePoint(f);
@@ -329,10 +413,12 @@ function buildPanel() {
     display: 'none',
   });
 
-  // Text readout (pre-formatted)
+  // ----- Stats readout (collapsible, pre-formatted) -----
+  const { wrapper: statsWrapper, content: statsContent } = makeSection('Stats', true);
   const text = document.createElement('div');
   text.style.whiteSpace = 'pre';
-  el.appendChild(text);
+  statsContent.appendChild(text);
+  el.appendChild(statsWrapper);
   state.textEl = text;
 
   // ----- Keybindings cheat sheet -----
@@ -347,6 +433,10 @@ function buildPanel() {
     <div><b>I</b> / <b>O</b> eye glow brighter / dimmer</div>
     <div><b>\`</b> toggle this debug panel</div>
     <div><b>T</b> toggle trip/psychedelic debug panel</div>
+    <div style="margin-top:5px;opacity:0.5">— while this panel is open —</div>
+    <div><b>P</b> pause · <b>.</b> step a frame (when paused)</div>
+    <div><b>C</b> show colliders · <b>G</b> god mode · <b>F</b> freeze NPCs</div>
+    <div><b>K</b> drop a playtest marker (works any time)</div>
   `;
   el.appendChild(helpWrapper);
 
@@ -372,16 +462,35 @@ function buildPanel() {
   // and Zerble drops at the nearest one. For forests with paths, we drop
   // him just outside the entrance so he can drive in.
   const { wrapper: tpWrapper, content: tpContent } = makeSection('Teleport', false);
+  // The destination set tracks the active world generator (USE_WORLDGEN_V2): the v2
+  // festival landmarks (hubs, stages, drum circles…) only exist under `?worldgen=1`,
+  // and the v1 forest landmarks only exist in the legacy world — showing the wrong
+  // set just lists dead options. Lake / Lurleen / Spawn are universal.
+  const TP_OPTIONS = USE_WORLDGEN_V2 ? [
+    ['hub',          'Festival hub (nearest major)'],
+    ['stage',        'Stage (nearest)'],
+    ['drum_circle',  'Drum circle'],
+    ['food_court',   'Food court'],
+    ['arch',         'Entrance arch'],
+    ['bubble',       'Bubble vendor (refuel)'],
+    ['camp_village', 'Camp village'],
+    ['lake',         'Lake'],
+    ['lurleen',      'Lurleen'],
+    ['spawn',        'Spawn'],
+  ] : [
+    ['drum_circle_forest', 'Drum circle (forest entrance)'],
+    ['campsite_forest',    'Campsite forest (entrance)'],
+    ['any_forest',         'Any forest (entrance)'],
+    ['lurleen',            'Lurleen'],
+    ['lake',               'Lake'],
+    ['campsite',           'Campsite (any)'],
+    ['spawn',              'Spawn'],
+  ];
+  const tpOptsHtml = TP_OPTIONS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   tpContent.innerHTML = `
     <div style="display:flex;gap:4px">
       <select id="dbg-tp-select" style="flex:1;font:inherit;background:#0e1c28;color:#dff;border:1px solid #2a4a5a;border-radius:3px;padding:2px 4px">
-        <option value="drum_circle">Drum circle (forest entrance)</option>
-        <option value="campsite_forest">Campsite forest (entrance)</option>
-        <option value="any_forest">Any forest (entrance)</option>
-        <option value="lurleen">Lurleen</option>
-        <option value="lake">Lake</option>
-        <option value="campsite">Campsite (any)</option>
-        <option value="spawn">Spawn</option>
+        ${tpOptsHtml}
       </select>
       <button id="dbg-tp-go" style="font:inherit;padding:2px 10px;background:rgba(255,224,102,0.20);color:#ffe066;border:1px solid rgba(255,224,102,0.45);border-radius:3px;cursor:pointer">Go</button>
     </div>
@@ -870,7 +979,6 @@ function updatePanel(dt) {
     : 'none yet';
 
   state.textEl.textContent =
-    `~ debug (P pause · . step · C colliders · G god · F freeze)\n` +
     `fps          ${fps}    ${state.paused ? '[PAUSED]' : ''}\n` +
     `frame        ${ftStr}\n` +
     `quality      ${getLevelName()}\n` +

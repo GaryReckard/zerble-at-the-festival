@@ -144,7 +144,7 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // FESTIVAL LAYOUT GRAMMAR rewrite (D3, deliberation 003) — HEART_CELL 200 /
     // noneBelow 0.05, seed 1234:
     //   queryPoint golden  node eddf8e50  /  browser eddf8e50 (recorded 2026-06-10, H.2)
-    //   POI golden         480291ba (recent node V8 ≥ v24 == Chromium class; GROUP 4B+)
+    //   POI golden         94a6a001 (recent node V8 ≥ v24 == Chromium class; GROUP 4B+)
     // ^ GROUP 4 (festival-zone-grammar, 2026-06-14) moved the POI golden in TWO steps,
     //   then GROUP 4B (2026-06-15) once more — all flag-off on an unmerged branch (D6):
     //     4825fd0b → a0edfaea  the slotting commit (a338ed2): single-pass oriented-zone
@@ -213,6 +213,21 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     //                          bubble < 12 m from a potty (avg ~9.6 m); the ~5% fallback to the
     //                          old road-walk are hubs whose stage had no potty. Bubble positions
     //                          shift → POI golden moves; queryPoint frozen.
+    //     480291ba → 94a6a001  drum road-clip fix (festival-zone-grammar, 2026-06-16, Gary's
+    //                          K-marker "drum circle spawning in a road, blocking the road"):
+    //                          the drum's final off-road nudge is now FOOTPRINT-AWARE —
+    //                          nudgeOffDrum keeps the drum's clearR keep-out disk (≈ footprint+2,
+    //                          matching drumClearingsNear) off the road CORRIDOR, not just its
+    //                          center (the center-only nudgeOff let a drum whose center cleared
+    //                          the road still spill its ring across it). The road is a polyline
+    //                          of half-width ROAD_WIDTH, so the test is EXACT: reject a center
+    //                          within ROAD_WIDTH + clearR + 1 of the nearest centerline (one
+    //                          nearestRoad call, no probe-resolution gap). HASH-seeded (rng-free),
+    //                          so only road/water-clipping drums move, and the hubs whose drum
+    //                          clipped no longer spend the old rng nudge draw → their potty/bubble
+    //                          shift too — the SAME golden-move class as the stage flood fix
+    //                          (736f05b4). Ring-clips-road 0 across 7 seeds (1718 drums), drum
+    //                          count unchanged. queryPoint frozen (eddf8e50; no road/water change).
     //   The POI fork is a V8-VERSION cosmetic class (the older-V8 value differs; the
     //   accepted treedDistrictSpot/front-axis transcendental class — file header).
     //   poiGoldenHash is returned for manual comparison, NOT a hard-fail result.

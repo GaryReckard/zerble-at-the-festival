@@ -45,7 +45,7 @@ import { CONFIG, SALT, worldgenEpoch } from './constants.js';
 import { FESTIVAL_TUNING, clusterShapes, clustersOverlap, clusterExtent } from './tuning.js';
 import { getSessionSeed } from '../rng.js';
 import { queryPoint } from './index.js';
-import { approachRoadsOf } from './roads.js';
+import { approachRoadsOf, nearestRoad } from './roads.js';
 import { heartsInBounds, nearestMajorHeart } from './hearts.js';
 import { lakeAt } from './water.js';
 import { treeDensity } from './density.js';
@@ -608,6 +608,36 @@ function nudgeOffStage(x, z, footR, heart) {
   return best || { x, z };
 }
 
+// Footprint-aware road/water nudge for the DRUM circle. `nudgeOff` tests only the
+// drum's CENTER against the road corridor, but its firepit/bench RING (clearR ≈
+// footprint+2, the same keep-out drumClearingsNear carves) can spill across a road
+// while the center sits just clear (Gary 2026-06-16 marker: "drum circle spawning
+// in a road, blocking the road a bit"). The road is a polyline corridor of half-
+// width ROAD_WIDTH, so the test is EXACT and cheap (one nearestRoad call, no
+// perimeter-probe resolution gaps): the drum's clearR keep-out disk and that
+// corridor are disjoint iff the center is farther than ROAD_WIDTH + clearR from the
+// nearest centerline. Lake is the same center test the old nudgeOff did (a ring dip
+// into open water wasn't a reported case). HASH-seeded (rng-free) so the hub's plan
+// stream is untouched — only a genuinely road/water-clipping drum moves (the now-
+// rng-free nudge shifts the draw position for those hubs, like the stage fix did).
+// Returns the clear spot, or null when none is in reach (caller then OMITS the drum,
+// as for a no-treed-pocket miss).
+function nudgeOffDrum(x, z, clearR, heart) {
+  const roadClear = CONFIG.ROAD_WIDTH + clearR + 1;   // +1 epsilon: onRoad is `≤ ROAD_WIDTH`, so clear the closed boundary too
+  const blocked = (cx, cz) =>
+    lakeAt(quantize(cx), quantize(cz)) || nearestRoad(cx, cz).dist < roadClear;
+  if (!blocked(x, z)) return { x, z };
+  const baseA = ((worldHash(heart.cx, heart.cz, SALT.poiLayout) >>> 0) / 4294967296) * Math.PI * 2;
+  for (let r = clearR; r <= clearR + 30; r += 6) {
+    for (let k = 0; k < 12; k++) {
+      const a = baseA + (k / 12) * Math.PI * 2;
+      const nx = x + Math.cos(a) * r, nz = z + Math.sin(a) * r;
+      if (!blocked(nx, nz)) return { x: quantize(nx), z: quantize(nz) };
+    }
+  }
+  return null;
+}
+
 // A quiet off-road spot just past the heart's core (for a drum circle — a
 // destination, not the main drag), preferring a treed pocket. BOUNDED to
 // core + DRUM_BAND so it stays within MAX_POI_REACH (so its owning chunk always
@@ -655,18 +685,22 @@ function treedDistrictSpot(heart, rng, avoidBearing, reject) {
   // fallback any more: only a treed spot gets a drum.
   if (!chosen) return null;
   const spot = chosen;
-  // D: one queryPoint on the FINAL chosen spot only — nudge the drum off the road
-  //    corridor if it landed on one. `nudgeOff` early-returns (0 rng draws) when the
-  //    spot is already off-road — the common case, so the loop stays cheap — and only
-  //    ring-scans when it actually sits on a road. The drum's attempt count + this
-  //    final nudge are a VARIABLE number of draws; under the group-4 slotter the
-  //    potties (step 5) + bubble (step 7) now consume the stream AFTER it, so a
-  //    cross-engine treeDensity-boundary fork would cosmetically shift those too —
-  //    the SAME accepted single-engine-reproducible class as the node-vs-browser POI
-  //    golden disparity (file header). Same-engine determinism (the golden) is intact.
-  const finalSpot = nudgeOff(spot.x, spot.z, rng);
-  // The chosen spot met the treed bar (>=0.25), but `nudgeOff` may have shoved it off
-  // a road EDGE into the adjacent CLEARING — landing the drum on bare ground (the
+  // D: nudge the drum off the road corridor / open water if it landed on one — now
+  //    FOOTPRINT-AWARE (Gary 2026-06-16 marker), so the firepit/bench RING clears the
+  //    road, not just the center point (`nudgeOff` tested only the center → a drum
+  //    whose center sat just off a road still spilled its ring across it, blocking it).
+  //    `nudgeOffDrum` early-returns when the whole ring is already clear — the common
+  //    case (drum spots are deep off-road), so the loop stays cheap — and only ring-
+  //    scans when it actually clips. It is HASH-seeded (rng-free), unlike the old
+  //    rng-driven `nudgeOff`, so the drum's attempt count is now the ONLY variable-draw
+  //    source here: hubs whose drum clipped a road/lake no longer consume that nudge
+  //    draw, shifting their potties (step 5) + bubble (step 7) — the SAME accepted
+  //    golden-move class as the stage flood fix (736f05b4). Same-engine determinism
+  //    (the golden) is intact; the POI golden moves deliberately (selftest baseline).
+  const clearR = (FESTIVAL_TUNING.KIND_FOOTPRINT.drum_circle || 6) + 2;   // matches drumClearingsNear
+  const finalSpot = nudgeOffDrum(spot.x, spot.z, clearR, heart);
+  // The chosen spot met the treed bar (>=0.25), but `nudgeOffDrum` may have shoved it
+  // off a road EDGE into the adjacent CLEARING — landing the drum on bare ground (the
   // `drum-in-trees` burndown: density 0.00, off-road, road-facing). Re-validate the
   // FINAL spot against the SAME bar and OMIT if it's now bare — a treeless drum reads
   // wrong, and drums don't belong at every hub (Gary 2026-06-14: omit, don't place).
