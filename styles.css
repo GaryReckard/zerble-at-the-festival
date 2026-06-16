@@ -265,6 +265,25 @@ body {
   opacity: 1;
 }
 
+/* ---------- Star power vignette ---------- */
+#star-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255, 210, 90, 0) 55%, rgba(255, 196, 60, 0.5) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  mix-blend-mode: screen;
+}
+#star-vignette.on {
+  opacity: 1;
+  animation: star-vignette-pulse 1.1s ease-in-out infinite;
+}
+@keyframes star-vignette-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
 /* ---------- Title card ---------- */
 
 #title-card {

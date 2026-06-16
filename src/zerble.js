@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { Input } from './input.js';
 import { PERF } from './perf.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
+import { patchStarPowerMaterial } from './starPower.js';
 
 // --- Driving feel knobs ---
 const ACCEL = 18;          // m/s^2 throttle
@@ -1214,6 +1215,17 @@ export class Zerble {
         this._mustacheLeds.push(led);
       }
     }
+
+    // Star power: patch every cart/driver/mustache material with the shared
+    // rainbow override. Done here (not at pickup) so each program compiles
+    // with the uStarEnv/uStarHue uniforms present — flipping STAR_UNIFORMS.env
+    // at runtime then recolours the whole cart with no recompile. See
+    // starPower.js.
+    this.root.traverse((n) => {
+      if (!n.material) return;
+      if (Array.isArray(n.material)) n.material.forEach(patchStarPowerMaterial);
+      else patchStarPowerMaterial(n.material);
+    });
   }
 
   // Simple rounded-box-ish geometry. We fake the bevel via BoxGeometry + slight scale on a wrapping shape.

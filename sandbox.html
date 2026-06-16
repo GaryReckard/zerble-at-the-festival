@@ -176,7 +176,7 @@
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
             const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'crowd', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
-                'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid',
+                'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
             const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
@@ -206,6 +206,10 @@
             <option value="zerble">Zerble</option>
             <option value="lurleen">Lurleen</option>
             <option value="lurleen_zerble">Zerble + Lurleen (side by side)</option>
+            <option value="zerble_star_power">Zerble — STAR POWER (rainbow shader)</option>
+        </optgroup>
+        <optgroup label="Star power">
+            <option value="star">Star (pickup target + light pillar)</option>
         </optgroup>
         <optgroup label="Festival props">
             <option value="hammock">Hammock</option>
@@ -489,6 +493,7 @@
     import {Sound} from './src/sound.js';
     import {TimeOfDay} from './src/timeOfDay.js';
     import {Zerble} from './src/zerble.js';
+    import {buildStarPreview, STAR_UNIFORMS} from './src/starPower.js';
     import {Lurleen, createHeartGeometry} from './src/lurleen.js';
     import {buildHammockStandalone} from './src/chunks.js';
     import {buildHammock as buildHammockRaw} from './src/models/hammock.js';
@@ -782,6 +787,9 @@ import {buildShrub} from './src/models/shrub.js';
         currentEntity = null;
         entityRoot = null;
         updateFn = null;
+        // Clear the star-power buff uniform so the rainbow doesn't bleed into
+        // the next entity (only Zerble's materials read it, but be tidy).
+        STAR_UNIFORMS.env.value = 0;
     }
 
     // Map of entity name → audio style. Entities not in this map get no music.
@@ -860,6 +868,37 @@ import {buildShrub} from './src/models/shrub.js';
                     }
                 };
                 cam.target.set(0, 1.6, 0);
+                break;
+            }
+            case 'zerble_star_power': {
+                const z = new Zerble();
+                z.position.set(0, 0, 0);
+                scene.add(z.root);
+                entityRoot = z.root;
+                currentEntity = z;
+                const mockInput = { throttle: 0, steer: 0, boost: false, isDown: () => false, consumePressed: () => false };
+                // Force the buff on: env = 1, hue cycling. This is the rainbow
+                // shader patch the live buff drives via main.js.
+                let hue = 0;
+                STAR_UNIFORMS.env.value = 1;
+                updateFn = (dt) => {
+                    hue = (hue + dt * 0.55) % 1;
+                    STAR_UNIFORMS.hue.value = hue;
+                    STAR_UNIFORMS.env.value = 1;
+                    try { z.update(dt, mockInput); } catch (e) { /* mock */ }
+                };
+                cam.target.set(0, 1.6, 0);
+                break;
+            }
+            case 'star': {
+                const { group, update } = buildStarPreview();
+                scene.add(group);
+                entityRoot = group;
+                let t = 0;
+                updateFn = (dt) => { t += dt; update(dt, t); };
+                cam.target.set(0, 2.2, 0);
+                cam.dist = 16;
+                applyCam();
                 break;
             }
             case 'lurleen': {

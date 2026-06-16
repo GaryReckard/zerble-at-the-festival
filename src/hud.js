@@ -4,6 +4,7 @@ const $smiles = document.getElementById('smiles');
 const $best = document.getElementById('best');
 const $toast = document.getElementById('toast');
 const $flash = document.getElementById('hit-flash');
+const $starVignette = document.getElementById('star-vignette');
 const $title = document.getElementById('title-card');
 const $start = document.getElementById('start-btn');
 const $juiceMeter = document.getElementById('juice-meter');
@@ -125,5 +126,11 @@ export const HUD = {
   flashHit() {
     $flash.classList.add('on');
     setTimeout(() => $flash.classList.remove('on'), 180);
+  },
+
+  // Warm-gold edge vignette while star power is active. Pure CSS — zero
+  // three.js cost.
+  setStarPower(on) {
+    if ($starVignette) $starVignette.classList.toggle('on', !!on);
   },
 };

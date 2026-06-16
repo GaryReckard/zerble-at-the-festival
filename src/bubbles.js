@@ -136,6 +136,10 @@ export class Bubbles {
     // G key. ~2.8× sits between the requested 2-3×.
     this.blastMode = false;
 
+    // Star power multiplier — set by main.js while the buff is active. Boosts
+    // emit without the extra juice drain blast costs (star power is a gift).
+    this.starBoost = 1;
+
     // Bubble-juice reserve (0..JUICE_STACK_MAX, in meters). Session-scoped —
     // fresh single tank each run.
     this.juice = 1.0;
@@ -143,6 +147,10 @@ export class Bubbles {
 
   setBlast(on) {
     this.blastMode = !!on;
+  }
+
+  setStarPower(on) {
+    this.starBoost = on ? 2.5 : 1;
   }
 
   // Refuel. `cap` is the most this call will fill TO (default = full stockpile).
@@ -184,7 +192,7 @@ export class Bubbles {
     // empty tank means NO bubbles (the stakes that make NPCs frown).
     this.juice = Math.max(0, this.juice - JUICE_DRAIN_PER_SEC * (this.blastMode ? JUICE_BLAST_DRAIN : 1.0) * dt);
     const juiceFactor = Math.min(1, this.juice / 0.25);
-    const rate = SPAWN_PER_SEC * (0.55 + Math.min(1, speed / 8) * 0.45) * blast * juiceFactor;
+    const rate = SPAWN_PER_SEC * (0.55 + Math.min(1, speed / 8) * 0.45) * blast * this.starBoost * juiceFactor;
     this._spawnAcc += rate * dt;
 
     while (this._spawnAcc >= 1) {

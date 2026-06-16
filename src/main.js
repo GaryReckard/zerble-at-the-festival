@@ -52,6 +52,7 @@ import { festivalPlan, computeFrontAxis, dancefloorRectsNear, spawnHeart, MAX_PO
 import { lakeAt } from './worldgen/water.js';
 import { runLint } from './worldgen/lint.js';
 import { Trip } from './trip.js';
+import { StarPower } from './starPower.js';
 import { Analytics } from './analytics.js';
 import * as ContextLights from './contextLights.js';
 import * as AdaptiveQuality from './adaptiveQuality.js';
@@ -302,6 +303,23 @@ Sound.onSongEnd((x, z) => {
     Analytics.featureUsed('song_cheer');
   }
 });
+
+// ---------- Star power (rare floating star + 15s rainbow buff) ----------
+StarPower.init({ scene });
+StarPower.onTrigger = () => {
+  // Star power wins over a trip — they'd fight visually. Smoothly come down.
+  if (Trip.isActive()) Trip.comeDown();
+  Sound.startStarPower();
+  bubbles.setStarPower(true);
+  HUD.setStarPower(true);
+  HUD.toast('⭐ STAR POWER! ⭐', 2600);
+  Analytics.featureUsed('star_power');
+};
+StarPower.onEnd = () => {
+  Sound.stopStarPower();
+  bubbles.setStarPower(false);
+  HUD.setStarPower(false);
+};
 
 // ---------- World (sky/lights/ground/mountains + chunk manager) ----------
 buildWorld(scene, crowd);
@@ -986,9 +1004,18 @@ function tickBody(dt) {
     // Procedural world expands around Zerble.
     updateWorld(zerble.position, dt);
 
+    // Star power: spawn director + buff state + rainbow/wave/trail visuals.
+    // Runs before collision so a pickup this frame engages ghost mode the same
+    // frame. The love-magnet smile torrent runs while active.
+    StarPower.update(dt, zerble, nightness, nowS);
+    bubbles.setStarPower(StarPower.isActive());
+    if (StarPower.isActive() && !npcsFrozen()) crowd.applyStarLove(zerble, dt);
+
     // Collisions: deduct smiles only when Zerble is actively driving into the obstacle.
     // If something brushes a stationary Zerble, just resolve the overlap silently.
-    if (zerble.invulnLeft <= 0) {
+    // Star power = pure ghost mode: the whole resolver short-circuits, so Zerble
+    // phases through every collider untouched.
+    if (zerble.invulnLeft <= 0 && !StarPower.isActive()) {
       // Build a per-frame collider list for nearby crowd NPCs so Zerble can actually
       // bump them. Skip riders + anyone more than 5m away (cheap broad-phase reject).
       // Disembarking NPCs are also skipped entirely for the ~5s disembark window —
@@ -1285,7 +1312,7 @@ if (window.visualViewport) {
 
 window.__game = {
   camera, zerble, scene, renderer, crowd, registry, chaseCam, lurleen,
-  getTimeOfDay, Trip, midi, birds, bubbles,
+  getTimeOfDay, Trip, StarPower, midi, birds, bubbles,
   sound: Sound,
 };
 
@@ -1384,6 +1411,21 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       zerble.position.set(x, zerble.position.y, z);
       zerble.speed = 0;
       return `teleported to (${x}, ${z})`;
+    },
+
+    // Star power test surface. `__dbg.starPower()` triggers the 15s buff
+    // immediately; `__dbg.starPower('spawn')` drops a catchable star ~10m
+    // ahead so you can drive into it; `__dbg.starPower('end')` cuts it short.
+    starPower(mode) {
+      if (mode === 'spawn') {
+        StarPower._cooldown = 0;
+        const a = zerble.heading;
+        StarPower._buildStar(zerble.position.x + Math.sin(a) * 10, zerble.position.z + Math.cos(a) * 10);
+        return 'star spawned 10m ahead';
+      }
+      if (mode === 'end') { StarPower.state = 'fading'; StarPower._phase = 0; return 'fading out'; }
+      StarPower.trigger();
+      return 'STAR POWER engaged';
     },
 
     // READ-ONLY dump of the world registry as a JSON-able array — the captured

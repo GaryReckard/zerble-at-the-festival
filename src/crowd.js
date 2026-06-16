@@ -65,6 +65,12 @@ const SMILE_TIME_COOLDOWN = 3;       // ...AND wait this long
 const FROWN_THRESHOLD = 0.9;         // builds a touch slower than a smile, but reliably
 const FROWN_DURATION = 2.6;          // how long they frown + turn away before resuming
 const HONK_BOOST = 0.8;
+// States the star-power love-magnet leaves untouched (mid-interaction NPCs).
+const STAR_LOVE_SKIP = new Set([
+  'riding', 'boarding', 'disembarking', 'fleeing',
+  'hammock_riding', 'walking_to_hammock', 'table_seated', 'walking_to_table',
+  'seeking_potty', 'entering_potty', 'using_potty', 'exiting_potty', 'surprised_potty',
+]);
 const HONK_RANGE = 14;
 
 // Passenger system
@@ -2023,6 +2029,36 @@ export class Crowd {
   _abandonSeat(npc) {
     if (npc.tableSeat) this._releaseTable(npc);
     if (npc.hammockEntry) this._releaseHammock(npc);
+  }
+
+  // Star power love-magnet — called every frame from main.js while the buff is
+  // active. Every NPC within LOVE_RADIUS of Zerble falls in love: a continuous
+  // smile burst (per-NPC cooldown so one NPC doesn't fire every frame) and a
+  // stop-and-stare. NPCs busy in an interaction (riding, potty, hammock, table,
+  // fleeing) are left alone so we don't yank them out of a state machine.
+  applyStarLove(zerble, dt, radius = 25) {
+    const r2 = radius * radius;
+    const px = zerble.position.x, pz = zerble.position.z;
+    for (const npc of this.npcs) {
+      if (STAR_LOVE_SKIP.has(npc.state)) continue;
+      const dx = npc.pos.x - px, dz = npc.pos.z - pz;
+      if (dx * dx + dz * dz > r2) continue;
+      npc.happiness = HAPPINESS_THRESHOLD;        // smitten
+      if (npc.starLoveCd === undefined) npc.starLoveCd = 0;
+      npc.starLoveCd -= dt;
+      if (npc.starLoveCd <= 0) {
+        npc.starLoveCd = 1.4 + Math.random() * 0.4;
+        npc.lastSmilePos = zerble.position.clone();
+        this.smiles.spawn(npc.pos);
+      }
+      // Stop and stare. Reset watchTimer so the watching case re-rolls a fresh
+      // (long) attention span and keeps facing Zerble through the buff.
+      if (npc.state !== 'watching') {
+        npc.state = 'watching';
+        npc.watchTimer = 0;
+        npc.attentionSpan = 16;
+      }
+    }
   }
 
   applyHonk(zerble) {

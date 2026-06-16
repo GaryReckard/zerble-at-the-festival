@@ -35,11 +35,11 @@ const profile = detect();
 // v2 worldgen flag — the procedural-map-generator → live-3D wire-in. Resolved
 // ONCE here at module load (read once per chunk downstream, never per placement
 // point). DEFAULT is the line below: it stays FALSE (legacy world ships) while v2
-// is being built incrementally, and flips to true in the landing commit once the
-// world is populated + verified — so the production deploy real players see never
-// shows a half-empty v2 world mid-feature. Override either way at runtime:
-// `?worldgen=1` forces v2 on (dev/testing), `?worldgen=0` forces legacy.
-const DEFAULT_WORLDGEN_V2 = false;
+// was built incrementally; it now ships as the default (landed 2026-06-16). The
+// production deploy real players see is the v2 procedural festival. Override
+// either way at runtime: `?worldgen=1` forces v2 on, `?worldgen=0` forces the
+// legacy v1 world (kept as an escape hatch for now; slated for removal).
+const DEFAULT_WORLDGEN_V2 = true;
 export const USE_WORLDGEN_V2 = (() => {
   if (typeof location === 'undefined') return DEFAULT_WORLDGEN_V2;   // headless self-test
   const v = new URLSearchParams(location.search).get('worldgen');

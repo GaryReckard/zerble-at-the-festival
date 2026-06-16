@@ -1,7 +1,24 @@
 # Star Power — design doc
 
-> Status: design only, not yet implemented. Tracked in ROADMAP under
-> "Gameplay verbs".
+> Status: **SHIPPED 2026-06-16** in `src/starPower.js`. This doc is the
+> as-designed record; a few choices changed in build (noted below). See
+> CHANGELOG 2026-06-16 "Star Power".
+>
+> **As-built deltas from this doc:**
+> - **Spawn is a player-position director, not a per-chunk theme roll.** The
+>   doc assumed v1's per-chunk theme dice (`grove`/`open_lawn`/`drum_circle`).
+>   v2 (now the default) has no per-chunk themes, so spawn instead picks a spot
+>   150–300 m out near the heading, validated against the live registry
+>   (`closestBuilding`) + lakes — worldgen-agnostic.
+> - **Rainbow is a *spatial* sweep**, not just a global hue flash: a world-pos
+>   projection spreads hues across the cart so a single frame reads rainbow,
+>   advancing over time.
+> - **Music** is a self-contained 160 BPM loop scheduler in `sound.js`
+>   (`startStarPower`/`stopStarPower`) routed straight to masterGain, ducking
+>   the music bus via the existing `setMusicDuck` — not a new `createStageMusic`
+>   style (that engine is spatial/songform; wrong fit for a dead-center buff).
+> - **Added a love-wave ground ring + pickup star-burst shockwave** beyond the
+>   doc — the love radius made visible.
 
 The hook: a rare floating glowing star hidden somewhere in the world.
 Catch it and for ~15 seconds Zerble enters a "star power" mode — invincible

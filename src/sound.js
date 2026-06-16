@@ -18,6 +18,90 @@ let muteGain = null;     // dedicated downstream mute node — toggled 0/1 by se
 let musicBus = null;     // shared bus for stage music sources (so we can balance vs. SFX)
 let musicDuckGain = null; // downstream attenuator — ducks when an external player (MIDI) is active
 let midiGain = null;     // MIDI player output node — connects into masterGain so Master + MIDI sliders both work
+// Star power — a non-spatial 160bpm loop that takes over the mix during the
+// buff (ducking everything else via setMusicDuck). Its own gain straight into
+// masterGain. A lookahead scheduler (setInterval) drives a tiny chiptune synth.
+let _starGain = null;
+let _starSched = null;   // setInterval id while running
+let _starNextTime = 0;   // next 16th-note time (ctx clock)
+let _starStep = 0;       // step index into the 64-step / 4-bar pattern
+let _starNoiseBuf = null;
+
+// Bright pentatonic-ish lead scale (G4..C6) — 1-based indices in STAR_LEAD,
+// 0 = rest. Four 16-step bars: a jaunty climbing motif with a turnaround.
+const STAR_SCALE = [392.0, 440.0, 523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+const STAR_LEAD = [
+  [3, 0, 5, 6, 0, 7, 6, 5, 0, 3, 4, 0, 5, 0, 4, 3],
+  [5, 0, 7, 8, 0, 7, 6, 5, 0, 4, 3, 0, 4, 0, 3, 1],
+  [3, 0, 5, 6, 0, 7, 6, 5, 0, 3, 4, 0, 5, 0, 7, 8],
+  [7, 0, 6, 5, 0, 4, 3, 1, 0, 3, 4, 5, 0, 4, 3, 0],
+];
+const STAR_BASS = [98.0, 130.81, 110.0, 146.83];   // root per bar (G2/C3/A2/D3)
+
+function _spVoice(type, freq, t, dur, vel) {
+  const o = ctx.createOscillator();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vel, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(_starGain);
+  o.start(t);
+  o.stop(t + dur + 0.02);
+}
+function _spKick(t, vel) {
+  const o = ctx.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(150, t);
+  o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(vel, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+  o.connect(g).connect(_starGain);
+  o.start(t);
+  o.stop(t + 0.18);
+}
+function _spNoise(t, vel, hp) {
+  if (!_starNoiseBuf) {
+    const n = Math.floor(ctx.sampleRate * 0.2);
+    _starNoiseBuf = ctx.createBuffer(1, n, ctx.sampleRate);
+    const d = _starNoiseBuf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = _starNoiseBuf;
+  const f = ctx.createBiquadFilter();
+  f.type = 'highpass';
+  f.frequency.value = hp;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(vel, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+  src.connect(f).connect(g).connect(_starGain);
+  src.start(t);
+  src.stop(t + 0.06);
+}
+// Lookahead step sequencer — schedules every 16th note up to ~0.12s ahead.
+function _scheduleStarPower() {
+  if (!ctx || !_starGain) return;
+  const horizon = ctx.currentTime + 0.12;
+  const stepDur = 60 / 160 / 4;   // 160 BPM 16th = 0.09375s
+  while (_starNextTime < horizon) {
+    const t = _starNextTime;
+    const bar = Math.floor((_starStep % 64) / 16);
+    const s16 = _starStep % 16;
+    const li = STAR_LEAD[bar][s16];
+    if (li > 0) _spVoice('triangle', STAR_SCALE[li - 1], t, stepDur * 1.6, 0.22);
+    if (s16 % 4 === 0) {
+      const fifth = (s16 === 4 || s16 === 12);
+      _spVoice('square', STAR_BASS[bar] * (fifth ? 1.5 : 1), t, stepDur * 1.8, 0.16);
+      _spKick(t, 0.5);
+    }
+    if (s16 % 2 === 1) _spNoise(t, s16 % 4 === 3 ? 0.18 : 0.1, 7000);
+    _starNextTime += stepDur;
+    _starStep++;
+  }
+}
 // Trip effect chain — sits between musicDuckGain and masterGain. Always
 // wired in; only audibly active when `setMusicTrip(env, p)` ramps the
 // wet gain above zero. Drives a lowpass sweep + a feedback delay in
@@ -226,6 +310,13 @@ export const Sound = {
     muteGain.gain.value = 1;
     masterGain.connect(muteGain);
     muteGain.connect(ctx.destination);
+
+    // Star power loop output — straight into masterGain (foreground, not on the
+    // music bus, so it isn't ducked by its own duck node). Silent until
+    // startStarPower() ramps it up.
+    _starGain = ctx.createGain();
+    _starGain.gain.value = 0;
+    _starGain.connect(masterGain);
 
     musicBus = ctx.createGain();
     // Was 1.6 when the music was a wall-of-sound four-loop pattern at boot.
@@ -830,6 +921,30 @@ export const Sound = {
     musicDuckGain.gain.cancelScheduledValues(now);
     musicDuckGain.gain.setValueAtTime(musicDuckGain.gain.value, now);
     musicDuckGain.gain.linearRampToValueAtTime(factor, now + 0.4);
+  },
+
+  // Star power: duck the stage music and bring up the fast 160bpm loop. No-op
+  // before init() (iOS-safe — never created outside the unlock gesture).
+  startStarPower() {
+    if (!ctx || !_starGain) return;
+    this.setMusicDuck(0.15);
+    const now = ctx.currentTime;
+    _starGain.gain.cancelScheduledValues(now);
+    _starGain.gain.setValueAtTime(Math.max(0.0001, _starGain.gain.value), now);
+    _starGain.gain.linearRampToValueAtTime(0.9, now + 0.2);
+    _starStep = 0;
+    _starNextTime = now + 0.06;
+    if (_starSched) clearInterval(_starSched);
+    _starSched = setInterval(_scheduleStarPower, 25);
+  },
+  stopStarPower() {
+    if (!ctx || !_starGain) return;
+    this.setMusicDuck(1.0);
+    const now = ctx.currentTime;
+    _starGain.gain.cancelScheduledValues(now);
+    _starGain.gain.setValueAtTime(Math.max(0.0001, _starGain.gain.value), now);
+    _starGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+    if (_starSched) { clearInterval(_starSched); _starSched = null; }
   },
   getMasterVolume()  { return masterGain ? masterGain.gain.value  : 0.55; },
   getMusicVolume()   { return musicBus   ? musicBus.gain.value    : 1.6; },
