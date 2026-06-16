@@ -1305,7 +1305,7 @@ function buildWorldgenKind(ctx, d) {
     case 'vendor_row':    buildVendorRowAt(cctx, d.x, d.z, d.yaw); break;
     case 'bubble_vendor': buildBubbleVendorAt(cctx, d.x, d.z, d.yaw); break;
     case 'porta_bank':    buildPottyBankAt(cctx, d.x, d.z, d.yaw); break;
-    case 'drum_circle':   buildWorldgenDrumCircle(cctx, d.x, d.z, d.yaw); break;   // B2 — the FULL leaf drum circle
+    case 'drum_circle':   buildWorldgenDrumCircle(cctx, d.x, d.z, d.yaw); buildDrumAccessPath(cctx, d.x, d.z); break;   // B2 — FULL leaf drum circle + winding access path
     case 'camp_village':  buildCampVillageAt(cctx, d.x, d.z, d.tents); break;   // D2 — tent count ∝ local crowd
     default: break;       // unknown kind → place nothing (forward-compatible)
   }
@@ -2107,6 +2107,36 @@ function placeSeamHedges(ctx) {
       ctx.group.add(shrub);
     }
   }
+}
+
+// Shared dirt-path material for the drum access footpaths (matches the v1 grid
+// path look). Tagged shared so chunk unload skips it.
+const _DRUM_PATH_MAT = new THREE.MeshStandardMaterial({
+  color: 0xb89570, roughness: 1, metalness: 0,
+  polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, depthWrite: false,
+});
+_DRUM_PATH_MAT.userData.shared = true;
+
+// A winding footpath from the nearest road into a drum circle's treed clearing —
+// the v1 "discover the drum down a path in the woods" composition (forests.js
+// buildForestPath), ported to the v2 district drums (which already sit in a
+// tree-cleared pocket via drumClearingsNear). Built where the drum is dispatched,
+// so it's owned by the drum's chunk (no double-placement); the wiggle is seeded off
+// the drum position (NOT ctx.rng), so it can't shift the chunk's prop order. Skips
+// when the drum is already roadside or no road is within reach. Narrower (3 m) than
+// the 5 m arterial trails — a footpath, not a road.
+function buildDrumAccessPath(ctx, dx, dz) {
+  const nr = nearestRoad(dx, dz);
+  if (nr.dist < 10 || nr.dist > 100) return;
+  const ux = Math.cos(nr.dirAngle), uz = Math.sin(nr.dirAngle);          // drum → nearest road
+  const ex = dx + ux * nr.dist, ez = dz + uz * nr.dist;                   // road entry point
+  const startX = ex - ux * (ROAD_RIBBON_WIDTH / 2 + 0.5), startZ = ez - uz * (ROAD_RIBBON_WIDTH / 2 + 0.5);
+  const clearR = (FESTIVAL_TUNING.KIND_FOOTPRINT.drum_circle || 6) + 1;
+  const endX = dx + ux * clearR, endZ = dz + uz * clearR;                 // stop at the clearing edge, not the firepit
+  const prng = mulberry32(worldHash(Math.round(dx), Math.round(dz), 0x9A7) >>> 0);
+  const pathMesh = buildCurvedPath(startX, startZ, endX, endZ, 3, prng, _DRUM_PATH_MAT);
+  pathMesh.name = 'drum_path';
+  ctx.group.add(pathMesh);
 }
 
 // ---------- Porta-potties ----------
