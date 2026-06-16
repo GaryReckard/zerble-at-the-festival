@@ -139,6 +139,31 @@ const DESPAWN_DIST  = 360;    // drift this far and it expires + re-rolls
 const PICKUP_PAD    = 0.8;    // added to cart radius for the catch test
 const HUE_RATE      = 0.55;   // hue cycles / second
 
+const THREE_TMP_COLOR = new THREE.Color();   // scratch, reused per-frame
+
+// Cart-local points sparkles stream off: roof corners, body sides, hood, eyes.
+const SPARK_ANCHORS = [
+  [0.72, 2.08, 0.72], [-0.72, 2.08, 0.72], [0.72, 2.08, -0.72], [-0.72, 2.08, -0.72],
+  [0.62, 1.25, 0.2], [-0.62, 1.25, 0.2], [0, 1.35, 0.6], [0, 1.05, -1.45], [0, 1.8, -1.2],
+];
+
+// Soft round sparkle sprite — a radial-gradient dot baked once at module load.
+function makeSparkTexture() {
+  const s = 32;
+  const c = document.createElement('canvas');
+  c.width = c.height = s;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.85)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, s, s);
+  const tex = new THREE.CanvasTexture(c);
+  tex.userData.shared = true;
+  return tex;
+}
+
 export const StarPower = {
   scene: null,
 
@@ -162,10 +187,15 @@ export const StarPower = {
   _ring:   null,   // shared flat ring geometry
   _waves:  [],     // expanding love-wave rings (active only)
   _waveTimer: 0,
-  _trail:  [],     // rainbow comet pucks dropped behind the cart
-  _trailIdx: 0,
-  _trailTimer: 0,
   _shock:  null,   // pickup shockwave ring
+  // Rainbow tire tracks — dashes dropped at the rear wheels, faded via colour
+  // (additive: black = invisible) on ONE InstancedMesh = one draw call.
+  _tracks: null,   // { mesh, pool:[{alive,age,dur,x,z,yaw,hue}], idx }
+  _trackTimer: 0,
+  // Sparkles streaming off the body/roof — ONE THREE.Points draw call.
+  _sparks: null,   // { points, geo, pos, col, life, max, vx, vy, vz, n }
+  _sparkAccum: 0,
+  _tmpV: null,     // scratch Vector3 for local→world anchors
 
   init({ scene }) {
     this.scene = scene;
@@ -193,17 +223,70 @@ export const StarPower = {
     const waveN = lowTier ? 1 : 3;
     for (let i = 0; i < waveN; i++) this._waves.push(mkRing());
 
-    // Comet trail — skipped entirely on low tier (draw-budget headroom).
-    const trailN = lowTier ? 0 : 7;
-    for (let i = 0; i < trailN; i++) this._trail.push(mkRing());
-
     this._shock = mkRing();
+    this._tmpV = new THREE.Vector3();
+
+    // ── Rainbow tire tracks (one InstancedMesh) ──
+    const trackN = 28;
+    const trackGeo = new THREE.PlaneGeometry(0.42, 1.25);
+    trackGeo.rotateX(-Math.PI / 2);   // lie flat; length runs along local +Z
+    trackGeo.userData.shared = true;
+    const trackMat = new THREE.MeshBasicMaterial({
+      transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    });
+    const trackMesh = new THREE.InstancedMesh(trackGeo, trackMat, trackN);
+    trackMesh.frustumCulled = false;
+    trackMesh.visible = false;
+    const black = new THREE.Color(0, 0, 0);
+    const zeroM = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (let i = 0; i < trackN; i++) { trackMesh.setColorAt(i, black); trackMesh.setMatrixAt(i, zeroM); }
+    this.scene.add(trackMesh);
+    this._tracks = {
+      mesh: trackMesh,
+      pool: Array.from({ length: trackN }, () => ({ alive: false, age: 0, dur: 1, x: 0, z: 0, yaw: 0, hue: 0 })),
+      idx: 0, dummy: new THREE.Object3D(), col: new THREE.Color(),
+    };
+
+    // ── Sparkles (one THREE.Points) ──
+    const sparkN = lowTier ? 70 : 150;
+    const sgeo = new THREE.BufferGeometry();
+    const pos = new Float32Array(sparkN * 3);
+    const col = new Float32Array(sparkN * 3);
+    for (let i = 0; i < sparkN; i++) pos[i * 3 + 1] = -1000;   // park off-screen
+    sgeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    sgeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const smat = new THREE.PointsMaterial({
+      size: 0.26, map: makeSparkTexture(), vertexColors: true,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      sizeAttenuation: true,
+    });
+    const points = new THREE.Points(sgeo, smat);
+    points.frustumCulled = false;
+    points.visible = false;
+    this.scene.add(points);
+    this._sparks = {
+      points, geo: sgeo, pos, col, n: sparkN,
+      life: new Float32Array(sparkN), max: new Float32Array(sparkN),
+      vx: new Float32Array(sparkN), vy: new Float32Array(sparkN), vz: new Float32Array(sparkN),
+    };
   },
 
   isActive() {
     return this.state === 'arming' || this.state === 'active' || this.state === 'fading';
   },
   hasStar() { return !!this._star; },
+
+  // Force all buff FX hidden — used when the sandbox switches away from the
+  // demo entity (the per-frame updaters stop being called, so without this the
+  // last frame's sparkles/tracks would freeze visible).
+  _hideFx() {
+    if (this._sparks) this._sparks.points.visible = false;
+    if (this._tracks) this._tracks.mesh.visible = false;
+    for (const w of this._waves) { w.alive = false; w.mesh.visible = false; }
+    if (this._shock) { this._shock.alive = false; this._shock.mesh.visible = false; }
+    this.state = 'idle'; this._env = 0; STAR_UNIFORMS.env.value = 0;
+  },
 
   // ── Star mesh + pillar ──────────────────────────────────────────────
   _buildStar(x, z) {
@@ -354,8 +437,20 @@ export const StarPower = {
 
     // --- Buff visuals ---
     this._updateWaves(dt, zerble);
-    this._updateTrail(dt, zerble);
+    this._updateTracks(dt, zerble);
+    this._updateSparkles(dt, zerble);
     this._updateShock(dt);
+  },
+
+  // Cart-local (lx,ly,lz) → world, matching zerble.worldSeatPosition's basis
+  // (local -Z is forward). Writes into this._tmpV and returns it.
+  _l2w(zerble, lx, ly, lz) {
+    const c = Math.cos(zerble.heading), s = Math.sin(zerble.heading);
+    return this._tmpV.set(
+      zerble.position.x + lx * c + lz * s,
+      ly + zerble.position.y,
+      zerble.position.z - lx * s + lz * c,
+    );
   },
 
   _endBuff(zerble) {
@@ -397,31 +492,96 @@ export const StarPower = {
     }
   },
 
-  // Rainbow pucks dropped behind the cart, fading out.
-  _updateTrail(dt, zerble) {
-    if (this.isActive() && this._trail.length) {
-      this._trailTimer -= dt;
-      if (this._trailTimer <= 0) {
-        this._trailTimer = 0.09;
-        const p = this._trail[this._trailIdx % this._trail.length];
-        this._trailIdx++;
-        p.alive = true; p.age = 0; p.dur = 0.6;
-        p.x = zerble.position.x; p.z = zerble.position.z;
-        p.hue = this._hue;
+  // Rainbow tire tracks — dashes dropped at both rear wheels while rolling,
+  // fading via colour on one InstancedMesh. Dead instances scale to 0.
+  _updateTracks(dt, zerble) {
+    const tr = this._tracks;
+    const T = tr.pool;
+    // Emit a pair (left + right rear contact) on a short distance/time cadence
+    // while the buff is on and the cart is actually moving.
+    if (this.isActive() && Math.abs(zerble.speed) > 1.2) {
+      this._trackTimer -= dt;
+      if (this._trackTimer <= 0) {
+        this._trackTimer = 0.06;
+        for (const lx of [-0.92, 0.92]) {
+          const w = this._l2w(zerble, lx, 0, 1.3);   // rear wheel ground contact
+          const p = T[tr.idx % T.length]; tr.idx++;
+          p.alive = true; p.age = 0; p.dur = 1.5;
+          p.x = w.x; p.z = w.z; p.yaw = zerble.heading; p.hue = this._hue;
+        }
       }
     }
-    for (const p of this._trail) {
-      if (!p.alive) { p.mesh.visible = false; continue; }
+    let any = false;
+    for (let i = 0; i < T.length; i++) {
+      const p = T[i];
+      if (!p.alive) { tr.dummy.scale.set(0, 0, 0); tr.dummy.updateMatrix(); tr.mesh.setMatrixAt(i, tr.dummy.matrix); continue; }
       p.age += dt;
       const t = p.age / p.dur;
-      if (t >= 1) { p.alive = false; p.mesh.visible = false; continue; }
-      const r = 1.6 + t * 2.4;
-      p.mesh.visible = true;
-      p.mesh.position.set(p.x, 0.14, p.z);
-      p.mesh.scale.set(r, 1, r);
-      p.mat.color.setHSL((p.hue + t * 0.2) % 1, 0.95, 0.6);
-      p.mat.opacity = (1 - t) * 0.45;
+      if (t >= 1) { p.alive = false; tr.dummy.scale.set(0, 0, 0); tr.dummy.updateMatrix(); tr.mesh.setMatrixAt(i, tr.dummy.matrix); continue; }
+      any = true;
+      tr.dummy.position.set(p.x, 0.06, p.z);
+      tr.dummy.rotation.set(0, p.yaw, 0);
+      tr.dummy.scale.set(1, 1, 1);
+      tr.dummy.updateMatrix();
+      tr.mesh.setMatrixAt(i, tr.dummy.matrix);
+      // Additive: fade by darkening toward black.
+      const f = (1 - t) * 0.6;
+      tr.col.setHSL((p.hue + t * 0.15) % 1, 0.95, 0.6).multiplyScalar(f);
+      tr.mesh.setColorAt(i, tr.col);
     }
+    tr.mesh.instanceMatrix.needsUpdate = true;
+    if (tr.mesh.instanceColor) tr.mesh.instanceColor.needsUpdate = true;
+    tr.mesh.visible = any;
+  },
+
+  // Sparkles streaming off the cart's body/roof anchors — one Points draw.
+  _updateSparkles(dt, zerble) {
+    const sp = this._sparks;
+    const { pos, col, life, max, vx, vy, vz, n } = sp;
+    // Emit while the envelope is up (rate scales with env so it ramps in/out).
+    if (this._env > 0.01) {
+      this._sparkAccum += this._env * (sp.n * 0.32) * dt;   // ~48/s at full on (150 pool)
+      while (this._sparkAccum >= 1) {
+        this._sparkAccum -= 1;
+        // find a dead slot
+        let slot = -1;
+        for (let k = 0; k < n; k++) { if (life[k] >= max[k]) { slot = k; break; } }
+        if (slot < 0) break;
+        const a = SPARK_ANCHORS[(Math.random() * SPARK_ANCHORS.length) | 0];
+        const w = this._l2w(zerble, a[0], a[1], a[2]);
+        pos[slot * 3]     = w.x + (Math.random() - 0.5) * 0.25;
+        pos[slot * 3 + 1] = w.y + (Math.random() - 0.5) * 0.2;
+        pos[slot * 3 + 2] = w.z + (Math.random() - 0.5) * 0.25;
+        vx[slot] = (Math.random() - 0.5) * 0.9;
+        vy[slot] = 0.5 + Math.random() * 1.0;            // drift up
+        vz[slot] = (Math.random() - 0.5) * 0.9;
+        life[slot] = 0; max[slot] = 0.55 + Math.random() * 0.55;
+        // colour is written each frame in the integrate loop below.
+      }
+    }
+    let any = false;
+    for (let k = 0; k < n; k++) {
+      if (life[k] >= max[k]) {
+        if (col[k * 3] !== 0 || col[k * 3 + 1] !== 0 || col[k * 3 + 2] !== 0) {
+          col[k * 3] = col[k * 3 + 1] = col[k * 3 + 2] = 0;   // snuff (additive)
+        }
+        continue;
+      }
+      any = true;
+      life[k] += dt;
+      const t = life[k] / max[k];
+      vy[k] -= dt * 0.6;   // gentle gravity
+      pos[k * 3]     += vx[k] * dt;
+      pos[k * 3 + 1] += vy[k] * dt;
+      pos[k * 3 + 2] += vz[k] * dt;
+      const f = 1 - t;     // quadratic fade to black (additive blend)
+      const hue = (this._hue + k * 0.013) % 1;
+      const c = THREE_TMP_COLOR.setHSL(hue, 0.85, 0.7).multiplyScalar(f * f);
+      col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b;
+    }
+    sp.geo.attributes.position.needsUpdate = true;
+    sp.geo.attributes.color.needsUpdate = true;
+    sp.points.visible = any;
   },
 
   _fireShockwave(x, z) {

@@ -493,7 +493,7 @@
     import {Sound} from './src/sound.js';
     import {TimeOfDay} from './src/timeOfDay.js';
     import {Zerble} from './src/zerble.js';
-    import {buildStarPreview, STAR_UNIFORMS} from './src/starPower.js';
+    import {buildStarPreview, STAR_UNIFORMS, StarPower} from './src/starPower.js';
     import {Lurleen, createHeartGeometry} from './src/lurleen.js';
     import {buildHammockStandalone} from './src/chunks.js';
     import {buildHammock as buildHammockRaw} from './src/models/hammock.js';
@@ -788,8 +788,9 @@ import {buildShrub} from './src/models/shrub.js';
         entityRoot = null;
         updateFn = null;
         // Clear the star-power buff uniform so the rainbow doesn't bleed into
-        // the next entity (only Zerble's materials read it, but be tidy).
+        // the next entity, and hide any FX meshes the demo left mid-flight.
         STAR_UNIFORMS.env.value = 0;
+        if (window.__spInit) StarPower._hideFx();
     }
 
     // Map of entity name → audio style. Entities not in this map get no music.
@@ -872,22 +873,30 @@ import {buildShrub} from './src/models/shrub.js';
             }
             case 'zerble_star_power': {
                 const z = new Zerble();
-                z.position.set(0, 0, 0);
+                z.position.set(4, 0, 0);
                 scene.add(z.root);
                 entityRoot = z.root;
                 currentEntity = z;
-                const mockInput = { throttle: 0, steer: 0, boost: false, isDown: () => false, consumePressed: () => false };
-                // Force the buff on: env = 1, hue cycling. This is the rainbow
-                // shader patch the live buff drives via main.js.
-                let hue = 0;
-                STAR_UNIFORMS.env.value = 1;
+                // Drive the REAL StarPower module so the full buff renders:
+                // rainbow shader + sparkles + rainbow tire tracks + love waves.
+                // The cart orbits so it lays tracks and trails sparkles; the buff
+                // re-triggers in a loop so it never lapses.
+                if (!window.__spInit) { StarPower.init({ scene }); window.__spInit = true; }
+                StarPower.trigger();
+                let t = 0, ang = 0;
+                const R = 4;
                 updateFn = (dt) => {
-                    hue = (hue + dt * 0.55) % 1;
-                    STAR_UNIFORMS.hue.value = hue;
-                    STAR_UNIFORMS.env.value = 1;
-                    try { z.update(dt, mockInput); } catch (e) { /* mock */ }
+                    t += dt; ang += dt * 0.7;
+                    z.position.set(Math.cos(ang) * R, 0, Math.sin(ang) * R);
+                    z.heading = ang + Math.PI / 2;   // face along the orbit tangent
+                    z.speed = 6;                     // > track-emit threshold
+                    if (!StarPower.isActive()) StarPower.trigger();   // loop the buff
+                    StarPower.update(dt, z, 0.0, t);   // advances hue + writes both uniforms
+
                 };
-                cam.target.set(0, 1.6, 0);
+                cam.target.set(0, 1.2, 0);
+                cam.dist = 16;
+                applyCam();
                 break;
             }
             case 'star': {

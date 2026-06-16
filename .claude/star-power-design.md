@@ -19,6 +19,10 @@
 >   style (that engine is spatial/songform; wrong fit for a dead-center buff).
 > - **Added a love-wave ground ring + pickup star-burst shockwave** beyond the
 >   doc — the love radius made visible.
+> - **Sparkles + rainbow tire-tracks** (the doc's "trail" / "confetti" ideas):
+>   sparkles are one pooled `THREE.Points` draw streaming off the body/roof;
+>   tire-tracks are one `InstancedMesh` of dashes at the rear wheels, faded via
+>   per-instance colour (additive → black = invisible). One draw call each.
 
 The hook: a rare floating glowing star hidden somewhere in the world.
 Catch it and for ~15 seconds Zerble enters a "star power" mode — invincible
