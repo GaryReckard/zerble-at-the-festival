@@ -2,6 +2,16 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-16
+
+### Fixed
+- **Food trucks & Sugar Shacks stop parking on the road (worldgen v2, flag-off).** Gary's 2026-06-16 playtest (seed 3313066808) caught trucks and a Sugar Shack sitting *on* the road surface at three hubs. Root cause: a food court hugs the drag by design (D2.3), but its truck ring is **23.8 m** (`FOOD_COURT_RING_MULT 14 × FOOD_TRUCK_SCALE 1.7`) and the shack ring **26.3 m**, while the court center lands only **9–20 m** off the road — so the road-side arc of the ring (measured at 65–105° per court) reached *across* the road, and `buildFoodCourtAt` only guarded its ring slots against lakes and inter-truck overlap, never roads. The ring now skips any slot on the road ribbon (`nearestRoad < ROAD_RIBBON_WIDTH/2 + 1`), the exact `continue`-before-build pattern the vendor row already uses (`chunks.js` ~1383) — the ring keeps a gap at the road instead of crossing it. Chunk-gen only (clusterSeed stream), so both goldens stay frozen `eddf8e50` / `21fcd163`. Verified in-game at the reported seed: **0 trucks on the road** across the note-1 and note-5 regions where the arcs used to land on pavement.
+- **New `truck-on-road` lint rule closes the coverage gap that let this ship (dev workflow).** Layout-lint had `truck-off-road` (a truck *stranded* with no road nearby) and `booth-on-road` (a vendor tent on the lane) but **nothing** for a food truck or Sugar Shack *on* the road — so the defect read as 0 errors. Added a registry-mode `truck-on-road` error mirroring `booth-on-road` (both register as `kind: 'truck'`, same ribbon-half-width tolerance); it reads 0 after the fix and is the regression tripwire going forward.
+- **`window.__dbg` now attaches on Codespaces forwarded hosts (dev workflow).** The local-dev debug backdoor was gated to `localhost` / `127.0.0.1` only, so opening the game through a GitHub Codespaces `*.app.github.dev` forwarded URL left `__dbg` undefined (and a dead-server port there answers 401, not a connection error — a confusing combo while iterating). Widened the gate to also allow any `*.github.dev` host; production is `github.io`, so the backdoor still never reaches the live site. Unblocks in-Codespace playtesting and agent-browser verification.
+
+### Changed
+- **Forest & grove camping now reads as clusters, not littered lone tents (worldgen v2, flag-off).** Gary's 2026-06-16 playtest wanted "a lot more campsite clusters in forests." The forest interior already scattered 8–19 sites, but at a ≥14 m even spacing they read as isolated tents, never groups. `computeInteriorCampsitePositions` now places **4–6 tight clumps of 3–5 sites** (each on a 4–9 m ring around a clump center, clumps kept 30 m apart) — "a crew of friends camped together" — at a comparable per-area count. The grove theme's camp scatter bumped `0.5/0.20 → 0.7/0.5` (clump rate 10% → 35%) so treed non-forest chunks pitch camps far more often. Registry-mode / session-seeded (not the POI golden), so both goldens stay frozen. Verified at seed 3313066808's note-4 forest: **12 sites, all 12 with a neighbour < 12 m** (the old even scatter would show 0) — visibly clumped.
+
 ## 2026-06-15
 
 ### Changed

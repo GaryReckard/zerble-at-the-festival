@@ -1295,7 +1295,7 @@ window.__game = {
 // dismiss (iOS audio gating), the chase cam overrides any camera you set, and
 // driving zerble with a stub input corrupts its physics. These bypass all of
 // that. Local dev ONLY — never present on the deployed site.
-if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.endsWith('.github.dev')) {
   window.__dbg = {
     // Start the game without a trusted gesture — mirrors HUD.onStart (line ~369)
     // minus the iOS audio-gesture dependency, and drops straight into gameplay

@@ -448,6 +448,24 @@ const REGISTRY_RULES = [
     },
   },
   {
+    id: 'truck-on-road',
+    severity: 'error',
+    mode: 'registry',
+    // The mirror of `truck-off-road`: a food truck or Sugar Shack (both register as
+    // `kind: 'truck'`) whose center sits ON the drivable road ribbon blocks the lane
+    // and is a collidable obstacle in the driving line. The court ring (~24 m) overshoots
+    // the drag it parks near, so the road-side ring slots used to land on the pavement
+    // (Gary playtest 2026-06-16). buildFoodCourtAt now skips those slots; this is the
+    // regression tripwire. Same ribbon-half-width tolerance as `booth-on-road`.
+    check(rctx, emit) {
+      const tol = CONFIG.ROAD_WIDTH / 2 + 1;
+      for (const e of rctx.solids) {
+        if (e.kind !== 'truck') continue;
+        if (nearestRoad(e.x, e.z).dist < tol) emit(e.x, e.z, 'food truck / sugar shack sits on the road surface (blocks the lane)', nearestHubOf(rctx.hubs, e.x, e.z));
+      }
+    },
+  },
+  {
     id: 'drum-in-trees',
     severity: 'error',
     mode: 'registry',

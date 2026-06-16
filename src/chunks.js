@@ -1437,13 +1437,19 @@ function buildFoodCourtAt(ctx, x, z) {
   const overlaps = (px, pz, r) => placed.some((p) => {
     const dx = p.x - px, dz = p.z - pz; return dx * dx + dz * dz < (p.r + r) * (p.r + r);
   });
+  // The court hugs the drag (D2.3), but the ~24 m truck ring overshoots the road
+  // it parks near — the road-side trucks/shack land ON the pavement (Gary playtest
+  // 2026-06-16: "Sugar Shack right on the road, another food truck also on the road").
+  // Skip any ring slot on the road ribbon; the ring keeps a gap there, exactly like
+  // the vendor row's road-skip (line ~1383). Chunk-gen only — clusterSeed stream, so
+  // the POI + queryPoint goldens are unaffected.
   for (let i = 0; i < count; i++) {
     const ang = (i / count) * Math.PI * 2 + ctx.rng() * 0.4;
     if (i === shackSlot) {
       const shackRing = ring + T.FOOD_COURT_SHACK_RING_PAD;
       const sx = x + Math.cos(ang) * shackRing, sz = z + Math.sin(ang) * shackRing;
       const half = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
-      if (isPointInLake(sx, sz) || overlaps(sx, sz, half)) continue;
+      if (isPointInLake(sx, sz) || nearestRoad(sx, sz).dist < ROAD_RIBBON_WIDTH / 2 + 1 || overlaps(sx, sz, half)) continue;
       const shack = buildSugarShack(ctx.rng);
       shack.position.set(sx, 0, sz);
       shack.rotation.y = Math.atan2(x - sx, z - sz);   // front faces the court center
@@ -1462,7 +1468,7 @@ function buildFoodCourtAt(ctx, x, z) {
     }
     const tx = x + Math.cos(ang) * ring, tz = z + Math.sin(ang) * ring;
     const tr = T.FOOD_COURT_TRUCK_R_MULT * FOOD_TRUCK_SCALE;
-    if (isPointInLake(tx, tz) || overlaps(tx, tz, tr)) continue;
+    if (isPointInLake(tx, tz) || nearestRoad(tx, tz).dist < ROAD_RIBBON_WIDTH / 2 + 1 || overlaps(tx, tz, tr)) continue;
     const truck = buildFoodTruck(ctx.rng);
     truck.position.set(tx, 0, tz);
     truck.rotation.y = Math.atan2(x - tx, z - tz);   // face inward
@@ -2173,10 +2179,11 @@ function buildGrove(ctx) {
     if (Math.abs(x - ctx.cxWorld) < 6 && Math.abs(z - ctx.czWorld) < 6) continue;
     buildHammock(ctx, x, z);
   }
-  // Sprinkle a small campsite in some groves — feels like festival-goers
-  // pitched tents under the trees. ~20% of those become a tight clump
-  // ("group of friends camping together") instead of scattered.
-  scatterChunkCampsites(ctx, { chance: 0.5, max: 2, clumpChance: 0.20 });
+  // Pitch tents under the trees — treed groves should read as prime camping
+  // ground, so most get sites and half of those become a tight clump ("a crew
+  // of friends camped together"). Raised from 0.5/0.20 after Gary's 2026-06-16
+  // playtest ("should see a lot more campsite clusters in forests like these").
+  scatterChunkCampsites(ctx, { chance: 0.7, max: 2, clumpChance: 0.5 });
 }
 
 function buildOpenLawn(ctx) {

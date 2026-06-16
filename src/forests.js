@@ -188,42 +188,51 @@ export function getForestAt(cx, cz) {
 // area, not by radius (otherwise everything bunches near the center).
 function computeInteriorCampsitePositions(forest) {
   const rng = mulberry32(forest.seed * 199 + 41);
-  // Density target: ~8-19 sites inside a 100m-radius body. Roughly 2x the
-  // earlier 4-9 — Gary wants the forest littered with camping. Spacing
-  // constraints below will reject the runt; expect ~12-16 actually placed
-  // on a typical 100m body.
-  const target = 8 + Math.floor(rng() * 12);  // 8-19 attempts
+  // Campers pitch in GROUPS, not an even sprinkle — a few tight clumps ("a crew
+  // of friends camped together") read as real campground clusters, where the
+  // earlier even ≥14m scatter read as littered lone tents (Gary playtest
+  // 2026-06-16: forests want "clusters of campsites"). Same per-area clump count
+  // (~9-25 sites on a 100m body), just spatially bunched.
   const drumBuffer = forest.interiorContent === 'drum_circle' ? 30 : 0;
   const centerBuffer = forest.interiorContent === 'campsite' ? 14 : 0;
-  const minSpacing = 14;
+  const maxR = forest.bodyRadius - 6;
+  const CLUSTER_SPACING = 30;   // keep clumps distinct from each other
+  const SITE_SPACING = 6;       // tents within one clump (props don't overlap)
+  const nClusters = 4 + Math.floor(rng() * 3);   // 4-6 clumps per forest
+  const centres = [];
   const placed = [];
 
-  for (let i = 0; i < target; i++) {
-    let chosen = null;
-    for (let attempt = 0; attempt < 30; attempt++) {
-      // sqrt(rng) gives uniform area distribution (otherwise centre-heavy)
-      const r = Math.sqrt(rng()) * (forest.bodyRadius - 6);
+  for (let c = 0; c < nClusters; c++) {
+    // Pick a clump centre (sqrt(rng) = uniform-by-area), clear of the drum/
+    // central-campsite buffers, the path corridors, and the other clumps.
+    let centre = null;
+    for (let attempt = 0; attempt < 24; attempt++) {
+      const r = Math.sqrt(rng()) * maxR;
+      if (r < drumBuffer || r < centerBuffer) continue;
       const a = rng() * Math.PI * 2;
       const x = forest.centerX + Math.cos(a) * r;
       const z = forest.centerZ + Math.sin(a) * r;
-      const localR = r;
-
-      if (localR < drumBuffer) continue;
-      if (localR < centerBuffer) continue;
       if (pointInPathCorridor(x, z, forest)) continue;
-
-      let tooClose = false;
-      for (let j = 0; j < placed.length; j++) {
-        const dx = placed[j].x - x;
-        const dz = placed[j].z - z;
-        if (dx * dx + dz * dz < minSpacing * minSpacing) { tooClose = true; break; }
-      }
-      if (tooClose) continue;
-
-      chosen = { x, z };
+      if (centres.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < CLUSTER_SPACING * CLUSTER_SPACING)) continue;
+      centre = { x, z };
       break;
     }
-    if (chosen) placed.push(chosen);
+    if (!centre) continue;
+    centres.push(centre);
+
+    // A tight ring of 3-5 tents around the clump centre.
+    const perCluster = 3 + Math.floor(rng() * 3);
+    for (let i = 0; i < perCluster; i++) {
+      const rr = 4 + rng() * 5;            // 4-9m off the clump centre
+      const aa = rng() * Math.PI * 2;
+      const x = centre.x + Math.cos(aa) * rr;
+      const z = centre.z + Math.sin(aa) * rr;
+      const localR = Math.hypot(x - forest.centerX, z - forest.centerZ);
+      if (localR > maxR || localR < drumBuffer || localR < centerBuffer) continue;
+      if (pointInPathCorridor(x, z, forest)) continue;
+      if (placed.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < SITE_SPACING * SITE_SPACING)) continue;
+      placed.push({ x, z });
+    }
   }
   return placed;
 }
