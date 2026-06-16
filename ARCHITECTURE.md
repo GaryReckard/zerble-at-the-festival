@@ -49,7 +49,7 @@ src/
     canoe.js  campsite.js  bandMember.js  entranceArch.js
     foodTruck.js  hammock.js  heart.js  kid.js
     leafBanner.js  leafDrumCircle.js  parasolMarshal.js
-    performer.js  puppet.js  stage.js  tent.js  tentStage.js
+    performer.js  puppet.js  shrub.js  stage.js  tent.js  tentStage.js
     tree.js  tribalFigures.js  wook.js
 ```
 
