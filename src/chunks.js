@@ -1072,7 +1072,13 @@ function scatterWorldgenTrees(ctx) {
     const d = treeDensity(x, z);          // 0..1 — already 0 on worldgen water + heart cores
     if (d <= 0.05) continue;              // clearing / open lawn
     if (rng() > d) continue;              // place ∝ density (sparse fringes fall out naturally)
-    if (!clearOfStuff(x, z, WG_TREE_MIN_SPACING)) continue;
+    // Thicket gradient (Gary 2026-06-16: "ok with some impassable, but drive through
+    // some areas"). Spacing shrinks with density: open woods stay at the drive-through
+    // 4.0 m, but a deep core packs to 2.2 m — tighter than the trunk collider diameter
+    // (r 1.3 → 2.6 m), so trunks overlap into a genuine wall you can't thread. The 80-tree
+    // R3 cap is unchanged, so dense cores just fill denser while fringes stay sparse + open.
+    const spacing = WG_TREE_MIN_SPACING - Math.min(1, Math.max(0, (d - 0.5) / 0.5)) * 1.8;
+    if (!clearOfStuff(x, z, spacing)) continue;
     placeTree(x, z);
   }
   // F1 — the occasional LONE tree even in the big open fields: treeDensity below the
@@ -1103,6 +1109,26 @@ function scatterWorldgenTrees(ctx) {
       ctx.group.add(buildTreeHammock(placed[i].x, placed[i].z, placed[j].x, placed[j].z, rng).group);
       hammocks++;
       break;
+    }
+  }
+  // Posted hammocks slung in the woods — the REGISTERED, NPC-loungeable kind
+  // ('hammock', with a seatPos crowd.js parks a wook in). v1 placed these in
+  // buildGrove, which worldgen=1 never runs, so the v2 woods had none (Gary
+  // 2026-06-16: "fix missing hammocks" — same gap as the bubble jugs). Uses the
+  // LOCAL tree rng, so it can't desync the ctx.rng order the crowd/jugs/camps
+  // ride. Density-gated + capped so they stay a woodland discovery, not a carpet.
+  if (placed.length >= 6) {
+    const hCount = rng() < 0.45 ? 1 + Math.floor(rng() * 2) : 0;   // 0..2, ~45% of woods chunks
+    let hung = 0;
+    for (let attempt = 0; attempt < 16 && hung < hCount; attempt++) {
+      const hx = minX + rng() * CHUNK_SIZE, hz = minZ + rng() * CHUNK_SIZE;
+      if (treeDensity(hx, hz) < 0.08) continue;         // in/near the woods, not hub core or open field
+      // 3.5 m clearance = a real pocket to hang in (posts ~3 m apart) without jamming it
+      // inside a trunk; still off roads / dancefloors / buildings via clearOfStuff.
+      if (!clearOfStuff(hx, hz, 3.5)) continue;
+      buildHammock(ctx, hx, hz, rng);
+      placed.push({ x: hx, z: hz });                    // later trees keep clear of it
+      hung++;
     }
   }
 }
@@ -2736,8 +2762,8 @@ function buildEntranceArch(ctx, x, z) {
 }
 
 // Hammock wrapper — uses the model and registers the entry crowd.js consults.
-function buildHammock(ctx, x, z) {
-  const { group, seatPos, yaw } = buildHammockModel(x, z, ctx.rng);
+function buildHammock(ctx, x, z, rng = ctx.rng) {
+  const { group, seatPos, yaw } = buildHammockModel(x, z, rng);
   ctx.group.add(group);
 
   registry.add({

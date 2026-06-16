@@ -144,7 +144,7 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // FESTIVAL LAYOUT GRAMMAR rewrite (D3, deliberation 003) — HEART_CELL 200 /
     // noneBelow 0.05, seed 1234:
     //   queryPoint golden  node eddf8e50  /  browser eddf8e50 (recorded 2026-06-10, H.2)
-    //   POI golden         21fcd163 (recent node V8 ≥ v24 == Chromium class; GROUP 4B)
+    //   POI golden         736f05b4 (recent node V8 ≥ v24 == Chromium class; GROUP 4B+)
     // ^ GROUP 4 (festival-zone-grammar, 2026-06-14) moved the POI golden in TWO steps,
     //   then GROUP 4B (2026-06-15) once more — all flag-off on an unmerged branch (D6):
     //     4825fd0b → a0edfaea  the slotting commit (a338ed2): single-pass oriented-zone
@@ -183,6 +183,19 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     //                          revising D18's world-single-arch. PURELY ADDITIVE (the arch block
     //                          consumes no rng) so only arch descriptors enter the hash; queryPoint
     //                          frozen. No new arch-placement lint errors over 10 seeds.
+    //     21fcd163 → 736f05b4  stage flood fix (festival-zone-grammar, 2026-06-16, Gary's
+    //                          "tent stage partially flooded" round): the stage spot is now
+    //                          FOOTPRINT-AWARE — nudgeOffStage tests a 16+8-point rosette at the
+    //                          deck radius for open water (not just the center point), relocating
+    //                          a stage whose deck corner dipped into a shore (12 dirs × out to
+    //                          ~52 m; whole composition rides stageSpot). The nudge is HASH-seeded
+    //                          (rng-free), so only water-adjacent stages move + the hubs whose
+    //                          center was on road/lake (their stageKind draw shifts forward of the
+    //                          now-rng-free nudge); dry hubs unchanged. Across 5 seeds: center-
+    //                          flooded stages 26-35 → 0-4 thin single-cell edge touches, ZERO
+    //                          corner-in-water (wet≥3); residual = genuinely lake-hemmed hubs
+    //                          (least-wet, same parked class as the dancefloor-mouth case).
+    //                          queryPoint frozen (no road/water-existence change — D5).
     //   The POI fork is a V8-VERSION cosmetic class (the older-V8 value differs; the
     //   accepted treedDistrictSpot/front-axis transcendental class — file header).
     //   poiGoldenHash is returned for manual comparison, NOT a hard-fail result.

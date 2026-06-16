@@ -203,7 +203,32 @@ export function dancefloorRect(heart) {
 // (else the tree scatter would carve a phantom clear patch over open water).
 export function dancefloorRectsNear(minX, minZ, maxX, maxZ) {
   const hs = heartsInBounds(minX - MAX_POI_REACH, minZ - MAX_POI_REACH, maxX + MAX_POI_REACH, maxZ + MAX_POI_REACH);
-  return hs.filter(h => !_festivalSuppressed(h)).map(dancefloorRect);
+  const T = FESTIVAL_TUNING;
+  const out = [];
+  // CG2 — the AUTHORITATIVE clearing, read off the actual STAGE descriptor (its
+  // nudged spot, yaw, scale), not the heart-center preview `dancefloorRect`. Two
+  // fixes over the preview form (Gary 2026-06-16): (1) it tracks the stage's
+  // footprint-aware nudge, so the clearing sits where the stage really is — not
+  // where the heart center was; (2) it extends BEHIND the deck by `deckR` so the
+  // tent BODY is cleared too, not just the audience side ("trees growing through
+  // the tent"). Anchored behind the deck; depth = deckR + dancefloor so the
+  // existing along∈[0,depth] point test (pointInDancefloor) is unchanged.
+  for (const h of hs) {
+    if (_festivalSuppressed(h)) continue;
+    for (const d of festivalPlan(h)) {
+      if (d.kind !== 'main_stage' && d.kind !== 'side_stage' && d.kind !== 'tent_stage') continue;
+      const scale = d.scale || 1;
+      const dirx = Math.sin(d.yaw), dirz = Math.cos(d.yaw);          // stage +F (matches clusterShapes ux/uz)
+      const deckR = (T.KIND_FOOTPRINT[d.kind] || 11) * scale;        // deck/tent body radius
+      const floorDepth = T.DANCEFLOOR_DEPTH_BASE * scale;
+      out.push({
+        cx: quantize(d.x - dirx * deckR), cz: quantize(d.z - dirz * deckR), dirx, dirz, bin: d.fbin,
+        depth: quantize(deckR + floorDepth),
+        halfWidth: quantize(Math.max(T.DANCEFLOOR_HALFWIDTH_BASE * scale, deckR)),
+      });
+    }
+  }
+  return out;
 }
 
 // Drum-circle clearings for every nearby hub, as { x, z, r } circles — the inner
@@ -516,6 +541,50 @@ function nudgeOff(x, z, rng) {
   return null;
 }
 
+// Footprint-aware nudge for the STAGE deck. `nudgeOff` only tests the CENTER
+// point, but a stage deck is a ~13-19 m circle — its center can clear road+lake
+// while a back/side corner dips into a shore (Gary 2026-06-16: "tent stage
+// partially flooded, corner in the lake"). This requires the center off
+// road/lake AND a rosette of perimeter samples at `footR` clear of open water,
+// searching the same deterministic ring as `nudgeOff` but HASH-seeded so it
+// consumes NO rng — the rest of the hub's plan stream is untouched, and only a
+// genuinely-flooding stage moves. Falls back to the least-wet buildable spot,
+// then the heart center, so a lake-hemmed hub still gets its stage. Mirrors the
+// "least-wet gap" philosophy already used for the dancefloor front-axis.
+function nudgeOffStage(x, z, footR, heart) {
+  const T = FESTIVAL_TUNING;
+  // 16 perimeter samples (~4 m apart on a 15 m deck) so a narrow shoreline inlet
+  // can't slip between probes; plus a mid-radius ring for a deep finger of water.
+  const wetness = (cx, cz) => {
+    if (queryPoint(cx, cz).noBuild) return Infinity;   // center on road/lake — never a candidate
+    let wet = 0;
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+      if (queryPoint(cx + c * footR, cz + s * footR).inLake) wet++;
+      if (queryPoint(cx + c * footR * 0.6, cz + s * footR * 0.6).inLake) wet++;
+    }
+    return wet;
+  };
+  if (wetness(x, z) === 0) return { x, z };
+  const baseA = ((worldHash(heart.cx, heart.cz, SALT.poiLayout) >>> 0) / 4294967296) * Math.PI * 2;
+  let best = null, bestWet = Infinity;
+  // Stages are big (13-19 m deck) AND anchor the hub, so a shore-hugging one needs
+  // a wider sweep than nudgeOff's 28 m to find dry ground — but the whole composition
+  // (dancefloor, potty, band) rides stageSpot, so they relocate together. 12 dirs ×
+  // out to ~52 m. A residual heavy-flood means a genuinely lake-hemmed hub (no dry
+  // deck within reach) → least-wet, same parked class as the dancefloor-mouth case.
+  for (let r = 10; r <= 52; r += 7) {
+    for (let k = 0; k < 12; k++) {
+      const a = baseA + (k / 12) * Math.PI * 2;
+      const nx = x + Math.cos(a) * r, nz = z + Math.sin(a) * r;
+      const w = wetness(nx, nz);
+      if (w === 0) return { x: nx, z: nz };
+      if (w < bestWet) { bestWet = w; best = { x: nx, z: nz }; }
+    }
+  }
+  return best || { x, z };
+}
+
 // A quiet off-road spot just past the heart's core (for a drum circle — a
 // destination, not the main drag), preferring a treed pocket. BOUNDED to
 // core + DRUM_BAND so it stays within MAX_POI_REACH (so its owning chunk always
@@ -745,16 +814,20 @@ function _computePlan(heart) {
   //    down a road or at water; A3). `fbin` + `scale` are plan DATA the dancefloor
   //    clearing, the build, and the golden all read. Its deck + dancefloor OBB are
   //    placed[0] — the hard keep-out everything else slots around.
-  const stageSpot = nudgeOff(heart.x, heart.z, rng) || { x: heart.x, z: heart.z };
   const stageYaw = Math.PI / 2 - fa.bearing;   // model front (+Z) → +F
   // Major hubs get the big main stage; minor hubs roll a tent stage (~35%) for
   // variety (B1) vs the open side stage. Deterministic per hub (cellRng stream).
+  // Rolled BEFORE the nudge (the nudge is now rng-free) so the stream position of
+  // this draw is unchanged from when nudgeOff was rng-driven for buildable centers.
   const stageKind = major ? 'main_stage' : (rng() < 0.35 ? 'tent_stage' : 'side_stage');
+  const stageScale = stageScaleOf(heart);       // rng-free (clusterSeed-derived)
+  const stageFootR = (T.KIND_FOOTPRINT[stageKind] || 11) * stageScale;   // deck circle radius
+  const stageSpot = nudgeOffStage(heart.x, heart.z, stageFootR, heart);
   const stage = desc(stageKind, stageSpot.x, stageSpot.z, stageYaw, 'core', heart.rank, true, clusterSeed(heart, IDX.stage));
   stage.fbin = fa.bin;                          // serialize F → the POI golden + window-invariance test see it (R18)
-  stage.scale = stageScaleOf(heart);
+  stage.scale = stageScale;
   commit(stage);
-  pottyParents.push({ x: stageSpot.x, z: stageSpot.z, yaw: stageYaw, idx: IDX.pottyStage, r: (T.KIND_FOOTPRINT[stageKind] || 11) * stage.scale });
+  pottyParents.push({ x: stageSpot.x, z: stageSpot.z, yaw: stageYaw, idx: IDX.pottyStage, r: stageFootR });
 
   // 2. VENDOR AISLES straddling the drag (A5/C): the central aisle *is* the road —
   //    the descriptor centers ON a road point and the build lays two booth lines

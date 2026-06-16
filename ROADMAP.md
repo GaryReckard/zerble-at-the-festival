@@ -201,6 +201,10 @@ isn't wasted, not a course correction.
   wants back: Voronoi over the local tree field → excavate a large cell → nest the
   drum circle/campfire at its center, hammocks between boundary trees, carve one path
   in. Feeds `festival-zone-grammar`'s drum work (added to its DRAFTING-BRIEF).
+  *(Partial: 2026-06-16 shipped the cheap version — woods now have density-modulated
+  impassable thicket cores + drivable fringes, and posted hammocks scatter in the v2
+  woods. This Voronoi item is the polish: deliberate excavated clearings with a single
+  guaranteed access path, vs. the current emergent density gradient.)*
 - **"Quiet behind, loud in front" zoning** (symmetric to dancefloor-front-clear):
   push camps/drum/quiet content *behind* a stage or behind a tree buffer, out of its
   front audio cone — a cheap explicit rule, partly implied by our front-axis F.
