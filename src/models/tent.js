@@ -8,6 +8,7 @@
 // Returns a THREE.Group anchored at (0,0,0), opening facing +Z.
 
 import * as THREE from 'three';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildSimpleNPC } from './puppet.js';
 
 const CLOTH_COLORS = [0xfff4d0, 0xe7c995, 0xfddfa5, 0xd0c2a8, 0xf4d6c4];
@@ -67,6 +68,85 @@ function _trimMat(hex) {
     _TRIM_MATS.set(hex, m);
   }
   return m;
+}
+
+// ----- Static-decor merge (perf P1) --------------------------------------
+// A booth is ~4 legs + roof + trim + 1-3 tables + 15-25 goods, each its own
+// Mesh — so a 10-14 booth vendor row was ~600-1300 draw calls (and as many
+// fresh geometries on low-instancing v2 hubs; renderer.info geo ~7400). The
+// structural parts + goods are STATIC, so we bake each mesh's material color
+// into a vertex-color attribute and merge them into ONE mesh per blend bucket
+// (opaque / transparent), under a shared vertexColors material. Appearance is
+// preserved (real colors baked); a typical booth drops from ~40 meshes to
+// 2 merged + the emissive art + the animated shopkeeper. Reusable for the
+// food-court / camp-village builders (perf P2/P3). Merged geometry is per-tent
+// (NOT shared → disposed normally on chunk unload); the two materials ARE
+// shared (tagged) so the disposal walk skips them.
+const _MERGED_OPAQUE_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, flatShading: true });
+_MERGED_OPAQUE_MAT.userData.shared = true;
+const _MERGED_GLASS_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.2, transparent: true, opacity: 0.85, flatShading: true });
+_MERGED_GLASS_MAT.userData.shared = true;
+
+// Clone a geometry, bring it into `root`-local space, drop the index (so a
+// mixed indexed/non-indexed merge set can't fail — mergeGeometries requires the
+// index to exist in ALL or NONE), and bake `color` into a per-vertex attribute.
+// Skips geometries lacking position/uv so the merge set stays attribute-uniform
+// (every THREE primitive used here has uv). Returns the non-indexed clone.
+function _bakeForMerge(geo, color, worldMatrix) {
+  if (!geo || !geo.attributes.position || !geo.attributes.uv) return null;
+  let g = geo.clone();
+  g.applyMatrix4(worldMatrix);
+  if (g.index) g = g.toNonIndexed();
+  const n = g.attributes.position.count;
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { col[i * 3] = color.r; col[i * 3 + 1] = color.g; col[i * 3 + 2] = color.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return g;
+}
+
+// Merge a booth group's static decor in place. Meshes flagged `noMerge` (the
+// shopkeeper NPC) or carrying emissive (the painting art) are left alone; the
+// rest collapse into one opaque + one transparent merged mesh. Originals are
+// removed only AFTER their bucket merges successfully — a failed merge leaves
+// the booth's meshes intact (never silently deletes decor).
+function mergeStaticDecor(root) {
+  root.updateWorldMatrix(true, true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const opaque = { geos: [], src: [] }, glass = { geos: [], src: [] };
+  const walk = (o) => {
+    if (o !== root && o.userData.noMerge) return;   // skip the NPC subtree entirely
+    if (o.isMesh && !o.userData.noMerge) {
+      const m = o.material;
+      const emissive = m && m.emissive && (m.emissiveIntensity || 0) > 0 && (m.emissive.r || m.emissive.g || m.emissive.b);
+      if (m && !Array.isArray(m) && !emissive) {
+        const local = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+        const baked = _bakeForMerge(o.geometry, m.color, local);
+        if (baked) { const b = m.transparent ? glass : opaque; b.geos.push(baked); b.src.push(o); }
+      }
+    }
+    for (const c of o.children) walk(c);
+  };
+  walk(root);
+  const add = (bucket, mat, shadow) => {
+    if (!bucket.geos.length) return;
+    const merged = BufferGeometryUtils.mergeGeometries(bucket.geos, false);
+    for (const g of bucket.geos) g.dispose();   // the clones; pooled originals are untouched
+    if (!merged) return;                          // merge failed → leave originals in place
+    for (const o of bucket.src) {
+      o.parent.remove(o);
+      // The goods' per-item geometries + materials are unique (not pooled) — their
+      // data now lives in the merged buffer, so free them or they leak on the GPU
+      // (renderer.info.memory.geometries climbs every chunk-gen). Pooled structural
+      // resources (legs/roof/trim/tables) carry userData.shared → never dispose.
+      if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+      if (o.material && !o.material.userData.shared) o.material.dispose();
+    }
+    const mesh = new THREE.Mesh(merged, mat);
+    mesh.castShadow = shadow;
+    root.add(mesh);
+  };
+  add(opaque, _MERGED_OPAQUE_MAT, true);
+  add(glass, _MERGED_GLASS_MAT, false);
 }
 
 // Shopkeeper palette — earthy/warm, vendor-coded (think apron-cooks +
@@ -151,7 +231,12 @@ export function buildTent(rng = Math.random) {
   // out the tent opening), 30% out front (loitering, facing back in).
   const shopkeeper = buildShopkeeper(rng);
   placeShopkeeper(shopkeeper, booth.name, rng);
+  shopkeeper.userData.noMerge = true;   // animated/skinned — keep out of the static merge
   g.add(shopkeeper);
+
+  // Collapse the static decor (legs, roof, trim, tables, goods) into merged
+  // meshes — the booth's ~40 draws → ~2 + emissive art + the shopkeeper.
+  mergeStaticDecor(g);
 
   return g;
 }
