@@ -51,6 +51,17 @@ src/
     leafBanner.js  leafDrumCircle.js  parasolMarshal.js
     performer.js  puppet.js  shrub.js  stage.js  tent.js  tentStage.js
     tree.js  tribalFigures.js  wook.js
+  worldgen/                 Render-agnostic infinite-layout generator (v2; flag-gated)
+    index.js                queryPoint/queryRegion — the data contract (no THREE/DOM)
+    constants.js  tuning.js  Named tunables (CONFIG / FESTIVAL_TUNING)
+    hearts.js                Rank-weighted festival anchors on a macrocell grid
+    roads.js                 Pair-seeded arterial meanders between hearts
+    water.js                 Lobed deterministic lakes (point-in-polygon)
+    density.js               treeDensity field (woods, lake-ring, heart-core gap-fill)
+    roles.js                 role tier + off-road road-facing anchor
+    festival.js              Per-heart POI plan + cross-hub seam grammar
+    placement.js             Per-chunk cluster-center ownership filter
+    selftest.js  lint.js     Determinism goldens + layout linter
 ```
 
 ---
@@ -137,6 +148,27 @@ Three independent lifecycle systems own world content. They all share one regist
 ### Determinism
 
 `rng.js` provides `hash2(x, y)` (32-bit mixing) and `mulberry32(seed)` (seeded PRNG). Every procedural decision — chunk theme, prop placement, lake position, forest contents — is hashed from grid coordinates plus a salt. The world is identical across reloads at the same coordinates.
+
+### 4. Worldgen v2 — the procedural map generator (`src/worldgen/`)
+
+A second, **render-agnostic** world generator that replaces the per-chunk theme dice-roll (system 1) and the 3×3 forest blocks (system 2) with one coherent festival layout. **Flag-gated and OFF by default** (`USE_WORLDGEN_V2`, `perf.js`): production ships v1; `?worldgen=1` forces v2 on, `?worldgen=0` forces legacy. The flag is resolved once at module load and read once per chunk. As of 2026-06 v2 is content-complete (see CHANGELOG); the flip to default is a perf-comfort + decision gate, not a missing-content one.
+
+**The contract (`index.js`).** `queryPoint(x, z)` returns a plain-data tuple — `heart`, `heartInfluence`, `roleTier`, `onRoad`/`facing`, `inLake`, `noBuild`, `treeDensity`, … — with **no `three` and no DOM**. The seed is module-global (one door: `setSeed` → `rng.setSessionSeed`, the same `?seed=` uses), and the tuple is **append-only** across the 2D→3D boundary (the 3D port may add fields but must never reorder/re-salt existing draws — footgun #4). This is why the same seed reproduces the same world in the 2D map sandbox and the live 3D game.
+
+**The layers** (each pure, memoized per `(seed, epoch)`, quantized to integer meters so determinism is engine-stable):
+
+- **`hearts.js`** — rank-weighted festival anchors on a coarse macrocell grid. Everything downstream derives its role from the nearest heart.
+- **`roads.js`** — arterials as pair-hash-seeded meanders owned end-to-end by the unordered heart pair (no per-chunk seam-kink). Edge set = symmetric union of each heart's K-nearest.
+- **`water.js`** — lobed, jittered lakes; point-in-polygon containment. (Rivers are stubbed off — `onRiver`/`bridge` always false.)
+- **`density.js`** — the `treeDensity` field: organic woodland, a lakeshore ring, and a heart-core gap (0 at a core, ramping back across its district).
+- **`festival.js`** — the **per-heart POI plan**: a single-pass priority **zone slotter** places the stage (at the heart, facing the driest road gap), then vendor aisles, food courts off side roads, a rear-biased drum circle, potties + a welfare-station bubble vendor, and a major-hub arch — each omitted if its oriented extent can't clear the already-placed zones. Output is **descriptors** (`{kind, x, z, yaw, scale, clusterSeed, …}`), pure data. Where two dense hubs' fronts meet, a **cross-hub seam grammar** classifies the clash by integer hub-priority and resolves it identically for both hubs with no communication: `merged_court` (food+food → one court), `shared_street` (vendor rows fuse/trim), `yield` (a drum cedes to a neighbour stage), `soft_buffer` (loud meets quiet → dress with a shrub hedge, don't delete). Camp villages live on a separate coarse grid (the "back of the festival").
+- **`placement.js`** — the per-chunk **filter**: selects the clusters whose *center* falls in this chunk (cluster-center ownership — the owning chunk builds the whole cluster, which may spill into neighbours), so a cluster can't appear/vanish based on which overlapping chunk asks (window-invariance).
+
+**How `chunks.js` consumes it.** When the flag is on, `_generateWorldgen(ctx)` runs instead of the v1 theme path: `placeWorldgenRoads` (ribbon meshes) → `placeWorldgenProps` (dispatch each descriptor through `buildWorldgenKind` → `buildStage`/`buildFoodCourtAt`/`buildVendorRowAt`/`buildWorldgenDrumCircle` + `buildDrumAccessPath`/`buildCampVillageAt`/`buildBubbleVendorAt`/`buildPottyBankAt`/`buildEntranceArchAt`) → `scatterWorldgenTrees` (density-driven woods with a thicket gradient + posted hammocks + shrub undergrowth) → heart-influence-weighted `spawnAmbientCrowd` → `scatterBubbleJugs` → `scatterWorldgenCampsites` (outskirts camps) → `placeSeamHedges` (the soft_buffer shrub dressing). The build half derives all model variation from each descriptor's `clusterSeed`, never `ctx.rng`, so descriptor-count changes never desync a chunk's other consumers (R19).
+
+**vs. v1:** no per-chunk themes and no walled forest blocks — instead, festival clusters anchored at hearts, drive-through scattered woods (dense cores pack tight enough to be impassable thickets, fringes stay drivable), and drum circles discovered down a footpath in a tree-cleared pocket.
+
+**Determinism + iteration.** `selftest.js` freezes two golden hashes — a **queryPoint golden** (the existence layer: roads/water/hearts/density) and a **POI golden** (`festivalPlan` per heart + camp villages); the queryPoint golden must stay frozen across any layout change. `lint.js` is a rules-as-data layout linter (booth-on-road, water-clear, stage-spacing, …). Two iteration surfaces: **`map-sandbox.html`** (2D top-down of the whole layout, with a seams layer) and **`hub-sandbox.html`** (one full hub in 3D via `buildHubPreview` → the same `buildWorldgenKind` dispatch the streaming world uses — so it shows cluster-level content by construction; the streaming-only passes — tree scatter, shrub undergrowth, seam hedges — are verified in the running game).
 
 ---
 
