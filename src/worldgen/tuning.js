@@ -176,9 +176,9 @@ export const FESTIVAL_TUNING = {
   FOOD_COURT_SHACK_RING_PAD: 2.5,   // chunks.js:1315 — shack sits ring+pad out
   FOOD_COURT_TRUCK_R_MULT: 4.4,     // chunks.js:1336 — truck footprint = MULT × FOOD_TRUCK_SCALE
   FOOD_COURT_BUBBLE_PROB: 0.4, FOOD_COURT_BUBBLE_RING_PAD: 3,   // chunks.js:1353-1354
-  FOOD_COURT_TABLE_COUNT_BASE: 1, FOOD_COURT_TABLE_COUNT_SPAN: 3, // chunks.js:1365 — 1..3 tables
-  FOOD_COURT_TABLE_RING_FRAC: 0.45, // chunks.js:1368 — tables within ring×frac of center
-  FOOD_COURT_TABLE_MIN_SPACING: 3.2,// chunks.js:1371
+  FOOD_COURT_TABLE_COUNT_BASE: 2, FOOD_COURT_TABLE_COUNT_SPAN: 4, // chunks.js:1365 — 2..5 tables (the overlap/lake skip self-limits how many actually fit)
+  FOOD_COURT_TABLE_RING_FRAC: 0.52, // chunks.js:1368 — tables within ring×frac of center (a touch wider so the extra/bigger tables spread)
+  FOOD_COURT_TABLE_MIN_SPACING: 3.6,// chunks.js:1371 — bumped for the longer 2.2 m tables
   FOOD_COURT_TORCH_RING_PAD: 5, FOOD_COURT_TORCH_COUNT: 6,      // chunks.js:1389-1390
 
   // ── Vendor row (builder buildVendorRowAt, chunks.js:1251) ──

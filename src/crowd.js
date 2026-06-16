@@ -430,6 +430,11 @@ export class Crowd {
       pottyTried: null,
       pottyWait: 0,
 
+      // Picnic-table seating. tableEntry = the registry entry; tableSeat = the
+      // claimed world-space seat slot ({x,z,y,yaw,occupied}). Null until they sit.
+      tableEntry: null,
+      tableSeat: null,
+
       chunkKey,
     };
 
@@ -472,7 +477,8 @@ export class Crowd {
       if (dx * dx + dz * dz > CHEER_RADIUS_SQ) continue;
       const s = npc.state;
       if (s === 'riding' || s === 'boarding' || s === 'disembarking' ||
-          s === 'fleeing' || s === 'walking_to_hammock' || s === 'hammock_riding') continue;
+          s === 'fleeing' || s === 'walking_to_hammock' || s === 'hammock_riding' ||
+          s === 'walking_to_table' || s === 'table_seated') continue;
       npc.cheerTimer = 5.0;
       npc.cheerX = x;
       npc.cheerZ = z;
@@ -515,6 +521,8 @@ export class Crowd {
         }
         // Release any porta-potty claim (don't leave a unit stuck "occupied").
         if (npc.pottyEntry) { this._releasePotty(npc); }
+        // Release any picnic-table seat claim (don't strand a seat "occupied").
+        if (npc.tableSeat) { this._releaseTable(npc); }
         // Remove from any group it belonged to so dead idx's don't leak.
         if (npc.groupId) {
           const g = this.groups.get(npc.groupId);
@@ -664,6 +672,20 @@ export class Crowd {
         return;
       }
     }
+    // --- Picnic-table seating (like the hammock: walk to a claimed seat, sit) ---
+    if (npc.state === 'table_seated') {
+      this._tickTableSeated(dt, npc);
+      return;
+    }
+    if (npc.state === 'walking_to_table') {
+      // If Zerble shows up nearby and the NPC is curious, abandon the seat.
+      if (dToZerble < SMILE_RANGE && npc.curiosity > 0.65) {
+        this._releaseTable(npc);
+        npc.state = 'approaching';
+      } else if (this._tickWalkingToTable(dt, npc)) {
+        return;
+      }
+    }
     if (npc.state === 'disembarking') {
       this._tickDisembarking(dt, npc);
       // fall through to normal walking logic
@@ -779,6 +801,19 @@ export class Crowd {
         ) {
           const claimed = this._tryClaimHammock(npc);
           if (claimed) break;
+        }
+        // Sometimes peel off to sit at a nearby picnic table — the food-court
+        // "people eating at the picnic area" read. Sociable, non-skittish folks are
+        // likelier; gated so it's a steady trickle filling benches, not the whole
+        // crowd rushing the tables at once. (The deeper food-truck → buy → carry →
+        // eat loop is on ROADMAP; this is the sit half.)
+        if (
+          !npc.tableSeat &&
+          npc.skittish < 0.6 &&
+          npc.stateTimer < 5 &&
+          Math.random() < dt * 0.5
+        ) {
+          if (this._tryClaimTable(npc)) break;
         }
         // Rare bathroom urge — peel off toward the nearest porta-potty. Gated
         // low (POTTY_URGE_RATE) so it's an occasional realistic detour. Skittish
@@ -1197,7 +1232,8 @@ export class Crowd {
     // the leg bend below.
     const seated = (npc.state === 'riding' && npc.seatSlot &&
       (npc.seatSlot.kind === 'bench' || npc.seatSlot.kind === 'driver_seat' || npc.seatSlot.kind === 'roof'))
-      || npc.pottySitting;   // caught sitting on the potty — same forward leg bend
+      || npc.pottySitting                  // caught sitting on the potty — same forward leg bend
+      || npc.state === 'table_seated';     // sitting on a picnic bench — same forward leg bend
     let feetY;
     if (npc.pottySitting && npc.seatY != null) {
       // Butt on the toilet seat; bent legs hang forward. seatY is the seat-top
@@ -1215,6 +1251,10 @@ export class Crowd {
       // capsule is ~0.26 thick, but we want the back to SINK into the sag
       // slightly — so lift by only 0.16, not the full half-thickness.
       feetY = npc.hammockY + 0.16 + bobY + bounceY;
+    } else if (npc.state === 'table_seated' && npc.tableSeat) {
+      // Butt on the bench cushion; bent legs hang forward (the `seated` leg bend).
+      // Same -0.4 hip drop a seated cart rider uses so the hip lands on the seat.
+      feetY = npc.tableSeat.y - 0.4 + bobY;
     } else {
       feetY = bobY + bounceY + cheerY; // feet on the ground; npc.pos.y is always 0
     }
@@ -1520,6 +1560,116 @@ export class Crowd {
     }
     npc.hammockEntry = null;
     npc.hammockY = undefined;
+  }
+
+  // ----- Picnic-table seating -----
+  //
+  // Flow (mirrors the hammock): idle urge → claim a free seat on the nearest table
+  // → walking_to_table (jog to the seat) → table_seated (sit, facing the table, for
+  // a spell) → release the seat → idle. The registry entry carries an ARRAY of
+  // world-space seat slots (`tableSeats`, two per bench) each with its own
+  // `occupied` flag, so up to four NPCs share one table. Every state has a give-up
+  // timeout, and the seat is released on arrival-fail / despawn / chunk-unload so a
+  // slot is never stranded "occupied".
+
+  // The crowd's yaw convention is forward = (−sin yaw, −cos yaw); to face the table
+  // CENTER from a seat, yaw = atan2(seat.x − center.x, seat.z − center.z).
+  _seatFacingYaw(npc) {
+    const c = npc.tableEntry.position, s = npc.tableSeat;
+    return Math.atan2(s.x - c.x, s.z - c.z);
+  }
+
+  _tryClaimTable(npc) {
+    const ids = registry.byKind.get('picnic_table');
+    if (!ids) return false;
+    // 45m — wide enough that the crowd ringing the food-court attractor can spot a
+    // table across the plaza, but close enough that the walk actually completes
+    // before the (distance-scaled) give-up timer below.
+    let best = null, bestSeat = null, bestD2 = 45 * 45;
+    for (const id of ids) {
+      const e = registry.entries.get(id);
+      if (!e || !e.tableSeats) continue;
+      const dx = e.position.x - npc.pos.x;
+      const dz = e.position.z - npc.pos.z;
+      const d2 = dx * dx + dz * dz;
+      if (d2 >= bestD2) continue;
+      const seat = e.tableSeats.find((s) => !s.occupied);
+      if (!seat) continue;
+      bestD2 = d2; best = e; bestSeat = seat;
+    }
+    if (!best) return false;
+    bestSeat.occupied = true;
+    npc.tableEntry = best;
+    npc.tableSeat = bestSeat;
+    npc.target.set(bestSeat.x, 0, bestSeat.z);
+    npc.state = 'walking_to_table';
+    // Give-up timer scaled to the walk (≈0.8 m/s effective at low energy) so a diner
+    // committing to a seat across the plaza actually arrives instead of timing out
+    // mid-walk and re-rolling. A flat 16s only covered ~16 m — far short of the 45 m
+    // claim radius, so nobody ever sat.
+    const d = Math.hypot(bestSeat.x - npc.pos.x, bestSeat.z - npc.pos.z);
+    npc.stateTimer = Math.min(62, Math.max(14, d * 1.4 + 5));
+    return true;
+  }
+
+  _tickWalkingToTable(dt, npc) {
+    if (!npc.tableSeat) { npc.state = 'idle'; npc.stateTimer = 1; return true; }
+    const seat = npc.tableSeat;
+    const tdx = seat.x - npc.pos.x;
+    const tdz = seat.z - npc.pos.z;
+    const td = Math.hypot(tdx, tdz);
+    if (td < 0.4) {
+      // Arrived — sit: snap to the seat, face the table, start the dwell timer.
+      npc.pos.x = seat.x;
+      npc.pos.z = seat.z;
+      npc.yaw = this._seatFacingYaw(npc);
+      npc.vel.set(0, 0, 0);
+      npc.state = 'table_seated';
+      npc.rideTimer = 18 + Math.random() * 30;   // 18–48s of sitting/eating
+      this._writeMatrices(npc);
+      return true;
+    }
+    if (npc.stateTimer <= 0) {
+      this._releaseTable(npc);
+      npc.state = 'idle';
+      npc.stateTimer = 1;
+      return true;
+    }
+    const inv = 1 / (td || 1);
+    npc.vel.x = THREE.MathUtils.lerp(npc.vel.x, tdx * inv * 1.9 * npc.energy, Math.min(1, dt * 5));
+    npc.vel.z = THREE.MathUtils.lerp(npc.vel.z, tdz * inv * 1.9 * npc.energy, Math.min(1, dt * 5));
+    npc.pos.x += npc.vel.x * dt;
+    npc.pos.z += npc.vel.z * dt;
+    const targetYaw = Math.atan2(-npc.vel.x, -npc.vel.z);
+    npc.yaw += wrapAngle(targetYaw - npc.yaw) * Math.min(1, dt * 6);
+    this._writeMatrices(npc);
+    return true;
+  }
+
+  _tickTableSeated(dt, npc) {
+    if (!npc.tableSeat) { npc.state = 'idle'; npc.stateTimer = 1; return; }
+    npc.rideTimer -= dt;
+    // Hold the seat, facing the table. The forward leg bend + butt-on-bench lift are
+    // applied in _writeMatrices (the `seated` / table_seated branches).
+    npc.pos.x = npc.tableSeat.x;
+    npc.pos.z = npc.tableSeat.z;
+    npc.yaw = this._seatFacingYaw(npc);
+    npc.vel.set(0, 0, 0);
+    if (npc.rideTimer <= 0) {
+      this._releaseTable(npc);
+      npc.state = 'idle';
+      npc.stateTimer = 1 + Math.random() * 2;
+      // Step off the bench so the next idle wander target makes sense.
+      npc.pos.x += (Math.random() - 0.5) * 0.8;
+      npc.pos.z += (Math.random() - 0.5) * 0.8;
+    }
+    this._writeMatrices(npc);
+  }
+
+  _releaseTable(npc) {
+    if (npc.tableSeat) npc.tableSeat.occupied = false;
+    npc.tableEntry = null;
+    npc.tableSeat = null;
   }
 
   // ----- Porta-potty seeking -----
@@ -1845,6 +1995,7 @@ export class Crowd {
   // Called from main.js when Zerble drives into an NPC. Knockback the victim,
   // put them into a fleeing state, and spook nearby NPCs (panic cascade).
   onZerbleHit(victim, pushX, pushZ) {
+    this._abandonSeat(victim);   // a rammed napper/diner gets up — free its claim
     victim.state = 'fleeing';
     victim.stateTimer = 3;
     victim.happiness = 0;
@@ -1860,9 +2011,18 @@ export class Crowd {
       if (dx * dx + dz * dz > 36) continue;
       // Bolder/calmer folks may shrug it off
       if (other.skittish < 0.15 && Math.random() < 0.5) continue;
+      this._abandonSeat(other);   // free any seat/hammock before the panic
       other.state = 'fleeing';
       other.stateTimer = 2.5;
     }
+  }
+
+  // Free any picnic-table seat or hammock an NPC holds before it's force-fled
+  // (rammed, cascade-panicked, or honk-scattered), so the slot is never stranded
+  // "occupied". Safe to call on any NPC — no-op if it holds neither.
+  _abandonSeat(npc) {
+    if (npc.tableSeat) this._releaseTable(npc);
+    if (npc.hammockEntry) this._releaseHammock(npc);
   }
 
   applyHonk(zerble) {
@@ -1908,6 +2068,7 @@ export class Crowd {
             this._releaseSeat(npc.seatSlot);
             npc.seatSlot = null;
           }
+          this._abandonSeat(npc);   // get a seated diner/napper up + free the slot
           npc.state = 'fleeing';
           npc.stateTimer = d2 < SCATTER_RANGE_FRONT_SQ && dot > FRONT_CONE_DOT ? 1.5 : 0.8;
         }

@@ -1592,14 +1592,27 @@ function buildFoodCourtAt(ctx, x, z) {
     if (tablesPlaced.some((p) => Math.hypot(p.x - tx, p.z - tz) < T.FOOD_COURT_TABLE_MIN_SPACING)) continue;
     const pt = buildPicnicTable(ctx.rng);
     pt.group.position.set(tx, 0, tz);
-    pt.group.rotation.y = ctx.rng() * Math.PI * 2;
+    const yaw0 = ctx.rng() * Math.PI * 2;
+    pt.group.rotation.y = yaw0;
     ctx.group.add(pt.group);
+    // World-space seat slots (rotate the model-local seats by the table's yaw about
+    // Y, then translate) so crowd.js can sit an NPC butt-on-bench facing the table.
+    // `occupied` is the per-seat claim flag — mirrors the hammock's seat claim.
+    const cos0 = Math.cos(yaw0), sin0 = Math.sin(yaw0);
+    const tableSeats = pt.seats.map((s) => ({
+      x: tx + s.x * cos0 + s.z * sin0,
+      z: tz - s.x * sin0 + s.z * cos0,
+      y: s.y,
+      yaw: s.yaw + yaw0,
+      occupied: false,
+    }));
     registry.add({
       kind: 'picnic_table',
       position: new THREE.Vector3(tx, 0, tz),
       footprint: pt.footprint,
-      collider: { radius: 1.0, damage: 3 },
+      collider: { radius: 1.2, damage: 3 },
       attractor: { radius: 4, weight: 0.6 },
+      tableSeats,
       chunkKey: ctx.key,
     });
     tablesPlaced.push({ x: tx, z: tz });

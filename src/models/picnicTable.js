@@ -14,9 +14,12 @@
 import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
-const TOP_Y = 0.74, TOP_T = 0.06, TOP_D = 0.72, TABLE_LEN = 1.8;
+// Sized so two crowd NPCs (scale 0.85–1.25) sit side-by-side on each bench (4
+// total) without overlapping — seats are spread to x = ±0.6 on a 2.2 m table.
+const TOP_Y = 0.74, TOP_T = 0.06, TOP_D = 0.72, TABLE_LEN = 2.2;
 const BENCH_T = 0.05, BENCH_D = 0.27, BENCH_Y = 0.45, BENCH_OFF = 0.62;
-const END_X = 0.55;        // the two A-frames sit inset from the ends
+const BENCH_TOP = BENCH_Y + BENCH_T / 2;   // cushion surface — the seated-NPC butt height
+const END_X = 0.7;         // the two A-frames sit inset from the ends
 const FOOT_Z = 0.78;       // leg feet splay out past the benches
 const TOP_UNDER = TOP_Y - TOP_T / 2;   // underside of the tabletop — where legs meet
 
@@ -76,12 +79,14 @@ for (const g of _parts) g.dispose();   // the merge copied the data; free the te
 const _WOOD_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, flatShading: true });
 _WOOD_MAT.userData.shared = true;
 
-// The four bench seats (local frame), facing the table, so people can sit at it.
+// The four bench seats (local frame), two per bench, facing the table — `y` is the
+// cushion height so a caller can sit an NPC butt-on-bench. Caller rotates these into
+// world space (see chunks.js picnic_table registration).
 const _SEATS = [
-  { x: -0.45, z: -BENCH_OFF, yaw: 0 },
-  { x: 0.45, z: -BENCH_OFF, yaw: 0 },
-  { x: -0.45, z: BENCH_OFF, yaw: Math.PI },
-  { x: 0.45, z: BENCH_OFF, yaw: Math.PI },
+  { x: -0.6, z: -BENCH_OFF, y: BENCH_TOP, yaw: 0 },
+  { x: 0.6, z: -BENCH_OFF, y: BENCH_TOP, yaw: 0 },
+  { x: -0.6, z: BENCH_OFF, y: BENCH_TOP, yaw: Math.PI },
+  { x: 0.6, z: BENCH_OFF, y: BENCH_TOP, yaw: Math.PI },
 ];
 
 export function buildPicnicTable(rng = Math.random) {
@@ -90,5 +95,5 @@ export function buildPicnicTable(rng = Math.random) {
   const table = new THREE.Mesh(_TABLE_GEO, _WOOD_MAT);
   table.castShadow = true;   // one caster for the whole table; reads as a distinct shadow
   group.add(table);
-  return { group, footprint: 1.2, seats: _SEATS };
+  return { group, footprint: 1.4, seats: _SEATS };
 }
