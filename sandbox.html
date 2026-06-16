@@ -178,7 +178,7 @@
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
-            const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'heart', 'stage', 'performer',
+            const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
                 'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable'];
             const base = new URL('./src/', document.baseURI).href;
@@ -281,6 +281,8 @@
             <option value="forest_tree_oak">Forest tree — oak</option>
             <option value="forest_tree_birch">Forest tree — birch</option>
             <option value="forest_tree_random">Forest tree — random variety</option>
+            <option value="shrub">Shrub / bush (seam buffer + ground cover)</option>
+            <option value="shrub_hedge">Shrub hedge (a row of 6)</option>
         </optgroup>
         <optgroup label="Wildlife">
             <option value="bird_sparrow">Bird — sparrow (flying)</option>
@@ -497,6 +499,7 @@
     import {buildFoodTruck} from './src/models/foodTruck.js';
     import {buildSugarShack} from './src/models/sugarShack.js';
     import {buildTree} from './src/models/tree.js';
+import {buildShrub} from './src/models/shrub.js';
     import {buildEntranceArch} from './src/models/entranceArch.js';
     import {leafBannerTextures} from './src/models/leafBanner.js';
     import {buildStage, placeBandOnStage} from './src/models/stage.js';
@@ -1099,6 +1102,30 @@
                 entityRoot = g;
                 cam.target.set(0, 6, 0);
                 cam.dist = 24;
+                applyCam();
+                break;
+            }
+            case 'shrub': {
+                const g = buildShrub(Math.random);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 0.6, 0);
+                cam.dist = 5;
+                applyCam();
+                break;
+            }
+            case 'shrub_hedge': {
+                const g = new THREE.Group();
+                for (let i = 0; i < 6; i++) {
+                    const s = buildShrub(Math.random);
+                    s.position.x = (i - 2.5) * 1.1 + (Math.random() - 0.5) * 0.3;
+                    s.position.z = (Math.random() - 0.5) * 0.4;
+                    g.add(s);
+                }
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 0.6, 0);
+                cam.dist = 12;
                 applyCam();
                 break;
             }

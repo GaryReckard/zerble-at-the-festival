@@ -42,6 +42,7 @@ import { buildEntranceArch as buildEntranceArchModel } from './models/entranceAr
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
 import { buildTentStage } from './models/tentStage.js';
 import { buildTree, buildForestTree, worldPerches, worldCrown } from './models/tree.js';
+import { buildShrub } from './models/shrub.js';
 import { leafBannerTextures } from './models/leafBanner.js';
 
 export const CHUNK_SIZE = 80;
@@ -1130,6 +1131,29 @@ function scatterWorldgenTrees(ctx) {
       placed.push({ x: hx, z: hz });                    // later trees keep clear of it
       hung++;
     }
+  }
+  // Low shrubs as woodland undergrowth + ground cover — visual-only (soft bushes
+  // you drive over; no collider/registry entry, disposed with the chunk group),
+  // on the LOCAL tree rng so they don't shift the ctx.rng order. Cluster mostly at
+  // tree bases (undergrowth read), a few in the open scrub. Off roads/dancefloors;
+  // treeDensity gates out water (0 there) + the bare hub cores.
+  const nShrubs = placed.length >= 6 ? 8 + Math.floor(rng() * 9) : (placed.length >= 2 ? 2 + Math.floor(rng() * 4) : 0);
+  for (let i = 0; i < nShrubs; i++) {
+    let sx, sz;
+    if (placed.length && rng() < 0.8) {
+      const t = placed[Math.floor(rng() * placed.length)];
+      const a = rng() * Math.PI * 2, d = 1.2 + rng() * 2.6;
+      sx = t.x + Math.cos(a) * d; sz = t.z + Math.sin(a) * d;
+    } else {
+      sx = minX + rng() * CHUNK_SIZE; sz = minZ + rng() * CHUNK_SIZE;
+    }
+    if (treeDensity(sx, sz) < 0.05) continue;
+    if (pointNearWorldgenRoad(sx, sz, chunkRoads, roadHalf)) continue;
+    if (pointInDancefloor(sx, sz, danceRects)) continue;
+    if (registry.closestBuilding(new THREE.Vector3(sx, 0, sz), 1.5, TREE_GUARD_SKIP)) continue;
+    const shrub = buildShrub(rng);
+    shrub.position.set(sx, 0, sz);
+    ctx.group.add(shrub);
   }
 }
 
