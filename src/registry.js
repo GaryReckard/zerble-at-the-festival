@@ -11,11 +11,17 @@ export class Registry {
   constructor() {
     this.entries = new Map(); // id -> entry
     this.byKind = new Map(); // kind -> Set<id>
-    // Broadphase grids for nearest-X queries, rebuilt once per frame by
-    // rebuildSpatialIndex() (called from main.js). ~8m cells. Rebuilding from
-    // live positions every frame keeps moving entries (Lurleen, drifting
-    // hula-hoopers) correctly placed with nothing to invalidate. Query
-    // accelerators only — they consume no rng, so determinism is untouched.
+    // Broadphase grids for nearest-X queries. Maintained TWO ways, both needed:
+    //   - LIVE on add()/remove() — so a worldgen query (closestBuilding) sees
+    //     buildings added earlier in the SAME generation pass, and a chunk that
+    //     unloads mid-frame leaves no phantom behind. Static buildings never
+    //     move between add and remove, so incremental maintenance is exact.
+    //   - REBUILT once per frame by rebuildSpatialIndex() (from main.js) — so
+    //     moving entries (Lurleen, drifting hula-hoopers) re-index from their
+    //     live positions with nothing to invalidate, and _maxFp/_maxCol reset
+    //     to the exact frame max.
+    // ~8m cells. Query accelerators only — they consume no rng, so determinism
+    // is untouched; closestBuilding returns the same set a full scan would.
     this._fpGrid = new SpatialGrid(8);
     this._colGrid = new SpatialGrid(8);
     this._maxFp = 0;   // largest footprint radius — pads query reach
@@ -38,6 +44,19 @@ export class Registry {
     this.entries.set(id, entry);
     if (!this.byKind.has(entry.kind)) this.byKind.set(entry.kind, new Set());
     this.byKind.get(entry.kind).add(id);
+    // Keep the broadphase grids LIVE (see constructor): index this entry now so
+    // same-pass worldgen guards (closestBuilding in chunks/forests/lakes) can
+    // see it. _maxFp/_maxCol grow monotonically here — a larger pad only widens
+    // the query superset, never makes it a subset, so the exact test downstream
+    // stays correct; rebuildSpatialIndex resets them to the true max each frame.
+    if (entry.footprint > 0) {
+      this._fpGrid.insert(entry.position.x, entry.position.z, entry);
+      if (entry.footprint > this._maxFp) this._maxFp = entry.footprint;
+    }
+    if (entry.collider) {
+      this._colGrid.insert(entry.position.x, entry.position.z, entry);
+      if (entry.collider.radius > this._maxCol) this._maxCol = entry.collider.radius;
+    }
     return id;
   }
 
@@ -46,6 +65,12 @@ export class Registry {
     if (!entry) return;
     this.entries.delete(id);
     this.byKind.get(entry.kind)?.delete(id);
+    // Mirror add(): drop it from the live grids so a chunk unloading mid-frame
+    // can't leave a phantom for a later same-frame query. Static buildings don't
+    // move, so e.position addresses the same cell it was inserted into; movers
+    // get fully re-indexed by rebuildSpatialIndex() next frame regardless.
+    if (entry.footprint > 0) this._fpGrid.remove(entry.position.x, entry.position.z, entry);
+    if (entry.collider) this._colGrid.remove(entry.position.x, entry.position.z, entry);
   }
 
   byChunk(chunkKey) {
@@ -140,11 +165,19 @@ export class Registry {
 
   // Quick lookup: are there any building footprints within `radius` of pos?
   // Returns the closest one, or null. Excludes the 'tree' kind by default.
+  //
+  // Grid-accelerated: a candidate qualifies when hypot(d) - footprint < radius,
+  // i.e. hypot < radius + footprint <= radius + _maxFp, so every possible hit
+  // lives within (radius + _maxFp) of pos — exactly the cells forEachNear walks.
+  // The visited set is a superset; the exact test below makes the result
+  // identical to the old full scan over this.entries. (Tie-breaks may pick a
+  // different equal-distance entry than the scan did, but every one of the ~21
+  // call sites uses the result purely as a boolean guard, so that's invisible.)
   closestBuilding(pos, radius, excludeKinds = new Set(['tree'])) {
     let best = null;
     let bestDist = Infinity;
-    for (const e of this.entries.values()) {
-      if (!e.footprint || excludeKinds.has(e.kind)) continue;
+    this._fpGrid.forEachNear(pos.x, pos.z, radius + this._maxFp, (e) => {
+      if (!e.footprint || excludeKinds.has(e.kind)) return;
       const dx = e.position.x - pos.x;
       const dz = e.position.z - pos.z;
       const d = Math.hypot(dx, dz) - e.footprint;
@@ -152,7 +185,7 @@ export class Registry {
         bestDist = d;
         best = e;
       }
-    }
+    });
     return best;
   }
 }

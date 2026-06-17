@@ -43,6 +43,21 @@ export class SpatialGrid {
     else this.cells.set(k, [item]);
   }
 
+  // Remove `item` from the cell covering (x, z). Pass the SAME (x, z) the item
+  // was inserted at — for static entries that's just `e.position`; the registry
+  // never moves a building between insert and remove. Swap-pop: within-cell
+  // order doesn't matter (every consumer min/sums/avoids, never relies on it).
+  // No-op if the cell or item is absent, so a double-remove is harmless.
+  remove(x, z, item) {
+    const k = this._key(Math.floor(x * this._inv), Math.floor(z * this._inv));
+    const arr = this.cells.get(k);
+    if (!arr) return;
+    const i = arr.indexOf(item);
+    if (i === -1) return;
+    arr[i] = arr[arr.length - 1];
+    arr.pop();
+  }
+
   // Visit every item in the cells covering [pos ± radius]. The visited set is a
   // superset of the true in-radius set; `fn` is responsible for the exact
   // distance test.

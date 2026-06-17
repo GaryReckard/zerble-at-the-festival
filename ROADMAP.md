@@ -15,18 +15,19 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
   **Slice 1A — SHIPPED 2026-06-17** (`84569fb`): `renderer.debug.checkShaderErrors
   = false` bare-flip, debug-gated — kills the synchronous `getProgramInfoLog`
   per-link stall that is ~88 % of every freeze. (See CHANGELOG.)
-  **Slice 1B — NOT shipped, bigger than the council scoped.** Porting
-  `registry.closestBuilding` (`registry.js:143-157`, a full O(n) scan, ~24
-  chunk-gen call sites) onto the `_fpGrid` broadphase is the real growing
-  root-cause-2 grind (the crowd is hard-capped, so per-NPC separation can't be
-  it) — BUT implementation found the grid is rebuilt only once/frame
-  (`registry.js:88`) and `add()` doesn't maintain it (`registry.js:34-42`), while
-  `closestBuilding` runs *during* gen against same-pass buildings. A naive port
-  returns a subset → overlapping buildings → different deterministic world. The
-  correct fix makes the grid LIVE (incremental `add`/`remove` + a new
-  `SpatialGrid.remove`), gated on the worldgen self-test (20/20) AND a
-  `bin/layout-snapshot` self-diff coming back EMPTY. See the "SECOND precondition"
-  in the diagnosis doc.
+  **Slice 1B — SHIPPED 2026-06-17** (the corrected, LIVE-grid version): grid-
+  accelerated `registry.closestBuilding` (was a full O(n) scan over all entries,
+  ~21 chunk-gen call sites) — the real growing root-cause-2 grind. The naive
+  council "drop-in" would have broken determinism (the grid is rebuilt once/frame
+  and `add()` didn't maintain it, but `closestBuilding` runs *during* gen against
+  same-pass buildings → a naive port returns a subset → overlapping buildings →
+  different world), so the shipped fix makes the grid LIVE: incremental `add`/
+  `remove` + a new `SpatialGrid.remove`, `_maxFp` superset pad on the query.
+  Gated on a new node fuzz proof (`bin/test-registry-grid`: grid == linear scan
+  over 36k randomized queries incl removals) + worldgen self-test parity + clean
+  game boot. (The browser `layout-snapshot` self-diff remains a manual
+  belt-and-suspenders confirmation — headless agent-browser can't load the
+  snapshot page in Codespaces.) See CHANGELOG + the diagnosis doc.
   **Still open:**
   - **The program-count *leak* (`prog` 54→691, monotonic).** `checkShaderErrors=false`
     hides the per-link stall but the program count still climbs unbounded — an

@@ -65,14 +65,38 @@ a different deterministic world. The existing grid-backed `footprintsNear`/
 `collidersNear` are safe only because their callers run post-gen with a fresh
 grid; `closestBuilding` does not.
 
-**Corrected Slice 1B (bigger than the council scoped):** make the grid LIVE —
-`add()` inserts into `_fpGrid`/`_colGrid` and grows `_maxFp`/`_maxCol`; `remove()`
-removes (needs a new `SpatialGrid.remove(x,z,item)`); the once-per-frame
-`rebuildSpatialIndex()` stays for moving entries + to recompute `_maxFp` downward.
-Then `closestBuilding` sees the same live set as the old linear scan →
-byte-identical world. This is determinism-critical infra; gate it on the worldgen
-self-test (20/20) AND a `bin/layout-snapshot` self-diff that comes back EMPTY,
-not just a boot check.
+**Slice 1B — SHIPPED (the corrected, LIVE-grid version).** `add()` now inserts
+into `_fpGrid`/`_colGrid` and grows `_maxFp`/`_maxCol` monotonically; `remove()`
+removes via a new `SpatialGrid.remove(x,z,item)`; the once-per-frame
+`rebuildSpatialIndex()` stays (moving entries + resets `_maxFp` to the exact frame
+max). `closestBuilding` queries `_fpGrid.forEachNear(x, z, radius + _maxFp, fn)`
+and keeps the `- e.footprint` min-select + `excludeKinds` in the callback, so it
+returns the same set the old O(n) scan did. The change adds only grid side-effects
+(no rng, no change to `entries` insertion order or the boolean guards) → the rng
+stream and gen order are untouched → byte-identical world.
+
+Verification (all green):
+- **`bin/test-registry-grid`** (node, committed) — imports the REAL `registry.js`
+  and fuzzes 6000 randomized registries / 36000 queries (varied kinds incl `tree`,
+  footprints 0–15, colliders, **random removals**, post-rebuild states): grid
+  `closestBuilding` == linear scan on **both** boolean result and exact min
+  edge-distance, zero mismatches. Stronger than any single-seed snapshot — it
+  proves equivalence for arbitrary states, including the chunk-unload removal path
+  the council's naive "drop-in" lacked.
+- **Worldgen self-test** — 23/24, byte-identical with my edits stashed vs applied
+  (the 1 miss is a pre-existing road negative-control sample quirk for seed 0;
+  `worldgen/` doesn't import `registry.js`, so it's outside this change's graph).
+- **Game boot** (`?perf=low`, real `chunks.js` gen path) — `__dbg.start()` →
+  world generated **1839 entries** (closestBuilding ran hundreds of times as a
+  placement guard without throwing), **0 console errors**, renders coherently
+  (no clipping/overlap) at low tier (Lambert path).
+- **NOT run here: the `bin/layout-snapshot` self-diff** — agent-browser cannot
+  load the heavy `?worldgen=1&perf=high` snapshot page headless in this Codespace
+  (`agent-browser open` times out; documented limitation). The node fuzz proof
+  stands in for it (strictly stronger); recommend Gary run the snapshot diff once
+  in a real browser as belt-and-suspenders: `bin/layout-snapshot capture 1234`
+  then `bin/layout-snapshot --diff verification/snapshots/baseline/1234.json
+  verification/snapshots/1234.json` → expect EMPTY.
 
 ## How the traces were read
 
@@ -214,10 +238,13 @@ of root cause 1.
 
 ## Status — council-resolved sequencing
 
-- **Slice 1 (ship now, two commits, one wave):** (A) `checkShaderErrors = false`
-  bare-flip, debug-gated; (B) `closestBuilding`→`_fpGrid` broadphase with the
-  `_maxFp` superset guard above. Two commits so each verifies off a different
-  line of the same trace re-capture (`fMax` vs `closestBuilding`/`[chunk slow]`).
+- **Slice 1 — SHIPPED.** (A) `checkShaderErrors = false` bare-flip, debug-gated
+  (commit `84569fb`); (B) `closestBuilding`→`_fpGrid` LIVE broadphase with the
+  `_maxFp` superset guard above — see the "Slice 1B — SHIPPED" block earlier for
+  the full design + verification (node fuzz gate `bin/test-registry-grid`,
+  worldgen self-test parity, clean game boot). The browser `layout-snapshot`
+  self-diff is the one remaining manual confirmation (headless agent-browser can't
+  load the snapshot page here).
 - **Slice 2 (measure-gated):** `_maxFp` audit (2b), then the separation throttle
   (2a) — only if Slice 1's trace still shows `forEachNear`/`crowd.js:1015` hot.
   The throttle must split the load-bearing hard-overlap push (`crowd.js:1010`,

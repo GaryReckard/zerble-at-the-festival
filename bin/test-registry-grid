@@ -1,0 +1,144 @@
+#!/usr/bin/env node
+/*
+ * bin/test-registry-grid — determinism gate for the grid-accelerated
+ * registry.closestBuilding (perf "Slice 1B").
+ *
+ * WHY THIS EXISTS: closestBuilding is a placement guard called DURING worldgen
+ * (chunks.js / forests.js / lakes.js / obstacles.js), against buildings added
+ * earlier in the SAME generation pass. It went from an O(n) scan over every
+ * registry entry to a grid (_fpGrid) broadphase. If the grid version ever
+ * returned a DIFFERENT boolean than the scan for any registry state, a guard
+ * would flip, a building would move or vanish, and the same seed would generate
+ * a DIFFERENT world — a determinism break. The browser snapshot self-diff
+ * (bin/layout-snapshot) proves it for whatever seeds you capture; this proves it
+ * for thousands of randomized registries, including chunk-unload removals, with
+ * zero browser. It imports the REAL src/registry.js (via the three-shim loader),
+ * not a copy, so it can't drift from what ships.
+ *
+ * THE PROPERTY: for every registry state and every query, the grid version and
+ * a reference linear scan agree on whether a building was found. (All ~21 call
+ * sites use the result purely as a boolean guard, so equal truthiness == equal
+ * world. We assert truthiness equality; on a true hit we additionally assert the
+ * exact min EDGE-distance matches, which is strictly stronger and catches any
+ * superset/pad bug even where the boolean happens to coincide.)
+ *
+ * Run: node bin/test-registry-grid          (exit 0 = pass, 1 = fail)
+ */
+
+import { register } from 'node:module';
+register('./node-three-shim.mjs', import.meta.url);
+
+const { Registry } = await import('../src/registry.js');
+
+// --- deterministic PRNG so a failure reproduces exactly ---
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const KINDS = ['tree', 'tent', 'stage', 'truck', 'lamppost', 'arch', 'puppet', 'bubble_vendor'];
+
+// Reference: the OLD linear scan, verbatim semantics. Operates on the live
+// entry list (what closestBuilding scanned before the grid).
+function linearClosest(entries, pos, radius, excludeKinds) {
+  let best = null, bestDist = Infinity;
+  for (const e of entries) {
+    if (!e.footprint || excludeKinds.has(e.kind)) continue;
+    const dx = e.position.x - pos.x;
+    const dz = e.position.z - pos.z;
+    const d = Math.hypot(dx, dz) - e.footprint;
+    if (d < radius && d < bestDist) { bestDist = d; best = e; }
+  }
+  return { hit: best, dist: best ? bestDist : Infinity };
+}
+
+function fail(msg) {
+  process.stderr.write('FAIL: ' + msg + '\n');
+  process.exit(1);
+}
+
+const rng = mulberry32(0x5eed1b);
+const SPAN = 120;           // world coords range — wide enough to span many 8m cells
+const TRIALS = 6000;
+const RADII = [1.5, 2.0, 2.5, 3, 4, 12, 14];
+const EXCLUDES = [new Set(['tree']), new Set(), new Set(['tree', 'puppet'])];
+
+let queries = 0;
+let withRebuild = 0;
+
+for (let t = 0; t < TRIALS; t++) {
+  const reg = new Registry();
+  const live = [];          // mirror of reg.entries the linear ref scans
+  const ids = [];
+
+  const n = 1 + Math.floor(rng() * 40);
+  for (let i = 0; i < n; i++) {
+    const e = {
+      kind: KINDS[Math.floor(rng() * KINDS.length)],
+      position: { x: (rng() - 0.5) * SPAN, y: 0, z: (rng() - 0.5) * SPAN },
+      // Mix of footprint-0 (must be ignored) and real footprints up to 15.
+      footprint: rng() < 0.15 ? 0 : rng() * 15,
+    };
+    if (rng() < 0.3) e.collider = { radius: rng() * 4, damage: 1 };
+    const id = reg.add(e);
+    ids.push(id);
+    live.push(e);
+  }
+
+  // Exercise remove() (chunk-unload path): drop a random subset. The grid must
+  // not retain a phantom — this is the half the naive "drop-in" port lacked.
+  const removeCount = Math.floor(rng() * n);
+  for (let r = 0; r < removeCount; r++) {
+    if (ids.length === 0) break;
+    const idx = Math.floor(rng() * ids.length);
+    const id = ids.splice(idx, 1)[0];
+    reg.remove(id);
+    // mirror the removal in the linear-scan reference list
+    const li = live.findIndex((x) => x.id === id);
+    if (li !== -1) live.splice(li, 1);
+  }
+
+  // Half the trials also run the once-per-frame rebuild, which resets
+  // _maxFp/_maxCol to exact and re-indexes from clear() — must stay equivalent.
+  if (rng() < 0.5) { reg.rebuildSpatialIndex(); withRebuild++; }
+
+  // Query barrage.
+  const q = 6;
+  for (let k = 0; k < q; k++) {
+    const pos = { x: (rng() - 0.5) * SPAN, z: (rng() - 0.5) * SPAN };
+    const radius = RADII[Math.floor(rng() * RADII.length)];
+    const exclude = EXCLUDES[Math.floor(rng() * EXCLUDES.length)];
+
+    const gridHit = reg.closestBuilding(pos, radius, exclude);
+    const ref = linearClosest(live, pos, radius, exclude);
+    queries++;
+
+    // 1) Boolean equivalence — the property every call site depends on.
+    if (!!gridHit !== !!ref.hit) {
+      fail(`boolean mismatch @trial ${t} pos(${pos.x.toFixed(3)},${pos.z.toFixed(3)}) ` +
+        `r=${radius} exclude={${[...exclude]}}: grid=${!!gridHit} scan=${!!ref.hit} ` +
+        `(live=${live.length})`);
+    }
+
+    // 2) On a hit, the exact min edge-distance must match (strictly stronger;
+    //    catches a too-small pad that would drop a real candidate).
+    if (gridHit) {
+      const dx = gridHit.position.x - pos.x;
+      const dz = gridHit.position.z - pos.z;
+      const gd = Math.hypot(dx, dz) - gridHit.footprint;
+      if (Math.abs(gd - ref.dist) > 1e-9) {
+        fail(`distance mismatch @trial ${t} pos(${pos.x.toFixed(3)},${pos.z.toFixed(3)}) ` +
+          `r=${radius}: grid=${gd} scan=${ref.dist}`);
+      }
+    }
+  }
+}
+
+process.stdout.write(
+  `PASS  ${TRIALS} trials, ${queries} queries (${withRebuild} post-rebuild) — ` +
+  `grid closestBuilding == linear scan (boolean + exact min distance)\n`
+);
