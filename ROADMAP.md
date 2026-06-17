@@ -6,6 +6,20 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
 
 ## Bugs
 
+- **Game goes unresponsive during play — two root causes, diagnosed from traces.** *(diagnosed 2026-06-17)*
+  Gary hit browser "page unresponsive" alerts; three captured Chrome perf traces
+  pin it to (1) **synchronous shader compile/link storms** — every freeze >150 ms
+  is ~88 % `getProgramInfoLog`, because `renderer.debug.checkShaderErrors`
+  defaults to `true`; prime fix is setting it `false` after boot (behind the
+  debug flag) — and (2) **`forEachNear` neighbor queries**
+  ([spatialGrid.js:48](src/spatialGrid.js#L48)), the #1 CPU cost (15–22 %) in
+  every session, growing with resident entity count (~3000 registry entries /
+  ~2867 colliders). The `[chunk slow]` console spam is a secondary symptom, not
+  the cause. Full evidence + priority-ordered fix plan:
+  **[.claude/perf-unresponsive-diagnosis.md](.claude/perf-unresponsive-diagnosis.md)**.
+  Confirm fixes with the perf-log recorder (`__dbg.recordPerf()` / backtick →
+  Perf log). Not yet fixed.
+
 - **Marching brass band floats ~0.85m above the ground.** *(found 2026-06-07)*
   Both the band members **and** the grand marshal float — same root cause in two
   files. The per-frame marching bob sets the figure's body group to
