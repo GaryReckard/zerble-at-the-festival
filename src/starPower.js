@@ -102,15 +102,15 @@ export function buildStarPreview() {
     color: 0xfff2c0, emissive: 0xffd24a, emissiveIntensity: 2.5,
     roughness: 0.3, metalness: 0.4, flatShading: true,
   });
-  const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), starMat);
+  const mesh = new THREE.Mesh(starGeometry(), starMat);
   mesh.position.y = baseY;
   group.add(mesh);
   const pillarMat = new THREE.MeshBasicMaterial({
-    color: 0xffd24a, transparent: true, opacity: 0.32,
+    map: beamTexture(), color: 0xffffff, transparent: true, opacity: 0.4,
     depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
   });
   const pillar = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.35, 0.5, 11, 10, 1, true), pillarMat
+    new THREE.CylinderGeometry(0.28, 0.42, 11, 10, 1, true), pillarMat
   );
   pillar.position.y = 5.5;
   pillar.frustumCulled = false;
@@ -121,7 +121,7 @@ export function buildStarPreview() {
       mesh.rotation.y += dt * 1.5;
       mesh.position.y = baseY + Math.sin(time * 2) * 0.15;
       starMat.emissiveIntensity = 2.2 + Math.sin(time * 3) * 0.5;
-      pillarMat.opacity = 0.24 + 0.14 * (0.5 + 0.5 * Math.sin(time * 1.3));
+      pillarMat.opacity = 0.18 + 0.1 * (0.5 + 0.5 * Math.sin(time * 1.3));
     },
   };
 }
@@ -131,6 +131,7 @@ const LOVE_RADIUS   = 25;     // NPCs within this fall in love during the buff
 const DURATION      = 15;     // total buff seconds (arm + hold + fade)
 const ARM           = 0.25;   // env 0→1
 const FADE          = 0.4;    // env 1→0
+const WARN          = 3.0;    // last N seconds of the buff: strobe a warning
 const COOLDOWN      = 180;    // seconds after a pickup before another can roll
 const FIRST_DELAY   = 25;     // grace before the very first star can appear
 const SPAWN_NEAR    = 150;    // star spawns this..FAR from the player
@@ -146,6 +147,55 @@ const SPARK_ANCHORS = [
   [0.72, 2.08, 0.72], [-0.72, 2.08, 0.72], [0.72, 2.08, -0.72], [-0.72, 2.08, -0.72],
   [0.62, 1.25, 0.2], [-0.62, 1.25, 0.2], [0, 1.35, 0.6], [0, 1.05, -1.45], [0, 1.8, -1.2],
 ];
+
+// Shared, lazily-built star geometry + beam texture (one per process, reused by
+// every spawned star and the sandbox preview; tagged userData.shared).
+let _STAR_GEO = null;
+let _BEAM_TEX = null;
+
+// A real 5-pointed star — a flat star Shape extruded with a soft bevel, so it
+// reads unmistakably as a star (not a sphere) and flattens to a thin line as it
+// spins around Y (the classic invincibility-star tumble).
+function starGeometry() {
+  if (_STAR_GEO) return _STAR_GEO;
+  const shape = new THREE.Shape();
+  const spikes = 5, outer = 0.55, inner = 0.23;
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = (i % 2 === 0) ? outer : inner;
+    const a = (i / (spikes * 2)) * Math.PI * 2 + Math.PI / 2;
+    const x = Math.cos(a) * r, y = Math.sin(a) * r;
+    if (i === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.16, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 1, steps: 1,
+  });
+  geo.center();
+  geo.userData.shared = true;
+  _STAR_GEO = geo;
+  return geo;
+}
+
+// Vertical gradient for the beacon: gold at the base fading to black at the top.
+// Additive blending makes black invisible, so the beam reads as a soft column
+// that dissolves upward instead of a hard opaque cylinder.
+function beamTexture() {
+  if (_BEAM_TEX) return _BEAM_TEX;
+  const h = 64;
+  const c = document.createElement('canvas');
+  c.width = 1; c.height = h;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, 'rgb(0,0,0)');         // canvas top → cylinder top: invisible
+  g.addColorStop(0.7, 'rgb(90,70,24)');
+  g.addColorStop(1, 'rgb(190,150,60)');    // base: dim gold
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1, h);
+  const tex = new THREE.CanvasTexture(c);
+  tex.userData.shared = true;
+  _BEAM_TEX = tex;
+  return tex;
+}
 
 // Soft round sparkle sprite — a radial-gradient dot baked once at module load.
 function makeSparkTexture() {
@@ -177,6 +227,8 @@ export const StarPower = {
   _env:    0,
   _phase:  0,        // seconds in the current buff phase
   _hue:    0,
+  _blinkAccum: 0,    // strobe phase during the ending warning
+  _fadeFrom:   1,    // env captured when fade begins (blink can start it low)
 
   // Spawn director
   _star:        null,   // { group, mesh, pillar, x, z, baseY, light } or null
@@ -297,19 +349,20 @@ export const StarPower = {
       color: 0xfff2c0, emissive: 0xffd24a, emissiveIntensity: 2.5,
       roughness: 0.3, metalness: 0.4, flatShading: true,
     });
-    const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), starMat);
+    const mesh = new THREE.Mesh(starGeometry(), starMat);
     mesh.position.y = baseY;
     mesh.castShadow = false;
     group.add(mesh);
 
-    // Beacon pillar — emissive, additive, thin. Visible from across the field;
-    // the bloom pass handles its glow for free.
+    // Beacon pillar — a soft gold column that dissolves toward the top via the
+    // gradient texture (gold base → black tip; additive makes black invisible).
+    // Subtle: low opacity, the bloom pass does the visible-from-afar work.
     const pillarMat = new THREE.MeshBasicMaterial({
-      color: 0xffd24a, transparent: true, opacity: 0.32,
+      map: beamTexture(), color: 0xffffff, transparent: true, opacity: 0.4,
       depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
     });
     const pillar = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.35, 0.5, 11, 10, 1, true), pillarMat
+      new THREE.CylinderGeometry(0.28, 0.42, 11, 10, 1, true), pillarMat
     );
     pillar.position.y = 5.5;
     pillar.frustumCulled = false;
@@ -381,7 +434,7 @@ export const StarPower = {
         s.mesh.rotation.y += dt * 1.5;
         s.mesh.position.y = s.baseY + Math.sin(time * 2) * 0.15;
         s.mesh.material.emissiveIntensity = 2.2 + Math.sin(time * 3) * 0.5;
-        s.pillarMat.opacity = 0.22 + (0.12 + nightness * 0.16) * (0.5 + 0.5 * Math.sin(time * 1.3));
+        s.pillarMat.opacity = 0.16 + (0.06 + nightness * 0.13) * (0.5 + 0.5 * Math.sin(time * 1.3));
         // Expire if the player wandered far away — re-roll later.
         const dx = zerble.position.x - s.x, dz = zerble.position.z - s.z;
         if (dx * dx + dz * dz > DESPAWN_DIST * DESPAWN_DIST) {
@@ -418,14 +471,26 @@ export const StarPower = {
         this._env = Math.min(1, this._phase / ARM);
         if (this._phase >= ARM) { this.state = 'active'; this._phase = 0; this._env = 1; }
         break;
-      case 'active':
-        this._env = 1;
+      case 'active': {
         this._phase += dt;
-        if (this._phase >= DURATION - ARM - FADE) { this.state = 'fading'; this._phase = 0; }
+        const activeLen = DURATION - ARM - FADE;
+        const left = activeLen - this._phase;
+        if (left < WARN) {
+          // Telegraph the ending: strobe the cart back toward its normal colours
+          // at an accelerating rate so the player can brace for collisions
+          // returning. Ghost mode itself stays on until the buff fully ends.
+          const k = 1 - Math.max(0, left) / WARN;          // 0→1 approaching the end
+          this._blinkAccum += dt * (3 + k * 10) * Math.PI * 2;
+          this._env = 0.12 + 0.88 * (0.5 + 0.5 * Math.cos(this._blinkAccum));
+        } else {
+          this._env = 1;
+        }
+        if (this._phase >= activeLen) { this.state = 'fading'; this._phase = 0; this._fadeFrom = this._env; }
         break;
+      }
       case 'fading':
         this._phase += dt;
-        this._env = Math.max(0, 1 - this._phase / FADE);
+        this._env = Math.max(0, this._fadeFrom * (1 - this._phase / FADE));
         if (this._phase >= FADE) {
           this._env = 0;
           this.state = 'idle';

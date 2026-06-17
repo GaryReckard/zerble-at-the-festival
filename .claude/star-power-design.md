@@ -23,6 +23,14 @@
 >   sparkles are one pooled `THREE.Points` draw streaming off the body/roof;
 >   tire-tracks are one `InstancedMesh` of dashes at the rear wheels, faded via
 >   per-instance colour (additive → black = invisible). One draw call each.
+> - **Star is a real 5-point star** (extruded `Shape`), not the `Icosahedron`
+>   sphere; **beam is a subtle gold gradient column** (gold base → black tip),
+>   not a hard cylinder.
+> - **Ending telegraph:** the last 3 s strobe the envelope rainbow↔normal at an
+>   accelerating rate so the player can brace for collisions returning (ghost
+>   mode stays on through the blink).
+> - **Trip + star power STACK** (see edge-case table) — the original cancel was
+>   removed.
 
 The hook: a rare floating glowing star hidden somewhere in the world.
 Catch it and for ~15 seconds Zerble enters a "star power" mode — invincible
@@ -223,7 +231,7 @@ Pillar of light:
 
 | Situation                                | Behavior                            |
 |------------------------------------------|-------------------------------------|
-| Player triggers star power while already on a trip | Trip immediately comes-down (smooth fade). Star power takes priority — you can't be tripping AND star-powered, the visuals would fight. |
+| Player triggers star power while already on a trip | **They STACK** (as-built, overriding the original "come down" call below — Gary's call). The trip's post-process warp over the rainbow cart, and its audio warp on the chiptune (`_starGain` is routed through the trip wet chain), are part of the fun. ~~Trip immediately comes-down.~~ |
 | Star power triggered while honking       | Honk completes normally. No interaction. |
 | Player crosses chunk boundary while buffed | Buff persists. Bound to Zerble, not the chunk. |
 | Star picked up while a passenger has an active quest | Buff applies normally. Quest completes early if you fly through the destination during the buff. |

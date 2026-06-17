@@ -365,6 +365,11 @@ export const Sound = {
     _tripLowpass.connect(_tripDelay);
     _tripDelay.connect(_tripFeedback);
     _tripFeedback.connect(_tripLowpass);
+    // Star-power chiptune also feeds the trip WET path so a trip warps it too
+    // (the rainbow buff layered under a trip is part of the fun). Its dry path
+    // (→ masterGain, above) keeps it audible when no trip is running; the wet
+    // gain is 0 unless setMusicTrip ramps it up, so this adds nothing at idle.
+    _starGain.connect(_tripLowpass);
 
     sfxBus = ctx.createGain();
     sfxBus.gain.value = 1.0;

@@ -307,8 +307,9 @@ Sound.onSongEnd((x, z) => {
 // ---------- Star power (rare floating star + 15s rainbow buff) ----------
 StarPower.init({ scene });
 StarPower.onTrigger = () => {
-  // Star power wins over a trip — they'd fight visually. Smoothly come down.
-  if (Trip.isActive()) Trip.comeDown();
+  // Star power + a trip STACK by design — the trip's post-process warp over the
+  // rainbow cart (and its audio warp on the chiptune, routed through the trip
+  // wet chain in sound.js) is part of the fun. Don't cancel the trip.
   Sound.startStarPower();
   bubbles.setStarPower(true);
   HUD.setStarPower(true);
@@ -396,6 +397,13 @@ function updateRefuelStream(fromPos, toPos, dt) {
 
 // ---------- Camera ----------
 const chaseCam = new ChaseCamera(camera, zerble);
+// Hold the hero 3/4 "PNG-match" framing while the title card is up, so the
+// blurred background behind it is a deliberate glamour shot of Zerble at its
+// festival spawn — not a chase-cam view of whatever terrain is behind the cart.
+// startIntroReveal() re-poses + orbits from here on Start; __dbg.start() and a
+// skip tap settle straight to chase. Cheap: it just pins the camera each frame
+// until the intro/skip clears the 'match' phase.
+chaseCam.poseIntroMatch();
 
 // Touch + mouse cam toggle button — same as pressing V. Cycles through
 // chase → first-person → top-down → chase.
@@ -1419,8 +1427,8 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     starPower(mode) {
       if (mode === 'spawn') {
         StarPower._cooldown = 0;
-        const a = zerble.heading;
-        StarPower._buildStar(zerble.position.x + Math.sin(a) * 10, zerble.position.z + Math.cos(a) * 10);
+        const f = zerble.forwardWorld;   // (-sin h, 0, -cos h) — authoritative forward
+        StarPower._buildStar(zerble.position.x + f.x * 10, zerble.position.z + f.z * 10);
         return 'star spawned 10m ahead';
       }
       if (mode === 'end') { StarPower.state = 'fading'; StarPower._phase = 0; return 'fading out'; }

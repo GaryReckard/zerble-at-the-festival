@@ -2,6 +2,20 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-17
+
+### Added
+- **Star power telegraphs its ending — the rainbow strobes back to normal over the last 3 s.** Players kept smashing into people the instant the buff ended because nothing signalled it. Now the final `WARN = 3 s` of the active phase blinks the buff envelope between full rainbow and near-normal cart colours at an *accelerating* rate (3 → 13 Hz as it approaches zero), so the whole effect — rainbow, sparkles, love-waves — flickers faster and faster as a countdown. Ghost mode itself stays on through the blink (it's gated on the buff *state*, not the envelope), so you keep your invincibility while you brace; collisions only return when the buff fully ends after the 0.4 s fade. ([starPower.js](src/starPower.js))
+
+### Changed
+- **The star is a real 5-pointed star now, not a sphere.** Swapped the `IcosahedronGeometry` ball for an extruded 5-point star `Shape` (soft bevel) that reads unmistakably as a star and flattens to a thin line as it spins around Y — the classic invincibility-star tumble. Shared geometry, built once.
+- **The beacon beam is much subtler.** Was a hard, fairly opaque cylinder; it's now a soft gold column that dissolves toward the top via a vertical gradient texture (gold base → black tip, and additive blending makes black invisible). Lower base opacity + a gentler pulse. Reads as a shaft of light, not a solid tube. ([starPower.js](src/starPower.js))
+- **Title-card background is now a deliberate hero shot of Zerble.** Before Start, the camera held a plain chase pose, so the blurred 3D behind the title card was often a view of terrain / the inside of the mountain ring at Zerble's festival spawn. The camera now pre-poses the `INTRO_MATCH` framing (the same front-¾ glamour angle the opening reveal lands on) the moment the world builds, so the backdrop is intentional. Start's reveal orbit and `__dbg.start()` / a skip tap clear it as before. ([main.js](src/main.js), [camera.js](src/camera.js))
+
+### Fixed
+- **Star power no longer cancels an active trip — they STACK (by request).** The first cut called `Trip.comeDown()` on pickup (the design doc's "they'd fight visually" call). Gary wants the opposite: a trip layered under star power is a feature — the trip's post-process warp over the rainbow cart, and now its *audio* warp on the chiptune too. Removed the come-down, and routed the star-power loop (`_starGain`) into the trip's wet chain in [sound.js](src/sound.js) (alongside its existing dry path to master), so a running trip lowpass-sweeps + feedback-smears the 160 BPM loop just like it does the music bus. Zero cost when no trip is active (the wet gain is 0).
+- **`__dbg.starPower('spawn')` dropped the star BEHIND Zerble, not ahead.** The helper used `(+sin, +cos)` for "forward" but the cart's forward is `(-sin, -cos)` (`zerble.forwardWorld`) — exactly reversed. Now uses `forwardWorld`, so the test star lands 10 m in front as advertised.
+
 ## 2026-06-16
 
 ### Changed
