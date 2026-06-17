@@ -29,12 +29,19 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
   belt-and-suspenders confirmation — headless agent-browser can't load the
   snapshot page in Codespaces.) See CHANGELOG + the diagnosis doc.
   **Still open:**
-  - **The program-count *leak* (`prog` 54→691, monotonic).** `checkShaderErrors=false`
-    hides the per-link stall but the program count still climbs unbounded — an
-    OOM vector on long low/mid/mobile sessions that high-tier desktop hides. Hunt
-    the mint-source with a gated `__dbg` `renderer.info.programs[].cacheKey` dump
-    (star power OFF first). It is **not** the color-keyed material pools (color is
-    a uniform → shared program).
+  - ~~**The program-count *leak* (`prog` 54→691, monotonic).**~~ **RESOLVED
+    2026-06-17.** Root-caused with the new `__dbg.dumpPrograms` finder: the climb
+    is the opt-in `PERF.contextLights` culler toggling `light.visible`, which
+    changes `NUM_*_LIGHTS` (baked into the program cache key) → a recompile per
+    nearby-light tally, cached forever. Confirmed live with the opt-in feature on
+    (13→220 `physical` programs). NOTE: stage beams + drum-circle fires register
+    *unconditionally* (no `PERF.contextLights` gate), so the **shipped default
+    churns too** under sustained driving — the earlier "default is clean" read was
+    a teleport-tour sample and unreliable headless measurement, not trustworthy.
+    Fixed for both paths: `contextLights.js` now uses a fixed 6+6 light pool
+    (constant scene light count → zero recompiles); the default game carries the
+    constant pool once a stage/drum is in range. It is **not** the color-keyed
+    material pools (color is a uniform → shared program). See CHANGELOG.
   - **`forEachNear` steady-state remnant (2a/2b), measure-gated.** Only if Slice 1's
     re-capture still shows it hot: audit `_maxFp`/`_maxCol` query-radius inflation,
     then stagger per-NPC separation (deterministic `(idx+frame)%N`, split from the

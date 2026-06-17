@@ -1,7 +1,16 @@
 // Blue Ridge backdrop: three rings of low-poly hills around the play area, autumn palette.
 // Each hill is positioned by its PEAK HEIGHT so it reliably protrudes above the ground.
+//
+// All ~234 hills are MERGED into a single geometry + single material at build
+// time, so the whole backdrop is ONE draw call instead of 234. The hills are a
+// static, never-streamed backdrop (built once in world.js, recentred on the
+// player each frame) with their colours baked per-vertex, so a merge is
+// pixel-identical and loses nothing — it just deletes ~233 draw calls and 233
+// material/geometry objects. (They use Math.random(), not the seeded rng, so
+// there's no determinism contract to preserve.)
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const PALETTE_NEAR = [
   0xd1502b, 0xe07a3a, 0xebb12c, 0xc88a2e,
@@ -22,8 +31,10 @@ export function buildMountains(scene) {
   const root = new THREE.Group();
   root.name = 'Mountains';
 
+  const geos = [];
+
   // Near ridge — autumn-vivid, bigger silhouette
-  buildHillLayer(root, {
+  collectHillLayer(geos, {
     radius: 360,
     count: 64,
     minSize: 30,
@@ -34,7 +45,7 @@ export function buildMountains(scene) {
   });
 
   // Mid ridge — muted, slightly taller-looking due to distance
-  buildHillLayer(root, {
+  collectHillLayer(geos, {
     radius: 520,
     count: 80,
     minSize: 40,
@@ -45,7 +56,7 @@ export function buildMountains(scene) {
   });
 
   // Far ridge — hazy blue-purple, large but distant
-  buildHillLayer(root, {
+  collectHillLayer(geos, {
     radius: 720,
     count: 90,
     minSize: 55,
@@ -55,11 +66,31 @@ export function buildMountains(scene) {
     palette: PALETTE_FAR,
   });
 
+  const merged = mergeGeometries(geos, false);
+  for (const g of geos) g.dispose();
+  merged.userData.shared = true;
+
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    flatShading: true,
+    roughness: 1.0,
+    metalness: 0,
+    fog: false, // mountains punch through fog so they always silhouette the horizon
+  });
+  mat.userData.shared = true;
+
+  const hills = new THREE.Mesh(merged, mat);
+  hills.castShadow = false;
+  hills.receiveShadow = false;
+  root.add(hills);
+
   scene.add(root);
   return root;
 }
 
-function buildHillLayer(parent, opts) {
+// Builds each hill's geometry, bakes its colour + world transform into the
+// vertices, and pushes it onto `out` for a single merge by the caller.
+function collectHillLayer(out, opts) {
   const { radius, count, minSize, maxSize, minPeakY, maxPeakY, palette } = opts;
 
   for (let i = 0; i < count; i++) {
@@ -97,25 +128,15 @@ function buildHillLayer(parent, opts) {
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
 
-    const mat = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      flatShading: true,
-      roughness: 1.0,
-      metalness: 0,
-      fog: false, // mountains punch through fog so they always silhouette the horizon
-    });
-
-    const hill = new THREE.Mesh(geo, mat);
-    // Place the hill's centerline below ground; its TOP lands at peakY.
-    // Icosahedron extends ±size*hr vertically from center. We want center.y + size*hr = peakY.
-    hill.position.set(
+    // Bake the per-hill world transform into the vertices so all hills can
+    // merge into one buffer. (rotateY then translate; the icosahedron centre
+    // sits below ground so its TOP lands at peakY.)
+    geo.rotateY(Math.random() * Math.PI * 2);
+    geo.translate(
       Math.cos(angle) * r,
       peakY - size * hr,
       Math.sin(angle) * r
     );
-    hill.rotation.y = Math.random() * Math.PI * 2;
-    hill.castShadow = false;
-    hill.receiveShadow = false;
-    parent.add(hill);
+    out.push(geo);
   }
 }

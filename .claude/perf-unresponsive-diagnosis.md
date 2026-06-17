@@ -142,34 +142,44 @@ explore and never releases them.
 **RESOLVED 2026-06-17 (the dump + a controlled repro).** Built the diagnostic the
 last paragraph asked for — `__dbg.dumpPrograms()` (groups `renderer.info.programs`
 by material family, surfaces the varying cacheKey token). Findings:
-- **The shipped DEFAULT path does NOT leak.** Booted `?perf=low`, `gotoHub(0..7)`
-  across 8 distinct hubs: program count held **flat at ~130–131** the whole sweep
-  (twice). No monotonic climb. So real players on the deploy are unaffected; Slice
-  1A already removed the *stall*, and there's no default-path program *leak* to
-  remove.
+- **The default path is NOT clean (correction).** An early `gotoHub(0..7)` teleport
+  tour read flat ~130–131, which suggested the default was leak-free — but that was
+  a discrete teleport sample (not sustained driving) on an unreliable headless
+  renderer, so don't trust it. The reason it's NOT clean: **stage beams
+  ([stage.js:192](../src/models/stage.js#L192)) and drum-circle fires
+  ([leafDrumCircle.js:200](../src/models/leafDrumCircle.js#L200)) call
+  `registerContextLight` UNCONDITIONALLY** — no `PERF.contextLights` gate (unlike
+  campsite/Sugar-Shack/campfire, which are gated). So `contextLights.update()`
+  distance-culls those stage/drum lights by toggling `.visible` even in the shipped
+  default, churning `NUM_SPOT/POINT_LIGHTS` during sustained driving past hubs. The
+  opt-in feature just *adds more* sources (campsite/shack), making the worst case
+  (13→220) — but the default churns too, more slowly.
 - **Ruled out** (static + dump): unguarded `onBeforeCompile` (all three —
   crowd/wook/star — carry a constant/bounded `customProgramCacheKey`), `defines`
   (none in `src/`), varying `customProgramCacheKey`, and the color-keyed pools
   (`color` is a uniform). Cart lights (headlight/disco/wheel) never toggle
-  `.visible`, so no default-path light-count churn.
-- **The climb is the opt-in `contextLights` culler.** `contextLights.update()`
-  ([contextLights.js:77-79](../src/contextLights.js#L77)) culls cluster lights via
-  `light.visible = false/true`. In three.js an invisible light is dropped from the
-  scene's light list → `NUM_POINT_LIGHTS` / `NUM_SPOT_LIGHTS` changes → **every
-  material recompiles**, and each new (light-count × material-config) combo is
-  cached forever. Driving past clusters oscillates the count 0..BUDGET=8 → the
-  monotonic program climb. `PERF.contextLights` is **off by default**
-  ([perf.js:126](../src/perf.js#L126)); the 691 was almost certainly captured with
-  it enabled. (Could not reproduce the ON case headless — agent-browser denies
-  `localStorage`, so `zerble.contextLights` can't be set; confirm in a real
-  browser: enable Lights in the backtick overlay, `__dbg.dumpPrograms()` before/
-  after a `gotoHub` tour.)
-- **Fix = a CONSTANT scene light count** (so the program set stops depending on
-  how many lights are nearby). Either a fixed-count light pool that the nearest
-  cluster lights write into, or pad the visible count per type with zero-intensity
-  dummies so `NUM_*_LIGHTS` never changes. Both trade some steady-state light cost
-  for zero recompiles. It's an opt-in-only change with a visual/perf tradeoff on
-  `contextLights` → flagged for Gary rather than shipped unilaterally.
+  `.visible`.
+- **The climb is the opt-in `contextLights` culler — CONFIRMED LIVE.** The old
+  `contextLights.update()` culled cluster lights via `light.visible = false/true`.
+  In three.js an invisible light is dropped from the scene's light list →
+  `NUM_POINT_LIGHTS` / `NUM_SPOT_LIGHTS` changes → **every material recompiles**,
+  and each new (light-count × material-config) combo is cached forever. Driving
+  past clusters oscillates the count → the monotonic program climb. `PERF.contextLights`
+  is **off by default** ([perf.js:126](../src/perf.js#L126)); the 691 was captured
+  with it enabled. Gary confirmed in a real browser (Lights ON): `dumpPrograms`
+  showed `physical #56` climb **13 → 21 → 220** across a `gotoHub` tour — exactly
+  the one-family-many-variants recompile signature.
+- **FIX SHIPPED 2026-06-17 — a CONSTANT scene light count.** `contextLights.js`
+  now keeps a **fixed pool of 6 PointLights + 6 SpotLights**, always in the scene,
+  always visible, so `NUM_*_LIGHTS` never changes and the cache stops growing. The
+  model-owned lights become invisible param/transform carriers; each frame the
+  nearest few are copied (position, colour, intensity, spot aim) into the pool
+  slots, unused slots dimmed to intensity 0. Constant cost = the 12-light pool
+  (the budget this system always meant to cap at, held steady not wobbling).
+  Every `register()` call site is untouched. Opt-in-only path, so it never
+  affected the shipped default. (ON-case empirical re-confirm with the fix is a
+  manual gate for Gary — agent-browser can't set `localStorage`/boot the WebGL
+  page headless.)
 - Secondary `tex 44→147`: per-cluster CanvasTextures (campsite tapestry) — but
   those are chunk-unload-disposed (not `userData.shared`) and `leafBanner` caches
   by color key, so it's bounded by resident clusters, not an unbounded leak.

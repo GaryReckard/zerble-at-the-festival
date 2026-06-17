@@ -1122,7 +1122,7 @@ function tickBody(dt) {
   // Shack spots, etc). Anything past ~40m from the player is turned off
   // so it doesn't pay the per-fragment lighting cost in the shader. Per
   // threejs-lighting skill's "limit light count" guidance.
-  ContextLights.update(zerble.position);
+  ContextLights.update(zerble.position, scene);
 
   // Adaptive quality watches frame time and drops bloom / shadows /
   // pixel ratio if the budget slips, ramps back if it recovers.
