@@ -342,6 +342,11 @@ export const StarPower = {
 
   // ── Star mesh + pillar ──────────────────────────────────────────────
   _buildStar(x, z) {
+    // Only one star is ever tracked (`this._star` is a single slot, and the
+    // pickup test reads only it). Despawn any existing star first so a repeat
+    // build — e.g. spamming `__dbg.starPower('spawn')` — can't strand orphaned,
+    // pickup-less star meshes in the scene.
+    if (this._star) this._despawnStar();
     const group = new THREE.Group();
     const baseY = 1.5;
 
