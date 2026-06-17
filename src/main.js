@@ -1687,6 +1687,25 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     recordPerf(on = true) { return window.__debug.recordPerf(on); },
     perfLog() { return window.__debug.perfLog(); },
 
+    // capture(name?, data?) POSTs data to the dev server, which writes it to
+    // .claude/captures/<name>.json — the browser->repo bridge for handing data
+    // to an agent that can't see this tab (no copy/paste needed). Default name
+    // 'perflog', default data the perf log. Keep names to [A-Za-z0-9_-].
+    // e.g. __dbg.capture()  ·  __dbg.capture('programs', __dbg.dumpPrograms())
+    capture(name = 'perflog', data) {
+      const payload = data !== undefined ? data : window.__debug.perfLog();
+      return fetch('/__capture/' + name, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+        .then((r) => r.text().then((t) => {
+          console.log(`[capture] ${r.ok ? 'OK' : 'FAIL ' + r.status} — ${t}`);
+          return r.ok;
+        }))
+        .catch((e) => { console.log('[capture] error — is the dev server running?', e); return false; });
+    },
+
     // Self-documenting map of the whole agent debug surface. Start here.
     help() {
       const out = [
@@ -1697,6 +1716,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  hubs:    gotoHub(n) · showFootprints(on)   (teleport+frame nth-nearest hub; footprint/dancefloor overlay)',
         '  perf:    recordPerf(true|false) · perfLog()   (samples engine stats to a reload-proof JSON ring buffer; backtick → Perf log)',
         '           dumpPrograms({raw?})   (shader-program leak finder: groups renderer.info.programs by family + varying token)',
+        '           capture(name?, data?)   (POST data to dev server -> .claude/captures/<name>.json; the browser->repo bridge, no copy/paste)',
         '  reach:   __dbg.game  (live refs: camera, zerble, scene, crowd, bubbles, …)',
         '           __dbg.debug (interactive API: freezeNPCs, pause, step, god, showColliders, dropSmile, spawnNPC)',
         '  verify:  __dbg.start() → __dbg.fillSeats() → __dbg.camLock(...) → screenshot → console-logs',

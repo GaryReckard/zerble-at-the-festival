@@ -6,3 +6,6 @@ node_modules
 # Chrome DevTools Performance captures (large playtest artifacts)
 Trace-*.json
 Trace-*.json.gz
+
+# Browser->repo capture sink (__dbg.capture() / serve_nocache.py POST /__capture)
+.claude/captures/
