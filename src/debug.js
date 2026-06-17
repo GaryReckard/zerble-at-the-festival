@@ -1618,6 +1618,7 @@ function collectPerfSample() {
     cgN: cg.count, cgSlow: cg.slowCount, cgWorst: r1(cg.slowest),
     mfp: reg ? r1(reg._maxFp) : -1,
     mcol: reg ? r1(reg._maxCol) : -1,
+    bigFp: reg && reg._bigFp ? reg._bigFp.length : -1,
     sepMs, avoidMs,
     x: z ? Math.round(z.position.x) : 0,
     z: z ? Math.round(z.position.z) : 0,

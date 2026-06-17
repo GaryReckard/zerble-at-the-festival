@@ -275,6 +275,19 @@ export const worldgenDrawCounts = new Map();
 
 const SLOW_THRESHOLD_MS = 8;
 
+// Per-chunk "[chunk slow]" warnings are a dev diagnostic, but every console.warn
+// makes Chrome synchronously capture a full async stack trace when DevTools is
+// open — so a streaming session firing 100+ of them bogs the console down (and
+// buries __dbg output) for zero added information: the same data is aggregated
+// into chunkGenStats (cgN/cgSlow/cgWorst in the perf log + the backtick HUD).
+// So gate the spam behind the debug flag, same as renderer.debug.checkShaderErrors
+// (main.js). Read once at load — toggling localStorage needs a reload, as there.
+const CHUNK_DEBUG = (() => {
+  try {
+    return new URLSearchParams(location.search).has('debug') || !!localStorage.getItem('zerble.debug');
+  } catch (e) { return false; }
+})();
+
 // ---------- Public API ----------
 
 export class ChunkManager {
@@ -336,7 +349,7 @@ export class ChunkManager {
       if (ms > chunkGenStats.slowest) chunkGenStats.slowest = ms;
       if (ms > SLOW_THRESHOLD_MS) {
         chunkGenStats.slowCount++;
-        console.warn(`[chunk slow] (${c.cx},${c.cz}) ${ms.toFixed(1)}ms`);
+        if (CHUNK_DEBUG) console.warn(`[chunk slow] (${c.cx},${c.cz}) ${ms.toFixed(1)}ms`);
       }
     }
 

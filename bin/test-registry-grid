@@ -69,6 +69,7 @@ const EXCLUDES = [new Set(['tree']), new Set(), new Set(['tree', 'puppet'])];
 
 let queries = 0;
 let withRebuild = 0;
+let bigCreated = 0;   // entries that land in the oversized (_bigFp) bucket
 
 for (let t = 0; t < TRIALS; t++) {
   const reg = new Registry();
@@ -77,11 +78,16 @@ for (let t = 0; t < TRIALS; t++) {
 
   const n = 1 + Math.floor(rng() * 40);
   for (let i = 0; i < n; i++) {
+    // Footprints span the OVERSIZE_FP threshold (16 m): mostly small grid
+    // entries (0–15 m, incl. footprint-0 which must be ignored), plus ~12%
+    // oversized (16–200 m, the lake/big-zone outliers) so the linear _bigFp
+    // bucket — and its removal path — is exercised, not just the grid.
+    const fp = rng() < 0.15 ? 0 : (rng() < 0.12 ? 16 + rng() * 184 : rng() * 15);
+    if (fp >= 16) bigCreated++;
     const e = {
       kind: KINDS[Math.floor(rng() * KINDS.length)],
       position: { x: (rng() - 0.5) * SPAN, y: 0, z: (rng() - 0.5) * SPAN },
-      // Mix of footprint-0 (must be ignored) and real footprints up to 15.
-      footprint: rng() < 0.15 ? 0 : rng() * 15,
+      footprint: fp,
     };
     if (rng() < 0.3) e.collider = { radius: rng() * 4, damage: 1 };
     const id = reg.add(e);
@@ -138,7 +144,12 @@ for (let t = 0; t < TRIALS; t++) {
   }
 }
 
+// Coverage guard: if no oversized footprint was ever created, the _bigFp
+// partition went untested and a PASS would be meaningless.
+if (bigCreated === 0) fail('coverage gap — no oversized (>=16 m) footprint created; _bigFp path untested');
+
 process.stdout.write(
-  `PASS  ${TRIALS} trials, ${queries} queries (${withRebuild} post-rebuild) — ` +
-  `grid closestBuilding == linear scan (boolean + exact min distance)\n`
+  `PASS  ${TRIALS} trials, ${queries} queries (${withRebuild} post-rebuild, ` +
+  `${bigCreated} oversized) — grid+bigFp closestBuilding == linear scan ` +
+  `(boolean + exact min distance)\n`
 );

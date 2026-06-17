@@ -7,6 +7,16 @@ import { SpatialGrid } from './spatialGrid.js';
 
 let nextId = 1;
 
+// A footprint wider than this (metres) is an outlier versus the ~2–16 m props
+// that fill the broadphase grid (8 m cells). Routing it to the linear _bigFp
+// list instead of the grid keeps the grid's query pad (_maxFp) small. A single
+// lake footprint is ~143 m: left in the grid it pads EVERY footprintsNear query
+// by 143 m, which at 8 m cells is a ~39×39-cell walk per query — measured at
+// ~25% of frame time in per-NPC building avoidance, the grid's pruning erased.
+// 16 m = 2 cells. Determinism is unaffected (queries still return a superset and
+// the caller's exact test runs per entry); only the candidate-pruning changes.
+const OVERSIZE_FP = 16;
+
 export class Registry {
   constructor() {
     this.entries = new Map(); // id -> entry
@@ -24,8 +34,14 @@ export class Registry {
     // is untouched; closestBuilding returns the same set a full scan would.
     this._fpGrid = new SpatialGrid(8);
     this._colGrid = new SpatialGrid(8);
-    this._maxFp = 0;   // largest footprint radius — pads query reach
+    this._maxFp = 0;   // largest GRID footprint radius — pads query reach
     this._maxCol = 0;  // largest collider radius — pads query reach
+    // Oversized footprints (>= OVERSIZE_FP: lakes, big festival zones) kept OUT
+    // of _fpGrid and scanned linearly by every footprint query. There are only a
+    // handful resident, so the linear pass is far cheaper than letting one 143 m
+    // lake inflate _maxFp and blow up every query's cell walk. _maxFp therefore
+    // reflects only the small grid footprints, keeping the pad tight.
+    this._bigFp = [];
   }
 
   // Add an entry. Returns its id.
@@ -49,7 +65,9 @@ export class Registry {
     // see it. _maxFp/_maxCol grow monotonically here — a larger pad only widens
     // the query superset, never makes it a subset, so the exact test downstream
     // stays correct; rebuildSpatialIndex resets them to the true max each frame.
-    if (entry.footprint > 0) {
+    if (entry.footprint >= OVERSIZE_FP) {
+      this._bigFp.push(entry);
+    } else if (entry.footprint > 0) {
       this._fpGrid.insert(entry.position.x, entry.position.z, entry);
       if (entry.footprint > this._maxFp) this._maxFp = entry.footprint;
     }
@@ -69,7 +87,12 @@ export class Registry {
     // can't leave a phantom for a later same-frame query. Static buildings don't
     // move, so e.position addresses the same cell it was inserted into; movers
     // get fully re-indexed by rebuildSpatialIndex() next frame regardless.
-    if (entry.footprint > 0) this._fpGrid.remove(entry.position.x, entry.position.z, entry);
+    if (entry.footprint >= OVERSIZE_FP) {
+      const i = this._bigFp.indexOf(entry);
+      if (i !== -1) { this._bigFp[i] = this._bigFp[this._bigFp.length - 1]; this._bigFp.pop(); }
+    } else if (entry.footprint > 0) {
+      this._fpGrid.remove(entry.position.x, entry.position.z, entry);
+    }
     if (entry.collider) this._colGrid.remove(entry.position.x, entry.position.z, entry);
   }
 
@@ -113,9 +136,12 @@ export class Registry {
   rebuildSpatialIndex() {
     this._fpGrid.clear();
     this._colGrid.clear();
+    this._bigFp.length = 0;
     let maxFp = 0, maxCol = 0;
     for (const e of this.entries.values()) {
-      if (e.footprint > 0) {
+      if (e.footprint >= OVERSIZE_FP) {
+        this._bigFp.push(e);
+      } else if (e.footprint > 0) {
         this._fpGrid.insert(e.position.x, e.position.z, e);
         if (e.footprint > maxFp) maxFp = e.footprint;
       }
@@ -135,6 +161,9 @@ export class Registry {
   // e.position / e.footprint / e.kind). Localized equivalent of footprints().
   footprintsNear(x, z, reach, fn) {
     this._fpGrid.forEachNear(x, z, reach + this._maxFp, fn);
+    // Oversized footprints aren't in the grid; visit them all (few resident).
+    // fn does the exact distance test, so visiting a far one is harmless.
+    for (let i = 0; i < this._bigFp.length; i++) fn(this._bigFp[i]);
   }
 
   // As above for collider-bearing entries (read e.position / e.collider / e.kind).
@@ -176,7 +205,7 @@ export class Registry {
   closestBuilding(pos, radius, excludeKinds = new Set(['tree'])) {
     let best = null;
     let bestDist = Infinity;
-    this._fpGrid.forEachNear(pos.x, pos.z, radius + this._maxFp, (e) => {
+    const test = (e) => {
       if (!e.footprint || excludeKinds.has(e.kind)) return;
       const dx = e.position.x - pos.x;
       const dz = e.position.z - pos.z;
@@ -185,7 +214,11 @@ export class Registry {
         bestDist = d;
         best = e;
       }
-    });
+    };
+    this._fpGrid.forEachNear(pos.x, pos.z, radius + this._maxFp, test);
+    // Oversized footprints (lakes, big zones) live outside the grid — the guard
+    // must still see them (e.g. don't place a tree inside a lake's circle).
+    for (let i = 0; i < this._bigFp.length; i++) test(this._bigFp[i]);
     return best;
   }
 }
