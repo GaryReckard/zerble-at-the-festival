@@ -1577,8 +1577,10 @@ function loadPerfLog() {
 function savePerfLog(list) {
   try { localStorage.setItem(PERF_LOG_KEY, JSON.stringify(list)); } catch (_) { /* private mode / quota */ }
 }
-// Pure metrics snapshot — no timestamps. Reused by the Stats "copy snapshot"
-// button and by samplePerf (which prepends t + ts).
+// Metrics snapshot — no timestamps. Reused by the Stats "copy snapshot"
+// button and by samplePerf (which prepends t + ts). NOT side-effect-free: it
+// drains the crowd's self-time window (Crowd._perf) so each call yields a fresh
+// per-frame mean since the previous call.
 function collectPerfSample() {
   const h = state.hooks;
   const r = h && h.renderer;
@@ -1586,9 +1588,19 @@ function collectPerfSample() {
   const ft = getFrameStats();
   const cg = chunkGenStats;
   const z = h && h.zerble;
+  const reg = h && h.registry;
   const r1 = (v) => Math.round(v * 10) / 10;
   const heap = (typeof performance !== 'undefined' && performance.memory)
     ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null;
+  // Crowd steady-state self-times (opt-in, see Crowd._perf). Averaged over the
+  // frames since the last sample, then the window is zeroed so each sample is a
+  // fresh per-frame mean. mfp/mcol expose the registry broadphase query pads —
+  // the largest footprint/collider radius inflates every per-NPC avoidance query.
+  const cp = h && h.crowd && h.crowd._perf;
+  const cpF = cp && cp.frames > 0 ? cp.frames : 0;
+  const sepMs = cpF ? r1(cp.sepMs / cpF) : 0;
+  const avoidMs = cpF ? r1(cp.avoidMs / cpF) : 0;
+  if (cp) { cp.sepMs = 0; cp.avoidMs = 0; cp.frames = 0; }
   return {
     fps: state.rafSamples.length,
     fAvg: ft.avg > 0 ? r1(ft.avg) : 0,
@@ -1604,6 +1616,9 @@ function collectPerfSample() {
     reg: h && h.registry ? h.registry.entries.size : -1,
     col: h && h.registry ? [...h.registry.colliders()].length : -1,
     cgN: cg.count, cgSlow: cg.slowCount, cgWorst: r1(cg.slowest),
+    mfp: reg ? r1(reg._maxFp) : -1,
+    mcol: reg ? r1(reg._maxCol) : -1,
+    sepMs, avoidMs,
     x: z ? Math.round(z.position.x) : 0,
     z: z ? Math.round(z.position.z) : 0,
   };
@@ -1624,6 +1639,10 @@ function samplePerf() {
 }
 function setPerfRecording(on) {
   state.perfRecording = !!on;
+  // Toggle the crowd's opt-in self-timers in lockstep, and zero the window so
+  // the first sample isn't polluted by pre-recording accumulation.
+  const cp = state.hooks && state.hooks.crowd && state.hooks.crowd._perf;
+  if (cp) { cp.on = !!on; cp.sepMs = 0; cp.avoidMs = 0; cp.frames = 0; }
   if (on) {
     state.perfLastSampleMs = 0;   // force an immediate first sample
     Analytics.featureUsed('debug_perflog');

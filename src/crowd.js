@@ -121,6 +121,12 @@ export class Crowd {
     // Per-frame separation broadphase (cell = SEPARATION_RADIUS). Rebuilt from
     // live NPC positions at the top of update().
     this._sepGrid = new SpatialGrid(SEPARATION_RADIUS);
+    // Opt-in steady-state instrumentation, toggled by the debug perf recorder
+    // (setPerfRecording). When `on`, accumulates self-time for the two per-NPC
+    // neighbourhood scans (separation + footprint avoidance) so a capture can
+    // attribute the steady-state grind. Read + zeroed each perf sample. Off by
+    // default → a single boolean check per scan, no timing cost in normal play.
+    this._perf = { on: false, sepMs: 0, avoidMs: 0, frames: 0 };
 
     this._buildInstanced();
   }
@@ -566,6 +572,7 @@ export class Crowd {
   // -------------- per-frame --------------
 
   update(dt, zerble, bubbles) {
+    if (this._perf.on) this._perf.frames++;
     // First sweep: free any NPC who has drifted too far from Zerble. Lifecycle
     // is intentionally distance-based (not chunk-based) so wandering NPCs
     // don't vanish when their spawn chunk unloads.
@@ -1012,6 +1019,7 @@ export class Crowd {
     let overlapPushX = 0, overlapPushZ = 0;
     // Broadphase: only the ~9 cells around this NPC (grid built from this
     // frame's positions at the top of update()). Same math, pruned candidates.
+    const _tSep = this._perf.on ? performance.now() : 0;
     this._sepGrid.forEachNear(npc.pos.x, npc.pos.z, SEPARATION_RADIUS, (other) => {
       if (other === npc || other.state === 'riding') return;
       const ox = npc.pos.x - other.pos.x;
@@ -1032,6 +1040,7 @@ export class Crowd {
         }
       }
     });
+    if (this._perf.on) this._perf.sepMs += performance.now() - _tSep;
     // Apply hard-overlap push instantly (so NPCs never visually stack)
     npc.pos.x += overlapPushX;
     npc.pos.z += overlapPushZ;
@@ -1062,7 +1071,9 @@ export class Crowd {
       }
 
       // Building avoidance
+      const _tAvoid = this._perf.on ? performance.now() : 0;
       const avoid = nearestFootprintAvoidance(npc.pos, BUILDING_AVOID_RADIUS);
+      if (this._perf.on) this._perf.avoidMs += performance.now() - _tAvoid;
       if (avoid) {
         desiredX += avoid.x * avoid.strength;
         desiredZ += avoid.z * avoid.strength;
