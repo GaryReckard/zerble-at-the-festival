@@ -113,6 +113,24 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
+// `renderer.debug.checkShaderErrors` defaults to true, which makes three.js call
+// getProgramInfoLog/getShaderInfoLog SYNCHRONOUSLY after every program link — a
+// GPU sync-stall per link. The procedural world mints many programs as it
+// streams, so those stalls pile into the multi-hundred-ms main-thread freezes
+// that fired the browser "page unresponsive" alerts (see
+// .claude/perf-unresponsive-diagnosis.md). Disable it for players; keep it ON
+// under ?debug / localStorage so shader-compile errors still surface in dev.
+// Set at module load, before the first (title-card) render. WARNING: with this
+// off a broken shader fails SILENTLY (black / no draw) instead of logging —
+// verify shader-touching changes by LOOKING at ?perf=low/mid/high (low swaps to
+// the threeShim Lambert path = a different program set), not a clean console.
+renderer.debug.checkShaderErrors = (() => {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    return p.has('debug') || !!localStorage.getItem('zerble.debug');
+  } catch (e) { return false; }
+})();
+
 // ---------- Scene & Camera ----------
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.5, 1500);
