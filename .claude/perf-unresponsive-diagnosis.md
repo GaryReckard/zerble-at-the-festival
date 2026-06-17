@@ -31,6 +31,38 @@ across all three sessions.
 
 ---
 
+## Confirmation — 160 s foreground perf-log capture (2026-06-17)
+
+Gary ran the perf-log recorder for ~160 s of real play (foreground, real GPU —
+so frame numbers are healthy, 35–50 fps, unlike the headless traces). It
+confirms both root causes and **sharpens #1 from "first-compile stalls" into a
+genuine shader-program *leak*:**
+
+- **`prog` (live shader-program count): 54 → 691, monotonic, never recovers.**
+  Each jump (+30 to +60 in one second) lands exactly on a frame spike — `prog`
+  55→115 at t=6 s with `fMax` 313.8 ms; →401 at t=33 s with 245 ms; 538→601 at
+  t=126–127 s with 207/199 ms. ~691 *distinct* shader cache-keys alive and still
+  climbing at capture end.
+- **`geo` oscillates 4027 ↔ 9638** with chunk load/unload and returns —
+  **geometry disposal is healthy; the leak is materials/programs, not geometry.**
+- **`heapMB`: 97 → 416** with GC sawtooth (drops to ~180/238) but a *rising
+  floor* → a partial heap leak riding along.
+- **`tex`: 44 → 147**, climbing, doesn't recover (secondary).
+- **`fAvg` ~20–32 ms even parked**, at ~3000–4100 colliders — the steady floor
+  that is root cause 2 (`forEachNear`).
+
+**Implication for the fix:** `checkShaderErrors = false` (below) kills the
+per-link *sync stall* — the spike mechanism — regardless. But the program-*count*
+leak is a **separate bug**: something mints new distinct shader cache-keys as you
+explore and never releases them. It is **NOT** the color-keyed material pools
+(`tent.js` `_CLOTH_MATS`, `puppet.js` `_npcMatPool`, `foodTruck.js`
+`_bodyMatPool`) — those vary only `color`, a *uniform*, so they share one
+program — nor the crowd/wook tie-dye (constant `customProgramCacheKey`). Finding
+the real source needs its own pass: dump `renderer.info.programs[].cacheKey`
+periodically and diff to see which configs proliferate (suspect a `#define`-level
+variation — `flatShading`/`vertexColors`/map-presence/light-count mix — or an
+`onBeforeCompile` whose cache-key varies). Don't guess without that dump.
+
 ## Root cause 1 — the freezes: synchronous shader compile/link storms
 
 **Evidence:** every main-thread task over 150 ms is **~88 % `getProgramInfoLog` +
