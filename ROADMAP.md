@@ -12,13 +12,22 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
   **[.claude/perf-unresponsive-diagnosis.md](.claude/perf-unresponsive-diagnosis.md)**;
   Tier-3 debate council that resolved the fix plan:
   [.claude/deliberations/001-perf-unresponsive-fixes/results.md](.claude/deliberations/001-perf-unresponsive-fixes/results.md).
-  **Slice 1 (shipping now):** (A) `renderer.debug.checkShaderErrors = false`
-  bare-flip, debug-gated — kills the synchronous `getProgramInfoLog` per-link
-  stall that is ~88 % of every freeze; (B) port `registry.closestBuilding`
-  (`registry.js:143-157`, a full O(n) scan bypassing the spatial grid, ~24
-  chunk-gen call sites) onto the `_fpGrid` broadphase — the real growing
+  **Slice 1A — SHIPPED 2026-06-17** (`84569fb`): `renderer.debug.checkShaderErrors
+  = false` bare-flip, debug-gated — kills the synchronous `getProgramInfoLog`
+  per-link stall that is ~88 % of every freeze. (See CHANGELOG.)
+  **Slice 1B — NOT shipped, bigger than the council scoped.** Porting
+  `registry.closestBuilding` (`registry.js:143-157`, a full O(n) scan, ~24
+  chunk-gen call sites) onto the `_fpGrid` broadphase is the real growing
   root-cause-2 grind (the crowd is hard-capped, so per-NPC separation can't be
-  it). **Still open after Slice 1:**
+  it) — BUT implementation found the grid is rebuilt only once/frame
+  (`registry.js:88`) and `add()` doesn't maintain it (`registry.js:34-42`), while
+  `closestBuilding` runs *during* gen against same-pass buildings. A naive port
+  returns a subset → overlapping buildings → different deterministic world. The
+  correct fix makes the grid LIVE (incremental `add`/`remove` + a new
+  `SpatialGrid.remove`), gated on the worldgen self-test (20/20) AND a
+  `bin/layout-snapshot` self-diff coming back EMPTY. See the "SECOND precondition"
+  in the diagnosis doc.
+  **Still open:**
   - **The program-count *leak* (`prog` 54→691, monotonic).** `checkShaderErrors=false`
     hides the per-link stall but the program count still climbs unbounded — an
     OOM vector on long low/mid/mobile sessions that high-tier desktop hides. Hunt

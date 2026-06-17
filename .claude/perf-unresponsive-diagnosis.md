@@ -48,8 +48,31 @@ in — flipping a seeded placement boolean and **shifting the deterministic worl
 The port MUST query `forEachNear(x, z, radius + this._maxFp, fn)` (the
 `footprintsNear` pattern, `registry.js:111-112`) and keep the `- e.footprint`
 min-select + `excludeKinds` inside the callback. All 26 call sites use the result
-purely as a boolean guard (verified), so the superset-padded port is
+purely as a boolean guard (verified), so a set-equivalent superset-padded port is
 determinism-safe.
+
+**SECOND precondition — found during implementation, INVALIDATES the council's
+"~10-line drop-in":** `registry.add()` (`registry.js:34-42`) does NOT maintain
+the spatial grids; `_fpGrid`/`_colGrid` are rebuilt only ONCE PER FRAME by
+`rebuildSpatialIndex()` (`registry.js:88`), whose consumers are all *post-gen*
+(crowd steering, kid push-out, Zerble collision). But `closestBuilding` is called
+*during* chunk generation as a placement guard against buildings added EARLIER IN
+THE SAME GEN PASS (e.g. `chunks.js:1240/1243/1657` — drum circle / camp vs
+clusters built moments before in the same hub). Those same-pass buildings aren't
+in the once-per-frame grid yet, so a naive grid-backed `closestBuilding` returns a
+SUBSET (misses them) → a placement guard wrongly passes → overlapping buildings →
+a different deterministic world. The existing grid-backed `footprintsNear`/
+`collidersNear` are safe only because their callers run post-gen with a fresh
+grid; `closestBuilding` does not.
+
+**Corrected Slice 1B (bigger than the council scoped):** make the grid LIVE —
+`add()` inserts into `_fpGrid`/`_colGrid` and grows `_maxFp`/`_maxCol`; `remove()`
+removes (needs a new `SpatialGrid.remove(x,z,item)`); the once-per-frame
+`rebuildSpatialIndex()` stays for moving entries + to recompute `_maxFp` downward.
+Then `closestBuilding` sees the same live set as the old linear scan →
+byte-identical world. This is determinism-critical infra; gate it on the worldgen
+self-test (20/20) AND a `bin/layout-snapshot` self-diff that comes back EMPTY,
+not just a boot check.
 
 ## How the traces were read
 
