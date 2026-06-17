@@ -25,7 +25,12 @@ Pages). GA4 is wired (G-CY1FNMY8H8) and analytics calls go through
 3. **[ARCHITECTURE.md](ARCHITECTURE.md)** — the canonical walkthrough. Render
    pipeline, world chunks/forests/lakes, registry, collision model, crowd AI,
    audio synthesis, perf tiers. If a question is "how does X work," it's
-   probably already in here.
+   probably already in here. For the **per-capability contract** ("what does
+   subsystem X *guarantee*") see **[openspec/specs/](openspec/specs/README.md)** —
+   20 capabilities in Requirement/Scenario form, traced to code (authored
+   2026-06-17). ARCHITECTURE is the prose walkthrough; the specs are the contract,
+   and they're reference truth you can consult anytime (NOT part of the
+   intent-gated OpenSpec *change* workflow below).
 4. **[ROADMAP.md](ROADMAP.md)** — what's queued. Check before proposing new
    work to see if Gary has already considered (and parked) it.
 5. **[CHANGELOG.md](CHANGELOG.md)** — what shipped, dated. The "why" of recent
@@ -293,9 +298,12 @@ Three agent surfaces, adapted from the fedweb toolkit for this project:
   persists a `review-summary.md`. Distinct from the global `/code-review` and
   `/security-review`.
 - **OpenSpec** (`/opsx:*`) — optional spec-driven planning. It's **lazy and
-  intent-gated**: don't read `openspec/` on first message. Enter OpenSpec mode
-  only when the prompt names an `/opsx:*` command, an artifact (`tasks.md`,
+  intent-gated**: don't read `openspec/changes/` on first message. Enter OpenSpec
+  mode only when the prompt names an `/opsx:*` command, an artifact (`tasks.md`,
   `session-log`, `proposal.md`, `openspec/changes`), or asks to plan a change.
+  (Exception: **`openspec/specs/`** is the canonical capability baseline — reference
+  truth like ARCHITECTURE.md, fine to consult anytime; it's the *change workflow*
+  under `openspec/changes/` that's gated, not the specs.)
   Full operational details (the `README.md` front door, the `session-log.md` +
   `questions-for-human.md` persistent-memory system, the event-driven writing
   protocol, the skippable deliberation gate, the cross-ref convention) live in

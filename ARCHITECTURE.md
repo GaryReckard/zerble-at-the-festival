@@ -2,6 +2,11 @@
 
 How Zerble at Festival fits together. Aimed at someone who has cloned the repo and wants to understand the moving parts before editing anything.
 
+> For the **per-capability contract** ("what does subsystem X guarantee"), see the
+> canonical specs in [`openspec/specs/`](openspec/specs/README.md) — 20 capabilities in
+> Requirement/Scenario form, traced to code. This file is the prose walkthrough; those
+> are the contract.
+
 ---
 
 ## Top-level shape
@@ -121,7 +126,7 @@ Three independent lifecycle systems own world content. They all share one regist
 ### 1. Chunks (`chunks.js`)
 
 - Grid size: **80m**. Chunk key is `${cx}_${cz}`.
-- Lazy-loaded as Zerble approaches; **never unloaded** once created.
+- Lazy-loaded as Zerble approaches; **unloaded** once the player moves beyond `UNLOAD_RADIUS` (hysteresis vs the smaller load radius so a boundary straddle doesn't thrash). Unload goes through `disposeChunkByKey` → `registry.removeChunk(key)` (`chunks.js:343-356,540`).
 - Each chunk picks a theme from `(cx, cz)` hash:
   - `main_stage` — only at `(0, 0)`. Big stage + dense audience.
   - `side_stage`, `food_plaza`, `vendor_row`, `drum_circle`, `grove`, `open_lawn`.
@@ -151,7 +156,7 @@ Three independent lifecycle systems own world content. They all share one regist
 
 ### 4. Worldgen v2 — the procedural map generator (`src/worldgen/`)
 
-A second, **render-agnostic** world generator that replaces the per-chunk theme dice-roll (system 1) and the 3×3 forest blocks (system 2) with one coherent festival layout. **Flag-gated and OFF by default** (`USE_WORLDGEN_V2`, `perf.js`): production ships v1; `?worldgen=1` forces v2 on, `?worldgen=0` forces legacy. The flag is resolved once at module load and read once per chunk. As of 2026-06 v2 is content-complete (see CHANGELOG); the flip to default is a perf-comfort + decision gate, not a missing-content one.
+A second, **render-agnostic** world generator that replaces the per-chunk theme dice-roll (system 1) and the 3×3 forest blocks (system 2) with one coherent festival layout. **Now the default** (`USE_WORLDGEN_V2 = true`, `perf.js:42`, landed 2026-06-16): production ships the v2 procedural festival; `?worldgen=0` forces the legacy v1 world (an escape hatch slated for removal), `?worldgen=1` forces v2. The flag is resolved once at module load and read once per chunk.
 
 **The contract (`index.js`).** `queryPoint(x, z)` returns a plain-data tuple — `heart`, `heartInfluence`, `roleTier`, `onRoad`/`facing`, `inLake`, `noBuild`, `treeDensity`, … — with **no `three` and no DOM**. The seed is module-global (one door: `setSeed` → `rng.setSessionSeed`, the same `?seed=` uses), and the tuple is **append-only** across the 2D→3D boundary (the 3D port may add fields but must never reorder/re-salt existing draws — footgun #4). This is why the same seed reproduces the same world in the 2D map sandbox and the live 3D game.
 
@@ -315,7 +320,7 @@ Boot-time device sniff: touch capability, screen size, `hardwareConcurrency`, `d
 
 | Knob | low | mid | high |
 |---|---|---|---|
-| `pixelRatioCap` | 1.0 | 1.5 | 2.0 |
+| `pixelRatioCap` | 1.25 | 1.5 | 2.0 |
 | `shadows` | off | on | on |
 | `shadowType` | basic | basic | soft |
 | `bloom` | on | on | on |

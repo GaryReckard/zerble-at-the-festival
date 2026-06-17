@@ -42,7 +42,7 @@ context: |
     chunks differently. Salt new randomness with a fresh constant; don't reorder
     existing rng() calls.
   - THREE LIFECYCLE SYSTEMS own world content and are NOT transactional: chunks
-    (80m grid, never unload), forests (3x3 chunk blocks), lakes (320m macrocell,
+    (80m grid, unload beyond UNLOAD_RADIUS via disposeChunkByKey), forests (3x3 chunk blocks), lakes (320m macrocell,
     load/unload by distance — lakes deliberately OMIT chunkKey so colliders survive
     host-chunk unload). Don't tag a lake entry with a chunkKey.
   - SHARED POOLED RESOURCES are tagged userData.shared = true; chunk/lake disposal
@@ -99,13 +99,26 @@ conventions:
   roadmap: "If the work was on ROADMAP.md, remove (or trim) that bullet in the same commit"
   commits: "Imperative subject describing the change (e.g. 'Add:', 'Fix:', 'Perf:')"
 
+# Canonical capability specs live in openspec/specs/<name>/spec.md (see
+# openspec/specs/README.md). 20 capabilities, authored 2026-06-17 by tracing code.
 specs_index:
-  - render-pipeline: threeShim tier swap, MeshStandard/Lambert, renderer + post-process, sky/fog/nightness
-  - world-streaming: chunks (80m grid), forests (3x3 blocks), lakes (320m macrocell), theme builders
-  - registry-collision: registry entries (kind/position/footprint/collider/attractor/chunkKey), spatial-hash broadphase
-  - crowd-ai: NPC spawn/update, instanced crowd, attractors, drum circles
-  - audio-synthesis: Web Audio bus, iOS gesture unlock, spatialized engine, stage music generators
-  - perf-tiers: low/mid/high budgets, shadow audit, instancing/pooling, AA/pixel-ratio strategy
-  - models: src/models/* (return a Group anchored at origin; sandbox-registered)
-  - determinism: rng.js hash2 + mulberry32 seeding contract
-  - sandbox-harness: sandbox.html entity viewer, __dbg driving surface, the verify loop
+  - render-pipeline: renderer + composer chain, the per-frame loop, hidden-tab setTimeout, threeShim tier-aware material swap
+  - lighting-and-time-of-day: day/night clock, nightness, sky/sun/hemi/fog, distance-culled context-light budget
+  - determinism: rng.js seeding contract — hash flavors, salts, quantization, order-independent seam seeding
+  - perf-tiers: boot tier detection, PERF profile, USE_WORLDGEN_V2, runtime adaptive-quality monitor
+  - world-streaming: global world build, chunk/forest/lake lifecycle + disposal, v1↔v2 branch + v2 consumption pipeline
+  - worldgen-layout: render-agnostic generator (hearts/roads/water/density/roles), point-query contract, determinism goldens
+  - festival-composition: per-heart POI zone-slotter, cross-hub seam grammar, cluster-center ownership, FESTIVAL_TUNING
+  - registry-collision: registry entries (kind/position/footprint/collider/attractor/chunkKey), spatial-hash broadphase, approach-speed model
+  - carts: Zerble arcade physics + nightness lights; Lurleen chase state machine
+  - crowd-ai: pooled NPC state machine, smile mechanic, roaming obstacle groups
+  - models: src/models/* (buildX→Group contract, animatables, pooling, sandbox-registered) + CATALOG
+  - feedback-systems: bubbles + juice resource, smile pickups, lost-smile cue
+  - input-controls: source-agnostic input facade, keyboard + virtual touch controls
+  - camera: three-mode chase rig, per-mode zoom, intro reveal, debug pin
+  - hud: score/best, juice gauge, toast, hit flash, star vignette, title card
+  - audio-synthesis: Web Audio bus graph, iOS gesture unlock, engines, SFX, drum circles, stage songform, MIDI, nature bed
+  - special-modes: star power + wook trip post-process (internal Easter eggs; NOTES.md)
+  - ambient-backdrop: boids bird flock, night sky (stars + moon), mountain ring
+  - sandbox-harness: 3 sandboxes, backtick overlay, __dbg driving surface, layout linter
+  - analytics: fail-safe GA4 event taxonomy
