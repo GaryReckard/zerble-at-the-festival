@@ -15,6 +15,42 @@ Performance traces** (one during star power) for analysis.
 
 ---
 
+## Council deliberation outcome (2026-06-17)
+
+A Tier-3 debate-mode council (`/deliberate --debate`) stress-tested this fix plan
+— full record in
+[deliberations/001-perf-unresponsive-fixes/results.md](deliberations/001-perf-unresponsive-fixes/results.md).
+It reshaped the plan in three ways:
+
+- **A fix not in the original plan became the slice-1 root-cause-2 win:**
+  `registry.closestBuilding` (`registry.js:143-157`) is a full **O(n) scan that
+  bypasses the spatial grid**, called as a placement guard from ~24 chunk-gen
+  sites. Since the crowd is hard-capped (`MAX_NPCS` 180/320/500, `crowd.js:30`),
+  the per-NPC separation throttle (2a) *can't* be the cost that grows "after a
+  while" — `closestBuilding` is. Port it onto the existing `_fpGrid` broadphase.
+- **Fix 1c is exonerated, not deferred.** Dispose-safety is honored at every
+  teardown (`chunks.js:543/546/548`, `lakes.js:866`); a re-disposed material
+  reuses its cache-key, so it can only cause a sync-stall (which 1a kills), never
+  the *monotonic* `prog` climb. Don't ship the disposal "fix" on spec. The
+  `compileAsync` pre-warm is also parked — wrong tool for an *unbounded* keyspace.
+- **The `checkShaderErrors=false` production form is settled:** ship to live as a
+  **bare flip**, gated `true` only under `?debug`/localStorage — *not* dev-only,
+  *not* the `compileAsync` form. Safety net is a drive-across-≥4-chunks
+  **screenshot at `?perf=low` AND `?perf=high`**, because with errors off a clean
+  console no longer proves correctness and low tier swaps to the Lambert path
+  (`threeShim.js:46-62`) = a different program population.
+
+**CRITICAL implementation precondition for the `closestBuilding`→grid port:**
+`closestBuilding` selects on `d = hypot(...) − e.footprint`, so a naive
+`forEachNear(x, z, radius)` returns a **subset** and would silently drop a
+large-footprint building whose center sits outside `radius` but whose edge reaches
+in — flipping a seeded placement boolean and **shifting the deterministic world**.
+The port MUST query `forEachNear(x, z, radius + this._maxFp, fn)` (the
+`footprintsNear` pattern, `registry.js:111-112`) and keep the `- e.footprint`
+min-select + `excludeKinds` inside the callback. All 26 call sites use the result
+purely as a boolean guard (verified), so the superset-padded port is
+determinism-safe.
+
 ## How the traces were read
 
 `Trace-*.json.gz` (gitignored — large) decompressed and parsed with a throwaway
@@ -153,9 +189,25 @@ of root cause 1.
 
 ---
 
-## Status
+## Status — council-resolved sequencing
 
-Diagnosis only — **no fixes committed yet.** Ordering when picked up: root
-cause 1 fix #1 (`checkShaderErrors=false`) first (highest leverage, lowest risk),
-then root cause 2 throttling, then the pooling/disposal audit. Each verified by
-re-capturing a trace and reading the perf-log `prog`/`heapMB` trend.
+- **Slice 1 (ship now, two commits, one wave):** (A) `checkShaderErrors = false`
+  bare-flip, debug-gated; (B) `closestBuilding`→`_fpGrid` broadphase with the
+  `_maxFp` superset guard above. Two commits so each verifies off a different
+  line of the same trace re-capture (`fMax` vs `closestBuilding`/`[chunk slow]`).
+- **Slice 2 (measure-gated):** `_maxFp` audit (2b), then the separation throttle
+  (2a) — only if Slice 1's trace still shows `forEachNear`/`crowd.js:1015` hot.
+  The throttle must split the load-bearing hard-overlap push (`crowd.js:1010`,
+  every frame) from the soft steering (stagger), and use a deterministic
+  round-robin (`(idx+frame)%N`), never `Math.random()`.
+- **Group 3 (un-parkable, own track):** the program-count leak (1b). Stand up a
+  gated `__dbg` `renderer.info.programs[].cacheKey` dump now (extends the
+  `recordPerf` recorder); investigate with star power OFF first to isolate. 1a
+  removes the player-visible stall today, but the leak is a long-session OOM
+  vector on low/mid/mobile that high-tier desktop hides — release-tracked.
+- **Parked on ROADMAP:** both `1c` variants (disposal "fix" exonerated;
+  `compileAsync` pre-warm is the wrong tool for an unbounded keyspace).
+
+Verify everything off the **perf-log recorder + a DevTools trace**, never the
+draw/tri HUD budget markers — neither root cause is a geometry-budget problem,
+so those markers are green and were never the bottleneck.

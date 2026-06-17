@@ -6,19 +6,33 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
 
 ## Bugs
 
-- **Game goes unresponsive during play — two root causes, diagnosed from traces.** *(diagnosed 2026-06-17)*
-  Gary hit browser "page unresponsive" alerts; three captured Chrome perf traces
-  pin it to (1) **synchronous shader compile/link storms** — every freeze >150 ms
-  is ~88 % `getProgramInfoLog`, because `renderer.debug.checkShaderErrors`
-  defaults to `true`; prime fix is setting it `false` after boot (behind the
-  debug flag) — and (2) **`forEachNear` neighbor queries**
-  ([spatialGrid.js:48](src/spatialGrid.js#L48)), the #1 CPU cost (15–22 %) in
-  every session, growing with resident entity count (~3000 registry entries /
-  ~2867 colliders). The `[chunk slow]` console spam is a secondary symptom, not
-  the cause. Full evidence + priority-ordered fix plan:
-  **[.claude/perf-unresponsive-diagnosis.md](.claude/perf-unresponsive-diagnosis.md)**.
-  Confirm fixes with the perf-log recorder (`__dbg.recordPerf()` / backtick →
-  Perf log). Not yet fixed.
+- **Game goes unresponsive during play — perf-fix plan (council-resolved).** *(diagnosed 2026-06-17)*
+  Browser "page unresponsive" alerts, pinned by three Chrome traces + a 160 s
+  perf-log to two root causes. Full evidence:
+  **[.claude/perf-unresponsive-diagnosis.md](.claude/perf-unresponsive-diagnosis.md)**;
+  Tier-3 debate council that resolved the fix plan:
+  [.claude/deliberations/001-perf-unresponsive-fixes/results.md](.claude/deliberations/001-perf-unresponsive-fixes/results.md).
+  **Slice 1 (shipping now):** (A) `renderer.debug.checkShaderErrors = false`
+  bare-flip, debug-gated — kills the synchronous `getProgramInfoLog` per-link
+  stall that is ~88 % of every freeze; (B) port `registry.closestBuilding`
+  (`registry.js:143-157`, a full O(n) scan bypassing the spatial grid, ~24
+  chunk-gen call sites) onto the `_fpGrid` broadphase — the real growing
+  root-cause-2 grind (the crowd is hard-capped, so per-NPC separation can't be
+  it). **Still open after Slice 1:**
+  - **The program-count *leak* (`prog` 54→691, monotonic).** `checkShaderErrors=false`
+    hides the per-link stall but the program count still climbs unbounded — an
+    OOM vector on long low/mid/mobile sessions that high-tier desktop hides. Hunt
+    the mint-source with a gated `__dbg` `renderer.info.programs[].cacheKey` dump
+    (star power OFF first). It is **not** the color-keyed material pools (color is
+    a uniform → shared program).
+  - **`forEachNear` steady-state remnant (2a/2b), measure-gated.** Only if Slice 1's
+    re-capture still shows it hot: audit `_maxFp`/`_maxCol` query-radius inflation,
+    then stagger per-NPC separation (deterministic `(idx+frame)%N`, split from the
+    load-bearing hard-overlap push at `crowd.js:1010`).
+  - **Parked:** the disposal "fix" (exonerated — dispose-safety honored everywhere)
+    and `compileAsync` pre-warm (wrong tool for an unbounded keyspace).
+  Verify off the perf-log recorder + a DevTools trace (not the draw/tri HUD —
+  green and never the bottleneck), at `?perf=low` AND `?perf=high`.
 
 - **Marching brass band floats ~0.85m above the ground.** *(found 2026-06-07)*
   Both the band members **and** the grand marshal float — same root cause in two
