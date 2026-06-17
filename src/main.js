@@ -1505,6 +1505,49 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       return out;
     },
 
+    // Shader-program leak finder. `renderer.info.programs` is three.js's live
+    // program cache; each entry's `.cacheKey` is the comma-joined list of every
+    // parameter that forces a DISTINCT program (shaderID, defines, light counts,
+    // map presence, the material's customProgramCacheKey, …). A monotonically
+    // climbing program count (the perf-log `prog` field) means something mints a
+    // new cacheKey as you explore and never releases it. This groups the live
+    // cache by material family (shaderID + token-count, so columns align within a
+    // family) and, per family, reports which token POSITION varies and its sample
+    // values — so the proliferating parameter names itself instead of being
+    // guessed. Call it, drive/teleport across a few hubs, call it again, and the
+    // family whose `programs` count exploded is the leak host. Pass {raw:true} to
+    // also get every cacheKey for offline diffing. READ-ONLY.
+    dumpPrograms(opts = {}) {
+      const progs = [...(renderer.info.programs || [])];
+      const rows = progs.map((p) => ({
+        used: p.usedTimes,
+        tok: String(p.cacheKey).split(','),
+      }));
+      const fam = new Map();
+      for (const r of rows) {
+        const fk = r.tok[0] + ' #' + r.tok.length;   // shaderID + token count
+        let arr = fam.get(fk);
+        if (!arr) { arr = []; fam.set(fk, arr); }
+        arr.push(r);
+      }
+      const families = [...fam.entries()].map(([family, members]) => {
+        const ncol = members[0].tok.length;
+        const cols = [];
+        for (let i = 0; i < ncol; i++) {
+          const vals = new Set();
+          for (const m of members) vals.add(m.tok[i]);
+          if (vals.size > 1) cols.push({ col: i, distinct: vals.size, sample: [...vals].slice(0, 12) });
+        }
+        cols.sort((a, b) => b.distinct - a.distinct);
+        return { family, programs: members.length, varying: cols.slice(0, 6) };
+      }).sort((a, b) => b.programs - a.programs);
+      const out = { total: progs.length, families: families.slice(0, 14) };
+      if (opts.raw) out.keys = progs.map((p) => String(p.cacheKey));
+      console.log(`[programs] ${progs.length} total · ${families.length} families · top: ` +
+        families.slice(0, 4).map((f) => `${f.family}×${f.programs}`).join('  '));
+      return out;
+    },
+
     // nth-nearest festival hub: teleport there + a canonical 3/4 camLock
     // looking at the stage front. `n` ranks hubs by distance from the SPAWN
     // hub (so gotoHub(0) is always the spawn hub, seed-stable). Prints the
@@ -1653,6 +1696,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
         '  hubs:    gotoHub(n) · showFootprints(on)   (teleport+frame nth-nearest hub; footprint/dancefloor overlay)',
         '  perf:    recordPerf(true|false) · perfLog()   (samples engine stats to a reload-proof JSON ring buffer; backtick → Perf log)',
+        '           dumpPrograms({raw?})   (shader-program leak finder: groups renderer.info.programs by family + varying token)',
         '  reach:   __dbg.game  (live refs: camera, zerble, scene, crowd, bubbles, …)',
         '           __dbg.debug (interactive API: freezeNPCs, pause, step, god, showColliders, dropSmile, spawnNPC)',
         '  verify:  __dbg.start() → __dbg.fillSeats() → __dbg.camLock(...) → screenshot → console-logs',

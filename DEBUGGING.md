@@ -70,6 +70,25 @@ snapshot** button on the Stats readout. Pairs with `K`-markers — drop a marker
 when you trigger an effect so its `ts`/`sessionTime` lines up against the perf
 samples.
 
+### Find a shader-program leak
+
+| Call | Does |
+|---|---|
+| `dumpPrograms({raw?})` | **Read-only** analysis of three.js's live program cache (`renderer.info.programs`). Groups every program by material family (shaderID + token-count, so cacheKey columns align within a family) and, per family, reports which cacheKey token POSITION varies and its sample values. `{raw:true}` also returns every `cacheKey` string for offline diffing. |
+
+When `perfLog()`'s **`prog`** field climbs monotonically, something mints a new
+shader program (a distinct material-parameter combo) as you explore and never
+releases it — a per-link stall *and* an OOM vector. `dumpPrograms()` names the
+proliferating parameter instead of guessing: call it, drive/`gotoHub` across a
+few hubs, call it again, and the family whose `programs` count exploded is the
+leak host; its top `varying` token (a light count, a `#define`, map presence, a
+material's `customProgramCacheKey`) is the cause. **The cacheKey changes on
+light-COUNT changes** — toggling `light.visible` (the `contextLights` culler did
+this) drops a light from `NUM_*_LIGHTS` and recompiles every material, so a
+constant scene light count is the fix. The shipped default (`contextLights` off)
+holds flat (~130 programs across 8 hubs, verified); the climb only appears with
+the opt-in context lights enabled.
+
 ### Reach into the other surfaces
 | Property | Is |
 |---|---|

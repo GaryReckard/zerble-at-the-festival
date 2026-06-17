@@ -137,14 +137,46 @@ genuine shader-program *leak*:**
 **Implication for the fix:** `checkShaderErrors = false` (below) kills the
 per-link *sync stall* — the spike mechanism — regardless. But the program-*count*
 leak is a **separate bug**: something mints new distinct shader cache-keys as you
-explore and never releases them. It is **NOT** the color-keyed material pools
+explore and never releases them.
+
+**RESOLVED 2026-06-17 (the dump + a controlled repro).** Built the diagnostic the
+last paragraph asked for — `__dbg.dumpPrograms()` (groups `renderer.info.programs`
+by material family, surfaces the varying cacheKey token). Findings:
+- **The shipped DEFAULT path does NOT leak.** Booted `?perf=low`, `gotoHub(0..7)`
+  across 8 distinct hubs: program count held **flat at ~130–131** the whole sweep
+  (twice). No monotonic climb. So real players on the deploy are unaffected; Slice
+  1A already removed the *stall*, and there's no default-path program *leak* to
+  remove.
+- **Ruled out** (static + dump): unguarded `onBeforeCompile` (all three —
+  crowd/wook/star — carry a constant/bounded `customProgramCacheKey`), `defines`
+  (none in `src/`), varying `customProgramCacheKey`, and the color-keyed pools
+  (`color` is a uniform). Cart lights (headlight/disco/wheel) never toggle
+  `.visible`, so no default-path light-count churn.
+- **The climb is the opt-in `contextLights` culler.** `contextLights.update()`
+  ([contextLights.js:77-79](../src/contextLights.js#L77)) culls cluster lights via
+  `light.visible = false/true`. In three.js an invisible light is dropped from the
+  scene's light list → `NUM_POINT_LIGHTS` / `NUM_SPOT_LIGHTS` changes → **every
+  material recompiles**, and each new (light-count × material-config) combo is
+  cached forever. Driving past clusters oscillates the count 0..BUDGET=8 → the
+  monotonic program climb. `PERF.contextLights` is **off by default**
+  ([perf.js:126](../src/perf.js#L126)); the 691 was almost certainly captured with
+  it enabled. (Could not reproduce the ON case headless — agent-browser denies
+  `localStorage`, so `zerble.contextLights` can't be set; confirm in a real
+  browser: enable Lights in the backtick overlay, `__dbg.dumpPrograms()` before/
+  after a `gotoHub` tour.)
+- **Fix = a CONSTANT scene light count** (so the program set stops depending on
+  how many lights are nearby). Either a fixed-count light pool that the nearest
+  cluster lights write into, or pad the visible count per type with zero-intensity
+  dummies so `NUM_*_LIGHTS` never changes. Both trade some steady-state light cost
+  for zero recompiles. It's an opt-in-only change with a visual/perf tradeoff on
+  `contextLights` → flagged for Gary rather than shipped unilaterally.
+- Secondary `tex 44→147`: per-cluster CanvasTextures (campsite tapestry) — but
+  those are chunk-unload-disposed (not `userData.shared`) and `leafBanner` caches
+  by color key, so it's bounded by resident clusters, not an unbounded leak.
+
+Original note retained for context — it is **NOT** the color-keyed material pools
 (`tent.js` `_CLOTH_MATS`, `puppet.js` `_npcMatPool`, `foodTruck.js`
-`_bodyMatPool`) — those vary only `color`, a *uniform*, so they share one
-program — nor the crowd/wook tie-dye (constant `customProgramCacheKey`). Finding
-the real source needs its own pass: dump `renderer.info.programs[].cacheKey`
-periodically and diff to see which configs proliferate (suspect a `#define`-level
-variation — `flatShading`/`vertexColors`/map-presence/light-count mix — or an
-`onBeforeCompile` whose cache-key varies). Don't guess without that dump.
+`_bodyMatPool`) nor the crowd/wook tie-dye (constant `customProgramCacheKey`).
 
 ## Root cause 1 — the freezes: synchronous shader compile/link storms
 
