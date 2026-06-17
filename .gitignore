@@ -2,3 +2,7 @@
 assets/.DS_Store
 .idea
 node_modules
+
+# Chrome DevTools Performance captures (large playtest artifacts)
+Trace-*.json
+Trace-*.json.gz

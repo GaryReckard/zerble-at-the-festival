@@ -53,6 +53,23 @@ window.__dbg.help()          // prints the whole map — start here
 | `dumpRegistry(bounds?)` | **Read-only** JSON-able array of every registry entry — `{kind, x, z, footprint, colliderR, damage, attractorR, attractorW, chunkKey}`. Optional `bounds = {minX,minZ,maxX,maxZ}` clips to a window (one hub). This is the "built truth" the layout linter checks and `bin/layout-snapshot` freezes against; never mutates anything. |
 | `dumpDrawCounts(bounds?)` | **Read-only** `{"kind@x,z": n}` map of how many times each worldgen cluster drew from its local rng — the canary. Positions matching but a count moving = an invisible draw add/drop/reorder. Same optional `bounds`. |
 
+### Capture perf data over time
+| Call | Does |
+|---|---|
+| `recordPerf(on = true)` | Start (or stop) the **perf-log recorder**: samples engine stats — `fps`, frame `avg`/`p95`/`max` ms, `draws`, `tris`, `geo`/`tex`, **`prog`** (live shader-program count), `heapMB`, `npc`/`reg`/`col` counts, chunk-gen `cgN`/`cgSlow`/`cgWorst`, and `x,z` — into a ring buffer at a fixed wall-clock interval (default 1 s). Each sample is persisted to `localStorage['zerble_perflog']` **as it's taken**, so the data survives the page going unresponsive + a force-reload. |
+| `perfLog()` | Return a copy of the recorded sample array (`[{t, ts, …}]`). |
+
+This is the tool for a **slow-onset hang** ("typing in the console gets
+impossible, then the page goes unresponsive after a while") — a leak or
+unbounded growth, not steady-state cost. Record, play until it degrades, then
+read `perfLog()` (or the panel's **copy JSON**). The tell is `geo`, `tex`,
+`prog`, or `heapMB` climbing **monotonically** and never coming back down.
+The same surface lives in the backtick overlay's **Perf log** section
+(Record / copy JSON / clear + an interval picker), plus a one-shot **copy
+snapshot** button on the Stats readout. Pairs with `K`-markers — drop a marker
+when you trigger an effect so its `ts`/`sessionTime` lines up against the perf
+samples.
+
 ### Reach into the other surfaces
 | Property | Is |
 |---|---|
@@ -110,9 +127,10 @@ Global hotkeys (work whether or not the overlay is open): `T` trip panel ·
 
 The panel shows live **perf budgets** (draws/tris vs per-tier targets with
 `ok`/`!`/`!!` markers), frame-time stats (avg/p95/max), GPU memory, chunk-gen
-timing, the session seed, Zerble pos/heading, NPC counts, and collapsible
+timing, the session seed, Zerble pos/heading, NPC counts, a **copy snapshot**
+button (one-shot machine-readable dump of the live stats), and collapsible
 **Teleport** (locate-nearest-landmark + jump), **Render** (adaptive-quality
-overrides), **Lights**, and **Markers** sections.
+overrides), **Lights**, **Markers**, and **Perf log** sections.
 
 ### Playtest markers (group 7)
 
@@ -131,6 +149,32 @@ keyboard can still get the list off the device) / **`clear`**. The seed in each
 record is the numeric session seed; pair it with `?seed=<n>` to reopen the same
 world. The key + gesture are deliberately **absent from all player-facing copy**
 (Easter-egg rule) — they live here only.
+
+### Perf log recorder
+
+The backtick overlay's **Perf log** section (and `__dbg.recordPerf()` /
+`perfLog()` — see [Capture perf data over time](#capture-perf-data-over-time))
+samples engine stats into a `localStorage`-backed ring buffer for diagnosing
+**slow-onset hangs**: the kind where the page degrades over a minute or two of
+play and eventually goes unresponsive (a leak or unbounded growth, not
+steady-state cost — for that, read the live budget markers instead).
+
+- **Record / Stop** toggles sampling; an interval picker (`0.5s`/`1s`/`2s`/`5s`)
+  sets the cadence. The wall-clock gate means a stalling frame *backs the
+  cadence off* rather than over-sampling a frozen frame.
+- Each sample — `{ t, ts, fps, fAvg, fP95, fMax, draws, tris, geo, tex, prog,
+  heapMB, npc, reg, col, cgN, cgSlow, cgWorst, x, z }` — is written to
+  `localStorage['zerble_perflog']` **the instant it's taken**, capped at a
+  5000-sample ring. So even if the tab locks up and you have to force-reload,
+  reopen the panel and the log is still there to **copy JSON**.
+- **What to look for:** `geo`, `tex`, `prog` (live shader-program count), or
+  `heapMB` climbing *monotonically* across the run is the leak signature.
+  Flat draws/tris with a ballooning `heapMB` points at a JS-object leak;
+  climbing `geo`/`tex`/`prog` points at a disposal/recompile leak.
+- **copy JSON** / **clear** mirror the Markers controls (clipboard + a
+  select-all textarea fallback for clipboard-blocked contexts). Recording runs
+  whether or not the panel is open, so you can toggle it on and close the
+  overlay while you play.
 
 ---
 

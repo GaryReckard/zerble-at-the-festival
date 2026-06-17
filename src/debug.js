@@ -59,6 +59,8 @@ function fmtWithBudget(value, budget) {
 const PANEL_ID = 'debug-panel';
 const TRIP_PANEL_ID = 'trip-panel';
 const COLLIDER_LAYER_NAME = '__debug_colliders';
+const PERF_LOG_KEY = 'zerble_perflog';
+const PERF_LOG_MAX = 5000;
 
 const state = {
   visible: false,
@@ -82,6 +84,14 @@ const state = {
   midiLastTrackCount: -1,
   midiLastPlaying: false,
   midiPollAccum: 0,
+  // Perf log recorder
+  perfRecording: false,
+  perfSamples: [],
+  perfLastSampleMs: 0,
+  perfIntervalMs: 1000,
+  perfStatusEl: null,
+  perfRecBtn: null,
+  perfOut: null,
 };
 
 export function installDebug(hooks) {
@@ -93,6 +103,9 @@ export function installDebug(hooks) {
   buildMarkerTouchZone();
   bindKeys();
   window.__debug = api();
+  // Flush the perf log on unload too (we persist every sample, but this catches
+  // an in-flight buffer if the tab is closed between samples).
+  window.addEventListener('beforeunload', () => { if (state.perfRecording) savePerfLog(state.perfSamples); });
   // first paint
   updatePanel(0);
 }
@@ -101,6 +114,7 @@ export function installDebug(hooks) {
 // (paused). `dt` is whatever the loop computed; we don't override it.
 export function shouldRunFrame(dt) {
   sampleFPS(dt);
+  if (state.perfRecording) samplePerf();
   if (state.visible) {
     updatePanel(dt);
     // Poll the MIDI tracks panel ~1/s while the debug panel is open.
@@ -360,6 +374,8 @@ function api() {
       }
       logToast(`promoted ${promoted} NPC(s) to watching`);
     },
+    recordPerf(on = true) { setPerfRecording(!!on); return state.perfRecording; },
+    perfLog() { return state.perfSamples.slice(); },
   };
 }
 
@@ -395,6 +411,7 @@ function makeSection(label, defaultOpen = true) {
 }
 
 function buildPanel() {
+  state.perfSamples = loadPerfLog();
   const el = document.createElement('div');
   el.id = PANEL_ID;
   Object.assign(el.style, {
@@ -418,8 +435,77 @@ function buildPanel() {
   const text = document.createElement('div');
   text.style.whiteSpace = 'pre';
   statsContent.appendChild(text);
-  el.appendChild(statsWrapper);
   state.textEl = text;
+
+  // One-shot snapshot copy — grabs the live renderer.info + frame metrics as
+  // machine-readable JSON (paste straight to an agent).
+  const statsCopyRow = document.createElement('div');
+  statsCopyRow.style.cssText = 'margin-top:5px';
+  const statsCopyBtn = mkMiniBtn('copy snapshot', () => {
+    const json = JSON.stringify(collectPerfSample(), null, 2);
+    let ok = false;
+    try { navigator.clipboard.writeText(json); ok = true; } catch (_) { /* preview/file may block */ }
+    if (state.perfOut) { state.perfOut.style.display = 'block'; state.perfOut.value = json; if (!ok) state.perfOut.select(); }
+    statsCopyBtn.textContent = ok ? 'copied ✓' : 'select + ⌘C';
+    setTimeout(() => { statsCopyBtn.textContent = 'copy snapshot'; }, 1300);
+  });
+  statsCopyRow.appendChild(statsCopyBtn);
+  statsContent.appendChild(statsCopyRow);
+  el.appendChild(statsWrapper);
+
+  // ----- Perf log recorder -----
+  // Toggle on, play, copy. Samples FPS / frame-time / draws / tris / geo+tex /
+  // shader-program count / heap / npc+collider counts into a ring buffer at a
+  // fixed wall-clock interval, persisted to localStorage EVERY sample so a
+  // session that ends with the page going unresponsive + a force-reload still
+  // yields the data. The shader-program count (`prog`) and `geo`/`tex`/`heapMB`
+  // climbing monotonically is the leak signature we're hunting.
+  const { wrapper: perfWrapper, content: perfContent } = makeSection('Perf log', false);
+  const perfHint = document.createElement('div');
+  perfHint.style.cssText = 'font-size:10px;opacity:0.55;margin-bottom:4px';
+  perfHint.textContent = 'Samples engine stats to a JSON ring buffer (survives reload). Toggle, play, copy.';
+  perfContent.appendChild(perfHint);
+
+  const perfStatus = document.createElement('div');
+  perfStatus.style.cssText = 'font-size:10px;margin-bottom:5px';
+  state.perfStatusEl = perfStatus;
+  perfContent.appendChild(perfStatus);
+
+  const perfBtns = document.createElement('div');
+  perfBtns.style.cssText = 'display:flex;gap:4px;align-items:center;flex-wrap:wrap';
+  const perfRecBtn = mkMiniBtn('● Record', () => setPerfRecording(!state.perfRecording));
+  state.perfRecBtn = perfRecBtn;
+  const perfCopyBtn = mkMiniBtn('copy JSON', () => {
+    const json = JSON.stringify(state.perfSamples, null, 2);
+    let ok = false;
+    try { navigator.clipboard.writeText(json); ok = true; } catch (_) { /* preview/file may block */ }
+    state.perfOut.style.display = 'block'; state.perfOut.value = json; if (!ok) state.perfOut.select();
+    perfCopyBtn.textContent = ok ? 'copied ✓' : 'select + ⌘C';
+    setTimeout(() => { perfCopyBtn.textContent = 'copy JSON'; }, 1300);
+  });
+  const perfClearBtn = mkMiniBtn('clear', () => {
+    state.perfSamples = []; savePerfLog([]); renderPerfStatus();
+    if (state.perfOut) state.perfOut.style.display = 'none';
+  });
+  const perfIntvl = document.createElement('select');
+  perfIntvl.title = 'sample interval';
+  perfIntvl.style.cssText = 'font:inherit;font-size:10px;background:#0e1c28;color:#dff;border:1px solid #2a4a5a;border-radius:3px;padding:1px 3px;cursor:pointer';
+  for (const [v, l] of [['500', '0.5s'], ['1000', '1s'], ['2000', '2s'], ['5000', '5s']]) {
+    const o = document.createElement('option'); o.value = v; o.textContent = l;
+    if (v === '1000') o.selected = true;
+    perfIntvl.appendChild(o);
+  }
+  perfIntvl.addEventListener('change', () => { state.perfIntervalMs = parseInt(perfIntvl.value, 10); });
+  perfBtns.append(perfRecBtn, perfCopyBtn, perfClearBtn, perfIntvl);
+  perfContent.appendChild(perfBtns);
+
+  const perfOut = document.createElement('textarea');
+  perfOut.readOnly = true;
+  perfOut.style.cssText = 'width:100%;height:54px;margin-top:5px;display:none;background:#0e1c28;color:#9fd;border:1px solid #2a4a5a;border-radius:3px;font:10px/1.3 ui-monospace,monospace';
+  state.perfOut = perfOut;
+  perfContent.appendChild(perfOut);
+  el.appendChild(perfWrapper);
+  renderPerfStatus();
 
   // ----- Keybindings cheat sheet -----
   const { wrapper: helpWrapper, content: helpContent } = makeSection('Controls', false);
@@ -1475,4 +1561,90 @@ function buildMarkerTouchZone() {
     taps.push(now);
     if (taps.length >= 3) { taps = []; dropMarker('(touch)'); }
   });
+}
+
+// ----- Perf log recorder -----------------------------------------------------
+// A ring buffer of engine metrics sampled at a fixed wall-clock interval while
+// recording. Persisted to localStorage every sample so a session that ends with
+// the page going unresponsive + a force-reload still yields the data. Read it
+// back with __dbg.perfLog() or the panel's "copy JSON". Using a wall-clock gate
+// (not accumulated dt) means stalls naturally back the cadence off instead of
+// over-sampling a frozen frame.
+function loadPerfLog() {
+  try { const v = JSON.parse(localStorage.getItem(PERF_LOG_KEY)); return Array.isArray(v) ? v : []; }
+  catch (_) { return []; }
+}
+function savePerfLog(list) {
+  try { localStorage.setItem(PERF_LOG_KEY, JSON.stringify(list)); } catch (_) { /* private mode / quota */ }
+}
+// Pure metrics snapshot — no timestamps. Reused by the Stats "copy snapshot"
+// button and by samplePerf (which prepends t + ts).
+function collectPerfSample() {
+  const h = state.hooks;
+  const r = h && h.renderer;
+  const info = r && r.info;
+  const ft = getFrameStats();
+  const cg = chunkGenStats;
+  const z = h && h.zerble;
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const heap = (typeof performance !== 'undefined' && performance.memory)
+    ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null;
+  return {
+    fps: state.rafSamples.length,
+    fAvg: ft.avg > 0 ? r1(ft.avg) : 0,
+    fP95: ft.p95 > 0 ? r1(ft.p95) : 0,
+    fMax: ft.max > 0 ? r1(ft.max) : 0,
+    draws: info ? info.render.calls : -1,
+    tris: info ? info.render.triangles : -1,
+    geo: info ? info.memory.geometries : -1,
+    tex: info ? info.memory.textures : -1,
+    prog: info && info.programs ? info.programs.length : -1,
+    heapMB: heap,
+    npc: h && h.crowd ? h.crowd.npcs.length : -1,
+    reg: h && h.registry ? h.registry.entries.size : -1,
+    col: h && h.registry ? [...h.registry.colliders()].length : -1,
+    cgN: cg.count, cgSlow: cg.slowCount, cgWorst: r1(cg.slowest),
+    x: z ? Math.round(z.position.x) : 0,
+    z: z ? Math.round(z.position.z) : 0,
+  };
+}
+function samplePerf() {
+  const now = performance.now();
+  if (state.perfLastSampleMs && now - state.perfLastSampleMs < state.perfIntervalMs) return;
+  state.perfLastSampleMs = now;
+  const firstTs = state.perfSamples.length ? state.perfSamples[0].ts : Date.now();
+  const ts = Date.now();
+  const sample = { t: Math.round((ts - firstTs) / 100) / 10, ts, ...collectPerfSample() };
+  state.perfSamples.push(sample);
+  if (state.perfSamples.length > PERF_LOG_MAX) {
+    state.perfSamples.splice(0, state.perfSamples.length - PERF_LOG_MAX);
+  }
+  savePerfLog(state.perfSamples);
+  renderPerfStatus();
+}
+function setPerfRecording(on) {
+  state.perfRecording = !!on;
+  if (on) {
+    state.perfLastSampleMs = 0;   // force an immediate first sample
+    Analytics.featureUsed('debug_perflog');
+  } else {
+    savePerfLog(state.perfSamples);
+  }
+  renderPerfStatus();
+}
+function renderPerfStatus() {
+  if (state.perfRecBtn) state.perfRecBtn.textContent = state.perfRecording ? '■ Stop' : '● Record';
+  const el = state.perfStatusEl;
+  if (!el) return;
+  const n = state.perfSamples.length;
+  if (state.perfRecording) {
+    const secs = n ? Math.max(0, Math.round((Date.now() - state.perfSamples[0].ts) / 1000)) : 0;
+    const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+    const ss = String(secs % 60).padStart(2, '0');
+    el.textContent = `● REC ${mm}:${ss} · ${n} samples`;
+    el.style.color = '#ff8866';
+  } else {
+    el.textContent = `idle · ${n} samples`;
+    el.style.color = '#9fd';
+  }
 }

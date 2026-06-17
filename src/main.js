@@ -1618,6 +1618,14 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     get game() { return window.__game; },
     get debug() { return window.__debug; },
 
+    // ---- Perf log recorder (delegates to the overlay's API) ----
+    // recordPerf(true) starts sampling engine stats (FPS/draws/tris/geo/tex/
+    // shader-programs/heap/counts) into a localStorage-backed ring buffer that
+    // survives the page going unresponsive + a reload; perfLog() reads it back.
+    // Also a panel surface: backtick → "Perf log" section (Record / copy JSON).
+    recordPerf(on = true) { return window.__debug.recordPerf(on); },
+    perfLog() { return window.__debug.perfLog(); },
+
     // Self-documenting map of the whole agent debug surface. Start here.
     help() {
       const out = [
@@ -1626,6 +1634,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock() · topDown(x?,z?,span)   (pins a pose; overrides chase cam)',
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
         '  hubs:    gotoHub(n) · showFootprints(on)   (teleport+frame nth-nearest hub; footprint/dancefloor overlay)',
+        '  perf:    recordPerf(true|false) · perfLog()   (samples engine stats to a reload-proof JSON ring buffer; backtick → Perf log)',
         '  reach:   __dbg.game  (live refs: camera, zerble, scene, crowd, bubbles, …)',
         '           __dbg.debug (interactive API: freezeNPCs, pause, step, god, showColliders, dropSmile, spawnNPC)',
         '  verify:  __dbg.start() → __dbg.fillSeats() → __dbg.camLock(...) → screenshot → console-logs',
