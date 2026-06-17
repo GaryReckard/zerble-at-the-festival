@@ -46,7 +46,8 @@ hue shift, saturation, posterize, brightness + vignette pulse) whose per-effect
 intensities are scaled by a master `intensity` envelope. The envelope SHALL ramp in over
 `fadeIn`, sustain for `duration`, and fade out; T-menu sliders set each effect's base
 intensity. The pass SHALL be a no-op (and SHALL disable itself) at envelope 0 so it costs
-nothing when inactive (`trip.js:1-166`, the post-process-gating perf rule).
+nothing when inactive (`trip.js:1-166`; the `pass.enabled = envelope > 0.001` gate is at
+`trip.js:583` — the post-process-gating perf rule).
 
 #### Scenario: The trip pass is free when inactive
 

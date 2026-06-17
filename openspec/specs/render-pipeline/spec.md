@@ -50,17 +50,19 @@ no-op at intensity 0 (`main.js:120-149`).
 ### Requirement: Single per-frame tick
 
 The main loop SHALL be one `tick()` that computes a delta-time (clamped so a long
-stall can't explode physics), runs `tickBody(dt)` only when `shouldRunFrame(dt)`
-permits (debug can pause / single-step), and composites via `composer.render()`.
-`tickBody` SHALL advance, in order, Zerble physics, audio engine + nightness, input
-edges, bubbles/crowd/smiles, roaming obstacles, trip/Lurleen, stage performers + light
-show, campsite/drum animatables, world streaming, collision resolution, honk-ring,
-chase camera, and the audio listener, before rendering (`main.js:640-1118`).
+stall can't explode physics) and runs `tickBody(dt)` only when `shouldRunFrame(dt)`
+permits (debug can pause / single-step). `composer.render()` is the **last line of
+`tickBody`**, so compositing happens only on frames the gate allows. `tickBody` SHALL
+advance, in order, Zerble physics, audio engine + nightness, input edges,
+bubbles/crowd/smiles, roaming obstacles, trip/Lurleen, stage performers + light show,
+campsite/drum animatables, world streaming, collision resolution, honk-ring, chase
+camera, and the audio listener, before rendering (`main.js:640-644,1113`).
 
-#### Scenario: Debug pause halts the world but not rendering
+#### Scenario: Debug pause freezes both the world and the render
 
-- **WHEN** `shouldRunFrame(dt)` returns false (paused via the debug overlay)
-- **THEN** `tickBody` is skipped but `composer.render()` still runs so the frame is drawn
+- **WHEN** `shouldRunFrame(dt)` returns false (paused via the debug overlay, `debug.js:129`)
+- **THEN** `tickBody` is skipped entirely — including its final `composer.render()` — so
+  the last drawn frame stays on screen until a single-step (`step`) or unpause
 
 ### Requirement: Hidden-tab loop uses setTimeout
 

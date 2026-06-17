@@ -19,8 +19,9 @@ silent.
 `await`/`setTimeout`/async hop before it, performing a three-stage unlock: (A) resume
 the `AudioContext` first, before touching any other node; (B) play a 1-sample silent
 WebAudio buffer source; (C) play a real silent `HTMLAudioElement` to promote the page.
-`Sound.resume()` SHALL be wired to visibilitychange / pageshow / pointerdown /
-touchstart to recover from iOS suspending the context (`sound.js:219-321`,
+`Sound.resume()` (`sound.js:566`) SHALL be wired to visibilitychange / pageshow /
+pointerdown / touchstart (handlers in `main.js:624-634`) to recover from iOS suspending
+the context (`sound.js:219-321`,
 `ARCHITECTURE.md:274`).
 
 #### Scenario: Mobile ships with sound
@@ -78,13 +79,15 @@ or a clown horn (`sound.js:9`, `ARCHITECTURE.md:265-266`).
 ### Requirement: Nightness-gated drum circles with distance lowpass
 
 Each drum circle SHALL run a per-circle music scheduler whose voice density gates on
-the global `nightness` (more voices at night), with a lowpass cutoff set every frame
-from the player's distance to the circle perimeter — wide open inside the circle,
-muffled by trees as you leave (`sound.js:180-186`, `ARCHITECTURE.md:267`).
+the global `nightness` (more voices at night). The **forest** drum circle additionally
+SHALL have its lowpass cutoff set every frame from the player's distance to the circle
+perimeter — wide open inside the circle, muffled by trees as you leave; the plain stage
+`drum` style leaves this lowpass a no-op stub (`sound.js:180-186`, the forest lowpass at
+`main.js:836-846`, `ARCHITECTURE.md:267`).
 
 #### Scenario: Drums open up as you enter the circle
 
-- **WHEN** the player drives into a drum circle
+- **WHEN** the player drives into a forest drum circle
 - **THEN** the lowpass opens and more voices are audible than from outside
 
 ### Requirement: Stage music songform with cheer gap

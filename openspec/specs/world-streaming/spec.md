@@ -53,7 +53,7 @@ translating with the player (`world.js:115-157`, `rng.js:82-84`).
 ### Requirement: Chunk lifecycle on an 80m grid
 
 `ChunkManager` SHALL lazily generate chunks within `PERF.chunkLoadRadius` of the
-player's chunk (keyed `"${cx}_${cz}"`, `CHUNK_SIZE = 80`), generating at most a bounded
+player's chunk (keyed `"${cx},${cz}"`, `CHUNK_SIZE = 80`), generating at most a bounded
 number per frame, and SHALL **unload** chunks beyond `PERF.chunkUnloadRadius` — the
 unload radius being larger than the load radius, so straddling a boundary does not
 thrash (hysteresis). Unloading SHALL go through `disposeChunkByKey`, which removes the
