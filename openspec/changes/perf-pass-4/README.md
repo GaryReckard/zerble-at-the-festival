@@ -1,6 +1,6 @@
 # Make the festival run smooth — kill the freezes and the hitches
 
-> **Status:** <!--STATUS:LINE-->in progress · 13/25 tasks (52%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->in progress · 14/29 tasks (48%)<!--/STATUS:LINE-->
 >
 > _Plain-language summary of this change. A non-engineer should understand it; a junior dev should grasp it; a senior dev should be able to build an accurate mental model from this file alone._
 
@@ -53,7 +53,7 @@ See `design.md` for the technical "how".
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 13/25 tasks complete (52%) · current: 1.7
+**in progress** — 14/29 tasks complete (48%) · current: 1.7
 
 _Last updated: 2026-06-19_
 
@@ -63,7 +63,7 @@ _Last updated: 2026-06-19_
 | 2. Slice 2 — re-scoped by the 2026-06-19 round-trip-1 capture | 2/4 |
 | 3. Slice 3 — C1-b time-sliced chunk generation (phased deferral) | 0/6 |
 | 4. E1 — arrival curtain (gated on Slice-2 results) | 0/2 |
-| 5. Draw-call reduction — JUSTIFIED by the round-trip-1 capture (the real lever) | 1/3 |
+| 5. Draw-call reduction — JUSTIFIED by the round-trip-1 capture (the real lever) | 2/7 |
 | 6. Docs + verification (per slice, not batched) | 4/4 ✅ |
 <!--/STATUS:AUTO-->
 

@@ -59,6 +59,15 @@ ref: .claude/perf-brainstorm.md  # the idea bank + critic ranking this picks up
   (shader prewarm/reveal) deferred until a hub-stress capture reproduces the
   stall (progDelta ~0 this run). Geometry-merge promoted to primary next work
   (-> Task 5.2), needs Gary's go-ahead + its own deliberation.
+- **D11 — Geometry-merge reframe (deliberation 002).** The assumed "merge takes
+  9,000 draws → hundreds" is FALSE. Food-court/camp-village are mostly already
+  pooled (`userData.shared` food trucks) / instanced (campsite torches) / self-
+  merged (picnic tables) — three.js already batches them. Realistic merge win ≈
+  **50–150 draws (~2–4%)** from the unique-geometry models only (food-truck,
+  sugar-shack). Camp-village SKIP. Per-MODEL not per-cluster. **The 12–23× draw
+  overage needs a BIGGER lever — LOD / cross-cluster instancing of distant
+  clusters, and an honest look at whether the 400-draw budget is realistic for v2
+  worldgen.** -> deliberations/002-geometry-merge/results.md -> Task 5.2a-d
 - **D7 — Three non-obvious correctness traps captured.** (a) D3's `activePassengersRef`
   is two-channel: `count` re-snapshots per NPC (not frozen per frame), `add()`
   mutates the live outer counter — a naive hoist breaks the boarding throttle.
