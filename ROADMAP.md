@@ -728,6 +728,31 @@ The in-world name use is 100% client-side — no privacy implications. The *trac
 
 ## Performance
 
+### Perf pass 4 — steady-state + stall reduction *(planned 2026-06-19; OpenSpec change `perf-pass-4`)*
+
+Full plan, design, specs, and a Tier-3 debate deliberation live in
+[openspec/changes/perf-pass-4](openspec/changes/perf-pass-4/README.md); the idea
+bank + critic ranking that fed it is in [.claude/perf-brainstorm.md](.claude/perf-brainstorm.md).
+Attacks two measured symptoms (137–343 ms shader-compile stalls on hub entry;
+30–60 ms chunk-gen hitches) + a measurement gap. Sliced for delivery:
+
+- **Slice 1 — SHIPPED 2026-06-19** (see CHANGELOG): **B0** true draw/tri measurement under post-processing + `progDelta`; **D3** crowd per-frame allocation pooling.
+- **Slice 2 — queued (Gary-capture gated).** **A4** sliced shader reveal (≤1 GL program link/frame) + **A1** `compileAsync` prewarm at the title tap (after `Sound.init()`, through threeShim factories, never-dispose); **F1** dynamic bloom gating (single resolved predicate over tier + AdaptiveQuality + brightness); **F2** amortized shadow map — *scope-capped*: the debate found the sun shadow frustum re-anchors to the cart every frame (`world.js`), so it must use a movement-gated `needsUpdate` + single-owner cadence and only amortizes mid/high while ~stationary; **cut if B0 shows the depth pass isn't material**.
+- **Slice 3 — queued.** **C1-b** time-sliced chunk generation (phased deferral: collider-registering work stays synchronous, collider-free scatter defers under a shared per-frame governor, crowd-spawn last). **Hard merge-blocker:** a byte-identical registry-dump determinism diff across a multi-chunk concurrent-deferral neighbourhood.
+- **E1** "arriving at the festival" bloom curtain — gated on whether Slice 2 leaves a residual stall worth masking.
+- **Tier-2 (PARK by default; only B0-justified items ship):** static-decor geometry merge at chunk completion (overlaps the existing P2/P3 merge bullet below); fog-as-far-cull; and the cut-on-evaluation atmosphere fakes (billboard light shafts, faked lake reflections, adaptive sparkle) + crowd LOD — all gated behind the true draw numbers from B0.
+
+### Build step — now on the table for perf *(parked, evidence-gated, 2026-06-19)*
+
+No longer ruled out (Gary relaxed the no-build constraint; see the reframed
+note under *Out of scope*). A build step is **not** needed for any Slice-1/2/3
+item above — it's the gateway to a *second* engine, parked until the perf-pass-4
+captures say which way the residual cost points:
+
+- **Web Workers (clean, with a bundler)** — off-thread chunk *planning*/geometry (the `_generateWorldgen` query math) and, if measurement ever proves crowd CPU is the limiter, an off-thread crowd sim. Without a bundler this is blocked by import-maps not resolving bare `three` specifiers inside workers.
+- **Texture / mesh compression** — KTX2/Basis + Draco/meshopt: smaller GPU upload, lower memory (helps the iOS ≤2048 cap + mobile), faster boot. Makes texture-atlasing worthwhile.
+- **Recommended tool if pursued: Vite** — keeps fast HMR + static GitHub-Pages output, and could ship a committed-`dist/` or GitHub-Actions deploy so "the site just works on Pages" survives. Replaces the 4×importmap + threeShim CDN juggling. Decide on evidence after B0, not now.
+
 - **Crowd InstancedMesh churn.** When NPCs change state, their per-instance matrix flag has to flip. Worth profiling on low-end devices to see if writes per frame are an issue.
 - **Forest tree count on low tier — confirm the multiplier on a real device.** The tier-gated thin-out shipped (2026-06-02): `PERF.forestTreeDensityMul` cuts the low-tier forest target to **0.7** (~30% fewer trees, the bigger crowns fill the gaps). What's still open is the original deferral — the 0.7 was picked from the estimate, not a real low-end-device feel-test. Drive a forest on an actual integrated-GPU phone and confirm 0.7 is the right trade (looser if it still chugs, tighter if the woods read sparse).
 - **LOD on distant trees / tents.** Beyond ~60m the polygon detail is invisible; could swap to billboard or low-poly replacements. *Also more valuable since the 2x tree pass* — the larger crowns occupy more screen area at distance, so distant-tree fill is a bigger slice of the frame than before.
@@ -741,5 +766,5 @@ The in-world name use is 100% client-side — no privacy implications. The *trac
 
 ## Out of scope (worth flagging)
 
-- **Bundler.** Tempting but adds a build step, breaks the "open index.html and it just works" property. Stay no-build until performance forces the issue.
+- **Bundler / build step.** *No longer hard out-of-scope (Gary, 2026-06-19): a build step is acceptable if it opens real performance doors.* It's been promoted to an evidence-gated **Performance** item above (workers + texture/mesh compression, via Vite with a committed-`dist/` or Actions deploy so Pages still "just works"). The trade is still real — it adds a toolchain and ends the "open index.html and it just works" dev property — so it stays parked until the perf-pass-4 captures prove the residual cost is the kind a build step actually helps (main-thread CPU → workers; GPU upload/memory → compression). Until then the no-build dev loop stands, and the still-checked-in `.claude/rules/no-build.md` / CLAUDE.md guidance is superseded only by this note.
 - **Sample-based audio (mp3/wav).** Adding recorded audio means an asset pipeline and a CDN story. Synthesized stays the constraint for game SFX + stage music. MIDI playback uses Tone.js synthesis — no samples shipped.

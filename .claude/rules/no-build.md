@@ -1,5 +1,13 @@
 # No build step
 
+> **Update 2026-06-19 — constraint relaxed, conditionally.** Gary is now open to a
+> build step *if* it opens real performance doors (Web Workers, KTX2/Draco
+> compression — via Vite with a committed-`dist/` or GitHub-Actions deploy so Pages
+> still "just works"). It remains **parked and evidence-gated** — not needed for any
+> current perf work — so the no-build dev loop below still stands day-to-day. See the
+> ROADMAP `## Performance` "Build step" item + `## Out of scope` Bundler note for the
+> live status before proposing one.
+
 This project deliberately ships with no bundler, no transpiler, no PostCSS, no
 asset pipeline. Plain ES modules + an importmap in `index.html`. Open the file
 in a browser and it runs.

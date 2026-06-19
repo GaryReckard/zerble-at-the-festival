@@ -1,0 +1,106 @@
+---
+change: perf-pass-4
+status: in_progress        # not_started | in_progress | blocked | paused | complete
+current_task: 1.7           # Slice 1 code done; live-boot verification is Gary's
+blocked_by: null            # "Q3" | "dependency X" | null
+open_questions: 0           # count of unanswered questions in questions-for-human.md
+started: 2026-06-19
+last_updated: 2026-06-19
+ref: .claude/perf-brainstorm.md  # the idea bank + critic ranking this picks up
+---
+
+# Session Log: Performance pass 4 — steady-state + stall reduction
+
+> **AGENT DIRECTIVE:** This log is the "why" trail — it is **event-driven**, not a
+> per-task diary. Write an entry only when a decision is made, something unexpected is
+> discovered, a blocker is hit, or a question is raised for the human. Per-task progress
+> lives in `tasks.md` checkboxes; the human-readable summary lives in `README.md`.
+
+## Key Decisions
+
+- **D1 — Scope = the non-build Tier-0/1/2 ideas from `.claude/perf-brainstorm.md`.**
+  Build-step/bundler/worker/texture-compression ideas are deliberately excluded and
+  parked on ROADMAP for a later date (Gary, 2026-06-19). The build decision is
+  orthogonal and measurement-gated; see [[no-build-constraint-relaxed]].
+- **D2 — Ordering is gated on measurement.** B0 (fix draw/tri measurement under
+  post-processing) ships FIRST because every batching/cull decision downstream is
+  blind until `renderer.info` reads true again. Tier-2 draw-reduction work
+  (geometry merge, fog-cull) is explicitly gated behind B0's numbers.
+- **D3 — C1-b (phased deferral) over C1-a (full coroutine).** Unanimous across the
+  Tier-3 debate council. C1-b runs the same `rng()` calls in the same order (just
+  deferred), so the determinism gate is a clean pass/fail; C1-a turns every inline
+  `registry.add` into a resumable yield across the most determinism-delicate call
+  chain. -> deliberations/001-perf-pass-4-plan/results.md
+- **D4 — F2 demoted + scope-capped (was nearly Blocked).** The debate found the
+  design's premise false: `world.js:139-141` re-anchors the sun shadow frustum to
+  the cart EVERY frame, so `autoUpdate=false` *smears* shadows under motion, not
+  benign staleness. F2 now requires movement-gated `needsUpdate` co-located with
+  the sun-follow, single-owner shadow cadence, mid/high-stationary-only scope cap,
+  B0-gating, and is CUT if B0 shows the depth pass isn't material. Pulled out of
+  Slice 1. -> deliberations/001-perf-pass-4-plan/council-adversary.md
+- **D5 — Re-cut into 3 ship slices.** Slice 1 = B0 + D3 only (agent-self-verifiable);
+  Slice 2 = shader wall + F2 (F1-refactor → A4 → A1 → governor → F2 → F1-gate);
+  Slice 3 = C1-b alone behind the hard determinism gate. E1 + Tier-2 default PARK.
+- **D6 — Determinism gate is a multi-chunk merge-blocker.** The deferred queue is
+  global while `registry.byChunk` is key-scoped, so the byte-identical registry-dump
+  diff must span a concurrent-deferral neighborhood, not one isolated chunk.
+- **D7 — Three non-obvious correctness traps captured.** (a) D3's `activePassengersRef`
+  is two-channel: `count` re-snapshots per NPC (not frozen per frame), `add()`
+  mutates the live outer counter — a naive hoist breaks the boarding throttle.
+  (b) A1's prewarm must NEVER dispose — tearing down factory-built meshes frees
+  `userData.shared` pooled materials → recompile storm. (c) One shared per-frame
+  governor for scatter + reveal-pump + E1; crowd-spawn last.
+
+## Assumptions
+
+| # | Assumption | Confidence | Status | Resolution |
+|---|-----------|------------|--------|------------|
+| A1 | `renderer.info.render.calls` reads 1 because EffectComposer fullscreen passes overwrite it each pass | high | unverified | confirm in postprocessing.js / main render call |
+| A2 | The 137–343ms stalls are GL program compile/link, correlated with `prog` jumps | high | observed | from 2026-06-19 capture |
+| A3 | `_generate` builds a chunk synchronously in one frame (allocation cost = the hitch) | high | unverified | confirm in chunks.js |
+
+## Dangling Threads
+
+- Live perf/visual verification (FPS, stall removal, ToD screenshots) can only run on
+  Gary's real-GPU local machine — Codespaces has no WebGL. Agent-side verify is limited
+  to syntax / importmap / determinism gate / code review.
+
+## Work Log
+
+### 2026-06-19 -- Change scaffolded
+**Event:** phase-change
+**What:** Created perf-pass-4 from the zerble schema to carry the non-build perf work
+from the brainstorm. Proposal → specs → design → tasks to follow, then a tier-3
+deliberation debate before apply.
+**Refs:** -> .claude/perf-brainstorm.md
+
+### 2026-06-19 -- Tier-3 debate deliberation ran (both rounds)
+**Event:** decision
+**What:** 5-persona debate (Architect/Adversary/Auditor/Pragmatist/Profiler +
+Mediator). Round 1 did not converge; Round 2 cross-examination found a real bug
+(F2 shadow smear under motion) and corrected the plan. Verdict: Proceed with
+mitigations. Folded 7 binding corrections into tasks.md + fixed the frame-budget
+spec contradiction (collider-registering = synchronous phase). Tasks re-cut into
+3 slices. -> deliberations/001-perf-pass-4-plan/results.md -> D3 D4 D5 D6 D7
+
+### 2026-06-19 -- Slice 1 implemented (B0 + D3)
+**Event:** phase-change
+**What:** Shipped the agent-verifiable slice. B0: `InfoCapturePass` at composer
+index 1 taps `renderer.info.render.calls/triangles` post-RenderPass → `renderer
+.__sceneInfo`; debug.js HUD + perf sample read it (live fallback); added
+`progDelta`. D3: pooled the per-NPC `activePassengersRef` closure to one ref/frame
+with per-NPC `count` re-snapshot. Touched main.js, debug.js, crowd.js. CHANGELOG
++ ROADMAP updated (ROADMAP now carries the full perf-pass-4 set + the parked
+build-step cluster; Bundler out-of-scope note reframed per Gary's no-build relax).
+**Refs:** -> Task 1.1-1.6, 6.1-6.4
+**Verify limit:** No WebGL in Codespaces — static gates only (ESM parse, Pass
+import resolves @0.160.0, check-importmaps OK, registry determinism PASS). Live
+draws-read + boarding + boot are Gary's (see Dangling Threads).
+
+### 2026-06-19 -- Slice 2/3 deliberately NOT implemented
+**Event:** decision
+**What:** Per the deliberation re-cut (D5), the shader wall (A1/A4/F1/F2) and
+C1-b chunk slicing are gated behind Gary's real-GPU capture round-trips and stay
+unimplemented. Building them now would be exactly the sandbox-pass≠game-pass /
+optimize-before-measure trap the council flagged. Slice 1's first capture decides
+F1's brightness gate, Tier-2 go/no-go, and the steady-state attribution.

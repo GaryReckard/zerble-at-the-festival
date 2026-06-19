@@ -12,6 +12,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { Pass } from 'three/addons/postprocessing/Pass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 
 import { Input } from './input.js';
@@ -138,6 +139,26 @@ const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerH
 // ---------- Post-processing ----------
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
+
+// B0 (perf-pass-4): true scene draw/tri measurement under post-processing.
+// `renderer.info.render.calls` is reset+repopulated by EVERY render, so by the
+// time the backtick HUD / perf log read it (after composer.render()), the last
+// fullscreen pass (OutputPass) has overwritten it with `1`. This pass taps the
+// counts immediately after the scene RenderPass — when info.render still holds
+// the real scene totals — and stashes them on `renderer.__sceneInfo` for
+// debug.js. It draws nothing and forces no buffer swap (needsSwap=false → the
+// next pass reads the same buffer the RenderPass wrote).
+const sceneInfo = { calls: 0, triangles: 0 };
+class InfoCapturePass extends Pass {
+  constructor() { super(); this.needsSwap = false; }
+  render(r) {
+    sceneInfo.calls = r.info.render.calls;
+    sceneInfo.triangles = r.info.render.triangles;
+  }
+}
+composer.addPass(new InfoCapturePass());
+renderer.__sceneInfo = sceneInfo;
+
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth * 0.5, window.innerHeight * 0.5),
   PERF.bloomStrength, PERF.bloomRadius, PERF.bloomThreshold

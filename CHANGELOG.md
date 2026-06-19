@@ -2,6 +2,14 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-19
+
+### Added
+- **The backtick HUD + perf log report TRUE draw calls again under post-processing (dev workflow).** `renderer.info.render.calls` is reset and repopulated by *every* render, so by the time the overlay read it — after `composer.render()` ran the whole EffectComposer chain — the final fullscreen pass (OutputPass) had overwritten it with `1`. Every `draws`/`tris` reading in the HUD and the perf log was therefore stuck at `1`, leaving all draw-call/overdraw tuning blind. A tiny `InfoCapturePass` now sits at composer index 1 (immediately after the scene `RenderPass`) and snapshots `info.render.calls/triangles` while they still hold the real scene totals, stashing them on `renderer.__sceneInfo` for `debug.js` to read; it draws nothing and forces no buffer swap (`needsSwap=false`), so it's transparent to the image. The perf log also gains a per-frame `progDelta` (shader-program count diff) so the 137–343 ms shader-compile-stall frames self-identify by a positive delta. This is Slice 1 (item **B0**) of the council-reviewed `perf-pass-4` plan — the measurement prerequisite that gates the rest. ([main.js](src/main.js), [debug.js](src/debug.js); plan in [openspec/changes/perf-pass-4](openspec/changes/perf-pass-4/README.md))
+
+### Performance
+- **Crowd update stops minting ~330 throwaway objects every frame (item D3).** The per-NPC `_updateNpc` call allocated a fresh `{ count, add }` passenger-bookkeeping closure *per NPC per frame* (crowd.js) — ~200–330 short-lived objects/frame feeding GC. It's now one reusable ref + ctx object per frame, with `count` re-snapshotted before each NPC so the boarding gate still reads the live active-passenger total at that NPC's turn and `add()` still bumps the shared frame counter — semantically identical, minus the churn. Verified: registry-determinism gate still passes and the three edited modules parse clean; live FPS/visual confirmation is on real hardware (Codespaces has no WebGL). Slice 1 of `perf-pass-4`. ([crowd.js](src/crowd.js))
+
 ## 2026-06-17
 
 ### Added

@@ -1026,8 +1026,12 @@ function updatePanel(dt) {
   // allocation, not per-frame.
   const r = h.renderer;
   const info = r && r.info;
-  const drawCalls = info ? info.render.calls : '-';
-  const triangles = info ? info.render.triangles : '-';
+  // B0 (perf-pass-4): prefer the scene-render snapshot taken right after the
+  // RenderPass (before bloom/trip/fxaa/output overwrote info.render with 1).
+  // See InfoCapturePass in main.js. Fall back to live info if absent.
+  const si = r && r.__sceneInfo;
+  const drawCalls = si ? si.calls : (info ? info.render.calls : '-');
+  const triangles = si ? si.triangles : (info ? info.render.triangles : '-');
   const geoCount  = info ? info.memory.geometries : '-';
   const texCount  = info ? info.memory.textures : '-';
   // performance.memory is Chrome-only; treat as best-effort.
@@ -1581,6 +1585,7 @@ function savePerfLog(list) {
 // button and by samplePerf (which prepends t + ts). NOT side-effect-free: it
 // drains the crowd's self-time window (Crowd._perf) so each call yields a fresh
 // per-frame mean since the previous call.
+let _prevProg = -1;
 function collectPerfSample() {
   const h = state.hooks;
   const r = h && h.renderer;
@@ -1601,16 +1606,23 @@ function collectPerfSample() {
   const sepMs = cpF ? r1(cp.sepMs / cpF) : 0;
   const avoidMs = cpF ? r1(cp.avoidMs / cpF) : 0;
   if (cp) { cp.sepMs = 0; cp.avoidMs = 0; cp.frames = 0; }
+  // B0 (perf-pass-4): true scene draws/tris (snapshot before post-processing,
+  // see InfoCapturePass in main.js) + per-frame program-compile delta so the
+  // 137-343ms shader-stall frames self-identify by a positive progDelta.
+  const si = r && r.__sceneInfo;
+  const prog = info && info.programs ? info.programs.length : -1;
+  const progDelta = (_prevProg >= 0 && prog >= 0) ? prog - _prevProg : 0;
+  if (prog >= 0) _prevProg = prog;
   return {
     fps: state.rafSamples.length,
     fAvg: ft.avg > 0 ? r1(ft.avg) : 0,
     fP95: ft.p95 > 0 ? r1(ft.p95) : 0,
     fMax: ft.max > 0 ? r1(ft.max) : 0,
-    draws: info ? info.render.calls : -1,
-    tris: info ? info.render.triangles : -1,
+    draws: si ? si.calls : (info ? info.render.calls : -1),
+    tris: si ? si.triangles : (info ? info.render.triangles : -1),
     geo: info ? info.memory.geometries : -1,
     tex: info ? info.memory.textures : -1,
-    prog: info && info.programs ? info.programs.length : -1,
+    prog, progDelta,
     heapMB: heap,
     npc: h && h.crowd ? h.crowd.npcs.length : -1,
     reg: h && h.registry ? h.registry.entries.size : -1,

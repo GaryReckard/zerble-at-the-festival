@@ -599,11 +599,17 @@ export class Crowd {
       if (n.state !== 'riding') this._sepGrid.insert(n.pos.x, n.pos.z, n);
     }
 
+    // D3 (perf-pass-4): one reusable ctx + passenger ref per frame instead of a
+    // fresh closure literal per NPC (~330 short-lived objects/frame → GC churn).
+    // `count` is re-snapshotted before each NPC so the boarding gate still reads
+    // the live active-passenger total at that NPC's turn (crowd.js boarding
+    // check); `add()` still mutates the shared frame counter. Semantically
+    // identical to the old per-NPC `{ count, add }`, minus the allocations.
+    const passengerRef = { count: activePassengers, add: () => { activePassengers++; } };
+    const npcCtx = { zerbleIdle, activePassengersRef: passengerRef };
     for (const npc of this.npcs) {
-      this._updateNpc(dt, npc, zerble, bubblePositions, cosCone, {
-        zerbleIdle,
-        activePassengersRef: { count: activePassengers, add: () => activePassengers++ },
-      });
+      passengerRef.count = activePassengers;
+      this._updateNpc(dt, npc, zerble, bubblePositions, cosCone, npcCtx);
     }
 
     this.legsMesh.instanceMatrix.needsUpdate = true;
