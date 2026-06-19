@@ -1149,6 +1149,17 @@ function tickBody(dt) {
   // pixel ratio if the budget slips, ramps back if it recovers.
   AdaptiveQuality.tick(dt);
 
+  // F1 (perf-pass-4): gate the bloom pass — skip its full-screen multi-tap cost
+  // on frames with nothing bright to bloom. This is the SINGLE owner of
+  // `bloomPass.enabled` (the boot init + AdaptiveQuality now only feed it):
+  // effective = (tier ∧ adaptive-quality allow) ∧ (something bright in frame).
+  // Brightness is gated on `nightness` — emissive bloom here is a dusk/night
+  // effect (stage lights, fire, string bulbs, glow) and nightness is a glacial
+  // ramp, so there's no flicker — plus star power, whose daytime rainbow glow
+  // wants bloom regardless of time of day.
+  const bloomNeeded = getTimeOfDay().nightness > 0.08 || StarPower.isActive();
+  bloomPass.enabled = AdaptiveQuality.bloomAllowed() && bloomNeeded;
+
   composer.render();
 }
 

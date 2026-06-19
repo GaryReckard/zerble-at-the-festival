@@ -44,6 +44,21 @@ ref: .claude/perf-brainstorm.md  # the idea bank + critic ranking this picks up
 - **D6 — Determinism gate is a multi-chunk merge-blocker.** The deferred queue is
   global while `registry.byChunk` is key-scoped, so the byte-identical registry-dump
   diff must span a concurrent-deferral neighborhood, not one isolated chunk.
+- **D8 — Round-trip-1 capture: DRAWS are the steady-state ceiling.** With B0 now
+  reporting true numbers, the 2026-06-19 capture shows draws = **median ~3,750,
+  max 9,232** vs the 400 high-tier budget (12–23× over), tris ~1.4M. `progDelta`
+  ~0 and `fMax` median 33ms → the 137–343ms shader stall did NOT fire this run.
+  steady-state CPU fine (avoidMs 0.1–0.3). **Conclusion: the real perf lever is
+  draw-call reduction (geometry merge / instancing), not the shader wall.**
+  Slice 2 re-scoped accordingly. B0 paid for itself — it pointed at the real wall.
+- **D9 — F2 (amortized shadows) CUT.** Its own gate ("cut if B0 shows the depth
+  pass isn't material") triggered: `fMax` is fine, no shadow-driven spikes. Not
+  worth its verified smear-under-motion risk. -> D4
+- **D10 — F1 (bloom gate) shipped; A1/A4 deferred.** F1 is the one Slice-2 item
+  the GPU-bound data supports (shedding a full-screen pass in daylight). A1/A4
+  (shader prewarm/reveal) deferred until a hub-stress capture reproduces the
+  stall (progDelta ~0 this run). Geometry-merge promoted to primary next work
+  (-> Task 5.2), needs Gary's go-ahead + its own deliberation.
 - **D7 — Three non-obvious correctness traps captured.** (a) D3's `activePassengersRef`
   is two-channel: `count` re-snapshots per NPC (not frozen per frame), `add()`
   mutates the live outer counter — a naive hoist breaks the boarding throttle.
@@ -104,3 +119,14 @@ C1-b chunk slicing are gated behind Gary's real-GPU capture round-trips and stay
 unimplemented. Building them now would be exactly the sandbox-pass≠game-pass /
 optimize-before-measure trap the council flagged. Slice 1's first capture decides
 F1's brightness gate, Tier-2 go/no-go, and the steady-state attribution.
+
+### 2026-06-19 -- Round-trip-1 capture in → Slice 2 re-scoped + F1 shipped
+**Event:** discovery
+**What:** Gary's capture confirmed B0 works (draws now real) and revealed draws
+are the steady-state ceiling (med ~3,750 / max 9,232 vs 400 budget); the shader
+stall barely fired (progDelta ~0). Acted on it: shipped F1 (bloom gate, single
+per-frame owner over AdaptiveQuality) — adaptiveQuality.js + main.js; CUT F2;
+DEFERRED A1/A4; promoted geometry-merge to the primary next lever (Task 5.2,
+needs Gary go-ahead + deliberation). Static gates green (ESM parse, importmaps,
+determinism). F1 live-verify (bloom off in bright day, on at dusk/star power, no
+flicker) is Gary's. -> D8 D9 D10

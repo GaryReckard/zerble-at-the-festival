@@ -161,15 +161,25 @@ export function tick(dt) {
   }
 }
 
+// F1 (perf-pass-4): whether bloom is permitted by the tier AND the current
+// adaptive-quality level. main.js ANDs this with an in-frame brightness check to
+// produce the single `bloomPass.enabled` write each frame. Defaults to the tier
+// setting before the first _apply (state.bloomAllowed undefined → not false).
+export function bloomAllowed() {
+  return !!PERF.bloom && state.bloomAllowed !== false;
+}
+
 function _apply(newLevel, avgMs) {
   const lvl = QUALITY_LEVELS[newLevel];
   state.level = newLevel;
   const { renderer, scene, composer, bloomPass, hud } = state.hooks;
 
-  // Bloom
-  if (bloomPass) {
-    bloomPass.enabled = lvl.bloom !== false ? PERF.bloom : false;
-  }
+  // Bloom — F1 (perf-pass-4): AdaptiveQuality no longer writes
+  // `bloomPass.enabled` directly. It records whether THIS quality level permits
+  // bloom; main.js is the single per-frame owner that ANDs (tier) ∧ (this flag)
+  // ∧ (something bright in frame), so the three writers can't fight. See
+  // AdaptiveQuality.bloomAllowed() + the gate in main.js's tick.
+  state.bloomAllowed = lvl.bloom !== false;
   // Shadows
   _setShadowsOn(scene, renderer, lvl.shadows !== false && PERF.shadows);
   // Pixel ratio — scale from the baseline captured at install time.

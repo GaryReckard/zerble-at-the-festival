@@ -15,18 +15,16 @@ binding corrections folded in. See deliberations/001-perf-pass-4-plan/results.md
 - [~] 1.7 **AGENT PORTION DONE; live boot is Gary's.** Static verification green: 3 edited modules parse as ESM, the new `Pass` import resolves at unpkg 0.160.0, `bin/check-importmaps` OK, `bin/test-registry-grid` PASS. No Preview MCP / WebGL in Codespaces → confirm HUD `draws`/`tris` read realistic (not 1) and crowd boarding is unchanged on real hardware.
 - [~] 1.8 CHANGELOG done (per-slice, item 6.1). **Commit deferred** (Gary didn't ask to commit; the diff feeds verify + smart-review first). Round-trip-1 capture: same flow as before — `recordPerf(true)` → ~90s drive → `recordPerf(false)` → `capture()`; now `draws`/`tris`/`progDelta` carry real data.
 
-## 2. Slice 2 — Shader wall + F2 (one coherent slice, ordered)
+## 2. Slice 2 — re-scoped by the 2026-06-19 round-trip-1 capture
 
-> Gated behind Slice-1's B0 numbers where noted. One shared per-frame governor for all program-link work.
+> **Capture verdict (B0 paid off):** draws now read real = **median ~3,750, max 9,232** vs the 400 high-tier budget (12–23× over) → **draw count is the steady-state ceiling.** `progDelta` ~0 and `fMax` median 33ms → the shader stall did NOT fire this run, and shadows/fMax are a non-issue. So Slice 2 collapses to the one cheap GPU win the data supports (F1), F2 is cut by its own gate, and A1/A4 are deferred until a hub-stress capture shows the stall. **The real next lever is draw-call reduction (see Slice 2.5 below / geometry-merge).**
 
-- [ ] 2.1 **F1 prerequisite refactor:** make AdaptiveQuality set a `bloomAllowed` flag instead of writing `bloomPass.enabled` directly (adaptiveQuality.js:171); establish a single site that computes `bloomPass.enabled`. Verify bloom parity (no behavior change yet) before any gating.
-- [ ] 2.2 **A4 reveal (correctness floor):** track seen material UUIDs; queue meshes with unseen materials as `visible=false`; reveal ≤1 per frame, marking the material seen. Shared materials reveal once.
-- [ ] 2.3 **A1 prewarm:** at the title tap, AFTER the synchronous `Sound.init()` (main.js:543, untouched), build an offscreen scene of known heavy material variants **through the real threeShim-backed factories** and `renderer.compileAsync()`; seed those into the seen set. **Never dispose** the warm scene's GPU-owning resources — reference the already-permanent pooled `userData.shared` materials so teardown can't free them (else recompile storm).
-- [ ] 2.4 **Shared per-frame governor:** C1-b deferred scatter (Slice 3), A4 reveal pump, and E1 curtain pump draw from ONE per-frame budget (GL program links + ms). Implement the governor here; crowd-spawn is always the last deferred stage.
-- [ ] 2.5 **F2 (scope-capped):** flip `renderer.shadowMap.autoUpdate = false` only AFTER the first good map renders; request `needsUpdate` **gated on player-movement delta**, co-located with the per-frame sun-follow in world.js (mirror the `GROUND_RESAMPLE_THRESHOLD` pattern, world.js:121-127) so the moved shadow-camera VP never samples a stale depth map under motion. Make world.js the **single owner** of shadow cadence; reconcile with AdaptiveQuality's shadow toggle. Write the scope cap in a comment: amortizes mid/high while ~stationary only, zero on low, ~zero during boost. **Cut F2 entirely if B0 shows the depth pass isn't a measurable mid/high line item.**
-- [ ] 2.6 **F1 gating (B0-gated):** `bloomPass.enabled = PERF.bloom && aq.bloomAllowed && brightInFrame()` with hysteresis; `brightInFrame()` = nightness > T OR nearest stage/fire attractor in range. The resolved predicate is the ONLY writer.
-- [ ] 2.7 Verify `?perf=low/mid/high` after each render-touching task (low uses the threeShim Lambert path = different program set, so A4 must cover it). Screenshot Noon + Midnight.
-- [ ] 2.8 Per-slice CHANGELOG bullets; commit. Hand Gary the Round-trip-2 capture (boost run): confirms F2-safety (no shadow smear under motion), A1/A4 killed the 137–343ms stall (progDelta ≤1/frame at hub entry), and whether E1 is still needed.
+- [x] 2.1 **F1 flag-setter refactor:** AdaptiveQuality sets `state.bloomAllowed` + exports `bloomAllowed()` instead of writing `bloomPass.enabled` directly (adaptiveQuality.js); single owner established.
+- [x] 2.6 **F1 gating (shipped):** `bloomPass.enabled = AdaptiveQuality.bloomAllowed() && (nightness > 0.08 || StarPower.isActive())` — the ONLY per-frame writer (main.js, in tick). Gated on nightness (glacial ramp → no flicker) + star power so the daytime rainbow glow keeps bloom. Skips the full-screen bloom pass in bright daytime driving.
+- [~] 2.5 **F2 — CUT.** Per its own gate ("cut if B0 shows the depth pass isn't material"): the capture's `fMax` median is 33ms with no shadow-driven spikes, so amortizing the shadow render buys nothing measurable and carries the verified smear-under-motion risk. Not worth it. Decision recorded in session-log -> D9.
+- [~] 2.2 / 2.3 / 2.4 **A4 reveal / A1 prewarm / shared governor — DEFERRED.** `progDelta` ~0 all run → the 137–343 ms shader stall didn't fire here. Re-prioritize behind a hub-stress capture that actually reproduces the stall; the design + binding mitigations stay on record for when it does.
+- [ ] 2.7 Verify F1 live on `?perf=low/mid/high` (low has `PERF.bloom` false → `bloomAllowed()` returns false → bloom stays off, correct): confirm bloom turns off in bright daytime open driving and back on at dusk/at a stage/under star power, with no flicker. **Gary (no WebGL here).**
+- [ ] 2.8 CHANGELOG (done for F1) + commit when Gary's ready.
 
 ## 3. Slice 3 — C1-b time-sliced chunk generation (phased deferral)
 
@@ -44,10 +42,12 @@ binding corrections folded in. See deliberations/001-perf-pass-4-plan/results.md
 - [ ] 4.1 Only build if Round-trip-2 shows residual stall worth masking. On first crossing into a hub's influence (reuse `heartInfluence`), start a ~400ms bloom-strength + tone-exposure swell + audio cue via the single bloom-writer; rate-limit to once per hub, no re-fire while inside.
 - [ ] 4.2 During the curtain, the shared governor temporarily raises the reveal-pump rate so the hub's compiles land inside the flourish. Verify it reads as charming (Noon + Midnight), honoring the warm-festival tone.
 
-## 5. Tier-2 — PARK by default (only B0-justified items)
+## 5. Draw-call reduction — JUSTIFIED by the round-trip-1 capture (the real lever)
 
-- [ ] 5.1 Using Slice-1 B0 numbers, decide Tier-2 go/no-go; record in session-log. Only **geometry-merge** and **fog-as-far-cull** are draw-win candidates; crowd LOD is unproven; atmosphere fakes ADD draws (book separately). Default = park to ROADMAP.
-- [ ] 5.2 (If justified) Static-decor geometry merge at chunk completion, reusing the vendor-booth `userData.shared` disposal pattern; backtick budget check before/after.
+> B0 confirmed draws = median ~3,750 / max 9,232 vs a 400 high-tier budget (12–23× over). This is the steady-state ceiling, so draw-call reduction is promoted from "if justified" to the **primary next work**. Overlaps the existing ROADMAP P2/P3 merge bullet.
+
+- [x] 5.1 Decision recorded (session-log -> D8): draws are the bottleneck. **geometry-merge** is primary; **fog-as-far-cull** secondary; crowd LOD unproven (steady-state CPU is fine); atmosphere fakes ADD draws → not now.
+- [ ] 5.2 **Static-decor geometry merge at chunk completion** — extend the shipped `mergeStaticDecor` (tent.js, −36% meshes) to the food-court + camp-village builders' repeated props (ROADMAP P2), reusing the `userData.shared` disposal pattern; backtick budget check before/after on a dense hub. **Needs Gary's go-ahead + its own deliberation pass (lifecycle/disposal tripwires).**
 - [ ] 5.3 (If justified) Fog-as-far-cull: bound `camera.far` (currently 1500, world.js) toward fog distance per tier — **verify distant hubs/skybox don't clip** before/after; no visible pop-out.
 
 ## 6. Docs + verification (per slice, not batched)
