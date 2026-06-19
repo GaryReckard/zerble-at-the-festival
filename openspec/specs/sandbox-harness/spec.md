@@ -53,7 +53,7 @@ dispatch the streaming world uses), so every festival POI kind renders by constr
 with no per-kind sandbox case to maintain, with a registry diff-faithful to the game.
 It SHALL offer orbit camera, ToD presets, a live `FESTIVAL_TUNING` slider panel that
 rebuilds on release, and `?at=x,z` to land on the nearest hub (`hub-sandbox.html`,
-`chunks.js:1334`, `CLAUDE.md` hub-viewer row).
+`chunks.js:1347`, `CLAUDE.md` hub-viewer row).
 
 #### Scenario: A new cluster kind appears in the hub viewer automatically
 
@@ -89,17 +89,32 @@ freeze the world while the camera stays live (`debug.js:1-115`).
 
 ### Requirement: One-door __dbg driving surface
 
-`window.__dbg` SHALL be the single door for driving the running game in local dev —
-`start()` (boot past the title gesture), `camLock`/`camUnlock` (pin a fixed camera over
-the chase cam), `fillSeats`/`rider`/`setJuice`/`tod`/`teleport` (nudge state), with
-`__dbg.game` (live refs) and `__dbg.debug` (the backtick API) aliased onto it. The full
-reference lives in `DEBUGGING.md` (`CLAUDE.md` Run + verify section).
+`window.__dbg` SHALL be the single door for driving the running game in local dev
+(installed only on `localhost` / `127.0.0.1` / `*.github.dev` — never on the deploy) —
+`start()` (boot past the title gesture), `camLock`/`camUnlock`/`topDown` (pin a fixed
+camera over the chase cam), `fillSeats`/`rider`/`setJuice`/`tod`/`teleport`/`starPower`
+(nudge state), and a set of READ-ONLY inspection + capture helpers: `dumpRegistry(bounds?)`
+(built-truth registry as JSON), `dumpPrograms({raw?})` (shader-program leak finder —
+groups `renderer.info.programs` by material family + the varying token), `gotoHub(n)` /
+`showFootprints` (hub framing + cluster-footprint overlay), `recordPerf`/`perfLog`
+(reload-proof engine-stats ring buffer), and `capture(name?, data?)` (POSTs data to the
+dev server's `/__capture/<name>` sink, written to `.claude/captures/<name>.json` — the
+browser→repo bridge). `__dbg.game` (live refs) and `__dbg.debug` (the backtick API) SHALL
+be aliased onto it, and `__dbg.help()` SHALL print the whole surface. The full reference
+lives in `DEBUGGING.md` (`CLAUDE.md` Run + verify section; `main.js:1352-1728`).
 
 #### Scenario: An agent screenshots a pinned close-up
 
 - **WHEN** an agent calls `__dbg.start()` then `__dbg.camLock(...)`
 - **THEN** the game boots and holds a fixed camera pose for a screenshot, overriding the
   chase cam
+
+#### Scenario: A shader-program leak is diagnosed without leaving the tab
+
+- **WHEN** an agent calls `__dbg.dumpPrograms()`, drives across a few hubs, calls it
+  again, and `__dbg.capture('programs', __dbg.dumpPrograms())`
+- **THEN** the proliferating material family is named in the grouped output and the data
+  is written to `.claude/captures/programs.json` for an agent that can't see the tab
 
 ### Requirement: Headless rules-as-data layout linter
 

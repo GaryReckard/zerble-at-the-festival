@@ -16,11 +16,13 @@ roam the field on placed loops as soft obstacles.
 
 ### Requirement: Pooled, personality-driven NPCs
 
-`Crowd` SHALL maintain a pool capped at `PERF.crowdMax` (180 / 320 / 500 by tier).
-Each NPC SHALL be spawned with a random personality — `curiosity`, `skittishness`
-(constrained so an NPC can't be both bold and skittish), `energy`, `social`,
-`talkativeness` — that shapes its behavior. NPCs SHALL render through a pooled/instanced
-humanoid (`crowd.js:1-6,30,344-414`).
+`Crowd` SHALL maintain a pool capped at `PERF.crowdMax` (`MAX_NPCS`, 180 / 320 / 500
+by tier). Each NPC SHALL be spawned with a random personality — `curiosity`,
+`skittish` (constrained so an NPC can't be both bold and skittish: `skittish =
+(1 - curiosity) * rng()`), `social`, `energy`, and `dance` (an in-place sway
+amount) — that shapes its behavior. NPCs SHALL render through a pooled/instanced
+humanoid (`MAX_NPCS` at `crowd.js:30`; `spawn()` + personality roll at
+`crowd.js:350-414`).
 
 #### Scenario: Crowd size honors the tier budget
 
@@ -30,15 +32,20 @@ humanoid (`crowd.js:1-6,30,344-414`).
 ### Requirement: NPC behavior state machine
 
 Each NPC SHALL run a state machine across `idle → walking → watching → approaching →
-fleeing → smiling → boarding/riding/disembarking` (plus hammock variants), with a
-transient **cheer** overlay (`cheerNear(x,z)` fired on a stage song-end) that poses
-arms-up and smiles for ~5s on top of the current state without interrupting riders or
-fleers (`crowd.js:70,109,475-490`).
+fleeing → boarding/riding/disembarking`, plus hammock variants
+(`walking_to_hammock`, `hammock_riding`), picnic-table variants
+(`walking_to_table`, `table_seated`), and porta-potty variants (`seeking_potty`,
+`entering_potty`, `using_potty`, `exiting_potty`, `surprised_potty`). Smiling is an
+event (a smile-pickup emission), not a state. A transient **cheer** overlay
+(`cheerNear(x,z)` fired on a stage song-end) poses arms-up and smiles for 5s on top
+of the current state without interrupting riders, boarders, fleers, hammock-riders,
+or table-seated NPCs (`cheerNear` at `crowd.js:485-499`).
 
 #### Scenario: Song-end triggers a cheer wave
 
 - **WHEN** a stage song ends and `cheerNear` is called at its position
-- **THEN** nearby eligible NPCs cheer for ~5 seconds, skipping riders/boarders/fleers
+- **THEN** nearby eligible NPCs cheer for 5 seconds, skipping
+  riders/boarders/disembarkers/fleers/hammock-riders/table-seated
 
 ### Requirement: Steering blends seek, separation, and path pull
 
@@ -46,8 +53,10 @@ NPC steering SHALL combine a seek toward the NPC's target (a registered attracto
 random spot), repulsion from registry footprints, soft separation from neighbors
 within `SEPARATION_RADIUS`, and a gentle pull toward the path grid (multiples of
 `PATH_GRID = 80`) so people *tend* to use the dirt paths without being forced to. The
-separation broadphase SHALL be rebuilt from live NPC positions each frame
-(`crowd.js:10-11,85-88,121-122`).
+separation broadphase SHALL be rebuilt from live NPC positions each frame, excluding
+riders (`SEPARATION_RADIUS`/`PATH_GRID` consts at `crowd.js:85-88`; per-frame
+`_sepGrid` rebuild at `crowd.js:594-599`; the seek/separation/path-pull blend at
+`crowd.js:1017-1066`).
 
 #### Scenario: NPCs prefer paths but aren't rails
 
@@ -60,7 +69,9 @@ Eye contact with the player plus bubble proximity SHALL raise an NPC's internal
 `happiness`; on threshold it SHALL emit a smile pickup and record the player's
 position. The same NPC SHALL NOT smile again until the player has driven
 `SMILE_RESET_DIST` (28m) away AND a cooldown has elapsed, so parking next to a crowd
-can't farm smiles (`crowd.js:14-16,63,414`).
+can't farm smiles (`SMILE_RESET_DIST` at `crowd.js:63`; `happiness`/`lastSmilePos`/
+`smileTimeCooldown` NPC fields at `crowd.js:420-424`; the anti-farm guard +
+threshold emission at `crowd.js:1115-1141`).
 
 #### Scenario: Parked player can't farm smiles
 
@@ -71,8 +82,9 @@ can't farm smiles (`crowd.js:14-16,63,414`).
 ### Requirement: Hit response panics and infects
 
 `onZerbleHit(npc, nx, nz)` SHALL panic the struck NPC into `fleeing`, apply knockback,
-and infect nearby NPCs into a brief fleeing state, so a high-speed plow scatters the
-crowd (`crowd.js` `onZerbleHit`, dispatched from `main.js#resolveCollision`).
+and infect nearby NPCs (within 6m) into a brief fleeing state, so a high-speed plow
+scatters the crowd (`crowd.js:2014-2035`, dispatched from `main.js:1262` inside
+`resolveCollision`).
 
 #### Scenario: A plow scatters the crowd
 
@@ -84,7 +96,9 @@ crowd (`crowd.js` `onZerbleHit`, dispatched from `main.js#resolveCollision`).
 NPCs SHALL be despawned by distance from the player (`DESPAWN_RADIUS`), NOT when their
 spawn chunk unloads — so NPCs who wander across chunk boundaries don't blink out.
 `unloadChunk` SHALL therefore be a no-op for the crowd; despawn SHALL skip riders and
-boarders so passengers aren't yanked off the cart (`crowd.js:494-512`).
+boarders so passengers aren't yanked off the cart (`DESPAWN_RADIUS` at `crowd.js:36`;
+`unloadChunk` no-op at `crowd.js:505-507`; `_despawnDistant` with the
+riding/boarding skip at `crowd.js:511-518`).
 
 #### Scenario: A wandering NPC survives its spawn chunk's unload
 

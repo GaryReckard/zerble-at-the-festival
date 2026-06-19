@@ -34,7 +34,8 @@ motion, performer dance) SHALL attach an updater closure or expose an `anim` obj
 its Group, and SHALL register into an animatables list owned by its host (chunk
 `forestAnimatables`, lake `lakeAnimatables`, or `forestDrumCircles`). A central
 per-frame updater in `main.js` SHALL walk those lists. The lists are chunkKey-tagged so
-they're swept on unload (`ARCHITECTURE.md:301`, `chunks.js:578-586`).
+they're swept on unload (`ARCHITECTURE.md:301`, the `_unload` animatables sweep at
+`chunks.js:589-595`).
 
 #### Scenario: A flickering firepit animates without per-model wiring
 

@@ -100,7 +100,7 @@ nearest heart and the distance to it: within the core radius → `core`; within 
 district → `district`; beyond every heart's domain → `outskirts`. Sparsity SHALL
 emerge as the space between hearts, not be added separately. `heartInfluence` SHALL
 ramp continuously from 1 at a core center to 0 at the district edge
-(`index.js:50-51,63`, `hearts.js:101-105`).
+(`index.js:50-51,63`, `hearts.js:103-107`).
 
 #### Scenario: Outskirts emerge between hearts
 

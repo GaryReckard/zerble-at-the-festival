@@ -15,7 +15,7 @@ pose into the chase pose at boot.
 `ChaseCamera` SHALL provide `third` (chase — fixed offset behind the cart, smooth
 follow), `first` (eye-level, follows heading), and `top` (zoomable top-down), cycled by
 `V` or the Cam button. Arrow keys SHALL add yaw/pitch offsets that **persist** when
-released (no auto snap-back) (`camera.js:4,75-119`, `ARCHITECTURE.md:287-294`).
+released (no auto snap-back) (`camera.js:4,82,117-131`, `ARCHITECTURE.md:287-294`).
 
 #### Scenario: Camera offsets persist
 
@@ -27,7 +27,7 @@ released (no auto snap-back) (`camera.js:4,75-119`, `ARCHITECTURE.md:287-294`).
 Zoom SHALL be wheel + two-finger pinch, routed per mode: chase uses a dolly multiplier
 (`chaseZoom`) on default distance/height; first-person uses an FOV (telephoto) change
 (`fpvFov`) since UP/DOWN are pitch there; top-down uses its height. Each SHALL persist
-across mode switches so a mode returns exactly as last left (`camera.js:43-88`).
+across mode switches so a mode returns exactly as last left (`camera.js:43-55,85-88,150-161`).
 
 #### Scenario: Top-down returns where you left it
 
@@ -38,7 +38,7 @@ across mode switches so a mode returns exactly as last left (`camera.js:43-88`).
 
 At boot the camera SHALL run an intro reveal: hold a pose matching the title PNG while
 it cross-dissolves, then orbit around to the chase pose while the FOV widens from a long
-lens, before handing control to the normal chase follow (`camera.js:59-108`).
+lens, before handing control to the normal chase follow (`camera.js:57-73,257-328`).
 
 #### Scenario: Boot orbits into the chase pose
 
@@ -49,7 +49,7 @@ lens, before handing control to the normal chase follow (`camera.js:59-108`).
 
 A debug pin SHALL be able to re-assert a fixed pose every frame, ignoring chase/intro
 logic, so a close-up screenshot pose can't be stolen back by the chase follow (the
-`__dbg.camLock`/`camUnlock` surface) (`camera.js:91-102`, `sandbox-harness`).
+`__dbg.camLock`/`camUnlock` surface) (`camera.js:90-95,166-178,333-337`, `sandbox-harness`).
 
 #### Scenario: A locked camera holds for a screenshot
 

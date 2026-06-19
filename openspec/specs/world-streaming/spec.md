@@ -59,7 +59,7 @@ unload radius being larger than the load radius, so straddling a boundary does n
 thrash (hysteresis). Unloading SHALL go through `disposeChunkByKey`, which removes the
 chunk's group, calls `registry.removeChunk(key)`, `crowd.unloadChunk(key)`, and sweeps
 every `chunkKey`-tagged side-list (stage performers/music/lenses/beams, sugar-shack
-cooks, forest animatables/drum circles/drum music) (`chunks.js:48-50,280-356,540-592`).
+cooks, forest animatables/drum circles/drum music) (`chunks.js:48-50,304-373,553-604`).
 
 #### Scenario: A distant chunk unloads
 
@@ -79,7 +79,7 @@ cooks, forest animatables/drum circles/drum music) (`chunks.js:48-50,280-356,540
 `_generateWorldgen(ctx)`, when off it runs the legacy path — `pickTheme(cx, cz)` from
 the `(cx,cz)` hash (`main_stage` only at origin, plus `side_stage`/`food_plaza`/
 `vendor_row`/`drum_circle`/`grove`/`open_lawn`), dispatched through `THEME_BUILDERS`,
-unless the chunk falls in a forest or lake (`chunks.js:362-429,599-680`).
+unless the chunk falls in a forest or lake (`chunks.js:375-475,612-672`).
 
 #### Scenario: Default boot uses worldgen v2
 
@@ -100,8 +100,8 @@ bank / entrance arch) → density-driven tree scatter (with thicket gradient, po
 hammocks, shrub undergrowth) → heart-influence-weighted ambient crowd → bubble-jug
 scatter → outskirts campsites → seam hedges. All model variation SHALL derive from
 each descriptor's `clusterSeed`, never from the chunk's `ctx.rng`, so descriptor-count
-changes never desync a chunk's other consumers (`chunks.js:464-533,1245,1291`,
-`ARCHITECTURE.md:167`).
+changes never desync a chunk's other consumers (`chunks.js:477-501,1258,1309`,
+`ARCHITECTURE.md:169`).
 
 #### Scenario: Cluster build is seed-stable
 
@@ -153,7 +153,7 @@ preserved) (`lakes.js:14-16,64-79,121-222`).
 Chunk and lake disposal walks SHALL skip any geometry or material tagged
 `userData.shared = true` (module-pooled resources reused across chunks). Disposing a
 shared resource is forbidden because it silently triggers a shader recompile the next
-frame any other chunk references it (`chunks.js:832-833`, the `userData.shared`
+frame any other chunk references it (`chunks.js:554-565`, the `userData.shared`
 convention).
 
 #### Scenario: Pooled material is not freed on unload

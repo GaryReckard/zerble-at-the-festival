@@ -1,7 +1,8 @@
 # Capability: render-pipeline
 
-> **Source:** `src/main.js` (renderer + `EffectComposer` setup `:100-149`, the
-> `tick`/`tickBody` main loop `:640-1126`, resize `:1293-1318`), `src/threeShim.js`
+> **Source:** `src/main.js` (renderer setup `:102-114` + `EffectComposer` chain
+> `:139-167`, the `tick`/`tickBody` main loop `:658-1132`, resize `:1311-1329`),
+> `src/threeShim.js`
 > (the `'three'` importmap entry — tier-aware material override). The collision model
 > invoked from the loop is specified in `registry-collision`; quality knobs in
 > `perf-tiers`.
@@ -34,7 +35,7 @@ only on the `high` profile (`main.js:102-114`).
 `height*0.5`), the `Trip` `ShaderPass`, a conditional `FXAAShader` pass (added only
 when MSAA is off, i.e. on `low`/`mid`), and finally `OutputPass`. Bloom SHALL be
 disabled (`enabled = false`) when `PERF.bloom` is false; the Trip pass SHALL be a
-no-op at intensity 0 (`main.js:120-149`).
+no-op at intensity 0 (`main.js:139-167`).
 
 #### Scenario: Mid tier uses FXAA in place of MSAA
 
@@ -56,7 +57,7 @@ permits (debug can pause / single-step). `composer.render()` is the **last line 
 advance, in order, Zerble physics, audio engine + nightness, input edges,
 bubbles/crowd/smiles, roaming obstacles, trip/Lurleen, stage performers + light show,
 campsite/drum animatables, world streaming, collision resolution, honk-ring, chase
-camera, and the audio listener, before rendering (`main.js:640-644,1113`).
+camera, and the audio listener, before rendering (`main.js:658-662,1131`).
 
 #### Scenario: Debug pause freezes both the world and the render
 
@@ -69,7 +70,8 @@ camera, and the audio listener, before rendering (`main.js:640-644,1113`).
 When `document.hidden` is true the loop SHALL schedule its next frame with
 `setTimeout(tick, 16)` instead of `requestAnimationFrame`, because RAF throttles to
 ~0fps in a backgrounded tab and the Claude Preview MCP keeps the page hidden. When
-visible it SHALL use `requestAnimationFrame` (`main.js:1119-1121`).
+visible it SHALL use `requestAnimationFrame` (via the `scheduleNext` helper the loop
+calls each frame) (`main.js:1137-1140`).
 
 #### Scenario: Backgrounded tab keeps ticking
 
@@ -82,7 +84,7 @@ visible it SHALL use `requestAnimationFrame` (`main.js:1119-1121`).
 Resize handling SHALL prefer `window.visualViewport` dimensions (the actual visible
 area on iOS Safari as the URL bar shows/hides) over `window.innerWidth/Height`, and
 SHALL update the camera aspect, renderer size, and `composer.setSize` together
-(`main.js:1293-1318`).
+(`main.js:1311-1329`).
 
 #### Scenario: Canvas tracks the iOS URL bar
 

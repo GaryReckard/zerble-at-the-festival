@@ -20,8 +20,8 @@ silent.
 the `AudioContext` first, before touching any other node; (B) play a 1-sample silent
 WebAudio buffer source; (C) play a real silent `HTMLAudioElement` to promote the page.
 `Sound.resume()` (`sound.js:566`) SHALL be wired to visibilitychange / pageshow /
-pointerdown / touchstart (handlers in `main.js:624-634`) to recover from iOS suspending
-the context (`sound.js:219-321`,
+pointerdown / touchstart (handlers in `main.js:642-652`) to recover from iOS suspending
+the context (`sound.js:221-301`,
 `ARCHITECTURE.md:274`).
 
 #### Scenario: Mobile ships with sound
@@ -41,7 +41,7 @@ Audio SHALL route through named buses into `masterGain`: `sfxBus` (engine, colli
 honks), `musicBus` (stage music, via a duck gain), `midiGain` (the MIDI player), and
 `natureBus` (the nature bed) — each with its own trip wet/dry chain. Per-bus volumes
 SHALL persist in `localStorage` (`zerble.vol.music/sfx/midi/nature`) and restore at
-init (`sound.js:18-20,114,189,321-438`).
+init (`sound.js:18-20,114,189,321-441`).
 
 #### Scenario: Music and MIDI have independent volume
 
@@ -56,7 +56,7 @@ putt-putt LFO and boost adding a harmonic tier, fading to silence at zero speed.
 Zerble's engine SHALL be mono on `sfxBus` driven by `Sound.setEngineSpeed`. **Lurleen**
 SHALL run a second instance with a brighter/cleaner profile, wrapped in an equalpower
 `PannerNode` driven to her world position by `Sound.setLurleenEngine(speed, x, z)`, and
-since she has no throttle her rev SHALL derive from her acceleration (`sound.js:130,457`,
+since she has no throttle her rev SHALL derive from her acceleration (`sound.js:130,457,824,833,1227`,
 `ARCHITECTURE.md:264`).
 
 #### Scenario: Lurleen's motor pans with her position
@@ -82,8 +82,8 @@ Each drum circle SHALL run a per-circle music scheduler whose voice density gate
 the global `nightness` (more voices at night). The **forest** drum circle additionally
 SHALL have its lowpass cutoff set every frame from the player's distance to the circle
 perimeter — wide open inside the circle, muffled by trees as you leave; the plain stage
-`drum` style leaves this lowpass a no-op stub (`sound.js:180-186`, the forest lowpass at
-`main.js:836-846`, `ARCHITECTURE.md:267`).
+`drum` style leaves this lowpass a no-op stub (`sound.js:180-183`, the forest lowpass at
+`main.js:851-865`, `ARCHITECTURE.md:267`).
 
 #### Scenario: Drums open up as you enter the circle
 

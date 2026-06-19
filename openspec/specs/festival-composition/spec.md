@@ -29,7 +29,7 @@ off side roads, a rear-biased drum circle, porta-potty banks, a welfare-station 
 vendor, and a major-hub entrance arch. The plan output SHALL be pure descriptors
 (`{ kind, x, z, yaw, scale, clusterSeed, … }`) with no `three` and no DOM. Camp
 villages SHALL be planned on a separate coarse grid (the "back of the festival")
-(`festival.js:1-13`, `ARCHITECTURE.md:164`).
+(`festival.js:1-14`, `ARCHITECTURE.md:169`).
 
 #### Scenario: A heart becomes a planned hub
 
@@ -62,7 +62,7 @@ the open court but never a truck); the drum circle sits in a treed pocket with a
 cart-wide access path and its center clear of other envelopes; porta-potty banks
 attach to a parent zone's edge facing it; the entrance arch sits over the spawn road
 as a threshold with the main stage beyond it; and no zone center sits in a lake nor
-opens a dancefloor onto water (`festival-zone-grammar` spec; `festival.js:110-254`).
+opens a dancefloor onto water (`festival-zone-grammar` spec; `festival.js:124-254,858-1024`).
 
 #### Scenario: Trucks never sit on a road
 
@@ -111,7 +111,7 @@ independent (canonicalized by `(cx,cz)` so pair `(A,B) === (B,A)`)
 `placement.js` SHALL select, per chunk, the clusters whose **center** falls within
 that chunk, so the owning chunk builds the whole cluster (which may spill into
 neighbors) and a cluster can never appear or vanish based on which overlapping chunk
-asks (window-invariance) (`placement.js`, `ARCHITECTURE.md:165`).
+asks (window-invariance) (`placement.js`, `ARCHITECTURE.md:170`).
 
 #### Scenario: One chunk owns a spilling cluster
 

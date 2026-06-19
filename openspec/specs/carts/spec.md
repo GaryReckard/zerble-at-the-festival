@@ -31,22 +31,27 @@ radius 1.9 (`zerble.js:10-23,70,1240-1269`).
 - **WHEN** the player releases throttle while moving
 - **THEN** speed decays by the multiplicative drag coefficient each frame
 
-### Requirement: World bound keeps the player in the festival
+### Requirement: The drivable world is infinite
 
-The cart's position SHALL be clamped within `WORLD_BOUND` (230m) so the player can't
-outrun the festival's "feel" (`zerble.js:23`).
+The cart's position SHALL NOT be clamped: the world streams endlessly and the
+ground + mountains follow the player, so there is no edge to hit. The cart's Y
+SHALL stay pinned to 0 since the followed ground is flattened to a 0-centre
+(`zerble.js:1276-1282`). (A legacy `WORLD_BOUND = 230` constant remains declared
+at `zerble.js:23` but is no longer read by any code path — the earlier clamp was
+removed in favour of infinite streaming.)
 
-#### Scenario: The edge of the world holds
+#### Scenario: Driving outward keeps streaming new world
 
-- **WHEN** the player drives toward the boundary
-- **THEN** the cart is clamped at `WORLD_BOUND` rather than continuing into emptiness
+- **WHEN** the player drives far in one direction
+- **THEN** the cart keeps moving and new chunks/forests/lakes stream in around it,
+  with no clamp halting it at any boundary
 
 ### Requirement: Invulnerability window on hit
 
 `Zerble.applyHit(pushDir)` SHALL apply a knockback impulse and open a brief
 invulnerability window (`invulnLeft`), so a single collision doesn't chain into
-repeated damage while the cart is being pushed clear (`zerble.js:71`, the collision
-model in `registry-collision`).
+repeated damage while the cart is being pushed clear (`zerble.js:1463-1472`, the
+collision model in `registry-collision`).
 
 #### Scenario: A hit grants brief immunity
 
@@ -73,7 +78,7 @@ meter (`zerble.js:349-351,406-464,513-532,1334-1410`).
 `AWARE_RANGE`, erupt a burst of pink hearts and pause briefly) → `following` (chase
 the player), falling back to `wandering` when the player is far again. She SHALL emit
 recurring heart particles, more frequently while aware than while following
-(`lurleen.js:6-14,691-843`).
+(constants `lurleen.js:32-40`, `AWARE_RANGE = 28`; state machine `lurleen.js:691-843`).
 
 #### Scenario: Proximity triggers awareness then pursuit
 
@@ -85,8 +90,9 @@ recurring heart particles, more frequently while aware than while following
 
 When Lurleen is far off-camera, `update` SHALL be allowed to re-home her (teleport to
 a fresh wander position) and SHALL skip that frame's state machine after a teleport so
-a re-homed cart doesn't snap-chase from the old position (`lurleen.js:141-146,
-705-709`).
+a re-homed cart doesn't snap-chase from the old position (`setSpawnAt`
+`lurleen.js:142-149`; the off-camera re-home roll + skip-frame `return`
+`lurleen.js:696-709`).
 
 #### Scenario: Re-homed Lurleen doesn't snap-chase
 
@@ -97,7 +103,9 @@ a re-homed cart doesn't snap-chase from the old position (`lurleen.js:141-146,
 
 Lurleen SHALL register a collider with `damage: 0` so bumping her bounces the player
 (and notifies for a toast/SFX) without deducting smiles — she is a sweetheart, not an
-obstacle (`main.js:1246-1251`, the `lurleen_found` analytics event).
+obstacle (`lurleen.js:131-136` registers the `damage: 0` collider; `main.js:1268`
+sets the `notify` flag for the `lurleen` kind; the `lurleenFound` analytics event
+fires from `main.js:801-804` on first awareness, not on collision).
 
 #### Scenario: Bumping Lurleen costs no smiles
 

@@ -82,31 +82,40 @@ attach time (`timeOfDay.js:97-105`).
 - **WHEN** `world.js` calls `attach` with its sun/hemi/ambient/sky
 - **THEN** subsequent `update` calls mutate exactly those objects' color/intensity/position
 
-### Requirement: Distance-culled context-light budget
+### Requirement: Constant context-light pool
 
 `contextLights.js` SHALL maintain a registry of optional proxy lights (campsite
-firepits, drum-circle pits, Sugar Shack spots). Each frame `update(cameraPos)` SHALL
-turn off (`visible = false`) any light beyond `MAX_DISTANCE` (45m), then among those
-in range keep only the closest `BUDGET` (8) visible and turn the rest off, so the
-forward renderer's per-fragment lighting loop only ever pays for a bounded number of
-context lights. A disabled light is excluded from that loop entirely
-(`contextLights.js:33-80`).
+firepits, drum-circle pits, Sugar Shack spots) plus a FIXED scene pool of
+`POINT_POOL` (6) `PointLight`s and `SPOT_POOL` (6) `SpotLight`s. Registered lights
+SHALL become invisible carriers (`visible = false`, contributing nothing to the
+scene's light count); the pool does all the rendering. Each frame
+`update(cameraPos, scene)` SHALL discard any registered carrier beyond
+`MAX_DISTANCE` (45m), sort the in-range carriers nearest-first, and copy the closest
+ones' world position/color/intensity (+ spot aim) into the matching pool slots,
+dimming unclaimed slots to `intensity = 0`. Because the scene's point/spot light
+counts NEVER change, the per-fragment lighting loop pays a constant bounded cost and
+the material program cache stops growing (the old `light.visible` toggle leaked ~220
+shader programs as the visible count wobbled). The pool SHALL materialize lazily —
+`update` is a pure no-op while no light has registered (`contextLights.js:38-47,
+54-72,88-157`).
 
-#### Scenario: Distant context lights are culled
+#### Scenario: Distant context lights are excluded
 
 - **WHEN** a registered proxy light is more than 45m from the camera
-- **THEN** it is set `visible = false` and contributes no shader cost
+- **THEN** it claims no pool slot and contributes no shader cost
 
-#### Scenario: Only the closest budget stay lit
+#### Scenario: Only the closest fill the pool
 
-- **WHEN** more than 8 registered lights are within range
-- **THEN** only the 8 nearest by squared distance are visible
+- **WHEN** more registered lights are within range than there are pool slots of
+  their type
+- **THEN** only the nearest by squared distance (up to `POINT_POOL` points /
+  `SPOT_POOL` spots) are copied into the pool; the rest are skipped
 
 ### Requirement: Lazy pruning of orphaned lights
 
 `contextLights.update` SHALL lazily drop any registered light whose `parent` is null
 (its host chunk/cluster was unloaded), so the registry does not leak entries across
-chunk lifecycle churn (`contextLights.js:52-58`).
+chunk lifecycle churn (`contextLights.js:101-108`).
 
 #### Scenario: Unloaded cluster's light is pruned
 

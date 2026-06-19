@@ -54,11 +54,23 @@ that arcs east→overhead→west during the night phase and hides during the day
 
 ### Requirement: Mountain backdrop ring
 
-`mountains.js` SHALL build a Blue Ridge mountain ring that `world-streaming` re-centers
-on the player so the horizon looks a constant distance away as the player roams
-(`mountains.js`, `world.js:129`).
+`mountains.js` SHALL build a Blue Ridge mountain ring (three rings of low-poly autumn
+hills) that `world-streaming` re-centers on the player so the horizon looks a constant
+distance away as the player roams. The ~234 hills SHALL be merged at build time into a
+single geometry + single shared material so the whole backdrop is ONE draw call: each
+hill's per-vertex colour and world transform are baked into its geometry before
+`mergeGeometries`, the merged buffer + material are tagged `userData.shared = true`, and
+the hills use `Math.random()` (no determinism contract, so the merge is pixel-identical
+and loses nothing). The material has `fog: false` so the ring always silhouettes the
+horizon through fog (`mountains.js:30-89`, `buildMountains`; recenter at `world.js:129`).
 
 #### Scenario: Mountains stay on the horizon
 
 - **WHEN** the player drives in any direction
 - **THEN** the mountain ring re-centers so the horizon never gets closer
+
+#### Scenario: The whole mountain ring is one draw call
+
+- **WHEN** the mountain backdrop renders
+- **THEN** all ~234 hills draw as a single merged mesh (one draw call), not one draw per
+  hill

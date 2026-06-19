@@ -18,7 +18,7 @@ normative spec — see `spec.md` for the model contract.
 | `entranceArch.js` | Festival entrance arch (threshold over the spawn road) | `arch` |
 | `leafBanner.js` | Hanging LEAF-style banner | — |
 | `portaPotty.js` | Porta-potty bank | `porta_potty` |
-| `picnicTable.js` | A-frame picnic table (NPCs sit at them) | `tent` (wood thunk) |
+| `picnicTable.js` | A-frame picnic table (NPCs sit at them) | `picnic_table` (SFX maps to the `tent` wood thunk) |
 | `bubbleVendor.js` | Welfare-station bubble vendor | — |
 | `bubbleJug.js` | Scattered bubble-soap jugs | — |
 
