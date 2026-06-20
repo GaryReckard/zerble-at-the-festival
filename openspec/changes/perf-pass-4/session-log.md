@@ -1,11 +1,11 @@
 ---
 change: perf-pass-4
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: 1.7           # Slice 1 code done; live-boot verification is Gary's
+current_task: 7.1.1         # Slice 4 (forest instancing) planned; CG1 shim+gate is next
 blocked_by: null            # "Q3" | "dependency X" | null
 open_questions: 0           # count of unanswered questions in questions-for-human.md
 started: 2026-06-19
-last_updated: 2026-06-19
+last_updated: 2026-06-20
 ref: .claude/perf-brainstorm.md  # the idea bank + critic ranking this picks up
 ---
 
@@ -74,6 +74,33 @@ ref: .claude/perf-brainstorm.md  # the idea bank + critic ranking this picks up
   (b) A1's prewarm must NEVER dispose — tearing down factory-built meshes frees
   `userData.shared` pooled materials → recompile storm. (c) One shared per-frame
   governor for scatter + reveal-pump + E1; crowd-spawn last.
+- **D12 — The real draw lever is TREES, not geometry-merge (drawCensus, 2026-06-20).**
+  `__dbg.drawCensus()` (new harness, shipped) at a dense hub: 14,359 pre-frustum
+  draws, top buckets `IcosahedronGeometry·240v` = 2,637 (oak/birch crowns) +
+  `ConeGeometry·35v` = 2,120 (pine tiers) + a big share of ~3,700 cylinder draws
+  (trunks) — all un-instanced. tree.js pools foliage *materials* but allocates
+  *geometry* per tree. Trees ≈ half the scene and static → the cleanest instancing
+  target (~344 draws/treed-chunk → ~5). This is the "bigger lever" D11 called for.
+  -> Section 7 (Slice 4) -> deliberations/003-forest-instancing/results.md
+- **D13 — Slice-4 must target worldgen v2 (deliberation 003, T3).** `DEFAULT_WORLDGEN_V2
+  = true` (perf.js:42); the v2 branch `return`s at chunks.js:405, so the live tree
+  path is `scatterWorldgenTrees`/`buildForestTree` (chunks.js:1036/1061), and v1
+  `scatterForestTrees` (forests.js:911) is dead-by-default (`?worldgen=0` only).
+  Instrumenting v1 moves the production census by zero. Both paths share
+  `buildForestTree`, so one descriptor refactor covers both (v1 rides free). The
+  chunks.js:385 "default OFF" comment is STALE. Defer chunk-trees (chunks.js:1696,
+  shared `ctx.rng` → reorder desyncs pottys/crowd/bubble-jugs); exclude lakes
+  (chunkKey-omission + scale-coupled collider).
+- **D14 — Determinism needs a NEW gate; layout-snapshot is visual-blind (deliberation
+  003, T1 — the crux).** `dumpRegistry` (main.js:1505-1515) emits 9 placement
+  fields, dropping scale/color/species/crown/perches — so a same-count rng *reorder*
+  regenerates every forest + moves bird perches with a byte-identical snapshot, all
+  gates green. Mitigation: build `bin/test-forest-determinism` (golden-hash the
+  descriptor stream via the node-three-shim loader; extend the shim 1→~7 stubs
+  first), capture the golden from `main` before refactoring, run BOTH gates. Plus:
+  `instanceColor` + ~5 cast/no-cast buckets (orthogonal, keeps the 56-caster audit);
+  keep the Group-returning builders + add `describe*` siblings (sandbox/lakes call
+  them); disposal already correct (chunks.js:563). -> Section 7
 
 ## Assumptions
 
@@ -139,3 +166,20 @@ DEFERRED A1/A4; promoted geometry-merge to the primary next lever (Task 5.2,
 needs Gary go-ahead + deliberation). Static gates green (ESM parse, importmaps,
 determinism). F1 live-verify (bloom off in bright day, on at dusk/star power, no
 flicker) is Gary's. -> D8 D9 D10
+
+### 2026-06-20 -- drawCensus named the lever → forest-instancing deliberation (003) → Slice 4 tasks built
+**Event:** decision
+**What:** Shipped the `__dbg.drawCensus()` harness (scene draw-call composition by
+geometry/material) to scope the draw lever D11 called for. Gary ran it at a dense
+hub: TREES are ~half the scene's draws, all un-instanced (-> D12). Ran a Tier-3
+debate-mode deliberation (003-forest-instancing: Architect/Profiler/Adversary/
+Auditor/Pragmatist + Mediator, both rounds) — verdict "proceed with mitigations,"
+three tensions resolved (-> D13 target v2 not v1; -> D14 new golden-hash gate +
+instanceColor/5-bucket shadow split). Folded CG1–CG4 into tasks.md as **Section 7
+(Slice 4)**, fully self-contained with file:line citations so it executes without
+re-reading the deliberation. Also back-filled the missing 002 entry in the
+deliberation index. Slice 4 is the new primary draw lever; Section 5 geometry-merge
+stays parked (~2–4%, D11). NOTHING coded yet — CG1 (shim + determinism gate) is the
+agent-static starting point, no Gary round-trip needed.
+**Refs:** -> Section 7 (7.1-7.4) -> deliberations/003-forest-instancing/results.md
+-> D12 D13 D14
