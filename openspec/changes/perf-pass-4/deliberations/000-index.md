@@ -35,3 +35,44 @@ material) — pulled out of the first slice.
 
 Live perf / visual / iOS / boost-driving verification is the human's job
 (Codespaces has no WebGL) — batched into ~3 Gary capture round-trips.
+
+---
+
+- `002-geometry-merge/` — Tier-3 council (Architect + Adversary + Profiler +
+  Mediator) on a chunk-completion geometry-merge pass. **Synthesis:
+  `002-geometry-merge/results.md`.**
+
+**Headline outcome:** Premise falsified — the assumed "merge collapses thousands
+of draws" was wrong: food-court/camp-village static decor is already pooled/
+instanced, so a merge pass nets only ~2–4%. Camp-village merge **skipped**; the
+scoped food-truck + sugar-shack merge is parked as low-priority infra. This
+redirected the draw hunt to the real lever (deliberation 003).
+
+---
+
+- `003-forest-instancing/` — Tier-3 **debate-mode** council (Architect +
+  Profiler + Adversary + Auditor + Pragmatist + Mediator). Two rounds (R1
+  isolated → R2 cited cross-examination). **Synthesis:
+  `003-forest-instancing/results.md`.** This is the option-(b) draw lever Gary
+  greenlit after `drawCensus` named trees as ~half the scene's draws.
+
+**Headline outcome:** Proceed with mitigations (unanimous). Trees are the single
+biggest draw mass (`IcosahedronGeometry·240v` 2,637 + `ConeGeometry·35v` 2,120
+draws, all un-instanced); instancing collapses ~344 draws/treed-chunk → ~5. Three
+tensions resolved: **(T3, dispositive)** the shipped path is **worldgen v2**
+(`DEFAULT_WORLDGEN_V2=true`, perf.js:42; v2 `return`s at chunks.js:405), so slice-1
+must target `scatterWorldgenTrees` (chunks.js:1061), not the dead-by-default v1
+`scatterForestTrees` — v1 rides the shared `buildForestTree` emitter for free;
+chunk-trees deferred (shared `ctx.rng`), lakes excluded (chunkKey-omission). **(T1,
+the crux)** `bin/layout-snapshot` is **blind** to the visual stream — `dumpRegistry`
+(main.js:1505-1515) emits 9 placement fields, dropping scale/color/species/crown/
+perches, so a same-count rng *reorder* regenerates forests + moves bird perches
+with a byte-identical snapshot → a new agent-static `bin/test-forest-determinism`
+golden-hash gate is mandatory (precondition: extend `node-three-shim.mjs` from
+1→~7 THREE stubs); run BOTH gates. **(T2)** `instanceColor` + a cast/no-cast shadow
+split = ~5 buckets/chunk, orthogonal and shadow-audit-faithful; green-bucketing
+needs ~28 or it over-casts the 56-caster budget. Disposal already correct
+(chunks.js:563); keep tree.js's Group-returning builders (sandbox calls them) and
+add descriptor emitters additively. **Change Groups CG1–CG4** feed `tasks.md`; the
+two hard ship-gates are the determinism diff and the `?perf=low` tri budget on
+Gary's real GPU.
