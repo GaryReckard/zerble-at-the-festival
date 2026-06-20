@@ -29,7 +29,7 @@ import { roadsInBounds, nearestRoad } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
-import { buildCampsite, buildCampChair, buildTorchField, buildCampTent } from './models/campsite.js';
+import { buildCampsite, buildCampChair, buildTorchField, buildCampTent, CAMPSITE_SCALE } from './models/campsite.js';
 import { buildTent } from './models/tent.js';
 import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
@@ -1623,7 +1623,7 @@ function buildFoodCourtAt(ctx, x, z) {
       kind: 'picnic_table',
       position: new THREE.Vector3(tx, 0, tz),
       footprint: pt.footprint,
-      collider: { radius: 1.2, damage: 3 },
+      collider: { radius: 1.8, damage: 3 },   // scaled with the +50% table (was 1.2)
       attractor: { radius: 4, weight: 0.6 },
       tableSeats,
       chunkKey: ctx.key,
@@ -2499,12 +2499,12 @@ function placeCampsiteClump(ctx) {
 
   const siteCount = 3 + Math.floor(ctx.rng() * 4);   // 3-6 sites
   const placed = [];
-  const MIN_SPACING = 5;
+  const MIN_SPACING = 5 * CAMPSITE_SCALE;   // scales with the campsite size so bigger sites don't overlap
   for (let i = 0; i < siteCount; i++) {
     let chosen = null;
     for (let attempt = 0; attempt < 8; attempt++) {
       const a = ctx.rng() * Math.PI * 2;
-      const r = 4 + ctx.rng() * 6;
+      const r = (4 + ctx.rng() * 6) * CAMPSITE_SCALE;   // spread the clump with the campsite size
       const x = centre.x + Math.cos(a) * r;
       const z = centre.z + Math.sin(a) * r;
       // Spacing check vs prior placements
@@ -2570,7 +2570,7 @@ function buildCampVillage(ctx) {
 
   const target = 12 + Math.floor(ctx.rng() * 9);    // 12–20
   const placed = [];
-  const MIN_SPACING = 5.5;
+  const MIN_SPACING = 5.5 * CAMPSITE_SCALE;   // scales with the campsite size (camp village pack)
   // The four bordering paths run along x = cellX ± CHUNK_SIZE/2 and
   // z = cellZ ± CHUNK_SIZE/2 (i.e., the paths through the 4 surrounding
   // chunk centers). Keep campsites within ±RADIUS of the cell centre so

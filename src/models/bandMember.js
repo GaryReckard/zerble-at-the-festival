@@ -173,5 +173,8 @@ export function tickBandMember(model, dt) {
   if (!body) return;
   const u = model.userData;
   const t = performance.now() * 0.004 + u.bobPhase;
-  body.position.y = 0.85 + Math.abs(Math.sin(t * 2)) * 0.08;
+  // buildSimpleNPC is feet-at-zero, so the bob rides from a feet-on-ground rest
+  // (the old `0.85 +` base lifted the whole figure off the deck). Feet hop
+  // 0→0.08 — a proper marching step.
+  body.position.y = Math.abs(Math.sin(t * 2)) * 0.08;
 }

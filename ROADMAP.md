@@ -51,33 +51,6 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
   Verify off the perf-log recorder + a DevTools trace (not the draw/tri HUD —
   green and never the bottleneck), at `?perf=low` AND `?perf=high`.
 
-- **Marching brass band floats ~0.85m above the ground.** *(found 2026-06-07)*
-  Both the band members **and** the grand marshal float — same root cause in two
-  files. The per-frame marching bob sets the figure's body group to
-  `body.position.y = 0.85 + Math.abs(Math.sin(t*2))*0.08`
-  ([bandMember.js:176](src/models/bandMember.js#L176) and the identical line in
-  [parasolMarshal.js:139](src/models/parasolMarshal.js#L139)). But
-  `buildSimpleNPC` is anchored **feet-at-zero**: `_LEG_GEO` is a 0.65-tall
-  cylinder centered at y=0.32 ([puppet.js:183](src/models/puppet.js#L183),
-  [puppet.js:202](src/models/puppet.js#L202)) → leg bottom ≈ 0, head at 1.65,
-  hat at 2.05. So the `0.85 +` base offset lifts the entire figure (legs and
-  all) ~0.85m off the deck the instant the bob animation starts. Regular crowd
-  NPCs use the same model at `pos.y = 0` and sit correctly
-  ([crowd.js:1187](src/crowd.js#L1187)), confirming feet belong at 0.
-  - **The fix is a one-liner per file:** drop the `0.85 +` base so the bob rides
-    from a feet-on-ground rest — `body.position.y = Math.abs(Math.sin(t*2))*0.08`
-    (feet hop 0→0.08, a proper marching step).
-  - **Bonus alignment win:** the drum / sax / drumstick meshes are parented to
-    the *outer* group `g` (not `body`) at fixed heights authored for a
-    body-at-rest-0 figure (drum at y=1.2, sax at 1.35 —
-    [bandMember.js:100](src/models/bandMember.js#L100),
-    [bandMember.js:122](src/models/bandMember.js#L122)). Today the body floats
-    while those stay put, so the drummer's drum sits low relative to his torso.
-    Fixing the base to 0 re-seats the body against the instruments too.
-  - **Verify:** the band has sandbox entities — check `sandbox.html` band/marshal
-    cases at all four ToD presets (feet on the ground plane), then boot the main
-    game and confirm the marching unit walks on the deck.
-
 ---
 
 ## World generation (procedural map)
