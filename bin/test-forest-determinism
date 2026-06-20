@@ -1,0 +1,147 @@
+#!/usr/bin/env node
+/*
+ * bin/test-forest-determinism — determinism gate for the forest-tree VISUAL
+ * stream (perf-pass-4 "Slice 4", CG1).
+ *
+ * WHY THIS EXISTS: the perf-pass-4 forest-instancing refactor (CG2/CG3) rewrites
+ * how src/models/tree.js emits a tree — from per-mesh Groups to instance
+ * descriptors. Determinism is load-bearing in this repo: the builders consume
+ * rng() in a FIXED order, and every chunk's forest is regenerated from a seeded
+ * rng. If the refactor draws rng() in a DIFFERENT order or count, the SAME seed
+ * grows a DIFFERENT forest — and worse, bird perches (userData.crown/perches,
+ * read off the registry) silently move. That is a determinism break for anyone
+ * playing across the change.
+ *
+ * THE GAP THIS CLOSES: the existing browser gate bin/layout-snapshot diffs
+ * dumpRegistry, which emits only ~9 PLACEMENT fields (kind/x/z/footprint/...) —
+ * it is BLIND to scale, color (greenIdx), species, crown, and perches. A
+ * same-COUNT rng reorder regenerates every forest's looks + moves every bird
+ * perch while the snapshot stays byte-identical and all other gates pass green.
+ * So a placement-only gate cannot protect this refactor; this one can.
+ *
+ * THE PROPERTY: for a fixed seed, the REAL builders consume an identical
+ * sequence of rng() values AND produce identical crown/perch data. We wrap rng
+ * in a recording proxy and hash (a) the full raw draw sequence — which captures
+ * order + count exactly, including the variable-length oak-bump / birch-crown /
+ * pine-tier loops and buildForestTree's leading species draw — and (b) the
+ * resulting userData.crown + userData.perches (what the bird system reads). The
+ * raw-draw hash is strictly stronger than hashing derived descriptor fields:
+ * every descriptor value is a deterministic function of those draws, so any
+ * reorder/insert/drop changes the hash. It imports the REAL src/models/tree.js
+ * (via the three-shim loader), not a copy, so it can't drift from what ships.
+ *
+ * GOLDEN: EXPECTED below is captured from `main` BEFORE the CG2 refactor lands,
+ * so CG2 passes iff the visual stream is byte-identical. To (re)capture after an
+ * INTENTIONAL change, run with --update, paste the printed hash into EXPECTED,
+ * and document the regeneration in CHANGELOG (existing chunks will regenerate).
+ *
+ * Run: node bin/test-forest-determinism            (exit 0 = pass, 1 = fail)
+ *      node bin/test-forest-determinism --update    (print hash to bake in)
+ */
+
+import { register } from 'node:module';
+register('./node-three-shim.mjs', import.meta.url);
+import { createHash } from 'node:crypto';
+
+const tree = await import('../src/models/tree.js');
+
+// --- deterministic PRNG (matches src/rng.js mulberry32 + bin/test-registry-grid) ---
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// rng proxy that records every value it hands out, in order. The recorded
+// sequence IS the determinism fingerprint of a builder's rng consumption.
+function recordingRng(seed) {
+  const base = mulberry32(seed);
+  const log = [];
+  const fn = () => { const v = base(); log.push(v); return v; };
+  fn.log = log;
+  return fn;
+}
+
+function fail(msg) {
+  process.stderr.write('FAIL: ' + msg + '\n');
+  process.exit(1);
+}
+
+// mulberry32 returns exact multiples of 2^-32, and crown/perch coords are pure
+// JS math on those — so JSON's shortest-round-trip number formatting is stable
+// across Node versions. Serialize the whole accumulator and sha256 it.
+function classifyForest(firstDraw) {
+  if (firstDraw < 0.45) return 'pine';
+  if (firstDraw < 0.80) return 'oak';
+  return 'birch';
+}
+
+const SEEDS = 4000;
+const hash = createHash('sha256');
+const speciesSeen = new Set();
+let buildTreeLeaf = 0, buildTreeCone = 0;
+
+for (let s = 1; s <= SEEDS; s++) {
+  // --- buildForestTree: the production entry (chunks.js:1061, forests.js) ---
+  {
+    const rng = recordingRng(s * 2654435761);
+    const g = tree.buildForestTree(rng);
+    if (rng.log.length === 0) fail(`buildForestTree consumed no rng @seed ${s}`);
+    speciesSeen.add(classifyForest(rng.log[0]));
+    if (!g || !g.userData) fail(`buildForestTree returned no userData @seed ${s} (return-type regression?)`);
+    if (!g.userData.crown || !g.userData.perches) {
+      fail(`buildForestTree dropped crown/perches @seed ${s} — birds would stop perching`);
+    }
+    hash.update(JSON.stringify(['forest', rng.log, g.userData.crown, g.userData.perches]));
+  }
+  // --- buildTree: the chunk scatter tree (chunks.js scatterTrees) ---
+  {
+    const rng = recordingRng(s * 40503 + 17);
+    const g = tree.buildTree(rng);
+    if (rng.log.length === 0) fail(`buildTree consumed no rng @seed ${s}`);
+    if (rng.log[0] < 0.65) buildTreeLeaf++; else buildTreeCone++;
+    if (!g || !g.userData || !g.userData.crown || !g.userData.perches) {
+      fail(`buildTree dropped crown/perches @seed ${s}`);
+    }
+    hash.update(JSON.stringify(['chunk', rng.log, g.userData.crown, g.userData.perches]));
+  }
+}
+
+// Coverage guards: a PASS is hollow if a branch never ran, so its rng order
+// went unhashed.
+for (const sp of ['pine', 'oak', 'birch']) {
+  if (!speciesSeen.has(sp)) fail(`coverage gap — forest species '${sp}' never generated across ${SEEDS} seeds`);
+}
+if (buildTreeLeaf === 0 || buildTreeCone === 0) {
+  fail(`coverage gap — buildTree leaf/cone branch untested (leaf=${buildTreeLeaf} cone=${buildTreeCone})`);
+}
+
+const digest = hash.digest('hex');
+
+// --- GOLDEN (captured from main, pre-refactor). null until first --update. ---
+const EXPECTED = 'badb6efd125e316a69b4aa7c9af7a1fd0f421ae38f3b7ad7e05c453f4928337a';
+
+const update = process.argv.includes('--update');
+if (update || !EXPECTED) {
+  process.stdout.write(
+    `COMPUTED forest-determinism hash over ${SEEDS} seeds ` +
+    `(species: ${[...speciesSeen].sort().join('+')}; buildTree leaf=${buildTreeLeaf} cone=${buildTreeCone}):\n` +
+    `${digest}\n` +
+    (update ? 'Paste this into EXPECTED in bin/test-forest-determinism.\n' : ''));
+  process.exit(update ? 0 : 1);
+}
+
+if (digest !== EXPECTED) {
+  fail(`forest visual-stream hash CHANGED — a builder reordered/added/dropped an rng() draw\n` +
+    `       or altered crown/perches. Expected ${EXPECTED}\n` +
+    `       got      ${digest}\n` +
+    `       If this change is INTENTIONAL (forests will regenerate for existing players),\n` +
+    `       run \`node bin/test-forest-determinism --update\`, bake the new hash in, and note it in CHANGELOG.`);
+}
+
+process.stdout.write(
+  `PASS  ${SEEDS} seeds — buildForestTree (${[...speciesSeen].sort().join('+')}) + ` +
+  `buildTree (leaf+cone) rng stream + crown/perches unchanged (sha256 ${digest.slice(0, 12)}…)\n`);

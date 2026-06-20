@@ -92,14 +92,14 @@ CG1–CG4 map to subsections 7.1–7.4. -->
 > touched**, so the golden is captured from `main`. Effort: small (~30-line gate +
 > ~6 shim stubs).
 
-- [ ] 7.1.1 **Extend `bin/node-three-shim.mjs` FIRST (precondition).** It stubs
+- [x] 7.1.1 **Extend `bin/node-three-shim.mjs` FIRST (precondition).** It stubs
   only `Vector3` today (node-three-shim.mjs:4-5); `tree.js` touches six THREE
   classes at load+build: `CylinderGeometry`+`MeshStandardMaterial` at module scope
   (tree.js:32,34) and `Group`,`Mesh`,`IcosahedronGeometry`,`ConeGeometry` in the
   builders (tree.js:97,98,106,123). Add trivial no-op constructors — the gate
   hashes rng-derived *numbers*, not geometry math. Without this, `import` of
   tree.js throws under node and the gate can't run.
-- [ ] 7.1.2 **Build `bin/test-forest-determinism`.** Reuse the loader pattern from
+- [x] 7.1.2 **Build `bin/test-forest-determinism`.** Reuse the loader pattern from
   `bin/test-registry-grid:28-29` (`register('./node-three-shim.mjs')`), import the
   REAL tree.js, run `buildForestTree(mulberry32(FIXED))` (or the CG2
   `describeForestTree` sibling) N times, and golden-hash the full descriptor
@@ -108,7 +108,7 @@ CG1–CG4 map to subsections 7.1–7.4. -->
   strict invariant — identical rng order AND count including the variable-length
   loops (pine 5 draws, oak `5+3·bumpCount`, birch `4+3·crownCount`, + caller's
   `rotation.y=rng()` last).
-- [ ] 7.1.3 **Capture the golden from `main` BEFORE CG2 lands.** The refactor passes
+- [x] 7.1.3 **Capture the golden from `main` BEFORE CG2 lands.** The refactor passes
   iff the hash is unchanged. Converts the load-bearing check from a Gary round-trip
   into an agent-static gate that runs every slice. (No importmap entry — it's a
   `bin/` test, not a `src/` module.)

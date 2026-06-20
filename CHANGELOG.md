@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-20
+
+### Added
+- **Forest-tree visual-stream determinism gate (dev workflow).** `bin/test-forest-determinism` runs under plain `node` (no browser, no build) and guards the upcoming forest-instancing refactor (`perf-pass-4` Slice 4) against a determinism break the existing gates can't see. The browser snapshot gate (`bin/layout-snapshot`/`dumpRegistry`) only diffs ~9 *placement* fields — it's blind to scale, color (`greenIdx`), species, crown, and bird perches — so a same-count rng *reorder* in `tree.js` would regenerate every forest's looks and silently move every bird perch while the snapshot stays byte-identical. The new gate wraps `rng` in a recording proxy and golden-hashes the FULL raw draw sequence (order + count, including the variable-length pine-tier/oak-bump/birch-crown loops and `buildForestTree`'s leading species draw) plus the resulting `userData.crown`/`userData.perches`, over 4000 seeds covering all three forest species and both `buildTree` branches. It imports the REAL `src/models/tree.js` via the `node-three-shim.mjs` loader (extended from a `Vector3`-only stub to also stub `Group`/`Mesh` + the three geometry classes + `MeshStandardMaterial` as no-op property bags) — so it can't drift from what ships. Golden captured from current `main` before any builder is touched; falsification-checked (an injected reorder moves the hash). ([bin/test-forest-determinism](bin/test-forest-determinism), [bin/node-three-shim.mjs](bin/node-three-shim.mjs))
+
 ## 2026-06-19
 
 ### Added

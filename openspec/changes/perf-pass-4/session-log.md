@@ -1,7 +1,7 @@
 ---
 change: perf-pass-4
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: 7.1.1         # Slice 4 (forest instancing) planned; CG1 shim+gate is next
+current_task: 7.2.1         # CG1 (shim+determinism gate) shipped; CG2 descriptor extraction is next
 blocked_by: null            # "Q3" | "dependency X" | null
 open_questions: 0           # count of unanswered questions in questions-for-human.md
 started: 2026-06-19
@@ -183,3 +183,24 @@ stays parked (~2–4%, D11). NOTHING coded yet — CG1 (shim + determinism gate)
 agent-static starting point, no Gary round-trip needed.
 **Refs:** -> Section 7 (7.1-7.4) -> deliberations/003-forest-instancing/results.md
 -> D12 D13 D14
+
+### 2026-06-20 -- CG1 shipped: forest-determinism gate captured the golden from main
+**Event:** phase-change
+**What:** Built the visual-stream determinism gate BEFORE touching any builder, so
+the golden is `main`'s. Extended `node-three-shim.mjs` from a Vector3-only stub to
+also stub `Group`/`Mesh` (property-bag Object3Ds with `.add`/`.position`/`.userData`/
+`.castShadow`) + `CylinderGeometry`/`IcosahedronGeometry`/`ConeGeometry`/`BoxGeometry`
++ `MeshStandardMaterial` as no-ops — enough for the REAL `tree.js` to import and run
+under node. `bin/test-forest-determinism` wraps rng in a recording proxy and
+golden-hashes the full raw draw sequence + `userData.crown`/`perches` over 4000 seeds
+(all three forest species + both buildTree branches asserted via coverage guards).
+Chose to hash the RAW rng draw stream rather than derived descriptor fields: it's
+strictly stronger (every descriptor value is a deterministic fn of the draws) AND it
+works against current `main` with zero builder changes, which is the point of CG1 —
+capture before refactor. Golden = `badb6efd125e…4928337a`. Falsification-checked:
+injected a leading `greenIdx` draw into a throwaway `buildOak` copy (the exact -> Task
+7.2.3 trap) and confirmed the hash moved. Registry gate still green after the shared
+shim change. CHANGELOG dev-workflow entry added (matches the `bin/test-registry-grid`
+precedent). This converts the load-bearing determinism check from a Gary round-trip
+into an agent-static gate that runs every slice from here.
+**Refs:** -> Task 7.1.1 7.1.2 7.1.3 -> D14 -> next CG2 (-> Task 7.2.1)
