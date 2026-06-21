@@ -81,14 +81,17 @@ function crownRing(cy, r, count, down = 0.5, out = 1.06) {
 // radially symmetric, so the tree's random yaw is ignored. Used by forests.js
 // and chunks.js when they register a tree so the bird system can read perch
 // targets straight off the registry entry.
-export function worldPerches(tree, x, z) {
-  const local = tree.userData.perches;
+// `src` is either a built Group (reads `.userData`) or a raw descriptor (reads
+// `.perches`/`.crown` directly) — the instanced forest path (CG3) has no
+// per-tree Group, so it passes the descriptor.
+export function worldPerches(src, x, z) {
+  const local = src.userData ? src.userData.perches : src.perches;
   if (!local) return [];
   return local.map((p) => ({ x: x + p.x, y: p.y, z: z + p.z }));
 }
 
-export function worldCrown(tree, x, z) {
-  const c = tree.userData.crown;
+export function worldCrown(src, x, z) {
+  const c = src.userData ? src.userData.crown : src.crown;
   if (!c) return null;
   return { x: x + c.x, y: c.y, z: z + c.z, r: c.r };
 }
@@ -144,135 +147,144 @@ export function buildTree(rng = Math.random) {
 //
 // Sizes are ~2x the first-pass forest tree so a forest reads as real woods.
 
-export function buildForestTree(rng = Math.random) {
-  const r = rng();
-  if (r < 0.45) return buildTallPine(rng);
-  if (r < 0.80) return buildOak(rng);
-  return buildBirch(rng);
-}
+// ---- Descriptors: the single rng-order source of truth ----
+//
+// `describe*` consume rng() in the EXACT same order the old builders did and
+// return a plain descriptor (no THREE objects, no rng left to draw). The Group
+// builders (`build*`, below) and the instanced forest path (chunks.js/forests.js,
+// CG3) both consume the descriptor — so there is ONE place that owns rng order,
+// and reordering a field here is the only way to break determinism. The
+// `bin/test-forest-determinism` golden hashes the rng stream these produce.
+//
+// A descriptor:
+//   { type:'pine'|'oak'|'birch', trunkMat:'forest'|'birch', greenIdx, colorHex,
+//     trunk:  { rTop, rBot, h, seg },
+//     foliage:[ { shape:'cone'|'icosa', x,y,z, radius, height?, cast } ],
+//     crown:  { x,y,z,r },  perches:[ {x,y,z} ] }
+// `foliage`/`trunk` are render-ready for BOTH consumers: the Group builder makes
+// the exact geometry; CG3 maps shape→unit geo and (radius,height)→instance scale,
+// bucketing by shape+cast (crown/cone × caster/noshadow) + trunk.
 
-// Exported for sandbox inspection — buildForestTree() picks one at random,
-// but the sandbox lets the user pick a specific variant.
-export function buildTallPine(rng) {
-  const group = new THREE.Group();
-
-  // Trunk: tall and slim, slight taper
-  const trunkH = 12 + rng() * 6;         // 12-18m bare trunk
+export function describeTallPine(rng) {
+  const trunkH = 12 + rng() * 6;          // 12-18m bare trunk
   const trunkR = 0.8 + rng() * 0.3;
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(trunkR * 0.55, trunkR, trunkH, 7),
-    _forestTrunkMat,
-  );
-  trunk.position.y = trunkH / 2;
-  trunk.castShadow = true;
-  group.add(trunk);
-
-  // 3-4 stacked cones, decreasing radius going up.
-  // Only the lowest tier casts shadow — the rest stack visually but adding
-  // their shadow passes barely changes the ground silhouette and burns
-  // shadow-map budget.
   const greenIdx = Math.floor(rng() * _foliageMats.length);
-  const mat = _foliageMats[greenIdx];
   const tiers = 3 + Math.floor(rng() * 2);
   let baseY = trunkH - 1.0;
   let baseR = 3.0 + rng() * 1.0;
   const lowestBaseY = baseY;
   const lowestBaseR = baseR;
+  const foliage = [];
+  // 3-4 stacked cones, decreasing radius up. Only the lowest casts shadow — the
+  // upper tiers barely change the ground silhouette and burn shadow-map budget.
   for (let i = 0; i < tiers; i++) {
     const h = 3.2 - i * 0.3;
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(baseR, h, 8), mat);
-    cone.position.y = baseY + h / 2;
-    cone.castShadow = (i === 0);
-    group.add(cone);
+    foliage.push({ shape: 'cone', x: 0, y: baseY + h / 2, z: 0, radius: baseR, height: h, cast: (i === 0) });
     baseY += h * 0.7;
     baseR *= 0.78;
   }
-  // Perch on the wide lowest tier, just outside the skirt.
-  group.userData.crown = { x: 0, y: trunkH + 1.5, z: 0, r: lowestBaseR };
-  group.userData.perches = ringAt(lowestBaseY + 0.5, lowestBaseR * 1.04, 4);
-  return group;
+  return {
+    type: 'pine', trunkMat: 'forest', greenIdx, colorHex: FOREST_GREENS[greenIdx],
+    trunk: { rTop: trunkR * 0.55, rBot: trunkR, h: trunkH, seg: 7 },
+    foliage,
+    crown: { x: 0, y: trunkH + 1.5, z: 0, r: lowestBaseR },
+    perches: ringAt(lowestBaseY + 0.5, lowestBaseR * 1.04, 4),
+  };
 }
 
-export function buildOak(rng) {
-  const group = new THREE.Group();
-
-  // Trunk: thick and shorter than pine
+export function describeOak(rng) {
   const trunkH = 7 + rng() * 3;           // 7-10m bare trunk
   const trunkR = 1.1 + rng() * 0.4;
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8),
-    _forestTrunkMat,
-  );
-  trunk.position.y = trunkH / 2;
-  trunk.castShadow = true;
-  group.add(trunk);
-
-  // Broad rounded crown: one big icosphere + 2-3 smaller bumps offset
   const greenIdx = Math.floor(rng() * _foliageMats.length);
-  const mat = _foliageMats[greenIdx];
   const mainR = 4.4 + rng() * 1.6;
   const mainY = trunkH + mainR * 0.6;
-  const main = new THREE.Mesh(new THREE.IcosahedronGeometry(mainR, 1), mat);
-  main.position.y = mainY;
-  main.castShadow = true;
-  group.add(main);
-
-  // Bumps don't cast shadow — main crown's shadow already covers them visually.
+  const foliage = [{ shape: 'icosa', x: 0, y: mainY, z: 0, radius: mainR, cast: true }];
+  // Bumps don't cast — the main crown's shadow already covers them.
   const bumpCount = 2 + Math.floor(rng() * 2);
   for (let i = 0; i < bumpCount; i++) {
     const br = 1.8 + rng() * 1.4;
     const ang = rng() * Math.PI * 2;
     const dist = mainR * 0.6;
-    const bump = new THREE.Mesh(new THREE.IcosahedronGeometry(br, 1), mat);
-    bump.position.set(
-      Math.cos(ang) * dist,
-      mainY + (rng() - 0.3) * 1.6,
-      Math.sin(ang) * dist,
-    );
-    group.add(bump);
+    const jitterY = (rng() - 0.3) * 1.6;
+    foliage.push({ shape: 'icosa', x: Math.cos(ang) * dist, y: mainY + jitterY, z: Math.sin(ang) * dist, radius: br, cast: false });
   }
-  // Oaks have the broadest crown — best perching, so more anchors.
-  group.userData.crown = { x: 0, y: mainY, z: 0, r: mainR };
-  group.userData.perches = crownRing(mainY, mainR, 6, 0.5, 1.05);
-  return group;
+  return {
+    type: 'oak', trunkMat: 'forest', greenIdx, colorHex: FOREST_GREENS[greenIdx],
+    trunk: { rTop: trunkR * 0.7, rBot: trunkR, h: trunkH, seg: 8 },
+    foliage,
+    crown: { x: 0, y: mainY, z: 0, r: mainR },
+    perches: crownRing(mainY, mainR, 6, 0.5, 1.05),
+  };
 }
 
-export function buildBirch(rng) {
-  const group = new THREE.Group();
-
-  // Trunk: thin and tall, white-grey
+export function describeBirch(rng) {
   const trunkH = 10 + rng() * 4;          // 10-14m
   const trunkR = 0.44 + rng() * 0.16;
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 7),
-    _birchTrunkMat,
-  );
-  trunk.position.y = trunkH / 2;
-  trunk.castShadow = true;
-  group.add(trunk);
-
-  // Small narrow crown — a few tight icospheres
   const greenIdx = Math.floor(rng() * _foliageMats.length);
-  const mat = _foliageMats[greenIdx];
-  // Only the lowest crown puff casts shadow — the upper stack reads fine
-  // without (birch crowns are small to begin with).
   const crownCount = 2 + Math.floor(rng() * 2);
   let lowestCrownY = trunkH;
   let lowestCrownR = 1.8;
+  const foliage = [];
+  // Only the lowest puff casts shadow — birch crowns are small to begin with.
   for (let i = 0; i < crownCount; i++) {
     const cr = 1.8 + rng() * 0.8;
-    const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(cr, 1), mat);
     const cy = trunkH + cr * 0.5 + i * cr * 0.7;
-    crown.position.set(
-      (rng() - 0.5) * 1.2,
-      cy,
-      (rng() - 0.5) * 1.2,
-    );
-    if (i === 0) { crown.castShadow = true; lowestCrownY = cy; lowestCrownR = cr; }
-    group.add(crown);
+    const px = (rng() - 0.5) * 1.2;
+    const pz = (rng() - 0.5) * 1.2;
+    if (i === 0) { lowestCrownY = cy; lowestCrownR = cr; }
+    foliage.push({ shape: 'icosa', x: px, y: cy, z: pz, radius: cr, cast: (i === 0) });
   }
-  // Birch crown is narrow — fewer, tighter perches.
-  group.userData.crown = { x: 0, y: lowestCrownY, z: 0, r: lowestCrownR };
-  group.userData.perches = crownRing(lowestCrownY, lowestCrownR, 3, 0.45, 1.05);
+  return {
+    type: 'birch', trunkMat: 'birch', greenIdx, colorHex: FOREST_GREENS[greenIdx],
+    trunk: { rTop: trunkR * 0.7, rBot: trunkR, h: trunkH, seg: 7 },
+    foliage,
+    crown: { x: 0, y: lowestCrownY, z: 0, r: lowestCrownR },
+    perches: crownRing(lowestCrownY, lowestCrownR, 3, 0.45, 1.05),
+  };
+}
+
+export function describeForestTree(rng = Math.random) {
+  const r = rng();
+  if (r < 0.45) return describeTallPine(rng);
+  if (r < 0.80) return describeOak(rng);
+  return describeBirch(rng);
+}
+
+// Build a Group from a descriptor — the exact (non-instanced) consumer. Stashes
+// the descriptor on userData so CG3's instanced path can read it back, and keeps
+// crown/perches on userData for worldPerches/worldCrown + the sandbox.
+function buildForestFromDescriptor(d) {
+  const group = new THREE.Group();
+  const trunkMat = d.trunkMat === 'birch' ? _birchTrunkMat : _forestTrunkMat;
+  const t = d.trunk;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(t.rTop, t.rBot, t.h, t.seg), trunkMat);
+  trunk.position.y = t.h / 2;
+  trunk.castShadow = true;
+  group.add(trunk);
+  const mat = _foliageMats[d.greenIdx];
+  for (let i = 0; i < d.foliage.length; i++) {
+    const f = d.foliage[i];
+    const geo = f.shape === 'cone'
+      ? new THREE.ConeGeometry(f.radius, f.height, 8)
+      : new THREE.IcosahedronGeometry(f.radius, 1);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(f.x, f.y, f.z);
+    mesh.castShadow = f.cast;
+    group.add(mesh);
+  }
+  group.userData.crown = d.crown;
+  group.userData.perches = d.perches;
+  group.userData.descriptor = d;
   return group;
 }
+
+export function buildForestTree(rng = Math.random) {
+  return buildForestFromDescriptor(describeForestTree(rng));
+}
+
+// Exported for sandbox inspection — buildForestTree() picks one at random,
+// but the sandbox lets the user pick a specific variant. Thin wrappers over the
+// descriptor builder so rng order lives in exactly one place (describe*).
+export function buildTallPine(rng) { return buildForestFromDescriptor(describeTallPine(rng)); }
+export function buildOak(rng) { return buildForestFromDescriptor(describeOak(rng)); }
+export function buildBirch(rng) { return buildForestFromDescriptor(describeBirch(rng)); }

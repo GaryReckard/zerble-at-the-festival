@@ -1,7 +1,7 @@
 ---
 change: perf-pass-4
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: 7.2.1         # CG1 (shim+determinism gate) shipped; CG2 descriptor extraction is next
+current_task: 7.3.1         # CG2 descriptor extraction shipped (byte-identical); CG3 per-chunk instancing is next
 blocked_by: null            # "Q3" | "dependency X" | null
 open_questions: 0           # count of unanswered questions in questions-for-human.md
 started: 2026-06-19
@@ -102,6 +102,20 @@ ref: .claude/perf-brainstorm.md  # the idea bank + critic ranking this picks up
   keep the Group-returning builders + add `describe*` siblings (sandbox/lakes call
   them); disposal already correct (chunks.js:563). -> Section 7
 
+### D15 — Tree descriptor schema is the shared rng-order contract (CG2)
+The CG2 refactor routes every forest builder through `describe*(rng)` → a plain
+descriptor, with `build*` as thin consumers. The descriptor is BOTH consumers'
+truth: the Group builder (`buildForestFromDescriptor`, exact) and CG3's instanced
+path (unit-geo + per-instance scale). Schema (tree.js): `{ type, trunkMat, greenIdx,
+colorHex, trunk:{rTop,rBot,h,seg}, foliage:[{shape:'cone'|'icosa', x,y,z, radius,
+height?, cast}], crown, perches }`. CG3 maps each `foliage` part → a bucket by
+`shape+cast` (crown/cone × caster/noshadow) + the `trunk` bucket = the 5 buckets
+(-> Task 7.3.2), `radius`/`height` → instance scale, `colorHex` → `instanceColor`.
+`worldPerches`/`worldCrown` now dual-read (Group `.userData` OR a raw descriptor),
+so CG3 can register perches without a per-tree Group. **buildTree (chunk scatter,
+shared `ctx.rng`) left untouched** — it's the deferred path, not a CG3 target, so no
+descriptor risk taken there. Byte-identical: golden `badb6efd125e…` unchanged. -> D14
+
 ## Assumptions
 
 | # | Assumption | Confidence | Status | Resolution |
@@ -115,6 +129,16 @@ ref: .claude/perf-brainstorm.md  # the idea bank + critic ranking this picks up
 - Live perf/visual verification (FPS, stall removal, ToD screenshots) can only run on
   Gary's real-GPU local machine — Codespaces has no WebGL. Agent-side verify is limited
   to syntax / importmap / determinism gate / code review.
+- **CG3 trunk-instancing taper approximation (Gary visual check).** A single unit
+  trunk cylinder forces ONE taper ratio + segment count for all instanced trunks,
+  but the species differ (pine rTop=0.55·rBot @7seg, oak/birch=0.7 @8/7seg). CG3 will
+  pick one (~0.65, 8seg) and accept a sub-metre silhouette diff at the trunk top.
+  Subtle, but it IS a visual change (unlike CG2) — flag at the Noon/Midnight
+  screenshot pass. If it reads wrong, the fallback is a 2nd trunk bucket (pine vs
+  broadleaf) — cheap, still 6 buckets/chunk.
+- **Game-boot smoke for CG2 is Gary's** (no WebGL here). CG2 is byte-identical and
+  only touches tree.js internals (chunks.js/forests.js untouched), so boot risk is
+  low — but the longest-call-chain confirmation is still a real-GPU step.
 
 ## Work Log
 
@@ -204,3 +228,15 @@ shim change. CHANGELOG dev-workflow entry added (matches the `bin/test-registry-
 precedent). This converts the load-bearing determinism check from a Gary round-trip
 into an agent-static gate that runs every slice from here.
 **Refs:** -> Task 7.1.1 7.1.2 7.1.3 -> D14 -> next CG2 (-> Task 7.2.1)
+
+### 2026-06-21 -- CG2 shipped: descriptor extraction, byte-identical
+**Event:** phase-change
+**What:** Routed the forest builders through `describe*(rng)` → plain descriptor →
+`buildForestFromDescriptor` (the descriptor schema is -> D15). Verified byte-identical:
+the golden gate still reads `badb6efd125e…` after the rewrite, tree.js parses clean,
+check-model-dims + check-importmaps green. All consumers intact — chunks.js/forests.js
+still get a collidable Group + `worldPerches`/`worldCrown` (now dual-read Group-or-
+descriptor); lakes.js still gets a scalable Group; sandbox's 5 forest cases + bird_in_tree
+unchanged. No CHANGELOG entry — pure internal refactor, no observable change (the rule's
+explicit skip case). Committed standalone so CG3's instancing diff stays focused.
+**Refs:** -> Task 7.2.1 7.2.2 7.2.3 -> D15 -> next CG3 (-> Task 7.3.1)

@@ -119,7 +119,7 @@ CG1–CG4 map to subsections 7.1–7.4. -->
 > visual change ships here. Gate: golden-hash unchanged (7.1) + `node --check` +
 > `bin/check-model-dims` + game-boot smoke. Effort: small.
 
-- [ ] 7.2.1 **Keep `buildForestTree`/`buildTallPine`/`buildOak`/`buildBirch`/
+- [x] 7.2.1 **Keep `buildForestTree`/`buildTallPine`/`buildOak`/`buildBirch`/
   `buildTree` returning a real `THREE.Group`.** Add `describeForestTree(rng)`
   siblings (or `group.userData.descriptor`) as the single rng-order source of
   truth the Group builders route through. Protects the six sandbox cases
@@ -127,13 +127,13 @@ CG1–CG4 map to subsections 7.1–7.4. -->
   `bird_in_tree` reads `tree.userData.perches`) AND the excluded lake call-sites
   (lakes.js:537,713 do `tree.position.set`/`tree.scale.set`). Changing the return
   type is the sandbox-pass/game-crash footgun running backwards.
-- [ ] 7.2.2 **Descriptor MUST carry `crown`+`perches`.** Birds read these off the
+- [x] 7.2.2 **Descriptor MUST carry `crown`+`perches`.** Birds read these off the
   registry entry, never the mesh (birds.js:157-169) — so registration must populate
   them from the descriptor or forest birds **silently stop perching** (no error).
   Refactor `worldPerches`/`worldCrown` (tree.js:84-94) to take the descriptor (or
   its perches/crown + x/z); compute perch/crown once in a shared helper both paths
   call.
-- [ ] 7.2.3 **rng order is non-negotiable.** Emit fields in the descriptor literal
+- [x] 7.2.3 **rng order is non-negotiable.** Emit fields in the descriptor literal
   WITHOUT reordering draws: do NOT draw `greenIdx` before `trunkH`/`trunkR` (it's
   3rd today, tree.js:174/211/255), do NOT hoist the bump/crown loop draws, do NOT
   "compute scale once at the top" (moves `mainR`/`baseR` ahead of `greenIdx`). The
