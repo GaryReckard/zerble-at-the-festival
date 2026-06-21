@@ -157,10 +157,15 @@ per tree). -> D15
   + CG3 statically gated (golden unchanged, parse clean, bucket-count↔fill proven
   under node), but the longest-call-chain boot
   (`buildWorld→_generate→_generateWorldgen→scatterWorldgenTrees→buildForestInstanced`)
-  and every visual/perf number can only run on the real GPU. The runtime three.js
-  InstancedMesh calls (setColorAt auto-alloc, computeBoundingSphere, instanceColor
-  under the low-tier Lambert swap) are the one thing static checks can't exercise —
-  a boot TypeError there would hang the title card. Highest-priority Gary check.
+  and every visual/perf number can only run on the real GPU. **Correctness path now
+  source-verified against three 0.160** (2026-06-21): `setColorAt` auto-allocs
+  instanceColor (also proven by starPower.js shipping it); InstancedMesh defines
+  `boundingSphere=null` so `Frustum.intersectsObject` calls its INSTANCE-AWARE
+  `computeBoundingSphere()` → per-chunk frustum culling works, trees won't vanish
+  off-origin (the highest-risk visual bug, cleared). So Gary's remaining checks are
+  quality + numbers, not correctness: boot-clean confirmation, draw-census win,
+  `?perf=low/mid` tris, instanceColor green fidelity under the Lambert swap, shadow
+  read, geo-leak drive-in/out, bird perching.
 
 ## Work Log
 
