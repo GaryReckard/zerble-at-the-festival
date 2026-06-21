@@ -66,6 +66,9 @@ const TABLE = {
     forestTreeDensityMul: 0.7,
     // Bubble pool — small on low so transmission shader cost stays bounded.
     bubblePoolMax: 200,
+    // Firework spark pool (additive instanced, one draw call). Smaller bursts
+    // on low so a finale barrage doesn't blow the tri budget.
+    fireworksPoolMax: 280,
   },
   mid: {
     name: 'mid',
@@ -81,6 +84,7 @@ const TABLE = {
     chunkUnloadRadius: 3,
     forestTreeDensityMul: 1.0,
     bubblePoolMax: 350,
+    fireworksPoolMax: 550,
   },
   high: {
     name: 'high',
@@ -99,6 +103,7 @@ const TABLE = {
     // old 200 cap was already saturated at normal play, so G had no
     // visible effect even though the spawn rate doubled.
     bubblePoolMax: 600,
+    fireworksPoolMax: 1000,
   },
 };
 

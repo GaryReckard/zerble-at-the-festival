@@ -888,6 +888,21 @@ export const Sound = {
     pottyNoise(ctx, sfxBus, x, z);
   },
 
+  // Firework rocket whistle — a rising, vibrato'd tone from (x, z) on the
+  // ground as the shell climbs. Positional like playCrowdCheer.
+  playFireworkLaunch(x, z) {
+    if (!ctx || !sfxBus) return;
+    fireworkLaunch(ctx, sfxBus, x, z);
+  },
+
+  // Firework burst at (x, z): a low body thump + a noise "crack", optionally a
+  // 1s crackle/glitter train. `opts.delay` defers the whole thing (sound lags
+  // the flash over distance — the system passes dist/340).
+  playFireworkBurst(x, z, opts = {}) {
+    if (!ctx || !sfxBus) return;
+    fireworkBurst(ctx, sfxBus, x, z, opts);
+  },
+
   // Returns the raw AudioContext so midiPlayer can share it with Tone.js via
   // Tone.setContext(). Sharing the context lets Tone route into masterGain/midiGain
   // instead of creating its own parallel audio graph that no slider can touch.
@@ -1538,6 +1553,104 @@ function duudeSound(ctx, dest) {
 // Comedic porta-potty "blat" — a buzzy sawtooth with a fast descending pitch and
 // a square-wave flutter ("pbbbt"), pushed through a closing lowpass so it reads
 // muffled (it's behind a plastic door). Positional via a temporary PannerNode.
+// ---- Fireworks --------------------------------------------------------------
+
+function _fwPanner(ctx, dest, x, y, z, ref, max) {
+  const panner = ctx.createPanner();
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = ref;
+  panner.maxDistance = max;
+  panner.rolloffFactor = 0.9;
+  if (panner.positionX) {
+    panner.positionX.value = x; panner.positionY.value = y; panner.positionZ.value = z;
+  } else if (panner.setPosition) {
+    panner.setPosition(x, y, z);
+  }
+  panner.connect(dest);
+  return panner;
+}
+
+// Rising, vibrato'd whistle as the rocket climbs.
+function fireworkLaunch(ctx, dest, x, z) {
+  const t = ctx.currentTime;
+  const panner = _fwPanner(ctx, dest, x, 6, z, 30, 320);
+  const dur = 0.85;
+  const osc = ctx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(360, t);
+  osc.frequency.exponentialRampToValueAtTime(1500, t + dur);
+  const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 14;
+  const lfoG = ctx.createGain(); lfoG.gain.value = 40;
+  lfo.connect(lfoG).connect(osc.frequency);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.14, t + 0.06);
+  g.gain.exponentialRampToValueAtTime(0.04, t + dur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g).connect(panner);
+  osc.start(t); osc.stop(t + dur + 0.05);
+  lfo.start(t); lfo.stop(t + dur + 0.05);
+  setTimeout(() => { try { panner.disconnect(); } catch (e) {} }, (dur + 0.3) * 1000);
+}
+
+// Burst: low body thump + a band-passed noise crack, optional crackle train.
+// `opts.delay` defers everything so the report lags the flash over distance.
+function fireworkBurst(ctx, dest, x, z, opts) {
+  const start = ctx.currentTime + (opts.delay || 0);
+  const panner = _fwPanner(ctx, dest, x, 60, z, 40, 400);
+
+  if (opts.boom !== false) {
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0.0001, start);
+    bg.gain.exponentialRampToValueAtTime(0.6, start + 0.008);
+    bg.gain.exponentialRampToValueAtTime(0.0001, start + 0.5);
+    const bo = ctx.createOscillator(); bo.type = 'sine';
+    bo.frequency.setValueAtTime(150, start);
+    bo.frequency.exponentialRampToValueAtTime(46, start + 0.4);
+    bo.connect(bg).connect(panner);
+    bo.start(start); bo.stop(start + 0.55);
+  }
+
+  // Noise crack — short band-passed burst that sweeps down.
+  const dur = 0.5;
+  const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+  const chd = buf.getChannelData(0);
+  for (let i = 0; i < chd.length; i++) chd[i] = (Math.random() * 2 - 1);
+  const noise = ctx.createBufferSource(); noise.buffer = buf;
+  const bpf = ctx.createBiquadFilter(); bpf.type = 'bandpass';
+  bpf.frequency.setValueAtTime(900, start);
+  bpf.frequency.exponentialRampToValueAtTime(250, start + dur);
+  bpf.Q.value = 0.7;
+  const ng = ctx.createGain();
+  ng.gain.setValueAtTime(0.0001, start);
+  ng.gain.exponentialRampToValueAtTime(0.5, start + 0.006);
+  ng.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  noise.connect(bpf).connect(ng).connect(panner);
+  noise.start(start); noise.stop(start + dur + 0.05);
+
+  // Crackle/glitter train — short high-passed grains over ~1.2s, sharing one
+  // tiny noise buffer.
+  if (opts.crackle) {
+    const grain = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.05), ctx.sampleRate);
+    const gd = grain.getChannelData(0);
+    for (let i = 0; i < gd.length; i++) gd[i] = (Math.random() * 2 - 1);
+    for (let tt = start + 0.15; tt < start + 1.2; tt += 0.02 + Math.random() * 0.05) {
+      const lvl = 0.12 * (1 - (tt - start) / 1.2);
+      const cg = ctx.createGain();
+      cg.gain.setValueAtTime(0.0001, tt);
+      cg.gain.exponentialRampToValueAtTime(Math.max(0.001, lvl), tt + 0.003);
+      cg.gain.exponentialRampToValueAtTime(0.0001, tt + 0.04);
+      const cn = ctx.createBufferSource(); cn.buffer = grain;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3500;
+      cn.connect(hp).connect(cg).connect(panner);
+      cn.start(tt); cn.stop(tt + 0.05);
+    }
+  }
+
+  setTimeout(() => { try { panner.disconnect(); } catch (e) {} }, ((opts.delay || 0) + 2.0) * 1000);
+}
+
 function pottyNoise(ctx, dest, x, z) {
   const t = ctx.currentTime;
   const panner = ctx.createPanner();

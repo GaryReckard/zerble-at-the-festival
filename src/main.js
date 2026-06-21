@@ -31,6 +31,7 @@ import { Zerble } from './zerble.js';
 import { Bubbles } from './bubbles.js';
 import { MidiPlayer } from './midiPlayer.js';
 import { Smiles } from './smiles.js';
+import { Fireworks } from './fireworks.js';
 import { Crowd } from './crowd.js';
 import { Lurleen } from './lurleen.js';
 import { Birds } from './birds.js';
@@ -331,6 +332,19 @@ scene.add(smiles.group);
 // ---------- Crowd (before world so chunks can spawn into it) ----------
 const crowd = new Crowd(smiles);
 scene.add(crowd.group);
+
+// ---------- Fireworks (night-gated; director schedules its own shows) ------
+const fireworks = new Fireworks();
+scene.add(fireworks.group);
+// On a burst, the nearby crowd looks over and cheers — throttled so a finale
+// barrage doesn't re-trigger the 5s cheer pose every shell.
+let _lastFireworkCheer = -99;
+fireworks.onBurst = (bx, bz) => {
+  const now = performance.now() / 1000;
+  if (npcsFrozen() || now - _lastFireworkCheer < 4) return;
+  _lastFireworkCheer = now;
+  crowd.cheerNear(zerble.position.x, zerble.position.z);
+};
 
 // When a stage song ends, nearby crowd cheers. First fire also logs a GA4 event
 // so we know the end-to-end path is working in the wild.
@@ -785,6 +799,7 @@ function tickBody(dt) {
     zerble.setBubbleBlast(blasting);
     zerble.setJuiceLevel(bubbles.juice);   // drives the bubble-machine liquid level + reserve jugs
     bubbles.update(dt, zerble, nightness);
+    fireworks.update(dt, nightness, zerble.position);
     HUD.setJuice(bubbles.juice);
     if (bubbles.juice > _maxJuiceReached) _maxJuiceReached = bubbles.juice;   // peak → session_end
     // Dry tank → no bubbles → NPCs frown (crowd.js reads this). One-time toast
@@ -1376,7 +1391,7 @@ if (window.visualViewport) {
 
 window.__game = {
   camera, zerble, scene, renderer, crowd, registry, chaseCam, lurleen,
-  getTimeOfDay, Trip, StarPower, midi, birds, bubbles,
+  getTimeOfDay, Trip, StarPower, midi, birds, bubbles, fireworks,
   kids, wooks, puppets, band, hoopers, frisbees, smiles,
   sound: Sound,
 };
@@ -1469,6 +1484,13 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     tod(t = 0.25) {
       getTimeOfDay()?.setT(t);
       return `tod = ${t}`;
+    },
+
+    // Fire a firework shell over the cart now (bypasses the night gate). Pass a
+    // type from fireworks.SHELL_TYPES, or omit for random. `__dbg.firework('willow')`.
+    firework(type) {
+      fireworks.launch(zerble.position, type);
+      return `launched ${type || 'random'} shell`;
     },
 
     // Move the cart to world (x, z), zeroing speed.

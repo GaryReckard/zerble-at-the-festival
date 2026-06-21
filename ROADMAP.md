@@ -680,7 +680,6 @@ infinite recursive tunnel, the classic "falling in" trip visual.
 
 - **Bubble inhabitants.** Once in a while a bubble drifts past with a tiny waving figure inside it (silhouette billboard, ~0.1m). Rare enough to read as an Easter egg. One mesh, low spawn rate, despawn with parent bubble.
 - **Bird polish follow-ups.** Birds shipped (see CHANGELOG 2026-06-01). Parked refinements: tapered/swept wing geometry (current wings read a touch plank-like in flight); a quick wing-flutter SFX on startle; biasing flocks to spawn around stages/food (attractor-aware) rather than uniformly; and a "bird poops on the cart" easter egg.
-- **Fireworks at midnight.** Cheap instanced point sprites + emissive ramp, gated on `nightness > 0.85`. Triggers ~once per minute. Almost every NPC stops and looks up to take notice — same "watching" state crowd already supports, just biased to face up. Hooker for the day/night cycle's climax.
 - **Crowd photographer.** A specific NPC type with a camera who occasionally crouches and "takes a photo" of Zerble (small flash sprite). Pure animation + a brief emissive pop. Builds the festival-vibe story.
 - **Real lake reflections via `Reflector`.** An earlier procedural "twinkly stars" shader patch on the water surface looked like fake sparkles fading in/out — not reflection physics. Removed in favor of plain water for now. A proper Reflector (`three/examples/jsm/objects/Reflector`) would render the scene from the mirrored camera into a texture and sample it from the water surface — actual mirror of sky + stars + moon + nearby objects. Cost is roughly a second scene render whenever the player can see a lake; would gate to high tier only, and possibly half-res target + nightness-driven wet/dry mix so it only matters when reflections matter.
 
@@ -707,7 +706,7 @@ infinite recursive tunnel, the classic "falling in" trip visual.
 - **Smile counter pulse + color shift** when score increments. Pure CSS animation on `#smiles .value` — scale bump + brief warm-tone color flash, then ease back.
 - **Personal-best confetti.** When BEST gets beaten, a brief DOM confetti shower over the score panel. Pure HTML/CSS — no three.js cost. One-time trigger per session.
 - **Boost streaks.** Visible trail behind Zerble at high speed — short fading emissive ring instances, ~8 in a pool, spawned at the rear during boost and fading over ~0.4s. Reads as motion without changing collision or perf budget.
-- **Day/night HUD indicator.** Tiny sun/moon icon in the corner arcing across a strip showing time of day. Pure DOM/SVG, syncs to `getTimeOfDay().t`. Tells the player when the trippy night content (drum circles, stage lights, fireworks once shipped) is coming.
+- **Day/night HUD indicator.** Tiny sun/moon icon in the corner arcing across a strip showing time of day. Pure DOM/SVG, syncs to `getTimeOfDay().t`. Tells the player when the trippy night content (drum circles, stage lights, fireworks) is coming.
 
 ## Player identity
 

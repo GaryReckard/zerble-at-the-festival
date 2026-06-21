@@ -180,7 +180,7 @@
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
-            const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'crowd', 'chunks', 'forests',
+            const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
@@ -315,6 +315,7 @@
             <option value="heart">Heart particle</option>
             <option value="smile_pickup">Smile pickup (rising + homing)</option>
             <option value="bubbles">Bubbles (Zerble's trail)</option>
+            <option value="fireworks">Fireworks (cycles all shells)</option>
         </optgroup>
     </select>
     <div class="row">
@@ -548,6 +549,7 @@ import {buildShrub} from './src/models/shrub.js';
     } from './src/models/tribalFigures.js';
     import {Bubbles} from './src/bubbles.js';
     import {Smiles} from './src/smiles.js';
+    import {Fireworks, SHELL_TYPES} from './src/fireworks.js';
     import {Crowd} from './src/crowd.js';
     // Trip + MIDI imports for the audition panels added at the bottom of the
     // HUD. Trip needs its post-process pass slotted into a composer, so we
@@ -2174,6 +2176,35 @@ import {buildShrub} from './src/models/shrub.js';
                 };
                 cam.target.set(0, 2, 0);
                 cam.dist = 8;
+                applyCam();
+                break;
+            }
+            case 'fireworks': {
+                // Live Fireworks system. We bypass its night-gated director and
+                // launch shells ourselves, cycling through every SHELL_TYPE in
+                // order (~1.6s apart) so each pattern is visible in turn. Passing
+                // nightness 0 to update() keeps the built-in director quiet; the
+                // sky is darkened via the ToD preset so the additive sparks pop.
+                const fw = new Fireworks();
+                scene.add(fw.group);
+                entityRoot = fw.group;
+                currentEntity = fw;
+                tod.setT(0.78);   // deep night so the bursts read
+                const origin = new THREE.Vector3(0, 0, 0);
+                let cycle = 0, acc = 0.6;
+                updateFn = (dt) => {
+                    acc -= dt;
+                    if (acc <= 0) {
+                        fw.launch(origin, SHELL_TYPES[cycle % SHELL_TYPES.length]);
+                        cycle++;
+                        acc = 1.6;
+                    }
+                    fw.update(dt, 0, origin);
+                };
+                // Look up into the sky where shells burst (~60-110m up, 28-95m out).
+                cam.target.set(0, 52, 0);
+                cam.dist = 155;
+                cam.pitch = 0.22;
                 applyCam();
                 break;
             }
