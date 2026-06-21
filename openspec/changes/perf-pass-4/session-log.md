@@ -288,3 +288,23 @@ priority — runtime InstancedMesh API can't run here), draw-census win, `?perf=
 tri budget, ToD visual fidelity, geo-leak drive-in/out, forest birds perching. See
 Dangling Threads.
 **Refs:** -> Task 7.3.1-7.3.6 7.4.6 7.4.7 -> D16 -> Gary gates 7.4.1-7.4.5
+
+### 2026-06-21 -- CG5: lakeside trees instanced (Slice 4 follow-up, Gary-greenlit)
+**Event:** phase-change
+**What:** Gary drove the shipped instancing, confirmed forest trees look good, and his
+drawCensus named the next lever: lake trees were still per-mesh (icosa·240v·uniq 749 +
+cone·35v·uniq 532) because CG3 excluded them (lake lifecycle ≠ chunk). A lake plants
+90-140 shore-ring trees + 0-2 island trees. Instanced them with the SAME
+`buildForestInstanced`, extended with an optional per-instance uniform `scale` (lakes do
+`tree.scale.set(s)`; chunk forest passes none → defaults 1 → golden unchanged, verified).
+`buildLake` now accumulates island+shore descriptors into one per-lake list, flushed into
+the lake group before return; the lake disposal walk already frees InstancedMesh buffers.
+rng order + the `forest_tree` collider registration untouched → layout byte-identical.
+Lake trees carry no perches, so birds are unaffected. Also shipped (separate commit
+447f4c4): debug-gated the AdaptiveQuality transition toast (was dev jargon center-screen
+in the player notice lane) + logged 4 census-review items to ROADMAP (campsite
+intra-layout clipping, stray stage-tent spacing, v2 tri-budget recalibration, the pinned
+?perf=low fMax-9029ms freeze). **Static-verified** (golden + registry + parse + importmaps
++ model-dims green; node harness proved the scale path buckets correctly, 516/516).
+**Pending Gary:** lakeside render + draw drop + lake load/unload geo-leak (-> Task 7.5.4).
+**Refs:** -> Task 7.5.1-7.5.4 -> reuses D16 -> CHANGELOG 2026-06-21

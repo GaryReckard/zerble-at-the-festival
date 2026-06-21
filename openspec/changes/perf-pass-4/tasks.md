@@ -219,3 +219,26 @@ CG1–CG4 map to subsections 7.1–7.4. -->
   bullet) to what landed. If a dense-low tri capture pushes past ~110-120k, the
   parked LOD/detail-0-icosa fallback (20 tris vs 80) is the follow-up — already on
   ROADMAP; don't pre-build it.
+
+### 7.5 CG5 — lakeside-tree instancing (Slice 4 follow-up, greenlit 2026-06-21)
+
+> The CG3 deliberation EXCLUDED lakes (lake lifecycle, not chunk). Gary's post-ship
+> drawCensus then named lake trees the next big un-instanced tree mass (icosa·240v·uniq
+> 749 + cone·35v·uniq 532), so he greenlit instancing them. Same machinery, per-lake.
+
+- [x] 7.5.1 **`buildForestInstanced` gained an optional per-instance uniform `scale`**
+  (tree.js). Composes `…·Ry(rotY)·S(scale)·T(local)·S(part)`. Chunk forest passes no
+  scale → defaults to 1 → matrix byte-identical (golden `badb6efd125e…` unchanged).
+- [x] 7.5.2 **`lakes.js buildLake` accumulates island (537) + shore-ring (713)
+  descriptors** into a per-lake `treeInstances`, flushed once before `return` (line 753)
+  into the lake group. Both sites swapped `buildForestTree`→`describeForestTree` + a
+  `{d,x,z,rotY:0,scale:s}` push; the per-tree `s = 0.85 + rng()*0.3x` scale draw + the
+  `forest_tree` collider registration (radius `1.0*s`, no chunkKey, no perches) are
+  unchanged → rng order + layout-snapshot byte-identical.
+- [x] 7.5.3 **Disposal already correct** — the lake unload walk (lakes.js:864-883) frees
+  InstancedMesh buffers (`o.isInstancedMesh && o.dispose()`) and skips `userData.shared`
+  unit geos, same as the chunk path. Lake trees have no perches, so birds (which skip
+  perch-less entries) are unaffected.
+- [ ] 7.5.4 **Gary GPU:** lakeside woods render + draw-count drop + drive-past + a
+  lake load/unload geo-leak check (drive away from a lake and back). Same hardware
+  gate as 7.4.1-7.4.5.

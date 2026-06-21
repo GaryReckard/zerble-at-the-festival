@@ -327,6 +327,7 @@ const _instTrunkMat = _makeInstMat();
 
 const _IM = new THREE.Matrix4();
 const _IR = new THREE.Matrix4();
+const _IU = new THREE.Matrix4();
 const _IT = new THREE.Matrix4();
 const _IS = new THREE.Matrix4();
 const _IC = new THREE.Color();
@@ -344,9 +345,12 @@ const _bucketCast = {
 const _trunkBucket = (type) => (type === 'pine' ? 'trunk_pine' : 'trunk_broad');
 const _foliageBucket = (f) => (f.shape === 'cone' ? 'cone_' : 'crown_') + (f.cast ? 'caster' : 'noshadow');
 
-// `instances`: [{ d:descriptor, x, z, rotY }]. Returns InstancedMesh[] for the
-// caller to add to the chunk group (so they dispose with the chunk). Empty in →
-// empty out (most chunks have no forest trees → zero overhead).
+// `instances`: [{ d:descriptor, x, z, rotY, scale? }]. Returns InstancedMesh[]
+// for the caller to add to its group (chunk OR lake — both dispose the group and
+// free instance buffers). `scale` (default 1) is a uniform whole-tree scale: the
+// chunk forest leaves it 1 (matrix byte-identical to the per-mesh path); the
+// lakeside ring passes its per-tree `tree.scale.set(s)` value. Empty in → empty
+// out (most chunks/lakes have no forest trees → zero overhead).
 export function buildForestInstanced(instances) {
   if (instances.length === 0) return [];
 
@@ -369,12 +373,14 @@ export function buildForestInstanced(instances) {
     idx[b] = 0;
   }
 
-  // M = T(x,0,z) · Ry(rotY) · T(local) · S(scale) — the tree's group transform
-  // composed with the part's local offset. Off-centre parts (oak bumps, birch
-  // puffs) get the yaw applied to their offset, matching the per-mesh Group.
-  const place = (b, sx, sy, sz, lx, ly, lz, x, z, rotY, hex) => {
+  // M = T(x,0,z) · Ry(rotY) · S(uniform) · T(local) · S(part) — the tree's group
+  // transform composed with the part's local offset. Off-centre parts (oak bumps,
+  // birch puffs) get the yaw applied to their offset, matching the per-mesh Group;
+  // the uniform scale (lakeside trees) scales the whole tree about its base.
+  const place = (b, sx, sy, sz, lx, ly, lz, x, z, rotY, scale, hex) => {
     _IM.makeTranslation(x, 0, z);
     _IR.makeRotationY(rotY); _IM.multiply(_IR);
+    if (scale !== 1) { _IU.makeScale(scale, scale, scale); _IM.multiply(_IU); }
     _IT.makeTranslation(lx, ly, lz); _IM.multiply(_IT);
     _IS.makeScale(sx, sy, sz); _IM.multiply(_IS);
     const i = idx[b]++;
@@ -384,13 +390,14 @@ export function buildForestInstanced(instances) {
 
   for (let k = 0; k < instances.length; k++) {
     const { d, x, z, rotY } = instances[k];
+    const scale = instances[k].scale ?? 1;
     const t = d.trunk;
     const trunkHex = d.trunkMat === 'birch' ? 0xe8e4d6 : 0x5a3f24;
-    place(_trunkBucket(d.type), t.rBot, t.h, t.rBot, 0, t.h / 2, 0, x, z, rotY, trunkHex);
+    place(_trunkBucket(d.type), t.rBot, t.h, t.rBot, 0, t.h / 2, 0, x, z, rotY, scale, trunkHex);
     for (let i = 0; i < d.foliage.length; i++) {
       const f = d.foliage[i];
       const sz = f.shape === 'cone' ? f.height : f.radius;
-      place(_foliageBucket(f), f.radius, sz, f.radius, f.x, f.y, f.z, x, z, rotY, d.colorHex);
+      place(_foliageBucket(f), f.radius, sz, f.radius, f.x, f.y, f.z, x, z, rotY, scale, d.colorHex);
     }
   }
 

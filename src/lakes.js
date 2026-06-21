@@ -22,7 +22,7 @@ import { registry } from './registry.js';
 import { hash2, worldHash, mulberry32 } from './rng.js';
 import { buildCanoe } from './models/canoe.js';
 import { buildCampsite } from './models/campsite.js';
-import { buildForestTree } from './models/tree.js';
+import { describeForestTree, buildForestInstanced } from './models/tree.js';
 import { lakesInBounds as wgLakesInBounds } from './worldgen/water.js';
 import { roadsInBounds } from './worldgen/roads.js';
 import { CONFIG } from './worldgen/constants.js';
@@ -479,6 +479,12 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
 
   const group = new THREE.Group();
   group.name = `lake(${mcx},${mcz})`;
+  // Lakeside + island trees accumulate as descriptors and instance once at the
+  // end (same machinery as the chunk forest, CG3) — 90-140 shore trees/lake was
+  // 90-140 × ~7 per-mesh draws. Disposed with the lake group (the disposal walk
+  // frees InstancedMesh buffers + skips the shared unit geos). `scale` carries
+  // each tree's per-tree size jitter (lakes scale the whole tree).
+  const treeInstances = [];
 
   // ---- Water surface — ShapeGeometry from outline ----
   // ShapeGeometry's triangulated polygon naturally handles concave/lobed
@@ -534,11 +540,9 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       const tDist = rng() * (islR - 1.2);
       const tx = ix + Math.cos(tAng) * tDist;
       const tz = iz + Math.sin(tAng) * tDist;
-      const tree = buildForestTree(rng);
-      tree.position.set(tx, 0, tz);
+      const d = describeForestTree(rng);
       const s = 0.85 + rng() * 0.30;
-      tree.scale.set(s, s, s);
-      group.add(tree);
+      treeInstances.push({ d, x: tx, z: tz, rotY: 0, scale: s });
       // No collider needed — island is unreachable; only the canoe could come
       // near, and canoes stay 4m off shore via the outline-based clamp.
     }
@@ -710,11 +714,9 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       // are on v1; the short-circuit means no closestBuilding call, no rng-stream shift).
       if (USE_WORLDGEN_V2 && registry.closestBuilding(new THREE.Vector3(treeX, 0, treeZ), 2.0, LAKE_TREE_SKIP)) continue;
 
-      const tree = buildForestTree(rng);
-      tree.position.set(treeX, 0, treeZ);
+      const d = describeForestTree(rng);
       const s = 0.85 + rng() * 0.35;
-      tree.scale.set(s, s, s);
-      group.add(tree);
+      treeInstances.push({ d, x: treeX, z: treeZ, rotY: 0, scale: s });
 
       // `forest_tree` collider — same kind as forests.js trees, so hitting one
       // hurts the same way and panics nearby NPCs. No chunkKey so the tree
@@ -747,6 +749,11 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   for (let i = 0; i < canoeCount; i++) {
     canoes.push(createLakeCanoe(group, cx, cz, decoOutline, rng));
   }
+
+  // Instance this lake's whole tree population (island + shore ring) into ~5-6
+  // InstancedMeshes, added to the lake group so they dispose with it (CG3 reuse).
+  const treeMeshes = buildForestInstanced(treeInstances);
+  for (let i = 0; i < treeMeshes.length; i++) group.add(treeMeshes[i]);
 
   return {
     center: new THREE.Vector3(cx, 0, cz),
