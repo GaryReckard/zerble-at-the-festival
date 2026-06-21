@@ -25,6 +25,7 @@ import { registry } from './registry.js';
 import { SpatialGrid } from './spatialGrid.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { CHUNK_SIZE } from './chunks.js';
+import { DODGE, laneDodgeTest, laneDodgeDir, honkScatterParams } from './steering.js';
 import { STINK_DUR, POTTY_DOOR_STAND, POTTY_SEAT_BACK, POTTY_SEAT_Y } from './models/portaPotty.js';
 
 const MAX_NPCS = PERF.crowdMax;
@@ -73,31 +74,10 @@ const STAR_LOVE_SKIP = new Set([
 ]);
 const HONK_RANGE = 14;
 
-// Trajectory dodge — NPCs step out of the lane of a cart bearing down on them.
-// Unlike the skittish-proximity flee, this is personality-INDEPENDENT (anyone
-// in the path at speed moves) and judged by a velocity-scaled CORRIDOR rather
-// than a cone: "in my lane" = ahead along the travel direction, within a
-// speed-scaled look-ahead, and inside a fixed lateral half-width of the
-// heading ray. (A far NPC dead-ahead and a near NPC at the same lateral
-// offset are both on a collision course — a corridor captures that; a fixed
-// angle doesn't.) These are the knobs to dial if it's too eager / too timid.
-const DODGE_MIN_SPEED = 4;     // m/s; below this Zerble's cruising to interact — nobody scatters
-const DODGE_REACT_BASE = 5;    // look-ahead (m) at the speed floor
-const DODGE_REACT_K = 0.8;     // extra look-ahead per m/s of cart speed
-const DODGE_REACT_MAX = 24;    // cap — stays under the flee-exit range (NOTICE_RANGE+4) so a fresh dodge can't insta-exit
-const DODGE_CORRIDOR = 3.5;    // half-width (m) of the "you're in my lane" band (cart is ~2.6 wide)
-const DODGE_LOCK = 0.5;        // s the dodge commits before re-evaluating (mirrors the honk-flee lock)
-
-// Honk scatter, speed-scaled. A honk now scatters the forward arc at ANY speed
-// (it used to fire only when parked), and the cart's speed sets the URGENCY:
-// a slow/parked honk is a polite "scuse me, coming through" hop; a full-tilt
-// honk is a get-out-of-the-way scramble. Reach ahead also grows with speed.
-const HONK_SPEED_REF = 18;         // = MAX_SPEED; normalizes cart speed to 0..1 for the scaling
-const HONK_SCATTER_FRONT_MIN = 11; // parked front-scatter reach (the prior fixed value)
-const HONK_SCATTER_FRONT_MAX = 20; // full-tilt honk reaches this far ahead
-const HONK_SCATTER_BEHIND = 6;     // loud-flinch reach behind (speed-independent)
-const HONK_URGENCY_MIN = 1.0;      // parked/slow: normal (polite) flee speed
-const HONK_URGENCY_MAX = 2.0;      // full-tilt: ~2x flee speed (urgent scramble)
+// Trajectory dodge + speed-scaled honk math is shared with the kid gaggles —
+// see src/steering.js (DODGE/HONK knobs, laneDodgeTest, laneDodgeDir,
+// honkScatterParams). Tune there and both systems move together.
+const _dodgeOut = { x: 0, z: 0 };   // reused scratch for laneDodgeDir (no per-frame alloc)
 
 // Passenger system
 const MAX_PASSENGERS = 10;
@@ -800,29 +780,16 @@ export class Crowd {
     // power (everyone's smitten) and skipped while already flee-locked. Judged
     // against the actual TRAVEL direction (forward * sign(speed)) so reversing
     // doesn't scatter people in front of the cart.
-    let dodging = false;
-    if (!fleeingLocked && !this.starActive) {
-      const zSpeed = Math.abs(zerble.speed);
-      if (zSpeed > DODGE_MIN_SPEED) {
-        const reactDist = Math.min(DODGE_REACT_BASE + DODGE_REACT_K * zSpeed, DODGE_REACT_MAX);
-        const fwd = zerble.forwardWorld;
-        const vDir = zerble.speed >= 0 ? 1 : -1;
-        const dirX = fwd.x * vDir, dirZ = fwd.z * vDir;   // unit travel direction
-        const toX = -dx, toZ = -dz;                       // Zerble -> NPC (dx/dz point NPC->Zerble)
-        const along = toX * dirX + toZ * dirZ;            // metres ahead along travel
-        if (along > 0.6 && along < reactDist) {
-          const perpX = toX - along * dirX;
-          const perpZ = toZ - along * dirZ;
-          if (Math.hypot(perpX, perpZ) < DODGE_CORRIDOR) dodging = true;
-        }
-      }
-    }
+    // dx/dz point NPC->Zerble, so (-dx,-dz) is the cart->NPC vector the
+    // shared corridor test wants. Suppressed under star power / while locked.
+    const dodging = !fleeingLocked && !this.starActive &&
+      laneDodgeTest(-dx, -dz, zerble.forwardWorld.x, zerble.forwardWorld.z, zerble.speed);
 
     if (dodging) {
       this._abandonSeat(npc);            // interrupting a walk-to-table/hammock? free the claim
       npc.state = 'fleeing';
       npc.fleeUrgency = 1;               // passive lane-dodge is calm; a honk raises this (applyHonk)
-      npc.stateTimer = DODGE_LOCK;       // brief commit, then re-evaluate (re-dodges if still in the lane)
+      npc.stateTimer = DODGE.LOCK;       // brief commit, then re-evaluate (re-dodges if still in the lane)
     } else if (!fleeingLocked && !disinterested) {
       if (dToZerble < NOTICE_RANGE) {
         // Star power suppresses fleeing — everyone's smitten, so a skittish
@@ -1048,35 +1015,17 @@ export class Crowd {
         // A fast cart just plows through someone fleeing straight ahead of
         // it; a sideways dodge clears the lane with the least travel and
         // reads like a real "get out of the way" reaction.
-        const fwd = zerble.forwardWorld;            // unit (x,0,z), recomputed each tick
-        const inv = 1 / (dToZerble || 1);
-        const awayX = -dx * inv;                    // unit vector Zerble -> NPC
-        const awayZ = -dz * inv;
-        // Subtract the component of the away vector along Zerble's heading;
-        // what remains is perpendicular to it, pointing to the NPC's side.
-        const along = awayX * fwd.x + awayZ * fwd.z;
-        let latX = awayX - along * fwd.x;
-        let latZ = awayZ - along * fwd.z;
-        let latLen = Math.hypot(latX, latZ);
-        if (latLen < 1e-3) {
-          // Dead-centre on the line of travel — no side to pick. Deterministic
-          // left/right by idx parity so they don't stall on the centreline.
-          // +90° of a unit forward is (fwd.z, -fwd.x), already unit length.
-          const side = (npc.idx & 1) ? 1 : -1;
-          latX = fwd.z * side;
-          latZ = -fwd.x * side;
-          latLen = 1;
-        }
-        latX /= latLen;
-        latZ /= latLen;
+        // Shared lane-perpendicular direction (toward the NPC's own side).
+        const fwd = zerble.forwardWorld;
+        laneDodgeDir(-dx, -dz, fwd.x, fwd.z, (npc.idx & 1) === 1, _dodgeOut);
         // Small per-frame wobble so the dodge curves a touch instead of being
         // a clean rail. No stable per-NPC jitter here — a fixed offset could
         // rotate some NPCs back toward the lane we're trying to clear.
         const wobble = Math.sin(performance.now() * 0.004 + npc.idx) * 0.12;
         const cosW = Math.cos(wobble);
         const sinW = Math.sin(wobble);
-        desiredX = latX * cosW - latZ * sinW;
-        desiredZ = latX * sinW + latZ * cosW;
+        desiredX = _dodgeOut.x * cosW - _dodgeOut.z * sinW;
+        desiredZ = _dodgeOut.x * sinW + _dodgeOut.z * cosW;
         // Per-NPC speed variation (±15%) so even same-side neighbors don't
         // move in lockstep.
         const speedJitter = 0.85 + (npc.idx % 7) * 0.05;  // 0.85..1.15
@@ -2161,12 +2110,9 @@ export class Crowd {
     // The stateTimer-based fleeing lock (top of _updateNpc) keeps the proximity
     // machine from stomping these back to 'watching' next frame.
     const FRONT_CONE_DOT = -0.3;   // loose forward hemisphere (unnormalized dot, matches prior feel)
-    const speed = Math.abs(zerble.speed || 0);
-    const speedT = Math.min(speed / HONK_SPEED_REF, 1);   // 0 parked .. 1 full tilt
-    const frontRange = HONK_SCATTER_FRONT_MIN + speedT * (HONK_SCATTER_FRONT_MAX - HONK_SCATTER_FRONT_MIN);
+    const { t: speedT, frontRange, behindRange, urgency } = honkScatterParams(zerble.speed || 0);
     const frontSq = frontRange * frontRange;
-    const behindSq = HONK_SCATTER_BEHIND * HONK_SCATTER_BEHIND;
-    const urgency = HONK_URGENCY_MIN + speedT * (HONK_URGENCY_MAX - HONK_URGENCY_MIN);
+    const behindSq = behindRange * behindRange;
     const fwd = zerble.forwardWorld;
     const vDir = (zerble.speed || 0) >= 0 ? 1 : -1;        // scatter along travel, not facing (reverse-safe)
 

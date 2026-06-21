@@ -15,6 +15,11 @@ import { buildHulaHooper, tickHulaHooper } from './models/hulaHooper.js';
 import { buildFrisbeePlayer, buildFrisbeeDisc, tickFrisbeePlayer, tickFrisbeeDisc } from './models/frisbeePlayer.js';
 import { Sound } from './sound.js';
 import { projectOutOfLake, isPointInLake } from './lakes.js';
+// Shared pedestrian steering — same dodge/honk math the crowd uses (crowd.js).
+import { DODGE, laneDodgeTest, laneDodgeDir, honkScatterParams } from './steering.js';
+import { StarPower } from './starPower.js';
+
+const _kidDodgeOut = { x: 0, z: 0 };   // reused scratch for laneDodgeDir (no per-frame alloc)
 
 // Pick a position at radius `[rNear, rFar]` from `(centerX, centerZ)` that
 // is NOT inside a lake outline. Up to 6 tries; falls back to the last
@@ -404,8 +409,11 @@ export class KidGaggle {
         k.userData.chaseDirX = 0;
         k.userData.chaseDirZ = 0;
         // Honk-scatter timer: while > 0, the kid runs away from Zerble at
-        // FLEE_SPEED. Set by KidGaggle.scatter() from main.js on honk.
+        // FLEE_SPEED. Set by KidGaggle.scatter() (honk) or the trajectory
+        // dodge in update() (cart bearing down). fleeUrgency scales the sprint
+        // speed: 1 for a passive lane-dodge, up to ~2 for a full-tilt honk.
         k.userData.scatterTimer = 0;
+        k.userData.fleeUrgency = 1;
         // Smile state — same model as crowd NPCs (see crowd.js): happiness
         // ramps when near Zerble/bubbles, spawns a smile + resets at the
         // threshold, then needs Zerble to drive SMILE_RESET_DIST away AND
@@ -436,13 +444,20 @@ export class KidGaggle {
   // starburst — looks like real scared kids, not a particle effect.
   scatter(zerble) {
     if (!zerble) return;
-    const SCATTER_RANGE = 12;
-    const SCATTER_RANGE_SQ = SCATTER_RANGE * SCATTER_RANGE;
+    // Speed-scaled like the crowd's honk (steering.js): a parked/slow honk is
+    // a polite hop, a full-tilt honk is an urgent scramble that reaches
+    // further. Kids cluster behind the cart chasing bubbles, so unlike the
+    // crowd this stays all-directions (no front cone) — only reach + urgency
+    // scale. Never tighter than the original 12m radius.
+    const { frontRange, urgency } = honkScatterParams(zerble.speed || 0);
+    const range = Math.max(frontRange, 12);
+    const rangeSq = range * range;
     for (const k of this.kids) {
       const dx = k.position.x - zerble.position.x;
       const dz = k.position.z - zerble.position.z;
-      if (dx * dx + dz * dz > SCATTER_RANGE_SQ) continue;
+      if (dx * dx + dz * dz > rangeSq) continue;
       k.userData.scatterTimer = 1.2;
+      k.userData.fleeUrgency = urgency;
       // Pre-aim away from Zerble + ±30° jitter so the scatter pattern
       // isn't a perfect starburst.
       const baseHeading = Math.atan2(dx, -dz);
@@ -542,6 +557,8 @@ export class KidGaggle {
     const KID_BUBBLE_GAIN_RANGE = 1.5;     // bubble must be within this for gain
     const KID_BUBBLE_GAIN = 0.6;           // happiness/sec at point-blank to a bubble
     const KID_PROXIMITY_GAIN = 0.4;        // happiness/sec next to Zerble (linear falloff)
+    // Star power suppresses fleeing (everyone's smitten) — same rule as the crowd.
+    const dodgeOk = zerble && !!zerble.forwardWorld && !StarPower.isActive();
 
     for (let i = 0; i < this.kids.length; i++) {
       const k = this.kids[i];
@@ -565,6 +582,23 @@ export class KidGaggle {
       // Tick scatter timer first so the test below sees a fresh value.
       if (k.userData.scatterTimer > 0) k.userData.scatterTimer -= dt;
       if (k.userData.smileTimeCooldown > 0) k.userData.smileTimeCooldown -= dt;
+
+      // Trajectory dodge — if not already scattering and a cart's bearing down
+      // at speed, sidestep out of its lane (shared corridor test with the
+      // crowd). Personality-independent; overrides bubble-chase below since it
+      // sets scatterTimer. fleeUrgency 1 = calm (a honk would raise it).
+      if (dodgeOk && k.userData.scatterTimer <= 0) {
+        const toX = k.position.x - zerble.position.x;
+        const toZ = k.position.z - zerble.position.z;
+        if (laneDodgeTest(toX, toZ, zerble.forwardWorld.x, zerble.forwardWorld.z, zerble.speed)) {
+          laneDodgeDir(toX, toZ, zerble.forwardWorld.x, zerble.forwardWorld.z, (i & 1) === 1, _kidDodgeOut);
+          k.userData.heading = Math.atan2(_kidDodgeOut.x, -_kidDodgeOut.z);
+          k.userData.scatterTimer = DODGE.LOCK;
+          k.userData.fleeUrgency = 1;
+          k.userData.turnTimer = DODGE.LOCK;   // hold the dodge heading, don't re-wander mid-step
+        }
+      }
+
       const fleeing = k.userData.scatterTimer > 0 && zerble;
 
       // Smile economy — same model as crowd NPCs in crowd.js. Gates:
@@ -614,11 +648,12 @@ export class KidGaggle {
       }
 
       if (fleeing) {
-        // Run away from Zerble. Lock heading on entry (set by scatter())
-        // and just sprint along it — keeps the burst lively without
-        // re-aiming every frame.
-        k.position.x += Math.sin(k.userData.heading) * FLEE_SPEED * dt;
-        k.position.z += -Math.cos(k.userData.heading) * FLEE_SPEED * dt;
+        // Run away from Zerble. Lock heading on entry (set by scatter() or the
+        // trajectory dodge) and just sprint along it. fleeUrgency scales the
+        // speed: 1 for a passive lane-dodge, up to ~2 for a full-tilt honk.
+        const fleeSpeed = FLEE_SPEED * (k.userData.fleeUrgency || 1);
+        k.position.x += Math.sin(k.userData.heading) * fleeSpeed * dt;
+        k.position.z += -Math.cos(k.userData.heading) * fleeSpeed * dt;
       } else if (chaseD < BUBBLE_ATTRACT_RANGE && chaseD > BUBBLE_GRAB_RANGE) {
         // Chase the bubble! If chase-stickiness is still active AND last
         // chase direction is close to the current nearest, blend toward

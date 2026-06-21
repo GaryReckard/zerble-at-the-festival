@@ -711,14 +711,15 @@ function tickBody(dt) {
       zerble.honk();
       honkAge = 0;
       // No honk-scatter while the love buff is on — nobody flees a smitten Zerble.
-      if (!StarPower.isActive()) crowd.applyHonk(zerble);
-      // Other collidable people in front of a parked Zerble also scatter.
-      // crowd.applyHonk handles its own NPC pool; the obstacles module owns
-      // kids, wooks, puppets, and the brass band — each has its own
-      // scatter() that respects its own motion (path-following, formation,
-      // free wander). All of them dodge perpendicular-away from Zerble.
-      if (Math.abs(zerble.speed || 0) < 0.5) {
+      // crowd + kids share the speed-scaled honk (steering.js): they scatter at
+      // ANY speed, harder the faster you're going.
+      if (!StarPower.isActive()) {
+        crowd.applyHonk(zerble);
         kids.scatter(zerble);
+      }
+      // Puppets, brass band, and wooks still scatter on a PARKED honk only —
+      // they're on fixed parade loops / formations and aren't speed-aware yet.
+      if (Math.abs(zerble.speed || 0) < 0.5) {
         wooks.scatter(zerble);
         puppets.scatter(zerble);
         band.scatter(zerble);
@@ -1376,6 +1377,7 @@ if (window.visualViewport) {
 window.__game = {
   camera, zerble, scene, renderer, crowd, registry, chaseCam, lurleen,
   getTimeOfDay, Trip, StarPower, midi, birds, bubbles,
+  kids, wooks, puppets, band, hoopers, frisbees, smiles,
   sound: Sound,
 };
 
