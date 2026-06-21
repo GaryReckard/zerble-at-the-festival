@@ -21,7 +21,7 @@ import { PERF } from './perf.js';
 import { registry } from './registry.js';
 import { hash2, worldHash, mulberry32 } from './rng.js';
 import { CHUNK_SIZE, buildCurvedPath } from './chunks.js';
-import { buildForestTree, worldPerches, worldCrown } from './models/tree.js';
+import { describeForestTree, buildForestInstanced, worldPerches, worldCrown } from './models/tree.js';
 import { buildCampsite } from './models/campsite.js';
 import { buildLeafDrumCircle } from './models/leafDrumCircle.js';
 import {
@@ -848,6 +848,7 @@ function scatterForestTrees(ctx, forest) {
   // Track placed positions for spacing check (just this chunk's trees;
   // perfect spacing across chunk borders isn't worth the cost).
   const placed = [];
+  const treeInstances = [];   // CG3: accumulate descriptors → per-chunk InstancedMeshes after the loop
 
   for (let attempt = 0; attempt < target * 4 && placed.length < target; attempt++) {
     const x = chunkMinX + rng() * (chunkMaxX - chunkMinX);
@@ -908,10 +909,12 @@ function scatterForestTrees(ctx, forest) {
     // belt + suspenders for the fringe).
     if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.5)) continue;
 
-    const tree = buildForestTree(rng);
-    tree.position.set(x, 0, z);
-    tree.rotation.y = rng() * Math.PI * 2;
-    ctx.group.add(tree);
+    // CG3: same rng order as the old per-mesh path (builder stream then yaw),
+    // but accumulate a descriptor instead of building a Group. Registry entry is
+    // unchanged (dual-read worldPerches/worldCrown off the descriptor).
+    const d = describeForestTree(rng);
+    const rotY = rng() * Math.PI * 2;
+    treeInstances.push({ d, x, z, rotY });
 
     // Forest trees DO get a hard collider — driving into them hurts.
     // Distinct kind so it can be tuned independently of the chunk-tree
@@ -926,12 +929,16 @@ function scatterForestTrees(ctx, forest) {
       // Canopy perch anchors (world-space) for the bird system — birds land
       // on the outer-lower foliage. Local offsets from tree.js, offset by the
       // trunk position (ring is radially symmetric, so yaw is irrelevant).
-      perches: worldPerches(tree, x, z),
-      crown: worldCrown(tree, x, z),
+      perches: worldPerches(d, x, z),
+      crown: worldCrown(d, x, z),
     });
 
     placed.push({ x, z });
   }
+  // CG3: collapse this chunk's forest trees into ~5 InstancedMeshes (one per
+  // cast/no-cast bucket), added to ctx.group so they dispose with the chunk.
+  const treeMeshes = buildForestInstanced(treeInstances);
+  for (let i = 0; i < treeMeshes.length; i++) ctx.group.add(treeMeshes[i]);
 }
 
 // True if (x, z) is inside ANY path corridor for this forest — the main

@@ -288,3 +288,120 @@ export function buildForestTree(rng = Math.random) {
 export function buildTallPine(rng) { return buildForestFromDescriptor(describeTallPine(rng)); }
 export function buildOak(rng) { return buildForestFromDescriptor(describeOak(rng)); }
 export function buildBirch(rng) { return buildForestFromDescriptor(describeBirch(rng)); }
+
+// ---------- Instanced forest (CG3) ----------
+//
+// The production forest paths (chunks.js scatterWorldgenTrees, forests.js
+// scatterForestTrees) accumulate descriptors per chunk and call
+// `buildForestInstanced` to collapse a chunk's whole woods from ~344 per-mesh
+// draws into ~5 InstancedMeshes. Geometry is a unit primitive scaled per
+// instance; foliage/trunk shade rides `instanceColor` (depth/shadow pass ignores
+// color, so instanceColor is orthogonal to the cast/no-cast bucket split).
+//
+// Unit geos are module-shared + tagged, so the chunk-unload disposal walk skips
+// them (tree.js:32-54 pattern). The per-chunk InstancedMeshes are NOT tagged —
+// they dispose with the chunk (chunks.js disposeChunkByKey frees them via
+// `obj.isInstancedMesh && obj.dispose()`). Buckets follow the EXACT per-mesh cast
+// lines the non-instanced trees used, so the 115→56 shadow-caster audit holds.
+const _unitConeGeo = new THREE.ConeGeometry(1, 1, 8);
+_unitConeGeo.userData.shared = true;
+const _unitIcosaGeo = new THREE.IcosahedronGeometry(1, 1);
+_unitIcosaGeo.userData.shared = true;
+// Two trunk tapers keep radii EXACT (pine rTop = 0.55·rBot; oak/birch = 0.7·rBot);
+// only the trunk segment count unifies 7→8 (imperceptible). Height + base radius
+// come from the per-instance scale.
+const _unitTrunkPineGeo = new THREE.CylinderGeometry(0.55, 1, 1, 8);
+_unitTrunkPineGeo.userData.shared = true;
+const _unitTrunkBroadGeo = new THREE.CylinderGeometry(0.7, 1, 1, 8);
+_unitTrunkBroadGeo.userData.shared = true;
+
+// White base so `instanceColor` (sRGB hex → linear, same path as a material's
+// `color`) is the final shade. roughness/flatShading match the pooled tree mats.
+function _makeInstMat() {
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1.0, flatShading: true });
+  m.userData.shared = true;
+  return m;
+}
+const _instFoliageMat = _makeInstMat();
+const _instTrunkMat = _makeInstMat();
+
+const _IM = new THREE.Matrix4();
+const _IR = new THREE.Matrix4();
+const _IT = new THREE.Matrix4();
+const _IS = new THREE.Matrix4();
+const _IC = new THREE.Color();
+
+const _FOREST_BUCKETS = ['trunk_pine', 'trunk_broad', 'cone_caster', 'cone_noshadow', 'crown_caster', 'crown_noshadow'];
+const _bucketGeo = {
+  trunk_pine: _unitTrunkPineGeo, trunk_broad: _unitTrunkBroadGeo,
+  cone_caster: _unitConeGeo, cone_noshadow: _unitConeGeo,
+  crown_caster: _unitIcosaGeo, crown_noshadow: _unitIcosaGeo,
+};
+const _bucketCast = {
+  trunk_pine: true, trunk_broad: true,
+  cone_caster: true, cone_noshadow: false, crown_caster: true, crown_noshadow: false,
+};
+const _trunkBucket = (type) => (type === 'pine' ? 'trunk_pine' : 'trunk_broad');
+const _foliageBucket = (f) => (f.shape === 'cone' ? 'cone_' : 'crown_') + (f.cast ? 'caster' : 'noshadow');
+
+// `instances`: [{ d:descriptor, x, z, rotY }]. Returns InstancedMesh[] for the
+// caller to add to the chunk group (so they dispose with the chunk). Empty in →
+// empty out (most chunks have no forest trees → zero overhead).
+export function buildForestInstanced(instances) {
+  if (instances.length === 0) return [];
+
+  const counts = {};
+  for (const b of _FOREST_BUCKETS) counts[b] = 0;
+  for (let k = 0; k < instances.length; k++) {
+    const d = instances[k].d;
+    counts[_trunkBucket(d.type)]++;
+    for (let i = 0; i < d.foliage.length; i++) counts[_foliageBucket(d.foliage[i])]++;
+  }
+
+  const mesh = {};
+  const idx = {};
+  for (const b of _FOREST_BUCKETS) {
+    if (counts[b] === 0) continue;
+    const isTrunk = b[0] === 't';
+    const m = new THREE.InstancedMesh(_bucketGeo[b], isTrunk ? _instTrunkMat : _instFoliageMat, counts[b]);
+    m.castShadow = _bucketCast[b];
+    mesh[b] = m;
+    idx[b] = 0;
+  }
+
+  // M = T(x,0,z) · Ry(rotY) · T(local) · S(scale) — the tree's group transform
+  // composed with the part's local offset. Off-centre parts (oak bumps, birch
+  // puffs) get the yaw applied to their offset, matching the per-mesh Group.
+  const place = (b, sx, sy, sz, lx, ly, lz, x, z, rotY, hex) => {
+    _IM.makeTranslation(x, 0, z);
+    _IR.makeRotationY(rotY); _IM.multiply(_IR);
+    _IT.makeTranslation(lx, ly, lz); _IM.multiply(_IT);
+    _IS.makeScale(sx, sy, sz); _IM.multiply(_IS);
+    const i = idx[b]++;
+    mesh[b].setMatrixAt(i, _IM);
+    mesh[b].setColorAt(i, _IC.setHex(hex));
+  };
+
+  for (let k = 0; k < instances.length; k++) {
+    const { d, x, z, rotY } = instances[k];
+    const t = d.trunk;
+    const trunkHex = d.trunkMat === 'birch' ? 0xe8e4d6 : 0x5a3f24;
+    place(_trunkBucket(d.type), t.rBot, t.h, t.rBot, 0, t.h / 2, 0, x, z, rotY, trunkHex);
+    for (let i = 0; i < d.foliage.length; i++) {
+      const f = d.foliage[i];
+      const sz = f.shape === 'cone' ? f.height : f.radius;
+      place(_foliageBucket(f), f.radius, sz, f.radius, f.x, f.y, f.z, x, z, rotY, d.colorHex);
+    }
+  }
+
+  const out = [];
+  for (const b of _FOREST_BUCKETS) {
+    const m = mesh[b];
+    if (!m) continue;
+    m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    m.computeBoundingSphere();   // per-chunk bounds → off-screen chunks frustum-cull as a unit
+    out.push(m);
+  }
+  return out;
+}

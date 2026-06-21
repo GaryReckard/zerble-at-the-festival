@@ -48,6 +48,36 @@ export class BoxGeometry extends GeometryStub {}
 export class MeshStandardMaterial {
   constructor(params = {}) { this.userData = {}; Object.assign(this, params); }
 }
+
+// Math + instancing: tree.js constructs Matrix4/Color at module scope (CG3
+// instancing temps) and InstancedMesh inside buildForestInstanced. The
+// determinism gate never calls buildForestInstanced (it hashes the rng-derived
+// descriptor stream), so these only need to construct as chainable no-ops for
+// the module to import. The methods return \`this\` so any future instancing
+// unit-test can drive them without NaNs.
+export class Matrix4 {
+  makeTranslation() { return this; }
+  makeRotationY() { return this; }
+  makeScale() { return this; }
+  multiply() { return this; }
+}
+export class Color {
+  setHex() { return this; }
+}
+export class InstancedBufferAttribute {
+  constructor(array) { this.array = array; this.needsUpdate = false; }
+}
+export class InstancedMesh {
+  constructor(geometry, material, count) {
+    this.geometry = geometry; this.material = material; this.count = count;
+    this.userData = {}; this.castShadow = false;
+    this.instanceMatrix = { needsUpdate: false };
+    this.instanceColor = null;
+  }
+  setMatrixAt() {}
+  setColorAt() { if (!this.instanceColor) this.instanceColor = { needsUpdate: false }; }
+  computeBoundingSphere() {}
+}
 `;
 
 export async function resolve(specifier, context, nextResolve) {

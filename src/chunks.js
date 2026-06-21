@@ -41,7 +41,7 @@ import { buildPicnicTable } from './models/picnicTable.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
 import { buildTentStage } from './models/tentStage.js';
-import { buildTree, buildForestTree, worldPerches, worldCrown } from './models/tree.js';
+import { buildTree, describeForestTree, buildForestInstanced, worldPerches, worldCrown } from './models/tree.js';
 import { buildShrub } from './models/shrub.js';
 import { leafBannerTextures } from './models/leafBanner.js';
 
@@ -382,7 +382,7 @@ export class ChunkManager {
     const isOriginChunk = (cx === 0 && cz === 0);
     const chunkSeed = isOriginChunk ? hash2(cx, cz) : worldHash(cx, cz);
 
-    // ── v2 worldgen path (USE_WORLDGEN_V2; default OFF while building → ?worldgen=1 to test) ──
+    // ── v2 worldgen path (USE_WORLDGEN_V2 — the SHIPPED DEFAULT, perf.js:42; ?worldgen=0 forces v1) ──
     // A SINGLE branch (R10): the legacy +-grid / pickTheme / THEME_BUILDERS /
     // 5x5 forests / path_node attractors do NOT co-run with v2. Built up across
     // Groups C (roads) / D (anchors+scatter) / F (trees) / G (crowd); Group B
@@ -1057,19 +1057,22 @@ function scatterWorldgenTrees(ctx) {
   // treed. Plan-side, fetched once, load-order-independent (see drumClearingsNear).
   const drumClears = drumClearingsNear(minX, minZ, minX + CHUNK_SIZE, minZ + CHUNK_SIZE);
   const placed = [];
+  const treeInstances = [];   // CG3: accumulate descriptors → per-chunk InstancedMeshes after the loop
   const placeTree = (x, z) => {
-    const tree = buildForestTree(rng);
-    tree.position.set(x, 0, z);
-    tree.rotation.y = rng() * Math.PI * 2;
-    ctx.group.add(tree);
+    // Same rng order as the old per-mesh path: builder stream (describe*) then the
+    // yaw draw. Registry entry is unchanged (registers off the descriptor via the
+    // dual-read worldPerches/worldCrown), so layout-snapshot stays byte-identical.
+    const d = describeForestTree(rng);
+    const rotY = rng() * Math.PI * 2;
+    treeInstances.push({ d, x, z, rotY });
     registry.add({
       kind: 'forest_tree',
       position: new THREE.Vector3(x, 0, z),
       footprint: 2.0,
       collider: { radius: 1.3, damage: 3 },
       chunkKey: ctx.key,
-      perches: worldPerches(tree, x, z),
-      crown: worldCrown(tree, x, z),
+      perches: worldPerches(d, x, z),
+      crown: worldCrown(d, x, z),
     });
     placed.push({ x, z });
   };
@@ -1169,6 +1172,10 @@ function scatterWorldgenTrees(ctx) {
     shrub.position.set(sx, 0, sz);
     ctx.group.add(shrub);
   }
+  // CG3: collapse this chunk's whole woods into ~5 InstancedMeshes (one per
+  // cast/no-cast bucket). Added to ctx.group → disposed with the chunk.
+  const treeMeshes = buildForestInstanced(treeInstances);
+  for (let i = 0; i < treeMeshes.length; i++) ctx.group.add(treeMeshes[i]);
 }
 
 // Is (x,z) inside any hub's oriented dancefloor rect? Project onto the rect's +F

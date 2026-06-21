@@ -148,12 +148,12 @@ CG1–CG4 map to subsections 7.1–7.4. -->
 > (positions) + game-boot smoke (agent). **Gary round-trip:** draw census +
 > `?perf=low/mid` tri budget + Noon/Midnight screenshots. Effort: medium.
 
-- [ ] 7.3.1 **Accumulate descriptors per chunk; build into `ctx.group`** for both
+- [x] 7.3.1 **Accumulate descriptors per chunk; build into `ctx.group`** for both
   paths. Both scatterers `ctx.group.add(tree)` (forests.js:914, chunks.js:1064) and
   register `chunkKey: ctx.key` (forests.js:925, chunks.js:1070). The 3×3 forest is
   a placement concept, not ownership — each of the 9 chunks owns its own trees/
   group/chunkKey. Per-chunk is the lifecycle home.
-- [ ] 7.3.2 **~5 buckets/chunk, boundary = the cast/no-cast line** (not color).
+- [x] 7.3.2 **~5 buckets/chunk, boundary = the cast/no-cast line** (not color).
   `InstancedMesh.castShadow` is one boolean for all instances; today's casting is
   selective within a tree, so buckets MUST equal the existing per-mesh lines:
   `crown_caster` (oak main tree.js:217 + lowest birch puff :271), `crown_noshadow`
@@ -161,13 +161,13 @@ CG1–CG4 map to subsections 7.1–7.4. -->
   `i===0`), `cone_noshadow` (upper pine tiers), `trunk` (all cast :167,207,251).
   **Reject "just cast the whole crown bucket"** — over-casts and walks back the
   115→56 audit (#9).
-- [ ] 7.3.3 **Use `instanceColor`, NOT green-bucket meshes.** Color → per-instance
+- [x] 7.3.3 **Use `instanceColor`, NOT green-bucket meshes.** Color → per-instance
   attribute, one base `MeshStandardMaterial`, ~5 buckets total (vs ~28 to keep
   green-bucketing shadow-faithful). `instanceColor` ⊥ shadow casting (depth pass
   ignores color) — one extra **cached** program (`USE_INSTANCING_COLOR`), amortized,
   NOT the recompile-storm footgun. Gary live-verifies it renders under the low-tier
   threeShim Lambert swap (#2).
-- [ ] 7.3.4 **Module-shared unit geos tagged; per-chunk InstancedMeshes NOT tagged.**
+- [x] 7.3.4 **Module-shared unit geos tagged; per-chunk InstancedMeshes NOT tagged.**
   Hoist `IcosahedronGeometry(1,1)`, `ConeGeometry(1,1,8)`, unit trunk cylinder to
   module scope in tree.js, tag each `userData.shared=true` (like _trunkGeo/
   _foliageMats, tree.js:32-54). Do NOT tag the per-chunk InstancedMeshes — they
@@ -175,10 +175,10 @@ CG1–CG4 map to subsections 7.1–7.4. -->
   (chunks.js:553-565) skips shared geo at :556 and frees instance buffers via
   `if (obj.isInstancedMesh) obj.dispose()` at :563. Untagged unit geo = first
   forest-chunk unload disposes it → recompile storm (#6).
-- [ ] 7.3.5 **`instanceMatrix.needsUpdate=true` (and `instanceColor.needsUpdate=true`)
+- [x] 7.3.5 **`instanceMatrix.needsUpdate=true` (and `instanceColor.needsUpdate=true`)
   after the per-chunk fill** (#7). Trees are static → set-once; forgetting it
   renders the chunk empty/frozen.
-- [ ] 7.3.6 **Per-chunk granularity — reject per-forest-block.** Per-block (240m)
+- [x] 7.3.6 **Per-chunk granularity — reject per-forest-block.** Per-block (240m)
   needs a lake-style macrocell lifecycle outliving all 9 chunks and its 9→3 draw
   saving is rounding error; per-chunk's small bounding spheres keep off-screen
   chunks culled as units (mandatory for the low-tier tri budget). Consider fixing
@@ -210,11 +210,11 @@ CG1–CG4 map to subsections 7.1–7.4. -->
 - [ ] 7.4.5 **Gary — forest birds still perch:** `__dbg.start()`, fly to a forest,
   confirm birds land (the `bird_in_tree` sandbox case only proves the model, not the
   registry wiring).
-- [ ] 7.4.6 **Sandbox:** keep the Group-returning builders so `forest_tree_*` +
+- [x] 7.4.6 **Sandbox:** keep the Group-returning builders so `forest_tree_*` +
   `bird_in_tree` (sandbox.html:1806-1834,:1904) still render; add ONE
   instanced-forest-patch composite case so the *instanced* assembly is eyeballable
   at Noon + Midnight (extend the harness before bypassing it).
-- [ ] 7.4.7 **CHANGELOG `### Performance` entry in the shipping commit; trim the
+- [x] 7.4.7 **CHANGELOG `### Performance` entry in the shipping commit; trim the
   ROADMAP "Performance" item** (LOD-on-trees / variant-bucketed-InstancedMesh
   bullet) to what landed. If a dense-low tri capture pushes past ~110-120k, the
   parked LOD/detail-0-icosa fallback (20 tris vs 80) is the follow-up — already on

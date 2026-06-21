@@ -1,11 +1,11 @@
 ---
 change: perf-pass-4
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: 7.3.1         # CG2 descriptor extraction shipped (byte-identical); CG3 per-chunk instancing is next
-blocked_by: null            # "Q3" | "dependency X" | null
+current_task: 7.4.1         # CG3 instancing code shipped + statically gated; CG4 GPU gates (7.4.1-7.4.5) are Gary's
+blocked_by: null            # CG3 boot/census/tri/visual confirmation pending on Gary's real GPU — not a hard blocker
 open_questions: 0           # count of unanswered questions in questions-for-human.md
 started: 2026-06-19
-last_updated: 2026-06-20
+last_updated: 2026-06-21
 ref: .claude/perf-brainstorm.md  # the idea bank + critic ranking this picks up
 ---
 
@@ -116,6 +116,26 @@ so CG3 can register perches without a per-tree Group. **buildTree (chunk scatter
 shared `ctx.rng`) left untouched** — it's the deferred path, not a CG3 target, so no
 descriptor risk taken there. Byte-identical: golden `badb6efd125e…` unchanged. -> D14
 
+### D16 — CG3 instancing: 6 buckets, exact trunks, instanceColor, per-chunk
+`buildForestInstanced(instances)` (tree.js) collapses a chunk's woods into up to 6
+`InstancedMesh`es: `trunk_pine`, `trunk_broad`, `cone_caster`, `cone_noshadow`,
+`crown_caster`, `crown_noshadow`. **Two trunk buckets, not one** (resolves the taper
+dangling thread): a unit cylinder bakes ONE rTop/rBot ratio, and pine (0.55) differs
+from oak/birch (0.7), so splitting keeps radii EXACT — only segments unify 7→8
+(imperceptible). Foliage/cone buckets follow the per-mesh cast lines verbatim
+(-> Task 7.3.2) so the 56-caster audit holds. **Color via `instanceColor` over one
+white base material per family** (foliage, trunk) — depth/shadow pass ignores color, so
+it's orthogonal to the cast split; one cached `USE_INSTANCING_COLOR` program, not a
+recompile storm (-> Task 7.3.3). Instance matrix = `T(x,0,z)·Ry(rotY)·T(local)·S(scale)`
+so off-centre parts (oak bumps, birch puffs) get the yaw applied to their offset,
+matching the per-mesh Group. **Per-chunk, added to `ctx.group`** (origin-anchored → the
+matrices use absolute world coords; three auto-computes the bounding sphere so
+off-screen chunks frustum-cull as a unit, -> Task 7.3.6). Disposal already correct:
+InstancedMesh `.isMesh` is true, shared unit geos + base mats carry `userData.shared`
+(skipped), `obj.dispose()` frees the instance buffers (chunks.js:563). Net: ~344
+per-tree draws/chunk → ~5–6, plus a memory win (4 shared unit geos vs fresh geometry
+per tree). -> D15
+
 ## Assumptions
 
 | # | Assumption | Confidence | Status | Resolution |
@@ -129,16 +149,18 @@ descriptor risk taken there. Byte-identical: golden `badb6efd125e…` unchanged.
 - Live perf/visual verification (FPS, stall removal, ToD screenshots) can only run on
   Gary's real-GPU local machine — Codespaces has no WebGL. Agent-side verify is limited
   to syntax / importmap / determinism gate / code review.
-- **CG3 trunk-instancing taper approximation (Gary visual check).** A single unit
-  trunk cylinder forces ONE taper ratio + segment count for all instanced trunks,
-  but the species differ (pine rTop=0.55·rBot @7seg, oak/birch=0.7 @8/7seg). CG3 will
-  pick one (~0.65, 8seg) and accept a sub-metre silhouette diff at the trunk top.
-  Subtle, but it IS a visual change (unlike CG2) — flag at the Noon/Midnight
-  screenshot pass. If it reads wrong, the fallback is a 2nd trunk bucket (pine vs
-  broadleaf) — cheap, still 6 buckets/chunk.
-- **Game-boot smoke for CG2 is Gary's** (no WebGL here). CG2 is byte-identical and
-  only touches tree.js internals (chunks.js/forests.js untouched), so boot risk is
-  low — but the longest-call-chain confirmation is still a real-GPU step.
+- ~~**CG3 trunk-instancing taper approximation.**~~ RESOLVED in CG3: went with the
+  2-trunk-bucket split (pine 0.55 / broadleaf 0.7), so trunk RADII are EXACT — no
+  taper approximation. Only the segment count unifies 7→8 (imperceptible). Cost is
+  one extra InstancedMesh/chunk (6 buckets, still "~5").
+- **Game boot + all GPU verification is Gary's** (no WebGL here). CG2 byte-identical
+  + CG3 statically gated (golden unchanged, parse clean, bucket-count↔fill proven
+  under node), but the longest-call-chain boot
+  (`buildWorld→_generate→_generateWorldgen→scatterWorldgenTrees→buildForestInstanced`)
+  and every visual/perf number can only run on the real GPU. The runtime three.js
+  InstancedMesh calls (setColorAt auto-alloc, computeBoundingSphere, instanceColor
+  under the low-tier Lambert swap) are the one thing static checks can't exercise —
+  a boot TypeError there would hang the title card. Highest-priority Gary check.
 
 ## Work Log
 
@@ -240,3 +262,24 @@ descriptor); lakes.js still gets a scalable Group; sandbox's 5 forest cases + bi
 unchanged. No CHANGELOG entry — pure internal refactor, no observable change (the rule's
 explicit skip case). Committed standalone so CG3's instancing diff stays focused.
 **Refs:** -> Task 7.2.1 7.2.2 7.2.3 -> D15 -> next CG3 (-> Task 7.3.1)
+
+### 2026-06-21 -- CG3 + CG4-static shipped: forest instancing (the win), GPU gates pending
+**Event:** phase-change
+**What:** Instanced both production forest paths off the CG2 descriptors (design -> D16).
+`scatterWorldgenTrees` (v2, the shipped default) + `scatterForestTrees` (v1 free-rider)
+now accumulate `{d,x,z,rotY}` per chunk and call `buildForestInstanced` → up to 6
+per-chunk InstancedMeshes; lakes + chunk-scatter trees stay per-mesh (excluded). Kept
+rng order + registration identical, so the golden `badb6efd125e…` and tree positions are
+unchanged — only the scene graph differs. Fixed the stale chunks.js:385 "default OFF"
+comment (v2 IS the default). Added sandbox `forest_patch_instanced` composite (-> Task
+7.4.6) + CHANGELOG Performance entry + ROADMAP trim (-> Task 7.4.7).
+**Static verification done (all I can do here):** golden gate unchanged; registry gate
+green after extending the shim with Matrix4/Color/InstancedMesh no-op stubs; tree.js/
+chunks.js/forests.js parse clean; check-importmaps + check-model-dims green; and a node
+harness drove `buildForestInstanced` on a 300-tree mixed batch proving bucket-count ==
+fill-count (1281/1281), all 6 buckets present, needsUpdate + instanceColor set, empty-in
+→empty-out. **Pending Gary (real GPU, -> Task 7.4.1-7.4.5):** clean game boot (highest
+priority — runtime InstancedMesh API can't run here), draw-census win, `?perf=low/mid`
+tri budget, ToD visual fidelity, geo-leak drive-in/out, forest birds perching. See
+Dangling Threads.
+**Refs:** -> Task 7.3.1-7.3.6 7.4.6 7.4.7 -> D16 -> Gary gates 7.4.1-7.4.5
