@@ -362,7 +362,9 @@ StarPower.onEnd = () => {
 };
 
 // ---------- World (sky/lights/ground/mountains + chunk manager) ----------
-buildWorld(scene, crowd);
+// Zerble was already relocated to the spawn hub above, so preload around it (not
+// origin) — the title-card backdrop + __dbg.start() then open on a loaded spawn.
+buildWorld(scene, crowd, zerble.position);
 
 // ---------- Lurleen (love interest, persistent across the world) ----------
 // v2 (H1): start Lurleen a distance away from the player's actual hub spawn (random

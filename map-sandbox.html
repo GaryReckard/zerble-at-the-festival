@@ -638,8 +638,8 @@ document.getElementById('btn-selftest').addEventListener('click', runTest);
 function runTest() {
   const out = document.getElementById('selftest');
   const r = runSelfTest();
-  const lines = r.results.map(t => `${t.pass ? '✓' : '✗'} ${t.name}${t.detail ? '\n    ' + t.detail : ''}`);
-  out.innerHTML = `<span class="${r.pass ? 'ok' : 'bad'}">self-test ${r.pass ? 'PASS' : 'FAIL'}</span>  golden ${r.goldenHash}  POI ${r.poiGoldenHash}\n` + lines.join('\n');
+  const lines = r.results.map(t => `${t.na ? '◦' : (t.pass ? '✓' : '✗')} ${t.name}${t.detail ? '\n    ' + t.detail : ''}`);
+  out.innerHTML = `<span class="${r.pass ? 'ok' : 'bad'}">self-test ${r.pass ? 'PASS' : 'FAIL'}</span>  <span class="${r.teeth ? 'ok' : 'bad'}">teeth ${r.teeth ? 'OK' : 'N/A'}</span>  golden ${r.goldenHash}  POI ${r.poiGoldenHash}\n` + lines.join('\n');
 }
 
 // --- live tuning sliders bound to CONFIG (GATE-1 by-eye tuning) --------------

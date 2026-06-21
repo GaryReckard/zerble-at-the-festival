@@ -1,22 +1,30 @@
 // Determinism harness (deliberation CG1.5) — REAL teeth, not "query twice in
 // two orders" (queryPoint is already pure, so that proves nothing).
 //
-// Tests, with failure LOCALIZATION (offending coord + field + the two values),
-// so an on-screen red light is actionable:
-//   T1 round-trip   — queryPoint == JSON.parse(JSON.stringify(queryPoint))
-//                      (catches -0/NaN/format drift) and re-call equality.
-//   T2 window-inv   — near a heart, nearestHeart at the default window and
-//                      window+1 agree (the heart window is sufficient near-field,
-//                      where roleTier/influence depend on it).
-//   T3 negative ctl — window 0 (own cell only) DIFFERS from the default for at
-//                      least one sampled point; if it never differs the sample
-//                      isn't exercising cross-cell lookup → the test has no teeth.
-//   golden hash     — FNV-1a over queryPoint tuples across a fixed sample grid ×
-//                      seeds; the future 3D port re-computes this on Safari /
-//                      Firefox to catch Math-transcendental cross-engine forks.
+// `runSelfTest()` returns `{ pass, teeth, results, goldenHash, poiGoldenHash }`.
+//   `pass`  — the GATE: generator CORRECTNESS only (the contract tests T1/T2/T4/T6
+//             below). Trustworthy to treat as a green/red health check.
+//   `teeth` — an ADVISORY: did the negative controls (T3/T5) confirm the contract
+//             tests are non-vacuous? Reported separately so an under-sampled
+//             control can never paint `pass` red on a correct generator.
 //
-// The FULL proximity-graph window-invariance + derived-radius negative control
-// (the road-seam determinism proof) lands with roads.js at GATE 2 / CG3.
+// Tests, with failure LOCALIZATION (offending coord + field + the two values):
+//   T1 round-trip    [contract] — queryPoint == JSON round-trip + re-call equality
+//                      (catches -0/NaN/format drift).
+//   T2 heart window  [contract] — nearestHeart at the default window and window+1
+//                      agree near a heart (the window is sufficient near-field).
+//   T3 heart neg-ctl [teeth]    — window 0 (own cell) DIFFERS from the default
+//                      somewhere, proving T2 isn't vacuous.
+//   T4 road window   [contract] — nearestRoad at the derived radius R and R+1 agree.
+//   T5 road neg-ctl  [teeth]    — a 1-cell window DIFFERS from R somewhere, proving
+//                      T4 isn't vacuous.
+//   T6 major window  [contract] — bounded nearestMajorHeart scan is sufficient.
+//   golden hash      — FNV-1a over queryPoint tuples across a fixed sample × seeds;
+//                      the 3D port re-checks on Safari/Firefox for Math forks.
+//
+// Negative controls search the shared sample first, then ring-scan near hearts
+// (where roads concentrate) — the uniform ±6 km sample under-samples that band on
+// some seeds. They assert TEST QUALITY, not correctness, so they never gate.
 
 import { setSeed, getSeed, queryPoint } from './index.js';
 import { nearestHeart, nearestMajorHeart, heartsInBounds } from './hearts.js';
@@ -44,6 +52,34 @@ function fnv1a(str) {
   let h = 0x811C9DC5;
   for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193);
   return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+// A negative control proves a contract test is NON-VACUOUS (has "teeth"): that a
+// deliberately-too-narrow window DISAGREES with the real one SOMEWHERE — otherwise
+// the contract test (e.g. "window R is sufficient") could pass with R=1 and prove
+// nothing. It asserts TEST QUALITY, not generator correctness, so it must NEVER
+// fail the `pass` gate. `probe(x,z)` returns true where the narrow/full windows
+// disagree. Search the shared sample first (fast path); if it misses, ring-scan
+// near heart centres — roads + heart-window effects concentrate there, and the
+// uniform ±6 km sample under-samples that thin band on some seeds (e.g. 0, 2). If
+// even the targeted scan finds nothing, the control is N/A (the property doesn't
+// bite at this scale), which is informative, not a failure.
+function negativeControl(probe, pts) {
+  for (const p of pts) {
+    if (probe(p.x, p.z)) return { pass: true, detail: `confirmed at (${p.x},${p.z})` };
+  }
+  const CELL = CONFIG.HEART_CELL;
+  const reach = roadNeighborhoodCells();
+  for (const h of heartsInBounds(-3000, -3000, 3000, 3000)) {
+    const hx = h.cx * CELL + CELL / 2, hz = h.cz * CELL + CELL / 2;
+    for (let rad = CELL * 0.5; rad <= CELL * reach; rad += CELL * 0.5) {
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
+        const x = Math.round(hx + Math.cos(a) * rad), z = Math.round(hz + Math.sin(a) * rad);
+        if (probe(x, z)) return { pass: true, detail: `confirmed at (${x},${z}) [targeted scan]` };
+      }
+    }
+  }
+  return { pass: true, na: true, detail: 'no window disagreement at this scale — negative control N/A (not a failure)' };
 }
 
 export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
@@ -87,16 +123,15 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     }
     results.push(t2);
 
-    // T3 — negative control: window 0 must DIFFER somewhere (proves teeth)
-    let t3 = { name: `negative control (seed ${s})`, pass: false, detail: 'window 0 never differed — sample lacks teeth' };
-    for (const p of pts) {
-      const base = nearestHeart(p.x, p.z, heartNeighborhoodCells());
-      const tiny = nearestHeart(p.x, p.z, 0);
-      const differ = (!base.heart) !== (!tiny.heart) ||
-        (base.heart && tiny.heart &&
-          (base.heart.cx !== tiny.heart.cx || base.heart.cz !== tiny.heart.cz));
-      if (differ) { t3.pass = true; t3.detail = `confirmed at (${p.x},${p.z})`; break; }
-    }
+    // T3 — heart negative control: window 0 (own cell only) must DIFFER from the
+    // default heart window somewhere, proving T2 genuinely needs the wider window.
+    const t3 = negativeControl((x, z) => {
+      const base = nearestHeart(x, z, heartNeighborhoodCells());
+      const tiny = nearestHeart(x, z, 0);
+      return (!base.heart) !== (!tiny.heart) ||
+        (base.heart && tiny.heart && (base.heart.cx !== tiny.heart.cx || base.heart.cz !== tiny.heart.cz));
+    }, pts);
+    t3.name = `heart negative control (seed ${s})`;
     results.push(t3);
 
     // T4 — road window-invariance: the DERIVED road radius is sufficient
@@ -110,14 +145,10 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     }
     results.push(t4);
 
-    // T5 — road negative control: a too-small (1-cell) window MUST disagree
-    // somewhere, proving the road lookup genuinely needs the multi-cell window.
-    let t5 = { name: `road negative control (seed ${s})`, pass: false, detail: 'window 1 never differed — lacks teeth' };
-    for (const p of pts) {
-      if (nearestRoad(p.x, p.z, R).dist !== nearestRoad(p.x, p.z, 1).dist) {
-        t5.pass = true; t5.detail = `confirmed at (${p.x},${p.z})`; break;
-      }
-    }
+    // T5 — road negative control: a too-small (1-cell) window MUST disagree with
+    // R somewhere, proving T4's "R is sufficient" is non-vacuous.
+    const t5 = negativeControl((x, z) => nearestRoad(x, z, R).dist !== nearestRoad(x, z, 1).dist, pts);
+    t5.name = `road negative control (seed ${s})`;
     results.push(t5);
 
     // T6 — major-heart window-invariance (R17): the bounded nearestMajorHeart scan
@@ -258,6 +289,14 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
   setSeed(prevSeed);
   const goldenHash = fnv1a(goldenAcc);
   const poiGoldenHash = fnv1a(poiAcc);
-  const pass = results.every(r => r.pass);
-  return { pass, results, goldenHash, poiGoldenHash };
+  // `pass` is the GATE — generator correctness only (T1/T2/T4/T6). Negative
+  // controls (T3/T5) assert TEST QUALITY, not correctness, so they're reported
+  // separately as `teeth` and never drag `pass` red on a contract-clean run.
+  // (Before this split, an under-sampled negative control returned pass:false on
+  // some seeds, training everyone to ignore red.) `teeth` is true when every
+  // negative control confirmed a disagreement (none fell back to N/A).
+  const isNegControl = (r) => /negative control/.test(r.name);
+  const pass = results.filter(r => !isNegControl(r)).every(r => r.pass);
+  const teeth = results.filter(isNegControl).every(r => r.pass && !r.na);
+  return { pass, teeth, results, goldenHash, poiGoldenHash };
 }

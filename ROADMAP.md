@@ -68,30 +68,6 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
   the festival planner ([worldgen/festival.js](src/worldgen/festival.js)) or the POI
   spacing guards in [chunks.js](src/chunks.js). Repro is the seed + coords above.
 
-- **`buildWorld()` preloads the world around the origin, not the v2 spawn hub.**
-  *(found 2026-06-21, external repo review)* `main.js` relocates Zerble to the spawn
-  hub (the entrance arch of the nearest heart, `main.js:~263-319`) before
-  `buildWorld()` runs, but `buildWorld()` still seeds the first lake + chunk pass at
-  `new THREE.Vector3(0,0,0)` ([world.js](src/world.js) ~56-65). When the spawn hub is
-  far from origin, the title-card backdrop and `__dbg.start()` can briefly look at an
-  unloaded neighbourhood (the post-Start `updateWorld(zerble.position)` then streams
-  the real one in, so the intro mostly masks it). Fix: pass the initial player
-  position into `buildWorld()` (or run one `updateWorld(zerble.position)` immediately
-  after construction). Small, but it touches boot order (a tripwire) — verify the
-  title-card framing + a `?perf=low` boot after.
-
-- **Worldgen `runSelfTest()` returns `pass:false` on a contract-clean run.**
-  *(found 2026-06-21, external repo review)* The harness's T5 "road negative control"
-  requires a too-small (1-cell) window to disagree somewhere; on some seeds it never
-  does ("lacks teeth"), so `runSelfTest().pass` is `false` even though the actual
-  contract tests (T1–T4, T6) pass ([selftest.js](src/worldgen/selftest.js) ~108-125;
-  `worldgen/README.md` still advertises `runSelfTest().pass` as the quick health
-  check). A gate that's known-red trains everyone to ignore red. Fix one of two ways:
-  (a) make the negative control have teeth on every tested seed (pick sample
-  points/window that guarantee a disagreement), or (b) split the return into
-  `contractPass` (the gate) vs an advisory `negativeControl` so `.pass` is trustworthy
-  again. Update the README health-check line either way.
-
 ---
 
 ## World generation (procedural map)

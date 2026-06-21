@@ -38,7 +38,13 @@ export function getTimeOfDay() {
   return timeOfDay;
 }
 
-export function buildWorld(scene, crowd) {
+// `playerPos` seeds the first lake + chunk preload neighbourhood. main.js
+// relocates Zerble to the v2 spawn hub (which can be km from origin) BEFORE
+// calling this, so the initial pass must load around the SPAWN, not (0,0) —
+// otherwise the title-card backdrop + __dbg.start() briefly look at an unloaded
+// neighbourhood until the first post-Start updateWorld() streams it in. Defaults
+// to origin for any headless/legacy caller.
+export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0)) {
   _scene = scene;
   skyMesh = buildSky(scene);
   starsMesh = buildStars(scene);
@@ -57,11 +63,12 @@ export function buildWorld(scene, crowd) {
   // footprints + colliders that chunks consult to avoid placing paths and
   // props on top of water.
   lakeManager = new LakeManager();
-  lakeManager.update(scene, new THREE.Vector3(0, 0, 0));
+  lakeManager.update(scene, playerPos);
 
   chunkManager = new ChunkManager(scene, crowd);
-  // Pre-load the chunks around the origin so the first frame looks alive.
-  chunkManager.update(new THREE.Vector3(0, 0, 0));
+  // Pre-load the chunks around the player's spawn so the first frame (and the
+  // title-card backdrop) looks alive at the actual spawn hub, not origin.
+  chunkManager.update(playerPos);
 
   return { chunkManager, lakeManager };
 }
