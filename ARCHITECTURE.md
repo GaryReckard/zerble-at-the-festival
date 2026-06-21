@@ -121,6 +121,16 @@ Backgrounded tabs use `setTimeout(tick, 16)` instead of `requestAnimationFrame`,
 
 ## World generation
 
+> **Read this first — which path is live.** The shipped production world is
+> **worldgen v2** (system 4 below; `USE_WORLDGEN_V2 = true`, `perf.js:42`, default
+> since 2026-06-16). Sections 1–3 describe the **legacy v1** path — the per-chunk
+> theme dice-roll, 3×3 forest blocks, and their lake placement — which now runs
+> **only** under `?worldgen=0` (an escape hatch slated for removal). The *chunk +
+> lake lifecycle mechanics* in 1–3 (load/unload, disposal, registry, `chunkKey`
+> rules) are shared by both paths and still current; the *content-selection*
+> described in 1–3 ("each chunk picks a theme", walled forests) is v1-only. When in
+> doubt about what a player sees, read **system 4**.
+
 Three independent lifecycle systems own world content. They all share one registry.
 
 ### 1. Chunks (`chunks.js`)

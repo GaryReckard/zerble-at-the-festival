@@ -37,7 +37,7 @@ function links(seedDec, x, z) {
   const sx = Math.round(x), sz = Math.round(z);
   return {
     map2d: `map-sandbox.html?seed=${seedDec}&cx=${sx}&cz=${sz}&zoom=2`,
-    hub3d: `sandbox.html?entity=hub_preview&seed=${seedDec}&at=${sx},${sz}`,
+    hub3d: `hub-sandbox.html?seed=${seedDec}&at=${sx},${sz}`,
     teleport: `__dbg.teleport(${sx}, ${sz})`,
   };
 }

@@ -7,8 +7,8 @@ docs/code in the order below as the task demands.
 
 A no-build browser game. Drive a mustachioed cart through a procedural festival.
 Plain ES modules + importmap, three.js from a CDN, Web Audio for everything you
-hear. No bundler. No transpiler. No framework. ~25 hand-rolled source files in
-`src/`.
+hear. No bundler. No transpiler. No framework. ~70 hand-rolled source files
+across `src/`, `src/models/`, and `src/worldgen/`.
 
 Live deploy: <https://garyreckard.github.io/zerble-at-the-festival/> (GitHub
 Pages). GA4 is wired (G-CY1FNMY8H8) and analytics calls go through
@@ -127,15 +127,22 @@ forgot to). Always verify the full pipeline.
 
 These are tripwires that are not derivable from reading any single file.
 
-### 1. No bundler. Don't add one.
+### 1. No bundler in the dev loop. Don't add one casually.
 
-Tempting, but it breaks the "open `index.html` and it just works" property and
-adds a moving piece this project explicitly avoids. See ROADMAP "Out of scope."
-If you create a new source module, **add it to the importmap list in
-*both* `index.html` and `sandbox.html`** (each has its own `mods` or `models`
-array near the top). Without those, the dev cache-buster won't apply `?v=…`
-and edits won't reload on local dev. Updating one and forgetting the other is
-the most common variant of this footgun.
+The day-to-day stance is no bundler/transpiler — it keeps the "open `index.html`
+and it just works" property and avoids a moving piece this project deliberately
+avoids. **Relaxed-but-gated (2026-06-19):** a build step (Vite + a committed
+`dist/` or a GitHub-Actions deploy, so Pages still "just works") is now on the
+table *only* behind a measured perf proposal raised with Gary — never quietly.
+See [.claude/rules/no-build.md](.claude/rules/no-build.md) + ROADMAP
+"Performance → Build step" / "Out of scope" for the live stance.
+
+If you create a new source module, **add it to the importmap list in *all four*
+HTML pages** — `index.html`, `sandbox.html`, `hub-sandbox.html`, `map-sandbox.html`
+(each has its own `mods`/`models`/`wg` array near the top) — then run
+`bin/check-importmaps`. Without the entry the dev cache-buster won't apply `?v=…`
+and edits won't reload on local dev. Forgetting one page is the most common
+variant of this footgun.
 
 ### 2. ES module namespaces are frozen — patch via the shim, not after import.
 

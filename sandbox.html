@@ -33,14 +33,16 @@
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96"/>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
-    <link rel="shortcut icon" href="/favicon.ico"/>
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
+    <!-- Document-relative (not root-absolute): GitHub Pages serves this project
+         under /zerble-at-the-festival/, so "/favicon.svg" would 404 — same fix as index.html. -->
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96"/>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+    <link rel="shortcut icon" href="favicon.ico"/>
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png"/>
     <meta name="apple-mobile-web-app-title" content="Zerble"/>
-    <link rel="manifest" href="/site.webmanifest"/>
+    <link rel="manifest" href="site.webmanifest"/>
 
-    <title>Sandbox — Zerble at LEAF</title>
+    <title>Sandbox — Zerble at the Festival</title>
     <style>
         :root {
             color-scheme: dark;
@@ -167,8 +169,12 @@
         // immediately during development. Only enabled on local hosts.
         (function () {
             const h = location.hostname;
+            // Same host set as index.html — include the LAN 172.16/12 block + the
+            // claude-preview/happycog forwarded hosts so preview tabs cache-bust too.
             const isLocal = h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' ||
-                h.endsWith('.local') || /^10\./.test(h) || /^192\.168\./.test(h);
+                h.endsWith('.local') || /^10\./.test(h) || /^192\.168\./.test(h) ||
+                /^172\.(1[6-9]|2\d|3[0-1])\./.test(h) ||
+                h.includes('claude-preview') || h.includes('happycog');
             const v = isLocal ? '?v=' + Date.now() : '';
             // Complete src/ + models/ lists (same as index.html) so the ?v= cache-buster
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,

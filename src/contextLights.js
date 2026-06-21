@@ -26,8 +26,11 @@
 // system was always meant to cap at, just held steady instead of wobbling.
 //
 // Models still call `register(light)` once when they build, and the light
-// stays parented to the model group so it world-tracks and prunes lazily
-// on chunk unload (orphaned == no `.parent`).
+// stays parented to the model group so it world-tracks and prunes lazily on
+// chunk unload. NOTE: pruning tests ancestry-to-scene, NOT `!light.parent` —
+// `scene.remove(chunkGroup)` nulls the GROUP's parent but leaves each descendant
+// light still parented to its (now-detached) group, so a parent-null check never
+// fired and dead carriers leaked into `_registry` for the whole session.
 
 import * as THREE from 'three';
 
@@ -78,29 +81,43 @@ export function register(light) {
   _registry.push(light);
 }
 
-// Optional explicit unregistration. Not required — the dead-parent prune in
-// update() handles cleanup lazily on chunk unload.
+// Optional explicit unregistration. Not required — the ancestry-prune in
+// update() reclaims carriers lazily once their host group leaves the scene.
 export function unregister(light) {
   const idx = _registry.indexOf(light);
   if (idx >= 0) _registry.splice(idx, 1);
 }
 
+// True if `obj` is still attached to `root` via the parent chain. Used to prune
+// carriers whose host chunk/lake group was detached (scene.remove) — their
+// immediate `.parent` is still the detached group (non-null), so only an
+// ancestry walk catches them.
+function _attachedTo(obj, root) {
+  for (let p = obj; p; p = p.parent) if (p === root) return true;
+  return false;
+}
+
 export function update(cameraPos, scene) {
-  // Stay a pure no-op on the shipped default path. `register()` is gated by
-  // PERF.contextLights at every call site, so with the feature off nothing
-  // ever registers and `_registry` stays empty — in that case we must NOT
-  // spin up the pool, or every default player's scene would gain 12 always-on
-  // lights (bumping NUM_*_LIGHTS for the whole game). The pool only ever
-  // materializes once a model has registered a light, i.e. the feature is on.
+  // No-op until SOMETHING registers a carrier. The optional campsite/shack/fancy
+  // lights are PERF.contextLights-gated (off by default), but stage SpotLights +
+  // LEAF drum-fire PointLights register UNCONDITIONALLY — so on the shipped
+  // default path the pool materializes once the first stage/drum is in range,
+  // and stays (a constant 12-light scene count is the intended steady cost; it's
+  // what stops the NUM_*_LIGHTS program-cache churn). Until then `_registry` is
+  // empty and we must NOT spin up the pool (it would add 12 always-on lights to
+  // an otherwise light-pooled scene).
   if (!_pool && _registry.length === 0) return;
 
   _ensurePool(scene);
 
-  // Lazy prune orphans (chunk unloaded -> parent chain gone). Keep every
-  // surviving carrier dark; the pool is the only thing that renders.
+  // Prune carriers whose host group was unloaded (detached from the scene), and
+  // dim survivors — the pool is the only thing that renders. Ancestry-to-scene,
+  // not `!l.parent`: a detached chunk group keeps its child lights parented to
+  // it, so a parent-null check would never reclaim them and the scan would grow
+  // unbounded across a session.
   for (let i = _registry.length - 1; i >= 0; i--) {
     const l = _registry[i];
-    if (!l.parent) {
+    if (!_attachedTo(l, scene)) {
       _registry.splice(i, 1);
     } else if (l.visible) {
       l.visible = false;

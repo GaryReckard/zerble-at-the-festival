@@ -23,8 +23,13 @@ python3 .claude/serve_nocache.py 8765
 - **Point inspector** (bottom-left): hover/click → the full layout tuple for
   that world coordinate, including a "would host" hint (see below).
 - **self-test** button: runs the determinism harness and reports PASS/FAIL with
-  the offending coordinate + golden hash. Also runnable headless:
-  `node --input-type=module -e "import('./src/worldgen/selftest.js').then(m=>console.log(m.runSelfTest().pass))"`
+  the offending coordinate + golden hash. `runSelfTest()` returns
+  `{ pass, teeth, results, goldenHash, poiGoldenHash }`: **`pass`** is the gate —
+  generator CORRECTNESS (contract tests T1/T2/T4/T6), trustworthy as a green/red
+  check; **`teeth`** is an advisory confirming the negative controls (T3/T5) found
+  the contract tests non-vacuous (it never gates, so an under-sampled control can't
+  paint `pass` red on a correct generator). Runnable headless:
+  `node --input-type=module -e "import('./src/worldgen/selftest.js').then(m=>{const r=m.runSelfTest();console.log('pass',r.pass,'teeth',r.teeth)})"`
 - `?seed=&cx=&cz=&zoom=&layers=` deep-links any view; `window.__mapSandbox`
   exposes `{ seed, view, config, queryPoint, queryRegion, setView, setSeed,
   setConfig, runSelfTest }` for scripted inspection.
