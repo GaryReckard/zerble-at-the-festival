@@ -73,6 +73,21 @@ const STAR_LOVE_SKIP = new Set([
 ]);
 const HONK_RANGE = 14;
 
+// Trajectory dodge — NPCs step out of the lane of a cart bearing down on them.
+// Unlike the skittish-proximity flee, this is personality-INDEPENDENT (anyone
+// in the path at speed moves) and judged by a velocity-scaled CORRIDOR rather
+// than a cone: "in my lane" = ahead along the travel direction, within a
+// speed-scaled look-ahead, and inside a fixed lateral half-width of the
+// heading ray. (A far NPC dead-ahead and a near NPC at the same lateral
+// offset are both on a collision course — a corridor captures that; a fixed
+// angle doesn't.) These are the knobs to dial if it's too eager / too timid.
+const DODGE_MIN_SPEED = 4;     // m/s; below this Zerble's cruising to interact — nobody scatters
+const DODGE_REACT_BASE = 5;    // look-ahead (m) at the speed floor
+const DODGE_REACT_K = 0.8;     // extra look-ahead per m/s of cart speed
+const DODGE_REACT_MAX = 24;    // cap — stays under the flee-exit range (NOTICE_RANGE+4) so a fresh dodge can't insta-exit
+const DODGE_CORRIDOR = 3.5;    // half-width (m) of the "you're in my lane" band (cart is ~2.6 wide)
+const DODGE_LOCK = 0.5;        // s the dodge commits before re-evaluating (mirrors the honk-flee lock)
+
 // Passenger system
 const MAX_PASSENGERS = 10;
 const ZERBLE_IDLE_SPEED = 0.6;       // |speed| below this counts as idle
@@ -767,7 +782,36 @@ export class Crowd {
     // actually leave a crowd behind instead of being permanently mobbed.
     const nowSec = performance.now() * 0.001;
     const disinterested = npc.disinterestedUntil > nowSec;
-    if (!fleeingLocked && !disinterested) {
+
+    // --- Trajectory dodge (highest priority): get out of an approaching cart's
+    // lane. Personality-independent and overrides disinterest — physical
+    // safety beats "I'm bored of this cart" — but still suppressed by star
+    // power (everyone's smitten) and skipped while already flee-locked. Judged
+    // against the actual TRAVEL direction (forward * sign(speed)) so reversing
+    // doesn't scatter people in front of the cart.
+    let dodging = false;
+    if (!fleeingLocked && !this.starActive) {
+      const zSpeed = Math.abs(zerble.speed);
+      if (zSpeed > DODGE_MIN_SPEED) {
+        const reactDist = Math.min(DODGE_REACT_BASE + DODGE_REACT_K * zSpeed, DODGE_REACT_MAX);
+        const fwd = zerble.forwardWorld;
+        const vDir = zerble.speed >= 0 ? 1 : -1;
+        const dirX = fwd.x * vDir, dirZ = fwd.z * vDir;   // unit travel direction
+        const toX = -dx, toZ = -dz;                       // Zerble -> NPC (dx/dz point NPC->Zerble)
+        const along = toX * dirX + toZ * dirZ;            // metres ahead along travel
+        if (along > 0.6 && along < reactDist) {
+          const perpX = toX - along * dirX;
+          const perpZ = toZ - along * dirZ;
+          if (Math.hypot(perpX, perpZ) < DODGE_CORRIDOR) dodging = true;
+        }
+      }
+    }
+
+    if (dodging) {
+      this._abandonSeat(npc);            // interrupting a walk-to-table/hammock? free the claim
+      npc.state = 'fleeing';
+      npc.stateTimer = DODGE_LOCK;       // brief commit, then re-evaluate (re-dodges if still in the lane)
+    } else if (!fleeingLocked && !disinterested) {
       if (dToZerble < NOTICE_RANGE) {
         // Star power suppresses fleeing — everyone's smitten, so a skittish
         // NPC stops and stares (falls through to watching/approaching) instead
