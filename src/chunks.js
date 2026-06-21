@@ -29,7 +29,7 @@ import { roadsInBounds, nearestRoad } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
-import { buildCampsite, buildCampChair, buildTorchField, buildCampTent, CAMPSITE_SCALE } from './models/campsite.js';
+import { buildCampsite, buildCampChair, buildTorchField, buildVendorCamp, CAMPSITE_SCALE } from './models/campsite.js';
 import { buildTent } from './models/tent.js';
 import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
@@ -1470,6 +1470,10 @@ function buildVendorRowAt(ctx, x, z, yaw) {
   const spacing = T.VENDOR_ROW_SPACING, rowOffset = T.VENDOR_ROW_OFFSET;
   const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
   const place = (lx, lz) => ({ x: x + lx * cosY + lz * sinY, z: z - lx * sinY + lz * cosY });  // +Z = along road
+  // Whether the previous booth on each side dropped a backstage camp — so a run of
+  // adjacent camps alternates full/lean and reads as one continuous, varied
+  // backstage strip instead of a wall of identical full camps (Gary 2026-06-21).
+  const prevCamp = { '-1': false, '1': false };
   for (let i = 0; i < count; i++) {
     const t = i - (count - 1) / 2;
     for (const side of [-1, 1]) {
@@ -1501,26 +1505,41 @@ function buildVendorRowAt(ctx, x, z, yaw) {
         attractor: { radius: 4, weight: 0.5 },
         chunkKey: ctx.key,
       });
-      // D3: a camper's tent tucked BEHIND ~40% of the stalls (back side, away from
-      // the aisle) — "vendors camp behind their stalls."
+      // D3: a backstage CAMP tucked BEHIND ~40% of the stalls (outer side, away
+      // from the aisle) — "vendors camp behind their stalls." Now an elaborated
+      // vignette (scaled tent + chairs + a chance of fire/torch) instead of a lone
+      // tent (Gary 2026-06-21). Anchored a touch inward of VENDOR_CAMPER_BACK_OFFSET
+      // so the bigger tent stays inside the plan's reserved back band.
+      let hasCamp = false;
       if (ctx.rng() < T.VENDOR_CAMPER_PROB) {
-        const cw = place(side * (rowOffset + T.VENDOR_CAMPER_BACK_OFFSET), t * spacing + (ctx.rng() - 0.5) * 2);
+        const cw = place(side * (rowOffset + T.VENDOR_CAMPER_BACK_OFFSET - 1.5), t * spacing + (ctx.rng() - 0.5) * 2);
         // The row straddles the road and bends across it; the booths already skip
-        // on-road slots (above) but the camper behind them never did (Gary 06-16).
+        // on-road slots (above) but the camp behind them never did (Gary 06-16).
         if (!isPointInLake(cw.x, cw.z) && nearestRoad(cw.x, cw.z).dist >= ROAD_RIBBON_WIDTH / 2 + 1) {
-          const camp = buildCampTent(ctx.rng).group;   // buildCampTent returns { group, color, footprint }, not a bare Group (R2)
-          camp.position.set(cw.x, 0, cw.z);
-          camp.rotation.y = yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI + (ctx.rng() - 0.5) * 0.5;
-          ctx.group.add(camp);
+          // Alternate full/lean so two adjacent camps never both pile on the full
+          // prop set — keeps the strip blended, not crowded.
+          const tier = prevCamp[side] ? 'lean' : 'full';
+          const camp = buildVendorCamp(ctx.rng, tier);
+          camp.group.position.set(cw.x, 0, cw.z);
+          // Same facing as the booth so the camp's seating (+z front) opens toward
+          // the stall/aisle; small extra yaw jitter for variety.
+          camp.group.rotation.y = yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI + (ctx.rng() - 0.5) * 0.4;
+          ctx.group.add(camp.group);
+          if (camp.animatables.length) {
+            forestAnimatables.push({ chunkKey: ctx.key, animatables: camp.animatables });
+          }
           registry.add({
             kind: 'campsite',
             position: new THREE.Vector3(cw.x, 0, cw.z),
-            footprint: 1.6,
-            collider: { radius: 1.3, damage: 3 },
+            footprint: camp.footprint,
+            collider: { radius: 1.6, damage: 3 },
+            attractor: { radius: 4, weight: 0.5 },
             chunkKey: ctx.key,
           });
+          hasCamp = true;
         }
       }
+      prevCamp[side] = hasCamp;
     }
   }
 }

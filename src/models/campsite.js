@@ -311,7 +311,7 @@ for (const g of [_TORCH_POLE_GEO, _TORCH_JOINT_GEO, _TORCH_CUP_GEO, _TORCH_FLAME
   g.userData.shared = true;
 }
 
-export function buildTikiTorch(rng = Math.random) {
+export function buildTikiTorch(rng = Math.random, scale = TIKI_TORCH_SCALE) {
   const group = new THREE.Group();
 
   const pole = new THREE.Mesh(_TORCH_POLE_GEO, matFor(0xa37a3a));
@@ -359,7 +359,9 @@ export function buildTikiTorch(rng = Math.random) {
     registerContextLight(flameLight);
   }
 
-  return { group, flame, flameMat, flameLight, phase, footprint: 0.25 };
+  group.scale.setScalar(scale);
+
+  return { group, flame, flameMat, flameLight, phase, footprint: 0.25 * scale };
 }
 
 // Build a cluster of tiki torches as ONE group, collapsing the static parts
@@ -375,7 +377,7 @@ export function buildTikiTorch(rng = Math.random) {
 // consumed here; if omitted (campsites), a phase is drawn from `rng` per torch
 // in array order. Either way the draw order matches the old per-torch loop, so
 // existing worlds regenerate identically.
-export function buildTorchField(positions, rng = Math.random) {
+export function buildTorchField(positions, rng = Math.random, scale = TIKI_TORCH_SCALE) {
   const group = new THREE.Group();
   const animatables = [];
   const n = positions.length;
@@ -390,13 +392,20 @@ export function buildTorchField(positions, rng = Math.random) {
   // per-mesh torch, which skipped castShadow too).
   poleInst.castShadow = jointInst.castShadow = cupInst.castShadow = false;
 
+  // The torch positions are baked into the instance matrices in the parent's
+  // coordinate space (often world space for stage/court/forest fields), so the
+  // size scale must ride in the matrix itself — scaling the GROUP would also
+  // scale the positions and fling the torches away from origin. makeScale then
+  // setPosition gives translate(pos) · scale(s), so each torch grows in place;
+  // the per-torch heights scale with it.
   const m = new THREE.Matrix4();
+  const s = scale;
   for (let i = 0; i < n; i++) {
     const { x, z } = positions[i];
-    m.makeTranslation(x, 0.85, z); poleInst.setMatrixAt(i, m);
-    m.makeTranslation(x, 0.50, z); jointInst.setMatrixAt(i * 2, m);
-    m.makeTranslation(x, 1.10, z); jointInst.setMatrixAt(i * 2 + 1, m);
-    m.makeTranslation(x, 1.78, z); cupInst.setMatrixAt(i, m);
+    m.makeScale(s, s, s); m.setPosition(x, 0.85 * s, z); poleInst.setMatrixAt(i, m);
+    m.setPosition(x, 0.50 * s, z); jointInst.setMatrixAt(i * 2, m);
+    m.setPosition(x, 1.10 * s, z); jointInst.setMatrixAt(i * 2 + 1, m);
+    m.setPosition(x, 1.78 * s, z); cupInst.setMatrixAt(i, m);
   }
   poleInst.instanceMatrix.needsUpdate = true;
   jointInst.instanceMatrix.needsUpdate = true;
@@ -416,18 +425,21 @@ export function buildTorchField(positions, rng = Math.random) {
       opacity: 0.95,
     });
     const flame = new THREE.Mesh(_TORCH_FLAME_GEO, flameMat);
-    flame.position.set(x, 2.0, z);
+    flame.position.set(x, 2.0 * s, z);
+    flame.scale.setScalar(s);
     group.add(flame);
 
     let flameLight = null;
     if (PERF.fancyLights) {
       flameLight = new THREE.PointLight(0xff8830, 0, 3.5, 1.5);
-      flameLight.position.set(x, 2.0, z);
+      flameLight.position.set(x, 2.0 * s, z);
       flameLight.castShadow = false;
       group.add(flameLight);
       registerContextLight(flameLight);
     }
-    animatables.push({ flame, flameMat, flameLight, phase });
+    // baseScale lets the central updater's flame bob scale relative to the
+    // torch size instead of snapping scale.y back to native.
+    animatables.push({ flame, flameMat, flameLight, phase, baseScale: s });
   }
 
   return { group, animatables };
@@ -641,6 +653,15 @@ const SIZE_CONFIG = {
 // One knob — dial it if 2× reads too big or spreads forests too sparse. (Gary)
 export const CAMPSITE_SCALE = 2;
 
+// Tiki torches built OUTSIDE a campsite (stage rings, food-court rings, forest
+// path lanterns, vendor backstage camps, the sandbox) used to render at native
+// size — half the size of the torches inside a campsite, which ride the
+// campsite root's CAMPSITE_SCALE. buildTikiTorch / buildTorchField now default
+// to this scale so every torch in the world matches the campsite ones (Gary
+// 2026-06-21). The campsite itself passes scale=1 to buildTorchField because
+// its root already applies CAMPSITE_SCALE — keep the two equal so they match.
+export const TIKI_TORCH_SCALE = CAMPSITE_SCALE;
+
 function pickCount(spec, rng) {
   if (typeof spec === 'number') return spec;
   // [min, max] inclusive
@@ -746,7 +767,7 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
     const r = cfg.radius * 1.05;
     torchPositions.push({ x: Math.cos(theta) * r, z: Math.sin(theta) * r });
   }
-  const torchField = buildTorchField(torchPositions, rng);
+  const torchField = buildTorchField(torchPositions, rng, 1);   // root already applies CAMPSITE_SCALE
   root.add(torchField.group);
   for (let i = 0; i < torchField.animatables.length; i++) {
     animatables.push(torchField.animatables[i]);
@@ -772,6 +793,82 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
   };
 }
 
+// ---------- Vendor backstage camp ----------
+//
+// The elaborated version of the lone tent that used to sit behind ~40% of
+// market stalls. Smaller than a full buildCampsite — it has to tuck into the
+// ~6 m band behind the booth line without poking into the road or a
+// neighbouring cluster — but richer than a bare tent: a tent scaled up to match
+// the enlarged campsite tents, a chair or two, and (by chance) a small fire and
+// a single tiki torch. Vendors camp behind their stalls.
+//
+// Local frame: +z is the FRONT of the camp (toward the booth / aisle); the tent
+// backs the camp at -z (the outer edge). The caller rotates the whole group so
+// +z faces the aisle, the same way the booths do, so the seating reads as
+// "vendors relaxing right behind their stall."
+//
+// `tier` lets the caller thin out adjacent camps so a run of backstages blends
+// into a continuous, varied strip instead of a wall of identical full camps:
+//   'full' — fire (80%), 2–3 chairs, a torch (55%)
+//   'lean' — no fire, 1–2 chairs, a torch (25%)
+const VENDOR_CAMP_TENT_SCALE = 1.45;   // bigger than the old lone booth-tent, but small enough that the chairs/fire still read
+
+export function buildVendorCamp(rng = Math.random, tier = 'full') {
+  const root = new THREE.Group();
+  const animatables = [];
+  const full = tier === 'full';
+
+  // Tent at the back/outer edge, scaled up toward the enlarged campsite tents.
+  // buildCampTent's door is native +z, so the unrotated tent already opens
+  // toward the fire/booth — just nudge it back and add a touch of yaw jitter.
+  const tent = buildCampTent(rng);
+  tent.group.scale.setScalar(VENDOR_CAMP_TENT_SCALE);
+  tent.group.position.set((rng() - 0.5) * 0.8, 0, -1.7);
+  tent.group.rotation.y = (rng() - 0.5) * 0.3;
+  root.add(tent.group);
+
+  // The living area sits OUT in front of the tent (toward the booth/aisle) so
+  // the big tent doesn't swallow it. Fire is the anchor; lean camps skip it.
+  const fireCenter = { x: (rng() - 0.5) * 0.5, z: 1.1 };
+  if (full && rng() < 0.85) {
+    const fire = buildChiminea(rng);
+    fire.group.position.set(fireCenter.x, 0, fireCenter.z);
+    root.add(fire.group);
+    animatables.push(fire);
+  }
+
+  // Chairs ringed around the fire on the aisle side (+z), facing back into it,
+  // so the player driving past sees the seating, not the tent's backside. Full
+  // camps seat 2–3, lean 1–2.
+  const chairCount = full ? 2 + Math.floor(rng() * 2) : 1 + Math.floor(rng() * 2);
+  for (let i = 0; i < chairCount; i++) {
+    const chair = buildCampChair(rng);
+    const theta = (Math.PI / 2) + (i - (chairCount - 1) / 2) * 0.9 + (rng() - 0.5) * 0.4;
+    const r = 1.0 + rng() * 0.5;
+    chair.group.position.set(
+      fireCenter.x + Math.cos(theta) * r,
+      0,
+      fireCenter.z + Math.sin(theta) * r,
+    );
+    chair.group.rotation.y = -theta + Math.PI / 2 + Math.PI;   // face the fire
+    root.add(chair.group);
+  }
+
+  // A single tiki torch off to one front corner, near the stall.
+  if (rng() < (full ? 0.6 : 0.3)) {
+    const torch = buildTikiTorch(rng);
+    torch.group.position.set(
+      (rng() < 0.5 ? -1 : 1) * (1.6 + rng() * 0.4),
+      0,
+      1.4 + (rng() - 0.5) * 0.5,
+    );
+    root.add(torch.group);
+    animatables.push(torch);
+  }
+
+  return { group: root, animatables, footprint: full ? 3.4 : 2.6 };
+}
+
 // ---------- Central animator ----------
 //
 // Each campsite returns its prop objects, and the campsite assembler keeps
@@ -795,9 +892,11 @@ export function updateCampsiteProps(t, nightness, props) {
       // Tiki flame goes invisible during full day so it doesn't read as
       // "always lit." Fade in over the dusk band.
       p.flameMat.opacity = THREE.MathUtils.clamp(0.2 + nightness * 1.2, 0, 0.95);
-      // Mild vertical wobble on the flame mesh itself
+      // Mild vertical wobble on the flame mesh itself, relative to the torch's
+      // base size (instanced torch fields scale the flame mesh directly; a
+      // campsite/buildTikiTorch flame rides its parent group's scale, baseScale 1).
       if (p.flame) {
-        p.flame.scale.y = 1 + 0.15 * Math.sin(t * 12 + p.phase);
+        p.flame.scale.y = (p.baseScale || 1) * (1 + 0.15 * Math.sin(t * 12 + p.phase));
       }
       // Fancy-lights opt-in: dim the per-torch PointLight by nightness² so
       // it's invisible at noon and flickers warmly at midnight.

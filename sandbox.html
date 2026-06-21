@@ -285,6 +285,8 @@
             <option value="campsite_small">Campsite (small)</option>
             <option value="campsite_medium">Campsite (medium)</option>
             <option value="campsite_large">Campsite (large)</option>
+            <option value="vendor_camp">Vendor backstage camp (full)</option>
+            <option value="vendor_camp_lean">Vendor backstage camp (lean)</option>
         </optgroup>
         <optgroup label="Forest">
             <option value="forest_tree_pine">Forest tree — tall pine</option>
@@ -531,7 +533,7 @@ import {buildShrub} from './src/models/shrub.js';
     import {buildPerformer} from './src/models/performer.js';
     import {
         buildCampTent, buildCampChair, buildChiminea, buildTikiTorch, buildTorchField,
-        buildEzUp, buildTapestry, buildCampsite, updateCampsiteProps,
+        buildEzUp, buildTapestry, buildCampsite, buildVendorCamp, updateCampsiteProps,
     } from './src/models/campsite.js';
     import {buildTallPine, buildOak, buildBirch, buildForestTree, describeForestTree, buildForestInstanced} from './src/models/tree.js';
     import {buildBird, buildBirdFlock, BIRD_KEYS, BIRD_SPECIES} from './src/models/bird.js';
@@ -1763,6 +1765,21 @@ import {buildShrub} from './src/models/shrub.js';
                 const r = {small: 5, medium: 7, large: 9}[size];
                 cam.target.set(0, 1.2, 0);
                 cam.dist = r * 1.7;
+                applyCam();
+                break;
+            }
+
+            case 'vendor_camp':
+            case 'vendor_camp_lean': {
+                const tier = name === 'vendor_camp_lean' ? 'lean' : 'full';
+                const vc = buildVendorCamp(Math.random, tier);
+                scene.add(vc.group);
+                entityRoot = vc.group;
+                updateFn = (dt) => {
+                    updateCampsiteProps(performance.now() / 1000, tod.nightness, vc.animatables);
+                };
+                cam.target.set(0, 1.2, 0);
+                cam.dist = 9;
                 applyCam();
                 break;
             }
