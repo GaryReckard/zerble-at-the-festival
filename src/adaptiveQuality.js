@@ -1,7 +1,12 @@
 // Adaptive quality monitor. Watches frame time over a rolling window and
 // downgrades render quality (pixel ratio, bloom, shadows, bubble material)
 // when sustained performance drops below a threshold. Ramps back up if the
-// budget recovers. Surfaces transitions as a HUD toast.
+// budget recovers. Transitions surface as a HUD toast ONLY under the debug flag
+// (see AQ_DEBUG below) — the message is dev jargon ("perf: cheap-bubs (~31fps)")
+// and was landing center-screen in the same toast lane as player notices
+// ("STAR POWER!"), which reads as a glitch to players. The live level is always
+// visible in the backtick debug HUD's Render panel (getLevelName), so gating the
+// toast loses nothing for devs.
 //
 // Design notes (perf-pass-4 update):
 //   * Pixel ratio is dropped FIRST — on Retina displays (dPR 2) it's the
@@ -21,6 +26,15 @@
 //   AdaptiveQuality.tick(dt);
 
 import { PERF } from './perf.js';
+
+// Gate the transition toast behind ?debug / localStorage['zerble.debug'], same
+// idiom as the [chunk slow] warnings + renderer.debug.checkShaderErrors. Read
+// once at load — toggling localStorage needs a reload, as there.
+const AQ_DEBUG = (() => {
+  try {
+    return new URLSearchParams(location.search).has('debug') || !!localStorage.getItem('zerble.debug');
+  } catch (e) { return false; }
+})();
 
 const DROP_FRAME_MS   = 22;  // avg > this → drop  (~45fps)
 const RAISE_FRAME_MS  = 18;  // avg < this → maybe raise  (~55fps)
@@ -193,7 +207,7 @@ function _apply(newLevel, avgMs) {
   const msg = newLevel > 0
     ? `perf: ${lvl.name} (~${fps}fps)`
     : `perf: full quality (~${fps}fps)`;
-  hud?.toast?.(msg, 1800);
+  if (AQ_DEBUG) hud?.toast?.(msg, 1800);
 
   // Notify caller — main.js uses this to swap bubble material without
   // creating a direct dependency between this module and bubbles.js.

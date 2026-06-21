@@ -51,6 +51,23 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
   Verify off the perf-log recorder + a DevTools trace (not the draw/tri HUD —
   green and never the bottleneck), at `?perf=low` AND `?perf=high`.
 
+- **Campsite intra-layout has no clipping/spacing rules.** *(observed 2026-06-21,
+  seed `2259424481` @ x:1789, z:-1594)* The 2× prop resize (2026-06-19) made the
+  individual camp pieces read at the right scale, but a camp is assembled with no
+  sensible placement rules: tapestries clip through canopies + tents, firepits sit
+  under canopies or inside tents, and adjacent camps overlap each other's
+  components. Needs intra-camp layout logic — firepit wants clear sky above, a
+  tapestry hangs on a tent/structure edge (not floating), whole camps keep a
+  min-spacing. This is layout LOGIC, not a model bug (the models are fine). Lives in
+  [campsite.js](src/models/campsite.js) (single-camp assembly) + the camp-placement
+  builders in [chunks.js](src/chunks.js) / `src/worldgen/`.
+
+- **A stage tent spawned meters from a side-stage.** *(observed 2026-06-21, seed
+  `2092344521` @ x:-12, z:-345)* Two festival stage POIs generated too close together
+  — they're supposed to keep their distance. A procedural-placement spacing bug in
+  the festival planner ([worldgen/festival.js](src/worldgen/festival.js)) or the POI
+  spacing guards in [chunks.js](src/chunks.js). Repro is the seed + coords above.
+
 ---
 
 ## World generation (procedural map)
@@ -715,6 +732,10 @@ Attacks two measured symptoms (137–343 ms shader-compile stalls on hub entry;
 - **E1** "arriving at the festival" bloom curtain — gated on whether Slice 2 leaves a residual stall worth masking.
 - **Draw-call reduction (the real steady-state lever, per the round-trip-1 capture).** B0 revealed draws = median ~3,750 / max 9,232 vs a 400 budget — draw count is the ceiling. **Slice 4 SHIPPED 2026-06-21 (see CHANGELOG):** forest-tree per-chunk instancing — trees were ~half the dense-hub draws (a `drawCensus` finding), now ~344 per-tree draws/chunk → ~5–6 `InstancedMesh`es. **Deliberation 002 separately found geometry-merge is only a ~2–4% cut** (food-court/camp-village are mostly already pooled/instanced; merge helps only the unique-geometry food-truck + sugar-shack). Remaining attack on the residual overage: (1) **LOD / cross-cluster instancing of the non-tree repeated clusters** (the same tents/trucks repeated across hubs, prime candidates beyond ~60m); (2) **billboard-impostor far field** (perf-brainstorm E2/E4); (3) an **honest look at whether the 400-draw high-tier budget is realistic for v2 worldgen** once trees are instanced, or whether the budget should move. Follow-up if a dense-low tri capture pushes past ~110–120k: a detail-0 icosa LOD (20 tris vs 80) for the instanced crowns. The scoped geometry-merge (food-truck + sugar-shack, `src/mergeDecor.js`) remains parked as a modest cut + reusable infra (perf-pass-4 Task 5.2).
 - **Tier-2 secondary (gated behind B0 numbers):** fog-as-far-cull; the cut-on-evaluation atmosphere fakes (billboard light shafts, faked lake reflections, adaptive sparkle) + crowd LOD.
+
+- **Recalibrate the per-tier draw/tri HUD budgets for v2 worldgen.** *(flagged 2026-06-21)* The backtick panel's tri budgets (low 150k / mid 400k / high 1.2M) predate v2 and now cry wolf: a 2026-06-21 capture showed **626k tris on `?perf=low`** and **1.57M on `?perf=mid`** — both ~4× "over budget" — yet mid ran a smooth **54fps**, so triangles are NOT the bottleneck. The markers should be re-based from a few v2 captures so a real regression is legible instead of drowned in a permanent red. (Draws/tris are adaptive-independent, so HUD readings are trustworthy as-is; only fps is defended by AdaptiveQuality.) Budgets live in [perf.js](src/perf.js) / the HUD in [debug.js](src/debug.js).
+
+- **PINNED: `?perf=low` shows a multi-second freeze that is NOT draws/tris.** *(pinned 2026-06-21 — come back to)* A low-tier capture caught **`fMax: 9029ms`** — a single ~9-second frozen frame — at fps 22, while per-chunk gen (`cgWorst`) was only ~198ms. So the freeze is something bigger and rarer than chunk generation: most likely a mid-play **shader-program compile** (the GPU stalling to build a program) or a **GC pause**. Same class as the "Game goes unresponsive" item in `## Bugs`, and squarely in this pass's Slice 2/3 territory (shader prewarm / time-sliced chunk gen). **To diagnose, need a "caught in the act" capture:** `__dbg.recordPerf(true)`, drive on `?perf=low` until it hitches, `__dbg.capture()` — then check whether `prog` (shader count) jumped at the freeze (→ shader stall) or `heapMB` did (→ GC). Cross-ref `openspec/changes/perf-pass-4/`.
 
 ### Build step — now on the table for perf *(parked, evidence-gated, 2026-06-19)*
 
