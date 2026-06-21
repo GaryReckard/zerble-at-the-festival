@@ -112,6 +112,9 @@ export class Crowd {
     // Set true from main.js when Zerble's bubble tank is dry — NPCs frown
     // instead of smile. `onFrown(npc)` fires when a frown lands (score sink).
     this.bubblesEmpty = false;
+    // Set true from main.js while the star-power love buff is active — gates
+    // the proximity flee so nobody runs from a Zerble everyone's smitten with.
+    this.starActive = false;
     this.onFrown = null;
     // `onBoard(npc)` fires when an NPC actually climbs aboard (boarding→riding).
     this.onBoard = null;
@@ -765,10 +768,12 @@ export class Crowd {
     const nowSec = performance.now() * 0.001;
     const disinterested = npc.disinterestedUntil > nowSec;
     if (!fleeingLocked && !disinterested) {
-      // Exited flee — clear the jitter so the NEXT flee picks a fresh angle.
-      if (npc.state === 'fleeing') npc.fleeJitter = undefined;
       if (dToZerble < NOTICE_RANGE) {
-        if (npc.skittish > 0.55 && dToZerble < SMILE_RANGE * 0.6) {
+        // Star power suppresses fleeing — everyone's smitten, so a skittish
+        // NPC stops and stares (falls through to watching/approaching) instead
+        // of bolting. applyStarLove can't rescue an NPC already in 'fleeing'
+        // (it's in STAR_LOVE_SKIP), so the gate has to be here at the trigger.
+        if (!this.starActive && npc.skittish > 0.55 && dToZerble < SMILE_RANGE * 0.6) {
           npc.state = 'fleeing';
         } else if (npc.curiosity > 0.65 && dToZerble < NOTICE_RANGE && dToZerble > 4) {
           npc.state = 'approaching';
@@ -982,39 +987,48 @@ export class Crowd {
       }
 
       case 'fleeing': {
-        // Run perpendicular-away from Zerble (so they get out of his lane).
-        // To avoid the "starburst" look where everyone moves in clean
-        // radial lines, we mix in a stable per-NPC jitter angle (set
-        // once when fleeing starts) AND a small frame-to-frame wobble.
-        // The result is each NPC takes a slightly different path away —
-        // looks like real scared people, not a particle effect.
-        if (npc.fleeJitter === undefined) {
-          // ±35° stable jitter, picked once per flee event so the NPC's
-          // chosen angle is consistent across the duration. Cleared on
-          // state exit so the next flee picks a fresh angle.
-          npc.fleeJitter = (Math.random() - 0.5) * (Math.PI * 0.4);
-        }
+        // Step LATERALLY out of Zerble's lane — to whichever side of his
+        // heading the NPC is already on — instead of running radially away.
+        // A fast cart just plows through someone fleeing straight ahead of
+        // it; a sideways dodge clears the lane with the least travel and
+        // reads like a real "get out of the way" reaction.
+        const fwd = zerble.forwardWorld;            // unit (x,0,z), recomputed each tick
         const inv = 1 / (dToZerble || 1);
-        const awayX = -dx * inv;
+        const awayX = -dx * inv;                    // unit vector Zerble -> NPC
         const awayZ = -dz * inv;
-        // Rotate the away vector by fleeJitter + a small per-frame wobble
-        // so the path curves a bit instead of being a clean ray.
-        const wobble = Math.sin(performance.now() * 0.004 + npc.idx) * 0.15;
-        const ang = npc.fleeJitter + wobble;
-        const cosA = Math.cos(ang);
-        const sinA = Math.sin(ang);
-        desiredX = awayX * cosA - awayZ * sinA;
-        desiredZ = awayX * sinA + awayZ * cosA;
-        // Per-NPC speed variation (±15%) so even matched-direction
-        // neighbors don't move in lockstep.
+        // Subtract the component of the away vector along Zerble's heading;
+        // what remains is perpendicular to it, pointing to the NPC's side.
+        const along = awayX * fwd.x + awayZ * fwd.z;
+        let latX = awayX - along * fwd.x;
+        let latZ = awayZ - along * fwd.z;
+        let latLen = Math.hypot(latX, latZ);
+        if (latLen < 1e-3) {
+          // Dead-centre on the line of travel — no side to pick. Deterministic
+          // left/right by idx parity so they don't stall on the centreline.
+          // +90° of a unit forward is (fwd.z, -fwd.x), already unit length.
+          const side = (npc.idx & 1) ? 1 : -1;
+          latX = fwd.z * side;
+          latZ = -fwd.x * side;
+          latLen = 1;
+        }
+        latX /= latLen;
+        latZ /= latLen;
+        // Small per-frame wobble so the dodge curves a touch instead of being
+        // a clean rail. No stable per-NPC jitter here — a fixed offset could
+        // rotate some NPCs back toward the lane we're trying to clear.
+        const wobble = Math.sin(performance.now() * 0.004 + npc.idx) * 0.12;
+        const cosW = Math.cos(wobble);
+        const sinW = Math.sin(wobble);
+        desiredX = latX * cosW - latZ * sinW;
+        desiredZ = latX * sinW + latZ * cosW;
+        // Per-NPC speed variation (±15%) so even same-side neighbors don't
+        // move in lockstep.
         const speedJitter = 0.85 + (npc.idx % 7) * 0.05;  // 0.85..1.15
         speed = 3.5 * npc.energy * speedJitter;
-        const lookDir = Math.atan2(-desiredX, -desiredZ);
-        npc.yaw = lookDir;
+        npc.yaw = Math.atan2(-desiredX, -desiredZ);
         if (dToZerble > NOTICE_RANGE + 4) {
           npc.state = 'idle';
           npc.stateTimer = 2;
-          npc.fleeJitter = undefined;   // reset so next flee picks fresh
         }
         break;
       }
@@ -2006,7 +2020,6 @@ export class Crowd {
       occ.seatY = undefined;
       occ.state = 'fleeing';
       occ.stateTimer = 3;
-      occ.fleeJitter = undefined;
     }
     p.occupied = false;
     p.occupantId = null;

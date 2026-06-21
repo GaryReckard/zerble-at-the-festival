@@ -710,7 +710,8 @@ function tickBody(dt) {
     if (!controlsLocked && (spaceHonk || bellHonk || hornHonk) && zerble.canHonk()) {
       zerble.honk();
       honkAge = 0;
-      crowd.applyHonk(zerble);
+      // No honk-scatter while the love buff is on — nobody flees a smitten Zerble.
+      if (!StarPower.isActive()) crowd.applyHonk(zerble);
       // Other collidable people in front of a parked Zerble also scatter.
       // crowd.applyHonk handles its own NPC pool; the obstacles module owns
       // kids, wooks, puppets, and the brass band — each has its own
@@ -789,6 +790,8 @@ function tickBody(dt) {
     // on running out so the player connects the empty meter to the frowns.
     const bubblesEmpty = bubbles.juice <= 0.02;
     crowd.bubblesEmpty = bubblesEmpty;
+    // Suppress the proximity flee while the love buff is active (read in crowd.update).
+    crowd.starActive = StarPower.isActive();
     if (bubblesEmpty && !_wasEmpty) {
       HUD.toast('Out of bubble juice — grab a jug!', 2200);
       Analytics.bubbleRanDry();
