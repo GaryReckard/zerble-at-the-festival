@@ -68,6 +68,30 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
   the festival planner ([worldgen/festival.js](src/worldgen/festival.js)) or the POI
   spacing guards in [chunks.js](src/chunks.js). Repro is the seed + coords above.
 
+- **`buildWorld()` preloads the world around the origin, not the v2 spawn hub.**
+  *(found 2026-06-21, external repo review)* `main.js` relocates Zerble to the spawn
+  hub (the entrance arch of the nearest heart, `main.js:~263-319`) before
+  `buildWorld()` runs, but `buildWorld()` still seeds the first lake + chunk pass at
+  `new THREE.Vector3(0,0,0)` ([world.js](src/world.js) ~56-65). When the spawn hub is
+  far from origin, the title-card backdrop and `__dbg.start()` can briefly look at an
+  unloaded neighbourhood (the post-Start `updateWorld(zerble.position)` then streams
+  the real one in, so the intro mostly masks it). Fix: pass the initial player
+  position into `buildWorld()` (or run one `updateWorld(zerble.position)` immediately
+  after construction). Small, but it touches boot order (a tripwire) — verify the
+  title-card framing + a `?perf=low` boot after.
+
+- **Worldgen `runSelfTest()` returns `pass:false` on a contract-clean run.**
+  *(found 2026-06-21, external repo review)* The harness's T5 "road negative control"
+  requires a too-small (1-cell) window to disagree somewhere; on some seeds it never
+  does ("lacks teeth"), so `runSelfTest().pass` is `false` even though the actual
+  contract tests (T1–T4, T6) pass ([selftest.js](src/worldgen/selftest.js) ~108-125;
+  `worldgen/README.md` still advertises `runSelfTest().pass` as the quick health
+  check). A gate that's known-red trains everyone to ignore red. Fix one of two ways:
+  (a) make the negative control have teeth on every tested seed (pick sample
+  points/window that guarantee a disagreement), or (b) split the return into
+  `contractPass` (the gate) vs an advisory `negativeControl` so `.pass` is trustworthy
+  again. Update the README health-check line either way.
+
 ---
 
 ## World generation (procedural map)
@@ -683,6 +707,22 @@ infinite recursive tunnel, the classic "falling in" trip visual.
 - **Fireworks at midnight.** Cheap instanced point sprites + emissive ramp, gated on `nightness > 0.85`. Triggers ~once per minute. Almost every NPC stops and looks up to take notice — same "watching" state crowd already supports, just biased to face up. Hooker for the day/night cycle's climax.
 - **Crowd photographer.** A specific NPC type with a camera who occasionally crouches and "takes a photo" of Zerble (small flash sprite). Pure animation + a brief emissive pop. Builds the festival-vibe story.
 - **Real lake reflections via `Reflector`.** An earlier procedural "twinkly stars" shader patch on the water surface looked like fake sparkles fading in/out — not reflection physics. Removed in favor of plain water for now. A proper Reflector (`three/examples/jsm/objects/Reflector`) would render the scene from the mirrored camera into a texture and sample it from the water surface — actual mirror of sky + stars + moon + nearby objects. Cost is roughly a second scene render whenever the player can see a lake; would gate to high tier only, and possibly half-res target + nightness-driven wet/dry mix so it only matters when reflections matter.
+
+---
+
+## Settings / accessibility
+
+- **Player-facing Settings + accessibility MVP.** *(flagged 2026-06-21, external repo
+  review)* The game now has a lot a player can't currently tune or opt out of:
+  star-power flashes, the wook trip warp, bloom, MIDI/procedural music, and audio
+  whose only controls are the hidden sandbox sliders. For a live public game this is
+  the responsible gap to close. A small visible Settings panel (gear icon → DOM
+  overlay, no three.js cost) covering: **master / music / SFX volume** (wire to the
+  existing `Sound` buses), **reduced motion** (damp or skip the trip warp +
+  screen-shake + the heaviest star-power strobing — there's already a `WARN` blink
+  envelope to hook), and a **colorblind-safe option for the lost-smile cue** (don't
+  rely on red/green alone — add a shape/icon tell). Persist to `localStorage`. Keep
+  it off the title card's calibrated copy; a gear in a HUD corner is enough.
 
 ---
 
