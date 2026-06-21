@@ -136,6 +136,8 @@ export function tickParasolMarshal(model, dt) {
   if (!body) return;
   const u = model.userData;
   const t = performance.now() * 0.004 + u.bobPhase;
-  body.position.y = 0.85 + Math.abs(Math.sin(t * 2)) * 0.08;
+  // Feet-on-ground rest (buildSimpleNPC is feet-at-zero); the old `0.85 +` base
+  // floated the marshal. Match bandMember.js.
+  body.position.y = Math.abs(Math.sin(t * 2)) * 0.08;
   if (u.parasol) u.parasol.rotation.y += dt * 2.4;
 }

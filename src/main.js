@@ -1537,6 +1537,57 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       return out;
     },
 
+    // Draw-call census of the LIVE scene graph — names WHAT to instance/merge.
+    // B0 (the backtick HUD / perf log) reports the true per-frame draw COUNT;
+    // this reports the COMPOSITION: it walks every visible rendered mesh and
+    // buckets it by geometry fingerprint and by material, so the dominant draw
+    // sources name themselves. A shared geometry drawn hundreds of times is an
+    // InstancedMesh candidate; a pile of unique (drawn-once) geometries sharing a
+    // material is a geometry-merge candidate. Scene-graph census = PRE-frustum,
+    // so it over-counts vs renderer.info (which is post-cull) — read it for the
+    // RATIO between kinds, not as the exact frame number. READ-ONLY.
+    // Drive to a dense hub, park, then call. Pass {top} to widen the lists.
+    drawCensus({ top = 20 } = {}) {
+      let meshes = 0, instanced = 0, instancedInstances = 0;
+      const geo = new Map();   // fingerprint -> { draws, instances, shared, type, verts, mat }
+      const mat = new Map();   // matName    -> { draws, shared, transparent, type }
+      scene.traverse((o) => {
+        if (!o.visible) return;
+        const isI = o.isInstancedMesh, isM = o.isMesh && !isI;
+        if (!isI && !isM) return;
+        if (isI) { instanced++; instancedInstances += o.count || 0; } else meshes++;
+        const g = o.geometry, m = Array.isArray(o.material) ? o.material[0] : o.material;
+        const verts = g?.attributes?.position?.count ?? 0;
+        const gShared = !!g?.userData?.shared;
+        const mName = (m && (m.name || m.type)) || 'none';
+        const fp = `${g?.type || 'Geo'}·${verts}v·${gShared ? 'shared' : 'uniq'}·${mName}${isI ? '·INST' : ''}`;
+        const ge = geo.get(fp) || { draws: 0, instances: 0, shared: gShared, type: g?.type, verts, mat: mName };
+        ge.draws++; if (isI) ge.instances += o.count || 0; geo.set(fp, ge);
+        const me = mat.get(mName) || { draws: 0, shared: !!m?.userData?.shared, transparent: !!m?.transparent, type: m?.type };
+        me.draws++; mat.set(mName, me);
+      });
+      const byDraws = (a, b) => b[1].draws - a[1].draws;
+      const topGeo = [...geo.entries()].sort(byDraws).slice(0, top)
+        .map(([fp, v]) => ({ what: fp, draws: v.draws, instances: v.instances || undefined, shared: v.shared }));
+      const topMat = [...mat.entries()].sort(byDraws).slice(0, top)
+        .map(([name, v]) => ({ material: name, draws: v.draws, shared: v.shared, transparent: v.transparent }));
+      // Merge candidates: unique (non-shared, drawn-once) geos grouped by material.
+      const mergeByMat = {};
+      for (const [, v] of geo) if (!v.shared && v.draws === 1) mergeByMat[v.mat] = (mergeByMat[v.mat] || 0) + 1;
+      const result = {
+        sceneDraws: meshes + instanced, meshes, instancedMeshes: instanced, instancedInstances,
+        note: 'scene-graph census, PRE-frustum (over-counts vs renderer.info). Ratios, not exact.',
+        topGeometriesByDraws: topGeo,
+        topMaterialsByDraws: topMat,
+        mergeCandidateUniqueGeosByMaterial: Object.fromEntries(
+          Object.entries(mergeByMat).sort((a, b) => b[1] - a[1]).slice(0, top)),
+      };
+      console.log('[drawCensus]', result.sceneDraws, 'scene draws —',
+        meshes, 'meshes +', instanced, 'instanced(', instancedInstances, 'instances). Top geo:');
+      console.table(topGeo);
+      return result;
+    },
+
     // Shader-program leak finder. `renderer.info.programs` is three.js's live
     // program cache; each entry's `.cacheKey` is the comma-joined list of every
     // parameter that forces a DISTINCT program (shaderID, defines, light counts,
@@ -1745,6 +1796,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · fillSeats(kind?) · rider(kind)',
         '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock() · topDown(x?,z?,span)   (pins a pose; overrides chase cam)',
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
+        '  draws:   drawCensus({top?})   (scene draw-call composition by geometry/material → names instance/merge targets)',
         '  hubs:    gotoHub(n) · showFootprints(on)   (teleport+frame nth-nearest hub; footprint/dancefloor overlay)',
         '  perf:    recordPerf(true|false) · perfLog()   (samples engine stats to a reload-proof JSON ring buffer; backtick → Perf log)',
         '           dumpPrograms({raw?})   (shader-program leak finder: groups renderer.info.programs by family + varying token)',

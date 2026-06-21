@@ -285,6 +285,7 @@
             <option value="forest_tree_oak">Forest tree — oak</option>
             <option value="forest_tree_birch">Forest tree — birch</option>
             <option value="forest_tree_random">Forest tree — random variety</option>
+<option value="forest_patch_instanced">Forest patch — instanced (CG3, the shipped path)</option>
             <option value="shrub">Shrub / bush (seam buffer + ground cover)</option>
             <option value="shrub_hedge">Shrub hedge (a row of 6)</option>
         </optgroup>
@@ -526,7 +527,7 @@ import {buildShrub} from './src/models/shrub.js';
         buildCampTent, buildCampChair, buildChiminea, buildTikiTorch, buildTorchField,
         buildEzUp, buildTapestry, buildCampsite, updateCampsiteProps,
     } from './src/models/campsite.js';
-    import {buildTallPine, buildOak, buildBirch, buildForestTree} from './src/models/tree.js';
+    import {buildTallPine, buildOak, buildBirch, buildForestTree, describeForestTree, buildForestInstanced} from './src/models/tree.js';
     import {buildBird, buildBirdFlock, BIRD_KEYS, BIRD_SPECIES} from './src/models/bird.js';
     import {buildBubbleJug} from './src/models/bubbleJug.js';
     import {buildBubbleVendor} from './src/models/bubbleVendor.js';
@@ -838,6 +839,7 @@ import {buildShrub} from './src/models/shrub.js';
         chiminea: 'firepit',
         forest_tree_pine: 'forest_tree', forest_tree_oak: 'forest_tree',
         forest_tree_birch: 'forest_tree', forest_tree_random: 'forest_tree',
+        forest_patch_instanced: 'forest_tree',
         lamppost_pair: 'lamppost',
         chunk_drum_circle: 'firepit',
         porta_potty: 'porta_potty', porta_potty_bank: 'porta_potty',
@@ -1836,6 +1838,29 @@ import {buildShrub} from './src/models/shrub.js';
                 entityRoot = g;
                 cam.target.set(0, 9, 0);
                 cam.dist = 32;
+                applyCam();
+                break;
+            }
+            // The CG3 instanced assembly — a small patch built through the SAME
+            // path the streaming world uses (descriptors → buildForestInstanced →
+            // ~5-6 InstancedMeshes by cast/no-cast bucket, colour via instanceColor).
+            // Eyeball this at Noon + Midnight against the per-mesh cases above to
+            // confirm the instanced trees match (greens, trunk taper, shadows).
+            case 'forest_patch_instanced': {
+                const g = new THREE.Group();
+                let s = 0x9e37 >>> 0;
+                const rnd = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+                const insts = [];
+                for (let i = 0; i < 18; i++) {
+                    const d = describeForestTree(rnd);
+                    const ang = rnd() * Math.PI * 2, rad = 3 + rnd() * 15;
+                    insts.push({ d, x: Math.cos(ang) * rad, z: Math.sin(ang) * rad, rotY: rnd() * Math.PI * 2 });
+                }
+                for (const m of buildForestInstanced(insts)) g.add(m);
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 9, 0);
+                cam.dist = 52;
                 applyCam();
                 break;
             }

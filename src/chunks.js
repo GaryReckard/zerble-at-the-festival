@@ -29,7 +29,7 @@ import { roadsInBounds, nearestRoad } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
-import { buildCampsite, buildCampChair, buildTorchField, buildCampTent } from './models/campsite.js';
+import { buildCampsite, buildCampChair, buildTorchField, buildCampTent, CAMPSITE_SCALE } from './models/campsite.js';
 import { buildTent } from './models/tent.js';
 import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
@@ -41,7 +41,7 @@ import { buildPicnicTable } from './models/picnicTable.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
 import { buildTentStage } from './models/tentStage.js';
-import { buildTree, buildForestTree, worldPerches, worldCrown } from './models/tree.js';
+import { buildTree, describeForestTree, buildForestInstanced, worldPerches, worldCrown } from './models/tree.js';
 import { buildShrub } from './models/shrub.js';
 import { leafBannerTextures } from './models/leafBanner.js';
 
@@ -382,7 +382,7 @@ export class ChunkManager {
     const isOriginChunk = (cx === 0 && cz === 0);
     const chunkSeed = isOriginChunk ? hash2(cx, cz) : worldHash(cx, cz);
 
-    // ── v2 worldgen path (USE_WORLDGEN_V2; default OFF while building → ?worldgen=1 to test) ──
+    // ── v2 worldgen path (USE_WORLDGEN_V2 — the SHIPPED DEFAULT, perf.js:42; ?worldgen=0 forces v1) ──
     // A SINGLE branch (R10): the legacy +-grid / pickTheme / THEME_BUILDERS /
     // 5x5 forests / path_node attractors do NOT co-run with v2. Built up across
     // Groups C (roads) / D (anchors+scatter) / F (trees) / G (crowd); Group B
@@ -1057,19 +1057,22 @@ function scatterWorldgenTrees(ctx) {
   // treed. Plan-side, fetched once, load-order-independent (see drumClearingsNear).
   const drumClears = drumClearingsNear(minX, minZ, minX + CHUNK_SIZE, minZ + CHUNK_SIZE);
   const placed = [];
+  const treeInstances = [];   // CG3: accumulate descriptors → per-chunk InstancedMeshes after the loop
   const placeTree = (x, z) => {
-    const tree = buildForestTree(rng);
-    tree.position.set(x, 0, z);
-    tree.rotation.y = rng() * Math.PI * 2;
-    ctx.group.add(tree);
+    // Same rng order as the old per-mesh path: builder stream (describe*) then the
+    // yaw draw. Registry entry is unchanged (registers off the descriptor via the
+    // dual-read worldPerches/worldCrown), so layout-snapshot stays byte-identical.
+    const d = describeForestTree(rng);
+    const rotY = rng() * Math.PI * 2;
+    treeInstances.push({ d, x, z, rotY });
     registry.add({
       kind: 'forest_tree',
       position: new THREE.Vector3(x, 0, z),
       footprint: 2.0,
       collider: { radius: 1.3, damage: 3 },
       chunkKey: ctx.key,
-      perches: worldPerches(tree, x, z),
-      crown: worldCrown(tree, x, z),
+      perches: worldPerches(d, x, z),
+      crown: worldCrown(d, x, z),
     });
     placed.push({ x, z });
   };
@@ -1169,6 +1172,10 @@ function scatterWorldgenTrees(ctx) {
     shrub.position.set(sx, 0, sz);
     ctx.group.add(shrub);
   }
+  // CG3: collapse this chunk's whole woods into ~5 InstancedMeshes (one per
+  // cast/no-cast bucket). Added to ctx.group → disposed with the chunk.
+  const treeMeshes = buildForestInstanced(treeInstances);
+  for (let i = 0; i < treeMeshes.length; i++) ctx.group.add(treeMeshes[i]);
 }
 
 // Is (x,z) inside any hub's oriented dancefloor rect? Project onto the rect's +F
@@ -1623,7 +1630,7 @@ function buildFoodCourtAt(ctx, x, z) {
       kind: 'picnic_table',
       position: new THREE.Vector3(tx, 0, tz),
       footprint: pt.footprint,
-      collider: { radius: 1.2, damage: 3 },
+      collider: { radius: 1.8, damage: 3 },   // scaled with the +50% table (was 1.2)
       attractor: { radius: 4, weight: 0.6 },
       tableSeats,
       chunkKey: ctx.key,
@@ -2499,12 +2506,12 @@ function placeCampsiteClump(ctx) {
 
   const siteCount = 3 + Math.floor(ctx.rng() * 4);   // 3-6 sites
   const placed = [];
-  const MIN_SPACING = 5;
+  const MIN_SPACING = 5 * CAMPSITE_SCALE;   // scales with the campsite size so bigger sites don't overlap
   for (let i = 0; i < siteCount; i++) {
     let chosen = null;
     for (let attempt = 0; attempt < 8; attempt++) {
       const a = ctx.rng() * Math.PI * 2;
-      const r = 4 + ctx.rng() * 6;
+      const r = (4 + ctx.rng() * 6) * CAMPSITE_SCALE;   // spread the clump with the campsite size
       const x = centre.x + Math.cos(a) * r;
       const z = centre.z + Math.sin(a) * r;
       // Spacing check vs prior placements
@@ -2570,7 +2577,7 @@ function buildCampVillage(ctx) {
 
   const target = 12 + Math.floor(ctx.rng() * 9);    // 12–20
   const placed = [];
-  const MIN_SPACING = 5.5;
+  const MIN_SPACING = 5.5 * CAMPSITE_SCALE;   // scales with the campsite size (camp village pack)
   // The four bordering paths run along x = cellX ± CHUNK_SIZE/2 and
   // z = cellZ ± CHUNK_SIZE/2 (i.e., the paths through the 4 surrounding
   // chunk centers). Keep campsites within ±RADIUS of the cell centre so

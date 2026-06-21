@@ -22,6 +22,8 @@ const BENCH_TOP = BENCH_Y + BENCH_T / 2;   // cushion surface — the seated-NPC
 const END_X = 0.7;         // the two A-frames sit inset from the ends
 const FOOT_Z = 0.78;       // leg feet splay out past the benches
 const TOP_UNDER = TOP_Y - TOP_T / 2;   // underside of the tabletop — where legs meet
+const TABLE_SCALE = 1.5;   // +50% (Gary). Applied to the merged geo + seats + footprint;
+                           // the chunks.js caller's collider radius + table min-spacing scale to match.
 
 // Plank oak (slight board-to-board variation) vs the darker structural pine frame.
 const OAK = [0x9c6b3f, 0x90602f, 0xa3714a];
@@ -73,6 +75,7 @@ for (const ex of [-1, 1]) {
 _parts.push(bakedBox(TABLE_LEN - 0.34, 0.06, 0.085, 0, TOP_UNDER - 0.07, 0, 0, PINE));
 
 const _TABLE_GEO = BufferGeometryUtils.mergeGeometries(_parts);
+_TABLE_GEO.scale(TABLE_SCALE, TABLE_SCALE, TABLE_SCALE);   // +50%; feet stay at y≈0 (scaled about origin)
 _TABLE_GEO.userData.shared = true;
 for (const g of _parts) g.dispose();   // the merge copied the data; free the temporaries
 
@@ -82,11 +85,12 @@ _WOOD_MAT.userData.shared = true;
 // The four bench seats (local frame), two per bench, facing the table — `y` is the
 // cushion height so a caller can sit an NPC butt-on-bench. Caller rotates these into
 // world space (see chunks.js picnic_table registration).
+// Scaled to match the +50% geometry so seated NPCs land butt-on-bench.
 const _SEATS = [
-  { x: -0.6, z: -BENCH_OFF, y: BENCH_TOP, yaw: 0 },
-  { x: 0.6, z: -BENCH_OFF, y: BENCH_TOP, yaw: 0 },
-  { x: -0.6, z: BENCH_OFF, y: BENCH_TOP, yaw: Math.PI },
-  { x: 0.6, z: BENCH_OFF, y: BENCH_TOP, yaw: Math.PI },
+  { x: -0.6 * TABLE_SCALE, z: -BENCH_OFF * TABLE_SCALE, y: BENCH_TOP * TABLE_SCALE, yaw: 0 },
+  { x: 0.6 * TABLE_SCALE, z: -BENCH_OFF * TABLE_SCALE, y: BENCH_TOP * TABLE_SCALE, yaw: 0 },
+  { x: -0.6 * TABLE_SCALE, z: BENCH_OFF * TABLE_SCALE, y: BENCH_TOP * TABLE_SCALE, yaw: Math.PI },
+  { x: 0.6 * TABLE_SCALE, z: BENCH_OFF * TABLE_SCALE, y: BENCH_TOP * TABLE_SCALE, yaw: Math.PI },
 ];
 
 export function buildPicnicTable(rng = Math.random) {
@@ -95,5 +99,5 @@ export function buildPicnicTable(rng = Math.random) {
   const table = new THREE.Mesh(_TABLE_GEO, _WOOD_MAT);
   table.castShadow = true;   // one caster for the whole table; reads as a distinct shadow
   group.add(table);
-  return { group, footprint: 1.4, seats: _SEATS };
+  return { group, footprint: 1.4 * TABLE_SCALE, seats: _SEATS };
 }

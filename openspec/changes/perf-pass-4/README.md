@@ -1,6 +1,6 @@
 # Make the festival run smooth — kill the freezes and the hitches
 
-> **Status:** <!--STATUS:LINE-->in progress · 14/29 tasks (48%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->in progress · 28/48 tasks (58%)<!--/STATUS:LINE-->
 >
 > _Plain-language summary of this change. A non-engineer should understand it; a junior dev should grasp it; a senior dev should be able to build an accurate mental model from this file alone._
 
@@ -53,9 +53,9 @@ See `design.md` for the technical "how".
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 14/29 tasks complete (48%) · current: 1.7
+**in progress** — 28/48 tasks complete (58%) · current: 7.4.1
 
-_Last updated: 2026-06-19_
+_Last updated: 2026-06-21_
 
 | Group | Progress |
 |---|---|
@@ -65,6 +65,7 @@ _Last updated: 2026-06-19_
 | 4. E1 — arrival curtain (gated on Slice-2 results) | 0/2 |
 | 5. Draw-call reduction — JUSTIFIED by the round-trip-1 capture (the real lever) | 2/7 |
 | 6. Docs + verification (per slice, not batched) | 4/4 ✅ |
+| 7. Slice 4 — forest-tree instancing (the real draw lever) | 14/19 |
 <!--/STATUS:AUTO-->
 
 ## Key Decisions

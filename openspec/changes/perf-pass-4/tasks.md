@@ -60,3 +60,162 @@ binding corrections folded in. See deliberations/001-perf-pass-4-plan/results.md
 - [x] 6.2 ROADMAP.md updated: added the full perf-pass-4 item set + the parked build-step/worker/compression cluster; reframed the *Out of scope* Bundler note (Gary relaxed no-build).
 - [x] 6.3 `bin/check-importmaps` OK (31 src + 12 worldgen + 28 models across 4 pages); `bin/test-registry-grid` PASS (36k queries). Recorded in session-log.
 - [x] 6.4 README status refreshed via `bin/readme-sync perf-pass-4` (Slice 1 boundary).
+
+## 7. Slice 4 — forest-tree instancing (the real draw lever)
+
+<!-- Folded from deliberations/003-forest-instancing/results.md (Tier-3 debate,
+"proceed with mitigations", unanimous). drawCensus at a dense hub named TREES as
+~half the scene's draws: IcosahedronGeometry·240v = 2,637 draws (oak/birch crowns)
++ ConeGeometry·35v = 2,120 (pine tiers) + a big share of ~3,700 cylinder draws
+(trunks), all un-instanced. tree.js pools foliage MATERIALS (_foliageMats, shared)
+but allocates GEOMETRY per tree → each crown/cone/trunk is its own draw. Instancing
+collapses ~344 draws/treed-chunk → ~5. This supersedes Section 5 (geometry-merge,
+falsified to ~2–4% by deliberation 002) as the primary draw lever. Change Groups
+CG1–CG4 map to subsections 7.1–7.4. -->
+
+> **Three traps the deliberation caught — read before coding.** (1) The shipped
+> path is **worldgen v2** (`DEFAULT_WORLDGEN_V2=true`, perf.js:42; v2 `return`s at
+> chunks.js:405). The live tree path is `scatterWorldgenTrees`/`buildForestTree`
+> (chunks.js:1036/1061), NOT the dead-by-default v1 `scatterForestTrees`
+> (forests.js:911, `?worldgen=0` only). Instrument v1 and the production census
+> moves by **zero**. (The chunks.js:385 "default OFF" comment is **stale** — trust
+> perf.js:42.) (2) `bin/layout-snapshot` is **visual-blind** — `dumpRegistry`
+> (main.js:1505-1515) emits 9 placement fields, dropping scale/color/species/
+> crown/perches, so a same-count rng *reorder* regenerates every forest + moves
+> bird perches with a green snapshot. A new golden-hash gate is mandatory.
+> (3) `InstancedMesh.castShadow` is all-or-nothing, so buckets MUST follow the
+> existing per-mesh cast lines or the 56-caster audit (#9) regresses.
+
+### 7.1 CG1 — determinism-gate precondition (agent-static, NO Gary round-trip)
+
+> Build the gate that can SEE a foliage-stream reorder, **before any builder is
+> touched**, so the golden is captured from `main`. Effort: small (~30-line gate +
+> ~6 shim stubs).
+
+- [x] 7.1.1 **Extend `bin/node-three-shim.mjs` FIRST (precondition).** It stubs
+  only `Vector3` today (node-three-shim.mjs:4-5); `tree.js` touches six THREE
+  classes at load+build: `CylinderGeometry`+`MeshStandardMaterial` at module scope
+  (tree.js:32,34) and `Group`,`Mesh`,`IcosahedronGeometry`,`ConeGeometry` in the
+  builders (tree.js:97,98,106,123). Add trivial no-op constructors — the gate
+  hashes rng-derived *numbers*, not geometry math. Without this, `import` of
+  tree.js throws under node and the gate can't run.
+- [x] 7.1.2 **Build `bin/test-forest-determinism`.** Reuse the loader pattern from
+  `bin/test-registry-grid:28-29` (`register('./node-three-shim.mjs')`), import the
+  REAL tree.js, run `buildForestTree(mulberry32(FIXED))` (or the CG2
+  `describeForestTree` sibling) N times, and golden-hash the full descriptor
+  stream: `type, trunkH, trunkR, greenIdx(→colorHex), mainR/baseR(→scale),
+  bumpCount/crownCount, every per-bump/crown/tier draw, rotation`. Asserts the
+  strict invariant — identical rng order AND count including the variable-length
+  loops (pine 5 draws, oak `5+3·bumpCount`, birch `4+3·crownCount`, + caller's
+  `rotation.y=rng()` last).
+- [x] 7.1.3 **Capture the golden from `main` BEFORE CG2 lands.** The refactor passes
+  iff the hash is unchanged. Converts the load-bearing check from a Gary round-trip
+  into an agent-static gate that runs every slice. (No importmap entry — it's a
+  `bin/` test, not a `src/` module.)
+
+### 7.2 CG2 — additive descriptor extraction (pure refactor, byte-identical, NO Gary round-trip)
+
+> Make tree.js emit descriptors WITHOUT changing the builders' return type. No
+> visual change ships here. Gate: golden-hash unchanged (7.1) + `node --check` +
+> `bin/check-model-dims` + game-boot smoke. Effort: small.
+
+- [x] 7.2.1 **Keep `buildForestTree`/`buildTallPine`/`buildOak`/`buildBirch`/
+  `buildTree` returning a real `THREE.Group`.** Add `describeForestTree(rng)`
+  siblings (or `group.userData.descriptor`) as the single rng-order source of
+  truth the Group builders route through. Protects the six sandbox cases
+  (sandbox.html:1148 `buildTree`, :1807/:1816/:1825/:1834 forest builders, :1904
+  `bird_in_tree` reads `tree.userData.perches`) AND the excluded lake call-sites
+  (lakes.js:537,713 do `tree.position.set`/`tree.scale.set`). Changing the return
+  type is the sandbox-pass/game-crash footgun running backwards.
+- [x] 7.2.2 **Descriptor MUST carry `crown`+`perches`.** Birds read these off the
+  registry entry, never the mesh (birds.js:157-169) — so registration must populate
+  them from the descriptor or forest birds **silently stop perching** (no error).
+  Refactor `worldPerches`/`worldCrown` (tree.js:84-94) to take the descriptor (or
+  its perches/crown + x/z); compute perch/crown once in a shared helper both paths
+  call.
+- [x] 7.2.3 **rng order is non-negotiable.** Emit fields in the descriptor literal
+  WITHOUT reordering draws: do NOT draw `greenIdx` before `trunkH`/`trunkR` (it's
+  3rd today, tree.js:174/211/255), do NOT hoist the bump/crown loop draws, do NOT
+  "compute scale once at the top" (moves `mainR`/`baseR` ahead of `greenIdx`). The
+  7.1 golden-hash proves it held.
+
+### 7.3 CG3 — instance the two isolated-stream forest paths (the production win)
+
+> Build per-chunk `InstancedMesh`es from descriptors. Slice = BOTH isolated-stream
+> paths via one refactor: chunks.js:1061 (v2, production-default, **lead**) +
+> forests.js:911 (v1, rides the shared `buildForestTree` emitter for free). v2 is
+> non-skippable. Gates: golden-hash unchanged + `bin/layout-snapshot` clean
+> (positions) + game-boot smoke (agent). **Gary round-trip:** draw census +
+> `?perf=low/mid` tri budget + Noon/Midnight screenshots. Effort: medium.
+
+- [x] 7.3.1 **Accumulate descriptors per chunk; build into `ctx.group`** for both
+  paths. Both scatterers `ctx.group.add(tree)` (forests.js:914, chunks.js:1064) and
+  register `chunkKey: ctx.key` (forests.js:925, chunks.js:1070). The 3×3 forest is
+  a placement concept, not ownership — each of the 9 chunks owns its own trees/
+  group/chunkKey. Per-chunk is the lifecycle home.
+- [x] 7.3.2 **~5 buckets/chunk, boundary = the cast/no-cast line** (not color).
+  `InstancedMesh.castShadow` is one boolean for all instances; today's casting is
+  selective within a tree, so buckets MUST equal the existing per-mesh lines:
+  `crown_caster` (oak main tree.js:217 + lowest birch puff :271), `crown_noshadow`
+  (oak bumps :222-232 + upper birch puffs), `cone_caster` (lowest pine tier :185
+  `i===0`), `cone_noshadow` (upper pine tiers), `trunk` (all cast :167,207,251).
+  **Reject "just cast the whole crown bucket"** — over-casts and walks back the
+  115→56 audit (#9).
+- [x] 7.3.3 **Use `instanceColor`, NOT green-bucket meshes.** Color → per-instance
+  attribute, one base `MeshStandardMaterial`, ~5 buckets total (vs ~28 to keep
+  green-bucketing shadow-faithful). `instanceColor` ⊥ shadow casting (depth pass
+  ignores color) — one extra **cached** program (`USE_INSTANCING_COLOR`), amortized,
+  NOT the recompile-storm footgun. Gary live-verifies it renders under the low-tier
+  threeShim Lambert swap (#2).
+- [x] 7.3.4 **Module-shared unit geos tagged; per-chunk InstancedMeshes NOT tagged.**
+  Hoist `IcosahedronGeometry(1,1)`, `ConeGeometry(1,1,8)`, unit trunk cylinder to
+  module scope in tree.js, tag each `userData.shared=true` (like _trunkGeo/
+  _foliageMats, tree.js:32-54). Do NOT tag the per-chunk InstancedMeshes — they
+  dispose per chunk. Disposal is already correct: `disposeChunkByKey`
+  (chunks.js:553-565) skips shared geo at :556 and frees instance buffers via
+  `if (obj.isInstancedMesh) obj.dispose()` at :563. Untagged unit geo = first
+  forest-chunk unload disposes it → recompile storm (#6).
+- [x] 7.3.5 **`instanceMatrix.needsUpdate=true` (and `instanceColor.needsUpdate=true`)
+  after the per-chunk fill** (#7). Trees are static → set-once; forgetting it
+  renders the chunk empty/frozen.
+- [x] 7.3.6 **Per-chunk granularity — reject per-forest-block.** Per-block (240m)
+  needs a lake-style macrocell lifecycle outliving all 9 chunks and its 9→3 draw
+  saving is rounding error; per-chunk's small bounding spheres keep off-screen
+  chunks culled as units (mandatory for the low-tier tri budget). Consider fixing
+  the stale chunks.js:385 comment in this commit.
+
+### 7.4 CG4 — quality gates + measurement + docs
+
+> Agent-static gates the agent owns + the GPU-only confirmations that are Gary's.
+
+- [ ] 7.4.1 **Agent-static (every slice):** `node --check` tree.js/chunks.js/
+  forests.js; `bin/test-forest-determinism` golden unchanged (7.1); `bin/layout-snapshot`
+  self-diff clean for tree *positions*; `bin/check-model-dims`; `bin/check-importmaps`;
+  **clean game-boot on the DEFAULT build** (no `?worldgen`) — title→start→
+  `preview_console_logs` clean. `buildWorld→ChunkManager._generate→_generateWorldgen→
+  scatterWorldgenTrees` is the longest-call-chain boot-bug zone.
+- [ ] 7.4.2 **Gary — draw census (success proof):** default-build `__dbg.drawCensus()`
+  before/after; success = the icosa·240v + cone·35v buckets collapse from thousands
+  toward low hundreds pre-frustum. Run on the default v2 build, NO `?worldgen=` flag.
+- [ ] 7.4.3 **Gary — `?perf=low` tri budget (HARD ship-gate):** instancing defeats
+  per-tree intra-chunk cull, so a partially-visible chunk pulls all its trees' tris.
+  Worst case ~100k tree tris vs the 150k low budget (~67%) — tight. Confirm
+  `?perf=low` and `?perf=mid` stay under budget in a dense-forest frame. Meaningful
+  only AFTER the golden passes. Keep `forestTreeDensityMul=0.7` on low (perf.js:66)
+  — load-bearing; don't raise it because "draws got cheap."
+- [ ] 7.4.4 **Gary — geometries-leak check:** drive in/out of a forest 5× (or
+  hub-sandbox); `renderer.info.memory.geometries` returns to baseline. Climbing =
+  an untagged unit geo or a per-chunk InstancedMesh wrongly tagged shared / not under
+  the disposed chunk group.
+- [ ] 7.4.5 **Gary — forest birds still perch:** `__dbg.start()`, fly to a forest,
+  confirm birds land (the `bird_in_tree` sandbox case only proves the model, not the
+  registry wiring).
+- [x] 7.4.6 **Sandbox:** keep the Group-returning builders so `forest_tree_*` +
+  `bird_in_tree` (sandbox.html:1806-1834,:1904) still render; add ONE
+  instanced-forest-patch composite case so the *instanced* assembly is eyeballable
+  at Noon + Midnight (extend the harness before bypassing it).
+- [x] 7.4.7 **CHANGELOG `### Performance` entry in the shipping commit; trim the
+  ROADMAP "Performance" item** (LOD-on-trees / variant-bucketed-InstancedMesh
+  bullet) to what landed. If a dense-low tri capture pushes past ~110-120k, the
+  parked LOD/detail-0-icosa fallback (20 tris vs 80) is the follow-up — already on
+  ROADMAP; don't pre-build it.

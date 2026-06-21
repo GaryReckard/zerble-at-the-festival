@@ -632,6 +632,15 @@ const SIZE_CONFIG = {
   large:  { radius: 8, tents: 3, ezUps: [1, 2], torches: 4, tapestries: 2, chairs: [3, 4] },
 };
 
+// Scattered campsites read dollhouse-small because the props (tent/tapestry/tiki
+// torch/EZ-up) are built at a fixed native size — only the LAYOUT radius scaled
+// per size. This scales the WHOLE assembled vignette (props AND spread) uniformly.
+// The footprint scales with it (below); the two hardcoded clump/village spacings
+// (chunks.js placeCampsiteClump + camp_village) import this so bigger campsites
+// don't overlap, and the footprint-driven sites (lakes/forests) auto-follow.
+// One knob — dial it if 2× reads too big or spreads forests too sparse. (Gary)
+export const CAMPSITE_SCALE = 2;
+
 function pickCount(spec, rng) {
   if (typeof spec === 'number') return spec;
   // [min, max] inclusive
@@ -751,10 +760,15 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
     placeAt(tap.group, cfg.radius * 0.95, theta, false);
   }
 
+  // Scale the whole vignette (props + their polar layout) uniformly. Props sit
+  // at y=0 so they stay grounded under scale; the footprint grows to match so
+  // collision/placement guards space the bigger campsites correctly.
+  root.scale.setScalar(CAMPSITE_SCALE);
+
   return {
     group: root,
     animatables,
-    footprint: cfg.radius + 2,
+    footprint: (cfg.radius + 2) * CAMPSITE_SCALE,
   };
 }
 

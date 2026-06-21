@@ -51,33 +51,6 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
   Verify off the perf-log recorder + a DevTools trace (not the draw/tri HUD —
   green and never the bottleneck), at `?perf=low` AND `?perf=high`.
 
-- **Marching brass band floats ~0.85m above the ground.** *(found 2026-06-07)*
-  Both the band members **and** the grand marshal float — same root cause in two
-  files. The per-frame marching bob sets the figure's body group to
-  `body.position.y = 0.85 + Math.abs(Math.sin(t*2))*0.08`
-  ([bandMember.js:176](src/models/bandMember.js#L176) and the identical line in
-  [parasolMarshal.js:139](src/models/parasolMarshal.js#L139)). But
-  `buildSimpleNPC` is anchored **feet-at-zero**: `_LEG_GEO` is a 0.65-tall
-  cylinder centered at y=0.32 ([puppet.js:183](src/models/puppet.js#L183),
-  [puppet.js:202](src/models/puppet.js#L202)) → leg bottom ≈ 0, head at 1.65,
-  hat at 2.05. So the `0.85 +` base offset lifts the entire figure (legs and
-  all) ~0.85m off the deck the instant the bob animation starts. Regular crowd
-  NPCs use the same model at `pos.y = 0` and sit correctly
-  ([crowd.js:1187](src/crowd.js#L1187)), confirming feet belong at 0.
-  - **The fix is a one-liner per file:** drop the `0.85 +` base so the bob rides
-    from a feet-on-ground rest — `body.position.y = Math.abs(Math.sin(t*2))*0.08`
-    (feet hop 0→0.08, a proper marching step).
-  - **Bonus alignment win:** the drum / sax / drumstick meshes are parented to
-    the *outer* group `g` (not `body`) at fixed heights authored for a
-    body-at-rest-0 figure (drum at y=1.2, sax at 1.35 —
-    [bandMember.js:100](src/models/bandMember.js#L100),
-    [bandMember.js:122](src/models/bandMember.js#L122)). Today the body floats
-    while those stay put, so the drummer's drum sits low relative to his torso.
-    Fixing the base to 0 re-seats the body against the instruments too.
-  - **Verify:** the band has sandbox entities — check `sandbox.html` band/marshal
-    cases at all four ToD presets (feet on the ground plane), then boot the main
-    game and confirm the marching unit walks on the deck.
-
 ---
 
 ## World generation (procedural map)
@@ -740,7 +713,7 @@ Attacks two measured symptoms (137–343 ms shader-compile stalls on hub entry;
 - **Slice 2 — queued (Gary-capture gated).** **A4** sliced shader reveal (≤1 GL program link/frame) + **A1** `compileAsync` prewarm at the title tap (after `Sound.init()`, through threeShim factories, never-dispose); **F1** dynamic bloom gating (single resolved predicate over tier + AdaptiveQuality + brightness); **F2** amortized shadow map — *scope-capped*: the debate found the sun shadow frustum re-anchors to the cart every frame (`world.js`), so it must use a movement-gated `needsUpdate` + single-owner cadence and only amortizes mid/high while ~stationary; **cut if B0 shows the depth pass isn't material**.
 - **Slice 3 — queued.** **C1-b** time-sliced chunk generation (phased deferral: collider-registering work stays synchronous, collider-free scatter defers under a shared per-frame governor, crowd-spawn last). **Hard merge-blocker:** a byte-identical registry-dump determinism diff across a multi-chunk concurrent-deferral neighbourhood.
 - **E1** "arriving at the festival" bloom curtain — gated on whether Slice 2 leaves a residual stall worth masking.
-- **Draw-call reduction (the real steady-state lever, per the round-trip-1 capture).** B0 revealed draws = median ~3,750 / max 9,232 vs a 400 budget — draw count is the ceiling. But **deliberation 002 found geometry-merge is only a ~2–4% cut** (food-court/camp-village are mostly already pooled/instanced; merge helps only the unique-geometry food-truck + sugar-shack). So the 12–23× overage needs a **bigger attack**, queued here: (1) **LOD / cross-cluster instancing of distant clusters** (the same tents/trucks/trees repeated across hubs are prime instancing candidates beyond ~60m); (2) **billboard-impostor far field** (perf-brainstorm E2/E4); (3) an **honest look at whether the 400-draw high-tier budget is realistic for v2 worldgen**, or whether v2 simply draws more than v1 and the budget should move. The scoped geometry-merge (food-truck + sugar-shack, `src/mergeDecor.js`) is in flight as a modest first cut + reusable infra (perf-pass-4 Task 5.2).
+- **Draw-call reduction (the real steady-state lever, per the round-trip-1 capture).** B0 revealed draws = median ~3,750 / max 9,232 vs a 400 budget — draw count is the ceiling. **Slice 4 SHIPPED 2026-06-21 (see CHANGELOG):** forest-tree per-chunk instancing — trees were ~half the dense-hub draws (a `drawCensus` finding), now ~344 per-tree draws/chunk → ~5–6 `InstancedMesh`es. **Deliberation 002 separately found geometry-merge is only a ~2–4% cut** (food-court/camp-village are mostly already pooled/instanced; merge helps only the unique-geometry food-truck + sugar-shack). Remaining attack on the residual overage: (1) **LOD / cross-cluster instancing of the non-tree repeated clusters** (the same tents/trucks repeated across hubs, prime candidates beyond ~60m); (2) **billboard-impostor far field** (perf-brainstorm E2/E4); (3) an **honest look at whether the 400-draw high-tier budget is realistic for v2 worldgen** once trees are instanced, or whether the budget should move. Follow-up if a dense-low tri capture pushes past ~110–120k: a detail-0 icosa LOD (20 tris vs 80) for the instanced crowns. The scoped geometry-merge (food-truck + sugar-shack, `src/mergeDecor.js`) remains parked as a modest cut + reusable infra (perf-pass-4 Task 5.2).
 - **Tier-2 secondary (gated behind B0 numbers):** fog-as-far-cull; the cut-on-evaluation atmosphere fakes (billboard light shafts, faked lake reflections, adaptive sparkle) + crowd LOD.
 
 ### Build step — now on the table for perf *(parked, evidence-gated, 2026-06-19)*
