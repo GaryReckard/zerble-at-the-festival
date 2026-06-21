@@ -1,5 +1,13 @@
 {
   "dependencies": {
     "headroom-ai": "^0.22.4"
+  },
+  "scripts": {
+    "check": "bin/check-importmaps && bin/check-model-dims && bin/test-registry-grid && bin/test-forest-determinism",
+    "check:imports": "bin/check-importmaps",
+    "check:dims": "bin/check-model-dims",
+    "test:registry": "bin/test-registry-grid",
+    "test:forest": "bin/test-forest-determinism",
+    "lint:layout": "bin/lint"
   }
 }
