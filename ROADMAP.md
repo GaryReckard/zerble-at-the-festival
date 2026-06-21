@@ -74,19 +74,13 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
 
 The 2D map sandbox + `src/worldgen/` generator shipped 2026-06-06 (a render-agnostic,
 deterministic layout brain: hearts → roads → lobed lakes → organic gap-fill forests;
-see OpenSpec `procedural-map-generator`). It is **not yet wired into the live game.**
-What's queued, roughly in order:
+see the archived OpenSpec `procedural-map-generator`). It **shipped as the live default
+(v2 worldgen) on 2026-06-16** — `DEFAULT_WORLDGEN_V2 = true` (`perf.js:42`); `?worldgen=0`
+forces the legacy v1 world (escape hatch, slated for removal). The 3D wire-in (per-point
+placement from role tier + heart rank + `facing` + `noBuild`, replacing the v1 per-chunk
+`+`-grid) and the festival zone grammar both landed — see archived changes
+`v2-worldgen-3d-integration` + `festival-zone-grammar`. What's still queued:
 
-- **Wire the generator into the live 3D world as v2 worldgen.** This **replaces**
-  the per-chunk `+`-path grid in `chunks.js` and the placement in `lakes.js` /
-  `forests.js` (not an additive fourth water/forest system). It's a deliberate,
-  world-regenerating break (footgun #4) — themes (stages, food trucks, vendor rows,
-  porta-potty banks, campsites) get placed *per-point* from the generator's role
-  tier + heart rank + `facing` + `noBuild`, which structurally kills the
-  stages-on-roads bug and keeps actual structures off the water. Every new
-  `src/worldgen/*` module must be added to BOTH `index.html` and `sandbox.html`
-  importmap arrays at wire-in. Re-run the determinism golden-hash on Safari/Firefox
-  then (Math transcendental divergence is the cross-engine risk).
 - **Rivers + bridges.** Cut from the 2D prototype on determinism grounds
   (river-around-heart avoidance can depend on a heart outside the local window →
   could violate "never through a heart core"); the contract fields

@@ -18,7 +18,7 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 
 ## Features
 
-- **An infinite festival.** Chunks generate around you as you drive. Every chunk picks a theme — main stage, food plaza, vendor row, drum circle, grove, lawn — laid out deterministically from its grid coordinates, so the world feels designed but never runs out.
+- **An infinite festival.** The world streams in around you as you drive — a procedural generator lays out festival hubs (main stages, food courts, vendor rows, drum circles), roads, lakes, and forests deterministically from the seed, so it feels designed but never runs out.
 - **A living crowd.** NPCs have personalities (curiosity, skittishness, social, talkative). They wander, watch, approach, panic, and ride along. Make eye contact, blow bubbles past them, they smile.
 - **A real day/night cycle.** Dawn → noon → dusk → midnight, on a tunable loop. Stage lights and tiki torches kick in after sundown. The sky shifts. The drum circles get louder when the dark settles.
 - **Procedural sound.** No audio files. The engine drone, collision thuds, bicycle bell, clown horn, brass band, drum circles, and crackling campfires are all synthesized at runtime in Web Audio.
@@ -66,7 +66,7 @@ Then visit `http://127.0.0.1:8765`.
 - [three.js](https://threejs.org) for rendering (loaded via CDN through the importmap).
 - Web Audio API for everything you hear.
 - Vanilla DOM for the HUD.
-- ~25 source files, all hand-rolled, all hot-editable.
+- ~70 source files, all hand-rolled, all hot-editable.
 
 ## Performance tiers
 
