@@ -2,6 +2,14 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-06-22
+
+### Performance
+- **Tablets now boot at the `low` tier instead of `mid` — fixes iPad lag.** The perf classifier sent any touch device with a big screen to `mid` (shadows on, pixelRatioCap 1.5, crowd 320, chunkLoadRadius 2), which ran laggy on iPad — `?perf=low` was visibly smoother. Root cause: this engine is **draw-bound** (B0 profiling: ~3.7k median / 9.2k peak draws vs a 400 budget), and the `mid`→`low` delta that actually cuts draws is *density* — `chunkLoadRadius` 2→1 and `crowdMax` 320→180 — not the fill-rate knobs (pixel ratio, bloom) that `AdaptiveQuality` sheds. So a tablet booted at `mid` could never recover into a smooth frame by ramping down; only a lower *start* does it. `AdaptiveQuality` still runs on top of `low` to shed further (`pixel-50` / `cheap-bubs`) for the weaker tablet tail, and capable iPad Pros lose little — the festival carries its look on emissive + bloom, so shadows-off barely reads and crowd 180 vs 320 is imperceptible at radius-1 view range. ([perf.js](src/perf.js))
+
+### Fixed
+- **Mobile title card no longer flashes desktop-then-touch on slow loads.** On iPad the title card painted in keyboard-controls mode and only swapped to touch-controls mode once the ~70-file module graph + CDN three.js finished loading and `touch.js` added `body.is-touch` — slow enough that players watched it relayout ("desktop title card, THEN mobile title card"). A `@media (pointer: coarse)` rule now resolves the same signal `touch.js` uses, but before first paint, so the correct controls list shows immediately. The JS `is-touch` class still drives the in-game touch overlay. ([styles.css](styles.css))
+
 ## 2026-06-21
 
 ### Added

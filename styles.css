@@ -432,6 +432,19 @@ body.is-touch .controls-touch {
   display: flex;
 }
 
+/* First-paint correctness for the title-card controls swap. `body.is-touch`
+   is added by JS in touch.js install(), which can't run until the ~70-file
+   module graph + CDN three.js finish loading — slow enough on iPad that the
+   player watches the card render in keyboard mode, then relayout to touch mode
+   ("desktop title card, THEN mobile title card"). This media query resolves
+   the same `(pointer: coarse)` signal touch.js uses, but before first paint,
+   so the correct controls list shows immediately. The JS class still drives
+   the in-game #touch-controls overlay (it also needs .game-started). */
+@media (pointer: coarse) {
+  .controls-kbd { display: none; }
+  .controls-touch { display: flex; }
+}
+
 .tag-key {
   display: inline-block;
   background: rgba(255, 246, 230, 0.08);

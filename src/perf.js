@@ -23,8 +23,17 @@ function detect() {
   // Touch + small screen = phone. Treat as low-end by default; iPhones lie
   // about deviceMemory so we can't trust it on iOS.
   if (isTouch && smallScreen) return 'low';
-  // Touch + big screen = tablet. Better than phone, worse than desktop.
-  if (isTouch) return 'mid';
+  // Touch + big screen = tablet → also 'low'. iPads booted 'mid' and ran
+  // laggy: this engine is draw-bound (B0 profiling: ~3.7k median / 9.2k peak
+  // draws vs a 400 budget), and the mid→low delta that actually cuts draws is
+  // density — chunkLoadRadius 2→1 + crowdMax 320→180 — NOT the fill-rate knobs
+  // (pixel ratio, bloom) that AdaptiveQuality sheds. So a tablet that boots
+  // 'mid' can never recover into a smooth frame by ramping down; only a lower
+  // START does it. AdaptiveQuality still runs on top of 'low' to shed further
+  // (pixel-50 / cheap-bubs) for the weaker tablet tail. Capable iPad Pros lose
+  // little: the festival carries its look on emissive + bloom, so shadows-off
+  // barely reads and crowd 180 vs 320 is imperceptible at radius-1 view range.
+  if (isTouch) return 'low';
   // Anemic desktop (cheap laptops, old machines).
   if (cores <= 2 || mem <= 2) return 'mid';
   return 'high';
