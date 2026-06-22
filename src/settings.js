@@ -55,7 +55,7 @@ export const Settings = {
     this.applyBootOverrides();
     bootSnap = {
       tier: lsGet(K.tier) || 'auto',
-      shadowInfra: !!PERF.shadows,   // booted shadow-map state (reload to change)
+      shadows: lsGet(K.shadows) || 'auto',   // booted shadows choice (reload to change)
       context: !!PERF.contextLights,
       fancy: !!PERF.fancyLights,
     };
@@ -122,10 +122,10 @@ export const Settings = {
                 <p class="settings-hint">Auto lets the game ease these down to stay smooth. Pin Off or On to take control.</p>
                 ${triRow('set-glow', 'Glow', 'soft light bloom at night')}
                 ${triRow('set-bubbles', 'Detailed bubbles', 'shinier, costlier bubbles')}
-                ${triRow('set-shadows', 'Shadows', 'cast shadows on the ground')}
               </div>
               <div class="settings-section">
-                <div class="settings-section-label">Extra lights <span class="settings-reload-note">reload to apply</span></div>
+                <div class="settings-section-label">Shadows &amp; lights <span class="settings-reload-note">reload to apply</span></div>
+                ${triRow('set-shadows', 'Shadows', 'cast shadows on the ground')}
                 ${toggleRow('set-context', 'Warm extra lights', 'firepits &amp; lamps glow for real')}
                 ${toggleRow('set-fancy', 'Extra detail lights', 'every torch &amp; bulb — heaviest')}
               </div>
@@ -193,11 +193,12 @@ export const Settings = {
       if (v === 'auto') lsDel(K.detailBubbles); else lsSet(K.detailBubbles, v);
     });
 
-    // --- Shadows tri-state. The pin is LIVE (governor won't auto-drop it); the
-    //     boot infrastructure (renderer shadow map) only needs a reload when it
-    //     differs from what booted — see _refreshApply. ---
+    // --- Shadows tri-state. Reload-required: the sun's castShadow, the shadow
+    //     map, and every material's shadow sampling are wired at boot from
+    //     PERF.shadows and can't be reconstructed live. The persisted choice is
+    //     applied on the next boot (perf.js + applyBootOverrides), where the
+    //     governor also picks up the pin so it won't auto-drop. ---
     bindTri($('#set-shadows'), (v) => {
-      AdaptiveQuality.setOverride('shadows', v === 'auto' ? null : v === 'on');
       if (v === 'auto') lsDel(K.shadows); else lsSet(K.shadows, v);
       this._refreshApply();
     });
@@ -246,7 +247,8 @@ export const Settings = {
     // Effects tri-states (Off / Auto / On)
     setTri($('#set-glow'), triValue(AdaptiveQuality.getOverride('bloom')));
     setTri($('#set-bubbles'), triValue(AdaptiveQuality.getOverride('bubbles')));
-    setTri($('#set-shadows'), triValue(AdaptiveQuality.getOverride('shadows')));
+    // Shadows reflects the persisted CHOICE (reload-required), not a live override.
+    setTri($('#set-shadows'), lsGet(K.shadows) || 'auto');
     // Extra lights (booted state)
     $('#set-context').checked = !!PERF.contextLights;
     $('#set-fancy').checked = !!PERF.fancyLights;
@@ -263,10 +265,9 @@ export const Settings = {
   _refreshApply() {
     const $ = (s) => $overlay.querySelector(s);
     const tierNow = ($('#set-quality input:checked') || {}).value || 'auto';
-    // Shadows needs a restart in exactly ONE case: forcing it On on a tier whose
-    // shadow map was never built at boot (low). Everything else about shadows —
-    // Off, Auto, and On where the map already exists (mid/high) — is live.
-    const shadowsNeedRestart = getTri($('#set-shadows')) === 'on' && !bootSnap.shadowInfra;
+    // Shadows is reload-required (can't be reconstructed live): any change from
+    // the booted choice needs a restart.
+    const shadowsNeedRestart = getTri($('#set-shadows')) !== bootSnap.shadows;
     const pending =
       tierNow !== bootSnap.tier ||
       shadowsNeedRestart ||
