@@ -285,6 +285,9 @@ function _setShadowsOn(scene, renderer, on) {
       state._castersTurnedOff = null;
     }
     renderer.shadowMap.enabled = true;
+    // Force the shadow map to re-render now that casters are back — don't wait
+    // on whatever it last cached (the empty map from when they were turned off).
+    renderer.shadowMap.needsUpdate = true;
   } else {
     // Collect every casting mesh + flip its flag off. Save the list so we
     // can flip them back on a future raise. Set `shadowMap.needsUpdate`

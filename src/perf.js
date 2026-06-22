@@ -135,17 +135,18 @@ const TABLE = {
 
 export const PERF = TABLE[profile];
 
-// Player shadow override (Settings → "Shadows & lights"; reload to apply). This
-// is a BOOT setting because shadows can't be reconstructed live: the sun light's
-// castShadow + shadow map + every material's shadow sampling are wired at boot
-// from PERF.shadows (world.js sun, main.js renderer, the per-tier material swap).
-// 'on' forces it on, 'off' forces it off, absent = tier default. The matching
-// runtime piece is the governor's per-effect pin (AdaptiveQuality shadows
-// override, set at boot from the same value) so a pinned-on shadow is never
-// auto-dropped under load.
-const _sh = lsGet('zerble.gfx.shadows');
-if (_sh === 'on') PERF.shadows = true;
-else if (_sh === 'off') PERF.shadows = false;
+// Player shadow override (Settings → Effects). Shadows are LIVE on a tier that
+// already has the shadow machinery (mid/high): the governor's per-effect pin
+// (AdaptiveQuality shadows override) adds and removes them with no reload —
+// adding is the symmetric inverse of the governor's own live removal.
+//
+// This boot flag covers ONLY the low-tier turn-on. On low the machinery ships
+// off (no sun caster, no shadow map, materials compiled without shadow sampling),
+// and that CAN'T be built live — it needs every material to recompile. So 'on'
+// forces the machinery on at boot. 'off' / Auto never DISABLE the machinery on a
+// shadow tier; they just hide shadows via the live pin, so the player can flip
+// back On without a restart.
+if (lsGet('zerble.gfx.shadows') === 'on') PERF.shadows = true;
 
 // Optional lighting upgrades — both off by default at every tier. The
 // per-fragment cost of additional dynamic lights is significant on most

@@ -55,7 +55,6 @@ export const Settings = {
     this.applyBootOverrides();
     bootSnap = {
       tier: lsGet(K.tier) || 'auto',
-      shadows: lsGet(K.shadows) || 'auto',   // booted shadows choice (reload to change)
       context: !!PERF.contextLights,
       fancy: !!PERF.fancyLights,
     };
@@ -122,10 +121,10 @@ export const Settings = {
                 <p class="settings-hint">Auto lets the game ease these down to stay smooth. Pin Off or On to take control.</p>
                 ${triRow('set-glow', 'Glow', 'soft light bloom at night')}
                 ${triRow('set-bubbles', 'Detailed bubbles', 'shinier, costlier bubbles')}
+                ${triRow('set-shadows', 'Shadows', 'cast shadows on the ground')}
               </div>
               <div class="settings-section">
-                <div class="settings-section-label">Shadows &amp; lights <span class="settings-reload-note">reload to apply</span></div>
-                ${triRow('set-shadows', 'Shadows', 'cast shadows on the ground')}
+                <div class="settings-section-label">Extra lights <span class="settings-reload-note">reload to apply</span></div>
                 ${toggleRow('set-context', 'Warm extra lights', 'firepits &amp; lamps glow for real')}
                 ${toggleRow('set-fancy', 'Extra detail lights', 'every torch &amp; bulb — heaviest')}
               </div>
@@ -193,13 +192,14 @@ export const Settings = {
       if (v === 'auto') lsDel(K.detailBubbles); else lsSet(K.detailBubbles, v);
     });
 
-    // --- Shadows tri-state. Reload-required: the sun's castShadow, the shadow
-    //     map, and every material's shadow sampling are wired at boot from
-    //     PERF.shadows and can't be reconstructed live. The persisted choice is
-    //     applied on the next boot (perf.js + applyBootOverrides), where the
-    //     governor also picks up the pin so it won't auto-drop. ---
+    // --- Shadows tri-state. LIVE on a tier that already has the shadow
+    //     machinery (PERF.shadows) — the governor pin adds/removes them with no
+    //     reload. On the low tier (no machinery) PERF.shadows is false, so the
+    //     live apply is skipped and the choice applies on the next boot (perf.js
+    //     forces the machinery on); _refreshApply surfaces that restart. ---
     bindTri($('#set-shadows'), (v) => {
       if (v === 'auto') lsDel(K.shadows); else lsSet(K.shadows, v);
+      if (PERF.shadows) AdaptiveQuality.setOverride('shadows', v === 'auto' ? null : v === 'on');
       this._refreshApply();
     });
 
@@ -265,9 +265,10 @@ export const Settings = {
   _refreshApply() {
     const $ = (s) => $overlay.querySelector(s);
     const tierNow = ($('#set-quality input:checked') || {}).value || 'auto';
-    // Shadows is reload-required (can't be reconstructed live): any change from
-    // the booted choice needs a restart.
-    const shadowsNeedRestart = getTri($('#set-shadows')) !== bootSnap.shadows;
+    // Shadows is live on a shadow-capable tier; the ONLY restart case is turning
+    // it On on the low tier, whose shadow machinery ships off and can't be built
+    // live (it needs every material to recompile).
+    const shadowsNeedRestart = getTri($('#set-shadows')) === 'on' && !PERF.shadows;
     const pending =
       tierNow !== bootSnap.tier ||
       shadowsNeedRestart ||
