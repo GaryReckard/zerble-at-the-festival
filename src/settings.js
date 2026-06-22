@@ -1,20 +1,27 @@
-// Player-facing Settings panel — graphics quality, effect overrides, and
-// volume. The SEOMatic "override" model: the game auto-detects a tier and a
-// runtime governor (AdaptiveQuality) keeps it smooth; the player can pin their
-// own quality and take manual control of effects, and the choices persist.
+// Player-facing Settings panel — a tabbed DOM overlay (no three.js cost) opened
+// by the title-card "Settings" link or the in-game gear.
 //
-// This is the PLAYER surface. The dev-only backtick overlay (debug.js) stays
-// hidden and keeps its god/collider/budget tools — only the perceptual quality
-// + audio knobs cross over here.
+// Tabs:
+//   Performance — graphics quality tier (SEOMatic-style override, reload to
+//     apply) + per-effect tri-state controls (Off / Auto / On) for the effects
+//     the adaptive-quality governor manages live (Glow, Detailed bubbles) +
+//     Advanced reload toggles (Shadows, extra lights).
+//   Sound        — Master / Music / SFX, wired to the existing Sound buses.
+//   Accessibility — reduced motion + colorblind cues (via the A11y module).
 //
-// Three kinds of control, by how they apply:
-//   * Live, instant      — Quality mode (governor on/off), Glow, Detailed
-//                          bubbles, the volume sliders.
-//   * Reload to apply     — Graphics quality tier (PERF is baked at boot),
-//                          Shadows + extra lights (boot flags; a live shadow
-//                          walk decays as new chunks stream in). These persist
-//                          immediately; the shared "Apply & restart" button
-//                          reloads when any differs from what booted.
+// The per-effect tri-state is the key model: "Auto" hands the effect to the
+// governor; "Off"/"On" pin it so the governor leaves THAT effect alone while
+// still managing pixel ratio + anything left on Auto to defend the frame rate.
+// The governor never fully stops. (AdaptiveQuality.setOverride / bloomAllowed /
+// effectiveCheap implement the per-effect respect.)
+//
+// Control kinds by how they apply:
+//   * Live, instant — quality mode tri-states (Glow, Detailed bubbles), volumes,
+//     accessibility toggles.
+//   * Reload to apply — the quality tier, Shadows, extra lights (PERF is baked
+//     at boot). These persist immediately; the shared "Apply & restart" button
+//     reloads when any differs from what booted — and preserves the live session
+//     (seed/position/score/juice) across the reload via captureState.
 
 import { PERF, DETECTED_TIER } from './perf.js';
 import * as AdaptiveQuality from './adaptiveQuality.js';
@@ -23,31 +30,26 @@ import { A11y } from './a11y.js';
 
 const K = {
   tier: 'zerble.perfOverride',
-  adaptive: 'zerble.gfx.adaptive',
-  bloom: 'zerble.gfx.bloom',
-  detailBubbles: 'zerble.gfx.detailBubbles',
-  shadows: 'zerble.gfx.shadows',
+  bloom: 'zerble.gfx.bloom',                 // 'on' | 'off' | absent(=Auto)
+  detailBubbles: 'zerble.gfx.detailBubbles', // 'on' | 'off' | absent(=Auto)
+  shadows: 'zerble.gfx.shadows',             // '1' | '0' | absent  (on/off, reload)
   context: 'zerble.contextLights',
   fancy: 'zerble.fancyLights',
 };
 
 const TIER_LABEL = { low: 'Low', mid: 'Medium', high: 'High' };
 const TIER_RANK = { low: 1, mid: 2, high: 3 };
-// Per-bus slider ceiling — 100% maps to this gain. Picked so the restored
-// defaults (master 0.55, music ~1.2, sfx 1.0) land at sensible mid positions.
 const VOL_MAX = { master: 1.0, music: 1.6, sfx: 1.5 };
 
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
 
-let refs = null;       // { bubbles }
+let refs = null;       // { bubbles, captureState }
 let bootSnap = null;   // reload-required settings as they booted
 let $overlay = null;
 
 export const Settings = {
-  // Called once at boot, AFTER AdaptiveQuality.install(). Applies any persisted
-  // overrides, then builds + wires the UI.
   init(opts) {
     refs = opts || {};
     this.applyBootOverrides();
@@ -61,18 +63,15 @@ export const Settings = {
     this._wire();
   },
 
-  // Re-apply the persisted LIVE overrides at boot. The reload-required ones
-  // (tier, shadows, lights) are already baked by perf.js reading localStorage;
-  // this handles the governor + its live knobs.
+  // Re-apply the persisted LIVE per-effect overrides at boot. The reload-required
+  // ones (tier, shadows, lights) are already baked by perf.js reading localStorage.
   applyBootOverrides() {
-    if (lsGet(K.adaptive) === '0') {
-      AdaptiveQuality.setEnabled(false);
-      const b = lsGet(K.bloom);
-      if (b !== null) AdaptiveQuality.setBloomAllowed(b === '1');
-      const db = lsGet(K.detailBubbles);
-      if (db !== null && refs.bubbles?.setCheapMaterial) {
-        refs.bubbles.setCheapMaterial(db === '0');   // detail off → cheap material
-      }
+    const b = lsGet(K.bloom);
+    if (b === 'on' || b === 'off') AdaptiveQuality.setOverride('bloom', b === 'on');
+    const db = lsGet(K.detailBubbles);
+    if (db === 'on' || db === 'off') {
+      AdaptiveQuality.setOverride('bubbles', db === 'on');
+      refs.bubbles?.setCheapMaterial?.(db === 'off');
     }
   },
 
@@ -80,7 +79,6 @@ export const Settings = {
   close() { if ($overlay) $overlay.classList.add('hidden'); },
 
   _build() {
-    // In-game gear (hidden until game-started, like the touch overlay).
     const gear = document.createElement('button');
     gear.id = 'settings-gear';
     gear.setAttribute('aria-label', 'Open settings');
@@ -95,55 +93,61 @@ export const Settings = {
       <div class="settings-card" role="dialog" aria-modal="true" aria-label="Settings">
         <button class="settings-close" aria-label="Close settings">&times;</button>
         <div class="settings-accent"></div>
-        <div class="settings-eyebrow">Settings</div>
-        <h2 class="settings-title">Graphics &amp; sound</h2>
-        <p class="settings-sub">Auto matches your device. Pin your own if you'd rather, or take manual control of the fancy bits.</p>
+        <h2 class="settings-title">Settings</h2>
 
-        <div class="settings-section">
-          <div class="settings-section-label">Graphics quality</div>
-          <div id="set-quality" role="radiogroup" aria-label="Graphics quality">
-            ${tierRow('auto', 'Auto')}
-            ${tierRow('low', 'Low')}
-            ${tierRow('mid', 'Medium')}
-            ${tierRow('high', 'High')}
+        <div class="settings-tabs" role="tablist">
+          <button class="settings-tab-btn active" data-tab="performance" role="tab">Performance</button>
+          <button class="settings-tab-btn" data-tab="sound" role="tab">Sound</button>
+          <button class="settings-tab-btn" data-tab="accessibility" role="tab">Accessibility</button>
+        </div>
+
+        <div class="settings-tab" data-tab="performance" role="tabpanel">
+          <div class="settings-cols">
+            <div class="settings-col">
+              <div class="settings-section">
+                <div class="settings-section-label">Graphics quality <span class="settings-reload-note">reload to apply</span></div>
+                <div id="set-quality" role="radiogroup" aria-label="Graphics quality">
+                  ${tierRow('auto', 'Auto')}
+                  ${tierRow('low', 'Low')}
+                  ${tierRow('mid', 'Medium')}
+                  ${tierRow('high', 'High')}
+                </div>
+              </div>
+            </div>
+            <div class="settings-col">
+              <div class="settings-section">
+                <div class="settings-section-label">Effects</div>
+                <p class="settings-hint">Auto lets the game ease these down to stay smooth. Pin Off or On to take control.</p>
+                ${triRow('set-glow', 'Glow', 'soft light bloom at night')}
+                ${triRow('set-bubbles', 'Detailed bubbles', 'shinier, costlier bubbles')}
+              </div>
+              <div class="settings-section">
+                <div class="settings-section-label">Advanced <span class="settings-reload-note">reload to apply</span></div>
+                ${toggleRow('set-shadows', 'Shadows', 'cast shadows on the ground')}
+                ${toggleRow('set-context', 'Warm extra lights', 'firepits &amp; lamps glow for real')}
+                ${toggleRow('set-fancy', 'Extra detail lights', 'every torch &amp; bulb — heaviest')}
+              </div>
+            </div>
+          </div>
+          <div class="settings-foot">
+            <button class="settings-apply" disabled>Apply &amp; restart</button>
+            <div class="settings-apply-note">Saved instantly. A reload applies quality, shadows &amp; lights — you'll pick up right where you left off.</div>
           </div>
         </div>
 
-        <div class="settings-section">
-          <div class="settings-section-label">Effects</div>
-          <div id="set-mode" role="radiogroup" aria-label="Effects mode" class="settings-modeswitch">
-            <button class="settings-mode" data-mode="auto">Auto<span>keeps it smooth</span></button>
-            <button class="settings-mode" data-mode="custom">Custom<span>I'll choose</span></button>
-          </div>
-          <div id="set-effects" class="settings-effects">
-            ${toggleRow('set-glow', 'Glow', 'soft light bloom at night')}
-            ${toggleRow('set-bubbles', 'Detailed bubbles', 'shinier, costlier bubbles')}
+        <div class="settings-tab is-hidden" data-tab="sound" role="tabpanel">
+          <div class="settings-section">
+            ${sliderRow('set-vol-master', 'Master')}
+            ${sliderRow('set-vol-music', 'Music')}
+            ${sliderRow('set-vol-sfx', 'Sound effects')}
           </div>
         </div>
 
-        <div class="settings-section">
-          <div class="settings-section-label">Advanced <span class="settings-reload-note">reload to apply</span></div>
-          ${toggleRow('set-shadows', 'Shadows', 'cast shadows on the ground')}
-          ${toggleRow('set-context', 'Warm extra lights', 'firepits &amp; lamps glow for real')}
-          ${toggleRow('set-fancy', 'Extra detail lights', 'every torch &amp; bulb — heaviest')}
-        </div>
-
-        <div class="settings-section">
-          <div class="settings-section-label">Sound</div>
-          ${sliderRow('set-vol-master', 'Master')}
-          ${sliderRow('set-vol-music', 'Music')}
-          ${sliderRow('set-vol-sfx', 'Sound effects')}
-        </div>
-
-        <div class="settings-section">
-          <div class="settings-section-label">Accessibility</div>
-          ${toggleRow('set-reduced-motion', 'Reduced motion', 'calm the strobes, warp &amp; pulses')}
-          ${toggleRow('set-colorblind', 'Colorblind-friendly cues', 'mark a lost smile by shape, not just colour')}
-        </div>
-
-        <div class="settings-foot">
-          <button class="settings-apply" disabled>Apply &amp; restart</button>
-          <div class="settings-apply-note">Saved instantly. A reload applies quality, shadows &amp; lights.</div>
+        <div class="settings-tab is-hidden" data-tab="accessibility" role="tabpanel">
+          <div class="settings-section">
+            ${toggleRow('set-reduced-motion', 'Reduced motion', 'calm the strobes, warp &amp; pulses')}
+            ${toggleRow('set-colorblind', 'Colorblind-friendly cues', 'mark a lost smile by shape, not just colour')}
+          </div>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -159,6 +163,12 @@ export const Settings = {
     $('.settings-close').addEventListener('click', () => this.close());
     $('.settings-backdrop').addEventListener('click', () => this.close());
 
+    // --- Tabs ---
+    $('.settings-tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.settings-tab-btn');
+      if (btn) this._setTab(btn.dataset.tab);
+    });
+
     // --- Graphics quality (reload) ---
     $('#set-quality').addEventListener('change', (e) => {
       const v = e.target.value;
@@ -166,23 +176,18 @@ export const Settings = {
       this._refreshApply();
     });
 
-    // --- Effects mode (live) ---
-    $('#set-mode').addEventListener('click', (e) => {
-      const btn = e.target.closest('.settings-mode');
-      if (!btn) return;
-      this._setMode(btn.dataset.mode);
+    // --- Glow tri-state (live, via the bloom-allow flag main.js honors) ---
+    bindTri($('#set-glow'), (v) => {
+      AdaptiveQuality.setOverride('bloom', v === 'auto' ? null : v === 'on');
+      if (v === 'auto') lsDel(K.bloom); else lsSet(K.bloom, v);
     });
 
-    // --- Glow (live, via the bloom-allow flag main.js honors) ---
-    $('#set-glow').addEventListener('change', (e) => {
-      AdaptiveQuality.setBloomAllowed(e.target.checked);
-      lsSet(K.bloom, e.target.checked ? '1' : '0');
-    });
-
-    // --- Detailed bubbles (live material swap) ---
-    $('#set-bubbles').addEventListener('change', (e) => {
-      refs.bubbles?.setCheapMaterial?.(!e.target.checked);
-      lsSet(K.detailBubbles, e.target.checked ? '1' : '0');
+    // --- Detailed bubbles tri-state (live material swap) ---
+    bindTri($('#set-bubbles'), (v) => {
+      AdaptiveQuality.setOverride('bubbles', v === 'auto' ? null : v === 'on');
+      const cheap = v === 'off' ? true : v === 'on' ? false : AdaptiveQuality.currentCheap();
+      refs.bubbles?.setCheapMaterial?.(cheap);
+      if (v === 'auto') lsDel(K.detailBubbles); else lsSet(K.detailBubbles, v);
     });
 
     // --- Advanced (reload boot flags) ---
@@ -208,35 +213,21 @@ export const Settings = {
     $('#set-reduced-motion').addEventListener('change', (e) => A11y.setReducedMotion(e.target.checked));
     $('#set-colorblind').addEventListener('change', (e) => A11y.setColorblind(e.target.checked));
 
-    // --- Apply & restart ---
+    // --- Apply & restart (preserves the live session across the reload) ---
     $('.settings-apply').addEventListener('click', () => {
-      if (!$('.settings-apply').disabled) location.reload();
+      if ($('.settings-apply').disabled) return;
+      const snap = refs.captureState?.();
+      if (snap) { try { sessionStorage.setItem('zerble.resume', JSON.stringify(snap)); } catch (e) {} }
+      location.reload();
     });
   },
 
-  _setMode(mode) {
-    const custom = mode === 'custom';
-    if (custom) {
-      AdaptiveQuality.setEnabled(false);
-      lsSet(K.adaptive, '0');
-      // Apply the panel's current glow/bubble choices the moment we take over.
-      const glow = $overlay.querySelector('#set-glow').checked;
-      const detail = $overlay.querySelector('#set-bubbles').checked;
-      AdaptiveQuality.setBloomAllowed(glow);
-      refs.bubbles?.setCheapMaterial?.(!detail);
-      lsSet(K.bloom, glow ? '1' : '0');
-      lsSet(K.detailBubbles, detail ? '1' : '0');
-    } else {
-      AdaptiveQuality.setEnabled(true);
-      lsDel(K.adaptive);
-      // Hand the live knobs back to the governor at its current level.
-      AdaptiveQuality.applyLevel(AdaptiveQuality.getLevel());
-    }
-    this._syncMode(custom);
+  _setTab(name) {
+    $overlay.querySelectorAll('.settings-tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+    $overlay.querySelectorAll('.settings-tab').forEach((p) => p.classList.toggle('is-hidden', p.dataset.tab !== name));
   },
 
-  // Reflect the live/persisted state into the controls. Run every time the
-  // panel opens so it never shows stale values.
+  // Reflect live/persisted state into the controls. Run every time the panel opens.
   _sync() {
     const $ = (s) => $overlay.querySelector(s);
     // Quality tier
@@ -244,10 +235,9 @@ export const Settings = {
     const r = $(`#set-quality input[value="${tier}"]`);
     if (r) r.checked = true;
     $('#set-quality-detected').textContent = 'detected: ' + (TIER_LABEL[DETECTED_TIER] || 'Low');
-    // Mode + effects
-    this._syncMode(lsGet(K.adaptive) === '0');
-    $('#set-glow').checked = AdaptiveQuality.bloomAllowed();
-    $('#set-bubbles').checked = lsGet(K.detailBubbles) !== '0';
+    // Effects tri-states (Off / Auto / On)
+    setTri($('#set-glow'), triValue(AdaptiveQuality.getOverride('bloom')));
+    setTri($('#set-bubbles'), triValue(AdaptiveQuality.getOverride('bubbles')));
     // Advanced (booted state)
     $('#set-shadows').checked = !!PERF.shadows;
     $('#set-context').checked = !!PERF.contextLights;
@@ -260,16 +250,6 @@ export const Settings = {
     $('#set-reduced-motion').checked = A11y.reducedMotion;
     $('#set-colorblind').checked = A11y.colorblind;
     this._refreshApply();
-  },
-
-  _syncMode(custom) {
-    const $ = (s) => $overlay.querySelector(s);
-    $('#set-effects').classList.toggle('is-locked', !custom);
-    $('#set-glow').disabled = !custom;
-    $('#set-bubbles').disabled = !custom;
-    $overlay.querySelectorAll('.settings-mode').forEach((b) => {
-      b.classList.toggle('active', b.dataset.mode === (custom ? 'custom' : 'auto'));
-    });
   },
 
   _refreshApply() {
@@ -303,6 +283,21 @@ function tierRow(value, label) {
     </label>`;
 }
 
+function triRow(id, label, sub) {
+  return `
+    <div class="settings-tri-row">
+      <div class="settings-tri-body">
+        <span class="settings-tri-label">${label}</span>
+        <span class="settings-tri-sub">${sub}</span>
+      </div>
+      <div class="settings-tri" id="${id}" role="radiogroup" aria-label="${label}">
+        <button type="button" data-v="off">Off</button>
+        <button type="button" data-v="auto">Auto</button>
+        <button type="button" data-v="on">On</button>
+      </div>
+    </div>`;
+}
+
 function toggleRow(id, label, sub) {
   return `
     <label class="settings-toggle-row">
@@ -320,6 +315,22 @@ function sliderRow(id, label) {
       <span class="settings-slider-label">${label}</span>
       <input type="range" id="${id}" min="0" max="100" value="60" class="settings-slider">
     </div>`;
+}
+
+// Map a per-effect override (null|true|false) to a tri-state control value.
+function triValue(ov) { return ov === null ? 'auto' : ov ? 'on' : 'off'; }
+
+function setTri(el, val) {
+  el.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.v === val));
+}
+
+function bindTri(el, onChange) {
+  el.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    setTri(el, btn.dataset.v);
+    onChange(btn.dataset.v);
+  });
 }
 
 function bindSlider(input, bus, apply) {

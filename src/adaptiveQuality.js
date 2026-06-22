@@ -179,22 +179,30 @@ export function tick(dt) {
 // adaptive-quality level. main.js ANDs this with an in-frame brightness check to
 // produce the single `bloomPass.enabled` write each frame. Defaults to the tier
 // setting before the first _apply (state.bloomAllowed undefined → not false).
+// Per-effect player overrides (Settings → tri-state Off / Auto / On). `null` =
+// Auto: the governor manages this effect. `true`/`false` = the player pinned it,
+// so the governor leaves THIS effect alone while still managing everything else
+// (pixel ratio first, plus any effect left on Auto) to defend the frame rate.
+// The governor itself never stops — there's no global "off" anymore.
+const overrides = { bloom: null, bubbles: null };
+export function setOverride(key, val) { if (key in overrides) overrides[key] = val; }
+export function getOverride(key) { return key in overrides ? overrides[key] : null; }
+
+// Glow: pinned value wins (still gated by tier capability); else the governor's
+// per-level decision. main.js's per-frame tick ANDs this with the brightness
+// gate and is the single owner of `bloomPass.enabled`.
 export function bloomAllowed() {
+  if (overrides.bloom !== null) return overrides.bloom && !!PERF.bloom;
   return !!PERF.bloom && state.bloomAllowed !== false;
 }
 
-// Player override (Settings → Custom): set the bloom-allow flag directly.
-// main.js's per-frame tick is the single owner of `bloomPass.enabled` and ANDs
-// this flag with the in-frame brightness gate — so this is the CORRECT way to
-// toggle glow from the panel; a raw `bloomPass.enabled = …` write gets clobbered
-// on the next frame. Re-enabling adaptive lets the governor's _apply reset it.
-export function setBloomAllowed(on) {
-  state.bloomAllowed = !!on;
+// "Use the cheap bubble material?" for a level, honoring the override. main.js
+// passes the current level's lvl object from onLevelChange; Settings reads the
+// current one when the player flips the control back to Auto.
+export function effectiveCheap(lvl) {
+  return overrides.bubbles !== null ? !overrides.bubbles : (lvl.bubbles === 'cheap');
 }
-
-// Is the runtime governor currently driving quality? false = the player pinned
-// a Custom effects set and we've stopped auto-adjusting.
-export function isEnabled() { return state.enabled; }
+export function currentCheap() { return effectiveCheap(QUALITY_LEVELS[state.level]); }
 
 function _apply(newLevel, avgMs) {
   const lvl = QUALITY_LEVELS[newLevel];

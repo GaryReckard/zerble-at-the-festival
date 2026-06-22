@@ -70,7 +70,26 @@ import { setSessionSeed, getSessionSeed } from './rng.js';
 // pickTheme + ChunkManager._generate) so spawn always feels the same;
 // everything else (lake placements, forest contents, neighbouring chunk
 // themes, music + drum seeds, Lurleen's starting position) re-rolls.
+// Resume snapshot — written by Settings' "Apply & restart" so a settings reload
+// drops the player back where they were (same seed/world, position, score,
+// juice) instead of a fresh spawn. sessionStorage so it survives the reload but
+// not a tab close; consumed (cleared) on read so a later manual reload is fresh.
+const __resume = (() => {
+  try {
+    const raw = sessionStorage.getItem('zerble.resume');
+    if (!raw) return null;
+    sessionStorage.removeItem('zerble.resume');
+    return JSON.parse(raw);
+  } catch (e) { return null; }
+})();
+
 (function initSessionSeed() {
+  // Resumed session: re-seed to the exact same world before anything generates.
+  if (__resume && __resume.seed != null) {
+    window.__seed = setSessionSeed(__resume.seed);
+    window.__seedInput = String(__resume.seed);
+    return;
+  }
   const params = new URLSearchParams(window.location.search);
   const raw = params.get('seed');
   let resolved;
@@ -322,6 +341,7 @@ if (USE_WORLDGEN_V2) {
 }
 
 const bubbles = new Bubbles();
+if (__resume && Number.isFinite(__resume.juice)) bubbles.juice = __resume.juice;
 scene.add(bubbles.mesh);
 
 // MIDI player — Tone.js loads lazily on the first M press so startup stays
@@ -380,6 +400,12 @@ StarPower.onEnd = () => {
 // ---------- World (sky/lights/ground/mountains + chunk manager) ----------
 // Zerble was already relocated to the spawn hub above, so preload around it (not
 // origin) — the title-card backdrop + __dbg.start() then open on a loaded spawn.
+// Resumed session: override the fresh-spawn placement with the saved spot so the
+// world preloads around where the player left off.
+if (__resume && Number.isFinite(__resume.x) && Number.isFinite(__resume.z)) {
+  zerble.position.set(__resume.x, 0, __resume.z);
+  if (Number.isFinite(__resume.heading)) zerble.heading = __resume.heading;
+}
 buildWorld(scene, crowd, zerble.position);
 
 // ---------- Lurleen (love interest, persistent across the world) ----------
@@ -488,8 +514,9 @@ scene.add(honkRing);
 let honkAge = 999;
 
 // ---------- HUD ----------
-let score = 0;
+let score = (__resume && Number.isFinite(__resume.score)) ? __resume.score : 0;
 HUD.loadBest();
+if (__resume) HUD.setSmiles(score);
 let running = false;
 
 // A bubble-less Zerble makes nearby NPCs frown — each frown costs a smile.
@@ -547,7 +574,7 @@ AdaptiveQuality.install({
   // day one. The optional-chain guard means Phase 3 just needs to add the
   // method — no change needed here.
   onLevelChange: (level, lvl, avgMs) => {
-    bubbles.setCheapMaterial?.(lvl.bubbles === 'cheap');
+    bubbles.setCheapMaterial?.(AdaptiveQuality.effectiveCheap(lvl));
     // Only the DOWN steps are the interesting field-perf signal (the budget
     // slipped on real hardware); recoveries back up are expected.
     if (level > _lastQualityLevel) Analytics.qualityDowngrade(level, avgMs ? 1000 / avgMs : 0);
@@ -562,7 +589,15 @@ AdaptiveQuality.install({
 // Accessibility prefs (reduced motion / colorblind cues) — resolve + apply body
 // classes before Settings reads them and before gameplay systems poll the flags.
 A11y.init();
-Settings.init({ bubbles });
+Settings.init({
+  bubbles,
+  // "Apply & restart" calls this to preserve a live session across the reload.
+  // Returns null on the title card (nothing to resume) → a fresh boot.
+  captureState: () => running
+    ? { seed: window.__seed, x: zerble.position.x, z: zerble.position.z,
+        heading: zerble.heading, score, juice: bubbles.juice }
+    : null,
+});
 
 // iOS Safari still fires deprecated GestureEvents for pinch — those can zoom
 // the page even with user-scalable=no. Swallow them so the canvas stays
@@ -574,6 +609,12 @@ Settings.init({ bubbles });
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 
 HUD.showTitle();
+// Resumed session: the title card still shows (iOS needs the tap to start audio),
+// but the button reads "Resume" — one tap drops the player back where they were.
+if (__resume) {
+  const _btn = document.getElementById('start-btn');
+  if (_btn) _btn.textContent = 'Resume';
+}
 HUD.onStart(() => {
   HUD.hideTitle();
   running = true;

@@ -946,3 +946,82 @@ body.reduced-motion #juice-meter.empty,
 body.reduced-motion #toast.tappable {
   animation: none;
 }
+
+/* ---------- Settings: tabbed layout ---------- */
+
+/* Wider than the single-column original so the tabs have room to breathe. */
+.settings-card { max-width: 600px; }
+
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 16px 0 2px;
+  border-bottom: 1px solid rgba(255, 246, 230, 0.1);
+}
+.settings-tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: rgba(255, 246, 230, 0.6);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 6px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.settings-tab-btn:hover { color: rgba(255, 246, 230, 0.85); }
+.settings-tab-btn.active { color: var(--paper); border-bottom-color: #ffd28a; }
+.settings-tab.is-hidden { display: none; }
+
+/* Two columns on wide, stacking on narrow (mobile). */
+.settings-cols { display: flex; gap: 24px; flex-wrap: wrap; }
+.settings-col { flex: 1 1 240px; min-width: 0; }
+.settings-col .settings-section:first-child { margin-top: 16px; }
+
+.settings-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 246, 230, 0.5);
+  margin: -2px 0 8px;
+}
+
+/* Tri-state segmented control: Off · Auto · On */
+.settings-tri-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  padding: 8px 0;
+}
+.settings-tri-row + .settings-tri-row { border-top: 1px solid rgba(255, 246, 230, 0.08); }
+.settings-tri-body { flex: 1; min-width: 0; }
+.settings-tri-label { display: block; font-weight: 600; font-size: 14.5px; }
+.settings-tri-sub { display: block; font-size: 12px; color: rgba(255, 246, 230, 0.5); margin-top: 1px; }
+.settings-tri {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(255, 246, 230, 0.06);
+  border: 1px solid rgba(255, 246, 230, 0.14);
+}
+.settings-tri button {
+  border: none;
+  background: none;
+  color: rgba(255, 246, 230, 0.6);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.settings-tri button.active {
+  background: linear-gradient(135deg, #ff6f9c, #ffd28a);
+  color: var(--ink);
+}
