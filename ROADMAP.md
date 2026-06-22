@@ -687,17 +687,14 @@ infinite recursive tunnel, the classic "falling in" trip visual.
 
 ## Settings / accessibility
 
-- **Player-facing Settings + accessibility MVP.** *(flagged 2026-06-21, external repo
-  review)* The game now has a lot a player can't currently tune or opt out of:
-  star-power flashes, the wook trip warp, bloom, MIDI/procedural music, and audio
-  whose only controls are the hidden sandbox sliders. For a live public game this is
-  the responsible gap to close. A small visible Settings panel (gear icon → DOM
-  overlay, no three.js cost) covering: **master / music / SFX volume** (wire to the
-  existing `Sound` buses), **reduced motion** (damp or skip the trip warp +
-  screen-shake + the heaviest star-power strobing — there's already a `WARN` blink
-  envelope to hook), and a **colorblind-safe option for the lost-smile cue** (don't
-  rely on red/green alone — add a shape/icon tell). Persist to `localStorage`. Keep
-  it off the title card's calibrated copy; a gear in a HUD corner is enough.
+- **Settings panel accessibility follow-ons.** The Settings panel shipped
+  2026-06-22 (gear → DOM overlay) with graphics quality, effect overrides, and
+  master/music/SFX volume. Two accessibility opt-ins from the original MVP remain,
+  and both now have a home — new sections in the existing panel: **reduced motion**
+  (damp or skip the trip warp + screen-shake + the heaviest star-power strobing —
+  there's already a `WARN` blink envelope to hook) and a **colorblind-safe option
+  for the lost-smile cue** (don't rely on red/green alone — add a shape/icon tell).
+  Persist to `localStorage` like the rest of the panel.
 
 ---
 

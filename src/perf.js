@@ -5,12 +5,26 @@
 //
 // Override at runtime for testing: `window.__perfProfile = 'low'; location.reload()`.
 
-function detect() {
-  // Manual override wins.
-  const forced = (typeof window !== 'undefined' && window.__perfProfile) ||
-                 new URLSearchParams(location.search).get('perf');
-  if (forced === 'low' || forced === 'mid' || forced === 'high') return forced;
+function lsGet(key) {
+  try { return (typeof localStorage !== 'undefined') ? localStorage.getItem(key) : null; }
+  catch (e) { return null; }
+}
 
+// The override the player (or a URL flag) has pinned, if any — wins over
+// hardware detection. Precedence: runtime window flag > ?perf= URL > the
+// persisted Settings choice (localStorage). Returns null for "Auto" (no
+// override), in which case rawDetect() decides.
+function resolveOverride() {
+  const forced = (typeof window !== 'undefined' && window.__perfProfile) ||
+                 (typeof location !== 'undefined' && new URLSearchParams(location.search).get('perf')) ||
+                 lsGet('zerble.perfOverride');
+  return (forced === 'low' || forced === 'mid' || forced === 'high') ? forced : null;
+}
+
+// Pure hardware detection — what the device WOULD get with no override. Kept
+// separate from the override so the Settings panel can show "Auto · detected:
+// Low" truthfully even while a manual tier is pinned.
+function rawDetect() {
   const isTouch =
     (typeof window !== 'undefined') &&
     (('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
@@ -39,7 +53,10 @@ function detect() {
   return 'high';
 }
 
-const profile = detect();
+// Raw hardware tier (ignores any override) — exported for the Settings panel's
+// "detected:" label. The effective profile applies the override on top.
+export const DETECTED_TIER = rawDetect();
+const profile = resolveOverride() || DETECTED_TIER;
 
 // v2 worldgen flag — the procedural-map-generator → live-3D wire-in. Resolved
 // ONCE here at module load (read once per chunk downstream, never per placement
@@ -117,6 +134,16 @@ const TABLE = {
 };
 
 export const PERF = TABLE[profile];
+
+// Explicit player shadow override (Settings → Effects; reload-to-apply). Honored
+// regardless of Auto/Custom mode; absent = the tier default above. Routed
+// through PERF (a boot flag) rather than AdaptiveQuality's live castShadow-walk
+// because that walk only affects casters already in the scene — chunks that
+// stream in later would re-introduce shadows, so a live toggle decays as you
+// drive. The renderer + chunk builders read PERF.shadows at construction.
+const _shadowOverride = lsGet('zerble.gfx.shadows');
+if (_shadowOverride === '0') PERF.shadows = false;
+else if (_shadowOverride === '1') PERF.shadows = true;
 
 // Optional lighting upgrades — both off by default at every tier. The
 // per-fragment cost of additional dynamic lights is significant on most

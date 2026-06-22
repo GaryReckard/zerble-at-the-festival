@@ -183,6 +183,19 @@ export function bloomAllowed() {
   return !!PERF.bloom && state.bloomAllowed !== false;
 }
 
+// Player override (Settings → Custom): set the bloom-allow flag directly.
+// main.js's per-frame tick is the single owner of `bloomPass.enabled` and ANDs
+// this flag with the in-frame brightness gate — so this is the CORRECT way to
+// toggle glow from the panel; a raw `bloomPass.enabled = …` write gets clobbered
+// on the next frame. Re-enabling adaptive lets the governor's _apply reset it.
+export function setBloomAllowed(on) {
+  state.bloomAllowed = !!on;
+}
+
+// Is the runtime governor currently driving quality? false = the player pinned
+// a Custom effects set and we've stopped auto-adjusting.
+export function isEnabled() { return state.enabled; }
+
 function _apply(newLevel, avgMs) {
   const lvl = QUALITY_LEVELS[newLevel];
   state.level = newLevel;

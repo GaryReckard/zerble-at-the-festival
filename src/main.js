@@ -58,6 +58,7 @@ import { StarPower } from './starPower.js';
 import { Analytics } from './analytics.js';
 import * as ContextLights from './contextLights.js';
 import * as AdaptiveQuality from './adaptiveQuality.js';
+import { Settings } from './settings.js';
 import { setSessionSeed, getSessionSeed } from './rng.js';
 
 // ---------- Session seed ----------
@@ -552,6 +553,12 @@ AdaptiveQuality.install({
     _lastQualityLevel = level;
   },
 });
+
+// Player Settings panel — graphics quality / effect overrides / volume. Runs
+// AFTER AdaptiveQuality.install so applyBootOverrides can turn the governor off
+// and apply persisted Custom-mode effects (the reload-required tier/shadow/light
+// flags are already baked by perf.js reading localStorage at module load).
+Settings.init({ bubbles });
 
 // iOS Safari still fires deprecated GestureEvents for pinch — those can zoom
 // the page even with user-scalable=no. Swallow them so the canvas stays
