@@ -407,6 +407,9 @@ if (__resume && Number.isFinite(__resume.x) && Number.isFinite(__resume.z)) {
   if (Number.isFinite(__resume.heading)) zerble.heading = __resume.heading;
 }
 buildWorld(scene, crowd, zerble.position);
+// Resumed session: restore the time of day so the sky matches where you left off
+// (the ToD instance is created inside buildWorld, so this must come after it).
+if (__resume && Number.isFinite(__resume.tod)) getTimeOfDay()?.setT(__resume.tod);
 
 // ---------- Lurleen (love interest, persistent across the world) ----------
 // v2 (H1): start Lurleen a distance away from the player's actual hub spawn (random
@@ -595,7 +598,7 @@ Settings.init({
   // Returns null on the title card (nothing to resume) → a fresh boot.
   captureState: () => running
     ? { seed: window.__seed, x: zerble.position.x, z: zerble.position.z,
-        heading: zerble.heading, score, juice: bubbles.juice }
+        heading: zerble.heading, score, juice: bubbles.juice, tod: getTimeOfDay()?.t }
     : null,
 });
 
