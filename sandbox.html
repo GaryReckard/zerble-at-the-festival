@@ -2190,21 +2190,23 @@ import {buildShrub} from './src/models/shrub.js';
                 entityRoot = fw.group;
                 currentEntity = fw;
                 tod.setT(0.78);   // deep night so the bursts read
-                const origin = new THREE.Vector3(0, 0, 0);
+                // Burst each shell type in place at a fixed point right in front
+                // of the camera (burstAt skips the rocket) so the PATTERN is what
+                // you inspect — the full rocket→burst rise is verified in-game.
+                const burstPt = new THREE.Vector3(0, 22, 0);
                 let cycle = 0, acc = 0.6;
                 updateFn = (dt) => {
                     acc -= dt;
                     if (acc <= 0) {
-                        fw.launch(origin, SHELL_TYPES[cycle % SHELL_TYPES.length]);
+                        fw.burstAt(burstPt, SHELL_TYPES[cycle % SHELL_TYPES.length]);
                         cycle++;
-                        acc = 1.6;
+                        acc = 2.2;
                     }
-                    fw.update(dt, 0, origin);
+                    fw.update(dt, 0, burstPt);
                 };
-                // Look up into the sky where shells burst (~60-110m up, 28-95m out).
-                cam.target.set(0, 52, 0);
-                cam.dist = 155;
-                cam.pitch = 0.22;
+                cam.target.set(0, 22, 0);
+                cam.dist = 60;
+                cam.pitch = 0.18;
                 applyCam();
                 break;
             }

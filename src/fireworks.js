@@ -42,6 +42,12 @@ const TRAIL_PER_SEC = 34;       // trail sparks shed while climbing
 // Spark physics base (scaled per recipe).
 const GRAV = 9.8;
 
+// Global burst bigness — shells now site over the skyline (~80-320 m out, see
+// launch()), so spread + spark size are scaled up here so they read big against
+// the night sky from across the festival. One knob, applied in _burst().
+const BURST_SPEED_MUL = 1.3;
+const BURST_SIZE_MUL = 1.4;
+
 // Vibrant palette — [r,g,b] in 0..1, kept bright so additive + bloom pops.
 const HUE = {
   red:     [1.00, 0.16, 0.18],
@@ -288,17 +294,36 @@ export class Fireworks {
     this._col = new THREE.Color();
     this._dir = new THREE.Vector3();
     this._player = new THREE.Vector3();
+    this._facing = null;   // cart heading, set from update() — biases shows ahead
 
     // Reaction hook — main.js sets this to throttle a crowd cheer per burst.
     this.onBurst = null;
   }
 
-  // Manually fire a shell (sandbox + __dbg.firework). `playerPos` frames where
-  // it appears; omit `type` for a random shell.
-  launch(playerPos, type) {
+  // Fire a full rocket→burst shell (game director + __dbg.firework). `facing`
+  // (the cart's heading, optional) biases most shells to appear ahead of you.
+  //
+  // Placement is the whole trick to visibility: the chase cam looks ~18° DOWN
+  // and its frame tops out ~13° above the horizon, so a burst directly overhead
+  // is off-screen. We instead site each shell FAR out + at a moderate apex so it
+  // sits ~8-12° up — the top of the forward frame — reading as fireworks over
+  // the festival skyline. dist is derived from the apex + a target elevation so
+  // every burst lands in that visible band regardless of how high it pops.
+  launch(playerPos, type, facing) {
     this._player.copy(playerPos || this._player);
-    const ang = Math.random() * Math.PI * 2;
-    const dist = rand(28, 95);
+
+    let ang;
+    if (facing != null && Math.random() < 0.7) {
+      // forward = (-sin h, -cos h); aim the offset roughly that way, ±~55°.
+      const front = Math.atan2(-Math.cos(facing), -Math.sin(facing));
+      ang = front + rand(-0.95, 0.95);
+    } else {
+      ang = Math.random() * Math.PI * 2;
+    }
+
+    const apex = rand(26, 44);                       // burst altitude (m)
+    const elev = rand(8, 12) * Math.PI / 180;        // elevation from the ~7m cam
+    const dist = THREE.MathUtils.clamp((apex - 7) / Math.tan(elev), 80, 320);
     const x = this._player.x + Math.cos(ang) * dist;
     const z = this._player.z + Math.sin(ang) * dist;
     const recipe = makeRecipe(type);
@@ -308,8 +333,9 @@ export class Fireworks {
     const p = this.particles[idx];
     p.alive = true; p.kind = 1; p.age = 0; p.trailAcc = 0; p.recipe = recipe;
     p.pos.set(x, 1.2, z);
-    const climb = rand(32, 47);
-    p.vel.set(rand(-3, 3), climb, rand(-3, 3));
+    // climb chosen so the rise (bursts at vy<=APEX_VY) tops out near `apex`.
+    const climb = Math.sqrt(2 * (-ROCKET_GRAV) * (apex - 1.2) + APEX_VY * APEX_VY);
+    p.vel.set(rand(-2, 2), climb, rand(-2, 2));
     p.size = 1.3;
     const rh = recipe.rocketHue;
     p.r = rh[0]; p.g = rh[1]; p.b = rh[2];
@@ -319,9 +345,17 @@ export class Fireworks {
     Sound.playFireworkLaunch(x, z);
   }
 
-  // dt, current nightness (0..1), the player position to centre shows on.
-  update(dt, nightness, playerPos) {
+  // Immediate burst at a world position, no rocket — sandbox shell-inspection
+  // and tests. The game uses launch() for the full rise + whistle.
+  burstAt(pos, type) {
+    this._burst(pos, makeRecipe(type));
+  }
+
+  // dt, current nightness (0..1), the player position to centre shows on, and
+  // (optional) the cart heading so shows bias to appear ahead of the player.
+  update(dt, nightness, playerPos, facing) {
     if (playerPos) this._player.copy(playerPos);
+    if (facing != null) this._facing = facing;
 
     // ---- Director (skip entirely by day) ----
     if (nightness >= NIGHT_ON) {
@@ -336,14 +370,14 @@ export class Fireworks {
       if (this._finaleQueue > 0) {
         this._finaleTimer -= dt;
         if (this._finaleTimer <= 0) {
-          this.launch(this._player, pick(SHELL_TYPES));
+          this.launch(this._player, pick(SHELL_TYPES), this._facing);
           this._finaleQueue--;
           this._finaleTimer = rand(0.18, 0.5);
         }
       } else {
         this._nextGap -= dt;
         if (this._nextGap <= 0) {
-          this.launch(this._player, pick(SHELL_TYPES));
+          this.launch(this._player, pick(SHELL_TYPES), this._facing);
           this._nextGap = rand(GAP_MIN, GAP_MAX);
         }
       }
@@ -447,7 +481,7 @@ export class Fireworks {
       if (idx === -1) break;          // pool full — natural cap
       const p = this.particles[idx];
       recipe.sample(this._dir);
-      const sp = recipe.speed();
+      const sp = recipe.speed() * BURST_SPEED_MUL;
       const c = recipe.colorFor(k, count, this._dir);
 
       p.alive = true; p.kind = 0; p.age = 0;
@@ -455,7 +489,7 @@ export class Fireworks {
       p.vel.copy(this._dir).multiplyScalar(sp);
       p.vel.y += recipe.upBias;
       p.life = recipe.life();
-      p.size = recipe.size * rand(0.85, 1.15);
+      p.size = recipe.size * BURST_SIZE_MUL * rand(0.85, 1.15);
       p.gravity = recipe.gravity;
       p.drag = recipe.drag;
       p.fadePow = recipe.fadePow;

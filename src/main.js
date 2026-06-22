@@ -799,7 +799,7 @@ function tickBody(dt) {
     zerble.setBubbleBlast(blasting);
     zerble.setJuiceLevel(bubbles.juice);   // drives the bubble-machine liquid level + reserve jugs
     bubbles.update(dt, zerble, nightness);
-    fireworks.update(dt, nightness, zerble.position);
+    fireworks.update(dt, nightness, zerble.position, zerble.heading);
     HUD.setJuice(bubbles.juice);
     if (bubbles.juice > _maxJuiceReached) _maxJuiceReached = bubbles.juice;   // peak → session_end
     // Dry tank → no bubbles → NPCs frown (crowd.js reads this). One-time toast
@@ -1489,7 +1489,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     // Fire a firework shell over the cart now (bypasses the night gate). Pass a
     // type from fireworks.SHELL_TYPES, or omit for random. `__dbg.firework('willow')`.
     firework(type) {
-      fireworks.launch(zerble.position, type);
+      fireworks.launch(zerble.position, type, zerble.heading);
       return `launched ${type || 'random'} shell`;
     },
 

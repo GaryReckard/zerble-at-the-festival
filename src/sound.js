@@ -1571,26 +1571,28 @@ function _fwPanner(ctx, dest, x, y, z, ref, max) {
   return panner;
 }
 
-// Rising, vibrato'd whistle as the rocket climbs.
+// Airy lift "whoosh" as the rocket climbs — band-passed noise sweeping up, no
+// strong tone. Deliberately quiet: a finale barrage shouldn't become a chorus
+// of whistles (the earlier tonal version read as musical + distracting).
 function fireworkLaunch(ctx, dest, x, z) {
   const t = ctx.currentTime;
   const panner = _fwPanner(ctx, dest, x, 6, z, 30, 320);
-  const dur = 0.85;
-  const osc = ctx.createOscillator();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(360, t);
-  osc.frequency.exponentialRampToValueAtTime(1500, t + dur);
-  const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 14;
-  const lfoG = ctx.createGain(); lfoG.gain.value = 40;
-  lfo.connect(lfoG).connect(osc.frequency);
+  const dur = 0.7;
+  const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+  const ch = buf.getChannelData(0);
+  for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1);
+  const noise = ctx.createBufferSource(); noise.buffer = buf;
+  const bpf = ctx.createBiquadFilter(); bpf.type = 'bandpass';
+  bpf.frequency.setValueAtTime(330, t);
+  bpf.frequency.exponentialRampToValueAtTime(1250, t + dur);   // pitch rises with the climb
+  bpf.Q.value = 0.8;                                            // wide → airy, not a whistle
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.14, t + 0.06);
-  g.gain.exponentialRampToValueAtTime(0.04, t + dur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.05, t + 0.08);
+  g.gain.exponentialRampToValueAtTime(0.012, t + dur * 0.75);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  osc.connect(g).connect(panner);
-  osc.start(t); osc.stop(t + dur + 0.05);
-  lfo.start(t); lfo.stop(t + dur + 0.05);
+  noise.connect(bpf).connect(g).connect(panner);
+  noise.start(t); noise.stop(t + dur + 0.05);
   setTimeout(() => { try { panner.disconnect(); } catch (e) {} }, (dur + 0.3) * 1000);
 }
 
