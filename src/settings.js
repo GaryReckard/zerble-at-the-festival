@@ -23,7 +23,7 @@
 //     reloads when any differs from what booted — and preserves the live session
 //     (seed/position/score/juice) across the reload via captureState.
 
-import { PERF, DETECTED_TIER } from './perf.js';
+import { PERF, DETECTED_TIER, TIER_SHADOWS } from './perf.js';
 import * as AdaptiveQuality from './adaptiveQuality.js';
 import { Sound } from './sound.js';
 import { A11y } from './a11y.js';
@@ -55,7 +55,7 @@ export const Settings = {
     this.applyBootOverrides();
     bootSnap = {
       tier: lsGet(K.tier) || 'auto',
-      shadows: !!PERF.shadows,
+      shadowInfra: !!PERF.shadows,   // booted shadow-map state (reload to change)
       context: !!PERF.contextLights,
       fancy: !!PERF.fancyLights,
     };
@@ -73,6 +73,8 @@ export const Settings = {
       AdaptiveQuality.setOverride('bubbles', db === 'on');
       refs.bubbles?.setCheapMaterial?.(db === 'off');
     }
+    const sh = lsGet(K.shadows);
+    if (sh === 'on' || sh === 'off') AdaptiveQuality.setOverride('shadows', sh === 'on');
   },
 
   open() { if ($overlay) { this._sync(); $overlay.classList.remove('hidden'); } },
@@ -120,10 +122,10 @@ export const Settings = {
                 <p class="settings-hint">Auto lets the game ease these down to stay smooth. Pin Off or On to take control.</p>
                 ${triRow('set-glow', 'Glow', 'soft light bloom at night')}
                 ${triRow('set-bubbles', 'Detailed bubbles', 'shinier, costlier bubbles')}
+                ${triRow('set-shadows', 'Shadows', 'cast shadows on the ground')}
               </div>
               <div class="settings-section">
-                <div class="settings-section-label">Advanced <span class="settings-reload-note">reload to apply</span></div>
-                ${toggleRow('set-shadows', 'Shadows', 'cast shadows on the ground')}
+                <div class="settings-section-label">Extra lights <span class="settings-reload-note">reload to apply</span></div>
                 ${toggleRow('set-context', 'Warm extra lights', 'firepits &amp; lamps glow for real')}
                 ${toggleRow('set-fancy', 'Extra detail lights', 'every torch &amp; bulb — heaviest')}
               </div>
@@ -190,11 +192,16 @@ export const Settings = {
       if (v === 'auto') lsDel(K.detailBubbles); else lsSet(K.detailBubbles, v);
     });
 
-    // --- Advanced (reload boot flags) ---
-    $('#set-shadows').addEventListener('change', (e) => {
-      lsSet(K.shadows, e.target.checked ? '1' : '0');
+    // --- Shadows tri-state. The pin is LIVE (governor won't auto-drop it); the
+    //     boot infrastructure (renderer shadow map) only needs a reload when it
+    //     differs from what booted — see _refreshApply. ---
+    bindTri($('#set-shadows'), (v) => {
+      AdaptiveQuality.setOverride('shadows', v === 'auto' ? null : v === 'on');
+      if (v === 'auto') lsDel(K.shadows); else lsSet(K.shadows, v);
       this._refreshApply();
     });
+
+    // --- Extra lights (reload boot flags) ---
     $('#set-context').addEventListener('change', (e) => {
       lsSet(K.context, e.target.checked ? '1' : '0');
       this._refreshApply();
@@ -238,8 +245,8 @@ export const Settings = {
     // Effects tri-states (Off / Auto / On)
     setTri($('#set-glow'), triValue(AdaptiveQuality.getOverride('bloom')));
     setTri($('#set-bubbles'), triValue(AdaptiveQuality.getOverride('bubbles')));
-    // Advanced (booted state)
-    $('#set-shadows').checked = !!PERF.shadows;
+    setTri($('#set-shadows'), triValue(AdaptiveQuality.getOverride('shadows')));
+    // Extra lights (booted state)
     $('#set-context').checked = !!PERF.contextLights;
     $('#set-fancy').checked = !!PERF.fancyLights;
     // Volume
@@ -255,9 +262,14 @@ export const Settings = {
   _refreshApply() {
     const $ = (s) => $overlay.querySelector(s);
     const tierNow = ($('#set-quality input:checked') || {}).value || 'auto';
+    // Shadows: only a change to the boot INFRASTRUCTURE needs a reload. Pinning
+    // On/Auto on a tier that already has shadows applies live (no reload); only
+    // turning the shadow map on (low tier) or off (clean perf) does.
+    const shVal = getTri($('#set-shadows'));
+    const desiredInfra = shVal === 'on' ? true : shVal === 'off' ? false : TIER_SHADOWS;
     const pending =
       tierNow !== bootSnap.tier ||
-      $('#set-shadows').checked !== bootSnap.shadows ||
+      desiredInfra !== bootSnap.shadowInfra ||
       $('#set-context').checked !== bootSnap.context ||
       $('#set-fancy').checked !== bootSnap.fancy;
     $('.settings-apply').disabled = !pending;
@@ -322,6 +334,11 @@ function triValue(ov) { return ov === null ? 'auto' : ov ? 'on' : 'off'; }
 
 function setTri(el, val) {
   el.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.v === val));
+}
+
+function getTri(el) {
+  const a = el.querySelector('button.active');
+  return a ? a.dataset.v : 'auto';
 }
 
 function bindTri(el, onChange) {

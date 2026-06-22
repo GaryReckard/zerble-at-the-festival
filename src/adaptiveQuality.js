@@ -184,8 +184,16 @@ export function tick(dt) {
 // so the governor leaves THIS effect alone while still managing everything else
 // (pixel ratio first, plus any effect left on Auto) to defend the frame rate.
 // The governor itself never stops — there's no global "off" anymore.
-const overrides = { bloom: null, bubbles: null };
-export function setOverride(key, val) { if (key in overrides) overrides[key] = val; }
+const overrides = { bloom: null, bubbles: null, shadows: null };
+export function setOverride(key, val) {
+  if (!(key in overrides)) return;
+  overrides[key] = val;
+  // Shadows apply live (the cast-shadow walk), so a pin takes effect immediately
+  // — including re-enabling shadows the governor had already dropped. bloom /
+  // bubbles are read live elsewhere (bloomAllowed / effectiveCheap), so they
+  // need no poke here.
+  if (key === 'shadows') _applyShadowsNow();
+}
 export function getOverride(key) { return key in overrides ? overrides[key] : null; }
 
 // Glow: pinned value wins (still gated by tier capability); else the governor's
@@ -204,6 +212,20 @@ export function effectiveCheap(lvl) {
 }
 export function currentCheap() { return effectiveCheap(QUALITY_LEVELS[state.level]); }
 
+// Shadows: pinned value wins, but still gated by the tier's shadow infrastructure
+// (PERF.shadows = whether the renderer compiled shadow support at boot — you
+// can't pin shadows ON live if the shadow map was never enabled). Else the
+// governor's per-level decision. A pinned "On" is what stops the governor from
+// auto-dropping shadows under load.
+export function effectiveShadows(lvl) {
+  const auto = lvl.shadows !== false && PERF.shadows;
+  return overrides.shadows !== null ? (overrides.shadows && !!PERF.shadows) : auto;
+}
+function _applyShadowsNow() {
+  const h = state.hooks;
+  if (h) _setShadowsOn(h.scene, h.renderer, effectiveShadows(QUALITY_LEVELS[state.level]));
+}
+
 function _apply(newLevel, avgMs) {
   const lvl = QUALITY_LEVELS[newLevel];
   state.level = newLevel;
@@ -215,8 +237,8 @@ function _apply(newLevel, avgMs) {
   // ∧ (something bright in frame), so the three writers can't fight. See
   // AdaptiveQuality.bloomAllowed() + the gate in main.js's tick.
   state.bloomAllowed = lvl.bloom !== false;
-  // Shadows
-  _setShadowsOn(scene, renderer, lvl.shadows !== false && PERF.shadows);
+  // Shadows — honor a player pin (Settings → Off/Auto/On); else this level's value.
+  _setShadowsOn(scene, renderer, effectiveShadows(lvl));
   // Pixel ratio — scale from the baseline captured at install time.
   const pixMul = lvl.pixelRatioMul ?? 1;
   renderer.setPixelRatio(state.basePixelRatio * pixMul);

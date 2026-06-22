@@ -135,15 +135,22 @@ const TABLE = {
 
 export const PERF = TABLE[profile];
 
-// Explicit player shadow override (Settings → Effects; reload-to-apply). Honored
-// regardless of Auto/Custom mode; absent = the tier default above. Routed
-// through PERF (a boot flag) rather than AdaptiveQuality's live castShadow-walk
-// because that walk only affects casters already in the scene — chunks that
-// stream in later would re-introduce shadows, so a live toggle decays as you
-// drive. The renderer + chunk builders read PERF.shadows at construction.
+// The tier's *default* shadow state, captured before the player override below
+// mutates PERF.shadows. The Settings panel needs this to decide whether an
+// "Auto" shadows choice requires a reload (it doesn't, if it matches the tier).
+export const TIER_SHADOWS = !!PERF.shadows;
+
+// Explicit player shadow INFRASTRUCTURE override (Settings → Effects). This is
+// the boot half of the shadow control: it decides whether the renderer compiles
+// shadow support + the shadow map at all. The *live* half — whether the adaptive
+// governor may drop shadows under load — is a separate per-effect pin
+// (AdaptiveQuality.setOverride('shadows', …)). Infra changes need a reload (the
+// renderer + chunk builders read PERF.shadows at construction); the live pin does
+// not. Absent = tier default. 'on' forces the infra on (so a pin can show), 'off'
+// forces it off (clean perf win, no streaming decay).
 const _shadowOverride = lsGet('zerble.gfx.shadows');
-if (_shadowOverride === '0') PERF.shadows = false;
-else if (_shadowOverride === '1') PERF.shadows = true;
+if (_shadowOverride === 'off') PERF.shadows = false;
+else if (_shadowOverride === 'on') PERF.shadows = true;
 
 // Optional lighting upgrades — both off by default at every tier. The
 // per-fragment cost of additional dynamic lights is significant on most
