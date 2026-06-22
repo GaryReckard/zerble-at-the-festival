@@ -21,6 +21,7 @@ import * as THREE from 'three';
 import { registry } from './registry.js';
 import { isPointInLake, projectOutOfLake } from './lakes.js';
 import { PERF } from './perf.js';
+import { A11y } from './a11y.js';
 
 // ── Shared shader uniforms ──────────────────────────────────────────────
 // zerble.js calls patchStarPowerMaterial() on every cart/driver/mustache
@@ -485,8 +486,15 @@ export const StarPower = {
           // at an accelerating rate so the player can brace for collisions
           // returning. Ghost mode itself stays on until the buff fully ends.
           const k = 1 - Math.max(0, left) / WARN;          // 0→1 approaching the end
-          this._blinkAccum += dt * (3 + k * 10) * Math.PI * 2;
-          this._env = 0.12 + 0.88 * (0.5 + 0.5 * Math.cos(this._blinkAccum));
+          if (A11y.reducedMotion) {
+            // Reduced motion: a smooth fade-down telegraph instead of an
+            // accelerating strobe — still signals "the buff is ending" without
+            // the flashing.
+            this._env = 1 - 0.5 * k;
+          } else {
+            this._blinkAccum += dt * (3 + k * 10) * Math.PI * 2;
+            this._env = 0.12 + 0.88 * (0.5 + 0.5 * Math.cos(this._blinkAccum));
+          }
         } else {
           this._env = 1;
         }

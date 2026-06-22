@@ -20,6 +20,7 @@
 
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { Analytics } from './analytics.js';
+import { A11y } from './a11y.js';
 
 // ---------- GLSL ----------
 
@@ -561,8 +562,10 @@ export const Trip = {
       }
     }
 
-    // Write master envelope to uniforms
-    this.pass.uniforms.intensity.value = this._envelope;
+    // Write master envelope to uniforms. Reduced-motion damps the whole warp
+    // uniformly (intensity scales every effect) — the trip still happens, just
+    // gentler.
+    this.pass.uniforms.intensity.value = this._envelope * (A11y.reducedMotion ? 0.4 : 1);
 
     // Effect uniforms: Dynamic mode runs scripted curves while a trip is
     // active; Static mode just pushes the slider config values.

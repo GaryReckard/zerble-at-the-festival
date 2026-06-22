@@ -19,6 +19,7 @@
 import { PERF, DETECTED_TIER } from './perf.js';
 import * as AdaptiveQuality from './adaptiveQuality.js';
 import { Sound } from './sound.js';
+import { A11y } from './a11y.js';
 
 const K = {
   tier: 'zerble.perfOverride',
@@ -134,6 +135,12 @@ export const Settings = {
           ${sliderRow('set-vol-sfx', 'Sound effects')}
         </div>
 
+        <div class="settings-section">
+          <div class="settings-section-label">Accessibility</div>
+          ${toggleRow('set-reduced-motion', 'Reduced motion', 'calm the strobes, warp &amp; pulses')}
+          ${toggleRow('set-colorblind', 'Colorblind-friendly cues', 'mark a lost smile by shape, not just colour')}
+        </div>
+
         <div class="settings-foot">
           <button class="settings-apply" disabled>Apply &amp; restart</button>
           <div class="settings-apply-note">Saved instantly. A reload applies quality, shadows &amp; lights.</div>
@@ -197,6 +204,10 @@ export const Settings = {
     bindSlider($('#set-vol-music'), 'music', (v) => Sound.setMusicVolume(v));
     bindSlider($('#set-vol-sfx'), 'sfx', (v) => Sound.setSfxVolume(v));
 
+    // --- Accessibility (live) ---
+    $('#set-reduced-motion').addEventListener('change', (e) => A11y.setReducedMotion(e.target.checked));
+    $('#set-colorblind').addEventListener('change', (e) => A11y.setColorblind(e.target.checked));
+
     // --- Apply & restart ---
     $('.settings-apply').addEventListener('click', () => {
       if (!$('.settings-apply').disabled) location.reload();
@@ -245,6 +256,9 @@ export const Settings = {
     setSlider($('#set-vol-master'), Sound.getMasterVolume(), 'master');
     setSlider($('#set-vol-music'), Sound.getMusicVolume(), 'music');
     setSlider($('#set-vol-sfx'), Sound.getSfxVolume(), 'sfx');
+    // Accessibility
+    $('#set-reduced-motion').checked = A11y.reducedMotion;
+    $('#set-colorblind').checked = A11y.colorblind;
     this._refreshApply();
   },
 

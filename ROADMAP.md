@@ -685,19 +685,6 @@ infinite recursive tunnel, the classic "falling in" trip visual.
 
 ---
 
-## Settings / accessibility
-
-- **Settings panel accessibility follow-ons.** The Settings panel shipped
-  2026-06-22 (gear → DOM overlay) with graphics quality, effect overrides, and
-  master/music/SFX volume. Two accessibility opt-ins from the original MVP remain,
-  and both now have a home — new sections in the existing panel: **reduced motion**
-  (damp or skip the trip warp + screen-shake + the heaviest star-power strobing —
-  there's already a `WARN` blink envelope to hook) and a **colorblind-safe option
-  for the lost-smile cue** (don't rely on red/green alone — add a shape/icon tell).
-  Persist to `localStorage` like the rest of the panel.
-
----
-
 ## HUD / juice
 
 - **Smile counter pulse + color shift** when score increments. Pure CSS animation on `#smiles .value` — scale bump + brief warm-tone color flash, then ease back.

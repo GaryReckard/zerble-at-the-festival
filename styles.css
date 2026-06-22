@@ -933,3 +933,16 @@ body.game-started #settings-gear { display: flex; }
   color: rgba(255, 246, 230, 0.55);
   margin-top: 9px;
 }
+
+/* ---------- Reduced motion ---------- */
+
+/* Set by A11y when the player opts in (or the OS prefers-reduced-motion). Holds
+   the pulsing overlays steady — they still SHOW (the gold star vignette, the
+   amber empty-juice warning, the tappable-toast highlight) but stop flashing.
+   The star-power end strobe + trip warp are damped in JS (starPower.js /
+   trip.js read A11y.reducedMotion). */
+body.reduced-motion #star-vignette.on,
+body.reduced-motion #juice-meter.empty,
+body.reduced-motion #toast.tappable {
+  animation: none;
+}

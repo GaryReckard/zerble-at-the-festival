@@ -1,6 +1,7 @@
 // Smile pickups: glowing yellow orbs that float up from happy NPCs and drift toward Zerble.
 
 import * as THREE from 'three';
+import { A11y } from './a11y.js';
 
 const PICKUP_RADIUS = 2.4;
 const SEEK_SPEED = 14;       // base speed; ramps up over time so distant smiles arrive eventually
@@ -31,6 +32,12 @@ export class Smiles {
       emissiveIntensity: 2.0,
       roughness: 0.4,
     });
+    // Colorblind tell: a bright "−" bar on the lost orb so it reads as a loss by
+    // SHAPE, not just by its red-vs-gold colour (added in spawnLost when the
+    // accessibility option is on). Shared across lost smiles; never disposed
+    // (lives for the session on this Smiles instance).
+    this._minusGeo = new THREE.BoxGeometry(0.42, 0.1, 0.1);
+    this._minusMat = new THREE.MeshBasicMaterial({ color: 0xfff6e6 });
   }
 
   // A smile leaving Zerble for a grumpy NPC. Spawns at `fromPos`, homes to the
@@ -50,6 +57,9 @@ export class Smiles {
     halo.rotation.x = -Math.PI / 2;
     halo.position.y = -0.25;
     mesh.add(halo);
+    if (A11y.colorblind) {
+      mesh.add(new THREE.Mesh(this._minusGeo, this._minusMat));
+    }
     this.active.push({ mesh, halo, age: 0, seeking: false, lost: true, npc });
   }
 

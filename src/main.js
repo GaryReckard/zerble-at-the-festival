@@ -59,6 +59,7 @@ import { Analytics } from './analytics.js';
 import * as ContextLights from './contextLights.js';
 import * as AdaptiveQuality from './adaptiveQuality.js';
 import { Settings } from './settings.js';
+import { A11y } from './a11y.js';
 import { setSessionSeed, getSessionSeed } from './rng.js';
 
 // ---------- Session seed ----------
@@ -558,6 +559,9 @@ AdaptiveQuality.install({
 // AFTER AdaptiveQuality.install so applyBootOverrides can turn the governor off
 // and apply persisted Custom-mode effects (the reload-required tier/shadow/light
 // flags are already baked by perf.js reading localStorage at module load).
+// Accessibility prefs (reduced motion / colorblind cues) — resolve + apply body
+// classes before Settings reads them and before gameplay systems poll the flags.
+A11y.init();
 Settings.init({ bubbles });
 
 // iOS Safari still fires deprecated GestureEvents for pinch — those can zoom
