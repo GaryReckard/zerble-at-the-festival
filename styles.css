@@ -1025,3 +1025,33 @@ body.reduced-motion #toast.tappable {
   background: linear-gradient(135deg, #ff6f9c, #ffd28a);
   color: var(--ink);
 }
+
+/* Contextual restart bar — sticky at the card bottom, shown ONLY when a
+   reload-required change (quality tier, extra lights, low-tier shadows-on) is
+   pending. Everything else applies live, so there's no permanent button. */
+.settings-restart {
+  position: sticky;
+  bottom: 0;
+  margin-top: 18px;
+  padding: 14px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(180deg, rgba(28, 19, 48, 0) 0%, rgba(28, 19, 48, 0.97) 26%);
+  border-top: 1px solid rgba(255, 246, 230, 0.12);
+}
+.settings-restart.is-hidden { display: none; }
+.settings-restart-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: rgba(255, 246, 230, 0.72);
+}
+.settings-restart .settings-apply {
+  width: auto;
+  flex: none;
+  min-height: 44px;
+  padding: 11px 20px;
+  font-size: 14px;
+}

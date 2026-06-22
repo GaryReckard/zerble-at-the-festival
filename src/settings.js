@@ -23,7 +23,7 @@
 //     reloads when any differs from what booted — and preserves the live session
 //     (seed/position/score/juice) across the reload via captureState.
 
-import { PERF, DETECTED_TIER, TIER_SHADOWS } from './perf.js';
+import { PERF, DETECTED_TIER } from './perf.js';
 import * as AdaptiveQuality from './adaptiveQuality.js';
 import { Sound } from './sound.js';
 import { A11y } from './a11y.js';
@@ -131,10 +131,6 @@ export const Settings = {
               </div>
             </div>
           </div>
-          <div class="settings-foot">
-            <button class="settings-apply" disabled>Apply &amp; restart</button>
-            <div class="settings-apply-note">Saved instantly. A reload applies quality, shadows &amp; lights — you'll pick up right where you left off.</div>
-          </div>
         </div>
 
         <div class="settings-tab is-hidden" data-tab="sound" role="tabpanel">
@@ -150,6 +146,11 @@ export const Settings = {
             ${toggleRow('set-reduced-motion', 'Reduced motion', 'calm the strobes, warp &amp; pulses')}
             ${toggleRow('set-colorblind', 'Colorblind-friendly cues', 'mark a lost smile by shape, not just colour')}
           </div>
+        </div>
+
+        <div class="settings-restart is-hidden">
+          <span class="settings-restart-text">A couple of these need a quick restart — you'll pick up right where you left off.</span>
+          <button class="settings-apply">Restart now</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -220,9 +221,9 @@ export const Settings = {
     $('#set-reduced-motion').addEventListener('change', (e) => A11y.setReducedMotion(e.target.checked));
     $('#set-colorblind').addEventListener('change', (e) => A11y.setColorblind(e.target.checked));
 
-    // --- Apply & restart (preserves the live session across the reload) ---
+    // --- Restart (only shown when a reload-required change is pending; preserves
+    //     the live session across the reload) ---
     $('.settings-apply').addEventListener('click', () => {
-      if ($('.settings-apply').disabled) return;
       const snap = refs.captureState?.();
       if (snap) { try { sessionStorage.setItem('zerble.resume', JSON.stringify(snap)); } catch (e) {} }
       location.reload();
@@ -262,17 +263,17 @@ export const Settings = {
   _refreshApply() {
     const $ = (s) => $overlay.querySelector(s);
     const tierNow = ($('#set-quality input:checked') || {}).value || 'auto';
-    // Shadows: only a change to the boot INFRASTRUCTURE needs a reload. Pinning
-    // On/Auto on a tier that already has shadows applies live (no reload); only
-    // turning the shadow map on (low tier) or off (clean perf) does.
-    const shVal = getTri($('#set-shadows'));
-    const desiredInfra = shVal === 'on' ? true : shVal === 'off' ? false : TIER_SHADOWS;
+    // Shadows needs a restart in exactly ONE case: forcing it On on a tier whose
+    // shadow map was never built at boot (low). Everything else about shadows —
+    // Off, Auto, and On where the map already exists (mid/high) — is live.
+    const shadowsNeedRestart = getTri($('#set-shadows')) === 'on' && !bootSnap.shadowInfra;
     const pending =
       tierNow !== bootSnap.tier ||
-      desiredInfra !== bootSnap.shadowInfra ||
+      shadowsNeedRestart ||
       $('#set-context').checked !== bootSnap.context ||
       $('#set-fancy').checked !== bootSnap.fancy;
-    $('.settings-apply').disabled = !pending;
+    // Contextual: the restart bar only exists when something actually needs one.
+    $('.settings-restart').classList.toggle('is-hidden', !pending);
   },
 };
 

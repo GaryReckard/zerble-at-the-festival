@@ -135,22 +135,14 @@ const TABLE = {
 
 export const PERF = TABLE[profile];
 
-// The tier's *default* shadow state, captured before the player override below
-// mutates PERF.shadows. The Settings panel needs this to decide whether an
-// "Auto" shadows choice requires a reload (it doesn't, if it matches the tier).
-export const TIER_SHADOWS = !!PERF.shadows;
-
-// Explicit player shadow INFRASTRUCTURE override (Settings → Effects). This is
-// the boot half of the shadow control: it decides whether the renderer compiles
-// shadow support + the shadow map at all. The *live* half — whether the adaptive
-// governor may drop shadows under load — is a separate per-effect pin
-// (AdaptiveQuality.setOverride('shadows', …)). Infra changes need a reload (the
-// renderer + chunk builders read PERF.shadows at construction); the live pin does
-// not. Absent = tier default. 'on' forces the infra on (so a pin can show), 'off'
-// forces it off (clean perf win, no streaming decay).
-const _shadowOverride = lsGet('zerble.gfx.shadows');
-if (_shadowOverride === 'off') PERF.shadows = false;
-else if (_shadowOverride === 'on') PERF.shadows = true;
+// Shadow INFRASTRUCTURE override (Settings → Effects). Only 'on' is a boot
+// concern: it forces the renderer to build the shadow map on a tier that
+// wouldn't otherwise have one (low), so a player who pins Shadows On there can
+// actually see them. The rest of the shadow control — Off, Auto, and On where
+// the map already exists (mid/high) — is handled live at runtime by the adaptive
+// governor's per-effect shadow pin (AdaptiveQuality.setOverride('shadows', …)),
+// no reload. The renderer + chunk builders read PERF.shadows at construction.
+if (lsGet('zerble.gfx.shadows') === 'on') PERF.shadows = true;
 
 // Optional lighting upgrades — both off by default at every tier. The
 // per-fragment cost of additional dynamic lights is significant on most
