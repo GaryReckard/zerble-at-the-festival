@@ -1,0 +1,26 @@
+# graphify scope lock — keep the curated map (game code + project docs).
+# Mirrors the hand-filtered scope of the initial build so `graphify --update`
+# and full rebuilds don't re-scan excluded process-docs / skill packs /
+# screenshots and blow the scope (and the token budget) wide open.
+# gitignore syntax; merged with .gitignore, .graphifyignore wins on conflict.
+# See CLAUDE.md "Knowledge graph" for the scope rationale.
+
+# graphify's own outputs — never graph the map of the map
+graphify-out/
+
+# OpenSpec change-workflow process artifacts (~141 files) — planning history,
+# not how the game works. The capability CONTRACTS in openspec/specs/ ARE kept.
+openspec/changes/
+
+# Generic three.js skill packs — upstream reference docs, not project code.
+.claude/skills/
+
+# Images: skip PWA icons, character art, and proof-of-work screenshots; keep
+# only the real architecture diagram that was in the curated build.
+*.png
+*.svg
+*.jpg
+*.jpeg
+*.gif
+*.webp
+!zerble-festival-architecture.png
