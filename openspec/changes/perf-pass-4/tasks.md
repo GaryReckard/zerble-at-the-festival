@@ -24,7 +24,7 @@ binding corrections folded in. See deliberations/001-perf-pass-4-plan/results.md
 - [~] 2.5 **F2 — CUT.** Per its own gate ("cut if B0 shows the depth pass isn't material"): the capture's `fMax` median is 33ms with no shadow-driven spikes, so amortizing the shadow render buys nothing measurable and carries the verified smear-under-motion risk. Not worth it. Decision recorded in session-log -> D9.
 - [~] 2.2 / 2.3 / 2.4 **A4 reveal / A1 prewarm / shared governor — DEFERRED.** `progDelta` ~0 all run → the 137–343 ms shader stall didn't fire here. Re-prioritize behind a hub-stress capture that actually reproduces the stall; the design + binding mitigations stay on record for when it does.
 - [x] 2.7 Verify F1 live on `?perf=low/mid/high`. *(2026-07-15: all three current profiles have `PERF.bloom = true`; each passed the same live matrix: bright day off, dusk on, daytime star power on, explicit player-off override wins at night, and 12 consecutive samples near the threshold stayed stable. Browser error log empty. The stale stage-proximity/low-tier wording was corrected to match the shipped Task 2.6 predicate.)*
-- [ ] 2.8 CHANGELOG (done for F1) + commit when Gary's ready.
+- [x] 2.8 CHANGELOG + commit complete in `0dd3de1`.
 
 ## 3. Slice 3 — C1-b time-sliced chunk generation (phased deferral)
 

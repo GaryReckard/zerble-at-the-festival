@@ -1,7 +1,7 @@
 ---
 change: perf-pass-4
-status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: 3.3           # split a measured hot structural builder without rng drift
+status: paused             # not_started | in_progress | blocked | paused | complete
+current_task: 3.3           # parked by Gary pending renewed performance work
 blocked_by: null            # no blocker
 open_questions: 0           # count of unanswered questions in questions-for-human.md
 started: 2026-06-19
@@ -226,6 +226,13 @@ removed: an exact-equivalent precomputed density-neighborhood sampler measured
 the same route. Task 3.3 is re-scoped to descriptor-first splitting of a genuinely
 hot structural builder (vendor rows) or a separately measured tree-planning cut;
 no deferral ships until it moves material time and preserves rng/registry identity.
+-> Task 3.3
+
+### D25 — Park the remaining structural deferral work
+Gary parked the remaining performance move on 2026-07-15. The tier-aware chunk
+generation wall and debug stage profiler remain shipped, while Task 3.3's
+descriptor-first vendor-row or tree-planning split stays recorded for a future
+performance pass rather than continuing by inertia.
 -> Task 3.3
 
 ## Assumptions
