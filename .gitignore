@@ -10,8 +10,4 @@ Trace-*.json.gz
 # Browser->repo capture sink (__dbg.capture() / serve_nocache.py POST /__capture)
 .claude/captures/
 
-# graphify knowledge graph — LOCAL-ONLY, never committed (see .claude/rules/graphify.md).
-# Built once locally, then rebuilt incrementally by git hooks. Kept out of git to avoid
-# graph.json merge conflicts (LLM non-determinism) and the dirty-tree rebuild loop.
-/graphify-out/
 CLAUDE.local.md
