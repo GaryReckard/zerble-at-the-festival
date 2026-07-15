@@ -1,6 +1,6 @@
 # Make the festival run smooth — kill the freezes and the hitches
 
-> **Status:** <!--STATUS:LINE-->in progress · 31/52 tasks (59%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->in progress · 41/54 tasks (75%)<!--/STATUS:LINE-->
 >
 > _Plain-language summary of this change. A non-engineer should understand it; a junior dev should grasp it; a senior dev should be able to build an accurate mental model from this file alone._
 
@@ -53,17 +53,17 @@ See `design.md` for the technical "how".
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 31/52 tasks complete (59%) · current: 7.4.1
+**in progress** — 41/54 tasks complete (75%) · current: 3.3
 
-_Last updated: 2026-06-21_
+_Last updated: 2026-07-15_
 
 | Group | Progress |
 |---|---|
 | 1. Slice 1 — B0 (true measurement) + D3 (crowd alloc pooling) | 6/6 ✅ |
-| 2. Slice 2 — re-scoped by the 2026-06-19 round-trip-1 capture | 2/4 |
-| 3. Slice 3 — C1-b time-sliced chunk generation (phased deferral) | 0/6 |
+| 2. Slice 2 — re-scoped by the 2026-06-19 round-trip-1 capture | 3/4 |
+| 3. Slice 3 — C1-b time-sliced chunk generation (phased deferral) | 2/6 |
 | 4. E1 — arrival curtain (gated on Slice-2 results) | 0/2 |
-| 5. Draw-call reduction — JUSTIFIED by the round-trip-1 capture (the real lever) | 2/7 |
+| 5. Draw-call reduction — JUSTIFIED by the round-trip-1 capture (the real lever) | 9/9 ✅ |
 | 6. Docs + verification (per slice, not batched) | 4/4 ✅ |
 | 7. Slice 4 — forest-tree instancing (the real draw lever) | 17/23 |
 <!--/STATUS:AUTO-->

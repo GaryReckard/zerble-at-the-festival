@@ -86,7 +86,7 @@
       // only resolve when something actually imports them).
       const mods = ['main','world','zerble','bubbles','smiles','fireworks','crowd','chunks','forests',
         'mountains','camera','input','touch','hud','sound','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
-        'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid','starPower','steering','settings','a11y',
+        'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid','starPower','steering','settings','a11y','mergeDecor',
         'worldgen/constants','worldgen/tuning','worldgen/hearts','worldgen/water','worldgen/roads','worldgen/density','worldgen/roles','worldgen/index','worldgen/selftest','worldgen/placement','worldgen/festival','worldgen/lint'];
       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','shrub', 'heart','stage','performer',
         'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','bird','bubbleJug','bubbleVendor',
@@ -109,10 +109,17 @@
       im.textContent = JSON.stringify({ imports });
       document.head.appendChild(im);
       window.addEventListener('DOMContentLoaded', () => {
-        const s = document.createElement('script');
-        s.type = 'module';
-        s.src = './src/main.js' + v;
-        document.body.appendChild(s);
+        const loadMain = () => {
+          const s = document.createElement('script');
+          s.type = 'module';
+          s.src = './src/main.js' + v;
+          document.body.appendChild(s);
+        };
+        const delay = isLocal
+          ? Math.min(10000, Math.max(0, Number(new URLSearchParams(location.search).get('bootDelay')) || 0))
+          : 0;
+        if (delay) setTimeout(loadMain, delay);
+        else loadMain();
       });
     })();
   </script>
@@ -121,37 +128,41 @@
   <canvas id="game"></canvas>
 
   <div id="hud">
-    <div id="score-panel">
-      <div class="score-rows">
-        <div class="row">
-          <span class="label">Smiles</span>
-          <span id="smiles" class="value">0</span>
-        </div>
-        <div class="row small">
-          <span class="label">Best</span>
-          <span id="best" class="value">0</span>
-        </div>
+    <div id="status-rail" aria-label="Game status">
+      <div id="smile-status" class="hud-chip smile-status" aria-label="0 smiles, personal best 0">
+        <svg class="smile-mark" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" fill="currentColor"/>
+          <circle cx="8.5" cy="9.5" r="1.25" fill="#4a2c42"/>
+          <circle cx="15.5" cy="9.5" r="1.25" fill="#4a2c42"/>
+          <path d="M7.6 13.1c1.1 2.3 2.7 3.4 4.4 3.4s3.3-1.1 4.4-3.4" fill="none" stroke="#4a2c42" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <span id="smiles" class="smile-value">0</span>
+        <span class="best-score" title="Personal best"><span aria-hidden="true">★</span><span id="best">0</span></span>
       </div>
-      <div id="juice-meter">
-        <div class="juice-head">
-          <span class="juice-dot"></span>
-          <span class="label">Bubble Juice</span>
-          <span id="juice-reserve" class="juice-reserve" aria-hidden="true">
-            <span id="juice-reserve-n" class="rsv-n"></span>
-            <svg class="rsv-jug" viewBox="0 0 16 20" width="13" height="16">
-              <rect x="2.6" y="6.4" width="10.8" height="11.8" rx="2.6" fill="#eef7ff" stroke="#6fe0ff" stroke-width="0.9"/>
-              <path d="M13.2 8.2q3 .5 3 3.1 0 2.6-3 3.1" fill="none" stroke="#6fe0ff" stroke-width="1.3" stroke-linecap="round"/>
-              <rect x="5.9" y="3.9" width="4.2" height="3.2" fill="#eef7ff"/>
-              <rect x="4.8" y="1.5" width="6.4" height="2.8" rx="1" fill="#ff8a3d"/>
-              <rect x="4.9" y="10.3" width="6.2" height="5" rx="0.9" fill="#e8409a"/>
-              <circle cx="6.8" cy="12.8" r="0.7" fill="#ffd6ec"/>
-              <circle cx="9.2" cy="12.8" r="0.7" fill="#ffd6ec"/>
-            </svg>
-          </span>
-        </div>
+      <div id="juice-meter" class="hud-chip juice-status" aria-label="Bubble juice full">
+        <span class="juice-dot" aria-hidden="true"></span>
         <div class="juice-track">
           <div id="juice-fill" class="juice-fill"></div>
         </div>
+        <span id="juice-reserve" class="juice-reserve" aria-hidden="true">
+          <span id="juice-reserve-n" class="rsv-n"></span>
+          <svg class="rsv-jug" viewBox="0 0 16 20" width="11" height="14" aria-hidden="true">
+            <rect x="2.6" y="6.4" width="10.8" height="11.8" rx="2.6" fill="#eef7ff" stroke="#6fe0ff" stroke-width="0.9"/>
+            <path d="M13.2 8.2q3 .5 3 3.1 0 2.6-3 3.1" fill="none" stroke="#6fe0ff" stroke-width="1.3" stroke-linecap="round"/>
+            <rect x="5.9" y="3.9" width="4.2" height="3.2" fill="#eef7ff"/>
+            <rect x="4.8" y="1.5" width="6.4" height="2.8" rx="1" fill="#ff8a3d"/>
+            <rect x="4.9" y="10.3" width="6.2" height="5" rx="0.9" fill="#e8409a"/>
+          </svg>
+        </span>
+      </div>
+      <div id="day-cycle" class="hud-chip cycle-status" aria-label="Morning">
+        <span class="cycle-dial" aria-hidden="true">
+          <span id="cycle-symbol" class="cycle-symbol">☀</span>
+          <span class="cycle-marker"></span>
+        </span>
+      </div>
+      <div id="lurleen-status" class="hud-chip lurleen-status" aria-hidden="true" aria-label="Lurleen is following">
+        <span class="lurleen-heart" aria-hidden="true">♥</span>
       </div>
     </div>
 
@@ -202,10 +213,56 @@
 
       <p class="hint">Bubbling runs on bubble juice — when you're running low, grab a glowing jug or pull up to a bubble vendor for a free refill.</p>
 
-      <button id="start-btn">Let's go ZERBLIN'!</button>
-      <button id="settings-open-title" class="settings-trigger" aria-label="Open settings">⚙ Settings</button>
+      <div id="boot-status" role="status" aria-live="polite" aria-label="Loading the game">
+        <div class="boot-gauge" aria-hidden="true">
+          <span class="boot-fill"></span>
+          <span class="boot-bubble b1"></span>
+          <span class="boot-bubble b2"></span>
+          <span class="boot-bubble b3"></span>
+        </div>
+        <span id="boot-copy" aria-hidden="true">Pressurizing the bubble tank…</span>
+      </div>
+
+      <button id="start-btn" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
+      <button id="settings-open-title" class="settings-trigger" aria-label="Open settings" disabled>⚙ Settings</button>
     </div>
   </div>
+
+  <script>
+    (function () {
+      const status = document.getElementById('boot-status');
+      const copy = document.getElementById('boot-copy');
+      const phrases = [
+        'Pressurizing the bubble tank…',
+        'Polishing the mustache…',
+        'Untangling the festival lights…',
+        'Teaching the horn one more joke…',
+        'Negotiating with the glitter…',
+        'Finding a suspiciously good parking spot…',
+      ];
+      let phrase = 0;
+      let ready = false;
+      const timer = setInterval(function () {
+        if (ready) return;
+        phrase = (phrase + 1) % phrases.length;
+        copy.textContent = phrases[phrase];
+      }, 1300);
+      window.__zerbleBootLoader = {
+        ready: function () {
+          if (ready) return;
+          ready = true;
+          clearInterval(timer);
+          copy.textContent = 'Bubble pressure: magnificent.';
+          status.classList.add('is-ready');
+          status.setAttribute('aria-label', 'Game ready');
+          setTimeout(function () {
+            status.classList.add('is-done');
+            status.setAttribute('aria-hidden', 'true');
+          }, 1100);
+        },
+      };
+    })();
+  </script>
 
   <!-- Opening reveal: the title-card hands off to this 2D Zerble cutout, which
        sits over the 3D model lined up at the same angle, then cross-dissolves

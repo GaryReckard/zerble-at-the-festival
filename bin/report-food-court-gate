@@ -1,0 +1,55 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const root = path.resolve(__dirname, '..');
+const captures = path.join(root, '.claude', 'captures');
+const read = (name) => {
+  const file = path.join(captures, `${name}.json`);
+  if (!fs.existsSync(file)) {
+    process.stderr.write(`Missing ${path.relative(root, file)}\n`);
+    process.exit(1);
+  }
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
+};
+const signed = (n) => `${n > 0 ? '+' : ''}${n}`;
+
+process.stdout.write('Food-court draw gate, merged minus unmerged\n');
+process.stdout.write('tier   draws   scene   tris\n');
+let drawsRejected = false;
+for (const tier of ['low', 'mid', 'high']) {
+  const before = read(`foodcourt-${tier}-unmerged`);
+  const after = read(`foodcourt-${tier}-merged`);
+  const draws = after.summary.draws - before.summary.draws;
+  const scene = after.census.sceneDraws - before.census.sceneDraws;
+  const tris = after.summary.tris - before.summary.tris;
+  if (draws >= 0) drawsRejected = true;
+  process.stdout.write(`${tier.padEnd(6)} ${signed(draws).padStart(6)} ${signed(scene).padStart(7)} ${signed(tris).padStart(8)}\n`);
+}
+process.stdout.write(`model merge decision: ${drawsRejected ? 'REJECT' : 'ACCEPT'}\n`);
+
+process.stdout.write('\nLifecycle controls\n');
+for (const mode of ['unmerged', 'merged']) {
+  const data = read(`foodcourt-lifecycle-high-${mode}`);
+  const plateau = data.awayGeometries.slice(2);
+  const spread = plateau.length ? Math.max(...plateau) - Math.min(...plateau) : Infinity;
+  const tolerance = plateau.length ? Math.max(2, Math.round(plateau.at(-1) * 0.01)) : 0;
+  const live = data.timeline
+    .filter((row) => row.label.startsWith('away-'))
+    .map((row) => row.mergeDecor?.live)
+    .filter(Number.isFinite);
+  const liveStable = mode === 'unmerged' || (live.length > 1 && live.slice(2).every((n) => n === live[2]));
+  const fingerprint = (row) => [row.reg, row.cgN, row.draws, row.tris, row.geo].join(':');
+  const stalled = data.timeline.slice(1).some((row, index) =>
+    fingerprint(row) === fingerprint(data.timeline[index]),
+  );
+  const pass = plateau.length > 1 && spread <= tolerance && liveStable && !stalled;
+  process.stdout.write(
+    `${mode.padEnd(9)} gpu=[${data.awayGeometries.join(', ')}]` +
+    ` mergeLive=[${live.join(', ')}]` +
+    ` plateau=${pass ? 'PASS' : 'FAIL'} (spread ${spread}, tolerance ${tolerance}` +
+    `${stalled ? ', rendered snapshots stalled' : ''})\n`,
+  );
+}

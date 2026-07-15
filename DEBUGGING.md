@@ -58,6 +58,10 @@ window.__dbg.help()          // prints the whole map — start here
 |---|---|
 | `recordPerf(on = true)` | Start (or stop) the **perf-log recorder**: samples engine stats — `fps`, frame `avg`/`p95`/`max` ms, `draws`, `tris`, `geo`/`tex`, **`prog`** (live shader-program count), `heapMB`, `npc`/`reg`/`col` counts, chunk-gen `cgN`/`cgSlow`/`cgWorst`, and `x,z` — into a ring buffer at a fixed wall-clock interval (default 1 s). Each sample is persisted to `localStorage['zerble_perflog']` **as it's taken**, so the data survives the page going unresponsive + a force-reload. |
 | `perfLog()` | Return a copy of the recorded sample array (`[{t, ts, …}]`). |
+| `chunkStages(reset = false)` | With `?debug=1`, return count/total/average/max milliseconds for each v2 chunk stage (`region`, `roads`, `props`, `trees`, `crowd`, `jugs`, `campsites`, `hedges`). Pass `true` to return the current snapshot and zero the stage counters before a controlled drive or teleport. The normal production path does not take the per-stage timestamps. |
+| `foodCourtVisual()` | Jump directly to the deterministic food court at Midnight, wait for both chunk generation and registry population to settle while rendered frames continue advancing, then frame the court from inside its outer ring. |
+| `foodCourtCapture()` | Park at the same food court, freeze NPC AI, pin the camera and render quality, sample real scene draws/tris, and write `.claude/captures/foodcourt-<tier>-<mode>.json`. Pair the shipping default (`modelMerge=0`) with experimental `?modelMerge=1` for a one-variable before/after. |
+| `foodCourtLifecycle()` | Alternate between the same food court and a distant deterministic location for five settled load/unload cycles, then write the GPU-geometry plateau plus exact merged-geometry create/dispose ownership counters to `.claude/captures/`. |
 
 This is the tool for a **slow-onset hang** ("typing in the console gets
 impossible, then the page goes unresponsive after a while") — a leak or
@@ -69,6 +73,23 @@ The same surface lives in the backtick overlay's **Perf log** section
 snapshot** button on the Stats readout. Pairs with `K`-markers — drop a marker
 when you trigger an effect so its `ts`/`sessionTime` lines up against the perf
 samples.
+
+The complete perf-pass-4 gate is automated behind one local URL. Open this and
+leave the tab focused until the in-game toast says the suite is complete:
+
+```text
+http://127.0.0.1:8765/?seed=3948869160&perf=low&modelMerge=0&perfGate=suite&perfGateStep=0
+```
+
+It reloads through unmerged/merged low, mid, and high draw captures, then runs
+high-tier lifecycle controls for both modes. The server writes eight JSON files;
+`bin/report-food-court-gate` prints the paired deltas and lifecycle verdict.
+The total `renderer.info.memory.geometries` plateau allows one percent of
+background renderer variance after two warm-up cycles, while the merge-specific
+create/dispose count must be exact. The final URL gains `perfGateDone=1`, a
+long-lived completion toast appears, and the camera settles on a Midnight court.
+For the final view without rerunning the suite, use
+`?seed=3948869160&perf=high&perfGate=visual`.
 
 ### Find a shader-program leak
 
@@ -234,6 +255,10 @@ Adding a model? It's not done until it has a sandbox entry — see
 |---|---|
 | `?perf=low\|mid\|high` (or `window.__perfProfile`) | Force a performance tier ([perf.js](src/perf.js)). Test low/mid — high hides regressions that crush integrated GPUs. |
 | `?seed=<string\|int>` | Pin the procedural world layout ([main.js](src/main.js)); echoed in the debug HUD so a world is reproducible. |
+| `?modelMerge=1` | Measurement-only opt-in that reproduces the rejected perf-pass-4 food-truck and Sugar Shack broad merges. The shipping default leaves them off while retaining the older tent merge. |
+| `?perfGate=suite&perfGateStep=0` | Run the full local food-court draw and lifecycle capture sequence. Start with the fixed URL above so tier and merge mode also match step 0. |
+| `?perfGate=visual` | Jump directly to the settled Midnight food-court framing. Completion adds `perfGateDone=1` to the URL. |
+| `?bootDelay=<ms>` | Local-only delay, capped at 10 seconds, before `main.js` is injected. Use it to hold and inspect the static title-card loading state; production ignores it. |
 | `?sounddebug=1` | On-screen toast a beat after Start with the iOS audio-unlock state — diagnose mobile audio without Safari Web Inspector. Also enabled by `?debug` or a `zerble.debug` localStorage flag; off by default in production. |
 
 ## Audio diagnostics

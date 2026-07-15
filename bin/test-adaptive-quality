@@ -1,0 +1,112 @@
+#!/usr/bin/env node
+
+// Deterministic state-machine test for AdaptiveQuality. The production monitor
+// samples performance.now(), so this harness supplies a fake monotonic clock and
+// drives the real module with exact frame durations.
+
+let now = 0;
+Object.defineProperty(globalThis, 'performance', {
+  configurable: true,
+  value: { now: () => now },
+});
+globalThis.window = { innerWidth: 1280, innerHeight: 720 };
+globalThis.location = { search: '' };
+globalThis.localStorage = { getItem: () => null };
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: { hardwareConcurrency: 8, deviceMemory: 8, maxTouchPoints: 0 },
+});
+
+const AQ = await import('../src/adaptiveQuality.js');
+
+let pixelRatio = 2;
+const transitions = [];
+const renderer = {
+  shadowMap: { enabled: true, needsUpdate: false },
+  getPixelRatio: () => pixelRatio,
+  setPixelRatio: (v) => { pixelRatio = v; },
+};
+AQ.install({
+  renderer,
+  scene: { traverse: () => {} },
+  composer: { setSize: () => {} },
+  bloomPass: { enabled: true },
+  onLevelChange: (level) => transitions.push(level),
+});
+
+function frames(count, ms) {
+  for (let i = 0; i < count; i++) {
+    now += ms;
+    AQ.tick(ms / 1000);
+  }
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+// A sustained 25ms frame budget drops one rung.
+frames(160, 25);
+assert(AQ.getLevel() === 1, `slow frames should drop to level 1, got ${AQ.getLevel()}`);
+
+// A transition clears the old window, so the same slow evidence cannot cascade
+// immediately into another downgrade.
+frames(59, 25);
+assert(AQ.getLevel() === 1, 'stale pre-transition samples caused a cascading drop');
+
+// Healthy frames cannot restore quality during the 30-second recovery hold.
+frames(1700, 16);
+assert(AQ.getLevel() === 1, 'quality raised before the 30-second recovery hold elapsed');
+frames(300, 16);
+assert(AQ.getLevel() === 0, 'quality did not recover after a sustained healthy hold');
+
+// If that recovery cannot hold, the monitor returns to the safe rung and waits
+// two minutes instead of toggling visible effects every few seconds.
+frames(160, 25);
+assert(AQ.getLevel() === 1, 'failed recovery did not return to the safe level');
+
+// A still-heavier interval can safely descend another rung and recover across
+// that lower boundary without erasing the original boundary's two-minute lock.
+frames(160, 25);
+assert(AQ.getLevel() === 2, 'failed-recovery backoff blocked a deeper safety drop');
+frames(2000, 16);
+assert(AQ.getLevel() === 1, 'independent lower boundary did not recover after its 30-second hold');
+frames(4000, 16);
+assert(AQ.getLevel() === 1, 'crossing another boundary erased the original failed-raise backoff');
+frames(1700, 16);
+assert(AQ.getLevel() === 0, 'quality did not retry after the failed-recovery backoff');
+
+assert(
+  JSON.stringify(transitions) === JSON.stringify([1, 0, 1, 2, 1, 0]),
+  `unexpected transition sequence ${JSON.stringify(transitions)}`,
+);
+
+// Recovery holds never impede the safety path. Sustained pressure can continue
+// down the ladder, but each new rung still needs its own fresh sample window.
+AQ.install({
+  renderer,
+  scene: { traverse: () => {} },
+  composer: { setSize: () => {} },
+  bloomPass: { enabled: true },
+});
+frames(320, 25);
+assert(AQ.getLevel() === 2, `recovery hold blocked a needed second drop; got level ${AQ.getLevel()}`);
+
+// The existing severe-hitch path remains immediate once the monitor has a full
+// observation window.
+AQ.install({
+  renderer,
+  scene: { traverse: () => {} },
+  composer: { setSize: () => {} },
+  bloomPass: { enabled: true },
+});
+frames(90, 16);
+frames(2, 100);
+assert(AQ.getLevel() === 1, 'two consecutive 100ms hitches no longer drop immediately');
+
+process.stdout.write(
+  'PASS  adaptive quality uses fresh samples, per-boundary recovery holds/backoff, and immediate safety drops\n',
+);

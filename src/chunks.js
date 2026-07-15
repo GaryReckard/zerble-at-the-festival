@@ -259,6 +259,7 @@ export const chunkGenStats = {
   slowest:  0,      // worst single generation time (ms)
   lastMs:   0,      // most recent chunk generation time (ms)
   _totalMs: 0,      // running sum — used to compute avgMs
+  stages: Object.create(null),
   get avgMs() {
     return this.count > 0 ? this._totalMs / this.count : 0;
   },
@@ -288,6 +289,14 @@ const CHUNK_DEBUG = (() => {
   } catch (e) { return false; }
 })();
 
+function recordChunkStage(name, ms) {
+  let s = chunkGenStats.stages[name];
+  if (!s) s = chunkGenStats.stages[name] = { count: 0, totalMs: 0, maxMs: 0 };
+  s.count++;
+  s.totalMs += ms;
+  if (ms > s.maxMs) s.maxMs = ms;
+}
+
 // ---------- Public API ----------
 
 export class ChunkManager {
@@ -307,7 +316,7 @@ export class ChunkManager {
 
     // Load nearby chunks. First pass (boot): generate the entire ring
     // synchronously so the world isn't empty at start. Subsequent frames:
-    // budget to BUDGET_PER_FRAME chunks, with closer chunks prioritized.
+    // keep starting closest-first chunks only while the tier's time wall remains.
     //
     // Why: at boost speed (~28 m/s) the player crosses a chunk every ~2.8s,
     // and crossing a corner can demand 3-5 fresh chunks in one frame.
@@ -316,8 +325,6 @@ export class ChunkManager {
     // load over a few frames is invisible; the player keeps moving smoothly
     // and the new chunks pop in 50-100ms later.
     const firstLoad = this.loaded.size === 0;
-    const BUDGET_PER_FRAME = 1;
-    let budget = firstLoad ? Infinity : BUDGET_PER_FRAME;
 
     // Build a candidate list sorted by squared distance to the player, so
     // we always generate the closest missing chunk first under budget.
@@ -338,8 +345,9 @@ export class ChunkManager {
       }
     }
     candidates.sort((a, b) => a.d2 - b.d2);
+    const budgetStartedAt = performance.now();
     for (const c of candidates) {
-      if (budget-- <= 0) break;
+      if (!firstLoad && performance.now() - budgetStartedAt >= PERF.chunkBudgetMs) break;
       const t0 = performance.now();
       this._generate(c.cx, c.cz);
       const ms = performance.now() - t0;
@@ -475,14 +483,31 @@ export class ChunkManager {
   // One `queryRegion` per chunk (D-A / R7 — never sample per-m²); the hearts/lakes
   // it also returns are consumed by Groups D/F. Stored on ctx for those groups.
   _generateWorldgen(ctx) {
+    let stageStartedAt = CHUNK_DEBUG ? performance.now() : 0;
     const half = CHUNK_SIZE / 2;
     ctx.region = queryRegion({
       minX: ctx.cxWorld - half, minZ: ctx.czWorld - half,
       maxX: ctx.cxWorld + half, maxZ: ctx.czWorld + half,
     });
+    if (CHUNK_DEBUG) {
+      recordChunkStage('region', performance.now() - stageStartedAt);
+      stageStartedAt = performance.now();
+    }
     placeWorldgenRoads(ctx, ctx.region.roads);
+    if (CHUNK_DEBUG) {
+      recordChunkStage('roads', performance.now() - stageStartedAt);
+      stageStartedAt = performance.now();
+    }
     placeWorldgenProps(ctx);     // Group D/D2 — festival clusters along the heart's roads
+    if (CHUNK_DEBUG) {
+      recordChunkStage('props', performance.now() - stageStartedAt);
+      stageStartedAt = performance.now();
+    }
     scatterWorldgenTrees(ctx);   // Group F — treeDensity woods (dodge roads, water, clusters)
+    if (CHUNK_DEBUG) {
+      recordChunkStage('trees', performance.now() - stageStartedAt);
+      stageStartedAt = performance.now();
+    }
     // Group G — ambient crowd, CONCENTRATED at hearts: count ∝ heart influence (~16 at a
     // core center → 0 in deep outskirts). The festival clusters + road waypoints register
     // the attractors `spawnAmbientCrowd` fills; this sets how many wander this chunk. One
@@ -490,14 +515,27 @@ export class ChunkManager {
     const qpc = queryPoint(ctx.cxWorld, ctx.czWorld);
     const crowdCount = qpc.heartInfluence < 0.04 ? 0 : Math.round(1 + qpc.heartInfluence * 15);
     spawnAmbientCrowd(ctx, crowdCount);
+    if (CHUNK_DEBUG) {
+      recordChunkStage('crowd', performance.now() - stageStartedAt);
+      stageStartedAt = performance.now();
+    }
     // Rare floating bubble-juice jug pickup (~1 in 9 chunks). The v1 scatter only
     // ran in the legacy else-branch, so worldgen=1 had jugs ONLY at the spawn ring
     // (Gary 2026-06-16: "not seeing any jugs of bubble juice anywhere"). Gated on
     // the chunk-center lake test (queryPoint already computed it), and placed after
     // the crowd so it shares v1's crowd-then-jugs ctx.rng ordering.
     scatterBubbleJugs(ctx, qpc.inLake);
+    if (CHUNK_DEBUG) {
+      recordChunkStage('jugs', performance.now() - stageStartedAt);
+      stageStartedAt = performance.now();
+    }
     scatterWorldgenCampsites(ctx, qpc);
+    if (CHUNK_DEBUG) {
+      recordChunkStage('campsites', performance.now() - stageStartedAt);
+      stageStartedAt = performance.now();
+    }
     placeSeamHedges(ctx);
+    if (CHUNK_DEBUG) recordChunkStage('hedges', performance.now() - stageStartedAt);
   }
 
   // Drop any guaranteed near-spawn jug whose seeded target lands in this chunk.
@@ -1174,8 +1212,10 @@ function scatterWorldgenTrees(ctx) {
   }
   // CG3: collapse this chunk's whole woods into ~5 InstancedMeshes (one per
   // cast/no-cast bucket). Added to ctx.group → disposed with the chunk.
+  const visualStartedAt = CHUNK_DEBUG ? performance.now() : 0;
   const treeMeshes = buildForestInstanced(treeInstances);
   for (let i = 0; i < treeMeshes.length; i++) ctx.group.add(treeMeshes[i]);
+  if (CHUNK_DEBUG) recordChunkStage('tree:instanced-visuals', performance.now() - visualStartedAt);
 }
 
 // Is (x,z) inside any hub's oriented dancefloor rect? Project onto the rect's +F
@@ -1310,12 +1350,18 @@ function assertTuningDrift() {
 
 function buildWorldgenKind(ctx, d) {
   assertTuningDrift();
+  const stageStartedAt = CHUNK_DEBUG ? performance.now() : 0;
   // Transparent counting passthrough over the cluster-local rng (task 1.4
   // canary). `realRng()` is the same mulberry32 stream in the same order; the
   // wrapper only tallies calls — zero behavior change.
   const realRng = mulberry32((d.clusterSeed >>> 0) || 0x1A2B3C);
   let _draws = 0;
   const cctx = { ...ctx, rng: () => { _draws++; return realRng(); } };
+  // C1-b phase audit: every case below except camp_village registers at least
+  // one collider, directly or through a helper. Those nine full builders stay in
+  // the synchronous structure phase until they are explicitly split at a safe
+  // internal boundary. camp_village is wholly collider-free and may defer as one
+  // unit. drum_circle's access path alone is collider-free, but its circle is not.
   switch (d.kind) {
     case 'main_stage':    buildStage(cctx, d.x, d.z, true, d.yaw); break;
     case 'side_stage':    buildStage(cctx, d.x, d.z, false, d.yaw); break;
@@ -1329,6 +1375,7 @@ function buildWorldgenKind(ctx, d) {
     case 'camp_village':  buildCampVillageAt(cctx, d.x, d.z, d.tents); break;   // D2 — tent count ∝ local crowd
     default: break;       // unknown kind → place nothing (forward-compatible)
   }
+  if (CHUNK_DEBUG) recordChunkStage(`prop:${d.kind}`, performance.now() - stageStartedAt);
   worldgenDrawCounts.set(`${d.kind}@${Math.round(d.x)},${Math.round(d.z)}`, _draws);
 }
 

@@ -333,6 +333,14 @@ function api() {
       h.zerble.position.set(x, h.zerble.position.y, z);
       h.zerble.speed = 0;
     },
+    locate(kind = 'food_court') {
+      const dest = locateLandmark(kind);
+      if (!dest) return null;
+      h.zerble.position.set(dest.x, h.zerble.position.y, dest.z);
+      h.zerble.speed = 0;
+      if (Number.isFinite(dest.heading)) h.zerble.heading = dest.heading;
+      return dest;
+    },
     god(on = true) { state.god = !!on; logToast(`god: ${state.god}`); },
     freezeNPCs(on = true) { state.freezeNPCs = !!on; logToast(`freezeNPCs: ${state.freezeNPCs}`); },
     showColliders(on = true) {
@@ -376,6 +384,20 @@ function api() {
     },
     recordPerf(on = true) { setPerfRecording(!!on); return state.perfRecording; },
     perfLog() { return state.perfSamples.slice(); },
+    perfSnapshot() { return collectPerfSample(); },
+    chunkStages(reset = false) {
+      const out = {};
+      for (const [name, s] of Object.entries(chunkGenStats.stages)) {
+        out[name] = {
+          count: s.count,
+          totalMs: Math.round(s.totalMs * 10) / 10,
+          avgMs: s.count ? Math.round((s.totalMs / s.count) * 100) / 100 : 0,
+          maxMs: Math.round(s.maxMs * 10) / 10,
+        };
+        if (reset) { s.count = 0; s.totalMs = 0; s.maxMs = 0; }
+      }
+      return out;
+    },
   };
 }
 

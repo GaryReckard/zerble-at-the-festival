@@ -28,13 +28,16 @@ behavior.
 ### Requirement: Fog-bounded far culling
 
 The camera far plane and chunk residency SHALL be bounded by the fog distance so
-geometry fully obscured by fog is not rendered.
+geometry fully obscured by fog is not rendered. The bound MAY remain farther than
+the fog wall where a shared visual backdrop requires it.
 
 #### Scenario: Geometry past the fog wall is culled, not drawn-then-fogged
 
 - **WHEN** fog fully obscures geometry beyond a distance D
-- **THEN** the camera far plane is at or near D so the frustum drops that
-  geometry, and the resulting seam is hidden by fog density (no visible pop-out).
+- **THEN** the camera far plane is the shortest range that still contains the
+  non-fogged sky, stars, mountains, and ground envelope
+- **AND** the frustum drops fog-hidden retained world geometry beyond that range
+  with no visible pop-out.
 
 ### Requirement: Static-decor geometry merge at chunk completion
 
