@@ -38,6 +38,25 @@ Pages). GA4 is wired (G-CY1FNMY8H8) and analytics calls go through
 6. **[.claude/scratch-notes.md](.claude/scratch-notes.md)** — Gary's original
    reading notes. Useful as a quick index of "what's in each file."
 
+## Knowledge graph (a queryable map of this repo)
+
+A [graphify](https://github.com/safishamsi/graphify) knowledge graph of the code
++ project docs lives in `graphify-out/` — **local-only (git-ignored), never
+committed.** It's a navigation aid, not a source of truth (ARCHITECTURE.md +
+openspec/specs/ stay canonical; `INFERRED` edges are leads). Git hooks rebuild it
+incrementally on commit + pull (code, free); scope is locked by
+[.graphifyignore](.graphifyignore). **Full setup / query / refresh workflow lives
+in [.claude/rules/graphify.md](.claude/rules/graphify.md);** per-dev steering is in the git-ignored
+`CLAUDE.local.md`.
+
+For "how does X work / what touches Y," prefer `graphify query` / `path` /
+`explain` over grep — query by **node-label vocabulary** (`Crowd`, `ChunkManager`,
+`mulberry32`), not raw prose. **After landing a major change, prompt Gary to
+refresh the graph** — `/graphify --update` for docs (code refreshes automatically
+via the hooks). Don't run `graphify hook install` / `graphify claude install`
+directly (they reinstall the doc-clobbering post-checkout and write team files);
+the hooks are already set up doc-safe per .claude/rules/graphify.md.
+
 ## Operating principle: build the harness, then the feature
 
 You (the agent) must be able to **iterate, render, and verify in seconds, not
