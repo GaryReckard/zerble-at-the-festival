@@ -9,3 +9,5 @@ Trace-*.json.gz
 
 # Browser->repo capture sink (__dbg.capture() / serve_nocache.py POST /__capture)
 .claude/captures/
+
+CLAUDE.local.md

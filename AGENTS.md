@@ -1,4 +1,4 @@
-# CLAUDE.md — Zerble at the Festival
+# AGENTS.md — Zerble at the Festival
 
 Agent-facing notes for working in this repo. Read this first; then dip into the
 docs/code in the order below as the task demands.
@@ -35,9 +35,8 @@ Pages). GA4 is wired (G-CY1FNMY8H8) and analytics calls go through
    work to see if Gary has already considered (and parked) it.
 5. **[CHANGELOG.md](CHANGELOG.md)** — what shipped, dated. The "why" of recent
    commits lives here, more than in `git log`.
-6. **[.claude/scratch-notes.md](.claude/scratch-notes.md)** — Gary's original
+6. **[.Codex/scratch-notes.md](.Codex/scratch-notes.md)** — Gary's original
    reading notes. Useful as a quick index of "what's in each file."
-
 
 ## Operating principle: build the harness, then the feature
 
@@ -49,13 +48,13 @@ doesn't, **building that surface comes before the feature work** — extending
 the harness is part of the task, not a separate ticket.
 
 The full doctrine, with the specific maintenance steps when you add a new
-model, lives in **[.claude/rules/sandbox-and-testing.md](.claude/rules/sandbox-and-testing.md)** — read it before
+model, lives in **[.Codex/rules/sandbox-and-testing.md](.Codex/rules/sandbox-and-testing.md)** — read it before
 adding anything to `src/models/`.
 
 ## Run + verify
 
 ```
-python3 .claude/serve_nocache.py 8765
+python3 .Codex/serve_nocache.py 8765
 ```
 
 Two entry points:
@@ -70,7 +69,7 @@ Two entry points:
 The dev server sends `no-store` so module edits land on reload — `python3 -m
 http.server` won't, because Chrome heuristic-caches module bodies.
 
-**Verification with Claude Preview MCP** — `preview_start`,
+**Verification with Codex Preview MCP** — `preview_start`,
 `preview_console_logs`, `preview_screenshot`. Background tabs run the main
 loop on `setTimeout(16ms)` rather than RAF specifically so the preview MCP
 (which keeps `document.hidden`) keeps ticking. Never tell Gary to "go check
@@ -135,7 +134,7 @@ and it just works" property and avoids a moving piece this project deliberately
 avoids. **Relaxed-but-gated (2026-06-19):** a build step (Vite + a committed
 `dist/` or a GitHub-Actions deploy, so Pages still "just works") is now on the
 table *only* behind a measured perf proposal raised with Gary — never quietly.
-See [.claude/rules/no-build.md](.claude/rules/no-build.md) + ROADMAP
+See [.Codex/rules/no-build.md](.Codex/rules/no-build.md) + ROADMAP
 "Performance → Build step" / "Out of scope" for the live stance.
 
 If you create a new source module, **add it to the importmap list in *all four*
@@ -216,8 +215,8 @@ poll-everywhere pattern is intentional and cheap.
 Low tier: shadows off, Lambert swap on. Mid/high tier: shadows on, Standard
 materials. The `castShadow = true` count is audited — there's a perf budget.
 **Don't reflexively add `castShadow = true`** to new meshes; only large/visible
-objects need it. See `.claude/perf-audit-plan.md` for the cut list, and
-[.claude/rules/performance.md](.claude/rules/performance.md) for the full
+objects need it. See `.Codex/perf-audit-plan.md` for the cut list, and
+[.Codex/rules/performance.md](.Codex/rules/performance.md) for the full
 audit-priority order, allocation-vs-steady-state model, and footgun list
 that drove the three shipped perf passes.
 
@@ -241,7 +240,7 @@ Skip the changelog only for pure-internal refactors with no observable effect,
 comment/format-only changes, or doc edits. When in doubt, write the entry.
 
 The commit-time checklist, voice/date guidance, and ROADMAP rules live in
-**[.claude/rules/changelog-and-roadmap.md](.claude/rules/changelog-and-roadmap.md)**
+**[.Codex/rules/changelog-and-roadmap.md](.Codex/rules/changelog-and-roadmap.md)**
 — read it before committing.
 
 ## Conventions
@@ -262,7 +261,7 @@ The commit-time checklist, voice/date guidance, and ROADMAP rules live in
   `sandbox.html`'s `models` importmap array, the entity `<select>`, the
   `loadEntity()` switch, and (if relevant) `ENTITY_HIT_KIND` /
   `ENTITY_MUSIC_STYLE`. This is what makes future iteration cheap. See
-  [.claude/rules/sandbox-and-testing.md](.claude/rules/sandbox-and-testing.md)
+  [.Codex/rules/sandbox-and-testing.md](.Codex/rules/sandbox-and-testing.md)
   for the full checklist and the "extend the harness before bypassing it"
   doctrine.
 - **Registry entries**: `kind`, `position`, `footprint`, optional `collider`,
@@ -281,11 +280,11 @@ bubbles, collect the smiles" and the warm-festival-evening tone.
 
 ## Skills available in this repo
 
-`.claude/skills/threejs-*` — ten three.js skill packs (fundamentals, geometry,
+`.Codex/skills/threejs-*` — ten three.js skill packs (fundamentals, geometry,
 materials, textures, lighting, animation, interaction, loaders,
 postprocessing, shaders). When the task is graphics/perf work, load the
 relevant skill before guessing. The two perf-pass plan docs
-(`.claude/perf-audit-plan.md`, `.claude/perf-pass-2-plan.md`) demonstrate the
+(`.Codex/perf-audit-plan.md`, `.Codex/perf-pass-2-plan.md`) demonstrate the
 expected workflow: skill → audit → priority-ordered plan → ship + log results.
 
 ## Deliberation, review & spec-driven planning
@@ -299,7 +298,7 @@ Three agent surfaces, adapted from the fedweb toolkit for this project:
   stress-test a plan or design *before* building — especially anything brushing a
   tripwire (determinism, threeShim/material-tier, boot order, chunk/lake
   lifecycle, perf budget, iOS audio). The personas are re-domained to this
-  project; they read `CLAUDE.md` + `ARCHITECTURE.md` + `.claude/rules/*.md`.
+  project; they read `AGENTS.md` + `ARCHITECTURE.md` + `.Codex/rules/*.md`.
 - **`/smart-review`** — a multi-specialist code review of a diff. Loads
   `smart-review`, which fans out to `review-*` specialists (rendering,
   performance, gameplay, audio, sandbox, docs), dedupes by ownership, and
@@ -315,7 +314,7 @@ Three agent surfaces, adapted from the fedweb toolkit for this project:
   Full operational details (the `README.md` front door, the `session-log.md` +
   `questions-for-human.md` persistent-memory system, the event-driven writing
   protocol, the skippable deliberation gate, the cross-ref convention) live in
-  `.claude/rules/openspec.md`, path-scoped to `openspec/**`. Project context is
+  `.Codex/rules/openspec.md`, path-scoped to `openspec/**`. Project context is
   in `openspec/config.yaml`; the workflow schema is forked at
   `openspec/schemas/zerble/`. No Jira here — the audit trail stays
   CHANGELOG + ROADMAP + git. `/deliberate` and `/smart-review` persist artifacts
@@ -323,13 +322,13 @@ Three agent surfaces, adapted from the fedweb toolkit for this project:
 
 ## Project-specific rules
 
-See `.claude/rules/`:
+See `.Codex/rules/`:
 
-- [sandbox-and-testing.md](.claude/rules/sandbox-and-testing.md) — **read
+- [sandbox-and-testing.md](.Codex/rules/sandbox-and-testing.md) — **read
   before adding to `src/models/`.** The sandbox-first verification doctrine,
   the new-model checklist (importmap + dropdown + loadEntity switch + hit kind
   + music style), and the "extend the harness before bypassing it" principle.
-- [performance.md](.claude/rules/performance.md) — **read before touching
+- [performance.md](.Codex/rules/performance.md) — **read before touching
   graphics code or proposing a perf change.** The audit-priority order
   (shadows → disposal → post-process → instancing → pooling → AA → textures),
   allocation-vs-steady-state mental model, the heuristics distilled from the
@@ -337,15 +336,15 @@ See `.claude/rules/`:
   that drove perf passes 1–3, and the explicit footgun list (no
   `THREE.X = Y` after import, no disposal without `userData.shared` check,
   no reflexive `castShadow = true`).
-- [changelog-and-roadmap.md](.claude/rules/changelog-and-roadmap.md) —
+- [changelog-and-roadmap.md](.Codex/rules/changelog-and-roadmap.md) —
   **read before committing.** Every user-visible change updates CHANGELOG
   first; if it was on ROADMAP, remove the bullet in the same commit. Voice,
   date handling, when to skip, and the commit-time checklist.
-- [no-build.md](.claude/rules/no-build.md) — the no-bundler stance and the
+- [no-build.md](.Codex/rules/no-build.md) — the no-bundler stance and the
   importmap maintenance rule (both `index.html` *and* `sandbox.html`).
-- [perf-pooling.md](.claude/rules/perf-pooling.md) — the `userData.shared`
+- [perf-pooling.md](.Codex/rules/perf-pooling.md) — the `userData.shared`
   convention and the dispose-safe pattern for new pooled resources.
-- [openspec.md](.claude/rules/openspec.md) — **path-scoped to `openspec/**`;
+- [openspec.md](.Codex/rules/openspec.md) — **path-scoped to `openspec/**`;
   auto-loads only when working in OpenSpec.** Lazy/intent-gated mode, the
   `README.md` front door + `bin/readme-sync` status generator, the
   persistent-memory system (`session-log.md` + `questions-for-human.md`), the
