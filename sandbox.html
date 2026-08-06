@@ -182,7 +182,7 @@
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
             const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
-                'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y',
+                'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
             const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
@@ -323,6 +323,7 @@
         <button id="snapshot">Copy link</button>
     </div>
     <div id="info">drag to orbit · scroll to zoom · shift-drag to pan</div>
+    <div id="render-stats" style="margin-top:4px;opacity:0.75">scene: measuring…</div>
     <div class="controls">
         <kbd>1</kbd>–<kbd>6</kbd> snap to angles · <kbd>R</kbd> reset · <kbd>L</kbd> toggle ground
     </div>
@@ -560,6 +561,7 @@ import {buildShrub} from './src/models/shrub.js';
     import {MidiPlayer} from './src/midiPlayer.js';
     import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
     import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+    import {Pass} from 'three/addons/postprocessing/Pass.js';
     import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
     const canvas = document.getElementById('canvas');
@@ -614,6 +616,21 @@ import {buildShrub} from './src/models/shrub.js';
     Trip.init();
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
+    // Later fullscreen passes replace renderer.info, so capture model cost here.
+    const sceneInfo = {calls: 0, triangles: 0};
+    class InfoCapturePass extends Pass {
+        constructor() {
+            super();
+            this.needsSwap = false;
+        }
+
+        render(r) {
+            sceneInfo.calls = r.info.render.calls;
+            sceneInfo.triangles = r.info.render.triangles;
+        }
+    }
+    composer.addPass(new InfoCapturePass());
+    renderer.__sceneInfo = sceneInfo;
     composer.addPass(Trip.pass);
     composer.addPass(new OutputPass());
 
@@ -735,6 +752,7 @@ import {buildShrub} from './src/models/shrub.js';
     let entityMusic = null;
     const select = document.getElementById('entity');
     const info = document.getElementById('info');
+    const renderStats = document.getElementById('render-stats');
     // Expose for debugging / verification. `cam` + `applyCam` let an agent frame
     // a precise close-up via preview_eval (set cam.target / yaw / pitch / dist,
     // then call applyCam()) — applyCam only runs on input otherwise.
@@ -774,10 +792,13 @@ import {buildShrub} from './src/models/shrub.js';
             if (c.isLight || c === groundGroup) continue;
             scene.remove(c);
             c.traverse?.((o) => {
-                if (o.geometry) o.geometry.dispose?.();
+                if (o.isInstancedMesh) o.dispose?.();
+                if (o.geometry && !o.geometry.userData?.shared) o.geometry.dispose?.();
                 if (o.material) {
-                    if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose?.());
-                    else o.material.dispose?.();
+                    const materials = Array.isArray(o.material) ? o.material : [o.material];
+                    for (const material of materials) {
+                        if (!material.userData?.shared) material.dispose?.();
+                    }
                 }
             });
         }
@@ -2525,6 +2546,7 @@ import {buildShrub} from './src/models/shrub.js';
     // empty so the proximity-trigger path never fires; only the FIRE /
     // DYNAMIC panel buttons can start a trip.
     const _tripPos = new THREE.Vector3();
+    let nextStatsUpdate = 0;
 
     function tick() {
         // Preview MCP runs the page document.hidden — RAF throttles to ~0 fps
@@ -2569,6 +2591,11 @@ import {buildShrub} from './src/models/shrub.js';
             }
         }
         composer.render();
+        const now = performance.now();
+        if (now >= nextStatsUpdate) {
+            renderStats.textContent = `scene: ${sceneInfo.calls} draws · ${sceneInfo.triangles.toLocaleString()} tris · ${renderer.info.memory.geometries} geo · ${renderer.info.memory.textures} tex`;
+            nextStatsUpdate = now + 250;
+        }
     }
 
     tick();

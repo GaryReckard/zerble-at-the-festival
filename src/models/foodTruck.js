@@ -2,6 +2,8 @@
 // Faces -X (the serving window opens to +Z). Caller positions/rotates the group.
 
 import * as THREE from 'three';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeStaticDecor, MODEL_DECOR_MERGE_ENABLED } from '../mergeDecor.js';
 
 // Trucks read as too dainty next to Zerble — bump them up so they feel like
 // proper rigs you have to drive around, not toy cars. Caller-side colliders
@@ -15,8 +17,10 @@ export const FOOD_TRUCK_SCALE = 1.7;
 const _GEO = {
   box:    new THREE.BoxGeometry(6, 3, 3.2),
   cab:    new THREE.BoxGeometry(2, 2.2, 3.0),
-  wind:   new THREE.BoxGeometry(0.05, 1.0, 2.5),
-  serv:   new THREE.BoxGeometry(3.5, 1.0, 0.05),
+  windows: BufferGeometryUtils.mergeGeometries([
+    new THREE.BoxGeometry(0.05, 1.0, 2.5).translate(-3.55, 1.9, 0),
+    new THREE.BoxGeometry(3.5, 1.0, 0.05).translate(0.5, 2.4, 1.6),
+  ], false),
   canopy: new THREE.BoxGeometry(3.6, 0.1, 1.2),
   wheel:  new THREE.CylinderGeometry(0.5, 0.5, 0.3, 14),
   sign:   new THREE.BoxGeometry(4, 0.7, 0.15),
@@ -68,13 +72,7 @@ export function buildFoodTruck(rng = Math.random) {
   cab.castShadow = true;
   g.add(cab);
 
-  const wind = new THREE.Mesh(_GEO.wind, _SHARED_MATS.window);
-  wind.position.set(-3.55, 1.9, 0);
-  g.add(wind);
-
-  const serv = new THREE.Mesh(_GEO.serv, _SHARED_MATS.window);
-  serv.position.set(0.5, 2.4, 1.6);
-  g.add(serv);
+  g.add(new THREE.Mesh(_GEO.windows, _SHARED_MATS.window));
 
   const canopy = new THREE.Mesh(_GEO.canopy, _SHARED_MATS.canopy);
   canopy.position.set(0.5, 3.1, 2.3);
@@ -96,5 +94,8 @@ export function buildFoodTruck(rng = Math.random) {
 
   // Uniform scale so all interior offsets stay correct.
   g.scale.setScalar(FOOD_TRUCK_SCALE);
+  if (MODEL_DECOR_MERGE_ENABLED) {
+    mergeStaticDecor(g, { castShadow: (mesh) => mesh.castShadow });
+  }
   return g;
 }

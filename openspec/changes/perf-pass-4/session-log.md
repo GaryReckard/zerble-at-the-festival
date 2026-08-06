@@ -1,11 +1,11 @@
 ---
 change: perf-pass-4
 status: in_progress        # not_started | in_progress | blocked | paused | complete
-current_task: 7.4.1         # CG3 instancing code shipped + statically gated; CG4 GPU gates (7.4.1-7.4.5) are Gary's
-blocked_by: null            # CG3 boot/census/tri/visual confirmation pending on Gary's real GPU — not a hard blocker
+current_task: 3.3           # split a measured hot structural builder without rng drift
+blocked_by: null            # no blocker
 open_questions: 0           # count of unanswered questions in questions-for-human.md
 started: 2026-06-19
-last_updated: 2026-06-21
+last_updated: 2026-07-15
 ref: .claude/perf-brainstorm.md  # the idea bank + critic ranking this picks up
 ---
 
@@ -136,6 +136,98 @@ InstancedMesh `.isMesh` is true, shared unit geos + base mats carry `userData.sh
 per-tree draws/chunk → ~5–6, plus a memory win (4 shared unit geos vs fresh geometry
 per tree). -> D15
 
+### D17 — Scoped model merging preserves each source mesh's shadow state
+The extracted `mergeDecor.js` keeps the tent's legacy opaque/transparent defaults,
+while food trucks and Sugar Shacks pass a callback that splits merged geometry by
+the original `castShadow` bit. This retains the audited caster set instead of making
+wheels, canopies, poles, stations, and supplies cast as collateral. The util also
+skips texture-mapped meshes (the old helper only skipped emissive ones), because
+Sugar Shack signage cannot be represented by its flat vertex-color material. The
+deliberation's picnic-table call-site note was stale: the current table already
+self-merges independently and imports nothing from `tent.js`. -> Task 5.2a-5.2c
+
+### D18 — Sign faces and co-material windows should not pay per-face draws
+The model-level sandbox capture proved the Sugar Shack at 72 scene draws and the
+already-merged food truck at 7. Four Sugar Shack signs were still six-material
+`BoxGeometry` meshes, which makes each box six render submissions even though only
+the printed front needs an independent material. Each sign is now a shared open-front
+shell that joins the existing static-color merge plus one mapped plane, saving exactly
+20 scene draws with identical triangle count. The truck's two windows share one
+emissive material and never move independently, so their transforms are baked into one
+shared geometry for one further draw saved. -> Task 5.2e 5.2f
+
+### D19 — The real-GPU gate is one deterministic suite, not a handwritten drive loop
+Task 5.2d now has a local-only `?modelMerge=1` control that enables only the new
+food-truck and Sugar Shack experiment, leaving the older tent merge unchanged. One
+`?perfGate=suite` URL reloads through fixed-seed, fixed-camera low/mid/high pairs and
+then five-cycle unmerged/merged lifecycle controls after the chunk-generation counter
+settles. Exact merge create/dispose instrumentation proved the live merged geometry
+count repeats at each location; the broader `renderer.info.memory.geometries` verdict
+allows a one-percent post-warm-up window but remains independent because unrelated lazy
+renderer resources continued warming in some software-rendered runs. The in-app browser exercises
+the whole workflow, but its software-rendered draw deltas are diagnostic only; Gary's
+hardware run remains the acceptance gate. -> Task 5.2d
+
+### D20 — Real-GPU renderer counts reject both broad model merges
+Gary's fixed-seed hardware suite measured merged minus unmerged renderer draws at
+**+72 low, +358 mid, and +364 high**. That is a loss on every tier, despite the
+isolated-model mesh reductions. The merged lifecycle also stopped advancing after
+`court-3`; the old stability test repeated stale snapshots and falsely called that a
+plateau. Production therefore defaults both broad merges OFF, with `?modelMerge=1`
+retained only to reproduce the rejected experiment. The independent 21-draw window
+and sign-shell cuts remain. The settle gate now requires `renderer.info.render.frame`
+to advance, completion persists as `perfGateDone=1`, and a direct Midnight visual
+route proved food-court lights intact. -> Task 5.2d
+
+### D21 — Camera far plane is backdrop-bounded, not fog-wall-bounded
+Fog ends at 520m, but a literal 520m far plane clips the recentered visual world:
+sky radius 900m, stars 850m, ground corners ~990m, and worst-case randomized
+mountain vertices ~1012m. The shortest safe value is therefore 1040m on every
+tier; tier-specific shorter values are impossible while the backdrop is shared.
+This still cuts the invisible tail of lakes retained to their 1500m unload radius.
+On a fixed-registry 1.2km travel A/B/A, 1040m rendered 2595–2610 draws versus
+2949–2960 at 1500m, roughly 350 draws and 12k triangles saved. Same-state Noon
+frames were visually indistinguishable; Midnight and all three Start flows stayed
+clean. -> Task 5.3
+
+### D22 — Bloom's dynamic signal is world lighting, not camera-content scanning
+Task 2.6 already shipped one deterministic predicate: `nightness > 0.08` or star
+power active, ANDed with the tier, AdaptiveQuality, and player override. The older
+Task 2.7/spec language still described per-frame stage/fire visibility and wrongly
+claimed low had `PERF.bloom = false`; neither matches the code or current profiles.
+Adding a registry/frustum scan would add CPU work and a second source of threshold
+churn without a measured need, so the contract now matches the single shipped
+writer. Live low/mid/high matrices all proved day off, dusk on, daytime star power
+on, player-off wins at night, and 12 stable near-threshold samples; browser errors
+were empty. -> Task 2.7
+
+### D23 — Nine cluster kinds are structural; only camp-village is wholly defer-safe
+The `buildWorldgenKind` call graph shows that main/side/tent stages, arches, food
+courts, vendor rows, bubble vendors, porta banks, and drum circles all register
+colliders directly or through helpers. `camp_village` registers steering footprint
+and attractor data but no collider, making it the only whole cluster builder that
+can move into the deferred phase. The drum access path is also collider-free, but
+its paired circle is structural. The dispatcher now records this binding boundary.
+The outer streaming loop separately moved from one chunk/frame to tier-aware 3/4/5ms
+walls while preserving eager boot; splitting a single dense chunk remains Task 3.3.
+-> Tasks 3.1, 3.2
+
+### D24 — The planned whole-stage deferral moves the wrong 3% of chunk time
+`__dbg.chunkStages()` now measures v2 generation only under `?debug=1`, with no
+production timestamps. On a fixed-seed low-tier 800m jump (nine new chunks), the
+repeatable split was roughly **144–177ms trees + 86–111ms props**, versus only
+**~6–8ms total** for crowd, jugs, campsites, and hedges. Within those hot stages,
+instanced-tree visual materialization was just **0.3–0.6ms**, while three vendor
+rows consumed **57–71ms**. Therefore the original whole-stage C1-b queue would
+leave about 97% of measured work synchronous and cannot flatten the hitch it was
+designed to solve. Two one-variable tree-planning attempts were rejected and fully
+removed: an exact-equivalent precomputed density-neighborhood sampler measured
+150ms before versus 157ms after, and transient-vector reuse also failed to improve
+the same route. Task 3.3 is re-scoped to descriptor-first splitting of a genuinely
+hot structural builder (vendor rows) or a separately measured tree-planning cut;
+no deferral ships until it moves material time and preserves rng/registry identity.
+-> Task 3.3
+
 ## Assumptions
 
 | # | Assumption | Confidence | Status | Resolution |
@@ -146,19 +238,18 @@ per tree). -> D15
 
 ## Dangling Threads
 
-- Live perf/visual verification (FPS, stall removal, ToD screenshots) can only run on
-  Gary's real-GPU local machine — Codespaces has no WebGL. Agent-side verify is limited
-  to syntax / importmap / determinism gate / code review.
+- ~~**Dense-food-court real-GPU gate.**~~ RESOLVED: Gary's suite rejected the broad
+  merges on all three tiers; they are scoped out and the final Midnight view is now
+  direct, durably marked complete, and browser-verified.
 - ~~**CG3 trunk-instancing taper approximation.**~~ RESOLVED in CG3: went with the
   2-trunk-bucket split (pine 0.55 / broadleaf 0.7), so trunk RADII are EXACT — no
   taper approximation. Only the segment count unifies 7→8 (imperceptible). Cost is
   one extra InstancedMesh/chunk (6 buckets, still "~5").
-- **Game boot + all GPU verification is Gary's** (no WebGL here). CG2 byte-identical
-  + CG3 statically gated (golden unchanged, parse clean, bucket-count↔fill proven
-  under node), but the longest-call-chain boot
-  (`buildWorld→_generate→_generateWorldgen→scatterWorldgenTrees→buildForestInstanced`)
-  and every visual/perf number can only run on the real GPU. **Correctness path now
-  source-verified against three 0.160** (2026-06-21): `setColorAt` auto-allocs
+- ~~**Game boot + all GPU verification is Gary's** (no WebGL here).~~ RESOLVED for
+  functional verification: the in-app browser now supplies WebGL and has booted the
+  full low/mid/high game plus the capture suite. Gary's hardware is still authoritative
+  for performance acceptance. **Correctness path was also source-verified against
+  three 0.160** (2026-06-21): `setColorAt` auto-allocs
   instanceColor (also proven by starPower.js shipping it); InstancedMesh defines
   `boundingSphere=null` so `Frustum.intersectsObject` calls its INSTANCE-AWARE
   `computeBoundingSphere()` → per-chunk frustum culling works, trees won't vanish
@@ -168,6 +259,53 @@ per tree). -> D15
   read, geo-leak drive-in/out, bird perching.
 
 ## Work Log
+
+### 2026-07-15 -- one-URL food-court gate proves lifecycle ownership locally
+**Event:** phase-change
+**What:** Added a measurement-only unmerged control, fixed-camera draw sampler, settled
+chunk-generation wait, and paired five-cycle lifecycle controls. The first automated
+run correctly falsified the naive exact-total-memory check: unrelated lazy GPU resources
+were still warming. The unmerged control then plateaued, and merge-specific create/dispose
+instrumentation proved every merged geometry unloads, with the live count repeating
+exactly at both locations. The final reporter separately judges total renderer geometry
+within a one-percent post-warm-up window and keeps merge ownership exact; the former still
+varied in the software-rendered browser because unrelated lazy resources continued to
+appear. The in-app browser completed the full self-reloading suite and wrote all eight
+captures; `npm run check` remains green. **Pending Gary / Task 5.2d:** run the same one-URL suite on the real GPU,
+then visually confirm Midnight emissive glow and two-frame animation.
+**Refs:** -> D19 -> Task 5.2d
+
+### 2026-07-15 -- sandbox scene counter exposes another 21 model draws to remove
+**Event:** phase-change
+**What:** Added a permanent sandbox readout that captures real scene draws and triangles
+immediately after `RenderPass`, before post-processing overwrites `renderer.info`, plus
+live geometry/texture counts. Entity teardown now honors the production
+`userData.shared` contract and frees InstancedMesh instance buffers; two repeated
+food-truck/Sugar Shack switch cycles plateaued at the same resource counts with no
+console errors. The baseline named two one-variable cuts: Sugar Shack 72 → 52 scene
+draws at the same 6,431 triangles by replacing four six-material sign boxes with shared
+open-front shells plus mapped planes, and food truck 7 → 6 at the same 344 triangles by
+premerging its co-material windows. Both models are visually clean at Noon + Midnight,
+and the full game boots/runs console-clean on forced low/mid/high. Static gates remain
+green: importmaps, model dimensions, registry grid, and forest determinism.
+**Refs:** -> D18 -> Task 5.2e 5.2f -> next 5.2d
+
+### 2026-07-15 -- scoped food-truck + Sugar Shack merge implemented; GPU gate remains
+**Event:** phase-change
+**What:** Extracted the shipped tent merge primitive into neutral `src/mergeDecor.js`,
+hardened it against InstancedMesh template collapse and texture loss, and applied it at
+the end of `buildFoodTruck` + `buildSugarShack` without consuming rng. Food trucks now
+collapse seven non-emissive pieces into two caster-state buckets (10 total meshes → 5);
+Sugar Shack structural color meshes collapse while staff, textured signs, emissive
+fixtures, instanced string bulbs, and lights remain live. Noon/Midnight sandbox checks
+for truck/shack plus the tent regression are console-clean; the full game boots and runs
+console-clean on forced low/mid/high. Importmaps, parse, model dims, registry grid, and
+forest determinism are green. `bin/lint` still reports its existing world-layout finding
+(drum circle inside a food-court envelope); the rng-free merge cannot affect it. The
+legacy `layout-snapshot capture` driver hung before returning a dump, so no snapshot pass
+is claimed. **Pending Gary / Task 5.2d:** dense-food-court before/after draws by tier,
+geometry baseline after unload/reload, and in-game cook motion.
+**Refs:** -> D17 -> Task 5.2a 5.2b 5.2c -> next 5.2d
 
 ### 2026-06-19 -- Change scaffolded
 **Event:** phase-change

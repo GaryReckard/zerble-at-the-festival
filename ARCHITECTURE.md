@@ -157,6 +157,7 @@ Three independent lifecycle systems own world content. They all share one regist
 - Independent of the chunk grid. Lakes live on a **320m macrocell grid**.
 - Body radius 70–100m (large) or 25–40m (small), placed deterministically within the macrocell.
 - Load when within `LOAD_RADIUS` of the player, unload past `LOAD_RADIUS_UNLOAD` — so they don't pop in/out at chunk boundaries.
+- Their unload hysteresis can retain lake groups out to 1,500m, while fog is fully opaque by 520m. The gameplay camera's `PERF.cameraFar = 1040` drops that invisible tail but remains beyond every recentered backdrop (sky 900m, stars 850m, worst-case mountain geometry ~1,012m).
 - Register colliders (radial wall) **without** a `chunkKey`, so chunk unload doesn't tear them down.
 - Lakes own: canoes, beaches, lakeside campsites. Chunks consult the registry to avoid placing paths or decorations on water.
 
@@ -336,8 +337,23 @@ Boot-time device sniff: touch capability, screen size, `hardwareConcurrency`, `d
 | `bloom` | on | on | on |
 | `crowd density` | thin | medium | dense |
 | `chunk draw radius` | small | medium | large |
+| `chunk generation wall` | 3ms | 4ms | 5ms |
+| `camera far plane` | 1040m | 1040m | 1040m |
 
 Override at the URL: `?perf=low` (or `mid` / `high`). Or at runtime: `window.__perfProfile = 'low'; location.reload()`.
+
+After the eager spawn ring, chunk streaming starts the closest missing chunk and
+keeps starting additional chunks only while the profile's generation wall remains.
+The wall prevents a second chunk from compounding an already-expensive frame; the
+separate phased-deferral path is responsible for splitting one dense chunk itself.
+
+`adaptiveQuality.js` layers a live seven-rung governor over the boot profile. It
+drops quickly under sustained slow or severely hitched frames, but recovery is
+intentionally slower: every transition clears the 90-frame observation window,
+a downgraded rung is held for at least 30 seconds, and a recovery that fails
+within 15 seconds backs off that specific boundary for two minutes, doubling to
+a five-minute cap. This prevents fancy bubbles and shadows from visibly toggling
+back and forth when a device sits close to a quality boundary.
 
 ---
 
@@ -345,10 +361,10 @@ Override at the URL: `?perf=low` (or `mid` / `high`). Or at runtime: `window.__p
 
 Vanilla DOM, no framework.
 
-- Score panel (current smiles + best, persisted to `localStorage` as `zerble-best-smiles`).
+- Compact status rail with current smiles, a de-emphasized best persisted to `localStorage` as `zerble-best-smiles`, bubble juice, the live day/night dial, and a conditional Lurleen-following heart.
 - Toast strip — short status messages with a fade timer.
 - Hit flash — red vignette pulse on damage.
-- Title card — full-screen overlay before start, dismissed by the green "Let's go ZERBLIN'!" button.
+- Title card — full-screen overlay before start. Its static HTML keeps Start and Settings disabled while an inline bubble-pressure loader runs independently of the slow module graph; `HUD.onStart` installs the trusted-gesture handler, marks the loader ready, restores the Start/Resume label, and only then enables the controls. The ready loader holds for 1.1 seconds, then fades and collapses out of the title layout.
 
 ---
 

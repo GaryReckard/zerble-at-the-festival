@@ -51,101 +51,112 @@ body {
   z-index: 5;
 }
 
-#score-panel {
+#status-rail {
   position: absolute;
   top: calc(22px + env(safe-area-inset-top, 0));
   left: calc(22px + env(safe-area-inset-left, 0));
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.hud-chip {
+  height: 42px;
+  display: flex;
+  align-items: center;
   background: linear-gradient(160deg, rgba(40, 28, 66, 0.6), rgba(22, 16, 40, 0.62));
   backdrop-filter: blur(9px);
   border: 1px solid rgba(255, 246, 230, 0.16);
-  border-radius: 18px;
-  padding: 14px 18px 15px;
-  min-width: 188px;
-  box-shadow: var(--shadow);
+  border-radius: 14px;
+  box-shadow: 0 7px 22px rgba(0, 0, 0, 0.28);
 }
 
-#score-panel .row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 14px;
+.smile-status {
+  gap: 6px;
+  padding: 4px 9px 4px 6px;
 }
 
-#score-panel .row + .row {
-  margin-top: 4px;
-}
-
-#score-panel .label {
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 11px;
-  color: rgba(255, 246, 230, 0.7);
-}
-
-#score-panel .value {
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--paper);
-  text-shadow: 0 0 14px rgba(255, 210, 138, 0.45);
-}
-
-#score-panel .small .value {
-  font-size: 16px;
-  font-weight: 600;
+.smile-mark {
+  width: 28px;
+  height: 28px;
   color: var(--warm);
-  text-shadow: none;
+  filter: drop-shadow(0 0 7px rgba(255, 210, 138, 0.4));
+}
+
+.smile-value {
+  min-width: 1ch;
+  color: var(--paper);
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 12px rgba(255, 210, 138, 0.38);
+}
+
+.best-score {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-end;
+  gap: 2px;
+  margin: 0 0 5px -2px;
+  color: rgba(255, 210, 138, 0.66);
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ----- Bubble-juice meter ----- */
 #juice-meter {
-  margin-top: 12px;
-  padding-top: 11px;
-  border-top: 1px solid rgba(255, 246, 230, 0.12);
-}
-
-.juice-head {
-  display: flex;
-  align-items: center;
+  position: relative;
+  width: 118px;
   gap: 7px;
-  margin-bottom: 6px;
+  padding: 0 10px;
 }
 
 /* Stockpile reserve — spare whole meters beyond the working one, shown as a
-   "N× jug" badge to the right of the label. Hidden when you have no spares. */
+   small badge above the meter. Hidden when you have no spares. */
 .juice-reserve {
-  margin-left: auto;
-  display: none;                 /* revealed via .has-reserve when reserves > 0 */
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  display: none;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 8px;
+  background: rgba(25, 31, 57, 0.94);
+  border: 1px solid rgba(127, 232, 255, 0.36);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
 }
 .juice-reserve.has-reserve {
   display: flex;
 }
 .rsv-n {
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 700;
   color: #aef0ff;
-  text-shadow: 0 0 6px rgba(127, 232, 255, 0.7);
-  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
 }
 .rsv-jug {
   display: block;
-  filter: drop-shadow(0 0 4px rgba(127, 232, 255, 0.6));
+  filter: drop-shadow(0 0 3px rgba(127, 232, 255, 0.55));
 }
 
 .juice-dot {
-  width: 10px;
-  height: 10px;
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   background: radial-gradient(circle at 32% 30%, #ffffff 0%, #7fe8ff 38%, #2bb8e6 100%);
   box-shadow: 0 0 8px rgba(127, 232, 255, 0.8);
 }
 
 .juice-track {
+  flex: 1;
   position: relative;
-  height: 13px;
-  border-radius: 8px;
+  height: 10px;
+  border-radius: 6px;
   background: rgba(10, 14, 26, 0.7);
   border: 1px solid rgba(127, 232, 255, 0.22);
   overflow: hidden;
@@ -156,7 +167,7 @@ body {
   inset: 0;
   width: 100%;
   transform-origin: left center;
-  border-radius: 8px;
+  border-radius: 6px;
   background: linear-gradient(90deg, #1f9fd6 0%, #43c9f0 55%, #9af1ff 100%);
   box-shadow: 0 0 12px rgba(67, 201, 240, 0.6) inset, 0 0 9px rgba(127, 232, 255, 0.45);
   transition: transform 0.18s ease-out, background 0.4s ease, box-shadow 0.4s ease;
@@ -167,9 +178,102 @@ body {
   content: '';
   position: absolute;
   left: 0; right: 0; top: 1px;
-  height: 4px;
-  border-radius: 8px;
+  height: 3px;
+  border-radius: 6px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+}
+
+/* The full day/night cycle is the dial face; the pip orbits to the live t value. */
+.cycle-status {
+  --cycle-turn: 0.15turn;
+  width: 42px;
+  justify-content: center;
+}
+
+.cycle-dial {
+  position: relative;
+  width: 31px;
+  height: 31px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #8d77b7 0% 7%,
+    #ffd98c 7% 43%,
+    #d58c80 43% 55%,
+    #67538f 55% 95%,
+    #8d77b7 95% 100%
+  );
+  box-shadow: 0 0 10px rgba(255, 210, 138, 0.2);
+}
+
+.cycle-dial::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: rgba(27, 21, 47, 0.92);
+}
+
+.cycle-symbol {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  color: #ffd98c;
+  font-size: 15px;
+  line-height: 1;
+  text-shadow: 0 0 7px rgba(255, 217, 140, 0.58);
+}
+
+.cycle-status.is-night .cycle-symbol {
+  color: #d9d3ff;
+  text-shadow: 0 0 7px rgba(185, 174, 255, 0.62);
+}
+
+.cycle-marker {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  border-radius: 50%;
+  background: #fff9df;
+  box-shadow: 0 0 5px rgba(255, 249, 223, 0.9);
+  transform: rotate(var(--cycle-turn)) translateY(-13px);
+}
+
+.lurleen-status {
+  display: none;
+  width: 42px;
+  justify-content: center;
+  border-color: rgba(255, 111, 156, 0.32);
+  background: linear-gradient(160deg, rgba(83, 34, 72, 0.72), rgba(39, 21, 48, 0.68));
+}
+
+.lurleen-status.visible {
+  display: flex;
+  animation: lurleen-arrive 0.4s cubic-bezier(0.2, 0.9, 0.25, 1.25);
+}
+
+.lurleen-heart {
+  color: #ff80ae;
+  font-size: 23px;
+  line-height: 1;
+  text-shadow: 0 0 10px rgba(255, 111, 156, 0.74);
+  animation: lurleen-heartbeat 1.8s ease-in-out infinite;
+}
+
+@keyframes lurleen-arrive {
+  from { opacity: 0; transform: scale(0.55); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes lurleen-heartbeat {
+  0%, 45%, 100% { transform: scale(1); }
+  12% { transform: scale(1.13); }
+  24% { transform: scale(0.98); }
 }
 
 /* Running low: amber fill + a clear amber border on the track. */
@@ -373,6 +477,98 @@ kbd {
   margin-bottom: 24px;
 }
 
+#boot-status {
+  width: min(280px, 80vw);
+  max-height: 34px;
+  margin: -5px auto 13px;
+  overflow: visible;
+  color: rgba(255, 246, 230, 0.72);
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.035em;
+  transition: color 0.3s ease, transform 0.3s ease, opacity 0.28s ease,
+    max-height 0.35s ease, margin 0.35s ease;
+}
+
+.boot-gauge {
+  position: relative;
+  height: 11px;
+  margin-bottom: 7px;
+  overflow: visible;
+  border: 1px solid rgba(111, 224, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(8, 16, 40, 0.62);
+  box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.45), 0 0 12px rgba(111, 224, 255, 0.08);
+}
+
+.boot-fill {
+  position: absolute;
+  inset: 2px auto 2px 2px;
+  width: 36%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6fe0ff, #b285ff 58%, #ff6f9c);
+  box-shadow: 0 0 10px rgba(111, 224, 255, 0.48);
+  animation: boot-charge 2.4s ease-in-out infinite;
+  transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.boot-bubble {
+  position: absolute;
+  bottom: 5px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(214, 247, 255, 0.82);
+  border-radius: 50%;
+  background: rgba(111, 224, 255, 0.18);
+  box-shadow: inset -1px -1px 2px rgba(178, 133, 255, 0.35), 0 0 6px rgba(111, 224, 255, 0.3);
+  animation: boot-bubble-rise 1.8s ease-in infinite;
+}
+
+.boot-bubble.b1 { left: 24%; animation-delay: -0.2s; }
+.boot-bubble.b2 { left: 51%; width: 5px; height: 5px; animation-delay: -1.1s; }
+.boot-bubble.b3 { left: 74%; width: 9px; height: 9px; animation-delay: -0.65s; }
+
+#boot-status.is-ready {
+  color: var(--warm);
+  transform: scale(1.015);
+}
+
+#boot-status.is-ready .boot-fill {
+  width: calc(100% - 4px);
+  animation: none;
+  background: linear-gradient(90deg, #6fe0ff, #b285ff 45%, #ff6f9c 72%, #ffd28a);
+}
+
+#boot-status.is-ready .boot-bubble {
+  animation: boot-bubble-pop 0.45s ease-out forwards;
+}
+
+#boot-status.is-done {
+  max-height: 0;
+  margin: -5px auto 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-5px) scale(0.985);
+  pointer-events: none;
+}
+
+@keyframes boot-charge {
+  0%, 100% { width: 24%; opacity: 0.76; }
+  50% { width: 78%; opacity: 1; }
+}
+
+@keyframes boot-bubble-rise {
+  0% { transform: translateY(1px) scale(0.65); opacity: 0; }
+  25% { opacity: 0.9; }
+  100% { transform: translateY(-19px) scale(1.08); opacity: 0; }
+}
+
+@keyframes boot-bubble-pop {
+  0% { transform: translateY(-8px) scale(0.8); opacity: 0.7; }
+  65% { transform: translateY(-18px) scale(1.5); opacity: 0.9; }
+  100% { transform: translateY(-22px) scale(2); opacity: 0; }
+}
+
 #start-btn {
   pointer-events: auto;
   background: linear-gradient(135deg, #ff6f9c, #ffd28a);
@@ -385,13 +581,30 @@ kbd {
   padding: 12px 28px;
   border-radius: 999px;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease, filter 0.2s ease;
   box-shadow: 0 6px 24px rgba(255, 111, 156, 0.45);
 }
 
-#start-btn:hover {
+#start-btn:disabled {
+  cursor: wait;
+  opacity: 0.52;
+  filter: saturate(0.45);
+  box-shadow: 0 4px 16px rgba(178, 133, 255, 0.16);
+}
+
+#start-btn:not(:disabled):hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 30px rgba(255, 111, 156, 0.55);
+}
+
+#start-btn.is-ready {
+  animation: start-ready-pop 0.48s cubic-bezier(0.22, 1.45, 0.36, 1);
+}
+
+@keyframes start-ready-pop {
+  0% { transform: scale(0.96); }
+  55% { transform: scale(1.045); }
+  100% { transform: scale(1); }
 }
 
 .hidden {
@@ -592,6 +805,24 @@ body.is-touch .controls-touch {
   transition: background 0.15s ease;
 }
 .settings-trigger:hover { background: rgba(255, 246, 230, 0.12); }
+.settings-trigger:disabled {
+  pointer-events: none;
+  cursor: wait;
+  opacity: 0.38;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-fill,
+  .boot-bubble,
+  #boot-status.is-ready .boot-bubble,
+  #start-btn.is-ready {
+    animation: none;
+  }
+
+  #boot-status {
+    transition: none;
+  }
+}
 
 /* In-game gear — top-right, clear of the top-left score panel. Hidden until
    game-started, same gating as the touch overlay. */
@@ -616,6 +847,82 @@ body.is-touch .controls-touch {
 }
 body.game-started #settings-gear { display: flex; }
 #settings-gear:hover { transform: translateY(-1px); }
+
+@media (max-width: 600px) {
+  #status-rail {
+    top: calc(8px + env(safe-area-inset-top, 0));
+    left: calc(8px + env(safe-area-inset-left, 0));
+    gap: 4px;
+  }
+
+  .hud-chip {
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .smile-status {
+    gap: 4px;
+    padding: 3px 7px 3px 5px;
+  }
+
+  .smile-mark {
+    width: 23px;
+    height: 23px;
+  }
+
+  .smile-value { font-size: 20px; }
+  .best-score { font-size: 8px; margin-bottom: 4px; }
+
+  #juice-meter {
+    width: 100px;
+    gap: 5px;
+    padding: 0 8px;
+  }
+
+  .juice-dot {
+    width: 11px;
+    height: 11px;
+  }
+
+  .juice-track { height: 8px; }
+  .rsv-jug { display: none; }
+
+  .cycle-status,
+  .lurleen-status {
+    width: 36px;
+  }
+
+  .cycle-dial {
+    width: 28px;
+    height: 28px;
+  }
+
+  .cycle-marker {
+    transform: rotate(var(--cycle-turn)) translateY(-11.5px);
+  }
+
+  .lurleen-heart { font-size: 20px; }
+
+  #settings-gear {
+    top: calc(8px + env(safe-area-inset-top, 0));
+    right: calc(8px + env(safe-area-inset-right, 0));
+    width: 36px;
+    height: 36px;
+  }
+
+  #toast {
+    top: calc(58px + env(safe-area-inset-top, 0));
+    max-width: calc(100vw - 24px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 350px) {
+  #settings-gear {
+    top: calc(52px + env(safe-area-inset-top, 0));
+  }
+}
 
 #settings-overlay {
   position: fixed;
@@ -943,7 +1250,9 @@ body.game-started #settings-gear { display: flex; }
    trip.js read A11y.reducedMotion). */
 body.reduced-motion #star-vignette.on,
 body.reduced-motion #juice-meter.empty,
-body.reduced-motion #toast.tappable {
+body.reduced-motion #toast.tappable,
+body.reduced-motion .lurleen-heart,
+body.reduced-motion .lurleen-status.visible {
   animation: none;
 }
 

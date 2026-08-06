@@ -85,6 +85,13 @@ const TABLE = {
     crowdMax: 180,
     chunkLoadRadius: 1,
     chunkUnloadRadius: 2,
+    // Streaming may start more than one cheap chunk in a frame, but never starts
+    // another after spending this long. Dense single chunks are split separately.
+    chunkBudgetMs: 3,
+    // Fog is fully opaque at 520m, but the shared backdrop sets the safe floor:
+    // sky 900m, stars 850m, and randomized mountain vertices at <= ~1012m.
+    // 1040m keeps those intact while culling retained lakes out to 1500m.
+    cameraFar: 1040,
     // Forest tree count multiplier. Trees doubled in size (2026-06-01), so
     // each one fills more screen — fill-rate, not draw count, is what hurts
     // integrated GPUs. Trim the count 30% on low; the bigger crowns fill the
@@ -108,6 +115,8 @@ const TABLE = {
     crowdMax: 320,
     chunkLoadRadius: 2,
     chunkUnloadRadius: 3,
+    chunkBudgetMs: 4,
+    cameraFar: 1040,
     forestTreeDensityMul: 1.0,
     bubblePoolMax: 350,
     fireworksPoolMax: 550,
@@ -124,6 +133,8 @@ const TABLE = {
     crowdMax: 500,
     chunkLoadRadius: 2,
     chunkUnloadRadius: 3,
+    chunkBudgetMs: 5,
+    cameraFar: 1040,
     forestTreeDensityMul: 1.0,
     // Roomy enough that blast mode is visibly denser than ambient — the
     // old 200 cap was already saturated at normal play, so G had no

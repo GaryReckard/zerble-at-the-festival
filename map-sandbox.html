@@ -23,7 +23,7 @@
       /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.includes('claude-preview') || h.includes('happycog');
     const v = isLocal ? '?v=' + Date.now() : '';
     const base = './src/';
-    const wg = ['rng', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water',
+    const wg = ['rng', 'mergeDecor', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water',
       'worldgen/roads', 'worldgen/roles', 'worldgen/density', 'worldgen/index',
       'worldgen/selftest', 'worldgen/festival', 'worldgen/placement', 'worldgen/lint'];
     const imports = {};

@@ -22,6 +22,7 @@
 // also makes the shack face inward.
 
 import * as THREE from 'three';
+import { mergeStaticDecor, MODEL_DECOR_MERGE_ENABLED } from '../mergeDecor.js';
 import { buildSimpleNPC } from './puppet.js';
 import { PERF } from '../perf.js';
 import { register as registerContextLight } from '../contextLights.js';
@@ -100,6 +101,34 @@ export function updateSugarShackCooks(dt) {
 // ==================== Sign textures ====================
 
 const _texCache = new Map();
+const _signedBoardEdgeMats = new Map();
+
+const _SIGNED_BOARD_SHELL_GEO = new THREE.BoxGeometry(1, 1, 1);
+{
+  const source = _SIGNED_BOARD_SHELL_GEO.index.array;
+  const frontGroup = _SIGNED_BOARD_SHELL_GEO.groups[4]; // BoxGeometry group 4 is +Z.
+  const withoutFront = new source.constructor(source.length - frontGroup.count);
+  withoutFront.set(source.subarray(0, frontGroup.start));
+  withoutFront.set(source.subarray(frontGroup.start + frontGroup.count), frontGroup.start);
+  _SIGNED_BOARD_SHELL_GEO.setIndex(new THREE.BufferAttribute(withoutFront, 1));
+  _SIGNED_BOARD_SHELL_GEO.clearGroups();
+  _SIGNED_BOARD_SHELL_GEO.userData.shared = true;
+}
+
+const _SIGNED_BOARD_FRONT_GEO = new THREE.PlaneGeometry(1, 1);
+_SIGNED_BOARD_FRONT_GEO.userData.shared = true;
+
+function signedBoardEdgeMat(edgeColor) {
+  let mat = _signedBoardEdgeMats.get(edgeColor);
+  if (!mat) {
+    mat = new THREE.MeshStandardMaterial({
+      color: edgeColor, roughness: 0.75, flatShading: true,
+    });
+    mat.userData.shared = true;
+    _signedBoardEdgeMats.set(edgeColor, mat);
+  }
+  return mat;
+}
 
 function cachedTexture(key, build) {
   if (_texCache.has(key)) return _texCache.get(key);
@@ -677,14 +706,11 @@ function buildLightBracket(bannerHeight, side) {
   return g;
 }
 
-// Make a thin "wood board with a printed front" — solves the z-fighting we
-// had when we layered a textured PlaneGeometry on top of a BoxGeometry back.
-// Material array order on BoxGeometry: [+X, -X, +Y, -Y, +Z, -Z]. The front
-// face is +Z (index 4); everything else uses the wood-edge material.
+// The shell intentionally omits its +Z face, so the printed plane can sit at
+// the exact front depth without the coplanar geometry that caused z-fighting.
+// It also lets the shell join the shack's static-color merge while each
+// texture-backed front stays as one independent draw.
 function buildSignedBoard(width, height, depth, frontTex, edgeColor, opts = {}) {
-  const edgeMat = new THREE.MeshStandardMaterial({
-    color: edgeColor, roughness: 0.75, flatShading: true,
-  });
   // `opts.glow` makes the front self-illuminate using the texture itself as
   // the emissive map — the painted background glows while dark ink stays
   // dark, mimicking a real sign lit from outside. `opts.glowColor` tints the
@@ -695,15 +721,20 @@ function buildSignedBoard(width, height, depth, frontTex, edgeColor, opts = {}) 
     emissiveMap: opts.glow ? frontTex : null,
     emissiveIntensity: opts.glow || 0,
   });
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(width, height, depth),
-    [edgeMat, edgeMat, edgeMat, edgeMat, frontMat, edgeMat],
-  );
+  const group = new THREE.Group();
+  const shell = new THREE.Mesh(_SIGNED_BOARD_SHELL_GEO, signedBoardEdgeMat(edgeColor));
+  shell.scale.set(width, height, depth);
+  group.add(shell);
+
+  const front = new THREE.Mesh(_SIGNED_BOARD_FRONT_GEO, frontMat);
+  front.position.z = depth / 2;
+  front.scale.set(width, height, 1);
+  group.add(front);
   // Signed boards are thin flat planes facing the customer — the cast
   // shadow on the ground is a tiny dark line that doesn't read at game
   // scale. Skip the shadow-map render for them (selective shadows, per
   // threejs-lighting skill).
-  return mesh;
+  return group;
 }
 
 // ==================== Build geometry ====================
@@ -954,11 +985,13 @@ export function buildSugarShack(rng = Math.random) {
   // four cooking stations and a counter spot in a random progression so
   // there's always someone moving inside the tent.
   const tom = buildTom();
+  tom.userData.noMerge = true;
   tom.rotation.y = Math.PI;                                // face +Z (customer)
   tom.position.set(-0.45, 0, DEPTH / 2 - COUNTER_D - 0.6);
   g.add(tom);
 
   const cook = buildApronCook(rng);
+  cook.userData.noMerge = true;
   g.add(cook);
 
   // Patrol waypoints in shack-local coordinates. Each entry: x, z, facing,
@@ -1061,6 +1094,10 @@ export function buildSugarShack(rng = Math.random) {
   // Tiny per-instance rotation jitter so two side-by-side shacks don't look
   // like exact clones.
   g.rotation.y = (rng() - 0.5) * 0.02;
+
+  if (MODEL_DECOR_MERGE_ENABLED) {
+    mergeStaticDecor(g, { castShadow: (mesh) => mesh.castShadow });
+  }
 
   return g;
 }

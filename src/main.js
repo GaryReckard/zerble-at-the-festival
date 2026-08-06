@@ -61,6 +61,7 @@ import * as AdaptiveQuality from './adaptiveQuality.js';
 import { Settings } from './settings.js';
 import { A11y } from './a11y.js';
 import { setSessionSeed, getSessionSeed } from './rng.js';
+import { MODEL_DECOR_MERGE_ENABLED, getMergeDecorStats } from './mergeDecor.js';
 
 // ---------- Session seed ----------
 // `?seed=<thing>` pins the world to a specific layout — pass a string
@@ -156,7 +157,7 @@ renderer.debug.checkShaderErrors = (() => {
 
 // ---------- Scene & Camera ----------
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.5, 1500);
+const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.5, PERF.cameraFar);
 
 // ---------- Post-processing ----------
 const composer = new EffectComposer(renderer);
@@ -615,8 +616,7 @@ HUD.showTitle();
 // Resumed session: the title card still shows (iOS needs the tap to start audio),
 // but the button reads "Resume" — one tap drops the player back where they were.
 if (__resume) {
-  const _btn = document.getElementById('start-btn');
-  if (_btn) _btn.textContent = 'Resume';
+  HUD.setStartLabel('Resume');
 }
 HUD.onStart(() => {
   HUD.hideTitle();
@@ -757,6 +757,7 @@ function tickBody(dt) {
   if (running) {
     const tod = getTimeOfDay();
     const nightness = tod ? tod.nightness : 0;
+    HUD.setTimeOfDay(tod?.t, nightness);
     if (nightness > 0.5) Analytics.sawNight();   // once: played into nightfall
     // During the opening reveal the player can't steer — feed Zerble a neutral
     // input so it idles while the camera does its thing.
@@ -892,6 +893,7 @@ function tickBody(dt) {
     const _wookPositions = wooks.wooks.map(w => w.position);
     Trip.update(dt, zerble.position, Math.abs(zerble.speed), _wookPositions);
     lurleen.update(dt, zerble.position, zerble.heading);
+    HUD.setLurleenFollowing(lurleen.state === 'aware' || lurleen.state === 'following');
     // Her motor — spatialized to her position, pitch/volume track her real
     // speed whether she's wandering on her own or chasing Zerble.
     Sound.setLurleenEngine(lurleen.speed, lurleen.position.x, lurleen.position.z);
@@ -1458,6 +1460,32 @@ window.__game = {
 // driving zerble with a stub input corrupts its physics. These bypass all of
 // that. Local dev ONLY — never present on the deployed site.
 if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.endsWith('.github.dev')) {
+  const waitForStreamStable = async (minimumMs = 4500) => {
+    const startedAt = performance.now();
+    let lastState = '', lastFrame = -1, stableChecks = 0;
+    while (performance.now() - startedAt < 20000) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const snapshot = window.__debug.perfSnapshot();
+      const state = `${snapshot.cgN}:${snapshot.reg}`;
+      const frame = renderer.info.render.frame;
+      stableChecks = state === lastState && frame > lastFrame ? stableChecks + 1 : 0;
+      lastState = state;
+      lastFrame = frame;
+      if (performance.now() - startedAt >= minimumMs && stableChecks >= 4) return;
+    }
+    throw new Error('World streaming did not settle while rendered frames were advancing.');
+  };
+
+  const frameFoodCourt = (dbg, dest) => {
+    const heading = Number.isFinite(dest.heading) ? dest.heading : 0;
+    const fx = Math.sin(heading), fz = -Math.cos(heading);
+    const sx = -fz, sz = fx;
+    dbg.camLock(
+      dest.x + fx * 5 + sx * 8, 11, dest.z + fz * 5 + sz * 8,
+      dest.x + fx * 25, 2.5, dest.z + fz * 25,
+    );
+  };
+
   window.__dbg = {
     // Start the game without a trusted gesture — mirrors HUD.onStart (line ~369)
     // minus the iOS audio-gesture dependency, and drops straight into gameplay
@@ -1853,6 +1881,139 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     // Also a panel surface: backtick → "Perf log" section (Record / copy JSON).
     recordPerf(on = true) { return window.__debug.recordPerf(on); },
     perfLog() { return window.__debug.perfLog(); },
+    chunkStages(reset = false) { return window.__debug.chunkStages(reset); },
+
+    async foodCourtVisual({ settleMs = 4500 } = {}) {
+      this.start();
+      window.__debug.freezeNPCs(true);
+      AdaptiveQuality.setEnabled(false);
+      AdaptiveQuality.applyLevel(0);
+      this.tod(0.75);
+      const dest = window.__debug.locate('food_court');
+      if (!dest) throw new Error('No food court found within the debug locator search window.');
+      frameFoodCourt(this, dest);
+      await waitForStreamStable(settleMs);
+      frameFoodCourt(this, dest);
+      return dest;
+    },
+
+    // Repeatable real-GPU gate for perf-pass-4's food-truck + Sugar Shack
+    // model merges. The paired ?modelMerge=0/1 URLs keep the world, tier, and
+    // camera identical while changing only those two post-build merges.
+    // Captures are written through the dev-server bridge for agent analysis.
+    async foodCourtCapture({ settleMs = 4500, samples = 6, intervalMs = 500 } = {}) {
+      this.start();
+      window.__debug.freezeNPCs(true);
+      AdaptiveQuality.setEnabled(false);
+      AdaptiveQuality.applyLevel(0);
+      this.tod(0.75);
+      const dest = window.__debug.locate('food_court');
+      if (!dest) throw new Error('No food court found within the debug locator search window.');
+      frameFoodCourt(this, dest);
+      await waitForStreamStable(settleMs);
+      const readings = [];
+      for (let i = 0; i < samples; i++) {
+        readings.push(window.__debug.perfSnapshot());
+        if (i + 1 < samples) await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      }
+      const mode = MODEL_DECOR_MERGE_ENABLED ? 'merged' : 'unmerged';
+      const median = (key) => {
+        const values = readings.map((row) => row[key]).sort((a, b) => a - b);
+        const mid = Math.floor(values.length / 2);
+        return values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+      };
+      const data = {
+        kind: 'food-court-draw-capture',
+        seed: getSessionSeed(),
+        tier: PERF.name,
+        modelMerge: MODEL_DECOR_MERGE_ENABLED,
+        quality: AdaptiveQuality.getLevelName(),
+        tod: getTimeOfDay()?.t ?? null,
+        destination: dest,
+        summary: {
+          draws: median('draws'),
+          tris: median('tris'),
+          fps: median('fps'),
+          frameP95: median('fP95'),
+          geometries: readings.at(-1)?.geo ?? null,
+          programs: readings.at(-1)?.prog ?? null,
+        },
+        readings,
+        census: this.drawCensus({ top: 20 }),
+      };
+      const saved = await this.capture(`foodcourt-${PERF.name}-${mode}`, data);
+      if (!saved) throw new Error('The food-court capture could not be written by the dev server.');
+      console.log(`[foodCourtCapture] ${PERF.name}/${mode}`, data);
+      return data;
+    },
+
+    // Alternates between the same deterministic food-court position and a
+    // distant position. Repeated samples at the distant position expose merged
+    // geometries that escaped chunk disposal because the surrounding content is
+    // identical on every revisit.
+    async foodCourtLifecycle({ settleMs = 4500, cycles = 5 } = {}) {
+      this.start();
+      window.__debug.freezeNPCs(true);
+      AdaptiveQuality.setEnabled(false);
+      AdaptiveQuality.applyLevel(0);
+      this.tod(0.75);
+      const court = window.__debug.locate('food_court');
+      if (!court) throw new Error('No food court found within the debug locator search window.');
+      const away = { x: court.x + 960, z: court.z + 960 };
+      const timeline = [];
+      const settleAt = async (label, x, z) => {
+        this.teleport(x, z);
+        if (label.startsWith('court-')) frameFoodCourt(this, court);
+        else this.camLock(x + 28, 18, z + 28, x, 2, z);
+        await waitForStreamStable(settleMs);
+        const mergedGeometryIds = new Set();
+        scene.traverse((object) => {
+          if (object.geometry?.userData?.mergeDecor) mergedGeometryIds.add(object.geometry.uuid);
+        });
+        timeline.push({
+          label,
+          ...window.__debug.perfSnapshot(),
+          mergedGeometriesInScene: mergedGeometryIds.size,
+          mergeDecor: getMergeDecorStats(),
+        });
+      };
+      for (let i = 1; i <= cycles; i++) {
+        await settleAt(`court-${i}`, court.x, court.z);
+        await settleAt(`away-${i}`, away.x, away.z);
+      }
+      const awayGeometries = timeline.filter((row) => row.label.startsWith('away-')).map((row) => row.geo);
+      const plateauRows = timeline.filter((row) => row.label.startsWith('away-')).slice(2);
+      const plateau = plateauRows.map((row) => row.geo);
+      const plateauSpread = plateau.length ? Math.max(...plateau) - Math.min(...plateau) : Infinity;
+      const plateauTolerance = plateau.length ? Math.max(2, Math.round(plateau.at(-1) * 0.01)) : 0;
+      const mergedLive = plateauRows.map((row) => row.mergeDecor.live);
+      const mergeDisposalStable = !MODEL_DECOR_MERGE_ENABLED ||
+        (mergedLive.length > 1 && mergedLive.every((n) => n === mergedLive[0]));
+      const data = {
+        kind: 'food-court-lifecycle-capture',
+        seed: getSessionSeed(),
+        tier: PERF.name,
+        modelMerge: MODEL_DECOR_MERGE_ENABLED,
+        court,
+        away,
+        awayGeometries,
+        plateauSpread,
+        plateauTolerance,
+        mergeDisposalStable,
+        returnsToBaseline: plateau.length > 1 && plateauSpread <= plateauTolerance && mergeDisposalStable,
+        timeline,
+      };
+      const mode = MODEL_DECOR_MERGE_ENABLED ? 'merged' : 'unmerged';
+      const saved = await this.capture(`foodcourt-lifecycle-${PERF.name}-${mode}`, data);
+      if (!saved) throw new Error('The food-court lifecycle capture could not be written by the dev server.');
+      this.teleport(court.x, court.z);
+      this.tod(0.75);
+      frameFoodCourt(this, court);
+      await waitForStreamStable(settleMs);
+      frameFoodCourt(this, court);
+      console.log(`[foodCourtLifecycle] ${PERF.name}/${mode}`, data);
+      return data;
+    },
 
     // capture(name?, data?) POSTs data to the dev server, which writes it to
     // .claude/captures/<name>.json — the browser->repo bridge for handing data
@@ -1882,7 +2043,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
         '  draws:   drawCensus({top?})   (scene draw-call composition by geometry/material → names instance/merge targets)',
         '  hubs:    gotoHub(n) · showFootprints(on)   (teleport+frame nth-nearest hub; footprint/dancefloor overlay)',
-        '  perf:    recordPerf(true|false) · perfLog()   (samples engine stats to a reload-proof JSON ring buffer; backtick → Perf log)',
+        '  perf:    recordPerf(true|false) · perfLog() · chunkStages(reset?) · foodCourtVisual() · foodCourtCapture() · foodCourtLifecycle()',
         '           dumpPrograms({raw?})   (shader-program leak finder: groups renderer.info.programs by family + varying token)',
         '           capture(name?, data?)   (POST data to dev server -> .claude/captures/<name>.json; the browser->repo bridge, no copy/paste)',
         '  reach:   __dbg.game  (live refs: camera, zerble, scene, crowd, bubbles, …)',
@@ -1907,5 +2068,72 @@ installDebug({
   Trip,
   midi,
 });
+
+// One-URL real-GPU suite. Each step reloads with one deliberate variable
+// change, tier or modelMerge, then writes the capture through the local server.
+// It is local-dev only because __dbg itself is local-dev only.
+if (window.__dbg) {
+  const gateParams = new URLSearchParams(location.search);
+  if (gateParams.get('perfGate') === 'suite' && gateParams.get('perfGateDone') !== '1') {
+    const steps = [
+      { perf: 'low',  modelMerge: '0', run: 'draw' },
+      { perf: 'low',  modelMerge: '1', run: 'draw' },
+      { perf: 'mid',  modelMerge: '0', run: 'draw' },
+      { perf: 'mid',  modelMerge: '1', run: 'draw' },
+      { perf: 'high', modelMerge: '0', run: 'draw' },
+      { perf: 'high', modelMerge: '1', run: 'draw' },
+      { perf: 'high', modelMerge: '0', run: 'lifecycle' },
+      { perf: 'high', modelMerge: '1', run: 'lifecycle' },
+    ];
+    const stepIndex = Math.max(0, parseInt(gateParams.get('perfGateStep') || '0', 10) || 0);
+    const step = steps[stepIndex];
+    if (step) {
+      const currentPerf = gateParams.get('perf');
+      const currentMerge = gateParams.get('modelMerge') || '1';
+      if (currentPerf !== step.perf || currentMerge !== step.modelMerge) {
+        gateParams.set('perf', step.perf);
+        gateParams.set('modelMerge', step.modelMerge);
+        gateParams.set('perfGateStep', String(stepIndex));
+        location.replace(`${location.pathname}?${gateParams}`);
+      } else {
+        setTimeout(async () => {
+          try {
+            if (step.run === 'lifecycle') await window.__dbg.foodCourtLifecycle();
+            else await window.__dbg.foodCourtCapture();
+            const next = stepIndex + 1;
+            if (next < steps.length) {
+              gateParams.set('perfGateStep', String(next));
+              location.replace(`${location.pathname}?${gateParams}`);
+            } else {
+              gateParams.set('perfGateDone', '1');
+              history.replaceState(null, '', `${location.pathname}?${gateParams}`);
+              HUD.toast('Perf capture complete · nighttime food court ready', 300000);
+              console.log('[perfGate] suite complete — captures are in .claude/captures/');
+            }
+          } catch (error) {
+            gateParams.set('perfGateDone', 'error');
+            history.replaceState(null, '', `${location.pathname}?${gateParams}`);
+            HUD.toast(`Perf capture stopped: ${error.message}`, 8000);
+            console.error('[perfGate] suite stopped', error);
+          }
+        }, 100);
+      }
+    }
+  } else if (gateParams.get('perfGate') === 'visual' && gateParams.get('perfGateDone') !== '1') {
+    setTimeout(async () => {
+      try {
+        await window.__dbg.foodCourtVisual();
+        gateParams.set('perfGateDone', '1');
+        history.replaceState(null, '', `${location.pathname}?${gateParams}`);
+        HUD.toast('Nighttime food court ready', 300000);
+      } catch (error) {
+        gateParams.set('perfGateDone', 'error');
+        history.replaceState(null, '', `${location.pathname}?${gateParams}`);
+        HUD.toast(`Food-court view stopped: ${error.message}`, 8000);
+        console.error('[perfGate] visual stopped', error);
+      }
+    }, 100);
+  }
+}
 
 tick();

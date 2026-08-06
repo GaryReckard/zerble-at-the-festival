@@ -18,6 +18,12 @@
 //     sustained, OR two consecutive frames > 80ms (single-frame hitch).
 //   * RAISE requires all three metrics to be healthy simultaneously so
 //     spikes block restoration even when avg looks fine.
+//   * Every transition starts a fresh observation window. A downgrade cannot
+//     reuse the slow samples that justified the previous rung, and a recovery
+//     cannot reuse the cheap rung's good samples to judge the restored rung.
+//   * Recovery is deliberately asymmetric: hold a downgraded level for 30s,
+//     then require a longer healthy run. If a raise fails within 15s, wait 2m
+//     before retrying that boundary, doubling to a 5m cap on repeat failures.
 //   * We tweak LIVE renderer/composer/PERF rather than reloading.
 //   * Shadows use the castShadow-walk trick (not shadowMap.enabled) so
 //     stale ghost shadows don't freeze on the ground.
@@ -43,9 +49,14 @@ const RAISE_P95_MS    = 22;  // p95 < this required before raise
 const DROP_MAX_MS     = 80;  // two consecutive frames > this → immediate drop
 const RAISE_MAX_MS    = 33;  // max < this required before raise
 const WINDOW          = 90;  // rolling window size (~1.5s at 60fps)
-const SUSTAIN_FRAMES  = 60;  // consecutive bad/good frames to trigger
+const DROP_SUSTAIN_FRAMES = 60;   // consecutive bad frames to trigger
+const RAISE_SUSTAIN_FRAMES = 180; // recovery is slower than degradation
 const STATS_INTERVAL  = 10;  // recompute p95/max every N frames (fresh enough
                               // for trigger decisions without sorting every tick)
+const RAISE_HOLD_MS = 30_000;
+const FAILED_RAISE_WINDOW_MS = 15_000;
+const FAILED_RAISE_BACKOFF_MS = 120_000;
+const MAX_RAISE_BACKOFF_MS = 300_000;
 
 // Each level builds on the previous. `bubbles` is a signal for the caller
 // (main.js) to swap the Bubbles material; this module doesn't import bubbles.js.
@@ -83,19 +94,37 @@ const state = {
   // Independent of dt because dt is capped at 50ms in main.js
   // (Math.min(clock.getDelta(), 0.05)); using dt would clamp p95/max.
   _lastPerfTime: 0,
+  // Monotonic time accumulated from the same raw frame samples we evaluate.
+  // This makes recovery holds deterministic and independent of frame rate.
+  _elapsedMs: 0,
   // Consecutive-frame counter for the instant-drop hitch detector.
   _maxSpikesInRow: 0,
+  // Raising quality is intentionally conservative. A normal downgrade holds
+  // for RAISE_HOLD_MS; a raise that quickly fails gets exponential backoff.
+  _raiseBlockedUntil: QUALITY_LEVELS.map(() => 0),
+  _lastRaise: null,
+  _raiseBackoffMs: QUALITY_LEVELS.map(() => FAILED_RAISE_BACKOFF_MS),
 };
 
 export function install(hooks) {
   // hooks: { renderer, scene, composer, bloomPass, hud, onLevelChange }
   state.hooks = hooks;
+  state.level = 0;
+  state.bloomAllowed = true;
+  state._elapsedMs = 0;
+  state._raiseBlockedUntil.fill(0);
+  state._lastRaise = null;
+  state._raiseBackoffMs.fill(FAILED_RAISE_BACKOFF_MS);
+  state._castersTurnedOff = null;
+  _resetObservationWindow();
   // Cache the baseline pixel ratio so we can scale it instead of clobbering.
   state.basePixelRatio = hooks.renderer.getPixelRatio();
 }
 
 export function setEnabled(v) {
-  state.enabled = v;
+  const next = !!v;
+  if (next && !state.enabled) _resetObservationWindow();
+  state.enabled = next;
 }
 
 export function tick(dt) {
@@ -106,6 +135,14 @@ export function tick(dt) {
   const now = performance.now();
   const wallMs = state._lastPerfTime > 0 ? now - state._lastPerfTime : dt * 1000;
   state._lastPerfTime = now;
+  state._elapsedMs += wallMs;
+
+  // A recovered level that survives its probation is no longer considered a
+  // failed raise if performance degrades later because the scene changed.
+  if (state._lastRaise && state._elapsedMs - state._lastRaise.atMs > FAILED_RAISE_WINDOW_MS) {
+    state._raiseBackoffMs[state._lastRaise.fromLevel] = FAILED_RAISE_BACKOFF_MS;
+    state._lastRaise = null;
+  }
 
   state.frameTimes.push(wallMs);
   if (state.frameTimes.length > WINDOW) state.frameTimes.shift();
@@ -141,10 +178,8 @@ export function tick(dt) {
   if (sustained_bad) {
     state.badRun++;
     state.goodRun = 0;
-    if (state.badRun >= SUSTAIN_FRAMES && state.level < QUALITY_LEVELS.length - 1) {
-      _apply(state.level + 1, avg);
-      state.badRun = 0;
-      state._maxSpikesInRow = 0;
+    if (state.badRun >= DROP_SUSTAIN_FRAMES && state.level < QUALITY_LEVELS.length - 1) {
+      _dropQuality(avg);
       return;
     }
   } else {
@@ -155,9 +190,7 @@ export function tick(dt) {
   if (wallMs > DROP_MAX_MS) {
     state._maxSpikesInRow++;
     if (state._maxSpikesInRow >= 2 && state.level < QUALITY_LEVELS.length - 1) {
-      _apply(state.level + 1, avg);
-      state.badRun = 0;
-      state._maxSpikesInRow = 0;
+      _dropQuality(avg);
       return;
     }
   } else {
@@ -170,14 +203,55 @@ export function tick(dt) {
   if (all_good) {
     state.goodRun++;
     state.badRun = 0;
-    if (state.goodRun >= SUSTAIN_FRAMES && state.level > 0) {
-      _apply(state.level - 1, avg);
-      state.goodRun = 0;
+    if (state.goodRun >= RAISE_SUSTAIN_FRAMES && state.level > 0 &&
+        state._elapsedMs >= state._raiseBlockedUntil[state.level]) {
+      _raiseQuality(avg);
     }
   } else if (!sustained_bad) {
     // Middle band — decay both counters slowly.
     state.goodRun = Math.max(0, state.goodRun - 1);
   }
+}
+
+function _dropQuality(avgMs) {
+  const fromLevel = state.level;
+  const toLevel = fromLevel + 1;
+  const failedRaise = state._lastRaise &&
+    state._lastRaise.toLevel === fromLevel &&
+    state._lastRaise.fromLevel === toLevel &&
+    state._elapsedMs - state._lastRaise.atMs <= FAILED_RAISE_WINDOW_MS;
+
+  if (failedRaise) {
+    state._raiseBlockedUntil[toLevel] = state._elapsedMs + state._raiseBackoffMs[toLevel];
+    state._raiseBackoffMs[toLevel] = Math.min(
+      state._raiseBackoffMs[toLevel] * 2,
+      MAX_RAISE_BACKOFF_MS,
+    );
+  } else {
+    state._raiseBlockedUntil[toLevel] = state._elapsedMs + RAISE_HOLD_MS;
+    state._raiseBackoffMs[toLevel] = FAILED_RAISE_BACKOFF_MS;
+  }
+  state._lastRaise = null;
+  _apply(toLevel, avgMs);
+}
+
+function _raiseQuality(avgMs) {
+  const fromLevel = state.level;
+  const toLevel = fromLevel - 1;
+  state._lastRaise = { fromLevel, toLevel, atMs: state._elapsedMs };
+  _apply(toLevel, avgMs);
+}
+
+function _resetObservationWindow() {
+  state.badRun = 0;
+  state.goodRun = 0;
+  state.frameTimes.length = 0;
+  state._statsCache = { avg: 0, p95: 0, max: 0 };
+  // Recompute p95/max on the first frame after the fresh window fills instead
+  // of briefly pairing the new average with an empty stats cache.
+  state._statsTick = STATS_INTERVAL - 1;
+  state._lastPerfTime = 0;
+  state._maxSpikesInRow = 0;
 }
 
 // F1 (perf-pass-4): whether bloom is permitted by the tier AND the current
@@ -261,6 +335,11 @@ function _apply(newLevel, avgMs) {
   // creating a direct dependency between this module and bubbles.js.
   // avgMs lets the caller log the frame time that triggered the change.
   state.hooks.onLevelChange?.(newLevel, lvl, avgMs);
+
+  // The next decision must be based entirely on frames rendered at the new
+  // level. Keeping the previous rung's samples is what made the old governor
+  // walk effects down and back up on stale evidence.
+  _resetObservationWindow();
 }
 
 // Toggle shadows in a way that doesn't leave stale ghost shadows on the
