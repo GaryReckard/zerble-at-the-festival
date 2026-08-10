@@ -78,8 +78,13 @@ const state = {
   goodRun: 0,
   frameTimes: [],
   hooks: null,
-  // castShadow list saved when we killed shadows; restored on raise.
+  // castShadow list saved when we killed shadows; restored on raise. Append-only
+  // while shadows are off (never overwritten) so a redundant "off" can't destroy
+  // the restore list. Cleared on the transition back to on.
   _castersTurnedOff: null,
+  // Current shadow on/off state, so _setShadowsOn is idempotent — a repeated
+  // call in the same direction won't re-walk and clobber the restore list.
+  _shadowsOn: null,
   // Derived frame-time stats — updated every STATS_INTERVAL frames.
   // Shared between the adaptive trigger logic and the debug HUD display.
   // Phase 1 instrumentation (perf-pass-4).
@@ -354,9 +359,19 @@ function _apply(newLevel, avgMs) {
 // the render entirely; net perf is still much better than full shadows
 // because the per-caster fill cost is gone.
 function _setShadowsOn(scene, renderer, on) {
+  if (state._shadowsOn === on) {
+    // Already in this state — DON'T re-run the destructive path. Re-asserting
+    // "off" just sweeps up any casters that streamed in since the last walk (so
+    // the off state doesn't decay) WITHOUT clobbering the restore list. This
+    // idempotency is the fix: a redundant "off" from the governor used to
+    // overwrite the saved list with an empty one, so the next "on" restored
+    // nothing.
+    if (!on) _walkCastersOff(scene, renderer);
+    return;
+  }
+  state._shadowsOn = on;
   if (on) {
-    // Restore the casters we'd previously turned off. Skip any that were
-    // already nulled out by other systems (defensive).
+    // Restore every caster we'd turned off. Skip any nulled by other systems.
     if (state._castersTurnedOff) {
       for (const m of state._castersTurnedOff) {
         if (m && !m.castShadow) m.castShadow = true;
@@ -368,19 +383,24 @@ function _setShadowsOn(scene, renderer, on) {
     // on whatever it last cached (the empty map from when they were turned off).
     renderer.shadowMap.needsUpdate = true;
   } else {
-    // Collect every casting mesh + flip its flag off. Save the list so we
-    // can flip them back on a future raise. Set `shadowMap.needsUpdate`
-    // so the next render writes a clean empty depth texture.
-    const turned = [];
-    scene.traverse((o) => {
-      if (o.isMesh && o.castShadow) {
-        o.castShadow = false;
-        turned.push(o);
-      }
-    });
-    state._castersTurnedOff = turned;
-    renderer.shadowMap.needsUpdate = true;
+    state._castersTurnedOff = [];
+    _walkCastersOff(scene, renderer);
   }
+}
+
+// Turn off every currently-casting mesh and APPEND it to the restore list (never
+// overwrite — repeated off-walks accumulate, catching newly-streamed chunks
+// without losing earlier entries). Followed by a shadow-map refresh so the next
+// render writes a clean empty depth texture.
+function _walkCastersOff(scene, renderer) {
+  const list = state._castersTurnedOff || (state._castersTurnedOff = []);
+  scene.traverse((o) => {
+    if (o.isMesh && o.castShadow) {
+      o.castShadow = false;
+      list.push(o);
+    }
+  });
+  renderer.shadowMap.needsUpdate = true;
 }
 
 export function getLevel() { return state.level; }
