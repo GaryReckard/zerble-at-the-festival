@@ -61,7 +61,7 @@ const MAX_RAISE_BACKOFF_MS = 300_000;
 // Each level builds on the previous. `bubbles` is a signal for the caller
 // (main.js) to swap the Bubbles material; this module doesn't import bubbles.js.
 // `pixelRatioMul` scales the PERF baseline ratio (set at install time).
-const QUALITY_LEVELS = [
+const BASE_QUALITY_LEVELS = [
   { name: 'baseline',   pixelRatioMul: 1.0,   bubbles: 'fancy' },
   { name: 'pixel-87',   pixelRatioMul: 0.875, bubbles: 'fancy' },
   { name: 'no-bloom',   pixelRatioMul: 0.875, bubbles: 'fancy',  bloom: false },
@@ -70,6 +70,18 @@ const QUALITY_LEVELS = [
   { name: 'no-shadows', pixelRatioMul: 0.75,  bubbles: 'cheap',  bloom: false, shadows: false },
   { name: 'pixel-50',   pixelRatioMul: 0.5,   bubbles: 'cheap',  bloom: false, shadows: false },
 ];
+
+// Real iPhone telemetry showed that one transmissive bubble InstancedMesh made
+// three.js render most of the scene a second time: 1,795 -> 867 draws and
+// 708k -> 361k tris at the material swap, with registry and position stable.
+// Low-tier Auto therefore starts cheap and never offers the now-inert
+// cheap-bubs rung. Likewise, a tier that booted without shadow machinery skips
+// no-shadows instead of spending another observation window on a no-op.
+const LOW_AUTO_CHEAP = PERF.name === 'low';
+const QUALITY_LEVELS = BASE_QUALITY_LEVELS
+  .filter((lvl) => !(LOW_AUTO_CHEAP && lvl.name === 'cheap-bubs'))
+  .filter((lvl) => !(!PERF.shadows && lvl.name === 'no-shadows'))
+  .map((lvl) => LOW_AUTO_CHEAP ? { ...lvl, bubbles: 'cheap' } : lvl);
 
 const state = {
   enabled: true,

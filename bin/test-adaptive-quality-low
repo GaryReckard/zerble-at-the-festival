@@ -1,0 +1,73 @@
+#!/usr/bin/env node
+
+// Low-tier companion to test-adaptive-quality. It proves that Auto starts with
+// the cheap bubble material and that the ladder contains no rungs which cannot
+// change the effective low-tier render state.
+
+let now = 0;
+Object.defineProperty(globalThis, 'performance', {
+  configurable: true,
+  value: { now: () => now },
+});
+globalThis.window = { innerWidth: 430, innerHeight: 775 };
+globalThis.location = { search: '' };
+globalThis.localStorage = { getItem: () => null };
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: { hardwareConcurrency: 4, maxTouchPoints: 5 },
+});
+
+const AQ = await import('../src/adaptiveQuality.js');
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+const expectedNames = ['baseline', 'pixel-87', 'no-bloom', 'pixel-75', 'pixel-50'];
+assert(
+  JSON.stringify(AQ.getLevelNames()) === JSON.stringify(expectedNames),
+  `low-tier ladder contains inert rungs: ${JSON.stringify(AQ.getLevelNames())}`,
+);
+assert(AQ.currentCheap(), 'low-tier Auto did not start with cheap bubbles');
+
+let pixelRatio = 1.25;
+const transitions = [];
+AQ.install({
+  renderer: {
+    shadowMap: { enabled: false, needsUpdate: false },
+    getPixelRatio: () => pixelRatio,
+    setPixelRatio: (v) => { pixelRatio = v; },
+  },
+  scene: { traverse: () => {} },
+  composer: { setSize: () => {} },
+  bloomPass: { enabled: true },
+  onLevelChange: (level) => transitions.push(level),
+});
+
+function frames(count, ms) {
+  for (let i = 0; i < count; i++) {
+    now += ms;
+    AQ.tick(ms / 1000);
+  }
+}
+
+for (let level = 1; level < expectedNames.length; level++) {
+  frames(160, 25);
+  assert(AQ.getLevel() === level, `slow frames should reach low-tier level ${level}, got ${AQ.getLevel()}`);
+  assert(AQ.currentCheap(), `low-tier Auto restored fancy bubbles at level ${level}`);
+}
+assert(
+  JSON.stringify(transitions) === JSON.stringify([1, 2, 3, 4]),
+  `low-tier transitions visited an inert rung: ${JSON.stringify(transitions)}`,
+);
+assert(pixelRatio === 0.625, `pixel-50 should resolve to 0.625 DPR, got ${pixelRatio}`);
+
+AQ.setOverride('bubbles', true);
+assert(!AQ.currentCheap(), 'Detailed bubbles On did not override the low-tier Auto floor');
+AQ.setOverride('bubbles', null);
+assert(AQ.currentCheap(), 'returning Detailed bubbles to Auto did not restore the low-tier floor');
+
+process.stdout.write('PASS  low tier starts cheap, skips inert rungs, and respects the detailed-bubbles override\n');

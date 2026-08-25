@@ -218,6 +218,7 @@ export const Trip = {
 
     this.pass = new ShaderPass({ uniforms, vertexShader, fragmentShader });
     this.pass.renderToScreen = false;
+    this.pass.enabled = false;
 
     this.setPreset('standard');
   },

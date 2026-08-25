@@ -56,8 +56,9 @@ window.__dbg.help()          // prints the whole map — start here
 ### Capture perf data over time
 | Call | Does |
 |---|---|
-| `recordPerf(on = true)` | Start (or stop) the **perf-log recorder**: samples engine stats — `fps`, frame `avg`/`p95`/`max` ms, `draws`, `tris`, `geo`/`tex`, **`prog`** (live shader-program count), `heapMB`, `npc`/`reg`/`col` counts, chunk-gen `cgN`/`cgSlow`/`cgWorst`, and `x,z` — into a ring buffer at a fixed wall-clock interval (default 1 s). Each sample is persisted to `localStorage['zerble_perflog']` **as it's taken**, so the data survives the page going unresponsive + a force-reload. |
+| `recordPerf(on = true)` | Start (or stop) the **perf-log recorder**: samples engine stats — `fps`, frame `avg`/`p95`/`max` ms, `draws`, `tris`, `geo`/`tex`, **`prog`** (live shader-program count), adaptive `quality`/`qualityLevel`, pixel ratio, bloom/bubble state, Trip state/envelope/progress/pass, star power, `heapMB`, `npc`/`reg`/`col` counts, chunk-gen `cgN`/`cgSlow`/`cgWorst`, and `x,z` — into a ring buffer at a fixed wall-clock interval (default 1 s). Each sample is persisted to `localStorage['zerble_perflog']` **as it's taken**, so the data survives the page going unresponsive + a force-reload. |
 | `perfLog()` | Return a copy of the recorded sample array (`[{t, ts, …}]`). |
+| `startDeviceCapture()` / `sendDeviceCapture()` | Start or manually upload the opt-in `?perfCapture=1` real-device report. Normal play starts this only after the real Start tap; these calls exist for diagnostics. |
 | `chunkStages(reset = false)` | With `?debug=1`, return count/total/average/max milliseconds for each v2 chunk stage (`region`, `roads`, `props`, `trees`, `crowd`, `jugs`, `campsites`, `hedges`). Pass `true` to return the current snapshot and zero the stage counters before a controlled drive or teleport. The normal production path does not take the per-stage timestamps. |
 | `foodCourtVisual()` | Jump directly to the deterministic food court at Midnight, wait for both chunk generation and registry population to settle while rendered frames continue advancing, then frame the court from inside its outer ring. |
 | `foodCourtCapture()` | Park at the same food court, freeze NPC AI, pin the camera and render quality, sample real scene draws/tris, and write `.claude/captures/foodcourt-<tier>-<mode>.json`. Pair the shipping default (`modelMerge=0`) with experimental `?modelMerge=1` for a one-variable before/after. |
@@ -203,7 +204,9 @@ steady-state cost — for that, read the live budget markers instead).
   sets the cadence. The wall-clock gate means a stalling frame *backs the
   cadence off* rather than over-sampling a frozen frame.
 - Each sample — `{ t, ts, fps, fAvg, fP95, fMax, draws, tris, geo, tex, prog,
-  heapMB, npc, reg, col, cgN, cgSlow, cgWorst, x, z }` — is written to
+  quality, qualityLevel, pixelRatio, bloom, bubbles, tripState, tripEnvelope,
+  tripProgress, tripPass, starPower, heapMB, npc, reg, col, cgN, cgSlow,
+  cgWorst, x, z }` — is written to
   `localStorage['zerble_perflog']` **the instant it's taken**, capped at a
   5000-sample ring. So even if the tab locks up and you have to force-reload,
   reopen the panel and the log is still there to **copy JSON**.
@@ -215,6 +218,52 @@ steady-state cost — for that, read the live budget markers instead).
   select-all textarea fallback for clipboard-blocked contexts). Recording runs
   whether or not the panel is open, so you can toggle it on and close the
   overlay while you play.
+
+### Phone/iPad performance capture over the same Wi-Fi
+
+The opt-in device bridge records the real browser, GPU, viewport, adaptive-
+quality transitions, world position, and live engine counters on a phone or
+tablet, then writes the report straight into this workspace. It is especially
+useful for iOS Safari because desktop emulation cannot reproduce its GPU,
+thermal limits, memory pressure, audio gesture rules, or background/resume
+behavior.
+
+1. Put the Mac and device on the same Wi-Fi, then start the explicit LAN server:
+
+   ```
+   python3 .claude/serve_nocache.py 8765 --lan
+   ```
+
+2. Open one of the printed tokenized URLs on the device. Prefer the address on
+   the Wi-Fi interface, usually `192.168.x.x`; a `172.x.x.x` address may belong
+   to a VPN. Allow incoming Python connections if macOS asks. Add
+   `&seed=3948869160` for a reproducible world, and add
+   `&perf=low|mid|high` only when the test needs a pinned tier.
+3. Tap the real Start button. The small top-right control changes from
+   **PERF · ARMED** to **● REC · SEND**. Play a representative route and put the
+   game into the background and foreground once.
+4. Tap **SEND** before leaving. The recorder also uploads every 30 seconds and
+   sends a bounded final report on page exit, so a dropped manual tap does not
+   usually lose the run.
+5. Reports land as ignored `.claude/captures/device-*.json` files, where an
+   agent can inspect them without asking you to copy console output.
+
+When reading a report, reconstruct `samples[].quality` transitions first, then
+compare adjacent samples for `draws`, `tris`, `geo`, `tex`, `prog`, `cgN`, and
+position. Trip and star-power state matter because each can add screen-space or
+particle work; compare active and inactive samples at similar scene counts. A
+timestamp gap over the chosen sample interval usually marks the
+intentional background/foreground test; do not mislabel that wall-clock pause as
+a gameplay hitch. `fAvg`/`fP95`/`fMax` are reset to zero on the exact sample that
+records an adaptive-quality transition because each rung deliberately starts a
+fresh observation window. Monotonic `tex` growth while `geo` rises and falls is
+the signature of texture ownership leaking across streamed unloads.
+
+The bridge is deliberately local-first. The normal server remains bound to
+loopback, `--lan` generates a new write token for that server run, and LAN POSTs
+without it receive `403`. The public GitHub Pages game has no capture sink, so
+collecting reports from remote players would require a separately designed
+hosted collector with privacy, retention, abuse, and consent rules.
 
 ---
 
@@ -255,6 +304,8 @@ Adding a model? It's not done until it has a sandbox entry — see
 |---|---|
 | `?perf=low\|mid\|high` (or `window.__perfProfile`) | Force a performance tier ([perf.js](src/perf.js)). Test low/mid — high hides regressions that crush integrated GPUs. |
 | `?seed=<string\|int>` | Pin the procedural world layout ([main.js](src/main.js)); echoed in the debug HUD so a world is reproducible. |
+| `?perfCapture=1&captureToken=<token>` | Arm the local-device performance reporter. Use the complete tokenized URL printed by `serve_nocache.py --lan`; recording begins only after the real Start tap. |
+| `?layoutCapture=1` | Localhost-only, data-only world-streaming mode used automatically by `bin/layout-snapshot capture`. It preserves registry updates while skipping pixels; it is not a visual test mode. |
 | `?modelMerge=1` | Measurement-only opt-in that reproduces the rejected perf-pass-4 food-truck and Sugar Shack broad merges. The shipping default leaves them off while retaining the older tent merge. |
 | `?perfGate=suite&perfGateStep=0` | Run the full local food-court draw and lifecycle capture sequence. Start with the fixed URL above so tier and merge mode also match step 0. |
 | `?perfGate=visual` | Jump directly to the settled Midnight food-court framing. Completion adds `perfGateDone=1` to the URL. |
@@ -347,55 +398,27 @@ bin/layout-snapshot capture 1234 verification/snapshots/1234.b.json --bounds 163
 bin/layout-snapshot --diff verification/snapshots/1234.a.json verification/snapshots/1234.b.json   # MUST be EMPTY
 ```
 
-### When the one-command path stalls (heavy headless render) — the `document.hidden` trick
+### Why the one-command path now survives software WebGL
 
-In a **headless-only** environment (no GPU — Chromium falls back to SwiftShader
-software WebGL, e.g. a Codespace/CI box), `perf=high` is too heavy: the RAF
-render loop saturates the CPU and never yields, so CDP `eval` round-trips hang
-and `agent-browser open` dies on its load-wait timeout — taking
-`bin/layout-snapshot capture` down with it (proven 2026-06-12; goldens cleared
-this way anyway, see below). Two fixes, used together:
+On a headless-only machine Chromium uses SwiftShader, and the full festival at
+`perf=high` can consume every available CPU core before browser-control commands
+get a turn. The capture command therefore opens a localhost-only
+`?layoutCapture=1` mode. The ordinary update, chunk-streaming, registry, and
+draw-count-canary paths still run on a yielding timer, but the composer skips
+pixel rendering because pixels are not part of a layout snapshot.
 
-1. **Force the game onto its yielding loop.** `main.js:1093` runs
-   `setTimeout(tick, 16)` instead of `requestAnimationFrame` when
-   `document.hidden` is true (the same hook that keeps the page ticking under
-   the preview MCP). Force it with an agent-browser **init-script** so the main
-   thread yields between ticks and `eval` lands:
+The driver also owns one unique named browser session, uses a 320×180 viewport,
+honors `--tier`, settles on the bounds-clipped registry count, and gives every
+browser command a hard deadline. Its unconditional cleanup closes the named
+session and compares exact automation PIDs against the pre-launch baseline. If
+anything created by that invocation survives, it is terminated and the command
+returns a cleanup failure instead of leaving a laptop-burning process behind.
 
-   ```
-   printf '%s\n' \
-     "Object.defineProperty(document,'hidden',{get:()=>true,configurable:true});" \
-     "Object.defineProperty(document,'visibilityState',{get:()=>'hidden',configurable:true});" \
-     > /tmp/hidden-init.js
-   agent-browser open "http://127.0.0.1:8765/?worldgen=1&seed=1234&perf=high" \
-     --init-script /tmp/hidden-init.js   # exits non-zero on the load-wait — tolerate it; the page IS loaded
-   ```
-
-2. **Drive capture by hand** (since `capture` aborts on that timeout). Settle on
-   the **bounds-clipped** count, not the unbounded one — the whole-world count
-   keeps climbing as distant chunks stream in, but the window you're capturing
-   stabilizes early (and lands on the MANIFEST entry count):
-
-   ```
-   B='{minX:168,minZ:-243,maxX:468,maxZ:57}'
-   agent-browser eval "window.__dbg.start()"
-   agent-browser eval "window.__dbg.dumpRegistry($B).length"   # poll until stable (== MANIFEST count)
-   agent-browser eval --json "({entries:window.__dbg.dumpRegistry($B),drawCounts:window.__dbg.dumpDrawCounts($B)})" \
-     | jq -c '.data.result' \
-     | bin/layout-snapshot 1234 verification/snapshots/1234.spawn.fresh.json --stdin --tier high --window spawn
-   bin/layout-snapshot --diff verification/snapshots/1234.spawn.json verification/snapshots/1234.spawn.fresh.json
-   ```
-
-   (`agent-browser eval --json` wraps the result in `{success,data:{result}}`;
-   `jq .data.result` unwraps it to the raw `{entries,drawCounts}` the normalizer
-   wants. Plain `eval` double-encodes or pretty-prints — use `--json`.)
-
-Note the HUD **draws/tris** counter is *not* readable while hidden — rendering
-is throttled to ~1 call, and forcing a full `renderer.render()` re-wedges the
-thread. The per-cluster **draw-count canary** baked into the snapshot is the
-gate's draw-count instrument; that's why it exists. (`bin/layout-snapshot
-capture` learning to inject the init-script + tolerate the open-timeout itself
-is a parked harness improvement — see ROADMAP.)
+Use `--command-timeout <ms>` to adjust the default 12-second command deadline
+and `--settle-ms <ms>` to adjust the minimum five-second settle window. A
+successful snapshot proves data determinism only; use the sandbox or full game
+for pixels, draw/tris counters, lighting, and visual quality. If the installed
+browser CLI is absent or genuinely broken, use the manual recipe below.
 
 ### The manual recipe (approved fallback if agent-browser is flaky/absent)
 
@@ -411,8 +434,9 @@ to `verification/raw/<seed>.json`, and `bin/layout-snapshot <seed>` to normalize
 Either path, `bin/layout-snapshot` **drops the two moving kinds** (`lurleen`,
 `hula_hoop`) — they're actors, not layout, and would make a self-diff differ
 forever. It rounds coords to `1e-4` and sorts by `kind+x+z` so identical builds
-serialize identically. The tier is pinned (`perf=high`) because built truth is
-tier-dependent today (crowd draws from the cluster rng stream). `--diff` exits
+serialize identically. Capture defaults to `perf=high` and records the selected
+`--tier` because built truth is tier-dependent today (crowd draws from the
+cluster rng stream). `--diff` exits
 `0` (`EMPTY`) when layouts match, `1` with a per-kind report otherwise, and flags
 per-cluster draw-count (canary) drift even when every position still matches.
 

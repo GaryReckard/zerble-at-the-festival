@@ -542,6 +542,10 @@ export function buildTapestry(rng = Math.random) {
     flatShading: true,
     side: THREE.DoubleSide,
   });
+  // This texture belongs only to this tapestry. Material.dispose() does not
+  // dispose texture maps in three.js, so connect their lifetimes explicitly;
+  // every chunk, lake, and sandbox teardown already disposes the material.
+  fabric.addEventListener('dispose', () => tex.dispose());
 
   const segs = 8;
   const verts = [];

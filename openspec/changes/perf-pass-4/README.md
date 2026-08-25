@@ -1,6 +1,6 @@
 # Make the festival run smooth — kill the freezes and the hitches
 
-> **Status:** <!--STATUS:LINE-->paused · 42/54 tasks (77%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->paused · 57/69 tasks (82%)<!--/STATUS:LINE-->
 >
 > _Plain-language summary of this change. A non-engineer should understand it; a junior dev should grasp it; a senior dev should be able to build an accurate mental model from this file alone._
 
@@ -11,7 +11,9 @@ second, and streaming new ground in causes lots of little stutters. This change
 fixes both — without a build step — and first repairs a broken gauge so we can
 actually *see* what the game is doing. A five-expert review (a "debate") stress-
 tested the plan, caught a real bug in one of the ideas, and re-cut the work into
-three safe slices.
+three safe slices. It now also provides a bounded layout-capture path for
+software WebGL and a local-first bridge for real phone and tablet performance
+reports, so the remaining device checks arrive as evidence instead of anecdotes.
 
 ## The Problem
 
@@ -47,15 +49,24 @@ Seven moves, shipped as three slices (measure first, then the two real problems)
   in the crowd code.
 - **A nice-to-have (E1):** a warm "arriving at the festival" bloom-and-whoosh that
   can hide any leftover freeze as if it were on purpose.
+- **Make measurement dependable:** collect built layout truth without rendering
+  pixels under software WebGL, tear browser sessions down on every exit path, and
+  let a same-Wi-Fi phone or tablet post an opt-in performance report directly to
+  the ignored local capture directory.
+- **Act on the first real-device evidence:** low-tier Auto now starts with cheap
+  bubbles instead of paying for a second transmissive scene render, streamed
+  campsite tapestries release their unique textures, and future reports identify
+  Trip, star-power, bloom, bubble-material, and pixel-ratio state so effect costs
+  can be compared cleanly.
 
 See `design.md` for the technical "how".
 
 ## Progress
 
 <!--STATUS:AUTO-->
-**paused** — 42/54 tasks complete (77%) · current: 3.3
+**paused** — 57/69 tasks complete (82%) · current: 3.3
 
-_Last updated: 2026-07-15_
+_Last updated: 2026-08-25_
 
 | Group | Progress |
 |---|---|
@@ -66,6 +77,8 @@ _Last updated: 2026-07-15_
 | 5. Draw-call reduction — JUSTIFIED by the round-trip-1 capture (the real lever) | 9/9 ✅ |
 | 6. Docs + verification (per slice, not batched) | 4/4 ✅ |
 | 7. Slice 4 — forest-tree instancing (the real draw lever) | 17/23 |
+| 8. Capture reliability + real-device telemetry | 10/10 ✅ |
+| 9. Real-device round trip 1 findings | 5/5 ✅ |
 <!--/STATUS:AUTO-->
 
 ## Key Decisions
@@ -96,9 +109,11 @@ _Last updated: 2026-07-15_
   never a blank one (a documented past bug).
 - **Glow on/off fighting:** three different bits of code currently control the
   glow effect; this change makes one of them the single owner so they don't fight.
-- **We can't fully verify here.** Codespaces has no graphics card, so the actual
-  frame-rate, visuals, iPhone behaviour, and "does driving look smooth" checks are
-  the human's job — batched into about three quick capture round-trips.
+- **Real devices still matter.** Automated capture can prove layout determinism,
+  cleanup, report transport, and desktop-browser behavior, but only the actual
+  phone or tablet can report its GPU, thermals, iOS browser lifecycle, and felt
+  smoothness. The tokenized same-Wi-Fi bridge reduces that remaining gate to one
+  play route plus a Send tap.
 
 ## Open Questions
 

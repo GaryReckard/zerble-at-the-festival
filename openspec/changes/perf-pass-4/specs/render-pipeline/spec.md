@@ -32,3 +32,17 @@ The renderer SHALL support a brief, deliberate arrival transition that, when tri
   and any unavoidable first-render compile work is scheduled within that window
 - **AND** the flourish is rate-limited so it does not replay on every chunk or
   re-fire while already inside the same hub.
+
+### Requirement: Unique streamed textures follow owner disposal
+
+Every non-shared texture created for a streamed world object SHALL be disposed
+when its owning object unloads, without disposing module-cached textures still in
+use elsewhere.
+
+#### Scenario: A campsite tapestry unloads
+
+- **WHEN** a chunk, lake, hub preview, or sandbox removes a campsite tapestry and
+  disposes its unique material
+- **THEN** the tapestry's unique CanvasTexture is disposed in the same lifecycle
+- **AND** repeated load/unload cycles return `renderer.info.memory.textures` to
+  the pre-load baseline.

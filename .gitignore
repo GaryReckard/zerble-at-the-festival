@@ -2,6 +2,7 @@
 assets/.DS_Store
 .idea
 node_modules
+__pycache__/
 
 # Chrome DevTools Performance captures (large playtest artifacts)
 Trace-*.json

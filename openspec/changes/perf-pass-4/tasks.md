@@ -244,3 +244,63 @@ CG1–CG4 map to subsections 7.1–7.4. -->
 - [ ] 7.5.4 **Gary GPU:** lakeside woods render + draw-count drop + drive-past + a
   lake load/unload geo-leak check (drive away from a lake and back). Same hardware
   gate as 7.4.1-7.4.5.
+
+## 8. Capture reliability + real-device telemetry
+
+### 8.1 Make `bin/layout-snapshot capture` safe under software WebGL
+
+- [x] 8.1.1 Add a localhost-only `?layoutCapture=1` execution mode that preserves
+  the normal update/world-streaming path on the yielding timer loop while skipping
+  `composer.render()`; registry built truth and `dumpDrawCounts` remain unchanged.
+- [x] 8.1.2 Rewrite the live driver for the installed `agent-browser` 0.9.1 surface:
+  unique named session, small viewport, actual `--tier` URL, bounds-clipped settle,
+  hard command deadlines, and tolerant plain/JSON-wrapper eval parsing. Do not rely
+  on unavailable `skills` or `--init-script` commands.
+- [x] 8.1.3 Put named-session close in an unconditional cleanup path. Snapshot
+  pre-launch automation PIDs, assert the post-close delta is empty, and terminate
+  only processes created by this capture before returning a cleanup failure.
+- [x] 8.1.4 Falsify cleanup with a forced timeout, then run two fixed-seed captures
+  and prove `--diff` is EMPTY. Verify the exact browser/GPU/daemon PIDs created by
+  both paths are gone and the main game still boots normally outside capture mode.
+- [x] 8.1.5 Replace the stale `--init-script` workaround in DEBUGGING, remove the
+  completed ROADMAP item, and log the dev-workflow fix in CHANGELOG.
+
+### 8.2 Same-Wi-Fi phone/iPad performance reports
+
+- [x] 8.2.1 Add explicit tokenized `serve_nocache.py --lan` mode while preserving
+  the loopback-only default; print ready-to-open device URLs and reject unauthorized
+  LAN capture writes.
+- [x] 8.2.2 Add opt-in `?perfCapture=1`: after the real Start tap and synchronous
+  `Sound.init()`, clear/start the existing persistent perf recorder and show a
+  compact mobile-safe REC/Send status control.
+- [x] 8.2.3 Periodically upload a bounded report and send a small final beacon on
+  page hide. Include samples, tier/adaptive quality, seed, position/markers,
+  viewport/device signals, and WebGL renderer metadata; keep production inert
+  without the explicit flag.
+- [x] 8.2.4 Verify loopback and token rejection at the server, then complete one
+  browser-driven end-to-end report into ignored `.claude/captures/` with no console
+  errors and no orphaned automation processes.
+- [x] 8.2.5 Gary: open the printed URL on a real iPhone/iPad over the same Wi-Fi,
+  play through a representative route and one background/foreground cycle, tap
+  Send, and confirm the capture appears for agent analysis.
+
+## 9. Real-device round trip 1 findings
+
+- [x] 9.1 Analyze Gary's 215-second iPhone Safari report, reconstruct adaptive-
+  quality transitions, separate the intentional background gap, and compare
+  streaming/resource trends against position and chunk-generation counters.
+- [x] 9.2 Make low-tier Auto use cheap bubbles before its first rendered frame.
+  Remove the low-tier `cheap-bubs` and shadowless-tier `no-shadows` no-op rungs,
+  preserve the Detailed bubbles On override, and lock the tier-specific ladder
+  with a deterministic real-module test.
+- [x] 9.3 Fix the per-campsite tapestry CanvasTexture leak by coupling each unique
+  texture to its owning material's disposal while leaving cached/shared sign
+  textures untouched.
+- [x] 9.4 Verify five campsite-large load/unload cycles return textures to the
+  three-texture sandbox baseline, boot the real low-tier game at baseline quality,
+  send a capture successfully, run the full checks, and document the findings.
+- [x] 9.5 Record pixel ratio, bloom/bubble material, Trip state/envelope/progress/
+  pass, and star-power state in every future performance sample so a special-
+  effect playtest can be split into comparable active/inactive windows. Preserve
+  early fade-in values to three decimals and initialize the Trip pass disabled so
+  the first idle sample reflects the actual zero-cost state.

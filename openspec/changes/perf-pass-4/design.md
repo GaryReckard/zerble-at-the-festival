@@ -150,3 +150,48 @@ the existing `userData.shared` disposal contract.
   diminishing returns — settle empirically once B0 + `progDelta` show which hubs
   mint the most programs.
 - Tier-2 ordering depends entirely on B0's numbers; not decided here.
+
+## D26 Addendum — reliable capture and local-device telemetry
+
+`bin/layout-snapshot capture` is a data workload, not a visual test. Add a
+localhost-only `?layoutCapture=1` mode that continues the normal update and world
+streaming path on `setTimeout(16)` but does not call `composer.render()`. The
+registry and per-cluster rng canary remain production-built truth while
+SwiftShader performs no steady-state GPU work.
+
+The CLI driver owns one unique `agent-browser` session per invocation. Every
+command has a hard timeout, every exit path closes the named session in `finally`,
+and cleanup compares `agent-browser`/`chrome-headless-shell` process IDs against a
+pre-launch baseline. Any process created by the capture that survives graceful
+close is terminated and reported as a cleanup failure. The driver targets the
+installed 0.9.1 command surface rather than relying on unavailable `--init-script`
+support, uses a small viewport, settles on the clipped registry count, and parses
+both plain and JSON-wrapped eval output.
+
+For Gary-owned iPhone/iPad testing, extend the no-cache server with an explicit
+`--lan` mode. It binds beyond loopback only when requested and prints a tokenized
+`?perfCapture=1` URL. The game begins the existing localStorage-backed recorder
+only after the real Start tap and synchronous audio initialization, shows a small
+mobile-safe recording/send control, and periodically posts a report to the same
+origin capture sink. Reports include the perf samples plus tier, adaptive-quality
+state, viewport/device signals, WebGL renderer metadata, seed, and markers. The
+LAN token protects the write sink; ordinary localhost development stays unchanged.
+No public endpoint or background production telemetry is introduced.
+
+## D27 Addendum — real-device findings become tier defaults and owned cleanup
+
+The first actual iPhone report identifies detailed transmissive bubbles as a
+low-tier multiplier, not a small material flourish. MeshPhysical transmission
+causes a scene pre-pass even though the bubbles themselves are one InstancedMesh.
+Low-tier Auto therefore maps every quality rung to the cheap material from boot,
+removes the redundant `cheap-bubs` rung, and removes `no-shadows` whenever the
+tier did not build shadow machinery. A player who explicitly pins Detailed
+bubbles On still receives the fancy material; the tier default affects Auto only.
+
+Streamed resource ownership must include texture maps explicitly. Three.js
+`Material.dispose()` does not dispose textures, and generic map disposal in the
+chunk walker would be unsafe because several per-instance materials reference
+module-cached sign textures. The unique campsite tapestry CanvasTexture instead
+subscribes to its unique material's disposal event. This keeps ownership local to
+the builder and automatically follows all existing chunk, lake, hub, and sandbox
+teardown paths.

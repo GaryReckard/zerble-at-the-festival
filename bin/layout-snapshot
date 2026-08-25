@@ -41,7 +41,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const { execFileSync, spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const RAW_DIR = path.join(ROOT, 'verification', 'raw');
@@ -156,18 +156,110 @@ function cmdCapture(args) {
 }
 
 // ── Live capture via agent-browser (the genuine one-command path) ──────────
-// agent-browser is a globally-installed CLI (NOT a repo dep) that drives a
-// headless browser and returns eval results on stdout — so this script can
-// boot → start → settle → dump → normalize → write in ONE command, per the
-// spec. If agent-browser is missing or flaky, the documented preview-MCP recipe
-// (`--recipe`) is the approved fallback — this command dies pointing at it.
-function ab(jsArgs, label) {
-  try {
-    return execFileSync('agent-browser', jsArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (e) {
-    die(`agent-browser ${label || jsArgs[0]} failed: ${e.message}\n` +
-        `Fall back to the manual recipe:  bin/layout-snapshot --recipe <seed>`);
+// A capture owns exactly one uniquely named browser session. Every invocation
+// is bounded, and the outer finally block closes the session plus proves that
+// no daemon/GPU worker created after the baseline survived. Never call die()
+// from this layer: process.exit would bypass that cleanup.
+const DEFAULT_AB_TIMEOUT_MS = 12_000;
+const AUTOMATION_PROCESS_RE = /(agent-browser\/bin\/\.\.\/dist\/daemon\.js|chrome-headless-shell)/;
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function automationProcesses() {
+  const res = spawnSync('ps', ['-axo', 'pid=,ppid=,command='], {
+    encoding: 'utf8', timeout: 3000, maxBuffer: 8 * 1024 * 1024,
+  });
+  if (res.error || res.status !== 0) {
+    const detail = (res.stderr || res.error?.message || `exit ${res.status}`).trim();
+    throw new Error(`could not enumerate browser processes${detail ? `: ${detail}` : ''}`);
   }
+  const found = new Map();
+  for (const line of res.stdout.split('\n')) {
+    if (!AUTOMATION_PROCESS_RE.test(line)) continue;
+    const m = line.match(/^\s*(\d+)\s+(\d+)\s+(.+)$/);
+    if (m) found.set(Number(m[1]), { pid: Number(m[1]), ppid: Number(m[2]), command: m[3] });
+  }
+  return found;
+}
+
+function newAutomationProcesses(baseline) {
+  return [...automationProcesses().values()].filter((p) => !baseline.has(p.pid));
+}
+
+function runAgentBrowser(session, args, label, options = {}) {
+  const timeout = options.timeoutMs || DEFAULT_AB_TIMEOUT_MS;
+  const res = spawnSync('agent-browser', ['--session', session, ...args], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout,
+    killSignal: 'SIGTERM',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  const timedOut = res.error && res.error.code === 'ETIMEDOUT';
+  if (timedOut && options.allowTimeout) {
+    process.stderr.write(`[capture] ${label} exceeded ${timeout}ms; probing the named session directly\n`);
+    return '';
+  }
+  if (res.error || res.status !== 0) {
+    const detail = (res.stderr || res.stdout || res.error?.message || `exit ${res.status}`).trim();
+    const suffix = timedOut ? ` timed out after ${timeout}ms` : ' failed';
+    throw new Error(`agent-browser ${label}${suffix}${detail ? `: ${detail}` : ''}`);
+  }
+  return res.stdout;
+}
+
+function parseAgentBrowserValue(output, label) {
+  let value;
+  try { value = JSON.parse(output.trim()); }
+  catch (e) { throw new Error(`could not parse agent-browser ${label} output: ${e.message}`); }
+  if (value && typeof value === 'object' && value.data && Object.prototype.hasOwnProperty.call(value.data, 'result')) {
+    value = value.data.result;
+  }
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch (_) { /* a genuine string result */ }
+  }
+  return value;
+}
+
+function evalAgentBrowser(session, js, label, timeoutMs) {
+  const out = runAgentBrowser(session, ['--json', 'eval', js], label, { timeoutMs });
+  return parseAgentBrowserValue(out, label);
+}
+
+function closeCaptureSession(session, baseline) {
+  let closeFailure = null;
+  try {
+    runAgentBrowser(session, ['close'], 'close', { timeoutMs: 5000 });
+  } catch (e) {
+    closeFailure = e;
+  }
+
+  let survivors = [];
+  for (let i = 0; i < 20; i++) {
+    survivors = newAutomationProcesses(baseline);
+    if (survivors.length === 0) break;
+    sleepSync(100);
+  }
+  if (survivors.length) {
+    for (const p of survivors) {
+      try { process.kill(p.pid, 'SIGTERM'); } catch (_) { /* already exited */ }
+    }
+    sleepSync(500);
+    survivors = newAutomationProcesses(baseline);
+    for (const p of survivors) {
+      try { process.kill(p.pid, 'SIGKILL'); } catch (_) { /* already exited */ }
+    }
+    sleepSync(200);
+    const afterKill = newAutomationProcesses(baseline);
+    const forced = survivors.map((p) => p.pid).join(', ');
+    if (afterKill.length) {
+      throw new Error(`capture cleanup could not remove PIDs ${afterKill.map((p) => p.pid).join(', ')}`);
+    }
+    throw new Error(`capture cleanup had to force-terminate orphan PIDs ${forced}`);
+  }
+  if (closeFailure) throw closeFailure;
 }
 
 function abAvailable() {
@@ -185,6 +277,7 @@ function cmdCaptureLive(args) {
   }
   const port = args.flags.port || '8765';
   const tier = args.flags.tier || 'high';
+  if (!['low', 'mid', 'high'].includes(tier)) die('--tier must be low, mid, or high');
   const win = args.flags.window || (args.flags.bounds ? 'window' : 'full');
   let B = 'undefined';
   if (args.flags.bounds) {
@@ -192,55 +285,85 @@ function cmdCaptureLive(args) {
     if (n.length !== 4 || n.some(Number.isNaN)) die('--bounds must be minX,minZ,maxX,maxZ (four numbers)');
     B = `{minX:${n[0]},minZ:${n[1]},maxX:${n[2]},maxZ:${n[3]}}`;
   }
-  const url = `http://127.0.0.1:${port}/?worldgen=1&seed=${seed}&perf=high`;
+  const url = `http://127.0.0.1:${port}/?worldgen=1&seed=${encodeURIComponent(seed)}&perf=${tier}&layoutCapture=1`;
+  const session = `zerble-layout-${process.pid}-${Date.now()}`;
+  const baseline = automationProcesses();
+  const commandTimeoutMs = Number(args.flags.commandTimeout || DEFAULT_AB_TIMEOUT_MS);
+  if (!Number.isFinite(commandTimeoutMs) || commandTimeoutMs < 250) die('--command-timeout must be at least 250ms');
+  const settleMs = Number(args.flags.settleMs || 5000);
+  if (!Number.isFinite(settleMs) || settleMs < 1000) die('--settle-ms must be at least 1000ms');
 
-  process.stderr.write(`[capture] open ${url}\n`);
-  ab(['open', url], 'open');
-  const startRes = ab(['eval', "window.__dbg ? window.__dbg.start() : 'NO_DBG'"], 'start').trim();
-  if (startRes.includes('NO_DBG')) die('window.__dbg absent — is the dev server serving from 127.0.0.1? (localhost-only surface)');
-
-  // Teleport to the window center BEFORE settling (a debug jump, NOT driving —
-  // protocol-compliant). The player relocates to the spawn hub; any window more
-  // than ~one load-ring away (shoreline, dense clusters) never has its chunks
-  // generated unless the player is there. Chunks beyond UNLOAD_RADIUS from the
-  // jump target unload, so a bounded dump after teleport is exactly the window's
-  // built truth — not spawn debris. Keep windows ≤ ±150m so the 5×5 load ring
-  // (high tier, ±200m square) fills them fully from one jump.
   let at = null;
-  if (args.flags.at) {
-    const a = args.flags.at.split(',').map(Number);
-    if (a.length !== 2 || a.some(Number.isNaN)) die('--at must be x,z (two numbers)');
-    at = { x: a[0], z: a[1] };
-    process.stderr.write(`[capture] teleport (${at.x}, ${at.z})\n`);
-    ab(['eval', `window.__dbg.teleport(${at.x}, ${at.z})`], 'teleport');
+  let captureError = null;
+  let cleanupError = null;
+  let raw = null;
+  try {
+    process.stderr.write(`[capture] session ${session}\n`);
+    runAgentBrowser(session, ['open', 'about:blank'], 'bootstrap', { timeoutMs: commandTimeoutMs });
+    runAgentBrowser(session, ['set', 'viewport', '320', '180'], 'viewport', { timeoutMs: commandTimeoutMs });
+    process.stderr.write(`[capture] open ${url}\n`);
+    runAgentBrowser(session, ['open', url], 'open', { timeoutMs: commandTimeoutMs, allowTimeout: true });
+
+    let ready = false;
+    for (let i = 0; i < 40; i++) {
+      try {
+        ready = evalAgentBrowser(session, "!!(window.__dbg && window.__game && window.__game.layoutCaptureMode)", 'readiness', commandTimeoutMs) === true;
+      } catch (_) { /* page may still be loading after the open wait timed out */ }
+      if (ready) break;
+      sleepSync(250);
+    }
+    if (!ready) throw new Error('window.__dbg capture mode did not become ready; confirm the no-cache dev server is running on 127.0.0.1');
+
+    const startRes = evalAgentBrowser(session, 'window.__dbg.start()', 'start', commandTimeoutMs);
+    if (startRes !== 'started' && startRes !== 'already running') throw new Error(`unexpected __dbg.start() result: ${String(startRes)}`);
+
+    if (args.flags.forceTimeout) {
+      runAgentBrowser(session, ['eval', '(() => { const end = Date.now() + 60000; while (Date.now() < end) {} })()'], 'forced-timeout', { timeoutMs: 500 });
+    }
+
+    // Teleport to the window center BEFORE settling (a debug jump, NOT driving —
+    // protocol-compliant). Keep windows <= +/-150m so one high-tier load ring
+    // fills them fully from one jump.
+    if (args.flags.at) {
+      const a = args.flags.at.split(',').map(Number);
+      if (a.length !== 2 || a.some(Number.isNaN)) throw new Error('--at must be x,z (two numbers)');
+      at = { x: a[0], z: a[1] };
+      process.stderr.write(`[capture] teleport (${at.x}, ${at.z})\n`);
+      evalAgentBrowser(session, `window.__dbg.teleport(${at.x}, ${at.z})`, 'teleport', commandTimeoutMs);
+    }
+
+    // Settle on the exact window being captured. Four stable reads after a
+    // minimum warm-up avoid both the old unbounded-count climb and a transient
+    // one-read plateau between chunk starts.
+    let prev = -1, stableReads = 0, count = 0;
+    const startedAt = Date.now();
+    const MAX_POLLS = 80;
+    for (let i = 0; i < MAX_POLLS; i++) {
+      sleepSync(250);
+      count = Number(evalAgentBrowser(session, `window.__dbg.dumpRegistry(${B}).length`, 'count', commandTimeoutMs)) || 0;
+      if (count > 0 && count === prev) stableReads++;
+      else stableReads = 0;
+      prev = count;
+      if (Date.now() - startedAt >= settleMs && stableReads >= 8) {
+        process.stderr.write(`[capture] settled at ${count} entries\n`);
+        break;
+      }
+      if (i === MAX_POLLS - 1) process.stderr.write(`[capture] WARNING: not fully settled after ${MAX_POLLS} polls (last=${count}); capturing anyway\n`);
+    }
+
+    const dumpJs = `({entries: window.__dbg.dumpRegistry(${B}), drawCounts: window.__dbg.dumpDrawCounts(${B})})`;
+    raw = readRawObj(evalAgentBrowser(session, dumpJs, 'dump', commandTimeoutMs), 'agent-browser capture');
+  } catch (e) {
+    captureError = e;
+  } finally {
+    try { closeCaptureSession(session, baseline); }
+    catch (e) { cleanupError = e; }
   }
 
-  // Settle: poll the registry entry count (a faithful "this vicinity's chunks
-  // have stopped churning" proxy — __dbg.game doesn't expose the chunk manager)
-  // until two consecutive reads agree and are non-zero. NOTE the count is NOT
-  // monotonic: chunks beyond UNLOAD_RADIUS unload (chunks.js:345), so after a
-  // teleport the total dips as spawn chunks drop and rises as the new vicinity
-  // loads — "stable for two reads" is what we wait on, not "stopped climbing".
-  // NO driving happens here.
-  let prev = -1, stableReads = 0, count = 0;
-  const MAX_POLLS = 20;
-  for (let i = 0; i < MAX_POLLS; i++) {
-    ab(['wait', '1200'], 'wait');
-    count = parseInt(ab(['eval', 'window.__dbg.dumpRegistry().length'], 'count').trim(), 10) || 0;
-    if (count > 0 && count === prev) { if (++stableReads >= 1) { process.stderr.write(`[capture] settled at ${count} entries\n`); break; } }
-    else stableReads = 0;
-    prev = count;
-    if (i === MAX_POLLS - 1) process.stderr.write(`[capture] WARNING: not fully settled after ${MAX_POLLS} polls (last=${count}); capturing anyway\n`);
+  if (captureError || cleanupError) {
+    const failures = [captureError, cleanupError].filter(Boolean).map((e) => e.message).join('\ncleanup: ');
+    die(`layout capture failed: ${failures}\nFall back to: bin/layout-snapshot --recipe ${seed}`);
   }
-
-  const dumpJs = `({entries: window.__dbg.dumpRegistry(${B}), drawCounts: window.__dbg.dumpDrawCounts(${B})})`;
-  const dumpOut = ab(['eval', dumpJs], 'dump');
-  ab(['close'], 'close');
-
-  let parsed;
-  try { parsed = JSON.parse(dumpOut); }
-  catch (e) { die(`could not parse agent-browser dump output: ${e.message}`); }
-  const raw = readRawObj(parsed, 'agent-browser capture');
 
   const entries = normalizeEntries(raw.entries);
   const drawCounts = normalizeDrawCounts(raw.drawCounts);
@@ -354,6 +477,8 @@ function printHelp() {
     '      (drives a headless browser via agent-browser; needs the dev server on :8765)',
     '      --bounds minX,minZ,maxX,maxZ   clip to a hub window (else full world)',
     '      --tier <t> (default high)  --window <w>  --port <p> (default 8765)',
+    '      --command-timeout <ms> (default 12000; every browser command is bounded)',
+    '      --settle-ms <ms> (default 5000; require eight stable window reads afterward)',
     '',
     '  bin/layout-snapshot <seed> [outfile]      normalize verification/raw/<seed>.json → snapshot',
     '      --raw <file>    raw capture path (default verification/raw/<seed>.json)',
@@ -377,7 +502,11 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--stdin') flags.stdin = true;
-    else if (a === '--raw' || a === '--tier' || a === '--window' || a === '--bounds' || a === '--port' || a === '--at') flags[a.slice(2)] = argv[++i];
+    else if (a === '--force-timeout') flags.forceTimeout = true;
+    else if (a === '--raw' || a === '--tier' || a === '--window' || a === '--bounds' || a === '--port' || a === '--at' || a === '--command-timeout' || a === '--settle-ms') {
+      const key = a.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      flags[key] = argv[++i];
+    }
     else positional.push(a);
   }
   return { positional, flags };

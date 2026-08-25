@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { Sound } from './sound.js';
 import { Analytics } from './analytics.js';
 import { getForestAt } from './forests.js';
-import { PERF, USE_WORLDGEN_V2 } from './perf.js';
+import { PERF, DETECTED_TIER, USE_WORLDGEN_V2 } from './perf.js';
 import { nearestMajorHeart, heartsInBounds } from './worldgen/hearts.js';
 import { festivalPlan, campVillagesNear, computeFrontAxis } from './worldgen/festival.js';
 import { FESTIVAL_TUNING } from './worldgen/tuning.js';
@@ -61,6 +61,9 @@ const TRIP_PANEL_ID = 'trip-panel';
 const COLLIDER_LAYER_NAME = '__debug_colliders';
 const PERF_LOG_KEY = 'zerble_perflog';
 const PERF_LOG_MAX = 5000;
+const DEVICE_CAPTURE_PARAMS = new URLSearchParams(location.search);
+const DEVICE_CAPTURE_ENABLED = DEVICE_CAPTURE_PARAMS.get('perfCapture') === '1';
+const DEVICE_CAPTURE_TOKEN = DEVICE_CAPTURE_PARAMS.get('captureToken') || '';
 
 const state = {
   visible: false,
@@ -92,6 +95,13 @@ const state = {
   perfStatusEl: null,
   perfRecBtn: null,
   perfOut: null,
+  deviceCaptureStarted: false,
+  deviceCaptureStartedAt: 0,
+  deviceCaptureName: '',
+  deviceCaptureEl: null,
+  deviceCaptureTimer: 0,
+  deviceCaptureUploading: false,
+  deviceCaptureLastUploadAt: 0,
 };
 
 export function installDebug(hooks) {
@@ -101,11 +111,15 @@ export function installDebug(hooks) {
   buildPanel();
   buildTripPanel();
   buildMarkerTouchZone();
+  if (DEVICE_CAPTURE_ENABLED) buildDeviceCaptureControl();
   bindKeys();
   window.__debug = api();
   // Flush the perf log on unload too (we persist every sample, but this catches
   // an in-flight buffer if the tab is closed between samples).
   window.addEventListener('beforeunload', () => { if (state.perfRecording) savePerfLog(state.perfSamples); });
+  window.addEventListener('pagehide', () => {
+    if (state.deviceCaptureStarted) uploadDeviceCapture('pagehide', true);
+  });
   // first paint
   updatePanel(0);
 }
@@ -384,6 +398,8 @@ function api() {
     },
     recordPerf(on = true) { setPerfRecording(!!on); return state.perfRecording; },
     perfLog() { return state.perfSamples.slice(); },
+    startDeviceCapture() { return startDeviceCapture(); },
+    sendDeviceCapture() { return uploadDeviceCapture('manual', false); },
     perfSnapshot() { return collectPerfSample(); },
     chunkStages(reset = false) {
       const out = {};
@@ -1617,6 +1633,7 @@ function collectPerfSample() {
   const z = h && h.zerble;
   const reg = h && h.registry;
   const r1 = (v) => Math.round(v * 10) / 10;
+  const r3 = (v) => Math.round(v * 1000) / 1000;
   const heap = (typeof performance !== 'undefined' && performance.memory)
     ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null;
   // Crowd steady-state self-times (opt-in, see Crowd._perf). Averaged over the
@@ -1645,6 +1662,16 @@ function collectPerfSample() {
     geo: info ? info.memory.geometries : -1,
     tex: info ? info.memory.textures : -1,
     prog, progDelta,
+    quality: getLevelName(),
+    qualityLevel: getLevel(),
+    pixelRatio: r ? r1(r.getPixelRatio()) : -1,
+    bloom: !!h?.bloomPass?.enabled,
+    bubbles: h?.bubbles?.mesh?.material === h?.bubbles?._fancyMat ? 'fancy' : 'cheap',
+    tripState: h?.Trip?.state || 'unknown',
+    tripEnvelope: r3(h?.Trip?._envelope || 0),
+    tripProgress: r3(h?.Trip?.progress?.() || 0),
+    tripPass: !!h?.Trip?.pass?.enabled,
+    starPower: !!h?.StarPower?.isActive?.(),
     heapMB: heap,
     npc: h && h.crowd ? h.crowd.npcs.length : -1,
     reg: h && h.registry ? h.registry.entries.size : -1,
@@ -1686,6 +1713,171 @@ function setPerfRecording(on) {
   }
   renderPerfStatus();
 }
+
+function buildDeviceCaptureControl() {
+  if (state.deviceCaptureEl) return;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.id = 'device-perf-capture';
+  button.textContent = 'PERF · ARMED';
+  button.setAttribute('aria-label', 'Performance capture is armed and will begin after Start');
+  button.style.cssText = [
+    'position:fixed',
+    'top:calc(env(safe-area-inset-top, 0px) + 76px)',
+    'right:calc(env(safe-area-inset-right, 0px) + 8px)',
+    'z-index:2200',
+    'border:1px solid rgba(255,255,255,.35)',
+    'border-radius:999px',
+    'padding:6px 10px',
+    'background:rgba(10,24,34,.82)',
+    'color:#bfffdc',
+    'font:700 11px/1.1 ui-monospace,monospace',
+    'letter-spacing:.04em',
+    'box-shadow:0 2px 10px rgba(0,0,0,.28)',
+    'touch-action:manipulation',
+  ].join(';');
+  button.addEventListener('click', () => {
+    if (state.deviceCaptureStarted) uploadDeviceCapture('manual', false);
+  });
+  document.body.appendChild(button);
+  state.deviceCaptureEl = button;
+}
+
+function updateDeviceCaptureControl(message) {
+  const el = state.deviceCaptureEl;
+  if (!el) return;
+  if (message) {
+    el.textContent = message;
+    el.setAttribute('aria-label', message.replace('·', '').trim());
+    return;
+  }
+  if (!state.deviceCaptureStarted) {
+    el.textContent = 'PERF · ARMED';
+    el.setAttribute('aria-label', 'Performance capture is armed and will begin after Start');
+    return;
+  }
+  const seconds = Math.max(0, Math.round((Date.now() - state.deviceCaptureStartedAt) / 1000));
+  const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+  const ss = String(seconds % 60).padStart(2, '0');
+  el.textContent = `● REC ${mm}:${ss} · SEND`;
+  el.setAttribute('aria-label', `Performance recording ${mm}:${ss}. Send report.`);
+}
+
+function startDeviceCapture() {
+  if (!DEVICE_CAPTURE_ENABLED || state.deviceCaptureStarted) return state.deviceCaptureStarted;
+  state.perfSamples = [];
+  savePerfLog(state.perfSamples);
+  state.deviceCaptureStarted = true;
+  state.deviceCaptureStartedAt = Date.now();
+  state.deviceCaptureLastUploadAt = Date.now();
+  state.deviceCaptureName = `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  setPerfRecording(true);
+  updateDeviceCaptureControl();
+  state.deviceCaptureTimer = window.setInterval(() => {
+    updateDeviceCaptureControl();
+    if (Date.now() - (state.deviceCaptureLastUploadAt || 0) >= 30_000) {
+      uploadDeviceCapture('periodic', false);
+    }
+  }, 1000);
+  return true;
+}
+
+function deviceRendererInfo() {
+  const renderer = state.hooks?.renderer;
+  if (!renderer) return null;
+  try {
+    const gl = renderer.getContext();
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    return {
+      webglVersion: renderer.capabilities?.isWebGL2 ? 2 : 1,
+      vendor: ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR),
+      renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
+      maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
+      maxSamples: renderer.capabilities?.maxSamples ?? null,
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function buildDeviceCaptureReport(reason, sampleTail = null) {
+  const hooks = state.hooks;
+  const params = {};
+  for (const [key, value] of DEVICE_CAPTURE_PARAMS) {
+    if (key !== 'captureToken') params[key] = value;
+  }
+  const samples = sampleTail ? state.perfSamples.slice(-sampleTail) : state.perfSamples.slice();
+  return {
+    schema: 'zerble-device-perf-v1',
+    reason,
+    capturedAt: new Date().toISOString(),
+    startedAt: new Date(state.deviceCaptureStartedAt).toISOString(),
+    durationS: Math.round((Date.now() - state.deviceCaptureStartedAt) / 100) / 10,
+    sampleCount: samples.length,
+    samples,
+    session: {
+      seed: getSessionSeed(),
+      tier: PERF.name,
+      detectedTier: DETECTED_TIER,
+      quality: getLevelName(),
+      qualityLevel: getLevel(),
+      tod: hooks?.getTimeOfDay?.()?.t ?? null,
+      x: hooks?.zerble ? Math.round(hooks.zerble.position.x * 100) / 100 : null,
+      z: hooks?.zerble ? Math.round(hooks.zerble.position.z * 100) / 100 : null,
+      params,
+    },
+    device: {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform || null,
+      maxTouchPoints: navigator.maxTouchPoints || 0,
+      hardwareConcurrency: navigator.hardwareConcurrency || null,
+      deviceMemoryGB: navigator.deviceMemory || null,
+      pixelRatio: window.devicePixelRatio || 1,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      screen: { width: window.screen.width, height: window.screen.height },
+      renderer: deviceRendererInfo(),
+    },
+    markers: loadMarkers(),
+  };
+}
+
+function deviceCaptureUrl(final = false) {
+  const name = state.deviceCaptureName + (final ? '-final' : '');
+  const token = DEVICE_CAPTURE_TOKEN ? `?token=${encodeURIComponent(DEVICE_CAPTURE_TOKEN)}` : '';
+  return `/__capture/${name}${token}`;
+}
+
+async function uploadDeviceCapture(reason, useBeacon) {
+  if (!state.deviceCaptureStarted || (state.deviceCaptureUploading && !useBeacon)) return false;
+  const final = reason === 'pagehide';
+  const report = buildDeviceCaptureReport(reason, final ? 120 : null);
+  const body = JSON.stringify(report);
+  if (useBeacon && navigator.sendBeacon) {
+    return navigator.sendBeacon(deviceCaptureUrl(true), new Blob([body], { type: 'application/json' }));
+  }
+  state.deviceCaptureUploading = true;
+  updateDeviceCaptureControl('PERF · SENDING…');
+  try {
+    const response = await fetch(deviceCaptureUrl(false), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    state.deviceCaptureLastUploadAt = Date.now();
+    updateDeviceCaptureControl('PERF · SENT ✓');
+    window.setTimeout(() => updateDeviceCaptureControl(), 1500);
+    return true;
+  } catch (error) {
+    console.error('[devicePerfCapture] upload failed', error);
+    updateDeviceCaptureControl('PERF · SEND FAILED');
+    window.setTimeout(() => updateDeviceCaptureControl(), 3000);
+    return false;
+  } finally {
+    state.deviceCaptureUploading = false;
+  }
+}
+
 function renderPerfStatus() {
   if (state.perfRecBtn) state.perfRecBtn.textContent = state.perfRecording ? '■ Stop' : '● Record';
   const el = state.perfStatusEl;

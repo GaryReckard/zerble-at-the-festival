@@ -117,6 +117,15 @@ Analytics.installErrorTracking();
 
 const canvas = document.getElementById('game');
 
+// Built-truth layout capture needs the real update/streaming path, but it does
+// not need pixels. Skipping the composer keeps Playwright's SwiftShader GPU
+// worker from saturating the CPU while agent-browser waits on registry data.
+// Localhost-only so a player cannot accidentally disable rendering on the live
+// deploy; the yielding timer below also keeps CDP commands responsive.
+const LAYOUT_CAPTURE_MODE =
+  ['localhost', '127.0.0.1'].includes(location.hostname) &&
+  new URLSearchParams(location.search).get('layoutCapture') === '1';
+
 // ---------- Renderer ----------
 // MSAA (renderer-level antialias) is expensive on integrated / mobile GPUs,
 // especially at pixelRatio 2. Per the threejs-postprocessing skill's "FXAA
@@ -585,6 +594,10 @@ AdaptiveQuality.install({
     _lastQualityLevel = level;
   },
 });
+// Apply the tier's Auto baseline before the first rendered frame. On low this
+// avoids the MeshPhysical transmission pre-pass immediately; a persisted
+// Detailed bubbles On/Off choice below still wins through Settings.
+bubbles.setCheapMaterial(AdaptiveQuality.currentCheap());
 
 // Player Settings panel — graphics quality / effect overrides / volume. Runs
 // AFTER AdaptiveQuality.install so applyBootOverrides can turn the governor off
@@ -633,6 +646,9 @@ HUD.onStart(() => {
   // await/setTimeout boundary loses the "user gesture" status and the
   // AudioContext starts suspended (silent).
   Sound.init();
+  // Explicit local-device perf captures arm from the URL, but recording begins
+  // only after this real gesture and after synchronous iOS audio initialization.
+  window.__debug?.startDeviceCapture?.();
   // Reveal the touch overlay only now (avoids ghost controls behind the
   // title-card's backdrop-filter) and mark it as the active control surface
   // for assistive tech.
@@ -1238,14 +1254,14 @@ function tickBody(dt) {
   const bloomNeeded = getTimeOfDay().nightness > 0.08 || StarPower.isActive();
   bloomPass.enabled = AdaptiveQuality.bloomAllowed() && bloomNeeded;
 
-  composer.render();
+  if (!LAYOUT_CAPTURE_MODE) composer.render();
 }
 
 // RAF is throttled to ~0 fps when the tab is backgrounded (e.g. the Claude
 // Preview MCP runs the page document.hidden). Fall back to setTimeout in that
 // case so the game keeps ticking and the preview tools see real motion.
 function scheduleNext() {
-  if (document.hidden) setTimeout(tick, 16);
+  if (document.hidden || LAYOUT_CAPTURE_MODE) setTimeout(tick, 16);
   else requestAnimationFrame(tick);
 }
 
@@ -1450,7 +1466,7 @@ window.__game = {
   camera, zerble, scene, renderer, crowd, registry, chaseCam, lurleen,
   getTimeOfDay, Trip, StarPower, midi, birds, bubbles, fireworks,
   kids, wooks, puppets, band, hoopers, frisbees, smiles,
-  sound: Sound,
+  sound: Sound, layoutCaptureMode: LAYOUT_CAPTURE_MODE,
 };
 
 // ---- Local-dev debug backdoor (window.__dbg) ----
@@ -2065,7 +2081,7 @@ installDebug({
   lurleen,                              // teleport menu uses .position
   getRunning: () => running,
   getTimeOfDay,
-  Trip,
+  Trip, StarPower,
   midi,
 });
 

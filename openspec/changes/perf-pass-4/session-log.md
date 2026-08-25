@@ -1,11 +1,11 @@
 ---
 change: perf-pass-4
 status: paused             # not_started | in_progress | blocked | paused | complete
-current_task: 3.3           # parked by Gary pending renewed performance work
+current_task: 3.3          # remaining structural deferral work is parked
 blocked_by: null            # no blocker
 open_questions: 0           # count of unanswered questions in questions-for-human.md
 started: 2026-06-19
-last_updated: 2026-07-15
+last_updated: 2026-08-25
 ref: .claude/perf-brainstorm.md  # the idea bank + critic ranking this picks up
 ---
 
@@ -235,6 +235,47 @@ descriptor-first vendor-row or tree-planning split stays recorded for a future
 performance pass rather than continuing by inertia.
 -> Task 3.3
 
+### D26 — Capture is a data workload; mobile telemetry stays local-first
+The 2026-08-25 audit reproduced `bin/layout-snapshot capture` hanging under
+Playwright's SwiftShader software WebGL and leaving two `chrome-headless-shell`
+GPU workers at roughly 200% and 750% CPU. The installed `agent-browser` is 0.9.1,
+which lacks the `skills` and `--init-script` capabilities assumed by the parked
+manual workaround. Layout capture does not need a rendered frame: built truth is
+the registry populated by the ordinary update/streaming loop. The durable fix is
+therefore a localhost-only data capture mode that keeps the yielding timer loop
+but skips `composer.render()`, plus a driver that owns a unique named session,
+hard timeouts, unconditional close, and a baseline-delta orphan assertion. For
+real-device profiling, reuse the shipped localStorage perf ring and capture sink
+through an explicit tokenized LAN server mode; begin recording only after the real
+Start tap and after synchronous `Sound.init()`. A public collector for remote
+players remains a separate hosting/privacy decision.
+-> Task 8.1 -> Task 8.2
+
+### D27 — Low-tier Auto must avoid transmission; unique streamed textures own disposal
+Gary's first real-device report ran for 215.1 seconds on iPhone Safari/WebGL 2
+with an Apple GPU and traversed roughly 808m. The clean adjacent
+`pixel-75` -> `cheap-bubs` samples held registry, chunk count, and position nearly
+steady while draws fell 1,795 -> 867 and triangles 708,458 -> 361,371. A single
+transmissive bubble InstancedMesh was forcing three.js's scene transmission
+pre-pass, so low-tier Auto now starts cheap and its ladder omits low-tier rungs
+that cannot change effective state. Detailed bubbles On remains an explicit
+player override. The same report's geometry count both rose and fell with chunk
+residency, but textures climbed monotonically 6 -> 126. Every campsite tapestry
+owned a unique CanvasTexture, while material disposal never disposed its map.
+The texture now listens to its owning material's disposal event, covering chunk,
+lake, and sandbox teardown without touching cached/shared textures.
+Gary then clarified that the run included a Wook trip. Trip is a full-screen
+ShaderPass while its envelope is open, but the v1 report did not record its
+state. Future samples now include the Trip envelope/progress/pass plus star power,
+bloom, bubble material, and pixel ratio. The two identified fixes remain valid:
+InfoCapturePass records scene draws/tris before the Trip pass, so the adjacent
+bubble-material delta cannot come from the psychedelic effect, and texture
+ownership is independent of frame cost. Live verification also caught the pass
+starting enabled until its first update and the early fade-in scalars rounding to
+zero. Trip now initializes disabled and those two scalars keep three decimals; a
+fresh report showed idle `tripPass: false`, then an enabled pass at envelope 0.004.
+-> Task 9.1 -> Task 9.2 -> Task 9.3 -> Task 9.5
+
 ## Assumptions
 
 | # | Assumption | Confidence | Status | Resolution |
@@ -453,3 +494,31 @@ intra-layout clipping, stray stage-tent spacing, v2 tri-budget recalibration, th
 + model-dims green; node harness proved the scale path buckets correctly, 516/516).
 **Pending Gary:** lakeside render + draw drop + lake load/unload geo-leak (-> Task 7.5.4).
 **Refs:** -> Task 7.5.1-7.5.4 -> reuses D16 -> CHANGELOG 2026-06-21
+
+### 2026-08-25 -- capture harness repaired and the local-device bridge shipped
+**Event:** phase-change
+**What:** Reproduced the software-WebGL failure against the installed
+`agent-browser` 0.9.1 surface, then replaced the unsupported init-script workaround
+with a data-only local capture mode and a bounded, named, self-cleaning driver. Two
+seed-1234 captures each normalized 731 entries and self-diffed EMPTY; a forced
+500ms timeout left no new daemon or `chrome-headless-shell` PID. Added an explicit
+tokenized LAN server and opt-in real-device reporter. Server tests returned 200 for
+loopback, 403 for an untokenized LAN Host, and 200 for a tokenized LAN Host. The
+in-app browser then posted a nine-sample manual report with the real Metal renderer
+and a separate three-sample `pagehide` beacon report. The remaining gate is Gary's
+actual iPhone/iPad route and background/foreground cycle.
+**Refs:** -> D26 -> Task 8.1.1-8.1.5 -> Task 8.2.1-8.2.5 -> DEBUGGING "Phone/iPad performance capture"
+
+### 2026-08-25 -- first real iPhone report converted directly into two fixes
+**Event:** phase-change
+**What:** Gary completed the same-Wi-Fi round trip with a 215.1-second,
+208-sample iPhone Safari report, including one background/foreground cycle. The
+capture isolated the transmissive bubble scene pre-pass as the largest immediate
+low-tier cost and exposed a monotonic campsite-tapestry texture leak. Low-tier
+Auto now begins with cheap bubbles and skips its inert quality rungs; a dedicated
+real-module test locks the five-rung ladder and player override. Each unique
+tapestry texture now disposes with its material. Five sandbox load/unload cycles
+returned `renderer.info.memory.textures` from 4-5 loaded to the same 3-texture
+baseline every time. A real low-tier main-game boot stayed at baseline quality,
+posted a three-sample report, and logged no browser errors.
+**Refs:** -> D27 -> Task 8.2.5 -> Task 9.1-9.5 -> CHANGELOG 2026-08-25

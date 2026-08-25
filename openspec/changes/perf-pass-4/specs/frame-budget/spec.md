@@ -89,3 +89,57 @@ every frame), reusing the last rendered map between updates.
   re-render every N frames (or when the sun angle has moved materially)
 - **AND** between updates, shadow-receiving meshes sample the last *good* map (a
   slightly stale but correct shadow), never an empty/blank map.
+
+### Requirement: Bounded, self-cleaning browser capture
+
+The one-command built-truth capture SHALL complete under software WebGL without
+leaving browser automation processes running after success, failure, or timeout.
+
+#### Scenario: Layout capture avoids unnecessary GPU work
+
+- **WHEN** `bin/layout-snapshot capture` opens the game in its local capture mode
+- **THEN** the normal update and world-streaming path continues to populate the
+  registry and draw-count canary
+- **AND** the visual composer does not render frames, because pixels are not part
+  of the layout snapshot contract.
+
+#### Scenario: A stalled browser command is torn down
+
+- **WHEN** opening, evaluating, settling, or dumping exceeds its bounded timeout
+- **THEN** the unique named automation session is closed in an unconditional
+  cleanup path
+- **AND** every `agent-browser` daemon and `chrome-headless-shell` process created
+  by that invocation is proven gone or force-terminated with a non-zero result.
+
+### Requirement: Opt-in local-device performance capture
+
+Gary SHALL be able to run the real game on a phone or tablet and hand its
+performance report directly to the local development workspace without copying
+JSON manually or enabling production-wide telemetry.
+
+#### Scenario: A tokenized LAN playtest records after the real Start gesture
+
+- **WHEN** the no-cache server is explicitly started in LAN mode and a device
+  opens its tokenized `?perfCapture=1` URL
+- **THEN** recording begins only after the player taps Start and synchronous iOS
+  audio initialization has already run
+- **AND** the visible playtest control reports recording/upload status without
+  obstructing the game HUD or touch controls.
+
+#### Scenario: Device data reaches the ignored capture directory
+
+- **WHEN** the recorder performs a periodic upload, the player taps Send, or the
+  page is hidden
+- **THEN** a bounded JSON report containing perf samples, seed/tier/quality,
+  device/viewport/WebGL metadata, and playtest markers is written under
+  `.claude/captures/`
+- **AND** LAN writes without the server-generated token are rejected.
+
+#### Scenario: Special-effect cost is attributable
+
+- **WHEN** a recorded playtest includes a Wook trip, star power, bloom changes,
+  detailed-bubble changes, or adaptive pixel-ratio changes
+- **THEN** every sample records those effective states alongside the engine and
+  frame-time counters
+- **AND** an analyst can compare active and inactive windows without relying on
+  the player's memory of when an effect began.

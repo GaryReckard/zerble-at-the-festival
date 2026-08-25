@@ -332,12 +332,6 @@ Genuinely-remaining follow-ups (not blockers):
   worldgen v2" above* (the lean grammar fix didn't need it). Builders express
   sub-component layouts as pure data (descriptor in → positions/radii out, no
   three.js); feeds the overlay + linter plan-mode *exact* extents headlessly.
-- **`bin/layout-snapshot capture` — survive headless-only boxes** *(surfaced
-  2026-06-12)*: the one-command path dies when there's no GPU (SwiftShader
-  saturates at `perf=high`, so `agent-browser open` times out on its load-wait).
-  Teach `capture` to inject the `document.hidden` init-script (flip the game onto
-  its `setTimeout(16ms)` loop, `main.js:1093`) and tolerate the open-timeout — the
-  manual workaround is in DEBUGGING.md "Layout snapshots".
 - **Importmap bootstrap dedupe** *(parked 2026-06-10, beyond the harness
   change — Gary call)*: the four html pages (index, sandbox, map-sandbox,
   hub-sandbox) each carry a near-identical inline cache-buster/importmap

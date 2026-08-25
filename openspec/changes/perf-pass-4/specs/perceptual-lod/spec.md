@@ -67,3 +67,23 @@ Atmospheric mood effects (stage-light shafts, lake reflections, ambient sparkle)
 - **WHEN** the running frame-time estimate indicates the budget is slipping
 - **THEN** the ambient sparkle (string-light/firefly/ember sprites) count reduces
   before any structural geometry is dropped, and recovers when budget returns.
+
+### Requirement: Low-tier Auto avoids scene-wide transmission work
+
+The automatically selected low tier SHALL use the cheap bubble material from its
+first rendered frame while preserving the player's ability to opt into detailed
+bubbles explicitly.
+
+#### Scenario: Low-tier Auto starts with cheap bubbles and meaningful rungs
+
+- **WHEN** a phone or tablet boots with the low tier and Detailed bubbles is Auto
+- **THEN** the bubble InstancedMesh uses the non-transmissive material before the
+  first gameplay render
+- **AND** the adaptive ladder omits bubble and shadow transitions that cannot
+  change the effective low-tier render state.
+
+#### Scenario: The player pins detailed bubbles on
+
+- **WHEN** Detailed bubbles is explicitly On in Settings
+- **THEN** the fancy transmissive material wins over the low-tier Auto default
+- **AND** returning the control to Auto restores the cheap low-tier material.
