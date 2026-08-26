@@ -27,6 +27,17 @@ import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { CHUNK_SIZE } from './chunks.js';
 import { DODGE, laneDodgeTest, laneDodgeDir, honkScatterParams } from './steering.js';
 import { STINK_DUR, POTTY_DOOR_STAND, POTTY_SEAT_BACK, POTTY_SEAT_Y } from './models/portaPotty.js';
+import {
+  PHOTO_POSE_DURATION,
+  PHOTO_FLASH_DURATION,
+  PHOTO_STATE_NOTICE,
+  PHOTO_STATE_POSE,
+  advancePhotographerShot,
+  isPhotographerState,
+  photographerProfile,
+  startPhotographerShot,
+  tickPhotographerOpportunity,
+} from './photographer.js';
 
 const MAX_NPCS = PERF.crowdMax;
 
@@ -71,6 +82,7 @@ const STAR_LOVE_SKIP = new Set([
   'riding', 'boarding', 'disembarking', 'fleeing',
   'hammock_riding', 'walking_to_hammock', 'table_seated', 'walking_to_table',
   'seeking_potty', 'entering_potty', 'using_potty', 'exiting_potty', 'surprised_potty',
+  PHOTO_STATE_NOTICE, PHOTO_STATE_POSE,
 ]);
 const HONK_RANGE = 14;
 
@@ -111,6 +123,7 @@ const CHEER_RADIUS_SQ = CHEER_RADIUS * CHEER_RADIUS;
 // Jump parameters: positive-half sine only so NPCs hop up, not bob through floor.
 const HOP_HZ = 2 * Math.PI * 2.6;
 const HOP_HEIGHT = 0.32;
+const PHOTOGRAPHER_ELIGIBLE = new Set(['idle', 'walking', 'watching', 'approaching']);
 
 export class Crowd {
   constructor(smiles) {
@@ -136,6 +149,9 @@ export class Crowd {
     // attribute the steady-state grind. Read + zeroed each perf sample. Off by
     // default → a single boolean check per scan, no timing cost in normal play.
     this._perf = { on: false, sepMs: 0, avoidMs: 0, frames: 0 };
+    this._photographerCount = 0;
+    this._photoDrawCount = 0;
+    this._photoFree = [];
 
     this._buildInstanced();
   }
@@ -188,6 +204,21 @@ export class Crowd {
     const mouthGeo = new THREE.TorusGeometry(0.06, 0.012, 4, 8, Math.PI);
     mouthGeo.rotateZ(Math.PI);
 
+    // ---- Photographer camera: one dark merged prop, pooled by NPC slot ----
+    // The camera lives in the crowd instancing system instead of adding a
+    // separate Object3D per rare photographer. Its body, top bump, and lens are
+    // one opaque geometry and one draw call. Local -Z is the NPC's forward.
+    const cameraBody = new THREE.BoxGeometry(0.34, 0.22, 0.14);
+    cameraBody.translate(0, 1.20, -0.36);
+    const cameraTop = new THREE.BoxGeometry(0.12, 0.05, 0.10);
+    cameraTop.translate(-0.07, 1.335, -0.36);
+    const cameraLens = new THREE.CylinderGeometry(0.075, 0.09, 0.10, 8);
+    cameraLens.rotateX(Math.PI / 2);
+    cameraLens.translate(0, 1.20, -0.47);
+    const cameraGeo = BufferGeometryUtils.mergeGeometries([cameraBody, cameraTop, cameraLens]);
+    cameraBody.dispose(); cameraTop.dispose(); cameraLens.dispose();
+    const flashGeo = new THREE.IcosahedronGeometry(0.16, 0);
+
     // ---- Materials ----
     const legsMat  = new THREE.MeshStandardMaterial({ color: 0x223a5c, roughness: 0.92, flatShading: true });
     const shoesMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8,  flatShading: true });
@@ -195,6 +226,8 @@ export class Crowd {
     const armsMat  = new THREE.MeshStandardMaterial({ roughness: 0.85, flatShading: true });
     const headMat  = new THREE.MeshStandardMaterial({ color: 0xe6c098, roughness: 0.9,  flatShading: true });
     const featureMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+    const cameraMat = new THREE.MeshStandardMaterial({ color: 0x17151c, roughness: 0.58, metalness: 0.2, flatShading: true });
+    const flashMat = new THREE.MeshBasicMaterial({ color: 0xfff2ad, toneMapped: false, depthWrite: true });
 
     // Tie-dye injection — adds two per-instance attributes:
     //   shirtAccent (vec3)  — the secondary color woven through the shirt
@@ -253,6 +286,8 @@ export class Crowd {
     this.headMesh  = new THREE.InstancedMesh(headGeo,  headMat,  MAX_NPCS);
     this.eyesMesh  = new THREE.InstancedMesh(eyesGeo,  featureMat, MAX_NPCS);
     this.mouthMesh = new THREE.InstancedMesh(mouthGeo, featureMat, MAX_NPCS);
+    this.cameraMesh = new THREE.InstancedMesh(cameraGeo, cameraMat, MAX_NPCS);
+    this.flashMesh = new THREE.InstancedMesh(flashGeo, flashMat, MAX_NPCS);
 
     // Per-NPC shirt color shared between body and arms (sleeves).
     this.bodyMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS * 3), 3);
@@ -282,12 +317,17 @@ export class Crowd {
     // and the entire crowd vanishes (while game logic keeps running →
     // invisible collisions, invisible smiles). Bubbles already disables
     // culling for the same reason. One drawcall per mesh either way.
-    const allMeshes = [this.legsMesh, this.shoesMesh, this.bodyMesh, this.armsMesh, this.headMesh, this.eyesMesh, this.mouthMesh];
+    const allMeshes = [this.legsMesh, this.shoesMesh, this.bodyMesh, this.armsMesh, this.headMesh,
+      this.eyesMesh, this.mouthMesh, this.cameraMesh, this.flashMesh];
     for (const m of allMeshes) {
       m.castShadow = PERF.shadows;
       m.frustumCulled = false;
       m.count = MAX_NPCS;
     }
+    // The tiny camera and instantaneous unlit flash do not justify two more
+    // shadow casters. The flash is opaque and adds no light or transparency.
+    this.cameraMesh.castShadow = false;
+    this.flashMesh.castShadow = false;
 
     this.group = new THREE.Group();
     this.group.name = 'Crowd';
@@ -295,11 +335,20 @@ export class Crowd {
 
     // Hide all slots initially (zero-scale matrix = invisible).
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    this._zeroMat = zero;
     for (let i = 0; i < MAX_NPCS; i++) {
       for (const m of allMeshes) m.setMatrixAt(i, zero);
       this.free.push(i);
     }
+    // Photographer props have their own packed slot map. Crowd NPC indices
+    // currently allocate from the high end, so reusing npc.idx would submit
+    // hundreds of zero-scale camera instances for one rare photographer.
+    // Descending fill + pop hands out 0, 1, 2... and keeps GPU work proportional
+    // to the actual photographer count.
+    for (let i = MAX_NPCS - 1; i >= 0; i--) this._photoFree.push(i);
     for (const m of allMeshes) m.instanceMatrix.needsUpdate = true;
+    this.cameraMesh.count = 0;
+    this.flashMesh.count = 0;
 
     // Reusables — must be DISTINCT Vector3 instances; reusing one for both
     // position and scale args of Matrix4.compose() silently corrupts position.
@@ -317,6 +366,8 @@ export class Crowd {
     // rotation, multiplied onto the body matrix so the smile inherits bob,
     // sway tilt, yaw wiggle, NPC scale, and seat/hammock lift.
     this._mouthLocalMat = new THREE.Matrix4();
+    this._flashLocalMat = new THREE.Matrix4();
+    this._flashMat = new THREE.Matrix4();
     this._identityQuat = new THREE.Quaternion();
     // 180° about Z flips the smile arc into a frown (mouth geo is symmetric
     // about Y, so the x-mirror is harmless).
@@ -349,6 +400,14 @@ export class Crowd {
       .multiply(new THREE.Matrix4().makeRotationX(ARMS_UP_BEND))
       .multiply(new THREE.Matrix4().makeTranslation(0, -SHOULDER_Y, 0));
     this._armsMat = new THREE.Matrix4();
+    this._photoArmsMat = new THREE.Matrix4()
+      .makeTranslation(0, SHOULDER_Y, 0)
+      .multiply(new THREE.Matrix4().makeRotationX(-1.52))
+      .multiply(new THREE.Matrix4().makeTranslation(0, -SHOULDER_Y, 0));
+    this._photoCrouchLegMat = new THREE.Matrix4()
+      .makeTranslation(0, HIP_Y, 0)
+      .multiply(new THREE.Matrix4().makeRotationX(0.82))
+      .multiply(new THREE.Matrix4().makeTranslation(0, -HIP_Y, 0));
 
     // High-water mark: highest slot index ever written. count is set to
     // _maxIdx + 1 each frame so three.js skips unwritten slots above it.
@@ -356,7 +415,7 @@ export class Crowd {
   }
 
   // Called by chunk generator.
-  spawn({ pos, chunkKey, rng = Math.random }) {
+  spawn({ pos, chunkKey, rng = Math.random, forcePhotographer = false }) {
     if (this.free.length === 0) return null;
     const idx = this.free.pop();
 
@@ -459,6 +518,14 @@ export class Crowd {
       chunkKey,
     };
 
+    Object.assign(npc, photographerProfile(pos, forcePhotographer));
+    npc.photoSlot = -1;
+    if (npc.isPhotographer) {
+      npc.photoSlot = this._photoFree.pop();
+      this._photographerCount++;
+      if (npc.photoSlot + 1 > this._photoDrawCount) this._photoDrawCount = npc.photoSlot + 1;
+    }
+
     this.npcs.push(npc);
 
     // Track the highest-ever slot index so we can narrow draw count each frame.
@@ -487,6 +554,40 @@ export class Crowd {
     return npc;
   }
 
+  // Cheap debug/sandbox trigger. If the loaded crowd has no organic
+  // photographer, promote one existing NPC with the same isolated profile
+  // initializer, then run the real notice -> pose -> flash state machine.
+  forcePhotographer(npc = null) {
+    const target = npc || this.npcs.find((n) => n.isPhotographer) ||
+      this.npcs.find((n) => PHOTOGRAPHER_ELIGIBLE.has(n.state)) || this.npcs[0];
+    if (!target) return null;
+    if (!target.isPhotographer) {
+      Object.assign(target, photographerProfile(target.pos, true));
+      target.photoSlot = this._photoFree.pop();
+      this._photographerCount++;
+      if (target.photoSlot + 1 > this._photoDrawCount) this._photoDrawCount = target.photoSlot + 1;
+    }
+    startPhotographerShot(target);
+    this._writeMatrices(target);
+    return target;
+  }
+
+  triggerPhotographer(npc = null) {
+    const target = npc || this.npcs.find((n) => n.isPhotographer);
+    if (!target) return null;
+    startPhotographerShot(target);
+    this._writeMatrices(target);
+    return target;
+  }
+
+  previewPhotographerFlash(npc = null, duration = 0.6) {
+    const target = npc || this.npcs.find((n) => n.isPhotographer);
+    if (!target) return null;
+    target.photoFlashTimer = Math.max(PHOTO_FLASH_DURATION, duration);
+    this._writeMatrices(target);
+    return target;
+  }
+
   // Trigger a cheer wave centered at (x, z) — called by main.js when a song ends.
   // NPCs in available states (idle/walking/watching/onDancefloor) within
   // CHEER_RADIUS get 5s of jump+arms-up+smile. Riding/boarding/fleeing/hammock
@@ -499,7 +600,7 @@ export class Crowd {
       const s = npc.state;
       if (s === 'riding' || s === 'boarding' || s === 'disembarking' ||
           s === 'fleeing' || s === 'walking_to_hammock' || s === 'hammock_riding' ||
-          s === 'walking_to_table' || s === 'table_seated') continue;
+          s === 'walking_to_table' || s === 'table_seated' || isPhotographerState(s)) continue;
       npc.cheerTimer = 5.0;
       npc.cheerX = x;
       npc.cheerZ = z;
@@ -560,6 +661,12 @@ export class Crowd {
         this.headMesh.setMatrixAt(npc.idx, zero);
         this.eyesMesh.setMatrixAt(npc.idx, zero);
         this.mouthMesh.setMatrixAt(npc.idx, zero);
+        if (npc.isPhotographer) {
+          this.cameraMesh.setMatrixAt(npc.photoSlot, zero);
+          this.flashMesh.setMatrixAt(npc.photoSlot, zero);
+          this._photoFree.push(npc.photoSlot);
+          this._photographerCount--;
+        }
         this.free.push(npc.idx);
         freed++;
       } else {
@@ -568,6 +675,11 @@ export class Crowd {
     }
     if (freed > 0) {
       this.npcs = kept;
+      let photoHigh = -1;
+      for (const npc of kept) {
+        if (npc.isPhotographer && npc.photoSlot > photoHigh) photoHigh = npc.photoSlot;
+      }
+      this._photoDrawCount = photoHigh + 1;
       this.legsMesh.instanceMatrix.needsUpdate = true;
       this.shoesMesh.instanceMatrix.needsUpdate = true;
       this.bodyMesh.instanceMatrix.needsUpdate = true;
@@ -575,6 +687,8 @@ export class Crowd {
       this.headMesh.instanceMatrix.needsUpdate = true;
       this.eyesMesh.instanceMatrix.needsUpdate = true;
       this.mouthMesh.instanceMatrix.needsUpdate = true;
+      this.cameraMesh.instanceMatrix.needsUpdate = true;
+      this.flashMesh.instanceMatrix.needsUpdate = true;
     }
   }
 
@@ -628,6 +742,10 @@ export class Crowd {
     this.headMesh.instanceMatrix.needsUpdate = true;
     this.eyesMesh.instanceMatrix.needsUpdate = true;
     this.mouthMesh.instanceMatrix.needsUpdate = true;
+    if (this._photographerCount > 0) {
+      this.cameraMesh.instanceMatrix.needsUpdate = true;
+      this.flashMesh.instanceMatrix.needsUpdate = true;
+    }
     // Narrow draw count to the highest slot ever written + 1. Slots above
     // _maxIdx are untouched (zero matrix from init) and never drawn. Slots
     // below that mark that have been despawned are still in range but carry a
@@ -642,11 +760,16 @@ export class Crowd {
       this.eyesMesh.count = drawCount;
       this.mouthMesh.count = drawCount;
     }
+    this.cameraMesh.count = this._photoDrawCount;
+    this.flashMesh.count = this._photoDrawCount;
   }
 
   _updateNpc(dt, npc, zerble, bubblePositions, cosCone, ctx) {
     if (npc.smileTimeCooldown > 0) npc.smileTimeCooldown -= dt;
-    npc.stateTimer -= dt;
+    if (!isPhotographerState(npc.state)) npc.stateTimer -= dt;
+    if (!isPhotographerState(npc.state) && npc.photoFlashTimer > 0) {
+      npc.photoFlashTimer = Math.max(0, npc.photoFlashTimer - dt);
+    }
     npc.bob += dt * (1 + 0.4 * npc.dance);
     if (npc.rideTimer != null) npc.rideTimer -= dt;
 
@@ -677,6 +800,26 @@ export class Crowd {
     const dx = zerble.position.x - npc.pos.x;
     const dz = zerble.position.z - npc.pos.z;
     const dToZerble = Math.hypot(dx, dz);
+
+    // Photographer reactions use an isolated state machine and RNG stream.
+    // Active shots take ownership of the pose for about 1.5 seconds, then hand
+    // the NPC back to the existing watching state. Honks/collisions can still
+    // replace the state with fleeing through the normal public reaction paths.
+    if (isPhotographerState(npc.state)) {
+      advancePhotographerShot(npc, dt);
+      const photoYaw = Math.atan2(-dx, -dz);
+      npc.yaw += wrapAngle(photoYaw - npc.yaw) * Math.min(1, dt * 7);
+      this._writeMatrices(npc);
+      return;
+    }
+    if (tickPhotographerOpportunity(
+      npc, dt, dToZerble, PHOTOGRAPHER_ELIGIBLE.has(npc.state)
+    )) {
+      const photoYaw = Math.atan2(-dx, -dz);
+      npc.yaw += wrapAngle(photoYaw - npc.yaw) * Math.min(1, dt * 7);
+      this._writeMatrices(npc);
+      return;
+    }
 
     // --- Passenger states get their OWN handling (skip the proximity switch below) ---
     if (npc.state === 'riding') {
@@ -1206,6 +1349,14 @@ export class Crowd {
 
   _writeMatrices(npc) {
     const m = this._mat4;
+    const photographing = isPhotographerState(npc.state);
+    const photoPose = npc.state === PHOTO_STATE_POSE;
+    let photoPoseAmount = 0;
+    if (photoPose) {
+      const poseIn = Math.min(1, Math.max(0, (PHOTO_POSE_DURATION - npc.stateTimer) * 5));
+      const poseOut = Math.min(1, Math.max(0, npc.stateTimer * 5));
+      photoPoseAmount = Math.min(poseIn, poseOut);
+    }
     // Reuse scratch Quaternion/Euler — avoids ~30k allocations/sec at 500 NPCs × 60fps.
     // hammock_riding NPCs need a supine rotation (X=+π/2 face up, then Y=yaw); all
     // others just rotate around Y by yaw. Build the right quat per branch.
@@ -1233,7 +1384,7 @@ export class Crowd {
         : 0;
     }
     // Unhappy NPCs don't vibe — kill the bounce + sway while frowning.
-    if (npc.frownTimer > 0) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
+    if (npc.frownTimer > 0 || photographing) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
 
     let quat;
     if (npc.state === 'hammock_riding') {
@@ -1249,7 +1400,7 @@ export class Crowd {
 
     // Happy bounce: while smile cooldown is active the body bobs up by a small
     // sin wave (~6cm amplitude) so the whole figure (body + mouth) hops.
-    const bouncing = npc.smileTimeCooldown > 0;
+    const bouncing = npc.smileTimeCooldown > 0 && !photographing;
     const bounceY = bouncing
       ? Math.abs(Math.sin(performance.now() * 0.012 + npc.bob)) * 0.06
       : 0;
@@ -1303,6 +1454,7 @@ export class Crowd {
     } else {
       feetY = bobY + bounceY + cheerY; // feet on the ground; npc.pos.y is always 0
     }
+    if (photoPose && npc.photoCrouch) feetY -= 0.24 * photoPoseAmount;
 
     // CRITICAL: position and scale must be DISTINCT Vector3 instances.
     // Reusing this._tmpV for both args caused position to be overwritten by scale,
@@ -1335,7 +1487,11 @@ export class Crowd {
     // their legs+shoes bent forward at the hip so they sit; the upright
     // body/arms/head still use `m`. Standing running-board riders keep straight legs.
     // Cheering NPCs get arms rotated up via _armsUpMat (same pattern as _sitLegMat).
-    if (seated) {
+    if (photoPose && npc.photoCrouch) {
+      this._legMat.multiplyMatrices(m, this._photoCrouchLegMat);
+      this.legsMesh.setMatrixAt(npc.idx, this._legMat);
+      this.shoesMesh.setMatrixAt(npc.idx, this._legMat);
+    } else if (seated) {
       this._legMat.multiplyMatrices(m, this._sitLegMat);
       this.legsMesh.setMatrixAt(npc.idx, this._legMat);
       this.shoesMesh.setMatrixAt(npc.idx, this._legMat);
@@ -1344,7 +1500,10 @@ export class Crowd {
       this.shoesMesh.setMatrixAt(npc.idx, m);
     }
     this.bodyMesh.setMatrixAt(npc.idx, m);
-    if (cheering) {
+    if (photographing) {
+      this._armsMat.multiplyMatrices(m, this._photoArmsMat);
+      this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
+    } else if (cheering) {
       this._armsMat.multiplyMatrices(m, this._armsUpMat);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     } else {
@@ -1369,6 +1528,23 @@ export class Crowd {
     this._mouthLocalMat.compose(this._tmpV3, frowning ? this._frownQuat : this._identityQuat, this._tmpScale);
     this._mouthMat.multiplyMatrices(m, this._mouthLocalMat);
     this.mouthMesh.setMatrixAt(npc.idx, this._mouthMat);
+
+    if (npc.isPhotographer) {
+      // Camera geometry has its local chest/face offset baked in, so it follows
+      // the same pooled body matrix through walking, crouching, and posing.
+      this.cameraMesh.setMatrixAt(npc.photoSlot, m);
+      if (npc.photoFlashTimer > 0) {
+        const flashT = npc.photoFlashTimer / PHOTO_FLASH_DURATION;
+        const flashScale = 0.72 + Math.sin(Math.min(1, flashT) * Math.PI) * 0.55;
+        this._tmpV3.set(0, 1.20, -0.62);
+        this._tmpScale.set(flashScale, flashScale, flashScale);
+        this._flashLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
+        this._flashMat.multiplyMatrices(m, this._flashLocalMat);
+        this.flashMesh.setMatrixAt(npc.photoSlot, this._flashMat);
+      } else {
+        this.flashMesh.setMatrixAt(npc.photoSlot, this._zeroMat);
+      }
+    }
   }
 
   // ----- Passenger system helpers -----

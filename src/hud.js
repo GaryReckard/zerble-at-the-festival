@@ -2,6 +2,8 @@
 
 const $smiles = document.getElementById('smiles');
 const $best = document.getElementById('best');
+const $bestScore = $best?.closest('.best-score');
+const $bestConfetti = document.getElementById('best-confetti');
 const $toast = document.getElementById('toast');
 const $flash = document.getElementById('hit-flash');
 const $starVignette = document.getElementById('star-vignette');
@@ -27,6 +29,9 @@ let _cyclePhase = '';
 let _cycleNight = false;
 let _lurleenVisible = false;
 let _startLabel = "Let's go ZERBLIN'!";
+let _bestCelebrated = false;
+let _smilePulseTimer = 0;
+let _bestCelebrationTimer = 0;
 
 let toastTimer = 0;
 let toastTapHandler = null;   // currently-attached tap listener for tappable toasts
@@ -76,9 +81,18 @@ export const HUD = {
   },
 
   setSmiles(n) {
-    _smileN = Math.floor(n);
+    const next = Math.floor(n);
+    const increased = next > _smileN;
+    _smileN = next;
     $smiles.textContent = String(_smileN);
     $smileStatus?.setAttribute('aria-label', `${_smileN} smiles, personal best ${_bestN}`);
+    if (increased) {
+      $smiles.classList.remove('smile-pulse');
+      void $smiles.offsetWidth;
+      $smiles.classList.add('smile-pulse');
+      clearTimeout(_smilePulseTimer);
+      _smilePulseTimer = setTimeout(() => $smiles.classList.remove('smile-pulse'), 420);
+    }
   },
 
   // Bubble-juice gauge. `total` is in meters (unbounded — gather as many jugs
@@ -185,7 +199,19 @@ export const HUD = {
       _bestN = Math.floor(n);
       $best.textContent = formatBest(_bestN);
       $smileStatus?.setAttribute('aria-label', `${_smileN} smiles, personal best ${_bestN}`);
+      if (!_bestCelebrated) {
+        _bestCelebrated = true;
+        $bestConfetti?.classList.add('on');
+        $bestScore?.classList.add('best-beaten');
+        clearTimeout(_bestCelebrationTimer);
+        _bestCelebrationTimer = setTimeout(() => {
+          $bestConfetti?.classList.remove('on');
+          $bestScore?.classList.remove('best-beaten');
+        }, 1050);
+      }
+      return true;
     }
+    return false;
   },
 
   // toast(msg, ms, { onTap }) — when onTap is provided, the toast becomes a

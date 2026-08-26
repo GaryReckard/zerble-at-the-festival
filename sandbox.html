@@ -182,7 +182,7 @@
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
             const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
-                'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor',
+                'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
             const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
@@ -241,6 +241,7 @@
         </optgroup>
         <optgroup label="People">
             <option value="cheer_demo">Crowd cheer demo (jump + arms-up)</option>
+            <option value="crowd_photographer">Crowd photographer (pose + flash)</option>
             <option value="puppet">Puppet (parade)</option>
             <option value="puppet_lineup">Puppet lineup (3)</option>
             <option value="band_member_trumpet">Band member — trumpet</option>
@@ -316,6 +317,7 @@
             <option value="smile_pickup">Smile pickup (rising + homing)</option>
             <option value="bubbles">Bubbles (Zerble's trail)</option>
             <option value="fireworks">Fireworks (cycles all shells)</option>
+            <option value="boost_streaks">Boost streaks (pooled trail)</option>
         </optgroup>
     </select>
     <div class="row">
@@ -383,6 +385,10 @@
         <button id="hit-it-btn"
                 style="margin-top:4px;width:100%;display:none;background:rgba(255,100,100,0.20);color:#fdd;border:1px solid rgba(255,100,100,0.45);border-radius:3px;padding:4px;cursor:pointer;font:inherit">
             Hit it
+        </button>
+        <button id="juice-sputter-btn"
+                style="margin-top:4px;width:100%;background:rgba(255,190,90,0.16);color:#ffe5ba;border:1px solid rgba(255,190,90,0.38);border-radius:3px;padding:4px;cursor:pointer;font:inherit">
+            Empty-juice sputter
         </button>
     </div>
 
@@ -550,6 +556,7 @@ import {buildShrub} from './src/models/shrub.js';
     } from './src/models/tribalFigures.js';
     import {Bubbles} from './src/bubbles.js';
     import {Smiles} from './src/smiles.js';
+    import {BoostStreaks} from './src/boostStreaks.js';
     import {Fireworks, SHELL_TYPES} from './src/fireworks.js';
     import {Crowd} from './src/crowd.js';
     // Trip + MIDI imports for the audition panels added at the bottom of the
@@ -815,7 +822,17 @@ import {buildShrub} from './src/models/shrub.js';
         if (currentEntity && currentEntity._sandboxCheerBtn) {
             currentEntity._sandboxCheerBtn.remove();
         }
-        if (window.__sandbox) window.__sandbox.fireCheer = undefined;
+        if (currentEntity && currentEntity._sandboxPhotographerBtn) {
+            currentEntity._sandboxPhotographerBtn.remove();
+        }
+        if (currentEntity && currentEntity._sandboxPhotographerFlashBtn) {
+            currentEntity._sandboxPhotographerFlashBtn.remove();
+        }
+        if (window.__sandbox) {
+            window.__sandbox.fireCheer = undefined;
+            window.__sandbox.triggerPhotographer = undefined;
+            window.__sandbox.previewPhotographerFlash = undefined;
+        }
         currentEntity = null;
         entityRoot = null;
         updateFn = null;
@@ -1298,6 +1315,54 @@ import {buildShrub} from './src/models/shrub.js';
                 cheerCrowd._sandboxCheerBtn = cheerBtn;
                 cam.target.set(0, 1.2, 0);
                 cam.dist = 12;
+                applyCam();
+                break;
+            }
+            case 'crowd_photographer': {
+                // One real pooled Crowd NPC, forced into the rare role so the
+                // camera, crouch/pose, and 120ms flash can be inspected without
+                // driving around waiting for an organic spawn.
+                const photoSmiles = new Smiles();
+                scene.add(photoSmiles.group);
+                const fakeZerble = {
+                    // Keep the target beyond organic notice range so the demo
+                    // NPC stays framed between button-triggered shots.
+                    position: new THREE.Vector3(0, 0, 30),
+                    speed: 0,
+                    forwardWorld: new THREE.Vector3(0, 0, 1),
+                    seatSlots: [],
+                };
+                const photoCrowd = new Crowd(photoSmiles);
+                scene.add(photoCrowd.group);
+                const photographer = photoCrowd.spawn({
+                    pos: new THREE.Vector3(0, 0, 0),
+                    chunkKey: 'photographer-demo',
+                    rng: Math.random,
+                    forcePhotographer: true,
+                });
+                entityRoot = photoCrowd.group;
+                currentEntity = photoCrowd;
+                updateFn = (dt) => photoCrowd.update(dt, fakeZerble, null);
+                const trigger = () => photoCrowd.triggerPhotographer(photographer);
+                window.__sandbox.triggerPhotographer = trigger;
+                const photoBtn = document.createElement('button');
+                photoBtn.textContent = 'Take picture';
+                photoBtn.style.cssText = 'margin-top:6px;width:100%;background:rgba(255,226,120,0.25);border:1px solid rgba(255,226,120,0.55);border-radius:6px;padding:5px;cursor:pointer;font:inherit;color:inherit';
+                photoBtn.addEventListener('click', trigger);
+                info.after(photoBtn);
+                photoCrowd._sandboxPhotographerBtn = photoBtn;
+                const flashBtn = document.createElement('button');
+                flashBtn.textContent = 'Hold flash for inspection';
+                flashBtn.style.cssText = photoBtn.style.cssText;
+                flashBtn.addEventListener('click', () => photoCrowd.previewPhotographerFlash(photographer));
+                photoBtn.after(flashBtn);
+                photoCrowd._sandboxPhotographerFlashBtn = flashBtn;
+                window.__sandbox.previewPhotographerFlash = () => photoCrowd.previewPhotographerFlash(photographer);
+                trigger();
+                cam.target.set(0, 1.15, 0);
+                cam.yaw = 0;
+                cam.pitch = 0.18;
+                cam.dist = 5.2;
                 applyCam();
                 break;
             }
@@ -2200,6 +2265,29 @@ import {buildShrub} from './src/models/shrub.js';
                 applyCam();
                 break;
             }
+            case 'boost_streaks': {
+                const z = new Zerble();
+                scene.add(z.root);
+                const streaks = new BoostStreaks();
+                scene.add(streaks.mesh);
+                entityRoot = z.root;
+                currentEntity = {z, streaks};
+                let streakTime = 0;
+                updateFn = (dt) => {
+                    streakTime += dt;
+                    const a = streakTime * 0.55;
+                    z.position.set(Math.sin(a) * 2.4, 0, Math.cos(a) * 2.4);
+                    z.heading = a + Math.PI / 2;
+                    z.root.rotation.y = z.heading;
+                    z.speed = 23;
+                    z.isBoosting = true;
+                    streaks.update(dt, z);
+                };
+                cam.target.set(0, 1.3, 0);
+                cam.dist = 11;
+                applyCam();
+                break;
+            }
             case 'fireworks': {
                 // Live Fireworks system. We bypass its night-gated director and
                 // launch shells ourselves, cycling through every SHELL_TYPE in
@@ -2283,6 +2371,14 @@ import {buildShrub} from './src/models/shrub.js';
         ensureSoundInit();
         Sound.playCollision(currentHitKind);
     });
+    document.getElementById('juice-sputter-btn').addEventListener('click', () => {
+        ensureSoundInit();
+        Sound.playJuiceSputter();
+    });
+    window.__sandbox.playJuiceSputter = () => {
+        ensureSoundInit();
+        Sound.playJuiceSputter();
+    };
 
     function updateHitButton(name) {
         currentHitKind = ENTITY_HIT_KIND[name] || null;

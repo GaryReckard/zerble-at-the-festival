@@ -86,7 +86,7 @@
       // only resolve when something actually imports them).
       const mods = ['main','world','zerble','bubbles','smiles','fireworks','crowd','chunks','forests',
         'mountains','camera','input','touch','hud','sound','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
-        'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid','starPower','steering','settings','a11y','mergeDecor',
+        'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid','starPower','steering','settings','a11y','mergeDecor','boostStreaks','photographer',
         'worldgen/constants','worldgen/tuning','worldgen/hearts','worldgen/water','worldgen/roads','worldgen/density','worldgen/roles','worldgen/index','worldgen/selftest','worldgen/placement','worldgen/festival','worldgen/lint'];
       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','shrub', 'heart','stage','performer',
         'entranceArch','leafBanner','puppet','bandMember','parasolMarshal','kid','wook','bird','bubbleJug','bubbleVendor',
@@ -130,6 +130,9 @@
   <div id="hud">
     <div id="status-rail" aria-label="Game status">
       <div id="smile-status" class="hud-chip smile-status" aria-label="0 smiles, personal best 0">
+        <div id="best-confetti" class="best-confetti" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
         <svg class="smile-mark" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" fill="currentColor"/>
           <circle cx="8.5" cy="9.5" r="1.25" fill="#4a2c42"/>

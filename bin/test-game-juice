@@ -1,0 +1,53 @@
+#!/usr/bin/env node
+
+import { register } from 'node:module';
+register('./node-three-shim.mjs', import.meta.url);
+import { readFile } from 'node:fs/promises';
+
+const { BoostStreaks, BOOST_STREAK_POOL_SIZE, BOOST_STREAK_LIFE, shouldShowBoostStreaks } =
+  await import('../src/boostStreaks.js');
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+assert(BOOST_STREAK_POOL_SIZE === 8, `boost streak pool should stay at 8 slots, got ${BOOST_STREAK_POOL_SIZE}`);
+assert(shouldShowBoostStreaks({boosting: true, speed: 18, reducedMotion: false, effectsEnabled: true}),
+  'high-speed boost should emit streaks');
+assert(!shouldShowBoostStreaks({boosting: true, speed: 18, reducedMotion: true, effectsEnabled: true}),
+  'reduced motion should suppress streaks');
+assert(!shouldShowBoostStreaks({boosting: true, speed: 18, reducedMotion: false, effectsEnabled: false}),
+  'player/quality effect gate should suppress streaks');
+assert(!shouldShowBoostStreaks({boosting: false, speed: 18, reducedMotion: false, effectsEnabled: true}),
+  'ordinary high speed should not emit boost streaks');
+
+const streaks = new BoostStreaks();
+const zerble = {position: {x: 3, y: 0, z: -2}, heading: 0.4, speed: 23, isBoosting: true};
+const stableRefs = [streaks._ages, streaks._x, streaks._y, streaks._z, streaks._yaw, streaks._active,
+  streaks._dummy, streaks._color, streaks._zero];
+for (let i = 0; i < 180; i++) streaks.update(1 / 60, zerble);
+assert(streaks._active.reduce((n, v) => n + v, 0) <= 8, 'the active streak count exceeded the fixed pool');
+assert(stableRefs.every((ref, i) => ref === [streaks._ages, streaks._x, streaks._y, streaks._z,
+  streaks._yaw, streaks._active, streaks._dummy, streaks._color, streaks._zero][i]),
+  'a steady-state update replaced a pooled buffer or scratch object');
+zerble.isBoosting = false;
+streaks.update(BOOST_STREAK_LIFE + 0.01, zerble);
+assert(streaks._active.every((v) => v === 0), 'streaks did not expire after their bounded lifetime');
+assert(streaks.mesh.geometry.userData.shared && streaks.mesh.material.userData.shared,
+  'pooled streak resources must be disposal-safe shared resources');
+assert(!streaks.mesh.castShadow, 'boost streaks must not add a shadow caster');
+
+const main = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+assert(/let _wasEmpty = bubbles\.juice <= 0\.02/.test(main),
+  'the empty edge should initialize from the live juice level');
+assert(/if \(bubblesEmpty && !_wasEmpty\)[\s\S]*?Sound\.playJuiceSputter\(\);[\s\S]*?_wasEmpty = bubblesEmpty;/.test(main),
+  'the sputter must remain inside the nonempty-to-empty edge and update its latch');
+
+const hud = await readFile(new URL('../src/hud.js', import.meta.url), 'utf8');
+assert(/const increased = next > _smileN/.test(hud), 'the smile pulse must be gated to score increases');
+assert(/if \(!_bestCelebrated\)/.test(hud), 'the personal-best celebration must have a session latch');
+
+process.stdout.write('PASS  game-juice edges, accessibility gates, fixed pool, lifetime, and disposal safety\n');

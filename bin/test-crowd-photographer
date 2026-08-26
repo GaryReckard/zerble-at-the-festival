@@ -1,0 +1,66 @@
+#!/usr/bin/env node
+
+import { readFile } from 'node:fs/promises';
+import { setSessionSeed } from '../src/rng.js';
+import {
+  PHOTO_FLASH_AT,
+  PHOTO_FLASH_DURATION,
+  PHOTO_NOTICE_DURATION,
+  PHOTO_POSE_DURATION,
+  PHOTO_STATE_NOTICE,
+  PHOTO_STATE_POSE,
+  advancePhotographerShot,
+  photographerProfile,
+  startPhotographerShot,
+  tickPhotographerOpportunity,
+} from '../src/photographer.js';
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+setSessionSeed(3948869160);
+const pos = {x: 12.25, z: -47.5};
+const a = photographerProfile(pos, true);
+const b = photographerProfile(pos, true);
+assert(JSON.stringify(a) === JSON.stringify(b), 'the isolated photographer profile is not deterministic');
+assert(a.isPhotographer, 'the sandbox/debug force flag did not promote a photographer');
+
+const npc = {
+  ...a,
+  state: 'idle',
+  stateTimer: 0,
+  vel: {set(x, y, z) { this.x = x; this.y = y; this.z = z; }},
+};
+startPhotographerShot(npc);
+assert(npc.state === PHOTO_STATE_NOTICE, 'the shot did not enter the notice state');
+assert(advancePhotographerShot(npc, PHOTO_NOTICE_DURATION + 0.001) === 1 && npc.state === PHOTO_STATE_POSE,
+  'the notice state did not advance into the pose');
+const flashStep = PHOTO_POSE_DURATION - PHOTO_FLASH_AT + 0.002;
+assert(advancePhotographerShot(npc, flashStep) === 2, 'the pose did not emit exactly one flash edge');
+assert(npc.photoFlashTimer === PHOTO_FLASH_DURATION, 'the visible flash lifetime changed unexpectedly');
+assert(advancePhotographerShot(npc, 0.01) === 1, 'the same pose emitted a second flash edge');
+advancePhotographerShot(npc, PHOTO_POSE_DURATION);
+assert(npc.state === 'watching' && npc.photoCooldown >= 18, 'the shot did not return to the crowd state machine');
+
+const opportunity = {...photographerProfile({x: 2, z: 3}, true), state: 'idle', stateTimer: 0, vel: npc.vel};
+opportunity.photoNoticeTimer = 0;
+assert(!tickPhotographerOpportunity(opportunity, 1 / 60, 30, true), 'an out-of-range photographer noticed Zerble');
+assert(tickPhotographerOpportunity(opportunity, 1 / 60, 10, true), 'an eligible nearby photographer did not notice Zerble');
+
+const crowd = await readFile(new URL('../src/crowd.js', import.meta.url), 'utf8');
+assert(/cameraMesh\.castShadow = false/.test(crowd) && /flashMesh\.castShadow = false/.test(crowd),
+  'the camera or flash became a shadow caster');
+assert(/this\.cameraMesh\.setMatrixAt\(npc\.photoSlot, zero\)[\s\S]*?this\.flashMesh\.setMatrixAt\(npc\.photoSlot, zero\)/.test(crowd),
+  'despawn does not clear both pooled photographer instances');
+assert(/this\.cameraMesh\.count = this\._photoDrawCount[\s\S]*?this\.flashMesh\.count = this\._photoDrawCount/.test(crowd),
+  'photographer props are no longer submitted from their packed draw range');
+assert(!/new THREE\.(PointLight|SpotLight)[\s\S]{0,500}flash/i.test(crowd),
+  'the photographer flash must stay mesh-only');
+assert(/photographerProfile\(pos, forcePhotographer\)/.test(crowd),
+  'crowd spawning no longer uses the isolated photographer profile');
+
+process.stdout.write('PASS  photographer determinism, rare-role state machine, flash edge, pooling, and shadow safety\n');

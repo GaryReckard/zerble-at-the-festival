@@ -3,12 +3,14 @@
     "headroom-ai": "^0.22.4"
   },
   "scripts": {
-    "check": "bin/check-importmaps && bin/check-model-dims && bin/test-registry-grid && bin/test-forest-determinism && bin/test-adaptive-quality && bin/test-adaptive-quality-low",
+    "check": "bin/check-importmaps && bin/check-model-dims && bin/test-registry-grid && bin/test-forest-determinism && bin/test-adaptive-quality && bin/test-adaptive-quality-low && bin/test-game-juice && bin/test-crowd-photographer",
     "check:imports": "bin/check-importmaps",
     "check:dims": "bin/check-model-dims",
     "test:registry": "bin/test-registry-grid",
     "test:forest": "bin/test-forest-determinism",
     "test:adaptive": "bin/test-adaptive-quality && bin/test-adaptive-quality-low",
+    "test:juice": "bin/test-game-juice",
+    "test:photographer": "bin/test-crowd-photographer",
     "lint:layout": "bin/lint"
   }
 }

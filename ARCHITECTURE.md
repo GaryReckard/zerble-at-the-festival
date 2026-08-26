@@ -235,10 +235,11 @@ This is what lets you brush against people at a crawl without losing smiles, whi
 A pool of stateful NPCs spawned by chunks.
 
 - **Personality:** `curiosity`, `skittishness`, `energy`, `social`, `talkativeness` — random per NPC.
-- **States:** `idle → walking → watching → approaching → fleeing → smiling → riding/boarding`. Plus a transient **cheer** (driven by `cheerNear`, fired on a stage song-end): jump + arms-up pose + smile for ~5s, layered on whatever state the NPC was in.
+- **States:** `idle → walking → watching → approaching → fleeing → smiling → riding/boarding`. A transient **cheer** (driven by `cheerNear`, fired on a stage song-end) adds a jump, arms-up pose, and smile for about five seconds. Rare photographers use a short `photographer_notice → photographer_pose → watching` branch, which faces Zerble, raises the pooled camera, optionally crouches, and fires one 120ms mesh flash.
 - **Steering:** seek target + repel from registry footprints + neighbor separation + path attraction.
 - **Smile mechanic:** eye contact with Zerble plus bubble proximity raises an internal happiness counter. On threshold → emit a smile pickup, record Zerble's at-smile position. The same NPC won't smile again until Zerble has driven `SMILE_RESET_DIST` away (prevents parking-near-crowd farming) **and** a cooldown elapses.
 - **Hit response:** `onZerbleHit(npc, nx, nz)` panics the victim, applies knockback, and infects nearby NPCs into a brief fleeing state.
+- **Photographer determinism and rendering:** `photographer.js` derives the rare role from quantized spawn position, session seed, and a dedicated salt, then keeps later cooldown rolls on the NPC's private stream. It consumes no chunk or crowd RNG calls. The camera and opaque, unlit flash use two `InstancedMesh` pools with a separately packed photographer slot range, add no lights or shadow casters, and are zeroed when a distant NPC despawns.
 
 ---
 
@@ -247,6 +248,7 @@ A pool of stateful NPCs spawned by chunks.
 Anthropomorphic golf cart. ~950 lines of geometry + physics.
 
 - Arcade driving: throttle/brake/turn/drag/boost. `MAX_SPEED = 18 m/s`, `BOOST_MULT = 1.55`, `TURN_RATE = 2.1 rad/s`.
+- Boosting above the streak threshold feeds `BoostStreaks`, a fixed eight-instance ring pool. Reduced motion and the live player/quality effects gate both stop emission, while expired slots return to zero-scale matrices without per-frame object creation.
 - Visible parts: red body, gold roof, blue seat, glowing cyan eyes, purple mustache, four wheels.
 - Eye glow ramps with `nightness` and can be hand-tuned with `I` / `O`.
 - World-bounded by `WORLD_BOUND = 230` so the player can't outrun the festival's "feel."
@@ -280,6 +282,7 @@ All synthesized — no audio files shipped. ~3000 lines of Web Audio nodes.
 - **Engine.** A pair of detuned sawtooth oscillators (gas-engine buzz) mixed with LPF-filtered noise (rumble). Speed scales gain + pitch + a putt-putt LFO. Boost engages a second tier with extra harmonics. At zero speed, fades to silence in ~80ms. `createEngine(ctx, dest, opts)` is profile-driven: the defaults are Zerble's wheezy gas-engine (mono, direct to `sfxBus`, fed `Sound.setEngineSpeed` with his explicit boost). **Lurleen** runs a second instance with a higher/brighter/cleaner profile (raised `pitchMul`, gentler tanh soft-clip, less noise) so her motor reads as a distinct, lighter sibling. Hers is `spatial: true` — wrapped in an `equalpower` PannerNode driven to her world position by `Sound.setLurleenEngine(speed, x, z)` (called from main.js after `lurleen.update()`), so it pans + attenuates with distance. She has no throttle, so `accelBoost` derives the rev from her *acceleration* — it growls up as she speeds to catch the player, eases off when she coasts.
 - **Collisions.** Per-`kind` one-shot synth hits: drums for stages, metallic clangs for trucks/lampposts, nasal boops for kids/puppets, brass for the band, wood knocks for the arch, a "duuude" drone for wooks.
 - **Honks.** Bicycle bell (struck-tine + trill envelope) or clown horn (2-phase honk + inhale fifth up).
+- **Bubble juice.** The nonempty-to-empty edge in `main.js` calls one synthesized sputter made from a falling saw voice, a square-wave flutter, and a closing low-pass filter. The latch resets only after juice becomes nonempty again, so an empty tank cannot spam audio. The sound is added behind the existing synchronous `Sound.init()` title-tap chain rather than introducing another initialization path.
 - **Drum circles.** A per-circle music scheduler. Voice density gates on `nightness`. A **lowpass cutoff** is set every frame from main.js based on distance from the body perimeter — drums sound wide-open from inside the circle, muffled by trees as you leave.
 - **Stage music = songform.** The melodic stage genres (`jam`, `brass`, `dance`, `world`, `dub`) run through one shared engine, `runStageSong(ctx, panner, seed, genreDef)`. Each genre def supplies its voices + a per-beat synth callback; the engine owns the song lifecycle: a finite arc of named **sections** (intro→verse/build→chorus/drop→bridge/break→outro) with per-section active-voice sets and intensity, **per-song tempo + key** (re-rolled within the genre's range each song, never repeating the last key), tempo wobble, dynamics-coupled rest probability, shuffled variant selection, and lead-timbre drift. At the outro it enters a ~4.5s **cheer gap**, fires `onSongEnd`, then starts a fresh song. `drum` / `forest_drum` / `second_line` stay continuous (no songform). `chunks.js` picks each stage's genre from a seeded palette (origin 0,0 stays `jam`). Per-stage a `master` gain rides distance for ~1.5s cross-fades between stages. Bussed through `musicBus`, balanced against `sfxBus`.
 - **Crowd cheer.** `Sound.onSongEnd(cb)` lets a song-end signal the world; `_emitSongEnd(x,z)` plays a positional applause/"wooo" swell (`playCrowdCheer`) and calls the registered callback → `crowd.cheerNear`. `Sound._debugEndSong()` forces it for testing.
@@ -361,7 +364,7 @@ back and forth when a device sits close to a quality boundary.
 
 Vanilla DOM, no framework.
 
-- Compact status rail with current smiles, a de-emphasized best persisted to `localStorage` as `zerble-best-smiles`, bubble juice, the live day/night dial, and a conditional Lurleen-following heart.
+- Compact status rail with current smiles, a de-emphasized best persisted to `localStorage` as `zerble-best-smiles`, bubble juice, the live day/night dial, and a conditional Lurleen-following heart. Score increases restart a warm CSS pulse, while the first saved-best increase in a session fires one bounded DOM confetti burst. Reduced motion suppresses the moving confetti and holds the score cue to a static color change.
 - Toast strip — short status messages with a fade timer.
 - Hit flash — red vignette pulse on damage.
 - Title card — full-screen overlay before start. Its static HTML keeps Start and Settings disabled while an inline bubble-pressure loader runs independently of the slow module graph; `HUD.onStart` installs the trusted-gesture handler, marks the loader ready, restores the Start/Resume label, and only then enables the controls. The ready loader holds for 1.1 seconds, then fades and collapses out of the title layout.

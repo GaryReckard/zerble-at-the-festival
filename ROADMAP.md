@@ -653,7 +653,7 @@ infinite recursive tunnel, the classic "falling in" trip visual.
   
   Cost: ~zero perf impact (same instance count, same draw call, one more per-instance attribute). Mostly feature work in `bubbles.js`, a new tiny DOM panel, and the per-unlock trigger plumbing across `Lurleen`, `Trip`, `Analytics.smileScore`, etc.
 
-- **Bubble-juice meter follow-ups.** The meter shipped (see CHANGELOG 2026-06-01) — drains while bubbling, ~3× on the G blast, **stops at empty** (NPCs frown when you're dry), Zelda-style jug **stockpile** (up to 4 meters), rare floating jugs + the spacesuit bubble vendor (free refill w/ bubble-stream visual + "full" cue), top-left HUD gauge w/ reserve pips + amber/red low-empty border. Parked refinements: (1) the **"costs smiles" economy** — vendor refills are free; a smile cost (full or token) is an alternate score sink if the loop needs more stakes (note: frowns already provide a stakes layer now). (2) **Bubble-variety juice costs** — once bubble varieties ship, mega-bubbles could cost more juice and glow bubbles less. (3) **Drain + frown tuning by feel** — if either nags on a real playtest, soften them or gate behind an opt-in mode. (4) An **empty/sputter audio cue** — there's a "full" chime but no sound when you run dry; a sputter to match the red meter would close the loop.
+- **Bubble-juice meter follow-ups.** The meter shipped (see CHANGELOG 2026-06-01) — drains while bubbling, ~3× on the G blast, **stops at empty** (NPCs frown when you're dry), Zelda-style jug **stockpile** (up to 4 meters), rare floating jugs + the spacesuit bubble vendor (free refill w/ bubble-stream visual + "full" cue), top-left HUD gauge w/ reserve pips + amber/red low-empty border. Parked refinements: (1) the **"costs smiles" economy** — vendor refills are free; a smile cost (full or token) is an alternate score sink if the loop needs more stakes (note: frowns already provide a stakes layer now). (2) **Bubble-variety juice costs** — once bubble varieties ship, mega-bubbles could cost more juice and glow bubbles less. (3) **Drain + frown tuning by feel** — if either nags on a real playtest, soften them or gate behind an opt-in mode.
 
 - **Tricks via boost + hop key.** Tap Space+Shift (or a dedicated key) mid-drive for a small 0.3s hop. Air time + bubbles in-air = bonus smiles when you land near NPCs (NPC reaction: "oooh!"). Reuses Zerble's existing arcade physics — just adds a vertical impulse and a "in-air" flag. New verb, no geometry.
 - **Passenger quests.** A boarding rider sometimes has a small thought-bubble icon over their head showing where they want to go (tent, stage, food trucks, beach, hammocks, drum circle, etc. — all already in the registry). Layered indicators (compass strip, icon brightness, passenger humming, toast hints like "I can smell the food trucks!") help the player navigate. Within ~25m of the destination = thumbs-up animation + smile burst. Multi-passenger logistics emerge naturally at `MAX_PASSENGERS = 4`. Full design lives in [`.claude/passenger-quests-design.md`](.claude/passenger-quests-design.md) — destinations, signaling stack, indicator layers, toast bank, failure handling, build order, and open questions.
@@ -674,16 +674,9 @@ infinite recursive tunnel, the classic "falling in" trip visual.
 
 - **Bubble inhabitants.** Once in a while a bubble drifts past with a tiny waving figure inside it (silhouette billboard, ~0.1m). Rare enough to read as an Easter egg. One mesh, low spawn rate, despawn with parent bubble.
 - **Bird polish follow-ups.** Birds shipped (see CHANGELOG 2026-06-01). Parked refinements: tapered/swept wing geometry (current wings read a touch plank-like in flight); a quick wing-flutter SFX on startle; biasing flocks to spawn around stages/food (attractor-aware) rather than uniformly; and a "bird poops on the cart" easter egg.
-- **Crowd photographer.** A specific NPC type with a camera who occasionally crouches and "takes a photo" of Zerble (small flash sprite). Pure animation + a brief emissive pop. Builds the festival-vibe story.
 - **Real lake reflections via `Reflector`.** An earlier procedural "twinkly stars" shader patch on the water surface looked like fake sparkles fading in/out — not reflection physics. Removed in favor of plain water for now. A proper Reflector (`three/examples/jsm/objects/Reflector`) would render the scene from the mirrored camera into a texture and sample it from the water surface — actual mirror of sky + stars + moon + nearby objects. Cost is roughly a second scene render whenever the player can see a lake; would gate to high tier only, and possibly half-res target + nightness-driven wet/dry mix so it only matters when reflections matter.
 
 ---
-
-## HUD / juice
-
-- **Smile counter pulse + color shift** when score increments. Pure CSS animation on `.smile-value`: scale bump + brief warm-tone color flash, then ease back.
-- **Personal-best confetti.** When the gold-star best gets beaten, a brief DOM confetti shower over the status rail. Pure HTML/CSS, no three.js cost. One-time trigger per session.
-- **Boost streaks.** Visible trail behind Zerble at high speed — short fading emissive ring instances, ~8 in a pool, spawned at the rear during boost and fading over ~0.4s. Reads as motion without changing collision or perf budget.
 
 ## Player identity
 
@@ -740,6 +733,20 @@ This picks up the existing perf-brainstorm **E2** distant tent/stage skyline and
 - **Recalibrate the per-tier draw/tri HUD budgets for v2 worldgen.** *(flagged 2026-06-21)* The backtick panel's tri budgets (low 150k / mid 400k / high 1.2M) predate v2 and now cry wolf: a 2026-06-21 capture showed **626k tris on `?perf=low`** and **1.57M on `?perf=mid`** — both ~4× "over budget" — yet mid ran a smooth **54fps**, so triangles are NOT the bottleneck. The markers should be re-based from a few v2 captures so a real regression is legible instead of drowned in a permanent red. (Draws/tris are adaptive-independent, so HUD readings are trustworthy as-is; only fps is defended by AdaptiveQuality.) Budgets live in [perf.js](src/perf.js) / the HUD in [debug.js](src/debug.js).
 
 - **PINNED: `?perf=low` shows a multi-second freeze that is NOT draws/tris.** *(pinned 2026-06-21 — come back to)* A low-tier capture caught **`fMax: 9029ms`** — a single ~9-second frozen frame — at fps 22, while per-chunk gen (`cgWorst`) was only ~198ms. So the freeze is something bigger and rarer than chunk generation: most likely a mid-play **shader-program compile** (the GPU stalling to build a program) or a **GC pause**. Same class as the "Game goes unresponsive" item in `## Bugs`, and squarely in this pass's Slice 2/3 territory (shader prewarm / time-sliced chunk gen). **To diagnose, need a "caught in the act" capture:** `__dbg.recordPerf(true)`, drive on `?perf=low` until it hitches, `__dbg.capture()` — then check whether `prog` (shader count) jumped at the freeze (→ shader stall) or `heapMB` did (→ GC). Cross-ref `openspec/changes/perf-pass-4/`.
+
+- **Deferred real-iPhone Wook Trip A/B capture.** The first phone report included
+  a Trip, but the v1 telemetry did not yet record its state, so it cannot isolate
+  the full-screen shader's device cost. Before asking Gary for another run, add a
+  local-only `perfCapture` scenario control that makes the comparison one tap:
+  collect a settled parked baseline, trigger Dynamic Trip automatically, collect
+  fade-in plus active windows at the same seed/pose, then send the report. Keep
+  the bubble material, bloom, pixel ratio, star-power state, registry counts, and
+  position fixed or recorded so analysis can reject contaminated windows. Run it
+  on the same iPhone at `?perf=low`; compare FPS and frame-time distributions, not
+  scene draws/tris, because `InfoCapturePass` records those before Trip. Pair the
+  run with a normal driving interval only after the parked A/B establishes the
+  shader's isolated cost. No device action is needed until the one-tap scenario
+  exists and exact instructions are ready.
 
 ### Build step — now on the table for perf *(parked, evidence-gated, 2026-06-19)*
 

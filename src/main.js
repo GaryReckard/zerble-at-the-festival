@@ -62,6 +62,7 @@ import { Settings } from './settings.js';
 import { A11y } from './a11y.js';
 import { setSessionSeed, getSessionSeed } from './rng.js';
 import { MODEL_DECOR_MERGE_ENABLED, getMergeDecorStats } from './mergeDecor.js';
+import { BoostStreaks } from './boostStreaks.js';
 
 // ---------- Session seed ----------
 // `?seed=<thing>` pins the world to a specific layout — pass a string
@@ -279,6 +280,8 @@ const zerble = new Zerble();
 zerble.position.set(0, 0, 65);
 zerble.heading = 0;
 scene.add(zerble.root);
+const boostStreaks = new BoostStreaks();
+scene.add(boostStreaks.mesh);
 
 // v2 worldgen: spawn at the nearest HUB (ANY rank — at dense configs there may be
 // no MAJOR near origin, D3 finding), so the player opens straight INTO a festival,
@@ -551,7 +554,7 @@ let _frogPanVal = 0;      // listener-relative pan toward nearest lake (-1..1)
 // Debounce for the bubble-vendor "free refill" toast.
 let _vendorToastCd = 0;
 let _vendorWasFilling = false;   // were we actively drawing juice last frame?
-let _wasEmpty = false;           // edge-detect the bubble tank running dry
+let _wasEmpty = bubbles.juice <= 0.02; // edge-detect the bubble tank running dry
 // Analytics edge-detect / rollup state (see src/analytics.js).
 let _wasBlasting = false;        // edge-detect the bubble blast (G) starting
 let _maxJuiceReached = 1;        // peak stockpile this run → session_end
@@ -778,6 +781,10 @@ function tickBody(dt) {
     // During the opening reveal the player can't steer — feed Zerble a neutral
     // input so it idles while the camera does its thing.
     zerble.update(dt, controlsLocked ? NEUTRAL_INPUT : Input, nightness);
+    boostStreaks.update(dt, zerble, {
+      reducedMotion: A11y.reducedMotion,
+      effectsEnabled: AdaptiveQuality.bloomAllowed(),
+    });
     Sound.setEngineSpeed(zerble.speed, zerble.isBoosting ? 1 : 0);
     if (zerble.isBoosting) Analytics.featureUsed('boost');   // once per run
     // Push nightness into the audio module so the forest drum engine can
@@ -882,6 +889,7 @@ function tickBody(dt) {
     crowd.starActive = StarPower.isActive();
     if (bubblesEmpty && !_wasEmpty) {
       HUD.toast('Out of bubble juice — grab a jug!', 2200);
+      Sound.playJuiceSputter();
       Analytics.bubbleRanDry();
     }
     _wasEmpty = bubblesEmpty;
@@ -1539,6 +1547,24 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       return `juice = ${bubbles.juice}`;
     },
 
+    addSmiles(n = 1) {
+      const add = Math.max(0, Math.floor(n));
+      score += add;
+      HUD.setSmiles(score);
+      HUD.saveBest(score);
+      return `smiles = ${score}`;
+    },
+
+    boostStreak() {
+      boostStreaks.trigger(zerble);
+      return 'boost streak emitted';
+    },
+
+    photographer() {
+      const npc = crowd.forcePhotographer();
+      return npc ? `photographer #${npc.idx} taking picture` : 'no crowd NPC available';
+    },
+
     // Force idle crowd NPC(s) into riding state in seats of the given kind.
     // No arg → one of each seated kind (bench / driver_seat / roof). Great for
     // pose-testing the seated-rider lean without waiting for organic boarding.
@@ -2054,7 +2080,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     help() {
       const out = [
         'window.__dbg — agent control surface (localhost only). The one door.',
-        '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · fillSeats(kind?) · rider(kind)',
+        '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · addSmiles(n) · boostStreak() · photographer() · fillSeats(kind?) · rider(kind)',
         '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock() · topDown(x?,z?,span)   (pins a pose; overrides chase cam)',
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
         '  draws:   drawCensus({top?})   (scene draw-call composition by geometry/material → names instance/merge targets)',

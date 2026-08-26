@@ -880,6 +880,14 @@ export const Sound = {
     osc.start(t + 0.06); osc.stop(t + 0.3);
   },
 
+  // One short mechanical cough when the working bubble-juice meter runs dry.
+  // main.js owns the nonempty→empty edge, so this one-shot never polls or
+  // repeats while the tank remains empty.
+  playJuiceSputter() {
+    if (!ctx || !sfxBus) return;
+    juiceSputter(ctx, sfxBus);
+  },
+
   // Comedic positional "blat" from an occupied porta-potty at (x, z). Routed
   // through a temporary PannerNode (like playCrowdCheer) so it pans + attenuates
   // with distance. Kept quiet — it's a background gag, not a feature.
@@ -1471,6 +1479,42 @@ function boop(ctx, dest, freqStart, freqEnd, duration, volume = 0.4, type = 'sin
   osc.connect(env);
   osc.start();
   osc.stop(t + duration + 0.05);
+}
+
+function juiceSputter(ctx, dest) {
+  const t = ctx.currentTime;
+  const body = ctx.createOscillator();
+  body.type = 'sawtooth';
+  body.frequency.setValueAtTime(118, t);
+  body.frequency.exponentialRampToValueAtTime(54, t + 0.32);
+
+  const flutter = ctx.createOscillator();
+  flutter.type = 'square';
+  flutter.frequency.setValueAtTime(19, t);
+  flutter.frequency.linearRampToValueAtTime(8, t + 0.32);
+  const flutterDepth = ctx.createGain();
+  flutterDepth.gain.setValueAtTime(42, t);
+  flutterDepth.gain.linearRampToValueAtTime(12, t + 0.32);
+  flutter.connect(flutterDepth).connect(body.frequency);
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(900, t);
+  filter.frequency.exponentialRampToValueAtTime(240, t + 0.34);
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.0001, t);
+  env.gain.exponentialRampToValueAtTime(0.16, t + 0.012);
+  env.gain.exponentialRampToValueAtTime(0.035, t + 0.09);
+  env.gain.exponentialRampToValueAtTime(0.12, t + 0.14);
+  env.gain.exponentialRampToValueAtTime(0.018, t + 0.22);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
+
+  body.connect(filter).connect(env).connect(dest);
+  body.start(t);
+  flutter.start(t);
+  body.stop(t + 0.4);
+  flutter.stop(t + 0.4);
 }
 
 function clang(ctx, dest) {

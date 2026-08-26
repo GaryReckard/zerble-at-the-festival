@@ -72,6 +72,7 @@ body {
 }
 
 .smile-status {
+  position: relative;
   gap: 6px;
   padding: 4px 9px 4px 6px;
 }
@@ -91,6 +92,17 @@ body {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 0 12px rgba(255, 210, 138, 0.38);
+  transform-origin: 50% 60%;
+}
+
+.smile-value.smile-pulse {
+  animation: smile-score-pulse 0.38s cubic-bezier(0.2, 0.85, 0.3, 1);
+}
+
+@keyframes smile-score-pulse {
+  0% { transform: scale(1); color: var(--paper); }
+  34% { transform: scale(1.27); color: #ffd56f; text-shadow: 0 0 16px rgba(255, 158, 74, 0.95); }
+  100% { transform: scale(1); color: var(--paper); }
 }
 
 .best-score {
@@ -104,6 +116,63 @@ body {
   line-height: 1;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.best-score.best-beaten {
+  color: #ffe6a6;
+  text-shadow: 0 0 10px rgba(255, 186, 72, 0.9);
+}
+
+.best-confetti {
+  position: absolute;
+  left: 56px;
+  top: 8px;
+  width: 46px;
+  height: 22px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.best-confetti i {
+  --x: 0px;
+  --y: -28px;
+  --r: 120deg;
+  --delay: 0s;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 7px;
+  border-radius: 1px;
+  background: #ffd56f;
+  opacity: 0;
+}
+
+.best-confetti i:nth-child(2n) { background: #ff7d9e; }
+.best-confetti i:nth-child(3n) { background: #7fe8ff; }
+.best-confetti i:nth-child(4n) { background: #9dff8a; }
+.best-confetti i:nth-child(1)  { --x: -24px; --y: -26px; --r: -170deg; }
+.best-confetti i:nth-child(2)  { --x: -17px; --y: -35px; --r: 210deg; --delay: 0.03s; }
+.best-confetti i:nth-child(3)  { --x: -10px; --y: -22px; --r: 130deg; --delay: 0.08s; }
+.best-confetti i:nth-child(4)  { --x: -4px;  --y: -39px; --r: -240deg; --delay: 0.02s; }
+.best-confetti i:nth-child(5)  { --x: 4px;   --y: -30px; --r: 185deg; --delay: 0.09s; }
+.best-confetti i:nth-child(6)  { --x: 10px;  --y: -42px; --r: -145deg; --delay: 0.04s; }
+.best-confetti i:nth-child(7)  { --x: 17px;  --y: -27px; --r: 245deg; --delay: 0.11s; }
+.best-confetti i:nth-child(8)  { --x: 24px;  --y: -36px; --r: -210deg; --delay: 0.06s; }
+.best-confetti i:nth-child(9)  { --x: -20px; --y: -15px; --r: 150deg; --delay: 0.13s; }
+.best-confetti i:nth-child(10) { --x: -7px;  --y: -18px; --r: -200deg; --delay: 0.15s; }
+.best-confetti i:nth-child(11) { --x: 8px;   --y: -17px; --r: 225deg; --delay: 0.12s; }
+.best-confetti i:nth-child(12) { --x: 21px;  --y: -14px; --r: -160deg; --delay: 0.16s; }
+
+.best-confetti.on i {
+  animation: best-confetti-pop 0.82s cubic-bezier(0.18, 0.72, 0.28, 1) var(--delay) both;
+}
+
+@keyframes best-confetti-pop {
+  0% { transform: translate(0, 0) rotate(0); opacity: 0; }
+  12% { opacity: 1; }
+  72% { opacity: 1; }
+  100% { transform: translate(var(--x), var(--y)) rotate(var(--r)); opacity: 0; }
 }
 
 /* ----- Bubble-juice meter ----- */
@@ -1254,6 +1323,15 @@ body.reduced-motion #toast.tappable,
 body.reduced-motion .lurleen-heart,
 body.reduced-motion .lurleen-status.visible {
   animation: none;
+}
+
+body.reduced-motion .smile-value.smile-pulse {
+  animation: none;
+  color: #ffd56f;
+}
+
+body.reduced-motion .best-confetti {
+  display: none;
 }
 
 /* ---------- Settings: tabbed layout ---------- */

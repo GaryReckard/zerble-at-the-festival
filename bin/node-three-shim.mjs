@@ -29,9 +29,12 @@ class Object3DStub {
     this.position = new Vector3();
     this.scale = new Vector3();
     this.rotation = new Vector3();
+    this.matrix = new Matrix4();
   }
   add(...objs) { this.children.push(...objs); return this; }
+  updateMatrix() { return this; }
 }
+export class Object3D extends Object3DStub {}
 export class Group extends Object3DStub {}
 export class Mesh extends Object3DStub {
   constructor(geometry, material) { super(); this.geometry = geometry; this.material = material; }
@@ -43,11 +46,15 @@ export class CylinderGeometry extends GeometryStub {}
 export class IcosahedronGeometry extends GeometryStub {}
 export class ConeGeometry extends GeometryStub {}
 export class BoxGeometry extends GeometryStub {}
+export class RingGeometry extends GeometryStub {}
 
 // Materials: constructed with an options object; tagged .userData.shared.
 export class MeshStandardMaterial {
   constructor(params = {}) { this.userData = {}; Object.assign(this, params); }
 }
+export class MeshBasicMaterial extends MeshStandardMaterial {}
+export const DoubleSide = 2;
+export const AdditiveBlending = 2;
 
 // Math + instancing: tree.js constructs Matrix4/Color at module scope (CG3
 // instancing temps) and InstancedMesh inside buildForestInstanced. The
@@ -62,7 +69,9 @@ export class Matrix4 {
   multiply() { return this; }
 }
 export class Color {
+  constructor() { this.r = 0; this.g = 0; this.b = 0; }
   setHex() { return this; }
+  setRGB(r, g, b) { this.r = r; this.g = g; this.b = b; return this; }
 }
 export class InstancedBufferAttribute {
   constructor(array) { this.array = array; this.needsUpdate = false; }
