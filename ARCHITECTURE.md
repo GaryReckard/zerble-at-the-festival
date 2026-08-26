@@ -39,7 +39,7 @@ src/
   bubbles.js                InstancedMesh bubble particle system
   smiles.js                 Smile pickup orbs
   crowd.js                  NPC pool, AI, state machine
-  obstacles.js              Puppet parade, brass band, kid gaggle, wooks
+  obstacles.js              Puppet parade, brass band, kids, wooks, hoopers, frisbee pairs
   camera.js                 Chase / first-person / top-down camera
   input.js                  Keyboard + touch input blend
   touch.js                  Virtual thumbstick + camera drag
@@ -214,6 +214,7 @@ Centralized in `main.js#resolveCollision`. Each frame builds a list of candidate
 allColliders = [
   ...registry.colliders(),
   ...puppets.colliders, ...band.colliders, ...kids.colliders, ...wooks.colliders,
+  ...hoopers.colliders, ...frisbees.colliders,
   ...crowdNPCsWithinBroadphase,        // 6m broadphase reject
 ]
 ```
@@ -227,6 +228,14 @@ For each collider closer than `c.radius + zerble.radius`:
 This is what lets you brush against people at a crawl without losing smiles, while still getting punished for driving full speed into a crowd.
 
 `passive` colliders are visible to the registry but skipped here — they're proximity triggers, not physical objects.
+
+The global frisbee pairs in `obstacles.js` use a `held → flying → landed`
+disc state machine. Each player's two-joint arm rig is relaxed by default. The
+holder blends through an across-the-body 90-degree elbow windup and a straight
+forward release during the last 720ms of the hold, while the catcher raises one
+arm only as the disc comes within 3m. The held disc follows the real animated
+hand joint, and every pair owns one reusable hand-position vector so the update
+path does not allocate animation objects per frame.
 
 ---
 

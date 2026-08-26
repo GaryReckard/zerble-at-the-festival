@@ -256,7 +256,9 @@
             <option value="wook">Wook</option>
             <option value="hula_hooper">Hula-hooper</option>
             <option value="hula_hooper_night">Hula-hooper (night — hoop glows)</option>
-            <option value="frisbee_player">Frisbee player</option>
+            <option value="frisbee_player">Frisbee player — relaxed</option>
+            <option value="frisbee_player_catch">Frisbee player — one-arm catch reach</option>
+            <option value="frisbee_player_throw">Frisbee player — throw windup + release</option>
             <option value="frisbee_pair">Frisbee pair (tossing disc)</option>
             <option value="performer_lead_vocal">Performer — lead vocal</option>
             <option value="performer_guitar">Performer — guitar</option>
@@ -535,6 +537,7 @@ import {buildShrub} from './src/models/shrub.js';
     import {
         buildFrisbeePlayer,
         buildFrisbeeDisc,
+        getFrisbeeHandPosition,
         tickFrisbeePlayer,
         tickFrisbeeDisc
     } from './src/models/frisbeePlayer.js';
@@ -1503,11 +1506,25 @@ import {buildShrub} from './src/models/shrub.js';
                 applyCam();
                 break;
             }
-            case 'frisbee_player': {
+            case 'frisbee_player':
+            case 'frisbee_player_catch':
+            case 'frisbee_player_throw': {
                 const g = buildFrisbeePlayer(Math.random);
                 scene.add(g);
                 entityRoot = g;
-                updateFn = (dt) => tickFrisbeePlayer(g, dt);
+                let poseTime = 0;
+                updateFn = (dt) => {
+                    poseTime += dt;
+                    if (name === 'frisbee_player_catch') {
+                        tickFrisbeePlayer(g, dt, 'catch', 1);
+                    } else if (name === 'frisbee_player_throw') {
+                        const cycle = poseTime % 2.8;
+                        const phase = THREE.MathUtils.clamp((cycle - 0.55) / 1.35, 0, 1);
+                        tickFrisbeePlayer(g, dt, cycle < 2.1 ? 'throw' : 'relaxed', phase);
+                    } else {
+                        tickFrisbeePlayer(g, dt);
+                    }
+                };
                 cam.target.set(0, 1.0, 0);
                 cam.dist = 4.5;
                 applyCam();
@@ -1532,8 +1549,11 @@ import {buildShrub} from './src/models/shrub.js';
                     catcher: playerB,
                     phase: 'held',       // 'held' | 'flying' | 'landed'
                     pauseTimer: 1.2,
+                    pauseDuration: 1.2,
                     vel: new THREE.Vector3(),
+                    handPosition: new THREE.Vector3(),
                 };
+                currentEntity = {playerA, playerB, disc, state};
                 const GRAVITY = 9.8 * 0.6;
                 const TOSS_SPEED = 9.5;
                 const AIM_JITTER = 0.20;
@@ -1550,21 +1570,44 @@ import {buildShrub} from './src/models/shrub.js';
                     const ang = baseAng + (Math.random() - 0.5) * 2 * AIM_JITTER;
                     const planar = TOSS_SPEED * (0.85 + Math.random() * 0.35);
                     state.vel.set(Math.sin(ang) * planar, 4.5 + Math.random() * 1.6, Math.cos(ang) * planar);
-                    disc.position.set(state.holder.position.x, 1.45, state.holder.position.z);
                     state.phase = 'flying';
                 };
 
                 updateFn = (dt) => {
-                    // Player bob + disc spin/glow live in tickFrisbeePlayer / tickFrisbeeDisc.
-                    // Game (Frisbees.update in obstacles.js) calls the same ones —
-                    // toss/catch sim below is the only sandbox-specific code now.
-                    tickFrisbeePlayer(playerA, dt);
-                    tickFrisbeePlayer(playerB, dt);
+                    let actionA = 'relaxed';
+                    let actionB = 'relaxed';
+                    let amountA = 0;
+                    let amountB = 0;
+                    if (state.phase === 'held') {
+                        const duration = Math.min(0.72, state.pauseDuration);
+                        const throwPhase = THREE.MathUtils.clamp(1 - state.pauseTimer / duration, 0, 1);
+                        if (state.holder === playerA) {
+                            actionA = 'throw';
+                            amountA = throwPhase;
+                        } else {
+                            actionB = 'throw';
+                            amountB = throwPhase;
+                        }
+                    } else if (state.phase === 'flying') {
+                        const dx = disc.position.x - state.catcher.position.x;
+                        const dz = disc.position.z - state.catcher.position.z;
+                        const reach = THREE.MathUtils.clamp(1 - Math.hypot(dx, dz) / 3, 0, 1);
+                        if (state.catcher === playerA) {
+                            actionA = 'catch';
+                            amountA = reach;
+                        } else {
+                            actionB = 'catch';
+                            amountB = reach;
+                        }
+                    }
+                    tickFrisbeePlayer(playerA, dt, actionA, amountA);
+                    tickFrisbeePlayer(playerB, dt, actionB, amountB);
                     tickFrisbeeDisc(disc, dt, state.phase, tod.nightness);
                     if (state.phase === 'held') {
-                        disc.position.set(state.holder.position.x, 1.45, state.holder.position.z);
                         lookAt(state.holder, state.catcher.position.x, state.catcher.position.z);
                         lookAt(state.catcher, state.holder.position.x, state.holder.position.z);
+                        getFrisbeeHandPosition(state.holder, state.handPosition);
+                        disc.position.copy(state.handPosition);
                         state.pauseTimer -= dt;
                         if (state.pauseTimer <= 0) toss();
                     } else if (state.phase === 'flying') {
@@ -1605,6 +1648,7 @@ import {buildShrub} from './src/models/shrub.js';
                             [state.holder, state.catcher] = [state.catcher, state.holder];
                             state.phase = 'held';
                             state.pauseTimer = 0.7 + Math.random() * 1.0;
+                            state.pauseDuration = state.pauseTimer;
                         } else if (disc.position.y <= 0.05) {
                             disc.position.y = 0.05;
                             state.phase = 'landed';
@@ -1617,6 +1661,7 @@ import {buildShrub} from './src/models/shrub.js';
                             [state.holder, state.catcher] = [state.catcher, state.holder];
                             state.phase = 'held';
                             state.pauseTimer = 0.8 + Math.random() * 1.2;
+                            state.pauseDuration = state.pauseTimer;
                         } else {
                             const inv = 1 / d;
                             const step = Math.min(d, PLAYER_SPEED * dt);
@@ -1627,7 +1672,9 @@ import {buildShrub} from './src/models/shrub.js';
                         lookAt(state.holder, state.catcher.position.x, state.catcher.position.z);
                     }
                 };
-                cam.target.set(0, 1.0, 0);
+                // Bias the midpoint left so both players remain in the open
+                // canvas instead of placing player A beneath the HUD panel.
+                cam.target.set(-3.5, 1.0, 0);
                 cam.dist = 18;
                 applyCam();
                 break;
@@ -2345,9 +2392,19 @@ import {buildShrub} from './src/models/shrub.js';
         }
         attachEntityMusic(name);
         updateHitButton(name);
-        info.textContent = name === 'boost_streaks'
-            ? 'Loaded: boost_streaks · gold wake rings should trail behind the right-to-left cart'
-            : `Loaded: ${name}`;
+        if (name === 'boost_streaks') {
+            info.textContent = 'Loaded: boost_streaks · gold wake rings should trail behind the right-to-left cart';
+        } else if (name === 'frisbee_player') {
+            info.textContent = 'Loaded: frisbee_player · both arms should hang naturally';
+        } else if (name === 'frisbee_player_catch') {
+            info.textContent = 'Loaded: frisbee_player_catch · one arm reaches up, forward, and outward';
+        } else if (name === 'frisbee_player_throw') {
+            info.textContent = 'Loaded: frisbee_player_throw · watch the 90° elbow windup straighten through release';
+        } else if (name === 'frisbee_pair') {
+            info.textContent = 'Loaded: frisbee_pair · the disc follows the throwing hand before each release';
+        } else {
+            info.textContent = `Loaded: ${name}`;
+        }
     }
 
     // ---- Audio panel: volume sliders + "Hit it" SFX button ----

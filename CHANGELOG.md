@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-08-26
+
+### Fixed
+- **Frisbee players now use the throw and catch they appear to be performing instead of holding a permanent V pose.** Each arm is now a shoulder-and-elbow rig that hangs naturally by default. Only the active arm moves: an incoming catch raises one hand slightly forward and outward as the disc closes inside 3m, while a throw spends its final 720ms bending the elbow about 90 degrees across the torso and then straightening through release. The held disc follows the actual animated hand joint instead of hovering at a fixed chest-height coordinate, and the non-playing arm stays down throughout. Three focused sandbox views isolate relaxed, catch, and throw poses, while the reframed pair view exercises the complete hand-attached toss, chase, catch, and pickup loop. The focused test now locks every key joint state and the real high-tier Start flow boots with a clean console. ([frisbeePlayer.js](src/models/frisbeePlayer.js), [obstacles.js](src/obstacles.js), [sandbox.html](sandbox.html), [test-frisbee-player](bin/test-frisbee-player))
+
 ## 2026-08-25
 
 ### Added

@@ -373,6 +373,13 @@ Two small effect entries avoid full-game driving for this polish pass:
 - `sandbox.html?entity=boost_streaks&perf=high` drives Zerble right-to-left while the fixed eight-slot pool leaves cart-sized golden wake rings in world space behind him, on the open side of the canvas. The rings should separate clearly from the Bubble Juice Machine; the same page exposes the synthesized empty-juice sputter in the Audio panel.
 - `sandbox.html?entity=crowd_photographer&perf=high` runs one forced photographer through the real Crowd matrices. **Take picture** triggers the production timing, while **Hold flash for inspection** extends only the debug preview so the opaque mesh flash can be checked at Noon and Midnight.
 
+The frisbee arm rig has three focused views plus the integrated toss:
+
+- `sandbox.html?entity=frisbee_player` holds the ordinary both-arms-down pose.
+- `sandbox.html?entity=frisbee_player_catch` holds the one-arm catch reach.
+- `sandbox.html?entity=frisbee_player_throw` loops the bent-elbow windup and straight release.
+- `sandbox.html?entity=frisbee_pair` runs the full toss, chase, catch, and pickup sequence, with both players biased into the open canvas and the disc attached to the animated hand until release.
+
 ---
 
 ## Layout snapshots — capturing built truth

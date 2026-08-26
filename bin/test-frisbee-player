@@ -3,7 +3,10 @@
 import { register } from 'node:module';
 register('./node-three-shim.mjs', import.meta.url);
 
-const { buildFrisbeePlayer } = await import('../src/models/frisbeePlayer.js');
+const {
+  buildFrisbeePlayer,
+  tickFrisbeePlayer,
+} = await import('../src/models/frisbeePlayer.js');
 
 function assert(condition, message) {
   if (!condition) {
@@ -13,14 +16,37 @@ function assert(condition, message) {
 }
 
 const player = buildFrisbeePlayer(() => 0.25);
-const { left, right } = player.userData.armPivots;
+const { left, right } = player.userData.armRigs;
 
-assert(left && right, 'the frisbee player should expose both shoulder pivots');
-assert(left.rotation.z < 0, 'the left arm should rotate outward from the left shoulder');
-assert(right.rotation.z > 0, 'the right arm should rotate outward from the right shoulder');
-assert(Math.sign(left.rotation.z) === -Math.sign(right.rotation.z),
-  'the frisbee arm pose should remain mirrored');
-assert(Math.abs(left.rotation.z) > Math.PI / 2 && Math.abs(right.rotation.z) > Math.PI / 2,
-  'both hands should rise above their shoulders in the catch pose');
+function settle(action, amount) {
+  for (let i = 0; i < 20; i++) tickFrisbeePlayer(player, 0.1, action, amount);
+}
 
-process.stdout.write('PASS  frisbee player arms rotate outward in a mirrored catch pose\n');
+assert(left && right, 'the frisbee player should expose both arm rigs');
+assert(left.elbow && right.elbow, 'each frisbee arm should have an elbow joint');
+assert(Math.abs(left.shoulder.rotation.z) < 0.2 && Math.abs(right.shoulder.rotation.z) < 0.2,
+  'both arms should start hanging near vertical');
+
+settle('catch', 1);
+assert(right.shoulder.rotation.z > Math.PI / 2,
+  'the catch pose should raise the right arm up and outward');
+assert(Math.abs(left.shoulder.rotation.z) < 0.2,
+  'the non-catching arm should stay relaxed');
+
+settle('throw', 0.52);
+assert(Math.abs(right.elbow.rotation.z + Math.PI / 2) < 0.08,
+  'the throw windup should bend the elbow about 90 degrees across the body');
+assert(Math.abs(left.elbow.rotation.z) < 0.05,
+  'the non-throwing elbow should remain straight and relaxed');
+
+settle('throw', 1);
+assert(Math.abs(right.elbow.rotation.z) < 0.1,
+  'the throwing elbow should straighten through release');
+assert(right.shoulder.rotation.x > 1.1,
+  'the release should angle the straight throwing arm forward');
+
+settle('relaxed', 0);
+assert(Math.abs(right.shoulder.rotation.z) < 0.2 && Math.abs(right.elbow.rotation.z) < 0.05,
+  'the throwing arm should return to the hanging relaxed pose');
+
+process.stdout.write('PASS  frisbee player has relaxed, one-arm catch, windup, and release poses\n');

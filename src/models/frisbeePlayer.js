@@ -1,12 +1,11 @@
-// Frisbee player — a festivalgoer mid-throw/catch pose.
+// Frisbee player — a festivalgoer with a small procedural arm rig.
 //
 // Structure:
 //   group
 //     children[0] = body (Group containing legs/torso/head/arms)
-//     userData.armPivots = { left, right }  — caller may rotate these to
-//       switch between "ready to catch" (arms up + out) and "tracking the
-//       disc" poses. We keep the default pose at arms-up-and-out which reads
-//       fine for both throwing and catching.
+//     userData.armRigs = { left, right } — shoulder + elbow + hand joints.
+//       tickFrisbeePlayer blends those joints between relaxed, catch, and
+//       throw poses without creating animation objects per frame.
 //
 // Built off the same proportions as crowd NPCs (scale ≈ 1m torso, 1.65m head)
 // so a frisbee player walking next to a regular festivalgoer looks consistent.
@@ -20,6 +19,24 @@ const SHIRT_PALETTE = [
 const PANTS_PALETTE = [0x223a5c, 0x4a3a6a, 0x2d5d3e, 0x6a4a2a, 0x1a1a2a];
 const SKIN_PALETTE = [0xe6c098, 0xd1a070, 0xb37e5a, 0x8a5a3a];
 const HAT_PALETTE = [0xff5577, 0x33d9ff, 0xc080ff, 0x6fcf6a, 0xffe066, 0x222];
+
+const RELAXED_SHOULDER_X = 0.03;
+const RELAXED_SHOULDER_Z = 0.10;
+
+function smooth01(t) {
+  const v = Math.max(0, Math.min(1, t));
+  return v * v * (3 - 2 * v);
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function approachRotation(joint, x, y, z, alpha) {
+  joint.rotation.x += (x - joint.rotation.x) * alpha;
+  joint.rotation.y += (y - joint.rotation.y) * alpha;
+  joint.rotation.z += (z - joint.rotation.z) * alpha;
+}
 
 export function buildFrisbeePlayer(rng = Math.random) {
   const g = new THREE.Group();
@@ -64,37 +81,46 @@ export function buildFrisbeePlayer(rng = Math.random) {
   torso.castShadow = true;
   body.add(torso);
 
-  // Arms — both raised, ready to throw or catch. Left arm pivot up + out,
-  // right arm pivot up + out + slightly forward (catching/throwing arm).
+  // Arms use a shoulder and elbow pivot so a throw can wind up across the
+  // torso and then straighten. The geometry still uses the same two limb
+  // meshes per arm as the original rigid pose.
   const armPivots = { left: null, right: null };
+  const armRigs = { left: null, right: null };
   for (const sx of [-1, 1]) {
-    const armGroup = new THREE.Group();
-    armGroup.position.set(sx * 0.28, 1.18, 0);
-    // Up + outward
-    // The arm geometry extends down its local -Y axis, so the shoulder pivot
-    // must rotate with the side sign to send each hand outward. The old
-    // opposite sign crossed both hands inward through the torso.
-    armGroup.rotation.z = sx * 2.15;
-    armGroup.rotation.x = sx > 0 ? -0.30 : -0.05;  // right arm forward more
+    const shoulder = new THREE.Group();
+    shoulder.position.set(sx * 0.28, 1.18, 0);
+    shoulder.rotation.set(RELAXED_SHOULDER_X, 0, sx * RELAXED_SHOULDER_Z);
     const upper = new THREE.Mesh(
       new THREE.CapsuleGeometry(0.08, 0.32, 4, 6),
       shirtMat,
     );
     upper.position.y = -0.18;
-    armGroup.add(upper);
+    shoulder.add(upper);
+
+    const elbow = new THREE.Group();
+    elbow.position.y = -0.38;
     const lower = new THREE.Mesh(
       new THREE.CapsuleGeometry(0.075, 0.34, 4, 6),
       skinMat,
     );
-    lower.position.y = -0.52;
-    armGroup.add(lower);
+    lower.position.y = -0.18;
+    elbow.add(lower);
     const hand = new THREE.Mesh(
       new THREE.IcosahedronGeometry(0.09, 0), skinMat,
     );
-    hand.position.y = -0.74;
-    armGroup.add(hand);
-    body.add(armGroup);
-    if (sx > 0) armPivots.right = armGroup; else armPivots.left = armGroup;
+    hand.position.y = -0.42;
+    elbow.add(hand);
+    shoulder.add(elbow);
+    body.add(shoulder);
+
+    const rig = { shoulder, elbow, hand, side: sx };
+    if (sx > 0) {
+      armPivots.right = shoulder;
+      armRigs.right = rig;
+    } else {
+      armPivots.left = shoulder;
+      armRigs.left = rig;
+    }
   }
 
   // Head
@@ -142,19 +168,65 @@ export function buildFrisbeePlayer(rng = Math.random) {
   }
 
   g.userData.armPivots = armPivots;
+  g.userData.armRigs = armRigs;
   g.userData.bodyGroup = body;
   g.userData.bobPhase = Math.random() * 10;
   return g;
 }
 
-// Per-frame idle bob — small breathing motion when the player isn't
-// running. Caller (Frisbees.update / sandbox) drives motion + lookAt;
-// this just adds the subtle "alive" hop. ~4cm peaks, no excitement.
-export function tickFrisbeePlayer(model, dt) {
+// `action`: 'relaxed' | 'catch' | 'throw'. `amount` is catch reach strength
+// or normalized throw progress. The throwing arm winds across the body with
+// a bent elbow, then straightens through release; the non-playing arm hangs.
+export function tickFrisbeePlayer(model, dt, action = 'relaxed', amount = 0) {
   const u = model.userData;
-  if (!u.bodyGroup) return;
+  if (!u.bodyGroup || !u.armRigs) return;
   const t = performance.now() * 0.004 + u.bobPhase;
   u.bodyGroup.position.y = Math.abs(Math.sin(t)) * 0.04;
+
+  const alpha = 1 - Math.exp(-14 * Math.min(dt, 0.25));
+  const left = u.armRigs.left;
+  const right = u.armRigs.right;
+  let rightShoulderX = RELAXED_SHOULDER_X;
+  let rightShoulderZ = RELAXED_SHOULDER_Z;
+  let rightElbowZ = 0;
+
+  if (action === 'catch') {
+    const reach = smooth01(amount);
+    rightShoulderX = lerp(RELAXED_SHOULDER_X, -0.38, reach);
+    rightShoulderZ = lerp(RELAXED_SHOULDER_Z, 1.98, reach);
+    rightElbowZ = lerp(0, -0.10, reach);
+  } else if (action === 'throw') {
+    const phase = Math.max(0, Math.min(1, amount));
+    if (phase < 0.52) {
+      const windup = smooth01(phase / 0.52);
+      rightShoulderX = lerp(RELAXED_SHOULDER_X, 1.04, windup);
+      rightShoulderZ = lerp(RELAXED_SHOULDER_Z, 0.38, windup);
+      rightElbowZ = lerp(0, -Math.PI / 2, windup);
+    } else {
+      const release = smooth01((phase - 0.52) / 0.48);
+      rightShoulderX = lerp(1.04, 1.24, release);
+      rightShoulderZ = lerp(0.38, 0.05, release);
+      rightElbowZ = lerp(-Math.PI / 2, 0.04, release);
+    }
+  }
+
+  approachRotation(
+    left.shoulder,
+    RELAXED_SHOULDER_X,
+    0,
+    -RELAXED_SHOULDER_Z,
+    alpha,
+  );
+  approachRotation(left.elbow, 0, 0, 0, alpha);
+  approachRotation(right.shoulder, rightShoulderX, 0, rightShoulderZ, alpha);
+  approachRotation(right.elbow, 0, 0, rightElbowZ, alpha);
+}
+
+export function getFrisbeeHandPosition(model, target, side = 'right') {
+  const hand = model.userData.armRigs?.[side]?.hand;
+  if (!hand || !target) return target;
+  model.updateMatrixWorld(true);
+  return hand.getWorldPosition(target);
 }
 
 // Builds a small frisbee disc — flat-ish cylinder with a colored rim. Returns

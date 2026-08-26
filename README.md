@@ -19,7 +19,7 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 ## Features
 
 - **An infinite festival.** The world streams in around you as you drive — a procedural generator lays out festival hubs (main stages, food courts, vendor rows, drum circles), roads, lakes, and forests deterministically from the seed, so it feels designed but never runs out.
-- **A living crowd.** NPCs have personalities (curiosity, skittishness, social, talkative). They wander, watch, approach, panic, and ride along, while a rare festival photographer stops to frame Zerble and pop a tiny camera flash. Make eye contact and blow bubbles past them, and they smile.
+- **A living crowd.** NPCs have personalities (curiosity, skittishness, social, talkative). They wander, watch, approach, panic, and ride along, while frisbee players wind up and toss to one another and a rare festival photographer stops to frame Zerble and pop a tiny camera flash. Make eye contact and blow bubbles past them, and they smile.
 - **Juicy feedback without visual clutter.** Each score increase briefly enlarges the smile count and flashes it warm gold. Boosting at high speed leaves a short sequence of cart-sized golden wake rings behind Zerble, and beating the saved best launches one small confetti celebration per session.
 - **A real day/night cycle.** Dawn → noon → dusk → midnight, on a tunable loop. Stage lights and tiki torches kick in after sundown. The sky shifts. The drum circles get louder when the dark settles.
 - **Procedural sound.** No audio files. The engine drone, empty-juice sputter, collision thuds, bicycle bell, clown horn, brass band, drum circles, and crackling campfires are all synthesized at runtime in Web Audio.

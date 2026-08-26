@@ -12,7 +12,13 @@ import { buildParasolMarshal, tickParasolMarshal } from './models/parasolMarshal
 import { buildKid, tickKid } from './models/kid.js';
 import { buildWook, tickWook } from './models/wook.js';
 import { buildHulaHooper, tickHulaHooper } from './models/hulaHooper.js';
-import { buildFrisbeePlayer, buildFrisbeeDisc, tickFrisbeePlayer, tickFrisbeeDisc } from './models/frisbeePlayer.js';
+import {
+  buildFrisbeePlayer,
+  buildFrisbeeDisc,
+  getFrisbeeHandPosition,
+  tickFrisbeePlayer,
+  tickFrisbeeDisc,
+} from './models/frisbeePlayer.js';
 import { Sound } from './sound.js';
 import { projectOutOfLake, isPointInLake } from './lakes.js';
 // Shared pedestrian steering — same dodge/honk math the crowd uses (crowd.js).
@@ -1279,6 +1285,7 @@ export class Frisbees {
     const playerA = buildFrisbeePlayer();
     const playerB = buildFrisbeePlayer();
     const disc = buildFrisbeeDisc();
+    const pauseTimer = 1 + Math.random() * 1.5;
     return {
       playerA,
       playerB,
@@ -1293,9 +1300,11 @@ export class Frisbees {
       target: new THREE.Vector3(),
       vel: new THREE.Vector3(),
       // Catch/toss timing
-      pauseTimer: 1 + Math.random() * 1.5,
+      pauseTimer,
+      pauseDuration: pauseTimer,
       // The catcher's own predicted-landing spot (recomputed each frame while flying)
       catcherTarget: new THREE.Vector3(),
+      handPosition: new THREE.Vector3(),
     };
   }
 
@@ -1312,12 +1321,36 @@ export class Frisbees {
     const tMs = performance.now() * 0.001;
 
     for (const p of this.pairs) {
-      // Per-player idle bob + per-disc spin/glow now live in the model
-      // file (see models/frisbeePlayer.js → tickFrisbeePlayer / tickFrisbeeDisc).
-      // Sandbox calls the same ticks. We only own gameplay decisions
-      // (toss / catch / land / recycle) here.
-      tickFrisbeePlayer(p.playerA, dt);
-      tickFrisbeePlayer(p.playerB, dt);
+      let actionA = 'relaxed';
+      let actionB = 'relaxed';
+      let amountA = 0;
+      let amountB = 0;
+
+      if (p.discState === 'held') {
+        const duration = Math.min(0.72, p.pauseDuration || p.pauseTimer || 0.72);
+        const throwPhase = THREE.MathUtils.clamp(1 - p.pauseTimer / duration, 0, 1);
+        if (p.discHolder === p.playerA) {
+          actionA = 'throw';
+          amountA = throwPhase;
+        } else {
+          actionB = 'throw';
+          amountB = throwPhase;
+        }
+      } else if (p.discState === 'flying') {
+        const dx = p.disc.position.x - p.discCatcher.position.x;
+        const dz = p.disc.position.z - p.discCatcher.position.z;
+        const reach = THREE.MathUtils.clamp(1 - Math.hypot(dx, dz) / 3, 0, 1);
+        if (p.discCatcher === p.playerA) {
+          actionA = 'catch';
+          amountA = reach;
+        } else {
+          actionB = 'catch';
+          amountB = reach;
+        }
+      }
+
+      tickFrisbeePlayer(p.playerA, dt, actionA, amountA);
+      tickFrisbeePlayer(p.playerB, dt, actionB, amountB);
       tickFrisbeeDisc(p.disc, dt, p.discState, nightness);
 
       // Face each other (or the disc, if flying/landed)
@@ -1326,14 +1359,11 @@ export class Frisbees {
       };
 
       if (p.discState === 'held') {
-        // Disc sits at the holder's hand; pause then toss
-        const handX = p.discHolder.position.x + Math.sin(p.discHolder.rotation.y) * 0.3;
-        const handZ = p.discHolder.position.z - Math.cos(p.discHolder.rotation.y) * 0.3;
-        p.disc.position.set(handX, 1.45, handZ);
-
         // Players look at each other while waiting
         lookAt(p.playerA, p.playerB.position.x, p.playerB.position.z);
         lookAt(p.playerB, p.playerA.position.x, p.playerA.position.z);
+        getFrisbeeHandPosition(p.discHolder, p.handPosition);
+        p.disc.position.copy(p.handPosition);
 
         p.pauseTimer -= dt;
         if (p.pauseTimer <= 0) this._toss(p);
@@ -1418,6 +1448,7 @@ export class Frisbees {
           p.discCatcher = oldHolder;
           p.discState = 'held';
           p.pauseTimer = 0.8 + Math.random() * 1.2;
+          p.pauseDuration = p.pauseTimer;
         } else {
           const inv = 1 / d;
           const step = Math.min(d, FRISBEE_PLAYER_SPEED * dt);
@@ -1442,7 +1473,7 @@ export class Frisbees {
 
   _toss(p) {
     // Aim at catcher with a small angular jitter so the toss doesn't always
-    // land in their lap. Disc starts ≈1.45m up at the holder's hand.
+    // land in their lap. The disc starts at the animated throwing hand.
     const fromX = p.disc.position.x;
     const fromZ = p.disc.position.z;
     const toX = p.discCatcher.position.x;
@@ -1462,7 +1493,6 @@ export class Frisbees {
       4.5 + Math.random() * 1.6,    // lob upward
       Math.cos(ang) * planarSpeed,
     );
-    p.disc.position.y = 1.45;
     p.discState = 'flying';
   }
 
@@ -1473,6 +1503,7 @@ export class Frisbees {
     p.discCatcher = oldHolder;
     p.discState = 'held';
     p.pauseTimer = 0.7 + Math.random() * 1.0;
+    p.pauseDuration = p.pauseTimer;
   }
 
   _recycle(p, zerblePos) {
@@ -1499,7 +1530,8 @@ export class Frisbees {
     p.discCatcher = p.playerB;
     p.discState = 'held';
     p.pauseTimer = 0.6 + Math.random() * 1.4;
-    p.disc.position.set(p.playerA.position.x, 1.45, p.playerA.position.z);
+    p.pauseDuration = p.pauseTimer;
+    getFrisbeeHandPosition(p.playerA, p.handPosition);
+    p.disc.position.copy(p.handPosition);
   }
 }
-
