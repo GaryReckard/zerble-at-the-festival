@@ -47,6 +47,9 @@ export class IcosahedronGeometry extends GeometryStub {}
 export class ConeGeometry extends GeometryStub {}
 export class BoxGeometry extends GeometryStub {}
 export class RingGeometry extends GeometryStub {}
+export class TorusGeometry extends GeometryStub {}
+export class CapsuleGeometry extends GeometryStub {}
+export class SphereGeometry extends GeometryStub {}
 
 // Materials: constructed with an options object; tagged .userData.shared.
 export class MeshStandardMaterial {

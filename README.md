@@ -20,6 +20,7 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 
 - **An infinite festival.** The world streams in around you as you drive — a procedural generator lays out festival hubs (main stages, food courts, vendor rows, drum circles), roads, lakes, and forests deterministically from the seed, so it feels designed but never runs out.
 - **A living crowd.** NPCs have personalities (curiosity, skittishness, social, talkative). They wander, watch, approach, panic, and ride along, while a rare festival photographer stops to frame Zerble and pop a tiny camera flash. Make eye contact and blow bubbles past them, and they smile.
+- **Juicy feedback without visual clutter.** Each score increase briefly enlarges the smile count and flashes it warm gold. Boosting at high speed leaves a short sequence of cart-sized golden wake rings behind Zerble, and beating the saved best launches one small confetti celebration per session.
 - **A real day/night cycle.** Dawn → noon → dusk → midnight, on a tunable loop. Stage lights and tiki torches kick in after sundown. The sky shifts. The drum circles get louder when the dark settles.
 - **Procedural sound.** No audio files. The engine drone, empty-juice sputter, collision thuds, bicycle bell, clown horn, brass band, drum circles, and crackling campfires are all synthesized at runtime in Web Audio.
 - **Forests, lakes, mountains.** Drive into the woods and find a clearing with a fire. Drive to the shore and find a canoe. Drive far enough and the hills rise around you in autumn color.
@@ -76,6 +77,7 @@ The game sniffs your device at boot and picks `low` / `mid` / `high` — adjusti
 
 - Honking makes a ring. NPCs inside the ring snap their heads toward you and a few will smile. Use it.
 - Bubbles drift on a slow wandering wind. A long trail of them past a group will rack up more smiles than driving straight through.
+- Hold Boost while moving at high speed to see the golden wake rings. They should trail behind the whole cart and never look attached to the Bubble Juice Machine.
 - You can knock smiles off your total by ramming people. The crowd panics. Don't.
 - If you find Lurleen, drive slow.
 

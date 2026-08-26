@@ -71,7 +71,10 @@ export function buildFrisbeePlayer(rng = Math.random) {
     const armGroup = new THREE.Group();
     armGroup.position.set(sx * 0.28, 1.18, 0);
     // Up + outward
-    armGroup.rotation.z = sx * -0.90;
+    // The arm geometry extends down its local -Y axis, so the shoulder pivot
+    // must rotate with the side sign to send each hand outward. The old
+    // opposite sign crossed both hands inward through the torso.
+    armGroup.rotation.z = sx * 2.15;
     armGroup.rotation.x = sx > 0 ? -0.30 : -0.05;  // right arm forward more
     const upper = new THREE.Mesh(
       new THREE.CapsuleGeometry(0.08, 0.32, 4, 6),

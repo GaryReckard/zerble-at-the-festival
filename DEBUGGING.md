@@ -32,7 +32,7 @@ window.__dbg.help()          // prints the whole map — start here
 | `tod(t)` | Set time of day, `0..1` (0 dawn · .25 noon · .5 dusk · .75 midnight). |
 | `setJuice(meters)` | Set the bubble-juice meter (drives the machine liquid, reserve jugs, HUD). |
 | `addSmiles(n)` | Raise the score through the real HUD path, including the score pulse and session-latched personal-best celebration. |
-| `boostStreak()` | Emit one pooled boost ring at Zerble's current rear position. |
+| `boostStreak()` | Emit one reusable golden wake ring beyond Zerble's rear bumper. |
 | `photographer()` | Promote one loaded crowd NPC through the isolated photographer profile and trigger its real notice, pose, and flash state sequence. |
 | `fillSeats(kind?)` | Seat crowd NPC(s) — `kind` = `bench` \| `driver_seat` \| `roof`; no arg seats one of each. For pose-testing riders without waiting for organic boarding. |
 | `rider(kind)` | Seat one free NPC in the first open slot of `kind`. |
@@ -370,7 +370,7 @@ the main game before declaring done; sandbox-pass + game-crash has happened.
 
 Two small effect entries avoid full-game driving for this polish pass:
 
-- `sandbox.html?entity=boost_streaks&perf=high` runs the fixed eight-slot ring pool behind a looping Zerble and exposes the synthesized empty-juice sputter in the Audio panel.
+- `sandbox.html?entity=boost_streaks&perf=high` drives Zerble right-to-left while the fixed eight-slot pool leaves cart-sized golden wake rings in world space behind him, on the open side of the canvas. The rings should separate clearly from the Bubble Juice Machine; the same page exposes the synthesized empty-juice sputter in the Audio panel.
 - `sandbox.html?entity=crowd_photographer&perf=high` runs one forced photographer through the real Crowd matrices. **Take picture** triggers the production timing, while **Hold flash for inspection** extends only the debug preview so the opaque mesh flash can be checked at Noon and Midnight.
 
 ---

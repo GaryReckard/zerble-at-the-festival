@@ -1,0 +1,26 @@
+#!/usr/bin/env node
+
+import { register } from 'node:module';
+register('./node-three-shim.mjs', import.meta.url);
+
+const { buildFrisbeePlayer } = await import('../src/models/frisbeePlayer.js');
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+const player = buildFrisbeePlayer(() => 0.25);
+const { left, right } = player.userData.armPivots;
+
+assert(left && right, 'the frisbee player should expose both shoulder pivots');
+assert(left.rotation.z < 0, 'the left arm should rotate outward from the left shoulder');
+assert(right.rotation.z > 0, 'the right arm should rotate outward from the right shoulder');
+assert(Math.sign(left.rotation.z) === -Math.sign(right.rotation.z),
+  'the frisbee arm pose should remain mirrored');
+assert(Math.abs(left.rotation.z) > Math.PI / 2 && Math.abs(right.rotation.z) > Math.PI / 2,
+  'both hands should rise above their shoulders in the catch pose');
+
+process.stdout.write('PASS  frisbee player arms rotate outward in a mirrored catch pose\n');

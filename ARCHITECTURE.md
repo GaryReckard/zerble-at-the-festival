@@ -248,7 +248,7 @@ A pool of stateful NPCs spawned by chunks.
 Anthropomorphic golf cart. ~950 lines of geometry + physics.
 
 - Arcade driving: throttle/brake/turn/drag/boost. `MAX_SPEED = 18 m/s`, `BOOST_MULT = 1.55`, `TURN_RATE = 2.1 rad/s`.
-- Boosting above the streak threshold feeds `BoostStreaks`, a fixed eight-instance ring pool. Reduced motion and the live player/quality effects gate both stop emission, while expired slots return to zero-scale matrices without per-frame object creation.
+- Boosting above the streak threshold feeds `BoostStreaks`, a fixed eight-instance pool of cart-sized golden torus wake rings. They spawn beyond the rear bumper, remain in world space as Zerble moves away, expand, then return to zero-scale matrices. The immutable geometry is shared, while each pool owns its one material so sandbox teardown cannot invalidate a later preview. Reduced motion and the live player/quality effects gate both stop emission, and the update path creates no per-frame objects.
 - Visible parts: red body, gold roof, blue seat, glowing cyan eyes, purple mustache, four wheels.
 - Eye glow ramps with `nightness` and can be hand-tuned with `I` / `O`.
 - World-bounded by `WORLD_BOUND = 230` so the player can't outrun the festival's "feel."
