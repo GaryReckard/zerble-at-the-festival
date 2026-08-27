@@ -26,12 +26,12 @@ artifacts:
         excluded. Common Zerble parallels: a material/disposal pattern repeated across
         `src/models/*`, a registry-entry shape repeated across theme builders, a
         nightness-gated behavior repeated across systems, an importmap entry that must
-        appear in BOTH `index.html` AND `sandbox.html`.
+        appear in every consuming HTML page (`bin/check-importmaps` is the guard).
 
       Zerble notes: state which subsystem(s) this touches and call out any tripwire it
       brushes (determinism/rng, threeShim/material-tier, boot order, chunk/lake/forest
       lifecycle + disposal/`userData.shared`, iOS audio init, per-tier perf budget,
-      importmap-in-both-html). Note player-visible effect vs internal-only (drives whether
+      importmap coverage — `bin/check-importmaps`). Note player-visible effect vs internal-only (drives whether
       CHANGELOG is required). There is no Jira here — the audit trail is CHANGELOG + ROADMAP + git.
 
       IMPORTANT: The Capabilities section is the contract between the proposal and specs
@@ -122,7 +122,8 @@ artifacts:
       - Order tasks by dependency (what must be done first?)
       - Zerble reminders, where relevant:
         - A new `src/models/` entity is NOT done until it has a sandbox entry — importmap in
-          BOTH index.html AND sandbox.html, an `<option>`, a `loadEntity()` case, and (if it
+          the three full pages (index.html, sandbox.html, hub-sandbox.html — run
+          bin/check-importmaps), an `<option>`, a `loadEntity()` case, and (if it
           applies) ENTITY_HIT_KIND / ENTITY_MUSIC_STYLE. Make that its own task.
         - Geometry/draw-adding work includes a "check the backtick budget panel" task.
         - Graphics/shader/material/boot-order work includes a "test ?perf=low and ?perf=mid" task.
@@ -153,7 +154,10 @@ artifacts:
         tagging, or the lake-omits-chunkKey contract.
       - Perf-budget-affecting geometry/draw additions, shadow-caster changes, or post-process passes.
       - iOS audio init path (sound.js) — the synchronous-inside-the-gesture unlock chain.
-      - importmap changes (must land in BOTH index.html and sandbox.html).
+      - importmap changes (the module cache-buster lists across the four HTML pages —
+        `bin/check-importmaps` is the guard).
+      - Any signature listed in the Risk Signature Additions section of
+        `openspec/council/charter.md` (kept in sync with this list).
       - High ambiguity, or two+ credible approaches with real trade-offs.
 
       STEP 2a — If a signature matches: run `/deliberate` (the multi-persona council). It
@@ -212,5 +216,5 @@ apply:
     group) by running `bin/readme-sync <change-name>`. Pause if you hit blockers or need
     clarification — capture the blocker in session-log.md and, if it needs a human, in
     questions-for-human.md. Remember the Zerble tripwires (determinism, threeShim/material-tier,
-    iOS audio, disposal safety, importmap-in-both-html, per-tier perf budget) and that
+    iOS audio, disposal safety, importmap coverage, per-tier perf budget) and that
     sandbox-pass ≠ game-pass — always boot the main game before declaring a task done.

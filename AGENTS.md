@@ -291,14 +291,27 @@ expected workflow: skill → audit → priority-ordered plan → ship + log resu
 
 Three agent surfaces, adapted from the fedweb toolkit for this project:
 
-- **`/deliberate`** — a multi-persona council. Loads `multi-person-deliberation`,
-  which selects 3–5 of seven `council-*` personas (Architect, Maverick,
-  Pragmatist, Auditor, Anthropologist, Profiler, Adversary) + a Mediator, runs
-  them in parallel, and synthesizes their friction into Change Groups. Use it to
-  stress-test a plan or design *before* building — especially anything brushing a
-  tripwire (determinism, threeShim/material-tier, boot order, chunk/lake
-  lifecycle, perf budget, iOS audio). The personas are re-domained to this
-  project; they read `AGENTS.md` + `ARCHITECTURE.md` + `.Codex/rules/*.md`.
+- **The Deliberation Council** (the `council` plugin, authored in
+  `happycog/claude-council`) — a review ladder with rising scrutiny: `/review`
+  ("is this okay?", Tier 1 quick pass) → `/council:consult <lens>` ("what does
+  the specialist think?", Tier 2 domain) → `/council:challenge` ("what would
+  break this?", Tier 2 adversarial; writes a numbered `adversarial-audit-NNN.md`
+  when pointed at a change) → `/deliberate` ("what should we do?", Tier 3 full
+  council: 3–5 `council-*` personas + a Mediator synthesizing Change Groups).
+  Everything project-specific lives in **`openspec/council/charter.md`**
+  (non-negotiables, resolution rules, risk signatures, persona notes) — the
+  plugin's engine and personas are generic and read the charter at the start of
+  every run. The charter's risk signatures route work up the ladder, and the
+  zerble schema's deliberation gate blocks apply until a real deliberation or a
+  recorded skip exists. `/deliberate` is **never internal**: it must fan out to
+  real parallel `council-*` sub-agents and then `council-mediator` — a single
+  agent imitating the council is a quick review, not a deliberation. Shorthand:
+  "Group 2" = Change Group 2 in the active deliberation's `results.md`;
+  "Task 2.3" / "Group 2.3" = task 3 within Change Group 2 (name the
+  deliberation folder on first use, e.g. "Group 2.3 (001-initial-plan)").
+  On a new machine: `/plugin marketplace add happycog/claude-council` (or add a
+  local checkout as a directory marketplace), install `council`, done — the
+  charter is committed, so `/council:init` is NOT needed again.
 - **`/smart-review`** — a multi-specialist code review of a diff. Loads
   `smart-review`, which fans out to `review-*` specialists (rendering,
   performance, gameplay, audio, sandbox, docs), dedupes by ownership, and

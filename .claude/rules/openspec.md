@@ -35,7 +35,7 @@ mandate. The everyday audit trail is still **CHANGELOG + ROADMAP + git**.
 /opsx:verify     Verify implementation matches artifacts
 /opsx:archive    Archive a completed change
 /opsx:explore    Thinking partner for exploring an idea
-/deliberate      Full multi-persona council (Tier 3) — see multi-person-deliberation
+/deliberate      Full multi-persona council (Tier 3) — council plugin, charter at openspec/council/charter.md
 /smart-review    Multi-specialist code review of a diff — see smart-review
 ```
 
@@ -168,7 +168,7 @@ note "-> promoted to -> Task 7.4.5".
   after `tasks`) that **gates the apply phase** — always present but skippable. Run a
   real `/deliberate` when a zerble risk signature fires (determinism/rng,
   threeShim/material-tier, boot order, chunk/lake/forest lifecycle + disposal, perf
-  budget, iOS audio, importmap-in-both-html, high ambiguity); otherwise record a reasoned
+  budget, iOS audio, importmap coverage, high ambiguity); otherwise record a reasoned
   skip in `deliberations/000-skipped.md` naming the signatures checked. Either way the
   gate ends with an explicit, auditable decision. `/opsx:new` and `/opsx:ff` flag the
   signature early; the artifact itself is satisfied before apply.
