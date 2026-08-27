@@ -72,6 +72,27 @@ export const USE_WORLDGEN_V2 = (() => {
   return v === '1' ? true : v === '0' ? false : DEFAULT_WORLDGEN_V2;
 })();
 
+// Far-field festival horizon (festival-horizon change) — experiment gate.
+// Resolution is a pure function so bin/test-far-field can lock the truth
+// table without faking `location`. EFFECTIVE enablement is
+// `requested && USE_WORLDGEN_V2` (design D6 / audit V2): `?worldgen=0` is a
+// live escape hatch to the legacy v1 world, and a horizon of v2 hearts drawn
+// over the v1 world would be a permanent false horizon whose proxies never
+// hand off. `?worldgen=0&farField=1` therefore resolves to a zero-allocation
+// no-op — no FarField GPU resources, no shader programs, no planning work.
+// Default OFF (`?farField=1` opts in, `?farField=0` is the A/B control) until
+// the promotion gates in the change spec pass.
+const DEFAULT_FAR_FIELD = false;
+export function resolveFarField(search, useWorldgenV2) {
+  const v = new URLSearchParams(search || '').get('farField');
+  const requested = v === '1' ? true : v === '0' ? false : DEFAULT_FAR_FIELD;
+  return requested && !!useWorldgenV2;
+}
+export const USE_FAR_FIELD = (() => {
+  if (typeof location === 'undefined') return false;   // headless: never on
+  return resolveFarField(location.search, USE_WORLDGEN_V2);
+})();
+
 const TABLE = {
   low: {
     name: 'low',
@@ -102,6 +123,21 @@ const TABLE = {
     // Firework spark pool (additive instanced, one draw call). Smaller bursts
     // on low so a finale barrage doesn't blow the tri budget.
     fireworksPoolMax: 280,
+    // Far-field festival horizon (festival-horizon change; inert unless
+    // USE_FAR_FIELD). Tier-owned radius/density/pool caps — capacities are
+    // PROVISIONAL until the task-1.5 baselines + dense-seed cold benchmarks
+    // pin them (they are measurement outputs, not design decisions). The
+    // rebuild budget is NOT a knob here by design: FarField planning spends
+    // only the REMAINDER of the world-owned chunkBudgetMs wall above (chunks
+    // consume first — design D3); maxColdStepMs gates the largest measured
+    // indivisible planning step instead.
+    farField: {
+      radius: 340,            // sparser 320-360m band on low (design D6)
+      densityMul: 0.6,        // thins per-hub supporting silhouettes, never the stage anchor
+      marginalTriCap: 5000,   // provisional promotion cap: +5k tris on low
+      maxColdStepMs: 2,
+      caps: { canopy: 16, truss: 48, peak: 128, warm: 96, beacon: 24, roadVerts: 2048, roadIndices: 3072 },
+    },
   },
   mid: {
     name: 'mid',
@@ -120,6 +156,14 @@ const TABLE = {
     forestTreeDensityMul: 1.0,
     bubblePoolMax: 350,
     fireworksPoolMax: 550,
+    // Provisional caps — see the low-tier farField comment.
+    farField: {
+      radius: 520,            // may reach the fog limit on mid/high (design D6)
+      densityMul: 1.0,
+      marginalTriCap: 10000,  // provisional promotion cap: +10k tris on mid/high
+      maxColdStepMs: 2,
+      caps: { canopy: 24, truss: 72, peak: 224, warm: 160, beacon: 36, roadVerts: 4096, roadIndices: 6144 },
+    },
   },
   high: {
     name: 'high',
@@ -141,6 +185,14 @@ const TABLE = {
     // visible effect even though the spawn rate doubled.
     bubblePoolMax: 600,
     fireworksPoolMax: 1000,
+    // Provisional caps — see the low-tier farField comment.
+    farField: {
+      radius: 520,
+      densityMul: 1.0,
+      marginalTriCap: 10000,
+      maxColdStepMs: 2,
+      caps: { canopy: 32, truss: 96, peak: 256, warm: 192, beacon: 48, roadVerts: 4096, roadIndices: 6144 },
+    },
   },
 };
 

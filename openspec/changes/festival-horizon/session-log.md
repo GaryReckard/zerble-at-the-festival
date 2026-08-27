@@ -1,7 +1,7 @@
 ---
 change: festival-horizon
-status: not_started
-current_task: null
+status: in_progress
+current_task: "1.2 (pool-dependent tests land with 2.1)"
 blocked_by: null
 open_questions: 0
 started: 2026-08-26
@@ -54,6 +54,13 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
 - **D10 (2026-08-26):** The importmap task covers the three full pages only;
   `map-sandbox.html` is worldgen-only (`wg` + `rng`) per `bin/check-importmaps`.
   (audit V13)
+- **D11 (2026-08-27):** ALL THREE tiers' flag-off baselines exceed their
+  absolute HUD budgets (low 1,524-1,783 draws vs 80; mid 6,228-6,502 vs 200;
+  high 5,908-6,362 vs 400; tris 3-4x over everywhere — the V9 scenario,
+  confirmed by measurement). Per D6/task 5.5, the promotion gate on every tier
+  is re-keyed to marginal delta (≤ +12 draws, ≤ +5k/+10k/+10k tris) +
+  no-regression + explicit Gary sign-off. Full table + method + SwiftShader
+  caveats in `verification/baseline-disabled.md`. (audit V9)
 
 ## Assumptions
 
@@ -64,6 +71,21 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
 ## Dangling Threads
 
 ## Work Log
+
+### 2026-08-26 -- Post-audit artifact revision
+
+- **Event:** decision
+- **What:** Deliberation 001 concluded "Proceed with mitigations" but its
+  amendments were never folded into the executable artifacts; adversarial audit
+  001 blocked on exactly that (V1) and added findings V7, V9, V10, V12-V14.
+  Revised `proposal.md`, `design.md`, `specs/festival-horizon/spec.md`, and
+  `tasks.md` in one sitting, added the `specs/worldgen-layout/spec.md` delta,
+  and recorded decisions D1-D10 plus assumption A1. Task group 1 was
+  restructured (now 1.1-1.5: contract helpers first, tests, flag resolution,
+  importmaps, disabled baselines). No application code touched; implementation
+  remains not_started.
+- **Refs:** `deliberations/001-initial-plan/results.md`,
+  `adversarial-audit-001.md`, -> D1..D10, -> A1
 
 ### 2026-08-27 -- Phase 0 shakedown: verify loop rebuilt, lint regression parked, push gate
 
@@ -92,17 +114,32 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
 - **Refs:** ROADMAP "Lint regression: drum-in-food_court", CHANGELOG
   2026-08-27, DEBUGGING.md "When no browser here can do WebGL at all"
 
-### 2026-08-26 -- Post-audit artifact revision
+### 2026-08-27 -- Task group 1 landed (1.1/1.3/1.4/1.5; 1.2 nearly)
 
-- **Event:** decision
-- **What:** Deliberation 001 concluded "Proceed with mitigations" but its
-  amendments were never folded into the executable artifacts; adversarial audit
-  001 blocked on exactly that (V1) and added findings V7, V9, V10, V12-V14.
-  Revised `proposal.md`, `design.md`, `specs/festival-horizon/spec.md`, and
-  `tasks.md` in one sitting, added the `specs/worldgen-layout/spec.md` delta,
-  and recorded decisions D1-D10 plus assumption A1. Task group 1 was
-  restructured (now 1.1-1.5: contract helpers first, tests, flag resolution,
-  importmaps, disabled baselines). No application code touched; implementation
-  remains not_started.
-- **Refs:** `deliberations/001-initial-plan/results.md`,
-  `adversarial-audit-001.md`, -> D1..D10, -> A1
+- **Event:** phase-change + discovery
+- **What:** Contract helpers, flag resolution, importmaps, the pure planning
+  core, the focused test suite, and the disabled baselines are in.
+  Notable beyond the checkboxes:
+  (1) `ownerCellCoord` was proven behavior-neutral three ways before landing —
+  50,904-case brute-force equivalence vs the old inChunk comparisons (0
+  diffs), worldgen snapshot hashes byte-identical vs unmodified HEAD
+  (`dd6c3f13`/`4e580ed7`), lint findings unchanged (234). `placeChunkProps`
+  and ChunkManager's player cell now DELEGATE to it, so the rule exists once.
+  (2) *Discovery (test-agent review):* `heart.rank` is a string enum
+  ('major'/'minor'); the first `copyHeartRecords` did `d.rank | 0` → always 0,
+  silently erasing rank from the palette. Fixed to an explicit major=1/minor=0
+  mapping; `bin/test-far-field` re-run green.
+  (3) *Discovery:* `perf.js` cannot be imported by plain node (`rawDetect()`
+  touches `window` unguarded at module load) — `bin/test-far-field` shims a
+  minimal window/navigator locally rather than touching perf.js. Pre-existing
+  wart, left alone.
+  (4) Baselines: all six captures (3 tiers x Noon/Midnight, fixed pose
+  244,-179, seed 1234, zero console errors) → -> D11 all-tier gate re-key,
+  `verification/baseline-disabled.md`.
+  (5) *Sequencing note:* task 1.2 stays UNTICKED until the two pool-dependent
+  tests it names (bounds enclosure after a second distant rewrite, pool
+  disposal idempotence) land with task 2.1 — the pools don't exist yet; the
+  shell-level disposal/no-op contracts ARE already locked. Everything else in
+  1.2 is green in `bin/test-far-field` (wired into `npm run check`).
+- **Refs:** -> D11, -> Task 2.1, `verification/baseline-disabled.md`,
+  CHANGELOG 2026-08-27

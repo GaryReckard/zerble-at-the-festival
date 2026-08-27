@@ -21,14 +21,27 @@
 import { festivalPlan, campVillagesNear, MAX_POI_REACH } from './festival.js';
 import { heartsInBounds } from './hearts.js';
 
+// THE owner-cell rule — the one source of truth for "which 80m chunk owns a
+// world position" (festival-horizon D4/V5; the half-open comment below).
+// Center-anchored cells: cell c spans [c*size - size/2, c*size + size/2), which
+// is exactly Math.round(v / size) because JS rounds .5 toward +Infinity — the
+// -half edge stays in, the +half edge goes to the next cell, INCLUDING at
+// negative coordinates (a Math.floor port breaks there: floor is
+// corner-anchored). Every consumer (placeChunkProps below, ChunkManager's
+// player cell, farField ownership) must go through this — never re-derive.
+export function ownerCellCoord(v, chunkSize = 80) {
+  return Math.round(v / chunkSize) + 0;   // + 0 folds Math.round's -0 into 0
+}
+
 export function placeChunkProps(cx, cz, chunkSize = 80, region = null) {
   void region;   // ownership uses an explicit MAX_POI_REACH-expanded scan, not region.hearts (R16)
   const half = chunkSize / 2;
   const minX = cx * chunkSize - half, maxX = cx * chunkSize + half;
   const minZ = cz * chunkSize - half, maxZ = cz * chunkSize + half;
   // Half-open so a cluster on a chunk boundary belongs to exactly ONE chunk (no
-  // double-build across the seam).
-  const inChunk = (p) => p.x >= minX && p.x < maxX && p.z >= minZ && p.z < maxZ;
+  // double-build across the seam). Delegates to ownerCellCoord — same rule.
+  const inChunk = (p) =>
+    ownerCellCoord(p.x, chunkSize) === cx && ownerCellCoord(p.z, chunkSize) === cz;
   const out = [];
   const ccx = cx * chunkSize, ccz = cz * chunkSize;
   // A cluster center in this chunk sits <= MAX_POI_REACH from its heart and <= half*√2

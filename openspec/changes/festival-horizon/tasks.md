@@ -1,6 +1,6 @@
 ## 1. Contract and experiment wiring
 
-- [ ] 1.1 Export one pure half-open owner-cell helper from
+- [x] 1.1 Export one pure half-open owner-cell helper from
   `src/worldgen/placement.js` and add a narrow `ChunkManager.isLoaded(cx, cz)`
   completion predicate meaning "fully built" (required cluster props exist), so
   `farField.js` never touches the mutable `loaded` map, the private chunk-key
@@ -12,15 +12,15 @@
   supersession of versioned pending snapshots, the `?worldgen=0&farField=1`
   zero-allocation no-op, reduced-motion handoff, bounds enclosure after a second
   distant rewrite, and disposal idempotence, all before integration.
-- [ ] 1.3 Add tier-owned horizon radius, density, pool capacities, and
+- [x] 1.3 Add tier-owned horizon radius, density, pool capacities, and
   rebuild-budget controls in `src/perf.js`; resolve effective enablement as
   `farFieldRequested && USE_WORLDGEN_V2` with the initial default off; make the
   disabled (or legacy-forced) path a zero-allocation no-op with no GPU resources,
   shader programs, or planning work.
-- [ ] 1.4 Add `src/farField.js` to the cache-buster `mods` lists in the three full
+- [x] 1.4 Add `src/farField.js` to the cache-buster `mods` lists in the three full
   pages, `index.html`, `sandbox.html`, and `hub-sandbox.html` (`map-sandbox.html`
   is worldgen-only and takes no render module); run `bin/check-importmaps`.
-- [ ] 1.5 Capture fixed-pose disabled baselines via real `?perf=low|mid|high`
+- [x] 1.5 Capture fixed-pose disabled baselines via real `?perf=low|mid|high`
   reloads and cold-benchmark representative dense seeds before building geometry;
   pin per-tier instance, road vertex/index, upload-byte, and submitted-triangle
   caps (provisional marginal caps: +5k triangles low, +10k mid/high). If a

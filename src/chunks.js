@@ -20,7 +20,7 @@ import { hash2, worldHash, mulberry32 } from './rng.js';
 import { Sound } from './sound.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { register as registerContextLight } from './contextLights.js';
-import { placeChunkProps } from './worldgen/placement.js';
+import { placeChunkProps, ownerCellCoord } from './worldgen/placement.js';
 import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
 import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, seamHedgesNear, MAX_POI_REACH } from './worldgen/festival.js';
@@ -310,9 +310,23 @@ export class ChunkManager {
     this._spawnJugs = computeSpawnJugTargets();
   }
 
+  // Narrow completion predicate for render-only observers (festival-horizon
+  // D4/V7 — the ONLY sanctioned window into chunk lifecycle; the `loaded` Map
+  // and the chunk-key format stay private). CONTRACT: answers "is (cx,cz)
+  // fully built — its required cluster props exist in the scene" — NOT "has
+  // generation started". Today `loaded.has` IS that signal because _generate
+  // runs synchronously start-to-finish before `loaded.set`; if chunk
+  // generation is ever split across frames (perf.js and the budget loop both
+  // note that as planned), membership must keep meaning "fully built" — set
+  // the key only after the last cluster prop lands, or rebase this predicate
+  // on a real completion signal.
+  isLoaded(cx, cz) {
+    return this.loaded.has(chunkKey(cx, cz));
+  }
+
   update(playerPos) {
-    const ccx = Math.round(playerPos.x / CHUNK_SIZE);
-    const ccz = Math.round(playerPos.z / CHUNK_SIZE);
+    const ccx = ownerCellCoord(playerPos.x, CHUNK_SIZE);
+    const ccz = ownerCellCoord(playerPos.z, CHUNK_SIZE);
 
     // Load nearby chunks. First pass (boot): generate the entire ring
     // synchronously so the world isn't empty at start. Subsequent frames:

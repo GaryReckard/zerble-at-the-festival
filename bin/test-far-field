@@ -1,0 +1,308 @@
+#!/usr/bin/env node
+/*
+ * bin/test-far-field — pure-core gate for src/farField.js (festival-horizon
+ * change, group 1: the render-only "far horizon" planning core, no `three`).
+ *
+ * Covers: ownerCellCoord fixtures + a chunk-box cross-check, deterministic
+ * descriptor copying off the REAL worldgen (setSeed(1234)), immutability of
+ * the shared worldgen inputs FarField reads from, fixed-capacity nearest
+ * selection, the versioned SnapshotPlanner's boundary-only rebuild + rapid-
+ * teleport supersession, the enablement gate's truth table (perf.js's
+ * resolveFarField), the reduced-motion handoff policy, palette stability,
+ * and the disabled/enabled shell's zero-allocation + disposal semantics.
+ *
+ * Run: node bin/test-far-field          (exit 0 = pass, 1 = fail)
+ */
+
+import { ownerCellCoord } from '../src/worldgen/placement.js';
+import { setSeed } from '../src/worldgen/index.js';
+import { heartsInBounds } from '../src/worldgen/hearts.js';
+import { festivalPlan } from '../src/worldgen/festival.js';
+import { roadsInBounds } from '../src/worldgen/roads.js';
+import {
+  HANDOFF_ENVELOPE_S,
+  ROAD_UNDERLAY_Y,
+  COARSE_CELL,
+  handoffMode,
+  coarseCellsFor,
+  copyHeartRecords,
+  copyPolyline,
+  selectNearest,
+  paletteIndex,
+  SnapshotPlanner,
+  FarField,
+} from '../src/farField.js';
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+// ---------- A. Owner-cell fixtures (positive/negative/edge/corner) ----------
+
+const OWNER_FIXTURES = [
+  [0, 0], [39.999, 0], [-40, 0], [40, 1], [-40.0001, -1],
+  [-120, -1], [119.999, 1], [120, 2], [80000, 1000],
+];
+for (const [v, expected] of OWNER_FIXTURES) {
+  assert(ownerCellCoord(v) === expected, `ownerCellCoord(${v}) should be ${expected}, got ${ownerCellCoord(v)}`);
+}
+assert(Object.is(ownerCellCoord(-1), 0), 'ownerCellCoord(-1) must fold to +0, not -0 (Object.is check)');
+
+// Corner: a 2D point sitting on both the -x edge and the +z edge, owned by
+// the cell whose axes independently resolve each coordinate.
+assert(ownerCellCoord(-40) === 0 && ownerCellCoord(40) === 1,
+  'the corner point (x=-40, z=40) must resolve to owner cell (0, 1)');
+
+// Cross-check against the chunk-box rule directly: for a sweep of cells and
+// offsets straddling every +/-40 boundary, "this cell owns x" (by
+// ownerCellCoord) must exactly agree with "x falls in this cell's box".
+const BOUNDARY_OFFSETS = [-41, -40.5, -40, -39.999, -20, -0.5, 0, 0.5, 20, 39.999, 40, 40.5, 41];
+for (let c = -3; c <= 3; c++) {
+  for (const off of BOUNDARY_OFFSETS) {
+    const x = c * 80 + off;
+    const boxSaysC = x >= c * 80 - 40 && x < c * 80 + 40;
+    const ownerSaysC = ownerCellCoord(x) === c;
+    assert(boxSaysC === ownerSaysC,
+      `chunk-box rule disagrees with ownerCellCoord at x=${x} for cell ${c} (box=${boxSaysC}, owner=${ownerSaysC})`);
+  }
+}
+
+// ---------- B. Deterministic descriptor selection ----------
+
+setSeed(1234);
+const heartsSeed1234 = heartsInBounds(-1200, -1200, 1200, 1200)
+  .slice()
+  .sort((a, b) => a.cx - b.cx || a.cz - b.cz);
+let heart = null, heartPlan = null;
+for (const h of heartsSeed1234) {
+  const plan = festivalPlan(h);
+  if (plan.length) { heart = h; heartPlan = plan; break; }
+}
+assert(heart, 'seed 1234 should produce at least one heart with a non-empty festivalPlan');
+
+const recordsA = copyHeartRecords(heart, heartPlan, 3);
+const recordsB = copyHeartRecords(heart, heartPlan, 3);
+assert(JSON.stringify(recordsA) === JSON.stringify(recordsB),
+  'copyHeartRecords must be byte-identical across repeated calls on the same plan');
+
+const STAGE_KINDS = new Set(['main_stage', 'tent_stage', 'side_stage']);
+let stageCount = 0, vendorRowCount = 0;
+for (const r of recordsA) {
+  assert(Number.isFinite(r.x) && Number.isFinite(r.z) && Number.isFinite(r.yaw)
+    && Number.isFinite(r.scale) && Number.isFinite(r.footprint),
+    `record x/z/yaw/scale/footprint must all be finite: ${JSON.stringify(r)}`);
+  assert(Number.isInteger(r.rank) && Number.isInteger(r.ownerCx) && Number.isInteger(r.ownerCz)
+    && Number.isInteger(r.heartCx) && Number.isInteger(r.heartCz),
+    `record rank/ownerCx/ownerCz/heartCx/heartCz must all be integers: ${JSON.stringify(r)}`);
+  assert((r.clusterSeed >>> 0) === r.clusterSeed, `record clusterSeed must already be an unsigned int32: ${r.clusterSeed}`);
+  assert(r.ownerCx === ownerCellCoord(r.x) && r.ownerCz === ownerCellCoord(r.z),
+    `record ownerCx/ownerCz must equal ownerCellCoord(x)/ownerCellCoord(z): ${JSON.stringify(r)}`);
+  if (STAGE_KINDS.has(r.kind)) stageCount++;
+  else if (r.kind === 'vendor_row') vendorRowCount++;
+}
+assert(stageCount === 1, `copyHeartRecords should keep exactly one stage record, got ${stageCount}`);
+assert(vendorRowCount <= 3, `copyHeartRecords should cap vendor rows at 3, got ${vendorRowCount}`);
+
+// ---------- C. Immutability of shared worldgen inputs ----------
+
+const roadsSeed1234 = roadsInBounds(-1200, -1200, 1200, 1200);
+const planHashBefore = JSON.stringify(heartPlan);
+const roadsHashBefore = JSON.stringify(roadsSeed1234);
+
+const copiedRecords = copyHeartRecords(heart, heartPlan, 3);
+const copiedPolylines = roadsSeed1234.map((r) => copyPolyline(r.points));
+const nearestResult = selectNearest(copiedRecords, heart.x, heart.z, Math.max(1, copiedRecords.length - 1));
+
+assert(JSON.stringify(heartPlan) === planHashBefore,
+  'festivalPlan(heart) must be untouched after copyHeartRecords/selectNearest');
+assert(JSON.stringify(roadsSeed1234) === roadsHashBefore,
+  'roadsInBounds(...) must be untouched after copyPolyline');
+assert(copiedPolylines.every((flat) => flat instanceof Float64Array),
+  'copyPolyline must return a Float64Array per road');
+assert(nearestResult.kept.length > 0, 'sanity: selectNearest should keep at least one record here');
+
+// Mutating a RETURNED record must not perturb the shared plan it was copied
+// from — no shared object identity leaked through.
+copiedRecords[0].x = 999999;
+copiedRecords[0].kind = 'mutated';
+assert(JSON.stringify(heartPlan) === planHashBefore,
+  'mutating a copied record must not change the shared festivalPlan hash');
+
+// ---------- D. Fixed-capacity nearest selection ----------
+
+const synthetic = [];
+for (let i = 0; i < 10; i++) synthetic.push({ id: i, x: i, z: 0 });
+const syntheticHashBefore = JSON.stringify(synthetic);
+const near = selectNearest(synthetic, 0, 0, 4);
+assert(near.kept.length === 4, `selectNearest cap=4 should keep 4 records, got ${near.kept.length}`);
+assert(near.overflow === 6, `selectNearest cap=4 over 10 records should report overflow=6, got ${near.overflow}`);
+assert(near.kept.map((r) => r.id).join(',') === '0,1,2,3',
+  `selectNearest should keep the 4 nearest ids 0,1,2,3, got ${near.kept.map((r) => r.id).join(',')}`);
+assert(JSON.stringify(synthetic) === syntheticHashBefore, 'selectNearest must not reorder its input array');
+
+// Tie-break determinism: two records at identical distance (d2=25), only ONE
+// of which fits under the cap — which one survives must be deterministic
+// (ascending x: 'left' beats 'right') and identical across repeated runs.
+const tieSet = [
+  { id: 'right', x: 5, z: 0 }, { id: 'left', x: -5, z: 0 },
+  { id: 'a', x: 1, z: 0 }, { id: 'b', x: 2, z: 0 }, { id: 'c', x: 3, z: 0 },
+];
+const tieRun1 = selectNearest(tieSet, 0, 0, 4);
+const tieRun2 = selectNearest(tieSet, 0, 0, 4);
+assert(JSON.stringify(tieRun1.kept.map((r) => r.id)) === JSON.stringify(tieRun2.kept.map((r) => r.id)),
+  'selectNearest tie-break order must be identical across repeated runs on the same input');
+const tieIds1 = tieRun1.kept.map((r) => r.id);
+assert(tieIds1.includes('left') && !tieIds1.includes('right'),
+  `selectNearest should tie-break equal distances by ascending x, keeping 'left' (x=-5) over 'right' (x=5); got ${tieIds1.join(',')}`);
+
+// cap >= length: returns all, overflow 0, and a fresh copy (not the same array).
+const capAll = selectNearest(synthetic, 0, 0, synthetic.length);
+assert(capAll.overflow === 0, 'selectNearest with cap >= length should report overflow 0');
+assert(JSON.stringify(capAll.kept) === JSON.stringify(synthetic), 'selectNearest with cap >= length should keep every record');
+assert(capAll.kept !== synthetic, 'selectNearest must return a copy, never the same array reference, even when cap >= length');
+
+// ---------- E. Boundary-only rebuild + rapid-teleport supersession ----------
+
+// Scenario A: begin() idempotence while pending, then idempotence once committed.
+{
+  const plannerA = new SnapshotPlanner();
+  const callsA = [];
+  const planCellA = (cx, cz) => { callsA.push(`${cx},${cz}`); return [{ cx, cz, tag: 'A' }]; };
+  const cellsA = [{ cx: 0, cz: 0 }];
+
+  plannerA.begin('0,0', cellsA);
+  const pendingRef1 = plannerA.pending;
+  plannerA.begin('0,0', cellsA);
+  assert(plannerA.pending === pendingRef1, 'begin() with the version already pending must be a no-op (same pending object)');
+  assert(plannerA.superseded === 0, 'a no-op begin() must not increment superseded');
+
+  const doneA = plannerA.step(planCellA);
+  assert(doneA === true, 'step() over a single-cell pending snapshot should complete and commit on the first call');
+  assert(plannerA.pending === null, 'a committed planner must clear pending');
+  assert(plannerA.committed.version === '0,0', 'the committed snapshot must carry the version it was begun with');
+  assert(callsA.length === 1, `planCell should be called exactly once for a single-cell plan, got ${callsA.length}`);
+
+  plannerA.begin('0,0', cellsA);
+  assert(plannerA.pending === null, 'begin() with the version already committed must be a no-op (no new pending)');
+  assert(callsA.length === 1, 'begin() with the version already committed must not invoke planCell again');
+}
+
+// Scenario B: a rapid teleport mid-plan supersedes the stale pending work,
+// and the discarded partial cell's records never reach committed.
+{
+  const plannerB = new SnapshotPlanner();
+  const callsB = [];
+  const planCellB = (cx, cz) => { callsB.push(`${cx},${cz}`); return [{ cx, cz, tag: 'B' }]; };
+  const cellsStale = [{ cx: 0, cz: 0 }, { cx: 1, cz: 0 }]; // 2 cells so one step() leaves it partial
+  const cellsFresh = [{ cx: 5, cz: 5 }];
+
+  plannerB.begin('0,0', cellsStale);
+  const partialDone = plannerB.step(planCellB); // processes only cellsStale[0]
+  assert(partialDone === false, 'step() over a 2-cell plan should not complete after a single-cell step');
+  assert(callsB.length === 1 && callsB[0] === '0,0', 'the partial step should have planned exactly the first stale cell');
+
+  plannerB.begin('5,5', cellsFresh);
+  assert(plannerB.superseded === 1, 'begin() with a new version while a plan is pending must increment superseded');
+  assert(plannerB.pending.version === '5,5', 'begin() must replace pending with the new version');
+
+  const doneB = plannerB.step(planCellB);
+  assert(doneB === true, 'stepping the fresh snapshot to completion should commit');
+  assert(plannerB.committed.version === '5,5', 'the committed snapshot must be the fresh version, not the superseded one');
+  assert(plannerB.committed.records.length === 1 && plannerB.committed.records[0].cx === 5,
+    'committed records must come only from the fresh plan, never the discarded stale partial');
+  assert(!plannerB.committed.records.some((r) => r.tag === 'B' && r.cx === 0),
+    'the stale (0,0) partial record must never appear in committed');
+}
+
+// coarseCellsFor determinism: repeat calls agree, first cell is the player's
+// own cell, and the list is sorted nearest-first (non-decreasing d2).
+{
+  const cellsRun1 = coarseCellsFor(123.4, -56.7, 500);
+  const cellsRun2 = coarseCellsFor(123.4, -56.7, 500);
+  assert(JSON.stringify(cellsRun1) === JSON.stringify(cellsRun2), 'coarseCellsFor must be deterministic across repeated calls');
+  assert(cellsRun1[0].cx === ownerCellCoord(123.4, COARSE_CELL) && cellsRun1[0].cz === ownerCellCoord(-56.7, COARSE_CELL),
+    'coarseCellsFor\'s first cell must be the player\'s own coarse cell');
+  for (let i = 1; i < cellsRun1.length; i++) {
+    assert(cellsRun1[i].d2 >= cellsRun1[i - 1].d2, 'coarseCellsFor must be sorted nearest-first (non-decreasing d2)');
+  }
+}
+
+// ---------- F. Zero-allocation no-op + resolveFarField truth table ----------
+
+const noop = new FarField({ enabled: false });
+assert(Object.keys(noop).sort().join(',') === 'disposed,enabled',
+  `a disabled FarField must have exactly the own keys enabled+disposed, got ${Object.keys(noop).sort().join(',')}`);
+noop.update();
+noop.dispose();
+noop.dispose();
+assert(noop.disposed === false,
+  'dispose() on a disabled FarField bails before setting disposed (it never toggles true for a no-op instance)');
+
+// perf.js reads `window`/`navigator` at module load (DETECTED_TIER) even
+// though resolveFarField itself is pure — shim the minimal browser globals a
+// plain node process lacks so the import doesn't throw. See report for the
+// discrepancy this uncovers.
+if (typeof globalThis.window === 'undefined') globalThis.window = { innerWidth: 1024, innerHeight: 768 };
+if (typeof globalThis.navigator === 'undefined') globalThis.navigator = { hardwareConcurrency: 8, deviceMemory: 8 };
+const { resolveFarField } = await import('../src/perf.js');
+
+const TRUTH_TABLE = [
+  ['', true, false],
+  ['?farField=1', true, true],
+  ['?farField=1', false, false],
+  ['?farField=0', true, false],
+  ['?farField=0', false, false],
+  [null, true, false],
+  [undefined, true, false],
+];
+for (const [search, useWorldgenV2, expected] of TRUTH_TABLE) {
+  const got = resolveFarField(search, useWorldgenV2);
+  assert(got === expected, `resolveFarField(${JSON.stringify(search)}, ${useWorldgenV2}) should be ${expected}, got ${got}`);
+}
+
+const gatedNoop = new FarField({ enabled: resolveFarField('?farField=1', false) });
+assert(Object.keys(gatedNoop).sort().join(',') === 'disposed,enabled',
+  'FarField gated by a false resolveFarField (worldgen=0 kill) must produce the no-op shape');
+
+// ---------- G. Reduced-motion handoff policy ----------
+
+assert(handoffMode(true) === 'snap', 'reduced motion must select the snap handoff');
+assert(handoffMode(false) === 'envelope', 'normal motion must select the envelope handoff');
+assert(HANDOFF_ENVELOPE_S === 0.3, `HANDOFF_ENVELOPE_S should be 0.3, got ${HANDOFF_ENVELOPE_S}`);
+assert(ROAD_UNDERLAY_Y > 0 && ROAD_UNDERLAY_Y < 0.06,
+  `ROAD_UNDERLAY_Y must sit strictly between the ground (0) and the road ribbon (0.06), got ${ROAD_UNDERLAY_Y}`);
+
+// ---------- H. Palette stability ----------
+
+const paletteRecord = { clusterSeed: 3521908037, rank: 4 };
+const idx1 = paletteIndex(paletteRecord, 6);
+const idx2 = paletteIndex(paletteRecord, 6);
+assert(Number.isInteger(idx1) && idx1 >= 0 && idx1 < 6, `paletteIndex must return an integer in [0,6), got ${idx1}`);
+assert(idx1 === idx2, 'paletteIndex must be identical across repeated calls on the same record');
+const paletteRecordCopy = JSON.parse(JSON.stringify(paletteRecord));
+assert(paletteIndex(paletteRecordCopy, 6) === idx1, 'paletteIndex must agree for a structurally-identical copied record');
+
+// ---------- I. Enabled shell + disposal idempotence ----------
+// Bounds-enclosure / pool-shape tests land with the group-2 GPU pools; this
+// only locks the current shell (planner + stats + idempotent dispose/update).
+
+const enabled = new FarField({ enabled: true, tier: {} });
+assert(enabled.planner instanceof SnapshotPlanner, 'an enabled FarField must construct a SnapshotPlanner');
+assert(JSON.stringify(enabled.stats) === JSON.stringify({ active: 0, overflow: 0, rebuilds: 0, superseded: 0 }),
+  'an enabled FarField must start with a zeroed stats object');
+
+enabled.dispose();
+assert(enabled.disposed === true, 'dispose() on an enabled FarField must set disposed = true');
+assert(enabled.planner === null, 'dispose() on an enabled FarField must null out the planner');
+enabled.dispose(); // second call must be a safe no-op
+assert(enabled.disposed === true && enabled.planner === null, 'a second dispose() call must remain a safe no-op');
+enabled.update(); // must not throw after dispose
+
+process.stdout.write(
+  'PASS  far-field owner-cell fixtures, deterministic descriptor copying, worldgen-input immutability, ' +
+  'fixed-capacity nearest selection, snapshot-planner supersession, the enablement truth table, ' +
+  'handoff policy, palette stability, and shell disposal semantics\n'
+);
