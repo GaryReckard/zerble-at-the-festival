@@ -2,6 +2,14 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-08-27
+
+### Added
+- **`bin/verify-headless` — pixel-true verification on machines with no browser GL path at all.** On a headless Linux box/VM (virtio-gpu + Wayland) neither the desktop preview pane nor snap Firefox can create a WebGL context (`BindToCurrentSequence failed` / `RenderCompositorSWGL failed mapping default framebuffer`), which kills the entire `__dbg`-driven verify loop before it starts — main.js throws at renderer construction. The new script drives headless Chromium on **SwiftShader** (pure-software rasterization): navigate → optional `--eval` (e.g. `window.__dbg.start()`) → wait → CDP screenshot (`page.screenshot()`'s 30s frame-stability wait can't survive SwiftShader) → console-error report with a pass/fail exit code. The Playwright+Chromium runtime installs one-time **outside the repo** (`~/.zerble-verify`, override `ZERBLE_VERIFY_ROOT`) so `bin/` stays dependency-free and the no-build stance holds. Complements `bin/layout-snapshot` (data-only, skips pixels); documented in DEBUGGING.md "When no browser here can do WebGL at all" with the failure signatures so the next agent recognizes the dead end in minutes. ([bin/verify-headless](bin/verify-headless), [DEBUGGING.md](DEBUGGING.md), [CLAUDE.md](CLAUDE.md))
+
+### Changed
+- **Recorded a layout-lint regression (parked on ROADMAP, deliberately not fixed here).** The 10-seed plan-mode sweep, documented at 0 errors since 2026-06-15, is actually at 1: seed 256 lands a drum-circle center inside a food-court envelope. Bisected to `ec76a82` — `nudgeOffDrum`'s post-nudge re-validation checks tree density but not cluster envelopes. The fix is golden-moving (omission skips an rng draw), so it's parked as its own future change rather than riding inside `festival-horizon`. ([ROADMAP.md](ROADMAP.md))
+
 ## 2026-08-26
 
 ### Fixed

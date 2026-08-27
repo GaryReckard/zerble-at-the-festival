@@ -1,0 +1,162 @@
+#!/usr/bin/env node
+// bin/verify-headless — pixel-true verification on machines with NO working
+// browser GL path (headless Linux boxes, VMs on virtio-gpu/Wayland).
+//
+// Why this exists: on such machines every normal surface fails to create a
+// WebGL context — the Claude Desktop Browser pane dies in ANGLE with
+// "BindToCurrentSequence failed" (so main.js throws before window.__dbg
+// installs), and snap Firefox headless hangs on "RenderCompositorSWGL failed
+// mapping default framebuffer". The one path that renders this project there
+// is headless Chromium forced onto SwiftShader, a pure-software rasterizer
+// that needs neither a GPU nor a mappable framebuffer. That's what this
+// script drives. (`bin/layout-snapshot` covers the DATA-only capture path;
+// this covers pixels + console + __dbg driving — screenshots, ToD checks,
+// per-tier boots.)
+//
+// Setup (one-time, deliberately OUTSIDE the repo so the no-build stance and
+// the dependency-free bin/ contract stay intact):
+//
+//   mkdir -p ~/.zerble-verify && cd ~/.zerble-verify
+//   npm init -y && npm install playwright && npx playwright install chromium
+//
+// Usage (dev server must already be running on :8765):
+//
+//   bin/verify-headless --url http://127.0.0.1:8765/ \
+//       --eval "window.__dbg.start()" --wait 9000 --shot /tmp/boot.png
+//   bin/verify-headless --url "http://127.0.0.1:8765/sandbox.html?entity=zerble" \
+//       --shot /tmp/zerble.png
+//
+// Flags: --shot <png>  --wait <ms, default 3000>  --eval "<js>"
+//        --viewport WxH (default 1280x800)  --reduced-motion  --json
+//
+// Exit 0 = loaded with zero console errors; 1 = errors or navigation failure.
+// SwiftShader is SLOW (a bloom-enabled frame can take >30s to settle on high
+// tier) — budget generous --wait values and prefer ?perf=low when the tier
+// doesn't matter to what you're checking.
+
+import path from 'node:path';
+import os from 'node:os';
+import { createRequire } from 'node:module';
+import { writeFile } from 'node:fs/promises';
+
+const HARNESS_ROOT =
+  process.env.ZERBLE_VERIFY_ROOT || path.join(os.homedir(), '.zerble-verify');
+
+let chromium;
+try {
+  const req = createRequire(path.join(HARNESS_ROOT, 'noop.js'));
+  ({ chromium } = req('playwright'));
+} catch {
+  console.error(
+    `verify-headless: playwright not found under ${HARNESS_ROOT}.\n` +
+      'One-time setup (outside the repo, on purpose):\n' +
+      `  mkdir -p ${HARNESS_ROOT} && cd ${HARNESS_ROOT}\n` +
+      '  npm init -y && npm install playwright && npx playwright install chromium\n' +
+      '(Override the location with ZERBLE_VERIFY_ROOT.)',
+  );
+  process.exit(2);
+}
+
+const argv = process.argv.slice(2);
+const arg = (name, dflt = null) => {
+  const i = argv.indexOf(`--${name}`);
+  return i === -1 ? dflt : argv[i + 1];
+};
+const flag = (name) => argv.includes(`--${name}`);
+
+const url = arg('url');
+if (!url) {
+  console.error(
+    'usage: bin/verify-headless --url <url> [--shot out.png] [--wait ms] ' +
+      '[--eval "js"] [--viewport WxH] [--reduced-motion] [--json]',
+  );
+  process.exit(2);
+}
+const shot = arg('shot');
+const waitMs = Number(arg('wait', '3000'));
+const evalJs = arg('eval');
+const [vw, vh] = String(arg('viewport', '1280x800')).split('x').map(Number);
+
+const browser = await chromium.launch({
+  headless: true,
+  args: [
+    '--use-gl=angle',
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
+    '--disable-gpu-sandbox',
+    '--enable-webgl',
+    '--ignore-gpu-blocklist',
+  ],
+});
+
+const context = await browser.newContext({
+  viewport: { width: vw, height: vh },
+  deviceScaleFactor: 1,
+  reducedMotion: flag('reduced-motion') ? 'reduce' : 'no-preference',
+});
+
+const logs = [];
+const page = await context.newPage();
+page.on('console', (m) => logs.push({ type: m.type(), text: m.text() }));
+page.on('pageerror', (e) => logs.push({ type: 'pageerror', text: String(e) }));
+page.on('requestfailed', (r) =>
+  logs.push({ type: 'requestfailed', text: `${r.url()} — ${r.failure()?.errorText}` }),
+);
+
+let evalResult = null;
+let fatal = null;
+try {
+  await page.goto(url, { waitUntil: 'load', timeout: 60000 });
+  if (evalJs) {
+    // Give the modules a beat to install their globals (__dbg lands late in
+    // main.js) before driving them.
+    await page.waitForTimeout(1200);
+    evalResult = await page.evaluate(evalJs);
+  }
+  await page.waitForTimeout(waitMs);
+  // page.screenshot() waits on frame stability and times out at 30s —
+  // SwiftShader can't settle a bloom-enabled 3D frame that fast. Raw CDP
+  // captureScreenshot grabs whatever is composited right now, which is what
+  // we want: ground truth of the current frame.
+  if (shot) {
+    const cdp = await context.newCDPSession(page);
+    const { data } = await cdp.send('Page.captureScreenshot', {
+      format: 'png',
+      captureBeyondViewport: false,
+    });
+    await writeFile(shot, Buffer.from(data, 'base64'));
+  }
+} catch (e) {
+  fatal = String(e);
+}
+
+const errors = logs.filter((l) => l.type === 'error' || l.type === 'pageerror');
+const report = {
+  url,
+  shot: shot || null,
+  fatal,
+  evalResult,
+  errorCount: errors.length,
+  errors: errors.slice(0, 25),
+  logTail: logs.slice(-15),
+};
+
+await browser.close();
+
+if (flag('json')) {
+  console.log(JSON.stringify(report, null, 2));
+} else {
+  console.log(`URL       ${url}`);
+  console.log(`SHOT      ${shot || '(none)'}`);
+  if (fatal) console.log(`FATAL     ${fatal}`);
+  if (evalResult !== null && evalResult !== undefined)
+    console.log(`EVAL      ${JSON.stringify(evalResult)}`);
+  console.log(`ERRORS    ${errors.length}`);
+  for (const e of errors.slice(0, 25)) console.log(`  [${e.type}] ${e.text.slice(0, 300)}`);
+  if (!errors.length) {
+    console.log('--- log tail ---');
+    for (const l of logs.slice(-10)) console.log(`  [${l.type}] ${l.text.slice(0, 220)}`);
+  }
+}
+
+process.exit(fatal || errors.length ? 1 : 0);

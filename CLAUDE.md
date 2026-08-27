@@ -76,7 +76,10 @@ loop on `setTimeout(16ms)` rather than RAF specifically so the preview MCP
 (which keeps `document.hidden`) keeps ticking. Never tell Gary to "go check
 it" — verify and share proof. For visual work, take a screenshot at two ToD
 presets (Noon + Midnight) since emissive/lighting interactions only show up
-across the cycle.
+across the cycle. If the preview pane can't create a WebGL context at all
+(headless Linux/VM — `BindToCurrentSequence failed`), don't fight it: use
+`bin/verify-headless` (SwiftShader Chromium; see DEBUGGING.md "When no browser
+here can do WebGL at all").
 
 **Driving the running game — `window.__dbg` is the one door** (local dev only;
 full reference in [DEBUGGING.md](DEBUGGING.md)). The live game resists

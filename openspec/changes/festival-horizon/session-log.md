@@ -5,7 +5,7 @@ current_task: null
 blocked_by: null
 open_questions: 0
 started: 2026-08-26
-last_updated: 2026-08-26
+last_updated: 2026-08-27
 ref: ROADMAP.md "Far-field festival depth / semantic LOD"
 ---
 
@@ -64,6 +64,33 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
 ## Dangling Threads
 
 ## Work Log
+
+### 2026-08-27 -- Phase 0 shakedown: verify loop rebuilt, lint regression parked, push gate
+
+- **Event:** surprise + decision
+- **What:** Pre-implementation tool shakedown on Gary's headless Linux box.
+  (1) *Surprise:* no browser on the machine can create a WebGL context (desktop
+  preview pane: ANGLE `BindToCurrentSequence failed`; snap Firefox: SWGL
+  framebuffer mapping failure), killing the whole `__dbg` verify loop. Fixed
+  per "build the harness, then the feature": new `bin/verify-headless` drives
+  SwiftShader Chromium (Playwright runtime lives outside the repo in
+  `~/.zerble-verify`); full game + entity sandbox + hub sandbox all verified
+  clean through it. This is the surface Group 1.5 baselines and Group 5 gates
+  will run on here. SwiftShader caveat for those captures: software raster, so
+  wall-clock/FPS numbers are meaningless — only draws/tris/geo/tex counters
+  and console cleanliness transfer.
+  (2) *Surprise + decision:* `npm run lint:layout` is red — 1 error, seed 256,
+  drum center inside a food_court envelope. Bisected to `ec76a82` (2026-06-16):
+  `nudgeOffDrum` re-validates tree density but not cluster envelopes after a
+  nudge. Gary deferred it (parked on ROADMAP with the fix shape); it's
+  golden-moving, so it must NOT ride inside this change. Task 5.1's
+  `lint:layout` gate is therefore "no NEW findings vs this recorded baseline
+  (1 pre-existing error)," not "exit 0."
+  (3) *Decision (Gary):* pushes are gated permanently — never push unless
+  explicitly asked in the moment (push on main = Pages deploy). Local commits
+  at sensible points remain pre-approved.
+- **Refs:** ROADMAP "Lint regression: drum-in-food_court", CHANGELOG
+  2026-08-27, DEBUGGING.md "When no browser here can do WebGL at all"
 
 ### 2026-08-26 -- Post-audit artifact revision
 

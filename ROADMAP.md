@@ -175,6 +175,19 @@ below (Gary: lean now, full scope eventually).
   rather than gapping — a bigger builder change, and the planner could prefer seating rows
   where the road is locally straight (golden-moving).
 
+- **Lint regression: drum-in-food_court via `nudgeOffDrum` *(found 2026-08-27, parked)*.**
+  The 10-seed sweep is back to **1 ERROR** (from the 0 below): seed 256 puts a drum-circle
+  center inside a `food_court` envelope (`hub-sandbox.html?seed=256&at=-610,-913`). Bisected
+  to `ec76a82` (2026-06-16, the drum-off-road fix): `nudgeOffDrum` scans for the nearest
+  spot that's merely off-road/off-lake, and the post-nudge re-validation checks tree density
+  ONLY — not cluster envelopes — so a nudge can shove the drum into a neighbouring cluster.
+  Fix shape: re-validate the FINAL spot against `clustersContaining` the same way density is
+  re-checked, omit on failure (the established "omit, don't place" rule). Golden-moving
+  (omission skips the drum's yaw draw → that hub's potties/bubble shift), so it wants its own
+  small change with the usual snapshot ritual — deliberately NOT ridden along inside
+  `festival-horizon`, whose own gate is "goldens must not move." Until fixed,
+  `npm run lint:layout` exits 2; gates that want it green cite this bullet.
+
 - **Burndown to ZERO errors *(2026-06-15)*.** The 10-seed plan-mode lint sweep is at **0
   ERRORs (from 375)** after the `nearestRoad` cache, no-festival-in-a-lake + dry spawn, the
   treeless-drum omit, two golden-free false-positive corrections (`spawn-arrival` rule premise +

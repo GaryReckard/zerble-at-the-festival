@@ -380,6 +380,45 @@ The frisbee arm rig has three focused views plus the integrated toss:
 - `sandbox.html?entity=frisbee_player_throw` loops the bent-elbow windup and straight release.
 - `sandbox.html?entity=frisbee_pair` runs the full toss, chase, catch, and pickup sequence, with both players biased into the open canvas and the disc attached to the animated hand until release.
 
+### When no browser here can do WebGL at all — `bin/verify-headless`
+
+On some headless Linux boxes/VMs (virtio-gpu + Wayland, no real GPU driver)
+**every** normal surface fails to create a WebGL context, which kills the whole
+loop above before step 2: `main.js` throws at renderer construction, so
+`window.__dbg` never installs. The failure signatures, so you recognize it in
+minutes instead of an hour:
+
+- Preview/Browser pane console: `THREE.WebGLRenderer: A WebGL context could not
+  be created … ErrorMessage = BindToCurrentSequence failed` (ANGLE over
+  llvmpipe), then `Uncaught Error: Error creating WebGL context` from main.js.
+- A bare `canvas.getContext('webgl2') || canvas.getContext('webgl')` probe
+  returns **null** in that pane.
+- Snap Firefox headless: `RenderCompositorSWGL failed mapping default
+  framebuffer, no dt`, then hangs (and, being a snap, it can't write
+  screenshots outside `$HOME` anyway).
+
+Installing a different browser does **not** fix this — the machine has no GL
+path to give. The fix is software rasterization: headless Chromium forced onto
+**SwiftShader**, which is exactly what `bin/verify-headless` drives. It loads a
+URL, optionally runs a JS snippet (that's how `__dbg.start()` gets called),
+waits, screenshots via raw CDP (`page.screenshot()`'s 30s stability wait times
+out under SwiftShader), reports console errors, and exits nonzero on any. The
+Playwright + Chromium runtime installs **outside the repo** (one-time setup is
+printed by the script if missing; default `~/.zerble-verify`, override with
+`ZERBLE_VERIFY_ROOT`) so `bin/` stays dependency-free and the no-build stance
+holds.
+
+```
+bin/verify-headless --url "http://127.0.0.1:8765/?perf=low" \
+    --eval "window.__dbg.start()" --wait 9000 --shot /tmp/boot.png
+```
+
+SwiftShader is slow — budget generous `--wait`s, prefer `?perf=low` when the
+tier doesn't matter, and know that a high-tier bloom frame can take >30s to
+settle. Data-only layout captures should still go through `bin/layout-snapshot`
+(it skips pixel rendering entirely — see below); this tool is for the cases
+that need actual pixels, console output, or `__dbg` driving.
+
 ---
 
 ## Layout snapshots — capturing built truth
