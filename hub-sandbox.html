@@ -79,6 +79,26 @@
     <button data-tod="0.75">Midnight</button>
   </div>
   <div id="info">—</div>
+  <label>Far field (festival-horizon)</label>
+  <div class="row">
+    <select id="ffMode" style="flex:2">
+      <option value="off" selected>Off</option>
+      <option value="proxy">Proxy only</option>
+      <option value="real">Real only</option>
+      <option value="handoff">Handoff</option>
+    </select>
+    <select id="ffTier" style="flex:1">
+      <option value="low">low</option>
+      <option value="mid" selected>mid</option>
+      <option value="high">high</option>
+    </select>
+  </div>
+  <label for="ffDist">Simulated player distance (handoff mode)</label>
+  <input id="ffDist" type="range" min="0" max="600" step="10" value="600">
+  <div class="row"><button id="ffReplan">Force replan</button></div>
+  <div id="ffStats" style="margin-top:6px;padding:6px 8px;background:rgba(0,0,0,0.28);border-radius:6px;font-size:10px;color:#9fd;white-space:pre-line">far field off</div>
+  <p class="hint">Tier here previews COMPOSITION only (radius/density/caps) —
+    real tier + shader paths verify via <code>?perf=</code> reloads of the game.</p>
   <label>FESTIVAL_TUNING · live</label>
   <div id="tune"></div>
   <button id="copyTune" style="width:100%;margin-top:6px">Copy FESTIVAL_TUNING JSON</button>
@@ -97,6 +117,9 @@ import { bumpWorldgen } from './src/worldgen/constants.js';
 import { nearestMajorHeart, nearestHeart, heartsInBounds } from './src/worldgen/hearts.js';
 import { dancefloorRect } from './src/worldgen/festival.js';
 import { buildHubPreview, disposeChunkByKey, updateStageLightShow, updateStagePerformers } from './src/chunks.js';
+import { FarField } from './src/farField.js';
+import { FAR_FIELD_TIERS } from './src/perf.js';
+import { ownerCellCoord } from './src/worldgen/placement.js';
 import { Crowd } from './src/crowd.js';
 import { Smiles } from './src/smiles.js';
 import { LakeManager } from './src/lakes.js';
@@ -222,6 +245,10 @@ function build(seedRaw, hubN, at) {
   controls.update();
   const n = crowd.npcs ? crowd.npcs.length : 0;
   info.textContent = `hub (${heart.cx},${heart.cz}) ${heart.rank}\n@ (${Math.round(heart.x)}, ${Math.round(heart.z)})\nseed ${'0x' + (getSeed() >>> 0).toString(16)} · crowd ${n}`;
+  // The far-field snapshot must never outlive the hub it was planned against:
+  // every rebuild path (seed/hub change, tuning-slider epoch bump) funnels
+  // through here, so recreating FarField here IS the D9 invalidation rule.
+  rebuildFarField();
 }
 
 // ── URL + control wiring ─────────────────────────────────────────────────────
@@ -296,6 +323,66 @@ document.getElementById('copyTune').addEventListener('click', () => {
   console.log('FESTIVAL_TUNING =', json);
 });
 
+// ── Far-field mode (festival-horizon task 4.1) ───────────────────────────────
+// Drives the REAL FarField implementation around the built hub: 'Proxy only'
+// forces every proxy visible, 'Real only' dissolves them all (alignment check
+// against the real hub), 'Handoff' derives ownership from a simulated player
+// whose distance the slider moves — dragging it toward 0 walks the virtual
+// player into the hub and dissolves its proxies through the live envelope.
+const ffModeEl = document.getElementById('ffMode');
+const ffTierEl = document.getElementById('ffTier');
+const ffDistEl = document.getElementById('ffDist');
+const ffStatsEl = document.getElementById('ffStats');
+let farField = null;
+let ffStatsAt = 0;
+
+// Simulated completion predicate: chunks within a 2-cell ring of the virtual
+// player (hub center + slider meters along +x) count as "fully built".
+function simLoaded(cx, cz) {
+  if (!current || !current.heart) return false;
+  const pcx = ownerCellCoord(current.heart.x + parseFloat(ffDistEl.value));
+  const pcz = ownerCellCoord(current.heart.z);
+  return Math.abs(cx - pcx) <= 2 && Math.abs(cz - pcz) <= 2;
+}
+
+function rebuildFarField() {
+  if (farField) { farField.dispose(); farField = null; }
+  const mode = ffModeEl.value;
+  if (mode === 'off' || !current) { ffStatsEl.textContent = 'far field off'; return; }
+  farField = new FarField({
+    enabled: true,
+    tier: FAR_FIELD_TIERS[ffTierEl.value],
+    scene,
+    isLoaded: mode === 'handoff' ? simLoaded : null,
+  });
+  if (mode === 'proxy' || mode === 'real') farField.setOwnershipOverride(mode);
+  ffStatsEl.textContent = 'planning…';
+}
+
+ffModeEl.addEventListener('change', rebuildFarField);
+ffTierEl.addEventListener('change', rebuildFarField);
+document.getElementById('ffReplan').addEventListener('click', () => { if (farField) farField.forceReplan(); });
+
+function updateFarField(dt, now) {
+  if (!farField || !current) return;
+  // Fixed plan anchor at the hub: the snapshot stays put while the handoff
+  // slider only flips ownership, so envelopes are observable in isolation.
+  farField.update(current.heart.x, current.heart.z, { budgetMs: 8, dt, nightness: tod.nightness });
+  if (now - ffStatsAt > 250) {
+    ffStatsAt = now;
+    const s = farField.stats;
+    const ri = renderer.info;
+    const counts = ['canopy', 'truss', 'peak', 'warm', 'beacon']
+      .map((n) => `${n} ${farField._pools[n].mesh.count}`).join(' · ');
+    ffStatsEl.textContent =
+      `rebuilds ${s.rebuilds} · active ${s.active} · overflow ${s.overflow}\n` +
+      `${counts}\n` +
+      `road verts ${s.roadVertsUsed} · clipped ${s.roadsClipped} · handoffs ${s.handoffs} (live ${farField._handoffs.length})\n` +
+      `coldStep ${s.maxColdStepMs.toFixed(1)}ms · draws ${ri.render.calls} · tris ${ri.render.triangles}\n` +
+      `geo ${ri.memory.geometries} · tex ${ri.memory.textures} · programs ${ri.programs.length}`;
+  }
+}
+
 function resize() {
   renderer.setSize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
@@ -317,6 +404,7 @@ function frame() {
   smiles.update(dt, dummyZerble, () => {});   // drain any smiles the crowd emits at the cart
   updateStageLightShow(now / 1000, tod.nightness, dummyZerble.position);
   updateStagePerformers(now / 1000);
+  updateFarField(dt, now);
   renderer.render(scene, camera);
   if (document.hidden) setTimeout(frame, 16); else requestAnimationFrame(frame);
 }
@@ -329,6 +417,13 @@ window.__hubSandbox = {
   scene, camera, tod, crowd, lakes,
   get heart() { return current && current.heart; },
   get key() { return current && current.key; },
+  get farField() { return farField; },
+  setFarFieldMode(mode, tier) {
+    if (tier) ffTierEl.value = tier;
+    ffModeEl.value = mode;
+    rebuildFarField();
+  },
+  setFarFieldDist(m) { ffDistEl.value = String(m); },
   build, rebuild: () => build(seedInput.value, +hubInput.value, initAt),
   // Registry dump in the SAME shape as __dbg.dumpRegistry, so the acceptance
   // test (6.3) can diff the viewer's built sub-components against a game capture

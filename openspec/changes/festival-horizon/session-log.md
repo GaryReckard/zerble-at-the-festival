@@ -1,7 +1,7 @@
 ---
 change: festival-horizon
 status: in_progress
-current_task: "4.1"
+current_task: "5.1"
 blocked_by: null
 open_questions: 0
 started: 2026-08-26
@@ -220,3 +220,29 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
   SwiftShader caveat.
 - **Refs:** -> D12, -> D13, -> D14, -> Tasks 3.1-3.3, screenshots in scratch
   (g3-on-low-noon-horizon / g3-on-low-midnight), CHANGELOG 2026-08-27
+
+### 2026-08-27 -- Task group 4 landed (hub-sandbox far-field mode, __dbg controls, test completion)
+
+- **Event:** phase-change
+- **What:** The iteration harness is complete. `hub-sandbox.html` grew a Far
+  field panel driving the REAL FarField around the built hub: Proxy only /
+  Real only / Handoff modes, a composition-only tier select (backed by the new
+  read-only `FAR_FIELD_TIERS` export from perf.js), a simulated-player-distance
+  slider whose ownership ring dissolves the hub's proxies through the live
+  envelope (verified: sliding 600→0 flipped 11 owner cells, envelopes
+  completed, fades hit 0), Force replan, and a live stats readout (pool
+  counts, overflow, road verts/clips, handoffs, coldStep, renderer
+  draws/tris/geo/tex/programs). D9 invalidation falls out structurally: every
+  hub rebuild path funnels through `build()`, which recreates FarField, so a
+  tuning-epoch bump can never render a pre-bump snapshot against a post-bump
+  hub. `__dbg.horizon(mode)` gained the deterministic forcing controls
+  ('proxy'/'real'/'live' snap ownership, 'replan' drops the snapshot),
+  documented in DEBUGGING.md with the SwiftShader first-plan-latency caveat.
+  `bin/test-far-field` completed per 4.3: 12-crossing long-travel plateau
+  (same mesh/buffer refs, zero disposals, caps held, 12 rebuilds), registry
+  off-on identity, forcing-control snaps + byte-identical forced replan,
+  opaque/depthWrite material invariants, and the no-builder/no-light/
+  no-shadow/no-registry contract pinned as a source-level scan. Sandbox
+  alignment screenshot: proxy vendor-peak strips sit on the real booth rows.
+- **Refs:** -> D9, -> Tasks 4.1-4.3, `g4-sandbox-proxy.png` (scratch),
+  CHANGELOG 2026-08-27

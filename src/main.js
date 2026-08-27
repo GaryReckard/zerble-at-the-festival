@@ -1540,12 +1540,18 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       return 'cam unlocked';
     },
 
-    // Read-only far-field horizon stats (festival-horizon change; inert unless
-    // ?farField=1 resolves on). Live counters + planner state for fixed-seed
-    // A/B captures — never a mutator.
-    horizon() {
+    // Far-field horizon debug surface (festival-horizon change; inert unless
+    // ?farField=1 resolves on). No arg: read-only live counters + planner
+    // state. With a mode, deterministic forcing for fixed-seed A/B and
+    // lifecycle captures: 'proxy' snaps every proxy visible, 'real' snaps
+    // every proxy dissolved, 'live' returns to predicate-driven handoff,
+    // 'replan' drops the snapshot so the next frame replans from scratch.
+    horizon(mode) {
       const ff = getFarField();
       if (!ff || !ff.enabled) return { enabled: false };
+      if (mode === 'replan') ff.forceReplan();
+      else if (mode === 'proxy' || mode === 'real' || mode === 'live') ff.setOwnershipOverride(mode === 'live' ? null : mode);
+      else if (mode != null) return `unknown mode '${mode}' — use 'proxy' | 'real' | 'live' | 'replan' or no arg for stats`;
       return {
         enabled: true,
         disposed: ff.disposed,
@@ -1558,6 +1564,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
           ['canopy', 'truss', 'peak', 'warm', 'beacon'].map((n) => [n, ff._pools[n].mesh.count]),
         ),
         activeHandoffs: ff._handoffs.length,
+        override: ff._ownershipOverride,
       };
     },
 
@@ -2109,6 +2116,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  perf:    recordPerf(true|false) · perfLog() · chunkStages(reset?) · foodCourtVisual() · foodCourtCapture() · foodCourtLifecycle()',
         '           dumpPrograms({raw?})   (shader-program leak finder: groups renderer.info.programs by family + varying token)',
         '           capture(name?, data?)   (POST data to dev server -> .claude/captures/<name>.json; the browser->repo bridge, no copy/paste)',
+        '  horizon: horizon() stats · horizon(\'proxy\'|\'real\'|\'live\') force ownership · horizon(\'replan\')   (?farField=1 only)',
         '  reach:   __dbg.game  (live refs: camera, zerble, scene, crowd, bubbles, …)',
         '           __dbg.debug (interactive API: freezeNPCs, pause, step, god, showColliders, dropSmile, spawnNPC)',
         '  verify:  __dbg.start() → __dbg.fillSeats() → __dbg.camLock(...) → screenshot → console-logs',

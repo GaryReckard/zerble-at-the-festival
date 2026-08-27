@@ -50,6 +50,24 @@ window.__dbg.help()          // prints the whole map — start here
 | `gotoHub(n)` | Teleport to the `n`th-nearest festival hub and `camLock` a canonical 3/4 view of its stage front. `n` is ranked from the **spawn hub** (the major the game relocates to), so `gotoHub(0)` is the spawn hub itself. Prints the planned `hub-sandbox.html?seed=…&at=x,z` URL so the same hub re-opens in the group-6 viewer. |
 | `showFootprints(on)` | Toggle a footprint overlay: a green ring at each festival cluster's clear-radius + the yellow dancefloor rects in front of every nearby stage (scenery — trees, shorelines, path nodes — is skipped). Plain line geometry, never registered/`shared`/shadow-casting; disposes fully on toggle-off (`renderer.info` returns to pre-toggle counts). |
 
+### Far-field horizon (festival-horizon experiment — `?farField=1` only)
+| Call | Does |
+|---|---|
+| `horizon()` | **Read-only** live stats for the far-field layer: `{stats: {active, overflow, rebuilds, superseded, roadVertsUsed, roadsClipped, maxColdStepMs, handoffs}, playerCell, pendingCells, committed, counts (per pool), activeHandoffs, override}`. Returns `{enabled: false}` when the flag is off (default) or `?worldgen=0` kills it. |
+| `horizon('proxy')` | Force EVERY proxy visible (snaps, no envelope) — the "what does the pure horizon look like" side of a fixed-seed A/B screenshot pair. |
+| `horizon('real')` | Force every proxy dissolved — the flag-on-but-invisible side of the pair (alignment/z-fighting checks against the real world). |
+| `horizon('live')` | Back to normal predicate-driven handoff (proxies follow real chunk completion). |
+| `horizon('replan')` | Drop the committed+pending snapshot so the next frame replans from scratch at the current cell — byte-identical result, for deterministic rebuild-timing and long-travel lifecycle captures. |
+
+Planning is incremental (one 240m coarse cell per frame, inside the remainder
+of the chunk streaming budget), so after boot or a teleport give the horizon a
+few dozen frames before sampling — `horizon().committed` flips true when the
+first snapshot lands. On SwiftShader (see "When no browser here can do WebGL
+at all") frames are slow, so budget ~25s on low / ~2min on high for the first
+plan; on real hardware it's ~1s. The hub sandbox has the same layer as an
+isolated mode (Far field panel: Proxy only / Real only / Handoff + a simulated
+player-distance slider) for composition iteration without the full game.
+
 ### Inspect the built layout
 | Call | Does |
 |---|---|

@@ -520,6 +520,83 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
   ff3.dispose();
 }
 
+// ---------- K3. Off-on identity, resource plateaus, contracts (group 4) ----------
+
+{
+  const { registry } = await import('../src/registry.js');
+  const registryBefore = registry.entries.size;
+
+  // Long-travel plateau: 12 successive coarse-cell crossings, each a full
+  // replan on real worldgen. Fixed pools must be REWRITTEN, never replaced —
+  // same mesh/attribute/array references throughout, zero disposals, counts
+  // always within caps.
+  const ff4 = new FarField({ enabled: true, tier: TEST_TIER });
+  const meshRefs0 = POOL_NAMES.map((n) => ff4._pools[n].mesh);
+  const fadeArr0 = POOL_NAMES.map((n) => ff4._pools[n].fade.array);
+  const roadArr0 = ff4._road.posAttr.array;
+  for (let stepI = 0; stepI < 12; stepI++) {
+    ff4.update(stepI * 240, 0, { budgetMs: 60000 });
+    for (let p = 0; p < POOL_NAMES.length; p++) {
+      const pool = ff4._pools[POOL_NAMES[p]];
+      assert(pool.mesh === meshRefs0[p], 'travel must never replace a pool mesh');
+      assert(pool.fade.array === fadeArr0[p], 'travel must never reallocate a fade buffer');
+      assert(pool.mesh.count <= TEST_TIER.caps[POOL_NAMES[p]], 'travel must keep every pool within its cap');
+      assert(pool.mesh.geometry.disposeCount === 0, 'travel must never dispose pool geometry');
+    }
+    assert(ff4._road.posAttr.array === roadArr0, 'travel must never reallocate the road vertex buffer');
+    assert(ff4.stats.roadVertsUsed <= TEST_TIER.caps.roadVerts, 'travel must keep the road buffer within cap');
+  }
+  assert(ff4.stats.rebuilds === 12, `12 coarse crossings should commit 12 rebuilds, got ${ff4.stats.rebuilds}`);
+
+  // Registry/worldgen off-on identity: the drive owns no registry entries and
+  // leaves the shared worldgen caches byte-identical (hashes checked above).
+  assert(registry.entries.size === registryBefore,
+    'FarField must never add or remove a registry entry');
+
+  // Deterministic forcing controls (4.2): overrides snap, live returns to the
+  // predicate, forceReplan replans byte-identically at the same cell.
+  ff4.setOwnershipOverride('real');
+  for (const name of POOL_NAMES) {
+    for (let i = 0; i < ff4._pools[name].mesh.count; i++) {
+      assert(ff4._pools[name].fade.array[i] === 0, `override 'real' must snap every ${name} fade to 0`);
+    }
+  }
+  ff4.setOwnershipOverride('proxy');
+  for (const name of POOL_NAMES) {
+    for (let i = 0; i < ff4._pools[name].mesh.count; i++) {
+      assert(ff4._pools[name].fade.array[i] === 1, `override 'proxy' must snap every ${name} fade to 1`);
+    }
+  }
+  const activeBefore = JSON.stringify(ff4._active);
+  ff4.forceReplan();
+  ff4.update(11 * 240, 0, { budgetMs: 60000 });
+  assert(ff4.stats.rebuilds === 13, 'forceReplan must trigger exactly one fresh rebuild at the same cell');
+  assert(JSON.stringify(ff4._active) === activeBefore,
+    'a forced replan at the same player cell must commit byte-identical pool contents');
+
+  // Material invariants: opaque + depth-writing everywhere (no transparent
+  // sort), the road underlay never loses depthWrite.
+  for (const name of [...POOL_NAMES, 'road']) {
+    const mat = ff4._mats[name];
+    assert(mat.transparent !== true, `${name} material must stay opaque (no transparent sort)`);
+    assert(mat.depthWrite !== false, `${name} material must keep depthWrite`);
+  }
+  ff4.dispose();
+
+  // No-builder / no-light / no-shadow contract, enforced at the SOURCE level
+  // (the node three-shim exports no Light classes, so a light would also fail
+  // at import — this pins the contract even if the stub grows).
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../src/farField.js', import.meta.url), 'utf8');
+  assert(!/from '\.\/chunks\.js'/.test(src), 'farField.js must never import chunks.js (no real builders)');
+  assert(!/from '\.\/models\//.test(src), 'farField.js must never import a model builder');
+  assert(!/\b(Point|Spot|Directional|Hemisphere|Rect(Area)?)Light\b/.test(src), 'farField.js must construct no Light objects');
+  assert(!/castShadow\s*=\s*true/.test(src), 'farField.js must never enable a shadow caster');
+  assert(!/MeshStandardMaterial|MeshLambertMaterial|MeshPhongMaterial|MeshPhysicalMaterial/.test(src),
+    'farField.js materials must stay unlit (MeshBasicMaterial only)');
+  assert(!/registry/i.test(src.replace(/\/\/[^\n]*/g, '')), 'farField.js must not touch the registry');
+}
+
 // ---------- K. Owner-only disposal idempotence (group 2) ----------
 
 const geoRefs = Object.values(ff._geos).concat([ff._road.geo]);
@@ -542,5 +619,6 @@ process.stdout.write(
   'handoff policy, palette + instHash stability, instance expansion, the real-worldgen pool drive ' +
   '(caps, determinism, bounds enclosure after a distant rewrite, night gating), the completion ' +
   'handoff (dither wiring, snap-then-envelope, shared-deadline remainder, reduced-motion snap, ' +
-  'unload reappearance), and owner-only disposal idempotence\n'
+  'unload reappearance), long-travel resource plateaus + registry off-on identity + forcing ' +
+  'controls + the no-builder/no-light/no-shadow source contract, and owner-only disposal idempotence\n'
 );

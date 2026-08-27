@@ -350,7 +350,44 @@ export class FarField {
     this._active = { canopy: [], truss: [], peak: [], warm: [], beacon: [] };
     this._ownerCells = new Map();   // 'cx,cz' -> { cx, cz, loaded, insts: [{pool, i}] }
     this._handoffs = [];            // active envelopes: { pool, i, target }
+    this._ownershipOverride = null; // null (live) | 'proxy' (all shown) | 'real' (all dissolved)
     this._buildPools(scene || null);
+  }
+
+  // Effective completion state for one owner cell: the debug/sandbox override
+  // wins, else the narrow isLoaded predicate (absent predicate = never loaded).
+  _cellLoaded(cx, cz) {
+    if (this._ownershipOverride === 'proxy') return false;
+    if (this._ownershipOverride === 'real') return true;
+    return this._isLoaded ? !!this._isLoaded(cx, cz) : false;
+  }
+
+  // ---- Deterministic forcing controls (task 4.2 — __dbg + hub sandbox) ----
+
+  // Force every proxy shown ('proxy'), every proxy dissolved ('real'), or
+  // return to live predicate-driven handoff (null/'live'). Snaps immediately
+  // (fixed A/B captures want a stable frame, not an animation).
+  setOwnershipOverride(mode) {
+    if (!this.enabled || this.disposed) return;
+    this._ownershipOverride = (mode === 'proxy' || mode === 'real') ? mode : null;
+    this._handoffs.length = 0;
+    for (const cell of this._ownerCells.values()) {
+      cell.loaded = this._cellLoaded(cell.cx, cell.cz);
+      for (const ref of cell.insts) {
+        ref.pool.fade.array[ref.i] = cell.loaded ? 0 : 1;
+        ref.pool.fade.needsUpdate = true;
+      }
+    }
+  }
+
+  // Drop the committed + pending snapshots so the next update replans from
+  // scratch at the current player cell (same plan, byte-identical — for
+  // deterministic rebuild timing/lifecycle captures).
+  forceReplan() {
+    if (!this.enabled || this.disposed) return;
+    this._playerCell = null;
+    this.planner.pending = null;
+    this.planner.committed = null;
   }
 
   _buildPools(scene) {
@@ -555,7 +592,7 @@ export class FarField {
       if (!cell) {
         cell = {
           cx: inst.ownerCx, cz: inst.ownerCz,
-          loaded: this._isLoaded ? !!this._isLoaded(inst.ownerCx, inst.ownerCz) : false,
+          loaded: this._cellLoaded(inst.ownerCx, inst.ownerCz),
           insts: [],
         };
         this._ownerCells.set(key, cell);
@@ -698,9 +735,9 @@ export class FarField {
   // Steady-state frames with no ownership change and no running envelope
   // do one boolean check per owner cell and allocate nothing.
   _updateHandoffs(dt, reducedMotion) {
-    if (this._isLoaded && this._ownerCells.size) {
+    if ((this._isLoaded || this._ownershipOverride) && this._ownerCells.size) {
       for (const cell of this._ownerCells.values()) {
-        const cur = !!this._isLoaded(cell.cx, cell.cz);
+        const cur = this._cellLoaded(cell.cx, cell.cz);
         if (cur === cell.loaded) continue;
         cell.loaded = cur;
         this.stats.handoffs++;

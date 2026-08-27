@@ -198,6 +198,16 @@ const TABLE = {
 
 export const PERF = TABLE[profile];
 
+// Read-only per-tier far-field knobs for the hub sandbox's composition
+// preview (festival-horizon task 4.1). Sandbox tier selection previews
+// COMPOSITION only — real tier/threeShim/shader behavior is verified via
+// actual ?perf= page reloads (design D7).
+export const FAR_FIELD_TIERS = {
+  low: TABLE.low.farField,
+  mid: TABLE.mid.farField,
+  high: TABLE.high.farField,
+};
+
 // Player shadow override (Settings → Effects). Shadows are LIVE on a tier that
 // already has the shadow machinery (mid/high): the governor's per-effect pin
 // (AdaptiveQuality shadows override) adds and removes them with no reload —

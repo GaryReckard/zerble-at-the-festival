@@ -74,17 +74,17 @@
 
 ## 4. Sandbox and debug surfaces
 
-- [ ] 4.1 Extend `hub-sandbox.html` with an isolated festival-horizon mode using
+- [x] 4.1 Extend `hub-sandbox.html` with an isolated festival-horizon mode using
   the real FarField implementation, proxy-only/real-only/handoff controls, simulated
   distance/ownership, tier and time-of-day controls, and visible draw/triangle,
   instance, overflow, rebuild, geometry, texture, and program statistics;
   invalidate and rebuild the far-field snapshot on the same worldgen tuning-epoch
   bump that rebuilds the hub; note that sandbox tier controls preview composition
   only (real tier/shader paths verify via `?perf=` reloads).
-- [ ] 4.2 Extend local `window.__dbg` with read-only horizon stats plus deterministic
+- [x] 4.2 Extend local `window.__dbg` with read-only horizon stats plus deterministic
   rebuild and handoff forcing controls suitable for fixed-seed A/B screenshots and
   long-travel lifecycle captures; document them in `DEBUGGING.md`.
-- [ ] 4.3 Complete `bin/test-far-field` with registry/worldgen off-on identity,
+- [x] 4.3 Complete `bin/test-far-field` with registry/worldgen off-on identity,
   fixed-pool resource plateaus over repeated coarse-cell travel, shader/material
   invariants, and the no-builder/no-light/no-shadow contract.
 
