@@ -1,37 +1,57 @@
 #!/usr/bin/env node
 /*
- * bin/test-far-field — pure-core gate for src/farField.js (festival-horizon
- * change, group 1: the render-only "far horizon" planning core, no `three`).
+ * bin/test-far-field — gate for src/farField.js (festival-horizon change).
  *
- * Covers: ownerCellCoord fixtures + a chunk-box cross-check, deterministic
- * descriptor copying off the REAL worldgen (setSeed(1234)), immutability of
- * the shared worldgen inputs FarField reads from, fixed-capacity nearest
- * selection, the versioned SnapshotPlanner's boundary-only rebuild + rapid-
- * teleport supersession, the enablement gate's truth table (perf.js's
- * resolveFarField), the reduced-motion handoff policy, palette stability,
- * and the disabled/enabled shell's zero-allocation + disposal semantics.
+ * Group 1 (pure core): ownerCellCoord fixtures + a chunk-box cross-check,
+ * deterministic descriptor copying off the REAL worldgen (setSeed(1234)),
+ * immutability of the shared worldgen inputs FarField reads from,
+ * fixed-capacity nearest selection, the versioned SnapshotPlanner's
+ * boundary-only rebuild + rapid-teleport supersession, the enablement gate's
+ * truth table (perf.js's resolveFarField), the reduced-motion handoff policy,
+ * palette stability, and the disabled shell's zero-allocation semantics.
+ *
+ * Group 2 (renderer): instance expansion determinism, a real-worldgen drive
+ * of the pools (fixed caps respected, deterministic contents, road buffer
+ * within capacity), owner-maintained bounds ENCLOSURE after a second distant
+ * rewrite, night-marker visibility gating, and owner-only disposal
+ * idempotence (each geometry/material/pool disposed exactly once).
+ *
+ * farField.js imports `three`, so the node-three-shim resolve hook is
+ * registered BEFORE any src import — everything below uses dynamic import.
  *
  * Run: node bin/test-far-field          (exit 0 = pass, 1 = fail)
  */
 
-import { ownerCellCoord } from '../src/worldgen/placement.js';
-import { setSeed } from '../src/worldgen/index.js';
-import { heartsInBounds } from '../src/worldgen/hearts.js';
-import { festivalPlan } from '../src/worldgen/festival.js';
-import { roadsInBounds } from '../src/worldgen/roads.js';
-import {
+import { register } from 'node:module';
+register('./node-three-shim.mjs', import.meta.url);
+
+// perf.js reads `window`/`navigator` at module load (DETECTED_TIER) even
+// though resolveFarField itself is pure — shim the minimal browser globals a
+// plain node process lacks so the import doesn't throw.
+if (typeof globalThis.window === 'undefined') globalThis.window = { innerWidth: 1024, innerHeight: 768 };
+if (typeof globalThis.navigator === 'undefined') globalThis.navigator = { hardwareConcurrency: 8, deviceMemory: 8 };
+
+const { ownerCellCoord } = await import('../src/worldgen/placement.js');
+const { setSeed } = await import('../src/worldgen/index.js');
+const { heartsInBounds } = await import('../src/worldgen/hearts.js');
+const { festivalPlan } = await import('../src/worldgen/festival.js');
+const { roadsInBounds } = await import('../src/worldgen/roads.js');
+const {
   HANDOFF_ENVELOPE_S,
   ROAD_UNDERLAY_Y,
   COARSE_CELL,
+  NIGHT_MARKER_THRESHOLD,
   handoffMode,
   coarseCellsFor,
   copyHeartRecords,
   copyPolyline,
   selectNearest,
   paletteIndex,
+  instHash,
+  expandFarInstances,
   SnapshotPlanner,
   FarField,
-} from '../src/farField.js';
+} = await import('../src/farField.js');
 
 function assert(condition, message) {
   if (!condition) {
@@ -241,12 +261,6 @@ noop.dispose();
 assert(noop.disposed === false,
   'dispose() on a disabled FarField bails before setting disposed (it never toggles true for a no-op instance)');
 
-// perf.js reads `window`/`navigator` at module load (DETECTED_TIER) even
-// though resolveFarField itself is pure — shim the minimal browser globals a
-// plain node process lacks so the import doesn't throw. See report for the
-// discrepancy this uncovers.
-if (typeof globalThis.window === 'undefined') globalThis.window = { innerWidth: 1024, innerHeight: 768 };
-if (typeof globalThis.navigator === 'undefined') globalThis.navigator = { hardwareConcurrency: 8, deviceMemory: 8 };
 const { resolveFarField } = await import('../src/perf.js');
 
 const TRUTH_TABLE = [
@@ -285,24 +299,172 @@ assert(idx1 === idx2, 'paletteIndex must be identical across repeated calls on t
 const paletteRecordCopy = JSON.parse(JSON.stringify(paletteRecord));
 assert(paletteIndex(paletteRecordCopy, 6) === idx1, 'paletteIndex must agree for a structurally-identical copied record');
 
-// ---------- I. Enabled shell + disposal idempotence ----------
-// Bounds-enclosure / pool-shape tests land with the group-2 GPU pools; this
-// only locks the current shell (planner + stats + idempotent dispose/update).
+// instHash: pure integer mapping in [0,1), stable, index-sensitive.
+assert(instHash(12345, 0) === instHash(12345, 0), 'instHash must be stable for the same (seed, i)');
+assert(instHash(12345, 0) !== instHash(12345, 1), 'instHash must vary with the index');
+for (let i = 0; i < 32; i++) {
+  const h = instHash(3521908037, i);
+  assert(h >= 0 && h < 1, `instHash must stay in [0,1), got ${h}`);
+}
 
-const enabled = new FarField({ enabled: true, tier: {} });
-assert(enabled.planner instanceof SnapshotPlanner, 'an enabled FarField must construct a SnapshotPlanner');
-assert(JSON.stringify(enabled.stats) === JSON.stringify({ active: 0, overflow: 0, rebuilds: 0, superseded: 0 }),
-  'an enabled FarField must start with a zeroed stats object');
+// ---------- I. Instance expansion (pure, group 2) ----------
 
-enabled.dispose();
-assert(enabled.disposed === true, 'dispose() on an enabled FarField must set disposed = true');
-assert(enabled.planner === null, 'dispose() on an enabled FarField must null out the planner');
-enabled.dispose(); // second call must be a safe no-op
-assert(enabled.disposed === true && enabled.planner === null, 'a second dispose() call must remain a safe no-op');
-enabled.update(); // must not throw after dispose
+const EXPAND_FIXTURE = [
+  { kind: 'main_stage', x: 100, z: -60, yaw: 0.7, scale: 1.2, footprint: 11, rank: 1, clusterSeed: 987654321, ownerCx: 1, ownerCz: -1 },
+  { kind: 'vendor_row', x: 130, z: -40, yaw: 1.9, scale: 1.0, footprint: 12, rank: 0, clusterSeed: 123456789, ownerCx: 2, ownerCz: 0 },
+  { kind: '__road', flat: new Float64Array([0, 0, 50, 0, 100, 20]) },
+];
+const exp1 = expandFarInstances(EXPAND_FIXTURE, 1);
+const exp2 = expandFarInstances(EXPAND_FIXTURE, 1);
+assert(JSON.stringify(exp1.canopy) === JSON.stringify(exp2.canopy)
+  && JSON.stringify(exp1.peak) === JSON.stringify(exp2.peak)
+  && JSON.stringify(exp1.warm) === JSON.stringify(exp2.warm),
+  'expandFarInstances must be byte-identical across repeated calls');
+assert(exp1.canopy.length === 1, `one stage should expand to one canopy, got ${exp1.canopy.length}`);
+assert(exp1.truss.length === 3, `one stage should expand to two posts + one beam, got ${exp1.truss.length}`);
+assert(exp1.beacon.length === 1, `one stage should expand to one beacon, got ${exp1.beacon.length}`);
+assert(exp1.peak.length === 4, `a footprint-12 vendor row at density 1 should expand to 4 peaks, got ${exp1.peak.length}`);
+assert(exp1.warm.length === 2, `4 peaks should carry 2 warm markers (every other peak), got ${exp1.warm.length}`);
+assert(exp1.roads.length === 1 && exp1.roads[0] instanceof Float64Array,
+  'road records must pass through as flat polylines');
+for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon']) {
+  for (const inst of exp1[name]) {
+    const rec = name === 'peak' || name === 'warm' ? EXPAND_FIXTURE[1] : EXPAND_FIXTURE[0];
+    assert(inst.ownerCx === rec.ownerCx && inst.ownerCz === rec.ownerCz,
+      `${name} instances must inherit the OWNING RECORD's chunk cell (cluster-level handoff)`);
+    assert([inst.x, inst.y, inst.z, inst.sx, inst.sy, inst.sz].every(Number.isFinite),
+      `${name} instance transform fields must be finite: ${JSON.stringify(inst)}`);
+  }
+}
+// Density thins supporting silhouettes (peaks), never the stage anchor.
+const expThin = expandFarInstances(EXPAND_FIXTURE, 0.6);
+assert(expThin.canopy.length === 1, 'densityMul must never drop the stage canopy anchor');
+assert(expThin.peak.length < exp1.peak.length, 'densityMul < 1 should thin the vendor-row peaks');
+
+// ---------- J. Renderer drive on real worldgen (group 2) ----------
+
+const TEST_TIER = {
+  radius: 300,
+  densityMul: 1,
+  caps: { canopy: 8, truss: 24, peak: 40, warm: 24, beacon: 8, roadVerts: 512, roadIndices: 768 },
+};
+const POOL_NAMES = ['canopy', 'truss', 'peak', 'warm', 'beacon'];
+
+// Immutability hashes of the shared inputs the drive will consume.
+const driveHearts = heartsInBounds(-600, -600, 600, 600);
+const drivePlansBefore = JSON.stringify(driveHearts.map((h) => festivalPlan(h)));
+const driveRoadsBefore = JSON.stringify(roadsInBounds(-600, -600, 600, 600));
+
+const ff = new FarField({ enabled: true, tier: TEST_TIER });
+assert(ff.planner instanceof SnapshotPlanner, 'an enabled FarField must construct a SnapshotPlanner');
+assert(JSON.stringify(ff.stats) === JSON.stringify({
+  active: 0, overflow: 0, rebuilds: 0, superseded: 0,
+  roadVertsUsed: 0, roadsClipped: 0, maxColdStepMs: 0,
+}), 'an enabled FarField must start with a zeroed stats object');
+for (const name of POOL_NAMES) {
+  assert(ff._pools[name].mesh.count === 0 && ff._pools[name].mesh.visible === false,
+    `pool ${name} must start empty and hidden`);
+  assert(ff._pools[name].mesh.frustumCulled === false,
+    `pool ${name} must deliberately disable per-batch frustum culling (design D2 alternative)`);
+}
+
+ff.update(0, 0, { budgetMs: 60000 });
+assert(ff.stats.rebuilds === 1, `first update at a fresh cell should plan + commit one rebuild, got ${ff.stats.rebuilds}`);
+assert(ff.stats.active > 0, 'seed 1234 around the origin should produce at least one far-field instance');
+assert(ff.stats.roadVertsUsed > 0, 'seed 1234 around the origin should produce road underlay geometry');
+
+// Steady state: same cell, no pending plan → no further rebuilds.
+ff.update(1, 1, { budgetMs: 60000 });
+assert(ff.stats.rebuilds === 1, 'an update within the same player cell must not rebuild');
+
+const checkPools = (label, anchorX, anchorZ) => {
+  for (const name of POOL_NAMES) {
+    const pool = ff._pools[name];
+    const kept = ff._active[name];
+    assert(pool.mesh.count === kept.length, `${label}: pool ${name} count must match its kept set`);
+    assert(kept.length <= TEST_TIER.caps[name], `${label}: pool ${name} must respect its cap`);
+    if (kept.length === 0) continue;
+    assert(pool.mesh.instanceMatrix.needsUpdate === true, `${label}: pool ${name} must flip instanceMatrix.needsUpdate`);
+    const bs = pool.mesh.boundingSphere;
+    for (const inst of kept) {
+      const dx = inst.x - bs.center.x, dy = inst.y - bs.center.y, dz = inst.z - bs.center.z;
+      assert(Math.sqrt(dx * dx + dy * dy + dz * dz) <= bs.radius + 1e-6,
+        `${label}: pool ${name} bounding sphere must enclose every kept instance`);
+    }
+    const cdx = bs.center.x - anchorX, cdz = bs.center.z - anchorZ;
+    assert(Math.hypot(cdx, cdz) < TEST_TIER.radius + 4 * COARSE_CELL,
+      `${label}: pool ${name} bounds center must track the plan anchor (stale-bounds guard)`);
+  }
+  // Road buffer: draw range within caps, active verts enclosed by the sphere.
+  const road = ff._road;
+  assert(road.geo.drawRange.count <= TEST_TIER.caps.roadIndices, `${label}: road draw range must respect the index cap`);
+  assert(ff.stats.roadVertsUsed <= TEST_TIER.caps.roadVerts, `${label}: road verts must respect the vertex cap`);
+  const rs = road.geo.boundingSphere;
+  for (let i = 0; i < ff.stats.roadVertsUsed; i++) {
+    const x = road.posAttr.array[i * 3], z = road.posAttr.array[i * 3 + 2];
+    assert(Math.hypot(x - rs.center.x, z - rs.center.z) <= rs.radius + 1e-6,
+      `${label}: road bounding sphere must enclose every active vertex`);
+  }
+};
+checkPools('first rewrite', 0, 0);
+
+// Shared worldgen inputs untouched by the whole drive.
+assert(JSON.stringify(driveHearts.map((h) => festivalPlan(h))) === drivePlansBefore,
+  'driving FarField must not mutate any memoized festivalPlan array');
+assert(JSON.stringify(roadsInBounds(-600, -600, 600, 600)) === driveRoadsBefore,
+  'driving FarField must not mutate cached road polylines');
+
+// Determinism: a second instance planned at the same cell commits identical
+// pool contents (records AND kept order), byte-for-byte.
+const ff2 = new FarField({ enabled: true, tier: TEST_TIER });
+ff2.update(0, 0, { budgetMs: 60000 });
+for (const name of POOL_NAMES) {
+  assert(JSON.stringify(ff2._active[name]) === JSON.stringify(ff._active[name]),
+    `pool ${name} contents must be byte-identical across independent instances at the same player cell`);
+}
+ff2.dispose();
+
+// Second DISTANT rewrite (the deferred 1.2 bounds-enclosure case): teleport
+// ~2.4km away, replan, and require the owner-maintained bounds to have moved
+// with the instances — the exact stale-bounds failure three r160 would
+// otherwise hide until a specific camera angle.
+ff.update(2400, 2400, { budgetMs: 60000 });
+assert(ff.stats.rebuilds === 2, `a distant teleport must trigger a second rebuild, got ${ff.stats.rebuilds}`);
+checkPools('distant rewrite', 2400, 2400);
+
+// Night-marker gating (task 2.4): hidden by day, shown at night iff populated.
+ff.update(2400, 2400, { nightness: 0 });
+for (const name of ['warm', 'beacon']) {
+  assert(ff._pools[name].mesh.visible === false, `${name} markers must be hidden at nightness 0`);
+}
+ff.update(2400, 2400, { nightness: 0.8 });
+for (const name of ['warm', 'beacon']) {
+  const pool = ff._pools[name];
+  assert(pool.mesh.visible === (pool.mesh.count > 0),
+    `${name} markers at nightness 0.8 must be visible exactly when populated`);
+}
+assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshold sanity');
+
+// ---------- K. Owner-only disposal idempotence (group 2) ----------
+
+const geoRefs = Object.values(ff._geos).concat([ff._road.geo]);
+const matRefs = Object.values(ff._mats);
+const meshRefs = POOL_NAMES.map((n) => ff._pools[n].mesh);
+ff.dispose();
+assert(ff.disposed === true, 'dispose() on an enabled FarField must set disposed = true');
+assert(ff.planner === null, 'dispose() on an enabled FarField must null out the planner');
+for (const g of geoRefs) assert(g.disposeCount === 1, 'each owned geometry must be disposed exactly once');
+for (const m of matRefs) assert(m.disposeCount === 1, 'each owned material must be disposed exactly once');
+for (const im of meshRefs) assert(im.disposeCount === 1, 'each owned InstancedMesh must be disposed exactly once');
+ff.dispose(); // second call must be a safe no-op
+for (const g of geoRefs) assert(g.disposeCount === 1, 'a second dispose() must not re-dispose geometries');
+for (const m of matRefs) assert(m.disposeCount === 1, 'a second dispose() must not re-dispose materials');
+ff.update(0, 0); // must not throw after dispose
 
 process.stdout.write(
   'PASS  far-field owner-cell fixtures, deterministic descriptor copying, worldgen-input immutability, ' +
   'fixed-capacity nearest selection, snapshot-planner supersession, the enablement truth table, ' +
-  'handoff policy, palette stability, and shell disposal semantics\n'
+  'handoff policy, palette + instHash stability, instance expansion, the real-worldgen pool drive ' +
+  '(caps, determinism, bounds enclosure after a distant rewrite, night gating), and owner-only ' +
+  'disposal idempotence\n'
 );

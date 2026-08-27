@@ -5,7 +5,7 @@
   completion predicate meaning "fully built" (required cluster props exist), so
   `farField.js` never touches the mutable `loaded` map, the private chunk-key
   format, or a re-derived `Math.floor` cell rule.
-- [ ] 1.2 Add focused `bin/test-far-field` coverage for deterministic descriptor
+- [x] 1.2 Add focused `bin/test-far-field` coverage for deterministic descriptor
   selection, descriptor-input immutability (pre/post hashes or deep-frozen
   fixtures), owner-cell fixtures at positive/negative/edge/corner boundaries,
   fixed-capacity nearest selection, boundary-only rebuilds, rapid-teleport
@@ -29,26 +29,26 @@
 
 ## 2. Bounded semantic renderer
 
-- [ ] 2.1 Implement FarField-owned fixed-capacity `InstancedMesh` pools for stage
+- [x] 2.1 Implement FarField-owned fixed-capacity `InstancedMesh` pools for stage
   canopies, truss beams, vendor/tent peaks, warm markers, and colored beacons using
   shared code-native geometry, per-instance color, no lights, no shadows, and an
   idempotent owner-only `dispose()`; recompute affected bounding volumes after
   every committed rewrite (or deliberately disable per-batch frustum culling);
   land road, canopies, and peaks first and add trusses and night markers only
   while measured caps stay green.
-- [ ] 2.2 Implement the one-draw preallocated road ribbon buffer from copied
+- [x] 2.2 Implement the one-draw preallocated road ribbon buffer from copied
   `queryRegion` polylines, narrower than the authoritative loaded road at an
   explicit elevation constant strictly between ground y=0 and the real road
   y=0.06 (nominally 0.03), opaque `depthWrite: true`, materials created at
   construction time (never module evaluation), with deterministic
   clipping/capacity behavior and no registry side effects.
-- [ ] 2.3 Implement deterministic heart/plan selection on 80m player-cell changes,
+- [x] 2.3 Implement deterministic heart/plan selection on 80m player-cell changes,
   discovering incrementally by coarse cell (never one monolithic full-radius
   `queryRegion`), copying descriptors into immutable FarField-owned compact
   records without mutating memoized worldgen arrays, using actual stage/vendor
   descriptors and stable integer palette mapping without consuming RNG calls;
   retain the nearest candidates on overflow and expose counts.
-- [ ] 2.4 Implement shared Noon-to-Midnight material behavior that hides night
+- [x] 2.4 Implement shared Noon-to-Midnight material behavior that hides night
   marker batches by day and introduces no per-marker animation, transparent sorting,
   context lights, bloom writer, or per-frame allocation.
 

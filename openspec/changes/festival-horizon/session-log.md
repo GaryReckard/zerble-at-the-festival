@@ -1,7 +1,7 @@
 ---
 change: festival-horizon
 status: in_progress
-current_task: "1.2 (pool-dependent tests land with 2.1)"
+current_task: "3.1"
 blocked_by: null
 open_questions: 0
 started: 2026-08-26
@@ -61,6 +61,23 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
   is re-keyed to marginal delta (≤ +12 draws, ≤ +5k/+10k/+10k tris) +
   no-regression + explicit Gary sign-off. Full table + method + SwiftShader
   caveats in `verification/baseline-disabled.md`. (audit V9)
+- **D12 (2026-08-27):** Per-batch frustum culling is DELIBERATELY DISABLED on
+  every far-field batch (`frustumCulled = false`) — the sanctioned design-D2
+  alternative — because the horizon rings the player (a batch almost never
+  culls whole) and three r160 culls InstancedMesh against the BASE geometry's
+  bounds, not the instances, which is exactly the stale-bounds vanishing-act
+  D2 warns about. Owner-computed bounding spheres are still recomputed on
+  every committed rewrite (manual min/max + extent, testable under the node
+  stub) so bounds stay truthful for raycast/debug reads; `bin/test-far-field`
+  locks enclosure after a distant teleport rewrite. Cost accounted: ≤ 6 always-
+  submitted draws of tiny geometry.
+- **D13 (2026-08-27):** All six batches (road, canopy, peak, truss, warm,
+  beacon) land together in task 2.1 rather than staging trusses/night markers
+  behind a later measurement: worst-case triangle counts AT FULL CAPS are ~3.8k
+  (low) / ~7.5k (mid/high), inside the D11 marginal caps (+5k/+10k) by
+  construction, so the "only while caps stay green" condition is satisfiable
+  up front. The 5.4 measured A/B can still drop trusses/markers if reality
+  disagrees.
 
 ## Assumptions
 
@@ -143,3 +160,27 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
   1.2 is green in `bin/test-far-field` (wired into `npm run check`).
 - **Refs:** -> D11, -> Task 2.1, `verification/baseline-disabled.md`,
   CHANGELOG 2026-08-27
+
+### 2026-08-27 -- Task group 2 landed (renderer: pools, road underlay, planning, ToD)
+
+- **Event:** phase-change + decisions
+- **What:** `farField.js` now contains the full bounded renderer behind the
+  same gate: fixed-capacity `InstancedMesh` pools for all six batches (-> D13),
+  the one-draw preallocated road underlay at `ROAD_UNDERLAY_Y` (opaque,
+  `depthWrite: true`, materials at construction time, whole-polyline
+  deterministic capacity skip), incremental coarse-cell planning driven by 80m
+  player-cell crossings (hearts deduped across the padded `heartsInBounds`
+  window by the SAME owner-cell rule at coarse size; road polylines deduped per
+  snapshot by cached-array identity), and shared-material Noon→Midnight
+  behavior with night markers hidden by day (1/64-quantized latch, zero
+  steady-state work). Capacity selection anchors to the PLAYER CELL CENTER,
+  not raw position, so committed pool contents are byte-stable per cell.
+  Frustum culling is deliberately off per batch with owner-maintained bounds
+  (-> D12). Node testability: `bin/test-far-field` now registers
+  `bin/node-three-shim.mjs` (extended with BufferGeometry/BufferAttribute/
+  Sphere/Octahedron/dispose counters) before import — the two pool-dependent
+  1.2 cases (bounds enclosure after a distant rewrite, disposal idempotence)
+  landed with it, so -> Task 1.2 is now ticked along with 2.1-2.4. Suite green
+  (10 gates), flag-off boot verified headless (`?perf=low`, `__dbg.start()`,
+  0 console errors). Not yet reachable from any page — world wiring is Group 3.
+- **Refs:** -> D12, -> D13, -> Task 1.2, -> Tasks 2.1-2.4, CHANGELOG 2026-08-27

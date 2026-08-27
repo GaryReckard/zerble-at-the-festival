@@ -31,7 +31,8 @@ class Object3DStub {
     this.rotation = new Vector3();
     this.matrix = new Matrix4();
   }
-  add(...objs) { this.children.push(...objs); return this; }
+  add(...objs) { for (const o of objs) { this.children.push(o); o.parent = this; } return this; }
+  remove(...objs) { this.children = this.children.filter((c) => !objs.includes(c)); for (const o of objs) o.parent = null; return this; }
   updateMatrix() { return this; }
 }
 export class Object3D extends Object3DStub {}
@@ -41,7 +42,11 @@ export class Mesh extends Object3DStub {
 }
 
 // Geometries: tree.js tags module-level ones with .userData.shared = true.
-class GeometryStub { constructor() { this.userData = {}; } }
+// disposeCount lets bin/test-far-field assert owner-only disposal idempotence.
+class GeometryStub {
+  constructor() { this.userData = {}; this.disposeCount = 0; this.boundingSphere = null; }
+  dispose() { this.disposeCount++; }
+}
 export class CylinderGeometry extends GeometryStub {}
 export class IcosahedronGeometry extends GeometryStub {}
 export class ConeGeometry extends GeometryStub {}
@@ -50,10 +55,36 @@ export class RingGeometry extends GeometryStub {}
 export class TorusGeometry extends GeometryStub {}
 export class CapsuleGeometry extends GeometryStub {}
 export class SphereGeometry extends GeometryStub {}
+export class OctahedronGeometry extends GeometryStub {}
+
+// BufferGeometry + BufferAttribute: farField.js's preallocated road ribbon
+// writes typed arrays in place and exposes the active prefix via setDrawRange.
+// The stub stores everything so tests can read the written arrays back.
+export class BufferGeometry extends GeometryStub {
+  constructor() { super(); this.attributes = {}; this.index = null; this.drawRange = { start: 0, count: Infinity }; }
+  setAttribute(name, attr) { this.attributes[name] = attr; return this; }
+  setIndex(attr) { this.index = attr; return this; }
+  setDrawRange(start, count) { this.drawRange = { start, count }; return this; }
+}
+export class BufferAttribute {
+  constructor(array, itemSize) { this.array = array; this.itemSize = itemSize; this.needsUpdate = false; }
+  setUsage() { return this; }
+}
+export class Sphere {
+  constructor(center = new Vector3(), radius = -1) { this.center = center; this.radius = radius; }
+}
+export const DynamicDrawUsage = 35048;
 
 // Materials: constructed with an options object; tagged .userData.shared.
 export class MeshStandardMaterial {
-  constructor(params = {}) { this.userData = {}; Object.assign(this, params); }
+  constructor(params = {}) {
+    this.userData = {};
+    this.disposeCount = 0;
+    Object.assign(this, params);
+    this.color = new Color();               // always a Color object, like real three
+    if (params.color != null) this.color.setHex(params.color);
+  }
+  dispose() { this.disposeCount++; }
 }
 export class MeshBasicMaterial extends MeshStandardMaterial {}
 export const DoubleSide = 2;
@@ -70,11 +101,15 @@ export class Matrix4 {
   makeRotationY() { return this; }
   makeScale() { return this; }
   multiply() { return this; }
+  scale() { return this; }
+  setPosition() { return this; }
 }
 export class Color {
   constructor() { this.r = 0; this.g = 0; this.b = 0; }
-  setHex() { return this; }
+  setHex(hex) { const h = hex | 0; this.r = ((h >> 16) & 255) / 255; this.g = ((h >> 8) & 255) / 255; this.b = (h & 255) / 255; return this; }
   setRGB(r, g, b) { this.r = r; this.g = g; this.b = b; return this; }
+  setScalar(s) { this.r = s; this.g = s; this.b = s; return this; }
+  multiplyScalar(s) { this.r *= s; this.g *= s; this.b *= s; return this; }
 }
 export class InstancedBufferAttribute {
   constructor(array) { this.array = array; this.needsUpdate = false; }
@@ -82,13 +117,16 @@ export class InstancedBufferAttribute {
 export class InstancedMesh {
   constructor(geometry, material, count) {
     this.geometry = geometry; this.material = material; this.count = count;
-    this.userData = {}; this.castShadow = false;
-    this.instanceMatrix = { needsUpdate: false };
+    this.userData = {}; this.castShadow = false; this.receiveShadow = false;
+    this.visible = true; this.frustumCulled = true; this.disposeCount = 0;
+    this.position = new Vector3(); this.parent = null; this.boundingSphere = null;
+    this.instanceMatrix = { needsUpdate: false, setUsage() { return this; } };
     this.instanceColor = null;
   }
   setMatrixAt() {}
   setColorAt() { if (!this.instanceColor) this.instanceColor = { needsUpdate: false }; }
   computeBoundingSphere() {}
+  dispose() { this.disposeCount++; }
 }
 `;
 

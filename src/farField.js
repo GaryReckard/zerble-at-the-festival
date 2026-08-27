@@ -2,23 +2,18 @@
 //
 // A PEER of ChunkManager/LakeManager owned by world.js, never another chunk
 // ring: it draws batched far-distance silhouettes (roads, stage canopies, roof
-// peaks; later trusses + night markers) from the same deterministic worldgen
+// peaks, trusses + night markers) from the same deterministic worldgen
 // descriptors the real builders consume, and dissolves each proxy when its
 // owning real chunk finishes building. It owns NOTHING gameplay-side: no
 // registry entries, colliders, NPCs, audio, pickups, real lights, shadow
 // casters, or per-prop animation, and it never calls a real cluster builder.
 //
-// This module currently contains the PURE planning core (group 1 of the
-// change): compact record copying, deterministic selection, fixed-capacity
-// nearest retention, versioned pending snapshots, and the enablement gate.
-// The batched three.js pools land in group 2; nothing here may import 'three'
-// until then, which keeps the core runnable in plain node for
-// bin/test-far-field.
-//
 // Contracts this file is built around (design D1-D7, audit V2-V8):
 // - Enablement is `farFieldRequested && USE_WORLDGEN_V2` (perf.js resolves
 //   it); disabled means ZERO work — no allocation, no planning, no GPU
-//   resources ever.
+//   resources ever. Nothing here constructs a three.js object at module
+//   evaluation; all materials/geometries/pools are built per-instance at
+//   construction time, only when enabled.
 // - Worldgen descriptors and road polylines are SHARED MEMOIZED TRUTH. They
 //   are copied field-by-field into FarField-owned compact records and never
 //   sorted, clipped, annotated, or otherwise mutated in place.
@@ -30,11 +25,17 @@
 //   queryRegion — cold arterial queries were a measured multi-second stall
 //   before per-cell caching) and pending snapshots are versioned by the
 //   requesting player cell so rapid teleports supersede stale work.
+//
+// bin/test-far-field runs this module under plain node by registering
+// bin/node-three-shim.mjs (the same resolve hook the forest-determinism gate
+// uses), so the `three` import below maps to a property-bag stub there.
 
-// Only worldgen imports here — chunks.js (and through it three.js) must stay
-// out of this module until the group-2 pools land, so the pure core runs in
-// plain node. ownerCellCoord's default cell size IS the 80m chunk rule.
+import * as THREE from 'three';
 import { ownerCellCoord } from './worldgen/placement.js';
+import { heartsInBounds } from './worldgen/hearts.js';
+import { festivalPlan } from './worldgen/festival.js';
+import { roadsInBounds } from './worldgen/roads.js';
+import { CONFIG } from './worldgen/constants.js';
 
 // Handoff dissolve length (design D4). Reduced motion skips it and snaps.
 export const HANDOFF_ENVELOPE_S = 0.3;
@@ -48,6 +49,23 @@ export const ROAD_UNDERLAY_Y = 0.03;
 // cell; 240m = 3x3 chunks, matching the granularity the per-cell road cache
 // already amortizes.
 export const COARSE_CELL = 240;
+
+// Night marker batches (warm lights + stage beacons) stay hidden below this
+// nightness (design D5) — by day the horizon is silhouettes only.
+export const NIGHT_MARKER_THRESHOLD = 0.12;
+
+// The underlay ribbon is deliberately narrower than the authoritative road
+// (CONFIG.ROAD_WIDTH) so the real ribbon always covers it edge-to-edge.
+const FAR_ROAD_WIDTH_FRAC = 0.8;
+
+// Flat-color hex palettes (plain numbers at module scope — THREE.Color
+// instances are built at construction time, never module evaluation).
+const CANOPY_PALETTE = [0xd8433f, 0xe8823a, 0x3f8fd8, 0x9a5fd0, 0x2fa46a, 0xd84f8e];
+const PEAK_PALETTE = [0xf2e4c8, 0xe6d5b0, 0xd9cbae, 0xefdccc];
+const BEACON_PALETTE = [0xff5a4d, 0x4da2ff, 0xffd24d, 0xb56aff];
+const TRUSS_HEX = 0x2e2a33;
+const WARM_HEX = 0xffb054;
+const ROAD_HEX = 0x9c7c58;   // a shade darker than the real road's 0xb89570
 
 // ---------- Pure helpers ----------
 
@@ -144,6 +162,85 @@ export function paletteIndex(record, buckets) {
   return h % buckets;
 }
 
+// Per-instance variation in [0,1) from (clusterSeed, index) — same class of
+// pure integer mapping as paletteIndex: NO shared RNG stream is consumed, so
+// worldgen goldens can't move.
+export function instHash(seed, i) {
+  let h = ((seed >>> 0) ^ Math.imul(i + 1, 0x9e3779b9)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 2246822507) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 3266489909) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+// Expand compact records into per-pool instance descriptors (pure — testable
+// without pools). Each instance carries its OWNING RECORD's chunk cell, not
+// the cell its own xz lands in: the whole cluster proxy hides when the chunk
+// that will build the real cluster completes, even for parts that spill over
+// a chunk edge (matching how the real builder places whole clusters from the
+// owning chunk).
+//
+// The semantic vocabulary (design D2/D3): a stage becomes canopy + two truss
+// posts + a truss beam + one colored beacon; a vendor row becomes a strip of
+// roof peaks with warm light markers alongside. Sizes are coarse on purpose —
+// these read through 300-500m of fog, not up close.
+export function expandFarInstances(records, densityMul) {
+  const out = { canopy: [], truss: [], peak: [], warm: [], beacon: [], roads: [] };
+  for (const r of records) {
+    if (r.kind === '__road') { out.roads.push(r.flat); continue; }
+    const own = { ownerCx: r.ownerCx, ownerCz: r.ownerCz };
+    if (STAGE_KINDS.has(r.kind)) {
+      const s = r.scale;
+      const deckR = r.footprint * s;
+      const postH = 3.4 * s;
+      const rightYaw = r.yaw + Math.PI / 2;              // stage width axis
+      const rx = Math.sin(rightYaw), rz = Math.cos(rightYaw);
+      out.canopy.push({
+        x: r.x, z: r.z, y: postH + 1.2 * s, yaw: r.yaw,
+        sx: deckR * 1.15, sy: 2.4 * s, sz: deckR * 1.15,
+        color: CANOPY_PALETTE[paletteIndex(r, CANOPY_PALETTE.length)], ...own,
+      });
+      const postOff = deckR * 0.85;
+      out.truss.push(
+        { x: r.x + rx * postOff, z: r.z + rz * postOff, y: postH / 2, yaw: 0, sx: 0.5, sy: postH, sz: 0.5, ...own },
+        { x: r.x - rx * postOff, z: r.z - rz * postOff, y: postH / 2, yaw: 0, sx: 0.5, sy: postH, sz: 0.5, ...own },
+        // Beam long axis is local +Z, so yaw = the width-axis bearing.
+        { x: r.x, z: r.z, y: postH, yaw: rightYaw, sx: 0.4, sy: 0.4, sz: deckR * 1.8, ...own },
+      );
+      const bs = 0.8 + instHash(r.clusterSeed, 3) * 0.3;
+      out.beacon.push({
+        x: r.x, z: r.z, y: postH + 2.4 * s + 0.9, yaw: 0, sx: bs, sy: bs, sz: bs,
+        color: BEACON_PALETTE[paletteIndex(r, BEACON_PALETTE.length)], ...own,
+      });
+    } else if (r.kind === 'vendor_row') {
+      const s = r.scale;
+      const L = 2 * r.footprint * s;
+      const n = Math.max(2, Math.round((L / 6) * densityMul));
+      const ax = Math.sin(r.yaw), az = Math.cos(r.yaw);       // row axis
+      const px = Math.cos(r.yaw), pz = -Math.sin(r.yaw);      // row perpendicular
+      const baseIdx = paletteIndex(r, PEAK_PALETTE.length);
+      for (let i = 0; i < n; i++) {
+        const t = ((n === 1 ? 0.5 : i / (n - 1)) - 0.5) * L * 0.9;
+        const w = 2.4 + instHash(r.clusterSeed, i) * 1.4;
+        const h = 2.0 + instHash(r.clusterSeed, i + 101) * 1.2;
+        const ix = r.x + ax * t, iz = r.z + az * t;
+        out.peak.push({
+          x: ix, z: iz, y: h / 2, yaw: r.yaw, sx: w, sy: h, sz: w,
+          color: PEAK_PALETTE[(baseIdx + i) % PEAK_PALETTE.length], ...own,
+        });
+        if (i % 2 === 0) {
+          const side = (i % 4 === 0) ? 1 : -1;
+          const ws = 0.32 + instHash(r.clusterSeed, i + 211) * 0.12;
+          out.warm.push({
+            x: ix + px * 2.2 * side, z: iz + pz * 2.2 * side, y: 2.9, yaw: 0,
+            sx: ws, sy: ws, sz: ws, ...own,
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+
 // ---------- Versioned incremental planning (design D3 / audit V4) ----------
 //
 // A snapshot plan is built one coarse cell per step() while the previous
@@ -188,35 +285,355 @@ export class SnapshotPlanner {
   }
 }
 
-// ---------- The world-facing peer (shell — pools land in group 2) ----------
+// ---------- The world-facing peer ----------
 //
 // Constructed by world.js beside the chunk/lake managers. When `enabled` is
 // false (the shipped default, or ?farField=1 forced off by ?worldgen=0) the
 // constructor stores two booleans and RETURNS: no planner, no records, no
 // arrays, no GPU resources, no shader programs — and update()/dispose() bail
 // on the first line. bin/test-far-field locks this no-op shape.
+//
+// When enabled, the constructor allocates the fixed-capacity pools ONCE
+// (materials + geometries + instance buffers — design D2: construction time,
+// never module evaluation, never per rebuild) and defers all PLANNING to the
+// first update() (design D1: nothing rides the boot chain).
 
 export class FarField {
-  constructor({ enabled, tier } = {}) {
+  constructor({ enabled, tier, scene } = {}) {
     this.enabled = !!enabled;
     this.disposed = false;
     if (!this.enabled) return;
     this.tier = tier;                       // PERF.farField: radius/density/caps
     this.planner = new SnapshotPlanner();
-    this.stats = { active: 0, overflow: 0, rebuilds: 0, superseded: 0 };
+    this.stats = {
+      active: 0, overflow: 0, rebuilds: 0, superseded: 0,
+      roadVertsUsed: 0, roadsClipped: 0, maxColdStepMs: 0,
+    };
+    this._vendorRowMax = Math.max(1, Math.round(3 * (tier.densityMul || 1)));
+    this._playerCell = null;
+    this._planAnchor = { x: 0, z: 0 };
+    this._roadSeen = null;
+    this._todQ = -1;
+    this._nightOn = false;
+    this._active = { canopy: [], truss: [], peak: [], warm: [], beacon: [] };
+    this._buildPools(scene || null);
   }
 
-  update() {
+  _buildPools(scene) {
+    const caps = this.tier.caps;
+    // Owner-only scratch (no module-level THREE objects — see header).
+    this._m4 = new THREE.Matrix4();
+    this._v3 = new THREE.Vector3();
+    this._col = new THREE.Color();
+
+    this.group = new THREE.Group();
+    this.group.name = 'farField';
+
+    const mkMat = (hex) => new THREE.MeshBasicMaterial({ color: hex });
+    this._mats = {
+      canopy: mkMat(0xffffff),   // white base × per-instance color
+      truss: mkMat(TRUSS_HEX),
+      peak: mkMat(0xffffff),
+      warm: mkMat(WARM_HEX),
+      beacon: mkMat(0xffffff),
+      road: mkMat(ROAD_HEX),     // opaque, depthWrite:true (default) — audit V12
+    };
+    this._geos = {
+      canopy: new THREE.ConeGeometry(1, 1, 6),
+      truss: new THREE.BoxGeometry(1, 1, 1),
+      peak: new THREE.ConeGeometry(1, 1, 4),
+      warm: new THREE.OctahedronGeometry(1, 0),
+      beacon: new THREE.OctahedronGeometry(1, 0),
+    };
+
+    // The horizon RINGS the player, so per-batch frustum culling would almost
+    // never reject a batch — and three r160 culls InstancedMesh against the
+    // BASE geometry's bounds, not the instances. Culling is therefore
+    // deliberately disabled per batch (the sanctioned design-D2 alternative);
+    // owner-computed bounding spheres are still maintained after every
+    // committed rewrite so bounds stay truthful for raycast/debug reads.
+    this._pools = {};
+    const hasColor = { canopy: true, truss: false, peak: true, warm: false, beacon: true };
+    for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon']) {
+      const mesh = new THREE.InstancedMesh(this._geos[name], this._mats[name], caps[name]);
+      mesh.count = 0;
+      mesh.visible = false;
+      mesh.frustumCulled = false;
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 0);
+      mesh.name = 'farField:' + name;
+      this._pools[name] = { mesh, hasColor: hasColor[name], cap: caps[name] };
+      this.group.add(mesh);
+    }
+
+    // Road underlay: ONE preallocated draw. Positions/indices are typed
+    // arrays sized to the tier cap, rewritten in place on commit;
+    // setDrawRange exposes the active prefix (design D2/D3).
+    const roadGeo = new THREE.BufferGeometry();
+    const posAttr = new THREE.BufferAttribute(new Float32Array(caps.roadVerts * 3), 3);
+    posAttr.setUsage(THREE.DynamicDrawUsage);
+    const idxAttr = new THREE.BufferAttribute(new Uint16Array(caps.roadIndices), 1);
+    idxAttr.setUsage(THREE.DynamicDrawUsage);
+    roadGeo.setAttribute('position', posAttr);
+    roadGeo.setIndex(idxAttr);
+    roadGeo.setDrawRange(0, 0);
+    roadGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 0);
+    const roadMesh = new THREE.Mesh(roadGeo, this._mats.road);
+    roadMesh.position.y = ROAD_UNDERLAY_Y;
+    roadMesh.visible = false;
+    roadMesh.frustumCulled = false;
+    roadMesh.castShadow = false;
+    roadMesh.receiveShadow = false;
+    roadMesh.name = 'farField:road';
+    this._road = { mesh: roadMesh, geo: roadGeo, posAttr, idxAttr };
+    this.group.add(roadMesh);
+
+    if (scene) scene.add(this.group);
+  }
+
+  // Per-frame entry point. Planning is boundary-triggered: crossing an 80m
+  // player cell begins a fresh versioned snapshot; while one is pending,
+  // coarse cells are planned one at a time under `opts.budgetMs` — the
+  // REMAINDER of the world-owned streaming wall handed down by world.js
+  // (design D3: there is no second budget) — or exactly one cell per call
+  // when no budget is given. Steady-state frames (no boundary, no pending
+  // plan) allocate nothing and return immediately.
+  update(px, pz, opts = {}) {
     if (!this.enabled || this.disposed) return;
-    // Group 3 wires: boundary detection, planner stepping under the remaining
-    // world-owned streaming deadline, handoff envelopes.
+    if (opts.nightness != null) this._applyTimeOfDay(opts.nightness);
+    if (px == null || pz == null) return;
+
+    const pcx = ownerCellCoord(px);
+    const pcz = ownerCellCoord(pz);
+    const version = pcx + ',' + pcz;
+    if (version !== this._playerCell) {
+      this._playerCell = version;
+      // Anchor capacity selection to the CELL CENTER (not raw px/pz) so the
+      // committed pool contents are byte-stable for a given player cell.
+      this._planAnchor.x = pcx * 80;
+      this._planAnchor.z = pcz * 80;
+      this._roadSeen = new Set();
+      this.planner.begin(version, coarseCellsFor(this._planAnchor.x, this._planAnchor.z, this.tier.radius));
+    }
+    if (!this.planner.pending) return;
+
+    const t0 = performance.now();
+    for (;;) {
+      const c0 = performance.now();
+      const committed = this.planner.step((cx, cz) => this._planCellRecords(cx, cz, this._roadSeen), 1);
+      const cellMs = performance.now() - c0;
+      if (cellMs > this.stats.maxColdStepMs) this.stats.maxColdStepMs = cellMs;
+      if (committed) {
+        this._applySnapshot(this.planner.committed.records);
+        break;
+      }
+      if (!this.planner.pending) break;
+      if (opts.budgetMs == null || performance.now() - t0 >= opts.budgetMs) break;
+    }
   }
 
-  // Idempotent, owner-only teardown. Group 2 extends it to release the pools;
-  // it must stay safe to call twice and touch nothing shared.
+  // One coarse cell's records: hearts OWNED by the cell (dedupe across the
+  // padded heartsInBounds window via the same owner-cell rule), their plan
+  // records, plus road polylines first seen by this snapshot (polylines span
+  // cells; the per-snapshot `roadSeen` set dedupes by the cached polyline's
+  // identity, which is stable within a worldgen epoch).
+  _planCellRecords(cellCx, cellCz, roadSeen) {
+    const half = COARSE_CELL / 2;
+    const minX = cellCx * COARSE_CELL - half, maxX = cellCx * COARSE_CELL + half;
+    const minZ = cellCz * COARSE_CELL - half, maxZ = cellCz * COARSE_CELL + half;
+    const out = [];
+    for (const h of heartsInBounds(minX, minZ, maxX, maxZ)) {
+      if (ownerCellCoord(h.x, COARSE_CELL) !== cellCx || ownerCellCoord(h.z, COARSE_CELL) !== cellCz) continue;
+      const recs = copyHeartRecords(h, festivalPlan(h), this._vendorRowMax);
+      if (recs.length) out.push(...recs);
+    }
+    for (const road of roadsInBounds(minX, minZ, maxX, maxZ)) {
+      if (roadSeen.has(road.points)) continue;
+      roadSeen.add(road.points);
+      out.push({ kind: '__road', flat: copyPolyline(road.points) });
+    }
+    return out;
+  }
+
+  // Atomic pool rewrite from a committed snapshot (design D2/D3): expand,
+  // keep the nearest under each fixed cap, write matrices/colors in place,
+  // flip needsUpdate, recompute the owner-maintained bounds. Never touches
+  // the registry, never disposes or reallocates a buffer.
+  _applySnapshot(records) {
+    const ax = this._planAnchor.x, az = this._planAnchor.z;
+    const expanded = expandFarInstances(records, this.tier.densityMul || 1);
+    let active = 0, overflow = 0;
+    for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon']) {
+      const pool = this._pools[name];
+      const sel = selectNearest(expanded[name], ax, az, pool.cap);
+      this._active[name] = sel.kept;
+      overflow += sel.overflow;
+      active += sel.kept.length;
+      this._writePool(pool, sel.kept);
+    }
+    this._writeRoads(expanded.roads);
+    this._applyNightVisibility();
+    this.stats.active = active;
+    this.stats.overflow = overflow;
+    this.stats.rebuilds++;
+    this.stats.superseded = this.planner.superseded;
+  }
+
+  _writePool(pool, kept) {
+    const mesh = pool.mesh;
+    const m = this._m4, s = this._v3, c = this._col;
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    let maxExt = 0;
+    for (let i = 0; i < kept.length; i++) {
+      const inst = kept[i];
+      m.makeRotationY(inst.yaw || 0);
+      m.scale(s.set(inst.sx, inst.sy, inst.sz));
+      m.setPosition(inst.x, inst.y, inst.z);
+      mesh.setMatrixAt(i, m);
+      if (pool.hasColor) {
+        c.setHex(inst.color);
+        mesh.setColorAt(i, c);
+      }
+      if (inst.x < minX) minX = inst.x;
+      if (inst.y < minY) minY = inst.y;
+      if (inst.z < minZ) minZ = inst.z;
+      if (inst.x > maxX) maxX = inst.x;
+      if (inst.y > maxY) maxY = inst.y;
+      if (inst.z > maxZ) maxZ = inst.z;
+      const e = Math.max(inst.sx, inst.sy, inst.sz);
+      if (e > maxExt) maxExt = e;
+    }
+    mesh.count = kept.length;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (pool.hasColor && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.visible = kept.length > 0;
+    if (kept.length > 0) {
+      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, cz = (minZ + maxZ) / 2;
+      const dx = maxX - cx, dy = maxY - cy, dz = maxZ - cz;
+      mesh.boundingSphere.center.set(cx, cy, cz);
+      mesh.boundingSphere.radius = Math.sqrt(dx * dx + dy * dy + dz * dz) + maxExt;
+    } else {
+      mesh.boundingSphere.center.set(0, 0, 0);
+      mesh.boundingSphere.radius = 0;
+    }
+  }
+
+  // Fill the preallocated road buffers from the snapshot's copied polylines.
+  // Same miter math as the real chunk ribbon (chunks.js buildRibbonFromPolyline)
+  // so joints read smoothly; a polyline that would overflow either cap is
+  // skipped WHOLE (deterministic capacity behavior — never a half ribbon),
+  // counted in stats.roadsClipped.
+  _writeRoads(flats) {
+    const { geo, posAttr, idxAttr, mesh } = this._road;
+    const capV = this.tier.caps.roadVerts, capI = this.tier.caps.roadIndices;
+    const pos = posAttr.array, idx = idxAttr.array;
+    const halfW = (CONFIG.ROAD_WIDTH * FAR_ROAD_WIDTH_FRAC) / 2;
+    let v = 0, ix = 0, clipped = 0;
+    let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+    for (const flat of flats) {
+      const n = flat.length / 2;
+      if (n < 2) continue;
+      if (v + n * 2 > capV || ix + (n - 1) * 6 > capI) { clipped++; continue; }
+      const base = v;
+      for (let i = 0; i < n; i++) {
+        const cxp = flat[i * 2], czp = flat[i * 2 + 1];
+        let tx, tz;
+        if (i > 0 && i < n - 1) {
+          const p0x = flat[(i - 1) * 2], p0z = flat[(i - 1) * 2 + 1];
+          const p2x = flat[(i + 1) * 2], p2z = flat[(i + 1) * 2 + 1];
+          const d1x = cxp - p0x, d1z = czp - p0z, l1 = Math.hypot(d1x, d1z) || 1;
+          const d2x = p2x - cxp, d2z = p2z - czp, l2 = Math.hypot(d2x, d2z) || 1;
+          tx = d1x / l1 + d2x / l2; tz = d1z / l1 + d2z / l2;
+        } else if (i < n - 1) {
+          tx = flat[(i + 1) * 2] - cxp; tz = flat[(i + 1) * 2 + 1] - czp;
+        } else {
+          tx = cxp - flat[(i - 1) * 2]; tz = czp - flat[(i - 1) * 2 + 1];
+        }
+        const tl = Math.hypot(tx, tz) || 1;
+        const pxn = -(tz / tl), pzn = tx / tl;
+        const o = (base + i * 2) * 3;
+        pos[o] = cxp + pxn * halfW; pos[o + 1] = 0; pos[o + 2] = czp + pzn * halfW;
+        pos[o + 3] = cxp - pxn * halfW; pos[o + 4] = 0; pos[o + 5] = czp - pzn * halfW;
+        if (cxp - halfW < minX) minX = cxp - halfW;
+        if (cxp + halfW > maxX) maxX = cxp + halfW;
+        if (czp - halfW < minZ) minZ = czp - halfW;
+        if (czp + halfW > maxZ) maxZ = czp + halfW;
+      }
+      for (let i = 0; i < n - 1; i++) {
+        const a = base + i * 2, b = a + 1, cIdx = a + 2, d = a + 3;
+        idx[ix] = a; idx[ix + 1] = cIdx; idx[ix + 2] = b;
+        idx[ix + 3] = b; idx[ix + 4] = cIdx; idx[ix + 5] = d;
+        ix += 6;
+      }
+      v += n * 2;
+    }
+    posAttr.needsUpdate = true;
+    idxAttr.needsUpdate = true;
+    geo.setDrawRange(0, ix);
+    mesh.visible = ix > 0;
+    if (v > 0) {
+      const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+      geo.boundingSphere.center.set(cx, 0, cz);
+      geo.boundingSphere.radius = Math.hypot(maxX - cx, maxZ - cz) + 1;
+    } else {
+      geo.boundingSphere.center.set(0, 0, 0);
+      geo.boundingSphere.radius = 0;
+    }
+    this.stats.roadVertsUsed = v;
+    this.stats.roadsClipped = clipped;
+  }
+
+  // Shared Noon→Midnight behavior (design D5, task 2.4): whole-batch
+  // material color updates only — no per-marker animation, no transparency,
+  // no lights, no bloom writer, and (via the 1/64 quantization latch) no
+  // per-frame work while nightness is stable.
+  _applyTimeOfDay(nightness) {
+    const q = Math.round(Math.min(1, Math.max(0, nightness)) * 64);
+    if (q === this._todQ) return;
+    this._todQ = q;
+    const n = q / 64;
+    const dayB = 1 - 0.82 * n;
+    this._mats.canopy.color.setScalar(dayB);
+    this._mats.peak.color.setScalar(dayB);
+    this._mats.truss.color.setHex(TRUSS_HEX).multiplyScalar(dayB);
+    this._mats.road.color.setHex(ROAD_HEX).multiplyScalar(1 - 0.7 * n);
+    this._nightOn = n > NIGHT_MARKER_THRESHOLD;
+    const glow = this._nightOn ? Math.min(1, (n - NIGHT_MARKER_THRESHOLD) / 0.25) : 0;
+    this._mats.warm.color.setHex(WARM_HEX).multiplyScalar(0.3 + 0.7 * glow);
+    this._mats.beacon.color.setScalar(0.3 + 0.7 * glow);
+    this._applyNightVisibility();
+  }
+
+  _applyNightVisibility() {
+    for (const name of ['warm', 'beacon']) {
+      const mesh = this._pools[name].mesh;
+      mesh.visible = this._nightOn && mesh.count > 0;
+    }
+  }
+
+  // Idempotent, OWNER-ONLY teardown: releases exactly the pools, geometries
+  // and materials this instance built (nothing here is `userData.shared`, and
+  // nothing shared ever enters this group). Safe to call twice — for
+  // hub-sandbox rebuilds and page teardown.
   dispose() {
     if (!this.enabled || this.disposed) return;
     this.disposed = true;
     this.planner = null;
+    if (this._pools) {
+      for (const name of Object.keys(this._pools)) this._pools[name].mesh.dispose();
+      for (const name of Object.keys(this._geos)) this._geos[name].dispose();
+      for (const name of Object.keys(this._mats)) this._mats[name].dispose();
+      this._road.geo.dispose();
+      if (this.group.parent) this.group.parent.remove(this.group);
+    }
+    this._pools = null;
+    this._geos = null;
+    this._mats = null;
+    this._road = null;
+    this._active = null;
+    this.group = null;
   }
 }
