@@ -1,7 +1,7 @@
 ---
 change: festival-horizon
 status: in_progress
-current_task: "3.1"
+current_task: "4.1"
 blocked_by: null
 open_questions: 0
 started: 2026-08-26
@@ -78,6 +78,16 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
   construction, so the "only while caps stay green" condition is satisfiable
   up front. The 5.4 measured A/B can still drop trusses/markers if reality
   disagrees.
+- **D14 (2026-08-27):** The road underlay selects polylines by NEAREST-FIRST
+  within radius + one coarse cell, not discovery order. `roadsInBounds` pads
+  its query by `ROAD_MAX_EDGE_CELLS` heart cells (600m), so the coarse-cell
+  sweep discovers arterials far beyond the horizon; unfiltered, they consumed
+  the low-tier road buffer in discovery order and clipped 332 nearby polylines
+  in the first live capture. With the deterministic distance filter + sort
+  (stable tie-break on first-point coords), the same scene fills 656/2048
+  verts with zero clips. Also: the streaming remainder is measured immediately
+  after lakes+chunks — time-of-day is not streaming work and must not starve
+  the horizon's budget (the first live run starved exactly that way).
 
 ## Assumptions
 
@@ -184,3 +194,29 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
   (10 gates), flag-off boot verified headless (`?perf=low`, `__dbg.start()`,
   0 console errors). Not yet reachable from any page — world wiring is Group 3.
 - **Refs:** -> D12, -> D13, -> Task 1.2, -> Tasks 2.1-2.4, CHANGELOG 2026-08-27
+
+### 2026-08-27 -- Task group 3 landed (world wiring, dither handoff, shared budget) — first live horizon
+
+- **Event:** phase-change + discoveries
+- **What:** The horizon is now live end-to-end behind `?farField=1`: `world.js`
+  owns one FarField beside the chunk/lake managers (isLoaded predicate +
+  nightness + live reduced-motion each frame), planning spends only the
+  remainder of the world streaming wall, and proxies dissolve through the
+  per-instance Bayer-dither envelope when their owner chunk completes (and
+  reappear on unload). `__dbg.horizon()` (read-only stats — the 4.2 surface,
+  landed early because verification needed it) confirmed on this box, live in
+  the real game: first plan commit (280 active / 656 road verts / 0 clips on
+  low, seed 1234), envelope handoffs firing as chunks load mid-replan
+  (handoffs: 2 after a 160m teleport), `?worldgen=0&farField=1` and default
+  flag-off both resolving to no group + `{enabled: false}`, and clean consoles
+  on every run. Discoveries: the two D14 issues (budget starvation via ToD in
+  the measured window; road buffer eaten by out-of-radius arterials) were both
+  caught by the live captures, not the unit gates — the sandbox/game split
+  earning its keep. SwiftShader note: planning is frame-rate-bound (~1 coarse
+  cell/frame), so first commit takes ~15s (low, 49 cells) to ~2min (high, 81
+  cells) here; on a real 60fps device the same plan is ~1-1.5s. maxColdStepMs
+  measured 6-16ms on this box (software raster, cold caches) vs the 2ms tier
+  gate — judge that gate on real-device numbers at 5.4, per the baseline doc's
+  SwiftShader caveat.
+- **Refs:** -> D12, -> D13, -> D14, -> Tasks 3.1-3.3, screenshots in scratch
+  (g3-on-low-noon-horizon / g3-on-low-midnight), CHANGELOG 2026-08-27

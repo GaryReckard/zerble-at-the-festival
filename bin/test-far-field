@@ -359,7 +359,7 @@ const ff = new FarField({ enabled: true, tier: TEST_TIER });
 assert(ff.planner instanceof SnapshotPlanner, 'an enabled FarField must construct a SnapshotPlanner');
 assert(JSON.stringify(ff.stats) === JSON.stringify({
   active: 0, overflow: 0, rebuilds: 0, superseded: 0,
-  roadVertsUsed: 0, roadsClipped: 0, maxColdStepMs: 0,
+  roadVertsUsed: 0, roadsClipped: 0, maxColdStepMs: 0, handoffs: 0,
 }), 'an enabled FarField must start with a zeroed stats object');
 for (const name of POOL_NAMES) {
   assert(ff._pools[name].mesh.count === 0 && ff._pools[name].mesh.visible === false,
@@ -445,6 +445,81 @@ for (const name of ['warm', 'beacon']) {
 }
 assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshold sanity');
 
+// ---------- K2. Completion handoff + shared budget + dither (group 3) ----------
+
+{
+  const loadedCells = new Set();
+  const ff3 = new FarField({
+    enabled: true, tier: TEST_TIER,
+    isLoaded: (cx, cz) => loadedCells.has(cx + ',' + cz),
+  });
+
+  // Static shader test (design D4 risk "onBeforeCompile drift"): the five
+  // proxy materials inject aFade/vFade/Bayer discard through documented
+  // chunks under ONE stable cache key; the road underlay stays clean.
+  for (const name of POOL_NAMES) {
+    const mat = ff3._mats[name];
+    assert(typeof mat.onBeforeCompile === 'function' && typeof mat.customProgramCacheKey === 'function',
+      `${name} material must carry the dither injection + a stable cache key`);
+    assert(mat.customProgramCacheKey() === ff3._mats.canopy.customProgramCacheKey(),
+      'all proxy materials must share one program cache key');
+    const shader = {
+      vertexShader: 'void main() {\n#include <begin_vertex>\n}',
+      fragmentShader: 'void main() {\n#include <clipping_planes_fragment>\n}',
+    };
+    mat.onBeforeCompile(shader);
+    assert(shader.vertexShader.includes('attribute float aFade') && shader.vertexShader.includes('vFade = aFade'),
+      `${name} vertex shader must wire the per-instance fade attribute`);
+    assert(shader.fragmentShader.includes('ffBayer') && shader.fragmentShader.includes('discard'),
+      `${name} fragment shader must carry the Bayer screen-door discard`);
+    assert(!shader.fragmentShader.includes('transparent'), 'the dither path must not introduce transparency');
+    assert(ff3._geos[name].attributes.aFade.array.length === TEST_TIER.caps[name],
+      `${name} fade attribute must be sized to the pool cap`);
+  }
+  assert(ff3._mats.road.onBeforeCompile === undefined,
+    'the road underlay material must NOT get the dither (real road covers it by Δy alone)');
+
+  // First plan with nothing loaded: every fade snaps to 1 (proxy shown).
+  ff3.update(0, 0, { budgetMs: 60000 });
+  assert(ff3.stats.rebuilds === 1, 'handoff instance: first plan should commit');
+  const pool3 = ff3._pools.canopy;
+  assert(ff3._active.canopy.length > 0, 'handoff test needs at least one canopy instance');
+  for (let i = 0; i < ff3._active.canopy.length; i++) {
+    assert(pool3.fade.array[i] === 1, 'with nothing loaded, initial fades must snap to 1 (no envelope)');
+  }
+
+  // Shared-deadline contract (design D3): a zero remainder plans NOTHING.
+  ff3.update(2400, 2400, { budgetMs: 0 });
+  assert(ff3.stats.rebuilds === 1 && ff3.planner.pending !== null,
+    'a zero streaming remainder must leave the pending plan untouched (no second wall)');
+  ff3.update(2400, 2400, { budgetMs: 60000 });
+  assert(ff3.stats.rebuilds === 2, 'the next frame with remainder should finish the plan');
+
+  // Owner chunk completes → 0.3s envelope dissolves the whole cluster.
+  const inst = ff3._active.canopy[0];
+  loadedCells.add(inst.ownerCx + ',' + inst.ownerCz);
+  ff3.update(2400, 2400, { dt: 0.1 });
+  const mid = pool3.fade.array[0];
+  assert(mid > 0 && mid < 1, `a loaded owner cell must start a dissolve envelope, got fade ${mid}`);
+  assert(ff3.stats.handoffs === 1, 'the ownership flip must count one handoff');
+  ff3.update(2400, 2400, { dt: 0.1 });
+  ff3.update(2400, 2400, { dt: 0.15 });
+  assert(pool3.fade.array[0] === 0, `the envelope must reach 0 within ~0.3s, got ${pool3.fade.array[0]}`);
+  assert(ff3._handoffs.length === 0, 'completed envelopes must leave the active list');
+
+  // Steady state: no ownership change → no envelope work, fades stable.
+  ff3.update(2400, 2400, { dt: 0.1 });
+  assert(pool3.fade.array[0] === 0 && ff3._handoffs.length === 0, 'steady state must not restart handoffs');
+
+  // Chunk unloads → proxy reappears; reduced motion (read live) snaps it.
+  loadedCells.delete(inst.ownerCx + ',' + inst.ownerCz);
+  ff3.update(2400, 2400, { dt: 0.016, reducedMotion: true });
+  assert(pool3.fade.array[0] === 1, 'reduced motion must snap the reappearing proxy to fade 1 immediately');
+  assert(ff3._handoffs.length === 0, 'a snap must not leave an active envelope behind');
+
+  ff3.dispose();
+}
+
 // ---------- K. Owner-only disposal idempotence (group 2) ----------
 
 const geoRefs = Object.values(ff._geos).concat([ff._road.geo]);
@@ -465,6 +540,7 @@ process.stdout.write(
   'PASS  far-field owner-cell fixtures, deterministic descriptor copying, worldgen-input immutability, ' +
   'fixed-capacity nearest selection, snapshot-planner supersession, the enablement truth table, ' +
   'handoff policy, palette + instHash stability, instance expansion, the real-worldgen pool drive ' +
-  '(caps, determinism, bounds enclosure after a distant rewrite, night gating), and owner-only ' +
-  'disposal idempotence\n'
+  '(caps, determinism, bounds enclosure after a distant rewrite, night gating), the completion ' +
+  'handoff (dither wiring, snap-then-envelope, shared-deadline remainder, reduced-motion snap, ' +
+  'unload reappearance), and owner-only disposal idempotence\n'
 );

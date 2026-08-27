@@ -44,7 +44,13 @@ export class Mesh extends Object3DStub {
 // Geometries: tree.js tags module-level ones with .userData.shared = true.
 // disposeCount lets bin/test-far-field assert owner-only disposal idempotence.
 class GeometryStub {
-  constructor() { this.userData = {}; this.disposeCount = 0; this.boundingSphere = null; }
+  constructor() {
+    this.userData = {}; this.disposeCount = 0; this.boundingSphere = null;
+    this.attributes = {}; this.index = null; this.drawRange = { start: 0, count: Infinity };
+  }
+  setAttribute(name, attr) { this.attributes[name] = attr; return this; }
+  setIndex(attr) { this.index = attr; return this; }
+  setDrawRange(start, count) { this.drawRange = { start, count }; return this; }
   dispose() { this.disposeCount++; }
 }
 export class CylinderGeometry extends GeometryStub {}
@@ -60,12 +66,7 @@ export class OctahedronGeometry extends GeometryStub {}
 // BufferGeometry + BufferAttribute: farField.js's preallocated road ribbon
 // writes typed arrays in place and exposes the active prefix via setDrawRange.
 // The stub stores everything so tests can read the written arrays back.
-export class BufferGeometry extends GeometryStub {
-  constructor() { super(); this.attributes = {}; this.index = null; this.drawRange = { start: 0, count: Infinity }; }
-  setAttribute(name, attr) { this.attributes[name] = attr; return this; }
-  setIndex(attr) { this.index = attr; return this; }
-  setDrawRange(start, count) { this.drawRange = { start, count }; return this; }
-}
+export class BufferGeometry extends GeometryStub {}
 export class BufferAttribute {
   constructor(array, itemSize) { this.array = array; this.itemSize = itemSize; this.needsUpdate = false; }
   setUsage() { return this; }
@@ -112,7 +113,8 @@ export class Color {
   multiplyScalar(s) { this.r *= s; this.g *= s; this.b *= s; return this; }
 }
 export class InstancedBufferAttribute {
-  constructor(array) { this.array = array; this.needsUpdate = false; }
+  constructor(array, itemSize) { this.array = array; this.itemSize = itemSize; this.needsUpdate = false; }
+  setUsage() { return this; }
 }
 export class InstancedMesh {
   constructor(geometry, material, count) {

@@ -18,7 +18,7 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { Input } from './input.js';
 import { Touch } from './touch.js';
 import { HUD } from './hud.js';
-import { buildWorld, updateWorld, getTimeOfDay } from './world.js';
+import { buildWorld, updateWorld, getTimeOfDay, getFarField } from './world.js';
 import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
 import { lakeAnimatables, setLakeNightness } from './lakes.js';
 import { updateCampsiteProps } from './models/campsite.js';
@@ -1538,6 +1538,27 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     camUnlock() {
       chaseCam.dbgCamUnlock();
       return 'cam unlocked';
+    },
+
+    // Read-only far-field horizon stats (festival-horizon change; inert unless
+    // ?farField=1 resolves on). Live counters + planner state for fixed-seed
+    // A/B captures — never a mutator.
+    horizon() {
+      const ff = getFarField();
+      if (!ff || !ff.enabled) return { enabled: false };
+      return {
+        enabled: true,
+        disposed: ff.disposed,
+        stats: { ...ff.stats },
+        playerCell: ff._playerCell,
+        pendingCells: ff.planner && ff.planner.pending
+          ? ff.planner.pending.cells.length - ff.planner.pending.next : 0,
+        committed: !!(ff.planner && ff.planner.committed),
+        counts: Object.fromEntries(
+          ['canopy', 'truss', 'peak', 'warm', 'beacon'].map((n) => [n, ff._pools[n].mesh.count]),
+        ),
+        activeHandoffs: ff._handoffs.length,
+      };
     },
 
     // Bubble-juice level in meters — drives the machine liquid, reserve jugs,

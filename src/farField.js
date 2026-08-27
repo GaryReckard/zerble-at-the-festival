@@ -162,6 +162,35 @@ export function paletteIndex(record, buckets) {
   return h % buckets;
 }
 
+// Proxy-only Bayer screen-door dissolve (design D4): the material stays
+// opaque + depth-writing (no transparent sort), fading via a per-instance
+// `aFade` attribute and an ordered-dither discard. Injected through
+// documented shader chunks with a STABLE cache key so the five proxy
+// batches share ONE program and never churn recompiles. The road underlay
+// deliberately does NOT get this — the real road covers it by Δy alone.
+const DITHER_CACHE_KEY = 'zerble:farField:dither:1';
+const FF_BAYER_GLSL = `
+float ffBayer(vec2 p) {
+  float x = mod(p.x, 4.0), y = mod(p.y, 4.0);
+  float v =
+    x < 1.0 ? (y < 1.0 ? 0.0 : y < 2.0 ? 12.0 : y < 3.0 ? 3.0 : 15.0) :
+    x < 2.0 ? (y < 1.0 ? 8.0 : y < 2.0 ? 4.0 : y < 3.0 ? 11.0 : 7.0) :
+    x < 3.0 ? (y < 1.0 ? 2.0 : y < 2.0 ? 14.0 : y < 3.0 ? 1.0 : 13.0) :
+              (y < 1.0 ? 10.0 : y < 2.0 ? 6.0 : y < 3.0 ? 9.0 : 5.0);
+  return (v + 0.5) / 16.0;
+}`;
+export function applyProxyDither(mat) {
+  mat.customProgramCacheKey = () => DITHER_CACHE_KEY;
+  mat.onBeforeCompile = (shader) => {
+    shader.vertexShader = 'attribute float aFade;\nvarying float vFade;\n' +
+      shader.vertexShader.replace('#include <begin_vertex>',
+        '#include <begin_vertex>\n\tvFade = aFade;');
+    shader.fragmentShader = 'varying float vFade;\n' + FF_BAYER_GLSL + '\n' +
+      shader.fragmentShader.replace('#include <clipping_planes_fragment>',
+        '#include <clipping_planes_fragment>\n\tif (vFade < 0.999 && vFade < ffBayer(gl_FragCoord.xy)) discard;');
+  };
+}
+
 // Per-instance variation in [0,1) from (clusterSeed, index) — same class of
 // pure integer mapping as paletteIndex: NO shared RNG stream is consumed, so
 // worldgen goldens can't move.
@@ -299,7 +328,7 @@ export class SnapshotPlanner {
 // first update() (design D1: nothing rides the boot chain).
 
 export class FarField {
-  constructor({ enabled, tier, scene } = {}) {
+  constructor({ enabled, tier, scene, isLoaded } = {}) {
     this.enabled = !!enabled;
     this.disposed = false;
     if (!this.enabled) return;
@@ -307,8 +336,11 @@ export class FarField {
     this.planner = new SnapshotPlanner();
     this.stats = {
       active: 0, overflow: 0, rebuilds: 0, superseded: 0,
-      roadVertsUsed: 0, roadsClipped: 0, maxColdStepMs: 0,
+      roadVertsUsed: 0, roadsClipped: 0, maxColdStepMs: 0, handoffs: 0,
     };
+    // The narrow completion predicate (design D1/D4): "is (cx,cz) fully
+    // built". The ONLY window into chunk lifecycle this system gets.
+    this._isLoaded = isLoaded || null;
     this._vendorRowMax = Math.max(1, Math.round(3 * (tier.densityMul || 1)));
     this._playerCell = null;
     this._planAnchor = { x: 0, z: 0 };
@@ -316,6 +348,8 @@ export class FarField {
     this._todQ = -1;
     this._nightOn = false;
     this._active = { canopy: [], truss: [], peak: [], warm: [], beacon: [] };
+    this._ownerCells = new Map();   // 'cx,cz' -> { cx, cz, loaded, insts: [{pool, i}] }
+    this._handoffs = [];            // active envelopes: { pool, i, target }
     this._buildPools(scene || null);
   }
 
@@ -364,7 +398,12 @@ export class FarField {
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 0);
       mesh.name = 'farField:' + name;
-      this._pools[name] = { mesh, hasColor: hasColor[name], cap: caps[name] };
+      // Per-instance dissolve state for the completion handoff (design D4).
+      const fade = new THREE.InstancedBufferAttribute(new Float32Array(caps[name]).fill(1), 1);
+      fade.setUsage(THREE.DynamicDrawUsage);
+      this._geos[name].setAttribute('aFade', fade);
+      applyProxyDither(this._mats[name]);
+      this._pools[name] = { name, mesh, fade, hasColor: hasColor[name], cap: caps[name] };
       this.group.add(mesh);
     }
 
@@ -417,21 +456,30 @@ export class FarField {
       this._roadSeen = new Set();
       this.planner.begin(version, coarseCellsFor(this._planAnchor.x, this._planAnchor.z, this.tier.radius));
     }
-    if (!this.planner.pending) return;
 
-    const t0 = performance.now();
-    for (;;) {
-      const c0 = performance.now();
-      const committed = this.planner.step((cx, cz) => this._planCellRecords(cx, cz, this._roadSeen), 1);
-      const cellMs = performance.now() - c0;
-      if (cellMs > this.stats.maxColdStepMs) this.stats.maxColdStepMs = cellMs;
-      if (committed) {
-        this._applySnapshot(this.planner.committed.records);
-        break;
+    // Planning spends only the REMAINDER of the world-owned streaming wall
+    // (design D3: chunks consume first, there is no second budget). A zero
+    // remainder plans nothing this frame; a positive one may overshoot by at
+    // most one indivisible cold step, which stats.maxColdStepMs measures and
+    // the tier's maxColdStepMs gate judges. With no budget given (tests,
+    // sandbox), exactly one cell is planned per call.
+    if (this.planner.pending && !(opts.budgetMs != null && opts.budgetMs <= 0)) {
+      const t0 = performance.now();
+      for (;;) {
+        const c0 = performance.now();
+        const committed = this.planner.step((cx, cz) => this._planCellRecords(cx, cz, this._roadSeen), 1);
+        const cellMs = performance.now() - c0;
+        if (cellMs > this.stats.maxColdStepMs) this.stats.maxColdStepMs = cellMs;
+        if (committed) {
+          this._applySnapshot(this.planner.committed.records);
+          break;
+        }
+        if (!this.planner.pending) break;
+        if (opts.budgetMs == null || performance.now() - t0 >= opts.budgetMs) break;
       }
-      if (!this.planner.pending) break;
-      if (opts.budgetMs == null || performance.now() - t0 >= opts.budgetMs) break;
     }
+
+    this._updateHandoffs(opts.dt == null ? 0.016 : opts.dt, !!opts.reducedMotion);
   }
 
   // One coarse cell's records: hearts OWNED by the cell (dedupe across the
@@ -464,6 +512,10 @@ export class FarField {
   _applySnapshot(records) {
     const ax = this._planAnchor.x, az = this._planAnchor.z;
     const expanded = expandFarInstances(records, this.tier.densityMul || 1);
+    // A (re)plan snaps every proxy's ownership state without an envelope
+    // (design D1/D4) — clear active envelopes, rebuild the owner-cell index.
+    this._ownerCells.clear();
+    this._handoffs.length = 0;
     let active = 0, overflow = 0;
     for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon']) {
       const pool = this._pools[name];
@@ -497,6 +549,19 @@ export class FarField {
         c.setHex(inst.color);
         mesh.setColorAt(i, c);
       }
+      // Ownership snap + owner-cell index for the completion handoff.
+      const key = inst.ownerCx + ',' + inst.ownerCz;
+      let cell = this._ownerCells.get(key);
+      if (!cell) {
+        cell = {
+          cx: inst.ownerCx, cz: inst.ownerCz,
+          loaded: this._isLoaded ? !!this._isLoaded(inst.ownerCx, inst.ownerCz) : false,
+          insts: [],
+        };
+        this._ownerCells.set(key, cell);
+      }
+      cell.insts.push({ pool, i });
+      pool.fade.array[i] = cell.loaded ? 0 : 1;
       if (inst.x < minX) minX = inst.x;
       if (inst.y < minY) minY = inst.y;
       if (inst.z < minZ) minZ = inst.z;
@@ -509,6 +574,7 @@ export class FarField {
     mesh.count = kept.length;
     mesh.instanceMatrix.needsUpdate = true;
     if (pool.hasColor && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    pool.fade.needsUpdate = true;
     mesh.visible = kept.length > 0;
     if (kept.length > 0) {
       const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, cz = (minZ + maxZ) / 2;
@@ -531,9 +597,26 @@ export class FarField {
     const capV = this.tier.caps.roadVerts, capI = this.tier.caps.roadIndices;
     const pos = posAttr.array, idx = idxAttr.array;
     const halfW = (CONFIG.ROAD_WIDTH * FAR_ROAD_WIDTH_FRAC) / 2;
+    // roadsInBounds pads its query by ROAD_MAX_EDGE_CELLS heart cells, so the
+    // coarse-cell sweep discovers arterials far beyond the horizon. Keep only
+    // polylines that come within radius(+one coarse cell) of the plan anchor,
+    // nearest-first with a stable tie-break, so the fixed buffer always holds
+    // the roads the player can actually see (deterministic capacity behavior).
+    const ax = this._planAnchor.x, az = this._planAnchor.z;
+    const reach = this.tier.radius + COARSE_CELL;
+    const scored = [];
+    for (const flat of flats) {
+      let best = Infinity;
+      for (let i = 0; i < flat.length; i += 2) {
+        const d = Math.hypot(flat[i] - ax, flat[i + 1] - az);
+        if (d < best) best = d;
+      }
+      if (best <= reach) scored.push({ flat, d: best });
+    }
+    scored.sort((a, b) => a.d - b.d || a.flat[0] - b.flat[0] || a.flat[1] - b.flat[1]);
     let v = 0, ix = 0, clipped = 0;
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
-    for (const flat of flats) {
+    for (const { flat } of scored) {
       const n = flat.length / 2;
       if (n < 2) continue;
       if (v + n * 2 > capV || ix + (n - 1) * 6 > capI) { clipped++; continue; }
@@ -599,12 +682,71 @@ export class FarField {
     this._mats.canopy.color.setScalar(dayB);
     this._mats.peak.color.setScalar(dayB);
     this._mats.truss.color.setHex(TRUSS_HEX).multiplyScalar(dayB);
-    this._mats.road.color.setHex(ROAD_HEX).multiplyScalar(1 - 0.7 * n);
+    this._mats.road.color.setHex(ROAD_HEX).multiplyScalar(1 - 0.85 * n);
     this._nightOn = n > NIGHT_MARKER_THRESHOLD;
     const glow = this._nightOn ? Math.min(1, (n - NIGHT_MARKER_THRESHOLD) / 0.25) : 0;
     this._mats.warm.color.setHex(WARM_HEX).multiplyScalar(0.3 + 0.7 * glow);
     this._mats.beacon.color.setScalar(0.3 + 0.7 * glow);
     this._applyNightVisibility();
+  }
+
+  // Completion handoff (design D4, task 3.2): each owner cell's target
+  // visibility follows the narrow isLoaded predicate — loaded → fade 0
+  // (dissolved, the real chunk has its props), unloaded → fade 1 (proxy
+  // shown again after a chunk unload). Only ACTIVE handoffs are stepped
+  // (0.3s envelope); reduced motion is read live per call and snaps.
+  // Steady-state frames with no ownership change and no running envelope
+  // do one boolean check per owner cell and allocate nothing.
+  _updateHandoffs(dt, reducedMotion) {
+    if (this._isLoaded && this._ownerCells.size) {
+      for (const cell of this._ownerCells.values()) {
+        const cur = !!this._isLoaded(cell.cx, cell.cz);
+        if (cur === cell.loaded) continue;
+        cell.loaded = cur;
+        this.stats.handoffs++;
+        const target = cur ? 0 : 1;
+        const snap = handoffMode(reducedMotion) === 'snap';
+        for (const ref of cell.insts) this._setFadeTarget(ref.pool, ref.i, target, snap);
+      }
+    }
+    if (this._handoffs.length === 0) return;
+    const stepAmt = dt / HANDOFF_ENVELOPE_S;
+    for (let k = this._handoffs.length - 1; k >= 0; k--) {
+      const h = this._handoffs[k];
+      const arr = h.pool.fade.array;
+      const cur = arr[h.i];
+      const next = cur < h.target
+        ? Math.min(h.target, cur + stepAmt)
+        : Math.max(h.target, cur - stepAmt);
+      arr[h.i] = next;
+      h.pool.fade.needsUpdate = true;
+      if (next === h.target) {
+        this._handoffs[k] = this._handoffs[this._handoffs.length - 1];
+        this._handoffs.pop();
+      }
+    }
+  }
+
+  _setFadeTarget(pool, i, target, snap) {
+    // One envelope per instance: retarget an existing entry instead of
+    // stacking a second (a chunk can load and unload mid-dissolve).
+    let entry = null;
+    for (let k = 0; k < this._handoffs.length; k++) {
+      const h = this._handoffs[k];
+      if (h.pool === pool && h.i === i) { entry = h; break; }
+    }
+    if (snap) {
+      pool.fade.array[i] = target;
+      pool.fade.needsUpdate = true;
+      if (entry) {
+        const k = this._handoffs.indexOf(entry);
+        this._handoffs[k] = this._handoffs[this._handoffs.length - 1];
+        this._handoffs.pop();
+      }
+      return;
+    }
+    if (entry) entry.target = target;
+    else this._handoffs.push({ pool, i, target });
   }
 
   _applyNightVisibility() {
@@ -634,6 +776,8 @@ export class FarField {
     this._mats = null;
     this._road = null;
     this._active = null;
+    this._ownerCells = null;
+    this._handoffs = null;
     this.group = null;
   }
 }

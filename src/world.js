@@ -5,9 +5,11 @@ import * as THREE from 'three';
 import { buildMountains } from './mountains.js';
 import { ChunkManager } from './chunks.js';
 import { LakeManager } from './lakes.js';
+import { FarField } from './farField.js';
 import { terrainHeight } from './rng.js';
 import { TimeOfDay } from './timeOfDay.js';
-import { PERF } from './perf.js';
+import { PERF, USE_FAR_FIELD } from './perf.js';
+import { A11y } from './a11y.js';
 
 const SKY_TOP = 0x6fb6e8;
 const SKY_BOTTOM = 0xffd0a8;
@@ -23,6 +25,7 @@ const GROUND_SEG = 220;
 
 let chunkManager = null;
 let lakeManager = null;
+let farField = null;
 let groundMesh = null;
 let mountainsGroup = null;
 let skyMesh = null;
@@ -36,6 +39,10 @@ let timeOfDay = null;
 
 export function getTimeOfDay() {
   return timeOfDay;
+}
+
+export function getFarField() {
+  return farField;
 }
 
 // `playerPos` seeds the first lake + chunk preload neighbourhood. main.js
@@ -70,7 +77,20 @@ export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0))
   // title-card backdrop) looks alive at the actual spawn hub, not origin.
   chunkManager.update(playerPos);
 
-  return { chunkManager, lakeManager };
+  // The far-field horizon is a PEER of the chunk/lake managers (festival-
+  // horizon design D1), built last so it can hold the narrow isLoaded
+  // completion predicate. Construction allocates its fixed pools when the
+  // experiment is on; ALL planning defers to the first enabled updateWorld —
+  // nothing here touches the title/start or synchronous iOS-audio chain, and
+  // the default-off path constructs an inert two-boolean shell.
+  farField = new FarField({
+    enabled: USE_FAR_FIELD,
+    tier: PERF.farField,
+    scene,
+    isLoaded: (cx, cz) => chunkManager.isLoaded(cx, cz),
+  });
+
+  return { chunkManager, lakeManager, farField };
 }
 
 // Track ground "world center" so we can re-sample terrain heights at world
@@ -83,10 +103,28 @@ let _groundLastResampleZ = NaN;
 const GROUND_RESAMPLE_THRESHOLD = 40; // re-derive heights when player moves > 40m
 
 export function updateWorld(playerPos, dt = 0.016) {
+  // One world-owned streaming deadline (festival-horizon design D3): lakes +
+  // full chunks consume it first; the far-field horizon plans only in the
+  // remainder. There is no second budget.
+  const streamStartedAt = performance.now();
   // Lakes update first (same reason as boot: chunks consult lake footprints).
   if (lakeManager) lakeManager.update(_scene, playerPos, dt);
   if (chunkManager) chunkManager.update(playerPos);
+  // The horizon's remainder is measured HERE — lakes + full chunks are the
+  // streaming spend that consumes the wall first; time-of-day is not
+  // streaming work and doesn't count against it.
+  const streamRemainderMs = Math.max(0, PERF.chunkBudgetMs - (performance.now() - streamStartedAt));
   if (timeOfDay) timeOfDay.update(dt);
+  if (farField && farField.enabled) {
+    farField.update(playerPos.x, playerPos.z, {
+      dt,
+      nightness: timeOfDay ? timeOfDay.nightness : 0,
+      // Read LIVE each frame (design D4/D8): A11y.init() resolves the
+      // persisted/OS preference only after buildWorld has already run.
+      reducedMotion: A11y.reducedMotion,
+      budgetMs: streamRemainderMs,
+    });
+  }
   // Keep the sky dome, ground plane and mountain ring centered on the player
   // so the world feels infinite — chunks at fixed world coords slide past,
   // but the backdrops always look the same distance away.

@@ -54,18 +54,18 @@
 
 ## 3. Chunk handoff and world lifecycle
 
-- [ ] 3.1 Wire one FarField instance into `world.js` after the authoritative lake
+- [x] 3.1 Wire one FarField instance into `world.js` after the authoritative lake
   and chunk managers, passing the narrow `isLoaded` completion predicate and time
   of day; defer all planning to the first enabled update (no work at module
   evaluation) and snap initial proxy ownership without an envelope, leaving the
   title/start and synchronous iOS audio path untouched.
-- [ ] 3.2 Implement actual-completion handoff through the exported owner-cell
+- [x] 3.2 Implement actual-completion handoff through the exported owner-cell
   helper and `isLoaded` predicate (keyed to "required cluster props exist," not
   to chunk generation currently being synchronous), a proxy-only opaque Bayer
   dither with stable shader cache key, 0.3s active-envelope updates,
   reduced-motion state read live at handoff time (after `A11y.init()`) with
   immediate swaps, and clean reappearance after chunk unload.
-- [ ] 3.3 Schedule all rebuild work under the single world-owned streaming
+- [x] 3.3 Schedule all rebuild work under the single world-owned streaming
   deadline (full chunks consume first and FarField receives only the remainder;
   there is no second 3/4/5ms wall); stage descriptor planning incrementally by
   coarse cell while retaining the prior complete snapshot; version pending jobs
