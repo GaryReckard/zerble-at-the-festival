@@ -1,11 +1,11 @@
 ---
 change: festival-horizon
-status: in_progress
-current_task: "5.5 (blocked on Q1 sign-off)"
+status: complete
+current_task: null
 blocked_by: null
-open_questions: 1
+open_questions: 0
 started: 2026-08-26
-last_updated: 2026-08-27
+last_updated: 2026-08-28
 ref: ROADMAP.md "Far-field festival depth / semantic LOD"
 ---
 
@@ -284,3 +284,28 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
   `.claude/captures/g5-shots/` for review) and **5.5 / 6.2 final form**
   (blocked on -> Q1, Gary's promotion sign-off per D11). Default remains OFF.
 - **Refs:** -> Q1, -> Tasks 5.2/5.5/6.1-6.3, `.claude/captures/g5-shots/`
+
+### 2026-08-28 -- Q1 answered YES: promoted to default-on, merged to main
+
+- **Event:** decision
+- **What:** Gary drove the branch on his Mac with `?farField=1` and signed off
+  ("ok, looks good!") -- the D11 real-device look at planning cold-step feel +
+  worst-frame the GPU-less box couldn't judge. `DEFAULT_FAR_FIELD` flipped to
+  `true` (perf.js), `?farField=0` retained as the one-variable A/B control,
+  `?worldgen=0` still a zero-allocation kill. Truth table in
+  `bin/test-far-field` updated (no-flag now resolves ON with v2, still OFF
+  under `?worldgen=0`); default-off wording swept from ARCHITECTURE, DEBUGGING,
+  ROADMAP (section narrowed to the parked follow-ups: coarse forest masses +
+  the deferred refinements), main.js/farField.js/world.js comments. Re-ran the
+  gates post-flip: `npm run check` green, `lint:layout` at the exact recorded
+  baseline (1 pre-existing error / 234 findings), importmaps + `git diff
+  --check` + `node --check` clean; headless boot matrix on the NEW default --
+  no-flag boot has the horizon enabled with a committed plan (271 active, 0
+  clipped roads, coldStep 8.8ms SwiftShader, zero console errors),
+  `?farField=0` and `?worldgen=0` both resolve `{enabled: false}` with clean
+  consoles. 5.2 also closed this session: the host-side image-read outage
+  cleared, and the two remaining road shots (`vis-road-grazing`,
+  `vis-road-topdown`) show aligned continuation with no z-fighting;
+  composition sign-off is Gary's own drive. CHANGELOG 2026-08-28 entry added.
+  Per Gary's explicit instruction, the branch merges to main and both push.
+- **Refs:** -> Q1 (answered), -> D11, -> Tasks 5.2/5.5/6.2, CHANGELOG 2026-08-28

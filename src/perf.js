@@ -72,17 +72,18 @@ export const USE_WORLDGEN_V2 = (() => {
   return v === '1' ? true : v === '0' ? false : DEFAULT_WORLDGEN_V2;
 })();
 
-// Far-field festival horizon (festival-horizon change) — experiment gate.
-// Resolution is a pure function so bin/test-far-field can lock the truth
-// table without faking `location`. EFFECTIVE enablement is
-// `requested && USE_WORLDGEN_V2` (design D6 / audit V2): `?worldgen=0` is a
-// live escape hatch to the legacy v1 world, and a horizon of v2 hearts drawn
-// over the v1 world would be a permanent false horizon whose proxies never
-// hand off. `?worldgen=0&farField=1` therefore resolves to a zero-allocation
-// no-op — no FarField GPU resources, no shader programs, no planning work.
-// Default OFF (`?farField=1` opts in, `?farField=0` is the A/B control) until
-// the promotion gates in the change spec pass.
-const DEFAULT_FAR_FIELD = false;
+// Far-field festival horizon (festival-horizon change). Resolution is a pure
+// function so bin/test-far-field can lock the truth table without faking
+// `location`. EFFECTIVE enablement is `requested && USE_WORLDGEN_V2`
+// (design D6 / audit V2): `?worldgen=0` is a live escape hatch to the legacy
+// v1 world, and a horizon of v2 hearts drawn over the v1 world would be a
+// permanent false horizon whose proxies never hand off. `?worldgen=0` with
+// the horizon requested therefore resolves to a zero-allocation no-op — no
+// FarField GPU resources, no shader programs, no planning work.
+// Default ON since 2026-08-28 (promotion gates passed + Gary's real-device
+// sign-off, Q1 in the change log); `?farField=0` stays as the one-variable
+// A/B control.
+const DEFAULT_FAR_FIELD = true;
 export function resolveFarField(search, useWorldgenV2) {
   const v = new URLSearchParams(search || '').get('farField');
   const requested = v === '1' ? true : v === '0' ? false : DEFAULT_FAR_FIELD;

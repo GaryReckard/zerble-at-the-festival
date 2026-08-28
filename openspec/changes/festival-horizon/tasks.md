@@ -93,7 +93,7 @@
 - [x] 5.1 Run `npm run check`, `npm run lint:layout`, focused far-field tests,
   `git diff --check`, importmap checks, and static syntax checks for every touched
   module and HTML inline script.
-- [ ] 5.2 Capture fixed-seed off/on and proxy/handoff views at Noon and Midnight
+- [x] 5.2 Capture fixed-seed off/on and proxy/handoff views at Noon and Midnight
   on low, mid, and high; confirm the horizon reads as populated, proxy composition
   is not misleading, roads align, and the handoff has no pop or z-fighting.
 - [x] 5.3 Verify the real title/start flow, gameplay boot, mobile viewport, reduced
@@ -106,7 +106,7 @@
   meaningful worst-frame or chunk-generation regression; watch the capture for
   periodic cold-recompute spikes from the worldgen plan cache's full-clear
   threshold, which the wider horizon query reaches sooner.
-- [ ] 5.5 Resolve the promotion gate baseline-first: where task 1.5 recorded a
+- [x] 5.5 Resolve the promotion gate baseline-first: where task 1.5 recorded a
   flag-off baseline already over a tier's absolute HUD budget, that tier's gate
   is marginal delta plus no-regression plus explicit Gary sign-off (recorded in
   the session log); otherwise the absolute tier budgets stand. If every hard gate
@@ -119,7 +119,7 @@
 - [x] 6.1 Update `README.md`, `ARCHITECTURE.md`, `DEBUGGING.md`, and the relevant
   performance/pooling documentation with the shipped behavior, ownership model,
   inspection flow, and measured budgets.
-- [ ] 6.2 Add the dated player-visible CHANGELOG entry and remove or narrow the
+- [x] 6.2 Add the dated player-visible CHANGELOG entry and remove or narrow the
   completed ROADMAP bullet according to the promotion decision, preserving the
   deferred real-iPhone Wook Trip capture.
 - [x] 6.3 Refresh this change README and session status, verify no local server or

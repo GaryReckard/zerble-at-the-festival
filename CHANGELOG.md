@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-08-28
+
+### Changed
+- **The far-field festival horizon is now ON by default.** Gary's real-device drive signed off the two gates the GPU-less dev box couldn't judge (planning cold-step feel and worst-frame), which was the last open item from the 2026-08-27 acceptance run — every machine-measurable gate had already passed (≤6 marginal draws, ~3.7k–7.8k marginal tris per tier, byte-identical determinism and registry, no lifecycle growth). `DEFAULT_FAR_FIELD` flips to `true` in [perf.js](src/perf.js); `?farField=0` stays as the one-variable A/B control and `?worldgen=0` still resolves the layer to a zero-allocation no-op. The `bin/test-far-field` truth table, ARCHITECTURE/DEBUGGING wording, and the ROADMAP entry (narrowed to the parked follow-ups: coarse forest masses, billboard atlases, far-field crowds) moved with it. Static gates re-ran green after the flip and the default boot was re-verified headless with a committed plan and a clean console.
+
 ## 2026-08-27
 
 ### Added

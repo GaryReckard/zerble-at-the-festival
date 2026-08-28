@@ -80,9 +80,9 @@ export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0))
   // The far-field horizon is a PEER of the chunk/lake managers (festival-
   // horizon design D1), built last so it can hold the narrow isLoaded
   // completion predicate. Construction allocates its fixed pools when the
-  // experiment is on; ALL planning defers to the first enabled updateWorld —
+  // horizon is on; ALL planning defers to the first enabled updateWorld —
   // nothing here touches the title/start or synchronous iOS-audio chain, and
-  // the default-off path constructs an inert two-boolean shell.
+  // the disabled path constructs an inert two-boolean shell.
   farField = new FarField({
     enabled: USE_FAR_FIELD,
     tier: PERF.farField,

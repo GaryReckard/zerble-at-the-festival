@@ -725,37 +725,27 @@ Attacks two measured symptoms (137–343 ms shader-compile stalls on hub entry;
 - **Draw-call reduction (the real steady-state lever, per the round-trip-1 capture).** B0 revealed draws = median ~3,750 / max 9,232 vs a 400 budget — draw count is the ceiling. **Slice 4 SHIPPED 2026-06-21 (see CHANGELOG):** forest-tree per-chunk instancing — trees were ~half the dense-hub draws (a `drawCensus` finding), now ~344 per-tree draws/chunk → ~5–6 `InstancedMesh`es. **Deliberation 002 separately found geometry-merge is only a ~2–4% cut** (food-court/camp-village are mostly already pooled/instanced; merge helps only the unique-geometry food-truck + sugar-shack). The 2026-07-15 real-GPU gate rejected those broad model merges because renderer draws increased on every tier, while retaining the independently proven Sugar Shack sign-shell and food-truck window cuts (21 draws). Fog-as-far-cull also shipped at a backdrop-safe 1040m, removing roughly 350 fog-hidden retained-lake draws in its 1.2km travel gate. Remaining attack on the residual overage: (1) **LOD / cross-cluster instancing of the non-tree repeated clusters** (the same tents/trucks repeated across hubs, prime candidates beyond ~60m); (2) **billboard-impostor far field** (perf-brainstorm E2/E4); (3) an **honest look at whether the 400-draw high-tier budget is realistic for v2 worldgen** once trees are instanced, or whether the budget should move. Follow-up if a dense-low tri capture pushes past ~110–120k: a detail-0 icosa LOD (20 tris vs 80) for the instanced crowns.
 - **Tier-2 secondary (gated behind B0 numbers):** the cut-on-evaluation atmosphere fakes (billboard light shafts, faked lake reflections, adaptive sparkle) + crowd LOD.
 
-### Far-field festival depth / semantic LOD *(experiment SHIPPED behind `?farField=1` 2026-08-27; promotion pending sign-off)*
+### Far-field festival depth / semantic LOD *(SHIPPED + promoted to default-on 2026-08-28 — follow-ups only)*
 
-> **Status update 2026-08-27:** the first slice is implemented and landed on
-> the `festival-horizon` change — `src/farField.js` (peer of the chunk/lake
-> managers), all six proxy batches + the road underlay, the Bayer-dither
-> completion handoff, the hub-sandbox Far field mode, `__dbg.horizon()`, and
-> the full `bin/test-far-field` gate. Every measurable acceptance gate passed
-> (6 draws / ≤3.7k–7.8k marginal tris per tier, byte-identical determinism,
-> no lifecycle growth vs flag-off — see
-> `openspec/changes/festival-horizon/verification/gates-flag-on.md`). The
-> DEFAULT IS STILL OFF: per that change's D11, promotion to default-on needs
-> Gary's explicit sign-off (Q1) plus a quick real-device look at planning
-> cold-step + worst-frame, which the GPU-less dev box can't judge. The
-> "coarse forest masses" follow-up below remains future work. Original
-> brief kept for the follow-ups:
+The first slice shipped on the `festival-horizon` change (2026-08-27) and was
+promoted to **on by default** on 2026-08-28 after Gary's real-device sign-off
+(`?farField=0` remains the A/B control). Shipped behavior + budgets live in
+ARCHITECTURE.md "Far-field horizon" and
+`openspec/changes/festival-horizon/verification/gates-flag-on.md`. What
+remains parked here are the explicitly deferred follow-ups:
 
-**Player-facing problem.** The detailed world can end well before the visible atmosphere does. Chunks are 80m wide; low tier loads a 3×3 square (`chunkLoadRadius: 1`) and mid/high load 5×5 (`chunkLoadRadius: 2`), so depending on the cart's position inside its current chunk, complete content can end roughly 80–160m away on low and 160–240m away on mid/high. Fog begins at 120m but does not become opaque until 520m, leaving a large middle distance where roads, woods, and festivals can disappear and then pop into existence on approach. The latest `cameraFar: 1040` cut is not the cause because it only culls beyond twice the fog's opaque distance. The tier-aware streaming wall can delay a newly requested chunk by roughly 50–100ms without changing its distance. The June 22 tablet change from mid to low did reduce iPad residency from 25 to 9 full chunks, so this can feel materially newer or stronger on tablets even though phones and desktop kept their established radii.
+* **Coarse forest masses** — the next proxy layer if the horizon earns more
+  depth: stable canopy clumps sampled from the `treeDensity` field (never the
+  exact far-tree scatter, which would spend the CPU this layer avoids).
+* **Later refinements considered and parked:** baked multi-angle billboard
+  atlases (asset-baking workflow + texture memory + alpha sorting), far-field
+  crowds / NPC flipbook impostors, per-booth silhouettes, and any fog or
+  camera-distance expansion. Lakes stay authoritative (they already stream
+  farther than chunks) unless a measured visual gap proves they need a proxy.
 
-**Goal and visual direction.** Add depth and navigable destinations without loading more complete gameplay chunks. By day, distant roads should continue into haze toward broad forest masses, tent peaks, stage canopies/trusses, vendor-roof strips, and a few recognizable festival silhouettes. At dusk and night, those hubs should become small constellations of warm string lights, colored stage glow, and sparse emissive beacons. On approach, the same composition should resolve into real trucks, booths, people, signs, chairs, and animation instead of changing from an empty meadow to a complete festival in one step.
-
-**Architecture.** Build a separate `FarField` or `HorizonLayer`, not a larger `ChunkManager` ring. Raising low from radius 1 to 2 would increase full residency from 9 to 25 chunks; raising mid/high from radius 2 to 3 would increase it from 25 to 49. Those chunks bring registry entries, colliders, crowds, audio, animation, shadows, pickups, and model allocations with them. The far-field layer should consume the existing deterministic, render-agnostic descriptors from `queryRegion`, `festivalPlan`, `roadsInBounds`, and coarse `treeDensity` samples, but it must create **no registry entries, colliders, NPCs, audio handles, pickups, shadows, or per-prop animation**. It should be keyed to coarse world cells or hub IDs, rebuild only after the cart crosses a coarse-cell boundary, use load/unload hysteresis, and remain deterministic for a fixed seed.
-
-**Semantic proxies, not miniature exact chunks.** Zerble is made of recognizable repeated landmarks rather than voxel terrain, so the cheap representation should communicate “there is a festival over there” instead of reproducing every prop. Start with only guaranteed major anchors from the plan, such as the stage/canopy, a few tent or vendor-roof peaks, and the primary approach roads. Avoid promising every booth because the full builder can legitimately skip secondary clusters after water or collision checks. Represent forests as stable coarse canopy clumps sampled from the density field, not exact far-tree placement; the exact scatter would spend much of the CPU work this layer is meant to avoid. The existing separately streamed lakes already reach farther than normal chunks and should remain authoritative unless a measured visual gap proves they need their own proxy.
-
-**Render shape and budget.** Prefer code-native low-poly silhouettes and instanced primitives for the first version. A baked multi-angle billboard atlas is an optional later refinement because it introduces an asset-baking workflow, camera-angle variants, texture memory, and alpha sorting. Batch by proxy type and small color/shape variants using shared geometries/materials, `InstancedMesh`, or one coarse road `BufferGeometry` per far cell. Use fog-aware unlit materials for daytime shapes and a shared time-of-day value for sparse emissive lights. The first prototype should add no more than roughly **6–12 scene draws** in a representative forward view, and the count should remain approximately constant as the far radius grows.
-
-**Distance bands and handoff.** Keep the current full chunks as the near band and fill from their edge toward the existing 520m fog limit with proxies; do not extend the camera or weaken the fog initially. Low tier needs the illusion most but has the smallest budget, so test a sparser 320–360m proxy horizon there while mid/high can target the fog limit. Keep proxies resident behind full chunks. When a real chunk finishes, let its detail appear over the aligned broad silhouette and dissolve the proxy over about 0.3s, preferably with a dithered or otherwise sorting-safe fade. Do not make every real material transparent merely to crossfade. On unload, the already-resident proxy should be exposed underneath, which avoids a return to empty space. Offset or simplify overlapping surfaces enough to prevent z-fighting.
-
-**Prototype sequence and gates.** First ship only a development-gated `?farField=1` experiment containing distant hub silhouettes, primary road continuation, and night lights. Compare the same seed, pose, and time of day with the flag off/on at Noon and Midnight on low/mid/high; record scene draws/tris, worst frame, chunk-generation timing, and geometry memory before/after a long travel and unload cycle. The experiment passes only if the horizon reads as intentionally populated, proxies align closely enough that promotion is not misleading, animation continues across the handoff, no deterministic world output changes, and there is no meaningful new streaming hitch or lifecycle leak. If it earns its budget, add coarse forest masses next. Far-field crowds, NPC flipbook impostors, per-booth silhouettes, baked atlases, and any fog/camera-distance expansion stay out of the first slice.
-
-This picks up the existing perf-brainstorm **E2** distant tent/stage skyline and **E5** dithered LOD swap ideas, while reframing them primarily as a world-depth and atmosphere feature with a hard performance ceiling rather than claiming an automatic performance win.
+This picked up perf-brainstorm **E2** (distant tent/stage skyline) and **E5**
+(dithered LOD swap), reframed as a world-depth feature with a hard perf
+ceiling rather than an automatic perf win.
 
 - **Recalibrate the per-tier draw/tri HUD budgets for v2 worldgen.** *(flagged 2026-06-21)* The backtick panel's tri budgets (low 150k / mid 400k / high 1.2M) predate v2 and now cry wolf: a 2026-06-21 capture showed **626k tris on `?perf=low`** and **1.57M on `?perf=mid`** — both ~4× "over budget" — yet mid ran a smooth **54fps**, so triangles are NOT the bottleneck. The markers should be re-based from a few v2 captures so a real regression is legible instead of drowned in a permanent red. (Draws/tris are adaptive-independent, so HUD readings are trustworthy as-is; only fps is defended by AdaptiveQuality.) Budgets live in [perf.js](src/perf.js) / the HUD in [debug.js](src/debug.js).
 

@@ -264,13 +264,14 @@ assert(noop.disposed === false,
 const { resolveFarField } = await import('../src/perf.js');
 
 const TRUTH_TABLE = [
-  ['', true, false],
+  ['', true, true],            // promoted default (2026-08-28): on with v2 worldgen
+  ['', false, false],          // ...but still killed by ?worldgen=0
   ['?farField=1', true, true],
   ['?farField=1', false, false],
   ['?farField=0', true, false],
   ['?farField=0', false, false],
-  [null, true, false],
-  [undefined, true, false],
+  [null, true, true],
+  [undefined, true, true],
 ];
 for (const [search, useWorldgenV2, expected] of TRUTH_TABLE) {
   const got = resolveFarField(search, useWorldgenV2);

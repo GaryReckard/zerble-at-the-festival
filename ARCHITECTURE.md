@@ -188,16 +188,17 @@ A second, **render-agnostic** world generator that replaces the per-chunk theme 
 
 ---
 
-## Far-field horizon (`farField.js`) — experiment, default off
+## Far-field horizon (`farField.js`) — on by default
 
 A render-only "semantic LOD" layer that fills the middle distance (from the
 chunk load ring out to the tier's horizon radius, 340m low / 520m mid+high)
 with batched festival silhouettes, so hubs read as destinations through the
-fog instead of popping out of empty grass. **Gated:** effective enablement is
-`farFieldRequested && USE_WORLDGEN_V2` (`?farField=1` opts in; `?farField=0`
-is the A/B control; `?worldgen=0` kills it — v2 proxies over the v1 world
-would never hand off). Disabled means a two-boolean shell: no pools, no
-shader programs, no planning, nothing in the scene.
+fog instead of popping out of empty grass. **Default on since 2026-08-28**
+(promotion gates + sign-off; see CHANGELOG). Effective enablement is
+`farFieldRequested && USE_WORLDGEN_V2` (`?farField=0` is the one-variable
+A/B control; `?worldgen=0` kills it — v2 proxies over the v1 world would
+never hand off). Disabled means a two-boolean shell: no pools, no shader
+programs, no planning, nothing in the scene.
 
 **Shape.** A PEER of `ChunkManager`/`LakeManager`, owned by `world.js` —
 never a wider chunk ring. It consumes the same pure worldgen descriptors the

@@ -1,9 +1,9 @@
 ---
 change: festival-horizon
-open: 1
-answered: 0
+open: 0
+answered: 1
 last_question: "Q1 (2026-08-27)"
-last_answer: null
+last_answer: "Q1 (2026-08-28)"
 ---
 
 # Questions for Human: Festival Horizon
@@ -12,6 +12,10 @@ last_answer: null
 > each unanswered question to the user before starting new work.
 
 ## Open Questions
+
+(none)
+
+## Answered Questions
 
 ### Q1: Promotion sign-off — flip the far-field horizon on by default?
 
@@ -31,9 +35,11 @@ last_answer: null
   gate — likely fine on real hardware but unproven) and worst-frame impact.
   A quick phone/laptop drive with `?farField=1` (and the `?perfCapture=1` LAN
   flow if you want numbers) would settle both.
-- **Impact:** Yes → task 5.5 flips the default, 5.1–5.4 re-run, ROADMAP bullet
-  closes. No / not yet → the experiment stays behind `?farField=1` and the
-  ROADMAP bullet stays narrowed to "promotion pending."
-
-
-## Answered Questions
+- **Answer (2026-08-28):** **Yes.** Gary pulled the branch on his Mac, drove
+  with `?farField=1`, and signed off: "ok, looks good! Please promote to on by
+  default! push, merge to main, and push that too!" That real-device drive is
+  the D11 look at planning cold-step feel + worst-frame the GPU-less box
+  couldn't provide. **Action:** -> Task 5.5 executed (DEFAULT_FAR_FIELD =
+  true, `?farField=0` retained as the A/B control, gates re-run), -> Task 6.2
+  CHANGELOG entry + ROADMAP narrowing landed, branch merged to main and
+  pushed per Gary's explicit instruction.

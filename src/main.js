@@ -1540,8 +1540,8 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       return 'cam unlocked';
     },
 
-    // Far-field horizon debug surface (festival-horizon change; inert unless
-    // ?farField=1 resolves on). No arg: read-only live counters + planner
+    // Far-field horizon debug surface (festival-horizon change; inert when
+    // ?farField=0 or ?worldgen=0 resolves it off). No arg: read-only live counters + planner
     // state. With a mode, deterministic forcing for fixed-seed A/B and
     // lifecycle captures: 'proxy' snaps every proxy visible, 'real' snaps
     // every proxy dissolved, 'live' returns to predicate-driven handoff,
@@ -2116,7 +2116,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  perf:    recordPerf(true|false) · perfLog() · chunkStages(reset?) · foodCourtVisual() · foodCourtCapture() · foodCourtLifecycle()',
         '           dumpPrograms({raw?})   (shader-program leak finder: groups renderer.info.programs by family + varying token)',
         '           capture(name?, data?)   (POST data to dev server -> .claude/captures/<name>.json; the browser->repo bridge, no copy/paste)',
-        '  horizon: horizon() stats · horizon(\'proxy\'|\'real\'|\'live\') force ownership · horizon(\'replan\')   (?farField=1 only)',
+        '  horizon: horizon() stats · horizon(\'proxy\'|\'real\'|\'live\') force ownership · horizon(\'replan\')   (off with ?farField=0)',
         '  reach:   __dbg.game  (live refs: camera, zerble, scene, crowd, bubbles, …)',
         '           __dbg.debug (interactive API: freezeNPCs, pause, step, god, showColliders, dropSmile, spawnNPC)',
         '  verify:  __dbg.start() → __dbg.fillSeats() → __dbg.camLock(...) → screenshot → console-logs',

@@ -317,7 +317,7 @@ export class SnapshotPlanner {
 // ---------- The world-facing peer ----------
 //
 // Constructed by world.js beside the chunk/lake managers. When `enabled` is
-// false (the shipped default, or ?farField=1 forced off by ?worldgen=0) the
+// false (?farField=0, or the horizon killed by ?worldgen=0) the
 // constructor stores two booleans and RETURNS: no planner, no records, no
 // arrays, no GPU resources, no shader programs — and update()/dispose() bail
 // on the first line. bin/test-far-field locks this no-op shape.
