@@ -1677,6 +1677,21 @@ function collectPerfSample() {
     reg: h && h.registry ? h.registry.entries.size : -1,
     col: h && h.registry ? [...h.registry.colliders()].length : -1,
     cgN: cg.count, cgSlow: cg.slowCount, cgWorst: r1(cg.slowest),
+    // Far-field horizon counters (null when the layer is off): ffCold is the
+    // worst indivisible planning step so far — the number the real-device
+    // promotion question hinged on (the 2ms tier gate can only be judged on
+    // real hardware).
+    ...(() => {
+      const ff = h?.getFarField?.();
+      if (!ff || !ff.enabled || ff.disposed) return { ffActive: null };
+      return {
+        ffActive: ff.stats.active,
+        ffCold: r1(ff.stats.maxColdStepMs),
+        ffRebuilds: ff.stats.rebuilds,
+        ffHandoffs: ff.stats.handoffs,
+        ffOverflow: ff.stats.overflow,
+      };
+    })(),
     mfp: reg ? r1(reg._maxFp) : -1,
     mcol: reg ? r1(reg._maxCol) : -1,
     bigFp: reg && reg._bigFp ? reg._bigFp.length : -1,

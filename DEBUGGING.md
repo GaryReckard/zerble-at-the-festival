@@ -271,7 +271,10 @@ behavior.
 
 When reading a report, reconstruct `samples[].quality` transitions first, then
 compare adjacent samples for `draws`, `tris`, `geo`, `tex`, `prog`, `cgN`, and
-position. Trip and star-power state matter because each can add screen-space or
+position. Samples also carry the far-field horizon counters (`ffActive`,
+`ffCold`, `ffRebuilds`, `ffHandoffs`, `ffOverflow`; `ffActive: null` means the
+layer is off) — `ffCold` is the worst indivisible planning step in ms, the
+number to check against the 2ms tier gate on real hardware. Trip and star-power state matter because each can add screen-space or
 particle work; compare active and inactive samples at similar scene counts. A
 timestamp gap over the chosen sample interval usually marks the
 intentional background/foreground test; do not mislabel that wall-clock pause as

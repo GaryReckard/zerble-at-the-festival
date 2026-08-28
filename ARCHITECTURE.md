@@ -191,9 +191,11 @@ A second, **render-agnostic** world generator that replaces the per-chunk theme 
 ## Far-field horizon (`farField.js`) — on by default
 
 A render-only "semantic LOD" layer that fills the middle distance (from the
-chunk load ring out to the tier's horizon radius, 340m low / 520m mid+high)
-with batched festival silhouettes, so hubs read as destinations through the
-fog instead of popping out of empty grass. **Default on since 2026-08-28**
+chunk load ring out to the 520m fog-opaque limit on every tier — low
+originally stopped at 340m, but the unproxied 340–520m band read as missing
+content on real devices and was extended 2026-08-28) with batched festival
+silhouettes and coarse forest masses, so hubs read as destinations through
+the fog instead of popping out of empty grass. **Default on since 2026-08-28**
 (promotion gates + sign-off; see CHANGELOG). Effective enablement is
 `farFieldRequested && USE_WORLDGEN_V2` (`?farField=0` is the one-variable
 A/B control; `?worldgen=0` kills it — v2 proxies over the v1 world would
@@ -205,11 +207,13 @@ never a wider chunk ring. It consumes the same pure worldgen descriptors the
 real builders use (`heartsInBounds` → `festivalPlan`, `roadsInBounds`),
 copies them into compact owned records (shared memoized arrays are never
 mutated — `bin/test-far-field` hashes them pre/post), and owns exactly seven
-draws: five fixed-capacity `InstancedMesh` pools (stage canopies, truss
+draws: six fixed-capacity `InstancedMesh` pools (stage canopies, truss
 posts/beams, vendor roof-peak strips, warm night markers, colored stage
-beacons — per-instance color, unlit `MeshBasicMaterial`, fog-aware, no
-shadows, frustum culling deliberately off since the layer rings the player)
-plus one preallocated road-ribbon underlay at y=0.03 (opaque,
+beacons, and coarse forest masses — detail-0 icosa domes sampled from the
+`treeDensity` field on a per-tier world-anchored grid, never the exact
+far-tree scatter; per-instance color, unlit `MeshBasicMaterial`, fog-aware,
+no shadows, frustum culling deliberately off since the layer rings the
+player) plus one preallocated road-ribbon underlay at y=0.03 (opaque,
 `depthWrite:true`, slightly narrower than the real y=0.06 road so the
 authoritative ribbon always covers it) — and it registers **nothing**: no
 registry entries, colliders, crowds, audio, lights, pickups.

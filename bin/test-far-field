@@ -347,9 +347,10 @@ assert(expThin.peak.length < exp1.peak.length, 'densityMul < 1 should thin the v
 const TEST_TIER = {
   radius: 300,
   densityMul: 1,
-  caps: { canopy: 8, truss: 24, peak: 40, warm: 24, beacon: 8, roadVerts: 512, roadIndices: 768 },
+  forestStep: 48,
+  caps: { canopy: 8, truss: 24, peak: 40, warm: 24, beacon: 8, forest: 16, roadVerts: 512, roadIndices: 768 },
 };
-const POOL_NAMES = ['canopy', 'truss', 'peak', 'warm', 'beacon'];
+const POOL_NAMES = ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest'];
 
 // Immutability hashes of the shared inputs the drive will consume.
 const driveHearts = heartsInBounds(-600, -600, 600, 600);
@@ -598,6 +599,76 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
   assert(!/registry/i.test(src.replace(/\/\/[^\n]*/g, '')), 'farField.js must not touch the registry');
 }
 
+// ---------- L. Coarse forest masses + tier tri-budget gate ----------
+
+{
+  const { forestRecordsForCell, FOREST_DENSITY_THRESHOLD } = await import('../src/farField.js');
+
+  // Fixture density field: a solid disk of forest around (0, 0), bare beyond.
+  const diskDensity = (x, z) => (Math.hypot(x, z) <= 150 ? 0.9 : 0.1);
+  const fA = forestRecordsForCell(0, 0, 48, diskDensity);
+  const fB = forestRecordsForCell(0, 0, 48, diskDensity);
+  assert(JSON.stringify(fA) === JSON.stringify(fB),
+    'forestRecordsForCell must be byte-identical across repeated calls');
+  assert(fA.length > 0 && fA.every((r) => r.kind === '__forest'),
+    'a forested cell must emit __forest records');
+  assert(forestRecordsForCell(4, 4, 48, diskDensity).length === 0,
+    'a cell outside the forest disk must emit no records (threshold gating)');
+  assert(forestRecordsForCell(0, 0, 48, () => FOREST_DENSITY_THRESHOLD - 0.01).length === 0,
+    'samples strictly below FOREST_DENSITY_THRESHOLD must never become clumps');
+
+  // Half-open grid-point ownership: adjacent cells never emit the same sample.
+  const seen = new Set();
+  for (const cx of [-1, 0, 1]) {
+    for (const cz of [-1, 0, 1]) {
+      for (const r of forestRecordsForCell(cx, cz, 48, () => 1)) {
+        const key = r.gx + ',' + r.gz;
+        assert(!seen.has(key), 'a grid sample must be owned by exactly one coarse cell');
+        seen.add(key);
+      }
+    }
+  }
+
+  // Expansion: finite transforms, palette colors, overlap-sized domes, and
+  // owner cells derived from the JITTERED clump position (that chunk's real
+  // trees are what the clump stands in for).
+  const ex = expandFarInstances(fA, 1);
+  assert(ex.forest.length === fA.length, 'each __forest record must expand to exactly one clump');
+  for (let i = 0; i < ex.forest.length; i++) {
+    const inst = ex.forest[i];
+    assert([inst.x, inst.y, inst.z, inst.sx, inst.sy, inst.sz].every(Number.isFinite),
+      `forest instance transforms must be finite: ${JSON.stringify(inst)}`);
+    assert(inst.sx >= 48 * 0.62 && inst.sz >= 48 * 0.62 * 0.85,
+      'clump radii must overlap the sample grid step so masses read continuous');
+    assert(inst.ownerCx === ownerCellCoord(fA[i].x) && inst.ownerCz === ownerCellCoord(fA[i].z),
+      'forest owner cell must come from the jittered clump position');
+  }
+
+  // Real-density determinism at a fresh seed (then restore the suite seed).
+  setSeed(4242);
+  const realA = JSON.stringify([0, 1, 2, 3].flatMap((i) => forestRecordsForCell(i, -i, 48)));
+  const realB = JSON.stringify([0, 1, 2, 3].flatMap((i) => forestRecordsForCell(i, -i, 48)));
+  assert(realA === realB, 'real-density forest records must be deterministic for a fixed seed');
+  setSeed(1234);
+
+  // Static per-tier tri-budget gate: worst case at FULL caps must fit each
+  // tier's marginalTriCap. Per-instance triangle counts are pinned from the
+  // r160 geometries (measured in the group-5 gates: cone6 18, box 12, cone4
+  // 12, octa 8; icosa detail-0 is 20 by construction).
+  const { FAR_FIELD_TIERS } = await import('../src/perf.js');
+  const TRIS = { canopy: 18, truss: 12, peak: 12, warm: 8, beacon: 8, forest: 20 };
+  for (const [tname, t] of Object.entries(FAR_FIELD_TIERS)) {
+    assert(Number.isFinite(t.forestStep) && t.forestStep > 0,
+      `tier ${tname} must define forestStep`);
+    assert(Number.isInteger(t.caps.forest) && t.caps.forest > 0,
+      `tier ${tname} must define caps.forest`);
+    let worst = t.caps.roadIndices / 3;
+    for (const [name, per] of Object.entries(TRIS)) worst += t.caps[name] * per;
+    assert(worst <= t.marginalTriCap,
+      `tier ${tname} worst-case ${worst} tris must fit marginalTriCap ${t.marginalTriCap}`);
+  }
+}
+
 // ---------- K. Owner-only disposal idempotence (group 2) ----------
 
 const geoRefs = Object.values(ff._geos).concat([ff._road.geo]);
@@ -621,5 +692,6 @@ process.stdout.write(
   '(caps, determinism, bounds enclosure after a distant rewrite, night gating), the completion ' +
   'handoff (dither wiring, snap-then-envelope, shared-deadline remainder, reduced-motion snap, ' +
   'unload reappearance), long-travel resource plateaus + registry off-on identity + forcing ' +
-  'controls + the no-builder/no-light/no-shadow source contract, and owner-only disposal idempotence\n'
+  'controls + the no-builder/no-light/no-shadow source contract, coarse forest masses (grid ownership, ' +
+  'threshold gating, jittered-owner handoff, per-tier tri-budget gate), and owner-only disposal idempotence\n'
 );

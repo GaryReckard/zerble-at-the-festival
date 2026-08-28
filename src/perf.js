@@ -126,18 +126,25 @@ const TABLE = {
     fireworksPoolMax: 280,
     // Far-field festival horizon (festival-horizon change; inert unless
     // USE_FAR_FIELD). Tier-owned radius/density/pool caps — capacities are
-    // PROVISIONAL until the task-1.5 baselines + dense-seed cold benchmarks
-    // pin them (they are measurement outputs, not design decisions). The
+    // MEASURED (2026-08-28 demand run: 5 seeds x 2,615 poses, within-radius
+    // candidate counts; see CHANGELOG), not design guesses. The
     // rebuild budget is NOT a knob here by design: FarField planning spends
     // only the REMAINDER of the world-owned chunkBudgetMs wall above (chunks
     // consume first — design D3); maxColdStepMs gates the largest measured
     // indivisible planning step instead.
     farField: {
-      radius: 340,            // sparser 320-360m band on low (design D6)
+      // Design D6 shipped a sparser 340m band here; the first real-device
+      // field report (2026-08-28) read the unproxied 340-520m gap as missing
+      // content (fog is only OPAQUE at 520m), so low now reaches the fog
+      // limit like mid/high. Caps sized from the measured within-radius
+      // candidate demand across 5 seeds x 2,615 poses (max: canopy 25,
+      // truss 76, beacon 25 at r520; peaks/warm scale by densityMul).
+      radius: 520,
       densityMul: 0.6,        // thins per-hub supporting silhouettes, never the stage anchor
-      marginalTriCap: 5000,   // provisional promotion cap: +5k tris on low
+      marginalTriCap: 8000,   // worst case at full caps: 7,616 tris
       maxColdStepMs: 2,
-      caps: { canopy: 16, truss: 48, peak: 128, warm: 96, beacon: 24, roadVerts: 2048, roadIndices: 3072 },
+      forestStep: 56,         // coarse forest-mass sample grid (m)
+      caps: { canopy: 32, truss: 96, peak: 128, warm: 96, beacon: 32, forest: 64, roadVerts: 4096, roadIndices: 6144 },
     },
   },
   mid: {
@@ -159,11 +166,16 @@ const TABLE = {
     fireworksPoolMax: 550,
     // Provisional caps — see the low-tier farField comment.
     farField: {
-      radius: 520,            // may reach the fog limit on mid/high (design D6)
+      radius: 520,            // the fog-opaque limit (design D6)
       densityMul: 1.0,
-      marginalTriCap: 10000,  // provisional promotion cap: +10k tris on mid/high
+      marginalTriCap: 10000,  // worst case at full caps: 9,776 tris
       maxColdStepMs: 2,
-      caps: { canopy: 24, truss: 72, peak: 224, warm: 160, beacon: 36, roadVerts: 4096, roadIndices: 6144 },
+      forestStep: 48,
+      // canopy/truss/beacon raised 2026-08-28: measured within-radius demand
+      // (max 25 stages / 76 truss parts) exceeded the provisional 24/72 —
+      // dense seeds dropped a VISIBLE stage. Sized from the same demand run
+      // as low.
+      caps: { canopy: 40, truss: 120, peak: 224, warm: 160, beacon: 40, forest: 64, roadVerts: 4096, roadIndices: 6144 },
     },
   },
   high: {
@@ -190,9 +202,10 @@ const TABLE = {
     farField: {
       radius: 520,
       densityMul: 1.0,
-      marginalTriCap: 10000,
+      marginalTriCap: 12000,  // worst case at full caps: 11,120 tris
       maxColdStepMs: 2,
-      caps: { canopy: 32, truss: 96, peak: 256, warm: 192, beacon: 48, roadVerts: 4096, roadIndices: 6144 },
+      forestStep: 40,         // finest forest grid — high absorbs the tris
+      caps: { canopy: 40, truss: 120, peak: 256, warm: 192, beacon: 48, forest: 96, roadVerts: 4096, roadIndices: 6144 },
     },
   },
 };

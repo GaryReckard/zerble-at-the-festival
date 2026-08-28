@@ -309,3 +309,24 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
   composition sign-off is Gary's own drive. CHANGELOG 2026-08-28 entry added.
   Per Gary's explicit instruction, the branch merges to main and both push.
 - **Refs:** -> Q1 (answered), -> D11, -> Tasks 5.2/5.5/6.2, CHANGELOG 2026-08-28
+
+### 2026-08-28 -- Post-change follow-ups: forest masses + demand-sized caps (same day as promotion)
+
+- **Event:** phase-change
+- **What:** Gary's first real-device field report ("tent stage missing in the
+  distance; forests pop in front of visible trees") triggered the parked
+  follow-up early. Root causes found by measurement, not guess: (1) low tier's
+  340m horizon vs the 520m fog-translucency limit left a provably unproxied
+  visible band (phones/tablets run low); (2) a 5-seed x 2,615-pose demand run
+  showed mid's canopy cap (24) below the measured 25-stage within-radius max,
+  so dense seeds dropped a visible stage; (3) trees had no proxy at all (the
+  known deferral). Shipped in one pass: low radius 340->520, caps raised from
+  the demand data, marginal tri caps re-pinned by a static per-tier gate in
+  bin/test-far-field (worst-case-at-full-caps arithmetic), and the coarse
+  forest masses pool (treeDensity sampled on a world-anchored per-tier grid,
+  icosa domes, hash jitter, same Bayer handoff). Fixed-seed A/B captures
+  verified the filled band at noon + dark masses at midnight; hub-sandbox
+  panel shows the forest pool. ROADMAP follow-up bullet closed; CHANGELOG
+  2026-08-28 Added/Changed entries. Details live in CHANGELOG + git, not here
+  -- the change stays complete/archived-ready.
+- **Refs:** CHANGELOG 2026-08-28, ROADMAP "Far-field festival depth"

@@ -372,7 +372,7 @@ function updateFarField(dt, now) {
     ffStatsAt = now;
     const s = farField.stats;
     const ri = renderer.info;
-    const counts = ['canopy', 'truss', 'peak', 'warm', 'beacon']
+    const counts = ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest']
       .map((n) => `${n} ${farField._pools[n].mesh.count}`).join(' · ');
     ffStatsEl.textContent =
       `rebuilds ${s.rebuilds} · active ${s.active} · overflow ${s.overflow}\n` +

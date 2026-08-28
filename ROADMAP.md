@@ -725,18 +725,17 @@ Attacks two measured symptoms (137–343 ms shader-compile stalls on hub entry;
 - **Draw-call reduction (the real steady-state lever, per the round-trip-1 capture).** B0 revealed draws = median ~3,750 / max 9,232 vs a 400 budget — draw count is the ceiling. **Slice 4 SHIPPED 2026-06-21 (see CHANGELOG):** forest-tree per-chunk instancing — trees were ~half the dense-hub draws (a `drawCensus` finding), now ~344 per-tree draws/chunk → ~5–6 `InstancedMesh`es. **Deliberation 002 separately found geometry-merge is only a ~2–4% cut** (food-court/camp-village are mostly already pooled/instanced; merge helps only the unique-geometry food-truck + sugar-shack). The 2026-07-15 real-GPU gate rejected those broad model merges because renderer draws increased on every tier, while retaining the independently proven Sugar Shack sign-shell and food-truck window cuts (21 draws). Fog-as-far-cull also shipped at a backdrop-safe 1040m, removing roughly 350 fog-hidden retained-lake draws in its 1.2km travel gate. Remaining attack on the residual overage: (1) **LOD / cross-cluster instancing of the non-tree repeated clusters** (the same tents/trucks repeated across hubs, prime candidates beyond ~60m); (2) **billboard-impostor far field** (perf-brainstorm E2/E4); (3) an **honest look at whether the 400-draw high-tier budget is realistic for v2 worldgen** once trees are instanced, or whether the budget should move. Follow-up if a dense-low tri capture pushes past ~110–120k: a detail-0 icosa LOD (20 tris vs 80) for the instanced crowns.
 - **Tier-2 secondary (gated behind B0 numbers):** the cut-on-evaluation atmosphere fakes (billboard light shafts, faked lake reflections, adaptive sparkle) + crowd LOD.
 
-### Far-field festival depth / semantic LOD *(SHIPPED + promoted to default-on 2026-08-28 — follow-ups only)*
+### Far-field festival depth / semantic LOD *(SHIPPED, default-on, forest masses landed 2026-08-28 — parked refinements only)*
 
-The first slice shipped on the `festival-horizon` change (2026-08-27) and was
+The first slice shipped on the `festival-horizon` change (2026-08-27), was
 promoted to **on by default** on 2026-08-28 after Gary's real-device sign-off
-(`?farField=0` remains the A/B control). Shipped behavior + budgets live in
+(`?farField=0` remains the A/B control), and the coarse-forest-masses
+follow-up plus the low-tier 520m radius extension and demand-measured cap
+raise landed the same day (see CHANGELOG). Shipped behavior + budgets live in
 ARCHITECTURE.md "Far-field horizon" and
 `openspec/changes/festival-horizon/verification/gates-flag-on.md`. What
-remains parked here are the explicitly deferred follow-ups:
+remains parked here:
 
-* **Coarse forest masses** — the next proxy layer if the horizon earns more
-  depth: stable canopy clumps sampled from the `treeDensity` field (never the
-  exact far-tree scatter, which would spend the CPU this layer avoids).
 * **Later refinements considered and parked:** baked multi-angle billboard
   atlases (asset-baking workflow + texture memory + alpha sorting), far-field
   crowds / NPC flipbook impostors, per-booth silhouettes, and any fog or

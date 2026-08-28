@@ -2,9 +2,9 @@
 //
 // A PEER of ChunkManager/LakeManager owned by world.js, never another chunk
 // ring: it draws batched far-distance silhouettes (roads, stage canopies, roof
-// peaks, trusses + night markers) from the same deterministic worldgen
-// descriptors the real builders consume, and dissolves each proxy when its
-// owning real chunk finishes building. It owns NOTHING gameplay-side: no
+// peaks, trusses, coarse forest masses + night markers) from the same
+// deterministic worldgen descriptors/fields the real builders consume, and
+// dissolves each proxy when its owning real chunk finishes building. It owns NOTHING gameplay-side: no
 // registry entries, colliders, NPCs, audio, pickups, real lights, shadow
 // casters, or per-prop animation, and it never calls a real cluster builder.
 //
@@ -35,6 +35,7 @@ import { ownerCellCoord } from './worldgen/placement.js';
 import { heartsInBounds } from './worldgen/hearts.js';
 import { festivalPlan } from './worldgen/festival.js';
 import { roadsInBounds } from './worldgen/roads.js';
+import { treeDensity } from './worldgen/density.js';
 import { CONFIG } from './worldgen/constants.js';
 
 // Handoff dissolve length (design D4). Reduced motion skips it and snaps.
@@ -58,11 +59,21 @@ export const NIGHT_MARKER_THRESHOLD = 0.12;
 // (CONFIG.ROAD_WIDTH) so the real ribbon always covers it edge-to-edge.
 const FAR_ROAD_WIDTH_FRAC = 0.8;
 
+// Coarse forest masses (the ROADMAP follow-up promoted 2026-08-28): the
+// density FIELD is sampled on a fixed global grid (tier.forestStep meters),
+// never the exact far-tree scatter — reproducing per-tree placement would
+// spend exactly the CPU this layer exists to avoid. Only samples at or above
+// this density become clumps, so scattered-fringe trees (which the real
+// builders place sparsely) never get promised by a solid silhouette mass.
+export const FOREST_DENSITY_THRESHOLD = 0.45;
+
 // Flat-color hex palettes (plain numbers at module scope — THREE.Color
 // instances are built at construction time, never module evaluation).
 const CANOPY_PALETTE = [0xd8433f, 0xe8823a, 0x3f8fd8, 0x9a5fd0, 0x2fa46a, 0xd84f8e];
 const PEAK_PALETTE = [0xf2e4c8, 0xe6d5b0, 0xd9cbae, 0xefdccc];
 const BEACON_PALETTE = [0xff5a4d, 0x4da2ff, 0xffd24d, 0xb56aff];
+// Darker cuts of tree.js's FOREST_GREENS — far masses read through fog.
+const FOREST_PALETTE = [0x355a32, 0x3f6d3a, 0x2d4e2a, 0x4a7a45];
 const TRUSS_HEX = 0x2e2a33;
 const WARM_HEX = 0xffb054;
 const ROAD_HEX = 0x9c7c58;   // a shade darker than the real road's 0xb89570
@@ -140,6 +151,35 @@ export function copyPolyline(points) {
   return flat;
 }
 
+// One coarse cell's forest-mass records: the global sample grid (step meters,
+// world-anchored so clumps never move when the player does) restricted to the
+// grid points this coarse cell OWNS (half-open, same rule as hearts — no
+// duplicates across cells). Each qualifying sample becomes one record with a
+// deterministic hash-jittered position (breaks the visible grid alignment)
+// and the density it sampled; expansion turns density into clump size.
+// `sample` is injectable for fixture-driven tests; the game passes nothing
+// and gets the real density field. Pure — zero shared-RNG draws.
+export function forestRecordsForCell(cellCx, cellCz, step, sample = treeDensity) {
+  const half = COARSE_CELL / 2;
+  const minX = cellCx * COARSE_CELL - half, maxX = cellCx * COARSE_CELL + half;
+  const minZ = cellCz * COARSE_CELL - half, maxZ = cellCz * COARSE_CELL + half;
+  const out = [];
+  const gx0 = Math.ceil(minX / step), gx1 = Math.ceil(maxX / step) - 1;
+  const gz0 = Math.ceil(minZ / step), gz1 = Math.ceil(maxZ / step) - 1;
+  for (let gz = gz0; gz <= gz1; gz++) {
+    for (let gx = gx0; gx <= gx1; gx++) {
+      const sx = gx * step, sz = gz * step;
+      const d = sample(sx, sz);
+      if (d < FOREST_DENSITY_THRESHOLD) continue;
+      const seed = (Math.imul(gx, 0x85ebca6b) ^ Math.imul(gz, 0xc2b2ae35)) >>> 0;
+      const jx = (instHash(seed, 1) - 0.5) * step * 0.7;
+      const jz = (instHash(seed, 2) - 0.5) * step * 0.7;
+      out.push({ kind: '__forest', x: sx + jx, z: sz + jz, density: d, step, gx, gz, forestSeed: seed });
+    }
+  }
+  return out;
+}
+
 // Fixed-capacity retention (spec "A dense seed exceeds a pool"): keep the
 // `cap` records nearest to (px, pz), deterministically — ties break on x then
 // z so identical inputs always keep the identical subset. Returns new arrays;
@@ -213,9 +253,23 @@ export function instHash(seed, i) {
 // roof peaks with warm light markers alongside. Sizes are coarse on purpose —
 // these read through 300-500m of fog, not up close.
 export function expandFarInstances(records, densityMul) {
-  const out = { canopy: [], truss: [], peak: [], warm: [], beacon: [], roads: [] };
+  const out = { canopy: [], truss: [], peak: [], warm: [], beacon: [], forest: [], roads: [] };
   for (const r of records) {
     if (r.kind === '__road') { out.roads.push(r.flat); continue; }
+    if (r.kind === '__forest') {
+      // One squashed low-poly dome per sample. Radius overlaps the grid step
+      // so adjacent qualifying samples merge into a continuous mass instead
+      // of reading as one giant tree per point; height rides the density.
+      const rad = r.step * (0.62 + instHash(r.forestSeed, 3) * 0.22);
+      const h = 5.5 + r.density * 4.5 + instHash(r.forestSeed, 4) * 2.0;
+      out.forest.push({
+        x: r.x, z: r.z, y: h * 0.32, yaw: instHash(r.forestSeed, 5) * Math.PI * 2,
+        sx: rad, sy: h * 0.6, sz: rad * (0.85 + instHash(r.forestSeed, 6) * 0.3),
+        color: FOREST_PALETTE[(r.forestSeed >>> 3) % FOREST_PALETTE.length],
+        ownerCx: ownerCellCoord(r.x), ownerCz: ownerCellCoord(r.z),
+      });
+      continue;
+    }
     const own = { ownerCx: r.ownerCx, ownerCz: r.ownerCz };
     if (STAGE_KINDS.has(r.kind)) {
       const s = r.scale;
@@ -347,7 +401,7 @@ export class FarField {
     this._roadSeen = null;
     this._todQ = -1;
     this._nightOn = false;
-    this._active = { canopy: [], truss: [], peak: [], warm: [], beacon: [] };
+    this._active = { canopy: [], truss: [], peak: [], warm: [], beacon: [], forest: [] };
     this._ownerCells = new Map();   // 'cx,cz' -> { cx, cz, loaded, insts: [{pool, i}] }
     this._handoffs = [];            // active envelopes: { pool, i, target }
     this._ownershipOverride = null; // null (live) | 'proxy' (all shown) | 'real' (all dissolved)
@@ -407,6 +461,7 @@ export class FarField {
       peak: mkMat(0xffffff),
       warm: mkMat(WARM_HEX),
       beacon: mkMat(0xffffff),
+      forest: mkMat(0xffffff),   // white base × per-instance FOREST_PALETTE color
       road: mkMat(ROAD_HEX),     // opaque, depthWrite:true (default) — audit V12
     };
     this._geos = {
@@ -415,6 +470,8 @@ export class FarField {
       peak: new THREE.ConeGeometry(1, 1, 4),
       warm: new THREE.OctahedronGeometry(1, 0),
       beacon: new THREE.OctahedronGeometry(1, 0),
+      // Detail-0 icosa (20 tris) — the ROADMAP's sanctioned far-crown shape.
+      forest: new THREE.IcosahedronGeometry(1, 0),
     };
 
     // The horizon RINGS the player, so per-batch frustum culling would almost
@@ -424,8 +481,8 @@ export class FarField {
     // owner-computed bounding spheres are still maintained after every
     // committed rewrite so bounds stay truthful for raycast/debug reads.
     this._pools = {};
-    const hasColor = { canopy: true, truss: false, peak: true, warm: false, beacon: true };
-    for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon']) {
+    const hasColor = { canopy: true, truss: false, peak: true, warm: false, beacon: true, forest: true };
+    for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest']) {
       const mesh = new THREE.InstancedMesh(this._geos[name], this._mats[name], caps[name]);
       mesh.count = 0;
       mesh.visible = false;
@@ -539,6 +596,7 @@ export class FarField {
       roadSeen.add(road.points);
       out.push({ kind: '__road', flat: copyPolyline(road.points) });
     }
+    out.push(...forestRecordsForCell(cellCx, cellCz, this.tier.forestStep || 48));
     return out;
   }
 
@@ -554,7 +612,7 @@ export class FarField {
     this._ownerCells.clear();
     this._handoffs.length = 0;
     let active = 0, overflow = 0;
-    for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon']) {
+    for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest']) {
       const pool = this._pools[name];
       const sel = selectNearest(expanded[name], ax, az, pool.cap);
       this._active[name] = sel.kept;
@@ -718,6 +776,7 @@ export class FarField {
     const dayB = 1 - 0.82 * n;
     this._mats.canopy.color.setScalar(dayB);
     this._mats.peak.color.setScalar(dayB);
+    this._mats.forest.color.setScalar(dayB);
     this._mats.truss.color.setHex(TRUSS_HEX).multiplyScalar(dayB);
     this._mats.road.color.setHex(ROAD_HEX).multiplyScalar(1 - 0.85 * n);
     this._nightOn = n > NIGHT_MARKER_THRESHOLD;

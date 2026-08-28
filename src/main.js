@@ -1561,7 +1561,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
           ? ff.planner.pending.cells.length - ff.planner.pending.next : 0,
         committed: !!(ff.planner && ff.planner.committed),
         counts: Object.fromEntries(
-          ['canopy', 'truss', 'peak', 'warm', 'beacon'].map((n) => [n, ff._pools[n].mesh.count]),
+          ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest'].map((n) => [n, ff._pools[n].mesh.count]),
         ),
         activeHandoffs: ff._handoffs.length,
         override: ff._ownershipOverride,
@@ -2136,6 +2136,7 @@ installDebug({
   lurleen,                              // teleport menu uses .position
   getRunning: () => running,
   getTimeOfDay,
+  getFarField,                          // perf samples record horizon counters
   Trip, StarPower,
   midi,
 });
