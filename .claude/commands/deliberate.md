@@ -1,53 +1,19 @@
 ---
-description: Launch a multi-persona council deliberation on a task, plan, or design decision
+description: Launch a multi-persona deliberation on a task or plan (project alias for /council:deliberate)
+argument-hint: "[task, ticket ID, or OpenSpec change] [--debate]"
 ---
 
-Load the `multi-person-deliberation` skill and execute it at Tier 3 (Full
-Deliberation) unless the user explicitly specifies another tier.
+This is a project-local alias for the council plugin's `/council:deliberate`. Load the council plugin's `deliberation-engine` skill and execute it at **Tier 3 (Full Deliberation)**, following the full contract of the plugin's deliberate command:
 
-This command is a true council workflow, not a quick review. Do NOT satisfy
-`/deliberate` with a single `general` agent.
+- `/deliberate` is never internal: fan out to 3-5 real parallel `council-*` sub-agents (never a single general-purpose agent imitating them), then `council-mediator`.
+- Read the project charter at `openspec/council/charter.md` first; if it is missing, stop and direct the user to `/council:init`.
+- Synthesis mode by default; `--debate` / "argue it out" opts into the Round 2 cross-examination.
+- Two cardinal rules always: personas write Round 1 in isolation (no anticipated tensions), and the briefing is never seeded with other-persona positions.
+- Report completion only after `briefing.md`, the persona `council-*.md` files, and `results.md` exist in `deliberations/NNN-slug/`.
 
-**Mode:** default to **synthesis** (one round of isolated persona positions, then
-the Mediator surfaces and resolves the tensions — cheaper, no second round).
-Upgrade to **debate** (two-phase: isolated positions → cited cross-examination →
-Mediator) when the user passes `--debate` / `--two-phase`, or asks them to "argue
-it out" / "react to each other".
-
-**Two cardinal rules — guard against tension-parroting:**
-- Personas write in isolation. Do NOT ask them to "anticipate tensions" in Round 1
-  — an isolated agent can only guess, and guessing produces parroting. Real tensions
-  come from the Mediator (synthesis) or Round 2 (debate).
-- NEVER seed a briefing. No example tensions, no "Persona X will likely argue Y".
-  Every persona gets the SAME briefing — task, context, constraints, its own job.
-  A seeded example gets echoed back as if it were the persona's own analysis.
-
-Create the deliberation folder, write `briefing.md`, invoke the selected
-`council-*` personas in parallel, (debate mode) run Round 2, then invoke the
-mediator to write `results.md`.
-If no OpenSpec change is active, ask whether to create one with `/opsx:new`
-first, or fall back to `.claude/deliberations/NNN-slug/` for an ad-hoc run.
-
-Preflight checklist:
-- `briefing.md` is created before persona launch.
-- 3-5 real `council-*` sub-agents are invoked in parallel and each writes its own `council-*.md` file.
-- `council-mediator` runs after the persona outputs exist and writes `results.md`.
-
-Invalid implementation examples:
-- One `general` task is asked to imitate multiple council personas. That is a quick review, not a full deliberation.
-- The orchestrator writes inferred `council-*.md` outputs without actually invoking the corresponding `council-*` agents.
-
-Success condition: do not report `/deliberate` complete unless the deliberation
-folder contains `briefing.md`, the expected `council-*.md` persona files, and
-`results.md`.
-
-The user's `/deliberate` request counts as explicit approval to invoke the
-selected `council-*` agents and the mediator.
+The user's `/deliberate` request counts as explicit approval to invoke the selected `council-*` agents and the mediator.
 
 The user wants to deliberate on the following:
 $ARGUMENTS
 
 If no arguments were provided, ask the user what they want to deliberate on.
-For a lighter touch, the user can ask for a "quick review" (Tier 1) or name a
-single persona like `@council-profiler` (Tier 2). For a deeper one, add
-`--debate` to run the two-phase cross-examination.
