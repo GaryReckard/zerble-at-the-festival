@@ -85,7 +85,7 @@
       // in sync with the directory; unused entries are inert (importmap mappings
       // only resolve when something actually imports them).
       const mods = ['main','world','zerble','bubbles','smiles','fireworks','crowd','chunks','forests',
-        'mountains','camera','input','touch','hud','sound','leaderboard','runMode','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
+        'mountains','camera','input','touch','hud','sound','leaderboard','runMode','scoring','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
         'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid','starPower','steering','settings','a11y','mergeDecor','boostStreaks','photographer','farField',
         'worldgen/constants','worldgen/tuning','worldgen/hearts','worldgen/water','worldgen/roads','worldgen/density','worldgen/roles','worldgen/index','worldgen/selftest','worldgen/placement','worldgen/festival','worldgen/lint'];
       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','shrub', 'heart','stage','performer',
@@ -141,6 +141,16 @@
         </svg>
         <span id="smiles" class="smile-value">0</span>
         <span class="best-score" title="Personal best"><span aria-hidden="true">★</span><span id="best">0</span></span>
+      </div>
+      <div id="combo-chip" class="hud-chip combo-status hidden" aria-label="Combo ×1">
+        <span class="combo-ring-wrap" aria-hidden="true">
+          <svg viewBox="0 0 32 32" class="combo-ring">
+            <circle class="ring-bg" cx="16" cy="16" r="13"/>
+            <circle id="combo-ring-fill" class="ring-fill" cx="16" cy="16" r="13"/>
+          </svg>
+          <span id="combo-mult" class="combo-mult">×1</span>
+        </span>
+        <span id="combo-heart" class="combo-heart hidden" aria-hidden="true">♥×2</span>
       </div>
       <div id="juice-meter" class="hud-chip juice-status" aria-label="Bubble juice full">
         <span class="juice-dot" aria-hidden="true"></span>

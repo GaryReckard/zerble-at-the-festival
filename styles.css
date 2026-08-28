@@ -638,6 +638,35 @@ kbd {
   100% { transform: translateY(-22px) scale(2); opacity: 0; }
 }
 
+.combo-status { gap: 6px; }
+
+.combo-ring-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+}
+
+.combo-ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+.combo-ring .ring-bg { fill: none; stroke: rgba(255, 246, 230, 0.15); stroke-width: 3; }
+.combo-ring .ring-fill {
+  fill: none;
+  stroke: #ffd28a;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 81.68;      /* 2πr, r=13 */
+  stroke-dashoffset: 81.68;     /* empty until the chain is live */
+}
+
+.combo-mult { font-size: 11px; font-weight: 800; color: #ffd28a; }
+
+.combo-status.combo-hot .combo-mult { color: #ff6f9c; }
+.combo-status.combo-hot .combo-ring .ring-fill { stroke: #ff6f9c; }
+
+.combo-heart { font-size: 11px; font-weight: 800; color: #ff6f9c; }
+
 #mode-select {
   display: flex;
   justify-content: center;

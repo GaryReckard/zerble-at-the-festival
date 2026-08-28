@@ -1,0 +1,79 @@
+#!/usr/bin/env node
+// bin/test-scoring — chain thresholds, high-water ratchet, doubler stacking,
+// pin/break semantics for festival-run-stakes. Plain node; scoring.js is
+// deliberately DOM-free.
+
+const { Scoring } = await import('../src/scoring.js');
+const { COMBO } = await import('../src/runMode.js');
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+// --- Cruisin': a plain counter. Multiplier locked at 1, no chain state. ---
+Scoring.configure({ stakes: false });
+Scoring.reset();
+assert(Scoring.collect(3) === 3, 'cruisin collect is flat');
+Scoring.collect(50);
+assert(Scoring.multiplier() === 1, 'cruisin multiplier stays 1 no matter the pace');
+Scoring.setDoubler(true); Scoring.pinCombo(true);
+assert(Scoring.multiplier() === 1, 'doubler/pin are inert in cruisin');
+assert(Scoring.current === 53 && Scoring.highWater === 53, 'cruisin totals add up');
+Scoring.deduct(10);
+assert(Scoring.current === 43 && Scoring.highWater === 53, 'deduct lowers current, never the high-water');
+
+// --- Festival: chain builds the multiplier through COMBO.levels. ---
+Scoring.configure({ stakes: true });
+Scoring.reset();
+assert(Scoring.collect(1) === 1, 'first collect scores x1');
+// Chain to just under the x2 threshold, then cross it.
+Scoring.collect(COMBO.levels[1] - 1 - 1);   // chain now levels[1]-1
+assert(Scoring.multiplier() === 1, 'still x1 just under the threshold');
+Scoring.collect(1);                          // chain reaches levels[1]
+assert(Scoring.multiplier() === 2, 'crossing the first threshold gives x2');
+const gained = Scoring.collect(1);
+assert(gained === 2, `a collect at x2 scores 2, got ${gained}`);
+
+// Doubler stacks multiplicatively on top of the chain level.
+Scoring.setDoubler(true);
+assert(Scoring.multiplier() === 4, 'x2 chain with Lurleen = x4');
+Scoring.setDoubler(false);
+
+// Chain fizzles when the window runs out (tick), quietly.
+Scoring.tick(COMBO.chainWindowSec + 0.1);
+assert(Scoring.multiplier() === 1, 'chain fizzles after the window');
+
+// Chain up to cap; pin holds it at cap regardless of chain.
+Scoring.collect(COMBO.levels[COMBO.levels.length - 1] + 5);
+assert(Scoring.multiplier() === COMBO.maxMult, 'a long chain reaches the cap');
+Scoring.breakCombo();
+assert(Scoring.multiplier() === 1, 'a break drops straight to x1');
+Scoring.pinCombo(true);
+assert(Scoring.multiplier() === COMBO.maxMult, 'star power pins the cap with zero chain');
+Scoring.setDoubler(true);
+assert(Scoring.multiplier() === COMBO.maxMult * COMBO.lurleenMult, 'pin + Lurleen = x8');
+Scoring.pinCombo(false); Scoring.setDoubler(false);
+
+// High-water ratchet + bestCombo survive everything.
+const s1 = Scoring.serialize();
+assert(s1.highWater >= s1.current, 'high water never trails current');
+assert(Scoring.bestCombo >= COMBO.maxMult, 'best combo recorded the pinned peak');
+
+// Serialize/restore round-trip (resume snapshot).
+Scoring.collect(7);
+const snap = Scoring.serialize();
+Scoring.reset();
+assert(Scoring.current === 0, 'reset clears');
+Scoring.restore(snap);
+assert(Scoring.current === snap.current && Scoring.highWater === snap.highWater,
+  'restore round-trips current + high water');
+
+// Deduct floors at zero; awards route through collect.
+Scoring.deduct(10 ** 9);
+assert(Scoring.current === 0, 'current floors at zero');
+assert(Scoring.award(2) >= 2, 'award pays like a collect');
+
+process.stdout.write('OK bin/test-scoring — chain, ratchet, doubler, pin, restore all hold\n');

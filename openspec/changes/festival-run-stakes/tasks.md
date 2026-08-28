@@ -63,25 +63,25 @@ worldgen-only.
 
 ## 4. Scoring pipeline + combo (P2)
 
-- [ ] 4.1 New module `src/scoring.js` per design D4 (collect/award/deduct/breakCombo/
+- [x] 4.1 New module `src/scoring.js` per design D4 (collect/award/deduct/breakCombo/
       setDoubler/pinCombo, high-water ratchet, chain window); write `bin/test-scoring`
       (chain thresholds, high-water ratchet, ×2 doubler stacking) alongside it;
       importmap ×3
-- [ ] 4.2 Route ALL existing score writes through it: smile collect callback, frown
+- [x] 4.2 Route ALL existing score writes through it: smile collect callback, frown
       deduction, `__dbg.addSmiles`; `rg 'score'` sweep confirms no stray writers.
       **Immediately after this lands, re-run the A/B invariance check** (same drill
       as 3.5) — this reroute is the change most likely to leak stakes into Cruisin'
-- [ ] 4.3 Smile collect event: `smiles.js` onCollect → scoring + audio hook with
+- [x] 4.3 Smile collect event: `smiles.js` onCollect → scoring + audio hook with
       same-frame burst coalescing
-- [ ] 4.4 HUD combo badge (multiplier, draining chain ring, ♥×2 slot) — dirty-flagged
+- [x] 4.4 HUD combo badge (multiplier, draining chain ring, ♥×2 slot) — dirty-flagged
       DOM like existing HUD; hidden in Cruisin'. Verify legibility **at driving
       speed** (drive + screenshot), not only via static `__dbg` poses
-- [ ] 4.5 Star power pins combo at cap for its duration (wire `StarPower.onTrigger/
+- [x] 4.5 Star power pins combo at cap for its duration (wire `StarPower.onTrigger/
       onEnd`)
 - [ ] 4.6 Lurleen: expose `isFollowing`; scoring doubler + ♥×2 track it same-frame;
       scare-off on damaging NPC hit (Festival Run only, via the 6.5 gate) with
       re-approach cooldown + startled beat
-- [ ] 4.7 Verify: `__dbg` combo drills (addSmiles bursts, forced hit) + screenshot of
+- [x] 4.7 Verify: `__dbg` combo drills (addSmiles bursts, forced hit) + screenshot of
       badge states; boot main game clean
 
 ## 5. Smile SFX pitch ladder + stakes cues (P2)

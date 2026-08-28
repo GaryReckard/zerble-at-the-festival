@@ -20,6 +20,7 @@ import { Touch } from './touch.js';
 import { HUD } from './hud.js';
 import { Leaderboard } from './leaderboard.js';
 import { RunMode } from './runMode.js';
+import { Scoring } from './scoring.js';
 import { buildWorld, updateWorld, getTimeOfDay, getFarField } from './world.js';
 import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
 import { lakeAnimatables, setLakeNightness } from './lakes.js';
@@ -408,6 +409,7 @@ StarPower.onTrigger = () => {
   // wet chain in sound.js) is part of the fun. Don't cancel the trip.
   Sound.startStarPower();
   bubbles.setStarPower(true);
+  Scoring.pinCombo(true);   // star power pins the combo at cap for its 15s
   HUD.setStarPower(true);
   HUD.toast('⭐ STAR POWER! ⭐', 2600);
   Analytics.featureUsed('star_power');
@@ -415,6 +417,7 @@ StarPower.onTrigger = () => {
 StarPower.onEnd = () => {
   Sound.stopStarPower();
   bubbles.setStarPower(false);
+  Scoring.pinCombo(false);
   HUD.setStarPower(false);
 };
 
@@ -538,16 +541,30 @@ scene.add(honkRing);
 let honkAge = 999;
 
 // ---------- HUD ----------
-let score = (__resume && Number.isFinite(__resume.score)) ? __resume.score : 0;
+// All score reads/writes go through Scoring (the single writer — see
+// scoring.js). A resumed session restores mode BEFORE stakes config so combo
+// state survives a settings reload; a fresh boot configures at Start instead
+// (the player can flip the mode selector right up to the tap).
+if (__resume && __resume.mode) {
+  RunMode.set(__resume.mode);
+  HUD.refreshMode();
+}
+Scoring.configure({ stakes: RunMode.isFestival() });
+if (__resume) {
+  if (__resume.scoring) Scoring.restore(__resume.scoring);
+  else if (Number.isFinite(__resume.score)) Scoring.reset({ current: __resume.score });
+}
 HUD.loadBest();
-if (__resume) HUD.setSmiles(score);
+if (__resume) HUD.setSmiles(Scoring.current);
 let running = false;
 
-// A bubble-less Zerble makes nearby NPCs frown — each frown costs a smile.
+// A bubble-less Zerble makes nearby NPCs frown — each frown costs a smile
+// (and, in Festival Run, snaps the combo chain).
 crowd.onFrown = () => {
-  if (score <= 0) return;
-  score = Math.max(0, score - 1);
-  HUD.setSmiles(score);
+  if (Scoring.current <= 0) return;
+  Scoring.deduct(1);
+  Scoring.breakCombo();
+  HUD.setSmiles(Scoring.current);
 };
 // An NPC climbed aboard — feed the passenger analytics (first board fires an
 // event; every board feeds the session_end count).
@@ -563,6 +580,7 @@ let _frogPanVal = 0;      // listener-relative pan toward nearest lake (-1..1)
 let _vendorToastCd = 0;
 let _vendorWasFilling = false;   // were we actively drawing juice last frame?
 let _wasEmpty = bubbles.juice <= 0.02; // edge-detect the bubble tank running dry
+let _collectedThisFrame = 0;     // per-frame smile-collect coalescing buffer
 // Analytics edge-detect / rollup state (see src/analytics.js).
 let _wasBlasting = false;        // edge-detect the bubble blast (G) starting
 let _maxJuiceReached = 1;        // peak stockpile this run → session_end
@@ -623,7 +641,8 @@ Settings.init({
   // Returns null on the title card (nothing to resume) → a fresh boot.
   captureState: () => running
     ? { seed: window.__seed, x: zerble.position.x, z: zerble.position.z,
-        heading: zerble.heading, score, juice: bubbles.juice, tod: getTimeOfDay()?.t }
+        heading: zerble.heading, score: Scoring.current, scoring: Scoring.serialize(),
+        mode: RunMode.name, juice: bubbles.juice, tod: getTimeOfDay()?.t }
     : null,
 });
 
@@ -645,6 +664,9 @@ if (__resume) {
 HUD.onStart(() => {
   HUD.hideTitle();
   running = true;
+  // The player can flip the mode selector right up to the Start tap —
+  // (re)configure stakes from the final choice. Synchronous, pre-Sound.init.
+  Scoring.configure({ stakes: RunMode.isFestival() });
   // Context segments every later event by device/tier/returning-ness.
   Analytics.gameStart({
     perf_tier: PERF.name,
@@ -761,7 +783,7 @@ function finishIntroReveal() {
 function reportSessionEnd() {
   if (!running || _sessionEndReported) return;
   _sessionEndReported = true;
-  Analytics.sessionEnd({ smiles: score, best: HUD.loadBest(), maxJuice: _maxJuiceReached, honks: _honkCount });
+  Analytics.sessionEnd({ smiles: Scoring.current, best: HUD.loadBest(), maxJuice: _maxJuiceReached, honks: _honkCount });
 }
 
 // iOS suspends the AudioContext on tab switch / device lock. Resume on return.
@@ -915,17 +937,24 @@ function tickBody(dt) {
     // the per-NPC queries it enables replace the old O(npcs × entries) scans.
     registry.rebuildSpatialIndex();
     if (!npcsFrozen()) crowd.update(dt, zerble, bubbles);
-    smiles.update(dt, zerble, (n) => {
-      score += n;
-      HUD.setSmiles(score);
+    // Same-frame collects coalesce into ONE scoring event (and, in group 5,
+    // one audio chord) — a mega-burst never machine-guns the pipeline.
+    _collectedThisFrame = 0;
+    smiles.update(dt, zerble, (n) => { _collectedThisFrame += n; });
+    if (_collectedThisFrame > 0) {
+      Scoring.collect(_collectedThisFrame);
+      HUD.setSmiles(Scoring.current);
       // zerble-best-smiles is the Just Cruisin' personal best ONLY — Festival
       // Run's multiplied scores must never overwrite it (council Critical).
       if (RunMode.config.savesPersonalBest) {
-        HUD.saveBest(score);
-        Analytics.personalBest(score);
+        HUD.saveBest(Scoring.current);
+        Analytics.personalBest(Scoring.current);
       }
-      Analytics.smileScore(score);
-    });
+      Analytics.smileScore(Scoring.current);
+    }
+    Scoring.tick(dt);
+    Scoring.setDoubler(lurleen.state === 'following');
+    HUD.setCombo(Scoring.multiplier(), Scoring.chainFraction(), Scoring.doubler, Scoring.stakes);
 
     puppets.update(dt, zerble.position);
     band.update(dt, zerble.position);
@@ -1220,8 +1249,11 @@ function tickBody(dt) {
       }
       const hit = resolveCollision(zerble, _collScratch);
       if (hit && hit.damaging && !isGod()) {
-        score = Math.max(0, score - hit.damage);
-        HUD.setSmiles(score);
+        Scoring.deduct(hit.damage);
+        // Damaging PEOPLE hits snap the combo chain (scoring spec); prop
+        // bonks just cost the smiles, same as always.
+        if (SOFT_PEOPLE_KINDS.has(hit.kind)) Scoring.breakCombo();
+        HUD.setSmiles(Scoring.current);
         HUD.flashHit();
         // Ramming an OCCUPIED porta-potty ejects the flustered occupant +
         // gets its own mortified toast bank; otherwise the normal per-kind line.
@@ -1432,7 +1464,7 @@ function resolveCollision(zerble, colliders) {
       // for the named ones — return `notify` so the caller can react.
       const damaging = c.damage > 0;
       const notify = !damaging && (c.kind === 'lurleen');
-      return { damaging, damage: c.damage, kind: c.kind, notify, entry: c.entry || null };
+      return { damaging, damage: c.damage, kind: c.kind, notify, entry: c.entry || null, npc: c.npc || null };
     }
 
     // Non-damaging contact: nudge Zerble out of overlap, kill any small approach speed.
@@ -1550,6 +1582,9 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       if (running) return 'already running';
       HUD.hideTitle();
       running = true;
+      // Same stakes arming the real Start tap does — a drill that picked
+      // Festival Run on the title card must get Festival Run scoring.
+      Scoring.configure({ stakes: RunMode.isFestival() });
       document.body.classList.add('game-started');
       const tc = document.getElementById('touch-controls');
       if (tc) tc.setAttribute('aria-hidden', 'false');
@@ -1632,10 +1667,10 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
 
     addSmiles(n = 1) {
       const add = Math.max(0, Math.floor(n));
-      score += add;
-      HUD.setSmiles(score);
-      if (RunMode.config.savesPersonalBest) HUD.saveBest(score);
-      return `smiles = ${score}`;
+      Scoring.collect(add);   // routes through the combo like organic smiles
+      HUD.setSmiles(Scoring.current);
+      if (RunMode.config.savesPersonalBest) HUD.saveBest(Scoring.current);
+      return `smiles = ${Scoring.current} (x${Scoring.multiplier()})`;
     },
 
     boostStreak() {

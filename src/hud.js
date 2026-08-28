@@ -89,6 +89,16 @@ const $boardOpenTitle = document.getElementById('board-open-title');
 
 let _onScoreAgain = null;
 
+// ---- Combo chip state (dirty flags) ----
+const $comboChip = document.getElementById('combo-chip');
+const $comboMult = document.getElementById('combo-mult');
+const $comboRingFill = document.getElementById('combo-ring-fill');
+const $comboHeart = document.getElementById('combo-heart');
+let _comboVisible = false;
+let _comboMult = 1;
+let _comboFrac = 0;
+let _comboHeart = false;
+
 function renderBoard(board, highlightRank) {
   if (!$localBoardBody) return;
   $localBoardBody.textContent = '';
@@ -158,6 +168,37 @@ export const HUD = {
     $start.classList.add('is-ready');
     const settings = document.getElementById('settings-open-title');
     if (settings) settings.disabled = false;
+  },
+
+  // Mode selector re-sync (used after a resume snapshot restores the mode).
+  refreshMode() { reflectMode(); },
+
+  // Combo badge — dirty-flagged like every other HUD write. Hidden entirely
+  // outside Festival Run (`stakes` false). `frac` is the chain window 0..1.
+  setCombo(mult, frac, heart, stakes) {
+    if (!$comboChip) return;
+    if (stakes !== _comboVisible) {
+      _comboVisible = stakes;
+      $comboChip.classList.toggle('hidden', !stakes);
+    }
+    if (!stakes) return;
+    const m = Math.max(1, Math.floor(mult));
+    if (m !== _comboMult) {
+      _comboMult = m;
+      if ($comboMult) $comboMult.textContent = `×${m}`;
+      $comboChip.classList.toggle('combo-hot', m >= 4);
+      $comboChip.setAttribute('aria-label', `Combo ×${m}${heart ? ', Lurleen doubling' : ''}`);
+    }
+    const f = Math.max(0, Math.min(1, frac));
+    if (Math.abs(f - _comboFrac) >= 0.01) {
+      _comboFrac = f;
+      if ($comboRingFill) $comboRingFill.style.strokeDashoffset = String(81.68 * (1 - f));
+    }
+    const h = !!heart;
+    if (h !== _comboHeart) {
+      _comboHeart = h;
+      $comboHeart?.classList.toggle('hidden', !h);
+    }
   },
 
   // Score screen. viewOnly (the title-card "Local legends" peek) hides the

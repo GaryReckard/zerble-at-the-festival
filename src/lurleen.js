@@ -98,6 +98,9 @@ export class Lurleen {
     this.awareTimer = 0;
     this.homePos = spawn.clone();
     this.eyes = [];
+    // Festival Run scare-off: while > 0, the wandering→aware transition is
+    // suppressed so a startled Lurleen isn't instantly re-acquired.
+    this.scareCooldown = 0;
 
     // Re-home tracking — latches true the first time the player enters
     // AWARE_RANGE. Until that happens, the off-camera relocation rolls every
@@ -708,8 +711,9 @@ export class Lurleen {
     }
 
     // State machine
+    if (this.scareCooldown > 0) this.scareCooldown -= dt;
     if (this.state === 'wandering') {
-      if (dToZerble < AWARE_RANGE) {
+      if (dToZerble < AWARE_RANGE && this.scareCooldown <= 0) {
         this.state = 'aware';
         this.awareTimer = 1.4;
         this.heartTimer = 0;
@@ -763,6 +767,22 @@ export class Lurleen {
     }
 
     this._updateHearts(dt);
+  }
+
+  get isFollowing() { return this.state === 'following'; }
+
+  // Festival Run: Zerble hit somebody while she was smitten. Hearts cut, a
+  // startled dart away, and a cooldown before she can be won back (the run
+  // layer calls this from the damaging-hit gate in main.js — see design D16).
+  scareOff(cooldownSec = 12) {
+    if (this.state !== 'following' && this.state !== 'aware') return false;
+    this.state = 'wandering';
+    this.scareCooldown = Math.max(this.scareCooldown, cooldownSec);
+    this.awareTimer = 0;
+    this.homePos.copy(this.position);
+    this.wanderTimer = 0;
+    this.speed = Math.max(this.speed, 6);
+    return true;
   }
 
   // ---------- Driving primitives ----------
