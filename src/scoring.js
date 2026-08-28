@@ -54,6 +54,7 @@ export const Scoring = {
   get highWater() { return S.highWater; },
   get bestCombo() { return S.bestMult; },
   get stakes() { return S.stakes; },
+  get chain() { return S.chain; },   // the audio ladder reads this
 
   multiplier() {
     if (!S.stakes) return 1;

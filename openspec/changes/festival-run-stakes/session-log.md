@@ -1,7 +1,7 @@
 ---
 change: festival-run-stakes
 status: in_progress
-current_task: "5.1"
+current_task: "6.1"
 blocked_by: null
 open_questions: 5
 started: 2026-08-28

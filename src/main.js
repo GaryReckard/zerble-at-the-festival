@@ -564,6 +564,7 @@ crowd.onFrown = () => {
   if (Scoring.current <= 0) return;
   Scoring.deduct(1);
   Scoring.breakCombo();
+  Sound.playFrownDown();
   HUD.setSmiles(Scoring.current);
 };
 // An NPC climbed aboard — feed the passenger analytics (first board fires an
@@ -943,6 +944,7 @@ function tickBody(dt) {
     smiles.update(dt, zerble, (n) => { _collectedThisFrame += n; });
     if (_collectedThisFrame > 0) {
       Scoring.collect(_collectedThisFrame);
+      Sound.playSmileCollect(_collectedThisFrame, Scoring.chain);
       HUD.setSmiles(Scoring.current);
       // zerble-best-smiles is the Just Cruisin' personal best ONLY — Festival
       // Run's multiplied scores must never overwrite it (council Critical).

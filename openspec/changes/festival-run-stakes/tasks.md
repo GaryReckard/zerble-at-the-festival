@@ -86,11 +86,11 @@ worldgen-only.
 
 ## 5. Smile SFX pitch ladder + stakes cues (P2)
 
-- [ ] 5.1 `sound.js`: pentatonic ladder blip voice (detune, 6-voice cap, same-frame
+- [x] 5.1 `sound.js`: pentatonic ladder blip voice (detune, 6-voice cap, same-frame
       chord coalesce) driven by combo chain count; frown down-note; on SFX bus
-- [ ] 5.2 `sound.js`: sputter loop, marshal whistle, run-end stings (`ran_dry` vs
+- [x] 5.2 `sound.js`: sputter loop, marshal whistle, run-end stings (`ran_dry` vs
       `vibed_out`)
-- [ ] 5.3 Sandbox audio panel spot-check ("Hit it" surfaces unaffected) + in-game
+- [x] 5.3 Sandbox audio panel spot-check ("Hit it" surfaces unaffected) + in-game
       ladder verify via `__dbg` smile bursts; confirm no init-chain changes (iOS
       tripwire re-read)
 

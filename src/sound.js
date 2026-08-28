@@ -112,6 +112,8 @@ let _tripLowpass = null;
 let _tripDelay = null;
 let _tripFeedback = null;
 let sfxBus = null;       // shared bus for all SFX (engine, collisions, honks, bumps)
+let _smileVoices = 0;    // live smile-ladder blips (6-voice cap)
+let _sputterLoop = null; // Festival Run sputter chug ({osc, lfo, g} or null)
 // SFX trip chain — the SFX-tuned sibling of the music trip chain above. Sits
 // between sfxBus and masterGain, same wet/dry topology. Tuned to keep the
 // engine drone legible (gentler lowpass, more dry signal) while smearing
@@ -864,6 +866,115 @@ export const Sound = {
   },
 
   // Bright ascending sparkle for grabbing a bubble-juice jug / refilling.
+  // ---- Smile pitch ladder (festival-run-stakes D12) ----
+  // Each collected smile plays a soft bell blip; consecutive collects inside
+  // the combo chain step UP a major-pentatonic ladder (two octaves over C5),
+  // so the chain is audible without looking at the HUD — and the reset to the
+  // root after a lull/break is the audible "chain over". A same-frame burst
+  // arrives as ONE call (main.js coalesces) and plays one small chord instead
+  // of overlapping copies; a 6-voice cap guards pathological bursts. Per-hit
+  // ±8-cent detune keeps repeats from sounding stamped out.
+  playSmileCollect(count = 1, chainStep = 0) {
+    if (!ctx || !sfxBus) return;
+    const SEMIS = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
+    const ROOT = 523.25;   // C5
+    const idx = Math.max(0, Math.min(SEMIS.length - 1, Math.floor(chainStep)));
+    const blip = (semi, gainMul = 1, delay = 0) => {
+      if (_smileVoices >= 6) return;
+      _smileVoices++;
+      const t = ctx.currentTime + delay;
+      const detune = Math.pow(2, ((Math.random() * 16) - 8) / 1200);
+      const f = ROOT * Math.pow(2, semi / 12) * detune;
+      const osc = ctx.createOscillator(); osc.type = 'triangle';
+      osc.frequency.setValueAtTime(f, t);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.13 * gainMul, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.22);
+      osc.connect(g).connect(sfxBus);
+      osc.start(t); osc.stop(t + 0.26);
+      osc.onended = () => { _smileVoices = Math.max(0, _smileVoices - 1); };
+    };
+    if (count <= 1) {
+      blip(SEMIS[idx]);
+    } else {
+      // Burst → one bright chord on the ladder step (root + two above).
+      blip(SEMIS[idx], 0.9);
+      blip(SEMIS[Math.min(SEMIS.length - 1, idx + 2)], 0.7, 0.012);
+      blip(SEMIS[Math.min(SEMIS.length - 1, idx + 4)], 0.55, 0.024);
+    }
+  },
+
+  // Soft minor-third fall for a frown-caused smile loss. Deliberately quiet —
+  // it registers, it doesn't scold.
+  playFrownDown() {
+    if (!ctx || !sfxBus) return;
+    boop(ctx, sfxBus, 392, 330, 0.22, 0.09, 'sine');
+  },
+
+  // ---- Festival Run stakes cues ----
+  // Sputter loop: a low chugging put-put while the grace timer runs. Handle
+  // kept so runState can stop it the moment juice arrives.
+  startSputterLoop() {
+    if (!ctx || !sfxBus || _sputterLoop) return;
+    const osc = ctx.createOscillator(); osc.type = 'sawtooth';
+    osc.frequency.value = 55;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 240;
+    const g = ctx.createGain(); g.gain.value = 0.0;
+    const lfo = ctx.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 5;
+    const lfoG = ctx.createGain(); lfoG.gain.value = 0.05;
+    lfo.connect(lfoG).connect(g.gain);
+    osc.connect(lp).connect(g).connect(sfxBus);
+    const t = ctx.currentTime;
+    g.gain.setValueAtTime(0.0, t);
+    g.gain.linearRampToValueAtTime(0.05, t + 0.3);
+    osc.start(t); lfo.start(t);
+    _sputterLoop = { osc, lfo, g };
+  },
+  stopSputterLoop() {
+    if (!ctx || !_sputterLoop) return;
+    const { osc, lfo, g } = _sputterLoop;
+    _sputterLoop = null;
+    const t = ctx.currentTime;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(g.gain.value, t);
+    g.gain.linearRampToValueAtTime(0.0001, t + 0.2);
+    osc.stop(t + 0.25); lfo.stop(t + 0.25);
+  },
+
+  // Marshal whistle — two sharp warbles; the vibe meter's warning voice.
+  playMarshalWhistle() {
+    if (!ctx || !sfxBus) return;
+    for (let i = 0; i < 2; i++) {
+      const t = ctx.currentTime + i * 0.28;
+      const osc = ctx.createOscillator(); osc.type = 'sine';
+      osc.frequency.setValueAtTime(2200, t);
+      osc.frequency.linearRampToValueAtTime(2650, t + 0.1);
+      osc.frequency.linearRampToValueAtTime(2350, t + 0.2);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.1, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.24);
+      osc.connect(g).connect(sfxBus);
+      osc.start(t); osc.stop(t + 0.26);
+    }
+  },
+
+  // Run-end stings: ran_dry = a weary engine wind-down; vibed_out = whistle
+  // into a descending "you're outta here" figure.
+  playRunEndSting(cause) {
+    if (!ctx || !sfxBus) return;
+    if (cause === 'vibed_out') {
+      this.playMarshalWhistle();
+      boop(ctx, sfxBus, 440, 392, 0.3, 0.12, 'triangle');
+      boop(ctx, sfxBus, 392, 294, 0.4, 0.12, 'triangle');
+    } else {
+      boop(ctx, sfxBus, 220, 180, 0.35, 0.12, 'sawtooth');
+      boop(ctx, sfxBus, 180, 110, 0.5, 0.1, 'sawtooth');
+      boop(ctx, sfxBus, 660, 494, 0.5, 0.07, 'sine');
+    }
+  },
+
   playJuicePickup() {
     if (!ctx) return;
     const t = ctx.currentTime;
