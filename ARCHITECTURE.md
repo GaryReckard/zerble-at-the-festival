@@ -188,6 +188,61 @@ A second, **render-agnostic** world generator that replaces the per-chunk theme 
 
 ---
 
+## Far-field horizon (`farField.js`) — experiment, default off
+
+A render-only "semantic LOD" layer that fills the middle distance (from the
+chunk load ring out to the tier's horizon radius, 340m low / 520m mid+high)
+with batched festival silhouettes, so hubs read as destinations through the
+fog instead of popping out of empty grass. **Gated:** effective enablement is
+`farFieldRequested && USE_WORLDGEN_V2` (`?farField=1` opts in; `?farField=0`
+is the A/B control; `?worldgen=0` kills it — v2 proxies over the v1 world
+would never hand off). Disabled means a two-boolean shell: no pools, no
+shader programs, no planning, nothing in the scene.
+
+**Shape.** A PEER of `ChunkManager`/`LakeManager`, owned by `world.js` —
+never a wider chunk ring. It consumes the same pure worldgen descriptors the
+real builders use (`heartsInBounds` → `festivalPlan`, `roadsInBounds`),
+copies them into compact owned records (shared memoized arrays are never
+mutated — `bin/test-far-field` hashes them pre/post), and owns exactly seven
+draws: five fixed-capacity `InstancedMesh` pools (stage canopies, truss
+posts/beams, vendor roof-peak strips, warm night markers, colored stage
+beacons — per-instance color, unlit `MeshBasicMaterial`, fog-aware, no
+shadows, frustum culling deliberately off since the layer rings the player)
+plus one preallocated road-ribbon underlay at y=0.03 (opaque,
+`depthWrite:true`, slightly narrower than the real y=0.06 road so the
+authoritative ribbon always covers it) — and it registers **nothing**: no
+registry entries, colliders, crowds, audio, lights, pickups.
+
+**Planning.** Boundary-triggered on 80m player-cell crossings, incremental
+per 240m coarse cell (never one monolithic ~1km² query), and versioned by the
+requesting player cell so rapid teleports supersede stale pending snapshots
+while the previous committed horizon stays visible. Planning spends only the
+*remainder* of the world-owned streaming wall (`PERF.chunkBudgetMs`) after
+lakes + chunks — there is no second budget. Pools keep the deterministic
+nearest candidates under per-tier caps (anchored to the player-cell center,
+so contents are byte-stable per cell), and palette/variation come from pure
+integer hashes over descriptor identity — zero RNG draws, so worldgen goldens
+cannot move.
+
+**Handoff.** Each proxy instance carries its owning cluster's chunk cell (via
+`ownerCellCoord`, the one exported owner-cell rule). When
+`ChunkManager.isLoaded(cx, cz)` — the narrow "fully built" completion
+predicate, the only window FarField gets into chunk lifecycle — flips true,
+the whole cluster proxy dissolves over 0.3s through a per-instance Bayer
+screen-door discard (`onBeforeCompile` on the batch materials, one stable
+program cache key, still opaque + depth-writing, so no transparent sorting);
+reduced motion (read live each frame) snaps instead. When the chunk unloads,
+the proxy reappears the same way.
+
+**Iteration surfaces.** The hub sandbox's *Far field* panel runs the real
+FarField around one hub (proxy-only / real-only / simulated-distance handoff,
+live stats); in the game, `__dbg.horizon()` reads live stats and
+`horizon('proxy'|'real'|'live'|'replan')` forces states for fixed-seed A/B
+captures. See DEBUGGING.md. Tier knobs (radius, density, pool caps, cold-step
+gate) live in `perf.js` under `farField`.
+
+---
+
 ## The Registry (`registry.js`)
 
 A single store mapping `id → entry`. Every "thing in the world" registers itself. Entries can have:

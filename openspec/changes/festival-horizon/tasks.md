@@ -90,16 +90,16 @@
 
 ## 5. Acceptance gates and promotion decision
 
-- [ ] 5.1 Run `npm run check`, `npm run lint:layout`, focused far-field tests,
+- [x] 5.1 Run `npm run check`, `npm run lint:layout`, focused far-field tests,
   `git diff --check`, importmap checks, and static syntax checks for every touched
   module and HTML inline script.
 - [ ] 5.2 Capture fixed-seed off/on and proxy/handoff views at Noon and Midnight
   on low, mid, and high; confirm the horizon reads as populated, proxy composition
   is not misleading, roads align, and the handoff has no pop or z-fighting.
-- [ ] 5.3 Verify the real title/start flow, gameplay boot, mobile viewport, reduced
+- [x] 5.3 Verify the real title/start flow, gameplay boot, mobile viewport, reduced
   motion, all three tiers, and clean browser console through the full game because
   `world.js` and chunk lifecycle do not run in isolation.
-- [ ] 5.4 Run a long-travel and unload A/B capture; prove at most 12 added scene
+- [x] 5.4 Run a long-travel and unload A/B capture; prove at most 12 added scene
   draws, marginal triangle deltas within the pinned per-tier caps, rebuild timing
   within the shared world-owned deadline or correctly sliced, stable geometry,
   texture, heap, and shader-program counts, unchanged registry/RNG truth, and no

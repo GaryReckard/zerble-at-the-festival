@@ -22,6 +22,17 @@ Chunk and lake disposal walks skip entries with this flag. Without it, the
 first chunk-unload after the pool was used will dispose the shared resource
 and break every other chunk that referenced it.
 
+## The OTHER pooling pattern: instance-owned pools (no `shared` tag)
+
+`src/farField.js` shows the second valid shape: geometries/materials/buffers
+owned by ONE long-lived instance whose `dispose()` is the only teardown path,
+and which never enter a chunk group — so the chunk/lake disposal walks never
+see them and the `userData.shared` tag is unnecessary. Use this shape when a
+world-lifetime system owns fixed-capacity resources outright; use the
+`shared` tag when module-level resources are referenced from chunk-owned
+groups. Don't mix them: an instance-owned resource inside a chunk group
+would need the tag after all.
+
 ## Where to look for existing pools
 
 - `src/models/sugarShack.js` — `SHACK_MATS`, `STRING_BULB_GEO`, `SUPPLY_CAN_GEO`

@@ -725,7 +725,21 @@ Attacks two measured symptoms (137–343 ms shader-compile stalls on hub entry;
 - **Draw-call reduction (the real steady-state lever, per the round-trip-1 capture).** B0 revealed draws = median ~3,750 / max 9,232 vs a 400 budget — draw count is the ceiling. **Slice 4 SHIPPED 2026-06-21 (see CHANGELOG):** forest-tree per-chunk instancing — trees were ~half the dense-hub draws (a `drawCensus` finding), now ~344 per-tree draws/chunk → ~5–6 `InstancedMesh`es. **Deliberation 002 separately found geometry-merge is only a ~2–4% cut** (food-court/camp-village are mostly already pooled/instanced; merge helps only the unique-geometry food-truck + sugar-shack). The 2026-07-15 real-GPU gate rejected those broad model merges because renderer draws increased on every tier, while retaining the independently proven Sugar Shack sign-shell and food-truck window cuts (21 draws). Fog-as-far-cull also shipped at a backdrop-safe 1040m, removing roughly 350 fog-hidden retained-lake draws in its 1.2km travel gate. Remaining attack on the residual overage: (1) **LOD / cross-cluster instancing of the non-tree repeated clusters** (the same tents/trucks repeated across hubs, prime candidates beyond ~60m); (2) **billboard-impostor far field** (perf-brainstorm E2/E4); (3) an **honest look at whether the 400-draw high-tier budget is realistic for v2 worldgen** once trees are instanced, or whether the budget should move. Follow-up if a dense-low tri capture pushes past ~110–120k: a detail-0 icosa LOD (20 tris vs 80) for the instanced crowns.
 - **Tier-2 secondary (gated behind B0 numbers):** the cut-on-evaluation atmosphere fakes (billboard light shafts, faked lake reflections, adaptive sparkle) + crowd LOD.
 
-### Far-field festival depth / semantic LOD *(parked 2026-07-15)*
+### Far-field festival depth / semantic LOD *(experiment SHIPPED behind `?farField=1` 2026-08-27; promotion pending sign-off)*
+
+> **Status update 2026-08-27:** the first slice is implemented and landed on
+> the `festival-horizon` change — `src/farField.js` (peer of the chunk/lake
+> managers), all six proxy batches + the road underlay, the Bayer-dither
+> completion handoff, the hub-sandbox Far field mode, `__dbg.horizon()`, and
+> the full `bin/test-far-field` gate. Every measurable acceptance gate passed
+> (6 draws / ≤3.7k–7.8k marginal tris per tier, byte-identical determinism,
+> no lifecycle growth vs flag-off — see
+> `openspec/changes/festival-horizon/verification/gates-flag-on.md`). The
+> DEFAULT IS STILL OFF: per that change's D11, promotion to default-on needs
+> Gary's explicit sign-off (Q1) plus a quick real-device look at planning
+> cold-step + worst-frame, which the GPU-less dev box can't judge. The
+> "coarse forest masses" follow-up below remains future work. Original
+> brief kept for the follow-ups:
 
 **Player-facing problem.** The detailed world can end well before the visible atmosphere does. Chunks are 80m wide; low tier loads a 3×3 square (`chunkLoadRadius: 1`) and mid/high load 5×5 (`chunkLoadRadius: 2`), so depending on the cart's position inside its current chunk, complete content can end roughly 80–160m away on low and 160–240m away on mid/high. Fog begins at 120m but does not become opaque until 520m, leaving a large middle distance where roads, woods, and festivals can disappear and then pop into existence on approach. The latest `cameraFar: 1040` cut is not the cause because it only culls beyond twice the fog's opaque distance. The tier-aware streaming wall can delay a newly requested chunk by roughly 50–100ms without changing its distance. The June 22 tablet change from mid to low did reduce iPad residency from 25 to 9 full chunks, so this can feel materially newer or stronger on tablets even though phones and desktop kept their established radii.
 

@@ -1,9 +1,9 @@
 ---
 change: festival-horizon
 status: in_progress
-current_task: "5.1"
+current_task: "5.5 (blocked on Q1 sign-off)"
 blocked_by: null
-open_questions: 0
+open_questions: 1
 started: 2026-08-26
 last_updated: 2026-08-27
 ref: ROADMAP.md "Far-field festival depth / semantic LOD"
@@ -246,3 +246,24 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
   alignment screenshot: proxy vendor-peak strips sit on the real booth rows.
 - **Refs:** -> D9, -> Tasks 4.1-4.3, `g4-sandbox-proxy.png` (scratch),
   CHANGELOG 2026-08-27
+
+### 2026-08-27 -- Task group 5 gates run: all measurable gates PASS; promotion awaits sign-off (-> Q1)
+
+- **Event:** phase-change + discovery + question
+- **What:** Full acceptance matrix on the SwiftShader rig (method + numbers in
+  `verification/gates-flag-on.md`). Headlines: far-field marginal cost is
+  **6 draws / ≤3.7k tris (low, measured) and ~6.6k/~7.8k tris (mid/high,
+  derived from cap-saturated pools)** — inside every D11 cap; rng draw-count
+  canary and layout-normalized registry are **byte-identical off vs on**;
+  long-travel resource growth is byte-identical to the flag-off control
+  (retained-lakes-by-design, not a leak); zero console errors across all 20+
+  legs including real title click, mobile viewport + reduced motion, and both
+  kill switches. *Method discovery:* unfrozen scene-level A/B is USELESS for a
+  ≤12-draw gate — dynamic crowd/birds swing draws ±270–700 in both directions
+  across runs; the gate evidence is the frozen-NPC A/B plus direct
+  always-submitted-batch measurement (both recorded). Two numbers can only be
+  judged on a real device: planning cold-step vs the 2ms gate, and worst-frame.
+  5.1/5.3/5.4 ticked; 5.2 pending a screenshot eyeball (captures taken; a
+  transient Read-tool outage delayed review); 5.5 blocked on -> Q1 (Gary
+  sign-off, per D11 on every tier). Default remains OFF.
+- **Refs:** -> Q1, -> D11, `verification/gates-flag-on.md`, -> Tasks 5.1-5.4
