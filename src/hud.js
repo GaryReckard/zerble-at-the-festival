@@ -1,5 +1,7 @@
 // Lightweight HUD bindings. Pure DOM, no framework.
 
+import { Leaderboard, FALLBACK_NAME } from './leaderboard.js';
+
 const $smiles = document.getElementById('smiles');
 const $best = document.getElementById('best');
 const $bestScore = $best?.closest('.best-score');
@@ -37,6 +39,71 @@ let toastTimer = 0;
 let toastTapHandler = null;   // currently-attached tap listener for tappable toasts
 
 const BEST_KEY = 'zerble-best-smiles';
+const NAME_KEY = 'zerble-player-name';
+
+// Player name — captured from the title-card input, persisted across visits.
+// Everything degrades to nameless: storage may be unavailable (private mode),
+// the input may not exist (non-index pages import this module's siblings).
+const $playerName = document.getElementById('player-name');
+let _playerName = '';
+try { _playerName = String(localStorage.getItem(NAME_KEY) || '').trim().slice(0, 20); } catch (e) { /* storage unavailable */ }
+if ($playerName && _playerName) $playerName.value = _playerName;
+function captureName() {
+  if (!$playerName) return;
+  _playerName = $playerName.value.trim().slice(0, 20);
+  try {
+    if (_playerName) localStorage.setItem(NAME_KEY, _playerName);
+    else localStorage.removeItem(NAME_KEY);
+  } catch (e) { /* session-only name */ }
+}
+$playerName?.addEventListener('change', captureName);
+
+// ---- Score screen (Festival Run results + the local top-10 board) ----
+const $scoreScreen = document.getElementById('score-screen');
+const $scoreCause = document.getElementById('score-cause');
+const $scoreStats = document.getElementById('score-stats');
+const $scoreFinal = document.getElementById('score-final');
+const $scoreDays = document.getElementById('score-days');
+const $scoreCombo = document.getElementById('score-combo');
+const $localBoardBody = document.querySelector('#local-board tbody');
+const $boardEmpty = document.getElementById('board-empty');
+const $scoreAgain = document.getElementById('score-again');
+const $scoreClose = document.getElementById('score-close');
+const $boardOpenTitle = document.getElementById('board-open-title');
+
+let _onScoreAgain = null;
+
+function renderBoard(board, highlightRank) {
+  if (!$localBoardBody) return;
+  $localBoardBody.textContent = '';
+  $boardEmpty?.classList.toggle('hidden', board.length > 0);
+  board.forEach((entry, i) => {
+    const tr = document.createElement('tr');
+    if (i + 1 === highlightRank) tr.className = 'you';
+    const cells = [
+      ['rank', `${i + 1}.`],
+      ['bname', entry.name || FALLBACK_NAME],   // names are player text — textContent only
+      ['bscore', String(entry.score)],
+      ['bdays', `day ${entry.days}`],
+    ];
+    for (const [cls, text] of cells) {
+      const td = document.createElement('td');
+      td.className = cls;
+      td.textContent = text;
+      tr.appendChild(td);
+    }
+    $localBoardBody.appendChild(tr);
+  });
+}
+
+$scoreClose?.addEventListener('click', () => HUD.hideScoreScreen());
+$scoreAgain?.addEventListener('click', () => {
+  HUD.hideScoreScreen();
+  if (_onScoreAgain) _onScoreAgain();
+});
+$boardOpenTitle?.addEventListener('click', () => {
+  HUD.showScoreScreen({ viewOnly: true, board: Leaderboard.localTop() });
+});
 
 function formatBest(n) {
   if (n < 1000) return String(n);
@@ -64,7 +131,9 @@ export const HUD = {
   },
 
   onStart(cb) {
-    $start.addEventListener('click', cb, { once: true });
+    // captureName is synchronous — the iOS audio unlock in cb must stay inside
+    // the same gesture with no async hop before Sound.init().
+    $start.addEventListener('click', () => { captureName(); cb(); }, { once: true });
     window.__zerbleBootLoader?.ready();
     $start.textContent = _startLabel;
     $start.disabled = false;
@@ -73,6 +142,41 @@ export const HUD = {
     $start.classList.add('is-ready');
     const settings = document.getElementById('settings-open-title');
     if (settings) settings.disabled = false;
+  },
+
+  // Score screen. viewOnly (the title-card "Local legends" peek) hides the
+  // run stats + the "again" action and just shows the board.
+  showScoreScreen({ cause = '', score = 0, days = 1, bestCombo = 1,
+                    board = [], highlightRank = 0, viewOnly = false } = {}) {
+    if (!$scoreScreen) return;
+    if ($scoreCause) $scoreCause.textContent = viewOnly ? 'Local legends' : (cause || 'The festival rolls on…');
+    $scoreStats?.classList.toggle('hidden', viewOnly);
+    $scoreAgain?.classList.toggle('hidden', viewOnly);
+    // viewOnly's h2 already says "Local legends" — drop the duplicate table title.
+    document.querySelector('#score-screen .board-title')?.classList.toggle('hidden', viewOnly);
+    if (!viewOnly) {
+      if ($scoreFinal) $scoreFinal.textContent = String(Math.floor(score));
+      if ($scoreDays) $scoreDays.textContent = String(Math.max(1, Math.floor(days)));
+      if ($scoreCombo) $scoreCombo.textContent = `×${Math.max(1, Math.floor(bestCombo))}`;
+    }
+    renderBoard(board, viewOnly ? 0 : highlightRank);
+    $scoreScreen.classList.remove('hidden');
+  },
+
+  hideScoreScreen() { $scoreScreen?.classList.add('hidden'); },
+
+  onScoreAgain(cb) { _onScoreAgain = cb; },
+
+  getPlayerName() { return _playerName; },
+
+  // Toast spice: given the everyday line and a "{name}"-bearing variant, swap
+  // the named one in occasionally (sprinkle, don't saturate — see ROADMAP).
+  // Nameless players always get the plain line.
+  withName(nameless, named, chance = 0.25) {
+    if (_playerName && named && Math.random() < chance) {
+      return named.replace(/\{name\}/g, _playerName);
+    }
+    return nameless;
   },
 
   setStartLabel(label) {

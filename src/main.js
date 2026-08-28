@@ -18,6 +18,7 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { Input } from './input.js';
 import { Touch } from './touch.js';
 import { HUD } from './hud.js';
+import { Leaderboard } from './leaderboard.js';
 import { buildWorld, updateWorld, getTimeOfDay, getFarField } from './world.js';
 import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
 import { lakeAnimatables, setLakeNightness } from './lakes.js';
@@ -270,9 +271,15 @@ Trip.onDecline = (reason) => {
   const msg = WOOK_DECLINE_TEXTS[reason] || "the moment passes";
   HUD.toast(msg, 2000);
 };
+const TRIP_NARRATIVE_NAMED = [
+  "the bubbles are calling, {name}...",
+  "{name}... the mountains see you",
+  "even the fireflies whisper {name}",
+];
 Trip.onNarrate = () => {
   const msg = TRIP_NARRATIVE_TEXTS[Math.floor(Math.random() * TRIP_NARRATIVE_TEXTS.length)];
-  HUD.toast(msg, 3200);
+  HUD.toast(HUD.withName(msg,
+    TRIP_NARRATIVE_NAMED[Math.floor(Math.random() * TRIP_NARRATIVE_NAMED.length)]), 3200);
 };
 
 // ---------- Zerble + Smiles + Bubbles ----------
@@ -643,6 +650,10 @@ HUD.onStart(() => {
     touch: Touch.isTouchDevice(),
     seeded: window.__seedInput != null,
     returning: HUD.loadBest() > 0,
+    // Name privacy line (ROADMAP): only the boolean + length ever reach GA4 —
+    // never the string itself (free-text names are PII under the GA4 ToS).
+    name_entered: HUD.getPlayerName().length > 0,
+    name_length: HUD.getPlayerName().length,
   });
   _sessionEndReported = false;
   // Sound.init() MUST run synchronously inside the tap handler on iOS — any
@@ -734,7 +745,9 @@ function finishIntroReveal() {
   controlsLocked = false;
   window.removeEventListener('keydown', skipIntroReveal);
   window.removeEventListener('pointerdown', skipIntroReveal);
-  HUD.toast('Drive around — make people smile, dodge the parade.', 2800);
+  HUD.toast(HUD.withName(
+    'Drive around — make people smile, dodge the parade.',
+    'Drive around, {name} — make people smile, dodge the parade.', 0.5), 2800);
 }
 
 // Session summary: fire once when the player leaves (tab hidden / page going
@@ -888,7 +901,9 @@ function tickBody(dt) {
     // Suppress the proximity flee while the love buff is active (read in crowd.update).
     crowd.starActive = StarPower.isActive();
     if (bubblesEmpty && !_wasEmpty) {
-      HUD.toast('Out of bubble juice — grab a jug!', 2200);
+      HUD.toast(HUD.withName(
+        'Out of bubble juice — grab a jug!',
+        'Out of bubble juice, {name} — grab a jug!'), 2200);
       Sound.playJuiceSputter();
       Analytics.bubbleRanDry();
     }
@@ -923,7 +938,7 @@ function tickBody(dt) {
     Sound.setLurleenEngine(lurleen.speed, lurleen.position.x, lurleen.position.z);
     if (!lurleenMet && lurleen.state === 'aware') {
       lurleenMet = true;
-      HUD.toast('You found Lurleen! 💗', 3500);
+      HUD.toast(HUD.withName('You found Lurleen! 💗', '{name} found Lurleen! 💗', 0.5), 3500);
       Analytics.lurleenFound();
     }
     const nowS = performance.now() * 0.001;
@@ -1105,7 +1120,7 @@ function tickBody(dt) {
         }
       }
       if (nearVendor && _vendorToastCd <= 0) {
-        HUD.toast('Free bubble-juice refill!', 1600);
+        HUD.toast(HUD.withName('Free bubble-juice refill!', 'Free bubble-juice refill, {name}!'), 1600);
         _vendorToastCd = 10;
       }
       // "Full" cue — the moment the stream tops the meter off.
@@ -1208,7 +1223,9 @@ function tickBody(dt) {
           crowd.onPottyHit(hit.entry);
           HUD.toast(PORTA_POTTY_OCCUPIED_TOASTS[Math.floor(Math.random() * PORTA_POTTY_OCCUPIED_TOASTS.length)], 1700);
         } else {
-          HUD.toast(toastForKind(hit.kind), 1400);
+          HUD.toast(HUD.withName(
+            toastForKind(hit.kind),
+            NAMED_HIT_TOASTS[Math.floor(Math.random() * NAMED_HIT_TOASTS.length)]), 1400);
         }
         Sound.playCollision(hit.kind);
         Analytics.collision(hit.kind);
@@ -1292,6 +1309,15 @@ const HULA_HOOP_TOASTS = [
   "You crashed her hoop trance!",
   "Bonked a hooper — bad karma!",
   "That hoop was somebody's chakra!",
+];
+
+// Named collision quips — HUD.withName swaps one in occasionally when the
+// player gave a name (single shared helper; the per-kind banks stay nameless).
+const NAMED_HIT_TOASTS = [
+  "Easy there, {name}!",
+  "Whoa, {name} — watch it!",
+  "{name}! The festival has feelings!",
+  "Deep breaths, {name}...",
 ];
 
 const BUBBLE_VENDOR_TOASTS = [
@@ -1573,6 +1599,29 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     setJuice(meters = 1) {
       bubbles.juice = Math.max(0, meters);
       return `juice = ${bubbles.juice}`;
+    },
+
+    // Score-screen drills (festival-run-stakes). showScoreScreen renders the
+    // overlay with mock run data (real wiring lands with runState);
+    // seedBoard fills the local top-10 with fake legends for layout checks.
+    showScoreScreen(mock = {}) {
+      HUD.showScoreScreen({
+        cause: mock.cause || 'Zerble ran dry on Day 3…',
+        score: mock.score ?? 245,
+        days: mock.days ?? 3,
+        bestCombo: mock.bestCombo ?? 4,
+        board: mock.board || Leaderboard.localTop(),
+        highlightRank: mock.highlightRank ?? 0,
+        viewOnly: !!mock.viewOnly,
+      });
+      return 'score screen shown';
+    },
+    seedBoard(n = 6) {
+      const names = ['Moonbeam', 'Dusty', '', 'Peaches', 'Ranger Rick', 'Twirl', 'Bo', 'Juniper', 'Sky', 'Gud Vibes'];
+      for (let i = 0; i < Math.min(n, 10); i++) {
+        Leaderboard.recordLocal({ name: names[i % names.length], score: 400 - i * 37, days: 1 + (i % 5) });
+      }
+      return `seeded ${Math.min(n, 10)} board entries`;
     },
 
     addSmiles(n = 1) {
@@ -2109,6 +2158,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       const out = [
         'window.__dbg — agent control surface (localhost only). The one door.',
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · addSmiles(n) · boostStreak() · photographer() · fillSeats(kind?) · rider(kind)',
+        '  board:   showScoreScreen(mock?) · seedBoard(n?)   (festival-run score screen + local top-10 drills)',
         '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock() · topDown(x?,z?,span)   (pins a pose; overrides chase cam)',
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
         '  draws:   drawCensus({top?})   (scene draw-call composition by geometry/material → names instance/merge targets)',

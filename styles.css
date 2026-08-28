@@ -638,6 +638,173 @@ kbd {
   100% { transform: translateY(-22px) scale(2); opacity: 0; }
 }
 
+.board-link {
+  pointer-events: auto;
+  display: block;
+  margin: 10px auto 0;
+  background: none;
+  border: none;
+  color: rgba(255, 246, 230, 0.55);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.board-link:hover { color: rgba(255, 246, 230, 0.9); }
+
+#score-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 22;
+  background: radial-gradient(ellipse at center, rgba(26, 19, 50, 0.35), rgba(26, 19, 50, 0.9));
+  backdrop-filter: blur(6px);
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+#score-screen.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#score-screen .card {
+  width: min(440px, calc(100vw - 40px));
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  padding: 28px 30px;
+  background: rgba(28, 19, 48, 0.92);
+  border: 1px solid rgba(255, 246, 230, 0.12);
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+  text-align: center;
+  color: rgba(255, 246, 230, 0.9);
+}
+
+#score-cause {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, #ffd28a 0%, #ff6f9c 50%, #b285ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.score-stats {
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+  margin-bottom: 16px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(255, 246, 230, 0.08);
+  border-bottom: 1px solid rgba(255, 246, 230, 0.08);
+}
+
+.score-stats .stat { display: flex; flex-direction: column; gap: 2px; }
+.score-stats .stat-n { font-size: 26px; font-weight: 800; color: #ffd28a; }
+.score-stats .stat-l { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.6; }
+
+.board-title {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 246, 230, 0.6);
+  margin-bottom: 8px;
+}
+
+#local-board {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+
+#local-board td {
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(255, 246, 230, 0.06);
+}
+
+#local-board td.rank { width: 2.2em; text-align: right; opacity: 0.55; }
+#local-board td.bname { text-align: left; font-weight: 600; }
+#local-board td.bscore { text-align: right; color: #ffd28a; font-weight: 700; }
+#local-board td.bdays { width: 4.5em; text-align: right; font-size: 12px; opacity: 0.6; }
+#local-board tr.you td { background: rgba(255, 210, 138, 0.08); }
+#local-board tr.you td.bname::after { content: " ★"; color: #ff6f9c; }
+
+.board-empty { font-size: 13px; opacity: 0.6; margin-bottom: 14px; }
+
+.score-actions { display: flex; justify-content: center; gap: 10px; }
+
+.score-actions button {
+  pointer-events: auto;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 9px 20px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+}
+
+#score-again {
+  background: linear-gradient(135deg, #ff6f9c, #ffd28a);
+  color: #1c1330;
+  box-shadow: 0 6px 24px rgba(255, 111, 156, 0.45);
+}
+
+#score-close {
+  background: rgba(255, 246, 230, 0.1);
+  border: 1px solid rgba(255, 246, 230, 0.2);
+  color: rgba(255, 246, 230, 0.85);
+}
+
+#name-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 12px;
+}
+
+#name-entry label {
+  font-size: 13px;
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+
+#player-name {
+  pointer-events: auto;
+  width: min(240px, 70%);
+  text-align: center;
+  font-family: inherit;
+  font-size: 15px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  padding: 7px 14px;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+#player-name:focus {
+  border-color: #ffd28a;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+#player-name::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+#name-entry .name-note {
+  font-size: 11px;
+  opacity: 0.55;
+}
+
 #start-btn {
   pointer-events: auto;
   background: linear-gradient(135deg, #ff6f9c, #ffd28a);

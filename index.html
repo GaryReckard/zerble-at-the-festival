@@ -85,7 +85,7 @@
       // in sync with the directory; unused entries are inert (importmap mappings
       // only resolve when something actually imports them).
       const mods = ['main','world','zerble','bubbles','smiles','fireworks','crowd','chunks','forests',
-        'mountains','camera','input','touch','hud','sound','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
+        'mountains','camera','input','touch','hud','sound','leaderboard','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
         'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid','starPower','steering','settings','a11y','mergeDecor','boostStreaks','photographer','farField',
         'worldgen/constants','worldgen/tuning','worldgen/hearts','worldgen/water','worldgen/roads','worldgen/density','worldgen/roles','worldgen/index','worldgen/selftest','worldgen/placement','worldgen/festival','worldgen/lint'];
       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','shrub', 'heart','stage','performer',
@@ -226,8 +226,34 @@
         <span id="boot-copy" aria-hidden="true">Pressurizing the bubble tank…</span>
       </div>
 
+      <div id="name-entry">
+        <label for="player-name">What's your name?</label>
+        <input id="player-name" type="text" maxlength="20" autocomplete="nickname"
+               spellcheck="false" placeholder="Zerbler" enterkeyhint="done" />
+        <span class="name-note">Totally optional — it shows up around the festival (and on the leaderboard).</span>
+      </div>
+
       <button id="start-btn" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
       <button id="settings-open-title" class="settings-trigger" aria-label="Open settings" disabled>⚙ Settings</button>
+      <button id="board-open-title" class="board-link" type="button" aria-label="View the local leaderboard">🏆 Local legends</button>
+    </div>
+  </div>
+
+  <div id="score-screen" class="hidden" role="dialog" aria-modal="true" aria-label="Run results">
+    <div class="card">
+      <h2 id="score-cause">The festival rolls on…</h2>
+      <div class="score-stats" id="score-stats">
+        <div class="stat"><span class="stat-n" id="score-final">0</span><span class="stat-l">smiles</span></div>
+        <div class="stat"><span class="stat-n" id="score-days">1</span><span class="stat-l">days</span></div>
+        <div class="stat"><span class="stat-n" id="score-combo">×1</span><span class="stat-l">best combo</span></div>
+      </div>
+      <h3 class="board-title">Local legends</h3>
+      <table id="local-board" aria-label="Local top ten"><tbody></tbody></table>
+      <p id="board-empty" class="board-empty hidden">No legends yet — finish a Festival Run to claim the board!</p>
+      <div class="score-actions">
+        <button id="score-again" type="button">Run it again!</button>
+        <button id="score-close" type="button">Back to the gate</button>
+      </div>
     </div>
   </div>
 
