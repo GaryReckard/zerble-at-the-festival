@@ -116,12 +116,12 @@
 
 ## 6. Documentation and change hygiene
 
-- [ ] 6.1 Update `README.md`, `ARCHITECTURE.md`, `DEBUGGING.md`, and the relevant
+- [x] 6.1 Update `README.md`, `ARCHITECTURE.md`, `DEBUGGING.md`, and the relevant
   performance/pooling documentation with the shipped behavior, ownership model,
   inspection flow, and measured budgets.
 - [ ] 6.2 Add the dated player-visible CHANGELOG entry and remove or narrow the
   completed ROADMAP bullet according to the promotion decision, preserving the
   deferred real-iPhone Wook Trip capture.
-- [ ] 6.3 Refresh this change README and session status, verify no local server or
+- [x] 6.3 Refresh this change README and session status, verify no local server or
   task-created browser process remains, and audit exact task-created browser/GPU
   PIDs before handing off the uncommitted branch.

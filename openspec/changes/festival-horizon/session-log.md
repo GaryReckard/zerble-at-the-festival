@@ -267,3 +267,20 @@ ref: ROADMAP.md "Far-field festival depth / semantic LOD"
   transient Read-tool outage delayed review); 5.5 blocked on -> Q1 (Gary
   sign-off, per D11 on every tier). Default remains OFF.
 - **Refs:** -> Q1, -> D11, `verification/gates-flag-on.md`, -> Tasks 5.1-5.4
+
+### 2026-08-27 -- Session close-out: docs landed, hygiene done, two tasks wait on humans/tools
+
+- **Event:** phase-change
+- **What:** 6.1 docs shipped (ARCHITECTURE far-field section, DEBUGGING
+  `__dbg.horizon` reference, perf-pooling "instance-owned pools" pattern,
+  gates + baselines records under `verification/`); ROADMAP far-field bullet
+  narrowed to "shipped behind flag, promotion pending" with the Wook Trip
+  bullet preserved; README front door + status synced. Process audit: no
+  task-created browser/GPU processes remain (verify-headless closes its
+  Chromium per run); the dev server was stopped at session end. Remaining
+  open: **5.2** (captures all taken with clean consoles + pixel-diff evidence;
+  the final screenshot eyeball was blocked by a host-side tool outage that
+  killed image reads late in the session — shots staged in
+  `.claude/captures/g5-shots/` for review) and **5.5 / 6.2 final form**
+  (blocked on -> Q1, Gary's promotion sign-off per D11). Default remains OFF.
+- **Refs:** -> Q1, -> Tasks 5.2/5.5/6.1-6.3, `.claude/captures/g5-shots/`
