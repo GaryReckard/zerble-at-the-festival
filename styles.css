@@ -638,6 +638,38 @@ kbd {
   100% { transform: translateY(-22px) scale(2); opacity: 0; }
 }
 
+#mode-select {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mode-btn {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 148px;
+  padding: 9px 16px;
+  font-family: inherit;
+  background: rgba(255, 246, 230, 0.05);
+  border: 1px solid rgba(255, 246, 230, 0.16);
+  border-radius: 14px;
+  color: rgba(255, 246, 230, 0.85);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mode-btn .mode-name { font-size: 14px; font-weight: 700; }
+.mode-btn .mode-desc { font-size: 11px; opacity: 0.6; }
+
+.mode-btn[aria-checked="true"] {
+  border-color: #ffd28a;
+  background: rgba(255, 210, 138, 0.12);
+  box-shadow: 0 0 14px rgba(255, 210, 138, 0.18);
+}
+
 .board-link {
   pointer-events: auto;
   display: block;

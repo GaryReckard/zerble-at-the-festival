@@ -1,7 +1,7 @@
 ---
 change: festival-run-stakes
 status: in_progress
-current_task: "3.1"
+current_task: "4.1"
 blocked_by: null
 open_questions: 5
 started: 2026-08-28
@@ -54,3 +54,13 @@ ref: "ROADMAP 'Name entry on the title card' + parked 'costs smiles economy' bul
 **Event:** phase-change
 **What:** Tier 3 deliberation ran (Architect, Adversary, Anthropologist, Pragmatist, Auditor + Mediator; synthesis mode). Unanimous Proceed-with-mitigations; 15-risk register with 2 Critical (jug-filter rng desync, `zerble-best-smiles` cross-mode overwrite — both silent-in-production classes no existing check would catch). All Change Group 1 pin-downs applied to design.md (D3 expanded; D13–D16 added; D8 ceiling formula reworked), tasks.md (rewritten with amendments: saveBest gate as 3.4, invariance ×2, dry-death checkpoint, __dbg runDay/vibe hooks, bin/test-* alongside modules), and the hud/festival-run/carts/crowd-ai/leaderboard delta specs. New Q5 (first-visit mode default) queued. Apply phase now unblocked.
 **Refs:** -> D9, deliberations/001-initial/results.md, -> Q3, -> Q5
+
+### 2026-08-28 -- Invariance drill: raw dumpRegistry is NOT stable run-to-run
+**Event:** discovery
+**What:** The naive invariance check (hash the whole `__dbg.dumpRegistry()`) differs even between two identical Cruisin' boots — the registry contains roaming/runtime entries whose positions drift per frame. The stable form of the drill: filter to `chunkKey`-tagged entries (kind + position rounded to 0.1 + footprint, sorted) PLUS `__dbg.dumpDrawCounts()` (the rng draw-count canary — exactly the metric the jug filter must preserve). With that form: cruisin×2 and festival hash identically on seed=123 (350 chunk-keyed entries, 14 clusters). This exact drill re-runs after Task 4.2 and in the 9.1 smoke. Note for 6.2: lakes deliberately lack chunkKey, so the chunk-keyed filter also sidesteps them; jug parity is covered because scattered jugs ARE chunk-keyed.
+**Refs:** -> Task 3.5, -> Task 4.2, -> Task 9.1
+
+### 2026-08-28 -- P1 shipped; group 3 (modes) done minus resume plumbing
+**Event:** phase-change
+**What:** P1 committed (23dc1a4: name entry + toasts + local board shell; CHANGELOG entries written, ROADMAP "Name entry" consumed). Group 3: runMode.js + bin/test-run-mode green, mode selector on the title card (Cruisin' default-highlighted per D13), saveBest/personalBest mode-gated at all three sites, invariance check #1 green. Task 3.3 (resume snapshot run state) deliberately left open — the run-state fields it must carry don't exist until 6.1 builds runState.js.
+**Refs:** -> Task 3.3, -> Task 6.1, commit 23dc1a4

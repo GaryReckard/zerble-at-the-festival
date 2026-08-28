@@ -1,6 +1,7 @@
 // Lightweight HUD bindings. Pure DOM, no framework.
 
 import { Leaderboard, FALLBACK_NAME } from './leaderboard.js';
+import { RunMode, MODE_CRUISIN, MODE_FESTIVAL } from './runMode.js';
 
 const $smiles = document.getElementById('smiles');
 const $best = document.getElementById('best');
@@ -57,6 +58,21 @@ function captureName() {
   } catch (e) { /* session-only name */ }
 }
 $playerName?.addEventListener('change', captureName);
+
+// ---- Mode selector (title card) ----
+// D13: no saved preference defaults to Just Cruisin' — a returning player's
+// habitual Start tap must never land them in a mode that can end their run.
+const $modeCruisin = document.getElementById('mode-cruisin');
+const $modeFestival = document.getElementById('mode-festival');
+function reflectMode() {
+  const fest = RunMode.isFestival();
+  $modeCruisin?.setAttribute('aria-checked', String(!fest));
+  $modeFestival?.setAttribute('aria-checked', String(fest));
+}
+RunMode.loadSaved();
+reflectMode();
+$modeCruisin?.addEventListener('click', () => { RunMode.set(MODE_CRUISIN); reflectMode(); });
+$modeFestival?.addEventListener('click', () => { RunMode.set(MODE_FESTIVAL); reflectMode(); });
 
 // ---- Score screen (Festival Run results + the local top-10 board) ----
 const $scoreScreen = document.getElementById('score-screen');

@@ -1,6 +1,6 @@
 # Give Zerble real stakes: names, an endless Festival Run, and a leaderboard
 
-> **Status:** <!--STATUS:LINE-->in progress · 8/41 tasks (19%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->in progress · 12/41 tasks (29%)<!--/STATUS:LINE-->
 >
 > _Plain-language summary of this change. A non-engineer should understand it; a junior dev should grasp it; a senior dev should be able to build an accurate mental model from this file alone._
 
@@ -54,7 +54,7 @@ Technical how: [design.md](design.md). Decision record: [deliberations/](deliber
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 8/41 tasks complete (19%) · current: 3.1
+**in progress** — 12/41 tasks complete (29%) · current: 4.1
 
 _Last updated: 2026-08-28_
 
@@ -62,7 +62,7 @@ _Last updated: 2026-08-28_
 |---|---|
 | 1. Name entry + toast weaving (P1) | 5/5 ✅ |
 | 2. Local leaderboard storage + score screen shell (P1) | 3/3 ✅ |
-| 3. Modes + mode config (P2) | 0/5 |
+| 3. Modes + mode config (P2) | 4/5 |
 | 4. Scoring pipeline + combo (P2) | 0/7 |
 | 5. Smile SFX pitch ladder + stakes cues (P2) | 0/3 |
 | 6. Festival Run stakes: economy, sputter, vibe, deaths (P2) | 0/8 |

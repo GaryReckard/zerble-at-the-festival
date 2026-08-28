@@ -85,7 +85,7 @@
       // in sync with the directory; unused entries are inert (importmap mappings
       // only resolve when something actually imports them).
       const mods = ['main','world','zerble','bubbles','smiles','fireworks','crowd','chunks','forests',
-        'mountains','camera','input','touch','hud','sound','leaderboard','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
+        'mountains','camera','input','touch','hud','sound','leaderboard','runMode','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
         'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid','starPower','steering','settings','a11y','mergeDecor','boostStreaks','photographer','farField',
         'worldgen/constants','worldgen/tuning','worldgen/hearts','worldgen/water','worldgen/roads','worldgen/density','worldgen/roles','worldgen/index','worldgen/selftest','worldgen/placement','worldgen/festival','worldgen/lint'];
       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','shrub', 'heart','stage','performer',
@@ -224,6 +224,17 @@
           <span class="boot-bubble b3"></span>
         </div>
         <span id="boot-copy" aria-hidden="true">Pressurizing the bubble tank…</span>
+      </div>
+
+      <div id="mode-select" role="radiogroup" aria-label="Pick how you want to play">
+        <button id="mode-cruisin" class="mode-btn" type="button" role="radio" aria-checked="true">
+          <span class="mode-name">Just Cruisin'</span>
+          <span class="mode-desc">No pressure. All bubbles.</span>
+        </button>
+        <button id="mode-festival" class="mode-btn" type="button" role="radio" aria-checked="false">
+          <span class="mode-name">Festival Run</span>
+          <span class="mode-desc">Days get harder. Legends get made.</span>
+        </button>
       </div>
 
       <div id="name-entry">

@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+// bin/test-run-mode — day-ramp lookups + mode-config invariants for
+// festival-run-stakes. Plain node; runMode.js is deliberately DOM-free.
+
+const { rampRow, COMBO, VIBE, SPUTTER_GRACE_SEC, RunMode, MODE_CRUISIN, MODE_FESTIVAL } =
+  await import('../src/runMode.js');
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+// Day 1 is tutorial-soft: free vendors, full jug availability, today's frown feel.
+const d1 = rampRow(1);
+assert(d1.vendorPrice === 0, `day 1 vendor must be free, got ${d1.vendorPrice}`);
+assert(d1.jugKeep === 1.0, `day 1 keeps every jug, got ${d1.jugKeep}`);
+assert(d1.frownMult === 1.0, `day 1 frown mult is 1.0, got ${d1.frownMult}`);
+
+// The ramp tightens monotonically across days 1-5.
+for (let d = 2; d <= 5; d++) {
+  const prev = rampRow(d - 1); const row = rampRow(d);
+  assert(row.vendorPrice >= prev.vendorPrice, `vendor price must not drop at day ${d}`);
+  assert(row.jugKeep <= prev.jugKeep, `jug keep must not rise at day ${d}`);
+  assert(row.frownMult >= prev.frownMult, `frown mult must not drop at day ${d}`);
+  assert(row.vibeEject <= prev.vibeEject, `vibe eject must not loosen at day ${d}`);
+}
+
+// Beyond day 5: vendor price climbs +10/day and caps at 100; the rest holds.
+assert(rampRow(6).vendorPrice === 60, `day 6 vendor = 60, got ${rampRow(6).vendorPrice}`);
+assert(rampRow(10).vendorPrice === 100, `day 10 vendor caps at 100, got ${rampRow(10).vendorPrice}`);
+assert(rampRow(40).vendorPrice === 100, `day 40 vendor stays capped, got ${rampRow(40).vendorPrice}`);
+assert(rampRow(9).jugKeep === rampRow(5).jugKeep, 'jug keep holds at the day-5 floor');
+
+// Bad inputs clamp to day 1 rather than exploding.
+assert(rampRow(0).vendorPrice === 0 && rampRow(-3).vendorPrice === 0 && rampRow(NaN).vendorPrice === 0,
+  'day clamps to 1 on nonsense input');
+
+// Combo tuning shape: 4 ascending thresholds, cap x4, Lurleen x2.
+assert(COMBO.levels.length === COMBO.maxMult, 'one chain threshold per multiplier level');
+for (let i = 1; i < COMBO.levels.length; i++) {
+  assert(COMBO.levels[i] > COMBO.levels[i - 1], 'chain thresholds ascend');
+}
+assert(COMBO.lurleenMult === 2, 'Lurleen doubles');
+assert(COMBO.chainWindowSec > 0 && SPUTTER_GRACE_SEC > 0 && VIBE.decayPerSec > 0, 'tunables are positive');
+
+// Mode gate: default (no storage in node) is Cruisin'; Cruisin' is invariant
+// (free vendors, full jugs, no vibe meter, owns the personal best); Festival
+// flips all of that. RunMode.set touches localStorage inside try/catch, so it
+// must work without a DOM.
+assert(RunMode.loadSaved() === MODE_CRUISIN, 'no saved preference defaults to Cruisin (D13)');
+const c = RunMode.config;
+assert(!c.stakes && c.vendorPrice(4) === 0 && c.jugKeep(4) === 1.0 && c.frownMult(4) === 1.0
+  && c.vibeLimits(4) === null && c.savesPersonalBest && !c.leaderboard,
+  'Cruisin config encodes today\'s behavior at every day');
+assert(RunMode.set(MODE_FESTIVAL) === MODE_FESTIVAL, 'set() switches to festival');
+const f = RunMode.config;
+assert(f.stakes && !f.savesPersonalBest && f.leaderboard, 'Festival flips the stakes flags');
+assert(f.vendorPrice(3) === 20 && f.jugKeep(3) === 0.55, 'Festival reads the ramp');
+assert(f.vibeLimits(5).eject === 5, 'Festival vibe limits come from the ramp');
+assert(RunMode.set('garbage') === MODE_CRUISIN, 'unknown mode name falls back to Cruisin');
+
+process.stdout.write('OK bin/test-run-mode — ramp, combo, and mode-gate invariants hold\n');

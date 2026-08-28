@@ -19,6 +19,7 @@ import { Input } from './input.js';
 import { Touch } from './touch.js';
 import { HUD } from './hud.js';
 import { Leaderboard } from './leaderboard.js';
+import { RunMode } from './runMode.js';
 import { buildWorld, updateWorld, getTimeOfDay, getFarField } from './world.js';
 import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
 import { lakeAnimatables, setLakeNightness } from './lakes.js';
@@ -650,6 +651,7 @@ HUD.onStart(() => {
     touch: Touch.isTouchDevice(),
     seeded: window.__seedInput != null,
     returning: HUD.loadBest() > 0,
+    mode: RunMode.name,
     // Name privacy line (ROADMAP): only the boolean + length ever reach GA4 —
     // never the string itself (free-text names are PII under the GA4 ToS).
     name_entered: HUD.getPlayerName().length > 0,
@@ -916,9 +918,13 @@ function tickBody(dt) {
     smiles.update(dt, zerble, (n) => {
       score += n;
       HUD.setSmiles(score);
-      HUD.saveBest(score);
+      // zerble-best-smiles is the Just Cruisin' personal best ONLY — Festival
+      // Run's multiplied scores must never overwrite it (council Critical).
+      if (RunMode.config.savesPersonalBest) {
+        HUD.saveBest(score);
+        Analytics.personalBest(score);
+      }
       Analytics.smileScore(score);
-      Analytics.personalBest(score);
     });
 
     puppets.update(dt, zerble.position);
@@ -1628,7 +1634,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       const add = Math.max(0, Math.floor(n));
       score += add;
       HUD.setSmiles(score);
-      HUD.saveBest(score);
+      if (RunMode.config.savesPersonalBest) HUD.saveBest(score);
       return `smiles = ${score}`;
     },
 

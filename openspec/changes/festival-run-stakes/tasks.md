@@ -41,11 +41,11 @@ worldgen-only.
 
 ## 3. Modes + mode config (P2)
 
-- [ ] 3.1 New module `src/runMode.js`: mode-config objects (Cruisin' = today's
+- [x] 3.1 New module `src/runMode.js`: mode-config objects (Cruisin' = today's
       constants; Festival Run = day-ramp table D6, combo tuning D5), day-ramp lookup
       helpers; write `bin/test-run-mode` (ramp lookups) alongside it; importmap ×3 +
       check-importmaps
-- [ ] 3.2 Title card mode selector (two buttons, persisted preselect, aria); with NO
+- [x] 3.2 Title card mode selector (two buttons, persisted preselect, aria); with NO
       persisted preference, **Just Cruisin' is the default-highlighted choice**
       (design D13 — a returning player's habitual Start tap must never land in stakes
       mode unwarned); mode plumbed into `main.js` boot; no async in the start path
@@ -54,11 +54,11 @@ worldgen-only.
       restore path. **Acceptance:** the day-counter wrap detection's `prevT`
       initializes from the RESTORED `t`, not a fresh-boot default (a reload near a
       day boundary must not double-count a day)
-- [ ] 3.4 Mode-gate the personal best: `HUD.saveBest()` / `Analytics.personalBest`
+- [x] 3.4 Mode-gate the personal best: `HUD.saveBest()` / `Analytics.personalBest`
       calls (`main.js:904`, `main.js:1580`, `__dbg.addSmiles`) fire ONLY in Just
       Cruisin' — Festival Run scores must never touch `zerble-best-smiles`
       (council Critical finding; design Migration Plan)
-- [ ] 3.5 A/B invariance check #1: same seed, both modes — `dumpRegistry` diff empty
+- [x] 3.5 A/B invariance check #1: same seed, both modes — `dumpRegistry` diff empty
       in Cruisin' vs pre-change; no stakes HUD in Cruisin' (screenshot both)
 
 ## 4. Scoring pipeline + combo (P2)
