@@ -680,6 +680,7 @@ HUD.onStart(() => {
     if (!RunState.active) RunState.begin();   // active = restored resume run
     setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
     Analytics.runStart({ day: RunState.day, resumed: !!__resume });
+    Leaderboard.globalRunStart();   // no-op until the Worker URL is set (P3 deploy)
   }
   // Context segments every later event by device/tier/returning-ness.
   Analytics.gameStart({
@@ -978,6 +979,11 @@ function tickBody(dt) {
       HUD.setDay(RunState.day);
       HUD.setSputter(RunState.sputter ? RunState.sputterLeft : null);
       HUD.setVibe(RunState.vibeFraction(limits), true, limits ? RunState.vibe >= limits.warn : false);
+      // Global board heartbeat — self-throttled (60s + milestones), no-op
+      // while disabled or before the /run/start token lands.
+      Leaderboard.globalHeartbeat({
+        score: Scoring.highWater, day: RunState.day, name: HUD.getPlayerName(),
+      });
     }
     // Rebuild the registry broadphase once per frame, before every consumer
     // (crowd steering, kid push-out, Zerble collision). Cheap O(entries) pass;
@@ -1493,6 +1499,12 @@ function endFestivalRun(cause) {
     duration: Math.round(RunState.clock),
     best_combo: Scoring.bestCombo, rescue_used: RunState.rescueUsed,
   });
+  if (Leaderboard.globalEnabled()) {
+    Leaderboard.globalFinal({
+      score: Scoring.highWater, day: days, name: HUD.getPlayerName(), cause,
+    });
+    Analytics.leaderboardSubmit({ score: Scoring.highWater, days });
+  }
   HUD.setSputter(null);
   HUD.setVibe(0, false);
   HUD.showScoreScreen({
@@ -1779,6 +1791,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       if (RunMode.isFestival()) {
         if (!RunState.active) RunState.begin();
         setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
+        Leaderboard.globalRunStart();
       }
       document.body.classList.add('game-started');
       const tc = document.getElementById('touch-controls');

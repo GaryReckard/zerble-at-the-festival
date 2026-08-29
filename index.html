@@ -259,7 +259,7 @@
         <label for="player-name">What's your name?</label>
         <input id="player-name" type="text" maxlength="20" autocomplete="nickname"
                spellcheck="false" placeholder="Zerbler" enterkeyhint="done" />
-        <span class="name-note">Totally optional — it shows up around the festival (and on the leaderboard).</span>
+        <span class="name-note">Totally optional — it shows up around the festival, and Festival Run scores go on a public leaderboard under it.</span>
       </div>
 
       <button id="start-btn" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
@@ -277,7 +277,12 @@
         <div class="stat"><span class="stat-n" id="score-combo">×1</span><span class="stat-l">best combo</span></div>
       </div>
       <h3 class="board-title">Local legends</h3>
-      <table id="local-board" aria-label="Local top ten"><tbody></tbody></table>
+      <div id="board-tabs" class="board-tabs hidden" role="tablist" aria-label="Leaderboard range">
+        <button id="board-tab-local" class="board-tab active" type="button" role="tab" aria-selected="true">Local</button>
+        <button id="board-tab-daily" class="board-tab" type="button" role="tab" aria-selected="false">Today</button>
+        <button id="board-tab-all" class="board-tab" type="button" role="tab" aria-selected="false">All-time</button>
+      </div>
+      <table id="local-board" aria-label="Leaderboard"><tbody></tbody></table>
       <p id="board-empty" class="board-empty hidden">No legends yet — finish a Festival Run to claim the board!</p>
       <div class="score-actions">
         <button id="score-again" type="button">Run it again!</button>

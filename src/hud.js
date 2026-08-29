@@ -135,6 +135,37 @@ function renderBoard(board, highlightRank) {
   });
 }
 
+// ---- Score-screen board tabs (global board; hidden while it's disabled) ----
+// Local renders synchronously from the last shown board; the global tabs fetch
+// timeboxed and fall back to the local rows SILENTLY on any failure (spec:
+// the Worker being down is invisible).
+const $boardTabs = document.getElementById('board-tabs');
+let _lastBoard = [];
+let _lastHighlight = 0;
+let _boardFetchSeq = 0;
+
+function setBoardTab(which) {
+  $boardTabs?.querySelectorAll('.board-tab').forEach((b) => {
+    const on = b.id === `board-tab-${which}`;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+}
+
+async function showBoardRange(range) {
+  const seq = ++_boardFetchSeq;
+  setBoardTab(range === 'daily' ? 'daily' : range === 'all' ? 'all' : 'local');
+  if (range === 'local') { renderBoard(_lastBoard, _lastHighlight); return; }
+  const entries = await Leaderboard.fetchGlobal(range);
+  if (seq !== _boardFetchSeq) return;               // a newer tab click won
+  if (!entries) { setBoardTab('local'); renderBoard(_lastBoard, _lastHighlight); return; }
+  renderBoard(entries.slice(0, 10), 0);
+}
+
+document.getElementById('board-tab-local')?.addEventListener('click', () => showBoardRange('local'));
+document.getElementById('board-tab-daily')?.addEventListener('click', () => showBoardRange('daily'));
+document.getElementById('board-tab-all')?.addEventListener('click', () => showBoardRange('all'));
+
 $scoreClose?.addEventListener('click', () => {
   HUD.hideScoreScreen();
   if (_onScoreClose) _onScoreClose();
@@ -277,7 +308,11 @@ export const HUD = {
       if ($scoreDays) $scoreDays.textContent = String(Math.max(1, Math.floor(days)));
       if ($scoreCombo) $scoreCombo.textContent = `×${Math.max(1, Math.floor(bestCombo))}`;
     }
-    renderBoard(board, viewOnly ? 0 : highlightRank);
+    _lastBoard = board;
+    _lastHighlight = viewOnly ? 0 : highlightRank;
+    setBoardTab('local');
+    $boardTabs?.classList.toggle('hidden', !Leaderboard.globalEnabled());
+    renderBoard(board, _lastHighlight);
     $scoreScreen.classList.remove('hidden');
   },
 

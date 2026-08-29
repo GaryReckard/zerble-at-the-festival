@@ -72,6 +72,12 @@ export const Analytics = {
     });
   },
 
+  // Global-board final submit attempted (fire-and-forget — this logs the
+  // attempt, not server acceptance). Metrics only, never the name.
+  leaderboardSubmit({ score, days } = {}) {
+    send('leaderboard_submit', { score: Math.floor(score || 0), days: Math.floor(days || 1) });
+  },
+
   debugMenuToggle(open) {
     if (open) send('debug_menu_open', { time_in_run_s: secondsIn() });
   },

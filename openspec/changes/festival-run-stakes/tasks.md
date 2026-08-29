@@ -158,7 +158,7 @@ rescue (6.6). Two novel death machines never debug together.
 
 ## 8. Global leaderboard: Worker + client (P3)
 
-- [ ] 8.1 `workers/leaderboard/` (outside game importmaps): Worker per design D8 —
+- [x] 8.1 `workers/leaderboard/` (outside game importmaps): Worker per design D8 —
       run/start (HMAC token, optional Turnstile), run/beat (monotonic + smiles/min +
       day-vs-elapsed validation **using the recalibrated D8 ceiling formula** — the
       pre-combo GA4 baseline is forbidden; quarantine ships only against the new
@@ -166,18 +166,18 @@ rescue (6.6). Two novel death machines never debug together.
       `wrangler.toml` + README with deploy steps + secret list for Gary. Descope
       ladder if pressed: HMAC token + monotonic validation never descope; Turnstile
       conditional; quarantine + admin tooling trim first
-- [ ] 8.2 Worker unit checks runnable without deploy (plain node test file for
+- [x] 8.2 Worker unit checks runnable without deploy (plain node test file for
       validation logic: ceilings, monotonicity, name sanitizer) — MUST assert the
       worked example: a legit ×8-multiplied max-rate run passes, an
       implausible-beyond-formula run is rejected
-- [ ] 8.3 `leaderboard.js` client: token fetch, 60s + milestone heartbeats, final
+- [x] 8.3 `leaderboard.js` client: token fetch, 60s + milestone heartbeats, final
       submit, `pagehide` sendBeacon, timeboxed fire-and-forget wrappers, feature flag
       (endpoint unset ⇒ global board off, UI hides tab)
-- [ ] 8.4 Score screen global tabs (daily/all-time) with silent local fallback;
+- [x] 8.4 Score screen global tabs (daily/all-time) with silent local fallback;
       `leaderboard_submit` analytics
-- [ ] 8.5 End-to-end vs `wrangler dev` locally (start → beats → kill tab → entry
+- [x] 8.5 End-to-end vs `wrangler dev` locally (start → beats → kill tab → entry
       stands; implausible submission rejected); document results in session log
-- [ ] 8.6 CHANGELOG P3 entry (client + "Worker ready, deploy pending")
+- [x] 8.6 CHANGELOG P3 entry (client + "Worker ready, deploy pending")
 
 ## 9. Verify + wrap
 

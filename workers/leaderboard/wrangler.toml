@@ -1,0 +1,33 @@
+# Zerble global leaderboard Worker — DEPLOY IS GARY-ONLY (needs the Cloudflare
+# account + secrets). The game ships with the client disabled until
+# GLOBAL_BOARD_URL in src/leaderboard.js points here.
+#
+# One-time setup:
+#   npx wrangler kv namespace create BOARD_KV        # paste the id below
+#   npx wrangler secret put SIGNING_SECRET           # long random string
+#   npx wrangler secret put ADMIN_KEY                # bearer key for DELETE /admin/entry
+#   npx wrangler secret put TURNSTILE_SECRET         # optional; absent = no captcha gate
+#   npx wrangler deploy
+#
+# Tuning (no redeploy needed — `npx wrangler kv` has nothing to do with these;
+# change them here or in the dash and redeploy vars only):
+#   BASE_SMILES_PER_MIN — observed p99 ORGANIC un-multiplied collect rate (GA4
+#     session_end; pre-combo data is valid for THIS factor only).
+#   MAX_MULTIPLIER = 8 (combo x4 × Lurleen x2) · STAR_ALLOWANCE · SAFETY —
+#     together the plausibility ceiling per design D8. Never fold the
+#     multiplier back into the base rate.
+
+name = "zerble-leaderboard"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+kv_namespaces = [
+  { binding = "BOARD_KV", id = "REPLACE_WITH_KV_NAMESPACE_ID" },
+]
+
+[vars]
+BASE_SMILES_PER_MIN = "40"
+MAX_MULTIPLIER = "8"
+STAR_ALLOWANCE = "1.5"
+SAFETY = "1.5"
+OUTLIER_SCORE = "100000"

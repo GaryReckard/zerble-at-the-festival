@@ -1,7 +1,7 @@
 ---
 change: festival-run-stakes
 status: in_progress
-current_task: "7.1"
+current_task: "9.1"
 blocked_by: null
 open_questions: 5
 started: 2026-08-28
@@ -84,3 +84,8 @@ ref: "ROADMAP 'Name entry on the title card' + parked 'costs smiles economy' bul
 **Event:** phase-change
 **What:** Full battery green headless: dry death (sputter arm → countdown → expiry → score screen), vibe warn at the exact crossing + eject death, rescue-once-per-run with juice tip, damaging-hit gate (strike + Lurleen heartbreak; god-mode and grazes rack nothing), broke-cart refusal + paid refill deducting smiles, resume round-trip (day 3 + vibe + score 77 + jugKeep 0.55 all restored), invariance re-diff green, live jugKeep/frownMult reaching their consumers, both modes booting clean. The battery exposed a REAL bug drills exist for: the single HUD toast slot got written twice in one frame on stakes beats, so "Lurleen saw that 💔" was instantly overwritten by the generic collision quip and the vendor refusal by the ambient price line — the player would never have seen either. Fixed by priority (stakes beat suppresses the quip; refusal holds back the price toast; whistle/ejection deliberately outranks heartbreak). Also closed while here: `frownMult` was defined in the ramp but consumed nowhere — added `crowd.frownRateMult` (mode-unaware field, fed from the run layer); wrote the missing `bin/test-jug-filter`; wired all four stakes tests into `npm run check`; nowrap on the Day chip. Two follow-ups from D8 worth remembering: the frown vibe-strike weight is currently unreachable (organic frowns only fire while dry ⇒ sputtering ⇒ suppressed — consistent with the council's "no pile-on", kept as future-proofing), and drills MUST poll game-time predicates (see previous entry).
 **Refs:** -> Tasks 3.3, 4.6, 6.1–6.8 all ticked, scratchpad group6-retest.mjs, screenshots shot-day3-noon-hud/sputter-dusk/scorescreen-midnight
+
+### 2026-08-29 -- Group 8 shipped: Worker + global client, e2e'd without wrangler
+**Event:** phase-change
+**What:** `workers/leaderboard/worker.js` (plain JS, KV, D8 protocol + guardrails), `bin/test-leaderboard-worker` (node-driven fetch handler, mock KV — sig binding, ceiling worked example 40×8×1.5×1.5, monotonic HW, killed-tab persistence, sanitation, quarantine, admin delete), the fire-and-forget client in leaderboard.js (token → 60s+milestone beats → final + pagehide beacon), and Local/Today/All-time score-screen tabs with silent local fallback. wrangler can't install on this VM (no npm network), so 8.5's e2e ran the REAL game against the REAL Worker code through a thin node HTTP bridge (`workers/leaderboard/dev-server.mjs`, kept in-repo as the wrangler-less dev path): killed-tab entry stands, final submit lands, tabs render Worker rows, Cruisin' provably makes zero requests. Two decisions worth recording: (a) heartbeats AND finals both upsert the board entry — that's what makes "a closed tab still records" true, not the beacon alone; (b) `GLOBAL_BOARD_URL` gained a localStorage dev override (`zerble-board-url`) so drills and Gary's future wrangler-dev testing exercise the shipped client verbatim; production stays hard-disabled until Gary deploys and sets the const. The e2e also caught globalRunStart missing from `__dbg.start()`'s arming block — the same bypass trap as the stakes arming, now both covered. DEPLOY REMAINS GARY-ONLY (-> Q4): wrangler.toml documents the KV + secrets one-time setup.
+**Refs:** -> Tasks 8.1–8.6 ticked, -> Q4, scratchpad global-e2e.mjs

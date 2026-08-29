@@ -1,0 +1,170 @@
+#!/usr/bin/env node
+// bin/test-leaderboard-worker — drives the Cloudflare Worker's fetch() handler
+// in plain node with a mock KV: no wrangler, no deploy, no network. Covers the
+// full protocol end-to-end (start → sig checks → beats → killed-tab persistence
+// → end → board reads → sanitation → ceiling worked example → admin delete)
+// per tasks 8.2 + 8.5 of festival-run-stakes. crypto.subtle + Request/Response
+// are native in node 18+.
+
+const workerMod = await import('../workers/leaderboard/worker.js');
+const worker = workerMod.default;
+const { sanitizeName, ceilingFor, FALLBACK_NAME } = workerMod;
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+// --- Mock KV (Map-backed; TTLs accepted and ignored) ---
+function mockKV() {
+  const m = new Map();
+  return {
+    async get(k) { return m.has(k) ? m.get(k) : null; },
+    async put(k, v) { m.set(k, String(v)); },
+    async delete(k) { m.delete(k); },
+    _map: m,
+  };
+}
+
+const env = {
+  BOARD_KV: mockKV(),
+  SIGNING_SECRET: 'test-secret',
+  ADMIN_KEY: 'test-admin',
+  BASE_SMILES_PER_MIN: '40',
+  MAX_MULTIPLIER: '8',
+  STAR_ALLOWANCE: '1.5',
+  SAFETY: '1.5',
+  OUTLIER_SCORE: '100000',
+};
+
+const BASE = 'https://board.test';
+const call = (method, path, body, headers = {}) =>
+  worker.fetch(new Request(BASE + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.7', ...headers },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  }), env);
+
+// --- Pure helpers first ---
+assert(sanitizeName('Gary') === 'Gary', 'clean name passes');
+assert(sanitizeName('') === FALLBACK_NAME, 'blank → fallback');
+assert(sanitizeName('   ') === FALLBACK_NAME, 'whitespace → fallback');
+assert(sanitizeName('sh.it_head') === FALLBACK_NAME, 'separator-dodged profanity → fallback');
+assert(sanitizeName('F U C K') === FALLBACK_NAME, 'spaced profanity → fallback');
+assert(sanitizeName('x'.repeat(60)).length <= 20, 'length clamped');
+assert(sanitizeName('<img src=x>') === 'img srcx', 'markup characters stripped');
+
+// Ceiling worked example (design D8): a legit x8 max-rate run passes, a
+// beyond-formula run is rejected. 10 min at 40/min × 8 × 1.5 × 1.5 = 7200.
+assert(ceilingFor(env, 10) === 7200, `worked example: ceiling(10min) = 7200, got ${ceilingFor(env, 10)}`);
+
+// --- Protocol e2e ---
+// Start
+let res = await call('POST', '/run/start', {});
+assert(res.status === 200, `start → 200, got ${res.status}`);
+const tok = await res.json();
+assert(tok.runId && tok.sig && Number.isFinite(tok.startTs), 'start returns runId/startTs/sig');
+
+// Forged sig rejected
+res = await call('POST', '/run/beat', { ...tok, sig: 'f'.repeat(64), score: 10, day: 1 });
+assert(res.status === 400 && (await res.json()).error === 'bad_sig', 'forged sig → bad_sig');
+
+// Unknown run rejected (valid-shaped but never started)
+res = await call('POST', '/run/beat', { runId: 'nope', startTs: tok.startTs, sig: tok.sig, score: 1, day: 1 });
+assert(res.status === 400, 'unknown/forged run rejected');
+
+// Legit heartbeat lands on the board (killed-tab persistence: NO /run/end yet)
+res = await call('POST', '/run/beat', { ...tok, score: 120, day: 1, name: 'Gary' });
+assert(res.status === 204, `beat → 204, got ${res.status}`);
+res = await call('GET', '/board?range=all');
+let board = await res.json();
+assert(board.entries.length === 1 && board.entries[0].name === 'Gary'
+  && board.entries[0].score === 120, 'heartbeat alone stands as the board entry');
+assert(!('runId' in board.entries[0]), 'board read never leaks runIds');
+
+// Monotonic high-water: a lower later beat keeps the max
+res = await call('POST', '/run/beat', { ...tok, score: 40, day: 1, name: 'Gary' });
+assert(res.status === 204, 'lower beat accepted (clamped)');
+board = await (await call('GET', '/board?range=all')).json();
+assert(board.entries[0].score === 120, 'high-water is monotonic');
+
+// Implausible rate rejected: fresh run claiming a huge score in ~0 elapsed.
+res = await call('POST', '/run/start', {});
+const cheat = await res.json();
+res = await call('POST', '/run/beat', { ...cheat, score: 999999, day: 1, name: 'Cheater' });
+assert(res.status === 400 && (await res.json()).error === 'implausible_rate',
+  'beyond-ceiling score → implausible_rate');
+
+// Implausible day: day 30 in the first minute.
+res = await call('POST', '/run/start', {});
+const dayCheat = await res.json();
+res = await call('POST', '/run/beat', { ...dayCheat, score: 10, day: 30 });
+assert(res.status === 400 && (await res.json()).error === 'implausible_day',
+  'day outrunning elapsed time → implausible_day');
+
+// Final submit: hostile name sanitized, run closed to further beats.
+// day stays 1 — the day-vs-elapsed guard (correctly) rejects a day-2 claim
+// seconds after /run/start; day progression under real elapsed time is the
+// guard's own test above.
+res = await call('POST', '/run/end', { ...tok, score: 150, day: 1, name: 'sh.it_head', cause: 'ran_dry' });
+assert(res.status === 204, 'end → 204');
+board = await (await call('GET', '/board?range=all')).json();
+assert(board.entries[0].name === FALLBACK_NAME && board.entries[0].score === 150,
+  'final entry sanitized + updated');
+res = await call('POST', '/run/beat', { ...tok, score: 5000, day: 1 });
+assert(res.status === 400 && (await res.json()).error === 'finished_run',
+  'a finished run accepts no more beats');
+
+// Daily board sees the same entry; both ranges independent arrays.
+board = await (await call('GET', '/board?range=daily')).json();
+assert(board.range === 'daily' && board.entries.length >= 1, 'daily board populated');
+
+// Quarantine: plausible-rate but above OUTLIER_SCORE never renders publicly.
+// (Long elapsed → generous ceiling: fake an old startTs with a fresh sig — the
+// server signs startTs at /run/start, so build it through KV like a real old run.)
+{
+  const res2 = await call('POST', '/run/start', {});
+  const old = await res2.json();
+  const raw = JSON.parse(await env.BOARD_KV.get(`run:${old.runId}`));
+  raw.startTs = old.startTs;   // run record keeps its own startTs
+  await env.BOARD_KV.put(`run:${old.runId}`, JSON.stringify(raw));
+  // 100000 in 10 hours = 167/min — under the 7200/min-equivalent ceiling?
+  // ceiling(600min) = 4.32M, so it passes rate but crosses OUTLIER_SCORE.
+  const shifted = { ...old, startTs: old.startTs };   // sig binds startTs; keep both
+  // simulate elapsed time by calling with the same token later — mock now is
+  // real Date.now(), so instead lower the outlier bar for this check:
+  const envLow = { ...env, OUTLIER_SCORE: '140' };
+  const r = await worker.fetch(new Request(BASE + '/run/beat', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...shifted, score: 145, day: 1, name: 'Sus' }),
+  }), envLow);
+  assert(r.status === 204, 'outlier-range beat accepted for review');
+  const b = await (await worker.fetch(new Request(BASE + '/board?range=all'), envLow)).json();
+  assert(!b.entries.some((e) => e.name === 'Sus'), 'quarantined entry hidden from board');
+}
+
+// Admin delete: wrong key refused; right key removes the entry everywhere.
+res = await call('DELETE', '/admin/entry', { runId: tok.runId }, { Authorization: 'Bearer wrong' });
+assert(res.status === 401, 'bad admin key → 401');
+res = await call('DELETE', '/admin/entry', { runId: tok.runId }, { Authorization: 'Bearer test-admin' });
+assert(res.status === 204, 'admin delete → 204');
+board = await (await call('GET', '/board?range=all')).json();
+assert(!board.entries.some((e) => e.score === 150), 'deleted entry gone from board');
+
+// sendBeacon shape: text/plain body still parses.
+res = await worker.fetch(new Request(BASE + '/run/start', { method: 'POST', body: '{}' }), env);
+const beaconTok = await res.json();
+res = await worker.fetch(new Request(BASE + '/run/end', {
+  method: 'POST', headers: { 'Content-Type': 'text/plain' },
+  body: JSON.stringify({ ...beaconTok, score: 33, day: 1, name: 'Beacon' }),
+}), env);
+assert(res.status === 204, 'text/plain (sendBeacon) body accepted');
+
+// CORS preflight
+res = await call('OPTIONS', '/run/beat');
+assert(res.status === 204 && res.headers.get('Access-Control-Allow-Origin') === '*',
+  'preflight answered with CORS');
+
+process.stdout.write('OK bin/test-leaderboard-worker — protocol e2e, sig binding, ceiling worked example, monotonic HW, killed-tab persistence, sanitation, quarantine, admin delete all hold\n');
