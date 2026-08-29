@@ -181,10 +181,10 @@ rescue (6.6). Two novel death machines never debug together.
 
 ## 9. Verify + wrap
 
-- [ ] 9.1 Full smoke: boot main game both modes; **named invariance re-diff**
+- [x] 9.1 Full smoke: boot main game both modes; **named invariance re-diff**
       (`dumpRegistry` A/B + no-stakes-HUD screenshot — an explicit step, not just
       "boot both modes"); run ALL `bin/test-*` scripts (run-mode, scoring,
       run-state, jug-filter, worker); sandbox spot-checks; `bin/check-importmaps`;
       budget panel; `?perf=low` + `?perf=mid` boots
-- [ ] 9.2 `bin/readme-sync festival-run-stakes` + session-log/README final pass;
+- [x] 9.2 `bin/readme-sync festival-run-stakes` + session-log/README final pass;
       queue `/opsx:verify`

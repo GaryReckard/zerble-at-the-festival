@@ -1,7 +1,7 @@
 ---
 change: festival-run-stakes
-status: in_progress
-current_task: "9.1"
+status: complete
+current_task: "done"
 blocked_by: null
 open_questions: 5
 started: 2026-08-28
@@ -89,3 +89,8 @@ ref: "ROADMAP 'Name entry on the title card' + parked 'costs smiles economy' bul
 **Event:** phase-change
 **What:** `workers/leaderboard/worker.js` (plain JS, KV, D8 protocol + guardrails), `bin/test-leaderboard-worker` (node-driven fetch handler, mock KV — sig binding, ceiling worked example 40×8×1.5×1.5, monotonic HW, killed-tab persistence, sanitation, quarantine, admin delete), the fire-and-forget client in leaderboard.js (token → 60s+milestone beats → final + pagehide beacon), and Local/Today/All-time score-screen tabs with silent local fallback. wrangler can't install on this VM (no npm network), so 8.5's e2e ran the REAL game against the REAL Worker code through a thin node HTTP bridge (`workers/leaderboard/dev-server.mjs`, kept in-repo as the wrangler-less dev path): killed-tab entry stands, final submit lands, tabs render Worker rows, Cruisin' provably makes zero requests. Two decisions worth recording: (a) heartbeats AND finals both upsert the board entry — that's what makes "a closed tab still records" true, not the beacon alone; (b) `GLOBAL_BOARD_URL` gained a localStorage dev override (`zerble-board-url`) so drills and Gary's future wrangler-dev testing exercise the shipped client verbatim; production stays hard-disabled until Gary deploys and sets the const. The e2e also caught globalRunStart missing from `__dbg.start()`'s arming block — the same bypass trap as the stakes arming, now both covered. DEPLOY REMAINS GARY-ONLY (-> Q4): wrangler.toml documents the KV + secrets one-time setup.
 **Refs:** -> Tasks 8.1–8.6 ticked, -> Q4, scratchpad global-e2e.mjs
+
+### 2026-08-29 -- Change complete: 41/41. Deploy + playtest are the human half
+**Event:** phase-change
+**What:** Group 9 wrap: final named invariance re-diff after every edit in the change is byte-identical (chunk-keyed registry + rng draw counts, cruisin×2 = festival day-1, hash 705944195 / 350 entries — the same hash every run since the drill stabilized), both modes boot clean at ?perf=low, full npm run check green (15 gates), README front door synced. Everything an agent can verify is verified. What ONLY Gary can do: (1) deploy the Worker + set GLOBAL_BOARD_URL (-> Q4, wrangler.toml has the runbook); (2) play a real Festival Run and gut-check the D6 ramp numbers + scoring economy (-> Q1, Q2 — placeholders by design); (3) confirm the Lurleen rescue feel (-> Q3) and the first-visit mode default (-> Q5); (4) merge vm-main and push main to actually ship it. Archive via /opsx:archive after the playtest settles the open questions.
+**Refs:** -> Tasks 9.1, 9.2, questions-for-human.md Q1–Q5

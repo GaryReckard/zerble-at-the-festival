@@ -1,6 +1,6 @@
 # Give Zerble real stakes: names, an endless Festival Run, and a leaderboard
 
-> **Status:** <!--STATUS:LINE-->in progress · 39/41 tasks (95%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->complete · 41/41 tasks (100%)<!--/STATUS:LINE-->
 >
 > _Plain-language summary of this change. A non-engineer should understand it; a junior dev should grasp it; a senior dev should be able to build an accurate mental model from this file alone._
 
@@ -54,7 +54,7 @@ Technical how: [design.md](design.md). Decision record: [deliberations/](deliber
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 39/41 tasks complete (95%) · current: 9.1
+**complete** — 41/41 tasks complete (100%) · current: done
 
 _Last updated: 2026-08-29_
 
@@ -68,7 +68,7 @@ _Last updated: 2026-08-29_
 | 6. Festival Run stakes: economy, sputter, vibe, deaths (P2) | 8/8 ✅ |
 | 7. P2 docs + ship | 2/2 ✅ |
 | 8. Global leaderboard: Worker + client (P3) | 6/6 ✅ |
-| 9. Verify + wrap | 0/2 |
+| 9. Verify + wrap | 2/2 ✅ |
 <!--/STATUS:AUTO-->
 
 ## Key Decisions
