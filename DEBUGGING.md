@@ -37,6 +37,30 @@ window.__dbg.help()          // prints the whole map — start here
 | `fillSeats(kind?)` | Seat crowd NPC(s) — `kind` = `bench` \| `driver_seat` \| `roof`; no arg seats one of each. For pose-testing riders without waiting for organic boarding. |
 | `rider(kind)` | Seat one free NPC in the first open slot of `kind`. |
 
+### Festival Run drills (festival-run-stakes)
+
+Stakes drills need an ACTIVE run: set `localStorage['zerble-mode'] = 'festival'`
+before boot (or pick Festival Run on the card), then `start()`. In Cruisin' they
+answer "no active Festival Run" instead of silently doing nothing.
+
+| Call | Does |
+|---|---|
+| `runInfo()` | The whole run at a glance: mode, serialized run state (day/clock/sputter/vibe/rescue/over/cause), score + high-water, multiplier + chain, and the zerble sputtering flag. **Read this, don't poke internals.** |
+| `runDay(n)` | Jump the day ramp — re-applies the day's jug keep-fraction + frown multiplier the way a real dawn does, and reports the day's tuning row. Day-5 tuning must not cost 30 real minutes. |
+| `vibe(v)` | Set the vibe meter directly (no warn/eject side effects — pure meter nudge). |
+| `strike(n)` | Land `n` real damaging-hit vibe strikes through `applyVibeStrike` — fires the warn whistle/toast at the threshold crossing and the `vibed_out` death at eject. |
+| `sputterLeft(s)` | Shrink the 45s dry-tank grace (only while sputtering) so the expiry → death/rescue path runs in seconds. |
+| `showScoreScreen(mock?)` | Raise the score screen with mock or real board data (view-only supported). |
+| `seedBoard(n)` | Insert `n` fake local-leaderboard entries for score-screen rendering checks. |
+
+Canonical death drills: **dry** — `setJuice(0)` → wait for `runInfo().run.sputter`
+→ `sputterLeft(0.1)` → death screen (`ran_dry`), or the Lurleen tow rescue if she's
+following and unused. **Vibe-out** — `strike(4)` for the whistle, keep striking to
+eject. **Headless caveat:** under SwiftShader, game time runs at a few percent of
+wall time (dt clamps at 0.05/frame) — drills must POLL `runInfo()` predicates, never
+sleep wall-clock seconds, and toast asserts need a beat after the trigger
+(MutationObserver delivery is deferred past a same-frame read).
+
 ### Camera for close-up screenshots
 | Call | Does |
 |---|---|

@@ -325,6 +325,50 @@ Anthropomorphic golf cart. ~950 lines of geometry + physics.
 
 ---
 
+## Festival Run layer (`runMode.js`, `runState.js`, `scoring.js`, `leaderboard.js`)
+
+The stakes mode, layered over the sandbox without touching it (festival-run-stakes,
+2026-08). Four modules plus a per-frame block in `main.js`; Just Cruisin' is
+invariant *by construction* — every stakes knob reads one config object rather
+than scattering mode checks.
+
+- **`runMode.js`** — the config gate. Two frozen mode configs (Cruisin' answers
+  "free / keep everything / never die" at every day; Festival reads the day-ramp
+  table: vendor smile-price, jug keep-fraction, frown multiplier, vibe
+  warn/eject). Also owns the **jug scarcity filter**: `jugKeptAt(x, z)` is a
+  position-hashed keep/drop over already-generated jug placements (fresh salt,
+  monotone — a harder day's jugs are a strict subset). `chunks.js` consults it
+  strictly AFTER all `ctx.rng()` draws for the jug complete, so seeded worldgen
+  streams and draw-count parity are untouched (the determinism tripwire).
+  DOM-free; `bin/test-run-mode` + `bin/test-jug-filter`.
+- **`runState.js`** — the run machines: run clock, day counter (ticks on
+  time-of-day cycle crossings, resume-safe via `prevT`), the 45s sputter grace
+  state machine, the decaying vibe meter (warn fires once per climb), death
+  causes (`ran_dry` / `vibed_out`), and the once-per-run rescue flag.
+  Pure logic, no DOM/three; `bin/test-run-state`.
+- **`scoring.js`** — the single score writer (every mutation flows through it):
+  chain combo with a rolling window (×2/×3/×4), star-power pin, the Lurleen ×2
+  doubler, and the **high-water mark** the leaderboard records — spending smiles
+  on refills digs a hole but never erases your best. `bin/test-scoring`.
+- **`main.js` run layer** — one gated block per frame: day-crossing toasts +
+  ramp re-application, vibe decay, sputter transitions (boost dies + 35% limp
+  via `zerble.sputtering`, HUD countdown, chug loop), and the death/rescue
+  dispatch. Damaging PEOPLE hits route through ONE gate (`hit.damaging &&
+  !isGod()`): combo break, vibe strike, Lurleen scare-off, struck-NPC frown.
+  There is a single HUD toast slot — stakes beats (heartbreak, whistle)
+  suppress the generic collision quip so a same-frame overwrite can't hide
+  them. Deaths lock controls, write the local board, raise the score screen.
+- **`leaderboard.js`** — local top-10 in `localStorage` (corrupt-JSON
+  tolerant). The Cloudflare Worker global board is the change's P3.
+- **Resume**: the settings "Apply & restart" snapshot carries mode + serialized
+  run + scoring state, restored before stakes config so a mid-run reload drops
+  you back into the same day with the same vibe meter.
+
+Debug surface: `__dbg.runInfo()/runDay()/vibe()/strike()/sputterLeft()` — see
+DEBUGGING.md "Festival Run drills."
+
+---
+
 ## Time of day (`timeOfDay.js`)
 
 Single normalized `t ∈ [0, 1)`: `0`=dawn, `0.25`=noon, `0.5`=dusk, `0.75`=midnight. Cycle length is `CYCLE_SECONDS`.

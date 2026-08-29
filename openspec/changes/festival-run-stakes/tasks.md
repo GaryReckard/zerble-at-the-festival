@@ -149,11 +149,11 @@ rescue (6.6). Two novel death machines never debug together.
 
 ## 7. P2 docs + ship
 
-- [ ] 7.1 CHANGELOG (P1+P2 entries), ROADMAP: consume "Name entry" item + parked
+- [x] 7.1 CHANGELOG (P1+P2 entries), ROADMAP: consume "Name entry" item + parked
       "costs smiles" bullet (fix its stale "up to 4 meters" stockpile text); add
       parked "daily-seed challenge mode" follow-up; README/title-card tone check (no
       Easter-egg leakage, calibrated copy intact)
-- [ ] 7.2 DEBUGGING.md: new `__dbg` drills (showScoreScreen, runDay, vibe, run-state
+- [x] 7.2 DEBUGGING.md: new `__dbg` drills (showScoreScreen, runDay, vibe, run-state
       nudges); ARCHITECTURE.md: short "Festival Run layer" section
 
 ## 8. Global leaderboard: Worker + client (P3)

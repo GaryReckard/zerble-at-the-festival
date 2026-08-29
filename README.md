@@ -25,6 +25,7 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 - **Procedural sound.** No audio files. The engine drone, empty-juice sputter, collision thuds, bicycle bell, clown horn, brass band, drum circles, and crackling campfires are all synthesized at runtime in Web Audio.
 - **Forests, lakes, mountains.** Drive into the woods and find a clearing with a fire. Drive to the shore and find a canoe. Drive far enough and the hills rise around you in autumn color.
 - **Find Lurleen.** Somewhere out there is a second cart with pink puffy lips, raffia hair, and a basket of flowers. She is shy. Get close and the air fills with hearts.
+- **Two ways to play.** **Just Cruisin'** is the endless no-pressure sandbox. **Festival Run** asks for your name at the gate and then means it: every festival day the juice gets scarcer, the vendors get pricier, and the marshals get stricter. Chain smiles for multipliers (Lurleen doubles everything while she's smitten), run the tank dry or annoy the wrong people and your run is over — name, score, and days survived on the local Legends board.
 - **Don't hit anything.** Puppet parades, brass bands, gaggles of kids, food trucks, craft tents, the stage, lampposts, trees, drum circles, the lake edge. They will dock your smiles.
 - **Works on a phone.** Virtual thumbstick, drag-to-orbit camera, honk and boost buttons. Tested in iOS Safari with the URL bar doing its thing.
 
@@ -71,7 +72,7 @@ Then visit `http://127.0.0.1:8765`.
 
 ## Performance tiers
 
-The game sniffs your device at boot and picks `low` / `mid` / `high` — adjusting pixel ratio, shadow quality, post-processing, crowd density, and draw distance. Force a tier by appending `?perf=low` (or `mid` / `high`) to the URL.
+The game sniffs your device at boot and picks a tier — adjusting pixel ratio, shadow quality, post-processing, crowd density, and draw distance to match what it's running on.
 
 ## Tips
 

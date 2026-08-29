@@ -653,6 +653,8 @@ infinite recursive tunnel, the classic "falling in" trip visual.
 
 ## Gameplay verbs
 
+- **Daily-seed challenge mode.** Parked from the festival-run-stakes brainstorm (2026-08-28): a third mode option where everyone plays the SAME world seed for the day (`seed = hash(YYYY-MM-DD)`), so the global leaderboard's daily tab compares apples to apples — same jug placements, same hub layout, same lakes. Mostly free once Festival Run + the Worker daily board exist (the seed plumbing and mode config gate are both in); the open design question is whether the daily board should *only* accept daily-seed runs.
+
 - **Bubble varieties — earnable and mix-and-match.** Bubbles are Zerble's signature; unlocking new TYPES is the most direct way to amplify the core verb. Each new type is gated on a different in-game achievement, persists in `localStorage`, and shows up in a small **multi-select** UI strip (tap/click an icon to toggle it on or off). The bubble spawner picks randomly from whatever set is currently enabled — so a player who's unlocked everything can run a chaotic mix of hearts + stars + rainbows + glow + the occasional mega. Default starting set: standard only. Six variants to ship:
   - **Standard** — the base bubble. Always on, always unlocked.
   - **Heart bubbles** — unlock by catching up to Lurleen at least once. NPCs in a "love" state (currently nascent — would need a small new affect type) give double smiles; everyone else reacts normally.
