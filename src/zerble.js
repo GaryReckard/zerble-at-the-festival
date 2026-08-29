@@ -66,6 +66,7 @@ export class Zerble {
     this.position = this.root.position; // alias
     this.heading = 0;
     this.speed = 0;
+    this.sputtering = false;   // Festival Run limp mode (see update())
     this.steerAngle = 0;
     this.radius = 1.9;
     this.invulnLeft = 0;
@@ -1241,11 +1242,13 @@ export class Zerble {
     // ----- Drive -----
     const throttle = input.throttle;
     const steer = input.steer;
-    const wantBoost = input.boost && throttle > 0;
+    // Festival Run sputter (dry tank, grace window): boost dies and the cart
+    // limps at ~35% — main.js flips this from runState. Never set in Cruisin'.
+    const wantBoost = input.boost && throttle > 0 && !this.sputtering;
     // Expose so the engine sound (and anything else that cares) can react.
     this.isBoosting = wantBoost;
 
-    const maxFwd = MAX_SPEED * (wantBoost ? BOOST_MULT : 1);
+    const maxFwd = MAX_SPEED * (wantBoost ? BOOST_MULT : 1) * (this.sputtering ? 0.35 : 1);
     const maxRev = -REVERSE_MAX;
 
     if (throttle !== 0) {

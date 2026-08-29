@@ -55,6 +55,23 @@ export const Analytics = {
     send('game_start', context);
   },
 
+  // Festival Run lifecycle (festival-run-stakes). Name-free by contract —
+  // only run metrics ever ship.
+  runStart(params = {}) {
+    send('run_start', { day: params.day || 1, resumed: !!params.resumed, time_in_run_s: secondsIn() });
+  },
+
+  runEnd({ cause, score, days, duration, best_combo, rescue_used } = {}) {
+    send('run_end', {
+      cause: cause || 'unknown',
+      score: Math.floor(score || 0),
+      days: Math.floor(days || 1),
+      duration_s: Math.floor(duration || 0),
+      best_combo: Math.floor(best_combo || 1),
+      rescue_used: !!rescue_used,
+    });
+  },
+
   debugMenuToggle(open) {
     if (open) send('debug_menu_open', { time_in_run_s: secondsIn() });
   },

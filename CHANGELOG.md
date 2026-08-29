@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-08-29
+
+### Added
+- **Festival Run has real stakes now: the day ramp, two ways to die, and a live score screen.** The mode selector's promise finally cashes out. Each 6-minute in-game day tightens the screws — vendors start charging smiles per jug from Day 2 (fractional cost accrues, a broke cart gets a shrug instead of juice), ambient jug pickups thin out through a deterministic position-hashed filter (a harder day's jugs are a strict subset of an easier day's — `bin/test-jug-filter` locks the monotonicity, and the same-seed worldgen invariance drill re-verified byte-identical registries + rng draw counts across modes), and crowds build displeasure faster (`frownRateMult` into `crowd.js`). Run fully dry and Zerble sputters — boost dies, speed limps to 35%, a countdown ticks down 45s of grace before the cart conks out (`ran_dry`). Hit people and a persistent vibe meter fills (damaging hits weigh double a frown; grazes and god-mode rack nothing): a marshal whistle warns you first, then you're walked out (`vibed_out`). If Lurleen is smitten when the tank runs out, she tows you to the nearest juice once per run — with a refill-in-place fallback so an empty stretch of world can't soft-lock the beat. Either death locks controls, records your high-water score on the local board, and raises the score screen (cause, days survived, best combo, board with your run starred; "Run it again!" restarts). A settings reload mid-run resumes the whole run — day, clock, vibe, sputter, rescue flag, combo — via the existing resume snapshot. Just Cruisin' is untouched by construction: every knob reads the `runMode.js` config gate, and Cruisin' rows answer "free / keep everything / never die." New `src/runState.js` (run clock, day counter from ToD crossings, sputter + vibe machines; `bin/test-run-state`), `__dbg` drills (`runInfo`/`runDay`/`vibe`/`strike`/`sputterLeft`), and the four stakes test scripts joined `npm run check`. ([runState.js](src/runState.js), [main.js](src/main.js), [runMode.js](src/runMode.js), [chunks.js](src/chunks.js), [zerble.js](src/zerble.js), [crowd.js](src/crowd.js), [hud.js](src/hud.js))
+
 ## 2026-08-28
 
 ### Added

@@ -19,8 +19,9 @@ import { Input } from './input.js';
 import { Touch } from './touch.js';
 import { HUD } from './hud.js';
 import { Leaderboard } from './leaderboard.js';
-import { RunMode } from './runMode.js';
+import { RunMode, VIBE, setJugKeepFraction } from './runMode.js';
 import { Scoring } from './scoring.js';
+import { RunState } from './runState.js';
 import { buildWorld, updateWorld, getTimeOfDay, getFarField } from './world.js';
 import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
 import { lakeAnimatables, setLakeNightness } from './lakes.js';
@@ -553,6 +554,7 @@ Scoring.configure({ stakes: RunMode.isFestival() });
 if (__resume) {
   if (__resume.scoring) Scoring.restore(__resume.scoring);
   else if (Number.isFinite(__resume.score)) Scoring.reset({ current: __resume.score });
+  if (__resume.run) RunState.restore(__resume.run);   // day/clock/vibe/prevT/rescue
 }
 HUD.loadBest();
 if (__resume) HUD.setSmiles(Scoring.current);
@@ -561,11 +563,15 @@ let running = false;
 // A bubble-less Zerble makes nearby NPCs frown — each frown costs a smile
 // (and, in Festival Run, snaps the combo chain).
 crowd.onFrown = () => {
+  // Sputtering cart: frowns stay flavor-only — no smile tax while the player
+  // is already limping to juice (council; the mouth-flip is crowd-side).
+  if (RunState.active && RunState.sputter) return;
   if (Scoring.current <= 0) return;
   Scoring.deduct(1);
   Scoring.breakCombo();
   Sound.playFrownDown();
   HUD.setSmiles(Scoring.current);
+  applyVibeStrike(VIBE.frownStrike);
 };
 // An NPC climbed aboard — feed the passenger analytics (first board fires an
 // event; every board feeds the session_end count).
@@ -579,6 +585,8 @@ let _cricketPanVal = 0;   // listener-relative pan toward nearest forest (-1..1)
 let _frogPanVal = 0;      // listener-relative pan toward nearest lake (-1..1)
 // Debounce for the bubble-vendor "free refill" toast.
 let _vendorToastCd = 0;
+let _vendorRefusalCd = 0;      // "can't afford" toast cooldown (Festival Run)
+let _vendorCostAccum = 0;      // fractional smile cost accrual while drawing
 let _vendorWasFilling = false;   // were we actively drawing juice last frame?
 let _wasEmpty = bubbles.juice <= 0.02; // edge-detect the bubble tank running dry
 let _collectedThisFrame = 0;     // per-frame smile-collect coalescing buffer
@@ -643,7 +651,7 @@ Settings.init({
   captureState: () => running
     ? { seed: window.__seed, x: zerble.position.x, z: zerble.position.z,
         heading: zerble.heading, score: Scoring.current, scoring: Scoring.serialize(),
-        mode: RunMode.name, juice: bubbles.juice, tod: getTimeOfDay()?.t }
+        mode: RunMode.name, run: RunState.serialize(), juice: bubbles.juice, tod: getTimeOfDay()?.t }
     : null,
 });
 
@@ -668,6 +676,11 @@ HUD.onStart(() => {
   // The player can flip the mode selector right up to the Start tap —
   // (re)configure stakes from the final choice. Synchronous, pre-Sound.init.
   Scoring.configure({ stakes: RunMode.isFestival() });
+  if (RunMode.isFestival()) {
+    if (!RunState.active) RunState.begin();   // active = restored resume run
+    setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
+    Analytics.runStart({ day: RunState.day, resumed: !!__resume });
+  }
   // Context segments every later event by device/tier/returning-ness.
   Analytics.gameStart({
     perf_tier: PERF.name,
@@ -933,6 +946,39 @@ function tickBody(dt) {
       Analytics.bubbleRanDry();
     }
     _wasEmpty = bubblesEmpty;
+
+    // ---- Festival Run layer: day ramp, sputter grace, vibe decay ----
+    if (RunState.active && !RunState.over) {
+      if (RunState.tickDay(dt, getTimeOfDay()?.t)) {
+        const d = RunState.day;
+        const line = DAY_UP_TOASTS[Math.floor(Math.random() * DAY_UP_TOASTS.length)];
+        HUD.toast(line.replace('{d}', String(d)), 3200);
+        setJugKeepFraction(RunMode.config.jugKeep(d));
+      }
+      const limits = RunMode.config.vibeLimits(RunState.day);
+      crowd.frownRateMult = RunMode.config.frownMult(RunState.day);
+      RunState.tickVibe(dt, limits);
+      const sput = RunState.tickSputter(dt, bubbles.juice);
+      if (sput === 'start') {
+        zerble.sputtering = true;
+        Sound.startSputterLoop();
+        HUD.toast(HUD.withName(
+          'Zerble is running on fumes — find juice, fast!',
+          '{name}! Zerble is running on fumes — find juice, fast!', 0.5), 3200);
+      } else if (sput === 'end') {
+        zerble.sputtering = false;
+        Sound.stopSputterLoop();
+      } else if (sput === 'expired') {
+        if (!RunState.rescueUsed && lurleen.isFollowing) {
+          performLurleenRescue();
+        } else {
+          endFestivalRun('ran_dry');
+        }
+      }
+      HUD.setDay(RunState.day);
+      HUD.setSputter(RunState.sputter ? RunState.sputterLeft : null);
+      HUD.setVibe(RunState.vibeFraction(limits), true, limits ? RunState.vibe >= limits.warn : false);
+    }
     // Rebuild the registry broadphase once per frame, before every consumer
     // (crowd steering, kid push-out, Zerble collision). Cheap O(entries) pass;
     // the per-NPC queries it enables replace the old O(npcs × entries) scans.
@@ -1144,9 +1190,32 @@ function tickBody(dt) {
         const dz = e.position.z - zerble.position.z;
         if (dx * dx + dz * dz < REFUEL_RANGE * REFUEL_RANGE) {
           nearVendor = true;
-          if (bubbles.juice < 1) {                 // vendor tops the current meter only
+          // Festival Run economy: from Day 2 vendors charge smiles per meter
+          // drawn (D6 ramp; Day 1 free). Fractional cost accrues and deducts
+          // in whole smiles; a broke cart gets a refusal, not juice.
+          const vendorPrice = RunState.active && !RunState.over
+            ? RunMode.config.vendorPrice(RunState.day) : 0;
+          const canAfford = vendorPrice === 0 || Scoring.current > 0;
+          if (bubbles.juice < 1 && !canAfford) {
+            if (_vendorRefusalCd <= 0) {
+              HUD.toast(`The vendor shrugs — refills are ${vendorPrice} smiles a jug…`, 2400);
+              _vendorRefusalCd = 8;
+              // The ambient price toast below shares the one toast slot — hold
+              // it back so it can't overwrite the shrug in the same frame.
+              _vendorToastCd = Math.max(_vendorToastCd, 8);
+            }
+          } else if (bubbles.juice < 1) {          // vendor tops the current meter only
             const before = bubbles.juice;
             bubbles.addJuice((e.refuel || 0.4) * dt, 1.0);
+            if (vendorPrice > 0 && bubbles.juice > before) {
+              _vendorCostAccum += (bubbles.juice - before) * vendorPrice;
+              const whole = Math.floor(_vendorCostAccum);
+              if (whole > 0) {
+                _vendorCostAccum -= whole;
+                Scoring.deduct(whole);
+                HUD.setSmiles(Scoring.current);
+              }
+            }
             // Flow the stream only while filling a MEANINGFUL deficit, not while
             // the vendor is just countering the always-on drain at a full tank
             // (that read as "rising" every frame and never stopped). The tank
@@ -1157,7 +1226,10 @@ function tickBody(dt) {
         }
       }
       if (nearVendor && _vendorToastCd <= 0) {
-        HUD.toast(HUD.withName('Free bubble-juice refill!', 'Free bubble-juice refill, {name}!'), 1600);
+        const p = RunState.active && !RunState.over ? RunMode.config.vendorPrice(RunState.day) : 0;
+        HUD.toast(p > 0
+          ? `Bubble-juice refills: ${p} smiles a jug today.`
+          : HUD.withName('Free bubble-juice refill!', 'Free bubble-juice refill, {name}!'), 1600);
         _vendorToastCd = 10;
       }
       // "Full" cue — the moment the stream tops the meter off.
@@ -1172,6 +1244,7 @@ function tickBody(dt) {
       _vendorWasFilling = false;
     }
     if (_vendorToastCd > 0) _vendorToastCd -= dt;
+    if (_vendorRefusalCd > 0) _vendorRefusalCd -= dt;
     // Animate the vendor→cart refuel stream (no-op / hidden when not refueling).
     updateRefuelStream(refuelFromPos, zerble.position, dt);
 
@@ -1252,9 +1325,16 @@ function tickBody(dt) {
       const hit = resolveCollision(zerble, _collScratch);
       if (hit && hit.damaging && !isGod()) {
         Scoring.deduct(hit.damage);
-        // Damaging PEOPLE hits snap the combo chain (scoring spec); prop
-        // bonks just cost the smiles, same as always.
-        if (SOFT_PEOPLE_KINDS.has(hit.kind)) Scoring.breakCombo();
+        // Damaging PEOPLE hits snap the combo chain (scoring spec) and, in
+        // Festival Run, land a vibe strike + scare Lurleen + frown the struck
+        // NPC. Prop bonks just cost the smiles, same as always. There is ONE
+        // toast slot — a stakes beat (heartbreak/whistle) outranks the generic
+        // quip, or a same-frame overwrite makes the beat invisible.
+        let stakesToasted = false;
+        if (SOFT_PEOPLE_KINDS.has(hit.kind)) {
+          Scoring.breakCombo();
+          stakesToasted = registerPeopleHit(hit);
+        }
         HUD.setSmiles(Scoring.current);
         HUD.flashHit();
         // Ramming an OCCUPIED porta-potty ejects the flustered occupant +
@@ -1262,7 +1342,7 @@ function tickBody(dt) {
         if (hit.kind === 'porta_potty' && hit.entry?.potty?.occupied) {
           crowd.onPottyHit(hit.entry);
           HUD.toast(PORTA_POTTY_OCCUPIED_TOASTS[Math.floor(Math.random() * PORTA_POTTY_OCCUPIED_TOASTS.length)], 1700);
-        } else {
+        } else if (!stakesToasted) {
           HUD.toast(HUD.withName(
             toastForKind(hit.kind),
             NAMED_HIT_TOASTS[Math.floor(Math.random() * NAMED_HIT_TOASTS.length)]), 1400);
@@ -1350,6 +1430,115 @@ const HULA_HOOP_TOASTS = [
   "Bonked a hooper — bad karma!",
   "That hoop was somebody's chakra!",
 ];
+
+// Day-crossing toasts — the ramp speaks so the tightening never feels random.
+const DAY_UP_TOASTS = [
+  'Day {d} — the vendors raise their prices…',
+  'Day {d} — jugs are getting scarce out there.',
+  'Day {d} — the crowd expects more of you now.',
+  'Day {d} — the marshals are less amused today.',
+];
+
+// ---- Festival Run vibe strikes ----
+// D16: every stakes consequence of hitting a PERSON hangs off the ONE gate in
+// resolveCollision's caller — `hit.damaging && !isGod()` — never the raw
+// crowd.onZerbleHit (damage-0 grazes of fleeing NPCs stay consequence-free).
+// Both return true when they showed a player-facing beat (toast/death), so the
+// hit path can hold back its generic quip instead of overwriting it same-frame.
+function applyVibeStrike(weight) {
+  if (!RunState.active || RunState.over) return false;
+  const limits = RunMode.config.vibeLimits(RunState.day);
+  const ev = RunState.addStrike(weight, limits);
+  if (ev === 'warn') {
+    Sound.playMarshalWhistle();
+    HUD.toast(HUD.withName(
+      'A marshal blows the whistle — ease up on the crowd!',
+      'A marshal blows the whistle at {name} — ease up on the crowd!', 0.4), 2800);
+    return true;
+  } else if (ev === 'eject') {
+    endFestivalRun('vibed_out');
+    return true;
+  }
+  return false;
+}
+
+function registerPeopleHit(hit) {
+  if (!RunState.active || RunState.over) return false;
+  let toasted = false;
+  if (lurleen.isFollowing || lurleen.state === 'aware') {
+    if (lurleen.scareOff()) {
+      HUD.toast(HUD.withName('Lurleen saw that. 💔', '{name}! Lurleen saw that. 💔', 0.5), 2400);
+      toasted = true;
+    }
+  }
+  if (hit.npc) crowd.frownAt(hit.npc);
+  // Ordering: the whistle/ejection (rarer, more urgent) may overwrite the
+  // heartbreak — that priority is intentional.
+  return applyVibeStrike(VIBE.hitStrike) || toasted;
+}
+
+// ---- Festival Run death + rescue ----
+function endFestivalRun(cause) {
+  if (!RunState.endRun(cause)) return;
+  zerble.sputtering = false;
+  Sound.stopSputterLoop();
+  Sound.playRunEndSting(cause);
+  controlsLocked = true;
+  const days = RunState.day;
+  const rank = Leaderboard.recordLocal({
+    name: HUD.getPlayerName(), score: Scoring.highWater, days,
+  });
+  Analytics.runEnd({
+    cause, score: Scoring.highWater, days,
+    duration: Math.round(RunState.clock),
+    best_combo: Scoring.bestCombo, rescue_used: RunState.rescueUsed,
+  });
+  HUD.setSputter(null);
+  HUD.setVibe(0, false);
+  HUD.showScoreScreen({
+    cause: cause === 'vibed_out'
+      ? `The marshals walked you out on Day ${days}…`
+      : `Zerble ran dry on Day ${days}…`,
+    score: Scoring.highWater, days, bestCombo: Scoring.bestCombo,
+    board: Leaderboard.localTop(), highlightRank: rank,
+  });
+}
+// Both score-screen actions restart via a plain reload — the mode + name
+// persist, so "Run it again!" is one Start tap away (iOS needs the gesture
+// for audio anyway; there is no silent mid-session restart path).
+HUD.onScoreAgain(() => location.reload());
+HUD.onScoreClose(() => { if (RunState.over) location.reload(); });
+
+// Once per run: the sputter grace expired while Lurleen was smitten — she
+// stages the pair next to the nearest juice source (teleport-adjacent per the
+// carts spec) and tips a minimal refill. No source resident → refill in place
+// (design D14; no undefined path, no soft-lock).
+function performLurleenRescue() {
+  if (!RunState.useRescue()) { endFestivalRun('ran_dry'); return; }
+  let nearest = null; let bestD = Infinity;
+  for (const e of registry.entries.values()) {
+    if (e.kind !== 'bubble_jug' && e.kind !== 'bubble_vendor') continue;
+    const dx = e.position.x - zerble.position.x;
+    const dz = e.position.z - zerble.position.z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < bestD) { bestD = d2; nearest = e; }
+  }
+  if (nearest) {
+    const ang = Math.random() * Math.PI * 2;
+    zerble.position.x = nearest.position.x + Math.cos(ang) * 6;
+    zerble.position.z = nearest.position.z + Math.sin(ang) * 6;
+    zerble.speed = 0;
+    lurleen.position.set(zerble.position.x + 3, 0, zerble.position.z + 3);
+    lurleen.homePos.copy(lurleen.position);
+  }
+  bubbles.addJuice(0.35, 1.0);
+  zerble.sputtering = false;
+  Sound.stopSputterLoop();
+  Sound.playJuicePickup();
+  HUD.toast(HUD.withName(
+    'Lurleen to the rescue! 💗 One tow per festival…',
+    'Lurleen hauls {name} to juice! 💗 One tow per festival…', 0.6), 3600);
+}
 
 // Named collision quips — HUD.withName swaps one in occasionally when the
 // player gave a name (single shared helper; the per-kind banks stay nameless).
@@ -1587,6 +1776,10 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       // Same stakes arming the real Start tap does — a drill that picked
       // Festival Run on the title card must get Festival Run scoring.
       Scoring.configure({ stakes: RunMode.isFestival() });
+      if (RunMode.isFestival()) {
+        if (!RunState.active) RunState.begin();
+        setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
+      }
       document.body.classList.add('game-started');
       const tc = document.getElementById('touch-controls');
       if (tc) tc.setAttribute('aria-hidden', 'false');
@@ -1659,6 +1852,36 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       });
       return 'score screen shown';
     },
+    // Festival Run drills: jump the day ramp / nudge the vibe meter without
+    // real-time driving (runState debug setters; ramp re-applied like a dawn).
+    runInfo() {
+      return { mode: RunMode.name, run: RunState.serialize(),
+               score: Scoring.current, highWater: Scoring.highWater,
+               mult: Scoring.multiplier(), chain: Scoring.chain,
+               sputteringFlag: zerble.sputtering };
+    },
+    runDay(n = 2) {
+      if (!RunState.active) return 'no active Festival Run — pick Festival Run on the title card first';
+      const d = RunState.debugSetDay(n);
+      setJugKeepFraction(RunMode.config.jugKeep(d));
+      HUD.setDay(d);
+      const r = RunMode.config;
+      return `day = ${d} · vendor ${r.vendorPrice(d)} smiles · jugKeep ${r.jugKeep(d)} · frown x${r.frownMult(d)} · vibe ${JSON.stringify(r.vibeLimits(d))}`;
+    },
+    vibe(v = 0) {
+      if (!RunState.active) return 'no active Festival Run';
+      return `vibe = ${RunState.debugSetVibe(v)}`;
+    },
+    strike(n = 1) {
+      if (!RunState.active) return 'no active Festival Run';
+      for (let i = 0; i < Math.max(1, Math.floor(n)); i++) applyVibeStrike(VIBE.hitStrike);
+      return `vibe = ${RunState.vibe} (over: ${RunState.over})`;
+    },
+    sputterLeft(s = 1) {
+      if (!RunState.active) return 'no active Festival Run';
+      return `sputterLeft = ${RunState.debugSetSputterLeft(s)} (only while sputtering)`;
+    },
+
     seedBoard(n = 6) {
       const names = ['Moonbeam', 'Dusty', '', 'Peaches', 'Ranger Rick', 'Twirl', 'Bo', 'Juniper', 'Sky', 'Gud Vibes'];
       for (let i = 0; i < Math.min(n, 10); i++) {

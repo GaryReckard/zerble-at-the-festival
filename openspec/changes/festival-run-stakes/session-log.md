@@ -1,11 +1,11 @@
 ---
 change: festival-run-stakes
 status: in_progress
-current_task: "6.1"
+current_task: "7.1"
 blocked_by: null
 open_questions: 5
 started: 2026-08-28
-last_updated: 2026-08-28
+last_updated: 2026-08-29
 ref: "ROADMAP 'Name entry on the title card' + parked 'costs smiles economy' bullet; brainstorm 2026-08-28 (auto-memory festival-run-stakes-design.md); Locke's issue #1 triage"
 ---
 
@@ -64,3 +64,23 @@ ref: "ROADMAP 'Name entry on the title card' + parked 'costs smiles economy' bul
 **Event:** phase-change
 **What:** P1 committed (23dc1a4: name entry + toasts + local board shell; CHANGELOG entries written, ROADMAP "Name entry" consumed). Group 3: runMode.js + bin/test-run-mode green, mode selector on the title card (Cruisin' default-highlighted per D13), saveBest/personalBest mode-gated at all three sites, invariance check #1 green. Task 3.3 (resume snapshot run state) deliberately left open — the run-state fields it must carry don't exist until 6.1 builds runState.js.
 **Refs:** -> Task 3.3, -> Task 6.1, commit 23dc1a4
+
+### 2026-08-28 -- Groups 4 + 5 shipped (backfilled after a VM crash ate the session)
+**Event:** phase-change
+**What:** Group 4 committed (37e5861: scoring.js single-writer + bin/test-scoring, all score writes rerouted, combo badge chip, Lurleen isFollowing/scareOff + doubler, invariance re-run #2 green post-reroute). Group 5 committed (b9326c8: pentatonic smile ladder, frown down-note, sputter loop + marshal whistle + run-end stings staged in sound.js). The session died (VM display issue) mid-Group-6 before these entries were written — backfilled from git + the recovered transcript.
+**Refs:** commits 37e5861, b9326c8, -> Task 4.6 (code shipped in 37e5861; checkbox pending its 6.8 drill)
+
+### 2026-08-29 -- Recovery: the "JSON-parse-shaped SyntaxError" was a class-body comma
+**Event:** discovery
+**What:** The uncommitted Group 6 tree wouldn't boot: `SyntaxError: Unexpected token ','` that the dead session was chasing as a runtime JSON.parse throw. A pre-load error hook pinned it to crowd.js:2198 — the new `frownAt()` method had been pasted into the Crowd class with object-literal syntax (trailing comma). One-char fix; node --check now passes on every touched module. Lesson: `node --check` each edited file when a session hands off mid-edit; Node's ESM import in bin/test-* doesn't cover files only the browser imports.
+**Refs:** crowd.js frownAt, -> Task 6.5
+
+### 2026-08-29 -- Group 6 drill battery: game time crawls under SwiftShader; drills must poll, not sleep
+**Event:** discovery
+**What:** First battery run "failed" dry-death expiry, vendor refill, and vibe decay — all false alarms. Root cause: main.js clamps dt at 0.05/frame and SwiftShader renders ~2-4 fps, so game time advances at a few percent of wall time; wall-clock sleeps in drills time out before game seconds elapse. The stable drill form: `page.waitForFunction` polling `__dbg.runInfo()` predicates (+ generous timeouts), `sputterLeft(0.1)` not (1), and toast asserts must wait a beat after the trigger (MutationObserver records are microtask-deferred past a same-evaluate read). Also: spawn-hub drills that need score pinned at 0 or NPCs stationary must `__dbg.freezeNPCs()` first — the ambient crowd feeds smiles otherwise. Battery after fixes: dry death, vibe warn/eject death, rescue-once-per-run, vendor pay/refusal, invariance re-diff (350 chunk-keyed entries + draw counts, cruisin×2 = festival day-1), all green headless.
+**Refs:** -> Task 6.8, scratchpad group6-drills.mjs / group6-retest.mjs
+
+### 2026-08-29 -- Group 6 verified end-to-end; the drills caught a real toast-slot bug
+**Event:** phase-change
+**What:** Full battery green headless: dry death (sputter arm → countdown → expiry → score screen), vibe warn at the exact crossing + eject death, rescue-once-per-run with juice tip, damaging-hit gate (strike + Lurleen heartbreak; god-mode and grazes rack nothing), broke-cart refusal + paid refill deducting smiles, resume round-trip (day 3 + vibe + score 77 + jugKeep 0.55 all restored), invariance re-diff green, live jugKeep/frownMult reaching their consumers, both modes booting clean. The battery exposed a REAL bug drills exist for: the single HUD toast slot got written twice in one frame on stakes beats, so "Lurleen saw that 💔" was instantly overwritten by the generic collision quip and the vendor refusal by the ambient price line — the player would never have seen either. Fixed by priority (stakes beat suppresses the quip; refusal holds back the price toast; whistle/ejection deliberately outranks heartbreak). Also closed while here: `frownMult` was defined in the ramp but consumed nowhere — added `crowd.frownRateMult` (mode-unaware field, fed from the run layer); wrote the missing `bin/test-jug-filter`; wired all four stakes tests into `npm run check`; nowrap on the Day chip. Two follow-ups from D8 worth remembering: the frown vibe-strike weight is currently unreachable (organic frowns only fire while dry ⇒ sputtering ⇒ suppressed — consistent with the council's "no pile-on", kept as future-proofing), and drills MUST poll game-time predicates (see previous entry).
+**Refs:** -> Tasks 3.3, 4.6, 6.1–6.8 all ticked, scratchpad group6-retest.mjs, screenshots shot-day3-noon-hud/sputter-dusk/scorescreen-midnight

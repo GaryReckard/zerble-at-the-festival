@@ -10,6 +10,8 @@
 // Deliberately DOM-free and three-free so bin/test-run-mode can import it
 // straight into node.
 
+import { worldHash } from './rng.js';
+
 export const MODE_CRUISIN = 'cruisin';
 export const MODE_FESTIVAL = 'festival';
 export const MODE_KEY = 'zerble-mode';
@@ -45,6 +47,28 @@ export const COMBO = Object.freeze({
 export const VIBE = Object.freeze({ hitStrike: 1, frownStrike: 0.5, decayPerSec: 1 / 15 });
 
 export const SPUTTER_GRACE_SEC = 45;
+
+// ---- Jug scarcity filter (design D3) ----
+// A runtime, position-hashed keep/drop decision over ALREADY-GENERATED jug
+// placements — it never touches the seeded worldgen streams (chunks.js calls
+// it strictly after all ctx.rng() draws for the jug complete). Fresh salt,
+// distinct from every worldHash salt in chunks.js. Default 1.0 = unfiltered:
+// Just Cruisin', hub-sandbox, and map-sandbox never set it.
+const JUG_FILTER_SALT = 0x1B9DFA33 | 0;
+let _jugKeepFraction = 1.0;
+
+export function setJugKeepFraction(f) {
+  _jugKeepFraction = Number.isFinite(f) ? Math.max(0, Math.min(1, f)) : 1.0;
+  return _jugKeepFraction;
+}
+
+export function getJugKeepFraction() { return _jugKeepFraction; }
+
+export function jugKeptAt(x, z, frac = _jugKeepFraction) {
+  if (frac >= 1) return true;
+  if (frac <= 0) return false;
+  return worldHash(Math.round(x), Math.round(z), JUG_FILTER_SALT) / 4294967296 < frac;
+}
 
 const CRUISIN = Object.freeze({
   name: MODE_CRUISIN,

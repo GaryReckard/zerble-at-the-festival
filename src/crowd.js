@@ -134,6 +134,9 @@ export class Crowd {
     // Set true from main.js while the star-power love buff is active — gates
     // the proximity flee so nobody runs from a Zerble everyone's smitten with.
     this.starActive = false;
+    // Festival Run day ramp: main.js scales this up as days pass so crowds get
+    // touchier (faster displeasure build). Stays 1.0 in Just Cruisin'.
+    this.frownRateMult = 1.0;
     this.onFrown = null;
     // `onBoard(npc)` fires when an NPC actually climbs aboard (boarding→riding).
     this.onBoard = null;
@@ -1302,8 +1305,12 @@ export class Crowd {
         // Dry cart → disappointment. Eye contact builds displeasure; at
         // threshold the NPC frowns and a smile is lost (onFrown). Slower to
         // build than a smile so it's a real "uh oh, I'm out" beat, not instant.
+        // NOTE the frown's job is mode-dependent at the onFrown dispatch below:
+        // Just Cruisin' keeps the dry-tank smile tax; Festival Run turns it
+        // into vibe-meter feedback (strike in main.js's handler, tax suppressed
+        // while sputtering), and frownRateMult ramps the build rate by day.
         npc.happiness = Math.max(0, npc.happiness - dt * 0.5);
-        if (inView) npc.displeasure += 1.4 * closeness * (0.55 + 0.45 * aim) * dt;
+        if (inView) npc.displeasure += 1.4 * this.frownRateMult * closeness * (0.55 + 0.45 * aim) * dt;
         else npc.displeasure = Math.max(0, npc.displeasure - dt * 0.25);
         if (npc.displeasure >= FROWN_THRESHOLD) {
           npc.displeasure = 0;
@@ -2189,6 +2196,14 @@ export class Crowd {
 
   // Called from main.js when Zerble rams a porta-potty that's in use: eject the
   // occupant (flustered, fleeing), fling the door open, puff the stink.
+  // Festival Run: a damaging hit flips the struck NPC's mouth to a frown for
+  // the standard frown beat (dispatched from main.js's damaging-hit gate —
+  // the frown here is feedback only; the smile deduction stays in onFrown's
+  // dry-cart path and the vibe strike lives in the run layer).
+  frownAt(npc) {
+    if (npc) npc.frownTimer = FROWN_DURATION;
+  }
+
   onPottyHit(entry) {
     if (!entry || !entry.potty || !entry.potty.occupied) return;
     const p = entry.potty;

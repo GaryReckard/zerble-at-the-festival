@@ -49,7 +49,7 @@ worldgen-only.
       persisted preference, **Just Cruisin' is the default-highlighted choice**
       (design D13 — a returning player's habitual Start tap must never land in stakes
       mode unwarned); mode plumbed into `main.js` boot; no async in the start path
-- [ ] 3.3 Resume snapshot: carry mode + run state (clock, day, score, high-water,
+- [x] 3.3 Resume snapshot: carry mode + run state (clock, day, score, high-water,
       combo, vibe, rescue flag, token) through the sessionStorage snapshot and
       restore path. **Acceptance:** the day-counter wrap detection's `prevT`
       initializes from the RESTORED `t`, not a fresh-boot default (a reload near a
@@ -78,7 +78,7 @@ worldgen-only.
       speed** (drive + screenshot), not only via static `__dbg` poses
 - [x] 4.5 Star power pins combo at cap for its duration (wire `StarPower.onTrigger/
       onEnd`)
-- [ ] 4.6 Lurleen: expose `isFollowing`; scoring doubler + ♥×2 track it same-frame;
+- [x] 4.6 Lurleen: expose `isFollowing`; scoring doubler + ♥×2 track it same-frame;
       scare-off on damaging NPC hit (Festival Run only, via the 6.5 gate) with
       re-approach cooldown + startled beat
 - [x] 4.7 Verify: `__dbg` combo drills (addSmiles bursts, forced hit) + screenshot of
@@ -100,14 +100,14 @@ Checkpointed per council: land the DRY-DEATH path end-to-end (6.1–6.4 + the
 `ran_dry` half of 6.7, proven by the 6.8 drill) BEFORE starting vibe-out (6.5) or
 rescue (6.6). Two novel death machines never debug together.
 
-- [ ] 6.1 New module `src/runState.js`: run clock, day counter (from ToD cycle
+- [x] 6.1 New module `src/runState.js`: run clock, day counter (from ToD cycle
       crossings; `prevT` from restored `t` per 3.3), sputter state machine (45s
       grace), vibe meter (strike weights, decay, warn/eject thresholds from ramp),
       death causes, rescue flag; `__dbg` hooks: `runDay(n)` day-jump/ramp override +
       `vibe(n)` meter nudge (harness doctrine — Day-5 tuning must not cost 30 real
       minutes); write `bin/test-run-state` (sputter/vibe machines, strike decay,
       day-counter resume init) alongside; importmap ×3
-- [ ] 6.2 Jug availability runtime filter (fresh `JUG_FILTER_SALT`, keep-fraction by
+- [x] 6.2 Jug availability runtime filter (fresh `JUG_FILTER_SALT`, keep-fraction by
       day). **Acceptance (determinism-critical):** the filter applies ONLY to the
       ambient `scatterBubbleJugs` scatter (`chunks.js:2130`) — `_placeSpawnJugs`
       intro jugs are exempt — and the mode/day check gates ONLY the final
@@ -117,12 +117,12 @@ rescue (6.6). Two novel death machines never debug together.
       documented module-level setter (design D3), defaulting to UNFILTERED so
       hub-sandbox/map-sandbox stay stable. Write `bin/test-jug-filter` (same-seed
       registry parity across modes and days) alongside; Cruisin' bypasses entirely
-- [ ] 6.3 Vendor pricing: deduct via scoring, refusal toast when unaffordable, Day 1
+- [x] 6.3 Vendor pricing: deduct via scoring, refusal toast when unaffordable, Day 1
       free; HUD juice interactions unchanged in Cruisin'
-- [ ] 6.4 Sputter wiring: speed clamp + boost disable in `zerble.js` via runState
+- [x] 6.4 Sputter wiring: speed clamp + boost disable in `zerble.js` via runState
       flag, HUD countdown, audio loop, frown-deduction suppression in the crowd
       handler, exit on any `addJuice`
-- [ ] 6.5 Vibe wiring — **gated in `main.js`, not on raw `crowd.onZerbleHit`**: vibe
+- [x] 6.5 Vibe wiring — **gated in `main.js`, not on raw `crowd.onZerbleHit`**: vibe
       strike + combo break + Lurleen scare + struck-NPC frown fire only on
       `hit.damaging && !isGod()` (mirror the existing gate at `main.js:1201`;
       `damage: 0` grazes of fleeing NPCs stay consequence-free). Sputter
@@ -132,15 +132,15 @@ rescue (6.6). Two novel death machines never debug together.
       frown-threshold ramp multiplier into `crowd.js`; warning whistle + toast;
       ejection death. Comment at the frown dispatch point explaining the
       mode-dependent dual role (dry-tank tax vs vibe feedback)
-- [ ] 6.6 Lurleen tow rescue: once-per-run intercept of `ran_dry`, tow beat to
+- [x] 6.6 Lurleen tow rescue: once-per-run intercept of `ran_dry`, tow beat to
       nearest juice source, soft-lock-safe abort path. **Precondition:** the no-jug
       fallback (design D14: zero registry-resident jugs ⇒ minimal refill, no tow
       animation). Designated FIRST CUT under time pressure — nothing depends on it
       (-> Q3)
-- [ ] 6.7 Run end: score screen live (cause, high-water, days, best combo), local
+- [x] 6.7 Run end: score screen live (cause, high-water, days, best combo), local
       board insert, `run_end` analytics; day-crossing toasts ("Day 3 — the vendors
       raise their prices…")
-- [ ] 6.8 Full-loop playtest via `__dbg` — run the dry-death drill (setJuice(0) →
+- [x] 6.8 Full-loop playtest via `__dbg` — run the dry-death drill (setJuice(0) →
       sputter → death) as the 6.4 checkpoint BEFORE 6.5 work starts, then the
       ejection drill (scripted damaging hits → warning → ejection, validating the
       corrected gate: god-mode and grazes rack nothing) and the rescue path with

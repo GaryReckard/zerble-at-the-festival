@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+// bin/test-run-state — sputter/vibe machines, strike decay, day-counter
+// resume init for festival-run-stakes. Plain node.
+
+const { RunState } = await import('../src/runState.js');
+const { VIBE, SPUTTER_GRACE_SEC, RunMode, MODE_FESTIVAL } = await import('../src/runMode.js');
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+RunMode.set(MODE_FESTIVAL);
+const limits = RunMode.config.vibeLimits(1);   // day 1: warn 4 / eject 8
+
+// --- Day counter: first tick latches, wrap increments, small jitter doesn't. ---
+RunState.begin();
+assert(RunState.day === 1, 'runs start on day 1');
+assert(RunState.tickDay(1, 0.97) === false, 'first tick only latches prevT');
+assert(RunState.tickDay(1, 0.99) === false, 'forward motion is not a wrap');
+assert(RunState.tickDay(1, 0.01) === true, '0.99 -> 0.01 wrap increments the day');
+assert(RunState.day === 2, 'day advanced to 2');
+assert(RunState.tickDay(1, 0.008) === false, 'tiny backward jitter is not a wrap');
+
+// Resume near the boundary must NOT double-count (council acceptance line):
+// serialize right after a wrap, restore, and feed the same t again.
+const snap = RunState.serialize();
+RunState.begin();                      // fresh boot would null prevT...
+RunState.restore(snap);                // ...but restore brings prevT back
+assert(RunState.tickDay(1, 0.02) === false, 'restored prevT prevents a double-counted day');
+assert(RunState.day === 2, 'day stays 2 across the resume');
+
+// --- Sputter: start on dry, end on juice, expire after the grace. ---
+RunState.begin();
+assert(RunState.tickSputter(0.1, 1.0) === null, 'juicy tank never sputters');
+assert(RunState.tickSputter(0.1, 0.0) === 'start', 'dry tank starts the sputter');
+assert(RunState.sputterLeft === SPUTTER_GRACE_SEC, 'grace timer arms full');
+assert(RunState.tickSputter(5, 0.0) === null, 'grace counts down quietly');
+assert(RunState.tickSputter(0.1, 0.8) === 'end', 'any juice ends the sputter');
+assert(RunState.tickSputter(0.1, 0.0) === 'start', 're-drying re-enters with a fresh grace');
+assert(RunState.tickSputter(SPUTTER_GRACE_SEC + 1, 0.0) === 'expired', 'grace expiry reports');
+
+// Rescue: consumes once, resets sputter so the refill re-enters cleanly.
+assert(RunState.useRescue() === true, 'first rescue succeeds');
+assert(RunState.sputter === false, 'rescue clears the sputter state');
+assert(RunState.useRescue() === false, 'second rescue refuses');
+
+// --- Vibe: strikes climb, warn once per climb, eject at the limit, decay. ---
+RunState.begin();
+assert(RunState.addStrike(VIBE.hitStrike, limits) === null, 'one hit is not a warning');
+RunState.addStrike(1, limits); RunState.addStrike(1, limits);
+assert(RunState.addStrike(1, limits) === 'warn', 'fourth strike crosses warn=4');
+assert(RunState.addStrike(1, limits) === null, 'warning fires once per climb');
+RunState.addStrike(1, limits); RunState.addStrike(1, limits);
+assert(RunState.addStrike(1, limits) === 'eject', 'eighth strike ejects at eject=8');
+
+// Decay: one strike drains in 15s; warning re-arms after cooling below half.
+RunState.begin();
+for (let i = 0; i < 4; i++) RunState.addStrike(1, limits);
+const before = RunState.vibe;
+RunState.tickVibe(15, limits);
+assert(Math.abs(before - RunState.vibe - 1) < 1e-9, 'one strike decays per 15s');
+RunState.tickVibe(60, limits);
+assert(RunState.vibe === 0, 'meter floors at zero');
+assert(RunState.addStrike(4, limits) === 'warn', 'warning re-armed after cooling');
+
+// Frown strikes weigh half a hit.
+assert(VIBE.frownStrike === VIBE.hitStrike / 2, 'frown = half a hit strike');
+
+// --- endRun latches; nothing moves after death. ---
+assert(RunState.endRun('ran_dry') === true, 'endRun succeeds once');
+assert(RunState.endRun('vibed_out') === false, 'a dead run stays dead');
+assert(RunState.cause === 'ran_dry', 'cause is the first death');
+assert(RunState.tickDay(1, 0.0) === false && RunState.tickSputter(1, 0) === null,
+  'ticks are inert after death');
+
+// vibeFraction is HUD-safe.
+assert(RunState.vibeFraction(null) === 0 && RunState.vibeFraction(limits) >= 0,
+  'vibeFraction tolerates missing limits');
+
+process.stdout.write('OK bin/test-run-state — day wrap, resume init, sputter, vibe, death all hold\n');

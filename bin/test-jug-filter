@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+// bin/test-jug-filter — the day-ramp jug scarcity filter (festival-run-stakes
+// design D3). The filter is a pure position-hashed keep/drop over
+// already-generated jug placements; the determinism-critical properties are:
+// unfiltered by default (Cruisin'/sandboxes never see it), deterministic per
+// position, and MONOTONE — a harder day's jugs are a strict subset of an
+// easier day's, so the same world never "shuffles" its jugs as days pass.
+// (Draw-count parity with the seeded worldgen streams is a chunks.js call-site
+// property — verified in-browser by the invariance drill, not simulatable
+// here without three.js.)
+
+const { jugKeptAt, setJugKeepFraction, getJugKeepFraction, rampRow } =
+  await import('../src/runMode.js');
+
+function assert(condition, message) {
+  if (!condition) {
+    process.stderr.write(`FAIL: ${message}\n`);
+    process.exit(1);
+  }
+}
+
+// Default is unfiltered — hub-sandbox/map-sandbox/Cruisin' never call the setter.
+assert(getJugKeepFraction() === 1.0, 'module default keep-fraction is 1.0');
+for (let i = 0; i < 50; i++) {
+  assert(jugKeptAt(i * 137.3 - 3000, i * 71.9 - 2000), 'frac 1.0 keeps every jug');
+}
+
+// Setter clamps nonsense instead of exploding mid-frame.
+assert(setJugKeepFraction(1.7) === 1.0, 'clamps above 1');
+assert(setJugKeepFraction(-2) === 0.0, 'clamps below 0');
+assert(setJugKeepFraction(NaN) === 1.0, 'NaN resets to unfiltered');
+assert(setJugKeepFraction(0.55) === 0.55, 'in-range passes through');
+setJugKeepFraction(1.0);
+
+// Deterministic per position: same (x, z, frac) always answers the same.
+for (let i = 0; i < 200; i++) {
+  const x = Math.sin(i) * 4000, z = Math.cos(i * 1.7) * 4000;
+  assert(jugKeptAt(x, z, 0.4) === jugKeptAt(x, z, 0.4), `deterministic at (${x},${z})`);
+}
+
+// Monotone subset: kept at the day-5 fraction ⇒ kept at every easier day's
+// fraction. This is what makes the ramp feel like scarcity, not reshuffling.
+const fracs = [1, 2, 3, 4, 5].map((d) => rampRow(d).jugKeep);
+let dropped = 0, kept5 = 0;
+for (let i = 0; i < 5000; i++) {
+  const x = (i % 71) * 83.1 - 2900, z = Math.floor(i / 71) * 97.7 - 3400;
+  let prevKept = true;
+  for (const f of fracs) {
+    const k = jugKeptAt(x, z, f);
+    assert(!(k && !prevKept), `subset violated at (${x},${z}) frac ${f}`);
+    prevKept = k;
+  }
+  if (!jugKeptAt(x, z, fracs[4])) dropped++; else kept5++;
+}
+assert(kept5 > 0 && dropped > 0, 'day-5 fraction both keeps and drops');
+
+// The keep rate lands near the requested fraction (hash is uniform-ish).
+const rate5 = kept5 / 5000;
+assert(Math.abs(rate5 - fracs[4]) < 0.05,
+  `day-5 keep rate ~${fracs[4]}, measured ${rate5.toFixed(3)}`);
+
+// Sub-meter jitter maps to the same rounded cell — a jug can't flicker in and
+// out because a float wobbled (chunks.js hands in raw scatter floats).
+assert(jugKeptAt(100.2, 200.4, 0.3) === jugKeptAt(99.8, 199.6, 0.3),
+  'rounding gives stable cells');
+
+process.stdout.write('OK bin/test-jug-filter — default-off, determinism, day-subset monotonicity hold\n');

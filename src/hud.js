@@ -88,6 +88,7 @@ const $scoreClose = document.getElementById('score-close');
 const $boardOpenTitle = document.getElementById('board-open-title');
 
 let _onScoreAgain = null;
+let _onScoreClose = null;
 
 // ---- Combo chip state (dirty flags) ----
 const $comboChip = document.getElementById('combo-chip');
@@ -98,6 +99,18 @@ let _comboVisible = false;
 let _comboMult = 1;
 let _comboFrac = 0;
 let _comboHeart = false;
+
+// ---- Festival Run stakes chips ----
+const $dayN = document.getElementById('day-n');
+const $sputterCount = document.getElementById('sputter-count');
+const $vibeChip = document.getElementById('vibe-chip');
+const $vibeFill = document.getElementById('vibe-fill');
+const $vibeFace = document.getElementById('vibe-face');
+let _dayN = null;
+let _sputterSec = null;
+let _vibeActive = false;
+let _vibeFrac = -1;
+let _vibeWarn = false;
 
 function renderBoard(board, highlightRank) {
   if (!$localBoardBody) return;
@@ -122,7 +135,10 @@ function renderBoard(board, highlightRank) {
   });
 }
 
-$scoreClose?.addEventListener('click', () => HUD.hideScoreScreen());
+$scoreClose?.addEventListener('click', () => {
+  HUD.hideScoreScreen();
+  if (_onScoreClose) _onScoreClose();
+});
 $scoreAgain?.addEventListener('click', () => {
   HUD.hideScoreScreen();
   if (_onScoreAgain) _onScoreAgain();
@@ -201,6 +217,51 @@ export const HUD = {
     }
   },
 
+  // Festival Run day counter on the cycle chip. null = hide (Cruisin').
+  setDay(n) {
+    if (!$dayN) return;
+    const v = n == null ? null : Math.max(1, Math.floor(n));
+    if (v === _dayN) return;
+    _dayN = v;
+    $dayN.classList.toggle('hidden', v == null);
+    if (v != null) $dayN.textContent = `Day ${v}`;
+  },
+
+  // Sputter grace countdown inside the juice chip. null = hide.
+  setSputter(sec) {
+    if (!$sputterCount) return;
+    const v = sec == null ? null : Math.max(0, Math.ceil(sec));
+    if (v === _sputterSec) return;
+    _sputterSec = v;
+    $sputterCount.classList.toggle('hidden', v == null);
+    if (v != null) $sputterCount.textContent = `${v}s`;
+  },
+
+  // Persistent vibe meter (Festival Run only — council D15: a death path is
+  // never invisible). frac 0..1 of the ejection limit; warn pulses the chip.
+  setVibe(frac, active, warn = false) {
+    if (!$vibeChip) return;
+    if (active !== _vibeActive) {
+      _vibeActive = active;
+      $vibeChip.classList.toggle('hidden', !active);
+    }
+    if (!active) return;
+    const f = Math.max(0, Math.min(1, frac));
+    if (Math.abs(f - _vibeFrac) >= 0.01) {
+      _vibeFrac = f;
+      if ($vibeFill) $vibeFill.style.transform = `scaleX(${f})`;
+      const face = f >= 0.75 ? '😠' : f >= 0.4 ? '😕' : '😊';
+      if ($vibeFace && face !== $vibeFace.textContent) $vibeFace.textContent = face;
+      $vibeChip.setAttribute('aria-label',
+        f >= 0.75 ? 'Festival vibe: the marshals are watching' :
+        f >= 0.4 ? 'Festival vibe: getting tense' : 'Festival vibe: all good');
+    }
+    if (warn !== _vibeWarn) {
+      _vibeWarn = warn;
+      $vibeChip.classList.toggle('vibe-warn', warn);
+    }
+  },
+
   // Score screen. viewOnly (the title-card "Local legends" peek) hides the
   // run stats + the "again" action and just shows the board.
   showScoreScreen({ cause = '', score = 0, days = 1, bestCombo = 1,
@@ -223,6 +284,7 @@ export const HUD = {
   hideScoreScreen() { $scoreScreen?.classList.add('hidden'); },
 
   onScoreAgain(cb) { _onScoreAgain = cb; },
+  onScoreClose(cb) { _onScoreClose = cb; },
 
   getPlayerName() { return _playerName; },
 

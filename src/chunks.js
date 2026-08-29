@@ -43,6 +43,7 @@ import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.
 import { buildTentStage } from './models/tentStage.js';
 import { buildTree, describeForestTree, buildForestInstanced, worldPerches, worldCrown } from './models/tree.js';
 import { buildShrub } from './models/shrub.js';
+import { jugKeptAt } from './runMode.js';
 import { leafBannerTextures } from './models/leafBanner.js';
 
 export const CHUNK_SIZE = 80;
@@ -2133,6 +2134,13 @@ function scatterBubbleJugs(ctx, inWater) {
     const x = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE - 10);
     const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE - 10);
     if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 3)) continue;
+    // festival-run-stakes D3: the day-ramp scarcity filter gates ONLY this
+    // final build/add, strictly AFTER the rng draws above — the kept and
+    // dropped cases consume identical ctx.rng() draws, preserving draw-count
+    // parity with scatterWorldgenCampsites below (council pin-down; the
+    // determinism Non-Negotiable). Position-hashed, so the same jugs exist
+    // at a given day level on the same world. Intro spawn jugs are exempt.
+    if (!jugKeptAt(x, z)) return;
     const jug = buildBubbleJug();
     jug.position.set(x, 0.7, z);
     ctx.group.add(jug);
