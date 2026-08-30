@@ -211,51 +211,57 @@
 
   <div id="title-card">
     <div class="card">
-      <img class="title-zerble" src="assets/zerble.png" alt="" aria-hidden="true" />
-      <h1>
-        <span class="title-main">ZERBLE</span>
-        <span class="title-sub">at the <span class="leaf">Festival</span></span>
-      </h1>
-      <p class="tag">Bring the bubbles, collect the smiles</p>
+      <!-- Page 1: the attract screen / main menu -->
+      <div class="card-page" id="title-page-main">
+        <img class="title-zerble" src="assets/zerble.png" alt="" aria-hidden="true" />
+        <h1>
+          <span class="title-main">ZERBLE</span>
+          <span class="title-sub">at the <span class="leaf">Festival</span></span>
+        </h1>
+        <p class="tag">Bring the bubbles, collect the smiles</p>
 
-      <div id="boot-status" role="status" aria-live="polite" aria-label="Loading the game">
-        <div class="boot-gauge" aria-hidden="true">
-          <span class="boot-fill"></span>
-          <span class="boot-bubble b1"></span>
-          <span class="boot-bubble b2"></span>
-          <span class="boot-bubble b3"></span>
+        <div id="mode-select" role="radiogroup" aria-label="Pick how you want to play">
+          <button id="mode-cruisin" class="mode-btn" type="button" role="radio" aria-checked="true">
+            <span class="mode-cursor" aria-hidden="true">▶</span>
+            <span class="mode-text">
+              <span class="mode-name">Just Cruisin'</span>
+              <span class="mode-desc">No pressure. All bubbles.</span>
+            </span>
+          </button>
+          <button id="mode-festival" class="mode-btn" type="button" role="radio" aria-checked="false">
+            <span class="mode-cursor" aria-hidden="true">▶</span>
+            <span class="mode-text">
+              <span class="mode-name">Festival Run</span>
+              <span class="mode-desc">Days get harder. Legends get made.</span>
+            </span>
+          </button>
         </div>
-        <span id="boot-copy" aria-hidden="true">Pressurizing the bubble tank…</span>
+
+        <div id="name-entry">
+          <label for="player-name">What's your name?</label>
+          <input id="player-name" type="text" maxlength="20" autocomplete="nickname"
+                 spellcheck="false" placeholder="Zerbler" enterkeyhint="done" />
+          <span class="name-note">Totally optional — it shows up around the festival, and Festival Run scores go on a public leaderboard under it.</span>
+        </div>
+
+        <button id="start-btn" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
+        <span id="boot-copy" role="status" aria-live="polite">Pressurizing the bubble tank…</span>
+
+        <button id="howto-open" type="button" aria-expanded="false" aria-controls="title-page-howto">▸ How to play</button>
+
+        <div class="title-footer">
+          <button id="settings-open-title" class="settings-trigger" aria-label="Open settings" disabled>⚙ Settings</button>
+          <button id="board-open-title" class="board-link" type="button" aria-label="View the local leaderboard">🏆 Local legends</button>
+        </div>
       </div>
 
-      <div id="mode-select" role="radiogroup" aria-label="Pick how you want to play">
-        <button id="mode-cruisin" class="mode-btn" type="button" role="radio" aria-checked="true">
-          <span class="mode-cursor" aria-hidden="true">▶</span>
-          <span class="mode-text">
-            <span class="mode-name">Just Cruisin'</span>
-            <span class="mode-desc">No pressure. All bubbles.</span>
-          </span>
-        </button>
-        <button id="mode-festival" class="mode-btn" type="button" role="radio" aria-checked="false">
-          <span class="mode-cursor" aria-hidden="true">▶</span>
-          <span class="mode-text">
-            <span class="mode-name">Festival Run</span>
-            <span class="mode-desc">Days get harder. Legends get made.</span>
-          </span>
-        </button>
-      </div>
+      <!-- Page 2: the instructions screen (same card frame; content swaps) -->
+      <div class="card-page" id="title-page-howto" hidden>
+        <div class="howto-header">
+          <button id="howto-back" type="button" aria-label="Back to the title screen">◀ Back</button>
+          <span class="howto-title">How to play</span>
+        </div>
 
-      <div id="name-entry">
-        <label for="player-name">What's your name?</label>
-        <input id="player-name" type="text" maxlength="20" autocomplete="nickname"
-               spellcheck="false" placeholder="Zerbler" enterkeyhint="done" />
-        <span class="name-note">Totally optional — it shows up around the festival, and Festival Run scores go on a public leaderboard under it.</span>
-      </div>
-
-      <button id="start-btn" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
-
-      <details id="how-to-play">
-        <summary>How to play</summary>
         <div class="controls controls-kbd">
           <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — drive Zerble</div>
           <div><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd> — orbit/tilt camera</div>
@@ -280,11 +286,6 @@
         <p class="hint">Glide near festival-goers so they see your glowing eyes and bubbles. Avoid the puppet parade, the brass band, food trucks, gaggles of kids, and the wooks.</p>
 
         <p class="hint">Bubbling runs on bubble juice — when you're running low, grab a glowing jug or pull up to a bubble vendor. (Just Cruisin' refills are always free; Festival Run vendors start charging smiles once the week gets going.)</p>
-      </details>
-
-      <div class="title-footer">
-        <button id="settings-open-title" class="settings-trigger" aria-label="Open settings" disabled>⚙ Settings</button>
-        <button id="board-open-title" class="board-link" type="button" aria-label="View the local leaderboard">🏆 Local legends</button>
       </div>
     </div>
   </div>
@@ -314,7 +315,11 @@
 
   <script>
     (function () {
-      const status = document.getElementById('boot-status');
+      // Boot narration under the start button. The button itself is the gauge
+      // (a charge shimmer sweeps it while disabled; hud.js flips it live), and
+      // this line keeps its height forever — finishing must never shift the
+      // card layout. Phrases rotate until ready, then the payoff line fades
+      // out in place.
       const copy = document.getElementById('boot-copy');
       const phrases = [
         'Pressurizing the bubble tank…',
@@ -337,12 +342,9 @@
           ready = true;
           clearInterval(timer);
           copy.textContent = 'Bubble pressure: magnificent.';
-          status.classList.add('is-ready');
-          status.setAttribute('aria-label', 'Game ready');
           setTimeout(function () {
-            status.classList.add('is-done');
-            status.setAttribute('aria-hidden', 'true');
-          }, 1100);
+            copy.classList.add('is-done');
+          }, 1400);
         },
       };
     })();

@@ -74,6 +74,27 @@ reflectMode();
 $modeCruisin?.addEventListener('click', () => { RunMode.set(MODE_CRUISIN); reflectMode(); });
 $modeFestival?.addEventListener('click', () => { RunMode.set(MODE_FESTIVAL); reflectMode(); });
 
+// ---- Title-card page swap: main menu ⇄ the How-to-play screen ----
+// One card frame, two screens (console-menu style). Focus follows the swap so
+// keyboard/AT users land on Back going in and back on the opener coming out;
+// Escape mirrors the Back button.
+const $pageMain = document.getElementById('title-page-main');
+const $pageHowto = document.getElementById('title-page-howto');
+const $howtoOpen = document.getElementById('howto-open');
+const $howtoBack = document.getElementById('howto-back');
+function showHowto(open) {
+  if (!$pageMain || !$pageHowto) return;
+  $pageMain.hidden = open;
+  $pageHowto.hidden = !open;
+  $howtoOpen?.setAttribute('aria-expanded', String(open));
+  (open ? $howtoBack : $howtoOpen)?.focus({ preventScroll: true });
+}
+$howtoOpen?.addEventListener('click', () => showHowto(true));
+$howtoBack?.addEventListener('click', () => showHowto(false));
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $pageHowto && !$pageHowto.hidden) showHowto(false);
+});
+
 // ---- Score screen (Festival Run results + the local top-10 board) ----
 const $scoreScreen = document.getElementById('score-screen');
 const $scoreCause = document.getElementById('score-cause');
