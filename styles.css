@@ -465,12 +465,22 @@ body {
 
 /* ---------- Title card ---------- */
 
+/* ---------- Title card (arcade attract screen) ----------
+   The layout contract: FIT ANY SCREEN. Everything scales with clamp()/dvh,
+   the overlay itself scrolls as a last resort (child margin:auto keeps the
+   card centered without the flex-center overflow-clipping trap), and the
+   height media queries near the bottom compress the hero + gaps before any
+   scrolling is needed. */
+:root {
+  --font-pixel: 'Press Start 2P', 'Courier New', ui-monospace, monospace;
+}
+
 #title-card {
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow-y: auto;
+  padding: clamp(8px, 2.5dvh, 28px) clamp(8px, 3vw, 24px);
   z-index: 20;
   background: radial-gradient(ellipse at center, rgba(26, 19, 50, 0.25), rgba(26, 19, 50, 0.85));
   backdrop-filter: blur(6px);
@@ -484,24 +494,55 @@ body {
 }
 
 #title-card .card {
-  max-width: 520px;
-  padding: 36px 38px;
-  background: rgba(28, 19, 48, 0.85);
-  border: 1px solid rgba(255, 246, 230, 0.12);
-  border-radius: 26px;
-  box-shadow: var(--shadow);
+  margin: auto;   /* centers, and stays reachable when the overlay scrolls */
+  width: min(440px, 100%);
+  padding: clamp(10px, 2dvh, 22px) clamp(16px, 4.5vw, 32px) clamp(12px, 2dvh, 20px);
+  background: rgba(28, 19, 48, 0.88);
+  border: 2px solid rgba(255, 246, 230, 0.14);
+  border-radius: 20px;
+  box-shadow: var(--shadow), inset 0 0 0 4px rgba(26, 19, 50, 0.55), inset 0 0 0 5px rgba(255, 246, 230, 0.07);
   text-align: center;
 }
 
+/* Zerble himself, bobbing over the marquee. */
+.title-zerble {
+  display: block;
+  height: clamp(70px, 14dvh, 128px);
+  width: auto;
+  margin: clamp(2px, 1dvh, 10px) auto 0;
+  filter: drop-shadow(0 8px 18px rgba(255, 111, 156, 0.35));
+  animation: zerble-bob 3.2s ease-in-out infinite;
+}
+
+@keyframes zerble-bob {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-7px) rotate(1.5deg); }
+}
+
 #title-card h1 {
-  font-size: 44px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  margin-bottom: 6px;
-  background: linear-gradient(135deg, #ffd28a 0%, #ff6f9c 50%, #b285ff 100%);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2px, 0.8dvh, 8px);
+  margin: clamp(2px, 1dvh, 8px) 0 4px;
+}
+
+.title-main {
+  font-family: var(--font-pixel);
+  font-size: clamp(22px, 7vw, 34px);
+  letter-spacing: 0.06em;
+  line-height: 1;
+  background: linear-gradient(180deg, #ffd28a 0%, #ff6f9c 55%, #b285ff 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(26, 19, 50, 0.9)) drop-shadow(0 5px 10px rgba(178, 133, 255, 0.3));
+}
+
+.title-sub {
+  font-size: clamp(14px, 3.6vw, 18px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255, 246, 230, 0.9);
 }
 
 #title-card .leaf {
@@ -514,23 +555,46 @@ body {
 }
 
 #title-card .tag {
-  font-size: 14px;
+  font-size: clamp(11px, 2.8vw, 13px);
   letter-spacing: 0.05em;
   color: rgba(255, 246, 230, 0.7);
-  margin-bottom: 22px;
+  margin-bottom: clamp(8px, 1.6dvh, 16px);
 }
 
 .controls {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 14px;
+  font-size: 13px;
+  text-align: left;
   color: rgba(255, 246, 230, 0.85);
-  margin-bottom: 18px;
-  padding: 14px 0;
+  margin-bottom: 10px;
+  padding: 10px 0 8px;
   border-top: 1px solid rgba(255, 246, 230, 0.08);
-  border-bottom: 1px solid rgba(255, 246, 230, 0.08);
 }
+
+/* Collapsible manual — an attract screen shouldn't read like a settings page. */
+#how-to-play {
+  margin: clamp(8px, 1.6dvh, 14px) 0 0;
+}
+
+#how-to-play summary {
+  display: inline-block;
+  list-style: none;
+  cursor: pointer;
+  pointer-events: auto;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 246, 230, 0.55);
+  padding: 6px 10px;
+}
+
+#how-to-play summary::-webkit-details-marker { display: none; }
+#how-to-play summary::before { content: '▸ '; }
+#how-to-play[open] summary::before { content: '▾ '; }
+#how-to-play summary:hover { color: rgba(255, 246, 230, 0.9); }
 
 kbd {
   display: inline-block;
@@ -546,10 +610,11 @@ kbd {
 }
 
 #title-card .hint {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
+  text-align: left;
   color: rgba(255, 246, 230, 0.65);
-  margin-bottom: 24px;
+  margin-bottom: 10px;
 }
 
 #boot-status {
@@ -730,42 +795,83 @@ kbd {
 
 .combo-heart { font-size: 11px; font-weight: 800; color: #ff6f9c; }
 
+/* Mode select — a proper cartridge menu: vertical rows, blinking ▶ cursor on
+   the chosen line (think 1 PLAYER / 2 PLAYERS). Ids + aria are load-bearing:
+   hud.js reflects RunMode onto aria-checked, bin/drill-stakes clicks these. */
 #mode-select {
   display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  width: min(300px, 100%);
+  margin: 0 auto clamp(8px, 1.6dvh, 14px);
 }
 
 .mode-btn {
   pointer-events: auto;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 148px;
-  padding: 9px 16px;
+  align-items: center;
+  gap: 10px;
+  padding: clamp(6px, 1.2dvh, 9px) 12px;
   font-family: inherit;
-  background: rgba(255, 246, 230, 0.05);
-  border: 1px solid rgba(255, 246, 230, 0.16);
-  border-radius: 14px;
-  color: rgba(255, 246, 230, 0.85);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: rgba(255, 246, 230, 0.62);
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
-.mode-btn .mode-name { font-size: 14px; font-weight: 700; }
+.mode-btn:hover { background: rgba(255, 246, 230, 0.06); }
+
+.mode-cursor {
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  width: 16px;
+  flex: 0 0 auto;
+  color: #ffd28a;
+  visibility: hidden;
+}
+
+.mode-text { display: flex; flex-direction: column; gap: 2px; }
+.mode-btn .mode-name {
+  font-family: var(--font-pixel);
+  font-size: clamp(10px, 2.7vw, 12px);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
 .mode-btn .mode-desc { font-size: 11px; opacity: 0.6; }
 
 .mode-btn[aria-checked="true"] {
-  border-color: #ffd28a;
-  background: rgba(255, 210, 138, 0.12);
-  box-shadow: 0 0 14px rgba(255, 210, 138, 0.18);
+  color: #fff6e6;
+  background: rgba(255, 210, 138, 0.08);
+}
+.mode-btn[aria-checked="true"] .mode-name { color: #ffd28a; }
+.mode-btn[aria-checked="true"] .mode-cursor {
+  visibility: visible;
+  animation: cursor-blink 1.05s steps(2, jump-none) infinite;
+}
+
+@keyframes cursor-blink {
+  0% { opacity: 1; }
+  100% { opacity: 0.15; }
+}
+
+/* Footer strip: settings + local legends side by side, out of the menu flow. */
+.title-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: clamp(6px, 1.2dvh, 12px);
 }
 
 .board-link {
   pointer-events: auto;
-  display: block;
-  margin: 10px auto 0;
+  display: inline-block;
+  margin: 0;
   background: none;
   border: none;
   color: rgba(255, 246, 230, 0.55);
@@ -917,13 +1023,15 @@ kbd {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  margin: 2px 0 12px;
+  margin: 2px 0 clamp(8px, 1.6dvh, 14px);
 }
 
 #name-entry label {
-  font-size: 13px;
-  opacity: 0.85;
-  letter-spacing: 0.02em;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.7;
 }
 
 #player-name {
@@ -951,7 +1059,9 @@ kbd {
 }
 
 #name-entry .name-note {
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.4;
+  max-width: 320px;
   opacity: 0.55;
 }
 
@@ -960,15 +1070,16 @@ kbd {
   background: linear-gradient(135deg, #ff6f9c, #ffd28a);
   color: #1c1330;
   border: none;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 12px 28px;
-  border-radius: 999px;
+  font-family: var(--font-pixel);
+  font-size: clamp(10px, 2.8vw, 12px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  padding: clamp(11px, 2dvh, 15px) 26px;
+  border-radius: 14px;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease, filter 0.2s ease;
-  box-shadow: 0 6px 24px rgba(255, 111, 156, 0.45);
+  box-shadow: 0 6px 24px rgba(255, 111, 156, 0.45), inset 0 -3px 0 rgba(26, 19, 50, 0.25);
 }
 
 #start-btn:disabled {
@@ -1178,7 +1289,7 @@ body.is-touch .controls-touch {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 0;
   background: rgba(255, 246, 230, 0.05);
   border: 1px solid rgba(255, 246, 230, 0.18);
   color: rgba(255, 246, 230, 0.82);
@@ -1201,13 +1312,46 @@ body.is-touch .controls-touch {
   .boot-fill,
   .boot-bubble,
   #boot-status.is-ready .boot-bubble,
-  #start-btn.is-ready {
+  #start-btn.is-ready,
+  .title-zerble {
+    animation: none;
+  }
+
+  /* The menu cursor stays visible on the selected row — it just stops blinking. */
+  .mode-btn[aria-checked="true"] .mode-cursor {
     animation: none;
   }
 
   #boot-status {
     transition: none;
   }
+}
+
+/* ---------- Title card: short-viewport compression ----------
+   Landscape phones (~375px tall) are the worst case. Squeeze the decorative
+   layers before anything functional; the overlay's own scroll is the final
+   fallback, never the first resort. */
+@media (max-height: 720px) {
+  .title-zerble { height: clamp(52px, 10dvh, 84px); }
+  .title-main { font-size: clamp(20px, 6vw, 26px); }
+  #title-card .tag { margin-bottom: 6px; }
+}
+
+@media (max-height: 560px) {
+  #title-card { padding: 4px 8px; }
+  #title-card .card { padding-top: 6px; padding-bottom: 8px; }
+  #how-to-play { margin-top: 4px; }
+  .title-zerble { height: 44px; margin-top: 0; }
+  .title-sub { font-size: 13px; }
+  #title-card .tag { display: none; }   /* the marquee already says it */
+  .mode-btn .mode-desc { display: none; }
+  .mode-btn { padding: 4px 12px; }
+  #title-card h1 { margin: 0 0 2px; }
+  /* .name-note stays at every size — it's the leaderboard privacy disclosure
+     the player-identity spec requires next to the field. */
+  #name-entry .name-note { font-size: 9px; line-height: 1.3; }
+  .settings-trigger { padding: 6px 12px; }
+  #boot-status { margin-bottom: 6px; }
 }
 
 /* In-game gear — top-right, clear of the top-left score panel. Hidden until

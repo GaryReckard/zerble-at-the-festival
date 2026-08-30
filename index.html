@@ -60,6 +60,11 @@
   <meta name="twitter:title" content="Zerble at the Festival" />
   <meta name="twitter:description" content="Bring the bubbles, collect the smiles." />
   <meta name="twitter:image" content="https://garyreckard.github.io/zerble-at-the-festival/assets/zerble.png" />
+  <!-- Title-screen pixel face (falls back to bold system sans if the CDN is
+       unreachable — nothing functional depends on it). -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" />
   <link rel="stylesheet" href="styles.css" />
   <script>
     // Dev cache-buster: inject importmap + main script with a per-load query string.
@@ -206,33 +211,12 @@
 
   <div id="title-card">
     <div class="card">
-      <h1>Zerble at the <span class="leaf">Festival</span></h1>
+      <img class="title-zerble" src="assets/zerble.png" alt="" aria-hidden="true" />
+      <h1>
+        <span class="title-main">ZERBLE</span>
+        <span class="title-sub">at the <span class="leaf">Festival</span></span>
+      </h1>
       <p class="tag">Bring the bubbles, collect the smiles</p>
-
-      <div class="controls controls-kbd">
-        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — drive Zerble</div>
-        <div><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd> — orbit/tilt camera</div>
-        <div><kbd>Shift</kbd> — boost</div>
-        <div><kbd>Space</kbd> — honk! (random bell or clown horn)</div>
-        <div><kbd>B</kbd> / <kbd>H</kbd> — bicycle bell / clown horn (specific)</div>
-        <div><kbd>V</kbd> — cycle chase / first-person / top-down view</div>
-        <div><kbd>↑</kbd> / <kbd>↓</kbd> in top-down — zoom in/out (or mouse wheel)</div>
-        <div><kbd>I</kbd> / <kbd>O</kbd> — eye glow brighter / dimmer</div>
-        <div><kbd>G</kbd> — hold for bubble blast (3× output)</div>
-        <div><kbd>M</kbd> — toggle MIDI music</div>
-      </div>
-
-      <div class="controls controls-touch">
-        <div><span class="tag-key">Left thumbstick</span> — drive Zerble</div>
-        <div><span class="tag-key">Drag the world</span> — orbit/tilt camera</div>
-        <div><span class="tag-key">Boost</span> — hold for extra speed</div>
-        <div><span class="tag-key">Honk</span> — tap for instant joy in a ring</div>
-        <div><span class="tag-key">Cam</span> — tap to cycle chase / first-person / top-down</div>
-      </div>
-
-      <p class="hint">Glide near festival-goers so they see your glowing eyes and bubbles. Avoid the puppet parade, the brass band, food trucks, gaggles of kids, and the wooks.</p>
-
-      <p class="hint">Bubbling runs on bubble juice — when you're running low, grab a glowing jug or pull up to a bubble vendor. (Just Cruisin' refills are always free; Festival Run vendors start charging smiles once the week gets going.)</p>
 
       <div id="boot-status" role="status" aria-live="polite" aria-label="Loading the game">
         <div class="boot-gauge" aria-hidden="true">
@@ -246,12 +230,18 @@
 
       <div id="mode-select" role="radiogroup" aria-label="Pick how you want to play">
         <button id="mode-cruisin" class="mode-btn" type="button" role="radio" aria-checked="true">
-          <span class="mode-name">Just Cruisin'</span>
-          <span class="mode-desc">No pressure. All bubbles.</span>
+          <span class="mode-cursor" aria-hidden="true">▶</span>
+          <span class="mode-text">
+            <span class="mode-name">Just Cruisin'</span>
+            <span class="mode-desc">No pressure. All bubbles.</span>
+          </span>
         </button>
         <button id="mode-festival" class="mode-btn" type="button" role="radio" aria-checked="false">
-          <span class="mode-name">Festival Run</span>
-          <span class="mode-desc">Days get harder. Legends get made.</span>
+          <span class="mode-cursor" aria-hidden="true">▶</span>
+          <span class="mode-text">
+            <span class="mode-name">Festival Run</span>
+            <span class="mode-desc">Days get harder. Legends get made.</span>
+          </span>
         </button>
       </div>
 
@@ -263,8 +253,39 @@
       </div>
 
       <button id="start-btn" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
-      <button id="settings-open-title" class="settings-trigger" aria-label="Open settings" disabled>⚙ Settings</button>
-      <button id="board-open-title" class="board-link" type="button" aria-label="View the local leaderboard">🏆 Local legends</button>
+
+      <details id="how-to-play">
+        <summary>How to play</summary>
+        <div class="controls controls-kbd">
+          <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — drive Zerble</div>
+          <div><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd> — orbit/tilt camera</div>
+          <div><kbd>Shift</kbd> — boost</div>
+          <div><kbd>Space</kbd> — honk! (random bell or clown horn)</div>
+          <div><kbd>B</kbd> / <kbd>H</kbd> — bicycle bell / clown horn (specific)</div>
+          <div><kbd>V</kbd> — cycle chase / first-person / top-down view</div>
+          <div><kbd>↑</kbd> / <kbd>↓</kbd> in top-down — zoom in/out (or mouse wheel)</div>
+          <div><kbd>I</kbd> / <kbd>O</kbd> — eye glow brighter / dimmer</div>
+          <div><kbd>G</kbd> — hold for bubble blast (3× output)</div>
+          <div><kbd>M</kbd> — toggle MIDI music</div>
+        </div>
+
+        <div class="controls controls-touch">
+          <div><span class="tag-key">Left thumbstick</span> — drive Zerble</div>
+          <div><span class="tag-key">Drag the world</span> — orbit/tilt camera</div>
+          <div><span class="tag-key">Boost</span> — hold for extra speed</div>
+          <div><span class="tag-key">Honk</span> — tap for instant joy in a ring</div>
+          <div><span class="tag-key">Cam</span> — tap to cycle chase / first-person / top-down</div>
+        </div>
+
+        <p class="hint">Glide near festival-goers so they see your glowing eyes and bubbles. Avoid the puppet parade, the brass band, food trucks, gaggles of kids, and the wooks.</p>
+
+        <p class="hint">Bubbling runs on bubble juice — when you're running low, grab a glowing jug or pull up to a bubble vendor. (Just Cruisin' refills are always free; Festival Run vendors start charging smiles once the week gets going.)</p>
+      </details>
+
+      <div class="title-footer">
+        <button id="settings-open-title" class="settings-trigger" aria-label="Open settings" disabled>⚙ Settings</button>
+        <button id="board-open-title" class="board-link" type="button" aria-label="View the local leaderboard">🏆 Local legends</button>
+      </div>
     </div>
   </div>
 
