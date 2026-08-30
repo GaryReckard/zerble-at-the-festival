@@ -1,3 +1,15 @@
+/* Press Start 2P (latin subset, 6.7KB woff2) — self-hosted so the title
+   screen has no render-blocking third-party CSS and leaks no IPs to a font
+   CDN (same posture as the host-gated GA4). Font: "Press Start 2P" by
+   CodeMan38, SIL Open Font License 1.1. */
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('assets/fonts/press-start-2p.woff2') format('woff2');
+}
+
 :root {
   --warm: #ffd28a;
   --hot: #ff6f9c;
@@ -398,6 +410,7 @@ body {
 #toast {
   position: absolute;
   top: calc(80px + env(safe-area-inset-top, 0));
+  max-width: min(92vw, 560px);
   left: 50%;
   transform: translateX(-50%);
   background: rgba(28, 19, 48, 0.7);
@@ -631,6 +644,9 @@ body {
 
 #howto-back {
   justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
   background: rgba(255, 246, 230, 0.06);
   border: 1px solid rgba(255, 246, 230, 0.16);
   border-radius: 10px;
@@ -641,7 +657,7 @@ body {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(255, 246, 230, 0.85);
-  padding: 8px 12px;
+  padding: 8px 14px;
   transition: background 0.12s ease;
 }
 
@@ -733,6 +749,7 @@ kbd {
 .sputter-count.hidden,
 .vibe-status.hidden,
 .combo-status.hidden,
+.combo-heart.hidden,
 .board-tabs.hidden {
   display: none;
 }
@@ -911,6 +928,7 @@ kbd {
 #score-screen .card {
   width: min(440px, calc(100vw - 40px));
   max-height: calc(100vh - 60px);
+  max-height: calc(100dvh - 60px);
   overflow-y: auto;
   padding: 28px 30px;
   background: rgba(28, 19, 48, 0.92);
@@ -1356,8 +1374,12 @@ body.is-touch .controls-touch {
   .title-zerble { display: none; }   /* the marquee carries the brand here */
   .title-sub { font-size: 13px; }
   #title-card .tag { display: none; }   /* the marquee already says it */
+  .title-sub { display: none; }         /* ZERBLE alone carries it here */
   .mode-btn .mode-desc { display: none; }
-  .mode-btn { padding: 4px 12px; }
+  .mode-btn { padding: 4px 12px; min-height: 38px; }   /* stays tappable (A7) */
+  #mode-select { margin-bottom: 4px; }
+  #name-entry { margin-bottom: 4px; }
+  #boot-copy { margin-top: 2px; height: 13px; line-height: 13px; font-size: 10px; }
   #title-card h1 { margin: 0 0 2px; }
   /* .name-note stays at every size — it's the leaderboard privacy disclosure
      the player-identity spec requires next to the field. */
@@ -1391,6 +1413,14 @@ body.game-started #settings-gear { display: flex; }
 #settings-gear:hover { transform: translateY(-1px); }
 
 @media (max-width: 600px) {
+  /* The Festival rail can wrap to two rows here (~82px tall) — the toast
+     must clear it or the marshal warning covers the vibe meter it's warning
+     about (adversary A6). */
+  #toast {
+    top: calc(96px + env(safe-area-inset-top, 0));
+    font-size: 13px;
+  }
+
   #status-rail {
     top: calc(8px + env(safe-area-inset-top, 0));
     left: calc(8px + env(safe-area-inset-left, 0));
@@ -1426,10 +1456,18 @@ body.game-started #settings-gear { display: flex; }
     height: 11px;
   }
 
-  .juice-track { height: 8px; }
+  .juice-track { height: 8px; min-width: 56px; }
   .rsv-jug { display: none; }
 
-  .cycle-status,
+  /* The sputter countdown widens the chip instead of squeezing the juice bar
+     the player is anxiously watching (adversary A12). */
+  #juice-meter { width: auto; min-width: 100px; }
+
+  .cycle-status {
+    min-width: 36px;   /* NOT width — the Day label widens it (review 001 A4) */
+    padding: 0 4px;
+  }
+
   .lurleen-status {
     width: 36px;
   }

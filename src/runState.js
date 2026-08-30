@@ -23,6 +23,9 @@ const R = {
   rescueUsed: false,
   over: false,
   cause: null,       // 'ran_dry' | 'vibed_out'
+  // Sputter-frown governor (adversary A1) — reset each time sputter arms.
+  sputterVibeAccum: 0,
+  lastSputterStrikeAt: -Infinity,
 };
 
 const JUICE_DRY_EPS = 0.02;   // matches main.js's empty-tank edge detect
@@ -43,6 +46,7 @@ export const RunState = {
     R.sputter = false; R.sputterLeft = 0;
     R.vibe = 0; R.vibeWarned = false;
     R.rescueUsed = false; R.over = false; R.cause = null;
+    R.sputterVibeAccum = 0; R.lastSputterStrikeAt = -Infinity;
   },
 
   end() { R.active = false; },
@@ -72,6 +76,8 @@ export const RunState = {
       if (!dry) return null;
       R.sputter = true;
       R.sputterLeft = SPUTTER_GRACE_SEC;
+      R.sputterVibeAccum = 0;               // fresh governor per grace window
+      R.lastSputterStrikeAt = -Infinity;
       return 'start';
     }
     if (!dry) {
@@ -104,6 +110,28 @@ export const RunState = {
     if (!R.active || R.over || !limits) return null;
     R.vibe += weight;
     if (R.vibe >= limits.eject) return 'eject';
+    if (!R.vibeWarned && R.vibe >= limits.warn) {
+      R.vibeWarned = true;
+      return 'warn';
+    }
+    return null;
+  },
+
+  // Frown strike during the sputter grace (Q6a, governed per adversary A1):
+  // cooldown-spaced, and the sputter-sourced TOTAL is capped at
+  // sputterVibeCapFrac of the ejection limit — the crowd can pressure a dry
+  // cart toward the line but never eject it alone. Cap and cooldown reset
+  // each time sputter re-arms (tickSputter 'start').
+  addSputterStrike(weight, limits) {
+    if (!R.active || R.over || !limits || !R.sputter) return null;
+    if (R.clock - R.lastSputterStrikeAt < VIBE.sputterStrikeCooldown) return null;
+    const cap = limits.eject * VIBE.sputterVibeCapFrac;
+    const w = Math.min(weight, Math.max(0, cap - R.sputterVibeAccum));
+    if (w <= 0) return null;
+    R.lastSputterStrikeAt = R.clock;
+    R.sputterVibeAccum += w;
+    R.vibe += w;
+    // Deliberately no eject branch: sputter frowns alone never end the run.
     if (!R.vibeWarned && R.vibe >= limits.warn) {
       R.vibeWarned = true;
       return 'warn';

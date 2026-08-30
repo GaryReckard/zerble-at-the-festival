@@ -20,12 +20,14 @@ function assert(condition, message) {
 // --- Mock KV (Map-backed; TTLs accepted and ignored) ---
 function mockKV() {
   const m = new Map();
-  return {
+  const kv = {
+    puts: 0,
     async get(k) { return m.has(k) ? m.get(k) : null; },
-    async put(k, v) { m.set(k, String(v)); },
+    async put(k, v) { kv.puts++; m.set(k, String(v)); },
     async delete(k) { m.delete(k); },
     _map: m,
   };
+  return kv;
 }
 
 const env = {
@@ -37,6 +39,7 @@ const env = {
   STAR_ALLOWANCE: '1.5',
   SAFETY: '1.5',
   OUTLIER_SCORE: '100000',
+  BEAT_MIN_S: '0',   // tests beat rapid-fire; the cadence gate gets its own case
 };
 
 const BASE = 'https://board.test';
@@ -161,6 +164,47 @@ res = await worker.fetch(new Request(BASE + '/run/end', {
   body: JSON.stringify({ ...beaconTok, score: 33, day: 1, name: 'Beacon' }),
 }), env);
 assert(res.status === 204, 'text/plain (sendBeacon) body accepted');
+
+// ---- KV write frugality (adversary A2: the free tier is 1,000 writes/day) ----
+{
+  res = await call('POST', '/run/start', {});
+  const t = await res.json();
+  await call('POST', '/run/beat', { ...t, score: 100, day: 1, name: 'Frugal' });
+  // No-change beat: zero writes.
+  let before = env.BOARD_KV.puts;
+  res = await call('POST', '/run/beat', { ...t, score: 100, day: 1, name: 'Frugal' });
+  assert(res.status === 204, 'no-change beat still 204');
+  assert(env.BOARD_KV.puts === before, `no-change beat writes nothing (was ${before}, now ${env.BOARD_KV.puts})`);
+  // Sub-threshold high-water move: run record only (1 put), no board fold.
+  before = env.BOARD_KV.puts;
+  res = await call('POST', '/run/beat', { ...t, score: 110, day: 1, name: 'Frugal' });
+  assert(res.status === 204 && env.BOARD_KV.puts === before + 1,
+    `small hw move writes only the run record (+${env.BOARD_KV.puts - before})`);
+  let b = await (await call('GET', '/board?range=all')).json();
+  assert(b.entries.find((e) => e.name === 'Frugal').score === 100,
+    'board holds the last FOLDED value between folds');
+  // Crossing the fold step: run + both boards.
+  res = await call('POST', '/run/beat', { ...t, score: 140, day: 1, name: 'Frugal' });
+  b = await (await call('GET', '/board?range=all')).json();
+  assert(b.entries.find((e) => e.name === 'Frugal').score === 140, 'fold-step jump refolds the board');
+  // A final ALWAYS folds, even from a sub-threshold move.
+  res = await call('POST', '/run/end', { ...t, score: 145, day: 1, name: 'Frugal', cause: 'ran_dry' });
+  b = await (await call('GET', '/board?range=all')).json();
+  assert(b.entries.find((e) => e.name === 'Frugal').score === 145, 'final folds regardless of step');
+  // Cadence gate: with BEAT_MIN_S raised, a rapid second beat writes nothing.
+  const envSlow = { ...env, BEAT_MIN_S: '30' };
+  const r2 = await worker.fetch(new Request(BASE + '/run/start', { method: 'POST', body: '{}' }), envSlow);
+  const t2 = await r2.json();
+  await worker.fetch(new Request(BASE + '/run/beat', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...t2, score: 50, day: 1, name: 'Cadence' }) }), envSlow);
+  before = env.BOARD_KV.puts;
+  const r3 = await worker.fetch(new Request(BASE + '/run/beat', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...t2, score: 90, day: 1, name: 'Cadence' }) }), envSlow);
+  assert(r3.status === 204 && env.BOARD_KV.puts === before,
+    'inside-cadence beat is acknowledged but writes nothing');
+}
 
 // Fail CLOSED: a deploy that skipped `wrangler secret put SIGNING_SECRET`
 // must 500, not silently sign with the literal string "undefined".

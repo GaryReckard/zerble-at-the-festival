@@ -44,7 +44,17 @@ export const COMBO = Object.freeze({
 });
 
 // Vibe meter (design.md D6): strikes decay one per 15s.
-export const VIBE = Object.freeze({ hitStrike: 1, frownStrike: 0.5, decayPerSec: 1 / 15 });
+// sputterStrikeCooldown / sputterVibeCapFrac govern frown strikes DURING the
+// dry-tank grace window (adversary A1): unmetered, a crowd's frowns near a hub
+// were mathematically certain to eject a dry cart before the 45s grace expired
+// (10 frowns at Day 5 vs ~1s/frown per NPC in range), collapsing the two-death
+// design. The cooldown spaces them; the cap means sputter frowns alone can
+// pressure the meter to 40% of ejection but never eject — only a cart that
+// ALSO hit people goes out by marshal during the grace.
+export const VIBE = Object.freeze({
+  hitStrike: 1, frownStrike: 0.5, decayPerSec: 1 / 15,
+  sputterStrikeCooldown: 4, sputterVibeCapFrac: 0.4,
+});
 
 export const SPUTTER_GRACE_SEC = 45;
 

@@ -578,7 +578,14 @@ crowd.onFrown = () => {
   // load-bearing and gives the grace window a route choice (limp through
   // the crowd = risky, limp through open ground = safe).
   if (RunState.active && RunState.sputter) {
-    applyVibeStrike(VIBE.frownStrike);
+    // Governed (cooldown + capped — see runState.addSputterStrike / adversary
+    // A1): the crowd pressures a dry cart but can never eject it alone, and
+    // the whistle copy stops accusing a player who hit nobody.
+    const ev = RunState.addSputterStrike(VIBE.frownStrike, RunMode.config.vibeLimits(RunState.day));
+    if (ev === 'warn') {
+      Sound.playMarshalWhistle();
+      HUD.toast('The marshals eye your sputtering cart — the crowd is souring…', 2800);
+    }
     return;
   }
   if (Scoring.current <= 0) return;
@@ -665,7 +672,11 @@ Settings.init({
   // Returns null on the title card (nothing to resume) → a fresh boot.
   captureState: () => running
     ? { seed: window.__seed, x: zerble.position.x, z: zerble.position.z,
-        heading: zerble.heading, score: Scoring.current, scoring: Scoring.serialize(),
+        // A dead run's score must not ride a snapshot into the next run
+        // (adversary A11) — null BOTH scoring fields, matching `run` below.
+        heading: zerble.heading,
+        score: RunState.over ? null : Scoring.current,
+        scoring: RunState.over ? null : Scoring.serialize(),
         mode: RunMode.name, run: RunState.over ? null : RunState.serialize(),
         board: Leaderboard.serializeGlobal(),   // Worker token rides the resume (review 001)
         juice: bubbles.juice, tod: getTimeOfDay()?.t }

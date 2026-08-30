@@ -26,6 +26,7 @@ const env = {
   STAR_ALLOWANCE: '1.5',
   SAFETY: '1.5',
   OUTLIER_SCORE: '100000',
+  BEAT_MIN_S: '0',   // drills beat rapid-fire; production default is 8s
 };
 
 http.createServer(async (req, res) => {

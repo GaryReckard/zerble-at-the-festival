@@ -17,6 +17,7 @@
     "test:runstate": "bin/test-run-state",
     "test:jugfilter": "bin/test-jug-filter",
     "test:board": "bin/test-leaderboard-worker",
+    "drill:stakes": "bin/drill-stakes",
     "test:farfield": "bin/test-far-field",
     "lint:layout": "bin/lint"
   }

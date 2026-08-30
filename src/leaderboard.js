@@ -72,6 +72,7 @@ let _run = null;                     // {runId, startTs, sig} from /run/start
 let _runDone = false;
 let _lastBeat = { at: 0, hw: 0, day: 0 };
 let _latest = null;                  // freshest state, for the pagehide beacon
+let _pendingFinal = null;            // a death that beat the /run/start token
 let _beaconHooked = false;
 
 async function post(path, body, timeoutMs = 4000) {
@@ -91,19 +92,34 @@ async function post(path, body, timeoutMs = 4000) {
   }
 }
 
+let _lastBeaconAt = 0;
+
+function sendStateBeacon() {
+  if (!_run || _runDone || !_latest || !navigator.sendBeacon) return;
+  // visibilitychange + pagehide can fire back-to-back — one beacon per burst.
+  const now = Date.now();
+  if (now - _lastBeaconAt < 10000) return;
+  _lastBeaconAt = now;
+  // Beacon a BEAT, never an end: these events also fire on mobile app-switch /
+  // bfcache entry, and /run/end would close the run server-side forever —
+  // freezing the score of a player who merely backgrounded the tab (review
+  // 001). Beats upsert the board entry, which is the whole "a killed tab
+  // still records" guarantee, while leaving the run open for a return.
+  // sendBeacon can't set JSON headers — the Worker parses text/plain bodies.
+  navigator.sendBeacon(GLOBAL_BOARD_URL + '/run/beat',
+    JSON.stringify({ ..._run, ..._latest }));
+}
+
 function hookBeacon() {
   if (_beaconHooked || typeof window === 'undefined') return;
   _beaconHooked = true;
-  window.addEventListener('pagehide', () => {
-    if (!_run || _runDone || !_latest || !navigator.sendBeacon) return;
-    // Beacon a BEAT, never an end: pagehide also fires on mobile app-switch /
-    // bfcache entry, and /run/end would close the run server-side forever —
-    // freezing the score of a player who merely backgrounded the tab (review
-    // 001). Beats upsert the board entry, which is the whole "a killed tab
-    // still records" guarantee, while leaving the run open for a return.
-    // sendBeacon can't set JSON headers — the Worker parses text/plain bodies.
-    navigator.sendBeacon(GLOBAL_BOARD_URL + '/run/beat',
-      JSON.stringify({ ..._run, ..._latest }));
+  // BOTH events, mirroring main.js's session_end pattern: iOS Safari does not
+  // reliably fire pagehide on app-switch, but does fire visibilitychange →
+  // hidden (adversary A3 — pagehide-only was the one event the target
+  // platform skips).
+  window.addEventListener('pagehide', sendStateBeacon);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') sendStateBeacon();
   });
 }
 
@@ -114,17 +130,28 @@ export const Leaderboard = {
   globalEnabled() { return !!GLOBAL_BOARD_URL; },
 
   // Fire at Festival Run start. Async and unawaited by design: until (unless)
-  // the token lands, heartbeats no-op and the run is local-only.
+  // the token lands, heartbeats no-op and the run is local-only. A final that
+  // arrives while the token is still in flight (fast death + slow network —
+  // seen for real under load, and exactly the cellular case) is QUEUED and
+  // flushed the moment the token resolves, so the run's score isn't lost to
+  // the race.
   globalRunStart() {
     if (!this.globalEnabled()) return;
-    _run = null; _runDone = false; _latest = null;
+    _run = null; _runDone = false; _latest = null; _pendingFinal = null;
     _lastBeat = { at: 0, hw: 0, day: 0 };
     hookBeacon();
     post('/run/start', {}).then(async (res) => {
       if (!res || !res.ok) return;
       try {
         const tok = await res.json();
-        if (tok && tok.runId && tok.sig) _run = tok;
+        if (tok && tok.runId && tok.sig) {
+          _run = tok;
+          if (_pendingFinal) {
+            const f = _pendingFinal;
+            _pendingFinal = null;
+            this.globalFinal(f);
+          }
+        }
       } catch (err) { /* local-only run */ }
     });
   },
@@ -143,9 +170,11 @@ export const Leaderboard = {
     post('/run/beat', { ..._run, ..._latest });
   },
 
-  // Final submit at run end. The run token is spent either way.
+  // Final submit at run end. The run token is spent either way; with no token
+  // yet, the final parks until globalRunStart's fetch resolves.
   globalFinal({ score = 0, day = 1, name = '', cause = '' } = {}) {
-    if (!_run || _runDone) return;
+    if (_runDone) return;
+    if (!_run) { _pendingFinal = { score, day, name, cause }; return; }
     _runDone = true;
     post('/run/end', { ..._run, score: Math.floor(score), day, name, cause });
   },

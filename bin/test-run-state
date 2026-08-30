@@ -69,6 +69,43 @@ assert(RunState.addStrike(4, limits) === 'warn', 'warning re-armed after cooling
 // Frown strikes weigh half a hit.
 assert(VIBE.frownStrike === VIBE.hitStrike / 2, 'frown = half a hit strike');
 
+// --- Sputter-frown governor (adversary A1): the crowd can pressure a dry
+// cart but NEVER eject it alone. ---
+RunState.begin();
+RunState.tickSputter(0.1, 0);                      // arm sputter (juice 0)
+assert(RunState.sputter === true, 'governor test: sputter armed');
+// Hammer strikes far faster than the cooldown allows, well past the eject
+// limit's worth of frowns: the cap must hold the total at capFrac * eject.
+let ev = null;
+for (let i = 0; i < 60; i++) {
+  const r = RunState.addSputterStrike(VIBE.frownStrike, limits);
+  if (r === 'warn') ev = 'warn';
+  assert(r !== 'eject', 'sputter frowns never return eject');
+  RunState.tickDay(VIBE.sputterStrikeCooldown, null);   // advance run clock past cooldown
+  RunState.tickSputter(0.001, 0);                       // stay dry, keep sputter alive
+}
+const cap = limits.eject * VIBE.sputterVibeCapFrac;
+assert(RunState.vibe <= cap + 1e-9,
+  `sputter-sourced vibe capped at ${cap}, got ${RunState.vibe}`);
+assert(RunState.vibe >= cap - VIBE.frownStrike - 1e-9, 'cap is actually reached, not undershot');
+// Cooldown: two immediate strikes = one landing.
+RunState.begin();
+RunState.tickSputter(0.1, 0);
+RunState.addSputterStrike(VIBE.frownStrike, limits);
+const v1 = RunState.vibe;
+RunState.addSputterStrike(VIBE.frownStrike, limits);
+assert(RunState.vibe === v1, 'second strike inside the cooldown is dropped');
+// Refill + re-dry resets the governor for the next grace window.
+RunState.tickSputter(0.1, 1.0);                    // 'end' — tank refilled
+RunState.tickDay(VIBE.sputterStrikeCooldown + 1, null);
+RunState.tickSputter(0.1, 0);                      // re-armed
+RunState.addSputterStrike(VIBE.frownStrike, limits);
+assert(RunState.vibe > v1, 'a fresh grace window accepts strikes again');
+// Hits still eject during sputter — the governor only covers frown strikes.
+RunState.debugSetVibe(limits.eject - 0.5);
+assert(RunState.addStrike(VIBE.hitStrike, limits) === 'eject',
+  'a real hit during sputter can still eject');
+
 // --- endRun latches; nothing moves after death. ---
 assert(RunState.endRun('ran_dry') === true, 'endRun succeeds once');
 assert(RunState.endRun('vibed_out') === false, 'a dead run stays dead');

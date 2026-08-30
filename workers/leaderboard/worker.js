@@ -168,12 +168,47 @@ async function applySubmission(env, body, now, { final = false } = {}) {
   if (!v.run) return v.reason;
 
   const run = v.run;
+
+  // ---- KV write budget (adversary A2) ----
+  // The free tier allows 1,000 writes/day; unmetered, every heartbeat cost
+  // 4-6 writes and ~8 honest runs (or one hostile token in ~4 minutes)
+  // drained the quota into silent failure. Three gates, all read-only when
+  // they trigger:
+  //   cadence — beats inside BEAT_MIN_S of the last accepted one are
+  //     acknowledged (204, the client is fire-and-forget) but write nothing.
+  //     Default 8s sits under the client's 10s milestone floor.
+  //   no-change — a beat that moves neither high-water, day, nor name writes
+  //     nothing (an idle player costs zero writes).
+  //   per-run cap — a token stops writing after MAX_RUN_WRITES accepted
+  //     state changes, bounding what a replayed token can ever cost.
+  const beatMinMs = num(env.BEAT_MIN_S, 8) * 1000;
+  if (!final && run.seen && now - run.seen < beatMinMs) return null;
+  const prevHw = num(run.hw, 0);
+  const prevDay = num(run.day, 1);
+  const sameName = body.name == null || sanitizeName(body.name) === run.name;
+  if (!final && v.score === prevHw && v.day === prevDay && sameName) return null;
+  run.w = num(run.w, 0) + 1;
+  if (run.w > num(env.MAX_RUN_WRITES, 600)) return 'beat_cap';
+
   run.hw = v.score;
   run.day = v.day;
   run.name = sanitizeName(body.name ?? run.name);
   run.seen = now;
   if (final) { run.done = true; run.cause = String(body.cause || '').slice(0, 24); }
+
+  // Board folds are the expensive half (2 read-modify-writes) — fold only on
+  // real movement: a final, a day crossing, a FOLD_HW_STEP high-water jump,
+  // or FOLD_MAX_MIN minutes since the last fold. Between folds the run
+  // record stays authoritative and the board entry is at most a few smiles
+  // stale — "a killed tab still records" degrades gracefully, never breaks.
+  const fold = final
+    || v.day > prevDay
+    || v.score - num(run.foldHw, 0) >= num(env.FOLD_HW_STEP, 25)
+    || now - num(run.foldAt, 0) > num(env.FOLD_MAX_MIN, 5) * 60000;
+  if (fold) { run.foldHw = v.score; run.foldAt = now; }
+
   await env.BOARD_KV.put(`run:${body.runId}`, JSON.stringify(run), { expirationTtl: RUN_TTL_S });
+  if (!fold) return null;
 
   const entry = {
     runId: body.runId,
@@ -232,7 +267,10 @@ export default {
     }
 
     if (request.method === 'POST' && (path === '/run/beat' || path === '/run/end')) {
-      if (!(await rateLimit(env, `beat:${ip}`, 60))) return json({ error: 'rate' }, 429);
+      // No KV rate-limit counter here — it cost a WRITE per request, which is
+      // the very budget it was guarding (adversary A2). Beats are already
+      // sig-gated, cadence-gated, no-change-gated, and per-run write-capped
+      // inside applySubmission; those bound hostile cost at zero writes.
       const reason = await applySubmission(env, await readBody(request), now,
         { final: path === '/run/end' });
       // Fire-and-forget client: a rejection is a 4xx it will ignore; the

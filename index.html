@@ -60,11 +60,9 @@
   <meta name="twitter:title" content="Zerble at the Festival" />
   <meta name="twitter:description" content="Bring the bubbles, collect the smiles." />
   <meta name="twitter:image" content="https://garyreckard.github.io/zerble-at-the-festival/assets/zerble.png" />
-  <!-- Title-screen pixel face (falls back to bold system sans if the CDN is
-       unreachable — nothing functional depends on it). -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" />
+  <!-- The title-screen pixel face is self-hosted (see the @font-face at the
+       top of styles.css) — no third-party font CSS in the critical path. -->
+  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
   <script>
     // Dev cache-buster: inject importmap + main script with a per-load query string.
@@ -336,11 +334,19 @@
         phrase = (phrase + 1) % phrases.length;
         copy.textContent = phrases[phrase];
       }, 1300);
+      // A dead boot (CDN blocked, module 404) must not smile forever — after
+      // 20s of no ready(), trade the whimsy for a way out (adversary A12).
+      const stuck = setTimeout(function () {
+        if (ready) return;
+        clearInterval(timer);
+        copy.textContent = "Something's stuck — try reloading?";
+      }, 20000);
       window.__zerbleBootLoader = {
         ready: function () {
           if (ready) return;
           ready = true;
           clearInterval(timer);
+          clearTimeout(stuck);
           copy.textContent = 'Bubble pressure: magnificent.';
           setTimeout(function () {
             copy.classList.add('is-done');

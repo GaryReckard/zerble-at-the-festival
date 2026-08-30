@@ -992,7 +992,10 @@ function refreshMidiPanel() {
 
 function bindKeys() {
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Backquote') {
+    // Same input-field guard as KeyT/KeyK below: a player typing a backtick
+    // into the title card's name field must not be handed the debug overlay
+    // (Easter eggs stay discovered, not revealed).
+    if (e.code === 'Backquote' && !e.target.matches('input, textarea, select')) {
       e.preventDefault();
       window.__debug.toggle();
     }
