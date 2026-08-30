@@ -1,9 +1,9 @@
 ---
 change: festival-run-stakes
-open: 5
+open: 4
 answered: 0
-last_question: Q5
-last_answer: null
+last_question: Q6
+last_answer: Q6
 ---
 
 # Questions for Human: festival-run-stakes
@@ -44,3 +44,9 @@ last_answer: null
 **Impact:** Only tuning ergonomics — the table is one edit either way. Proceeding with the draft table + `__dbg` overrides.
 
 ## Answered Questions
+
+### Q6: Frown vibe-strike during sputter — dead knobs or live strike?
+**Date:** 2026-08-29
+**Context:** Review 001 (gameplay/Opus) proved the frown vibe-strike, the `frownMult` ramp column, and `crowd.frownRateMult` were all mechanically unreachable: frowns only fire while the tank is dry, dryness always means sputter in Festival Run, and sputter suppressed every frown consequence per the council's "no pile-on."
+**Question:** (a) land the half-weight vibe strike even during sputter (knobs become real; softens "no pile-on"), or (b) delete the three dead knobs and keep frowns pure flavor?
+**Answer (Gary, 2026-08-29):** Option (a). Implemented: sputtering frowns land `VIBE.frownStrike` with no smile tax — the "no pile-on" protection stays on the wallet, the marshals watch the crowd. Gives the 45s grace window a route choice (limping through a crowd is risky, open ground is safe).

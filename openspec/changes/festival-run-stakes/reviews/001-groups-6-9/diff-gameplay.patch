@@ -1,0 +1,1548 @@
+diff --git a/bin/test-jug-filter b/bin/test-jug-filter
+new file mode 100755
+index 0000000..fda7eec
+--- /dev/null
++++ b/bin/test-jug-filter
+@@ -0,0 +1,67 @@
++#!/usr/bin/env node
++// bin/test-jug-filter — the day-ramp jug scarcity filter (festival-run-stakes
++// design D3). The filter is a pure position-hashed keep/drop over
++// already-generated jug placements; the determinism-critical properties are:
++// unfiltered by default (Cruisin'/sandboxes never see it), deterministic per
++// position, and MONOTONE — a harder day's jugs are a strict subset of an
++// easier day's, so the same world never "shuffles" its jugs as days pass.
++// (Draw-count parity with the seeded worldgen streams is a chunks.js call-site
++// property — verified in-browser by the invariance drill, not simulatable
++// here without three.js.)
++
++const { jugKeptAt, setJugKeepFraction, getJugKeepFraction, rampRow } =
++  await import('../src/runMode.js');
++
++function assert(condition, message) {
++  if (!condition) {
++    process.stderr.write(`FAIL: ${message}\n`);
++    process.exit(1);
++  }
++}
++
++// Default is unfiltered — hub-sandbox/map-sandbox/Cruisin' never call the setter.
++assert(getJugKeepFraction() === 1.0, 'module default keep-fraction is 1.0');
++for (let i = 0; i < 50; i++) {
++  assert(jugKeptAt(i * 137.3 - 3000, i * 71.9 - 2000), 'frac 1.0 keeps every jug');
++}
++
++// Setter clamps nonsense instead of exploding mid-frame.
++assert(setJugKeepFraction(1.7) === 1.0, 'clamps above 1');
++assert(setJugKeepFraction(-2) === 0.0, 'clamps below 0');
++assert(setJugKeepFraction(NaN) === 1.0, 'NaN resets to unfiltered');
++assert(setJugKeepFraction(0.55) === 0.55, 'in-range passes through');
++setJugKeepFraction(1.0);
++
++// Deterministic per position: same (x, z, frac) always answers the same.
++for (let i = 0; i < 200; i++) {
++  const x = Math.sin(i) * 4000, z = Math.cos(i * 1.7) * 4000;
++  assert(jugKeptAt(x, z, 0.4) === jugKeptAt(x, z, 0.4), `deterministic at (${x},${z})`);
++}
++
++// Monotone subset: kept at the day-5 fraction ⇒ kept at every easier day's
++// fraction. This is what makes the ramp feel like scarcity, not reshuffling.
++const fracs = [1, 2, 3, 4, 5].map((d) => rampRow(d).jugKeep);
++let dropped = 0, kept5 = 0;
++for (let i = 0; i < 5000; i++) {
++  const x = (i % 71) * 83.1 - 2900, z = Math.floor(i / 71) * 97.7 - 3400;
++  let prevKept = true;
++  for (const f of fracs) {
++    const k = jugKeptAt(x, z, f);
++    assert(!(k && !prevKept), `subset violated at (${x},${z}) frac ${f}`);
++    prevKept = k;
++  }
++  if (!jugKeptAt(x, z, fracs[4])) dropped++; else kept5++;
++}
++assert(kept5 > 0 && dropped > 0, 'day-5 fraction both keeps and drops');
++
++// The keep rate lands near the requested fraction (hash is uniform-ish).
++const rate5 = kept5 / 5000;
++assert(Math.abs(rate5 - fracs[4]) < 0.05,
++  `day-5 keep rate ~${fracs[4]}, measured ${rate5.toFixed(3)}`);
++
++// Sub-meter jitter maps to the same rounded cell — a jug can't flicker in and
++// out because a float wobbled (chunks.js hands in raw scatter floats).
++assert(jugKeptAt(100.2, 200.4, 0.3) === jugKeptAt(99.8, 199.6, 0.3),
++  'rounding gives stable cells');
++
++process.stdout.write('OK bin/test-jug-filter — default-off, determinism, day-subset monotonicity hold\n');
+diff --git a/bin/test-leaderboard-worker b/bin/test-leaderboard-worker
+new file mode 100755
+index 0000000..af260d7
+--- /dev/null
++++ b/bin/test-leaderboard-worker
+@@ -0,0 +1,170 @@
++#!/usr/bin/env node
++// bin/test-leaderboard-worker — drives the Cloudflare Worker's fetch() handler
++// in plain node with a mock KV: no wrangler, no deploy, no network. Covers the
++// full protocol end-to-end (start → sig checks → beats → killed-tab persistence
++// → end → board reads → sanitation → ceiling worked example → admin delete)
++// per tasks 8.2 + 8.5 of festival-run-stakes. crypto.subtle + Request/Response
++// are native in node 18+.
++
++const workerMod = await import('../workers/leaderboard/worker.js');
++const worker = workerMod.default;
++const { sanitizeName, ceilingFor, FALLBACK_NAME } = workerMod;
++
++function assert(condition, message) {
++  if (!condition) {
++    process.stderr.write(`FAIL: ${message}\n`);
++    process.exit(1);
++  }
++}
++
++// --- Mock KV (Map-backed; TTLs accepted and ignored) ---
++function mockKV() {
++  const m = new Map();
++  return {
++    async get(k) { return m.has(k) ? m.get(k) : null; },
++    async put(k, v) { m.set(k, String(v)); },
++    async delete(k) { m.delete(k); },
++    _map: m,
++  };
++}
++
++const env = {
++  BOARD_KV: mockKV(),
++  SIGNING_SECRET: 'test-secret',
++  ADMIN_KEY: 'test-admin',
++  BASE_SMILES_PER_MIN: '40',
++  MAX_MULTIPLIER: '8',
++  STAR_ALLOWANCE: '1.5',
++  SAFETY: '1.5',
++  OUTLIER_SCORE: '100000',
++};
++
++const BASE = 'https://board.test';
++const call = (method, path, body, headers = {}) =>
++  worker.fetch(new Request(BASE + path, {
++    method,
++    headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.7', ...headers },
++    body: body === undefined ? undefined : JSON.stringify(body),
++  }), env);
++
++// --- Pure helpers first ---
++assert(sanitizeName('Gary') === 'Gary', 'clean name passes');
++assert(sanitizeName('') === FALLBACK_NAME, 'blank → fallback');
++assert(sanitizeName('   ') === FALLBACK_NAME, 'whitespace → fallback');
++assert(sanitizeName('sh.it_head') === FALLBACK_NAME, 'separator-dodged profanity → fallback');
++assert(sanitizeName('F U C K') === FALLBACK_NAME, 'spaced profanity → fallback');
++assert(sanitizeName('x'.repeat(60)).length <= 20, 'length clamped');
++assert(sanitizeName('<img src=x>') === 'img srcx', 'markup characters stripped');
++
++// Ceiling worked example (design D8): a legit x8 max-rate run passes, a
++// beyond-formula run is rejected. 10 min at 40/min × 8 × 1.5 × 1.5 = 7200.
++assert(ceilingFor(env, 10) === 7200, `worked example: ceiling(10min) = 7200, got ${ceilingFor(env, 10)}`);
++
++// --- Protocol e2e ---
++// Start
++let res = await call('POST', '/run/start', {});
++assert(res.status === 200, `start → 200, got ${res.status}`);
++const tok = await res.json();
++assert(tok.runId && tok.sig && Number.isFinite(tok.startTs), 'start returns runId/startTs/sig');
++
++// Forged sig rejected
++res = await call('POST', '/run/beat', { ...tok, sig: 'f'.repeat(64), score: 10, day: 1 });
++assert(res.status === 400 && (await res.json()).error === 'bad_sig', 'forged sig → bad_sig');
++
++// Unknown run rejected (valid-shaped but never started)
++res = await call('POST', '/run/beat', { runId: 'nope', startTs: tok.startTs, sig: tok.sig, score: 1, day: 1 });
++assert(res.status === 400, 'unknown/forged run rejected');
++
++// Legit heartbeat lands on the board (killed-tab persistence: NO /run/end yet)
++res = await call('POST', '/run/beat', { ...tok, score: 120, day: 1, name: 'Gary' });
++assert(res.status === 204, `beat → 204, got ${res.status}`);
++res = await call('GET', '/board?range=all');
++let board = await res.json();
++assert(board.entries.length === 1 && board.entries[0].name === 'Gary'
++  && board.entries[0].score === 120, 'heartbeat alone stands as the board entry');
++assert(!('runId' in board.entries[0]), 'board read never leaks runIds');
++
++// Monotonic high-water: a lower later beat keeps the max
++res = await call('POST', '/run/beat', { ...tok, score: 40, day: 1, name: 'Gary' });
++assert(res.status === 204, 'lower beat accepted (clamped)');
++board = await (await call('GET', '/board?range=all')).json();
++assert(board.entries[0].score === 120, 'high-water is monotonic');
++
++// Implausible rate rejected: fresh run claiming a huge score in ~0 elapsed.
++res = await call('POST', '/run/start', {});
++const cheat = await res.json();
++res = await call('POST', '/run/beat', { ...cheat, score: 999999, day: 1, name: 'Cheater' });
++assert(res.status === 400 && (await res.json()).error === 'implausible_rate',
++  'beyond-ceiling score → implausible_rate');
++
++// Implausible day: day 30 in the first minute.
++res = await call('POST', '/run/start', {});
++const dayCheat = await res.json();
++res = await call('POST', '/run/beat', { ...dayCheat, score: 10, day: 30 });
++assert(res.status === 400 && (await res.json()).error === 'implausible_day',
++  'day outrunning elapsed time → implausible_day');
++
++// Final submit: hostile name sanitized, run closed to further beats.
++// day stays 1 — the day-vs-elapsed guard (correctly) rejects a day-2 claim
++// seconds after /run/start; day progression under real elapsed time is the
++// guard's own test above.
++res = await call('POST', '/run/end', { ...tok, score: 150, day: 1, name: 'sh.it_head', cause: 'ran_dry' });
++assert(res.status === 204, 'end → 204');
++board = await (await call('GET', '/board?range=all')).json();
++assert(board.entries[0].name === FALLBACK_NAME && board.entries[0].score === 150,
++  'final entry sanitized + updated');
++res = await call('POST', '/run/beat', { ...tok, score: 5000, day: 1 });
++assert(res.status === 400 && (await res.json()).error === 'finished_run',
++  'a finished run accepts no more beats');
++
++// Daily board sees the same entry; both ranges independent arrays.
++board = await (await call('GET', '/board?range=daily')).json();
++assert(board.range === 'daily' && board.entries.length >= 1, 'daily board populated');
++
++// Quarantine: plausible-rate but above OUTLIER_SCORE never renders publicly.
++// (Long elapsed → generous ceiling: fake an old startTs with a fresh sig — the
++// server signs startTs at /run/start, so build it through KV like a real old run.)
++{
++  const res2 = await call('POST', '/run/start', {});
++  const old = await res2.json();
++  const raw = JSON.parse(await env.BOARD_KV.get(`run:${old.runId}`));
++  raw.startTs = old.startTs;   // run record keeps its own startTs
++  await env.BOARD_KV.put(`run:${old.runId}`, JSON.stringify(raw));
++  // 100000 in 10 hours = 167/min — under the 7200/min-equivalent ceiling?
++  // ceiling(600min) = 4.32M, so it passes rate but crosses OUTLIER_SCORE.
++  const shifted = { ...old, startTs: old.startTs };   // sig binds startTs; keep both
++  // simulate elapsed time by calling with the same token later — mock now is
++  // real Date.now(), so instead lower the outlier bar for this check:
++  const envLow = { ...env, OUTLIER_SCORE: '140' };
++  const r = await worker.fetch(new Request(BASE + '/run/beat', {
++    method: 'POST', headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({ ...shifted, score: 145, day: 1, name: 'Sus' }),
++  }), envLow);
++  assert(r.status === 204, 'outlier-range beat accepted for review');
++  const b = await (await worker.fetch(new Request(BASE + '/board?range=all'), envLow)).json();
++  assert(!b.entries.some((e) => e.name === 'Sus'), 'quarantined entry hidden from board');
++}
++
++// Admin delete: wrong key refused; right key removes the entry everywhere.
++res = await call('DELETE', '/admin/entry', { runId: tok.runId }, { Authorization: 'Bearer wrong' });
++assert(res.status === 401, 'bad admin key → 401');
++res = await call('DELETE', '/admin/entry', { runId: tok.runId }, { Authorization: 'Bearer test-admin' });
++assert(res.status === 204, 'admin delete → 204');
++board = await (await call('GET', '/board?range=all')).json();
++assert(!board.entries.some((e) => e.score === 150), 'deleted entry gone from board');
++
++// sendBeacon shape: text/plain body still parses.
++res = await worker.fetch(new Request(BASE + '/run/start', { method: 'POST', body: '{}' }), env);
++const beaconTok = await res.json();
++res = await worker.fetch(new Request(BASE + '/run/end', {
++  method: 'POST', headers: { 'Content-Type': 'text/plain' },
++  body: JSON.stringify({ ...beaconTok, score: 33, day: 1, name: 'Beacon' }),
++}), env);
++assert(res.status === 204, 'text/plain (sendBeacon) body accepted');
++
++// CORS preflight
++res = await call('OPTIONS', '/run/beat');
++assert(res.status === 204 && res.headers.get('Access-Control-Allow-Origin') === '*',
++  'preflight answered with CORS');
++
++process.stdout.write('OK bin/test-leaderboard-worker — protocol e2e, sig binding, ceiling worked example, monotonic HW, killed-tab persistence, sanitation, quarantine, admin delete all hold\n');
+diff --git a/bin/test-run-state b/bin/test-run-state
+new file mode 100755
+index 0000000..5dacc77
+--- /dev/null
++++ b/bin/test-run-state
+@@ -0,0 +1,83 @@
++#!/usr/bin/env node
++// bin/test-run-state — sputter/vibe machines, strike decay, day-counter
++// resume init for festival-run-stakes. Plain node.
++
++const { RunState } = await import('../src/runState.js');
++const { VIBE, SPUTTER_GRACE_SEC, RunMode, MODE_FESTIVAL } = await import('../src/runMode.js');
++
++function assert(condition, message) {
++  if (!condition) {
++    process.stderr.write(`FAIL: ${message}\n`);
++    process.exit(1);
++  }
++}
++
++RunMode.set(MODE_FESTIVAL);
++const limits = RunMode.config.vibeLimits(1);   // day 1: warn 4 / eject 8
++
++// --- Day counter: first tick latches, wrap increments, small jitter doesn't. ---
++RunState.begin();
++assert(RunState.day === 1, 'runs start on day 1');
++assert(RunState.tickDay(1, 0.97) === false, 'first tick only latches prevT');
++assert(RunState.tickDay(1, 0.99) === false, 'forward motion is not a wrap');
++assert(RunState.tickDay(1, 0.01) === true, '0.99 -> 0.01 wrap increments the day');
++assert(RunState.day === 2, 'day advanced to 2');
++assert(RunState.tickDay(1, 0.008) === false, 'tiny backward jitter is not a wrap');
++
++// Resume near the boundary must NOT double-count (council acceptance line):
++// serialize right after a wrap, restore, and feed the same t again.
++const snap = RunState.serialize();
++RunState.begin();                      // fresh boot would null prevT...
++RunState.restore(snap);                // ...but restore brings prevT back
++assert(RunState.tickDay(1, 0.02) === false, 'restored prevT prevents a double-counted day');
++assert(RunState.day === 2, 'day stays 2 across the resume');
++
++// --- Sputter: start on dry, end on juice, expire after the grace. ---
++RunState.begin();
++assert(RunState.tickSputter(0.1, 1.0) === null, 'juicy tank never sputters');
++assert(RunState.tickSputter(0.1, 0.0) === 'start', 'dry tank starts the sputter');
++assert(RunState.sputterLeft === SPUTTER_GRACE_SEC, 'grace timer arms full');
++assert(RunState.tickSputter(5, 0.0) === null, 'grace counts down quietly');
++assert(RunState.tickSputter(0.1, 0.8) === 'end', 'any juice ends the sputter');
++assert(RunState.tickSputter(0.1, 0.0) === 'start', 're-drying re-enters with a fresh grace');
++assert(RunState.tickSputter(SPUTTER_GRACE_SEC + 1, 0.0) === 'expired', 'grace expiry reports');
++
++// Rescue: consumes once, resets sputter so the refill re-enters cleanly.
++assert(RunState.useRescue() === true, 'first rescue succeeds');
++assert(RunState.sputter === false, 'rescue clears the sputter state');
++assert(RunState.useRescue() === false, 'second rescue refuses');
++
++// --- Vibe: strikes climb, warn once per climb, eject at the limit, decay. ---
++RunState.begin();
++assert(RunState.addStrike(VIBE.hitStrike, limits) === null, 'one hit is not a warning');
++RunState.addStrike(1, limits); RunState.addStrike(1, limits);
++assert(RunState.addStrike(1, limits) === 'warn', 'fourth strike crosses warn=4');
++assert(RunState.addStrike(1, limits) === null, 'warning fires once per climb');
++RunState.addStrike(1, limits); RunState.addStrike(1, limits);
++assert(RunState.addStrike(1, limits) === 'eject', 'eighth strike ejects at eject=8');
++
++// Decay: one strike drains in 15s; warning re-arms after cooling below half.
++RunState.begin();
++for (let i = 0; i < 4; i++) RunState.addStrike(1, limits);
++const before = RunState.vibe;
++RunState.tickVibe(15, limits);
++assert(Math.abs(before - RunState.vibe - 1) < 1e-9, 'one strike decays per 15s');
++RunState.tickVibe(60, limits);
++assert(RunState.vibe === 0, 'meter floors at zero');
++assert(RunState.addStrike(4, limits) === 'warn', 'warning re-armed after cooling');
++
++// Frown strikes weigh half a hit.
++assert(VIBE.frownStrike === VIBE.hitStrike / 2, 'frown = half a hit strike');
++
++// --- endRun latches; nothing moves after death. ---
++assert(RunState.endRun('ran_dry') === true, 'endRun succeeds once');
++assert(RunState.endRun('vibed_out') === false, 'a dead run stays dead');
++assert(RunState.cause === 'ran_dry', 'cause is the first death');
++assert(RunState.tickDay(1, 0.0) === false && RunState.tickSputter(1, 0) === null,
++  'ticks are inert after death');
++
++// vibeFraction is HUD-safe.
++assert(RunState.vibeFraction(null) === 0 && RunState.vibeFraction(limits) >= 0,
++  'vibeFraction tolerates missing limits');
++
++process.stdout.write('OK bin/test-run-state — day wrap, resume init, sputter, vibe, death all hold\n');
+diff --git a/src/analytics.js b/src/analytics.js
+index ca5a8c9..8c62d92 100644
+--- a/src/analytics.js
++++ b/src/analytics.js
+@@ -55,6 +55,29 @@ export const Analytics = {
+     send('game_start', context);
+   },
+ 
++  // Festival Run lifecycle (festival-run-stakes). Name-free by contract —
++  // only run metrics ever ship.
++  runStart(params = {}) {
++    send('run_start', { day: params.day || 1, resumed: !!params.resumed, time_in_run_s: secondsIn() });
++  },
++
++  runEnd({ cause, score, days, duration, best_combo, rescue_used } = {}) {
++    send('run_end', {
++      cause: cause || 'unknown',
++      score: Math.floor(score || 0),
++      days: Math.floor(days || 1),
++      duration_s: Math.floor(duration || 0),
++      best_combo: Math.floor(best_combo || 1),
++      rescue_used: !!rescue_used,
++    });
++  },
++
++  // Global-board final submit attempted (fire-and-forget — this logs the
++  // attempt, not server acceptance). Metrics only, never the name.
++  leaderboardSubmit({ score, days } = {}) {
++    send('leaderboard_submit', { score: Math.floor(score || 0), days: Math.floor(days || 1) });
++  },
++
+   debugMenuToggle(open) {
+     if (open) send('debug_menu_open', { time_in_run_s: secondsIn() });
+   },
+diff --git a/src/chunks.js b/src/chunks.js
+index d6e347a..d5713d1 100644
+--- a/src/chunks.js
++++ b/src/chunks.js
+@@ -43,6 +43,7 @@ import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.
+ import { buildTentStage } from './models/tentStage.js';
+ import { buildTree, describeForestTree, buildForestInstanced, worldPerches, worldCrown } from './models/tree.js';
+ import { buildShrub } from './models/shrub.js';
++import { jugKeptAt } from './runMode.js';
+ import { leafBannerTextures } from './models/leafBanner.js';
+ 
+ export const CHUNK_SIZE = 80;
+@@ -2133,6 +2134,13 @@ function scatterBubbleJugs(ctx, inWater) {
+     const x = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE - 10);
+     const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE - 10);
+     if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 3)) continue;
++    // festival-run-stakes D3: the day-ramp scarcity filter gates ONLY this
++    // final build/add, strictly AFTER the rng draws above — the kept and
++    // dropped cases consume identical ctx.rng() draws, preserving draw-count
++    // parity with scatterWorldgenCampsites below (council pin-down; the
++    // determinism Non-Negotiable). Position-hashed, so the same jugs exist
++    // at a given day level on the same world. Intro spawn jugs are exempt.
++    if (!jugKeptAt(x, z)) return;
+     const jug = buildBubbleJug();
+     jug.position.set(x, 0.7, z);
+     ctx.group.add(jug);
+diff --git a/src/crowd.js b/src/crowd.js
+index bbba375..86b5569 100644
+--- a/src/crowd.js
++++ b/src/crowd.js
+@@ -134,6 +134,9 @@ export class Crowd {
+     // Set true from main.js while the star-power love buff is active — gates
+     // the proximity flee so nobody runs from a Zerble everyone's smitten with.
+     this.starActive = false;
++    // Festival Run day ramp: main.js scales this up as days pass so crowds get
++    // touchier (faster displeasure build). Stays 1.0 in Just Cruisin'.
++    this.frownRateMult = 1.0;
+     this.onFrown = null;
+     // `onBoard(npc)` fires when an NPC actually climbs aboard (boarding→riding).
+     this.onBoard = null;
+@@ -1302,8 +1305,12 @@ export class Crowd {
+         // Dry cart → disappointment. Eye contact builds displeasure; at
+         // threshold the NPC frowns and a smile is lost (onFrown). Slower to
+         // build than a smile so it's a real "uh oh, I'm out" beat, not instant.
++        // NOTE the frown's job is mode-dependent at the onFrown dispatch below:
++        // Just Cruisin' keeps the dry-tank smile tax; Festival Run turns it
++        // into vibe-meter feedback (strike in main.js's handler, tax suppressed
++        // while sputtering), and frownRateMult ramps the build rate by day.
+         npc.happiness = Math.max(0, npc.happiness - dt * 0.5);
+-        if (inView) npc.displeasure += 1.4 * closeness * (0.55 + 0.45 * aim) * dt;
++        if (inView) npc.displeasure += 1.4 * this.frownRateMult * closeness * (0.55 + 0.45 * aim) * dt;
+         else npc.displeasure = Math.max(0, npc.displeasure - dt * 0.25);
+         if (npc.displeasure >= FROWN_THRESHOLD) {
+           npc.displeasure = 0;
+@@ -2189,6 +2196,14 @@ export class Crowd {
+ 
+   // Called from main.js when Zerble rams a porta-potty that's in use: eject the
+   // occupant (flustered, fleeing), fling the door open, puff the stink.
++  // Festival Run: a damaging hit flips the struck NPC's mouth to a frown for
++  // the standard frown beat (dispatched from main.js's damaging-hit gate —
++  // the frown here is feedback only; the smile deduction stays in onFrown's
++  // dry-cart path and the vibe strike lives in the run layer).
++  frownAt(npc) {
++    if (npc) npc.frownTimer = FROWN_DURATION;
++  }
++
+   onPottyHit(entry) {
+     if (!entry || !entry.potty || !entry.potty.occupied) return;
+     const p = entry.potty;
+diff --git a/src/leaderboard.js b/src/leaderboard.js
+index 3289366..1159791 100644
+--- a/src/leaderboard.js
++++ b/src/leaderboard.js
+@@ -1,12 +1,19 @@
+-// Leaderboard — arcade top-10 for Festival Run results. Local half only for
+-// now: the global (Cloudflare Worker) client lands with P3 of the
+-// festival-run-stakes change and slots in beside this without touching it.
++// Leaderboard — arcade boards for Festival Run results. Two halves:
+ //
+-// Storage: `zerble-leaderboard-local` = JSON array of {name, score, days, date}
++// LOCAL: `zerble-leaderboard-local` = JSON array of {name, score, days, date}
+ // sorted score-desc, capped at 10. Everything tolerates corrupt JSON and
+ // unavailable storage (private mode) by degrading to an empty board. Blank
+ // names display as FALLBACK_NAME — the same promise the Worker makes
+ // server-side, so local and global rows never render blank.
++//
++// GLOBAL: the client half of workers/leaderboard/ (design D8/D9). Protocol:
++// signed token from /run/start, ~60s heartbeats + milestone triggers (new day,
++// high-water jumps), final submit at run end, and a pagehide sendBeacon so a
++// killed tab's last state still stands. EVERY network path is fire-and-forget:
++// timeboxed, error-swallowed, degrading silently to the local board — gameplay
++// never blocks on leaderboard traffic, and Cruisin' generates zero requests
++// (only the Festival Run layer in main.js calls into this half). Disabled
++// entirely until GLOBAL_BOARD_URL below is set post-deploy (Gary-only).
+ 
+ const LOCAL_KEY = 'zerble-leaderboard-local';
+ const CAP = 10;
+@@ -36,9 +43,118 @@ function save(list) {
+   try { localStorage.setItem(LOCAL_KEY, JSON.stringify(list)); } catch (err) { /* session-only */ }
+ }
+ 
++// Set to the deployed Worker origin (e.g. 'https://zerble-leaderboard.<acct>.workers.dev')
++// to switch the global board on. Empty string = fully disabled: no fetches, no
++// beacon hook, no tabs on the score screen. GARY FLIPS THIS after deploying
++// workers/leaderboard/ — see wrangler.toml there. Dev override (never shipped
++// copy, not player-facing): `localStorage['zerble-board-url']` points a local
++// game at `wrangler dev` / the bin/test bridge for end-to-end drills.
++const PROD_BOARD_URL = '';
++export const GLOBAL_BOARD_URL = (() => {
++  try { return localStorage.getItem('zerble-board-url') || PROD_BOARD_URL; }
++  catch (err) { return PROD_BOARD_URL; }
++})();
++
++const BEAT_INTERVAL_MS = 60000;      // baseline heartbeat cadence
++const MILESTONE_MIN_MS = 10000;      // floor between milestone-triggered beats
++const MILESTONE_SCORE_STEP = 50;     // high-water jump that earns an early beat
++
++let _run = null;                     // {runId, startTs, sig} from /run/start
++let _runDone = false;
++let _lastBeat = { at: 0, hw: 0, day: 0 };
++let _latest = null;                  // freshest state, for the pagehide beacon
++let _beaconHooked = false;
++
++async function post(path, body, timeoutMs = 4000) {
++  const ctrl = new AbortController();
++  const t = setTimeout(() => ctrl.abort(), timeoutMs);
++  try {
++    return await fetch(GLOBAL_BOARD_URL + path, {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify(body),
++      signal: ctrl.signal,
++    });
++  } catch (err) {
++    return null;                     // fire-and-forget: failure is silence
++  } finally {
++    clearTimeout(t);
++  }
++}
++
++function hookBeacon() {
++  if (_beaconHooked || typeof window === 'undefined') return;
++  _beaconHooked = true;
++  window.addEventListener('pagehide', () => {
++    if (!_run || _runDone || !_latest || !navigator.sendBeacon) return;
++    // sendBeacon can't set JSON headers — the Worker parses text/plain bodies.
++    navigator.sendBeacon(GLOBAL_BOARD_URL + '/run/end',
++      JSON.stringify({ ..._run, ..._latest, cause: 'tab_closed' }));
++  });
++}
++
+ export const Leaderboard = {
+   localTop() { return load(); },
+ 
++  // ---- Global board client (all no-ops while GLOBAL_BOARD_URL is empty) ----
++  globalEnabled() { return !!GLOBAL_BOARD_URL; },
++
++  // Fire at Festival Run start. Async and unawaited by design: until (unless)
++  // the token lands, heartbeats no-op and the run is local-only.
++  globalRunStart() {
++    if (!this.globalEnabled()) return;
++    _run = null; _runDone = false; _latest = null;
++    _lastBeat = { at: 0, hw: 0, day: 0 };
++    hookBeacon();
++    post('/run/start', {}).then(async (res) => {
++      if (!res || !res.ok) return;
++      try {
++        const tok = await res.json();
++        if (tok && tok.runId && tok.sig) _run = tok;
++      } catch (err) { /* local-only run */ }
++    });
++  },
++
++  // Call freely (the run layer calls every frame) — throttles itself to the
++  // 60s cadence plus milestone triggers (new day; high-water jumps, floored).
++  globalHeartbeat({ score = 0, day = 1, name = '' } = {}) {
++    if (!_run || _runDone) return;
++    _latest = { score: Math.floor(score), day, name };
++    const now = Date.now();
++    const since = now - _lastBeat.at;
++    const milestone = day > _lastBeat.day
++      || (score - _lastBeat.hw >= MILESTONE_SCORE_STEP && since > MILESTONE_MIN_MS);
++    if (since < BEAT_INTERVAL_MS && !milestone) return;
++    _lastBeat = { at: now, hw: Math.floor(score), day };
++    post('/run/beat', { ..._run, ..._latest });
++  },
++
++  // Final submit at run end. The run token is spent either way.
++  globalFinal({ score = 0, day = 1, name = '', cause = '' } = {}) {
++    if (!_run || _runDone) return;
++    _runDone = true;
++    post('/run/end', { ..._run, score: Math.floor(score), day, name, cause });
++  },
++
++  // Timeboxed board read for the score-screen tabs. Resolves to an entry array
++  // or null (caller falls back to the local board, silently).
++  async fetchGlobal(range = 'all') {
++    if (!this.globalEnabled()) return null;
++    const ctrl = new AbortController();
++    const t = setTimeout(() => ctrl.abort(), 4000);
++    try {
++      const res = await fetch(`${GLOBAL_BOARD_URL}/board?range=${range === 'daily' ? 'daily' : 'all'}`,
++        { signal: ctrl.signal });
++      if (!res.ok) return null;
++      const data = await res.json();
++      return Array.isArray(data.entries) ? data.entries.map(sanitize) : null;
++    } catch (err) {
++      return null;
++    } finally {
++      clearTimeout(t);
++    }
++  },
++
+   displayName(entry) { return (entry && entry.name) || FALLBACK_NAME; },
+ 
+   // Record a finished Festival Run. Returns the 1-based rank it landed at,
+diff --git a/src/main.js b/src/main.js
+index 10adee5..08595b9 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -19,8 +19,9 @@ import { Input } from './input.js';
+ import { Touch } from './touch.js';
+ import { HUD } from './hud.js';
+ import { Leaderboard } from './leaderboard.js';
+-import { RunMode } from './runMode.js';
++import { RunMode, VIBE, setJugKeepFraction } from './runMode.js';
+ import { Scoring } from './scoring.js';
++import { RunState } from './runState.js';
+ import { buildWorld, updateWorld, getTimeOfDay, getFarField } from './world.js';
+ import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
+ import { lakeAnimatables, setLakeNightness } from './lakes.js';
+@@ -553,6 +554,7 @@ Scoring.configure({ stakes: RunMode.isFestival() });
+ if (__resume) {
+   if (__resume.scoring) Scoring.restore(__resume.scoring);
+   else if (Number.isFinite(__resume.score)) Scoring.reset({ current: __resume.score });
++  if (__resume.run) RunState.restore(__resume.run);   // day/clock/vibe/prevT/rescue
+ }
+ HUD.loadBest();
+ if (__resume) HUD.setSmiles(Scoring.current);
+@@ -561,11 +563,15 @@ let running = false;
+ // A bubble-less Zerble makes nearby NPCs frown — each frown costs a smile
+ // (and, in Festival Run, snaps the combo chain).
+ crowd.onFrown = () => {
++  // Sputtering cart: frowns stay flavor-only — no smile tax while the player
++  // is already limping to juice (council; the mouth-flip is crowd-side).
++  if (RunState.active && RunState.sputter) return;
+   if (Scoring.current <= 0) return;
+   Scoring.deduct(1);
+   Scoring.breakCombo();
+   Sound.playFrownDown();
+   HUD.setSmiles(Scoring.current);
++  applyVibeStrike(VIBE.frownStrike);
+ };
+ // An NPC climbed aboard — feed the passenger analytics (first board fires an
+ // event; every board feeds the session_end count).
+@@ -579,6 +585,8 @@ let _cricketPanVal = 0;   // listener-relative pan toward nearest forest (-1..1)
+ let _frogPanVal = 0;      // listener-relative pan toward nearest lake (-1..1)
+ // Debounce for the bubble-vendor "free refill" toast.
+ let _vendorToastCd = 0;
++let _vendorRefusalCd = 0;      // "can't afford" toast cooldown (Festival Run)
++let _vendorCostAccum = 0;      // fractional smile cost accrual while drawing
+ let _vendorWasFilling = false;   // were we actively drawing juice last frame?
+ let _wasEmpty = bubbles.juice <= 0.02; // edge-detect the bubble tank running dry
+ let _collectedThisFrame = 0;     // per-frame smile-collect coalescing buffer
+@@ -643,7 +651,7 @@ Settings.init({
+   captureState: () => running
+     ? { seed: window.__seed, x: zerble.position.x, z: zerble.position.z,
+         heading: zerble.heading, score: Scoring.current, scoring: Scoring.serialize(),
+-        mode: RunMode.name, juice: bubbles.juice, tod: getTimeOfDay()?.t }
++        mode: RunMode.name, run: RunState.serialize(), juice: bubbles.juice, tod: getTimeOfDay()?.t }
+     : null,
+ });
+ 
+@@ -668,6 +676,12 @@ HUD.onStart(() => {
+   // The player can flip the mode selector right up to the Start tap —
+   // (re)configure stakes from the final choice. Synchronous, pre-Sound.init.
+   Scoring.configure({ stakes: RunMode.isFestival() });
++  if (RunMode.isFestival()) {
++    if (!RunState.active) RunState.begin();   // active = restored resume run
++    setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
++    Analytics.runStart({ day: RunState.day, resumed: !!__resume });
++    Leaderboard.globalRunStart();   // no-op until the Worker URL is set (P3 deploy)
++  }
+   // Context segments every later event by device/tier/returning-ness.
+   Analytics.gameStart({
+     perf_tier: PERF.name,
+@@ -933,6 +947,44 @@ function tickBody(dt) {
+       Analytics.bubbleRanDry();
+     }
+     _wasEmpty = bubblesEmpty;
++
++    // ---- Festival Run layer: day ramp, sputter grace, vibe decay ----
++    if (RunState.active && !RunState.over) {
++      if (RunState.tickDay(dt, getTimeOfDay()?.t)) {
++        const d = RunState.day;
++        const line = DAY_UP_TOASTS[Math.floor(Math.random() * DAY_UP_TOASTS.length)];
++        HUD.toast(line.replace('{d}', String(d)), 3200);
++        setJugKeepFraction(RunMode.config.jugKeep(d));
++      }
++      const limits = RunMode.config.vibeLimits(RunState.day);
++      crowd.frownRateMult = RunMode.config.frownMult(RunState.day);
++      RunState.tickVibe(dt, limits);
++      const sput = RunState.tickSputter(dt, bubbles.juice);
++      if (sput === 'start') {
++        zerble.sputtering = true;
++        Sound.startSputterLoop();
++        HUD.toast(HUD.withName(
++          'Zerble is running on fumes — find juice, fast!',
++          '{name}! Zerble is running on fumes — find juice, fast!', 0.5), 3200);
++      } else if (sput === 'end') {
++        zerble.sputtering = false;
++        Sound.stopSputterLoop();
++      } else if (sput === 'expired') {
++        if (!RunState.rescueUsed && lurleen.isFollowing) {
++          performLurleenRescue();
++        } else {
++          endFestivalRun('ran_dry');
++        }
++      }
++      HUD.setDay(RunState.day);
++      HUD.setSputter(RunState.sputter ? RunState.sputterLeft : null);
++      HUD.setVibe(RunState.vibeFraction(limits), true, limits ? RunState.vibe >= limits.warn : false);
++      // Global board heartbeat — self-throttled (60s + milestones), no-op
++      // while disabled or before the /run/start token lands.
++      Leaderboard.globalHeartbeat({
++        score: Scoring.highWater, day: RunState.day, name: HUD.getPlayerName(),
++      });
++    }
+     // Rebuild the registry broadphase once per frame, before every consumer
+     // (crowd steering, kid push-out, Zerble collision). Cheap O(entries) pass;
+     // the per-NPC queries it enables replace the old O(npcs × entries) scans.
+@@ -1144,9 +1196,32 @@ function tickBody(dt) {
+         const dz = e.position.z - zerble.position.z;
+         if (dx * dx + dz * dz < REFUEL_RANGE * REFUEL_RANGE) {
+           nearVendor = true;
+-          if (bubbles.juice < 1) {                 // vendor tops the current meter only
++          // Festival Run economy: from Day 2 vendors charge smiles per meter
++          // drawn (D6 ramp; Day 1 free). Fractional cost accrues and deducts
++          // in whole smiles; a broke cart gets a refusal, not juice.
++          const vendorPrice = RunState.active && !RunState.over
++            ? RunMode.config.vendorPrice(RunState.day) : 0;
++          const canAfford = vendorPrice === 0 || Scoring.current > 0;
++          if (bubbles.juice < 1 && !canAfford) {
++            if (_vendorRefusalCd <= 0) {
++              HUD.toast(`The vendor shrugs — refills are ${vendorPrice} smiles a jug…`, 2400);
++              _vendorRefusalCd = 8;
++              // The ambient price toast below shares the one toast slot — hold
++              // it back so it can't overwrite the shrug in the same frame.
++              _vendorToastCd = Math.max(_vendorToastCd, 8);
++            }
++          } else if (bubbles.juice < 1) {          // vendor tops the current meter only
+             const before = bubbles.juice;
+             bubbles.addJuice((e.refuel || 0.4) * dt, 1.0);
++            if (vendorPrice > 0 && bubbles.juice > before) {
++              _vendorCostAccum += (bubbles.juice - before) * vendorPrice;
++              const whole = Math.floor(_vendorCostAccum);
++              if (whole > 0) {
++                _vendorCostAccum -= whole;
++                Scoring.deduct(whole);
++                HUD.setSmiles(Scoring.current);
++              }
++            }
+             // Flow the stream only while filling a MEANINGFUL deficit, not while
+             // the vendor is just countering the always-on drain at a full tank
+             // (that read as "rising" every frame and never stopped). The tank
+@@ -1157,7 +1232,10 @@ function tickBody(dt) {
+         }
+       }
+       if (nearVendor && _vendorToastCd <= 0) {
+-        HUD.toast(HUD.withName('Free bubble-juice refill!', 'Free bubble-juice refill, {name}!'), 1600);
++        const p = RunState.active && !RunState.over ? RunMode.config.vendorPrice(RunState.day) : 0;
++        HUD.toast(p > 0
++          ? `Bubble-juice refills: ${p} smiles a jug today.`
++          : HUD.withName('Free bubble-juice refill!', 'Free bubble-juice refill, {name}!'), 1600);
+         _vendorToastCd = 10;
+       }
+       // "Full" cue — the moment the stream tops the meter off.
+@@ -1172,6 +1250,7 @@ function tickBody(dt) {
+       _vendorWasFilling = false;
+     }
+     if (_vendorToastCd > 0) _vendorToastCd -= dt;
++    if (_vendorRefusalCd > 0) _vendorRefusalCd -= dt;
+     // Animate the vendor→cart refuel stream (no-op / hidden when not refueling).
+     updateRefuelStream(refuelFromPos, zerble.position, dt);
+ 
+@@ -1252,9 +1331,16 @@ function tickBody(dt) {
+       const hit = resolveCollision(zerble, _collScratch);
+       if (hit && hit.damaging && !isGod()) {
+         Scoring.deduct(hit.damage);
+-        // Damaging PEOPLE hits snap the combo chain (scoring spec); prop
+-        // bonks just cost the smiles, same as always.
+-        if (SOFT_PEOPLE_KINDS.has(hit.kind)) Scoring.breakCombo();
++        // Damaging PEOPLE hits snap the combo chain (scoring spec) and, in
++        // Festival Run, land a vibe strike + scare Lurleen + frown the struck
++        // NPC. Prop bonks just cost the smiles, same as always. There is ONE
++        // toast slot — a stakes beat (heartbreak/whistle) outranks the generic
++        // quip, or a same-frame overwrite makes the beat invisible.
++        let stakesToasted = false;
++        if (SOFT_PEOPLE_KINDS.has(hit.kind)) {
++          Scoring.breakCombo();
++          stakesToasted = registerPeopleHit(hit);
++        }
+         HUD.setSmiles(Scoring.current);
+         HUD.flashHit();
+         // Ramming an OCCUPIED porta-potty ejects the flustered occupant +
+@@ -1262,7 +1348,7 @@ function tickBody(dt) {
+         if (hit.kind === 'porta_potty' && hit.entry?.potty?.occupied) {
+           crowd.onPottyHit(hit.entry);
+           HUD.toast(PORTA_POTTY_OCCUPIED_TOASTS[Math.floor(Math.random() * PORTA_POTTY_OCCUPIED_TOASTS.length)], 1700);
+-        } else {
++        } else if (!stakesToasted) {
+           HUD.toast(HUD.withName(
+             toastForKind(hit.kind),
+             NAMED_HIT_TOASTS[Math.floor(Math.random() * NAMED_HIT_TOASTS.length)]), 1400);
+@@ -1351,6 +1437,121 @@ const HULA_HOOP_TOASTS = [
+   "That hoop was somebody's chakra!",
+ ];
+ 
++// Day-crossing toasts — the ramp speaks so the tightening never feels random.
++const DAY_UP_TOASTS = [
++  'Day {d} — the vendors raise their prices…',
++  'Day {d} — jugs are getting scarce out there.',
++  'Day {d} — the crowd expects more of you now.',
++  'Day {d} — the marshals are less amused today.',
++];
++
++// ---- Festival Run vibe strikes ----
++// D16: every stakes consequence of hitting a PERSON hangs off the ONE gate in
++// resolveCollision's caller — `hit.damaging && !isGod()` — never the raw
++// crowd.onZerbleHit (damage-0 grazes of fleeing NPCs stay consequence-free).
++// Both return true when they showed a player-facing beat (toast/death), so the
++// hit path can hold back its generic quip instead of overwriting it same-frame.
++function applyVibeStrike(weight) {
++  if (!RunState.active || RunState.over) return false;
++  const limits = RunMode.config.vibeLimits(RunState.day);
++  const ev = RunState.addStrike(weight, limits);
++  if (ev === 'warn') {
++    Sound.playMarshalWhistle();
++    HUD.toast(HUD.withName(
++      'A marshal blows the whistle — ease up on the crowd!',
++      'A marshal blows the whistle at {name} — ease up on the crowd!', 0.4), 2800);
++    return true;
++  } else if (ev === 'eject') {
++    endFestivalRun('vibed_out');
++    return true;
++  }
++  return false;
++}
++
++function registerPeopleHit(hit) {
++  if (!RunState.active || RunState.over) return false;
++  let toasted = false;
++  if (lurleen.isFollowing || lurleen.state === 'aware') {
++    if (lurleen.scareOff()) {
++      HUD.toast(HUD.withName('Lurleen saw that. 💔', '{name}! Lurleen saw that. 💔', 0.5), 2400);
++      toasted = true;
++    }
++  }
++  if (hit.npc) crowd.frownAt(hit.npc);
++  // Ordering: the whistle/ejection (rarer, more urgent) may overwrite the
++  // heartbreak — that priority is intentional.
++  return applyVibeStrike(VIBE.hitStrike) || toasted;
++}
++
++// ---- Festival Run death + rescue ----
++function endFestivalRun(cause) {
++  if (!RunState.endRun(cause)) return;
++  zerble.sputtering = false;
++  Sound.stopSputterLoop();
++  Sound.playRunEndSting(cause);
++  controlsLocked = true;
++  const days = RunState.day;
++  const rank = Leaderboard.recordLocal({
++    name: HUD.getPlayerName(), score: Scoring.highWater, days,
++  });
++  Analytics.runEnd({
++    cause, score: Scoring.highWater, days,
++    duration: Math.round(RunState.clock),
++    best_combo: Scoring.bestCombo, rescue_used: RunState.rescueUsed,
++  });
++  if (Leaderboard.globalEnabled()) {
++    Leaderboard.globalFinal({
++      score: Scoring.highWater, day: days, name: HUD.getPlayerName(), cause,
++    });
++    Analytics.leaderboardSubmit({ score: Scoring.highWater, days });
++  }
++  HUD.setSputter(null);
++  HUD.setVibe(0, false);
++  HUD.showScoreScreen({
++    cause: cause === 'vibed_out'
++      ? `The marshals walked you out on Day ${days}…`
++      : `Zerble ran dry on Day ${days}…`,
++    score: Scoring.highWater, days, bestCombo: Scoring.bestCombo,
++    board: Leaderboard.localTop(), highlightRank: rank,
++  });
++}
++// Both score-screen actions restart via a plain reload — the mode + name
++// persist, so "Run it again!" is one Start tap away (iOS needs the gesture
++// for audio anyway; there is no silent mid-session restart path).
++HUD.onScoreAgain(() => location.reload());
++HUD.onScoreClose(() => { if (RunState.over) location.reload(); });
++
++// Once per run: the sputter grace expired while Lurleen was smitten — she
++// stages the pair next to the nearest juice source (teleport-adjacent per the
++// carts spec) and tips a minimal refill. No source resident → refill in place
++// (design D14; no undefined path, no soft-lock).
++function performLurleenRescue() {
++  if (!RunState.useRescue()) { endFestivalRun('ran_dry'); return; }
++  let nearest = null; let bestD = Infinity;
++  for (const e of registry.entries.values()) {
++    if (e.kind !== 'bubble_jug' && e.kind !== 'bubble_vendor') continue;
++    const dx = e.position.x - zerble.position.x;
++    const dz = e.position.z - zerble.position.z;
++    const d2 = dx * dx + dz * dz;
++    if (d2 < bestD) { bestD = d2; nearest = e; }
++  }
++  if (nearest) {
++    const ang = Math.random() * Math.PI * 2;
++    zerble.position.x = nearest.position.x + Math.cos(ang) * 6;
++    zerble.position.z = nearest.position.z + Math.sin(ang) * 6;
++    zerble.speed = 0;
++    lurleen.position.set(zerble.position.x + 3, 0, zerble.position.z + 3);
++    lurleen.homePos.copy(lurleen.position);
++  }
++  bubbles.addJuice(0.35, 1.0);
++  zerble.sputtering = false;
++  Sound.stopSputterLoop();
++  Sound.playJuicePickup();
++  HUD.toast(HUD.withName(
++    'Lurleen to the rescue! 💗 One tow per festival…',
++    'Lurleen hauls {name} to juice! 💗 One tow per festival…', 0.6), 3600);
++}
++
+ // Named collision quips — HUD.withName swaps one in occasionally when the
+ // player gave a name (single shared helper; the per-kind banks stay nameless).
+ const NAMED_HIT_TOASTS = [
+@@ -1587,6 +1788,11 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
+       // Same stakes arming the real Start tap does — a drill that picked
+       // Festival Run on the title card must get Festival Run scoring.
+       Scoring.configure({ stakes: RunMode.isFestival() });
++      if (RunMode.isFestival()) {
++        if (!RunState.active) RunState.begin();
++        setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
++        Leaderboard.globalRunStart();
++      }
+       document.body.classList.add('game-started');
+       const tc = document.getElementById('touch-controls');
+       if (tc) tc.setAttribute('aria-hidden', 'false');
+@@ -1659,6 +1865,36 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
+       });
+       return 'score screen shown';
+     },
++    // Festival Run drills: jump the day ramp / nudge the vibe meter without
++    // real-time driving (runState debug setters; ramp re-applied like a dawn).
++    runInfo() {
++      return { mode: RunMode.name, run: RunState.serialize(),
++               score: Scoring.current, highWater: Scoring.highWater,
++               mult: Scoring.multiplier(), chain: Scoring.chain,
++               sputteringFlag: zerble.sputtering };
++    },
++    runDay(n = 2) {
++      if (!RunState.active) return 'no active Festival Run — pick Festival Run on the title card first';
++      const d = RunState.debugSetDay(n);
++      setJugKeepFraction(RunMode.config.jugKeep(d));
++      HUD.setDay(d);
++      const r = RunMode.config;
++      return `day = ${d} · vendor ${r.vendorPrice(d)} smiles · jugKeep ${r.jugKeep(d)} · frown x${r.frownMult(d)} · vibe ${JSON.stringify(r.vibeLimits(d))}`;
++    },
++    vibe(v = 0) {
++      if (!RunState.active) return 'no active Festival Run';
++      return `vibe = ${RunState.debugSetVibe(v)}`;
++    },
++    strike(n = 1) {
++      if (!RunState.active) return 'no active Festival Run';
++      for (let i = 0; i < Math.max(1, Math.floor(n)); i++) applyVibeStrike(VIBE.hitStrike);
++      return `vibe = ${RunState.vibe} (over: ${RunState.over})`;
++    },
++    sputterLeft(s = 1) {
++      if (!RunState.active) return 'no active Festival Run';
++      return `sputterLeft = ${RunState.debugSetSputterLeft(s)} (only while sputtering)`;
++    },
++
+     seedBoard(n = 6) {
+       const names = ['Moonbeam', 'Dusty', '', 'Peaches', 'Ranger Rick', 'Twirl', 'Bo', 'Juniper', 'Sky', 'Gud Vibes'];
+       for (let i = 0; i < Math.min(n, 10); i++) {
+diff --git a/src/runMode.js b/src/runMode.js
+index bfa0a86..2762864 100644
+--- a/src/runMode.js
++++ b/src/runMode.js
+@@ -10,6 +10,8 @@
+ // Deliberately DOM-free and three-free so bin/test-run-mode can import it
+ // straight into node.
+ 
++import { worldHash } from './rng.js';
++
+ export const MODE_CRUISIN = 'cruisin';
+ export const MODE_FESTIVAL = 'festival';
+ export const MODE_KEY = 'zerble-mode';
+@@ -46,6 +48,28 @@ export const VIBE = Object.freeze({ hitStrike: 1, frownStrike: 0.5, decayPerSec:
+ 
+ export const SPUTTER_GRACE_SEC = 45;
+ 
++// ---- Jug scarcity filter (design D3) ----
++// A runtime, position-hashed keep/drop decision over ALREADY-GENERATED jug
++// placements — it never touches the seeded worldgen streams (chunks.js calls
++// it strictly after all ctx.rng() draws for the jug complete). Fresh salt,
++// distinct from every worldHash salt in chunks.js. Default 1.0 = unfiltered:
++// Just Cruisin', hub-sandbox, and map-sandbox never set it.
++const JUG_FILTER_SALT = 0x1B9DFA33 | 0;
++let _jugKeepFraction = 1.0;
++
++export function setJugKeepFraction(f) {
++  _jugKeepFraction = Number.isFinite(f) ? Math.max(0, Math.min(1, f)) : 1.0;
++  return _jugKeepFraction;
++}
++
++export function getJugKeepFraction() { return _jugKeepFraction; }
++
++export function jugKeptAt(x, z, frac = _jugKeepFraction) {
++  if (frac >= 1) return true;
++  if (frac <= 0) return false;
++  return worldHash(Math.round(x), Math.round(z), JUG_FILTER_SALT) / 4294967296 < frac;
++}
++
+ const CRUISIN = Object.freeze({
+   name: MODE_CRUISIN,
+   stakes: false,
+diff --git a/src/runState.js b/src/runState.js
+new file mode 100644
+index 0000000..12f4abe
+--- /dev/null
++++ b/src/runState.js
+@@ -0,0 +1,160 @@
++// runState — the Festival Run lifecycle machine: run clock, day counter,
++// sputter (dry-death grace), vibe meter (marshal ladder), death causes, and
++// the once-per-run Lurleen rescue flag. Pure logic: main.js feeds it inputs
++// (dt, time-of-day t, juice level) and acts on the string events it returns —
++// no DOM, no three, so bin/test-run-state drives it straight in node.
++//
++// Day counting: the ToD cycle's normalized t wraps 1→0 at "midnight-end"; a
++// wrap while a run is active increments the day. `prevT` MUST initialize from
++// the restored t on resume (never a fresh-boot default) or a reload near the
++// boundary double-counts a day — council acceptance line, locked by the test.
++
++import { VIBE, SPUTTER_GRACE_SEC } from './runMode.js';
++
++const R = {
++  active: false,
++  clock: 0,          // seconds of run time
++  day: 1,
++  prevT: null,       // last seen ToD t (null until first tick or restore)
++  sputter: false,
++  sputterLeft: 0,
++  vibe: 0,           // decaying strike total
++  vibeWarned: false, // warn fired for the current climb
++  rescueUsed: false,
++  over: false,
++  cause: null,       // 'ran_dry' | 'vibed_out'
++};
++
++const JUICE_DRY_EPS = 0.02;   // matches main.js's empty-tank edge detect
++
++export const RunState = {
++  get active() { return R.active; },
++  get day() { return R.day; },
++  get clock() { return R.clock; },
++  get sputter() { return R.sputter; },
++  get sputterLeft() { return R.sputterLeft; },
++  get vibe() { return R.vibe; },
++  get over() { return R.over; },
++  get cause() { return R.cause; },
++  get rescueUsed() { return R.rescueUsed; },
++
++  begin() {
++    R.active = true; R.clock = 0; R.day = 1; R.prevT = null;
++    R.sputter = false; R.sputterLeft = 0;
++    R.vibe = 0; R.vibeWarned = false;
++    R.rescueUsed = false; R.over = false; R.cause = null;
++  },
++
++  end() { R.active = false; },
++
++  // Advance the run clock + detect day wraps. Returns true when a new day
++  // just started. First call (prevT null) only latches — never increments.
++  tickDay(dt, todT) {
++    if (!R.active || R.over) return false;
++    R.clock += dt;
++    if (!Number.isFinite(todT)) return false;
++    let crossed = false;
++    if (R.prevT != null && todT < R.prevT - 0.5) {   // wrapped 1 → 0
++      R.day += 1;
++      crossed = true;
++    }
++    R.prevT = todT;
++    return crossed;
++  },
++
++  // Sputter state from the live juice level. Returns 'start' | 'end' |
++  // 'expired' | null. 'expired' = the grace ran out with the tank still dry —
++  // the caller decides rescue vs `ran_dry`.
++  tickSputter(dt, juice) {
++    if (!R.active || R.over) return null;
++    const dry = juice <= JUICE_DRY_EPS;
++    if (!R.sputter) {
++      if (!dry) return null;
++      R.sputter = true;
++      R.sputterLeft = SPUTTER_GRACE_SEC;
++      return 'start';
++    }
++    if (!dry) {
++      R.sputter = false;
++      R.sputterLeft = 0;
++      return 'end';
++    }
++    R.sputterLeft -= dt;
++    if (R.sputterLeft <= 0) {
++      R.sputterLeft = 0;
++      return 'expired';
++    }
++    return null;
++  },
++
++  // Rescue consumes exactly once. After a rescue the sputter state resets so
++  // the refilled tank re-enters cleanly.
++  useRescue() {
++    if (R.rescueUsed) return false;
++    R.rescueUsed = true;
++    R.sputter = false;
++    R.sputterLeft = 0;
++    return true;
++  },
++
++  // A vibe strike lands (weight: VIBE.hitStrike for a damaging people-hit,
++  // VIBE.frownStrike for a frown loss). `limits` = {warn, eject} from the
++  // mode config at the current day. Returns 'warn' | 'eject' | null.
++  addStrike(weight, limits) {
++    if (!R.active || R.over || !limits) return null;
++    R.vibe += weight;
++    if (R.vibe >= limits.eject) return 'eject';
++    if (!R.vibeWarned && R.vibe >= limits.warn) {
++      R.vibeWarned = true;
++      return 'warn';
++    }
++    return null;
++  },
++
++  tickVibe(dt, limits) {
++    if (!R.active || R.over) return;
++    if (R.vibe > 0) R.vibe = Math.max(0, R.vibe - VIBE.decayPerSec * dt * 1);
++    // Re-arm the warning once the meter has cooled well below the line.
++    if (limits && R.vibeWarned && R.vibe < limits.warn * 0.5) R.vibeWarned = false;
++  },
++
++  // 0..1 for the HUD widget (fraction of the ejection limit).
++  vibeFraction(limits) {
++    if (!limits || limits.eject <= 0) return 0;
++    return Math.max(0, Math.min(1, R.vibe / limits.eject));
++  },
++
++  endRun(cause) {
++    if (!R.active || R.over) return false;
++    R.over = true;
++    R.cause = cause;
++    return true;
++  },
++
++  // Harness-only setters (__dbg.runDay / __dbg.vibe) — Day-5 tuning must not
++  // cost 30 real minutes of driving (council; harness doctrine).
++  debugSetDay(n) { R.day = Math.max(1, Math.floor(n) || 1); return R.day; },
++  debugSetVibe(v) { R.vibe = Math.max(0, Number(v) || 0); return R.vibe; },
++  debugSetSputterLeft(s) { if (R.sputter) R.sputterLeft = Math.max(0.01, Number(s) || 0.01); return R.sputterLeft; },
++
++  serialize() {
++    return { active: R.active, clock: R.clock, day: R.day, prevT: R.prevT,
++             sputter: R.sputter, sputterLeft: R.sputterLeft, vibe: R.vibe,
++             vibeWarned: R.vibeWarned, rescueUsed: R.rescueUsed,
++             over: R.over, cause: R.cause };
++  },
++  restore(o) {
++    if (!o) return;
++    R.active = !!o.active;
++    R.clock = Number(o.clock) || 0;
++    R.day = Math.max(1, Math.floor(o.day) || 1);
++    R.prevT = Number.isFinite(o.prevT) ? o.prevT : null;
++    R.sputter = !!o.sputter;
++    R.sputterLeft = Math.max(0, Number(o.sputterLeft) || 0);
++    R.vibe = Math.max(0, Number(o.vibe) || 0);
++    R.vibeWarned = !!o.vibeWarned;
++    R.rescueUsed = !!o.rescueUsed;
++    R.over = !!o.over;
++    R.cause = o.cause || null;
++  },
++};
+diff --git a/src/zerble.js b/src/zerble.js
+index fcb6613..903f74e 100644
+--- a/src/zerble.js
++++ b/src/zerble.js
+@@ -66,6 +66,7 @@ export class Zerble {
+     this.position = this.root.position; // alias
+     this.heading = 0;
+     this.speed = 0;
++    this.sputtering = false;   // Festival Run limp mode (see update())
+     this.steerAngle = 0;
+     this.radius = 1.9;
+     this.invulnLeft = 0;
+@@ -1241,11 +1242,13 @@ export class Zerble {
+     // ----- Drive -----
+     const throttle = input.throttle;
+     const steer = input.steer;
+-    const wantBoost = input.boost && throttle > 0;
++    // Festival Run sputter (dry tank, grace window): boost dies and the cart
++    // limps at ~35% — main.js flips this from runState. Never set in Cruisin'.
++    const wantBoost = input.boost && throttle > 0 && !this.sputtering;
+     // Expose so the engine sound (and anything else that cares) can react.
+     this.isBoosting = wantBoost;
+ 
+-    const maxFwd = MAX_SPEED * (wantBoost ? BOOST_MULT : 1);
++    const maxFwd = MAX_SPEED * (wantBoost ? BOOST_MULT : 1) * (this.sputtering ? 0.35 : 1);
+     const maxRev = -REVERSE_MAX;
+ 
+     if (throttle !== 0) {
+diff --git a/workers/leaderboard/dev-server.mjs b/workers/leaderboard/dev-server.mjs
+new file mode 100644
+index 0000000..faeba5f
+--- /dev/null
++++ b/workers/leaderboard/dev-server.mjs
+@@ -0,0 +1,50 @@
++// Thin node HTTP bridge around the Worker's fetch handler — a stand-in for
++// `wrangler dev` on boxes that can't install it (the Worker is plain
++// Request→Response, so node serves it directly; KV is the same in-memory mock
++// the unit tests use). Point the game at it with
++// localStorage['zerble-board-url'] = 'http://127.0.0.1:8787'.
++//
++//   node workers/leaderboard/dev-server.mjs [port]
++//
++// State lives for the life of the process. NOT part of any deploy.
++
++import http from 'node:http';
++import worker from './worker.js';
++
++const port = Number(process.argv[2]) || 8787;
++const kv = new Map();
++const env = {
++  BOARD_KV: {
++    async get(k) { return kv.has(k) ? kv.get(k) : null; },
++    async put(k, v) { kv.set(k, String(v)); },
++    async delete(k) { kv.delete(k); },
++  },
++  SIGNING_SECRET: 'dev-secret',
++  ADMIN_KEY: 'dev-admin',
++  BASE_SMILES_PER_MIN: '40',
++  MAX_MULTIPLIER: '8',
++  STAR_ALLOWANCE: '1.5',
++  SAFETY: '1.5',
++  OUTLIER_SCORE: '100000',
++};
++
++http.createServer(async (req, res) => {
++  const chunks = [];
++  for await (const c of req) chunks.push(c);
++  const body = Buffer.concat(chunks);
++  const request = new Request(`http://127.0.0.1:${port}${req.url}`, {
++    method: req.method,
++    headers: req.headers,
++    body: ['GET', 'HEAD', 'OPTIONS'].includes(req.method) ? undefined : body,
++  });
++  try {
++    const out = await worker.fetch(request, env);
++    res.writeHead(out.status, Object.fromEntries(out.headers.entries()));
++    res.end(Buffer.from(await out.arrayBuffer()));
++  } catch (err) {
++    res.writeHead(500, { 'Content-Type': 'text/plain' });
++    res.end(String(err));
++  }
++}).listen(port, '127.0.0.1', () => {
++  process.stdout.write(`zerble leaderboard dev bridge on http://127.0.0.1:${port}\n`);
++});
+diff --git a/workers/leaderboard/worker.js b/workers/leaderboard/worker.js
+new file mode 100644
+index 0000000..3569e64
+--- /dev/null
++++ b/workers/leaderboard/worker.js
+@@ -0,0 +1,254 @@
++// Zerble global leaderboard — plain-JS Cloudflare Worker + KV (design D8 of the
++// festival-run-stakes change). Deliberately Hono-less and dependency-free so it
++// reads top to bottom and unit-tests in plain node (bin/test-leaderboard-worker
++// imports this file and drives fetch() with a mock KV).
++//
++// DEPLOYED BY GARY ONLY — secrets (SIGNING_SECRET, ADMIN_KEY, optional
++// TURNSTILE_SECRET) live in Worker env, never in client code. The client is
++// fire-and-forget (design D9): every response here is advisory; the game never
++// blocks on us.
++//
++// Protocol:
++//   POST /run/start            → {runId, startTs, sig}   sig = HMAC(secret, runId|startTs)
++//   POST /run/beat             {runId, startTs, sig, score, day, name} → 204
++//   POST /run/end              same body (+cause) → 204   (also sendBeacon target)
++//   GET  /board?range=daily|all → {range, entries: [{name, score, days, date}]}
++//   DELETE /admin/entry        Bearer ADMIN_KEY, {runId, range?} → 204
++//
++// Board persistence: BOTH beat and end upsert the run's board entry (keyed by
++// runId), so a tab killed mid-run stands at its last heartbeat — the spec's
++// "a closed tab still records." Boards are top-100 arrays in KV under
++// read-modify-write; eventual consistency under concurrent run-ends is an
++// accepted trade at this scale (the per-run `run:<id>` records stay authoritative).
++//
++// Plausibility ceiling (recalibrated per council — NEVER the raw un-multiplied
++// GA4 baseline, which would quarantine exactly the legit top players):
++//   ceiling(min) = BASE_SMILES_PER_MIN × MAX_MULTIPLIER × STAR_ALLOWANCE × SAFETY
++// All four factors are env vars so tuning needs no redeploy.
++
++const CORS = {
++  'Access-Control-Allow-Origin': '*',
++  'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
++  'Access-Control-Allow-Headers': 'Content-Type,Authorization',
++};
++
++const BOARD_CAP = 100;
++const RUN_TTL_S = 48 * 3600;
++const NAME_MAX = 20;
++const FALLBACK_NAME = 'ZERBLER';
++// Small denylist — substring match on the lowercased, de-spaced name. The goal
++// is "a hostile name never renders", not a linguistics project; admin delete
++// covers the tail.
++const NAME_DENY = ['fuck', 'shit', 'cunt', 'nigg', 'fagg', 'rape', 'hitler', 'penis', 'vagin'];
++// A day is 6 real minutes (main.js CYCLE_SECONDS 360). Allow generous slack —
++// resume snapshots and clock drift make exact matching hostile to legit players.
++const DAY_MINUTES = 6;
++const DAY_SLACK = 2.5;
++
++const num = (v, dflt) => (Number.isFinite(Number(v)) ? Number(v) : dflt);
++
++function ceilingFor(env, elapsedMin) {
++  const base = num(env.BASE_SMILES_PER_MIN, 40);
++  const mult = num(env.MAX_MULTIPLIER, 8);
++  const star = num(env.STAR_ALLOWANCE, 1.5);
++  const safety = num(env.SAFETY, 1.5);
++  // A short run still gets a minute's allowance — sub-minute deaths are real.
++  return Math.max(1, elapsedMin) * base * mult * star * safety;
++}
++
++function sanitizeName(raw) {
++  let name = String(raw || '')
++    .replace(/[^\p{L}\p{N}\p{Zs}'!._-]/gu, '')
++    .replace(/\s+/g, ' ')
++    .trim()
++    .slice(0, NAME_MAX);
++  if (!name) return FALLBACK_NAME;
++  const flat = name.toLowerCase().replace(/[\s._-]/g, '');
++  for (const bad of NAME_DENY) if (flat.includes(bad)) return FALLBACK_NAME;
++  return name;
++}
++
++async function hmac(secret, msg) {
++  const key = await crypto.subtle.importKey(
++    'raw', new TextEncoder().encode(secret),
++    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
++  );
++  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(msg));
++  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
++}
++
++// Constant-time-ish compare; both sides are hex of fixed length.
++function sigEqual(a, b) {
++  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
++  let diff = 0;
++  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
++  return diff === 0;
++}
++
++const json = (obj, status = 200, extra = {}) =>
++  new Response(JSON.stringify(obj), {
++    status, headers: { 'Content-Type': 'application/json', ...CORS, ...extra },
++  });
++const empty = (status = 204) => new Response(null, { status, headers: CORS });
++
++async function readBody(request) {
++  // sendBeacon may arrive as text/plain (or no content type) — parse leniently.
++  try { return JSON.parse(await request.text()); } catch { return null; }
++}
++
++const utcDate = (now) => new Date(now).toISOString().slice(0, 10);
++const boardKey = (range, now) => (range === 'daily' ? `board:daily:${utcDate(now)}` : 'board:all');
++
++async function loadBoard(env, key) {
++  try {
++    const raw = await env.BOARD_KV.get(key);
++    const list = raw ? JSON.parse(raw) : [];
++    return Array.isArray(list) ? list : [];
++  } catch { return []; }
++}
++
++// Upsert one run's entry (keyed by runId) into a board array, sort, cap.
++function foldEntry(list, entry) {
++  const out = list.filter((e) => e && e.runId !== entry.runId);
++  out.push(entry);
++  out.sort((a, b) => (b.score - a.score) || (b.days - a.days));
++  return out.slice(0, BOARD_CAP);
++}
++
++async function rateLimit(env, bucket, cap) {
++  // Per-minute KV counter. Best-effort — KV isn't atomic, but a racer gains a
++  // couple of extra requests, not a bypass worth engineering against here.
++  const key = `rl:${bucket}:${Math.floor(Date.now() / 60000)}`;
++  const n = num(await env.BOARD_KV.get(key), 0) + 1;
++  await env.BOARD_KV.put(key, String(n), { expirationTtl: 120 });
++  return n <= cap;
++}
++
++async function verifyTurnstile(env, token, ip) {
++  if (!env.TURNSTILE_SECRET) return true;   // not configured → open (pre-launch)
++  try {
++    const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ secret: env.TURNSTILE_SECRET, response: token || '', remoteip: ip }),
++    });
++    return (await r.json()).success === true;
++  } catch { return false; }
++}
++
++// Validate a beat/end body against its token + the plausibility rules.
++// Returns {run, score, day, reason}; a null run means reject (reason says why).
++async function validateSubmission(env, body, now) {
++  if (!body || typeof body.runId !== 'string' || !body.runId) return { reason: 'bad_body' };
++  const startTs = num(body.startTs, NaN);
++  if (!Number.isFinite(startTs)) return { reason: 'bad_body' };
++  const expect = await hmac(env.SIGNING_SECRET, `${body.runId}|${startTs}`);
++  if (!sigEqual(expect, body.sig)) return { reason: 'bad_sig' };
++
++  const raw = await env.BOARD_KV.get(`run:${body.runId}`);
++  if (!raw) return { reason: 'unknown_run' };
++  let run;
++  try { run = JSON.parse(raw); } catch { return { reason: 'unknown_run' }; }
++  if (run.done) return { reason: 'finished_run' };
++
++  const elapsedMin = Math.max(0, (now - startTs) / 60000);
++  const score = Math.max(0, Math.floor(num(body.score, 0)));
++  const day = Math.max(1, Math.floor(num(body.day, 1)));
++
++  // Monotonic high-water: a submission below what we've seen keeps the stored max.
++  const hw = Math.max(score, num(run.hw, 0));
++  if (hw > ceilingFor(env, elapsedMin)) return { reason: 'implausible_rate' };
++  if (day > 1 + (elapsedMin / DAY_MINUTES) * DAY_SLACK) return { reason: 'implausible_day' };
++
++  return { run, score: hw, day: Math.max(day, num(run.day, 1)) };
++}
++
++async function applySubmission(env, body, now, { final = false } = {}) {
++  const v = await validateSubmission(env, body, now);
++  if (!v.run) return v.reason;
++
++  const run = v.run;
++  run.hw = v.score;
++  run.day = v.day;
++  run.name = sanitizeName(body.name ?? run.name);
++  run.seen = now;
++  if (final) { run.done = true; run.cause = String(body.cause || '').slice(0, 24); }
++  await env.BOARD_KV.put(`run:${body.runId}`, JSON.stringify(run), { expirationTtl: RUN_TTL_S });
++
++  const entry = {
++    runId: body.runId,
++    name: run.name,
++    score: run.hw,
++    days: run.day,
++    date: utcDate(run.startTs ?? now),
++    quarantined: run.hw >= num(env.OUTLIER_SCORE, 100000) ? true : undefined,
++  };
++  for (const range of ['all', 'daily']) {
++    const key = boardKey(range, now);
++    const list = await loadBoard(env, key);
++    await env.BOARD_KV.put(key, JSON.stringify(foldEntry(list, entry)));
++  }
++  return null;
++}
++
++export default {
++  async fetch(request, env) {
++    const url = new URL(request.url);
++    const path = url.pathname;
++    const ip = request.headers.get('CF-Connecting-IP') || 'noip';
++    const now = Date.now();
++
++    if (request.method === 'OPTIONS') return empty(204);
++
++    if (request.method === 'POST' && path === '/run/start') {
++      if (!(await rateLimit(env, `start:${ip}`, 10))) return json({ error: 'rate' }, 429);
++      const body = (await readBody(request)) || {};
++      if (!(await verifyTurnstile(env, body.turnstile, ip))) return json({ error: 'turnstile' }, 403);
++      const runId = crypto.randomUUID();
++      const startTs = now;
++      const sig = await hmac(env.SIGNING_SECRET, `${runId}|${startTs}`);
++      await env.BOARD_KV.put(`run:${runId}`, JSON.stringify({ startTs, hw: 0, day: 1 }),
++        { expirationTtl: RUN_TTL_S });
++      return json({ runId, startTs, sig });
++    }
++
++    if (request.method === 'POST' && (path === '/run/beat' || path === '/run/end')) {
++      if (!(await rateLimit(env, `beat:${ip}`, 60))) return json({ error: 'rate' }, 429);
++      const reason = await applySubmission(env, await readBody(request), now,
++        { final: path === '/run/end' });
++      // Fire-and-forget client: a rejection is a 4xx it will ignore; the
++      // reason is for wrangler-tail debugging, not the player.
++      return reason ? json({ error: reason }, 400) : empty(204);
++    }
++
++    if (request.method === 'GET' && path === '/board') {
++      const range = url.searchParams.get('range') === 'daily' ? 'daily' : 'all';
++      const list = await loadBoard(env, boardKey(range, now));
++      return json({
++        range,
++        entries: list.filter((e) => !e.quarantined)
++          .map(({ name, score, days, date }) => ({ name, score, days, date })),
++      }, 200, { 'Cache-Control': 'public, max-age=30' });
++    }
++
++    if (request.method === 'DELETE' && path === '/admin/entry') {
++      const auth = request.headers.get('Authorization') || '';
++      if (!env.ADMIN_KEY || auth !== `Bearer ${env.ADMIN_KEY}`) return json({ error: 'auth' }, 401);
++      const body = (await readBody(request)) || {};
++      if (!body.runId) return json({ error: 'bad_body' }, 400);
++      const ranges = body.range ? [body.range] : ['all', 'daily'];
++      for (const range of ranges) {
++        const key = boardKey(range, now);
++        const list = await loadBoard(env, key);
++        await env.BOARD_KV.put(key, JSON.stringify(list.filter((e) => e.runId !== body.runId)));
++      }
++      await env.BOARD_KV.delete(`run:${body.runId}`);
++      return empty(204);
++    }
++
++    return json({ error: 'not_found' }, 404);
++  },
++};
++
++// Exported for bin/test-leaderboard-worker only.
++export { sanitizeName, ceilingFor, foldEntry, FALLBACK_NAME };
+diff --git a/workers/leaderboard/wrangler.toml b/workers/leaderboard/wrangler.toml
+new file mode 100644
+index 0000000..2c4dd89
+--- /dev/null
++++ b/workers/leaderboard/wrangler.toml
+@@ -0,0 +1,33 @@
++# Zerble global leaderboard Worker — DEPLOY IS GARY-ONLY (needs the Cloudflare
++# account + secrets). The game ships with the client disabled until
++# GLOBAL_BOARD_URL in src/leaderboard.js points here.
++#
++# One-time setup:
++#   npx wrangler kv namespace create BOARD_KV        # paste the id below
++#   npx wrangler secret put SIGNING_SECRET           # long random string
++#   npx wrangler secret put ADMIN_KEY                # bearer key for DELETE /admin/entry
++#   npx wrangler secret put TURNSTILE_SECRET         # optional; absent = no captcha gate
++#   npx wrangler deploy
++#
++# Tuning (no redeploy needed — `npx wrangler kv` has nothing to do with these;
++# change them here or in the dash and redeploy vars only):
++#   BASE_SMILES_PER_MIN — observed p99 ORGANIC un-multiplied collect rate (GA4
++#     session_end; pre-combo data is valid for THIS factor only).
++#   MAX_MULTIPLIER = 8 (combo x4 × Lurleen x2) · STAR_ALLOWANCE · SAFETY —
++#     together the plausibility ceiling per design D8. Never fold the
++#     multiplier back into the base rate.
++
++name = "zerble-leaderboard"
++main = "worker.js"
++compatibility_date = "2026-08-01"
++
++kv_namespaces = [
++  { binding = "BOARD_KV", id = "REPLACE_WITH_KV_NAMESPACE_ID" },
++]
++
++[vars]
++BASE_SMILES_PER_MIN = "40"
++MAX_MULTIPLIER = "8"
++STAR_ALLOWANCE = "1.5"
++SAFETY = "1.5"
++OUTLIER_SCORE = "100000"

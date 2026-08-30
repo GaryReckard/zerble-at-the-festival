@@ -551,21 +551,36 @@ if (__resume && __resume.mode) {
   HUD.refreshMode();
 }
 Scoring.configure({ stakes: RunMode.isFestival() });
-if (__resume) {
+// The score/run payload of the snapshot is deliberately NOT applied here. The
+// resumed title card still shows the live mode selector, so the mode chosen at
+// Start can differ from the mode the snapshot was taken in — and applying the
+// payload across that boundary leaks state both ways (a Festival run's stakes
+// machine into Cruisin', or a Cruisin' score onto the Festival board; review
+// 001-groups-6-9, both P0s). It applies at Start, only on a mode match.
+function applyResumeGameState() {
+  if (!__resume || RunMode.name !== __resume.mode) return false;
   if (__resume.scoring) Scoring.restore(__resume.scoring);
   else if (Number.isFinite(__resume.score)) Scoring.reset({ current: __resume.score });
   if (__resume.run) RunState.restore(__resume.run);   // day/clock/vibe/prevT/rescue
+  HUD.setSmiles(Scoring.current);
+  return true;
 }
 HUD.loadBest();
-if (__resume) HUD.setSmiles(Scoring.current);
 let running = false;
 
 // A bubble-less Zerble makes nearby NPCs frown — each frown costs a smile
 // (and, in Festival Run, snaps the combo chain).
 crowd.onFrown = () => {
-  // Sputtering cart: frowns stay flavor-only — no smile tax while the player
-  // is already limping to juice (council; the mouth-flip is crowd-side).
-  if (RunState.active && RunState.sputter) return;
+  // Sputtering cart: no smile tax while the player is already limping to
+  // juice (council "no pile-on" on the wallet) — but the half-weight vibe
+  // strike still lands (Q6, Gary 2026-08-29): the marshals notice a dry cart
+  // souring the crowd, which also makes the frownMult ramp column
+  // load-bearing and gives the grace window a route choice (limp through
+  // the crowd = risky, limp through open ground = safe).
+  if (RunState.active && RunState.sputter) {
+    applyVibeStrike(VIBE.frownStrike);
+    return;
+  }
   if (Scoring.current <= 0) return;
   Scoring.deduct(1);
   Scoring.breakCombo();
@@ -651,7 +666,9 @@ Settings.init({
   captureState: () => running
     ? { seed: window.__seed, x: zerble.position.x, z: zerble.position.z,
         heading: zerble.heading, score: Scoring.current, scoring: Scoring.serialize(),
-        mode: RunMode.name, run: RunState.serialize(), juice: bubbles.juice, tod: getTimeOfDay()?.t }
+        mode: RunMode.name, run: RunState.over ? null : RunState.serialize(),
+        board: Leaderboard.serializeGlobal(),   // Worker token rides the resume (review 001)
+        juice: bubbles.juice, tod: getTimeOfDay()?.t }
     : null,
 });
 
@@ -676,11 +693,17 @@ HUD.onStart(() => {
   // The player can flip the mode selector right up to the Start tap —
   // (re)configure stakes from the final choice. Synchronous, pre-Sound.init.
   Scoring.configure({ stakes: RunMode.isFestival() });
+  const resumedMatch = applyResumeGameState();
   if (RunMode.isFestival()) {
-    if (!RunState.active) RunState.begin();   // active = restored resume run
+    if (!RunState.active) RunState.begin();   // active = restored (mode-matched) resume run
     setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
-    Analytics.runStart({ day: RunState.day, resumed: !!__resume });
-    Leaderboard.globalRunStart();   // no-op until the Worker URL is set (P3 deploy)
+    if (RunState.sputter) zerble.sputtering = true;   // audio loop re-arms after Sound.init below
+    Analytics.runStart({ day: RunState.day, resumed: resumedMatch });
+    // A resumed run re-adopts its Worker token — a fresh /run/start would reset
+    // elapsed time and trip the Worker's own day/rate plausibility guards.
+    if (!(resumedMatch && Leaderboard.globalRestore(__resume.board))) {
+      Leaderboard.globalRunStart();   // no-op until the Worker URL is set (P3 deploy)
+    }
   }
   // Context segments every later event by device/tier/returning-ness.
   Analytics.gameStart({
@@ -699,6 +722,9 @@ HUD.onStart(() => {
   // await/setTimeout boundary loses the "user gesture" status and the
   // AudioContext starts suspended (silent).
   Sound.init();
+  // A run resumed mid-sputter restores the death clock — restore its cues too
+  // (the limp flag is set above; the chug loop needs the fresh AudioContext).
+  if (RunState.active && RunState.sputter) Sound.startSputterLoop();
   // Explicit local-device perf captures arm from the URL, but recording begins
   // only after this real gesture and after synchronous iOS audio initialization.
   window.__debug?.startDeviceCapture?.();
@@ -949,7 +975,9 @@ function tickBody(dt) {
     _wasEmpty = bubblesEmpty;
 
     // ---- Festival Run layer: day ramp, sputter grace, vibe decay ----
-    if (RunState.active && !RunState.over) {
+    // The RunMode check is belt-and-suspenders (review 001: RunState can only
+    // be active in Festival, but a leak here means stakes in Cruisin').
+    if (RunMode.isFestival() && RunState.active && !RunState.over) {
       if (RunState.tickDay(dt, getTimeOfDay()?.t)) {
         const d = RunState.day;
         const line = DAY_UP_TOASTS[Math.floor(Math.random() * DAY_UP_TOASTS.length)];
@@ -979,11 +1007,14 @@ function tickBody(dt) {
       HUD.setDay(RunState.day);
       HUD.setSputter(RunState.sputter ? RunState.sputterLeft : null);
       HUD.setVibe(RunState.vibeFraction(limits), true, limits ? RunState.vibe >= limits.warn : false);
-      // Global board heartbeat — self-throttled (60s + milestones), no-op
-      // while disabled or before the /run/start token lands.
-      Leaderboard.globalHeartbeat({
-        score: Scoring.highWater, day: RunState.day, name: HUD.getPlayerName(),
-      });
+      // Global board heartbeat — self-throttled (60s + milestones). The
+      // enabled check keeps the per-frame argument object from being built
+      // at all in the (shipping-default) disabled state.
+      if (Leaderboard.globalEnabled()) {
+        Leaderboard.globalHeartbeat({
+          score: Scoring.highWater, day: RunState.day, name: HUD.getPlayerName(),
+        });
+      }
     }
     // Rebuild the registry broadphase once per frame, before every consumer
     // (crowd steering, kid push-out, Zerble collision). Cheap O(entries) pass;
@@ -1786,17 +1817,25 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       HUD.hideTitle();
       running = true;
       // Same stakes arming the real Start tap does — a drill that picked
-      // Festival Run on the title card must get Festival Run scoring.
+      // Festival Run on the title card must get Festival Run scoring, and the
+      // mode-matched resume payload applies here exactly like the real tap.
       Scoring.configure({ stakes: RunMode.isFestival() });
+      const dbgResumed = applyResumeGameState();
       if (RunMode.isFestival()) {
         if (!RunState.active) RunState.begin();
         setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
-        Leaderboard.globalRunStart();
+        if (RunState.sputter) zerble.sputtering = true;
+        if (!(dbgResumed && Leaderboard.globalRestore(__resume.board))) {
+          Leaderboard.globalRunStart();
+        }
       }
       document.body.classList.add('game-started');
       const tc = document.getElementById('touch-controls');
       if (tc) tc.setAttribute('aria-hidden', 'false');
-      try { Sound.init(); } catch (_) { /* silent audio is fine for dev */ }
+      try {
+        Sound.init();
+        if (RunState.active && RunState.sputter) Sound.startSputterLoop();
+      } catch (_) { /* silent audio is fine for dev */ }
       // Skip the opening reveal entirely: controls live immediately.
       controlsLocked = false;
       chaseCam.skipIntro();   // no-op if no intro armed; settles to chase
@@ -1851,8 +1890,9 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     },
 
     // Score-screen drills (festival-run-stakes). showScoreScreen renders the
-    // overlay with mock run data (real wiring lands with runState);
-    // seedBoard fills the local top-10 with fake legends for layout checks.
+    // overlay with mock data only — the real screen is raised from the death
+    // dispatch (endFestivalRun); seedBoard fills the local top-10 with fake
+    // legends for layout checks.
     showScoreScreen(mock = {}) {
       HUD.showScoreScreen({
         cause: mock.cause || 'Zerble ran dry on Day 3…',
@@ -2438,6 +2478,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         'window.__dbg — agent control surface (localhost only). The one door.',
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · addSmiles(n) · boostStreak() · photographer() · fillSeats(kind?) · rider(kind)',
         '  board:   showScoreScreen(mock?) · seedBoard(n?)   (festival-run score screen + local top-10 drills)',
+        '  run:     runInfo() · runDay(n) · vibe(v) · strike(n) · sputterLeft(s)   (stakes drills — need localStorage["zerble-mode"]="festival" before start())',
         '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock() · topDown(x?,z?,span)   (pins a pose; overrides chase cam)',
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
         '  draws:   drawCensus({top?})   (scene draw-call composition by geometry/material → names instance/merge targets)',

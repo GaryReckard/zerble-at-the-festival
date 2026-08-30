@@ -2194,16 +2194,19 @@ export class Crowd {
     this._writeMatrices(npc);
   }
 
-  // Called from main.js when Zerble rams a porta-potty that's in use: eject the
-  // occupant (flustered, fleeing), fling the door open, puff the stink.
   // Festival Run: a damaging hit flips the struck NPC's mouth to a frown for
   // the standard frown beat (dispatched from main.js's damaging-hit gate —
   // the frown here is feedback only; the smile deduction stays in onFrown's
-  // dry-cart path and the vibe strike lives in the run layer).
+  // dry-cart path and the vibe strike lives in the run layer). A fleeing
+  // victim keeps fleeing: the frown branch in _updateNpc force-writes
+  // `walking`, which would strip the damage-0 anti-double-hit grace the
+  // fleeing state carries — panic outranks a mouth flip.
   frownAt(npc) {
-    if (npc) npc.frownTimer = FROWN_DURATION;
+    if (npc && npc.state !== 'fleeing') npc.frownTimer = FROWN_DURATION;
   }
 
+  // Called from main.js when Zerble rams a porta-potty that's in use: eject the
+  // occupant (flustered, fleeing), fling the door open, puff the stink.
   onPottyHit(entry) {
     if (!entry || !entry.potty || !entry.potty.occupied) return;
     const p = entry.potty;

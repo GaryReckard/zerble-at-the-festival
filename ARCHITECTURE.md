@@ -358,8 +358,19 @@ than scattering mode checks.
   There is a single HUD toast slot — stakes beats (heartbreak, whistle)
   suppress the generic collision quip so a same-frame overwrite can't hide
   them. Deaths lock controls, write the local board, raise the score screen.
-- **`leaderboard.js`** — local top-10 in `localStorage` (corrupt-JSON
-  tolerant). The Cloudflare Worker global board is the change's P3.
+- **`leaderboard.js`** — two halves. Local: top-10 in `localStorage`
+  (corrupt-JSON tolerant). Global: the fire-and-forget client for the
+  Cloudflare Worker board — signed run token, ~60s + milestone heartbeats, a
+  final submit at death, and a `pagehide` beacon that sends a BEAT (never an
+  end — mobile app-switching fires pagehide, and closing the run server-side
+  would freeze a player who merely backgrounded). Every network path is
+  timeboxed and error-swallowed; the whole half is hard-disabled until the
+  deployed URL is set in the file (`PROD_BOARD_URL`), with a localhost-gated
+  `zerble-board-url` localStorage override for dev drills. The Worker itself
+  lives at **`workers/leaderboard/`** — deliberately outside the game's
+  importmaps and perf surface; its deploy runbook (KV + secrets, Gary-only)
+  is in `workers/leaderboard/README.md` + `wrangler.toml`, and
+  `bin/test-leaderboard-worker` drives it in plain node with a mock KV.
 - **Resume**: the settings "Apply & restart" snapshot carries mode + serialized
   run + scoring state, restored before stakes config so a mid-run reload drops
   you back into the same day with the same vibe meter.

@@ -46,13 +46,22 @@ function save(list) {
 // Set to the deployed Worker origin (e.g. 'https://zerble-leaderboard.<acct>.workers.dev')
 // to switch the global board on. Empty string = fully disabled: no fetches, no
 // beacon hook, no tabs on the score screen. GARY FLIPS THIS after deploying
-// workers/leaderboard/ — see wrangler.toml there. Dev override (never shipped
-// copy, not player-facing): `localStorage['zerble-board-url']` points a local
-// game at `wrangler dev` / the bin/test bridge for end-to-end drills.
+// workers/leaderboard/ — see wrangler.toml there. Dev override (not
+// player-facing): `localStorage['zerble-board-url']` points a LOCAL game at
+// `wrangler dev` / the node bridge for end-to-end drills. Localhost-gated
+// like `__dbg`, so on the production origin the const alone decides —
+// "disabled until deployed" is a hard guarantee, not a default. Evaluated
+// once at module load: changing the key needs a reload.
 const PROD_BOARD_URL = '';
 export const GLOBAL_BOARD_URL = (() => {
-  try { return localStorage.getItem('zerble-board-url') || PROD_BOARD_URL; }
-  catch (err) { return PROD_BOARD_URL; }
+  try {
+    const h = location.hostname;
+    const isLocal = h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0'
+      || h.endsWith('.local') || /^10\./.test(h) || /^192\.168\./.test(h)
+      || /^172\.(1[6-9]|2\d|3[0-1])\./.test(h) || h.includes('claude-preview');
+    if (isLocal) return localStorage.getItem('zerble-board-url') || PROD_BOARD_URL;
+  } catch (err) { /* node import / storage unavailable */ }
+  return PROD_BOARD_URL;
 })();
 
 const BEAT_INTERVAL_MS = 60000;      // baseline heartbeat cadence
@@ -87,9 +96,14 @@ function hookBeacon() {
   _beaconHooked = true;
   window.addEventListener('pagehide', () => {
     if (!_run || _runDone || !_latest || !navigator.sendBeacon) return;
+    // Beacon a BEAT, never an end: pagehide also fires on mobile app-switch /
+    // bfcache entry, and /run/end would close the run server-side forever —
+    // freezing the score of a player who merely backgrounded the tab (review
+    // 001). Beats upsert the board entry, which is the whole "a killed tab
+    // still records" guarantee, while leaving the run open for a return.
     // sendBeacon can't set JSON headers — the Worker parses text/plain bodies.
-    navigator.sendBeacon(GLOBAL_BOARD_URL + '/run/end',
-      JSON.stringify({ ..._run, ..._latest, cause: 'tab_closed' }));
+    navigator.sendBeacon(GLOBAL_BOARD_URL + '/run/beat',
+      JSON.stringify({ ..._run, ..._latest }));
   });
 }
 
@@ -134,6 +148,23 @@ export const Leaderboard = {
     if (!_run || _runDone) return;
     _runDone = true;
     post('/run/end', { ..._run, score: Math.floor(score), day, name, cause });
+  },
+
+  // Resume plumbing: the Worker token rides the settings resume snapshot so a
+  // resumed run keeps its original startTs — a fresh /run/start would reset
+  // elapsed time and trip the Worker's own day/rate plausibility guards
+  // (and split one logical run across two board rows).
+  serializeGlobal() {
+    return _run && !_runDone ? { run: _run } : null;
+  },
+  globalRestore(o) {
+    if (!this.globalEnabled() || !o || !o.run || !o.run.runId || !o.run.sig) return false;
+    _run = o.run;
+    _runDone = false;
+    _latest = null;
+    _lastBeat = { at: 0, hw: 0, day: 0 };   // beat again shortly after resume
+    hookBeacon();
+    return true;
   },
 
   // Timeboxed board read for the score-screen tabs. Resolves to an entry array

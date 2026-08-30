@@ -1,0 +1,331 @@
+diff --git a/hub-sandbox.html b/hub-sandbox.html
+index 82bef60..a1e0072 100644
+--- a/hub-sandbox.html
++++ b/hub-sandbox.html
+@@ -38,7 +38,7 @@
+       /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.includes('claude-preview') || h.includes('happycog');
+     const v = isLocal ? '?v=' + Date.now() : '';
+     const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
+-      'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
++      'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
+       'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField',
+       'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
+     const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
+diff --git a/index.html b/index.html
+index e2b13c8..316ab46 100644
+--- a/index.html
++++ b/index.html
+@@ -85,7 +85,7 @@
+       // in sync with the directory; unused entries are inert (importmap mappings
+       // only resolve when something actually imports them).
+       const mods = ['main','world','zerble','bubbles','smiles','fireworks','crowd','chunks','forests',
+-        'mountains','camera','input','touch','hud','sound','leaderboard','runMode','scoring','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
++        'mountains','camera','input','touch','hud','sound','leaderboard','runMode','scoring','runState','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
+         'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid','starPower','steering','settings','a11y','mergeDecor','boostStreaks','photographer','farField',
+         'worldgen/constants','worldgen/tuning','worldgen/hearts','worldgen/water','worldgen/roads','worldgen/density','worldgen/roles','worldgen/index','worldgen/selftest','worldgen/placement','worldgen/festival','worldgen/lint'];
+       const models = ['canoe','hammock','tent','tentStage','foodTruck','sugarShack','tree','shrub', 'heart','stage','performer',
+@@ -157,6 +157,7 @@
+         <div class="juice-track">
+           <div id="juice-fill" class="juice-fill"></div>
+         </div>
++        <span id="sputter-count" class="sputter-count hidden" aria-hidden="true">45</span>
+         <span id="juice-reserve" class="juice-reserve" aria-hidden="true">
+           <span id="juice-reserve-n" class="rsv-n"></span>
+           <svg class="rsv-jug" viewBox="0 0 16 20" width="11" height="14" aria-hidden="true">
+@@ -173,6 +174,13 @@
+           <span id="cycle-symbol" class="cycle-symbol">☀</span>
+           <span class="cycle-marker"></span>
+         </span>
++        <span id="day-n" class="day-n hidden">Day 1</span>
++      </div>
++      <div id="vibe-chip" class="hud-chip vibe-status hidden" aria-label="Festival vibe: all good">
++        <span class="vibe-face" id="vibe-face" aria-hidden="true">😊</span>
++        <div class="vibe-track" aria-hidden="true">
++          <div id="vibe-fill" class="vibe-fill"></div>
++        </div>
+       </div>
+       <div id="lurleen-status" class="hud-chip lurleen-status" aria-hidden="true" aria-label="Lurleen is following">
+         <span class="lurleen-heart" aria-hidden="true">♥</span>
+@@ -251,7 +259,7 @@
+         <label for="player-name">What's your name?</label>
+         <input id="player-name" type="text" maxlength="20" autocomplete="nickname"
+                spellcheck="false" placeholder="Zerbler" enterkeyhint="done" />
+-        <span class="name-note">Totally optional — it shows up around the festival (and on the leaderboard).</span>
++        <span class="name-note">Totally optional — it shows up around the festival, and Festival Run scores go on a public leaderboard under it.</span>
+       </div>
+ 
+       <button id="start-btn" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
+@@ -269,7 +277,12 @@
+         <div class="stat"><span class="stat-n" id="score-combo">×1</span><span class="stat-l">best combo</span></div>
+       </div>
+       <h3 class="board-title">Local legends</h3>
+-      <table id="local-board" aria-label="Local top ten"><tbody></tbody></table>
++      <div id="board-tabs" class="board-tabs hidden" role="tablist" aria-label="Leaderboard range">
++        <button id="board-tab-local" class="board-tab active" type="button" role="tab" aria-selected="true">Local</button>
++        <button id="board-tab-daily" class="board-tab" type="button" role="tab" aria-selected="false">Today</button>
++        <button id="board-tab-all" class="board-tab" type="button" role="tab" aria-selected="false">All-time</button>
++      </div>
++      <table id="local-board" aria-label="Leaderboard"><tbody></tbody></table>
+       <p id="board-empty" class="board-empty hidden">No legends yet — finish a Festival Run to claim the board!</p>
+       <div class="score-actions">
+         <button id="score-again" type="button">Run it again!</button>
+diff --git a/package.json b/package.json
+index cd54b31..fc12325 100644
+--- a/package.json
++++ b/package.json
+@@ -3,7 +3,7 @@
+     "headroom-ai": "^0.22.4"
+   },
+   "scripts": {
+-    "check": "bin/check-importmaps && bin/check-model-dims && bin/test-registry-grid && bin/test-forest-determinism && bin/test-adaptive-quality && bin/test-adaptive-quality-low && bin/test-game-juice && bin/test-crowd-photographer && bin/test-frisbee-player && bin/test-far-field",
++    "check": "bin/check-importmaps && bin/check-model-dims && bin/test-registry-grid && bin/test-forest-determinism && bin/test-adaptive-quality && bin/test-adaptive-quality-low && bin/test-game-juice && bin/test-crowd-photographer && bin/test-frisbee-player && bin/test-far-field && bin/test-run-mode && bin/test-scoring && bin/test-run-state && bin/test-jug-filter && bin/test-leaderboard-worker",
+     "check:imports": "bin/check-importmaps",
+     "check:dims": "bin/check-model-dims",
+     "test:registry": "bin/test-registry-grid",
+diff --git a/sandbox.html b/sandbox.html
+index 37e64d2..3ce7003 100644
+--- a/sandbox.html
++++ b/sandbox.html
+@@ -181,7 +181,7 @@
+             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
+             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
+             const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
+-                'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
++                'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
+                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField',
+                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
+             const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
+diff --git a/src/hud.js b/src/hud.js
+index 14a39d5..d85282c 100644
+--- a/src/hud.js
++++ b/src/hud.js
+@@ -88,6 +88,7 @@ const $scoreClose = document.getElementById('score-close');
+ const $boardOpenTitle = document.getElementById('board-open-title');
+ 
+ let _onScoreAgain = null;
++let _onScoreClose = null;
+ 
+ // ---- Combo chip state (dirty flags) ----
+ const $comboChip = document.getElementById('combo-chip');
+@@ -99,6 +100,18 @@ let _comboMult = 1;
+ let _comboFrac = 0;
+ let _comboHeart = false;
+ 
++// ---- Festival Run stakes chips ----
++const $dayN = document.getElementById('day-n');
++const $sputterCount = document.getElementById('sputter-count');
++const $vibeChip = document.getElementById('vibe-chip');
++const $vibeFill = document.getElementById('vibe-fill');
++const $vibeFace = document.getElementById('vibe-face');
++let _dayN = null;
++let _sputterSec = null;
++let _vibeActive = false;
++let _vibeFrac = -1;
++let _vibeWarn = false;
++
+ function renderBoard(board, highlightRank) {
+   if (!$localBoardBody) return;
+   $localBoardBody.textContent = '';
+@@ -122,7 +135,41 @@ function renderBoard(board, highlightRank) {
+   });
+ }
+ 
+-$scoreClose?.addEventListener('click', () => HUD.hideScoreScreen());
++// ---- Score-screen board tabs (global board; hidden while it's disabled) ----
++// Local renders synchronously from the last shown board; the global tabs fetch
++// timeboxed and fall back to the local rows SILENTLY on any failure (spec:
++// the Worker being down is invisible).
++const $boardTabs = document.getElementById('board-tabs');
++let _lastBoard = [];
++let _lastHighlight = 0;
++let _boardFetchSeq = 0;
++
++function setBoardTab(which) {
++  $boardTabs?.querySelectorAll('.board-tab').forEach((b) => {
++    const on = b.id === `board-tab-${which}`;
++    b.classList.toggle('active', on);
++    b.setAttribute('aria-selected', on ? 'true' : 'false');
++  });
++}
++
++async function showBoardRange(range) {
++  const seq = ++_boardFetchSeq;
++  setBoardTab(range === 'daily' ? 'daily' : range === 'all' ? 'all' : 'local');
++  if (range === 'local') { renderBoard(_lastBoard, _lastHighlight); return; }
++  const entries = await Leaderboard.fetchGlobal(range);
++  if (seq !== _boardFetchSeq) return;               // a newer tab click won
++  if (!entries) { setBoardTab('local'); renderBoard(_lastBoard, _lastHighlight); return; }
++  renderBoard(entries.slice(0, 10), 0);
++}
++
++document.getElementById('board-tab-local')?.addEventListener('click', () => showBoardRange('local'));
++document.getElementById('board-tab-daily')?.addEventListener('click', () => showBoardRange('daily'));
++document.getElementById('board-tab-all')?.addEventListener('click', () => showBoardRange('all'));
++
++$scoreClose?.addEventListener('click', () => {
++  HUD.hideScoreScreen();
++  if (_onScoreClose) _onScoreClose();
++});
+ $scoreAgain?.addEventListener('click', () => {
+   HUD.hideScoreScreen();
+   if (_onScoreAgain) _onScoreAgain();
+@@ -201,6 +248,51 @@ export const HUD = {
+     }
+   },
+ 
++  // Festival Run day counter on the cycle chip. null = hide (Cruisin').
++  setDay(n) {
++    if (!$dayN) return;
++    const v = n == null ? null : Math.max(1, Math.floor(n));
++    if (v === _dayN) return;
++    _dayN = v;
++    $dayN.classList.toggle('hidden', v == null);
++    if (v != null) $dayN.textContent = `Day ${v}`;
++  },
++
++  // Sputter grace countdown inside the juice chip. null = hide.
++  setSputter(sec) {
++    if (!$sputterCount) return;
++    const v = sec == null ? null : Math.max(0, Math.ceil(sec));
++    if (v === _sputterSec) return;
++    _sputterSec = v;
++    $sputterCount.classList.toggle('hidden', v == null);
++    if (v != null) $sputterCount.textContent = `${v}s`;
++  },
++
++  // Persistent vibe meter (Festival Run only — council D15: a death path is
++  // never invisible). frac 0..1 of the ejection limit; warn pulses the chip.
++  setVibe(frac, active, warn = false) {
++    if (!$vibeChip) return;
++    if (active !== _vibeActive) {
++      _vibeActive = active;
++      $vibeChip.classList.toggle('hidden', !active);
++    }
++    if (!active) return;
++    const f = Math.max(0, Math.min(1, frac));
++    if (Math.abs(f - _vibeFrac) >= 0.01) {
++      _vibeFrac = f;
++      if ($vibeFill) $vibeFill.style.transform = `scaleX(${f})`;
++      const face = f >= 0.75 ? '😠' : f >= 0.4 ? '😕' : '😊';
++      if ($vibeFace && face !== $vibeFace.textContent) $vibeFace.textContent = face;
++      $vibeChip.setAttribute('aria-label',
++        f >= 0.75 ? 'Festival vibe: the marshals are watching' :
++        f >= 0.4 ? 'Festival vibe: getting tense' : 'Festival vibe: all good');
++    }
++    if (warn !== _vibeWarn) {
++      _vibeWarn = warn;
++      $vibeChip.classList.toggle('vibe-warn', warn);
++    }
++  },
++
+   // Score screen. viewOnly (the title-card "Local legends" peek) hides the
+   // run stats + the "again" action and just shows the board.
+   showScoreScreen({ cause = '', score = 0, days = 1, bestCombo = 1,
+@@ -216,13 +308,18 @@ export const HUD = {
+       if ($scoreDays) $scoreDays.textContent = String(Math.max(1, Math.floor(days)));
+       if ($scoreCombo) $scoreCombo.textContent = `×${Math.max(1, Math.floor(bestCombo))}`;
+     }
+-    renderBoard(board, viewOnly ? 0 : highlightRank);
++    _lastBoard = board;
++    _lastHighlight = viewOnly ? 0 : highlightRank;
++    setBoardTab('local');
++    $boardTabs?.classList.toggle('hidden', !Leaderboard.globalEnabled());
++    renderBoard(board, _lastHighlight);
+     $scoreScreen.classList.remove('hidden');
+   },
+ 
+   hideScoreScreen() { $scoreScreen?.classList.add('hidden'); },
+ 
+   onScoreAgain(cb) { _onScoreAgain = cb; },
++  onScoreClose(cb) { _onScoreClose = cb; },
+ 
+   getPlayerName() { return _playerName; },
+ 
+diff --git a/styles.css b/styles.css
+index 5e1662c..397067f 100644
+--- a/styles.css
++++ b/styles.css
+@@ -640,6 +640,50 @@ kbd {
+ 
+ .combo-status { gap: 6px; }
+ 
++.day-n {
++  font-size: 11px;
++  font-weight: 800;
++  letter-spacing: 0.04em;
++  color: #ffd28a;
++  white-space: nowrap;
++  margin-left: 5px;
++}
++
++.vibe-status { gap: 6px; }
++.vibe-face { font-size: 13px; line-height: 1; }
++
++.vibe-track {
++  width: 44px;
++  height: 6px;
++  border-radius: 999px;
++  background: rgba(255, 246, 230, 0.14);
++  overflow: hidden;
++}
++
++.vibe-fill {
++  height: 100%;
++  width: 100%;
++  border-radius: 999px;
++  background: linear-gradient(90deg, #7ddba3, #ffd28a 55%, #ff6f9c);
++  transform-origin: left center;
++  transform: scaleX(0);
++  transition: transform 0.25s ease;
++}
++
++.vibe-status.vibe-warn { animation: vibePulse 0.9s ease-in-out infinite; }
++
++@keyframes vibePulse {
++  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 111, 156, 0); }
++  50% { box-shadow: 0 0 10px 2px rgba(255, 111, 156, 0.45); }
++}
++
++.sputter-count {
++  font-size: 11px;
++  font-weight: 800;
++  color: #ff6f9c;
++  animation: vibePulse 0.9s ease-in-out infinite;
++}
++
+ .combo-ring-wrap {
+   position: relative;
+   display: inline-flex;
+@@ -777,6 +821,32 @@ kbd {
+   margin-bottom: 8px;
+ }
+ 
++.board-tabs {
++  display: flex;
++  gap: 6px;
++  justify-content: center;
++  margin-bottom: 8px;
++}
++
++.board-tab {
++  font: inherit;
++  font-size: 12px;
++  font-weight: 700;
++  letter-spacing: 0.05em;
++  padding: 4px 12px;
++  border-radius: 999px;
++  border: 1px solid rgba(255, 246, 230, 0.25);
++  background: transparent;
++  color: rgba(255, 246, 230, 0.65);
++  cursor: pointer;
++}
++
++.board-tab.active {
++  background: rgba(255, 210, 138, 0.18);
++  border-color: rgba(255, 210, 138, 0.6);
++  color: #ffd28a;
++}
++
+ #local-board {
+   width: 100%;
+   border-collapse: collapse;

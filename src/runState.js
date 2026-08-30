@@ -145,6 +145,9 @@ export const RunState = {
   },
   restore(o) {
     if (!o) return;
+    // A snapshot taken after death is no run — restoring {active, over} would
+    // zombie the stakes layer permanently off with no way to end the run.
+    if (o.over) return;
     R.active = !!o.active;
     R.clock = Number(o.clock) || 0;
     R.day = Math.max(1, Math.floor(o.day) || 1);

@@ -252,15 +252,21 @@ body {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
 }
 
-/* The full day/night cycle is the dial face; the pip orbits to the live t value. */
+/* The full day/night cycle is the dial face; the pip orbits to the live t value.
+   min-width (not width) + a shrink-proof dial: the Festival Run day label
+   widens the chip when shown, and a display:none'd label costs no layout —
+   a visibility-hidden one kept its box and crushed the dial to a 3px sliver
+   in Just Cruisin' (review 001, P1). */
 .cycle-status {
   --cycle-turn: 0.15turn;
-  width: 42px;
+  min-width: 42px;
+  padding: 0 5px;
   justify-content: center;
 }
 
 .cycle-dial {
   position: relative;
+  flex: 0 0 auto;
   width: 31px;
   height: 31px;
   border-radius: 50%;
@@ -647,6 +653,19 @@ kbd {
   color: #ffd28a;
   white-space: nowrap;
   margin-left: 5px;
+}
+
+/* Stakes-only HUD surfaces hide with display:none, not the fade-`.hidden`
+   default: a visibility-hidden box still reserves layout (an invisible chip +
+   rail gap in Cruisin', the squashed dial above, a blank tab band on every
+   score screen) and keeps its CSS animations ticking (review 001). Matches the
+   .lurleen-status precedent. */
+.day-n.hidden,
+.sputter-count.hidden,
+.vibe-status.hidden,
+.combo-status.hidden,
+.board-tabs.hidden {
+  display: none;
 }
 
 .vibe-status { gap: 6px; }

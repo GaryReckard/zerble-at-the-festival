@@ -1,0 +1,208 @@
+#!/usr/bin/env node
+// bin/drill-stakes — Festival Run stakes regression drill (browser-level; the
+// node-only invariants live in bin/test-run-*). Runs the REAL game headless on
+// SwiftShader via the same out-of-repo Playwright harness as bin/verify-headless
+// (~/.zerble-verify; override ZERBLE_VERIFY_ROOT). Dev server must already be
+// on :8765 (python3 .claude/serve_nocache.py 8765).
+//
+// Exists because review 001-groups-6-9 found both P0s in seams no drill
+// covered: (1) the CROSS-MODE RESUME boundary — the settings snapshot's
+// score/run payload must only apply when the started mode matches the
+// snapshot's mode; (2) CRUISIN' HUD GEOMETRY — stakes chips must be
+// display:none'd out of layout, not just faded (a visibility-hidden Day label
+// once crushed the cycle dial to a 3px sliver in the default mode). Plus the
+// two death paths as smoke.
+//
+// Game time crawls under SwiftShader (dt clamp 0.05 at ~2-4 fps) — every wait
+// here POLLS __dbg.runInfo() predicates; never add wall-clock sleeps.
+
+import path from 'node:path';
+import os from 'node:os';
+import { createRequire } from 'node:module';
+
+const HARNESS_ROOT = process.env.ZERBLE_VERIFY_ROOT || path.join(os.homedir(), '.zerble-verify');
+let chromium;
+try {
+  ({ chromium } = createRequire(path.join(HARNESS_ROOT, 'noop.js'))('playwright'));
+} catch {
+  console.error(`drill-stakes: playwright not found under ${HARNESS_ROOT} — see bin/verify-headless header for the one-time setup.`);
+  process.exit(2);
+}
+
+const BASE = 'http://127.0.0.1:8765/?perf=low&seed=123';
+const results = [];
+const ok = (name, pass, detail = '') => {
+  results.push(!!pass);
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`);
+};
+
+const browser = await chromium.launch({
+  headless: true,
+  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
+    '--disable-gpu-sandbox', '--enable-webgl', '--ignore-gpu-blocklist'],
+});
+
+// mode: what the player "picks" on the card (persisted key the game reads).
+// resume: an optional zerble.resume snapshot planted in sessionStorage.
+async function boot({ mode, resume = null } = {}) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await context.addInitScript(({ mode, resume }) => {
+    try {
+      localStorage.setItem('zerble-mode', mode);
+      localStorage.setItem('zerble-player-name', 'Drill');
+      if (resume) sessionStorage.setItem('zerble.resume', JSON.stringify(resume));
+    } catch (e) {}
+  }, { mode, resume });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto(BASE, { waitUntil: 'load', timeout: 60000 });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.__dbg.start());
+  await page.waitForTimeout(2500);
+  return { context, page, errors };
+}
+const info = (page) => page.evaluate(() => window.__dbg.runInfo());
+async function waitRun(page, predSrc, timeoutMs = 45000) {
+  try {
+    await page.waitForFunction(
+      (src) => new Function('ri', `return (${src});`)(window.__dbg.runInfo()),
+      predSrc, { timeout: timeoutMs, polling: 250 },
+    );
+    return true;
+  } catch { return false; }
+}
+
+// A festival snapshot of the shape settings' captureState writes (mid-run,
+// day 3, some vibe, a score) — the payload the mode gate must quarantine.
+const FESTIVAL_SNAPSHOT = {
+  seed: 123, x: 0, z: 0, heading: 0,
+  mode: 'festival',
+  score: 77,
+  scoring: { current: 77, highWater: 90, bestMult: 3, chain: 0, chainTimer: 0 },
+  run: { active: true, clock: 800, day: 3, prevT: 0.4, sputter: false,
+    sputterLeft: 0, vibe: 2, vibeWarned: false, rescueUsed: false, over: false, cause: null },
+  juice: 0.5, tod: 0.4,
+};
+
+// ---- 1. Cruisin' HUD geometry: stakes chips out of layout, dial round ----
+{
+  const { context, page, errors } = await boot({ mode: 'cruisin' });
+  const geo = await page.evaluate(() => {
+    const disp = (id) => {
+      const el = document.getElementById(id);
+      return el ? getComputedStyle(el).display : 'missing';
+    };
+    const dial = document.querySelector('.cycle-dial').getBoundingClientRect();
+    return { dial: { w: dial.width, h: dial.height },
+      dayN: disp('day-n'), vibe: disp('vibe-chip'),
+      sputter: disp('sputter-count'), combo: disp('combo-chip') };
+  });
+  ok('1. Cruisin: cycle dial is round (not squashed by hidden label)',
+    geo.dial.w >= 28 && Math.abs(geo.dial.w - geo.dial.h) < 2,
+    `dial=${geo.dial.w.toFixed(1)}x${geo.dial.h.toFixed(1)}`);
+  ok('1. Cruisin: stakes chips are display:none, not just faded',
+    geo.dayN === 'none' && geo.vibe === 'none' && geo.sputter === 'none' && geo.combo === 'none',
+    JSON.stringify(geo));
+  const ri = await info(page);
+  ok('1. Cruisin: no run state armed', ri.mode === 'cruisin' && !ri.run.active);
+  ok('1. console clean', errors.length === 0, errors.join(' | '));
+  await context.close();
+}
+
+// mode-flip helper: the snapshot's RunMode.set at load overwrites the
+// persisted mode key, so "the player flipped after the resume reload" can only
+// be simulated the way a player does it — clicking the title-card button
+// between page load and Start. boot() calls __dbg.start() itself, so the
+// resume drills boot in two steps.
+async function bootPaused({ mode, resume }) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await context.addInitScript(({ mode, resume }) => {
+    try {
+      localStorage.setItem('zerble-mode', mode);
+      localStorage.setItem('zerble-player-name', 'Drill');
+      if (resume) sessionStorage.setItem('zerble.resume', JSON.stringify(resume));
+    } catch (e) {}
+  }, { mode, resume });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto(BASE, { waitUntil: 'load', timeout: 60000 });
+  await page.waitForTimeout(1500);
+  return { context, page, errors };
+}
+
+// ---- 2. P0 leak A: festival snapshot must NOT arm stakes in a Cruisin' start ----
+{
+  const { context, page, errors } = await bootPaused({ mode: 'festival', resume: FESTIVAL_SNAPSHOT });
+  await page.evaluate(() => document.getElementById('mode-cruisin').click());   // the flip
+  await page.evaluate(() => window.__dbg.start());
+  await page.waitForTimeout(2500);
+  const ri = await info(page);
+  const vibeDisp = await page.evaluate(() =>
+    getComputedStyle(document.getElementById('vibe-chip')).display);
+  ok('2. cross-mode resume (festival→cruisin): run state NOT restored',
+    !ri.run.active && ri.run.day === 1, `active=${ri.run.active} day=${ri.run.day}`);
+  ok('2. cross-mode resume: score NOT restored', ri.score === 0 && ri.highWater === 0,
+    `score=${ri.score} hw=${ri.highWater}`);
+  ok('2. cross-mode resume: no stakes HUD', vibeDisp === 'none');
+  // The dry-death machinery must be inert: empty tank, no sputter, no death.
+  await page.evaluate(() => window.__dbg.setJuice(0));
+  await page.waitForTimeout(4000);
+  const ri2 = await info(page);
+  ok('2. cross-mode resume: dry tank cannot arm sputter/death in Cruisin',
+    !ri2.run.sputter && !ri2.run.over && !ri2.sputteringFlag);
+  ok('2. console clean', errors.length === 0, errors.join(' | '));
+  await context.close();
+}
+
+// ---- 3. P0 leak B: cruisin score must NOT reach a Festival start ----
+{
+  const cruisinSnap = { ...FESTIVAL_SNAPSHOT, mode: 'cruisin',
+    score: 5000, scoring: { current: 5000, highWater: 5000, bestMult: 1, chain: 0, chainTimer: 0 },
+    run: { active: false, clock: 0, day: 1, prevT: 0.4, sputter: false, sputterLeft: 0,
+      vibe: 0, vibeWarned: false, rescueUsed: false, over: false, cause: null } };
+  const { context, page, errors } = await bootPaused({ mode: 'cruisin', resume: cruisinSnap });
+  await page.evaluate(() => document.getElementById('mode-festival').click());   // the flip
+  await page.evaluate(() => window.__dbg.start());
+  await page.waitForTimeout(2500);
+  const ri = await info(page);
+  ok('3. cross-mode resume (cruisin→festival): fresh run, no laundered score',
+    ri.run.active && ri.run.day === 1 && ri.score === 0 && ri.highWater === 0,
+    `day=${ri.run.day} score=${ri.score} hw=${ri.highWater}`);
+  ok('3. console clean', errors.length === 0, errors.join(' | '));
+  await context.close();
+}
+
+// ---- 4. Mode-MATCHED resume still restores (the legit path must not break) ----
+{
+  const { context, page, errors } = await boot({ mode: 'festival', resume: FESTIVAL_SNAPSHOT });
+  const ri = await info(page);
+  ok('4. matched resume: day + vibe + score restored',
+    ri.run.active && ri.run.day === 3 && ri.run.vibe >= 1.5 && ri.score === 77 && ri.highWater === 90,
+    JSON.stringify({ day: ri.run.day, vibe: ri.run.vibe, score: ri.score, hw: ri.highWater }));
+  ok('4. console clean', errors.length === 0, errors.join(' | '));
+  await context.close();
+}
+
+// ---- 5. Death-path smoke: dry + vibe-out still fire end to end ----
+{
+  const { context, page, errors } = await boot({ mode: 'festival' });
+  await page.evaluate(() => window.__dbg.setJuice(0));
+  ok('5. sputter arms', await waitRun(page, 'ri.run.sputter === true && ri.sputteringFlag === true'));
+  await page.evaluate(() => window.__dbg.sputterLeft(0.1));
+  ok('5. dry death fires', await waitRun(page, "ri.run.over === true && ri.run.cause === 'ran_dry'"));
+  await context.close();
+
+  const second = await boot({ mode: 'festival' });
+  await second.page.evaluate(() => window.__dbg.strike(12));
+  ok('5. vibe-out death fires', await waitRun(second.page, "ri.run.over === true && ri.run.cause === 'vibed_out'", 20000));
+  ok('5. console clean', errors.length === 0 && second.errors.length === 0,
+    [...errors, ...second.errors].join(' | '));
+  await second.context.close();
+}
+
+const passed = results.filter(Boolean).length;
+console.log(`\n${passed}/${results.length} passed`);
+await browser.close();
+process.exit(passed === results.length ? 0 : 1);

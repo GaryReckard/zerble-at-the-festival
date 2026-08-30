@@ -162,6 +162,12 @@ res = await worker.fetch(new Request(BASE + '/run/end', {
 }), env);
 assert(res.status === 204, 'text/plain (sendBeacon) body accepted');
 
+// Fail CLOSED: a deploy that skipped `wrangler secret put SIGNING_SECRET`
+// must 500, not silently sign with the literal string "undefined".
+res = await worker.fetch(new Request(BASE + '/run/start', { method: 'POST', body: '{}' }),
+  { ...env, SIGNING_SECRET: undefined });
+assert(res.status === 500, `missing signing secret → 500, got ${res.status}`);
+
 // CORS preflight
 res = await call('OPTIONS', '/run/beat');
 assert(res.status === 204 && res.headers.get('Access-Control-Allow-Origin') === '*',

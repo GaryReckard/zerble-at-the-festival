@@ -1249,7 +1249,7 @@ export class Zerble {
     this.isBoosting = wantBoost;
 
     const maxFwd = MAX_SPEED * (wantBoost ? BOOST_MULT : 1) * (this.sputtering ? 0.35 : 1);
-    const maxRev = -REVERSE_MAX;
+    const maxRev = -REVERSE_MAX * (this.sputtering ? 0.35 : 1);
 
     if (throttle !== 0) {
       // If throttle opposes current velocity direction, brake harder.

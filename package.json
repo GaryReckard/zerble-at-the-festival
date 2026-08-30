@@ -12,6 +12,11 @@
     "test:juice": "bin/test-game-juice",
     "test:photographer": "bin/test-crowd-photographer",
     "test:frisbee": "bin/test-frisbee-player",
+    "test:mode": "bin/test-run-mode",
+    "test:scoring": "bin/test-scoring",
+    "test:runstate": "bin/test-run-state",
+    "test:jugfilter": "bin/test-jug-filter",
+    "test:board": "bin/test-leaderboard-worker",
     "test:farfield": "bin/test-far-field",
     "lint:layout": "bin/lint"
   }

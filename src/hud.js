@@ -276,7 +276,15 @@ export const HUD = {
       _vibeActive = active;
       $vibeChip.classList.toggle('hidden', !active);
     }
-    if (!active) return;
+    if (!active) {
+      // Deactivation must also drop the warn pulse, or its animation keeps
+      // running on the hidden chip under the score screen.
+      if (_vibeWarn) {
+        _vibeWarn = false;
+        $vibeChip.classList.remove('vibe-warn');
+      }
+      return;
+    }
     const f = Math.max(0, Math.min(1, frac));
     if (Math.abs(f - _vibeFrac) >= 0.01) {
       _vibeFrac = f;

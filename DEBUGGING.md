@@ -40,8 +40,10 @@ window.__dbg.help()          // prints the whole map — start here
 ### Festival Run drills (festival-run-stakes)
 
 Stakes drills need an ACTIVE run: set `localStorage['zerble-mode'] = 'festival'`
-before boot (or pick Festival Run on the card), then `start()`. In Cruisin' they
-answer "no active Festival Run" instead of silently doing nothing.
+before boot (or pick Festival Run on the card), then `start()`. The four
+mutating drills (`runDay`/`vibe`/`strike`/`sputterLeft`) answer "no active
+Festival Run" in Cruisin' instead of silently doing nothing; `runInfo()` reads
+fine in either mode, and the two board drills below don't need a run at all.
 
 | Call | Does |
 |---|---|
@@ -60,6 +62,28 @@ eject. **Headless caveat:** under SwiftShader, game time runs at a few percent o
 wall time (dt clamps at 0.05/frame) — drills must POLL `runInfo()` predicates, never
 sleep wall-clock seconds, and toast asserts need a beat after the trigger
 (MutationObserver delivery is deferred past a same-frame read).
+
+The stakes regression battery is repo-resident: **`bin/drill-stakes`** (same
+Playwright-under-`~/.zerble-verify` harness as `bin/verify-headless`; dev server
+on :8765 required) runs the cross-mode-resume invariance drill — the seam both
+review-001 P0s lived in — plus the Cruisin' HUD-geometry assert and the two
+death paths.
+
+### Global leaderboard without wrangler
+
+The Worker (`workers/leaderboard/worker.js`) is plain Request→Response, so it
+runs anywhere node does — no wrangler, no deploy, no network:
+
+- `bin/test-leaderboard-worker` — the no-browser gate (mock KV): protocol e2e,
+  sig binding, the plausibility-ceiling worked example, sanitation, quarantine,
+  admin delete. Part of `npm run check`.
+- `node workers/leaderboard/dev-server.mjs 8787` — a localhost HTTP bridge
+  around the same handler (in-memory KV, lives for the process). Point the
+  real game at it with `localStorage['zerble-board-url'] =
+  'http://127.0.0.1:8787'` — the override is **localhost-gated** (production
+  origins ignore it) and is read **once at module load**, so set it before the
+  page loads (init script) or reload after setting it. Same knob works against
+  a real `wrangler dev` later.
 
 ### Camera for close-up screenshots
 | Call | Does |

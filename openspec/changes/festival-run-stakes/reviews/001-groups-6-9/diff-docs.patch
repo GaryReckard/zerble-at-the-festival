@@ -1,0 +1,373 @@
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+index 8fdb241..764f632 100644
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -325,6 +325,50 @@ Anthropomorphic golf cart. ~950 lines of geometry + physics.
+ 
+ ---
+ 
++## Festival Run layer (`runMode.js`, `runState.js`, `scoring.js`, `leaderboard.js`)
++
++The stakes mode, layered over the sandbox without touching it (festival-run-stakes,
++2026-08). Four modules plus a per-frame block in `main.js`; Just Cruisin' is
++invariant *by construction* — every stakes knob reads one config object rather
++than scattering mode checks.
++
++- **`runMode.js`** — the config gate. Two frozen mode configs (Cruisin' answers
++  "free / keep everything / never die" at every day; Festival reads the day-ramp
++  table: vendor smile-price, jug keep-fraction, frown multiplier, vibe
++  warn/eject). Also owns the **jug scarcity filter**: `jugKeptAt(x, z)` is a
++  position-hashed keep/drop over already-generated jug placements (fresh salt,
++  monotone — a harder day's jugs are a strict subset). `chunks.js` consults it
++  strictly AFTER all `ctx.rng()` draws for the jug complete, so seeded worldgen
++  streams and draw-count parity are untouched (the determinism tripwire).
++  DOM-free; `bin/test-run-mode` + `bin/test-jug-filter`.
++- **`runState.js`** — the run machines: run clock, day counter (ticks on
++  time-of-day cycle crossings, resume-safe via `prevT`), the 45s sputter grace
++  state machine, the decaying vibe meter (warn fires once per climb), death
++  causes (`ran_dry` / `vibed_out`), and the once-per-run rescue flag.
++  Pure logic, no DOM/three; `bin/test-run-state`.
++- **`scoring.js`** — the single score writer (every mutation flows through it):
++  chain combo with a rolling window (×2/×3/×4), star-power pin, the Lurleen ×2
++  doubler, and the **high-water mark** the leaderboard records — spending smiles
++  on refills digs a hole but never erases your best. `bin/test-scoring`.
++- **`main.js` run layer** — one gated block per frame: day-crossing toasts +
++  ramp re-application, vibe decay, sputter transitions (boost dies + 35% limp
++  via `zerble.sputtering`, HUD countdown, chug loop), and the death/rescue
++  dispatch. Damaging PEOPLE hits route through ONE gate (`hit.damaging &&
++  !isGod()`): combo break, vibe strike, Lurleen scare-off, struck-NPC frown.
++  There is a single HUD toast slot — stakes beats (heartbreak, whistle)
++  suppress the generic collision quip so a same-frame overwrite can't hide
++  them. Deaths lock controls, write the local board, raise the score screen.
++- **`leaderboard.js`** — local top-10 in `localStorage` (corrupt-JSON
++  tolerant). The Cloudflare Worker global board is the change's P3.
++- **Resume**: the settings "Apply & restart" snapshot carries mode + serialized
++  run + scoring state, restored before stakes config so a mid-run reload drops
++  you back into the same day with the same vibe meter.
++
++Debug surface: `__dbg.runInfo()/runDay()/vibe()/strike()/sputterLeft()` — see
++DEBUGGING.md "Festival Run drills."
++
++---
++
+ ## Time of day (`timeOfDay.js`)
+ 
+ Single normalized `t ∈ [0, 1)`: `0`=dawn, `0.25`=noon, `0.5`=dusk, `0.75`=midnight. Cycle length is `CYCLE_SECONDS`.
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index fe72157..74bb1d7 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,13 @@
+ 
+ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
+ 
++## 2026-08-29
++
++### Added
++- **Global leaderboard: the Worker ships in-repo, the client is wired — deploy is the only step left (and it's Gary-only).** `workers/leaderboard/` is a dependency-free plain-JS Cloudflare Worker on KV: signed run tokens (`/run/start` → HMAC over runId+startTs), heartbeats and finals that both upsert the board (so a tab killed mid-run stands at its last heartbeat), daily + all-time top-100 reads, per-IP rate limits, name sanitation (20-char clamp, charset strip, separator-dodging profanity check, blanks → ZERBLER), a plausibility ceiling built from the multiplied max rate (base-rate × combo-and-Lurleen ×8 × star allowance × safety, all env-tunable — deliberately never the un-multiplied historical rate, which would quarantine legit top players), outlier quarantine, and an admin delete. The client half lives in `leaderboard.js`: fire-and-forget by design — timeboxed fetches, swallowed failures, silent fallback to the local board, a `pagehide` beacon, ~60s heartbeats plus milestone triggers (new day, +50 high-water). The score screen grows Local / Today / All-time tabs that appear only once the board is live. Just Cruisin' generates zero leaderboard traffic, verified by watching the network. Everything runs without wrangler: `bin/test-leaderboard-worker` drives the Worker's fetch handler in plain node (in `npm run check`), and `workers/leaderboard/dev-server.mjs` bridges it onto localhost so the real game e2e'd against the real Worker code (start → heartbeat → killed tab persists → death → final submit → tabs render). Disabled in production until Gary deploys and sets the URL. ([workers/leaderboard/](workers/leaderboard/), [leaderboard.js](src/leaderboard.js), [hud.js](src/hud.js), [main.js](src/main.js))
++
++- **Festival Run has real stakes now: the day ramp, two ways to die, and a live score screen.** The mode selector's promise finally cashes out. Each 6-minute in-game day tightens the screws — vendors start charging smiles per jug from Day 2 (fractional cost accrues, a broke cart gets a shrug instead of juice), ambient jug pickups thin out through a deterministic position-hashed filter (a harder day's jugs are a strict subset of an easier day's — `bin/test-jug-filter` locks the monotonicity, and the same-seed worldgen invariance drill re-verified byte-identical registries + rng draw counts across modes), and crowds build displeasure faster (`frownRateMult` into `crowd.js`). Run fully dry and Zerble sputters — boost dies, speed limps to 35%, a countdown ticks down 45s of grace before the cart conks out (`ran_dry`). Hit people and a persistent vibe meter fills (damaging hits weigh double a frown; grazes and god-mode rack nothing): a marshal whistle warns you first, then you're walked out (`vibed_out`). If Lurleen is smitten when the tank runs out, she tows you to the nearest juice once per run — with a refill-in-place fallback so an empty stretch of world can't soft-lock the beat. Either death locks controls, records your high-water score on the local board, and raises the score screen (cause, days survived, best combo, board with your run starred; "Run it again!" restarts). A settings reload mid-run resumes the whole run — day, clock, vibe, sputter, rescue flag, combo — via the existing resume snapshot. Just Cruisin' is untouched by construction: every knob reads the `runMode.js` config gate, and Cruisin' rows answer "free / keep everything / never die." New `src/runState.js` (run clock, day counter from ToD crossings, sputter + vibe machines; `bin/test-run-state`), `__dbg` drills (`runInfo`/`runDay`/`vibe`/`strike`/`sputterLeft`), and the four stakes test scripts joined `npm run check`. ([runState.js](src/runState.js), [main.js](src/main.js), [runMode.js](src/runMode.js), [chunks.js](src/chunks.js), [zerble.js](src/zerble.js), [crowd.js](src/crowd.js), [hud.js](src/hud.js))
++
+ ## 2026-08-28
+ 
+ ### Added
+diff --git a/DEBUGGING.md b/DEBUGGING.md
+index 242e0b1..95d158b 100644
+--- a/DEBUGGING.md
++++ b/DEBUGGING.md
+@@ -37,6 +37,30 @@ window.__dbg.help()          // prints the whole map — start here
+ | `fillSeats(kind?)` | Seat crowd NPC(s) — `kind` = `bench` \| `driver_seat` \| `roof`; no arg seats one of each. For pose-testing riders without waiting for organic boarding. |
+ | `rider(kind)` | Seat one free NPC in the first open slot of `kind`. |
+ 
++### Festival Run drills (festival-run-stakes)
++
++Stakes drills need an ACTIVE run: set `localStorage['zerble-mode'] = 'festival'`
++before boot (or pick Festival Run on the card), then `start()`. In Cruisin' they
++answer "no active Festival Run" instead of silently doing nothing.
++
++| Call | Does |
++|---|---|
++| `runInfo()` | The whole run at a glance: mode, serialized run state (day/clock/sputter/vibe/rescue/over/cause), score + high-water, multiplier + chain, and the zerble sputtering flag. **Read this, don't poke internals.** |
++| `runDay(n)` | Jump the day ramp — re-applies the day's jug keep-fraction + frown multiplier the way a real dawn does, and reports the day's tuning row. Day-5 tuning must not cost 30 real minutes. |
++| `vibe(v)` | Set the vibe meter directly (no warn/eject side effects — pure meter nudge). |
++| `strike(n)` | Land `n` real damaging-hit vibe strikes through `applyVibeStrike` — fires the warn whistle/toast at the threshold crossing and the `vibed_out` death at eject. |
++| `sputterLeft(s)` | Shrink the 45s dry-tank grace (only while sputtering) so the expiry → death/rescue path runs in seconds. |
++| `showScoreScreen(mock?)` | Raise the score screen with mock or real board data (view-only supported). |
++| `seedBoard(n)` | Insert `n` fake local-leaderboard entries for score-screen rendering checks. |
++
++Canonical death drills: **dry** — `setJuice(0)` → wait for `runInfo().run.sputter`
++→ `sputterLeft(0.1)` → death screen (`ran_dry`), or the Lurleen tow rescue if she's
++following and unused. **Vibe-out** — `strike(4)` for the whistle, keep striking to
++eject. **Headless caveat:** under SwiftShader, game time runs at a few percent of
++wall time (dt clamps at 0.05/frame) — drills must POLL `runInfo()` predicates, never
++sleep wall-clock seconds, and toast asserts need a beat after the trigger
++(MutationObserver delivery is deferred past a same-frame read).
++
+ ### Camera for close-up screenshots
+ | Call | Does |
+ |---|---|
+diff --git a/README.md b/README.md
+index 3d7f71e..1d5f59a 100644
+--- a/README.md
++++ b/README.md
+@@ -25,6 +25,7 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile
+ - **Procedural sound.** No audio files. The engine drone, empty-juice sputter, collision thuds, bicycle bell, clown horn, brass band, drum circles, and crackling campfires are all synthesized at runtime in Web Audio.
+ - **Forests, lakes, mountains.** Drive into the woods and find a clearing with a fire. Drive to the shore and find a canoe. Drive far enough and the hills rise around you in autumn color.
+ - **Find Lurleen.** Somewhere out there is a second cart with pink puffy lips, raffia hair, and a basket of flowers. She is shy. Get close and the air fills with hearts.
++- **Two ways to play.** **Just Cruisin'** is the endless no-pressure sandbox. **Festival Run** asks for your name at the gate and then means it: every festival day the juice gets scarcer, the vendors get pricier, and the marshals get stricter. Chain smiles for multipliers (Lurleen doubles everything while she's smitten), run the tank dry or annoy the wrong people and your run is over — name, score, and days survived on the local Legends board.
+ - **Don't hit anything.** Puppet parades, brass bands, gaggles of kids, food trucks, craft tents, the stage, lampposts, trees, drum circles, the lake edge. They will dock your smiles.
+ - **Works on a phone.** Virtual thumbstick, drag-to-orbit camera, honk and boost buttons. Tested in iOS Safari with the URL bar doing its thing.
+ 
+@@ -71,7 +72,7 @@ Then visit `http://127.0.0.1:8765`.
+ 
+ ## Performance tiers
+ 
+-The game sniffs your device at boot and picks `low` / `mid` / `high` — adjusting pixel ratio, shadow quality, post-processing, crowd density, and draw distance. Force a tier by appending `?perf=low` (or `mid` / `high`) to the URL.
++The game sniffs your device at boot and picks a tier — adjusting pixel ratio, shadow quality, post-processing, crowd density, and draw distance to match what it's running on.
+ 
+ ## Tips
+ 
+diff --git a/ROADMAP.md b/ROADMAP.md
+index f661577..f0e0012 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -653,6 +653,8 @@ infinite recursive tunnel, the classic "falling in" trip visual.
+ 
+ ## Gameplay verbs
+ 
++- **Daily-seed challenge mode.** Parked from the festival-run-stakes brainstorm (2026-08-28): a third mode option where everyone plays the SAME world seed for the day (`seed = hash(YYYY-MM-DD)`), so the global leaderboard's daily tab compares apples to apples — same jug placements, same hub layout, same lakes. Mostly free once Festival Run + the Worker daily board exist (the seed plumbing and mode config gate are both in); the open design question is whether the daily board should *only* accept daily-seed runs.
++
+ - **Bubble varieties — earnable and mix-and-match.** Bubbles are Zerble's signature; unlocking new TYPES is the most direct way to amplify the core verb. Each new type is gated on a different in-game achievement, persists in `localStorage`, and shows up in a small **multi-select** UI strip (tap/click an icon to toggle it on or off). The bubble spawner picks randomly from whatever set is currently enabled — so a player who's unlocked everything can run a chaotic mix of hearts + stars + rainbows + glow + the occasional mega. Default starting set: standard only. Six variants to ship:
+   - **Standard** — the base bubble. Always on, always unlocked.
+   - **Heart bubbles** — unlock by catching up to Lurleen at least once. NPCs in a "love" state (currently nascent — would need a small new affect type) give double smiles; everyone else reacts normally.
+@@ -666,7 +668,7 @@ infinite recursive tunnel, the classic "falling in" trip visual.
+   
+   Cost: ~zero perf impact (same instance count, same draw call, one more per-instance attribute). Mostly feature work in `bubbles.js`, a new tiny DOM panel, and the per-unlock trigger plumbing across `Lurleen`, `Trip`, `Analytics.smileScore`, etc.
+ 
+-- **Bubble-juice meter follow-ups.** The meter shipped (see CHANGELOG 2026-06-01) — drains while bubbling, ~3× on the G blast, **stops at empty** (NPCs frown when you're dry), Zelda-style jug **stockpile** (up to 4 meters), rare floating jugs + the spacesuit bubble vendor (free refill w/ bubble-stream visual + "full" cue), top-left HUD gauge w/ reserve pips + amber/red low-empty border. Parked refinements: (1) the **"costs smiles" economy** — vendor refills are free; a smile cost (full or token) is an alternate score sink if the loop needs more stakes (note: frowns already provide a stakes layer now). (2) **Bubble-variety juice costs** — once bubble varieties ship, mega-bubbles could cost more juice and glow bubbles less. (3) **Drain + frown tuning by feel** — if either nags on a real playtest, soften them or gate behind an opt-in mode.
++- **Bubble-juice meter follow-ups.** The meter shipped (see CHANGELOG 2026-06-01) — drains while bubbling, ~3× on the G blast, **stops at empty** (NPCs frown when you're dry), Zelda-style jug **stockpile** (unlimited), rare floating jugs + the spacesuit bubble vendor (free refill w/ bubble-stream visual + "full" cue), top-left HUD gauge w/ reserve pips + amber/red low-empty border. The **"costs smiles" economy** shipped 2026-08-29 as Festival Run's vendor pricing (Just Cruisin' refills stay free). Parked refinements: (1) **Bubble-variety juice costs** — once bubble varieties ship, mega-bubbles could cost more juice and glow bubbles less. (2) **Drain + frown tuning by feel** — if either nags on a real playtest, soften them or gate behind an opt-in mode.
+ 
+ - **Tricks via boost + hop key.** Tap Space+Shift (or a dedicated key) mid-drive for a small 0.3s hop. Air time + bubbles in-air = bonus smiles when you land near NPCs (NPC reaction: "oooh!"). Reuses Zerble's existing arcade physics — just adds a vertical impulse and a "in-air" flag. New verb, no geometry.
+ - **Passenger quests.** A boarding rider sometimes has a small thought-bubble icon over their head showing where they want to go (tent, stage, food trucks, beach, hammocks, drum circle, etc. — all already in the registry). Layered indicators (compass strip, icon brightness, passenger humming, toast hints like "I can smell the food trucks!") help the player navigate. Within ~25m of the destination = thumbs-up animation + smile burst. Multi-passenger logistics emerge naturally at `MAX_PASSENGERS = 4`. Full design lives in [`.claude/passenger-quests-design.md`](.claude/passenger-quests-design.md) — destinations, signaling stack, indicator layers, toast bank, failure handling, build order, and open questions.
+diff --git a/openspec/changes/festival-run-stakes/README.md b/openspec/changes/festival-run-stakes/README.md
+index 3fdba6a..07cf884 100644
+--- a/openspec/changes/festival-run-stakes/README.md
++++ b/openspec/changes/festival-run-stakes/README.md
+@@ -1,6 +1,6 @@
+ # Give Zerble real stakes: names, an endless Festival Run, and a leaderboard
+ 
+-> **Status:** <!--STATUS:LINE-->in progress · 21/41 tasks (51%)<!--/STATUS:LINE-->
++> **Status:** <!--STATUS:LINE-->complete · 41/41 tasks (100%)<!--/STATUS:LINE-->
+ >
+ > _Plain-language summary of this change. A non-engineer should understand it; a junior dev should grasp it; a senior dev should be able to build an accurate mental model from this file alone._
+ 
+@@ -54,21 +54,21 @@ Technical how: [design.md](design.md). Decision record: [deliberations/](deliber
+ ## Progress
+ 
+ <!--STATUS:AUTO-->
+-**in progress** — 21/41 tasks complete (51%) · current: 6.1
++**complete** — 41/41 tasks complete (100%) · current: done
+ 
+-_Last updated: 2026-08-28_
++_Last updated: 2026-08-29_
+ 
+ | Group | Progress |
+ |---|---|
+ | 1. Name entry + toast weaving (P1) | 5/5 ✅ |
+ | 2. Local leaderboard storage + score screen shell (P1) | 3/3 ✅ |
+-| 3. Modes + mode config (P2) | 4/5 |
+-| 4. Scoring pipeline + combo (P2) | 6/7 |
++| 3. Modes + mode config (P2) | 5/5 ✅ |
++| 4. Scoring pipeline + combo (P2) | 7/7 ✅ |
+ | 5. Smile SFX pitch ladder + stakes cues (P2) | 3/3 ✅ |
+-| 6. Festival Run stakes: economy, sputter, vibe, deaths (P2) | 0/8 |
+-| 7. P2 docs + ship | 0/2 |
+-| 8. Global leaderboard: Worker + client (P3) | 0/6 |
+-| 9. Verify + wrap | 0/2 |
++| 6. Festival Run stakes: economy, sputter, vibe, deaths (P2) | 8/8 ✅ |
++| 7. P2 docs + ship | 2/2 ✅ |
++| 8. Global leaderboard: Worker + client (P3) | 6/6 ✅ |
++| 9. Verify + wrap | 2/2 ✅ |
+ <!--/STATUS:AUTO-->
+ 
+ ## Key Decisions
+diff --git a/openspec/changes/festival-run-stakes/session-log.md b/openspec/changes/festival-run-stakes/session-log.md
+index d364d3c..0b4b4b2 100644
+--- a/openspec/changes/festival-run-stakes/session-log.md
++++ b/openspec/changes/festival-run-stakes/session-log.md
+@@ -1,11 +1,11 @@
+ ---
+ change: festival-run-stakes
+-status: in_progress
+-current_task: "6.1"
++status: complete
++current_task: "done"
+ blocked_by: null
+ open_questions: 5
+ started: 2026-08-28
+-last_updated: 2026-08-28
++last_updated: 2026-08-29
+ ref: "ROADMAP 'Name entry on the title card' + parked 'costs smiles economy' bullet; brainstorm 2026-08-28 (auto-memory festival-run-stakes-design.md); Locke's issue #1 triage"
+ ---
+ 
+@@ -64,3 +64,33 @@ ref: "ROADMAP 'Name entry on the title card' + parked 'costs smiles economy' bul
+ **Event:** phase-change
+ **What:** P1 committed (23dc1a4: name entry + toasts + local board shell; CHANGELOG entries written, ROADMAP "Name entry" consumed). Group 3: runMode.js + bin/test-run-mode green, mode selector on the title card (Cruisin' default-highlighted per D13), saveBest/personalBest mode-gated at all three sites, invariance check #1 green. Task 3.3 (resume snapshot run state) deliberately left open — the run-state fields it must carry don't exist until 6.1 builds runState.js.
+ **Refs:** -> Task 3.3, -> Task 6.1, commit 23dc1a4
++
++### 2026-08-28 -- Groups 4 + 5 shipped (backfilled after a VM crash ate the session)
++**Event:** phase-change
++**What:** Group 4 committed (37e5861: scoring.js single-writer + bin/test-scoring, all score writes rerouted, combo badge chip, Lurleen isFollowing/scareOff + doubler, invariance re-run #2 green post-reroute). Group 5 committed (b9326c8: pentatonic smile ladder, frown down-note, sputter loop + marshal whistle + run-end stings staged in sound.js). The session died (VM display issue) mid-Group-6 before these entries were written — backfilled from git + the recovered transcript.
++**Refs:** commits 37e5861, b9326c8, -> Task 4.6 (code shipped in 37e5861; checkbox pending its 6.8 drill)
++
++### 2026-08-29 -- Recovery: the "JSON-parse-shaped SyntaxError" was a class-body comma
++**Event:** discovery
++**What:** The uncommitted Group 6 tree wouldn't boot: `SyntaxError: Unexpected token ','` that the dead session was chasing as a runtime JSON.parse throw. A pre-load error hook pinned it to crowd.js:2198 — the new `frownAt()` method had been pasted into the Crowd class with object-literal syntax (trailing comma). One-char fix; node --check now passes on every touched module. Lesson: `node --check` each edited file when a session hands off mid-edit; Node's ESM import in bin/test-* doesn't cover files only the browser imports.
++**Refs:** crowd.js frownAt, -> Task 6.5
++
++### 2026-08-29 -- Group 6 drill battery: game time crawls under SwiftShader; drills must poll, not sleep
++**Event:** discovery
++**What:** First battery run "failed" dry-death expiry, vendor refill, and vibe decay — all false alarms. Root cause: main.js clamps dt at 0.05/frame and SwiftShader renders ~2-4 fps, so game time advances at a few percent of wall time; wall-clock sleeps in drills time out before game seconds elapse. The stable drill form: `page.waitForFunction` polling `__dbg.runInfo()` predicates (+ generous timeouts), `sputterLeft(0.1)` not (1), and toast asserts must wait a beat after the trigger (MutationObserver records are microtask-deferred past a same-evaluate read). Also: spawn-hub drills that need score pinned at 0 or NPCs stationary must `__dbg.freezeNPCs()` first — the ambient crowd feeds smiles otherwise. Battery after fixes: dry death, vibe warn/eject death, rescue-once-per-run, vendor pay/refusal, invariance re-diff (350 chunk-keyed entries + draw counts, cruisin×2 = festival day-1), all green headless.
++**Refs:** -> Task 6.8, scratchpad group6-drills.mjs / group6-retest.mjs
++
++### 2026-08-29 -- Group 6 verified end-to-end; the drills caught a real toast-slot bug
++**Event:** phase-change
++**What:** Full battery green headless: dry death (sputter arm → countdown → expiry → score screen), vibe warn at the exact crossing + eject death, rescue-once-per-run with juice tip, damaging-hit gate (strike + Lurleen heartbreak; god-mode and grazes rack nothing), broke-cart refusal + paid refill deducting smiles, resume round-trip (day 3 + vibe + score 77 + jugKeep 0.55 all restored), invariance re-diff green, live jugKeep/frownMult reaching their consumers, both modes booting clean. The battery exposed a REAL bug drills exist for: the single HUD toast slot got written twice in one frame on stakes beats, so "Lurleen saw that 💔" was instantly overwritten by the generic collision quip and the vendor refusal by the ambient price line — the player would never have seen either. Fixed by priority (stakes beat suppresses the quip; refusal holds back the price toast; whistle/ejection deliberately outranks heartbreak). Also closed while here: `frownMult` was defined in the ramp but consumed nowhere — added `crowd.frownRateMult` (mode-unaware field, fed from the run layer); wrote the missing `bin/test-jug-filter`; wired all four stakes tests into `npm run check`; nowrap on the Day chip. Two follow-ups from D8 worth remembering: the frown vibe-strike weight is currently unreachable (organic frowns only fire while dry ⇒ sputtering ⇒ suppressed — consistent with the council's "no pile-on", kept as future-proofing), and drills MUST poll game-time predicates (see previous entry).
++**Refs:** -> Tasks 3.3, 4.6, 6.1–6.8 all ticked, scratchpad group6-retest.mjs, screenshots shot-day3-noon-hud/sputter-dusk/scorescreen-midnight
++
++### 2026-08-29 -- Group 8 shipped: Worker + global client, e2e'd without wrangler
++**Event:** phase-change
++**What:** `workers/leaderboard/worker.js` (plain JS, KV, D8 protocol + guardrails), `bin/test-leaderboard-worker` (node-driven fetch handler, mock KV — sig binding, ceiling worked example 40×8×1.5×1.5, monotonic HW, killed-tab persistence, sanitation, quarantine, admin delete), the fire-and-forget client in leaderboard.js (token → 60s+milestone beats → final + pagehide beacon), and Local/Today/All-time score-screen tabs with silent local fallback. wrangler can't install on this VM (no npm network), so 8.5's e2e ran the REAL game against the REAL Worker code through a thin node HTTP bridge (`workers/leaderboard/dev-server.mjs`, kept in-repo as the wrangler-less dev path): killed-tab entry stands, final submit lands, tabs render Worker rows, Cruisin' provably makes zero requests. Two decisions worth recording: (a) heartbeats AND finals both upsert the board entry — that's what makes "a closed tab still records" true, not the beacon alone; (b) `GLOBAL_BOARD_URL` gained a localStorage dev override (`zerble-board-url`) so drills and Gary's future wrangler-dev testing exercise the shipped client verbatim; production stays hard-disabled until Gary deploys and sets the const. The e2e also caught globalRunStart missing from `__dbg.start()`'s arming block — the same bypass trap as the stakes arming, now both covered. DEPLOY REMAINS GARY-ONLY (-> Q4): wrangler.toml documents the KV + secrets one-time setup.
++**Refs:** -> Tasks 8.1–8.6 ticked, -> Q4, scratchpad global-e2e.mjs
++
++### 2026-08-29 -- Change complete: 41/41. Deploy + playtest are the human half
++**Event:** phase-change
++**What:** Group 9 wrap: final named invariance re-diff after every edit in the change is byte-identical (chunk-keyed registry + rng draw counts, cruisin×2 = festival day-1, hash 705944195 / 350 entries — the same hash every run since the drill stabilized), both modes boot clean at ?perf=low, full npm run check green (15 gates), README front door synced. Everything an agent can verify is verified. What ONLY Gary can do: (1) deploy the Worker + set GLOBAL_BOARD_URL (-> Q4, wrangler.toml has the runbook); (2) play a real Festival Run and gut-check the D6 ramp numbers + scoring economy (-> Q1, Q2 — placeholders by design); (3) confirm the Lurleen rescue feel (-> Q3) and the first-visit mode default (-> Q5); (4) merge vm-main and push main to actually ship it. Archive via /opsx:archive after the playtest settles the open questions.
++**Refs:** -> Tasks 9.1, 9.2, questions-for-human.md Q1–Q5
+diff --git a/openspec/changes/festival-run-stakes/tasks.md b/openspec/changes/festival-run-stakes/tasks.md
+index b4b0552..fbc86c1 100644
+--- a/openspec/changes/festival-run-stakes/tasks.md
++++ b/openspec/changes/festival-run-stakes/tasks.md
+@@ -49,7 +49,7 @@ worldgen-only.
+       persisted preference, **Just Cruisin' is the default-highlighted choice**
+       (design D13 — a returning player's habitual Start tap must never land in stakes
+       mode unwarned); mode plumbed into `main.js` boot; no async in the start path
+-- [ ] 3.3 Resume snapshot: carry mode + run state (clock, day, score, high-water,
++- [x] 3.3 Resume snapshot: carry mode + run state (clock, day, score, high-water,
+       combo, vibe, rescue flag, token) through the sessionStorage snapshot and
+       restore path. **Acceptance:** the day-counter wrap detection's `prevT`
+       initializes from the RESTORED `t`, not a fresh-boot default (a reload near a
+@@ -78,7 +78,7 @@ worldgen-only.
+       speed** (drive + screenshot), not only via static `__dbg` poses
+ - [x] 4.5 Star power pins combo at cap for its duration (wire `StarPower.onTrigger/
+       onEnd`)
+-- [ ] 4.6 Lurleen: expose `isFollowing`; scoring doubler + ♥×2 track it same-frame;
++- [x] 4.6 Lurleen: expose `isFollowing`; scoring doubler + ♥×2 track it same-frame;
+       scare-off on damaging NPC hit (Festival Run only, via the 6.5 gate) with
+       re-approach cooldown + startled beat
+ - [x] 4.7 Verify: `__dbg` combo drills (addSmiles bursts, forced hit) + screenshot of
+@@ -100,14 +100,14 @@ Checkpointed per council: land the DRY-DEATH path end-to-end (6.1–6.4 + the
+ `ran_dry` half of 6.7, proven by the 6.8 drill) BEFORE starting vibe-out (6.5) or
+ rescue (6.6). Two novel death machines never debug together.
+ 
+-- [ ] 6.1 New module `src/runState.js`: run clock, day counter (from ToD cycle
++- [x] 6.1 New module `src/runState.js`: run clock, day counter (from ToD cycle
+       crossings; `prevT` from restored `t` per 3.3), sputter state machine (45s
+       grace), vibe meter (strike weights, decay, warn/eject thresholds from ramp),
+       death causes, rescue flag; `__dbg` hooks: `runDay(n)` day-jump/ramp override +
+       `vibe(n)` meter nudge (harness doctrine — Day-5 tuning must not cost 30 real
+       minutes); write `bin/test-run-state` (sputter/vibe machines, strike decay,
+       day-counter resume init) alongside; importmap ×3
+-- [ ] 6.2 Jug availability runtime filter (fresh `JUG_FILTER_SALT`, keep-fraction by
++- [x] 6.2 Jug availability runtime filter (fresh `JUG_FILTER_SALT`, keep-fraction by
+       day). **Acceptance (determinism-critical):** the filter applies ONLY to the
+       ambient `scatterBubbleJugs` scatter (`chunks.js:2130`) — `_placeSpawnJugs`
+       intro jugs are exempt — and the mode/day check gates ONLY the final
+@@ -117,12 +117,12 @@ rescue (6.6). Two novel death machines never debug together.
+       documented module-level setter (design D3), defaulting to UNFILTERED so
+       hub-sandbox/map-sandbox stay stable. Write `bin/test-jug-filter` (same-seed
+       registry parity across modes and days) alongside; Cruisin' bypasses entirely
+-- [ ] 6.3 Vendor pricing: deduct via scoring, refusal toast when unaffordable, Day 1
++- [x] 6.3 Vendor pricing: deduct via scoring, refusal toast when unaffordable, Day 1
+       free; HUD juice interactions unchanged in Cruisin'
+-- [ ] 6.4 Sputter wiring: speed clamp + boost disable in `zerble.js` via runState
++- [x] 6.4 Sputter wiring: speed clamp + boost disable in `zerble.js` via runState
+       flag, HUD countdown, audio loop, frown-deduction suppression in the crowd
+       handler, exit on any `addJuice`
+-- [ ] 6.5 Vibe wiring — **gated in `main.js`, not on raw `crowd.onZerbleHit`**: vibe
++- [x] 6.5 Vibe wiring — **gated in `main.js`, not on raw `crowd.onZerbleHit`**: vibe
+       strike + combo break + Lurleen scare + struck-NPC frown fire only on
+       `hit.damaging && !isGod()` (mirror the existing gate at `main.js:1201`;
+       `damage: 0` grazes of fleeing NPCs stay consequence-free). Sputter
+@@ -132,15 +132,15 @@ rescue (6.6). Two novel death machines never debug together.
+       frown-threshold ramp multiplier into `crowd.js`; warning whistle + toast;
+       ejection death. Comment at the frown dispatch point explaining the
+       mode-dependent dual role (dry-tank tax vs vibe feedback)
+-- [ ] 6.6 Lurleen tow rescue: once-per-run intercept of `ran_dry`, tow beat to
++- [x] 6.6 Lurleen tow rescue: once-per-run intercept of `ran_dry`, tow beat to
+       nearest juice source, soft-lock-safe abort path. **Precondition:** the no-jug
+       fallback (design D14: zero registry-resident jugs ⇒ minimal refill, no tow
+       animation). Designated FIRST CUT under time pressure — nothing depends on it
+       (-> Q3)
+-- [ ] 6.7 Run end: score screen live (cause, high-water, days, best combo), local
++- [x] 6.7 Run end: score screen live (cause, high-water, days, best combo), local
+       board insert, `run_end` analytics; day-crossing toasts ("Day 3 — the vendors
+       raise their prices…")
+-- [ ] 6.8 Full-loop playtest via `__dbg` — run the dry-death drill (setJuice(0) →
++- [x] 6.8 Full-loop playtest via `__dbg` — run the dry-death drill (setJuice(0) →
+       sputter → death) as the 6.4 checkpoint BEFORE 6.5 work starts, then the
+       ejection drill (scripted damaging hits → warning → ejection, validating the
+       corrected gate: god-mode and grazes rack nothing) and the rescue path with
+@@ -149,16 +149,16 @@ rescue (6.6). Two novel death machines never debug together.
+ 
+ ## 7. P2 docs + ship
+ 
+-- [ ] 7.1 CHANGELOG (P1+P2 entries), ROADMAP: consume "Name entry" item + parked
++- [x] 7.1 CHANGELOG (P1+P2 entries), ROADMAP: consume "Name entry" item + parked
+       "costs smiles" bullet (fix its stale "up to 4 meters" stockpile text); add
+       parked "daily-seed challenge mode" follow-up; README/title-card tone check (no
+       Easter-egg leakage, calibrated copy intact)
+-- [ ] 7.2 DEBUGGING.md: new `__dbg` drills (showScoreScreen, runDay, vibe, run-state
++- [x] 7.2 DEBUGGING.md: new `__dbg` drills (showScoreScreen, runDay, vibe, run-state
+       nudges); ARCHITECTURE.md: short "Festival Run layer" section
+ 
+ ## 8. Global leaderboard: Worker + client (P3)
+ 
+-- [ ] 8.1 `workers/leaderboard/` (outside game importmaps): Worker per design D8 —
++- [x] 8.1 `workers/leaderboard/` (outside game importmaps): Worker per design D8 —
+       run/start (HMAC token, optional Turnstile), run/beat (monotonic + smiles/min +
+       day-vs-elapsed validation **using the recalibrated D8 ceiling formula** — the
+       pre-combo GA4 baseline is forbidden; quarantine ships only against the new
+@@ -166,25 +166,25 @@ rescue (6.6). Two novel death machines never debug together.
+       `wrangler.toml` + README with deploy steps + secret list for Gary. Descope
+       ladder if pressed: HMAC token + monotonic validation never descope; Turnstile
+       conditional; quarantine + admin tooling trim first
+-- [ ] 8.2 Worker unit checks runnable without deploy (plain node test file for
++- [x] 8.2 Worker unit checks runnable without deploy (plain node test file for
+       validation logic: ceilings, monotonicity, name sanitizer) — MUST assert the
+       worked example: a legit ×8-multiplied max-rate run passes, an
+       implausible-beyond-formula run is rejected
+-- [ ] 8.3 `leaderboard.js` client: token fetch, 60s + milestone heartbeats, final
++- [x] 8.3 `leaderboard.js` client: token fetch, 60s + milestone heartbeats, final
+       submit, `pagehide` sendBeacon, timeboxed fire-and-forget wrappers, feature flag
+       (endpoint unset ⇒ global board off, UI hides tab)
+-- [ ] 8.4 Score screen global tabs (daily/all-time) with silent local fallback;
++- [x] 8.4 Score screen global tabs (daily/all-time) with silent local fallback;
+       `leaderboard_submit` analytics
+-- [ ] 8.5 End-to-end vs `wrangler dev` locally (start → beats → kill tab → entry
++- [x] 8.5 End-to-end vs `wrangler dev` locally (start → beats → kill tab → entry
+       stands; implausible submission rejected); document results in session log
+-- [ ] 8.6 CHANGELOG P3 entry (client + "Worker ready, deploy pending")
++- [x] 8.6 CHANGELOG P3 entry (client + "Worker ready, deploy pending")
+ 
+ ## 9. Verify + wrap
+ 
+-- [ ] 9.1 Full smoke: boot main game both modes; **named invariance re-diff**
++- [x] 9.1 Full smoke: boot main game both modes; **named invariance re-diff**
+       (`dumpRegistry` A/B + no-stakes-HUD screenshot — an explicit step, not just
+       "boot both modes"); run ALL `bin/test-*` scripts (run-mode, scoring,
+       run-state, jug-filter, worker); sandbox spot-checks; `bin/check-importmaps`;
+       budget panel; `?perf=low` + `?perf=mid` boots
+-- [ ] 9.2 `bin/readme-sync festival-run-stakes` + session-log/README final pass;
++- [x] 9.2 `bin/readme-sync festival-run-stakes` + session-log/README final pass;
+       queue `/opsx:verify`

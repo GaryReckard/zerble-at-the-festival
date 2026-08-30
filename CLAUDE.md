@@ -58,6 +58,12 @@ adding anything to `src/models/`.
 python3 .claude/serve_nocache.py 8765
 ```
 
+**`npm run check` is the node-side gate** — importmap drift, model dims, and
+every `bin/test-*` suite (registry, forests, adaptive quality, game juice,
+photographer, frisbee, far-field, run-mode, scoring, run-state, jug-filter,
+leaderboard-worker). Run it alongside the browser boot before declaring done;
+each gate also has a `test:*` alias in package.json for focused runs.
+
 Two entry points:
 
 | URL | When to use it |

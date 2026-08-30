@@ -185,8 +185,21 @@ async function applySubmission(env, body, now, { final = false } = {}) {
   };
   for (const range of ['all', 'daily']) {
     const key = boardKey(range, now);
+    // Daily boards expire (90 days) so KV doesn't accumulate one key per day
+    // forever; the all-time board must never expire.
+    const opts = range === 'daily' ? { expirationTtl: 90 * 86400 } : undefined;
     const list = await loadBoard(env, key);
-    await env.BOARD_KV.put(key, JSON.stringify(foldEntry(list, entry)));
+    await env.BOARD_KV.put(key, JSON.stringify(foldEntry(list, entry)), opts);
+    if (final) {
+      // KV board writes are last-write-wins under concurrency; a racing beat
+      // can clobber a FINAL, which (unlike a beat) nothing would re-send.
+      // One verify-and-repair read-back closes most of that window.
+      const check = await loadBoard(env, key);
+      const stored = check.find((e) => e && e.runId === entry.runId);
+      if (!stored || stored.score < entry.score) {
+        await env.BOARD_KV.put(key, JSON.stringify(foldEntry(check, entry)), opts);
+      }
+    }
   }
   return null;
 }
@@ -199,6 +212,12 @@ export default {
     const now = Date.now();
 
     if (request.method === 'OPTIONS') return empty(204);
+
+    // Fail CLOSED on a missing signing secret: HMAC over an undefined key
+    // would encode the literal string "undefined" — a publicly forgeable
+    // signature scheme shipped silently by a deploy that skipped
+    // `wrangler secret put SIGNING_SECRET`.
+    if (!env.SIGNING_SECRET) return json({ error: 'misconfigured' }, 500);
 
     if (request.method === 'POST' && path === '/run/start') {
       if (!(await rateLimit(env, `start:${ip}`, 10))) return json({ error: 'rate' }, 429);
@@ -233,7 +252,7 @@ export default {
 
     if (request.method === 'DELETE' && path === '/admin/entry') {
       const auth = request.headers.get('Authorization') || '';
-      if (!env.ADMIN_KEY || auth !== `Bearer ${env.ADMIN_KEY}`) return json({ error: 'auth' }, 401);
+      if (!env.ADMIN_KEY || !sigEqual(auth, `Bearer ${env.ADMIN_KEY}`)) return json({ error: 'auth' }, 401);
       const body = (await readBody(request)) || {};
       if (!body.runId) return json({ error: 'bad_body' }, 400);
       const ranges = body.range ? [body.range] : ['all', 'daily'];
