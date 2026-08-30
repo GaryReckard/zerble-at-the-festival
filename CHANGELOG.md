@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-08-30
+
+### Fixed
+- **Real mobile pass over the stakes work — tap targets, and the Festival HUD no longer runs off narrow phones.** The earlier verification tested mobile *viewport sizes* but never a touch-device profile; drilling with a real phone emulation (touch events, mobile UA, `pointer: coarse`) found two misses. (1) The Festival Run status rail — smiles, combo, juice, day, vibe — overflowed narrow screens: 399px of chips on a 320px iPhone SE pushed the vibe meter (a death meter!) fully off-screen, and even an iPhone 13 clipped once the score hit five digits. The rail now wraps to a second row inside the safe area instead of clipping. (2) Four title-card controls sat under the iOS 44pt tap-target floor — "How to play" was 24px tall and the Local legends link a near-untappable 14px; everything interactive on the card now has a ≥40px tap area (visual weight unchanged — padding, not chrome), with ultra-short landscape screens paying for the taller targets by dropping the bobbing mascot rather than any control. Verified under emulation end to end: `body.is-touch` flips, the How-to-play page shows the *touch* controls list, the full tap flow (mode → name → keyboard → start) boots Festival Run with the touch overlay live, and `bin/drill-stakes` stays 17/17. Real-device iOS audio remains the one thing only a physical phone can confirm. ([styles.css](styles.css))
+
 ## 2026-08-29
 
 ### Added

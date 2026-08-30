@@ -58,6 +58,14 @@ body {
   display: flex;
   align-items: center;
   gap: 7px;
+  /* Festival Run adds chips (combo, day, vibe) the original 3-chip rail never
+     had — on narrow phones the row overflowed the viewport (verified: 399px
+     of chips on a 320px iPhone SE pushed the vibe meter fully off-screen).
+     Wrap to a second row instead of clipping; the cap keeps the wrap point
+     inside the visible area. */
+  flex-wrap: wrap;
+  row-gap: 6px;
+  max-width: calc(100vw - 44px - env(safe-area-inset-left, 0) - env(safe-area-inset-right, 0));
 }
 
 .hud-chip {
@@ -591,8 +599,11 @@ body {
 
 /* The menu row that opens the manual. */
 #howto-open {
-  display: inline-block;
-  margin: clamp(8px, 1.6dvh, 14px) 0 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;   /* iOS tap-target floor — the row LOOKS light, taps big */
+  margin: clamp(2px, 0.8dvh, 8px) 0 0;
   background: none;
   border: none;
   cursor: pointer;
@@ -602,7 +613,7 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(255, 246, 230, 0.55);
-  padding: 6px 10px;
+  padding: 6px 14px;
 }
 
 #howto-open:hover { color: rgba(255, 246, 230, 0.9); }
@@ -863,8 +874,11 @@ kbd {
 
 .board-link {
   pointer-events: auto;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
   margin: 0;
+  padding: 0 10px;
   background: none;
   border: none;
   color: rgba(255, 246, 230, 0.55);
@@ -1030,6 +1044,7 @@ kbd {
 #player-name {
   pointer-events: auto;
   width: min(240px, 70%);
+  min-height: 42px;
   text-align: center;
   font-family: inherit;
   font-size: 15px;
@@ -1037,7 +1052,7 @@ kbd {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 999px;
-  padding: 7px 14px;
+  padding: 9px 14px;
   outline: none;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
@@ -1284,6 +1299,7 @@ body.is-touch .controls-touch {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 40px;
   margin-top: 0;
   background: rgba(255, 246, 230, 0.05);
   border: 1px solid rgba(255, 246, 230, 0.18);
@@ -1335,9 +1351,9 @@ body.is-touch .controls-touch {
 
 @media (max-height: 560px) {
   #title-card { padding: 4px 8px; }
-  #title-card .card { padding-top: 6px; padding-bottom: 8px; }
-  #howto-open { margin-top: 4px; }
-  .title-zerble { height: 44px; margin-top: 0; }
+  #title-card .card { padding-top: 8px; padding-bottom: 8px; }
+  #howto-open { margin-top: 0; min-height: 36px; }
+  .title-zerble { display: none; }   /* the marquee carries the brand here */
   .title-sub { font-size: 13px; }
   #title-card .tag { display: none; }   /* the marquee already says it */
   .mode-btn .mode-desc { display: none; }
