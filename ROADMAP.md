@@ -254,9 +254,13 @@ vendor-row density. Still parked:
 - **Handoff still snaps at the chunk ring, not by distance.** A proxy hides when its
   owner cell reports loaded, so on a fast boost into new territory the swap can land
   well inside the fog rather than out at the edge of it.
-- **Camp villages and drum circles get no proxy at all.** `copyHeartRecords` only
-  promotes stages and vendor rows, so a 22-tent village is invisible until its chunk
-  builds. Cheap to add (they're already plan descriptors); wants its own demand sweep.
+- ~~**Camp villages get no proxy at all.**~~ SHIPPED 2026-08-31 (see CHANGELOG) —
+  villages expand to scattered tent peaks in the real ±CAMP_RADIUS square plus a
+  campfire marker, reusing the `peak` pool so they cost no extra draw call. **Drum
+  circles still have none**: `copyHeartRecords` promotes only stages, vendor rows and
+  (now) villages, so a drum circle is invisible until its chunk builds. It's a plan
+  descriptor already, so it's the same shape of change — a low ring of benches around
+  a warm firepit marker would read well at distance.
 
 ### Festival realism research — validation + new ideas *(2026-06-14)*
 

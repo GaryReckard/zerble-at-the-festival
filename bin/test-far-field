@@ -44,6 +44,7 @@ const {
   handoffMode,
   coarseCellsFor,
   copyHeartRecords,
+  copyVillageRecord,
   copyPolyline,
   selectNearest,
   paletteIndex,
@@ -337,6 +338,47 @@ assert(exp1.warm.length === 6, `10 peaks should carry 6 warm markers (every othe
   assert(lat.filter((v) => v > 1).length === 5 && lat.filter((v) => v < -1).length === 5,
     'vendor-row peaks must split 5/5 either side of the aisle');
 }
+{
+  // ---- Camp-village silhouettes (2026-08-31) ----
+  // Villages ride their own coarse grid outside festivalPlan, so they had NO
+  // horizon representation: a 22-pitch camp blinked into existence when its
+  // chunk built. They reuse the `peak` cone pool (no extra draw call) with the
+  // real campsite.js tent colours, so a camp reads as a different district from
+  // a market rather than as more cream triangles.
+  const village = {
+    kind: 'camp_village', x: -40, z: 210, yaw: 0, footprint: 32,
+    rank: 'minor', tents: 16, clusterSeed: 0x5eed1234,
+  };
+  const vr = copyVillageRecord(village);
+  assert(vr.kind === 'camp_village' && vr.tents === 16, 'village record must carry its pitch count');
+  assert(Number.isInteger(vr.rank) && Number.isInteger(vr.ownerCx) && Number.isInteger(vr.ownerCz)
+    && Number.isInteger(vr.heartCx) && Number.isInteger(vr.heartCz),
+    'village record rank/owner/heart fields must all be integers');
+  assert(vr.ownerCx === ownerCellCoord(village.x) && vr.ownerCz === ownerCellCoord(village.z),
+    'village owner cell must come from the village position (cluster-level handoff)');
+  assert(Object.values(vr).every((v) => typeof v === 'number' || typeof v === 'string'),
+    'village record must copy scalars only — no reference into the shared plan survives');
+
+  const expV = expandFarInstances([vr], 1);
+  const nExpected = Math.max(4, Math.min(14, Math.round(16 * 0.6)));
+  assert(expV.peak.length === nExpected, `a 16-pitch village should expand to ${nExpected} tent peaks, got ${expV.peak.length}`);
+  assert(expV.warm.length === 1, 'a village should carry exactly one campfire marker');
+  assert(expV.canopy.length === 0 && expV.truss.length === 0 && expV.beacon.length === 0,
+    'a village is not a stage — no slab, truss or beacon');
+  for (const i of expV.peak) {
+    assert(Math.abs(i.x - vr.x) <= 30 && Math.abs(i.z - vr.z) <= 30,
+      'village pitches must scatter inside the ±CAMP_RADIUS square the builder packs into');
+  }
+  assert(expV.warm[0].x === vr.x && expV.warm[0].z === vr.z, 'the campfire sits at the village centre');
+  // Pitch count tracks camp size, and the small end still reads as a camp.
+  const small = expandFarInstances([copyVillageRecord({ ...village, tents: 5 })], 1);
+  const big = expandFarInstances([copyVillageRecord({ ...village, tents: 22 })], 1);
+  assert(small.peak.length >= 4 && big.peak.length > small.peak.length,
+    'village pitch count must track tents, with a floor so a small camp still reads');
+  assert(JSON.stringify(expandFarInstances([vr], 1)) === JSON.stringify(expV),
+    'village expansion must be deterministic');
+}
+
 {
   // Shape follows KIND (2026-08-31): a roofed deck gets the canopy slab, a tent
   // stage gets a full-height peak and no truss — it used to be a cone for all

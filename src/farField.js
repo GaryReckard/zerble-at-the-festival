@@ -33,7 +33,7 @@
 import * as THREE from 'three';
 import { ownerCellCoord } from './worldgen/placement.js';
 import { heartsInBounds } from './worldgen/hearts.js';
-import { festivalPlan } from './worldgen/festival.js';
+import { festivalPlan, campVillagesNear } from './worldgen/festival.js';
 import { roadsInBounds } from './worldgen/roads.js';
 import { treeDensity } from './worldgen/density.js';
 import { CONFIG } from './worldgen/constants.js';
@@ -63,6 +63,10 @@ const FAR_ROAD_WIDTH_FRAC = 0.8;
 // is the render-agnostic layer and farField.js is a render module, so the arrow
 // would point the wrong way. Same copy discipline as tuning.js MODEL_DIMS.
 const VENDOR_AISLE_HALF = 7;
+// Mirrors FESTIVAL_TUNING.CAMP_RADIUS — camp pitches scatter across a SQUARE of
+// ±this, not a disc (chunks.js buildCampVillageAt). Copied for the same reason as
+// VENDOR_AISLE_HALF above.
+const CAMP_SQUARE_HALF = 30;
 
 // Coarse forest masses (the ROADMAP follow-up promoted 2026-08-28): the
 // density FIELD is sampled on a fixed global grid (tier.forestStep meters),
@@ -91,6 +95,10 @@ const CANOPY_PALETTE = [0xd8433f, 0xe8823a, 0x3f8fd8, 0x9a5fd0, 0x2fa46a, 0xd84f
 // to a warmer tent than it drew is a visible seam at the handoff distance.
 const PEAK_PALETTE = [0xfff4d0, 0xe7c995, 0xfddfa5, 0xd0c2a8, 0xf4d6c4];
 const BEACON_PALETTE = [0xff5a4d, 0x4da2ff, 0xffd24d, 0xb56aff];
+// The REAL camp tent fabric (models/campsite.js TENT_COLORS). Saturated, and
+// deliberately nothing like the vendor cream — a camp and a market should read
+// as different districts from across the field, not as the same pale triangles.
+const VILLAGE_PALETTE = [0x2d5a3a, 0xc24b2a, 0x2c4d75, 0xd9a834, 0x6a3b6a, 0x8a3a2a];
 // Darker cuts of tree.js's FOREST_GREENS — far masses read through fog.
 const FOREST_PALETTE = [0x355a32, 0x3f6d3a, 0x2d4e2a, 0x4a7a45];
 const TRUSS_HEX = 0x2e2a33;
@@ -157,6 +165,31 @@ export function copyHeartRecords(heart, plan, vendorRowMax) {
     });
   }
   return out;
+}
+
+// Copy ONE camp village into a FarField-owned compact record. Villages are not
+// part of any heart's plan — `campVillagesNear` puts them on an independent
+// coarse grid — which is exactly why they had no horizon representation at all
+// until now: a 22-pitch camp simply blinked into being when its chunk built
+// (Gary 2026-08-31). Same scalar-only copy discipline as copyHeartRecords, plus
+// `tents` so the proxy's pitch count tracks the real camp's size. `heartCx/Cz`
+// are 0 by contract: a village has no owning heart.
+export function copyVillageRecord(v) {
+  return {
+    kind: 'camp_village',
+    x: +v.x,
+    z: +v.z,
+    yaw: +(v.yaw || 0),
+    scale: 1,
+    footprint: +(v.footprint || CAMP_SQUARE_HALF),
+    rank: v.rank === 'major' ? 1 : 0,
+    tents: v.tents | 0,
+    clusterSeed: v.clusterSeed >>> 0,
+    ownerCx: ownerCellCoord(v.x),
+    ownerCz: ownerCellCoord(v.z),
+    heartCx: 0,
+    heartCz: 0,
+  };
 }
 
 // Copy a shared cached road polyline into a FarField-owned flat Float64Array
@@ -343,6 +376,30 @@ export function expandFarInstances(records, densityMul) {
         x: r.x, z: r.z, y: postH + 2.4 * s + 0.9, yaw: 0, sx: bs, sy: bs, sz: bs,
         color: BEACON_PALETTE[paletteIndex(r, BEACON_PALETTE.length)], ...own,
       });
+    } else if (r.kind === 'camp_village') {
+      // A scatter of small pitched tents across the same ±CAMP_SQUARE_HALF square
+      // the builder packs into, plus one campfire glow at the middle. The
+      // positions are HASH-scattered rather than a replay of the builder's
+      // rejection sampling — reproducing per-tent placement is exactly the CPU
+      // this layer exists to avoid, and at 500 m what has to be true is "a camp
+      // of about this size sits here", not "that tent is at that metre".
+      // Reuses the `peak` cone pool, so a village costs no extra draw call.
+      const n = Math.max(4, Math.min(14, Math.round(r.tents * 0.6 * densityMul)));
+      const baseIdx = paletteIndex(r, VILLAGE_PALETTE.length);
+      for (let i = 0; i < n; i++) {
+        const ix = r.x + (instHash(r.clusterSeed, i * 2 + 1) - 0.5) * 2 * CAMP_SQUARE_HALF;
+        const iz = r.z + (instHash(r.clusterSeed, i * 2 + 2) - 0.5) * 2 * CAMP_SQUARE_HALF;
+        // The real camp tent is 2.2 m wide and 1.7 m tall (campsite.js buildCampTent).
+        const w = 1.25 + instHash(r.clusterSeed, i + 71) * 0.45;
+        const h = 1.7 + instHash(r.clusterSeed, i + 131) * 0.7;
+        out.peak.push({
+          x: ix, z: iz, y: h / 2, yaw: instHash(r.clusterSeed, i + 191) * Math.PI * 2,
+          sx: w, sy: h, sz: w,
+          color: VILLAGE_PALETTE[(baseIdx + i) % VILLAGE_PALETTE.length], ...own,
+        });
+      }
+      const fs = 0.42 + instHash(r.clusterSeed, 7) * 0.16;
+      out.warm.push({ x: r.x, z: r.z, y: 1.0, yaw: 0, sx: fs, sy: fs, sz: fs, ...own });
     } else if (r.kind === 'vendor_row') {
       // A vendor row is TWO booth lines straddling the road (the descriptor
       // centers ON the road point and the builder lays 5-7 stalls per side at
@@ -659,6 +716,16 @@ export class FarField {
       if (roadSeen.has(road.points)) continue;
       roadSeen.add(road.points);
       out.push({ kind: '__road', flat: copyPolyline(road.points) });
+    }
+    // Camp villages ride their own coarse grid, so they are gathered separately
+    // from the hearts above — and deduped by the SAME owner-cell rule, since a
+    // village whose grid cell overlaps this box may belong to a neighbour.
+    // `campVillagesNear` also returns each village's welfare post; only the
+    // village itself gets a silhouette.
+    for (const v of campVillagesNear({ minX, minZ, maxX, maxZ })) {
+      if (v.kind !== 'camp_village') continue;
+      if (ownerCellCoord(v.x, COARSE_CELL) !== cellCx || ownerCellCoord(v.z, COARSE_CELL) !== cellCz) continue;
+      out.push(copyVillageRecord(v));
     }
     out.push(...forestRecordsForCell(cellCx, cellCz, this.tier.forestStep || 48));
     return out;
