@@ -44,6 +44,7 @@ function srcNum(rel, name) {
     // SUGAR_SHACK_DEPTH = DEPTH + 1.0 (sugarShack.js:48 "include facade depth")
     ['SUGAR_SHACK_D', srcNum('src/models/sugarShack.js', 'DEPTH') + 1.0],
     ['POTTY_SPACING', srcNum('src/models/portaPotty.js', 'POTTY_SPACING')],
+    ['INFO_KIOSK_R', srcNum('src/models/infoKiosk.js', 'INFO_KIOSK_FOOTPRINT')],
   ];
 
   let drift = 0;

@@ -148,7 +148,34 @@ export const FESTIVAL_TUNING = {
   FOOD_COURT_STEP: 18,       // m — outward walk increment when a court must clear the vendor row on its road
   ARCH_DRAG_FRAC: 0.85,      // cap the arch's outward walk at this fraction of the drag length
   ARCH_MAJOR_PCT: 25,        // % of MAJOR hubs (beyond the always-arched spawn hub) that get an entrance arch (4B.4 — integer-hashed, keeps arrivals rare/varied, not every major)
-  POTTY_GAP: 5,              // m past a parent cluster's solid edge to tuck its porta-bank
+  POTTY_GAP: 5,              // m past a parent cluster's solid edge to tuck its welfare post
+
+  // ── Welfare / amenity bundles (planner step 5 + chunks.js buildWelfarePostAt) ──
+  // Real festivals plan a RECURRING welfare bundle per district from the start —
+  // toilets + water + shade/seating + info — denser at the busy nodes and sparser
+  // through the craft stretches, never scattered into leftover gaps (ROADMAP
+  // "Festival realism research", ChatGPT R3's `amenity_bundle_score`: high-intensity
+  // nodes co-locate >= 3 of 5 amenity classes). So a hub's porta-banks are no longer
+  // lone attachments: each parent zone gets ONE `welfare_post` whose TIER decides what
+  // it carries. The tier table is the single contract the planner (envelope + bubble
+  // slot), the builder (what to construct) and the linter (what classes to count) all
+  // read — change it in one place and all three follow.
+  //   minimal  — toilets only. The vendor-market stretches (1 class).
+  //   standard — toilets + shade/seating + info kiosk (3 classes).
+  //   plaza    — the above plus the hub's guaranteed bubble refill (4 classes).
+  // `scale` multiplies KIND_FOOTPRINT.welfare_post into the slotter envelope.
+  WELFARE_TIERS: {
+    minimal:  { scale: 1.0, kiosk: false, table: false, water: false },
+    standard: { scale: 1.9, kiosk: true,  table: true,  water: false },
+    plaza:    { scale: 2.1, kiosk: true,  table: true,  water: true },
+  },
+  // Internal layout, in the post's LOCAL frame (+Z = the front it was aimed at).
+  // The serviced pieces sit in a ROW facing the same walkway — toilets, info kiosk,
+  // water — with the shade table set back behind them. That row-fronting-a-path
+  // arrangement is what makes a cluster of props read as a welfare island.
+  WELFARE_POTTY_SIDE: 4.2,    // m to the −X side — the bank (a MINIMAL post keeps it dead center)
+  WELFARE_TABLE_BACK: 3.0,    // m behind (−Z) — the shade/seating half, out of the queue
+  WELFARE_BUBBLE_SIDE: 3.4,   // m to the +X side — the plaza tier's water/refill slot
 
   // ── Drum-circle district band (planner treedDistrictSpot) ──
   DRUM_BAND: 130,           // festival.js:67  — max reach past core (bounds MAX_POI_REACH; R16)
@@ -166,7 +193,8 @@ export const FESTIVAL_TUNING = {
   // ── Cluster footprint envelopes (planner KIND_FOOTPRINT, festival.js:196) ──
   KIND_FOOTPRINT: {
     main_stage: 11, side_stage: 8, tent_stage: 13, arch: 6, food_court: 16,
-    vendor_row: 12, bubble_vendor: 3, drum_circle: 6, porta_bank: 3, camp_village: 32,
+    vendor_row: 12, bubble_vendor: 3, drum_circle: 6, porta_bank: 3, welfare_post: 3.6,
+    camp_village: 32,
   },
 
   // ── Food-court ring (builder buildFoodCourtAt, chunks.js:1303) ──
@@ -204,6 +232,8 @@ export const FESTIVAL_TUNING = {
   DRUM_TREE_MIN: 6,            // registry: min forest_tree within radius to read as "in trees"
   DRUM_TREE_MIN_DENSITY: 0.2,  // plan: min treeDensity(x,z) for a treed pocket (no built trees to count)
   ARCH_MIN_STAGE_DIST: 30,     // m — spawn arch must sit at least this far from the stage (past the string-light rows)
+  AMENITY_BUNDLE_RADIUS: 55,   // m — radius around a high-intensity node searched for amenity classes
+  AMENITY_BUNDLE_MIN: 3,       // the "3 of 5" bundle threshold (toilets/water/seating/info/service)
 };
 
 // Live patch + epoch bump contract: callers (the 6.4 slider panel) do
@@ -223,6 +253,7 @@ export const MODEL_DIMS = {
   SUGAR_SHACK_W: 6.4,       // sugarShack.js:37 FACADE_WIDTH
   SUGAR_SHACK_D: 9.0,       // sugarShack.js:48 DEPTH + 1.0
   POTTY_SPACING: 2.5,       // portaPotty.js:25
+  INFO_KIOSK_R: 1.6,        // infoKiosk.js INFO_KIOSK_FOOTPRINT
 };
 
 // ── Oriented cluster extents (group 3, design D3) ────────────────────────────
@@ -353,6 +384,12 @@ export function clusterExtent(kind, scale = 1) {
     case 'main_stage': case 'side_stage': case 'tent_stage':
       // deck + dancefloor clearing scales with the stage
       return (T.KIND_FOOTPRINT[kind] || 11) + T.DANCEFLOOR_DEPTH_BASE * scale;
+    case 'welfare_post':
+      // The bundle envelope: KIND_FOOTPRINT.welfare_post (a bank's own half-span)
+      // × the TIER scale the caller passes as `scale` (WELFARE_TIERS[tier].scale).
+      // A minimal post is just the bank; a plaza post has to hold the kiosk, the
+      // table and the bubble booth too, so its circle grows with what it carries.
+      return (T.KIND_FOOTPRINT.welfare_post || 3.6) * scale;
     case 'porta_bank':
       // A bank of 3 units at POTTY_SPACING (units ~2.2 m wide) → bounding half-span =
       // one spacing out to the outer unit + half a unit. (Was POTTY_ATTACH_OFFSET +

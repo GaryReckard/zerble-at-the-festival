@@ -149,15 +149,15 @@ const PLAN_RULES = [
       for (let i = 0; i < sh.length; i++) {
         for (let j = i + 1; j < sh.length; j++) {
           const a = sh[i], b = sh[j];
-          // porta-banks intentionally tuck at the margin of a parent — exclude.
-          if (a.p.kind === 'porta_bank' || b.p.kind === 'porta_bank') continue;
+          // welfare posts intentionally tuck at the margin of a parent — exclude.
+          if (a.p.kind === 'welfare_post' || b.p.kind === 'welfare_post') continue;
           if (STAGE_KINDS.has(a.p.kind) || STAGE_KINDS.has(b.p.kind)) continue;
           // bubble_vendor is the GUARANTEED refuel (D15) — it sits in/near the food
           // court's central PLAZA, and a food court's clusterShape is a FILLED circle
           // while its real occupancy is a hollow RING of trucks. So the plan-mode
           // overlap over-counts (filled-circle vs the bubble) without a real clip:
           // registry-confirmed clear (seed 2951152942, every built bubble ≥ ~9 m from
-          // the nearest truck). Excluded like porta_bank/stage so the warn isn't drowned.
+          // the nearest truck). Excluded like welfare_post/stage so the warn isn't drowned.
           if (a.p.kind === 'bubble_vendor' || b.p.kind === 'bubble_vendor') continue;
           if (clustersOverlap(a.s, b.s)) {
             emit((a.p.x + b.p.x) / 2, (a.p.z + b.p.z) / 2,
@@ -249,6 +249,43 @@ const PLAN_RULES = [
       }
     },
   },
+  {
+    id: 'amenity-bundle',
+    severity: 'warn',
+    mode: 'plan',
+    // The research rule (ChatGPT R3 `amenity_bundle_score`, ROADMAP "Festival realism
+    // research"): a high-intensity node — a stage forecourt, a food court — must have
+    // at least AMENITY_BUNDLE_MIN of the five welfare classes co-located near it, or
+    // it reads as an unserviced field with a stray prop in it. Plan mode counts the
+    // classes ANALYTICALLY from the descriptors: a welfare post contributes whatever
+    // its tier carries, the bubble vendor is water wherever it ended up, and the court
+    // itself is the "special service" class.
+    check(ctx, emit) {
+      const T = FESTIVAL_TUNING;
+      const R = T.AMENITY_BUNDLE_RADIUS;
+      for (const node of ctx.plan) {
+        if (!STAGE_KINDS.has(node.kind) && node.kind !== 'food_court') continue;
+        const classes = new Set();
+        if (node.kind === 'food_court') classes.add('service');
+        for (const p of ctx.plan) {
+          if (p === node) continue;
+          if (Math.hypot(p.x - node.x, p.z - node.z) > R) continue;
+          if (p.kind === 'bubble_vendor') classes.add('water');
+          else if (p.kind === 'food_court') classes.add('service');
+          else if (p.kind === 'welfare_post') {
+            const tier = T.WELFARE_TIERS[p.tier] || T.WELFARE_TIERS.minimal;
+            classes.add('toilets');
+            if (tier.table) classes.add('seating');
+            if (tier.kiosk) classes.add('info');
+            if (tier.water) classes.add('water');
+          }
+        }
+        if (classes.size < T.AMENITY_BUNDLE_MIN) {
+          emit(node.x, node.z, `${node.kind} has only ${classes.size} amenity class(es) within ${R}m [${[...classes].join(',') || 'none'}] — wants ${T.AMENITY_BUNDLE_MIN} of 5`);
+        }
+      }
+    },
+  },
 ];
 
 // ── Entry point ──────────────────────────────────────────────────────────────
@@ -318,7 +355,23 @@ const PEN_TOL = 0.5;   // grazing tolerance (m) — below this two colliders mer
 // or the stage's own audience seating, deliberately in front — excluded).
 const BLOCKING_KINDS = new Set(['truck', 'tent', 'campsite', 'bubble_vendor', 'porta_potty', 'picnic_table', 'firepit']);
 // Festival cluster kinds a porta-bank should sit at the margin OF (A8 "attached").
-const POTTY_PARENTS = new Set(['truck', 'tent', 'stage', 'bubble_vendor', 'campsite']);
+// `info_kiosk` joined the set with the welfare bundles: a bank at a station's flank
+// IS attached — to the station — even when the zone it serves (a food court's truck
+// ring, a market row) is further off than the raw ATTACH range.
+const POTTY_PARENTS = new Set(['truck', 'tent', 'stage', 'bubble_vendor', 'campsite', 'info_kiosk']);
+
+// The five welfare/amenity CLASSES the bundle rule scores, keyed by built registry
+// kind. Same five the research names (toilets / water / shade-seating / info-welfare /
+// special service) and the same set FESTIVAL_TUNING.WELFARE_TIERS composes plan-side,
+// so the plan-mode and registry-mode versions of `amenity-bundle` agree on what counts.
+const AMENITY_CLASS = {
+  porta_potty: 'toilets',
+  bubble_vendor: 'water',
+  picnic_table: 'seating',
+  info_kiosk: 'info',
+  truck: 'service',
+  sugar_shack: 'service',
+};
 
 function pairKey(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
 
@@ -436,6 +489,44 @@ const REGISTRY_RULES = [
     },
   },
   {
+    id: 'amenity-bundle',
+    severity: 'warn',
+    mode: 'registry',
+    // The EXACT half of the plan-mode rule: over built entries, every high-intensity
+    // node — a stage deck, a food-truck court — must have at least AMENITY_BUNDLE_MIN
+    // of the five welfare classes within AMENITY_BUNDLE_RADIUS. This is the check that
+    // catches a bundle the BUILDER dropped (a kiosk vetoed by `closestBuilding`, a bank
+    // skipped by the 20 m anti-clump rule) even though the planner slotted a full post.
+    check(rctx, emit) {
+      const T = FESTIVAL_TUNING;
+      const R = T.AMENITY_BUNDLE_RADIUS;
+      // Nodes: one per hub stage (the deck is many `stage` tiles → use the hub), plus
+      // one per food-truck court (greedy 40 m clustering over trucks/shacks).
+      const nodes = [];
+      for (const h of rctx.hubs) {
+        if (rctx.solids.some(e => e.kind === 'stage' && Math.hypot(e.x - h.x, e.z - h.z) <= 60)) {
+          nodes.push({ label: 'stage', x: h.x, z: h.z, hub: h });
+        }
+      }
+      for (const e of rctx.solids) {
+        if (e.kind !== 'truck' && e.kind !== 'sugar_shack') continue;
+        if (nodes.some(n => n.label === 'food court' && Math.hypot(n.x - e.x, n.z - e.z) < 40)) continue;
+        nodes.push({ label: 'food court', x: e.x, z: e.z, hub: nearestHubOf(rctx.hubs, e.x, e.z) });
+      }
+      for (const n of nodes) {
+        const classes = new Set();
+        for (const e of rctx.entries) {
+          const cls = AMENITY_CLASS[e.kind];
+          if (!cls) continue;
+          if (Math.hypot(e.x - n.x, e.z - n.z) <= R) classes.add(cls);
+        }
+        if (classes.size < T.AMENITY_BUNDLE_MIN) {
+          emit(n.x, n.z, `${n.label} has only ${classes.size} amenity class(es) within ${R}m [${[...classes].join(',') || 'none'}] — wants ${T.AMENITY_BUNDLE_MIN} of 5`, n.hub);
+        }
+      }
+    },
+  },
+  {
     id: 'truck-off-road',
     severity: 'warn',
     mode: 'registry',
@@ -525,7 +616,14 @@ const REGISTRY_RULES = [
 export function lintRegistry(opts = {}) {
   const snap = opts.snapshot || null;
   const entries = opts.entries || (snap && snap.entries) || [];
-  const seedIn = opts.seed != null ? opts.seed : (snap ? snap.seed : 1234);
+  // Resolve the seed the SAME way the game does (main.js initSessionSeed): a
+  // digits-only string is a NUMBER, anything else is FNV-hashed. Snapshots store
+  // the seed as the raw `?seed=` text, so passing "1234" straight to setSeed
+  // hashed it to 0xfdc422fd while the capture ran at 0x4d2 — every geometric
+  // registry rule (dancefloor-clear, water-clear, booth-on-road, arch-placement)
+  // was then reasoning about a DIFFERENT world than the entries came from.
+  const seedRaw = opts.seed != null ? opts.seed : (snap ? snap.seed : 1234);
+  const seedIn = (typeof seedRaw === 'string' && /^-?\d+$/.test(seedRaw)) ? Number(seedRaw) : seedRaw;
   const rules = (opts.rules || REGISTRY_RULES).filter(r => r.mode === 'registry');
   const prevSeed = getSeed();
   setSeed(seedIn);

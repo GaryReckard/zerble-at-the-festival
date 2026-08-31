@@ -1,6 +1,6 @@
 // Festival POI layer — the deterministic, render-agnostic LAYOUT of a heart's
 // festival: where the stage / arch / food courts / vendor rows / bubble vendor /
-// drum circle / porta-banks land relative to the heart and its approach roads,
+// drum circle / welfare posts land relative to the heart and its approach roads,
 // plus the camp villages out in the districts. Pure DATA (no `three`, no
 // `models/*`); chunks.js maps each descriptor's `kind` → buildX() → registry.add.
 // (deliberation 002 / design.md "Festival Layout Redesign" D-K..D-Q.)
@@ -322,10 +322,10 @@ const SEAM_CATEGORY = {
   main_stage: 'loud', tent_stage: 'loud', side_stage: 'loud', drum_circle: 'loud',
   vendor_row: 'commerce',
   food_court: 'food',
-  camp_village: 'quiet', porta_bank: 'support', bubble_vendor: 'support', arch: 'support',
+  camp_village: 'quiet', welfare_post: 'support', bubble_vendor: 'support', arch: 'support',
 };
 // The big-footprint zones whose fronts actually form a seam (small threshold props —
-// arch, bubble, potty — don't define a front; skip them as the "edge zone").
+// arch, bubble, welfare post — don't define a front; skip them as the "edge zone").
 const SEAM_ZONE_KINDS = new Set(['main_stage', 'tent_stage', 'side_stage', 'drum_circle', 'vendor_row', 'food_court']);
 const SEAM_MARGIN = 2;   // integer slack (m) on the existence gate
 
@@ -825,7 +825,14 @@ export function festivalPlan(heart) {
   if (hit) return hit;
   const base = _basePlan(heart);
   const drop = _suppressSetForHeart(heart);
-  const plan = drop.size ? base.filter(d => !drop.has(d.clusterSeed)) : base;
+  // A welfare post is a DEPENDENT of the zone it serves, so it drops with its parent
+  // here the same way it does inside the slotter (step 5): the seam grammar can merge
+  // away a food court that a post was already slotted against, and a station left
+  // standing alone in the grass is exactly the "prop, not a place" read the bundle
+  // reframe exists to kill. Transactional on BOTH omission paths.
+  const plan = drop.size
+    ? base.filter(d => !drop.has(d.clusterSeed) && !(d.parentSeed !== undefined && drop.has(d.parentSeed)))
+    : base;
   if (_seamedCache.size > 4000) _seamedCache.clear();
   _seamedCache.set(key, plan);
   return plan;
@@ -841,10 +848,21 @@ const IDX = {
   drum: 10,        // + k
   court: 20,       // + i
   row: 30,         // + i
-  pottyStage: 40,
-  pottyCourt: 50,  // + i
-  pottyRow: 60,    // + i
+  welfareStage: 40,
+  welfareCourt: 50,  // + i
+  welfareRow: 60,    // + i
 };
+
+// Which welfare TIER a parent zone earns (rng-free — parent kind + hub rank only).
+// This IS the "denser near stages and food, sparser through the craft stretches"
+// gradient: the stage forecourt and a major hub's food courts get the full plaza
+// station, a minor hub's court and a major's market get the standard three-class
+// post, and a minor hub's vendor market keeps the bare bank it has always had.
+function welfareTierFor(parentKind, major) {
+  if (parentKind === 'stage') return 'plaza';
+  if (parentKind === 'food_court') return major ? 'plaza' : 'standard';
+  return major ? 'standard' : 'minimal';
+}
 
 // Single-pass priority zone slotter (D14): place clusters in priority order, each
 // testing its TRUE oriented extent (clusterShapes) against the accumulating
@@ -863,7 +881,7 @@ function _computePlan(heart) {
   const fa = computeFrontAxis(heart);          // the hub's front axis F (memoized)
   const out = [];
   const placed = [];                            // { kind, s:shapes } occupancy accumulator
-  const pottyParents = [];                       // { x, z, yaw, idx } — potties slotted at step 5
+  const welfareParents = [];                     // { x, z, yaw, idx, r, tier } — welfare posts slotted at step 5
 
   // Approach roads, sorted by a STABLE INTEGER key (R20): longest first, then
   // neighbor cell. roads[0] = the DRAG (the market street + the arch threshold).
@@ -874,7 +892,7 @@ function _computePlan(heart) {
   const fits = (shapes) => !placed.some(pl => clustersOverlap(shapes, pl.s, T.ZONE_MARGIN));
   // Commit a descriptor: record its shapes in placed[] so later zones pack around it.
   const commit = (d) => {
-    placed.push({ kind: d.kind, s: clusterShapes(d.kind, d.scale || 1, d.x, d.z, d.yaw) });
+    placed.push({ kind: d.kind, d, s: clusterShapes(d.kind, d.scale || 1, d.x, d.z, d.yaw) });
     out.push(d);
     return d;
   };
@@ -897,7 +915,7 @@ function _computePlan(heart) {
   stage.fbin = fa.bin;                          // serialize F → the POI golden + window-invariance test see it (R18)
   stage.scale = stageScale;
   commit(stage);
-  pottyParents.push({ x: stageSpot.x, z: stageSpot.z, yaw: stageYaw, idx: IDX.pottyStage, r: stageFootR });
+  welfareParents.push({ x: stageSpot.x, z: stageSpot.z, yaw: stageYaw, idx: IDX.welfareStage, r: stageFootR, tier: welfareTierFor('stage', major), parentSeed: stage.clusterSeed, stageAxis: { ux: Math.sin(stageYaw), uz: Math.cos(stageYaw), scale: stageScale } });
 
   // 2. VENDOR AISLES straddling the drag (A5/C): the central aisle *is* the road —
   //    the descriptor centers ON a road point and the build lays two booth lines
@@ -912,7 +930,7 @@ function _computePlan(heart) {
     const yaw = Math.PI / 2 - p.bearing;
     if (!fits(clusterShapes('vendor_row', 1, p.x, p.z, yaw))) continue;
     const d = commit(desc('vendor_row', p.x, p.z, yaw, 'core', heart.rank, false, clusterSeed(heart, IDX.row + i)));
-    pottyParents.push({ x: d.x, z: d.z, yaw, idx: IDX.pottyRow + i, r: T.VENDOR_ROW_OFFSET + T.VENDOR_CAMPER_BACK_OFFSET + 2 });
+    welfareParents.push({ x: d.x, z: d.z, yaw, idx: IDX.welfareRow + i, r: T.VENDOR_ROW_OFFSET + T.VENDOR_CAMPER_BACK_OFFSET + 2, tier: welfareTierFor('vendor_row', major), parentSeed: d.clusterSeed });
   }
 
   // 3. FOOD COURTS off the drag, PAST the vendor market (A6): the court's wide truck
@@ -943,7 +961,7 @@ function _computePlan(heart) {
         const yaw = roadFacingYaw(queryPoint(spot.x, spot.z).facing, rng);
         if (!fits(clusterShapes('food_court', 1, spot.x, spot.z, yaw))) continue;
         const d = commit(desc('food_court', spot.x, spot.z, yaw, 'core', heart.rank, false, clusterSeed(heart, IDX.court + i)));
-        pottyParents.push({ x: d.x, z: d.z, yaw, idx: IDX.pottyCourt + i, r: clusterExtent('food_court') });
+        welfareParents.push({ x: d.x, z: d.z, yaw, idx: IDX.welfareCourt + i, r: clusterExtent('food_court'), tier: welfareTierFor('food_court', major), parentSeed: d.clusterSeed });
         done = true;
         break;
       }
@@ -961,26 +979,66 @@ function _computePlan(heart) {
     if (spot) commit(desc('drum_circle', spot.x, spot.z, rng() * Math.PI * 2, 'district', heart.rank, false, clusterSeed(heart, IDX.drum + k)));
   }
 
-  // 5. POTTIES — one per placed parent zone (stage / court / row), tucked just PAST the
-  //    parent's SOLID edge (par.r + POTTY_GAP), not a fixed 9 m from the center — a fixed
-  //    offset landed potties INSIDE the food court's ~24 m truck ring (Gary 2026-06-14:
-  //    "a porta potty clipping inside a food truck"). Search a fan of directions starting
-  //    hub-outward and take the first that's dry AND clear of every placed zone (so it
-  //    can't clip the parent or a sibling); a stage sits at the hub center, so its outward
-  //    dir is degenerate and the fan finds a clear side/behind. Parents omitted in steps
-  //    1–3 aren't in pottyParents → their potty drops with them (transactional).
-  let stageWelfareSpot = null;   // the stage's potty bank — the bubble amenity joins it (step 7)
-  for (const par of pottyParents) {
-    const reach = par.r + T.POTTY_GAP;
-    const base = Math.atan2(par.z - heart.z, par.x - heart.x);   // hub-outward (0 for the centered stage)
-    for (let k = 0; k < 6; k++) {
-      const ang = base + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * (Math.PI / 3);   // 0, ±60, ±120, 180
-      const spot = nudgeOff(par.x + Math.cos(ang) * reach, par.z + Math.sin(ang) * reach, rng);
+  // 5. WELFARE POSTS — one AMENITY BUNDLE per placed parent zone (stage / court / row),
+  //    tucked just PAST the parent's SOLID edge (par.r + POTTY_GAP), not a fixed 9 m from
+  //    the center — a fixed offset landed potties INSIDE the food court's ~24 m truck ring
+  //    (Gary 2026-06-14: "a porta potty clipping inside a food truck"). Each parent gets
+  //    an ordered candidate list (see below) and takes the first spot that's dry AND clear
+  //    of every placed zone. Parents omitted in steps 1–3 aren't in welfareParents → their
+  //    post drops with them (transactional), and so does a parent the seam grammar merges
+  //    away later (festivalPlan's parentSeed filter).
+  //
+  //    The bundle reframe (ROADMAP "Welfare/amenity bundles attached to hubs"): a post is
+  //    no longer a lone porta-bank but a TIERED station — `welfareTierFor` grades it by
+  //    parent intensity, WELFARE_TIERS says what it carries, and the whole thing occupies
+  //    ONE envelope so its own pieces cannot clip each other or a neighbour. The post yaw
+  //    faces BACK toward its parent, so the kiosk board and the potty doors both address
+  //    the traffic instead of turning their backs on it.
+  //
+  //    Committed to `placed` (they weren't, when they were bare potties): siblings now
+  //    pack around each other instead of stacking, and the arch (step 6) can no longer
+  //    thread itself through a toilet block.
+  let plazaPost = null;   // the stage's plaza station — the bubble refill slots into it (step 7)
+  for (const par of welfareParents) {
+    const tier = T.WELFARE_TIERS[par.tier] || T.WELFARE_TIERS.minimal;
+    const postR = (T.KIND_FOOTPRINT.welfare_post || 3.6) * tier.scale;
+    const reach = par.r + T.POTTY_GAP + postR - (T.KIND_FOOTPRINT.welfare_post || 3.6);
+    // Candidate spots, best first. A COURT or a MARKET ROW takes the hub-outward fan
+    // (0, ±60, ±120, 180 off the outward bearing) — tuck it past the parent's edge and
+    // out of the hub's middle. A STAGE is different: its outward bearing is degenerate
+    // (it sits ON the heart) and its dancefloor is a 38 m keep-out, so the fan used to
+    // grind against the clearing and drop the station entirely. Site it where a real
+    // festival puts one instead — FLANKING the audience field, past the dancefloor's
+    // half-width and a little way up its length, facing back across the crowd.
+    const cands = [];
+    if (par.stageAxis) {
+      const F = par.stageAxis;
+      const side = Math.max(par.r, T.DANCEFLOOR_HALFWIDTH_BASE * F.scale) + postR + 3;
+      const up = T.DANCEFLOOR_DEPTH_BASE * F.scale * 0.4;
+      for (const sgn of [1, -1]) cands.push({ x: par.x - F.uz * sgn * side + F.ux * up, z: par.z + F.ux * sgn * side + F.uz * up });
+      for (const sgn of [1, -1]) cands.push({ x: par.x - F.uz * sgn * side, z: par.z + F.ux * sgn * side });
+      cands.push({ x: par.x - F.ux * (par.r + T.POTTY_GAP + postR), z: par.z - F.uz * (par.r + T.POTTY_GAP + postR) });
+    } else {
+      const base = Math.atan2(par.z - heart.z, par.x - heart.x);   // hub-outward
+      for (let k = 0; k < 6; k++) {
+        const ang = base + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * (Math.PI / 3);   // 0, ±60, ±120, 180
+        cands.push({ x: par.x + Math.cos(ang) * reach, z: par.z + Math.sin(ang) * reach });
+      }
+    }
+    for (const c of cands) {
+      const spot = nudgeOff(c.x, c.z, rng);
       if (!spot) continue;
-      const ps = [{ t: 'circle', x: spot.x, z: spot.z, r: T.KIND_FOOTPRINT.porta_bank || 3 }];
-      if (placed.some((pl) => clustersOverlap(ps, pl.s, 1))) continue;   // don't clip the parent or a sibling
-      out.push(desc('porta_bank', spot.x, spot.z, par.yaw, 'core', heart.rank, false, clusterSeed(heart, par.idx)));
-      if (par.idx === IDX.pottyStage) stageWelfareSpot = { x: spot.x, z: spot.z };
+      const shapes = clusterShapes('welfare_post', tier.scale, spot.x, spot.z, 0);
+      if (placed.some((pl) => clustersOverlap(shapes, pl.s, 1))) continue;   // don't clip the parent or a sibling
+      // Face the parent: the station fronts the crowd it serves.
+      const yaw = Math.atan2(par.x - spot.x, par.z - spot.z);
+      const d = desc('welfare_post', spot.x, spot.z, yaw, 'core', heart.rank, false, clusterSeed(heart, par.idx));
+      d.tier = par.tier;
+      d.parentSeed = par.parentSeed;
+      d.scale = tier.scale;
+      d.footprint = clusterExtent('welfare_post', tier.scale);
+      commit(d);
+      if (par.idx === IDX.welfareStage) plazaPost = d;
       break;
     }
   }
@@ -1022,24 +1080,30 @@ function _computePlan(heart) {
   }
 
   // 7. BUBBLE VENDOR — one GUARANTEED refuel per hub (refuel is a core verb, so it
-  //    stays guaranteed, D15). Welfare-bundle reframe (Gary 2026-06-16): the bubble
-  //    vendor IS the hub's water/refill AMENITY, so it co-locates with the stage's
-  //    porta-bank to read as one welfare station by the busy core — not a prop on a
-  //    quiet road. A deterministic fan tucks it beside that potty on the plaza-facing
-  //    side, clear of placed zones + dry. Falls back to the old road-walk / center
-  //    scatter when the stage had no potty (rare), so the guaranteed refuel persists.
+  //    stays guaranteed, D15). Welfare-bundle reframe (Gary 2026-06-16, completed with
+  //    the tiered posts): the bubble vendor IS the hub's water/refill AMENITY, so it
+  //    fills the WATER SLOT of the stage's plaza station — one legible welfare station
+  //    by the busy core, not a prop on a quiet road. It takes the post's reserved +X
+  //    slot first (so the station's four pieces compose the way the builder draws them),
+  //    then a fan around the post, then the old road-walk / center scatter when the
+  //    stage never got a post (rare) — the guaranteed refuel persists either way.
   {
     let spot = null, yaw = rng() * Math.PI * 2;
-    if (stageWelfareSpot) {
-      const gap = (T.KIND_FOOTPRINT.porta_bank || 3) + (T.KIND_FOOTPRINT.bubble_vendor || 3) + 1.5;
-      const toward = Math.atan2(heart.z - stageWelfareSpot.z, heart.x - stageWelfareSpot.x);   // toward the plaza
-      for (let k = 0; k < 6 && !spot; k++) {
-        const ang = toward + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * (Math.PI / 3);
-        const cx = stageWelfareSpot.x + Math.cos(ang) * gap, cz = stageWelfareSpot.z + Math.sin(ang) * gap;
-        if (queryPoint(cx, cz).noBuild) continue;
-        if (placed.some((pl) => clustersOverlap(clusterShapes('bubble_vendor', 1, cx, cz, 0), pl.s, 1))) continue;
-        spot = { x: quantize(cx), z: quantize(cz) };
-        yaw = roadFacingYaw(queryPoint(cx, cz).facing, rng);
+    if (plazaPost) {
+      // The post's own envelope reserves this slot, so it must not veto its own tenant.
+      const others = placed.filter((pl) => pl.d !== plazaPost);
+      const cosY = Math.cos(plazaPost.yaw), sinY = Math.sin(plazaPost.yaw);
+      const slot = (lx, lz) => ({ x: plazaPost.x + lx * cosY + lz * sinY, z: plazaPost.z - lx * sinY + lz * cosY });
+      const gap = T.WELFARE_BUBBLE_SIDE;
+      // The reserved slot first, then wider along the same flank — never across to
+      // the −X side (the potty bank) or behind (the shade table).
+      const cands = [slot(gap, 0), slot(gap * 1.5, 0), slot(gap, 1.8), slot(gap * 1.5, -1.8), slot(gap * 2, 0)];
+      for (const c of cands) {
+        if (queryPoint(c.x, c.z).noBuild) continue;
+        if (others.some((pl) => clustersOverlap(clusterShapes('bubble_vendor', 1, c.x, c.z, 0), pl.s, 1))) continue;
+        spot = { x: quantize(c.x), z: quantize(c.z) };
+        yaw = plazaPost.yaw;   // face the plaza the station fronts
+        break;
       }
     }
     if (!spot && roads.length) {

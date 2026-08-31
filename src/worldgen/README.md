@@ -81,7 +81,7 @@ python3 .claude/serve_nocache.py 8765
 
 > **UPDATE (2026-06):** the festival POI layer below has since SHIPPED —
 > `festival.js` (`festivalPlan` + `campVillagesNear`) now emits stages / courts /
-> vendor rows / bubble vendors / drum circles / porta-banks / camp villages, and
+> vendor rows / bubble vendors / drum circles / welfare posts / camp villages, and
 > `placement.js` filters them per-chunk for `chunks.js` to build. See "The
 > festival layer + harness modules" at the bottom. The skeleton description below
 > is still accurate; the "theme layer at 3D integration time" framing is now the
@@ -136,7 +136,7 @@ tooling that verifies it (the `worldgen-layout-harness` change):
 
 - **`festival.js`** — the POI layer. `festivalPlan(heart)` is a memoized,
   `(seed,epoch)`-gated, deterministic list of cluster descriptors (stage / food
-  court / vendor row / bubble vendor / drum circle / porta-bank) anchored off a
+  court / vendor row / bubble vendor / drum circle / welfare post) anchored off a
   heart + its approach roads; `campVillagesNear(bounds)` adds the back-of-festival
   camps on a coarse grid. `placement.js` (`placeChunkProps`) filters by
   cluster-center ownership so a chunk builds the clusters whose center it owns.

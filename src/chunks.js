@@ -38,6 +38,7 @@ import { buildSugarShack, SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH, sugarShackCooks 
 import { buildPortaPotty, createPottyState, POTTY_SPACING, POTTY_FOOTPRINT, POTTY_COLLIDER_R } from './models/portaPotty.js';
 import { buildHammock as buildHammockModel, buildTreeHammock } from './models/hammock.js';
 import { buildPicnicTable } from './models/picnicTable.js';
+import { buildInfoKiosk, INFO_KIOSK_COLLIDER_R, INFO_KIOSK_FOOTPRINT } from './models/infoKiosk.js';
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
 import { buildTentStage } from './models/tentStage.js';
@@ -1292,7 +1293,7 @@ const CLUSTER_GUARD_SKIP = new Set([
   // chunk's trees dodge it (built first), and a rare cross-chunk tree clipping a cluster
   // edge is cosmetic. Big SOLID structures (stage/truck/tent) still block (no stacking).
   'tree', 'forest_tree', 'lake', 'lake_edge', 'shore', 'beach', 'path_node', 'chair', 'picnic', 'picnic_table', 'stage_front',
-  'porta_potty', 'arch', 'bubble_vendor', 'drum_circle', 'hammock', 'campsite', 'bubble_jug', 'lamppost',
+  'porta_potty', 'arch', 'bubble_vendor', 'drum_circle', 'hammock', 'campsite', 'bubble_jug', 'lamppost', 'info_kiosk',
 ]);
 
 // (Removed `neighbourCourtHere` in 4B.3c — the cross-hub food-court SHARE is now the
@@ -1355,6 +1356,7 @@ function assertTuningDrift() {
     ['SUGAR_SHACK_W', M.SUGAR_SHACK_W, SUGAR_SHACK_WIDTH],
     ['SUGAR_SHACK_D', M.SUGAR_SHACK_D, SUGAR_SHACK_DEPTH],
     ['POTTY_SPACING', M.POTTY_SPACING, POTTY_SPACING],
+    ['INFO_KIOSK_R', M.INFO_KIOSK_R, INFO_KIOSK_FOOTPRINT],
   ];
   const drifts = checks.filter(([, copied, live]) => copied !== live)
     .map(([name, copied, live]) => `MODEL_DIMS.${name}=${copied} but live model export=${live}`);
@@ -1385,7 +1387,7 @@ function buildWorldgenKind(ctx, d) {
     case 'food_court':    buildFoodCourtAt(cctx, d.x, d.z); break;
     case 'vendor_row':    buildVendorRowAt(cctx, d.x, d.z, d.yaw); break;
     case 'bubble_vendor': buildBubbleVendorAt(cctx, d.x, d.z, d.yaw); break;
-    case 'porta_bank':    buildPottyBankAt(cctx, d.x, d.z, d.yaw); break;
+    case 'welfare_post':  buildWelfarePostAt(cctx, d); break;
     case 'drum_circle':   buildWorldgenDrumCircle(cctx, d.x, d.z, d.yaw); buildDrumAccessPath(cctx, d.x, d.z); break;   // B2 — FULL leaf drum circle + winding access path
     case 'camp_village':  buildCampVillageAt(cctx, d.x, d.z, d.tents); break;   // D2 — tent count ∝ local crowd
     default: break;       // unknown kind → place nothing (forward-compatible)
@@ -1509,16 +1511,99 @@ function buildBubbleVendorAt(ctx, x, z, yaw) {
 }
 
 // A small porta-potty bank (1-2 units), reusing the legacy row builder. Doors face
-// the road (the worldgen `yaw`). Skips if the row can't fit clear of buildings/water.
-function buildPottyBankAt(ctx, x, z, yaw) {
+// the road (the worldgen `yaw`). Returns false (and builds nothing) when the row
+// can't fit clear of buildings/water, so a welfare post can try its next slot.
+// `clumpR` is the exclusionary radius: in a dense hub neighbouring clusters each
+// request a bank and they used to pile into a 2-2-1 clump (Gary 2026-06-16). The
+// planner now spaces welfare posts by committed envelope, so the welfare path passes
+// a smaller radius — 20 m there would delete the toilets out of a bundle whose kiosk
+// and table still build, leaving a welfare station with no welfare in it.
+function buildPottyBankAt(ctx, x, z, yaw, clumpR = 20) {
   const count = 1 + (ctx.rng() < 0.4 ? 1 : 0);
-  // Exclusionary principle: in a dense hub, neighbouring clusters (stage, food
-  // court, vendor row) each request a porta-bank and they pile into a 2-2-1 clump
-  // (Gary 2026-06-16). Skip this bank if potties already sit within 20 m — the
-  // existing bank serves this cluster too.
-  if (kindNear('porta_potty', x, z, 20)) return;
-  if (!pottyRowClear(x, z, yaw, count)) return;
+  if (kindNear('porta_potty', x, z, clumpR)) return false;
+  if (!pottyRowClear(x, z, yaw, count)) return false;
   buildPottyBank(ctx, ctx.rng, x, z, yaw, count);
+  return true;
+}
+
+// A WELFARE POST — the hub's amenity bundle, built as one composed station rather
+// than a lone porta-bank dropped in a gap. `d.tier` (planner, WELFARE_TIERS) decides
+// what it carries: minimal = toilets only (the vendor-market stretches), standard
+// adds the shade/seating table and the info kiosk, plaza is a standard post with the
+// hub's guaranteed bubble refill slotted beside it (the planner places that booth as
+// its own descriptor into the +X slot this layout leaves empty — see festival.js
+// step 7). Local +Z is the post's FRONT: the planner aimed it back at the zone it
+// serves, so the kiosk board and the potty doors both address the crowd.
+//
+// The four pieces sit around a small open middle, which is what makes it read as a
+// welfare ISLAND you can drive around rather than a wall of props.
+function buildWelfarePostAt(ctx, d) {
+  const T = FESTIVAL_TUNING;
+  const tier = T.WELFARE_TIERS[d.tier] || T.WELFARE_TIERS.minimal;
+  const yaw = d.yaw;
+  const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+  const at = (lx, lz) => ({ x: d.x + lx * cosY + lz * sinY, z: d.z - lx * sinY + lz * cosY });
+
+  // A MINIMAL post is just the bank, dead center — identical to the lone porta-bank
+  // this step used to place. Everything richer slides it aside to make room, and gets a
+  // short fan of fallbacks along that flank so a single blocked row doesn't strip the
+  // toilets out of an otherwise-complete station.
+  const side = tier.kiosk ? -T.WELFARE_POTTY_SIDE : 0;
+  const bankSlots = tier.kiosk
+    ? [[side, 0], [side, 1.6], [side, -1.6], [side - 1.8, 0]]
+    : [[0, 0], [0, 1.6], [1.6, 0]];
+  for (const [lx, lz] of bankSlots) {
+    const b = at(lx, lz);
+    if (buildPottyBankAt(ctx, b.x, b.z, yaw, 10)) break;
+  }
+
+  if (tier.kiosk) {
+    const k = at(0, 0);
+    if (!isPointInLake(k.x, k.z) && !registry.closestBuilding(new THREE.Vector3(k.x, 0, k.z), 1.6, CLUSTER_GUARD_SKIP)) {
+      const kiosk = buildInfoKiosk(ctx.rng);
+      kiosk.group.position.set(k.x, 0, k.z);
+      kiosk.group.rotation.y = yaw;
+      ctx.group.add(kiosk.group);
+      registry.add({
+        kind: 'info_kiosk',
+        position: new THREE.Vector3(k.x, 0, k.z),
+        footprint: kiosk.footprint,
+        collider: { radius: INFO_KIOSK_COLLIDER_R, damage: 3 },
+        // A staffed point people loiter at — pulls a little ambient crowd so the
+        // station reads as somewhere people GO, not scenery.
+        attractor: { radius: 6, weight: 0.7 },
+        chunkKey: ctx.key,
+      });
+    }
+  }
+
+  if (tier.table) {
+    const t = at(0, -T.WELFARE_TABLE_BACK);
+    if (!isPointInLake(t.x, t.z) && !registry.closestBuilding(new THREE.Vector3(t.x, 0, t.z), 1.9, CLUSTER_GUARD_SKIP)) {
+      const pt = buildPicnicTable(ctx.rng);
+      const tYaw = yaw + Math.PI / 2;   // long axis across the post, benches facing the row
+      pt.group.position.set(t.x, 0, t.z);
+      pt.group.rotation.y = tYaw;
+      ctx.group.add(pt.group);
+      const cosT = Math.cos(tYaw), sinT = Math.sin(tYaw);
+      const tableSeats = pt.seats.map((sp) => ({
+        x: t.x + sp.x * cosT + sp.z * sinT,
+        z: t.z - sp.x * sinT + sp.z * cosT,
+        y: sp.y,
+        yaw: sp.yaw + tYaw,
+        occupied: false,
+      }));
+      registry.add({
+        kind: 'picnic_table',
+        position: new THREE.Vector3(t.x, 0, t.z),
+        footprint: pt.footprint,
+        collider: { radius: 1.8, damage: 3 },
+        attractor: { radius: 4, weight: 0.6 },
+        tableSeats,
+        chunkKey: ctx.key,
+      });
+    }
+  }
 }
 
 // Two parallel rows of market tents, world-positioned, running ALONG the road (the
@@ -2343,7 +2428,11 @@ function pottyRowClear(bx, bz, yaw, count) {
   for (let i = 0; i < count; i++) {
     const off = (i - (count - 1) / 2) * POTTY_SPACING;
     const x = bx + rx * off, z = bz + rz * off;
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.0)) return false;
+    // CLUSTER_GUARD_SKIP, not a bare check: a bank is a cluster COMPANION, and an
+    // unskipped guard blocks on trees, the lakeshore sphere ring and sibling props —
+    // so a bank inside a perfectly-valid welfare envelope silently vanished whenever a
+    // neighbouring chunk's tree happened to register first (load-order dependent).
+    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.0, CLUSTER_GUARD_SKIP)) return false;
     if (isPointInLake(x, z)) return false;
   }
   return true;

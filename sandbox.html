@@ -186,7 +186,7 @@
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
             const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
-                'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable'];
+                'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
             const base = new URL('./src/', document.baseURI).href;
             const imports = {
                 'three': 'https://unpkg.com/three@0.160.0/build/three.module.js',
@@ -238,6 +238,10 @@
             <option value="porta_potty">Porta-potty (demo: door + occupied + stink cycle)</option>
             <option value="porta_potty_bank">Porta-potty bank (5 — staggered use cycle)</option>
             <option value="picnic_table">Picnic table</option>
+            <option value="info_kiosk">Info kiosk (welfare board + pennant)</option>
+            <option value="welfare_post_plaza">Welfare post — PLAZA tier (the full bundle)</option>
+            <option value="welfare_post_standard">Welfare post — STANDARD tier</option>
+            <option value="welfare_post_minimal">Welfare post — MINIMAL tier (bank only)</option>
         </optgroup>
         <optgroup label="People">
             <option value="cheer_demo">Crowd cheer demo (jump + arms-up)</option>
@@ -552,6 +556,8 @@ import {buildShrub} from './src/models/shrub.js';
     import {buildBubbleVendor} from './src/models/bubbleVendor.js';
     import {buildPortaPotty, createPottyState, updatePortaPotty, STINK_DUR, POTTY_SPACING} from './src/models/portaPotty.js';
     import {buildPicnicTable} from './src/models/picnicTable.js';
+    import {buildInfoKiosk} from './src/models/infoKiosk.js';
+    import {FESTIVAL_TUNING} from './src/worldgen/tuning.js';
     import {buildLeafDrumCircle, updateLeafDrumCircle} from './src/models/leafDrumCircle.js';
     import {
         buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
@@ -895,6 +901,9 @@ import {buildShrub} from './src/models/shrub.js';
         chunk_drum_circle: 'firepit',
         porta_potty: 'porta_potty', porta_potty_bank: 'porta_potty',
         picnic_table: 'tent',   // wooden thunk — closest existing SFX
+        info_kiosk: 'tent',     // timber-and-canvas — same thunk as a booth
+        welfare_post_plaza: 'porta_potty', welfare_post_standard: 'porta_potty',
+        welfare_post_minimal: 'porta_potty',
     };
 
     function loadEntity(name) {
@@ -1035,6 +1044,67 @@ import {buildShrub} from './src/models/shrub.js';
                 scene.add(group);
                 entityRoot = group;
                 cam.target.set(0, 0.6, 0);
+                break;
+            }
+            case 'info_kiosk': {
+                const { group } = buildInfoKiosk(Math.random);
+                scene.add(group);
+                entityRoot = group;
+                cam.target.set(0, 1.6, 0);
+                cam.dist = 9;
+                applyCam();
+                break;
+            }
+            // The three WELFARE POST tiers, composed exactly as chunks.js
+            // buildWelfarePostAt lays them out (local +Z = the front the planner
+            // aimed at the zone it serves). This is the composite that lets you
+            // judge the amenity BUNDLE — the thing the planner actually places —
+            // instead of squinting at four props one at a time. The bubble booth is
+            // drawn in the plaza tier's reserved +X slot the planner fills.
+            case 'welfare_post_plaza':
+            case 'welfare_post_standard':
+            case 'welfare_post_minimal': {
+                const tierName = name.replace('welfare_post_', '');
+                const tier = FESTIVAL_TUNING.WELFARE_TIERS[tierName];
+                const T = FESTIVAL_TUNING;
+                const root = new THREE.Group();
+                const potties = [];
+
+                const bankX = tier.kiosk ? -T.WELFARE_POTTY_SIDE : 0;
+                for (let i = 0; i < 2; i++) {
+                    const built = buildPortaPotty(Math.random);
+                    built.group.position.set(bankX + (i - 0.5) * POTTY_SPACING, 0, 0);
+                    root.add(built.group);
+                    const st = createPottyState(built);
+                    st.outX = 0; st.outZ = 1;
+                    potties.push(st);
+                }
+                if (tier.kiosk) {
+                    const k = buildInfoKiosk(Math.random);
+                    root.add(k.group);
+                }
+                if (tier.table) {
+                    const pt = buildPicnicTable(Math.random);
+                    pt.group.position.set(0, 0, -T.WELFARE_TABLE_BACK);
+                    pt.group.rotation.y = Math.PI / 2;
+                    root.add(pt.group);
+                }
+                if (tier.water) {
+                    const bv = buildBubbleVendor(Math.random);
+                    bv.position.set(T.WELFARE_BUBBLE_SIDE, 0, 0);
+                    root.add(bv);
+                    root.userData.vendorAnim = bv;
+                }
+                scene.add(root);
+                entityRoot = root;
+                updateFn = (dt) => {
+                    root.userData.vendorAnim?.userData.anim?.(dt);
+                    for (const st of potties) updatePortaPotty(st, dt, performance.now() / 1000, tod.nightness);
+                };
+                cam.target.set(0, 1.0, -1.0);
+                cam.dist = tier.water ? 24 : tier.kiosk ? 19 : 9;
+                cam.pitch = tier.kiosk ? 0.62 : 0.45;   // look down on the island so the back table reads
+                applyCam();
                 break;
             }
             case 'hammock_with_npc': {

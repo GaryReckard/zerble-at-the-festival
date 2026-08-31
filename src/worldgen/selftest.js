@@ -176,6 +176,11 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     // noneBelow 0.05, seed 1234:
     //   queryPoint golden  node eddf8e50  /  browser eddf8e50 (recorded 2026-06-10, H.2)
     //   POI golden         94a6a001 (recent node V8 ≥ v24 == Chromium class; GROUP 4B+)
+    // ^ HISTORICAL. The chain below stops at 94a6a001, but post-2026-06-16 worldgen
+    //   work moved both without updating this block; the CURRENT pair is
+    //   queryPoint dd6c3f13 / POI 3a0cc079 (see the tail of the chain). The
+    //   independently-recorded pair from `festival-horizon` task group 1 —
+    //   dd6c3f13 / 4e580ed7 — is the one the welfare-bundle entry below moves from.
     // ^ GROUP 4 (festival-zone-grammar, 2026-06-14) moved the POI golden in TWO steps,
     //   then GROUP 4B (2026-06-15) once more — all flag-off on an unmerged branch (D6):
     //     4825fd0b → a0edfaea  the slotting commit (a338ed2): single-pass oriented-zone
@@ -259,10 +264,29 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     //                          shift too — the SAME golden-move class as the stage flood fix
     //                          (736f05b4). Ring-clips-road 0 across 7 seeds (1718 drums), drum
     //                          count unchanged. queryPoint frozen (eddf8e50; no road/water change).
+    //     4e580ed7 → aaf5bead  WELFARE / AMENITY BUNDLES (2026-08-31, ROADMAP "Welfare/
+    //                          amenity bundles attached to hubs"): the plan's lone
+    //                          `porta_bank` attachments become TIERED `welfare_post`
+    //                          bundles (minimal = toilets, standard = + shade table +
+    //                          info kiosk, plaza = + the hub's bubble refill), committed
+    //                          to the slotter's placed[] so siblings pack around each
+    //                          other and the arch can't thread through one. Three plan
+    //                          deltas move the hash: the kind string + `tier`/`scale`/
+    //                          `parentSeed` fields, the STAGE post moving from a
+    //                          degenerate hub-outward fan to a dancefloor-flanking
+    //                          candidate list, and the bubble taking the plaza post's
+    //                          reserved slot. Draw ORDER is unchanged (the candidate
+    //                          lists are rng-free; only `nudgeOff`'s conditional draw
+    //                          can differ, the same variable-draw class as the stage
+    //                          flood fix). Plan-mode lint across the 10-seed gallery is
+    //                          UNCHANGED on every pre-existing rule (1 error / 233 warn,
+    //                          the known seed-256 nudgeOffDrum regression) — the only new
+    //                          findings are 6 from the new `amenity-bundle` rule itself.
+    //                          queryPoint frozen dd6c3f13 (no road/water change — D5).
     //   The POI fork is a V8-VERSION cosmetic class (the older-V8 value differs; the
     //   accepted treedDistrictSpot/front-axis transcendental class — file header).
     //   poiGoldenHash is returned for manual comparison, NOT a hard-fail result.
-    //   queryPoint golden stays FROZEN eddf8e50 (no road/water-existence change — D5).
+    //   queryPoint golden stays FROZEN dd6c3f13 (no road/water-existence change — D5).
     // The plan now carries each stage's front-axis bin (`fbin`) + `scale`, so the
     // golden + T6 window-invariance exercise F. (Prior baselines for reference:
     // 340/0.25 → POI node 4e335f21; the pre-grammar 200/0.05 → POI node 6fa977c8;

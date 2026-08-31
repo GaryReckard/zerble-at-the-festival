@@ -351,8 +351,17 @@ function draw() {
       } else if (p.kind === 'drum_circle') {
         ctx.fillStyle = '#ff6a2a'; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = 'rgba(255,106,42,0.6)'; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.stroke();
-      } else if (p.kind === 'porta_bank') {
+      } else if (p.kind === 'welfare_post') {
+        // The amenity bundle. A hollow ring sized by TIER (plaza > standard > minimal)
+        // so you can read the "denser at the busy nodes, sparser through the market"
+        // gradient straight off the map.
+        const rr = Math.max(3, (p.footprint || 3.6) * z);
         ctx.fillStyle = '#7aa0ff'; ctx.fillRect(x - 2, y - 2, 4, 4);
+        if (p.tier && p.tier !== 'minimal') {
+          ctx.strokeStyle = p.tier === 'plaza' ? '#7aa0ff' : 'rgba(122,160,255,0.55)';
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.stroke();
+        }
       } else if (p.kind === 'camp_village') {
         ctx.strokeStyle = '#9ed06a'; ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 3]);

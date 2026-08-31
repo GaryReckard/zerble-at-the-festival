@@ -260,14 +260,27 @@ isn't wasted, not a course correction.
 
 **Genuinely-new ideas worth parking (NOT now — after the grammar fix lands):**
 
-- **Welfare/amenity bundles attached to hubs.** Real festivals plan a recurring
-  bundle (toilets + water + info + shade) per district from the start, denser near
-  stages/food, sparser in craft stretches — not scattered into leftover gaps. This
-  reframes two things we already have: porta banks become part of a *bundle* (not a
-  lone attachment), and **the bubble vendor is naturally the "water/refill amenity"**
-  — which is exactly Gary's "bubble vendors sparse, in places that make sense":
-  site them as a hub/plaza amenity, not a random prop. A `welfare-bundle` zone rule
-  could grow out of the existing `potty-attached` rule.
+- ~~**Welfare/amenity bundles attached to hubs.**~~ SHIPPED 2026-08-31 (see CHANGELOG):
+  tiered `welfare_post` bundles (minimal / standard / plaza) replace the lone porta-bank
+  attachments, the bubble vendor is the plaza tier's water amenity, the new
+  `models/infoKiosk.js` covers the shade + info classes, and an `amenity-bundle` lint rule
+  scores the research's "3 of 5 at every high-intensity node" in both plan and registry mode.
+  **Follow-ups that fell out of it:**
+  * **Camp villages have no welfare.** `campVillagesNear` is a separate coarse grid outside
+    `festivalPlan`, so a 22-tent village gets no toilets at all. Real sites put a comfort
+    station within ~76–152 m of the farthest campsite (the one *cited* number in the R3
+    research). Wants its own small change — the village grid would need a post slot, and
+    that's golden-moving.
+  * **Cross-hub welfare duplication.** Posts are slotted per hub with no cross-hub view,
+    same structural limit as the still-open vendor-row overlap above. Two neighbouring
+    hubs can each site a station at the seam between them. The seam grammar already types
+    `soft_buffer` seams — a "shared amenity court" response (R3's seam type (b)) is the
+    principled fix, and it would also let the shade table double as the seam's dressing.
+  * **The committed `verification/snapshots/*.json` are stale** (captured June, ~842 entries
+    vs today's ~734) and now also predate the welfare bundles. They are a verification
+    artifact that currently lies. Worth one deliberate refresh pass — but it should be its
+    own commit so months of accumulated drift doesn't get attributed to whatever change
+    happens to be in flight.
 - **Return-home landmarks + the player-facing map.** Infinite scale is only
   tolerable if every major hub has a legible "you are here / home base" marker
   (Bonnaroo's numbered balloons, Glastonbury's fixed info points). We already carry
