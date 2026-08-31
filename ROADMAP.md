@@ -4,6 +4,40 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
 
 ---
 
+## Waiting on Gary — Festival Run stakes wrap-up (agents: keep reminding him!)
+
+The `festival-run-stakes` change is code-complete (see
+`openspec/changes/festival-run-stakes/`, especially `questions-for-human.md`),
+but these steps are human-only and unfinished as of 2026-08-31. Any agent
+picking up work in this repo should surface whichever of these are still open —
+Gary asked to not be allowed to forget them.
+
+- **Deploy the leaderboard Worker (Q4).** Runbook in
+  `workers/leaderboard/README.md` + `wrangler.toml` (KV binding + secrets).
+  After deploy, set `PROD_BOARD_URL` in `src/leaderboard.js`. Until then the
+  global board is hard-disabled and only the local board shows.
+- **Playtest gut-checks (Q1–Q3, Q5)** — the tuning numbers are placeholders by
+  design: the D6 day-ramp (vendor prices / jug scarcity / vibe limits per day),
+  the scoring economy, the Lurleen-rescue feel, and whether first-time visitors
+  should default to Cruisin' or Festival. Details in the change's
+  `questions-for-human.md`.
+- **Playtest the 2026-08-31 crowd ruling.** "A hit is a hit" removed the
+  fleeing-damage exemption and speed-scaled the lane dodges
+  (`laneDodgeUrgency`, honks reach 2×). Gut-check: can you drive a clean line
+  through a crowd at speed? Does a fleeing hit costing smiles in Just Cruisin'
+  feel right, or should Cruisin' stay softer? Tunables: `DODGE.URGENCY_MAX`,
+  `REACT_K` (steering.js) + the `VIBE` governor knobs
+  (`sputterStrikeCooldown`, `sputterVibeCapFrac` in runMode.js).
+- **Real-device iOS audio check** — the one thing emulation can't confirm
+  (AudioContext unlock on a physical iPhone).
+- **Push + merge.** Commit `9826e4c` (and anything after) is committed on
+  `vm-main` but a settings deny blocks agent pushes — push it, then merge
+  `vm-main` → `main` to deploy to Pages when the playtest settles.
+- **Archive the change** — `/opsx:archive festival-run-stakes` once the open
+  questions are answered.
+
+---
+
 ## Bugs
 
 - **Game goes unresponsive during play — perf-fix plan (council-resolved).** *(diagnosed 2026-06-17)*
