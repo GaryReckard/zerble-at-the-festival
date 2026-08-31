@@ -266,11 +266,12 @@ isn't wasted, not a course correction.
   `models/infoKiosk.js` covers the shade + info classes, and an `amenity-bundle` lint rule
   scores the research's "3 of 5 at every high-intensity node" in both plan and registry mode.
   **Follow-ups that fell out of it:**
-  * **Camp villages have no welfare.** `campVillagesNear` is a separate coarse grid outside
-    `festivalPlan`, so a 22-tent village gets no toilets at all. Real sites put a comfort
-    station within ~76–152 m of the farthest campsite (the one *cited* number in the R3
-    research). Wants its own small change — the village grid would need a post slot, and
-    that's golden-moving.
+  * ~~**Camp villages have no welfare.**~~ SHIPPED 2026-08-31 (same day, follow-up commit):
+    every village emits its own minimal welfare post, a single bank or a double past 12
+    tents, sited past the pitch square's edge on the road side. Guarded by the new
+    `camp-welfare` registry lint rule. The deep-outskirts wild-camping scatter
+    (`scatterWorldgenCampsites`, 3–5 sites) deliberately stays unserviced — that's the
+    point of camping in the woods.
   * **Cross-hub welfare duplication.** Posts are slotted per hub with no cross-hub view,
     same structural limit as the still-open vendor-row overlap above. Two neighbouring
     hubs can each site a station at the seam between them. The seam grammar already types

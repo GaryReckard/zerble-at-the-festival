@@ -477,13 +477,22 @@ const REGISTRY_RULES = [
     severity: 'warn',
     mode: 'registry',
     // A porta-bank should tuck at the margin of a parent cluster (A8), not strand
-    // in open ground. Fires when no parent-kind solid is within ATTACH range.
+    // in open ground. Fires when no parent-kind entry is within range.
+    //
+    // Two things this used to get wrong. It scanned `solids`, but a `campsite`
+    // registers with no collider — so the `campsite` already listed in POTTY_PARENTS
+    // could never actually match, and the rule read entries it was never shown. And a
+    // camp village's bank attaches to the PITCH FIELD's margin, not to one tent: the
+    // pitches scatter across a ±CAMP_RADIUS square, so on a thinly-pitched side the
+    // nearest neighbour is legitimately tens of metres off. Campsite parents therefore
+    // carry the camp allowance; everything else keeps the tight cluster-margin range.
     check(rctx, emit) {
-      const ATTACH = FESTIVAL_TUNING.POTTY_ATTACH_OFFSET + 10;
-      const parents = rctx.solids.filter(e => POTTY_PARENTS.has(e.kind));
+      const T = FESTIVAL_TUNING;
+      const ATTACH = T.POTTY_ATTACH_OFFSET + 10;
+      const parents = rctx.entries.filter(e => POTTY_PARENTS.has(e.kind));
       for (const e of rctx.solids) {
         if (e.kind !== 'porta_potty') continue;
-        const near = parents.some(p => Math.hypot(p.x - e.x, p.z - e.z) <= ATTACH);
+        const near = parents.some(p => Math.hypot(p.x - e.x, p.z - e.z) <= (p.kind === 'campsite' ? T.CAMP_WELFARE_RADIUS : ATTACH));
         if (!near) emit(e.x, e.z, `porta-bank has no parent cluster within ${ATTACH}m (orphaned)`, nearestHubOf(rctx.hubs, e.x, e.z));
       }
     },
@@ -523,6 +532,34 @@ const REGISTRY_RULES = [
         if (classes.size < T.AMENITY_BUNDLE_MIN) {
           emit(n.x, n.z, `${n.label} has only ${classes.size} amenity class(es) within ${R}m [${[...classes].join(',') || 'none'}] — wants ${T.AMENITY_BUNDLE_MIN} of 5`, n.hub);
         }
+      }
+    },
+  },
+  {
+    id: 'camp-welfare',
+    severity: 'warn',
+    mode: 'registry',
+    // A camp VILLAGE with no toilets anywhere near it (Gary 2026-08-31). Villages
+    // live on their own coarse grid outside `festivalPlan`, so they were the one
+    // populated place the welfare bundles never reached. Clusters `campsite` entries
+    // greedily at 45 m and only judges the big ones: a village packs 5-22 pitches
+    // across a ±CAMP_RADIUS square, while the deep-outskirts wild-camping scatter is
+    // a 3-5 site huddle that is *supposed* to have nothing, so CAMP_WELFARE_MIN_SITES
+    // tells them apart without needing the plan.
+    check(rctx, emit) {
+      const T = FESTIVAL_TUNING;
+      const camps = rctx.entries.filter(e => e.kind === 'campsite');
+      const clusters = [];
+      for (const c of camps) {
+        const hit = clusters.find(k => Math.hypot(k.x - c.x, k.z - c.z) < 45);
+        if (hit) { hit.n++; hit.x += (c.x - hit.x) / hit.n; hit.z += (c.z - hit.z) / hit.n; }
+        else clusters.push({ x: c.x, z: c.z, n: 1 });
+      }
+      const potties = rctx.entries.filter(e => e.kind === 'porta_potty');
+      for (const k of clusters) {
+        if (k.n < T.CAMP_WELFARE_MIN_SITES) continue;
+        if (potties.some(p => Math.hypot(p.x - k.x, p.z - k.z) <= T.CAMP_WELFARE_RADIUS)) continue;
+        emit(k.x, k.z, `camp village (${k.n} pitches) has no porta-potty within ${T.CAMP_WELFARE_RADIUS}m`, nearestHubOf(rctx.hubs, k.x, k.z));
       }
     },
   },

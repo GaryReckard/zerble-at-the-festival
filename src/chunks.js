@@ -1513,14 +1513,16 @@ function buildBubbleVendorAt(ctx, x, z, yaw) {
 // A small porta-potty bank (1-2 units), reusing the legacy row builder. Doors face
 // the road (the worldgen `yaw`). Returns false (and builds nothing) when the row
 // can't fit clear of buildings/water, so a welfare post can try its next slot.
-// `clumpR` is the exclusionary radius: in a dense hub neighbouring clusters each
-// request a bank and they used to pile into a 2-2-1 clump (Gary 2026-06-16). The
-// planner now spaces welfare posts by committed envelope, so the welfare path passes
-// a smaller radius — 20 m there would delete the toilets out of a bundle whose kiosk
-// and table still build, leaving a welfare station with no welfare in it.
-function buildPottyBankAt(ctx, x, z, yaw, clumpR = 20) {
-  const count = 1 + (ctx.rng() < 0.4 ? 1 : 0);
-  if (kindNear('porta_potty', x, z, clumpR)) return false;
+// `opts.clumpR` is the exclusionary radius: in a dense hub neighbouring clusters each
+// request a bank and they used to pile into a 2-2-1 clump (Gary 2026-06-16). A BARE
+// bank still yields to one 20 m away — that's the clump the rule was written for — but
+// a full station passes a smaller radius, because 20 m there would delete the toilets
+// out of a bundle whose kiosk and table still build. `opts.count` pins the unit count
+// (camp villages size theirs by tent count instead of rolling it).
+function buildPottyBankAt(ctx, x, z, yaw, opts = {}) {
+  const roll = 1 + (ctx.rng() < 0.4 ? 1 : 0);   // drawn either way — keeps the cluster stream stable
+  const count = opts.count || roll;
+  if (kindNear('porta_potty', x, z, opts.clumpR || 20)) return false;
   if (!pottyRowClear(x, z, yaw, count)) return false;
   buildPottyBank(ctx, ctx.rng, x, z, yaw, count);
   return true;
@@ -1552,9 +1554,10 @@ function buildWelfarePostAt(ctx, d) {
   const bankSlots = tier.kiosk
     ? [[side, 0], [side, 1.6], [side, -1.6], [side - 1.8, 0]]
     : [[0, 0], [0, 1.6], [1.6, 0]];
+  const bankOpts = { clumpR: tier.kiosk ? 10 : 20, count: d.bankCount || 0 };
   for (const [lx, lz] of bankSlots) {
     const b = at(lx, lz);
-    if (buildPottyBankAt(ctx, b.x, b.z, yaw, 10)) break;
+    if (buildPottyBankAt(ctx, b.x, b.z, yaw, bankOpts)) break;
   }
 
   if (tier.kiosk) {

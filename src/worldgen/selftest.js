@@ -283,6 +283,19 @@ export function runSelfTest(seeds = [0, 1, 1234, 0x95128419]) {
     //                          the known seed-256 nudgeOffDrum regression) — the only new
     //                          findings are 6 from the new `amenity-bundle` rule itself.
     //                          queryPoint frozen dd6c3f13 (no road/water change — D5).
+    //     aaf5bead → fe7803f1  CAMP-VILLAGE WELFARE (2026-08-31 follow-up, Gary: "camp
+    //                          villages should get at least a single, or a double porta-
+    //                          potty"): `campVillagesNear` now emits a MINIMAL welfare post
+    //                          per village, just past the pitch SQUARE's edge (±CAMP_RADIUS,
+    //                          so the clearance is the square's boundary along the chosen
+    //                          bearing — 30 m cardinal, ~42 m diagonal — not the radius) on
+    //                          the road side, doors facing back into the camp. Bank size is
+    //                          tent-driven, not rolled: 1 unit, or 2 at VILLAGE_WELFARE_DOUBLE
+    //                          (196/98 across 5 seeds, 294 villages, 0 unserved). PURELY
+    //                          ADDITIVE and RNG-FREE — it consumes no draw from the village
+    //                          cell's stream, so every existing village keeps its exact
+    //                          position and tent count; only the new descriptors enter the
+    //                          hash. queryPoint frozen dd6c3f13.
     //   The POI fork is a V8-VERSION cosmetic class (the older-V8 value differs; the
     //   accepted treedDistrictSpot/front-axis transcendental class — file header).
     //   poiGoldenHash is returned for manual comparison, NOT a hard-fail result.

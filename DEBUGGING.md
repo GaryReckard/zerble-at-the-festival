@@ -601,7 +601,9 @@ arch's segments, a drum circle's firepit-in-bench-ring), `water-clear`,
 `dancefloor-clear`, `booth-on-road`, `potty-attached`, `amenity-bundle` (every
 high-intensity node — a stage deck, a food-truck court — must have >= 3 of the 5
 welfare classes within `AMENITY_BUNDLE_RADIUS`: toilets / water / shade-seating /
-info / special service), `truck-off-road`,
+info / special service), `camp-welfare` (a camp village — a campsite cluster at or
+above `CAMP_WELFARE_MIN_SITES` pitches, which excludes the 3-5 site wild-camping
+scatter — needs a porta-potty within `CAMP_WELFARE_RADIUS`), `truck-off-road`,
 `drum-in-trees` (the LEAF drum circle must sit in a treed pocket and not inside
 another cluster's envelope — Gary saw one inside a food-truck circle), and
 `arch-placement` (the spawn arch must be over a road, outside dancefloors, and

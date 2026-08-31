@@ -176,6 +176,11 @@ export const FESTIVAL_TUNING = {
   WELFARE_POTTY_SIDE: 4.2,    // m to the −X side — the bank (a MINIMAL post keeps it dead center)
   WELFARE_TABLE_BACK: 3.0,    // m behind (−Z) — the shade/seating half, out of the queue
   WELFARE_BUBBLE_SIDE: 3.4,   // m to the +X side — the plaza tier's water/refill slot
+  VILLAGE_WELFARE_GAP: 8,     // m past the camp SQUARE's edge for a village's own bank
+  VILLAGE_WELFARE_DOUBLE: 12, // tents at or above this get a double bank instead of a single. Villages
+                              // measure 6-13 tents in practice (the 22 cap needs a heartInfluence the
+                              // non-core role tiers never reach), so 12 hands the busier ~third a
+                              // double — set it above 13 and the double branch is dead code.
 
   // ── Drum-circle district band (planner treedDistrictSpot) ──
   DRUM_BAND: 130,           // festival.js:67  — max reach past core (bounds MAX_POI_REACH; R16)
@@ -234,6 +239,9 @@ export const FESTIVAL_TUNING = {
   ARCH_MIN_STAGE_DIST: 30,     // m — spawn arch must sit at least this far from the stage (past the string-light rows)
   AMENITY_BUNDLE_RADIUS: 55,   // m — radius around a high-intensity node searched for amenity classes
   AMENITY_BUNDLE_MIN: 3,       // the "3 of 5" bundle threshold (toilets/water/seating/info/service)
+  CAMP_WELFARE_RADIUS: 70,     // m — a camp village's own bank must sit within this of the pitch field
+  CAMP_WELFARE_MIN_SITES: 6,   // campsites in a cluster before it counts as a VILLAGE (a wild
+                               // outskirts clump is 3-5, so this separates the two without a plan lookup)
 };
 
 // Live patch + epoch bump contract: callers (the 6.4 slider panel) do
