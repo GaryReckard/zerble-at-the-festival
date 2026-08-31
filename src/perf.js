@@ -141,10 +141,18 @@ const TABLE = {
       // truss 76, beacon 25 at r520; peaks/warm scale by densityMul).
       radius: 520,
       densityMul: 0.6,        // thins per-hub supporting silhouettes, never the stage anchor
-      marginalTriCap: 8000,   // worst case at full caps: 7,616 tris
+      // Re-budgeted 2026-08-31 (the horizon-fidelity pass). Three shape fixes
+      // moved demand: vendor rows became TWO booth lines at ~5/side (peaks up),
+      // tent stages moved out of `canopy` into `peak` (canopy + truss down), and
+      // FOREST_DENSITY_THRESHOLD fell 0.45 -> 0.15 so treed ground actually gets
+      // a silhouette (forest up ~3x). Caps re-sized from a fresh within-radius
+      // demand sweep (5 seeds x 24 poses); `forestStep` grew alongside the lower
+      // threshold so a coarser grid of larger domes covers far more ground for a
+      // similar instance count.
+      marginalTriCap: 9700,   // worst case at full caps: 8,896 tris
       maxColdStepMs: 2,
-      forestStep: 56,         // coarse forest-mass sample grid (m)
-      caps: { canopy: 32, truss: 96, peak: 128, warm: 96, beacon: 32, forest: 64, roadVerts: 4096, roadIndices: 6144 },
+      forestStep: 72,         // coarse forest-mass sample grid (m)
+      caps: { canopy: 32, truss: 96, peak: 176, warm: 128, beacon: 32, forest: 96, roadVerts: 4096, roadIndices: 6144 },
     },
   },
   mid: {
@@ -168,14 +176,15 @@ const TABLE = {
     farField: {
       radius: 520,            // the fog-opaque limit (design D6)
       densityMul: 1.0,
-      marginalTriCap: 10000,  // worst case at full caps: 9,776 tris
+      marginalTriCap: 12800,  // worst case at full caps: 12,672 tris
       maxColdStepMs: 2,
-      forestStep: 48,
+      forestStep: 56,
       // canopy/truss/beacon raised 2026-08-28: measured within-radius demand
       // (max 25 stages / 76 truss parts) exceeded the provisional 24/72 —
       // dense seeds dropped a VISIBLE stage. Sized from the same demand run
-      // as low.
-      caps: { canopy: 40, truss: 120, peak: 224, warm: 160, beacon: 40, forest: 64, roadVerts: 4096, roadIndices: 6144 },
+      // as low; peak/warm/forest re-sized in the 2026-08-31 fidelity pass (see
+      // the low tier's note for what moved).
+      caps: { canopy: 40, truss: 120, peak: 288, warm: 176, beacon: 40, forest: 176, roadVerts: 4096, roadIndices: 6144 },
     },
   },
   high: {
@@ -202,10 +211,10 @@ const TABLE = {
     farField: {
       radius: 520,
       densityMul: 1.0,
-      marginalTriCap: 12000,  // worst case at full caps: 11,120 tris
+      marginalTriCap: 14500,  // worst case at full caps: 14,336 tris
       maxColdStepMs: 2,
       forestStep: 40,         // finest forest grid — high absorbs the tris
-      caps: { canopy: 40, truss: 120, peak: 256, warm: 192, beacon: 48, forest: 96, roadVerts: 4096, roadIndices: 6144 },
+      caps: { canopy: 40, truss: 120, peak: 288, warm: 176, beacon: 48, forest: 256, roadVerts: 4096, roadIndices: 6144 },
     },
   },
 };

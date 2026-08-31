@@ -58,19 +58,38 @@ export const NIGHT_MARKER_THRESHOLD = 0.12;
 // The underlay ribbon is deliberately narrower than the authoritative road
 // (CONFIG.ROAD_WIDTH) so the real ribbon always covers it edge-to-edge.
 const FAR_ROAD_WIDTH_FRAC = 0.8;
+// Mirrors FESTIVAL_TUNING.VENDOR_ROW_OFFSET (the half-width of the drivable
+// aisle the two booth lines straddle). COPIED, not imported: worldgen/tuning.js
+// is the render-agnostic layer and farField.js is a render module, so the arrow
+// would point the wrong way. Same copy discipline as tuning.js MODEL_DIMS.
+const VENDOR_AISLE_HALF = 7;
 
 // Coarse forest masses (the ROADMAP follow-up promoted 2026-08-28): the
 // density FIELD is sampled on a fixed global grid (tier.forestStep meters),
 // never the exact far-tree scatter — reproducing per-tree placement would
-// spend exactly the CPU this layer exists to avoid. Only samples at or above
-// this density become clumps, so scattered-fringe trees (which the real
-// builders place sparsely) never get promised by a solid silhouette mass.
-export const FOREST_DENSITY_THRESHOLD = 0.45;
+// spend exactly the CPU this layer exists to avoid.
+//
+// The threshold used to be 0.45, on the reasoning that a sparse fringe should
+// not be "promised by a solid silhouette mass". Measured, that reasoning cost
+// far more than it saved: `scatterTrees` grows trees from about 0.05 up
+// (`floor(density * 18)` per chunk, so 0.2 still plants three), and a 4 km
+// sample says only 5.2% of ground clears 0.45 while 36.7% grows real trees —
+// so 87.5% of treed ground had NO horizon representation at all and the woods
+// arrived out of thin air as chunks completed (Gary 2026-08-31: "trees pop up
+// out of nowhere with no far-field rep showing up first"). The fix is to lower
+// the gate AND make the mass honest about what it is standing in for: the
+// clump size below now ramps from the threshold, so thin ground reads as low
+// scrub and only genuinely dense forest reads as a wall. Tier `forestStep`
+// grew alongside it, which keeps the instance count in the same range while
+// covering roughly eight times the ground.
+export const FOREST_DENSITY_THRESHOLD = 0.15;
 
 // Flat-color hex palettes (plain numbers at module scope — THREE.Color
 // instances are built at construction time, never module evaluation).
 const CANOPY_PALETTE = [0xd8433f, 0xe8823a, 0x3f8fd8, 0x9a5fd0, 0x2fa46a, 0xd84f8e];
-const PEAK_PALETTE = [0xf2e4c8, 0xe6d5b0, 0xd9cbae, 0xefdccc];
+// The REAL booth cloth (models/tent.js CLOTH_COLORS) — a proxy that hands off
+// to a warmer tent than it drew is a visible seam at the handoff distance.
+const PEAK_PALETTE = [0xfff4d0, 0xe7c995, 0xfddfa5, 0xd0c2a8, 0xf4d6c4];
 const BEACON_PALETTE = [0xff5a4d, 0x4da2ff, 0xffd24d, 0xb56aff];
 // Darker cuts of tree.js's FOREST_GREENS — far masses read through fog.
 const FOREST_PALETTE = [0x355a32, 0x3f6d3a, 0x2d4e2a, 0x4a7a45];
@@ -258,10 +277,22 @@ export function expandFarInstances(records, densityMul) {
     if (r.kind === '__road') { out.roads.push(r.flat); continue; }
     if (r.kind === '__forest') {
       // One squashed low-poly dome per sample. Radius overlaps the grid step
-      // so adjacent qualifying samples merge into a continuous mass instead
-      // of reading as one giant tree per point; height rides the density.
-      const rad = r.step * (0.62 + instHash(r.forestSeed, 3) * 0.22);
-      const h = 5.5 + r.density * 4.5 + instHash(r.forestSeed, 4) * 2.0;
+      // so adjacent qualifying samples merge into a continuous mass instead of
+      // reading as one giant tree per point. Both size axes ramp from the
+      // THRESHOLD rather than from zero density: at the gate a sample is thin
+      // scrub (a small, low dome with gaps to its neighbours) and only fully
+      // dense ground grows the overlapping wall. That ramp is what lets the
+      // gate sit at 0.15 without carpeting the outskirts in solid forest.
+      // The ramp lives almost entirely in the RADIUS, not the height: a tree is
+      // about as tall whether it stands alone or in a wood, so thin ground has
+      // to read as a small isolated clump — not as a wide flat pancake, which is
+      // what ramping the height instead produces. At the gate a clump spans well
+      // under the grid step (isolated, gaps between neighbours); at full density
+      // it spans comfortably more than the step, so adjacent samples merge into
+      // the continuous mass a real forest reads as.
+      const t = Math.min(1, Math.max(0, (r.density - FOREST_DENSITY_THRESHOLD) / (1 - FOREST_DENSITY_THRESHOLD)));
+      const rad = r.step * (0.10 + t * 0.62 + instHash(r.forestSeed, 3) * 0.14);
+      const h = 8.0 + t * 4.0 + instHash(r.forestSeed, 4) * 2.0;
       out.forest.push({
         x: r.x, z: r.z, y: h * 0.32, yaw: instHash(r.forestSeed, 5) * Math.PI * 2,
         sx: rad, sy: h * 0.6, sz: rad * (0.85 + instHash(r.forestSeed, 6) * 0.3),
@@ -277,46 +308,79 @@ export function expandFarInstances(records, densityMul) {
       const postH = 3.4 * s;
       const rightYaw = r.yaw + Math.PI / 2;              // stage width axis
       const rx = Math.sin(rightYaw), rz = Math.cos(rightYaw);
-      out.canopy.push({
-        x: r.x, z: r.z, y: postH + 1.2 * s, yaw: r.yaw,
-        sx: deckR * 1.15, sy: 2.4 * s, sz: deckR * 1.15,
-        color: CANOPY_PALETTE[paletteIndex(r, CANOPY_PALETTE.length)], ...own,
-      });
-      const postOff = deckR * 0.85;
-      out.truss.push(
-        { x: r.x + rx * postOff, z: r.z + rz * postOff, y: postH / 2, yaw: 0, sx: 0.5, sy: postH, sz: 0.5, ...own },
-        { x: r.x - rx * postOff, z: r.z - rz * postOff, y: postH / 2, yaw: 0, sx: 0.5, sy: postH, sz: 0.5, ...own },
-        // Beam long axis is local +Z, so yaw = the width-axis bearing.
-        { x: r.x, z: r.z, y: postH, yaw: rightYaw, sx: 0.4, sy: 0.4, sz: deckR * 1.8, ...own },
-      );
+      const color = CANOPY_PALETTE[paletteIndex(r, CANOPY_PALETTE.length)];
+      // The proxy has to agree with what you find when you arrive (Gary
+      // 2026-08-31: "certain roofed stages showing up as triangle tents that
+      // doesn't make sense"). Every stage kind used to expand to the same
+      // 6-sided cone, but only `tent_stage` is actually a marquee —
+      // main_stage / side_stage are flat-roofed trussed decks. So the shape now
+      // follows the kind: a slab on posts for the decks, a full-height peak for
+      // the marquee. The marquee borrows the PEAK pool's 4-sided cone rather
+      // than earning its own InstancedMesh, so this costs no extra draw call
+      // (and 12 tris instead of 18).
+      if (r.kind === 'tent_stage') {
+        const th = postH + 2.4 * s;
+        out.peak.push({
+          x: r.x, z: r.z, y: th / 2, yaw: r.yaw,
+          sx: deckR * 1.3, sy: th, sz: deckR * 1.3, color, ...own,
+        });
+      } else {
+        const roofT = 1.1 * s;
+        out.canopy.push({
+          x: r.x, z: r.z, y: postH + roofT / 2, yaw: r.yaw,
+          sx: deckR * 1.15, sy: roofT, sz: deckR * 1.15, color, ...own,
+        });
+        const postOff = deckR * 0.85;
+        out.truss.push(
+          { x: r.x + rx * postOff, z: r.z + rz * postOff, y: postH / 2, yaw: 0, sx: 0.5, sy: postH, sz: 0.5, ...own },
+          { x: r.x - rx * postOff, z: r.z - rz * postOff, y: postH / 2, yaw: 0, sx: 0.5, sy: postH, sz: 0.5, ...own },
+          // Beam long axis is local +Z, so yaw = the width-axis bearing.
+          { x: r.x, z: r.z, y: postH, yaw: rightYaw, sx: 0.4, sy: 0.4, sz: deckR * 1.8, ...own },
+        );
+      }
       const bs = 0.8 + instHash(r.clusterSeed, 3) * 0.3;
       out.beacon.push({
         x: r.x, z: r.z, y: postH + 2.4 * s + 0.9, yaw: 0, sx: bs, sy: bs, sz: bs,
         color: BEACON_PALETTE[paletteIndex(r, BEACON_PALETTE.length)], ...own,
       });
     } else if (r.kind === 'vendor_row') {
+      // A vendor row is TWO booth lines straddling the road (the descriptor
+      // centers ON the road point and the builder lays 5-7 stalls per side at
+      // ±VENDOR_ROW_OFFSET). The proxy used to draw ONE line of `L/6` peaks —
+      // 4 on mid/high, and literally 2 on low — standing in for 10-14 real
+      // tents, which is why arriving at one felt like the whole market appeared
+      // out of a couple of white triangles (Gary 2026-08-31). It now draws both
+      // lines at the real aisle offset, at a per-side count matching the builder.
       const s = r.scale;
       const L = 2 * r.footprint * s;
-      const n = Math.max(2, Math.round((L / 6) * densityMul));
+      const n = Math.max(3, Math.round((L / 5) * densityMul));   // ~5/side at densityMul 1
       const ax = Math.sin(r.yaw), az = Math.cos(r.yaw);       // row axis
       const px = Math.cos(r.yaw), pz = -Math.sin(r.yaw);      // row perpendicular
       const baseIdx = paletteIndex(r, PEAK_PALETTE.length);
-      for (let i = 0; i < n; i++) {
-        const t = ((n === 1 ? 0.5 : i / (n - 1)) - 0.5) * L * 0.9;
-        const w = 2.4 + instHash(r.clusterSeed, i) * 1.4;
-        const h = 2.0 + instHash(r.clusterSeed, i + 101) * 1.2;
-        const ix = r.x + ax * t, iz = r.z + az * t;
-        out.peak.push({
-          x: ix, z: iz, y: h / 2, yaw: r.yaw, sx: w, sy: h, sz: w,
-          color: PEAK_PALETTE[(baseIdx + i) % PEAK_PALETTE.length], ...own,
-        });
-        if (i % 2 === 0) {
-          const side = (i % 4 === 0) ? 1 : -1;
-          const ws = 0.32 + instHash(r.clusterSeed, i + 211) * 0.12;
-          out.warm.push({
-            x: ix + px * 2.2 * side, z: iz + pz * 2.2 * side, y: 2.9, yaw: 0,
-            sx: ws, sy: ws, sz: ws, ...own,
+      for (let side = -1; side <= 1; side += 2) {
+        const ox = px * VENDOR_AISLE_HALF * side, oz = pz * VENDOR_AISLE_HALF * side;
+        for (let i = 0; i < n; i++) {
+          // Stagger the far side by half a bay so the two lines don't collapse
+          // into one doubled silhouette from an oblique angle.
+          const j = side > 0 ? i : i + 0.5;
+          const t = ((n === 1 ? 0.5 : j / (n - 1)) - 0.5) * L * 0.9;
+          const k = i + (side > 0 ? 0 : 53);                  // per-side variation salt
+          const w = 2.4 + instHash(r.clusterSeed, k) * 1.4;
+          const h = 2.0 + instHash(r.clusterSeed, k + 101) * 1.2;
+          const ix = r.x + ax * t + ox, iz = r.z + az * t + oz;
+          out.peak.push({
+            x: ix, z: iz, y: h / 2, yaw: r.yaw, sx: w, sy: h, sz: w,
+            color: PEAK_PALETTE[(baseIdx + k) % PEAK_PALETTE.length], ...own,
           });
+          // One warm marker per bay-pair, on the AISLE side — the strung lights
+          // over the street you actually drive down.
+          if (i % 2 === 0) {
+            const ws = 0.32 + instHash(r.clusterSeed, k + 211) * 0.12;
+            out.warm.push({
+              x: ix - px * 2.2 * side, z: iz - pz * 2.2 * side, y: 2.9, yaw: 0,
+              sx: ws, sy: ws, sz: ws, ...own,
+            });
+          }
         }
       }
     }
@@ -465,7 +529,7 @@ export class FarField {
       road: mkMat(ROAD_HEX),     // opaque, depthWrite:true (default) — audit V12
     };
     this._geos = {
-      canopy: new THREE.ConeGeometry(1, 1, 6),
+      canopy: new THREE.BoxGeometry(1, 1, 1),   // roofed-stage roof slab (a tent stage uses `peak`)
       truss: new THREE.BoxGeometry(1, 1, 1),
       peak: new THREE.ConeGeometry(1, 1, 4),
       warm: new THREE.OctahedronGeometry(1, 0),

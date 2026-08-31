@@ -238,6 +238,26 @@ below (Gary: lean now, full scope eventually).
   dress-not-delete, golden-neutral)*, the stage↔camp substrate (visual + per-tier perf
   budget), arch *style* variation, and Gary's 7.3 playtest gut-check (arrival density
   `ARCH_MAJOR_PCT`, the dry-spawn relocation distance).
+### Far-field horizon — follow-ups *(2026-08-31)*
+
+The fidelity pass (see CHANGELOG) fixed the forest gate, the stage shapes and the
+vendor-row density. Still parked:
+
+- **Distance blur / depth of field.** Gary asked whether distant things could soften
+  (2026-08-31). Costed but not built: three's `BokehPass` re-renders the whole scene
+  with a depth override material, which doubles draw calls and is a non-starter at
+  ~5,000 draws. The affordable shape is a custom pass reading a `depthTexture` off the
+  existing render target plus a separable blur — **two extra full-screen passes**, near
+  free on high, questionable on mid, wrong on low. If it ships it wants a `PERF.dof`
+  tier gate and the same `pass.enabled = false` discipline the Trip pass already
+  follows. Worth a high-tier-only prototype for a look before committing.
+- **Handoff still snaps at the chunk ring, not by distance.** A proxy hides when its
+  owner cell reports loaded, so on a fast boost into new territory the swap can land
+  well inside the fog rather than out at the edge of it.
+- **Camp villages and drum circles get no proxy at all.** `copyHeartRecords` only
+  promotes stages and vendor rows, so a 22-tent village is invisible until its chunk
+  builds. Cheap to add (they're already plan descriptors); wants its own demand sweep.
+
 ### Festival realism research — validation + new ideas *(2026-06-14)*
 
 Two independent deep-research passes (ChatGPT + Gemini, drawing on real festival

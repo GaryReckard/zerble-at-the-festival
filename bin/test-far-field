@@ -324,8 +324,34 @@ assert(JSON.stringify(exp1.canopy) === JSON.stringify(exp2.canopy)
 assert(exp1.canopy.length === 1, `one stage should expand to one canopy, got ${exp1.canopy.length}`);
 assert(exp1.truss.length === 3, `one stage should expand to two posts + one beam, got ${exp1.truss.length}`);
 assert(exp1.beacon.length === 1, `one stage should expand to one beacon, got ${exp1.beacon.length}`);
-assert(exp1.peak.length === 4, `a footprint-12 vendor row at density 1 should expand to 4 peaks, got ${exp1.peak.length}`);
-assert(exp1.warm.length === 2, `4 peaks should carry 2 warm markers (every other peak), got ${exp1.warm.length}`);
+// A vendor row is TWO booth lines straddling the aisle (2026-08-31 fidelity
+// pass): n = max(3, round(L/5 * densityMul)) per side, L = 2*footprint*scale.
+assert(exp1.peak.length === 10, `a footprint-12 vendor row at density 1 should expand to 5 peaks x 2 sides, got ${exp1.peak.length}`);
+assert(exp1.warm.length === 6, `10 peaks should carry 6 warm markers (every other peak, per side), got ${exp1.warm.length}`);
+{
+  // Both lines must actually straddle: the peaks split into two groups either
+  // side of the row axis, not one doubled line (the bug this pass fixed).
+  const r = EXPAND_FIXTURE[1];
+  const px = Math.cos(r.yaw), pz = -Math.sin(r.yaw);
+  const lat = exp1.peak.map((i) => (i.x - r.x) * px + (i.z - r.z) * pz);
+  assert(lat.filter((v) => v > 1).length === 5 && lat.filter((v) => v < -1).length === 5,
+    'vendor-row peaks must split 5/5 either side of the aisle');
+}
+{
+  // Shape follows KIND (2026-08-31): a roofed deck gets the canopy slab, a tent
+  // stage gets a full-height peak and no truss — it used to be a cone for all
+  // three, which read as a triangle tent on top of a flat-roofed main stage.
+  const tent = [{ ...EXPAND_FIXTURE[0], kind: 'tent_stage' }];
+  const expTent = expandFarInstances(tent, 1);
+  assert(expTent.canopy.length === 0, 'a tent stage must NOT emit a roof slab');
+  assert(expTent.truss.length === 0, 'a tent stage marquee reaches the ground — no truss posts');
+  assert(expTent.peak.length === 1, `a tent stage must emit exactly one marquee peak, got ${expTent.peak.length}`);
+  assert(expTent.beacon.length === 1, 'every stage kind keeps its beacon');
+  const side = [{ ...EXPAND_FIXTURE[0], kind: 'side_stage' }];
+  const expSide = expandFarInstances(side, 1);
+  assert(expSide.canopy.length === 1 && expSide.truss.length === 3 && expSide.peak.length === 0,
+    'a roofed side stage must emit a slab on truss posts, never a peak');
+}
 assert(exp1.roads.length === 1 && exp1.roads[0] instanceof Float64Array,
   'road records must pass through as flat polylines');
 for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon']) {
@@ -617,6 +643,23 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
   assert(forestRecordsForCell(0, 0, 48, () => FOREST_DENSITY_THRESHOLD - 0.01).length === 0,
     'samples strictly below FOREST_DENSITY_THRESHOLD must never become clumps');
 
+  // Clump size RAMPS from the threshold (2026-08-31 fidelity pass): the gate
+  // dropped to 0.15 so that treed ground gets a silhouette at all, and the ramp
+  // is what stops that carpeting the thin outskirts in solid forest. Ground at
+  // the gate must read as low scrub with gaps between samples; only genuinely
+  // dense ground grows the overlapping wall asserted below.
+  {
+    const mk = (density) => ({ kind: '__forest', x: 0, z: 0, density, step: 48, gx: 3, gz: 5, forestSeed: 0x1234abcd });
+    const thin = expandFarInstances([mk(FOREST_DENSITY_THRESHOLD + 0.001)], 1).forest[0];
+    const dense = expandFarInstances([mk(1)], 1).forest[0];
+    assert(thin.sx * 2 < 48, 'a clump AT the density gate must span less than the grid step (isolated, with gaps)');
+    assert(dense.sx > thin.sx * 2.5, 'clump RADIUS carries the density ramp');
+    // Height barely moves on purpose: a tree is about as tall alone as in a
+    // wood, and ramping height instead of spread turns thin ground into flat
+    // green pancakes on the grass.
+    assert(dense.sy > thin.sy && dense.sy < thin.sy * 1.8, 'clump height must vary only mildly with density');
+  }
+
   // Half-open grid-point ownership: adjacent cells never emit the same sample.
   const seen = new Set();
   for (const cx of [-1, 0, 1]) {
@@ -638,8 +681,8 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
     const inst = ex.forest[i];
     assert([inst.x, inst.y, inst.z, inst.sx, inst.sy, inst.sz].every(Number.isFinite),
       `forest instance transforms must be finite: ${JSON.stringify(inst)}`);
-    assert(inst.sx >= 48 * 0.62 && inst.sz >= 48 * 0.62 * 0.85,
-      'clump radii must overlap the sample grid step so masses read continuous');
+    assert(inst.sx * 2 > 48 && inst.sz * 2 > 48 * 0.85,
+      'a DENSE clump must span more than the grid step so neighbouring masses read continuous');
     assert(inst.ownerCx === ownerCellCoord(fA[i].x) && inst.ownerCz === ownerCellCoord(fA[i].z),
       'forest owner cell must come from the jittered clump position');
   }
@@ -656,7 +699,9 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
   // r160 geometries (measured in the group-5 gates: cone6 18, box 12, cone4
   // 12, octa 8; icosa detail-0 is 20 by construction).
   const { FAR_FIELD_TIERS } = await import('../src/perf.js');
-  const TRIS = { canopy: 18, truss: 12, peak: 12, warm: 8, beacon: 8, forest: 20 };
+  // canopy became a BoxGeometry in the 2026-08-31 fidelity pass (roofed stages
+  // are slabs; the tent-stage marquee moved to the 4-sided `peak` cone).
+  const TRIS = { canopy: 12, truss: 12, peak: 12, warm: 8, beacon: 8, forest: 20 };
   for (const [tname, t] of Object.entries(FAR_FIELD_TIERS)) {
     assert(Number.isFinite(t.forestStep) && t.forestStep > 0,
       `tier ${tname} must define forestStep`);
