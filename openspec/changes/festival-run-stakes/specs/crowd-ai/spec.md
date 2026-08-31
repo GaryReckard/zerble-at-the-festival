@@ -11,8 +11,11 @@ scatters the crowd (`crowd.js:2014-2035`, dispatched from `main.js:1262` inside
 surface a hit notification consumed by the run layer (vibe strike, combo break,
 Lurleen scare) and SHALL flip the struck NPC's mouth to a frown for the frown
 duration — but ONLY for damaging hits (`hit.damaging`, dispatched from `main.js`,
-never from the raw `onZerbleHit` which also fires for damage-0 grazes of fleeing
-NPCs) and never in god mode. In Just Cruisin' the pre-change behavior is unchanged.
+never from the raw `onZerbleHit`) and never in god mode. Fleeing NPCs are NOT
+exempt: a hit is a hit (Gary, 2026-08-31 — the old damage-0 graze rule let a
+fast cart plow through a scattering crowd for free; fairness moved into the
+speed-scaled lane-dodge urgency in `steering.js` instead). In Just Cruisin' the
+pre-change behavior is unchanged except that fleeing hits now also deduct smiles.
 
 #### Scenario: A plow scatters the crowd
 

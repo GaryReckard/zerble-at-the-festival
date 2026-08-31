@@ -1367,7 +1367,6 @@ function tickBody(dt) {
         const dx = n.pos.x - zerble.position.x;
         const dz = n.pos.z - zerble.position.z;
         if (dx * dx + dz * dz > broadphaseR2) continue;
-        // Fleeing NPCs overlap-resolve silently (damage 0) — see _npcColWrap.
         _collScratch.push(_npcColWrap(n));
       }
       const hit = resolveCollision(zerble, _collScratch);
@@ -1490,7 +1489,7 @@ const DAY_UP_TOASTS = [
 // ---- Festival Run vibe strikes ----
 // D16: every stakes consequence of hitting a PERSON hangs off the ONE gate in
 // resolveCollision's caller — `hit.damaging && !isGod()` — never the raw
-// crowd.onZerbleHit (damage-0 grazes of fleeing NPCs stay consequence-free).
+// crowd.onZerbleHit.
 // Both return true when they showed a player-facing beat (toast/death), so the
 // hit path can hold back its generic quip instead of overwriting it same-frame.
 function applyVibeStrike(weight) {
@@ -1662,7 +1661,11 @@ function _npcColWrap(n) {
   _npcColPoolN++;
   w.position = n.pos;          // Vector3; resolveCollision reads .x/.z only
   w.radius = 0.45;
-  w.damage = (n.state === 'fleeing') ? 0 : 1;
+  // A hit is a hit, fleeing or not (Gary, 2026-08-31): the old fleeing→0
+  // exemption let a fast cart plow through a scattering crowd for free. The
+  // fairness lever moved into the dodge itself — laneDodgeUrgency scales flee
+  // speed with cart speed, so people CAN get out of the way of a clean line.
+  w.damage = 1;
   w.kind = 'person';
   w.passive = false;
   w.npc = n;

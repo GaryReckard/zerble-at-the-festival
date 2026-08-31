@@ -12,10 +12,18 @@
 export const DODGE = {
   MIN_SPEED: 4,    // m/s; below this the cart's cruising to interact — nobody scatters
   REACT_BASE: 5,   // look-ahead (m) at the speed floor
-  REACT_K: 0.8,    // extra look-ahead per m/s of cart speed
+  REACT_K: 1.0,    // extra look-ahead per m/s of cart speed
   REACT_MAX: 24,   // cap — stays under the crowd's flee-exit range so a fresh dodge can't insta-exit
   CORRIDOR: 3.5,   // half-width (m) of the "you're in my lane" band (cart is ~2.6 wide)
   LOCK: 0.5,       // s a dodge commits before re-evaluating
+  // Lane-dodge flee speed scales with the cart's speed, like honks do. At
+  // full tilt the polite 1x scramble (~2.1 m/s for a low-energy NPC) couldn't
+  // clear the corridor before an 18 m/s cart covered the look-ahead — which
+  // is why fleeing contact used to be zero-damage. Hits count now ("a hit is
+  // a hit"), so the dodge itself has to be winnable: 1.8x at speed makes a
+  // clean line through a crowd achievable, and honks (up to 2x) still help.
+  URGENCY_MIN: 1.0,
+  URGENCY_MAX: 1.8,
 };
 
 // Is the agent in the lane of a cart travelling at `speed` along `(fwdX,fwdZ)`?
@@ -60,6 +68,13 @@ export function laneDodgeDir(toAgentX, toAgentZ, fwdX, fwdZ, parityFallback, out
   out.x = latX / latLen;
   out.z = latZ / latLen;
   return out;
+}
+
+// Flee urgency for a passive lane-dodge, scaled by cart speed (same 0..1 ramp
+// as honkScatterParams). Shared by the crowd and the kid gaggles.
+export function laneDodgeUrgency(speed) {
+  const t = Math.min(Math.abs(speed) / HONK.SPEED_REF, 1);
+  return DODGE.URGENCY_MIN + t * (DODGE.URGENCY_MAX - DODGE.URGENCY_MIN);
 }
 
 export const HONK = {

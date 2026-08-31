@@ -1,0 +1,70 @@
+#!/usr/bin/env node
+// bin/test-steering — invariants for the shared pedestrian-steering math
+// (steering.js), added when lane-dodge urgency became speed-scaled and the
+// fleeing damage exemption was removed ("a hit is a hit", 2026-08-31). If
+// these fail, crowds can't reliably clear a fast cart's lane and Festival
+// Run's people-hit stakes become unfair.
+
+import { DODGE, HONK, laneDodgeTest, laneDodgeUrgency, honkScatterParams } from '../src/steering.js';
+
+let failed = 0;
+const ok = (name, pass, detail = '') => {
+  if (!pass) failed++;
+  if (!pass || process.env.VERBOSE) console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`);
+};
+
+// --- laneDodgeUrgency: polite when slow, urgent at speed, monotonic ---
+ok('urgency floor at 0 speed', laneDodgeUrgency(0) === DODGE.URGENCY_MIN);
+ok('urgency caps at SPEED_REF', laneDodgeUrgency(HONK.SPEED_REF) === DODGE.URGENCY_MAX);
+ok('urgency caps past SPEED_REF (boost)', laneDodgeUrgency(HONK.SPEED_REF * 2) === DODGE.URGENCY_MAX);
+ok('urgency is speed-sign agnostic', laneDodgeUrgency(-HONK.SPEED_REF) === DODGE.URGENCY_MAX);
+{
+  let mono = true;
+  let prev = -Infinity;
+  for (let s = 0; s <= 20; s += 0.5) {
+    const u = laneDodgeUrgency(s);
+    if (u < prev - 1e-9) mono = false;
+    prev = u;
+  }
+  ok('urgency monotonic in speed', mono);
+}
+ok('honk urgency >= dodge urgency at any speed',
+  honkScatterParams(HONK.SPEED_REF).urgency >= laneDodgeUrgency(HONK.SPEED_REF),
+  'a honk should never flee slower than a passive dodge');
+
+// --- The fairness bound the urgency values must satisfy: a worst-case NPC
+// dead-center in the lane must clear the corridor before a full-tilt cart
+// covers the look-ahead. Crowd flee speed = 3.5 * energy * jitter * urgency;
+// worst case energy 0.6, jitter 0.85 (crowd.js). Clearance = corridor
+// half-width + NPC radius + cart half-width (~1.3). ---
+{
+  const cartSpeed = 18; // MAX_SPEED, un-boosted
+  const react = Math.min(DODGE.REACT_BASE + DODGE.REACT_K * cartSpeed, DODGE.REACT_MAX);
+  const timeToImpact = react / cartSpeed;
+  const worstFlee = 3.5 * 0.6 * 0.85 * laneDodgeUrgency(cartSpeed);
+  // Collision clearance, not corridor width: the NPC is safe once their
+  // lateral offset exceeds cart half-width (~1.3) + NPC collider radius
+  // (0.45) + a margin. The corridor (3.5m) is the dodge TRIGGER band.
+  const clearance = 1.3 + 0.45 + 0.5;
+  // Require 1.5x headroom: dead-center worst-case NPCs must escape a
+  // straight-line full-tilt cart comfortably, not on the exact frame. At the
+  // old polite urgency 1.0 this bound fails (2.28m of 3.38m) — which is the
+  // regime where fleeing hits had to be zero-damage to feel fair.
+  ok('worst-case NPC clears a full-tilt lane with headroom',
+    worstFlee * timeToImpact >= clearance * 1.5,
+    `flees ${(worstFlee * timeToImpact).toFixed(2)}m, needs ${(clearance * 1.5).toFixed(2)}m in ${timeToImpact.toFixed(2)}s`);
+}
+
+// --- laneDodgeTest still behaves: fires in-corridor at speed, not when slow,
+// not behind, not out of range ---
+ok('dodge fires: dead ahead at speed', laneDodgeTest(0, -10, 0, -1, 12));
+ok('no dodge below MIN_SPEED', !laneDodgeTest(0, -10, 0, -1, DODGE.MIN_SPEED - 0.5));
+ok('no dodge behind the cart', !laneDodgeTest(0, 10, 0, -1, 12));
+ok('no dodge outside the corridor', !laneDodgeTest(DODGE.CORRIDOR + 0.5, -6, 0, -1, 12));
+ok('reverse scatters behind, not ahead', laneDodgeTest(0, 10, 0, -1, -8) && !laneDodgeTest(0, -10, 0, -1, -8));
+
+if (failed) {
+  console.error(`bin/test-steering — ${failed} FAILED`);
+  process.exit(1);
+}
+console.log('OK bin/test-steering — dodge urgency scaling + corridor invariants hold');

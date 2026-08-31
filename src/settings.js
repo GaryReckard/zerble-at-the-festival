@@ -100,6 +100,7 @@ export const Settings = {
           <button class="settings-tab-btn active" data-tab="performance" role="tab">Performance</button>
           <button class="settings-tab-btn" data-tab="sound" role="tab">Sound</button>
           <button class="settings-tab-btn" data-tab="accessibility" role="tab">Accessibility</button>
+          <button class="settings-tab-btn" data-tab="howto" role="tab">How to play</button>
         </div>
 
         <div class="settings-tab" data-tab="performance" role="tabpanel">
@@ -147,11 +148,25 @@ export const Settings = {
           </div>
         </div>
 
+        <div class="settings-tab settings-howto is-hidden" data-tab="howto" role="tabpanel"></div>
+
         <div class="settings-restart is-hidden">
           <span class="settings-restart-text">A couple of these need a quick restart — you'll pick up right where you left off.</span>
           <button class="settings-apply">Restart now</button>
         </div>
       </div>`;
+    // The "How to play" tab CLONES the title card's instructions page (minus
+    // its header/back button) — one source of truth for the controls lists and
+    // the juice/vendor hints, readable mid-game without a reload. The global
+    // .controls-kbd/.controls-touch CSS swap applies to the clones too, so the
+    // right list shows for the device.
+    const howtoSrc = document.getElementById('title-page-howto');
+    const howtoPane = overlay.querySelector('.settings-tab[data-tab="howto"]');
+    if (howtoSrc && howtoPane) {
+      for (const el of howtoSrc.querySelectorAll('.controls, .hint')) {
+        howtoPane.appendChild(el.cloneNode(true));
+      }
+    }
     document.body.appendChild(overlay);
     $overlay = overlay;
   },

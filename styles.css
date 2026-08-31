@@ -63,33 +63,44 @@ body {
   z-index: 5;
 }
 
+/* One pill, many segments: the rail carries the card look (background, blur,
+   border, shadow) and the chips are transparent segments split by hairline
+   dividers. One backdrop-filter surface instead of six is also a small win. */
 #status-rail {
   position: absolute;
   top: calc(22px + env(safe-area-inset-top, 0));
   left: calc(22px + env(safe-area-inset-left, 0));
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 0;
+  background: linear-gradient(160deg, rgba(40, 28, 66, 0.6), rgba(22, 16, 40, 0.62));
+  backdrop-filter: blur(9px);
+  border: 1px solid rgba(255, 246, 230, 0.16);
+  border-radius: 14px;
+  box-shadow: 0 7px 22px rgba(0, 0, 0, 0.28);
   /* Festival Run adds chips (combo, day, vibe) the original 3-chip rail never
      had — on narrow phones the row overflowed the viewport (verified: 399px
      of chips on a 320px iPhone SE pushed the vibe meter fully off-screen).
      Wrap to a second row instead of clipping; the cap keeps the wrap point
      inside the visible area. */
   flex-wrap: wrap;
-  row-gap: 6px;
+  row-gap: 4px;
   max-width: calc(100vw - 44px - env(safe-area-inset-left, 0) - env(safe-area-inset-right, 0));
 }
 
 .hud-chip {
+  position: relative;
   height: 42px;
   display: flex;
   align-items: center;
-  background: linear-gradient(160deg, rgba(40, 28, 66, 0.6), rgba(22, 16, 40, 0.62));
-  backdrop-filter: blur(9px);
-  border: 1px solid rgba(255, 246, 230, 0.16);
-  border-radius: 14px;
-  box-shadow: 0 7px 22px rgba(0, 0, 0, 0.28);
+  padding: 0 10px;
 }
+
+/* Hairline divider between segments. `+` sees display:none'd siblings too, so
+   a chip after a hidden one still draws the divider against the previous
+   VISIBLE chip — the hidden chip's own border costs nothing. The first chip
+   (smiles, always visible) never gets one. */
+.hud-chip + .hud-chip { border-left: 1px solid rgba(255, 246, 230, 0.13); }
 
 .smile-status {
   position: relative;
@@ -280,7 +291,7 @@ body {
 .cycle-status {
   --cycle-turn: 0.15turn;
   min-width: 42px;
-  padding: 0 5px;
+  padding: 0 9px;
   justify-content: center;
 }
 
@@ -342,9 +353,8 @@ body {
 .lurleen-status {
   display: none;
   width: 42px;
+  padding: 0;
   justify-content: center;
-  border-color: rgba(255, 111, 156, 0.32);
-  background: linear-gradient(160deg, rgba(83, 34, 72, 0.72), rgba(39, 21, 48, 0.68));
 }
 
 .lurleen-status.visible {
@@ -754,25 +764,47 @@ kbd {
   display: none;
 }
 
-.vibe-status { gap: 6px; }
-.vibe-face { font-size: 13px; line-height: 1; }
+.vibe-status { gap: 7px; }
+
+/* Marshal's whistle — distinct from the smiles smiley next door; it's the
+   thing that literally blows at you when this meter crosses the warn line.
+   Tints with the level (thresholds set by hud.js setVibe). */
+.vibe-whistle {
+  width: 16px;
+  height: 16px;
+  color: #7ddba3;
+  filter: drop-shadow(0 0 5px rgba(125, 219, 163, 0.35));
+  transition: color 0.3s ease, filter 0.3s ease;
+}
+
+.vibe-status.vibe-tense .vibe-whistle {
+  color: #ffd28a;
+  filter: drop-shadow(0 0 5px rgba(255, 210, 138, 0.4));
+}
+
+.vibe-status.vibe-hot .vibe-whistle {
+  color: #ff6f9c;
+  filter: drop-shadow(0 0 6px rgba(255, 111, 156, 0.55));
+}
 
 .vibe-track {
-  width: 44px;
-  height: 6px;
+  width: 48px;
+  height: 7px;
   border-radius: 999px;
   background: rgba(255, 246, 230, 0.14);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
   overflow: hidden;
 }
 
 .vibe-fill {
   height: 100%;
-  width: 100%;
+  width: 0;
   border-radius: 999px;
   background: linear-gradient(90deg, #7ddba3, #ffd28a 55%, #ff6f9c);
-  transform-origin: left center;
-  transform: scaleX(0);
-  transition: transform 0.25s ease;
+  /* Pinned to the track width so the ramp reveals instead of squashing —
+     hud.js animates width, and a low meter shows only the green end. */
+  background-size: 48px 100%;
+  transition: width 0.25s ease;
 }
 
 .vibe-status.vibe-warn { animation: vibePulse 0.9s ease-in-out infinite; }
@@ -1424,12 +1456,12 @@ body.game-started #settings-gear { display: flex; }
   #status-rail {
     top: calc(8px + env(safe-area-inset-top, 0));
     left: calc(8px + env(safe-area-inset-left, 0));
-    gap: 4px;
+    border-radius: 12px;
   }
 
   .hud-chip {
     height: 36px;
-    border-radius: 12px;
+    padding: 0 8px;
   }
 
   .smile-status {
@@ -1465,7 +1497,7 @@ body.game-started #settings-gear { display: flex; }
 
   .cycle-status {
     min-width: 36px;   /* NOT width — the Day label widens it (review 001 A4) */
-    padding: 0 4px;
+    padding: 0 7px;
   }
 
   .lurleen-status {
@@ -1873,6 +1905,22 @@ body.reduced-motion .best-confetti {
 .settings-tab-btn:hover { color: rgba(255, 246, 230, 0.85); }
 .settings-tab-btn.active { color: var(--paper); border-bottom-color: #ffd28a; }
 .settings-tab.is-hidden { display: none; }
+
+/* "How to play" tab — content is cloned from the title card's instructions
+   page (settings.js _build), so it reuses the .controls/.hint styles. The
+   first list drops its title-card border-top; the card itself scrolls. */
+.settings-howto { padding-top: 12px; }
+/* Only one of the two lists (kbd/touch) is visible at a time, so both can
+   drop the title-card border-top — the tab bar above already separates. */
+.settings-howto .controls { border-top: none; padding-top: 0; }
+/* .hint styling is scoped to #title-card, so the clones restate it here. */
+.settings-howto .hint {
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  color: rgba(255, 246, 230, 0.65);
+  margin: 0 0 10px;
+}
 
 /* Two columns on wide, stacking on narrow (mobile). */
 .settings-cols { display: flex; gap: 24px; flex-wrap: wrap; }

@@ -22,7 +22,7 @@ import {
 import { Sound } from './sound.js';
 import { projectOutOfLake, isPointInLake } from './lakes.js';
 // Shared pedestrian steering — same dodge/honk math the crowd uses (crowd.js).
-import { DODGE, laneDodgeTest, laneDodgeDir, honkScatterParams } from './steering.js';
+import { DODGE, laneDodgeTest, laneDodgeDir, laneDodgeUrgency, honkScatterParams } from './steering.js';
 import { StarPower } from './starPower.js';
 
 const _kidDodgeOut = { x: 0, z: 0 };   // reused scratch for laneDodgeDir (no per-frame alloc)
@@ -600,7 +600,7 @@ export class KidGaggle {
           laneDodgeDir(toX, toZ, zerble.forwardWorld.x, zerble.forwardWorld.z, (i & 1) === 1, _kidDodgeOut);
           k.userData.heading = Math.atan2(_kidDodgeOut.x, -_kidDodgeOut.z);
           k.userData.scatterTimer = DODGE.LOCK;
-          k.userData.fleeUrgency = 1;
+          k.userData.fleeUrgency = laneDodgeUrgency(zerble.speed);
           k.userData.turnTimer = DODGE.LOCK;   // hold the dodge heading, don't re-wander mid-step
         }
       }

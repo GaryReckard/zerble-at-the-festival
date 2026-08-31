@@ -25,7 +25,7 @@ import { registry } from './registry.js';
 import { SpatialGrid } from './spatialGrid.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { CHUNK_SIZE } from './chunks.js';
-import { DODGE, laneDodgeTest, laneDodgeDir, honkScatterParams } from './steering.js';
+import { DODGE, laneDodgeTest, laneDodgeDir, laneDodgeUrgency, honkScatterParams } from './steering.js';
 import { STINK_DUR, POTTY_DOOR_STAND, POTTY_SEAT_BACK, POTTY_SEAT_Y } from './models/portaPotty.js';
 import {
   PHOTO_POSE_DURATION,
@@ -934,7 +934,9 @@ export class Crowd {
     if (dodging) {
       this._abandonSeat(npc);            // interrupting a walk-to-table/hammock? free the claim
       npc.state = 'fleeing';
-      npc.fleeUrgency = 1;               // passive lane-dodge is calm; a honk raises this (applyHonk)
+      // Speed-scaled: calm sidestep for a cruising cart, urgent scramble for a
+      // fast one (hits on fleeing NPCs count now — the dodge must be winnable).
+      npc.fleeUrgency = laneDodgeUrgency(zerble.speed);
       npc.stateTimer = DODGE.LOCK;       // brief commit, then re-evaluate (re-dodges if still in the lane)
     } else if (!fleeingLocked && !disinterested) {
       if (dToZerble < NOTICE_RANGE) {

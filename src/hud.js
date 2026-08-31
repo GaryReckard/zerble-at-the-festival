@@ -126,7 +126,6 @@ const $dayN = document.getElementById('day-n');
 const $sputterCount = document.getElementById('sputter-count');
 const $vibeChip = document.getElementById('vibe-chip');
 const $vibeFill = document.getElementById('vibe-fill');
-const $vibeFace = document.getElementById('vibe-face');
 let _dayN = null;
 let _sputterSec = null;
 let _vibeActive = false;
@@ -309,9 +308,14 @@ export const HUD = {
     const f = Math.max(0, Math.min(1, frac));
     if (Math.abs(f - _vibeFrac) >= 0.01) {
       _vibeFrac = f;
-      if ($vibeFill) $vibeFill.style.transform = `scaleX(${f})`;
-      const face = f >= 0.75 ? '😠' : f >= 0.4 ? '😕' : '😊';
-      if ($vibeFace && face !== $vibeFace.textContent) $vibeFace.textContent = face;
+      // Width, not scaleX: the fill's green→pink ramp is pinned to the track
+      // width (background-size in CSS), so a low meter shows only the green
+      // end instead of squashing the whole ramp — pink means actually high.
+      if ($vibeFill) $vibeFill.style.width = `${f * 100}%`;
+      // The whistle icon tints with the level (calm → tense → hot), same
+      // thresholds the old emoji face used.
+      $vibeChip.classList.toggle('vibe-hot', f >= 0.75);
+      $vibeChip.classList.toggle('vibe-tense', f >= 0.4 && f < 0.75);
       $vibeChip.setAttribute('aria-label',
         f >= 0.75 ? 'Festival vibe: the marshals are watching' :
         f >= 0.4 ? 'Festival vibe: getting tense' : 'Festival vibe: all good');
