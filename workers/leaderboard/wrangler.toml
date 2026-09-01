@@ -22,7 +22,7 @@ main = "worker.js"
 compatibility_date = "2026-08-01"
 
 kv_namespaces = [
-  { binding = "BOARD_KV", id = "REPLACE_WITH_KV_NAMESPACE_ID" },
+  { binding = "BOARD_KV", id = "c0c2876ef159455aa95bf541bbbe170d" },
 ]
 
 [vars]
