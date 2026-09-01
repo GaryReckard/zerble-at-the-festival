@@ -52,16 +52,25 @@ function save(list) {
 // like `__dbg`, so on the production origin the const alone decides —
 // "disabled until deployed" is a hard guarantee, not a default. Evaluated
 // once at module load: changing the key needs a reload.
-const PROD_BOARD_URL = '';
+const PROD_BOARD_URL = 'https://zerble-leaderboard.garbonzo-net.workers.dev';
+
+// Strip trailing slashes. Every call site is `GLOBAL_BOARD_URL + '/board'` (and
+// friends), so one stray slash on the origin builds `//board`, whose pathname
+// matches none of the Worker's exact `path === '/board'` routes — it answers 404
+// and the board silently does nothing, with no error a player or a dev would
+// notice. Verified against the live Worker: `/board` 200, `//board` 404. The
+// localStorage dev override gets the same treatment, since a pasted URL is even
+// likelier to carry one.
+const trimOrigin = (u) => (u || '').replace(/\/+$/, '');
 export const GLOBAL_BOARD_URL = (() => {
   try {
     const h = location.hostname;
     const isLocal = h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0'
       || h.endsWith('.local') || /^10\./.test(h) || /^192\.168\./.test(h)
       || /^172\.(1[6-9]|2\d|3[0-1])\./.test(h) || h.includes('claude-preview');
-    if (isLocal) return localStorage.getItem('zerble-board-url') || PROD_BOARD_URL;
+    if (isLocal) return trimOrigin(localStorage.getItem('zerble-board-url') || PROD_BOARD_URL);
   } catch (err) { /* node import / storage unavailable */ }
-  return PROD_BOARD_URL;
+  return trimOrigin(PROD_BOARD_URL);
 })();
 
 const BEAT_INTERVAL_MS = 60000;      // baseline heartbeat cadence

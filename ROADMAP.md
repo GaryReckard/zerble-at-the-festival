@@ -12,10 +12,24 @@ but these steps are human-only and unfinished as of 2026-08-31. Any agent
 picking up work in this repo should surface whichever of these are still open —
 Gary asked to not be allowed to forget them.
 
-- **Deploy the leaderboard Worker (Q4).** Runbook in
-  `workers/leaderboard/README.md` + `wrangler.toml` (KV binding + secrets).
-  After deploy, set `PROD_BOARD_URL` in `src/leaderboard.js`. Until then the
-  global board is hard-disabled and only the local board shows.
+- ~~**Deploy the leaderboard Worker (Q4).**~~ DONE 2026-09-01 — deployed to
+  `zerble-leaderboard.garbonzo-net.workers.dev`, `PROD_BOARD_URL` set, board
+  verified live (200 + browser CORS) and the full protocol drilled against the
+  node bridge. **Two follow-ups are still Gary-only:**
+  * **`BASE_SMILES_PER_MIN` is still the placeholder 40.** It feeds the
+    plausibility ceiling that rejects impossible scores, and it wants the observed
+    p99 *organic, un-multiplied* collect rate from GA4 (never with the ×8
+    multiplier folded in — that's `MAX_MULTIPLIER`, applied separately). Too low
+    rejects honest runs; too high lets nonsense stand. Change it in
+    `wrangler.toml` `[vars]` + `npx wrangler deploy`.
+  * **The free KV tier is ~20 completed runs/day** at the current fold settings
+    (measured from the write path: 1 write per accepted beat, +2 more whenever it
+    folds to the boards, and at `FOLD_HW_STEP` 25 vs the client's 50-point
+    milestone beats essentially every beat folds). Raising `FOLD_HW_STEP` to ~200
+    roughly triples capacity at the cost of a slightly staler *live* board; finals
+    always fold exactly, so no finished score is ever wrong. `FOLD_HW_STEP`,
+    `FOLD_MAX_MIN`, `BEAT_MIN_S` and `MAX_RUN_WRITES` are read by the Worker but
+    are NOT in `wrangler.toml` `[vars]` yet, so they sit on code defaults.
 - **Playtest gut-checks (Q1–Q3, Q5)** — the tuning numbers are placeholders by
   design: the D6 day-ramp (vendor prices / jug scarcity / vibe limits per day),
   the scoring economy, the Lurleen-rescue feel, and whether first-time visitors

@@ -2,6 +2,14 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-09-01
+
+### Added
+- **The global leaderboard is live.** The Worker is deployed and `PROD_BOARD_URL` in [leaderboard.js](src/leaderboard.js) points at it, which is the single constant the whole feature keys off — the score-screen board tabs, the heartbeats and the page-hide beacon all wake up together. Verified end to end before switching on: the full protocol drilled against the node bridge (start → beats → final, with the board correctly showing a mid-run heartbeat so a killed tab still stands), the adversarial cases all rejected with the right reasons (`bad_sig`, `finished_run`, `implausible_rate`, `implausible_day`, blank name → `ZERBLER`), and a real browser fetch from a page origin confirming CORS. None of that touched the production board.
+
+### Fixed
+- **A trailing slash on the board URL would have silently disabled the entire feature.** Every call site is `GLOBAL_BOARD_URL + '/board'` (and friends), so an origin ending in `/` builds `//board` — and the Worker routes on exact `path === '/board'` matches, so it answers 404 and the board just quietly does nothing, with no error a player or a dev would ever see. Confirmed against the live Worker: `/board` → 200, `//board` → 404. The origin is now trailing-slash-normalised, which also covers the `localStorage['zerble-board-url']` dev override, where a pasted URL is even likelier to carry one. ([leaderboard.js](src/leaderboard.js))
+
 ## 2026-08-31
 
 ### Added
