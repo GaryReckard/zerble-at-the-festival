@@ -5,7 +5,7 @@
 // these fail, crowds can't reliably clear a fast cart's lane and Festival
 // Run's people-hit stakes become unfair.
 
-import { DODGE, HONK, laneDodgeTest, laneDodgeUrgency, honkScatterParams } from '../src/steering.js';
+import { DODGE, HONK, laneDodgeTest, laneDodgeUrgency, honkScatterParams, steerDirFor, DIR_INTENT } from '../src/steering.js';
 
 let failed = 0;
 const ok = (name, pass, detail = '') => {
@@ -63,8 +63,27 @@ ok('no dodge behind the cart', !laneDodgeTest(0, 10, 0, -1, 12));
 ok('no dodge outside the corridor', !laneDodgeTest(DODGE.CORRIDOR + 0.5, -6, 0, -1, 12));
 ok('reverse scatters behind, not ahead', laneDodgeTest(0, 10, 0, -1, -8) && !laneDodgeTest(0, -10, 0, -1, -8));
 
+// ---- Steering direction vs the ANALOGUE touch stick (2026-09-01) ----
+// touch.js deadzones the stick VECTOR's magnitude, not each axis, so a hard
+// sideways push clears the deadzone while leaving a small y that jitters across
+// zero. The old `Math.sign(throttle)` flipped direction on that jitter and
+// inverted steering mid-turn — mobile-only, because keyboard throttle is +-1.
+ok('full forward throttle steers forward-style', steerDirFor(1, 5) === 1);
+ok('full reverse throttle steers reverse-style', steerDirFor(-1, -3) === -1);
+ok('reverse intent still wins over forward drift (the original fix holds)',
+  steerDirFor(-1, 4) === -1 && steerDirFor(1, -4) === 1);
+ok('coasting falls back to velocity', steerDirFor(0, 5) === 1 && steerDirFor(0, -5) === -1);
+ok('stopped and idle defaults to forward', steerDirFor(0, 0) === 1);
+ok('stick jitter near zero cannot flip direction while moving forward',
+  [-0.09, -0.03, 0, 0.04, 0.11, 0.2].every((t) => steerDirFor(t, 6) === 1));
+ok('stick jitter near zero cannot flip direction while reversing',
+  [-0.2, -0.05, 0, 0.06, 0.18].every((t) => steerDirFor(t, -4) === -1));
+ok('a deliberate push past the threshold still re-orients instantly',
+  steerDirFor(-DIR_INTENT, 6) === -1 && steerDirFor(DIR_INTENT, -6) === 1);
+ok('the threshold clears the stick deadzone (0.12) with headroom', DIR_INTENT > 0.12);
+
 if (failed) {
   console.error(`bin/test-steering — ${failed} FAILED`);
   process.exit(1);
 }
-console.log('OK bin/test-steering — dodge urgency scaling + corridor invariants hold');
+console.log('OK bin/test-steering — dodge urgency, corridor invariants, steer-direction jitter all hold');

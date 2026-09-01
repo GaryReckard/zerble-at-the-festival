@@ -311,6 +311,8 @@ for (let i = 0; i < 32; i++) {
 
 // ---------- I. Instance expansion (pure, group 2) ----------
 
+// The roofed-stage palette, mirrored for the "marquee must not use it" check.
+const CANOPY_HEXES = [0xd8433f, 0xe8823a, 0x3f8fd8, 0x9a5fd0, 0x2fa46a, 0xd84f8e];
 const EXPAND_FIXTURE = [
   { kind: 'main_stage', x: 100, z: -60, yaw: 0.7, scale: 1.2, footprint: 11, rank: 1, clusterSeed: 987654321, ownerCx: 1, ownerCz: -1 },
   { kind: 'vendor_row', x: 130, z: -40, yaw: 1.9, scale: 1.0, footprint: 12, rank: 0, clusterSeed: 123456789, ownerCx: 2, ownerCz: 0 },
@@ -393,6 +395,28 @@ assert(exp1.warm.length === 6, `10 peaks should carry 6 warm markers (every othe
   const expSide = expandFarInstances(side, 1);
   assert(expSide.canopy.length === 1 && expSide.truss.length === 3 && expSide.peak.length === 0,
     'a roofed side stage must emit a slab on truss posts, never a peak');
+
+  // ---- Proxies must AGREE with the real bodies (2026-09-01) ----
+  // Nothing tied proxy dimensions to model dimensions, so they drifted to
+  // roughly half height and read as squat blobs that jumped when you arrived
+  // ("the tent tops and tree greens are way too low"). These pin them.
+  const scale = EXPAND_FIXTURE[0].scale;
+  assert(Math.abs(expSide.canopy[0].y - 9 * scale) < 1.2,
+    `a roofed stage's slab must ride the real truss top (9 x scale = ${9 * scale}), got ${expSide.canopy[0].y}`);
+  assert(Math.abs(expSide.truss[0].sy - 9 * scale) < 0.01, 'truss posts must be the real truss height');
+  // The marquee is a FIXED 28 x 11 body and its canvas is near-white; taking a
+  // CANOPY_PALETTE colour is what made an orange triangle resolve into a white tent.
+  const marquee = expTent.peak[0];
+  assert(marquee.sy === 11 && marquee.sx === 14 && marquee.sz === 14,
+    `the tent-stage marquee must be the real fixed 28 m x 11 m body, got ${marquee.sx}x${marquee.sy}`);
+  assert(marquee.color === 0xfff8eb, `the marquee must wear the real canvas colour, got 0x${marquee.color.toString(16)}`);
+  assert(!CANOPY_HEXES.includes(marquee.color), 'the marquee must NOT take a roofed-stage palette colour');
+  assert(marquee.sy === expandFarInstances([{ ...EXPAND_FIXTURE[0], kind: 'tent_stage', scale: 1.5 }], 1).peak[0].sy,
+    'the marquee is unscaled — buildTentStage takes no scale argument');
+  // A market booth's real roof apex is 4.3 m (cone r3.2 h1.8 seated at y3.4).
+  for (const pk of exp1.peak) {
+    assert(Math.abs(pk.y * 2 - 4.3) < 0.8, `a booth peak must reach the real 4.3 m apex, got ${pk.y * 2}`);
+  }
 }
 assert(exp1.roads.length === 1 && exp1.roads[0] instanceof Float64Array,
   'road records must pass through as flat polylines');
@@ -694,6 +718,11 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
     const mk = (density) => ({ kind: '__forest', x: 0, z: 0, density, step: 48, gx: 3, gz: 5, forestSeed: 0x1234abcd });
     const thin = expandFarInstances([mk(FOREST_DENSITY_THRESHOLD + 0.001)], 1).forest[0];
     const dense = expandFarInstances([mk(1)], 1).forest[0];
+    // Real canopy tops sit at 14-22 m (tree.js: pines 16-22, birch 10-14 + crown).
+    // The dome's top is y + sy; at half that it reads as a low wall, not treetops.
+    const top = dense.y + dense.sy;
+    assert(top > 12 && top < 22, `a dense clump's top must land in the real canopy band, got ${top}`);
+    assert(dense.sx * 2 < 48 * 1.6, 'a clump must not sprawl far past the grid step (that is the "green wall")');
     assert(thin.sx * 2 < 48, 'a clump AT the density gate must span less than the grid step (isolated, with gaps)');
     assert(dense.sx > thin.sx * 2.5, 'clump RADIUS carries the density ramp');
     // Height barely moves on purpose: a tree is about as tall alone as in a

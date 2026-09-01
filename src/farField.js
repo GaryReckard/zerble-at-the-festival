@@ -67,6 +67,22 @@ const VENDOR_AISLE_HALF = 7;
 // ±this, not a disc (chunks.js buildCampVillageAt). Copied for the same reason as
 // VENDOR_AISLE_HALF above.
 const CAMP_SQUARE_HALF = 30;
+// Real body dimensions the proxies have to AGREE with, copied from the models
+// (same discipline as VENDOR_AISLE_HALF above — farField.js is a render module
+// and must not import worldgen or models). Gary 2026-09-01: "the tent tops and
+// tree greens are way too low, they don't line up with where the real vendor
+// tent tops are, or tree tops". Every one of these was measured, not guessed:
+//   stage.js      trussH = 9 * scale        — the roof rides the TRUSS top, and
+//                                             the proxy had it at 3.4 * scale
+//   tentStage.js  28 m wide, ridge 11 m, cloth 0xfff8eb — and NOT scaled: the
+//                                             builder takes no scale argument
+//   tent.js       roof cone r3.2 h1.8 at y3.4 → apex 4.3 m, 6.4 m across
+//   tree.js       pine 16-22 m, birch 10-14 + crown, oak 7-10 + crown
+const STAGE_TRUSS_H = 9;          // × scale
+const TENT_STAGE_HALF_W = 14;     // FIXED — buildTentStage takes no scale
+const TENT_STAGE_RIDGE = 11;      // FIXED
+const TENT_STAGE_HEX = 0xfff8eb;  // the real marquee canvas
+const BOOTH_APEX = 4.3;           // market-tent apex above ground
 
 // Coarse forest masses (the ROADMAP follow-up promoted 2026-08-28): the
 // density FIELD is sampled on a fixed global grid (tier.forestStep meters),
@@ -324,8 +340,13 @@ export function expandFarInstances(records, densityMul) {
       // it spans comfortably more than the step, so adjacent samples merge into
       // the continuous mass a real forest reads as.
       const t = Math.min(1, Math.max(0, (r.density - FOREST_DENSITY_THRESHOLD) / (1 - FOREST_DENSITY_THRESHOLD)));
-      const rad = r.step * (0.10 + t * 0.62 + instHash(r.forestSeed, 3) * 0.14);
-      const h = 8.0 + t * 4.0 + instHash(r.forestSeed, 4) * 2.0;
+      // Sized against the real canopy: pines reach 16-22 m and birch/oak crowns
+      // 12-18 m, but these domes topped out at 7-13 m while spanning up to 69 m,
+      // which is precisely how you get "a big green wall" instead of treetops.
+      // Taller and narrower now: the top lands at 12-20 m, and the radius only
+      // has to exceed HALF the grid step for neighbours to merge, not 0.86 of it.
+      const rad = r.step * (0.14 + t * 0.44 + instHash(r.forestSeed, 3) * 0.12);
+      const h = 13.0 + t * 7.0 + instHash(r.forestSeed, 4) * 2.0;
       out.forest.push({
         x: r.x, z: r.z, y: h * 0.32, yaw: instHash(r.forestSeed, 5) * Math.PI * 2,
         sx: rad, sy: h * 0.6, sz: rad * (0.85 + instHash(r.forestSeed, 6) * 0.3),
@@ -338,7 +359,7 @@ export function expandFarInstances(records, densityMul) {
     if (STAGE_KINDS.has(r.kind)) {
       const s = r.scale;
       const deckR = r.footprint * s;
-      const postH = 3.4 * s;
+      const postH = STAGE_TRUSS_H * s;   // the roof rides the real truss top
       const rightYaw = r.yaw + Math.PI / 2;              // stage width axis
       const rx = Math.sin(rightYaw), rz = Math.cos(rightYaw);
       const color = CANOPY_PALETTE[paletteIndex(r, CANOPY_PALETTE.length)];
@@ -352,10 +373,14 @@ export function expandFarInstances(records, densityMul) {
       // than earning its own InstancedMesh, so this costs no extra draw call
       // (and 12 tris instead of 18).
       if (r.kind === 'tent_stage') {
-        const th = postH + 2.4 * s;
+        // The marquee is a FIXED 28 m x 11 m body (the builder takes no scale),
+        // and its canvas is near-white — the palette colour belongs to the
+        // ROOFED stages. Gary saw an orange triangle at distance resolve into a
+        // white marquee up close; that was this line taking CANOPY_PALETTE.
         out.peak.push({
-          x: r.x, z: r.z, y: th / 2, yaw: r.yaw,
-          sx: deckR * 1.3, sy: th, sz: deckR * 1.3, color, ...own,
+          x: r.x, z: r.z, y: TENT_STAGE_RIDGE / 2, yaw: r.yaw,
+          sx: TENT_STAGE_HALF_W, sy: TENT_STAGE_RIDGE, sz: TENT_STAGE_HALF_W,
+          color: TENT_STAGE_HEX, ...own,
         });
       } else {
         const roofT = 1.1 * s;
@@ -372,8 +397,9 @@ export function expandFarInstances(records, densityMul) {
         );
       }
       const bs = 0.8 + instHash(r.clusterSeed, 3) * 0.3;
+      const beaconY = r.kind === 'tent_stage' ? TENT_STAGE_RIDGE + 0.9 : postH + 1.6 * s;
       out.beacon.push({
-        x: r.x, z: r.z, y: postH + 2.4 * s + 0.9, yaw: 0, sx: bs, sy: bs, sz: bs,
+        x: r.x, z: r.z, y: beaconY, yaw: 0, sx: bs, sy: bs, sz: bs,
         color: BEACON_PALETTE[paletteIndex(r, BEACON_PALETTE.length)], ...own,
       });
     } else if (r.kind === 'camp_village') {
@@ -423,7 +449,7 @@ export function expandFarInstances(records, densityMul) {
           const t = ((n === 1 ? 0.5 : j / (n - 1)) - 0.5) * L * 0.9;
           const k = i + (side > 0 ? 0 : 53);                  // per-side variation salt
           const w = 2.4 + instHash(r.clusterSeed, k) * 1.4;
-          const h = 2.0 + instHash(r.clusterSeed, k + 101) * 1.2;
+          const h = BOOTH_APEX - 0.4 + instHash(r.clusterSeed, k + 101) * 0.9;
           const ix = r.x + ax * t + ox, iz = r.z + az * t + oz;
           out.peak.push({
             x: ix, z: iz, y: h / 2, yaw: r.yaw, sx: w, sy: h, sz: w,
