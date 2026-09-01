@@ -705,9 +705,12 @@ kbd {
   margin-bottom: 10px;
 }
 
-/* The start button IS the boot gauge: while disabled, a charge shimmer
-   sweeps it left-to-right; hud.js enabling it (+ .is-ready pop) is the
-   payoff. No separate bar, so finishing shifts nothing. */
+/* The start button IS the boot gauge: while disabled, a charge sweeps its
+   BACKGROUND and its bottom lip left-to-right; hud.js enabling it (+ the
+   .is-ready flash) is the payoff. No separate bar, so finishing shifts nothing.
+   The button keeps full chrome the whole time (border, bottom lip, drop
+   shadow) — as a bare translucent bar with a shimmer it stopped reading as
+   something you could press at all (Gary 2026-09-01). */
 #start-btn:disabled::before {
   content: '';
   position: absolute;
@@ -719,9 +722,32 @@ kbd {
   animation: boot-charge 2.4s ease-in-out infinite;
 }
 
+/* The bottom lip fills in step with the background — same keyframes, same
+   duration, so the two edges of the gauge always agree. Solid, not translucent,
+   so the charge level stays legible against the pale label. */
+#start-btn:disabled::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  bottom: 0;
+  height: 3px;
+  width: 36%;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(90deg, #6fe0ff, #b285ff 58%, #ff6f9c);
+  opacity: 0.85;
+  animation: boot-charge-lip 2.4s ease-in-out infinite;
+}
+
 @keyframes boot-charge {
   0%, 100% { width: 24%; opacity: 0.22; }
   50% { width: 82%; opacity: 0.42; }
+}
+
+/* Width track matches boot-charge exactly; only the opacity band differs, so
+   the lip reads as a solid fill line rather than a wash. */
+@keyframes boot-charge-lip {
+  0%, 100% { width: 24%; opacity: 0.6; }
+  50% { width: 82%; opacity: 0.95; }
 }
 
 /* Boot narration: a permanently reserved line under the button — the payoff
@@ -1129,7 +1155,10 @@ kbd {
   overflow: hidden;
   background: linear-gradient(135deg, #ff6f9c, #ffd28a);
   color: #1c1330;
-  border: none;
+  /* Transparent rather than `none`: the disabled state draws a real 1.5px
+     border, and a border that appears/disappears would resize the button at
+     the exact moment the gauge completes. */
+  border: 1.5px solid transparent;
   font-family: var(--font-pixel);
   font-size: clamp(10px, 2.8vw, 12px);
   letter-spacing: 0.06em;
@@ -1142,11 +1171,17 @@ kbd {
   box-shadow: 0 6px 24px rgba(255, 111, 156, 0.45), inset 0 -3px 0 rgba(26, 19, 50, 0.25);
 }
 
+/* Booting: still unmistakably a BUTTON. Same silhouette, same bottom lip and
+   drop shadow as the ready state — only the fill is missing, which is exactly
+   what the gauge is filling in. */
 #start-btn:disabled {
   cursor: wait;
-  background: rgba(255, 246, 230, 0.08);
-  color: rgba(255, 246, 230, 0.72);
-  box-shadow: 0 4px 16px rgba(178, 133, 255, 0.16), inset 0 0 0 1px rgba(255, 246, 230, 0.14);
+  background: rgba(255, 246, 230, 0.07);
+  color: rgba(255, 246, 230, 0.82);
+  border: 1.5px solid rgba(255, 246, 230, 0.4);
+  box-shadow:
+    0 6px 20px rgba(178, 133, 255, 0.22),
+    inset 0 -3px 0 rgba(26, 19, 50, 0.28);
 }
 
 #start-btn:not(:disabled):hover {
@@ -1154,14 +1189,45 @@ kbd {
   box-shadow: 0 10px 30px rgba(255, 111, 156, 0.55);
 }
 
+/* Going full solid is the payoff: the pop, a glow burst, and a one-shot sheen
+   that sweeps the way the charge was sweeping — so the gauge finishing and the
+   button lighting up read as the same gesture. */
 #start-btn.is-ready {
-  animation: start-ready-pop 0.48s cubic-bezier(0.22, 1.45, 0.36, 1);
+  animation:
+    start-ready-pop 0.48s cubic-bezier(0.22, 1.45, 0.36, 1),
+    start-ready-glow 0.72s ease-out;
+}
+
+#start-btn.is-ready::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(100deg,
+    rgba(255, 255, 255, 0) 38%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(255, 255, 255, 0) 62%);
+  transform: translateX(-100%);
+  animation: start-ready-sheen 0.62s cubic-bezier(0.3, 0, 0.2, 1) 0.06s 1;
 }
 
 @keyframes start-ready-pop {
   0% { transform: scale(0.96); }
   55% { transform: scale(1.045); }
   100% { transform: scale(1); }
+}
+
+@keyframes start-ready-glow {
+  0%   { box-shadow: 0 6px 24px rgba(255, 111, 156, 0.45), inset 0 -3px 0 rgba(26, 19, 50, 0.25); }
+  30%  { box-shadow: 0 0 40px 10px rgba(255, 210, 138, 0.85), inset 0 -3px 0 rgba(26, 19, 50, 0.25); }
+  100% { box-shadow: 0 6px 24px rgba(255, 111, 156, 0.45), inset 0 -3px 0 rgba(26, 19, 50, 0.25); }
+}
+
+@keyframes start-ready-sheen {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  12%  { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
 }
 
 .hidden {
@@ -1371,13 +1437,18 @@ body.is-touch .controls-touch {
 
 @media (prefers-reduced-motion: reduce) {
   #start-btn:disabled::before,
+  #start-btn:disabled::after,
   #start-btn.is-ready,
+  #start-btn.is-ready::after,
   .title-zerble {
     animation: none;
   }
 
-  /* Static charge hint instead of the sweep. */
+  /* Static charge hint instead of the sweep — background and lip both. */
   #start-btn:disabled::before { width: 50%; opacity: 0.3; }
+  #start-btn:disabled::after { width: 50%; opacity: 0.8; }
+  /* No sheen wipe at all; the solid fill is the whole signal. */
+  #start-btn.is-ready::after { display: none; }
 
   /* The menu cursor stays visible on the selected row — it just stops blinking. */
   .mode-btn[aria-checked="true"] .mode-cursor {
