@@ -26,6 +26,7 @@ const S = {
   doubler: false,  // Lurleen following
   pinned: false,   // star power
   bestMult: 1,     // best multiplier reached this run (score-screen stat)
+  raw: 0,          // smiles collected BEFORE multipliers — see the getter below
 };
 
 function chainLevel() {
@@ -43,14 +44,22 @@ export const Scoring = {
     if (!S.stakes) { S.chain = 0; S.chainTimer = 0; S.doubler = false; S.pinned = false; }
   },
 
-  reset({ current = 0, highWater = 0, bestMult = 1 } = {}) {
+  reset({ current = 0, highWater = 0, bestMult = 1, raw = 0 } = {}) {
     S.current = Math.max(0, Math.floor(current));
     S.highWater = Math.max(S.current, Math.floor(highWater));
     S.chain = 0; S.chainTimer = 0; S.doubler = false; S.pinned = false;
     S.bestMult = Math.max(1, Math.floor(bestMult));
+    S.raw = Math.max(0, Math.floor(raw));
   },
 
   get current() { return S.current; },
+  // Smiles collected before any multiplier — the ORGANIC rate. `current` is
+  // post-multiplier, so it can't answer "how fast does a player actually pick
+  // smiles up", and dividing it by 8 is wrong because the multiplier varies
+  // moment to moment (chain level × Lurleen, 1..8). This is the number the
+  // leaderboard Worker's BASE_SMILES_PER_MIN ceiling wants: without it the
+  // organic rate was not measurable anywhere, local or prod.
+  get rawSmiles() { return S.raw; },
   get highWater() { return S.highWater; },
   get bestCombo() { return S.bestMult; },
   get stakes() { return S.stakes; },
@@ -73,6 +82,7 @@ export const Scoring = {
     if (!count) return 0;
     const mult = this.multiplier();
     const gained = count * mult;
+    S.raw += count;
     S.current += gained;
     if (S.current > S.highWater) S.highWater = S.current;
     if (S.stakes) {
@@ -109,11 +119,11 @@ export const Scoring = {
   // Resume-snapshot plumbing (sessionStorage survives a settings reload).
   serialize() {
     return { current: S.current, highWater: S.highWater, bestMult: S.bestMult,
-             chain: S.chain, chainTimer: S.chainTimer };
+             chain: S.chain, chainTimer: S.chainTimer, raw: S.raw };
   },
   restore(o) {
     if (!o) return;
-    this.reset({ current: o.current, highWater: o.highWater, bestMult: o.bestMult });
+    this.reset({ current: o.current, highWater: o.highWater, bestMult: o.bestMult, raw: o.raw });
     S.chain = Math.max(0, Math.floor(o.chain || 0));
     S.chainTimer = Math.max(0, Number(o.chainTimer) || 0);
   },

@@ -76,4 +76,36 @@ Scoring.deduct(10 ** 9);
 assert(Scoring.current === 0, 'current floors at zero');
 assert(Scoring.award(2) >= 2, 'award pays like a collect');
 
-process.stdout.write('OK bin/test-scoring — chain, ratchet, doubler, pin, restore all hold\n');
+// ---- Organic (pre-multiplier) counter ----
+// BASE_SMILES_PER_MIN on the leaderboard Worker needs the UN-multiplied pickup
+// rate. `current` is post-multiplier, and dividing it by the max multiplier is
+// wrong because the live multiplier varies 1..8 moment to moment — so the raw
+// count has to be tracked separately or the ceiling can only ever be guessed.
+{
+  Scoring.configure({ stakes: true });
+  Scoring.reset();
+  assert(Scoring.rawSmiles === 0, 'reset must zero the organic counter');
+  Scoring.collect(10);
+  assert(Scoring.rawSmiles === 10, `10 organic smiles at x1 -> raw 10, got ${Scoring.rawSmiles}`);
+  const beforeCurrent = Scoring.current;
+  // Force a multiplier: raw counts SMILES while current counts POINTS.
+  Scoring.setDoubler(true);
+  const gained = Scoring.collect(10);
+  assert(gained > 10, 'the doubler must actually be multiplying for this test to mean anything');
+  assert(Scoring.rawSmiles === 20, `raw must count smiles, not points, got ${Scoring.rawSmiles}`);
+  assert(Scoring.current === beforeCurrent + gained, 'current must count POST-multiplier points');
+  assert(Scoring.current > Scoring.rawSmiles, 'current and raw must diverge once a multiplier is live');
+  // Spending smiles at a vendor must not rewrite collection history.
+  Scoring.deduct(5);
+  assert(Scoring.rawSmiles === 20, 'deduct must not touch the organic collect count');
+  // Survives the resume snapshot.
+  const snap = Scoring.serialize();
+  Scoring.reset();
+  assert(Scoring.rawSmiles === 0, 'reset must clear the organic counter');
+  Scoring.restore(snap);
+  assert(Scoring.rawSmiles === 20, `restore must carry the organic counter, got ${Scoring.rawSmiles}`);
+  Scoring.configure({ stakes: false });
+  Scoring.reset();
+}
+
+process.stdout.write('OK bin/test-scoring — chain, ratchet, doubler, pin, restore, organic counter all hold\n');

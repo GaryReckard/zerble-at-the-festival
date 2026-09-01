@@ -835,7 +835,7 @@ function finishIntroReveal() {
 function reportSessionEnd() {
   if (!running || _sessionEndReported) return;
   _sessionEndReported = true;
-  Analytics.sessionEnd({ smiles: Scoring.current, best: HUD.loadBest(), maxJuice: _maxJuiceReached, honks: _honkCount });
+  Analytics.sessionEnd({ smiles: Scoring.current, rawSmiles: Scoring.rawSmiles, best: HUD.loadBest(), maxJuice: _maxJuiceReached, honks: _honkCount });
 }
 
 // iOS suspends the AudioContext on tab switch / device lock. Resume on return.
@@ -1539,6 +1539,7 @@ function endFestivalRun(cause) {
     cause, score: Scoring.highWater, days,
     duration: Math.round(RunState.clock),
     best_combo: Scoring.bestCombo, rescue_used: RunState.rescueUsed,
+    rawSmiles: Scoring.rawSmiles,
   });
   if (Leaderboard.globalEnabled()) {
     Leaderboard.globalFinal({
@@ -2521,6 +2522,7 @@ installDebug({
   getRunning: () => running,
   getTimeOfDay,
   getFarField,                          // perf samples record horizon counters
+  Scoring,                              // perf samples record the organic smile rate
   Trip, StarPower,
   midi,
 });

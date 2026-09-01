@@ -18,9 +18,16 @@ Gary asked to not be allowed to forget them.
   node bridge. **Two follow-ups are still Gary-only:**
   * **`BASE_SMILES_PER_MIN` is still the placeholder 40.** It feeds the
     plausibility ceiling that rejects impossible scores, and it wants the observed
-    p99 *organic, un-multiplied* collect rate from GA4 (never with the ×8
-    multiplier folded in — that's `MAX_MULTIPLIER`, applied separately). Too low
-    rejects honest runs; too high lets nonsense stand. Change it in
+    p99 *organic, un-multiplied* collect rate (never with the ×8 multiplier folded
+    in — that's `MAX_MULTIPLIER`, applied separately). Too low rejects honest runs;
+    too high lets nonsense stand. **Now measurable** (2026-09-01): `Scoring.rawSmiles`
+    counts pre-multiplier pickups and ships as `organic_smiles` / `organic_per_min`
+    on GA4 `run_end` + `session_end`, and on every `recordPerf` sample. Two ways to
+    get the number: a LOCAL drill (`__dbg.recordPerf(true)` → play → `perfLog()`)
+    gives Gary's own rate immediately; GA4 gives the cross-player p99 once the site
+    redeploys. **GA4 gotcha:** custom event params need registering as custom
+    dimensions/metrics before they appear in standard reports — until then they're
+    visible only in DebugView or the BigQuery export. Then change the value in
     `wrangler.toml` `[vars]` + `npx wrangler deploy`.
   * **The free KV tier is ~20 completed runs/day** at the current fold settings
     (measured from the write path: 1 write per accepted beat, +2 more whenever it

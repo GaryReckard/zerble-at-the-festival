@@ -61,14 +61,19 @@ export const Analytics = {
     send('run_start', { day: params.day || 1, resumed: !!params.resumed, time_in_run_s: secondsIn() });
   },
 
-  runEnd({ cause, score, days, duration, best_combo, rescue_used } = {}) {
+  runEnd({ cause, score, days, duration, best_combo, rescue_used, rawSmiles } = {}) {
+    const dur = Math.floor(duration || 0);
     send('run_end', {
       cause: cause || 'unknown',
       score: Math.floor(score || 0),
       days: Math.floor(days || 1),
-      duration_s: Math.floor(duration || 0),
+      duration_s: dur,
       best_combo: Math.floor(best_combo || 1),
       rescue_used: !!rescue_used,
+      // Organic (pre-multiplier) pick-up rate — see sessionEnd for why `score`
+      // can't answer this. A COMPLETED run is the cleaner sample of the two.
+      organic_smiles: Math.floor(rawSmiles || 0),
+      organic_per_min: dur > 0 ? Math.round((rawSmiles || 0) / (dur / 60) * 10) / 10 : 0,
     });
   },
 
@@ -232,9 +237,16 @@ export const Analytics = {
   // (resets its guard when the tab returns) so a long session that briefly
   // backgrounded gets a fuller snapshot on the real exit.
   sessionEnd(summary = {}) {
+    const dur = secondsIn();
     send('session_end', {
-      duration_s: secondsIn(),
+      duration_s: dur,
       smiles: Math.floor(summary.smiles || 0),
+      // `smiles` above is the POST-multiplier score. These two are the organic
+      // pick-up rate — the only thing that can legitimately set the leaderboard
+      // Worker's BASE_SMILES_PER_MIN ceiling (the ×1..8 multiplier is applied
+      // separately there as MAX_MULTIPLIER, and must never be folded back in).
+      organic_smiles: Math.floor(summary.rawSmiles || 0),
+      organic_per_min: dur > 0 ? Math.round((summary.rawSmiles || 0) / (dur / 60) * 10) / 10 : 0,
       best: Math.floor(summary.best || 0),
       max_juice: Math.round((summary.maxJuice || 0) * 10) / 10,
       honks: summary.honks || 0,

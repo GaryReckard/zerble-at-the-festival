@@ -1676,6 +1676,11 @@ function collectPerfSample() {
     tripPass: !!h?.Trip?.pass?.enabled,
     starPower: !!h?.StarPower?.isActive?.(),
     heapMB: heap,
+    // Organic (pre-multiplier) smile pickup — `recordPerf(true)` samples this
+    // over time, so a local drill yields the rate curve the leaderboard's
+    // BASE_SMILES_PER_MIN ceiling needs. Scoring.current is post-multiplier and
+    // cannot answer it.
+    rawSmiles: h && h.Scoring ? h.Scoring.rawSmiles : -1,
     npc: h && h.crowd ? h.crowd.npcs.length : -1,
     reg: h && h.registry ? h.registry.entries.size : -1,
     col: h && h.registry ? [...h.registry.colliders()].length : -1,
