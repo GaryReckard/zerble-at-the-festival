@@ -1023,7 +1023,7 @@ function tickBody(dt) {
       // at all in the (shipping-default) disabled state.
       if (Leaderboard.globalEnabled()) {
         Leaderboard.globalHeartbeat({
-          score: Scoring.highWater, day: RunState.day, name: HUD.getPlayerName(),
+          score: Scoring.highWater, day: RunState.day, name: HUD.getBoardName(),
         });
       }
     }
@@ -1533,7 +1533,7 @@ function endFestivalRun(cause) {
   controlsLocked = true;
   const days = RunState.day;
   const rank = Leaderboard.recordLocal({
-    name: HUD.getPlayerName(), score: Scoring.highWater, days,
+    name: HUD.getBoardName(), score: Scoring.highWater, days,
   });
   Analytics.runEnd({
     cause, score: Scoring.highWater, days,
@@ -1543,7 +1543,7 @@ function endFestivalRun(cause) {
   });
   if (Leaderboard.globalEnabled()) {
     Leaderboard.globalFinal({
-      score: Scoring.highWater, day: days, name: HUD.getPlayerName(), cause,
+      score: Scoring.highWater, day: days, name: HUD.getBoardName(), cause,
     });
     Analytics.leaderboardSubmit({ score: Scoring.highWater, days });
   }

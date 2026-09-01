@@ -1457,11 +1457,21 @@ body.game-started #settings-gear { display: flex; }
     top: calc(8px + env(safe-area-inset-top, 0));
     left: calc(8px + env(safe-area-inset-left, 0));
     border-radius: 12px;
+    /* The base cap subtracts 44px, sized for the DESKTOP 22px inset. This query
+       already moved the rail in to 8px but never widened the cap, so the rail was
+       throwing away 28px of usable width and wrapping earlier than it had to
+       (Gary 2026-09-01: the chips wrap to a second line on iPhone). Measured on a
+       390px iPhone 13 in Festival Run: row one held 289px of chips in a 346px
+       rail, so the 88px vibe chip missed by 31px — most of which was this. */
+    max-width: calc(100vw - 16px - env(safe-area-inset-left, 0) - env(safe-area-inset-right, 0));
   }
 
   .hud-chip {
     height: 36px;
-    padding: 0 8px;
+    /* 6px, not 8: five chips x 2 sides means every pixel here is worth 10 on the
+       row. Tightening the gaps buys a 4-digit score its place on one line
+       without shrinking a single readout. */
+    padding: 0 6px;
   }
 
   .smile-status {
@@ -1488,12 +1498,12 @@ body.game-started #settings-gear { display: flex; }
     height: 11px;
   }
 
-  .juice-track { height: 8px; min-width: 56px; }
+  .juice-track { height: 8px; min-width: 42px; }
   .rsv-jug { display: none; }
 
   /* The sputter countdown widens the chip instead of squeezing the juice bar
      the player is anxiously watching (adversary A12). */
-  #juice-meter { width: auto; min-width: 100px; }
+  #juice-meter { width: auto; min-width: 84px; gap: 4px; padding: 0 7px; }
 
   .cycle-status {
     min-width: 36px;   /* NOT width — the Day label widens it (review 001 A4) */
@@ -1505,8 +1515,8 @@ body.game-started #settings-gear { display: flex; }
   }
 
   .cycle-dial {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
   }
 
   .cycle-marker {

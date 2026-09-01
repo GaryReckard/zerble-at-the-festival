@@ -58,7 +58,7 @@ function ceilingFor(env, elapsedMin) {
 
 function sanitizeName(raw) {
   let name = String(raw || '')
-    .replace(/[^\p{L}\p{N}\p{Zs}'!._-]/gu, '')
+    .replace(/[^\p{L}\p{N}\p{Zs}'!._#-]/gu, '')   // '#' allowed for the Zerble #1234 default name
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, NAME_MAX);

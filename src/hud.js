@@ -49,6 +49,26 @@ const $playerName = document.getElementById('player-name');
 let _playerName = '';
 try { _playerName = String(localStorage.getItem(NAME_KEY) || '').trim().slice(0, 20); } catch (e) { /* storage unavailable */ }
 if ($playerName && _playerName) $playerName.value = _playerName;
+
+// Anonymous board identity (Gary 2026-09-01: default "Zerbler" → "Zerble #1234").
+// Generated ONCE and persisted: a number re-rolled per visit would scatter one
+// player's runs across the leaderboard under different names, which reads worse
+// than a shared fallback did. A typed name always wins and is never overwritten,
+// so anyone who has already played keeps exactly the name they chose.
+// Deliberately NOT folded into `_playerName`: that stays the name the player
+// actually TYPED, so the crowd's greeting lines and the `name_entered`
+// analytics keep meaning what they say.
+const ANON_KEY = 'zerble-anon-name';
+const _anonName = (() => {
+  try {
+    const saved = String(localStorage.getItem(ANON_KEY) || '').trim().slice(0, 20);
+    if (saved) return saved;
+  } catch (e) { /* storage unavailable — fall through to a session-only name */ }
+  const name = `Zerble #${1000 + Math.floor(Math.random() * 9000)}`;
+  try { localStorage.setItem(ANON_KEY, name); } catch (e) { /* session-only */ }
+  return name;
+})();
+if ($playerName) $playerName.placeholder = _anonName;
 function captureName() {
   if (!$playerName) return;
   _playerName = $playerName.value.trim().slice(0, 20);
@@ -355,6 +375,10 @@ export const HUD = {
   onScoreClose(cb) { _onScoreClose = cb; },
 
   getPlayerName() { return _playerName; },
+  // The name a SCORE goes up under: what they typed, or their stable anonymous
+  // Zerble #NNNN. Distinct from getPlayerName() on purpose — see _anonName above.
+  getBoardName() { return _playerName || _anonName; },
+  getAnonName() { return _anonName; },
 
   // Toast spice: given the everyday line and a "{name}"-bearing variant, swap
   // the named one in occasionally (sprinkle, don't saturate — see ROADMAP).

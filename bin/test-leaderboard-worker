@@ -58,6 +58,11 @@ assert(sanitizeName('sh.it_head') === FALLBACK_NAME, 'separator-dodged profanity
 assert(sanitizeName('F U C K') === FALLBACK_NAME, 'spaced profanity → fallback');
 assert(sanitizeName('x'.repeat(60)).length <= 20, 'length clamped');
 assert(sanitizeName('<img src=x>') === 'img srcx', 'markup characters stripped');
+// The default anonymous identity is "Zerble #1234" (hud.js), so '#' has to
+// survive sanitation or every anonymous player lands on the board as
+// "Zerble 1234". Markup characters must still go.
+assert(sanitizeName('Zerble #4821') === 'Zerble #4821', "the default 'Zerble #NNNN' name must survive intact");
+assert(!sanitizeName('<b>#x</b>').includes('<'), 'allowing # must not let markup through');
 
 // Ceiling worked example (design D8): a legit x8 max-rate run passes, a
 // beyond-formula run is rejected. 10 min at 40/min × 8 × 1.5 × 1.5 = 7200.
