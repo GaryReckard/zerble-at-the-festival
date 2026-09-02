@@ -122,11 +122,38 @@ player-distance slider) for composition iteration without the full game.
 | `dumpRegistry(bounds?)` | **Read-only** JSON-able array of every registry entry — `{kind, x, z, footprint, colliderR, damage, attractorR, attractorW, chunkKey}`. Optional `bounds = {minX,minZ,maxX,maxZ}` clips to a window (one hub). This is the "built truth" the layout linter checks and `bin/layout-snapshot` freezes against; never mutates anything. |
 | `dumpDrawCounts(bounds?)` | **Read-only** `{"kind@x,z": n}` map of how many times each worldgen cluster drew from its local rng — the canary. Positions matching but a count moving = an invisible draw add/drop/reorder. Same optional `bounds`. |
 
+### Drive the trip (psychedelic post-process)
+The trip is a three-minute scripted timeline, so looking at any single moment
+of it used to mean parking next to a wook, accepting, and waiting. The scrub
+control removes that: it pins the trip at any point on its timeline and holds
+it there, which is the difference between iterating on a per-effect curve in
+seconds and in minutes.
+
+| Call | Does |
+|---|---|
+| `tripScrub(p)` | Hold the trip at progress `p` (0..1 across the whole `fadeIn + duration + fadeOut`). Forces Dynamic mode, pins the master envelope open, and bypasses the state machine, so nothing advances and no narration toast fires while held. `Trip.state` reads `'scrub'` and the perf samples record it, so a held window is never mistaken for an organic trip. |
+| `tripScrub()` | Release the hold and return the trip to `idle` (pass disabled). |
+| `tripAB(opts?)` | Scripted, **labelled** perf A/B for the trip pass. Walks the recorder through `warmup → baseline → fade-in → active → peak → after`, holding the cart still and changing nothing else, then prints the per-phase table. Opts: `{baselineS, fadeS, activeS, peakS, afterS}`. |
+
+The same scrub lives in the **T menu** as a slider plus `Early` / `Peak` /
+`Late` / `Release` jump buttons; `Peak` reads `PEAK_CENTER` from `trip.js`, the
+one constant that also centres the MIDI player's audio crescendo, so picture and
+sound always climax together.
+
+**Why the labelling matters.** The trip is a post-process pass, and
+`InfoCapturePass` records draws/tris *earlier* in the composer chain
+([main.js](src/main.js)) — so the backtick HUD's draw/tri budgets structurally
+**cannot see the trip**. Frame time is the only column that responds to it.
+That makes it essential to know exactly which samples were taken with the pass
+hot, which is what `perfPhase` / `tripAB` provide.
+
 ### Capture perf data over time
 | Call | Does |
 |---|---|
 | `recordPerf(on = true)` | Start (or stop) the **perf-log recorder**: samples engine stats — `fps`, frame `avg`/`p95`/`max` ms, `draws`, `tris`, `geo`/`tex`, **`prog`** (live shader-program count), adaptive `quality`/`qualityLevel`, pixel ratio, bloom/bubble state, Trip state/envelope/progress/pass, star power, `heapMB`, `npc`/`reg`/`col` counts, chunk-gen `cgN`/`cgSlow`/`cgWorst`, and `x,z` — into a ring buffer at a fixed wall-clock interval (default 1 s). Each sample is persisted to `localStorage['zerble_perflog']` **as it's taken**, so the data survives the page going unresponsive + a force-reload. |
 | `perfLog()` | Return a copy of the recorded sample array (`[{t, ts, …}]`). |
+| `perfPhase(label)` | Stamp a window label onto every subsequent sample (`''` clears it). `tripAB()` drives this automatically; set it by hand for any other one-variable comparison. |
+| `perfPhaseSummary()` | Collapse the recorded samples to one row per label — `fps`, `fAvg`, `fP95`, `fMax`, `draws`, `tripPass` — and print the table. Frame-time columns are averaged over **populated samples only**: `AdaptiveQuality` publishes no frame stats until its 90-frame window fills, so early samples carry a frame time of 0, and averaging those in would make the earliest window (usually the baseline) look *faster* than it was. The `warmup` column counts how many were skipped — if it approaches `n`, that row is warm-up noise and the window needs to be longer. |
 | `startDeviceCapture()` / `sendDeviceCapture()` | Start or manually upload the opt-in `?perfCapture=1` real-device report. Normal play starts this only after the real Start tap; these calls exist for diagnostics. |
 | `chunkStages(reset = false)` | With `?debug=1`, return count/total/average/max milliseconds for each v2 chunk stage (`region`, `roads`, `props`, `trees`, `crowd`, `jugs`, `campsites`, `hedges`). Pass `true` to return the current snapshot and zero the stage counters before a controlled drive or teleport. The normal production path does not take the per-stage timestamps. |
 | `foodCourtVisual()` | Jump directly to the deterministic food court at Midnight, wait for both chunk generation and registry population to settle while rendered frames continue advancing, then frame the court from inside its outer ring. |

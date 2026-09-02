@@ -57,7 +57,7 @@ import { nearestHeart, heartsInBounds } from './worldgen/hearts.js';
 import { festivalPlan, computeFrontAxis, dancefloorRectsNear, spawnHeart, MAX_POI_REACH } from './worldgen/festival.js';
 import { lakeAt } from './worldgen/water.js';
 import { runLint } from './worldgen/lint.js';
-import { Trip } from './trip.js';
+import { Trip, PEAK_CENTER } from './trip.js';
 import { StarPower } from './starPower.js';
 import { Analytics } from './analytics.js';
 import * as ContextLights from './contextLights.js';
@@ -2029,6 +2029,58 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       return `launched ${type || 'random'} shell`;
     },
 
+    // Freeze the trip at a fixed point on its timeline — 0..1 across the whole
+    // fadeIn + sustain + fadeOut. This is the iteration harness for trip work:
+    // jump straight to the climax (PEAK_CENTER) instead of parking next to a
+    // wook and waiting out three minutes. Call with no argument to release.
+    // Mirrors the T-menu scrub slider; both go through Trip.scrub().
+    tripScrub(p) {
+      if (p === null || p === undefined) { Trip.scrub(null); return 'scrub released'; }
+      const v = Trip.scrub(p);
+      return `trip held at p=${v.toFixed(3)} (state: ${Trip.state})`;
+    },
+
+    // Scripted trip A/B for a perf capture. Walks the recorder through labelled
+    // windows — baseline (pass off) → fade-in → active → peak (held) → after —
+    // so the frame-time comparison has clean slices instead of a guess at where
+    // the trip began. Nothing else moves: no teleport, no time-of-day change,
+    // same seed and pose throughout, so the trip pass is the only variable.
+    // Refuses to run while the cart is rolling, since driving changes the scene
+    // under the measurement. Finishes by printing the per-phase table.
+    async tripAB(opts = {}) {
+      const { baselineS = 20, fadeS = 12, activeS = 20, peakS = 20, afterS = 15 } = opts;
+      if (Math.abs(zerble.speed) > 0.05) return 'park the cart first — tripAB needs a still scene';
+      const dbg = window.__debug;
+      const wait = (sec) => new Promise((resolve) => setTimeout(resolve, sec * 1000));
+      Trip.scrub(null);
+      Trip.comeDown();
+      dbg.recordPerf(true);
+      // Warm-up gate. AdaptiveQuality publishes no frame stats until its
+      // 90-frame window fills, so samples taken before that report a frame time
+      // of 0. Starting the baseline window there would compare a partly-empty
+      // baseline against a fully-measured trip — a bias pointing the wrong way,
+      // since it flatters the baseline. Spin until the stats go live (or give
+      // up after ~10s and let perfPhaseSummary's `warmup` column tell on us).
+      dbg.perfPhase('warmup');
+      const warmUntil = performance.now() + 10000;
+      while (performance.now() < warmUntil && !(dbg.perfSnapshot().fAvg > 0)) await wait(0.25);
+      dbg.perfPhase('baseline');
+      await wait(baselineS);
+      Trip.triggerDynamic();
+      dbg.perfPhase('fade-in');
+      await wait(fadeS);
+      dbg.perfPhase('active');
+      await wait(activeS);
+      Trip.scrub(PEAK_CENTER);
+      dbg.perfPhase('peak');
+      await wait(peakS);
+      Trip.scrub(null);
+      dbg.perfPhase('after');
+      await wait(afterS);
+      dbg.perfPhase('');
+      return dbg.perfPhaseSummary();
+    },
+
     // Move the cart to world (x, z), zeroing speed.
     teleport(x = 0, z = 0) {
       zerble.position.set(x, zerble.position.y, z);
@@ -2498,6 +2550,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
         '  draws:   drawCensus({top?})   (scene draw-call composition by geometry/material → names instance/merge targets)',
         '  hubs:    gotoHub(n) · showFootprints(on)   (teleport+frame nth-nearest hub; footprint/dancefloor overlay)',
+        '  trip:    tripScrub(p 0..1) hold the trip at a point on its timeline · tripScrub() release · tripAB(opts?) labelled perf A/B',
         '  perf:    recordPerf(true|false) · perfLog() · chunkStages(reset?) · foodCourtVisual() · foodCourtCapture() · foodCourtLifecycle()',
         '           dumpPrograms({raw?})   (shader-program leak finder: groups renderer.info.programs by family + varying token)',
         '           capture(name?, data?)   (POST data to dev server -> .claude/captures/<name>.json; the browser->repo bridge, no copy/paste)',

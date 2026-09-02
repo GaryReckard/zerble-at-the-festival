@@ -18,6 +18,7 @@ import { nearestMajorHeart, heartsInBounds } from './worldgen/hearts.js';
 import { festivalPlan, campVillagesNear, computeFrontAxis } from './worldgen/festival.js';
 import { FESTIVAL_TUNING } from './worldgen/tuning.js';
 import { getSessionSeed } from './rng.js';
+import { PEAK_CENTER } from './trip.js';
 import { chunkGenStats } from './chunks.js';
 import {
   getFrameStats, getLevelName, getLevelNames, getLevelCount,
@@ -92,6 +93,7 @@ const state = {
   perfSamples: [],
   perfLastSampleMs: 0,
   perfIntervalMs: 1000,
+  perfPhase: '',            // label stamped on each perf sample (see perfPhase())
   perfStatusEl: null,
   perfRecBtn: null,
   perfOut: null,
@@ -397,6 +399,61 @@ function api() {
       logToast(`promoted ${promoted} NPC(s) to watching`);
     },
     recordPerf(on = true) { setPerfRecording(!!on); return state.perfRecording; },
+
+    // Stamp a window label onto every subsequent perf sample. The trip is a
+    // post-process pass, so draws/tris cannot see it (InfoCapturePass records
+    // them earlier in the chain) and only the frame-time distribution can —
+    // which means a capture is worthless unless you know exactly which samples
+    // were taken with the pass hot. Labels make that slice explicit instead of
+    // inferred. Pass '' to clear. __dbg.tripAB() drives these automatically.
+    perfPhase(label = '') { state.perfPhase = String(label || ''); return state.perfPhase; },
+
+    // Reduce the recorded samples to one row per phase label. Frame time leads
+    // because it is the only column that responds to a full-screen pass; draws
+    // is carried along purely as a contamination check (if it moved between
+    // windows, the world changed under you and the comparison is void).
+    //
+    // The warm-up trap this guards against: AdaptiveQuality refuses to publish
+    // frame stats until its 90-frame window is full (adaptiveQuality.js), so
+    // every sample taken before that reports fAvg/fP95/fMax as 0. Averaging
+    // those zeros in would make the earliest window — usually the baseline —
+    // look FASTER than it was, which is the exact direction that would hide a
+    // regression. So frame-time columns are meaned over populated samples only,
+    // and `warmup` reports how many were skipped: if it approaches `n`, that
+    // row is warm-up noise and the window needs to be longer.
+    perfPhaseSummary() {
+      const byPhase = new Map();
+      for (const smp of state.perfSamples) {
+        const k = smp.phase || '(unlabelled)';
+        if (!byPhase.has(k)) byPhase.set(k, []);
+        byPhase.get(k).push(smp);
+      }
+      const out = [];
+      for (const [phase, rows] of byPhase) {
+        const n = rows.length;
+        if (!n) continue;
+        const timed = rows.filter((smp) => (smp.fAvg || 0) > 0);
+        const mean = (src, f) => (src.length
+          ? Math.round((src.reduce((a, smp) => a + (f(smp) || 0), 0) / src.length) * 10) / 10
+          : null);
+        const worst = (src, f) => (src.length
+          ? Math.round(Math.max(...src.map((smp) => f(smp) || 0)) * 10) / 10
+          : null);
+        out.push({
+          phase,
+          n,
+          warmup: n - timed.length,
+          fps: mean(rows, (smp) => smp.fps),
+          fAvg: mean(timed, (smp) => smp.fAvg),
+          fP95: mean(timed, (smp) => smp.fP95),
+          fMax: worst(timed, (smp) => smp.fMax),
+          draws: mean(rows, (smp) => smp.draws),
+          tripPass: rows.some((smp) => smp.tripPass),
+        });
+      }
+      if (out.length) console.table(out);
+      return out;
+    },
     perfLog() { return state.perfSamples.slice(); },
     startDeviceCapture() { return startDeviceCapture(); },
     sendDeviceCapture() { return uploadDeviceCapture('manual', false); },
@@ -1312,6 +1369,62 @@ function buildTripPanel() {
   el.appendChild(comeDownBtn);
   state.tripComeDownBtn = comeDownBtn;
 
+  // ---- Scrub (iteration harness) ----
+  // Freeze the trip at any point on its timeline. This is what makes tuning a
+  // per-effect curve cheap: drag straight to the climax instead of waiting out
+  // a three-minute trip, and hold there for a screenshot or a frame-time A/B.
+  el.appendChild(divider());
+  const scrubLabel = document.createElement('div');
+  scrubLabel.textContent = 'Scrub — hold trip at progress';
+  scrubLabel.style.cssText = 'opacity:0.7;margin-bottom:4px;';
+  el.appendChild(scrubLabel);
+
+  const scrubRow = document.createElement('div');
+  scrubRow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;';
+  const scrubInput = document.createElement('input');
+  scrubInput.type = 'range';
+  scrubInput.min = '0';
+  scrubInput.max = '1';
+  scrubInput.step = '0.005';
+  scrubInput.value = String(PEAK_CENTER);
+  scrubInput.style.cssText = 'flex:1;min-width:0;';
+  const scrubOut = document.createElement('span');
+  scrubOut.style.cssText = 'width:44px;text-align:right;opacity:0.85;';
+  scrubOut.textContent = PEAK_CENTER.toFixed(3);
+  scrubInput.addEventListener('input', () => {
+    const v = parseFloat(scrubInput.value);
+    scrubOut.textContent = v.toFixed(3);
+    Trip.scrub(v);
+  });
+  scrubRow.appendChild(scrubInput);
+  scrubRow.appendChild(scrubOut);
+  el.appendChild(scrubRow);
+
+  // Jump buttons for the three points a curve is usually judged at, plus the
+  // release. 'Peak' reads PEAK_CENTER so it tracks the shared climax.
+  const scrubBtns = document.createElement('div');
+  scrubBtns.style.cssText = 'display:flex;gap:4px;margin-bottom:6px;';
+  for (const [label, target] of [['Early', 0.08], ['Peak', PEAK_CENTER], ['Late', 0.82], ['Release', null]]) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    Object.assign(btn.style, {
+      flex: '1', font: 'inherit', padding: '3px 4px', cursor: 'pointer',
+      background: target === null ? 'rgba(120,120,140,0.18)' : 'rgba(80,180,180,0.18)',
+      color: target === null ? '#ccd' : '#bdf',
+      border: `1px solid ${target === null ? 'rgba(120,120,140,0.4)' : 'rgba(80,180,180,0.4)'}`,
+      borderRadius: '4px',
+    });
+    btn.addEventListener('click', () => {
+      Trip.scrub(target);
+      if (target !== null) {
+        scrubInput.value = String(target);
+        scrubOut.textContent = target.toFixed(3);
+      }
+    });
+    scrubBtns.appendChild(btn);
+  }
+  el.appendChild(scrubBtns);
+
   // ---- Timing sliders ----
   el.appendChild(divider());
   const timingLabel = document.createElement('div');
@@ -1321,7 +1434,7 @@ function buildTripPanel() {
 
   const timingDefs = [
     { key: 'duration',           label: 'Duration (s)',       min: 5,   max: 300, step: 1   },
-    { key: 'fadeIn',             label: 'Fade in (s)',        min: 0,   max: 5,   step: 0.1 },
+    { key: 'fadeIn',             label: 'Fade in (s)',        min: 0,   max: 20,  step: 0.1 },
     { key: 'fadeOut',            label: 'Fade out (s)',       min: 0,   max: 10,  step: 0.1 },
     { key: 'proximityThreshold', label: 'Proximity (m)',      min: 1,   max: 10,  step: 0.1 },
     { key: 'restDuration',       label: 'Rest needed (s)',    min: 1,   max: 15,  step: 0.5 },
@@ -1410,7 +1523,8 @@ function updateTripPanel() {
   const mode = Trip.dynamic ? 'DYNAMIC' : 'static ';
   state.tripStateEl.textContent =
     `state: ${Trip.state.padEnd(11)} env: ${Trip._envelope.toFixed(2)}  ${mode}\n` +
-    `wook: ${distStr}  prox-timer: ${Trip._proximityTimer.toFixed(1)}s`;
+    `wook: ${distStr}  prox-timer: ${Trip._proximityTimer.toFixed(1)}s` +
+    (Trip._scrubP !== null ? `\nSCRUB HELD @ p=${Trip._scrubP.toFixed(3)}` : '');
 
   // Come Down button only active during fading_in / sustaining.
   const cd = state.tripComeDownBtn;
@@ -1670,6 +1784,7 @@ function collectPerfSample() {
     pixelRatio: r ? r1(r.getPixelRatio()) : -1,
     bloom: !!h?.bloomPass?.enabled,
     bubbles: h?.bubbles?.mesh?.material === h?.bubbles?._fancyMat ? 'fancy' : 'cheap',
+    phase: state.perfPhase || null,
     tripState: h?.Trip?.state || 'unknown',
     tripEnvelope: r3(h?.Trip?._envelope || 0),
     tripProgress: r3(h?.Trip?.progress?.() || 0),

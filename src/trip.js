@@ -148,6 +148,13 @@ const EFFECT_KEYS = [
   'lensDistortion', 'posterize', 'vignettePulse', 'brightnessPulse',
 ];
 
+// The trip's climax. Every peak-gated curve — visual here, audio in
+// midiPlayer.js — references these two numbers, so re-centering the whole
+// crescendo is a one-line edit instead of a hunt for hardcoded 1/3s. Width is
+// the default bell; an effect wanting a sharper spike passes its own to _peak.
+export const PEAK_CENTER = 1 / 3;
+export const PEAK_WIDTH = 0.18;   // ~36s of a 180s trip
+
 export const Trip = {
   pass: null,
 
@@ -202,6 +209,7 @@ export const Trip = {
   _envelope:        0,
   _fadeOutFrom:     1,        // envelope value at the moment we entered fading_out
   _tripElapsed:     0,        // seconds since trip start (cleared in idle/cooldown)
+  _scrubP:          null,     // debug hold: when non-null, trip is frozen at this progress
   _tripSource:      null,     // analytics: start path ('wook_accept'|'manual_static'|'manual_dynamic')
   _timeAccum:       0,
   _nearestWookDist: Infinity,
@@ -298,7 +306,38 @@ export const Trip = {
     }
   },
 
+  // Debug-only harness (the T-menu scrub slider + __dbg.tripScrub): freeze the
+  // trip at a fixed point on its timeline so a curve can be looked at, or
+  // screenshotted, or A/B'd for frame time, at any progress value instead of
+  // sitting through a three-minute trip. `p` is 0..1 across
+  // fadeIn+duration+fadeOut; null releases the hold. Forces Dynamic mode (the
+  // scripted curves are the thing worth scrubbing) and holds the master
+  // envelope wide open. update() bypasses the state machine entirely while a
+  // hold is set, so nothing advances and no narration toast fires.
+  scrub(p) {
+    if (p === null || p === undefined) {
+      if (this._scrubP === null) return null;
+      this._scrubP = null;
+      this.state = 'idle';
+      this._envelope = 0;
+      this._phaseTimer = 0;
+      this._proximityTimer = 0;
+      this._tripElapsed = 0;
+      this.dynamic = false;
+      if (this.pass) this.pass.enabled = false;
+      return null;
+    }
+    this._scrubP = this._clamp01(p);
+    this.dynamic = true;
+    // A distinct state name so the T panel and the device-perf samples both
+    // read as "held", which is what lets a capture window be rejected or
+    // labelled rather than mistaken for an organic trip.
+    this.state = 'scrub';
+    return this._scrubP;
+  },
+
   isActive() {
+    if (this._scrubP !== null) return true;
     return this.state === 'fading_in' || this.state === 'sustaining' || this.state === 'fading_out';
   },
 
@@ -308,6 +347,7 @@ export const Trip = {
   // their own per-effect personality curves in lockstep with the visuals.
   // Returns 0 when no trip is active.
   progress() {
+    if (this._scrubP !== null) return this._scrubP;
     if (!this.isActive()) return 0;
     const totalDuration = this.fadeIn + this.duration + this.fadeOut;
     return Math.max(0, Math.min(1, this._tripElapsed / totalDuration));
@@ -360,6 +400,14 @@ export const Trip = {
 
   _clamp01(v) {
     return v < 0 ? 0 : v > 1 ? 1 : v;
+  },
+
+  // Gaussian climax bell centred on PEAK_CENTER. The default width matches the
+  // MIDI player's peakBell (a broad swell); pass a narrower one for a sharp
+  // spike. Sharing the centre is the point — every peak-gated effect crescendos
+  // at the same moment as the music.
+  _peak(p, width = PEAK_WIDTH) {
+    return Math.exp(-Math.pow((p - PEAK_CENTER) / width, 2));
   },
 
   // p ∈ [0, 1] — progress across the full trip (fadeIn + duration + fadeOut)
@@ -429,7 +477,7 @@ export const Trip = {
     //    leaves a touch of tonal nuance — going all the way to 1.0 flattens
     //    the world to too few color bands and reads as a bug, not a peak.
     const meander = 0.1 + 0.15 * (0.5 + 0.5 * Math.sin(p * Math.PI * 2 * 3));
-    const spike = 0.85 * Math.exp(-Math.pow((p - 1 / 3) / 0.03, 2));
+    const spike = 0.85 * this._peak(p, 0.03);
     live.posterize = Math.min(0.9, meander + spike);
 
     // Push to uniforms
@@ -445,6 +493,18 @@ export const Trip = {
     // Always advance time so shader wobble has a continuous phase
     this._timeAccum += dt;
     this.pass.uniforms.time.value = this._timeAccum;
+
+    // Scrub hold: pin the trip at one point on its timeline and skip the state
+    // machine, so no phase advances, no narration fires, and no cooldown eats
+    // the hold. Time still ticks above, so the shader's own wobble stays alive
+    // and the frame isn't a frozen still.
+    if (this._scrubP !== null) {
+      this._envelope = 1;
+      this.pass.uniforms.intensity.value = A11y.reducedMotion ? 0.4 : 1;
+      this._writeDynamicCurves(this._scrubP);
+      this.pass.enabled = true;
+      return;
+    }
 
     // Track trip elapsed time across the three active phases
     if (this.isActive()) {

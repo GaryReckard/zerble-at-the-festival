@@ -466,6 +466,38 @@ returns vs. what shipped — nice-to-have, not urgent.
 
 ## Trip / wook
 
+### Tier contract for new trip effects *(decided 2026-09-01)*
+
+Gary's call, and it settles the scope question the backlog below kept deferring:
+**the new effects are a high/mid luxury, and `low` must never be worse than it
+is today.** Low keeps the eight in-shader effects it already has, at their
+current cost. A new in-shader effect may be enabled on low only once a
+frame-time A/B on `?perf=low` shows it does not regress; the feedback-buffer
+effects (#5, #6) default OFF on low regardless. This is why the whole backlog
+splits cleanly at the in-shader / feedback-buffer fork.
+
+### Phase 0 harness — SHIPPED 2026-09-01 *(see CHANGELOG)*
+
+The prerequisite for everything below, because the backlog is six curve-tuning
+jobs and there was no cheap way to look at a curve. `__dbg.tripScrub(p)` + the
+T-menu scrub slider hold the trip at any progress; `Trip._peak(p, width)` +
+exported `PEAK_CENTER`/`PEAK_WIDTH` give every peak-gated effect (visual and
+audio) one shared climax; `__dbg.perfPhase` / `perfPhaseSummary` / `tripAB()`
+turn a capture into labelled windows, which the trip needs because
+`InfoCapturePass` records draws/tris *before* the trip pass and so the HUD
+budgets cannot see it. Full surface in [DEBUGGING.md](DEBUGGING.md).
+
+**Flagged for a real-GPU check:** under `bin/verify-headless` (SwiftShader,
+~2-5 fps) `AdaptiveQuality`'s `_statsCache` never populated across a 90-second
+run, so `fAvg`/`fP95`/`fMax` read as null in local captures — while driving
+`tick()` by hand populated it immediately, so the mechanism itself is sound.
+Almost certainly an artifact of the software rasterizer's frame rate versus the
+90-frame observation window, and the governor's documented rung transitions plus
+the perf-pass-4 `fMax: 9029ms` capture are both evidence it works on real
+hardware. **Confirm on a real GPU before trusting a local frame-time A/B** — if
+it reproduces there, it invalidates frame-time capture generally, not just for
+the trip.
+
 ### New trip visual effects — design backlog *(designed 2026-06-07)*
 
 Six new psychedelic effects to layer onto the existing trip post-process. The

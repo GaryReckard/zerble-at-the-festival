@@ -18,6 +18,7 @@
 //   AudioWorklet API is available); transparent passthrough at mix=0.
 
 import { Sound } from './sound.js';
+import { PEAK_CENTER, PEAK_WIDTH } from './trip.js';
 
 const TONE_CDN = 'https://esm.sh/tone@14.7.77';
 const MIDI_CDN = 'https://esm.sh/@tonejs/midi@2.0.28';
@@ -740,12 +741,14 @@ export class MidiPlayer {
     // across the trip, independent of the master envelope gate. Each curve
     // returns 0..1 and is then mapped to its effect's parameter range.
     //
-    // peakBell: Gaussian centered at p=1/3 — same "peak moment" as the
-    //   visual posterize spike. Width ~0.18 = climax spans ~36s of a 180s
-    //   trip. Several effects layer this on top of their baseline to
+    // peakBell: Gaussian centered on the trip's shared climax — the same
+    //   "peak moment" as the visual posterize spike, and now literally the
+    //   same two constants (PEAK_CENTER / PEAK_WIDTH from trip.js) so picture
+    //   and sound can never drift apart. Width 0.18 = climax spans ~36s of a
+    //   180s trip. Several effects layer this on top of their baseline to
     //   crescendo at the same moment.
     const peakBell = env > 0
-      ? Math.exp(-Math.pow((p - 1 / 3) / 0.18, 2))
+      ? Math.exp(-Math.pow((p - PEAK_CENTER) / PEAK_WIDTH, 2))
       : 0;
 
     // 1. Vibrato — pitch wobble. Baseline ramps from subtle (0.04) to
