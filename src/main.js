@@ -2040,6 +2040,16 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       return `trip held at p=${v.toFixed(3)} (state: ${Trip.state})`;
     },
 
+    // Lift (or restore) the tier mask that holds luxury trip effects at 0 on
+    // the low tier. This is what makes the low-tier frame-time A/B possible:
+    // tripMask(false) lets a masked effect actually render there so it can be
+    // measured, and it is the ONLY sanctioned way to see one on low — shipping
+    // behaviour is decided by LOW_TIER_MASKED in trip.js, not by this call.
+    tripMask(on = true) {
+      Trip.maskEnabled = !!on;
+      return `tier mask ${Trip.maskEnabled ? 'ON (luxury effects off on low)' : 'OFF (all effects render)'}`;
+    },
+
     // Scripted trip A/B for a perf capture. Walks the recorder through labelled
     // windows — baseline (pass off) → fade-in → active → peak (held) → after —
     // so the frame-time comparison has clean slices instead of a guess at where
@@ -2550,7 +2560,8 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
         '  draws:   drawCensus({top?})   (scene draw-call composition by geometry/material → names instance/merge targets)',
         '  hubs:    gotoHub(n) · showFootprints(on)   (teleport+frame nth-nearest hub; footprint/dancefloor overlay)',
-        '  trip:    tripScrub(p 0..1) hold the trip at a point on its timeline · tripScrub() release · tripAB(opts?) labelled perf A/B',
+        '  trip:    tripScrub(p 0..1) hold the trip at a point on its timeline · tripScrub() release',
+        '           tripAB(opts?) labelled perf A/B · tripMask(false) lift the low-tier luxury-effect mask',
         '  perf:    recordPerf(true|false) · perfLog() · chunkStages(reset?) · foodCourtVisual() · foodCourtCapture() · foodCourtLifecycle()',
         '           dumpPrograms({raw?})   (shader-program leak finder: groups renderer.info.programs by family + varying token)',
         '           capture(name?, data?)   (POST data to dev server -> .claude/captures/<name>.json; the browser->repo bridge, no copy/paste)',

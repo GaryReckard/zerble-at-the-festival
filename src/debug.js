@@ -1459,6 +1459,7 @@ function buildTripPanel() {
     { key: 'posterize',           label: 'Posterize'           },
     { key: 'vignettePulse',       label: 'Vignette pulse'      },
     { key: 'brightnessPulse',     label: 'Brightness pulse'    },
+    { key: 'melt',                label: 'Melt'                },
   ];
   for (const def of effectDefs) {
     el.appendChild(buildSliderRow(def.label, def.key, 0, 1, 0.01, Trip, 'effect'));

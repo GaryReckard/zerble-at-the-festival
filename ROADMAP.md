@@ -487,16 +487,13 @@ turn a capture into labelled windows, which the trip needs because
 `InfoCapturePass` records draws/tris *before* the trip pass and so the HUD
 budgets cannot see it. Full surface in [DEBUGGING.md](DEBUGGING.md).
 
-**Flagged for a real-GPU check:** under `bin/verify-headless` (SwiftShader,
-~2-5 fps) `AdaptiveQuality`'s `_statsCache` never populated across a 90-second
-run, so `fAvg`/`fP95`/`fMax` read as null in local captures — while driving
-`tick()` by hand populated it immediately, so the mechanism itself is sound.
-Almost certainly an artifact of the software rasterizer's frame rate versus the
-90-frame observation window, and the governor's documented rung transitions plus
-the perf-pass-4 `fMax: 9029ms` capture are both evidence it works on real
-hardware. **Confirm on a real GPU before trusting a local frame-time A/B** — if
-it reproduces there, it invalidates frame-time capture generally, not just for
-the trip.
+**Resolved 2026-09-02.** Frame stats read null under `bin/verify-headless`
+(SwiftShader, ~2-5 fps) because `AdaptiveQuality` needs 90 frames before it
+publishes, and the software rasterizer never gets there in a usable window.
+Gary confirmed `__debug.perfSnapshot().fAvg` = **16.7** on a real GPU after 30s
+parked, so frame-time capture is sound and only the headless harness is blind to
+it. Practical consequence: **frame-time A/Bs must be run in a real browser, not
+under `verify-headless`.**
 
 ### New trip visual effects — design backlog *(designed 2026-06-07)*
 
@@ -618,8 +615,14 @@ at come-down instead of breathing in.
 
 #### The effects (recommended build order — effort:impact ascending)
 
-**1. Melt — "the walls are melting."** *In-shader. Lowest effort, most
-on-theme — build first.* Sibling to the existing `uvRipple` / `lensDistortion`
+**1. Melt — "the walls are melting." — SHIPPED 2026-09-02** *(see CHANGELOG)*
+Built as variant (b), smooth 1D value noise, because the cheaper per-pixel hash
+of variant (a) reads as vertical tearing rather than melting. Ships masked off on
+`low` per the tier contract above. **Open follow-up: run the low-tier frame-time
+A/B** (real browser, `?perf=low`, `__dbg.tripMask(false)` then `__dbg.tripAB()`)
+and unmask it on low if it costs nothing. Original design notes below.
+
+*In-shader. Lowest effort, most on-theme — build first.* Sibling to the existing `uvRipple` / `lensDistortion`
 UV warps ([trip.js:70-83](src/trip.js#L70)): sample `tDiffuse` with a UV that
 **sags downward**, the sag growing as the trip deepens and varying per-column via
 noise, so the image droops like wet paint at different rates across its width.

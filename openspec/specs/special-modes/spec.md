@@ -41,8 +41,8 @@ program is cached. It SHALL NOT reassign any frozen module export
 
 ### Requirement: Trip post-process pass, gated at zero
 
-The trip SHALL be a custom `ShaderPass` (lens distortion, ripple, chromatic aberration,
-hue shift, saturation, posterize, brightness + vignette pulse) whose per-effect
+The trip SHALL be a custom `ShaderPass` (lens distortion, ripple, melt, chromatic
+aberration, hue shift, saturation, posterize, brightness + vignette pulse) whose per-effect
 intensities are scaled by a master `intensity` envelope. The envelope SHALL ramp in over
 `fadeIn`, sustain for `duration`, and fade out; T-menu sliders set each effect's base
 intensity. The pass SHALL be a no-op (and SHALL disable itself) at envelope 0 so it costs
@@ -53,6 +53,56 @@ nothing when inactive (`trip.js:1-166`; the `pass.enabled = envelope > 0.001` ga
 
 - **WHEN** the trip envelope is 0
 - **THEN** the ShaderPass is a no-op / disabled and adds no full-screen cost
+
+### Requirement: Luxury trip effects are tier-masked
+
+Trip effects added after the 2026-09-01 tier contract SHALL be a high/mid luxury: the
+`low` tier MUST NOT be more expensive than it was before the effect existed. Such an
+effect's key SHALL appear in `LOW_TIER_MASKED` (`trip.js`), which resolves once at
+`init()` against `PERF.name` and forces both the uniform and the `live` readout to 0 on
+low. A masked effect SHALL be unmaskable only through the debug surface
+(`Trip.maskEnabled` / `__dbg.tripMask(false)`) so its low-tier cost can be measured; it
+SHALL stay masked in shipping behaviour until a frame-time A/B on `?perf=low` shows no
+regression.
+
+#### Scenario: A luxury effect costs nothing on low
+
+- **WHEN** the trip runs on `?perf=low`
+- **THEN** every key in `LOW_TIER_MASKED` reports 0 in both its uniform and `Trip.live`
+
+### Requirement: Trip iteration harness
+
+The trip SHALL be inspectable at any point on its timeline without playing one through.
+`Trip.scrub(p)` (surfaced as `__dbg.tripScrub` and the T-menu scrub slider) SHALL pin the
+trip at progress `p`, force Dynamic mode, hold the envelope open, and bypass the state
+machine so no phase advances and no narration fires; `Trip.state` SHALL read `'scrub'` so
+a held window is distinguishable from an organic trip in perf telemetry. Passing `null`
+SHALL release the hold to `idle` with the pass disabled.
+
+Because `InfoCapturePass` records draws and triangles BEFORE the trip pass in the composer
+chain, the draw/tri budgets cannot observe the trip and frame time is the only responsive
+metric. Perf samples SHALL therefore carry a `phase` label (`__dbg.perfPhase`), and
+`perfPhaseSummary` SHALL average frame-time columns over populated samples only, reporting
+a `warmup` count — `AdaptiveQuality` publishes no frame stats until its 90-frame window
+fills, and averaging those zeros biases the earliest window (normally the baseline)
+optimistically.
+
+#### Scenario: Holding the trip at its climax
+
+- **WHEN** `__dbg.tripScrub(1/3)` is called
+- **THEN** the trip renders its climax indefinitely and `Trip.progress()` returns `1/3`
+
+### Requirement: One shared climax for picture and sound
+
+The trip's peak SHALL be defined once, as the exported `PEAK_CENTER` / `PEAK_WIDTH`
+constants in `trip.js`, consumed by the visual curves through `Trip._peak(p, width)` and by
+`midiPlayer.js`'s `peakBell`. No effect SHALL hardcode its own centre. An effect needing a
+sharper climax SHALL pass its own `width` while still sharing the centre.
+
+#### Scenario: Re-centring the climax moves picture and sound together
+
+- **WHEN** `PEAK_CENTER` changes
+- **THEN** the visual peak-gated curves and the audio crescendo both move with it
 
 ### Requirement: Wook dose offer flow
 

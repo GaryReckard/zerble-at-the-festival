@@ -21,6 +21,7 @@
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { Analytics } from './analytics.js';
 import { A11y } from './a11y.js';
+import { PERF } from './perf.js';
 
 // ---------- GLSL ----------
 
@@ -46,6 +47,7 @@ const fragmentShader = /* glsl */`
   uniform float posterize;
   uniform float vignettePulse;
   uniform float brightnessPulse;
+  uniform float melt;
 
   varying vec2 vUv;
 
@@ -83,7 +85,30 @@ const fragmentShader = /* glsl */`
       uv += sin(uv * 10.0 + time * 1.5) * ripStr * 0.02;
     }
 
-    // ---- 3. Chromatic aberration ----
+    // ---- 3. Melt — "the walls are melting" ----
+    // Sags the image downward by sampling from higher up, so the picture runs
+    // like wet paint. The sag rate varies across the width via smooth 1D value
+    // noise. A per-PIXEL hash was tried first and is wrong: neighbouring pixels
+    // get unrelated sag and the frame shreds into a fine vertical comb that
+    // reads as video tearing, not melting. Interpolating between adjacent
+    // column hashes gives wide, organic runs instead. The weight uses vUv, the
+    // untouched screen position, so lens distortion and ripple don't feed back
+    // into where it sags.
+    float meltStr = melt * intensity;
+    if (meltStr > 0.0) {
+      float mx = vUv.x * 14.0;
+      float mi = floor(mx);
+      float mf = mx - mi;
+      float h0 = fract(sin(mi * 12.9898) * 43758.5453);
+      float h1 = fract(sin((mi + 1.0) * 12.9898) * 43758.5453);
+      float drip = mix(h0, h1, mf * mf * (3.0 - 2.0 * mf));
+      float sag = (0.015 + 0.055 * drip) * (0.5 + 0.5 * sin(time * 0.3 + drip * 6.28));
+      // smoothstep(1,0,y) peaks at the BOTTOM of the frame (uv.y 0 is bottom),
+      // so the melt pools downward the way a real drip would.
+      uv.y += meltStr * sag * smoothstep(1.0, 0.0, vUv.y);
+    }
+
+    // ---- 4. Chromatic aberration ----
     float caStr = chromaticAberration * intensity;
     vec3 col;
     if (caStr > 0.001) {
@@ -97,7 +122,7 @@ const fragmentShader = /* glsl */`
       col = texture2D(tDiffuse, clamp(uv, 0.0, 1.0)).rgb;
     }
 
-    // ---- 4. Hue shift ----
+    // ---- 5. Hue shift ----
     float hsStr = hueShift * intensity;
     if (hsStr > 0.0) {
       vec3 hsv = rgb2hsv(col);
@@ -105,7 +130,7 @@ const fragmentShader = /* glsl */`
       col = hsv2rgb(hsv);
     }
 
-    // ---- 5. Saturation boost ----
+    // ---- 6. Saturation boost ----
     float satStr = saturation * intensity;
     if (satStr > 0.0) {
       vec3 hsv = rgb2hsv(col);
@@ -113,20 +138,20 @@ const fragmentShader = /* glsl */`
       col = hsv2rgb(hsv);
     }
 
-    // ---- 6. Posterize ----
+    // ---- 7. Posterize ----
     float postStr = posterize * intensity;
     if (postStr > 0.001) {
       float levels = mix(256.0, 5.0, postStr);
       col = floor(col * levels) / levels;
     }
 
-    // ---- 7. Brightness pulse ----
+    // ---- 8. Brightness pulse ----
     float bpStr = brightnessPulse * intensity;
     if (bpStr > 0.0) {
       col *= 1.0 + bpStr * 0.3 * sin(time * 1.2);
     }
 
-    // ---- 8. Vignette pulse ----
+    // ---- 9. Vignette pulse ----
     float vpStr = vignettePulse * intensity;
     if (vpStr > 0.0) {
       vec2 vigUv = vUv - 0.5;
@@ -146,7 +171,15 @@ const fragmentShader = /* glsl */`
 const EFFECT_KEYS = [
   'hueShift', 'saturation', 'uvRipple', 'chromaticAberration',
   'lensDistortion', 'posterize', 'vignettePulse', 'brightnessPulse',
+  'melt',
 ];
+
+// Effects added after the 2026-09-01 tier contract are a high/mid luxury: the
+// `low` tier must never be worse than it was before they existed (ROADMAP,
+// "Tier contract for new trip effects"). A new effect stays masked to 0 on low
+// until a frame-time A/B on ?perf=low shows it costs nothing there. Flip
+// `Trip.maskEnabled = false` (or __dbg.tripMask(false)) to run that A/B.
+const LOW_TIER_MASKED = new Set(['melt']);
 
 // The trip's climax. Every peak-gated curve — visual here, audio in
 // midiPlayer.js — references these two numbers, so re-centering the whole
@@ -168,6 +201,7 @@ export const Trip = {
     posterize:            0.0,
     vignettePulse:        0.3,
     brightnessPulse:      0.3,
+    melt:                 0.35,
   },
 
   // Timing / proximity settings
@@ -210,6 +244,8 @@ export const Trip = {
   _fadeOutFrom:     1,        // envelope value at the moment we entered fading_out
   _tripElapsed:     0,        // seconds since trip start (cleared in idle/cooldown)
   _scrubP:          null,     // debug hold: when non-null, trip is frozen at this progress
+  _masked:          null,     // effect keys forced to 0 on this tier (see LOW_TIER_MASKED)
+  maskEnabled:      true,     // debug: false lifts the tier mask so it can be measured
   _tripSource:      null,     // analytics: start path ('wook_accept'|'manual_static'|'manual_dynamic')
   _timeAccum:       0,
   _nearestWookDist: Infinity,
@@ -218,11 +254,16 @@ export const Trip = {
   live: {
     hueShift: 0, saturation: 0, uvRipple: 0, chromaticAberration: 0,
     lensDistortion: 0, posterize: 0, vignettePulse: 0, brightnessPulse: 0,
+    melt: 0,
   },
 
   init() {
     const uniforms = { tDiffuse: { value: null }, time: { value: 0.0 }, intensity: { value: 0.0 } };
     for (const k of EFFECT_KEYS) uniforms[k] = { value: 0.0 };
+
+    // Resolve the tier mask once. PERF is fixed for the session (perf.js reads
+    // the override + detection at module load), so this never needs re-checking.
+    this._masked = PERF.name === 'low' ? LOW_TIER_MASKED : new Set();
 
     this.pass = new ShaderPass({ uniforms, vertexShader, fragmentShader });
     this.pass.renderToScreen = false;
@@ -359,16 +400,19 @@ export const Trip = {
         hueShift: 0.4, saturation: 0.4, uvRipple: 0,
         chromaticAberration: 0, lensDistortion: 0,
         posterize: 0, vignettePulse: 0.3, brightnessPulse: 0.2,
+        melt: 0,
       },
       standard: {
         hueShift: 0.5, saturation: 0.4, uvRipple: 0.5,
         chromaticAberration: 0.4, lensDistortion: 0.4,
         posterize: 0, vignettePulse: 0.3, brightnessPulse: 0.3,
+        melt: 0.35,
       },
       full: {
         hueShift: 0.6, saturation: 0.6, uvRipple: 0.6,
         chromaticAberration: 0.6, lensDistortion: 0.6,
         posterize: 0.4, vignettePulse: 0.6, brightnessPulse: 0.6,
+        melt: 0.6,
       },
     };
     const p = presets[name] || presets.standard;
@@ -376,13 +420,19 @@ export const Trip = {
     if (!this.dynamic) this._pushConfigToUniforms();
   },
 
+  // True when `key` is held at 0 on this tier by the luxury-effect contract.
+  _maskedNow(key) {
+    return this.maskEnabled && this._masked !== null && this._masked.has(key);
+  },
+
   _pushConfigToUniforms() {
     if (!this.pass) return;
     const u = this.pass.uniforms;
     for (const k of EFFECT_KEYS) {
       if (u[k] !== undefined) {
-        u[k].value = this.config[k];
-        this.live[k] = this.config[k];
+        const v = this._maskedNow(k) ? 0 : this.config[k];
+        u[k].value = v;
+        this.live[k] = v;
       }
     }
   },
@@ -480,9 +530,24 @@ export const Trip = {
     const spike = 0.85 * this._peak(p, 0.03);
     live.posterize = Math.min(0.9, meander + spike);
 
-    // Push to uniforms
+    // 9. Melt — accumulates as the trip goes on, so the world liquefies rather
+    //    than flickering: a slow ramp that is still most of the way up late in
+    //    the trip, plus a bump at the shared climax. Both ends taper to 0 so it
+    //    breathes in at fade-in and drains away over the come-down instead of
+    //    popping on and off (the seam rule the CA burst comment describes). The
+    //    per-column phase in the shader keeps it alive throughout; what
+    //    crescendos here is only the magnitude.
+    const meltHead = this._easeInOutCubic(this._clamp01(p * 10));
+    const meltRamp = this._easeInOutCubic(Math.min(1, p * 1.4));
+    const meltTail = this._easeInOutCubic(this._clamp01((1 - p) * 6));
+    live.melt = this._clamp01((0.6 * meltRamp + 0.4 * this._peak(p)) * meltHead * meltTail);
+
+    // Push to uniforms. A tier-masked effect is zeroed in `live` too, not just
+    // in the uniform, so the T panel's live readout tells the truth about what
+    // is actually rendering on this tier.
     const u = this.pass.uniforms;
     for (const k of EFFECT_KEYS) {
+      if (this._maskedNow(k)) live[k] = 0;
       if (u[k] !== undefined) u[k].value = live[k];
     }
   },
