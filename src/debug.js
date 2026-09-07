@@ -1461,6 +1461,19 @@ function buildTripPanel() {
     { key: 'brightnessPulse',     label: 'Brightness pulse'    },
     { key: 'melt',                label: 'Melt'                },
   ];
+  // Dragging an effect slider pins it; this hands every one back to its curve.
+  const releaseBtn = document.createElement('button');
+  releaseBtn.textContent = 'RELEASE TO CURVES';
+  Object.assign(releaseBtn.style, {
+    width: '100%', font: 'inherit', padding: '3px 4px', cursor: 'pointer',
+    background: 'rgba(255,224,102,0.12)', color: '#ffe066',
+    border: '1px solid rgba(255,224,102,0.35)', borderRadius: '4px',
+    marginBottom: '6px',
+  });
+  releaseBtn.title = 'Give every effect back to its scripted Dynamic-mode timeline';
+  releaseBtn.addEventListener('click', () => Trip.clearOverrides());
+  el.appendChild(releaseBtn);
+
   for (const def of effectDefs) {
     el.appendChild(buildSliderRow(def.label, def.key, 0, 1, 0.01, Trip, 'effect'));
   }
@@ -1510,9 +1523,13 @@ function buildSliderRow(label, key, min, max, step, Trip, group) {
     const v = parseFloat(input.value);
     target[key] = v;
     readout.textContent = v.toFixed(step < 0.1 ? 2 : 1);
+    // Touching an effect slider takes that effect off its scripted curve and
+    // puts it under the slider, so the drag actually does something mid-trip
+    // instead of being overwritten by the next frame's curve value.
+    if (group === 'effect') Trip.overrideEffect(key, true);
   });
 
-  state.tripSliders[key] = { input, readout };
+  state.tripSliders[key] = { input, readout, lbl, group, baseLabel: label };
   return row;
 }
 
@@ -1537,15 +1554,27 @@ function updateTripPanel() {
   }
 
   // While Dynamic mode is driving a trip, mirror the live values into the
-  // sliders so the user can SEE the scripted timeline animating.
-  if (Trip.dynamic && Trip.isActive() && Trip.live) {
-    for (const [key, s] of Object.entries(state.tripSliders)) {
-      if (key in Trip.live) {
-        const v = Trip.live[key];
-        s.input.value = v;
-        s.readout.textContent = v.toFixed(2);
-      }
+  // sliders so the user can SEE the scripted timeline animating — but never
+  // into a slider the user has taken manual control of, or the drag would be
+  // overwritten on the very next frame (which is what made these look broken
+  // mid-trip in the first place).
+  const mirroring = Trip.dynamic && Trip.isActive() && Trip.live;
+  for (const [key, s] of Object.entries(state.tripSliders)) {
+    if (s.group !== 'effect') continue;
+    const overridden = Trip.isOverridden ? Trip.isOverridden(key) : false;
+    const masked = Trip._maskedNow ? Trip._maskedNow(key) : false;
+    if (mirroring && !overridden && (key in Trip.live)) {
+      const v = Trip.live[key];
+      s.input.value = v;
+      s.readout.textContent = v.toFixed(2);
     }
+    // Say plainly which effects are not being driven by their curve, and which
+    // this tier is refusing to render at all.
+    const suffix = masked ? '  (low: off)' : overridden ? '  (manual)' : '';
+    if (s.lbl.textContent !== s.baseLabel + suffix) s.lbl.textContent = s.baseLabel + suffix;
+    const colour = masked ? '#f88' : overridden ? '#ffe066' : 'inherit';
+    if (s.lbl.style.color !== colour) s.lbl.style.color = colour;
+    s.lbl.style.opacity = masked ? '0.75' : '0.85';
   }
 }
 

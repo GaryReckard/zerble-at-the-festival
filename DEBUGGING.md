@@ -135,6 +135,14 @@ seconds and in minutes.
 | `tripScrub()` | Release the hold and return the trip to `idle` (pass disabled). |
 | `tripAB(opts?)` | Scripted, **labelled** perf A/B for the trip pass. Walks the recorder through `warmup → baseline → fade-in → active → peak → after`, holding the cart still and changing nothing else, then prints the per-phase table. Opts: `{baselineS, fadeS, activeS, peakS, afterS}`. |
 
+**Tuning an effect while the trip runs.** Dynamic mode's scripted curves own
+every effect uniform, so dragging an effect slider used to do nothing. Touching
+one now takes that effect off its curve and puts it under the slider — the label
+reads `(manual)` — while everything else keeps animating. **RELEASE TO CURVES**
+(or any preset button) hands them all back. A slider labelled `(low: off)` is
+held at 0 by the tier contract and will not render on this tier no matter where
+you drag it; use `__dbg.tripMask(false)` to lift that for measurement.
+
 The same scrub lives in the **T menu** as a slider plus `Early` / `Peak` /
 `Late` / `Release` jump buttons; `Peak` reads `PEAK_CENTER` from `trip.js`, the
 one constant that also centres the MIDI player's audio crescendo, so picture and

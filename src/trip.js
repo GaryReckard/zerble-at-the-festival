@@ -245,6 +245,7 @@ export const Trip = {
   _tripElapsed:     0,        // seconds since trip start (cleared in idle/cooldown)
   _scrubP:          null,     // debug hold: when non-null, trip is frozen at this progress
   _masked:          null,     // effect keys forced to 0 on this tier (see LOW_TIER_MASKED)
+  _overrides:       null,     // effect keys the T-menu sliders have taken manual control of
   maskEnabled:      true,     // debug: false lifts the tier mask so it can be measured
   _tripSource:      null,     // analytics: start path ('wook_accept'|'manual_static'|'manual_dynamic')
   _timeAccum:       0,
@@ -264,6 +265,7 @@ export const Trip = {
     // Resolve the tier mask once. PERF is fixed for the session (perf.js reads
     // the override + detection at module load), so this never needs re-checking.
     this._masked = PERF.name === 'low' ? LOW_TIER_MASKED : new Set();
+    this._overrides = new Set();
 
     this.pass = new ShaderPass({ uniforms, vertexShader, fragmentShader });
     this.pass.renderToScreen = false;
@@ -417,7 +419,36 @@ export const Trip = {
     };
     const p = presets[name] || presets.standard;
     Object.assign(this.config, p);
+    // Picking a preset means "use these values", which only has meaning if the
+    // curves are driving again — otherwise a stale override would pin one
+    // effect to whatever the last drag left behind.
+    this.clearOverrides();
     if (!this.dynamic) this._pushConfigToUniforms();
+  },
+
+  // Hand one effect to the T-menu slider, or give it back to its scripted curve.
+  //
+  // Dynamic mode's curves own every effect uniform, which used to make the
+  // effect sliders inert mid-trip in two ways at once: the panel mirrored the
+  // live curve value back into the slider every frame (stomping the drag), and
+  // even a surviving drag only wrote `config`, which Dynamic mode ignores. So
+  // the sliders looked broken exactly when you most want them — parked on a
+  // scrub hold, tuning one effect's magnitude. An overridden key now reads its
+  // value from `config` instead of its curve, so the slider drives it directly
+  // while every other effect keeps animating.
+  overrideEffect(key, on = true) {
+    if (!this._overrides) this._overrides = new Set();
+    if (on) this._overrides.add(key); else this._overrides.delete(key);
+    return this._overrides.has(key);
+  },
+
+  isOverridden(key) {
+    return this._overrides !== null && this._overrides.has(key);
+  },
+
+  // Hand every effect back to its scripted curve.
+  clearOverrides() {
+    if (this._overrides) this._overrides.clear();
   },
 
   // True when `key` is held at 0 on this tier by the luxury-effect contract.
@@ -541,6 +572,15 @@ export const Trip = {
     const meltRamp = this._easeInOutCubic(Math.min(1, p * 1.4));
     const meltTail = this._easeInOutCubic(this._clamp01((1 - p) * 6));
     live.melt = this._clamp01((0.6 * meltRamp + 0.4 * this._peak(p)) * meltHead * meltTail);
+
+    // A slider that has taken manual control wins over its curve. Applied here,
+    // after every curve has been computed, so releasing the override drops the
+    // effect straight back onto its timeline with no discontinuity.
+    if (this._overrides && this._overrides.size) {
+      for (const k of this._overrides) {
+        if (k in live) live[k] = this.config[k];
+      }
+    }
 
     // Push to uniforms. A tier-masked effect is zeroed in `live` too, not just
     // in the uniform, so the T panel's live readout tells the truth about what

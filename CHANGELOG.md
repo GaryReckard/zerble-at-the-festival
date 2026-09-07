@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-09-07
+
+### Fixed
+- **The T menu's effect sliders were inert during a trip — the exact moment you want them.** Gary: "the sliders for things like melt and such are not movable when I am in a trip." Broken two ways at once, and the scrub hold shipped on 2026-09-02 made it acute, because that feature's whole purpose is to park on a held trip and tune one effect. First, the panel mirrors the live curve values into the sliders each frame so you can watch the timeline animate, which overwrote any drag on the very next frame. Second, even a drag that survived only wrote `Trip.config`, which Dynamic mode ignores outright since its scripted curves own the uniforms. Touching an effect slider now takes that effect **off its curve and puts it under the slider**, so the drag drives what actually renders while every other effect keeps animating; the mirror skips overridden sliders instead of fighting them. The label marks the state so nothing is mysterious — `(manual)` in yellow for an overridden effect, `(low: off)` in red for one this tier is refusing to render at all — and a **RELEASE TO CURVES** button (or picking any preset) hands everything back, dropping each effect straight onto its timeline with no discontinuity. Verified mid-trip: dragging Melt to 0.90 pins the uniform at 0.90 and holds it across a scrub from p=1/3 to p=0.55 while hue shift keeps moving, then releasing returns it to its curve value. ([trip.js](src/trip.js), [debug.js](src/debug.js))
+
 ## 2026-09-02
 
 ### Added

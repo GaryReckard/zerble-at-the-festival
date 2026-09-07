@@ -87,6 +87,17 @@ a `warmup` count — `AdaptiveQuality` publishes no frame stats until its 90-fra
 fills, and averaging those zeros biases the earliest window (normally the baseline)
 optimistically.
 
+While Dynamic mode drives a trip, the T-menu effect sliders SHALL remain usable: touching
+one SHALL take that effect off its curve and drive it from `Trip.config`
+(`Trip.overrideEffect`), and the panel's live-value mirror SHALL NOT write to an
+overridden slider. `Trip.clearOverrides()` (and any preset) SHALL return every effect to
+its curve.
+
+#### Scenario: Tuning one effect mid-trip
+
+- **WHEN** an effect slider is dragged during a Dynamic-mode trip
+- **THEN** that effect renders the slider's value while every other effect keeps animating
+
 #### Scenario: Holding the trip at its climax
 
 - **WHEN** `__dbg.tripScrub(1/3)` is called
