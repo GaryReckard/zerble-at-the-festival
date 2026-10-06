@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-05
+
+### Fixed
+- **The title card's pixel font had no letters in it, so ZERBLE, the mode names, and the start button all rendered in Courier.** When the font was vendored on 2026-08-30 (adversarial audit A9), the file saved as the "latin subset" was Google Fonts' cyrillic-ext slice, which is the first `@font-face` block in Google's css2 response (the latin block comes last). That slice holds Cyrillic glyphs plus a space and a non-breaking space, so the browser reported the face as loaded and then fell back to `'Courier New'` for every Latin character on the card. [press-start-2p.woff2](assets/fonts/press-start-2p.woff2) is now the latin slice (4.7KB, down from 6.7KB), and the `@font-face` in [styles.css](styles.css) carries that slice's `unicode-range` along with a comment about Google's slice order, so the next re-vendor grabs the right block. A canvas measurement on the title card confirms it: all 95 printable ASCII glyphs now measure exactly 16px at 16px, where before the fix only the space did. Press Start 2P runs about 1em per glyph against Courier's 0.6em, and every title-card tweak since 2026-08-30 was tuned against the fallback, so the card was re-checked at 320×568 and 375×812 and in the 812×375 landscape worst case (How to play page included). Nothing overflows or scrolls at any of those sizes, and the real start tap still boots the world without errors.
+
 ## 2026-09-07
 
 ### Fixed
