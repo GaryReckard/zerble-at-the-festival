@@ -849,14 +849,18 @@ ARCHITECTURE.md "Far-field horizon" and
 `openspec/changes/festival-horizon/verification/gates-flag-on.md`. What
 remains parked here:
 
-* **Correct near/far identity before tuning the transition.** Astra's
+* **Finish near/far identity before tuning the transition.** Astra's
   [2026-10-08 far-field review](.codex/reviews/002-far-field-fidelity/review-summary.md)
   compares the fixed-camera hub and identifies stage, marquee, vendor-tent,
-  tree, placement, handoff, and lighting mismatches. Share building descriptors
-  and authoritative cluster placements first, add species-shaped tree crowns
-  at real positions next, and tune the ready-gated near/far handoff and lighting
-  after that. Add an exclusive fixed-camera near/far viewer and tests against
-  shared descriptions. Keep the existing batched rendering and tier budgets.
+  tree, placement, handoff, and lighting mismatches. The stage, marquee, and
+  vendor roof shapes now share defining dimensions and colors with their real
+  models; vendor-row candidates share a placement function, and the hub viewer
+  has exclusive real/proxy modes and a fixed-camera toggle. Remaining: align
+  campsite placement and forest trees with authoritative near-world positions
+  without changing worldgen RNG or live-registry exclusions; then tune the
+  ready-gated near/far overlap and lighting at Noon and Midnight. Keep the
+  existing batched rendering and tier budgets, and capture fixed-camera
+  comparisons plus a fresh GPU benchmark before calling the visual gate done.
 
 * **Later refinements considered and parked:** baked multi-angle billboard
   atlases (asset-baking workflow + texture memory + alpha sorting), far-field
@@ -872,15 +876,14 @@ ceiling rather than an automatic perf win.
 
 - **PINNED: `?perf=low` shows a multi-second freeze that is NOT draws/tris.** *(pinned 2026-06-21 — come back to)* A low-tier capture caught **`fMax: 9029ms`** — a single ~9-second frozen frame — at fps 22, while per-chunk gen (`cgWorst`) was only ~198ms. So the freeze is something bigger and rarer than chunk generation: most likely a mid-play **shader-program compile** (the GPU stalling to build a program) or a **GC pause**. Same class as the "Game goes unresponsive" item in `## Bugs`, and squarely in this pass's Slice 2/3 territory (shader prewarm / time-sliced chunk gen). **To diagnose, need a "caught in the act" capture:** `__dbg.recordPerf(true)`, drive on `?perf=low` until it hitches, `__dbg.capture()` — then check whether `prog` (shader count) jumped at the freeze (→ shader stall) or `heapMB` did (→ GC). Cross-ref `openspec/changes/perf-pass-4/`.
 
-- **Fix the capture reliability gate before using guided results.** Astra's
+- **Validate the repaired capture workflow on desktop and iPhone.** Astra's
   [review of `c86f5de`](.codex/reviews/001-c86f5de-perf-fixes/review-summary.md)
   reproduced one P1 upload race and six P2/P3 capture or chunk-admission
   defects. The complete work order and source locations are in
   [.claude/rules/performance.md](.claude/rules/performance.md#2026-10-08-review-of-commit-c86f5de-capture-reliability-gate).
-  Fix final upload serialization and acknowledgement, phase ownership and
-  Trip-clock alignment, free-capture resume, immutable retry metadata,
-  cross-phase quality checks, and empty-residency chunk admission. Add targeted
-  lifecycle tests and rerun project checks before interpreting guided reports.
+  All seven fixes and targeted regressions now pass `npm run check`, and the
+  main game boots on low and high tiers. Real device captures remain necessary
+  before interpreting performance or closing this gate.
 
 - **Run desktop and real-iPhone Wook Trip and driving captures after the reliability gate.** The guided one-tap
   scenarios now exist: `bin/playtest-perf trip` performs the parked

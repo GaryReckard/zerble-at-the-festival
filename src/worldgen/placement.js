@@ -20,6 +20,7 @@
 
 import { festivalPlan, campVillagesNear, MAX_POI_REACH } from './festival.js';
 import { heartsInBounds } from './hearts.js';
+import { FESTIVAL_TUNING } from './tuning.js';
 
 // THE owner-cell rule — the one source of truth for "which 80m chunk owns a
 // world position" (festival-horizon D4/V5; the half-open comment below).
@@ -31,6 +32,25 @@ import { heartsInBounds } from './hearts.js';
 // player cell, farField ownership) must go through this — never re-derive.
 export function ownerCellCoord(v, chunkSize = 80) {
   return Math.round(v / chunkSize) + 0;   // + 0 folds Math.round's -0 into 0
+}
+
+// The ordered candidate slots consumed by both the real vendor builder and
+// the far silhouette. Acceptance still belongs to the real builder because
+// water, roads, and already-built colliders can remove individual booths.
+export function vendorRowSlots(x, z, yaw, count, tuning = FESTIVAL_TUNING) {
+  const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+  const slots = [];
+  for (let i = 0; i < count; i++) {
+    const t = i - (count - 1) / 2;
+    for (const side of [-1, 1]) {
+      const lx = side * tuning.VENDOR_ROW_OFFSET;
+      const lz = t * tuning.VENDOR_ROW_SPACING;
+      slots.push({ i, side, t,
+        x: x + lx * cosY + lz * sinY,
+        z: z - lx * sinY + lz * cosY });
+    }
+  }
+  return slots;
 }
 
 export function placeChunkProps(cx, cz, chunkSize = 80, region = null) {

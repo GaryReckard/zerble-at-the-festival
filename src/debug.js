@@ -20,7 +20,7 @@ import { FESTIVAL_TUNING } from './worldgen/tuning.js';
 import { getSessionSeed } from './rng.js';
 import { PEAK_CENTER } from './trip.js';
 import { chunkGenStats } from './chunks.js';
-import { FrameTelemetry, PLAYTEST_SCENARIOS, phaseForElapsed } from './perfTelemetry.js';
+import { FrameTelemetry, PLAYTEST_SCENARIOS } from './perfTelemetry.js';
 import { readRenderPipelineSize } from './renderSizing.js';
 import {
   getFrameStats, getLevelName, getLevelNames, getLevelCount,
@@ -106,7 +106,8 @@ const state = {
   deviceCaptureName: '',
   deviceCaptureEl: null,
   deviceCaptureTimer: 0,
-  deviceCaptureUploading: false,
+  deviceCaptureUploadQueue: Promise.resolve(),
+  deviceCaptureFinalReport: null,
   deviceCaptureLastUploadAt: 0,
   deviceCaptureLastAttemptAt: 0,
   deviceCaptureFinished: false,
@@ -114,6 +115,8 @@ const state = {
   deviceCapturePausedMs: 0,
   deviceCaptureHiddenAt: 0,
   deviceCapturePhaseIndex: -1,
+  deviceCapturePhaseStartedS: 0,
+  deviceCaptureInvalid: false,
   deviceCapturePhaseEvents: [],
   deviceCaptureMarks: [],
   deviceCaptureVisibility: [],
@@ -1984,17 +1987,21 @@ function updateDeviceCaptureControl(message) {
     return;
   }
   if (state.deviceCaptureFinished) {
-    el.textContent = state.deviceCaptureResult === 'sent'
-      ? 'PERF · SAVED ✓ You can close this tab.'
+    el.textContent = state.deviceCaptureResult === 'pending'
+      ? 'PERF · SENDING FINAL REPORT…'
+      : state.deviceCaptureResult === 'sent'
+      ? (state.deviceCaptureInvalid ? 'PERF · SAVED, BUT INTERRUPTED. Please rerun.' : 'PERF · SAVED ✓ You can close this tab.')
       : 'PERF · SEND FAILED. Tap SEND to retry.';
     return;
   }
   const seconds = Math.max(0, Math.round((Date.now() - state.deviceCaptureStartedAt) / 1000));
   const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
   const ss = String(seconds % 60).padStart(2, '0');
-  const phase = DEVICE_SCENARIO ? phaseForElapsed(DEVICE_SCENARIO, captureElapsedSeconds()) : null;
+  const phase = DEVICE_SCENARIO && state.deviceCapturePhaseIndex >= 0
+    ? PLAYTEST_SCENARIOS[DEVICE_SCENARIO][state.deviceCapturePhaseIndex] : null;
+  const remaining = phase ? Math.max(0, Math.ceil(phase.seconds - (captureElapsedSeconds() - state.deviceCapturePhaseStartedS))) : 0;
   el.textContent = phase
-    ? `● ${phase.id.toUpperCase()} · ${phase.remaining}s left. ${phase.instruction}`
+    ? `● ${phase.id.toUpperCase()} · ${remaining}s left. ${phase.instruction}`
     : `● REC ${mm}:${ss}. Drive normally; tap FELT LAG when it stutters.`;
 }
 
@@ -2009,9 +2016,13 @@ function startDeviceCapture() {
   state.deviceCaptureLastAttemptAt = Date.now();
   state.deviceCaptureFinished = false;
   state.deviceCaptureResult = '';
+  state.deviceCaptureUploadQueue = Promise.resolve();
+  state.deviceCaptureFinalReport = null;
   state.deviceCapturePausedMs = 0;
   state.deviceCaptureHiddenAt = 0;
   state.deviceCapturePhaseIndex = -1;
+  state.deviceCapturePhaseStartedS = 0;
+  state.deviceCaptureInvalid = false;
   state.deviceCapturePhaseEvents = [];
   state.deviceCaptureMarks = [];
   state.deviceCaptureVisibility = [];
@@ -2051,7 +2062,11 @@ function captureVisibilityChange() {
   else if (state.deviceCaptureHiddenAt) {
     state.deviceCapturePausedMs += now - state.deviceCaptureHiddenAt;
     state.deviceCaptureHiddenAt = 0;
-    advanceDeviceScenario();
+    if (DEVICE_SCENARIO === 'trip') {
+      state.deviceCaptureInvalid = true;
+      state.deviceCaptureErrors.push({ ts: now, message: 'Trip comparison interrupted by tab visibility; rerun with the tab in the foreground', file: '', line: 0 });
+      finishDeviceScenario();
+    } else if (DEVICE_SCENARIO) advanceDeviceScenario();
   }
 }
 
@@ -2070,12 +2085,29 @@ function markDeviceLag() {
 }
 
 function advanceDeviceScenario() {
-  if (document.hidden || state.deviceCaptureFinished) return;
-  const phase = phaseForElapsed(DEVICE_SCENARIO, captureElapsedSeconds());
-  if (!phase) { finishDeviceScenario(); return; }
-  if (phase.index === state.deviceCapturePhaseIndex) return;
+  if (!DEVICE_SCENARIO || document.hidden || state.deviceCaptureFinished) return;
+  const phases = PLAYTEST_SCENARIOS[DEVICE_SCENARIO];
   const previous = state.deviceCapturePhaseIndex;
-  state.deviceCapturePhaseIndex = phase.index;
+  if (previous >= 0) {
+    const outgoing = phases[previous];
+    if (captureElapsedSeconds() - state.deviceCapturePhaseStartedS < outgoing.seconds) return;
+    const tripState = state.hooks?.Trip?.state;
+    if (DEVICE_SCENARIO === 'trip' && outgoing.id === 'fade-in') {
+      if (tripState === 'fading_in') return;
+      if (tripState !== 'sustaining') {
+        state.deviceCaptureInvalid = true;
+        state.deviceCaptureErrors.push({ ts: Date.now(), message: `Trip left fade-in in unexpected state: ${tripState}`, file: '', line: 0 });
+        finishDeviceScenario();
+        return;
+      }
+    }
+  }
+  const next = previous + 1;
+  if (next >= phases.length) { finishDeviceScenario(); return; }
+  if (previous >= 0) samplePerf(true);
+  const phase = phases[next];
+  state.deviceCapturePhaseIndex = next;
+  state.deviceCapturePhaseStartedS = captureElapsedSeconds();
   state.perfPhase = phase.id;
   state.deviceCapturePhaseEvents.push({ ts: Date.now(), phase: phase.id, elapsedS: Math.round(captureElapsedSeconds() * 10) / 10 });
   const trip = state.hooks?.Trip;
@@ -2088,9 +2120,6 @@ function advanceDeviceScenario() {
     if (phase.id === 'peak') trip?.scrub(PEAK_CENTER);
     if (phase.id === 'after') trip?.scrub(null);
   }
-  if (previous >= 0 && phase.index > previous + 1) {
-    state.deviceCaptureErrors.push({ ts: Date.now(), message: `scenario skipped ${phase.index - previous - 1} phase(s) after a stall`, file: '', line: 0 });
-  }
   updateDeviceCaptureControl();
 }
 
@@ -2098,14 +2127,16 @@ function finishDeviceScenario() {
   if (state.deviceCaptureFinished) return;
   samplePerf(true);
   state.deviceCaptureFinished = true;
+  state.deviceCaptureResult = 'pending';
   state.perfPhase = '';
   state.deviceCapturePhaseEvents.push({ ts: Date.now(), phase: 'complete', elapsedS: Math.round(captureElapsedSeconds() * 10) / 10 });
   if (DEVICE_SCENARIO === 'trip') {
     state.hooks?.Trip?.scrub(null);
   }
-  if (state.deviceCaptureQualityLocked) aqSetEnabled(state.deviceCaptureQualityWasEnabled);
   setPerfRecording(false);
   window.clearInterval(state.deviceCaptureTimer);
+  state.deviceCaptureFinalReport = buildDeviceCaptureReport('complete');
+  if (state.deviceCaptureQualityLocked) aqSetEnabled(state.deviceCaptureQualityWasEnabled);
   uploadDeviceCapture('complete', false);
 }
 
@@ -2193,37 +2224,41 @@ async function uploadDeviceCapture(reason, useBeacon) {
   if (!state.deviceCaptureStarted) return false;
   if (state.deviceCaptureFinished && reason === 'manual') reason = 'complete';
   const final = reason === 'pagehide';
-  const report = buildDeviceCaptureReport(reason, final ? 25 : null);
+  const report = reason === 'complete' && state.deviceCaptureFinalReport
+    ? state.deviceCaptureFinalReport : buildDeviceCaptureReport(reason, final ? 25 : null);
   const body = JSON.stringify(report);
   if (useBeacon && navigator.sendBeacon) {
     return navigator.sendBeacon(deviceCaptureUrl(true), new Blob([body], { type: 'application/json' }));
   }
-  if (state.deviceCaptureUploading) await state.deviceCaptureUploadPromise.catch(() => {});
-  state.deviceCaptureUploading = true;
   state.deviceCaptureLastAttemptAt = Date.now();
-  updateDeviceCaptureControl('PERF · SENDING…');
-  try {
-    state.deviceCaptureUploadPromise = fetch(deviceCaptureUrl(false), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    });
-    const response = await state.deviceCaptureUploadPromise;
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    state.deviceCaptureLastUploadAt = Date.now();
-    if (state.deviceCaptureFinished) state.deviceCaptureResult = 'sent';
-    updateDeviceCaptureControl('PERF · SENT ✓');
-    window.setTimeout(() => updateDeviceCaptureControl(), 1500);
-    return true;
-  } catch (error) {
-    console.error('[devicePerfCapture] upload failed', error);
-    if (state.deviceCaptureFinished) state.deviceCaptureResult = 'failed';
-    updateDeviceCaptureControl('PERF · SEND FAILED');
-    window.setTimeout(() => updateDeviceCaptureControl(), 3000);
-    return false;
-  } finally {
-    state.deviceCaptureUploading = false;
-  }
+  const upload = state.deviceCaptureUploadQueue.then(async () => {
+    if (reason === 'complete' || !state.deviceCaptureFinished) updateDeviceCaptureControl('PERF · SENDING…');
+    try {
+      const response = await fetch(deviceCaptureUrl(false), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      state.deviceCaptureLastUploadAt = Date.now();
+      if (reason === 'complete') state.deviceCaptureResult = 'sent';
+      if (reason === 'complete' || !state.deviceCaptureFinished) {
+        updateDeviceCaptureControl(reason === 'complete' ? undefined : 'PERF · SENT ✓');
+        if (reason !== 'complete') window.setTimeout(() => updateDeviceCaptureControl(), 1500);
+      }
+      return true;
+    } catch (error) {
+      console.error('[devicePerfCapture] upload failed', error);
+      if (reason === 'complete') state.deviceCaptureResult = 'failed';
+      if (reason === 'complete' || !state.deviceCaptureFinished) {
+        updateDeviceCaptureControl('PERF · SEND FAILED');
+        window.setTimeout(() => updateDeviceCaptureControl(), 3000);
+      }
+      return false;
+    }
+  });
+  state.deviceCaptureUploadQueue = upload;
+  return upload;
 }
 
 function renderPerfStatus() {

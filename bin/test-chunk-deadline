@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { ownerCellCoord } from '../src/worldgen/placement.js';
+
+const source = readFileSync(new URL('../src/chunks.js', import.meta.url), 'utf8');
+const method = source.slice(source.indexOf('  update(playerPos, streamDeadlineMs = null) {'), source.indexOf('\n  _unload(key, chunk) {'));
+assert(method.startsWith('  update(playerPos, streamDeadlineMs = null) {'));
+const update = vm.runInNewContext(`({${method}}).update`, {
+  ownerCellCoord, CHUNK_SIZE: 80, LOAD_RADIUS: 2, UNLOAD_RADIUS: 3,
+  chunkKey: (cx, cz) => `${cx},${cz}`, PERF: { chunkBudgetMs: 5 },
+  performance, CHUNK_DEBUG: false,
+  chunkGenStats: { count: 0, _totalMs: 0, lastMs: 0, slowest: 0, slowCount: 0 },
+  SLOW_THRESHOLD_MS: 8,
+});
+
+function manager() {
+  const instance = { loaded: new Map(), _initialPreloadDone: false, update };
+  instance._generate = (cx, cz) => {
+    instance.loaded.set(`${cx},${cz}`, { cx, cz });
+    instance.generated.push([cx, cz]);
+  };
+  instance._unload = (key) => instance.loaded.delete(key);
+  instance.generated = [];
+  return instance;
+}
+
+const boot = manager();
+boot.update({ x: 0, z: 0 }, -Infinity);
+assert(boot.generated.length > 1, 'first update eagerly preloads the initial ring');
+assert.equal(boot._initialPreloadDone, true);
+
+const travel = manager();
+travel._initialPreloadDone = true;
+travel.loaded.set('0,0', { cx: 0, cz: 0 });
+travel.update({ x: 2000, z: 2000 }, -Infinity);
+assert.equal(travel.loaded.size, 0, 'expired deadline can unload all distant chunks');
+travel.update({ x: 2000, z: 2000 }, -Infinity);
+assert.equal(travel.generated.length, 0, 'empty residency never reopens the unbudgeted boot path');
+
+process.stdout.write('PASS  eager initial preload and bounded empty-residency admission\n');

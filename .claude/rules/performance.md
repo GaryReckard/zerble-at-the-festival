@@ -55,9 +55,9 @@ colors can serve as a verdict (`ROADMAP.md` Performance).
 Astra's follow-up review is preserved in
 [`review-summary.md`](../../.codex/reviews/001-c86f5de-perf-fixes/review-summary.md).
 The core render-size, empty-bubble, lake-index, road-cache, and shadow-policy
-fixes passed its checks, but **guided reports are not yet trustworthy as
-performance evidence**. The review reproduced these seven follow-ups; no
-application fix has been made for them yet:
+fixes passed its checks. The review reproduced these seven follow-ups. The
+capture and chunk fixes are now implemented and covered by focused regression
+cases, while real-device playtests remain the final evidence gate:
 
 | Priority | Follow-up | Review evidence |
 |---|---|---|
@@ -69,10 +69,14 @@ application fix has been made for them yet:
 | P2 | Freeze the completed report once and resend that identical snapshot on retry. | Finding 6; `src/debug.js:2144-2168,2194-2196` |
 | P3 | Check quality, DPR, and physical render dimensions across all comparison phases, excluding settling. | Finding 7; `bin/report-perf-playtest:85-88` |
 
-Resume with focused orchestration and chunk-admission regression cases from
-the review, then run the project checks before asking Gary for desktop and
-real-iPhone captures. The existing device and fresh GPU acceptance gates still
-apply.
+`bin/test-device-capture-flow` covers phase-window ownership, slow Trip
+fade-in, free-form tab resume, serial upload ordering, final acknowledgement,
+and identical failed-upload retries. `bin/test-chunk-deadline` covers the
+expired-deadline empty-residency path, and `bin/test-perf-report` covers
+quality changes across phase boundaries. The project check and main-game
+smoke test passed on low and high tiers. Desktop and real-iPhone captures are
+still needed before drawing performance conclusions; a fresh GPU benchmark is
+also needed to measure the visual changes.
 
 ## Audit order (highest-impact first)
 

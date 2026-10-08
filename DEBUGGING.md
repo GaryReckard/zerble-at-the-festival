@@ -51,11 +51,16 @@ real-world symptom. For a parked Wook Trip comparison, add `trip` before the
 options, for example `bin/playtest-perf trip --desktop` or
 `bin/playtest-perf trip`. Leave the cart parked throughout; the scenario holds
 the current render quality steady, starts the Trip, and holds its peak
-automatically. It takes about 1 minute 57 seconds. Both scenarios pause their phase clock while the tab is
-hidden and note the interruption. Run `bin/report-perf-playtest` to summarize
+automatically. It takes at least 1 minute 57 seconds; a slow fade-in extends
+the capture until the Trip actually reaches its sustaining state. Keep the
+Trip tab in the foreground throughout: backgrounding invalidates that
+comparison because the game and capture clocks can diverge. The drive scenario
+pauses its phase clock while hidden, and a free-form capture continues when the
+tab returns. Run `bin/report-perf-playtest` to summarize
 the newest completed capture, or pass an exact JSON path. The report flags a
-stationary “drive,” movement during a parked phase, and render-quality changes
-that would contaminate a comparison. It also flags a scene target whose
+stationary “drive,” movement during a parked phase, and quality or physical
+render-size changes across comparison phases that would contaminate a
+comparison. It also flags a scene target whose
 physical dimensions differ from the canvas after an adaptive-quality change.
 For an apples-to-apples low-tier rerun,
 pass `--tier low`; `--seed` can select another reproducible world.

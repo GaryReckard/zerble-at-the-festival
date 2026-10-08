@@ -58,3 +58,20 @@ resumes.
 The visual acceptance criterion is that approaching the hub adds detail to
 the same place without changing its defining shapes or moving its objects.
 Blur, heavier fog, or a longer fade do not meet that criterion.
+
+## Implementation progress, 2026-10-08
+
+Shared stage, marquee, and vendor-roof shape data now feeds both real models
+and far proxies. Main-stage and marquee roofs are gabled, side stages remain
+open, and vendor-roof candidates use the same row slots as the near builder.
+The hub viewer can hide the real hub for proxy-only inspection and toggle
+real/proxy at a fixed camera. `bin/test-far-field` checks the shared shapes,
+candidate slots, and pool triangle gate. The actual game booted on low and
+high tiers without browser errors.
+
+Camp pitches and forest trees still use separate proxy positions, and the
+handoff still dissolves only the proxy while real geometry appears at full
+strength. Proxy lighting remains a global unlit dimmer. Those differences
+must be resolved and compared at Noon and Midnight before this review's
+visual acceptance criterion is met. No physical-device or new GPU result is
+claimed here.

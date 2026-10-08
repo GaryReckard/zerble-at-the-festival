@@ -1,0 +1,138 @@
+#!/usr/bin/env node
+
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { PLAYTEST_SCENARIOS } from '../src/perfTelemetry.js';
+
+const source = readFileSync(new URL('../src/debug.js', import.meta.url), 'utf8');
+const lifecycle = source.slice(source.indexOf('function captureElapsedSeconds()'), source.indexOf('function deviceRendererInfo()'));
+const upload = source.slice(source.indexOf('async function uploadDeviceCapture('), source.indexOf('function renderPerfStatus()'));
+assert(lifecycle.startsWith('function captureElapsedSeconds()') && upload.startsWith('async function uploadDeviceCapture('));
+
+function setup(scenario) {
+  let now = 0;
+  const samples = [];
+  const uploads = [];
+  const deferred = [];
+  const state = {
+    deviceCaptureStarted: true, deviceCaptureStartedAt: 0, deviceCaptureFinished: false,
+    deviceCapturePausedMs: 0, deviceCaptureHiddenAt: 0,
+    deviceCapturePhaseIndex: -1, deviceCapturePhaseStartedS: 0,
+    deviceCapturePhaseEvents: [], deviceCaptureErrors: [], deviceCaptureVisibility: [],
+    deviceCaptureQualityLocked: false, deviceCaptureQualityWasEnabled: true,
+    deviceCaptureResult: '', deviceCaptureUploadQueue: Promise.resolve(),
+    deviceCaptureFinalReport: null, perfPhase: '',
+    hooks: { Trip: { state: 'idle', triggerDynamic() { this.state = 'fading_in'; }, scrub(value) { this.state = value == null ? 'idle' : 'scrub'; } } },
+  };
+  const document = { hidden: false };
+  const context = vm.createContext({
+    state, document, DEVICE_SCENARIO: scenario, PLAYTEST_SCENARIOS,
+    PEAK_CENTER: 0.5, Date: { now: () => now },
+    window: { clearInterval() {}, setTimeout() {} },
+    samplePerf: () => samples.push(state.perfPhase),
+    updateDeviceCaptureControl() {}, setPerfRecording() {},
+    aqSetEnabled() {}, buildDeviceCaptureReport: (reason) => ({ reason, count: samples.length }),
+    deviceCaptureUrl: () => '/__capture/test',
+    fetch: (_url, request) => {
+      uploads.push(JSON.parse(request.body));
+      return new Promise((resolve, reject) => deferred.push({ resolve, reject }));
+    },
+    navigator: {}, console: { error() {} }, Blob,
+  });
+  vm.runInContext(lifecycle + '\n' + upload, context);
+  return {
+    state, document, samples, uploads, deferred,
+    setNow(value) { now = value; },
+    call(name, ...args) { return vm.runInContext(name, context)(...args); },
+  };
+}
+
+const flow = setup('trip');
+flow.call('advanceDeviceScenario');
+assert.equal(flow.state.perfPhase, 'settle');
+flow.setNow(20_000);
+flow.call('advanceDeviceScenario');
+assert.deepEqual(flow.samples, ['settle']);
+assert.equal(flow.state.perfPhase, 'baseline');
+flow.setNow(45_000);
+flow.call('advanceDeviceScenario');
+assert.equal(flow.state.perfPhase, 'fade-in');
+flow.setNow(57_000);
+flow.call('advanceDeviceScenario');
+assert.equal(flow.state.perfPhase, 'fade-in', 'slow simulation keeps the capture in fade-in');
+flow.state.hooks.Trip.state = 'sustaining';
+flow.call('advanceDeviceScenario');
+assert.equal(flow.state.perfPhase, 'active');
+assert.equal(flow.samples.at(-1), 'fade-in', 'outgoing frames flush under their original phase');
+flow.setNow(77_000);
+flow.call('advanceDeviceScenario');
+assert.equal(flow.samples.at(-1), 'active');
+assert.equal(flow.state.perfPhase, 'peak');
+flow.setNow(97_000);
+flow.call('advanceDeviceScenario');
+assert.equal(flow.state.perfPhase, 'after');
+flow.setNow(117_000);
+flow.call('advanceDeviceScenario');
+assert.equal(flow.state.deviceCaptureFinished, true);
+assert.equal(flow.samples.length, 6, 'each outgoing phase flushes exactly once');
+assert.equal(flow.samples.at(-1), 'after');
+await Promise.resolve();
+flow.deferred[0].resolve({ ok: true });
+await flow.state.deviceCaptureUploadQueue;
+
+const free = setup(null);
+free.document.hidden = true;
+free.setNow(5000);
+free.call('captureVisibilityChange');
+free.document.hidden = false;
+free.setNow(9000);
+free.call('captureVisibilityChange');
+assert.equal(free.state.deviceCaptureFinished, false, 'free recording survives tab resume');
+assert.equal(free.state.deviceCapturePausedMs, 4000);
+
+const race = setup('drive');
+const periodic = race.call('uploadDeviceCapture', 'periodic', false);
+await Promise.resolve();
+const manual = race.call('uploadDeviceCapture', 'manual', false);
+race.state.deviceCaptureFinished = true;
+race.state.deviceCaptureResult = 'pending';
+race.state.deviceCaptureFinalReport = { reason: 'complete', count: 42 };
+const complete = race.call('uploadDeviceCapture', 'complete', false);
+assert.equal(race.uploads.length, 1, 'only the first request starts while pending');
+race.deferred[0].resolve({ ok: true });
+await periodic;
+await Promise.resolve();
+assert.equal(race.uploads.length, 2, 'manual request starts after periodic completes');
+assert.equal(race.state.deviceCaptureResult, 'pending', 'periodic acknowledgement cannot save final report');
+race.deferred[1].resolve({ ok: true });
+await manual;
+await Promise.resolve();
+assert.equal(race.uploads.length, 3);
+assert.equal(race.state.deviceCaptureResult, 'pending', 'manual acknowledgement cannot save final report');
+race.deferred[2].resolve({ ok: true });
+await complete;
+assert.equal(race.state.deviceCaptureResult, 'sent');
+assert.deepEqual(race.uploads.at(-1), { reason: 'complete', count: 42 });
+const retry = race.call('uploadDeviceCapture', 'manual', false);
+await Promise.resolve();
+assert.deepEqual(race.uploads.at(-1), { reason: 'complete', count: 42 }, 'retry resends frozen metadata');
+race.deferred[3].resolve({ ok: true });
+await retry;
+
+const failure = setup('drive');
+failure.state.deviceCaptureFinished = true;
+failure.state.deviceCaptureFinalReport = { reason: 'complete', count: 7 };
+const firstFinal = failure.call('uploadDeviceCapture', 'complete', false);
+await Promise.resolve();
+failure.deferred[0].reject(new Error('offline'));
+assert.equal(await firstFinal, false);
+assert.equal(failure.state.deviceCaptureResult, 'failed');
+const finalRetry = failure.call('uploadDeviceCapture', 'manual', false);
+await Promise.resolve();
+assert.deepEqual(failure.uploads[1], failure.uploads[0]);
+failure.deferred[1].resolve({ ok: true });
+assert.equal(await finalRetry, true);
+assert.equal(failure.state.deviceCaptureResult, 'sent');
+
+process.stdout.write('PASS  capture phase ownership, slow Trip, free resume, upload serialization, and frozen retry\n');

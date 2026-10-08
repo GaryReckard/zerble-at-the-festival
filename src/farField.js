@@ -1,8 +1,8 @@
 // FarField — the render-only festival horizon (festival-horizon change).
 //
 // A PEER of ChunkManager/LakeManager owned by world.js, never another chunk
-// ring: it draws batched far-distance silhouettes (roads, stage canopies, roof
-// peaks, trusses, coarse forest masses + night markers) from the same
+// ring: it draws batched far-distance silhouettes (roads, gabled stage and
+// marquee roofs, vendor peaks, trusses, coarse forest masses + night markers) from the same
 // deterministic worldgen descriptors/fields the real builders consume, and
 // dissolves each proxy when its owning real chunk finishes building. It owns NOTHING gameplay-side: no
 // registry entries, colliders, NPCs, audio, pickups, real lights, shadow
@@ -31,7 +31,10 @@
 // uses), so the `three` import below maps to a property-bag stub there.
 
 import * as THREE from 'three';
-import { ownerCellCoord } from './worldgen/placement.js';
+import { ownerCellCoord, vendorRowSlots } from './worldgen/placement.js';
+import { mulberry32 } from './rng.js';
+import { FESTIVAL_TUNING } from './worldgen/tuning.js';
+import { STAGE_SHAPES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE } from './festivalShapes.js';
 import { heartsInBounds } from './worldgen/hearts.js';
 import { festivalPlan, campVillagesNear } from './worldgen/festival.js';
 import { roadsInBounds } from './worldgen/roads.js';
@@ -58,31 +61,9 @@ export const NIGHT_MARKER_THRESHOLD = 0.12;
 // The underlay ribbon is deliberately narrower than the authoritative road
 // (CONFIG.ROAD_WIDTH) so the real ribbon always covers it edge-to-edge.
 const FAR_ROAD_WIDTH_FRAC = 0.8;
-// Mirrors FESTIVAL_TUNING.VENDOR_ROW_OFFSET (the half-width of the drivable
-// aisle the two booth lines straddle). COPIED, not imported: worldgen/tuning.js
-// is the render-agnostic layer and farField.js is a render module, so the arrow
-// would point the wrong way. Same copy discipline as tuning.js MODEL_DIMS.
-const VENDOR_AISLE_HALF = 7;
-// Mirrors FESTIVAL_TUNING.CAMP_RADIUS — camp pitches scatter across a SQUARE of
-// ±this, not a disc (chunks.js buildCampVillageAt). Copied for the same reason as
-// VENDOR_AISLE_HALF above.
-const CAMP_SQUARE_HALF = 30;
-// Real body dimensions the proxies have to AGREE with, copied from the models
-// (same discipline as VENDOR_AISLE_HALF above — farField.js is a render module
-// and must not import worldgen or models). Gary 2026-09-01: "the tent tops and
-// tree greens are way too low, they don't line up with where the real vendor
-// tent tops are, or tree tops". Every one of these was measured, not guessed:
-//   stage.js      trussH = 9 * scale        — the roof rides the TRUSS top, and
-//                                             the proxy had it at 3.4 * scale
-//   tentStage.js  28 m wide, ridge 11 m, cloth 0xfff8eb — and NOT scaled: the
-//                                             builder takes no scale argument
-//   tent.js       roof cone r3.2 h1.8 at y3.4 → apex 4.3 m, 6.4 m across
-//   tree.js       pine 16-22 m, birch 10-14 + crown, oak 7-10 + crown
-const STAGE_TRUSS_H = 9;          // × scale
-const TENT_STAGE_HALF_W = 14;     // FIXED — buildTentStage takes no scale
-const TENT_STAGE_RIDGE = 11;      // FIXED
-const TENT_STAGE_HEX = 0xfff8eb;  // the real marquee canvas
-const BOOTH_APEX = 4.3;           // market-tent apex above ground
+// Camp pitches scatter across a square, not a disc (chunks.js
+// buildCampVillageAt). Read the mutable radius per call for hub-viewer tuning;
+// pitches still need shared authoritative placement.
 
 // Coarse forest masses (the ROADMAP follow-up promoted 2026-08-28): the
 // density FIELD is sampled on a fixed global grid (tier.forestStep meters),
@@ -106,10 +87,6 @@ export const FOREST_DENSITY_THRESHOLD = 0.15;
 
 // Flat-color hex palettes (plain numbers at module scope — THREE.Color
 // instances are built at construction time, never module evaluation).
-const CANOPY_PALETTE = [0xd8433f, 0xe8823a, 0x3f8fd8, 0x9a5fd0, 0x2fa46a, 0xd84f8e];
-// The REAL booth cloth (models/tent.js CLOTH_COLORS) — a proxy that hands off
-// to a warmer tent than it drew is a visible seam at the handoff distance.
-const PEAK_PALETTE = [0xfff4d0, 0xe7c995, 0xfddfa5, 0xd0c2a8, 0xf4d6c4];
 const BEACON_PALETTE = [0xff5a4d, 0x4da2ff, 0xffd24d, 0xb56aff];
 // The REAL camp tent fabric (models/campsite.js TENT_COLORS). Saturated, and
 // deliberately nothing like the vendor cream — a camp and a market should read
@@ -197,7 +174,7 @@ export function copyVillageRecord(v) {
     z: +v.z,
     yaw: +(v.yaw || 0),
     scale: 1,
-    footprint: +(v.footprint || CAMP_SQUARE_HALF),
+    footprint: +(v.footprint || FESTIVAL_TUNING.CAMP_RADIUS),
     rank: v.rank === 'major' ? 1 : 0,
     tents: v.tents | 0,
     clusterSeed: v.clusterSeed >>> 0,
@@ -358,52 +335,57 @@ export function expandFarInstances(records, densityMul) {
     const own = { ownerCx: r.ownerCx, ownerCz: r.ownerCz };
     if (STAGE_KINDS.has(r.kind)) {
       const s = r.scale;
-      const deckR = r.footprint * s;
-      const postH = STAGE_TRUSS_H * s;   // the roof rides the real truss top
-      const rightYaw = r.yaw + Math.PI / 2;              // stage width axis
-      const rx = Math.sin(rightYaw), rz = Math.cos(rightYaw);
-      const color = CANOPY_PALETTE[paletteIndex(r, CANOPY_PALETTE.length)];
-      // The proxy has to agree with what you find when you arrive (Gary
-      // 2026-08-31: "certain roofed stages showing up as triangle tents that
-      // doesn't make sense"). Every stage kind used to expand to the same
-      // 6-sided cone, but only `tent_stage` is actually a marquee —
-      // main_stage / side_stage are flat-roofed trussed decks. So the shape now
-      // follows the kind: a slab on posts for the decks, a full-height peak for
-      // the marquee. The marquee borrows the PEAK pool's 4-sided cone rather
-      // than earning its own InstancedMesh, so this costs no extra draw call
-      // (and 12 tris instead of 18).
       if (r.kind === 'tent_stage') {
-        // The marquee is a FIXED 28 m x 11 m body (the builder takes no scale),
-        // and its canvas is near-white — the palette colour belongs to the
-        // ROOFED stages. Gary saw an orange triangle at distance resolve into a
-        // white marquee up close; that was this line taking CANOPY_PALETTE.
-        out.peak.push({
-          x: r.x, z: r.z, y: TENT_STAGE_RIDGE / 2, yaw: r.yaw,
-          sx: TENT_STAGE_HALF_W, sy: TENT_STAGE_RIDGE, sz: TENT_STAGE_HALF_W,
-          color: TENT_STAGE_HEX, ...own,
+        const rise = MARQUEE_SHAPE.ridgeHeight - MARQUEE_SHAPE.eaveHeight;
+        out.canopy.push({
+          x: r.x, z: r.z, y: MARQUEE_SHAPE.eaveHeight + rise / 2, yaw: r.yaw,
+          sx: MARQUEE_SHAPE.width, sy: rise, sz: MARQUEE_SHAPE.depth,
+          color: MARQUEE_SHAPE.roofColor, ...own,
+        });
+        const backZ = -MARQUEE_SHAPE.depth / 2;
+        out.truss.push({
+          x: r.x + Math.sin(r.yaw) * backZ, z: r.z + Math.cos(r.yaw) * backZ,
+          y: MARQUEE_SHAPE.eaveHeight / 2, yaw: r.yaw,
+          sx: MARQUEE_SHAPE.width, sy: MARQUEE_SHAPE.eaveHeight, sz: 0.15,
+          color: MARQUEE_SHAPE.roofColor, ...own,
         });
       } else {
-        const roofT = 1.1 * s;
-        out.canopy.push({
-          x: r.x, z: r.z, y: postH + roofT / 2, yaw: r.yaw,
-          sx: deckR * 1.15, sy: roofT, sz: deckR * 1.15, color, ...own,
-        });
-        const postOff = deckR * 0.85;
+        const shape = r.kind === 'main_stage' ? STAGE_SHAPES.main : STAGE_SHAPES.side;
+        const postH = shape.trussHeight * s;
+        const postOff = (shape.width / 2 - 0.3) * s;
+        const rightYaw = r.yaw + Math.PI / 2;
+        const rx = Math.sin(rightYaw), rz = Math.cos(rightYaw);
+        if (shape.hasRoof) {
+          out.canopy.push({
+            x: r.x, z: r.z, y: postH + shape.roofRise * s / 2,
+            yaw: rightYaw,
+            sx: (shape.depth + 2 * shape.roofOverhang) * s,
+            sy: shape.roofRise * s,
+            sz: (shape.width + 2 * shape.roofOverhang) * s,
+            color: shape.roofColor, ...own,
+          });
+          const backZ = -(shape.depth / 2 + 0.3) * s;
+          out.truss.push({
+            x: r.x + Math.sin(r.yaw) * backZ, z: r.z + Math.cos(r.yaw) * backZ,
+            y: postH / 2, yaw: r.yaw,
+            sx: shape.width * s, sy: postH, sz: 0.4 * s,
+            color: shape.roofColor, ...own,
+          });
+        }
         out.truss.push(
-          { x: r.x + rx * postOff, z: r.z + rz * postOff, y: postH / 2, yaw: 0, sx: 0.5, sy: postH, sz: 0.5, ...own },
-          { x: r.x - rx * postOff, z: r.z - rz * postOff, y: postH / 2, yaw: 0, sx: 0.5, sy: postH, sz: 0.5, ...own },
-          // Beam long axis is local +Z, so yaw = the width-axis bearing.
-          { x: r.x, z: r.z, y: postH, yaw: rightYaw, sx: 0.4, sy: 0.4, sz: deckR * 1.8, ...own },
+          { x: r.x + rx * postOff, z: r.z + rz * postOff, y: postH / 2, yaw: 0, sx: 0.5 * s, sy: postH, sz: 0.5 * s, color: TRUSS_HEX, ...own },
+          { x: r.x - rx * postOff, z: r.z - rz * postOff, y: postH / 2, yaw: 0, sx: 0.5 * s, sy: postH, sz: 0.5 * s, color: TRUSS_HEX, ...own },
+          { x: r.x, z: r.z, y: postH, yaw: rightYaw, sx: 0.4 * s, sy: 0.4 * s, sz: shape.width * s, color: TRUSS_HEX, ...own },
         );
       }
       const bs = 0.8 + instHash(r.clusterSeed, 3) * 0.3;
-      const beaconY = r.kind === 'tent_stage' ? TENT_STAGE_RIDGE + 0.9 : postH + 1.6 * s;
+      const beaconY = r.kind === 'tent_stage' ? MARQUEE_SHAPE.ridgeHeight + 0.9 : STAGE_SHAPES.main.trussHeight * s + 1.6 * s;
       out.beacon.push({
         x: r.x, z: r.z, y: beaconY, yaw: 0, sx: bs, sy: bs, sz: bs,
         color: BEACON_PALETTE[paletteIndex(r, BEACON_PALETTE.length)], ...own,
       });
     } else if (r.kind === 'camp_village') {
-      // A scatter of small pitched tents across the same ±CAMP_SQUARE_HALF square
+      // A scatter of small pitched tents across the same ±CAMP_RADIUS square
       // the builder packs into, plus one campfire glow at the middle. The
       // positions are HASH-scattered rather than a replay of the builder's
       // rejection sampling — reproducing per-tent placement is exactly the CPU
@@ -413,8 +395,8 @@ export function expandFarInstances(records, densityMul) {
       const n = Math.max(4, Math.min(14, Math.round(r.tents * 0.6 * densityMul)));
       const baseIdx = paletteIndex(r, VILLAGE_PALETTE.length);
       for (let i = 0; i < n; i++) {
-        const ix = r.x + (instHash(r.clusterSeed, i * 2 + 1) - 0.5) * 2 * CAMP_SQUARE_HALF;
-        const iz = r.z + (instHash(r.clusterSeed, i * 2 + 2) - 0.5) * 2 * CAMP_SQUARE_HALF;
+        const ix = r.x + (instHash(r.clusterSeed, i * 2 + 1) - 0.5) * 2 * FESTIVAL_TUNING.CAMP_RADIUS;
+        const iz = r.z + (instHash(r.clusterSeed, i * 2 + 2) - 0.5) * 2 * FESTIVAL_TUNING.CAMP_RADIUS;
         // The real camp tent is 2.2 m wide and 1.7 m tall (campsite.js buildCampTent).
         const w = 1.25 + instHash(r.clusterSeed, i + 71) * 0.45;
         const h = 1.7 + instHash(r.clusterSeed, i + 131) * 0.7;
@@ -427,43 +409,29 @@ export function expandFarInstances(records, densityMul) {
       const fs = 0.42 + instHash(r.clusterSeed, 7) * 0.16;
       out.warm.push({ x: r.x, z: r.z, y: 1.0, yaw: 0, sx: fs, sy: fs, sz: fs, ...own });
     } else if (r.kind === 'vendor_row') {
-      // A vendor row is TWO booth lines straddling the road (the descriptor
-      // centers ON the road point and the builder lays 5-7 stalls per side at
-      // ±VENDOR_ROW_OFFSET). The proxy used to draw ONE line of `L/6` peaks —
-      // 4 on mid/high, and literally 2 on low — standing in for 10-14 real
-      // tents, which is why arriving at one felt like the whole market appeared
-      // out of a couple of white triangles (Gary 2026-08-31). It now draws both
-      // lines at the real aisle offset, at a per-side count matching the builder.
-      const s = r.scale;
-      const L = 2 * r.footprint * s;
-      const n = Math.max(3, Math.round((L / 5) * densityMul));   // ~5/side at densityMul 1
-      const ax = Math.sin(r.yaw), az = Math.cos(r.yaw);       // row axis
+      // The first cluster-local RNG draw is the real builder's booth count.
+      // Lower tiers may omit slots, but surviving roofs stay on the exact
+      // candidate grid and never stagger or slide when detail arrives.
+      const rng = mulberry32((r.clusterSeed >>> 0) || 0x1A2B3C);
+      const T = FESTIVAL_TUNING;
+      const n = T.VENDOR_ROW_COUNT_BASE + Math.floor(rng() * T.VENDOR_ROW_COUNT_SPAN);
       const px = Math.cos(r.yaw), pz = -Math.sin(r.yaw);      // row perpendicular
-      const baseIdx = paletteIndex(r, PEAK_PALETTE.length);
-      for (let side = -1; side <= 1; side += 2) {
-        const ox = px * VENDOR_AISLE_HALF * side, oz = pz * VENDOR_AISLE_HALF * side;
-        for (let i = 0; i < n; i++) {
-          // Stagger the far side by half a bay so the two lines don't collapse
-          // into one doubled silhouette from an oblique angle.
-          const j = side > 0 ? i : i + 0.5;
-          const t = ((n === 1 ? 0.5 : j / (n - 1)) - 0.5) * L * 0.9;
-          const k = i + (side > 0 ? 0 : 53);                  // per-side variation salt
-          const w = 2.4 + instHash(r.clusterSeed, k) * 1.4;
-          const h = BOOTH_APEX - 0.4 + instHash(r.clusterSeed, k + 101) * 0.9;
-          const ix = r.x + ax * t + ox, iz = r.z + az * t + oz;
-          out.peak.push({
-            x: ix, z: iz, y: h / 2, yaw: r.yaw, sx: w, sy: h, sz: w,
-            color: PEAK_PALETTE[(baseIdx + k) % PEAK_PALETTE.length], ...own,
+      for (const slot of vendorRowSlots(r.x, r.z, r.yaw, n, T)) {
+        const { i, side, x: ix, z: iz } = slot;
+        if (densityMul < 1 && instHash(r.clusterSeed, i * 2 + (side > 0 ? 1 : 0)) >= densityMul) continue;
+        out.peak.push({
+          x: ix, z: iz, y: VENDOR_ROOF_SHAPE.centerY, yaw: r.yaw + Math.PI / 4,
+          sx: VENDOR_ROOF_SHAPE.radius, sy: VENDOR_ROOF_SHAPE.height, sz: VENDOR_ROOF_SHAPE.radius,
+          color: VENDOR_ROOF_SHAPE.color, ...own,
+        });
+        // One warm marker per bay-pair, on the AISLE side — the strung lights
+        // over the street you actually drive down.
+        if (i % 2 === 0) {
+          const ws = 0.32 + instHash(r.clusterSeed, i + (side > 0 ? 0 : 53) + 211) * 0.12;
+          out.warm.push({
+            x: ix - px * 2.2 * side, z: iz - pz * 2.2 * side, y: 2.9, yaw: 0,
+            sx: ws, sy: ws, sz: ws, ...own,
           });
-          // One warm marker per bay-pair, on the AISLE side — the strung lights
-          // over the street you actually drive down.
-          if (i % 2 === 0) {
-            const ws = 0.32 + instHash(r.clusterSeed, k + 211) * 0.12;
-            out.warm.push({
-              x: ix - px * 2.2 * side, z: iz - pz * 2.2 * side, y: 2.9, yaw: 0,
-              sx: ws, sy: ws, sz: ws, ...own,
-            });
-          }
         }
       }
     }
@@ -513,6 +481,19 @@ export class SnapshotPlanner {
     this.pending = null;
     return true;
   }
+}
+
+function gableRoofGeometry() {
+  // Unit open gable: eaves at y=-0.5, ridge at y=+0.5 along local Z.
+  // Main-stage instances turn it 90° so their ridge runs along local X;
+  // marquee instances keep the long ridge on Z. Two roof panels, four tris.
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+    -0.5, -0.5, -0.5, 0, 0.5, -0.5, -0.5, -0.5, 0.5, 0, 0.5, 0.5,
+     0, 0.5, -0.5, 0.5, -0.5, -0.5, 0, 0.5, 0.5, 0.5, -0.5, 0.5,
+  ]), 3));
+  geo.setIndex([0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7]);
+  return geo;
 }
 
 // ---------- The world-facing peer ----------
@@ -603,8 +584,8 @@ export class FarField {
 
     const mkMat = (hex) => new THREE.MeshBasicMaterial({ color: hex });
     this._mats = {
-      canopy: mkMat(0xffffff),   // white base × per-instance color
-      truss: mkMat(TRUSS_HEX),
+      canopy: new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
+      truss: mkMat(0xffffff),
       peak: mkMat(0xffffff),
       warm: mkMat(WARM_HEX),
       beacon: mkMat(0xffffff),
@@ -612,7 +593,7 @@ export class FarField {
       road: mkMat(ROAD_HEX),     // opaque, depthWrite:true (default) — audit V12
     };
     this._geos = {
-      canopy: new THREE.BoxGeometry(1, 1, 1),   // roofed-stage roof slab (a tent stage uses `peak`)
+      canopy: gableRoofGeometry(),
       truss: new THREE.BoxGeometry(1, 1, 1),
       peak: new THREE.ConeGeometry(1, 1, 4),
       warm: new THREE.OctahedronGeometry(1, 0),
@@ -628,7 +609,7 @@ export class FarField {
     // owner-computed bounding spheres are still maintained after every
     // committed rewrite so bounds stay truthful for raycast/debug reads.
     this._pools = {};
-    const hasColor = { canopy: true, truss: false, peak: true, warm: false, beacon: true, forest: true };
+    const hasColor = { canopy: true, truss: true, peak: true, warm: false, beacon: true, forest: true };
     for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest']) {
       const mesh = new THREE.InstancedMesh(this._geos[name], this._mats[name], caps[name]);
       mesh.count = 0;
@@ -934,7 +915,7 @@ export class FarField {
     this._mats.canopy.color.setScalar(dayB);
     this._mats.peak.color.setScalar(dayB);
     this._mats.forest.color.setScalar(dayB);
-    this._mats.truss.color.setHex(TRUSS_HEX).multiplyScalar(dayB);
+    this._mats.truss.color.setScalar(dayB);
     this._mats.road.color.setHex(ROAD_HEX).multiplyScalar(1 - 0.85 * n);
     this._nightOn = n > NIGHT_MARKER_THRESHOLD;
     const glow = this._nightOn ? Math.min(1, (n - NIGHT_MARKER_THRESHOLD) / 0.25) : 0;

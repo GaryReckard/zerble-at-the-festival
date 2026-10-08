@@ -31,7 +31,10 @@ register('./node-three-shim.mjs', import.meta.url);
 if (typeof globalThis.window === 'undefined') globalThis.window = { innerWidth: 1024, innerHeight: 768 };
 if (typeof globalThis.navigator === 'undefined') globalThis.navigator = { hardwareConcurrency: 8, deviceMemory: 8 };
 
-const { ownerCellCoord } = await import('../src/worldgen/placement.js');
+const { ownerCellCoord, vendorRowSlots } = await import('../src/worldgen/placement.js');
+const { mulberry32 } = await import('../src/rng.js');
+const { FESTIVAL_TUNING } = await import('../src/worldgen/tuning.js');
+const { STAGE_SHAPES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE } = await import('../src/festivalShapes.js');
 const { setSeed } = await import('../src/worldgen/index.js');
 const { heartsInBounds } = await import('../src/worldgen/hearts.js');
 const { festivalPlan } = await import('../src/worldgen/festival.js');
@@ -311,8 +314,6 @@ for (let i = 0; i < 32; i++) {
 
 // ---------- I. Instance expansion (pure, group 2) ----------
 
-// The roofed-stage palette, mirrored for the "marquee must not use it" check.
-const CANOPY_HEXES = [0xd8433f, 0xe8823a, 0x3f8fd8, 0x9a5fd0, 0x2fa46a, 0xd84f8e];
 const EXPAND_FIXTURE = [
   { kind: 'main_stage', x: 100, z: -60, yaw: 0.7, scale: 1.2, footprint: 11, rank: 1, clusterSeed: 987654321, ownerCx: 1, ownerCz: -1 },
   { kind: 'vendor_row', x: 130, z: -40, yaw: 1.9, scale: 1.0, footprint: 12, rank: 0, clusterSeed: 123456789, ownerCx: 2, ownerCz: 0 },
@@ -325,20 +326,24 @@ assert(JSON.stringify(exp1.canopy) === JSON.stringify(exp2.canopy)
   && JSON.stringify(exp1.warm) === JSON.stringify(exp2.warm),
   'expandFarInstances must be byte-identical across repeated calls');
 assert(exp1.canopy.length === 1, `one stage should expand to one canopy, got ${exp1.canopy.length}`);
-assert(exp1.truss.length === 3, `one stage should expand to two posts + one beam, got ${exp1.truss.length}`);
+assert(exp1.truss.length === 4, `main stage should expand to a back wall, two posts and one beam, got ${exp1.truss.length}`);
 assert(exp1.beacon.length === 1, `one stage should expand to one beacon, got ${exp1.beacon.length}`);
-// A vendor row is TWO booth lines straddling the aisle (2026-08-31 fidelity
-// pass): n = max(3, round(L/5 * densityMul)) per side, L = 2*footprint*scale.
-assert(exp1.peak.length === 10, `a footprint-12 vendor row at density 1 should expand to 5 peaks x 2 sides, got ${exp1.peak.length}`);
-assert(exp1.warm.length === 6, `10 peaks should carry 6 warm markers (every other peak, per side), got ${exp1.warm.length}`);
+const vendor = EXPAND_FIXTURE[1];
+const countRng = mulberry32(vendor.clusterSeed);
+const vendorCount = FESTIVAL_TUNING.VENDOR_ROW_COUNT_BASE + Math.floor(countRng() * FESTIVAL_TUNING.VENDOR_ROW_COUNT_SPAN);
+const slots = vendorRowSlots(vendor.x, vendor.z, vendor.yaw, vendorCount);
+assert(exp1.peak.length === slots.length, 'far vendor roofs follow the real builder count');
+assert(exp1.warm.length === 2 * Math.ceil(vendorCount / 2), 'warm markers cover every other booth on each side');
+assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === slots[index].z),
+  'far vendor roofs retain the real candidate positions and ordering');
 {
   // Both lines must actually straddle: the peaks split into two groups either
   // side of the row axis, not one doubled line (the bug this pass fixed).
   const r = EXPAND_FIXTURE[1];
   const px = Math.cos(r.yaw), pz = -Math.sin(r.yaw);
   const lat = exp1.peak.map((i) => (i.x - r.x) * px + (i.z - r.z) * pz);
-  assert(lat.filter((v) => v > 1).length === 5 && lat.filter((v) => v < -1).length === 5,
-    'vendor-row peaks must split 5/5 either side of the aisle');
+  assert(lat.filter((v) => v > 1).length === vendorCount && lat.filter((v) => v < -1).length === vendorCount,
+    'vendor-row peaks must split evenly around the aisle');
 }
 {
   // ---- Camp-village silhouettes (2026-08-31) ----
@@ -382,40 +387,39 @@ assert(exp1.warm.length === 6, `10 peaks should carry 6 warm markers (every othe
 }
 
 {
-  // Shape follows KIND (2026-08-31): a roofed deck gets the canopy slab, a tent
-  // stage gets a full-height peak and no truss — it used to be a cone for all
-  // three, which read as a triangle tent on top of a flat-roofed main stage.
+  // A stage roof exists only where the real model has one. Both roofed kinds
+  // share an open gable geometry, but retain their distinct proportions.
   const tent = [{ ...EXPAND_FIXTURE[0], kind: 'tent_stage' }];
   const expTent = expandFarInstances(tent, 1);
-  assert(expTent.canopy.length === 0, 'a tent stage must NOT emit a roof slab');
-  assert(expTent.truss.length === 0, 'a tent stage marquee reaches the ground — no truss posts');
-  assert(expTent.peak.length === 1, `a tent stage must emit exactly one marquee peak, got ${expTent.peak.length}`);
+  assert(expTent.canopy.length === 1 && expTent.peak.length === 0, 'marquee uses a long open gable, not a square cone');
+  assert(expTent.truss.length === 1, 'marquee includes its closed back wall');
   assert(expTent.beacon.length === 1, 'every stage kind keeps its beacon');
   const side = [{ ...EXPAND_FIXTURE[0], kind: 'side_stage' }];
   const expSide = expandFarInstances(side, 1);
-  assert(expSide.canopy.length === 1 && expSide.truss.length === 3 && expSide.peak.length === 0,
-    'a roofed side stage must emit a slab on truss posts, never a peak');
+  assert(expSide.canopy.length === 0 && expSide.truss.length === 3 && expSide.peak.length === 0,
+    'open side stage must emit truss but no roof');
 
   // ---- Proxies must AGREE with the real bodies (2026-09-01) ----
   // Nothing tied proxy dimensions to model dimensions, so they drifted to
   // roughly half height and read as squat blobs that jumped when you arrived
   // ("the tent tops and tree greens are way too low"). These pin them.
   const scale = EXPAND_FIXTURE[0].scale;
-  assert(Math.abs(expSide.canopy[0].y - 9 * scale) < 1.2,
-    `a roofed stage's slab must ride the real truss top (9 x scale = ${9 * scale}), got ${expSide.canopy[0].y}`);
-  assert(Math.abs(expSide.truss[0].sy - 9 * scale) < 0.01, 'truss posts must be the real truss height');
-  // The marquee is a FIXED 28 x 11 body and its canvas is near-white; taking a
-  // CANOPY_PALETTE colour is what made an orange triangle resolve into a white tent.
-  const marquee = expTent.peak[0];
-  assert(marquee.sy === 11 && marquee.sx === 14 && marquee.sz === 14,
-    `the tent-stage marquee must be the real fixed 28 m x 11 m body, got ${marquee.sx}x${marquee.sy}`);
-  assert(marquee.color === 0xfff8eb, `the marquee must wear the real canvas colour, got 0x${marquee.color.toString(16)}`);
-  assert(!CANOPY_HEXES.includes(marquee.color), 'the marquee must NOT take a roofed-stage palette colour');
-  assert(marquee.sy === expandFarInstances([{ ...EXPAND_FIXTURE[0], kind: 'tent_stage', scale: 1.5 }], 1).peak[0].sy,
+  assert(Math.abs(expSide.truss[0].sy - STAGE_SHAPES.side.trussHeight * scale) < 0.01, 'side truss posts use the real truss height');
+  const mainRoof = exp1.canopy[0];
+  assert(mainRoof.color === STAGE_SHAPES.main.roofColor && mainRoof.sz === (STAGE_SHAPES.main.width + 2 * STAGE_SHAPES.main.roofOverhang) * scale,
+    'main-stage gable retains its brown color and full roof width');
+  const marquee = expTent.canopy[0];
+  assert(marquee.sx === MARQUEE_SHAPE.width && marquee.sz === MARQUEE_SHAPE.depth &&
+    marquee.y + marquee.sy / 2 === MARQUEE_SHAPE.ridgeHeight,
+    'marquee retains its fixed 28 x 38 m long ridge and 11 m peak');
+  assert(marquee.color === MARQUEE_SHAPE.roofColor, 'marquee uses the real canvas color');
+  assert(marquee.sy === expandFarInstances([{ ...EXPAND_FIXTURE[0], kind: 'tent_stage', scale: 1.5 }], 1).canopy[0].sy,
     'the marquee is unscaled — buildTentStage takes no scale argument');
-  // A market booth's real roof apex is 4.3 m (cone r3.2 h1.8 seated at y3.4).
+  // Vendor roofs are elevated white canvas, not colored ground-height cones.
   for (const pk of exp1.peak) {
-    assert(Math.abs(pk.y * 2 - 4.3) < 0.8, `a booth peak must reach the real 4.3 m apex, got ${pk.y * 2}`);
+    assert(pk.y === VENDOR_ROOF_SHAPE.centerY && pk.sy === VENDOR_ROOF_SHAPE.height &&
+      pk.sx === VENDOR_ROOF_SHAPE.radius && pk.color === VENDOR_ROOF_SHAPE.color,
+      'vendor roof geometry and canvas color match the built tent');
   }
 }
 assert(exp1.roads.length === 1 && exp1.roads[0] instanceof Float64Array,
@@ -770,9 +774,7 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
   // r160 geometries (measured in the group-5 gates: cone6 18, box 12, cone4
   // 12, octa 8; icosa detail-0 is 20 by construction).
   const { FAR_FIELD_TIERS } = await import('../src/perf.js');
-  // canopy became a BoxGeometry in the 2026-08-31 fidelity pass (roofed stages
-  // are slabs; the tent-stage marquee moved to the 4-sided `peak` cone).
-  const TRIS = { canopy: 12, truss: 12, peak: 12, warm: 8, beacon: 8, forest: 20 };
+  const TRIS = { canopy: 4, truss: 12, peak: 12, warm: 8, beacon: 8, forest: 20 };
   for (const [tname, t] of Object.entries(FAR_FIELD_TIERS)) {
     assert(Number.isFinite(t.forestStep) && t.forestStep > 0,
       `tier ${tname} must define forestStep`);
@@ -804,7 +806,7 @@ ff.update(0, 0); // must not throw after dispose
 process.stdout.write(
   'PASS  far-field owner-cell fixtures, deterministic descriptor copying, worldgen-input immutability, ' +
   'fixed-capacity nearest selection, snapshot-planner supersession, the enablement truth table, ' +
-  'handoff policy, palette + instHash stability, instance expansion, the real-worldgen pool drive ' +
+  'handoff policy, palette + instHash stability, shared roofs and vendor slots, instance expansion, the real-worldgen pool drive ' +
   '(caps, determinism, bounds enclosure after a distant rewrite, night gating), the completion ' +
   'handoff (dither wiring, snap-then-envelope, shared-deadline remainder, reduced-motion snap, ' +
   'unload reappearance), long-travel resource plateaus + registry off-on identity + forcing ' +

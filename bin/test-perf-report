@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+root = Path(__file__).resolve().parent.parent
+rows = [
+    {'phase': 'settle', 'quality': 'high', 'qualityLevel': 2, 'pixelRatio': 2,
+     'canvasW': 1200, 'canvasH': 800, 'targetW': 1200, 'targetH': 800},
+    {'phase': 'baseline', 'quality': 'high', 'qualityLevel': 2, 'pixelRatio': 2,
+     'canvasW': 1200, 'canvasH': 800, 'targetW': 1200, 'targetH': 800},
+    {'phase': 'fade-in', 'quality': 'low', 'qualityLevel': 1, 'pixelRatio': 1,
+     'canvasW': 600, 'canvasH': 400, 'targetW': 600, 'targetH': 400},
+]
+with tempfile.TemporaryDirectory() as directory:
+    path = Path(directory) / 'cross-phase.json'
+    path.write_text(json.dumps({'schema': 'zerble-device-perf-v2', 'samples': rows}), encoding='utf8')
+    output = subprocess.check_output([sys.executable, str(root / 'bin/report-perf-playtest'), str(path)], text=True)
+
+for expected in ('CHECK: quality changed across comparison phases',
+                 'CHECK: pixel ratio changed across comparison phases',
+                 'CHECK: physical render dimensions changed across comparison phases'):
+    assert expected in output, expected
+print('PASS  cross-phase quality and physical render-size contamination')

@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { buildPerformer } from './performer.js';
 import { register as registerContextLight } from '../contextLights.js';
+import { STAGE_SHAPES } from '../festivalShapes.js';
 
 export function buildStage(opts = {}) {
   // `scale` (default 1.0) scales the deck dimensions + truss + speakers +
@@ -21,8 +22,9 @@ export function buildStage(opts = {}) {
   const { isMain = false, leafTexture = null, rng = Math.random, scale = 1.0 } = opts;
 
   const g = new THREE.Group();
-  const w = (isMain ? 24 : 14) * scale;
-  const d = (isMain ? 12 : 8) * scale;
+  const shape = isMain ? STAGE_SHAPES.main : STAGE_SHAPES.side;
+  const w = shape.width * scale;
+  const d = shape.depth * scale;
   const h = 1.5 * scale;
 
   const deck = new THREE.Mesh(
@@ -64,7 +66,7 @@ export function buildStage(opts = {}) {
 
   // Truss
   const trussMat = new THREE.MeshStandardMaterial({ color: 0x2a1f3a, roughness: 0.5, metalness: 0.4, flatShading: true });
-  const trussH = 9 * scale;
+  const trussH = shape.trussHeight * scale;
   const trussThk = 0.25 * scale;
   for (const [px, pz] of [
     [-w / 2 + 0.3 * scale, -d / 2 + 0.3 * scale], [w / 2 - 0.3 * scale, -d / 2 + 0.3 * scale],
@@ -89,7 +91,7 @@ export function buildStage(opts = {}) {
   // a gabled roof on the truss top — so it reads as a built stage, not just a
   // platform with a floating banner. Side stages stay open.
   if (isMain) {
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0x6e4a2c, roughness: 0.92, flatShading: true });
+    const woodMat = new THREE.MeshStandardMaterial({ color: shape.roofColor, roughness: 0.92, flatShading: true });
 
     // Back wall — full width, up to the truss top, just behind the banner.
     const back = new THREE.Mesh(
@@ -104,8 +106,8 @@ export function buildStage(opts = {}) {
     // Gabled roof — ridge along the width, sloping down to front + back eaves
     // with a small overhang. Springs from the truss top.
     const eaveY = trussH;
-    const peak = 2.6 * scale;
-    const overhang = 1.0 * scale;
+    const peak = shape.roofRise * scale;
+    const overhang = shape.roofOverhang * scale;
     const halfD = d / 2 + overhang;
     const slopeLen = Math.hypot(halfD, peak);
     const slabThk = 0.22 * scale;

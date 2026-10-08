@@ -20,7 +20,7 @@ import { hash2, worldHash, mulberry32 } from './rng.js';
 import { Sound } from './sound.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { register as registerContextLight } from './contextLights.js';
-import { placeChunkProps, ownerCellCoord } from './worldgen/placement.js';
+import { placeChunkProps, ownerCellCoord, vendorRowSlots } from './worldgen/placement.js';
 import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
 import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, seamHedgesNear, MAX_POI_REACH } from './worldgen/festival.js';
@@ -312,6 +312,7 @@ export class ChunkManager {
     this.scene = scene;
     this.crowd = crowd;
     this.loaded = new Map(); // key -> { group, cx, cz, theme }
+    this._initialPreloadDone = false;
     // Seeded near-spawn intro jugs (see computeSpawnJugTargets). Computed once
     // here so they're stable for the session; SESSION_SEED is already set by
     // the time the world (and this manager) is built.
@@ -346,7 +347,8 @@ export class ChunkManager {
     // *feel* like the cart's movement stutters mid-boost. Spreading the
     // load over a few frames is invisible; the player keeps moving smoothly
     // and the new chunks pop in 50-100ms later.
-    const firstLoad = this.loaded.size === 0;
+    const firstLoad = !this._initialPreloadDone;
+    this._initialPreloadDone = true;
 
     // Build a candidate list sorted by squared distance to the player, so
     // we always generate the closest missing chunk first under budget.
@@ -1632,10 +1634,8 @@ function buildVendorRowAt(ctx, x, z, yaw) {
   // adjacent camps alternates full/lean and reads as one continuous, varied
   // backstage strip instead of a wall of identical full camps (Gary 2026-06-21).
   const prevCamp = { '-1': false, '1': false };
-  for (let i = 0; i < count; i++) {
-    const t = i - (count - 1) / 2;
-    for (const side of [-1, 1]) {
-      const w = place(side * rowOffset, t * spacing);
+  for (const { i, side, t, x: wx, z: wz } of vendorRowSlots(x, z, yaw, count, T)) {
+      const w = { x: wx, z: wz };
       if (isPointInLake(w.x, w.z)) continue;
       // The row is a STRAIGHT booth line straddling the road by ±rowOffset. Where the road
       // CURVES through the row's span it bends toward one side, putting that side's booths
@@ -1698,7 +1698,6 @@ function buildVendorRowAt(ctx, x, z, yaw) {
         }
       }
       prevCamp[side] = hasCamp;
-    }
   }
 }
 

@@ -39,7 +39,7 @@
     const v = isLocal ? '?v=' + Date.now() : '';
     const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
       'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
-      'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing',
+      'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing', 'festivalShapes',
       'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
     const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
       'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
@@ -93,6 +93,7 @@
       <option value="high">high</option>
     </select>
   </div>
+  <button id="ffCompare" type="button">Toggle near / far at this camera</button>
   <label for="ffDist">Simulated player distance (handoff mode)</label>
   <input id="ffDist" type="range" min="0" max="600" step="10" value="600">
   <div class="row"><button id="ffReplan">Force replan</button></div>
@@ -348,6 +349,7 @@ function simLoaded(cx, cz) {
 function rebuildFarField() {
   if (farField) { farField.dispose(); farField = null; }
   const mode = ffModeEl.value;
+  setComparisonVisibility();
   if (mode === 'off' || !current) { ffStatsEl.textContent = 'far field off'; return; }
   farField = new FarField({
     enabled: true,
@@ -359,8 +361,26 @@ function rebuildFarField() {
   ffStatsEl.textContent = 'planning…';
 }
 
+function setComparisonVisibility() {
+  const showReal = ffModeEl.value !== 'proxy';
+  if (current) current.group.visible = showReal;
+  crowd.group.visible = showReal;
+  smiles.group.visible = showReal;
+  if (floorMesh) floorMesh.visible = showReal;
+}
+
+function toggleNearFar() {
+  ffModeEl.value = ffModeEl.value === 'proxy' ? 'real' : 'proxy';
+  if (!farField) rebuildFarField();
+  else {
+    farField.setOwnershipOverride(ffModeEl.value);
+    setComparisonVisibility();
+  }
+}
+
 ffModeEl.addEventListener('change', rebuildFarField);
 ffTierEl.addEventListener('change', rebuildFarField);
+document.getElementById('ffCompare').addEventListener('click', toggleNearFar);
 document.getElementById('ffReplan').addEventListener('click', () => { if (farField) farField.forceReplan(); });
 
 function updateFarField(dt, now) {
@@ -424,6 +444,7 @@ window.__hubSandbox = {
     rebuildFarField();
   },
   setFarFieldDist(m) { ffDistEl.value = String(m); },
+  toggleNearFar,
   build, rebuild: () => build(seedInput.value, +hubInput.value, initAt),
   // Registry dump in the SAME shape as __dbg.dumpRegistry, so the acceptance
   // test (6.3) can diff the viewer's built sub-components against a game capture

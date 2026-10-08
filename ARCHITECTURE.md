@@ -213,8 +213,8 @@ never a wider chunk ring. It consumes the same pure worldgen descriptors the
 real builders use (`heartsInBounds` → `festivalPlan`, `roadsInBounds`),
 copies them into compact owned records (shared memoized arrays are never
 mutated — `bin/test-far-field` hashes them pre/post), and owns exactly seven
-draws: six fixed-capacity `InstancedMesh` pools (stage canopies, truss
-posts/beams, vendor roof-peak strips, warm night markers, colored stage
+draws: six fixed-capacity `InstancedMesh` pools (gabled stage/marquee roofs,
+truss posts/beams, vendor roof peaks, warm night markers, colored stage
 beacons, and coarse forest masses — detail-0 icosa domes sampled from the
 `treeDensity` field on a per-tier world-anchored grid, never the exact
 far-tree scatter; per-instance color, unlit `MeshBasicMaterial`, fog-aware,
@@ -223,6 +223,11 @@ player) plus one preallocated road-ribbon underlay at y=0.03 (opaque,
 `depthWrite:true`, slightly narrower than the real y=0.06 road so the
 authoritative ribbon always covers it) — and it registers **nothing**: no
 registry entries, colliders, crowds, audio, lights, pickups.
+The stage, marquee, and vendor roof definitions come from
+`src/festivalShapes.js`, which their real model builders also use. Vendor-row
+candidate coordinates come from `vendorRowSlots` in `worldgen/placement.js`.
+Camp pitches and forest trees still have separate proxy placement rules, so
+their near/far identity remains an open visual task.
 
 **Planning.** Boundary-triggered on 80m player-cell crossings, incremental
 per 240m coarse cell (never one monolithic ~1km² query), and versioned by the
@@ -249,7 +254,8 @@ the proxy reappears the same way.
 FarField around one hub (proxy-only / real-only / simulated-distance handoff,
 live stats); in the game, `__dbg.horizon()` reads live stats and
 `horizon('proxy'|'real'|'live'|'replan')` forces states for fixed-seed A/B
-captures. See DEBUGGING.md. Tier knobs (radius, density, pool caps, cold-step
+captures. The hub viewer's proxy-only and real-only modes hide the opposing
+hub layer, and its toggle preserves the camera. See DEBUGGING.md. Tier knobs (radius, density, pool caps, cold-step
 gate) live in `perf.js` under `farField`.
 
 ---

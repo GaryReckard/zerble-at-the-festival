@@ -59,6 +59,17 @@ def summarize(path):
     by_phase = defaultdict(list)
     for sample in samples:
         by_phase[sample.get('phase') or '(unlabelled)'].append(sample)
+    comparison = [row for row in samples if row.get('phase') not in (None, 'settle')]
+    invariants = {
+        'quality': ('quality', 'qualityLevel'),
+        'pixel ratio': ('pixelRatio',),
+        'physical render dimensions': ('canvasW', 'canvasH', 'targetW', 'targetH'),
+    }
+    for label, keys in invariants.items():
+        values = {tuple(row.get(key) for key in keys) for row in comparison
+                  if all(row.get(key) is not None for key in keys)}
+        if len(values) > 1:
+            print(f'CHECK: {label} changed across comparison phases: {sorted(map(str, values))}.')
     print('\nPhase            n  FPS med  wall p95  wall p99  worst wall  worst work  worst world  worst render  >50ms  draws med')
     for phase, rows in by_phase.items():
         frames = [row.get('frame') or {} for row in rows]

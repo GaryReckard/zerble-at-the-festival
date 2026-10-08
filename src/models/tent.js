@@ -8,6 +8,7 @@
 // Returns a THREE.Group anchored at (0,0,0), opening facing +Z.
 
 import * as THREE from 'three';
+import { VENDOR_ROOF_SHAPE } from '../festivalShapes.js';
 import { buildSimpleNPC } from './puppet.js';
 import { mergeStaticDecor } from '../mergeDecor.js';
 
@@ -21,7 +22,7 @@ const TRIM_COLORS  = [0xff6f9c, 0x6fcf6a, 0xffd28a, 0xb285ff, 0x66d9ff, 0xff8a5b
 // so a row of tents shares draw-batchable resources. All entries are tagged
 // userData.shared = true so chunk-unload disposal walks skip them.
 const _LEG_GEO  = new THREE.BoxGeometry(0.15, 2.5, 0.15);   _LEG_GEO.userData.shared = true;
-const _ROOF_GEO = new THREE.ConeGeometry(3.2, 1.8, 4);      _ROOF_GEO.userData.shared = true;
+const _ROOF_GEO = new THREE.ConeGeometry(VENDOR_ROOF_SHAPE.radius, VENDOR_ROOF_SHAPE.height, 4); _ROOF_GEO.userData.shared = true;
 const _TRIM_GEO = new THREE.BoxGeometry(4.5, 0.18, 4.5);    _TRIM_GEO.userData.shared = true;
 
 const _LEG_MAT = new THREE.MeshStandardMaterial({
@@ -29,7 +30,7 @@ const _LEG_MAT = new THREE.MeshStandardMaterial({
 });
 _LEG_MAT.userData.shared = true;
 const _ROOF_MAT = new THREE.MeshStandardMaterial({
-  color: 0xfff8eb, roughness: 0.85, flatShading: true,
+  color: VENDOR_ROOF_SHAPE.color, roughness: 0.85, flatShading: true,
 });
 _ROOF_MAT.userData.shared = true;
 
@@ -128,7 +129,7 @@ export function buildTent(rng = Math.random) {
 
   // ----- Roof — always white festival canvas; angle jitter avoids clones.
   const roof = new THREE.Mesh(_ROOF_GEO, _ROOF_MAT);
-  roof.position.y = 3.4;
+  roof.position.y = VENDOR_ROOF_SHAPE.centerY;
   roof.rotation.y = Math.PI / 4 + (rng() - 0.5) * 0.06;
   roof.castShadow = true;
   g.add(roof);

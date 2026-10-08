@@ -10,12 +10,13 @@
 
 import * as THREE from 'three';
 import { buildStage, placeBandOnStage } from './stage.js';
+import { MARQUEE_SHAPE } from '../festivalShapes.js';
 
 // Tent dimensions
-const TENT_WIDTH = 28;       // X
-const TENT_DEPTH = 38;       // Z (longer axis)
-const TENT_RIDGE_HEIGHT = 11; // peak Y
-const TENT_WALL_HEIGHT = 5.5; // height of the vertical wall before slope starts
+const TENT_WIDTH = MARQUEE_SHAPE.width;
+const TENT_DEPTH = MARQUEE_SHAPE.depth;
+const TENT_RIDGE_HEIGHT = MARQUEE_SHAPE.ridgeHeight;
+const TENT_WALL_HEIGHT = MARQUEE_SHAPE.eaveHeight;
 const STAGE_INSET = 3;        // how far inside the tent the stage sits
 
 export function buildTentStage(opts = {}) {
@@ -34,7 +35,7 @@ export function buildTentStage(opts = {}) {
   //   open sides.
   // All canvas is a single off-white shade (no stripes).
   const canvasMat = new THREE.MeshStandardMaterial({
-    color: 0xfff8eb, roughness: 0.85, side: THREE.DoubleSide, flatShading: true,
+    color: MARQUEE_SHAPE.roofColor, roughness: 0.85, side: THREE.DoubleSide, flatShading: true,
   });
 
   // Helper: convex polygon from CCW vertices into a Mesh.
