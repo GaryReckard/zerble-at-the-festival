@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { setSessionSeed } from '../src/rng.js';
+import { CONFIG, bumpWorldgen, roadNeighborhoodCells } from '../src/worldgen/constants.js';
+import { heartInCell } from '../src/worldgen/hearts.js';
+import { neighborsOf } from '../src/worldgen/roads.js';
+
+function uncached(heart, windowCells = roadNeighborhoodCells()) {
+  const maxSq = (CONFIG.ROAD_MAX_EDGE_CELLS * CONFIG.HEART_CELL) ** 2;
+  const candidates = [];
+  for (let dz = -windowCells; dz <= windowCells; dz++) {
+    for (let dx = -windowCells; dx <= windowCells; dx++) {
+      if (!dx && !dz) continue;
+      const other = heartInCell(heart.cx + dx, heart.cz + dz);
+      if (!other) continue;
+      const sq = (other.x - heart.x) ** 2 + (other.z - heart.z) ** 2;
+      if (sq <= maxSq) candidates.push({ other, sq });
+    }
+  }
+  candidates.sort((a, b) => a.sq - b.sq || a.other.cx - b.other.cx || a.other.cz - b.other.cz);
+  return candidates.slice(0, CONFIG.ROAD_MAX_NEIGHBORS).map(({ other }) => other);
+}
+
+function compare() {
+  for (let cz = -7; cz <= 7; cz++) for (let cx = -7; cx <= 7; cx++) {
+    const heart = heartInCell(cx, cz);
+    if (!heart) continue;
+    const expected = uncached(heart).map(h => [h.cx, h.cz]);
+    assert.deepEqual(neighborsOf(heart).map(h => [h.cx, h.cz]), expected);
+    assert.deepEqual(neighborsOf(heart).map(h => [h.cx, h.cz]), expected, 'warm cache changed the result');
+  }
+}
+
+for (const seed of [0, 3948869160, 8675309]) { setSessionSeed(seed); compare(); }
+const saved = CONFIG.ROAD_MAX_NEIGHBORS;
+try {
+  CONFIG.ROAD_MAX_NEIGHBORS = 1;
+  bumpWorldgen();
+  compare();
+} finally {
+  CONFIG.ROAD_MAX_NEIGHBORS = saved;
+  bumpWorldgen();
+}
+process.stdout.write('PASS  cached road neighbors match uncached results across seed and tuning changes\n');

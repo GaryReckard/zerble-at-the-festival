@@ -20,9 +20,11 @@ import { FESTIVAL_TUNING } from './worldgen/tuning.js';
 import { getSessionSeed } from './rng.js';
 import { PEAK_CENTER } from './trip.js';
 import { chunkGenStats } from './chunks.js';
+import { FrameTelemetry, PLAYTEST_SCENARIOS, phaseForElapsed } from './perfTelemetry.js';
+import { readRenderPipelineSize } from './renderSizing.js';
 import {
   getFrameStats, getLevelName, getLevelNames, getLevelCount,
-  getLevel, setEnabled as aqSetEnabled, applyLevel as aqApplyLevel,
+  getLevel, isEnabled as aqIsEnabled, setEnabled as aqSetEnabled, applyLevel as aqApplyLevel,
   getBloomEnabled, getShadowsEnabled, getBasePixelRatio,
   setShadows as aqSetShadows, setPixelRatio as aqSetPixelRatio,
 } from './adaptiveQuality.js';
@@ -65,6 +67,8 @@ const PERF_LOG_MAX = 5000;
 const DEVICE_CAPTURE_PARAMS = new URLSearchParams(location.search);
 const DEVICE_CAPTURE_ENABLED = DEVICE_CAPTURE_PARAMS.get('perfCapture') === '1';
 const DEVICE_CAPTURE_TOKEN = DEVICE_CAPTURE_PARAMS.get('captureToken') || '';
+const DEVICE_SCENARIO = PLAYTEST_SCENARIOS[DEVICE_CAPTURE_PARAMS.get('perfScenario')]
+  ? DEVICE_CAPTURE_PARAMS.get('perfScenario') : null;
 
 const state = {
   visible: false,
@@ -104,6 +108,18 @@ const state = {
   deviceCaptureTimer: 0,
   deviceCaptureUploading: false,
   deviceCaptureLastUploadAt: 0,
+  deviceCaptureLastAttemptAt: 0,
+  deviceCaptureFinished: false,
+  deviceCaptureResult: '',
+  deviceCapturePausedMs: 0,
+  deviceCaptureHiddenAt: 0,
+  deviceCapturePhaseIndex: -1,
+  deviceCapturePhaseEvents: [],
+  deviceCaptureMarks: [],
+  deviceCaptureVisibility: [],
+  deviceCaptureErrors: [],
+  deviceCaptureQualityLocked: false,
+  frameTelemetry: new FrameTelemetry(),
 };
 
 export function installDebug(hooks) {
@@ -120,8 +136,13 @@ export function installDebug(hooks) {
   // an in-flight buffer if the tab is closed between samples).
   window.addEventListener('beforeunload', () => { if (state.perfRecording) savePerfLog(state.perfSamples); });
   window.addEventListener('pagehide', () => {
-    if (state.deviceCaptureStarted) uploadDeviceCapture('pagehide', true);
+    if (state.deviceCaptureStarted && !state.deviceCaptureFinished) uploadDeviceCapture('pagehide', true);
   });
+  if (DEVICE_CAPTURE_ENABLED) {
+    document.addEventListener('visibilitychange', captureVisibilityChange);
+    window.addEventListener('error', (event) => captureError(event.message, event.filename, event.lineno));
+    window.addEventListener('unhandledrejection', (event) => captureError(String(event.reason), '', 0));
+  }
   // first paint
   updatePanel(0);
 }
@@ -148,6 +169,19 @@ export function shouldRunFrame(dt) {
 }
 
 export function isGod() { return state.god; }
+
+export function recordCaptureFrame(frame) {
+  if (!state.deviceCaptureStarted || state.deviceCaptureFinished) return;
+  const h = state.hooks;
+  state.frameTelemetry.record({
+    ...frame,
+    phase: state.perfPhase,
+    x: h?.zerble ? Math.round(h.zerble.position.x) : null,
+    z: h?.zerble ? Math.round(h.zerble.position.z) : null,
+    chunkCount: chunkGenStats.count,
+    programCount: h?.renderer?.info?.programs?.length ?? null,
+  });
+}
 export function npcsFrozen() { return state.freezeNPCs; }
 
 // ---------------- internals ----------------
@@ -1601,7 +1635,7 @@ function loadMarkers() {
 function saveMarkers(list) {
   try { localStorage.setItem(MARKERS_KEY, JSON.stringify(list)); } catch (_) { /* private mode */ }
 }
-function dropMarker(note = '') {
+function dropMarker(note = '', { openNote = true, captureLag = false } = {}) {
   const h = state.hooks;
   if (!h || !h.zerble) return null;
   const tod = h.getTimeOfDay && h.getTimeOfDay();
@@ -1616,11 +1650,17 @@ function dropMarker(note = '') {
     note,
     ts: Date.now(),
   };
+  if (captureLag && state.deviceCaptureStarted && !state.deviceCaptureFinished) {
+    m.kind = 'felt-lag';
+    m.elapsedS = Math.round(captureElapsedSeconds() * 10) / 10;
+    m.phase = state.perfPhase || null;
+    m.speed = Math.round(h.zerble.speed * 10) / 10;
+  }
   const list = loadMarkers();
   list.push(m);
   saveMarkers(list);
   renderMarkerList();
-  openMarkerModal(m, list.length - 1);
+  if (openNote) openMarkerModal(m, list.length - 1);
   return m;
 }
 
@@ -1804,6 +1844,7 @@ function collectPerfSample() {
     fAvg: ft.avg > 0 ? r1(ft.avg) : 0,
     fP95: ft.p95 > 0 ? r1(ft.p95) : 0,
     fMax: ft.max > 0 ? r1(ft.max) : 0,
+    frame: state.deviceCaptureStarted ? state.frameTelemetry.takeWindow() : null,
     draws: si ? si.calls : (info ? info.render.calls : -1),
     tris: si ? si.triangles : (info ? info.render.triangles : -1),
     geo: info ? info.memory.geometries : -1,
@@ -1812,8 +1853,12 @@ function collectPerfSample() {
     quality: getLevelName(),
     qualityLevel: getLevel(),
     pixelRatio: r ? r1(r.getPixelRatio()) : -1,
+    ...(r && h?.composer && h?.bloomPass ? readRenderPipelineSize(h) : {}),
     bloom: !!h?.bloomPass?.enabled,
     bubbles: h?.bubbles?.mesh?.material === h?.bubbles?._fancyMat ? 'fancy' : 'cheap',
+    bubbleActive: h?.bubbles?.activeCount ?? null,
+    shadowPolicy: getShadowsEnabled(),
+    sunShadow: !!h?.getTimeOfDay?.()?.sun?.castShadow,
     phase: state.perfPhase || null,
     tripState: h?.Trip?.state || 'unknown',
     tripEnvelope: r3(h?.Trip?._envelope || 0),
@@ -1829,7 +1874,7 @@ function collectPerfSample() {
     npc: h && h.crowd ? h.crowd.npcs.length : -1,
     reg: h && h.registry ? h.registry.entries.size : -1,
     col: h && h.registry ? [...h.registry.colliders()].length : -1,
-    cgN: cg.count, cgSlow: cg.slowCount, cgWorst: r1(cg.slowest),
+    cgN: cg.count, cgSlow: cg.slowCount, cgWorst: r1(cg.slowest), cgLast: r1(cg.lastMs),
     // Far-field horizon counters (null when the layer is off): ffCold is the
     // worst indivisible planning step so far — the number the real-device
     // promotion question hinged on (the 2ms tier gate can only be judged on
@@ -1849,13 +1894,15 @@ function collectPerfSample() {
     mcol: reg ? r1(reg._maxCol) : -1,
     bigFp: reg && reg._bigFp ? reg._bigFp.length : -1,
     sepMs, avoidMs,
+    speed: z ? r1(z.speed) : 0,
     x: z ? Math.round(z.position.x) : 0,
     z: z ? Math.round(z.position.z) : 0,
   };
 }
-function samplePerf() {
+function samplePerf(force = false) {
+  if (state.deviceCaptureStarted && document.hidden) return;
   const now = performance.now();
-  if (state.perfLastSampleMs && now - state.perfLastSampleMs < state.perfIntervalMs) return;
+  if (!force && state.perfLastSampleMs && now - state.perfLastSampleMs < state.perfIntervalMs) return;
   state.perfLastSampleMs = now;
   const firstTs = state.perfSamples.length ? state.perfSamples[0].ts : Date.now();
   const ts = Date.now();
@@ -1884,70 +1931,182 @@ function setPerfRecording(on) {
 
 function buildDeviceCaptureControl() {
   if (state.deviceCaptureEl) return;
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.id = 'device-perf-capture';
-  button.textContent = 'PERF · ARMED';
-  button.setAttribute('aria-label', 'Performance capture is armed and will begin after Start');
-  button.style.cssText = [
+  const root = document.createElement('div');
+  root.id = 'device-perf-capture';
+  root.style.cssText = [
     'position:fixed',
     'top:calc(env(safe-area-inset-top, 0px) + 76px)',
     'right:calc(env(safe-area-inset-right, 0px) + 8px)',
     'z-index:2200',
     'border:1px solid rgba(255,255,255,.35)',
-    'border-radius:999px',
-    'padding:6px 10px',
-    'background:rgba(10,24,34,.82)',
+    'border-radius:12px',
+    'padding:9px',
+    'width:min(220px,calc(100vw - 24px))',
+    'background:rgba(10,24,34,.94)',
     'color:#bfffdc',
-    'font:700 11px/1.1 ui-monospace,monospace',
-    'letter-spacing:.04em',
+    'font:700 12px/1.35 ui-monospace,monospace',
     'box-shadow:0 2px 10px rgba(0,0,0,.28)',
-    'touch-action:manipulation',
   ].join(';');
-  button.addEventListener('click', () => {
-    if (state.deviceCaptureStarted) uploadDeviceCapture('manual', false);
-  });
-  document.body.appendChild(button);
-  state.deviceCaptureEl = button;
+  const status = document.createElement('div');
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  root.appendChild(status);
+  const actions = document.createElement('div');
+  actions.style.cssText = 'display:flex;gap:6px;margin-top:8px';
+  const button = (label, click) => {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.textContent = label;
+    el.style.cssText = 'flex:1;min-height:44px;border:1px solid #bfffdc;border-radius:8px;background:#173344;color:#fff;font:700 11px ui-monospace,monospace;touch-action:manipulation';
+    el.addEventListener('click', click);
+    actions.appendChild(el);
+    return el;
+  };
+  state.deviceCaptureMarkBtn = button('FELT LAG', markDeviceLag);
+  state.deviceCaptureSendBtn = button('SEND', () => uploadDeviceCapture('manual', false));
+  root.appendChild(actions);
+  document.body.appendChild(root);
+  state.deviceCaptureEl = status;
+  updateDeviceCaptureControl();
 }
 
 function updateDeviceCaptureControl(message) {
   const el = state.deviceCaptureEl;
   if (!el) return;
+  state.deviceCaptureMarkBtn.disabled = !state.deviceCaptureStarted || state.deviceCaptureFinished;
+  state.deviceCaptureSendBtn.disabled = !state.deviceCaptureStarted;
   if (message) {
     el.textContent = message;
-    el.setAttribute('aria-label', message.replace('·', '').trim());
     return;
   }
   if (!state.deviceCaptureStarted) {
-    el.textContent = 'PERF · ARMED';
-    el.setAttribute('aria-label', 'Performance capture is armed and will begin after Start');
+    el.textContent = 'PERF · ARMED. Tap Start to begin.';
+    return;
+  }
+  if (state.deviceCaptureFinished) {
+    el.textContent = state.deviceCaptureResult === 'sent'
+      ? 'PERF · SAVED ✓ You can close this tab.'
+      : 'PERF · SEND FAILED. Tap SEND to retry.';
     return;
   }
   const seconds = Math.max(0, Math.round((Date.now() - state.deviceCaptureStartedAt) / 1000));
   const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
   const ss = String(seconds % 60).padStart(2, '0');
-  el.textContent = `● REC ${mm}:${ss} · SEND`;
-  el.setAttribute('aria-label', `Performance recording ${mm}:${ss}. Send report.`);
+  const phase = DEVICE_SCENARIO ? phaseForElapsed(DEVICE_SCENARIO, captureElapsedSeconds()) : null;
+  el.textContent = phase
+    ? `● ${phase.id.toUpperCase()} · ${phase.remaining}s left. ${phase.instruction}`
+    : `● REC ${mm}:${ss}. Drive normally; tap FELT LAG when it stutters.`;
 }
 
 function startDeviceCapture() {
   if (!DEVICE_CAPTURE_ENABLED || state.deviceCaptureStarted) return state.deviceCaptureStarted;
   state.perfSamples = [];
   savePerfLog(state.perfSamples);
+  state.frameTelemetry.reset();
   state.deviceCaptureStarted = true;
   state.deviceCaptureStartedAt = Date.now();
   state.deviceCaptureLastUploadAt = Date.now();
+  state.deviceCaptureLastAttemptAt = Date.now();
+  state.deviceCaptureFinished = false;
+  state.deviceCaptureResult = '';
+  state.deviceCapturePausedMs = 0;
+  state.deviceCaptureHiddenAt = 0;
+  state.deviceCapturePhaseIndex = -1;
+  state.deviceCapturePhaseEvents = [];
+  state.deviceCaptureMarks = [];
+  state.deviceCaptureVisibility = [];
+  state.deviceCaptureErrors = [];
+  state.deviceCaptureQualityLocked = false;
+  state.deviceCaptureQualityWasEnabled = aqIsEnabled();
+  for (const stage of Object.values(chunkGenStats.stages)) {
+    stage.count = 0;
+    stage.totalMs = 0;
+    stage.maxMs = 0;
+  }
+  state.deviceCaptureChunkBase = chunkGenStats.count;
   state.deviceCaptureName = `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   setPerfRecording(true);
+  if (DEVICE_SCENARIO) advanceDeviceScenario();
   updateDeviceCaptureControl();
   state.deviceCaptureTimer = window.setInterval(() => {
+    if (DEVICE_SCENARIO && !state.deviceCaptureFinished) advanceDeviceScenario();
     updateDeviceCaptureControl();
-    if (Date.now() - (state.deviceCaptureLastUploadAt || 0) >= 30_000) {
+    if (!state.deviceCaptureFinished && Date.now() - (state.deviceCaptureLastAttemptAt || 0) >= 30_000) {
       uploadDeviceCapture('periodic', false);
     }
   }, 1000);
   return true;
+}
+
+function captureElapsedSeconds() {
+  const hiddenMs = state.deviceCaptureHiddenAt ? Date.now() - state.deviceCaptureHiddenAt : 0;
+  return Math.max(0, (Date.now() - state.deviceCaptureStartedAt - state.deviceCapturePausedMs - hiddenMs) / 1000);
+}
+
+function captureVisibilityChange() {
+  if (!state.deviceCaptureStarted || state.deviceCaptureFinished) return;
+  const now = Date.now();
+  state.deviceCaptureVisibility.push({ ts: now, hidden: document.hidden, phase: state.perfPhase || null });
+  if (document.hidden) state.deviceCaptureHiddenAt = now;
+  else if (state.deviceCaptureHiddenAt) {
+    state.deviceCapturePausedMs += now - state.deviceCaptureHiddenAt;
+    state.deviceCaptureHiddenAt = 0;
+    advanceDeviceScenario();
+  }
+}
+
+function captureError(message, file, line) {
+  if (!state.deviceCaptureStarted || state.deviceCaptureErrors.length >= 20) return;
+  state.deviceCaptureErrors.push({ ts: Date.now(), message: String(message).slice(0, 300), file: String(file || '').split('/').pop(), line });
+}
+
+function markDeviceLag() {
+  if (!state.deviceCaptureStarted || state.deviceCaptureFinished) return;
+  const marker = dropMarker('Felt lag', { openNote: false, captureLag: true });
+  if (!marker) return;
+  state.deviceCaptureMarks.push(marker);
+  updateDeviceCaptureControl(`FELT LAG marked (${state.deviceCaptureMarks.length}). Keep playing.`);
+  window.setTimeout(() => updateDeviceCaptureControl(), 1800);
+}
+
+function advanceDeviceScenario() {
+  if (document.hidden || state.deviceCaptureFinished) return;
+  const phase = phaseForElapsed(DEVICE_SCENARIO, captureElapsedSeconds());
+  if (!phase) { finishDeviceScenario(); return; }
+  if (phase.index === state.deviceCapturePhaseIndex) return;
+  const previous = state.deviceCapturePhaseIndex;
+  state.deviceCapturePhaseIndex = phase.index;
+  state.perfPhase = phase.id;
+  state.deviceCapturePhaseEvents.push({ ts: Date.now(), phase: phase.id, elapsedS: Math.round(captureElapsedSeconds() * 10) / 10 });
+  const trip = state.hooks?.Trip;
+  if (DEVICE_SCENARIO === 'trip' && phase.id === 'baseline') {
+    aqSetEnabled(false);
+    state.deviceCaptureQualityLocked = true;
+  }
+  if (DEVICE_SCENARIO === 'trip') {
+    if (phase.id === 'fade-in') trip?.triggerDynamic();
+    if (phase.id === 'peak') trip?.scrub(PEAK_CENTER);
+    if (phase.id === 'after') trip?.scrub(null);
+  }
+  if (previous >= 0 && phase.index > previous + 1) {
+    state.deviceCaptureErrors.push({ ts: Date.now(), message: `scenario skipped ${phase.index - previous - 1} phase(s) after a stall`, file: '', line: 0 });
+  }
+  updateDeviceCaptureControl();
+}
+
+function finishDeviceScenario() {
+  if (state.deviceCaptureFinished) return;
+  samplePerf(true);
+  state.deviceCaptureFinished = true;
+  state.perfPhase = '';
+  state.deviceCapturePhaseEvents.push({ ts: Date.now(), phase: 'complete', elapsedS: Math.round(captureElapsedSeconds() * 10) / 10 });
+  if (DEVICE_SCENARIO === 'trip') {
+    state.hooks?.Trip?.scrub(null);
+  }
+  if (state.deviceCaptureQualityLocked) aqSetEnabled(state.deviceCaptureQualityWasEnabled);
+  setPerfRecording(false);
+  window.clearInterval(state.deviceCaptureTimer);
+  uploadDeviceCapture('complete', false);
 }
 
 function deviceRendererInfo() {
@@ -1962,6 +2121,8 @@ function deviceRendererInfo() {
       renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
       maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
       maxSamples: renderer.capabilities?.maxSamples ?? null,
+      resolution: state.hooks?.composer && state.hooks?.bloomPass
+        ? readRenderPipelineSize(state.hooks) : null,
     };
   } catch (_) {
     return null;
@@ -1976,15 +2137,28 @@ function buildDeviceCaptureReport(reason, sampleTail = null) {
   }
   const samples = sampleTail ? state.perfSamples.slice(-sampleTail) : state.perfSamples.slice();
   return {
-    schema: 'zerble-device-perf-v1',
+    schema: 'zerble-device-perf-v2',
     reason,
     capturedAt: new Date().toISOString(),
     startedAt: new Date(state.deviceCaptureStartedAt).toISOString(),
     durationS: Math.round((Date.now() - state.deviceCaptureStartedAt) / 100) / 10,
+    activeDurationS: Math.round(captureElapsedSeconds() * 10) / 10,
     sampleCount: samples.length,
     samples,
+    frameEvents: reason === 'pagehide' ? state.frameTelemetry.events.slice(-40) : state.frameTelemetry.events.slice(),
+    droppedFrameEvents: state.frameTelemetry.droppedEvents,
+    phaseEvents: state.deviceCapturePhaseEvents.slice(),
+    feltLag: state.deviceCaptureMarks.slice(),
+    visibilityEvents: state.deviceCaptureVisibility.slice(),
+    errors: state.deviceCaptureErrors.slice(),
+    chunkStages: Object.fromEntries(Object.entries(chunkGenStats.stages).map(([name, s]) => [name, {
+      count: s.count, totalMs: Math.round(s.totalMs * 10) / 10, maxMs: Math.round(s.maxMs * 10) / 10,
+    }])),
     session: {
       seed: getSessionSeed(),
+      scenario: DEVICE_SCENARIO || 'free',
+      qualityLockedDuringComparison: state.deviceCaptureQualityLocked,
+      chunksGeneratedDuringCapture: chunkGenStats.count - (state.deviceCaptureChunkBase || 0),
       tier: PERF.name,
       detectedTier: DETECTED_TIER,
       quality: getLevelName(),
@@ -2005,7 +2179,7 @@ function buildDeviceCaptureReport(reason, sampleTail = null) {
       screen: { width: window.screen.width, height: window.screen.height },
       renderer: deviceRendererInfo(),
     },
-    markers: loadMarkers(),
+    markers: loadMarkers().filter((marker) => marker.ts >= state.deviceCaptureStartedAt),
   };
 }
 
@@ -2016,28 +2190,34 @@ function deviceCaptureUrl(final = false) {
 }
 
 async function uploadDeviceCapture(reason, useBeacon) {
-  if (!state.deviceCaptureStarted || (state.deviceCaptureUploading && !useBeacon)) return false;
+  if (!state.deviceCaptureStarted) return false;
+  if (state.deviceCaptureFinished && reason === 'manual') reason = 'complete';
   const final = reason === 'pagehide';
-  const report = buildDeviceCaptureReport(reason, final ? 120 : null);
+  const report = buildDeviceCaptureReport(reason, final ? 25 : null);
   const body = JSON.stringify(report);
   if (useBeacon && navigator.sendBeacon) {
     return navigator.sendBeacon(deviceCaptureUrl(true), new Blob([body], { type: 'application/json' }));
   }
+  if (state.deviceCaptureUploading) await state.deviceCaptureUploadPromise.catch(() => {});
   state.deviceCaptureUploading = true;
+  state.deviceCaptureLastAttemptAt = Date.now();
   updateDeviceCaptureControl('PERF · SENDING…');
   try {
-    const response = await fetch(deviceCaptureUrl(false), {
+    state.deviceCaptureUploadPromise = fetch(deviceCaptureUrl(false), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
     });
+    const response = await state.deviceCaptureUploadPromise;
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.deviceCaptureLastUploadAt = Date.now();
+    if (state.deviceCaptureFinished) state.deviceCaptureResult = 'sent';
     updateDeviceCaptureControl('PERF · SENT ✓');
     window.setTimeout(() => updateDeviceCaptureControl(), 1500);
     return true;
   } catch (error) {
     console.error('[devicePerfCapture] upload failed', error);
+    if (state.deviceCaptureFinished) state.deviceCaptureResult = 'failed';
     updateDeviceCaptureControl('PERF · SEND FAILED');
     window.setTimeout(() => updateDeviceCaptureControl(), 3000);
     return false;

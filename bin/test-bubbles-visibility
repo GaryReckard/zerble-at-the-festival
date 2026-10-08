@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+import { register } from 'node:module';
+import assert from 'node:assert/strict';
+register('./node-three-shim.mjs', import.meta.url);
+
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: { hardwareConcurrency: 8, deviceMemory: 8, maxTouchPoints: 0 },
+});
+globalThis.location = { search: '' };
+globalThis.window = { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1 };
+globalThis.localStorage = { getItem: () => null };
+
+const { Bubbles } = await import('../src/bubbles.js');
+const { Vector3 } = await import('three');
+const bubbles = new Bubbles();
+const cart = { speed: 0, nozzleWorld: new Vector3(0, 2, 0), forwardWorld: new Vector3(0, 0, 1) };
+
+assert.equal(bubbles.mesh.visible, false, 'empty pool must not enter the render pipeline');
+bubbles.update(0.1, cart);
+assert.ok(bubbles.activeCount > 0, 'ambient emission should make live bubbles');
+assert.equal(bubbles.mesh.visible, true, 'first emission must become visible in its update');
+
+bubbles.setCheapMaterial(true);
+assert.equal(bubbles.mesh.visible, true, 'material swap must preserve a live trail');
+bubbles.juice = 0;
+for (const p of bubbles.particles) if (p.alive) { p.age = p.life; p.popping = true; p.popStart = p.age; }
+bubbles.update(0.1, cart);
+assert.equal(bubbles.mesh.visible, true, 'popping bubbles must remain visible');
+bubbles.update(0.2, cart);
+assert.equal(bubbles.activeCount, 0, 'finished pops should leave no active instances');
+assert.equal(bubbles.mesh.visible, false, 'empty pool must hide again');
+
+bubbles.addJuice(1);
+bubbles.setCheapMaterial(false);
+bubbles.update(0.1, cart);
+assert.equal(bubbles.mesh.visible, true, 'refilling must restore visibility');
+process.stdout.write('PASS  bubbles hide when empty and render emission, popping, and refills\n');

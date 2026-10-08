@@ -1,0 +1,46 @@
+{
+  "head": "843a693f135ab292faa37b724ee8eb876f5a623c",
+  "scope": "Current worktree with concurrent Sol telemetry changes; no application source modified by this audit",
+  "shadowProbe": {
+    "tier": "high",
+    "seed": 3948869160,
+    "timeOfDay": 0.25,
+    "procedure": "Disable adaptive decisions, call setShadows(false), count mesh castShadow flags, teleport to (1500,-640), wait nine seconds, recount",
+    "beforeCasters": 0,
+    "afterCasters": 287,
+    "reportedShadowsEnabled": false,
+    "caveat": "Caster flags prove shadow-off enforcement failure, not the number of submitted shadow draws"
+  },
+  "lakeProbe": {
+    "tier": "mid",
+    "registryEntries": 3983,
+    "lakes": 7,
+    "queryCount": 10000,
+    "points": "For i in [0,10000), lake=lakes[i%7], x=lake.x+sin(i*1.618)*footprint*1.3, z=lake.z+cos(i*2.414)*footprint*1.3",
+    "procedure": "Call real isPointInLake synchronously, temporarily replacing registry.entries.values only inside the isolated comparison with a generator over byKind lake IDs; restore in finally, no animation frame may run during substitution",
+    "allEntriesMs": [201.1, 210.6, 201.1],
+    "lakeIndexMs": [2.7, 2.7, 2.6],
+    "hits": 1325,
+    "mismatches": 0,
+    "caveat": "Enumeration-only microbenchmark with real polygon tests, not a whole-game speedup claim"
+  },
+  "workerProbe": {
+    "procedure": "Blob module worker imports existing /src/worldgen/index.js via absolute same-origin URL, sets seed, calls queryRegion, posts structured-cloned result; main thread compares JSON.stringify output then terminates worker",
+    "seed": 3948869160,
+    "bounds": {"minX":0,"minZ":0,"maxX":240,"maxZ":240},
+    "identical": true,
+    "hearts": 14,
+    "roads": 113,
+    "lakes": 4,
+    "caveat": "Proves no-build pure planning feasibility, not throughput improvement or correctness of asynchronous mesh/registry commits"
+  },
+  "routeCaveats": [
+    "CPU profiler and one-second snapshots were active; results are diagnostic, not clean performance acceptance runs",
+    "God mode prevented penalties but collisions still changed the route; boost held for eighteen seconds",
+    "Renderer DPR was manually halved without repairing composer dimensions; explicit dimensions are recorded",
+    "Opening parked windows include unfinished horizon work and are not pure steady-state baselines",
+    "Low-tier positions phase was overwritten by perfSnapshot.phase; frame phases remain correct and positions retain timestamps",
+    "Six lifecycle transitions are a short soak and do not establish a memory plateau or prove a leak",
+    "Concurrent work on the same Mac means exclusive CPU/GPU availability was not guaranteed"
+  ]
+}

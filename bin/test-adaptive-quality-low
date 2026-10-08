@@ -34,6 +34,7 @@ assert(
 assert(AQ.currentCheap(), 'low-tier Auto did not start with cheap bubbles');
 
 let pixelRatio = 1.25;
+let resizeCalls = 0;
 const transitions = [];
 AQ.install({
   renderer: {
@@ -43,6 +44,8 @@ AQ.install({
   },
   scene: { traverse: () => {} },
   composer: { setSize: () => {} },
+  onRenderResolutionChange: () => { resizeCalls++; },
+  onShadowPolicyChange: () => {},
   bloomPass: { enabled: true },
   onLevelChange: (level) => transitions.push(level),
 });
@@ -64,6 +67,11 @@ assert(
   `low-tier transitions visited an inert rung: ${JSON.stringify(transitions)}`,
 );
 assert(pixelRatio === 0.625, `pixel-50 should resolve to 0.625 DPR, got ${pixelRatio}`);
+assert(resizeCalls === expectedNames.length - 1, 'every quality rung must resync the render pipeline');
+
+AQ.setPixelRatio(0.8);
+assert(pixelRatio === 1 && resizeCalls === expectedNames.length,
+  'manual pixel-ratio override must resync the render pipeline');
 
 AQ.setOverride('bubbles', true);
 assert(!AQ.currentCheap(), 'Detailed bubbles On did not override the low-tier Auto floor');

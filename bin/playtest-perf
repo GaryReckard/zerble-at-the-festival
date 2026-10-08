@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Start one guided desktop or phone perf capture. Ctrl-C stops the server."""
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+
+def main():
+    parser = argparse.ArgumentParser(description='One-command Zerble performance playtest')
+    parser.add_argument('scenario', nargs='?', choices=('drive', 'trip'), default='drive')
+    parser.add_argument('--desktop', action='store_true', help='open the test in a desktop browser on this Mac')
+    parser.add_argument('--browser', help='desktop browser app name (default: macOS default browser)')
+    parser.add_argument('--no-open', action='store_true', help='print the desktop URL without opening the browser')
+    parser.add_argument('--tier', choices=('auto', 'low', 'mid', 'high'), default='auto')
+    parser.add_argument('--seed', default='3948869160')
+    parser.add_argument('--port', type=int, default=8765)
+    parser.add_argument('--no-qr', action='store_true')
+    args = parser.parse_args()
+    if args.desktop and args.no_qr:
+        parser.error('--no-qr applies only to phone playtests')
+    if not args.desktop and args.no_open:
+        parser.error('--no-open applies only to desktop playtests')
+    if not args.desktop and args.browser:
+        parser.error('--browser applies only to desktop playtests')
+    root = Path(__file__).resolve().parent.parent
+    os.chdir(root)
+    command = [sys.executable, str(root / '.claude' / 'serve_nocache.py'), str(args.port),
+               '--playtest', args.scenario, '--seed', args.seed, '--tier', args.tier]
+    if args.desktop:
+        if not args.no_open:
+            command.append('--desktop-open')
+            if args.browser:
+                command.extend(['--browser', args.browser])
+    else:
+        command.append('--lan')
+    if args.no_qr and not args.desktop:
+        command.append('--no-qr')
+    os.execv(sys.executable, command)
+
+
+if __name__ == '__main__':
+    main()

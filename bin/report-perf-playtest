@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""Summarize a guided real-device perf report without browser access."""
+
+import argparse
+import json
+import statistics
+from collections import defaultdict
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+CAPTURES = ROOT / '.claude' / 'captures'
+
+
+def median(rows, key):
+    values = [row.get(key) for row in rows if isinstance(row.get(key), (int, float))]
+    return round(statistics.median(values), 1) if values else None
+
+
+def number(value):
+    return 'n/a' if value is None else str(value)
+
+
+def browser_name(user_agent):
+    for marker, name in (('EdgiOS/', 'Edge iOS'), ('Edg/', 'Edge'),
+                         ('CriOS/', 'Chrome iOS'), ('FxiOS/', 'Firefox iOS'),
+                         ('Firefox/', 'Firefox'), ('Chrome/', 'Chrome'),
+                         ('Safari/', 'Safari')):
+        if marker in (user_agent or ''):
+            return name
+    return 'unknown browser'
+
+
+def latest_report():
+    files = sorted(CAPTURES.glob('device-*.json'), key=lambda path: path.stat().st_mtime, reverse=True)
+    for path in files:
+        try:
+            if json.loads(path.read_text()).get('reason') == 'complete':
+                return path
+        except (ValueError, OSError):
+            continue
+    return files[0] if files else None
+
+
+def summarize(path):
+    report = json.loads(path.read_text())
+    samples = report.get('samples') or []
+    session = report.get('session') or {}
+    device = report.get('device') or {}
+    renderer = device.get('renderer') or {}
+    print(f'Report: {path}')
+    print(f"Captured: {report.get('capturedAt')} | result: {report.get('reason')} | schema: {report.get('schema')}")
+    print(f"Device: {device.get('platform')} / {browser_name(device.get('userAgent'))} / "
+          f"{renderer.get('renderer')} | tier: {session.get('tier')} "
+          f"(detected {session.get('detectedTier')}) | seed: {session.get('seed')} | "
+          f"scenario: {session.get('scenario', 'free')}")
+    print(f"Samples: {len(samples)} | active duration: {report.get('activeDurationS', report.get('durationS'))}s "
+          f"| felt lag marks: {len(report.get('feltLag') or [])} | errors: {len(report.get('errors') or [])}")
+
+    by_phase = defaultdict(list)
+    for sample in samples:
+        by_phase[sample.get('phase') or '(unlabelled)'].append(sample)
+    print('\nPhase            n  FPS med  wall p95  wall p99  worst wall  worst work  worst world  worst render  >50ms  draws med')
+    for phase, rows in by_phase.items():
+        frames = [row.get('frame') or {} for row in rows]
+        maximum = lambda key: max((frame.get(key) or 0 for frame in frames), default=0)
+        over50 = sum(frame.get('over50') or 0 for frame in frames)
+        print(f'{phase[:15]:15} {len(rows):3} {number(median(rows, "fps")):>8} '
+              f'{number(median(frames, "wallP95")):>9} {number(median(frames, "wallP99")):>9} '
+              f'{maximum("wallMax"):>11.1f} {maximum("workMax"):>11.1f} '
+              f'{maximum("worldMax"):>12.1f} {maximum("renderMax"):>13.1f} '
+              f'{over50:>6} {number(median(rows, "draws")):>10}')
+        if phase in ('parked', 'parked-after', 'baseline', 'fade-in', 'active', 'peak', 'after') and rows:
+            movement = max(abs(row.get('x', 0) - rows[0].get('x', 0)) +
+                           abs(row.get('z', 0) - rows[0].get('z', 0)) for row in rows)
+            if movement > 5:
+                print(f'  CHECK: parked comparison moved about {movement}m.')
+        if phase == 'drive' and rows:
+            travel = sum(((rows[index].get('x', 0) - rows[index - 1].get('x', 0)) ** 2 +
+                          (rows[index].get('z', 0) - rows[index - 1].get('z', 0)) ** 2) ** 0.5
+                         for index in range(1, len(rows)))
+            moving = sum(abs(row.get('speed') or 0) >= 1 for row in rows)
+            print(f'  Travel: about {travel:.0f}m; moving in {moving}/{len(rows)} sampled seconds.')
+            if travel < 50 or moving < len(rows) // 4:
+                print('  CHECK: drive phase was mostly stationary; repeat while actually driving.')
+        qualities = {row.get('quality') for row in rows}
+        ratios = {row.get('pixelRatio') for row in rows}
+        if len(qualities) > 1 or len(ratios) > 1:
+            print(f'  CHECK: quality or pixel ratio changed in this phase: {sorted(map(str, qualities))} / {sorted(map(str, ratios))}.')
+        mismatched = [row for row in rows if row.get('targetW') is not None and
+                      (abs(row['targetW'] - row.get('canvasW', 0)) > 1 or
+                       abs(row['targetH'] - row.get('canvasH', 0)) > 1)]
+        if mismatched:
+            print(f'  CHECK: {len(mismatched)} sample(s) have a scene target larger or smaller than the canvas.')
+        shadow_drift = [row for row in rows if row.get('shadowPolicy') is False and row.get('sunShadow') is True]
+        if shadow_drift:
+            print(f'  CHECK: {len(shadow_drift)} sample(s) cast sun shadows while the shadow policy was Off.')
+
+    events = sorted(report.get('frameEvents') or [], key=lambda event: max(event.get('wallMs') or 0, event.get('workMs') or 0), reverse=True)
+    if events:
+        print(f"\nWorst frames (showing {min(8, len(events))} of {len(events)}; {report.get('droppedFrameEvents', 0)} older events dropped):")
+        for event in events[:8]:
+            print(f"  {event.get('phase') or '?':12} wall {event.get('wallMs')}ms, work {event.get('workMs')}ms "
+                  f"(previous work {event.get('previousWorkMs', 'n/a')}ms) "
+                  f"(world {event.get('worldMs')}, render {event.get('renderMs')}) "
+                  f"at {event.get('x')},{event.get('z')} | chunks {event.get('chunkCount')} | programs {event.get('programCount')}")
+
+    stages = report.get('chunkStages') or {}
+    if any(data.get('count', 0) for data in stages.values()):
+        print('\nChunk-stage totals (largest first):')
+        populated = [(name, data) for name, data in stages.items() if data.get('count', 0)]
+        for name, data in sorted(populated, key=lambda item: item[1].get('totalMs', 0), reverse=True)[:10]:
+            print(f"  {name:28} {data.get('count', 0):4} calls  total {data.get('totalMs', 0):7.1f}ms  max {data.get('maxMs', 0):6.1f}ms")
+    elif 'drive' in by_phase:
+        print('\nNo chunks generated during this capture; the drive may not have crossed a streaming boundary.')
+
+    if report.get('feltLag'):
+        print('\nFelt-lag taps:')
+        for mark in report['feltLag']:
+            nearby = min(events, key=lambda event: abs((event.get('ts') or 0) - (mark.get('ts') or 0)), default=None)
+            distance = abs(nearby['ts'] - mark['ts']) / 1000 if nearby and nearby.get('ts') and mark.get('ts') else None
+            match = (f"nearest >50ms frame {distance:.1f}s away "
+                     f"(gap {nearby.get('wallMs')}ms, work {nearby.get('workMs')}ms)"
+                     if distance is not None and distance <= 3 else 'no >50ms frame within 3s')
+            print(f"  {mark.get('elapsedS')}s {mark.get('phase')} at {mark.get('x')},{mark.get('z')}: {match}")
+    if report.get('visibilityEvents'):
+        print(f"\nVisibility changes: {len(report['visibilityEvents'])}. Guided phase clocks pause while hidden.")
+    if report.get('errors'):
+        print('\nCaptured errors:')
+        for error in report['errors'][:10]:
+            print(f"  {error.get('message')}")
+    if not any(row.get('frame') for row in samples):
+        print('\nThis report has no capture-only frame windows; an older v1 report cannot attribute individual hitches.')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('report', nargs='?', type=Path, help='JSON report path; defaults to the newest completed playtest')
+    args = parser.parse_args()
+    path = args.report or latest_report()
+    if not path or not path.exists():
+        parser.error('no device report found in .claude/captures')
+    summarize(path)
+
+
+if __name__ == '__main__':
+    main()

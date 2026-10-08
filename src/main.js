@@ -50,7 +50,7 @@ import {
   HulaHoopers,
   Frisbees,
 } from './obstacles.js';
-import { installDebug, shouldRunFrame, isGod, npcsFrozen } from './debug.js';
+import { installDebug, shouldRunFrame, isGod, npcsFrozen, recordCaptureFrame } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { setSpawnPoint } from './chunks.js';
 import { nearestHeart, heartsInBounds } from './worldgen/hearts.js';
@@ -67,6 +67,7 @@ import { A11y } from './a11y.js';
 import { setSessionSeed, getSessionSeed } from './rng.js';
 import { MODEL_DECOR_MERGE_ENABLED, getMergeDecorStats } from './mergeDecor.js';
 import { BoostStreaks } from './boostStreaks.js';
+import { syncRenderPipelineSize } from './renderSizing.js';
 
 // ---------- Session seed ----------
 // `?seed=<thing>` pins the world to a specific layout — pass a string
@@ -130,6 +131,7 @@ const canvas = document.getElementById('game');
 const LAYOUT_CAPTURE_MODE =
   ['localhost', '127.0.0.1'].includes(location.hostname) &&
   new URLSearchParams(location.search).get('layoutCapture') === '1';
+const PERF_CAPTURE_TIMING = new URLSearchParams(location.search).get('perfCapture') === '1';
 
 // ---------- Renderer ----------
 // MSAA (renderer-level antialias) is expensive on integrated / mobile GPUs,
@@ -197,7 +199,7 @@ composer.addPass(new InfoCapturePass());
 renderer.__sceneInfo = sceneInfo;
 
 const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth * 0.5, window.innerHeight * 0.5),
+  new THREE.Vector2(window.innerWidth * renderer.getPixelRatio(), window.innerHeight * renderer.getPixelRatio()),
   PERF.bloomStrength, PERF.bloomRadius, PERF.bloomThreshold
 );
 // On the low profile we keep bloom but pass-through if it ever needs to be killed:
@@ -639,9 +641,10 @@ Touch.install();
 AdaptiveQuality.install({
   renderer,
   scene,
-  composer,
   bloomPass,
   hud: HUD,
+  onRenderResolutionChange: handleResize,
+  onShadowPolicyChange: (on) => getTimeOfDay()?.setShadowsEnabled(on),
   // Phase 3 will add bubbles.setCheapMaterial(); the hook is wired now so
   // the quality-level ladder encodes the 'bubbles' property correctly from
   // day one. The optional-chain guard means Phase 3 just needs to add the
@@ -854,10 +857,33 @@ window.addEventListener('touchstart', audioRecover, { passive: true });
 // ---------- Game loop ----------
 const clock = new THREE.Clock();
 const _camFwd = new THREE.Vector3();
+let _perfLastTick = 0;
+let _perfWorldMs = 0;
+let _perfRenderMs = 0;
+let _perfPreviousWorkMs = 0;
+if (PERF_CAPTURE_TIMING) document.addEventListener('visibilitychange', () => {
+  _perfLastTick = 0;
+  _perfPreviousWorkMs = 0;
+});
 
 function tick() {
+  const frameStartedAt = PERF_CAPTURE_TIMING ? performance.now() : 0;
+  const wallMs = PERF_CAPTURE_TIMING && _perfLastTick ? frameStartedAt - _perfLastTick : 0;
+  if (PERF_CAPTURE_TIMING) {
+    _perfLastTick = frameStartedAt;
+    _perfWorldMs = 0;
+    _perfRenderMs = 0;
+  }
   const dt = Math.min(clock.getDelta(), 0.05);
   if (shouldRunFrame(dt)) tickBody(dt);
+  if (PERF_CAPTURE_TIMING) {
+    const workMs = performance.now() - frameStartedAt;
+    recordCaptureFrame({
+      ts: Date.now(), wallMs, workMs, previousWorkMs: _perfPreviousWorkMs,
+      worldMs: _perfWorldMs, renderMs: _perfRenderMs, hidden: document.hidden,
+    });
+    _perfPreviousWorkMs = workMs;
+  }
   scheduleNext();
 }
 
@@ -1324,7 +1350,9 @@ function tickBody(dt) {
     }
 
     // Procedural world expands around Zerble.
+    const worldStartedAt = PERF_CAPTURE_TIMING ? performance.now() : 0;
     updateWorld(zerble.position, dt);
+    if (PERF_CAPTURE_TIMING) _perfWorldMs = performance.now() - worldStartedAt;
 
     // Star power: spawn director + buff state + rainbow/wave/trail visuals.
     // Runs before collision so a pickup this frame engages ghost mode the same
@@ -1446,7 +1474,11 @@ function tickBody(dt) {
   const bloomNeeded = getTimeOfDay().nightness > 0.08 || StarPower.isActive();
   bloomPass.enabled = AdaptiveQuality.bloomAllowed() && bloomNeeded;
 
-  if (!LAYOUT_CAPTURE_MODE) composer.render();
+  if (!LAYOUT_CAPTURE_MODE) {
+    const renderStartedAt = PERF_CAPTURE_TIMING ? performance.now() : 0;
+    composer.render();
+    if (PERF_CAPTURE_TIMING) _perfRenderMs = performance.now() - renderStartedAt;
+  }
 }
 
 // RAF is throttled to ~0 fps when the tab is backgrounded (e.g. the Claude
@@ -1764,16 +1796,9 @@ function handleResize() {
   // Use default updateStyle=true so the canvas's inline width/height tracks
   // the viewport. Mixing default-true at boot with false here used to leave
   // the canvas displayed at boot dimensions after the URL bar collapsed.
-  renderer.setSize(w, h);
-  composer.setSize(w, h);
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-  bloomPass.setSize(w * 0.5, h * 0.5);
-  if (fxaaPass) {
-    const pr = renderer.getPixelRatio();
-    fxaaPass.material.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr));
-  }
+  syncRenderPipelineSize({ renderer, composer, camera, fxaaPass }, w, h);
 }
+handleResize();
 window.addEventListener('resize', handleResize);
 window.addEventListener('orientationchange', () => {
   // iOS often reports the wrong dimensions on the synchronous event; defer.
@@ -1784,7 +1809,7 @@ if (window.visualViewport) {
 }
 
 window.__game = {
-  camera, zerble, scene, renderer, crowd, registry, chaseCam, lurleen,
+  camera, zerble, scene, renderer, composer, bloomPass, fxaaPass, crowd, registry, chaseCam, lurleen,
   getTimeOfDay, Trip, StarPower, midi, birds, bubbles, fireworks,
   kids, wooks, puppets, band, hoopers, frisbees, smiles,
   sound: Sound, layoutCaptureMode: LAYOUT_CAPTURE_MODE,
@@ -2578,7 +2603,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
 }
 
 installDebug({
-  scene, camera, renderer, bloomPass,
+  scene, camera, renderer, composer, bloomPass,
   zerble, crowd, bubbles, smiles, registry,
   puppets, band, kids, wooks,
   hoopers, frisbees,

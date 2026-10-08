@@ -1,0 +1,54 @@
+#!/usr/bin/env node
+import { register } from 'node:module';
+import assert from 'node:assert/strict';
+register('./node-three-shim.mjs', import.meta.url);
+
+globalThis.window = { innerWidth: 1280, innerHeight: 720 };
+globalThis.location = { search: '' };
+globalThis.localStorage = { getItem: () => null };
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: { hardwareConcurrency: 8, deviceMemory: 8, maxTouchPoints: 0 },
+});
+
+const [{ TimeOfDay }, AQ] = await Promise.all([
+  import('../src/timeOfDay.js'), import('../src/adaptiveQuality.js'),
+]);
+const sun = { castShadow: true, position: { set() {} }, color: { copy() {} }, intensity: 0 };
+const tod = new TimeOfDay({ fog: null });
+tod.attach({ sun });
+tod.setT(0.25);
+assert.equal(sun.castShadow, true, 'daylight should cast shadows by default');
+
+let pixelRatio = 2;
+const renderer = {
+  shadowMap: { enabled: true, needsUpdate: false },
+  getPixelRatio: () => pixelRatio,
+  setPixelRatio: (v) => { pixelRatio = v; },
+};
+AQ.install({
+  renderer, bloomPass: { enabled: true },
+  onRenderResolutionChange() {},
+  onShadowPolicyChange: (on) => tod.setShadowsEnabled(on),
+});
+AQ.setOverride('shadows', false);
+assert.equal(sun.castShadow, false, 'Off should remove the shadow-casting light');
+assert.equal(AQ.getShadowsEnabled(), false, 'the effective policy should read Off');
+assert.equal(renderer.shadowMap.enabled, true, 'tier shadow support remains initialized');
+
+// Newly streamed meshes can keep their authored castShadow flag. No shadow
+// pass can run while the sun is gated, and no removed mesh is retained by AQ.
+const streamedCaster = { castShadow: true };
+tod.setT(0.75);
+tod.setT(0.25);
+assert.equal(sun.castShadow, false, 'day/night must not undo Off');
+assert.equal(streamedCaster.castShadow, true, 'policy should not mutate mesh ownership');
+
+AQ.setOverride('shadows', true);
+assert.equal(sun.castShadow, true, 'On should restore sun shadows in daylight');
+assert.equal(renderer.shadowMap.needsUpdate, true, 'restoration should refresh the shadow map');
+tod.setT(0.75);
+assert.equal(sun.castShadow, false, 'night still gates sun shadows');
+tod.setT(0.25);
+assert.equal(sun.castShadow, true, 'shadows should return next day');
+process.stdout.write('PASS  shadow Off survives streaming and day/night; On restores without caster retention\n');

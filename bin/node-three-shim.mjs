@@ -17,6 +17,11 @@ const STUB = `
 export class Vector3 {
   constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
   set(x, y, z) { this.x = x; this.y = y; this.z = z; return this; }
+  copy(v) { return this.set(v.x, v.y, v.z); }
+  clone() { return new Vector3(this.x, this.y, this.z); }
+  multiplyScalar(s) { this.x *= s; this.y *= s; this.z *= s; return this; }
+  addScaledVector(v, s) { this.x += v.x * s; this.y += v.y * s; this.z += v.z * s; return this; }
+  setScalar(s) { return this.set(s, s, s); }
 }
 
 // Scene-graph nodes: tree.js sets .position.y, .castShadow, .userData.* and
@@ -88,8 +93,12 @@ export class MeshStandardMaterial {
   dispose() { this.disposeCount++; }
 }
 export class MeshBasicMaterial extends MeshStandardMaterial {}
+export class MeshPhysicalMaterial extends MeshStandardMaterial {
+  constructor(params = {}) { super(params); this.sheenColor = params.sheenColor || new Color(); }
+}
 export const DoubleSide = 2;
 export const AdditiveBlending = 2;
+export const MathUtils = { lerp: (a, b, t) => a + (b - a) * t, clamp: (x, a, b) => Math.max(a, Math.min(b, x)) };
 
 // Math + instancing: tree.js constructs Matrix4/Color at module scope (CG3
 // instancing temps) and InstancedMesh inside buildForestInstanced. The
@@ -104,13 +113,17 @@ export class Matrix4 {
   multiply() { return this; }
   scale() { return this; }
   setPosition() { return this; }
+  compose() { return this; }
 }
+export class Quaternion { setFromAxisAngle() { return this; } }
 export class Color {
-  constructor() { this.r = 0; this.g = 0; this.b = 0; }
+  constructor(hex) { this.r = 0; this.g = 0; this.b = 0; if (hex != null) this.setHex(hex); }
   setHex(hex) { const h = hex | 0; this.r = ((h >> 16) & 255) / 255; this.g = ((h >> 8) & 255) / 255; this.b = (h & 255) / 255; return this; }
   setRGB(r, g, b) { this.r = r; this.g = g; this.b = b; return this; }
   setScalar(s) { this.r = s; this.g = s; this.b = s; return this; }
   multiplyScalar(s) { this.r *= s; this.g *= s; this.b *= s; return this; }
+  copy(c) { this.r = c.r; this.g = c.g; this.b = c.b; return this; }
+  lerp(c, t) { this.r += (c.r - this.r) * t; this.g += (c.g - this.g) * t; this.b += (c.b - this.b) * t; return this; }
 }
 export class InstancedBufferAttribute {
   constructor(array, itemSize) { this.array = array; this.itemSize = itemSize; this.needsUpdate = false; }

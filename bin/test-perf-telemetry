@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+
+import { FrameTelemetry, phaseForElapsed } from '../src/perfTelemetry.js';
+
+const assert = (condition, message) => {
+  if (!condition) throw new Error(message);
+};
+
+const telemetry = new FrameTelemetry({ hitchMs: 50, maxEvents: 2 });
+for (const [ts, wallMs, workMs, worldMs, renderMs] of [
+  [1, 16, 8, 2, 4],
+  [2, 17, 9, 3, 5],
+  [3, 60, 53, 42, 6],
+  [4, 120, 15, 2, 8],
+  [5, 80, 75, 3, 68],
+]) telemetry.record({ ts, wallMs, workMs, worldMs, renderMs, phase: 'drive', x: 3, z: 4 });
+telemetry.record({ ts: 6, wallMs: 6000, workMs: 2, worldMs: 0, renderMs: 1, hidden: true });
+
+const window = telemetry.takeWindow();
+assert(window.frames === 5, 'hidden frames must not contaminate the window');
+assert(window.wallP50 === 60 && window.wallP95 === 120 && window.wallP99 === 120, 'wall percentiles');
+assert(window.workMax === 75 && window.worldMax === 42 && window.renderMax === 68, 'work attribution');
+assert(window.over33 === 3 && window.over50 === 3 && window.over100 === 1, 'hitch counts');
+assert(telemetry.takeWindow() === null, 'windows must drain exactly once');
+assert(telemetry.events.length === 2 && telemetry.events[0].ts === 4 && telemetry.events[1].ts === 5, 'bounded events retain the latest hitches');
+assert(telemetry.droppedEvents === 1, 'event truncation must be visible');
+telemetry.reset();
+assert(telemetry.events.length === 0 && telemetry.droppedEvents === 0, 'new capture must clear previous events');
+assert(phaseForElapsed('drive', 0).id === 'settle', 'drive starts with settling');
+assert(phaseForElapsed('drive', 20).id === 'parked', 'phase boundary belongs to the next phase');
+assert(phaseForElapsed('drive', 45).id === 'drive', 'drive follows baseline');
+assert(phaseForElapsed('drive', 155) === null, 'drive auto-completes');
+assert(phaseForElapsed('trip', 45).id === 'fade-in', 'trip starts after parked baseline');
+assert(phaseForElapsed('trip', 77).id === 'peak', 'trip peak is held at the expected time');
+assert(phaseForElapsed('unknown', 1) === null, 'unrecognized scenarios do not run');
+process.stdout.write('PASS  capture-only frame distributions, attribution, hidden-frame filtering, and event bounds\n');

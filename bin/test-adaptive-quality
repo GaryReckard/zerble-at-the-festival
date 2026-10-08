@@ -30,6 +30,8 @@ AQ.install({
   renderer,
   scene: { traverse: () => {} },
   composer: { setSize: () => {} },
+  onRenderResolutionChange: () => {},
+  onShadowPolicyChange: () => {},
   bloomPass: { enabled: true },
   onLevelChange: (level) => transitions.push(level),
 });
@@ -90,6 +92,8 @@ AQ.install({
   renderer,
   scene: { traverse: () => {} },
   composer: { setSize: () => {} },
+  onRenderResolutionChange: () => {},
+  onShadowPolicyChange: () => {},
   bloomPass: { enabled: true },
 });
 frames(320, 25);
@@ -101,6 +105,8 @@ AQ.install({
   renderer,
   scene: { traverse: () => {} },
   composer: { setSize: () => {} },
+  onRenderResolutionChange: () => {},
+  onShadowPolicyChange: () => {},
   bloomPass: { enabled: true },
 });
 frames(90, 16);

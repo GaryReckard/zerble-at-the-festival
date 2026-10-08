@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+
+import importlib.util
+import json
+import os
+import tempfile
+import threading
+import urllib.error
+import urllib.request
+from urllib.parse import parse_qs, urlsplit
+from http.server import ThreadingHTTPServer
+from pathlib import Path
+
+root = Path(__file__).resolve().parent.parent
+spec = importlib.util.spec_from_file_location('zerble_perf_server', root / '.claude' / 'serve_nocache.py')
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+assert module.public_game_path('/src/main.js')
+assert module.public_game_path('/assets/zerble.png')
+assert not module.public_game_path('/src/../.claude/settings.local.json')
+assert not module.public_game_path('/%2eclaude/settings.local.json')
+desktop = module.capture_url('127.0.0.1', 8765, 'drive', '3948869160', 'auto')
+assert urlsplit(desktop).hostname == '127.0.0.1'
+assert parse_qs(urlsplit(desktop).query) == {
+    'perfCapture': ['1'], 'perfScenario': ['drive'], 'seed': ['3948869160']
+}
+phone = module.capture_url('192.168.1.7', 8765, 'trip', '7', 'low', 'token-123')
+assert parse_qs(urlsplit(phone).query) == {
+    'perfCapture': ['1'], 'captureToken': ['token-123'],
+    'perfScenario': ['trip'], 'seed': ['7'], 'perf': ['low']
+}
+module.CAPTURE_TOKEN = 'test-token'
+assert not module.capture_authorized('127.0.0.1', '')
+assert module.capture_authorized('127.0.0.1', 'test-token')
+assert not module.capture_authorized('192.168.1.8', '')
+assert not module.capture_authorized('192.168.1.8', 'wrong')
+assert module.capture_authorized('192.168.1.8', 'test-token')
+
+if os.environ.get('ZERBLE_TEST_HTTP') == '1':
+    with tempfile.TemporaryDirectory() as temp:
+        module.CAPTURE_DIR = Path(temp)
+        module.LAN_MODE = True
+        server = ThreadingHTTPServer(('127.0.0.1', 0), module.NoCacheHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f'http://127.0.0.1:{server.server_port}'
+        try:
+            with urllib.request.urlopen(base + '/index.html') as response:
+                assert response.status == 200
+            for path in ('/.claude/settings.local.json', '/src/../.claude/settings.local.json'):
+                try:
+                    urllib.request.urlopen(base + path)
+                    raise AssertionError(f'private LAN path was served: {path}')
+                except urllib.error.HTTPError as error:
+                    assert error.code == 403
+            body = json.dumps({'schema': 'zerble-device-perf-v2', 'samples': []}).encode()
+            denied = urllib.request.Request(base + '/__capture/denied', data=body,
+                                            headers={'Content-Type': 'application/json'}, method='POST')
+            try:
+                urllib.request.urlopen(denied)
+                raise AssertionError('LAN upload without token was accepted')
+            except urllib.error.HTTPError as error:
+                assert error.code == 403
+            request = urllib.request.Request(base + '/__capture/perf-server-test', data=body,
+                                             headers={'Content-Type': 'application/json',
+                                                      'X-Zerble-Capture-Token': 'test-token'}, method='POST')
+            with urllib.request.urlopen(request) as response:
+                assert response.status == 200
+            assert json.loads((Path(temp) / 'perf-server-test.json').read_text())['schema'] == 'zerble-device-perf-v2'
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    module.CAPTURE_TOKEN = None
+    module.LAN_MODE = False
+    with tempfile.TemporaryDirectory() as temp:
+        module.CAPTURE_DIR = Path(temp)
+        server = ThreadingHTTPServer(('127.0.0.1', 0), module.NoCacheHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            body = json.dumps({'schema': 'zerble-device-perf-v2', 'samples': []}).encode()
+            request = urllib.request.Request(f'http://127.0.0.1:{server.server_port}/__capture/desktop-test',
+                                             data=body, headers={'Content-Type': 'application/json'}, method='POST')
+            with urllib.request.urlopen(request) as response:
+                assert response.status == 200
+            assert (Path(temp) / 'desktop-test.json').exists()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+print('PASS  desktop/phone URLs and LAN token checks' + ('; LAN and desktop HTTP capture uploads' if os.environ.get('ZERBLE_TEST_HTTP') == '1' else ''))

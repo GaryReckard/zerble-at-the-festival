@@ -11,19 +11,54 @@ default; explicit `--lan` mode protects remote writes with a generated token."""
 
 import argparse
 import ipaddress
+import posixpath
 import re
 import secrets
 import socket
+import subprocess
+import sys
 from pathlib import Path
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import parse_qs, unquote, urlencode, urlsplit
 
 CAPTURE_DIR = Path(__file__).resolve().parent / 'captures'
 MAX_CAPTURE_BYTES = 32 * 1024 * 1024
 CAPTURE_TOKEN = None
+LAN_MODE = False
+PUBLIC_FILES = {
+    '/', '/index.html', '/styles.css', '/favicon.ico', '/favicon.svg',
+    '/favicon-96x96.png', '/apple-touch-icon.png', '/site.webmanifest',
+    '/web-app-manifest-192x192.png', '/web-app-manifest-512x512.png',
+}
+
+
+def public_game_path(raw_path):
+    path = posixpath.normpath(unquote(urlsplit(raw_path).path))
+    return path in PUBLIC_FILES or path.startswith(('/src/', '/assets/'))
+
+
+def capture_authorized(client_ip, supplied_token):
+    if not CAPTURE_TOKEN:
+        try:
+            return ipaddress.ip_address(client_ip).is_loopback
+        except ValueError:
+            return False
+    return secrets.compare_digest(supplied_token, CAPTURE_TOKEN)
 
 
 class NoCacheHandler(SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if LAN_MODE and not public_game_path(self.path):
+            self.send_error(403, 'LAN playtests serve only game assets')
+            return
+        super().do_GET()
+
+    def do_HEAD(self):
+        if LAN_MODE and not public_game_path(self.path):
+            self.send_error(403, 'LAN playtests serve only game assets')
+            return
+        super().do_HEAD()
+
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
         self.send_header('Pragma', 'no-cache')
@@ -47,13 +82,8 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'capture path must be /__capture/<name> (name chars: A-Za-z0-9_-)')
             return
-        request_host = urlsplit('//' + (self.headers.get('Host') or '')).hostname or ''
-        try:
-            request_is_loopback = ipaddress.ip_address(request_host).is_loopback
-        except ValueError:
-            request_is_loopback = request_host == 'localhost'
         supplied_token = self.headers.get('X-Zerble-Capture-Token') or parse_qs(parsed.query).get('token', [''])[0]
-        if CAPTURE_TOKEN and not request_is_loopback and not secrets.compare_digest(supplied_token, CAPTURE_TOKEN):
+        if not capture_authorized(self.client_address[0], supplied_token):
             self.send_response(403)
             self.end_headers()
             self.wfile.write(b'capture token required')
@@ -90,25 +120,79 @@ def local_ipv4_addresses():
     return sorted(a for a in addresses if not ipaddress.ip_address(a).is_loopback)
 
 
+def capture_url(address, port, scenario=None, seed='3948869160', tier='auto', token=None):
+    params = {'perfCapture': '1'}
+    if token:
+        params['captureToken'] = token
+    if scenario:
+        params.update({'perfScenario': scenario, 'seed': seed})
+        if tier != 'auto':
+            params['perf'] = tier
+    return f'http://{address}:{port}/?{urlencode(params)}'
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='No-cache Zerble dev server with an ignored JSON capture sink.')
     parser.add_argument('port', nargs='?', type=int, default=8765)
     parser.add_argument('--lan', action='store_true', help='listen on the LAN and require a generated token for remote capture writes')
+    parser.add_argument('--playtest', choices=('drive', 'trip'), help='print a fixed-seed guided playtest URL')
+    parser.add_argument('--seed', default='3948869160', help='world seed for the guided playtest')
+    parser.add_argument('--tier', choices=('auto', 'low', 'mid', 'high'), default='auto')
+    parser.add_argument('--no-qr', action='store_true', help='print the URL without opening a QR code')
+    parser.add_argument('--desktop-open', action='store_true', help='open a loopback playtest in the named browser')
+    parser.add_argument('--browser', help='desktop browser app name (default: macOS default browser)')
     args = parser.parse_args()
+    if args.desktop_open and (args.lan or not args.playtest):
+        parser.error('--desktop-open requires a loopback --playtest')
     port = args.port
     host = '0.0.0.0' if args.lan else '127.0.0.1'
     if args.lan:
         CAPTURE_TOKEN = secrets.token_urlsafe(18)
+        LAN_MODE = True
     server = ThreadingHTTPServer((host, port), NoCacheHandler)
     print(f'serving on http://127.0.0.1:{port} (no-cache, +/__capture sink)', flush=True)
     if args.lan:
-        params = urlencode({'perfCapture': '1', 'captureToken': CAPTURE_TOKEN})
         addresses = local_ipv4_addresses()
         if addresses:
+            addresses.sort(key=lambda address: (not address.startswith('192.168.'), not address.startswith('10.'), address))
             print('phone/iPad playtest URLs:', flush=True)
             for address in addresses:
-                print(f'  http://{address}:{port}/?{params}', flush=True)
+                print(f'  {capture_url(address, port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN)}', flush=True)
+            if args.playtest and not args.no_qr:
+                qr_path = CAPTURE_DIR / 'playtest-qr.png'
+                CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
+                qr_script = Path(__file__).resolve().parent.parent / 'bin' / 'perf-qr.m'
+                qr_tool = CAPTURE_DIR / 'perf-qr-tool'
+                try:
+                    subprocess.run(['/usr/bin/clang', '-fobjc-arc', '-framework', 'AppKit', '-framework', 'CoreImage',
+                                    str(qr_script), '-o', str(qr_tool)],
+                                   check=True, timeout=60, capture_output=True, text=True)
+                    subprocess.run([str(qr_tool), capture_url(addresses[0], port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN), str(qr_path)],
+                                   check=True, timeout=60, capture_output=True, text=True)
+                    subprocess.Popen(['/usr/bin/open', str(qr_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    print(f'QR code opened: {qr_path} (scan with the phone camera)', flush=True)
+                except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+                    print(f'QR code unavailable ({error}); copy the printed URL instead.', file=sys.stderr, flush=True)
         else:
-            print(f'LAN mode is active. Open http://<this-mac-ip>:{port}/?{params}', flush=True)
+            print(f'LAN mode is active. Open {capture_url("<this-mac-ip>", port, args.playtest, args.seed, args.tier, CAPTURE_TOKEN)}', flush=True)
         print('LAN capture writes require the token embedded in those URLs.', flush=True)
-    server.serve_forever()
+    elif args.playtest:
+        url = capture_url('127.0.0.1', port, args.playtest, args.seed, args.tier)
+        print(f'desktop playtest URL: {url}', flush=True)
+        if args.desktop_open:
+            open_command = ['/usr/bin/open']
+            if args.browser:
+                open_command.extend(['-a', args.browser])
+            open_command.append(url)
+            try:
+                subprocess.run(open_command, check=True, timeout=15,
+                               capture_output=True, text=True)
+                print(f'Opened in {args.browser or "the default browser"}. Tap Start to begin.', flush=True)
+            except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+                print(f'Could not open {args.browser or "the default browser"} ({error}); open the printed URL manually.', file=sys.stderr, flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()

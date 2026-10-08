@@ -92,6 +92,9 @@ export class TimeOfDay {
     this.hemi = null;
     this.ambient = null;
     this.fog = null;
+    // Adaptive quality owns the player shadow policy. The day/night cycle
+    // still turns shadows off at night, but cannot turn them back on over Off.
+    this.shadowsEnabled = false;
   }
 
   // World.js calls this after building the scene, passing in references it
@@ -99,6 +102,7 @@ export class TimeOfDay {
   attach({ sky, sun, hemi, ambient }) {
     this.sky = sky;
     this.sun = sun;
+    this.shadowsEnabled = !!sun?.castShadow;
     this.hemi = hemi;
     this.ambient = ambient;
     this.fog = this.scene.fog || null;
@@ -113,6 +117,11 @@ export class TimeOfDay {
   // sun direction can drive long shadows.
   get sunAngle() {
     return this.t * Math.PI * 2;
+  }
+
+  setShadowsEnabled(on) {
+    this.shadowsEnabled = !!on;
+    if (this.sun) this.sun.castShadow = this.shadowsEnabled && this._nightness < 0.7;
   }
 
   update(dt) {
@@ -177,7 +186,7 @@ export class TimeOfDay {
       c.lerp(MOON_NIGHT, n);
       this.sun.color.copy(c);
       this.sun.intensity = SUN_INTENSITY_DAY * (1 - n) + SUN_INTENSITY_NIGHT * n;
-      this.sun.castShadow = n < 0.7;
+      this.sun.castShadow = this.shadowsEnabled && n < 0.7;
     }
 
     if (this.hemi) {

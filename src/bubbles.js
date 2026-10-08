@@ -91,6 +91,8 @@ export class Bubbles {
     this.mesh.castShadow = false;
     this.mesh.frustumCulled = false;
     this.mesh.count = MAX_BUBBLES;
+    this.mesh.visible = false;
+    this.activeCount = 0;
 
     // Hide all instances initially by scaling to 0.
     const m = new THREE.Matrix4();
@@ -200,7 +202,8 @@ export class Bubbles {
       this._spawnOne(zerble);
     }
 
-    // Update existing
+    // Popping bubbles remain renderable until their final scale-down frame.
+    let activeCount = 0;
     for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i];
       if (!p.alive) continue;
@@ -215,6 +218,7 @@ export class Bubbles {
           this.mesh.setMatrixAt(i, this._tmpMat);
           continue;
         }
+        activeCount++;
         const s = p.size * (1 - t) * (1 + t * 1.5);
         this._writeInstance(i, p.pos, s, p.spin);
         continue;
@@ -223,8 +227,11 @@ export class Bubbles {
       if (p.age >= p.life) {
         p.popping = true;
         p.popStart = p.age;
+        activeCount++;
         continue;
       }
+
+      activeCount++;
 
       // Physics: gentle buoyancy + per-bubble personality forces
       p.vel.y += (BUOYANCY + GRAVITY) * dt;
@@ -285,6 +292,8 @@ export class Bubbles {
       this._writeInstance(i, p.pos, p.size, p.spin);
     }
 
+    this.activeCount = activeCount;
+    this.mesh.visible = activeCount > 0;
     this.mesh.instanceMatrix.needsUpdate = true;
   }
 

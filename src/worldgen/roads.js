@@ -23,7 +23,19 @@ function edgeKey(a, b) {
 // A heart's K nearest neighbor hearts within the road window, edges capped at
 // ROAD_MAX_EDGE_CELLS. Candidates sorted by a total order (distance, then cell
 // id) so the "first K" cut never depends on iteration order.
+// The same heart is revisited by roadsInBounds, approachRoadsOf, and far-field
+// planning. Cache only the pure neighbor list; the seed/epoch gate covers both
+// a new game and the sandbox's live tuning sliders. Callers treat it read-only.
+const _neighborCache = new Map();
+let _neighborGate = '';
 export function neighborsOf(heart, windowCells = roadNeighborhoodCells()) {
+  const gate = getSessionSeed() + ':' + worldgenEpoch();
+  if (gate !== _neighborGate) { _neighborCache.clear(); _neighborGate = gate; }
+  // Include position as well as cell identity because the exported helper can
+  // be called with a synthetic heart by the worldgen determinism harness.
+  const key = `${heart.cx},${heart.cz},${heart.x},${heart.z},${windowCells}`;
+  const cached = _neighborCache.get(key);
+  if (cached) return cached;
   const cell = CONFIG.HEART_CELL;
   const maxLen = CONFIG.ROAD_MAX_EDGE_CELLS * cell;
   const maxLenSq = maxLen * maxLen;
@@ -39,7 +51,12 @@ export function neighborsOf(heart, windowCells = roadNeighborhoodCells()) {
     }
   }
   cands.sort((a, b) => a.sq - b.sq || (a.h.cx - b.h.cx) || (a.h.cz - b.h.cz));
-  return cands.slice(0, CONFIG.ROAD_MAX_NEIGHBORS).map(c => c.h);
+  const result = cands.slice(0, CONFIG.ROAD_MAX_NEIGHBORS).map(c => c.h);
+  // FIFO bound is adequate for a camera moving through an infinite world and
+  // avoids a whole-cache cold spike at the threshold.
+  if (_neighborCache.size >= 8192) _neighborCache.delete(_neighborCache.keys().next().value);
+  _neighborCache.set(key, result);
+  return result;
 }
 
 // The SINGLE shore point that represents a heart sitting in a lake. ALL of that

@@ -8,6 +8,61 @@ model/visual/gameplay change you intend to verify.
 If you only remember one thing: **`window.__dbg` is the one door.** Open the
 console (or `preview_eval`) and call `window.__dbg.help()`.
 
+## Desktop and phone performance playtests
+
+The guided capture is the easiest way to investigate a hitch in either a desktop
+browser or phone Safari. It runs the real game at a fixed world seed, records one-second engine
+samples plus capture-only frame distributions and slow-frame events, and sends
+JSON into the ignored `.claude/captures/` directory on this Mac. The game
+records position, speed, quality level, pixel ratio, render time, world-update
+time, chunk-generation stages, shader-program count, visibility interruptions,
+physical canvas/scene-target/bloom dimensions, active bubble count,
+the effective shadow policy and sun shadow state,
+and any **FELT LAG** taps. That button creates an ordinary saved marker with a
+`felt-lag` kind and no note modal, while `K` still drops a general pin and
+opens a comment box for location or visual issues. Use **FELT LAG** during the
+timed run so typing cannot disturb its frame measurements. A long frame gap can
+reflect prior-frame work, so the event records both current and previous frame
+work. Frame timing is sampled
+only with `?perfCapture=1`; ordinary play does not pay for these timers.
+
+1. Run the two captures separately from Terminal in this repo. For the desktop
+   run, use `bin/playtest-perf --desktop`; it starts a loopback server and opens
+   the Mac's default browser. Use `--browser Safari` or another app name if
+   that is where the desktop issue occurs. For the phone run, put the Mac and phone on the same Wi-Fi and
+   use `bin/playtest-perf`; it opens a QR code and prints a fallback URL. Do not
+   post the phone's tokenized URL publicly because it authorizes local uploads.
+2. On each device, choose **Just Cruisin'** and tap **Start**. On the phone,
+   first scan the QR and open the link in Safari. Leave the game tab in the
+   foreground and follow the small `PERF` instruction box. Stay parked for
+   the 20-second settling phase and the 25-second parked baseline. Then drive
+   around normally for 90 seconds, crossing into new parts of the festival,
+   and park again for the final 20 seconds. Tap **FELT LAG** whenever a hitch
+   is noticeable.
+3. Wait for **PERF · SAVED ✓**, which takes about 2 minutes 35 seconds of active
+   play. If it says **SEND FAILED**, tap **SEND** while the Mac server is still
+   running. Press Control-C in Terminal after each run has saved, then launch
+   the next run. Tell the agent which desktop browser, phone model and iOS
+   version you used, what you felt in each place, and that both playtests saved.
+   The agent reads both JSON reports locally; there is nothing to copy or export.
+
+The drive run leaves adaptive quality active so its changes remain part of the
+real-world symptom. For a parked Wook Trip comparison, add `trip` before the
+options, for example `bin/playtest-perf trip --desktop` or
+`bin/playtest-perf trip`. Leave the cart parked throughout; the scenario holds
+the current render quality steady, starts the Trip, and holds its peak
+automatically. It takes about 1 minute 57 seconds. Both scenarios pause their phase clock while the tab is
+hidden and note the interruption. Run `bin/report-perf-playtest` to summarize
+the newest completed capture, or pass an exact JSON path. The report flags a
+stationary “drive,” movement during a parked phase, and render-quality changes
+that would contaminate a comparison. It also flags a scene target whose
+physical dimensions differ from the canvas after an adaptive-quality change.
+For an apples-to-apples low-tier rerun,
+pass `--tier low`; `--seed` can select another reproducible world.
+
+The server's LAN mode serves only game assets, and upload writes require the
+generated URL token. The data remains on the Mac under `.claude/captures/`.
+
 ---
 
 ## The one door: `window.__dbg` (local dev only)
@@ -163,7 +218,7 @@ hot, which is what `perfPhase` / `tripAB` provide.
 | `perfPhase(label)` | Stamp a window label onto every subsequent sample (`''` clears it). `tripAB()` drives this automatically; set it by hand for any other one-variable comparison. |
 | `perfPhaseSummary()` | Collapse the recorded samples to one row per label — `fps`, `fAvg`, `fP95`, `fMax`, `draws`, `tripPass` — and print the table. Frame-time columns are averaged over **populated samples only**: `AdaptiveQuality` publishes no frame stats until its 90-frame window fills, so early samples carry a frame time of 0, and averaging those in would make the earliest window (usually the baseline) look *faster* than it was. The `warmup` column counts how many were skipped — if it approaches `n`, that row is warm-up noise and the window needs to be longer. |
 | `startDeviceCapture()` / `sendDeviceCapture()` | Start or manually upload the opt-in `?perfCapture=1` real-device report. Normal play starts this only after the real Start tap; these calls exist for diagnostics. |
-| `chunkStages(reset = false)` | With `?debug=1`, return count/total/average/max milliseconds for each v2 chunk stage (`region`, `roads`, `props`, `trees`, `crowd`, `jugs`, `campsites`, `hedges`). Pass `true` to return the current snapshot and zero the stage counters before a controlled drive or teleport. The normal production path does not take the per-stage timestamps. |
+| `chunkStages(reset = false)` | With `?debug=1` or `?perfCapture=1`, return count/total/average/max milliseconds for each v2 chunk stage (`region`, `roads`, `props`, `trees`, `crowd`, `jugs`, `campsites`, `hedges`). Pass `true` to return the current snapshot and zero the stage counters before a controlled drive or teleport. The normal production path does not take the per-stage timestamps. |
 | `foodCourtVisual()` | Jump directly to the deterministic food court at Midnight, wait for both chunk generation and registry population to settle while rendered frames continue advancing, then frame the court from inside its outer ring. |
 | `foodCourtCapture()` | Park at the same food court, freeze NPC AI, pin the camera and render quality, sample real scene draws/tris, and write `.claude/captures/foodcourt-<tier>-<mode>.json`. Pair the shipping default (`modelMerge=0`) with experimental `?modelMerge=1` for a one-variable before/after. |
 | `foodCourtLifecycle()` | Alternate between the same food court and a distant deterministic location for five settled load/unload cycles, then write the GPU-geometry plateau plus exact merged-geometry create/dispose ownership counters to `.claude/captures/`. |
@@ -325,36 +380,19 @@ steady-state cost — for that, read the live budget markers instead).
 
 ### Phone/iPad performance capture over the same Wi-Fi
 
-The opt-in device bridge records the real browser, GPU, viewport, adaptive-
-quality transitions, world position, and live engine counters on a phone or
-tablet, then writes the report straight into this workspace. It is especially
-useful for iOS Safari because desktop emulation cannot reproduce its GPU,
-thermal limits, memory pressure, audio gesture rules, or background/resume
-behavior.
-
-1. Put the Mac and device on the same Wi-Fi, then start the explicit LAN server:
-
-   ```
-   python3 .claude/serve_nocache.py 8765 --lan
-   ```
-
-2. Open one of the printed tokenized URLs on the device. Prefer the address on
-   the Wi-Fi interface, usually `192.168.x.x`; a `172.x.x.x` address may belong
-   to a VPN. Allow incoming Python connections if macOS asks. Add
-   `&seed=3948869160` for a reproducible world, and add
-   `&perf=low|mid|high` only when the test needs a pinned tier.
-3. Tap the real Start button. The small top-right control changes from
-   **PERF · ARMED** to **● REC · SEND**. Play a representative route and put the
-   game into the background and foreground once.
-4. Tap **SEND** before leaving. The recorder also uploads every 30 seconds and
-   sends a bounded final report on page exit, so a dropped manual tap does not
-   usually lose the run.
-5. Reports land as ignored `.claude/captures/device-*.json` files, where an
-   agent can inspect them without asking you to copy console output.
+Use the [guided desktop and phone performance playtests](#desktop-and-phone-performance-playtests)
+for a comparable drive or Trip capture. The lower-level
+`python3 .claude/serve_nocache.py 8765 --lan` command remains available for an
+unstructured session. It prints a tokenized URL with `?perfCapture=1`; tap the
+real Start button, play until the symptom appears, then tap **SEND**. The
+recorder also uploads every 30 seconds and sends a bounded report on page exit.
+Only the guided scenarios auto-complete.
 
 When reading a report, reconstruct `samples[].quality` transitions first, then
 compare adjacent samples for `draws`, `tris`, `geo`, `tex`, `prog`, `cgN`, and
-position. Samples also carry the far-field horizon counters (`ffActive`,
+position. Compare `canvasW/H` with `targetW/H` after quality transitions;
+`bloomW/H` should be about half their dimensions, while `bubbleActive` explains
+when detailed-bubble transmission work was possible. Samples also carry the far-field horizon counters (`ffActive`,
 `ffCold`, `ffRebuilds`, `ffHandoffs`, `ffOverflow`; `ffActive: null` means the
 layer is off) — `ffCold` is the worst indivisible planning step in ms, the
 number to check against the 2ms tier gate on real hardware. Trip and star-power state matter because each can add screen-space or

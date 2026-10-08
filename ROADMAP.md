@@ -863,28 +863,43 @@ ceiling rather than an automatic perf win.
 
 - **PINNED: `?perf=low` shows a multi-second freeze that is NOT draws/tris.** *(pinned 2026-06-21 — come back to)* A low-tier capture caught **`fMax: 9029ms`** — a single ~9-second frozen frame — at fps 22, while per-chunk gen (`cgWorst`) was only ~198ms. So the freeze is something bigger and rarer than chunk generation: most likely a mid-play **shader-program compile** (the GPU stalling to build a program) or a **GC pause**. Same class as the "Game goes unresponsive" item in `## Bugs`, and squarely in this pass's Slice 2/3 territory (shader prewarm / time-sliced chunk gen). **To diagnose, need a "caught in the act" capture:** `__dbg.recordPerf(true)`, drive on `?perf=low` until it hitches, `__dbg.capture()` — then check whether `prog` (shader count) jumped at the freeze (→ shader stall) or `heapMB` did (→ GC). Cross-ref `openspec/changes/perf-pass-4/`.
 
-- **Deferred real-iPhone Wook Trip A/B capture.** The first phone report included
-  a Trip, but the v1 telemetry did not yet record its state, so it cannot isolate
-  the full-screen shader's device cost. Before asking Gary for another run, add a
-  local-only `perfCapture` scenario control that makes the comparison one tap:
-  collect a settled parked baseline, trigger Dynamic Trip automatically, collect
-  fade-in plus active windows at the same seed/pose, then send the report. Keep
-  the bubble material, bloom, pixel ratio, star-power state, registry counts, and
-  position fixed or recorded so analysis can reject contaminated windows. Run it
-  on the same iPhone at `?perf=low`; compare FPS and frame-time distributions, not
-  scene draws/tris, because `InfoCapturePass` records those before Trip. Pair the
-  run with a normal driving interval only after the parked A/B establishes the
-  shader's isolated cost. No device action is needed until the one-tap scenario
-  exists and exact instructions are ready.
+- **Run desktop and real-iPhone Wook Trip and driving captures.** The guided one-tap
+  scenarios now exist: `bin/playtest-perf trip` performs the parked
+  baseline → fade-in → active → held peak → after comparison and sends the
+  report, while `bin/playtest-perf` collects a separate drive. Add `--desktop`
+  to run either scenario in this Mac's default browser. Follow
+  [DEBUGGING.md](DEBUGGING.md#desktop-and-phone-performance-playtests) on both devices.
+  The device result remains to be collected; rerun both with `--tier low` if a
+  controlled low-tier comparison is needed. Compare frame-time distributions
+  and render work for the Trip, because `InfoCapturePass` counts scene draws
+  before the Trip pass. Reject any interval with movement, quality changes,
+  visibility interruptions, or a changing star-power/scene population state.
+
+- **Astra audit follow-through, 2026-10-08.** The render-resolution mismatch,
+  empty transmissive bubble pass, all-entry lake queries, shadow Off policy drift,
+  and repeated road-neighbor enumeration have code fixes and regression checks.
+  The measurements and remaining acceptance gates are in
+  [.claude/rules/performance.md](.claude/rules/performance.md#2026-10-08-audit-current-work-order).
+  The managers now share one admission deadline; a single synchronous chunk
+  can still exceed it. The next structural task is to split a measured hot chunk builder while
+  keeping collision registration synchronous and deterministic. Device captures
+  should establish the residual stalls before changing hidden-tab/audio
+  schedulers or adding another far-field cache.
 
 ### Build step — now on the table for perf *(parked, evidence-gated, 2026-06-19)*
 
 No longer ruled out (Gary relaxed the no-build constraint; see the reframed
-note under *Out of scope*). A build step is **not** needed for any Slice-1/2/3
-item above — it's the gateway to a *second* engine, parked until the perf-pass-4
-captures say which way the residual cost points:
+note under *Out of scope*). The pure-worldgen worker probe below shows that
+workers alone do not require a bundler. A build step remains parked until
+device captures show a specific benefit from compression or broader module
+resolution:
 
-- **Web Workers (clean, with a bundler)** — off-thread chunk *planning*/geometry (the `_generateWorldgen` query math) and, if measurement ever proves crowd CPU is the limiter, an off-thread crowd sim. Without a bundler this is blocked by import-maps not resolving bare `three` specifiers inside workers.
+- **Web Workers, evidence-gated** — the 2026-10-08 module-worker probe imported
+  pure worldgen code and produced byte-identical region data without a bundler.
+  A worker remains conditional on measuring transfer, cancellation, and
+  asynchronous commit costs while keeping collision truth synchronous. Worker
+  code that imports browser-only or `three` modules may still need separate
+  module resolution or a build step.
 - **Texture / mesh compression** — KTX2/Basis + Draco/meshopt: smaller GPU upload, lower memory (helps the iOS ≤2048 cap + mobile), faster boot. Makes texture-atlasing worthwhile.
 - **Recommended tool if pursued: Vite** — keeps fast HMR + static GitHub-Pages output, and could ship a committed-`dist/` or GitHub-Actions deploy so "the site just works on Pages" survives. Replaces the 4×importmap + threeShim CDN juggling. Decide on evidence after B0, not now.
 

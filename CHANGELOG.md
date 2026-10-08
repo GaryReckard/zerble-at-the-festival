@@ -2,6 +2,24 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-08
+
+### Fixed
+- **Adaptive resolution now resizes the whole render pipeline.** Renderer, composer, FXAA, bloom, and camera use one sizing path after quality and viewport changes. Capture samples record physical canvas, scene-target, and bloom sizes, and the report flags a mismatch. Astra's M4 Pro probe and raw results are preserved under `verification/performance/2026-10-08/`; its GPU delta prioritizes the fix but is not a claimed device-wide FPS gain. (`renderSizing.js`, `adaptiveQuality.js`, `main.js`, `debug.js`)
+- **Empty bubble pools no longer trigger the detailed material's render path.** The instanced mesh hides only when no live or popping particles remain, then returns on emission or refill. (`bubbles.js`)
+- **Lake checks use the existing kind index.** Four hot lake helpers now walk lake IDs only, preserving exact-outline checks and registry insertion order. (`lakes.js`)
+- **Shadow Off persists through travel and day/night changes.** The quality policy gates the sun instead of mutating and retaining mesh casters; the tier's shadow-map support stays initialized for On. (`adaptiveQuality.js`, `timeOfDay.js`)
+- **Repeated road-neighbor scans are memoized.** The bounded cache is keyed by seed, worldgen tuning epoch, cell, position, and search window. (`worldgen/roads.js`)
+- **Chunk admission uses the world streaming deadline.** Lake updates can consume the tier budget before another chunk starts, and the far-field planner receives only the remainder. One synchronous chunk can still overrun the deadline; splitting a measured builder remains open. (`world.js`, `chunks.js`)
+
+### Added
+- **Regression checks and a dated audit record.** Focused tests cover physical render sizes, bubble lifecycle, shadow policy, lake lookup and reload, and road cache determinism; `npm run check` runs them. The performance guide records Astra's measured priorities and the unresolved streaming and scheduling gates. (`bin/test-render-sizing`, `bin/test-bubbles-visibility`, `bin/test-shadow-policy`, `bin/test-lake-index`, `bin/test-road-neighbors`, `.claude/rules/performance.md`)
+
+## 2026-10-07
+
+### Added
+- **Guided desktop and phone performance captures.** `bin/playtest-perf --desktop` opens a fixed-seed drive or parked Wook Trip test in this Mac's default browser, while `bin/playtest-perf` starts a tokenized LAN server and opens a phone QR code. Both start recording on the real Start tap and upload automatically. Capture-only frame telemetry records frame gaps, current and previous frame work, world/render work, bounded slow-frame events, chunk stages, phase labels, position and speed, render quality, visibility changes, errors, and player-marked hitches. `bin/report-perf-playtest` prints phase comparisons and flags contaminated or stationary runs. The LAN server serves only game assets. The pure telemetry and server checks are in `npm run check`; browser boot, manual upload, and automatic completion were smoke-tested locally. The physical-device results are still pending. ([DEBUGGING.md](DEBUGGING.md#desktop-and-phone-performance-playtests), [debug.js](src/debug.js), [perfTelemetry.js](src/perfTelemetry.js), [serve_nocache.py](.claude/serve_nocache.py))
+
 ## 2026-10-05
 
 ### Fixed

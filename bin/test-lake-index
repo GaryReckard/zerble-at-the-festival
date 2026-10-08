@@ -1,0 +1,65 @@
+#!/usr/bin/env node
+import { register } from 'node:module';
+import assert from 'node:assert/strict';
+register('./node-three-shim.mjs', import.meta.url);
+
+globalThis.window = { innerWidth: 1280, innerHeight: 720 };
+globalThis.location = { search: '' };
+globalThis.localStorage = { getItem: () => null };
+globalThis.document = { createElement: () => ({}) };
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: { hardwareConcurrency: 8, deviceMemory: 8, maxTouchPoints: 0 },
+});
+
+const [lakes, { registry }, { Vector3 }] = await Promise.all([
+  import('../src/lakes.js'), import('../src/registry.js'), import('three'),
+]);
+const ids = [];
+for (let i = 0; i < 4000; i++) {
+  ids.push(registry.add({ kind: 'tent', position: new Vector3(i % 100, 0, i / 100), footprint: 2 }));
+}
+const circle = Array.from({ length: 64 }, (_, i) => ({
+  x: Math.cos(i * Math.PI / 32) * 10,
+  z: Math.sin(i * Math.PI / 32) * 10,
+}));
+const poly = [{ x: -10, z: -10 }, { x: 10, z: -10 }, { x: 10, z: 10 }, { x: -10, z: 10 }];
+const legacy = registry.add({ kind: 'lake', position: new Vector3(20, 0, 20), footprint: 10, outline: circle });
+const exact = registry.add({ kind: 'lake', position: new Vector3(70, 0, 20), footprint: 15, outline: poly, exactPoly: true });
+
+function fullScanOverlap(x, z, half) {
+  for (const e of registry.entries.values()) {
+    if (e.kind !== 'lake' || !e.footprint) continue;
+    const dx = Math.max(0, Math.abs(e.position.x - x) - half);
+    const dz = Math.max(0, Math.abs(e.position.z - z) - half);
+    if (Math.hypot(dx, dz) < e.footprint) return true;
+  }
+  return false;
+}
+function fullScanInside(x, z) {
+  for (const e of registry.entries.values()) {
+    if (e.kind === 'lake' && e.footprint && Math.hypot(e.position.x - x, e.position.z - z) < e.footprint) return true;
+  }
+  return false;
+}
+
+for (let x = 0; x <= 100; x += 3) for (let z = 0; z <= 50; z += 3) {
+  assert.equal(lakes.chunkOverlapsLake(x, z, 4), fullScanOverlap(x, z, 4));
+  assert.equal(lakes.chunkInLake(x, z), fullScanInside(x, z));
+}
+assert.equal(lakes.isPointInLake(20, 20), true, 'legacy outline center');
+assert.equal(lakes.isPointInLake(29, 20), true, 'legacy outline near shore');
+assert.equal(lakes.isPointInLake(31, 20), false, 'legacy outline outside shore');
+assert.equal(lakes.isPointInLake(70, 20), true, 'exact polygon center');
+assert.equal(lakes.isPointInLake(82, 20), false, 'inside bounding circle but outside polygon');
+assert.equal(lakes.projectOutOfLake(20, 20).x, 32.5, 'center projects to shoreline with margin');
+
+registry.remove(legacy);
+assert.equal(lakes.isPointInLake(20, 20), false, 'removed lake leaves the index');
+assert.equal(lakes.chunkInLake(20, 20), false, 'removed lake leaves chunk checks');
+const replacement = registry.add({ kind: 'lake', position: new Vector3(20, 0, 20), footprint: 10 });
+assert.equal(lakes.isPointInLake(20, 20), true, 'reloaded lake enters the index');
+registry.remove(replacement);
+registry.remove(exact);
+for (const id of ids) registry.remove(id);
+process.stdout.write('PASS  indexed lake queries preserve geometry and add/remove behavior\n');

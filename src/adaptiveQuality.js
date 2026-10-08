@@ -25,8 +25,8 @@
 //     then require a longer healthy run. If a raise fails within 15s, wait 2m
 //     before retrying that boundary, doubling to a 5m cap on repeat failures.
 //   * We tweak LIVE renderer/composer/PERF rather than reloading.
-//   * Shadows use the castShadow-walk trick (not shadowMap.enabled) so
-//     stale ghost shadows don't freeze on the ground.
+//   * Shadows use the sun's castShadow policy. It applies to streamed meshes
+//     without retaining references to unloaded casters or stale depth maps.
 //
 // Usage from main.js (per frame):
 //   AdaptiveQuality.tick(dt);
@@ -90,12 +90,8 @@ const state = {
   goodRun: 0,
   frameTimes: [],
   hooks: null,
-  // castShadow list saved when we killed shadows; restored on raise. Append-only
-  // while shadows are off (never overwritten) so a redundant "off" can't destroy
-  // the restore list. Cleared on the transition back to on.
-  _castersTurnedOff: null,
-  // Current shadow on/off state, so _setShadowsOn is idempotent — a repeated
-  // call in the same direction won't re-walk and clobber the restore list.
+  // Current player/quality shadow policy. The day/night cycle applies this
+  // before deciding whether the sun itself should cast this frame.
   _shadowsOn: null,
   // Derived frame-time stats — updated every STATS_INTERVAL frames.
   // Shared between the adaptive trigger logic and the debug HUD display.
@@ -119,7 +115,8 @@ const state = {
 };
 
 export function install(hooks) {
-  // hooks: { renderer, scene, composer, bloomPass, hud, onLevelChange }
+  // hooks: { renderer, bloomPass, hud, onRenderResolutionChange,
+  //          onShadowPolicyChange, onLevelChange }
   state.hooks = hooks;
   state.level = 0;
   state.bloomAllowed = true;
@@ -127,7 +124,8 @@ export function install(hooks) {
   state._raiseBlockedUntil.fill(0);
   state._lastRaise = null;
   state._raiseBackoffMs.fill(FAILED_RAISE_BACKOFF_MS);
-  state._castersTurnedOff = null;
+  state._shadowsOn = !!PERF.shadows;
+  hooks.onShadowPolicyChange(state._shadowsOn);
   _resetObservationWindow();
   // Cache the baseline pixel ratio so we can scale it instead of clobbering.
   state.basePixelRatio = hooks.renderer.getPixelRatio();
@@ -138,6 +136,8 @@ export function setEnabled(v) {
   if (next && !state.enabled) _resetObservationWindow();
   state.enabled = next;
 }
+
+export function isEnabled() { return state.enabled; }
 
 export function tick(dt) {
   if (!state.enabled || !state.hooks) return;
@@ -279,7 +279,7 @@ const overrides = { bloom: null, bubbles: null, shadows: null };
 export function setOverride(key, val) {
   if (!(key in overrides)) return;
   overrides[key] = val;
-  // Shadows apply live (the cast-shadow walk), so a pin takes effect immediately
+  // Shadows apply live at the sun, so a pin takes effect immediately
   // — including re-enabling shadows the governor had already dropped. bloom /
   // bubbles are read live elsewhere (bloomAllowed / effectiveCheap), so they
   // need no poke here.
@@ -314,13 +314,13 @@ export function effectiveShadows(lvl) {
 }
 function _applyShadowsNow() {
   const h = state.hooks;
-  if (h) _setShadowsOn(h.scene, h.renderer, effectiveShadows(QUALITY_LEVELS[state.level]));
+  if (h) _setShadowsOn(h.renderer, effectiveShadows(QUALITY_LEVELS[state.level]));
 }
 
 function _apply(newLevel, avgMs) {
   const lvl = QUALITY_LEVELS[newLevel];
   state.level = newLevel;
-  const { renderer, scene, composer, bloomPass, hud } = state.hooks;
+  const { renderer, hud } = state.hooks;
 
   // Bloom — F1 (perf-pass-4): AdaptiveQuality no longer writes
   // `bloomPass.enabled` directly. It records whether THIS quality level permits
@@ -329,12 +329,11 @@ function _apply(newLevel, avgMs) {
   // AdaptiveQuality.bloomAllowed() + the gate in main.js's tick.
   state.bloomAllowed = lvl.bloom !== false;
   // Shadows — honor a player pin (Settings → Off/Auto/On); else this level's value.
-  _setShadowsOn(scene, renderer, effectiveShadows(lvl));
+  _setShadowsOn(renderer, effectiveShadows(lvl));
   // Pixel ratio — scale from the baseline captured at install time.
   const pixMul = lvl.pixelRatioMul ?? 1;
   renderer.setPixelRatio(state.basePixelRatio * pixMul);
-  // Composer size must re-sync so bloom render targets track the new resolution.
-  composer.setSize(window.innerWidth, window.innerHeight);
+  state.hooks.onRenderResolutionChange();
 
   // Toast uses wall-clock avg (avgMs here is the live avg, not clamped dt).
   const fps = avgMs > 0 ? (1000 / avgMs).toFixed(0) : '?';
@@ -354,65 +353,15 @@ function _apply(newLevel, avgMs) {
   _resetObservationWindow();
 }
 
-// Toggle shadows in a way that doesn't leave stale ghost shadows on the
-// ground.
-//
-// The naive approach — `renderer.shadowMap.enabled = false` — stops the
-// shadow map from being re-rendered, but materials compiled with shadow
-// support still SAMPLE the depth texture, which keeps its stale contents.
-// Result: frozen shadows frozen exactly where they last drew, looking
-// like a bug.
-//
-// Instead: leave `shadowMap.enabled` alone and walk every casting mesh,
-// turning off `castShadow` (saving the list for restore). The next
-// shadow-map render is then EMPTY, so every receive-shadow mesh samples
-// a clear depth texture and reads "fully lit" — no stale shadows. Cost
-// is one shadow render with no occluders (cheap) instead of skipping
-// the render entirely; net perf is still much better than full shadows
-// because the per-caster fill cost is gone.
-function _setShadowsOn(scene, renderer, on) {
-  if (state._shadowsOn === on) {
-    // Already in this state — DON'T re-run the destructive path. Re-asserting
-    // "off" just sweeps up any casters that streamed in since the last walk (so
-    // the off state doesn't decay) WITHOUT clobbering the restore list. This
-    // idempotency is the fix: a redundant "off" from the governor used to
-    // overwrite the saved list with an empty one, so the next "on" restored
-    // nothing.
-    if (!on) _walkCastersOff(scene, renderer);
-    return;
-  }
+// The sun is the only shadow-casting light. A light-level gate means streamed
+// casters cannot break Off, and the renderer no longer traverses them for a
+// shadow pass. Keep shadowMap.enabled at its boot-time tier value: toggling it
+// alone can leave old depth textures sampled by already compiled materials.
+function _setShadowsOn(renderer, on) {
+  if (state._shadowsOn === on) return;
   state._shadowsOn = on;
-  if (on) {
-    // Restore every caster we'd turned off. Skip any nulled by other systems.
-    if (state._castersTurnedOff) {
-      for (const m of state._castersTurnedOff) {
-        if (m && !m.castShadow) m.castShadow = true;
-      }
-      state._castersTurnedOff = null;
-    }
-    renderer.shadowMap.enabled = true;
-    // Force the shadow map to re-render now that casters are back — don't wait
-    // on whatever it last cached (the empty map from when they were turned off).
-    renderer.shadowMap.needsUpdate = true;
-  } else {
-    state._castersTurnedOff = [];
-    _walkCastersOff(scene, renderer);
-  }
-}
-
-// Turn off every currently-casting mesh and APPEND it to the restore list (never
-// overwrite — repeated off-walks accumulate, catching newly-streamed chunks
-// without losing earlier entries). Followed by a shadow-map refresh so the next
-// render writes a clean empty depth texture.
-function _walkCastersOff(scene, renderer) {
-  const list = state._castersTurnedOff || (state._castersTurnedOff = []);
-  scene.traverse((o) => {
-    if (o.isMesh && o.castShadow) {
-      o.castShadow = false;
-      list.push(o);
-    }
-  });
-  renderer.shadowMap.needsUpdate = true;
+  state.hooks.onShadowPolicyChange(on);
+  if (on) renderer.shadowMap.needsUpdate = true;
 }
 
 export function getLevel() { return state.level; }
@@ -441,7 +390,7 @@ export function applyLevel(n) {
 // while adaptive quality is paused).
 export function setShadows(on) {
   if (!state.hooks) return;
-  _setShadowsOn(state.hooks.scene, state.hooks.renderer, on);
+  _setShadowsOn(state.hooks.renderer, on);
 }
 
 // Read current effective state of bloom and shadows so the debug UI can
@@ -451,8 +400,7 @@ export function getBloomEnabled() {
   return bp ? bp.enabled : true;
 }
 export function getShadowsEnabled() {
-  // _castersTurnedOff is non-null only while shadows are explicitly OFF.
-  return state._castersTurnedOff === null;
+  return state._shadowsOn ?? !!PERF.shadows;
 }
 
 // Baseline pixel ratio captured at install() time. Level multipliers scale
@@ -466,5 +414,5 @@ export function getBasePixelRatio() {
 export function setPixelRatio(mul) {
   if (!state.hooks?.renderer) return;
   state.hooks.renderer.setPixelRatio((state.basePixelRatio ?? 1) * mul);
-  state.hooks.composer?.setSize(window.innerWidth, window.innerHeight);
+  state.hooks.onRenderResolutionChange();
 }

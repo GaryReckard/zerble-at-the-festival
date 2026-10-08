@@ -290,6 +290,12 @@ const CHUNK_DEBUG = (() => {
     return new URLSearchParams(location.search).has('debug') || !!localStorage.getItem('zerble.debug');
   } catch (e) { return false; }
 })();
+// A phone playtest needs stage attribution without debug-mode console stack
+// capture or shader-error checks changing the frame time being measured.
+const CHUNK_TIMING = CHUNK_DEBUG || (() => {
+  try { return new URLSearchParams(location.search).get('perfCapture') === '1'; }
+  catch (_) { return false; }
+})();
 
 function recordChunkStage(name, ms) {
   let s = chunkGenStats.stages[name];
@@ -326,7 +332,7 @@ export class ChunkManager {
     return this.loaded.has(chunkKey(cx, cz));
   }
 
-  update(playerPos) {
+  update(playerPos, streamDeadlineMs = null) {
     const ccx = ownerCellCoord(playerPos.x, CHUNK_SIZE);
     const ccz = ownerCellCoord(playerPos.z, CHUNK_SIZE);
 
@@ -361,9 +367,11 @@ export class ChunkManager {
       }
     }
     candidates.sort((a, b) => a.d2 - b.d2);
-    const budgetStartedAt = performance.now();
+    // updateWorld passes the same absolute deadline used by lakes and the
+    // far-field planner. The boot preload has no deadline by design.
+    const deadlineMs = streamDeadlineMs ?? performance.now() + PERF.chunkBudgetMs;
     for (const c of candidates) {
-      if (!firstLoad && performance.now() - budgetStartedAt >= PERF.chunkBudgetMs) break;
+      if (!firstLoad && performance.now() >= deadlineMs) break;
       const t0 = performance.now();
       this._generate(c.cx, c.cz);
       const ms = performance.now() - t0;
@@ -499,28 +507,28 @@ export class ChunkManager {
   // One `queryRegion` per chunk (D-A / R7 — never sample per-m²); the hearts/lakes
   // it also returns are consumed by Groups D/F. Stored on ctx for those groups.
   _generateWorldgen(ctx) {
-    let stageStartedAt = CHUNK_DEBUG ? performance.now() : 0;
+    let stageStartedAt = CHUNK_TIMING ? performance.now() : 0;
     const half = CHUNK_SIZE / 2;
     ctx.region = queryRegion({
       minX: ctx.cxWorld - half, minZ: ctx.czWorld - half,
       maxX: ctx.cxWorld + half, maxZ: ctx.czWorld + half,
     });
-    if (CHUNK_DEBUG) {
+    if (CHUNK_TIMING) {
       recordChunkStage('region', performance.now() - stageStartedAt);
       stageStartedAt = performance.now();
     }
     placeWorldgenRoads(ctx, ctx.region.roads);
-    if (CHUNK_DEBUG) {
+    if (CHUNK_TIMING) {
       recordChunkStage('roads', performance.now() - stageStartedAt);
       stageStartedAt = performance.now();
     }
     placeWorldgenProps(ctx);     // Group D/D2 — festival clusters along the heart's roads
-    if (CHUNK_DEBUG) {
+    if (CHUNK_TIMING) {
       recordChunkStage('props', performance.now() - stageStartedAt);
       stageStartedAt = performance.now();
     }
     scatterWorldgenTrees(ctx);   // Group F — treeDensity woods (dodge roads, water, clusters)
-    if (CHUNK_DEBUG) {
+    if (CHUNK_TIMING) {
       recordChunkStage('trees', performance.now() - stageStartedAt);
       stageStartedAt = performance.now();
     }
@@ -531,7 +539,7 @@ export class ChunkManager {
     const qpc = queryPoint(ctx.cxWorld, ctx.czWorld);
     const crowdCount = qpc.heartInfluence < 0.04 ? 0 : Math.round(1 + qpc.heartInfluence * 15);
     spawnAmbientCrowd(ctx, crowdCount);
-    if (CHUNK_DEBUG) {
+    if (CHUNK_TIMING) {
       recordChunkStage('crowd', performance.now() - stageStartedAt);
       stageStartedAt = performance.now();
     }
@@ -541,17 +549,17 @@ export class ChunkManager {
     // the chunk-center lake test (queryPoint already computed it), and placed after
     // the crowd so it shares v1's crowd-then-jugs ctx.rng ordering.
     scatterBubbleJugs(ctx, qpc.inLake);
-    if (CHUNK_DEBUG) {
+    if (CHUNK_TIMING) {
       recordChunkStage('jugs', performance.now() - stageStartedAt);
       stageStartedAt = performance.now();
     }
     scatterWorldgenCampsites(ctx, qpc);
-    if (CHUNK_DEBUG) {
+    if (CHUNK_TIMING) {
       recordChunkStage('campsites', performance.now() - stageStartedAt);
       stageStartedAt = performance.now();
     }
     placeSeamHedges(ctx);
-    if (CHUNK_DEBUG) recordChunkStage('hedges', performance.now() - stageStartedAt);
+    if (CHUNK_TIMING) recordChunkStage('hedges', performance.now() - stageStartedAt);
   }
 
   // Drop any guaranteed near-spawn jug whose seeded target lands in this chunk.
@@ -1228,10 +1236,10 @@ function scatterWorldgenTrees(ctx) {
   }
   // CG3: collapse this chunk's whole woods into ~5 InstancedMeshes (one per
   // cast/no-cast bucket). Added to ctx.group → disposed with the chunk.
-  const visualStartedAt = CHUNK_DEBUG ? performance.now() : 0;
+  const visualStartedAt = CHUNK_TIMING ? performance.now() : 0;
   const treeMeshes = buildForestInstanced(treeInstances);
   for (let i = 0; i < treeMeshes.length; i++) ctx.group.add(treeMeshes[i]);
-  if (CHUNK_DEBUG) recordChunkStage('tree:instanced-visuals', performance.now() - visualStartedAt);
+  if (CHUNK_TIMING) recordChunkStage('tree:instanced-visuals', performance.now() - visualStartedAt);
 }
 
 // Is (x,z) inside any hub's oriented dancefloor rect? Project onto the rect's +F
@@ -1367,7 +1375,7 @@ function assertTuningDrift() {
 
 function buildWorldgenKind(ctx, d) {
   assertTuningDrift();
-  const stageStartedAt = CHUNK_DEBUG ? performance.now() : 0;
+  const stageStartedAt = CHUNK_TIMING ? performance.now() : 0;
   // Transparent counting passthrough over the cluster-local rng (task 1.4
   // canary). `realRng()` is the same mulberry32 stream in the same order; the
   // wrapper only tallies calls — zero behavior change.
@@ -1392,7 +1400,7 @@ function buildWorldgenKind(ctx, d) {
     case 'camp_village':  buildCampVillageAt(cctx, d.x, d.z, d.tents); break;   // D2 — tent count ∝ local crowd
     default: break;       // unknown kind → place nothing (forward-compatible)
   }
-  if (CHUNK_DEBUG) recordChunkStage(`prop:${d.kind}`, performance.now() - stageStartedAt);
+  if (CHUNK_TIMING) recordChunkStage(`prop:${d.kind}`, performance.now() - stageStartedAt);
   worldgenDrawCounts.set(`${d.kind}@${Math.round(d.x)},${Math.round(d.z)}`, _draws);
 }
 

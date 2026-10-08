@@ -1,0 +1,382 @@
+{
+  "metadata": {
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+    "hidden": false,
+    "seed": 3948869160,
+    "tier": "high",
+    "viewport": [
+      1200,
+      863,
+      2
+    ],
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+    "snapshot": {
+      "fps": 61,
+      "fAvg": 17.4,
+      "fP95": 22.5,
+      "fMax": 33.4,
+      "frame": null,
+      "draws": 2162,
+      "tris": 870936,
+      "geo": 2602,
+      "tex": 36,
+      "prog": 58,
+      "progDelta": 0,
+      "quality": "cheap-bubs",
+      "qualityLevel": 4,
+      "pixelRatio": 1,
+      "bloom": false,
+      "bubbles": "cheap",
+      "phase": null,
+      "tripState": "idle",
+      "tripEnvelope": 0,
+      "tripProgress": 0,
+      "tripPass": false,
+      "starPower": false,
+      "heapMB": 117,
+      "rawSmiles": 3,
+      "npc": 231,
+      "reg": 3026,
+      "col": 2839,
+      "cgN": 25,
+      "cgSlow": 10,
+      "cgWorst": 220.1,
+      "cgLast": 2.8,
+      "ffActive": 976,
+      "ffCold": 14,
+      "ffRebuilds": 1,
+      "ffHandoffs": 0,
+      "ffOverflow": 1996,
+      "mfp": 12,
+      "mcol": 7.9,
+      "bigFp": 12,
+      "sepMs": 0,
+      "avoidMs": 0,
+      "speed": 0,
+      "x": 300,
+      "z": -641
+    },
+    "passes": [
+      {
+        "name": "RenderPass",
+        "enabled": true
+      },
+      {
+        "name": "InfoCapturePass",
+        "enabled": true
+      },
+      {
+        "name": "UnrealBloomPass",
+        "enabled": false
+      },
+      {
+        "name": "ShaderPass",
+        "enabled": false
+      },
+      {
+        "name": "OutputPass",
+        "enabled": true
+      }
+    ]
+  },
+  "sizing": [
+    {
+      "label": "composer-dpr-2",
+      "disjoint": false,
+      "cpu": {
+        "n": 180,
+        "mean": 6.983888880411784,
+        "p50": 6.700000047683716,
+        "p95": 8,
+        "max": 28.40000009536743
+      },
+      "gpu": {
+        "n": 180,
+        "mean": 7.786160366666667,
+        "p50": 7.614499,
+        "p95": 8.032583,
+        "max": 27.86525
+      },
+      "wall": {
+        "n": 180,
+        "mean": 17.037222222222205,
+        "p50": 16.69999999999709,
+        "p95": 17.5,
+        "max": 66.89999999999418
+      },
+      "target": [
+        2400,
+        1726
+      ],
+      "canvas": [
+        1200,
+        863
+      ],
+      "sceneInfo": {
+        "calls": 2162,
+        "triangles": 870936
+      }
+    },
+    {
+      "label": "composer-dpr-1",
+      "disjoint": false,
+      "cpu": {
+        "n": 180,
+        "mean": 7.309999979866875,
+        "p50": 7.200000047683716,
+        "p95": 8.700000047683716,
+        "max": 10
+      },
+      "gpu": {
+        "n": 180,
+        "mean": 4.275518222222219,
+        "p50": 3.779166,
+        "p95": 7.034791,
+        "max": 9.22875
+      },
+      "wall": {
+        "n": 180,
+        "mean": 16.66777777777776,
+        "p50": 16.69999999999709,
+        "p95": 17.59999999999127,
+        "max": 17.69999999999709
+      },
+      "target": [
+        1200,
+        863
+      ],
+      "canvas": [
+        1200,
+        863
+      ],
+      "sceneInfo": {
+        "calls": 2162,
+        "triangles": 870936
+      }
+    },
+    {
+      "label": "composer-dpr-1",
+      "disjoint": false,
+      "cpu": {
+        "n": 180,
+        "mean": 6.769444465637207,
+        "p50": 6.700000047683716,
+        "p95": 8.100000143051147,
+        "max": 10.100000143051147
+      },
+      "gpu": {
+        "n": 180,
+        "mean": 5.530585622222223,
+        "p50": 5.372625,
+        "p95": 7.398916,
+        "max": 11.209374
+      },
+      "wall": {
+        "n": 180,
+        "mean": 16.66611111111116,
+        "p50": 16.69999999999709,
+        "p95": 17.5,
+        "max": 17.70000000001164
+      },
+      "target": [
+        1200,
+        863
+      ],
+      "canvas": [
+        1200,
+        863
+      ],
+      "sceneInfo": {
+        "calls": 2162,
+        "triangles": 870936
+      }
+    },
+    {
+      "label": "composer-dpr-2",
+      "disjoint": false,
+      "cpu": {
+        "n": 180,
+        "mean": 6.7688888880941604,
+        "p50": 6.799999952316284,
+        "p95": 7.799999952316284,
+        "max": 8.799999952316284
+      },
+      "gpu": {
+        "n": 180,
+        "mean": 7.4351124722222215,
+        "p50": 7.402208,
+        "p95": 8.037666,
+        "max": 11.199624
+      },
+      "wall": {
+        "n": 180,
+        "mean": 16.671111111111045,
+        "p50": 16.699999999982538,
+        "p95": 17.60000000000582,
+        "max": 17.60000000000582
+      },
+      "target": [
+        2400,
+        1726
+      ],
+      "canvas": [
+        1200,
+        863
+      ],
+      "sceneInfo": {
+        "calls": 2162,
+        "triangles": 870936
+      }
+    }
+  ],
+  "emptyBubbles": [
+    {
+      "label": "empty-fancy-visible-true",
+      "disjoint": false,
+      "cpu": {
+        "n": 180,
+        "mean": 10.013333325915866,
+        "p50": 9.899999856948853,
+        "p95": 12.5,
+        "max": 15.200000047683716
+      },
+      "gpu": {
+        "n": 180,
+        "mean": 5.287805055555558,
+        "p50": 5.009124,
+        "p95": 6.661291,
+        "max": 8.609875
+      },
+      "wall": {
+        "n": 180,
+        "mean": 16.670000000000034,
+        "p50": 16.699999999982538,
+        "p95": 17.60000000000582,
+        "max": 17.70000000001164
+      },
+      "target": [
+        1200,
+        863
+      ],
+      "canvas": [
+        1200,
+        863
+      ],
+      "sceneInfo": {
+        "calls": 4245,
+        "triangles": 1684520
+      }
+    },
+    {
+      "label": "empty-fancy-visible-false",
+      "disjoint": false,
+      "cpu": {
+        "n": 180,
+        "mean": 7.014444431993696,
+        "p50": 7,
+        "p95": 8.200000047683716,
+        "max": 10.900000095367432
+      },
+      "gpu": {
+        "n": 180,
+        "mean": 4.878602299999997,
+        "p50": 4.522125,
+        "p95": 7.874125,
+        "max": 10.1065
+      },
+      "wall": {
+        "n": 180,
+        "mean": 16.66611111111108,
+        "p50": 16.699999999982538,
+        "p95": 17.60000000000582,
+        "max": 17.70000000001164
+      },
+      "target": [
+        1200,
+        863
+      ],
+      "canvas": [
+        1200,
+        863
+      ],
+      "sceneInfo": {
+        "calls": 2160,
+        "triangles": 774936
+      }
+    },
+    {
+      "label": "empty-fancy-visible-false",
+      "disjoint": false,
+      "cpu": {
+        "n": 180,
+        "mean": 6.640555540720622,
+        "p50": 6.5,
+        "p95": 7.800000190734863,
+        "max": 9.799999952316284
+      },
+      "gpu": {
+        "n": 180,
+        "mean": 4.896576827777778,
+        "p50": 5.043125,
+        "p95": 7.805499,
+        "max": 11.594
+      },
+      "wall": {
+        "n": 180,
+        "mean": 16.66833333333327,
+        "p50": 16.70000000001164,
+        "p95": 17.60000000000582,
+        "max": 17.800000000017462
+      },
+      "target": [
+        1200,
+        863
+      ],
+      "canvas": [
+        1200,
+        863
+      ],
+      "sceneInfo": {
+        "calls": 2160,
+        "triangles": 774936
+      }
+    },
+    {
+      "label": "empty-fancy-visible-true",
+      "disjoint": false,
+      "cpu": {
+        "n": 180,
+        "mean": 11.617777770095401,
+        "p50": 11.699999809265137,
+        "p95": 14.200000047683716,
+        "max": 19.200000047683716
+      },
+      "gpu": {
+        "n": 180,
+        "mean": 5.319096955555554,
+        "p50": 4.912791,
+        "p95": 7.17875,
+        "max": 11.823958
+      },
+      "wall": {
+        "n": 180,
+        "mean": 16.66111111111111,
+        "p50": 16.60000000000582,
+        "p95": 17.60000000000582,
+        "max": 17.70000000001164
+      },
+      "target": [
+        1200,
+        863
+      ],
+      "canvas": [
+        1200,
+        863
+      ],
+      "sceneInfo": {
+        "calls": 4245,
+        "triangles": 1684520
+      }
+    }
+  ]
+}

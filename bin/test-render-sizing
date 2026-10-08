@@ -1,0 +1,65 @@
+#!/usr/bin/env node
+
+import { readRenderPipelineSize, syncRenderPipelineSize } from '../src/renderSizing.js';
+
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+let ratio = 2;
+const renderer = {
+  domElement: { width: 0, height: 0 },
+  getPixelRatio: () => ratio,
+  setSize(w, h) {
+    this.domElement.width = Math.round(w * ratio);
+    this.domElement.height = Math.round(h * ratio);
+  },
+};
+const bloomPass = {
+  renderTargetBright: { width: 0, height: 0 },
+  setSize(w, h) {
+    this.renderTargetBright.width = Math.round(w / 2);
+    this.renderTargetBright.height = Math.round(h / 2);
+  },
+};
+const composer = {
+  _pixelRatio: 2, _width: 1200, _height: 863,
+  readBuffer: { width: 2400, height: 1726 },
+  setSize(w, h) {
+    this._width = w;
+    this._height = h;
+    this.readBuffer.width = w * this._pixelRatio;
+    this.readBuffer.height = h * this._pixelRatio;
+    bloomPass.setSize(this.readBuffer.width, this.readBuffer.height);
+  },
+  setPixelRatio(next) {
+    this._pixelRatio = next;
+    this.setSize(this._width, this._height);
+  },
+};
+const camera = { aspect: 0, updateProjectionMatrix() { this.updates = (this.updates || 0) + 1; } };
+const resolution = { x: 0, y: 0, set(x, y) { this.x = x; this.y = y; } };
+const fxaaPass = { material: { uniforms: { resolution: { value: resolution } } } };
+const pipeline = { renderer, composer, camera, fxaaPass, bloomPass };
+composer.setSize(1200, 863); // EffectComposer.addPass sizes bloom during construction.
+
+function check(w, h, pr) {
+  ratio = pr;
+  syncRenderPipelineSize(pipeline, w, h);
+  const size = readRenderPipelineSize(pipeline);
+  assert(Math.abs(size.canvasW - w * pr) <= 1 && Math.abs(size.canvasH - h * pr) <= 1,
+    `canvas physical size wrong: ${JSON.stringify(size)}`);
+  assert(Math.abs(size.targetW - w * pr) <= 1 && Math.abs(size.targetH - h * pr) <= 1,
+    `scene target diverged: ${JSON.stringify(size)}`);
+  assert(Math.abs(size.bloomW - w * pr / 2) <= 1 && Math.abs(size.bloomH - h * pr / 2) <= 1,
+    `bloom should be half the physical scene target: ${JSON.stringify(size)}`);
+  assert(Math.abs(resolution.x - 1 / (w * pr)) < 1e-9 &&
+    Math.abs(resolution.y - 1 / (h * pr)) < 1e-9, 'FXAA resolution is stale');
+  assert(camera.aspect === w / h, 'camera aspect is stale');
+}
+
+check(1200, 863, 2);     // initial high tier
+check(1200, 863, 1);     // adaptive downgrade
+check(1200, 863, 0.75);  // manual pixel-ratio override
+check(900, 600, 0.75);   // viewport resize at the overridden ratio
+check(375, 812, 1.25);  // iPhone portrait / orientation transition
+check(812, 375, 1.25);
+assert(camera.updates === 6, 'every resize should update the camera projection');
+process.stdout.write('PASS  renderer/composer/bloom/FXAA dimensions across quality and viewport changes\n');

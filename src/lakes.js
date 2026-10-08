@@ -897,8 +897,11 @@ function destroyLake(scene, lake) {
 // registered by buildLake (kind: 'lake') — a slight over-approximation that
 // suppresses a few grass-only chunks near the lake's bounding box. Acceptable.
 export function chunkOverlapsLake(cxWorld, czWorld, halfChunk) {
-  for (const e of registry.entries.values()) {
-    if (e.kind !== 'lake' || !e.footprint) continue;
+  const lakeIds = registry.byKind.get('lake');
+  if (!lakeIds) return false;
+  for (const id of lakeIds) {
+    const e = registry.entries.get(id);
+    if (!e?.footprint) continue;
     const dx = Math.max(0, Math.abs(e.position.x - cxWorld) - halfChunk);
     const dz = Math.max(0, Math.abs(e.position.z - czWorld) - halfChunk);
     if (Math.hypot(dx, dz) < e.footprint) return true;
@@ -909,8 +912,11 @@ export function chunkOverlapsLake(cxWorld, czWorld, halfChunk) {
 // Stricter check: is the chunk CENTER itself inside a lake footprint? Used to
 // suppress theme builders (stage / food truck / drum circle) on water.
 export function chunkInLake(cxWorld, czWorld) {
-  for (const e of registry.entries.values()) {
-    if (e.kind !== 'lake' || !e.footprint) continue;
+  const lakeIds = registry.byKind.get('lake');
+  if (!lakeIds) return false;
+  for (const id of lakeIds) {
+    const e = registry.entries.get(id);
+    if (!e?.footprint) continue;
     const dx = e.position.x - cxWorld;
     const dz = e.position.z - czWorld;
     if (Math.hypot(dx, dz) < e.footprint) return true;
@@ -923,8 +929,11 @@ export function chunkInLake(cxWorld, czWorld) {
 // check for points inside the bounding circle. Used by ambient-crowd spawn
 // to keep NPCs out of the water (canoes are the only entities allowed in).
 export function isPointInLake(x, z) {
-  for (const e of registry.entries.values()) {
-    if (e.kind !== 'lake' || !e.footprint) continue;
+  const lakeIds = registry.byKind.get('lake');
+  if (!lakeIds) return false;
+  for (const id of lakeIds) {
+    const e = registry.entries.get(id);
+    if (!e?.footprint) continue;
     const dx = x - e.position.x;
     const dz = z - e.position.z;
     const d = Math.hypot(dx, dz);
@@ -947,8 +956,11 @@ export function isPointInLake(x, z) {
 // outside the bounding circle by `margin`). Used by moving entities (brass
 // band, puppet parade) to keep their paths off water.
 export function projectOutOfLake(x, z, margin = 2.5) {
-  for (const e of registry.entries.values()) {
-    if (e.kind !== 'lake' || !e.footprint) continue;
+  const lakeIds = registry.byKind.get('lake');
+  if (!lakeIds) return null;
+  for (const id of lakeIds) {
+    const e = registry.entries.get(id);
+    if (!e?.footprint) continue;
     const dx = x - e.position.x;
     const dz = z - e.position.z;
     const d = Math.hypot(dx, dz);

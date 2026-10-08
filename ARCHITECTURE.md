@@ -78,15 +78,21 @@ src/
 ```
 WebGLRenderer  →  EffectComposer
                     ├─ RenderPass (scene, camera)
+                    ├─ InfoCapturePass        (scene draw/triangle counters)
                     ├─ UnrealBloomPass        (PERF.bloom can disable)
                     ├─ Trip.pass              (custom ShaderPass — no-op at intensity 0)
+                    ├─ FXAAPass               (mid/low tiers)
                     └─ OutputPass
 ```
 
 - `ACESFilmicToneMapping`, exposure `1.05`, sRGB output.
 - Pixel ratio capped at `PERF.pixelRatioCap`.
 - Shadows + shadow type are profile-gated.
-- The bloom pass renders at half-res (`width * 0.5`).
+- The bloom pass makes its own half-resolution target from the composer's
+  physical dimensions. `renderSizing.js` resizes renderer, composer, bloom,
+  FXAA, and camera together when the viewport or adaptive pixel ratio changes.
+- Shadow Off gates the sun's `castShadow` state. `timeOfDay.js` applies this
+  policy alongside its night gate, including after new meshes stream in.
 
 Resize is driven by `window.visualViewport` so the canvas tracks the iOS URL bar correctly.
 

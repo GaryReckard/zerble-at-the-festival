@@ -109,7 +109,7 @@ export function updateWorld(playerPos, dt = 0.016) {
   const streamStartedAt = performance.now();
   // Lakes update first (same reason as boot: chunks consult lake footprints).
   if (lakeManager) lakeManager.update(_scene, playerPos, dt);
-  if (chunkManager) chunkManager.update(playerPos);
+  if (chunkManager) chunkManager.update(playerPos, streamStartedAt + PERF.chunkBudgetMs);
   // The horizon's remainder is measured HERE — lakes + full chunks are the
   // streaming spend that consumes the wall first; time-of-day is not
   // streaming work and doesn't count against it.

@@ -11,6 +11,45 @@ The canonical source for the priority list is the r/threejs
 <https://www.reddit.com/r/threejs/comments/skk0f3/how_to_optimize_project_for_lowend_computers/>.
 The shipped passes followed it almost directly.
 
+## 2026-10-08 audit: current work order
+
+The source audit and Mac GPU probes are preserved in
+[`verification/performance/2026-10-08/astra-results.json`](../../verification/performance/2026-10-08/astra-results.json)
+and [`astra-probes.json`](../../verification/performance/2026-10-08/astra-probes.json).
+They were recorded on an M4 Pro in Chrome 152 at seed `3948869160`, before the
+fixes below. They establish costs and defects on that machine, not expected FPS
+gains on every device. The desktop and phone guided captures in
+[`DEBUGGING.md`](../../DEBUGGING.md#desktop-and-phone-performance-playtests)
+remain the device acceptance check.
+
+| Priority | Finding and evidence | Acceptance condition |
+|---|---|---|
+| 1 | The renderer changes pixel ratio, but `EffectComposer` retains its own ratio. The audit measured a 1200×863 canvas with a 2400×1726 scene target and 7.44–7.79 ms GPU time at the oversized target versus 4.28–5.53 ms when correctly sized. See `src/adaptiveQuality.js` `_apply` / `setPixelRatio`, `src/main.js` `handleResize`, and `astra-results.json` `sizing`. | One size owner keeps renderer, composer, FXAA, and bloom aligned through quality changes and viewport resize. Check actual targets, not just CSS dimensions. |
+| 2 | The fancy transmissive bubble mesh remains visible with no live instances. The audit measured 4,245 scene draws visible versus 2,160 hidden, with a lower CPU render-call time when hidden. See `src/bubbles.js` constructor / `update` and `astra-results.json` `emptyBubbles`. | Hide only after the last live or popping bubble dies; restore visibility on emission and preserve trails through material switches. |
+| 3 | `isPointInLake` iterates all registry entries despite a lake-only index. Seven lakes among 3,983 entries produced 201–211 ms versus 2.6–2.7 ms for 10,000 identical queries, with zero result differences. See `src/lakes.js` lake helpers, `src/registry.js` `byKind`, and `astra-probes.json` `lakeProbe`. | Preserve insertion order, exact polygon and legacy-outline behavior, plus add/remove lifecycle. |
+| 4 | Turning shadows off clears existing caster flags, but 287 newly streamed meshes had `castShadow` true while the setting still read off. See `src/adaptiveQuality.js` `_setShadowsOn` and `astra-probes.json` `shadowProbe`. This proves policy drift, not a GPU-memory leak or 287 shadow draws. | The off state survives travel and unload, casts no shadows at dawn or night, and restores correctly without retaining detached meshes. |
+| 5 | A 3/4/5 ms admission budget does not bound synchronous chunk construction; the audit saw 196–220 ms individual chunks. See `src/world.js` `update`, `src/chunks.js` `_generate`, and `ROADMAP.md` performance Slice 3. | Use one streaming deadline, then split a measured hot builder while preserving synchronous collider truth, `isLoaded`, and deterministic registries. |
+| 6 | Road-neighbor enumeration and overlapping far-field planning repeat work, but their projected savings overlap. See `src/worldgen/roads.js`, `src/farField.js`, and the audit report. | Memoize road neighbors first with bounded retention and seed/tuning invalidation, then remeasure horizon work before caching its records. |
+| 7 | Hidden-tab timers and overdue audio schedulers can amplify a scheduling gap. See `src/main.js` `scheduleNext`, `src/adaptiveQuality.js` `tick`, and `src/sound.js` schedulers. This is resilience work, not an established cause of the historical freeze. | Keep hidden-tab ticking only for explicit automation, reset quality timing on resume, and bound missed-beat emission without changing musical progression. |
+
+Items 1–4 and 6 now have code fixes and targeted tests. Item 5 now shares one
+admission deadline across lakes, chunks, and the far-field planner, but a
+single synchronous chunk can still overrun that deadline. The live low-tier game
+confirmed aligned canvas and scene targets at two quality levels; the live
+high-tier game confirmed the sun's shadow state follows On → Off → On without
+console errors. Device-level gains and the travel/unload shadow acceptance check
+remain pending. The chunk-builder split and item 7 remain open because the audit
+did not isolate a safe builder split or establish a hidden-tab/audio cause for
+the freeze.
+
+The audit also proved that a module worker can import the existing pure
+worldgen code and produce byte-identical region data without a bundler
+(`astra-probes.json` `workerProbe`). That removes the blanket tooling blocker in
+`ROADMAP.md`, but it does not establish that worker transfer and asynchronous
+commit are a net win. Broad model merging already failed its real-GPU gate,
+and the current draw/triangle HUD budgets need recalibration before their
+colors can serve as a verdict (`ROADMAP.md` Performance).
+
 ## Audit order (highest-impact first)
 
 When approaching a perf task, audit in this order. Earlier phases unlock
