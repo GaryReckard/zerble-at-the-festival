@@ -35,6 +35,7 @@ const { ownerCellCoord, vendorRowSlots } = await import('../src/worldgen/placeme
 const { mulberry32 } = await import('../src/rng.js');
 const { FESTIVAL_TUNING } = await import('../src/worldgen/tuning.js');
 const { STAGE_SHAPES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE } = await import('../src/festivalShapes.js');
+const { MeshLambertMaterial, MeshBasicMaterial } = await import('three');
 const { setSeed } = await import('../src/worldgen/index.js');
 const { heartsInBounds } = await import('../src/worldgen/hearts.js');
 const { festivalPlan } = await import('../src/worldgen/festival.js');
@@ -454,10 +455,25 @@ const drivePlansBefore = JSON.stringify(driveHearts.map((h) => festivalPlan(h)))
 const driveRoadsBefore = JSON.stringify(roadsInBounds(-600, -600, 600, 600));
 
 const ff = new FarField({ enabled: true, tier: TEST_TIER });
+assert(ff._mats.canopy instanceof MeshBasicMaterial && ff._mats.forest instanceof MeshBasicMaterial,
+       'shipping default remains the measured unlit path while lighting is compared');
+const litProbe = new FarField({ enabled: true, tier: TEST_TIER, lighting: 'lit' });
+assert(litProbe._mats.canopy instanceof MeshLambertMaterial &&
+       litProbe._mats.truss instanceof MeshLambertMaterial &&
+       litProbe._mats.peak instanceof MeshLambertMaterial &&
+       litProbe._mats.forest instanceof MeshLambertMaterial,
+       'scene-lit mode must light the defining proxy surfaces');
+assert(litProbe._mats.road instanceof MeshBasicMaterial && litProbe._geos.canopy.normalsComputed,
+       'road underlay stays unlit and gable roof supplies normals');
+litProbe._applyTimeOfDay(1);
+assert(litProbe._mats.canopy.color.r === 1,
+       'scene-lit surfaces must not be dimmed again after lights change');
+litProbe.dispose();
 assert(ff.planner instanceof SnapshotPlanner, 'an enabled FarField must construct a SnapshotPlanner');
 assert(JSON.stringify(ff.stats) === JSON.stringify({
   active: 0, overflow: 0, rebuilds: 0, superseded: 0,
   roadVertsUsed: 0, roadsClipped: 0, maxColdStepMs: 0, handoffs: 0,
+  demandByPool: {}, overflowByPool: {},
 }), 'an enabled FarField must start with a zeroed stats object');
 for (const name of POOL_NAMES) {
   assert(ff._pools[name].mesh.count === 0 && ff._pools[name].mesh.visible === false,
@@ -470,6 +486,10 @@ ff.update(0, 0, { budgetMs: 60000 });
 assert(ff.stats.rebuilds === 1, `first update at a fresh cell should plan + commit one rebuild, got ${ff.stats.rebuilds}`);
 assert(ff.stats.active > 0, 'seed 1234 around the origin should produce at least one far-field instance');
 assert(ff.stats.roadVertsUsed > 0, 'seed 1234 around the origin should produce road underlay geometry');
+for (const name of POOL_NAMES) {
+  assert(ff.stats.demandByPool[name] === ff._active[name].length + ff.stats.overflowByPool[name],
+    `${name} demand must reconcile with kept and overflow counts`);
+}
 
 // Steady state: same cell, no pending plan → no further rebuilds.
 ff.update(1, 1, { budgetMs: 60000 });
@@ -690,8 +710,8 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
   assert(!/from '\.\/models\//.test(src), 'farField.js must never import a model builder');
   assert(!/\b(Point|Spot|Directional|Hemisphere|Rect(Area)?)Light\b/.test(src), 'farField.js must construct no Light objects');
   assert(!/castShadow\s*=\s*true/.test(src), 'farField.js must never enable a shadow caster');
-  assert(!/MeshStandardMaterial|MeshLambertMaterial|MeshPhongMaterial|MeshPhysicalMaterial/.test(src),
-    'farField.js materials must stay unlit (MeshBasicMaterial only)');
+  assert(!/MeshStandardMaterial|MeshPhongMaterial|MeshPhysicalMaterial/.test(src),
+    'farField.js must avoid heavyweight PBR and Phong materials');
   assert(!/registry/i.test(src.replace(/\/\/[^\n]*/g, '')), 'farField.js must not touch the registry');
 }
 
@@ -785,6 +805,24 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
     assert(worst <= t.marginalTriCap,
       `tier ${tname} worst-case ${worst} tris must fit marginalTriCap ${t.marginalTriCap}`);
   }
+
+  // The gable pool includes main stages and marquees. A full pool silently
+  // replaces one of those defining roofs with empty sky, so pin a small
+  // real-worldgen sample alongside the static triangle-budget gate.
+  for (const seed of [1234, 3948869160]) {
+    setSeed(seed);
+    for (const [tname, tier] of Object.entries(FAR_FIELD_TIERS)) {
+      const roofProbe = new FarField({ enabled: true, tier });
+      for (const [x, z] of [[0, 0], [320, 320]]) {
+        const rebuildsBefore = roofProbe.stats.rebuilds;
+        roofProbe.update(x, z, { budgetMs: 60000 });
+        assert(roofProbe.stats.rebuilds === rebuildsBefore + 1 && roofProbe.stats.overflowByPool.canopy === 0,
+          `tier ${tname}, seed ${seed}, (${x},${z}) must keep all ${roofProbe.stats.demandByPool.canopy} defining roofs`);
+      }
+      roofProbe.dispose();
+    }
+  }
+  setSeed(1234);
 }
 
 // ---------- K. Owner-only disposal idempotence (group 2) ----------

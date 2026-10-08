@@ -12,6 +12,8 @@
     background: rgba(20, 14, 30, 0.82); border: 1px solid rgba(255, 210, 138, 0.25);
     border-radius: 10px; padding: 12px 14px; font-size: 12px; line-height: 1.5; z-index: 10; }
   #hud h1 { font-size: 14px; margin: 0 0 8px; color: #ffd28a; }
+  body.hud-hidden #hud { display: none; }
+  #hudVisibility { position: fixed; right: 10px; top: 10px; z-index: 11; }
   #hud label { display: block; margin: 8px 0 2px; color: #cdbfe0; font-size: 11px; }
   #hud input, #hud select { width: 100%; box-sizing: border-box; font: inherit; font-size: 12px;
     padding: 4px 6px; background: rgba(255, 246, 230, 0.08); color: inherit;
@@ -61,6 +63,7 @@
 </head>
 <body>
 <canvas id="canvas"></canvas>
+<button id="hudVisibility" type="button">Hide controls</button>
 <div id="hud">
   <h1>Hub Sandbox</h1>
   <label for="seed">Seed</label>
@@ -94,6 +97,11 @@
     </select>
   </div>
   <button id="ffCompare" type="button">Toggle near / far at this camera</button>
+  <label for="ffLighting">Proxy lighting</label>
+  <select id="ffLighting">
+    <option value="unlit" selected>Current unlit dimmer</option>
+    <option value="lit">Scene-lit surfaces</option>
+  </select>
   <label for="ffDist">Simulated player distance (handoff mode)</label>
   <input id="ffDist" type="range" min="0" max="600" step="10" value="600">
   <div class="row"><button id="ffReplan">Force replan</button></div>
@@ -332,6 +340,7 @@ document.getElementById('copyTune').addEventListener('click', () => {
 // player into the hub and dissolves its proxies through the live envelope.
 const ffModeEl = document.getElementById('ffMode');
 const ffTierEl = document.getElementById('ffTier');
+const ffLightingEl = document.getElementById('ffLighting');
 const ffDistEl = document.getElementById('ffDist');
 const ffStatsEl = document.getElementById('ffStats');
 let farField = null;
@@ -356,6 +365,7 @@ function rebuildFarField() {
     tier: FAR_FIELD_TIERS[ffTierEl.value],
     scene,
     isLoaded: mode === 'handoff' ? simLoaded : null,
+    lighting: ffLightingEl.value,
   });
   if (mode === 'proxy' || mode === 'real') farField.setOwnershipOverride(mode);
   ffStatsEl.textContent = 'planning…';
@@ -380,8 +390,13 @@ function toggleNearFar() {
 
 ffModeEl.addEventListener('change', rebuildFarField);
 ffTierEl.addEventListener('change', rebuildFarField);
+ffLightingEl.addEventListener('change', rebuildFarField);
 document.getElementById('ffCompare').addEventListener('click', toggleNearFar);
 document.getElementById('ffReplan').addEventListener('click', () => { if (farField) farField.forceReplan(); });
+document.getElementById('hudVisibility').addEventListener('click', (event) => {
+  const hidden = document.body.classList.toggle('hud-hidden');
+  event.currentTarget.textContent = hidden ? 'Show controls' : 'Hide controls';
+});
 
 function updateFarField(dt, now) {
   if (!farField || !current) return;
@@ -393,10 +408,10 @@ function updateFarField(dt, now) {
     const s = farField.stats;
     const ri = renderer.info;
     const counts = ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest']
-      .map((n) => `${n} ${farField._pools[n].mesh.count}`).join(' · ');
+      .map((n) => `${n} ${farField._pools[n].mesh.count}/${s.demandByPool[n] || 0}`).join(' · ');
     ffStatsEl.textContent =
       `rebuilds ${s.rebuilds} · active ${s.active} · overflow ${s.overflow}\n` +
-      `${counts}\n` +
+      `kept/demand: ${counts}\n` +
       `road verts ${s.roadVertsUsed} · clipped ${s.roadsClipped} · handoffs ${s.handoffs} (live ${farField._handoffs.length})\n` +
       `coldStep ${s.maxColdStepMs.toFixed(1)}ms · draws ${ri.render.calls} · tris ${ri.render.triangles}\n` +
       `geo ${ri.memory.geometries} · tex ${ri.memory.textures} · programs ${ri.programs.length}`;
@@ -443,6 +458,7 @@ window.__hubSandbox = {
     ffModeEl.value = mode;
     rebuildFarField();
   },
+  setFarFieldLighting(mode) { ffLightingEl.value = mode; rebuildFarField(); },
   setFarFieldDist(m) { ffDistEl.value = String(m); },
   toggleNearFar,
   build, rebuild: () => build(seedInput.value, +hubInput.value, initAt),

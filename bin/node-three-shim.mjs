@@ -55,6 +55,7 @@ class GeometryStub {
   }
   setAttribute(name, attr) { this.attributes[name] = attr; return this; }
   setIndex(attr) { this.index = attr; return this; }
+  computeVertexNormals() { this.normalsComputed = true; return this; }
   setDrawRange(start, count) { this.drawRange = { start, count }; return this; }
   dispose() { this.disposeCount++; }
 }
@@ -93,6 +94,7 @@ export class MeshStandardMaterial {
   dispose() { this.disposeCount++; }
 }
 export class MeshBasicMaterial extends MeshStandardMaterial {}
+export class MeshLambertMaterial extends MeshStandardMaterial {}
 export class MeshPhysicalMaterial extends MeshStandardMaterial {
   constructor(params = {}) { super(params); this.sheenColor = params.sheenColor || new Color(); }
 }

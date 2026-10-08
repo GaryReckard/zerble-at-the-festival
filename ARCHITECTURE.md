@@ -217,7 +217,8 @@ draws: six fixed-capacity `InstancedMesh` pools (gabled stage/marquee roofs,
 truss posts/beams, vendor roof peaks, warm night markers, colored stage
 beacons, and coarse forest masses — detail-0 icosa domes sampled from the
 `treeDensity` field on a per-tier world-anchored grid, never the exact
-far-tree scatter; per-instance color, unlit `MeshBasicMaterial`, fog-aware,
+far-tree scatter; per-instance color, unlit `MeshBasicMaterial` in the game,
+fog-aware,
 no shadows, frustum culling deliberately off since the layer rings the
 player) plus one preallocated road-ribbon underlay at y=0.03 (opaque,
 `depthWrite:true`, slightly narrower than the real y=0.06 road so the
@@ -255,7 +256,9 @@ FarField around one hub (proxy-only / real-only / simulated-distance handoff,
 live stats); in the game, `__dbg.horizon()` reads live stats and
 `horizon('proxy'|'real'|'live'|'replan')` forces states for fixed-seed A/B
 captures. The hub viewer's proxy-only and real-only modes hide the opposing
-hub layer, and its toggle preserves the camera. See DEBUGGING.md. Tier knobs (radius, density, pool caps, cold-step
+hub layer, and its toggle preserves the camera. The viewer can compare the
+shipping unlit dimmer with scene-lit Lambert surfaces at Noon and Midnight;
+the latter is an experiment and the game remains unlit. See DEBUGGING.md. Tier knobs (radius, density, pool caps, cold-step
 gate) live in `perf.js` under `farField`.
 
 ---

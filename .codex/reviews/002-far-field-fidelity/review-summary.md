@@ -75,3 +75,43 @@ strength. Proxy lighting remains a global unlit dimmer. Those differences
 must be resolved and compared at Noon and Midnight before this review's
 visual acceptance criterion is met. No physical-device or new GPU result is
 claimed here.
+
+The hub viewer now has a proxy-lighting selector and a control-panel hide
+button, so the current unlit policy and cheap scene-lit Lambert surfaces can
+be compared at the same camera and time of day. The game still uses the unlit
+policy. `bin/test-far-field` exercises both material modes and the gable's
+normals. This is comparison tooling, not a lighting-policy verdict; a durable
+before/after image and device performance result remain outstanding.
+
+The viewer now exposes each pool's kept/demand count instead of hiding all
+overflow in one total. A deterministic node-three-shim sweep on 2026-10-08
+sampled seeds `1234` and `3948869160` at `(0,0)`, `(320,0)`, `(0,320)`, and
+`(320,320)` on every tier. Canopy demand was 41–44, exceeding the old low
+cap of 32 and mid/high cap of 40. All three tiers now reserve 56 canopies;
+the real-worldgen test pins two poses per seed and tier with zero canopy
+overflow. The new four-triangle gable puts full-cap far-field costs at
+9,056 / 12,928 / 14,592 triangles on low / mid / high, below the unchanged
+9,700 / 13,300 / 15,000 ceilings. Other pools remain deliberately bounded;
+their overflow is now visible for review. This removes a sampled missing-roof
+regression, but the finite sample is not a global guarantee.
+
+### Placement audit before the next refactor
+
+The real camp loop draws candidate positions and size from its cluster RNG,
+but `placeSingleCampsite` consumes that same RNG inside `buildCampsite` before
+the loop's next candidate (`src/chunks.js:1840-1861,2721-2725`). It also rejects
+sites against lakes, roads, and the live registry. The proxy currently hashes
+each pitch directly from `clusterSeed` (`src/farField.js:387-411`), so sharing
+the seed alone cannot reproduce positions. The real forest uses a separate
+per-chunk RNG, consumes draws for each tree descriptor and yaw, and rejects
+against dancefloor, road, drum, spacing, and live-registry guards
+(`src/chunks.js:1100-1188`). The density-grid masses in the proxy are a
+different point set by design (`src/farField.js:207-225`).
+
+Before replacing either point set, extract the real candidate/acceptance
+sequence into a shared descriptor path, then compare built positions and RNG
+draw counts against fixed-seed registry snapshots. A pure far-side guard must
+also account for the live registry's load-order-dependent exclusions; without
+that equivalence, any projected distant position remains approximate. Keep
+the current coarse outer forest until the exact intermediate representation
+has a measured pool and device budget.

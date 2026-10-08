@@ -857,8 +857,17 @@ remains parked here:
   models; vendor-row candidates share a placement function, and the hub viewer
   has exclusive real/proxy modes and a fixed-camera toggle. Remaining: align
   campsite placement and forest trees with authoritative near-world positions
-  without changing worldgen RNG or live-registry exclusions; then tune the
-  ready-gated near/far overlap and lighting at Noon and Midnight. Keep the
+  without changing worldgen RNG or live-registry exclusions. The real camp
+  builder interleaves pitch placement with model RNG draws, and the forest
+  filters candidates through the live registry; the placement audit in the
+  linked review records the required equivalence checks. Then tune the
+  ready-gated near/far overlap and lighting at Noon and Midnight. The hub
+  viewer now exposes an unlit versus scene-lit proxy comparison and can hide
+  its controls; the game stays unlit until visual and device evidence supports
+  a switch. The viewer reports demand and overflow by pool, and the canopy
+  pool now holds all roofs in a two-seed, four-pose sweep without crossing
+  any tier's triangle ceiling. Other pool overflows are still visible and
+  require visual prioritization before their caps change. Keep the
   existing batched rendering and tier budgets, and capture fixed-camera
   comparisons plus a fresh GPU benchmark before calling the visual gate done.
 

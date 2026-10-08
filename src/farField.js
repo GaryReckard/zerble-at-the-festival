@@ -493,6 +493,7 @@ function gableRoofGeometry() {
      0, 0.5, -0.5, 0.5, -0.5, -0.5, 0, 0.5, 0.5, 0.5, -0.5, 0.5,
   ]), 3));
   geo.setIndex([0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7]);
+  geo.computeVertexNormals();
   return geo;
 }
 
@@ -510,15 +511,17 @@ function gableRoofGeometry() {
 // first update() (design D1: nothing rides the boot chain).
 
 export class FarField {
-  constructor({ enabled, tier, scene, isLoaded } = {}) {
+  constructor({ enabled, tier, scene, isLoaded, lighting = 'unlit' } = {}) {
     this.enabled = !!enabled;
     this.disposed = false;
     if (!this.enabled) return;
     this.tier = tier;                       // PERF.farField: radius/density/caps
+    this._lighting = lighting;
     this.planner = new SnapshotPlanner();
     this.stats = {
       active: 0, overflow: 0, rebuilds: 0, superseded: 0,
       roadVertsUsed: 0, roadsClipped: 0, maxColdStepMs: 0, handoffs: 0,
+      demandByPool: {}, overflowByPool: {},
     };
     // The narrow completion predicate (design D1/D4): "is (cx,cz) fully
     // built". The ONLY window into chunk lifecycle this system gets.
@@ -583,13 +586,16 @@ export class FarField {
     this.group.name = 'farField';
 
     const mkMat = (hex) => new THREE.MeshBasicMaterial({ color: hex });
+    const mkSurface = (hex, options = {}) => this._lighting === 'lit'
+      ? new THREE.MeshLambertMaterial({ color: hex, ...options })
+      : new THREE.MeshBasicMaterial({ color: hex, ...options });
     this._mats = {
-      canopy: new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
-      truss: mkMat(0xffffff),
-      peak: mkMat(0xffffff),
+      canopy: mkSurface(0xffffff, { side: THREE.DoubleSide }),
+      truss: mkSurface(0xffffff),
+      peak: mkSurface(0xffffff),
       warm: mkMat(WARM_HEX),
       beacon: mkMat(0xffffff),
-      forest: mkMat(0xffffff),   // white base × per-instance FOREST_PALETTE color
+      forest: mkSurface(0xffffff),   // white base × per-instance FOREST_PALETTE color
       road: mkMat(ROAD_HEX),     // opaque, depthWrite:true (default) — audit V12
     };
     this._geos = {
@@ -750,9 +756,12 @@ export class FarField {
     this._ownerCells.clear();
     this._handoffs.length = 0;
     let active = 0, overflow = 0;
+    const demandByPool = {}, overflowByPool = {};
     for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest']) {
       const pool = this._pools[name];
       const sel = selectNearest(expanded[name], ax, az, pool.cap);
+      demandByPool[name] = expanded[name].length;
+      overflowByPool[name] = sel.overflow;
       this._active[name] = sel.kept;
       overflow += sel.overflow;
       active += sel.kept.length;
@@ -762,6 +771,8 @@ export class FarField {
     this._applyNightVisibility();
     this.stats.active = active;
     this.stats.overflow = overflow;
+    this.stats.demandByPool = demandByPool;
+    this.stats.overflowByPool = overflowByPool;
     this.stats.rebuilds++;
     this.stats.superseded = this.planner.superseded;
   }
@@ -911,7 +922,7 @@ export class FarField {
     if (q === this._todQ) return;
     this._todQ = q;
     const n = q / 64;
-    const dayB = 1 - 0.82 * n;
+    const dayB = this._lighting === 'lit' ? 1 : 1 - 0.82 * n;
     this._mats.canopy.color.setScalar(dayB);
     this._mats.peak.color.setScalar(dayB);
     this._mats.forest.color.setScalar(dayB);

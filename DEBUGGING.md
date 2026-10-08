@@ -68,6 +68,12 @@ pass `--tier low`; `--seed` can select another reproducible world.
 The server's LAN mode serves only game assets, and upload writes require the
 generated URL token. The data remains on the Mac under `.claude/captures/`.
 
+The performance follow-up remains tracked in [ROADMAP.md](ROADMAP.md) under “Validate the
+repaired capture workflow” and “Run desktop and real-iPhone Wook Trip and
+driving captures.” The repaired capture code has automated checks, but the
+desktop and phone sessions have not yet been collected. Keep those as a
+separate acceptance step from the far-field visual work.
+
 ---
 
 ## The one door: `window.__dbg` (local dev only)
