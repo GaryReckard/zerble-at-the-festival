@@ -50,6 +50,30 @@ commit are a net win. Broad model merging already failed its real-GPU gate,
 and the current draw/triangle HUD budgets need recalibration before their
 colors can serve as a verdict (`ROADMAP.md` Performance).
 
+### 2026-10-08 review of commit `c86f5de`: capture reliability gate
+
+Astra's follow-up review is preserved in
+[`review-summary.md`](../../.codex/reviews/001-c86f5de-perf-fixes/review-summary.md).
+The core render-size, empty-bubble, lake-index, road-cache, and shadow-policy
+fixes passed its checks, but **guided reports are not yet trustworthy as
+performance evidence**. The review reproduced these seven follow-ups; no
+application fix has been made for them yet:
+
+| Priority | Follow-up | Review evidence |
+|---|---|---|
+| P1 | Serialize periodic, manual, and final uploads; announce completion only after the final report is saved. | Finding 1; `src/debug.js:2201-2225` |
+| P2 | Flush the outgoing frame window before changing its phase or Trip state. | Finding 2; `src/debug.js:2078-2089` |
+| P2 | Distinguish initial chunk preload from empty residency after an unload, so an expired deadline cannot admit the whole ring. | Finding 3; `src/chunks.js:349,370-395` |
+| P2 | Align guided phase labels with actual Trip state, including slow frames and tab visibility changes. | Finding 4; `src/debug.js:2041-2054,2074-2089` |
+| P2 | Keep free-form `?perfCapture=1` recording across tab resume. | Finding 5; `src/debug.js:2051-2054` |
+| P2 | Freeze the completed report once and resend that identical snapshot on retry. | Finding 6; `src/debug.js:2144-2168,2194-2196` |
+| P3 | Check quality, DPR, and physical render dimensions across all comparison phases, excluding settling. | Finding 7; `bin/report-perf-playtest:85-88` |
+
+Resume with focused orchestration and chunk-admission regression cases from
+the review, then run the project checks before asking Gary for desktop and
+real-iPhone captures. The existing device and fresh GPU acceptance gates still
+apply.
+
 ## Audit order (highest-impact first)
 
 When approaching a perf task, audit in this order. Earlier phases unlock

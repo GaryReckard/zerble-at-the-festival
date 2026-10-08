@@ -838,7 +838,7 @@ Attacks two measured symptoms (137–343 ms shader-compile stalls on hub entry;
 - **Draw-call reduction (the real steady-state lever, per the round-trip-1 capture).** B0 revealed draws = median ~3,750 / max 9,232 vs a 400 budget — draw count is the ceiling. **Slice 4 SHIPPED 2026-06-21 (see CHANGELOG):** forest-tree per-chunk instancing — trees were ~half the dense-hub draws (a `drawCensus` finding), now ~344 per-tree draws/chunk → ~5–6 `InstancedMesh`es. **Deliberation 002 separately found geometry-merge is only a ~2–4% cut** (food-court/camp-village are mostly already pooled/instanced; merge helps only the unique-geometry food-truck + sugar-shack). The 2026-07-15 real-GPU gate rejected those broad model merges because renderer draws increased on every tier, while retaining the independently proven Sugar Shack sign-shell and food-truck window cuts (21 draws). Fog-as-far-cull also shipped at a backdrop-safe 1040m, removing roughly 350 fog-hidden retained-lake draws in its 1.2km travel gate. Remaining attack on the residual overage: (1) **LOD / cross-cluster instancing of the non-tree repeated clusters** (the same tents/trucks repeated across hubs, prime candidates beyond ~60m); (2) **billboard-impostor far field** (perf-brainstorm E2/E4); (3) an **honest look at whether the 400-draw high-tier budget is realistic for v2 worldgen** once trees are instanced, or whether the budget should move. Follow-up if a dense-low tri capture pushes past ~110–120k: a detail-0 icosa LOD (20 tris vs 80) for the instanced crowns.
 - **Tier-2 secondary (gated behind B0 numbers):** the cut-on-evaluation atmosphere fakes (billboard light shafts, faked lake reflections, adaptive sparkle) + crowd LOD.
 
-### Far-field festival depth / semantic LOD *(SHIPPED, default-on, forest masses landed 2026-08-28 — parked refinements only)*
+### Far-field festival depth / semantic LOD *(SHIPPED, default-on; fidelity correction queued 2026-10-08)*
 
 The first slice shipped on the `festival-horizon` change (2026-08-27), was
 promoted to **on by default** on 2026-08-28 after Gary's real-device sign-off
@@ -848,6 +848,15 @@ raise landed the same day (see CHANGELOG). Shipped behavior + budgets live in
 ARCHITECTURE.md "Far-field horizon" and
 `openspec/changes/festival-horizon/verification/gates-flag-on.md`. What
 remains parked here:
+
+* **Correct near/far identity before tuning the transition.** Astra's
+  [2026-10-08 far-field review](.codex/reviews/002-far-field-fidelity/review-summary.md)
+  compares the fixed-camera hub and identifies stage, marquee, vendor-tent,
+  tree, placement, handoff, and lighting mismatches. Share building descriptors
+  and authoritative cluster placements first, add species-shaped tree crowns
+  at real positions next, and tune the ready-gated near/far handoff and lighting
+  after that. Add an exclusive fixed-camera near/far viewer and tests against
+  shared descriptions. Keep the existing batched rendering and tier budgets.
 
 * **Later refinements considered and parked:** baked multi-angle billboard
   atlases (asset-baking workflow + texture memory + alpha sorting), far-field
@@ -863,7 +872,17 @@ ceiling rather than an automatic perf win.
 
 - **PINNED: `?perf=low` shows a multi-second freeze that is NOT draws/tris.** *(pinned 2026-06-21 — come back to)* A low-tier capture caught **`fMax: 9029ms`** — a single ~9-second frozen frame — at fps 22, while per-chunk gen (`cgWorst`) was only ~198ms. So the freeze is something bigger and rarer than chunk generation: most likely a mid-play **shader-program compile** (the GPU stalling to build a program) or a **GC pause**. Same class as the "Game goes unresponsive" item in `## Bugs`, and squarely in this pass's Slice 2/3 territory (shader prewarm / time-sliced chunk gen). **To diagnose, need a "caught in the act" capture:** `__dbg.recordPerf(true)`, drive on `?perf=low` until it hitches, `__dbg.capture()` — then check whether `prog` (shader count) jumped at the freeze (→ shader stall) or `heapMB` did (→ GC). Cross-ref `openspec/changes/perf-pass-4/`.
 
-- **Run desktop and real-iPhone Wook Trip and driving captures.** The guided one-tap
+- **Fix the capture reliability gate before using guided results.** Astra's
+  [review of `c86f5de`](.codex/reviews/001-c86f5de-perf-fixes/review-summary.md)
+  reproduced one P1 upload race and six P2/P3 capture or chunk-admission
+  defects. The complete work order and source locations are in
+  [.claude/rules/performance.md](.claude/rules/performance.md#2026-10-08-review-of-commit-c86f5de-capture-reliability-gate).
+  Fix final upload serialization and acknowledgement, phase ownership and
+  Trip-clock alignment, free-capture resume, immutable retry metadata,
+  cross-phase quality checks, and empty-residency chunk admission. Add targeted
+  lifecycle tests and rerun project checks before interpreting guided reports.
+
+- **Run desktop and real-iPhone Wook Trip and driving captures after the reliability gate.** The guided one-tap
   scenarios now exist: `bin/playtest-perf trip` performs the parked
   baseline → fade-in → active → held peak → after comparison and sends the
   report, while `bin/playtest-perf` collects a separate drive. Add `--desktop`
