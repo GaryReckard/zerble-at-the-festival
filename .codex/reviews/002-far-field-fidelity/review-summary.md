@@ -115,3 +115,13 @@ also account for the live registry's load-order-dependent exclusions; without
 that equivalence, any projected distant position remains approximate. Keep
 the current coarse outer forest until the exact intermediate representation
 has a measured pool and device budget.
+
+The existing built-truth snapshot provides a concrete camp baseline without
+starting another browser. In `verification/snapshots/1234.dense.json`, the
+seed-1234 village centered at `(-776,-631)` has ten built campsites in its
+30 m square. The current mid/high proxy expands that record to six peaks.
+Each proxy peak's distance to its nearest built campsite, sorted, is
+5.96, 9.02, 14.57, 16.00, 17.04, and 34.17 m. The last proxy lies farther
+than the village's 30 m packing radius from every built pitch. This measures
+the position mismatch; it does not prove that all ten tents were simultaneously
+visible in a particular camera view.
