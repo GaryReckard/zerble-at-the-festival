@@ -29,7 +29,7 @@ const COLOR_ROOF = 0xf2c14e;   // warm gold
 const COLOR_SEAT = 0x2563d6;
 const COLOR_FRAME = 0x2a1f3a;
 const COLOR_WHEEL = 0x1c1c20;
-const COLOR_MUSTACHE = 0x9b59d6;
+const COLOR_MUSTACHE = 0x6526b5;
 const COLOR_EYE_GLOW = 0xa6ecff;
 const COLOR_IRIS = 0x1e9bff;
 
@@ -497,29 +497,36 @@ export class Zerble {
       emissiveIntensity: 1.2,
       roughness: 0.4,
     });
-    // Chrome backing strip behind the lamps
-    const chromeStrip = new THREE.Mesh(
-      new THREE.BoxGeometry(1.6, 0.22, 0.05),
-      new THREE.MeshStandardMaterial({ color: 0x55525a, roughness: 0.4, metalness: 0.7 })
-    );
-    chromeStrip.position.set(0, 0.78, -2.13);
-    this.root.add(chromeStrip);
-    // Four warm-yellow lamps along the strip
-    for (const tx of [-0.55, -0.18, 0.18, 0.55]) {
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.06), this._headlightMat);
-      lamp.position.set(tx, 0.78, -2.15);
+    // The black front fascia covers the lower chassis beneath the red hood.
+    const fasciaMat = mat(0x141418, { roughness: 0.85 });
+    const fascia = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.62, 0.10), fasciaMat);
+    fascia.name = 'HeadlightFascia';
+    fascia.position.set(0, 0.65, -2.34);
+    this.root.add(fascia);
+    const lampBacking = new THREE.Mesh(new THREE.BoxGeometry(1.78, 0.27, 0.08), fasciaMat);
+    lampBacking.position.set(0, 0.60, -2.42);
+    this.root.add(lampBacking);
+    // Four broad lenses with narrow but readable black dividers.
+    for (let i = 0; i < 4; i++) {
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.352, 0.20, 0.06), this._headlightMat);
+      lamp.name = 'HeadlightLens';
+      lamp.position.set((i - 1.5) * 0.432, 0.60, -2.48);
       this.root.add(lamp);
     }
+    const lowerPanel = new THREE.Mesh(new THREE.BoxGeometry(0.81, 0.27, 0.16), mat(0x222226, { roughness: 0.95 }));
+    lowerPanel.name = 'LowerFrontPanel';
+    lowerPanel.position.set(0, 0.34, -2.44);
+    this.root.add(lowerPanel);
 
     // ----- Night-only headlight cones — two SpotLights firing forward -----
     // Off during the day (intensity ramps with nightness). Targets sit a few
     // meters ahead so the cones spread out on the ground.
     this._headlightLights = [];
     for (const tx of [-0.4, 0.4]) {
-      const light = new THREE.SpotLight(0xffeac4, 0, 28, Math.PI / 6, 0.45, 1.0);
-      light.position.set(tx, 0.95, -2.0);
+      const light = new THREE.SpotLight(0xffeac4, 0, 36, Math.PI / 6, 0.55, 1.0);
+      light.position.set(tx, 0.60, -2.53);
       const target = new THREE.Object3D();
-      target.position.set(tx * 1.5, 0, -8);   // shine a few meters ahead
+      target.position.set(tx * 1.5, 0, -12);
       this.root.add(target);
       light.target = target;
       // Shadows on the headlights would tank perf; the moonlit ambient is fine.
@@ -1086,134 +1093,116 @@ export class Zerble {
   }
 
   _buildMustache() {
-    // Two mirrored handlebar curls — sweep out wide, dip down at the cheeks,
-    // then curl up and back at the tips. Beefier and fuzzier than before.
-
     const mustacheMat = new THREE.MeshStandardMaterial({
       color: COLOR_MUSTACHE,
       roughness: 0.95,
-      flatShading: true,
+      flatShading: false,
     });
-    const fuzzMatA = new THREE.MeshStandardMaterial({
-      color: 0x8244c8, roughness: 1, flatShading: true,
+    const fuzzMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, roughness: 1, flatShading: true,
     });
-    const fuzzMatB = new THREE.MeshStandardMaterial({
-      color: 0xb285e8, roughness: 1, flatShading: true,
-    });
-
     this._mustacheLeds = [];
-    const ledGeo = new THREE.SphereGeometry(0.07, 8, 6);
-    // Hair strands: thin tapered cones. Two length variants for variety.
-    const strandGeoLong = new THREE.ConeGeometry(0.025, 0.42, 5, 1);
-    const strandGeoShort = new THREE.ConeGeometry(0.022, 0.28, 5, 1);
-    // ConeGeometry centers the cone at origin with base at -y/2 and tip at +y/2.
-    // Translate so the BASE sits at the origin and the tip is at +y * length —
-    // this lets us position the strand by its emergence point directly.
-    strandGeoLong.translate(0, 0.21, 0);
-    strandGeoShort.translate(0, 0.14, 0);
+    const ledGeo = new THREE.SphereGeometry(0.018, 6, 4);
+    const strandGeo = new THREE.ConeGeometry(0.022, 0.14, 4, 1);
+    strandGeo.translate(0, 0.07, 0);
+    const mustache = new THREE.Group();
+    mustache.name = 'ZerbleMustache';
+    mustache.position.set(0, 1.11, -2.44);
+    this.root.add(mustache);
 
-    // Position the whole mustache near the front of the cart, below the eyes.
-    const baseY = 1.35;
-    const baseZ = -2.30;
-
-    for (const side of [-1, 1]) {
-      const pts = [];
-      // Curve starts at center (t=0) and grows OUTWARD as t increases.
-      // The OUTER tip ends at the outer side — then curls upward from there.
-      for (let t = 0; t <= 1.0001; t += 1 / 30) {
-        const x = side * (0.05 + t * 1.85);                   // monotonically outward
-        const y = -0.22 * Math.sin(Math.PI * t);              // sag/dip at the cheek
-        const z = 0.08 * Math.sin(Math.PI * t);               // slight forward bulge mid-sweep
-        pts.push(new THREE.Vector3(x, y, z));
+    // A flattened, variable-width sweep keeps the broad fabric lobes and open
+    // handlebar tips in one continuous surface, rather than joined sausages.
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.025, 0.02, 0),
+      new THREE.Vector3(0.38, 0.06, 0),
+      new THREE.Vector3(0.72, 0.01, 0),
+      new THREE.Vector3(1.10, -0.14, 0),
+      new THREE.Vector3(1.52, -0.20, 0),
+      new THREE.Vector3(1.94, -0.06, 0),
+      new THREE.Vector3(2.18, 0.23, 0),
+      new THREE.Vector3(2.15, 0.51, 0),
+      new THREE.Vector3(1.93, 0.60, 0),
+      new THREE.Vector3(1.81, 0.49, 0),
+    ]);
+    const widths = [0.13, 0.40, 0.43, 0.28, 0.15, 0.13, 0.12, 0.105, 0.075, 0.025];
+    const surface = (u, angle) => {
+      const p = curve.getPoint(u);
+      const tangent = curve.getTangent(u).normalize();
+      const k = Math.min(widths.length - 2, Math.floor(u * (widths.length - 1)));
+      const f = u * (widths.length - 1) - k;
+      const radius = THREE.MathUtils.lerp(widths[k], widths[k + 1], f * f * (3 - 2 * f));
+      const normal = new THREE.Vector3(-tangent.y, tangent.x, 0).normalize();
+      p.addScaledVector(normal, Math.cos(angle) * radius);
+      p.z = Math.sin(angle) * Math.min(0.20, radius * 0.72);
+      return { p, tangent };
+    };
+    const positions = [], indices = [];
+    const rings = 72, segments = 12;
+    for (let i = 0; i <= rings; i++) {
+      for (let j = 0; j <= segments; j++) {
+        const { p } = surface(i / rings, j / segments * Math.PI * 2);
+        positions.push(p.x, p.y, p.z);
+        if (i < rings && j < segments) {
+          const a = i * (segments + 1) + j, b = a + segments + 1;
+          indices.push(a, a + 1, b, b, a + 1, b + 1);
+        }
       }
-      // The outer tip — now curl up & inward over the cheek, handlebar style
-      const tip = pts[pts.length - 1];
-      pts.push(new THREE.Vector3(tip.x + side * 0.08, tip.y + 0.35, tip.z));
-      pts.push(new THREE.Vector3(tip.x + side * 0.02, tip.y + 0.72, tip.z));
-      pts.push(new THREE.Vector3(tip.x - side * 0.35, tip.y + 0.78, tip.z));
-      pts.push(new THREE.Vector3(tip.x - side * 0.65, tip.y + 0.50, tip.z));
-      pts.push(new THREE.Vector3(tip.x - side * 0.70, tip.y + 0.18, tip.z));
+    }
+    const bodyGeo = new THREE.BufferGeometry();
+    bodyGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    bodyGeo.setIndex(indices);
+    bodyGeo.computeVertexNormals();
+    const dummy = new THREE.Object3D();
+    const yAxis = new THREE.Vector3(0, 1, 0);
+    const color = new THREE.Color();
+    const furColors = [0x542098, 0x722bc1, 0x8738cc, 0x6020aa];
+    for (const side of [-1, 1]) {
+      const half = new THREE.Group();
+      half.scale.x = side;
+      half.rotation.z = side * 0.07;
+      mustache.add(half);
+      const body = new THREE.Mesh(bodyGeo, mustacheMat);
+      body.castShadow = true;
+      half.add(body);
 
-      const curve = new THREE.CatmullRomCurve3(pts);
-      const tube = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 64, 0.22, 6, false),
-        mustacheMat
-      );
-      tube.position.set(0, baseY, baseZ);
-      tube.castShadow = true;
-      this.root.add(tube);
-
-      // ----- Hair strands along the tube — thin cones flowing ALONG the tube -----
-      // Previous version was too spikey (60% radial outward). Now the strands
-      // mostly follow the tangent direction (75%), with only a small radial
-      // component (20%) and slight up-bias (5%). 96 per side (halved from 192)
-      // — still reads as dense hair, better perf.
-      const _ref = new THREE.Vector3();
-      const _side = new THREE.Vector3();
-      const _normal = new THREE.Vector3();
-      const _radial = new THREE.Vector3();
-      const _dir = new THREE.Vector3();
-      const _yAxis = new THREE.Vector3(0, 1, 0);
-      const strandCount = 96;
+      const strandCount = 192;
+      const fur = new THREE.InstancedMesh(strandGeo, fuzzMat, strandCount);
+      fur.name = 'MustacheTufts';
       for (let i = 0; i < strandCount; i++) {
         const u = (i + 0.5) / strandCount;
-        const p = curve.getPoint(u);
-        const tangent = curve.getTangent(u).normalize();
-
-        _ref.set(0, 1, 0);
-        if (Math.abs(tangent.y) > 0.9) _ref.set(1, 0, 0);
-        _side.crossVectors(tangent, _ref).normalize();
-        _normal.crossVectors(_side, tangent).normalize();
-
-        const theta = (i * 2.39996) % (Math.PI * 2);
-        _radial.copy(_side).multiplyScalar(Math.cos(theta))
-               .addScaledVector(_normal, Math.sin(theta));
-
-        // Tangent-dominant: strands lie close to the tube, flowing along its
-        // length. The radial component is small (20%) so they don't spike
-        // outward.
-        _dir.copy(tangent).multiplyScalar(0.75)
-            .addScaledVector(_radial, 0.20)
-            .addScaledVector(_yAxis, 0.05);
-        // Smaller jitter so the cloud reads as combed hair.
-        _dir.x += (Math.random() - 0.5) * 0.06;
-        _dir.y += (Math.random() - 0.5) * 0.06;
-        _dir.z += (Math.random() - 0.5) * 0.06;
-        _dir.normalize();
-
-        const useShort = i % 3 === 0;
-        const strand = new THREE.Mesh(
-          useShort ? strandGeoShort : strandGeoLong,
-          i % 2 === 0 ? fuzzMatA : fuzzMatB,
-        );
-        strand.quaternion.setFromUnitVectors(_yAxis, _dir);
-        // Anchor closer to the tube surface (was 0.7, now 0.55) so strands
-        // appear to emerge from within the hair mass rather than floating in
-        // space around the tube.
-        const tubeR = 0.22;
-        strand.position.copy(p)
-              .addScaledVector(_radial, tubeR * 0.55);
-        // Many hair-strand cones per mustache half — Zerble's main mustache
-        // tube already casts the iconic shadow. Skip these.
-        tube.add(strand);
+        const angle = Math.PI + ((i * 2.399963) % Math.PI);
+        const { p, tangent } = surface(u, angle);
+        const dir = tangent.multiplyScalar(0.7).add(new THREE.Vector3(0, -0.55 * (1 - u), -0.24)).normalize();
+        dummy.position.copy(p);
+        dummy.quaternion.setFromUnitVectors(yAxis, dir);
+        dummy.scale.setScalar(0.65 + 0.45 * ((i * 0.618034) % 1));
+        dummy.updateMatrix();
+        fur.setMatrixAt(i, dummy.matrix);
+        fur.setColorAt(i, color.setHex(furColors[i % furColors.length]));
       }
+      fur.instanceMatrix.needsUpdate = true;
+      fur.instanceColor.needsUpdate = true;
+      half.add(fur);
 
-      // ----- LEDs along the curve -----
-      const steps = 14;
+      // Trace both edges in opposite directions, closing around each tip.
+      const steps = 32;
       for (let i = 0; i < steps; i++) {
-        const u = i / (steps - 1);
-        const p = curve.getPoint(u);
-        const hue = LED_HUES[i % LED_HUES.length];
+        const upper = i >= steps / 2;
+        const t = (i % (steps / 2)) / (steps / 2 - 1);
+        const u = 0.015 + (upper ? 1 - t : t) * 0.97;
+        const { p } = surface(u, upper ? -0.12 * Math.PI : Math.PI * 1.12);
+        const hue = [0xff1800, 0x00e52c, 0x124aff, 0xffa000, 0xe800ff, 0x00cfff][i % 6];
         const ledMat = new THREE.MeshStandardMaterial({
           color: hue,
           emissive: hue,
-          emissiveIntensity: 1.7,
+          emissiveIntensity: 0.7,
+          toneMapped: false,
         });
         const led = new THREE.Mesh(ledGeo, ledMat);
         led.position.copy(p);
-        led.position.y -= 0.18;
-        led.userData = { phase: Math.random() * Math.PI * 2, baseIntensity: 1.7, mat: ledMat };
-        tube.add(led);
+        led.position.z = -0.23;
+        led.userData = { phase: i * 1.7 + side, baseIntensity: 0.7, mat: ledMat };
+        half.add(led);
         this._mustacheLeds.push(led);
       }
     }
@@ -1322,7 +1311,7 @@ export class Zerble {
     for (let i = 0; i < this._mustacheLeds.length; i++) {
       const led = this._mustacheLeds[i];
       const phase = led.userData.phase + t * 3 + i * 0.4;
-      led.userData.mat.emissiveIntensity = 1.0 + 0.9 * (0.5 + 0.5 * Math.sin(phase));
+      led.userData.mat.emissiveIntensity = 0.45 + 0.4 * (0.5 + 0.5 * Math.sin(phase));
     }
     if (this._floorLeds) {
       for (let i = 0; i < this._floorLeds.length; i++) {
@@ -1432,11 +1421,9 @@ export class Zerble {
       this.eyeGlowLevel = Math.max(targetEyeLevel, this.eyeGlowLevel - eyeStep);
     }
 
-    // ----- Headlights — much brighter at night -----
-    // The bloom pass benefits more from SpotLight intensity than from lamp
-    // emissive, so the SpotLight gets the big bump. Lamp lenses still light
-    // up so the bulbs read from behind.
-    const headlightIntensity = THREE.MathUtils.smoothstep(nightness, 0.25, 0.8) * 8.5;
+    // Light the driving surface, not just the emissive lens; keep the same
+    // two shadow-free lights and daytime-off behavior.
+    const headlightIntensity = THREE.MathUtils.smoothstep(nightness, 0.25, 0.8) * 18;
     if (this._headlightLights) {
       for (const l of this._headlightLights) l.intensity = headlightIntensity;
     }
