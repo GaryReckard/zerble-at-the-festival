@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { FrameTelemetry, phaseForElapsed } from '../src/perfTelemetry.js';
+import { FrameTelemetry, phaseForElapsed, resolveCaptureQualityPolicy } from '../src/perfTelemetry.js';
 
 const assert = (condition, message) => {
   if (!condition) throw new Error(message);
@@ -33,4 +33,15 @@ assert(phaseForElapsed('drive', 155) === null, 'drive auto-completes');
 assert(phaseForElapsed('trip', 45).id === 'fade-in', 'trip starts after parked baseline');
 assert(phaseForElapsed('trip', 77).id === 'peak', 'trip peak is held at the expected time');
 assert(phaseForElapsed('unknown', 1) === null, 'unrecognized scenarios do not run');
+assert(phaseForElapsed('parked', 20).id === 'parked' && phaseForElapsed('parked', 60) === null, 'parked comparison lasts 60 seconds');
+for (const scenario of ['drive', 'trip', 'parked']) {
+  for (const policy of ['auto', 'baseline']) {
+    const query = `?perfCapture=1&perfScenario=${scenario}&perfQuality=${policy}`;
+    assert(resolveCaptureQualityPolicy(query, 'low') === policy, 'guided Low policy resolves');
+    assert(resolveCaptureQualityPolicy(query, 'high') === null, 'policy must not change High');
+  }
+}
+for (const query of ['', '?perfQuality=baseline', '?perfCapture=1&perfQuality=baseline', '?perfCapture=1&perfScenario=bogus&perfQuality=baseline']) {
+  assert(resolveCaptureQualityPolicy(query, 'low') === null, 'ordinary play and free captures are untouched');
+}
 process.stdout.write('PASS  capture-only frame distributions, attribution, hidden-frame filtering, and event bounds\n');

@@ -55,6 +55,14 @@ def summarize(path):
           f"scenario: {session.get('scenario', 'free')}")
     print(f"Samples: {len(samples)} | active duration: {report.get('activeDurationS', report.get('durationS'))}s "
           f"| felt lag marks: {len(report.get('feltLag') or [])} | errors: {len(report.get('errors') or [])}")
+    print(f"Quality policy: {session.get('qualityPolicy', 'unrecorded (legacy capture)')} | "
+          f"requested: {session.get('qualityPolicyRequested', 'unrecorded')} | "
+          f"locked from first frame: {session.get('qualityLockedFromFirstFrame', 'unrecorded')} | "
+          f"comparison locked: {session.get('qualityLockedDuringComparison', False)}")
+    if session.get('qualityPolicyRequested') == 'baseline' and not session.get('qualityLockedFromFirstFrame'):
+        print('CHECK: requested baseline lock was not applied; do not treat this as Low Baseline.')
+    if session.get('qualityLockedFromFirstFrame') and any(row.get('qualityLevel') != 0 for row in samples):
+        print('CHECK: baseline capture contains a non-baseline sample.')
 
     by_phase = defaultdict(list)
     for sample in samples:

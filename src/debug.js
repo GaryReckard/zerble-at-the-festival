@@ -25,6 +25,7 @@ import { readRenderPipelineSize } from './renderSizing.js';
 import {
   getFrameStats, getLevelName, getLevelNames, getLevelCount,
   getLevel, isEnabled as aqIsEnabled, setEnabled as aqSetEnabled, applyLevel as aqApplyLevel,
+  CAPTURE_QUALITY_POLICY,
   getBloomEnabled, getShadowsEnabled, getBasePixelRatio,
   setShadows as aqSetShadows, setPixelRatio as aqSetPixelRatio,
 } from './adaptiveQuality.js';
@@ -1983,7 +1984,7 @@ function updateDeviceCaptureControl(message) {
     return;
   }
   if (!state.deviceCaptureStarted) {
-    el.textContent = 'PERF · ARMED. Tap Start to begin.';
+    el.textContent = 'PERF · ARMED. Use the title-card button to begin.';
     return;
   }
   if (state.deviceCaptureFinished) {
@@ -2001,7 +2002,7 @@ function updateDeviceCaptureControl(message) {
     ? PLAYTEST_SCENARIOS[DEVICE_SCENARIO][state.deviceCapturePhaseIndex] : null;
   const remaining = phase ? Math.max(0, Math.ceil(phase.seconds - (captureElapsedSeconds() - state.deviceCapturePhaseStartedS))) : 0;
   el.textContent = phase
-    ? `● ${phase.id.toUpperCase()} · ${remaining}s left. ${phase.instruction}`
+    ? `● ${PERF.name.toUpperCase()} ${CAPTURE_QUALITY_POLICY === 'baseline' ? 'BASELINE LOCK' : state.deviceCaptureQualityLocked ? 'AUTO (HELD)' : 'AUTO'} · ${phase.id.toUpperCase()} · ${remaining}s left. ${phase.instruction}`
     : `● REC ${mm}:${ss}. Drive normally; tap FELT LAG when it stutters.`;
 }
 
@@ -2027,7 +2028,7 @@ function startDeviceCapture() {
   state.deviceCaptureMarks = [];
   state.deviceCaptureVisibility = [];
   state.deviceCaptureErrors = [];
-  state.deviceCaptureQualityLocked = false;
+  state.deviceCaptureQualityLocked = CAPTURE_QUALITY_POLICY === 'baseline';
   state.deviceCaptureQualityWasEnabled = aqIsEnabled();
   for (const stage of Object.values(chunkGenStats.stages)) {
     stage.count = 0;
@@ -2110,6 +2111,7 @@ function advanceDeviceScenario() {
   state.deviceCapturePhaseStartedS = captureElapsedSeconds();
   state.perfPhase = phase.id;
   state.deviceCapturePhaseEvents.push({ ts: Date.now(), phase: phase.id, elapsedS: Math.round(captureElapsedSeconds() * 10) / 10 });
+  state.hooks?.setCaptureDriveLocked?.(phase.id !== 'drive');
   const trip = state.hooks?.Trip;
   if (DEVICE_SCENARIO === 'trip' && phase.id === 'baseline') {
     aqSetEnabled(false);
@@ -2137,6 +2139,7 @@ function finishDeviceScenario() {
   window.clearInterval(state.deviceCaptureTimer);
   state.deviceCaptureFinalReport = buildDeviceCaptureReport('complete');
   if (state.deviceCaptureQualityLocked) aqSetEnabled(state.deviceCaptureQualityWasEnabled);
+  state.hooks?.setCaptureDriveLocked?.(false);
   uploadDeviceCapture('complete', false);
 }
 
@@ -2188,12 +2191,24 @@ function buildDeviceCaptureReport(reason, sampleTail = null) {
     session: {
       seed: getSessionSeed(),
       scenario: DEVICE_SCENARIO || 'free',
+      qualityPolicyRequested: DEVICE_CAPTURE_PARAMS.get('perfQuality') || 'auto',
+      qualityPolicy: CAPTURE_QUALITY_POLICY || 'auto',
+      qualityPolicyApplied: CAPTURE_QUALITY_POLICY !== null,
+      qualityLockedFromFirstFrame: CAPTURE_QUALITY_POLICY === 'baseline',
+      governorEnabled: aqIsEnabled(),
       qualityLockedDuringComparison: state.deviceCaptureQualityLocked,
       chunksGeneratedDuringCapture: chunkGenStats.count - (state.deviceCaptureChunkBase || 0),
       tier: PERF.name,
       detectedTier: DETECTED_TIER,
       quality: getLevelName(),
       qualityLevel: getLevel(),
+      basePixelRatio: getBasePixelRatio(),
+      tierPolicy: {
+        crowdMax: PERF.crowdMax, forestTreeDensityMul: PERF.forestTreeDensityMul,
+        shadows: PERF.shadows, chunkLoadRadius: PERF.chunkLoadRadius,
+        chunkUnloadRadius: PERF.chunkUnloadRadius, bubblePoolMax: PERF.bubblePoolMax,
+        bubbles: CAPTURE_QUALITY_POLICY !== null ? 'cheap' : 'tier-and-settings',
+      },
       tod: hooks?.getTimeOfDay?.()?.t ?? null,
       x: hooks?.zerble ? Math.round(hooks.zerble.position.x * 100) / 100 : null,
       z: hooks?.zerble ? Math.round(hooks.zerble.position.z * 100) / 100 : null,

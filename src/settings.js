@@ -70,7 +70,7 @@ export const Settings = {
     const db = lsGet(K.detailBubbles);
     if (db === 'on' || db === 'off') {
       AdaptiveQuality.setOverride('bubbles', db === 'on');
-      refs.bubbles?.setCheapMaterial?.(db === 'off');
+      refs.bubbles?.setCheapMaterial?.(AdaptiveQuality.currentCheap());
     }
     const sh = lsGet(K.shadows);
     if (sh === 'on' || sh === 'off') AdaptiveQuality.setOverride('shadows', sh === 'on');
@@ -202,7 +202,7 @@ export const Settings = {
     // --- Detailed bubbles tri-state (live material swap) ---
     bindTri($('#set-bubbles'), (v) => {
       AdaptiveQuality.setOverride('bubbles', v === 'auto' ? null : v === 'on');
-      const cheap = v === 'off' ? true : v === 'on' ? false : AdaptiveQuality.currentCheap();
+      const cheap = AdaptiveQuality.currentCheap();
       refs.bubbles?.setCheapMaterial?.(cheap);
       if (v === 'auto') lsDel(K.detailBubbles); else lsSet(K.detailBubbles, v);
     });

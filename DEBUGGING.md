@@ -29,16 +29,20 @@ only with `?perfCapture=1`; ordinary play does not pay for these timers.
 1. Run the two captures separately from Terminal in this repo. For the desktop
    run, use `bin/playtest-perf --desktop`; it starts a loopback server and opens
    the Mac's default browser. Use `--browser Safari` or another app name if
-   that is where the desktop issue occurs. For the phone run, put the Mac and phone on the same Wi-Fi and
-   use `bin/playtest-perf`; it opens a QR code and prints a fallback URL. Do not
-   post the phone's tokenized URL publicly because it authorizes local uploads.
-2. On each device, choose **Just Cruisin'** and tap **Start**. On the phone,
+   that is where the desktop issue occurs. If port 8765 is busy, the guided
+   launcher uses the next available port and prints the actual URL; it leaves
+   the existing server alone. For the phone run, put the Mac and phone on the
+   same Wi-Fi and use `bin/playtest-perf`; it opens a QR code and prints a
+   fallback URL. Do not post the phone's tokenized URL publicly because it
+   authorizes local uploads.
+2. On each device, choose **Just Cruisin'** and click the title-card button,
+   usually **Let's go ZERBLIN'!** (or **Resume** for a saved session). On the phone,
    first scan the QR and open the link in Safari. Leave the game tab in the
-   foreground and follow the small `PERF` instruction box. Stay parked for
-   the 20-second settling phase and the 25-second parked baseline. Then drive
-   around normally for 90 seconds, crossing into new parts of the festival,
-   and park again for the final 20 seconds. Tap **FELT LAG** whenever a hitch
-   is noticeable.
+   foreground and follow the small `PERF` instruction box. The guided test
+   pauses driving controls and stops the cart during every parked phase. Drive
+   around normally for the 90-second drive phase, crossing into new parts of
+   the festival; the final 20-second recovery phase parks the cart for you.
+   Tap **FELT LAG** whenever a hitch is noticeable.
 3. Wait for **PERF · SAVED ✓**, which takes about 2 minutes 35 seconds of active
    play. If it says **SEND FAILED**, tap **SEND** while the Mac server is still
    running. Press Control-C in Terminal after each run has saved, then launch
@@ -46,12 +50,12 @@ only with `?perfCapture=1`; ordinary play does not pay for these timers.
    version you used, what you felt in each place, and that both playtests saved.
    The agent reads both JSON reports locally; there is nothing to copy or export.
 
-The drive run leaves adaptive quality active so its changes remain part of the
+By default, the drive run leaves adaptive quality active so its changes remain part of the
 real-world symptom. For a parked Wook Trip comparison, add `trip` before the
 options, for example `bin/playtest-perf trip --desktop` or
-`bin/playtest-perf trip`. Leave the cart parked throughout; the scenario holds
-the current render quality steady, starts the Trip, and holds its peak
-automatically. It takes at least 1 minute 57 seconds; a slow fade-in extends
+`bin/playtest-perf trip`. The scenario parks the cart, holds the current render
+quality steady, starts the Trip, and holds its peak automatically. It takes at
+least 1 minute 57 seconds; a slow fade-in extends
 the capture until the Trip actually reaches its sustaining state. Keep the
 Trip tab in the foreground throughout: backgrounding invalidates that
 comparison because the game and capture clocks can diverge. The drive scenario
@@ -65,14 +69,40 @@ physical dimensions differ from the canvas after an adaptive-quality change.
 For an apples-to-apples low-tier rerun,
 pass `--tier low`; `--seed` can select another reproducible world.
 
+The completed iPhone parked governor comparison used these commands separately.
+The server was stopped with Control-C after each report said **SAVED**:
+
+```sh
+bin/playtest-perf parked --tier low --quality auto --seed 3948869160
+```
+
+```sh
+bin/playtest-perf parked --tier low --quality baseline --seed 3948869160
+```
+
+Each lasts 60 seconds (20 settling, 40 parked) with controls paused. Baseline
+locks Low's initial resolution before the first rendered frame, not after
+settling; Auto can downgrade normally. Both use Low's cheap bubbles regardless
+of a saved Detailed bubbles preference, without changing that preference.
+Tier density, shadows, and chunk/bubble capacities are unchanged. Baseline is
+rejected unless `--tier low` is explicit. The flag also works with drive and
+Trip, whose Auto comparison still locks the reached rung after settling.
+Keep Safari foregrounded, the same orientation, camera, settings, and similar
+device temperature; let the phone cool between runs. Do not edit settings during
+either run. Record clarity, stutters, heat, and Low Power Mode. Full instructions
+and interpretation are in [the follow-up](verification/performance/2026-10-09/capture-follow-up.md).
+
+The parked pair is recorded in [the follow-up](verification/performance/2026-10-09/capture-follow-up.md#completed-parked-pair). The next test uses the same `--tier low --quality auto|baseline` flags with `drive` instead of `parked`, on a comparable route. Saved `session.qualityPolicy` and `qualityLockedFromFirstFrame` distinguish the runs, while `session.tierPolicy` records their fixed scene policy. Compare the
+live `frame.*` windows: governor `fAvg/fP95/fMax` stop updating when disabled.
+
 The server's LAN mode serves only game assets, and upload writes require the
 generated URL token. The data remains on the Mac under `.claude/captures/`.
 
-The performance follow-up remains tracked in [ROADMAP.md](ROADMAP.md) under “Validate the
-repaired capture workflow” and “Run desktop and real-iPhone Wook Trip and
-driving captures.” The repaired capture code has automated checks, but the
-desktop and phone sessions have not yet been collected. Keep those as a
-separate acceptance step from the far-field visual work.
+The desktop Chrome and iPhone Safari drive and Trip captures were collected on
+2026-10-09. Their findings, validity caveats, and next controlled experiment
+are in [the guided playtest report](verification/performance/2026-10-09/guided-playtests.md),
+with follow-up work tracked in [ROADMAP.md](ROADMAP.md). Keep that performance
+work separate from the far-field visual review.
 
 ---
 

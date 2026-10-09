@@ -32,6 +32,11 @@
 //   AdaptiveQuality.tick(dt);
 
 import { PERF } from './perf.js';
+import { resolveCaptureQualityPolicy } from './perfTelemetry.js';
+
+export const CAPTURE_QUALITY_POLICY = resolveCaptureQualityPolicy(
+  typeof location === 'undefined' ? '' : location.search, PERF.name,
+);
 
 // Gate the transition toast behind ?debug / localStorage['zerble.debug'], same
 // idiom as the [chunk slow] warnings + renderer.debug.checkShaderErrors. Read
@@ -118,6 +123,8 @@ export function install(hooks) {
   // hooks: { renderer, bloomPass, hud, onRenderResolutionChange,
   //          onShadowPolicyChange, onLevelChange }
   state.hooks = hooks;
+  // Capture policy must precede the first render, not the later Start gesture.
+  state.enabled = CAPTURE_QUALITY_POLICY !== 'baseline';
   state.level = 0;
   state.bloomAllowed = true;
   state._elapsedMs = 0;
@@ -132,7 +139,7 @@ export function install(hooks) {
 }
 
 export function setEnabled(v) {
-  const next = !!v;
+  const next = !!v && CAPTURE_QUALITY_POLICY !== 'baseline';
   if (next && !state.enabled) _resetObservationWindow();
   state.enabled = next;
 }
@@ -299,6 +306,8 @@ export function bloomAllowed() {
 // passes the current level's lvl object from onLevelChange; Settings reads the
 // current one when the player flips the control back to Auto.
 export function effectiveCheap(lvl) {
+  // Keep the paired Low captures identical even with a saved Detailed bubbles On.
+  if (CAPTURE_QUALITY_POLICY !== null) return true;
   return overrides.bubbles !== null ? !overrides.bubbles : (lvl.bubbles === 'cheap');
 }
 export function currentCheap() { return effectiveCheap(QUALITY_LEVELS[state.level]); }
@@ -381,6 +390,7 @@ export function getFrameStats() { return state._statsCache; }
 // Force a specific quality level. Call setEnabled(false) first to keep it
 // pinned; otherwise the next tick may overwrite it.
 export function applyLevel(n) {
+  if (CAPTURE_QUALITY_POLICY === 'baseline' && n !== 0) return;
   if (n >= 0 && n < QUALITY_LEVELS.length) {
     _apply(n, state._statsCache.avg || 16);
   }
@@ -412,6 +422,7 @@ export function getBasePixelRatio() {
 // Set pixel ratio directly (mul relative to base). Used by the Render panel's
 // pixel-ratio override. Also re-syncs the composer size.
 export function setPixelRatio(mul) {
+  if (CAPTURE_QUALITY_POLICY === 'baseline' && mul !== 1) return;
   if (!state.hooks?.renderer) return;
   state.hooks.renderer.setPixelRatio((state.basePixelRatio ?? 1) * mul);
   state.hooks.onRenderResolutionChange();

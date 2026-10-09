@@ -98,6 +98,16 @@ const TRUSS_HEX = 0x2e2a33;
 const WARM_HEX = 0xffb054;
 const ROAD_HEX = 0x9c7c58;   // a shade darker than the real road's 0xb89570
 
+// MeshBasicMaterial ignores the sun, hemisphere and ambient lights that shade
+// the real canvas. These are LINEAR-space multipliers: even 0.18 becomes a
+// conspicuous pale grey after sRGB output conversion at midnight. Keep the
+// non-emissive horizon subdued at noon and let it settle close to the night
+// fog color; the intentional warm/beacon markers retain their own glow curve.
+const SURFACE_DAY_BRIGHTNESS = 0.6;
+const SURFACE_NIGHT_BRIGHTNESS = 0.04;
+const ROAD_DAY_BRIGHTNESS = 0.8;
+const ROAD_NIGHT_BRIGHTNESS = 0.035;
+
 // ---------- Pure helpers ----------
 
 // Reduced-motion handoff policy (audit V8): the flag must be READ LIVE at each
@@ -969,13 +979,16 @@ export class FarField {
     if (q === this._todQ) return;
     this._todQ = q;
     const n = q / 64;
-    const dayB = this._lighting === 'lit' ? 1 : 1 - 0.82 * n;
+    const daylight = (1 - n) * (1 - n);
+    const dayB = this._lighting === 'lit' ? 1
+      : SURFACE_NIGHT_BRIGHTNESS + (SURFACE_DAY_BRIGHTNESS - SURFACE_NIGHT_BRIGHTNESS) * daylight;
     this._mats.canopy.color.setScalar(dayB);
     this._mats.marqueeWall.color.setScalar(dayB);
     this._mats.peak.color.setScalar(dayB);
     this._mats.forest.color.setScalar(dayB);
     this._mats.truss.color.setScalar(dayB);
-    this._mats.road.color.setHex(ROAD_HEX).multiplyScalar(1 - 0.85 * n);
+    const roadB = ROAD_NIGHT_BRIGHTNESS + (ROAD_DAY_BRIGHTNESS - ROAD_NIGHT_BRIGHTNESS) * daylight;
+    this._mats.road.color.setHex(ROAD_HEX).multiplyScalar(roadB);
     this._nightOn = n > NIGHT_MARKER_THRESHOLD;
     const glow = this._nightOn ? Math.min(1, (n - NIGHT_MARKER_THRESHOLD) / 0.25) : 0;
     this._mats.warm.color.setHex(WARM_HEX).multiplyScalar(0.3 + 0.7 * glow);

@@ -19,6 +19,13 @@ with tempfile.TemporaryDirectory() as directory:
     path = Path(directory) / 'cross-phase.json'
     path.write_text(json.dumps({'schema': 'zerble-device-perf-v2', 'samples': rows}), encoding='utf8')
     output = subprocess.check_output([sys.executable, str(root / 'bin/report-perf-playtest'), str(path)], text=True)
+    assert 'unrecorded (legacy capture)' in output
+    path.write_text(json.dumps({'samples': rows, 'session': {
+        'qualityPolicyRequested': 'baseline', 'qualityPolicy': 'baseline', 'qualityLockedFromFirstFrame': True,
+    }}), encoding='utf8')
+    locked = subprocess.check_output([sys.executable, str(root / 'bin/report-perf-playtest'), str(path)], text=True)
+    assert 'Quality policy: baseline' in locked
+    assert 'CHECK: baseline capture contains a non-baseline sample.' in locked
 
 for expected in ('CHECK: quality changed across comparison phases',
                  'CHECK: pixel ratio changed across comparison phases',

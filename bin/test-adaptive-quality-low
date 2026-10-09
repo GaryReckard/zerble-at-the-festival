@@ -78,4 +78,31 @@ assert(!AQ.currentCheap(), 'Detailed bubbles On did not override the low-tier Au
 AQ.setOverride('bubbles', null);
 assert(AQ.currentCheap(), 'returning Detailed bubbles to Auto did not restore the low-tier floor');
 
+// Isolated module instances exercise the real install/tick path before any
+// title gesture, including stale user overrides and attempts to resume Auto.
+for (const policy of ['auto', 'baseline']) {
+  location.search = `?perfCapture=1&perfScenario=parked&perfQuality=${policy}`;
+  const captureAQ = await import(`../src/adaptiveQuality.js?capture-test=${policy}`);
+  let ratio = 1.25;
+  let shadows;
+  captureAQ.install({
+    renderer: { getPixelRatio: () => ratio, setPixelRatio: v => { ratio = v; }, shadowMap: { enabled: false } },
+    onRenderResolutionChange() {}, onShadowPolicyChange: on => { shadows = on; },
+  });
+  captureAQ.setOverride('bubbles', true);
+  assert(captureAQ.currentCheap(), `${policy} must retain Low cheap bubbles despite saved On`);
+  assert(captureAQ.getLevel() === 0 && ratio === 1.25 && shadows === false, 'both policies start at the same Low baseline');
+  assert(captureAQ.isEnabled() === (policy === 'auto'), 'policy applies at install, before first tick');
+  for (let i = 0; i < 1000; i++) { now += 40; captureAQ.tick(0.04); }
+  if (policy === 'baseline') {
+    captureAQ.setEnabled(true);
+    captureAQ.applyLevel(4);
+    captureAQ.setPixelRatio(0.5);
+    assert(captureAQ.getLevel() === 0 && ratio === 1.25 && !captureAQ.isEnabled(), 'baseline cannot drift or resume at Trip completion');
+  } else {
+    assert(captureAQ.getLevel() === 4 && ratio === 0.625, 'Auto still reacts to the same slow frames');
+  }
+  assert(captureAQ.currentCheap() && shadows === false, 'Low policies do not change bubbles or shadows');
+}
+
 process.stdout.write('PASS  low tier starts cheap, skips inert rungs, and respects the detailed-bubbles override\n');

@@ -3,21 +3,33 @@
 const round = (n) => Math.round(n * 10) / 10;
 
 export const PLAYTEST_SCENARIOS = Object.freeze({
+  parked: [
+    { id: 'settle', seconds: 20, instruction: 'Controls paused while the world settles.' },
+    { id: 'parked', seconds: 40, instruction: 'Controls paused. Compare clarity and smoothness; tap FELT LAG if needed.' },
+  ],
   drive: [
-    { id: 'settle', seconds: 20, instruction: 'Leave Zerble parked while the world settles.' },
-    { id: 'parked', seconds: 25, instruction: 'Keep Zerble parked for the baseline.' },
+    { id: 'settle', seconds: 20, instruction: 'Controls paused while the world settles.' },
+    { id: 'parked', seconds: 25, instruction: 'Controls paused for the baseline.' },
     { id: 'drive', seconds: 90, instruction: 'Drive normally. Tap FELT LAG whenever it stutters.' },
-    { id: 'parked-after', seconds: 20, instruction: 'Park again so we can check recovery.' },
+    { id: 'parked-after', seconds: 20, instruction: 'Controls paused for the recovery check.' },
   ],
   trip: [
-    { id: 'settle', seconds: 20, instruction: 'Leave Zerble parked while the world settles.' },
-    { id: 'baseline', seconds: 25, instruction: 'Keep Zerble parked. The trip will start automatically.' },
-    { id: 'fade-in', seconds: 12, instruction: 'Keep parked while the trip fades in.' },
-    { id: 'active', seconds: 20, instruction: 'Keep parked while the trip runs.' },
-    { id: 'peak', seconds: 20, instruction: 'Keep parked while the peak is held.' },
-    { id: 'after', seconds: 20, instruction: 'Keep parked for the after comparison.' },
+    { id: 'settle', seconds: 20, instruction: 'Controls paused while the world settles.' },
+    { id: 'baseline', seconds: 25, instruction: 'Controls paused. The trip will start automatically.' },
+    { id: 'fade-in', seconds: 12, instruction: 'Controls paused while the trip fades in.' },
+    { id: 'active', seconds: 20, instruction: 'Controls paused while the trip runs.' },
+    { id: 'peak', seconds: 20, instruction: 'Controls paused while the peak is held.' },
+    { id: 'after', seconds: 20, instruction: 'Controls paused for the after comparison.' },
   ],
 });
+
+export function resolveCaptureQualityPolicy(search, tier) {
+  const params = new URLSearchParams(search);
+  const guidedLow = params.get('perfCapture') === '1' &&
+    Object.hasOwn(PLAYTEST_SCENARIOS, params.get('perfScenario')) && tier === 'low';
+  const requested = params.get('perfQuality');
+  return guidedLow && (requested === 'auto' || requested === 'baseline') ? requested : null;
+}
 
 export function phaseForElapsed(scenario, elapsedSeconds) {
   const phases = PLAYTEST_SCENARIOS[scenario];

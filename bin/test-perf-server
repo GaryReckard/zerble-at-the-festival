@@ -5,6 +5,8 @@ import json
 import os
 import tempfile
 import threading
+import runpy
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 from urllib.parse import parse_qs, urlsplit
@@ -23,13 +25,32 @@ assert not module.public_game_path('/%2eclaude/settings.local.json')
 desktop = module.capture_url('127.0.0.1', 8765, 'drive', '3948869160', 'auto')
 assert urlsplit(desktop).hostname == '127.0.0.1'
 assert parse_qs(urlsplit(desktop).query) == {
-    'perfCapture': ['1'], 'perfScenario': ['drive'], 'seed': ['3948869160']
+    'perfCapture': ['1'], 'perfScenario': ['drive'], 'seed': ['3948869160'], 'perfQuality': ['auto']
 }
 phone = module.capture_url('192.168.1.7', 8765, 'trip', '7', 'low', 'token-123')
 assert parse_qs(urlsplit(phone).query) == {
     'perfCapture': ['1'], 'captureToken': ['token-123'],
-    'perfScenario': ['trip'], 'seed': ['7'], 'perf': ['low']
+    'perfScenario': ['trip'], 'seed': ['7'], 'perf': ['low'], 'perfQuality': ['auto']
 }
+baseline = parse_qs(urlsplit(module.capture_url('192.168.1.7', 8766, 'parked', '7', 'low', 'token-123', 'baseline')).query)
+auto = parse_qs(urlsplit(module.capture_url('192.168.1.7', 8766, 'parked', '7', 'low', 'token-123', 'auto')).query)
+assert baseline.pop('perfQuality') == ['baseline']
+assert auto.pop('perfQuality') == ['auto']
+assert baseline == auto, 'paired URLs must differ only in quality policy'
+for tier in ('auto', 'mid', 'high'):
+    try:
+        module.capture_url('127.0.0.1', 8765, 'parked', tier=tier, quality='baseline')
+        raise AssertionError('baseline allowed outside Low')
+    except ValueError:
+        pass
+with patch('sys.argv', ['playtest-perf', 'parked', '--tier', 'low', '--quality', 'baseline', '--no-qr']), \
+        patch('os.chdir'), patch('os.execv') as execute:
+    runpy.run_path(str(root / 'bin/playtest-perf'), run_name='__main__')
+    command = execute.call_args.args[1]
+    assert command[command.index('--playtest') + 1] == 'parked'
+    assert command[command.index('--quality') + 1] == 'baseline'
+    assert command[command.index('--tier') + 1] == 'low'
+    assert '--lan' in command and '--no-qr' in command
 module.CAPTURE_TOKEN = 'test-token'
 assert not module.capture_authorized('127.0.0.1', '')
 assert module.capture_authorized('127.0.0.1', 'test-token')
@@ -38,6 +59,22 @@ assert not module.capture_authorized('192.168.1.8', 'wrong')
 assert module.capture_authorized('192.168.1.8', 'test-token')
 
 if os.environ.get('ZERBLE_TEST_HTTP') == '1':
+    occupied = ThreadingHTTPServer(('127.0.0.1', 0), module.NoCacheHandler)
+    try:
+        chosen = module.bind_server('127.0.0.1', occupied.server_port, playtest=True)
+        try:
+            assert occupied.server_port < chosen.server_port <= occupied.server_port + 10
+            assert urlsplit(module.capture_url('127.0.0.1', chosen.server_port, 'drive')).port == chosen.server_port
+        finally:
+            chosen.server_close()
+        try:
+            module.bind_server('127.0.0.1', occupied.server_port)
+            raise AssertionError('ordinary server unexpectedly changed an occupied port')
+        except OSError:
+            pass
+    finally:
+        occupied.server_close()
+
     with tempfile.TemporaryDirectory() as temp:
         module.CAPTURE_DIR = Path(temp)
         module.LAN_MODE = True

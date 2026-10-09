@@ -624,6 +624,7 @@ let _sessionEndReported = false; // session_end fires once per leave; resets on 
 // Opening intro: while true, the world simulates but the player can't drive
 // (the camera is mid-reveal). Zerble gets a neutral input so it idles in place.
 let controlsLocked = false;
+let captureDriveLocked = false;
 const NEUTRAL_INPUT = { throttle: 0, steer: 0, boost: false };
 
 // Intro timing (ms): hold the opaque PNG, then cross-dissolve, then the camera
@@ -895,7 +896,8 @@ function tickBody(dt) {
     if (nightness > 0.5) Analytics.sawNight();   // once: played into nightfall
     // During the opening reveal the player can't steer — feed Zerble a neutral
     // input so it idles while the camera does its thing.
-    zerble.update(dt, controlsLocked ? NEUTRAL_INPUT : Input, nightness);
+    if (captureDriveLocked) zerble.speed = 0;
+    zerble.update(dt, controlsLocked || captureDriveLocked ? NEUTRAL_INPUT : Input, nightness);
     boostStreaks.update(dt, zerble, {
       reducedMotion: A11y.reducedMotion,
       effectsEnabled: AdaptiveQuality.bloomAllowed(),
@@ -2609,6 +2611,10 @@ installDebug({
   hoopers, frisbees,
   lurleen,                              // teleport menu uses .position
   getRunning: () => running,
+  setCaptureDriveLocked: (locked) => {
+    captureDriveLocked = locked;
+    if (locked) zerble.speed = 0;
+  },
   getTimeOfDay,
   getFarField,                          // perf samples record horizon counters
   Scoring,                              // perf samples record the organic smile rate

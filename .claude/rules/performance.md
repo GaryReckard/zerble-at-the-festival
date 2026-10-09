@@ -74,9 +74,11 @@ fade-in, free-form tab resume, serial upload ordering, final acknowledgement,
 and identical failed-upload retries. `bin/test-chunk-deadline` covers the
 expired-deadline empty-residency path, and `bin/test-perf-report` covers
 quality changes across phase boundaries. The project check and main-game
-smoke test passed on low and high tiers. Desktop and real-iPhone captures are
-still needed before drawing performance conclusions; a fresh GPU benchmark is
-also needed to measure the visual changes.
+smoke test passed on low and high tiers. Gary completed desktop Chrome and
+real-iPhone Safari drive and Trip captures on 2026-10-09; the bounded findings
+and next experiment are in
+[`guided-playtests.md`](../../verification/performance/2026-10-09/guided-playtests.md).
+A fresh GPU benchmark is still needed to measure the visual changes.
 
 ## Audit order (highest-impact first)
 

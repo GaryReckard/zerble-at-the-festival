@@ -2,6 +2,16 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-09
+
+### Added
+- **A paired Low Auto / Low Baseline performance capture.** `bin/playtest-perf parked --tier low --quality baseline` locks the baseline rung before the first game frame; `--quality auto` keeps governor decisions active. Both retain Low scene density, shadows, chunk radius, and cheap bubbles, even with a saved detailed-bubbles preference. The 60-second parked scenario reuses the automatic control lock, and reports identify the requested/applied policy, first-frame lock, baseline pixel ratio, and tier settings. In the completed iPhone pair, Baseline rendered four times as many pixels while both policies reported median 58 FPS and nearly identical frame-gap distributions; the moving comparison remains open. Tests cover initialization, sustained pressure, capture completion, URL pairing, and report labels. This is a device experiment, not a recommendation to force High quality.
+
+### Fixed
+- **Far-field roofs and forest silhouettes no longer glow against the night scene.** The shipping unlit batches now use a subdued noon brightness and a steeper nightness curve in linear color space; the road underlay follows the same day/night shape, while intentional warm and beacon markers keep their glow. The hub viewer was checked at fixed Noon and Midnight camera poses, with real-only and proxy-only comparisons. The scene-lit Lambert option remains comparison tooling. ([farField.js](src/farField.js), [test-far-field](bin/test-far-field))
+- **Guided playtests now start when port 8765 is already occupied.** The launcher tries nearby ports without stopping the existing server, then uses the selected port in its desktop URL, phone URL, and QR code. The terminal prompt and capture panel now refer to the actual title-card button instead of saying “Start.” The HTTP test covers occupied-port fallback and keeps ordinary server binding exact. ([serve_nocache.py](.claude/serve_nocache.py), [debug.js](src/debug.js), [test-perf-server](bin/test-perf-server), [DEBUGGING.md](DEBUGGING.md#desktop-and-phone-performance-playtests))
+- **Guided captures park the cart automatically.** Settling, baseline, and recovery phases now pause driving input and clear leftover speed at the transition; the drive phase returns control, and completion releases it. This prevents a late brake or held thumbstick from contaminating stationary frame comparisons. ([main.js](src/main.js), [debug.js](src/debug.js), [perfTelemetry.js](src/perfTelemetry.js), [test-device-capture-flow](bin/test-device-capture-flow))
+
 ## 2026-10-08
 
 ### Fixed

@@ -866,9 +866,12 @@ remains parked here:
   rejection rules to proxies. The real camp builder interleaves pitch placement
   with model RNG draws, and forest placement filters through the live registry;
   the reviews record the required equivalence checks. Then tune the ready-gated
-  near/far overlap and lighting at Noon and Midnight. The viewer's scene-lit
-  Lambert option is comparison tooling; the game stays unlit until visual and
-  device evidence supports a switch. Other pool overflows are still visible
+  near/far overlap and lighting at Noon and Midnight. The first unlit-color
+  correction now darkens pale canvas, forest masses, and road underlays across
+  the day/night cycle; verify it on the phone and in moving handoffs before
+  calling lighting parity done. The viewer's scene-lit Lambert option is
+  comparison tooling; the game stays unlit until visual and device evidence
+  supports a switch. Other pool overflows are still visible
   and require visual prioritization. Capture fixed-camera comparisons and a
   fresh GPU benchmark before calling the visual gate done.
 
@@ -886,26 +889,7 @@ ceiling rather than an automatic perf win.
 
 - **PINNED: `?perf=low` shows a multi-second freeze that is NOT draws/tris.** *(pinned 2026-06-21 — come back to)* A low-tier capture caught **`fMax: 9029ms`** — a single ~9-second frozen frame — at fps 22, while per-chunk gen (`cgWorst`) was only ~198ms. So the freeze is something bigger and rarer than chunk generation: most likely a mid-play **shader-program compile** (the GPU stalling to build a program) or a **GC pause**. Same class as the "Game goes unresponsive" item in `## Bugs`, and squarely in this pass's Slice 2/3 territory (shader prewarm / time-sliced chunk gen). **To diagnose, need a "caught in the act" capture:** `__dbg.recordPerf(true)`, drive on `?perf=low` until it hitches, `__dbg.capture()` — then check whether `prog` (shader count) jumped at the freeze (→ shader stall) or `heapMB` did (→ GC). Cross-ref `openspec/changes/perf-pass-4/`.
 
-- **Validate the repaired capture workflow on desktop and iPhone.** Astra's
-  [review of `c86f5de`](.codex/reviews/001-c86f5de-perf-fixes/review-summary.md)
-  reproduced one P1 upload race and six P2/P3 capture or chunk-admission
-  defects. The complete work order and source locations are in
-  [.claude/rules/performance.md](.claude/rules/performance.md#2026-10-08-review-of-commit-c86f5de-capture-reliability-gate).
-  All seven fixes and targeted regressions now pass `npm run check`, and the
-  main game boots on low and high tiers. Real device captures remain necessary
-  before interpreting performance or closing this gate.
-
-- **Run desktop and real-iPhone Wook Trip and driving captures after the reliability gate.** The guided one-tap
-  scenarios now exist: `bin/playtest-perf trip` performs the parked
-  baseline → fade-in → active → held peak → after comparison and sends the
-  report, while `bin/playtest-perf` collects a separate drive. Add `--desktop`
-  to run either scenario in this Mac's default browser. Follow
-  [DEBUGGING.md](DEBUGGING.md#desktop-and-phone-performance-playtests) on both devices.
-  The device result remains to be collected; rerun both with `--tier low` if a
-  controlled low-tier comparison is needed. Compare frame-time distributions
-  and render work for the Trip, because `InfoCapturePass` counts scene draws
-  before the Trip pass. Reject any interval with movement, quality changes,
-  visibility interruptions, or a changing star-power/scene population state.
+- **Finish the October 9 device performance comparison.** Desktop Chrome and iPhone Safari drive and Trip captures are summarized in [the initial report](verification/performance/2026-10-09/guided-playtests.md). A subsequent [Low Auto versus Low Baseline parked pair](verification/performance/2026-10-09/capture-follow-up.md#completed-parked-pair) found no frame-delivery gain from Auto's fourfold render-pixel reduction in that scene. Next run the same Low Auto/Baseline pair during a comparable guided drive, recording sharpness, felt stutters, and heat as well as frame gaps and work. Use that result to assess the p95-only downgrade path while retaining sustained-average and severe-hitch protection. Separately isolate the Mac's shadow-transition and first-Trip render spikes and the fancy-bubble draw cost. The parked pair does not justify forced High tier or globally disabling the governor.
 
 - **Astra audit follow-through, 2026-10-08.** The render-resolution mismatch,
   empty transmissive bubble pass, all-entry lake queries, shadow Off policy drift,

@@ -13,6 +13,7 @@ assert(lifecycle.startsWith('function captureElapsedSeconds()') && upload.starts
 function setup(scenario) {
   let now = 0;
   const samples = [];
+  const driveLocks = [];
   const uploads = [];
   const deferred = [];
   const state = {
@@ -23,7 +24,10 @@ function setup(scenario) {
     deviceCaptureQualityLocked: false, deviceCaptureQualityWasEnabled: true,
     deviceCaptureResult: '', deviceCaptureUploadQueue: Promise.resolve(),
     deviceCaptureFinalReport: null, perfPhase: '',
-    hooks: { Trip: { state: 'idle', triggerDynamic() { this.state = 'fading_in'; }, scrub(value) { this.state = value == null ? 'idle' : 'scrub'; } } },
+    hooks: {
+      Trip: { state: 'idle', triggerDynamic() { this.state = 'fading_in'; }, scrub(value) { this.state = value == null ? 'idle' : 'scrub'; } },
+      setCaptureDriveLocked(locked) { driveLocks.push(locked); },
+    },
   };
   const document = { hidden: false };
   const context = vm.createContext({
@@ -42,7 +46,7 @@ function setup(scenario) {
   });
   vm.runInContext(lifecycle + '\n' + upload, context);
   return {
-    state, document, samples, uploads, deferred,
+    state, document, samples, uploads, deferred, driveLocks,
     setNow(value) { now = value; },
     call(name, ...args) { return vm.runInContext(name, context)(...args); },
   };
@@ -77,9 +81,37 @@ flow.call('advanceDeviceScenario');
 assert.equal(flow.state.deviceCaptureFinished, true);
 assert.equal(flow.samples.length, 6, 'each outgoing phase flushes exactly once');
 assert.equal(flow.samples.at(-1), 'after');
+assert.equal(flow.driveLocks.at(-1), false, 'Trip unlocks controls on completion');
 await Promise.resolve();
 flow.deferred[0].resolve({ ok: true });
 await flow.state.deviceCaptureUploadQueue;
+
+const driving = setup('drive');
+driving.call('advanceDeviceScenario');
+assert.deepEqual(driving.driveLocks, [true], 'settling parks the cart');
+driving.setNow(20_000);
+driving.call('advanceDeviceScenario');
+assert.equal(driving.driveLocks.at(-1), true, 'baseline keeps controls paused');
+driving.setNow(45_000);
+driving.call('advanceDeviceScenario');
+assert.equal(driving.driveLocks.at(-1), false, 'drive phase returns control');
+driving.setNow(135_000);
+driving.call('advanceDeviceScenario');
+assert.equal(driving.driveLocks.at(-1), true, 'recovery phase parks immediately');
+driving.setNow(155_000);
+driving.call('advanceDeviceScenario');
+assert.equal(driving.driveLocks.at(-1), false, 'completion releases control');
+
+const parked = setup('parked');
+parked.call('advanceDeviceScenario');
+parked.setNow(20_000);
+parked.call('advanceDeviceScenario');
+assert.equal(parked.state.perfPhase, 'parked');
+assert.deepEqual(parked.driveLocks, [true, true], 'short comparison never allows driving');
+parked.setNow(60_000);
+parked.call('advanceDeviceScenario');
+assert.equal(parked.state.deviceCaptureFinished, true);
+assert.equal(parked.driveLocks.at(-1), false, 'short comparison releases controls');
 
 const free = setup(null);
 free.document.hidden = true;
@@ -135,4 +167,30 @@ failure.deferred[1].resolve({ ok: true });
 assert.equal(await finalRetry, true);
 assert.equal(failure.state.deviceCaptureResult, 'sent');
 
-process.stdout.write('PASS  capture phase ownership, slow Trip, free resume, upload serialization, and frozen retry\n');
+// Exercise the actual serializer, not a fixture carrying the expected labels.
+const reportSource = source.slice(source.indexOf('function buildDeviceCaptureReport('), source.indexOf('function deviceCaptureUrl('));
+for (const policy of ['auto', 'baseline']) {
+  const context = vm.createContext({
+    state: { hooks: {}, perfSamples: [], frameTelemetry: { events: [] }, deviceCaptureStartedAt: 1,
+      deviceCapturePhaseEvents: [], deviceCaptureMarks: [], deviceCaptureVisibility: [], deviceCaptureErrors: [],
+      deviceCaptureQualityLocked: policy === 'baseline' },
+    DEVICE_CAPTURE_PARAMS: new URLSearchParams(`?perfCapture=1&perfScenario=parked&perfQuality=${policy}&captureToken=secret`),
+    DEVICE_SCENARIO: 'parked', CAPTURE_QUALITY_POLICY: policy,
+    chunkGenStats: { stages: {}, count: 0 }, captureElapsedSeconds: () => 60,
+    PERF: { name: 'low', crowdMax: 180, shadows: false, chunkLoadRadius: 1, chunkUnloadRadius: 2, bubblePoolMax: 200 },
+    DETECTED_TIER: 'low', getSessionSeed: () => 3948869160,
+    getLevelName: () => 'baseline', getLevel: () => 0, getBasePixelRatio: () => 1.25,
+    aqIsEnabled: () => policy === 'auto', navigator: {},
+    window: { screen: {} }, deviceRendererInfo: () => null, loadMarkers: () => [],
+  });
+  vm.runInContext(reportSource, context);
+  const report = vm.runInContext('buildDeviceCaptureReport("complete")', context);
+  assert.equal(report.session.qualityPolicy, policy);
+  assert.equal(report.session.qualityLockedFromFirstFrame, policy === 'baseline');
+  assert.equal(report.session.governorEnabled, policy === 'auto');
+  assert.equal(report.session.basePixelRatio, 1.25);
+  assert.equal(report.session.tierPolicy.bubbles, 'cheap');
+  assert.equal(report.session.params.captureToken, undefined, 'policy metadata must not leak upload tokens');
+}
+
+process.stdout.write('PASS  capture phase ownership, parked controls, slow Trip, free resume, upload serialization, and frozen retry\n');

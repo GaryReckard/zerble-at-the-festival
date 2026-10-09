@@ -481,6 +481,18 @@ assert(peakGeo.index.length === 12 && peakGeo.attributes.position.array.length =
   'vendor and camp peaks use four lit side triangles with no hidden base');
 assert(ff._mats.canopy instanceof MeshBasicMaterial && ff._mats.forest instanceof MeshBasicMaterial,
        'shipping default remains the measured unlit path while lighting is compared');
+ff._applyTimeOfDay(0);
+const noonCanopy = ff._mats.canopy.color.r;
+const noonRoad = ff._mats.road.color.r;
+assert(noonCanopy > 0.5 && noonCanopy < 0.7 && noonRoad < 1,
+       'unlit horizon surfaces must be subdued even at noon');
+ff._applyTimeOfDay(0.5);
+const duskCanopy = ff._mats.canopy.color.r;
+ff._applyTimeOfDay(1);
+assert(ff._mats.canopy.color.r < 0.06 && ff._mats.road.color.r < noonRoad * 0.1 &&
+       ff._mats.forest.color.r === ff._mats.canopy.color.r &&
+       noonCanopy > duskCanopy && duskCanopy > ff._mats.canopy.color.r,
+       'unlit roofs, forest and roads must darken smoothly toward midnight');
 const litProbe = new FarField({ enabled: true, tier: TEST_TIER, lighting: 'lit' });
 assert(litProbe._mats.canopy instanceof MeshLambertMaterial &&
        litProbe._mats.marqueeWall instanceof MeshLambertMaterial &&

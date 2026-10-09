@@ -219,7 +219,8 @@ camp roof peaks, warm night markers, colored stage
 beacons, and coarse forest masses — detail-0 icosa domes sampled from the
 `treeDensity` field on a per-tier world-anchored grid, never the exact
 far-tree scatter; per-instance color, unlit `MeshBasicMaterial` in the game,
-fog-aware,
+fog-aware, with whole-batch linear-color dimming tied to `nightness` so pale
+canvas does not stay bright after sunset,
 no shadows, frustum culling deliberately off since the layer rings the
 player) plus one preallocated road-ribbon underlay at y=0.03 (opaque,
 `depthWrite:true`, slightly narrower than the real y=0.06 road so the
@@ -265,7 +266,9 @@ hub layer, and its toggle preserves the camera. Real-only hides the entire
 far-field group, including its road underlay; proxy-only also hides lake-owned
 scenery and water because there is no lake proxy to compare. The viewer can compare the
 shipping unlit dimmer with scene-lit Lambert surfaces at Noon and Midnight;
-the latter is an experiment and the game remains unlit. See DEBUGGING.md. Tier knobs (radius, density, pool caps, cold-step
+the latter is an experiment and the game remains unlit. The unlit palette is
+visually tuned, so GPU and phone comparisons still need fresh captures. See
+DEBUGGING.md. Tier knobs (radius, density, pool caps, cold-step
 gate) live in `perf.js` under `farField`.
 
 ---
