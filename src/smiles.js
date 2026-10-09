@@ -38,6 +38,32 @@ export class Smiles {
     // (lives for the session on this Smiles instance).
     this._minusGeo = new THREE.BoxGeometry(0.42, 0.1, 0.1);
     this._minusMat = new THREE.MeshBasicMaterial({ color: 0xfff6e6 });
+
+    // One curved decal mesh shared by every earned smile. Lift it just above
+    // the orb's circumsphere so the faceted body cannot swallow the features.
+    const vertices = [];
+    const vertex = (x, y) => vertices.push(x, y, Math.sqrt(0.33 ** 2 - x * x - y * y));
+    for (const eyeX of [-0.105, 0.105]) {
+      for (let i = 0; i < 12; i++) {
+        const a = i / 12 * Math.PI * 2, b = (i + 1) / 12 * Math.PI * 2;
+        vertex(eyeX, 0.09);
+        vertex(eyeX + Math.cos(a) * 0.035, 0.09 + Math.sin(a) * 0.048);
+        vertex(eyeX + Math.cos(b) * 0.035, 0.09 + Math.sin(b) * 0.048);
+      }
+    }
+    for (let i = 0; i < 20; i++) {
+      const a = Math.PI * (1.10 + i / 20 * 0.80);
+      const b = Math.PI * (1.10 + (i + 1) / 20 * 0.80);
+      const point = (angle, radius) => [Math.cos(angle) * radius, Math.sin(angle) * radius - 0.015];
+      const p = point(a, 0.17), q = point(b, 0.17), r = point(a, 0.125), s = point(b, 0.125);
+      vertex(...p); vertex(...q); vertex(...r);
+      vertex(...r); vertex(...q); vertex(...s);
+    }
+    this._faceGeo = new THREE.BufferGeometry();
+    this._faceGeo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    this._faceMat = new THREE.MeshBasicMaterial({ color: 0x301d08, toneMapped: false });
+    this._faceForward = new THREE.Vector3(0, 0, 1);
+    this._travel = new THREE.Vector3();
   }
 
   // A smile leaving Zerble for a grumpy NPC. Spawns at `fromPos`, homes to the
@@ -65,6 +91,9 @@ export class Smiles {
 
   spawn(worldPos) {
     const mesh = new THREE.Mesh(this._geo, this._mat);
+    const face = new THREE.Mesh(this._faceGeo, this._faceMat);
+    face.name = 'SmileFace';
+    mesh.add(face);
     mesh.position.copy(worldPos);
     mesh.position.y += 1.6;
     this.group.add(mesh);
@@ -86,6 +115,7 @@ export class Smiles {
 
     this.active.push({
       mesh,
+      face,
       halo,
       age: 0,
       seeking: false,
@@ -120,6 +150,7 @@ export class Smiles {
       const toZerble = new THREE.Vector3().subVectors(zerble.position, s.mesh.position);
       toZerble.y += 1.5;
       const dist = toZerble.length();
+      this._travel.copy(s.mesh.position);
 
       if (s.age < RISE_TIME) {
         // Brief upward pop so the player can see where the smile came from.
@@ -131,9 +162,12 @@ export class Smiles {
         s.mesh.position.add(toZerble);
       }
 
-      // Bobble & spin
-      s.mesh.rotation.y += dt * 2.5;
+      // Keep the face leading the actual movement, including the rise and bob.
       s.mesh.position.y += Math.sin(s.age * 4 + i) * 0.005;
+      this._travel.subVectors(s.mesh.position, this._travel);
+      if (this._travel.lengthSq() > 1e-12) {
+        s.face.quaternion.setFromUnitVectors(this._faceForward, this._travel.normalize());
+      }
 
       // Halo pulse
       s.halo.scale.setScalar(1 + Math.sin(s.age * 5) * 0.2);

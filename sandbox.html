@@ -321,6 +321,7 @@
         <optgroup label="Particles">
             <option value="heart">Heart particle</option>
             <option value="smile_pickup">Smile pickup (rising + homing)</option>
+            <option value="smile_face">Smile pickup (face close-up)</option>
             <option value="bubbles">Bubbles (Zerble's trail)</option>
             <option value="fireworks">Fireworks (cycles all shells)</option>
             <option value="boost_streaks">Boost wake rings (reusable trail)</option>
@@ -2314,6 +2315,19 @@ import {buildShrub} from './src/models/shrub.js';
                 };
                 cam.target.set(0, 1, 0);
                 cam.dist = 8;
+                applyCam();
+                break;
+            }
+            case 'smile_face': {
+                const smiles = new Smiles();
+                smiles.spawn(new THREE.Vector3(0, 0, 0));
+                scene.add(smiles.group);
+                entityRoot = smiles.group;
+                currentEntity = smiles;
+                cam.target.set(0, 1.6, 0);
+                cam.yaw = 0;
+                cam.pitch = 0;
+                cam.dist = 2;
                 applyCam();
                 break;
             }
