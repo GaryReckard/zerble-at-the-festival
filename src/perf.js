@@ -154,12 +154,16 @@ const TABLE = {
       // only ~20 more peaks; peak/warm carry the usual ~15% headroom over the
       // measured maximum.
       // The shared gable roof is now 4 tris rather than the old 12-tri box.
-      // Two-seed, four-pose demand sweep (2026-10-08) found 41-44 canopies;
-      // 56 keeps every sampled roof plus headroom. Other pools remain capped.
-      marginalTriCap: 9700,   // worst case at full caps: 9,056 tris
+      // The earlier 41-44 canopy count covered the padded planner snapshot,
+      // not the visible 520m radius. A five-seed, 25-pose sweep on 2026-10-08
+      // measured up to 200 visible peaks and 12 visible marquee walls on low.
+      // At cell corners, nearest-first retention needs 232 peak slots even
+      // when fewer roofs are visible; the open four-triangle pyramid lets us
+      // reserve 288 without increasing the draw count or triangle ceiling.
+      marginalTriCap: 9700,   // worst case at full caps: 8,144 tris
       maxColdStepMs: 2,
       forestStep: 72,         // coarse forest-mass sample grid (m)
-      caps: { canopy: 56, truss: 96, peak: 192, warm: 144, beacon: 32, forest: 96, roadVerts: 4096, roadIndices: 6144 },
+      caps: { canopy: 56, marqueeWall: 32, truss: 108, peak: 288, warm: 144, beacon: 32, forest: 96, roadVerts: 4096, roadIndices: 6144 },
     },
   },
   mid: {
@@ -183,7 +187,7 @@ const TABLE = {
     farField: {
       radius: 520,            // the fog-opaque limit (design D6)
       densityMul: 1.0,
-      marginalTriCap: 13300,  // worst case at full caps: 12,928 tris
+      marginalTriCap: 13300,  // worst case at full caps: 10,976 tris
       maxColdStepMs: 2,
       forestStep: 56,
       // canopy/truss/beacon raised 2026-08-28: measured within-radius demand
@@ -191,7 +195,7 @@ const TABLE = {
       // dense seeds dropped a VISIBLE stage. Sized from the same demand run
       // as low; peak/warm/forest re-sized in the 2026-08-31 fidelity pass (see
       // the low tier's note for what moved).
-      caps: { canopy: 56, truss: 120, peak: 320, warm: 192, beacon: 40, forest: 176, roadVerts: 4096, roadIndices: 6144 },
+      caps: { canopy: 56, marqueeWall: 32, truss: 120, peak: 448, warm: 192, beacon: 40, forest: 176, roadVerts: 4096, roadIndices: 6144 },
     },
   },
   high: {
@@ -218,10 +222,10 @@ const TABLE = {
     farField: {
       radius: 520,
       densityMul: 1.0,
-      marginalTriCap: 15000,  // worst case at full caps: 14,592 tris
+      marginalTriCap: 15000,  // worst case at full caps: 12,640 tris
       maxColdStepMs: 2,
       forestStep: 40,         // finest forest grid — high absorbs the tris
-      caps: { canopy: 56, truss: 120, peak: 320, warm: 192, beacon: 48, forest: 256, roadVerts: 4096, roadIndices: 6144 },
+      caps: { canopy: 56, marqueeWall: 32, truss: 120, peak: 448, warm: 192, beacon: 48, forest: 256, roadVerts: 4096, roadIndices: 6144 },
     },
   },
 };

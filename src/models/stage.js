@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { buildPerformer } from './performer.js';
 import { register as registerContextLight } from '../contextLights.js';
-import { STAGE_SHAPES } from '../festivalShapes.js';
+import { STAGE_SHAPES, STAGE_SURFACES } from '../festivalShapes.js';
 
 export function buildStage(opts = {}) {
   // `scale` (default 1.0) scales the deck dimensions + truss + speakers +
@@ -25,11 +25,11 @@ export function buildStage(opts = {}) {
   const shape = isMain ? STAGE_SHAPES.main : STAGE_SHAPES.side;
   const w = shape.width * scale;
   const d = shape.depth * scale;
-  const h = 1.5 * scale;
+  const h = STAGE_SURFACES.deckHeight * scale;
 
   const deck = new THREE.Mesh(
     new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.95, flatShading: true })
+    new THREE.MeshStandardMaterial({ color: STAGE_SURFACES.deckColor, roughness: 0.95, flatShading: true })
   );
   deck.position.set(0, h / 2, 0);
   deck.castShadow = true;
@@ -37,13 +37,13 @@ export function buildStage(opts = {}) {
   g.add(deck);
 
   const bannerColor = isMain
-    ? 0x6fcf6a
-    : [0xff9a8b, 0xc77dff, 0x66d9ff, 0xffd28a][Math.floor(rng() * 4)];
+    ? STAGE_SURFACES.mainBannerColor
+    : STAGE_SURFACES.sideBannerColors[Math.floor(rng() * STAGE_SURFACES.sideBannerColors.length)];
   const banner = new THREE.Mesh(
-    new THREE.BoxGeometry(w, 7 * scale, 0.4 * scale),
+    new THREE.BoxGeometry(w, STAGE_SURFACES.bannerHeight * scale, STAGE_SURFACES.bannerThickness * scale),
     new THREE.MeshStandardMaterial({ color: bannerColor, roughness: 0.9, flatShading: true })
   );
-  banner.position.set(0, 4.5 * scale, -d / 2 - 0.2 * scale);
+  banner.position.set(0, STAGE_SURFACES.bannerCenterY * scale, -d / 2 - STAGE_SURFACES.bannerThickness * scale / 2);
   banner.castShadow = true;
   g.add(banner);
 

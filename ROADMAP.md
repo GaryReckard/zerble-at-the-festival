@@ -850,26 +850,27 @@ ARCHITECTURE.md "Far-field horizon" and
 remains parked here:
 
 * **Finish near/far identity before tuning the transition.** Astra's
-  [2026-10-08 far-field review](.codex/reviews/002-far-field-fidelity/review-summary.md)
-  compares the fixed-camera hub and identifies stage, marquee, vendor-tent,
-  tree, placement, handoff, and lighting mismatches. The stage, marquee, and
-  vendor roof shapes now share defining dimensions and colors with their real
-  models; vendor-row candidates share a placement function, and the hub viewer
-  has exclusive real/proxy modes and a fixed-camera toggle. Remaining: align
-  campsite placement and forest trees with authoritative near-world positions
-  without changing worldgen RNG or live-registry exclusions. The real camp
-  builder interleaves pitch placement with model RNG draws, and the forest
-  filters candidates through the live registry; the placement audit in the
-  linked review records the required equivalence checks. Then tune the
-  ready-gated near/far overlap and lighting at Noon and Midnight. The hub
-  viewer now exposes an unlit versus scene-lit proxy comparison and can hide
-  its controls; the game stays unlit until visual and device evidence supports
-  a switch. The viewer reports demand and overflow by pool, and the canopy
-  pool now holds all roofs in a two-seed, four-pose sweep without crossing
-  any tier's triangle ceiling. Other pool overflows are still visible and
-  require visual prioritization before their caps change. Keep the
-  existing batched rendering and tier budgets, and capture fixed-camera
-  comparisons plus a fresh GPU benchmark before calling the visual gate done.
+  [initial far-field review](.codex/reviews/002-far-field-fidelity/review-summary.md)
+  and [building follow-up](.codex/reviews/003-far-field-post-fixes/review-summary.md)
+  identify building surfaces, tree/camp placement, vendor acceptance, handoff,
+  and lighting mismatches. The building pass now shares stage, marquee, and
+  vendor roof dimensions and colors, includes the closed marquee rear gable,
+  stage decks and backdrops, and clears the main-stage beacon above its roof.
+  Larger peak pools retain the sampled visible roofs even at player-cell
+  corners within the existing triangle budgets. The fixed-camera viewer hides
+  the whole far-field group in real-only mode and lake-owned content in
+  proxy-only mode; proxy-only therefore cannot evaluate water fidelity.
+  Remaining: match campsite placement and forest trees to authoritative
+  near-world positions without changing worldgen RNG or live-registry
+  exclusions, and apply the real vendor builder's water, road, and registry
+  rejection rules to proxies. The real camp builder interleaves pitch placement
+  with model RNG draws, and forest placement filters through the live registry;
+  the reviews record the required equivalence checks. Then tune the ready-gated
+  near/far overlap and lighting at Noon and Midnight. The viewer's scene-lit
+  Lambert option is comparison tooling; the game stays unlit until visual and
+  device evidence supports a switch. Other pool overflows are still visible
+  and require visual prioritization. Capture fixed-camera comparisons and a
+  fresh GPU benchmark before calling the visual gate done.
 
 * **Later refinements considered and parked:** baked multi-angle billboard
   atlases (asset-baking workflow + texture memory + alpha sorting), far-field

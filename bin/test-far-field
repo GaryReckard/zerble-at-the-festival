@@ -34,7 +34,7 @@ if (typeof globalThis.navigator === 'undefined') globalThis.navigator = { hardwa
 const { ownerCellCoord, vendorRowSlots } = await import('../src/worldgen/placement.js');
 const { mulberry32 } = await import('../src/rng.js');
 const { FESTIVAL_TUNING } = await import('../src/worldgen/tuning.js');
-const { STAGE_SHAPES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE } = await import('../src/festivalShapes.js');
+const { STAGE_SHAPES, STAGE_SURFACES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE } = await import('../src/festivalShapes.js');
 const { MeshLambertMaterial, MeshBasicMaterial } = await import('three');
 const { setSeed } = await import('../src/worldgen/index.js');
 const { heartsInBounds } = await import('../src/worldgen/hearts.js');
@@ -327,7 +327,7 @@ assert(JSON.stringify(exp1.canopy) === JSON.stringify(exp2.canopy)
   && JSON.stringify(exp1.warm) === JSON.stringify(exp2.warm),
   'expandFarInstances must be byte-identical across repeated calls');
 assert(exp1.canopy.length === 1, `one stage should expand to one canopy, got ${exp1.canopy.length}`);
-assert(exp1.truss.length === 4, `main stage should expand to a back wall, two posts and one beam, got ${exp1.truss.length}`);
+assert(exp1.truss.length === 6, `main stage should include deck, banner, back wall, two posts, and beam, got ${exp1.truss.length}`);
 assert(exp1.beacon.length === 1, `one stage should expand to one beacon, got ${exp1.beacon.length}`);
 const vendor = EXPAND_FIXTURE[1];
 const countRng = mulberry32(vendor.clusterSeed);
@@ -371,7 +371,7 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
   const nExpected = Math.max(4, Math.min(14, Math.round(16 * 0.6)));
   assert(expV.peak.length === nExpected, `a 16-pitch village should expand to ${nExpected} tent peaks, got ${expV.peak.length}`);
   assert(expV.warm.length === 1, 'a village should carry exactly one campfire marker');
-  assert(expV.canopy.length === 0 && expV.truss.length === 0 && expV.beacon.length === 0,
+  assert(expV.canopy.length === 0 && expV.marqueeWall.length === 0 && expV.truss.length === 0 && expV.beacon.length === 0,
     'a village is not a stage — no slab, truss or beacon');
   for (const i of expV.peak) {
     assert(Math.abs(i.x - vr.x) <= 30 && Math.abs(i.z - vr.z) <= 30,
@@ -393,19 +393,28 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
   const tent = [{ ...EXPAND_FIXTURE[0], kind: 'tent_stage' }];
   const expTent = expandFarInstances(tent, 1);
   assert(expTent.canopy.length === 1 && expTent.peak.length === 0, 'marquee uses a long open gable, not a square cone');
-  assert(expTent.truss.length === 1, 'marquee includes its closed back wall');
+  assert(expTent.marqueeWall.length === 1 && expTent.truss.length === 0, 'marquee has one complete closed rear wall');
   assert(expTent.beacon.length === 1, 'every stage kind keeps its beacon');
   const side = [{ ...EXPAND_FIXTURE[0], kind: 'side_stage' }];
   const expSide = expandFarInstances(side, 1);
-  assert(expSide.canopy.length === 0 && expSide.truss.length === 3 && expSide.peak.length === 0,
-    'open side stage must emit truss but no roof');
+  assert(expSide.canopy.length === 0 && expSide.truss.length === 5 && expSide.peak.length === 0,
+    'open side stage must emit deck, backdrop and truss but no roof');
 
   // ---- Proxies must AGREE with the real bodies (2026-09-01) ----
   // Nothing tied proxy dimensions to model dimensions, so they drifted to
   // roughly half height and read as squat blobs that jumped when you arrived
   // ("the tent tops and tree greens are way too low"). These pin them.
   const scale = EXPAND_FIXTURE[0].scale;
-  assert(Math.abs(expSide.truss[0].sy - STAGE_SHAPES.side.trussHeight * scale) < 0.01, 'side truss posts use the real truss height');
+  assert(expSide.truss[0].sy === STAGE_SURFACES.deckHeight * scale &&
+    expSide.truss[0].sx === STAGE_SHAPES.side.width * scale &&
+    expSide.truss[0].sz === STAGE_SHAPES.side.depth * scale,
+    'side deck matches the real raised platform');
+  assert(expSide.truss[1].sy === STAGE_SURFACES.bannerHeight * scale &&
+    expSide.truss[1].y === STAGE_SURFACES.bannerCenterY * scale,
+    'side backdrop reaches the real banner height and center');
+  const sideRng = mulberry32(side[0].clusterSeed); sideRng();
+  assert(expSide.truss[1].color === STAGE_SURFACES.sideBannerColors[Math.floor(sideRng() * STAGE_SURFACES.sideBannerColors.length)],
+    'side backdrop color follows the real second cluster RNG draw');
   const mainRoof = exp1.canopy[0];
   assert(mainRoof.color === STAGE_SHAPES.main.roofColor && mainRoof.sz === (STAGE_SHAPES.main.width + 2 * STAGE_SHAPES.main.roofOverhang) * scale,
     'main-stage gable retains its brown color and full roof width');
@@ -414,6 +423,12 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
     marquee.y + marquee.sy / 2 === MARQUEE_SHAPE.ridgeHeight,
     'marquee retains its fixed 28 x 38 m long ridge and 11 m peak');
   assert(marquee.color === MARQUEE_SHAPE.roofColor, 'marquee uses the real canvas color');
+  assert(expTent.marqueeWall[0].sy === MARQUEE_SHAPE.ridgeHeight &&
+    expTent.marqueeWall[0].sx === MARQUEE_SHAPE.width,
+    'marquee rear wall reaches the ridge at the full real width');
+  assert(exp1.beacon[0].y - exp1.beacon[0].sy >
+    (STAGE_SHAPES.main.trussHeight + STAGE_SHAPES.main.roofRise) * scale,
+    'main-stage beacon bottom clears the roof ridge');
   assert(marquee.sy === expandFarInstances([{ ...EXPAND_FIXTURE[0], kind: 'tent_stage', scale: 1.5 }], 1).canopy[0].sy,
     'the marquee is unscaled — buildTentStage takes no scale argument');
   // Vendor roofs are elevated white canvas, not colored ground-height cones.
@@ -425,7 +440,7 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
 }
 assert(exp1.roads.length === 1 && exp1.roads[0] instanceof Float64Array,
   'road records must pass through as flat polylines');
-for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon']) {
+for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'warm', 'beacon']) {
   for (const inst of exp1[name]) {
     const rec = name === 'peak' || name === 'warm' ? EXPAND_FIXTURE[1] : EXPAND_FIXTURE[0];
     assert(inst.ownerCx === rec.ownerCx && inst.ownerCz === rec.ownerCz,
@@ -445,9 +460,9 @@ const TEST_TIER = {
   radius: 300,
   densityMul: 1,
   forestStep: 48,
-  caps: { canopy: 8, truss: 24, peak: 40, warm: 24, beacon: 8, forest: 16, roadVerts: 512, roadIndices: 768 },
+  caps: { canopy: 8, marqueeWall: 8, truss: 24, peak: 40, warm: 24, beacon: 8, forest: 16, roadVerts: 512, roadIndices: 768 },
 };
-const POOL_NAMES = ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest'];
+const POOL_NAMES = ['canopy', 'marqueeWall', 'truss', 'peak', 'warm', 'beacon', 'forest'];
 
 // Immutability hashes of the shared inputs the drive will consume.
 const driveHearts = heartsInBounds(-600, -600, 600, 600);
@@ -455,10 +470,20 @@ const drivePlansBefore = JSON.stringify(driveHearts.map((h) => festivalPlan(h)))
 const driveRoadsBefore = JSON.stringify(roadsInBounds(-600, -600, 600, 600));
 
 const ff = new FarField({ enabled: true, tier: TEST_TIER });
+const wallGeo = ff._geos.marqueeWall;
+const wallVertices = wallGeo.attributes.position.array;
+assert(wallGeo.index.length === 9 && wallVertices.length === 15 &&
+  wallVertices[7] === 1 && wallVertices[5] === 0 && wallVertices[11] === 0,
+  'marquee rear pentagon must include the ridge triangle and stay in one rear plane');
+assert(wallGeo.normalsComputed, 'lit marquee rear wall needs vertex normals');
+const peakGeo = ff._geos.peak;
+assert(peakGeo.index.length === 12 && peakGeo.attributes.position.array.length === 15 && peakGeo.normalsComputed,
+  'vendor and camp peaks use four lit side triangles with no hidden base');
 assert(ff._mats.canopy instanceof MeshBasicMaterial && ff._mats.forest instanceof MeshBasicMaterial,
        'shipping default remains the measured unlit path while lighting is compared');
 const litProbe = new FarField({ enabled: true, tier: TEST_TIER, lighting: 'lit' });
 assert(litProbe._mats.canopy instanceof MeshLambertMaterial &&
+       litProbe._mats.marqueeWall instanceof MeshLambertMaterial &&
        litProbe._mats.truss instanceof MeshLambertMaterial &&
        litProbe._mats.peak instanceof MeshLambertMaterial &&
        litProbe._mats.forest instanceof MeshLambertMaterial,
@@ -791,10 +816,10 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
 
   // Static per-tier tri-budget gate: worst case at FULL caps must fit each
   // tier's marginalTriCap. Per-instance triangle counts are pinned from the
-  // r160 geometries (measured in the group-5 gates: cone6 18, box 12, cone4
-  // 12, octa 8; icosa detail-0 is 20 by construction).
+  // r160 geometries and the open four-triangle roof peak (box 12, octa 8;
+  // icosa detail-0 is 20 by construction).
   const { FAR_FIELD_TIERS } = await import('../src/perf.js');
-  const TRIS = { canopy: 4, truss: 12, peak: 12, warm: 8, beacon: 8, forest: 20 };
+  const TRIS = { canopy: 4, marqueeWall: 3, truss: 12, peak: 4, warm: 8, beacon: 8, forest: 20 };
   for (const [tname, t] of Object.entries(FAR_FIELD_TIERS)) {
     assert(Number.isFinite(t.forestStep) && t.forestStep > 0,
       `tier ${tname} must define forestStep`);
@@ -820,6 +845,41 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
           `tier ${tname}, seed ${seed}, (${x},${z}) must keep all ${roofProbe.stats.demandByPool.canopy} defining roofs`);
       }
       roofProbe.dispose();
+    }
+  }
+  setSeed(9876);
+  for (const [tname, tier] of Object.entries(FAR_FIELD_TIERS)) {
+    const surfaceProbe = new FarField({ enabled: true, tier });
+    surfaceProbe.update(320, 320, { budgetMs: 60000 });
+    const all = expandFarInstances(surfaceProbe.planner.committed.records, tier.densityMul);
+    for (const name of ['canopy', 'marqueeWall', 'truss', 'peak']) {
+      const inHorizon = (i) => Math.hypot(i.x - 320, i.z - 320) <= tier.radius;
+      const demand = all[name].filter(inHorizon).length;
+      const kept = surfaceProbe._active[name].filter(inHorizon).length;
+      assert(kept === demand,
+        `tier ${tname}, seed 9876 at (320,320) must keep ${demand} visible ${name} surfaces, got ${kept}`);
+    }
+    if (tname === 'low') assert(all.peak.filter((i) => Math.hypot(i.x - 320, i.z - 320) <= tier.radius).length === 200,
+      'seed 9876 low-tier peak reproduction must retain its 200 visible candidates');
+    surfaceProbe.dispose();
+  }
+  // The pool is ranked from the cell center and does not rebuild while the
+  // player travels within that 80m cell. Check the horizon at a cell corner,
+  // where visible roofs can rank below candidates closer to the center.
+  for (const [seed, anchor, offset] of [
+    [9876, [320, 320], [39.9, 39.9]],
+    [31337, [-640, 320], [39.9, -39.9]],
+  ]) {
+    setSeed(seed);
+    for (const [tname, tier] of Object.entries(FAR_FIELD_TIERS)) {
+      const cornerProbe = new FarField({ enabled: true, tier });
+      cornerProbe.update(...anchor, { budgetMs: 60000 });
+      const allPeaks = expandFarInstances(cornerProbe.planner.committed.records, tier.densityMul).peak;
+      const [px, pz] = [anchor[0] + offset[0], anchor[1] + offset[1]];
+      const inHorizon = (i) => Math.hypot(i.x - px, i.z - pz) <= tier.radius;
+      assert(cornerProbe._active.peak.filter(inHorizon).length === allPeaks.filter(inHorizon).length,
+        `tier ${tname}, seed ${seed} near (${px},${pz}) must retain every visible roof`);
+      cornerProbe.dispose();
     }
   }
   setSeed(1234);

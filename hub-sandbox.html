@@ -97,6 +97,7 @@
     </select>
   </div>
   <button id="ffCompare" type="button">Toggle near / far at this camera</button>
+  <div class="hint">Proxy only hides lake-owned scenery and water; there is no lake proxy to compare.</div>
   <label for="ffLighting">Proxy lighting</label>
   <select id="ffLighting">
     <option value="unlit" selected>Current unlit dimmer</option>
@@ -368,6 +369,7 @@ function rebuildFarField() {
     lighting: ffLightingEl.value,
   });
   if (mode === 'proxy' || mode === 'real') farField.setOwnershipOverride(mode);
+  setComparisonVisibility();
   ffStatsEl.textContent = 'planning…';
 }
 
@@ -377,6 +379,8 @@ function setComparisonVisibility() {
   crowd.group.visible = showReal;
   smiles.group.visible = showReal;
   if (floorMesh) floorMesh.visible = showReal;
+  for (const lake of lakes.lakes.values()) if (lake) lake.group.visible = showReal;
+  if (farField) farField.group.visible = ffModeEl.value !== 'real';
 }
 
 function toggleNearFar() {
@@ -407,7 +411,7 @@ function updateFarField(dt, now) {
     ffStatsAt = now;
     const s = farField.stats;
     const ri = renderer.info;
-    const counts = ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest']
+    const counts = ['canopy', 'marqueeWall', 'truss', 'peak', 'warm', 'beacon', 'forest']
       .map((n) => `${n} ${farField._pools[n].mesh.count}/${s.demandByPool[n] || 0}`).join(' · ');
     ffStatsEl.textContent =
       `rebuilds ${s.rebuilds} · active ${s.active} · overflow ${s.overflow}\n` +

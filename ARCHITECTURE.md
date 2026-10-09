@@ -212,9 +212,10 @@ programs, no planning, nothing in the scene.
 never a wider chunk ring. It consumes the same pure worldgen descriptors the
 real builders use (`heartsInBounds` → `festivalPlan`, `roadsInBounds`),
 copies them into compact owned records (shared memoized arrays are never
-mutated — `bin/test-far-field` hashes them pre/post), and owns exactly seven
-draws: six fixed-capacity `InstancedMesh` pools (gabled stage/marquee roofs,
-truss posts/beams, vendor roof peaks, warm night markers, colored stage
+mutated — `bin/test-far-field` hashes them pre/post), and owns at most eight
+draws: seven fixed-capacity `InstancedMesh` pools (gabled stage/marquee roofs,
+closed marquee rear walls, stage/truss surfaces, open four-triangle vendor and
+camp roof peaks, warm night markers, colored stage
 beacons, and coarse forest masses — detail-0 icosa domes sampled from the
 `treeDensity` field on a per-tier world-anchored grid, never the exact
 far-tree scatter; per-instance color, unlit `MeshBasicMaterial` in the game,
@@ -227,6 +228,10 @@ registry entries, colliders, crowds, audio, lights, pickups.
 The stage, marquee, and vendor roof definitions come from
 `src/festivalShapes.js`, which their real model builders also use. Vendor-row
 candidate coordinates come from `vendorRowSlots` in `worldgen/placement.js`.
+The stage pool includes the raised deck and colored backdrop, and the main
+stage beacon clears the roof ridge. The extra marquee wall batch costs one
+draw when visible, while the open peak geometry lowers the full-pool triangle
+total despite larger roof capacities.
 Camp pitches and forest trees still have separate proxy placement rules, so
 their near/far identity remains an open visual task.
 
@@ -256,7 +261,9 @@ FarField around one hub (proxy-only / real-only / simulated-distance handoff,
 live stats); in the game, `__dbg.horizon()` reads live stats and
 `horizon('proxy'|'real'|'live'|'replan')` forces states for fixed-seed A/B
 captures. The hub viewer's proxy-only and real-only modes hide the opposing
-hub layer, and its toggle preserves the camera. The viewer can compare the
+hub layer, and its toggle preserves the camera. Real-only hides the entire
+far-field group, including its road underlay; proxy-only also hides lake-owned
+scenery and water because there is no lake proxy to compare. The viewer can compare the
 shipping unlit dimmer with scene-lit Lambert surfaces at Noon and Midnight;
 the latter is an experiment and the game remains unlit. See DEBUGGING.md. Tier knobs (radius, density, pool caps, cold-step
 gate) live in `perf.js` under `farField`.

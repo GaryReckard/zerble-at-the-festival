@@ -34,7 +34,7 @@ import * as THREE from 'three';
 import { ownerCellCoord, vendorRowSlots } from './worldgen/placement.js';
 import { mulberry32 } from './rng.js';
 import { FESTIVAL_TUNING } from './worldgen/tuning.js';
-import { STAGE_SHAPES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE } from './festivalShapes.js';
+import { STAGE_SHAPES, STAGE_SURFACES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE } from './festivalShapes.js';
 import { heartsInBounds } from './worldgen/hearts.js';
 import { festivalPlan, campVillagesNear } from './worldgen/festival.js';
 import { roadsInBounds } from './worldgen/roads.js';
@@ -293,12 +293,12 @@ export function instHash(seed, i) {
 // a chunk edge (matching how the real builder places whole clusters from the
 // owning chunk).
 //
-// The semantic vocabulary (design D2/D3): a stage becomes canopy + two truss
-// posts + a truss beam + one colored beacon; a vendor row becomes a strip of
-// roof peaks with warm light markers alongside. Sizes are coarse on purpose —
+// The semantic vocabulary (design D2/D3): a stage becomes its defining deck,
+// backdrop, roof or rear wall, truss and beacon; a vendor row becomes a strip
+// of roof peaks with warm light markers alongside. Sizes are coarse on purpose —
 // these read through 300-500m of fog, not up close.
 export function expandFarInstances(records, densityMul) {
-  const out = { canopy: [], truss: [], peak: [], warm: [], beacon: [], forest: [], roads: [] };
+  const out = { canopy: [], marqueeWall: [], truss: [], peak: [], warm: [], beacon: [], forest: [], roads: [] };
   for (const r of records) {
     if (r.kind === '__road') { out.roads.push(r.flat); continue; }
     if (r.kind === '__forest') {
@@ -343,10 +343,10 @@ export function expandFarInstances(records, densityMul) {
           color: MARQUEE_SHAPE.roofColor, ...own,
         });
         const backZ = -MARQUEE_SHAPE.depth / 2;
-        out.truss.push({
+        out.marqueeWall.push({
           x: r.x + Math.sin(r.yaw) * backZ, z: r.z + Math.cos(r.yaw) * backZ,
-          y: MARQUEE_SHAPE.eaveHeight / 2, yaw: r.yaw,
-          sx: MARQUEE_SHAPE.width, sy: MARQUEE_SHAPE.eaveHeight, sz: 0.15,
+          y: 0, yaw: r.yaw,
+          sx: MARQUEE_SHAPE.width, sy: MARQUEE_SHAPE.ridgeHeight, sz: 1,
           color: MARQUEE_SHAPE.roofColor, ...own,
         });
       } else {
@@ -355,6 +355,24 @@ export function expandFarInstances(records, densityMul) {
         const postOff = (shape.width / 2 - 0.3) * s;
         const rightYaw = r.yaw + Math.PI / 2;
         const rx = Math.sin(rightYaw), rz = Math.cos(rightYaw);
+        const deckH = STAGE_SURFACES.deckHeight * s;
+        out.truss.push({
+          x: r.x, z: r.z, y: deckH / 2, yaw: r.yaw,
+          sx: shape.width * s, sy: deckH, sz: shape.depth * s,
+          color: STAGE_SURFACES.deckColor, ...own,
+        });
+        const bannerZ = -(shape.depth / 2 + STAGE_SURFACES.bannerThickness / 2) * s;
+        const bannerRng = mulberry32((r.clusterSeed >>> 0) || 0x1A2B3C);
+        bannerRng(); // real buildStage consumes the scale draw before buildStageModel selects the banner
+        const bannerColor = r.kind === 'main_stage' ? STAGE_SURFACES.mainBannerColor
+          : STAGE_SURFACES.sideBannerColors[Math.floor(bannerRng() * STAGE_SURFACES.sideBannerColors.length)];
+        out.truss.push({
+          x: r.x + Math.sin(r.yaw) * bannerZ, z: r.z + Math.cos(r.yaw) * bannerZ,
+          y: STAGE_SURFACES.bannerCenterY * s, yaw: r.yaw,
+          sx: shape.width * s, sy: STAGE_SURFACES.bannerHeight * s,
+          sz: STAGE_SURFACES.bannerThickness * s,
+          color: bannerColor, ...own,
+        });
         if (shape.hasRoof) {
           out.canopy.push({
             x: r.x, z: r.z, y: postH + shape.roofRise * s / 2,
@@ -379,7 +397,9 @@ export function expandFarInstances(records, densityMul) {
         );
       }
       const bs = 0.8 + instHash(r.clusterSeed, 3) * 0.3;
-      const beaconY = r.kind === 'tent_stage' ? MARQUEE_SHAPE.ridgeHeight + 0.9 : STAGE_SHAPES.main.trussHeight * s + 1.6 * s;
+      const roofTop = r.kind === 'tent_stage' ? MARQUEE_SHAPE.ridgeHeight
+        : (r.kind === 'main_stage' ? STAGE_SHAPES.main.trussHeight + STAGE_SHAPES.main.roofRise : STAGE_SHAPES.side.trussHeight) * s;
+      const beaconY = roofTop + bs + 0.4 * (r.kind === 'tent_stage' ? 1 : s);
       out.beacon.push({
         x: r.x, z: r.z, y: beaconY, yaw: 0, sx: bs, sy: bs, sz: bs,
         color: BEACON_PALETTE[paletteIndex(r, BEACON_PALETTE.length)], ...own,
@@ -497,6 +517,31 @@ function gableRoofGeometry() {
   return geo;
 }
 
+function marqueeWallGeometry() {
+  // One closed rear pentagon. The roof pool supplies the two sloping panels;
+  // the front and both sides remain open like the built tent.
+  const eave = MARQUEE_SHAPE.eaveHeight / MARQUEE_SHAPE.ridgeHeight;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+    -0.5, 0, 0, -0.5, eave, 0, 0, 1, 0, 0.5, eave, 0, 0.5, 0, 0,
+  ]), 3));
+  geo.setIndex([0, 1, 2, 0, 2, 3, 0, 3, 4]);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function peakRoofGeometry() {
+  // An open square pyramid preserves the four-sided roof silhouette without
+  // drawing the hidden underside on every vendor booth and camp pitch.
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+    1, -0.5, 0, 0, -0.5, 1, -1, -0.5, 0, 0, -0.5, -1, 0, 0.5, 0,
+  ]), 3));
+  geo.setIndex([0, 4, 1, 1, 4, 2, 2, 4, 3, 3, 4, 0]);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 // ---------- The world-facing peer ----------
 //
 // Constructed by world.js beside the chunk/lake managers. When `enabled` is
@@ -532,7 +577,7 @@ export class FarField {
     this._roadSeen = null;
     this._todQ = -1;
     this._nightOn = false;
-    this._active = { canopy: [], truss: [], peak: [], warm: [], beacon: [], forest: [] };
+    this._active = { canopy: [], marqueeWall: [], truss: [], peak: [], warm: [], beacon: [], forest: [] };
     this._ownerCells = new Map();   // 'cx,cz' -> { cx, cz, loaded, insts: [{pool, i}] }
     this._handoffs = [];            // active envelopes: { pool, i, target }
     this._ownershipOverride = null; // null (live) | 'proxy' (all shown) | 'real' (all dissolved)
@@ -591,8 +636,9 @@ export class FarField {
       : new THREE.MeshBasicMaterial({ color: hex, ...options });
     this._mats = {
       canopy: mkSurface(0xffffff, { side: THREE.DoubleSide }),
+      marqueeWall: mkSurface(0xffffff, { side: THREE.DoubleSide }),
       truss: mkSurface(0xffffff),
-      peak: mkSurface(0xffffff),
+      peak: mkSurface(0xffffff, { side: THREE.DoubleSide }),
       warm: mkMat(WARM_HEX),
       beacon: mkMat(0xffffff),
       forest: mkSurface(0xffffff),   // white base × per-instance FOREST_PALETTE color
@@ -600,8 +646,9 @@ export class FarField {
     };
     this._geos = {
       canopy: gableRoofGeometry(),
+      marqueeWall: marqueeWallGeometry(),
       truss: new THREE.BoxGeometry(1, 1, 1),
-      peak: new THREE.ConeGeometry(1, 1, 4),
+      peak: peakRoofGeometry(),
       warm: new THREE.OctahedronGeometry(1, 0),
       beacon: new THREE.OctahedronGeometry(1, 0),
       // Detail-0 icosa (20 tris) — the ROADMAP's sanctioned far-crown shape.
@@ -615,8 +662,8 @@ export class FarField {
     // owner-computed bounding spheres are still maintained after every
     // committed rewrite so bounds stay truthful for raycast/debug reads.
     this._pools = {};
-    const hasColor = { canopy: true, truss: true, peak: true, warm: false, beacon: true, forest: true };
-    for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest']) {
+    const hasColor = { canopy: true, marqueeWall: true, truss: true, peak: true, warm: false, beacon: true, forest: true };
+    for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'warm', 'beacon', 'forest']) {
       const mesh = new THREE.InstancedMesh(this._geos[name], this._mats[name], caps[name]);
       mesh.count = 0;
       mesh.visible = false;
@@ -757,7 +804,7 @@ export class FarField {
     this._handoffs.length = 0;
     let active = 0, overflow = 0;
     const demandByPool = {}, overflowByPool = {};
-    for (const name of ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest']) {
+    for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'warm', 'beacon', 'forest']) {
       const pool = this._pools[name];
       const sel = selectNearest(expanded[name], ax, az, pool.cap);
       demandByPool[name] = expanded[name].length;
@@ -924,6 +971,7 @@ export class FarField {
     const n = q / 64;
     const dayB = this._lighting === 'lit' ? 1 : 1 - 0.82 * n;
     this._mats.canopy.color.setScalar(dayB);
+    this._mats.marqueeWall.color.setScalar(dayB);
     this._mats.peak.color.setScalar(dayB);
     this._mats.forest.color.setScalar(dayB);
     this._mats.truss.color.setScalar(dayB);

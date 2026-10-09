@@ -7,6 +7,13 @@ export const STAGE_SHAPES = Object.freeze({
     roofOverhang: 0, roofColor: null, hasRoof: false }),
 });
 
+export const STAGE_SURFACES = Object.freeze({
+  deckHeight: 1.5, deckColor: 0x4a3a2a,
+  bannerHeight: 7, bannerCenterY: 4.5, bannerThickness: 0.4,
+  mainBannerColor: 0x6fcf6a,
+  sideBannerColors: Object.freeze([0xff9a8b, 0xc77dff, 0x66d9ff, 0xffd28a]),
+});
+
 export const MARQUEE_SHAPE = Object.freeze({
   width: 28, depth: 38, eaveHeight: 5.5, ridgeHeight: 11,
   roofColor: 0xfff8eb,
