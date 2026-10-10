@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+const source = readFileSync(new URL('../src/settings.js', import.meta.url), 'utf8');
+const nodes = new Map();
+function node(selector) {
+  if (!nodes.has(selector)) nodes.set(selector, {
+    listeners: new Map(),
+    addEventListener(type, handler, options) { this.listeners.set(type, { handler, options }); },
+  });
+  return nodes.get(selector);
+}
+const overlay = node('overlay');
+overlay.querySelector = node;
+const context = vm.createContext({
+  document: { getElementById: node },
+  $overlay: overlay,
+  bindTri() {}, bindSlider() {},
+});
+const start = source.indexOf('  _wire() {');
+const end = source.indexOf('  _setTab(name)', start);
+assert(start >= 0 && end > start);
+vm.runInContext(`({${source.slice(start, end)}})._wire()`, context);
+const listener = overlay.listeners.get('wheel');
+assert(listener, 'settings overlay owns wheel propagation');
+assert.equal(listener.options.passive, true, 'native scrolling must remain enabled');
+
+for (const target of ['card', 'textarea', 'card at bottom', 'textarea at bottom', 'backdrop']) {
+  let stopped = false;
+  let zoomed = false;
+  const event = {
+    target,
+    stopPropagation() { stopped = true; },
+    preventDefault() { assert.fail('Settings must not cancel native wheel scrolling'); },
+  };
+  listener.handler(event);
+  if (!stopped) zoomed = true;
+  assert.equal(zoomed, false, `${target} must not bubble to the camera`);
+}
+console.log('PASS Settings wheel isolation preserves native scrolling across pane boundaries');

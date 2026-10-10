@@ -8,6 +8,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **Leaderboard diagnostics show what a play session actually sends.** Settings and the score screen expose a copyable, local history of mode selection, token acquisition, submission responses, local saves, and board reads. The last 100 events survive reloads where storage is available, without names or signed run tokens. The Worker emits correlated structured logs that distinguish skipped updates, saved runs, completed board writes, rejections, and storage failures. Worker logging requires a separate deploy; this does not add retries or change scoring.
 
 ### Fixed
+- **Scrolling Settings no longer zooms the camera.** Wheel events stay inside the overlay so the card and diagnostic report scroll normally, including at their scroll boundaries; canvas zoom is unchanged.
 - **Leaderboard storage failures no longer masquerade as empty boards.** Worker read/write failures return sanitized errors with a diagnostic phase, and the client keeps the start-request timeout active while reading the token body.
 
 ## 2026-10-09

@@ -188,6 +188,8 @@ export const Settings = {
 
   _wire() {
     const $ = (s) => $overlay.querySelector(s);
+    // Keep native pane/textarea scrolling out of the window-level camera zoom.
+    $overlay.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
     const gear = document.getElementById('settings-gear');
     const titleTrigger = document.getElementById('settings-open-title');
     if (gear) gear.addEventListener('click', () => this.open());
