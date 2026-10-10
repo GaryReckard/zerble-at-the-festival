@@ -1434,6 +1434,7 @@ body.is-touch .controls-touch {
   transition: background 0.15s ease;
 }
 .settings-trigger:hover { background: rgba(255, 246, 230, 0.12); }
+#settings-open-score { margin-top: 14px; }
 .settings-trigger:disabled {
   pointer-events: none;
   cursor: wait;
@@ -2056,6 +2057,59 @@ body.reduced-motion .best-confetti {
 .settings-tri button.active {
   background: linear-gradient(135deg, #ff6f9c, #ffd28a);
   color: var(--ink);
+}
+
+.settings-diagnostics {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 246, 230, 0.12);
+}
+.settings-diagnostics summary {
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--warm);
+  cursor: pointer;
+}
+.settings-diagnostics .settings-hint { margin: 4px 0 10px; }
+.settings-diagnostics-summary,
+.settings-diagnostics-status {
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.settings-diagnostics-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.settings-diagnostics label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+#set-board-log {
+  display: block;
+  width: 100%;
+  min-height: 140px;
+  padding: 10px;
+  border: 1px solid rgba(255, 246, 230, 0.22);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--paper);
+  font: 16px/1.4 ui-monospace, monospace;
+  resize: vertical;
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+  touch-action: auto;
+}
+.settings-diagnostics-status {
+  min-height: 1.5em;
+  margin-top: 8px;
+  color: var(--warm);
 }
 
 /* Contextual restart bar — sticky at the card bottom, shown ONLY when a

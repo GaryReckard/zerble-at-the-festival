@@ -167,6 +167,26 @@ death paths.
 
 ### Global leaderboard without wrangler
 
+**Settings -> Leaderboard diagnostics** shows the last 100 local events across
+reloads, including the selected mode at Start, run-token acquisition, score
+requests, HTTP status/rejection reason, local-save results, and board reads.
+The score screen also has a **Leaderboard diagnostics** button. Use Refresh
+after playing, then Copy diagnostics; Clear removes only this diagnostic history.
+This records future play, not sessions from before the feature was installed.
+Just Cruisin' records its mode but sends no score requests.
+
+The report contains no player names, run IDs, signatures, or request bodies and
+is not uploaded automatically. Storage-blocked browsers retain it in memory only.
+`__dbg.leaderboardInfo()` returns the same report on localhost. A beacon marked
+`queued_unacknowledged` is not proof of delivery; `acknowledged_unverified` means
+the Worker has not supplied the new diagnostic headers. `boards_written` means
+both KV board writes completed, not a transactional or permanent-retention guarantee.
+The Worker README documents structured Cloudflare logs and matching request IDs;
+the Worker must be redeployed separately for those outcomes to appear.
+
+`npm run test:board` exercises Worker and client diagnostics offline, including
+storage failures, rejected submissions, timeouts, privacy, and retained history.
+
 The Worker (`workers/leaderboard/worker.js`) is plain Request→Response, so it
 runs anywhere node does — no wrangler, no deploy, no network:
 

@@ -7,7 +7,8 @@
 // are native in node 18+.
 
 const workerMod = await import('../workers/leaderboard/worker.js');
-const worker = workerMod.default;
+// Let Node emit its module-format warning before intercepting Worker console calls.
+await new Promise((resolve) => setImmediate(resolve));
 const { sanitizeName, ceilingFor, FALLBACK_NAME } = workerMod;
 
 function assert(condition, message) {
@@ -15,6 +16,72 @@ function assert(condition, message) {
     process.stderr.write(`FAIL: ${message}\n`);
     process.exit(1);
   }
+}
+
+const diagnostics = [];
+const requestIds = new Set();
+const sensitive = new Set(['storage-failure-private-detail', 'private-url-marker']);
+const worker = {
+  async fetch(request, env) {
+    const body = await request.clone().text();
+    if (body.length > 4) sensitive.add(body);
+    try {
+      const parsed = JSON.parse(body);
+      for (const key of ['runId', 'sig', 'name', 'cause', 'turnstile']) {
+        if (typeof parsed?.[key] === 'string' && parsed[key].length >= 4) sensitive.add(parsed[key]);
+      }
+    } catch {}
+    for (const value of [env.SIGNING_SECRET, env.ADMIN_KEY, env.TURNSTILE_SECRET,
+      request.headers.get('CF-Connecting-IP'), request.headers.get('Authorization')]) {
+      if (value) sensitive.add(value);
+    }
+    const logs = [];
+    const originals = {};
+    for (const level of ['log', 'info', 'warn', 'error', 'debug']) {
+      originals[level] = console[level];
+      console[level] = (...args) => logs.push({ level, args });
+    }
+    let response;
+    try { response = await workerMod.default.fetch(request, env); }
+    finally { Object.assign(console, originals); }
+    assert(logs.length === 1, 'each request emits exactly one diagnostic');
+    assert(logs[0].args.length === 1 && typeof logs[0].args[0] === 'string', 'console receives one JSON string');
+    const log = JSON.parse(logs[0].args[0]);
+    assert(log.event === 'leaderboard_request', 'diagnostic event label is stable');
+    const allowed = ['event', 'requestId', 'operation', 'outcome', 'reason', 'phase', 'status',
+      'runPersisted', 'boardsWritten', 'range', 'quarantined'];
+    assert(Object.keys(log).every((key) => allowed.includes(key)), 'diagnostic fields are allowlisted');
+    assert(/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/.test(log.requestId), 'request ID is a random UUID');
+    assert(!requestIds.has(log.requestId), 'correlation IDs are unique per request, not per run');
+    requestIds.add(log.requestId);
+    assert(response.headers.get('X-Leaderboard-Request-Id') === log.requestId, 'response/log IDs match');
+    assert(response.headers.get('X-Leaderboard-Outcome') === log.outcome, 'response/log outcomes match');
+    const exposed = response.headers.get('Access-Control-Expose-Headers').toLowerCase().split(',').map((s) => s.trim());
+    assert(exposed.includes('x-leaderboard-request-id') && exposed.includes('x-leaderboard-outcome'), 'diagnostic headers exposed through CORS');
+    assert(response.headers.get('Access-Control-Allow-Origin') === '*', 'all responses retain CORS');
+    assert(log.status === response.status, 'diagnostic status matches HTTP');
+    assert(logs[0].level === (response.status >= 500 ? 'error' : 'log'), 'server failures use error level');
+    if (response.status === 204) assert(await response.clone().text() === '', '204 responses stay empty');
+    if (response.status >= 500) {
+      const error = await response.clone().json();
+      assert(['misconfigured', 'storage_error', 'internal_error'].includes(error.error)
+        && Object.keys(error).length === 1, '500 body contains only a fixed sanitized error');
+    }
+    if (log.operation === 'start' && response.ok && response.status !== 204) {
+      const token = await response.clone().json();
+      sensitive.add(token.runId);
+      sensitive.add(token.sig);
+    }
+    diagnostics.push(log);
+    return response;
+  },
+};
+
+function outcome(response, expected, reason) {
+  const log = diagnostics.at(-1);
+  assert(response.headers.get('X-Leaderboard-Outcome') === expected, `expected outcome ${expected}, got ${log.outcome}`);
+  assert(log.reason === reason, `expected rejection reason ${reason}, got ${log.reason}`);
+  return log;
 }
 
 // --- Mock KV (Map-backed; TTLs accepted and ignored) ---
@@ -72,12 +139,14 @@ assert(ceilingFor(env, 10) === 7200, `worked example: ceiling(10min) = 7200, got
 // Start
 let res = await call('POST', '/run/start', {});
 assert(res.status === 200, `start → 200, got ${res.status}`);
+assert(outcome(res, 'started').runPersisted, 'start reports persisted run');
 const tok = await res.json();
 assert(tok.runId && tok.sig && Number.isFinite(tok.startTs), 'start returns runId/startTs/sig');
 
 // Forged sig rejected
 res = await call('POST', '/run/beat', { ...tok, sig: 'f'.repeat(64), score: 10, day: 1 });
 assert(res.status === 400 && (await res.json()).error === 'bad_sig', 'forged sig → bad_sig');
+outcome(res, 'rejected', 'bad_sig');
 
 // Unknown run rejected (valid-shaped but never started)
 res = await call('POST', '/run/beat', { runId: 'nope', startTs: tok.startTs, sig: tok.sig, score: 1, day: 1 });
@@ -86,8 +155,10 @@ assert(res.status === 400, 'unknown/forged run rejected');
 // Legit heartbeat lands on the board (killed-tab persistence: NO /run/end yet)
 res = await call('POST', '/run/beat', { ...tok, score: 120, day: 1, name: 'Gary' });
 assert(res.status === 204, `beat → 204, got ${res.status}`);
+assert(outcome(res, 'boards_written').boardsWritten.join(',') === 'all,daily', 'beat reports both board writes');
 res = await call('GET', '/board?range=all');
 let board = await res.json();
+assert(outcome(res, 'read').range === 'all', 'read reports normalized range');
 assert(board.entries.length === 1 && board.entries[0].name === 'Gary'
   && board.entries[0].score === 120, 'heartbeat alone stands as the board entry');
 assert(!('runId' in board.entries[0]), 'board read never leaks runIds');
@@ -95,6 +166,7 @@ assert(!('runId' in board.entries[0]), 'board read never leaks runIds');
 // Monotonic high-water: a lower later beat keeps the max
 res = await call('POST', '/run/beat', { ...tok, score: 40, day: 1, name: 'Gary' });
 assert(res.status === 204, 'lower beat accepted (clamped)');
+outcome(res, 'skipped_no_change');
 board = await (await call('GET', '/board?range=all')).json();
 assert(board.entries[0].score === 120, 'high-water is monotonic');
 
@@ -118,6 +190,7 @@ assert(res.status === 400 && (await res.json()).error === 'implausible_day',
 // guard's own test above.
 res = await call('POST', '/run/end', { ...tok, score: 150, day: 1, name: 'sh.it_head', cause: 'ran_dry' });
 assert(res.status === 204, 'end → 204');
+outcome(res, 'boards_written');
 board = await (await call('GET', '/board?range=all')).json();
 assert(board.entries[0].name === FALLBACK_NAME && board.entries[0].score === 150,
   'final entry sanitized + updated');
@@ -149,6 +222,7 @@ assert(board.range === 'daily' && board.entries.length >= 1, 'daily board popula
     body: JSON.stringify({ ...shifted, score: 145, day: 1, name: 'Sus' }),
   }), envLow);
   assert(r.status === 204, 'outlier-range beat accepted for review');
+  assert(outcome(r, 'quarantined').quarantined === true, 'quarantine explicitly reported');
   const b = await (await worker.fetch(new Request(BASE + '/board?range=all'), envLow)).json();
   assert(!b.entries.some((e) => e.name === 'Sus'), 'quarantined entry hidden from board');
 }
@@ -158,6 +232,7 @@ res = await call('DELETE', '/admin/entry', { runId: tok.runId }, { Authorization
 assert(res.status === 401, 'bad admin key → 401');
 res = await call('DELETE', '/admin/entry', { runId: tok.runId }, { Authorization: 'Bearer test-admin' });
 assert(res.status === 204, 'admin delete → 204');
+outcome(res, 'deleted');
 board = await (await call('GET', '/board?range=all')).json();
 assert(!board.entries.some((e) => e.score === 150), 'deleted entry gone from board');
 
@@ -179,12 +254,15 @@ assert(res.status === 204, 'text/plain (sendBeacon) body accepted');
   let before = env.BOARD_KV.puts;
   res = await call('POST', '/run/beat', { ...t, score: 100, day: 1, name: 'Frugal' });
   assert(res.status === 204, 'no-change beat still 204');
+  assert(!outcome(res, 'skipped_no_change').runPersisted, 'no-change does not claim persistence');
   assert(env.BOARD_KV.puts === before, `no-change beat writes nothing (was ${before}, now ${env.BOARD_KV.puts})`);
   // Sub-threshold high-water move: run record only (1 put), no board fold.
   before = env.BOARD_KV.puts;
   res = await call('POST', '/run/beat', { ...t, score: 110, day: 1, name: 'Frugal' });
   assert(res.status === 204 && env.BOARD_KV.puts === before + 1,
     `small hw move writes only the run record (+${env.BOARD_KV.puts - before})`);
+  const small = outcome(res, 'run_persisted');
+  assert(small.runPersisted && small.boardsWritten.length === 0, 'run-only persistence distinct from board writes');
   let b = await (await call('GET', '/board?range=all')).json();
   assert(b.entries.find((e) => e.name === 'Frugal').score === 100,
     'board holds the last FOLDED value between folds');
@@ -209,6 +287,7 @@ assert(res.status === 204, 'text/plain (sendBeacon) body accepted');
     body: JSON.stringify({ ...t2, score: 90, day: 1, name: 'Cadence' }) }), envSlow);
   assert(r3.status === 204 && env.BOARD_KV.puts === before,
     'inside-cadence beat is acknowledged but writes nothing');
+  assert(!outcome(r3, 'skipped_cadence').runPersisted, 'cadence does not claim persistence');
 }
 
 // Fail CLOSED: a deploy that skipped `wrangler secret put SIGNING_SECRET`
@@ -216,10 +295,147 @@ assert(res.status === 204, 'text/plain (sendBeacon) body accepted');
 res = await worker.fetch(new Request(BASE + '/run/start', { method: 'POST', body: '{}' }),
   { ...env, SIGNING_SECRET: undefined });
 assert(res.status === 500, `missing signing secret → 500, got ${res.status}`);
+outcome(res, 'misconfigured');
 
 // CORS preflight
 res = await call('OPTIONS', '/run/beat');
 assert(res.status === 204 && res.headers.get('Access-Control-Allow-Origin') === '*',
   'preflight answered with CORS');
+outcome(res, 'preflight');
+
+// Every storage phase fails closed, including partial board writes and the
+// existing final verify/repair pass. No retry or rollback is introduced.
+let failureCases = 0;
+for (const operation of ['start', 'beat', 'end', 'read', 'delete']) {
+  const phases = operation === 'start' ? ['rate_read', 'rate_write', 'run_write']
+    : operation === 'read' ? ['board_all_read', 'board_daily_read']
+    : operation === 'delete' ? ['board_all_read', 'board_all_write', 'board_daily_read', 'board_daily_write', 'run_delete']
+    : ['run_read', 'run_write', 'board_all_read', 'board_all_write',
+      ...(operation === 'end' ? ['board_all_verify', 'board_all_repair'] : []),
+      'board_daily_read', 'board_daily_write',
+      ...(operation === 'end' ? ['board_daily_verify', 'board_daily_repair'] : [])];
+  for (const phase of phases) {
+    const testEnv = { ...env, BOARD_KV: mockKV() };
+    const token = await (await worker.fetch(new Request(BASE + '/run/start', { method: 'POST', body: '{}' }), testEnv)).json();
+    const kv = testEnv.BOARD_KV;
+    const isBoard = phase.startsWith('board_');
+    const range = phase.includes('_daily_') ? 'daily' : 'all';
+    const action = phase.split('_').at(-1);
+    const method = action === 'read' || action === 'verify' ? 'get' : action === 'delete' ? 'delete' : 'put';
+    const prefix = isBoard ? `board:${range}` : phase.startsWith('rate_') ? 'rl:' : 'run:';
+    let matchingCalls = 0;
+    let failures = 0;
+    const original = kv[method];
+    kv[method] = async (...args) => {
+      if (args[0].startsWith(prefix)) {
+        matchingCalls++;
+        if (matchingCalls === (action === 'verify' || action === 'repair' ? 2 : 1)) {
+          failures++;
+          throw new Error(`storage-failure-private-detail ${args[0]} ${args[1]} ${testEnv.SIGNING_SECRET}`);
+        }
+      }
+      return original(...args);
+    };
+    if (action === 'repair') {
+      const get = kv.get;
+      let reads = 0;
+      kv.get = async (key) => key.startsWith(prefix) && ++reads === 2 ? '[]' : get(key);
+    }
+    const path = operation === 'read' ? `/board?range=${range}` : operation === 'delete' ? '/admin/entry' : `/run/${operation}`;
+    const response = await worker.fetch(new Request(BASE + path, {
+      method: operation === 'read' ? 'GET' : operation === 'delete' ? 'DELETE' : 'POST',
+      headers: { Authorization: `Bearer ${testEnv.ADMIN_KEY}` },
+      body: operation === 'read' ? undefined : JSON.stringify({ ...token, score: 120, day: 1, name: 'Private Player' }),
+    }), testEnv);
+    assert(response.status === 500, `${operation}/${phase} returns 500`);
+    assert(response.headers.get('Cache-Control') === 'no-store', 'storage failures are not cached');
+    const log = outcome(response, 'storage_error');
+    assert(log.phase === phase && log.operation === operation, `${operation}/${phase} logged accurately`);
+    assert(failures === 1, `${operation}/${phase} is not retried`);
+    const submitting = operation === 'beat' || operation === 'end';
+    assert(log.runPersisted === (submitting && isBoard), `${operation}/${phase} reports run persistence before failure`);
+    const boards = isBoard && operation !== 'read'
+      ? [...(range === 'daily' ? ['all'] : []), ...(['verify', 'repair'].includes(action) ? [range] : [])]
+      : phase === 'run_delete' ? ['all', 'daily'] : [];
+    assert(log.boardsWritten.join(',') === boards.join(','), `${operation}/${phase} reports only completed board writes`);
+    failureCases++;
+  }
+}
+
+// Missing keys remain legitimate empty reads; corrupt persisted JSON does not.
+{
+  const testEnv = { ...env, BOARD_KV: mockKV() };
+  const request = (method, path, body) => worker.fetch(new Request(BASE + path, {
+    method, body: body === undefined ? undefined : JSON.stringify(body),
+  }), testEnv);
+  res = await request('GET', '/board');
+  assert(res.status === 200 && (await res.json()).entries.length === 0, 'absent board is a successful empty read');
+  outcome(res, 'read');
+  const token = await (await request('POST', '/run/start', {})).json();
+  for (const corrupt of ['private-url-marker', '{}', 'null', '[null]', '["private-url-marker"]', '']) {
+    testEnv.BOARD_KV._map.set('board:all', corrupt);
+    res = await request('GET', '/board');
+    assert(res.status === 500 && outcome(res, 'storage_error').phase === 'board_all_read', 'corrupt board read fails explicitly');
+    res = await request('POST', '/run/end', { ...token, score: 120 });
+    assert(res.status === 500, 'corrupt board cannot be folded over');
+    assert(testEnv.BOARD_KV._map.get('board:all') === corrupt, 'unreadable board is not overwritten');
+    testEnv.BOARD_KV._map.set(`run:${token.runId}`, JSON.stringify({ startTs: token.startTs, hw: 0, day: 1 }));
+  }
+  for (const corrupt of ['private-url-marker', 'null', '[]', '42', '']) {
+    testEnv.BOARD_KV._map.set(`run:${token.runId}`, corrupt);
+    res = await request('POST', '/run/beat', { ...token, score: 10 });
+    assert(res.status === 500 && outcome(res, 'storage_error').phase === 'run_read', 'corrupt run fails explicitly');
+  }
+  testEnv.BOARD_KV._map.delete(`run:${token.runId}`);
+  res = await request('POST', '/run/beat', token);
+  assert(res.status === 400, 'missing run remains a rejection');
+  outcome(res, 'rejected', 'unknown_run');
+}
+
+// Remaining rejection branches and arbitrary input must never enter logs.
+{
+  const testEnv = { ...env, BOARD_KV: mockKV(), MAX_RUN_WRITES: '0' };
+  const request = (method, path, body, extraEnv = {}) => worker.fetch(new Request(BASE + path, {
+    method, body,
+    headers: { 'CF-Connecting-IP': '203.0.113.99', 'X-Leaderboard-Request-Id': 'private-url-marker' },
+  }), { ...testEnv, ...extraEnv });
+  const token = await (await request('POST', '/run/start', '{}')).json();
+  res = await request('POST', '/run/beat', JSON.stringify({ ...token, score: 10 }));
+  assert(res.status === 400, 'write cap remains 400');
+  outcome(res, 'rejected', 'beat_cap');
+  for (const body of ['{private-url-marker', 'null', '{}', '[]', JSON.stringify({ runId: token.runId, startTs: 'invalid' })]) {
+    res = await request('POST', '/run/end', body);
+    assert(res.status === 400, 'invalid submission remains 400');
+    outcome(res, 'rejected', 'bad_body');
+  }
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('storage-failure-private-detail'); };
+  try {
+    res = await request('POST', '/run/start', '{"turnstile":"private-captcha-token"}', { TURNSTILE_SECRET: 'private-captcha-secret' });
+    assert(res.status === 403, 'Turnstile failure remains 403');
+    outcome(res, 'rejected', 'turnstile');
+  } finally { globalThis.fetch = originalFetch; }
+  testEnv.BOARD_KV._map.set(`rl:start:203.0.113.99:${Math.floor(Date.now() / 60000)}`, '10');
+  res = await request('POST', '/run/start', '{}');
+  assert(res.status === 429, 'start rate limit remains 429');
+  outcome(res, 'rejected', 'rate');
+  res = await request('GET', '/private-url-marker?sig=private-url-marker');
+  assert(res.status === 404 && outcome(res, 'not_found').operation === 'unknown', 'unknown routes have fixed labels');
+  res = await request('GET', '/board?range=private-url-marker');
+  assert(outcome(res, 'read').range === 'all', 'arbitrary range is normalized');
+  res = await request('POST', '/run/beat', JSON.stringify(token), { SIGNING_SECRET: { toString() { throw new Error('storage-failure-private-detail'); } } });
+  assert(res.status === 500, 'unexpected exception is sanitized');
+  outcome(res, 'internal_error');
+}
+
+const serializedLogs = JSON.stringify(diagnostics);
+for (const value of sensitive) {
+  if (typeof value === 'string') assert(!serializedLogs.includes(value), 'logs contain no names, IPs, bodies, tokens, secrets, URLs, or exception details');
+}
+for (const reason of ['bad_body', 'bad_sig', 'unknown_run', 'finished_run', 'implausible_rate',
+  'implausible_day', 'beat_cap', 'rate', 'turnstile', 'auth']) {
+  assert(diagnostics.some((log) => log.outcome === 'rejected' && log.reason === reason), `rejection ${reason} is observable`);
+}
 
 process.stdout.write('OK bin/test-leaderboard-worker — protocol e2e, sig binding, ceiling worked example, monotonic HW, killed-tab persistence, sanitation, quarantine, admin delete all hold\n');
+process.stdout.write(`OK diagnostics: ${diagnostics.length} correlated outcomes, ${failureCases} injected storage-phase failures, corruption guards, exposed headers, sanitized errors, no secret leakage\n`);

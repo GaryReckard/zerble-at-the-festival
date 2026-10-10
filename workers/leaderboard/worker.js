@@ -30,6 +30,7 @@ const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+  'Access-Control-Expose-Headers': 'X-Leaderboard-Request-Id,X-Leaderboard-Outcome',
 };
 
 const BOARD_CAP = 100;
@@ -99,12 +100,31 @@ async function readBody(request) {
 const utcDate = (now) => new Date(now).toISOString().slice(0, 10);
 const boardKey = (range, now) => (range === 'daily' ? `board:daily:${utcDate(now)}` : 'board:all');
 
-async function loadBoard(env, key) {
+class StorageError extends Error {
+  constructor(phase) {
+    super('storage_error');
+    this.phase = phase;
+  }
+}
+
+async function storage(phase, action) {
   try {
+    return await action();
+  } catch {
+    // KV exceptions can contain keys or values; never retain the original error.
+    throw new StorageError(phase);
+  }
+}
+
+async function loadBoard(env, key, phase) {
+  return storage(phase, async () => {
     const raw = await env.BOARD_KV.get(key);
-    const list = raw ? JSON.parse(raw) : [];
-    return Array.isArray(list) ? list : [];
-  } catch { return []; }
+    const list = raw == null ? [] : JSON.parse(raw);
+    if (!Array.isArray(list) || list.some((entry) => !entry || typeof entry !== 'object' || Array.isArray(entry))) {
+      throw new Error('invalid_board');
+    }
+    return list;
+  });
 }
 
 // Upsert one run's entry (keyed by runId) into a board array, sort, cap.
@@ -119,8 +139,8 @@ async function rateLimit(env, bucket, cap) {
   // Per-minute KV counter. Best-effort — KV isn't atomic, but a racer gains a
   // couple of extra requests, not a bypass worth engineering against here.
   const key = `rl:${bucket}:${Math.floor(Date.now() / 60000)}`;
-  const n = num(await env.BOARD_KV.get(key), 0) + 1;
-  await env.BOARD_KV.put(key, String(n), { expirationTtl: 120 });
+  const n = num(await storage('rate_read', () => env.BOARD_KV.get(key)), 0) + 1;
+  await storage('rate_write', () => env.BOARD_KV.put(key, String(n), { expirationTtl: 120 }));
   return n <= cap;
 }
 
@@ -145,10 +165,14 @@ async function validateSubmission(env, body, now) {
   const expect = await hmac(env.SIGNING_SECRET, `${body.runId}|${startTs}`);
   if (!sigEqual(expect, body.sig)) return { reason: 'bad_sig' };
 
-  const raw = await env.BOARD_KV.get(`run:${body.runId}`);
-  if (!raw) return { reason: 'unknown_run' };
-  let run;
-  try { run = JSON.parse(raw); } catch { return { reason: 'unknown_run' }; }
+  const run = await storage('run_read', async () => {
+    const raw = await env.BOARD_KV.get(`run:${body.runId}`);
+    if (raw == null) return null;
+    const record = JSON.parse(raw);
+    if (!record || typeof record !== 'object' || Array.isArray(record)) throw new Error('invalid_run');
+    return record;
+  });
+  if (!run) return { reason: 'unknown_run' };
   if (run.done) return { reason: 'finished_run' };
 
   const elapsedMin = Math.max(0, (now - startTs) / 60000);
@@ -163,9 +187,9 @@ async function validateSubmission(env, body, now) {
   return { run, score: hw, day: Math.max(day, num(run.day, 1)) };
 }
 
-async function applySubmission(env, body, now, { final = false } = {}) {
+async function applySubmission(env, body, now, diagnostic, { final = false } = {}) {
   const v = await validateSubmission(env, body, now);
-  if (!v.run) return v.reason;
+  if (!v.run) return { outcome: 'rejected', reason: v.reason };
 
   const run = v.run;
 
@@ -182,13 +206,13 @@ async function applySubmission(env, body, now, { final = false } = {}) {
   //   per-run cap — a token stops writing after MAX_RUN_WRITES accepted
   //     state changes, bounding what a replayed token can ever cost.
   const beatMinMs = num(env.BEAT_MIN_S, 8) * 1000;
-  if (!final && run.seen && now - run.seen < beatMinMs) return null;
+  if (!final && run.seen && now - run.seen < beatMinMs) return { outcome: 'skipped_cadence' };
   const prevHw = num(run.hw, 0);
   const prevDay = num(run.day, 1);
   const sameName = body.name == null || sanitizeName(body.name) === run.name;
-  if (!final && v.score === prevHw && v.day === prevDay && sameName) return null;
+  if (!final && v.score === prevHw && v.day === prevDay && sameName) return { outcome: 'skipped_no_change' };
   run.w = num(run.w, 0) + 1;
-  if (run.w > num(env.MAX_RUN_WRITES, 600)) return 'beat_cap';
+  if (run.w > num(env.MAX_RUN_WRITES, 600)) return { outcome: 'rejected', reason: 'beat_cap' };
 
   run.hw = v.score;
   run.day = v.day;
@@ -207,8 +231,9 @@ async function applySubmission(env, body, now, { final = false } = {}) {
     || now - num(run.foldAt, 0) > num(env.FOLD_MAX_MIN, 5) * 60000;
   if (fold) { run.foldHw = v.score; run.foldAt = now; }
 
-  await env.BOARD_KV.put(`run:${body.runId}`, JSON.stringify(run), { expirationTtl: RUN_TTL_S });
-  if (!fold) return null;
+  await storage('run_write', () => env.BOARD_KV.put(`run:${body.runId}`, JSON.stringify(run), { expirationTtl: RUN_TTL_S }));
+  diagnostic.runPersisted = true;
+  if (!fold) return { outcome: 'run_persisted' };
 
   const entry = {
     runId: body.runId,
@@ -218,52 +243,59 @@ async function applySubmission(env, body, now, { final = false } = {}) {
     date: utcDate(run.startTs ?? now),
     quarantined: run.hw >= num(env.OUTLIER_SCORE, 100000) ? true : undefined,
   };
+  diagnostic.quarantined = entry.quarantined === true;
   for (const range of ['all', 'daily']) {
     const key = boardKey(range, now);
     // Daily boards expire (90 days) so KV doesn't accumulate one key per day
     // forever; the all-time board must never expire.
     const opts = range === 'daily' ? { expirationTtl: 90 * 86400 } : undefined;
-    const list = await loadBoard(env, key);
-    await env.BOARD_KV.put(key, JSON.stringify(foldEntry(list, entry)), opts);
+    const list = await loadBoard(env, key, `board_${range}_read`);
+    await storage(`board_${range}_write`, () => env.BOARD_KV.put(key, JSON.stringify(foldEntry(list, entry)), opts));
+    diagnostic.boardsWritten.push(range);
     if (final) {
       // KV board writes are last-write-wins under concurrency; a racing beat
       // can clobber a FINAL, which (unlike a beat) nothing would re-send.
       // One verify-and-repair read-back closes most of that window.
-      const check = await loadBoard(env, key);
+      const check = await loadBoard(env, key, `board_${range}_verify`);
       const stored = check.find((e) => e && e.runId === entry.runId);
       if (!stored || stored.score < entry.score) {
-        await env.BOARD_KV.put(key, JSON.stringify(foldEntry(check, entry)), opts);
+        await storage(`board_${range}_repair`, () => env.BOARD_KV.put(key, JSON.stringify(foldEntry(check, entry)), opts));
       }
     }
   }
-  return null;
+  return { outcome: entry.quarantined ? 'quarantined' : 'boards_written' };
 }
 
-export default {
-  async fetch(request, env) {
+async function handleRequest(request, env, diagnostic) {
+    const reply = (response, outcome, reason) => {
+      diagnostic.outcome = outcome;
+      if (reason) diagnostic.reason = reason;
+      return response;
+    };
     const url = new URL(request.url);
     const path = url.pathname;
     const ip = request.headers.get('CF-Connecting-IP') || 'noip';
     const now = Date.now();
 
-    if (request.method === 'OPTIONS') return empty(204);
+    if (request.method === 'OPTIONS') return reply(empty(204), 'preflight');
 
     // Fail CLOSED on a missing signing secret: HMAC over an undefined key
     // would encode the literal string "undefined" — a publicly forgeable
     // signature scheme shipped silently by a deploy that skipped
     // `wrangler secret put SIGNING_SECRET`.
-    if (!env.SIGNING_SECRET) return json({ error: 'misconfigured' }, 500);
+    if (!env.SIGNING_SECRET) return reply(json({ error: 'misconfigured' }, 500), 'misconfigured');
 
     if (request.method === 'POST' && path === '/run/start') {
-      if (!(await rateLimit(env, `start:${ip}`, 10))) return json({ error: 'rate' }, 429);
+      if (!(await rateLimit(env, `start:${ip}`, 10))) return reply(json({ error: 'rate' }, 429), 'rejected', 'rate');
       const body = (await readBody(request)) || {};
-      if (!(await verifyTurnstile(env, body.turnstile, ip))) return json({ error: 'turnstile' }, 403);
+      if (!(await verifyTurnstile(env, body.turnstile, ip))) return reply(json({ error: 'turnstile' }, 403), 'rejected', 'turnstile');
       const runId = crypto.randomUUID();
       const startTs = now;
       const sig = await hmac(env.SIGNING_SECRET, `${runId}|${startTs}`);
-      await env.BOARD_KV.put(`run:${runId}`, JSON.stringify({ startTs, hw: 0, day: 1 }),
-        { expirationTtl: RUN_TTL_S });
-      return json({ runId, startTs, sig });
+      await storage('run_write', () => env.BOARD_KV.put(`run:${runId}`, JSON.stringify({ startTs, hw: 0, day: 1 }),
+        { expirationTtl: RUN_TTL_S }));
+      diagnostic.runPersisted = true;
+      return reply(json({ runId, startTs, sig }), 'started');
     }
 
     if (request.method === 'POST' && (path === '/run/beat' || path === '/run/end')) {
@@ -271,39 +303,72 @@ export default {
       // the very budget it was guarding (adversary A2). Beats are already
       // sig-gated, cadence-gated, no-change-gated, and per-run write-capped
       // inside applySubmission; those bound hostile cost at zero writes.
-      const reason = await applySubmission(env, await readBody(request), now,
+      const { outcome, reason } = await applySubmission(env, await readBody(request), now, diagnostic,
         { final: path === '/run/end' });
       // Fire-and-forget client: a rejection is a 4xx it will ignore; the
       // reason is for wrangler-tail debugging, not the player.
-      return reason ? json({ error: reason }, 400) : empty(204);
+      return reply(reason ? json({ error: reason }, 400) : empty(204), outcome, reason);
     }
 
     if (request.method === 'GET' && path === '/board') {
       const range = url.searchParams.get('range') === 'daily' ? 'daily' : 'all';
-      const list = await loadBoard(env, boardKey(range, now));
-      return json({
+      diagnostic.range = range;
+      const list = await loadBoard(env, boardKey(range, now), `board_${range}_read`);
+      return reply(json({
         range,
         entries: list.filter((e) => !e.quarantined)
           .map(({ name, score, days, date }) => ({ name, score, days, date })),
-      }, 200, { 'Cache-Control': 'public, max-age=30' });
+      }, 200, { 'Cache-Control': 'public, max-age=30' }), 'read');
     }
 
     if (request.method === 'DELETE' && path === '/admin/entry') {
       const auth = request.headers.get('Authorization') || '';
-      if (!env.ADMIN_KEY || !sigEqual(auth, `Bearer ${env.ADMIN_KEY}`)) return json({ error: 'auth' }, 401);
+      if (!env.ADMIN_KEY || !sigEqual(auth, `Bearer ${env.ADMIN_KEY}`)) return reply(json({ error: 'auth' }, 401), 'rejected', 'auth');
       const body = (await readBody(request)) || {};
-      if (!body.runId) return json({ error: 'bad_body' }, 400);
-      const ranges = body.range ? [body.range] : ['all', 'daily'];
+      if (!body.runId) return reply(json({ error: 'bad_body' }, 400), 'rejected', 'bad_body');
+      const ranges = body.range ? [body.range === 'daily' ? 'daily' : 'all'] : ['all', 'daily'];
       for (const range of ranges) {
         const key = boardKey(range, now);
-        const list = await loadBoard(env, key);
-        await env.BOARD_KV.put(key, JSON.stringify(list.filter((e) => e.runId !== body.runId)));
+        const list = await loadBoard(env, key, `board_${range}_read`);
+        await storage(`board_${range}_write`, () => env.BOARD_KV.put(key, JSON.stringify(list.filter((e) => e.runId !== body.runId))));
+        diagnostic.boardsWritten.push(range);
       }
-      await env.BOARD_KV.delete(`run:${body.runId}`);
-      return empty(204);
+      await storage('run_delete', () => env.BOARD_KV.delete(`run:${body.runId}`));
+      return reply(empty(204), 'deleted');
     }
 
-    return json({ error: 'not_found' }, 404);
+    return reply(json({ error: 'not_found' }, 404), 'not_found');
+}
+
+export default {
+  async fetch(request, env) {
+    // Only fixed route labels and server-generated IDs enter diagnostics, never
+    // raw URLs, request headers/bodies, run IDs, KV keys, or exception messages.
+    const route = `${request.method} ${new URL(request.url).pathname}`;
+    const operation = new Map([
+      ['POST /run/start', 'start'], ['POST /run/beat', 'beat'],
+      ['POST /run/end', 'end'], ['GET /board', 'read'],
+      ['DELETE /admin/entry', 'delete'],
+    ]).get(route) || (request.method === 'OPTIONS' ? 'preflight' : 'unknown');
+    const diagnostic = {
+      event: 'leaderboard_request', requestId: crypto.randomUUID(), operation,
+      runPersisted: false, boardsWritten: [],
+    };
+    let response;
+    try {
+      response = await handleRequest(request, env, diagnostic);
+    } catch (error) {
+      diagnostic.outcome = error instanceof StorageError ? 'storage_error' : 'internal_error';
+      if (error instanceof StorageError) diagnostic.phase = error.phase;
+      response = json({ error: diagnostic.outcome }, 500, { 'Cache-Control': 'no-store' });
+    }
+    response.headers.set('X-Leaderboard-Request-Id', diagnostic.requestId);
+    response.headers.set('X-Leaderboard-Outcome', diagnostic.outcome);
+    diagnostic.status = response.status;
+    const log = JSON.stringify(diagnostic);
+    if (response.status >= 500) console.error(log);
+    else console.log(log);
+    return response;
   },
 };
 

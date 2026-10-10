@@ -40,7 +40,7 @@ function load() {
 }
 
 function save(list) {
-  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(list)); } catch (err) { /* session-only */ }
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(list)); return true; } catch (err) { return false; }
 }
 
 // Set to the deployed Worker origin (e.g. 'https://zerble-leaderboard.<acct>.workers.dev')
@@ -84,18 +84,70 @@ let _latest = null;                  // freshest state, for the pagehide beacon
 let _pendingFinal = null;            // a death that beat the /run/start token
 let _beaconHooked = false;
 
+const DIAGNOSTIC_KEY = 'zerble-board-diagnostics';
+const DIAGNOSTIC_CAP = 100;
+const OUTCOMES = new Set(['started', 'skipped_cadence', 'skipped_no_change', 'run_persisted',
+  'boards_written', 'quarantined', 'rejected', 'storage_error', 'internal_error', 'misconfigured']);
+const REASONS = new Set(['bad_body', 'bad_sig', 'unknown_run', 'finished_run', 'implausible_rate',
+  'implausible_day', 'beat_cap', 'rate', 'turnstile', 'misconfigured', 'storage_error', 'internal_error']);
+let _diagnosticEvents = [];
+let _diagnosticStorage = true;
+try {
+  const saved = JSON.parse(localStorage.getItem(DIAGNOSTIC_KEY) || '[]');
+  if (Array.isArray(saved)) _diagnosticEvents = saved.slice(-DIAGNOSTIC_CAP);
+} catch { _diagnosticStorage = false; }
+
+// Only pass explicit scalar fields here, never request bodies or run tokens.
+function diagnose(event, detail = {}) {
+  _diagnosticEvents.push({ at: new Date().toISOString(), event, ...detail });
+  if (_diagnosticEvents.length > DIAGNOSTIC_CAP) _diagnosticEvents.shift();
+  try {
+    localStorage.setItem(DIAGNOSTIC_KEY, JSON.stringify(_diagnosticEvents));
+    _diagnosticStorage = true;
+  } catch { _diagnosticStorage = false; }
+}
+
+diagnose('page_loaded', { globalEnabled: !!GLOBAL_BOARD_URL });
+
 async function post(path, body, timeoutMs = 4000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  const started = Date.now();
+  diagnose('request_started', { path, ...(body.score == null ? {} : { score: body.score, day: body.day }) });
   try {
-    return await fetch(GLOBAL_BOARD_URL + path, {
+    const res = await fetch(GLOBAL_BOARD_URL + path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: ctrl.signal,
     });
+    const outcome = res.headers.get('X-Leaderboard-Outcome');
+    const requestId = res.headers.get('X-Leaderboard-Request-Id');
+    let reason;
+    if (!res.ok) {
+      try {
+        const data = await res.clone().json();
+        reason = REASONS.has(data.error) ? data.error : 'unspecified';
+      } catch { reason = 'unreadable_response'; }
+    }
+    diagnose('request_finished', {
+      path, status: res.status, elapsedMs: Date.now() - started,
+      outcome: OUTCOMES.has(outcome) ? outcome : (res.ok ? 'acknowledged_unverified' : 'rejected'),
+      ...(reason ? { reason } : {}),
+      ...(/^[\da-f-]{36}$/i.test(requestId || '') ? { requestId } : {}),
+    });
+    let data = null;
+    if (path === '/run/start' && res.ok) {
+      try { data = await res.json(); }
+      catch (err) {
+        if (ctrl.signal.aborted) throw err;
+      }
+    }
+    return { ok: res.ok, data };
   } catch (err) {
-    return null;                     // fire-and-forget: failure is silence
+    diagnose('request_failed', { path, elapsedMs: Date.now() - started,
+      reason: ctrl.signal.aborted ? 'timeout' : 'network_or_cors' });
+    return null;
   } finally {
     clearTimeout(t);
   }
@@ -115,8 +167,12 @@ function sendStateBeacon() {
   // 001). Beats upsert the board entry, which is the whole "a killed tab
   // still records" guarantee, while leaving the run open for a return.
   // sendBeacon can't set JSON headers — the Worker parses text/plain bodies.
-  navigator.sendBeacon(GLOBAL_BOARD_URL + '/run/beat',
-    JSON.stringify({ ..._run, ..._latest }));
+  try {
+    const queued = navigator.sendBeacon(GLOBAL_BOARD_URL + '/run/beat',
+      JSON.stringify({ ..._run, ..._latest }));
+    diagnose('beacon', { outcome: queued ? 'queued_unacknowledged' : 'not_queued',
+      score: _latest.score, day: _latest.day });
+  } catch { diagnose('beacon', { outcome: 'not_queued' }); }
 }
 
 function hookBeacon() {
@@ -134,6 +190,22 @@ function hookBeacon() {
 
 export const Leaderboard = {
   localTop() { return load(); },
+  noteGameStart(mode, resumed = false) {
+    diagnose('game_started', { mode: mode === 'festival' ? 'festival' : 'cruising', resumed,
+      submitsScores: mode === 'festival' && this.globalEnabled() });
+  },
+  diagnostics() {
+    return {
+      version: 1, endpoint: GLOBAL_BOARD_URL, globalEnabled: this.globalEnabled(),
+      tokenPresent: !!_run, finalAttempted: _runDone, finalWaitingForToken: !!_pendingFinal,
+      historyPersisted: _diagnosticStorage,
+      events: _diagnosticEvents.map((e) => ({ ...e })),
+    };
+  },
+  clearDiagnostics() {
+    _diagnosticEvents = [];
+    diagnose('history_cleared');
+  },
 
   // ---- Global board client (all no-ops while GLOBAL_BOARD_URL is empty) ----
   globalEnabled() { return !!GLOBAL_BOARD_URL; },
@@ -145,23 +217,25 @@ export const Leaderboard = {
   // flushed the moment the token resolves, so the run's score isn't lost to
   // the race.
   globalRunStart() {
-    if (!this.globalEnabled()) return;
+    if (!this.globalEnabled()) { diagnose('run_disabled'); return; }
     _run = null; _runDone = false; _latest = null; _pendingFinal = null;
     _lastBeat = { at: 0, hw: 0, day: 0 };
     hookBeacon();
-    post('/run/start', {}).then(async (res) => {
+    post('/run/start', {}).then((res) => {
       if (!res || !res.ok) return;
       try {
-        const tok = await res.json();
+        const tok = res.data;
         if (tok && tok.runId && tok.sig) {
           _run = tok;
+          diagnose('token_received');
           if (_pendingFinal) {
             const f = _pendingFinal;
             _pendingFinal = null;
             this.globalFinal(f);
           }
         }
-      } catch (err) { /* local-only run */ }
+        if (!_run) diagnose('token_invalid');
+      } catch (err) { diagnose('token_invalid'); }
     });
   },
 
@@ -183,7 +257,11 @@ export const Leaderboard = {
   // yet, the final parks until globalRunStart's fetch resolves.
   globalFinal({ score = 0, day = 1, name = '', cause = '' } = {}) {
     if (_runDone) return;
-    if (!_run) { _pendingFinal = { score, day, name, cause }; return; }
+    if (!_run) {
+      _pendingFinal = { score, day, name, cause };
+      diagnose('final_waiting_for_token', { score: Math.floor(score), day });
+      return;
+    }
     _runDone = true;
     post('/run/end', { ..._run, score: Math.floor(score), day, name, cause });
   },
@@ -202,6 +280,7 @@ export const Leaderboard = {
     _latest = null;
     _lastBeat = { at: 0, hw: 0, day: 0 };   // beat again shortly after resume
     hookBeacon();
+    diagnose('token_restored');
     return true;
   },
 
@@ -211,13 +290,21 @@ export const Leaderboard = {
     if (!this.globalEnabled()) return null;
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 4000);
+    const boardRange = range === 'daily' ? 'daily' : 'all';
+    diagnose('board_read_started', { range: boardRange });
     try {
       const res = await fetch(`${GLOBAL_BOARD_URL}/board?range=${range === 'daily' ? 'daily' : 'all'}`,
         { signal: ctrl.signal });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        diagnose('board_read_failed', { range: boardRange, status: res.status });
+        return null;
+      }
       const data = await res.json();
+      diagnose(Array.isArray(data.entries) ? 'board_read_finished' : 'board_read_invalid',
+        { range: boardRange, status: res.status, entries: Array.isArray(data.entries) ? data.entries.length : 0 });
       return Array.isArray(data.entries) ? data.entries.map(sanitize) : null;
     } catch (err) {
+      diagnose('board_read_failed', { range: boardRange, reason: ctrl.signal.aborted ? 'timeout' : 'network_or_invalid_response' });
       return null;
     } finally {
       clearTimeout(t);
@@ -235,8 +322,9 @@ export const Leaderboard = {
     list.push(entry);
     list.sort((a, b) => (b.score - a.score) || (b.days - a.days));
     const trimmed = list.slice(0, CAP);
-    save(trimmed);
+    const persisted = save(trimmed);
     const rank = trimmed.indexOf(entry);
+    diagnose('local_result', { score: entry.score, day: entry.days, rank: rank + 1, persisted });
     return rank === -1 ? 0 : rank + 1;
   },
 };

@@ -25,6 +25,14 @@ kv_namespaces = [
   { binding = "BOARD_KV", id = "c0c2876ef159455aa95bf541bbbe170d" },
 ]
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+# Automatic invocation logs include raw request URLs; keep only safe custom logs.
+invocation_logs = false
+
 [vars]
 BASE_SMILES_PER_MIN = "40"
 MAX_MULTIPLIER = "8"

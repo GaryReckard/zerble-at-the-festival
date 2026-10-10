@@ -27,6 +27,7 @@ import { PERF, DETECTED_TIER } from './perf.js';
 import * as AdaptiveQuality from './adaptiveQuality.js';
 import { Sound } from './sound.js';
 import { A11y } from './a11y.js';
+import { Leaderboard } from './leaderboard.js';
 
 const K = {
   tier: 'zerble.perfOverride',
@@ -76,7 +77,7 @@ export const Settings = {
     if (sh === 'on' || sh === 'off') AdaptiveQuality.setOverride('shadows', sh === 'on');
   },
 
-  open() { if ($overlay) { this._sync(); $overlay.classList.remove('hidden'); } },
+  open() { if ($overlay) { this._sync(); this._refreshDiagnostics(); $overlay.classList.remove('hidden'); } },
   close() { if ($overlay) $overlay.classList.add('hidden'); },
 
   _build() {
@@ -150,6 +151,20 @@ export const Settings = {
 
         <div class="settings-tab settings-howto is-hidden" data-tab="howto" role="tabpanel"></div>
 
+        <details class="settings-diagnostics" id="set-board-diagnostics">
+          <summary>Leaderboard diagnostics</summary>
+          <p class="settings-hint" id="set-board-help">A local-only log of the last 100 leaderboard events, with no player name or run token. Refresh reads this device's log without contacting the leaderboard. Clear removes the log, not your scores.</p>
+          <p class="settings-diagnostics-summary" id="set-board-summary"></p>
+          <div class="settings-diagnostics-actions">
+            <button type="button" class="settings-trigger" id="set-board-refresh">Refresh</button>
+            <button type="button" class="settings-trigger" id="set-board-copy">Copy</button>
+            <button type="button" class="settings-trigger" id="set-board-clear">Clear</button>
+          </div>
+          <label for="set-board-log">Diagnostic report (JSON)</label>
+          <textarea id="set-board-log" readonly rows="8" spellcheck="false" aria-describedby="set-board-help"></textarea>
+          <p class="settings-diagnostics-status" id="set-board-status" role="status" aria-live="polite" aria-atomic="true"></p>
+        </details>
+
         <div class="settings-restart is-hidden">
           <span class="settings-restart-text">A couple of these need a quick restart — you'll pick up right where you left off.</span>
           <button class="settings-apply">Restart now</button>
@@ -177,8 +192,40 @@ export const Settings = {
     const titleTrigger = document.getElementById('settings-open-title');
     if (gear) gear.addEventListener('click', () => this.open());
     if (titleTrigger) titleTrigger.addEventListener('click', () => this.open());
+    document.getElementById('settings-open-score')?.addEventListener('click', () => {
+      this.open();
+      $('#set-board-diagnostics').open = true;
+      $('#set-board-diagnostics summary').focus();
+      $('#set-board-diagnostics').scrollIntoView({ block: 'start' });
+    });
     $('.settings-close').addEventListener('click', () => this.close());
     $('.settings-backdrop').addEventListener('click', () => this.close());
+
+    $('#set-board-diagnostics').addEventListener('toggle', () => {
+      if ($('#set-board-diagnostics').open) this._refreshDiagnostics();
+    });
+    $('#set-board-refresh').addEventListener('click', () => this._refreshDiagnostics());
+    $('#set-board-clear').addEventListener('click', () => {
+      Leaderboard.clearDiagnostics();
+      this._refreshDiagnostics();
+      $('#set-board-status').textContent = 'Diagnostic history cleared; scores are unchanged.';
+    });
+    $('#set-board-copy').addEventListener('click', async () => {
+      const button = $('#set-board-copy');
+      const log = $('#set-board-log');
+      button.disabled = true;
+      try {
+        await navigator.clipboard.writeText(log.value);
+        $('#set-board-status').textContent = 'Diagnostic report copied.';
+      } catch {
+        log.focus();
+        log.select();
+        log.setSelectionRange(0, log.value.length);
+        $('#set-board-status').textContent = 'Automatic copy was unavailable. The report is selected; use Copy from your device menu or press Ctrl+C / Cmd+C.';
+      } finally {
+        button.disabled = false;
+      }
+    });
 
     // --- Tabs ---
     $('.settings-tabs').addEventListener('click', (e) => {
@@ -249,6 +296,52 @@ export const Settings = {
   _setTab(name) {
     $overlay.querySelectorAll('.settings-tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
     $overlay.querySelectorAll('.settings-tab').forEach((p) => p.classList.toggle('is-hidden', p.dataset.tab !== name));
+  },
+
+  _refreshDiagnostics() {
+    const report = Leaderboard.diagnostics();
+    const events = report.events.slice().reverse();
+    const game = events.find((e) => e?.event === 'game_started');
+    const submission = events.find((e) =>
+      (e?.event === 'request_finished' || e?.event === 'request_failed') &&
+      (e.path === '/run/start' || e.path === '/run/beat' || e.path === '/run/end'));
+    let summary = 'No game start in the retained history.';
+    if (game) {
+      const mode = game.mode === 'festival' ? 'Festival Run' : "Just Cruisin'";
+      summary = `Latest game: ${mode}${game.resumed ? ' (resumed)' : ''}. ` +
+        (game.submitsScores ? 'Global score submissions enabled.' : 'This game does not submit global scores.');
+    }
+    if (submission) {
+      const outcomes = {
+        started: 'Run record created',
+        boards_written: 'Both leaderboard writes completed (not a retention guarantee)',
+        run_persisted: 'Run saved; no leaderboard write confirmed',
+        acknowledged_unverified: 'Request acknowledged; leaderboard write not verified',
+        skipped_cadence: 'Update skipped because it arrived too soon',
+        skipped_no_change: 'Update skipped because the score did not change',
+        quarantined: 'Score held for review, not added to the leaderboard',
+        rejected: 'Submission rejected',
+        storage_error: 'Leaderboard storage error',
+        internal_error: 'Leaderboard server error',
+        misconfigured: 'Leaderboard service is misconfigured',
+        rate_limited: 'Too many requests',
+        turnstile_rejected: 'Verification rejected',
+      };
+      const result = submission.event === 'request_failed'
+        ? (submission.reason === 'timeout' ? 'Request timed out' : 'Network or cross-origin request failed')
+        : (outcomes[submission.outcome] || 'Response received; see the report for details');
+      const operation = submission.path === '/run/start' ? 'start run' : submission.path === '/run/end' ? 'final score' : 'score update';
+      summary += ` Last request result in retained history (${operation}): ${result}` +
+        (submission.status ? ` (HTTP ${submission.status})` : '') +
+        (submission.reason ? `; reason: ${submission.reason.replace(/_/g, ' ')}` : '') + '.';
+    } else {
+      summary += ' No score-submission response in the retained history.';
+    }
+    if (report.finalWaitingForToken) summary += ' The final score is waiting for a run token.';
+    $overlay.querySelector('#set-board-summary').textContent = summary;
+    $overlay.querySelector('#set-board-log').value = JSON.stringify(report, null, 2);
+    $overlay.querySelector('#set-board-status').textContent = `${report.events.length} local events shown.` +
+      (report.historyPersisted ? '' : ' Local storage is unavailable; this history may not survive a reload.');
   },
 
   // Reflect live/persisted state into the controls. Run every time the panel opens.

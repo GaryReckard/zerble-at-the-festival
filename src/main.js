@@ -709,6 +709,7 @@ HUD.onStart(() => {
   // (re)configure stakes from the final choice. Synchronous, pre-Sound.init.
   Scoring.configure({ stakes: RunMode.isFestival() });
   const resumedMatch = applyResumeGameState();
+  Leaderboard.noteGameStart(RunMode.name, resumedMatch);
   if (RunMode.isFestival()) {
     if (!RunState.active) RunState.begin();   // active = restored (mode-matched) resume run
     setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
@@ -1851,6 +1852,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
   };
 
   window.__dbg = {
+    leaderboardInfo() { return Leaderboard.diagnostics(); },
     // Start the game without a trusted gesture — mirrors HUD.onStart (line ~369)
     // minus the iOS audio-gesture dependency, and drops straight into gameplay
     // (no intro reveal). Audio is best-effort; it can stay silent in headless dev.
@@ -1863,6 +1865,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       // mode-matched resume payload applies here exactly like the real tap.
       Scoring.configure({ stakes: RunMode.isFestival() });
       const dbgResumed = applyResumeGameState();
+      Leaderboard.noteGameStart(RunMode.name, dbgResumed);
       if (RunMode.isFestival()) {
         if (!RunState.active) RunState.begin();
         setJugKeepFraction(RunMode.config.jugKeep(RunState.day));
