@@ -6,6 +6,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ### Changed
 - **Leaderboard diagnostics left the player interface.** Settings and the score screen no longer show the diagnostic report and its controls. The local event history remains available through `__dbg.leaderboardInfo()` on localhost, and Worker logging remains in place for future submission investigations. The leaderboard tabs and scoring flow are unchanged.
+- **A Sugar Shack is easier to find near the entrance festival.** The closest surviving food court among the starting hub and its neighbouring hubs now receives a Sugar Shack even when its normal 35% roll misses. Any court that wants one tries clear gaps between its trucks if the chosen ring slot lands on a road, in water, or against another stall; no standalone shacks or new food courts are added. The choice stays deterministic for a seed, and the main game at seed 1234 built the selected Shack at `(399, -168)`.
 
 ### Fixed
 - **Expired smiles no longer strand halo geometry on the GPU.** Earned and lost pickups share one system-owned ring geometry and two materials, with explicit sandbox teardown and a reused homing vector. A real M4 Pro renderer probe previously accumulated 200 geometries across five post-warm-up batches of expired smiles; the same workload now stays flat on Low, Mid, and High. Collection, faces, colors, and motion are unchanged. ([Measurements and verification](verification/performance/2026-10-11/README.md))

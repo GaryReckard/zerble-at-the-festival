@@ -53,6 +53,24 @@ export function vendorRowSlots(x, z, yaw, count, tuning = FESTIVAL_TUNING) {
   return slots;
 }
 
+// If the chosen Sugar Shack ring slot is blocked, use the open spaces between
+// stalls before giving up. The caller supplies the actual water/road/overlap
+// checks; this pure search consumes no cluster RNG and never moves a truck.
+export function foodCourtShackFallback(x, z, ring, angles, preferredSlot, isClear) {
+  const count = angles.length;
+  for (let offset = 0; offset < count; offset++) {
+    const i = (preferredSlot + offset) % count;
+    const next = angles[(i + 1) % count] + (i === count - 1 ? Math.PI * 2 : 0);
+    for (const fraction of [0.5, 0.4, 0.6, 0.3, 0.7]) {
+      const angle = angles[i] + (next - angles[i]) * fraction;
+      const sx = x + Math.cos(angle) * ring;
+      const sz = z + Math.sin(angle) * ring;
+      if (isClear(sx, sz)) return { x: sx, z: sz };
+    }
+  }
+  return null;
+}
+
 export function placeChunkProps(cx, cz, chunkSize = 80, region = null) {
   void region;   // ownership uses an explicit MAX_POI_REACH-expanded scan, not region.hearts (R16)
   const half = chunkSize / 2;

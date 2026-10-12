@@ -20,10 +20,10 @@ import { hash2, worldHash, mulberry32 } from './rng.js';
 import { Sound } from './sound.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { register as registerContextLight } from './contextLights.js';
-import { placeChunkProps, ownerCellCoord, vendorRowSlots } from './worldgen/placement.js';
+import { placeChunkProps, ownerCellCoord, vendorRowSlots, foodCourtShackFallback } from './worldgen/placement.js';
 import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
-import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, seamHedgesNear, MAX_POI_REACH } from './worldgen/festival.js';
+import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, seamHedgesNear, welcomeFoodCourt, MAX_POI_REACH } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
 import { roadsInBounds, nearestRoad } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
@@ -1394,7 +1394,12 @@ function buildWorldgenKind(ctx, d) {
     case 'side_stage':    buildStage(cctx, d.x, d.z, false, d.yaw); break;
     case 'tent_stage':    buildTentStageTheme(cctx, d.x, d.z, d.yaw); break;   // B1 — tent-stage variety
     case 'arch':          buildEntranceArchAt(cctx, d.x, d.z, d.yaw); break;
-    case 'food_court':    buildFoodCourtAt(cctx, d.x, d.z); break;
+    case 'food_court': {
+      const welcome = welcomeFoodCourt();
+      const isWelcome = welcome?.clusterSeed === d.clusterSeed && welcome.x === d.x && welcome.z === d.z;
+      buildFoodCourtAt(cctx, d.x, d.z, { isWelcome, clusterSeed: d.clusterSeed });
+      break;
+    }
     case 'vendor_row':    buildVendorRowAt(cctx, d.x, d.z, d.yaw); break;
     case 'bubble_vendor': buildBubbleVendorAt(cctx, d.x, d.z, d.yaw); break;
     case 'welfare_post':  buildWelfarePostAt(cctx, d); break;
@@ -1702,20 +1707,46 @@ function buildVendorRowAt(ctx, x, z, yaw) {
 }
 
 // A food-truck court ring centered at (x,z) — the festival's food street. Ported from
-// buildFoodPlaza (3-5 trucks on a ~24 m ring, inward-facing, ~35% one sugar shack,
+// buildFoodPlaza (3-5 trucks on a ~24 m ring, inward-facing, usually ~35% one sugar shack,
 // a bubble vendor at the edge), world-positioned, with an inter-truck overlap guard
 // the legacy ring lacked (the only thing that kept it from overlapping was the
 // spawn-corridor hack — D2.3 surgery).
-function buildFoodCourtAt(ctx, x, z) {
+function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}) {
   const T = FESTIVAL_TUNING;
   const count = T.FOOD_COURT_COUNT_BASE + Math.floor(ctx.rng() * T.FOOD_COURT_COUNT_SPAN);
   const ring = T.FOOD_COURT_RING_MULT * FOOD_TRUCK_SCALE;
-  const wantShack = ctx.rng() < T.FOOD_COURT_SHACK_PROB;
-  const shackSlot = wantShack ? Math.floor(ctx.rng() * count) : -1;
+  const rolledShack = ctx.rng() < T.FOOD_COURT_SHACK_PROB;
+  const wantShack = rolledShack || isWelcome;
+  const shackSlot = rolledShack ? Math.floor(ctx.rng() * count) : isWelcome ? clusterSeed % count : -1;
   const placed = [];
+  const angles = [];
   const overlaps = (px, pz, r) => placed.some((p) => {
     const dx = p.x - px, dz = p.z - pz; return dx * dx + dz * dz < (p.r + r) * (p.r + r);
   });
+  const shackRing = ring + T.FOOD_COURT_SHACK_RING_PAD;
+  const shackHalf = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
+  const shackClear = (sx, sz) => !isPointInLake(sx, sz) &&
+    nearestRoad(sx, sz).dist >= ROAD_RIBBON_WIDTH / 2 + 1 && !overlaps(sx, sz, shackHalf);
+  let shackPlaced = false;
+  const placeShack = (sx, sz) => {
+    if (!shackClear(sx, sz)) return false;
+    const shack = buildSugarShack(ctx.rng);
+    shack.position.set(sx, 0, sz);
+    shack.rotation.y = Math.atan2(x - sx, z - sz);
+    ctx.group.add(shack);
+    if (shack.userData.cookEntry) shack.userData.cookEntry.chunkKey = ctx.key;
+    registry.add({
+      kind: 'truck',
+      position: new THREE.Vector3(sx, 1.5, sz),
+      footprint: shackHalf + 0.5,
+      collider: { radius: shackHalf - 0.2, damage: 10 },
+      attractor: { radius: shackHalf + 6, weight: 1.4 },
+      chunkKey: ctx.key,
+    });
+    placed.push({ x: sx, z: sz, r: shackHalf });
+    shackPlaced = true;
+    return true;
+  };
   // The court hugs the drag (D2.3), but the ~24 m truck ring overshoots the road
   // it parks near — the road-side trucks/shack land ON the pavement (Gary playtest
   // 2026-06-16: "Sugar Shack right on the road, another food truck also on the road").
@@ -1724,25 +1755,10 @@ function buildFoodCourtAt(ctx, x, z) {
   // the POI + queryPoint goldens are unaffected.
   for (let i = 0; i < count; i++) {
     const ang = (i / count) * Math.PI * 2 + ctx.rng() * 0.4;
+    angles.push(ang);
     if (i === shackSlot) {
-      const shackRing = ring + T.FOOD_COURT_SHACK_RING_PAD;
       const sx = x + Math.cos(ang) * shackRing, sz = z + Math.sin(ang) * shackRing;
-      const half = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
-      if (isPointInLake(sx, sz) || nearestRoad(sx, sz).dist < ROAD_RIBBON_WIDTH / 2 + 1 || overlaps(sx, sz, half)) continue;
-      const shack = buildSugarShack(ctx.rng);
-      shack.position.set(sx, 0, sz);
-      shack.rotation.y = Math.atan2(x - sx, z - sz);   // front faces the court center
-      ctx.group.add(shack);
-      if (shack.userData.cookEntry) shack.userData.cookEntry.chunkKey = ctx.key;
-      registry.add({
-        kind: 'truck',
-        position: new THREE.Vector3(sx, 1.5, sz),
-        footprint: half + 0.5,
-        collider: { radius: half - 0.2, damage: 10 },
-        attractor: { radius: half + 6, weight: 1.4 },
-        chunkKey: ctx.key,
-      });
-      placed.push({ x: sx, z: sz, r: half });
+      placeShack(sx, sz);
       continue;
     }
     const tx = x + Math.cos(ang) * ring, tz = z + Math.sin(ang) * ring;
@@ -1761,6 +1777,10 @@ function buildFoodCourtAt(ctx, x, z) {
       chunkKey: ctx.key,
     });
     placed.push({ x: tx, z: tz, r: tr });
+  }
+  if (wantShack && !shackPlaced) {
+    const fallback = foodCourtShackFallback(x, z, shackRing, angles, shackSlot, shackClear);
+    if (fallback) placeShack(fallback.x, fallback.z);
   }
   // A bubble vendor at the court edge ~40% of the time (refuel near the food) —
   // but skip it if the hub's guaranteed bubble vendor (or a neighbour court's)

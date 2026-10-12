@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { setSeed } from '../src/worldgen/index.js';
+import { heartInCell } from '../src/worldgen/hearts.js';
+import { festivalPlan, spawnHeart, welcomeFoodCourt } from '../src/worldgen/festival.js';
+import { foodCourtShackFallback } from '../src/worldgen/placement.js';
+
+for (const seed of [1234, 3948869160, 9876, 42, 8675309]) {
+  setSeed(seed);
+  const home = spawnHeart();
+  const welcome = welcomeFoodCourt();
+  assert.ok(welcome, `seed ${seed} has a welcome court`);
+  assert.equal(welcomeFoodCourt(), welcome, 'selection is cached within a seed');
+  const neighbours = [];
+  for (let cz = home.cz - 1; cz <= home.cz + 1; cz++) {
+    for (let cx = home.cx - 1; cx <= home.cx + 1; cx++) {
+      const heart = heartInCell(cx, cz);
+      if (heart) neighbours.push(...festivalPlan(heart).filter((d) => d.kind === 'food_court'));
+    }
+  }
+  neighbours.sort((a, b) =>
+    ((a.x - home.x) ** 2 + (a.z - home.z) ** 2) -
+    ((b.x - home.x) ** 2 + (b.z - home.z) ** 2) || a.clusterSeed - b.clusterSeed);
+  assert.equal(welcome.clusterSeed, neighbours[0].clusterSeed, `seed ${seed} picks the nearest surviving court`);
+  assert.ok(Math.hypot(welcome.x - home.x, welcome.z - home.z) < 120, `seed ${seed} welcome court is close`);
+}
+
+const angles = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+const original = angles.slice();
+const fallback = foodCourtShackFallback(0, 0, 25, angles, 0, (_x, z) => z < 0);
+assert.ok(fallback && fallback.x < 0 && fallback.z < 0, 'blocked preferred side searches later gaps');
+assert.deepEqual(angles, original, 'fallback leaves the original slot layout alone');
+const shoulder = foodCourtShackFallback(0, 0, 25, angles, 0, (x, z) => x > 18 && z > 13 && z < 18);
+assert.ok(shoulder && shoulder.x > 18 && shoulder.z > 13,
+  'fallback checks safe shoulders when the center of a gap is blocked');
+assert.equal(foodCourtShackFallback(0, 0, 25, angles, 0, () => false), null,
+  'no Sugar Shack is placed in water, on a road, or against another stall');
+
+setSeed(1234);
+assert.equal(welcomeFoodCourt().clusterSeed, 404392107, 'changing seeds invalidates the selection cache');
+console.log('PASS  welcome court selection and safe Sugar Shack fallback');

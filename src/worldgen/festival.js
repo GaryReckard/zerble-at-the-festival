@@ -46,7 +46,7 @@ import { FESTIVAL_TUNING, clusterShapes, clustersOverlap, clusterExtent } from '
 import { getSessionSeed } from '../rng.js';
 import { queryPoint } from './index.js';
 import { approachRoadsOf, nearestRoad } from './roads.js';
-import { heartsInBounds, nearestMajorHeart } from './hearts.js';
+import { heartInCell, heartsInBounds, nearestMajorHeart } from './hearts.js';
 import { lakeAt } from './water.js';
 import { treeDensity } from './density.js';
 
@@ -719,9 +719,10 @@ const _planCache = new Map();
 const _seamedCache = new Map();
 let _planGate = '';
 let _spawnHubKey = null;     // the ONE hub that gets the entrance arch (Gary 2026-06-14)
+let _welcomeCourt = undefined;
 function planGate() {
   const g = getSessionSeed() + ':' + worldgenEpoch();
-  if (g !== _planGate) { _planCache.clear(); _seamedCache.clear(); _faCache.clear(); _spawnHubKey = null; _planGate = g; }
+  if (g !== _planGate) { _planCache.clear(); _seamedCache.clear(); _faCache.clear(); _spawnHubKey = null; _welcomeCourt = undefined; _planGate = g; }
 }
 
 // There is exactly ONE entrance arch in the whole world — the festival's grand gateway
@@ -836,6 +837,39 @@ export function festivalPlan(heart) {
   if (_seamedCache.size > 4000) _seamedCache.clear();
   _seamedCache.set(key, plan);
   return plan;
+}
+
+// Pick one existing court near the entrance festival. The spawn heart often has
+// no court after the zone-fit and seam passes, so a spawn-heart-only guarantee
+// would silently do nothing. Search its immediate neighbours first and expand
+// only if none has a surviving court. This runs once per seed/tuning epoch and
+// leaves every POI plan, cluster seed, and non-welcome court unchanged.
+export function welcomeFoodCourt() {
+  planGate();
+  if (_welcomeCourt !== undefined) return _welcomeCourt;
+  const home = spawnHeart();
+  if (!home) return (_welcomeCourt = null);
+  for (let radius = 1; radius <= 6; radius++) {
+    let best = null;
+    let bestDistSq = Infinity;
+    for (let cz = home.cz - radius; cz <= home.cz + radius; cz++) {
+      for (let cx = home.cx - radius; cx <= home.cx + radius; cx++) {
+        const heart = heartInCell(cx, cz);
+        if (!heart) continue;
+        for (const d of festivalPlan(heart)) {
+          if (d.kind !== 'food_court') continue;
+          const dx = d.x - home.x, dz = d.z - home.z;
+          const distSq = dx * dx + dz * dz;
+          if (distSq < bestDistSq || (distSq === bestDistSq && d.clusterSeed < best.clusterSeed)) {
+            best = d;
+            bestDistSq = distSq;
+          }
+        }
+      }
+    }
+    if (best) return (_welcomeCourt = { x: best.x, z: best.z, clusterSeed: best.clusterSeed });
+  }
+  return (_welcomeCourt = null);
 }
 
 // ── Zone-slotting indices (R19 / D14) ────────────────────────────────────────
