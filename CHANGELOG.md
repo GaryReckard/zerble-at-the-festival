@@ -4,6 +4,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-11
 
+### Changed
+- **Leaderboard diagnostics left the player interface.** Settings and the score screen no longer show the diagnostic report and its controls. The local event history remains available through `__dbg.leaderboardInfo()` on localhost, and Worker logging remains in place for future submission investigations. The leaderboard tabs and scoring flow are unchanged.
+
 ### Fixed
 - **Expired smiles no longer strand halo geometry on the GPU.** Earned and lost pickups share one system-owned ring geometry and two materials, with explicit sandbox teardown and a reused homing vector. A real M4 Pro renderer probe previously accumulated 200 geometries across five post-warm-up batches of expired smiles; the same workload now stays flat on Low, Mid, and High. Collection, faces, colors, and motion are unchanged. ([Measurements and verification](verification/performance/2026-10-11/README.md))
 

@@ -37,11 +37,13 @@ Gary asked to not be allowed to forget them.
     always fold exactly, so no finished score is ever wrong. `FOLD_HW_STEP`,
     `FOLD_MAX_MIN`, `BEAT_MIN_S` and `MAX_RUN_WRITES` are read by the Worker but
     are NOT in `wrangler.toml` `[vars]` yet, so they sit on code defaults.
-- **Deploy the leaderboard diagnostics Worker update (2026-10-10).** Publishing
-  the game exposes Settings -> Leaderboard diagnostics, but detailed storage
-  outcomes and persisted Cloudflare logs require a separate Worker deploy by
-  Gary. Then inspect a short Festival Run using the client report and matching
-  request IDs in Worker logs. See [the logging guide](workers/leaderboard/README.md#tail-and-deployment).
+- **Confirm leaderboard submissions end to end.** On 2026-10-11, the live
+  all-time board returned HTTP 200 with entries and the diagnostic outcome and
+  request-ID headers, so the Worker update is deployed and public reads work.
+  A read-only board response does not verify every new submission or persisted
+  Cloudflare logs. If a Festival Run fails to appear, use the localhost
+  `__dbg.leaderboardInfo()` report and matching Worker request ID to trace it.
+  See [the logging guide](workers/leaderboard/README.md#tail-and-deployment).
 - **Playtest gut-checks (Q1–Q3, Q5)** — the tuning numbers are placeholders by
   design: the D6 day-ramp (vendor prices / jug scarcity / vibe limits per day),
   the scoring economy, the Lurleen-rescue feel, and whether first-time visitors
