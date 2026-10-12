@@ -458,7 +458,7 @@ Three modes, cycled with `V` or the Cam button:
 
 1. **Chase** — fixed offset behind Zerble, smooth follow. Arrow keys add **persistent** yaw/pitch offsets (no auto-snap-back).
 2. **First-person** — eye level, follows heading.
-3. **Top-down** — zoomable via `↑`/`↓` or mouse wheel.
+3. **Top-down** — Zerble faces toward screen-up by default; its independent orbit is zoomable via `↑`/`↓` or mouse wheel and does not change the chase camera bearing.
 
 ---
 

@@ -78,6 +78,8 @@ export class ChaseCamera {
     this.zerble = zerble;
 
     this.yawOffset = 0;
+    // Keep map rotation separate so returning to chase preserves its bearing.
+    this.topYawOffset = 0;
     this.pitchOffset = 0.05;
     this.mode = 'third';
     // Top-down state: persistent across mode switches so the view comes back
@@ -356,9 +358,8 @@ export class ChaseCamera {
 
     // Keyboard arrow keys: rate-based yaw/pitch. In top-down mode the up/down
     // arrows mean ZOOM rather than pitch, so we route them differently.
-    this.yawOffset += input.camYaw * YAW_RATE * dt;
-
     if (this.mode === 'top') {
+      this.topYawOffset += input.camYaw * YAW_RATE * dt;
       // UP arrow = zoom in (lower altitude), DOWN = zoom out.
       // input.camPitch is +1 for UP, -1 for DOWN, so multiplier > 1 when DOWN.
       const zoomDelta = -input.camPitch;  // UP shrinks height, DOWN grows it
@@ -369,6 +370,7 @@ export class ChaseCamera {
         TOP_MAX_HEIGHT,
       );
     } else {
+      this.yawOffset += input.camYaw * YAW_RATE * dt;
       let nextPitch = this.pitchOffset + input.camPitch * PITCH_RATE * dt;
 
       // Touch drag: one-shot deltas in radians accumulated since last frame.
@@ -388,7 +390,7 @@ export class ChaseCamera {
     // Top-down still consumes touch deltas for yaw — pitch deltas become zoom.
     if (this.mode === 'top' && typeof input.consumeCamDeltas === 'function') {
       const d = input.consumeCamDeltas();
-      this.yawOffset += d.yaw;
+      this.topYawOffset += d.yaw;
       // Repurpose pitch drag as a soft zoom — a drag-down zooms out, drag-up zooms in.
       if (d.pitch !== 0) {
         const f = Math.exp(-d.pitch * 1.5);
@@ -457,17 +459,16 @@ export class ChaseCamera {
     // Camera sits above Zerble at this.topHeight. Tilt slightly off vertical
     // so the world has depth — at 90° straight down everything looks like a
     // map screen and you can't tell what's in front of you. The tilt direction
-    // follows yawOffset so the user can orbit around Zerble.
+    // follows its own yaw so map rotation stays independent from chase.
     const z = this.zerble.position;
-    const yaw = this.zerble.heading + this.yawOffset;
-    // Tilt offsets the camera horizontally in the OPPOSITE direction of where
-    // it's looking — so it sits a bit behind/north/whatever and tilts forward
-    // toward Zerble.
+    const yaw = this.zerble.heading + this.topYawOffset;
+    // Offset the camera behind Zerble so his forward direction points toward
+    // the top of the screen by default.
     const tiltOffsetHoriz = this.topHeight * Math.sin(TOP_TILT);
     this._desiredPos.set(
-      z.x - Math.sin(yaw) * tiltOffsetHoriz,
+      z.x + Math.sin(yaw) * tiltOffsetHoriz,
       z.y + this.topHeight * Math.cos(TOP_TILT),
-      z.z - Math.cos(yaw) * tiltOffsetHoriz,
+      z.z + Math.cos(yaw) * tiltOffsetHoriz,
     );
     // Look directly at Zerble.
     this._desiredLook.set(z.x, z.y + 0.5, z.z);

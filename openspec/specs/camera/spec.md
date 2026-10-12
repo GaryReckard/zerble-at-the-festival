@@ -22,6 +22,16 @@ released (no auto snap-back) (`camera.js:4,82,117-131`, `ARCHITECTURE.md:287-294
 - **WHEN** the player yaws the camera with an arrow key and releases it
 - **THEN** the camera holds the new bearing rather than snapping back behind the cart
 
+### Requirement: Top-down orientation follows Zerble without affecting chase
+
+Top-down SHALL place Zerble's forward direction toward the top of the screen by
+default, and its independent orbit SHALL NOT alter the chase camera bearing.
+
+#### Scenario: Rotating top-down does not move chase in front
+
+- **WHEN** the player rotates the top-down view and switches to chase
+- **THEN** the chase camera remains behind Zerble at its prior chase bearing
+
 ### Requirement: Per-mode zoom that persists across switches
 
 Zoom SHALL be wheel + two-finger pinch, routed per mode: chase uses a dolly multiplier
