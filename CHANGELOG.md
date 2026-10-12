@@ -2,6 +2,15 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-11
+
+### Fixed
+- **Expired smiles no longer strand halo geometry on the GPU.** Earned and lost pickups share one system-owned ring geometry and two materials, with explicit sandbox teardown and a reused homing vector. A real M4 Pro renderer probe previously accumulated 200 geometries across five post-warm-up batches of expired smiles; the same workload now stays flat on Low, Mid, and High. Collection, faces, colors, and motion are unchanged. ([Measurements and verification](verification/performance/2026-10-11/README.md))
+
+### Performance
+- **Partially filled bubble pools stop submitting their unused tail.** Two live Low-tier cheap bubbles now submit 320 triangles instead of 32,000; a full pool is unchanged. Sparse slots, pop frames, particle order, and the original transparency-sorting bounds are preserved, so this does not trade away bubble detail or alter motion. Draw count and detailed-bubble transmission work are unchanged.
+- **Chunk-owner and crowd-attractor queries skip unrelated registry entries.** Ordered indexes retain existing selection and unload behavior. In a synthetic 4,000-entry benchmark, 10,000 attractor selections fell from 384.99 ms to 3.33 ms and 1,000 unload/reload pairs from 54.66 ms to 44.48 ms, with a small index-maintenance cost. Kids also reuse their existing nearest-bubble result rather than scanning again for happiness. New differential and lifecycle tests join `npm run check`; these are operation-level improvements, not whole-game FPS claims. ([Results](verification/performance/2026-10-11/results.json))
+
 ## 2026-10-10
 
 ### Added

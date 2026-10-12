@@ -29,11 +29,7 @@ export async function checkSmiles() {
   assert(collected === 1, 'Face must not change collection scoring');
   smiles.spawnLost(new THREE.Vector3(), { pos: new THREE.Vector3(20, 0, 0) });
   assert(!smiles.active.at(-1).mesh.getObjectByName('SmileFace'), 'Lost orbs must not wear a happy face');
-  const geometries = new Set(), materials = new Set();
-  smiles.group.traverse(n => { if (n.geometry) geometries.add(n.geometry); if (n.material) materials.add(n.material); });
-  for (const geo of [smiles._geo, smiles._faceGeo, smiles._minusGeo, ...geometries]) geometries.add(geo);
-  for (const mat of [smiles._mat, smiles._lostMat, smiles._faceMat, smiles._minusMat, ...materials]) materials.add(mat);
-  geometries.forEach(g => g.dispose());
-  materials.forEach(m => m.dispose());
+  assert(smiles.active.at(-1).halo.geometry === first.halo.geometry, 'Earned and lost halos must share geometry');
+  smiles.dispose();
   return 'PASS: face geometry, sharing, rise/homing direction, target changes, scoring, and lost-smile distinction';
 }

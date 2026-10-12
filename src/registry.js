@@ -21,6 +21,9 @@ export class Registry {
   constructor() {
     this.entries = new Map(); // id -> entry
     this.byKind = new Map(); // kind -> Set<id>
+    // Membership is fixed between add/remove; positions and attractor weights stay live.
+    this._byChunk = new Map(); // chunkKey -> insertion-ordered Set<id>, including undefined/null
+    this._attractors = new Map(); // id -> entry, in registry insertion order
     // Broadphase grids for nearest-X queries. Maintained TWO ways, both needed:
     //   - LIVE on add()/remove() — so a worldgen query (closestBuilding) sees
     //     buildings added earlier in the SAME generation pass, and a chunk that
@@ -60,6 +63,9 @@ export class Registry {
     this.entries.set(id, entry);
     if (!this.byKind.has(entry.kind)) this.byKind.set(entry.kind, new Set());
     this.byKind.get(entry.kind).add(id);
+    if (!this._byChunk.has(entry.chunkKey)) this._byChunk.set(entry.chunkKey, new Set());
+    this._byChunk.get(entry.chunkKey).add(id);
+    if (entry.attractor) this._attractors.set(id, entry);
     // Keep the broadphase grids LIVE (see constructor): index this entry now so
     // same-pass worldgen guards (closestBuilding in chunks/forests/lakes) can
     // see it. _maxFp/_maxCol grow monotonically here — a larger pad only widens
@@ -83,6 +89,10 @@ export class Registry {
     if (!entry) return;
     this.entries.delete(id);
     this.byKind.get(entry.kind)?.delete(id);
+    const ownerIds = this._byChunk.get(entry.chunkKey);
+    ownerIds.delete(id);
+    if (ownerIds.size === 0) this._byChunk.delete(entry.chunkKey);
+    this._attractors.delete(id);
     // Mirror add(): drop it from the live grids so a chunk unloading mid-frame
     // can't leave a phantom for a later same-frame query. Static buildings don't
     // move, so e.position addresses the same cell it was inserted into; movers
@@ -98,16 +108,17 @@ export class Registry {
 
   byChunk(chunkKey) {
     const out = [];
-    for (const e of this.entries.values()) {
-      if (e.chunkKey === chunkKey) out.push(e);
-    }
+    // Map uses SameValueZero, but the original lookup used === (NaN never matches).
+    if (chunkKey !== chunkKey) return out;
+    const ids = this._byChunk.get(chunkKey);
+    if (ids) for (const id of ids) out.push(this.entries.get(id));
     return out;
   }
 
   removeChunk(chunkKey) {
-    for (const e of [...this.entries.values()]) {
-      if (e.chunkKey === chunkKey) this.remove(e.id);
-    }
+    if (chunkKey !== chunkKey) return;
+    const ids = this._byChunk.get(chunkKey);
+    if (ids) for (const id of ids) this.remove(id);
   }
 
   // ---- Queries ----
@@ -173,23 +184,25 @@ export class Registry {
 
   // Attractors — POIs where crowds tend to congregate.
   *attractors() {
-    for (const e of this.entries.values()) {
-      if (e.attractor) yield { position: e.position, radius: e.attractor.radius, weight: e.attractor.weight, kind: e.kind };
+    for (const e of this._attractors.values()) {
+      yield { position: e.position, radius: e.attractor.radius, weight: e.attractor.weight, kind: e.kind };
     }
   }
 
   // Nearest attractor to a position (for "what should I walk toward")
   pickAttractor(rng) {
-    const ats = [...this.attractors()];
-    if (ats.length === 0) return null;
-    // Weighted random
-    const totalW = ats.reduce((s, a) => s + a.weight, 0);
+    if (this._attractors.size === 0) return null;
+    // Keep left-to-right addition/subtraction and one RNG draw; callers use pure RNGs.
+    let totalW = 0;
+    for (const e of this._attractors.values()) totalW += e.attractor.weight;
     let r = rng() * totalW;
-    for (const a of ats) {
-      r -= a.weight;
-      if (r <= 0) return a;
+    let chosen;
+    for (const e of this._attractors.values()) {
+      chosen = e;
+      r -= e.attractor.weight;
+      if (r <= 0) break;
     }
-    return ats[ats.length - 1];
+    return { position: chosen.position, radius: chosen.attractor.radius, weight: chosen.attractor.weight, kind: chosen.kind };
   }
 
   // Quick lookup: are there any building footprints within `radius` of pos?

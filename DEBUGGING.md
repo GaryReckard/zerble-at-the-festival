@@ -10,6 +10,11 @@ console (or `preview_eval`) and call `window.__dbg.help()`.
 
 ## Desktop and phone performance playtests
 
+The [October 11 particle/query report](verification/performance/2026-10-11/README.md)
+includes local browser probes for smile-resource lifetime, bubble submission and
+transparency bounds, and ordered registry indexes through streaming. It records
+operation-level before/after measurements separately from device FPS captures.
+
 The guided capture is the easiest way to investigate a hitch in either a desktop
 browser or phone Safari. It runs the real game at a fixed world seed, records one-second engine
 samples plus capture-only frame distributions and slow-frame events, and sends

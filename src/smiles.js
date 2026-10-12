@@ -38,6 +38,14 @@ export class Smiles {
     // (lives for the session on this Smiles instance).
     this._minusGeo = new THREE.BoxGeometry(0.42, 0.1, 0.1);
     this._minusMat = new THREE.MeshBasicMaterial({ color: 0xfff6e6 });
+    // Halos outlive individual pickups; detached meshes must not strand GPU buffers.
+    this._haloGeo = new THREE.RingGeometry(0.5, 0.7, 18);
+    this._haloMat = new THREE.MeshBasicMaterial({
+      color: 0xffe066, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false,
+    });
+    this._lostHaloMat = new THREE.MeshBasicMaterial({
+      color: 0xff6b6b, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false,
+    });
 
     // One curved decal mesh shared by every earned smile. Lift it just above
     // the orb's circumsphere so the faceted body cannot swallow the features.
@@ -64,6 +72,7 @@ export class Smiles {
     this._faceMat = new THREE.MeshBasicMaterial({ color: 0x301d08, toneMapped: false });
     this._faceForward = new THREE.Vector3(0, 0, 1);
     this._travel = new THREE.Vector3();
+    this._toTarget = new THREE.Vector3();
   }
 
   // A smile leaving Zerble for a grumpy NPC. Spawns at `fromPos`, homes to the
@@ -74,12 +83,7 @@ export class Smiles {
     mesh.position.copy(fromPos);
     mesh.position.y += 1.4;
     this.group.add(mesh);
-    const halo = new THREE.Mesh(
-      new THREE.RingGeometry(0.5, 0.7, 18),
-      new THREE.MeshBasicMaterial({
-        color: 0xff6b6b, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false,
-      })
-    );
+    const halo = new THREE.Mesh(this._haloGeo, this._lostHaloMat);
     halo.rotation.x = -Math.PI / 2;
     halo.position.y = -0.25;
     mesh.add(halo);
@@ -99,16 +103,7 @@ export class Smiles {
     this.group.add(mesh);
 
     // Soft halo
-    const halo = new THREE.Mesh(
-      new THREE.RingGeometry(0.5, 0.7, 18),
-      new THREE.MeshBasicMaterial({
-        color: 0xffe066,
-        transparent: true,
-        opacity: 0.5,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      })
-    );
+    const halo = new THREE.Mesh(this._haloGeo, this._haloMat);
     halo.rotation.x = -Math.PI / 2;
     halo.position.y = -0.25;
     mesh.add(halo);
@@ -130,7 +125,7 @@ export class Smiles {
       // Reverse "lost smile": fly from Zerble out to the (moving) grumpy NPC,
       // then fade. No collection, no score change.
       if (s.lost) {
-        const toNpc = new THREE.Vector3(s.npc.pos.x, s.npc.pos.y + 1.5, s.npc.pos.z).sub(s.mesh.position);
+        const toNpc = this._toTarget.set(s.npc.pos.x, s.npc.pos.y + 1.5, s.npc.pos.z).sub(s.mesh.position);
         const dist = toNpc.length();
         if (s.age < RISE_TIME) {
           s.mesh.position.y += RISE_SPEED * dt;
@@ -147,7 +142,7 @@ export class Smiles {
         continue;
       }
 
-      const toZerble = new THREE.Vector3().subVectors(zerble.position, s.mesh.position);
+      const toZerble = this._toTarget.subVectors(zerble.position, s.mesh.position);
       toZerble.y += 1.5;
       const dist = toZerble.length();
       this._travel.copy(s.mesh.position);
@@ -187,5 +182,12 @@ export class Smiles {
         this.active.splice(i, 1);
       }
     }
+  }
+
+  dispose() {
+    this.group.clear();
+    this.active.length = 0;
+    for (const geo of [this._geo, this._faceGeo, this._minusGeo, this._haloGeo]) geo.dispose();
+    for (const mat of [this._mat, this._lostMat, this._faceMat, this._minusMat, this._haloMat, this._lostHaloMat]) mat.dispose();
   }
 }

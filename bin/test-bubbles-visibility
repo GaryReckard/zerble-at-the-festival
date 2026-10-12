@@ -17,9 +17,18 @@ const bubbles = new Bubbles();
 const cart = { speed: 0, nozzleWorld: new Vector3(0, 2, 0), forwardWorld: new Vector3(0, 0, 1) };
 
 assert.equal(bubbles.mesh.visible, false, 'empty pool must not enter the render pipeline');
+assert.equal(bubbles.mesh.count, 0);
+let boundsCalls = 0;
+bubbles.mesh.computeBoundingSphere = () => {
+  assert.equal(bubbles.mesh.count, bubbles.particles.length, 'sorting bounds must include legacy dead slots');
+  boundsCalls++;
+  bubbles.mesh.boundingSphere = {};
+};
 bubbles.update(0.1, cart);
+assert.equal(boundsCalls, 1);
 assert.ok(bubbles.activeCount > 0, 'ambient emission should make live bubbles');
 assert.equal(bubbles.mesh.visible, true, 'first emission must become visible in its update');
+assert.equal(bubbles.mesh.count, bubbles.activeCount, 'initial emission submits only the occupied prefix');
 
 bubbles.setCheapMaterial(true);
 assert.equal(bubbles.mesh.visible, true, 'material swap must preserve a live trail');
@@ -30,9 +39,33 @@ assert.equal(bubbles.mesh.visible, true, 'popping bubbles must remain visible');
 bubbles.update(0.2, cart);
 assert.equal(bubbles.activeCount, 0, 'finished pops should leave no active instances');
 assert.equal(bubbles.mesh.visible, false, 'empty pool must hide again');
+assert.equal(bubbles.mesh.count, 0, 'finished pops leave no submitted slots');
 
 bubbles.addJuice(1);
 bubbles.setCheapMaterial(false);
 bubbles.update(0.1, cart);
 assert.equal(bubbles.mesh.visible, true, 'refilling must restore visibility');
+bubbles.juice = 0;
+const last = bubbles.particles.at(-1);
+Object.assign(last, { alive: true, popping: false, age: 0, life: 1 });
+last.pos.set(0, 2, 0);
+bubbles.update(0, cart);
+assert.equal(bubbles.mesh.count, bubbles.particles.length, 'sparse final slot cannot be clipped');
+assert.ok(bubbles.activeCount < bubbles.mesh.count, 'interior dead slots must not be compacted');
+last.age = last.life;
+bubbles.update(0, cart);
+assert.equal(last.popping, true);
+assert.equal(bubbles.mesh.count, bubbles.particles.length, 'new pop retains its slot');
+bubbles.update(0.1, cart);
+assert.equal(bubbles.mesh.count, bubbles.particles.length, 'shrinking pop retains its slot');
+bubbles.update(0.2, cart);
+assert.equal(last.alive, false);
+assert.equal(bubbles.mesh.count, bubbles.activeCount, 'expired last slot trims the dead tail');
+for (const p of bubbles.particles) {
+  Object.assign(p, { alive: true, popping: false, age: 0, life: 100 });
+  p.pos.set(0, 2, 0);
+}
+bubbles.update(0, cart);
+assert.equal(bubbles.mesh.count, bubbles.particles.length, 'saturated pool retains full capacity');
+assert.equal(boundsCalls, 1, 'sorting bounds retain the legacy one-time cache');
 process.stdout.write('PASS  bubbles hide when empty and render emission, popping, and refills\n');

@@ -22,6 +22,12 @@ export class Vector3 {
   multiplyScalar(s) { this.x *= s; this.y *= s; this.z *= s; return this; }
   addScaledVector(v, s) { this.x += v.x * s; this.y += v.y * s; this.z += v.z * s; return this; }
   setScalar(s) { return this.set(s, s, s); }
+  add(v) { this.x += v.x; this.y += v.y; this.z += v.z; return this; }
+  sub(v) { this.x -= v.x; this.y -= v.y; this.z -= v.z; return this; }
+  subVectors(a, b) { return this.set(a.x - b.x, a.y - b.y, a.z - b.z); }
+  lengthSq() { return this.x * this.x + this.y * this.y + this.z * this.z; }
+  length() { return Math.sqrt(this.lengthSq()); }
+  normalize() { return this.multiplyScalar(1 / (this.length() || 1)); }
 }
 
 // Scene-graph nodes: tree.js sets .position.y, .castShadow, .userData.* and
@@ -35,9 +41,11 @@ class Object3DStub {
     this.scale = new Vector3();
     this.rotation = new Vector3();
     this.matrix = new Matrix4();
+    this.quaternion = new Quaternion();
   }
   add(...objs) { for (const o of objs) { this.children.push(o); o.parent = this; } return this; }
   remove(...objs) { this.children = this.children.filter((c) => !objs.includes(c)); for (const o of objs) o.parent = null; return this; }
+  clear() { return this.remove(...this.children); }
   updateMatrix() { return this; }
 }
 export class Object3D extends Object3DStub {}
@@ -76,6 +84,9 @@ export class BufferGeometry extends GeometryStub {}
 export class BufferAttribute {
   constructor(array, itemSize) { this.array = array; this.itemSize = itemSize; this.needsUpdate = false; }
   setUsage() { return this; }
+}
+export class Float32BufferAttribute extends BufferAttribute {
+  constructor(array, itemSize) { super(new Float32Array(array), itemSize); this.count = this.array.length / itemSize; }
 }
 export class Sphere {
   constructor(center = new Vector3(), radius = -1) { this.center = center; this.radius = radius; }
@@ -117,7 +128,10 @@ export class Matrix4 {
   setPosition() { return this; }
   compose() { return this; }
 }
-export class Quaternion { setFromAxisAngle() { return this; } }
+export class Quaternion {
+  setFromAxisAngle() { return this; }
+  setFromUnitVectors() { return this; }
+}
 export class Color {
   constructor(hex) { this.r = 0; this.g = 0; this.b = 0; if (hex != null) this.setHex(hex); }
   setHex(hex) { const h = hex | 0; this.r = ((h >> 16) & 255) / 255; this.g = ((h >> 8) & 255) / 255; this.b = (h & 255) / 255; return this; }

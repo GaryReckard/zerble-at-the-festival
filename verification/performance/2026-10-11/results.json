@@ -1,0 +1,80 @@
+{
+  "environment": {
+    "browser": "HeadlessChrome/152.0.0.0",
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+    "seed": 3948869160,
+    "node": "v24.10.0 darwin/arm64",
+    "note": "Particle measurements use the real renderer with an isolated scene, not software rasterization. CPU timings are synthetic, not game FPS."
+  },
+  "particles": {
+    "workload": "6 batches of 20 earned and 20 lost smiles, rendered then expired; cheap bubbles at controlled live counts",
+    "beforeLow": {
+      "haloGeometries": 240,
+      "haloMaterials": 240,
+      "geometriesAfterEachExpiredBatch": [1944, 1984, 2024, 2064, 2104, 2144],
+      "geometryGrowthAfterWarmup": 200,
+      "bubbleSamples": [
+        {"live": 2, "submitted": 200, "draws": 2, "triangles": 32000},
+        {"live": 20, "submitted": 200, "draws": 2, "triangles": 32000},
+        {"live": 200, "submitted": 200, "draws": 2, "triangles": 32000}
+      ]
+    },
+    "afterLow": {
+      "haloGeometries": 1,
+      "haloMaterials": 2,
+      "geometriesAfterEachExpiredBatch": [1091, 1091, 1091, 1091, 1091, 1091],
+      "geometryGrowthAfterWarmup": 0,
+      "bubbleSamples": [
+        {"live": 2, "submitted": 2, "draws": 2, "triangles": 320},
+        {"live": 20, "submitted": 20, "draws": 2, "triangles": 3200},
+        {"live": 200, "submitted": 200, "draws": 2, "triangles": 32000}
+      ]
+    },
+    "afterMid": {
+      "haloGeometries": 1,
+      "haloMaterials": 2,
+      "geometriesAfterEachExpiredBatch": [1499, 1499, 1499, 1499, 1499, 1499],
+      "geometryGrowthAfterWarmup": 0,
+      "bubbleSamples": [
+        {"live": 2, "submitted": 2, "draws": 2, "triangles": 320},
+        {"live": 20, "submitted": 20, "draws": 2, "triangles": 3200},
+        {"live": 350, "submitted": 350, "draws": 2, "triangles": 56000}
+      ]
+    },
+    "afterHigh": {
+      "haloGeometries": 1,
+      "haloMaterials": 2,
+      "geometriesAfterEachExpiredBatch": [1291, 1291, 1291, 1291, 1291, 1291],
+      "geometryGrowthAfterWarmup": 0,
+      "bubbleSamples": [
+        {"live": 2, "submitted": 2, "draws": 2, "triangles": 320},
+        {"live": 20, "submitted": 20, "draws": 2, "triangles": 3200},
+        {"live": 600, "submitted": 600, "draws": 2, "triangles": 96000}
+      ]
+    },
+    "sortingBounds": "PASS real Three.js: full-pool sphere equality at first update and cached sphere retained after movement",
+    "faceChecks": "PASS real Three.js: geometry, sharing, rise/homing orientation, target changes, scoring, lost-smile distinction"
+  },
+  "registryBenchmark": {
+    "entries": 4000,
+    "owners": 40,
+    "attractors": 80,
+    "aggregation": "median of 7 alternating runs after warmup",
+    "measurements": [
+      {"operation": "byChunk hit", "iterations": 10000, "beforeMs": 226.54, "afterMs": 13.02},
+      {"operation": "attractors", "iterations": 10000, "beforeMs": 371.05, "afterMs": 18.69},
+      {"operation": "pickAttractor", "iterations": 10000, "beforeMs": 384.99, "afterMs": 3.33},
+      {"operation": "unload + reload", "iterations": 1000, "beforeMs": 54.66, "afterMs": 44.48},
+      {"operation": "add + remove", "iterations": 10000, "beforeMs": 1.45, "afterMs": 4.95}
+    ],
+    "differentialStates": 11182
+  },
+  "kidQuery": {"frameComparisons": 2016, "hypotCallsAvoided": 2830, "identical": ["happiness", "motion", "scoring", "random calls"]},
+  "highTravel": [
+    {"x": 300, "z": -641, "cgN": 25, "reg": 3026, "npc": 231, "geo": 1377, "tex": 28, "prog": 55, "fps": 60},
+    {"x": 1043, "z": -31, "cgN": 50, "reg": 3744, "npc": 226, "geo": 2837, "tex": 26, "prog": 52, "fps": 61},
+    {"x": 1789, "z": -1594, "cgN": 75, "reg": 4171, "npc": 227, "geo": 3006, "tex": 49, "prog": 51, "fps": 61},
+    {"x": 300, "z": -641, "cgN": 100, "reg": 3022, "npc": 231, "geo": 3376, "tex": 37, "prog": 54, "fps": 61}
+  ],
+  "travelNote": "Index equivalence and smoke test only. The different resident/animated resources and growing geometry count are not an overall world-lifecycle plateau or controlled before/after FPS comparison."
+}

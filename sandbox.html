@@ -801,6 +801,8 @@ import {buildShrub} from './src/models/shrub.js';
     }
 
     function clearEntity() {
+        if (currentEntity instanceof Smiles) currentEntity.dispose();
+        if (currentEntity instanceof Crowd) currentEntity.smiles.dispose();
         // Aggressive cleanup — remove every non-light, non-ground object so
         // entities that add multiple top-level roots (e.g. Lurleen's heart
         // group + her cart root) all get torn down on switch.

@@ -632,13 +632,9 @@ export class KidGaggle {
           // KID_BUBBLE_GAIN_RANGE, add proportional gain. Caps even if
           // multiple bubbles are nearby — kids are excited about bubbles,
           // not exponentially.
-          let bestBubbleD = Infinity;
-          for (const bp of bubblePositions) {
-            const bd = Math.hypot(bp.x - k.position.x, bp.z - k.position.z);
-            if (bd < bestBubbleD) bestBubbleD = bd;
-          }
-          if (bestBubbleD < KID_BUBBLE_GAIN_RANGE) {
-            gain += KID_BUBBLE_GAIN * (1 - bestBubbleD / KID_BUBBLE_GAIN_RANGE);
+          // The chase search covers the smaller happiness range before movement.
+          if (chaseD < KID_BUBBLE_GAIN_RANGE) {
+            gain += KID_BUBBLE_GAIN * (1 - chaseD / KID_BUBBLE_GAIN_RANGE);
           }
           k.userData.happiness += gain * dt;
           if (k.userData.happiness >= KID_HAPPINESS_THRESHOLD) {

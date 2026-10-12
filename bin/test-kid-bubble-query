@@ -1,0 +1,153 @@
+#!/usr/bin/env node
+
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+const source = readFileSync(new URL('../src/obstacles.js', import.meta.url), 'utf8');
+const classStart = source.indexOf('export class KidGaggle {');
+const start = source.indexOf('  update(dt, bubbles, zerble, smiles) {', classStart);
+const end = source.indexOf('\n}\n', start);
+assert(classStart >= 0 && start > classStart && end > start, 'extract the real KidGaggle.update');
+const method = source.slice(start, end);
+const constant = (name) => {
+  const match = method.match(new RegExp(`const ${name} = ([\\d.]+);`));
+  assert(match, `find source constant ${name}`);
+  return Number(match[1]);
+};
+const attract = constant('BUBBLE_ATTRACT_RANGE');
+const gainRange = constant('KID_BUBBLE_GAIN_RANGE');
+const grab = constant('BUBBLE_GRAB_RANGE');
+assert(gainRange > 0 && gainRange <= attract,
+  'reusing chaseD requires 0 < KID_BUBBLE_GAIN_RANGE <= BUBBLE_ATTRACT_RANGE');
+
+// Restore only the removed scan, keeping the rest of the actual update identical.
+const bonus = /if \(chaseD < KID_BUBBLE_GAIN_RANGE\) \{\s*gain \+= KID_BUBBLE_GAIN \* \(1 - chaseD \/ KID_BUBBLE_GAIN_RANGE\);\s*\}/g;
+assert.equal([...method.matchAll(bonus)].length, 1, 'locate the optimized bonus');
+const legacy = method.replace(bonus, `
+  countLegacyScan();
+  let bestBubbleD = Infinity;
+  for (const bp of bubblePositions) {
+    const bd = Math.hypot(bp.x - k.position.x, bp.z - k.position.z);
+    if (bd < bestBubbleD) bestBubbleD = bd;
+  }
+  if (bestBubbleD < KID_BUBBLE_GAIN_RANGE) {
+    gain += KID_BUBBLE_GAIN * (1 - bestBubbleD / KID_BUBBLE_GAIN_RANGE);
+  }`);
+
+class Vector {
+  constructor(x = 0, y = 0, z = 0) { this.set(x, y, z); }
+  set(x, y, z) { Object.assign(this, { x, y, z }); return this; }
+  copy(p) { return this.set(p.x, p.y, p.z); }
+  clone() { return new Vector(this.x, this.y, this.z); }
+  distanceTo(p) { return Math.hypot(this.x - p.x, this.y - p.y, this.z - p.z); }
+}
+
+function harness(code) {
+  const counts = { hypot: 0, scans: 0, random: 0, pool: 0 };
+  const effects = { smiles: [], animations: [], collisions: [] };
+  let seed = 42;
+  const math = Object.create(Math);
+  math.hypot = (...args) => { counts.hypot++; return Math.hypot(...args); };
+  math.random = () => {
+    counts.random++;
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  const update = vm.runInNewContext(`({${code}}).update`, {
+    Math: math,
+    countLegacyScan: () => counts.scans++,
+    isPointInLake: () => false,
+    StarPower: { isActive: () => false },
+    pushOutOfHardColliders: (kid, radius) => effects.collisions.push([kid.position.clone(), radius]),
+    tickKid: (kid, dt, options) => effects.animations.push([kid.position.clone(), dt, { ...options }]),
+  });
+  return { counts, effects, update };
+}
+
+const cases = [
+  ['empty', []],
+  ['far', [[30, 0], [-20, 8]]],
+  ['coincident', [[0, 0]]],
+  ['near', [[0.3, 0.4]]],
+  ['chasing', [[2, 1]]],
+  ['nearest-last', [[30, 0], [2, 1], [0.3, 0.4]]],
+  ['ties', [[1, 0], [-1, 0]]],
+  ['ties-reversed', [[-1, 0], [1, 0]]],
+  ['duplicates', [[1, 0], [1, 0], [1, 0]]],
+];
+for (const [name, range] of [['grab', grab], ['gain', gainRange], ['attract', attract]]) {
+  for (const delta of [-1e-9, 0, 1e-9]) cases.push([`${name}/${delta}`, [[range + delta, 0]]]);
+}
+const modes = [
+  'eligible', 'threshold', 'cooldown', 'cooldown-expiring', 'smile-locked',
+  'reset-boundary', 'reset-past', 'zerble-boundary', 'zerble-outside',
+  'fleeing', 'sticky', 'no-smiles', 'no-zerble', 'no-bubbles',
+];
+let comparisons = 0, saved = 0;
+for (const [name, points] of cases) {
+  for (const mode of modes) {
+    const label = `${name}/${mode}`;
+    const run = (code) => {
+      const h = harness(code);
+      const zerble = mode === 'no-zerble' ? null : {
+        position: new Vector(mode === 'zerble-boundary' ? 12 : mode === 'zerble-outside' ? 13 : 6),
+        speed: 0,
+      };
+      const gaggle = { kids: [], colliders: [] };
+      for (let i = 0; i < 3; i++) {
+        gaggle.kids.push({
+          position: new Vector(),
+          userData: {
+            center: new Vector(), heading: 0, displayedYaw: 0, turnTimer: 0,
+            speed: 3 + i * 0.5, chaseHoldTimer: mode === 'sticky' ? 0.4 : 0,
+            chaseDirX: 0, chaseDirZ: -1,
+            scatterTimer: mode === 'fleeing' ? 1.2 : 0, fleeUrgency: 1.5,
+            happiness: mode === 'threshold' ? 0.69 : 0.2,
+            smileTimeCooldown: mode === 'cooldown' ? 3 : mode === 'cooldown-expiring' ? 0.01 : 0,
+            lastSmilePos: mode === 'smile-locked' ? zerble.position.clone()
+              : mode === 'reset-boundary' ? new Vector(34)
+              : mode === 'reset-past' ? new Vector(34 + 1e-9) : null,
+          },
+        });
+        gaggle.colliders.push({ position: new Vector(), radius: 0.6, damage: 3, kind: 'kid' });
+      }
+      const bubbles = mode === 'no-bubbles' ? null : {
+        forEachAlive(fn) {
+          h.counts.pool++;
+          for (const [x, z] of points) fn({ pos: new Vector(x, 100, z) });
+        },
+      };
+      const smiles = mode === 'no-smiles' ? null : { spawn: (p) => h.effects.smiles.push(p.clone()) };
+      const frames = [];
+      for (let frame = 0; frame < 8; frame++) {
+        h.update.call(gaggle, 0.05, bubbles, zerble, smiles);
+        frames.push(structuredClone({ gaggle, effects: h.effects }));
+      }
+      return { ...h, frames };
+    };
+    const before = run(legacy), after = run(method);
+    assert.deepEqual(after.frames, before.frames, `${label}: happiness, motion, smile events, animation and colliders`);
+    assert.equal(after.counts.random, before.counts.random, `${label}: random stream`);
+    assert.equal(after.counts.pool, mode === 'no-bubbles' ? 0 : 8, `${label}: collect pool once per frame`);
+    const reduction = before.counts.scans * (mode === 'no-bubbles' ? 0 : points.length);
+    assert.equal(before.counts.hypot - after.counts.hypot, reduction, `${label}: one fewer hypot per bubble per eligible kid`);
+    saved += reduction;
+    comparisons += after.frames.length;
+
+    if (mode === 'eligible') {
+      const nearest = Math.min(...points.map(([x, z]) => Math.hypot(x, z)));
+      const expectedGain = 0.4 * (1 - 6 / 12) + (nearest < gainRange ? 0.6 * (1 - nearest / gainRange) : 0);
+      assert.equal(after.frames[0].gaggle.kids[0].userData.happiness, 0.2 + expectedGain * 0.05,
+        `${label}: independently checked pre-movement happiness`);
+      assert.equal(after.frames[0].effects.animations[0][2].excited, nearest < attract, `${label}: strict attraction boundary`);
+      if (name.startsWith('ties')) {
+        assert.equal(after.frames[0].gaggle.kids[0].position.x, points[0][0] * 4.2 * 0.05,
+          `${label}: first equidistant bubble wins`);
+      }
+    }
+    if (mode === 'threshold') assert.equal(after.frames[0].effects.smiles.length, 3, `${label}: smile threshold exercised`);
+  }
+}
+assert(saved > 0, 'the tests must exercise the removed scan');
+process.stdout.write(`PASS  ${comparisons} frame comparisons; identical happiness, motion and scoring; ${saved} fewer Math.hypot calls; range invariant holds\n`);

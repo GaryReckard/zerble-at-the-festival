@@ -90,7 +90,7 @@ export class Bubbles {
     this.mesh = new THREE.InstancedMesh(geo, this._fancyMat, MAX_BUBBLES);
     this.mesh.castShadow = false;
     this.mesh.frustumCulled = false;
-    this.mesh.count = MAX_BUBBLES;
+    this.mesh.count = 0;
     this.mesh.visible = false;
     this.activeCount = 0;
 
@@ -204,6 +204,7 @@ export class Bubbles {
 
     // Popping bubbles remain renderable until their final scale-down frame.
     let activeCount = 0;
+    let renderCount = 0;
     for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i];
       if (!p.alive) continue;
@@ -219,6 +220,7 @@ export class Bubbles {
           continue;
         }
         activeCount++;
+        renderCount = i + 1;
         const s = p.size * (1 - t) * (1 + t * 1.5);
         this._writeInstance(i, p.pos, s, p.spin);
         continue;
@@ -228,10 +230,12 @@ export class Bubbles {
         p.popping = true;
         p.popStart = p.age;
         activeCount++;
+        renderCount = i + 1;
         continue;
       }
 
       activeCount++;
+      renderCount = i + 1;
 
       // Physics: gentle buoyancy + per-bubble personality forces
       p.vel.y += (BUOYANCY + GRAVITY) * dt;
@@ -293,6 +297,14 @@ export class Bubbles {
     }
 
     this.activeCount = activeCount;
+    // r160 uses this cached sphere for transparency sorting even with culling off.
+    // Preserve the original full-pool bound, including zero-scaled dead slots.
+    if (activeCount > 0 && this.mesh.boundingSphere === null) {
+      this.mesh.count = MAX_BUBBLES;
+      this.mesh.computeBoundingSphere();
+    }
+    // Keep slot order (it drives motion and transparency), skipping only the dead tail.
+    this.mesh.count = renderCount;
     this.mesh.visible = activeCount > 0;
     this.mesh.instanceMatrix.needsUpdate = true;
   }

@@ -1,0 +1,321 @@
+#!/usr/bin/env node
+// Run directly, or with --bench for synthetic CPU timings (not an FPS estimate).
+import assert from 'node:assert/strict';
+import { register } from 'node:module';
+import { performance } from 'node:perf_hooks';
+register('./node-three-shim.mjs', import.meta.url);
+const { Registry } = await import('../src/registry.js');
+const { SpatialGrid } = await import('../src/spatialGrid.js');
+const THREE = await import('three');
+
+// Pre-index implementation, including unchanged spatial maintenance so lifecycle
+// timings compare complete operations rather than giving the baseline free removals.
+class Baseline {
+  constructor() {
+    this.nextId = 1;
+    this.entries = new Map();
+    this.byKind = new Map();
+    this._fpGrid = new SpatialGrid(8);
+    this._colGrid = new SpatialGrid(8);
+    this._maxFp = 0;
+    this._maxCol = 0;
+    this._bigFp = [];
+  }
+  add(entry) {
+    const id = this.nextId++;
+    entry.id = id;
+    if (!entry.position) entry.position = new THREE.Vector3();
+    this.entries.set(id, entry);
+    if (!this.byKind.has(entry.kind)) this.byKind.set(entry.kind, new Set());
+    this.byKind.get(entry.kind).add(id);
+    if (entry.footprint >= 16) {
+      this._bigFp.push(entry);
+    } else if (entry.footprint > 0) {
+      this._fpGrid.insert(entry.position.x, entry.position.z, entry);
+      if (entry.footprint > this._maxFp) this._maxFp = entry.footprint;
+    }
+    if (entry.collider) {
+      this._colGrid.insert(entry.position.x, entry.position.z, entry);
+      if (entry.collider.radius > this._maxCol) this._maxCol = entry.collider.radius;
+    }
+    return id;
+  }
+  remove(id) {
+    const entry = this.entries.get(id);
+    if (!entry) return;
+    this.entries.delete(id);
+    this.byKind.get(entry.kind)?.delete(id);
+    if (entry.footprint >= 16) {
+      const i = this._bigFp.indexOf(entry);
+      if (i !== -1) { this._bigFp[i] = this._bigFp[this._bigFp.length - 1]; this._bigFp.pop(); }
+    } else if (entry.footprint > 0) {
+      this._fpGrid.remove(entry.position.x, entry.position.z, entry);
+    }
+    if (entry.collider) this._colGrid.remove(entry.position.x, entry.position.z, entry);
+  }
+  byChunk(chunkKey) {
+    const out = [];
+    for (const e of this.entries.values()) {
+      if (e.chunkKey === chunkKey) out.push(e);
+    }
+    return out;
+  }
+  removeChunk(chunkKey) {
+    for (const e of [...this.entries.values()]) {
+      if (e.chunkKey === chunkKey) this.remove(e.id);
+    }
+  }
+  *attractors() {
+    for (const e of this.entries.values()) {
+      if (e.attractor) yield { position: e.position, radius: e.attractor.radius, weight: e.attractor.weight, kind: e.kind };
+    }
+  }
+  pickAttractor(rng) {
+    const ats = [...this.attractors()];
+    if (ats.length === 0) return null;
+    const totalW = ats.reduce((s, a) => s + a.weight, 0);
+    let r = rng() * totalW;
+    for (const a of ats) {
+      r -= a.weight;
+      if (r <= 0) return a;
+    }
+    return ats[ats.length - 1];
+  }
+}
+
+function random(seed) {
+  return () => {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function addPair(reg, ref, entry) {
+  // Share only the owner key: object keys must retain their identity.
+  const copy = structuredClone(entry);
+  if ('chunkKey' in entry) copy.chunkKey = entry.chunkKey;
+  reg.add(entry);
+  ref.add(copy);
+}
+
+function checkPick(reg, ref, value) {
+  let calls = 0, refCalls = 0;
+  const got = reg.pickAttractor(() => { calls++; return value; });
+  const want = ref.pickAttractor(() => { refCalls++; return value; });
+  assert.deepEqual(got, want, `pick at rng=${value}`);
+  assert.equal(calls, refCalls);
+  assert.equal(calls, reg._attractors.size ? 1 : 0);
+  if (got) {
+    const entry = [...reg.entries.values()].find(e => e.kind === got.kind);
+    assert.equal(got.position, entry.position, 'return the live position reference');
+    assert.notEqual(got, entry);
+    assert.notEqual(got, reg.pickAttractor(() => value), 'return a fresh wrapper');
+  }
+}
+
+const ownerObject = {};
+const keys = [undefined, null, '', '0,0', '1,0', '2,0', 0, -0, false, ownerObject, NaN];
+const stripIds = entries => [...entries].map(({ id, ...e }) => e);
+let states = 0;
+function checkState(reg, ref) {
+  states++;
+  assert.deepEqual(stripIds(reg.entries.values()), stripIds(ref.entries.values()));
+  for (const key of [...keys, 'missing', {}]) {
+    assert.deepEqual(stripIds(reg.byChunk(key)), stripIds(ref.byChunk(key)));
+    for (const entry of reg.byChunk(key)) assert.equal(entry, reg.entries.get(entry.id));
+  }
+  const owners = new Map();
+  for (const e of reg.entries.values()) {
+    if (!owners.has(e.chunkKey)) owners.set(e.chunkKey, new Set());
+    owners.get(e.chunkKey).add(e.id);
+  }
+  assert.equal(reg._byChunk.size, owners.size, 'no empty owner keys');
+  for (const [key, ids] of owners) assert.deepEqual([...reg._byChunk.get(key)], [...ids], 'ordered owner IDs');
+  assert.deepEqual([...reg._attractors.values()], [...reg.entries.values()].filter(e => e.attractor));
+  assert.deepEqual([...reg.attractors()], [...ref.attractors()]);
+  for (const a of reg.attractors()) {
+    assert.equal(a.position, [...reg.entries.values()].find(e => e.kind === a.kind).position);
+  }
+  for (const value of [0, 0.25, 0.5, 0.75, 1 - Number.EPSILON, 1, 2, NaN]) checkPick(reg, ref, value);
+}
+
+// Numeric edge cases deliberately keep even odd legacy inputs unsanitized.
+for (const weights of [[], [0], [0, 0, 0], [0, 1, 0, 3, 0], [1, 1, 2],
+  [0.1, 0.2, 0.3], [1e16, 1, 1, 2], [Number.MIN_VALUE, Number.MIN_VALUE],
+  [-1, 2, 0], [NaN, 1], [Infinity, 1], [undefined, 1]]) {
+  const reg = new Registry(), ref = new Baseline();
+  weights.forEach((weight, i) => {
+    addPair(reg, ref, { kind: `plain${i}`, footprint: 0 });
+    addPair(reg, ref, { kind: `at${i}`, chunkKey: null, attractor: { radius: i, weight } });
+  });
+  checkState(reg, ref);
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  let sum = 0;
+  for (const weight of weights) {
+    sum += weight;
+    const boundary = sum / total;
+    for (const value of [boundary - Number.EPSILON, boundary, boundary + Number.EPSILON]) checkPick(reg, ref, value);
+  }
+}
+
+// Interleaved owner insertion, individual removal, unload/reload and full cleanup.
+{
+  const reg = new Registry(), ref = new Baseline();
+  for (let i = 0; i < 3 * keys.length; i++) {
+    addPair(reg, ref, { kind: `entry${i}`, chunkKey: keys[i % keys.length], attractor: { radius: 4, weight: i % 4 } });
+  }
+  checkState(reg, ref);
+  for (const key of keys) {
+    reg.removeChunk(key); ref.removeChunk(key);
+    checkState(reg, ref);
+    addPair(reg, ref, { kind: `reload${states}`, chunkKey: key, footprint: 2 });
+    checkState(reg, ref);
+  }
+  for (const id of [...reg.entries.keys()]) reg.remove(id);
+  for (const id of [...ref.entries.keys()]) ref.remove(id);
+  checkState(reg, ref);
+  assert.equal(reg._byChunk.size, 0);
+  assert.equal(reg._attractors.size, 0);
+}
+
+const coverage = { add: 0, remove: 0, unload: 0, reload: 0, live: 0, rebuild: 0 };
+{
+  const reg = new Registry(), ref = new Baseline();
+  for (const [i, weight] of [0, 1, 0, 3, 0].entries()) {
+    addPair(reg, ref, { kind: `boundary${i}`, attractor: { radius: 4, weight } });
+  }
+  assert.equal(reg.pickAttractor(() => 0).kind, 'boundary0');
+  assert.equal(reg.pickAttractor(() => 0.25).kind, 'boundary1');
+  assert.equal(reg.pickAttractor(() => 0.25 + Number.EPSILON).kind, 'boundary3');
+  assert.equal(reg.pickAttractor(() => 2).kind, 'boundary4', 'legacy last-entry fallback');
+
+  // Generator iteration remains live and ordered across yields, just like Map.values().
+  const iter = reg.attractors(), refIter = ref.attractors();
+  assert.deepEqual(iter.next(), refIter.next());
+  reg.remove([...reg.entries.keys()][1]);
+  ref.remove([...ref.entries.keys()][1]);
+  addPair(reg, ref, { kind: 'appended', attractor: { radius: 8, weight: 2 } });
+  assert.deepEqual([...iter], [...refIter]);
+  checkState(reg, ref);
+}
+
+for (let seed = 1; seed <= 16; seed++) {
+  const rng = random(seed), reg = new Registry(), ref = new Baseline();
+  for (let step = 0; step < 500; step++) {
+    const op = rng(), key = keys[Math.floor(rng() * keys.length)];
+    if (op < 0.45) {
+      addPair(reg, ref, {
+        kind: `${seed}:${step}`, chunkKey: key,
+        position: { x: rng() * 400, y: 0, z: rng() * 400 },
+        footprint: [0, 2, 8, 16, 143][Math.floor(rng() * 5)],
+        collider: rng() < 0.3 ? { radius: 2, damage: 3 } : undefined,
+        attractor: rng() < 0.35 ? { radius: 4, weight: rng() < 0.3 ? 0 : rng() * 3 } : undefined,
+      });
+      coverage.add++;
+    } else if (op < 0.6) {
+      const index = Math.floor(rng() * (reg.entries.size + 1));
+      const id = [...reg.entries.keys()][index] ?? -1;
+      const refId = [...ref.entries.keys()][index] ?? -1;
+      reg.remove(id); ref.remove(refId);
+      reg.remove(id); ref.remove(refId);
+      coverage.remove++;
+    } else if (op < 0.8) {
+      const reload = reg.byChunk(key).map(({ id, ...e }) => structuredClone(e));
+      reg.removeChunk(key); ref.removeChunk(key);
+      coverage.unload++;
+      checkState(reg, ref);
+      if (rng() < 0.5) {
+        for (const entry of reload) addPair(reg, ref, { ...entry, chunkKey: key });
+        coverage.reload++;
+      }
+    } else {
+      const ats = [...reg._attractors.values()];
+      if (ats.length) {
+        const entry = ats[Math.floor(rng() * ats.length)];
+        const other = [...ref.entries.values()].find(e => e.kind === entry.kind);
+        const weight = rng() < 0.5 ? 0 : rng() * 10;
+        // Both in-place changes and replacement objects must be read on the next query.
+        entry.attractor.weight = other.attractor.weight = weight;
+        entry.position.x = other.position.x = rng() * 400;
+        checkState(reg, ref);
+        entry.attractor = { radius: rng() * 20, weight: rng() * 5 };
+        other.attractor = { ...entry.attractor };
+        entry.position = { x: rng() * 400, y: 1, z: rng() * 400 };
+        other.position = { ...entry.position };
+        coverage.live++;
+      }
+      reg.rebuildSpatialIndex();
+      coverage.rebuild++;
+    }
+    checkState(reg, ref);
+    checkPick(reg, ref, rng());
+  }
+}
+for (const [op, count] of Object.entries(coverage)) assert.ok(count > 0, `${op} coverage`);
+
+// Fail if targeted queries regress to full-entry scans or pick builds all wrappers.
+{
+  const reg = new Registry();
+  const id = reg.add({ kind: 'at', chunkKey: 'owned', attractor: { radius: 4, weight: 1 } });
+  reg.add({ kind: 'other', chunkKey: 'unrelated' });
+  reg.entries.values = () => { throw new Error('full entry scan'); };
+  assert.equal(reg.byChunk('owned')[0].id, id);
+  assert.equal([...reg.attractors()].length, 1);
+  reg.attractors = () => { throw new Error('all wrappers allocated'); };
+  assert.equal(reg.pickAttractor(() => 0).kind, 'at');
+  reg.removeChunk('owned');
+  assert.equal(reg.entries.size, 1);
+  assert.equal(reg._attractors.size, 0);
+  assert.equal(reg._byChunk.has('owned'), false);
+}
+console.log(`PASS registry indexes: ${states} differential states; ${JSON.stringify(coverage)}`);
+
+if (process.argv.includes('--bench')) {
+  const entries = Array.from({ length: 4000 }, (_, i) => ({
+    kind: i % 50 === 0 ? 'stage' : 'tree',
+    chunkKey: `${Math.floor(i / 100)},0`,
+    position: { x: (i % 80) * 4, y: 0, z: Math.floor(i / 80) * 4 },
+    footprint: i < 7 ? 143 : i % 5 === 0 ? 0 : 2,
+    collider: i % 4 === 0 ? { radius: 1.5, damage: 2 } : undefined,
+    attractor: i % 50 === 0 ? { radius: 8, weight: 0.5 + (i % 7) } : undefined,
+  }));
+  const regs = [new Baseline(), new Registry()];
+  for (const reg of regs) for (const e of entries) reg.add(structuredClone(e));
+  let sink = 0;
+  const jobs = [
+    ['byChunk hit', 10000, (reg, i) => { sink += reg.byChunk(`${i % 40},0`).length; }],
+    ['byChunk miss', 10000, reg => { sink += reg.byChunk('missing').length; }],
+    ['attractors', 10000, reg => { for (const a of reg.attractors()) sink += a.weight; }],
+    ['pickAttractor', 10000, (reg, i) => { sink += reg.pickAttractor(() => (i % 1000) / 1000).radius; }],
+    ['removeChunk miss', 10000, reg => reg.removeChunk('missing')],
+    ['unload + reload', 1000, (reg, i) => {
+      const chunk = i % 40;
+      reg.removeChunk(`${chunk},0`);
+      for (let j = chunk * 100; j < (chunk + 1) * 100; j++) reg.add({ ...entries[j] });
+    }],
+    ['add + remove', 10000, reg => {
+      const id = reg.add({ kind: 'temporary', chunkKey: 'temporary', footprint: 0, position: entries[0].position });
+      reg.remove(id);
+    }],
+  ];
+  console.log(`BENCH ${process.version} ${process.platform}/${process.arch}: 4000 entries, 40 owners, 80 attractors; median of 7 alternating runs after warmup`);
+  const rows = [];
+  for (const [operation, iterations, job] of jobs) {
+    for (const reg of regs) for (let i = 0; i < iterations; i++) job(reg, i);
+    const samples = [[], []];
+    for (let round = 0; round < 7; round++) {
+      for (const index of round % 2 ? [1, 0] : [0, 1]) {
+        const start = performance.now();
+        for (let i = 0; i < iterations; i++) job(regs[index], i);
+        samples[index].push(performance.now() - start);
+      }
+    }
+    const [before, after] = samples.map(s => s.sort((a, b) => a - b)[3]);
+    rows.push({ operation, iterations, 'baseline ms': before.toFixed(2), 'indexed ms': after.toFixed(2), 'speedup': `${(before / after).toFixed(2)}x` });
+  }
+  for (const reg of regs) assert.equal(reg.entries.size, 4000);
+  console.table(rows);
+  console.log(`Benchmark checksum: ${sink}`);
+}
