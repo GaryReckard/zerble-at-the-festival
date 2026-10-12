@@ -10,6 +10,8 @@ The first photo-based model is available in `sandbox.html?entity=nut_wagon`, wit
 
 Gary's requested direction on 2026-10-12 is a vehicle that parks or follows festival paths very slowly and plays music. Discuss route/stops, an original reggae groove with spatial audio, and ordinary NPC boarding when space is available, similar to Zerble. A possible additional group of Tibetan monk NPCs would wander together and sometimes ride the wagon, based on the supplied photographs. Group size, keeping the group together when seats are scarce, capacity, and boarding/departure rules remain design decisions. These systems are not implemented by the model pass.
 
+**Trip encounter bias:** Gary wants the probability of a Nut Wagon spawning to increase substantially during an active Trip, while remaining possible outside a Trip. The baseline probability, multiplier, and spawn timing remain undecided. This is a future spawn-director rule; the model pass does not implement spawning.
+
 ## Waiting on Gary — Festival Run stakes wrap-up (agents: keep reminding him!)
 
 The `festival-run-stakes` change is code-complete (see
