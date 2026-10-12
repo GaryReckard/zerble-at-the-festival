@@ -1,0 +1,60 @@
+<!doctype html><meta charset="utf-8"><title>Nut Wagon geometry checks</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Checking…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {buildNutWagon, NUT_WAGON_MOUNTS} from '../../src/models/nutWagon.js';
+const checks = [];
+function assert(value, message) { if (!value) throw new Error(message); checks.push(message); }
+try {
+ const a = buildNutWagon(), b = buildNutWagon({hatchOpen: false});
+ assert(a !== b && a.userData.hatch !== b.userData.hatch, 'Independent model and hatch transforms');
+ assert(a.userData.hatch.rotation.x === 1.95 && b.userData.hatch.rotation.x === 0, 'Open and closed hatch poses');
+ assert(a.getObjectByName('hatch_supports').visible && !b.getObjectByName('hatch_supports').visible, 'Supports follow hatch configuration');
+ assert(a.userData.wheels.length === 4 && a.userData.wheels.every(w => w.parent === a), 'Four independently addressable road wheels');
+ assert(new Set(NUT_WAGON_MOUNTS.map(m => m.name)).size === 9, 'Nine distinct provisional rider mounts');
+ a.userData.riderMounts[0].position[0] = 20;
+ assert(b.userData.riderMounts[0].position[0] === .48 && NUT_WAGON_MOUNTS[0].position[0] === .48, 'Mount data is isolated between instances');
+ const ga = [], gb = []; let triangles = 0, shadows = 0;
+ for (const [root, geometries] of [[a, ga], [b, gb]]) {
+   root.updateMatrixWorld(true);
+   root.traverse(n => {
+     if (!n.isMesh) return;
+     if (!n.geometry || !n.material || !n.matrixWorld.elements.every(Number.isFinite)) throw new Error('Invalid mesh or transform');
+     for (const key of ['position', 'normal', 'uv']) if (!n.geometry.attributes[key].array.every(Number.isFinite)) throw new Error(`Invalid ${key}`);
+     if (!n.geometry.userData.shared || !n.material.userData.shared || (n.material.map && !n.material.map.userData.shared)) throw new Error('Unpooled resource');
+     geometries.push(n.geometry);
+     if (root === a) { triangles += n.geometry.index.count / 3; shadows += Number(n.castShadow); }
+   });
+ }
+ assert(ga.length === gb.length && ga.every((g, i) => g === gb[i]), 'All mesh buffers shared between instances');
+ const bounds = new THREE.Box3().setFromObject(a), size = bounds.getSize(new THREE.Vector3());
+ assert(bounds.min.y >= -.001 && size.x > 2 && size.x < 2.6 && size.z > 5.8 && size.z < 7 && size.y > 4 && size.y < 4.5, 'Grounded vehicle with expected width, platform reach and pole height');
+ assert(ga.length <= 48 && triangles < 8000 && shadows <= 4, 'Model geometry and shadow budgets');
+ const origin = b.userData.wheels[0].rotation.x;
+ a.userData.wheels[0].rotation.x += 1;
+ assert(b.userData.wheels[0].rotation.x === origin, 'Wheel transforms isolated between instances');
+ let disposed = 0;
+ ga.forEach(g => g.addEventListener('dispose', () => disposed++));
+ a.traverse(n => {if (n.geometry && !n.geometry.userData.shared) n.geometry.dispose();});
+ assert(disposed === 0, 'Sandbox unload convention preserves pooled buffers');
+ const c = buildNutWagon(); const gc = []; c.traverse(n => {if(n.isMesh) gc.push(n.geometry);});
+ assert(gc.every((g, i) => g === ga[i]), 'Reload reuses the original resource pool');
+ const low = new URLSearchParams(location.search).get('perf') === 'low';
+ c.traverse(n => { if(n.isMesh && low && !n.material.isMeshLambertMaterial) throw new Error('Low tier did not use Lambert'); });
+ assert(true, low ? 'Low-tier Lambert materials' : 'Standard materials');
+ const renderer = new THREE.WebGLRenderer();
+ let render;
+ try {
+   renderer.setSize(640, 480);
+   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(50, 4/3, .1, 100);
+   scene.add(c, new THREE.HemisphereLight(0xffffff, 0x333333, 2));
+   camera.position.set(-6, 4, 8); camera.lookAt(0, 1.5, 0);
+   renderer.render(scene, camera);
+   assert(renderer.info.render.calls > 0 && renderer.info.render.triangles > 0, 'GPU submits the model');
+   assert(renderer.info.programs.every(p => !p.diagnostics || p.diagnostics.runnable), 'Shaders compile');
+   render = {...renderer.info.render};
+ } finally { renderer.dispose(); renderer.forceContextLoss(); }
+ document.querySelector('#result').textContent = JSON.stringify({pass:true,tier:low ? "low" : "standard",render,checks,meshes:ga.length,triangles,shadowCasters:shadows,bounds:size.toArray()},null,2);
+} catch(error) { document.querySelector('#result').textContent = 'FAIL: ' + error.stack; }
+</script>

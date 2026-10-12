@@ -1,0 +1,36 @@
+{
+  "pass": true,
+  "tier": "low",
+  "render": {
+    "frame": 1,
+    "calls": 41,
+    "triangles": 4842,
+    "points": 0,
+    "lines": 0
+  },
+  "checks": [
+    "Independent model and hatch transforms",
+    "Open and closed hatch poses",
+    "Supports follow hatch configuration",
+    "Four independently addressable road wheels",
+    "Nine distinct provisional rider mounts",
+    "Mount data is isolated between instances",
+    "All mesh buffers shared between instances",
+    "Grounded vehicle with expected width, platform reach and pole height",
+    "Model geometry and shadow budgets",
+    "Wheel transforms isolated between instances",
+    "Sandbox unload convention preserves pooled buffers",
+    "Reload reuses the original resource pool",
+    "Low-tier Lambert materials",
+    "GPU submits the model",
+    "Shaders compile"
+  ],
+  "meshes": 40,
+  "triangles": 4840,
+  "shadowCasters": 3,
+  "bounds": [
+    2.4340000408887863,
+    4.280674443244934,
+    6.981502258437288
+  ]
+}

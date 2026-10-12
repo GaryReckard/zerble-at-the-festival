@@ -184,7 +184,7 @@
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing', 'festivalShapes',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
-            const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
+            const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'nutWagon', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'paradeLanterns', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
                 'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
             const base = new URL('./src/', document.baseURI).href;
@@ -222,6 +222,8 @@
             <option value="hammock_with_npc">Hammock + person (lounging)</option>
             <option value="tent">Vendor tent</option>
             <option value="tent_row">Vendor tent row (5 — shows layout variety)</option>
+            <option value="nut_wagon">Nut Wagon</option>
+            <option value="nut_wagon_closed">Nut Wagon · hatch closed</option>
             <option value="food_truck">Food truck</option>
             <option value="sugar_shack">Sugar Shack</option>
             <option value="tree">Tree</option>
@@ -532,6 +534,7 @@
     import {_buildCanoeMeshForSandbox, buildLake, setLakeNightness} from './src/lakes.js';
     import {mulberry32} from './src/rng.js';
     import {buildTent} from './src/models/tent.js';
+    import {buildNutWagon} from './src/models/nutWagon.js';
     import {buildFoodTruck} from './src/models/foodTruck.js';
     import {buildSugarShack} from './src/models/sugarShack.js';
     import {buildTree} from './src/models/tree.js';
@@ -1356,6 +1359,19 @@ import {buildShrub} from './src/models/shrub.js';
                 entityRoot = tents;
                 cam.target.set(0, 1.8, 0);
                 cam.dist = 18;
+                applyCam();
+                break;
+            }
+            case 'nut_wagon':
+            case 'nut_wagon_closed': {
+                const g = buildNutWagon({hatchOpen: name !== 'nut_wagon_closed'});
+                scene.add(g);
+                entityRoot = g;
+                currentEntity = g;
+                cam.target.set(0, 1.5, 0.2);
+                cam.yaw = -0.65;
+                cam.pitch = 0.28;
+                cam.dist = 10;
                 applyCam();
                 break;
             }

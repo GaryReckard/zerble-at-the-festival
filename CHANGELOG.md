@@ -4,6 +4,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-12
 
+### Added
+- **The Nut Wagon has a first model in the entity sandbox.** The photo-based green wagon has open doorways, a painted hood and grille, an offset mesh platform with its tall pole near the platform center, a tan roof seat, and a decorated hatch with open/closed previews. Four wheel transforms and nine provisional rider mounts prepare the model for later behavior work. Geometry and materials are pooled across instances; the model has 40 meshes, 4,840 triangles and three shadow casters. It does not spawn in the festival yet. [Model checks and saved views](verification/nut-wagon/README.md).
+
 ### Changed
 - **The puppet parade is a handmade lantern procession.** A tall bent-neck heron, a red dragon carried by three people, a curled seahorse, a ribbon jellyfish, and small moon/star lanterns replace the six generic floating heads. Matte paper, visible ribs, and night illumination follow the supplied Street Creature references; carrier hands and moving support poles stay connected. The dragon has longer parade gaps and three ground-level collision circles, while the existing travel, honk, and damage policy stays in place. Named sandbox views and real-Three geometry/rig/controller checks accompany [saved Noon/Midnight renders and verification](verification/puppet-parade/README.md). Six models submit 176 meshes versus the original 180, with more triangles; physical-device performance is not yet measured.
 

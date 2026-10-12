@@ -4,6 +4,12 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
 
 ---
 
+## Nut Wagon: behavior discussion after model review
+
+The first photo-based model is available in `sandbox.html?entity=nut_wagon`, with a closed-hatch variant and nine provisional rider mounts. See [the model record](verification/nut-wagon/README.md) for reference details and verification.
+
+Gary's requested direction on 2026-10-12 is a vehicle that parks or follows festival paths very slowly and plays music. Discuss route/stops, an original reggae groove with spatial audio, and ordinary NPC boarding when space is available, similar to Zerble. A possible additional group of Tibetan monk NPCs would wander together and sometimes ride the wagon, based on the supplied photographs. Group size, keeping the group together when seats are scarce, capacity, and boarding/departure rules remain design decisions. These systems are not implemented by the model pass.
+
 ## Waiting on Gary — Festival Run stakes wrap-up (agents: keep reminding him!)
 
 The `festival-run-stakes` change is code-complete (see
