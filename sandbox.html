@@ -534,7 +534,7 @@
     import {_buildCanoeMeshForSandbox, buildLake, setLakeNightness} from './src/lakes.js';
     import {mulberry32} from './src/rng.js';
     import {buildTent} from './src/models/tent.js';
-    import {buildNutWagon} from './src/models/nutWagon.js';
+    import {buildNutWagon, setNutWagonNightness} from './src/models/nutWagon.js';
     import {buildFoodTruck} from './src/models/foodTruck.js';
     import {buildSugarShack} from './src/models/sugarShack.js';
     import {buildTree} from './src/models/tree.js';
@@ -1365,6 +1365,8 @@ import {buildShrub} from './src/models/shrub.js';
             case 'nut_wagon':
             case 'nut_wagon_closed': {
                 const g = buildNutWagon({hatchOpen: name !== 'nut_wagon_closed'});
+                updateFn = () => setNutWagonNightness(g, tod.nightness);
+                updateFn();
                 scene.add(g);
                 entityRoot = g;
                 currentEntity = g;

@@ -8,8 +8,8 @@ export const NUT_WAGON_MOUNTS = Object.freeze([
     {name: 'front_passenger', position: [-0.48, 0.77, 0.45], facing: 0, pose: 'seated'},
     {name: 'rear_left', position: [0.48, 0.77, -0.55], facing: 0, pose: 'seated'},
     {name: 'rear_right', position: [-0.48, 0.77, -0.55], facing: 0, pose: 'seated'},
-    {name: 'roof_left', position: [0.38, 2.11, -1.13], facing: 0, pose: 'seated'},
-    {name: 'roof_right', position: [-0.38, 2.11, -1.13], facing: 0, pose: 'seated'},
+    {name: 'roof_left', position: [0.38, 2.11, -1.49], facing: 0, pose: 'seated'},
+    {name: 'roof_right', position: [-0.38, 2.11, -1.49], facing: 0, pose: 'seated'},
     {name: 'cargo_left', position: [0.42, 0.64, -2.02], facing: Math.PI, pose: 'seated'},
     {name: 'cargo_right', position: [-0.42, 0.64, -2.02], facing: Math.PI, pose: 'seated'},
     {name: 'platform', position: [-0.30, 0.47, 3.02], facing: 0, pose: 'standing'},
@@ -97,10 +97,10 @@ function createTemplate() {
     };
     box(root, black, 0, .48, 0, 1.84, .22, 4.7, true);
     box(root, trim, 0, .63, -.64, 1.78, .09, 3.28);
-    box(root, green, 0, .91, 1.66, 1.70, .58, 1.45, true);
-    plane(root, painted, 1.94, 1.46, 0, 1.207, 1.66, -Math.PI / 2);
-    box(root, green, 0, 1.88, -.64, 1.87, .12, 3.18, true);
-    plane(root, painted, 1.80, 1.7, 0, 1.945, .03, -Math.PI / 2);
+    box(root, green, 0, .91, 1.72, 1.70, .58, 1.33, true);
+    plane(root, painted, 1.94, 1.34, 0, 1.207, 1.72, -Math.PI / 2);
+    box(root, green, 0, 1.88, -.84, 1.75, .12, 2.78, true);
+    plane(root, painted, 1.68, 1.30, 0, 1.945, -.14, -Math.PI / 2);
     for (const x of [-.98, .98]) {
         const outline = new THREE.Shape();
         outline.moveTo(.93, .53); outline.lineTo(.93, 1.20);
@@ -113,10 +113,13 @@ function createTemplate() {
         box(root, green, x, .99, -1.82, .13, .64, 1.10, true);
         box(root, green, x, .62, -.1, .10, .14, 2.65);
         beam(root, pink, [x, .56, 1.24], [x, .56, -2.32], .034);
-        beam(root, green, [x, 1.15, 1.0], [x * .92, 1.88, .56], .055);
-        beam(root, green, [x, .65, -.2], [x * .94, 1.85, -.2], .055);
-        beam(root, green, [x, 1.17, -1.25], [x * .94, 1.84, -1.25], .047);
-        beam(root, green, [x, 1.12, -2.36], [x * .92, 1.87, -2.20], .052);
+        beam(root, green, [x, 1.15, 1.0], [x * .88, 1.88, .55], .055);
+        beam(root, green, [x, .65, -.2], [x * .88, 1.85, -.2], .055);
+        beam(root, green, [x, .68, -1.36], [x * .88, 1.84, -.94], .055);
+        beam(root, metal, [x, 1.21, -1.16], [x, 1.21, -2.33], .018);
+        beam(root, metal, [x, 1.21, -1.16], [x * .88, 1.82, -.94], .018);
+        beam(root, metal, [x * .88, 1.82, -.94], [x * .80, 1.82, -2.17], .018);
+        beam(root, green, [x, 1.12, -2.36], [x * .80, 1.87, -2.20], .052);
         beam(root, metal, [x * .9, 2.015, .3], [x * .9, 2.015, -1.98], .023);
         for (const z of [.3, -1.9]) beam(root, metal, [x * .9, 1.94, z], [x * .9, 2.015, z], .025);
         for (const z of [1.55, -1.55]) {
@@ -135,16 +138,19 @@ function createTemplate() {
     windshield.name = 'windshield';
     beam(root, black, [-.85, 1.15, 1.035], [.85, 1.15, 1.035], .025);
     box(root, black, 0, 1.09, .88, 1.77, .12, .24);
-    for (const x of [-.48, .48]) for (const z of [.4, -.65]) {
-        box(root, tan, x, .72, z, .69, .16, .67);
-        const seatBack = box(root, tan, x, 1.02, z - .3, .69, .62, .13); seatBack.rotation.x = -.10;
+    for (const x of [-.48, .48]) for (const z of [.4]) {
+        box(root, black, x, .72, z, .69, .16, .67);
+        const seatBack = box(root, black, x, 1.02, z - .3, .69, .62, .13); seatBack.rotation.x = -.10;
     }
+    box(root, black, 0, .73, -.68, 1.56, .16, .68);
+    box(root, black, 0, 1.02, -.98, 1.56, .58, .12);
+    for (const x of [-.48, .48]) box(root, black, x, 1.39, .1, .34, .27, .12);
     const steering = new THREE.Mesh(new THREE.TorusGeometry(.19, .023, 6, 16), black);
     steering.position.set(.48, 1.12, .7); steering.rotation.x = -.55; root.add(steering);
-    for (const x of [-.53, .53]) beam(root, metal, [x, 1.94, -.76], [x, 2.04, -1.65], .027);
-    box(root, tan, 0, 2.055, -1.17, 1.47, .16, .69, true);
-    const roofBack = box(root, tan, 0, 2.43, -1.51, 1.47, .70, .16, true); roofBack.rotation.x = -.12;
-    for (const x of [-.72, .72]) beam(root, metal, [x, 2.02, -1.48], [x, 2.51, -1.59], .027);
+    for (const x of [-.53, .53]) beam(root, metal, [x, 1.94, -1.12], [x, 2.04, -2.01], .027);
+    box(root, tan, 0, 2.055, -1.53, 1.47, .16, .69, true);
+    const roofBack = box(root, tan, 0, 2.43, -1.87, 1.47, .70, .16, true); roofBack.rotation.x = -.12;
+    for (const x of [-.72, .72]) beam(root, metal, [x, 2.02, -1.84], [x, 2.51, -1.95], .027);
     box(root, metal, 0, .98, 2.41, 1.0, .57, .08);
     for (let i = 0; i < 10; i++) {
         for (let j = 0; j < 3; j++) box(root, [red, yellow, green][j], (j - 1) * .30, .745 + i * .047, 2.461, .29, .024, .015);
@@ -177,7 +183,7 @@ function createTemplate() {
     }, 128, 48)});
     plane(root, badgeMaterial, .35, .09, .28, 1.24, 2.465);
     for (let i = 0; i < 9; i++) {
-        beam(root, trim, [-.63 + i * .16, 2.15, -1.46], [-.63 + i * .16, 2.66, -1.53], .006);
+        beam(root, trim, [-.63 + i * .16, 2.15, -1.82], [-.63 + i * .16, 2.66, -1.89], .006);
     }
     const hatch = new THREE.Group(); hatch.name = 'hatch'; hatch.position.set(0, 1.87, -2.21); root.add(hatch);
     box(hatch, green, 0, -.61, 0, 1.85, 1.24, .075);
@@ -192,12 +198,34 @@ function createTemplate() {
         }
     }
     const rearLabel = material(0xffffff, {map: texture((c, w, h) => {
-        c.fillStyle = '#d5d1ba'; c.fillRect(0, 0, w, h); c.fillStyle = '#292d27'; c.font = '34px serif'; c.fillText('following Corn', 7, 43);
+        c.fillStyle = '#dc5687'; c.fillRect(0, 0, w, h); c.fillStyle = '#d5dbd3'; c.font = 'bold 40px sans-serif'; c.fillText('L O V E', 25, 46);
     }, 256, 64)});
     const label = plane(root, rearLabel, .83, .17, 0, .51, -2.527); label.rotation.y = Math.PI;
     for (const x of [-.99, .99]) {
         const stickerPanel = plane(root, stickers, .70, .29, x, 1.06, -1.86); stickerPanel.rotation.y = Math.sign(x) * Math.PI / 2;
     }
+    const rope = material(0xff762f, {emissive: 0xff4510, emissiveIntensity: .12});
+    rope.userData.nutWagonLight = true;
+    const bulbMats = [0xffdc78, 0xf3508c, 0x62daca, 0x8277ff].map(color => {
+        const m = material(color, {emissive: color, emissiveIntensity: .12});
+        m.userData.nutWagonLight = true;
+        return m;
+    });
+    const lightString = (parent, points, colors, spacing = .13) => {
+        for (let i = 1; i < points.length; i++) {
+            const a = new THREE.Vector3(...points[i - 1]), b = new THREE.Vector3(...points[i]);
+            beam(parent, trim, points[i - 1], points[i], .009);
+            const count = Math.ceil(a.distanceTo(b) / spacing);
+            for (let j = 0; j < count; j++) {
+                const bulb = new THREE.Mesh(new THREE.SphereGeometry(.024, 6, 4), colors[(i + j) % colors.length]);
+                bulb.position.copy(a).lerp(b, j / count); parent.add(bulb);
+            }
+        }
+    };
+    lightString(root, [[-.78, 1.85, -2.25], [-.94, 1.2, -2.42], [-.9, .62, -2.56], [-.77, .55, -2.56], [.77, .55, -2.56], [.9, .62, -2.56], [.94, 1.2, -2.42], [.78, 1.85, -2.25]], [rope]);
+    lightString(hatch, [[-.84, -.05, .06], [-.88, -1.18, .06], [.88, -1.18, .06], [.84, -.05, .06]], [rope]);
+    lightString(root, [[-.76, 1.79, -2.23], [0, 1.71, -2.23], [.76, 1.79, -2.23]], bulbMats, .15);
+    for (const x of [-.87, .87]) lightString(root, [[x, 2.03, -2.0], [x, 2.03, .3]], bulbMats, .18);
     // Static pieces share a small number of material batches; wheels and hatch
     // retain separate local transforms for later movement without rebuilding.
     const batch = parent => {
@@ -232,5 +260,13 @@ export function buildNutWagon({hatchOpen = true} = {}) {
     root.userData.riderMounts = NUT_WAGON_MOUNTS.map(m => ({...m, position: [...m.position]}));
     root.userData.hatch = hatch;
     root.userData.wheels = root.children.filter(c => c.name.startsWith('wheel_'));
+    const lights = new Set();
+    root.traverse(node => { if (node.material?.userData.nutWagonLight) lights.add(node.material); });
+    root.userData.lightMaterials = [...lights];
     return root;
+}
+
+export function setNutWagonNightness(root, nightness) {
+    const intensity = .12 + Math.max(0, Math.min(1, nightness)) * 3.2;
+    for (const material of root.userData.lightMaterials) material.emissiveIntensity = intensity;
 }

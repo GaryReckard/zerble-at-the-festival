@@ -3,8 +3,8 @@
   "tier": "standard",
   "render": {
     "frame": 1,
-    "calls": 41,
-    "triangles": 4842,
+    "calls": 47,
+    "triangles": 9370,
     "points": 0,
     "lines": 0
   },
@@ -21,12 +21,13 @@
     "Wheel transforms isolated between instances",
     "Sandbox unload convention preserves pooled buffers",
     "Reload reuses the original resource pool",
+    "Five pooled light colors brighten at night",
     "Standard materials",
     "GPU submits the model",
     "Shaders compile"
   ],
-  "meshes": 40,
-  "triangles": 4840,
+  "meshes": 46,
+  "triangles": 9368,
   "shadowCasters": 3,
   "bounds": [
     2.4340000408887863,

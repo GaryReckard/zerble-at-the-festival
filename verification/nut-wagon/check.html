@@ -3,7 +3,7 @@
 <pre id="result">Checking…</pre>
 <script type="module">
 import * as THREE from 'three';
-import {buildNutWagon, NUT_WAGON_MOUNTS} from '../../src/models/nutWagon.js';
+import {buildNutWagon, NUT_WAGON_MOUNTS, setNutWagonNightness} from '../../src/models/nutWagon.js';
 const checks = [];
 function assert(value, message) { if (!value) throw new Error(message); checks.push(message); }
 try {
@@ -30,7 +30,7 @@ try {
  assert(ga.length === gb.length && ga.every((g, i) => g === gb[i]), 'All mesh buffers shared between instances');
  const bounds = new THREE.Box3().setFromObject(a), size = bounds.getSize(new THREE.Vector3());
  assert(bounds.min.y >= -.001 && size.x > 2 && size.x < 2.6 && size.z > 5.8 && size.z < 7 && size.y > 4 && size.y < 4.5, 'Grounded vehicle with expected width, platform reach and pole height');
- assert(ga.length <= 48 && triangles < 8000 && shadows <= 4, 'Model geometry and shadow budgets');
+ assert(ga.length <= 52 && triangles < 16000 && shadows <= 4, 'Model geometry and shadow budgets');
  const origin = b.userData.wheels[0].rotation.x;
  a.userData.wheels[0].rotation.x += 1;
  assert(b.userData.wheels[0].rotation.x === origin, 'Wheel transforms isolated between instances');
@@ -40,6 +40,10 @@ try {
  assert(disposed === 0, 'Sandbox unload convention preserves pooled buffers');
  const c = buildNutWagon(); const gc = []; c.traverse(n => {if(n.isMesh) gc.push(n.geometry);});
  assert(gc.every((g, i) => g === ga[i]), 'Reload reuses the original resource pool');
+ setNutWagonNightness(c, 0);
+ const dayIntensity = c.userData.lightMaterials[0].emissiveIntensity;
+ setNutWagonNightness(c, 1);
+ assert(c.userData.lightMaterials.length === 5 && c.userData.lightMaterials.every(m => m.emissiveIntensity > dayIntensity), 'Five pooled light colors brighten at night');
  const low = new URLSearchParams(location.search).get('perf') === 'low';
  c.traverse(n => { if(n.isMesh && low && !n.material.isMeshLambertMaterial) throw new Error('Low tier did not use Lambert'); });
  assert(true, low ? 'Low-tier Lambert materials' : 'Standard materials');
