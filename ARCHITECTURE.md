@@ -474,6 +474,7 @@ Notable model files:
 - **`leafDrumCircle.js`** + **`tribalFigures.js`** — the centerpiece of the forest drum-circle theme.
 - **`campsite.js`** — tents, chairs, firepit, tiki torch, tapestries.
 - **`puppet.js`** — also exports `buildSimpleNPC` used as the base humanoid for band members, kids, and crowd NPCs.
+- **`paradeLanterns.js`** builds the six named paper-and-rib lanterns. `puppet.js` assembles carriers and moving support poles, and advances deterministic child poses without changing root transforms. `PuppetParade` owns travel/scatter and eight carrier-centered collision circles, including the dragon's three-person team. Lantern surfaces use opaque emissive materials and a shared 64px paper texture, with no additional lights or render passes.
 
 ---
 

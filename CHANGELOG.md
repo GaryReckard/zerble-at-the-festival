@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-12
+
+### Changed
+- **The puppet parade is a handmade lantern procession.** A tall bent-neck heron, a red dragon carried by three people, a curled seahorse, a ribbon jellyfish, and small moon/star lanterns replace the six generic floating heads. Matte paper, visible ribs, and night illumination follow the supplied Street Creature references; carrier hands and moving support poles stay connected. The dragon has longer parade gaps and three ground-level collision circles, while the existing travel, honk, and damage policy stays in place. Named sandbox views and real-Three geometry/rig/controller checks accompany [saved Noon/Midnight renders and verification](verification/puppet-parade/README.md). Six models submit 176 meshes versus the original 180, with more triangles; physical-device performance is not yet measured.
+
 ## 2026-10-11
 
 ### Changed

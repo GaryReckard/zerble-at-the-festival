@@ -185,7 +185,7 @@
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing', 'festivalShapes',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
             const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
-                'entranceArch', 'leafBanner', 'puppet', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
+                'entranceArch', 'leafBanner', 'puppet', 'paradeLanterns', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
                 'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
             const base = new URL('./src/', document.baseURI).href;
             const imports = {
@@ -247,7 +247,14 @@
             <option value="cheer_demo">Crowd cheer demo (jump + arms-up)</option>
             <option value="crowd_photographer">Crowd photographer (pose + flash)</option>
             <option value="puppet">Puppet (parade)</option>
-            <option value="puppet_lineup">Puppet lineup (3)</option>
+            <option value="puppet_heron">Lantern: heron</option>
+            <option value="puppet_dragon">Lantern: dragon</option>
+            <option value="puppet_seahorse">Lantern: seahorse</option>
+            <option value="puppet_jellyfish">Lantern: jellyfish</option>
+            <option value="puppet_moon">Lantern: moon</option>
+            <option value="puppet_star">Lantern: star</option>
+            <option value="puppet_lineup">Puppet lineup (6)</option>
+            <option value="puppet_parade">Puppet parade (fixed preview loop)</option>
             <option value="band_member_trumpet">Band member — trumpet</option>
             <option value="band_member_tuba">Band member — tuba</option>
             <option value="band_member_sax">Band member — sax</option>
@@ -334,7 +341,7 @@
     <div id="info">drag to orbit · scroll to zoom · shift-drag to pan</div>
     <div id="render-stats" style="margin-top:4px;opacity:0.75">scene: measuring…</div>
     <div class="controls">
-        <kbd>1</kbd>–<kbd>6</kbd> snap to angles · <kbd>R</kbd> reset · <kbd>L</kbd> toggle ground
+        <kbd>1</kbd>–<kbd>6</kbd> snap to angles · <kbd>R</kbd> reset · <kbd>L</kbd> ground · <kbd>H</kbd> hide panel
     </div>
 
     <!-- Time-of-day panel — slider + preset buttons that drive the local
@@ -533,7 +540,8 @@ import {buildShrub} from './src/models/shrub.js';
     import {leafBannerTextures} from './src/models/leafBanner.js';
     import {buildStage, placeBandOnStage} from './src/models/stage.js';
     import {buildTentStage} from './src/models/tentStage.js';
-    import {buildPuppet, tickPuppet} from './src/models/puppet.js';
+    import {buildPuppet, tickPuppet, setPuppetTime, setPuppetNightness, PARADE_ROSTER} from './src/models/puppet.js';
+    import {PuppetParade} from './src/obstacles.js';
     import {buildBandMember, tickBandMember} from './src/models/bandMember.js';
     import {buildParasolMarshal, tickParasolMarshal} from './src/models/parasolMarshal.js';
     import {buildKid, tickKid} from './src/models/kid.js';
@@ -756,6 +764,9 @@ import {buildShrub} from './src/models/shrub.js';
             applyCam();
         } else if (e.key === 'l' || e.key === 'L') {
             groundGroup.visible = !groundGroup.visible;
+        } else if (e.key === 'h' || e.key === 'H') {
+            const hud = document.getElementById('hud');
+            hud.hidden = !hud.hidden;
         }
     });
 
@@ -763,6 +774,7 @@ import {buildShrub} from './src/models/shrub.js';
     let currentEntity = null;
     let entityRoot = null;
     let updateFn = null;
+    let puppetControls = null;
     // Track the current entity's music handle (if any) so we can stop + free
     // it when switching entities. Sandbox attaches the appropriate style
     // ('jam', 'brass', 'drum', 'forest_drum') per entity in loadEntity.
@@ -774,7 +786,8 @@ import {buildShrub} from './src/models/shrub.js';
     // a precise close-up via preview_eval (set cam.target / yaw / pitch / dist,
     // then call applyCam()) — applyCam only runs on input otherwise.
     window.__sandbox = {
-        scene, camera, cam, applyCam, get currentEntity() {
+        scene, camera, cam, applyCam, renderer, loadEntity, tod,
+        get entityRoot() { return entityRoot; }, get currentEntity() {
             return currentEntity;
         }, Trip, get midi() {
             return midiPlayer;
@@ -801,6 +814,8 @@ import {buildShrub} from './src/models/shrub.js';
     }
 
     function clearEntity() {
+        puppetControls?.remove();
+        puppetControls = null;
         if (currentEntity instanceof Smiles) currentEntity.dispose();
         if (currentEntity instanceof Crowd) currentEntity.smiles.dispose();
         // Aggressive cleanup — remove every non-light, non-ground object so
@@ -854,6 +869,98 @@ import {buildShrub} from './src/models/shrub.js';
         if (window.__spInit) StarPower._hideFx();
     }
 
+    function addPuppetPreviewControls(puppets, {
+        ruler = false, timeEnabled = true, close = 10, distance = 20,
+        yaw = 2.95, pitch = 0.28, target = [1.3, 2.8, 0.7], rulerPosition = [-2.1, 0, 0],
+    } = {}) {
+        const panel = document.createElement('div');
+        panel.style.cssText = 'margin-top:6px;padding:6px;background:rgba(0,0,0,.24);border-radius:5px;font-size:10px';
+        const seedNote = document.createElement('div');
+        seedNote.textContent = `Seeded subjects: ${puppets.map((p) => `${p.userData.kind}:${p.userData.seed ?? 0}`).join(' · ')}`;
+        seedNote.style.cssText = 'margin-bottom:5px;opacity:.85';
+        panel.append(seedNote);
+        const cameraRow = document.createElement('div');
+        cameraRow.style.cssText = 'display:flex;gap:4px;margin-bottom:5px';
+        for (const [label, dist] of [['Close', close], ['Game distance', distance]]) {
+            const button = document.createElement('button');
+            button.textContent = label;
+            button.style.cssText = 'flex:1;font:inherit;padding:3px;cursor:pointer;color:inherit;background:rgba(255,246,230,.1);border:1px solid rgba(255,246,230,.25);border-radius:4px';
+            button.addEventListener('click', () => {
+                cam.dist = dist;
+                cam.target.set(...target);
+                cam.yaw = yaw;
+                cam.pitch = pitch;
+                applyCam();
+            });
+            cameraRow.append(button);
+        }
+        panel.append(cameraRow);
+        if (ruler) {
+            const compare = buildSimpleNPC(0x3c5366, 0xe6c098);
+            compare.name = '1.9m Human Scale Reference';
+            compare.position.set(...rulerPosition);
+            const human = new THREE.Group();
+            human.name = 'PuppetHumanScaleReference';
+            human.add(compare);
+            if (entityRoot) entityRoot.add(human);
+            else scene.add(human);
+            panel.dataset.humanScale = '1.9m';
+            const label = document.createElement('div');
+            label.textContent = 'Human scale reference: 1.9 m';
+            label.style.cssText = 'margin-bottom:5px;opacity:.7';
+            panel.append(label);
+            panel._humanRoot = human;
+        }
+        if (timeEnabled) {
+            const row = document.createElement('label');
+            row.style.cssText = 'display:flex;align-items:center;gap:5px;margin:4px 0';
+            const paused = document.createElement('input');
+            paused.type = 'checkbox';
+            paused.checked = true;
+            const pauseText = document.createElement('span');
+            pauseText.textContent = 'Pause puppet motion';
+            row.append(paused, pauseText);
+            panel.append(row);
+            const scrubRow = document.createElement('label');
+            scrubRow.style.cssText = 'display:flex;align-items:center;gap:5px';
+            const scrubText = document.createElement('span');
+            scrubText.textContent = 'Gait pose';
+            scrubText.style.cssText = 'flex:0 0 52px';
+            const scrub = document.createElement('input');
+            scrub.type = 'range';
+            scrub.min = '0';
+            scrub.max = '1';
+            scrub.step = '0.001';
+            scrub.value = '0';
+            scrub.style.cssText = 'flex:1;accent-color:#f2c86d';
+            const readout = document.createElement('span');
+            readout.style.cssText = 'width:36px;text-align:right';
+            const applyScrub = () => {
+                const seconds = Number(scrub.value) * 1.8;
+                for (const puppet of puppets) setPuppetTime(puppet, seconds);
+                readout.textContent = `${Number(scrub.value).toFixed(2)} cycle`;
+            };
+            scrub.addEventListener('input', applyScrub);
+            row.addEventListener('change', () => {
+                for (const puppet of puppets) puppet.userData.previewPaused = paused.checked;
+            });
+            scrubRow.append(scrubText, scrub, readout);
+            panel.append(scrubRow);
+            for (const puppet of puppets) puppet.userData.previewPaused = true;
+            applyScrub();
+            updateFn = (dt) => {
+                if (!paused.checked) {
+                    for (const puppet of puppets) tickPuppet(puppet, dt);
+                    scrub.value = String((puppets[0].userData.time % 1.8) / 1.8);
+                    readout.textContent = `${Number(scrub.value).toFixed(2)} cycle`;
+                }
+                for (const puppet of puppets) setPuppetNightness(puppet, tod.nightness);
+            };
+        }
+        info.after(panel);
+        puppetControls = panel;
+    }
+
     // Map of entity name → audio style. Entities not in this map get no music.
     // Stages get their corresponding band style; drum-circle variants get
     // 'drum' or the rich 'forest_drum' engine; everything else stays silent.
@@ -884,7 +991,8 @@ import {buildShrub} from './src/models/shrub.js';
     // Per-entity collision kind for the "Hit it" SFX button. Empty / missing
     // means no button rendered.
     const ENTITY_HIT_KIND = {
-        puppet: 'puppet', puppet_lineup: 'puppet',
+        puppet: 'puppet', puppet_lineup: 'puppet', puppet_parade: 'puppet',
+        ...Object.fromEntries(PARADE_ROSTER.map(kind => [`puppet_${kind}`, 'puppet'])),
         tent: 'tent', tent_row: 'tent',
         food_truck: 'truck',
         kid: 'kid',
@@ -1442,29 +1550,74 @@ import {buildShrub} from './src/models/shrub.js';
                 applyCam();
                 break;
             }
+            case 'puppet_heron':
+            case 'puppet_dragon':
+            case 'puppet_seahorse':
+            case 'puppet_jellyfish':
+            case 'puppet_moon':
+            case 'puppet_star':
             case 'puppet': {
-                const g = buildPuppet(Math.random() * 6);
+                const kind = name === 'puppet' ? 'heron' : name.slice(7);
+                const g = buildPuppet(kind, 1);
                 scene.add(g);
                 entityRoot = g;
                 updateFn = (dt) => tickPuppet(g, dt);
-                cam.target.set(0, 3, 0);
-                cam.dist = 12;
+                cam.target.set(0, 2.8, -0.4);
+                cam.dist = 11;
+                cam.yaw = 1.08;
+                cam.pitch = 0.12;
                 applyCam();
+                addPuppetPreviewControls([g], { ruler: false, close: 11, distance: 20, target: [0, 2.8, -0.4], yaw: 1.08, pitch: 0.12 });
                 break;
             }
             case 'puppet_lineup': {
                 const puppets = [];
-                for (let i = 0; i < 3; i++) {
-                    const g = buildPuppet(i);
-                    g.position.x = (i - 1) * 4;
+                const kinds = PARADE_ROSTER;
+                for (let i = 0; i < kinds.length; i++) {
+                    const g = buildPuppet(kinds[i], i);
+                    g.position.x = (i - 2.5) * 4.3;
+                    g.rotation.y = -0.7;
                     scene.add(g);
                     puppets.push(g);
                 }
-                entityRoot = puppets[1];
+                entityRoot = new THREE.Group();
+                entityRoot.name = 'puppet_lineup_root';
+                for (const puppet of puppets) {
+                    scene.remove(puppet);
+                    entityRoot.add(puppet);
+                }
+                scene.add(entityRoot);
                 updateFn = (dt) => puppets.forEach((g) => tickPuppet(g, dt));
-                cam.target.set(0, 3, 0);
-                cam.dist = 16;
+                cam.target.set(0, 2.5, 0);
+                cam.dist = 30;
+                cam.yaw = 0;
+                cam.pitch = 0.45;
                 applyCam();
+                addPuppetPreviewControls(puppets, {
+                    ruler: true, close: 28, distance: 38, yaw: 0, pitch: 0.45, rulerPosition: [12, 0, 0],
+                });
+                break;
+            }
+            case 'puppet_parade': {
+                const parade = new PuppetParade({ preview: true });
+                scene.add(parade.group);
+                currentEntity = parade;
+                entityRoot = parade.group;
+                updateFn = (dt) => {
+                    parade.update(dt, null);
+                    const center = parade.puppets[2].position;
+                    cam.target.set(center.x, 2.6, center.z);
+                    applyCam();
+                };
+                cam.target.set(0, 2.6, 0);
+                cam.dist = 38;
+                cam.yaw = -0.64;
+                cam.pitch = 0.28;
+                applyCam();
+                addPuppetPreviewControls(parade.puppets, {
+                    ruler: true, timeEnabled: false, close: 16, distance: 25, yaw: -0.64, pitch: 0.28,
+                    rulerPosition: [11, 0, 0],
+                });
                 break;
             }
             case 'band_member_trumpet':

@@ -1,0 +1,960 @@
+[
+  {
+    "tier": "high",
+    "tests": {
+      "colliders": 8,
+      "controllerSteps": 1800,
+      "pass": true,
+      "subjects": [
+        {
+          "bounds": [
+            1.385417481895241,
+            5.972298178930898,
+            3.5244976848101155
+          ],
+          "draws": 30,
+          "kind": "heron",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 22360
+        },
+        {
+          "bounds": [
+            5.0240759893487175,
+            4.809150394428522,
+            6.539592836458491
+          ],
+          "draws": 57,
+          "kind": "dragon",
+          "poleError": 5.0242958677880805e-15,
+          "triangles": 19810
+        },
+        {
+          "bounds": [
+            0.8678082552114146,
+            4.446727245971807,
+            2.1435598153136333
+          ],
+          "draws": 19,
+          "kind": "seahorse",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 8944
+        },
+        {
+          "bounds": [
+            1.9697963134520688,
+            4.0807445746328135,
+            1.881607711315155
+          ],
+          "draws": 39,
+          "kind": "jellyfish",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 12504
+        },
+        {
+          "bounds": [
+            0.91489739052237,
+            3.4855945309421923,
+            1.0691338038444518
+          ],
+          "draws": 16,
+          "kind": "moon",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 4592
+        },
+        {
+          "bounds": [
+            1.1363548087802993,
+            3.6903506221955986,
+            0.7319999939203263
+          ],
+          "draws": 15,
+          "kind": "star",
+          "poleError": 5.0438838401947385e-15,
+          "triangles": 1676
+        }
+      ]
+    }
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 30,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 32,
+      "triangles": 22408
+    },
+    "subject": "heron",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.30050861111084615,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 30,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 32,
+      "triangles": 22408
+    },
+    "subject": "heron",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.7503705555558204,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 41,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 59,
+      "triangles": 19858
+    },
+    "subject": "dragon",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.30050944444470934,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 41,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 59,
+      "triangles": 19858
+    },
+    "subject": "dragon",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.7504624999999998,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 19,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 21,
+      "triangles": 8992
+    },
+    "subject": "seahorse",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.30041861111058127,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 19,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 21,
+      "triangles": 8992
+    },
+    "subject": "seahorse",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.7503688888894186,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 39,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 41,
+      "triangles": 12552
+    },
+    "subject": "jellyfish",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.3004194444444445,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 39,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 41,
+      "triangles": 12552
+    },
+    "subject": "jellyfish",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.7503688888894188,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 16,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 18,
+      "triangles": 4640
+    },
+    "subject": "moon",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.3003719444447094,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 16,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 18,
+      "triangles": 4640
+    },
+    "subject": "moon",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.7503702777783077,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 15,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 17,
+      "triangles": 1724
+    },
+    "subject": "star",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.300323888888624,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 15,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 17,
+      "triangles": 1724
+    },
+    "subject": "star",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "high",
+    "tod": 0.7502752777775128,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      0,
+      6.091366218667581,
+      29.78425907561599
+    ],
+    "memory": {
+      "geometries": 122,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 190,
+      "triangles": 71310
+    },
+    "subject": "lineup",
+    "target": [
+      0,
+      2.5,
+      0
+    ],
+    "tier": "high",
+    "tod": 0.3005541666666667,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      0,
+      6.091366218667581,
+      29.78425907561599
+    ],
+    "memory": {
+      "geometries": 122,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 190,
+      "triangles": 71310
+    },
+    "subject": "lineup",
+    "target": [
+      0,
+      2.5,
+      0
+    ],
+    "tier": "high",
+    "tod": 0.7504630555550256,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "tier": "high",
+    "lifecycle": [
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      }
+    ]
+  },
+  {
+    "tier": "high",
+    "errors": "",
+    "console": "[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n"
+  },
+  {
+    "tier": "low",
+    "tests": {
+      "colliders": 8,
+      "controllerSteps": 1800,
+      "pass": true,
+      "subjects": [
+        {
+          "bounds": [
+            1.385417481895241,
+            5.972298178930898,
+            3.5244976848101155
+          ],
+          "draws": 30,
+          "kind": "heron",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 22360
+        },
+        {
+          "bounds": [
+            5.0240759893487175,
+            4.809150394428522,
+            6.539592836458491
+          ],
+          "draws": 57,
+          "kind": "dragon",
+          "poleError": 5.0242958677880805e-15,
+          "triangles": 19810
+        },
+        {
+          "bounds": [
+            0.8678082552114146,
+            4.446727245971807,
+            2.1435598153136333
+          ],
+          "draws": 19,
+          "kind": "seahorse",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 8944
+        },
+        {
+          "bounds": [
+            1.9697963134520688,
+            4.0807445746328135,
+            1.881607711315155
+          ],
+          "draws": 39,
+          "kind": "jellyfish",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 12504
+        },
+        {
+          "bounds": [
+            0.91489739052237,
+            3.4855945309421923,
+            1.0691338038444518
+          ],
+          "draws": 16,
+          "kind": "moon",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 4592
+        },
+        {
+          "bounds": [
+            1.1363548087802993,
+            3.6903506221955986,
+            0.7319999939203263
+          ],
+          "draws": 15,
+          "kind": "star",
+          "poleError": 5.0438838401947385e-15,
+          "triangles": 1676
+        }
+      ]
+    }
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 30,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 32,
+      "triangles": 22408
+    },
+    "subject": "heron",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "low",
+    "tod": 0.3004644444452392,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 30,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 32,
+      "triangles": 22408
+    },
+    "subject": "heron",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "low",
+    "tod": 0.7504608333322735,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      0,
+      6.091366218667581,
+      29.78425907561599
+    ],
+    "memory": {
+      "geometries": 122,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 190,
+      "triangles": 71310
+    },
+    "subject": "lineup",
+    "target": [
+      0,
+      2.5,
+      0
+    ],
+    "tier": "low",
+    "tod": 0.3005091666671965,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "camera": [
+      0,
+      6.091366218667581,
+      29.78425907561599
+    ],
+    "memory": {
+      "geometries": 122,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 190,
+      "triangles": 71310
+    },
+    "subject": "lineup",
+    "target": [
+      0,
+      2.5,
+      0
+    ],
+    "tier": "low",
+    "tod": 0.7505577777783075,
+    "viewport": [
+      1200,
+      863
+    ]
+  },
+  {
+    "tier": "low",
+    "lifecycle": [
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      }
+    ]
+  },
+  {
+    "tier": "low",
+    "errors": "",
+    "console": "[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n"
+  },
+  {
+    "tier": "mid",
+    "tests": {
+      "colliders": 8,
+      "controllerSteps": 1800,
+      "pass": true,
+      "subjects": [
+        {
+          "bounds": [
+            1.385417481895241,
+            5.972298178930898,
+            3.5244976848101155
+          ],
+          "draws": 30,
+          "kind": "heron",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 22360
+        },
+        {
+          "bounds": [
+            5.0240759893487175,
+            4.809150394428522,
+            6.539592836458491
+          ],
+          "draws": 57,
+          "kind": "dragon",
+          "poleError": 5.0242958677880805e-15,
+          "triangles": 19810
+        },
+        {
+          "bounds": [
+            0.8678082552114146,
+            4.446727245971807,
+            2.1435598153136333
+          ],
+          "draws": 19,
+          "kind": "seahorse",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 8944
+        },
+        {
+          "bounds": [
+            1.9697963134520688,
+            4.0807445746328135,
+            1.881607711315155
+          ],
+          "draws": 39,
+          "kind": "jellyfish",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 12504
+        },
+        {
+          "bounds": [
+            0.91489739052237,
+            3.4855945309421923,
+            1.0691338038444518
+          ],
+          "draws": 16,
+          "kind": "moon",
+          "poleError": 5.0292000132872715e-15,
+          "triangles": 4592
+        },
+        {
+          "bounds": [
+            1.1363548087802993,
+            3.6903506221955986,
+            0.7319999939203263
+          ],
+          "draws": 15,
+          "kind": "star",
+          "poleError": 5.0438838401947385e-15,
+          "triangles": 1676
+        }
+      ]
+    }
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 30,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 32,
+      "triangles": 22408
+    },
+    "subject": "heron",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "mid",
+    "tod": 0.3002780555552907,
+    "viewport": [
+      1000,
+      720
+    ]
+  },
+  {
+    "camera": [
+      9.631768598475237,
+      4.116834280178113,
+      4.747327573020215
+    ],
+    "memory": {
+      "geometries": 30,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 32,
+      "triangles": 22408
+    },
+    "subject": "heron",
+    "target": [
+      0,
+      2.8,
+      -0.4
+    ],
+    "tier": "mid",
+    "tod": 0.750277222222752,
+    "viewport": [
+      1000,
+      720
+    ]
+  },
+  {
+    "camera": [
+      0,
+      6.091366218667581,
+      29.78425907561599
+    ],
+    "memory": {
+      "geometries": 122,
+      "textures": 4
+    },
+    "nightness": 0,
+    "render": {
+      "calls": 190,
+      "triangles": 71310
+    },
+    "subject": "lineup",
+    "target": [
+      0,
+      2.5,
+      0
+    ],
+    "tier": "mid",
+    "tod": 0.30046305555635033,
+    "viewport": [
+      1000,
+      720
+    ]
+  },
+  {
+    "camera": [
+      0,
+      6.091366218667581,
+      29.78425907561599
+    ],
+    "memory": {
+      "geometries": 122,
+      "textures": 4
+    },
+    "nightness": 1,
+    "render": {
+      "calls": 190,
+      "triangles": 71310
+    },
+    "subject": "lineup",
+    "target": [
+      0,
+      2.5,
+      0
+    ],
+    "tier": "mid",
+    "tod": 0.7503244444436498,
+    "viewport": [
+      1000,
+      720
+    ]
+  },
+  {
+    "tier": "mid",
+    "lifecycle": [
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      },
+      {
+        "geometries": 122,
+        "textures": 4
+      }
+    ]
+  },
+  {
+    "tier": "mid",
+    "errors": "",
+    "console": "[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n"
+  }
+]

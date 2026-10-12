@@ -6,7 +6,8 @@
 // Geometry lives in src/models/. This file owns path/AI behavior + colliders.
 
 import * as THREE from 'three';
-import { buildPuppet, tickPuppet } from './models/puppet.js';
+import { buildPuppet, tickPuppet, setPuppetNightness, PARADE_ROSTER } from './models/puppet.js';
+import { getTimeOfDay } from './world.js';
 import { buildBandMember, tickBandMember } from './models/bandMember.js';
 import { buildParasolMarshal, tickParasolMarshal } from './models/parasolMarshal.js';
 import { buildKid, tickKid } from './models/kid.js';
@@ -102,7 +103,7 @@ function maybeRecycleLoop(path, basePath, anchor, zerblePos) {
 // =================================================================
 
 export class PuppetParade {
-  constructor() {
+  constructor({ preview = false } = {}) {
     this.group = new THREE.Group();
     this.group.name = 'PuppetParade';
 
@@ -122,14 +123,23 @@ export class PuppetParade {
       new THREE.Vector3(-60, 0, -30),
     ];
     this.path = this._basePath.map((p) => p.clone());
-    this._anchor = placeLoop(this.path, this._basePath, 0, 0, 0, LOOP_INITIAL_SPREAD);
+    this._preview = preview;
+    if (preview) {
+      this._anchor = { x: -this._basePath[0].x, z: -this._basePath[0].z };
+      for (const point of this.path) {
+        point.x += this._anchor.x;
+        point.z += this._anchor.z;
+      }
+    } else {
+      this._anchor = placeLoop(this.path, this._basePath, 0, 0, 0, LOOP_INITIAL_SPREAD);
+    }
     this.speed = 2.4;
 
     this.puppets = [];
-    const PUPPET_COUNT = 6;
-    for (let i = 0; i < PUPPET_COUNT; i++) {
-      const puppet = buildPuppet(i);
-      const ahead = i * 4.5;  // spacing along the path
+    let ahead = 0;
+    for (let i = 0; i < PARADE_ROSTER.length; i++) {
+      const puppet = buildPuppet(PARADE_ROSTER[i], i);
+      if (i) ahead += i <= 2 ? 7 : 4.5;
       puppet.userData.distance = -ahead;
       // Honk-scatter offset: while dodgeTimer > 0, the puppet's path-derived
       // position gets nudged perpendicular by (dodgeDirX, dodgeDirZ) * eased
@@ -142,12 +152,10 @@ export class PuppetParade {
       this.puppets.push(puppet);
     }
 
-    this.colliders = this.puppets.map((p) => ({
-      position: new THREE.Vector3(),
-      radius: 1.4,
-      damage: 8,
-      kind: 'puppet',
-    }));
+    this.colliders = this.puppets.flatMap(p => p.userData.rig.carriers.map((carrier, i) => ({
+      position: new THREE.Vector3(), radius: p.userData.kind === 'dragon' && i !== 1 ? 0.65 : 1.4,
+      damage: 8, kind: 'puppet', carrier, puppet: p,
+    })));
 
     this._tmpA = new THREE.Vector3();
     this._tmpB = new THREE.Vector3();
@@ -175,7 +183,7 @@ export class PuppetParade {
   }
 
   update(dt, zerblePos) {
-    const recycled = maybeRecycleLoop(this.path, this._basePath, this._anchor, zerblePos);
+    const recycled = this._preview ? null : maybeRecycleLoop(this.path, this._basePath, this._anchor, zerblePos);
     if (recycled) this._anchor = recycled;
     const totalLen = pathLength(this.path);
     for (let i = 0; i < this.puppets.length; i++) {
@@ -200,10 +208,14 @@ export class PuppetParade {
       p.rotation.y = yaw;
 
       // Per-puppet bob (sandbox calls the same tick — see models/puppet.js)
+      setPuppetNightness(p, getTimeOfDay()?.nightness ?? 0);
       tickPuppet(p, dt);
 
-      this.colliders[i].position.copy(p.position);
-      this.colliders[i].position.y = 1;
+    }
+    this.group.updateMatrixWorld(true);
+    for (const collider of this.colliders) {
+      collider.carrier.getWorldPosition(collider.position);
+      collider.position.y = 1;
     }
   }
 }

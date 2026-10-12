@@ -1,0 +1,875 @@
+[
+  {
+    "camera": [
+      499.3198764930366,
+      8,
+      -645.6786574297606
+    ],
+    "colliders": [
+      {
+        "kind": "puppet",
+        "position": [
+          491.0915244932206,
+          1,
+          -658.3499214296226
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          487.0995244932148,
+          1,
+          -661.3439214296269
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          485.7795244932148,
+          1,
+          -662.3339214296269
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          484.3395244932148,
+          1,
+          -663.413921429627
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          487.87448972087896,
+          1,
+          -668.6344438853724
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          489.88695090062873,
+          1,
+          -672.659366244872
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          491.89941208037857,
+          1,
+          -676.6842886043717
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          493.91187326012835,
+          1,
+          -680.7092109638712
+        ],
+        "radius": 1.4
+      }
+    ],
+    "memory": {
+      "geometries": 1587,
+      "textures": 28
+    },
+    "roots": [
+      {
+        "kind": "heron",
+        "position": [
+          491.37952449322063,
+          0,
+          -658.1339214296225
+        ],
+        "time": 3.3164000000953684
+      },
+      {
+        "kind": "dragon",
+        "position": [
+          485.7795244932148,
+          0,
+          -662.3339214296269
+        ],
+        "time": 3.3164000000953684
+      },
+      {
+        "kind": "seahorse",
+        "position": [
+          487.71349282649896,
+          0,
+          -668.3124500966125
+        ],
+        "time": 3.3164000000953684
+      },
+      {
+        "kind": "jellyfish",
+        "position": [
+          489.72595400624874,
+          0,
+          -672.337372456112
+        ],
+        "time": 3.3164000000953684
+      },
+      {
+        "kind": "moon",
+        "position": [
+          491.7384151859986,
+          0,
+          -676.3622948156117
+        ],
+        "time": 3.3164000000953684
+      },
+      {
+        "kind": "star",
+        "position": [
+          493.7508763657483,
+          0,
+          -680.3872171751112
+        ],
+        "time": 3.3164000000953684
+      }
+    ],
+    "tier": "low",
+    "tod": 0.30066500000026486
+  },
+  {
+    "camera": [
+      499.8117804926648,
+      8,
+      -645.3097294300394
+    ],
+    "colliders": [
+      {
+        "kind": "puppet",
+        "position": [
+          491.5077804926703,
+          1,
+          -658.0377294300353
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          487.5157804926645,
+          1,
+          -661.0317294300396
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          486.1957804926645,
+          1,
+          -662.0217294300396
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          484.7557804926645,
+          1,
+          -663.1017294300397
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          487.6417955431777,
+          1,
+          -668.1690555299699
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          489.6542567229274,
+          1,
+          -672.1939778894695
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          491.6667179026773,
+          1,
+          -676.2189002489691
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          493.6791790824271,
+          1,
+          -680.2438226084687
+        ],
+        "radius": 1.4
+      }
+    ],
+    "memory": {
+      "geometries": 1589,
+      "textures": 39
+    },
+    "roots": [
+      {
+        "kind": "heron",
+        "position": [
+          491.7957804926703,
+          0,
+          -657.8217294300352
+        ],
+        "time": 3.533199999809266
+      },
+      {
+        "kind": "dragon",
+        "position": [
+          486.1957804926645,
+          0,
+          -662.0217294300396
+        ],
+        "time": 3.533199999809266
+      },
+      {
+        "kind": "seahorse",
+        "position": [
+          487.4807986487977,
+          0,
+          -667.8470617412099
+        ],
+        "time": 3.533199999809266
+      },
+      {
+        "kind": "jellyfish",
+        "position": [
+          489.4932598285475,
+          0,
+          -671.8719841007095
+        ],
+        "time": 3.533199999809266
+      },
+      {
+        "kind": "moon",
+        "position": [
+          491.5057210082973,
+          0,
+          -675.8969064602092
+        ],
+        "time": 3.533199999809266
+      },
+      {
+        "kind": "star",
+        "position": [
+          493.5181821880471,
+          0,
+          -679.9218288197087
+        ],
+        "time": 3.533199999809266
+      }
+    ],
+    "tier": "low",
+    "tod": 0.7505555555555553
+  },
+  {
+    "tier": "low",
+    "errors": "",
+    "console": "[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n"
+  },
+  {
+    "camera": [
+      401.0934663794254,
+      8,
+      -604.1621613130656
+    ],
+    "colliders": [
+      {
+        "kind": "puppet",
+        "position": [
+          392.8217223798035,
+          1,
+          -616.865969312782
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          388.82972237978896,
+          1,
+          -619.8599693127928
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          387.50972237978897,
+          1,
+          -620.8499693127928
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          386.06972237978897,
+          1,
+          -621.9299693127929
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          389.6576692432693,
+          1,
+          -627.162999036153
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          391.67013042301915,
+          1,
+          -631.1879213956527
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          393.682591602769,
+          1,
+          -635.2128437551523
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          395.6950527825187,
+          1,
+          -639.2377661146519
+        ],
+        "radius": 1.4
+      }
+    ],
+    "memory": {
+      "geometries": 2961,
+      "textures": 33
+    },
+    "roots": [
+      {
+        "kind": "heron",
+        "position": [
+          393.1097223798035,
+          0,
+          -616.649969312782
+        ],
+        "time": 3.29869999933243
+      },
+      {
+        "kind": "dragon",
+        "position": [
+          387.50972237978897,
+          0,
+          -620.8499693127928
+        ],
+        "time": 3.29869999933243
+      },
+      {
+        "kind": "seahorse",
+        "position": [
+          389.4966723488893,
+          0,
+          -626.841005247393
+        ],
+        "time": 3.29869999933243
+      },
+      {
+        "kind": "jellyfish",
+        "position": [
+          391.5091335286391,
+          0,
+          -630.8659276068927
+        ],
+        "time": 3.29869999933243
+      },
+      {
+        "kind": "moon",
+        "position": [
+          393.521594708389,
+          0,
+          -634.8908499663924
+        ],
+        "time": 3.29869999933243
+      },
+      {
+        "kind": "star",
+        "position": [
+          395.5340558881388,
+          0,
+          -638.9157723258919
+        ],
+        "time": 3.29869999933243
+      }
+    ],
+    "tier": "mid",
+    "tod": 0.300602222222752
+  },
+  {
+    "camera": [
+      401.6109063794214,
+      8,
+      -603.7740813130686
+    ],
+    "colliders": [
+      {
+        "kind": "puppet",
+        "position": [
+          393.4240263794339,
+          1,
+          -616.4142413130592
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          389.4320263794193,
+          1,
+          -619.4082413130701
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          388.1120263794193,
+          1,
+          -620.3982413130701
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          386.6720263794193,
+          1,
+          -621.4782413130702
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          389.320971071696,
+          1,
+          -626.4896026930063
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          391.33343225144574,
+          1,
+          -630.5145250525059
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          393.3458934311956,
+          1,
+          -634.5394474120055
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          395.35835461094536,
+          1,
+          -638.5643697715051
+        ],
+        "radius": 1.4
+      }
+    ],
+    "memory": {
+      "geometries": 2963,
+      "textures": 44
+    },
+    "roots": [
+      {
+        "kind": "heron",
+        "position": [
+          393.7120263794339,
+          0,
+          -616.1982413130592
+        ],
+        "time": 3.612399999141695
+      },
+      {
+        "kind": "dragon",
+        "position": [
+          388.1120263794193,
+          0,
+          -620.3982413130701
+        ],
+        "time": 3.612399999141695
+      },
+      {
+        "kind": "seahorse",
+        "position": [
+          389.159974177316,
+          0,
+          -626.1676089042463
+        ],
+        "time": 3.612399999141695
+      },
+      {
+        "kind": "jellyfish",
+        "position": [
+          391.17243535706575,
+          0,
+          -630.1925312637459
+        ],
+        "time": 3.612399999141695
+      },
+      {
+        "kind": "moon",
+        "position": [
+          393.1848965368156,
+          0,
+          -634.2174536232455
+        ],
+        "time": 3.612399999141695
+      },
+      {
+        "kind": "star",
+        "position": [
+          395.19735771656536,
+          0,
+          -638.2423759827451
+        ],
+        "time": 3.612399999141695
+      }
+    ],
+    "tier": "mid",
+    "tod": 0.7507249999999999
+  },
+  {
+    "tier": "mid",
+    "errors": "",
+    "console": "[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n"
+  },
+  {
+    "camera": [
+      497.7600769496865,
+      8,
+      -558.6891623844921
+    ],
+    "colliders": [
+      {
+        "kind": "puppet",
+        "position": [
+          489.4915969496968,
+          1,
+          -571.3905223844844
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          485.4995969496823,
+          1,
+          -574.3845223844952
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          484.1795969496823,
+          1,
+          -575.3745223844952
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          482.7395969496823,
+          1,
+          -576.4545223844952
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          486.3835187573323,
+          1,
+          -581.7007659997133
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          488.3959799370821,
+          1,
+          -585.7256883592129
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          490.4084411168319,
+          1,
+          -589.7506107187126
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          492.42090229658174,
+          1,
+          -593.7755330782122
+        ],
+        "radius": 1.4
+      }
+    ],
+    "memory": {
+      "geometries": 2771,
+      "textures": 33
+    },
+    "roots": [
+      {
+        "kind": "heron",
+        "position": [
+          489.7795969496968,
+          0,
+          -571.1745223844844
+        ],
+        "time": 3.280000000000002
+      },
+      {
+        "kind": "dragon",
+        "position": [
+          484.1795969496823,
+          0,
+          -575.3745223844952
+        ],
+        "time": 3.280000000000002
+      },
+      {
+        "kind": "seahorse",
+        "position": [
+          486.2225218629523,
+          0,
+          -581.3787722109533
+        ],
+        "time": 3.280000000000002
+      },
+      {
+        "kind": "jellyfish",
+        "position": [
+          488.2349830427021,
+          0,
+          -585.4036945704529
+        ],
+        "time": 3.280000000000002
+      },
+      {
+        "kind": "moon",
+        "position": [
+          490.2474442224519,
+          0,
+          -589.4286169299526
+        ],
+        "time": 3.280000000000002
+      },
+      {
+        "kind": "star",
+        "position": [
+          492.25990540220175,
+          0,
+          -593.4535392894522
+        ],
+        "time": 3.280000000000002
+      }
+    ],
+    "tier": "high",
+    "tod": 0.3006069444444444
+  },
+  {
+    "camera": [
+      498.25582095023054,
+      8,
+      -558.3173543840841
+    ],
+    "colliders": [
+      {
+        "kind": "puppet",
+        "position": [
+          490.25863695060514,
+          1,
+          -570.8152423838031
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          486.2666369505906,
+          1,
+          -573.809242383814
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          484.94663695059063,
+          1,
+          -574.799242383814
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          483.50663695059063,
+          1,
+          -575.879242383814
+        ],
+        "radius": 0.65
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          485.9547303614576,
+          1,
+          -580.8431892079639
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          487.96719154120734,
+          1,
+          -584.8681115674634
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          489.9796527209572,
+          1,
+          -588.8930339269631
+        ],
+        "radius": 1.4
+      },
+      {
+        "kind": "puppet",
+        "position": [
+          491.99211390070695,
+          1,
+          -592.9179562864626
+        ],
+        "radius": 1.4
+      }
+    ],
+    "memory": {
+      "geometries": 2774,
+      "textures": 44
+    },
+    "roots": [
+      {
+        "kind": "heron",
+        "position": [
+          490.54663695060515,
+          0,
+          -570.5992423838031
+        ],
+        "time": 3.679500000476839
+      },
+      {
+        "kind": "dragon",
+        "position": [
+          484.94663695059063,
+          0,
+          -574.799242383814
+        ],
+        "time": 3.679500000476839
+      },
+      {
+        "kind": "seahorse",
+        "position": [
+          485.7937334670776,
+          0,
+          -580.5211954192039
+        ],
+        "time": 3.679500000476839
+      },
+      {
+        "kind": "jellyfish",
+        "position": [
+          487.80619464682735,
+          0,
+          -584.5461177787034
+        ],
+        "time": 3.679500000476839
+      },
+      {
+        "kind": "moon",
+        "position": [
+          489.8186558265772,
+          0,
+          -588.5710401382031
+        ],
+        "time": 3.679500000476839
+      },
+      {
+        "kind": "star",
+        "position": [
+          491.83111700632696,
+          0,
+          -592.5959624977027
+        ],
+        "time": 3.679500000476839
+      }
+    ],
+    "tier": "high",
+    "tod": 0.7509994444449746
+  },
+  {
+    "tier": "high",
+    "errors": "",
+    "console": "[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = low {name: \"low\", pixelRatioCap: 1.25, bloom: true, bloomStrength: 0.35, bloomRadius: 0.7, ...}\n[info] [perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier\n[info] [perf] profile = mid {name: \"mid\", pixelRatioCap: 1.5, bloom: true, bloomStrength: 0.5, bloomRadius: 0.8, ...}\n[info] [perf] profile = high {name: \"high\", pixelRatioCap: 2, bloom: true, bloomStrength: 0.6, bloomRadius: 0.85, ...}\n"
+  }
+]

@@ -497,6 +497,23 @@ http://127.0.0.1:8765/sandbox.html?entity=<name>
   `leaf_drum_circle_day/night`, `lake_with_beach`, `cheer_demo` — a small NPC
   cluster + a "Fire cheer" button / `__sandbox.fireCheer()` to iterate the
   jump + arms-up cheer pose in isolation).
+- **Puppet parade iteration** uses the production `PuppetParade` controller in
+  `?entity=puppet_parade`; its preview-only option fixes the route at the origin
+  and disables recycling; the camera follows the middle of the procession.
+  `?entity=puppet` is the seeded heron (`seed=1`) with close/game-distance
+  camera buttons, a pause checkbox, and a gait-cycle scrubber. Named entries are
+  `puppet_heron`, `puppet_dragon`, `puppet_seahorse`, `puppet_jellyfish`,
+  `puppet_moon`, and `puppet_star`. `?entity=puppet_lineup` shows all six units
+  plus a 1.9 m comparison human under one owned scene root.
+  `__sandbox` exposes `loadEntity`, `entityRoot`, `renderer`, and `tod` for
+  repeatable checks. Run `ZERBLE_BROWSER_SESSION=<owned-session> npm run test:puppets`
+  on an existing sandbox browser to test real geometry, support endpoints, and
+  the production controller without launching another browser. Saved evidence
+  and capture scripts live in [verification/puppet-parade/](verification/puppet-parade/README.md).
+  Press `H` to hide/show the panel, `2`/`4` for side
+  views, and `6` for the rear three-quarter view; the heron opens from a
+  forward three-quarter camera so its beak is visible. Midnight is `t=0.75`,
+  Noon is `t=0.30`.
 - **Music panel** drives any stage genre (jam / brass / drum / forest / dance /
   world / dub), an **"End song now"** button (`Sound._debugEndSong()`), a live
   **song-state readout**, and a **trip-sweep** slider (0→1) that drives the MIDI

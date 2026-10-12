@@ -1,0 +1,12 @@
+#!/usr/bin/env node
+// Uses an explicitly named, already-owned browser session. Never launches one.
+const { execFileSync } = require('node:child_process');
+const session = process.env.ZERBLE_BROWSER_SESSION;
+if (!session) {
+  process.stderr.write('Set ZERBLE_BROWSER_SESSION to an owned agent-browser session open on sandbox.html.\n');
+  process.exit(1);
+}
+const result = JSON.parse(execFileSync('agent-browser', ['--session', session, '--json', 'eval',
+  'import("/verification/puppet-parade/check.mjs").then(m => m.checkParade())'], { timeout: 30000, encoding: 'utf8' }));
+if (!result.success || !result.data?.result?.pass) throw new Error(JSON.stringify(result));
+process.stdout.write(JSON.stringify(result.data.result, null, 2) + '\n');

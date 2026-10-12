@@ -1,0 +1,11 @@
+{
+  "baselineRef": "d505cb9",
+  "current": {
+    "draws": 176,
+    "triangles": 69886
+  },
+  "old": {
+    "draws": 180,
+    "triangles": 15888
+  }
+}
