@@ -111,6 +111,10 @@ work separate from the far-field visual review.
 
 ---
 
+## Silent agent launches
+
+Use `?mute=1` (or append `&mute=1`) on every agent-driven game or sandbox URL unless intentionally checking audio. It initializes the session-only output gate before AudioContext output connects, preserves saved volume levels, and remains effective across reloads. `Sound.setMuted(false)` can explicitly unmute for an audio test; restore mute afterward.
+
 ## The one door: `window.__dbg` (local dev only)
 
 `__dbg` ([main.js](src/main.js)) is the **automation control surface** — it drives

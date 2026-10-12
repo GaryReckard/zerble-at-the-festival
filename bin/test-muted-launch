@@ -1,0 +1,18 @@
+#!/usr/bin/env node
+const assert = require('node:assert/strict');
+const {pathToFileURL} = require('node:url');
+const path = require('node:path');
+(async () => {
+  for (const [query, muted] of [['?mute=1', true], ['?entity=nut_wagon&mute=1', true], ['?mute=0', false], ['', false]]) {
+    globalThis.location = {search: query};
+    const url = pathToFileURL(path.resolve(__dirname, '../src/sound.js'));
+    url.search = '?case=' + encodeURIComponent(query);
+    const {Sound} = await import(url.href);
+    assert.equal(Sound.isMuted(), muted);
+    Sound.setMuted(!muted);
+    assert.equal(Sound.isMuted(), !muted);
+    Sound.setMuted(muted);
+    assert.equal(Sound.isMuted(), muted);
+  }
+  console.log('PASS muted launches, ordinary launches and explicit session overrides');
+})().catch(error => {console.error(error); process.exitCode = 1;});

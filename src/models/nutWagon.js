@@ -10,8 +10,8 @@ export const NUT_WAGON_MOUNTS = Object.freeze([
     {name: 'rear_right', position: [-0.48, 0.77, -0.55], facing: 0, pose: 'seated'},
     {name: 'roof_left', position: [0.38, 2.11, -1.49], facing: 0, pose: 'seated'},
     {name: 'roof_right', position: [-0.38, 2.11, -1.49], facing: 0, pose: 'seated'},
-    {name: 'cargo_left', position: [0.42, 0.64, -2.02], facing: Math.PI, pose: 'seated'},
-    {name: 'cargo_right', position: [-0.42, 0.64, -2.02], facing: Math.PI, pose: 'seated'},
+    {name: 'cargo_left', position: [0.42, 0.83, -1.91], facing: Math.PI, pose: 'seated'},
+    {name: 'cargo_right', position: [-0.42, 0.83, -1.91], facing: Math.PI, pose: 'seated'},
     {name: 'platform', position: [-0.30, 0.47, 3.02], facing: 0, pose: 'standing'},
 ].map(m => Object.freeze({...m, position: Object.freeze(m.position)})));
 
@@ -145,6 +145,10 @@ function createTemplate() {
     box(root, black, 0, .73, -.68, 1.56, .16, .68);
     box(root, black, 0, 1.02, -.98, 1.56, .58, .12);
     for (const x of [-.48, .48]) box(root, black, x, 1.39, .1, .34, .27, .12);
+    const cargoBench = new THREE.Group(); cargoBench.name = 'cargo_bench'; root.add(cargoBench);
+    box(cargoBench, black, 0, .75, -1.91, 1.42, .16, .60);
+    box(cargoBench, black, 0, 1.01, -1.60, 1.42, .55, .12);
+    for (const x of [-.55, .55]) box(cargoBench, metal, x, .66, -1.91, .07, .12, .45);
     const steering = new THREE.Mesh(new THREE.TorusGeometry(.19, .023, 6, 16), black);
     steering.position.set(.48, 1.12, .7); steering.rotation.x = -.55; root.add(steering);
     for (const x of [-.53, .53]) beam(root, metal, [x, 1.94, -1.12], [x, 2.04, -2.01], .027);

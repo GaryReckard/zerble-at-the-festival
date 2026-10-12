@@ -5,6 +5,8 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-10-12
 
 ### Added
+- **Agent previews can launch silently with `?mute=1`.** The output mute is set before the audio graph connects, survives URL-preserving reloads, and leaves saved volume levels untouched. The standing agent instructions require this flag except during deliberate audio tests.
+- **The Nut Wagon has a small black rear-facing trunk bench.** Its two cargo rider mounts now sit at cushion height with their backs toward the front of the car.
 - **The Nut Wagon has a first model in the entity sandbox.** The photo-based green wagon has open doorways, a painted hood and grille, an offset mesh platform with its tall pole near the platform center, a tan roof seat, and a decorated hatch with open/closed previews. Four wheel transforms and nine provisional rider mounts prepare the model for later behavior work. Geometry and materials are pooled across instances; the model has 40 meshes, 4,840 triangles and three shadow casters. It does not spawn in the festival yet. [Model checks and saved views](verification/nut-wagon/README.md).
 
 ### Changed

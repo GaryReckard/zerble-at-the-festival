@@ -44,6 +44,7 @@ try {
  const dayIntensity = c.userData.lightMaterials[0].emissiveIntensity;
  setNutWagonNightness(c, 1);
  assert(c.userData.lightMaterials.length === 5 && c.userData.lightMaterials.every(m => m.emissiveIntensity > dayIntensity), 'Five pooled light colors brighten at night');
+ assert(c.getObjectByName('cargo_bench') && c.userData.riderMounts.filter(m => m.name.startsWith('cargo')).every(m => m.facing === Math.PI && m.position[1] === .83), 'Rear-facing trunk bench and aligned seated mounts');
  const low = new URLSearchParams(location.search).get('perf') === 'low';
  c.traverse(n => { if(n.isMesh && low && !n.material.isMeshLambertMaterial) throw new Error('Low tier did not use Lambert'); });
  assert(true, low ? 'Low-tier Lambert materials' : 'Standard materials');

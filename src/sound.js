@@ -133,7 +133,7 @@ let lurleenEngineNodes = null;   // Lurleen's spatialized motor (see createEngin
 let initialized = false;
 let silentUnlockEl = null;   // HTMLAudioElement kept alive to hold the iOS "Playback" audio session
 let silentUnlockUrl = null;  // Blob URL — revoked on tear-down (not currently torn down, but for hygiene)
-let _muted = false;          // global mute state — session-only, never persisted (always boots unmuted)
+let _muted = new URLSearchParams(globalThis.location?.search || '').get('mute') === '1';
 
 // Diagnostics state — populated by init() so we can surface what unlocked
 // (and what didn't) from window.__game.sound.diagnostics() on the iPhone.
@@ -309,7 +309,7 @@ export const Sound = {
     // setMuted toggles THIS 0/1; masterGain always holds the user's real
     // level, so muting can never persist a 0 into zerble.vol.master.
     muteGain = ctx.createGain();
-    muteGain.gain.value = 1;
+    muteGain.gain.value = _muted ? 0 : 1;
     masterGain.connect(muteGain);
     muteGain.connect(ctx.destination);
 
@@ -446,13 +446,8 @@ export const Sound = {
         const v = parseFloat(rawNature);
         if (Number.isFinite(v)) _pendingNatureVol = v < 0.05 ? 0.05 : v;
       }
-      // Mute — if previously muted, force masterGain to zero AFTER the clamp
-      // restore above (which kept it ≥0.05). The clamp is intentional for
-      // normal sessions; mute is an explicit override on top.
-      // Mute is session-only: always boot unmuted, regardless of any stored
-      // flag. A persisted mute that boots the game silent (with an out-of-sync
-      // checkbox) is a worse footgun than just starting with sound. Clear any
-      // legacy value older builds may have left so it can't linger.
+      // Mute is session-only; ?mute=1 explicitly silences agent previews.
+      // Ignore legacy storage without changing the URL-selected state.
       localStorage.removeItem('zerble.muted');
     } catch (e) { /* localStorage unavailable */ }
 
@@ -1038,12 +1033,8 @@ export const Sound = {
   setMidiVolume(v)   { if (midiGain)   midiGain.gain.value   = v; this._saveVolumes(); },
   setNatureVolume(v) { if (natureBus)  natureBus.gain.value  = v; this._saveVolumes(); },
 
-  // Global mute. `setMuted(true)` silences masterGain regardless of its saved
-  // level. `setMuted(false)` restores the saved master volume. Persisted so
-  // a page reload respects the last mute state.
-  // Session-only mute — deliberately NOT persisted, so the game always boots
-  // with sound. Toggles the dedicated mute node; masterGain keeps the user's
-  // real level, so unmuting restores it for free.
+  // Session-only mute preserves the user's saved master level. ?mute=1
+  // selects the initial state before the audio graph connects to output.
   setMuted(on) {
     _muted = !!on;
     if (muteGain) muteGain.gain.value = _muted ? 0 : 1;

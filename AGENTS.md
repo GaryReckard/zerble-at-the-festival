@@ -363,3 +363,7 @@ See `.Codex/rules/`:
   persistent-memory system (`session-log.md` + `questions-for-human.md`), the
   event-driven writing protocol, the skippable deliberation gate (re-keyed to
   zerble's tripwires), and the cross-ref convention (`-> Q3`, `-> Task 7.2.1`).
+
+## Quiet agent iteration
+
+Always append `mute=1` to game and sandbox URLs during agent development, visual inspection, playtesting, and iteration (for example `sandbox.html?entity=nut_wagon&mute=1`). Keep it on reload and navigation. Only enable audio when the task specifically calls for testing sound, and restore mute afterward. Use the session mute control, never zero and persist the user's volume sliders. The URL initializes the output mute before audio connects, so starting the game cannot leak an audible first frame. Normal player launches without the flag retain their usual sound behavior.

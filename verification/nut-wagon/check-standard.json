@@ -3,8 +3,8 @@
   "tier": "standard",
   "render": {
     "frame": 1,
-    "calls": 47,
-    "triangles": 9370,
+    "calls": 49,
+    "triangles": 9418,
     "points": 0,
     "lines": 0
   },
@@ -22,12 +22,13 @@
     "Sandbox unload convention preserves pooled buffers",
     "Reload reuses the original resource pool",
     "Five pooled light colors brighten at night",
+    "Rear-facing trunk bench and aligned seated mounts",
     "Standard materials",
     "GPU submits the model",
     "Shaders compile"
   ],
-  "meshes": 46,
-  "triangles": 9368,
+  "meshes": 48,
+  "triangles": 9416,
   "shadowCasters": 3,
   "bounds": [
     2.4340000408887863,
