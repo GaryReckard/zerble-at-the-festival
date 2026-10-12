@@ -164,8 +164,12 @@ function createTemplate() {
     box(cargoBench, black, 0, .75, -1.91, 1.42, .16, .60);
     box(cargoBench, black, 0, 1.01, -1.60, 1.42, .55, .12);
     for (const x of [-.55, .55]) box(cargoBench, metal, x, .66, -1.91, .07, .12, .45);
-    const steering = new THREE.Mesh(new THREE.TorusGeometry(.19, .023, 6, 16), black);
-    steering.position.set(.48, 1.12, .7); steering.rotation.x = -.55; root.add(steering);
+    const steering = new THREE.Group(); steering.name = 'steering_wheel';
+    steering.position.set(.48, 1.12, .7); root.add(steering);
+    steering.add(new THREE.Mesh(new THREE.TorusGeometry(.19, .023, 6, 16), black));
+    box(steering, black, 0, 0, 0, .12, .065, .045);
+    for (const x of [-.17, .17]) beam(steering, metal, [0, 0, 0], [x, -.015, 0], .012);
+    beam(root, black, [.48, 1.12, .7], [.48, .95, 1.02], .026);
     for (const x of [-.53, .53]) beam(root, metal, [x, 1.94, -1.12], [x, 2.04, -2.01], .027);
     box(root, tan, 0, 2.055, -1.53, 1.47, .16, .69, true);
     const roofBack = box(root, tan, 0, 2.43, -1.87, 1.47, .70, .16, true); roofBack.rotation.x = -.12;
@@ -287,6 +291,11 @@ function createTemplate() {
         node.position.multiply(new THREE.Vector3(...bodyScale));
         if (node.isMesh) node.geometry.scale(...bodyScale);
     });
+    // Keep the wheel circular after body calibration; its upper rim leans
+    // toward the dashboard (+Z), rather than back into the driver's chest.
+    for (const mesh of steering.children) mesh.geometry.scale(
+        .854 / bodyScale[0], .854 / bodyScale[1], .854 / bodyScale[2]);
+    steering.rotation.x = .40;
     for (const wheel of root.children.filter(c => c.name.startsWith('wheel_'))) {
         wheel.position.z = Math.sign(wheel.position.z) * NUT_WAGON_DIMENSIONS.wheelbase / 2;
         wheel.position.y = .315;

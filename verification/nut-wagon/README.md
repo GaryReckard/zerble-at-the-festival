@@ -43,7 +43,7 @@ The hatch-open option controls its initial pose and support visibility. A future
 - `bin/check-importmaps`: passed, 46 source modules, 12 worldgen modules and 31 models across four entry pages. The model cache-buster entry was added to all four pages.
 - `node --check src/models/nutWagon.js` and `git diff --check`: passed.
 - Real-Three checks: independent model/hatch/wheel transforms, open/closed support visibility, independent rider mount data, finite attributes, bounds, shared buffers, unload convention, reload reuse, resource budgets and GPU shader compilation. [Low results](check-low.json), [standard results](check-standard.json).
-- Model: 48 meshes, 9,670 geometry triangles, three shadow casters. Single-frame renderer probe: 49 submissions / 9,672 triangles, including the transparent double-sided windshield pass. These are model costs, not whole-game FPS measurements.
+- Model: 50 meshes, 9,778 geometry triangles, three shadow casters. Single-frame renderer probe: 51 submissions / 9,780 triangles, including the transparent double-sided windshield pass. These are model costs, not whole-game FPS measurements.
 - Bounds with the hatch open: 2.025 m wide, 3.088 m tall including the pole, 6.317 m long including the platform and raised hatch.
 - Full game: Low title screen and world startup verified through the real start button, with no captured console errors or warnings. The model is not yet spawned by that path.
 - Sandbox: Noon, Midnight, rear cargo opening, closed hatch and repeated entity selection inspected. Browser sound was muted at Gary's request.
@@ -52,6 +52,7 @@ The hatch-open option controls its initial pose and support visibility. A future
 
 ![Noon](noon.png)
 ![Side silhouette](side.png)
+![Corrected steering angle, driver side](steering.png)
 ![Rear opening](rear.png)
 ![Midnight](midnight.png)
 

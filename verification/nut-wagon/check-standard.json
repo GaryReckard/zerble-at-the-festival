@@ -3,8 +3,8 @@
   "tier": "standard",
   "render": {
     "frame": 1,
-    "calls": 49,
-    "triangles": 9672,
+    "calls": 51,
+    "triangles": 9780,
     "points": 0,
     "lines": 0
   },
@@ -24,12 +24,13 @@
     "Reload reuses the original resource pool",
     "Five pooled light colors brighten at night",
     "Rear-facing trunk bench and aligned seated mounts",
+    "Steering wheel upper rim leans toward the dashboard",
     "Standard materials",
     "GPU submits the model",
     "Shaders compile"
   ],
-  "meshes": 48,
-  "triangles": 9670,
+  "meshes": 50,
+  "triangles": 9778,
   "shadowCasters": 3,
   "bounds": [
     2.0252726674079895,
