@@ -12,6 +12,8 @@ const ACCEL = 18;          // m/s^2 throttle
 const BRAKE = 28;          // m/s^2 when reversing throttle vs current direction
 const MAX_SPEED = 18;      // m/s
 const BOOST_MULT = 1.55;
+const SLOW_MULT = 0.4;         // held slow mode caps forward speed near 7.2 m/s
+const SLOW_ACCEL_MULT = 0.45;  // gentler starts and stops in crowded areas
 const REVERSE_MAX = 7;
 // DRAG: multiplicative coefficient applied each second when no throttle.
 // 0.78 = ~63% velocity loss per second. Sharper than the old 0.92 (~28%)
@@ -1232,19 +1234,25 @@ export class Zerble {
     // ----- Drive -----
     const throttle = input.throttle;
     const steer = input.steer;
+    const slow = !!input.slow;
     // Festival Run sputter (dry tank, grace window): boost dies and the cart
     // limps at ~35% — main.js flips this from runState. Never set in Cruisin'.
     const wantBoost = input.boost && throttle > 0 && !this.sputtering;
     // Expose so the engine sound (and anything else that cares) can react.
     this.isBoosting = wantBoost;
 
-    const maxFwd = MAX_SPEED * (wantBoost ? BOOST_MULT : 1) * (this.sputtering ? 0.35 : 1);
+    const maxFwd = MAX_SPEED * (slow ? SLOW_MULT : wantBoost ? BOOST_MULT : 1) * (this.sputtering ? 0.35 : 1);
     const maxRev = -REVERSE_MAX * (this.sputtering ? 0.35 : 1);
 
-    if (throttle !== 0) {
+    if (slow && this.speed > maxFwd) {
+      // Engaging slow mode should ease down to its cap instead of snapping
+      // velocity immediately, while preventing throttle from pushing faster.
+      const decel = throttle < 0 ? BRAKE : ACCEL;
+      this.speed = Math.max(maxFwd, this.speed - decel * SLOW_ACCEL_MULT * dt);
+    } else if (throttle !== 0) {
       // If throttle opposes current velocity direction, brake harder.
       const sameSign = Math.sign(throttle) === Math.sign(this.speed) || this.speed === 0;
-      const a = sameSign ? ACCEL : BRAKE;
+      const a = (sameSign ? ACCEL : BRAKE) * (slow ? SLOW_ACCEL_MULT : 1);
       this.speed += throttle * a * dt;
     } else {
       this.speed *= Math.pow(DRAG, dt * 4);

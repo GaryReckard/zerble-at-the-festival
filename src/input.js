@@ -14,6 +14,7 @@ const edges = new Set();
 function normalize(e) {
   if (e.key === ' ') return 'SPACE';
   if (e.key === 'Shift') return 'SHIFT';
+  if (e.key === 'Control') return 'CONTROL';
   if (e.key === 'ArrowUp') return 'UP';
   if (e.key === 'ArrowDown') return 'DOWN';
   if (e.key === 'ArrowLeft') return 'LEFT';
@@ -83,6 +84,9 @@ export const Input = {
   },
   get boost() {
     return held.has('SHIFT') || Touch.state.boost;
+  },
+  get slow() {
+    return held.has('CONTROL') || Touch.state.slow;
   },
 
   // ----- Camera (arrow keys — rate-based, persistent) -----

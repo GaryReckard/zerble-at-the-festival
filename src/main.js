@@ -625,7 +625,7 @@ let _sessionEndReported = false; // session_end fires once per leave; resets on 
 // (the camera is mid-reveal). Zerble gets a neutral input so it idles in place.
 let controlsLocked = false;
 let captureDriveLocked = false;
-const NEUTRAL_INPUT = { throttle: 0, steer: 0, boost: false };
+const NEUTRAL_INPUT = { throttle: 0, steer: 0, boost: false, slow: false };
 
 // Intro timing (ms): hold the opaque PNG, then cross-dissolve, then the camera
 // orbits to chase over INTRO_ORBIT_SEC.

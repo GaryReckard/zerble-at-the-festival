@@ -1,5 +1,5 @@
 // Touch controls: left-side virtual thumbstick (throttle + steer), right-side
-// Honk and Boost buttons, and drag-anywhere-else for camera orbit/tilt.
+// Honk, Boost, and Slow buttons, and drag-anywhere-else for camera orbit/tilt.
 //
 // Wires directly into the Input module (input.js) — it exposes the same
 // throttle/steer/boost getters and consumePressed('SPACE') edge so the rest of
@@ -16,6 +16,7 @@ const state = {
   throttle: 0,
   steer: 0,
   boost: false,
+  slow: false,
   // one-shot honk press, consumed by Input.consumePressed('SPACE').
   honkLatched: false,
   // one-shot music-toggle press, consumed by Input.consumePressed('M').
@@ -53,6 +54,7 @@ let pinchLastDist = 0;
 
 let honkTouchId = null;
 let boostTouchId = null;
+let slowTouchId = null;
 let musicTouchId = null;
 
 let installed = false;
@@ -60,6 +62,7 @@ let $stickBase = null;
 let $stickKnob = null;
 let $btnHonk = null;
 let $btnBoost = null;
+let $btnSlow = null;
 let $btnMusic = null;
 
 export const Touch = {
@@ -84,9 +87,10 @@ export const Touch = {
     $stickKnob = document.getElementById('stick-knob');
     $btnHonk = document.getElementById('btn-honk');
     $btnBoost = document.getElementById('btn-boost');
+    $btnSlow = document.getElementById('btn-slow');
     $btnMusic = document.getElementById('btn-music');
 
-    if (!$stickBase || !$stickKnob || !$btnHonk || !$btnBoost) return;
+    if (!$stickBase || !$stickKnob || !$btnHonk || !$btnBoost || !$btnSlow) return;
 
     if (Touch.isTouchDevice()) {
       document.body.classList.add('is-touch');
@@ -109,6 +113,10 @@ export const Touch = {
     $btnBoost.addEventListener('touchstart', onBoostStart, { passive: false });
     $btnBoost.addEventListener('touchend', onBoostEnd, { passive: false });
     $btnBoost.addEventListener('touchcancel', onBoostEnd, { passive: false });
+
+    $btnSlow.addEventListener('touchstart', onSlowStart, { passive: false });
+    $btnSlow.addEventListener('touchend', onSlowEnd, { passive: false });
+    $btnSlow.addEventListener('touchcancel', onSlowEnd, { passive: false });
 
     if ($btnMusic) {
       $btnMusic.addEventListener('touchstart', onMusicStart, { passive: false });
@@ -172,6 +180,7 @@ function isControlTarget(target) {
     target.closest('#stick-base') ||
     target.closest('#btn-honk') ||
     target.closest('#btn-boost') ||
+    target.closest('#btn-slow') ||
     target.closest('#btn-cam') ||
     target.closest('#btn-music')
   ));
@@ -292,6 +301,26 @@ function onBoostEnd(e) {
       boostTouchId = null;
       state.boost = false;
       $btnBoost.classList.remove('pressed');
+      return;
+    }
+  }
+}
+
+function onSlowStart(e) {
+  e.preventDefault();
+  if (slowTouchId !== null) return;
+  slowTouchId = e.changedTouches[0].identifier;
+  state.slow = true;
+  $btnSlow.classList.add('pressed');
+}
+
+function onSlowEnd(e) {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.identifier === slowTouchId) {
+      slowTouchId = null;
+      state.slow = false;
+      $btnSlow.classList.remove('pressed');
       return;
     }
   }

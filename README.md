@@ -38,6 +38,7 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 | `W` `A` `S` `D` | Drive Zerble |
 | `← ↑ → ↓` | Orbit / tilt camera |
 | `Shift` | Boost |
+| `Ctrl` (hold) | Slow mode: lower top speed and gentler acceleration |
 | `Space` | Honk! (random — bell or clown horn) |
 | `B` / `H` | Specific honk — bicycle bell / clown horn |
 | `V` | Cycle camera — chase / first-person / top-down |
@@ -48,7 +49,7 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 
 - Left thumbstick — drive
 - Drag anywhere else — orbit / tilt camera
-- Boost / Honk / Cam buttons — bottom right
+- Slow / Boost / Honk / Cam buttons — bottom right
 
 ## Play it
 
