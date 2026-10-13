@@ -9,6 +9,7 @@
     "Generic driver body is hidden beneath the dedicated Bo model",
     "Nearby idle NPC reserves an available seat",
     "Tall NPCs use open roof seats instead of clipping into the cabin",
+    "Roadside NPC ten metres away receives enough time to board",
     "Wagon boarding is independent of Zerble motion",
     "Wagon riders ignore Zerble empty bubble tank",
     "Driver stays seated",

@@ -657,6 +657,10 @@ const SIZE_CONFIG = {
 // One knob — dial it if 2× reads too big or spreads forests too sparse. (Gary)
 export const CAMPSITE_SCALE = 2;
 
+export function campsiteFootprint(size) {
+  return ((SIZE_CONFIG[size] || SIZE_CONFIG.medium).radius + 2) * CAMPSITE_SCALE;
+}
+
 // Tiki torches built OUTSIDE a campsite (stage rings, food-court rings, forest
 // path lanterns, vendor backstage camps, the sandbox) used to render at native
 // size — half the size of the torches inside a campsite, which ride the
@@ -793,7 +797,7 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
   return {
     group: root,
     animatables,
-    footprint: (cfg.radius + 2) * CAMPSITE_SCALE,
+    footprint: campsiteFootprint(size),
   };
 }
 

@@ -50,10 +50,14 @@ function createTemplate() {
         // Courtney's boundary is angular; Bo's is a smooth wave.
         c.fillStyle = '#e44929'; c.fillRect(0, 0, w, h);
         c.fillStyle = '#efca26'; c.beginPath(); c.moveTo(w * .29, 0);
-        for (let y = 0; y <= h; y += 128) c.lineTo(w * (.30 + (y % 256 ? .10 : -.02)), y);
+        for (let i = 0; i <= 10; i++) c.lineTo(w * (.30 + (i % 2 ? .10 : -.02)), h * i / 10);
         c.lineTo(w, h); c.lineTo(w, 0); c.fill();
         c.fillStyle = '#31962e'; c.beginPath(); c.moveTo(w, 0); c.lineTo(w * .73, 0);
-        for (let y = 0; y < h; y += 256) c.bezierCurveTo(w * .58, y + 80, w * .88, y + 168, w * .73, y + 256);
+        const wave = h / 5;
+        for (let i = 0; i < 5; i++) {
+            const y = i * wave;
+            c.bezierCurveTo(w * .58, y + wave * .3125, w * .88, y + wave * .65625, w * .73, y + wave);
+        }
         c.lineTo(w, h); c.fill();
         for (let i = 0; i < 60; i++) {
             c.fillStyle = i % 3 ? '#807c5555' : '#ecdf9c55';

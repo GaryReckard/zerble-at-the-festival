@@ -107,12 +107,12 @@ export class NutWagon {
   }
 
   boardNearby() {
-    if (this.state !== 'parked' || this.stopTimer < 8) return;
+    if (this.state !== 'parked' || this.stopTimer < 14) return;
     let slot, npc;
     for (const candidate of this.crowd.npcs) {
       if (!['idle', 'walking', 'watching'].includes(candidate.state) || candidate.seatSlot
           || (candidate.wagonCooldownUntil || 0) > this.clock
-          || Math.hypot(candidate.pos.x - this.position.x, candidate.pos.z - this.position.z) >= 7) continue;
+          || Math.hypot(candidate.pos.x - this.position.x, candidate.pos.z - this.position.z) >= 12) continue;
       // The crowd has deliberately exaggerated height variation. Tall riders
       // use the open roof bench instead of clipping through the cabin roof.
       slot = this.seatSlots.find(s => !s.occupied && !s.permanent
@@ -120,7 +120,7 @@ export class NutWagon {
       if (slot) { npc = candidate; break; }
     }
     if (!npc) return;
-    slot.occupied = true; npc.seatSlot = slot; npc.state = 'boarding'; npc.stateTimer = 7;
+    slot.occupied = true; npc.seatSlot = slot; npc.state = 'boarding'; npc.stateTimer = 14;
     npc.wagonCooldownUntil = this.clock + 100;
   }
 

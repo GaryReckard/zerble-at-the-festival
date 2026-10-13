@@ -29,7 +29,7 @@ import { roadsInBounds, nearestRoad } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
-import { buildCampsite, buildCampChair, buildTorchField, buildVendorCamp, CAMPSITE_SCALE } from './models/campsite.js';
+import { buildCampsite, buildCampChair, buildTorchField, buildVendorCamp, CAMPSITE_SCALE, campsiteFootprint } from './models/campsite.js';
 import { buildTent } from './models/tent.js';
 import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
@@ -2739,6 +2739,8 @@ function placeCampsiteClump(ctx) {
 }
 
 function placeSingleCampsite(ctx, x, z, size = 'small') {
+  // A 4 m center guard misses the 12–20 m scaled vignette, including its tents.
+  if (USE_WORLDGEN_V2 && nearestRoad(x, z).dist < ROAD_RIBBON_WIDTH / 2 + campsiteFootprint(size)) return;
   const camp = buildCampsite(ctx.rng, size);
   camp.group.position.set(x, 0, z);
   camp.group.rotation.y = ctx.rng() * Math.PI * 2;

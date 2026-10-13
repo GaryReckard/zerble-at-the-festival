@@ -36,8 +36,8 @@ function geometryFor(seated) {
     oval(colors.black, [0,hip+.035,0], [.20,.10,.12]);
     for (const side of [-1,1]) {
         const x = side * .105;
-        const knee = seated ? [x,hip-.05,.36] : [x, .43,.015];
-        const ankle = seated ? [x,hip-.43,.40] : [x,.10,0];
+        const knee = seated ? [x,hip+.025,.57] : [x, .43,.015];
+        const ankle = seated ? [x,hip-.34,.72] : [x,.10,0];
         limb(colors.black,[x,hip,0],knee,.075);
         limb(colors.black,knee,ankle,.06);
         oval(colors.shoe,[x,ankle[1]-.035,ankle[2]+.055],[.075,.055,.14]);
@@ -49,7 +49,7 @@ function geometryFor(seated) {
         oval(colors.skin,[side*.14,hip+.76,.005],[.035,.062,.035]);
         const shoulder = [side*.21,hip+.48,0];
         const elbow = seated ? [side*.24,hip+.24,.17] : [side*.255,hip+.23,.01];
-        const hand = seated ? [side*.23,hip+.46,.425] : [side*.27,hip-.015,.04];
+        const hand = seated ? [side*.23,hip+.39,.425] : [side*.27,hip-.015,.04];
         limb(colors.shirt,shoulder,[side*.235,hip+.355,seated?.085:0],.092);
         limb(colors.skin,[side*.235,hip+.355,seated?.085:0],elbow,.056);
         limb(colors.skin,elbow,hand,.048);
@@ -116,6 +116,7 @@ export function buildBo({seated = false} = {}) {
 export function seatBoInWagon(wagon, mount) {
     const bo = buildBo({seated:true});
     bo.position.set(...mount.position);
+    bo.position.y += .04;
     bo.scale.setScalar(.55);
     wagon.add(bo);
     return bo;

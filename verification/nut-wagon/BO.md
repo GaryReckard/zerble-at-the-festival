@@ -10,7 +10,9 @@ The crowd still owns the permanent driver reservation and riding behavior. Its g
 
 ## Verification
 
-The project check passed. Controller checks pass 30 assertions on Low and Standard, including shared resources, driver attachment, roof clearance, hidden generic body and repeated despawn cleanup. The muted Low game boots with Bo's wagon without captured console warnings/errors. The standing Low sandbox reports three scene draws and 4,089 triangles including its ground/background; this is not a whole-game performance benchmark.
+Follow-up: the seated hips are raised 4 cm in wagon-local coordinates, with knees beyond the cushion and feet in the footwell. The side view below shows the corrected legs. The brief Sol-medium post-commit pass of `444d84d` reported no concrete runtime or lifecycle blocker before that agent reached its quota limit.
+
+The project check passed. Controller checks pass 31 assertions on Low and Standard, including shared resources, driver attachment, roof clearance, hidden generic body and repeated despawn cleanup. The muted Low game boots with Bo's wagon without captured console warnings/errors. The standing Low sandbox reports three scene draws and 4,089 triangles including its ground/background; this is not a whole-game performance benchmark.
 
 - [Standing preview](http://127.0.0.1:8765/sandbox.html?entity=bo&mute=1)
 - [Seated preview](http://127.0.0.1:8765/sandbox.html?entity=bo_driving&mute=1)

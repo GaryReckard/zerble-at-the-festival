@@ -34,6 +34,9 @@ try {
  const npc=crowd.spawn({pos:new THREE.Vector3(2,0,10),rng:()=>.4});
  wagon.boardNearby(); assert(npc.state==='boarding','Nearby idle NPC reserves an available seat');
  assert(npc.seatSlot.kind==='roof','Tall NPCs use open roof seats instead of clipping into the cabin');
+ const approacher=crowd.spawn({pos:new THREE.Vector3(10,0,10),rng:()=>.3});
+ wagon.boardNearby();
+ assert(approacher.state==='boarding' && approacher.stateTimer===14,'Roadside NPC ten metres away receives enough time to board');
  wagon.worldSeatPosition(npc.seatSlot,npc.pos);
  crowd._tickBoarding(.1,npc,{}, {zerbleIdle:false});
  assert(npc.state==='riding','Wagon boarding is independent of Zerble motion');

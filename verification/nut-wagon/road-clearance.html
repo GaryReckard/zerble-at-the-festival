@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>Campsite road regression</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Checking…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {ChunkManager} from '../../src/chunks.js';
+import {Crowd} from '../../src/crowd.js';
+import {registry} from '../../src/registry.js';
+import {setSessionSeed} from '../../src/rng.js';
+import {nearestRoad} from '../../src/worldgen/roads.js';
+import {CONFIG} from '../../src/worldgen/constants.js';
+const scene=new THREE.Scene(), crowd=new Crowd({spawn(){}});
+setSessionSeed(2186624078);
+const chunks=new ChunkManager(scene,crowd);
+try {
+ chunks.update(new THREE.Vector3(108.66,0,172.97));
+ const camps=[...registry.entries.values()].filter(e=>e.kind==='campsite');
+ const overlaps=camps.map(e=>({x:e.position.x,z:e.position.z,footprint:e.footprint,roadDistance:nearestRoad(e.position.x,e.position.z).dist})).filter(e=>e.roadDistance<CONFIG.ROAD_WIDTH/2+e.footprint);
+ document.querySelector('#result').textContent=JSON.stringify({pass:camps.length>0&&overlaps.length===0,seed:2186624078,position:[108.66,172.97],camps:camps.length,overlaps},null,2);
+} catch(e){document.querySelector('#result').textContent='FAIL: '+e.stack;}
+finally {for(const [key,chunk] of [...chunks.loaded])chunks._unload(key,chunk);}
+</script>
