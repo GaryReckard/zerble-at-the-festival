@@ -29,6 +29,8 @@ The three additional references supplied later in this conversation supersede th
 
 The additional near-side profile (`codex-clipboard-bf3d5277-3e61-4170-b893-9aad9cd20887.png`) guides the silhouette, hood slope and wheel openings. The donor appears to be a Mercedes S123 estate; the exact engine/year is unconfirmed. [Mercedes' 300 TD archive specification](https://mercedes-benz-publicarchive.com/marsClassic/de/instance/ko/300-TD--S-123-D-30-1978---1986.xhtml?oid=5380) gives a 4.725 m length, 1.786 m width, 1.470 m roof-rail height and 2.795 m wheelbase, with 1.488/1.453 m front/rear track. These guide the shell calibration; the wheelbase and track are set directly. Altered bumpers, accessories and body contours remain photo approximations, not surveyed dimensions. Proportions are baked into shared buffers, with round tyres and corresponding model-local rider mounts.
 
+Bo clarified the paint intent: his driver side is green with a wavy boundary, Courtney’s right side red with a sharp boundary, and mellow yellow between. The full roof, hood, body sides and hatch follow that assignment. Gary requested fewer crests; both boundaries now have two broad cycles per painted panel. The additional colors cost four material batches and one shadow caster.
+
 ## Model contract
 
 [Source](../../src/models/nutWagon.js) exports `buildNutWagon({hatchOpen = true})` and `NUT_WAGON_MOUNTS`. It returns a ground-anchored Group, facing +Z, with passenger side at -X. Callers own position and rotation.
@@ -43,7 +45,7 @@ The hatch-open option controls its initial pose and support visibility. A future
 - `bin/check-importmaps`: passed, 46 source modules, 12 worldgen modules and 31 models across four entry pages. The model cache-buster entry was added to all four pages.
 - `node --check src/models/nutWagon.js` and `git diff --check`: passed.
 - Real-Three checks: independent model/hatch/wheel transforms, open/closed support visibility, independent rider mount data, finite attributes, bounds, shared buffers, unload convention, reload reuse, resource budgets and GPU shader compilation. [Low results](check-low.json), [standard results](check-standard.json).
-- Model: 50 meshes, 9,778 geometry triangles, three shadow casters. Single-frame renderer probe: 51 submissions / 9,780 triangles, including the transparent double-sided windshield pass. These are model costs, not whole-game FPS measurements.
+- Model: 54 meshes, 9,838 geometry triangles, four shadow casters. Single-frame renderer probe: 55 submissions / 9,840 triangles, including the transparent double-sided windshield pass. These are model costs, not whole-game FPS measurements.
 - Bounds with the hatch open: 2.025 m wide, 3.088 m tall including the pole, 6.317 m long including the platform and raised hatch.
 - Full game: Low title screen and world startup verified through the real start button, with no captured console errors or warnings. The model is not yet spawned by that path.
 - Sandbox: Noon, Midnight, rear cargo opening, closed hatch and repeated entity selection inspected. Browser sound was muted at Gary's request.

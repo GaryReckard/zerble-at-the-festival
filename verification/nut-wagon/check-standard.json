@@ -3,8 +3,8 @@
   "tier": "standard",
   "render": {
     "frame": 1,
-    "calls": 51,
-    "triangles": 9780,
+    "calls": 55,
+    "triangles": 9840,
     "points": 0,
     "lines": 0
   },
@@ -17,7 +17,7 @@
     "Mount data is isolated between instances",
     "All mesh buffers shared between instances",
     "Grounded vehicle with expected width, platform reach and pole height",
-    "Model geometry and shadow budgets",
+    "Model geometry and shadow budgets (54 meshes, 9838 triangles, 4 casters)",
     "Mercedes 2.795 metre wheelbase",
     "Wheel transforms isolated between instances",
     "Sandbox unload convention preserves pooled buffers",
@@ -29,9 +29,9 @@
     "GPU submits the model",
     "Shaders compile"
   ],
-  "meshes": 50,
-  "triangles": 9778,
-  "shadowCasters": 3,
+  "meshes": 54,
+  "triangles": 9838,
+  "shadowCasters": 4,
   "bounds": [
     2.0252726674079895,
     3.0876307463645936,

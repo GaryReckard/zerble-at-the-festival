@@ -30,7 +30,7 @@ try {
  assert(ga.length === gb.length && ga.every((g, i) => g === gb[i]), 'All mesh buffers shared between instances');
  const bounds = new THREE.Box3().setFromObject(a), size = bounds.getSize(new THREE.Vector3());
  assert(bounds.min.y >= -.001 && size.x > 1.8 && size.x < 2.3 && size.z > 5.5 && size.z < 6.7 && size.y > 3 && size.y < 3.3, 'Grounded vehicle with expected width, platform reach and pole height');
- assert(ga.length <= 52 && triangles < 16000 && shadows <= 4, 'Model geometry and shadow budgets');
+ assert(ga.length <= 56 && triangles < 16000 && shadows <= 4, `Model geometry and shadow budgets (${ga.length} meshes, ${triangles} triangles, ${shadows} casters)`);
  assert(Math.abs(a.userData.wheels[0].position.z - a.userData.wheels[1].position.z) === NUT_WAGON_DIMENSIONS.wheelbase, 'Mercedes 2.795 metre wheelbase');
  const origin = b.userData.wheels[0].rotation.x;
  a.userData.wheels[0].rotation.x += 1;

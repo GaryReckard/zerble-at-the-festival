@@ -38,19 +38,22 @@ function createTemplate() {
         m.userData.shared = true;
         return m;
     };
-    const green = material(0x329b32), pink = material(0xef528c);
+    const bodyRed = material(0xe44929);
+    const green = material(0x31962e), pink = material(0xef528c);
     const black = material(0x25282a), metal = material(0x999c91, {metalness: 0.45});
     const tan = material(0x98784c), trim = material(0x45443b);
     const glass = material(0x56777b, {transparent: true, opacity: 0.33, depthWrite: false, side: THREE.DoubleSide});
     const yellow = material(0xf5c52a), orange = material(0xec772a), red = material(0xb93629);
     const lens = material(0xe0dbc0, {roughness: 0.35});
     const paintMap = texture((c, w, h) => {
+        // Viewed from above: -X is Courtney/right, +X is Bo/driver.
+        // Courtney's boundary is angular; Bo's is a smooth wave.
         c.fillStyle = '#e44929'; c.fillRect(0, 0, w, h);
         c.fillStyle = '#efca26'; c.beginPath(); c.moveTo(w * .29, 0);
-        for (let y = 0; y <= h; y += 32) c.lineTo(w * (.30 + (y % 64 ? .10 : -.02)), y);
+        for (let y = 0; y <= h; y += 128) c.lineTo(w * (.30 + (y % 256 ? .10 : -.02)), y);
         c.lineTo(w, h); c.lineTo(w, 0); c.fill();
         c.fillStyle = '#31962e'; c.beginPath(); c.moveTo(w, 0); c.lineTo(w * .73, 0);
-        for (let y = 0; y < h; y += 64) c.bezierCurveTo(w * .58, y + 20, w * .88, y + 42, w * .73, y + 64);
+        for (let y = 0; y < h; y += 256) c.bezierCurveTo(w * .58, y + 80, w * .88, y + 168, w * .73, y + 256);
         c.lineTo(w, h); c.fill();
         for (let i = 0; i < 60; i++) {
             c.fillStyle = i % 3 ? '#807c5555' : '#ecdf9c55';
@@ -104,18 +107,21 @@ function createTemplate() {
     box(root, trim, 0, .63, -.64, 1.78, .09, 3.28);
     // A crowned bonnet falls toward a raked nose instead of a rectangular slab.
     const nose = new THREE.Group(); root.add(nose);
-    box(nose, green, 0, .91, 1.72, 1.70, .58, 1.33, true);
+    for (const [x, mat] of [[-.57, bodyRed], [0, yellow], [.57, green]])
+        box(nose, mat, x, .91, 1.72, .57, .58, 1.33);
     const hood = new THREE.Mesh(new THREE.PlaneGeometry(1.94, 1.34, 8, 4), painted);
     hood.rotation.x = -Math.PI / 2; hood.position.set(0, 1.207, 1.72); nose.add(hood);
     box(root, green, 0, 1.88, -.84, 1.75, .12, 2.78, true);
-    plane(root, painted, 1.68, 1.30, 0, 1.945, -.14, -Math.PI / 2);
+    plane(root, painted, 1.75, 2.78, 0, 1.945, -.84, -Math.PI / 2);
+    box(root, bodyRed, -.877, 1.88, -.84, .012, .12, 2.78);
     for (const x of [-.98, .98]) {
+        const sidePaint = x < 0 ? bodyRed : green;
         const outline = new THREE.Shape();
         outline.moveTo(.93, .53); outline.lineTo(.93, 1.20);
         outline.lineTo(2.39, 1.20); outline.lineTo(2.39, .53);
         outline.absarc(1.49, .437, .50, Math.asin(.093 / .50), Math.PI - Math.asin(.093 / .50), false);
         outline.lineTo(.93, .53);
-        const fender = new THREE.Mesh(new THREE.ExtrudeGeometry(outline, {depth: .09, bevelEnabled: false, curveSegments: 12}), green);
+        const fender = new THREE.Mesh(new THREE.ExtrudeGeometry(outline, {depth: .09, bevelEnabled: false, curveSegments: 12}), sidePaint);
         fender.rotation.y = -Math.PI / 2; fender.position.x = x + .045;
         fender.castShadow = true; nose.add(fender);
         const rearOutline = new THREE.Shape();
@@ -123,18 +129,18 @@ function createTemplate() {
         rearOutline.lineTo(-1.03, 1.28); rearOutline.lineTo(-1.03, .53);
         rearOutline.absarc(-1.49, .437, .50, Math.asin(.093 / .50), Math.PI - Math.asin(.093 / .50), false);
         rearOutline.lineTo(-2.39, .53);
-        const quarter = new THREE.Mesh(new THREE.ExtrudeGeometry(rearOutline, {depth: .13, bevelEnabled: false, curveSegments: 12}), green);
+        const quarter = new THREE.Mesh(new THREE.ExtrudeGeometry(rearOutline, {depth: .13, bevelEnabled: false, curveSegments: 12}), sidePaint);
         quarter.rotation.y = -Math.PI / 2; quarter.position.x = x + .065;
         quarter.castShadow = true; root.add(quarter);
-        box(root, green, x, .62, -.1, .10, .14, 2.65);
+        box(root, sidePaint, x, .62, -.1, .10, .14, 2.65);
         beam(root, pink, [x, .56, 1.24], [x, .56, -1.02], .034);
-        beam(root, green, [x, 1.15, 1.0], [x * .88, 1.88, .55], .055);
-        beam(root, green, [x, .65, -.2], [x * .88, 1.85, -.2], .055);
-        beam(root, green, [x, .68, -1.36], [x * .88, 1.84, -.94], .055);
+        beam(root, sidePaint, [x, 1.15, 1.0], [x * .88, 1.88, .55], .055);
+        beam(root, sidePaint, [x, .65, -.2], [x * .88, 1.85, -.2], .055);
+        beam(root, sidePaint, [x, .68, -1.36], [x * .88, 1.84, -.94], .055);
         beam(root, metal, [x, 1.21, -1.16], [x, 1.21, -2.33], .018);
         beam(root, metal, [x, 1.21, -1.16], [x * .88, 1.82, -.94], .018);
         beam(root, metal, [x * .88, 1.82, -.94], [x * .80, 1.82, -2.17], .018);
-        beam(root, green, [x, 1.12, -2.36], [x * .80, 1.87, -2.20], .052);
+        beam(root, sidePaint, [x, 1.12, -2.36], [x * .80, 1.87, -2.20], .052);
         beam(root, metal, [x * .9, 2.015, .3], [x * .9, 2.015, -1.98], .023);
         for (const z of [.3, -1.9]) beam(root, metal, [x * .9, 1.94, z], [x * .9, 2.015, z], .025);
         for (const z of [1.55, -1.55]) {
@@ -176,7 +182,7 @@ function createTemplate() {
     for (const x of [-.72, .72]) beam(root, metal, [x, 2.02, -1.84], [x, 2.51, -1.95], .027);
     box(nose, metal, 0, .98, 2.41, 1.0, .57, .08);
     for (let i = 0; i < 10; i++) {
-        for (let j = 0; j < 3; j++) box(nose, [red, yellow, green][j], (j - 1) * .30, .745 + i * .047, 2.461, .29, .024, .015);
+        for (let j = 0; j < 3; j++) box(nose, [bodyRed, yellow, green][j], (j - 1) * .30, .745 + i * .047, 2.461, .29, .024, .015);
     }
     beam(nose, metal, [0, .72, 2.48], [0, 1.25, 2.48], .013);
     for (const x of [-.73, .73]) {
@@ -209,7 +215,8 @@ function createTemplate() {
         beam(root, trim, [-.63 + i * .16, 2.15, -1.82], [-.63 + i * .16, 2.66, -1.89], .006);
     }
     const hatch = new THREE.Group(); hatch.name = 'hatch'; hatch.position.set(0, 1.87, -2.21); root.add(hatch);
-    box(hatch, green, 0, -.61, 0, 1.85, 1.24, .075);
+    for (const [x, mat] of [[-.617, bodyRed], [0, yellow], [.617, green]])
+        box(hatch, mat, x, -.61, 0, .617, 1.24, .075);
     plane(hatch, stickers, 1.65, .85, 0, -.51, .043);
     const outside = plane(hatch, stickers, 1.65, .85, 0, -.51, -.043); outside.rotation.y = Math.PI;
     const supports = new THREE.Group(); supports.name = 'hatch_supports'; root.add(supports);
