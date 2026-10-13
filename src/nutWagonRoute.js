@@ -1,6 +1,6 @@
 // Separate seeded encounters from frame rate and the world's shared RNG streams.
 export const NUT_WAGON_TUNING = Object.freeze({
-  worldScale: 1.6, speed: .75, stopSeconds: 24, cruiseSeconds: 48,
+  worldScale: 1.6, speed: .75, stopSeconds: 24, cruiseSeconds: 48, stallSeconds: 8,
   encounterSeconds: 45, normalChance: .08, tripChance: .8,
   spawnMin: 65, spawnMax: 145, despawnDistance: 245,
 });
@@ -44,11 +44,43 @@ export function wagonRoutes(roads, center, isClear, radius = 150) {
       const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 2));
       for (let j = 0; j <= n; j++) {
         const x = a.x + (b.x - a.x) * j / n, z = a.z + (b.z - a.z) * j / n;
-        if (Math.hypot(x - center.x, z - center.z) > radius || !isClear(x, z)) flush();
+        if (Math.hypot(x - center.x, z - center.z) > radius || !isClear(x, z, Math.atan2(b.x - a.x, b.z - a.z))) flush();
         else run.push({x, z});
       }
     }
     flush();
   }
   return routes;
+}
+
+// Conservative model-local rectangles include the open hatch and offset platform.
+// Keeping these separate avoids pretending that the entire car is platform-wide.
+const FOOTPRINTS = [
+  {x: 0, z: -.3, halfX: .96, halfZ: 2.7},
+  {x: -.55, z: 2.82, halfX: .65, halfZ: .60},
+];
+export function wagonOverlapsCircle(x, z, yaw, ox, oz, radius) {
+  const c = Math.cos(yaw), s = Math.sin(yaw), scale = NUT_WAGON_TUNING.worldScale;
+  const dx = ox - x, dz = oz - z;
+  const lx = (dx * c - dz * s) / scale, lz = (dx * s + dz * c) / scale;
+  for (const box of FOOTPRINTS) {
+    const ex = Math.max(0, Math.abs(lx - box.x) - box.halfX);
+    const ez = Math.max(0, Math.abs(lz - box.z) - box.halfZ);
+    if (ex * ex + ez * ez <= ((radius + .12) / scale) ** 2) return true;
+  }
+  return false;
+}
+
+// Sample the full covered area, including corners, at less than one world metre.
+const WATER_SAMPLES = FOOTPRINTS.flatMap(box => {
+  const out = [], nx = Math.ceil(box.halfX * 2 / .5), nz = Math.ceil(box.halfZ * 2 / .5);
+  for (let ix = 0; ix <= nx; ix++) for (let iz = 0; iz <= nz; iz++) {
+    out.push([(box.x - box.halfX + ix * box.halfX * 2 / nx) * NUT_WAGON_TUNING.worldScale,
+      (box.z - box.halfZ + iz * box.halfZ * 2 / nz) * NUT_WAGON_TUNING.worldScale]);
+  }
+  return out;
+});
+export function wagonTouchesWater(x, z, yaw, isWater) {
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  return WATER_SAMPLES.some(([lx, lz]) => isWater(x + lx * c + lz * s, z - lx * s + lz * c));
 }

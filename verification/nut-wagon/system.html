@@ -4,7 +4,7 @@
 <script type="module">
 import * as THREE from 'three';
 import {NutWagon} from '../../src/nutWagon.js';
-import {makeWagonRoute} from '../../src/nutWagonRoute.js';
+import {makeWagonRoute, wagonOverlapsCircle} from '../../src/nutWagonRoute.js';
 import {Sound} from '../../src/sound.js';
 import {Crowd} from '../../src/crowd.js';
 import {registry} from '../../src/registry.js';
@@ -57,6 +57,14 @@ try {
  const emptyCrowd={npcs:[],spawn:()=>null};
  const noDriver=new NutWagon(scene,emptyCrowd,{music:false});
  assert(noDriver.spawnOnRoute(route,10)===false && registry.entries.size===before && !noDriver.active,'A full NPC pool does not leave a driverless wagon or leaked colliders');
+ wagon.spawnOnRoute(route,20); wagon.state='cruising'; wagon.clearAt=()=>false;
+ const blockedAt=wagon.position.z;
+ for(let i=0;i<90;i++) wagon.update(.1,player,false,0);
+ assert(wagon.state==='parked' && wagon.direction===-1 && wagon.position.z===blockedAt,'Newly blocked route parks after eight seconds and schedules a backtrack');
+ wagon.clearAt=(x,z,yaw)=>!wagonOverlapsCircle(x,z,yaw,3.5,blockedAt,.5); wagon.stopTimer=0;
+ for(let i=0;i<90;i++) wagon.update(.1,player,false,0);
+ assert(wagon.position.z<blockedAt && wagon.speed<0 && Math.abs(wagon.root.rotation.y)<.01,'Recovered wagon backs along a narrow road without a blocked U-turn');
+ wagon.despawn();
  const calls=[];wagon.trySpawn=()=>{calls.push(1);return false;};wagon.rng=()=>.5;
  wagon.encounterTimer=0;wagon.update(.1,player,false,0);assert(calls.length===0,'Normal encounter rejects a 50% roll');
  wagon.update(.1,player,true,0);assert(calls.length===1,'Trip start immediately gets its higher-probability roll');

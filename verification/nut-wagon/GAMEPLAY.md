@@ -23,6 +23,8 @@ Gary chose rare ordinary encounters, strongly increased Trip encounters, regular
 
 ## Verification
 
+The follow-up [Sol-medium adversarial review](adversarial-review.md) found and resolved clearance and stalled-route defects. Rotated footprints now cover the body, hatch and platform, with sub-metre water sampling. After eight seconds blocked, the wagon parks and reverses along its route without a U-turn. It also uses reverse gear at route ends. Both saved browser runs now pass 25 assertions, including blocked-route and narrow-corridor recovery.
+
 `npm run check`, import-map validation, syntax checks and whitespace checks passed. The automated route test covers interpolation, duplicate points, endpoint clamping, dense obstruction splits, short/blocked route rejection and the tenfold encounter-probability ratio.
 
 [Low](system-low.json) and [Standard](system-standard.json) browser checks cover separate capacity, a permanent driver, ordinary boarding, tall rider placement, moving seat/collider/music coordinates, no disembarking in motion, parked release, repeated despawn cleanup, immediate Trip rolls without per-frame repeats, and full-pool rollback. The model-only GPU checks remain in the adjacent model record.

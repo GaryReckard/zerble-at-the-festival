@@ -6,7 +6,7 @@ import {approachRoadsOf} from './worldgen/roads.js';
 import {lakeAt} from './worldgen/water.js';
 import {mulberry32, getSessionSeed} from './rng.js';
 import {Sound} from './sound.js';
-import {NUT_WAGON_TUNING as T, wagonRoutes, sampleWagonRoute} from './nutWagonRoute.js';
+import {NUT_WAGON_TUNING as T, wagonRoutes, sampleWagonRoute, wagonOverlapsCircle, wagonTouchesWater} from './nutWagonRoute.js';
 
 export class NutWagon {
   constructor(scene, crowd, {music = true} = {}) {
@@ -22,14 +22,12 @@ export class NutWagon {
     this.lastStop = new THREE.Vector3();
   }
 
-  clearAt(x, z) {
-    for (const [dx, dz] of [[0, 0], [3.4, 0], [-3.4, 0], [0, 3.4], [0, -3.4]]) {
-      if (lakeAt(x + dx, z + dz)) return false;
-    }
+  clearAt(x, z, yaw = this.root?.rotation.y || 0) {
+    if (wagonTouchesWater(x, z, yaw, lakeAt)) return false;
     let clear = true;
-    registry.collidersNear(x, z, 3.4, e => {
+    registry.collidersNear(x, z, 6, e => {
       if (e.kind === 'nut_wagon' || e.kind === 'lurleen' || e.kind === 'puppet' || e.kind === 'brass_band') return;
-      if (Math.hypot(e.position.x - x, e.position.z - z) < 3.4 + e.collider.radius) clear = false;
+      if (wagonOverlapsCircle(x, z, yaw, e.position.x, e.position.z, e.collider.radius)) clear = false;
     });
     return clear;
   }
@@ -38,7 +36,7 @@ export class NutWagon {
     if (this.active) return true;
     const {heart} = nearestHeart(player.x, player.z);
     if (!heart) return false;
-    const routes = wagonRoutes(approachRoadsOf(heart).map(r => r.oriented), player, (x, z) => this.clearAt(x, z));
+    const routes = wagonRoutes(approachRoadsOf(heart).map(r => r.oriented), player, (x, z, yaw) => this.clearAt(x, z, yaw) && this.clearAt(x, z, yaw + Math.PI));
     if (camera) this._frustum.setFromProjectionMatrix(this._matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     const candidates = [];
     for (const route of routes) {
@@ -62,7 +60,7 @@ export class NutWagon {
     this.despawn(); this.route = route; this.distance = distance; this.direction = 1;
     this.root = buildNutWagon(); this.root.scale.setScalar(T.worldScale); this.scene.add(this.root);
     this.active = true; this.state = 'parked'; this.stopTimer = T.stopSeconds; this.cruiseTimer = 0;
-    this.gatheringStop = false; this.gatherTimer = 0; this.boardTimer = 0;
+    this.gatheringStop = false; this.gatherTimer = 0; this.boardTimer = 0; this.blockedTimer = 0;
     sampleWagonRoute(route, distance, this.sample);
     this.position.set(this.sample.x, 0, this.sample.z); this.root.position.copy(this.position);
     this.root.rotation.y = this.sample.heading; this.heading = this.sample.heading + Math.PI;
@@ -169,16 +167,25 @@ export class NutWagon {
     } else {
       const next = Math.max(6, Math.min(this.route.length - 6, this.distance + this.direction * T.speed * dt));
       sampleWagonRoute(this.route, next, this.nextSample);
-      const targetYaw = this.nextSample.heading + (this.direction < 0 ? Math.PI : 0);
+      const targetYaw = this.nextSample.heading;
       const delta = Math.atan2(Math.sin(targetYaw - this.root.rotation.y), Math.cos(targetYaw - this.root.rotation.y));
-      this.root.rotation.y += Math.max(-dt * .6, Math.min(dt * .6, delta));
+      const nextYaw = this.root.rotation.y + Math.max(-dt * .6, Math.min(dt * .6, delta));
+      const canTurn = this.clearAt(this.position.x, this.position.z, nextYaw);
       const nearPlayer = Math.hypot(this.nextSample.x - player.x, this.nextSample.z - player.z) < 7;
-      if (Math.abs(delta) < .12 && !nearPlayer && this.clearAt(this.nextSample.x, this.nextSample.z)) {
-        this.distance = next; this.position.set(this.nextSample.x, 0, this.nextSample.z); this.speed = T.speed;
-        for (const wheel of this.root.userData.wheels) wheel.rotation.x += T.speed * dt / (.315 * T.worldScale);
-        this.cruiseTimer += dt;
+      if (canTurn && !nearPlayer) this.root.rotation.y = nextYaw;
+      if (canTurn && Math.abs(delta) < .12 && !nearPlayer && this.clearAt(this.nextSample.x, this.nextSample.z, nextYaw)) {
+        this.distance = next; this.position.set(this.nextSample.x, 0, this.nextSample.z); this.speed = this.direction * T.speed;
+        for (const wheel of this.root.userData.wheels) wheel.rotation.x += this.speed * dt / (.315 * T.worldScale);
+        this.cruiseTimer += dt; this.blockedTimer = 0;
+      } else if (canTurn && Math.abs(delta) >= .12 && !nearPlayer) {
+        this.blockedTimer = 0; // A deliberate turn is progress, not a stalled route.
+      } else this.blockedTimer += dt;
+      if (this.blockedTimer >= T.stallSeconds) {
+        this.direction *= -1;
+        this.state = 'parked'; this.stopTimer = T.stopSeconds; this.blockedTimer = 0;
+        this.lastStop.copy(this.position); this.gatheringStop = false;
       }
-      if (next <= 6 || next >= this.route.length - 6 || this.cruiseTimer >= T.cruiseSeconds || this.gatheringStop) {
+      if (this.state === 'cruising' && (next <= 6 || next >= this.route.length - 6 || this.cruiseTimer >= T.cruiseSeconds || this.gatheringStop)) {
         if (next <= 6 || next >= this.route.length - 6) this.direction *= -1;
         this.state = 'parked'; this.stopTimer = T.stopSeconds;
         this.lastStop.copy(this.position); this.gatheringStop = false;
@@ -201,7 +208,7 @@ export class NutWagon {
   }
 
   status() {
-    return {active: this.active, state: this.state, speed: this.speed,
+    return {active: this.active, state: this.state, speed: this.speed, gear: this.direction < 0 ? 'reverse' : 'forward',
       position: this.position.toArray(), passengers: this.seatSlots.filter(s => s.occupied).length,
       capacity: this.seatSlots.length, tuning: T};
   }

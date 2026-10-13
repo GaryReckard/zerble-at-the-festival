@@ -8,6 +8,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **The Nut Wagon cruises through the festival.** One seeded encounter follows clear stretches of the existing roads at 0.75 m/s, pauses near crowds and activity spots for 24 seconds, and carries a driver plus up to seven seated regular NPCs. Encounter rolls are 8% normally and 80% during trips every 45 seconds, with an immediate trip-start roll; spawns and distant recycling happen outside the camera view. The existing spatial dub groove follows the wagon, night lights work, and collider/music/seat cleanup follows its global lifetime. The gameplay instance uses 1.6× scale for cartoon NPCs; tall riders use the open roof seats. A cruising/boarding sandbox case, localhost `?nutwagon=1` preview, and route/controller checks support iteration. Monk groups remain the next phase. [Verification](verification/nut-wagon/GAMEPLAY.md).
 
 ### Fixed
+- **The Nut Wagon clears its full body and recovers from blocked roads.** Rotated clearance checks include the front platform, open hatch and shoreline corners. After eight seconds blocked, it parks and backs along the road in reverse gear instead of stalling or attempting a U-turn through roadside props. Regression checks and a Sol-medium adversarial follow-up cover these cases.
 - **The debug mute checkbox reflects a silent launch before audio initialization.** Opening the panel after launching with `mute=1` now shows the session mute correctly.
 
 ### Changed
