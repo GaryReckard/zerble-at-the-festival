@@ -180,11 +180,11 @@
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
-            const mods = ['nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
+            const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing', 'festivalShapes',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
-            const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'bo', 'nutWagon', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
+            const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'bo', 'monk', 'nutWagon', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'paradeLanterns', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
                 'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
             const base = new URL('./src/', document.baseURI).href;
@@ -222,6 +222,9 @@
             <option value="hammock_with_npc">Hammock + person (lounging)</option>
             <option value="tent">Vendor tent</option>
             <option value="tent_row">Vendor tent row (5 — shows layout variety)</option>
+            <option value="monk">Tibetan monk</option>
+            <option value="monk_party">Monks · wandering group</option>
+            <option value="nut_wagon_monks">Nut Wagon · monk group boarding</option>
             <option value="bo">Bo · standing</option>
             <option value="bo_driving">Bo · behind the wheel</option>
             <option value="nut_wagon">Nut Wagon</option>
@@ -538,6 +541,8 @@
     import {mulberry32} from './src/rng.js';
     import {buildTent} from './src/models/tent.js';
     import {registry} from './src/registry.js';
+    import {buildMonk} from './src/models/monk.js';
+    import {MonkParty} from './src/monks.js';
     import {buildBo, seatBoInWagon} from './src/models/bo.js';
     import {NutWagon} from './src/nutWagon.js';
     import {makeWagonRoute} from './src/nutWagonRoute.js';
@@ -826,6 +831,8 @@ import {buildShrub} from './src/models/shrub.js';
     function clearEntity() {
         puppetControls?.remove();
         puppetControls = null;
+        if (currentEntity instanceof MonkParty) currentEntity.dispose();
+        currentEntity?.previewParty?.dispose();
         if (currentEntity instanceof NutWagon) currentEntity.despawn();
         if (currentEntity instanceof Smiles) currentEntity.dispose();
         if (currentEntity instanceof Crowd) currentEntity.smiles.dispose();
@@ -1370,6 +1377,27 @@ import {buildShrub} from './src/models/shrub.js';
                 applyCam();
                 break;
             }
+            case 'monk': {
+                const g = buildMonk(); scene.add(g); entityRoot = g; currentEntity = g;
+                let t = 0; updateFn = dt => { t += dt; g.userData.pose(t, .65); };
+                cam.target.set(0, .9, 0); cam.yaw = Math.PI + .25; cam.pitch = .12; cam.dist = 3.6;
+                applyCam(); break;
+            }
+            case 'monk_party': {
+                const people = new Crowd({spawn() {}, spawnLost() {}});
+                scene.add(people.group);
+                const party = new MonkParty(people); party.clearAt = () => true;
+                party.spawn(new THREE.Vector3(), 5);
+                const observer = {position: new THREE.Vector3(0,0,40), speed:0, heading:0,
+                    forwardWorld:new THREE.Vector3(0,0,-1), seatSlots:[]};
+                entityRoot = people.group; currentEntity = party;
+                updateFn = dt => {
+                    people.update(dt, observer, null);
+                    info.textContent = 'Five monks · loose spacing · shared destination';
+                };
+                cam.target.set(0, .8, 0); cam.yaw = Math.PI + .4; cam.pitch = .25; cam.dist = 16;
+                applyCam(); break;
+            }
             case 'bo': {
                 const g = buildBo(); scene.add(g); entityRoot = g; currentEntity = g;
                 cam.target.set(0, 1.1, 0); cam.yaw = .25; cam.pitch = .10; cam.dist = 4.3;
@@ -1383,13 +1411,19 @@ import {buildShrub} from './src/models/shrub.js';
                 cam.target.set(.3, .95, .5); cam.yaw = 1.05; cam.pitch = .10; cam.dist = 3.6;
                 applyCam(); break;
             }
+            case 'nut_wagon_monks':
             case 'nut_wagon_cruise': {
                 const passengers = new Crowd({spawn() {}});
                 scene.add(passengers.group);
                 const wagon = new NutWagon(scene, passengers, {music: false});
                 wagon.clearAt = () => true; // fixed, empty preview corridor
                 wagon.spawnOnRoute(makeWagonRoute([{x: -16, z: 0}, {x: 16, z: 0}]), 8);
-                for (let i = 0; i < 6; i++) passengers.spawn({pos: new THREE.Vector3(-7 + i, 0, 3), rng: () => .4 + i * .03});
+                if (name === 'nut_wagon_monks') {
+                    const party = new MonkParty(passengers, wagon); party.clearAt = () => true;
+                    party.spawn(new THREE.Vector3(-8,0,7), 6); party.seenWagon = wagon.root;
+                    wagon.previewParty = party;
+                }
+                else for (let i = 0; i < 6; i++) passengers.spawn({pos: new THREE.Vector3(-7 + i, 0, 3), rng: () => .4 + i * .03});
                 const observer = {position: new THREE.Vector3(0, 0, 40), speed: 0, heading: 0,
                     forwardWorld: new THREE.Vector3(0, 0, -1), seatSlots: []};
                 currentEntity = wagon; entityRoot = wagon.root;
@@ -1397,9 +1431,10 @@ import {buildShrub} from './src/models/shrub.js';
                     wagon.update(dt, observer.position, false, tod.nightness);
                     registry.rebuildSpatialIndex();
                     passengers.update(dt, observer, null);
+                    if (wagon.previewParty) info.textContent = 'Monks: ' + wagon.previewParty.status().state + ' · ' + wagon.status().passengers + '/9 aboard (Bo + eight guests)';
                     cam.target.copy(wagon.position); cam.target.y = 1; applyCam();
                 };
-                cam.target.set(-6, 1, 0); cam.yaw = -.65; cam.pitch = .32; cam.dist = 22;
+                cam.target.set(-6, 1, 0); cam.yaw = name === 'nut_wagon_monks' ? 1 : -.65; cam.pitch = .32; cam.dist = name === 'nut_wagon_monks' ? 14 : 22;
                 applyCam();
                 break;
             }

@@ -142,7 +142,8 @@ export class Crowd {
     this.onBoard = null;
     this.npcs = [];
     this.free = []; // indices available
-    this.groups = new Map(); // groupId -> { center: Vector3, members: [npcs] }
+    this.groups = new Map(); // groupId -> { center: Vector3, members: [indices] }
+    this.parties = new Set();
     // Per-frame separation broadphase (cell = SEPARATION_RADIUS). Rebuilt from
     // live NPC positions at the top of update().
     this._sepGrid = new SpatialGrid(SEPARATION_RADIUS);
@@ -418,7 +419,7 @@ export class Crowd {
   }
 
   // Called by chunk generator.
-  spawn({ pos, chunkKey, rng = Math.random, forcePhotographer = false }) {
+  spawn({ pos, chunkKey, rng = Math.random, forcePhotographer = false, allowPhotographer = true }) {
     if (this.free.length === 0) return null;
     const idx = this.free.pop();
 
@@ -522,6 +523,7 @@ export class Crowd {
     };
 
     Object.assign(npc, photographerProfile(pos, forcePhotographer));
+    if (!allowPhotographer) npc.isPhotographer = false;
     npc.photoSlot = -1;
     if (npc.isPhotographer) {
       npc.photoSlot = this._photoFree.pop();
@@ -628,7 +630,7 @@ export class Crowd {
     const zero = this._zeroMat || (this._zeroMat = new THREE.Matrix4().makeScale(0, 0, 0));
     let freed = 0;
     for (const npc of this.npcs) {
-      if (npc.state === 'riding' || npc.state === 'boarding') {
+      if (npc.party || npc.state === 'riding' || npc.state === 'boarding') {
         kept.push(npc);
         continue;
       }
@@ -703,6 +705,7 @@ export class Crowd {
     // is intentionally distance-based (not chunk-based) so wandering NPCs
     // don't vanish when their spawn chunk unloads.
     this._despawnDistant(zerble);
+    for (const party of this.parties) party.update(dt, zerble);
 
     const cosCone = Math.cos((SMILE_CONE_DEG * Math.PI) / 180);
 
@@ -938,7 +941,7 @@ export class Crowd {
       // fast one (hits on fleeing NPCs count now — the dodge must be winnable).
       npc.fleeUrgency = laneDodgeUrgency(zerble.speed);
       npc.stateTimer = DODGE.LOCK;       // brief commit, then re-evaluate (re-dodges if still in the lane)
-    } else if (!fleeingLocked && !disinterested) {
+    } else if (!npc.party && !fleeingLocked && !disinterested) {
       if (dToZerble < NOTICE_RANGE) {
         // Star power suppresses fleeing — everyone's smitten, so a skittish
         // NPC stops and stares (falls through to watching/approaching) instead
@@ -990,7 +993,7 @@ export class Crowd {
         // (Bumped from 0.05 to 0.4 — at the old rate Gary never saw anyone in
         // a hammock across a full play session.)
         if (
-          npc.skittish < 0.5 &&
+          !npc.party && npc.skittish < 0.5 &&
           npc.stateTimer < 5 &&
           Math.random() < dt * 0.4
         ) {
@@ -1003,7 +1006,7 @@ export class Crowd {
         // crowd rushing the tables at once. (The deeper food-truck → buy → carry →
         // eat loop is on ROADMAP; this is the sit half.)
         if (
-          !npc.tableSeat &&
+          (!npc.party || npc.party.allowActivity(npc)) && !npc.tableSeat &&
           npc.skittish < 0.6 &&
           npc.stateTimer < 5 &&
           Math.random() < dt * 0.5
@@ -1014,7 +1017,7 @@ export class Crowd {
         // low (POTTY_URGE_RATE) so it's an occasional realistic detour. Skittish
         // folks (who'd rather not) almost never go.
         if (
-          !npc.pottyEntry &&
+          (!npc.party || npc.party.allowActivity(npc)) && !npc.pottyEntry &&
           npc.skittish < 0.75 &&
           Math.random() < dt * POTTY_URGE_RATE
         ) {
@@ -1028,6 +1031,7 @@ export class Crowd {
             break;
           }
         }
+        if (npc.party) break;
         if (npc.stateTimer <= 0) {
           // Pick a new wander target: prefer an attractor, else random nearby spot.
           // Target a RING around the attractor (40-100% of its radius) so crowds
@@ -1357,6 +1361,7 @@ export class Crowd {
   }
 
   _writeMatrices(npc) {
+    if (npc.party) { this._hideNpc(npc); npc.party.renderNpc(npc); return; }
     // Bo is rendered by the wagon, while the crowd still owns his reserved seat.
     if (npc.seatSlot?.permanent && npc.seatSlot.vehicle?.driverModel) {
       this._hideNpc(npc);
@@ -1460,7 +1465,7 @@ export class Crowd {
       // bent legs hang forward below. Standing running-board riders stay low.
       // Wagon cushions use the actual hip pivot; Zerble retains its existing pose.
       const hipOffset = npc.seatSlot?.vehicle ? .62 * npc.scale : .4;
-      feetY = (seated ? npc.seatY - hipOffset : npc.seatY - 1.05) + bobY + bounceY;
+      feetY = (seated ? npc.seatY - hipOffset : npc.seatSlot?.vehicle ? npc.seatY : npc.seatY - 1.05) + bobY + bounceY;
     } else if (npc.state === 'hammock_riding' && npc.hammockY != null) {
       // Supine: body lies horizontal with back pressed into the cloth. After
       // X=π/2 the body's "up" direction (away from back) is +Y. The torso
@@ -1523,7 +1528,7 @@ export class Crowd {
     if (photographing) {
       this._armsMat.multiplyMatrices(m, this._photoArmsMat);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
-    } else if (cheering) {
+    } else if (cheering || (npc.state === 'riding' && npc.seatSlot?.name === 'platform')) {
       this._armsMat.multiplyMatrices(m, this._armsUpMat);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     } else {
@@ -1595,6 +1600,7 @@ export class Crowd {
     const vehicle = npc.seatSlot?.vehicle;
     if (vehicle) zerble = vehicle;
     if (!npc.seatSlot || (vehicle ? vehicle.state !== 'parked' : !ctx.zerbleIdle)) {
+      if (npc.party) { npc.party.leave(); return; }
       // Cart started moving (or we lost our slot) — abort
       this._releaseSeat(npc.seatSlot);
       npc.seatSlot = null;
@@ -1610,6 +1616,13 @@ export class Crowd {
     const td = Math.hypot(tdx, tdz);
 
     if (td < BOARD_RANGE) {
+      if (npc.party) {
+        npc.vel.set(0, 0, 0);
+        npc.party.arrive(npc);
+        if (npc.state === 'riding') this._tickRiding(0, npc, zerble);
+        else this._writeMatrices(npc);
+        return;
+      }
       // Climb aboard
       npc.state = 'riding';
       npc.rideTimer = RIDE_MIN_TIME + Math.random() * (RIDE_MAX_TIME - RIDE_MIN_TIME);
@@ -1635,6 +1648,7 @@ export class Crowd {
 
     // Timeout — give up if we can't reach the seat
     if (npc.stateTimer <= 0) {
+      if (npc.party) { npc.party.leave(); return; }
       this._releaseSeat(npc.seatSlot);
       npc.seatSlot = null;
       npc.state = 'idle';
@@ -1668,7 +1682,7 @@ export class Crowd {
 
     // Disembark when the ride times out (and Zerble's idle), OR immediately if
     // the bubble tank ran dry — riders bail on a bubble-less cart.
-    if ((!vehicle && this.bubblesEmpty) || (npc.rideTimer <= 0 && (vehicle ? vehicle.state === 'parked' : Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED))) {
+    if (!npc.party && ((!vehicle && this.bubblesEmpty) || (npc.rideTimer <= 0 && (vehicle ? vehicle.state === 'parked' : Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED)))) {
       this._releaseSeat(npc.seatSlot);
       const seatPos = { x: out.x, z: out.z };
       npc.seatSlot = null;
@@ -1830,7 +1844,7 @@ export class Crowd {
     // 45m — wide enough that the crowd ringing the food-court attractor can spot a
     // table across the plaza, but close enough that the walk actually completes
     // before the (distance-scaled) give-up timer below.
-    let best = null, bestSeat = null, bestD2 = 45 * 45;
+    let best = null, bestSeat = null, bestD2 = npc.party ? 18 * 18 : 45 * 45;
     for (const id of ids) {
       const e = registry.entries.get(id);
       if (!e || !e.tableSeats) continue;
@@ -1933,7 +1947,7 @@ export class Crowd {
   _findNearestPotty(npc, tried) {
     const ids = registry.byKind.get('porta_potty');
     if (!ids) return null;
-    let best = null, bestD2 = POTTY_SEARCH_R2;
+    let best = null, bestD2 = npc.party ? 22 * 22 : POTTY_SEARCH_R2;
     for (const id of ids) {
       if (tried && tried.includes(id)) continue;
       const e = registry.entries.get(id);
@@ -2189,8 +2203,29 @@ export class Crowd {
     this._writeMatrices(npc);
   }
 
-  // Zero-scale every body mesh for this NPC's slot (used while they're inside a
-  // potty). instanceMatrix.needsUpdate is flagged globally each frame in update().
+  removeNpc(npc) {
+    const index = this.npcs.indexOf(npc);
+    if (index < 0) return;
+    this._releaseSeat(npc.seatSlot);
+    if (npc.hammockEntry) this._releaseHammock(npc);
+    if (npc.tableSeat) this._releaseTable(npc);
+    if (npc.pottyEntry) this._releasePotty(npc);
+    const group = this.groups.get(npc.groupId);
+    if (group) {
+      group.members = group.members.filter(id => id !== npc.idx);
+      if (!group.members.length) this.groups.delete(npc.groupId);
+    }
+    this._hideNpc(npc);
+    if (npc.isPhotographer) {
+      this.cameraMesh.setMatrixAt(npc.photoSlot, this._zeroMat);
+      this.flashMesh.setMatrixAt(npc.photoSlot, this._zeroMat);
+      this._photoFree.push(npc.photoSlot); this._photographerCount--;
+    }
+    npc.avatar?.removeFromParent(); npc.party = null; npc.seatSlot = null;
+    this.npcs.splice(index, 1); this.free.push(npc.idx);
+  }
+
+  // Instance uploads are flagged globally each frame in update().
   _hideNpc(npc) {
     const z = this._zeroMat || (this._zeroMat = new THREE.Matrix4().makeScale(0, 0, 0));
     this.legsMesh.setMatrixAt(npc.idx, z);
@@ -2200,6 +2235,7 @@ export class Crowd {
     this.headMesh.setMatrixAt(npc.idx, z);
     this.eyesMesh.setMatrixAt(npc.idx, z);
     this.mouthMesh.setMatrixAt(npc.idx, z);
+    if (npc.avatar) npc.avatar.visible = false;
   }
 
   // Targeted unit vanished mid-visit (chunk unloaded). Drop the claim, pop back

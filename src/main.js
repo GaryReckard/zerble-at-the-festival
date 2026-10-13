@@ -37,6 +37,7 @@ import { MidiPlayer } from './midiPlayer.js';
 import { Smiles } from './smiles.js';
 import { Fireworks } from './fireworks.js';
 import { Crowd } from './crowd.js';
+import { MonkParty } from './monks.js';
 import { NutWagon } from './nutWagon.js';
 import { Lurleen } from './lurleen.js';
 import { Birds } from './birds.js';
@@ -444,6 +445,7 @@ if (__resume && Number.isFinite(__resume.tod)) getTimeOfDay()?.setT(__resume.tod
 // direction), not the origin ring — so she's never right next to a hub-relocated Zerble.
 const lurleen = new Lurleen(scene, USE_WORLDGEN_V2 ? zerble.position.clone() : null);
 const nutWagon = new NutWagon(scene, crowd);
+const monks = new MonkParty(crowd, nutWagon);
 const forceNutWagon = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get('nutwagon') === '1';
 if (forceNutWagon && USE_WORLDGEN_V2) nutWagon.trySpawn(zerble.position, camera, true);
 let lurleenMet = false;     // first-contact toast latch
@@ -1817,7 +1819,7 @@ if (window.visualViewport) {
 }
 
 window.__game = {
-  camera, zerble, scene, renderer, composer, bloomPass, fxaaPass, crowd, registry, chaseCam, lurleen, nutWagon,
+  camera, zerble, scene, renderer, composer, bloomPass, fxaaPass, crowd, registry, chaseCam, lurleen, nutWagon, monks,
   getTimeOfDay, Trip, StarPower, midi, birds, bubbles, fireworks,
   kids, wooks, puppets, band, hoopers, frisbees, smiles,
   sound: Sound, layoutCaptureMode: LAYOUT_CAPTURE_MODE,
@@ -2027,6 +2029,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     // Seat one free NPC in the first open slot of `kind`. Replicates the
     // boarding hand-off: claim slot → riding state → snap to worldSeatPosition
     // → write matrices → flag every crowd InstancedMesh dirty.
+    monks() { return monks.status(); },
     nutWagon() { return nutWagon.status(); },
     summonNutWagon() { return nutWagon.trySpawn(zerble.position, camera, true); },
     rider(kind = 'bench') {
@@ -2622,7 +2625,8 @@ if (forceNutWagon) {
   document.body.appendChild(info);
   const refresh = () => {
     const s = nutWagon.status();
-    info.textContent = `Nut Wagon: ${s.state}, ${s.passengers}/${s.capacity} aboard, ${s.speed.toFixed(2)} m/s`;
+    const party = monks.status();
+    info.textContent = `Nut Wagon: ${s.state}, ${s.passengers}/${s.capacity} aboard, ${s.speed.toFixed(2)} m/s · monks: ${party.count} ${party.state}`;
     if (nutWagon.active) {
       const p = nutWagon.position;
       window.__dbg.camLock(p.x - 2, 13, p.z + 9, p.x, 1.2, p.z);

@@ -23,7 +23,7 @@ try {
  const route=makeWagonRoute([{x:0,z:0},{x:0,z:80}]);
  wagon.spawnOnRoute(route,10);
  assert(registry.entries.size===before+3,'Three moving collider entries');
- assert(wagon.seatSlots.length===8 && wagon.seatSlots[0].occupied,'Driver plus seven passenger seats; platform excluded');
+ assert(wagon.seatSlots.length===9 && wagon.seatSlots[0].occupied,'Bo plus eight passenger places, including the standing pole platform');
  const bo=buildBo(), boAgain=buildBo();
  assert(bo.children[0].geometry===boAgain.children[0].geometry && bo.children[0].geometry.userData.shared && bo.children[0].material.userData.shared,'Bo shares disposal-safe geometry and material across repeated builds');
  assert(wagon.driverModel.parent===wagon.root,'Bo is attached to the moving wagon');

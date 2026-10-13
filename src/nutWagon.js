@@ -66,10 +66,9 @@ export class NutWagon {
     this.position.set(this.sample.x, 0, this.sample.z); this.root.position.copy(this.position);
     this.root.rotation.y = this.sample.heading; this.heading = this.sample.heading + Math.PI;
     this.root.updateMatrixWorld(true);
-    // The pole platform stays unoccupied until standing-rider animations exist.
-    this.seatSlots = NUT_WAGON_MOUNTS.filter(m => m.pose === 'seated').map(m => ({
+    this.seatSlots = NUT_WAGON_MOUNTS.map(m => ({
       name: m.name, x: m.position[0], y: m.position[1], z: m.position[2],
-      yaw: m.facing, kind: m.name.startsWith('roof') ? 'roof' : 'bench',
+      yaw: m.facing, kind: m.pose === 'standing' ? 'standing' : m.name.startsWith('roof') ? 'roof' : 'bench',
       occupied: false, vehicle: this, permanent: m.name === 'driver',
     }));
     for (const z of [-1.35, .5, 2.5]) {
@@ -110,13 +109,13 @@ export class NutWagon {
     if (this.state !== 'parked' || this.stopTimer < 14) return;
     let slot, npc;
     for (const candidate of this.crowd.npcs) {
-      if (!['idle', 'walking', 'watching'].includes(candidate.state) || candidate.seatSlot
+      if (!['idle', 'walking', 'watching'].includes(candidate.state) || candidate.party || candidate.seatSlot
           || (candidate.wagonCooldownUntil || 0) > this.clock
           || Math.hypot(candidate.pos.x - this.position.x, candidate.pos.z - this.position.z) >= 12) continue;
       // The crowd has deliberately exaggerated height variation. Tall riders
       // use the open roof bench instead of clipping through the cabin roof.
       slot = this.seatSlots.find(s => !s.occupied && !s.permanent
-        && (s.kind === 'roof' || candidate.scale <= .97));
+        && (s.kind === 'roof' || s.kind === 'standing' || candidate.scale <= .97));
       if (slot) { npc = candidate; break; }
     }
     if (!npc) return;
@@ -165,7 +164,8 @@ export class NutWagon {
     this.boardTimer -= dt;
     if (this.boardTimer <= 0) { this.boardTimer = 1.5; this.boardNearby(); }
     if (this.state === 'parked') {
-      this.stopTimer -= dt;
+      const boardingParty = this.crowd.npcs.some(n => n.party && n.state === 'boarding' && n.seatSlot?.vehicle === this);
+      if (!boardingParty) this.stopTimer -= dt;
       if (this.stopTimer <= 0) { this.state = 'cruising'; this.cruiseTimer = 0; }
     } else {
       const next = Math.max(6, Math.min(this.route.length - 6, this.distance + this.direction * T.speed * dt));

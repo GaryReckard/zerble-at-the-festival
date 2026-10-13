@@ -1,0 +1,88 @@
+<!doctype html><meta charset="utf-8"><title>Monk party checks</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Checking…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {Crowd} from '../../src/crowd.js';
+import {NutWagon} from '../../src/nutWagon.js';
+import {MonkParty} from '../../src/monks.js';
+import {buildMonk} from '../../src/models/monk.js';
+import {makeWagonRoute} from '../../src/nutWagonRoute.js';
+import {registry} from '../../src/registry.js';
+import {setSessionSeed} from '../../src/rng.js';
+const checks=[],assert=(ok,msg)=>{if(!ok)throw Error(msg);checks.push(msg);};
+const scene=new THREE.Scene(),crowd=new Crowd({spawn(){},spawnLost(){}});
+setSessionSeed(1234);
+const wagon=new NutWagon(scene,crowd,{music:false}),party=new MonkParty(crowd,wagon);
+party.clearAt=()=>true;wagon.clearAt=()=>true;
+const observer={position:new THREE.Vector3(80,0,80),speed:0,heading:0,forwardWorld:new THREE.Vector3(0,0,-1),seatSlots:[]};
+const route=makeWagonRoute([{x:0,z:0},{x:0,z:80}]);
+const slots=n=>Array.from({length:n},(_,i)=>({x:(i-2)*.5,y:1.7,z:0,yaw:0,kind:'bench',occupied:false}));
+const zerble={...observer,position:new THREE.Vector3(0,0,10),seatSlots:slots(8),worldSeatPosition(s,out){return out.set(this.position.x+s.x,s.y,this.position.z+s.z);}};
+try {
+ const initial=crowd.free.length;
+ for(const n of [4,5,6]){assert(party.spawn(new THREE.Vector3(0,0,10),n),'Spawn '+n+' monks');party.clear();}
+ assert(crowd.free.length===initial&&party.root.children.length===0,'Repeated party cleanup releases NPC slots and avatars');
+ assert(party.spawn(new THREE.Vector3(0,0,10),6),'Six-person test group spawns');
+ const offsets=party.members.map(n=>n.partyOffset.length());
+ assert(Math.min(...offsets)>2&&Math.max(...offsets)>3,'Loose offsets span several metres rather than a tight formation');
+ assert(party.members.every(n=>!n.isPhotographer),'Monks do not inherit hidden photographer equipment');
+ party.cooldown=0;zerble.seatSlots[0].occupied=true;zerble.seatSlots[1].occupied=true;zerble.seatSlots[2].occupied=true;
+ assert(!party.reserve(zerble)&&party.members.every(n=>!n.seatSlot),'Five free seats cannot split a six-person party');
+ zerble.seatSlots.forEach(s=>s.occupied=false);
+ assert(party.reserve(zerble)&&party.members.every(n=>n.state==='boarding'),'All six seats reserve atomically on Zerble');
+ for(const n of party.members.slice(0,5))party.arrive(n);
+ assert(party.members.every(n=>n.state==='boarding'),'No monk rides away before the last companion arrives');
+ party.arrive(party.members[5]);
+ assert(party.members.every(n=>n.state==='riding'),'Last arrival commits the whole party to riding');
+ for(const n of party.members)crowd._tickRiding(.1,n,zerble);
+ party.rideUntil=0;zerble.speed=2;party.update(.1,zerble);
+ assert(party.members.every(n=>n.state==='riding'),'Group waits for a stop before disembarking');
+ zerble.speed=0;party.update(.1,zerble);
+ assert(party.members.every(n=>!n.seatSlot)&&zerble.seatSlots.every(s=>!s.occupied),'Whole group disembarks and frees Zerble seats together');
+ party.cooldown=0;party.members.forEach(n=>{n.pos.set(0,0,10);n.state='idle';});
+ assert(party.reserve(zerble),'Group can begin a subsequent ride');
+ zerble.speed=1;party.update(.1,zerble);
+ assert(party.members.every(n=>!n.seatSlot)&&!party.vehicle,'Driving away during boarding cancels every reservation');
+ wagon.spawnOnRoute(route,10);party.cooldown=0;
+ party.members.forEach(n=>{n.pos.set(1,0,10);n.state='idle';});
+ assert(wagon.seatSlots.length===9,'Wagon has Bo plus eight guest places');
+ assert(party.reserve(wagon),'Six monks fit the Nut Wagon together');
+ assert(party.members.some(n=>n.seatSlot.name==='platform'),'A monk uses the standing pole platform');
+ for(const n of party.members)party.arrive(n);
+ for(const n of party.members)crowd._tickRiding(.1,n,observer);
+ const pole=party.members.find(n=>n.seatSlot.name==='platform');
+ assert(Math.abs(pole.avatar.position.y-pole.seatY)<1e-8,'Standing monk feet sit on the platform instead of sinking through it');
+ const local=party.members[0].pos.clone();wagon.state='cruising';wagon.stopTimer=0;
+ for(let i=0;i<30;i++)wagon.update(.1,observer.position,false,0);
+ for(const n of party.members)crowd._tickRiding(.1,n,observer);
+ assert(party.members[0].pos.distanceTo(local)>1,'Monk pose follows the moving wagon');
+ wagon.despawn();party.update(.1,observer);
+ assert(party.members.length===6&&!party.vehicle,'Monks remain independent after the wagon leaves');
+ const companion=party.members[0];companion.state='using_potty';
+ assert(!party.allowActivity(party.members[1]),'Companions wait while one monk uses an amenity');
+ crowd._hideNpc(companion);assert(!companion.avatar.visible,'A monk inside a toilet is hidden');
+ companion.state='idle';party.renderNpc(companion);assert(companion.avatar.visible,'Monk reappears after leaving the toilet');
+ const potty={kind:'porta_potty',position:companion.pos.clone().add(new THREE.Vector3(2,0,0)),potty:{occupied:false}};
+ const id=registry.add(potty);
+ assert(crowd._findNearestPotty(companion,null)===potty,'Monks use the regular porta-potty search');registry.remove(id);
+ party.members.forEach((n,i)=>{n.pos.set(i?0:300,0,10);});
+ party.update(.6,zerble);assert(party.members.length===6,'One distant companion does not despawn separately');
+ party.members.forEach(n=>n.pos.set(500,0,500));party.update(.6,zerble);
+ assert(party.members.length===0&&crowd.free.length===initial-1,'Distant party despawns as a unit while unrelated driver remains');
+ wagon.spawnOnRoute(route,10);
+ party.spawn(new THREE.Vector3(7,0,10),5);party.seenWagon=wagon.root;party.cooldown=0;
+ for(let i=0;i<180;i++){wagon.update(.1,observer.position,false,0);crowd.update(.1,observer,null);}
+ assert(party.members.every(n=>n.state==='riding'),'Real crowd walking and arrival ticks board the whole party');
+ party.leave();
+ const diner=party.members[0];diner.state='idle';
+ const table={kind:'picnic_table',position:diner.pos.clone(),tableSeats:[{x:diner.pos.x+1,y:.6,z:diner.pos.z,yaw:0,occupied:false}]};
+ const tableId=registry.add(table);
+ assert(crowd._tryClaimTable(diner),'Monks reuse regular picnic-table claims');
+ party.clear();assert(!table.tableSeats[0].occupied,'Party cleanup releases an active table reservation');registry.remove(tableId);
+ const a=buildMonk(0),b=buildMonk(0);
+ assert(a.children.every((m,i)=>m.geometry===b.children[i].geometry&&m.geometry.userData.shared&&m.material.userData.shared),'Monk pose variants share disposal-safe resources');
+ document.querySelector('#result').textContent=JSON.stringify({pass:true,checks},null,2);
+}catch(e){document.querySelector('#result').textContent='FAIL: '+e.stack;}
+finally{party.dispose();wagon.despawn();}
+</script>
