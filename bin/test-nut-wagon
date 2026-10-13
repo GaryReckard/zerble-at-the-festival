@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {makeWagonRoute, sampleWagonRoute, wagonRoutes, NUT_WAGON_TUNING as T} from '../src/nutWagonRoute.js';
+const route = makeWagonRoute([{x:0,z:0},{x:0,z:0},{x:0,z:30},{x:40,z:30}]);
+assert.equal(route.length,70);
+assert.deepEqual(sampleWagonRoute(route,50,{}),{x:20,z:30,heading:Math.PI/2});
+assert.equal(sampleWagonRoute(route,-5,{}).z,0);
+assert.equal(sampleWagonRoute(route,500,{}).x,40);
+const split = wagonRoutes([[{x:-60,z:0},{x:60,z:0}]],{x:0,z:0},x=>Math.abs(x)>5);
+assert.equal(split.length,2);
+assert(split.every(r=>r.points.every(p=>Math.abs(p.x)>5)));
+assert.equal(wagonRoutes([[{x:0,z:0},{x:20,z:0}]],{x:0,z:0},()=>true).length,0);
+assert.equal(wagonRoutes([[{x:0,z:0},{x:100,z:0}]],{x:0,z:0},()=>false).length,0);
+assert.equal(T.tripChance/T.normalChance,10);
+assert(T.speed<1 && T.stopSeconds>7);
+console.log('Nut Wagon: route interpolation, dense obstacle splitting, short/blocked rejection, 10× trip chance passed');

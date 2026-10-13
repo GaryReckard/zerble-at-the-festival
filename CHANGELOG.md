@@ -4,6 +4,12 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-13
 
+### Added
+- **The Nut Wagon cruises through the festival.** One seeded encounter follows clear stretches of the existing roads at 0.75 m/s, pauses near crowds and activity spots for 24 seconds, and carries a driver plus up to seven seated regular NPCs. Encounter rolls are 8% normally and 80% during trips every 45 seconds, with an immediate trip-start roll; spawns and distant recycling happen outside the camera view. The existing spatial dub groove follows the wagon, night lights work, and collider/music/seat cleanup follows its global lifetime. The gameplay instance uses 1.6× scale for cartoon NPCs; tall riders use the open roof seats. A cruising/boarding sandbox case, localhost `?nutwagon=1` preview, and route/controller checks support iteration. Monk groups remain the next phase. [Verification](verification/nut-wagon/GAMEPLAY.md).
+
+### Fixed
+- **The debug mute checkbox reflects a silent launch before audio initialization.** Opening the panel after launching with `mute=1` now shows the session mute correctly.
+
 ### Changed
 - **The Nut Wagon paint follows Bo’s explanation.** Bo’s driver side is green, Courtney’s right side is red, and yellow separates them. The hood and full roof carry a sharp red boundary and a smooth green wave; the fenders, pillars, sills, engine shell and hatch now follow the same side assignment. Pink accessories remain pink. The boundaries use fewer, broader waves and spikes.
 

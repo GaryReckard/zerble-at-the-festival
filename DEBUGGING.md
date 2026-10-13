@@ -787,3 +787,12 @@ is a false-positive rule).
 
 `__dbg.gotoHub(n)` prints the plan-mode violations for the hub it teleports to,
 so touring hubs surfaces their findings inline.
+
+
+### Nut Wagon iteration
+
+`/sandbox.html?entity=nut_wagon_cruise&mute=1` previews driving, stopping and regular NPC boarding on an empty corridor, with a following orbit camera. The original `nut_wagon` and `nut_wagon_closed` cases retain the reference-sized model.
+
+On localhost, `/?seed=1234&nutwagon=1&mute=1` forces the nearest clear road encounter, follows it with the debug camera and displays occupancy/state/speed. Start with the regular title button. This skips only the random/off-camera encounter gate, never the road-clearance gate. `__dbg.nutWagon()` reports state and tuning; `__dbg.summonNutWagon()` tries a nearby clear road. Ordinary player launches have no preview overlay or camera override. The feature uses the default worldgen-v2 roads; legacy-layout previews do not schedule it.
+
+Run `node bin/test-nut-wagon` for route math and `/verification/nut-wagon/system.html?perf=low&mute=1` for the real Three/Crowd controller checks, including boarding, movement, music position, and lifecycle cleanup.

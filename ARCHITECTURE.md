@@ -556,3 +556,10 @@ If you only read three files, read them in this order:
 3. **`src/crowd.js`** — where the game's "feel" lives.
 
 After that, dip into any model file when you want to see how something specific is constructed — they're all standalone, all small, all readable.
+
+
+### Nut Wagon encounters
+
+`src/nutWagon.js` owns one global, non-chunk-bound wagon, using the existing S123 model and road polylines from the nearest festival heart. `src/nutWagonRoute.js` owns pure route sampling, dense clearance-run selection and tuning. A dedicated session-seeded RNG keeps encounter rolls out of worldgen's RNG streams. The controller ticks before registry reindexing and crowd AI, so colliders and seat transforms are current for both consumers. Three live registry circles cover the vehicle and platform; road candidates reject water and hard obstacles. The actor stays on its selected road run, pauses near gatherings, turns at its ends and recycles only when distant and outside the camera view.
+
+Wagon slots identify their owning vehicle. Crowd boarding/riding dispatches through that owner's `worldSeatPosition`, heading and stopped state; Zerble's passenger count, empty-juice rule and boarding-score callback remain specific to Zerble. Eight seated slots include the permanent driver; tall cartoon NPCs use the open roof bench. On despawn, the wagon releases all claimed riders, removes registry entries, detaches the spatial dub handle and removes its root without disposing pooled model resources. Its music registry position and panner position both move with the vehicle. See `verification/nut-wagon/GAMEPLAY.md` for parameters and measured checks.

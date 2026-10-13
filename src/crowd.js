@@ -714,7 +714,7 @@ export class Crowd {
     const zerbleIdle = Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED;
     let activePassengers = 0;
     for (const n of this.npcs) {
-      if (n.state === 'boarding' || n.state === 'riding') activePassengers++;
+      if ((n.state === 'boarding' || n.state === 'riding') && !n.seatSlot?.vehicle) activePassengers++;
     }
 
     // Rebuild the separation broadphase from this frame's positions (riding
@@ -1449,7 +1449,9 @@ export class Crowd {
       // Seated: butt rests on top of the seat cushion (the torso bottom sits ≈
       // at the cushion surface so the seat doesn't cut through the belly); the
       // bent legs hang forward below. Standing running-board riders stay low.
-      feetY = (seated ? npc.seatY - 0.4 : npc.seatY - 1.05) + bobY + bounceY;
+      // Wagon cushions use the actual hip pivot; Zerble retains its existing pose.
+      const hipOffset = npc.seatSlot?.vehicle ? .62 * npc.scale : .4;
+      feetY = (seated ? npc.seatY - hipOffset : npc.seatY - 1.05) + bobY + bounceY;
     } else if (npc.state === 'hammock_riding' && npc.hammockY != null) {
       // Supine: body lies horizontal with back pressed into the cloth. After
       // X=π/2 the body's "up" direction (away from back) is +Y. The torso
@@ -1581,7 +1583,9 @@ export class Crowd {
   }
 
   _tickBoarding(dt, npc, zerble, ctx) {
-    if (!npc.seatSlot || !ctx.zerbleIdle) {
+    const vehicle = npc.seatSlot?.vehicle;
+    if (vehicle) zerble = vehicle;
+    if (!npc.seatSlot || (vehicle ? vehicle.state !== 'parked' : !ctx.zerbleIdle)) {
       // Cart started moving (or we lost our slot) — abort
       this._releaseSeat(npc.seatSlot);
       npc.seatSlot = null;
@@ -1601,7 +1605,7 @@ export class Crowd {
       npc.state = 'riding';
       npc.rideTimer = RIDE_MIN_TIME + Math.random() * (RIDE_MAX_TIME - RIDE_MIN_TIME);
       this._writeMatrices(npc); // snap into place
-      if (this.onBoard) this.onBoard(npc);
+      if (this.onBoard && !vehicle) this.onBoard(npc);
       return;
     }
 
@@ -1632,6 +1636,8 @@ export class Crowd {
   }
 
   _tickRiding(dt, npc, zerble) {
+    const vehicle = npc.seatSlot?.vehicle;
+    if (vehicle) zerble = vehicle;
     if (!npc.seatSlot) {
       npc.state = 'idle';
       npc.stateTimer = 1;
@@ -1653,7 +1659,7 @@ export class Crowd {
 
     // Disembark when the ride times out (and Zerble's idle), OR immediately if
     // the bubble tank ran dry — riders bail on a bubble-less cart.
-    if (this.bubblesEmpty || (npc.rideTimer <= 0 && Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED)) {
+    if ((!vehicle && this.bubblesEmpty) || (npc.rideTimer <= 0 && (vehicle ? vehicle.state === 'parked' : Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED))) {
       this._releaseSeat(npc.seatSlot);
       const seatPos = { x: out.x, z: out.z };
       npc.seatSlot = null;

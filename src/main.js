@@ -37,6 +37,7 @@ import { MidiPlayer } from './midiPlayer.js';
 import { Smiles } from './smiles.js';
 import { Fireworks } from './fireworks.js';
 import { Crowd } from './crowd.js';
+import { NutWagon } from './nutWagon.js';
 import { Lurleen } from './lurleen.js';
 import { Birds } from './birds.js';
 import { ChaseCamera } from './camera.js';
@@ -442,6 +443,9 @@ if (__resume && Number.isFinite(__resume.tod)) getTimeOfDay()?.setT(__resume.tod
 // v2 (H1): start Lurleen a distance away from the player's actual hub spawn (random
 // direction), not the origin ring — so she's never right next to a hub-relocated Zerble.
 const lurleen = new Lurleen(scene, USE_WORLDGEN_V2 ? zerble.position.clone() : null);
+const nutWagon = new NutWagon(scene, crowd);
+const forceNutWagon = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get('nutwagon') === '1';
+if (forceNutWagon && USE_WORLDGEN_V2) nutWagon.trySpawn(zerble.position, camera, true);
 let lurleenMet = false;     // first-contact toast latch
 
 // ---------- Moving obstacles (global — not chunk-bound) ----------
@@ -1059,6 +1063,7 @@ function tickBody(dt) {
     // Rebuild the registry broadphase once per frame, before every consumer
     // (crowd steering, kid push-out, Zerble collision). Cheap O(entries) pass;
     // the per-NPC queries it enables replace the old O(npcs × entries) scans.
+    if (USE_WORLDGEN_V2 && !npcsFrozen()) nutWagon.update(dt, zerble.position, Trip.isActive(), nightness, camera);
     registry.rebuildSpatialIndex();
     if (!npcsFrozen()) crowd.update(dt, zerble, bubbles);
     // Same-frame collects coalesce into ONE scoring event (and, in group 5,
@@ -1812,7 +1817,7 @@ if (window.visualViewport) {
 }
 
 window.__game = {
-  camera, zerble, scene, renderer, composer, bloomPass, fxaaPass, crowd, registry, chaseCam, lurleen,
+  camera, zerble, scene, renderer, composer, bloomPass, fxaaPass, crowd, registry, chaseCam, lurleen, nutWagon,
   getTimeOfDay, Trip, StarPower, midi, birds, bubbles, fireworks,
   kids, wooks, puppets, band, hoopers, frisbees, smiles,
   sound: Sound, layoutCaptureMode: LAYOUT_CAPTURE_MODE,
@@ -2022,6 +2027,8 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     // Seat one free NPC in the first open slot of `kind`. Replicates the
     // boarding hand-off: claim slot → riding state → snap to worldSeatPosition
     // → write matrices → flag every crowd InstancedMesh dirty.
+    nutWagon() { return nutWagon.status(); },
+    summonNutWagon() { return nutWagon.trySpawn(zerble.position, camera, true); },
     rider(kind = 'bench') {
       const slot = zerble.seatSlots?.find((s) => s.kind === kind && !s.occupied);
       if (!slot) return null;
@@ -2586,6 +2593,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · addSmiles(n) · boostStreak() · photographer() · fillSeats(kind?) · rider(kind)',
         '  board:   showScoreScreen(mock?) · seedBoard(n?)   (festival-run score screen + local top-10 drills)',
         '  run:     runInfo() · runDay(n) · vibe(v) · strike(n) · sputterLeft(s)   (stakes drills — need localStorage["zerble-mode"]="festival" before start())',
+        '  wagon:   nutWagon() status · summonNutWagon() find a clear nearby road',
         '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock() · topDown(x?,z?,span)   (pins a pose; overrides chase cam)',
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
         '  draws:   drawCensus({top?})   (scene draw-call composition by geometry/material → names instance/merge targets)',
@@ -2605,6 +2613,25 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       return out;
     },
   };
+}
+
+if (forceNutWagon) {
+  const info = document.createElement('output');
+  info.id = 'nut-wagon-preview';
+  info.style.cssText = 'position:fixed;bottom:10px;left:10px;z-index:50;background:#111c;color:white;padding:8px;font:12px monospace;pointer-events:none';
+  document.body.appendChild(info);
+  const refresh = () => {
+    const s = nutWagon.status();
+    info.textContent = `Nut Wagon: ${s.state}, ${s.passengers}/${s.capacity} aboard, ${s.speed.toFixed(2)} m/s`;
+    if (nutWagon.active) {
+      const p = nutWagon.position;
+      window.__dbg.camLock(p.x - 2, 13, p.z + 9, p.x, 1.2, p.z);
+    }
+  };
+  refresh();
+  // Only the localhost test launch owns this diagnostics timer.
+  const previewTimer = setInterval(refresh, 500);
+  window.addEventListener('pagehide', () => clearInterval(previewTimer), {once: true});
 }
 
 installDebug({

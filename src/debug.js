@@ -765,7 +765,7 @@ function buildPanel() {
   const sfxVol     = Sound.isReady() ? Sound.getSfxVolume()     : 1.0;
   const midiVol    = Sound.isReady() ? Sound.getMidiVolume()    : 1.0;
   const natureVol  = Sound.isReady() ? Sound.getNatureVolume()  : 0.9;
-  const mutedNow   = Sound.isReady() ? Sound.isMuted()          : false;
+  const mutedNow   = Sound.isMuted();
 
   audioContent.innerHTML = `
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">

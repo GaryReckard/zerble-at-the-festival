@@ -4,13 +4,11 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
 
 ---
 
-## Nut Wagon: behavior discussion after model review
+## Nut Wagon: next phase
 
-The first photo-based model is available in `sandbox.html?entity=nut_wagon`, with a closed-hatch variant and nine provisional rider mounts. See [the model record](verification/nut-wagon/README.md) for reference details and verification.
+The wagon now spawns on existing festival roads, cruises slowly, pauses near gatherings, boards regular NPCs, plays the existing spatial dub groove, and is ten times likelier on each encounter roll during a Trip. Gary selected rare normally / very likely during trips, regular NPCs first, and walking-pace cruising with gathering stops on 2026-10-13. [Current parameters and verification](verification/nut-wagon/GAMEPLAY.md).
 
-Gary's requested direction on 2026-10-12 is a vehicle that parks or follows festival paths very slowly and plays music. Discuss route/stops, an original reggae groove with spatial audio, and ordinary NPC boarding when space is available, similar to Zerble. A possible additional group of Tibetan monk NPCs would wander together and sometimes ride the wagon, based on the supplied photographs. Group size, keeping the group together when seats are scarce, capacity, and boarding/departure rules remain design decisions. These systems are not implemented by the model pass.
-
-**Trip encounter bias:** Gary wants the probability of a Nut Wagon spawning to increase substantially during an active Trip, while remaining possible outside a Trip. The baseline probability, multiplier, and spawn timing remain undecided. This is a future spawn-director rule; the model pass does not implement spawning.
+Next, discuss and build the Tibetan monk group that wanders together and sometimes boards. Still to choose: group size and what happens when there are too few seats for the entire group. A custom reggae composition and standing platform riders can follow; the first playable version uses the existing dub generator and seated riders only.
 
 ## Waiting on Gary — Festival Run stakes wrap-up (agents: keep reminding him!)
 

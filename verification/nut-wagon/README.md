@@ -1,6 +1,6 @@
 # Nut Wagon model pass, 2026-10-12
 
-The first model is ready for proportion and detail review in the entity sandbox. It is not yet a world-roaming vehicle. Driving, collision registration, boarding, NPC groups, riders and music remain the next discussion, as requested by Gary.
+The reference-sized model remains available for proportion and detail review. A playable road encounter with regular passengers and spatial dub music now uses this model; see [gameplay verification](GAMEPLAY.md). Monk groups remain the next phase.
 
 ## Inspect
 
@@ -47,7 +47,7 @@ The hatch-open option controls its initial pose and support visibility. A future
 - Real-Three checks: independent model/hatch/wheel transforms, open/closed support visibility, independent rider mount data, finite attributes, bounds, shared buffers, unload convention, reload reuse, resource budgets and GPU shader compilation. [Low results](check-low.json), [standard results](check-standard.json).
 - Model: 54 meshes, 9,838 geometry triangles, four shadow casters. Single-frame renderer probe: 55 submissions / 9,840 triangles, including the transparent double-sided windshield pass. These are model costs, not whole-game FPS measurements.
 - Bounds with the hatch open: 2.025 m wide, 3.088 m tall including the pole, 6.317 m long including the platform and raised hatch.
-- Full game: Low title screen and world startup verified through the real start button, with no captured console errors or warnings. The model is not yet spawned by that path.
+- Full game: Low title screen and world startup verified through the real start button, with no captured console errors or warnings. The subsequent gameplay pass verifies an actual spawned wagon; see GAMEPLAY.md.
 - Sandbox: Noon, Midnight, rear cargo opening, closed hatch and repeated entity selection inspected. Browser sound was muted at Gary's request.
 
 ## Saved views

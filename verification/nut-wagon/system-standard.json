@@ -1,0 +1,28 @@
+{
+  "pass": true,
+  "checks": [
+    "Three moving collider entries",
+    "Driver plus seven passenger seats; platform excluded",
+    "Nearby idle NPC reserves an available seat",
+    "Tall NPCs use open roof seats instead of clipping into the cabin",
+    "Wagon boarding is independent of Zerble motion",
+    "Wagon riders ignore Zerble empty bubble tank",
+    "Driver stays seated",
+    "Walking-pace travel equals 0.75 metres/second",
+    "Music crossfade position follows the moving source",
+    "Passenger follows moving seat",
+    "Colliders follow movement",
+    "Passengers do not disembark while cruising",
+    "Passengers release their seat at a stop",
+    "Despawn removes every collider",
+    "Despawn removes every collider",
+    "Despawn removes every collider",
+    "Despawn releases all wagon riders",
+    "No stale vehicle roots after repeated despawn",
+    "Despawn unregisters spatial music, including deferred audio",
+    "A full NPC pool does not leave a driverless wagon or leaked colliders",
+    "Normal encounter rejects a 50% roll",
+    "Trip start immediately gets its higher-probability roll",
+    "Trip roll is not repeated every frame"
+  ]
+}

@@ -1,0 +1,67 @@
+<!doctype html><meta charset="utf-8"><title>Nut Wagon system checks</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Checking…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {NutWagon} from '../../src/nutWagon.js';
+import {makeWagonRoute} from '../../src/nutWagonRoute.js';
+import {Sound} from '../../src/sound.js';
+import {Crowd} from '../../src/crowd.js';
+import {registry} from '../../src/registry.js';
+import {setSessionSeed} from '../../src/rng.js';
+const checks=[]; const assert=(v,m)=>{if(!v)throw Error(m);checks.push(m);};
+let wagon;
+try {
+ setSessionSeed(1234);
+ const scene=new THREE.Scene(), crowd=new Crowd({spawn(){}});
+ const before=registry.entries.size;
+ const musicBefore=Sound.getStageHandleRegistry().length;
+ wagon=new NutWagon(scene,crowd);
+ // Inject a dry, unobstructed test corridor to isolate controller behavior from worldgen.
+ wagon.clearAt=()=>true;
+ const route=makeWagonRoute([{x:0,z:0},{x:0,z:80}]);
+ wagon.spawnOnRoute(route,10);
+ assert(registry.entries.size===before+3,'Three moving collider entries');
+ assert(wagon.seatSlots.length===8 && wagon.seatSlots[0].occupied,'Driver plus seven passenger seats; platform excluded');
+ const npc=crowd.spawn({pos:new THREE.Vector3(2,0,10),rng:()=>.4});
+ wagon.boardNearby(); assert(npc.state==='boarding','Nearby idle NPC reserves an available seat');
+ assert(npc.seatSlot.kind==='roof','Tall NPCs use open roof seats instead of clipping into the cabin');
+ wagon.worldSeatPosition(npc.seatSlot,npc.pos);
+ crowd._tickBoarding(.1,npc,{}, {zerbleIdle:false});
+ assert(npc.state==='riding','Wagon boarding is independent of Zerble motion');
+ crowd.bubblesEmpty=true;
+ crowd._tickRiding(.1,npc,{});
+ assert(npc.state==='riding','Wagon riders ignore Zerble empty bubble tank');
+ const driver=crowd.npcs[0]; crowd._tickRiding(.1,driver,{});
+ assert(driver.state==='riding','Driver stays seated');
+ wagon.stopTimer=0;
+ const player=new THREE.Vector3(100,0,0);
+ wagon.update(.1,player,false,1);
+ const start=wagon.position.z;
+ for(let i=0;i<100;i++)wagon.update(.1,player,false,1);
+ assert(Math.abs(wagon.position.z-start-7.5)<.001,'Walking-pace travel equals 0.75 metres/second');
+ assert(wagon.musicEntry.z===wagon.position.z,'Music crossfade position follows the moving source');
+ crowd._tickRiding(.1,npc,{});
+ const seat=new THREE.Vector3();wagon.worldSeatPosition(npc.seatSlot,seat);
+ assert(Math.abs(npc.pos.z-seat.z)<1e-8,'Passenger follows moving seat');
+ assert(wagon.colliders.every(e=>Math.abs(e.position.x-wagon.position.x)<1e-8),'Colliders follow movement');
+ npc.rideTimer=0; crowd._tickRiding(.1,npc,{});
+ assert(npc.state==='riding','Passengers do not disembark while cruising');
+ wagon.state='parked'; crowd._tickRiding(.1,npc,{});
+ assert(npc.state==='disembarking' && npc.seatSlot===null,'Passengers release their seat at a stop');
+ for(let i=0;i<3;i++){wagon.despawn();assert(registry.entries.size===before,'Despawn removes every collider');wagon.spawnOnRoute(route,10);}
+ wagon.despawn();
+ assert(crowd.npcs.every(n=>!n.seatSlot?.vehicle),'Despawn releases all wagon riders');
+ assert(scene.children.length===0,'No stale vehicle roots after repeated despawn');
+ assert(Sound.getStageHandleRegistry().length===musicBefore,'Despawn unregisters spatial music, including deferred audio');
+ const emptyCrowd={npcs:[],spawn:()=>null};
+ const noDriver=new NutWagon(scene,emptyCrowd,{music:false});
+ assert(noDriver.spawnOnRoute(route,10)===false && registry.entries.size===before && !noDriver.active,'A full NPC pool does not leave a driverless wagon or leaked colliders');
+ const calls=[];wagon.trySpawn=()=>{calls.push(1);return false;};wagon.rng=()=>.5;
+ wagon.encounterTimer=0;wagon.update(.1,player,false,0);assert(calls.length===0,'Normal encounter rejects a 50% roll');
+ wagon.update(.1,player,true,0);assert(calls.length===1,'Trip start immediately gets its higher-probability roll');
+ wagon.update(.1,player,true,0);assert(calls.length===1,'Trip roll is not repeated every frame');
+ document.querySelector('#result').textContent=JSON.stringify({pass:true,checks},null,2);
+} catch(e){document.querySelector('#result').textContent='FAIL: '+e.stack;}
+finally {wagon?.despawn();}
+</script>

@@ -180,7 +180,7 @@
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
-            const mods = ['main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
+            const mods = ['nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing', 'festivalShapes',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
@@ -223,6 +223,7 @@
             <option value="tent">Vendor tent</option>
             <option value="tent_row">Vendor tent row (5 — shows layout variety)</option>
             <option value="nut_wagon">Nut Wagon</option>
+            <option value="nut_wagon_cruise">Nut Wagon · cruising and boarding</option>
             <option value="nut_wagon_closed">Nut Wagon · hatch closed</option>
             <option value="food_truck">Food truck</option>
             <option value="sugar_shack">Sugar Shack</option>
@@ -534,6 +535,9 @@
     import {_buildCanoeMeshForSandbox, buildLake, setLakeNightness} from './src/lakes.js';
     import {mulberry32} from './src/rng.js';
     import {buildTent} from './src/models/tent.js';
+    import {registry} from './src/registry.js';
+    import {NutWagon} from './src/nutWagon.js';
+    import {makeWagonRoute} from './src/nutWagonRoute.js';
     import {buildNutWagon, setNutWagonNightness} from './src/models/nutWagon.js';
     import {buildFoodTruck} from './src/models/foodTruck.js';
     import {buildSugarShack} from './src/models/sugarShack.js';
@@ -819,6 +823,7 @@ import {buildShrub} from './src/models/shrub.js';
     function clearEntity() {
         puppetControls?.remove();
         puppetControls = null;
+        if (currentEntity instanceof NutWagon) currentEntity.despawn();
         if (currentEntity instanceof Smiles) currentEntity.dispose();
         if (currentEntity instanceof Crowd) currentEntity.smiles.dispose();
         // Aggressive cleanup — remove every non-light, non-ground object so
@@ -1359,6 +1364,26 @@ import {buildShrub} from './src/models/shrub.js';
                 entityRoot = tents;
                 cam.target.set(0, 1.8, 0);
                 cam.dist = 18;
+                applyCam();
+                break;
+            }
+            case 'nut_wagon_cruise': {
+                const passengers = new Crowd({spawn() {}});
+                scene.add(passengers.group);
+                const wagon = new NutWagon(scene, passengers, {music: false});
+                wagon.clearAt = () => true; // fixed, empty preview corridor
+                wagon.spawnOnRoute(makeWagonRoute([{x: -16, z: 0}, {x: 16, z: 0}]), 8);
+                for (let i = 0; i < 6; i++) passengers.spawn({pos: new THREE.Vector3(-7 + i, 0, 3), rng: () => .4 + i * .03});
+                const observer = {position: new THREE.Vector3(0, 0, 40), speed: 0, heading: 0,
+                    forwardWorld: new THREE.Vector3(0, 0, -1), seatSlots: []};
+                currentEntity = wagon; entityRoot = wagon.root;
+                updateFn = dt => {
+                    wagon.update(dt, observer.position, false, tod.nightness);
+                    registry.rebuildSpatialIndex();
+                    passengers.update(dt, observer, null);
+                    cam.target.copy(wagon.position); cam.target.y = 1; applyCam();
+                };
+                cam.target.set(-6, 1, 0); cam.yaw = -.65; cam.pitch = .32; cam.dist = 22;
                 applyCam();
                 break;
             }
