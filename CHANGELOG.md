@@ -5,6 +5,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-10-13
 
 ### Added
+- **Bo drives the Nut Wagon.** His dedicated model has a slim build, long straight brown hair, black pants, an orange shirt with a black bat, and a tall pink/navy/gold patchwork hat based on Gary's photos. A seated pose puts his hands on the wheel and keeps the hat under the roof. Standing and behind-the-wheel sandbox views support muted iteration; pooled geometry adds one mesh and one shadow caster. [Views and checks](verification/nut-wagon/BO.md).
 - **The Nut Wagon cruises through the festival.** One seeded encounter follows clear stretches of the existing roads at 0.75 m/s, pauses near crowds and activity spots for 24 seconds, and carries a driver plus up to seven seated regular NPCs. Encounter rolls are 8% normally and 80% during trips every 45 seconds, with an immediate trip-start roll; spawns and distant recycling happen outside the camera view. The existing spatial dub groove follows the wagon, night lights work, and collider/music/seat cleanup follows its global lifetime. The gameplay instance uses 1.6× scale for cartoon NPCs; tall riders use the open roof seats. A cruising/boarding sandbox case, localhost `?nutwagon=1` preview, and route/controller checks support iteration. Monk groups remain the next phase. [Verification](verification/nut-wagon/GAMEPLAY.md).
 
 ### Fixed

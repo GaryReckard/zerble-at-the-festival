@@ -9,6 +9,7 @@ import {Sound} from '../../src/sound.js';
 import {Crowd} from '../../src/crowd.js';
 import {registry} from '../../src/registry.js';
 import {setSessionSeed} from '../../src/rng.js';
+import {buildBo} from '../../src/models/bo.js';
 const checks=[]; const assert=(v,m)=>{if(!v)throw Error(m);checks.push(m);};
 let wagon;
 try {
@@ -23,6 +24,13 @@ try {
  wagon.spawnOnRoute(route,10);
  assert(registry.entries.size===before+3,'Three moving collider entries');
  assert(wagon.seatSlots.length===8 && wagon.seatSlots[0].occupied,'Driver plus seven passenger seats; platform excluded');
+ const bo=buildBo(), boAgain=buildBo();
+ assert(bo.children[0].geometry===boAgain.children[0].geometry && bo.children[0].geometry.userData.shared && bo.children[0].material.userData.shared,'Bo shares disposal-safe geometry and material across repeated builds');
+ assert(wagon.driverModel.parent===wagon.root,'Bo is attached to the moving wagon');
+ const driverBounds=new THREE.Box3().setFromObject(wagon.driverModel);
+ assert(driverBounds.max.y<1.47*1.6,'Bo and his tall hat fit below the wagon roof');
+ const hiddenDriver=new THREE.Matrix4(); crowd.bodyMesh.getMatrixAt(crowd.npcs[0].idx,hiddenDriver);
+ assert(hiddenDriver.elements[0]===0 && hiddenDriver.elements[5]===0,'Generic driver body is hidden beneath the dedicated Bo model');
  const npc=crowd.spawn({pos:new THREE.Vector3(2,0,10),rng:()=>.4});
  wagon.boardNearby(); assert(npc.state==='boarding','Nearby idle NPC reserves an available seat');
  assert(npc.seatSlot.kind==='roof','Tall NPCs use open roof seats instead of clipping into the cabin');
@@ -52,6 +60,7 @@ try {
  for(let i=0;i<3;i++){wagon.despawn();assert(registry.entries.size===before,'Despawn removes every collider');wagon.spawnOnRoute(route,10);}
  wagon.despawn();
  assert(crowd.npcs.every(n=>!n.seatSlot?.vehicle),'Despawn releases all wagon riders');
+ assert(!wagon.driverModel,'Despawn releases the dedicated driver model');
  assert(scene.children.length===0,'No stale vehicle roots after repeated despawn');
  assert(Sound.getStageHandleRegistry().length===musicBefore,'Despawn unregisters spatial music, including deferred audio');
  const emptyCrowd={npcs:[],spawn:()=>null};

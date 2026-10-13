@@ -1357,6 +1357,15 @@ export class Crowd {
   }
 
   _writeMatrices(npc) {
+    // Bo is rendered by the wagon, while the crowd still owns his reserved seat.
+    if (npc.seatSlot?.permanent && npc.seatSlot.vehicle?.driverModel) {
+      this._hideNpc(npc);
+      if (npc.isPhotographer) {
+        this.cameraMesh.setMatrixAt(npc.photoSlot, this._zeroMat);
+        this.flashMesh.setMatrixAt(npc.photoSlot, this._zeroMat);
+      }
+      return;
+    }
     const m = this._mat4;
     const photographing = isPhotographerState(npc.state);
     const photoPose = npc.state === PHOTO_STATE_POSE;

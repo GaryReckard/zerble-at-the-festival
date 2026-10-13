@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {seatBoInWagon} from './models/bo.js';
 import {buildNutWagon, setNutWagonNightness, NUT_WAGON_MOUNTS} from './models/nutWagon.js';
 import {registry} from './registry.js';
 import {nearestHeart} from './worldgen/hearts.js';
@@ -83,6 +84,8 @@ export class NutWagon {
       const slot = this.seatSlots[0]; slot.occupied = true; driver.seatSlot = slot;
       driver.scale = .9; // A short driver fits the enclosed cabin's headroom.
       driver.state = 'riding'; driver.rideTimer = Infinity;
+      this.driverModel = seatBoInWagon(this.root, NUT_WAGON_MOUNTS[0]);
+      this.crowd._writeMatrices(driver);
     }
     if (this.musicEnabled) {
       this.music = Sound.attachStageMusic(this.position.x, 1, this.position.z, 0x6e775731, 'dub');
@@ -203,7 +206,7 @@ export class NutWagon {
     for (const id of this.ids) registry.remove(id);
     this.ids.length = 0; this.colliders.length = 0; this.seatSlots.length = 0;
     Sound.detachStageMusic(this.music); this.music = null; this.musicEntry = null;
-    this.root?.removeFromParent(); this.root = null;
+    this.root?.removeFromParent(); this.root = null; this.driverModel = null;
     this.active = false; this.state = 'absent'; this.speed = 0;
   }
 

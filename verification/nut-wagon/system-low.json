@@ -3,6 +3,10 @@
   "checks": [
     "Three moving collider entries",
     "Driver plus seven passenger seats; platform excluded",
+    "Bo shares disposal-safe geometry and material across repeated builds",
+    "Bo is attached to the moving wagon",
+    "Bo and his tall hat fit below the wagon roof",
+    "Generic driver body is hidden beneath the dedicated Bo model",
     "Nearby idle NPC reserves an available seat",
     "Tall NPCs use open roof seats instead of clipping into the cabin",
     "Wagon boarding is independent of Zerble motion",
@@ -18,6 +22,7 @@
     "Despawn removes every collider",
     "Despawn removes every collider",
     "Despawn releases all wagon riders",
+    "Despawn releases the dedicated driver model",
     "No stale vehicle roots after repeated despawn",
     "Despawn unregisters spatial music, including deferred audio",
     "A full NPC pool does not leave a driverless wagon or leaked colliders",
