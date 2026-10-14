@@ -403,11 +403,17 @@ export class Zerble {
     plate.position.set(0, 0.32, 2.12);
     this.root.add(plate);
 
-    // ----- Eyes — big globes with VISIBLE black pupils in front of blue irises -----
+    // ----- Eyes -----
     this.eyes = [];
     // Collect glowing materials so the day/night + i/o-key brightness
     // controls can crank them at runtime.
     this._eyeGlowMats = [];
+    // Concentric caps preserve the visible radii without protruding smaller globes.
+    const eyeCap = (radius, visibleRadius) => new THREE.SphereGeometry(
+      radius, 32, 8, 0, Math.PI * 2, 0, Math.asin(visibleRadius / radius),
+    ).rotateX(-Math.PI / 2);
+    const irisGeo = eyeCap(0.702, 0.4);
+    const pupilGeo = eyeCap(0.704, 0.24);
     for (const ex of [-0.78, 0.78]) {
       const eye = new THREE.Group();
       eye.position.set(ex, 2.15, -1.95);
@@ -449,28 +455,24 @@ export class Zerble {
       );
       eye.add(backCap);
 
-      // Iris — front-facing hemisphere matching the sclera (covers -Z front).
+      // Opaque color prevents the glowing white sclera from washing out the iris.
       const irisMat = new THREE.MeshStandardMaterial({
         color: COLOR_IRIS,
         emissive: COLOR_IRIS,
         emissiveIntensity: 0.6,
         roughness: 0.3,
-        transparent: true,
-        opacity: 0.78,
-        side: THREE.DoubleSide,
+
       });
       const iris = new THREE.Mesh(
-        new THREE.SphereGeometry(0.4, 18, 12, Math.PI, Math.PI),
+        irisGeo,
         irisMat,
       );
-      iris.position.z = -0.45;
       eye.add(iris);
       this._eyeGlowMats.push(irisMat);
 
-      // Pupil — opaque black, the only solid element. Front face at
-      // z = -0.94 (~9cm past the iris).
+      // A second concentric cap keeps the black pupil on the same eye surface.
       const pupil = new THREE.Mesh(
-        new THREE.SphereGeometry(0.24, 14, 12),
+        pupilGeo,
         new THREE.MeshStandardMaterial({
           color: 0x000000,
           roughness: 1,
@@ -479,7 +481,6 @@ export class Zerble {
           polygonOffsetUnits: -2,
         })
       );
-      pupil.position.z = -0.70;
       eye.add(pupil);
 
       // (highlight catch-light removed — was floating in front of the eye)
@@ -1306,13 +1307,11 @@ export class Zerble {
     }
 
     // ----- Animate eyes (idle wobble + look ahead) -----
-    // Smaller pupil oscillation (±0.02) keeps the pupil cleanly in front of
-    // the iris throughout the cycle.
+    // Rotate both color patches around the globe center to keep the gaze flush.
     const t = performance.now() * 0.001;
     for (const eye of this.eyes) {
       eye.root.position.y = eye.basePos.y + Math.sin(t * 1.5 + eye.basePos.x) * 0.05;
-      eye.pupil.position.z = -0.70 + Math.sin(t * 0.7) * 0.02;
-      eye.pupil.position.x = Math.sin(t * 0.4) * 0.06;
+      eye.iris.rotation.y = eye.pupil.rotation.y = Math.sin(t * 0.4) * 0.085;
     }
 
     // ----- Animate mustache + floor LEDs (rainbow chase) -----
