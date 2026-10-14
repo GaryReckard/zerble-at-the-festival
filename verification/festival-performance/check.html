@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8"><title>Festival performance checks</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Rendering silently…</pre><script type="module">
+import {JAM,BRASS,DANCE,WORLD,makeStageMotifs} from '../../src/sound.js';
+import {mulberry32} from '../../src/rng.js';
+import {buildPerformer} from '../../src/models/performer.js';
+const assert=(ok,msg)=>{if(!ok)throw Error(msg);};
+try {
+ const results=[];
+ for(const tune of [JAM,BRASS,DANCE,WORLD]){
+  const rng=mulberry32(1234), sections=tune.sectionTemplate(rng), beat=.5;
+  const ctx=new OfflineAudioContext(1,Math.ceil((sections.length*8*beat+1)*22050),22050);
+  const {voices,teardown}=tune.makeVoices(ctx,ctx.destination,rng,tune.baseHz);
+  let n=0;
+  for(const section of sections)for(let bar=0;bar<2;bar++)for(let b=0;b<4;b++){
+   tune.playBeat({ctx,t:.1+n++*beat,beatInBar:b,barInSection:bar,section,beat,
+    tonicHz:tune.baseHz,rng,voices,gainMod:.45+section.intensity*.6,
+    restProb:.08,variation:section.variation,fill:bar===1,leadType:tune.leadTypes[0]});
+  }
+  const data=(await ctx.startRendering()).getChannelData(0);let peak=0,sum=0;
+  for(const sample of data){assert(Number.isFinite(sample),'nonfinite audio');peak=Math.max(peak,Math.abs(sample));sum+=sample*sample;}
+  teardown.forEach(stop=>stop());
+  assert(peak>0&&peak<1,tune.name+' clipped/silent');
+  results.push({genre:tune.name,peak,rms:Math.sqrt(sum/data.length),sections});
+ }
+ const a=makeStageMotifs(mulberry32(5),220,[1,1.125,1.25,1.5,1.667]);
+ assert(JSON.stringify(a)===JSON.stringify(makeStageMotifs(mulberry32(5),220,[1,1.125,1.25,1.5,1.667])),'motifs nondeterministic');
+ assert(a[0].slice(0,4).join()===a[1].slice(0,4).join(),'hook not shared');
+ assert(a[0].join()!==a[1].join(),'answers identical');
+ const models=[];
+ for(const instrument of ['guitar','bass','drum','march_drum','lead_vocal','sax','trumpet','trombone','tuba']){
+  const a=buildPerformer(instrument,()=>.2),b=buildPerformer(instrument,()=>.2);
+  const meshes=[];a.traverse(o=>{if(o.isMesh)meshes.push(o);});
+  const other=[];b.traverse(o=>{if(o.isMesh)other.push(o);});
+  assert(meshes.length===4,'mesh budget');assert(meshes.filter(m=>m.castShadow).length===1,'caster budget');
+  for(let i=0;i<4;i++){assert(meshes[i].geometry===other[i].geometry,'geometry not pooled');assert(meshes[i].geometry.userData.shared&&meshes[i].material.userData.shared,'dispose safety');}
+  a.userData.animate(2);assert(b.children[0].rotation.y===0,'animation leaked to another performer');
+  models.push({instrument,meshes:4,shadowCasters:1,triangles:meshes.reduce((n,m)=>n+m.geometry.attributes.position.count/3,0)});
+ }
+ document.querySelector('#result').textContent=JSON.stringify({pass:true,audio:results,models,motifs:'seeded hook with distinct answers; independent pooled animation'},null,2);
+}catch(e){document.querySelector('#result').textContent='FAIL: '+e.stack;}
+</script>

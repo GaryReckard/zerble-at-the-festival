@@ -1,0 +1,252 @@
+{
+  "pass": true,
+  "audio": [
+    {
+      "genre": "jam",
+      "peak": 0.5541551113128662,
+      "rms": 0.07080314525791101,
+      "sections": [
+        {
+          "name": "intro",
+          "bars": 4,
+          "intensity": 0.45,
+          "variation": 0
+        },
+        {
+          "name": "verse",
+          "bars": 8,
+          "intensity": 0.65,
+          "variation": 2
+        },
+        {
+          "name": "chorus",
+          "bars": 8,
+          "intensity": 0.9,
+          "variation": 2
+        },
+        {
+          "name": "verse",
+          "bars": 8,
+          "intensity": 0.6900000000000001,
+          "variation": 0
+        },
+        {
+          "name": "bridge",
+          "bars": 4,
+          "intensity": 0.75,
+          "variation": 0
+        },
+        {
+          "name": "chorus",
+          "bars": 8,
+          "intensity": 0.9400000000000001,
+          "variation": 1
+        },
+        {
+          "name": "outro",
+          "bars": 4,
+          "intensity": 0.4,
+          "variation": 0
+        }
+      ]
+    },
+    {
+      "genre": "brass",
+      "peak": 0.4883563220500946,
+      "rms": 0.05183193043015456,
+      "sections": [
+        {
+          "name": "intro",
+          "bars": 2,
+          "intensity": 0.5,
+          "variation": 0
+        },
+        {
+          "name": "verse",
+          "bars": 8,
+          "intensity": 0.7,
+          "variation": 2
+        },
+        {
+          "name": "chorus",
+          "bars": 8,
+          "intensity": 0.95,
+          "variation": 2
+        },
+        {
+          "name": "bridge",
+          "bars": 4,
+          "intensity": 0.75,
+          "variation": 2
+        },
+        {
+          "name": "chorus",
+          "bars": 8,
+          "intensity": 0.99,
+          "variation": 1
+        },
+        {
+          "name": "outro",
+          "bars": 2,
+          "intensity": 0.45,
+          "variation": 0
+        }
+      ]
+    },
+    {
+      "genre": "dance",
+      "peak": 0.6723812818527222,
+      "rms": 0.057645386758047645,
+      "sections": [
+        {
+          "name": "intro",
+          "bars": 4,
+          "intensity": 0.45,
+          "variation": 0
+        },
+        {
+          "name": "build",
+          "bars": 8,
+          "intensity": 0.7,
+          "variation": 2
+        },
+        {
+          "name": "drop",
+          "bars": 16,
+          "intensity": 0.95,
+          "variation": 2
+        },
+        {
+          "name": "break",
+          "bars": 8,
+          "intensity": 0.55,
+          "variation": 2
+        },
+        {
+          "name": "build",
+          "bars": 8,
+          "intensity": 0.8400000000000001,
+          "variation": 1
+        },
+        {
+          "name": "drop",
+          "bars": 16,
+          "intensity": 0.99,
+          "variation": 1
+        },
+        {
+          "name": "outro",
+          "bars": 4,
+          "intensity": 0.4,
+          "variation": 0
+        }
+      ]
+    },
+    {
+      "genre": "world",
+      "peak": 0.44238516688346863,
+      "rms": 0.03220056097249948,
+      "sections": [
+        {
+          "name": "intro",
+          "bars": 4,
+          "intensity": 0.45,
+          "variation": 0
+        },
+        {
+          "name": "verse",
+          "bars": 8,
+          "intensity": 0.65,
+          "variation": 2
+        },
+        {
+          "name": "chorus",
+          "bars": 8,
+          "intensity": 0.85,
+          "variation": 2
+        },
+        {
+          "name": "break",
+          "bars": 4,
+          "intensity": 0.5,
+          "variation": 2
+        },
+        {
+          "name": "verse",
+          "bars": 8,
+          "intensity": 0.74,
+          "variation": 1
+        },
+        {
+          "name": "chorus",
+          "bars": 8,
+          "intensity": 0.89,
+          "variation": 1
+        },
+        {
+          "name": "outro",
+          "bars": 4,
+          "intensity": 0.4,
+          "variation": 0
+        }
+      ]
+    }
+  ],
+  "models": [
+    {
+      "instrument": "guitar",
+      "meshes": 4,
+      "shadowCasters": 1,
+      "triangles": 3200
+    },
+    {
+      "instrument": "bass",
+      "meshes": 4,
+      "shadowCasters": 1,
+      "triangles": 3200
+    },
+    {
+      "instrument": "drum",
+      "meshes": 4,
+      "shadowCasters": 1,
+      "triangles": 3432
+    },
+    {
+      "instrument": "march_drum",
+      "meshes": 4,
+      "shadowCasters": 1,
+      "triangles": 2404
+    },
+    {
+      "instrument": "lead_vocal",
+      "meshes": 4,
+      "shadowCasters": 1,
+      "triangles": 2624
+    },
+    {
+      "instrument": "sax",
+      "meshes": 4,
+      "shadowCasters": 1,
+      "triangles": 3016
+    },
+    {
+      "instrument": "trumpet",
+      "meshes": 4,
+      "shadowCasters": 1,
+      "triangles": 2472
+    },
+    {
+      "instrument": "trombone",
+      "meshes": 4,
+      "shadowCasters": 1,
+      "triangles": 2712
+    },
+    {
+      "instrument": "tuba",
+      "meshes": 4,
+      "shadowCasters": 1,
+      "triangles": 2724
+    }
+  ],
+  "motifs": "seeded hook with distinct answers; independent pooled animation"
+}

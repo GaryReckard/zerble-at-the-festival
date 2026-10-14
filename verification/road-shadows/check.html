@@ -1,0 +1,45 @@
+<!doctype html><meta charset="utf-8"><title>Road shadow depth regression</title>
+<style>body{background:#171b24;color:white;font:16px system-ui}img{width:360px}figure{display:inline-block;margin:12px}</style>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Checking…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {ChunkManager,buildCurvedPath} from '../../src/chunks.js';
+import {Crowd} from '../../src/crowd.js';
+import {setSessionSeed} from '../../src/rng.js';
+setSessionSeed(1234);
+const world=new THREE.Scene(),chunks=new ChunkManager(world,new Crowd({spawn(){}}));
+chunks.update(new THREE.Vector3());
+let material;world.traverse(o=>{if(o.isMesh&&o.material?.color?.getHex()===0xb89570)material=o.material;});
+try{
+ if(!material)throw Error('Production road material not found');
+ const renderer=new THREE.WebGLRenderer({antialias:false,preserveDrawingBuffer:true});
+ renderer.setSize(256,256);renderer.shadowMap.enabled=true;
+ const scene=new THREE.Scene(), camera=new THREE.OrthographicCamera(-5,5,5,-5,.1,40);
+ camera.position.set(0,20,0);camera.up.set(0,0,-1);camera.lookAt(0,0,0);
+ scene.add(new THREE.AmbientLight(0xffffff,.2));
+ const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(3,8,1);sun.castShadow=true;
+ sun.shadow.camera.left=-8;sun.shadow.camera.right=8;sun.shadow.camera.top=8;sun.shadow.camera.bottom=-8;sun.shadow.mapSize.set(512,512);
+ scene.add(sun);
+ const road=buildCurvedPath(0,-6,0,6,6,()=>.5,material);road.renderOrder=1;scene.add(road);
+ const under=new THREE.Mesh(new THREE.PlaneGeometry(6,12),new THREE.MeshBasicMaterial({color:0x9c7c58}));
+ under.rotation.x=-Math.PI/2;under.position.y=.03;under.renderOrder=2;scene.add(under);
+ const cube=new THREE.Mesh(new THREE.BoxGeometry(1,2,1),new THREE.MeshStandardMaterial({color:0xeac57a}));
+ cube.position.set(.5,1.1,0);cube.castShadow=true;scene.add(cube);
+ const target=new THREE.WebGLRenderTarget(256,256),pixels=()=>{renderer.setRenderTarget(target);renderer.render(scene,camera);const p=new Uint8Array(256*256*4);renderer.readRenderTargetPixels(target,0,0,256,256,p);renderer.setRenderTarget(null);return p;};
+ const diff=(a,b)=>{let n=0;for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>8)n++;return n;};
+ const original=material.depthWrite;
+ const shot=label=>{renderer.render(scene,camera);const f=document.createElement('figure'),img=document.createElement('img'),caption=document.createElement('figcaption');img.src=renderer.domElement.toDataURL();caption.textContent=label;f.append(img,caption);document.body.append(f);};
+ under.visible=false;const reference=pixels();
+ under.visible=true;const production=pixels();shot('Production road + distant underlay');
+ material.depthWrite=false;const broken=pixels();shot('Old depthWrite:false behavior');
+ material.depthWrite=true;const corrected=pixels();
+ material.depthWrite=original;
+ const result={pass:original&&diff(reference,corrected)===0&&diff(reference,broken)>100,
+   productionDepthWrite:original,productionMismatchPixels:diff(reference,production),
+   correctedMismatchPixels:diff(reference,corrected),oldMismatchPixels:diff(reference,broken)};
+ document.querySelector('#result').textContent=JSON.stringify(result,null,2);
+ renderer.dispose();target.dispose();
+}catch(e){document.querySelector('#result').textContent='FAIL: '+e.stack;}
+finally{for(const [key,chunk]of [...chunks.loaded])chunks._unload(key,chunk);}
+</script>

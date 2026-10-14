@@ -10,9 +10,64 @@
 // the group.
 
 import * as THREE from 'three';
-import { buildPerformer } from './performer.js';
+import { buildPerformer, bakePerformancePart } from './performer.js';
 import { register as registerContextLight } from '../contextLights.js';
 import { STAGE_SHAPES, STAGE_SURFACES } from '../festivalShapes.js';
+
+
+const backlineCache=new Map();
+const backlineMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.8});
+backlineMat.userData.shared=true;
+function stageBackline(isMain){
+  if(backlineCache.has(isMain))return backlineCache.get(isMain);
+  const {width:w,depth:d,trussHeight:th}=isMain?STAGE_SHAPES.main:STAGE_SHAPES.side;
+  const h=STAGE_SURFACES.deckHeight,black=0x1d202a,metal=0x999eaa;
+  const geo=bakePerformancePart(({box,oval,rod,tube,add})=>{
+    // Detailed gear is one pooled draw, rather than a draw per cone, knob or cable.
+    box(black,[0,h+.16,-d*.25],[3.8,.32,2.6]);
+    for(const x of [-w*.22,w*.22]){
+      box(0x774248,[x,h+.015,d*.12],[3.3,.025,2.1]);
+      for(const z of [-.9,.9])box(0xccab67,[x,h+.03,d*.12+z],[3.05,.012,.035]);
+    }
+    for(const x of [-w*.27,0,w*.27]){
+      box(black,[x,h+.22,d*.5-.7],[1.15,.42,.65],[-.28,0,0]);
+      box(0x46505a,[x,h+.38,d*.5-.61],[.98,.025,.46],[-.28,0,0]);
+      tube(black,[[x,h+.03,d*.5-.7],[x+.5,h+.03,1],[x+.8,h+.03,-d*.3]],.014);
+    }
+    for(const sx of [-1,1]){
+      box(black,[sx*w*.29,h+.63,-d*.31],[1.5,1.25,.72]);
+      box(0x4e4947,[sx*w*.29,h+.6,-d*.31+.37],[1.32,.92,.015]);
+      for(const y of [h+.34,h+.84])oval(0x24242b,[sx*w*.29,y,-d*.31+.39],[.29,.23,.012]);
+      box(0xc7b99b,[sx*w*.29,h+1.18,-d*.31+.38],[1.28,.11,.023]);
+      for(let i=0;i<5;i++)oval(metal,[sx*w*.29-.4+i*.20,h+1.18,-d*.31+.4],[.025,.025,.015]);
+      // A flight case at each wing, with edge strips, corners and handles.
+      const x=sx*(w*.5-1.15),z=-d*.22;
+      box(0x394858,[x,h+.4,z],[1.4,.8,.85]);
+      for(const y of [h+.07,h+.74])box(metal,[x,y,z+.44],[1.42,.035,.025]);
+      for(const dx of [-.68,.68])box(metal,[x+dx,h+.4,z+.44],[.035,.77,.025]);
+      box(black,[x,h+.45,z+.46],[.34,.09,.035]);
+      // Visible drivers distinguish PA cabinets from plain black boxes.
+      for(let row=0;row<3;row++){
+        const px=sx*(w*.5+1),py=1.4+row*1.45,pz=-d*.5+2.01;
+        oval(0x424550,[px,py-.20,pz],[.50,.50,.035]);
+        oval(black,[px,py-.20,pz+.04],[.19,.19,.025]);
+        box(0x54515c,[px,py+.46,pz],[.78,.22,.03]);
+      }
+      // Diagonal braces make the existing posts read as a working truss.
+      for(let y=1;y<th-1;y+=1.6){
+        rod(metal,[sx*(w*.5-.42),y,d*.5-.3],[sx*(w*.5-.12),y+1.4,d*.5-.3],.027);
+      }
+      for(let step=0;step<3;step++)box(0x66513e,[sx*(w*.5-.85),(step+1)*h/6,d*.5+.3+(.8-step*.3)],[1.4,(step+1)*h/3,.36]);
+    }
+    // Small festival pennants across the audience truss.
+    for(let i=0;i<11;i++){
+      const x=-w*.43+i*w*.086;
+      const shape=new THREE.Shape([new THREE.Vector2(-.35,0),new THREE.Vector2(.35,0),new THREE.Vector2(0,-.65)]);
+      add(new THREE.ShapeGeometry(shape),[0xf4bd57,0xd35e8b,0x5dc1bb][i%3],[x,th-.23,d*.5+.02]);
+    }
+  });
+  backlineCache.set(isMain,geo);return geo;
+}
 
 export function buildStage(opts = {}) {
   // `scale` (default 1.0) scales the deck dimensions + truss + speakers +
@@ -177,14 +232,15 @@ export function buildStage(opts = {}) {
       colorHex,
       0,                // intensity — animated by updateStageLightShow
       24 * scale,       // throw distance
-      Math.PI / 7,      // ~25° cone half-angle (narrowish so beams read)
+      i === 1 ? Math.PI / 7 : Math.PI / 4,      // ~25° cone half-angle (narrowish so beams read)
       0.45,             // penumbra
       1.0,              // decay
     );
     beam.position.set(lx, lensY - 0.1, 0);
     const target = new THREE.Object3D();
     // Default target: 8m forward (+Z) of the stage, on the ground.
-    target.position.set(lx, 0, 10 * scale);
+    const wash = i !== 1;
+    target.position.set(lx, wash ? h + .8 : 0, wash ? d * .2 : 10 * scale);
     g.add(target);
     beam.target = target;
     g.add(beam);
@@ -193,8 +249,18 @@ export function buildStage(opts = {}) {
     // isn't visible shouldn't be paying that cost.
     registerContextLight(beam);
 
-    stageBeams.push({ beam, target, baseTargetX: lx, baseTargetZ: 10 * scale, phaseOffset: i * 1.7 });
+    stageBeams.push({ beam, target, wash, baseTargetX: lx, baseTargetZ: target.position.z, phaseOffset: i * 1.7 });
   }
+
+  g.userData.animateLights=(t,nightness)=>{
+    for(const ref of stageBeams){
+      ref.beam.intensity=nightness*(ref.wash?24:8);
+      ref.target.position.x=ref.baseTargetX+Math.sin(t*.5+ref.phaseOffset)*(ref.wash?.4:3)*scale;
+    }
+    for(const lens of stageLights)lens.material.emissiveIntensity=2+nightness*3;
+  };
+  const equipment=new THREE.Mesh(stageBackline(isMain),backlineMat);
+  equipment.scale.setScalar(scale);equipment.receiveShadow=true;g.add(equipment);
 
   return {
     group: g,
@@ -215,17 +281,20 @@ export function placeBandOnStage(stageGroup, instruments, opts) {
   const { deckWidth, deckDepth, deckHeight, rng = Math.random } = opts;
   const w = deckWidth;
   const d = deckDepth;
-  const lineZ = 0.5;              // slightly behind the front edge
+  const lineZ = d * .5 - 1.8;              // slightly behind the front edge
   const backZ = -d * 0.25;
   const performers = [];
+  const flankCount=instruments.filter(i=>i!=='lead_vocal'&&i!=='drum').length;
+  let flankIndex=0;
   for (let i = 0; i < instruments.length; i++) {
     const inst = instruments[i];
     const isLead = inst === 'lead_vocal' || inst === 'drum' || inst === 'bass';
     const spread = w * 0.32;
-    const spotX = ((i / (instruments.length - 1 || 1)) - 0.5) * spread * 2;
-    const spotZ = inst === 'drum' ? backZ : (isLead && i === 0 ? lineZ + 1.0 : lineZ - 0.5);
+    const spotX = inst === 'lead_vocal' || inst === 'drum' ? 0
+      : (flankCount===1 ? -.65 : -1 + 2*(flankIndex++)/(flankCount-1)) * spread;
+    const spotZ = inst === 'drum' ? backZ : (isLead && i === 0 ? lineZ : lineZ - .8);
     const performer = buildPerformer(inst, rng);
-    performer.position.set(spotX, deckHeight, spotZ);
+    performer.position.set(spotX, deckHeight + (inst === 'drum' ? .32 * (deckHeight/STAGE_SURFACES.deckHeight) : 0), spotZ);
     performer.rotation.y = Math.PI;
     stageGroup.add(performer);
     performers.push(performer);

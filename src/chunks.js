@@ -118,6 +118,10 @@ export const stageBeamRefs = [];
 export function updateStagePerformers(t) {
   for (let i = 0; i < stagePerformers.length; i++) {
     const p = stagePerformers[i];
+    if (p.group.userData.animate) {
+      p.group.userData.animate(t + p.phase);
+      continue;
+    }
     const phase = t * 3 + p.phase;
     p.group.position.y = p.baseY + Math.abs(Math.sin(phase)) * 0.08;
     p.group.rotation.z = Math.sin(phase * 0.5) * 0.05;
@@ -226,9 +230,9 @@ export function updateStageLightShow(t, nightness, zerblePos) {
     // Always advance animation state so beams are in-phase when they re-enter
     // the active pool — avoids a visible jump in sweep position / color.
     ref.target.position.x = ref.baseTargetX
-      + Math.sin(phase * pattern.rateX) * pattern.ax * ref.scale;
+      + Math.sin(phase * pattern.rateX) * (ref.wash ? .4 : pattern.ax) * ref.scale;
     ref.target.position.z = ref.baseTargetZ
-      + Math.sin(phase * pattern.rateZ + pattern.phaseZ) * pattern.az * ref.scale;
+      + Math.sin(phase * pattern.rateZ + pattern.phaseZ) * (ref.wash ? .25 : pattern.az) * ref.scale;
     // Color chase — shifts through the palette out of phase with the lens.
     const colorIdx = Math.floor((t * 0.35 + i * 1.3) % _showColors.length);
     const nextIdx = (colorIdx + 1) % _showColors.length;
@@ -241,7 +245,7 @@ export function updateStageLightShow(t, nightness, zerblePos) {
     const inPool = activeSet === null || activeSet.has(i);
     if (inPool) {
       const pulse = 0.55 + 0.45 * Math.sin(phase * 2.2);
-      ref.beam.intensity = beamOn * pulse * 9.0;
+      ref.beam.intensity = beamOn * (ref.wash ? 24 : pulse * 9.0);
     } else {
       ref.beam.intensity = 0;
     }
@@ -919,7 +923,8 @@ function roadMat() {
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
-      depthWrite: false,
+      // The unlit far-road underlay must fail depth testing beneath this lit surface.
+      depthWrite: true,
     });
     _roadMat.userData.shared = true;
   }
@@ -1951,6 +1956,8 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   tent.group.position.set(cx, 0, cz);
   tent.group.rotation.y = yaw;
   ctx.group.add(tent.group);
+
+  for (const group of tent.performers) stagePerformers.push({group,chunkKey:ctx.key,phase:tent.performers.indexOf(group)*1.7});
 
   // Track the tent's stage lights with the rest of the light show.
   for (const lens of tent.stageLights) {
@@ -3060,9 +3067,9 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
     stagePerformers.push({
       group: performer,
       chunkKey: ctx.key,
-      baseY: h,
+      baseY: performer.position.y,
       baseYaw: Math.PI,
-      phase: Math.random() * Math.PI * 2,
+      phase: performers.indexOf(performer) * 1.7,
     });
   }
 }

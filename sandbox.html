@@ -533,6 +533,7 @@
     import * as THREE from 'three';
     import {Sound} from './src/sound.js';
     import {TimeOfDay} from './src/timeOfDay.js';
+    import * as ContextLights from './src/contextLights.js';
     import {Zerble} from './src/zerble.js';
     import {buildStarPreview, STAR_UNIFORMS, StarPower} from './src/starPower.js';
     import {Lurleen, createHeartGeometry} from './src/lurleen.js';
@@ -1522,6 +1523,7 @@ import {buildShrub} from './src/models/shrub.js';
                 const t = buildTentStage({rng: Math.random, leafTexture: tex});
                 scene.add(t.group);
                 entityRoot = t.group;
+                let elapsed=0;updateFn=(dt)=>{elapsed+=dt;t.performers.forEach(p=>p.userData.animate?.(elapsed));t.animateLights(elapsed,tod.nightness);};
                 cam.target.set(0, 4, 0);
                 cam.dist = 38;
                 applyCam();
@@ -1536,10 +1538,12 @@ import {buildShrub} from './src/models/shrub.js';
                 const instruments = isMain
                     ? ['lead_vocal', 'guitar', 'guitar', 'bass', 'drum', 'sax']
                     : ['lead_vocal', 'guitar', 'drum'];
-                placeBandOnStage(stage.group, instruments, {
+                const performers = placeBandOnStage(stage.group, instruments, {
                     deckWidth: stage.deckWidth, deckDepth: stage.deckDepth,
                     deckHeight: stage.deckHeight, rng: Math.random,
                 });
+                let elapsed=0;
+                updateFn=(dt)=>{elapsed+=dt;performers.forEach(p=>p.userData.animate?.(elapsed));stage.group.userData.animateLights(elapsed,tod.nightness);};
                 entityRoot = stage.group;
                 cam.target.set(0, 4, 0);
                 cam.dist = isMain ? 26 : 18;
@@ -2008,6 +2012,7 @@ import {buildShrub} from './src/models/shrub.js';
             case 'performer_sax': {
                 const inst = name.replace('performer_', '');
                 const g = buildPerformer(inst, Math.random);
+                let elapsed=0;updateFn=(dt)=>{elapsed+=dt;g.userData.animate?.(elapsed);};
                 scene.add(g);
                 entityRoot = g;
                 cam.target.set(0, 1.2, 0);
@@ -3103,6 +3108,7 @@ import {buildShrub} from './src/models/shrub.js';
                 }
             }
         }
+        ContextLights.update(camera.position, scene);
         composer.render();
         const now = performance.now();
         if (now >= nextStatsUpdate) {

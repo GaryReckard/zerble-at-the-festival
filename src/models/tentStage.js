@@ -129,7 +129,7 @@ export function buildTentStage(opts = {}) {
 
   // Drop a default band onto the stage so the tent isn't visually empty.
   const instruments = ['lead_vocal', 'guitar', 'drum'];
-  placeBandOnStage(stageBuild.group, instruments, {
+  const performers = placeBandOnStage(stageBuild.group, instruments, {
     deckWidth: stageBuild.deckWidth, deckDepth: stageBuild.deckDepth,
     deckHeight: stageBuild.deckHeight, rng,
   });
@@ -188,6 +188,8 @@ export function buildTentStage(opts = {}) {
 
   return {
     group,
+    performers,
+    animateLights: stageBuild.group.userData.animateLights,
     stagePos: new THREE.Vector3(0, 0, stageZ),
     stageWidth: stageBuild.deckWidth,
     stageDepth: stageBuild.deckDepth,

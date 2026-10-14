@@ -468,12 +468,15 @@ Genuinely-remaining follow-ups (not blockers):
 Real songform shipped 2026-06-03 — each melodic stage plays finite songs with
 named sections (intro/verse/chorus/bridge/outro, or intro/build/drop/break for
 dance), per-song tempo + key changes, voices coming in/out by section, and a
-crowd cheer between songs. What's left from the original "section system" idea:
-a **probabilistic** meta-scheduler that picks the next section instead of the
-current fixed per-genre order, with **musical transitions** (a snare fill into
-the chorus, a tempo ramp into a breakdown) rather than clean cross-fades, plus
-**per-section** tempo changes (today tempo is per-song + a wobble). Diminishing
-returns vs. what shipped — nice-to-have, not urgent.
+crowd cheer between songs. The 2026-10-14 performance pass added recurring
+motifs, alternate answers, section dynamics, jam/brass transition fills, dance
+sixteenth-note arpeggios and a complete triplet clave grid. Musician poses,
+instruments, stage equipment and performer washes also shipped; see
+[verification](verification/festival-performance/README.md).
+
+Remaining extensions are a probabilistic section-order scheduler and tempo
+ramps within songs. The current order remains genre-specific, with per-song
+tempo changes and a gentle tempo drift.
 
 ---
 

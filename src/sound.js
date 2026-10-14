@@ -2360,9 +2360,9 @@ function runStageSong(ctx, panner, seed, genreDef) {
 
       // Dynamics breath — rest probability coupled to section intensity.
       const intensity = sec.intensity;
-      const baseRest = genreDef.baseRestProb || 0.12;
+      const baseRest = genreDef.baseRestProb ?? 0.12;
       const restProb = Math.max(0, Math.min(0.6, baseRest * (1.35 - intensity)));
-      const gainMod = 1 + 0.25 * Math.sin((t / 28) * 2 * Math.PI);
+      const gainMod = (.45 + intensity * .6) * (1 + 0.12 * Math.sin((t / 28) * 2 * Math.PI));
 
       // Beat-in-bar (0..3)
       const beatInBar = (beatInSong - beatsBeforeSection(sectionIdx)) % 4;
@@ -2378,6 +2378,7 @@ function runStageSong(ctx, panner, seed, genreDef) {
       genreDef.playBeat({
         t, beatInBar, barInSection, section: sec, intensity,
         beat, tonicHz: song.tonicHz, scale: genreDef.scale,
+        variation: sec.variation || 0, fill: barInSection === sec.bars - 1,
         rng, voices, leadType: genreDef.leadTypes ? genreDef.leadTypes[leadType] : 'default',
         dest: panner, gainMod, restProb, ctx,
       });
@@ -2432,13 +2433,31 @@ function runStageSong(ctx, panner, seed, genreDef) {
 
 // ---- Genre definitions ----
 
-// Shared section builder helpers.
-function makeSections(template) {
-  return template.map(([name, bars, intensity]) => ({ name, bars, intensity }));
+// A call returns twice before its answer changes the cadence. Variants preserve
+// the opening hook so songs have recognizable phrases rather than random walks.
+export function makeStageMotifs(rng,baseHz,scale,length=16){
+  const anchor=Math.floor(rng()*3), direction=rng()<.5?1:-1;
+  const degree=n=>scale[((n%scale.length)+scale.length)%scale.length];
+  const call=[anchor,anchor+direction,anchor+2*direction,anchor+direction];
+  return [0,1,2].map(variant=>Array.from({length},(_,i)=>{
+    const phrase=Math.floor(i/4),step=i%4;
+    let note=call[step];
+    if(phrase%2===1)note=call[3-step]+variant;
+    if(i===length-1)note=variant===2?0:anchor;
+    return baseHz*degree(note);
+  }));
 }
 
+function makeSections(template,rng){
+  const seen=new Map();
+  return template.map(([name,bars,intensity])=>{
+    const repeat=seen.get(name)||0;seen.set(name,repeat+1);
+    return {name,bars,intensity:Math.min(1,intensity+repeat*.04),
+      variation:rng?(Math.floor(rng()*3)+repeat)%3:repeat};
+  });
+}
 // JAM genre def — wraps the existing jam-band timbre/scale.
-const JAM = {
+export const JAM = {
   name: 'jam',
   baseHz: 174,
   tempoRange: [84, 104],
@@ -2454,7 +2473,7 @@ const JAM = {
       ['bridge', 4, 0.75],
       ['chorus', 8, 0.90],
       ['outro',  4, 0.40],
-    ]);
+    ], rng);
   },
   makeVoices(ctx, dest, rng, tonicHz) {
     const baseFreq = tonicHz;
@@ -2485,9 +2504,7 @@ const JAM = {
     padA.start(); padB.start();
 
     // Build melody variants (seeded, stable across a song).
-    const melodies = Array.from({ length: 3 }, () =>
-      new Array(16).fill(0).map(() => baseFreq * SCALE_PENT[Math.floor(rng() * SCALE_PENT.length)])
-    );
+    const melodies = makeStageMotifs(rng,baseFreq,SCALE_PENT,16);
     const basses = Array.from({ length: 2 }, () =>
       new Array(8).fill(0).map(() => baseFreq * 0.5 * SCALE_PENT[Math.floor(rng() * 4)])
     );
@@ -2505,10 +2522,10 @@ const JAM = {
     ];
     return { voices, teardown };
   },
-  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx }) {
+  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx, variation=0, fill=false, leadType }) {
     const { lead, leadGain, harm, harmGain, bassOsc, bassGain, kick, kickGain,
             padA, padB, padGain, melodies, basses, padNotes } = voices;
-    const rotIdx = (barInSection >> 1) % melodies.length;
+    const rotIdx = (Math.floor(barInSection/4)+variation) % melodies.length;
     const melody = melodies[rotIdx];
     const bass   = basses[rotIdx % basses.length];
     const noteIdx = (barInSection * 4 + beatInBar) % melody.length;
@@ -2516,7 +2533,9 @@ const JAM = {
     const breath = gainMod;
     const inChorus = section.name === 'chorus' || section.name === 'bridge';
 
-    if (rng() >= restProb) {
+    const rhythm=section.name==='chorus'?[1,1,1,1]:[[1,0,1,1],[1,1,0,1],[1,0,1,0]][(barInSection+variation)%3];
+    lead.type=leadType==='sine'?'sine':'triangle';
+    if (rhythm[beatInBar] && rng() >= restProb) {
       lead.frequency.setValueAtTime(m, t);
       leadGain.gain.cancelScheduledValues(t);
       leadGain.gain.setValueAtTime(0.0001, t);
@@ -2538,12 +2557,22 @@ const JAM = {
       bassGain.gain.exponentialRampToValueAtTime(0.30 * breath, t + 0.02);
       bassGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 1.8);
     }
+    if (beatInBar===0 || beatInBar===2 || (fill && beatInBar===3)) {
     kick.frequency.setValueAtTime(110, t);
     kick.frequency.exponentialRampToValueAtTime(40, t + 0.08);
     kickGain.gain.cancelScheduledValues(t);
     kickGain.gain.setValueAtTime(0.0001, t);
-    kickGain.gain.exponentialRampToValueAtTime(0.5 * breath, t + 0.005);
+    kickGain.gain.exponentialRampToValueAtTime(0.30 * breath, t + 0.005);
     kickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    }
+    if(fill && beatInBar===3){
+      for(const offset of [.5,.75]){
+        harm.frequency.setValueAtTime(m*(offset===.5?1.5:2),t+beat*offset);
+        harmGain.gain.setValueAtTime(.0001,t+beat*offset);
+        harmGain.gain.exponentialRampToValueAtTime(.055*breath,t+beat*offset+.006);
+        harmGain.gain.exponentialRampToValueAtTime(.0001,t+beat*(offset+.22));
+      }
+    }
     // Chord pad — active in chorus + bridge sections for fullness.
     if (inChorus) {
       const pn = padNotes[beatInBar % padNotes.length];
@@ -2562,7 +2591,7 @@ const JAM = {
 };
 
 // BRASS genre def — side-stage horn-led groove.
-const BRASS = {
+export const BRASS = {
   name: 'brass',
   baseHz: 233,
   tempoRange: [112, 140],
@@ -2577,7 +2606,7 @@ const BRASS = {
       ['bridge', 4, 0.75],
       ['chorus', 8, 0.95],
       ['outro',  2, 0.45],
-    ]);
+    ], rng);
   },
   makeVoices(ctx, dest, rng, tonicHz) {
     const baseFreq = tonicHz;
@@ -2595,9 +2624,7 @@ const BRASS = {
     const tubaGain = ctx.createGain(); tubaGain.gain.value = 0;
     tuba.connect(tubaLpf).connect(tubaGain).connect(dest); tuba.start();
 
-    const melodies = Array.from({ length: 3 }, () =>
-      new Array(8).fill(0).map(() => baseFreq * SCALE_MIXO[Math.floor(rng() * SCALE_MIXO.length)])
-    );
+    const melodies = makeStageMotifs(rng,baseFreq,SCALE_MIXO,16);
     const basses = Array.from({ length: 2 }, () =>
       new Array(4).fill(0).map(() => baseFreq * 0.5 * SCALE_MIXO[Math.floor(rng() * 4)])
     );
@@ -2610,21 +2637,27 @@ const BRASS = {
     ];
     return { voices, teardown };
   },
-  playBeat({ t, beatInBar, barInSection, beat, rng, voices, gainMod, restProb }) {
+  playBeat({ t, beatInBar, barInSection, beat, rng, voices, gainMod, restProb, variation=0, fill=false, leadType }) {
     const { sawOsc, sqrOsc, hornMix, tuba, tubaGain, melodies, basses } = voices;
-    const rotIdx = (barInSection >> 1) % melodies.length;
+    const rotIdx = (Math.floor(barInSection/4)+variation) % melodies.length;
     const melody = melodies[rotIdx];
     const bass   = basses[rotIdx % basses.length];
     const m = melody[(barInSection * 4 + beatInBar) % melody.length];
-    const breath = gainMod;
+    const breath = gainMod * (leadType==='muted'?.72:1);
 
-    if (rng() >= restProb) {
+    const phraseMask=[[1,1,0,1],[1,0,1,0],[0,1,1,1]][(barInSection+variation)%3];
+    if (phraseMask[beatInBar] && rng() >= restProb) {
       sawOsc.frequency.setValueAtTime(m * 1.004, t);
       sqrOsc.frequency.setValueAtTime(m * 0.996, t);
       hornMix.gain.cancelScheduledValues(t);
       hornMix.gain.setValueAtTime(0.0001, t);
       hornMix.gain.exponentialRampToValueAtTime(0.20 * breath, t + 0.012);
       hornMix.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.55);
+    }
+    if(fill && beatInBar===3){
+      hornMix.gain.setValueAtTime(.0001,t+beat*.65);
+      hornMix.gain.exponentialRampToValueAtTime(.10*breath,t+beat*.67);
+      hornMix.gain.exponentialRampToValueAtTime(.0001,t+beat*.94);
     }
     if (beatInBar % 2 === 0) {
       const b = bass[Math.floor(beatInBar / 2 + barInSection * 2) % bass.length];
@@ -2639,7 +2672,7 @@ const BRASS = {
 };
 
 // DANCE genre def — four-on-floor kick, acid bass, 16th arp pluck, supersaw stab.
-const DANCE = {
+export const DANCE = {
   name: 'dance',
   baseHz: 220,
   tempoRange: [122, 130],
@@ -2655,7 +2688,7 @@ const DANCE = {
       ['build',  8, 0.80],
       ['drop',  16, 0.95],
       ['outro',  4, 0.40],
-    ]);
+    ], rng);
   },
   makeVoices(ctx, dest, rng, tonicHz) {
     // 4-on-floor kick.
@@ -2731,7 +2764,7 @@ const DANCE = {
     ];
     return { voices, teardown };
   },
-  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx }) {
+  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx, variation=0, fill=false }) {
     const { kick, kickGain, hatGain, clapGain, acidOsc, acidLpf, acidGain,
             arpOsc, arpGain, arpNotes, stabA, stabB, stabGain, stabLpf,
             riserHpf, riserGain, bassNotes } = voices;
@@ -2781,12 +2814,16 @@ const DANCE = {
     }
     // 16th arp pluck in drop.
     if (isDrop && rng() >= restProb * 0.5) {
-      const an = arpNotes[(barInSection * 16 + beatInBar * 4) % arpNotes.length];
-      arpOsc.frequency.setValueAtTime(an * 2, t);
-      arpGain.gain.cancelScheduledValues(t);
-      arpGain.gain.setValueAtTime(0.0001, t);
-      arpGain.gain.exponentialRampToValueAtTime(0.13 * breath, t + 0.004);
-      arpGain.gain.exponentialRampToValueAtTime(0.0001, t + beat * 0.3);
+      for(let sub=0;sub<4;sub++){
+        if(sub===2 && (barInSection+variation)%2===0)continue;
+        const index=(beatInBar*4+sub+variation*2)%arpNotes.length;
+        const note=arpNotes[barInSection%4<2?index:arpNotes.length-1-index];
+        const at=t+sub*tick;
+        arpOsc.frequency.setValueAtTime(note*(fill?4:2),at);
+        arpGain.gain.setValueAtTime(.0001,at);
+        arpGain.gain.exponentialRampToValueAtTime(.075*breath,at+.004);
+        arpGain.gain.exponentialRampToValueAtTime(.0001,at+tick*.8);
+      }
     }
     // Supersaw stab — on every 2 beats in the drop.
     if (isDrop && beatInBar === 0) {
@@ -2814,7 +2851,7 @@ const DANCE = {
 };
 
 // WORLD genre def — polyrhythmic clave/conga/marimba groove.
-const WORLD = {
+export const WORLD = {
   name: 'world',
   baseHz: 293.66,  // D4
   tempoRange: [96, 116],
@@ -2830,7 +2867,7 @@ const WORLD = {
       ['verse',  8, 0.70],
       ['chorus', 8, 0.85],
       ['outro',  4, 0.40],
-    ]);
+    ], rng);
   },
   makeVoices(ctx, dest, rng, tonicHz) {
     // Son-clave woodblock (triangle oscillator, very short).
@@ -2879,7 +2916,7 @@ const WORLD = {
     ];
     return { voices, teardown };
   },
-  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx }) {
+  playBeat({ t, beatInBar, barInSection, section, beat, tonicHz, rng, voices, gainMod, restProb, ctx, variation=0, fill=false }) {
     const { claveOsc, claveGain, congaOsc, congaGain, agogoGain,
             marimbaOsc, marimbaGain, bassOsc, bassGain, bassLpf,
             clavePattern, marimbaPattern, bassNotes } = voices;
@@ -2889,12 +2926,13 @@ const WORLD = {
     const intensity = section.intensity;
 
     // Clave (woodblock feel on the Euclidean pattern).
-    if (clavePattern[ti]) {
-      claveOsc.frequency.setValueAtTime(1200 + (rng() * 200), t);
-      claveGain.gain.cancelScheduledValues(t);
-      claveGain.gain.setValueAtTime(0.0001, t);
-      claveGain.gain.exponentialRampToValueAtTime(0.18 * breath, t + 0.002);
-      claveGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+    for(let sub=0;sub<3;sub++){
+      if(!clavePattern[(ti+sub+variation*2)%12])continue;
+      const at=t+sub*tick;
+      claveOsc.frequency.setValueAtTime(1200+rng()*160,at);
+      claveGain.gain.setValueAtTime(.0001,at);
+      claveGain.gain.exponentialRampToValueAtTime(.13*breath,at+.002);
+      claveGain.gain.exponentialRampToValueAtTime(.0001,at+.04);
     }
     // Conga on beats 1 and 3 (tick 0 and 6).
     if (ti === 0 || ti === 6) {
@@ -2915,7 +2953,7 @@ const WORLD = {
     }
     // Marimba/kalimba ostinato — denser in chorus.
     if (intensity > 0.5 && rng() >= restProb) {
-      const mn = marimbaPattern[(barInSection * 4 + beatInBar) % marimbaPattern.length];
+      const mn = marimbaPattern[(Math.floor(barInSection/2)*2 + (barInSection%2?3-beatInBar:beatInBar) + variation) % marimbaPattern.length];
       marimbaOsc.frequency.setValueAtTime(mn * 2, t);
       marimbaGain.gain.cancelScheduledValues(t);
       marimbaGain.gain.setValueAtTime(0.0001, t);

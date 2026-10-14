@@ -1,177 +1,185 @@
-// Stage performer — a musician with body, head, hat, and instrument.
-// Returns a Group. Caller positions/rotates.
-
 import * as THREE from 'three';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
-const SHIRT_COLORS = [0xff6f9c, 0xffd28a, 0xb285ff, 0x66d9ff, 0x6fcf6a, 0xff8a5b];
+const cache=new Map();
+const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.72});
+material.userData.shared=true;
+const SHIRTS=[0xe56183,0x36aeb6,0xc89945,0x9473c4];
+const SKINS=[0xd7a17b,0x885437,0xbd8158,0xe7bb93];
+const BLACK=0x20202b, GOLD=0xd5ac51, SILVER=0xb7b6bb;
 
-export function buildPerformer(instrument, rng = Math.random) {
-  const g = new THREE.Group();
-  const shirt = SHIRT_COLORS[Math.floor(rng() * SHIRT_COLORS.length)];
-  const shirtMat = new THREE.MeshStandardMaterial({
-    color: shirt, roughness: 0.85, flatShading: true,
-  });
-  const skinMat = new THREE.MeshStandardMaterial({
-    color: 0xe6c098, roughness: 0.9, flatShading: true,
-  });
-  const pantsMat = new THREE.MeshStandardMaterial({
-    color: 0x1a1a2a, roughness: 0.92, flatShading: true,
-  });
-
-  // Legs — performers stand on stage in pants.
-  for (const lx of [-0.12, 0.12]) {
-    const leg = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.10, 0.10, 0.70, 8), pantsMat,
-    );
-    leg.position.set(lx, 0.35, 0);
-    // Slim leg — body + head carry the silhouette.
-    g.add(leg);
-    const shoe = new THREE.Mesh(
-      new THREE.BoxGeometry(0.16, 0.07, 0.24),
-      new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.8 }),
-    );
-    // -z = forward (eyes look at -z). Shoe sticks out in front of the leg.
-    shoe.position.set(lx, 0.035, -0.06);
-    g.add(shoe);
-  }
-
-  // Torso.
-  const body = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.28, 0.55, 4, 8), shirtMat,
-  );
-  body.position.y = 1.10;
-  body.castShadow = true;
-  g.add(body);
-
-  // Arms — two-segment with a real elbow pivot so the forearm stays attached
-  // when the shoulder rotates. Shoulder bends forward (+x), forearm bends a
-  // bit more so the hands meet roughly in front of the chest.
-  for (const sx of [-1, 1]) {
-    const shoulder = new THREE.Group();
-    shoulder.position.set(sx * 0.30, 1.30, 0);
-    shoulder.rotation.x = 0.5;        // +x rotation swings the arm toward -z (forward)
-    shoulder.rotation.z = sx * 0.05;
-    // Upper arm hangs from shoulder; capsule center is half its length below.
-    const upper = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.08, 0.30, 4, 6), shirtMat,
-    );
-    upper.position.y = -0.18;
-    shoulder.add(upper);
-    // Elbow pivot at the bottom of the upper arm.
-    const elbow = new THREE.Group();
-    elbow.position.y = -0.36;
-    elbow.rotation.x = 0.5;           // forearm bends further forward at the elbow
-    shoulder.add(elbow);
-    const lower = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.07, 0.30, 4, 6), skinMat,
-    );
-    lower.position.y = -0.18;         // hangs below the elbow pivot, attached
-    elbow.add(lower);
-    // Skip shadow on arm sub-meshes — torso/head silhouette is what reads.
-    g.add(shoulder);
-  }
-
-  const head = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.28, 1), skinMat,
-  );
-  head.position.y = 1.80;
-  head.castShadow = true;
-  g.add(head);
-  // Eyes
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.8 });
-  for (const ex of [-0.09, 0.09]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), eyeMat);
-    eye.position.set(ex, 1.83, -0.24);
-    g.add(eye);
-  }
-
-  const brass = new THREE.MeshStandardMaterial({
-    color: 0xe8b042, roughness: 0.4, metalness: 0.85, flatShading: true,
-    // DoubleSide so the openEnded sax bell cone renders from the open-mouth
-    // side too (otherwise back-faces get culled and the bell looks transparent).
-    side: THREE.DoubleSide,
-  });
-  const black = new THREE.MeshStandardMaterial({ color: 0x121212, roughness: 0.6, flatShading: true });
-  const wood = new THREE.MeshStandardMaterial({ color: 0x6a4a2a, roughness: 0.9, flatShading: true });
-
-  if (instrument === 'guitar') {
-    const guitarBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.55, 0.7, 0.15),
-      new THREE.MeshStandardMaterial({
-        color: [0x9b3b2a, 0x4a6f2a, 0x222244, 0xc28a44][Math.floor(rng() * 4)],
-        roughness: 0.5, flatShading: true,
-      })
-    );
-    guitarBody.position.set(0.15, 1.0, -0.35);
-    guitarBody.rotation.z = -0.4;
-    g.add(guitarBody);
-    // Neck — HORIZONTAL shaft along x, sticking out from the body's upper end.
-    // Long axis is x (1.0), thin on y + z (0.09). rotation.z tilts it the same
-    // direction as the body so the whole instrument reads as one rigid object.
-    const neck = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.09, 0.09), wood);
-    neck.position.set(-0.45, 1.30, -0.4);
-    neck.rotation.z = -0.4;
-    g.add(neck);
-    // Headstock at the far end of the neck.
-    const head2 = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.18, 0.06), wood);
-    head2.position.set(-0.95, 1.40, -0.42);
-    head2.rotation.z = -0.4;
-    g.add(head2);
-  } else if (instrument === 'bass') {
-    const bassBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.6, 0.85, 0.18),
-      new THREE.MeshStandardMaterial({ color: 0x1a3658, roughness: 0.5, flatShading: true })
-    );
-    bassBody.position.set(0.1, 0.9, -0.35);
-    bassBody.rotation.z = -0.35;
-    g.add(bassBody);
-    // Neck — horizontal shaft along x (was vertical, which read as a flagpole).
-    const neck = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.10, 0.10), wood);
-    neck.position.set(-0.55, 1.25, -0.40);
-    neck.rotation.z = -0.35;
-    g.add(neck);
-  } else if (instrument === 'drum') {
-    const kick = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.7, 0.7, 0.6, 16),
-      new THREE.MeshStandardMaterial({ color: 0xfff4d0, roughness: 0.7, flatShading: true })
-    );
-    kick.rotation.x = Math.PI / 2;
-    kick.position.set(0, 0.6, -0.6);
-    g.add(kick);
-    const tom = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.32, 0.32, 0.4, 12),
-      new THREE.MeshStandardMaterial({ color: 0xc97a3b, roughness: 0.7, flatShading: true })
-    );
-    tom.position.set(0.45, 1.25, -0.55);
-    g.add(tom);
-    const cymbal = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.4, 0.4, 0.03, 16),
-      brass
-    );
-    cymbal.position.set(-0.5, 1.65, -0.55);
-    cymbal.rotation.x = -0.15;
-    g.add(cymbal);
-  } else if (instrument === 'sax') {
-    const body2 = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 0.95, 10), brass);
-    body2.position.set(0.25, 1.25, -0.35);
-    body2.rotation.z = -0.35;
-    g.add(body2);
-    const bell = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.45, 12, 1, true), brass);
-    bell.position.set(0.45, 1.8, -0.35);
-    bell.rotation.z = -0.35;
-    g.add(bell);
-  } else {
-    // lead_vocal: mic on a stand
-    const standBase = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.05, 12), black);
-    standBase.position.set(0, 0.025, -0.4);
-    g.add(standBase);
-    const standPole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.5, 8), black);
-    standPole.position.set(0, 0.8, -0.4);
-    g.add(standPole);
-    const mic = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), black);
-    mic.position.set(0, 1.55, -0.4);
-    g.add(mic);
-  }
-
+export function bakePerformancePart(build){
+  const pieces=[];
+  const add=(source,color,p=[0,0,0],scale=[1,1,1],rotation=[0,0,0])=>{
+    const g=source.index?source.toNonIndexed():source.clone();source.dispose();
+    g.deleteAttribute('uv');g.scale(...scale);
+    g.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(...rotation)));
+    g.translate(...p);
+    const c=new THREE.Color(color),colors=new Float32Array(g.attributes.position.count*3);
+    for(let i=0;i<colors.length;i+=3){colors[i]=c.r;colors[i+1]=c.g;colors[i+2]=c.b;}
+    g.setAttribute('color',new THREE.BufferAttribute(colors,3));pieces.push(g);
+  };
+  const oval=(color,p,s)=>add(new THREE.SphereGeometry(1,10,7),color,p,s);
+  const box=(color,p,s,r)=>add(new THREE.BoxGeometry(1,1,1),color,p,s,r);
+  const rod=(color,a,b,r=.025)=>{
+    const start=new THREE.Vector3(...a),end=new THREE.Vector3(...b),d=end.clone().sub(start);
+    const g=new THREE.CylinderGeometry(r,r,d.length(),7);
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()));
+    add(g,color,start.add(end).multiplyScalar(.5).toArray());
+  };
+  const tube=(color,points,r=.035)=>add(new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p))),20,r,6,false),color);
+  build({add,oval,box,rod,tube});
+  const g=mergeGeometries(pieces,false);pieces.forEach(p=>p.dispose());g.userData.shared=true;
   return g;
+}
+
+function template(instrument,variant){
+  const skin=SKINS[variant],shirt=SHIRTS[variant],drum=instrument==='drum'||instrument==='march_drum';
+  const strings=instrument==='guitar'||instrument==='bass';
+  const body=bakePerformancePart(({add,oval,box,rod})=>{
+    for(const sx of [-1,1]){
+      if(instrument==='drum'){
+        rod(BLACK,[sx*.13,.78,.04],[sx*.22,.55,-.3],.105);
+        rod(BLACK,[sx*.22,.55,-.3],[sx*.22,.13,-.42],.09);
+      }else{
+        rod(BLACK,[sx*.13,.8,0],[sx*.19,.13,sx*.055],.095);
+      }
+      oval(0x111117,[sx*(instrument==='drum'?.22:.19),.07,instrument==='drum'?-.46:-.07],[.11,.075,.22]);
+      box(0xc4b6a4,[sx*(instrument==='drum'?.22:.19),.025,instrument==='drum'?-.47:-.08],[.21,.035,.33]);
+    }
+    add(new THREE.CylinderGeometry(.27,.20,.62,10),shirt,[0,1.09,0],[1,1,.65]);
+    box(BLACK,[0,.8,0],[.4,.055,.29]);
+    box(GOLD,[0,.8,-.155],[.08,.06,.014]);
+    for(const sx of [-1,1]){
+      box(0x282332,[sx*.145,1.15,-.158],[.11,.45,.025],[0,0,-sx*.08]);
+      oval(skin,[sx*.18,1.69,0],[.035,.06,.035]);
+    }
+    oval(skin,[0,1.41,0],[.08,.13,.08]);
+    oval(skin,[0,1.68,0],[.18,.225,.17]);
+    oval(0x302520,[0,1.84,.025],[.18,.105,.16]);
+    if(variant===1||variant===3)oval(0x302520,[0,1.70,.11],[.20,.23,.13]);
+    oval(skin,[0,1.665,-.169],[.032,.045,.038]);
+    for(const x of [-.065,.065]){
+      oval(0xffffff,[x,1.713,-.151],[.038,.027,.022]);
+      oval(0x211c1c,[x,1.71,-.171],[.016,.017,.012]);
+      box(0x302520,[x,1.757,-.153],[.07,.018,.016],[0,0,x*1.3]);
+    }
+    box(0x61352d,[0,1.603,-.155],[.075,.017,.012]);
+    // A brim and contrasting hatband make each silhouette legible from the dancefloor.
+    if(variant%2===0){
+      add(new THREE.CylinderGeometry(.24,.25,.035,12),BLACK,[0,1.88,0],[1,1,.86]);
+      add(new THREE.CylinderGeometry(.145,.17,.19,10),shirt,[0,1.985,0],[1,1,.86]);
+      add(new THREE.CylinderGeometry(.174,.177,.045,10),GOLD,[0,1.915,0],[1,1,.86]);
+    }else{
+      box(GOLD,[0,1.825,-.1],[.32,.05,.18]);
+    }
+    if(strings)rod(0x6e4637,[-.20,1.4,.01],[.26,.87,-.36],.033);
+  });
+  let hands=strings?[[-.62,1.29,-.42],[.12,1.02,-.48]]
+    :drum?[[-.36,1.20,-.48],[.36,1.18,-.5]]
+    :instrument==='lead_vocal'?[[-.03,1.55,-.43],[.55,1.22,-.22]]
+    :instrument==='sax'?[[-.04,1.25,-.37],[.25,1.02,-.46]]
+    :[[-.10,1.45,-.5],[.19,1.42,-.64]];
+  const arms=hands.map((hand,i)=>bakePerformancePart(({rod,oval})=>{
+    const sx=i?1:-1,shoulder=[sx*.27,1.34,0];
+    const local=p=>p.map((n,j)=>n-shoulder[j]);
+    const elbow=[sx*.40,strings?1.02:1.15,-.17];
+    rod(shirt,[0,0,0],local(elbow),.076);
+    rod(skin,local(elbow),local(hand),.058);
+    oval(skin,local(hand),[.065,.07,.055]);
+    if(drum)rod(0xe7c38b,local(hand),local([hand[0]*1.2,1.02,-.93]),.013);
+  }));
+  const gear=bakePerformancePart(({add,oval,box,rod,tube})=>{
+    if(strings){
+      const bass=instrument==='bass',color=bass?0x265c76:[0xb65131,0x287475,0xd5a24d,0x86465a][variant];
+      const shape=new THREE.Shape();
+      shape.moveTo(-.18,.30);shape.bezierCurveTo(-.50,.27,-.47,-.35,-.13,-.37);
+      shape.bezierCurveTo(.18,-.45,.47,-.17,.25,.06);
+      shape.bezierCurveTo(.08,.22,.34,.39,.13,.43);shape.lineTo(-.18,.30);
+      add(new THREE.ExtrudeGeometry(shape,{depth:.12,bevelEnabled:false,curveSegments:7}),color,[.14,1.02,-.44],[bass?1.04:.92,bass?1.1:.92,1],[0,0,-.35]);
+      rod(0x63452f,[-.02,1.14,-.40],[-1.0,1.60,-.40],bass?.057:.05);
+      box(0xd0a467,[-1.05,1.625,-.40],[.23,.12,.075],[0,0,-.44]);
+      box(0xe4dbc5,[.12,1.07,-.459],[.21,.25,.017],[0,0,-.35]);
+      for(let j=0;j<2;j++)box(BLACK,[.10+j*.08,1.02-j*.08,-.48],[.12,.04,.018],[0,0,-.35]);
+      for(let j=0;j<6;j++){
+        const x=-.25-j*.11,y=1.24+j*.052;
+        rod(SILVER,[x-.025,y-.037,-.46],[x+.025,y+.037,-.46],.006);
+      }
+      for(const side of [-1,1])for(let j=0;j<3;j++)oval(SILVER,[-1.12+j*.055,1.62+side*.085,-.40],[.022,.023,.022]);
+    }else if(instrument==='march_drum'){
+      add(new THREE.CylinderGeometry(.35,.35,.28,14),shirt,[0,.93,-.48]);
+      add(new THREE.CylinderGeometry(.36,.36,.028,14),SILVER,[0,1.08,-.48]);
+      add(new THREE.CylinderGeometry(.33,.33,.018,14),0xeee4cc,[0,1.10,-.48]);
+      for(const x of [-.15,.15])rod(BLACK,[x,1.38,-.06],[x,.94,-.35],.024);
+    }else if(drum){
+      add(new THREE.CylinderGeometry(.49,.49,.48,16),shirt,[0,.53,-.8],[1,1,1],[Math.PI/2,0,0]);
+      add(new THREE.CylinderGeometry(.46,.46,.025,16),0xe8dfca,[0,.53,-1.052],[1,1,1],[Math.PI/2,0,0]);
+      add(new THREE.TorusGeometry(.47,.022,5,18),SILVER,[0,.53,-1.07]);
+      oval(BLACK,[.15,.38,-1.07],[.10,.10,.009]);
+      for(const [x,y,z,r]of [[-.43,1.0,-.58,.26],[.37,1.0,-.62,.25],[.69,.62,-.48,.29]]){
+        add(new THREE.CylinderGeometry(r,r,.28,12),shirt,[x,y,z]);
+        add(new THREE.CylinderGeometry(r*.94,r*.94,.018,12),0xd8d8d2,[x,y+.15,z]);
+        rod(SILVER,[x,.04,z],[x,y,z],.025);
+      }
+      for(const [x,y,z]of [[-.73,1.38,-.65],[.76,1.5,-.84]]){
+        rod(SILVER,[x,.02,z],[x,y,z],.016);
+        add(new THREE.ConeGeometry(.35,.045,16),GOLD,[x,y,z]);
+        for(let j=0;j<3;j++)rod(SILVER,[x,.22,z],[x+Math.cos(j*2.094)*.25,.03,z+Math.sin(j*2.094)*.25],.013);
+      }
+      add(new THREE.CylinderGeometry(.22,.22,.075,12),BLACK,[0,.7,.17]);
+      rod(SILVER,[0,.05,.17],[0,.7,.17],.035);
+    }else if(instrument==='sax'){
+      tube(GOLD,[[0,1.64,-.21],[.02,1.52,-.35],[.16,1.10,-.40],[.35,.87,-.48],[.45,1.02,-.63]],.055);
+      add(new THREE.CylinderGeometry(.16,.055,.27,12,1,true),GOLD,[.45,1.10,-.64],[1,1,1],[-.4,0,0]);
+      for(let i=0;i<5;i++)oval(SILVER,[.13+i*.027,1.37-i*.075,-.46],[.04,.018,.018]);
+      rod(BLACK,[-.12,1.42,-.04],[.13,1.1,-.32],.018);
+    }else if(instrument==='tuba'){
+      add(new THREE.TorusGeometry(.40,.075,7,18),GOLD,[-.05,1.12,-.25]);
+      tube(GOLD,[[.32,1.18,-.25],[.37,1.63,-.16],[-.1,1.9,-.1],[-.4,1.97,-.05]],.08);
+      add(new THREE.CylinderGeometry(.34,.08,.46,12,1,true),GOLD,[-.4,2.12,-.05]);
+      for(let i=0;i<3;i++)rod(SILVER,[-.13+i*.1,1.22,-.35],[-.13+i*.1,1.48,-.35],.025);
+    }else if(instrument==='trumpet'||instrument==='trombone'){
+      const trom=instrument==='trombone',end=trom?-1.36:-.95;
+      tube(GOLD,[[0,1.62,-.18],[0,1.56,-.4],[.17,1.47,end],[.17,1.59,end-.12]],.035);
+      add(new THREE.CylinderGeometry(.17,.038,.30,12,1,true),GOLD,[.17,1.59,end-.25],[1,1,1],[-Math.PI/2,0,0]);
+      for(let i=0;i<3;i++)rod(SILVER,[-.04,1.46,-.44-i*.08],[-.04,1.63,-.44-i*.08],.015);
+      if(trom)tube(GOLD,[[-.10,1.46,-.4],[-.10,1.46,-1.56],[.08,1.46,-1.56],[.08,1.46,-.4]],.023);
+    }else{
+      rod(BLACK,[0,.05,-.43],[0,1.53,-.43],.018);
+      for(let j=0;j<3;j++)rod(BLACK,[0,.20,-.43],[Math.cos(j*2.094)*.22,.03,-.43+Math.sin(j*2.094)*.22],.015);
+      rod(SILVER,[0,1.52,-.43],[0,1.67,-.46],.025);
+      oval(0x4c4c54,[0,1.69,-.465],[.058,.072,.057]);
+      tube(BLACK,[[0,1.52,-.43],[.06,.75,-.47],[.12,.03,-.40],[.55,.025,.2]],.008);
+    }
+  });
+  return {body,arms,gear};
+}
+
+export function buildPerformer(instrument,rng=Math.random){
+  const variant=Math.min(3,Math.floor(rng()*4)),key=instrument+':'+variant;
+  // Preserve the former guitar body-color draw in the caller’s seeded stream.
+  if(instrument==='guitar')rng();
+  if(!cache.has(key))cache.set(key,template(instrument,variant));
+  const t=cache.get(key),root=new THREE.Group(),body=new THREE.Group();root.add(body);
+  root.name='Performer '+instrument;
+  const mesh=(geo,parent=body)=>{const m=new THREE.Mesh(geo,material);m.receiveShadow=true;parent.add(m);return m;};
+  mesh(t.body).castShadow=true;
+  const arms=t.arms.map((geo,i)=>{const m=mesh(geo);m.position.set(i?.27:-.27,1.34,0);return m;});
+  const gear=mesh(t.gear,instrument==='drum'||instrument==='lead_vocal'?root:body);
+  const phase=variant*1.73;
+  root.userData.instrument=instrument;
+  root.userData.animate=(seconds)=>{
+    const t=seconds*3.6+phase;
+    body.rotation.z=Math.sin(t*.5)*.025;
+    body.rotation.y=Math.sin(t*.25)*.055;
+    arms.forEach((a,i)=>{
+      a.rotation.x=(instrument==='drum'||instrument==='march_drum')?Math.sin(t*2+i*Math.PI)*.20
+        :instrument==='guitar'&&i===1?Math.sin(t*2)*.13
+        :instrument==='bass'&&i===1?Math.sin(t)*.055
+        :instrument==='lead_vocal'&&i===1?Math.sin(t*.5)*.18:Math.sin(t*.5+i)*.02;
+    });
+    if(instrument==='sax'||instrument==='trumpet')gear.rotation.x=Math.sin(t*.5)*.025;
+  };
+  return root;
 }
