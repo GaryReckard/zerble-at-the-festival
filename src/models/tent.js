@@ -265,17 +265,17 @@ function buildTableSlot(rng, slot, baseColor, profile, legacyMerch, isPrimarySlo
       : PRODUCT_LAYOUTS[Math.floor(rng() * PRODUCT_LAYOUTS.length)];
   merchandise.userData.vendorLayout = layoutKey;
   merchandise.userData.primaryDisplay = !!profile && isPrimarySlot;
-  fillProducts(layoutKey, merchandise, rng, slot.length, slot.depth);
+  fillProducts(layoutKey, merchandise, rng, slot.length, slot.depth, !legacyMerch);
   group.add(merchandise);
   return group;
 }
 
-function fillProducts(key, g, rng, length, depth) {
+function fillProducts(key, g, rng, length, depth, matteArt = false) {
   switch (key) {
     case 'pottery':   layoutPottery(g, rng, length, depth); break;
     case 'hats':      layoutHats(g, rng, length, depth); break;
     case 'jars':      layoutJars(g, rng, length, depth); break;
-    case 'paintings': layoutPaintings(g, rng, length, depth); break;
+    case 'paintings': layoutPaintings(g, rng, length, depth, matteArt); break;
     case 'boxes':     layoutBoxes(g, rng, length, depth); break;
     case 'plants':    layoutPlantStand(g, rng, length, depth); break;
     case 'textiles':  layoutTextiles(g, rng, length, depth); break;
@@ -371,7 +371,7 @@ function layoutJars(g, rng, length, depth) {
   }
 }
 
-function layoutPaintings(g, rng, length, depth) {
+function layoutPaintings(g, rng, length, depth, matteArt = false) {
   const count = 3 + Math.floor(rng() * 2);
   const xa = -length / 2 + 0.3;
   const xb =  length / 2 - 0.3;
@@ -395,7 +395,8 @@ function layoutPaintings(g, rng, length, depth) {
       new THREE.MeshStandardMaterial({
         color: new THREE.Color().setHSL(rng(), 0.7, 0.6),
         emissive: new THREE.Color().setHSL(rng(), 0.5, 0.4),
-        emissiveIntensity: 0.25,
+        // Ordinary painted artwork can join the booth's static batch.
+        emissiveIntensity: matteArt ? 0 : 0.25,
       }),
     );
     art.position.copy(frame.position);

@@ -1,0 +1,13 @@
+{
+  "pass": true,
+  "profiles": [
+    "pottery",
+    "textiles",
+    "instruments",
+    "lanterns",
+    "plants",
+    "jars",
+    "paintings"
+  ],
+  "count": 7
+}
