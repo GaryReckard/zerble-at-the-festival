@@ -221,7 +221,7 @@
             <option value="hammock">Hammock</option>
             <option value="hammock_with_npc">Hammock + person (lounging)</option>
             <option value="tent">Vendor tent</option>
-            <option value="tent_row">Vendor tent row (5 — shows layout variety)</option>
+            <option value="tent_row">Vendor tent row (7 trades)</option>
             <option value="monk">Tibetan monk</option>
             <option value="monk_party">Monks · wandering group</option>
             <option value="nut_wagon_monks">Nut Wagon · monk group boarding</option>
@@ -543,7 +543,7 @@
     import {buildSimpleNPC} from './src/models/puppet.js';
     import {_buildCanoeMeshForSandbox, buildLake, setLakeNightness} from './src/lakes.js';
     import {mulberry32} from './src/rng.js';
-    import {buildTent} from './src/models/tent.js';
+    import {buildTent, TENT_VENDOR_PROFILES} from './src/models/tent.js';
     import {registry} from './src/registry.js';
     import {buildMonk} from './src/models/monk.js';
     import {MonkParty} from './src/monks.js';
@@ -1358,29 +1358,33 @@ import {buildShrub} from './src/models/shrub.js';
                 break;
             }
             case 'tent': {
-                const g = buildTent(Math.random);
+                const requestedProfile = new URLSearchParams(location.search).get('vendor');
+                const profile = TENT_VENDOR_PROFILES.find(p => p.id === requestedProfile)?.id;
+                const g = buildTent(mulberry32(157), { rng: mulberry32(719), profile });
                 scene.add(g);
                 entityRoot = g;
                 cam.target.set(0, 1.5, 0);
                 cam.dist = 9;
+                cam.pitch = 0.08;
+                cam.yaw = 0.2;
                 applyCam();
                 break;
             }
             case 'tent_row': {
-                // 5 vendor tents spaced ~5m apart along X. Each picks its own
-                // booth layout + product spread + trim color + shopkeeper, so a
-                // single load shows the variety the layout grammar produces.
-                // Spacing matches buildVendorRow in chunks.js (5.0m).
                 const tents = new THREE.Group();
-                for (let i = 0; i < 5; i++) {
-                    const t = buildTent(Math.random);
-                    t.position.set((i - 2) * 5, 0, 0);
+                for (let i = 0; i < TENT_VENDOR_PROFILES.length; i++) {
+                    const t = buildTent(mulberry32(157 + i), {
+                        rng: mulberry32(719 + i), profile: TENT_VENDOR_PROFILES[i].id,
+                    });
+                    t.position.set((i - 3) * 5, 0, 0);
                     tents.add(t);
                 }
                 scene.add(tents);
                 entityRoot = tents;
                 cam.target.set(0, 1.8, 0);
-                cam.dist = 18;
+                cam.dist = 30;
+                cam.pitch = 0.06;
+                cam.yaw = 0;
                 applyCam();
                 break;
             }

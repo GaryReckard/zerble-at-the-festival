@@ -80,7 +80,22 @@ const SHOPKEEPER_SHIRTS = [
 ];
 const SHOPKEEPER_SKINS  = [0xe6c098, 0xc09478, 0x8b6f50, 0xf2d4b2];
 
-const PRODUCT_LAYOUTS = ['pottery', 'hats', 'jars', 'paintings', 'boxes', 'plants'];
+// Merchants sell recognizable crafts, not just differently colored piles.
+// Keep the list stable: it is part of the tent-local seeded visual vocabulary.
+const LEGACY_PRODUCT_LAYOUTS = ['pottery', 'hats', 'jars', 'paintings', 'boxes', 'plants'];
+const PRODUCT_LAYOUTS = [
+  'pottery', 'hats', 'jars', 'paintings', 'boxes', 'plants',
+  'textiles', 'instruments', 'lanterns', 'carvings',
+];
+export const TENT_VENDOR_PROFILES = Object.freeze([
+  { id: 'pottery', layouts: ['pottery', 'carvings'] },
+  { id: 'textiles', layouts: ['textiles', 'hats'] },
+  { id: 'instruments', layouts: ['instruments', 'carvings'] },
+  { id: 'lanterns', layouts: ['lanterns', 'paintings'] },
+  { id: 'plants', layouts: ['plants', 'pottery'] },
+  { id: 'jars', layouts: ['jars', 'boxes'] },
+  { id: 'paintings', layouts: ['paintings', 'textiles'] },
+].map((profile) => Object.freeze({ ...profile, layouts: Object.freeze(profile.layouts) })));
 
 // Table slots, local to the tent canopy. Tent footprint is 4.5x4.5 with
 // legs at corners (±2, ±2); the opening faces +Z, the back wall is -Z.
@@ -113,7 +128,13 @@ function pickBooth(rng) {
   return BOOTH_LAYOUTS[0];
 }
 
-export function buildTent(rng = Math.random) {
+export function buildTent(callerRng = Math.random, options = {}) {
+  // The historical one-argument path retains its original RNG draw order and
+  // six merchandise categories. World callers opt into an isolated stream for
+  // the expanded vendor profiles, so their shared chunk RNG is untouched.
+  const rng = callerRng;
+  const merchandiseRng = options.rng || callerRng;
+  const legacyMerch = !options.rng && !options.profile;
   const g = new THREE.Group();
 
   // One cloth color per tent — every table in this booth shares it so the
@@ -140,14 +161,25 @@ export function buildTent(rng = Math.random) {
   trim.position.y = 2.55;
   g.add(trim);
 
-  // ----- Booth interior — pick a slot arrangement, then fill each table
-  // with an independently-rolled product layout. A U-shape booth might have
-  // pottery on the back, hats on the left, jars on the right — that's the
-  // variety Gary asked for.
+  // ----- Booth interior — a vendor specialty gives each stall a recognizable
+  // trade, with occasional complementary goods to keep the displays varied.
   const booth = pickBooth(rng);
-  for (const slot of booth.slots) {
-    g.add(buildTableSlot(rng, slot, baseColor));
+  let profile = null;
+  if (!legacyMerch) {
+    profile = options.profile
+      ? TENT_VENDOR_PROFILES.find((candidate) => candidate.id === options.profile)
+      : TENT_VENDOR_PROFILES[Math.floor(merchandiseRng() * TENT_VENDOR_PROFILES.length)];
+    if (!profile) throw new RangeError(`Unknown tent vendor profile: ${options.profile}`);
   }
+  for (let slotIndex = 0; slotIndex < booth.slots.length; slotIndex++) {
+    const slot = booth.slots[slotIndex];
+    // New merchandise uses a local seed, while a compact draw-only mirror
+    // advances the caller exactly as the former six layouts did. Shopkeeper
+    // and later world-generation rolls therefore retain their old stream.
+    if (options.rng) consumeLegacyTableDraws(rng);
+    g.add(buildTableSlot(merchandiseRng, slot, baseColor, profile, legacyMerch, slotIndex === 0));
+  }
+  g.userData.vendorProfile = profile ? profile.id : 'legacy';
 
   // ----- Shopkeeper — minds the booth. 70% inside (behind tables, facing
   // out the tent opening), 30% out front (loitering, facing back in).
@@ -158,9 +190,52 @@ export function buildTent(rng = Math.random) {
 
   // Collapse the static decor (legs, roof, trim, tables, goods) into merged
   // meshes — the booth's ~40 draws → ~2 + emissive art + the shopkeeper.
-  mergeStaticDecor(g);
+  if (options.merge !== false) mergeStaticDecor(g);
 
   return g;
+}
+
+function consumeLegacyTableDraws(rng) {
+  const layouts = LEGACY_PRODUCT_LAYOUTS;
+  const key = layouts[Math.floor(rng() * layouts.length)];
+  if (key === 'pottery') {
+    const count = 4 + Math.floor(rng() * 3);
+    for (let i = 0; i < count; i++) {
+      rng();                 // tall/short choice
+      rng();                 // radius
+      rng();                 // height jitter exists in both ternary branches
+      rng();                 // hslMat color
+      rng();                 // position z jitter
+    }
+  } else if (key === 'hats') {
+    const count = 5 + Math.floor(rng() * 3);
+    for (let i = 0; i < count; i++) {
+      const stacked = rng() < 0.4;
+      const stack = stacked ? 2 + Math.floor(rng() * 2) : 1;
+      for (let s = 0; s < stack; s++) {
+        rng();               // hslMat color
+        rng();               // brim position z jitter
+      }
+    }
+  } else if (key === 'jars') {
+    const count = 7 + Math.floor(rng() * 4);
+    for (let i = 0; i < count; i++) { rng(); rng(); }
+  } else if (key === 'paintings') {
+    const count = 3 + Math.floor(rng() * 2);
+    for (let i = 0; i < count; i++) { rng(); rng(); rng(); rng(); rng(); }
+  } else if (key === 'boxes') {
+    const count = 5 + Math.floor(rng() * 4);
+    for (let i = 0; i < count; i++) {
+      const boxes = rng() < 0.35 ? 2 : 1;
+      for (let s = 0; s < boxes; s++) { rng(); rng(); rng(); rng(); rng(); rng(); rng(); }
+    }
+  } else if (key === 'plants') {
+    const tiers = 2 + Math.floor(rng() * 2);
+    for (let t = 0; t < tiers; t++) {
+      const count = 3 + Math.floor(rng() * 2);
+      for (let i = 0; i < count; i++) { rng(); rng(); }
+    }
+  }
 }
 
 // ----- Slot + layout helpers --------------------------------------------
@@ -168,7 +243,7 @@ export function buildTent(rng = Math.random) {
 // Build a tablecloth-covered table at a given slot, with a product spread
 // rolled from PRODUCT_LAYOUTS. Returns a group rooted at the tent's origin
 // (the group itself is positioned/rotated to land in the slot).
-function buildTableSlot(rng, slot, baseColor) {
+function buildTableSlot(rng, slot, baseColor, profile, legacyMerch, isPrimarySlot) {
   const group = new THREE.Group();
   group.position.set(slot.x, 0, slot.z);
   group.rotation.y = slot.yaw;
@@ -179,8 +254,19 @@ function buildTableSlot(rng, slot, baseColor) {
   table.receiveShadow = true;
   group.add(table);
 
-  const layoutKey = PRODUCT_LAYOUTS[Math.floor(rng() * PRODUCT_LAYOUTS.length)];
-  fillProducts(layoutKey, group, rng, slot.length, slot.depth);
+  const merchandise = new THREE.Group();
+  merchandise.userData.vendorMerchandise = true;
+  const layoutKey = legacyMerch
+    ? LEGACY_PRODUCT_LAYOUTS[Math.floor(rng() * LEGACY_PRODUCT_LAYOUTS.length)]
+    : isPrimarySlot
+      ? profile.layouts[0]
+    : rng() < 0.72
+      ? profile.layouts[Math.floor(rng() * profile.layouts.length)]
+      : PRODUCT_LAYOUTS[Math.floor(rng() * PRODUCT_LAYOUTS.length)];
+  merchandise.userData.vendorLayout = layoutKey;
+  merchandise.userData.primaryDisplay = !!profile && isPrimarySlot;
+  fillProducts(layoutKey, merchandise, rng, slot.length, slot.depth);
+  group.add(merchandise);
   return group;
 }
 
@@ -192,6 +278,10 @@ function fillProducts(key, g, rng, length, depth) {
     case 'paintings': layoutPaintings(g, rng, length, depth); break;
     case 'boxes':     layoutBoxes(g, rng, length, depth); break;
     case 'plants':    layoutPlantStand(g, rng, length, depth); break;
+    case 'textiles':  layoutTextiles(g, rng, length, depth); break;
+    case 'instruments': layoutInstruments(g, rng, length, depth); break;
+    case 'lanterns':  layoutLanterns(g, rng, length, depth); break;
+    case 'carvings':  layoutCarvings(g, rng, length, depth); break;
   }
 }
 
@@ -376,6 +466,130 @@ function layoutPlantStand(g, rng, length, depth) {
     }
   }
 }
+
+// Rolled rugs and folded fabric create a low, broad silhouette that reads
+// differently from the upright pottery and jar displays.
+function layoutTextiles(g, rng, length, depth) {
+  const count = 3 + Math.floor(rng() * 3);
+  const xs = spread(count, -length / 2 + 0.28, length / 2 - 0.28);
+  for (let i = 0; i < count; i++) {
+    const roll = rng() < 0.45;
+    const color = hslMat(rng, 0.66, 0.48);
+    if (roll) {
+      const rug = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.42 + rng() * 0.2, 8), color);
+      rug.rotation.z = Math.PI / 2;
+      rug.position.set(xs[i], 1.22, (rng() - 0.5) * depth * 0.28);
+      g.add(rug);
+    } else {
+      const folded = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, Math.min(0.36, depth * 0.48)), color);
+      folded.position.set(xs[i], 1.12 + rng() * 0.12, (rng() - 0.5) * depth * 0.22);
+      folded.rotation.y = (rng() - 0.5) * 0.4;
+      g.add(folded);
+    }
+  }
+  // A small rack of hanging swatches makes the textile trade read vertically
+  // in the row, where low stacks alone disappear behind the table edge.
+  const rackZ = -depth * 0.22;
+  for (const x of [-0.5, 0.5]) {
+    const post = new THREE.Mesh(_textileRackPostGeo, _woodMat);
+    post.position.set(x, 1.40, rackZ);
+    g.add(post);
+  }
+  const bar = new THREE.Mesh(_textileRackBarGeo, _woodMat);
+  bar.position.set(0, 1.72, rackZ);
+  g.add(bar);
+  for (const x of [-0.34, 0, 0.34]) {
+    const swatch = new THREE.Mesh(_textilePanelGeo, hslMat(rng, 0.72, 0.52));
+    swatch.position.set(x, 1.40, rackZ + 0.035);
+    swatch.rotation.z = (rng() - 0.5) * 0.06;
+    g.add(swatch);
+  }
+}
+
+// Stringed instruments and hand drums give the stall a distinct music-maker
+// identity while staying within the table footprint.
+function layoutInstruments(g, rng, length, depth) {
+  const count = 3 + Math.floor(rng() * 3);
+  const xs = spread(count, -length / 2 + 0.3, length / 2 - 0.3);
+  for (let i = 0; i < count; i++) {
+    const z = (rng() - 0.5) * depth * 0.35;
+    if (rng() < 0.62) {
+      const body = new THREE.Mesh(_guitarBodyGeo, _woodMat);
+      body.scale.set(0.78, 1.2, 0.45);
+      body.position.set(xs[i], 1.28, z);
+      const neck = new THREE.Mesh(_instrumentNeckGeo, _woodMat);
+      neck.position.set(xs[i], 1.62, z);
+      neck.rotation.z = (rng() - 0.5) * 0.22;
+      const soundhole = new THREE.Mesh(_guitarSoundholeGeo, _soundholeMat);
+      soundhole.position.set(xs[i], 1.29, z + 0.105);
+      const headstock = new THREE.Mesh(_guitarHeadstockGeo, _woodMat);
+      headstock.position.set(xs[i], 1.98, z);
+      const strings = new THREE.Mesh(_guitarStringsGeo, _stringMat);
+      strings.position.set(xs[i], 1.63, z + 0.112);
+      g.add(body, neck, soundhole, headstock, strings);
+    } else {
+      const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.34, 10), _woodMat);
+      drum.position.set(xs[i], 1.22, z);
+      const skin = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.025, 10), _drumSkinMat);
+      skin.position.set(xs[i], 1.395, z);
+      g.add(drum, skin);
+    }
+  }
+}
+
+function layoutLanterns(g, rng, length, depth) {
+  const count = 3 + Math.floor(rng() * 3);
+  const xs = spread(count, -length / 2 + 0.3, length / 2 - 0.3);
+  for (let i = 0; i < count; i++) {
+    const color = _lanternMats[Math.floor(rng() * _lanternMats.length)];
+    const z = (rng() - 0.5) * depth * 0.3;
+    const body = new THREE.Mesh(_lanternGeo, color);
+    body.position.set(xs[i], 1.28 + rng() * 0.18, z);
+    const cap = new THREE.Mesh(_lanternCapGeo, _metalMat);
+    cap.position.set(xs[i], body.position.y + 0.2, z);
+    g.add(body, cap);
+  }
+}
+
+function layoutCarvings(g, rng, length, depth) {
+  const count = 4 + Math.floor(rng() * 3);
+  const xs = spread(count, -length / 2 + 0.25, length / 2 - 0.25);
+  for (let i = 0; i < count; i++) {
+    const size = 0.19 + rng() * 0.13;
+    const carving = new THREE.Mesh(
+      i % 2 ? new THREE.DodecahedronGeometry(size, 0) : new THREE.ConeGeometry(size * 0.72, size * 2, 5),
+      _woodMat,
+    );
+    carving.position.set(xs[i], 1.08 + size, (rng() - 0.5) * depth * 0.28);
+    carving.rotation.y = rng() * Math.PI;
+    g.add(carving);
+  }
+}
+
+const _woodMat = new THREE.MeshStandardMaterial({ color: 0x79502f, roughness: 0.84, flatShading: true });
+const _drumSkinMat = new THREE.MeshStandardMaterial({ color: 0xd9bd8b, roughness: 0.9 });
+const _metalMat = new THREE.MeshStandardMaterial({ color: 0x63584b, roughness: 0.55, metalness: 0.35 });
+const _soundholeMat = new THREE.MeshStandardMaterial({ color: 0x2d1c13, roughness: 0.9 });
+const _stringMat = new THREE.MeshStandardMaterial({ color: 0xe1d1ac, roughness: 0.5, metalness: 0.15 });
+const _lanternMats = [0xe06b38, 0xe7bd58, 0x54a89a].map(color =>
+  new THREE.MeshStandardMaterial({ color, roughness: 0.65, flatShading: true })
+);
+const _instrumentNeckGeo = new THREE.BoxGeometry(0.09, 0.56, 0.08);
+const _guitarBodyGeo = new THREE.IcosahedronGeometry(0.22, 1);
+const _guitarSoundholeGeo = new THREE.SphereGeometry(0.065, 8, 6);
+const _guitarHeadstockGeo = new THREE.BoxGeometry(0.16, 0.15, 0.1);
+const _guitarStringsGeo = new THREE.BoxGeometry(0.018, 0.56, 0.012);
+const _lanternGeo = new THREE.BoxGeometry(0.25, 0.3, 0.2);
+const _lanternCapGeo = new THREE.ConeGeometry(0.19, 0.13, 4);
+const _textileRackPostGeo = new THREE.BoxGeometry(0.05, 0.65, 0.05);
+const _textileRackBarGeo = new THREE.BoxGeometry(1.05, 0.05, 0.05);
+const _textilePanelGeo = new THREE.BoxGeometry(0.28, 0.48, 0.04);
+for (const material of [_woodMat, _drumSkinMat, _metalMat, _soundholeMat, _stringMat, ..._lanternMats]) material.userData.shared = true;
+for (const geometry of [
+  _instrumentNeckGeo, _guitarBodyGeo, _guitarSoundholeGeo, _guitarHeadstockGeo,
+  _guitarStringsGeo, _lanternGeo, _lanternCapGeo,
+  _textileRackPostGeo, _textileRackBarGeo, _textilePanelGeo,
+]) geometry.userData.shared = true;
 
 function spread(count, a, b) {
   if (count === 1) return [(a + b) * 0.5];

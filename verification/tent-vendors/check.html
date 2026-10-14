@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tent vendor regression check</title>
+<style>
+  body { margin: 2rem; background: #171522; color: #f4ead7; font: 16px/1.5 ui-monospace, monospace; }
+  pre { white-space: pre-wrap; }
+</style>
+<h1>Tent vendor regression check</h1>
+<pre id="result">Running…</pre>
+<script type="importmap">
+  { "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  } }
+</script>
+<script type="module">
+  import { checkTentVendors } from './check.mjs';
+  const result = document.querySelector('#result');
+  try {
+    const report = checkTentVendors();
+    result.textContent = `PASS\n${JSON.stringify(report, null, 2)}`;
+    document.documentElement.dataset.result = 'pass';
+  } catch (error) {
+    result.textContent = `FAIL\n${error.stack || error}`;
+    document.documentElement.dataset.result = 'fail';
+    throw error;
+  }
+</script>
+</html>

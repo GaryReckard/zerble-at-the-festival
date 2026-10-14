@@ -1575,7 +1575,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       // deck the row runs past, a neighbour's truck) — the graceful-degradation guard the
       // legacy theme builders had. Chunk-gen only; clusterSeed stream, so goldens unaffected.
       if (registry.closestBuilding(new THREE.Vector3(w.x, 0, w.z), 2.2, CLUSTER_GUARD_SKIP)) continue;
-      const tent = buildTent(ctx.rng);
+      const tent = buildTent(ctx.rng, { rng: mulberry32(worldHash(Math.round(w.x * 256), Math.round(w.z * 256), 0x56454e44)) });
       tent.position.set(w.x, 0, w.z);
       // Face the central aisle (the road, after round-2 C). The two rows were
       // rotated to face OUTWARD; +π flips each booth's open front in toward the
@@ -2432,7 +2432,7 @@ function buildVendorRow(ctx) {
       const t = i - (count - 1) / 2;
       const x = ctx.cxWorld + (axisH ? t * spacing : side * rowOffset);
       const z = ctx.czWorld + (axisH ? side * rowOffset : t * spacing);
-      const tent = buildTent(ctx.rng);
+      const tent = buildTent(ctx.rng, { rng: mulberry32(worldHash(Math.round(x * 256), Math.round(z * 256), 0x56454e44)) });
       tent.position.set(x, 0, z);
       tent.rotation.y = axisH ? (side < 0 ? 0 : Math.PI) : (side < 0 ? Math.PI / 2 : -Math.PI / 2);
       ctx.group.add(tent);
