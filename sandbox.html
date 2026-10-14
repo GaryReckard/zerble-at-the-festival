@@ -1682,9 +1682,14 @@ import {buildShrub} from './src/models/shrub.js';
                 entityRoot = lineup.group;
                 currentEntity = lineup;
                 updateFn = (dt) => {
+                    let poseChanged = false;
                     for (const npc of lineup.npcs) if (npc.cheerTimer > 0) {
                         npc.cheerTimer = Math.max(0, npc.cheerTimer - dt);
                         lineup._writeMatrices(npc);
+                        poseChanged = true;
+                    }
+                    if (poseChanged) for (const mesh of lineup.group.children) {
+                        if (mesh.isInstancedMesh) mesh.instanceMatrix.needsUpdate = true;
                     }
                 };
                 const cheerButton = document.createElement('button');

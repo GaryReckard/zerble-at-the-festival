@@ -21,6 +21,7 @@ try{
  }
  assert(pos,'could not find the deterministic beverage fixture position');
  const crowd=new Crowd({spawn(){}});
+ assert(crowd.headMesh.material.color.getHex()===0xffffff&&crowd.legsMesh.material.color.getHex()===0xffffff,'base materials tint the per-instance skin or pants palettes');
  const lineup=[];
  let seed=0x4a17c2;
  const next=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);

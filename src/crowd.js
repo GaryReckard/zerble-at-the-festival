@@ -267,11 +267,11 @@ export class Crowd {
     const drinkGeo = mergeGeometrySet([cup, cupLid, straw]);
 
     // ---- Materials ----
-    const legsMat  = new THREE.MeshStandardMaterial({ color: 0x223a5c, roughness: 0.92, flatShading: true });
+    const legsMat  = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, flatShading: true });
     const shoesMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8,  flatShading: true });
     const bodyMat  = new THREE.MeshStandardMaterial({ roughness: 0.85, flatShading: true });
     const armsMat  = new THREE.MeshStandardMaterial({ roughness: 0.85, flatShading: true });
-    const headMat  = new THREE.MeshStandardMaterial({ color: 0xe6c098, roughness: 0.9,  flatShading: true });
+    const headMat  = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9,  flatShading: true });
     const featureMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true, vertexColors: true });
     const cameraMat = new THREE.MeshStandardMaterial({ color: 0x17151c, roughness: 0.58, metalness: 0.2, flatShading: true });
