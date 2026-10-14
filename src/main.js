@@ -54,7 +54,6 @@ import {
 } from './obstacles.js';
 import { installDebug, shouldRunFrame, isGod, npcsFrozen, recordCaptureFrame } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
-import { setSpawnPoint } from './chunks.js';
 import { nearestHeart, heartsInBounds } from './worldgen/hearts.js';
 import { festivalPlan, computeFrontAxis, dancefloorRectsNear, spawnHeart, MAX_POI_REACH } from './worldgen/festival.js';
 import { lakeAt } from './worldgen/water.js';
@@ -345,7 +344,6 @@ if (USE_WORLDGEN_V2) {
     }
     zerble.heading = Math.atan2(-tx, -tz);                       // face straight through the arch's passage
     zerble.position.set(sx, 0, sz);
-    setSpawnPoint(sx, sz);   // ring the guaranteed intro jugs at the gate
   } else if (heart && stage) {
     // Fallback (no arch fit this hub): open on the dancefloor front facing the stage,
     // ~70% out toward the cleared front (its depth ≈ 38·scale, festival.js dancefloorRect).
@@ -363,7 +361,6 @@ if (USE_WORLDGEN_V2) {
     }
     zerble.heading = Math.atan2(-(stage.x - sx), -(stage.z - sz));  // face the stage across the dancefloor
     zerble.position.set(sx, 0, sz);
-    setSpawnPoint(sx, sz);
   }
 }
 

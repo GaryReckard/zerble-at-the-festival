@@ -10,6 +10,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **Stage arrangements develop recognizable motifs.** Jam and brass phrases retain a hook with changing answers, breathing space and transition fills; dance drops use actual sixteenth-note arpeggios, and world percussion uses the full triplet clave grid. Repeated sections vary their phrasing and intensity. [Silent audio renders, model checks and screenshots](verification/festival-performance/README.md).
 - **The Nut Wagon has its own reggae tune.** A 74–80 BPM one-drop groove combines offbeat triads, a syncopated bass hook, closed hats, rim clicks and a melodica response with tempo-linked echo. Intro, verse, chorus, breakdown and outro share a harmonic progression. The sandbox includes a dedicated music button, and a silent offline render checks output and cleanup.
 
+### Changed
+- **Starting supplies no longer include four guaranteed juice jugs.** Removed the seeded welcome ring around the arrival point. The full starting tank, rare world pickups and refill vendors remain, so extra reserves must be found rather than collected immediately at the gate.
+
 ### Fixed
 - **The crowd lineup uploads animated poses, and appearance palettes keep their intended colors.** Cheer-preview matrix changes now reach the GPU; white base materials prevent the old head and trouser colors from tinting the new per-person palettes.
 - **Roads stay outside stage decks and dancefloors.** Placement now checks the full audience rectangle and deck against road segments, relocates the complete stage composition to a clear spot, and rejects unsafe light-pole endpoints. Both seed 932033385 reports retain their stages with clear audience areas; 288 stages across five seeds pass regression checks. Seeded layouts can change where stages previously overlapped roads.

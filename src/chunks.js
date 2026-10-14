@@ -60,43 +60,10 @@ const stageMusic = [];
 // Fresh salt — must not match any existing worldHash salt in this file so
 // style selection is independent of all other chunk-rng streams.
 const STYLE_SALT = 0xC4FE7B2A | 0;
-// Salt for the seeded near-spawn jug positions (distinct from STYLE_SALT).
-const SPAWN_JUG_SALT = 0x5A17B0BB | 0;
 // Fresh salt for the porta-potty placement RNG. Distinct from every other salt
 // so adding/removing potties never shifts theme, prop, jug, or style streams
 // (footgun #4 — new randomness gets its own salt, never reorders an existing one).
 const POTTY_SALT = 0x9E3779B1 | 0;
-
-// World-spawn point (zerble.position in main.js). The guaranteed intro jugs ring
-// around here. Mutable: with v2 worldgen, main.js relocates spawn onto the nearest
-// hub's dancefloor front and calls setSpawnPoint BEFORE the ChunkManager is built,
-// so the intro jugs ring the real arrival point, not the legacy origin.
-const SPAWN_POINT = { x: 0, z: 65 };
-export function setSpawnPoint(x, z) { SPAWN_POINT.x = x; SPAWN_POINT.z = z; }
-
-// Guaranteed bubble-juice jugs near world-spawn, so a new player meets the pickup
-// early and doesn't run dry before stumbling on a random one. Positions are
-// session-seeded — a different spread every load, fixed under ?seed= — fanned
-// around spawn at distinct angles within a 22–58m ring (so they don't clump or
-// park in front of the cart). Dropped when their containing chunk first generates;
-// that ring sits inside the boot-load ring, so they're present from the start. The
-// rare per-chunk scatter (scatterBubbleJugs) still runs everywhere on top of these.
-const SPAWN_JUG_COUNT = 4;   // bumped from 2 — a more generous welcome at the arrival heart
-function computeSpawnJugTargets() {
-  const u = (a, b) => worldHash(a, b, SPAWN_JUG_SALT) / 4294967296;
-  const jugs = [];
-  for (let i = 0; i < SPAWN_JUG_COUNT; i++) {
-    // Even angular fan + per-jug jitter so they encircle the arrival, never clump.
-    const ang = (i / SPAWN_JUG_COUNT) * Math.PI * 2 + (u(8101 + i, 3) - 0.5) * 1.1;
-    const rad = 22 + u(4099, 19 + i) * 36;           // 22–58 m
-    jugs.push({
-      x: SPAWN_POINT.x + Math.cos(ang) * rad,
-      z: SPAWN_POINT.z + Math.sin(ang) * rad,
-      placed: false,
-    });
-  }
-  return jugs;
-}
 
 // Picks a music style from `palette` using the chunk's worldHash seed.
 // A fresh salt keeps this stream isolated from theme, prop, and drum seeds.
@@ -317,10 +284,7 @@ export class ChunkManager {
     this.crowd = crowd;
     this.loaded = new Map(); // key -> { group, cx, cz, theme }
     this._initialPreloadDone = false;
-    // Seeded near-spawn intro jugs (see computeSpawnJugTargets). Computed once
-    // here so they're stable for the session; SESSION_SEED is already set by
-    // the time the world (and this manager) is built.
-    this._spawnJugs = computeSpawnJugTargets();
+
   }
 
   // Narrow completion predicate for render-only observers (festival-horizon
@@ -437,7 +401,6 @@ export class ChunkManager {
         crowd: this.crowd,
       };
       this._generateWorldgen(ctx);
-      this._placeSpawnJugs(ctx);   // intro pickups near spawn stay (theme-independent)
       this.scene.add(group);
       this.loaded.set(key, { group, cx, cz, theme: 'worldgen' });
       return;
@@ -497,10 +460,6 @@ export class ChunkManager {
       scatterBubbleJugs(ctx, inWater);
     }
 
-    // Guaranteed near-spawn intro jugs — independent of theme/forest; drop here
-    // if a seeded target lands in this chunk.
-    this._placeSpawnJugs(ctx);
-
     this.scene.add(group);
     this.loaded.set(key, { group, cx, cz, theme });
   }
@@ -549,11 +508,7 @@ export class ChunkManager {
       recordChunkStage('crowd', performance.now() - stageStartedAt);
       stageStartedAt = performance.now();
     }
-    // Rare floating bubble-juice jug pickup (~1 in 9 chunks). The v1 scatter only
-    // ran in the legacy else-branch, so worldgen=1 had jugs ONLY at the spawn ring
-    // (Gary 2026-06-16: "not seeing any jugs of bubble juice anywhere"). Gated on
-    // the chunk-center lake test (queryPoint already computed it), and placed after
-    // the crowd so it shares v1's crowd-then-jugs ctx.rng ordering.
+    // Keep the crowd-then-jugs RNG order shared with legacy generation.
     scatterBubbleJugs(ctx, qpc.inLake);
     if (CHUNK_TIMING) {
       recordChunkStage('jugs', performance.now() - stageStartedAt);
@@ -568,45 +523,7 @@ export class ChunkManager {
     if (CHUNK_TIMING) recordChunkStage('hedges', performance.now() - stageStartedAt);
   }
 
-  // Drop any guaranteed near-spawn jug whose seeded target lands in this chunk.
-  // Uses no ctx.rng so it can't shift the chunk's deterministic prop layout
-  // (footgun #4); nudges off buildings/water with fixed offsets if needed.
-  _placeSpawnJugs(ctx) {
-    const half = CHUNK_SIZE / 2;
-    for (const j of this._spawnJugs) {
-      if (j.placed) continue;
-      if (Math.abs(j.x - ctx.cxWorld) > half || Math.abs(j.z - ctx.czWorld) > half) continue;
-      j.placed = true;   // claimed by this chunk — its target can't fall in another
-      const free = (px, pz) => !registry.closestBuilding(new THREE.Vector3(px, 0, pz), 3) && !isPointInLake(px, pz);
-      let x = j.x, z = j.z;
-      if (!free(x, z)) {
-        // Spiral out (deterministic ring sweep) for a clear gap. A v2 spawn sits at
-        // a dense festival heart, so the old ±7m offsets weren't enough — search to
-        // ~26m so the welcome jug lands in a gap between stalls rather than vanishing.
-        let spot = null;
-        for (const r of [5, 9, 14, 20, 26]) {
-          for (let k = 0; k < 8 && !spot; k++) {
-            const a = (k / 8) * Math.PI * 2;
-            const px = j.x + Math.cos(a) * r, pz = j.z + Math.sin(a) * r;
-            if (free(px, pz)) spot = [px, pz];
-          }
-          if (spot) break;
-        }
-        if (!spot) continue;   // no clear spot within range — skip cleanly (rare)
-        x = spot[0]; z = spot[1];
-      }
-      const jug = buildBubbleJug();
-      jug.position.set(x, 0.7, z);
-      ctx.group.add(jug);
-      registry.add({
-        kind: 'bubble_jug',
-        position: new THREE.Vector3(x, 0.7, z),
-        chunkKey: ctx.key,
-        obj: jug,
-        juice: 1.0,
-      });
-    }
-  }
+
 }
 
 // Shared chunk teardown (extracted for the hub viewer, task 6.1). Disposes a
@@ -2261,7 +2178,7 @@ function scatterBubbleJugs(ctx, inWater) {
     // dropped cases consume identical ctx.rng() draws, preserving draw-count
     // parity with scatterWorldgenCampsites below (council pin-down; the
     // determinism Non-Negotiable). Position-hashed, so the same jugs exist
-    // at a given day level on the same world. Intro spawn jugs are exempt.
+    // at a given day level on the same world.
     if (!jugKeptAt(x, z)) return;
     const jug = buildBubbleJug();
     jug.position.set(x, 0.7, z);
