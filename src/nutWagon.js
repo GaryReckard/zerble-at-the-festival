@@ -13,7 +13,7 @@ export class NutWagon {
   constructor(scene, crowd, {music = true} = {}) {
     this.scene = scene; this.crowd = crowd; this.musicEnabled = music;
     this.root = null; this.position = new THREE.Vector3(); this.heading = 0;
-    this.speed = 0; this.active = false; this.state = 'absent';
+    this.speed = 0; this.waitReason = null; this.active = false; this.state = 'absent';
     this.rng = mulberry32((getSessionSeed() ^ 0x6e775731) >>> 0);
     this.encounterTimer = 8; this.wasTrip = false; this.ids = []; this.colliders = [];
     this.seatSlots = []; this.sample = {}; this.nextSample = {};
@@ -87,7 +87,7 @@ export class NutWagon {
       this.crowd._writeMatrices(driver);
     }
     if (this.musicEnabled) {
-      this.music = Sound.attachStageMusic(this.position.x, 1, this.position.z, 0x6e775731, 'dub');
+      this.music = Sound.attachStageMusic(this.position.x, 1, this.position.z, 0x6e775731, 'nut_wagon_reggae');
       this.musicEntry = Sound.getStageHandleRegistry().find(e => e.handle === this.music);
     }
     return true;
@@ -144,7 +144,7 @@ export class NutWagon {
       }
     }
     setNutWagonNightness(this.root, nightness);
-    this.speed = 0;
+    this.speed = 0; this.waitReason = null;
     this.gatherTimer -= dt;
     if (this.gatherTimer <= 0) {
       this.gatherTimer = 1; this.gatheringStop = false;
@@ -165,6 +165,7 @@ export class NutWagon {
     if (this.boardTimer <= 0) { this.boardTimer = 1.5; this.boardNearby(); }
     if (this.state === 'parked') {
       const boardingParty = this.crowd.npcs.some(n => n.party && n.state === 'boarding' && n.seatSlot?.vehicle === this);
+      this.waitReason = boardingParty ? 'boarding party' : 'scheduled stop';
       if (!boardingParty) this.stopTimer -= dt;
       if (this.stopTimer <= 0) { this.state = 'cruising'; this.cruiseTimer = 0; }
     } else {
@@ -174,7 +175,15 @@ export class NutWagon {
       const delta = Math.atan2(Math.sin(targetYaw - this.root.rotation.y), Math.cos(targetYaw - this.root.rotation.y));
       const nextYaw = this.root.rotation.y + Math.max(-dt * .6, Math.min(dt * .6, delta));
       const canTurn = this.clearAt(this.position.x, this.position.z, nextYaw);
-      const nearPlayer = Math.hypot(this.nextSample.x - player.x, this.nextSample.z - player.z) < 7;
+      const travelX = Math.sin(this.nextSample.heading) * this.direction;
+      const travelZ = Math.cos(this.nextSample.heading) * this.direction;
+      const playerAhead = (player.x - this.position.x) * travelX + (player.z - this.position.z) * travelZ > 0;
+      const nearPlayer = playerAhead && wagonOverlapsCircle(
+        this.nextSample.x, this.nextSample.z, nextYaw, player.x, player.z, 1.8,
+      );
+      this.waitReason = nearPlayer ? 'yielding to Zerble'
+        : !canTurn ? 'blocked turn'
+        : Math.abs(delta) >= .12 ? 'aligning with road' : null;
       if (canTurn && !nearPlayer) this.root.rotation.y = nextYaw;
       if (canTurn && Math.abs(delta) < .12 && !nearPlayer && this.clearAt(this.nextSample.x, this.nextSample.z, nextYaw)) {
         this.distance = next; this.position.set(this.nextSample.x, 0, this.nextSample.z); this.speed = this.direction * T.speed;
@@ -182,14 +191,20 @@ export class NutWagon {
         this.cruiseTimer += dt; this.blockedTimer = 0;
       } else if (canTurn && Math.abs(delta) >= .12 && !nearPlayer) {
         this.blockedTimer = 0; // A deliberate turn is progress, not a stalled route.
-      } else this.blockedTimer += dt;
+      } else if (nearPlayer) {
+        this.blockedTimer = 0; // A player in the lane should not trigger a reversing/parking loop.
+      } else {
+        this.blockedTimer += dt; this.waitReason = 'blocked road';
+      }
       if (this.blockedTimer >= T.stallSeconds) {
         this.direction *= -1;
         this.state = 'parked'; this.stopTimer = T.stopSeconds; this.blockedTimer = 0;
         this.lastStop.copy(this.position); this.gatheringStop = false;
       }
-      if (this.state === 'cruising' && (next <= 6 || next >= this.route.length - 6 || this.cruiseTimer >= T.cruiseSeconds || this.gatheringStop)) {
-        if (next <= 6 || next >= this.route.length - 6) this.direction *= -1;
+      const atEnd = this.direction < 0 ? this.distance <= 6 : this.distance >= this.route.length - 6;
+      if (this.state === 'cruising' && (atEnd || this.cruiseTimer >= T.cruiseSeconds
+          || (this.gatheringStop && this.cruiseTimer >= T.minCruiseSeconds))) {
+        if (atEnd) this.direction *= -1;
         this.state = 'parked'; this.stopTimer = T.stopSeconds;
         this.lastStop.copy(this.position); this.gatheringStop = false;
       }
@@ -212,6 +227,8 @@ export class NutWagon {
 
   status() {
     return {active: this.active, state: this.state, speed: this.speed, gear: this.direction < 0 ? 'reverse' : 'forward',
+      waitReason: this.waitReason, routeDistance: this.distance, routeLength: this.route?.length,
+      stopRemaining: this.state === 'parked' ? this.stopTimer : 0,
       position: this.position.toArray(), passengers: this.seatSlots.filter(s => s.occupied).length,
       capacity: this.seatSlots.length, tuning: T};
   }

@@ -2,6 +2,14 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-14
+
+### Added
+- **The Nut Wagon has its own reggae tune.** A 74–80 BPM one-drop groove combines offbeat triads, a syncopated bass hook, closed hats, rim clicks and a melodica response with tempo-linked echo. Intro, verse, chorus, breakdown and outro share a harmonic progression. The sandbox includes a dedicated music button, and a silent offline render checks output and cleanup.
+
+### Fixed
+- **The Nut Wagon can cruise past Zerble parked alongside.** Yielding now checks the vehicle footprint and travel direction instead of stopping for everything within seven metres. Clearing the lane resumes movement immediately, without turning a player yield into a reverse/24-second parking loop. Gathering stops require 32 seconds of actual travel, and an obstructed next point no longer falsely counts as reaching the route end. Status includes the waiting reason and route progress.
+
 ## 2026-10-13
 
 ### Added

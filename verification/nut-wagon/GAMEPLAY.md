@@ -11,7 +11,7 @@ Gary chose rare ordinary encounters, strongly increased Trip encounters, regular
 - 0.75 m/s cruising, 24-second stops near three or more NPCs or a registry activity attractor, with a 48-second driving fallback between stops. Gathering stops must be at least 12 m from the previous stop. It yields near Zerble and stops advancing into newly blocked space.
 - Nine mounts: Bo driving plus eight guest places (two trunk, two roof, two rear seat, one passenger and one standing platform). Regular idle/walking/watching NPCs within 12 m reserve seats while parked; boarding times out after fourteen seconds. Tall NPCs use the roof bench because of enclosed-cabin headroom. The platform uses a standing pose; [monk groups](MONKS.md) reserve seats together.
 - The gameplay root is scaled 1.6× to suit the existing cartoon crowd. The reference-sized model and dimension constants remain unchanged. Seat transforms and collision radii follow this scale.
-- Existing seeded `dub` music generator, not a newly composed reggae track. The panner and distance-fade coordinates follow the wagon; global volume/mute settings apply. No audible audition was performed, honoring silent iteration.
+- Dedicated seeded `nut_wagon_reggae` arrangement (74–80 BPM one-drop drums, offbeat chords, bass hook and melodica). The panner and distance-fade coordinates follow the wagon; global volume/mute settings apply. No audible audition was performed, honoring silent iteration.
 - Regular NPC ride timers are reused; riders leave only at a parked stop. Wagon passengers do not count against Zerble's capacity, produce Zerble boarding rewards, or leave because Zerble's bubble tank empties.
 
 ## Iteration surfaces
@@ -23,7 +23,7 @@ Gary chose rare ordinary encounters, strongly increased Trip encounters, regular
 
 ## Verification
 
-The latest controller runs pass 31 assertions, including a regular NPC invited from ten metres away. Boarding now uses a 12 m invitation radius, a 14-second approach timeout and at least 14 seconds remaining at the stop. The [road clearance regression](road-clearance.html?perf=low&mute=1) builds real chunks at Gary's reported seed 2186624078 and position (108.66, 172.97); [saved results](road-clearance.json) show 14 camps and no footprint overlaps with roads. The placement guard uses the same footprint as the scaled campsite model.
+The latest controller runs pass 36 assertions, including a regular NPC invited from ten metres away. Boarding now uses a 12 m invitation radius, a 14-second approach timeout and at least 14 seconds remaining at the stop. The [road clearance regression](road-clearance.html?perf=low&mute=1) builds real chunks at Gary's reported seed 2186624078 and position (108.66, 172.97); [saved results](road-clearance.json) show 14 camps and no footprint overlaps with roads. The placement guard uses the same footprint as the scaled campsite model.
 
 The follow-up [Sol-medium adversarial review](adversarial-review.md) found and resolved clearance and stalled-route defects. Rotated footprints now cover the body, hatch and platform, with sub-metre water sampling. After eight seconds blocked, the wagon parks and reverses along its route without a U-turn. It also uses reverse gear at route ends. The original review runs passed 25 assertions, including blocked-route and narrow-corridor recovery.
 
@@ -40,3 +40,9 @@ Mid's full-scene debug snapshot showed 60 FPS, 1,173 draws and 1,117,062 triangl
 ![Live game](game-mid.png)
 ![Passengers in the isolated preview](riders-noon.png)
 ![Night preview](riders-midnight.png)
+
+## Travel and music follow-up, 2026-10-14
+
+A parked Zerble alongside the wagon no longer blocks its path simply by being within seven metres. Only a player ahead overlapping the prospective vehicle footprint causes a yield. That yield neither reverses nor starts a parking timer, and movement resumes immediately when the lane clears. Gathering stops require 32 seconds of actual movement; route ends and hard-obstacle reverse recovery remain. Five additional controller assertions exercise these cases. Status exposes waitReason, routeDistance, routeLength and stopRemaining.
+
+[Silent reggae render](reggae.json): 77.79 seconds rendered with real OfflineAudioContext at 76 BPM, peak 0.412, no clipping or non-finite samples. Every section and teardown completed. This is a technical rendering check, not a listening evaluation. The sandbox Nut Wagon reggae button supports later audition.

@@ -8,7 +8,7 @@ What's queued up next, plus a parking lot of "we talked about it, haven't done i
 
 The wagon now spawns on existing festival roads, cruises slowly, pauses near gatherings, boards regular NPCs, plays the existing spatial dub groove, and is ten times likelier on each encounter roll during a Trip. Gary selected rare normally / very likely during trips, regular NPCs first, and walking-pace cruising with gathering stops on 2026-10-13. [Current parameters and verification](verification/nut-wagon/GAMEPLAY.md).
 
-The four-to-six monk party and all eight guest places are implemented, including the standing platform. [Group behavior and checks](verification/nut-wagon/MONKS.md). A custom reggae composition remains to be created; the wagon currently uses the existing dub generator.
+The four-to-six monk party and all eight guest places are implemented, including the standing platform. [Group behavior and checks](verification/nut-wagon/MONKS.md). The wagon now has a dedicated reggae arrangement. Shared-destination group ride quests remain in the passenger-quest backlog.
 
 ## Waiting on Gary — Festival Run stakes wrap-up (agents: keep reminding him!)
 

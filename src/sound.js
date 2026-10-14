@@ -2073,6 +2073,10 @@ function createStageMusic(ctx, dest, x, y, z, seed, style = 'jam', opts = {}) {
       handle = runStageSong(ctx, panner, seed, def);
       break;
     }
+    case 'nut_wagon_reggae': {
+      handle = runStageSong(ctx, panner, seed, Object.assign({}, NUT_WAGON_REGGAE, extra));
+      break;
+    }
     case 'dub': {
       const def = Object.assign({}, DUB, extra);
       handle = runStageSong(ctx, panner, seed, def);
@@ -3037,6 +3041,88 @@ const DUB = {
     }
   },
   onSongEnd: null,
+};
+
+// Original wagon tune: one-drop drums, offbeat triads, a syncopated bass hook,
+// and a four-bar melodica answer. Exported for silent OfflineAudioContext checks.
+export const NUT_WAGON_REGGAE = {
+  name: 'nut_wagon_reggae', baseHz: 130.81, tempoRange: [74, 80],
+  scale: [1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8], leadTypes: ['triangle'],
+  baseRestProb: 0,
+  sectionTemplate() {
+    return makeSections([['intro',4,.45],['verse',8,.7],['chorus',8,.85],
+      ['break',4,.4],['verse',8,.7],['chorus',8,.85],['outro',4,.4]]);
+  },
+  makeVoices(ctx, dest, rng) {
+    const nodes=[], sources=[];
+    const track=n=>{nodes.push(n);return n;};
+    const gain=()=>{const n=track(ctx.createGain());n.gain.value=0;return n;};
+    const tone=(type,cutoff)=>{
+      const osc=track(ctx.createOscillator());osc.type=type;
+      const filter=track(ctx.createBiquadFilter());filter.type='lowpass';filter.frequency.value=cutoff;
+      const amp=gain();osc.connect(filter).connect(amp).connect(dest);
+      osc.start();sources.push(osc);return {osc,amp};
+    };
+    const chords=[tone('triangle',1800),tone('triangle',1800),tone('triangle',1800)];
+    const bass=tone('sine',300), kick=tone('sine',180), lead=tone('triangle',1600);
+    const delay=track(ctx.createDelay(1)), feedback=track(ctx.createGain()), wet=track(ctx.createGain());
+    feedback.gain.value=.24;wet.gain.value=.20;
+    lead.amp.connect(delay);delay.connect(feedback).connect(delay);delay.connect(wet).connect(dest);
+    const buffer=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*.25),ctx.sampleRate);
+    const data=buffer.getChannelData(0);
+    for(let i=0;i<data.length;i++)data[i]=rng()*2-1;
+    const noise=track(ctx.createBufferSource());noise.buffer=buffer;noise.loop=true;
+    const hatFilter=track(ctx.createBiquadFilter());hatFilter.type='highpass';hatFilter.frequency.value=6500;
+    const rimFilter=track(ctx.createBiquadFilter());rimFilter.type='bandpass';rimFilter.frequency.value=1900;rimFilter.Q.value=5;
+    const hat=gain(),rim=gain();
+    noise.connect(hatFilter).connect(hat).connect(dest);noise.connect(rimFilter).connect(rim).connect(dest);
+    noise.start();sources.push(noise);
+    return {voices:{chords,bass,kick,lead,delay,hat,rim},teardown:[()=>{
+      for(const n of sources){try{n.stop();}catch{}}
+      for(const n of nodes)n.disconnect();
+    }]};
+  },
+  playBeat({t,beatInBar:b,barInSection:bar,section,beat,tonicHz,voices:v,gainMod=1}) {
+    const hit=(amp,time,level,length)=>{
+      amp.gain.setValueAtTime(.0001,time);
+      amp.gain.exponentialRampToValueAtTime(Math.max(.0002,level*gainMod),time+.004);
+      amp.gain.exponentialRampToValueAtTime(.0001,time+length);
+    };
+    const hz=n=>tonicHz*2**(n/12);
+    const progression=[[0,4,7],[-3,0,4],[-7,-3,0],[-5,-1,2]];
+    const chord=progression[Math.floor(bar/2)%4], sparse=section.name==='break'||section.name==='outro';
+    v.delay.delayTime.setValueAtTime(beat*.75,t);
+    if(!sparse || b===3){
+      v.chords.forEach((voice,i)=>{
+        voice.osc.frequency.setValueAtTime(hz(chord[i]),t+beat*.5);
+        hit(voice.amp,t+beat*.5,.045,Math.min(.12,beat*.22));
+      });
+    }
+    // Leave beat one open on alternate bars; anticipation carries into the next bar.
+    if(b!==0 || bar%2===0){
+      const note=chord[0]-12+([0,7,0,12][b]);
+      v.bass.osc.frequency.setValueAtTime(hz(note),t);
+      hit(v.bass.amp,t,.23,beat*.65);
+    }
+    if(b===3&&!sparse){
+      v.bass.osc.frequency.setValueAtTime(hz(chord[0]-12+7),t+beat*.75);
+      hit(v.bass.amp,t+beat*.75,.16,beat*.22);
+    }
+    if(b===2){
+      v.kick.osc.frequency.setValueAtTime(105,t);
+      v.kick.osc.frequency.exponentialRampToValueAtTime(45,t+.13);
+      hit(v.kick.amp,t,.24,.19);hit(v.rim,t,.12,.055);
+    }
+    if(!sparse){
+      hit(v.hat,t,.026,.035);hit(v.hat,t+beat*.5,.045,.05);
+    }
+    const motif=[7,9,7,4,2,4,2,0];
+    if((section.name==='chorus'||section.name==='verse')&&bar%4>=2&&(b===0||b===2)){
+      const n=motif[(bar%4-2)*4+b];
+      v.lead.osc.frequency.setValueAtTime(hz(n+12),t+beat*.25);
+      hit(v.lead.amp,t+beat*.25,.075,beat*.6);
+    }
+  },
 };
 
 // ----- SECOND-LINE BRASS BAND ----------------------------------------------

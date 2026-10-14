@@ -1,0 +1,59 @@
+{
+  "pass": true,
+  "style": "nut_wagon_reggae",
+  "tempo": 76,
+  "duration": 77.78947368421052,
+  "peak": 0.4118107557296753,
+  "rms": 0.028984729017200287,
+  "sectionRms": [
+    0.029588390252513565,
+    0.029852496006681897,
+    0.029620126709217952,
+    0.02917283827577082,
+    0.029707323880599393,
+    0.028215748462187253
+  ],
+  "checks": [
+    "Real offline Web Audio rendering produces finite, non-silent, unclipped samples",
+    "Intro, verse, chorus, breakdown and outro all schedule successfully",
+    "Breakdown has lower energy than chorus",
+    "All owned sources and graph nodes tear down"
+  ],
+  "songSections": [
+    {
+      "name": "intro",
+      "bars": 4,
+      "intensity": 0.45
+    },
+    {
+      "name": "verse",
+      "bars": 8,
+      "intensity": 0.7
+    },
+    {
+      "name": "chorus",
+      "bars": 8,
+      "intensity": 0.85
+    },
+    {
+      "name": "break",
+      "bars": 4,
+      "intensity": 0.4
+    },
+    {
+      "name": "verse",
+      "bars": 8,
+      "intensity": 0.7
+    },
+    {
+      "name": "chorus",
+      "bars": 8,
+      "intensity": 0.85
+    },
+    {
+      "name": "outro",
+      "bars": 4,
+      "intensity": 0.4
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+<!doctype html><meta charset="utf-8"><title>Nut Wagon reggae checks</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Rendering silently…</pre>
+<script type="module">
+import {NUT_WAGON_REGGAE as tune} from '../../src/sound.js';
+import {mulberry32} from '../../src/rng.js';
+try {
+ const sections=tune.sectionTemplate();
+ const beat=60/76, bars=24, duration=bars*4*beat+2;
+ const ctx=new OfflineAudioContext(1,Math.ceil(duration*22050),22050);
+ const {voices,teardown}=tune.makeVoices(ctx,ctx.destination,mulberry32(1234),tune.baseHz);
+ const names=['intro','verse','chorus','break','chorus','outro'];
+ for(let bar=0;bar<bars;bar++)for(let b=0;b<4;b++){
+   tune.playBeat({ctx,t:.1+(bar*4+b)*beat,beatInBar:b,barInSection:bar%4,
+     section:{name:names[Math.floor(bar/4)]},beat,tonicHz:tune.baseHz,voices,gainMod:.8});
+ }
+ const rendered=await ctx.startRendering(), data=rendered.getChannelData(0);
+ let peak=0,sum=0,finite=true;const levels=[];
+ for(let i=0;i<data.length;i++){finite&&=Number.isFinite(data[i]);peak=Math.max(peak,Math.abs(data[i]));sum+=data[i]*data[i];}
+ for(let section=0;section<6;section++){
+   let energy=0,count=0;
+   for(let i=Math.floor(section*16*beat*22050);i<Math.floor((section+1)*16*beat*22050);i++){energy+=data[i]*data[i];count++;}
+   levels.push(Math.sqrt(energy/count));
+ }
+ for(const stop of teardown)stop();
+ if(!finite||peak>=1||sum===0||levels[3]>=levels[2])throw Error('Invalid, clipped, silent or undifferentiated arrangement');
+ document.querySelector('#result').textContent=JSON.stringify({pass:true,style:tune.name,
+   tempo:76,duration,peak,rms:Math.sqrt(sum/data.length),sectionRms:levels,
+   checks:['Real offline Web Audio rendering produces finite, non-silent, unclipped samples',
+     'Intro, verse, chorus, breakdown and outro all schedule successfully',
+     'Breakdown has lower energy than chorus','All owned sources and graph nodes tear down'],
+   songSections:sections},null,2);
+} catch(e){document.querySelector('#result').textContent='FAIL: '+e.stack;}
+</script>

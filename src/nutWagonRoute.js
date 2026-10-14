@@ -1,6 +1,6 @@
 // Separate seeded encounters from frame rate and the world's shared RNG streams.
 export const NUT_WAGON_TUNING = Object.freeze({
-  worldScale: 1.6, speed: .75, stopSeconds: 24, cruiseSeconds: 48, stallSeconds: 8,
+  worldScale: 1.6, speed: .75, stopSeconds: 24, cruiseSeconds: 48, minCruiseSeconds: 32, stallSeconds: 8,
   encounterSeconds: 45, normalChance: .08, tripChance: .8,
   spawnMin: 65, spawnMax: 145, despawnDistance: 245,
 });

@@ -33,4 +33,4 @@ The isolated monk preview reported eight scene draws and 1,735 triangles includi
 
 ## Remaining feature discussions
 
-A custom reggae composition and shared-destination passenger quests remain on the roadmap. Group boarding and wandering work independently of those future features.
+The custom reggae composition is implemented; shared-destination passenger quests remain on the roadmap. Group boarding and wandering work independently of those future features.

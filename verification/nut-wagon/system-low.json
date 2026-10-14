@@ -29,6 +29,11 @@
     "A full NPC pool does not leave a driverless wagon or leaked colliders",
     "Newly blocked route parks after eight seconds and schedules a backtrack",
     "Recovered wagon backs along a narrow road without a blocked U-turn",
+    "Zerble alongside within seven metres does not prevent forward travel",
+    "Yielding to a player in the lane does not trigger reverse or a 24-second stop",
+    "Clearing the lane resumes travel immediately",
+    "Nearby gatherings cannot interrupt the first 32 seconds of actual travel",
+    "An unreachable next point does not count as reaching the route endpoint",
     "Normal encounter rejects a 50% roll",
     "Trip start immediately gets its higher-probability roll",
     "Trip roll is not repeated every frame"
