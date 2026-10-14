@@ -2,7 +2,7 @@
   "pass": true,
   "checks": [
     "Three moving collider entries",
-    "Driver plus seven passenger seats; platform excluded",
+    "Bo plus eight passenger places, including the standing pole platform",
     "Bo shares disposal-safe geometry and material across repeated builds",
     "Bo is attached to the moving wagon",
     "Bo and his tall hat fit below the wagon roof",

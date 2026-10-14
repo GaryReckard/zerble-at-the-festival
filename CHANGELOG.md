@@ -5,6 +5,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-10-13
 
 ### Added
+- **A party of four to six monks shares the festival.** Maroon robes and saffron wraps follow Gary’s reference. They spawn near the Nut Wagon, wander loosely together, wait during bathroom or picnic stops, and reserve rides together on either vehicle only when everyone fits. The wagon now offers eight guest places plus Bo, including the standing pole platform. Dedicated previews and 31 group assertions support iteration. [Behavior and verification](verification/nut-wagon/MONKS.md).
 - **Bo drives the Nut Wagon.** His dedicated model has a slim build, long straight brown hair, black pants, an orange shirt with a black bat, and a tall pink/navy/gold patchwork hat based on Gary's photos. A seated pose puts his hands on the wheel and keeps the hat under the roof. Standing and behind-the-wheel sandbox views support muted iteration; pooled geometry adds one mesh and one shadow caster. [Views and checks](verification/nut-wagon/BO.md).
 - **The Nut Wagon cruises through the festival.** One seeded encounter follows clear stretches of the existing roads at 0.75 m/s, pauses near crowds and activity spots for 24 seconds, and carries a driver plus up to seven seated regular NPCs. Encounter rolls are 8% normally and 80% during trips every 45 seconds, with an immediate trip-start roll; spawns and distant recycling happen outside the camera view. The existing spatial dub groove follows the wagon, night lights work, and collider/music/seat cleanup follows its global lifetime. The gameplay instance uses 1.6× scale for cartoon NPCs; tall riders use the open roof seats. A cruising/boarding sandbox case, localhost `?nutwagon=1` preview, and route/controller checks support iteration. Monk groups remain the next phase. [Verification](verification/nut-wagon/GAMEPLAY.md).
 
@@ -15,6 +16,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **The debug mute checkbox reflects a silent launch before audio initialization.** Opening the panel after launching with `mute=1` now shows the session mute correctly.
 
 ### Changed
+- **The Nut Wagon paint has four waves and spikes per panel**, reduced from five while preserving green waves, red sharp edges and the yellow middle.
 - **Nut Wagon paint and boarding are easier to read.** The boundaries now have five waves/spikes per panel, between the original eight and the overly broad two. Parked wagons invite regular NPCs from 12 m away and allow 14 seconds for boarding, while reserving enough stopped time to complete the approach.
 - **The Nut Wagon paint follows Bo’s explanation.** Bo’s driver side is green, Courtney’s right side is red, and yellow separates them. The hood and full roof carry a sharp red boundary and a smooth green wave; the fenders, pillars, sills, engine shell and hatch now follow the same side assignment. Pink accessories remain pink. The boundaries use fewer, broader waves and spikes.
 
