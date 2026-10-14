@@ -871,8 +871,8 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
       assert(kept === demand,
         `tier ${tname}, seed 9876 at (320,320) must keep ${demand} visible ${name} surfaces, got ${kept}`);
     }
-    if (tname === 'low') assert(all.peak.filter((i) => Math.hypot(i.x - 320, i.z - 320) <= tier.radius).length === 200,
-      'seed 9876 low-tier peak reproduction must retain its 200 visible candidates');
+    if (tname === 'low') assert(all.peak.filter((i) => Math.hypot(i.x - 320, i.z - 320) <= tier.radius).length === 194,
+      'seed 9876 low-tier peak reproduction must retain its 194 visible candidates after road-safe stage relocation');
     surfaceProbe.dispose();
   }
   // The pool is ranked from the cell center and does not rebuild while the

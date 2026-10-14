@@ -211,6 +211,11 @@ below (Gary: lean now, full scope eventually).
   (`closestBuilding`, v2-gated so v1 stays byte-identical) — see CHANGELOG. Load-order-
   dependent like the other build backstops.
 
+Stage decks and their complete audience rectangles now exclude actual road
+polylines, and light-pole endpoints independently reject road shoulders
+(2026-10-14). This resolves road-through-dancefloor reports; cross-hub
+cluster spacing below remains separate.
+
 - **Cross-hub cluster overlap — food courts FIXED via sharing; drum/stage + rows remain.**
   Multiple playtest pins (Gary 2026-06-14, seeds 1139472710 / 2718382314): two food
   courts clipping (heart (2,-1)'s court vs (2,0)'s **~11–37 m apart** — ring overlap given

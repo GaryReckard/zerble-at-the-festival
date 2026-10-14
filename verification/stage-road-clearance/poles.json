@@ -1,0 +1,25 @@
+{
+  "pass": true,
+  "results": [
+    {
+      "stage": 2577575099,
+      "heart": [
+        1,
+        -1
+      ],
+      "poles": 4,
+      "minimumRoadDistance": 17.424411275657185,
+      "buildMilliseconds": 47.40000009536743
+    },
+    {
+      "stage": 659632957,
+      "heart": [
+        2,
+        0
+      ],
+      "poles": 4,
+      "minimumRoadDistance": 20,
+      "buildMilliseconds": 23.299999713897705
+    }
+  ]
+}

@@ -3119,6 +3119,9 @@ export function buildHammockStandalone(x, z, rng = Math.random) {
 }
 
 function placePolePair(ctx, ax, az, bx, bz) {
+  // Keep both supports off the road, including rows beyond the protected dancefloor.
+  if ([ [ax,az], [bx,bz] ].some(([x,z]) =>
+    queryPoint(x,z).noBuild || nearestRoad(x,z).dist < ROAD_RIBBON_WIDTH / 2 + 1)) return;
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x2a1f3a, roughness: 0.7, flatShading: true });
   const h = 6;
   for (const [px, pz] of [[ax, az], [bx, bz]]) {

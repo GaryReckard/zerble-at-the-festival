@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {setSeed} from '../src/worldgen/index.js';
+import {heartsInBounds} from '../src/worldgen/hearts.js';
+import {festivalPlan} from '../src/worldgen/festival.js';
+import {clusterShapes} from '../src/worldgen/tuning.js';
+import {roadsInBounds,shapesClearOfRoads,nearestRoad} from '../src/worldgen/roads.js';
+const road=(a,b)=>[{points:[a,b]}];
+const box={t:'obb',x:0,z:0,ux:0,uz:1,hl:8,hw:4};
+assert.equal(shapesClearOfRoads([box],road({x:-20,z:0},{x:20,z:0})),false,'segment crossing with both vertices outside');
+assert.equal(shapesClearOfRoads([box],road({x:9,z:-20},{x:9,z:20})),true,'clear parallel segment');
+assert.equal(shapesClearOfRoads([{...box,ux:Math.SQRT1_2,uz:Math.SQRT1_2}],road({x:-20,z:0},{x:20,z:0})),false,'rotated floor crossing');
+assert.equal(shapesClearOfRoads([{t:'circle',x:0,z:0,r:4}],road({x:-20,z:0},{x:20,z:0})),false,'deck crossing');
+setSeed(932033385);
+const roads=roadsInBounds(100,-400,750,400);
+const stages=heartsInBounds(150,-350,700,350).flatMap(h=>festivalPlan(h).filter(d=>d.kind.endsWith('_stage')));
+for(const [id,x,z] of [[2577575099,369,-103],[659632957,456,131]]){
+ const d=stages.find(d=>d.clusterSeed===id);assert.ok(d,'reported stage retained');
+ assert.equal(shapesClearOfRoads(clusterShapes(d.kind,d.scale,x,z,d.yaw),roads),false,'old reported placement fails');
+ assert.ok(shapesClearOfRoads(clusterShapes(d.kind,d.scale,d.x,d.z,d.yaw),roads),'reported dancefloor now clear');
+ let samples=0;
+ for(let f=0;f<38*d.scale;f+=1)for(let s=-17*d.scale;s<17*d.scale;s+=1){
+  const px=d.x+Math.sin(d.yaw)*f+Math.cos(d.yaw)*s,pz=d.z+Math.cos(d.yaw)*f-Math.sin(d.yaw)*s;
+  assert.ok(nearestRoad(px,pz).dist>3.5,'independent dense audience-grid check');samples++;
+ }
+ console.log(`marker stage ${id}: (${x},${z}) → (${d.x},${d.z}); ${samples} clear audience probes`);
+}
+let checked=0;
+for(const seed of [932033385,1234,42,9876,2186624078]){
+ setSeed(seed);
+ const hearts=heartsInBounds(-500,-500,500,500);
+ for(const h of hearts){
+  const plan=festivalPlan(h),stages=plan.filter(d=>d.kind.endsWith('_stage'));
+  for(const d of stages){assert.ok(shapesClearOfRoads(clusterShapes(d.kind,d.scale,d.x,d.z,d.yaw),roadsInBounds(d.x-100,d.z-100,d.x+100,d.z+100)));checked++;}
+ }
+ const forward=hearts.map(h=>JSON.stringify(festivalPlan(h)));
+ setSeed(seed+1);setSeed(seed);
+ const reverse=hearts.slice().reverse().map(h=>JSON.stringify(festivalPlan(h))).reverse();
+ assert.deepEqual(forward,reverse,'query order leaves plans unchanged');
+}
+console.log(`PASS ${checked} stage clearances across five seeds, negative controls and query-order determinism`);

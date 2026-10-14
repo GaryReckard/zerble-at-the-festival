@@ -1,0 +1,19 @@
+# Paused for requested 12:23 p.m. Eastern follow-up, October 14
+
+Uncommitted changes: src/worldgen/roads.js, src/worldgen/festival.js, src/chunks.js; new bin/test-stage-road-clearance. Do not restart or overwrite concurrent work. Prior committed overnight work ends at 47f5041.
+
+Seed 932033385 reproductions: side stage clusterSeed 2577575099 originally (369,-103), yaw -1.2271846303, scale 1.1214676137, moved to (340,-111); stage 659632957 originally (456,131), yaw 1.3744467859, scale 1.0773452909, moved to (491,130). Old dense road-overlap samples were 88 and 68 at 2m spacing. New 1m grids have 1,677 + 1,517 samples, all clear.
+
+Root cause: nudgeOffStage only excluded roads at the center; perimeter checks only water. Gap-bearing orientation did not guarantee actual curved road clearance. placePolePair had no road check. New shape-vs-polyline test checks circles exactly and oriented rectangles conservatively expanded by ribbon halfwidth+1m; stage candidate locations are quantized before checking. Search widened 52m to 122m, no RNG draws consumed. Road-unsafe fallback is removed; no valid stage spot now returns [] from the hub plan. Audit this fallback carefully, and fix stale nudge comments still describing the old search.
+
+bin/test-stage-road-clearance passes: both historical locations fail negative controls; both retained stages now clear; 288 stages across five seeds clear; reverse query order identical. Need add this command to npm check, ensure roadmap/goldens impacted by intended stage relocations are handled deliberately, run broader checks, examine generation cost (roadsInBounds per stage), and avoid claiming whole-world performance.
+
+Next: actual built light-pole registry assertions via a verification HTML using buildHubPreview or ChunkManager, muted hub screenshots at Noon/Midnight, both marker hubs and full main-game title-button boot plus console. Existing hub-sandbox URL: http://127.0.0.1:8765/hub-sandbox.html?seed=932033385&at=353.72,-112.55&mute=1 successfully loaded hub (1,-1), but screenshot not yet captured. User-owned server already on 8765, do not stop it. In-app browser preferred, no headless sessions. Update CHANGELOG/ROADMAP and commit when verified, no push.
+
+## Additional request and latest state
+
+Gary authorized remaining-budget progress, then requested refined ordinary NPCs in the band-member style: stylized rather than realistic, more unique outfits, culturally diverse appearances, and a small percentage holding a beverage. Use varied skin tones, hair textures/styles, clothing and accessories without ethnic stereotypes; beverage carriers need sensible hand/ride/interaction handling. Inspect src/models/puppet.js buildSimpleNPC and crowd.js construction first. The 12:23 automation has been updated for NPC refinement, and this note adds the latest diversity/beverage requirements.
+
+Added bin/test-stage-road-clearance to npm check and corrected stale nudge comments. Full npm check was started with output in /tmp/stage-road-check.log, exec session 76227; check its completion before declaring it passed. Added verification/stage-road-clearance/check.html to build both actual hubs and assert all registered lampposts clear the road shoulder, but it has NOT RUN. Browser approval review blocked verification due to usage limit, reset message 12:22 p.m.; do not work around this through another browser surface. The 12:23 follow-up should retry ordinary verification after reset. No commit of this stage/road work yet.
+
+Full npm check stopped at the far-field fixture: "FAIL: seed 9876 low-tier peak reproduction must retain its 200 visible candidates". Intended stage relocations can change nearby festival composition; investigate whether this is an obsolete exact-count fixture or a real regression before updating expectations. Do not report the full suite as passed.

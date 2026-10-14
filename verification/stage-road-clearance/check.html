@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>Stage road clearance</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Checking production hub builders…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {buildHubPreview,disposeChunkByKey} from '../../src/chunks.js';
+import {Crowd} from '../../src/crowd.js';
+import {registry} from '../../src/registry.js';
+import {setSeed} from '../../src/worldgen/index.js';
+import {heartsInBounds} from '../../src/worldgen/hearts.js';
+import {festivalPlan} from '../../src/worldgen/festival.js';
+import {nearestRoad} from '../../src/worldgen/roads.js';
+try{
+ setSeed(932033385);const results=[];
+ for(const id of [2577575099,659632957]){
+  const h=heartsInBounds(150,-350,700,350).find(h=>festivalPlan(h).some(d=>d.clusterSeed===id));
+  const scene=new THREE.Scene(),crowd=new Crowd({spawn(){}});
+  const start=performance.now(),preview=buildHubPreview(scene,h,{crowd});
+  const poles=[...registry.entries.values()].filter(e=>e.kind==='lamppost'&&e.chunkKey===preview.key);
+  if(!poles.length)throw Error('No poles built');
+  const distances=poles.map(e=>nearestRoad(e.position.x,e.position.z).dist);
+  if(distances.some(d=>d<4.5))throw Error('Pole overlaps road shoulder');
+  results.push({stage:id,heart:[h.cx,h.cz],poles:poles.length,minimumRoadDistance:Math.min(...distances),buildMilliseconds:performance.now()-start});
+  disposeChunkByKey(scene,preview.group,preview.key,crowd);
+ }
+ document.querySelector('#result').textContent=JSON.stringify({pass:true,results},null,2);
+}catch(e){document.querySelector('#result').textContent='FAIL '+e.stack;}
+</script>

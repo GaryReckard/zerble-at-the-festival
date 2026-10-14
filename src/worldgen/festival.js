@@ -45,7 +45,7 @@ import { CONFIG, SALT, worldgenEpoch } from './constants.js';
 import { FESTIVAL_TUNING, clusterShapes, clustersOverlap, clusterExtent } from './tuning.js';
 import { getSessionSeed } from '../rng.js';
 import { queryPoint } from './index.js';
-import { approachRoadsOf, nearestRoad } from './roads.js';
+import { approachRoadsOf, nearestRoad, roadsInBounds, shapesClearOfRoads } from './roads.js';
 import { heartInCell, heartsInBounds, nearestMajorHeart } from './hearts.js';
 import { lakeAt } from './water.js';
 import { treeDensity } from './density.js';
@@ -564,22 +564,18 @@ function nudgeOff(x, z, rng) {
   return null;
 }
 
-// Footprint-aware nudge for the STAGE deck. `nudgeOff` only tests the CENTER
-// point, but a stage deck is a ~13-19 m circle — its center can clear road+lake
-// while a back/side corner dips into a shore (Gary 2026-06-16: "tent stage
-// partially flooded, corner in the lake"). This requires the center off
-// road/lake AND a rosette of perimeter samples at `footR` clear of open water,
-// searching the same deterministic ring as `nudgeOff` but HASH-seeded so it
-// consumes NO rng — the rest of the hub's plan stream is untouched, and only a
-// genuinely-flooding stage moves. Falls back to the least-wet buildable spot,
-// then the heart center, so a lake-hemmed hub still gets its stage. Mirrors the
-// "least-wet gap" philosophy already used for the dancefloor front-axis.
-function nudgeOffStage(x, z, footR, heart) {
+// Protect the full deck and audience footprint from actual road polylines,
+// not just approach bearings. Candidate coordinates are quantized before the
+// clearance test so serialized plans cannot round back onto a road. Lake probes
+// retain the least-wet fallback, but roads remain a hard constraint.
+function nudgeOffStage(x, z, footR, heart, kind, scale, yaw) {
+  const roads = roadsInBounds(x-200,z-200,x+200,z+200);
+  const roadClear = (cx,cz) => shapesClearOfRoads(clusterShapes(kind,scale,cx,cz,yaw),roads);
   const T = FESTIVAL_TUNING;
   // 16 perimeter samples (~4 m apart on a 15 m deck) so a narrow shoreline inlet
   // can't slip between probes; plus a mid-radius ring for a deep finger of water.
   const wetness = (cx, cz) => {
-    if (queryPoint(cx, cz).noBuild) return Infinity;   // center on road/lake — never a candidate
+    if (queryPoint(cx, cz).noBuild || !roadClear(cx,cz)) return Infinity;
     let wet = 0;
     for (let k = 0; k < 16; k++) {
       const a = (k / 16) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
@@ -591,21 +587,18 @@ function nudgeOffStage(x, z, footR, heart) {
   if (wetness(x, z) === 0) return { x, z };
   const baseA = ((worldHash(heart.cx, heart.cz, SALT.poiLayout) >>> 0) / 4294967296) * Math.PI * 2;
   let best = null, bestWet = Infinity;
-  // Stages are big (13-19 m deck) AND anchor the hub, so a shore-hugging one needs
-  // a wider sweep than nudgeOff's 28 m to find dry ground — but the whole composition
-  // (dancefloor, potty, band) rides stageSpot, so they relocate together. 12 dirs ×
-  // out to ~52 m. A residual heavy-flood means a genuinely lake-hemmed hub (no dry
-  // deck within reach) → least-wet, same parked class as the dancefloor-mouth case.
-  for (let r = 10; r <= 52; r += 7) {
+  // Move the complete stage composition together, preserving its front axis and
+  // the caller's RNG stream. The wider search accommodates curved through-roads.
+  for (let r = 10; r <= 122; r += 7) {
     for (let k = 0; k < 12; k++) {
       const a = baseA + (k / 12) * Math.PI * 2;
-      const nx = x + Math.cos(a) * r, nz = z + Math.sin(a) * r;
+      const nx = quantize(x + Math.cos(a) * r), nz = quantize(z + Math.sin(a) * r);
       const w = wetness(nx, nz);
       if (w === 0) return { x: nx, z: nz };
       if (w < bestWet) { bestWet = w; best = { x: nx, z: nz }; }
     }
   }
-  return best || { x, z };
+  return best;
 }
 
 // Footprint-aware road/water nudge for the DRUM circle. `nudgeOff` tests only the
@@ -944,7 +937,8 @@ function _computePlan(heart) {
   const stageKind = major ? 'main_stage' : (rng() < 0.35 ? 'tent_stage' : 'side_stage');
   const stageScale = stageScaleOf(heart);       // rng-free (clusterSeed-derived)
   const stageFootR = (T.KIND_FOOTPRINT[stageKind] || 11) * stageScale;   // deck circle radius
-  const stageSpot = nudgeOffStage(heart.x, heart.z, stageFootR, heart);
+  const stageSpot = nudgeOffStage(heart.x, heart.z, stageFootR, heart, stageKind, stageScale, stageYaw);
+  if (!stageSpot) return []; // No road-safe stage anchor means no dependent festival clusters.
   const stage = desc(stageKind, stageSpot.x, stageSpot.z, stageYaw, 'core', heart.rank, true, clusterSeed(heart, IDX.stage));
   stage.fbin = fa.bin;                          // serialize F → the POI golden + window-invariance test see it (R18)
   stage.scale = stageScale;

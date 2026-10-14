@@ -352,3 +352,36 @@ export function roadsInBounds(minX, minZ, maxX, maxZ) {
   }
   return out;
 }
+
+// Conservative segment tests against the full occupied shape, expanded by the
+// visible ribbon and a shoulder. Slab clipping catches crossings even when both
+// polyline vertices are outside the dancefloor; point probes can miss those.
+export function shapesClearOfRoads(shapes, roads, margin = CONFIG.ROAD_WIDTH / 2 + 1) {
+  for (const {points} of roads) for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i];
+    for (const shape of shapes) {
+      if (shape.t === 'circle') {
+        const dx=b.x-a.x, dz=b.z-a.z, len=dx*dx+dz*dz;
+        const t=len?Math.max(0,Math.min(1,((shape.x-a.x)*dx+(shape.z-a.z)*dz)/len)):0;
+        if (Math.hypot(a.x+t*dx-shape.x,a.z+t*dz-shape.z) <= shape.r+margin) return false;
+      } else {
+        const ax=a.x-shape.x, az=a.z-shape.z, bx=b.x-shape.x, bz=b.z-shape.z;
+        const starts=[ax*shape.ux+az*shape.uz,ax*shape.uz-az*shape.ux];
+        const ends=[bx*shape.ux+bz*shape.uz,bx*shape.uz-bz*shape.ux];
+        const extents=[shape.hl+margin,shape.hw+margin];
+        let enter=0,exit=1;
+        for(let axis=0;axis<2;axis++) {
+          const delta=ends[axis]-starts[axis], extent=extents[axis];
+          if(Math.abs(delta)<1e-12) { if(Math.abs(starts[axis])>extent){enter=2;break;} }
+          else {
+            let lo=(-extent-starts[axis])/delta,hi=(extent-starts[axis])/delta;
+            if(lo>hi)[lo,hi]=[hi,lo];
+            enter=Math.max(enter,lo);exit=Math.min(exit,hi);
+          }
+        }
+        if(enter<=exit) return false;
+      }
+    }
+  }
+  return true;
+}
