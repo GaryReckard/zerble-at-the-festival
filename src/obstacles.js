@@ -419,13 +419,7 @@ export class KidGaggle {
         k.userData.displayedYaw = k.userData.heading;
         k.userData.turnTimer = Math.random() * 2;
         k.userData.speed = 3 + Math.random() * 2;
-        // Chase-stickiness: once a kid commits to a bubble, they stick with
-        // it for ~0.4s before re-considering. Otherwise two roughly
-        // equidistant bubbles would cause the "nearest" pick to flip every
-        // frame, whipping the kid back and forth.
-        k.userData.chaseHoldTimer = 0;
-        k.userData.chaseDirX = 0;
-        k.userData.chaseDirZ = 0;
+        k.userData.chaseTarget = null;
         // Honk-scatter timer: while > 0, the kid runs away from Zerble at
         // FLEE_SPEED. Set by KidGaggle.scatter() (honk) or the trajectory
         // dodge in update() (cart bearing down). fleeUrgency scales the sprint
@@ -582,20 +576,25 @@ export class KidGaggle {
       const k = this.kids[i];
 
       // ---- Find nearest live bubble (if any) ----
-      // Chase stickiness: if we're already locked onto a bubble (chaseHoldTimer > 0),
-      // bias the search to prefer the previously-chased direction. Without this,
-      // two roughly equidistant bubbles cause the "nearest" pick to flip frame-
-      // to-frame, whipping the kid's heading back and forth.
-      if (k.userData.chaseHoldTimer > 0) k.userData.chaseHoldTimer -= dt;
-      let chaseDx = 0, chaseDz = 0, chaseD = Infinity;
+      let chaseD = Infinity, nearestTarget = null, trackedD = Infinity;
       for (const bp of bubblePositions) {
         const dx = bp.x - k.position.x;
         const dz = bp.z - k.position.z;
         const d = Math.hypot(dx, dz);
         if (d < chaseD && d < BUBBLE_ATTRACT_RANGE) {
-          chaseD = d; chaseDx = dx; chaseDz = dz;
+          chaseD = d; nearestTarget = bp;
         }
+        if (bp === k.userData.chaseTarget) trackedD = d;
       }
+      // Keep a real target, rather than blending old and new directions.
+      // A new bubble must be appreciably closer before the kid switches.
+      if (trackedD >= BUBBLE_ATTRACT_RANGE || chaseD + 0.8 < trackedD) {
+        k.userData.chaseTarget = nearestTarget;
+      }
+      const target = k.userData.chaseTarget;
+      const targetDx = target ? target.x - k.position.x : 0;
+      const targetDz = target ? target.z - k.position.z : 0;
+      const targetD = target === nearestTarget ? chaseD : trackedD;
 
       // Tick scatter timer first so the test below sees a fresh value.
       if (k.userData.scatterTimer > 0) k.userData.scatterTimer -= dt;
@@ -668,33 +667,16 @@ export class KidGaggle {
         const fleeSpeed = FLEE_SPEED * (k.userData.fleeUrgency || 1);
         k.position.x += Math.sin(k.userData.heading) * fleeSpeed * dt;
         k.position.z += -Math.cos(k.userData.heading) * fleeSpeed * dt;
-      } else if (chaseD < BUBBLE_ATTRACT_RANGE && chaseD > BUBBLE_GRAB_RANGE) {
-        // Chase the bubble! If chase-stickiness is still active AND last
-        // chase direction is close to the current nearest, blend toward
-        // the new direction smoothly instead of snapping — kills the
-        // "two-bubble flicker" where the nearest pick oscillates between
-        // candidates a degree apart in distance.
-        const inv = 1 / (chaseD || 1);
-        const newDirX = chaseDx * inv;
-        const newDirZ = chaseDz * inv;
-        if (k.userData.chaseHoldTimer > 0) {
-          // Blend old direction toward new (lerp), keeps motion smooth
-          const lerp = Math.min(1, dt * 4);
-          k.userData.chaseDirX = k.userData.chaseDirX + (newDirX - k.userData.chaseDirX) * lerp;
-          k.userData.chaseDirZ = k.userData.chaseDirZ + (newDirZ - k.userData.chaseDirZ) * lerp;
-        } else {
-          // No active chase — commit to this bubble for ~0.4s before
-          // reconsidering.
-          k.userData.chaseDirX = newDirX;
-          k.userData.chaseDirZ = newDirZ;
-          k.userData.chaseHoldTimer = 0.4;
+      } else if (target) {
+        // Stop at arm's reach. Crossing that radius used to enter wander
+        // immediately, which sent the kid out and back every few frames.
+        if (targetD > BUBBLE_GRAB_RANGE) {
+          const step = Math.min(BUBBLE_ATTRACT_SPEED * dt, targetD - BUBBLE_GRAB_RANGE);
+          k.userData.heading = Math.atan2(targetDx, -targetDz);
+          k.userData.turnTimer = 0.4;
+          k.position.x += targetDx / targetD * step;
+          k.position.z += targetDz / targetD * step;
         }
-        // userData.heading uses: dx = sin(h), dz = -cos(h)  →  h = atan2(dx, -dz)
-        k.userData.heading = Math.atan2(k.userData.chaseDirX, -k.userData.chaseDirZ);
-        k.userData.turnTimer = 0.4 + Math.random() * 0.4;
-        const stepSpeed = BUBBLE_ATTRACT_SPEED;
-        k.position.x += k.userData.chaseDirX * stepSpeed * dt;
-        k.position.z += k.userData.chaseDirZ * stepSpeed * dt;
       } else {
         // Default wander behavior with periodic course changes
         k.userData.turnTimer -= dt;
@@ -713,7 +695,7 @@ export class KidGaggle {
         const cz = k.position.z - k.userData.center.z;
         const cd = Math.hypot(cx, cz);
         if (cd > 12) {
-          k.userData.heading = Math.atan2(-cx, -cz) + (Math.random() - 0.5) * 0.4;
+          k.userData.heading = Math.atan2(-cx, cz) + (Math.random() - 0.5) * 0.4;
         }
       }
 
@@ -726,7 +708,7 @@ export class KidGaggle {
       // Visual animation (smooth yaw + bounce) lives in tickKid so the
       // sandbox and game can't drift apart. See models/kid.js.
       tickKid(k, dt, {
-        excited: chaseD < BUBBLE_ATTRACT_RANGE,
+        excited: !!target,
         targetYaw: k.userData.heading,
       });
 

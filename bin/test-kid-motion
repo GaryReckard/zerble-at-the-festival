@@ -1,0 +1,133 @@
+#!/usr/bin/env node
+
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+const source = readFileSync(new URL('../src/obstacles.js', import.meta.url), 'utf8');
+const start = source.indexOf('  update(dt, bubbles, zerble, smiles) {', source.indexOf('export class KidGaggle {'));
+const end = source.indexOf('\n}\n', start);
+assert(start >= 0 && end > start, 'find the production KidGaggle.update method');
+
+class Vector {
+  constructor(x = 0, y = 0, z = 0) { this.set(x, y, z); }
+  set(x, y, z) { Object.assign(this, { x, y, z }); return this; }
+  copy(p) { return this.set(p.x, p.y, p.z); }
+  clone() { return new Vector(this.x, this.y, this.z); }
+  distanceTo(p) { return Math.hypot(this.x - p.x, this.y - p.y, this.z - p.z); }
+}
+
+const poses = [];
+const update = vm.runInNewContext(`({${source.slice(start, end)}}).update`, {
+  Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
+  isPointInLake: () => false,
+  StarPower: { isActive: () => false },
+  laneDodgeTest: () => false,
+  pushOutOfHardColliders: () => {},
+  tickKid: (kid, dt, options) => poses.push({ yaw: options.targetYaw, excited: options.excited }),
+});
+const kid = (x = 0, z = 0) => ({
+  position: new Vector(x, 0, z),
+  userData: {
+    center: new Vector(x, 0, z), heading: -Math.PI / 2, displayedYaw: -Math.PI / 2,
+    turnTimer: 10, speed: 4, chaseHoldTimer: 0, chaseDirX: 0, chaseDirZ: 0,
+    scatterTimer: 0, fleeUrgency: 1, happiness: 0, smileTimeCooldown: 0, lastSmilePos: null,
+  },
+});
+const setup = (k) => ({ kids: [k], colliders: [{ position: new Vector() }] });
+const pool = (points) => ({ forEachAlive(fn) { for (const pos of points) fn({ pos }); } });
+const step = (g, points, dt = 1 / 60, zerble = null) => update.call(g, dt, pool(points), zerble, null);
+const parkedCart = {
+  position: new Vector(0, 0, 0), nozzleWorld: new Vector(0, 0, 2),
+  forwardWorld: new Vector(0, 0, -1), speed: 0,
+};
+
+// A bubble at arm's reach should not make a child alternately sprint and wander.
+{
+  const k = kid(0.6, 0), g = setup(k), bubble = new Vector(0, 1, 0);
+  for (let n = 0; n < 60; n++) {
+    step(g, [bubble]);
+    assert(Math.hypot(k.position.x - bubble.x, k.position.z - bubble.z) <= 0.71,
+      `kid stays at the grab radius of a stationary bubble on frame ${n}`);
+  }
+}
+
+// A tracked bubble remains the target when two candidates trade nearest place by centimeters.
+{
+  const k = kid(0, 0), g = setup(k);
+  const left = new Vector(-4, 1, 0), right = new Vector(4, 1, 0);
+  step(g, [left, right]);
+  const first = k.userData.chaseTarget;
+  assert.equal(first, left, 'first equidistant bubble becomes the tracked target');
+  for (let n = 0; n < 20; n++) {
+    left.x = -4 - (n % 2 ? 0.1 : 0);
+    right.x = 4 + (n % 2 ? 0 : 0.1);
+    step(g, [left, right]);
+  }
+  assert.equal(k.userData.chaseTarget, first, 'small nearest-distance changes do not flip targets');
+  assert(k.position.x < -1, 'kid keeps moving toward its committed target');
+  right.x = k.position.x + 0.9;
+  step(g, [left, right]);
+  assert.equal(k.userData.chaseTarget, right, 'kid switches when another bubble is substantially closer');
+}
+
+// Even a long frame cannot carry the kid through a bubble and reverse its heading.
+{
+  const k = kid(-0.9, 0), g = setup(k), bubble = new Vector(0, 1, 0);
+  step(g, [bubble], 0.25);
+  assert(Math.abs(k.position.x + 0.7) < 1e-8, 'chase step clamps at the grab radius');
+  assert(k.userData.heading > 1.5 && k.userData.heading < 1.7, 'heading still faces the bubble');
+}
+
+// Reaching the edge of a gaggle should always turn toward the center, including +Z.
+{
+  const k = kid(0, 12.1), g = setup(k);
+  k.userData.center.set(0, 0, 0);
+  k.userData.heading = Math.PI;
+  step(g, []);
+  assert(Math.cos(k.userData.heading) > 0.9, 'outer +Z kid aims back toward -Z');
+}
+
+// Keep the established faster-than-adult pace, independent of frame size.
+for (const dt of [1 / 30, 1 / 60, 1 / 120]) {
+  const k = kid(0, 0), g = setup(k);
+  k.userData.heading = Math.PI / 2;
+  k.userData.center.x = 100;
+  for (let n = 0; n < Math.round(0.5 / dt); n++) step(g, [], dt);
+  assert(Math.abs(k.position.x - 2) < 1e-8, `wander speed stays 4 m/s at dt=${dt}`);
+
+  const runner = kid(-4, 0), chase = setup(runner), bubble = new Vector(0, 1, 0);
+  for (let n = 0; n < Math.round(0.5 / dt); n++) step(chase, [bubble], dt, parkedCart);
+  assert(Math.abs(runner.position.x + 1.9) < 1e-8,
+    `bubble sprint stays 4.2 m/s beside a stationary cart at dt=${dt}`);
+  assert.equal(runner.userData.scatterTimer, 0, 'stationary cart does not trigger lane dodge');
+}
+
+// Once the bubble is gone, the child resumes ordinary movement.
+{
+  const k = kid(-1, 0), g = setup(k), bubble = new Vector(0, 1, 0);
+  step(g, [bubble]);
+  assert.equal(k.userData.chaseTarget, bubble);
+  step(g, []);
+  assert.equal(k.userData.chaseTarget, null);
+  assert.equal(poses.at(-1).excited, false);
+}
+
+// The display yaw takes the shortest path across the -PI/+PI seam.
+{
+  const modelSource = readFileSync(new URL('../src/models/kid.js', import.meta.url), 'utf8');
+  const tickStart = modelSource.indexOf('export function tickKid(');
+  assert(tickStart >= 0, 'find the production visual animation');
+  const tick = vm.runInNewContext(`(${modelSource.slice(tickStart).replace('export function', 'function')})`, {
+    Math, performance: { now: () => 0 },
+  });
+  const model = {
+    userData: { displayedYaw: Math.PI - 0.02, bouncePhase: 0 },
+    rotation: { y: 0 }, children: [{ position: { y: 0 } }],
+  };
+  tick(model, 1 / 60, { targetYaw: -Math.PI + 0.02 });
+  assert(model.rotation.y > Math.PI - 0.02 && model.rotation.y < Math.PI + 0.02,
+    'display yaw crosses the seam by the short arc');
+}
+
+process.stdout.write('PASS  kid target commitment, grab radius, state changes, center steering, angle wrap and speed at 30/60/120 fps\n');
