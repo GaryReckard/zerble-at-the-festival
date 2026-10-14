@@ -1,0 +1,164 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bubble pop preview</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+<style>
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#071522;color:#e9f5ff;font:14px system-ui,sans-serif}
+  canvas{display:block;width:100%;height:100%}
+  #panel{position:fixed;top:14px;left:14px;max-width:min(650px,calc(100vw - 56px));padding:14px 16px;border:1px solid #b8e6ff55;border-radius:12px;background:#071522dc;backdrop-filter:blur(8px)}
+  h1{font-size:16px;margin:0 0 8px}.row{display:flex;flex-wrap:wrap;gap:7px;margin:7px 0}button{padding:7px 10px;border:1px solid #b8e6ff66;border-radius:7px;background:#152c3c;color:#e9f5ff;font:inherit;cursor:pointer}button.active{background:#bcecff;color:#102438;font-weight:650}#status{margin:8px 0 0;color:#c2d8e9;font-variant-numeric:tabular-nums}#labels{position:fixed;top:50%;left:0;right:0;display:flex;justify-content:space-evenly;pointer-events:none;color:#d8efff;text-shadow:0 1px 5px #001}
+</style>
+<div id="panel">
+  <h1>Bubble pop · deterministic snapshots</h1>
+  <div class="row" aria-label="Pop stage">
+    <button data-stage="before">Before</button>
+    <button data-stage="80">Pop +80 ms</button>
+    <button data-stage="180">Pop +180 ms</button>
+    <button data-stage="finished">Finished</button>
+    <button id="replay">Replay</button>
+  </div>
+  <div class="row" aria-label="Lighting preset">
+    <button data-light="noon">Noon</button>
+    <button data-light="midnight">Midnight</button>
+  </div>
+  <p id="status">Before · fixed positions and seed</p>
+</div>
+<div id="labels"><span>Intact</span><span>Pop</span></div>
+<script type="module">
+import * as THREE from 'three';
+import { Bubbles } from '../../src/bubbles.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.append(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x071522);
+const camera = new THREE.OrthographicCamera(-1.55, 1.55, 0.88, -0.88, 0.1, 20);
+camera.position.set(0, 1.15, 3.1);
+camera.lookAt(0, 1.15, 0);
+const hemisphere = new THREE.HemisphereLight(0xbcecff, 0x173044, 1.8);
+const key = new THREE.DirectionalLight(0xffffff, 2.1);
+key.position.set(-2, 4, 3);
+scene.add(hemisphere, key);
+
+const bubbles = new Bubbles();
+bubbles.juice = 0;
+scene.add(bubbles.mesh);
+const cart = { speed: 0, nozzleWorld: new THREE.Vector3(), forwardWorld: new THREE.Vector3(0, 0, 1) };
+const intact = bubbles.particles[0];
+const target = bubbles.particles[1];
+const leftPosition = new THREE.Vector3(-0.52, 1.15, 0);
+const rightPosition = new THREE.Vector3(0.52, 1.15, 0);
+const status = document.querySelector('#status');
+let replaying = false;
+let lastFrame = performance.now();
+
+function clearPreview() {
+  replaying = false;
+  for (const p of bubbles.particles) { p.alive = false; p.popping = false; }
+  for (const d of bubbles._droplets) d.alive = false;
+  bubbles._dropletCount = 0;
+  bubbles._dropletCursor = 0;
+  bubbles._popSerial = 0;
+  bubbles._spawnAcc = 0;
+  Object.assign(intact, { alive: true, popping: false, age: 0, life: 100, size: 1.5 });
+  intact.pos.copy(leftPosition); intact.vel.set(0, 0, 0);
+  Object.assign(target, { alive: true, popping: false, age: 0, life: 100, size: 1.5 });
+  target.pos.copy(rightPosition); target.vel.set(0, 0, 0);
+  bubbles._writeInstance(0, intact.pos, intact.size, 0);
+  bubbles._writeInstance(1, target.pos, target.size, 0);
+  bubbles.mesh.instanceMatrix.needsUpdate = true;
+  bubbles._dropletMesh.visible = false;
+  for (let i = 0; i < bubbles._droplets.length; i++) {
+    bubbles._dropletMesh.setMatrixAt(i, bubbles._dropletMatrix.makeScale(0, 0, 0));
+  }
+  bubbles._dropletMesh.instanceMatrix.needsUpdate = true;
+  bubbles.update(0, cart);
+}
+
+function freezeIntact() {
+  intact.pos.copy(leftPosition);
+  intact.vel.set(0, 0, 0);
+  bubbles._writeInstance(0, leftPosition, intact.size, 0);
+  bubbles.mesh.instanceMatrix.needsUpdate = true;
+}
+
+function selectStage(stage) {
+  clearPreview();
+  const labels = { before: 'Before', '80': 'Pop +80 ms', '180': 'Pop +180 ms', finished: 'Finished' };
+  if (stage !== 'before') {
+    bubbles._popBubble(1, target);
+    const duration = stage === '80' ? 0.08 : stage === '180' ? 0.18 : 0.26;
+    let elapsed = 0;
+    while (elapsed + 1 / 60 <= duration) {
+      bubbles.update(1 / 60, cart);
+      elapsed += 1 / 60;
+    }
+    if (duration > elapsed) bubbles.update(duration - elapsed, cart);
+    freezeIntact();
+  }
+  status.textContent = `${labels[stage]} · ${bubbles._dropletCount} droplets · frozen snapshot`;
+  for (const button of document.querySelectorAll('[data-stage]')) {
+    button.classList.toggle('active', button.dataset.stage === stage);
+  }
+}
+
+for (const button of document.querySelectorAll('[data-stage]')) {
+  button.addEventListener('click', () => selectStage(button.dataset.stage));
+}
+document.querySelector('#replay').addEventListener('click', () => {
+  clearPreview();
+  bubbles._popBubble(1, target);
+  replaying = true;
+  status.textContent = 'Replay · production update loop';
+  for (const button of document.querySelectorAll('[data-stage]')) button.classList.remove('active');
+});
+
+function setLight(mode) {
+  const night = mode === 'midnight';
+  scene.background.setHex(night ? 0x071522 : 0x8eaec4);
+  hemisphere.color.setHex(night ? 0x334c77 : 0xe1f4ff);
+  hemisphere.groundColor.setHex(night ? 0x10152d : 0x466176);
+  hemisphere.intensity = night ? 0.8 : 1.8;
+  key.color.setHex(night ? 0x9caeff : 0xffffff);
+  key.intensity = night ? 1.15 : 2.1;
+  bubbles.update(0, cart, night ? 1 : 0);
+  freezeIntact();
+  for (const button of document.querySelectorAll('[data-light]')) {
+    button.classList.toggle('active', button.dataset.light === mode);
+  }
+}
+for (const button of document.querySelectorAll('[data-light]')) {
+  button.addEventListener('click', () => setLight(button.dataset.light));
+}
+
+function frame(now) {
+  const dt = Math.min((now - lastFrame) / 1000, 0.05);
+  lastFrame = now;
+  if (replaying) {
+    bubbles.update(dt, cart);
+    freezeIntact();
+    status.textContent = bubbles._dropletCount
+      ? `Replay · ${bubbles._dropletCount} droplets · production update loop`
+      : 'Replay finished · use Replay to run again';
+    if (!bubbles._dropletCount) replaying = false;
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+setLight('noon');
+selectStage('before');
+requestAnimationFrame(frame);
+addEventListener('resize', () => {
+  const aspect = innerWidth / innerHeight;
+  camera.left = -0.88 * aspect;
+  camera.right = 0.88 * aspect;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>

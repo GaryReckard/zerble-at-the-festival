@@ -147,6 +147,7 @@ export class InstancedBufferAttribute {
 }
 export class InstancedMesh {
   constructor(geometry, material, count) {
+    this.isInstancedMesh = true;
     this.geometry = geometry; this.material = material; this.count = count;
     this.userData = {}; this.castShadow = false; this.receiveShadow = false;
     this.visible = true; this.frustumCulled = true; this.disposeCount = 0;
@@ -155,6 +156,7 @@ export class InstancedMesh {
     this.instanceColor = null;
   }
   setMatrixAt() {}
+  add(...objs) { for (const o of objs) { o.parent = this; } return this; }
   setColorAt() { if (!this.instanceColor) this.instanceColor = { needsUpdate: false }; }
   computeBoundingSphere() {}
   dispose() { this.disposeCount++; }

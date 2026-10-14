@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+import { register } from 'node:module';
+import assert from 'node:assert/strict';
+register('./node-three-shim.mjs', import.meta.url);
+
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: { hardwareConcurrency: 8, deviceMemory: 8, maxTouchPoints: 0 },
+});
+globalThis.location = { search: '?perf=low' };
+globalThis.window = { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1 };
+globalThis.localStorage = { getItem: () => null };
+
+const { Bubbles } = await import('../src/bubbles.js');
+const { Vector3 } = await import('three');
+const bubbles = new Bubbles();
+const cart = { speed: 0, nozzleWorld: new Vector3(0, 3, 0), forwardWorld: new Vector3(0, 0, 1) };
+bubbles.juice = 0;
+
+const bubble = bubbles.particles[0];
+Object.assign(bubble, { alive: true, popping: false, age: bubble.life, life: 1, size: 1 });
+bubble.pos.set(0, 3, 0);
+bubble.vel.set(0, 0, 0);
+bubbles.update(0, cart);
+
+assert.equal(bubble.alive, false, 'sphere is removed on its pop frame');
+assert.equal(bubbles.activeCount, 0);
+assert.equal(bubbles.mesh.count, 0, 'popped sphere is no longer submitted');
+assert.equal(bubbles._dropletCount, 7);
+assert.equal(bubbles._dropletMesh.parent, bubbles.mesh, 'droplets follow existing scene attachment');
+assert.equal(bubbles._dropletMesh.castShadow, false);
+assert.equal(bubbles._dropletMesh.isInstancedMesh, true, 'all droplets share one instanced draw');
+assert.equal(bubbles.mesh.visible, true, 'droplet draw remains visible after the sphere disappears');
+
+const vectors = bubbles._droplets.filter((d) => d.alive).map((d) => [d.vx, d.vy, d.vz]);
+assert.ok(vectors.some(([x]) => x > 0) && vectors.some(([x]) => x < 0), 'directions cover both sides of X');
+assert.ok(vectors.some(([, y]) => y > 0) && vectors.some(([, y]) => y < 0), 'directions cover both sides of Y');
+assert.ok(vectors.some(([, , z]) => z > 0) && vectors.some(([, , z]) => z < 0), 'directions cover both sides of Z');
+for (const [x, y, z] of vectors) assert.ok(Math.hypot(x, y, z) >= 0.99, 'each droplet has enough outward speed');
+for (const d of bubbles._droplets) {
+  if (!d.alive) continue;
+  assert.ok(Math.abs(Math.hypot(d.x, d.y - 3, d.z) - 0.11) < 1e-6,
+    'each droplet starts on the original sphere shell');
+}
+
+for (let frame = 0; frame < 15; frame++) bubbles.update(1 / 60, cart);
+for (const d of bubbles._droplets) {
+  if (!d.alive) continue;
+  const travel = Math.hypot(d.x, d.y - 3, d.z) - 0.11;
+  assert.ok(travel >= 0.1 && travel <= 0.2, 'droplets spread 0.1–0.2 m by 0.25 seconds');
+}
+
+const pool = bubbles._droplets;
+for (let i = 0; i < 25; i++) {
+  bubble.alive = true;
+  bubbles._popBubble(0, bubble);
+}
+assert.equal(bubbles._droplets, pool, 'pool storage remains fixed');
+assert.equal(bubbles._dropletCount, 128, 'pool saturates at its fixed capacity');
+
+bubbles.update(0.25, cart);
+assert.equal(bubbles._dropletCount, 0, 'droplets fade away within 0.25 seconds');
+assert.equal(bubbles.mesh.visible, false, 'both draws hide after the effect ends');
+bubble.alive = true;
+bubbles._popBubble(0, bubble);
+assert.equal(bubbles._dropletCount, 7, 'freed slots are reused by later pops');
+
+const groundBubbles = new Bubbles();
+groundBubbles.juice = 0;
+const grounded = groundBubbles.particles[1];
+const remains = groundBubbles.particles[0];
+Object.assign(grounded, { alive: true, popping: false, age: 0, life: 10, size: 1 });
+grounded.pos.set(0, 0.21, 0);
+grounded.vel.set(0, -4, 0);
+Object.assign(remains, { alive: true, popping: false, age: 0, life: 10, size: 1 });
+remains.pos.set(0, 3, 0);
+remains.vel.set(0, 0, 0);
+groundBubbles.update(0.1, cart);
+assert.equal(grounded.alive, false, 'ground collision removes the popped sphere');
+assert.equal(groundBubbles.activeCount, 1, 'ground pop is excluded from active bubble count');
+assert.equal(groundBubbles.mesh.count, 1, 'ground pop does not extend the submitted bubble prefix');
+
+process.stdout.write('PASS  bubble pops remove instantly, emit pooled outward droplets, then fade cleanly\n');

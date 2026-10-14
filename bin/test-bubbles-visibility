@@ -54,13 +54,11 @@ assert.equal(bubbles.mesh.count, bubbles.particles.length, 'sparse final slot ca
 assert.ok(bubbles.activeCount < bubbles.mesh.count, 'interior dead slots must not be compacted');
 last.age = last.life;
 bubbles.update(0, cart);
-assert.equal(last.popping, true);
-assert.equal(bubbles.mesh.count, bubbles.particles.length, 'new pop retains its slot');
-bubbles.update(0.1, cart);
-assert.equal(bubbles.mesh.count, bubbles.particles.length, 'shrinking pop retains its slot');
-bubbles.update(0.2, cart);
 assert.equal(last.alive, false);
-assert.equal(bubbles.mesh.count, bubbles.activeCount, 'expired last slot trims the dead tail');
+assert.equal(bubbles.mesh.count, bubbles.activeCount, 'popped sphere leaves the render submission immediately');
+assert.ok(bubbles._dropletCount > 0, 'popping emits droplets');
+bubbles.update(0.25, cart);
+assert.equal(bubbles._dropletCount, 0, 'droplets fade out within a quarter second');
 for (const p of bubbles.particles) {
   Object.assign(p, { alive: true, popping: false, age: 0, life: 100 });
   p.pos.set(0, 2, 0);

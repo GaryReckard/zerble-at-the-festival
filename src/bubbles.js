@@ -28,7 +28,9 @@ export const JUICE_STACK_MAX = Infinity;   // no stockpile cap — Gary wanted u
 const GRAVITY = -0.45;
 const BUOYANCY = 1.0;
 const LIFETIME = 22;     // ~2.75x the original 8s — bubbles linger long enough to feel like a trail
-const POP_SCALE_TIME = 0.25;
+const POP_TIME = 0.25;
+const DROPLETS_PER_POP = 7;
+const MAX_DROPLETS = 128;
 
 // Reused across every _writeInstance call — avoids a Vector3 allocation per live bubble per frame.
 const _AXIS_Y = new THREE.Vector3(0, 1, 0);
@@ -93,6 +95,31 @@ export class Bubbles {
     this.mesh.count = 0;
     this.mesh.visible = false;
     this.activeCount = 0;
+
+    // A single child draw keeps the little soap flecks inside the existing
+    // bubble render path, including its scene attachment and lifecycle.
+    const dropletGeometry = new THREE.IcosahedronGeometry(0.025, 0);
+    const dropletMaterial = new THREE.MeshBasicMaterial({
+      color: 0xbcecff, transparent: true, opacity: 0.38, depthWrite: false,
+    });
+    this._dropletMesh = new THREE.InstancedMesh(dropletGeometry, dropletMaterial, MAX_DROPLETS);
+    this._dropletMesh.count = MAX_DROPLETS;
+    this._dropletMesh.frustumCulled = false;
+    this._dropletMesh.castShadow = false;
+    this._dropletMatrix = new THREE.Matrix4();
+    this._dropletPosition = new THREE.Vector3();
+    this._dropletScale = new THREE.Vector3();
+    for (let i = 0; i < MAX_DROPLETS; i++) {
+      this._dropletMesh.setMatrixAt(i, this._dropletMatrix.makeScale(0, 0, 0));
+    }
+    this._droplets = Array.from({ length: MAX_DROPLETS }, () => ({
+      alive: false, age: 0, life: POP_TIME,
+      x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0,
+    }));
+    this._dropletCursor = 0;
+    this._dropletCount = 0;
+    this._popSerial = 0;
+    this.mesh.add(this._dropletMesh);
 
     // Hide all instances initially by scaling to 0.
     const m = new THREE.Matrix4();
@@ -202,7 +229,6 @@ export class Bubbles {
       this._spawnOne(zerble);
     }
 
-    // Popping bubbles remain renderable until their final scale-down frame.
     let activeCount = 0;
     let renderCount = 0;
     for (let i = 0; i < this.particles.length; i++) {
@@ -212,30 +238,14 @@ export class Bubbles {
       p.age += dt;
 
       if (p.popping) {
-        const t = (p.age - p.popStart) / POP_SCALE_TIME;
-        if (t >= 1) {
-          p.alive = false;
-          this._tmpMat.makeScale(0, 0, 0);
-          this.mesh.setMatrixAt(i, this._tmpMat);
-          continue;
-        }
-        activeCount++;
-        renderCount = i + 1;
-        const s = p.size * (1 - t) * (1 + t * 1.5);
-        this._writeInstance(i, p.pos, s, p.spin);
+        this._popBubble(i, p);
         continue;
       }
 
       if (p.age >= p.life) {
-        p.popping = true;
-        p.popStart = p.age;
-        activeCount++;
-        renderCount = i + 1;
+        this._popBubble(i, p);
         continue;
       }
-
-      activeCount++;
-      renderCount = i + 1;
 
       // Physics: gentle buoyancy + per-bubble personality forces
       p.vel.y += (BUOYANCY + GRAVITY) * dt;
@@ -289,13 +299,16 @@ export class Bubbles {
 
       // Pop on ground
       if (p.pos.y < 0.2) {
-        p.popping = true;
-        p.popStart = p.age;
+        this._popBubble(i, p);
+        continue;
       }
 
+      activeCount++;
+      renderCount = i + 1;
       this._writeInstance(i, p.pos, p.size, p.spin);
     }
 
+    this._updateDroplets(dt);
     this.activeCount = activeCount;
     // r160 uses this cached sphere for transparency sorting even with culling off.
     // Preserve the original full-pool bound, including zero-scaled dead slots.
@@ -305,8 +318,67 @@ export class Bubbles {
     }
     // Keep slot order (it drives motion and transparency), skipping only the dead tail.
     this.mesh.count = renderCount;
-    this.mesh.visible = activeCount > 0;
+    this.mesh.visible = activeCount > 0 || this._dropletCount > 0;
     this.mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  _popBubble(i, p) {
+    if (!p.alive) return;
+    p.alive = false;
+    p.popping = true;
+    this._tmpMat.makeScale(0, 0, 0);
+    this.mesh.setMatrixAt(i, this._tmpMat);
+
+    // Fibonacci-sphere directions spread each pop across the full sphere and
+    // rotate successive bursts without consuming the world's random stream.
+    const serial = this._popSerial++;
+    const phase = serial * 2.399963229728653;
+    for (let j = 0; j < DROPLETS_PER_POP; j++) {
+      const slot = this._dropletCursor;
+      this._dropletCursor = (slot + 1) % MAX_DROPLETS;
+      const d = this._droplets[slot];
+      if (!d.alive) this._dropletCount++;
+      const y = 1 - 2 * (j + 0.5) / DROPLETS_PER_POP;
+      const radius = Math.sqrt(1 - y * y);
+      const angle = phase + j * 2.399963229728653;
+      const speed = 1.0 + ((serial + j * 3) % 5) * 0.15;
+      const shellRadius = 0.11 * p.size;
+      d.alive = true;
+      d.age = 0;
+      d.life = POP_TIME;
+      d.x = p.pos.x + Math.cos(angle) * radius * shellRadius;
+      d.y = p.pos.y + y * shellRadius;
+      d.z = p.pos.z + Math.sin(angle) * radius * shellRadius;
+      d.vx = Math.cos(angle) * radius * speed;
+      d.vy = y * speed;
+      d.vz = Math.sin(angle) * radius * speed;
+    }
+  }
+
+  _updateDroplets(dt) {
+    let live = 0;
+    for (let i = 0; i < MAX_DROPLETS; i++) {
+      const d = this._droplets[i];
+      if (!d.alive) continue;
+      d.age += dt;
+      const t = d.age / d.life;
+      if (t >= 1) {
+        d.alive = false;
+        this._dropletCount--;
+        this._dropletMesh.setMatrixAt(i, this._dropletMatrix.makeScale(0, 0, 0));
+        continue;
+      }
+      const damping = Math.pow(0.88, dt * 60);
+      d.vx *= damping; d.vy *= damping; d.vz *= damping;
+      d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt;
+      this._dropletPosition.set(d.x, d.y, d.z);
+      this._dropletScale.setScalar(1 - t);
+      this._dropletMatrix.compose(this._dropletPosition, this._tmpQuat, this._dropletScale);
+      this._dropletMesh.setMatrixAt(i, this._dropletMatrix);
+      live++;
+    }
+    this._dropletMesh.visible = live > 0;
+    this._dropletMesh.instanceMatrix.needsUpdate = true;
   }
 
   _spawnOne(zerble) {
