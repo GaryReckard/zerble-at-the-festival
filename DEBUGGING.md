@@ -798,3 +798,5 @@ On localhost, `/?seed=1234&nutwagon=1&mute=1` forces the nearest clear road enco
 Run `node bin/test-nut-wagon` for route math and `/verification/nut-wagon/system.html?perf=low&mute=1` for the real Three/Crowd controller checks, including boarding, movement, music position, and lifecycle cleanup.
 
 Monk previews (always append mute=1): sandbox.html?entity=monk for the model, entity=monk_party for loose wandering, and entity=nut_wagon_monks for six-person boarding and riding. The __dbg.monks() helper reports party count, state, vehicle, amenity waiting and destination. The localhost forced-wagon overlay also shows monk count/state. verification/nut-wagon/monks.html?perf=low&mute=1 runs production party/Crowd checks; repeat with perf=mid. [Saved evidence](verification/nut-wagon/MONKS.md).
+
+The backtick panel’s Teleport picker includes **Nut Wagon (active)** and **Monks (active group)** in the current festival layout. Select one and press **Go** to move beside its live position, facing it. Missing encounters show a specific not-spawned message; teleporting does not force a spawn.

@@ -349,6 +349,26 @@ function locateLandmark(kind) {
       const p = forestEntrancePoint(f);
       return { ...p, label: `forest at (${f.centerCx}, ${f.centerCz})` };
     }
+    case 'nut_wagon':
+    case 'monks': {
+      const wagon = h.nutWagon;
+      let target = null;
+      if (kind === 'nut_wagon') {
+        if (!wagon?.active) return null;
+        target = wagon.position;
+      } else {
+        for (const monk of h.monks?.members || []) {
+          if (!target || Math.hypot(monk.pos.x - zx, monk.pos.z - zz)
+              < Math.hypot(target.x - zx, target.z - zz)) target = monk.pos;
+        }
+        if (!target) return null;
+      }
+      // Approach alongside the vehicle, clear of its long body and front platform.
+      const yaw = wagon?.active ? wagon.root.rotation.y : 0;
+      const dx = Math.cos(yaw) * 9, dz = -Math.sin(yaw) * 9;
+      return { x: target.x + dx, z: target.z + dz, heading: Math.atan2(dx, dz),
+        label: kind === 'nut_wagon' ? 'Nut Wagon' : 'monk group' };
+    }
     case 'lurleen': {
       const l = h.lurleen;
       if (!l || !l.position) return null;
@@ -693,6 +713,8 @@ function buildPanel() {
     ['arch',         'Entrance arch'],
     ['bubble',       'Bubble vendor (refuel)'],
     ['camp_village', 'Camp village'],
+    ['nut_wagon',    'Nut Wagon (active)'],
+    ['monks',        'Monks (active group)'],
     ['lake',         'Lake'],
     ['lurleen',      'Lurleen'],
     ['spawn',        'Spawn'],
@@ -730,7 +752,9 @@ function buildPanel() {
       if (typeof dest.heading === 'number') state.hooks.zerble.heading = dest.heading;
       tpStatus.textContent = `→ ${dest.label}`;
     } else {
-      tpStatus.textContent = 'no nearby landmark of that type';
+      tpStatus.textContent = tpSelect.value === 'nut_wagon' ? 'No Nut Wagon has spawned yet.'
+        : tpSelect.value === 'monks' ? 'No monk group has spawned yet.'
+        : 'no nearby landmark of that type';
     }
   });
 

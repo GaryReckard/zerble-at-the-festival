@@ -2643,6 +2643,7 @@ installDebug({
   zerble, crowd, bubbles, smiles, registry,
   puppets, band, kids, wooks,
   hoopers, frisbees,
+  nutWagon, monks,                      // live encounter teleport destinations
   lurleen,                              // teleport menu uses .position
   getRunning: () => running,
   setCaptureDriveLocked: (locked) => {
