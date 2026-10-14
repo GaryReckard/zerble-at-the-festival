@@ -1754,7 +1754,7 @@ import {buildShrub} from './src/models/shrub.js';
                 ];
                 const members = [];
                 for (const [ox, oz, inst] of formation) {
-                    const m = inst === 'parasol' ? buildParasolMarshal() : buildBandMember(inst);
+                    const m = inst === 'parasol' ? buildParasolMarshal() : buildBandMember(inst, members.length);
                     m.position.set(ox, 0, oz);
                     scene.add(m);
                     members.push(m);

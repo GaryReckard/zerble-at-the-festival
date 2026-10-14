@@ -21,3 +21,7 @@ Main game seed 1234 was started through the title button on both Mid and Low, wi
 ## Maintenance
 
 `buildPerformer().userData.animate(seconds)` changes only per-instance transforms. Stage drummers sit on the riser; marching drummers carry a waist snare. Tent performers now register in the existing chunk-owned animation list and use its unload cleanup. `bakePerformancePart` merges vertex-colored primitives and tags cached geometry as shared; do not dispose these caches during chunk or sandbox entity unload.
+
+## Adversarial follow-up
+
+A Sol-medium review of `5e0c688` found that the marching-band callers omitted the new seed argument, synchronizing both trumpeters. The game and sandbox now supply the formation index, and the harness asserts distinct, reproducible marching phases. The reviewer reported no other verified regression in its focused pass.

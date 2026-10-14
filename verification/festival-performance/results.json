@@ -4,7 +4,7 @@
     {
       "genre": "jam",
       "peak": 0.5541551113128662,
-      "rms": 0.07080314525791101,
+      "rms": 0.07080314524133527,
       "sections": [
         {
           "name": "intro",
@@ -95,8 +95,8 @@
     },
     {
       "genre": "dance",
-      "peak": 0.6723812818527222,
-      "rms": 0.057645386758047645,
+      "peak": 0.7186634540557861,
+      "rms": 0.057661880514877674,
       "sections": [
         {
           "name": "intro",
@@ -144,8 +144,8 @@
     },
     {
       "genre": "world",
-      "peak": 0.44238516688346863,
-      "rms": 0.03220056097249948,
+      "peak": 0.44238513708114624,
+      "rms": 0.03220056096738836,
       "sections": [
         {
           "name": "intro",
@@ -248,5 +248,6 @@
       "triangles": 2724
     }
   ],
+  "marchers": "distinct seeded phases",
   "motifs": "seeded hook with distinct answers; independent pooled animation"
 }

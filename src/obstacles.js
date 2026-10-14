@@ -266,7 +266,7 @@ export class BrassBand {
     ];
 
     for (const [offX, offZ, instrument] of formation) {
-      const m = instrument === 'parasol' ? buildParasolMarshal() : buildBandMember(instrument);
+      const m = instrument === 'parasol' ? buildParasolMarshal() : buildBandMember(instrument, this.members.length);
       m.userData.formationOff = new THREE.Vector3(offX, 0, offZ);
       m.userData.instrument = instrument;
       this.group.add(m);
