@@ -1,0 +1,19 @@
+{
+  "pass": true,
+  "lineupNpcs": 28,
+  "firstCrowdSlot": 0,
+  "hairStylePopulation": [
+    6,
+    12,
+    10
+  ],
+  "addedHairTriangles": 4176,
+  "drinkInstances": 3,
+  "addedDrinkTriangles": 228,
+  "drinkSlotsReclaimed": true,
+  "hairSlotsReclaimed": true,
+  "drinkFollowsCheerAndSeat": true,
+  "hiddenForPhoto": true,
+  "appearanceMeshCount": 4,
+  "addedShadowCasters": 0
+}

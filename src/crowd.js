@@ -22,6 +22,7 @@ import * as THREE from 'three';
 // the `BufferGeometryUtils.mergeGeometries(...)` call style.
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { registry } from './registry.js';
+import { crowdAppearanceRng, rollCrowdAppearance } from './crowdAppearance.js';
 import { SpatialGrid } from './spatialGrid.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { CHUNK_SIZE } from './chunks.js';
@@ -51,20 +52,17 @@ const DESPAWN_R2 = DESPAWN_RADIUS * DESPAWN_RADIUS;
 // mixed in (magentas, lime greens, electric blues, sunset oranges). Plain
 // shirts pick from here; tie-dyed shirts pick two distinct entries (base +
 // accent) and the fragment shader blends them in a swirl pattern.
-const NPC_ROW_SHIRT = [
-  // Originals (the older festival pastels)
-  0xff6f9c, 0xffd28a, 0x6fcf6a, 0x66d9ff, 0xb285ff,
-  0xff8a5b, 0xf2e8cf, 0x8ecae6, 0xffb703, 0xc77dff,
-  0x7bd389, 0xe07a5f, 0x81b29a, 0xf4a261,
-  // Vivid tie-dye flavors
-  0xff3d7f, 0xff5e3a, 0xffe14d, 0x4dffa5, 0x3acfd5,
-  0x6c5bff, 0xff44dd, 0xb7ff5b, 0xff7b3c, 0x39d6c4,
-  0x9b6bff, 0xff5577, 0xffd23f, 0x59ffa0,
-];
+const LEGACY_NPC_ROW_SHIRT = [0xff6f9c,0xffd28a,0x6fcf6a,0x66d9ff,0xb285ff,0xff8a5b,0xf2e8cf,0x8ecae6,
+  0xffb703,0xc77dff,0x7bd389,0xe07a5f,0x81b29a,0xf4a261,0xff3d7f,0xff5e3a,0xffe14d,0x4dffa5,
+  0x3acfd5,0x6c5bff,0xff44dd,0xb7ff5b,0xff7b3c,0x39d6c4,0x9b6bff,0xff5577,0xffd23f,0x59ffa0];
 
-// Fraction of NPCs that get a tie-dye swirl (vs. plain shirt). Around
-// half feels festival-coded without overdoing it.
-const TIE_DYE_FRACTION = 0.55;
+function mergeGeometrySet(parts) {
+  const normalized = parts.map((part) => part.index ? part.toNonIndexed() : part.clone());
+  for (const part of parts) part.dispose();
+  const merged = BufferGeometryUtils.mergeGeometries(normalized);
+  for (const part of normalized) part.dispose();
+  return merged;
+}
 
 // Awareness / charm
 const NOTICE_RANGE = 22;             // NPC starts paying attention to Zerble
@@ -156,6 +154,10 @@ export class Crowd {
     this._photographerCount = 0;
     this._photoDrawCount = 0;
     this._photoFree = [];
+    this._drinkFree = [];
+    this._drinkDrawCount = 0;
+    this._hairFree = [[], [], []];
+    this._hairDrawCounts = [0, 0, 0];
 
     this._buildInstanced();
   }
@@ -192,14 +194,31 @@ export class Crowd {
     // ---- Head: icosahedron at y=1.65 ----
     const headGeo = new THREE.IcosahedronGeometry(0.26, 1);
     headGeo.translate(0, 1.65, 0);
+    const noseGeo = new THREE.IcosahedronGeometry(0.045, 0);
+    noseGeo.scale(0.8, 0.8, 1.15);
+    noseGeo.translate(0, 1.65, -0.245);
+    const headWithNose = mergeGeometrySet([headGeo, noseGeo]);
 
     // ---- Eyes: two small spheres baked at NPC-local (±0.08, 1.68, -0.22) ----
-    const eyeL = new THREE.SphereGeometry(0.028, 6, 6);
-    eyeL.translate(-0.08, 1.68, -0.22);
-    const eyeR = new THREE.SphereGeometry(0.028, 6, 6);
-    eyeR.translate(0.08, 1.68, -0.22);
-    const eyesGeo = BufferGeometryUtils.mergeGeometries([eyeL, eyeR]);
-    eyeL.dispose(); eyeR.dispose();
+    const eyeL = new THREE.SphereGeometry(0.018, 6, 6);
+    eyeL.translate(-0.08, 1.68, -0.25);
+    const eyeR = new THREE.SphereGeometry(0.018, 6, 6);
+    eyeR.translate(0.08, 1.68, -0.25);
+    const whiteL = new THREE.SphereGeometry(0.04, 7, 5);
+    whiteL.scale(1, 0.78, 0.56); whiteL.translate(-0.08, 1.68, -0.228);
+    const whiteR = new THREE.SphereGeometry(0.04, 7, 5);
+    whiteR.scale(1, 0.78, 0.56); whiteR.translate(0.08, 1.68, -0.228);
+    const eyeColor = (geo, hex) => {
+      const color = new THREE.Color(hex);
+      const colors = new Float32Array(geo.attributes.position.count * 3);
+      for (let i = 0; i < colors.length; i += 3) {
+        colors[i] = color.r; colors[i + 1] = color.g; colors[i + 2] = color.b;
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      return geo;
+    };
+    const eyesGeo = mergeGeometrySet([eyeColor(eyeL, 0x17151a), eyeColor(eyeR, 0x17151a),
+      eyeColor(whiteL, 0xf5eadb), eyeColor(whiteR, 0xf5eadb)]);
 
     // ---- Mouth: half-torus smile arc baked at the ORIGIN (positioned via matrix) ----
     // TorusGeometry lies in XY plane; default arc is top half. rotateZ(PI) flips it
@@ -223,6 +242,30 @@ export class Crowd {
     cameraBody.dispose(); cameraTop.dispose(); cameraLens.dispose();
     const flashGeo = new THREE.IcosahedronGeometry(0.16, 0);
 
+    const hairCap = new THREE.SphereGeometry(0.22, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.58);
+    hairCap.scale(1.02, 0.72, 0.94); hairCap.translate(0, 1.79, 0.005);
+    const fringe = new THREE.IcosahedronGeometry(0.13, 0);
+    fringe.scale(1.0, 0.54, 0.62); fringe.translate(0, 1.72, -0.14);
+    const sideL = new THREE.BoxGeometry(0.07, 0.18, 0.13); sideL.translate(-0.19, 1.67, -0.005);
+    const sideR = new THREE.BoxGeometry(0.07, 0.18, 0.13); sideR.translate(0.19, 1.67, -0.005);
+    const shortHair = mergeGeometrySet([hairCap, fringe, sideL, sideR]);
+    const curls = new THREE.IcosahedronGeometry(0.255, 1);
+    curls.scale(1.02, 0.96, 0.92); curls.translate(0, 1.78, 0.005);
+    const longCap = new THREE.SphereGeometry(0.22, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.62);
+    longCap.scale(1.02, 0.75, 0.94); longCap.translate(0, 1.79, 0.005);
+    const lockL = new THREE.CapsuleGeometry(0.06, 0.32, 2, 5); lockL.translate(-0.18, 1.48, 0.01);
+    const lockR = new THREE.CapsuleGeometry(0.06, 0.32, 2, 5); lockR.translate(0.18, 1.48, 0.01);
+    const longHair = mergeGeometrySet([longCap, lockL, lockR]);
+
+    // The cup is held in local right hand space and shares the crowd transform.
+    const cup = new THREE.CylinderGeometry(0.055, 0.043, 0.16, 7);
+    cup.translate(0, 1.0, -0.27);
+    const cupLid = new THREE.CylinderGeometry(0.06, 0.06, 0.018, 7);
+    cupLid.translate(0, 1.09, -0.27);
+    const straw = new THREE.CylinderGeometry(0.008, 0.008, 0.09, 5);
+    straw.translate(0.012, 1.14, -0.27);
+    const drinkGeo = mergeGeometrySet([cup, cupLid, straw]);
+
     // ---- Materials ----
     const legsMat  = new THREE.MeshStandardMaterial({ color: 0x223a5c, roughness: 0.92, flatShading: true });
     const shoesMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8,  flatShading: true });
@@ -230,8 +273,12 @@ export class Crowd {
     const armsMat  = new THREE.MeshStandardMaterial({ roughness: 0.85, flatShading: true });
     const headMat  = new THREE.MeshStandardMaterial({ color: 0xe6c098, roughness: 0.9,  flatShading: true });
     const featureMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true, vertexColors: true });
     const cameraMat = new THREE.MeshStandardMaterial({ color: 0x17151c, roughness: 0.58, metalness: 0.2, flatShading: true });
     const flashMat = new THREE.MeshBasicMaterial({ color: 0xfff2ad, toneMapped: false, depthWrite: true });
+    const hairGeos = [shortHair, curls, longHair];
+    const hairMats = hairGeos.map(() => new THREE.MeshStandardMaterial({ roughness: 0.9, flatShading: true }));
+    const drinkMat = new THREE.MeshStandardMaterial({ roughness: 0.72, flatShading: true });
 
     // Tie-dye injection — adds two per-instance attributes:
     //   shirtAccent (vec3)  — the secondary color woven through the shirt
@@ -241,25 +288,37 @@ export class Crowd {
     // (capsule UVs are degenerate around the poles, position is more reliable)
     // and blends instanceColor with shirtAccent based on a sin/cos noise.
     // Applied to both body and arm materials so sleeves match.
-    const tieDyeBeforeCompile = (shader) => {
+    const tieDyeBeforeCompile = (shader, body = false) => {
       // Inject attribute + varying declarations at the very top of each stage.
       shader.vertexShader = `
         attribute vec3 shirtAccent;
         attribute float shirtTieDye;
+        attribute vec3 npcSkin;
+        attribute float armSkinMask;
+        attribute float shirtStyle;
         varying vec3 vShirtAccent;
         varying float vShirtTieDye;
         varying vec3 vLocalPos;
+        varying vec3 vNpcSkin;
+        varying float vArmSkinMask;
+        varying float vShirtStyle;
       ` + shader.vertexShader.replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
          vShirtAccent = shirtAccent;
          vShirtTieDye = shirtTieDye;
          vLocalPos = position;`
+         + `vNpcSkin = npcSkin;
+         vArmSkinMask = armSkinMask;
+         vShirtStyle = shirtStyle;`
       );
       shader.fragmentShader = `
         varying vec3 vShirtAccent;
         varying float vShirtTieDye;
         varying vec3 vLocalPos;
+        varying vec3 vNpcSkin;
+        varying float vArmSkinMask;
+        varying float vShirtStyle;
       ` + shader.fragmentShader.replace(
         '#include <color_fragment>',
         `#include <color_fragment>
@@ -272,48 +331,82 @@ export class Crowd {
              sin((vLocalPos.x - vLocalPos.y) * freq * 0.6 + phase * 2.1) * 0.6;
            float blend = smoothstep(-0.3, 0.5, swirl) * (0.45 + vShirtTieDye * 0.35);
            diffuseColor.rgb = mix(diffuseColor.rgb, vShirtAccent, blend);
-         }`
+         }
+         if (vShirtStyle > 0.1 && vShirtStyle < 1.1 && abs(vLocalPos.x) < 0.035 && vLocalPos.y < 1.28 && vLocalPos.y > 0.72) {
+           diffuseColor.rgb = mix(diffuseColor.rgb, vShirtAccent, 0.75);
+         } else if (vShirtStyle >= 1.1 && vShirtStyle < 2.1 && vLocalPos.y > 1.31) {
+           diffuseColor.rgb = mix(diffuseColor.rgb, vShirtAccent, 0.85);
+         } else if (vShirtStyle >= 2.1 && abs(vLocalPos.x) > 0.19 && abs(vLocalPos.x) < 0.25 && vLocalPos.y < 1.30) {
+           diffuseColor.rgb = mix(diffuseColor.rgb, vShirtAccent, 0.75);
+         }
+         diffuseColor.rgb = mix(diffuseColor.rgb, vNpcSkin, vArmSkinMask);`
       );
     };
-    bodyMat.onBeforeCompile = tieDyeBeforeCompile;
-    armsMat.onBeforeCompile = tieDyeBeforeCompile;
+    bodyMat.onBeforeCompile = (shader) => tieDyeBeforeCompile(shader, true);
+    armsMat.onBeforeCompile = (shader) => tieDyeBeforeCompile(shader, false);
     // onBeforeCompile-modified materials need a unique customProgramCacheKey
     // so three.js doesn't reuse a vanilla MeshStandardMaterial program.
-    bodyMat.customProgramCacheKey = () => 'crowd-tiedye-v1';
-    armsMat.customProgramCacheKey = () => 'crowd-tiedye-v1';
+    bodyMat.customProgramCacheKey = () => 'crowd-appearance-v2';
+    armsMat.customProgramCacheKey = () => 'crowd-appearance-v2';
 
     // ---- InstancedMeshes ----
     this.legsMesh  = new THREE.InstancedMesh(legsGeo,  legsMat,  MAX_NPCS);
     this.shoesMesh = new THREE.InstancedMesh(shoesGeo, shoesMat, MAX_NPCS);
     this.bodyMesh  = new THREE.InstancedMesh(bodyGeo,  bodyMat,  MAX_NPCS);
     this.armsMesh  = new THREE.InstancedMesh(armsGeo,  armsMat,  MAX_NPCS);
-    this.headMesh  = new THREE.InstancedMesh(headGeo,  headMat,  MAX_NPCS);
-    this.eyesMesh  = new THREE.InstancedMesh(eyesGeo,  featureMat, MAX_NPCS);
+    this.headMesh  = new THREE.InstancedMesh(headWithNose, headMat, MAX_NPCS);
+    this.eyesMesh  = new THREE.InstancedMesh(eyesGeo, eyeMat, MAX_NPCS);
     this.mouthMesh = new THREE.InstancedMesh(mouthGeo, featureMat, MAX_NPCS);
     this.cameraMesh = new THREE.InstancedMesh(cameraGeo, cameraMat, MAX_NPCS);
     this.flashMesh = new THREE.InstancedMesh(flashGeo, flashMat, MAX_NPCS);
+    this.hairMeshes = hairGeos.map((geo, style) => new THREE.InstancedMesh(geo, hairMats[style], MAX_NPCS));
+    this.drinkMesh = new THREE.InstancedMesh(drinkGeo, drinkMat, MAX_NPCS);
 
     // Per-NPC shirt color shared between body and arms (sleeves).
     this.bodyMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS * 3), 3);
     this.armsMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS * 3), 3);
+    this.headMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS * 3), 3);
+    this.legsMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS * 3), 3);
+    for (const mesh of this.hairMeshes) mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS * 3), 3);
+    this.drinkMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS * 3), 3);
 
     // Tie-dye per-instance attributes. shirtAccent is the secondary color;
     // shirtTieDye is 0 for plain shirts and ~0.4-1.0 for tie-dyed ones. Both
     // bodyMesh + armsMesh share the same data references so sleeves match.
     const accentData = new Float32Array(MAX_NPCS * 3);
     const tieDyeData = new Float32Array(MAX_NPCS);
+    const skinData = new Float32Array(MAX_NPCS * 3);
+    const styleData = new Float32Array(MAX_NPCS);
+    bodyGeo.setAttribute('armSkinMask', new THREE.BufferAttribute(new Float32Array(bodyGeo.attributes.position.count), 1));
+    armsGeo.setAttribute('shirtStyle', new THREE.BufferAttribute(new Float32Array(armsGeo.attributes.position.count), 1));
+    const armMask = new Float32Array(armsGeo.attributes.position.count);
+    for (let i = 0; i < armMask.length; i++) {
+      const y = armsGeo.attributes.position.getY(i);
+      armMask[i] = y < 0.98 ? 1 : 0;
+    }
+    armsGeo.setAttribute('armSkinMask', new THREE.BufferAttribute(armMask, 1));
     const shirtAccentAttr_body = new THREE.InstancedBufferAttribute(accentData, 3);
     const shirtTieDyeAttr_body = new THREE.InstancedBufferAttribute(tieDyeData, 1);
     const shirtAccentAttr_arms = new THREE.InstancedBufferAttribute(accentData, 3);
     const shirtTieDyeAttr_arms = new THREE.InstancedBufferAttribute(tieDyeData, 1);
+    const skinAttr_arms = new THREE.InstancedBufferAttribute(skinData, 3);
+    const styleAttr_body = new THREE.InstancedBufferAttribute(styleData, 1);
+    const skinAttr_body = new THREE.InstancedBufferAttribute(skinData, 3);
     bodyGeo.setAttribute('shirtAccent', shirtAccentAttr_body);
     bodyGeo.setAttribute('shirtTieDye', shirtTieDyeAttr_body);
     armsGeo.setAttribute('shirtAccent', shirtAccentAttr_arms);
     armsGeo.setAttribute('shirtTieDye', shirtTieDyeAttr_arms);
+    armsGeo.setAttribute('npcSkin', skinAttr_arms);
+    bodyGeo.setAttribute('npcSkin', skinAttr_body);
+    bodyGeo.setAttribute('shirtStyle', styleAttr_body);
     this._shirtAccentData = accentData;
     this._shirtTieDyeData = tieDyeData;
+    this._skinData = skinData;
+    this._styleData = styleData;
     this._shirtAccentAttrs = [shirtAccentAttr_body, shirtAccentAttr_arms];
     this._shirtTieDyeAttrs = [shirtTieDyeAttr_body, shirtTieDyeAttr_arms];
+    this._skinAttrs = [skinAttr_body, skinAttr_arms];
+    this._styleAttrBody = styleAttr_body;
 
     // InstancedMesh frustum culling uses a bounding sphere that's computed once
     // and cached — it does NOT auto-expand when instance matrices move. As
@@ -322,7 +415,7 @@ export class Crowd {
     // invisible collisions, invisible smiles). Bubbles already disables
     // culling for the same reason. One drawcall per mesh either way.
     const allMeshes = [this.legsMesh, this.shoesMesh, this.bodyMesh, this.armsMesh, this.headMesh,
-      this.eyesMesh, this.mouthMesh, this.cameraMesh, this.flashMesh];
+      this.eyesMesh, this.mouthMesh, this.cameraMesh, this.flashMesh, ...this.hairMeshes, this.drinkMesh];
     for (const m of allMeshes) {
       m.castShadow = PERF.shadows;
       m.frustumCulled = false;
@@ -332,6 +425,8 @@ export class Crowd {
     // shadow casters. The flash is opaque and adds no light or transparency.
     this.cameraMesh.castShadow = false;
     this.flashMesh.castShadow = false;
+    for (const mesh of this.hairMeshes) mesh.castShadow = false;
+    this.drinkMesh.castShadow = false;
 
     this.group = new THREE.Group();
     this.group.name = 'Crowd';
@@ -342,17 +437,20 @@ export class Crowd {
     this._zeroMat = zero;
     for (let i = 0; i < MAX_NPCS; i++) {
       for (const m of allMeshes) m.setMatrixAt(i, zero);
-      this.free.push(i);
     }
-    // Photographer props have their own packed slot map. Crowd NPC indices
-    // currently allocate from the high end, so reusing npc.idx would submit
-    // hundreds of zero-scale camera instances for one rare photographer.
-    // Descending fill + pop hands out 0, 1, 2... and keeps GPU work proportional
-    // to the actual photographer count.
+    for (let i = MAX_NPCS - 1; i >= 0; i--) {
+      this.free.push(i);
+      for (const slots of this._hairFree) slots.push(i);
+      this._drinkFree.push(i);
+    }
+    // Photographer and beverage props have independent packed slot maps so
+    // their draw ranges follow the rare live instances, not crowd slot IDs.
     for (let i = MAX_NPCS - 1; i >= 0; i--) this._photoFree.push(i);
     for (const m of allMeshes) m.instanceMatrix.needsUpdate = true;
     this.cameraMesh.count = 0;
     this.flashMesh.count = 0;
+    this.drinkMesh.count = 0;
+    for (const mesh of this.hairMeshes) mesh.count = 0;
 
     // Reusables — must be DISTINCT Vector3 instances; reusing one for both
     // position and scale args of Matrix4.compose() silently corrupts position.
@@ -363,6 +461,10 @@ export class Crowd {
     this._tmpQuat = new THREE.Quaternion();
     this._tmpEuler = new THREE.Euler();
     this._tmpDanceMat = new THREE.Matrix4();
+    this._hairLocalMat = new THREE.Matrix4();
+    this._hairMat = new THREE.Matrix4();
+    this._drinkLocalMat = new THREE.Matrix4();
+    this._drinkMat = new THREE.Matrix4();
     this._tmpScale = new THREE.Vector3();
     this._mouthMat = new THREE.Matrix4();
     // Mouth is positioned as a child of the body matrix (see _writeMatrices):
@@ -413,8 +515,7 @@ export class Crowd {
       .multiply(new THREE.Matrix4().makeRotationX(0.82))
       .multiply(new THREE.Matrix4().makeTranslation(0, -HIP_Y, 0));
 
-    // High-water mark: highest slot index ever written. count is set to
-    // _maxIdx + 1 each frame so three.js skips unwritten slots above it.
+    // High-water mark: highest occupied crowd slot, kept compact on release.
     this._maxIdx = -1;
   }
 
@@ -449,23 +550,24 @@ export class Crowd {
       }
     }
 
-    const shirt = NPC_ROW_SHIRT[Math.floor(rng() * NPC_ROW_SHIRT.length)];
-    // Pick a tie-dye accent if this NPC will be tie-dyed. Accent must differ
-    // from the base color so the swirl is actually visible.
-    let tieDye = 0;
-    let accentHex = shirt;
-    if (rng() < TIE_DYE_FRACTION) {
-      tieDye = 0.4 + rng() * 0.6;       // 0.4..1.0 — varies pattern frequency
-      // Pick a distinct second color (loop a few times to avoid a self-match
-      // which would be invisible).
+    const legacyShirt = LEGACY_NPC_ROW_SHIRT[Math.floor(rng() * LEGACY_NPC_ROW_SHIRT.length)];
+    const legacyTieDye = rng() < 0.55;
+    if (legacyTieDye) {
+      rng();
       for (let tries = 0; tries < 4; tries++) {
-        const pick = NPC_ROW_SHIRT[Math.floor(rng() * NPC_ROW_SHIRT.length)];
-        if (pick !== shirt) { accentHex = pick; break; }
+        const pick = LEGACY_NPC_ROW_SHIRT[Math.floor(rng() * LEGACY_NPC_ROW_SHIRT.length)];
+        if (pick !== legacyShirt) break;
       }
     }
+    const appearance = rollCrowdAppearance(crowdAppearanceRng(pos));
+    const shirt = appearance.shirt;
+    let tieDye = 0;
+    if (appearance.tieDye) tieDye = appearance.tieDyeAmount;
+    const accentHex = appearance.accent;
 
     const npc = {
       idx,
+      behaviorSeed: MAX_NPCS - 1 - idx,
       pos: pos.clone(),
       vel: new THREE.Vector3(),
       target: pos.clone(),
@@ -474,6 +576,8 @@ export class Crowd {
       bob: rng() * Math.PI * 2,
       scale: 0.85 + rng() * 0.4,
       shirt,
+      appearance,
+      hairSlot: this._hairFree[appearance.hairStyle].pop(),
 
       state: 'idle',
       stateTimer: rng() * 2,
@@ -525,6 +629,8 @@ export class Crowd {
     Object.assign(npc, photographerProfile(pos, forcePhotographer));
     if (!allowPhotographer) npc.isPhotographer = false;
     npc.photoSlot = -1;
+    npc.drinkSlot = appearance.hasDrink ? this._drinkFree.pop() : -1;
+    if (npc.drinkSlot >= 0) this._drinkDrawCount = Math.max(this._drinkDrawCount, npc.drinkSlot + 1);
     if (npc.isPhotographer) {
       npc.photoSlot = this._photoFree.pop();
       this._photographerCount++;
@@ -542,6 +648,20 @@ export class Crowd {
     this.bodyMesh.instanceColor.needsUpdate = true;
     this.armsMesh.instanceColor.setXYZ(idx, c.r, c.g, c.b);
     this.armsMesh.instanceColor.needsUpdate = true;
+    const skin = new THREE.Color(appearance.skin);
+    const hair = new THREE.Color(appearance.hair);
+    const pants = new THREE.Color([0x444c56, 0x675a4e, 0x394d5a, 0x6e665b][appearance.outfit]);
+    const drink = new THREE.Color(appearance.drink);
+    this.headMesh.instanceColor.setXYZ(idx, skin.r, skin.g, skin.b);
+    this.legsMesh.instanceColor.setXYZ(idx, pants.r, pants.g, pants.b);
+    const hairMesh = this.hairMeshes[appearance.hairStyle];
+    hairMesh.instanceColor.setXYZ(npc.hairSlot, hair.r, hair.g, hair.b);
+    this._hairDrawCounts[appearance.hairStyle] = Math.max(this._hairDrawCounts[appearance.hairStyle], npc.hairSlot + 1);
+    if (npc.drinkSlot >= 0) this.drinkMesh.instanceColor.setXYZ(npc.drinkSlot, drink.r, drink.g, drink.b);
+    this.headMesh.instanceColor.needsUpdate = true;
+    this.legsMesh.instanceColor.needsUpdate = true;
+    hairMesh.instanceColor.needsUpdate = true;
+    if (npc.drinkSlot >= 0) this.drinkMesh.instanceColor.needsUpdate = true;
     // Tie-dye accent + amount. Both bodyMesh + armsMesh share the underlying
     // Float32Array but have separate InstancedBufferAttribute wrappers, so we
     // must flag needsUpdate on both attribute objects each time.
@@ -550,8 +670,14 @@ export class Crowd {
     this._shirtAccentData[idx * 3 + 1] = ac.g;
     this._shirtAccentData[idx * 3 + 2] = ac.b;
     this._shirtTieDyeData[idx] = tieDye;
+    this._styleData[idx] = appearance.outfit;
+    this._skinData[idx * 3] = skin.r;
+    this._skinData[idx * 3 + 1] = skin.g;
+    this._skinData[idx * 3 + 2] = skin.b;
     for (const a of this._shirtAccentAttrs) a.needsUpdate = true;
     for (const a of this._shirtTieDyeAttrs) a.needsUpdate = true;
+    for (const a of this._skinAttrs) a.needsUpdate = true;
+    this._styleAttrBody.needsUpdate = true;
 
     // Initial transform
     this._writeMatrices(npc);
@@ -666,6 +792,14 @@ export class Crowd {
         this.headMesh.setMatrixAt(npc.idx, zero);
         this.eyesMesh.setMatrixAt(npc.idx, zero);
         this.mouthMesh.setMatrixAt(npc.idx, zero);
+        this.hairMeshes[npc.appearance.hairStyle].setMatrixAt(npc.hairSlot, zero);
+        this._hairFree[npc.appearance.hairStyle].push(npc.hairSlot);
+        npc.hairSlot = -1;
+        if (npc.drinkSlot >= 0) {
+          this.drinkMesh.setMatrixAt(npc.drinkSlot, zero);
+          this._drinkFree.push(npc.drinkSlot);
+          npc.drinkSlot = -1;
+        }
         if (npc.isPhotographer) {
           this.cameraMesh.setMatrixAt(npc.photoSlot, zero);
           this.flashMesh.setMatrixAt(npc.photoSlot, zero);
@@ -680,11 +814,21 @@ export class Crowd {
     }
     if (freed > 0) {
       this.npcs = kept;
+      this._maxIdx = -1;
+      for (const npc of kept) this._maxIdx = Math.max(this._maxIdx, npc.idx);
       let photoHigh = -1;
       for (const npc of kept) {
         if (npc.isPhotographer && npc.photoSlot > photoHigh) photoHigh = npc.photoSlot;
       }
       this._photoDrawCount = photoHigh + 1;
+      let drinkHigh = -1;
+      for (const npc of kept) if (npc.drinkSlot > drinkHigh) drinkHigh = npc.drinkSlot;
+      this._drinkDrawCount = drinkHigh + 1;
+      this._hairDrawCounts.fill(0);
+      for (const npc of kept) {
+        const style = npc.appearance.hairStyle;
+        this._hairDrawCounts[style] = Math.max(this._hairDrawCounts[style], npc.hairSlot + 1);
+      }
       this.legsMesh.instanceMatrix.needsUpdate = true;
       this.shoesMesh.instanceMatrix.needsUpdate = true;
       this.bodyMesh.instanceMatrix.needsUpdate = true;
@@ -692,8 +836,13 @@ export class Crowd {
       this.headMesh.instanceMatrix.needsUpdate = true;
       this.eyesMesh.instanceMatrix.needsUpdate = true;
       this.mouthMesh.instanceMatrix.needsUpdate = true;
+      for (let style = 0; style < this.hairMeshes.length; style++) {
+        this.hairMeshes[style].instanceMatrix.needsUpdate = true;
+        this.hairMeshes[style].count = this._hairDrawCounts[style];
+      }
       this.cameraMesh.instanceMatrix.needsUpdate = true;
       this.flashMesh.instanceMatrix.needsUpdate = true;
+      this.drinkMesh.instanceMatrix.needsUpdate = true;
     }
   }
 
@@ -748,10 +897,15 @@ export class Crowd {
     this.headMesh.instanceMatrix.needsUpdate = true;
     this.eyesMesh.instanceMatrix.needsUpdate = true;
     this.mouthMesh.instanceMatrix.needsUpdate = true;
+    for (let style = 0; style < this.hairMeshes.length; style++) {
+      if (this._hairDrawCounts[style] > 0) this.hairMeshes[style].instanceMatrix.needsUpdate = true;
+      this.hairMeshes[style].count = this._hairDrawCounts[style];
+    }
     if (this._photographerCount > 0) {
       this.cameraMesh.instanceMatrix.needsUpdate = true;
       this.flashMesh.instanceMatrix.needsUpdate = true;
     }
+    if (this._drinkDrawCount > 0) this.drinkMesh.instanceMatrix.needsUpdate = true;
     // Narrow draw count to the highest slot ever written + 1. Slots above
     // _maxIdx are untouched (zero matrix from init) and never drawn. Slots
     // below that mark that have been despawned are still in range but carry a
@@ -768,6 +922,7 @@ export class Crowd {
     }
     this.cameraMesh.count = this._photoDrawCount;
     this.flashMesh.count = this._photoDrawCount;
+    this.drinkMesh.count = this._drinkDrawCount;
   }
 
   _updateNpc(dt, npc, zerble, bubblePositions, cosCone, ctx) {
@@ -1169,18 +1324,18 @@ export class Crowd {
         // reads like a real "get out of the way" reaction.
         // Shared lane-perpendicular direction (toward the NPC's own side).
         const fwd = zerble.forwardWorld;
-        laneDodgeDir(-dx, -dz, fwd.x, fwd.z, (npc.idx & 1) === 1, _dodgeOut);
+        laneDodgeDir(-dx, -dz, fwd.x, fwd.z, (npc.behaviorSeed & 1) === 1, _dodgeOut);
         // Small per-frame wobble so the dodge curves a touch instead of being
         // a clean rail. No stable per-NPC jitter here — a fixed offset could
         // rotate some NPCs back toward the lane we're trying to clear.
-        const wobble = Math.sin(performance.now() * 0.004 + npc.idx) * 0.12;
+        const wobble = Math.sin(performance.now() * 0.004 + npc.behaviorSeed) * 0.12;
         const cosW = Math.cos(wobble);
         const sinW = Math.sin(wobble);
         desiredX = _dodgeOut.x * cosW - _dodgeOut.z * sinW;
         desiredZ = _dodgeOut.x * sinW + _dodgeOut.z * cosW;
         // Per-NPC speed variation (±15%) so even same-side neighbors don't
         // move in lockstep.
-        const speedJitter = 0.85 + (npc.idx % 7) * 0.05;  // 0.85..1.15
+        const speedJitter = 0.85 + (npc.behaviorSeed % 7) * 0.05;  // 0.85..1.15
         // fleeUrgency scales the scramble: 1 for a passive lane-dodge, up to
         // ~2 when a honk lands at speed (set in applyHonk). Default-safe.
         speed = 3.5 * npc.energy * speedJitter * (npc.fleeUrgency || 1);
@@ -1429,10 +1584,10 @@ export class Crowd {
       : 0;
 
     // Cheer jump: positive-half sine so NPCs hop upward without clipping the floor.
-    // Seeded by npc.idx so the crowd doesn't hop in perfect lockstep.
+    // Seeded by the stable behavior slot so pooling stays visually decoupled.
     const cheering = npc.cheerTimer > 0;
     const cheerY = cheering
-      ? Math.max(0, Math.sin(performance.now() * 0.001 * HOP_HZ + npc.idx * 1.3)) * HOP_HEIGHT
+      ? Math.max(0, Math.sin(performance.now() * 0.001 * HOP_HZ + npc.behaviorSeed * 1.3)) * HOP_HEIGHT
       : 0;
 
     // All 5 body meshes share one matrix. The matrix's Y = "feet level" for this NPC.
@@ -1532,10 +1687,27 @@ export class Crowd {
       this._armsMat.multiplyMatrices(m, this._armsUpMat);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     } else {
-      this.armsMesh.setMatrixAt(npc.idx, m);
+      this._armsMat.copy(m);
+      this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     }
     this.headMesh.setMatrixAt(npc.idx, m);
     this.eyesMesh.setMatrixAt(npc.idx, m);
+    const hairStyle = npc.appearance?.hairStyle || 0;
+    const hairYScale = hairStyle === 1 ? 1.02 : hairStyle === 2 ? 0.96 : 0.92;
+    this._tmpV3.set(0, 1.78 * (1 - hairYScale), 0);
+    this._tmpScale.set(0.98, hairYScale, hairStyle === 2 ? 1.02 : 0.98);
+    this._hairLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
+    this._hairMat.multiplyMatrices(m, this._hairLocalMat);
+    this.hairMeshes[hairStyle].setMatrixAt(npc.hairSlot, this._hairMat);
+    if (npc.drinkSlot >= 0 && !photographing) {
+      this._tmpV3.set(0.34, 0, -0.07);
+      this._tmpScale.set(0.76, 0.76, 0.76);
+      this._drinkLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
+      this._drinkMat.multiplyMatrices(this._armsMat, this._drinkLocalMat);
+      this.drinkMesh.setMatrixAt(npc.drinkSlot, this._drinkMat);
+    } else if (npc.drinkSlot >= 0) {
+      this.drinkMesh.setMatrixAt(npc.drinkSlot, this._zeroMat);
+    }
 
     // ---- Mouth: child of the body matrix, with its own smile-pop scale ----
     // Mouth geometry is baked at origin. We build a local matrix that places it
@@ -2221,8 +2393,29 @@ export class Crowd {
       this.flashMesh.setMatrixAt(npc.photoSlot, this._zeroMat);
       this._photoFree.push(npc.photoSlot); this._photographerCount--;
     }
+    if (npc.drinkSlot >= 0) {
+      this.drinkMesh.setMatrixAt(npc.drinkSlot, this._zeroMat);
+      this._drinkFree.push(npc.drinkSlot);
+      npc.drinkSlot = -1;
+    }
+    if (npc.hairSlot >= 0) {
+      this._hairFree[npc.appearance.hairStyle].push(npc.hairSlot);
+      npc.hairSlot = -1;
+    }
     npc.avatar?.removeFromParent(); npc.party = null; npc.seatSlot = null;
     this.npcs.splice(index, 1); this.free.push(npc.idx);
+    this._maxIdx = -1;
+    this._hairDrawCounts.fill(0);
+    for (const remaining of this.npcs) {
+      this._maxIdx = Math.max(this._maxIdx, remaining.idx);
+      const style = remaining.appearance.hairStyle;
+      this._hairDrawCounts[style] = Math.max(this._hairDrawCounts[style], remaining.hairSlot + 1);
+    }
+    for (let style = 0; style < this.hairMeshes.length; style++) this.hairMeshes[style].count = this._hairDrawCounts[style];
+    let drinkHigh = -1;
+    for (const remaining of this.npcs) if (remaining.drinkSlot > drinkHigh) drinkHigh = remaining.drinkSlot;
+    this._drinkDrawCount = drinkHigh + 1;
+    this.drinkMesh.count = this._drinkDrawCount;
   }
 
   // Instance uploads are flagged globally each frame in update().
@@ -2235,6 +2428,8 @@ export class Crowd {
     this.headMesh.setMatrixAt(npc.idx, z);
     this.eyesMesh.setMatrixAt(npc.idx, z);
     this.mouthMesh.setMatrixAt(npc.idx, z);
+    if (npc.hairSlot >= 0) this.hairMeshes[npc.appearance.hairStyle].setMatrixAt(npc.hairSlot, z);
+    if (npc.drinkSlot >= 0) this.drinkMesh.setMatrixAt(npc.drinkSlot, z);
     if (npc.avatar) npc.avatar.visible = false;
   }
 

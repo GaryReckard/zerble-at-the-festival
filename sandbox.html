@@ -180,7 +180,7 @@
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
-            const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'chunks', 'forests',
+            const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing', 'festivalShapes',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
@@ -254,6 +254,7 @@
         <optgroup label="People">
             <option value="cheer_demo">Crowd cheer demo (jump + arms-up)</option>
             <option value="crowd_photographer">Crowd photographer (pose + flash)</option>
+            <option value="crowd_lineup">Crowd appearance lineup</option>
             <option value="puppet">Puppet (parade)</option>
             <option value="puppet_heron">Lantern: heron</option>
             <option value="puppet_dragon">Lantern: dragon</option>
@@ -869,6 +870,9 @@ import {buildShrub} from './src/models/shrub.js';
         // Remove any entity-specific DOM nodes (e.g. the cheer_demo button).
         if (currentEntity && currentEntity._sandboxCheerBtn) {
             currentEntity._sandboxCheerBtn.remove();
+        }
+        if (currentEntity && currentEntity._sandboxAppearanceButton) {
+            currentEntity._sandboxAppearanceButton.remove();
         }
         if (currentEntity && currentEntity._sandboxPhotographerBtn) {
             currentEntity._sandboxPhotographerBtn.remove();
@@ -1647,6 +1651,50 @@ import {buildShrub} from './src/models/shrub.js';
                 cam.yaw = 0;
                 cam.pitch = 0.18;
                 cam.dist = 5.2;
+                applyCam();
+                break;
+            }
+            case 'crowd_lineup': {
+                const lineupSmiles = new Smiles();
+                scene.add(lineupSmiles.group);
+                const fakeZerble = {
+                    position: new THREE.Vector3(0, 0, 32), speed: 0,
+                    forwardWorld: new THREE.Vector3(0, 0, 1), seatSlots: [],
+                };
+                const lineup = new Crowd(lineupSmiles);
+                scene.add(lineup.group);
+                let seed = 0x4a17c2;
+                const next = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+                for (let i = 0; i < 28; i++) {
+                    const col = i % 14, row = Math.floor(i / 14);
+                    const pos = new THREE.Vector3((col - 6.5) * 1.35, 0, row * 2.4);
+                    const npc = lineup.spawn({pos, chunkKey: 'appearance-lineup', rng: next, allowPhotographer: false});
+                    npc.yaw = Math.PI;
+                    lineup._writeMatrices(npc);
+                }
+                lineup.update(0, fakeZerble, null);
+                // The first zero-delta update establishes compact instance
+                // draw ranges; restore a deterministic, camera-facing lineup.
+                for (const npc of lineup.npcs) {
+                    npc.yaw = Math.PI;
+                    lineup._writeMatrices(npc);
+                }
+                entityRoot = lineup.group;
+                currentEntity = lineup;
+                updateFn = (dt) => {
+                    for (const npc of lineup.npcs) if (npc.cheerTimer > 0) {
+                        npc.cheerTimer = Math.max(0, npc.cheerTimer - dt);
+                        lineup._writeMatrices(npc);
+                    }
+                };
+                const cheerButton = document.createElement('button');
+                cheerButton.textContent = 'Show the cheer pose';
+                cheerButton.style.cssText = 'margin-top:6px;width:100%;background:rgba(255,200,80,0.25);border:1px solid rgba(255,200,80,0.5);border-radius:6px;padding:5px;cursor:pointer;font:inherit;color:inherit';
+                cheerButton.addEventListener('click', () => lineup.cheerNear(0, 0));
+                info.after(cheerButton);
+                lineup._sandboxAppearanceButton = cheerButton;
+                cam.target.set(0, 1.1, 1.0);
+                cam.dist = 18;
                 applyCam();
                 break;
             }

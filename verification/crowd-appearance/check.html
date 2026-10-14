@@ -1,0 +1,68 @@
+<!doctype html><meta charset="utf-8"><title>Crowd appearance lifecycle</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Checking crowd appearance geometry and pooled props…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {Crowd} from '../../src/crowd.js';
+import {setSessionSeed} from '../../src/rng.js';
+import {crowdAppearanceRng,rollCrowdAppearance} from '../../src/crowdAppearance.js';
+
+const output=document.querySelector('#result');
+const assert=(value,message)=>{if(!value)throw new Error(message);};
+const matrix=(mesh,slot)=>{const m=new THREE.Matrix4();mesh.getMatrixAt(slot,m);return m;};
+const visible=(m)=>m.elements.some((n,i)=>i===0||i===5||i===10 ? Math.abs(n)>1e-6 : false);
+const triangles=(mesh)=>mesh.geometry.index?mesh.geometry.index.count/3:mesh.geometry.attributes.position.count/3;
+try{
+ setSessionSeed(712403);
+ let pos=null;
+ for(let i=0;i<1000;i++){
+  const candidate={x:i*1.17,z:-i*2.31};
+  if(rollCrowdAppearance(crowdAppearanceRng(candidate)).hasDrink){pos=candidate;break;}
+ }
+ assert(pos,'could not find the deterministic beverage fixture position');
+ const crowd=new Crowd({spawn(){}});
+ const lineup=[];
+ let seed=0x4a17c2;
+ const next=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
+ for(let i=0;i<28;i++){
+  const pos=new THREE.Vector3((i%14-6.5)*1.35,0,Math.floor(i/14)*2.4);
+  const npc=crowd.spawn({pos,chunkKey:'appearance-check',rng:next,allowPhotographer:false});
+  npc.yaw=Math.PI;crowd._writeMatrices(npc);lineup.push(npc);
+ }
+ crowd.update(0,{position:new THREE.Vector3(0,0,32),speed:0,forwardWorld:new THREE.Vector3(0,0,1),seatSlots:[]},null);
+ // update() writes every NPC, so restore a camera-facing static pose and
+ // refresh the selected NPC's arm scratch matrix before checking attachment.
+ for(const item of lineup){item.yaw=Math.PI;crowd._writeMatrices(item);}
+ assert(lineup[0].idx===0,'crowd instances did not begin from slot zero');
+ const npc=lineup.find(item=>item.appearance.hasDrink);
+ assert(npc&&npc.drinkSlot===0,'first beverage did not receive packed slot zero');
+ crowd._writeMatrices(npc);
+ const initial=matrix(crowd.drinkMesh,npc.drinkSlot);
+ assert(visible(initial),'the beverage instance was not written on spawn');
+ const expected=crowd._armsMat.clone().multiply(crowd._drinkLocalMat);
+ assert(initial.elements.every((n,i)=>Math.abs(n-expected.elements[i])<1e-5),'beverage transform is detached from the live arm pose');
+ npc.cheerTimer=2;crowd._writeMatrices(npc);
+ const cheering=matrix(crowd.drinkMesh,npc.drinkSlot);
+ assert(visible(cheering),'the beverage disappeared during a cheer pose');
+ assert(cheering.elements.some((n,i)=>Math.abs(n-initial.elements[i])>1e-4),'beverage did not follow the raised arm');
+ npc.state='riding';npc.seatSlot={kind:'bench'};npc.seatY=0.8;npc.cheerTimer=0;crowd._writeMatrices(npc);
+ assert(visible(matrix(crowd.drinkMesh,npc.drinkSlot)),'beverage disappeared from a seated passenger');
+ crowd.forcePhotographer(npc);
+ assert(!visible(matrix(crowd.drinkMesh,npc.drinkSlot)),'beverage overlaps the photographer camera pose');
+ const slot=npc.drinkSlot,hairSlot=npc.hairSlot,idx=npc.idx,photoSlot=npc.photoSlot,removedPos=npc.pos.clone();crowd.removeNpc(npc);
+ assert(crowd._photoFree.includes(photoSlot)&&crowd._photographerCount===0,'photographer slot lifecycle changed during ordinary NPC removal');
+ assert(!visible(matrix(crowd.drinkMesh,slot)),'removed NPC left a visible beverage instance');
+ const replacement=crowd.spawn({pos:removedPos,chunkKey:'appearance-check',rng:()=>0.25,allowPhotographer:false});
+ assert(replacement.idx===idx&&replacement.drinkSlot===slot&&replacement.hairSlot===hairSlot,'removed NPC slots were not returned to their pools');
+ assert(visible(matrix(crowd.hairMeshes[replacement.appearance.hairStyle],replacement.hairSlot)),'replacement NPC hair was not written');
+ crowd.update(0,{position:new THREE.Vector3(0,0,32),speed:0,forwardWorld:new THREE.Vector3(0,0,1),seatSlots:[]},null);
+ assert(crowd.group.children.filter(child=>child.isInstancedMesh).length===13,'crowd appearance changed the instanced mesh count unexpectedly');
+ assert(crowd.hairMeshes.every(mesh=>!mesh.castShadow)&&!crowd.drinkMesh.castShadow,'appearance meshes cast shadows');
+ const hairTriangles=crowd.hairMeshes.reduce((sum,mesh)=>sum+triangles(mesh)*mesh.count,0);
+ const drinkTriangles=triangles(crowd.drinkMesh)*crowd.drinkMesh.count;
+ output.textContent=JSON.stringify({pass:true,lineupNpcs:lineup.length,firstCrowdSlot:lineup[0].idx,
+  hairStylePopulation:crowd._hairDrawCounts,addedHairTriangles:hairTriangles,drinkInstances:crowd.drinkMesh.count,
+  addedDrinkTriangles:drinkTriangles,drinkSlotsReclaimed:true,hairSlotsReclaimed:true,
+  drinkFollowsCheerAndSeat:true,hiddenForPhoto:true,appearanceMeshCount:4,addedShadowCasters:0},null,2);
+}catch(error){output.textContent='FAIL '+error.stack;}
+</script>
