@@ -1,0 +1,73 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { BUBBLE_PROGRESS_KEY, createBubbleProgress } from '../src/bubbleProgress.js';
+
+function memoryStorage(initial = null) {
+  const values = new Map(initial == null ? [] : [[BUBBLE_PROGRESS_KEY, initial]]);
+  return {
+    values,
+    get(key) { return values.get(key) ?? null; },
+    set(key, value) { values.set(key, value); },
+  };
+}
+
+let now = Date.parse('2026-10-15T14:00:00.000Z');
+const storage = memoryStorage();
+const progress = createBubbleProgress(storage, { now: () => now });
+assert.equal(progress.earnedCount(), 0);
+assert.deepEqual(progress.enabledIds(), []);
+assert.equal(progress.unlock('heart', 'cruisin'), true);
+assert.equal(progress.unlock('heart', 'festival'), false, 'unlock is idempotent');
+assert.equal(progress.isEarned('heart'), true);
+assert.equal(progress.isEnabled('heart'), true, 'new unlocks begin enabled');
+assert.equal(progress.earnedCount(), 1);
+assert.equal(progress.setEnabled('heart', false), true);
+assert.equal(progress.isEnabled('heart'), false);
+
+progress.unlock('future-type', 'festival');
+const roundTrip = createBubbleProgress(storage, { now: () => now });
+assert.equal(roundTrip.isEarned('heart'), true);
+assert.equal(roundTrip.isEnabled('heart'), false);
+assert.equal(roundTrip.isEarned('future-type'), true, 'unknown ids survive a save and reload');
+assert.deepEqual(roundTrip.enabledIds(), ['future-type']);
+
+const corrupt = createBubbleProgress({ get: () => '{not-json', set: () => {} }, { now: () => now });
+assert.equal(corrupt.earnedCount(), 0);
+assert.equal(corrupt.lifetimeSmiles, 0);
+const blocked = createBubbleProgress({ get: () => { throw new Error('blocked'); }, set: () => { throw new Error('blocked'); } }, { now: () => now });
+assert.equal(blocked.unlock('heart'), true);
+assert.equal(blocked.isEarned('heart'), true, 'blocked storage keeps session memory');
+assert.doesNotThrow(() => blocked.flush());
+
+let writes = 0;
+const debounced = createBubbleProgress({ get: () => null, set: () => { writes++; } }, { now: () => now });
+debounced.addLifetimeSmiles(2);
+debounced.addLifetimeSmiles(3);
+assert.equal(writes, 0, 'smile additions are not written immediately');
+assert.equal(debounced.lifetimeSmiles, 5);
+now += 9_999;
+debounced.addLifetimeSmiles(1);
+assert.equal(writes, 0, 'smile writes are debounced to ten seconds');
+now += 1;
+debounced.addLifetimeSmiles(1);
+assert.equal(writes, 1);
+debounced.addLifetimeSmiles(1);
+assert.equal(writes, 1);
+assert.equal(debounced.flush(), true);
+assert.equal(writes, 2, 'flush persists immediately');
+
+const listeners = [];
+const unsubscribe = progress.onUnlock((event) => listeners.push(event));
+assert.equal(progress.unlock('sparkler', 'festival'), true);
+assert.equal(listeners.length, 1);
+assert.equal(listeners[0].id, 'sparkler');
+assert.equal(listeners[0].mode, 'festival');
+unsubscribe();
+progress.unlock('ember');
+assert.equal(listeners.length, 1);
+
+progress.reset();
+assert.equal(progress.earnedCount(), 0);
+assert.equal(progress.lifetimeSmiles, 0);
+assert.equal(createBubbleProgress(storage, { now: () => now }).earnedCount(), 0);
+process.stdout.write('PASS bubble progress: empty/corrupt/blocked storage, idempotence, toggles, round trips, and debounced smiles\n');

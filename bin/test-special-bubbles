@@ -1,0 +1,87 @@
+#!/usr/bin/env node
+import { register } from 'node:module';
+import assert from 'node:assert/strict';
+register('./node-three-shim.mjs', import.meta.url);
+
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: { hardwareConcurrency: 8, deviceMemory: 8, maxTouchPoints: 0 },
+});
+globalThis.location = { search: '?perf=low' };
+globalThis.window = { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1 };
+globalThis.localStorage = { getItem: () => null };
+
+const { Bubbles } = await import('../src/bubbles.js');
+const { SPECIAL } = await import('../src/bubbleTypes.js');
+const { Vector3, Quaternion, ShaderMaterial } = await import('three');
+const cart = {
+  speed: 8, nozzleWorld: new Vector3(0, 2, 0), forwardWorld: new Vector3(0, 0, 1),
+};
+const heartProgress = { isEnabled: (id) => id === 'heart' };
+const camera = { position: new Vector3(0, 6, 12), quaternion: new Quaternion() };
+const run = (bubbles, seconds) => {
+  for (let i = 0; i < seconds * 60; i++) bubbles.update(1 / 60, cart, 0);
+};
+
+const fresh = new Bubbles();
+assert.equal(fresh.specialRoot.children.length, 3);
+assert(fresh.specialRoot.children.every((mesh) => mesh.visible === false && mesh.count === 0),
+  'all three special draws start hidden');
+fresh.juice = 0;
+run(fresh, 10);
+assert.equal(fresh.specialActiveCount, 0, 'no progress means no specials');
+
+const earned = new Bubbles();
+earned.setProgress(heartProgress);
+let emitted = 0;
+const spawn = earned._spawnSpecialOne.bind(earned);
+earned._spawnSpecialOne = (zerble, id) => {
+  const ok = spawn(zerble, id);
+  if (ok) emitted++;
+  return ok;
+};
+for (let i = 0; i < 100 * 60; i++) earned.update(1 / 60, cart, 0, camera);
+assert(emitted >= 40 && emitted <= 60, `100 cruising seconds emit about 50 Hearts (got ${emitted})`);
+assert(earned.specialActiveCount > 0, 'earned Hearts remain alive in the pool');
+let visited = 0;
+earned.forEachAlive((particle) => {
+  if (particle.type === 0) visited++;
+});
+assert.equal(visited, earned.specialActiveCount, 'crowd visitation includes every live special');
+
+const dry = new Bubbles();
+dry.setProgress(heartProgress);
+dry.juice = 0;
+let burstEmitted = 0;
+const burstSpawn = dry._spawnSpecialOne.bind(dry);
+dry._spawnSpecialOne = (zerble, id) => {
+  const ok = burstSpawn(zerble, id);
+  if (ok) burstEmitted++;
+  return ok;
+};
+run(dry, 4);
+assert.equal(burstEmitted, 0, 'an empty tank suppresses normal specials');
+dry.unlockBurst('heart');
+run(dry, 4);
+assert(burstEmitted >= 22 && burstEmitted <= 26,
+  `unlock burst emits about 24 Hearts even with an empty tank (got ${burstEmitted})`);
+assert.equal(dry.mesh.visible, false, 'specials never show the standard transmissive mesh');
+assert.equal(dry.mesh.count, 0, 'specials never enter the standard instance count');
+assert.equal(dry._specialRenderer.heartMesh.visible, true);
+
+for (let i = 0; i < SPECIAL.pool * 3; i++) dry._spawnSpecialOne(cart, 'heart');
+assert.equal(dry.specialParticles.filter((particle) => particle.alive).length, SPECIAL.pool,
+  'the special pool stays within its fixed capacity');
+dry.juice = 0;
+for (const particle of dry.specialParticles) particle.age = particle.life;
+dry.update(0, cart);
+dry.update(1.1, cart);
+assert(dry.specialRoot.children.every((mesh) => mesh.visible === false && mesh.count === 0),
+  `all three special draws hide after the final shell and pop die: ${dry.specialRoot.children.map((mesh) => `${mesh.visible}/${mesh.count}`).join(', ')}`);
+assert(dry._specialRenderer.shellMaterial instanceof ShaderMaterial);
+assert.equal(dry._specialRenderer.shellMaterial.transmission, undefined,
+  'special shell shader does not use transmission');
+assert(dry.specialRoot.children.every((mesh) => mesh.castShadow === false),
+  'specials add no shadow casters');
+
+process.stdout.write('PASS  special emission rate, dry unlock burst, fixed pool, crowd visitation, and idle render visibility\n');

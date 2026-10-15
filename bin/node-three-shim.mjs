@@ -65,6 +65,10 @@ class GeometryStub {
   setIndex(attr) { this.index = attr; return this; }
   computeVertexNormals() { this.normalsComputed = true; return this; }
   setDrawRange(start, count) { this.drawRange = { start, count }; return this; }
+  center() { return this; }
+  rotateZ() { return this; }
+  scale() { return this; }
+  computeBoundingSphere() { this.boundingSphere = { radius: 1 }; return this; }
   dispose() { this.disposeCount++; }
 }
 export class CylinderGeometry extends GeometryStub {}
@@ -78,6 +82,11 @@ export class CatmullRomCurve3 { constructor(points) { this.points = points; } }
 export class CapsuleGeometry extends GeometryStub {}
 export class SphereGeometry extends GeometryStub {}
 export class OctahedronGeometry extends GeometryStub {}
+export class Shape {
+  moveTo() { return this; }
+  bezierCurveTo() { return this; }
+}
+export class ExtrudeGeometry extends GeometryStub {}
 
 // BufferGeometry + BufferAttribute: farField.js's preallocated road ribbon
 // writes typed arrays in place and exposes the active prefix via setDrawRange.
@@ -111,6 +120,11 @@ export class MeshLambertMaterial extends MeshStandardMaterial {}
 export class MeshPhysicalMaterial extends MeshStandardMaterial {
   constructor(params = {}) { super(params); this.sheenColor = params.sheenColor || new Color(); }
 }
+export class ShaderMaterial extends MeshStandardMaterial {
+  constructor(params = {}) { super(params); this.params = params; }
+}
+export const UniformsLib = { fog: {} };
+export const UniformsUtils = { merge: (list) => Object.assign({}, ...list) };
 export const DoubleSide = 2;
 export const AdditiveBlending = 2;
 export const MathUtils = { lerp: (a, b, t) => a + (b - a) * t, clamp: (x, a, b) => Math.max(a, Math.min(b, x)) };
@@ -133,6 +147,8 @@ export class Matrix4 {
 export class Quaternion {
   setFromAxisAngle() { return this; }
   setFromUnitVectors() { return this; }
+  copy() { return this; }
+  multiply() { return this; }
 }
 export class Color {
   constructor(hex) { this.r = 0; this.g = 0; this.b = 0; if (hex != null) this.setHex(hex); }

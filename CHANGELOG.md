@@ -2,6 +2,14 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-15
+
+### Added
+- **Special bubble rendering has an isolated Heart preview.** The entity sandbox shows the full eleven-type lineup and a Heart stream at Low and High quality, with Noon and Midnight controls, chase and close views, and a pooled pop burst. The emitter requires earned progress, so ordinary bubbles remain unchanged in the game until the unlock integration is complete. [Gate A captures](verification/bubble-upgrades/checkpoint-2/GATE-A.md).
+
+### Fixed
+- **Children keep a little space while chasing the same bubble.** Nearby kids steer apart and receive a deterministic overlap correction, including when they reach exactly the same position. The spacing is smaller than the adult crowd's, and collision positions follow the corrected bodies. Shared-target regression coverage prevents a whole gaggle from collapsing to a point.
+
 ## 2026-10-14
 
 ### Added

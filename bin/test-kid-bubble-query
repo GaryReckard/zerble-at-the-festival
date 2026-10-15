@@ -10,6 +10,10 @@ const start = source.indexOf('  update(dt, bubbles, zerble, smiles) {', classSta
 const end = source.indexOf('\n}\n', start);
 assert(classStart >= 0 && start > classStart && end > start, 'extract the real KidGaggle.update');
 const method = source.slice(start, end);
+const nudgeStart = source.indexOf('function nudgeKidFromNeighbors(');
+const nudgeEnd = source.indexOf('\n}\n', nudgeStart) + 2;
+const nudgeSource = source.slice(nudgeStart, nudgeEnd);
+assert(nudgeStart >= 0 && nudgeEnd > nudgeStart, 'extract the production kid separation nudge');
 const constant = (name) => {
   const match = method.match(new RegExp(`const ${name} = ([\\d.]+);`));
   assert(match, `find source constant ${name}`);
@@ -54,8 +58,13 @@ function harness(code) {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 2 ** 32;
   };
+  const nudge = vm.runInNewContext(`(${nudgeSource.replace('function nudgeKidFromNeighbors', 'function')})`, {
+    KID_SOFT_SEPARATION: 1.4,
+  });
   const update = vm.runInNewContext(`({${code}}).update`, {
     Math: math,
+    KID_HARD_SEPARATION: 0.82,
+    nudgeKidFromNeighbors: nudge,
     countLegacyScan: () => counts.scans++,
     isPointInLake: () => false,
     StarPower: { isActive: () => false },
@@ -142,7 +151,7 @@ for (const [name, points] of cases) {
         `${label}: independently checked pre-movement happiness`);
       assert.equal(after.frames[0].effects.animations[0][2].excited, nearest < attract, `${label}: strict attraction boundary`);
       if (name.startsWith('ties')) {
-        assert.equal(after.frames[0].gaggle.kids[0].position.x, points[0][0] * 4.2 * 0.05,
+        assert.equal(Math.sign(Math.sin(after.frames[0].gaggle.kids[0].userData.heading)), Math.sign(points[0][0]),
           `${label}: first equidistant bubble wins`);
       }
     }

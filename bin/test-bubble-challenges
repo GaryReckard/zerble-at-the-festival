@@ -1,0 +1,166 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createBubbleProgress } from '../src/bubbleProgress.js';
+import { ChallengeTracker } from '../src/bubbleChallenges.js';
+
+function makeWorld() {
+  return {
+    pos: { x: 0, z: 0 }, night: 0, lurleen: false, trip: false, mode: 'cruisin',
+    stages: [], drums: [], lakes: [], parade: [], band: [], heart: null,
+    zerblePos() { return this.pos; }, nightness() { return this.night; }, lurleenNear() { return this.lurleen; },
+    stageFronts(fn) { for (const p of this.stages) fn(p.x, p.z, p.id); },
+    drumCircles(fn) { for (const p of this.drums) fn(p.x, p.z); },
+    isPointInLake(x, z) { return this.lakes.some((p) => Math.hypot(x - p.x, z - p.z) <= p.r); },
+    heartAt() { return this.heart; },
+    paradePositions(fn) { for (const p of this.parade) fn(p.x, p.z); },
+    bandPositions(fn) { for (const p of this.band) fn(p.x, p.z); },
+    tripActive() { return this.trip; },
+  };
+}
+
+function setup() {
+  const progress = createBubbleProgress({ get: () => null, set: () => {} });
+  const world = makeWorld();
+  const tracker = new ChallengeTracker(progress, world);
+  return { progress, world, tracker };
+}
+
+function tick(tracker) { tracker.tick(0.5); }
+
+{
+  const { progress, world, tracker } = setup();
+  world.lurleen = true;
+  tracker.onLurleenFound();
+  assert.equal(progress.isEarned('heart'), true);
+  assert.equal(progress.earnedIds()[0], 'heart');
+  assert.equal(progress.earnedIds().length, 1, 'event unlock remains one-shot');
+}
+
+{
+  const { progress, world, tracker } = setup();
+  world.night = 0;
+  world.drums = [{ x: 0, z: 0 }];
+  tick(tracker);
+  assert.equal(progress.isEarned('ember'), false, 'daytime drum circle is not enough');
+  world.night = 1;
+  tick(tracker);
+  assert.equal(progress.isEarned('ember'), true, 'nighttime drum circle unlocks Ember');
+  assert.equal(tracker.context.nearDrum, true);
+}
+
+{
+  const { progress, world, tracker } = setup();
+  world.night = 1;
+  world.lakes = [{ x: 18, z: 0, r: 4 }];
+  tick(tracker);
+  assert.equal(progress.isEarned('firefly'), true, 'dry player with lake on shore ring unlocks Firefly');
+  progress.reset();
+  world.lakes = [{ x: 0, z: 0, r: 4 }, { x: 18, z: 0, r: 4 }];
+  tick(tracker);
+  assert.equal(progress.isEarned('firefly'), false, 'player standing in lake is not on dry ground');
+  world.lakes = [];
+  tick(tracker);
+  assert.equal(progress.isEarned('firefly'), false, 'inland night does not unlock Firefly');
+}
+
+{
+  const { progress, world, tracker } = setup();
+  world.stages = [{ id: 'a', x: 0, z: 0 }, { id: 'b', x: 30, z: 0 }];
+  tick(tracker);
+  assert.equal(tracker.stagesSeen.size, 2, 'two distinct stages do not unlock Music');
+  assert.equal(progress.isEarned('music'), false);
+  world.stages = [{ id: 'new-a', x: 0.2, z: 0 }, { id: 'b', x: 30, z: 0 }, { id: 'c', x: 0, z: 30 }];
+  tick(tracker);
+  assert.equal(tracker.stagesSeen.size, 3, 're-registered stage coordinates count once');
+  assert.equal(progress.isEarned('music'), true);
+}
+
+{
+  const { progress, world, tracker } = setup();
+  world.heart = { key: 'hub-0', dist: 0, coreR: 10 };
+  tick(tracker);
+  tick(tracker);
+  assert.equal(tracker.hubsSeen.size, 1, 'the same current hub does not multiply-count');
+  assert.equal(progress.isEarned('rainbow'), false);
+  for (let i = 1; i < 7; i++) {
+    world.heart = { key: `hub-${i}`, dist: 0, coreR: 10 };
+    tick(tracker);
+  }
+  assert.equal(tracker.hubsSeen.size, 7);
+  assert.equal(progress.isEarned('rainbow'), false);
+  world.heart = { key: 'hub-7', dist: 0, coreR: 10 };
+  tick(tracker);
+  assert.equal(tracker.hubsSeen.size, 8);
+  assert.equal(progress.isEarned('rainbow'), true);
+}
+
+{
+  const { progress, tracker } = setup();
+  tracker.onFireworksFinale();
+  tracker.onFireworksFinale();
+  assert.equal(progress.isEarned('sparkler'), true);
+  assert.equal(progress.earnedCount(), 1);
+  tracker.onTripAccepted();
+  assert.equal(progress.isEarned('mushroom'), true);
+}
+
+{
+  const { progress, world, tracker } = setup();
+  world.mode = 'cruisin';
+  assert.equal(tracker.onRunDay(2), false, 'Just Cruisin never unlocks Confetti');
+  world.mode = 'festival';
+  assert.equal(tracker.onRunDay(1), false);
+  assert.equal(progress.isEarned('confetti'), false);
+  assert.equal(tracker.onRunDay(2), true);
+  assert.equal(progress.isEarned('confetti'), true);
+  assert.equal(progress.unlock('smile'), true);
+  world.mode = 'festival';
+  const separate = new ChallengeTracker(progress, world);
+  assert.equal(progress.isEarned('confetti'), true, 'mode is recorded independently of session reset');
+  assert.equal(separate.stagesSeen.size, 0);
+}
+
+{
+  const { progress, world, tracker } = setup();
+  world.parade = [{ x: 20, z: 0 }];
+  world.band = [{ x: 15, z: 0 }];
+  tick(tracker);
+  assert.equal(progress.isEarned('lantern'), true, 'parade at 20 m does not trigger 20 m inclusive?');
+  assert.equal(progress.isEarned('brass'), true, 'band at 15 m reaches its threshold');
+  progress.reset();
+  world.parade = [{ x: 20.1, z: 0 }];
+  world.band = [{ x: 15.1, z: 0 }];
+  tick(tracker);
+  assert.equal(progress.isEarned('lantern'), false, 'parade outside trigger radius stays locked');
+  assert.equal(progress.isEarned('brass'), false, 'band outside trigger radius stays locked');
+  assert.equal(tracker.context.nearParade, true, 'parade context boost has the wider radius');
+  assert.equal(tracker.context.nearBand, true, 'band context boost has the wider radius');
+}
+
+{
+  const { progress, world, tracker } = setup();
+  progress.addLifetimeSmiles(999);
+  assert.equal(tracker.onSmilesCollected(0), false);
+  assert.equal(progress.isEarned('smile'), false);
+  assert.equal(tracker.onSmilesCollected(1), true);
+  assert.equal(progress.lifetimeSmiles, 1000);
+  assert.equal(progress.isEarned('smile'), true);
+  world.lurleen = true;
+  world.night = 0.7;
+  world.trip = true;
+  world.stages = [{ x: 0, z: 35 }];
+  world.drums = [{ x: 0, z: 25 }];
+  tick(tracker);
+  assert.deepEqual(tracker.context, {
+    nightness: 0.7,
+    lurleenNear: true,
+    nearStage: true,
+    nearDrum: true,
+    nearShore: false,
+    nearParade: false,
+    nearBand: false,
+    tripActive: true,
+  });
+}
+
+process.stdout.write('PASS bubble challenges: all unlock rules, negative cases, position identity, and context snapshot\n');

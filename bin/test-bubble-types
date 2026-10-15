@@ -1,0 +1,62 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {
+  BUBBLE_TYPES, CHARM, SPECIAL, charmGain, charmLevel, computeTint,
+  pickSpecial, specialRate, visibleCatalog,
+} from '../src/bubbleTypes.js';
+
+assert.equal(BUBBLE_TYPES.length, 11);
+assert.deepEqual(BUBBLE_TYPES.map((type) => type.order), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+assert.equal(new Set(BUBBLE_TYPES.map((type) => type.id)).size, 11);
+assert.deepEqual(BUBBLE_TYPES.filter((type) => type.secret).map((type) => type.id), ['mushroom']);
+for (const type of BUBBLE_TYPES) {
+  assert.ok(type.look.pop.count < 20, `${type.id} pop count stays under 20`);
+  assert.ok(type.look.scale.every(Number.isFinite));
+}
+
+let randomState = 0x12345678;
+const rand = () => {
+  randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
+  return randomState / 0x100000000;
+};
+const eligible = ['heart', 'smile'];
+let heartCount = 0;
+for (let i = 0; i < 10_000; i++) {
+  const picked = pickSpecial(eligible, { lurleenNear: true }, rand);
+  assert.ok(eligible.includes(picked));
+  if (picked === 'heart') heartCount++;
+}
+assert.ok(Math.abs(heartCount / (10_000 - heartCount) - 4) <= 0.4, `4× weight ratio was ${heartCount / (10_000 - heartCount)}`);
+assert.equal(pickSpecial([], {}, rand), null);
+assert.equal(pickSpecial(['not-a-type'], {}, rand), null);
+assert.equal(specialRate([], {}), 0);
+assert.equal(specialRate(['smile'], {}), SPECIAL.baseRate);
+assert.equal(specialRate(['heart'], { lurleenNear: true }), SPECIAL.baseRate * 3, 'rate clamps at the global 3× cap');
+assert.equal(specialRate(['mushroom'], { tripActive: true }), SPECIAL.baseRate * 3);
+
+assert.equal(charmGain(charmLevel(0)), 1);
+assert.equal(charmGain(charmLevel(1)), 1.04);
+assert.equal(charmGain(charmLevel(10)), 1.4);
+assert.equal(charmGain(charmLevel(11)), 1.4);
+assert.equal(CHARM.maxLevel, 10);
+
+const out = { r: 0, g: 0, b: 0, a: 0 };
+const animKinds = new Set(['steady', 'pulse', 'flicker', 'blink', 'hue', 'twinkle', 'lantern', 'confetti', 'swirl', 'glint']);
+for (const type of BUBBLE_TYPES) {
+  assert.ok(animKinds.has(type.look.anim), `${type.id} uses a covered animation kind`);
+  for (let t = 0; t <= 100; t += 0.5) {
+    for (const nightness of [0, 0.5, 1]) {
+      const scale = computeTint(type.look, t, nightness, 0.37, out);
+      assert.equal(computeTint(type.look, t, nightness, 0.37, out), scale, 'same output object is reused');
+      assert.ok([out.r, out.g, out.b, out.a, scale].every(Number.isFinite), `${type.id} remains finite`);
+      assert.ok([out.r, out.g, out.b].every((channel) => channel >= 0 && channel <= 1), `${type.id} RGB remains in 0..1`);
+      assert.ok(out.a >= 0 && scale > 0, `${type.id} brightness and scale remain valid`);
+    }
+  }
+}
+
+assert.equal(visibleCatalog(new Set()).entries.length, 10);
+assert.equal(visibleCatalog(new Set()).total, 10);
+assert.equal(visibleCatalog(new Set(['mushroom'])).entries.length, 11);
+assert.equal(visibleCatalog(new Set(['mushroom'])).total, 11);
+process.stdout.write('PASS bubble types: catalog, weighted picker, rates, charm, tint animations, and secret visibility\n');

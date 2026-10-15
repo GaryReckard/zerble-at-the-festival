@@ -2,6 +2,8 @@
 
 import * as THREE from 'three';
 import { PERF } from './perf.js';
+import { BUBBLE_TYPES, SPECIAL, pickSpecial, specialRate } from './bubbleTypes.js';
+import { SpecialBubbleRenderer } from './specialBubbles.js';
 
 // Pool size is tier-aware (see PERF.bubblePoolMax). The previous fixed 200
 // was already saturated at normal play — every G-key blast just churned
@@ -34,15 +36,17 @@ const MAX_DROPLETS = 128;
 
 // Reused across every _writeInstance call — avoids a Vector3 allocation per live bubble per frame.
 const _AXIS_Y = new THREE.Vector3(0, 1, 0);
+const TYPE_INDEX = new Map(BUBBLE_TYPES.map((type, index) => [type.id, index]));
+const EMPTY_CONTEXT = Object.freeze({});
 
 // Slowly varying global wind so all bubbles drift coherently most of the time.
 // Amplitudes are tuned so bubbles travel several meters from spawn before popping.
 let _windT = 0;
+const _windScratch = { x: 0, z: 0 };
 function sampleWind(t) {
-  return {
-    x: Math.sin(t * 0.21) * 2.4 + Math.cos(t * 0.07) * 1.6 + Math.sin(t * 0.43) * 0.8,
-    z: Math.cos(t * 0.18) * 2.4 + Math.sin(t * 0.05) * 1.6 + Math.cos(t * 0.37) * 0.8,
-  };
+  _windScratch.x = Math.sin(t * 0.21) * 2.4 + Math.cos(t * 0.07) * 1.6 + Math.sin(t * 0.43) * 0.8;
+  _windScratch.z = Math.cos(t * 0.18) * 2.4 + Math.sin(t * 0.05) * 1.6 + Math.cos(t * 0.37) * 0.8;
+  return _windScratch;
 }
 
 export class Bubbles {
@@ -154,6 +158,26 @@ export class Bubbles {
       swirlRadius: 0,
     }));
 
+    this._specialRenderer = new SpecialBubbleRenderer();
+    this.specialRoot = this._specialRenderer.root;
+    this.specialParticles = Array.from({ length: SPECIAL.pool }, () => ({
+      alive: false,
+      pos: new THREE.Vector3(), vel: new THREE.Vector3(),
+      size: 1, age: 0, life: LIFETIME, popping: false, spin: 0,
+      kind: 0, driftX: 0, driftZ: 0, driftMag: 0,
+      swirlPhase: 0, swirlRate: 0, swirlRadius: 0,
+      type: -1, seed: 0,
+    }));
+    this.specialActiveCount = 0;
+    this._specialSpawnAcc = 0;
+    this._specialEligible = [];
+    this._specialContext = EMPTY_CONTEXT;
+    this._progress = null;
+    this._forcedSpecial = null;
+    this._burstType = null;
+    this._burstRemaining = 0;
+    this._burstAcc = 0;
+
     this._spawnAcc = 0;
     this._tmpMat = new THREE.Matrix4();
     this._tmpPos = new THREE.Vector3();
@@ -182,6 +206,25 @@ export class Bubbles {
     this.starBoost = on ? 2.5 : 1;
   }
 
+  setProgress(progress) {
+    this._progress = progress;
+  }
+
+  setSpecialContext(ctx) {
+    this._specialContext = ctx || EMPTY_CONTEXT;
+  }
+
+  forceSpecial(id = null) {
+    this._forcedSpecial = id !== null && TYPE_INDEX.has(id) ? id : null;
+  }
+
+  unlockBurst(id) {
+    if (!TYPE_INDEX.has(id)) return;
+    this._burstType = id;
+    this._burstRemaining = SPECIAL.burstSec;
+    this._burstAcc = 0;
+  }
+
   // Refuel. `cap` is the most this call will fill TO (default = full stockpile).
   // Jugs pass the default (stack deep); the vendor passes 1.0 (tops only the
   // current meter). Never reduces juice if it's already above `cap`.
@@ -200,7 +243,7 @@ export class Bubbles {
   // dt: frame delta. zerble: cart for spawn pose. nightness: 0..1 from the
   // time-of-day system — bubbles emit more light at night so they pick up
   // the festival glow instead of going invisible.
-  update(dt, zerble, nightness = 0) {
+  update(dt, zerble, nightness = 0, camera = null) {
     // Nightness ramp only applies to the fancy material — cheap Standard doesn't
     // have iridescence/sheen properties and they'd be silently ignored anyway.
     if (this.mesh.material === this._fancyMat) {
@@ -229,6 +272,37 @@ export class Bubbles {
       this._spawnOne(zerble);
     }
 
+    this._specialRenderer.beginFrame(camera, nightness, dt);
+    if (this._progress) {
+      this._specialEligible.length = 0;
+      for (let i = 0; i < BUBBLE_TYPES.length; i++) {
+        const type = BUBBLE_TYPES[i];
+        if (this._progress.isEnabled(type.id)) this._specialEligible.push(type.id);
+      }
+      const specialBaseRate = this._forcedSpecial
+        ? SPECIAL.baseRate * 3
+        : specialRate(this._specialEligible, this._specialContext);
+      const specialEmissionRate = specialBaseRate * juiceFactor
+        * (0.55 + Math.min(1, speed / 8) * 0.45)
+        * (this.blastMode ? SPECIAL.blastMult : 1);
+      this._specialSpawnAcc += specialEmissionRate * dt;
+      while (this._specialSpawnAcc >= 1) {
+        this._specialSpawnAcc -= 1;
+        const id = this._forcedSpecial || pickSpecial(this._specialEligible, this._specialContext);
+        if (id) this._spawnSpecialOne(zerble, id);
+      }
+      if (this._burstRemaining > 0) {
+        const burstDt = Math.min(dt, this._burstRemaining);
+        this._burstRemaining -= burstDt;
+        if (this._burstRemaining < 1e-9) this._burstRemaining = 0;
+        this._burstAcc += SPECIAL.burstRate * burstDt;
+        while (this._burstAcc >= 1 - 1e-9) {
+          this._burstAcc = Math.max(0, this._burstAcc - 1);
+          this._spawnSpecialOne(zerble, this._burstType);
+        }
+      }
+    }
+
     let activeCount = 0;
     let renderCount = 0;
     for (let i = 0; i < this.particles.length; i++) {
@@ -247,58 +321,7 @@ export class Bubbles {
         continue;
       }
 
-      // Physics: gentle buoyancy + per-bubble personality forces
-      p.vel.y += (BUOYANCY + GRAVITY) * dt;
-      const wind = sampleWind(_windT + i * 0.13);
-
-      switch (p.kind) {
-        case 0: {
-          // FOLLOWER — full wind + small jitter
-          const jitterX = Math.sin(p.age * (1.4 + (i % 7) * 0.2) + i) * 1.2;
-          const jitterZ = Math.cos(p.age * (1.1 + (i % 5) * 0.27) + i * 1.3) * 1.2;
-          p.vel.x += (wind.x + jitterX) * dt;
-          p.vel.z += (wind.z + jitterZ) * dt;
-          break;
-        }
-        case 1: {
-          // WANDERER — mostly ignores wind, has its own steady drift
-          p.vel.x += (p.driftX * p.driftMag + wind.x * 0.1) * dt;
-          p.vel.z += (p.driftZ * p.driftMag + wind.z * 0.1) * dt;
-          // Small chaotic shudder
-          p.vel.x += Math.sin(p.age * 3 + i) * 1.6 * dt;
-          p.vel.z += Math.cos(p.age * 2.4 + i * 1.7) * 1.6 * dt;
-          break;
-        }
-        case 2: {
-          // SPINNER — corkscrew motion. Add a tangential force in a rotating direction.
-          p.swirlPhase += p.swirlRate * dt;
-          const tangX = -Math.sin(p.swirlPhase);
-          const tangZ = Math.cos(p.swirlPhase);
-          const swirlMag = p.swirlRadius * Math.abs(p.swirlRate);
-          p.vel.x += (tangX * swirlMag + wind.x * 0.3) * dt;
-          p.vel.z += (tangZ * swirlMag + wind.z * 0.3) * dt;
-          // Boost upward a touch — spinners rise faster
-          p.vel.y += 0.4 * dt;
-          break;
-        }
-        case 3: {
-          // SPRINTER — strong initial kick, decays. After 1s, behaves like a wanderer.
-          const burst = Math.max(0, 1 - p.age);
-          p.vel.x += (p.driftX * p.driftMag * 2 * burst + wind.x * 0.4) * dt;
-          p.vel.z += (p.driftZ * p.driftMag * 2 * burst + wind.z * 0.4) * dt;
-          break;
-        }
-      }
-
-      // Per-personality damping — wanderers/sprinters keep momentum longer
-      const dampingExp = p.kind === 0 ? 0.92 : (p.kind === 3 ? 0.96 : 0.95);
-      p.vel.multiplyScalar(Math.pow(dampingExp, dt * 60));
-
-      p.pos.addScaledVector(p.vel, dt);
-      p.spin += dt * 0.5;
-
-      // Pop on ground
-      if (p.pos.y < 0.2) {
+      if (this._stepParticle(p, i, dt, 1)) {
         this._popBubble(i, p);
         continue;
       }
@@ -307,6 +330,21 @@ export class Bubbles {
       renderCount = i + 1;
       this._writeInstance(i, p.pos, p.size, p.spin);
     }
+
+    let specialActiveCount = 0;
+    for (let i = 0; i < this.specialParticles.length; i++) {
+      const p = this.specialParticles[i];
+      if (!p.alive) continue;
+      p.age += dt;
+      if (p.popping || p.age >= p.life || this._stepParticle(p, MAX_BUBBLES + i, dt, 0.5)) {
+        this._popSpecial(p);
+        continue;
+      }
+      specialActiveCount++;
+      this._specialRenderer.write(p.type, p.pos, p.size, p.spin, p.age, p.seed);
+    }
+    this.specialActiveCount = specialActiveCount;
+    this._specialRenderer.endFrame(dt);
 
     this._updateDroplets(dt);
     this.activeCount = activeCount;
@@ -320,6 +358,48 @@ export class Bubbles {
     this.mesh.count = renderCount;
     this.mesh.visible = activeCount > 0 || this._dropletCount > 0;
     this.mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  _stepParticle(p, i, dt, windFactor) {
+    p.vel.y += (BUOYANCY + GRAVITY) * dt;
+    const wind = sampleWind(_windT + i * 0.13);
+    switch (p.kind) {
+      case 0: {
+        const jitterX = Math.sin(p.age * (1.4 + (i % 7) * 0.2) + i) * 1.2;
+        const jitterZ = Math.cos(p.age * (1.1 + (i % 5) * 0.27) + i * 1.3) * 1.2;
+        p.vel.x += (wind.x * windFactor + jitterX) * dt;
+        p.vel.z += (wind.z * windFactor + jitterZ) * dt;
+        break;
+      }
+      case 1: {
+        p.vel.x += (p.driftX * p.driftMag + wind.x * 0.1 * windFactor) * dt;
+        p.vel.z += (p.driftZ * p.driftMag + wind.z * 0.1 * windFactor) * dt;
+        p.vel.x += Math.sin(p.age * 3 + i) * 1.6 * dt;
+        p.vel.z += Math.cos(p.age * 2.4 + i * 1.7) * 1.6 * dt;
+        break;
+      }
+      case 2: {
+        p.swirlPhase += p.swirlRate * dt;
+        const tangX = -Math.sin(p.swirlPhase);
+        const tangZ = Math.cos(p.swirlPhase);
+        const swirlMag = p.swirlRadius * Math.abs(p.swirlRate);
+        p.vel.x += (tangX * swirlMag + wind.x * 0.3 * windFactor) * dt;
+        p.vel.z += (tangZ * swirlMag + wind.z * 0.3 * windFactor) * dt;
+        p.vel.y += 0.4 * dt;
+        break;
+      }
+      case 3: {
+        const burst = Math.max(0, 1 - p.age);
+        p.vel.x += (p.driftX * p.driftMag * 2 * burst + wind.x * 0.4 * windFactor) * dt;
+        p.vel.z += (p.driftZ * p.driftMag * 2 * burst + wind.z * 0.4 * windFactor) * dt;
+        break;
+      }
+    }
+    const dampingExp = p.kind === 0 ? 0.92 : (p.kind === 3 ? 0.96 : 0.95);
+    p.vel.multiplyScalar(Math.pow(dampingExp, dt * 60));
+    p.pos.addScaledVector(p.vel, dt);
+    p.spin += dt * 0.5;
+    return p.pos.y < 0.2;
   }
 
   _popBubble(i, p) {
@@ -432,6 +512,55 @@ export class Bubbles {
     this._writeInstance(idx, p.pos, p.size, p.spin);
   }
 
+  _spawnSpecialOne(zerble, id) {
+    const typeIndex = TYPE_INDEX.get(id);
+    if (typeIndex === undefined) return false;
+    let p = null;
+    for (let i = 0; i < this.specialParticles.length; i++) {
+      if (!this.specialParticles[i].alive) {
+        p = this.specialParticles[i];
+        break;
+      }
+    }
+    if (!p) return false;
+    p.alive = true;
+    p.popping = false;
+    p.age = 0;
+    p.life = LIFETIME * (0.7 + Math.random() * 0.6) * SPECIAL.lifeMult;
+    p.size = SPECIAL.sizeMin + Math.random() * (SPECIAL.sizeMax - SPECIAL.sizeMin);
+    p.pos.copy(zerble.nozzleWorld);
+    p.pos.x += (Math.random() - 0.5) * 0.15;
+    p.pos.z += (Math.random() - 0.5) * 0.15;
+    const r = Math.random();
+    if (r < 0.55) p.kind = 0;
+    else if (r < 0.78) p.kind = 1;
+    else if (r < 0.92) p.kind = 2;
+    else p.kind = 3;
+    const ang = Math.random() * Math.PI * 2;
+    p.driftX = Math.cos(ang);
+    p.driftZ = Math.sin(ang);
+    p.driftMag = 2 + Math.random() * 3;
+    p.swirlPhase = Math.random() * Math.PI * 2;
+    p.swirlRate = (Math.random() < 0.5 ? 1 : -1) * (3 + Math.random() * 3);
+    p.swirlRadius = 0.3 + Math.random() * 0.6;
+    p.vel.set(-zerble.forwardWorld.x * 2.6, 0.3 + Math.random() * 0.5,
+      -zerble.forwardWorld.z * 2.6);
+    p.vel.x += (Math.random() - 0.5) * 1.2;
+    p.vel.z += (Math.random() - 0.5) * 1.2;
+    p.vel.y += (Math.random() - 0.5) * 0.4;
+    p.spin = Math.random() * Math.PI * 2;
+    p.type = typeIndex;
+    p.seed = Math.random();
+    return true;
+  }
+
+  _popSpecial(p) {
+    if (!p.alive) return;
+    p.alive = false;
+    p.popping = true;
+    this._specialRenderer.pop(p.type, p.pos, p.size);
+  }
+
   _writeInstance(i, pos, scale, spin) {
     this._tmpPos.copy(pos);
     this._tmpQuat.setFromAxisAngle(_AXIS_Y, spin);
@@ -444,6 +573,10 @@ export class Bubbles {
   forEachAlive(cb) {
     for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i];
+      if (p.alive && !p.popping) cb(p);
+    }
+    for (let i = 0; i < this.specialParticles.length; i++) {
+      const p = this.specialParticles[i];
       if (p.alive && !p.popping) cb(p);
     }
   }

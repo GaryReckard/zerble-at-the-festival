@@ -180,7 +180,7 @@
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
-            const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'chunks', 'forests',
+            const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing', 'festivalShapes',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
@@ -340,6 +340,7 @@
             <option value="smile_pickup">Smile pickup (rising + homing)</option>
             <option value="smile_face">Smile pickup (face close-up)</option>
             <option value="bubbles">Bubbles (Zerble's trail)</option>
+            <option value="bubbles_special">Bubble upgrades (lineup or stream)</option>
             <option value="fireworks">Fireworks (cycles all shells)</option>
             <option value="boost_streaks">Boost wake rings (reusable trail)</option>
         </optgroup>
@@ -593,6 +594,8 @@ import {buildShrub} from './src/models/shrub.js';
         updateTribalFigures,
     } from './src/models/tribalFigures.js';
     import {Bubbles} from './src/bubbles.js';
+    import {BUBBLE_TYPES} from './src/bubbleTypes.js';
+    import {SpecialBubbleRenderer} from './src/specialBubbles.js';
     import {Smiles} from './src/smiles.js';
     import {BoostStreaks} from './src/boostStreaks.js';
     import {Fireworks, SHELL_TYPES} from './src/fireworks.js';
@@ -841,6 +844,8 @@ import {buildShrub} from './src/models/shrub.js';
         if (currentEntity instanceof NutWagon) currentEntity.despawn();
         if (currentEntity instanceof Smiles) currentEntity.dispose();
         if (currentEntity instanceof Crowd) currentEntity.smiles.dispose();
+        if (currentEntity instanceof SpecialBubbleRenderer) currentEntity.dispose();
+        if (currentEntity instanceof Bubbles) currentEntity._specialRenderer.dispose();
         // Aggressive cleanup — remove every non-light, non-ground object so
         // entities that add multiple top-level roots (e.g. Lurleen's heart
         // group + her cart root) all get torn down on switch.
@@ -2728,6 +2733,83 @@ import {buildShrub} from './src/models/shrub.js';
                 cam.target.set(0, 2, 0);
                 cam.dist = 8;
                 applyCam();
+                break;
+            }
+            case 'bubbles_special': {
+                const requestedType = new URLSearchParams(location.search).get('type');
+                const selectedType = BUBBLE_TYPES.find((type) => type.id === requestedType);
+                const focusHeart = !selectedType && new URLSearchParams(location.search).get('focus') === 'heart';
+                const fakeZerble = {
+                    position: new THREE.Vector3(0, 0, 0),
+                    speed: 8,
+                    nozzleWorld: new THREE.Vector3(0, 1.6, 0.6),
+                    forwardWorld: new THREE.Vector3(0, 0, 1),
+                };
+                const panel = document.createElement('div');
+                panel.style.cssText = 'display:flex;gap:5px;margin-top:6px';
+                const control = (label, action) => {
+                    const button = document.createElement('button');
+                    button.textContent = label;
+                    button.style.cssText = 'flex:1;min-height:34px;font:inherit;color:inherit;background:rgba(255,246,230,.1);border:1px solid rgba(255,246,230,.25);border-radius:4px;cursor:pointer';
+                    button.addEventListener('click', action);
+                    panel.append(button);
+                };
+                const closeView = () => {
+                    cam.target.set(focusHeart ? -6 : 0, 2, selectedType ? -1 : 0);
+                    cam.yaw = 0.25;
+                    cam.pitch = 0.18;
+                    cam.dist = focusHeart ? 3 : (selectedType ? 6 : 20);
+                    applyCam();
+                };
+                control('Close', closeView);
+                control('Chase distance', () => {
+                    cam.target.set(0, 1.6, selectedType ? -0.5 : 0);
+                    cam.yaw = Math.PI;
+                    cam.pitch = Math.atan2(6.5, 12);
+                    cam.dist = Math.hypot(12, 6.5);
+                    applyCam();
+                });
+                info.after(panel);
+                puppetControls = panel;
+                if (selectedType) {
+                    const bubbles = new Bubbles();
+                    bubbles.setProgress({isEnabled: (id) => id === selectedType.id});
+                    bubbles.forceSpecial(selectedType.id);
+                    scene.add(bubbles.mesh, bubbles.specialRoot);
+                    entityRoot = bubbles.specialRoot;
+                    currentEntity = bubbles;
+                    control('Unlock burst', () => bubbles.unlockBurst(selectedType.id));
+                    updateFn = (dt) => bubbles.update(dt, fakeZerble, tod.nightness, camera);
+                    info.textContent = `Loaded: ${selectedType.name} · real special emitter`;
+                } else {
+                    const specials = new SpecialBubbleRenderer();
+                    scene.add(specials.root);
+                    entityRoot = specials.root;
+                    currentEntity = specials;
+                    const positions = BUBBLE_TYPES.map((_, index) => new THREE.Vector3((index - 5) * 1.2, 2, 0));
+                    const standard = new Bubbles();
+                    standard._specialRenderer.dispose();
+                    standard._dropletMesh.visible = false;
+                    standard._writeInstance(0, new THREE.Vector3(-7.2, 2, 0), 2, 0);
+                    standard._writeInstance(1, new THREE.Vector3(7.2, 2, 0), 2, 0);
+                    standard.mesh.count = 2;
+                    standard.mesh.visible = true;
+                    standard.mesh.instanceMatrix.needsUpdate = true;
+                    scene.add(standard.mesh);
+                    control('Pop all', () => {
+                        for (let i = 0; i < positions.length; i++) specials.pop(i, positions[i], 2);
+                    });
+                    if (focusHeart) control('Pop Heart', () => specials.pop(0, positions[0], 2));
+                    updateFn = (dt) => {
+                        specials.beginFrame(camera, tod.nightness, dt);
+                        for (let i = 0; i < positions.length; i++) {
+                            specials.write(i, positions[i], 2, 0, 0, i / positions.length);
+                        }
+                        specials.endFrame(dt);
+                    };
+                    info.textContent = 'Loaded: all bubble upgrades · standard bubbles at both ends';
+                }
+                closeView();
                 break;
             }
             case 'boost_streaks': {

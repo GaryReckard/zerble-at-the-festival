@@ -27,6 +27,8 @@ import { DODGE, laneDodgeTest, laneDodgeDir, laneDodgeUrgency, honkScatterParams
 import { StarPower } from './starPower.js';
 
 const _kidDodgeOut = { x: 0, z: 0 };   // reused scratch for laneDodgeDir (no per-frame alloc)
+const KID_SOFT_SEPARATION = 1.4;       // children leave one another a little room
+const KID_HARD_SEPARATION = 0.82;      // slightly tighter than adults, no body stacking
 
 // Pick a position at radius `[rNear, rFar]` from `(centerX, centerZ)` that
 // is NOT inside a lake outline. Up to 6 tries; falls back to the last
@@ -705,6 +707,11 @@ export class KidGaggle {
       // every frame. Kid radius treated as 0.4m for the overlap check.
       pushOutOfHardColliders(k, 0.4);
 
+      // Children can share a bubble target, so add a small personal-space
+      // nudge after their goal movement. The hard pass below is the guarantee
+      // that a crowded gaggle cannot collapse into one point.
+      nudgeKidFromNeighbors(this.kids, i, dt);
+
       // Visual animation (smooth yaw + bounce) lives in tickKid so the
       // sandbox and game can't drift apart. See models/kid.js.
       tickKid(k, dt, {
@@ -715,13 +722,99 @@ export class KidGaggle {
       this.colliders[i].position.copy(k.position);
       this.colliders[i].position.y = 0.6;
     }
+
+    // Resolve all pair overlaps after movement, including exact coincidences
+    // where a direction cannot be derived from the positions. Bounded passes
+    // let dense groups settle; ordinary frames exit as soon as no correction
+    // is needed, without adding allocations or a frame-sized lag.
+    for (let pass = 0; pass < 128; pass++) {
+      let foundOverlap = false;
+      for (let i = 0; i < this.kids.length; i++) {
+        const a = this.kids[i].position;
+        for (let j = i + 1; j < this.kids.length; j++) {
+          const b = this.kids[j].position;
+          let dx = a.x - b.x, dz = a.z - b.z;
+          let d2 = dx * dx + dz * dz;
+          // Leave a sub-millimeter tolerance so floating-point settling does
+          // not burn the full iteration cap chasing an exact boundary.
+          const resolveDistance = KID_HARD_SEPARATION - 0.0005;
+          if (d2 >= resolveDistance * resolveDistance) continue;
+          foundOverlap = true;
+          let d;
+          if (d2 < 1e-10) {
+            // Stable pair-specific direction prevents RNG jitter and gives
+            // coincident kids opposite, deterministic correction vectors.
+            const angle = ((i * 31 + j * 17) % 360) * (Math.PI / 180);
+            dx = Math.cos(angle); dz = Math.sin(angle); d = 0;
+          } else {
+            d = Math.sqrt(d2);
+            dx /= d; dz /= d;
+          }
+          const push = (KID_HARD_SEPARATION - d) * 0.5;
+          a.x += dx * push; a.z += dz * push;
+          b.x -= dx * push; b.z -= dz * push;
+        }
+      }
+      // Pair corrections can cross a lake shore or a hard world collider.
+      // Reapply those constraints before deciding this pass has settled.
+      let worldCorrection = false;
+      for (const kid of this.kids) {
+        const x = kid.position.x, z = kid.position.z;
+        if (isPointInLake(x, z)) {
+          const shore = projectOutOfLake(x, z, 3.0);
+          if (shore) {
+            kid.position.x = shore.x;
+            kid.position.z = shore.z;
+          }
+        }
+        pushOutOfHardColliders(kid, 0.4, false);
+        if (kid.position.x !== x || kid.position.z !== z) worldCorrection = true;
+      }
+      if (!foundOverlap && !worldCorrection) break;
+    }
+    // The broad-phase/player colliders must follow the final resolved poses.
+    for (let i = 0; i < this.kids.length; i++) {
+      this.colliders[i].position.copy(this.kids[i].position);
+      this.colliders[i].position.y = 0.6;
+    }
+  }
+}
+
+// Soft repulsion keeps shared-target chasing from continually pressing kids
+// into one another. The final pair pass in KidGaggle.update is the hard floor.
+function nudgeKidFromNeighbors(kids, index, dt) {
+  const kid = kids[index];
+  let sx = 0, sz = 0, count = 0;
+  for (let j = 0; j < kids.length; j++) {
+    if (j === index) continue;
+    const other = kids[j];
+    let dx = kid.position.x - other.position.x;
+    let dz = kid.position.z - other.position.z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 >= KID_SOFT_SEPARATION * KID_SOFT_SEPARATION) continue;
+    let d;
+    if (d2 < 1e-10) {
+      const angle = ((index * 31 + j * 17) % 360) * (Math.PI / 180);
+      dx = Math.cos(angle); dz = Math.sin(angle); d = 0;
+    } else {
+      d = Math.sqrt(d2);
+      dx /= d; dz /= d;
+    }
+    const weight = (KID_SOFT_SEPARATION - d) / KID_SOFT_SEPARATION;
+    sx += dx * weight; sz += dz * weight; count++;
+  }
+  const length = Math.hypot(sx, sz);
+  if (count && length > 1e-5) {
+    const step = Math.min(0.025, dt * 0.9);
+    kid.position.x += sx / length * step;
+    kid.position.z += sz / length * step;
   }
 }
 
 // Push a kid (or any small object with .position + .userData.heading) out
 // of every registry collider it currently overlaps. Mutates position +
 // flips heading so the next step isn't right back into the wall.
-function pushOutOfHardColliders(obj, kidRadius) {
+function pushOutOfHardColliders(obj, kidRadius, adjustHeading = true) {
   // Localized: only colliders in nearby cells (reach padded internally by the
   // registry's max collider radius). Same overlap-resolve math as the old full
   // registry.colliders() scan.
@@ -740,7 +833,7 @@ function pushOutOfHardColliders(obj, kidRadius) {
     obj.position.z += dz * inv * overlap;
     // Aim their next step outward + jitter so they don't stutter against
     // the surface.
-    if (obj.userData) {
+    if (adjustHeading && obj.userData) {
       obj.userData.heading = Math.atan2(dx * inv, -dz * inv)
         + (Math.random() - 0.5) * 0.6;
       obj.userData.turnTimer = 0.3 + Math.random() * 0.4;

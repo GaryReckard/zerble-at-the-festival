@@ -8,6 +8,9 @@ const source = readFileSync(new URL('../src/obstacles.js', import.meta.url), 'ut
 const start = source.indexOf('  update(dt, bubbles, zerble, smiles) {', source.indexOf('export class KidGaggle {'));
 const end = source.indexOf('\n}\n', start);
 assert(start >= 0 && end > start, 'find the production KidGaggle.update method');
+const nudgeStart = source.indexOf('function nudgeKidFromNeighbors(');
+const nudgeEnd = source.indexOf('\n}\n', nudgeStart) + 2;
+assert(nudgeStart >= 0 && nudgeEnd > nudgeStart, 'find the production kid separation nudge');
 
 class Vector {
   constructor(x = 0, y = 0, z = 0) { this.set(x, y, z); }
@@ -18,12 +21,33 @@ class Vector {
 }
 
 const poses = [];
+const testConstraints = { hardCollider: null, lakeRadius: 0 };
+const nudgeKidFromNeighbors = vm.runInNewContext(`(${source.slice(nudgeStart, nudgeEnd).replace('function nudgeKidFromNeighbors', 'function')})`, {
+  KID_SOFT_SEPARATION: 1.4,
+});
 const update = vm.runInNewContext(`({${source.slice(start, end)}}).update`, {
   Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
-  isPointInLake: () => false,
+  KID_HARD_SEPARATION: 0.82,
+  nudgeKidFromNeighbors,
+  isPointInLake: (x, z) => testConstraints.lakeRadius > 0 && x * x + z * z < testConstraints.lakeRadius ** 2,
+  projectOutOfLake: (x, z, margin) => {
+    const distance = Math.hypot(x, z) || 1;
+    const radius = testConstraints.lakeRadius + margin;
+    return { x: x / distance * radius, z: z / distance * radius };
+  },
   StarPower: { isActive: () => false },
   laneDodgeTest: () => false,
-  pushOutOfHardColliders: () => {},
+  pushOutOfHardColliders: (object, kidRadius) => {
+    const collider = testConstraints.hardCollider;
+    if (!collider) return;
+    const dx = object.position.x - collider.x, dz = object.position.z - collider.z;
+    const distance = Math.hypot(dx, dz);
+    const minimum = collider.radius + kidRadius;
+    if (distance >= minimum) return;
+    const direction = distance > 1e-8 ? 1 / distance : 1;
+    object.position.x = collider.x + (distance > 1e-8 ? dx * direction : 1) * minimum;
+    object.position.z = collider.z + (distance > 1e-8 ? dz * direction : 0) * minimum;
+  },
   tickKid: (kid, dt, options) => poses.push({ yaw: options.targetYaw, excited: options.excited }),
 });
 const kid = (x = 0, z = 0) => ({
@@ -50,6 +74,52 @@ const parkedCart = {
     assert(Math.hypot(k.position.x - bubble.x, k.position.z - bubble.z) <= 0.71,
       `kid stays at the grab radius of a stationary bubble on frame ${n}`);
   }
+}
+
+// A whole gaggle chasing one point must not collapse into one shared position,
+// including the degenerate case where their starting coordinates coincide.
+{
+  const kids = Array.from({ length: 64 }, () => kid(0, 0));
+  const g = {
+    kids,
+    colliders: kids.map(() => ({ position: new Vector() })),
+  };
+  const bubble = new Vector(0, 1, 0);
+  for (let n = 0; n < 30; n++) {
+    step(g, [bubble]);
+    for (let i = 0; i < kids.length; i++) {
+      assert.equal(g.colliders[i].position.x, kids[i].position.x,
+        `kid collider follows its final separated position on frame ${n}`);
+      for (let j = i + 1; j < kids.length; j++) {
+        const d = Math.hypot(kids[i].position.x - kids[j].position.x, kids[i].position.z - kids[j].position.z);
+        assert(d >= 0.819, `kids ${i} and ${j} keep personal space on frame ${n} (${d.toFixed(3)}m)`);
+      }
+    }
+  }
+}
+
+// Pair correction must retain the existing hard-world and lake constraints.
+for (const scenario of ['hard collider', 'lake shore']) {
+  const kids = [kid(1.4, 0), kid(1.4, 0)];
+  for (const k of kids) k.userData.speed = 0;
+  const g = { kids, colliders: kids.map(() => ({ position: new Vector() })) };
+  if (scenario === 'hard collider') testConstraints.hardCollider = { x: 0, z: 0, radius: 1 };
+  else testConstraints.lakeRadius = 5;
+  if (scenario === 'lake shore') for (const k of kids) k.position.x = 5.3;
+  step(g, []);
+  for (const k of kids) {
+    if (scenario === 'hard collider') {
+      assert(Math.hypot(k.position.x, k.position.z) >= 1.399,
+        'kid pair separation does not push a child into a hard collider');
+    } else {
+      assert(Math.hypot(k.position.x, k.position.z) >= 5,
+        'kid pair separation does not leave a child inside a lake');
+    }
+  }
+  assert(Math.hypot(kids[0].position.x - kids[1].position.x, kids[0].position.z - kids[1].position.z) >= 0.819,
+    `world constraint correction preserves kid spacing beside the ${scenario}`);
+  testConstraints.hardCollider = null;
+  testConstraints.lakeRadius = 0;
 }
 
 // A tracked bubble remains the target when two candidates trade nearest place by centimeters.
@@ -130,4 +200,4 @@ for (const dt of [1 / 30, 1 / 60, 1 / 120]) {
     'display yaw crosses the seam by the short arc');
 }
 
-process.stdout.write('PASS  kid target commitment, grab radius, state changes, center steering, angle wrap and speed at 30/60/120 fps\n');
+process.stdout.write('PASS  kid target commitment, grab radius, personal space, state changes, center steering, angle wrap and speed at 30/60/120 fps\n');
