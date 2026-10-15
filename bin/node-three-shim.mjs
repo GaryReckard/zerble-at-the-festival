@@ -73,6 +73,8 @@ export class ConeGeometry extends GeometryStub {}
 export class BoxGeometry extends GeometryStub {}
 export class RingGeometry extends GeometryStub {}
 export class TorusGeometry extends GeometryStub {}
+export class TubeGeometry extends GeometryStub {}
+export class CatmullRomCurve3 { constructor(points) { this.points = points; } }
 export class CapsuleGeometry extends GeometryStub {}
 export class SphereGeometry extends GeometryStub {}
 export class OctahedronGeometry extends GeometryStub {}

@@ -12,6 +12,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **The Nut Wagon has its own reggae tune.** A 74–80 BPM one-drop groove combines offbeat triads, a syncopated bass hook, closed hats, rim clicks and a melodica response with tempo-linked echo. Intro, verse, chorus, breakdown and outro share a harmonic progression. The sandbox includes a dedicated music button, and a silent offline render checks output and cleanup.
 
 ### Changed
+- **Canoes, hammocks and service props have clearer shapes.** Canoes now have open curved hulls and seated paddlers; hammocks gather into suspension ropes with sagging, cupped fabric. The information kiosk places its board behind a front service counter, and juice-jug handles project from the side. Actual-builder checks and day/night screenshots are recorded in [verification](verification/prop-shapes/README.md).
 - **Bubbles burst instead of shrinking away.** A pop removes the sphere immediately and sends seven tiny, translucent soap droplets outward from its surface for a quarter-second. A fixed 128-droplet pool adds at most one shadow-free draw, and ground and lifetime pops share the same effect.
 - **Starting supplies no longer include four guaranteed juice jugs.** Removed the seeded welcome ring around the arrival point. The full starting tank, rare world pickups and refill vendors remain, so extra reserves must be found rather than collected immediately at the gate.
 
