@@ -1,0 +1,51 @@
+{
+  "pass": true,
+  "assertions": 889,
+  "rngDraws": 18,
+  "variants": {
+    "taco": 6,
+    "coffee": 6,
+    "pizza": 6
+  },
+  "FOOD_TRUCK_SCALE": 1.7,
+  "sharedPools": {
+    "geometries": 214,
+    "materials": 25,
+    "textures": 6
+  },
+  "reports": {
+    "taco": {
+      "draws": 13,
+      "casters": 1,
+      "triangles": 2564,
+      "maxRadius": 6.113,
+      "minY": 0,
+      "maxY": 6.459,
+      "pooledGeometries": 13,
+      "pooledMaterials": 13,
+      "pooledTextures": 2
+    },
+    "coffee": {
+      "draws": 12,
+      "casters": 1,
+      "triangles": 1864,
+      "maxRadius": 5.975,
+      "minY": 0.078,
+      "maxY": 6.752,
+      "pooledGeometries": 12,
+      "pooledMaterials": 12,
+      "pooledTextures": 2
+    },
+    "pizza": {
+      "draws": 11,
+      "casters": 1,
+      "triangles": 1964,
+      "maxRadius": 6.086,
+      "minY": -0.016,
+      "maxY": 5.568,
+      "pooledGeometries": 11,
+      "pooledMaterials": 11,
+      "pooledTextures": 2
+    }
+  }
+}

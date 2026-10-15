@@ -231,6 +231,7 @@
             <option value="nut_wagon_cruise">Nut Wagon · cruising and boarding</option>
             <option value="nut_wagon_closed">Nut Wagon · hatch closed</option>
             <option value="food_truck">Food truck</option>
+            <option value="food_truck_lineup">Food trucks (three silhouettes)</option>
             <option value="sugar_shack">Sugar Shack</option>
             <option value="tree">Tree</option>
             <option value="entrance_arch">Entrance arch</option>
@@ -1466,8 +1467,26 @@ import {buildShrub} from './src/models/shrub.js';
                 applyCam();
                 break;
             }
+            case 'food_truck_lineup': {
+                const g = new THREE.Group();
+                [0.03, 0.41, 0.81].forEach((sample, index) => {
+                    const truck = buildFoodTruck(() => sample);
+                    truck.position.x = (index - 1) * 15;
+                    g.add(truck);
+                });
+                scene.add(g);
+                entityRoot = g;
+                cam.target.set(0, 2.5, 0);
+                cam.yaw = -0.3;
+                cam.pitch = 0.25;
+                cam.dist = 43;
+                applyCam();
+                break;
+            }
             case 'food_truck': {
-                const g = buildFoodTruck(Math.random);
+                const previewVariant = new URLSearchParams(location.search).get('truck');
+                const samples = { cab: 0.03, van: 0.41, trailer: 0.81 };
+                const g = buildFoodTruck(previewVariant in samples ? () => samples[previewVariant] : Math.random);
                 scene.add(g);
                 entityRoot = g;
                 cam.target.set(0, 2, 0);
