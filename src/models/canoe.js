@@ -1,88 +1,124 @@
-// Canoe + paddler(s). Long axis along Z. Builds at the group's origin so
-// callers can position/rotate the parent group freely.
-
+// Open, pointed canoe. Long axis is Z; the caller owns placement and motion.
 import * as THREE from 'three';
 
-export function buildCanoe(group, rng = Math.random) {
-  const woodMat = new THREE.MeshStandardMaterial({
-    color: 0x8b5a2b, roughness: 0.95, flatShading: true,
-  });
-  const insideMat = new THREE.MeshStandardMaterial({
-    color: 0xd4a874, roughness: 0.95, flatShading: true,
-  });
+const shared = resource => { resource.userData.shared = true; return resource; };
+const material = color => shared(new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: true }));
+const M = {
+  hull: material(0x936134), rim: material(0x4f301e), seat: material(0xc49860),
+  skin: material(0xe6bb8c), hair: material(0x493125), paddle: material(0x6c4928),
+  blade: material(0xc09359), shorts: material(0x34485c),
+  shirts: [0x66d9ff, 0xff6f9c, 0xffd28a, 0x6fcf6a, 0xb285ff, 0xff8a5b].map(material),
+};
+const G = {
+  seat: shared(new THREE.BoxGeometry(0.82, 0.075, 0.22)),
+  body: shared(new THREE.CapsuleGeometry(0.18, 0.37, 3, 6)),
+  head: shared(new THREE.IcosahedronGeometry(0.19, 1)),
+  limb: shared(new THREE.CylinderGeometry(0.055, 0.055, 1, 6)),
+  paddle: shared(new THREE.CylinderGeometry(0.027, 0.027, 1, 6)),
+  blade: shared(new THREE.BoxGeometry(0.22, 0.42, 0.055)),
+};
 
-  // Hull
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.4, 4.0), woodMat);
-  hull.position.y = 0.2;
+const RINGS = 24;
+const halfLength = 2.45;
+function widthAt(u) { return 0.52 * Math.pow(Math.max(0, 1 - u * u), 0.78); }
+function rimY(u) { return 0.50 + 0.10 * Math.pow(Math.abs(u), 3); }
+
+function makeHull() {
+  const verts = [], indices = [];
+  // The section walks along the outer hull, folds over the lip, then returns
+  // along the inner hull. The open center is actual empty space.
+  for (let i = 0; i <= RINGS; i++) {
+    const u = i / RINGS * 2 - 1;
+    const w = Math.max(0.012, widthAt(u)), y = rimY(u);
+    const section = [
+      [-w, y], [-w * .84, .27], [-w * .46, .115], [0, .075],
+      [w * .46, .115], [w * .84, .27], [w, y],
+      [w * .87, y - .045], [w * .67, .29], [w * .36, .19],
+      [0, .165], [-w * .36, .19], [-w * .67, .29], [-w * .87, y - .045],
+    ];
+    for (const [x, py] of section) verts.push(x, py, u * halfLength);
+    if (i === RINGS) continue;
+    for (let j = 0; j < section.length; j++) {
+      const a = i * section.length + j;
+      const b = i * section.length + (j + 1) % section.length;
+      const c = a + section.length, d = b + section.length;
+      indices.push(a, b, c, b, d, c);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return shared(geo);
+}
+G.hull = makeHull();
+for (const side of [-1, 1]) {
+  const pts = [];
+  for (let i = 0; i <= RINGS; i++) {
+    const u = i / RINGS * 2 - 1;
+    pts.push(new THREE.Vector3(side * Math.max(.012, widthAt(u)), rimY(u), u * halfLength));
+  }
+  G['rim' + side] = shared(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), RINGS, .032, 5, false));
+}
+
+const up = new THREE.Vector3(0, 1, 0);
+function beam(group, geo, mat, a, b) {
+  const mesh = new THREE.Mesh(geo, mat);
+  const delta = new THREE.Vector3().subVectors(b, a);
+  mesh.position.copy(a).add(b).multiplyScalar(.5);
+  mesh.quaternion.setFromUnitVectors(up, delta.clone().normalize());
+  mesh.scale.y = delta.length();
+  group.add(mesh);
+}
+
+export function buildCanoe(group, rng = Math.random) {
+  const hull = new THREE.Mesh(G.hull, M.hull);
+  hull.name = 'canoe_open_hull';
   hull.castShadow = true;
   hull.receiveShadow = true;
   group.add(hull);
+  for (const side of [-1, 1]) group.add(new THREE.Mesh(G['rim' + side], M.rim));
 
-  // Pointed bow + stern — cone apex points AWAY from center so the canoe
-  // narrows to a point at each end. ConeGeometry's default apex is at +Y;
-  // rotating +π/2 on X swings it to +Z and -π/2 swings it to -Z, so we
-  // need the rotation sign to MATCH the cone's z-side, not oppose it.
-  for (const ez of [-2.0, 2.0]) {
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.48, 1.0, 6), woodMat);
-    tip.rotation.x = ez < 0 ? -Math.PI / 2 : Math.PI / 2;
-    tip.position.set(0, 0.2, ez);
-    // Canoe tip — small cone, hull casts the main canoe shadow.
-    group.add(tip);
-  }
-
-  // Inside floor (slightly raised, lighter wood)
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 3.6), insideMat);
-  floor.position.y = 0.40;
-  group.add(floor);
-
-  // Two thwarts (seat planks)
-  for (const ez of [-0.7, 0.7]) {
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.06, 0.18), insideMat);
-    seat.position.set(0, 0.50, ez);
+  for (const z of [-0.7, 0.7]) {
+    const seat = new THREE.Mesh(G.seat, M.seat);
+    seat.position.set(0, .43, z);
     group.add(seat);
   }
 
-  // 1-2 paddlers — front always taken; rear 55% of the time.
-  const shirts = [0x66d9ff, 0xff6f9c, 0xffd28a, 0x6fcf6a, 0xb285ff, 0xff8a5b];
-  const seatPositions = [-0.7, 0.7];
+  // Keep the original one occupancy draw and one shirt draw per paddler.
   const rearOccupied = rng() < 0.55;
-  for (const ez of seatPositions) {
-    if (ez > 0 && !rearOccupied) continue;
-
-    const shirt = shirts[Math.floor(rng() * shirts.length)];
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.18, 0.55, 4, 6),
-      new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.85, flatShading: true }),
-    );
-    body.position.set(0, 0.85, ez);
+  for (const z of [-0.7, 0.7]) {
+    if (z > 0 && !rearOccupied) continue;
+    const shirt = M.shirts[Math.floor(rng() * M.shirts.length)];
+    const side = z < 0 ? -1 : 1;
+    const body = new THREE.Mesh(G.body, shirt);
+    body.position.set(0, .78, z);
     body.castShadow = true;
     group.add(body);
-
-    const head = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.20, 1),
-      new THREE.MeshStandardMaterial({ color: 0xe6c098, roughness: 0.9, flatShading: true }),
-    );
-    head.position.set(0, 1.30, ez);
-    // Paddler head — body already casts shadow.
+    const head = new THREE.Mesh(G.head, M.skin);
+    head.position.set(0, 1.16, z);
     group.add(head);
+    const hair = new THREE.Mesh(G.head, M.hair);
+    hair.scale.set(1.02, .38, 1.02);
+    hair.position.set(0, 1.30, z);
+    group.add(hair);
 
-    // Paddle — handle + blade, tilted to one side as if mid-stroke
-    const paddleSide = ez < 0 ? -1 : 1;
-    const paddle = new THREE.Group();
-    const paddleHandle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.03, 0.03, 1.4, 6),
-      new THREE.MeshStandardMaterial({ color: 0x6a4a2a, roughness: 0.95, flatShading: true }),
-    );
-    paddle.add(paddleHandle);
-    const paddleBlade = new THREE.Mesh(
-      new THREE.BoxGeometry(0.28, 0.04, 0.45),
-      new THREE.MeshStandardMaterial({ color: 0x8b6f47, roughness: 0.95, flatShading: true }),
-    );
-    paddleBlade.position.y = -0.75;
-    paddle.add(paddleBlade);
-
-    paddle.position.set(paddleSide * 0.55, 0.85, ez);
-    paddle.rotation.z = paddleSide * -0.6;
-    group.add(paddle);
+    // Bent knees stay inside the gunwales, while the outside arm reaches the shaft.
+    for (const legSide of [-1, 1]) {
+      beam(group, G.limb, M.shorts,
+        new THREE.Vector3(legSide * .12, .58, z + .06),
+        new THREE.Vector3(legSide * .23, .30, z - .25));
+    }
+    const grip = new THREE.Vector3(side * .48, .82, z - .18);
+    beam(group, G.limb, M.skin, new THREE.Vector3(side * .15, .96, z), grip);
+    beam(group, G.limb, M.skin, new THREE.Vector3(-side * .15, .96, z),
+      new THREE.Vector3(side * .16, 1.18, z + .12));
+    const top = new THREE.Vector3(side * .18, 1.26, z + .14);
+    const bottom = new THREE.Vector3(side * .86, .12, z - .37);
+    beam(group, G.paddle, M.paddle, top, bottom);
+    const blade = new THREE.Mesh(G.blade, M.blade);
+    blade.position.copy(bottom).lerp(top, .12);
+    blade.rotation.z = side * .45;
+    group.add(blade);
   }
 }

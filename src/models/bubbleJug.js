@@ -67,10 +67,12 @@ export function buildBubbleJug() {
   cap.position.y = 0.68;
   pivot.add(cap);
 
-  // Handle — a small loop on the back-left shoulder.
-  const handle = new THREE.Mesh(geo('handle', () => new THREE.TorusGeometry(0.1, 0.028, 6, 12)), bodyMat);
-  handle.position.set(-0.16, 0.5, 0);
-  handle.rotation.y = Math.PI / 2;
+  // The loop lies in the label's plane and projects beyond the left wall.
+  // Its right arc intersects the body, leaving a visible finger opening.
+  const handle = new THREE.Mesh(geo('handle', () => new THREE.TorusGeometry(0.13, 0.028, 6, 16)), bodyMat);
+  handle.name = 'side-handle';
+  handle.position.set(-0.27, 0.35, 0);
+  handle.scale.y = 1.1;
   pivot.add(handle);
 
   // Front label panel + a few little bubbles printed on it.

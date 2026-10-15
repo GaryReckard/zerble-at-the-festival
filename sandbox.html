@@ -1183,11 +1183,13 @@ import {buildShrub} from './src/models/shrub.js';
                 break;
             }
             case 'info_kiosk': {
-                const { group } = buildInfoKiosk(Math.random);
+                const { group } = buildInfoKiosk(mulberry32(82));
                 scene.add(group);
                 entityRoot = group;
                 cam.target.set(0, 1.6, 0);
-                cam.dist = 9;
+                cam.dist = 7.5;
+                cam.pitch = 0.12;
+                cam.yaw = 0.42;
                 applyCam();
                 break;
             }

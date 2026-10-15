@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Canoe and hammock geometry checks</title>
+<style>
+  body { margin: 2rem; background: #171522; color: #f4ead7; font: 16px/1.5 ui-monospace, monospace; }
+  pre { white-space: pre-wrap; }
+</style>
+<h1>Canoe and hammock geometry checks</h1>
+<pre id="result">Checking…</pre>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { buildCanoe } from '../../src/models/canoe.js';
+import { buildHammock, buildTreeHammock } from '../../src/models/hammock.js';
+
+const checks = [];
+function assert(value, message) { if (!value) throw Error(message); checks.push(message); }
+function counted(values) {
+  let calls = 0;
+  return { rng: () => { const value = values[calls % values.length]; calls++; return value; }, get calls() { return calls; } };
+}
+function inspect(root, label, limit, casters) {
+  let meshes = 0, shadows = 0, triangles = 0;
+  root.updateMatrixWorld(true);
+  root.traverse(object => {
+    if (!object.isMesh) return;
+    meshes++;
+    shadows += Number(object.castShadow);
+    assert(object.geometry && object.material && object.matrixWorld.elements.every(Number.isFinite), label + ' valid mesh transform');
+    for (const attribute of Object.values(object.geometry.attributes)) {
+      assert(attribute.array.every(Number.isFinite), label + ' finite vertex data');
+    }
+    const count = object.geometry.index?.count ?? object.geometry.attributes.position.count;
+    triangles += count / 3;
+    assert(object.material.userData.shared === true, label + ' pooled material');
+    if (object.name !== 'hammock_cradle') assert(object.geometry.userData.shared === true, label + ' pooled fixed geometry');
+  });
+  assert(meshes <= limit && shadows <= casters, label + ' mesh and shadow budget');
+  const box = new THREE.Box3().setFromObject(root);
+  assert(box.min.toArray().every(Number.isFinite) && box.max.toArray().every(Number.isFinite), label + ' finite bounds');
+  return { meshes, shadows, triangles, min: box.min.toArray(), max: box.max.toArray() };
+}
+try {
+  const canoe = new THREE.Group(), cRng = counted([.2, .1, .4]);
+  buildCanoe(canoe, cRng.rng);
+  assert(cRng.calls === 3, 'Two paddlers consume the original three RNG draws');
+  const hull = canoe.getObjectByName('canoe_open_hull');
+  assert(hull && hull.geometry.attributes.position.count > 300, 'Continuous longitudinal hull with an open section');
+  const hp = hull.geometry.attributes.position;
+  const center = [], tip = [];
+  for (let i = 0; i < hp.count; i++) {
+    const x = hp.getX(i), z = hp.getZ(i);
+    if (Math.abs(z) < .01) center.push(Math.abs(x));
+    if (Math.abs(Math.abs(z) - 2.45) < .01) tip.push(Math.abs(x));
+  }
+  assert(Math.max(...center) > .5 && Math.max(...tip) < .03, 'Hull tapers to both pointed tips');
+  const canoeReport = inspect(canoe, 'canoe', 26, 3);
+  assert(canoeReport.min[1] >= 0 && canoeReport.max[2] < 2.55, 'Canoe remains within lake placement bounds');
+  const empty = new THREE.Group(), eRng = counted([.9, .1]);
+  buildCanoe(empty, eRng.rng);
+  assert(eRng.calls === 2, 'One paddler consumes the original two RNG draws');
+  assert(inspect(empty, 'single-paddler canoe', 17, 2).meshes < canoeReport.meshes, 'Rear occupancy changes model');
+
+  const hRng = counted([.2, .25]), posted = buildHammock(12, -8, hRng.rng);
+  assert(hRng.calls === 2 && posted.group.isGroup && posted.yaw === Math.PI / 2, 'Posted hammock preserves RNG and yaw API');
+  assert(posted.seatPos.distanceTo(new THREE.Vector3(12, 1.15, -8)) < 1e-6, 'Posted seat stays at the original NPC anchor');
+  const cloth = posted.group.getObjectByName('hammock_cradle');
+  assert(cloth.geometry.attributes.position.count === 105, 'Cloth has longitudinal and transverse cradle sections');
+  const positions = cloth.geometry.attributes.position;
+  const centerY = positions.getY(10 * 5 + 2), edgeY = positions.getY(10 * 5);
+  assert(edgeY > centerY + .10, 'Cradle edges rise above its center');
+  const middleWidth = Math.hypot(positions.getX(10 * 5) - positions.getX(10 * 5 + 4), positions.getZ(10 * 5) - positions.getZ(10 * 5 + 4));
+  const endWidth = Math.hypot(positions.getX(0) - positions.getX(4), positions.getZ(0) - positions.getZ(4));
+  assert(endWidth < middleWidth * .15, 'Fabric gathers at both ends');
+  assert(posted.group.children.filter(x => x.name === 'hammock_suspension').length === 4, 'Four suspension ropes attach fabric to posts');
+  const postedReport = inspect(posted.group, 'posted hammock', 7, 1);
+  assert(postedReport.min[2] < -9.9 && postedReport.max[2] > -6.1, 'Posted supports remain four metres apart');
+
+  const tRng = counted([.7]), tree = buildTreeHammock(-3, 4, 3, 4, tRng.rng);
+  assert(tRng.calls === 1 && tree.group.isGroup, 'Tree hammock preserves one RNG draw and group API');
+  assert(tree.seatPos.distanceTo(new THREE.Vector3(0, 1.15, 4)) < 1e-6, 'Tree seat stays at the original NPC anchor');
+  assert(tree.group.children.filter(x => x.name === 'hammock_suspension').length === 4, 'Tree fabric connects to both trunks');
+  const treeReport = inspect(tree.group, 'tree hammock', 5, 1);
+  assert(treeReport.min[0] <= -3 && treeReport.max[0] >= 3, 'Tree suspension reaches both trunk centers');
+  const again = buildHammock(0, 0, () => .2);
+  assert(again.group.getObjectByName('hammock_post').geometry === posted.group.getObjectByName('hammock_post').geometry, 'Posts reuse geometry across instances');
+  assert(again.group.getObjectByName('hammock_cradle').geometry !== cloth.geometry, 'Fabric geometry remains instance owned');
+  const report = { pass: true, assertions: checks.length, canoe: canoeReport, posted: postedReport, tree: treeReport };
+  document.querySelector('#result').textContent = JSON.stringify(report, null, 2);
+  document.documentElement.dataset.result = 'pass';
+} catch (error) {
+  document.querySelector('#result').textContent = 'FAIL: ' + error.stack;
+  document.documentElement.dataset.result = 'fail';
+  throw error;
+}
+</script>
+</html>

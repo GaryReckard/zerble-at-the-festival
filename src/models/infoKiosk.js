@@ -28,7 +28,7 @@ export const INFO_KIOSK_COLLIDER_R = 1.15;
 
 const POST_X = 0.95, POST_Z = 0.72, POST_T = 0.11, EAVE_Y = 2.15;
 const RIDGE_Y = 2.62, ROOF_HALF_X = 1.32, ROOF_HALF_Z = 1.02;
-const BOARD_W = 1.74, BOARD_H = 0.84, BOARD_Y = 1.16, BOARD_Z = 0.46, BOARD_TILT = -0.19;
+const BOARD_W = 1.74, BOARD_H = 0.84, BOARD_Y = 1.46, BOARD_Z = -0.67, BOARD_TILT = 0;
 const HEADER_H = 0.24;
 const POLE_X = 1.24, POLE_Z = -0.84, POLE_TOP = 4.05;
 
@@ -59,7 +59,7 @@ function bakedBox(w, h, d, x, y, z, hex, rx = 0) {
   return g;
 }
 
-// Flyers pinned to the board, in the board's own tilted frame: [x, y, w, h].
+// Flyers pinned to the board, in the board's local frame: [x, y, w, h].
 // Fixed offsets (no rng) so all three variants pin the same believable jumble.
 const FLYERS = [
   [-0.60, 0.17, 0.20, 0.24],
@@ -98,10 +98,11 @@ function buildVariantGeo(v) {
     parts.push(bakedBox(0.3, 0.16, 0.05, (i - 3) * 0.36, EAVE_Y - 0.06, ROOF_HALF_Z - 0.02, i % 2 ? v.canvasA : v.canvasB));
   }
 
-  // Noticeboard: a tilted cork face in a timber frame, with a solid accent header
+  // Rear-mounted board leaves a clear service opening above the front counter.
+  // The cork face has a timber frame and a solid accent header
   // carrying the white "i" glyph (boxes, not text — no texture, no font). Every
   // face-mounted piece is placed through `onBoard`, which maps a coordinate in the
-  // board's own tilted frame out to world — so flyers and glyph sit ON the panel
+  // board's own local frame out to world — so flyers and glyph sit ON the panel
   // instead of hovering off it.
   const tilt = BOARD_TILT, ct = Math.cos(tilt), st = Math.sin(tilt);
   const onBoard = (lx, ly, lz) => [lx, BOARD_Y + ly * ct - lz * st, BOARD_Z + ly * st + lz * ct];
@@ -125,10 +126,13 @@ function buildVariantGeo(v) {
   parts.push(bakedBox(0.13, 0.13, 0.04, 0, signY + 0.14, 0.08, PLAQUE));
   parts.push(bakedBox(0.13, 0.2, 0.04, 0, signY - 0.08, 0.08, PLAQUE));
 
-  // Service counter across the back, under the canopy — the staffed half.
-  parts.push(bakedBox(1.94, 0.09, 0.46, 0, 0.97, -0.34, COUNTER));
-  parts.push(bakedBox(1.86, 0.86, 0.06, 0, 0.53, -0.53, TIMBER_DARK));
-  for (const sx of [-1, 1]) parts.push(bakedBox(0.09, 0.95, 0.09, sx * 0.82, 0.47, -0.16, TIMBER));
+  // Visitors approach +Z; an attendant can stand between counter and board,
+  // entering from either open side without walking through the furniture.
+  parts.push(bakedBox(1.94, 0.09, 0.46, 0, 0.97, 0.48, COUNTER));
+  parts.push(bakedBox(1.86, 0.86, 0.06, 0, 0.53, 0.64, TIMBER_DARK));
+  for (const sx of [-1, 1]) parts.push(bakedBox(0.09, 0.95, 0.09, sx * 0.82, 0.47, 0.31, TIMBER));
+  parts.push(bakedBox(0.28, 0.035, 0.20, 0.58, 1.032, 0.46, PLAQUE));
+  parts.push(bakedBox(0.20, 0.006, 0.025, 0.58, 1.053, 0.46, v.accent));
 
   // Pennant mast — the far-visible way-finding half. The flag tapers via two
   // stacked slabs (cheaper than a real triangle, reads the same at driving speed).
