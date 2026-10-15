@@ -26,8 +26,8 @@ export const CHALLENGE = Object.freeze({
 });
 
 const pop = (colors, count, life = 0.45, speed = 1, rise = 0) => ({ colors, count, life, speed, rise });
-const look = (shell, tint, anim = 'steady', nightBoost = 0.4, scale = [1, 1, 1], droplets = pop([tint], 10)) => ({
-  shell, tint, anim, nightBoost, scale, pop: droplets,
+const look = (shell, tint, anim = 'steady', nightBoost = 0.4, scale = [1, 1, 1], droplets = pop([tint], 10), accent = 'none') => ({
+  shell, tint, anim, nightBoost, scale, pop: droplets, accent,
 });
 
 export const BUBBLE_TYPES = Object.freeze([
@@ -38,19 +38,19 @@ export const BUBBLE_TYPES = Object.freeze([
     look: look('sphere', 0x8a7dff, 'pulse', 0.3, [1, 1, 1], pop([0x8a7dff, 0x56e0c2], 10)),
     boost: (ctx) => ctx.nearStage ? 3 : 1 },
   { id: 'ember', name: 'Ember Bubbles', order: 3, secret: false, hint: 'Join a drum circle after dark.', earnedLine: null,
-    look: look('sphere', 0xff8a2a, 'flicker', 0.55, [1, 1, 1], pop([0xff8a2a, 0xffc05a], 10, 0.8, 0.7, 0.25)),
+    look: look('sphere', 0xff8a2a, 'flicker', 0.55, [1, 1, 1], pop([0xff8a2a, 0xffc05a], 10, 0.8, 0.7, 0.25), 'ember'),
     boost: (ctx) => ctx.nearDrum ? 3 : (ctx.nightness >= SPECIAL.nightMin ? 1.5 : 1) },
   { id: 'firefly', name: 'Firefly Bubbles', order: 4, secret: false, hint: "Find the water's edge at night.", earnedLine: null,
-    look: look('sphere', 0x2f5a4a, 'blink', 0.2, [1, 1, 1], pop([0xd8ff6a, 0xb7e65a], 6, 1, 0.55)),
+    look: look('sphere', 0x2f5a4a, 'blink', 0.2, [1, 1, 1], pop([0xd8ff6a, 0xb7e65a], 6, 1, 0.55), 'firefly'),
     boost: (ctx) => ctx.nightness >= SPECIAL.nightMin ? 2 : (ctx.nightness < 0.1 ? 0.5 : 1) },
   { id: 'rainbow', name: 'Rainbow Bubbles', order: 5, secret: false, hint: 'Roam far: reach eight festival hubs in one trip.', earnedLine: null,
     look: look('sphere', 0xffffff, 'hue', 0.25, [1, 1, 1], pop([0xff5fa2, 0xffd84a, 0x49d9c7, 0x8a7dff], 12)),
     boost: () => 1 },
   { id: 'sparkler', name: 'Sparkler Bubbles', order: 6, secret: false, hint: 'Stay up for the midnight fireworks.', earnedLine: null,
-    look: look('sphere', 0xffe39a, 'twinkle', 0.65, [1, 1, 1], pop([0xffe39a, 0xffffff], 14, 0.6, 1.5)),
+    look: look('sphere', 0xffe39a, 'twinkle', 0.65, [1, 1, 1], pop([0xffe39a, 0xffffff], 14, 0.6, 1.5), 'spark'),
     boost: (ctx) => ctx.nightness >= SPECIAL.nightMin ? 2 : 1 },
   { id: 'lantern', name: 'Lantern Bubbles', order: 7, secret: false, hint: 'Catch up to the lantern parade.', earnedLine: null,
-    look: look('sphere', 0xff6a3d, 'lantern', 0.75, [1, 1.2, 1], pop([0xff6a3d, 0xffbb66], 8)),
+    look: look('sphere', 0xff6a3d, 'lantern', 0.75, [1, 1.2, 1], pop([0xff6a3d, 0xffbb66], 8), 'lantern'),
     boost: (ctx) => ctx.nearParade ? 3 : (ctx.nightness >= SPECIAL.nightMin ? 1.5 : 1) },
   { id: 'smile', name: 'Smile Bubbles', order: 8, secret: false, hint: 'Collect 1,000 smiles, all-time.', earnedLine: null,
     look: look('sphere', 0xffd84a, 'steady', 0.25, [1, 1, 1], pop([0xffd84a, 0xfff2a6], 10)),

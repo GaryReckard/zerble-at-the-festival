@@ -57,17 +57,17 @@ The trigger column is the exact rule the tracker evaluates. "Night" means `night
 |---|---|---|---|---|---|---|---|
 | 1 | `heart` | Heart Bubbles | Lurleen enters `aware` for the first time ever (the existing one-shot at [`main.js:1103-1107`](src/main.js:1103)). | Somebody special is cruising the grounds. Go find her. | Heart-shaped shell, `#ff5fa2`, brighter at night. Faces the camera with a gentle wobble. | 12 droplets, pink and pale pink | ×4 while Lurleen is `aware` or `following` |
 | 2 | `music` | Music Bubbles | Zerble comes within 30 m of three distinct `stage_front` registry entries in one session. The spawn stage counts. | Catch three different stages. | Sphere, `#8a7dff`, pulses in scale (±8%) and brightness at 2 Hz. | 10 droplets, violet and teal | ×3 within 40 m of any stage front |
-| 3 | `ember` | Ember Bubbles | At night, Zerble comes within 20 m of a drum circle (`bench_ring` in v2, `drum_circle` in v1). | Join a drum circle after dark. | Sphere, `#ff8a2a`, flickers like a coal. | 10 orange droplets that rise and linger (0.8 s) | ×3 within 30 m of a drum circle, ×1.5 at night elsewhere |
-| 4 | `firefly` | Firefly Bubbles | At night, Zerble is on dry ground and at least one of 8 points on an 18 m ring around it is in a lake (`isPointInLake`). | Find the water's edge at night. | Sphere, dusky `#2f5a4a` shell, each bubble blinking to `#d8ff6a` on its own phase. | 6 yellow-green droplets, slow, 1 s life | ×2 at night, ×0.5 in full daylight |
+| 3 | `ember` | Ember Bubbles | At night, Zerble comes within 20 m of a drum circle (`bench_ring` in v2, `drum_circle` in v1). | Join a drum circle after dark. | Translucent `#ff8a2a` sphere with a glowing red-orange coal and two drifting flecks. | 10 orange droplets that rise and linger (0.8 s) | ×3 within 30 m of a drum circle, ×1.5 at night elsewhere |
+| 4 | `firefly` | Firefly Bubbles | At night, Zerble is on dry ground and at least one of 8 points on an 18 m ring around it is in a lake (`isPointInLake`). | Find the water's edge at night. | Dusky `#2f5a4a` shell around a drifting, blinking yellow-green light. | 6 yellow-green droplets, slow, 1 s life | ×2 at night, ×0.5 in full daylight |
 | 5 | `rainbow` | Rainbow Bubbles | Zerble enters the core radius of 8 distinct hearts (hubs) in one session. The spawn hub counts. | Roam far: reach eight festival hubs in one trip. | Sphere, hue cycles through the full spectrum (about 0.3 turns per second, per-bubble phase). | 12 droplets across the spectrum | none |
-| 6 | `sparkler` | Sparkler Bubbles | The fireworks finale fires while the game is running (new `fireworks.onFinale` hook at [`fireworks.js:363-366`](src/fireworks.js:363)). | Stay up for the midnight fireworks. | Sphere, warm white-gold `#ffe39a`, brief twinkle spikes. | 14 gold droplets, fast, 0.6 s | ×2 at night |
-| 7 | `lantern` | Lantern Bubbles | Zerble comes within 20 m of any lantern parade carrier (`puppets.colliders`, [`obstacles.js:155-158`](src/obstacles.js:155)). | Catch up to the lantern parade. | Slightly tall sphere (scale 1, 1.2, 1), `#ff6a3d`, dim by day and glowing at night. | 8 warm droplets | ×3 within 40 m of the parade, ×1.5 at night |
+| 6 | `sparkler` | Sparkler Bubbles | The fireworks finale fires while the game is running (new `fireworks.onFinale` hook at [`fireworks.js:363-366`](src/fireworks.js:363)). | Stay up for the midnight fireworks. | Translucent warm white-gold `#ffe39a` sphere with a bright inner spark and brief twinkle spikes. | 14 gold droplets, fast, 0.6 s | ×2 at night |
+| 7 | `lantern` | Lantern Bubbles | Zerble comes within 20 m of any lantern parade carrier (`puppets.colliders`, [`obstacles.js:155-158`](src/obstacles.js:155)). | Catch up to the lantern parade. | Slightly tall, translucent `#ff6a3d` sphere enclosing a warm paper-lantern core. | 8 warm droplets | ×3 within 40 m of the parade, ×1.5 at night |
 | 8 | `smile` | Smile Bubbles | The lifetime count of collected smiles reaches 1,000 (organic pickups only, counted at [`main.js:1073`](src/main.js:1073)). | Collect 1,000 smiles, all-time. | Sphere, `#ffd84a`, steady. | 10 yellow droplets (stretch goal: arranged as a smiley) | none |
 | 9 | `confetti` | Confetti Bubbles | A Festival Run reaches day 2 (`RunState.tickDay` returns true at [`main.js:1024`](src/main.js:1024) with `RunState.day >= 2`). | Make it to day two of a Festival Run. | Sphere, each bubble a random pastel from a fixed palette. | 16 multicolor droplets, slow fall | none |
 | 10 | `mushroom` | Mushroom Bubbles (secret) | The player accepts a wook's offer (inside the existing `Trip.onAccept` handler at [`main.js:273`](src/main.js:273)). Manual T-menu trips never count. | Never shown before it's earned. Earned line (draft): "A gift from a new friend." | Sphere, hue drifts slowly between `#9b5de5` and `#3ddc97` (about 6 s), scale breathes ±6% at 0.4 Hz. | 10 droplets, purple and green | ×3 while `Trip.isActive()` ([`trip.js:382`](src/trip.js:382)) |
 | 11 | `brass` | Brass Bubbles | Zerble comes within 15 m of any brass band member (`band.colliders`, [`obstacles.js:276-281`](src/obstacles.js:276)). | Roll with the brass band. | Sphere, `#d9a520`, a bright glint sweeps across every 1.5 s (per-bubble offset). | 10 gold droplets | ×3 within 30 m of the band |
 
-Two constraints apply to every look. Each bubble must still read as a bubble (a bright rim with a see-through core, never a solid ball), and Rainbow and Mushroom must be easy to tell apart (fast full spectrum versus a slow two-color drift with breathing).
+Three constraints apply to every look. Each bubble must still read as a bubble (a bright rim with a see-through core, never a solid ball). A type's moving pattern or inner accent must distinguish it at chase distance, rather than hue alone. Rainbow and Mushroom must be easy to tell apart (fast full spectrum versus a slow two-color drift with breathing).
 
 ## 4. Architecture
 
@@ -110,6 +110,7 @@ export const BUBBLE_TYPES = Object.freeze([
     look: {
       shell: 'heart',              // 'sphere' | 'heart'
       tint: 0xff5fa2,
+      accent: 'none',             // none | ember | firefly | spark | lantern; more styles can join the same shader
       anim: 'steady',              // steady | pulse | flicker | blink | hue | twinkle | lantern | confetti | swirl | glint
       nightBoost: 0.4,             // brightness added at full nightness
       scale: [1, 1, 1],            // per-axis shell scale (Lantern uses [1, 1.2, 1])
@@ -207,7 +208,7 @@ The standard `activeCount`, `mesh.count` and `mesh.visible` must count **standar
 - **Heart shells**, capacity `SPECIAL.pool`: an owned copy from `createHeartGeometry()` ([`heart.js`](src/models/heart.js)). **Never** use or mutate `sharedHeartGeometry`, which Lurleen uses. Normalize the copy so its bounding radius equals 0.11 m × `HEART_SHELL_SCALE` (start at 1.25). An extruded heart vanishes edge-on, so heart instances face the camera (yaw and pitch toward it) with a ±20° wobble, and `Bubbles.update` gains an optional `camera` argument (the main camera is `camera`, [`main.js:177`](src/main.js:177)).
 - **Pop particles**, capacity 128: `IcosahedronGeometry(0.03, 0)` with `MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false })` and per-instance color via `setColorAt`, the same per-instance color technique fireworks uses ([`fireworks.js:13-16`](src/fireworks.js:13)).
 
-Both shell meshes share one shader material, and per-instance color and brightness come from a custom `aTint` attribute (`InstancedBufferAttribute`, 4 floats). That means all eleven types cost at most two shell draws plus one pop draw, and only while something is alive. Here's a reference sketch to start from. Verify it compiles and looks right in the sandbox before building on it.
+Both shell meshes share one shader material. Per-instance color and brightness come from `aTint` (4 floats), while `aAccent` (style and phase) draws the inner motif in the same shader. Camera-facing sphere instances keep these motifs legible. This preserves the limit of two shell draws plus one pop draw, only while something is alive. The reference sketch below describes the original rim path; the checked-in renderer also blends the per-type inner accents and uses a lighter core and rim than the sketch.
 
 ```js
 const SHELL_VERT = /* glsl */ `
@@ -438,6 +439,8 @@ The sandbox gets a new entity, `bubbles_special` (an `<option>` next to `bubbles
 - [ ] **2.6 Heart look.** Iterate the Heart in the sandbox: rim strength, core alpha, heart scale, wobble and pop. Capture the lineup and the Heart stream at Noon and Midnight on Low and High, close up and at chase distance. Then stop for **Gary gate A**.
   **Done when:** Gary approves the Heart look. A technically passing render is not visual approval.
 
+  Gary's 2026-10-15 review asked for more translucent shells and visible inner details on some types. The revised Low and High captures are in [the Gate A packet](verification/bubble-upgrades/checkpoint-2/GATE-A.md). Gate A remains open for a decision on that revision.
+
 **Exit condition:** Heart bubbles render, pop and stream in isolation, cheaply, on every tier.
 
 ### Checkpoint 3: The Heart vertical slice in the game
@@ -477,6 +480,7 @@ The sandbox gets a new entity, `bubbles_special` (an `<option>` next to `bubbles
 Build one type at a time in D9 (first wave) order. For each type, every step below must happen before moving to the next type:
 
 1. Its catalog entry and look already exist from 1.1. Tune them in `sandbox.html?entity=bubbles_special&type=<id>`.
+   Use `&view=still` to inspect one shell and its inner motif without the stream. Check that the moving pattern or accent, not just its tint, distinguishes the type at chase distance.
 2. Wire its trigger in `main.js` if it's event-based (the finale, trip, run day and smile hooks below), or confirm the tracker's proximity rule fires live.
 3. Prove the trigger live in the game through its real path, not `__dbg.unlock`.
 4. Capture its stream at Noon and Midnight, Low tier, at chase distance.

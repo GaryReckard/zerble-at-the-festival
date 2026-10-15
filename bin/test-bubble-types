@@ -13,6 +13,11 @@ for (const type of BUBBLE_TYPES) {
   assert.ok(type.look.pop.count < 20, `${type.id} pop count stays under 20`);
   assert.ok(type.look.scale.every(Number.isFinite));
 }
+assert.deepEqual(
+  BUBBLE_TYPES.filter((type) => type.look.accent !== 'none').map((type) => [type.id, type.look.accent]),
+  [['ember', 'ember'], ['firefly', 'firefly'], ['sparkler', 'spark'], ['lantern', 'lantern']],
+  'the first inner accents are catalog data rather than separate render paths',
+);
 
 let randomState = 0x12345678;
 const rand = () => {

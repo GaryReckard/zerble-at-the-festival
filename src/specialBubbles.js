@@ -5,17 +5,23 @@ import { createHeartGeometry } from './models/heart.js';
 const HEART_SHELL_SCALE = 1.4;
 const POP_POOL = 128;
 const GOLDEN_ANGLE = 2.399963229728653;
+const ACCENT_STYLE = Object.freeze({ none: 0, ember: 1, firefly: 2, spark: 3, lantern: 4 });
 
 const SHELL_VERT = /* glsl */ `
   attribute vec4 aTint;
+  attribute vec2 aAccent;
   varying vec4 vTint;
   varying float vRim;
+  varying vec2 vFace;
+  varying vec2 vAccent;
   #include <fog_pars_vertex>
   void main() {
     vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
     vec3 n = normalize(normalMatrix * mat3(instanceMatrix) * normal);
     vRim = 1.0 - abs(dot(n, normalize(-mvPosition.xyz)));
     vTint = aTint;
+    vFace = position.xy / 0.11;
+    vAccent = aAccent;
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
   }
@@ -26,11 +32,55 @@ const SHELL_FRAG = /* glsl */ `
   uniform float uRimAlpha;
   varying vec4 vTint;
   varying float vRim;
+  varying vec2 vFace;
+  varying vec2 vAccent;
   #include <fog_pars_fragment>
   void main() {
     float rim = pow(clamp(vRim, 0.0, 1.0), 1.6);
-    gl_FragColor = vec4(vTint.rgb * vTint.a * (0.65 + 1.0 * rim),
-      uCoreAlpha + uRimAlpha * rim);
+    vec3 shellColor = vTint.rgb * vTint.a * (0.72 + 1.0 * rim);
+    float shellAlpha = uCoreAlpha + uRimAlpha * rim;
+    float accentAlpha = 0.0;
+    vec3 accentColor = vec3(1.0);
+    if (gl_FrontFacing) {
+      vec2 p = vFace;
+      float phase = vAccent.y;
+      if (vAccent.x > 0.5 && vAccent.x < 1.5) {
+        vec2 ember = vec2(p.x * 1.2 + sin(phase * 2.2) * 0.06, (p.y + 0.08) * 0.9);
+        float body = exp(-10.0 * dot(ember, ember));
+        float hot = exp(-58.0 * dot(ember - vec2(0.0, 0.04), ember - vec2(0.0, 0.04)));
+        vec2 fleckA = p - vec2(-0.25, 0.23 + 0.05 * sin(phase * 2.7));
+        vec2 fleckB = p - vec2(0.28, -0.18 + 0.04 * cos(phase * 2.1));
+        float flecks = exp(-190.0 * dot(fleckA, fleckA)) + exp(-170.0 * dot(fleckB, fleckB));
+        accentAlpha = min(0.95, body * 0.57 + hot * 0.45 + flecks * 0.44);
+        accentColor = mix(vec3(1.0, 0.22, 0.03), vec3(1.0, 0.73, 0.18), hot);
+      } else if (vAccent.x > 1.5 && vAccent.x < 2.5) {
+        vec2 fly = vec2(sin(phase * 1.3) * 0.13, cos(phase * 1.1) * 0.12);
+        p -= fly;
+        float r2 = dot(p, p);
+        float blink = 0.82 + 0.18 * sin(phase * 3.4);
+        accentAlpha = min(0.98, (exp(-7.0 * r2) * 0.52 + exp(-48.0 * r2) * 0.72) * blink);
+        accentColor = vec3(0.43, 1.0, 0.16);
+      } else if (vAccent.x > 2.5 && vAccent.x < 3.5) {
+        // A point with four slim rays reads as a spark at chase distance.
+        float r = length(p);
+        float crossRay = min(abs(p.x), abs(p.y));
+        float diagonalRay = min(abs(p.x - p.y), abs(p.x + p.y)) * 0.707;
+        float ray = (1.0 - smoothstep(0.025, 0.085, min(crossRay, diagonalRay)))
+          * (1.0 - smoothstep(0.25, 0.53, r));
+        accentAlpha = min(0.96, ray * (0.62 + 0.25 * sin(phase * 5.0))
+          + exp(-95.0 * r * r) * 0.85);
+        accentColor = vec3(1.0, 0.94, 0.64);
+      } else if (vAccent.x > 3.5 && vAccent.x < 4.5) {
+        float body = (1.0 - smoothstep(0.24, 0.31, abs(p.x)))
+          * (1.0 - smoothstep(0.35, 0.43, abs(p.y)));
+        float wick = exp(-40.0 * (p.x * p.x + (p.y + 0.08) * (p.y + 0.08)));
+        accentAlpha = min(0.85, body * 0.38 + wick * (0.4 + 0.12 * sin(phase * 1.5)));
+        accentColor = mix(vec3(1.0, 0.48, 0.15), vec3(1.0, 0.84, 0.34), wick);
+      }
+    }
+    float accent = clamp(accentAlpha * (1.0 - rim * 0.45), 0.0, 1.0);
+    gl_FragColor = vec4(mix(shellColor, accentColor, accent),
+      shellAlpha + accent * (1.0 - shellAlpha));
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
     #include <fog_fragment>
@@ -50,13 +100,17 @@ export class SpecialBubbleRenderer {
     heartGeometry.computeBoundingSphere();
     this._sphereTint = new THREE.InstancedBufferAttribute(new Float32Array(SPECIAL.pool * 4), 4);
     this._heartTint = new THREE.InstancedBufferAttribute(new Float32Array(SPECIAL.pool * 4), 4);
+    this._sphereAccent = new THREE.InstancedBufferAttribute(new Float32Array(SPECIAL.pool * 2), 2);
+    this._heartAccent = new THREE.InstancedBufferAttribute(new Float32Array(SPECIAL.pool * 2), 2);
     sphereGeometry.setAttribute('aTint', this._sphereTint);
+    sphereGeometry.setAttribute('aAccent', this._sphereAccent);
     heartGeometry.setAttribute('aTint', this._heartTint);
+    heartGeometry.setAttribute('aAccent', this._heartAccent);
 
     this.shellMaterial = new THREE.ShaderMaterial({
       uniforms: THREE.UniformsUtils.merge([
         THREE.UniformsLib.fog,
-        { uCoreAlpha: { value: 0.12 }, uRimAlpha: { value: 0.52 } },
+        { uCoreAlpha: { value: 0.045 }, uRimAlpha: { value: 0.3 } },
       ]),
       vertexShader: SHELL_VERT,
       fragmentShader: SHELL_FRAG,
@@ -121,20 +175,25 @@ export class SpecialBubbleRenderer {
     if (slot >= SPECIAL.pool) return;
     const mesh = heart ? this.heartMesh : this.sphereMesh;
     const tintAttribute = heart ? this._heartTint : this._sphereTint;
+    const accentAttribute = heart ? this._heartAccent : this._sphereAccent;
     const scale = size * computeTint(type.look, this._time + age * 0.03, this._nightness, seed, this._tint);
     const offset = slot * 4;
     tintAttribute.array[offset] = this._tint.r;
     tintAttribute.array[offset + 1] = this._tint.g;
     tintAttribute.array[offset + 2] = this._tint.b;
     tintAttribute.array[offset + 3] = this._tint.a;
+    accentAttribute.array[slot * 2] = ACCENT_STYLE[type.look.accent] || 0;
+    accentAttribute.array[slot * 2 + 1] = this._time + seed * 6.283185307179586;
 
-    if (heart && this._camera) {
+    if (this._camera) {
       // The camera's quaternion faces the heart toward the viewer while
-      // preserving screen-up. A direction-only rotation can flip the heart.
+      // preserving screen-up, and keeps inner sphere accents front-facing.
       this._rotation.copy(this._camera.quaternion);
-      this._wobbleYaw.setFromAxisAngle(this._up, Math.sin(this._time * 2 + seed * 17 + spin) * 0.28);
-      this._wobblePitch.setFromAxisAngle(this._right, Math.cos(this._time * 1.7 + seed * 13) * 0.18);
-      this._rotation.multiply(this._wobbleYaw).multiply(this._wobblePitch);
+      if (heart) {
+        this._wobbleYaw.setFromAxisAngle(this._up, Math.sin(this._time * 2 + seed * 17 + spin) * 0.28);
+        this._wobblePitch.setFromAxisAngle(this._right, Math.cos(this._time * 1.7 + seed * 13) * 0.18);
+        this._rotation.multiply(this._wobbleYaw).multiply(this._wobblePitch);
+      }
     } else {
       this._rotation.setFromAxisAngle(this._up, spin);
     }
@@ -206,10 +265,12 @@ export class SpecialBubbleRenderer {
     if (this.sphereMesh.visible) {
       this.sphereMesh.instanceMatrix.needsUpdate = true;
       this._sphereTint.needsUpdate = true;
+      this._sphereAccent.needsUpdate = true;
     }
     if (this.heartMesh.visible) {
       this.heartMesh.instanceMatrix.needsUpdate = true;
       this._heartTint.needsUpdate = true;
+      this._heartAccent.needsUpdate = true;
     }
     if (this.popMesh.visible) {
       this.popMesh.instanceMatrix.needsUpdate = true;

@@ -2738,6 +2738,7 @@ import {buildShrub} from './src/models/shrub.js';
             case 'bubbles_special': {
                 const requestedType = new URLSearchParams(location.search).get('type');
                 const selectedType = BUBBLE_TYPES.find((type) => type.id === requestedType);
+                const stillView = selectedType && new URLSearchParams(location.search).get('view') === 'still';
                 const focusHeart = !selectedType && new URLSearchParams(location.search).get('focus') === 'heart';
                 const fakeZerble = {
                     position: new THREE.Vector3(0, 0, 0),
@@ -2758,7 +2759,7 @@ import {buildShrub} from './src/models/shrub.js';
                     cam.target.set(focusHeart ? -6 : 0, 2, selectedType ? -1 : 0);
                     cam.yaw = 0.25;
                     cam.pitch = 0.18;
-                    cam.dist = focusHeart ? 3 : (selectedType ? 6 : 20);
+                    cam.dist = focusHeart || stillView ? 3 : (selectedType ? 6 : 20);
                     applyCam();
                 };
                 control('Close', closeView);
@@ -2771,7 +2772,20 @@ import {buildShrub} from './src/models/shrub.js';
                 });
                 info.after(panel);
                 puppetControls = panel;
-                if (selectedType) {
+                if (stillView) {
+                    const specials = new SpecialBubbleRenderer();
+                    const typeIndex = BUBBLE_TYPES.indexOf(selectedType);
+                    const position = new THREE.Vector3(0, 2, 0);
+                    scene.add(specials.root);
+                    entityRoot = specials.root;
+                    currentEntity = specials;
+                    updateFn = (dt) => {
+                        specials.beginFrame(camera, tod.nightness, dt);
+                        specials.write(typeIndex, position, 2.5, 0, 0, 0.3);
+                        specials.endFrame(dt);
+                    };
+                    info.textContent = `Loaded: ${selectedType.name} · still look preview`;
+                } else if (selectedType) {
                     const bubbles = new Bubbles();
                     bubbles.setProgress({isEnabled: (id) => id === selectedType.id});
                     bubbles.forceSpecial(selectedType.id);
