@@ -113,6 +113,19 @@ export function createBubbleProgress(storage, opts = {}) {
       lastSmileSaveAt = now();
       save();
     },
+    relock(id) {
+      if (!state.earned[id]) return false;
+      delete state.earned[id];
+      state.disabled.delete(id);
+      save();
+      return true;
+    },
+    setLifetimeSmiles(value) {
+      state.lifetimeSmiles = nonNegativeInt(value);
+      save();
+      lastSmileSaveAt = now();
+      return state.lifetimeSmiles;
+    },
   };
 }
 

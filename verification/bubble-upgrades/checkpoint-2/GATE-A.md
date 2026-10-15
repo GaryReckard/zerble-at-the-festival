@@ -2,7 +2,7 @@
 
 The Heart renderer and emitter are ready for a visual decision. The Heart uses an owned extruded geometry and a transparent rim shader. It faces the camera while keeping screen-up, wobbles gently, and emits a pooled colored droplet burst. The pink silhouette reads strongly at Midnight and is quieter against the Noon grass. No special type is connected to a game unlock yet; that belongs to Checkpoint 3 after this gate.
 
-Gary's first review asked for more translucent shells and for some types to carry a visible feature inside the bubble rather than relying on color alone. The revised shader lowers the core and rim alpha, then draws four inner motifs without another mesh, draw call, light, or texture. Ember contains a warm coal with drifting flecks, Firefly has a blinking green light, Sparkler carries a white-gold spark, and Lantern encloses a lit paper core. The other types remain design work for Checkpoint 4. This revision still needs Gary's visual approval.
+Gary's first review asked for more translucent shells and for some types to carry a visible feature inside the bubble rather than relying on color alone. The revised shader lowers the core and rim alpha, then draws four inner motifs without another mesh, draw call, light, or texture. Ember contains a warm coal with drifting flecks, Firefly has a blinking green light, Sparkler carries a white-gold spark, and Lantern encloses a lit paper core. The other types remain design work for Checkpoint 4. Gary approved this revision on 2026-10-15 and asked us to continue.
 
 ## Review images
 

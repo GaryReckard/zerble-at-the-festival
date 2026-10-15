@@ -87,7 +87,7 @@
       // transitive imports (e.g. chunks → forests, contextLights) reload too. Keep
       // in sync with the directory; unused entries are inert (importmap mappings
       // only resolve when something actually imports them).
-      const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main','world','zerble','bubbles','bubbleTypes','bubbleProgress','bubbleChallenges','specialBubbles','smiles','fireworks','crowd','crowdAppearance','chunks','forests',
+      const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main','world','zerble','bubbles','bubbleTypes','bubbleProgress','bubbleChallenges','specialBubbles','upgradesMenu','smiles','fireworks','crowd','crowdAppearance','chunks','forests',
         'mountains','camera','input','touch','hud','sound','leaderboard','runMode','scoring','runState','obstacles','registry','rng','debug','perf','lakes','lurleen','trip',
         'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid','starPower','steering','settings','a11y','mergeDecor','boostStreaks','photographer','farField','perfTelemetry','renderSizing','festivalShapes',
         'worldgen/constants','worldgen/tuning','worldgen/hearts','worldgen/water','worldgen/roads','worldgen/density','worldgen/roles','worldgen/index','worldgen/selftest','worldgen/placement','worldgen/festival','worldgen/lint'];
@@ -254,6 +254,7 @@
 
         <div class="title-footer">
           <button id="settings-open-title" class="settings-trigger" aria-label="Open settings" disabled>⚙ Settings</button>
+          <button id="upgrades-open-title" class="settings-trigger" type="button" aria-label="Open bubble upgrades" disabled>♡ Bubble upgrades</button>
           <button id="board-open-title" class="board-link" type="button" aria-label="View the local leaderboard">🏆 Local legends</button>
         </div>
       </div>

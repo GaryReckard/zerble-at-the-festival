@@ -28,6 +28,19 @@ function setup() {
 function tick(tracker) { tracker.tick(0.5); }
 
 {
+  const progress = createBubbleProgress({ get: () => null, set: () => {} });
+  const world = makeWorld();
+  world.night = 1;
+  world.drums = [{ x: 0, z: 0 }];
+  const tracker = new ChallengeTracker(progress, world, ['heart']);
+  tick(tracker);
+  assert.equal(progress.isEarned('ember'), false, 'the Heart slice does not release later challenges');
+  assert.equal(tracker.context.nearDrum, true, 'context still updates for an inactive challenge');
+  assert.equal(tracker.onLurleenFound(), true);
+  assert.equal(progress.isEarned('heart'), true);
+}
+
+{
   const { progress, world, tracker } = setup();
   world.lurleen = true;
   tracker.onLurleenFound();

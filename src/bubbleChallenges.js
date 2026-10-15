@@ -18,9 +18,10 @@ function getMode(world) {
 }
 
 export class ChallengeTracker {
-  constructor(progress, world) {
+  constructor(progress, world, activeTypes = null) {
     this.progress = progress;
     this.world = world || {};
+    this.activeTypes = activeTypes ? new Set(activeTypes) : null;
     this.stagesSeen = new Set();
     this.hubsSeen = new Set();
     this.context = {
@@ -55,7 +56,7 @@ export class ChallengeTracker {
     this._bandCallback = this._visitBand.bind(this);
   }
 
-  _unlock(id) { return this.progress.unlock(id, getMode(this.world)); }
+  _unlock(id) { return this.activeTypes && !this.activeTypes.has(id) ? false : this.progress.unlock(id, getMode(this.world)); }
 
   onLurleenFound() { return this._unlock('heart'); }
   onFireworksFinale() { return this._unlock('sparkler'); }

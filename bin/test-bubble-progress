@@ -65,6 +65,11 @@ assert.equal(listeners[0].mode, 'festival');
 unsubscribe();
 progress.unlock('ember');
 assert.equal(listeners.length, 1);
+assert.equal(progress.relock('heart'), true);
+assert.equal(progress.isEarned('heart'), false);
+assert.equal(progress.relock('heart'), false);
+assert.equal(progress.setLifetimeSmiles(123.7), 123);
+assert.equal(createBubbleProgress(storage, { now: () => now }).lifetimeSmiles, 123);
 
 progress.reset();
 assert.equal(progress.earnedCount(), 0);

@@ -24,7 +24,7 @@ import { Scoring } from './scoring.js';
 import { RunState } from './runState.js';
 import { buildWorld, updateWorld, getTimeOfDay, getFarField } from './world.js';
 import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
-import { lakeAnimatables, setLakeNightness } from './lakes.js';
+import { lakeAnimatables, setLakeNightness, isPointInLake } from './lakes.js';
 import { updateCampsiteProps } from './models/campsite.js';
 import { updatePortaPotty } from './models/portaPotty.js';
 import { updateLeafDrumCircle } from './models/leafDrumCircle.js';
@@ -33,6 +33,10 @@ import { updateStagePerformers, updateStageLightShow, stageLightLenses, worldgen
 import { updateSugarShackCooks } from './models/sugarShack.js';
 import { Zerble } from './zerble.js';
 import { Bubbles } from './bubbles.js';
+import { BUBBLE_TYPES, charmLevel, visibleCatalog } from './bubbleTypes.js';
+import { createBubbleProgress } from './bubbleProgress.js';
+import { ChallengeTracker } from './bubbleChallenges.js';
+import { UpgradesMenu } from './upgradesMenu.js';
 import { MidiPlayer } from './midiPlayer.js';
 import { Smiles } from './smiles.js';
 import { Fireworks } from './fireworks.js';
@@ -55,6 +59,7 @@ import {
 import { installDebug, shouldRunFrame, isGod, npcsFrozen, recordCaptureFrame } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { nearestHeart, heartsInBounds } from './worldgen/hearts.js';
+import { CONFIG } from './worldgen/constants.js';
 import { festivalPlan, computeFrontAxis, dancefloorRectsNear, spawnHeart, MAX_POI_REACH } from './worldgen/festival.js';
 import { lakeAt } from './worldgen/water.js';
 import { runLint } from './worldgen/lint.js';
@@ -69,6 +74,11 @@ import { setSessionSeed, getSessionSeed } from './rng.js';
 import { MODEL_DECOR_MERGE_ENABLED, getMergeDecorStats } from './mergeDecor.js';
 import { BoostStreaks } from './boostStreaks.js';
 import { syncRenderPipelineSize } from './renderSizing.js';
+
+const bubbleProgress = createBubbleProgress({
+  get: (key) => localStorage.getItem(key),
+  set: (key, value) => localStorage.setItem(key, value),
+});
 
 // ---------- Session seed ----------
 // `?seed=<thing>` pins the world to a specific layout — pass a string
@@ -366,7 +376,9 @@ if (USE_WORLDGEN_V2) {
 
 const bubbles = new Bubbles();
 if (__resume && Number.isFinite(__resume.juice)) bubbles.juice = __resume.juice;
+bubbles.setProgress(bubbleProgress);
 scene.add(bubbles.mesh);
+scene.add(bubbles.specialRoot);
 
 // MIDI player — Tone.js loads lazily on the first M press so startup stays
 // fast. Trip._envelope drives the warp chain each frame (see tick body).
@@ -452,6 +464,28 @@ const puppets = new PuppetParade();
 scene.add(puppets.group);
 const band = new BrassBand();
 scene.add(band.group);
+const visitRegistryKind = (kind, fn) => {
+  for (const id of registry.byKind.get(kind) || []) {
+    const pos = registry.entries.get(id)?.position;
+    if (pos) fn(pos.x, pos.z);
+  }
+};
+const bubbleChallenges = new ChallengeTracker(bubbleProgress, {
+  zerblePos: () => zerble.position,
+  nightness: () => getTimeOfDay()?.nightness ?? 0,
+  lurleenNear: () => lurleen.state === 'aware' || lurleen.state === 'following',
+  stageFronts: (fn) => visitRegistryKind('stage_front', fn),
+  drumCircles: (fn) => { visitRegistryKind('bench_ring', fn); visitRegistryKind('drum_circle', fn); },
+  isPointInLake,
+  heartAt: (x, z) => {
+    const { heart, dist } = nearestHeart(x, z);
+    return heart ? { key: `${heart.cx},${heart.cz}`, dist, coreR: CONFIG.HEART_DOMAIN[heart.rank].core } : null;
+  },
+  paradePositions: (fn) => { for (const collider of puppets.colliders) fn(collider.position.x, collider.position.z); },
+  bandPositions: (fn) => { for (const collider of band.colliders) fn(collider.position.x, collider.position.z); },
+  tripActive: () => Trip.isActive(),
+  mode: () => RunMode.isFestival() ? 'festival' : 'cruisin',
+}, ['heart']);
 const kids = new KidGaggle();
 scene.add(kids.group);
 const wooks = new Wooks();
@@ -689,6 +723,22 @@ Settings.init({
         juice: bubbles.juice, tod: getTimeOfDay()?.t }
     : null,
 });
+UpgradesMenu.init(bubbleProgress);
+let nextUpgradeToastAt = 0;
+bubbleProgress.onUnlock(({ id, mode }) => {
+  const type = BUBBLE_TYPES.find((entry) => entry.id === id);
+  if (!type) return;
+  bubbles.unlockBurst(id);
+  const now = performance.now();
+  const showAt = Math.max(now + (id === 'heart' && mode !== 'debug' ? 3500 : 2500), nextUpgradeToastAt);
+  nextUpgradeToastAt = showAt + 2500;
+  setTimeout(() => {
+    HUD.toast(`New bubble upgrade: ${type.name}! ${id === 'heart' ? '💗' : '🫧'}`, 2500);
+    Sound.playUpgradeUnlock();
+  }, showAt - now);
+  Analytics.bubbleUnlocked(id, mode, visibleCatalog(bubbleProgress.earnedIds()).found);
+  UpgradesMenu.markUnread();
+});
 
 // iOS Safari still fires deprecated GestureEvents for pinch — those can zoom
 // the page even with user-scalable=no. Swallow them so the canvas stays
@@ -848,10 +898,10 @@ function reportSessionEnd() {
 
 // iOS suspends the AudioContext on tab switch / device lock. Resume on return.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) reportSessionEnd();
+  if (document.hidden) { bubbleProgress.flush(); reportSessionEnd(); }
   else { _sessionEndReported = false; Sound.resume(); }
 });
-window.addEventListener('pagehide', reportSessionEnd);
+window.addEventListener('pagehide', () => { bubbleProgress.flush(); reportSessionEnd(); });
 window.addEventListener('pageshow', () => Sound.resume());
 // Belt-and-suspenders: any touch/click after we're running revives audio if
 // iOS dropped it for a reason we didn't see (route changes, headset unplug).
@@ -951,6 +1001,10 @@ function tickBody(dt) {
       HUD.toast(chaseCam.modeLabel + ' (V to cycle)', 1500);
       Analytics.viewToggle(chaseCam.mode);
     }
+    if (Input.consumePressed('U')) {
+      if (UpgradesMenu.isOpen()) UpgradesMenu.close();
+      else UpgradesMenu.open();
+    }
     // Arrow keys = manual camera control (pan/tilt in chase/FPV, zoom/rotate in
     // top-down). Tracked once per run as a discovery signal.
     if (!controlsLocked && (Input.camYaw !== 0 || Input.camPitch !== 0)) Analytics.featureUsed('camera_arrows');
@@ -998,7 +1052,9 @@ function tickBody(dt) {
     bubbles.setBlast(blasting);
     zerble.setBubbleBlast(blasting);
     zerble.setJuiceLevel(bubbles.juice);   // drives the bubble-machine liquid level + reserve jugs
-    bubbles.update(dt, zerble, nightness);
+    bubbleChallenges.tick(dt);
+    bubbles.setSpecialContext(bubbleChallenges.context);
+    bubbles.update(dt, zerble, nightness, camera);
     fireworks.update(dt, nightness, zerble.position, zerble.heading);
     HUD.setJuice(bubbles.juice);
     if (bubbles.juice > _maxJuiceReached) _maxJuiceReached = bubbles.juice;   // peak → session_end
@@ -1103,6 +1159,7 @@ function tickBody(dt) {
     if (!lurleenMet && lurleen.state === 'aware') {
       lurleenMet = true;
       HUD.toast(HUD.withName('You found Lurleen! 💗', '{name} found Lurleen! 💗', 0.5), 3500);
+      bubbleChallenges.onLurleenFound();
       Analytics.lurleenFound();
     }
     const nowS = performance.now() * 0.001;
@@ -1817,7 +1874,7 @@ if (window.visualViewport) {
 
 window.__game = {
   camera, zerble, scene, renderer, composer, bloomPass, fxaaPass, crowd, registry, chaseCam, lurleen, nutWagon, monks,
-  getTimeOfDay, Trip, StarPower, midi, birds, bubbles, fireworks,
+  getTimeOfDay, Trip, StarPower, midi, birds, bubbles, bubbleProgress, bubbleChallenges, fireworks,
   kids, wooks, puppets, band, hoopers, frisbees, smiles,
   sound: Sound, layoutCaptureMode: LAYOUT_CAPTURE_MODE,
 };
@@ -1857,6 +1914,30 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
 
   window.__dbg = {
     leaderboardInfo() { return Leaderboard.diagnostics(); },
+    upgrades() {
+      return {
+        types: BUBBLE_TYPES.map(({ id, name, secret }) => ({ id, name, secret, earned: bubbleProgress.isEarned(id), enabled: bubbleProgress.isEnabled(id) })),
+        charmLevel: charmLevel(visibleCatalog(bubbleProgress.earnedIds()).found),
+        lifetimeSmiles: bubbleProgress.lifetimeSmiles,
+        challenges: bubbleChallenges.debugState(),
+      };
+    },
+    unlock(id) {
+      const ids = id === 'all' ? BUBBLE_TYPES.map((type) => type.id) : [id];
+      return ids.filter((typeId) => BUBBLE_TYPES.some((type) => type.id === typeId))
+        .map((typeId) => ({ id: typeId, unlocked: bubbleProgress.unlock(typeId, 'debug') }));
+    },
+    relock(id) {
+      if (id === 'all') { bubbleProgress.reset(); UpgradesMenu.clearUnread(); UpgradesMenu.refresh(); return true; }
+      const result = bubbleProgress.relock(id);
+      if (bubbleProgress.earnedCount() === 0) UpgradesMenu.clearUnread();
+      UpgradesMenu.refresh();
+      return result;
+    },
+    forceSpecial(id = null) { bubbles.forceSpecial(id); return id; },
+    unlockBurst(id) { bubbles.unlockBurst(id); return id; },
+    lifetimeSmiles(value) { return bubbleProgress.setLifetimeSmiles(value); },
+    challenges() { return bubbleChallenges.debugState(); },
     // Start the game without a trusted gesture — mirrors HUD.onStart (line ~369)
     // minus the iOS audio-gesture dependency, and drops straight into gameplay
     // (no intro reveal). Audio is best-effort; it can stay silent in headless dev.
@@ -2592,6 +2673,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         'window.__dbg — agent control surface (localhost only). The one door.',
         '  drive:   start() · teleport(x,z) · tod(t 0..1) · setJuice(m) · addSmiles(n) · boostStreak() · photographer() · fillSeats(kind?) · rider(kind)',
         '  board:   showScoreScreen(mock?) · seedBoard(n?)   (festival-run score screen + local top-10 drills)',
+        '  bubbles: upgrades() · unlock(id|all) · relock(id|all) · forceSpecial(id|null) · unlockBurst(id) · lifetimeSmiles(n) · challenges()',
         '  run:     runInfo() · runDay(n) · vibe(v) · strike(n) · sputterLeft(s)   (stakes drills — need localStorage["zerble-mode"]="festival" before start())',
         '  wagon:   nutWagon() status · summonNutWagon() find a clear nearby road',
         '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock() · topDown(x?,z?,span)   (pins a pose; overrides chase cam)',

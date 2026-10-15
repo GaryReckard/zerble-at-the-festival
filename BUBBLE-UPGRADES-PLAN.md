@@ -1,6 +1,6 @@
 # Bubble Upgrades
 
-**Status:** Planned. Implementation hasn't started. **Author:** Claude, from a planning session with Gary. **Date:** 2026-10-15.
+**Status:** Checkpoints 1 and 2 complete. Checkpoint 3 is implemented and verified, awaiting Gary's Gate B playtest. **Author:** Claude, from a planning session with Gary. **Date:** 2026-10-15.
 **Source baseline:** `b215b8d`. Every `file:line` below was verified at that commit. Lines drift, so recheck each anchor before editing.
 
 **TL;DR:** Players earn special bubble types by doing memorable things at the festival (finding Lurleen, sitting in with a drum circle after dark, staying up for the midnight fireworks). Once earned, a type shows up on its own as a rare, bigger "featured" bubble in Zerble's normal stream, roughly one every two seconds, more often when the context fits (hearts near Lurleen, embers near a drum circle). A new **Bubble Upgrades** menu lists every upgrade: earned ones in color with an on/off toggle, locked ones greyed out with a hint, and the one secret type hidden until someone earns it. Each earned upgrade also helps the crowd warm to bubbles a little faster: with ten upgrades, the bubble half of the happiness meter fills 40% quicker. The first wave ships eleven types, starting with a Heart vertical slice that proves the whole loop end to end.
@@ -296,7 +296,7 @@ Each rule calls `progress.unlock(id, mode)` and does nothing else. Everything th
 `main.js` registers one `progress.onUnlock(({ id, mode }) => ...)` listener that does the following, in this order:
 
 1. Calls `bubbles.unlockBurst(id)` immediately.
-2. Queues the toast "New bubble upgrade: {name}!" (append the type's emoji to match the existing toast style at [`main.js:1105`](src/main.js:1105)). Show queued toasts 2.5 s after the trigger and 2.5 s apart, because Heart unlocks on the same frame as "You found Lurleen!" and `HUD.toast` replaces whatever is showing ([`hud.js:536-539`](src/hud.js:536)).
+2. Queues the toast "New bubble upgrade: {name}!" (append the type's emoji to match the existing toast style at [`main.js:1105`](src/main.js:1105)). Heart waits 3.5 s so the existing "You found Lurleen!" toast plays in full; other upgrades wait 2.5 s, and queued toasts stay 2.5 s apart. `HUD.toast` replaces whatever is showing ([`hud.js:536-539`](src/hud.js:536)).
 3. Calls `Sound.playUpgradeUnlock()` when the toast shows.
 4. Calls `Analytics.bubbleUnlocked(id, mode, progress.earnedCount())` for a genuine first earn. The helper accepts only `cruisin` and `festival`, so local debug unlocks marked `debug` never enter GA4.
 5. Calls `crowd.setBubbleCharm(charmGain(charmLevel(progress.earnedCount())))`.
@@ -436,39 +436,39 @@ The sandbox gets a new entity, `bubbles_special` (an `<option>` next to `bubbles
 
   Add the test to `npm run check`.
   **Done when:** it passes.
-- [ ] **2.6 Heart look.** Iterate the Heart in the sandbox: rim strength, core alpha, heart scale, wobble and pop. Capture the lineup and the Heart stream at Noon and Midnight on Low and High, close up and at chase distance. Then stop for **Gary gate A**.
+- [x] **2.6 Heart look.** Iterate the Heart in the sandbox: rim strength, core alpha, heart scale, wobble and pop. Capture the lineup and the Heart stream at Noon and Midnight on Low and High, close up and at chase distance. Then stop for **Gary gate A**.
   **Done when:** Gary approves the Heart look. A technically passing render is not visual approval.
 
-  Gary's 2026-10-15 review asked for more translucent shells and visible inner details on some types. The revised Low and High captures are in [the Gate A packet](verification/bubble-upgrades/checkpoint-2/GATE-A.md). Gate A remains open for a decision on that revision.
+  Gary's 2026-10-15 review asked for more translucent shells and visible inner details on some types. The revised Low and High captures are in [the Gate A packet](verification/bubble-upgrades/checkpoint-2/GATE-A.md). Gary approved that revision on 2026-10-15 and asked us to continue.
 
 **Exit condition:** Heart bubbles render, pop and stream in isolation, cheaply, on every tier.
 
 ### Checkpoint 3: The Heart vertical slice in the game
 
-- [ ] **3.1 Boot wiring.** In `main.js`:
+- [x] **3.1 Boot wiring.** In `main.js`:
   - Construct the progress module at module evaluation with a localStorage adapter. Not inside the title tap.
   - Call `bubbles.setProgress(progress)`, add `scene.add(bubbles.specialRoot)` next to [`main.js:369`](src/main.js:369), and pass `camera` to `bubbles.update` at [`main.js:1001`](src/main.js:1001).
   - Construct the tracker with the real world adapter from Section 4.6, call `tracker.tick(dt)` in the loop, and pass `tracker.context` to `bubbles.setSpecialContext`.
   - Call `progress.flush()` on `pagehide` and on hidden visibility.
 
   **Done when:** the game boots with zero console errors and no specials appear on a fresh profile.
-- [ ] **3.2 Heart trigger.** Call `tracker.onLurleenFound()` inside the existing one-shot at [`main.js:1103-1107`](src/main.js:1103).
+- [x] **3.2 Heart trigger.** Call `tracker.onLurleenFound()` inside the existing one-shot at [`main.js:1103-1107`](src/main.js:1103).
   **Done when:** teleporting next to Lurleen in a fresh profile unlocks Heart through the real trigger. Find her with `__dbg.game` and use `__dbg.teleport`. Calling `__dbg.unlock` doesn't count.
-- [ ] **3.3 Unlock sequence.** Implement Section 4.7, including the toast queue.
-  **Done when:** on finding Lurleen, "You found Lurleen!" shows in full, then the upgrade toast follows about 2.5 s later, and the unlock burst begins at the moment of discovery.
-- [ ] **3.4 `Sound.playUpgradeUnlock()`.** Build a short rising arpeggio on the SFX bus, synthesized like the existing one-shots (see `playJuicePickup` at [`sound.js:973`](src/sound.js:973)).
+- [x] **3.3 Unlock sequence.** Implement Section 4.7, including the toast queue.
+  **Done when:** on finding Lurleen, "You found Lurleen!" shows in full, then the upgrade toast follows as it finishes, and the unlock burst begins at the moment of discovery.
+- [x] **3.4 `Sound.playUpgradeUnlock()`.** Build a short rising arpeggio on the SFX bus, synthesized like the existing one-shots (see `playJuicePickup` at [`sound.js:973`](src/sound.js:973)).
   **Done when:** it plays once per unlock, respects the SFX volume slider, and is silent when muted.
-- [ ] **3.5 Menu.** Build `src/upgradesMenu.js`, the CSS, the title-card button, the in-game button, the `U` key and the unread dot (Section 4.9).
+- [x] **3.5 Menu.** Build `src/upgradesMenu.js`, the CSS, the title-card button, the in-game button, the `U` key and the unread dot (Section 4.9).
   **Done when:**
   - a fresh profile shows ten greyed cards and no Mushroom card;
   - after the Heart unlock, Heart shows in color with a toggle, the header reads "1 of 10 found · Bubble charm +4%", and the dot shows until the menu opens;
   - the toggle stops hearts within one spawn interval and survives a reload;
   - the menu works at 375 × 812 with touch, and with the keyboard only.
-- [ ] **3.6 Analytics.** `Analytics.bubbleUnlocked(type, mode, count)` and `Analytics.upgradesMenuOpen()` are implemented and covered by `bin/test-bubble-analytics`. Wire the unlock listener to send `bubble_unlocked { type, mode, unlocked_count, time_in_run_s }` for each newly earned type, and the menu to send `upgrades_menu_open` once per run. Record toggles with `Analytics.featureUsed('upgrade_toggle')` ([`analytics.js:185`](src/analytics.js:185)). Debug unlocks use mode `debug` and must not enter GA4.
+- [x] **3.6 Analytics.** `Analytics.bubbleUnlocked(type, mode, count)` and `Analytics.upgradesMenuOpen()` are implemented and covered by `bin/test-bubble-analytics`. Wire the unlock listener to send `bubble_unlocked { type, mode, unlocked_count, time_in_run_s }` for each newly earned type, and the menu to send `upgrades_menu_open` once per run. Record toggles with `Analytics.featureUsed('upgrade_toggle')` ([`analytics.js:185`](src/analytics.js:185)). Debug unlocks use mode `debug` and must not enter GA4.
   **Done when:** a console stub (`window.gtag = (...a) => console.log(a)`, since `send` calls `window.gtag` directly at [`analytics.js:36-37`](src/analytics.js:36)) shows one achievement event for each real first earn with the right params, none for repeat unlocks or debug unlocks, and one menu-open event per run. Reloading already earned progress must not resend an achievement.
-- [ ] **3.7 Debug hooks.** Add the `__dbg` hooks from Section 4.10 and their `help()` lines.
+- [x] **3.7 Debug hooks.** Add the `__dbg` hooks from Section 4.10 and their `help()` lines.
   **Done when:** each hook runs from the console without errors and does what the table says.
-- [ ] **3.8 Smoke test.** Boot `http://127.0.0.1:8765/` on Low and High: title card, real Start, a few seconds of play, console clean. Reload and confirm Heart persists and hearts keep mixing in. Then run a Festival Run with Heart earned and confirm specials don't affect scoring, juice or the vibe meter (charm comes in Checkpoint 5).
+- [x] **3.8 Smoke test.** Boot `http://127.0.0.1:8765/` on Low and High: title card, real Start, a few seconds of play, console clean. Reload and confirm Heart persists and hearts keep mixing in. Then run a Festival Run with Heart earned and confirm specials don't affect scoring, juice or the vibe meter (charm comes in Checkpoint 5).
   **Done when:** screenshots and console output are saved under `verification/bubble-upgrades/slice/`.
 - [ ] **3.9 Gary gate B.** Hand Gary the slice review packet (Section 7) and stop for a playtest.
   **Done when:** Gary approves the slice or lists changes, recorded in this plan.
@@ -478,6 +478,8 @@ The sandbox gets a new entity, `bubbles_special` (an `<option>` next to `bubbles
 ### Checkpoint 4: The remaining ten types
 
 Build one type at a time in D9 (first wave) order. For each type, every step below must happen before moving to the next type:
+
+`main.js` currently constructs the tracker with `['heart']` as its active type set for the Gate B slice. Add each type to that set as its live trigger is verified below; otherwise the tracker updates context but deliberately does not award the later type.
 
 1. Its catalog entry and look already exist from 1.1. Tune them in `sandbox.html?entity=bubbles_special&type=<id>`.
    Use `&view=still` to inspect one shell and its inner motif without the stream. Check that the moving pattern or accent, not just its tint, distinguishes the type at chase distance.

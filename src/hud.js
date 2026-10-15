@@ -255,6 +255,8 @@ export const HUD = {
     $start.classList.add('is-ready');
     const settings = document.getElementById('settings-open-title');
     if (settings) settings.disabled = false;
+    const upgrades = document.getElementById('upgrades-open-title');
+    if (upgrades) upgrades.disabled = false;
   },
 
   // Mode selector re-sync (used after a resume snapshot restores the mode).

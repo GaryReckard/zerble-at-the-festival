@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { scheduleUpgradeArpeggio, Sound } from '../src/sound.js';
+
+const destination = { name: 'SFX bus' };
+const notes = [];
+const audioContext = {
+  currentTime: 12,
+  createOscillator() {
+    const note = { frequencies: [], starts: [], stops: [] };
+    notes.push(note);
+    return {
+      frequency: { setValueAtTime(value, at) { note.frequencies.push({ value, at }); } },
+      connect(gain) { note.gain = gain; return gain; },
+      start(at) { note.starts.push(at); },
+      stop(at) { note.stops.push(at); },
+    };
+  },
+  createGain() {
+    const gain = { values: [], targets: [] };
+    return {
+      gain: {
+        setValueAtTime(value, at) { gain.values.push({ value, at }); },
+        linearRampToValueAtTime(value, at) { gain.values.push({ value, at }); },
+        exponentialRampToValueAtTime(value, at) { gain.values.push({ value, at }); },
+      },
+      connect(target) { gain.targets.push(target); return target; },
+      get evidence() { return gain; },
+    };
+  },
+};
+
+assert.doesNotThrow(() => Sound.playUpgradeUnlock(), 'safe before the post-gesture audio context exists');
+scheduleUpgradeArpeggio(audioContext, destination);
+assert.equal(notes.length, 4);
+assert.deepEqual(notes.map((note) => note.frequencies[0].value), [523.25, 659.25, 783.99, 1046.5]);
+assert.deepEqual(notes.map((note) => note.starts[0]), [12, 12.085, 12.17, 12.255]);
+for (const note of notes) {
+  assert.deepEqual(note.gain.evidence.targets, [destination], 'each note flows through the shared SFX bus');
+  assert.equal(note.gain.evidence.values[1].value, 0.12);
+  assert.equal(note.gain.evidence.values.at(-1).value, 0.0006);
+  assert.equal(note.stops.length, 1);
+}
+process.stdout.write('PASS upgrade sound: post-start guard, four rising scheduled notes, SFX bus routing and envelopes\n');

@@ -218,6 +218,23 @@ let _pendingNatureVol = null;
 // queue those requests here and drain them once the AudioContext exists.
 const _pendingStages = [];
 
+export function scheduleUpgradeArpeggio(audioContext, destination) {
+  const start = audioContext.currentTime;
+  for (const [i, frequency] of [523.25, 659.25, 783.99, 1046.5].entries()) {
+    const at = start + i * 0.085;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(frequency, at);
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.linearRampToValueAtTime(0.12, at + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.0006, at + 0.24);
+    osc.connect(gain).connect(destination);
+    osc.start(at);
+    osc.stop(at + 0.26);
+  }
+}
+
 export const Sound = {
   // Must be called from a user gesture (Start button click). Safe to call again.
   init() {
@@ -984,6 +1001,11 @@ export const Sound = {
     g.gain.exponentialRampToValueAtTime(0.0006, t + 0.26);
     osc.connect(g).connect(sfxBus);
     osc.start(t + 0.06); osc.stop(t + 0.3);
+  },
+
+  playUpgradeUnlock() {
+    if (!ctx || !sfxBus) return;
+    scheduleUpgradeArpeggio(ctx, sfxBus);
   },
 
   // One short mechanical cough when the working bubble-juice meter runs dry.
