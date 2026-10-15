@@ -169,6 +169,25 @@ export const Analytics = {
     send('bubble_blast', { time_in_run_s: secondsIn() });
   },
 
+  bubbleUnlocked(type, mode, count) {
+    if (typeof type !== 'string' || !type || (mode !== 'cruisin' && mode !== 'festival')) return;
+    const key = `bubble:${type}`;
+    if (state.firsts.has(key)) return;
+    state.firsts.add(key);
+    send('bubble_unlocked', {
+      type,
+      mode,
+      unlocked_count: Math.max(0, Math.floor(Number(count) || 0)),
+      time_in_run_s: secondsIn(),
+    });
+  },
+
+  upgradesMenuOpen() {
+    if (state.firsts.has('upgrades_menu')) return;
+    state.firsts.add('upgrades_menu');
+    send('upgrades_menu_open', { time_in_run_s: secondsIn() });
+  },
+
   // ----- Passengers -----
 
   // An NPC climbed aboard. Event on the first board per run (engagement

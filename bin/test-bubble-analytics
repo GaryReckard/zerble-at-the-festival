@@ -1,0 +1,49 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { Analytics } from '../src/analytics.js';
+import { createBubbleProgress } from '../src/bubbleProgress.js';
+
+const events = [];
+globalThis.window = { gtag: (...args) => events.push(args) };
+Analytics.gameStart({});
+events.length = 0;
+
+let saved = null;
+const storage = { get: () => saved, set: (_key, value) => { saved = value; } };
+const progress = createBubbleProgress(storage);
+progress.onUnlock(({ id, mode }) => Analytics.bubbleUnlocked(id, mode, progress.earnedCount()));
+assert.equal(progress.unlock('heart', 'cruisin'), true);
+assert.equal(progress.unlock('heart', 'cruisin'), false);
+assert.equal(progress.unlock('firefly', 'festival'), true);
+assert.equal(progress.unlock('mushroom', 'debug'), true);
+Analytics.bubbleUnlocked('heart', 'cruisin', 1);
+const reloaded = createBubbleProgress(storage);
+reloaded.onUnlock(({ id, mode }) => Analytics.bubbleUnlocked(id, mode, reloaded.earnedCount()));
+assert.equal(reloaded.unlock('heart', 'cruisin'), false);
+Analytics.upgradesMenuOpen();
+Analytics.upgradesMenuOpen();
+
+assert.deepEqual(events.map((event) => event[1]),
+  ['bubble_unlocked', 'bubble_unlocked', 'upgrades_menu_open']);
+assert.deepEqual(events[0].slice(0, 2), ['event', 'bubble_unlocked']);
+assert.deepEqual(Object.keys(events[0][2]).sort(),
+  ['mode', 'time_in_run_s', 'type', 'unlocked_count']);
+assert.equal(events[0][2].type, 'heart');
+assert.equal(events[0][2].mode, 'cruisin');
+assert.equal(events[0][2].unlocked_count, 1);
+assert.equal(events[1][2].type, 'firefly');
+assert.equal(events[1][2].mode, 'festival');
+assert.equal(events[1][2].unlocked_count, 2);
+assert(Number.isInteger(events[0][2].time_in_run_s));
+
+window.gtag = () => { throw new Error('GA unavailable'); };
+assert.doesNotThrow(() => Analytics.bubbleUnlocked('sparkler', 'cruisin', 3));
+assert.doesNotThrow(() => Analytics.upgradesMenuOpen());
+
+window.gtag = (...args) => events.push(args);
+Analytics.gameStart({});
+events.length = 0;
+Analytics.upgradesMenuOpen();
+assert.deepEqual(events.map((event) => event[1]), ['upgrades_menu_open']);
+
+process.stdout.write('PASS bubble GA4 unlock and menu events, once-per-run gating, and unavailable-tag safety\n');

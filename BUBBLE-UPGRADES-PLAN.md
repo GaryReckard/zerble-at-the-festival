@@ -298,7 +298,7 @@ Each rule calls `progress.unlock(id, mode)` and does nothing else. Everything th
 1. Calls `bubbles.unlockBurst(id)` immediately.
 2. Queues the toast "New bubble upgrade: {name}!" (append the type's emoji to match the existing toast style at [`main.js:1105`](src/main.js:1105)). Show queued toasts 2.5 s after the trigger and 2.5 s apart, because Heart unlocks on the same frame as "You found Lurleen!" and `HUD.toast` replaces whatever is showing ([`hud.js:536-539`](src/hud.js:536)).
 3. Calls `Sound.playUpgradeUnlock()` when the toast shows.
-4. Calls `Analytics.bubbleUnlocked(id, mode, progress.earnedCount())`.
+4. Calls `Analytics.bubbleUnlocked(id, mode, progress.earnedCount())` for a genuine first earn. The helper accepts only `cruisin` and `festival`, so local debug unlocks marked `debug` never enter GA4.
 5. Calls `crowd.setBubbleCharm(charmGain(charmLevel(progress.earnedCount())))`.
 6. Calls `UpgradesMenu.markUnread()`.
 
@@ -328,7 +328,7 @@ Add these to `window.__dbg` ([`main.js:1858`](src/main.js:1858)) and to its `hel
 | Hook | Does |
 |---|---|
 | `upgrades()` | Returns a table of every type (earned, enabled, secret) plus charm level, lifetime smiles and session counters. |
-| `unlock(id \| 'all')` | Unlocks through `progress.unlock`, so the full unlock sequence runs. |
+| `unlock(id \| 'all')` | Unlocks through `progress.unlock(id, 'debug')`, so the visual and sound sequence runs without recording a player achievement in GA4. |
 | `relock(id \| 'all')` | Removes earned state (calls `progress.reset()` for `'all'`). |
 | `forceSpecial(id \| null)` | Forces every special to one type, for screenshots. |
 | `unlockBurst(id)` | Runs the unlock burst. |
@@ -464,8 +464,8 @@ The sandbox gets a new entity, `bubbles_special` (an `<option>` next to `bubbles
   - after the Heart unlock, Heart shows in color with a toggle, the header reads "1 of 10 found · Bubble charm +4%", and the dot shows until the menu opens;
   - the toggle stops hearts within one spawn interval and survives a reload;
   - the menu works at 375 × 812 with touch, and with the keyboard only.
-- [ ] **3.6 Analytics.** Add `Analytics.bubbleUnlocked(type, mode, count)` sending `bubble_unlocked { type, mode, unlocked_count, time_in_run_s }`, and `Analytics.upgradesMenuOpen()` sending `upgrades_menu_open` once per run (use the existing `state.firsts` pattern in `bubbleBlast` at [`analytics.js:167-168`](src/analytics.js:167)). Record toggles with `Analytics.featureUsed('upgrade_toggle')` ([`analytics.js:185`](src/analytics.js:185)).
-  **Done when:** a console stub (`window.gtag = (...a) => console.log(a)`, since `send` calls `window.gtag` directly at [`analytics.js:36-37`](src/analytics.js:36)) logs both events with the right params.
+- [ ] **3.6 Analytics.** `Analytics.bubbleUnlocked(type, mode, count)` and `Analytics.upgradesMenuOpen()` are implemented and covered by `bin/test-bubble-analytics`. Wire the unlock listener to send `bubble_unlocked { type, mode, unlocked_count, time_in_run_s }` for each newly earned type, and the menu to send `upgrades_menu_open` once per run. Record toggles with `Analytics.featureUsed('upgrade_toggle')` ([`analytics.js:185`](src/analytics.js:185)). Debug unlocks use mode `debug` and must not enter GA4.
+  **Done when:** a console stub (`window.gtag = (...a) => console.log(a)`, since `send` calls `window.gtag` directly at [`analytics.js:36-37`](src/analytics.js:36)) shows one achievement event for each real first earn with the right params, none for repeat unlocks or debug unlocks, and one menu-open event per run. Reloading already earned progress must not resend an achievement.
 - [ ] **3.7 Debug hooks.** Add the `__dbg` hooks from Section 4.10 and their `help()` lines.
   **Done when:** each hook runs from the console without errors and does what the table says.
 - [ ] **3.8 Smoke test.** Boot `http://127.0.0.1:8765/` on Low and High: title card, real Start, a few seconds of play, console clean. Reload and confirm Heart persists and hearts keep mixing in. Then run a Festival Run with Heart earned and confirm specials don't affect scoring, juice or the vibe meter (charm comes in Checkpoint 5).
