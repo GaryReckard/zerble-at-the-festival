@@ -1,0 +1,40 @@
+<!doctype html><meta charset="utf-8"><title>Wook model checks</title>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Running real Three.js model checks…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {buildWook, tickWook} from '../../src/models/wook.js';
+import {mulberry32} from '../../src/rng.js';
+const assert = (ok, message) => {if (!ok) throw Error(message);};
+try {
+  const results = [];
+  for (let variant = 0; variant < 5; variant++) {
+    const makeRng = () => {const random = mulberry32(197 + variant);let first = true;return () => {if(first){first=false;return (variant+.5)/5;}return random();};};
+    const rng = makeRng(), legacy = makeRng();
+    const a = buildWook(rng), b = buildWook(makeRng());
+    legacy(); legacy();
+    for(let i=0;i<4;i++){legacy();legacy();legacy();legacy();}
+    for(let i=0;i<14;i++){legacy();legacy();const n=4+Math.floor(legacy()*2);for(let j=0;j<n;j++){legacy();legacy();}}
+    assert(rng() === legacy(), 'caller RNG stream changed');
+    assert(a.userData.swayPhase === b.userData.swayPhase, 'seeded phase differs');
+    let meshes=0, triangles=0, casters=0;
+    a.traverse(n=>{
+      if(!n.isMesh)return;
+      meshes++;casters+=Number(n.castShadow);triangles+=n.geometry.attributes.position.count/3;
+      assert(n.geometry.userData.shared && n.material.userData.shared, 'unsafe pooled resource');
+      assert([...n.geometry.attributes.position.array].every(Number.isFinite), 'invalid vertex');
+    });
+    assert(meshes===4 && casters===2 && triangles<9000, 'model budget exceeded');
+    for(let i=0;i<4;i++)assert(a.children[0].children[i].geometry===b.children[0].children[i].geometry,'geometry not reused');
+    a.position.set(3,0,7);a.rotation.y=.4;
+    tickWook(a,1/60);a.updateMatrixWorld(true);
+    assert(a.position.x===3 && a.position.z===7 && a.rotation.y===.4, 'sway changed controller transform');
+    a.traverse(n=>assert(n.matrixWorld.elements.every(Number.isFinite),'invalid animated transform'));
+    a.children[0].rotation.set(0,0,0);
+    const bounds=new THREE.Box3().setFromObject(a), size=bounds.getSize(new THREE.Vector3());
+    assert(size.y>2.4 && size.y<2.8 && size.x<1.8, 'unexpected model bounds');
+    results.push({variant,meshes,triangles,casters,height:size.y});
+  }
+  document.querySelector('#result').textContent='PASS: all five variants; finite geometry, pooling, caller RNG, deterministic sway phase, bounds, animation ownership.\n'+JSON.stringify(results,null,2);
+} catch(error) {document.querySelector('#result').textContent='FAIL: '+error.stack;throw error;}
+</script>

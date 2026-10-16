@@ -88,13 +88,13 @@ assert.equal(dry._specialRenderer.shellMaterial.uniforms.uCoreAlpha.value, 0.045
 assert.equal(dry._specialRenderer.shellMaterial.uniforms.uRimAlpha.value, 0.3,
   'the shell rim is more translucent');
 dry._specialRenderer.beginFrame(camera, 0, 0);
-for (const id of ['ember', 'firefly', 'sparkler', 'lantern']) {
+for (const id of ['ember', 'firefly', 'sparkler', 'lantern', 'brass']) {
   dry._specialRenderer.write(BUBBLE_TYPES.findIndex((type) => type.id === id),
     new Vector3(0, 2, 0), 2, 0, 0, 0.3);
 }
 dry._specialRenderer.endFrame();
-assert.deepEqual([0, 2, 4, 6].map((offset) => dry._specialRenderer._sphereAccent.array[offset]),
-  [1, 2, 3, 4], 'the shared sphere draw receives four distinct inner styles');
+assert.deepEqual([0, 2, 4, 6, 8].map((offset) => dry._specialRenderer._sphereAccent.array[offset]),
+  [1, 2, 3, 4, 5], 'the shared sphere draw receives five distinct inner styles');
 assert(dry.specialRoot.children.every((mesh) => mesh.castShadow === false),
   'specials add no shadow casters');
 

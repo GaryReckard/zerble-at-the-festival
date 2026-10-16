@@ -298,6 +298,7 @@ export class Fireworks {
 
     // Reaction hook — main.js sets this to throttle a crowd cheer per burst.
     this.onBurst = null;
+    this.onFinale = null;
   }
 
   // Fire a full rocket→burst shell (game director + __dbg.firework). `facing`
@@ -362,6 +363,7 @@ export class Fireworks {
       // Finale: arm on entering deep night, fire once at the peak, reset by day.
       if (nightness >= FINALE_NIGHT && this._finaleArmed && !this._finaleFired) {
         this._finaleFired = true;
+        if (this.onFinale) this.onFinale();
         this._finaleQueue = 14;     // a rapid barrage
         this._finaleTimer = 0;
       }

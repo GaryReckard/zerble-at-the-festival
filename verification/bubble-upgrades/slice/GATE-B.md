@@ -27,4 +27,4 @@ The Heart slice is ready for Gary's playtest. On a clean profile, the actual Lur
 
 Use `http://127.0.0.1:8765/?perf=low&mute=1` or `?perf=high&mute=1`. Start the game, find Lurleen, and open Bubble Upgrades from the heart button. On localhost, `__dbg.game.lurleen.position` and `__dbg.teleport(x, z)` make the real proximity trigger easy to reach. `__dbg.unlock('heart')` is a separate visual drill and reports mode `debug`, so it sends no achievement to GA4.
 
-Gary's approval of this slice remains Gate B. The other ten unlock triggers and the actual crowd charm gain are the next checkpoints.
+Gary approved this slice as Gate B on 2026-10-15. The other ten unlock triggers are implemented and documented in the [Gate C review packet](../checkpoint-4/GATE-C.md); the actual crowd charm gain follows Gate C approval.

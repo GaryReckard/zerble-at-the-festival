@@ -62,7 +62,7 @@ export const BUBBLE_TYPES = Object.freeze([
     look: look('sphere', 0x9b5de5, 'swirl', 0.35, [1, 1, 1], pop([0x9b5de5, 0x3ddc97], 10)),
     boost: (ctx) => ctx.tripActive ? 3 : 1 },
   { id: 'brass', name: 'Brass Bubbles', order: 11, secret: false, hint: 'Roll with the brass band.', earnedLine: null,
-    look: look('sphere', 0xd9a520, 'glint', 0.4, [1, 1, 1], pop([0xd9a520, 0xffe39a], 10)),
+    look: look('sphere', 0xd9a520, 'glint', 0.4, [1, 1, 1], pop([0xd9a520, 0xffe39a], 10), 'brass'),
     boost: (ctx) => ctx.nearBand ? 3 : 1 },
 ]);
 

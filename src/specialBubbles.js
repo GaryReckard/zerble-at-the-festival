@@ -5,7 +5,7 @@ import { createHeartGeometry } from './models/heart.js';
 const HEART_SHELL_SCALE = 1.4;
 const POP_POOL = 128;
 const GOLDEN_ANGLE = 2.399963229728653;
-const ACCENT_STYLE = Object.freeze({ none: 0, ember: 1, firefly: 2, spark: 3, lantern: 4 });
+const ACCENT_STYLE = Object.freeze({ none: 0, ember: 1, firefly: 2, spark: 3, lantern: 4, brass: 5 });
 
 const SHELL_VERT = /* glsl */ `
   attribute vec4 aTint;
@@ -76,6 +76,14 @@ const SHELL_FRAG = /* glsl */ `
         float wick = exp(-40.0 * (p.x * p.x + (p.y + 0.08) * (p.y + 0.08)));
         accentAlpha = min(0.85, body * 0.38 + wick * (0.4 + 0.12 * sin(phase * 1.5)));
         accentColor = mix(vec3(1.0, 0.48, 0.15), vec3(1.0, 0.84, 0.34), wick);
+      } else if (vAccent.x > 4.5 && vAccent.x < 5.5) {
+        float sweepX = fract(phase / 1.5) * 2.4 - 1.2;
+        float stripe = p.x - sweepX - p.y * 0.2;
+        float rimFade = 1.0 - smoothstep(0.65, 1.0, length(p));
+        float streak = exp(-120.0 * stripe * stripe) * rimFade;
+        float flash = exp(-40.0 * dot(p - vec2(sweepX, 0.0), p - vec2(sweepX, 0.0)));
+        accentAlpha = min(0.8, streak * 0.55 + flash * 0.25);
+        accentColor = vec3(1.0, 0.93, 0.55);
       }
     }
     float accent = clamp(accentAlpha * (1.0 - rim * 0.45), 0.0, 1.0);

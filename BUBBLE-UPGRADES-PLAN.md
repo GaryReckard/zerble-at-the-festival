@@ -1,6 +1,6 @@
 # Bubble Upgrades
 
-**Status:** Checkpoints 1 and 2 complete. Checkpoint 3 is implemented and verified, awaiting Gary's Gate B playtest. **Author:** Claude, from a planning session with Gary. **Date:** 2026-10-15.
+**Status:** Checkpoints 1–3 complete. Gary approved Gate B on 2026-10-15. Checkpoint 4 is implemented and verified, with Gate C look approval pending. **Author:** Claude, from a planning session with Gary. **Date:** 2026-10-15.
 **Source baseline:** `b215b8d`. Every `file:line` below was verified at that commit. Lines drift, so recheck each anchor before editing.
 
 **TL;DR:** Players earn special bubble types by doing memorable things at the festival (finding Lurleen, sitting in with a drum circle after dark, staying up for the midnight fireworks). Once earned, a type shows up on its own as a rare, bigger "featured" bubble in Zerble's normal stream, roughly one every two seconds, more often when the context fits (hearts near Lurleen, embers near a drum circle). A new **Bubble Upgrades** menu lists every upgrade: earned ones in color with an on/off toggle, locked ones greyed out with a hint, and the one secret type hidden until someone earns it. Each earned upgrade also helps the crowd warm to bubbles a little faster: with ten upgrades, the bubble half of the happiness meter fills 40% quicker. The first wave ships eleven types, starting with a Heart vertical slice that proves the whole loop end to end.
@@ -470,7 +470,7 @@ The sandbox gets a new entity, `bubbles_special` (an `<option>` next to `bubbles
   **Done when:** each hook runs from the console without errors and does what the table says.
 - [x] **3.8 Smoke test.** Boot `http://127.0.0.1:8765/` on Low and High: title card, real Start, a few seconds of play, console clean. Reload and confirm Heart persists and hearts keep mixing in. Then run a Festival Run with Heart earned and confirm specials don't affect scoring, juice or the vibe meter (charm comes in Checkpoint 5).
   **Done when:** screenshots and console output are saved under `verification/bubble-upgrades/slice/`.
-- [ ] **3.9 Gary gate B.** Hand Gary the slice review packet (Section 7) and stop for a playtest.
+- [x] **3.9 Gary gate B.** Hand Gary the slice review packet (Section 7) and stop for a playtest. Gary approved Gate B on 2026-10-15.
   **Done when:** Gary approves the slice or lists changes, recorded in this plan.
 
 **Exit condition:** find Lurleen → Heart unlocked → hearts mix in permanently → Heart shows earned in the menu, on desktop and phone widths.
@@ -487,27 +487,27 @@ Build one type at a time in D9 (first wave) order. For each type, every step bel
 3. Prove the trigger live in the game through its real path, not `__dbg.unlock`.
 4. Capture its stream at Noon and Midnight, Low tier, at chase distance.
 
-- [ ] **4.1 Music.** Proximity rule.
+- [x] **4.1 Music.** Proximity rule. Three distinct loaded stages unlocked it; returning to the first left the count at three.
   **Done when:** driving past three distinct stages unlocks Music, and re-entering a stage you already visited never counts twice.
-- [ ] **4.2 Ember.** Proximity at night.
+- [x] **4.2 Ember.** Proximity at night. The same `bench_ring` stayed locked at Noon and unlocked at Midnight.
   **Done when:** a drum circle at Noon doesn't unlock it, and the same drum circle at Midnight (`__dbg.tod`) does.
-- [ ] **4.3 Firefly.** Shore ring at night.
+- [x] **4.3 Firefly.** Shore ring at night. A dry inland position stayed locked; a loaded shore marker unlocked it at Midnight.
   **Done when:** a lakeshore at Midnight unlocks it and an inland spot at Midnight doesn't.
-- [ ] **4.4 Rainbow.** Hub cores.
+- [x] **4.4 Rainbow.** Hub cores. The live count climbed one per distinct core and the eighth unlocked Rainbow. A normal-input drive on the test seed reached eight in 73.15 seconds across 1,018 m with the hub coordinates known in advance; this is a fast-route benchmark, not a discovery-time estimate. [Route evidence](verification/bubble-upgrades/checkpoint-4/rainbow-drive.json).
   **Done when:** `__dbg.challenges()` shows the hub count climbing as you drive, and the eighth distinct hub unlocks it. Record the real driving time it took so Gary can judge whether 8 is the right number.
-- [ ] **4.5 Sparkler.** Add `this.onFinale = null` to `Fireworks` and call it beside `this._finaleFired = true` ([`fireworks.js:364`](src/fireworks.js:364)). Wire `fireworks.onFinale = () => tracker.onFireworksFinale()` next to `fireworks.onBurst` ([`main.js:388`](src/main.js:388)).
+- [x] **4.5 Sparkler.** Add `this.onFinale = null` to `Fireworks` and call it beside `this._finaleFired = true` ([`fireworks.js:364`](src/fireworks.js:364)). Wire `fireworks.onFinale = () => tracker.onFireworksFinale()` next to `fireworks.onBurst` ([`main.js:388`](src/main.js:388)). The armed finale awarded one Sparkler event and remained one-shot that night.
   **Done when:** scrubbing time to the finale unlocks Sparkler exactly once.
-- [ ] **4.6 Lantern.** Parade proximity.
+- [x] **4.6 Lantern.** Parade proximity. A live parade collider unlocked Lantern.
   **Done when:** reaching the parade (find it via `__dbg.game.puppets`) unlocks it.
-- [ ] **4.7 Smile.** Call `tracker.onSmilesCollected(_collectedThisFrame)` beside [`main.js:1073`](src/main.js:1073). The progress module accumulates and debounces the counter. `__dbg.addSmiles` must not count.
+- [x] **4.7 Smile.** Call `tracker.onSmilesCollected(_collectedThisFrame)` beside [`main.js:1073`](src/main.js:1073). The progress module accumulates and debounces the counter. `__dbg.addSmiles` must not count. Debug-added score left the 995 lifetime count unchanged; five pickups through `Smiles.spawn`/`Smiles.update` earned Smile at 1,000.
   **Done when:** `__dbg.lifetimeSmiles(995)` followed by collecting five real smiles unlocks it.
-- [ ] **4.8 Confetti.** Call `tracker.onRunDay(RunState.day)` inside the day-up branch at [`main.js:1024-1029`](src/main.js:1024).
+- [x] **4.8 Confetti.** Call `tracker.onRunDay(RunState.day)` inside the day-up branch at [`main.js:1024-1029`](src/main.js:1024). A day wrap in Just Cruisin' did nothing; a Festival Run wrap from day one to two awarded Confetti.
   **Done when:** a Festival Run reaching day 2 unlocks it (use the stakes drills listed in `__dbg.help()`), and Just Cruisin' never does.
-- [ ] **4.9 Mushroom.** Call `tracker.onTripAccepted()` inside the existing `Trip.onAccept` handler at [`main.js:273`](src/main.js:273). Add the ×3 boost while `Trip.isActive()`.
+- [x] **4.9 Mushroom.** Call `tracker.onTripAccepted()` inside the existing `Trip.onAccept` handler at [`main.js:273`](src/main.js:273). Add the ×3 boost while `Trip.isActive()`. Manual static and dynamic trips did not award it; accepting a wook's actual pending offer did, and the hidden card then appeared.
   **Done when:** accepting a wook's offer unlocks it, a manual T-menu trip doesn't, and before the unlock the menu, README and title card show no trace of it.
-- [ ] **4.10 Brass.** Band proximity.
+- [x] **4.10 Brass.** Band proximity. A live band collider unlocked Brass.
   **Done when:** rolling alongside the band unlocks it.
-- [ ] **4.11 Gary gate C.** Send Gary the lineup at Noon and Midnight plus one chase-distance stream per type. Batch the requests (for example, 4.1-4.4, then 4.5-4.8, then 4.9-4.10) instead of one per type.
+- [ ] **4.11 Gary gate C.** Send Gary the lineup at Noon and Midnight plus one chase-distance stream per type. Batch the requests (for example, 4.1-4.4, then 4.5-4.8, then 4.9-4.10) instead of one per type. [The grouped review packet](verification/bubble-upgrades/checkpoint-4/GATE-C.md) is ready; Gary's look decision is pending.
   **Done when:** Gary approves each look or lists changes.
 
 **Exit condition:** all eleven types unlock through their real triggers and read as distinct at chase distance on Low tier.

@@ -282,6 +282,7 @@ Trip.onOffer = () => {
 };
 Trip.onAccept = () => {
   HUD.toast("...", 1500);
+  bubbleChallenges.onTripAccepted();
 };
 Trip.onDecline = (reason) => {
   const msg = WOOK_DECLINE_TEXTS[reason] || "the moment passes";
@@ -403,6 +404,7 @@ fireworks.onBurst = (bx, bz) => {
   _lastFireworkCheer = now;
   crowd.cheerNear(zerble.position.x, zerble.position.z);
 };
+fireworks.onFinale = () => bubbleChallenges.onFireworksFinale();
 
 // When a stage song ends, nearby crowd cheers. First fire also logs a GA4 event
 // so we know the end-to-end path is working in the wild.
@@ -485,7 +487,7 @@ const bubbleChallenges = new ChallengeTracker(bubbleProgress, {
   bandPositions: (fn) => { for (const collider of band.colliders) fn(collider.position.x, collider.position.z); },
   tripActive: () => Trip.isActive(),
   mode: () => RunMode.isFestival() ? 'festival' : 'cruisin',
-}, ['heart']);
+}, ['heart', 'music', 'ember', 'firefly', 'rainbow', 'sparkler', 'lantern', 'smile', 'confetti', 'mushroom', 'brass']);
 const kids = new KidGaggle();
 scene.add(kids.group);
 const wooks = new Wooks();
@@ -1079,6 +1081,7 @@ function tickBody(dt) {
     if (RunMode.isFestival() && RunState.active && !RunState.over) {
       if (RunState.tickDay(dt, getTimeOfDay()?.t)) {
         const d = RunState.day;
+        bubbleChallenges.onRunDay(d);
         const line = DAY_UP_TOASTS[Math.floor(Math.random() * DAY_UP_TOASTS.length)];
         HUD.toast(line.replace('{d}', String(d)), 3200);
         setJugKeepFraction(RunMode.config.jugKeep(d));
@@ -1126,6 +1129,7 @@ function tickBody(dt) {
     _collectedThisFrame = 0;
     smiles.update(dt, zerble, (n) => { _collectedThisFrame += n; });
     if (_collectedThisFrame > 0) {
+      bubbleChallenges.onSmilesCollected(_collectedThisFrame);
       Scoring.collect(_collectedThisFrame);
       Sound.playSmileCollect(_collectedThisFrame, Scoring.chain);
       HUD.setSmiles(Scoring.current);

@@ -5,8 +5,12 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-10-15
 
 ### Added
+- **Ten more bubble upgrades now unlock in the game.** Music, Ember, Firefly, Rainbow, Sparkler, Lantern, Smile, Confetti, the hidden Mushroom, and Brass each use their own real game trigger and join the persistent special stream when earned. The fireworks finale, wook acceptance, organic smile pickups and Festival Run day change now feed the same unlock sequence and GA4 achievement event as Heart. Brass gains its moving shell glint. A timed normal-control route reached Rainbow's eighth hub in 73 seconds; [Gate C captures and trigger checks](verification/bubble-upgrades/checkpoint-4/GATE-C.md) are ready for look approval.
 - **Finding Lurleen now earns Heart Bubbles.** The discovery starts a pink Heart burst, then announces the new upgrade after Lurleen's own toast finishes. Earned Hearts join the stream across reloads; the title card and in-game Bubble Upgrades menu show locked hints, earned toggles, an unread dot and a `U` shortcut. A short SFX arpeggio marks an unlock. GA4 records each genuine first earn, menu discovery and toggles, while debug unlocks stay out of achievement analytics. [Gate B captures and checks](verification/bubble-upgrades/slice/GATE-B.md).
 - **Special bubble rendering has an isolated Heart preview.** The entity sandbox shows the full eleven-type lineup and a Heart stream at Low and High quality, with Noon and Midnight controls, chase and close views, and a pooled pop burst. The emitter requires earned progress, so ordinary bubbles remain unchanged in the game until the unlock integration is complete. [Gate A captures](verification/bubble-upgrades/checkpoint-2/GATE-A.md).
+
+### Changed
+- **Wooks now wear striped Baja hoodies beneath oversized, uneven dreadlocks.** The reference-inspired model adds a woven headband, sleepy eyes, a full beard, hair beads, drawstrings, a pouch pocket and sandals. Five pooled variants use four meshes and two shadow casters each; the sandbox opens facing the character. [Model checks and day/night captures](verification/wook/README.md).
 
 ### Fixed
 - **Children keep a little space while chasing the same bubble.** Nearby kids steer apart and receive a deterministic overlap correction, including when they reach exactly the same position. The spacing is smaller than the adult crowd's, and collision positions follow the corrected bodies. Shared-target regression coverage prevents a whole gaggle from collapsing to a point.
