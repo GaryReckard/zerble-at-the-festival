@@ -4,22 +4,22 @@
 
 Nut Wagon: route interpolation, dense obstacle splitting, short/blocked rejection, 10× trip chance passed
 Nut Wagon: full rotated footprint covers front platform, hatch and shoreline corners
-(node:36924) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/nutWagonRoute.js is not specified and it doesn't parse as CommonJS.
+(node:32798) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/nutWagonRoute.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS muted launches, ordinary launches and explicit session overrides
-(node:36925) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/sound.js?case=%3Fmute%3D1 is not specified and it doesn't parse as CommonJS.
+(node:32803) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/sound.js?case=%3Fmute%3D1 is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 importmaps OK — 55 src + 12 worldgen + 33 models across 4 pages
 PASS  renderer/composer/bloom/FXAA dimensions across quality and viewport changes
-(node:36927) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/renderSizing.js is not specified and it doesn't parse as CommonJS.
+(node:32805) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/renderSizing.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:36928) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
+(node:32806) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
@@ -62,7 +62,7 @@ To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerb
   fancyLights: false
 }
 PASS  bubbles hide when empty and render emission, popping, and refills
-(node:36929) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
+(node:32807) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
@@ -106,21 +106,21 @@ To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerb
 }
 PASS  bubble pops remove instantly, emit pooled outward droplets, then fade cleanly
 PASS bubble types: catalog, weighted picker, rates, charm, tint animations, and secret visibility
-(node:36930) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbleTypes.js is not specified and it doesn't parse as CommonJS.
+(node:32808) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbleTypes.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS bubble progress: empty/corrupt/blocked storage, idempotence, toggles, round trips, and debounced smiles
-(node:36931) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbleProgress.js is not specified and it doesn't parse as CommonJS.
+(node:32809) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbleProgress.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS bubble challenges: all unlock rules, negative cases, position identity, and context snapshot
-(node:36932) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbleProgress.js is not specified and it doesn't parse as CommonJS.
+(node:32810) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbleProgress.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:36933) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
+(node:32811) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
@@ -164,28 +164,28 @@ To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerb
 }
 PASS  special emission rate, dry unlock burst, fixed pool, crowd visitation, and idle render visibility
 PASS bubble GA4 unlock and menu events, once-per-run gating, and unavailable-tag safety
-(node:36935) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/analytics.js is not specified and it doesn't parse as CommonJS.
+(node:32812) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/analytics.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS upgrade sound: post-start guard, four rising scheduled notes, SFX bus routing and envelopes
-(node:36936) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/sound.js is not specified and it doesn't parse as CommonJS.
+(node:32813) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/sound.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:36937) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/smiles.js is not specified and it doesn't parse as CommonJS.
+(node:32814) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/smiles.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS smiles: bounded resources over 400 pickups, all removal paths, motion, scoring, colorblind marker, owner teardown
-(node:36938) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+(node:32815) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS registry indexes: 11182 differential states; {"add":3556,"remove":1263,"unload":1601,"reload":809,"live":1544,"rebuild":1580}
 PASS  2016 frame comparisons; identical happiness, motion and scoring; 2752 fewer Math.hypot calls; range invariant holds
 PASS  kid target commitment, grab radius, personal space, state changes, center steering, angle wrap and speed at 30/60/120 fps
-(node:36951) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/timeOfDay.js is not specified and it doesn't parse as CommonJS.
+(node:32823) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/timeOfDay.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
@@ -228,7 +228,7 @@ To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerb
   fancyLights: false
 }
 PASS  shadow Off survives streaming and day/night; On restores without caster retention
-(node:36952) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/lakes.js is not specified and it doesn't parse as CommonJS.
+(node:32824) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/lakes.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
@@ -272,50 +272,50 @@ To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerb
 }
 PASS  indexed lake queries preserve geometry and add/remove behavior
 PASS  cached road neighbors match uncached results across seed and tuning changes
-(node:36953) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+(node:32825) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 marker stage 2577575099: (369,-103) → (340,-111); 1677 clear audience probes
 marker stage 659632957: (456,131) → (491,130); 1517 clear audience probes
 PASS 288 stage clearances across five seeds, negative controls and query-order determinism
-(node:36954) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/index.js is not specified and it doesn't parse as CommonJS.
+(node:32826) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/index.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS  welcome court selection and safe Sugar Shack fallback
-(node:36956) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/index.js is not specified and it doesn't parse as CommonJS.
+(node:32828) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/index.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS  capture-only frame distributions, attribution, hidden-frame filtering, and event bounds
-(node:36959) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/perfTelemetry.js is not specified and it doesn't parse as CommonJS.
+(node:32831) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/perfTelemetry.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS  capture phase ownership, parked controls, slow Trip, free resume, upload serialization, and frozen retry
-(node:36960) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/perfTelemetry.js is not specified and it doesn't parse as CommonJS.
+(node:32832) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/perfTelemetry.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS  eager initial preload and bounded empty-residency admission
-(node:36961) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/placement.js is not specified and it doesn't parse as CommonJS.
+(node:32833) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/placement.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS  cross-phase quality and physical render-size contamination
 PASS  desktop/phone URLs and LAN token checks
 ✓ MODEL_DIMS in sync with model sources (5 dims).
-(node:36967) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/tuning.js is not specified and it doesn't parse as CommonJS.
+(node:32838) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/tuning.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:36968) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+(node:32839) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS  6000 trials, 36000 queries (3007 post-rebuild, 12716 oversized) — grid+bigFp closestBuilding == linear scan (boolean + exact min distance)
-(node:36969) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/models/tree.js is not specified and it doesn't parse as CommonJS.
+(node:32840) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/models/tree.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
@@ -359,7 +359,7 @@ PASS  4000 seeds — buildForestTree (birch+oak+pine) + buildTree (leaf+cone) rn
   fancyLights: false
 }
 PASS  adaptive quality uses fresh samples, per-boundary recovery holds/backoff, and immediate safety drops
-(node:36970) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/adaptiveQuality.js is not specified and it doesn't parse as CommonJS.
+(node:32841) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/adaptiveQuality.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
@@ -402,31 +402,31 @@ To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerb
   fancyLights: false
 }
 PASS  low tier starts cheap, skips inert rungs, and respects the detailed-bubbles override
-(node:36971) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/adaptiveQuality.js is not specified and it doesn't parse as CommonJS.
+(node:32842) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/adaptiveQuality.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:36972) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/boostStreaks.js is not specified and it doesn't parse as CommonJS.
+(node:32843) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/boostStreaks.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS  game-juice edges, accessibility gates, fixed pool, lifetime, and disposal safety
-(node:36973) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+(node:32844) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS  photographer determinism, rare-role state machine, flash edge, pooling, and shadow safety
-(node:36977) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/bin/test-crowd-appearance.js is not specified and it doesn't parse as CommonJS.
+(node:32845) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/bin/test-crowd-appearance.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS  stable crowd appearance, 6 skin tones, 3 hair forms, 12 shirts, 6.6% drinks, RNG isolation, slot pooling, no extra shadow casters
-(node:36978) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/models/frisbeePlayer.js is not specified and it doesn't parse as CommonJS.
+(node:32846) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/models/frisbeePlayer.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 PASS  frisbee player has relaxed, one-arm catch, windup, and release poses
-(node:36979) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/placement.js is not specified and it doesn't parse as CommonJS.
+(node:32847) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/placement.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
@@ -470,82 +470,82 @@ To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerb
 }
 PASS  far-field owner-cell fixtures, deterministic descriptor copying, worldgen-input immutability, fixed-capacity nearest selection, snapshot-planner supersession, the enablement truth table, handoff policy, palette + instHash stability, shared roofs and vendor slots, instance expansion, the real-worldgen pool drive (caps, determinism, bounds enclosure after a distant rewrite, night gating), the completion handoff (dither wiring, snap-then-envelope, shared-deadline remainder, reduced-motion snap, unload reappearance), long-travel resource plateaus + registry off-on identity + forcing controls + the no-builder/no-light/no-shadow source contract, coarse forest masses (grid ownership, threshold gating, jittered-owner handoff, per-tier tri-budget gate), and owner-only disposal idempotence
 OK bin/test-steering — dodge urgency, corridor invariants, steer-direction jitter all hold
-(node:36982) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/steering.js is not specified and it doesn't parse as CommonJS.
+(node:32850) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/steering.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 OK bin/test-run-mode — ramp, combo, and mode-gate invariants hold
-(node:36983) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/runMode.js is not specified and it doesn't parse as CommonJS.
+(node:32852) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/runMode.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 OK bin/test-scoring — chain, ratchet, doubler, pin, restore, organic counter all hold
-(node:36984) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/scoring.js is not specified and it doesn't parse as CommonJS.
+(node:32854) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/scoring.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 OK bin/test-run-state — day wrap, resume init, sputter, vibe, death all hold
-(node:36991) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/runState.js is not specified and it doesn't parse as CommonJS.
+(node:32855) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/runState.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 OK bin/test-jug-filter — default-off, determinism, day-subset monotonicity hold
-(node:36992) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/runMode.js is not specified and it doesn't parse as CommonJS.
+(node:32856) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/runMode.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:36994) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/workers/leaderboard/worker.js is not specified and it doesn't parse as CommonJS.
+(node:32857) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/workers/leaderboard/worker.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 OK bin/test-leaderboard-worker — protocol e2e, sig binding, ceiling worked example, monotonic HW, killed-tab persistence, sanitation, quarantine, admin delete all hold
 OK diagnostics: 121 correlated outcomes, 26 injected storage-phase failures, corruption guards, exposed headers, sanitized errors, no secret leakage
-(node:36998) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/leaderboard.js?client-test=1 is not specified and it doesn't parse as CommonJS.
+(node:32858) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/leaderboard.js?client-test=1 is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ▶ leaderboard client diagnostics (offline, isolated browser globals)
-  ✔ Cruising start note and idle lifecycle events create no requests (3.040292ms)
-  ✔ Festival start obtains a token without exposing it or player identity (10.496958ms)
-  ✔ heartbeat preserves Worker outcome boards_written and request ID (1.264583ms)
-  ✔ heartbeat preserves Worker outcome run_persisted and request ID (1.078208ms)
-  ✔ heartbeat preserves Worker outcome skipped_cadence and request ID (1.089875ms)
-  ✔ heartbeat preserves Worker outcome skipped_no_change and request ID (0.906875ms)
-  ✔ heartbeat preserves Worker outcome quarantined and request ID (1.169ms)
-  ✔ HTTP 400 records sanitized outcome/reason (bad_sig) (1.128083ms)
-  ✔ HTTP 400 records sanitized outcome/reason (implausible_rate) (0.807958ms)
-  ✔ HTTP 500 records sanitized outcome/reason (storage_error) (0.655792ms)
-  ✔ HTTP 500 records sanitized outcome/reason (internal_error) (0.670417ms)
-  ✔ HTTP 400 records sanitized outcome/reason (private-network-error) (0.841166ms)
-  ✔ unreadable rejection body and invalid request ID are sanitized (1.023375ms)
-  ✔ start network is swallowed and diagnosed (0.644292ms)
-  ✔ start timeout is swallowed and diagnosed (0.588583ms)
-  ✔ heartbeat network is swallowed and diagnosed (0.579375ms)
-  ✔ heartbeat timeout is swallowed and diagnosed (0.598916ms)
-  ✔ final network is swallowed and diagnosed (0.512792ms)
-  ✔ final timeout is swallowed and diagnosed (0.542416ms)
-  ✔ old Worker without diagnostic headers is acknowledged_unverified, not proof of a write (0.530625ms)
-  ✔ a final before the token waits, then flushes once with the original score (0.58875ms)
-  ✔ beacon true records queueing only, never acknowledgement (0.685083ms)
-  ✔ beacon false records queueing only, never acknowledgement (0.5615ms)
-  ✔ beacon throws records queueing only, never acknowledgement (0.703792ms)
-  ✔ failed local save is distinct from successful diagnostic persistence (0.5795ms)
-  ✔ board read success normalizes range daily and keeps names out of diagnostics (0.541042ms)
-  ✔ board read success normalizes range all and keeps names out of diagnostics (0.456458ms)
-  ✔ board read success normalizes range invalid-range and keeps names out of diagnostics (0.419583ms)
-  ✔ board read http500 falls back to null with diagnostics (0.411625ms)
-  ✔ board read network falls back to null with diagnostics (0.343125ms)
-  ✔ board read timeout falls back to null with diagnostics (0.802917ms)
-  ✔ board read invalid-json falls back to null with diagnostics (0.434125ms)
-  ✔ board read invalid-entries falls back to null with diagnostics (0.421542ms)
-  ✔ history caps at the newest 100 events and returns defensive copies (3.376375ms)
-  ✔ reload retains history, appends page_loaded, and still caps at 100 (0.780125ms)
-  ✔ reload tolerates invalid stored history (0.562416ms)
-  ✔ reload tolerates invalid stored history (0.387667ms)
-  ✔ reload tolerates oversized stored history (0.343917ms)
-  ✔ blocked storage keeps a capped memory history and recovers on later writes (1.807458ms)
-  ✔ start timeout covers a stalled token response body (0.690208ms)
-✔ leaderboard client diagnostics (offline, isolated browser globals) (45.476958ms)
+  ✔ Cruising start note and idle lifecycle events create no requests (2.913ms)
+  ✔ Festival start obtains a token without exposing it or player identity (9.392083ms)
+  ✔ heartbeat preserves Worker outcome boards_written and request ID (0.995542ms)
+  ✔ heartbeat preserves Worker outcome run_persisted and request ID (0.93375ms)
+  ✔ heartbeat preserves Worker outcome skipped_cadence and request ID (0.814917ms)
+  ✔ heartbeat preserves Worker outcome skipped_no_change and request ID (0.713875ms)
+  ✔ heartbeat preserves Worker outcome quarantined and request ID (1.036584ms)
+  ✔ HTTP 400 records sanitized outcome/reason (bad_sig) (1.121333ms)
+  ✔ HTTP 400 records sanitized outcome/reason (implausible_rate) (0.836584ms)
+  ✔ HTTP 500 records sanitized outcome/reason (storage_error) (0.6365ms)
+  ✔ HTTP 500 records sanitized outcome/reason (internal_error) (0.64875ms)
+  ✔ HTTP 400 records sanitized outcome/reason (private-network-error) (0.874334ms)
+  ✔ unreadable rejection body and invalid request ID are sanitized (0.560292ms)
+  ✔ start network is swallowed and diagnosed (0.459291ms)
+  ✔ start timeout is swallowed and diagnosed (0.478ms)
+  ✔ heartbeat network is swallowed and diagnosed (0.484042ms)
+  ✔ heartbeat timeout is swallowed and diagnosed (0.535958ms)
+  ✔ final network is swallowed and diagnosed (0.468458ms)
+  ✔ final timeout is swallowed and diagnosed (0.5415ms)
+  ✔ old Worker without diagnostic headers is acknowledged_unverified, not proof of a write (0.805125ms)
+  ✔ a final before the token waits, then flushes once with the original score (0.735583ms)
+  ✔ beacon true records queueing only, never acknowledgement (0.756166ms)
+  ✔ beacon false records queueing only, never acknowledgement (0.623625ms)
+  ✔ beacon throws records queueing only, never acknowledgement (0.644125ms)
+  ✔ failed local save is distinct from successful diagnostic persistence (0.425458ms)
+  ✔ board read success normalizes range daily and keeps names out of diagnostics (0.442083ms)
+  ✔ board read success normalizes range all and keeps names out of diagnostics (0.386792ms)
+  ✔ board read success normalizes range invalid-range and keeps names out of diagnostics (0.363292ms)
+  ✔ board read http500 falls back to null with diagnostics (0.388459ms)
+  ✔ board read network falls back to null with diagnostics (0.333125ms)
+  ✔ board read timeout falls back to null with diagnostics (0.793667ms)
+  ✔ board read invalid-json falls back to null with diagnostics (0.344667ms)
+  ✔ board read invalid-entries falls back to null with diagnostics (0.347042ms)
+  ✔ history caps at the newest 100 events and returns defensive copies (3.104958ms)
+  ✔ reload retains history, appends page_loaded, and still caps at 100 (0.520833ms)
+  ✔ reload tolerates invalid stored history (0.29525ms)
+  ✔ reload tolerates invalid stored history (0.303583ms)
+  ✔ reload tolerates oversized stored history (1.108ms)
+  ✔ blocked storage keeps a capped memory history and recovers on later writes (2.118041ms)
+  ✔ start timeout covers a stalled token response body (1.268416ms)
+✔ leaderboard client diagnostics (offline, isolated browser globals) (42.7275ms)
 ℹ tests 41
 ℹ suites 0
 ℹ pass 41
@@ -553,4 +553,4 @@ To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerb
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 46.8035
+ℹ duration_ms 44.435291

@@ -5,7 +5,7 @@ import { createHeartGeometry } from './models/heart.js';
 const HEART_SHELL_SCALE = 1.4;
 const POP_POOL = 128;
 const GOLDEN_ANGLE = 2.399963229728653;
-const ACCENT_STYLE = Object.freeze({ none: 0, ember: 1, firefly: 2, spark: 3, lantern: 4, brass: 5 });
+const ACCENT_STYLE = Object.freeze({ none: 0, ember: 1, firefly: 2, spark: 3, lantern: 4, brass: 5, music: 6, mushroom: 7 });
 
 const SHELL_VERT = /* glsl */ `
   attribute vec4 aTint;
@@ -35,10 +35,26 @@ const SHELL_FRAG = /* glsl */ `
   varying vec2 vFace;
   varying vec2 vAccent;
   #include <fog_pars_fragment>
+  vec3 dyeColor(float hue) {
+    vec3 rgb = clamp(abs(mod(hue * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    return mix(vec3(1.0), rgb, 0.68);
+  }
   void main() {
     float rim = pow(clamp(vRim, 0.0, 1.0), 1.6);
     vec3 shellColor = vTint.rgb * vTint.a * (0.72 + 1.0 * rim);
     float shellAlpha = uCoreAlpha + uRimAlpha * rim;
+    if (vAccent.x > 6.5 && vAccent.x < 7.5) {
+      vec2 dyeCenter = 0.14 * vec2(sin(vAccent.y * 0.82), cos(vAccent.y * 0.82));
+      vec2 dyePos = vFace - dyeCenter;
+      float radius = length(dyePos);
+      float angle = atan(dyePos.y, dyePos.x);
+      float twist = angle / 6.2831853 + radius * 0.92 - vAccent.y * 0.12
+        + 0.055 * sin(dyePos.x * 9.0 + vAccent.y * 0.6);
+      float ribbon = 0.5 + 0.5 * cos(twist * 18.849556);
+      vec3 dye = dyeColor(fract(twist + 0.68));
+      shellColor = mix(shellColor, dye, 0.84);
+      shellAlpha = max(shellAlpha, 0.10 + 0.13 * ribbon);
+    }
     float accentAlpha = 0.0;
     vec3 accentColor = vec3(1.0);
     if (gl_FrontFacing) {
@@ -84,6 +100,20 @@ const SHELL_FRAG = /* glsl */ `
         float flash = exp(-40.0 * dot(p - vec2(sweepX, 0.0), p - vec2(sweepX, 0.0)));
         accentAlpha = min(0.8, streak * 0.55 + flash * 0.25);
         accentColor = vec3(1.0, 0.93, 0.55);
+      } else if (vAccent.x > 5.5 && vAccent.x < 6.5) {
+        vec2 note = p - vec2(0.10, 0.07);
+        vec2 head = note - vec2(-0.18, -0.27);
+        float oval = length(vec2((head.x + head.y * 0.25) / 0.29, head.y / 0.18));
+        float noteHead = 1.0 - smoothstep(0.82, 1.05, oval);
+        float stem = (1.0 - smoothstep(0.035, 0.075, abs(note.x - 0.08)))
+          * smoothstep(-0.30, -0.23, note.y) * (1.0 - smoothstep(0.42, 0.50, note.y));
+        float flagX = smoothstep(0.05, 0.11, note.x) * (1.0 - smoothstep(0.37, 0.45, note.x));
+        float flagTop = 0.50 - (note.x - 0.08) * 0.61;
+        float flagBottom = 0.38 - (note.x - 0.08) * 0.74;
+        float flag = flagX * (1.0 - smoothstep(flagTop - 0.035, flagTop + 0.015, note.y))
+          * smoothstep(flagBottom - 0.015, flagBottom + 0.035, note.y);
+        accentAlpha = min(0.96, max(noteHead, max(stem, flag)) * (0.91 + 0.05 * sin(phase * 3.0)));
+        accentColor = vec3(1.0, 0.97, 0.75);
       }
     }
     float accent = clamp(accentAlpha * (1.0 - rim * 0.45), 0.0, 1.0);

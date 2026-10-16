@@ -15,8 +15,8 @@ for (const type of BUBBLE_TYPES) {
 }
 assert.deepEqual(
   BUBBLE_TYPES.filter((type) => type.look.accent !== 'none').map((type) => [type.id, type.look.accent]),
-  [['ember', 'ember'], ['firefly', 'firefly'], ['sparkler', 'spark'], ['lantern', 'lantern'], ['brass', 'brass']],
-  'the first inner accents are catalog data rather than separate render paths',
+  [['music', 'music'], ['ember', 'ember'], ['firefly', 'firefly'], ['sparkler', 'spark'], ['lantern', 'lantern'], ['mushroom', 'mushroom'], ['brass', 'brass']],
+  'inner and shell motifs are catalog data rather than separate render paths',
 );
 
 let randomState = 0x12345678;

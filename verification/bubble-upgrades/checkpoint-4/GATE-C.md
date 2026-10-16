@@ -1,6 +1,6 @@
 # Gate C: ten bubble looks
 
-All eleven upgrade types now unlock through their intended game paths. The ten new looks are ready for Gary's grouped visual approval before the charm and leaderboard work begins. These captures use the Low tier with the sandbox's normal Noon and Midnight lighting. Each stream was placed at the sandbox's 12 m horizontal, 6.5 m high chase-camera distance.
+All eleven upgrade types now unlock through their intended game paths. The ten new looks are ready for Gary's grouped visual approval before the charm and leaderboard work begins. These captures use the Low tier with the sandbox's normal Noon and Midnight lighting. Each stream was placed at the sandbox's 12 m horizontal, 6.5 m high chase-camera distance. Music and Mushroom captures were refreshed on 2026-10-16 after Gary asked for a note and moving tie-dye.
 
 ## Full lineup
 
@@ -15,7 +15,7 @@ All eleven upgrade types now unlock through their intended game paths. The ten n
 | Firefly | [Still](firefly-still-noon-low.png) | [Still](firefly-still-midnight-low.png) | [Stream](firefly-stream-noon-low.png) | [Stream](firefly-stream-midnight-low.png) |
 | Rainbow | [Still](rainbow-still-noon-low.png) | [Still](rainbow-still-midnight-low.png) | [Stream](rainbow-stream-noon-low.png) | [Stream](rainbow-stream-midnight-low.png) |
 
-Music pulses; Ember carries a warm coal and flecks; Firefly carries a wandering green light; Rainbow moves through the full spectrum. [Music](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=music&view=still&perf=low&mute=1), [Ember](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=ember&view=still&perf=low&mute=1), [Firefly](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=firefly&view=still&perf=low&mute=1), and [Rainbow](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=rainbow&view=still&perf=low&mute=1) can be watched in motion on the running local server.
+Music pulses around a centered cream note; Ember carries a warm coal and flecks; Firefly carries a wandering green light; Rainbow moves through the full spectrum. The Music [Midnight unlock burst](music-unlock-burst-midnight-low.png) shows a denser moment than the ordinary stream above. [Music](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=music&view=still&perf=low&mute=1), [Ember](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=ember&view=still&perf=low&mute=1), [Firefly](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=firefly&view=still&perf=low&mute=1), and [Rainbow](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=rainbow&view=still&perf=low&mute=1) can be watched in motion on the running local server.
 
 ## Group 2: Sparkler, Lantern, Smile, Confetti
 
@@ -35,13 +35,13 @@ Sparkler has a white-gold inner star, and Lantern has a warm paper core. Smile i
 | Mushroom | [Still](mushroom-still-noon-low.png) | [Still](mushroom-still-midnight-low.png) | [Stream](mushroom-stream-noon-low.png) | [Stream](mushroom-stream-midnight-low.png) |
 | Brass | [Still](brass-still-noon-low.png) | [Still](brass-still-midnight-low.png) | [Stream](brass-stream-noon-low.png) | [Stream](brass-stream-midnight-low.png) |
 
-Mushroom drifts slowly between purple and green, and Brass sweeps a gold glint across the shell every 1.5 seconds. [These two Brass frames](brass-glint-phase-2-low.png) and [the Midnight still](brass-still-midnight-low.png) show the highlight moving across the same shell. [Mushroom](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=mushroom&view=still&perf=low&mute=1) and [Brass](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=brass&view=still&perf=low&mute=1) have live previews.
+Mushroom carries a multicolor tie-dye spiral whose center travels around the shell as the pattern rotates. [Midnight frame A](mushroom-motion-midnight-a.png) and [frame B](mushroom-motion-midnight-b.png), taken about two seconds apart, show its movement; the [Midnight unlock burst](mushroom-unlock-burst-midnight-low.png) shows the denser earn moment. Brass sweeps a gold glint across the shell every 1.5 seconds; its [Midnight still](brass-still-midnight-low.png) and [second phase](brass-glint-phase-2-low.png) show the highlight moving. [Mushroom](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=mushroom&view=still&perf=low&mute=1) and [Brass](http://127.0.0.1:8765/sandbox.html?entity=bubbles_special&type=brass&view=still&perf=low&mute=1) have live previews.
 
 ## Looks to judge closely
 
 - At the full chase distance, individual bubbles are small. The still views make the Ember, Firefly, Sparkler, and Lantern interiors clear, while the stream views show their practical size. Decide whether the accents are strong enough while driving.
-- Rainbow and Mushroom can pass through similar green hues in a still frame. Their moving patterns differ: Rainbow cycles through the full spectrum rapidly, while Mushroom moves between two colors slowly. Compare those two live previews before approving their distinction.
-- Music relies on its pulse and Smile on its steady yellow color. They are the weakest static identifiers in the lineup. If they need stronger silhouettes or inner accents, this is the point to change them.
+- Rainbow changes the whole shell's hue, while Mushroom shows several hues at once in a moving spiral. Compare those two live previews before approving their distinction.
+- The Music note is clear in the still view, while the chase view shows how small it becomes in normal play. Smile remains the weakest static identifier because its look relies on steady yellow. Decide whether that is enough for the overall set.
 
 ## Game-path verification
 
@@ -58,6 +58,6 @@ Mushroom drifts slowly between purple and green, and Brass sweeps a gold glint a
 | Mushroom | Both manual trip modes stayed locked. A real wook approached the parked cart, offered a trip, and acceptance awarded it. The player menu hid the card before earn and showed its earned copy afterward. The active trip set the ×3 spawn context. |
 | Brass | A moving band collider awarded it. |
 
-A `window.gtag` stub recorded one `bubble_unlocked` event for each newly earned type, with the correct `type`, `mode`, and `unlocked_count`; the debug and repeat paths sent none in the checks above. The Low-tier game completed the full Rainbow drive with no uncaught browser errors. [Full `npm run check` output](npm-run-check.txt) passed with the bubble and wook edits present.
+A `window.gtag` stub recorded one `bubble_unlocked` event for each newly earned type, with the correct `type`, `mode`, and `unlocked_count`; the debug and repeat paths sent none in the checks above. The Low-tier game completed the full Rainbow drive with no uncaught browser errors. After the Music and Mushroom changes, the full game also started and rendered their special bubbles on Low and High without browser errors. [Full `npm run check` output](npm-run-check.txt) passed with the bubble and wook edits present.
 
 Gary's decision here is the grouped look approval. Checkpoint 5 begins after Gate C is approved.

@@ -507,7 +507,7 @@ Build one type at a time in D9 (first wave) order. For each type, every step bel
   **Done when:** accepting a wook's offer unlocks it, a manual T-menu trip doesn't, and before the unlock the menu, README and title card show no trace of it.
 - [x] **4.10 Brass.** Band proximity. A live band collider unlocked Brass.
   **Done when:** rolling alongside the band unlocks it.
-- [ ] **4.11 Gary gate C.** Send Gary the lineup at Noon and Midnight plus one chase-distance stream per type. Batch the requests (for example, 4.1-4.4, then 4.5-4.8, then 4.9-4.10) instead of one per type. [The grouped review packet](verification/bubble-upgrades/checkpoint-4/GATE-C.md) is ready; Gary's look decision is pending.
+- [ ] **4.11 Gary gate C.** Send Gary the lineup at Noon and Midnight plus one chase-distance stream per type. Batch the requests (for example, 4.1-4.4, then 4.5-4.8, then 4.9-4.10) instead of one per type. Gary asked on 2026-10-16 for a centered note in Music and a moving tie-dye spiral on Mushroom; both revisions and their refreshed captures are in [the grouped review packet](verification/bubble-upgrades/checkpoint-4/GATE-C.md). Gary's look decision is pending.
   **Done when:** Gary approves each look or lists changes.
 
 **Exit condition:** all eleven types unlock through their real triggers and read as distinct at chase distance on Low tier.

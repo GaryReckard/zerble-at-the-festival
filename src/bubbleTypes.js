@@ -35,7 +35,7 @@ export const BUBBLE_TYPES = Object.freeze([
     look: look('heart', 0xff5fa2, 'steady', 0.4, [1, 1, 1], pop([0xff5fa2, 0xffd1e6], 12)),
     boost: (ctx) => ctx.lurleenNear ? 4 : 1 },
   { id: 'music', name: 'Music Bubbles', order: 2, secret: false, hint: 'Catch three different stages.', earnedLine: null,
-    look: look('sphere', 0x8a7dff, 'pulse', 0.3, [1, 1, 1], pop([0x8a7dff, 0x56e0c2], 10)),
+    look: look('sphere', 0x8a7dff, 'pulse', 0.3, [1, 1, 1], pop([0x8a7dff, 0x56e0c2], 10), 'music'),
     boost: (ctx) => ctx.nearStage ? 3 : 1 },
   { id: 'ember', name: 'Ember Bubbles', order: 3, secret: false, hint: 'Join a drum circle after dark.', earnedLine: null,
     look: look('sphere', 0xff8a2a, 'flicker', 0.55, [1, 1, 1], pop([0xff8a2a, 0xffc05a], 10, 0.8, 0.7, 0.25), 'ember'),
@@ -59,7 +59,7 @@ export const BUBBLE_TYPES = Object.freeze([
     look: look('sphere', 0xff8ab4, 'confetti', 0.25, [1, 1, 1], pop([0xff8ab4, 0xffdf78, 0x76ddc5, 0xa996ff], 16, 0.8, 0.7, -0.3)),
     boost: () => 1 },
   { id: 'mushroom', name: 'Mushroom Bubbles', order: 10, secret: true, hint: 'Never shown before it is earned.', earnedLine: 'A gift from a new friend.',
-    look: look('sphere', 0x9b5de5, 'swirl', 0.35, [1, 1, 1], pop([0x9b5de5, 0x3ddc97], 10)),
+    look: look('sphere', 0x9b5de5, 'swirl', 0.35, [1, 1, 1], pop([0x9b5de5, 0x3ddc97, 0xff8a9f, 0xffd66e], 10), 'mushroom'),
     boost: (ctx) => ctx.tripActive ? 3 : 1 },
   { id: 'brass', name: 'Brass Bubbles', order: 11, secret: false, hint: 'Roll with the brass band.', earnedLine: null,
     look: look('sphere', 0xd9a520, 'glint', 0.4, [1, 1, 1], pop([0xd9a520, 0xffe39a], 10), 'brass'),
@@ -183,9 +183,8 @@ export function computeTint(bubbleLook, t, nightness, seed, out) {
       rgb(CONFETTI[Math.floor((((seed % 1) + 1) % 1) * CONFETTI.length)], out);
       break;
     case 'swirl': {
-      const blend = (Math.sin(time * TAU / 6 + phase) + 1) * 0.5;
       scale = 1 + Math.sin(time * TAU * 0.4 + phase) * 0.06;
-      mixHex(0x9b5de5, 0x3ddc97, blend, out);
+      rgb(base, out);
       break;
     }
     case 'glint': {

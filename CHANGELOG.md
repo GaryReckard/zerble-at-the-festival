@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-16
+
+### Changed
+- **Music and Mushroom bubbles have stronger identities.** Music now carries a centered cream note inside its translucent violet shell. Mushroom shows several tie-dye colors at once in a spiral that rotates and wanders around the shell, rather than changing the whole bubble between purple and green. Both effects use the existing pooled shell draw. [Revised Gate C stills, streams and motion frames](verification/bubble-upgrades/checkpoint-4/GATE-C.md).
+
 ## 2026-10-15
 
 ### Added
