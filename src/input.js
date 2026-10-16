@@ -7,6 +7,7 @@
 // boost, drag-canvas orbits the camera.
 
 import { Touch } from './touch.js';
+import { steerDirFor, touchSteerDirFor } from './steering.js';
 
 const held = new Set();
 const edges = new Set();
@@ -81,6 +82,11 @@ export const Input = {
   get steer() {
     const kbd = (held.has('A') ? 1 : 0) - (held.has('D') ? 1 : 0);
     return blendAxis(kbd, Touch.state.steer);
+  },
+  steeringDirection(speed) {
+    return Touch.state.steer !== 0
+      ? touchSteerDirFor(speed)
+      : steerDirFor(this.throttle, speed);
   },
   get boost() {
     return held.has('SHIFT') || Touch.state.boost;

@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { steerDirFor } from '../src/steering.js';
+
+const keys = {};
+globalThis.window = { addEventListener: (name, fn) => { keys[name] = fn; }, matchMedia: () => ({ matches: true }) };
+const elements = new Map();
+globalThis.document = {
+  body: { classList: { add() {} } },
+  getElementById(id) {
+    if (!elements.has(id)) elements.set(id, {
+      style: {}, classList: { add() {}, remove() {} }, listeners: {},
+      addEventListener(name, fn) { this.listeners[name] = fn; },
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 120, height: 120 }),
+    });
+    return elements.get(id);
+  },
+};
+const { Touch } = await import('../src/touch.js');
+const { Input } = await import('../src/input.js');
+Touch.install();
+const stick = elements.get('stick-base');
+function touch(type, x = 60, y = 60, identifier = 1) {
+  stick.listeners[type]({ preventDefault() {}, changedTouches: [{ identifier, clientX: x, clientY: y }] });
+}
+function key(type, value) { keys[type]({ key: value, preventDefault() {} }); }
+
+// Exercise the actual physics block without constructing its render hierarchy.
+const source = readFileSync(new URL('../src/zerble.js', import.meta.url), 'utf8');
+const start = source.indexOf('    // ----- Drive -----', source.indexOf('  update(dt, input,'));
+const end = source.indexOf('    // (World is infinite', start);
+assert(start > 0 && end > start);
+const constants = source.slice(source.indexOf('const ACCEL'), source.indexOf('// --- Visual palette'));
+const math = { clamp: (v, lo, hi) => Math.max(lo, Math.min(hi, v)), lerp: (a, b, t) => a + (b - a) * t };
+const update = vm.runInNewContext(`${constants}\n(function(dt, input) {${source.slice(start, end)}})`, {
+  THREE: { MathUtils: math }, steerDirFor,
+});
+const cart = speed => ({ speed, heading: 0, steerAngle: 0, position: { x: 0, y: 0, z: 0 }, root: { rotation: {} } });
+
+// Reproduce the old threshold flip while the cart is still moving forward.
+assert.equal(steerDirFor(-0.24, 6), 1);
+assert.equal(steerDirFor(-0.26, 6), -1);
+touch('touchstart');
+for (const y of [53, 57, 60, 63, 67]) {
+  touch('touchmove', 110, y);
+  assert.equal(Math.abs(Input.throttle), 0, 'horizontal wobble must not apply throttle');
+  assert(Input.steer < 0);
+  assert.equal(Input.steeringDirection(6), 1);
+  assert.equal(Input.steeringDirection(-6), -1);
+}
+for (const x of [53, 60, 67]) {
+  touch('touchmove', x, 10);
+  assert.equal(Math.abs(Input.steer), 0, 'vertical wobble must not steer');
+}
+for (const speed of [-6, 6]) {
+  for (let y = 10; y <= 110; y++) {
+    touch('touchmove', 100, y);
+    assert.equal(Input.steeringDirection(speed), Math.sign(speed), 'thumb crossing neutral cannot flip yaw before travel reverses');
+  }
+}
+
+let scenarios = 0;
+for (const fps of [30, 60, 120]) {
+  for (const initial of [-7, 18, 27.9]) {
+    for (const side of [-1, 1]) {
+      for (const slow of [false, true]) {
+        const c = cart(initial);
+        touch('touchmove', 60 + side * 40, 60 + Math.sign(initial) * 40);
+        Touch.state.slow = slow;
+        let flips = 0, prevSign = Math.sign(initial), crossed = false;
+        for (let frame = 0; frame < fps * 6; frame++) {
+          const before = c.heading;
+          update.call(c, 1 / fps, Input);
+          const yaw = c.heading - before;
+          assert(Number.isFinite(c.position.x) && Number.isFinite(c.position.z));
+          assert(Math.abs(yaw) < 1e-12 || Math.sign(yaw / Input.steer) === Math.sign(c.speed), 'yaw must follow travel, including the braking interval');
+          if (Math.abs(c.speed) < 1.5) assert(Math.abs(yaw) <= Math.abs(Input.steer) * 2.1 * 0.25 / fps, 'yaw fades near rest');
+          const sign = Math.sign(c.speed);
+          if (sign && sign !== prevSign) { flips++; prevSign = sign; crossed = true; }
+        }
+        assert(crossed && flips === 1, 'one gear change must produce exactly one travel/yaw reversal');
+        scenarios++;
+      }
+    }
+  }
+}
+Touch.state.slow = false;
+touch('touchcancel');
+assert.equal(Input.throttle, 0);
+assert.equal(Input.steer, 0);
+assert.equal(elements.get('stick-knob').style.transform, 'translate(-50%, -50%)');
+
+// All keyboard combinations keep the legacy physics, even on a touch device.
+for (const throttle of [-1, 0, 1]) {
+  for (const steer of [-1, 0, 1]) {
+    for (const speed of [-7, -0.1, 0, 0.1, 18]) {
+      if (throttle) key('keydown', throttle > 0 ? 'w' : 's');
+      if (steer) key('keydown', steer > 0 ? 'a' : 'd');
+      const actual = cart(speed), legacy = cart(speed);
+      for (let frame = 0; frame < 120; frame++) {
+        update.call(actual, 1 / 60, Input);
+        update.call(legacy, 1 / 60, { throttle, steer, boost: false, slow: false });
+      }
+      assert.deepEqual(actual, legacy, 'keyboard trajectory must stay identical');
+      keys.blur();
+    }
+  }
+}
+touch('touchstart', 20, 30);
+assert.equal(Input.throttle, 0, 'a fresh touch reanchors without stale axes');
+touch('touchend', 20, 30, 2);
+touch('touchmove', 20, -30);
+assert.equal(Input.throttle, 1, 'unrelated touch end must not release the stick');
+touch('touchend');
+assert.equal(Input.throttle, 0);
+console.log(`PASS touch steering: real touch handlers, deadzones, ${scenarios} reversal scenarios at 30/60/120 fps, 45 unchanged keyboard trajectories, cancel/reanchor`);

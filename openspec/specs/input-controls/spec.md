@@ -11,7 +11,7 @@ Input is a single source-agnostic facade. Keyboard and touch both feed the same
 
 ### Requirement: Source-agnostic input facade
 
-`Input` SHALL expose `throttle`/`steer`/`boost` axes, `camYaw`/`camPitch`, edge
+`Input` SHALL expose `throttle`/`steer`/`boost` axes, `steeringDirection(speed)`, `camYaw`/`camPitch`, edge
 helpers (`consumePressed`, `isDown`), and touch-only camera deltas/zoom consumers.
 Driving axes SHALL blend a keyboard digital axis (`{-1,0,1}`) with the touch analog
 axis (`[-1..1]`), with touch winning when active, clamped to `[-1,1]`, so the rest of
@@ -52,3 +52,23 @@ pinch + double-tap page zoom (`touch.js:1-48`, `ARCHITECTURE.md:278-283`).
 
 - **WHEN** the player pinches with two fingers on the canvas
 - **THEN** a multiplicative zoom factor feeds the camera and the OS page zoom is suppressed
+
+### Requirement: Touch steering stays continuous through a direction change
+
+Nonzero touch steering SHALL follow actual signed travel speed, with the direction
+factor fading linearly from -1 to +1 between -1.5 and +1.5 m/s. The thumbstick
+SHALL apply independent 0.12 axis deadzones after radial clamping. Keyboard
+steering SHALL retain its existing throttle-intent response, including when used
+on a touch-capable device.
+
+#### Scenario: Changing gear while turning
+
+- **WHEN** the player pulls the stick backward while still rolling forward and turning
+- **THEN** the cart brakes without immediately inverting its turn
+- **AND** turning fades to zero at rest and reverses as the cart moves backward
+- **AND** the same continuity holds when changing from reverse to forward
+
+#### Scenario: A sideways thumb wobbles vertically
+
+- **WHEN** vertical displacement stays within 0.12 of the stick radius
+- **THEN** throttle remains zero while horizontal steering still works

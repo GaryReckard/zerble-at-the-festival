@@ -99,24 +99,17 @@ export function honkScatterParams(speed) {
   };
 }
 
-// ---------- Cart steering direction (mobile-jitter fix, 2026-09-01) ----------
-// Which way the steering input rotates the cart. Reverse must steer like
-// reverse, so the sign follows the driver's THROTTLE INTENT rather than
-// leftover velocity — that's what makes a reverse->forward switch re-orient
-// instantly instead of feeling inverted while the cart is still drifting back.
-//
-// The subtlety that bit mobile: throttle is DISCRETE on a keyboard (-1/0/+1)
-// but ANALOGUE on the touch stick, and touch.js applies its deadzone to the
-// stick vector's MAGNITUDE, not per axis. So a hard sideways push — a pure
-// turn — clears the deadzone on x while leaving y as a small value jittering
-// across zero. A bare `Math.sign(throttle)` then flipped the direction every
-// few frames and visibly INVERTED the steering mid-turn. Keyboard never showed
-// it (|throttle| is always 1), which is exactly why it read as mobile-only
-// weirdness (Gary 2026-09-01). Requiring real throttle intent fixes it with no
-// new state and no change to the keyboard feel.
-export const DIR_INTENT = 0.25;   // |throttle| that counts as a deliberate direction
+// Keyboard keeps its immediate throttle-intent turn, including while braking.
+export const DIR_INTENT = 0.25;
 
 export function steerDirFor(throttle, speed) {
   if (Math.abs(throttle) >= DIR_INTENT) return Math.sign(throttle);
   return Math.sign(speed) || 1;
+}
+
+// A thumb crosses neutral gradually. Following throttle there can flip yaw
+// repeatedly while momentum still points the other way. Follow travel instead,
+// fading through rest so changing gear never snaps the turning direction.
+export function touchSteerDirFor(speed) {
+  return Math.max(-1, Math.min(1, speed / 1.5));
 }

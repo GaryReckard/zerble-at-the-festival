@@ -17,6 +17,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **The ground plane uses 57,600 fewer triangles.** Reducing the flat plane from 220 to 140 segments per side drops it from 96,800 to 39,200 triangles. The grass treatment adds one texture and no draw calls.
 
 ### Fixed
+- **Touch steering stays predictable when changing between forward and reverse.** Turning now follows actual travel and eases through zero as Zerble stops, instead of flipping at a thumbstick throttle threshold while momentum still points the other way. Separate axis deadzones prevent sideways thumb wobble from applying unwanted throttle. Keyboard steering retains its previous behavior. Regression coverage exercises real touch handlers, 36 reversal scenarios at 30/60/120 fps and 45 unchanged keyboard trajectories.
 - **How to play opens without a fleeting scrollbar.** Its page fades in without shifting the contents of the scrollable card.
 - **How to play reflects the current game.** Its shorter control list now includes the upgrade shortcut, while the play guidance explains special bubble discoveries, bubble charm, the marshal's warnings and Festival Run's rising stakes.
 

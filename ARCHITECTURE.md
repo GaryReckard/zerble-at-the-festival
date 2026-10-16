@@ -456,6 +456,7 @@ iOS specifics: `Sound.init()` must run **synchronously inside the tap handler** 
 
 - `input.js` tracks held keys + edge events. Exposes `Input.throttle`, `.steer`, `.boost`, `.held(key)`, `.consumePressed(key)`.
 - `touch.js` installs a virtual thumbstick (left), Boost/Honk/Cam buttons (right), and drag-anywhere-else for camera orbit. It pushes axes + edge events back into `Input` so the rest of the game is input-source-agnostic.
+- `Input.steeringDirection(speed)` selects the steering response for the active steering axis. Keyboard retains throttle-intent steering; nonzero touch steering follows signed travel speed, fading through zero below 1.5 m/s. Zerble uses the legacy response for scripted inputs without that method. Touch axes have independent 0.12 deadzones after radial clamping, so a sideways thumb wobble cannot apply throttle.
 - Body class `.is-touch` on detection reveals the touch overlay.
 - iOS pinch + double-tap zooming are killed at the document level.
 

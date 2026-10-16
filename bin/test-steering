@@ -63,8 +63,8 @@ ok('no dodge behind the cart', !laneDodgeTest(0, 10, 0, -1, 12));
 ok('no dodge outside the corridor', !laneDodgeTest(DODGE.CORRIDOR + 0.5, -6, 0, -1, 12));
 ok('reverse scatters behind, not ahead', laneDodgeTest(0, 10, 0, -1, -8) && !laneDodgeTest(0, -10, 0, -1, -8));
 
-// ---- Steering direction vs the ANALOGUE touch stick (2026-09-01) ----
-// touch.js deadzones the stick VECTOR's magnitude, not each axis, so a hard
+// ---- Legacy intent steering, preserved for keyboard and scripted input ----
+// Historically touch.js deadzoned the stick VECTOR, not each axis, so a hard
 // sideways push clears the deadzone while leaving a small y that jitters across
 // zero. The old `Math.sign(throttle)` flipped direction on that jitter and
 // inverted steering mid-turn — mobile-only, because keyboard throttle is +-1.

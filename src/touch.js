@@ -245,24 +245,13 @@ function updateStick(clientX, clientY) {
   const knobY = (stickStart.y - stickBaseCenter.y) + dy;
   $stickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
 
-  // Normalize and deadzone the *drag* (not the anchor offset).
-  let nx = dx / STICK_RADIUS;
-  let ny = dy / STICK_RADIUS;
-  const mag = Math.hypot(nx, ny);
-  if (mag < STICK_DEADZONE) {
-    nx = 0;
-    ny = 0;
-  } else {
-    // Rescale post-deadzone so output ramps from 0 to 1 across the live range.
-    const scaled = (mag - STICK_DEADZONE) / (1 - STICK_DEADZONE);
-    nx = (nx / mag) * scaled;
-    ny = (ny / mag) * scaled;
-  }
+  // Independent deadzones keep sideways thumb wobble from becoming throttle.
+  state.throttle = -deadzoneAxis(dy / STICK_RADIUS);
+  state.steer = -deadzoneAxis(dx / STICK_RADIUS);
+}
 
-  // Map: push up = forward (+throttle), push down = reverse (-throttle).
-  // Push left = steer left (+steer to match A key), push right = steer right.
-  state.throttle = -ny;
-  state.steer = -nx;
+function deadzoneAxis(value) {
+  return Math.sign(value) * Math.max(0, (Math.abs(value) - STICK_DEADZONE) / (1 - STICK_DEADZONE));
 }
 
 // ---------- Button handlers ----------
