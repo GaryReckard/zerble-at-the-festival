@@ -6,7 +6,7 @@ import { buildMountains } from './mountains.js';
 import { ChunkManager } from './chunks.js';
 import { LakeManager } from './lakes.js';
 import { FarField } from './farField.js';
-import { terrainHeight } from './rng.js';
+import { hash2, terrainHeight } from './rng.js';
 import { TimeOfDay } from './timeOfDay.js';
 import { PERF, USE_FAR_FIELD } from './perf.js';
 import { A11y } from './a11y.js';
@@ -19,9 +19,17 @@ const HEMI_GROUND = 0xc89265;
 const FOG_COLOR = 0xffcfae;
 const GROUND_GREEN = 0x7cb37a;
 const DIRT = 0xc69566;
+const GROUND_DARK = new THREE.Color(0x669b69);
+const GROUND_LIGHT = new THREE.Color(0x91bd7a);
+const GROUND_BASE = new THREE.Color(GROUND_GREEN);
+const GROUND_DRY = new THREE.Color(DIRT);
+const groundColor = new THREE.Color();
 
 const GROUND_SIZE = 1400; // very large flat-ish plane
-const GROUND_SEG = 220;
+const GROUND_SEG = 140;
+const GROUND_SNAP = 40; // multiple of the 10m vertex spacing, so recoloring does not pop
+const GRASS_TILE_METERS = 128;
+const GRASS_TEX_SIZE = 512;
 
 let chunkManager = null;
 let lakeManager = null;
@@ -60,7 +68,11 @@ export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0))
   sun = lights.sun;
   hemi = lights.hemi;
   ambient = lights.ambient;
-  groundMesh = buildGround(scene);
+  const groundX = Math.round(playerPos.x / GROUND_SNAP) * GROUND_SNAP;
+  const groundZ = Math.round(playerPos.z / GROUND_SNAP) * GROUND_SNAP;
+  groundMesh = buildGround(scene, groundX, groundZ);
+  _groundLastResampleX = groundX;
+  _groundLastResampleZ = groundZ;
   mountainsGroup = buildMountains(scene);
 
   timeOfDay = new TimeOfDay(scene);
@@ -93,14 +105,10 @@ export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0))
   return { chunkManager, lakeManager, farField };
 }
 
-// Track ground "world center" so we can re-sample terrain heights at world
-// coords whenever the player moves a noticeable amount. Without this, the
-// terrain hills were locked to the ground's local geometry — they translated
-// with the player and occluded fixed-world chunk paths ("the green ground
-// swallows the path as you move").
+// Snap the moving ground to world coordinates so its colors and texture stay
+// fixed beneath roads and props while it follows the player.
 let _groundLastResampleX = NaN;
 let _groundLastResampleZ = NaN;
-const GROUND_RESAMPLE_THRESHOLD = 40; // re-derive heights when player moves > 40m
 
 export function updateWorld(playerPos, dt = 0.016) {
   // One world-owned streaming deadline (festival-horizon design D3): lakes +
@@ -158,17 +166,16 @@ export function updateWorld(playerPos, dt = 0.016) {
     }
   }
   if (groundMesh) {
-    groundMesh.position.set(playerPos.x, 0, playerPos.z);
-    // Re-sample terrain heights using WORLD coords so hills stay put as the
-    // player drives across them. Throttled to avoid per-frame attribute work.
+    const groundX = Math.round(playerPos.x / GROUND_SNAP) * GROUND_SNAP;
+    const groundZ = Math.round(playerPos.z / GROUND_SNAP) * GROUND_SNAP;
     if (
-      isNaN(_groundLastResampleX) ||
-      Math.abs(playerPos.x - _groundLastResampleX) > GROUND_RESAMPLE_THRESHOLD ||
-      Math.abs(playerPos.z - _groundLastResampleZ) > GROUND_RESAMPLE_THRESHOLD
+      groundX !== _groundLastResampleX ||
+      groundZ !== _groundLastResampleZ
     ) {
-      resampleGroundHeights(groundMesh, playerPos.x, playerPos.z);
-      _groundLastResampleX = playerPos.x;
-      _groundLastResampleZ = playerPos.z;
+      groundMesh.position.set(groundX, 0, groundZ);
+      resampleGroundSurface(groundMesh, groundX, groundZ);
+      _groundLastResampleX = groundX;
+      _groundLastResampleZ = groundZ;
     }
   }
   if (mountainsGroup) mountainsGroup.position.set(playerPos.x, 0, playerPos.z);
@@ -188,17 +195,111 @@ export function updateWorld(playerPos, dt = 0.016) {
   }
 }
 
-function resampleGroundHeights(mesh, originX, originZ) {
+function resampleGroundSurface(mesh, originX, originZ) {
   const geo = mesh.geometry;
   const pos = geo.attributes.position;
+  const colors = geo.attributes.color.array;
   const centerOffset = terrainHeight(originX, originZ);
   for (let i = 0; i < pos.count; i++) {
     const lx = pos.getX(i);
     const lz = pos.getZ(i);
     pos.setY(i, terrainHeight(originX + lx, originZ + lz) - centerOffset);
+    writeGroundColor(colors, i * 3, originX + lx, originZ + lz);
   }
   pos.needsUpdate = true;
+  geo.attributes.color.needsUpdate = true;
+  mesh.material.map.offset.set(
+    (originX - GROUND_SIZE / 2) / GRASS_TILE_METERS,
+    (originZ - GROUND_SIZE / 2) / GRASS_TILE_METERS,
+  );
   // Normals stay close enough at this scale; recomputing them every 40m hurts perf.
+}
+
+function smoothstep(t) {
+  return t * t * (3 - 2 * t);
+}
+
+function worldNoise(x, z, scale, salt) {
+  const sx = x / scale;
+  const sz = z / scale;
+  const ix = Math.floor(sx);
+  const iz = Math.floor(sz);
+  const gx = ix + salt;
+  const gz = iz - salt;
+  const u = smoothstep(sx - ix);
+  const v = smoothstep(sz - iz);
+  const a = hash2(gx, gz) / 4294967295 * (1 - u)
+    + hash2(gx + 1, gz) / 4294967295 * u;
+  const b = hash2(gx, gz + 1) / 4294967295 * (1 - u)
+    + hash2(gx + 1, gz + 1) / 4294967295 * u;
+  return a * (1 - v) + b * v;
+}
+
+function writeGroundColor(colors, index, x, z) {
+  const lush = worldNoise(x, z, 96, 311);
+  const worn = worldNoise(x, z, 35, 947);
+  groundColor.copy(GROUND_BASE);
+  if (lush < 0.5) groundColor.lerp(GROUND_DARK, (0.5 - lush) * 0.85);
+  else groundColor.lerp(GROUND_LIGHT, (lush - 0.5) * 0.85);
+  const dry = Math.max(0, (worn - 0.58) / 0.42);
+  groundColor.lerp(GROUND_DRY, dry * dry * 0.28);
+  colors[index] = groundColor.r;
+  colors[index + 1] = groundColor.g;
+  colors[index + 2] = groundColor.b;
+}
+
+function makeGrassTexture() {
+  const size = GRASS_TEX_SIZE;
+  const data = new Uint8Array(size * size * 4);
+  const grids = [8, 32, 128].map((cells, layer) => {
+    const grid = new Float32Array(cells * cells);
+    for (let z = 0; z < cells; z++) {
+      for (let x = 0; x < cells; x++) {
+        grid[z * cells + x] = hash2(x + layer * 137, z - layer * 271) / 4294967295;
+      }
+    }
+    return { grid, cells };
+  });
+  const sample = ({ grid, cells }, x, z) => {
+    const fx = x * cells / size;
+    const fz = z * cells / size;
+    const ix = Math.floor(fx);
+    const iz = Math.floor(fz);
+    const u = smoothstep(fx - ix);
+    const v = smoothstep(fz - iz);
+    const nextX = (ix + 1) % cells;
+    const nextZ = (iz + 1) % cells;
+    const a = grid[iz * cells + ix] * (1 - u) + grid[iz * cells + nextX] * u;
+    const b = grid[nextZ * cells + ix] * (1 - u) + grid[nextZ * cells + nextX] * u;
+    return a * (1 - v) + b * v;
+  };
+  for (let z = 0; z < size; z++) {
+    for (let x = 0; x < size; x++) {
+      const broad = sample(grids[0], x, z);
+      const middle = sample(grids[1], x, z);
+      const fine = sample(grids[2], x, z);
+      const grain = (hash2(x + 5021, z - 3011) & 255) / 255;
+      const shade = 245 + (broad - 0.5) * 22 + (middle - 0.5) * 17
+        + (fine - 0.5) * 14 + (grain - 0.5) * 7;
+      const straw = grain > 0.985 && broad > 0.48;
+      const i = (z * size + x) * 4;
+      data[i] = Math.min(255, shade + (straw ? 8 : 0));
+      data[i + 1] = Math.min(255, shade + 2);
+      data[i + 2] = Math.min(255, shade - 5 - (straw ? 12 : 0));
+      data[i + 3] = 255;
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.name = 'Ground grass';
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.repeat.set(GROUND_SIZE / GRASS_TILE_METERS, GROUND_SIZE / GRASS_TILE_METERS);
+  texture.needsUpdate = true;
+  return texture;
 }
 
 // ---------------- internals ----------------
@@ -420,42 +521,39 @@ function buildLightsAndFog(scene) {
   return { sun, hemi, ambient };
 }
 
-function buildGround(scene) {
+function buildGround(scene, originX, originZ) {
   const geo = new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE, GROUND_SEG, GROUND_SEG);
   geo.rotateX(-Math.PI / 2);
 
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
-  const color = new THREE.Color();
-  const grass = new THREE.Color(GROUND_GREEN);
-  const dirt = new THREE.Color(DIRT);
 
   // The ground follows the player; subtract the center's Y so the cart sits at y=0.
-  const centerOffset = terrainHeight(0, 0);
+  const centerOffset = terrainHeight(originX, originZ);
 
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
-    pos.setY(i, terrainHeight(x, z) - centerOffset);
+    pos.setY(i, terrainHeight(originX + x, originZ + z) - centerOffset);
 
-    const patch = Math.sin(x * 0.04) * Math.cos(z * 0.045);
-    const dirtAmt = THREE.MathUtils.clamp((patch + 1.1) * 0.4, 0, 1) * 0.35;
-    color.copy(grass).lerp(dirt, dirtAmt);
-    color.offsetHSL((Math.sin(i * 12.9898) * 0.5 + 0.5) * 0.05 - 0.025, 0, 0);
-    colors[i * 3] = color.r;
-    colors[i * 3 + 1] = color.g;
-    colors[i * 3 + 2] = color.b;
+    writeGroundColor(colors, i * 3, originX + x, originZ + z);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
 
   const mat = new THREE.MeshStandardMaterial({
+    map: makeGrassTexture(),
     vertexColors: true,
     roughness: 0.95,
     metalness: 0,
     flatShading: true,
   });
+  mat.map.offset.set(
+    (originX - GROUND_SIZE / 2) / GRASS_TILE_METERS,
+    (originZ - GROUND_SIZE / 2) / GRASS_TILE_METERS,
+  );
   const ground = new THREE.Mesh(geo, mat);
+  ground.position.set(originX, 0, originZ);
   ground.receiveShadow = true;
   scene.add(ground);
   return ground;

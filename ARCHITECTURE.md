@@ -139,6 +139,15 @@ Backgrounded tabs use `setTimeout(tick, 16)` instead of `requestAnimationFrame`,
 
 Three independent lifecycle systems own world content. They all share one registry.
 
+The flat ground is one player-following mesh in `world.js`. It moves in 40m
+world-aligned steps, which are multiples of its 10m vertex spacing, so the
+procedural vertex-color patches remain fixed under roads and props. A single
+seamless 512px grass texture adds fine variation; its UV offset tracks the same
+world coordinates. The texture repeats every 128m, while separately hashed
+96m and 35m vertex-color fields vary across the whole world, breaking up any
+visible repetition without additional ground meshes or draw calls. The ground
+mesh uses 140 segments per side, down from 220 before the texture was added.
+
 ### 1. Chunks (`chunks.js`)
 
 - Grid size: **80m**. Chunk key is `${cx}_${cz}`.

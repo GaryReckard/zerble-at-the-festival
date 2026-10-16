@@ -4,8 +4,14 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-16
 
+### Added
+- **The festival grass has fine texture and broader natural variation.** One generated, seamless 512px color texture adds grass grain and sparse straw flecks, while world-anchored vertex colors make larger lush and worn patches vary without a visible repeating grid. The moving ground now snaps on a 40m world grid so the pattern stays put beneath roads and props.
+
 ### Changed
 - **Music and Mushroom bubbles have stronger identities.** Music now carries a centered cream note inside its translucent violet shell. Mushroom shows several tie-dye colors at once in a spiral that rotates and wanders around the shell, rather than changing the whole bubble between purple and green. Both effects use the existing pooled shell draw. [Revised Gate C stills, streams and motion frames](verification/bubble-upgrades/checkpoint-4/GATE-C.md).
+
+### Performance
+- **The ground plane uses 57,600 fewer triangles.** Reducing the flat plane from 220 to 140 segments per side drops it from 96,800 to 39,200 triangles. The grass treatment adds one texture and no draw calls.
 
 ## 2026-10-15
 
