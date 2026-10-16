@@ -4,6 +4,8 @@ assets/.DS_Store
 .idea
 node_modules
 __pycache__/
+redesign.zip
+.design-handoff/
 
 # Chrome DevTools Performance captures (large playtest artifacts)
 Trace-*.json

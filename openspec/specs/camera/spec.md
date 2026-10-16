@@ -5,8 +5,8 @@
 > surface is in `sandbox-harness`.
 
 The camera is a three-mode chase rig. Arrow keys add persistent yaw/pitch offsets,
-wheel and pinch zoom each mode appropriately, and an intro reveal orbits from a PNG-match
-pose into the chase pose at boot.
+wheel and pinch zoom each mode appropriately, and an intro reveal orbits from a
+front-quarter hero pose into the chase pose at boot.
 
 ## ADDED Requirements
 
@@ -46,14 +46,14 @@ across mode switches so a mode returns exactly as last left (`camera.js:43-55,85
 
 ### Requirement: Intro reveal orbit
 
-At boot the camera SHALL run an intro reveal: hold a pose matching the title PNG while
-it cross-dissolves, then orbit around to the chase pose while the FOV widens from a long
-lens, before handing control to the normal chase follow (`camera.js:57-73,257-328`).
+At boot the camera SHALL briefly hold a front-quarter view of the live 3D model,
+then orbit around to the chase pose while the FOV widens from a long lens,
+before handing control to the normal chase follow (`camera.js:57-68,253-324`).
 
 #### Scenario: Boot orbits into the chase pose
 
 - **WHEN** the game starts
-- **THEN** the camera orbits from the PNG-match pose to the chase pose, then follows normally
+- **THEN** the camera orbits from the front-quarter pose to the chase pose, then follows normally
 
 ### Requirement: Debug camera pin overrides the chase
 

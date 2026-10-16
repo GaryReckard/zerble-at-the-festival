@@ -213,49 +213,51 @@
   </div>
 
   <div id="title-card">
-    <div class="card">
+    <div id="title-stage">
+      <img class="title-layer title-sky" src="assets/title-screen/layer-sky.webp" alt="" fetchpriority="high" />
+      <img class="title-layer title-mountains" src="assets/title-screen/layer-mountains.webp" alt="" fetchpriority="high" />
+      <img class="title-layer title-festival" src="assets/title-screen/layer-festival.webp" alt="" />
+      <div id="title-bubbles" aria-hidden="true"></div>
+      <img class="title-layer title-foreground" src="assets/title-screen/layer-foreground.webp" alt="" />
+      <img class="title-logo" src="assets/title-screen/title-logo.webp" alt="" fetchpriority="high" />
+      <h1 class="title-sr-only">Zerble at the Festival</h1>
+      <p class="title-sr-only">Bring the bubbles, collect the smiles</p>
+      <div class="card">
       <!-- Page 1: the attract screen / main menu -->
       <div class="card-page" id="title-page-main">
-        <img class="title-zerble" src="assets/zerble.png" alt="" aria-hidden="true" />
-        <h1>
-          <span class="title-main">ZERBLE</span>
-          <span class="title-sub">at the <span class="leaf">Festival</span></span>
-        </h1>
-        <p class="tag">Bring the bubbles, collect the smiles</p>
-
+        <div class="title-menu-label">Pick a mode</div>
         <div id="mode-select" role="radiogroup" aria-label="Pick how you want to play">
-          <button id="mode-cruisin" class="mode-btn" type="button" role="radio" aria-checked="true">
-            <span class="mode-cursor" aria-hidden="true">▶</span>
-            <span class="mode-text">
-              <span class="mode-name">Just Cruisin'</span>
-              <span class="mode-desc">No pressure. All bubbles.</span>
-            </span>
-          </button>
-          <button id="mode-festival" class="mode-btn" type="button" role="radio" aria-checked="false">
-            <span class="mode-cursor" aria-hidden="true">▶</span>
+          <button id="mode-festival" class="mode-btn" type="button" role="radio" aria-checked="false" disabled aria-disabled="true">
+            <span class="mode-cursor" aria-hidden="true"></span>
             <span class="mode-text">
               <span class="mode-name">Festival Run</span>
-              <span class="mode-desc">Days get harder. Legends get made.</span>
+              <span class="mode-desc">Days get harder. More challenging.</span>
+            </span>
+          </button>
+          <button id="mode-cruisin" class="mode-btn" type="button" role="radio" aria-checked="true" disabled aria-disabled="true">
+            <span class="mode-cursor" aria-hidden="true"></span>
+            <span class="mode-text">
+              <span class="mode-name">Just Cruisin'</span>
+              <span class="mode-desc">No pressure. Free play.</span>
             </span>
           </button>
         </div>
 
         <div id="name-entry">
-          <label for="player-name">What's your name?</label>
+          <div class="name-plank"><label for="player-name">Name</label>
           <input id="player-name" type="text" maxlength="20" autocomplete="nickname"
-                 spellcheck="false" placeholder="Zerble" enterkeyhint="done" />
-          <span class="name-note">Totally optional — it shows up around the festival, and Festival Run scores go on a public leaderboard under it.</span>
+                 spellcheck="false" placeholder="Zerble" enterkeyhint="done" aria-describedby="name-note" /></div>
+          <span id="name-note" class="name-note">Optional. Your name appears around the festival, and Festival Run scores go on a public leaderboard under it.</span>
         </div>
 
-        <button id="start-btn" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
+        <button id="start-btn" class="title-sr-only" type="button" tabindex="-1" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
         <span id="boot-copy" role="status" aria-live="polite">Pressurizing the bubble tank…</span>
 
-        <button id="howto-open" type="button" aria-expanded="false" aria-controls="title-page-howto">▸ How to play</button>
-
-        <div class="title-footer">
-          <button id="settings-open-title" class="settings-trigger" aria-label="Open settings" disabled>⚙ Settings</button>
-          <button id="upgrades-open-title" class="settings-trigger" type="button" aria-label="Open bubble upgrades" disabled>♡ Bubble upgrades</button>
-          <button id="board-open-title" class="board-link" type="button" aria-label="View the local leaderboard">🏆 Local legends</button>
+        <div class="title-links">
+          <button id="howto-open" class="title-link" type="button" aria-expanded="false" aria-controls="title-page-howto">How to play</button>
+          <button id="settings-open-title" class="title-link" type="button" aria-label="Open settings" disabled>Settings</button>
+          <button id="upgrades-open-title" class="title-link" type="button" aria-label="Open bubble upgrades" disabled>Bubble upgrades</button>
+          <button id="board-open-title" class="title-link" type="button" aria-label="View the leaderboard">Leaderboard</button>
         </div>
       </div>
 
@@ -267,34 +269,31 @@
         </div>
 
         <div class="controls controls-kbd">
-          <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — drive Zerble</div>
-          <div><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd> — orbit/tilt camera</div>
-          <div><kbd>Shift</kbd> — boost</div>
-          <div><kbd>Ctrl</kbd> — hold for slower speed and gentler acceleration</div>
-          <div><kbd>Space</kbd> — honk! (random bell or clown horn)</div>
-          <div><kbd>B</kbd> / <kbd>H</kbd> — bicycle bell / clown horn (specific)</div>
-          <div><kbd>V</kbd> — cycle chase / first-person / top-down view</div>
-          <div><kbd>↑</kbd> / <kbd>↓</kbd> in top-down — zoom in/out (or mouse wheel)</div>
-          <div><kbd>I</kbd> / <kbd>O</kbd> — eye glow brighter / dimmer</div>
-          <div><kbd>G</kbd> — hold for bubble blast (3× output)</div>
-          <div><kbd>M</kbd> — toggle MIDI music</div>
+          <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> drive · <kbd>Shift</kbd> boost · <kbd>Ctrl</kbd> slow</div>
+          <div><kbd>Arrow keys</kbd> move camera · <kbd>V</kbd> change view · mouse wheel zoom</div>
+          <div><kbd>Space</kbd> honk · <kbd>B</kbd> bell · <kbd>H</kbd> clown horn</div>
+          <div><kbd>G</kbd> bubble blast · <kbd>I</kbd>/<kbd>O</kbd> eye glow</div>
+          <div><kbd>M</kbd> music · <kbd>U</kbd> bubble upgrades</div>
         </div>
 
         <div class="controls controls-touch">
-          <div><span class="tag-key">Left thumbstick</span> — drive Zerble</div>
-          <div><span class="tag-key">Drag the world</span> — orbit/tilt camera</div>
-          <div><span class="tag-key">Boost</span> — hold for extra speed</div>
-          <div><span class="tag-key">Slow</span> — hold for careful driving</div>
-          <div><span class="tag-key">Honk</span> — tap for instant joy in a ring</div>
-          <div><span class="tag-key">Cam</span> — tap to cycle chase / first-person / top-down</div>
+          <div><span class="tag-key">Thumbstick</span> drive · <span class="tag-key">Drag</span> move camera</div>
+          <div><span class="tag-key">Boost</span> faster · <span class="tag-key">Slow</span> careful driving</div>
+          <div><span class="tag-key">Honk</span> bell or horn · <span class="tag-key">Cam</span> change view</div>
+          <div><span class="tag-key">Heart</span> bubble upgrades</div>
         </div>
 
-        <p class="hint">Glide near festival-goers so they see your glowing eyes and bubbles. Avoid the puppet parade, the brass band, food trucks, gaggles of kids, and the wooks.</p>
+        <p class="hint"><strong>Make smiles.</strong> Drive near festival-goers and send bubbles their way. Chain smiles for a bigger score, and avoid crashing into people and props.</p>
 
-        <p class="hint">Bubbling runs on bubble juice — when you're running low, grab a glowing jug or pull up to a bubble vendor. (Just Cruisin' refills are always free; Festival Run vendors start charging smiles once the week gets going.)</p>
+        <p class="hint"><strong>Discover bubbles.</strong> Explore stages, meet Lurleen and stay out after dark to unlock special bubbles. Open Bubble Upgrades from the main menu or with the in-game heart (<kbd>U</kbd> on keyboard) to see clues and switch earned bubbles on or off. Every discovery adds bubble charm.</p>
+
+        <p class="hint"><strong>Keep Zerble bubbling.</strong> Grab glowing juice jugs or visit a bubble vendor. In Festival Run, each new day brings scarcer juice and pricier refills. Hitting people or drawing frowns while dry raises the vibe meter. A marshal whistles at the warning mark; fill the meter and they walk you out. Staying empty too long also ends the run. Just Cruisin' keeps free refills and no run-ending pressure.</p>
+      </div>
       </div>
     </div>
   </div>
+
+  <div id="rotate-phone" role="status" aria-live="polite">Rotate your phone<span>Zerble plays in landscape</span></div>
 
   <div id="score-screen" class="hidden" role="dialog" aria-modal="true" aria-label="Run results">
     <div class="card">
@@ -321,11 +320,50 @@
 
   <script>
     (function () {
-      // Boot narration under the start button. The button itself is the gauge
-      // (a charge shimmer sweeps it while disabled; hud.js flips it live), and
-      // this line keeps its height forever — finishing must never shift the
-      // card layout. Phrases rotate until ready, then the payoff line fades
-      // out in place.
+      const stage = document.getElementById('title-stage');
+      function fitTitle() {
+        const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+        stage.style.transform = `translate(${-640 * scale}px, ${-360 * scale}px) scale(${scale})`;
+      }
+      window.addEventListener('resize', fitTitle, { passive: true });
+      window.visualViewport?.addEventListener('resize', fitTitle, { passive: true });
+      fitTitle();
+
+      const specs = [[30, 9, 0], [16, 12, 2], [26, 8, 4], [34, 11, 1],
+        [22, 10, 6], [28, 13, 3.5], [32, 9.5, 7], [18, 7.5, 5],
+        [24, 10.5, 8.5], [20, 8.5, 2.8], [30, 11.5, 6.8], [14, 9.8, 4.6]];
+      const bubbles = document.getElementById('title-bubbles');
+      for (let pass = 0; pass < 2; pass++) {
+        specs.forEach(([width, duration, delay], index) => {
+          const bubble = document.createElement('img');
+          bubble.className = 'title-bubble';
+          bubble.src = 'assets/title-screen/bubble.webp';
+          bubble.alt = '';
+          bubble.width = width;
+          bubble.height = width;
+          bubble.style.setProperty('--bubble-duration', `${duration}s`);
+          bubble.style.setProperty('--bubble-delay', `${delay - pass * duration / 2}s`);
+          const jitterIndex = index + pass * specs.length;
+          bubble.style.marginLeft = `${(jitterIndex * 37) % 121 - 60}px`;
+          bubble.style.marginTop = `${(jitterIndex * 17) % 31 - 12}px`;
+          bubbles.appendChild(bubble);
+        });
+      }
+
+      // Orientation locking is available only on supported fullscreen browsers.
+      // The portrait overlay also covers Safari, which does not expose the lock.
+      document.addEventListener('fullscreenchange', () => {
+        if (document.fullscreenElement && screen.orientation?.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      });
+    })();
+  </script>
+
+  <script>
+    (function () {
+      // The mode planks stay disabled until hud.js arms the trusted-gesture
+      // start callback. This line narrates the wait without moving the menu.
       const copy = document.getElementById('boot-copy');
       const phrases = [
         'Pressurizing the bubble tank…',
@@ -363,11 +401,6 @@
       };
     })();
   </script>
-
-  <!-- Opening reveal: the title-card hands off to this 2D Zerble cutout, which
-       sits over the 3D model lined up at the same angle, then cross-dissolves
-       to reveal the real model before the camera orbits to chase. -->
-  <img id="intro-zerble" src="./assets/zerble.png" alt="" aria-hidden="true" />
 
 </body>
 </html>

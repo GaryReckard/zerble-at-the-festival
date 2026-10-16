@@ -54,18 +54,14 @@ const CHASE_MAX_ZOOM = 2.4;
 const FPV_MIN_FOV = 28;
 const WHEEL_ZOOM_STEP = 1.10;   // one wheel notch → ±10% zoom
 
-// ---- Opening "drawing comes to life" intro ----
-// On game start the camera snaps to a front-quarter "match" pose that lines the
-// 3D model up behind assets/zerble.png, holds while the PNG cross-dissolves,
-// then orbits around to the chase pose while the FOV widens from a long lens
-// (which flattens perspective toward the flat 2D art) back to the gameplay
-// default. All four numbers below are tuned against the PNG overlay; treat them
-// as the knobs for the match.
-const INTRO_MATCH_FOV    = 32;            // long lens ≈ the cartoon's near-orthographic look
-const INTRO_MATCH_AZIM   = Math.PI - 0.5; // front-right 3/4 (matches the PNG's facing)
+// ---- Opening camera orbit ----
+// On game start the camera holds a front-quarter hero pose, then orbits to the
+// chase pose while the FOV widens from a long lens to the gameplay default.
+const INTRO_MATCH_FOV    = 32;
+const INTRO_MATCH_AZIM   = Math.PI - 0.5;
 const INTRO_MATCH_RADIUS = 15.5;          // horizontal distance from Zerble
-const INTRO_MATCH_HEIGHT = 2.4;           // camera sits BELOW the roofline (3.75m)…
-const INTRO_MATCH_LOOK_H = 2.7;           // …and aims up, so the canopy underside shows (like the PNG)
+const INTRO_MATCH_HEIGHT = 2.4;           // camera sits below the roofline (3.75m)
+const INTRO_MATCH_LOOK_H = 2.7;           // aims up toward Zerble's face
 
 // easeInOutCubic — smooth accel/decel for the orbit + FOV sweep.
 function easeInOutCubic(t) {
@@ -101,7 +97,7 @@ export class ChaseCamera {
     this._currentLook = new THREE.Vector3();
 
     // Opening intro state. `_introPhase`: null (normal) | 'match' (holding the
-    // PNG-match pose while the cutout fades) | 'orbit' (sweeping to chase).
+    // hero pose) | 'orbit' (sweeping to chase).
     this._introPhase = null;
     this._introT = 0;
     this._introDur = 2.0;
@@ -210,7 +206,7 @@ export class ChaseCamera {
 
   // ---- Opening intro ----------------------------------------------------
 
-  // Polar description of the front-quarter PNG-match shot.
+  // Polar description of the front-quarter hero shot.
   _introMatchPose() {
     const P = this.zerble.position;
     const phi = this.zerble.heading + INTRO_MATCH_AZIM;
@@ -254,8 +250,7 @@ export class ChaseCamera {
     this.camera.lookAt(look);
   }
 
-  // Snap to the PNG-match pose and hold there (the cutout overlay covers the
-  // model during this phase, so the snap is invisible).
+  // Snap to the front-quarter hero pose and hold there.
   poseIntroMatch() {
     this.mode = 'third';
     this.yawOffset = 0;

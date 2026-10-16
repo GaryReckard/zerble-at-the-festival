@@ -8,10 +8,16 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **The festival grass has fine texture and broader natural variation.** One generated, seamless 512px color texture adds grass grain and sparse straw flecks, while world-anchored vertex colors make larger lush and worn patches vary without a visible repeating grid. The moving ground now snaps on a 40m world grid so the pattern stays put beneath roads and props.
 
 ### Changed
+- **The gate uses a painted festival title screen.** Eight compressed WebP assets replace the blurred game backdrop with layered sky, mountains, festival, foreground, bubbles, logo and wood-plank menus. A mode plank now selects its mode and starts in the same trusted tap, while the existing name, How to play, Settings, Bubble Upgrades and Leaderboard paths remain available. Phone portrait shows a landscape prompt; supported fullscreen browsers also request landscape orientation. The source handoff remains local and gitignored.
+- **The opening reveal uses only the live 3D Zerble.** The flat cutout and its fade are gone; the camera still holds the front-quarter pose briefly before orbiting into chase. Mode descriptions now sit directly under their names in pale aqua, a blinking bubble marks the chosen plank, the background bubble stream is twice as frequent and wider, and the full menu fits inside the title art.
 - **Music and Mushroom bubbles have stronger identities.** Music now carries a centered cream note inside its translucent violet shell. Mushroom shows several tie-dye colors at once in a spiral that rotates and wanders around the shell, rather than changing the whole bubble between purple and green. Both effects use the existing pooled shell draw. [Revised Gate C stills, streams and motion frames](verification/bubble-upgrades/checkpoint-4/GATE-C.md).
 
 ### Performance
 - **The ground plane uses 57,600 fewer triangles.** Reducing the flat plane from 220 to 140 segments per side drops it from 96,800 to 39,200 triangles. The grass treatment adds one texture and no draw calls.
+
+### Fixed
+- **How to play opens without a fleeting scrollbar.** Its page fades in without shifting the contents of the scrollable card.
+- **How to play reflects the current game.** Its shorter control list now includes the upgrade shortcut, while the play guidance explains special bubble discoveries, bubble charm, the marshal's warnings and Festival Run's rising stakes.
 
 ## 2026-10-15
 

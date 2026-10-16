@@ -25,9 +25,10 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 - **Procedural sound.** No audio files. The engine drone, empty-juice sputter, collision thuds, bicycle bell, clown horn, brass band, drum circles, and crackling campfires are all synthesized at runtime in Web Audio.
 - **Forests, lakes, mountains.** Drive into the woods and find a clearing with a fire. Drive to the shore and find a canoe. Drive far enough and the hills rise around you in autumn color.
 - **Find Lurleen.** Somewhere out there is a second cart with pink puffy lips, raffia hair, and a basket of flowers. She is shy. Get close and the air fills with hearts.
+- **Discover bubble upgrades.** Explore stages, meet Lurleen, stay out after dark and complete other challenges to unlock special bubbles. The Bubble Upgrades menu shows clues and lets you switch earned types on or off; each discovery raises bubble charm.
 - **Two ways to play.** **Just Cruisin'** is the endless no-pressure sandbox. **Festival Run** asks for your name at the gate and then means it: every festival day the juice gets scarcer, the vendors get pricier, and the marshals get stricter. Chain smiles for multipliers (Lurleen doubles everything while she's smitten), run the tank dry or annoy the wrong people and your run is over — name, score, and days survived on the local Legends board.
 - **Don't hit anything.** Puppet parades, brass bands, gaggles of kids, food trucks, craft tents, the stage, lampposts, trees, drum circles, the lake edge. They will dock your smiles.
-- **Works on a phone.** Virtual thumbstick, drag-to-orbit camera, honk and boost buttons. Tested in iOS Safari with the URL bar doing its thing.
+- **Works on a phone in landscape.** A rotation prompt covers portrait play, while the virtual thumbstick, drag-to-orbit camera, honk and boost buttons serve landscape. Tested in iOS Safari with the URL bar doing its thing.
 
 ## Controls
 
@@ -44,12 +45,16 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 | `V` | Cycle camera — chase / first-person / top-down |
 | `↑` / `↓` (top-down) | Zoom in / out (or mouse wheel) |
 | `I` / `O` | Eye glow brighter / dimmer |
+| `G` (hold) | Bubble blast |
+| `M` | Toggle MIDI music |
+| `U` | Open Bubble Upgrades |
 
 ### Touch
 
 - Left thumbstick — drive
 - Drag anywhere else — orbit / tilt camera
 - Slow / Boost / Honk / Cam buttons — bottom right
+- Heart button — open Bubble Upgrades
 
 ## Play it
 
@@ -58,7 +63,7 @@ Live: <https://garyreckard.github.io/zerble-at-the-festival/> — or open `index
 To run a local dev server (recommended, so ES modules load with `file://` blocked):
 
 ```
-python3 .claude/serve_nocache.py 8765
+python3 .Codex/serve_nocache.py 8765
 ```
 
 Then visit `http://127.0.0.1:8765`.

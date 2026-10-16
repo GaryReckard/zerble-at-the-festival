@@ -85,28 +85,29 @@ power is active (`hud.js:206-215`).
 
 ### Requirement: Title card gates the start gesture
 
-`HUD.showTitle`/`hideTitle` SHALL toggle the full-screen title overlay. The static
-HTML SHALL render Start and Settings disabled before the module graph loads, while an
-inline bubble-pressure status remains visibly active. `HUD.onStart(cb)` SHALL install
-the single-shot callback first, complete the loading status, restore the configured
-Start or Resume label, and only then enable both controls. After a brief readable ready
-state, the completed loading status SHALL fade and collapse so it no longer occupies
-title-card space. The enabled Start click is the trusted user gesture that boots the
-world and synchronously initializes audio (`index.html`, `hud.js`, and the iOS
-audio-init contract in `audio-synthesis`).
+`HUD.showTitle`/`hideTitle` SHALL toggle the full-screen painted title overlay. The
+static HTML SHALL render both mode planks and Settings disabled before the module
+graph loads, while an inline bubble-pressure status remains visibly active.
+`HUD.onStart(cb)` SHALL install a guarded start callback, complete the loading
+status, and only then enable the mode planks and Settings. After a brief readable
+ready state, the completed loading status SHALL fade without moving the menu.
+Clicking either mode plank SHALL select that mode and boot the world in the same
+trusted user gesture, synchronously initializing audio. A hidden `#start-btn`
+remains for existing programmatic diagnostics (`index.html`, `hud.js`, and the
+iOS audio-init contract in `audio-synthesis`).
 
 #### Scenario: Controls remain honest while JavaScript loads
 
 - **WHEN** the static title card is visible but `main.js` has not completed initialization
-- **THEN** the bubble-pressure loader remains active and Start and Settings cannot be clicked
+- **THEN** the bubble-pressure loader remains active and the mode planks and Settings cannot be clicked
 
 #### Scenario: Completed loading status clears the title card
 
 - **WHEN** initialization completes and the ready message has been shown briefly
-- **THEN** the loader fades and collapses while Start and Settings remain enabled
+- **THEN** the loader fades while the mode planks and Settings remain enabled
 - **AND** reduced-motion preference removes the transition without delaying the final state
 
-#### Scenario: Start boots the game once
+#### Scenario: A mode plank boots the game once
 
-- **WHEN** the player clicks the start button
+- **WHEN** the player clicks a ready mode plank
 - **THEN** the callback fires a single time and the title card hides

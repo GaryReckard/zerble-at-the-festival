@@ -2008,7 +2008,7 @@ function updateDeviceCaptureControl(message) {
     return;
   }
   if (!state.deviceCaptureStarted) {
-    el.textContent = 'PERF · ARMED. Use the title-card button to begin.';
+    el.textContent = 'PERF · ARMED. Choose a mode plank to begin.';
     return;
   }
   if (state.deviceCaptureFinished) {

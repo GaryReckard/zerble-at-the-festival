@@ -109,7 +109,7 @@ the main app boots. **Before marking any task complete, load
 `http://127.0.0.1:8765/` and confirm:**
 
 1. The title card appears (no JS error at module load).
-2. Clicking "Let's go ZERBLIN'!" boots the world (no JS error during world
+2. Clicking a ready mode plank boots the world (no JS error during world
    generation — `buildWorld → ChunkManager.update → _generate → theme
    builder` is the longest call chain in the codebase and is where the
    real bugs hide).

@@ -1392,35 +1392,6 @@ body.is-touch .controls-touch {
   filter: brightness(1.2);
 }
 
-/* ---- Opening reveal: 2D Zerble cutout over the matched 3D model ----
-   Sits above the (fading) title card at z-index 25, centred and sized to a
-   viewport fraction tuned so the cutout lines up with the 3D model at the
-   camera's match pose. Shown opaque the instant Start is tapped, then
-   cross-dissolved out via .is-fading to reveal the real model behind it. */
-#intro-zerble {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-51%, -31%);   /* positioned to sit on the low-angle 3D model */
-  height: 68vh;
-  max-width: 94vw;
-  object-fit: contain;
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  z-index: 25;
-  will-change: opacity;
-  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.35));
-}
-#intro-zerble.is-shown {
-  opacity: 1;
-  visibility: visible;
-}
-#intro-zerble.is-fading {
-  opacity: 0;
-  transition: opacity var(--intro-fade, 1s) ease-in;
-}
-
 /* ---------- Settings panel ---------- */
 
 /* Title-card trigger — a subtle pill under the start button. */
@@ -2241,4 +2212,358 @@ body.reduced-motion .best-confetti {
   min-height: 44px;
   padding: 11px 20px;
   font-size: 14px;
+}
+
+/* Painted title stage. The original modal selectors above still serve the
+   score screen and in-game menus; these rules scope the handoff to the gate. */
+#title-card {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  background: #1a1430;
+  backdrop-filter: none;
+}
+#title-card.hidden .title-layer,
+#title-card.hidden .title-logo,
+#title-card.hidden .title-bubble { animation-play-state: paused; }
+
+#title-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  transform-origin: 0 0;
+  background: linear-gradient(180deg, #2a1358 0%, #6a2a7a 30%, #e8512a 62%, #ff9a3a 100%);
+}
+
+.title-layer,
+.title-logo,
+.title-bubble {
+  position: absolute;
+  pointer-events: none;
+}
+
+.title-layer {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.title-sky {
+  left: -20px;
+  top: -170px;
+  width: 1320px;
+  height: 760px;
+  animation: title-drift 18s ease-in-out infinite;
+}
+.title-mountains {
+  left: -12px;
+  top: -12px;
+  width: 1304px;
+  height: 744px;
+  animation: title-drift 26s ease-in-out infinite reverse;
+}
+.title-festival { left: 150px; top: 130px; animation: title-drift 14s ease-in-out infinite; }
+.title-foreground { animation: title-sway 9s ease-in-out infinite; }
+
+.title-logo {
+  left: 50%;
+  top: 20px;
+  width: 640px;
+  height: auto;
+  margin-left: -320px;
+  filter: drop-shadow(0 10px 18px rgba(20, 8, 40, 0.55));
+  animation: title-logo-bob 4s ease-in-out infinite;
+}
+
+.title-bubble {
+  left: 740px;
+  top: 500px;
+  image-rendering: pixelated;
+  animation: title-puff var(--bubble-duration) ease-in-out var(--bubble-delay) infinite;
+}
+
+.title-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+#start-btn.title-sr-only { display: none; }
+
+#title-card .card {
+  position: absolute;
+  left: 110px;
+  top: 229px;
+  width: 470px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+}
+
+#title-page-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title-menu-label {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffd28a;
+  text-shadow: 3px 3px 0 #2a1208;
+}
+
+#mode-select {
+  width: 470px;
+  margin: 0;
+  gap: 6px;
+}
+
+.mode-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 470px;
+  min-height: 76px;
+  padding: 11px 8px 11px 22px;
+  border: 0 solid transparent;
+  border-width: 0 62px;
+  border-image: url('assets/title-screen/plank-wood.webp') 0 260 fill / 0 62px stretch;
+  border-radius: 0;
+  background: none;
+  color: #f5e6c8;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 7px 0 rgba(42, 18, 8, 0.6));
+}
+.mode-btn:hover { background: none; }
+.mode-btn[aria-checked="true"] {
+  border-image-source: url('assets/title-screen/plank-banner.webp');
+  border-image-slice: 0 300 fill;
+  background: none;
+  color: #fff6e6;
+  filter: drop-shadow(0 0 10px rgba(255, 210, 74, 0.7)) drop-shadow(0 7px 0 rgba(42, 18, 8, 0.6));
+}
+.mode-btn:disabled { cursor: wait; opacity: 0.7; }
+.mode-text { gap: 0; }
+.mode-btn .mode-name {
+  font-size: 19px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  color: inherit;
+  text-shadow: 3px 3px 0 #2a1208;
+  white-space: nowrap;
+}
+.mode-btn .mode-desc {
+  margin-top: -3px;
+  font-family: 'Trebuchet MS', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+  color: #b9f1e8;
+  opacity: 1;
+  text-shadow: 2px 2px 0 #2a1208;
+  white-space: nowrap;
+}
+.mode-cursor,
+.mode-btn[aria-checked="true"] .mode-cursor {
+  position: absolute;
+  left: -80px;
+  top: 50%;
+  width: 32px;
+  height: 32px;
+  transform: translateY(-50%);
+  background: url('assets/title-screen/bubble.webp') center / contain no-repeat;
+  filter: drop-shadow(0 3px 2px rgba(42, 18, 8, 0.8));
+  animation: title-bubble-blink 1.15s steps(1) infinite;
+}
+
+#name-entry {
+  align-items: stretch;
+  gap: 3px;
+  margin: 0;
+}
+.name-plank {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 4px 10px;
+  background: rgba(42, 18, 8, 0.82);
+  border: 4px solid #3b1d0c;
+  box-shadow: 0 5px 0 #2a1208;
+}
+#name-entry label {
+  flex: none;
+  font-size: 9px;
+  color: #ffd28a;
+  opacity: 1;
+  text-shadow: 2px 2px 0 #2a1208;
+}
+#player-name {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 10px;
+  background: rgba(20, 8, 40, 0.55);
+  border: 3px solid #2a1208;
+  border-radius: 0;
+  color: #fff6e6;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  text-align: left;
+  text-transform: uppercase;
+}
+#name-entry .name-note {
+  max-width: none;
+  padding: 3px 5px;
+  background: rgba(42, 18, 8, 0.8);
+  font-size: 10px;
+  line-height: 1.25;
+  color: #fff6e6;
+  opacity: 0.9;
+  text-shadow: 2px 2px 0 #2a1208;
+}
+
+#boot-copy {
+  height: 13px;
+  line-height: 13px;
+  margin: 0;
+  font-size: 10px;
+  color: #fff6e6;
+  text-shadow: 2px 2px 0 #2a1208;
+}
+
+.title-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 340px;
+}
+.title-link,
+#howto-open.title-link,
+#upgrades-open-title.title-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 340px;
+  min-height: 40px;
+  margin: 0;
+  padding: 7px 6px 7px 16px;
+  border: 0 solid transparent;
+  border-width: 0 44px;
+  border-image: url('assets/title-screen/plank-wood.webp') 0 260 fill / 0 44px stretch;
+  border-radius: 0;
+  background: none;
+  color: #f5e6c8;
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: uppercase;
+  text-shadow: 3px 3px 0 #2a1208;
+  white-space: nowrap;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 5px 0 rgba(42, 18, 8, 0.6));
+  cursor: pointer;
+}
+.title-link:hover,
+#howto-open.title-link:hover { color: #ffd28a; }
+.title-link:disabled { cursor: wait; opacity: 0.65; }
+#title-card button:focus-visible,
+#player-name:focus-visible { outline: 3px solid #ff8ad0; outline-offset: 3px; }
+
+#title-stage.is-howto .card {
+  left: 85px;
+  top: 120px;
+  width: 590px;
+  max-height: 575px;
+  overflow-y: auto;
+}
+#title-page-howto {
+  animation: howto-page-in 0.22s ease;
+  padding: 18px 22px;
+  background: repeating-linear-gradient(180deg, #5c3416 0 6px, #4e2b12 6px 12px);
+  border: 4px solid #3b1d0c;
+  box-shadow: 0 6px 0 #2a1208, 0 10px 18px rgba(20, 8, 40, 0.5);
+}
+@keyframes howto-page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+#title-page-howto .howto-title { color: #ffd28a; background: none; font-size: 16px; }
+#title-page-howto .controls,
+#title-card .hint { color: #fff6e6; font-weight: 700; font-size: 13px; text-shadow: 2px 2px 0 #2a1208; }
+#title-page-howto .hint strong { color: #ffd28a; }
+#howto-back { border-radius: 0; background: #8a5224; border: 3px solid #3b1d0c; }
+
+#rotate-phone { display: none; }
+@media (orientation: portrait) and (max-width: 900px) {
+  #rotate-phone {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 24px;
+    background: #1a1430;
+    color: #fff6e6;
+    font-family: var(--font-pixel);
+    font-size: 12px;
+    line-height: 1.8;
+    text-align: center;
+    text-transform: uppercase;
+  }
+  #rotate-phone span { font-family: 'Trebuchet MS', sans-serif; font-size: 14px; text-transform: none; }
+}
+
+@media (orientation: landscape) and (max-width: 900px) {
+  #title-card .card { top: 215px; }
+  .mode-btn { min-height: 86px; }
+  .title-links { display: grid; grid-template-columns: repeat(2, 1fr); width: 470px; gap: 5px; }
+  .title-link,
+  #howto-open.title-link,
+  #upgrades-open-title.title-link { width: 232px; min-height: 86px; font-size: 11px; padding-left: 6px; border-width: 0 28px; border-image-width: 0 28px; }
+}
+
+@keyframes title-drift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-14px); } }
+@keyframes title-sway { 0%, 100% { transform: translateX(0) scale(1.02); } 50% { transform: translateX(6px) scale(1.02); } }
+@keyframes title-logo-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes title-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes title-bubble-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.25; } }
+@keyframes title-puff {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  8% { transform: translate(-14px, -16px) scale(0.8); opacity: 1; }
+  30% { transform: translate(-90px, -120px) scale(1); }
+  45% { transform: translate(-120px, -200px) scale(1.02); }
+  70% { transform: translate(-112px, -370px) scale(0.98); }
+  92% { opacity: 0.9; }
+  100% { transform: translate(-122px, -560px) scale(1); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-layer, .title-logo, .title-bubble, .mode-cursor,
+  .mode-btn[aria-checked="true"] .mode-cursor { animation: none; }
+  .title-bubble { display: none; }
+  #title-stage .card-page:not([hidden]) { animation: none; }
 }

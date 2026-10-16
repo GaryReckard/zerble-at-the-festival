@@ -106,6 +106,7 @@ function showHowto(open) {
   if (!$pageMain || !$pageHowto) return;
   $pageMain.hidden = open;
   $pageHowto.hidden = !open;
+  document.getElementById('title-stage')?.classList.toggle('is-howto', open);
   $howtoOpen?.setAttribute('aria-expanded', String(open));
   (open ? $howtoBack : $howtoOpen)?.focus({ preventScroll: true });
 }
@@ -246,13 +247,28 @@ export const HUD = {
   onStart(cb) {
     // captureName is synchronous — the iOS audio unlock in cb must stay inside
     // the same gesture with no async hop before Sound.init().
-    $start.addEventListener('click', () => { captureName(); cb(); }, { once: true });
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      captureName();
+      cb();
+    };
+    $start.addEventListener('click', start);
+    $modeCruisin?.addEventListener('click', start);
+    $modeFestival?.addEventListener('click', start);
     window.__zerbleBootLoader?.ready();
     $start.textContent = _startLabel;
     $start.disabled = false;
     $start.setAttribute('aria-disabled', 'false');
     $start.setAttribute('aria-busy', 'false');
     $start.classList.add('is-ready');
+    for (const mode of [$modeCruisin, $modeFestival]) {
+      if (!mode) continue;
+      mode.disabled = false;
+      mode.setAttribute('aria-disabled', 'false');
+      mode.classList.add('is-ready');
+    }
     const settings = document.getElementById('settings-open-title');
     if (settings) settings.disabled = false;
     const upgrades = document.getElementById('upgrades-open-title');

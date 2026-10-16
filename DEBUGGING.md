@@ -40,8 +40,8 @@ only with `?perfCapture=1`; ordinary play does not pay for these timers.
    same Wi-Fi and use `bin/playtest-perf`; it opens a QR code and prints a
    fallback URL. Do not post the phone's tokenized URL publicly because it
    authorizes local uploads.
-2. On each device, choose **Just Cruisin'** and click the title-card button,
-   usually **Let's go ZERBLIN'!** (or **Resume** for a saved session). On the phone,
+2. On each device, tap the **Just Cruisin'** plank to choose that mode and start.
+   A mode plank also resumes a saved session when its mode matches. On the phone,
    first scan the QR and open the link in Safari. Leave the game tab in the
    foreground and follow the small `PERF` instruction box. The guided test
    pauses driving controls and stops the cart during every parked phase. Drive
@@ -286,7 +286,7 @@ hot, which is what `perfPhase` / `tripAB` provide.
 | `perfLog()` | Return a copy of the recorded sample array (`[{t, ts, …}]`). |
 | `perfPhase(label)` | Stamp a window label onto every subsequent sample (`''` clears it). `tripAB()` drives this automatically; set it by hand for any other one-variable comparison. |
 | `perfPhaseSummary()` | Collapse the recorded samples to one row per label — `fps`, `fAvg`, `fP95`, `fMax`, `draws`, `tripPass` — and print the table. Frame-time columns are averaged over **populated samples only**: `AdaptiveQuality` publishes no frame stats until its 90-frame window fills, so early samples carry a frame time of 0, and averaging those in would make the earliest window (usually the baseline) look *faster* than it was. The `warmup` column counts how many were skipped — if it approaches `n`, that row is warm-up noise and the window needs to be longer. |
-| `startDeviceCapture()` / `sendDeviceCapture()` | Start or manually upload the opt-in `?perfCapture=1` real-device report. Normal play starts this only after the real Start tap; these calls exist for diagnostics. |
+| `startDeviceCapture()` / `sendDeviceCapture()` | Start or manually upload the opt-in `?perfCapture=1` real-device report. Normal play starts this only after a real mode-plank tap; these calls exist for diagnostics. |
 | `chunkStages(reset = false)` | With `?debug=1` or `?perfCapture=1`, return count/total/average/max milliseconds for each v2 chunk stage (`region`, `roads`, `props`, `trees`, `crowd`, `jugs`, `campsites`, `hedges`). Pass `true` to return the current snapshot and zero the stage counters before a controlled drive or teleport. The normal production path does not take the per-stage timestamps. |
 | `foodCourtVisual()` | Jump directly to the deterministic food court at Midnight, wait for both chunk generation and registry population to settle while rendered frames continue advancing, then frame the court from inside its outer ring. |
 | `foodCourtCapture()` | Park at the same food court, freeze NPC AI, pin the camera and render quality, sample real scene draws/tris, and write `.claude/captures/foodcourt-<tier>-<mode>.json`. Pair the shipping default (`modelMerge=0`) with experimental `?modelMerge=1` for a one-variable before/after. |
@@ -453,7 +453,7 @@ Use the [guided desktop and phone performance playtests](#desktop-and-phone-perf
 for a comparable drive or Trip capture. The lower-level
 `python3 .claude/serve_nocache.py 8765 --lan` command remains available for an
 unstructured session. It prints a tokenized URL with `?perfCapture=1`; tap the
-real Start button, play until the symptom appears, then tap **SEND**. The
+ready mode plank, play until the symptom appears, then tap **SEND**. The
 recorder also uploads every 30 seconds and sends a bounded report on page exit.
 Only the guided scenarios auto-complete.
 
@@ -536,7 +536,7 @@ Adding a model? It's not done until it has a sandbox entry — see
 |---|---|
 | `?perf=low\|mid\|high` (or `window.__perfProfile`) | Force a performance tier ([perf.js](src/perf.js)). Test low/mid — high hides regressions that crush integrated GPUs. |
 | `?seed=<string\|int>` | Pin the procedural world layout ([main.js](src/main.js)); echoed in the debug HUD so a world is reproducible. |
-| `?perfCapture=1&captureToken=<token>` | Arm the local-device performance reporter. Use the complete tokenized URL printed by `serve_nocache.py --lan`; recording begins only after the real Start tap. |
+| `?perfCapture=1&captureToken=<token>` | Arm the local-device performance reporter. Use the complete tokenized URL printed by `serve_nocache.py --lan`; recording begins only after a real mode-plank tap. |
 | `?layoutCapture=1` | Localhost-only, data-only world-streaming mode used automatically by `bin/layout-snapshot capture`. It preserves registry updates while skipping pixels; it is not a visual test mode. |
 | `?modelMerge=1` | Measurement-only opt-in that reproduces the rejected perf-pass-4 food-truck and Sugar Shack broad merges. The shipping default leaves them off while retaining the older tent merge. |
 | `?perfGate=suite&perfGateStep=0` | Run the full local food-court draw and lifecycle capture sequence. Start with the fixed URL above so tier and merge mode also match step 0. |

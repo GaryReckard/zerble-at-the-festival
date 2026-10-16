@@ -549,12 +549,8 @@ function updateRefuelStream(fromPos, toPos, dt) {
 
 // ---------- Camera ----------
 const chaseCam = new ChaseCamera(camera, zerble);
-// Hold the hero 3/4 "PNG-match" framing while the title card is up, so the
-// blurred background behind it is a deliberate glamour shot of Zerble at its
-// festival spawn — not a chase-cam view of whatever terrain is behind the cart.
-// startIntroReveal() re-poses + orbits from here on Start; __dbg.start() and a
-// skip tap settle straight to chase. Cheap: it just pins the camera each frame
-// until the intro/skip clears the 'match' phase.
+// Hold the hero 3/4 framing while the title card is up. On Start the camera
+// re-poses and orbits to chase; a skip tap settles straight to chase.
 chaseCam.poseIntroMatch();
 
 // Touch + mouse cam toggle button — same as pressing V. Cycles through
@@ -666,10 +662,8 @@ let controlsLocked = false;
 let captureDriveLocked = false;
 const NEUTRAL_INPUT = { throttle: 0, steer: 0, boost: false, slow: false };
 
-// Intro timing (ms): hold the opaque PNG, then cross-dissolve, then the camera
-// orbits to chase over INTRO_ORBIT_SEC.
+// Intro timing (ms): briefly hold the hero camera pose, then orbit to chase.
 const INTRO_HOLD_MS = 450;
-const INTRO_FADE_MS = 1000;
 const INTRO_ORBIT_SEC = 2.0;
 
 // Touch overlay (no-op on desktop; reveals thumbstick/buttons on touch devices).
@@ -752,16 +746,16 @@ bubbleProgress.onUnlock(({ id, mode }) => {
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 
 HUD.showTitle();
-// Resumed session: the title card still shows (iOS needs the tap to start audio),
-// but the button reads "Resume" — one tap drops the player back where they were.
+// Resumed session: the title card still shows because iOS needs a player tap
+// to start audio. A mode-plank tap drops the player back into the saved world.
 if (__resume) {
   HUD.setStartLabel('Resume');
 }
 HUD.onStart(() => {
   HUD.hideTitle();
   running = true;
-  // The player can flip the mode selector right up to the Start tap —
-  // (re)configure stakes from the final choice. Synchronous, pre-Sound.init.
+  // The tapped mode plank sets RunMode before this callback, so configure
+  // stakes from that final choice synchronously before Sound.init().
   Scoring.configure({ stakes: RunMode.isFestival() });
   const resumedMatch = applyResumeGameState();
   Leaderboard.noteGameStart(RunMode.name, resumedMatch);
@@ -833,33 +827,16 @@ HUD.onStart(() => {
 });
 
 // ---------- Opening reveal ----------
-// 1. Snap the camera to the PNG-match pose and show the 2D Zerble cutout over
-//    the lined-up 3D model. 2. Hold, then cross-dissolve the cutout out to
-//    reveal the real model. 3. Orbit the camera around to chase, then hand
-//    control back. A tap/key during the sequence skips straight to chase.
+// Hold on the 3D hero pose, orbit to chase, then hand control back. A tap/key
+// during the sequence skips straight to chase.
 let _introHoldT = 0;
-let _introFadeT = 0;
 function startIntroReveal() {
   controlsLocked = true;
   chaseCam.poseIntroMatch();
-
-  const img = document.getElementById('intro-zerble');
-  const beginOrbit = () => chaseCam.beginIntroOrbit(INTRO_ORBIT_SEC, finishIntroReveal);
-
-  if (img) {
-    img.style.setProperty('--intro-fade', INTRO_FADE_MS / 1000 + 's');
-    img.classList.remove('is-fading');
-    img.classList.add('is-shown');
-    _introHoldT = setTimeout(() => {
-      img.classList.add('is-fading');          // cross-dissolve to the 3D model
-      _introFadeT = setTimeout(() => {
-        img.classList.remove('is-shown', 'is-fading');
-        beginOrbit();
-      }, INTRO_FADE_MS);
-    }, INTRO_HOLD_MS);
-  } else {
-    beginOrbit();
-  }
+  _introHoldT = setTimeout(
+    () => chaseCam.beginIntroOrbit(INTRO_ORBIT_SEC, finishIntroReveal),
+    INTRO_HOLD_MS,
+  );
 
   // Skip on the next tap/key — settles straight to chase.
   window.addEventListener('keydown', skipIntroReveal, { once: true });
@@ -869,9 +846,6 @@ function startIntroReveal() {
 function skipIntroReveal() {
   if (!controlsLocked) return;
   clearTimeout(_introHoldT);
-  clearTimeout(_introFadeT);
-  const img = document.getElementById('intro-zerble');
-  if (img) img.classList.remove('is-shown', 'is-fading');
   chaseCam.skipIntro();      // snaps camera to chase (no-op if not in intro)
   finishIntroReveal();
 }
