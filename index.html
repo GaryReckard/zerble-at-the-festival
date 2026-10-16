@@ -222,23 +222,25 @@
       <img class="title-logo" src="assets/title-screen/title-logo.webp" alt="" fetchpriority="high" />
       <h1 class="title-sr-only">Zerble at the Festival</h1>
       <p class="title-sr-only">Bring the bubbles, collect the smiles</p>
+    </div>
+    <div id="title-ui">
       <div class="card">
       <!-- Page 1: the attract screen / main menu -->
       <div class="card-page" id="title-page-main">
-        <div class="title-menu-label">Pick a mode</div>
-        <div id="mode-select" role="radiogroup" aria-label="Pick how you want to play">
-          <button id="mode-festival" class="mode-btn" type="button" role="radio" aria-checked="false" disabled aria-disabled="true">
+        <div class="title-menu-label">Choose a mode to play</div>
+        <div id="mode-select" role="group" aria-label="Choose a mode to play">
+          <button id="mode-festival" class="mode-btn" type="button" aria-label="Play Festival Run" aria-describedby="festival-description" data-selected="false" disabled aria-disabled="true">
             <span class="mode-cursor" aria-hidden="true"></span>
             <span class="mode-text">
               <span class="mode-name">Festival Run</span>
-              <span class="mode-desc">Days get harder. More challenging.</span>
+              <span class="mode-desc" id="festival-description">Days get harder. More challenging.</span>
             </span>
           </button>
-          <button id="mode-cruisin" class="mode-btn" type="button" role="radio" aria-checked="true" disabled aria-disabled="true">
+          <button id="mode-cruisin" class="mode-btn" type="button" aria-label="Play Just Cruisin'" aria-describedby="cruisin-description" data-selected="true" disabled aria-disabled="true">
             <span class="mode-cursor" aria-hidden="true"></span>
             <span class="mode-text">
               <span class="mode-name">Just Cruisin'</span>
-              <span class="mode-desc">No pressure. Free play.</span>
+              <span class="mode-desc" id="cruisin-description">No pressure. Free play.</span>
             </span>
           </button>
         </div>
@@ -247,7 +249,7 @@
           <div class="name-plank"><label for="player-name">Name</label>
           <input id="player-name" type="text" maxlength="20" autocomplete="nickname"
                  spellcheck="false" placeholder="Zerble" enterkeyhint="done" aria-describedby="name-note" /></div>
-          <span id="name-note" class="name-note">Optional. Your name appears around the festival, and Festival Run scores go on a public leaderboard under it.</span>
+          <span id="name-note" class="name-note">Optional. Your name appears in the festival and on public Festival Run scores.</span>
         </div>
 
         <button id="start-btn" class="title-sr-only" type="button" tabindex="-1" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
@@ -320,10 +322,10 @@
 
   <script>
     (function () {
-      const stage = document.getElementById('title-stage');
+      const title = document.getElementById('title-card');
       function fitTitle() {
         const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
-        stage.style.transform = `translate(${-640 * scale}px, ${-360 * scale}px) scale(${scale})`;
+        title.style.setProperty('--title-fit', `translate(${-640 * scale}px, ${-360 * scale}px) scale(${scale})`);
       }
       window.addEventListener('resize', fitTitle, { passive: true });
       window.visualViewport?.addEventListener('resize', fitTitle, { passive: true });

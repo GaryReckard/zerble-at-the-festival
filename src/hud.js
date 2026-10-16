@@ -86,8 +86,8 @@ const $modeCruisin = document.getElementById('mode-cruisin');
 const $modeFestival = document.getElementById('mode-festival');
 function reflectMode() {
   const fest = RunMode.isFestival();
-  $modeCruisin?.setAttribute('aria-checked', String(!fest));
-  $modeFestival?.setAttribute('aria-checked', String(fest));
+  $modeCruisin?.setAttribute('data-selected', String(!fest));
+  $modeFestival?.setAttribute('data-selected', String(fest));
 }
 RunMode.loadSaved();
 reflectMode();
@@ -106,7 +106,8 @@ function showHowto(open) {
   if (!$pageMain || !$pageHowto) return;
   $pageMain.hidden = open;
   $pageHowto.hidden = !open;
-  document.getElementById('title-stage')?.classList.toggle('is-howto', open);
+  document.getElementById('title-ui')?.classList.toggle('is-howto', open);
+  if (open) $pageHowto.parentElement.scrollTop = 0;
   $howtoOpen?.setAttribute('aria-expanded', String(open));
   (open ? $howtoBack : $howtoOpen)?.focus({ preventScroll: true });
 }

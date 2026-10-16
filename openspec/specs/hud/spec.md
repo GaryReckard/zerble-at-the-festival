@@ -111,3 +111,10 @@ iOS audio-init contract in `audio-synthesis`).
 
 - **WHEN** the player clicks a ready mode plank
 - **THEN** the callback fires a single time and the title card hides
+
+#### Scenario: Landscape phone controls stay usable
+
+- **WHEN** the title screen is shown on a landscape phone
+- **THEN** its menu uses viewport-sized controls independently of the scaled artwork
+- **AND** How to play uses readable text, scrolls when needed, and keeps Back visible
+- **AND** mode planks are exposed as play buttons rather than radio selections
