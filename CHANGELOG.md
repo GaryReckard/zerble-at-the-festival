@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-20
+
+### Fixed
+- **Food courts now sit beside the road instead of spanning it.** A playtest marker at seed 2228433257, `(85.32, -560.38)`, caught a road running through the dining ring. The planner now searches farther to either side of an approach road until the full truck ring clears every road, while trucks, Sugar Shacks, bubble booths and perimeter torches also check their own road clearance. The reported court remains present nearby, and a five-seed regression sweep checks 229 court rings.
+
 ## 2026-10-16
 
 ### Added

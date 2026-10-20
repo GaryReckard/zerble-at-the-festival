@@ -42,7 +42,7 @@
 
 import { cellRng, quantize, worldHash, mulberry32, cellHash, edgeHash } from '../rng.js';
 import { CONFIG, SALT, worldgenEpoch } from './constants.js';
-import { FESTIVAL_TUNING, clusterShapes, clustersOverlap, clusterExtent } from './tuning.js';
+import { FESTIVAL_TUNING, MODEL_DIMS, clusterShapes, clustersOverlap, clusterExtent } from './tuning.js';
 import { getSessionSeed } from '../rng.js';
 import { queryPoint } from './index.js';
 import { approachRoadsOf, nearestRoad, roadsInBounds, shapesClearOfRoads } from './roads.js';
@@ -968,6 +968,8 @@ function _computePlan(heart) {
   //    each step; omit if nothing on this road fits within the drag cap.
   const courtN = Math.min(roads.length, major ? T.COURT_N_MAJOR : T.COURT_N_MINOR);
   const COURT_CAP = (lenQ) => Math.min(MAX_POI_REACH, (lenQ * T.FOOD_COURT_DRAG_FRAC) | 0);
+  const courtRing = T.FOOD_COURT_RING_MULT * MODEL_DIMS.FOOD_TRUCK_SCALE;
+  const courtRoadClearance = courtRing + CONFIG.ROAD_WIDTH / 2 + 1;
   for (let i = 0; i < courtN; i++) {
     // Courts branch off SIDE roads (assigned from the far end of the list), keeping
     // the main drag roads[0] for the vendor market + the entrance arch (so roads[0]
@@ -981,17 +983,23 @@ function _computePlan(heart) {
     for (let step = 0; step < 6 && !done; step++) {
       const dist = Math.min(cap, base + step * T.FOOD_COURT_STEP);
       const p = walkOriented(rd.oriented, dist);
-      for (const side of [first, -first]) {
-        const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + T.FOOD_COURT_PERP, side);
-        const spot = nudgeOff(o.x, o.z, rng);
-        if (!spot) continue;
-        if (Math.hypot(spot.x - stageSpot.x, spot.z - stageSpot.z) < T.COURT_MIN_STAGE_DIST) continue;
-        const yaw = roadFacingYaw(queryPoint(spot.x, spot.z).facing, rng);
-        if (!fits(clusterShapes('food_court', 1, spot.x, spot.z, yaw))) continue;
-        const d = commit(desc('food_court', spot.x, spot.z, yaw, 'core', heart.rank, false, clusterSeed(heart, IDX.court + i)));
-        welfareParents.push({ x: d.x, z: d.z, yaw, idx: IDX.welfareCourt + i, r: clusterExtent('food_court'), tier: welfareTierFor('food_court', major), parentSeed: d.clusterSeed });
-        done = true;
-        break;
+      // Curved or crossing roads can cut through a court whose center alone is
+      // buildable. Search both shoulders until the complete dining ring clears.
+      for (let lateral = T.FOOD_COURT_PERP; lateral <= T.FOOD_COURT_PERP + 48 && !done; lateral += 8) {
+        for (const side of [first, -first]) {
+          const o = perpOff(p.x, p.z, p.bearing, CONFIG.ROAD_WIDTH / 2 + lateral, side);
+          const spot = nudgeOff(o.x, o.z, rng);
+          if (!spot) continue;
+          const sx = quantize(spot.x), sz = quantize(spot.z);
+          if (nearestRoad(sx, sz).dist <= courtRoadClearance) continue;
+          if (Math.hypot(sx - stageSpot.x, sz - stageSpot.z) < T.COURT_MIN_STAGE_DIST) continue;
+          const yaw = roadFacingYaw(queryPoint(sx, sz).facing, rng);
+          if (!fits(clusterShapes('food_court', 1, sx, sz, yaw))) continue;
+          const d = commit(desc('food_court', sx, sz, yaw, 'core', heart.rank, false, clusterSeed(heart, IDX.court + i)));
+          welfareParents.push({ x: d.x, z: d.z, yaw, idx: IDX.welfareCourt + i, r: clusterExtent('food_court'), tier: welfareTierFor('food_court', major), parentSeed: d.clusterSeed });
+          done = true;
+          break;
+        }
       }
       if (dist >= cap) break;   // reached the drag cap; don't spin on the same point
     }

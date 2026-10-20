@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { setSeed } from '../src/worldgen/index.js';
+import { heartsInBounds } from '../src/worldgen/hearts.js';
+import { festivalPlan } from '../src/worldgen/festival.js';
+import { nearestRoad } from '../src/worldgen/roads.js';
+import { CONFIG } from '../src/worldgen/constants.js';
+import { FESTIVAL_TUNING, MODEL_DIMS } from '../src/worldgen/tuning.js';
+
+const ring = FESTIVAL_TUNING.FOOD_COURT_RING_MULT * MODEL_DIMS.FOOD_TRUCK_SCALE;
+const clearance = ring + CONFIG.ROAD_WIDTH / 2 + 1;
+let checked = 0;
+for (const seed of [2228433257, 1234, 42, 9876, 2186624078]) {
+  setSeed(seed);
+  const hearts = heartsInBounds(-500, -800, 500, 500);
+  const plans = hearts.map((heart) => festivalPlan(heart));
+  const courts = plans.flat().filter((d) => d.kind === 'food_court');
+  assert.ok(courts.length >= 30, `seed ${seed} retains populated food courts`);
+  for (const d of courts) {
+    assert.ok(nearestRoad(d.x, d.z).dist > clearance,
+      `seed ${seed} court ${d.clusterSeed} keeps its dining ring off every road`);
+    checked++;
+  }
+  if (seed === 2228433257) {
+    const reported = courts.find((d) => d.clusterSeed === 3792038776);
+    assert.ok(reported, 'reported food court remains in the festival');
+    assert.ok(Math.hypot(reported.x - 85.32, reported.z + 560.38) > ring,
+      'reported road marker is outside the relocated dining ring');
+  }
+  assert.deepEqual(hearts.map((h) => festivalPlan(h)), plans,
+    `seed ${seed} plans remain stable across repeated queries`);
+}
+console.log(`PASS ${checked} food court rings clear of roads across five seeds`);

@@ -1648,7 +1648,7 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
   const shackRing = ring + T.FOOD_COURT_SHACK_RING_PAD;
   const shackHalf = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
   const shackClear = (sx, sz) => !isPointInLake(sx, sz) &&
-    nearestRoad(sx, sz).dist >= ROAD_RIBBON_WIDTH / 2 + 1 && !overlaps(sx, sz, shackHalf);
+    nearestRoad(sx, sz).dist >= ROAD_RIBBON_WIDTH / 2 + 1 + shackHalf && !overlaps(sx, sz, shackHalf);
   let shackPlaced = false;
   const placeShack = (sx, sz) => {
     if (!shackClear(sx, sz)) return false;
@@ -1669,12 +1669,9 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
     shackPlaced = true;
     return true;
   };
-  // The court hugs the drag (D2.3), but the ~24 m truck ring overshoots the road
-  // it parks near — the road-side trucks/shack land ON the pavement (Gary playtest
-  // 2026-06-16: "Sugar Shack right on the road, another food truck also on the road").
-  // Skip any ring slot on the road ribbon; the ring keeps a gap there, exactly like
-  // the vendor row's road-skip (line ~1383). Chunk-gen only — clusterSeed stream, so
-  // the POI + queryPoint goldens are unaffected.
+  // The planner keeps the central dining ring off roads. A truck or Shack can
+  // still protrude from its ring slot onto the shoulder, so test the full model
+  // footprint here. Skipped slots leave a natural opening toward the road.
   for (let i = 0; i < count; i++) {
     const ang = (i / count) * Math.PI * 2 + ctx.rng() * 0.4;
     angles.push(ang);
@@ -1685,7 +1682,7 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
     }
     const tx = x + Math.cos(ang) * ring, tz = z + Math.sin(ang) * ring;
     const tr = T.FOOD_COURT_TRUCK_R_MULT * FOOD_TRUCK_SCALE;
-    if (isPointInLake(tx, tz) || nearestRoad(tx, tz).dist < ROAD_RIBBON_WIDTH / 2 + 1 || overlaps(tx, tz, tr)) continue;
+    if (isPointInLake(tx, tz) || nearestRoad(tx, tz).dist < ROAD_RIBBON_WIDTH / 2 + 1 + tr || overlaps(tx, tz, tr)) continue;
     const truck = buildFoodTruck(ctx.rng);
     truck.position.set(tx, 0, tz);
     truck.rotation.y = Math.atan2(x - tx, z - tz);   // face inward
@@ -1712,7 +1709,7 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
   if (ctx.rng() < T.FOOD_COURT_BUBBLE_PROB) {
     const ang = ctx.rng() * Math.PI * 2, vr = ring + T.FOOD_COURT_BUBBLE_RING_PAD;
     const vx = x + Math.cos(ang) * vr, vz = z + Math.sin(ang) * vr;
-    if (!isPointInLake(vx, vz) && !overlaps(vx, vz, 2.4)) {
+    if (!isPointInLake(vx, vz) && nearestRoad(vx, vz).dist >= ROAD_RIBBON_WIDTH / 2 + 1 + 2.4 && !overlaps(vx, vz, 2.4)) {
       buildBubbleVendorAt(ctx, vx, vz, Math.atan2(x - vx, z - vz));   // dedups internally (kindNear)
     }
   }
@@ -1763,7 +1760,7 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
   for (let i = 0; i < torchCount; i++) {
     const ang = (i / torchCount) * Math.PI * 2 + 0.3;
     const tx = x + Math.cos(ang) * torchR, tz = z + Math.sin(ang) * torchR;
-    if (!isPointInLake(tx, tz)) courtTorches.push({ x: tx, z: tz });
+    if (!isPointInLake(tx, tz) && nearestRoad(tx, tz).dist >= ROAD_RIBBON_WIDTH / 2 + 1) courtTorches.push({ x: tx, z: tz });
   }
   if (courtTorches.length) {
     const tf = buildTorchField(courtTorches, ctx.rng);

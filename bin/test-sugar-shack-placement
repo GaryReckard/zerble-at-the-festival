@@ -5,11 +5,13 @@ import { heartInCell } from '../src/worldgen/hearts.js';
 import { festivalPlan, spawnHeart, welcomeFoodCourt } from '../src/worldgen/festival.js';
 import { foodCourtShackFallback } from '../src/worldgen/placement.js';
 
+let firstWelcomeSeed;
 for (const seed of [1234, 3948869160, 9876, 42, 8675309]) {
   setSeed(seed);
   const home = spawnHeart();
   const welcome = welcomeFoodCourt();
   assert.ok(welcome, `seed ${seed} has a welcome court`);
+  if (seed === 1234) firstWelcomeSeed = welcome.clusterSeed;
   assert.equal(welcomeFoodCourt(), welcome, 'selection is cached within a seed');
   const neighbours = [];
   for (let cz = home.cz - 1; cz <= home.cz + 1; cz++) {
@@ -37,5 +39,5 @@ assert.equal(foodCourtShackFallback(0, 0, 25, angles, 0, () => false), null,
   'no Sugar Shack is placed in water, on a road, or against another stall');
 
 setSeed(1234);
-assert.equal(welcomeFoodCourt().clusterSeed, 404392107, 'changing seeds invalidates the selection cache');
+assert.equal(welcomeFoodCourt().clusterSeed, firstWelcomeSeed, 'changing seeds invalidates the selection cache');
 console.log('PASS  welcome court selection and safe Sugar Shack fallback');
