@@ -1,0 +1,70 @@
+<!doctype html><meta charset="utf-8"><title>Lurleen model checks</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Checking…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {Lurleen} from '../../src/lurleen.js';
+import {registry} from '../../src/registry.js';
+const checks = [];
+const assert = (ok, text) => {if (!ok) throw Error(text); checks.push(text);};
+const tier = new URLSearchParams(location.search).get('perf');
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(640,480);
+const camera = new THREE.PerspectiveCamera(50,4/3,.1,100);
+camera.position.set(-6,4,-8); camera.lookAt(0,1.8,0);
+function measure(Model) {
+ const scene = new THREE.Scene();
+ const model = new Model(scene);
+ model.autoRehome=false; model.setSpawnAt(0,0); model.heading=0; model.root.rotation.y=0;
+ model.wanderTimer=Infinity;
+ for(let i=0;i<240;i++)model.update(.016,new THREE.Vector3(1000,0,1000),0,0);
+ scene.add(new THREE.HemisphereLight(0xffffff,0x333333,2));
+ renderer.render(scene,camera);
+ const render = {...renderer.info.render};
+ let meshes=0, casters=0;
+ model.root.traverse(n=>{if(n.isMesh){meshes++; casters+=Number(n.castShadow);}});
+ return {model,scene,render,meshes,casters};
+}
+try {
+ let before;
+ if(new URLSearchParams(location.search).has('baseline')) {
+  const {Lurleen: Baseline} = await import('./baseline.js');
+  const old = measure(Baseline); before={render:old.render,meshes:old.meshes,casters:old.casters};
+ }
+ const a=measure(Lurleen), l=a.model;
+ assert(l._wheels.length===4 && l.eyes.length===2,'Wheel and eye animation contracts preserved');
+ assert(registry.entries.get(l._registryId).collider.damage===0,'Damage-free collider registered');
+ l.root.updateMatrixWorld(true);
+ l.root.traverse(n=>{
+  if(!n.isMesh)return;
+  assert(n.matrixWorld.elements.every(Number.isFinite),'Finite mesh transform');
+  if(!n.geometry.attributes.position.array.every(Number.isFinite))throw Error('Nonfinite geometry');
+  if(tier==='low' && !n.material.isMeshLambertMaterial && !n.material.isMeshBasicMaterial)throw Error('Low tier material mismatch');
+ });
+ const far=new THREE.Vector3(1000,0,1000);
+ l.wanderTimer=Infinity; l.update(0,far,0,0);
+ assert(l._eyeMaterial.emissiveIntensity===0 && l._lipMaterial.emissiveIntensity===0,'No eye or lip emission in daylight');
+ l.update(0,far,0,1);
+ assert(l._lipMaterial.emissiveIntensity===0,'Lip fabric stays non-emissive at midnight');
+ assert(l._hairLights.count>80,'Twinkle lights distributed through the raffia');
+ assert(new Set(l._hairLights.instanceColor.array).size>20,'Twinkle lights have independent brightness');
+ assert(l._eyeMaterial.emissiveIntensity>1 && l._lipOutlineMaterial.emissiveIntensity>2,'Night eyes and lip outline illuminate');
+ const near=new THREE.Vector3(5,0,0);
+ l.update(.05,near,0,0);
+ assert(l.state==='aware','Proximity enters aware state');
+ for(let i=0;i<100;i++)l.update(.05,near,0,0);
+ assert(l.state==='following','Aware transitions to following');
+ assert(l._bubbleOutlets.length===2 && l._rearBubbles.count===24,'Two rear machines with a bounded world-space bubble pool');
+ assert(l._bubbleOutlets.every(p=>p.y>l._roofY+0.09),'Bubble outlets sit above the roof and emit upward');
+ assert(l.root.getObjectByName('Blue bubble lantern') && l.root.getObjectByName('Pink bubble lantern'),'Blue and pink lantern housings');
+ assert(l._activeHearts.length>0,'Heart emission survives remodel');
+ l.setSpawnAt(0,0); l.state='following'; const chase=new THREE.Vector3(20,0,0);
+ for(let i=0;i<100;i++)l.update(.016,chase,0,0);
+ assert(l.position.length()>0 && l._wheels.every(w=>Number.isFinite(w.mesh.rotation.x)),'Following motion and wheel transforms remain finite');
+ assert(l._rearBubblePositions.every(Number.isFinite),'Rear bubble world positions stay finite');
+ assert(a.render.calls<90 && a.render.triangles<35000 && a.casters<=7,'Model draw, triangle and shadow limits');
+ assert(renderer.info.programs.every(p=>!p.diagnostics || p.diagnostics.runnable),'Shader compilation');
+ document.querySelector('#result').textContent=JSON.stringify({pass:true,tier,before,after:{render:a.render,meshes:a.meshes,casters:a.casters},checks:[...new Set(checks)]},null,2);
+} catch(e) {document.querySelector('#result').textContent='FAIL: '+e.stack;}
+finally {renderer.dispose();renderer.forceContextLoss();}
+</script>

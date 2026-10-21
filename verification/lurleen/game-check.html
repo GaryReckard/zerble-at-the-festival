@@ -1,0 +1,31 @@
+<!doctype html><meta charset="utf-8"><title>Lurleen game integration</title>
+<style>body{margin:0;background:#151524;color:#fff;font:13px monospace}pre{white-space:pre-wrap;margin:8px}iframe{width:100%;height:78vh;border:0}button{padding:8px}</style>
+<button id="run">Run integration check</button><pre id="result">Waiting for the title card…</pre><iframe id="game"></iframe>
+<script>
+const frame=document.querySelector('#game'), result=document.querySelector('#result');
+const tier=new URLSearchParams(location.search).get('perf')||'low';
+frame.src=`../../index.html?perf=${tier}&mute=1&seed=3948869160`;
+document.querySelector('#run').onclick=async()=>{
+ const errors=[];
+ try {
+  const w=frame.contentWindow,d=w.__dbg;
+  if(!d)throw Error('Game debug API did not boot');
+  const titlePresent=!!w.document.querySelector('#title-card');
+  w.addEventListener('error',e=>errors.push(e.message));
+  d.start();
+  const l=d.game.lurleen;
+  d.teleport(l.position.x+12,l.position.z);
+  d.tod(.30);
+  await new Promise(r=>setTimeout(r,3500));
+  d.camLock(l.position.x-6,4.5,l.position.z+8,l.position.x,1.8,l.position.z);
+  const noon={...d.game.renderer.__sceneInfo};
+  const daylight=l._eyeMaterial.emissiveIntensity;
+  d.tod(.75);
+  await new Promise(r=>setTimeout(r,500));
+  const night=l._eyeMaterial.emissiveIntensity;
+  const shaders=d.game.renderer.info.programs.every(p=>!p.diagnostics||p.diagnostics.runnable);
+  const pass=titlePresent && w.document.body.classList.contains('game-started') && daylight===0 && night>1 && errors.length===0 && shaders;
+  result.textContent=JSON.stringify({pass,tier,titlePresent,started:w.document.body.classList.contains('game-started'),state:l.state,daylight,night,noonScene:noon,midnightScene:{...d.game.renderer.__sceneInfo},shaders,errors},null,2);
+ }catch(e){result.textContent='FAIL: '+e.stack;}
+};
+</script>

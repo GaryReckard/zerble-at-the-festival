@@ -1,0 +1,46 @@
+{
+  "pass": true,
+  "tier": "low",
+  "before": {
+    "render": {
+      "frame": 1,
+      "calls": 262,
+      "triangles": 10082,
+      "points": 0,
+      "lines": 0
+    },
+    "meshes": 261,
+    "casters": 7
+  },
+  "after": {
+    "render": {
+      "frame": 2,
+      "calls": 86,
+      "triangles": 34824,
+      "points": 0,
+      "lines": 0
+    },
+    "meshes": 85,
+    "casters": 7
+  },
+  "checks": [
+    "Wheel and eye animation contracts preserved",
+    "Damage-free collider registered",
+    "Finite mesh transform",
+    "No eye or lip emission in daylight",
+    "Lip fabric stays non-emissive at midnight",
+    "Twinkle lights distributed through the raffia",
+    "Twinkle lights have independent brightness",
+    "Night eyes and lip outline illuminate",
+    "Proximity enters aware state",
+    "Aware transitions to following",
+    "Two rear machines with a bounded world-space bubble pool",
+    "Bubble outlets sit above the roof and emit upward",
+    "Blue and pink lantern housings",
+    "Heart emission survives remodel",
+    "Following motion and wheel transforms remain finite",
+    "Rear bubble world positions stay finite",
+    "Model draw, triangle and shadow limits",
+    "Shader compilation"
+  ]
+}

@@ -1122,6 +1122,9 @@ import {buildShrub} from './src/models/shrub.js';
                 // fake-far Zerble below (which is past the 300m gate).
                 l.autoRehome = false;
                 l.setSpawnAt(0, 0);
+                if (new URLSearchParams(location.search).get('view') === 'still') {
+                    l.wanderTimer = Infinity;
+                }
                 entityRoot = l.root;
                 currentEntity = l;
                 // Drive her with a "Zerble" position that's just out of sight so she
@@ -1130,7 +1133,7 @@ import {buildShrub} from './src/models/shrub.js';
                 // when her wander timer fires.
                 const fakeZerbleFar = new THREE.Vector3(2000, 0, 2000);
                 updateFn = (dt) => {
-                    l.update(dt, fakeZerbleFar);
+                    l.update(dt, fakeZerbleFar, 0, tod.nightness);
                     // Audition her motor: she wanders here, so speed > 0 and the
                     // engine is audible once audio is initialized (no-op until then).
                     try { Sound.setLurleenEngine(l.speed, l.position.x, l.position.z); } catch (_) {}
@@ -1151,6 +1154,11 @@ import {buildShrub} from './src/models/shrub.js';
                 const l = new Lurleen(scene);   // Lurleen.constructor adds her root + heart group already.
                 l.autoRehome = false;
                 l.setSpawnAt(3, 0);
+                if (new URLSearchParams(location.search).get('view') === 'still') {
+                    z.heading = Math.PI;
+                    z.root.rotation.y = Math.PI;
+                    l.wanderTimer = Infinity;
+                }
                 entityRoot = z.root;
                 currentEntity = {z, l};
                 const mockInput = {
@@ -1165,7 +1173,7 @@ import {buildShrub} from './src/models/shrub.js';
                         z.update(dt, mockInput);
                     } catch (_) {
                     }
-                    l.update(dt, new THREE.Vector3(2000, 0, 2000));
+                    l.update(dt, new THREE.Vector3(2000, 0, 2000), 0, tod.nightness);
                     // Audition her motor against Zerble's (he idles silent here).
                     try { Sound.setLurleenEngine(l.speed, l.position.x, l.position.z); } catch (_) {}
                 };

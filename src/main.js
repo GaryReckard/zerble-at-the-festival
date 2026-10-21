@@ -1129,7 +1129,7 @@ function tickBody(dt) {
     // Collect wook world positions for proximity detection
     const _wookPositions = wooks.wooks.map(w => w.position);
     Trip.update(dt, zerble.position, Math.abs(zerble.speed), _wookPositions);
-    lurleen.update(dt, zerble.position, zerble.heading);
+    lurleen.update(dt, zerble.position, zerble.heading, nightness);
     HUD.setLurleenFollowing(lurleen.state === 'aware' || lurleen.state === 'following');
     // Her motor — spatialized to her position, pitch/volume track her real
     // speed whether she's wandering on her own or chasing Zerble.

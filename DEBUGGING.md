@@ -518,6 +518,7 @@ http://127.0.0.1:8765/sandbox.html?entity=<name>
   views, and `6` for the rear three-quarter view; the heron opens from a
   forward three-quarter camera so its beak is visible. Midnight is `t=0.75`,
   Noon is `t=0.30`.
+- **Lurleen photo comparison:** `?entity=lurleen&view=still&mute=1` holds her wander target, while `?entity=lurleen_zerble&view=still&mute=1` also aligns both carts for a front-to-front scale comparison. Eye motion, twinkle lights, disco and bubbles keep updating. [Model and game checks](verification/lurleen/README.md) cover low/high tiers and Noon/Midnight.
 - **Nut Wagon model preview:** `?entity=nut_wagon` opens the doorless wagon with its hatch raised; `?entity=nut_wagon_closed` checks the shut hatch and hidden supports. The model exposes `userData.hatch`, four `userData.wheels`, and nine independent provisional `userData.riderMounts`. Its pooled light strings follow the sandbox day/night cycle through `setNutWagonNightness`. The separate nut_wagon_cruise preview exercises its driving, boarding, riders and music controller. Open `verification/nut-wagon/check.html?perf=low` or `?perf=mid` on the same server for real-Three geometry, pooling, transform-isolation, bounds, and shader checks. [Saved views and results](verification/nut-wagon/README.md).
 - **Music panel** drives any stage genre (jam / brass / drum / forest / dance /
   world / dub), an **"End song now"** button (`Sound._debugEndSong()`), a live

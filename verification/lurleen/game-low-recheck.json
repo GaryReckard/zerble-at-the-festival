@@ -1,0 +1,19 @@
+{
+  "pass": true,
+  "tier": "low",
+  "titlePresent": true,
+  "started": true,
+  "state": "following",
+  "daylight": 0,
+  "night": 1.5,
+  "noonScene": {
+    "calls": 1199,
+    "triangles": 411250
+  },
+  "midnightScene": {
+    "calls": 1246,
+    "triangles": 411936
+  },
+  "shaders": true,
+  "errors": []
+}

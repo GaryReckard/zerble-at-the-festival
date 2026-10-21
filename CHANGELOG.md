@@ -4,6 +4,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-20
 
+### Changed
+- **Lurleen now follows the real cart's front, side and rear details.** The open charcoal body has a curved front cowl, rounded rear wheel arches, cream-rimmed treaded tires, rounded white eye domes, thick fabric lips with a separately glowing pink outline, and a flower-trimmed raffia canopy with woven twinkle lights. Longer rounded wooden rear seats flank a basket and rotating disco light; blue and pink lantern-style bubble machines rise just above the rear roof corners and release a bounded decorative bubble stream from their tops. The steering column sits on the driver's left. Still sandbox views support repeatable comparisons, and the existing movement, hearts and collider remain intact. [Visual evidence and measured costs](verification/lurleen/README.md).
+
 ### Fixed
 - **Food courts now sit beside the road instead of spanning it.** A playtest marker at seed 2228433257, `(85.32, -560.38)`, caught a road running through the dining ring. The planner now searches farther to either side of an approach road until the full truck ring clears every road, while trucks, Sugar Shacks, bubble booths and perimeter torches also check their own road clearance. The reported court remains present nearby, and a five-seed regression sweep checks 229 court rings.
 

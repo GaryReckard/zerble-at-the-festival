@@ -1,6 +1,6 @@
 // Lurleen — Zerble's love interest. A second anthropomorphic golf cart with
-// pink puffy lips, googly eyes, flowing raffia/flower hair, and a small basket
-// where the back seat would be.
+// pink puffy lips, googly eyes, gathered raffia/flower hair, and a wooden
+// rear platform with side shelves.
 //
 // Spawned at a deterministic location far from origin so the player has to
 // drive to find her. She wanders within ~60m of her spawn point. When Zerble
@@ -10,6 +10,7 @@
 // to wandering.
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { registry } from './registry.js';
 import { createHeartGeometry, sharedHeartGeometry as _heartGeo } from './models/heart.js';
 import { worldHash, mulberry32, getSessionSeed } from './rng.js';
@@ -68,14 +69,6 @@ const REHOME_DROP_MAX = 220;       // …and at most this far
 const FORWARD_CONE_CHANCE = 0.7;   // 70% of relocations bias toward player heading
 const FORWARD_CONE_HALF_ANGLE = Math.PI / 4;  // ±45° = 90° forward cone
 
-// Lay out N evenly-spaced positions along a [0..1] parameter, mapping each
-// through `fn` to a value. Helper used to plot a flower crown on the roof.
-function range(n, fn) {
-  const out = [];
-  for (let i = 0; i < n; i++) out.push(fn(i / Math.max(1, n - 1)));
-  return out;
-}
-
 export class Lurleen {
   constructor(scene, center = null) {
     this.scene = scene;
@@ -116,7 +109,8 @@ export class Lurleen {
     this._buildLips();
     this._buildEyes();
     this._buildHair();
-    this._buildBasket();
+    this._buildRearPlatform();
+    this._buildRearEquipment();
 
     // Heart particles live in scene-space (not Lurleen's local space) so they
     // rise straight up rather than getting dragged along by her motion.
@@ -179,86 +173,109 @@ export class Lurleen {
   // ---------- Body ----------
 
   _buildBody() {
-    const chassisMat = new THREE.MeshStandardMaterial({
-      color: 0xffb3d9, roughness: 0.6, flatShading: true,
+    const dark = new THREE.MeshStandardMaterial({ color: 0x26282b, roughness: 0.72 });
+    const rubber = new THREE.MeshStandardMaterial({ color: 0x171819, roughness: 1 });
+    const cream = new THREE.MeshStandardMaterial({ color: 0xd9d4b4, roughness: 0.75 });
+    const seat = new THREE.MeshStandardMaterial({ color: 0xcbbc91, roughness: 0.95 });
+    const box = (w, h, d, x, y, z, mat = dark, shadow = false) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = shadow;
+      this.root.add(mesh);
+      return mesh;
+    };
+    box(1.8, 0.20, 3.0, 0, 0.65, 0, dark);
+    const hoodProfile = new THREE.Shape();
+    hoodProfile.moveTo(0.78, 0.78);
+    hoodProfile.lineTo(0.78, 1.66);
+    hoodProfile.bezierCurveTo(1.12, 1.66, 1.50, 1.45, 1.65, 1.16);
+    hoodProfile.quadraticCurveTo(1.72, 1.02, 1.56, 0.99);
+    hoodProfile.lineTo(1.30, 0.78);
+    hoodProfile.closePath();
+    const hoodGeo = new THREE.ExtrudeGeometry(hoodProfile, {
+      depth: 1.84, bevelEnabled: true, bevelSize: 0.075,
+      bevelThickness: 0.075, bevelSegments: 3, curveSegments: 10,
     });
-    const chassis = new THREE.Mesh(
-      new THREE.BoxGeometry(2.0, 1.0, 3.0, 2, 1, 2),
-      chassisMat,
-    );
-    chassis.position.y = 0.7;
-    chassis.castShadow = true;
-    this.root.add(chassis);
-
-    // Roof — bright yellow/gold base, now at Zerble's roof height so the two
-    // carts look like equals from a distance. Hair attaches at the four
-    // corners and drapes down to the chassis.
-    const roofMat = new THREE.MeshStandardMaterial({
-      color: 0xffe066, roughness: 0.95, flatShading: true,
-    });
-    const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(2.1, 0.18, 1.9),
-      roofMat,
-    );
-    // Roof center at y=3.85, top at 3.94 — matches Zerble's roof at 3.75+0.125.
-    roof.position.set(0, 3.85, -0.5);
-    roof.castShadow = true;
-    this.root.add(roof);
+    hoodGeo.translate(0, 0, -0.92).rotateY(Math.PI / 2);
+    const cowl = new THREE.Mesh(hoodGeo, dark);
+    cowl.name = 'Curved front cowl';
+    cowl.castShadow = true;
+    this.root.add(cowl);
+    box(1.8, 0.16, 0.18, 0, 0.72, -1.58);
+    box(1.6, 0.57, 0.75, 0, 1.02, 0.35, dark);
+    const rearProfile = new THREE.Shape();
+    rearProfile.moveTo(-0.05, 0.58);
+    rearProfile.lineTo(-0.05, 1.20);
+    rearProfile.quadraticCurveTo(-0.06, 1.38, -0.32, 1.38);
+    rearProfile.lineTo(-1.30, 1.36);
+    rearProfile.quadraticCurveTo(-1.65, 1.34, -1.67, 0.58);
+    rearProfile.lineTo(-1.59, 0.58);
+    rearProfile.absarc(-1.0, 0.58, 0.59, Math.PI, 0, true);
+    rearProfile.lineTo(-0.05, 0.58);
+    const rearParts = [];
+    for (const x of [-0.96, 0.96]) {
+      box(0.22, 0.10, 1.20, x, 0.73, -0.38);
+      const panel = new THREE.ExtrudeGeometry(rearProfile, {
+        depth: 0.10, bevelEnabled: true, bevelSize: 0.035,
+        bevelThickness: 0.035, bevelSegments: 2, curveSegments: 10,
+      });
+      panel.translate(0, 0, -0.05).rotateY(Math.PI / 2).translate(x, 0, 0);
+      rearParts.push(panel);
+    }
+    const rearBody = new THREE.Mesh(mergeGeometries(rearParts), dark);
+    rearBody.name = 'Rounded rear wheel arches';
+    this.root.add(rearBody);
+    for (const panel of rearParts) panel.dispose();
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0xb59b65, roughness: 0.95 });
+    box(2.22, 0.12, 2.65, 0, 3.85, -0.12, roofMat, true);
     this._roofY = 3.85;
-    this._roofHalfW = 1.05;
-    this._roofHalfD = 0.95;
-    this._roofZ = -0.5;
-
-    // Roof posts — tall enough to reach the new roof height.
-    const postMat = new THREE.MeshStandardMaterial({
-      color: 0x2a1f3a, roughness: 0.7, flatShading: true,
-    });
-    // Posts span from chassis top (y ~1.2) up to roof bottom (y ~3.76).
-    const postLen = 2.55;
-    const postY = 1.2 + postLen / 2;
-    for (const [px, pz] of [[-0.95, 0.3], [0.95, 0.3], [-0.95, -1.3], [0.95, -1.3]]) {
-      const post = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, postLen, 6), postMat,
-      );
-      post.position.set(px, postY, pz);
-      this.root.add(post);
+    this._roofHalfW = 1.11;
+    this._roofHalfD = 1.325;
+    this._roofZ = -0.12;
+    for (const x of [-0.96, 0.96]) {
+      for (const z of [-1.3, 1.08]) box(0.065, 2.65, 0.065, x, 2.46, z);
     }
+    box(1.68, 0.24, 0.72, 0, 1.43, 0.20, seat);
+    box(1.68, 0.65, 0.18, 0, 1.79, 0.55, seat);
+    const steering = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.028, 6, 20), dark);
+    steering.position.set(-0.47, 1.94, -0.55);
+    steering.rotation.x = -0.65;
+    this.root.add(steering);
+    const columnBase = new THREE.Vector3(-0.47, 1.02, -0.98);
+    const columnTop = new THREE.Vector3(-0.47, 1.94, -0.55);
+    const columnDirection = columnTop.clone().sub(columnBase);
+    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, columnDirection.length(), 8), dark);
+    column.position.copy(columnBase).add(columnTop).multiplyScalar(0.5);
+    column.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), columnDirection.normalize());
+    this.root.add(column);
 
-    // Wheels — slightly skinnier than Zerble's monster-truck wheels
     this._wheels = [];
-    for (const [wx, wz] of [[-0.95, 1.0], [0.95, 1.0], [-0.95, -1.0], [0.95, -1.0]]) {
-      const wheel = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.42, 0.42, 0.30, 12),
-        new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.95, flatShading: true }),
-      );
-      wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(wx, 0.42, wz);
-      wheel.castShadow = true;
+    const tireGeo = new THREE.CylinderGeometry(0.51, 0.51, 0.42, 16).rotateZ(Math.PI / 2);
+    const rimGeo = new THREE.CylinderGeometry(0.30, 0.30, 0.44, 16).rotateZ(Math.PI / 2);
+    const hubGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.47, 10).rotateZ(Math.PI / 2);
+    const treadGeo = new THREE.BoxGeometry(0.25, 0.075, 0.13);
+    const dummy = new THREE.Object3D();
+    for (const [x, z] of [[-1.03,-1.0],[1.03,-1.0],[-1.03,1.0],[1.03,1.0]]) {
+      const wheel = new THREE.Group();
+      wheel.position.set(x, 0.53, z);
+      const tire = new THREE.Mesh(tireGeo, rubber);
+      tire.castShadow = true;
+      wheel.add(tire, new THREE.Mesh(rimGeo, cream), new THREE.Mesh(hubGeo, dark));
+      const treads = new THREE.InstancedMesh(treadGeo, rubber, 32);
+      for (let i = 0; i < 16; i++) {
+        const a = i * Math.PI / 8;
+        for (let side = 0; side < 2; side++) {
+          dummy.position.set((side ? 1 : -1) * 0.115, Math.cos(a)*0.51, Math.sin(a)*0.51);
+          dummy.rotation.set(a, 0, (side ? 1 : -1)*0.48);
+          dummy.updateMatrix();
+          treads.setMatrixAt(i*2+side, dummy.matrix);
+        }
+      }
+      treads.instanceMatrix.needsUpdate = true;
+      wheel.add(treads);
       this.root.add(wheel);
-      this._wheels.push({ mesh: wheel, baseY: 0.42, front: wz < 0 });
+      this._wheels.push({ mesh: wheel, baseY: 0.53, front: z < 0 });
     }
-
-    // ----- Front bench seat — bench cushion + seatback, like Zerble's -----
-    // Chassis top sits at y=1.2 and is 2.0 wide × 3.0 deep. We tuck the bench
-    // into the front half (z = -0.6..-1.3 area, between the two front posts).
-    const seatMat = new THREE.MeshStandardMaterial({
-      // Classic beige golf-cart cushion — matches the real reference cart.
-      color: 0xd7c79a, roughness: 0.9, flatShading: true,
-    });
-    const seatCushion = new THREE.Mesh(
-      new THREE.BoxGeometry(1.7, 0.30, 0.85),
-      seatMat,
-    );
-    seatCushion.position.set(0, 1.40, -0.85);
-    // Seat sits inside the cart — chassis + roof cast the cart shadow.
-    this.root.add(seatCushion);
-
-    const seatBack = new THREE.Mesh(
-      new THREE.BoxGeometry(1.7, 0.80, 0.20),
-      seatMat,
-    );
-    seatBack.position.set(0, 1.85, -0.40);
-    this.root.add(seatBack);
   }
 
   // ---------- Windshield — a clear plane between the front posts ----------
@@ -288,410 +305,367 @@ export class Lurleen {
     this._windshield = windshield;
   }
 
-  // ---------- Lips — flat stuffed-fabric prop with cupid's bow ----------
-  // Per the real reference photo: lips are a fabric/plush prop slapped on
-  // the front, not anatomical 3D shapes. We build them with ShapeGeometry
-  // (2D silhouettes) extruded slightly into Z so they read as a thin
-  // pillow. Top lip has the cupid's bow dip in the middle; bottom lip is
-  // one big rounded pillow.
-
+  // Closed, elliptical cross-sections give the stuffed fabric its side profile.
   _buildLips() {
-    // Pink prop color (restored from the previous Lurleen v2 — Gary asked
-    // me to keep the color, only update the shape).
-    const lipMat = new THREE.MeshStandardMaterial({
-      color: 0xff3580,
-      emissive: 0xff1466,
-      emissiveIntensity: 0.30,
-      roughness: 0.5,
+    this._lipMaterial = new THREE.MeshStandardMaterial({color:0xee4685,roughness:1});
+    this._lipOutlineMaterial = new THREE.MeshStandardMaterial({
+      color:0xff74bd,emissive:0xff1684,emissiveIntensity:0,roughness:0.8,
     });
-
-    const lipGroup = new THREE.Group();
-
-    // ---- TOP LIP ----
-    // Silhouette walks COUNTER-CLOCKWISE around the perimeter starting at
-    // the outer-left corner. The top edge has two bumps (the two halves of
-    // the cupid's bow) with a dip in the middle. The bottom edge is the
-    // gentle curve that meets the lower lip.
-    //
-    // Coordinate frame: x is horizontal mouth width, y is vertical (top
-    // lip lives entirely above y=0).
-    {
-      const w = 1.4;             // half-width of the mouth
-      const peakY = 0.45;        // height of the cupid's-bow peaks
-      const dipY = 0.18;         // dip between peaks (lower than peakY)
-      const top = new THREE.Shape();
-      top.moveTo(-w, 0);
-      // ----- Bottom edge (left → right) — gentle curve hugging the seam -----
-      top.bezierCurveTo(-w * 0.6, -0.04, w * 0.6, -0.04, w, 0);
-      // ----- Right outer slope going up to the right peak -----
-      top.bezierCurveTo(w * 0.9, peakY * 0.4, w * 0.6, peakY * 0.95, w * 0.45, peakY);
-      // ----- Down into the cupid's-bow dip at center -----
-      top.bezierCurveTo(w * 0.25, peakY * 0.85, w * 0.10, dipY, 0, dipY);
-      top.bezierCurveTo(-w * 0.10, dipY, -w * 0.25, peakY * 0.85, -w * 0.45, peakY);
-      // ----- Up & back out to the left corner -----
-      top.bezierCurveTo(-w * 0.6, peakY * 0.95, -w * 0.9, peakY * 0.4, -w, 0);
-
-      const topGeo = new THREE.ExtrudeGeometry(top, {
-        depth: 0.18,
-        bevelEnabled: true,
-        bevelSize: 0.04,
-        bevelThickness: 0.04,
-        bevelSegments: 2,
-        curveSegments: 16,
-      });
-      // Extrude pushes +Z; recenter so the prop sits flat against the bumper.
-      topGeo.translate(0, 0, -0.09);
-      const topMesh = new THREE.Mesh(topGeo, lipMat);
-      topMesh.position.y = 0.05;
-      // Lip is a tiny prop; skip its shadow contribution.
-      lipGroup.add(topMesh);
-    }
-
-    // ---- BOTTOM LIP ----
-    // Wider, fuller, one continuous belly. Top edge mirrors the top lip's
-    // bottom (the seam) and the bottom edge is a deep rounded curve.
-    {
-      const w = 1.5;
-      const bellyY = -0.55;      // deepest point of the bottom curve
-      const bot = new THREE.Shape();
-      bot.moveTo(-w, 0);
-      // ----- Top edge — slight upward curve to meet the seam cleanly -----
-      bot.bezierCurveTo(-w * 0.55, 0.04, w * 0.55, 0.04, w, 0);
-      // ----- Right edge sweeping down + around the belly + up the left side -----
-      bot.bezierCurveTo(w * 0.95, bellyY * 0.35, w * 0.65, bellyY, 0, bellyY);
-      bot.bezierCurveTo(-w * 0.65, bellyY, -w * 0.95, bellyY * 0.35, -w, 0);
-
-      const botGeo = new THREE.ExtrudeGeometry(bot, {
-        depth: 0.22,
-        bevelEnabled: true,
-        bevelSize: 0.05,
-        bevelThickness: 0.05,
-        bevelSegments: 2,
-        curveSegments: 16,
-      });
-      botGeo.translate(0, 0, -0.11);
-      const botMesh = new THREE.Mesh(botGeo, lipMat);
-      botMesh.position.y = -0.05;
-      lipGroup.add(botMesh);
-    }
-
-    // Stick the prop on the front bumper, facing forward (-Z = cart front).
-    // Slight scale-down so the prop reads as fabric stuck on the chassis,
-    // not a freestanding sculpture wider than the cart.
-    lipGroup.scale.setScalar(0.82);
-    lipGroup.position.set(0, 1.10, -1.55);
-    // ExtrudeGeometry's depth runs along +Z; rotating π around Y points the
-    // extruded face toward the viewer in front of the cart so the bevel /
-    // shading reads from the front rather than from the chassis side.
-    lipGroup.rotation.y = Math.PI;
-    this.root.add(lipGroup);
-  }
-
-  // ---------- Eyes — flat googly stickers on the windshield ----------
-  // Reference photo: two large flat circles stuck on the windshield (white
-  // outer ring + freely-rolling black pupil disc inside). NOT 3D globes —
-  // they read as eye stickers, not real eyes. The pupil wobbles inside the
-  // sclera disc for the classic googly-eye effect.
-
-  _buildEyes() {
-    const scleraMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 0.10,
-      roughness: 0.4,
-      // Double-sided so the back of the eye reads as a white circle when
-      // we drive up behind Lurleen — matches the real-cart reference where
-      // googly-eye stickers have plain white backs.
-      side: THREE.DoubleSide,
-    });
-    const ringMat = new THREE.MeshStandardMaterial({
-      color: 0x111111,
-      roughness: 0.7,
-      side: THREE.DoubleSide,
-    });
-    const pupilMat = new THREE.MeshStandardMaterial({
-      color: 0x080808,
-      roughness: 0.9,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-    });
-    const lashMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-
-    // Per Gary's feedback: eyes should sit much closer together. Halving
-    // center-to-center put them on top of each other; instead, halve the
-    // visible GAP between inner edges. Previous gap was ~0.34 → new ~0.17,
-    // which gives center separation of (gap/2 + eyeR) ≈ 0.46.
-    const eyeR = 0.38;
-    const eyeSep = 0.46;
-    const eyeY = 2.55;     // sits on the upper half of the windshield
-    // Windshield front face: z = -1.45 with a 0.08 forward tilt at top.
-    // Stick eyes slightly in front of it so they sit on the surface visibly.
-    const eyeZ = -1.50;
-    for (const ex of [-eyeSep, eyeSep]) {
-      const eye = new THREE.Group();
-      eye.position.set(ex, eyeY, eyeZ);
-      // Match the windshield's tilt so the eye sticker lies flush.
-      eye.rotation.x = 0.08;
-      // Eye faces forward (cart-local -Z). CircleGeometry's normal is +Z by
-      // default, so flip the eye group 180° around Y.
-      eye.rotation.y = Math.PI;
-
-      // White flat disc — the "sclera sticker"
-      const sclera = new THREE.Mesh(
-        new THREE.CircleGeometry(eyeR, 32),
-        scleraMat,
-      );
-      eye.add(sclera);
-
-      // Thin dark outline ring around the sclera — sells the sticker look
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(eyeR - 0.02, eyeR + 0.02, 32),
-        ringMat,
-      );
-      ring.position.z = 0.005;
-      eye.add(ring);
-
-      // Pupil — flat black disc that wobbles around inside the sclera. Held
-      // in its own group so we can pan it within the sclera circle.
-      const pupilR = 0.16;       // scaled down with the sclera
-      const pupilGroup = new THREE.Group();
-      const pupil = new THREE.Mesh(
-        new THREE.CircleGeometry(pupilR, 28),
-        pupilMat,
-      );
-      pupil.position.z = 0.02;
-      pupilGroup.add(pupil);
-      const highlight = new THREE.Mesh(
-        new THREE.CircleGeometry(0.04, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.6, roughness: 0.2,
-          polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3,
-        }),
-      );
-      highlight.position.set(-0.05, 0.06, 0.025);
-      pupilGroup.add(highlight);
-      eye.add(pupilGroup);
-
-      // Eyelashes
-      for (let k = -1; k <= 1; k++) {
-        const lash = new THREE.Mesh(
-          new THREE.ConeGeometry(0.030, 0.24, 5),
-          lashMat,
-        );
-        lash.position.set(k * 0.16, eyeR - 0.04, 0.005);
-        lash.rotation.x = -0.25;
-        lash.rotation.z = -k * 0.18;
-        eye.add(lash);
+    const group = new THREE.Group();
+    const seam = u => -0.025 + 0.065*Math.cos(u*Math.PI);
+    const upper = u => Math.pow(Math.max(0,1-u*u),0.65)*(0.25+0.35*Math.sin(Math.PI*Math.abs(u)));
+    const lower = u => -0.56*Math.pow(Math.max(0,1-u*u),0.65);
+    const width=1.45, segments=40, rings=20;
+    for (const isTop of [true,false]) {
+      const positions=[], indices=[];
+      for(let i=0;i<=segments;i++) {
+        const u=i/segments*2-1;
+        const edge = Math.max(0,1-u*u);
+        const inner=seam(u)*edge;
+        const outer=isTop?upper(u):lower(u);
+        const center=(inner+outer)/2, radius=Math.abs(outer-inner)/2;
+        const depth=(isTop?0.30:0.34)*Math.pow(edge,0.6);
+        for(let j=0;j<=rings;j++) {
+          const angle=j/rings*Math.PI*2;
+          positions.push(u*width,center+radius*Math.cos(angle),depth*Math.sin(angle));
+          if(i<segments && j<rings) {
+            const n=i*(rings+1)+j;
+            indices.push(n,n+1,n+rings+1,n+1,n+rings+2,n+rings+1);
+          }
+        }
       }
-
-      this.root.add(eye);
-      // Save the wobble bounds so the pupil can't escape the (smaller) sclera.
-      this.eyes.push({
-        root: eye, pupil: pupilGroup, basePos: eye.position.clone(),
-        wobbleX: eyeR - pupilR - 0.04, wobbleY: eyeR - pupilR - 0.06,
-      });
+      const geometry=new THREE.BufferGeometry();
+      geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+      geometry.setIndex(indices); geometry.computeVertexNormals();
+      group.add(new THREE.Mesh(geometry,this._lipMaterial));
     }
+    // One outer cord and one curved mouth seam, rather than two doubled seams.
+    const perimeter=[];
+    for(let i=0;i<=40;i++){const u=i/20-1;perimeter.push(new THREE.Vector3(u*width,upper(u)*0.9+seam(u)*(1-u*u)*0.1,0.012+0.18*Math.pow(Math.max(0,1-u*u),0.6)));}
+    for(let i=39;i>0;i--){const u=i/20-1;perimeter.push(new THREE.Vector3(u*width,lower(u)*0.9+seam(u)*(1-u*u)*0.1,0.012+0.204*Math.pow(Math.max(0,1-u*u),0.6)));}
+    const mouth=[];
+    for(let i=0;i<=40;i++){const u=i/20-1;mouth.push(new THREE.Vector3(u*width,seam(u)*(1-u*u),0.012+0.12*Math.pow(Math.max(0,1-u*u),0.6)));}
+    for(const [points,closed] of [[perimeter,true],[mouth,false]]) {
+      group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points,closed),
+        closed?100:50,0.014,4,closed),this._lipOutlineMaterial));
+    }
+    group.scale.set(0.60,0.78,1);
+    group.position.set(0,1.42,-1.70);
+    group.rotation.y=Math.PI;
+    this.root.add(group);
   }
 
-  // ---------- Hair — raffia strands wrapping the whole roof + flower crown ----------
-  // Reference photo: long fringe of raffia hanging down all four sides of the
-  // roof, gathered into bunches/parts in a few places, with a row of small
-  // bright flowers along the top edge. Builds the perimeter as four runs (front,
-  // back, left, right), each laying strands along its edge.
+  // The white props are shallow domes, with pupils moving on their front caps.
+  _buildEyes() {
+    this._eyeMaterial = new THREE.MeshStandardMaterial({
+      color: 0xfffdf1, emissive: 0xffc34d, emissiveIntensity: 0, roughness: 0.55,
+    });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x090909, roughness: 0.65 });
+    for (const x of [-0.49, 0.49]) {
+      const eye = new THREE.Group();
+      eye.position.set(x, 2.24, -1.54);
+      eye.rotation.y = Math.PI;
+      const white = new THREE.Mesh(new THREE.SphereGeometry(0.47, 24, 14, 0, Math.PI), this._eyeMaterial);
+      white.scale.z = 0.56;
+      eye.add(white);
+      const backing = new THREE.Mesh(new THREE.CircleGeometry(0.47,24),dark);
+      backing.rotation.y = Math.PI;
+      backing.position.z = -0.005;
+      eye.add(backing);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.465, 0.015, 5, 24), dark);
+      eye.add(rim);
+      const pupilGroup = new THREE.Group();
+      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.155, 16, 10), dark);
+      pupil.scale.z = 0.15;
+      pupil.position.z = 0.267;
+      pupilGroup.add(pupil);
+      eye.add(pupilGroup);
+      for (let k = 0; k < 7; k++) {
+        const a = 0.38 + k * 0.34;
+        const curve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(Math.cos(a)*0.44, Math.sin(a)*0.44, 0),
+          new THREE.Vector3(Math.cos(a)*0.56, Math.sin(a)*0.56, 0.035),
+          new THREE.Vector3(Math.cos(a)*0.64, Math.sin(a)*0.64, 0.12),
+        ]);
+        eye.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 5, 0.012, 3, false), dark));
+      }
+      this.root.add(eye);
+      this.eyes.push({root: eye, pupil: pupilGroup, basePos: eye.position.clone(), wobbleX: 0.075, wobbleY: 0.07});
+    }
+  }
 
   _buildHair() {
-    // Reduce hair strand count for perf. Set HAIR_DENSITY = 1.0 to restore full density.
-    const HAIR_DENSITY = 0.55;
-
-    // Per Gary's reference photo + feedback: hair is gathered into FOUR
-    // bunches at the roof corners (like hair ties / pigtails) and hangs
-    // straight down from there. No perimeter fringe.
-    const goldHair = new THREE.MeshStandardMaterial({ color: 0xd8b878, roughness: 0.95, flatShading: true });
-    const brownHair = new THREE.MeshStandardMaterial({ color: 0xa07840, roughness: 0.95, flatShading: true });
-    const lightHair = new THREE.MeshStandardMaterial({ color: 0xe6c98c, roughness: 0.95, flatShading: true });
-
-    const halfW = this._roofHalfW;
-    const halfD = this._roofHalfD;
-    const roofZ = this._roofZ;
-    // Strands anchor flush against the bottom of the roof slab.
-    const hairTopY = this._roofY - 0.09;
-    // Length: long enough to drape past the roof posts and just past chassis
-    // height, like the photo where hair brushes the windshield top.
-    const hairLen = 1.65;
-
-    const corners = [
-      { x: -halfW, z: roofZ + halfD, normX: -1, normZ: 1 },     // front-left
-      { x:  halfW, z: roofZ + halfD, normX:  1, normZ: 1 },     // front-right
-      { x: -halfW, z: roofZ - halfD, normX: -1, normZ: -1 },    // back-left
-      { x:  halfW, z: roofZ - halfD, normX:  1, normZ: -1 },    // back-right
-    ];
-
-    // ----- Perimeter strands that arc DOWN toward the nearest corner tie -----
-    // Reference photo: hair comes down from along the ENTIRE roof edge, not
-    // just the corners. Each strand curves toward the nearest corner's hair
-    // tie about 1/3 of the way down, where it joins the bunch. From the tie
-    // on, the strand falls straight (the corner-bunch loop below handles
-    // the below-tie portion).
-    const arcStrandMat = (matRoll) =>
-      matRoll < 0.4 ? goldHair : matRoll < 0.75 ? brownHair : lightHair;
-    const tieDropY = 0.55;     // how far below the roof the tie sits
-    const arcEndOffset = 0.06; // small offset so the strand visually lands inside the tie
-
-    // Sample points per edge — gives a dense fringe without being a
-    // performance hog. Halfway between two adjacent points on an edge, the
-    // strand picks whichever corner is closer (the boundary is the edge
-    // midpoint, which we deliberately don't sample exactly).
-    const edges = [
-      // front (z = roofZ + halfD), corners 0 and 1
-      { axis: 'x', from: -halfW, to: halfW, fixedZ: roofZ + halfD,
-        cornerA: corners[0], cornerB: corners[1] },
-      // back (z = roofZ - halfD), corners 2 and 3
-      { axis: 'x', from: halfW,  to: -halfW, fixedZ: roofZ - halfD,
-        cornerA: corners[3], cornerB: corners[2] },
-      // left (x = -halfW), corners 0 (front-left) and 2 (back-left)
-      { axis: 'z', from: roofZ + halfD, to: roofZ - halfD, fixedX: -halfW,
-        cornerA: corners[0], cornerB: corners[2] },
-      // right (x = halfW), corners 1 (front-right) and 3 (back-right)
-      { axis: 'z', from: roofZ + halfD, to: roofZ - halfD, fixedX: halfW,
-        cornerA: corners[1], cornerB: corners[3] },
-    ];
-
-    for (const edge of edges) {
-      const stranesPerEdge = Math.round(22 * HAIR_DENSITY);
-      for (let i = 0; i < stranesPerEdge; i++) {
-        // Offset i slightly so we don't sample exactly at the corner (the
-        // corner bunch covers that already).
-        const t = (i + 1) / (stranesPerEdge + 1);
-        let sx, sz;
-        if (edge.axis === 'x') {
-          sx = edge.from + (edge.to - edge.from) * t;
-          sz = edge.fixedZ;
-        } else {
-          sx = edge.fixedX;
-          sz = edge.from + (edge.to - edge.from) * t;
-        }
-        // Pick the nearest corner of the two endpoints of this edge.
-        const dA = Math.hypot(sx - edge.cornerA.x, sz - edge.cornerA.z);
-        const dB = Math.hypot(sx - edge.cornerB.x, sz - edge.cornerB.z);
-        const corner = dA < dB ? edge.cornerA : edge.cornerB;
-
-        // Build the arc as a CatmullRom curve from the origin point down to
-        // the tie position. Middle control point is pulled outward & down
-        // so the strand bows away from the roof before snapping back at the
-        // tie.
-        const startV = new THREE.Vector3(sx, hairTopY, sz);
-        const endV = new THREE.Vector3(corner.x, hairTopY - tieDropY + arcEndOffset, corner.z);
-        // Middle of the curve: halfway in XZ, plus a small outward bow.
-        const midX = (sx + corner.x) * 0.5 + corner.normX * 0.05;
-        const midZ = (sz + corner.z) * 0.5 + corner.normZ * 0.05;
-        const midY = hairTopY - tieDropY * 0.55;
-        const midV = new THREE.Vector3(midX, midY, midZ);
-
-        const curve = new THREE.CatmullRomCurve3([startV, midV, endV]);
-        const radius = 0.024 + Math.random() * 0.008;
-        const tubeGeo = new THREE.TubeGeometry(curve, 10, radius, 4, false);
-        const strand = new THREE.Mesh(tubeGeo, arcStrandMat(Math.random()));
-        // Hundreds of tiny raffia strands per cart — skip shadow casting.
-        // Cart chassis + roof shadow already reads as Lurleen.
-        this.root.add(strand);
+    // A private stream keeps the decorative strands stable without advancing world RNG.
+    const rng = mulberry32(0x1a71ee);
+    const colors = [0xd4b477, 0xb78c4b, 0xe7cc91];
+    const buckets = colors.map(() => []);
+    const lightPositions = [];
+    let strandIndex = 0;
+    const strand = (points, radius, index) => {
+      const curve = new THREE.CatmullRomCurve3(points);
+      buckets[index % 3].push(new THREE.TubeGeometry(curve, 7, radius, 3, false));
+      if (strandIndex++ % 3 === 0) lightPositions.push(curve.getPoint(0.15 + rng()*0.75));
+    };
+    const w = this._roofHalfW, d = this._roofHalfD, z = this._roofZ;
+    const top = this._roofY - 0.02;
+    const corners = [[-w,z-d],[w,z-d],[w,z+d],[-w,z+d]];
+    for (let edge = 0; edge < 4; edge++) {
+      const a = corners[edge], b = corners[(edge+1)%4];
+      for (let i = 0; i < 48; i++) {
+        const t = (i+0.5)/48;
+        const x = a[0]+(b[0]-a[0])*t, zz = a[1]+(b[1]-a[1])*t;
+        const c = t < 0.5 ? a : b;
+        strand([
+          new THREE.Vector3(x,top,zz),
+          new THREE.Vector3(x*0.52+c[0]*0.48,top-0.34-rng()*0.10,zz*0.52+c[1]*0.48),
+          new THREE.Vector3(c[0],top-0.72,c[1]),
+        ], 0.012+rng()*0.009, i);
       }
     }
-
-    // Length of the straight-down portion of each bunch (after the tie).
-    const belowTieLen = hairLen - tieDropY;
-    for (const c of corners) {
-      // Each corner has a "hair tie" gather (a small colored ring) — the
-      // point where the perimeter arcs converge before the bunch falls
-      // straight down. The tie sits where the arcs end.
-      const tieMat = new THREE.MeshStandardMaterial({
-        color: 0x66d9ff, roughness: 0.5, flatShading: true,
-      });
-      const tie = new THREE.Mesh(
-        new THREE.TorusGeometry(0.12, 0.05, 8, 16),
-        tieMat,
-      );
-      const tieY = hairTopY - tieDropY;
-      tie.position.set(c.x, tieY, c.z);
-      tie.rotation.x = Math.PI / 2;       // ring lies flat horizontally
+    const ribbon = new THREE.MeshStandardMaterial({color: 0x39ad3d, roughness: 0.6, side: THREE.DoubleSide});
+    for (const [x, zz] of corners) {
+      for (let i = 0; i < 36; i++) {
+        const dx = (rng()-0.5)*0.22, dz = (rng()-0.5)*0.22;
+        strand([
+          new THREE.Vector3(x+dx*0.3,top-0.70,zz+dz*0.3),
+          new THREE.Vector3(x+dx,top-1.10,zz+dz),
+          new THREE.Vector3(x+dx*1.8,top-1.50-rng()*0.32,zz+dz*1.8),
+        ], 0.009+rng()*0.006, i);
+      }
+      const tie = new THREE.Mesh(new THREE.TorusGeometry(0.105,0.035,5,12),ribbon);
+      tie.rotation.x = Math.PI/2;
+      tie.position.set(x,top-0.72,zz);
       this.root.add(tie);
-
-      // Bunch of straight-down strands BELOW the tie — the ponytail tail.
-      const strandsPerBunch = Math.round(70 * HAIR_DENSITY);
-      for (let i = 0; i < strandsPerBunch; i++) {
-        // Cluster radius ~0.14 around the tie's center
-        const a = Math.random() * Math.PI * 2;
-        const r = Math.sqrt(Math.random()) * 0.14;
-        const sx = c.x + Math.cos(a) * r;
-        const sz = c.z + Math.sin(a) * r;
-        // Length jitter — these fall the rest of the way to the chassis.
-        const len = belowTieLen * (0.85 + Math.random() * 0.30);
-
-        const cone = new THREE.ConeGeometry(0.022, len, 5, 1);
-        cone.translate(0, -len / 2, 0);       // anchor strand's top at origin
-        const matRoll = Math.random();
-        const mat = matRoll < 0.4 ? goldHair : matRoll < 0.75 ? brownHair : lightHair;
-        const strand = new THREE.Mesh(cone, mat);
-        strand.position.set(sx, tieY, sz);
-        // Mostly straight down, tiny outward bias toward the diagonal.
-        strand.rotation.x = c.normZ * 0.06 + (Math.random() - 0.5) * 0.10;
-        strand.rotation.z = -c.normX * 0.06 + (Math.random() - 0.5) * 0.10;
-        // Bunch of ~70 strands per corner — skip shadow casting (the cart
-        // chassis already casts the readable shadow underneath).
-        this.root.add(strand);
+      for (const side of [-1,1]) {
+        const tail = new THREE.Mesh(new THREE.PlaneGeometry(0.07,0.58),ribbon);
+        tail.position.set(x+side*0.08,top-0.98,zz-0.13);
+        tail.rotation.z = side*0.18;
+        this.root.add(tail);
       }
     }
-
-    // Flower crown along the top of the roof — perimeter line of small blossoms.
-    const flowerColors = [0xff4d8a, 0xff9933, 0x9966ff, 0x66ccff, 0xffee33, 0xff6f6f, 0x66ff99];
-    const flowerCount = 22;
-    const perimeter = [
-      // walk front edge L→R, right edge F→B, back edge R→L, left edge B→F
-      ...range(6, (t) => ({ x: -halfW + t * (2 * halfW), z: roofZ + halfD })),
-      ...range(5, (t) => ({ x: halfW, z: roofZ + halfD - t * (2 * halfD) })),
-      ...range(6, (t) => ({ x: halfW - t * (2 * halfW), z: roofZ - halfD })),
-      ...range(5, (t) => ({ x: -halfW, z: roofZ - halfD + t * (2 * halfD) })),
-    ];
-    for (let i = 0; i < Math.min(flowerCount, perimeter.length); i++) {
-      const p = perimeter[i];
-      const c = flowerColors[i % flowerColors.length];
-      const flower = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(0.10 + Math.random() * 0.03, 0),
-        new THREE.MeshStandardMaterial({
-          color: c, emissive: c, emissiveIntensity: 0.5, roughness: 0.4,
-        }),
-      );
-      flower.position.set(p.x, this._roofY + 0.13, p.z);
-      this.root.add(flower);
+    this._hairMaterials = colors.map(color => new THREE.MeshStandardMaterial({
+      color, emissive: color, emissiveIntensity: 0, roughness: 1,
+    }));
+    for (let i = 0; i < buckets.length; i++) {
+      const geometry = mergeGeometries(buckets[i]);
+      for (const part of buckets[i]) part.dispose();
+      this.root.add(new THREE.Mesh(geometry,this._hairMaterials[i]));
     }
+    const flowerMat = new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.8});
+    const flowers = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.065,0),flowerMat,120);
+    const dummy = new THREE.Object3D();
+    const flowerColors = [0xff3a71,0xffc933,0xb26ee4,0xf7e9c1,0xff7624];
+    let index = 0;
+    for (let edge = 0; edge < 4; edge++) {
+      const a = corners[edge], b = corners[(edge+1)%4];
+      for (let i = 0; i < 6; i++) {
+        const t = (i+0.5)/6;
+        for (let petal = 0; petal < 5; petal++) {
+          const angle = petal*Math.PI*2/5;
+          dummy.position.set(a[0]+(b[0]-a[0])*t+Math.cos(angle)*0.055,top+0.09+Math.sin(angle)*0.055,a[1]+(b[1]-a[1])*t);
+          dummy.scale.set(1,1,0.55);
+          dummy.updateMatrix();
+          flowers.setMatrixAt(index,dummy.matrix);
+          flowers.setColorAt(index++,new THREE.Color(flowerColors[(edge*6+i)%flowerColors.length]));
+        }
+      }
+    }
+    flowers.instanceMatrix.needsUpdate = true;
+    flowers.instanceColor.needsUpdate = true;
+    this.root.add(flowers);
+    this._hairLightMaterial = new THREE.MeshStandardMaterial({color:0xffd875,emissive:0xffad32,emissiveIntensity:0});
+    const bulbs = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.026,0),this._hairLightMaterial,lightPositions.length);
+    for (let i = 0; i < lightPositions.length; i++) {
+      dummy.position.copy(lightPositions[i]);
+      dummy.position.z += lightPositions[i].z < this._roofZ ? -0.025 : 0.025;
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix(); bulbs.setMatrixAt(i,dummy.matrix);
+      bulbs.setColorAt(i,new THREE.Color(1,1,1));
+    }
+    bulbs.instanceMatrix.needsUpdate = true;
+    this._hairLights = bulbs;
+    this._twinkleColor = new THREE.Color();
+    this.root.add(bulbs);
   }
 
-  // ---------- Basket (no back seat) ----------
+  _buildRearPlatform() {
+    const wood = new THREE.MeshStandardMaterial({color:0xb98d52,roughness:0.95});
+    const frame = new THREE.MeshStandardMaterial({color:0x27282a,roughness:0.8});
+    const parts = [];
+    for (let i = 0; i < 7; i++) parts.push(new THREE.BoxGeometry(0.245,0.10,0.96).translate((i-3)*0.255,0.96,1.02));
+    for (const x of [-0.80,0.80]) {
+      const shelf = new THREE.Shape();
+      shelf.moveTo(-0.20,-0.52);
+      shelf.lineTo(-0.20,0.52);
+      shelf.quadraticCurveTo(-0.20,0.70,0,0.70);
+      shelf.quadraticCurveTo(0.20,0.70,0.20,0.52);
+      shelf.lineTo(0.20,-0.52);
+      shelf.quadraticCurveTo(0.20,-0.70,0,-0.70);
+      shelf.quadraticCurveTo(-0.20,-0.70,-0.20,-0.52);
+      const shelfGeo = new THREE.ExtrudeGeometry(shelf,{depth:0.065,bevelEnabled:true,bevelSize:0.018,bevelThickness:0.012,bevelSegments:2,curveSegments:8});
+      shelfGeo.rotateX(-Math.PI/2).translate(x,1.44,1.15);
+      const indexedShelf = shelfGeo.index ? shelfGeo : null;
+      // Match BoxGeometry's indexed layout before combining the wooden parts.
+      if (!indexedShelf) {
+        const indices = Array.from({length:shelfGeo.attributes.position.count},(_,i)=>i);
+        shelfGeo.setIndex(indices);
+      }
+      parts.push(shelfGeo);
+      parts.push(new THREE.BoxGeometry(0.09,0.55,0.09).translate(x,1.19,1.48));
+    }
+    const platform = new THREE.Mesh(mergeGeometries(parts),wood);
+    for (const part of parts) part.dispose();
+    platform.castShadow = true;
+    this.root.add(platform);
+    const bumper = new THREE.Mesh(new THREE.BoxGeometry(2.05,0.16,0.17),frame);
+    bumper.position.set(0,0.81,1.60);
+    this.root.add(bumper);
+  }
 
-  _buildBasket() {
-    const wickerMat = new THREE.MeshStandardMaterial({
-      color: 0x8b6f47, roughness: 0.95, flatShading: true,
+  _buildRearEquipment() {
+    const dark = new THREE.MeshStandardMaterial({color:0x242329,roughness:0.8});
+    const parts = [];
+    const box = (w,h,d,x,y,z) => parts.push(new THREE.BoxGeometry(w,h,d).translate(x,y,z));
+    box(0.95,0.06,0.50,0,1.64,1.03);
+    for(const x of [-0.46,0.46]) {
+      box(0.035,0.38,0.50,x,1.82,1.03);
+      box(0.04,0.52,0.04,x,1.36,0.82);
+    }
+    for(const z of [0.79,1.27]) {
+      for(const y of [1.69,1.83,1.99])box(0.95,0.025,0.025,0,y,z);
+      for(let i=0;i<9;i++)box(0.02,0.30,0.025,(i-4)*0.11,1.83,z);
+    }
+    this._bubbleOutlets = [];
+    this._machinePanelMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffecc1, emissive: 0xffd887, emissiveIntensity: 0, roughness: 0.55,
     });
-    const basket = new THREE.Mesh(
-      new THREE.BoxGeometry(1.3, 0.55, 0.85),
-      wickerMat,
-    );
-    basket.position.set(0, 1.1, 1.1);
-    basket.castShadow = true;
-    this.root.add(basket);
+    const panelParts = [], reservoirParts = [];
+    for (const [x, color] of [[-1.18, 0x48a9db], [1.18, 0xe98dc0]]) {
+      const z = 1.42;
+      box(0.055, 0.80, 0.055, x, 3.12, z);
+      box(0.24, 0.055, 0.055, x < 0 ? -1.07 : 1.07, 3.12, 1.25);
+      const shellParts = [
+        new THREE.CylinderGeometry(0.14, 0.12, 0.07, 8).translate(x, 3.60, z),
+        new THREE.CylinderGeometry(0.235, 0.235, 0.055, 8).translate(x, 3.94, z),
+        new THREE.CylinderGeometry(0.12, 0.235, 0.13, 8).translate(x, 4.025, z),
+        new THREE.TorusGeometry(0.12, 0.023, 5, 16).rotateX(Math.PI / 2).translate(x, 4.11, z),
+      ];
+      for (let i = 0; i < 8; i++) {
+        const angle = i * Math.PI / 4;
+        const bar = new THREE.BoxGeometry(0.025, 0.32, 0.025);
+        bar.rotateZ(-0.25).rotateY(-angle);
+        bar.translate(x + Math.cos(angle) * 0.175, 3.77, z + Math.sin(angle) * 0.175);
+        shellParts.push(bar);
+      }
+      const shell = new THREE.Mesh(mergeGeometries(shellParts),
+        new THREE.MeshStandardMaterial({color, roughness: 0.5}));
+      shell.name = x < 0 ? 'Blue bubble lantern' : 'Pink bubble lantern';
+      this.root.add(shell);
+      for (const part of shellParts) part.dispose();
+      panelParts.push(new THREE.CylinderGeometry(0.205, 0.125, 0.28, 8).translate(x, 3.77, z));
+      reservoirParts.push(new THREE.CylinderGeometry(0.09, 0.07, 0.22, 10).translate(x, 3.455, z));
+      parts.push(new THREE.CylinderGeometry(0.095, 0.095, 0.015, 16).translate(x, 4.105, z));
+      this._bubbleOutlets.push(new THREE.Vector3(x, 4.145, z));
+    }
+    this.root.add(new THREE.Mesh(mergeGeometries(panelParts), this._machinePanelMaterial));
+    this.root.add(new THREE.Mesh(mergeGeometries(reservoirParts),
+      new THREE.MeshStandardMaterial({color: 0xbdd6df, roughness: 0.3, metalness: 0.15})));
+    for (const part of [...panelParts, ...reservoirParts]) part.dispose();
+    const housing = new THREE.CylinderGeometry(0.18,0.16,0.18,10).rotateX(Math.PI/2).translate(0,1.41,1.28);
+    parts.push(housing);
+    this.root.add(new THREE.Mesh(mergeGeometries(parts),dark));
+    for(const part of parts)part.dispose();
+    this._discoMaterial = new THREE.MeshStandardMaterial({color:0xbb77ed,emissive:0xaa22ff,emissiveIntensity:0,flatShading:true});
+    this._discoLens = new THREE.Mesh(new THREE.IcosahedronGeometry(0.14,1),this._discoMaterial);
+    this._discoLens.position.set(0,1.41,1.40);
+    this.root.add(this._discoLens);
+    const spotMat = new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+    this._discoSpots = new THREE.InstancedMesh(new THREE.CircleGeometry(0.075,8),spotMat,24);
+    const colors=[0xff3399,0x904dff,0x33ccff,0x55ff88];
+    for(let i=0;i<24;i++)this._discoSpots.setColorAt(i,new THREE.Color(colors[i%4]));
+    this._discoSpots.instanceColor.needsUpdate=true;
+    this._discoSpots.frustumCulled=false;
+    this._discoSpots.visible=false;
+    this.root.add(this._discoSpots);
+    this._rearFxTransform=new THREE.Object3D();
+    this._rearFxPoint=new THREE.Vector3();
+    this._rearFxTime=0;
+    // A fixed visual pool stays in world space as the cart drives away.
+    this._rearBubbles=new THREE.InstancedMesh(new THREE.SphereGeometry(1,8,6),
+      new THREE.MeshStandardMaterial({color:0xb8ddff,roughness:0.15,metalness:0.25,transparent:true,opacity:0.22,depthWrite:false}),24);
+    this._rearBubbles.frustumCulled=false;
+    this._rearBubbles.visible=false;
+    this._rearBubbleAges=Float32Array.from({length:24},(_,i)=>-i*0.16);
+    this._rearBubblePositions=new Float32Array(72);
+    this._rearFxTransform.scale.setScalar(0);this._rearFxTransform.updateMatrix();
+    for(let i=0;i<24;i++)this._rearBubbles.setMatrixAt(i,this._rearFxTransform.matrix);
+    this._rearBubbles.instanceMatrix.needsUpdate=true;
+    this.scene.add(this._rearBubbles);
+  }
 
-    const handle = new THREE.Mesh(
-      new THREE.TorusGeometry(0.38, 0.04, 6, 14, Math.PI),
-      wickerMat,
-    );
-    handle.position.set(0, 1.40, 1.1);
-    handle.rotation.x = -Math.PI / 2;
-    this.root.add(handle);
+  _updateRearEffects(dt, nightness) {
+    this._rearFxTime+=dt;
+    this._discoMaterial.emissive.setHSL((this._rearFxTime*0.12)%1,1,0.5);
+    this._discoMaterial.emissiveIntensity=nightness*2.5;
+    this._machinePanelMaterial.emissiveIntensity = nightness * 0.65;
+    this._discoLens.rotation.z=this._rearFxTime;
+    this._discoSpots.visible=nightness>0;
+    this._discoSpots.material.opacity=nightness*0.6;
+    const dummy=this._rearFxTransform;
+    for(let i=0;i<24;i++) {
+      const angle=i*Math.PI/12+this._rearFxTime*0.5;
+      const radius=0.65+(i%3)*0.35;
+      dummy.position.set(Math.cos(angle)*radius,0.025,1.6+Math.sin(angle)*radius);
+      dummy.rotation.set(-Math.PI/2,0,0);dummy.scale.set(1,1.6,1);dummy.updateMatrix();
+      this._discoSpots.setMatrixAt(i,dummy.matrix);
+    }
+    this._discoSpots.instanceMatrix.needsUpdate=true;
+    this.root.updateMatrixWorld(true);
+    dummy.rotation.set(0,0,0);
+    let liveBubbles=0;
+    for(let i=0;i<24;i++) {
+      const before=this._rearBubbleAges[i];
+      let age=before+dt;
+      if(age>=3.84)age-=3.84;
+      const offset=i*3;
+      if((before<0 && age>=0) || age<before || (before===0 && age>0)) {
+        this._rearFxPoint.copy(this._bubbleOutlets[i%2]);
+        this.root.localToWorld(this._rearFxPoint);
+        this._rearFxPoint.toArray(this._rearBubblePositions,offset);
+      }
+      this._rearBubbleAges[i]=age;
+      if(age<0)dummy.scale.setScalar(0);
+      else {
+        liveBubbles++;
+        this._rearBubblePositions[offset]+=Math.sin(i*2.4)*dt*0.18;
+        this._rearBubblePositions[offset+1]+=dt*0.27;
+        this._rearBubblePositions[offset+2]+=dt*0.16;
+        dummy.position.fromArray(this._rearBubblePositions,offset);
+        dummy.scale.setScalar((0.055+(i%4)*0.013)*Math.min(1,age*4,(3.84-age)*4));
+      }
+      dummy.updateMatrix();this._rearBubbles.setMatrixAt(i,dummy.matrix);
+    }
+    this._rearBubbles.instanceMatrix.needsUpdate=true;
+    this._rearBubbles.visible=liveBubbles>0;
   }
 
   // ---------- Update ----------
 
-  update(dt, zerblePos, zerbleHeading = 0) {
+  update(dt, zerblePos, zerbleHeading = 0, nightness = 0) {
+    this._eyeMaterial.emissiveIntensity = nightness * 1.5;
+    this._lipMaterial.emissiveIntensity = 0;
+    this._lipOutlineMaterial.emissiveIntensity = nightness * 3;
+    this._hairLightMaterial.emissiveIntensity = nightness * 3;
+    if (nightness > 0) {
+      const time = performance.now()*0.001;
+      for (let i=0;i<this._hairLights.count;i++) {
+        const shimmer=0.35+0.65*Math.pow(0.5+0.5*Math.sin(time*(1.1+i%5*0.13)+i*2.4),6);
+        this._twinkleColor.setRGB(shimmer,shimmer,shimmer);
+        this._hairLights.setColorAt(i,this._twinkleColor);
+      }
+      this._hairLights.instanceColor.needsUpdate=true;
+    }
+    for (const material of this._hairMaterials) material.emissiveIntensity = nightness * 0.12;
     const dx = zerblePos.x - this.position.x;
     const dz = zerblePos.z - this.position.z;
     const dToZerble = Math.hypot(dx, dz);
@@ -757,7 +731,7 @@ export class Lurleen {
       w.mesh.position.y = w.baseY + Math.sin(performance.now() * 0.01 + w.mesh.position.x) * 0.02;
     }
 
-    // Eye wobble — flat pupil disc rolls around within the sclera circle,
+    // Eye wobble stays inside the shallow dome,
     // staying inside the rim. Lissajous-style motion mimics real googly eyes.
     const t = performance.now() * 0.001;
     for (const eye of this.eyes) {
@@ -766,6 +740,7 @@ export class Lurleen {
       eye.pupil.position.y = Math.cos(t * 1.3 + eye.basePos.x * 2) * eye.wobbleY;
     }
 
+    this._updateRearEffects(dt, nightness);
     this._updateHearts(dt);
   }
 
