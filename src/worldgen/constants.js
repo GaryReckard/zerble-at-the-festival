@@ -84,4 +84,5 @@ export const SALT = {
   hubPriority: 0x4D41_0D,   // integer hub priority for cross-hub seam yield (festival.js 4B) — fresh
   seam:        0x4D41_0E,   // per-seam (hub-pair) hash for seam-type variation (festival.js 4B) — fresh
   archGate:    0x4D41_0F,   // integer gate: which MAJOR hubs (beyond spawn) get an entrance arch (festival.js 4B.4) — fresh
+  courtGate:   0x4D41_10,   // independent minor-hub food-court frequency gate
 };

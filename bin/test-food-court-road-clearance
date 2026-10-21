@@ -14,8 +14,14 @@ for (const seed of [2228433257, 1234, 42, 9876, 2186624078]) {
   setSeed(seed);
   const hearts = heartsInBounds(-500, -800, 500, 500);
   const plans = hearts.map((heart) => festivalPlan(heart));
+  for (let i = 0; i < hearts.length; i++) {
+    if (hearts[i].rank === 'major') {
+      assert.ok(plans[i].filter((d) => d.kind === 'food_court').length <= 1,
+        `seed ${seed} major hub has at most one court`);
+    }
+  }
   const courts = plans.flat().filter((d) => d.kind === 'food_court');
-  assert.ok(courts.length >= 30, `seed ${seed} retains populated food courts`);
+  assert.ok(courts.length >= 20, `seed ${seed} retains populated food courts`);
   for (const d of courts) {
     assert.ok(nearestRoad(d.x, d.z).dist > clearance,
       `seed ${seed} court ${d.clusterSeed} keeps its dining ring off every road`);

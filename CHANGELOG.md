@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-21
+
+### Changed
+- **Food courts are less frequent across the festival.** Major hubs now attempt one court instead of two, and a separate deterministic gate lets 75% of minor hubs attempt one. Courts that appear still have their full truck ring and dining area, while the nearby welcome court and Sugar Shack remain available.
+
 ## 2026-10-20
 
 ### Changed

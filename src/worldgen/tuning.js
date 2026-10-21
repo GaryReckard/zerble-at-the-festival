@@ -134,7 +134,8 @@ export const FESTIVAL_TUNING = {
   POTTY_ATTACH_OFFSET: 9,           // festival.js:368 — porta-bank nudge off its parent cluster
 
   // ── Per-hub cluster counts (planner) ──
-  COURT_N_MAJOR: 2, COURT_N_MINOR: 1,   // festival.js:391 (capped by roads.length)
+  COURT_N_MAJOR: 1, COURT_N_MINOR: 1,   // festival.js:391 (capped by roads.length)
+  COURT_MINOR_PCT: 75,                 // percentage of minor hubs that attempt a court
   ROW_N_MAJOR: 2,   ROW_N_MINOR: 1,     // festival.js:414 (capped by roads.length)
 
   // ── Zone slotter (planner _computePlan, group 4 / D14) ──

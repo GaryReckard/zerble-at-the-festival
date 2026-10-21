@@ -965,8 +965,10 @@ function _computePlan(heart) {
   //    ring sits further out than the row aisle, so you drive the market then reach
   //    the food. Walk OUTWARD along the road in steps until the ring clears every
   //    earlier zone (the row OBB on the same road) and the stage; try both sides at
-  //    each step; omit if nothing on this road fits within the drag cap.
-  const courtN = Math.min(roads.length, major ? T.COURT_N_MAJOR : T.COURT_N_MINOR);
+  //    each step; omit if nothing on this road fits within the drag cap. An independent
+  //    cell hash thins minor-hub courts without correlating the decision with the layout stream.
+  const courtEligible = major || ((cellHash(heart.cx, heart.cz, SALT.courtGate) >>> 0) % 100) < T.COURT_MINOR_PCT;
+  const courtN = courtEligible ? Math.min(roads.length, major ? T.COURT_N_MAJOR : T.COURT_N_MINOR) : 0;
   const COURT_CAP = (lenQ) => Math.min(MAX_POI_REACH, (lenQ * T.FOOD_COURT_DRAG_FRAC) | 0);
   const courtRing = T.FOOD_COURT_RING_MULT * MODEL_DIMS.FOOD_TRUCK_SCALE;
   const courtRoadClearance = courtRing + CONFIG.ROAD_WIDTH / 2 + 1;
