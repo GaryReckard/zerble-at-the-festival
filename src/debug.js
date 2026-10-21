@@ -2026,7 +2026,7 @@ function updateDeviceCaptureControl(message) {
     ? PLAYTEST_SCENARIOS[DEVICE_SCENARIO][state.deviceCapturePhaseIndex] : null;
   const remaining = phase ? Math.max(0, Math.ceil(phase.seconds - (captureElapsedSeconds() - state.deviceCapturePhaseStartedS))) : 0;
   el.textContent = phase
-    ? `● ${PERF.name.toUpperCase()} ${CAPTURE_QUALITY_POLICY === 'baseline' ? 'BASELINE LOCK' : state.deviceCaptureQualityLocked ? 'AUTO (HELD)' : 'AUTO'} · ${phase.id.toUpperCase()} · ${remaining}s left. ${phase.instruction}`
+    ? `● ${PERF.name.toUpperCase()} ${CAPTURE_QUALITY_POLICY === 'baseline' ? 'BASELINE LOCK' : `${(CAPTURE_QUALITY_POLICY || 'auto').toUpperCase()}${state.deviceCaptureQualityLocked ? ' (HELD)' : ''}`} · ${phase.id.toUpperCase()} · ${remaining}s left. ${phase.instruction}`
     : `● REC ${mm}:${ss}. Drive normally; tap FELT LAG when it stutters.`;
 }
 

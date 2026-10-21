@@ -122,8 +122,8 @@ def local_ipv4_addresses():
 
 
 def capture_url(address, port, scenario=None, seed='3948869160', tier='auto', token=None, quality='auto'):
-    if quality not in ('auto', 'baseline') or (quality == 'baseline' and (tier != 'low' or not scenario)):
-        raise ValueError('baseline quality requires a guided Low-tier capture')
+    if quality not in ('auto', 'baseline', 'sustained') or (quality != 'auto' and (tier != 'low' or not scenario)):
+        raise ValueError('experimental quality requires a guided Low-tier capture')
     params = {'perfCapture': '1'}
     if token:
         params['captureToken'] = token
@@ -158,13 +158,13 @@ if __name__ == '__main__':
     parser.add_argument('--playtest', choices=('drive', 'trip', 'parked'), help='print a fixed-seed guided playtest URL')
     parser.add_argument('--seed', default='3948869160', help='world seed for the guided playtest')
     parser.add_argument('--tier', choices=('auto', 'low', 'mid', 'high'), default='auto')
-    parser.add_argument('--quality', choices=('auto', 'baseline'), default='auto')
+    parser.add_argument('--quality', choices=('auto', 'baseline', 'sustained'), default='auto')
     parser.add_argument('--no-qr', action='store_true', help='print the URL without opening a QR code')
     parser.add_argument('--desktop-open', action='store_true', help='open a loopback playtest in the named browser')
     parser.add_argument('--browser', help='desktop browser app name (default: macOS default browser)')
     args = parser.parse_args()
-    if args.quality == 'baseline' and (args.tier != 'low' or not args.playtest):
-        parser.error('--quality baseline requires --playtest and --tier low')
+    if args.quality != 'auto' and (args.tier != 'low' or not args.playtest):
+        parser.error('--quality baseline/sustained requires --playtest and --tier low')
     if args.desktop_open and (args.lan or not args.playtest):
         parser.error('--desktop-open requires a loopback --playtest')
     port = args.port

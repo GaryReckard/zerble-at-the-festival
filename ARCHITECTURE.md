@@ -518,6 +518,20 @@ within 15 seconds backs off that specific boundary for two minutes, doubling to
 a five-minute cap. This prevents fancy bubbles and shadows from visibly toggling
 back and forth when a device sits close to a quality boundary.
 
+Visibility interruptions clear the observation window; hidden ticks do not
+advance quality decisions or measured foreground time. Guided Low captures can
+select `perfQuality=sustained`, which removes only the p95 downgrade trigger;
+ordinary Auto thresholds and recovery requirements remain unchanged.
+
+After gameplay starts, automatic transitions emit `quality_downgrade` or
+`quality_recovery` with the trigger and named settings. A single pending outcome
+reports the fresh 90-frame window after five seconds, or marks it interrupted or
+superseded. These observations establish association, not causation. Cumulative
+per-game-start quality summaries report measured active/degraded seconds and
+transition counts; repeated visibility-driven `session_end` snapshots must not
+be summed. A random `quality_run_id` identifies each game start for grouping those snapshots and joining outcomes. Title-card and manual transitions do not emit automatic events.
+
+
 ---
 
 ## HUD (`hud.js`, `styles.css`)

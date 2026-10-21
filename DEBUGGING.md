@@ -10,6 +10,41 @@ console (or `preview_eval`) and call `window.__dbg.help()`.
 
 ## Desktop and phone performance playtests
 
+### Controlled governor comparison
+
+Run `bin/playtest-perf drive --tier low --quality auto --seed 3948869160`, then
+stop that launcher and close its tab before running the same command with
+`--quality sustained`. This capture-only experiment retains sustained-average
+and consecutive-hitch protection but ignores p95-only downgrade pressure. Both
+policies retain the same Low tier and cheap bubbles; normal launches use Auto.
+Compare comparable routes, orientation, temperature and power mode, then repeat
+in reverse order. Record clarity, felt stutters and warmth alongside frame gaps.
+`--quality baseline` remains available as the rung-zero control. No production
+threshold change is justified by the parked comparison alone.
+
+The report's `session.qualityPolicy` identifies the applied policy. GA's
+`quality_downgrade` preserves `level`, `avg_fps`, `perf_tier` and elapsed time,
+adding `trigger`, named `from_level`/`to_level`, frame statistics and settings.
+`quality_recovery` reports raises. `quality_outcome` links by `transition_id`
+plus `quality_run_id` and reports `observed`, `superseded` or `interrupted`.
+An observed outcome uses the last 90 frames after at least five seconds at that
+rung, not an average over those five seconds. Null after-values mean no full
+fresh window exists. Treat changes as correlations because the scene can move.
+
+`session_end` includes `quality_active_s`, `quality_degraded_s`,
+`quality_downgrades`, `quality_recoveries`, `quality_worst_level` and
+`governor_policy`. These are cumulative snapshots since game start, including
+only foreground ticks while the governor is enabled. Do not sum repeated
+page-hide summaries; compare the final snapshot per `quality_run_id`. That
+random identifier resets at game start and does not identify the player. A session may start
+already degraded by title-card rendering without any gameplay downgrade event.
+For field analysis, use affected sessions and degraded-time share alongside
+transition counts, segmented by device/browser and tier. Custom GA parameters
+need property-side registration to appear as custom dimensions or metrics in
+standard reports; this code does not configure the GA property.
+
+### Capture workflow
+
 The [October 11 particle/query report](verification/performance/2026-10-11/README.md)
 includes local browser probes for smile-resource lifetime, bubble submission and
 transparency bounds, and ordered registry indexes through streaming. It records
@@ -91,13 +126,13 @@ settling; Auto can downgrade normally. Both use Low's cheap bubbles regardless
 of a saved Detailed bubbles preference, without changing that preference.
 Tier density, shadows, and chunk/bubble capacities are unchanged. Baseline is
 rejected unless `--tier low` is explicit. The flag also works with drive and
-Trip, whose Auto comparison still locks the reached rung after settling.
+Trip; only Trip locks the reached rung after settling, while drive and parked keep the selected governor active.
 Keep Safari foregrounded, the same orientation, camera, settings, and similar
 device temperature; let the phone cool between runs. Do not edit settings during
 either run. Record clarity, stutters, heat, and Low Power Mode. Full instructions
 and interpretation are in [the follow-up](verification/performance/2026-10-09/capture-follow-up.md).
 
-The parked pair is recorded in [the follow-up](verification/performance/2026-10-09/capture-follow-up.md#completed-parked-pair). The next test uses the same `--tier low --quality auto|baseline` flags with `drive` instead of `parked`, on a comparable route. Saved `session.qualityPolicy` and `qualityLockedFromFirstFrame` distinguish the runs, while `session.tierPolicy` records their fixed scene policy. Compare the
+The parked pair is recorded in [the follow-up](verification/performance/2026-10-09/capture-follow-up.md#completed-parked-pair). The next test compares `--tier low --quality auto` with `--quality sustained` using `drive` on a comparable route, retaining Baseline as a control. Saved `session.qualityPolicy` and `qualityLockedFromFirstFrame` distinguish the runs, while `session.tierPolicy` records their fixed scene policy. Compare the
 live `frame.*` windows: governor `fAvg/fP95/fMax` stop updating when disabled.
 
 The server's LAN mode serves only game assets, and upload writes require the

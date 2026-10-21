@@ -37,6 +37,16 @@ auto = parse_qs(urlsplit(module.capture_url('192.168.1.7', 8766, 'parked', '7', 
 assert baseline.pop('perfQuality') == ['baseline']
 assert auto.pop('perfQuality') == ['auto']
 assert baseline == auto, 'paired URLs must differ only in quality policy'
+sustained = parse_qs(urlsplit(module.capture_url('192.168.1.7', 8766, 'parked', '7', 'low', 'token-123', 'sustained')).query)
+assert sustained.pop('perfQuality') == ['sustained']
+assert sustained == auto
+for tier in ('auto', 'mid', 'high'):
+    try:
+        module.capture_url('127.0.0.1', 8765, 'drive', tier=tier, quality='sustained')
+        raise AssertionError('sustained allowed outside Low')
+    except ValueError:
+        pass
+
 for tier in ('auto', 'mid', 'high'):
     try:
         module.capture_url('127.0.0.1', 8765, 'parked', tier=tier, quality='baseline')

@@ -216,14 +216,15 @@ export const Analytics = {
 
   // ----- Field health -----
 
-  // The adaptive-quality monitor stepped DOWN a level under load — tells us
-  // whether the perf budget holds up on real hardware.
-  qualityDowngrade(level, fps) {
-    send('quality_downgrade', {
-      level,
-      avg_fps: Math.round(fps || 0),
-      perf_tier: state.context?.perf_tier,
-      time_in_run_s: secondsIn(),
+  qualityTransition(event) {
+    send(event.direction === 'down' ? 'quality_downgrade' : 'quality_recovery', {
+      ...event, perf_tier: state.context?.perf_tier, time_in_run_s: secondsIn(),
+    });
+  },
+
+  qualityOutcome(event) {
+    send('quality_outcome', {
+      ...event, perf_tier: state.context?.perf_tier, time_in_run_s: secondsIn(),
     });
   },
 
@@ -276,6 +277,7 @@ export const Analytics = {
       passengers: state.run.passengers,
       blast_used: state.run.blastUsed,
       perf_tier: state.context?.perf_tier,
+      ...summary.quality,
       transport_type: 'beacon',
     });
   },

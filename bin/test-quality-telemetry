@@ -1,0 +1,98 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+let now = 100;
+Object.defineProperty(globalThis, 'performance', { value: { now: () => now }, configurable: true });
+globalThis.window = { innerWidth: 430, innerHeight: 775 };
+globalThis.document = { hidden: false };
+globalThis.location = { search: '' };
+globalThis.localStorage = { getItem: () => null };
+Object.defineProperty(globalThis, 'navigator', { value: { hardwareConcurrency: 4, maxTouchPoints: 5 }, configurable: true });
+const { resolveCaptureQualityPolicy } = await import('../src/perfTelemetry.js');
+assert.equal(resolveCaptureQualityPolicy('?perfQuality=sustained', 'low'), null);
+assert.equal(resolveCaptureQualityPolicy('?perfCapture=1&perfScenario=drive&perfQuality=sustained', 'high'), null);
+let instance = 0;
+async function harness(policy = 'auto') {
+  location.search = `?perfCapture=1&perfScenario=drive&perfQuality=${policy}`;
+  const aq = await import(`../src/adaptiveQuality.js?telemetry=${instance++}`);
+  let ratio = 1.25;
+  const transitions = [], outcomes = [];
+  aq.install({
+    renderer: { getPixelRatio: () => ratio, setPixelRatio: v => { ratio = v; }, shadowMap: {} },
+    onShadowPolicyChange() {}, onRenderResolutionChange() {},
+    onTransition: e => transitions.push(e), onOutcome: e => outcomes.push(e),
+  });
+  const frames = (n, ms) => { for (let i = 0; i < n; i++) { now += typeof ms === 'function' ? ms(i) : ms; aq.tick(0.016); } };
+  return { aq, frames, transitions, outcomes };
+}
+const jitter = i => i % 15 === 0 ? 38 : 16;
+for (const policy of ['auto', 'sustained']) {
+  const h = await harness(policy);
+  h.aq.startSession();
+  h.frames(2000, jitter);
+  assert.equal(h.aq.getLevel() > 0, policy === 'auto', 'only Auto reacts to p95-only pressure');
+  if (policy === 'auto') assert.equal(h.transitions[0].trigger, 'p95');
+  else {
+    h.frames(160, 25);
+    assert.equal(h.aq.getLevel(), 1, 'experiment retains sustained-average protection');
+    assert.equal(h.transitions[0].trigger, 'average');
+  }
+}
+const h = await harness('sustained');
+h.frames(160, 25);
+assert.equal(h.transitions.length, 0, 'title-card transitions are not gameplay analytics');
+h.aq.applyLevel(0);
+h.aq.startSession();
+h.frames(160, 25);
+assert.equal(h.transitions.length, 1);
+assert.equal(h.transitions[0].from_level, 'baseline');
+assert.equal(h.transitions[0].to_level, 'pixel-87');
+assert.equal(h.transitions[0].avg_fps, 40);
+assert.equal(h.transitions[0].cheap_bubbles, true);
+h.frames(400, 16);
+assert.equal(h.outcomes.length, 1);
+assert.equal(h.outcomes[0].outcome, 'observed');
+assert.equal(h.outcomes[0].after_avg_ms, 16);
+assert.equal(h.outcomes[0].before_avg_ms, 25);
+for (let i = 0; i < 2100 && h.transitions.at(-1).direction !== 'up'; i++) h.frames(1, 16);
+assert.equal(h.transitions.at(-1).direction, 'up');
+assert.equal(h.transitions.at(-1).trigger, 'recovery');
+assert.equal(h.aq.getSessionSummary().quality_recoveries, 1);
+const active = h.aq.getSessionSummary().quality_active_s;
+document.hidden = true;
+h.frames(10, 1000);
+assert.equal(h.aq.getSessionSummary().quality_active_s, active);
+assert.equal(h.outcomes.at(-1).outcome, 'interrupted');
+document.hidden = false;
+h.aq.resetTiming();
+h.frames(100, 16);
+h.frames(2, 100);
+assert.equal(h.transitions.at(-1).trigger, 'consecutive_hitches');
+h.frames(160, 25);
+assert.equal(h.outcomes.at(-1).outcome, 'superseded');
+h.aq.setOverride('bloom', false);
+assert.equal(h.outcomes.at(-1).outcome, 'interrupted', 'settings changes invalidate outcomes');
+const count = h.transitions.length;
+h.aq.applyLevel(0);
+assert.equal(h.transitions.length, count, 'manual quality changes are not automatic downgrades');
+const oldRunId = h.aq.getSessionSummary().quality_run_id;
+assert.equal(h.outcomes[0].quality_run_id, h.transitions[0].quality_run_id);
+h.aq.startSession();
+assert.notEqual(h.aq.getSessionSummary().quality_run_id, oldRunId);
+assert.equal(h.aq.getSessionSummary().quality_downgrades, 0);
+assert.equal(h.aq.getSessionSummary().quality_degraded_s, 0);
+const events = [];
+window.gtag = (...args) => events.push(args);
+const { Analytics } = await import('../src/analytics.js');
+Analytics.gameStart({ perf_tier: 'low' });
+Analytics.qualityTransition(h.transitions[0]);
+Analytics.qualityTransition({ ...h.transitions[0], direction: 'up' });
+Analytics.qualityOutcome(h.outcomes[0]);
+Analytics.sessionEnd({ quality: h.aq.getSessionSummary() });
+assert.deepEqual(events.map(e => e[1]), ['game_start', 'quality_downgrade', 'quality_recovery', 'quality_outcome', 'session_end']);
+assert.equal(events[1][2].perf_tier, 'low');
+assert.equal(events[1][2].level, 1);
+assert.equal(events[1][2].avg_fps, 40);
+for (const e of events) assert.ok(Object.keys(e[2]).length <= 25, `${e[1]} exceeds event parameter budget`);
+window.gtag = () => { throw new Error('blocked'); };
+assert.doesNotThrow(() => Analytics.qualityTransition(h.transitions[0]));
+console.log('PASS quality experiment, foreground timing, outcomes, recovery, summaries and GA payloads');

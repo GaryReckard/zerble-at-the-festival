@@ -4,8 +4,15 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-21
 
+### Added
+- **Quality changes now explain their cause and subsequent frame delivery.** Automatic gameplay downgrades retain the existing GA event and add trigger, named rungs and effective settings; recoveries and five-second outcome observations have separate events. Interrupted or superseded observations are labeled rather than counted as successful fixes, and session summaries include measured foreground time and time degraded. Title-card and manual changes no longer count as gameplay downgrades.
+- **Low-tier guided captures can compare a less aggressive governor.** `--quality sustained` ignores p95-only pressure while retaining average-frame, consecutive-hitch and recovery protections. The default Auto thresholds remain unchanged pending a moving iPhone comparison.
+
 ### Changed
 - **Food courts are less frequent across the festival.** Major hubs now attempt one court instead of two, and a separate deterministic gate lets 75% of minor hubs attempt one. Courts that appear still have their full truck ring and dining area, while the nearby welcome court and Sugar Shack remain available.
+
+### Fixed
+- **Background tab gaps no longer drive adaptive quality decisions.** Visibility changes reset the observation window and interrupt pending outcome measurements, excluding hidden time from quality summaries.
 
 ## 2026-10-20
 

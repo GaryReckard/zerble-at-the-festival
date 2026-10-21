@@ -653,7 +653,6 @@ let _collectedThisFrame = 0;     // per-frame smile-collect coalescing buffer
 let _wasBlasting = false;        // edge-detect the bubble blast (G) starting
 let _maxJuiceReached = 1;        // peak stockpile this run → session_end
 let _honkCount = 0;              // honks this run → session_end
-let _lastQualityLevel = 0;       // adaptive-quality level, to spot downgrades
 let _sessionEndReported = false; // session_end fires once per leave; resets on return
 
 // Opening intro: while true, the world simulates but the player can't drive
@@ -679,16 +678,10 @@ AdaptiveQuality.install({
   hud: HUD,
   onRenderResolutionChange: handleResize,
   onShadowPolicyChange: (on) => getTimeOfDay()?.setShadowsEnabled(on),
-  // Phase 3 will add bubbles.setCheapMaterial(); the hook is wired now so
-  // the quality-level ladder encodes the 'bubbles' property correctly from
-  // day one. The optional-chain guard means Phase 3 just needs to add the
-  // method — no change needed here.
-  onLevelChange: (level, lvl, avgMs) => {
+  onTransition: event => Analytics.qualityTransition(event),
+  onOutcome: event => Analytics.qualityOutcome(event),
+  onLevelChange: (level, lvl) => {
     bubbles.setCheapMaterial?.(AdaptiveQuality.effectiveCheap(lvl));
-    // Only the DOWN steps are the interesting field-perf signal (the budget
-    // slipped on real hardware); recoveries back up are expected.
-    if (level > _lastQualityLevel) Analytics.qualityDowngrade(level, avgMs ? 1000 / avgMs : 0);
-    _lastQualityLevel = level;
   },
 });
 // Apply the tier's Auto baseline before the first rendered frame. On low this
@@ -771,7 +764,9 @@ HUD.onStart(() => {
     }
   }
   // Context segments every later event by device/tier/returning-ness.
+  AdaptiveQuality.startSession();
   Analytics.gameStart({
+    quality_run_id: AdaptiveQuality.getSessionSummary().quality_run_id,
     perf_tier: PERF.name,
     touch: Touch.isTouchDevice(),
     seeded: window.__seedInput != null,
@@ -869,11 +864,13 @@ function finishIntroReveal() {
 function reportSessionEnd() {
   if (!running || _sessionEndReported) return;
   _sessionEndReported = true;
-  Analytics.sessionEnd({ smiles: Scoring.current, rawSmiles: Scoring.rawSmiles, best: HUD.loadBest(), maxJuice: _maxJuiceReached, honks: _honkCount });
+  AdaptiveQuality.resetTiming();
+  Analytics.sessionEnd({ smiles: Scoring.current, rawSmiles: Scoring.rawSmiles, best: HUD.loadBest(), maxJuice: _maxJuiceReached, honks: _honkCount, quality: AdaptiveQuality.getSessionSummary() });
 }
 
 // iOS suspends the AudioContext on tab switch / device lock. Resume on return.
 document.addEventListener('visibilitychange', () => {
+  AdaptiveQuality.resetTiming();
   if (document.hidden) { bubbleProgress.flush(); reportSessionEnd(); }
   else { _sessionEndReported = false; Sound.resume(); }
 });

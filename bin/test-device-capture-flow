@@ -169,7 +169,7 @@ assert.equal(failure.state.deviceCaptureResult, 'sent');
 
 // Exercise the actual serializer, not a fixture carrying the expected labels.
 const reportSource = source.slice(source.indexOf('function buildDeviceCaptureReport('), source.indexOf('function deviceCaptureUrl('));
-for (const policy of ['auto', 'baseline']) {
+for (const policy of ['auto', 'baseline', 'sustained']) {
   const context = vm.createContext({
     state: { hooks: {}, perfSamples: [], frameTelemetry: { events: [] }, deviceCaptureStartedAt: 1,
       deviceCapturePhaseEvents: [], deviceCaptureMarks: [], deviceCaptureVisibility: [], deviceCaptureErrors: [],
@@ -180,14 +180,14 @@ for (const policy of ['auto', 'baseline']) {
     PERF: { name: 'low', crowdMax: 180, shadows: false, chunkLoadRadius: 1, chunkUnloadRadius: 2, bubblePoolMax: 200 },
     DETECTED_TIER: 'low', getSessionSeed: () => 3948869160,
     getLevelName: () => 'baseline', getLevel: () => 0, getBasePixelRatio: () => 1.25,
-    aqIsEnabled: () => policy === 'auto', navigator: {},
+    aqIsEnabled: () => policy !== 'baseline', navigator: {},
     window: { screen: {} }, deviceRendererInfo: () => null, loadMarkers: () => [],
   });
   vm.runInContext(reportSource, context);
   const report = vm.runInContext('buildDeviceCaptureReport("complete")', context);
   assert.equal(report.session.qualityPolicy, policy);
   assert.equal(report.session.qualityLockedFromFirstFrame, policy === 'baseline');
-  assert.equal(report.session.governorEnabled, policy === 'auto');
+  assert.equal(report.session.governorEnabled, policy !== 'baseline');
   assert.equal(report.session.basePixelRatio, 1.25);
   assert.equal(report.session.tierPolicy.bubbles, 'cheap');
   assert.equal(report.session.params.captureToken, undefined, 'policy metadata must not leak upload tokens');

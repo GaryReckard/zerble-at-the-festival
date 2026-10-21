@@ -90,6 +90,9 @@ const QUALITY_LEVELS = BASE_QUALITY_LEVELS
 
 const state = {
   enabled: true,
+  session: null,
+  pendingOutcome: null,
+  transitionId: 0,
   level: 0,
   badRun: 0,
   goodRun: 0,
@@ -121,8 +124,11 @@ const state = {
 
 export function install(hooks) {
   // hooks: { renderer, bloomPass, hud, onRenderResolutionChange,
-  //          onShadowPolicyChange, onLevelChange }
+  //          onShadowPolicyChange, onLevelChange, onTransition, onOutcome }
   state.hooks = hooks;
+  state.session = null;
+  state.pendingOutcome = null;
+  state.transitionId = 0;
   // Capture policy must precede the first render, not the later Start gesture.
   state.enabled = CAPTURE_QUALITY_POLICY !== 'baseline';
   state.level = 0;
@@ -140,7 +146,7 @@ export function install(hooks) {
 
 export function setEnabled(v) {
   const next = !!v && CAPTURE_QUALITY_POLICY !== 'baseline';
-  if (next && !state.enabled) _resetObservationWindow();
+  if (next !== state.enabled) resetTiming();
   state.enabled = next;
 }
 
@@ -151,10 +157,18 @@ export function tick(dt) {
 
   // Wall-clock delta — raw, unclamped. dt from main.js is capped at 50ms
   // so we don't use it for frame-time measurement.
+  if (typeof document !== 'undefined' && document.hidden) {
+    resetTiming();
+    return;
+  }
   const now = performance.now();
   const wallMs = state._lastPerfTime > 0 ? now - state._lastPerfTime : dt * 1000;
   state._lastPerfTime = now;
   state._elapsedMs += wallMs;
+  if (state.session) {
+    state.session.activeMs += wallMs;
+    if (state.level > 0) state.session.degradedMs += wallMs;
+  }
 
   // A recovered level that survives its probation is no longer considered a
   // failed raise if performance degrades later because the scene changed.
@@ -188,17 +202,22 @@ export function tick(dt) {
   }
 
   const { p95, max } = state._statsCache;
+  if (state.pendingOutcome && state._elapsedMs - state.pendingOutcome.at >= 5000) {
+    _finishOutcome('observed', avg);
+  }
 
   // ---- DROP logic ----
   // Three independent triggers; any one fires the bad-run counter.
   // The hitch detector is special: two consecutive worst-case frames
   // immediately apply one downgrade without waiting for SUSTAIN_FRAMES.
-  const sustained_bad = avg > DROP_FRAME_MS || p95 > DROP_P95_MS;
+  const averageBad = avg > DROP_FRAME_MS;
+  const p95Bad = CAPTURE_QUALITY_POLICY !== 'sustained' && p95 > DROP_P95_MS;
+  const sustained_bad = averageBad || p95Bad;
   if (sustained_bad) {
     state.badRun++;
     state.goodRun = 0;
     if (state.badRun >= DROP_SUSTAIN_FRAMES && state.level < QUALITY_LEVELS.length - 1) {
-      _dropQuality(avg);
+      _dropQuality(avg, averageBad ? (p95Bad ? 'average_and_p95' : 'average') : 'p95');
       return;
     }
   } else {
@@ -209,7 +228,7 @@ export function tick(dt) {
   if (wallMs > DROP_MAX_MS) {
     state._maxSpikesInRow++;
     if (state._maxSpikesInRow >= 2 && state.level < QUALITY_LEVELS.length - 1) {
-      _dropQuality(avg);
+      _dropQuality(avg, 'consecutive_hitches');
       return;
     }
   } else {
@@ -232,7 +251,7 @@ export function tick(dt) {
   }
 }
 
-function _dropQuality(avgMs) {
+function _dropQuality(avgMs, reason) {
   const fromLevel = state.level;
   const toLevel = fromLevel + 1;
   const failedRaise = state._lastRaise &&
@@ -251,14 +270,14 @@ function _dropQuality(avgMs) {
     state._raiseBackoffMs[toLevel] = FAILED_RAISE_BACKOFF_MS;
   }
   state._lastRaise = null;
-  _apply(toLevel, avgMs);
+  _apply(toLevel, avgMs, reason);
 }
 
 function _raiseQuality(avgMs) {
   const fromLevel = state.level;
   const toLevel = fromLevel - 1;
   state._lastRaise = { fromLevel, toLevel, atMs: state._elapsedMs };
-  _apply(toLevel, avgMs);
+  _apply(toLevel, avgMs, 'recovery');
 }
 
 function _resetObservationWindow() {
@@ -285,6 +304,7 @@ function _resetObservationWindow() {
 const overrides = { bloom: null, bubbles: null, shadows: null };
 export function setOverride(key, val) {
   if (!(key in overrides)) return;
+  if (overrides[key] !== val) resetTiming();
   overrides[key] = val;
   // Shadows apply live at the sun, so a pin takes effect immediately
   // — including re-enabling shadows the governor had already dropped. bloom /
@@ -326,7 +346,11 @@ function _applyShadowsNow() {
   if (h) _setShadowsOn(h.renderer, effectiveShadows(QUALITY_LEVELS[state.level]));
 }
 
-function _apply(newLevel, avgMs) {
+function _apply(newLevel, avgMs, reason = 'manual') {
+  const previousLevel = state.level;
+  _finishOutcome(reason === 'manual' ? 'interrupted' : 'superseded', avgMs);
+  const beforeP95 = state._statsCache.p95;
+  const beforeMax = state._statsCache.max;
   const lvl = QUALITY_LEVELS[newLevel];
   state.level = newLevel;
   const { renderer, hud } = state.hooks;
@@ -355,6 +379,25 @@ function _apply(newLevel, avgMs) {
   // creating a direct dependency between this module and bubbles.js.
   // avgMs lets the caller log the frame time that triggered the change.
   state.hooks.onLevelChange?.(newLevel, lvl, avgMs);
+  if (state.session && previousLevel !== newLevel && reason !== 'manual') {
+    const down = newLevel > previousLevel;
+    if (down) state.session.downgrades++;
+    else state.session.recoveries++;
+    state.session.worst = Math.max(state.session.worst, newLevel);
+    const transition = {
+      transition_id: ++state.transitionId, quality_run_id: state.session.id,
+      direction: down ? 'down' : 'up', trigger: reason,
+      from_level: QUALITY_LEVELS[previousLevel].name, to_level: lvl.name,
+      level: newLevel, avg_fps: Math.round(1000 / avgMs),
+      before_avg_ms: Math.round(avgMs * 10) / 10,
+      before_p95_ms: beforeP95, before_max_ms: beforeMax,
+      pixel_ratio: renderer.getPixelRatio(),
+      cheap_bubbles: effectiveCheap(lvl), shadows: effectiveShadows(lvl),
+      bloom_allowed: bloomAllowed(), governor_policy: CAPTURE_QUALITY_POLICY || 'auto',
+    };
+    state.pendingOutcome = { transition, at: state._elapsedMs };
+    state.hooks.onTransition?.(transition);
+  }
 
   // The next decision must be based entirely on frames rendered at the new
   // level. Keeping the previous rung's samples is what made the old governor
@@ -400,6 +443,7 @@ export function applyLevel(n) {
 // while adaptive quality is paused).
 export function setShadows(on) {
   if (!state.hooks) return;
+  resetTiming();
   _setShadowsOn(state.hooks.renderer, on);
 }
 
@@ -424,6 +468,48 @@ export function getBasePixelRatio() {
 export function setPixelRatio(mul) {
   if (CAPTURE_QUALITY_POLICY === 'baseline' && mul !== 1) return;
   if (!state.hooks?.renderer) return;
+  resetTiming();
   state.hooks.renderer.setPixelRatio((state.basePixelRatio ?? 1) * mul);
   state.hooks.onRenderResolutionChange();
+}
+
+// Only foreground, enabled governor samples count. Summaries are cumulative
+// within a game start, so repeated page-hide reports must not be summed.
+export function startSession() {
+  state.pendingOutcome = null;
+  const id = globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  state.session = { id, activeMs: 0, degradedMs: 0, downgrades: 0, recoveries: 0, worst: state.level };
+  _resetObservationWindow();
+}
+export function getSessionSummary() {
+  const s = state.session;
+  return s ? {
+    quality_run_id: s.id,
+    quality_active_s: Math.round(s.activeMs / 1000),
+    quality_degraded_s: Math.round(s.degradedMs / 1000),
+    quality_downgrades: s.downgrades, quality_recoveries: s.recoveries,
+    quality_worst_level: QUALITY_LEVELS[s.worst].name,
+    governor_policy: CAPTURE_QUALITY_POLICY || 'auto',
+  } : {};
+}
+export function resetTiming() {
+  _finishOutcome('interrupted');
+  _resetObservationWindow();
+}
+function _finishOutcome(status, avg = state._statsCache.avg) {
+  const pending = state.pendingOutcome;
+  if (!pending) return;
+  state.pendingOutcome = null;
+  state.hooks.onOutcome?.({
+    transition_id: pending.transition.transition_id,
+    quality_run_id: pending.transition.quality_run_id,
+    to_level: pending.transition.to_level,
+    governor_policy: pending.transition.governor_policy,
+    outcome: status,
+    observed_ms: Math.round(state._elapsedMs - pending.at),
+    before_avg_ms: pending.transition.before_avg_ms,
+    before_p95_ms: pending.transition.before_p95_ms,
+    after_avg_ms: state.frameTimes.length >= WINDOW ? Math.round(avg * 10) / 10 : null,
+    after_p95_ms: state.frameTimes.length >= WINDOW ? state._statsCache.p95 : null,
+  });
 }

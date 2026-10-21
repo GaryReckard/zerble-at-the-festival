@@ -28,7 +28,7 @@ export function resolveCaptureQualityPolicy(search, tier) {
   const guidedLow = params.get('perfCapture') === '1' &&
     Object.hasOwn(PLAYTEST_SCENARIOS, params.get('perfScenario')) && tier === 'low';
   const requested = params.get('perfQuality');
-  return guidedLow && (requested === 'auto' || requested === 'baseline') ? requested : null;
+  return guidedLow && ['auto', 'baseline', 'sustained'].includes(requested) ? requested : null;
 }
 
 export function phaseForElapsed(scenario, elapsedSeconds) {
