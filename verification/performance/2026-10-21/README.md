@@ -43,7 +43,9 @@ Sustained captures on the phone, preferably in both orders, and record clarity,
 stutters and warmth before changing the shipping p95 policy. Baseline remains
 available as a control. [Capture instructions](../../../DEBUGGING.md#controlled-governor-comparison).
 
-The code emits GA parameters but does not configure custom definitions in the
-GA property or verify remote ingestion. Local dev hosts do not load gtag; the
-analytics regression uses an intercepted gtag function. Verification ran against the local working tree before deployment. Chunk construction optimization is outside this
-telemetry/governor experiment and remains tracked in ROADMAP.
+The implementation was committed as `2cc103b`. The follow-up registered six
+quality dimensions and four timing metrics in GA; see [configuration and proof](GA-SETUP.md).
+Gary reported pushing the commit on October 22. Live deployment and ingestion
+remain unverified. Local dev hosts do not load gtag; the analytics regression uses an
+intercepted gtag function. Chunk construction optimization remains tracked in
+ROADMAP and is outside this telemetry/governor experiment.

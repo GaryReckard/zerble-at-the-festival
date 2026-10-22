@@ -39,9 +39,9 @@ page-hide summaries; compare the final snapshot per `quality_run_id`. That
 random identifier resets at game start and does not identify the player. A session may start
 already degraded by title-card rendering without any gameplay downgrade event.
 For field analysis, use affected sessions and degraded-time share alongside
-transition counts, segmented by device/browser and tier. Custom GA parameters
-need property-side registration to appear as custom dimensions or metrics in
-standard reports; this code does not configure the GA property.
+transition counts, segmented by device/browser and tier. Six quality dimensions and four timing metrics were registered in the GA
+property on October 21; see [the configuration record](verification/performance/2026-10-21/GA-SETUP.md).
+Live ingestion still needs verification after deployment.
 
 ### Capture workflow
 
