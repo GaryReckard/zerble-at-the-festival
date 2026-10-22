@@ -180,11 +180,11 @@
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
-            const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
+            const mods = ['oneWheels', 'oneWheelMotion', 'monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
-            const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'bo', 'monk', 'nutWagon', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
+            const models = ['oneWheelRider', 'canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'bo', 'monk', 'nutWagon', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'paradeLanterns', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
                 'campsite', 'frisbeePlayer', 'hulaHooper', 'healingArts', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
             const base = new URL('./src/', document.baseURI).href;
@@ -237,6 +237,8 @@
             <option value="entrance_arch">Entrance arch</option>
             <option value="stage_main">Main stage (with band)</option>
             <option value="stage_side">Side stage (with band)</option>
+            <option value="one_wheel">One-wheel rider</option>
+            <option value="one_wheel_route">One-wheel (route + crossing pedestrian)</option>
             <option value="healing_arts">Healing Arts (yoga / night DJ)</option>
             <option value="healing_arts_activity">Healing Arts (real crowd changeover)</option>
             <option value="tent_stage">Tent stage (big white tent)</option>
@@ -590,6 +592,8 @@ import {buildShrub} from './src/models/shrub.js';
     import {buildPicnicTable} from './src/models/picnicTable.js';
     import {buildInfoKiosk} from './src/models/infoKiosk.js';
     import {FESTIVAL_TUNING} from './src/worldgen/tuning.js';
+    import {OneWheels} from './src/oneWheels.js';
+    import {buildOneWheelRider, updateOneWheelRider} from './src/models/oneWheelRider.js';
     import {HealingArtsActivity} from './src/healingArtsActivity.js';
     import {buildHealingArts, updateHealingArts} from './src/models/healingArts.js';
     import {buildLeafDrumCircle, updateLeafDrumCircle} from './src/models/leafDrumCircle.js';
@@ -841,6 +845,7 @@ import {buildShrub} from './src/models/shrub.js';
     }
 
     function clearEntity() {
+        entityRoot?.userData?.cleanup?.();
         puppetControls?.remove();
         puppetControls = null;
         if (currentEntity instanceof MonkParty) currentEntity.dispose();
@@ -1032,7 +1037,7 @@ import {buildShrub} from './src/models/shrub.js';
         food_truck: 'truck',
         kid: 'kid',
         wook: 'wook',
-        stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage', healing_arts: 'tent', healing_arts_activity: 'tent',
+        stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage', one_wheel: 'one_wheel', one_wheel_route: 'one_wheel', healing_arts: 'tent', healing_arts_activity: 'tent',
         entrance_arch: 'arch',
         canoe: 'lake_edge',
         band_member_trumpet: 'brass', band_member_tuba: 'brass',
@@ -2119,6 +2124,51 @@ import {buildShrub} from './src/models/shrub.js';
             }
 
             // ----- Drum circle -----
+            case 'one_wheel_route': {
+                const root = new THREE.Group(); scene.add(root); entityRoot=root;currentEntity=root;
+                const roadMat=new THREE.MeshStandardMaterial({color:0x9f8a63,roughness:1});
+                for(const [x,z,w,d] of [[0,4,16,2.6],[8,-.5,2.6,9],[0,-5,16,2.6]]) {
+                    const stripe=new THREE.Mesh(new THREE.BoxGeometry(w,.025,d),roadMat);
+                    stripe.position.set(x,.01,z);root.add(stripe);
+                }
+                const people=new Crowd({spawn(){},spawnLost(){}});root.add(people.group);
+                const walker=people.spawn({pos:new THREE.Vector3(0,0,4),rng:mulberry32(44),allowPhotographer:false});
+                walker.festivalVisit={hidden:false};
+                const manager=new OneWheels(root,people,{procedural:false,isWater:()=>false});
+                manager.spawnOnRoute(makeWagonRoute([{x:-8,z:4},{x:8,z:4},{x:8,z:-5},{x:-8,z:-5}]),0,771);
+                const fakeCart={position:new THREE.Vector3(0,0,35),speed:0,forwardWorld:new THREE.Vector3(0,0,1),seatSlots:[]};
+                let time=0,yields=0,resumes=0,lastState=null;
+                updateFn=dt=>{
+                    time+=dt;const crossing=time%16;
+                    walker.pos.set(1,0,crossing<8?crossing:16-crossing);
+                    walker.vel.set(0,0,crossing<8?1:-1);walker.yaw=walker.vel.z>0?Math.PI:0;
+                    people.update(dt,fakeCart,null);manager.update(dt,fakeCart.position,tod.nightness);
+                    const s=manager.status()[0];
+                    if(s?.state==='yielding'&&lastState!=='yielding')yields++;
+                    if(s?.state==='cruising'&&lastState==='yielding')resumes++;
+                    lastState=s?.state;
+                    info.textContent=s?`${s.state}: ${s.reason||'following road'} · ${s.speed.toFixed(2)} m/s · yields ${yields}, resumes ${resumes}`:'No rider';
+                };
+                root.userData.cleanup=()=>manager.dispose();
+                cam.target.set(0,1,0);cam.dist=24;cam.yaw=.35;cam.pitch=.32;applyCam();
+                break;
+            }
+            case 'one_wheel': {
+                const buildStart=performance.now();
+                const g = buildOneWheelRider({rng:mulberry32(771)});
+                const buildMs=performance.now()-buildStart;
+                scene.add(g); entityRoot = g; currentEntity = g;
+                g.visible=new URLSearchParams(location.search).get('baseline')!=='1';
+                let time = 0;
+                updateFn = dt => {
+                    time += dt;
+                    info.textContent=`One-wheel · constructed in ${buildMs.toFixed(1)} ms`;
+                    updateOneWheelRider(g,dt,{speed:1.4,acceleration:Math.sin(time*.6)*.3,
+                        turnRate:Math.sin(time*.35)*.22,nightness:tod.nightness,time});
+                };
+                cam.target.set(0,1.1,0);cam.dist=5.5;cam.yaw=.65;cam.pitch=.08;applyCam();
+                break;
+            }
             case 'healing_arts':
             case 'healing_arts_activity': {
                 const g = buildHealingArts({rng: mulberry32(Number(new URLSearchParams(location.search).get('seed') || 1977))});
@@ -3049,7 +3099,9 @@ import {buildShrub} from './src/models/shrub.js';
 
     select.addEventListener('change', (e) => {
         const v = e.target.value;
-        history.replaceState(null, '', `?entity=${v}`);
+        const nextParams=new URLSearchParams(location.search);
+        nextParams.set('entity',v);
+        history.replaceState(null, '', `?${nextParams}`);
         loadEntity(v);
     });
 

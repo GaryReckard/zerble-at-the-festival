@@ -1,0 +1,129 @@
+Browser tab: 4, Title: "Zerble at the Festival — A Bubble Adventure", URL: "http://127.0.0.1:8765/?seed=1234&perf=low&onewheel=1&mute=1".
+1 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8765/?seed=1234&perf=low&onewheel=1&mute=1
+	2 container
+		3 image game
+		4 container hud
+			5 container Description: Game status, ID: status-rail
+				6 container Description: 12 smiles, personal best 54, ID: smile-status
+					110 text 12
+					11 text 54
+				9 container Description: Bubble juice 88%, ID: juice-meter
+				10 container Description: Afternoon, 30% through the day cycle, Help: Afternoon, ID: day-cycle
+			12 text Drive around — make people smile, dodge the parade.
+		13 button Description: Open settings, ID: settings-gear
+			14 image
+		15 button Description: Open bubble upgrades, ID: upgrades-btn
+		16 container debug-panel
+			17 container
+				18 text ▾ Stats
+			111 text fps          61    
+frame        avg=16.6  p95=19.2  max=22.5ms
+quality      baseline
+draws        1,672 / 80 [!!]
+tris         414,618 / 150,000 [!!]
+gpu mem      geo 1613  tex 33  heap 82MB
+chunks       9 gen  slow=5  worst=245.1  last=1.5  avg=37.4ms
+running      true
+seed         1234 (0x000004d2)
+pos          216.8, -198.3
+heading      -91°  speed 0.00
+chunk        (2, -3)
+npcs         80  riding 0  watch 3  flee 0
+one-wheel    1 · cruising
+healing      yoga 0  out 0  in 0  dance 0
+registry     2138  colliders 2042
+time of day  t=0.30 night=0.00
+flags        god=false freezeNPCs=false colliderViz=false
+			20 button copy snapshot
+			21 container
+				22 text ▸ Perf log
+			23 container
+				24 text ▸ Controls
+			25 container
+				26 text ▾ Time of day
+			112 text t=0.30 night=0.00
+			28 slider (settable, float) Value: 0.3009999990463257, Details: 0.301, ID: dbg-tod-slider
+			29 button Morning
+			30 button Noon
+			31 button Dusk
+			32 button Midnight
+			33 container
+				34 text ▾ Teleport
+			35 pop up button (collapsed, settable) Value: One-wheel rider (active), ID: dbg-tp-select, Secondary Actions: Expand
+				36 menu
+					37 Festival hub (nearest major)
+					38 Stage (nearest)
+					39 Healing Arts tent
+					40 Drum circle
+					41 Food court
+					42 Entrance arch
+					43 Bubble vendor (refuel)
+					44 Camp village
+					45 (selected) One-wheel rider (active)
+					46 Nut Wagon (active)
+					47 Monks (active group)
+					48 Lake
+					49 Lurleen
+					50 Spawn
+			51 button Go, ID: dbg-tp-go
+			113 text → One-wheel rider
+			53 container
+				54 text ▾ Audio
+			55 text Master
+			56 slider (settable, float) Value: 0.550000011920929, Details: 0.55, ID: dbg-vol-master
+			57 text 0.55
+			58 text Music
+			59 slider (settable, float) Value: 1.600000023841858, Details: 1.6, ID: dbg-vol-music
+			60 text 1.60
+			61 text MIDI
+			62 slider (settable, integer) Value: 1, ID: dbg-vol-midi
+			63 text 1.00
+			64 text SFX
+			65 slider (settable, integer) Value: 1, ID: dbg-vol-sfx
+			66 text 1.00
+			67 text Nature
+			68 slider (settable, float) Value: 0.8999999761581421, Details: 0.9, ID: dbg-vol-nature
+			69 text 0.90
+			70 container
+				71 checkbox (settable, integer) Description: Mute all, Value: 1, ID: dbg-mute
+				72 text Mute all
+			73 container
+				74 text ▾ Render
+			75 text Level
+			76 pop up button (collapsed, settable) Value: auto, ID: dbg-aq-level, Secondary Actions: Expand
+				77 menu
+					78 (selected) auto
+					79 baseline
+					80 pixel-87
+					81 no-bloom
+					82 pixel-75
+					83 pixel-50
+			84 container dbg-aq-bloom-label
+				85 checkbox (disabled, settable, integer) Description: Bloom, Value: 0, ID: dbg-aq-bloom
+				86 text Bloom
+			87 container dbg-aq-shadows-label
+				88 checkbox (disabled, settable, integer) Description: Shadows, Value: 0, ID: dbg-aq-shadows
+				89 text Shadows
+			90 container dbg-aq-bubbles-label
+				91 checkbox (disabled, settable, integer) Description: Cheap bubbles, Value: 1, ID: dbg-aq-bubbles-cheap
+				92 text Cheap bubbles
+			93 text Pixel ratio
+			94 pop up button (disabled, collapsed, settable) Value: auto, ID: dbg-aq-pr, Secondary Actions: Expand
+				95 menu
+					96 (disabled) auto
+					97 (disabled) 2×
+					98 (disabled) 1.5×
+					99 (disabled) 1×
+					100 (disabled) 0.875×
+					101 (disabled) 0.75×
+					102 (disabled) 0.5×
+			103 text Pick a level to lock and enable overrides.
+			104 container
+				105 text ▸ Lights
+			106 container
+				107 text ▸ Markers
+			108 container
+				109 text ▾ MIDI tracks
+			114 text MIDI not playing
+
+The focused UI element is 51 button Go, ID: dbg-tp-go

@@ -357,6 +357,20 @@ path does not allocate animation objects per frame.
 
 ---
 
+## One-wheel riders (`oneWheels.js`)
+
+A bounded, world-owned encounter system follows existing road polylines without
+consuming layout RNG. `oneWheelMotion.js` owns a fixed-step route follower with
+gradual yielding, per-step clearance, blocked-route reversal and gathering
+stops; `oneWheels.js` supplies water, registry and pedestrian queries. At most
+two riders are resident, while distance and scene disposal remove their moving
+registry entries and owned LED materials. These roaming actors intentionally
+have no chunk key, so a host chunk unloading cannot orphan an active rider.
+The main loop advances them before synchronizing the registry spatial index.
+Their body colliders participate in normal people-hit scoring and consequences.
+`models/oneWheelRider.js` pools baked geometry and exposes wheel, lean, head/arm
+and day/night LED animation independently from the route controller.
+
 ## Crowd (`crowd.js`)
 
 A pool of stateful NPCs spawned by chunks.

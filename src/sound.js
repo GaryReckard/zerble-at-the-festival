@@ -4042,6 +4042,7 @@ const COLLISION_SOUNDS = {
   brass:       (c, d) => brassHit(c, d),
   truck:       (c, d) => { thump(c, d, 55, 0.4, 0.6); clang(c, d); },
   tent:        (c, d) => thump(c, d, 95, 0.22, 0.35),
+  one_wheel:   (c, d) => boop(c, d, 420, 650, 0.15, 0.3, 'sine'),
   kid:         (c, d) => boop(c, d, 720, 1150, 0.13, 0.35, 'sine'),
   wook:        (c, d) => duudeSound(c, d),
   stage:       (c, d) => { thump(c, d, 52, 0.55, 0.62); woodKnock(c, d); },

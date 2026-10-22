@@ -581,3 +581,18 @@ status line counts yoga participants, departures, arrivals and dancers. The
 backtick panel's Teleport picker includes **Healing Arts tent**, and its stats
 show live visitor counts. Seed `1234` has a tent near `(534, 15)`.
 [Verification and captures](verification/healing-arts/README.md).
+
+### One-wheel preview
+
+Use `sandbox.html?entity=one_wheel&mute=1` for the helmeted rider and board,
+or `sandbox.html?entity=one_wheel_route&mute=1` for the same live controller
+with a crossing pedestrian. The route preview counts yield and resume events.
+The model status separates construction time from rendering counters; append
+`baseline=1` to hide the model for an empty-view comparison.
+
+On localhost, `/?seed=1234&onewheel=1&mute=1` forces one nearby road encounter
+and follows it with a close camera after a real start-plank click. Normal games
+use the seeded occasional encounter gate. `__dbg.oneWheels()` returns status,
+`__dbg.summonOneWheel()` requests a safe nearby encounter, and the backtick
+Teleport picker includes **One-wheel rider (active)**. The debug stats show
+its current behavior. [Evidence and lifecycle checks](verification/one-wheel/README.md).

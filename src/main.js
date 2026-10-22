@@ -42,6 +42,7 @@ import { Smiles } from './smiles.js';
 import { Fireworks } from './fireworks.js';
 import { Crowd } from './crowd.js';
 import { MonkParty } from './monks.js';
+import { OneWheels } from './oneWheels.js';
 import { NutWagon } from './nutWagon.js';
 import { Lurleen } from './lurleen.js';
 import { Birds } from './birds.js';
@@ -458,6 +459,10 @@ if (__resume && Number.isFinite(__resume.tod)) getTimeOfDay()?.setT(__resume.tod
 const lurleen = new Lurleen(scene, USE_WORLDGEN_V2 ? zerble.position.clone() : null);
 const nutWagon = new NutWagon(scene, crowd);
 const monks = new MonkParty(crowd, nutWagon);
+const oneWheels = new OneWheels(scene,crowd);
+const forceOneWheel = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get('onewheel') === '1';
+if(forceOneWheel && USE_WORLDGEN_V2)oneWheels.trySpawn(zerble.position,camera,true);
+window.addEventListener('pagehide',event=>{if(!event.persisted)oneWheels.dispose();});
 const forceNutWagon = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get('nutwagon') === '1';
 if (forceNutWagon && USE_WORLDGEN_V2) nutWagon.trySpawn(zerble.position, camera, true);
 let lurleenMet = false;     // first-contact toast latch
@@ -1113,6 +1118,7 @@ function tickBody(dt) {
     // Sync live registry positions before crowd steering, kid push-out and
     // collision. Unchanged static entries retain their existing grid cells.
     if (USE_WORLDGEN_V2 && !npcsFrozen()) nutWagon.update(dt, zerble.position, Trip.isActive(), nightness, camera);
+    if (USE_WORLDGEN_V2 && !npcsFrozen()) oneWheels.update(dt,zerble.position,nightness,camera);
     registry.rebuildSpatialIndex();
     if (!npcsFrozen()) crowd.update(dt, zerble, bubbles);
     // Same-frame collects coalesce into ONE scoring event (and, in group 5,
@@ -1504,6 +1510,11 @@ function tickBody(dt) {
     }
   }
 
+  if (forceOneWheel && running && oneWheels.riders.length) {
+    const rider=oneWheels.riders[0],p=rider.entry.position,h=rider.motion.heading;
+    chaseCam.dbgCamLock(p.x+Math.cos(h)*4-Math.sin(h)*4,3,
+      p.z-Math.sin(h)*4-Math.cos(h)*4,p.x,1.1,p.z);
+  }
   chaseCam.update(dt, Input);
 
   // Keep spatial audio in sync with the camera
@@ -1557,7 +1568,7 @@ const APPROACH_DAMAGE_THRESHOLD = 1.2;
 // around. Otherwise a curious NPC walking up to the cart would shove it
 // across the grass. Hard kinds (truck, tent, stage, arch, puppet, lurleen)
 // always block.
-const SOFT_PEOPLE_KINDS = new Set(['person', 'kid', 'wook', 'brass', 'hula_hoop']);
+const SOFT_PEOPLE_KINDS = new Set(['person', 'kid', 'wook', 'brass', 'hula_hoop', 'one_wheel']);
 
 // Witty per-hit toasts for hula-hoopers — random pick keeps it from getting
 // stale if Zerble bumps into a few in a row.
@@ -1797,6 +1808,7 @@ function resolveCollision(zerble, colliders) {
       const pushDir = new THREE.Vector3(-tox * inv, 0, -toz * inv);
       zerble.applyHit(pushDir);
       // NPC-specific reaction: panic, knockback, infect neighbors.
+      if (c.kind === 'one_wheel') oneWheels.onHit(c.entry);
       if (c.kind === 'person' && c.npc) {
         crowd.onZerbleHit(c.npc, tox * inv, toz * inv);
       }
@@ -1822,6 +1834,7 @@ function resolveCollision(zerble, colliders) {
 
 function toastForKind(kind) {
   switch (kind) {
+    case 'one_wheel': return 'Give the rider a little room!';
     case 'puppet': return 'A giant puppet bonked you!';
     case 'brass': return 'You blocked the brass band. Sorry, tuba.';
     case 'truck': return "Don't hit the food trucks!";
@@ -1869,7 +1882,7 @@ if (window.visualViewport) {
 }
 
 window.__game = {
-  camera, zerble, scene, renderer, composer, bloomPass, fxaaPass, crowd, registry, chaseCam, lurleen, nutWagon, monks,
+  camera, zerble, scene, renderer, composer, bloomPass, fxaaPass, crowd, registry, chaseCam, lurleen, nutWagon, monks, oneWheels,
   getTimeOfDay, Trip, StarPower, midi, birds, bubbles, bubbleProgress, bubbleChallenges, fireworks,
   kids, wooks, puppets, band, hoopers, frisbees, smiles,
   sound: Sound, layoutCaptureMode: LAYOUT_CAPTURE_MODE,
@@ -2104,6 +2117,8 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     // boarding hand-off: claim slot → riding state → snap to worldSeatPosition
     // → write matrices → flag every crowd InstancedMesh dirty.
     monks() { return monks.status(); },
+    oneWheels() { return oneWheels.status(); },
+    summonOneWheel() { return oneWheels.trySpawn(zerble.position,camera,true); },
     nutWagon() { return nutWagon.status(); },
     summonNutWagon() { return nutWagon.trySpawn(zerble.position, camera, true); },
     rider(kind = 'bench') {
@@ -2671,6 +2686,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
         '  board:   showScoreScreen(mock?) · seedBoard(n?)   (festival-run score screen + local top-10 drills)',
         '  bubbles: upgrades() · unlock(id|all) · relock(id|all) · forceSpecial(id|null) · unlockBurst(id) · lifetimeSmiles(n) · challenges()',
         '  run:     runInfo() · runDay(n) · vibe(v) · strike(n) · sputterLeft(s)   (stakes drills — need localStorage["zerble-mode"]="festival" before start())',
+        '  riders:  oneWheels() status · summonOneWheel() find a clear nearby road',
         '  wagon:   nutWagon() status · summonNutWagon() find a clear nearby road',
         '  camera:  camLock(px,py,pz, tx,ty,tz) · camUnlock() · topDown(x?,z?,span)   (pins a pose; overrides chase cam)',
         '  layout:  dumpRegistry(bounds?) · dumpDrawCounts(bounds?)   (read-only built-truth + canary → bin/layout-snapshot)',
@@ -2718,7 +2734,7 @@ installDebug({
   zerble, crowd, bubbles, smiles, registry,
   puppets, band, kids, wooks,
   hoopers, frisbees,
-  nutWagon, monks,                      // live encounter teleport destinations
+  nutWagon, monks, oneWheels,           // live encounter teleport destinations
   lurleen,                              // teleport menu uses .position
   getRunning: () => running,
   setCaptureDriveLocked: (locked) => {

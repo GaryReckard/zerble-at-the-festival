@@ -5,9 +5,11 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-10-22
 
 ### Added
+- **One-wheel riders cruise the festival roads.** Occasional seeded encounters now bring helmeted riders on a single broad tire, with sideways stances, leaning balance, rotating wheels and restrained white/red lights after dark. Riders brake for crossing pedestrians and Zerble, avoid water and solid props, pause near gatherings, and turn back from a blocked route. Their moving colliders use normal people-hit consequences, and distant encounters release their registry entries and owned LED materials. Isolated model and crossing-pedestrian previews, debug teleport/status tools, and focused motion/lifecycle tests keep the feature inspectable. [Captures, checks and limits](verification/one-wheel/README.md).
 - **Healing Arts tents bring yoga by day and dancing after dark.** Occasional, independently seeded hubs now host a cream five-peak tensile canopy with bunting, hanging lights, and loose classes of 7–20 participants moving through standing, warrior, tree and forward-fold poses on colorful mats. At dusk the class trickles out as regular festivalgoers, while nearby available crowd members walk in and take over as dancers. At night the mats give way to a DJ booth, circulating dancers with glowsticks, warm pooled lighting and spatial dance music. The open tent has colliders only at its support poles, and chunk unloading releases animation and audio. The canopy has pointed tie-downs, a higher roof and a sign clear of the fabric. The entity sandbox includes a real-crowd changeover view, and the hub/map sandboxes and debug teleport picker expose the same placement path.
 
 ### Fixed
+- **Sandbox entity changes preserve verification flags.** Switching the selector now retains session mute, quality and seed parameters instead of dropping them from the copied/reloaded URL.
 - **Removing a moved registry entry clears its indexed cell.** Cleanup now uses the last indexed position, so despawning or unloading before the next frame sync cannot leave a collider behind.
 
 ### Performance

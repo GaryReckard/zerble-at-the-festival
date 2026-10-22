@@ -1,0 +1,116 @@
+Browser tab: 4, Title: "Zerble at the Festival — A Bubble Adventure", URL: "http://127.0.0.1:8765/?seed=1234&perf=high&onewheel=1&mute=1".
+1 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8765/?seed=1234&perf=high&onewheel=1&mute=1
+	2 container
+		3 image game
+		4 container hud
+			5 container Description: Game status, ID: status-rail
+				6 container Description: 0 smiles, personal best 54, ID: smile-status
+					7 text 0
+					11 text 54
+				12 container Description: Combo ×1, ID: combo-chip
+				9 container Description: Bubble juice 99%, ID: juice-meter
+				10 container Description: Evening, 75% through the day cycle, Help: Evening, ID: day-cycle
+					13 text Day 1
+				14 container Description: Festival vibe: all good, ID: vibe-chip
+			15 text Drive around — make people smile, dodge the parade.
+		16 button Description: Open settings, ID: settings-gear
+			17 image
+		18 button Description: Open bubble upgrades, ID: upgrades-btn
+		19 container debug-panel
+			20 container
+				21 text ▾ Stats
+			98 text fps          25    
+frame        warming up…
+quality      baseline
+draws        3,160 / 400 [!!]
+tris         1,103,938 / 1,200,000 [! ]
+gpu mem      geo 1637  tex 24  heap 125MB
+chunks       25 gen  slow=12  worst=251.8  last=1.8  avg=19.3ms
+running      true
+seed         1234 (0x000004d2)
+pos          244.0, -179.0
+heading      -156°  speed 0.00
+chunk        (3, -3)
+npcs         206  riding 0  watch 2  flee 0
+one-wheel    1 · cruising
+healing      yoga 0  out 0  in 0  dance 0
+registry     2355  colliders 2173
+time of day  t=0.75 night=1.00
+flags        god=false freezeNPCs=false colliderViz=false
+			23 button copy snapshot
+			24 container
+				25 text ▸ Perf log
+			26 container
+				27 text ▸ Controls
+			28 container
+				29 text ▾ Time of day
+			99 text t=0.75 night=1.00
+			31 slider (settable, float) Value: 0.7509999871253967, Details: 0.751, ID: dbg-tod-slider
+			32 button Morning
+			33 button Noon
+			34 button Dusk
+			35 button Midnight
+			36 container
+				37 text ▸ Teleport
+			38 container
+				39 text ▾ Audio
+			40 text Master
+			41 slider (settable, float) Value: 0.550000011920929, Details: 0.55, ID: dbg-vol-master
+			42 text 0.55
+			43 text Music
+			44 slider (settable, float) Value: 1.600000023841858, Details: 1.6, ID: dbg-vol-music
+			45 text 1.60
+			46 text MIDI
+			47 slider (settable, integer) Value: 1, ID: dbg-vol-midi
+			48 text 1.00
+			49 text SFX
+			50 slider (settable, integer) Value: 1, ID: dbg-vol-sfx
+			51 text 1.00
+			52 text Nature
+			53 slider (settable, float) Value: 0.8999999761581421, Details: 0.9, ID: dbg-vol-nature
+			54 text 0.90
+			55 container
+				56 checkbox (settable, integer) Description: Mute all, Value: 1, ID: dbg-mute
+				57 text Mute all
+			58 container
+				59 text ▾ Render
+			60 text Level
+			61 pop up button (collapsed, settable) Value: auto, ID: dbg-aq-level, Secondary Actions: Expand
+				62 menu
+					63 (selected) auto
+					64 baseline
+					65 pixel-87
+					66 no-bloom
+					67 pixel-75
+					68 cheap-bubs
+					69 no-shadows
+					70 pixel-50
+			71 container dbg-aq-bloom-label
+				72 checkbox (disabled, settable, integer) Description: Bloom, Value: 1, ID: dbg-aq-bloom
+				73 text Bloom
+			74 container dbg-aq-shadows-label
+				75 checkbox (disabled, settable, integer) Description: Shadows, Value: 1, ID: dbg-aq-shadows
+				76 text Shadows
+			77 container dbg-aq-bubbles-label
+				78 checkbox (disabled, settable, integer) Description: Cheap bubbles, Value: 0, ID: dbg-aq-bubbles-cheap
+				79 text Cheap bubbles
+			80 text Pixel ratio
+			81 pop up button (disabled, collapsed, settable) Value: auto, ID: dbg-aq-pr, Secondary Actions: Expand
+				82 menu
+					83 (disabled) auto
+					84 (disabled) 2×
+					85 (disabled) 1.5×
+					86 (disabled) 1×
+					87 (disabled) 0.875×
+					88 (disabled) 0.75×
+					89 (disabled) 0.5×
+			90 text Pick a level to lock and enable overrides.
+			91 container
+				92 text ▸ Lights
+			93 container
+				94 text ▸ Markers
+			95 container
+				96 text ▾ MIDI tracks
+			97 text MIDI not playing
+
+The focused UI element is 35 button Midnight

@@ -1,0 +1,187 @@
+Browser tab: 3, Title: "Sandbox — Zerble at the Festival", URL: "http://127.0.0.1:8765/sandbox.html?entity=one_wheel_route&perf=low&mute=1".
+1 AXWebArea Sandbox — Zerble at the Festival, URL: 127.0.0.1:8765/sandbox.html?entity=one_wheel_route&perf=low&mute=1
+	2 container
+		3 image canvas
+		4 container hud
+			5 heading ENTITY SANDBOX, Value: 1
+				6 text ENTITY SANDBOX
+			7 text ENTITY
+			8 pop up button (collapsed, settable) ENTITY, Value: One-wheel (route + crossing pedestrian), ID: entity, Secondary Actions: Expand
+				9 menu
+					10 container Carts
+						11 Zerble
+						12 Lurleen
+						13 Zerble + Lurleen (side by side)
+						14 Zerble — STAR POWER (rainbow shader)
+					15 container Star power
+						16 Star (pickup target + light pillar)
+					17 container Festival props
+						18 Hammock
+						19 Hammock + person (lounging)
+						20 Vendor tent
+						21 Vendor tent row (7 trades)
+						22 Tibetan monk
+						23 Monks · wandering group
+						24 Nut Wagon · monk group boarding
+						25 Bo · standing
+						26 Bo · behind the wheel
+						27 Nut Wagon
+						28 Nut Wagon · cruising and boarding
+						29 Nut Wagon · hatch closed
+						30 Food truck
+						31 Food trucks (three silhouettes)
+						32 Sugar Shack
+						33 Tree
+						34 Entrance arch
+						35 Main stage (with band)
+						36 Side stage (with band)
+						37 One-wheel rider
+						38 (selected) One-wheel (route + crossing pedestrian)
+						39 Healing Arts (yoga / night DJ)
+						40 Healing Arts (real crowd changeover)
+						41 Tent stage (big white tent)
+						42 Canoe
+						43 Lake (mini disc)
+						44 Lake (big + small + causeway + island)
+						45 Lake (big + sand beach)
+						46 Picnic blanket
+						47 Lamppost pair + festoon string lights
+						48 Porta-potty (demo: door + occupied + stink cycle)
+						49 Porta-potty bank (5 — staggered use cycle)
+						50 Picnic table
+						51 Info kiosk (welfare board + pennant)
+						52 Welfare post — PLAZA tier (the full bundle)
+						53 Welfare post — STANDARD tier
+						54 Welfare post — MINIMAL tier (bank only)
+					55 container People
+						56 Crowd cheer demo (jump + arms-up)
+						57 Crowd photographer (pose + flash)
+						58 Crowd appearance lineup
+						59 Puppet (parade)
+						60 Lantern: heron
+						61 Lantern: dragon
+						62 Lantern: seahorse
+						63 Lantern: jellyfish
+						64 Lantern: moon
+						65 Lantern: star
+						66 Puppet lineup (6)
+						67 Puppet parade (fixed preview loop)
+						68 Band member — trumpet
+						69 Band member — tuba
+						70 Band member — sax
+						71 Band member — drum
+						72 Band member — trombone
+						73 Parasol grand marshal
+						74 Brass band formation
+						75 Vendor shopkeeper (alone)
+						76 Kid
+						77 Wook
+						78 Hula-hooper
+						79 Hula-hooper (night — hoop glows)
+						80 Frisbee player — relaxed
+						81 Frisbee player — one-arm catch reach
+						82 Frisbee player — throw windup + release
+						83 Frisbee pair (tossing disc)
+						84 Performer — lead vocal
+						85 Performer — guitar
+						86 Performer — bass
+						87 Performer — drum kit
+						88 Performer — sax
+					89 container Drum circle
+						90 LEAF drum circle (full)
+						91 LEAF drum circle — daytime
+						92 LEAF drum circle — full night
+						93 Drum circle populated (drummers + dancers + firekeeper)
+						94 Chunk drum circle (simple — fire + stones + djembe)
+						95 Fire dancer
+						96 Hand drummer (seated)
+						97 Firekeeper (black, with pole)
+						98 Spotter (black, no pole)
+					99 container Camping
+						100 Camp tent (sleeping)
+						101 Camp chair (folding)
+						102 Chiminea / firepit
+						103 Tiki torch
+						104 Tiki torch field (instanced)
+						105 EZ-up canopy
+						106 Tapestry
+						107 Campsite (small)
+						108 Campsite (medium)
+						109 Campsite (large)
+						110 Vendor backstage camp (full)
+						111 Vendor backstage camp (lean)
+					112 container Forest
+						113 Forest tree — tall pine
+						114 Forest tree — oak
+						115 Forest tree — birch
+						116 Forest tree — random variety
+						117 Forest patch — instanced (CG3, the shipped path)
+						118 Shrub / bush (seam buffer + ground cover)
+						119 Shrub hedge (a row of 6)
+					120 container Wildlife
+						121 Bird — sparrow (flying)
+						122 Bird — finch (flying)
+						123 Bird — jay (flying)
+						124 Bird — crow (flying)
+						125 Bird — dove (flying)
+						126 Bird — perched (resting pose)
+						127 Bird flock (7 sparrows)
+						128 Bird in tree (perch anchors on oak)
+					129 container Bubble juice
+						130 Bubble-juice jug (floating pickup)
+						131 Bubble vendor (spacesuit stand)
+					132 container Particles
+						133 Heart particle
+						134 Smile pickup (rising + homing)
+						135 Smile pickup (face close-up)
+						136 Bubbles (Zerble's trail)
+						137 Bubble upgrades (lineup or stream)
+						138 Fireworks (cycles all shells)
+						139 Boost wake rings (reusable trail)
+			140 button Reset camera, ID: reset-cam
+			141 button Copy link, ID: snapshot
+			189 text cruising: following road · 1.17 m/s · yields 2, resumes 2
+			186 text scene: 22 draws · 4,896 tris · 26 geo · 3 tex
+			144 container
+				145 text 1 – 6  snap to angles ·  R  reset ·  L  ground ·  H  hide panel
+			146 container
+				147 text Time of day
+				187 text t=0.30 night=0.71
+			149 slider (settable, float) Value: 0.30000001192092896, Details: 0.3, ID: tod-slider
+			150 button Morning
+			151 button Noon
+			152 button Dusk
+			153 button Midnight
+			154 text Audio
+			155 text Master
+			156 slider (settable, float) Value: 0.550000011920929, Details: 0.55, ID: vol-master
+			157 text 0.55
+			158 text Music
+			159 slider (settable, float) Value: 1.600000023841858, Details: 1.6, ID: vol-music
+			160 text 1.60
+			161 text SFX
+			162 slider (settable, integer) Value: 1, ID: vol-sfx
+			163 text 1.00
+			164 button Hit it (one_wheel), ID: hit-it-btn
+			165 button Empty-juice sputter, ID: juice-sputter-btn
+			166 container
+				167 text Music
+				168 text —
+			169 button Jam
+			170 button Brass
+			171 button Drum
+			172 button Forest
+			173 button Dance
+			174 button World
+			175 button Dub
+			176 button Nut Wagon reggae
+			177 button Stop music, ID: music-stop
+			178 button End song now, ID: end-song-btn
+			179 button ♪ MIDI, ID: midi-toggle
+			180 text Trip sweep
+			181 slider (settable, integer) Value: 0, ID: trip-sweep
+			182 text 0.00
+			188 text —
+			184 button ▶ Trip (T), ID: trip-toggle
+
+The focused UI element is 151 button Noon

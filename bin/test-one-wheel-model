@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+
+// Exercise the shipped updater with transform/material writes stubbed. Geometry,
+// GPU appearance and shared-resource disposal are checked in the browser suite.
+const source=readFileSync(new URL('../src/models/oneWheelRider.js',import.meta.url),'utf8');
+const start=source.indexOf('export function updateOneWheelRider(');
+assert(start>0,'updater extraction anchor exists');
+const radius=Number(source.match(/const WHEEL_RADIUS = ([.\d]+);/)[1]);
+const update=vm.runInNewContext(source.slice(start).replace('export function','function')+';updateOneWheelRider',{
+  WHEEL_RADIUS:radius,
+  THREE:{MathUtils:{clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),smoothstep:(x,a,b)=>{
+    const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);
+  }}},
+});
+function fixture(){
+  const node=()=>({rotation:{x:0,y:0,z:0}});
+  return {userData:{oneWheel:{time:0,phase:.3,wheel:node(),lean:node(),rider:node(),
+    head:node(),arms:[node(),node()],front:{material:{emissiveIntensity:0}},rear:{material:{emissiveIntensity:0}}}}};
+}
+function close(a,b,message){assert(Math.abs(a-b)<1e-10,message);}
+const one=fixture(),many=fixture();
+update(one,1,{speed:2});
+for(let i=0;i<120;i++)update(many,1/120,{speed:2});
+close(one.userData.oneWheel.wheel.rotation.x,2/radius,'wheel angle follows travelled distance');
+close(one.userData.oneWheel.wheel.rotation.x,many.userData.oneWheel.wheel.rotation.x,'wheel rotation is frame-partition independent');
+update(one,1,{speed:-2});
+close(one.userData.oneWheel.wheel.rotation.x,0,'reverse travel unwinds the wheel');
+update(one,5,{speed:0});
+close(one.userData.oneWheel.wheel.rotation.x,0,'stationary rider does not turn the tire');
+for(const dt of [-1,NaN,Infinity])update(one,dt,{speed:2});
+close(one.userData.oneWheel.wheel.rotation.x,0,'invalid and negative frame durations cannot advance tire');
+const u=one.userData.oneWheel;
+for(let i=0;i<240;i++)update(one,1/60,{speed:3,acceleration:50,turnRate:50});
+assert(Math.abs(u.lean.rotation.x)<=.071&&Math.abs(u.lean.rotation.z)<=.161,'extreme steering keeps board lean bounded');
+assert(u.lean.rotation.x>0&&u.lean.rotation.z<0,'acceleration and positive heading change lean in their physical directions');
+for(let i=0;i<240;i++)update(one,1/60,{});
+assert(Math.abs(u.lean.rotation.x)<1e-10&&Math.abs(u.lean.rotation.z)<1e-10,'stopped rider settles back to a level board');
+update(one,0,{nightness:0});
+assert.equal(u.front.material.emissiveIntensity,0,'front LED is unlit by day');
+assert.equal(u.rear.material.emissiveIntensity,0,'rear LED is unlit by day');
+update(one,0,{nightness:.5});
+const dusk=u.front.material.emissiveIntensity;
+update(one,0,{nightness:1});
+assert(dusk>0&&dusk<u.front.material.emissiveIntensity,'front LED ramps smoothly through dusk');
+assert(u.front.material.emissiveIntensity<=1.2&&u.rear.material.emissiveIntensity<1,'midnight LED output remains restrained');
+assert.equal(many.userData.oneWheel.front.material.emissiveIntensity,0,'one rider night update leaves another rider untouched');
+update(one,0,{time:20});
+const pose=u.head.rotation.y;
+update(one,0,{time:20});
+close(u.head.rotation.y,pose,'explicit animation time reproduces the same head pose');
+update({userData:{}},1);
+console.log('PASS One-wheel model: distance-based wheel rotation, time partitioning, stopped/reverse motion, bounded lean, settling and independent day/night LED updates.');
+console.log('Scope: shipped updater with rendering writes stubbed; browser verification covers geometry, shared-resource ownership and appearance.');

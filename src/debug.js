@@ -353,6 +353,12 @@ function locateLandmark(kind) {
       const p = forestEntrancePoint(f);
       return { ...p, label: `forest at (${f.centerCx}, ${f.centerCz})` };
     }
+    case 'one_wheel': {
+      const rider=h.oneWheels?.riders[0];if(!rider)return null;
+      const p=rider.entry.position,heading=rider.motion.heading;
+      return {x:p.x-Math.sin(heading)*7,z:p.z-Math.cos(heading)*7,heading,
+        label:'One-wheel rider'};
+    }
     case 'nut_wagon':
     case 'monks': {
       const wagon = h.nutWagon;
@@ -718,6 +724,7 @@ function buildPanel() {
     ['arch',         'Entrance arch'],
     ['bubble',       'Bubble vendor (refuel)'],
     ['camp_village', 'Camp village'],
+    ['one_wheel', 'One-wheel rider (active)'],
     ['nut_wagon',    'Nut Wagon (active)'],
     ['monks',        'Monks (active group)'],
     ['lake',         'Lake'],
@@ -1177,6 +1184,7 @@ function updatePanel(dt) {
   const fleeing = h.crowd.npcs.filter(n => n.state === 'fleeing').length;
   const registryCount = h.registry.entries.size;
   const colliderCount = [...h.registry.colliders()].length;
+  const wheelRiders=h.oneWheels?.status()||[];
   const healingRoles = {yoga:0,leaving:0,entering:0,dance:0,yoga_entering:0};
   for (const npc of h.crowd.npcs) {
     const role = npc.festivalVisit?.slot?.role;
@@ -1252,6 +1260,7 @@ function updatePanel(dt) {
     `heading      ${(z.heading * 180 / Math.PI).toFixed(0)}°  speed ${z.speed.toFixed(2)}\n` +
     `chunk        (${cx}, ${cz})\n` +
     `npcs         ${npcs}  riding ${riders}  watch ${watching}  flee ${fleeing}\n` +
+    `one-wheel    ${wheelRiders.length} · ${wheelRiders.map(r=>r.state+(r.reason?': '+r.reason:'')).join(', ')}\n` +
     `healing      yoga ${healingRoles.yoga}  out ${healingRoles.leaving}  in ${healingRoles.entering+healingRoles.yoga_entering}  dance ${healingRoles.dance}\n` +
     `registry     ${registryCount}  colliders ${colliderCount}\n` +
     `time of day  ${todStr}\n` +

@@ -1,0 +1,111 @@
+Browser tab: 4, Title: "Zerble at the Festival — A Bubble Adventure", URL: "http://127.0.0.1:8765/?seed=1234&perf=low&onewheel=1&mute=1".
+1 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8765/?seed=1234&perf=low&onewheel=1&mute=1
+	2 container
+		3 image game
+		4 container hud
+			5 container Description: Game status, ID: status-rail
+				6 container Description: 16 smiles, personal best 54, ID: smile-status
+					14 text 16
+					8 text 54
+				9 container Description: Bubble juice 52%, ID: juice-meter
+				10 container Description: Evening, 75% through the day cycle, Help: Evening, ID: day-cycle
+			15 text Drive around — make people smile, dodge the parade.
+		11 button Description: Open settings, ID: settings-gear
+			12 image
+		13 button Description: Open bubble upgrades, ID: upgrades-btn
+		16 container debug-panel
+			17 container
+				18 text ▾ Stats
+			93 text fps          61    
+frame        avg=16.7  p95=21.4  max=25.9ms
+quality      baseline
+draws        1,183 / 80 [!!]
+tris         459,011 / 150,000 [!!]
+gpu mem      geo 1478  tex 29  heap 101MB
+chunks       9 gen  slow=5  worst=259.2  last=1.9  avg=38.9ms
+running      true
+seed         1234 (0x000004d2)
+pos          244.0, -179.0
+heading      -156°  speed 0.00
+chunk        (3, -3)
+npcs         80  riding 0  watch 0  flee 0
+one-wheel    1 · cruising
+healing      yoga 0  out 0  in 0  dance 0
+registry     1603  colliders 1518
+time of day  t=0.75 night=1.00
+flags        god=false freezeNPCs=false colliderViz=false
+			20 button copy snapshot
+			21 container
+				22 text ▸ Perf log
+			23 container
+				24 text ▸ Controls
+			25 container
+				26 text ▾ Time of day
+			94 text t=0.75 night=1.00
+			28 slider (settable, float) Value: 0.7509999871253967, Details: 0.751, ID: dbg-tod-slider
+			29 button Morning
+			30 button Noon
+			31 button Dusk
+			32 button Midnight
+			33 container
+				34 text ▸ Teleport
+			35 container
+				36 text ▾ Audio
+			37 text Master
+			38 slider (settable, float) Value: 0.550000011920929, Details: 0.55, ID: dbg-vol-master
+			39 text 0.55
+			40 text Music
+			41 slider (settable, float) Value: 1.600000023841858, Details: 1.6, ID: dbg-vol-music
+			42 text 1.60
+			43 text MIDI
+			44 slider (settable, integer) Value: 1, ID: dbg-vol-midi
+			45 text 1.00
+			46 text SFX
+			47 slider (settable, integer) Value: 1, ID: dbg-vol-sfx
+			48 text 1.00
+			49 text Nature
+			50 slider (settable, float) Value: 0.8999999761581421, Details: 0.9, ID: dbg-vol-nature
+			51 text 0.90
+			52 container
+				53 checkbox (settable, integer) Description: Mute all, Value: 1, ID: dbg-mute
+				54 text Mute all
+			55 container
+				56 text ▾ Render
+			57 text Level
+			58 pop up button (collapsed, settable) Value: auto, ID: dbg-aq-level, Secondary Actions: Expand
+				59 menu
+					60 (selected) auto
+					61 baseline
+					62 pixel-87
+					63 no-bloom
+					64 pixel-75
+					65 pixel-50
+			66 container dbg-aq-bloom-label
+				67 checkbox (disabled, settable, integer) Description: Bloom, Value: 1, ID: dbg-aq-bloom
+				68 text Bloom
+			69 container dbg-aq-shadows-label
+				70 checkbox (disabled, settable, integer) Description: Shadows, Value: 0, ID: dbg-aq-shadows
+				71 text Shadows
+			72 container dbg-aq-bubbles-label
+				73 checkbox (disabled, settable, integer) Description: Cheap bubbles, Value: 1, ID: dbg-aq-bubbles-cheap
+				74 text Cheap bubbles
+			75 text Pixel ratio
+			76 pop up button (disabled, collapsed, settable) Value: auto, ID: dbg-aq-pr, Secondary Actions: Expand
+				77 menu
+					78 (disabled) auto
+					79 (disabled) 2×
+					80 (disabled) 1.5×
+					81 (disabled) 1×
+					82 (disabled) 0.875×
+					83 (disabled) 0.75×
+					84 (disabled) 0.5×
+			85 text Pick a level to lock and enable overrides.
+			86 container
+				87 text ▸ Lights
+			88 container
+				89 text ▸ Markers
+			90 container
+				91 text ▾ MIDI tracks
+			92 text MIDI not playing
+
+The focused UI element is 32 button Midnight

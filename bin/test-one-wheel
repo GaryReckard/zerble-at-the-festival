@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {makeWagonRoute} from '../src/nutWagonRoute.js';
+import {OneWheelMotion,ONE_WHEEL_TUNING as T,riderYieldReason} from '../src/oneWheelMotion.js';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {setSeed} from '../src/worldgen/index.js';
+import {spawnHeart} from '../src/worldgen/festival.js';
+import {nearestHeart} from '../src/worldgen/hearts.js';
+import {approachRoadsOf} from '../src/worldgen/roads.js';
+import {lakeAt} from '../src/worldgen/water.js';
+import {worldHash,mulberry32} from '../src/rng.js';
+import {wagonRoutes,sampleWagonRoute} from '../src/nutWagonRoute.js';
+const route=makeWagonRoute([{x:0,z:0},{x:0,z:40},{x:30,z:40}]);
+const clear={clear:()=>true};
+const snapshots=[];
+for(const fps of [30,60,120]){
+ const m=new OneWheelMotion(route,3);
+ for(let i=0;i<fps*40;i++)m.update(1/fps,clear);
+ snapshots.push([m.x,m.z,m.heading,m.distance,m.direction,m.state]);
+ assert(m.distance>=0&&m.distance<=route.length);
+ assert(m.speed<=T.speed);
+}
+assert.deepEqual(snapshots[0],snapshots[1]);assert.deepEqual(snapshots[1],snapshots[2]);
+const pedestrian={pos:{x:0,z:5},vel:{x:0,z:0},state:'walking'};
+assert.equal(riderYieldReason(0,0,0,3,null,[pedestrian]),'yielding to pedestrians');
+assert.equal(riderYieldReason(0,0,0,3,{x:0,z:5},[]),'yielding to Zerble');
+assert.equal(riderYieldReason(0,0,0,3,null,[{...pedestrian,pos:{x:5,z:0}}]),null);
+assert.equal(riderYieldReason(0,0,0,3,null,[{...pedestrian,pos:{x:1.8,z:3},vel:{x:-1,z:0}}]),'yielding to pedestrians');
+let occupied=true;
+const yielding=new OneWheelMotion(route,0);
+const yieldingEnv={clear:()=>true,yieldAhead:(x,z,h,s)=>occupied?riderYieldReason(x,z,h,s,null,[pedestrian]):null};
+for(let i=0;i<600;i++)yielding.update(1/60,yieldingEnv);
+assert.equal(yielding.state,'yielding');assert(yielding.z<3.65,'stops clear of pedestrian');assert.equal(yielding.direction,1,'people do not trigger reversal');
+occupied=false;for(let i=0;i<180;i++)yielding.update(1/60,yieldingEnv);assert(yielding.z>5,'resumes when crossing clears');
+const blocked=new OneWheelMotion(route,5);
+for(let i=0;i<600;i++)blocked.update(1/60,{clear:(x,z)=>z<7});
+assert(blocked.z<7,'never crosses blocked or wet sample');
+assert(blocked.direction<0||blocked.distance<5,'recovers toward safe route behind');
+const wet=new OneWheelMotion(route,0);for(let i=0;i<150;i++)wet.update(.1,{clear:(x,z)=>z<2});assert(wet.z<2);
+const gathering=new OneWheelMotion(route,0);
+let stopped=false;
+for(let i=0;i<1200;i++){gathering.update(1/60,{clear:()=>true,gathering:()=>true});if(gathering.pause>3){stopped=true;break;}}
+assert(stopped,'pauses after traveling to a gathering');
+const endpoint=new OneWheelMotion(route,route.length-.001);endpoint.update(.1,clear);assert(endpoint.pause>0);assert.equal(endpoint.direction,-1);
+console.log('PASS One-wheel motion: 30/60/120fps equivalence, corners/endpoints, pedestrian/cart/crossing yields, safe resumption, blocked/water recovery and gathering stops');
+
+// Exercise the actual manager with geometry/registry storage stubs, not copied lifecycle logic.
+class V{constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}set(x,y,z){Object.assign(this,{x,y,z});return this;}copy(v){return this.set(v.x,v.y,v.z);}toArray(){return[this.x,this.y,this.z];}}
+const entries=new Map();let nextId=0,disposedMaterials=0,removed=0,animations=0;
+const registry={add:e=>{entries.set(++nextId,e);return nextId;},remove:id=>entries.delete(id),collidersNear(x,z,r,fn){for(const e of entries.values())fn(e);}};
+const makeModel=()=>({position:new V(),rotation:{},removeFromParent(){removed++;},traverse(fn){fn({isMesh:true,geometry:{userData:{shared:true},dispose(){throw new Error('shared geometry disposed');}},material:[{userData:{shared:true},dispose(){throw new Error('shared material disposed');}},{userData:{},dispose(){disposedMaterials++;}}]});}});
+const source=readFileSync(new URL('../src/oneWheels.js',import.meta.url),'utf8');
+const stripped=source.replace(/^import .*;\n/gm,'').replace('export class OneWheels','class OneWheels');
+const Manager=vm.runInNewContext(stripped+';OneWheels',{THREE:{Vector3:V,Frustum:class{},Matrix4:class{},Sphere:class{constructor(center,radius){this.center=center;this.radius=radius;}}},OneWheelMotion,T,riderYieldReason,registry,buildOneWheelRider:makeModel,updateOneWheelRider:()=>animations++,mulberry32:()=>()=>.5,worldHash:()=>1});
+const manager=new Manager({add(){}},{npcs:[]},{procedural:false,isWater:(x,z)=>x>10});
+assert(!manager.clearAt(9.5,0),'full board envelope catches shoreline');
+const rider=manager.spawnOnRoute(route,2);assert(rider);assert.equal(entries.size,1);
+manager.update(.1,{x:0,z:-30},0);assert(animations>0);assert.equal(rider.entry.position.z,rider.motion.z);
+manager.remove(rider);assert.equal(entries.size,0);assert.equal(disposedMaterials,1);assert.equal(removed,1);
+manager.spawnOnRoute(route,2);manager.update(.1,{x:1000,z:1000},0);assert.equal(manager.riders.length,0);assert.equal(entries.size,0);
+manager.spawnOnRoute(route,2);manager.dispose();assert.equal(entries.size,0);assert.equal(manager.riders.length,0);assert.equal(manager.spawnOnRoute(route,2),null);
+console.log('PASS One-wheel lifecycle: full-footprint water, live collider position, distant despawn, shared pools, owned LED disposal and idempotent teardown');
+
+const braking=new OneWheelMotion(route,0);braking.speed=3;
+braking.update(1/60,{clear:()=>true,yieldAhead:()=> 'yielding to pedestrians'});
+assert(braking.speed>2.9&&braking.speed<3,'yield brakes smoothly instead of snapping');
+for(let i=0;i<60;i++)braking.update(1/60,{clear:()=>true,yieldAhead:()=> 'yielding to pedestrians'});
+assert.equal(braking.speed,0);
+const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+assert(main.indexOf('oneWheels.update(dt')<main.indexOf('registry.rebuildSpatialIndex();'),'movers precede spatial index synchronization');
+assert(main.includes('if(!event.persisted)oneWheels.dispose()'),'back-forward cached pages retain their live manager');
+const RealManager=vm.runInNewContext(stripped+';OneWheels',{THREE:{Vector3:V,Frustum:class{},Matrix4:class{},Sphere:class{constructor(center,radius){this.center=center;this.radius=radius;}}},OneWheelMotion,T,riderYieldReason,registry,buildOneWheelRider:makeModel,updateOneWheelRider:()=>{},mulberry32,worldHash,nearestHeart,approachRoadsOf,wagonRoutes,sampleWagonRoute});
+let snapshotsOfSeeds=[];
+for(const seed of [1234,42,9876,3948869160,8675309]){
+ setSeed(seed);const h=spawnHeart(),player={x:h.x,z:h.z};
+ const a=new RealManager({add(){}},{npcs:[]},{isWater:lakeAt});
+ assert(a.trySpawn(player,null,true),`seed ${seed} has a safe route`);
+ const first=JSON.stringify(a.status());a.dispose();assert.equal(entries.size,0);
+ const b=new RealManager({add(){}},{npcs:[]},{isWater:lakeAt});
+ assert(b.trySpawn(player,null,true));assert.equal(JSON.stringify(b.status()),first,'encounter and direction are seeded');
+ b.dispose();snapshotsOfSeeds.push(first);
+}
+assert(new Set(snapshotsOfSeeds).size>1,'different seeds vary encounters');
+console.log('PASS One-wheel integration: smooth braking, BFCache lifecycle, pre-collision index sync and five-seed road encounter determinism');
+
+assert(/SOFT_PEOPLE_KINDS = new Set\(\[[^\]]*'one_wheel'/.test(main),'rider collisions retain people-hit stakes');
+const fresh=new Manager({add(){}},{npcs:[]},{procedural:false,isWater:()=>false});
+const hitRider=fresh.spawnOnRoute(route,3);hitRider.motion.speed=3;
+fresh.onHit(hitRider.entry);assert.equal(hitRider.motion.speed,0);assert.equal(hitRider.motion.pause,3);fresh.dispose();
+console.log('PASS One-wheel collisions: normal people-hit classification and rider recovery pause');
+const sandboxSource=readFileSync(new URL('../sandbox.html',import.meta.url),'utf8');
+const selectorBody=sandboxSource.match(/select\.addEventListener\('change', \(e\) => \{([\s\S]*?)\n    \}\);/)[1];
+let replaced;
+vm.runInNewContext(`(e=>{${selectorBody}})({target:{value:'one_wheel_route'}})`,{
+ URLSearchParams,location:{search:'?entity=one_wheel&mute=1&perf=low&seed=771'},
+ history:{replaceState(_a,_b,url){replaced=url;}},loadEntity(){},
+});
+const preserved=new URLSearchParams(replaced);
+assert.equal(preserved.get('mute'),'1');assert.equal(preserved.get('perf'),'low');
+assert.equal(preserved.get('seed'),'771');assert.equal(preserved.get('entity'),'one_wheel_route');
+console.log('PASS sandbox selection preserves session mute, tier and seed flags');
