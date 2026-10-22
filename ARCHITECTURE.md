@@ -1,11 +1,14 @@
 # Architecture
 
-How Zerble at Festival fits together. Aimed at someone who has cloned the repo and wants to understand the moving parts before editing anything.
+How Zerble at the Festival fits together. Aimed at someone who has cloned the repo and wants to understand the moving parts before editing anything.
 
 > For the **per-capability contract** ("what does subsystem X guarantee"), see the
 > canonical specs in [`openspec/specs/`](openspec/specs/README.md) — 20 capabilities in
 > Requirement/Scenario form, traced to code. This file is the prose walkthrough; those
 > are the contract.
+
+For local setup and verification, use [DEBUGGING.md](DEBUGGING.md); for the
+full reference map, use the [documentation index](docs/README.md).
 
 ---
 
@@ -174,7 +177,7 @@ mesh uses 140 segments per side, down from 220 before the texture was added.
 - Decision rule: within every 5x5 chunk block, the center offset `(2, 2)` is the only candidate. This guarantees ≥2 chunks of clear space between any two forests.
 - Some forests have a path entry on one cardinal side leading to an interior clearing. Clearings may host:
   - a campsite, or
-  - a **LEAF-style drum circle** — stone firepit, log benches, tribal figures (dancers, drummers, firekeeper).
+  - a **woodland drum circle** — stone firepit, log benches, tribal figures (dancers, drummers, firekeeper).
 - Forest entries register edge colliders (gap on the path side) so Zerble physically cannot drive through the trees.
 
 ### 3. Lakes (`lakes.js`)

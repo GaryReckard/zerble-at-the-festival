@@ -1,38 +1,28 @@
-# No build step
+# No-build development and importmaps
 
-> **Update 2026-06-19 — constraint relaxed, conditionally.** Gary is now open to a
-> build step *if* it opens real performance doors (Web Workers, KTX2/Draco
-> compression — via Vite with a committed-`dist/` or GitHub-Actions deploy so Pages
-> still "just works"). It remains **parked and evidence-gated** — not needed for any
-> current perf work — so the no-build dev loop below still stands day-to-day. See the
-> ROADMAP `## Performance` "Build step" item + `## Out of scope` Bundler note for the
-> live status before proposing one.
+The game ships directly from source using ES modules and importmaps. Serve it
+over HTTP with the [no-cache server](../../DEBUGGING.md#quick-start); opening
+`index.html` through `file://` does not reliably load browser modules.
 
-This project deliberately ships with no bundler, no transpiler, no PostCSS, no
-asset pipeline. Plain ES modules + an importmap in `index.html`. Open the file
-in a browser and it runs.
+## Toolchain policy
 
-## Don't add tooling
-
-ROADMAP.md flags a bundler as **out of scope**. Don't propose one as a
-solution to perf, organization, or "modern dev experience" — the trade is
-intentional. The "open `index.html` and it just works" property is a feature
-of the project, not an accident.
-
-If you genuinely believe a build step is the only way forward, raise it
-explicitly with Gary and explain what specifically can't be done otherwise.
-Don't quietly introduce one.
+The no-build development loop remains the default. Gary permits a build step
+only behind a measured performance proposal and an explicit decision, as
+recorded in the [performance backlog](../../docs/backlog/performance.md).
+Do not introduce a bundler as incidental cleanup or assume workers require one:
+the October pure-worldgen worker probe used native modules. Any proposed change
+must preserve a deployable static GitHub Pages game and identify the measured
+benefit, migration cost and verification plan.
 
 ## Importmap maintenance
 
 When you add a new source file under `src/` (or `src/models/`), you must add its
-bare module name to the importmap list in **every consuming html file**. There
-are **four**:
+module path to the cache-busted importmap lists in **all four HTML files**:
 
 - `index.html` — `mods` (src + worldgen) + `models`
 - `sandbox.html` — `mods` + `models`
 - `hub-sandbox.html` — `mods` + `models` (the 3D hub viewer)
-- `map-sandbox.html` — `wg` (worldgen modules + `rng` only)
+- `map-sandbox.html` — `wg` (includes the worldgen and shared module paths)
 
 ```js
 const mods = ['main','world','zerble', /* ... */, 'worldgen/lint'];
@@ -55,8 +45,3 @@ mechanical guard against this footgun.
 `three` and `three/addons/` are pinned to unpkg `0.160.0` in the importmap.
 Don't `npm install three`. Don't vendor it locally. If you need to bump,
 update the URLs in the importmap and re-test on at least one mobile browser.
-
-## Stay no-build
-
-The point: "no build step" is one of the core constraints. Working around it
-adds the moving parts the project was set up to avoid.

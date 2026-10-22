@@ -1,18 +1,21 @@
 # Capability specs — the canonical lay of the land
 
-This directory is the **source of truth for what Zerble at the Festival does today.**
+This directory records the **capability contracts** for Zerble at the Festival.
 Each subfolder is one capability with a `spec.md` in Requirement/Scenario form (the
 zerble OpenSpec schema), some with prose companions (`CATALOG.md` / `NOTES.md`).
 
 These were authored retroactively (2026-06-17) by tracing the shipped code — not by
 trusting the prose docs, which had drifted. Every requirement cites a `file:line` or
 observed behavior. When code and a narrative doc disagreed, code won and the doc was
-fixed. See `.claude/retro-spec-plan.md` for the authoring plan + the `src → capability`
-coverage matrix (all ~70 source files mapped).
+fixed. See [the authoring plan](../../.claude/retro-spec-plan.md) for the original
+`src → capability` coverage matrix. This June baseline is not a claim that every
+later feature has been specified; consult current source, tests and
+[architecture](../../ARCHITECTURE.md) before relying on a historical citation.
 
 **How to use these:** start here for "what is the contract of subsystem X." For "how is
 it built / where do I edit," follow the `> Source:` line at the top of each spec into the
-code, then `ARCHITECTURE.md` for the walkthrough and `DEBUGGING.md` for the iteration
+code, then [ARCHITECTURE.md](../../ARCHITECTURE.md) for the walkthrough and
+[DEBUGGING.md](../../DEBUGGING.md) for the iteration
 surface. In-flight *changes* to these capabilities live in `openspec/changes/`; archived
 ones in `openspec/changes/archive/`.
 

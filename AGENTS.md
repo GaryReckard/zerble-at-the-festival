@@ -1,369 +1,164 @@
-# AGENTS.md — Zerble at the Festival
+# Working on Zerble at the Festival
 
-Agent-facing notes for working in this repo. Read this first; then dip into the
-docs/code in the order below as the task demands.
+This is the shared instruction file for agents. `CLAUDE.md` points here;
+`AGENTS.override.md`, when present, adds local environment constraints and must
+not be committed. Start with the [documentation index](docs/README.md), then
+read only the references relevant to the task.
 
-## What this project is
+## Project and documentation
 
-A no-build browser game. Drive a mustachioed cart through a procedural festival.
-Plain ES modules + importmap, three.js from a CDN, Web Audio for everything you
-hear. No bundler. No transpiler. No framework. ~70 hand-rolled source files
-across `src/`, `src/models/`, and `src/worldgen/`.
+Zerble is a no-build browser game using plain ES modules, importmaps, Three.js
+from a CDN, and synthesized Web Audio. The [live GitHub Pages deployment](https://garyreckard.github.io/zerble-at-the-festival/)
+has real players; analytics calls go through `src/analytics.js`.
 
-Live deploy: <https://garyreckard.github.io/zerble-at-the-festival/> (GitHub
-Pages). GA4 is wired (G-CY1FNMY8H8) and analytics calls go through
-`src/analytics.js`. Treat the production deploy as observed by real players.
+| Need | Authoritative reference |
+| --- | --- |
+| Player premise, controls and copy | [README.md](README.md) |
+| Local setup, debug APIs and verification | [DEBUGGING.md](DEBUGGING.md) |
+| How systems fit together | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Capability requirements | [openspec/specs/README.md](openspec/specs/README.md) |
+| Pending work and acceptance | [ROADMAP.md](ROADMAP.md) |
+| Shipped behavior and rationale | [CHANGELOG.md](CHANGELOG.md) |
+| Measured results and limitations | [verification/README.md](verification/README.md) |
 
-## Required reading (in order)
+Specs express the intended contracts; source and current verification establish
+what the implementation does. Some specs were traced in June 2026 and are not
+proof that later features are covered. Recheck cited source lines before edits.
+Historical scratch notes and plans are context, not additional current policy.
 
-1. **[README.md](README.md)** — premise, controls, the player-facing pitch.
-2. **[DEBUGGING.md](DEBUGGING.md)** — the agent iteration & debugging surface.
-   **Read before verifying any change.** `window.__dbg` is the one door for
-   driving the running game; the sandbox is the one door for models; plus URL
-   flags, the backtick overlay, and the canonical verify loop. See the inlined
-   summary under [Run + verify](#run--verify).
-3. **[ARCHITECTURE.md](ARCHITECTURE.md)** — the canonical walkthrough. Render
-   pipeline, world chunks/forests/lakes, registry, collision model, crowd AI,
-   audio synthesis, perf tiers. If a question is "how does X work," it's
-   probably already in here. For the **per-capability contract** ("what does
-   subsystem X *guarantee*") see **[openspec/specs/](openspec/specs/README.md)** —
-   20 capabilities in Requirement/Scenario form, traced to code (authored
-   2026-06-17). ARCHITECTURE is the prose walkthrough; the specs are the contract,
-   and they're reference truth you can consult anytime (NOT part of the
-   intent-gated OpenSpec *change* workflow below).
-4. **[ROADMAP.md](ROADMAP.md)** — what's queued. Check before proposing new
-   work to see if Gary has already considered (and parked) it.
-5. **[CHANGELOG.md](CHANGELOG.md)** — what shipped, dated. The "why" of recent
-   commits lives here, more than in `git log`.
-6. **[.Codex/scratch-notes.md](.Codex/scratch-notes.md)** — Gary's original
-   reading notes. Useful as a quick index of "what's in each file."
+## Run and verify
 
-## Operating principle: build the harness, then the feature
+Run commands from the repository root:
 
-You (the agent) must be able to **iterate, render, and verify in seconds, not
-minutes.** Booting the game and chasing the camera around to find a puppet you
-just edited is a failure mode. Every model and every system in this repo
-should have a fluid, low-friction way to look at it in isolation. If it
-doesn't, **building that surface comes before the feature work** — extending
-the harness is part of the task, not a separate ticket.
-
-The full doctrine, with the specific maintenance steps when you add a new
-model, lives in **[.Codex/rules/sandbox-and-testing.md](.Codex/rules/sandbox-and-testing.md)** — read it before
-adding anything to `src/models/`.
-
-## Run + verify
-
-```
-python3 .Codex/serve_nocache.py 8765
+```sh
+python3 .claude/serve_nocache.py 8765
+npm run check
 ```
 
-Two entry points:
+Reuse an existing suitable server and stop servers you start when finished.
+The no-cache server and local importmap cache-buster keep edits visible on
+reload. Use the browser tools available in the session; old `preview_*` names
+in reports do not require installing a particular integration.
 
-| URL | When to use it |
-|---|---|
-| `http://127.0.0.1:8765/sandbox.html?entity=<name>` | **Default for any model/visual change.** Isolated viewer, deep-linkable, time-of-day slider, "Hit it" SFX button, free-orbit camera. Don't try to verify a model edit in the main game — verify it here. |
-| `http://127.0.0.1:8765/` | The full game. Use when the change is emergent (world streaming, collision, chunk generation, crowd AI behavior) and not visible at the entity level. **Also load the main game any time the edit touches a code path the sandbox doesn't exercise** (e.g. `chunks.js`, `crowd.js`, `world.js`, `main.js`) — sandbox-only verification can pass while the game itself crashes at boot. |
-| `http://127.0.0.1:8765/map-sandbox.html` | The **world-layout** sandbox (NOT the entity one above). A 2D top-down view of the procedural map generator (`src/worldgen/`) — pan/zoom across km, seed + live tuning sliders, layer toggles, point inspector, on-screen determinism self-test. Use when working on `src/worldgen/` layout (hearts/roads/lakes/forests). Distinct: `sandbox.html` = one model in 3D; this = the whole world layout in 2D. Not yet wired into the game. |
-| `http://127.0.0.1:8765/hub-sandbox.html?seed=<s>&hub=<n>` | The **hub viewer** — ONE complete festival hub in 3D on a flat plane, built through the exact game path (`buildHubPreview` in `chunks.js`). Use for **festival-layout iteration** (`src/worldgen/festival.js` + the `chunks.js` worldgen builders): orbit camera, ToD presets, a live `FESTIVAL_TUNING` slider panel that rebuilds the hub on release, `?at=x,z` to land on the nearest hub. The middle ground between `sandbox.html` (one model) and the full game (the whole streaming world). This is where the `festival-zone-grammar` change iterates and where Gary-facing 3D screenshots come from. |
+**Build the verification surface before the feature.** Choose the smallest
+surface that exercises the change:
 
-The dev server sends `no-store` so module edits land on reload — `python3 -m
-http.server` won't, because Chrome heuristic-caches module bodies.
+| Surface | Use |
+| --- | --- |
+| `sandbox.html?entity=<name>&mute=1` | One model or effect, orbit camera, time-of-day presets and SFX |
+| `hub-sandbox.html?seed=<s>&hub=<n>&mute=1` | One complete festival hub through the real cluster builders |
+| `map-sandbox.html?mute=1` | Pure 2D procedural layout; its generator also feeds the live game |
+| `/?mute=1` | Streaming, collision, crowd and full-game integration |
 
-**Verification with Codex Preview MCP** — `preview_start`,
-`preview_console_logs`, `preview_screenshot`. Background tabs run the main
-loop on `setTimeout(16ms)` rather than RAF specifically so the preview MCP
-(which keeps `document.hidden`) keeps ticking. Never tell Gary to "go check
-it" — verify and share proof. For visual work, take a screenshot at two ToD
-presets (Noon + Midnight) since emissive/lighting interactions only show up
-across the cycle.
+Read [DEBUGGING.md](DEBUGGING.md) before verification. `window.__dbg` is the
+local game control surface: `help()`, `start()`, `teleport(x,z)`, `tod(t)`,
+`fillSeats()`, `camLock(...)`, and `camUnlock()`. Its `game` and `debug` members
+expose the live references and interactive overlay API. Use these rather than
+stubbing input or fighting the chase camera.
 
-**Driving the running game — `window.__dbg` is the one door** (local dev only;
-full reference in [DEBUGGING.md](DEBUGGING.md)). The live game resists
-automation — the title card needs a trusted gesture, the chase cam overrides
-any camera you set, and stub-input `zerble.update` NaNs the physics — so use
-`__dbg` instead of fighting it:
+For code changes, run `npm run check` and verify the affected browser path.
+Always smoke-test the real game: title card, a ready mode-plank click, world
+boot, then console inspection after it runs. A sandbox pass cannot establish
+integration correctness. A scripted `__dbg.start()` bypasses the gesture and
+cannot verify iOS audio unlock. Documentation-only changes need link and
+command checks rather than a game boot.
 
-- `__dbg.start()` — boot past the title-card gesture straight into gameplay.
-- `__dbg.camLock(px,py,pz, tx,ty,tz)` / `camUnlock()` — pin a fixed camera for
-  close-ups (overrides the chase cam).
-- `__dbg.fillSeats(kind?)` / `rider(kind)` · `setJuice(m)` · `tod(t)` ·
-  `teleport(x,z)` — nudge game state for a scenario.
-- `__dbg.game` (live refs) and `__dbg.debug` (the backtick overlay's API:
-  `freezeNPCs`, `pause`, `step`, `god`, `showColliders`) are aliased onto it —
-  one namespace. Call `__dbg.help()` for the full map.
+For visual changes, capture Noon and Midnight. Check Low when touching
+materials, shaders or boot order; inspect draw/triangle counters for added
+geometry and compare against a measured baseline. HUD budgets are guides, not
+proof of device performance. For device captures use the
+[performance playbook](docs/performance-playtests.md).
 
-Canonical loop: `__dbg.start()` → `fillSeats()`/`teleport()`/`tod()` →
-`camLock(...)` → `preview_screenshot` → `preview_console_logs` (errors).
+## Browser and audio safety
 
-Force a perf tier with `?perf=low|mid|high`. Bugs that only show on low (e.g.
-the Safari module-namespace-freeze that took down `litFallback.js`) are easy
-to miss otherwise — test the lower tiers when touching materials, shaders, or
-boot order.
+Always append `mute=1` to agent game and sandbox URLs, including reloads.
+Only unmute for an audio test and restore mute afterward. Use the session mute
+control, never persist zeroes in the player's volume sliders.
 
-### Smoke-test before declaring done
+Close test tabs to stop their loops. Standalone automation owns its processes:
+unique named sessions, bounded commands, teardown in `finally`, and exact-PID
+cleanup checks. Do not run concurrent headless WebGL systems or kill unrelated
+processes. Follow [browser verification and cleanup](docs/browser-verification.md)
+and any stricter local override. Do not treat software-rendered FPS as a device
+measurement.
 
-A task isn't "done" because the sandbox renders the entity. The sandbox is
-*one* code path — `chunks.js`, world generation, and game-only systems (NPC
-crowd, audio bus wiring, registry chunkKey lifecycle, etc.) only run when
-the main app boots. **Before marking any task complete, load
-`http://127.0.0.1:8765/` and confirm:**
+## Constraints that must survive edits
 
-1. The title card appears (no JS error at module load).
-2. Clicking a ready mode plank boots the world (no JS error during world
-   generation — `buildWorld → ChunkManager.update → _generate → theme
-   builder` is the longest call chain in the codebase and is where the
-   real bugs hide).
-3. Check `preview_console_logs` after a couple seconds of running — any
-   uncaught `TypeError` / `ReferenceError` / shader-compile failure shows
-   up here even when the canvas is rendering something.
+1. **No implicit toolchain change.** The no-build loop remains the default.
+   A build step needs a measured proposal and Gary's approval. Read
+   [.claude/rules/no-build.md](.claude/rules/no-build.md). New source modules
+   must be represented in all four HTML importmaps; run `bin/check-importmaps`.
+2. **Patch Three.js through `src/threeShim.js`.** ES module namespaces are
+   frozen; assigning `THREE.X = Y` after import breaks spec-strict runtimes,
+   including mobile Safari.
+3. **Keep iOS audio initialization synchronous with the start gesture.** No
+   `await`, timer or other async hop before `Sound.init()`. Retain the sync
+   resume, one-sample buffer and silent WAV unlock stages.
+4. **Preserve deterministic RNG streams.** Fresh randomness needs a fresh salt;
+   do not reorder existing draws or change hash inputs as incidental cleanup.
+5. **Respect world ownership.** Chunks unload by `chunkKey`, forests own their
+   blocks, and lakes deliberately omit `chunkKey` so their colliders survive a
+   host chunk unloading. Registry mutations are not transactional.
+6. **Do not dispose shared resources.** Pooled geometry/materials carry
+   `userData.shared = true`; disposal must honor it. See
+   [.claude/rules/perf-pooling.md](.claude/rules/perf-pooling.md).
+7. **Flag instance writes.** Set `instanceMatrix.needsUpdate = true` after
+   writing InstancedMesh transforms.
+8. **Keep the global nightness contract.** Systems independently poll
+   `getTimeOfDay().nightness`; do not centralize this as incidental cleanup.
+9. **Respect tier policy.** Low disables shadows and uses the shim's Lambert
+   fallback; Mid/High use Standard materials and allow shadows. Add shadow
+   casters deliberately. Read [.claude/rules/performance.md](.claude/rules/performance.md)
+   before graphics/performance work, and load the relevant installed Three.js
+   skill. Measure allocation cost separately from steady-state cost.
 
-Sandbox-pass + game-fail has happened multiple times when an edit touched
-chunks/crowd/world but the sandbox case for that entity used a different
-constructor path (e.g. `buildCampChair` returns `{ group, color,
-footprint }` — the model sandbox cases extract `.group`, the chunks code
-forgot to). Always verify the full pipeline.
+## Models and code conventions
 
-## The non-obvious things that will bite you
+Models live in `src/models/`, return a Group anchored at `(0,0,0)`, and expose
+animation hooks for the central updater. Carts carrying physics/state remain
+in `src/`. Prefer instancing and shared pools before per-instance allocation.
+Registry entries carry `kind`, `position`, `footprint`, and optional collider,
+attractor and chunk ownership; see `src/registry.js` for the current contract.
+Comments should explain a non-obvious reason, constraint or workaround.
 
-These are tripwires that are not derivable from reading any single file.
+Before adding a model, read
+[the sandbox checklist](.claude/rules/sandbox-and-testing.md). Update all four
+importmaps, the sandbox selector and `loadEntity()` case, plus hit-kind/music
+mapping when applicable. An uninspectable model is unfinished work.
 
-### 1. No bundler in the dev loop. Don't add one casually.
+Keep player copy warm and festival-focused, including “Bring the bubbles,
+collect the smiles.” Do not advertise Trip mechanics, the hidden debug menu,
+URL overrides or other Easter eggs in the README or title card.
 
-The day-to-day stance is no bundler/transpiler — it keeps the "open `index.html`
-and it just works" property and avoids a moving piece this project deliberately
-avoids. **Relaxed-but-gated (2026-06-19):** a build step (Vite + a committed
-`dist/` or a GitHub-Actions deploy, so Pages still "just works") is now on the
-table *only* behind a measured perf proposal raised with Gary — never quietly.
-See [.Codex/rules/no-build.md](.Codex/rules/no-build.md) + ROADMAP
-"Performance → Build step" / "Out of scope" for the live stance.
+## Changes and commits
 
-If you create a new source module, **add it to the importmap list in *all four*
-HTML pages** — `index.html`, `sandbox.html`, `hub-sandbox.html`, `map-sandbox.html`
-(each has its own `mods`/`models`/`wg` array near the top) — then run
-`bin/check-importmaps`. Without the entry the dev cache-buster won't apply `?v=…`
-and edits won't reload on local dev. Forgetting one page is the most common
-variant of this footgun.
+Every user-visible gameplay, performance or development-workflow change must
+update [CHANGELOG.md](CHANGELOG.md) in the same commit, under the actual date.
+Trim shipped work from [ROADMAP.md](ROADMAP.md), retaining unresolved follow-ups.
+Documentation-only edits and internal changes without observable effects can
+skip the changelog. Read
+[the commit rules](.claude/rules/changelog-and-roadmap.md) before committing.
+Check the working directory, branch and status before Git mutations; preserve
+other people's edits and follow local destructive-command safeguards.
 
-### 2. ES module namespaces are frozen — patch via the shim, not after import.
+## Optional planning and review workflows
 
-`src/threeShim.js` is the `'three'` importmap entry. It re-exports real three.js
-with a tier-aware `MeshStandardMaterial` override. **Do not** try to monkey-patch
-`THREE.X = Y` after importing `* as THREE` — Safari mobile (and any spec-strict
-runtime) throws "Cannot assign to property of [object Module]" and the boot
-sequence dies. The shim is the proper override path. See the file header in
-`threeShim.js` for the full story; this is the kind of footgun you'll only learn
-the hard way otherwise.
+Capability specs under `openspec/specs/` are always available as reference.
+The change workflow is intent-gated: do not load `openspec/changes/` on an
+unrelated task. Enter it when the user names an `/opsx:*` command, change
+artifact, or asks to plan a change; then read
+[.claude/rules/openspec.md](.claude/rules/openspec.md). Existing standalone feature
+handoffs remain discoverable through the [documentation index](docs/README.md).
 
-### 3. iOS audio must initialize inside a user gesture, synchronously.
+Use an explicitly requested council or smart-review workflow through its
+installed skill, not by imitating multiple reviewers in one response.
+The council's project rules are in [openspec/council/charter.md](openspec/council/charter.md).
+A real `/deliberate` uses parallel council specialists followed by a mediator;
+`/smart-review` uses review specialists and persists a review summary. The
+charter selects scrutiny; a deliberation gate needs a real result or recorded
+skip. Refer to the active change for output locations.
 
-`Sound.init()` runs on the title-card start-button tap. **Do not** insert
-`await`, `setTimeout`, or any async hop between the tap and `Sound.init()` —
-iOS Safari requires the AudioContext to be created+resumed synchronously
-inside the gesture, or it sticks in `suspended` forever and the game ships
-silent on mobile. There's a multi-stage unlock (sync resume → 1-sample
-buffer-source → 100ms silent WAV via `<audio>` element) — keep all three.
-
-### 4. Determinism is load-bearing.
-
-`rng.js`'s `hash2(cx, cz)` + `mulberry32` seeds drive every chunk's theme, prop
-placement, lake position, forest contents. Changing salt values or hash inputs
-**regenerates existing chunks differently** — fine for greenfield, painful for
-anyone playing across the change. If you need to add randomness inside an
-existing system, salt it with a fresh constant rather than reordering or
-adjusting an existing `rng()` call.
-
-### 5. Three lifecycle systems own world content. They are not transactional.
-
-- **Chunks** (80m grid) lazy-load around the player and **unload as you move
-  away** — any loaded chunk beyond `UNLOAD_RADIUS` from the player's chunk is
-  dropped (`chunks.js:345`; `UNLOAD_RADIUS` is 2 on low, 3 on mid/high — see
-  `perf.js` `chunkUnloadRadius`, with hysteresis vs the smaller `chunkLoadRadius`
-  so straddling a boundary doesn't thrash). So only the current load neighborhood
-  is resident — don't assume a chunk you generated earlier still exists. Entries
-  register with `chunkKey`; on unload, `_unload` → `registry.removeChunk(key)`
-  (`chunks.js:376`) drops everything tagged with that key.
-- **Forests** (3x3 chunk blocks) pin to the chunk grid.
-- **Lakes** (320m macrocell) load/unload by player distance. **Lakes
-  deliberately omit `chunkKey`** so their colliders survive when a host chunk
-  unloads. If you accidentally tag a lake entry with a chunkKey, it will
-  vanish mid-game when its host chunk happens to drop out.
-
-### 6. Shared resources are tagged. Don't dispose them.
-
-Module-level pooled materials and geometries (`SHACK_MATS`, `STRING_BULB_GEO`,
-`SUPPLY_CAN_GEO`, the campsite `matFor` cache, NPC `buildSimpleNPC` pool, torch
-+ chair pools, food-truck pool) carry `userData.shared = true`. Chunk/lake
-disposal walks **skip** entries with that flag. If you build a new pooled
-resource, tag it `userData.shared = true` or the next chunk unload will free
-geometry/materials that other chunks still reference and shader recompiles will
-storm.
-
-### 7. InstancedMesh writes need `instanceMatrix.needsUpdate = true`.
-
-Easy to forget when refactoring crowd or bubbles. If a new InstancedMesh user
-"looks frozen," that's the cause.
-
-### 8. `nightness` is global state, polled every frame.
-
-Sky shader, sun/hemi lights, fog, stage light show, drum-circle voices, fire
-crackle, eye glow, star opacity, lampposts, tiki torches — they all read
-`getTimeOfDay().nightness` independently. Don't try to centralize it; the
-poll-everywhere pattern is intentional and cheap.
-
-### 9. Per-tier shadow + material rules.
-
-Low tier: shadows off, Lambert swap on. Mid/high tier: shadows on, Standard
-materials. The `castShadow = true` count is audited — there's a perf budget.
-**Don't reflexively add `castShadow = true`** to new meshes; only large/visible
-objects need it. See `.Codex/perf-audit-plan.md` for the cut list, and
-[.Codex/rules/performance.md](.Codex/rules/performance.md) for the full
-audit-priority order, allocation-vs-steady-state model, and footgun list
-that drove the three shipped perf passes.
-
-### 10. Per-tier perf budgets surfaced in the HUD.
-
-Backtick (`` ` ``) opens the debug overlay. It shows live draws, triangles,
-geometry/texture/heap counts against per-tier budgets (low 80 draws / 150k
-tris, mid 200/400k, high 400/1.2M). After a change that adds geometry or
-draws, glance at the panel before declaring done.
-
-## Before you commit — update CHANGELOG first
-
-**Every commit that ships user-visible behavior, perf, or dev-workflow change
-must update [CHANGELOG.md](CHANGELOG.md) in the *same* commit** — newest entry
-at the top under today's date, grouped `Added`/`Changed`/`Fixed`/`Performance`.
-If the work was on [ROADMAP.md](ROADMAP.md), remove (or trim) that bullet in the
-same commit. This holds even when Gary just says "commit" without mentioning the
-changelog — write the entry anyway; don't wait to be told.
-
-Skip the changelog only for pure-internal refactors with no observable effect,
-comment/format-only changes, or doc edits. When in doubt, write the entry.
-
-The commit-time checklist, voice/date guidance, and ROADMAP rules live in
-**[.Codex/rules/changelog-and-roadmap.md](.Codex/rules/changelog-and-roadmap.md)**
-— read it before committing.
-
-## Conventions
-
-### Style
-
-- **No comments unless the *why* is non-obvious.** The codebase has many
-  comments that explain a constraint, a workaround, or a spec quirk
-  (threeShim.js header, iOS audio init, the `chunkKey` lake-omission, the
-  hidden-tab `setTimeout` swap). Match that bar. Don't narrate what the code
-  does.
-- **Models live in `src/models/`** and return a `THREE.Group` anchored at
-  `(0, 0, 0)`. Callers position/rotate. Animated parts attach an updater
-  closure or expose an `anim` object; a central per-frame updater in `main.js`
-  walks the animatables lists. `zerble.js` and `lurleen.js` stay in `src/`
-  (not `models/`) because they carry physics + state.
-- **A new model is not done until it has a sandbox entry.** Add it to
-  `sandbox.html`'s `models` importmap array, the entity `<select>`, the
-  `loadEntity()` switch, and (if relevant) `ENTITY_HIT_KIND` /
-  `ENTITY_MUSIC_STYLE`. This is what makes future iteration cheap. See
-  [.Codex/rules/sandbox-and-testing.md](.Codex/rules/sandbox-and-testing.md)
-  for the full checklist and the "extend the harness before bypassing it"
-  doctrine.
-- **Registry entries**: `kind`, `position`, `footprint`, optional `collider`,
-  optional `attractor`, optional `chunkKey`. See `registry.js` header comment.
-- **InstancedMesh + pooling** before per-instance allocation. Variant-bucket
-  if instances diverge.
-
-### Tone for player-facing copy
-
-Indie-game-on-GitHub vibe. **Do not reveal** the Wook trip system, the `t`
-debug menu, the `?perf=` URL flag, or any other Easter eggs in the README or
-title card. Internally, they're documented. Externally, players discover them.
-
-The title card and README are calibrated; if you touch them, keep "Bring the
-bubbles, collect the smiles" and the warm-festival-evening tone.
-
-## Skills available in this repo
-
-`.Codex/skills/threejs-*` — ten three.js skill packs (fundamentals, geometry,
-materials, textures, lighting, animation, interaction, loaders,
-postprocessing, shaders). When the task is graphics/perf work, load the
-relevant skill before guessing. The two perf-pass plan docs
-(`.Codex/perf-audit-plan.md`, `.Codex/perf-pass-2-plan.md`) demonstrate the
-expected workflow: skill → audit → priority-ordered plan → ship + log results.
-
-## Deliberation, review & spec-driven planning
-
-Three agent surfaces, adapted from the fedweb toolkit for this project:
-
-- **The Deliberation Council** (the `council` plugin, authored in
-  `happycog/claude-council`) — a review ladder with rising scrutiny: `/review`
-  ("is this okay?", Tier 1 quick pass) → `/council:consult <lens>` ("what does
-  the specialist think?", Tier 2 domain) → `/council:challenge` ("what would
-  break this?", Tier 2 adversarial; writes a numbered `adversarial-audit-NNN.md`
-  when pointed at a change) → `/deliberate` ("what should we do?", Tier 3 full
-  council: 3–5 `council-*` personas + a Mediator synthesizing Change Groups).
-  Everything project-specific lives in **`openspec/council/charter.md`**
-  (non-negotiables, resolution rules, risk signatures, persona notes) — the
-  plugin's engine and personas are generic and read the charter at the start of
-  every run. The charter's risk signatures route work up the ladder, and the
-  zerble schema's deliberation gate blocks apply until a real deliberation or a
-  recorded skip exists. `/deliberate` is **never internal**: it must fan out to
-  real parallel `council-*` sub-agents and then `council-mediator` — a single
-  agent imitating the council is a quick review, not a deliberation. Shorthand:
-  "Group 2" = Change Group 2 in the active deliberation's `results.md`;
-  "Task 2.3" / "Group 2.3" = task 3 within Change Group 2 (name the
-  deliberation folder on first use, e.g. "Group 2.3 (001-initial-plan)").
-  On a new machine: `/plugin marketplace add happycog/claude-council` (or add a
-  local checkout as a directory marketplace), install `council`, done — the
-  charter is committed, so `/council:init` is NOT needed again.
-- **`/smart-review`** — a multi-specialist code review of a diff. Loads
-  `smart-review`, which fans out to `review-*` specialists (rendering,
-  performance, gameplay, audio, sandbox, docs), dedupes by ownership, and
-  persists a `review-summary.md`. Distinct from the global `/code-review` and
-  `/security-review`.
-- **OpenSpec** (`/opsx:*`) — optional spec-driven planning. It's **lazy and
-  intent-gated**: don't read `openspec/changes/` on first message. Enter OpenSpec
-  mode only when the prompt names an `/opsx:*` command, an artifact (`tasks.md`,
-  `session-log`, `proposal.md`, `openspec/changes`), or asks to plan a change.
-  (Exception: **`openspec/specs/`** is the canonical capability baseline — reference
-  truth like ARCHITECTURE.md, fine to consult anytime; it's the *change workflow*
-  under `openspec/changes/` that's gated, not the specs.)
-  Full operational details (the `README.md` front door, the `session-log.md` +
-  `questions-for-human.md` persistent-memory system, the event-driven writing
-  protocol, the skippable deliberation gate, the cross-ref convention) live in
-  `.Codex/rules/openspec.md`, path-scoped to `openspec/**`. Project context is
-  in `openspec/config.yaml`; the workflow schema is forked at
-  `openspec/schemas/zerble/`. No Jira here — the audit trail stays
-  CHANGELOG + ROADMAP + git. `/deliberate` and `/smart-review` persist artifacts
-  into the active change's `deliberations/` and `reviews/` folders.
-
-## Project-specific rules
-
-See `.Codex/rules/`:
-
-- [sandbox-and-testing.md](.Codex/rules/sandbox-and-testing.md) — **read
-  before adding to `src/models/`.** The sandbox-first verification doctrine,
-  the new-model checklist (importmap + dropdown + loadEntity switch + hit kind
-  + music style), and the "extend the harness before bypassing it" principle.
-- [performance.md](.Codex/rules/performance.md) — **read before touching
-  graphics code or proposing a perf change.** The audit-priority order
-  (shadows → disposal → post-process → instancing → pooling → AA → textures),
-  allocation-vs-steady-state mental model, the heuristics distilled from the
-  [r/threejs `skk0f3` thread](https://www.reddit.com/r/threejs/comments/skk0f3/how_to_optimize_project_for_lowend_computers/)
-  that drove perf passes 1–3, and the explicit footgun list (no
-  `THREE.X = Y` after import, no disposal without `userData.shared` check,
-  no reflexive `castShadow = true`).
-- [changelog-and-roadmap.md](.Codex/rules/changelog-and-roadmap.md) —
-  **read before committing.** Every user-visible change updates CHANGELOG
-  first; if it was on ROADMAP, remove the bullet in the same commit. Voice,
-  date handling, when to skip, and the commit-time checklist.
-- [no-build.md](.Codex/rules/no-build.md) — the no-bundler stance and the
-  importmap maintenance rule (both `index.html` *and* `sandbox.html`).
-- [perf-pooling.md](.Codex/rules/perf-pooling.md) — the `userData.shared`
-  convention and the dispose-safe pattern for new pooled resources.
-- [openspec.md](.Codex/rules/openspec.md) — **path-scoped to `openspec/**`;
-  auto-loads only when working in OpenSpec.** Lazy/intent-gated mode, the
-  `README.md` front door + `bin/readme-sync` status generator, the
-  persistent-memory system (`session-log.md` + `questions-for-human.md`), the
-  event-driven writing protocol, the skippable deliberation gate (re-keyed to
-  zerble's tripwires), and the cross-ref convention (`-> Q3`, `-> Task 7.2.1`).
-
-## Quiet agent iteration
-
-Always append `mute=1` to game and sandbox URLs during agent development, visual inspection, playtesting, and iteration (for example `sandbox.html?entity=nut_wagon&mute=1`). Keep it on reload and navigation. Only enable audio when the task specifically calls for testing sound, and restore mute afterward. Use the session mute control, never zero and persist the user's volume sliders. The URL initializes the output mute before audio connects, so starting the game cannot leak an audible first frame. Normal player launches without the flag retain their usual sound behavior.
+Expand shorthand on first use and retain a readable tag afterward. For example,
+“Task 2.3 (vendor-row planning)” rather than a bare task number; identify the
+containing change or deliberation when needed. Keep the audit trail in
+CHANGELOG, ROADMAP, verification and Git; this project has no Jira workflow.

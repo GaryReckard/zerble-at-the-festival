@@ -6,174 +6,39 @@ booting it and chasing the camera around by hand. Read this before any
 model/visual/gameplay change you intend to verify.
 
 If you only remember one thing: **`window.__dbg` is the one door.** Open the
-console (or `preview_eval`) and call `window.__dbg.help()`.
+browser console and call `window.__dbg.help()`.
+
+## Quick start
+
+Run these from the repository root:
+
+```sh
+python3 .claude/serve_nocache.py 8765
+# In another terminal, for code changes:
+npm run check
+```
+
+Reuse an existing server when possible. Open `http://127.0.0.1:8765/?mute=1`,
+click a ready mode plank, and use `__dbg.help()` in the browser console.
+Choose the smallest relevant surface: entity sandbox for a model, hub viewer
+for a built festival cluster, map sandbox for pure layout, or the full game
+for streaming and integration. All browser URLs used by agents need `mute=1`.
+
+- [Game controls and inspection](#the-one-door-window__dbg-local-dev-only)
+- [Entity sandbox](#the-sandbox--isolated-entity-viewer)
+- [URL flags](#url-flags--runtime-overrides)
+- [Verification loop](#the-canonical-verification-loop)
+- [Performance playbook](docs/performance-playtests.md)
+- [Layout verification](docs/layout-verification.md)
+- [Browser cleanup and software WebGL](docs/browser-verification.md)
 
 ## Desktop and phone performance playtests
 
-### Registry maintenance and streaming
-
-`node bin/test-registry-maintenance` compares spatial candidate membership and
-order against a full rebuild through movement, resizing and unloads. Add
-`--bench` for a synthetic workload, or run
-`node verification/performance/2026-10-22/index-maintenance/bench.mjs 674ed90`
-for an interleaved comparison against the actual prior registry source. The
-[verification report](verification/performance/2026-10-22/index-maintenance/README.md)
-records the CPU measurements separately from game frame delivery.
-`verification/performance/2026-10-22/index-maintenance/game.html?perf=low&mute=1`
-embeds the real game and checks collision and footprint queries after streaming
-across five locations and returning to spawn; repeat on High. Close its tab
-when finished to stop the embedded frame loop.
-
-### Post-process first activation
-
-The [render-stall report](verification/performance/2026-10-22/render-stall/README.md)
-traces the tagged one-second iPhone stall to the same sample as bloom's first
-activation and eight new shader programs. Open
-`verification/performance/2026-10-22/render-stall/check.html?perf=low&mute=1`
-on the no-cache server to compare cold and prepared bloom. Add `trip=1` to
-include Trip. Each bounded probe disposes its renderer and targets after use.
-`game.html?perf=low&mute=1` in that folder embeds the real game and uses `__dbg`
-to check day, dusk and Trip; repeat on Mid and High. Shader error checks remain
-on in the embedded game. Its effect-material variant counts must stay at one.
-The guided device JSON records `session.postprocessPreparation`, including
-ready/failed status, material count and boot preparation time, so a rerun can
-verify the preparation actually preceded gameplay.
-
-### Controlled governor comparison
-
-Run `bin/playtest-perf drive --tier low --quality auto --seed 3948869160`, then
-stop that launcher and close its tab before running the same command with
-`--quality sustained`. This capture-only experiment retains sustained-average
-and consecutive-hitch protection but ignores p95-only downgrade pressure. Both
-policies retain the same Low tier and cheap bubbles; normal launches use Auto.
-Compare comparable routes, orientation, temperature and power mode, then repeat
-in reverse order. Record clarity, felt stutters and warmth alongside frame gaps.
-`--quality baseline` remains available as the rung-zero control. No production
-threshold change is justified by the parked comparison alone.
-
-The report's `session.qualityPolicy` identifies the applied policy. GA's
-`quality_downgrade` preserves `level`, `avg_fps`, `perf_tier` and elapsed time,
-adding `trigger`, named `from_level`/`to_level`, frame statistics and settings.
-`quality_recovery` reports raises. `quality_outcome` links by `transition_id`
-plus `quality_run_id` and reports `observed`, `superseded` or `interrupted`.
-An observed outcome uses the last 90 frames after at least five seconds at that
-rung, not an average over those five seconds. Null after-values mean no full
-fresh window exists. Treat changes as correlations because the scene can move.
-
-`session_end` includes `quality_active_s`, `quality_degraded_s`,
-`quality_downgrades`, `quality_recoveries`, `quality_worst_level` and
-`governor_policy`. These are cumulative snapshots since game start, including
-only foreground ticks while the governor is enabled. Do not sum repeated
-page-hide summaries; compare the final snapshot per `quality_run_id`. That
-random identifier resets at game start and does not identify the player. A session may start
-already degraded by title-card rendering without any gameplay downgrade event.
-For field analysis, use affected sessions and degraded-time share alongside
-transition counts, segmented by device/browser and tier. Six quality dimensions and four timing metrics were registered in the GA
-property on October 21; see [the configuration record](verification/performance/2026-10-21/GA-SETUP.md).
-Live ingestion still needs verification after deployment.
-
-### Capture workflow
-
-The [October 11 particle/query report](verification/performance/2026-10-11/README.md)
-includes local browser probes for smile-resource lifetime, bubble submission and
-transparency bounds, and ordered registry indexes through streaming. It records
-operation-level before/after measurements separately from device FPS captures.
-
-The guided capture is the easiest way to investigate a hitch in either a desktop
-browser or phone Safari. It runs the real game at a fixed world seed, records one-second engine
-samples plus capture-only frame distributions and slow-frame events, and sends
-JSON into the ignored `.claude/captures/` directory on this Mac. The game
-records position, speed, quality level, pixel ratio, render time, world-update
-time, chunk-generation stages, shader-program count, visibility interruptions,
-physical canvas/scene-target/bloom dimensions, active bubble count,
-the effective shadow policy and sun shadow state,
-and any **FELT LAG** taps. That button creates an ordinary saved marker with a
-`felt-lag` kind and no note modal, while `K` still drops a general pin and
-opens a comment box for location or visual issues. Use **FELT LAG** during the
-timed run so typing cannot disturb its frame measurements. A long frame gap can
-reflect prior-frame work, so the event records both current and previous frame
-work. Frame timing is sampled
-only with `?perfCapture=1`; ordinary play does not pay for these timers.
-
-1. Run the two captures separately from Terminal in this repo. For the desktop
-   run, use `bin/playtest-perf --desktop`; it starts a loopback server and opens
-   the Mac's default browser. Use `--browser Safari` or another app name if
-   that is where the desktop issue occurs. If port 8765 is busy, the guided
-   launcher uses the next available port and prints the actual URL; it leaves
-   the existing server alone. For the phone run, put the Mac and phone on the
-   same Wi-Fi and use `bin/playtest-perf`; it opens a QR code and prints a
-   fallback URL. Do not post the phone's tokenized URL publicly because it
-   authorizes local uploads.
-2. On each device, tap the **Just Cruisin'** plank to choose that mode and start.
-   A mode plank also resumes a saved session when its mode matches. On the phone,
-   first scan the QR and open the link in Safari. Leave the game tab in the
-   foreground and follow the small `PERF` instruction box. The guided test
-   pauses driving controls and stops the cart during every parked phase. Drive
-   around normally for the 90-second drive phase, crossing into new parts of
-   the festival; the final 20-second recovery phase parks the cart for you.
-   Tap **FELT LAG** whenever a hitch is noticeable.
-3. Wait for **PERF · SAVED ✓**, which takes about 2 minutes 35 seconds of active
-   play. If it says **SEND FAILED**, tap **SEND** while the Mac server is still
-   running. Press Control-C in Terminal after each run has saved, then launch
-   the next run. Tell the agent which desktop browser, phone model and iOS
-   version you used, what you felt in each place, and that both playtests saved.
-   The agent reads both JSON reports locally; there is nothing to copy or export.
-
-By default, the drive run leaves adaptive quality active so its changes remain part of the
-real-world symptom. For a parked Wook Trip comparison, add `trip` before the
-options, for example `bin/playtest-perf trip --desktop` or
-`bin/playtest-perf trip`. The scenario parks the cart, holds the current render
-quality steady, starts the Trip, and holds its peak automatically. It takes at
-least 1 minute 57 seconds; a slow fade-in extends
-the capture until the Trip actually reaches its sustaining state. Keep the
-Trip tab in the foreground throughout: backgrounding invalidates that
-comparison because the game and capture clocks can diverge. The drive scenario
-pauses its phase clock while hidden, and a free-form capture continues when the
-tab returns. Run `bin/report-perf-playtest` to summarize
-the newest completed capture, or pass an exact JSON path. The report flags a
-stationary “drive,” movement during a parked phase, and quality or physical
-render-size changes across comparison phases that would contaminate a
-comparison. It also flags a scene target whose
-physical dimensions differ from the canvas after an adaptive-quality change.
-For an apples-to-apples low-tier rerun,
-pass `--tier low`; `--seed` can select another reproducible world.
-
-The completed iPhone parked governor comparison used these commands separately.
-The server was stopped with Control-C after each report said **SAVED**:
-
-```sh
-bin/playtest-perf parked --tier low --quality auto --seed 3948869160
-```
-
-```sh
-bin/playtest-perf parked --tier low --quality baseline --seed 3948869160
-```
-
-Each lasts 60 seconds (20 settling, 40 parked) with controls paused. Baseline
-locks Low's initial resolution before the first rendered frame, not after
-settling; Auto can downgrade normally. Both use Low's cheap bubbles regardless
-of a saved Detailed bubbles preference, without changing that preference.
-Tier density, shadows, and chunk/bubble capacities are unchanged. Baseline is
-rejected unless `--tier low` is explicit. The flag also works with drive and
-Trip; only Trip locks the reached rung after settling, while drive and parked keep the selected governor active.
-Keep Safari foregrounded, the same orientation, camera, settings, and similar
-device temperature; let the phone cool between runs. Do not edit settings during
-either run. Record clarity, stutters, heat, and Low Power Mode. Full instructions
-and interpretation are in [the follow-up](verification/performance/2026-10-09/capture-follow-up.md).
-
-The parked pair is recorded in [the follow-up](verification/performance/2026-10-09/capture-follow-up.md#completed-parked-pair). The next test compares `--tier low --quality auto` with `--quality sustained` using `drive` on a comparable route, retaining Baseline as a control. Saved `session.qualityPolicy` and `qualityLockedFromFirstFrame` distinguish the runs, while `session.tierPolicy` records their fixed scene policy. Compare the
-live `frame.*` windows: governor `fAvg/fP95/fMax` stop updating when disabled.
-
-The server's LAN mode serves only game assets, and upload writes require the
-generated URL token. The data remains on the Mac under `.claude/captures/`.
-
-The desktop Chrome and iPhone Safari drive and Trip captures were collected on
-2026-10-09. Their findings, validity caveats, and next controlled experiment
-are in [the guided playtest report](verification/performance/2026-10-09/guided-playtests.md),
-with follow-up work tracked in [ROADMAP.md](ROADMAP.md). Keep that performance
-work separate from the far-field visual review.
-
----
+Use the [performance playbook](docs/performance-playtests.md) for guided phone
+and desktop captures, quality-governor comparisons, first-use shader probes,
+and registry benchmarks. Measurements and their limits belong in dated
+[verification reports](verification/README.md), while pending acceptance stays
+in [ROADMAP.md](ROADMAP.md).
 
 ## Silent agent launches
 
@@ -283,7 +148,7 @@ runs anywhere node does — no wrangler, no deploy, no network:
 ### Tour + inspect hubs
 | Call | Does |
 |---|---|
-| `gotoHub(n)` | Teleport to the `n`th-nearest festival hub and `camLock` a canonical 3/4 view of its stage front. `n` is ranked from the **spawn hub** (the major the game relocates to), so `gotoHub(0)` is the spawn hub itself. Prints the planned `hub-sandbox.html?seed=…&at=x,z` URL so the same hub re-opens in the group-6 viewer. |
+| `gotoHub(n)` | Teleport to the `n`th-nearest festival hub and `camLock` a canonical 3/4 view of its stage front. `n` is ranked from the **spawn hub** (the major the game relocates to), so `gotoHub(0)` is the spawn hub itself. Prints the planned `hub-sandbox.html?seed=…&at=x,z&mute=1` URL so the same hub re-opens in the group-6 viewer. |
 | `showFootprints(on)` | Toggle a footprint overlay: a green ring at each festival cluster's clear-radius + the yellow dancefloor rects in front of every nearby stage (scenery — trees, shorelines, path nodes — is skipped). Plain line geometry, never registered/`shared`/shadow-casting; disposes fully on toggle-off (`renderer.info` returns to pre-toggle counts). |
 
 ### Far-field horizon (on by default; `?farField=0` disables)
@@ -439,7 +304,7 @@ into one object — but `__dbg` gives you one access point regardless.
 `window.__game` ([main.js](src/main.js)): `camera`, `zerble`, `scene`,
 `renderer`, `crowd`, `registry`, `chaseCam`, `lurleen`, `getTimeOfDay`, `Trip`,
 `midi`, `birds`, `bubbles`, `sound`. Read-only introspection from the console /
-`preview_eval`, e.g. `window.__dbg.game.zerble.position`.
+browser evaluation, e.g. `window.__dbg.game.zerble.position`.
 
 ## `__debug` — interactive overlay API + the backtick panel
 
@@ -552,7 +417,7 @@ change**. It renders one entity on a bare plane with a free-orbit camera — no
 driving, no procedural festival, no camera wrestling.
 
 ```
-http://127.0.0.1:8765/sandbox.html?entity=<name>
+http://127.0.0.1:8765/sandbox.html?entity=&mute=1<name>
 ```
 
 - Deep-linkable `?entity=` — re-open the exact same view across iterations.
@@ -647,214 +512,54 @@ each of these:
 
 ## The canonical verification loop
 
-```
-1. preview_start (or reuse) on http://127.0.0.1:8765/
-2. preview_eval:  window.__dbg.start()
-3. preview_eval:  window.__dbg.fillSeats()        // or teleport/tod/setJuice as needed
-4. preview_eval:  window.__dbg.camLock(px,py,pz, tx,ty,tz)
-5. preview_screenshot                              // ground truth
-6. preview_console_logs (level: error)             // no TypeError/shader fail?
-7. preview_eval:  window.__dbg.camUnlock()         // when done
-```
+1. Reuse a development server or start the no-cache server from the quick start.
+2. Open `http://127.0.0.1:8765/?mute=1` and confirm the title card loads without errors.
+3. Click a ready mode plank to verify the real start path. For a scripted scenario,
+   `__dbg.start()` bypasses the gesture, so it does not prove iOS audio unlock.
+4. Use `__dbg.fillSeats()`, `teleport()`, `tod()` and `camLock()` as the scenario needs.
+5. Inspect the screenshot and browser console, then check the relevant counters.
+6. Call `__dbg.camUnlock()`, close test tabs and stop any server you started.
+
+Run `npm run check` for code changes, alongside the relevant browser checks.
+Documentation-only edits need link and command validation, not a game boot.
+For visual changes, capture Noon and Midnight; test Low when touching materials,
+shaders or boot order. See [browser cleanup](docs/browser-verification.md) before
+using standalone automation.
 
 For model/visual work, prefer the **sandbox** loop (edit → screenshot
 `?entity=foo` → repeat). For emergent/world/crowd/collision behavior — anything
-the sandbox doesn't exercise — drive the **main game** with `__dbg`. Always boot
-the main game before declaring done; sandbox-pass + game-crash has happened.
+the sandbox doesn't exercise — drive the **main game** with `__dbg`. Boot the main game for runtime changes; sandbox-pass + game-crash has happened.
 
-Two small effect entries avoid full-game driving for this polish pass:
+Two focused effect previews avoid full-game driving:
 
-- `sandbox.html?entity=boost_streaks&perf=high` drives Zerble right-to-left while the fixed eight-slot pool leaves cart-sized golden wake rings in world space behind him, on the open side of the canvas. The rings should separate clearly from the Bubble Juice Machine; the same page exposes the synthesized empty-juice sputter in the Audio panel.
-- `sandbox.html?entity=crowd_photographer&perf=high` runs one forced photographer through the real Crowd matrices. **Take picture** triggers the production timing, while **Hold flash for inspection** extends only the debug preview so the opaque mesh flash can be checked at Noon and Midnight.
+- `sandbox.html?entity=boost_streaks&perf=high&mute=1` drives Zerble right-to-left while the fixed eight-slot pool leaves cart-sized golden wake rings in world space behind him, on the open side of the canvas. The rings should separate clearly from the Bubble Juice Machine; the same page exposes the synthesized empty-juice sputter in the Audio panel.
+- `sandbox.html?entity=crowd_photographer&perf=high&mute=1` runs one forced photographer through the real Crowd matrices. **Take picture** triggers the production timing, while **Hold flash for inspection** extends only the debug preview so the opaque mesh flash can be checked at Noon and Midnight.
 
 The frisbee arm rig has three focused views plus the integrated toss:
 
-- `sandbox.html?entity=frisbee_player` holds the ordinary both-arms-down pose.
-- `sandbox.html?entity=frisbee_player_catch` holds the one-arm catch reach.
-- `sandbox.html?entity=frisbee_player_throw` loops the bent-elbow windup and straight release.
-- `sandbox.html?entity=frisbee_pair` runs the full toss, chase, catch, and pickup sequence, with both players biased into the open canvas and the disc attached to the animated hand until release.
+- `sandbox.html?entity=frisbee_player&mute=1` holds the ordinary both-arms-down pose.
+- `sandbox.html?entity=frisbee_player_catch&mute=1` holds the one-arm catch reach.
+- `sandbox.html?entity=frisbee_player_throw&mute=1` loops the bent-elbow windup and straight release.
+- `sandbox.html?entity=frisbee_pair&mute=1` runs the full toss, chase, catch, and pickup sequence, with both players biased into the open canvas and the disc attached to the animated hand until release.
 
 ### When no browser here can do WebGL at all — `bin/verify-headless`
 
-On some headless Linux boxes/VMs (virtio-gpu + Wayland, no real GPU driver)
-**every** normal surface fails to create a WebGL context, which kills the whole
-loop above before step 2: `main.js` throws at renderer construction, so
-`window.__dbg` never installs. The failure signatures, so you recognize it in
-minutes instead of an hour:
-
-- Preview/Browser pane console: `THREE.WebGLRenderer: A WebGL context could not
-  be created … ErrorMessage = BindToCurrentSequence failed` (ANGLE over
-  llvmpipe), then `Uncaught Error: Error creating WebGL context` from main.js.
-- A bare `canvas.getContext('webgl2') || canvas.getContext('webgl')` probe
-  returns **null** in that pane.
-- Snap Firefox headless: `RenderCompositorSWGL failed mapping default
-  framebuffer, no dt`, then hangs (and, being a snap, it can't write
-  screenshots outside `$HOME` anyway).
-
-Installing a different browser does **not** fix this — the machine has no GL
-path to give. The fix is software rasterization: headless Chromium forced onto
-**SwiftShader**, which is exactly what `bin/verify-headless` drives. It loads a
-URL, optionally runs a JS snippet (that's how `__dbg.start()` gets called),
-waits, screenshots via raw CDP (`page.screenshot()`'s 30s stability wait times
-out under SwiftShader), reports console errors, and exits nonzero on any. The
-Playwright + Chromium runtime installs **outside the repo** (one-time setup is
-printed by the script if missing; default `~/.zerble-verify`, override with
-`ZERBLE_VERIFY_ROOT`) so `bin/` stays dependency-free and the no-build stance
-holds.
-
-```
-bin/verify-headless --url "http://127.0.0.1:8765/?perf=low" \
-    --eval "window.__dbg.start()" --wait 9000 --shot /tmp/boot.png
-```
-
-SwiftShader is slow — budget generous `--wait`s, prefer `?perf=low` when the
-tier doesn't matter, and know that a high-tier bloom frame can take >30s to
-settle. Data-only layout captures should still go through `bin/layout-snapshot`
-(it skips pixel rendering entirely — see below); this tool is for the cases
-that need actual pixels, console output, or `__dbg` driving.
-
----
+See [browser verification and cleanup](docs/browser-verification.md) for the
+software WebGL fallback, process ownership, and local restrictions. Software
+rendering can verify pixels and errors; it cannot measure device performance.
 
 ## Layout snapshots — capturing built truth
 
-A **layout snapshot** is the registry, captured as data, normalized so two
-captures are byte-comparable. It's the gate the worldgen hoist + the future
-grammar rewrite are measured against: "did the *built* world change?" (The
-determinism *goldens* — `selftest.js` hashes — cover the *plan*, not the build.
-Two different things; keep the words apart. A snapshot is **not** a golden.)
-
-Built truth lives in the **browser** (the registry is populated by `chunks.js`
-running in a live scene — there is no headless *node* path). The dev server must
-be running on `:8765` either way.
-
-### The one-command path (default)
-
-`bin/layout-snapshot capture <seed>` drives a headless browser via the globally
-installed **`agent-browser`** CLI — boot → `__dbg.start()` → settle (poll the
-registry count until stable) → dump → normalize → write, in one command:
-
-```
-bin/layout-snapshot capture 1234 --bounds 163,-186,403,54 --window spawn
-# → verification/snapshots/1234.json   (omit --bounds for the whole world)
-```
-
-The twice-capture self-diff control is then just two runs + a diff:
-
-```
-bin/layout-snapshot capture 1234 verification/snapshots/1234.a.json --bounds 163,-186,403,54
-bin/layout-snapshot capture 1234 verification/snapshots/1234.b.json --bounds 163,-186,403,54
-bin/layout-snapshot --diff verification/snapshots/1234.a.json verification/snapshots/1234.b.json   # MUST be EMPTY
-```
-
-### Why the one-command path now survives software WebGL
-
-On a headless-only machine Chromium uses SwiftShader, and the full festival at
-`perf=high` can consume every available CPU core before browser-control commands
-get a turn. The capture command therefore opens a localhost-only
-`?layoutCapture=1` mode. The ordinary update, chunk-streaming, registry, and
-draw-count-canary paths still run on a yielding timer, but the composer skips
-pixel rendering because pixels are not part of a layout snapshot.
-
-The driver also owns one unique named browser session, uses a 320×180 viewport,
-honors `--tier`, settles on the bounds-clipped registry count, and gives every
-browser command a hard deadline. Its unconditional cleanup closes the named
-session and compares exact automation PIDs against the pre-launch baseline. If
-anything created by that invocation survives, it is terminated and the command
-returns a cleanup failure instead of leaving a laptop-burning process behind.
-
-Use `--command-timeout <ms>` to adjust the default 12-second command deadline
-and `--settle-ms <ms>` to adjust the minimum five-second settle window. A
-successful snapshot proves data determinism only; use the sandbox or full game
-for pixels, draw/tris counters, lighting, and visual quality. If the installed
-browser CLI is absent or genuinely broken, use the manual recipe below.
-
-### The manual recipe (approved fallback if agent-browser is flaky/absent)
-
-`bin/layout-snapshot --recipe <seed>` (or `--seeds` for the multi-seed playbook)
-prints the preview-MCP copy-paste version: boot `?worldgen=1&seed=<S>&perf=high`,
-`__dbg.start()`, settle (read `window.__dbg.dumpRegistry().length` until stable —
-NO driving), then
-`({entries: __dbg.dumpRegistry(B), drawCounts: __dbg.dumpDrawCounts(B)})`, save
-to `verification/raw/<seed>.json`, and `bin/layout-snapshot <seed>` to normalize.
-
-### What normalize guarantees
-
-Either path, `bin/layout-snapshot` **drops the two moving kinds** (`lurleen`,
-`hula_hoop`) — they're actors, not layout, and would make a self-diff differ
-forever. It rounds coords to `1e-4` and sorts by `kind+x+z` so identical builds
-serialize identically. Capture defaults to `perf=high` and records the selected
-`--tier` because built truth is tier-dependent today (crowd draws from the
-cluster rng stream). `--diff` exits
-`0` (`EMPTY`) when layouts match, `1` with a per-kind report otherwise, and flags
-per-cluster draw-count (canary) drift even when every position still matches.
+See [layout verification](docs/layout-verification.md#layout-snapshots--capturing-built-truth)
+for registry capture, normalization, self-diffs, and the manual capture recipe.
+Local browser safety restrictions apply before using automated capture.
 
 ## Layout linter — checking arrangement against rules
 
-A **layout snapshot** captures *what* the world built; the **linter**
-(`src/worldgen/lint.js`, run via `bin/lint`) checks whether that arrangement is
-*good* — nothing clipping, dancefloors clear, booths off the road, stages spaced.
-It's the detector that used to be "Gary driving around noticing things." Two
-modes (design D-D — **registry is the authority**):
+See the [layout linter reference](docs/layout-verification.md#layout-linter--checking-arrangement-against-rules)
+for plan and built-registry modes, rules, and interpretation.
 
-| Mode | Over what | Needs | Precision |
-|---|---|---|---|
-| **plan** | the worldgen PLAN's analytic cluster extents | nothing — pure node | approximate (cluster-center circles) |
-| **registry** | EXACT built sub-component positions in a snapshot | a `bin/layout-snapshot` file | exact |
-
-```
-bin/lint --seeds 10                                  # plan-mode sweep, 10 seeds, headless
-bin/lint --seed-list 1234,0xf7ef2a3c --bounds -1000,-1000,1000,1000
-bin/lint verification/snapshots/0xf7ef2a3c.spawn.json # registry mode (PRIMARY) — no game needed
-bin/lint <snap.json> --json                          # raw violations payload
-```
-
-Exit code: `0` clean, `2` if any **error**-severity rule fired (CI-friendly).
-Every violation carries the full **eyes pipeline** — a 2D `map-sandbox` link, a
-3D `hub-sandbox` link (`?at=x,z`; the viewer lands in group 6, the link is
-forward-compatible today), and a paste-ready `__dbg.teleport(x,z)` snippet — so a
-finding is one click from a look in any surface.
-
-**The link seed is decimal, on purpose.** Both `main.js` and `map-sandbox.html`
-resolve `?seed=` as `/^-?\d+$/.test(raw) ? Number(raw) : FNV(raw)`. A decimal
-string round-trips to the exact same `SESSION_SEED`; a `0x…` hex string would
-fall to the FNV path and open a *different* world. So links emit the decimal
-session seed even though findings *display* the `0x…` form.
-
-Rules (registry mode): `overlap` (exact collider interpenetration > 0.5 m, minus
-an allowed-pairs table of same-cluster adjacencies — stage-deck tiles, the
-arch's segments, a drum circle's firepit-in-bench-ring), `water-clear`,
-`dancefloor-clear`, `booth-on-road`, `potty-attached`, `amenity-bundle` (every
-high-intensity node — a stage deck, a food-truck court — must have >= 3 of the 5
-welfare classes within `AMENITY_BUNDLE_RADIUS`: toilets / water / shade-seating /
-info / special service), `camp-welfare` (a camp village — a campsite cluster at or
-above `CAMP_WELFARE_MIN_SITES` pitches, which excludes the 3-5 site wild-camping
-scatter — needs a porta-potty within `CAMP_WELFARE_RADIUS`), `truck-off-road`,
-`drum-in-trees` (the LEAF drum circle must sit in a treed pocket and not inside
-another cluster's envelope — Gary saw one inside a food-truck circle), and
-`arch-placement` (the spawn arch must be over a road, outside dancefloors, and
-≥ `ARCH_MIN_STAGE_DIST` from the stage). Scenery (`forest_tree`, `lake_edge`,
-`shore`, `path_node`, `lamppost`) is excluded so the report is festival clutter,
-not 1000-tree forest density. Plan mode adds the cross-hub `stage-spacing` and
-`spawn-arrival` rules, plus an approximate `drum-in-trees` (density-field proxy).
-Plan mode also runs its own `amenity-bundle`, counting classes analytically off the
-`welfare_post` tiers. **The seed a snapshot stores is the raw `?seed=` text**, and
-registry mode resolves it the way `main.js` does (digits-only -> number, else FNV) —
-before that fix every geometric registry rule silently reasoned about a different
-world than the entries were captured from.
-The `drum-in-trees` / `arch-placement` thresholds (`DRUM_TREE_RADIUS`,
-`DRUM_TREE_MIN`, `DRUM_TREE_MIN_DENSITY`, `ARCH_MIN_STAGE_DIST`) are tunable in
-`FESTIVAL_TUNING`.
-
-**This change RECORDS the baseline; it does not fix violations** — the layout fix
-is the follow-up `festival-zone-grammar` change. A firing rule here is the
-instrument working, not a bug to chase (the only fixable thing in *this* change
-is a false-positive rule).
-
-`__dbg.gotoHub(n)` prints the plan-mode violations for the hub it teleports to,
-so touring hubs surfaces their findings inline.
-
-
-### Nut Wagon iteration
+## Nut Wagon iteration
 
 `/sandbox.html?entity=nut_wagon_cruise&mute=1` previews driving, stopping and regular NPC boarding on an empty corridor, with a following orbit camera. The original `nut_wagon` and `nut_wagon_closed` cases retain the reference-sized model.
 
@@ -862,6 +567,6 @@ On localhost, `/?seed=1234&nutwagon=1&mute=1` forces the nearest clear road enco
 
 Run `node bin/test-nut-wagon` for route math and `/verification/nut-wagon/system.html?perf=low&mute=1` for the real Three/Crowd controller checks, including boarding, movement, music position, and lifecycle cleanup.
 
-Monk previews (always append mute=1): sandbox.html?entity=monk for the model, entity=monk_party for loose wandering, and entity=nut_wagon_monks for six-person boarding and riding. The __dbg.monks() helper reports party count, state, vehicle, amenity waiting and destination. The localhost forced-wagon overlay also shows monk count/state. verification/nut-wagon/monks.html?perf=low&mute=1 runs production party/Crowd checks; repeat with perf=mid. [Saved evidence](verification/nut-wagon/MONKS.md).
+Monk previews (always append mute=1): sandbox.html?entity=monk&mute=1 for the model, entity=monk_party for loose wandering, and entity=nut_wagon_monks for six-person boarding and riding. The __dbg.monks() helper reports party count, state, vehicle, amenity waiting and destination. The localhost forced-wagon overlay also shows monk count/state. verification/nut-wagon/monks.html?perf=low&mute=1 runs production party/Crowd checks; repeat with perf=mid. [Saved evidence](verification/nut-wagon/MONKS.md).
 
 The backtick panel’s Teleport picker includes **Nut Wagon (active)** and **Monks (active group)** in the current festival layout. Select one and press **Go** to move beside its live position, facing it. Missing encounters show a specific not-spawned message; teleporting does not force a spawn.

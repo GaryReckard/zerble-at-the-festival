@@ -1,5 +1,10 @@
 # Zerble at the Festival — Improvement Plan
 
+> **Historical survey, June 5, 2026.** This plan predates several shipped systems.
+> Use [ROADMAP.md](ROADMAP.md) for pending work and [CHANGELOG.md](CHANGELOG.md)
+> for deliveries; recheck all source anchors before reusing an item.
+
+
 > A prioritized backlog of performance, engineering-health, feature, and platform
 > work, grounded in the current codebase. Every project-specific claim cites a
 > `file:line` or a doc. Date: 2026-06-05.

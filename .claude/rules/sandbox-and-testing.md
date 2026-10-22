@@ -14,7 +14,7 @@ Keep it solving it.
 ## The sandbox is the primary verification surface
 
 `sandbox.html` is a deep-linkable, isolated entity viewer. Open
-`http://127.0.0.1:8765/sandbox.html?entity=<name>` and you get just that
+`http://127.0.0.1:8765/sandbox.html?entity=<name>&mute=1` and you get just that
 entity, on a plain ground plane, with a free-orbit camera and a
 time-of-day slider. No driving. No procedural festival. No camera wrestling.
 
@@ -35,7 +35,7 @@ Already wired up:
 - **Camera presets** — 1–6 snap to canonical angles, R resets, L toggles the
   ground plane.
 - **`window.__sandbox`** exposes `{ scene, camera, currentEntity }` for
-  `preview_eval` introspection.
+  browser-console introspection.
 
 ## Required when you add a new model
 
@@ -53,9 +53,9 @@ If you add a file to `src/models/`, the change is **not done** until you also:
    it" button surfaces.
 5. **If it plays music** (stage, drum circle), add it to
    `ENTITY_MUSIC_STYLE`.
-6. **Also add it to `index.html`'s importmap `models` array** — same
-   cache-buster reason, separately maintained list. Forgetting this is a
-   common footgun.
+6. **Update the module lists in all four HTML importmaps**, including
+   `index.html`, `hub-sandbox.html` and `map-sandbox.html`, then run
+   `bin/check-importmaps`. See [the importmap rule](no-build.md#importmap-maintenance).
 
 Then verify by opening `?entity=<your-key>` and confirming the model loads,
 animates, and looks right at all four ToD presets.
@@ -66,8 +66,8 @@ For a model/visual change, this is the canonical iteration:
 
 ```
 1. Edit src/models/foo.js
-2. preview_start (or reload if already running)
-3. preview_screenshot on /sandbox.html?entity=foo
+2. Open or reload the entity sandbox in an available browser
+3. Capture /sandbox.html?entity=foo&mute=1
 4. Look at the screenshot. Did it land?
    - Yes → next change.
    - No → repeat step 1.
@@ -166,16 +166,12 @@ wiring, registry `chunkKey` lifecycle — only run when the main app boots.
 A sandbox-pass tells you the entity model is fine; it does NOT tell you
 the integration is fine.
 
-**Mandatory before declaring any task complete:**
-
-```
-preview_start (or reuse running) on http://127.0.0.1:8765/
-preview_eval — wait for DOM
-preview_click #start-btn
-preview_eval — wait ~2.5s for world to generate
-preview_console_logs — confirm no JS errors
-preview_screenshot — confirm the scene rendered
-```
+**Mandatory for runtime changes:** follow the
+[canonical verification loop](../../DEBUGGING.md#the-canonical-verification-loop).
+Open `/?mute=1`, wait for the ready title card, click a mode plank, then inspect
+the running scene and console for errors. Use the available browser integration,
+and follow [process cleanup](../../docs/browser-verification.md) for standalone
+automation. Documentation-only edits need link and command checks instead.
 
 The longest call chain in the codebase is
 `buildWorld → ChunkManager.update → ChunkManager._generate → THEME_BUILDERS[theme](ctx)`

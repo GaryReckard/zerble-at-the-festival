@@ -5,7 +5,7 @@
 
 **TL;DR:** Players earn special bubble types by doing memorable things at the festival (finding Lurleen, sitting in with a drum circle after dark, staying up for the midnight fireworks). Once earned, a type shows up on its own as a rare, bigger "featured" bubble in Zerble's normal stream, roughly one every two seconds, more often when the context fits (hearts near Lurleen, embers near a drum circle). A new **Bubble Upgrades** menu lists every upgrade: earned ones in color with an on/off toggle, locked ones greyed out with a hint, and the one secret type hidden until someone earns it. Each earned upgrade also helps the crowd warm to bubbles a little faster: with ten upgrades, the bubble half of the happiness meter fills 40% quicker. The first wave ships eleven types, starting with a Heart vertical slice that proves the whole loop end to end.
 
-This is a standalone implementation handoff in the same shape as [`PUPPET-PARADE-PLAN.md`](PUPPET-PARADE-PLAN.md), not an OpenSpec change. The checkboxes are the execution record, so leave each one unchecked until its "Done when" evidence exists. It supersedes the older "Bubble varieties" idea at [`ROADMAP.md:807`](ROADMAP.md:807), which proposed a loadout picker and different unlocks.
+This is a standalone implementation handoff in the same shape as [`PUPPET-PARADE-PLAN.md`](PUPPET-PARADE-PLAN.md), not an OpenSpec change. The checkboxes are the execution record, so leave each one unchecked until its "Done when" evidence exists. It supersedes the older "Bubble varieties" idea at the historical roadmap, which proposed a loadout picker and different unlocks.
 
 ## Contents
 
@@ -41,7 +41,7 @@ Gary settled these on 2026-10-15. Treat them as fixed unless Gary changes them.
 | D4 (auto mix plus toggles) | Earned types mix in automatically and default to on. The menu lets the player switch any earned type off. There is no loadout picker. | Some players will tire of a type, and toggles help screenshots. |
 | D5 (Bubble Upgrades menu) | The menu lists every non-secret upgrade in catalog order. Earned ones show in color with a toggle, and locked ones are greyed out with a hint. A secret type is completely absent (and not counted in the totals) until earned. | Gary wants players to see what's coming. Secret content stays secret (the Wook trip is discovery content, [`NOTES.md`](openspec/specs/special-modes/NOTES.md)). |
 | D6 (charm bonus) | Each earned upgrade adds 4% to the bubble term of the crowd's happiness meter, capped at level 10 (×1.40). Applies in both modes. Toggling a type off does **not** reduce charm. | Gary asked for "a wee bit easier" smiles per upgrade. During planning the bonus was described as "about 5%, capped at about +40%"; 4% per upgrade is the version that actually lands on +40% at ten upgrades. |
-| D7 (leaderboard headroom) | The leaderboard Worker's plausibility ceiling gains a `CHARM_ALLOWANCE` factor (1.4). Gary deploys the Worker. | The ceiling is built from `BASE_SMILES_PER_MIN` ([`worker.js:51-58`](workers/leaderboard/worker.js:51)). It's a generous placeholder today (40 × 8 × 1.5 × 1.5 = 720 per minute), so rejection risk is low now. It becomes real once Gary calibrates the base rate to the observed p99 ([`ROADMAP.md:24-34`](ROADMAP.md:24)), and the fix is one extra factor. |
+| D7 (leaderboard headroom) | The leaderboard Worker's plausibility ceiling gains a `CHARM_ALLOWANCE` factor (1.4). Gary deploys the Worker. | The ceiling is built from `BASE_SMILES_PER_MIN` ([`worker.js:51-58`](workers/leaderboard/worker.js:51)). It's a generous placeholder today (40 × 8 × 1.5 × 1.5 = 720 per minute), so rejection risk is low now. It becomes real once Gary calibrates the base rate to the observed p99 ([leaderboard calibration](docs/backlog/festival-run.md)), and the fix is one extra factor. |
 | D8 (both modes) | Every upgrade can be earned in Just Cruisin' and Festival Run, and Confetti needs Festival Run by nature. | Upgrades are a lifetime collection, independent of mode. |
 | D9 (first wave) | Eleven types, built in this order: Heart, Music, Ember, Firefly, Rainbow, Sparkler, Lantern, Smile, Confetti, Mushroom (secret), Brass (last in line, easiest to cut). | Gary's picks from the full catalog. |
 | D10 (no quest system yet) | The menu has no Quests tab in v1, and nothing is built for quests. | No quest system exists. Section 9 lists the later Quests tab. |
@@ -531,7 +531,7 @@ Build one type at a time in D9 (first wave) order. For each type, every step bel
   **Done when:** the numbers and Midnight screenshots are saved under `verification/bubble-upgrades/perf/`.
 - [ ] **6.2 Docs.**
   - `CHANGELOG.md`: an entry in the same commit as each shipped piece of work, per [`.claude/rules/changelog-and-roadmap.md`](.claude/rules/changelog-and-roadmap.md).
-  - `ROADMAP.md`: replace the "Bubble varieties" bullet ([`ROADMAP.md:807-818`](ROADMAP.md:807)) with the Section 9 backlog, and update the "Bubble-variety juice costs" note at [`ROADMAP.md:820`](ROADMAP.md:820).
+  - `ROADMAP.md`: replace the "Bubble varieties" bullet ([rollout status](ROADMAP.md#gameplay-verbs)) with the Section 9 backlog, and update the "Bubble-variety juice costs" note at [the juice-design backlog](docs/backlog/gameplay.md).
   - `README.md`: add `U` (Bubble upgrades) to the controls table and the in-game button to the touch list. No secrets.
   - `DEBUGGING.md`: the `__dbg` hooks and the sandbox entity.
   - `ARCHITECTURE.md`: a short Bubble Upgrades section.
@@ -622,8 +622,8 @@ These were considered on 2026-10-15 and left out of the first wave. Move them to
   - **Peace:** needs quests.
   - **Lightning:** there's no weather.
 - **Systems:**
-  - A **Quests** tab in the Bubble Upgrades menu once the passenger-quest system ships ([`ROADMAP.md:824`](ROADMAP.md:824)), with quests able to reference bubble types.
-  - The **bubble-variety juice costs** idea at [`ROADMAP.md:820`](ROADMAP.md:820).
+  - A **Quests** tab in the Bubble Upgrades menu once the passenger-quest system ships ([the passenger-quest backlog](docs/backlog/gameplay.md)), with quests able to reference bubble types.
+  - The **bubble-variety juice costs** idea at [the juice-design backlog](docs/backlog/gameplay.md).
   - **Pop sounds for Music and Brass**, if Gary likes them after a listen.
 
 ## 10. Defaults Gary can override

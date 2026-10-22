@@ -50,7 +50,7 @@ explaining the change to a teammate who wasn't in the room.
 **Date handling:** use today's actual date, in `YYYY-MM-DD`. If the current
 top section is already today's date, append under it (same `Added` / `Changed`
 / `Fixed` / `Performance` heading) — don't open a new dated block for the
-same day. Today's date is available in the CLAUDE.md system context.
+same day. Use the current session's date and timezone, not a date copied from an old plan.
 
 **Sections, in this order:**
 1. `### Added` — new features, new entities, new files, new behavior.
@@ -113,7 +113,6 @@ for `git log`; CHANGELOG is for humans reading the project later.
 ## When Gary asks you to commit
 
 If Gary says "commit this" without explicitly mentioning the changelog, you
-still write the entry. Don't wait to be told — the rule above stands. If the
-change is borderline (refactor with arguably-zero player-visible effect),
-ask once: "this looks internal-only — skip the changelog?" Better to confirm
-than to silently skip.
+still apply the criteria above. Write an entry for observable behavior changes,
+and skip it for documentation-only or internal changes without asking for
+routine confirmation.

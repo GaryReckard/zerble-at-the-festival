@@ -41,7 +41,7 @@ summed across repeated page-hide reports.
 No iPhone FPS or heat improvement is claimed. Run comparable moving Auto and
 Sustained captures on the phone, preferably in both orders, and record clarity,
 stutters and warmth before changing the shipping p95 policy. Baseline remains
-available as a control. [Capture instructions](../../../DEBUGGING.md#controlled-governor-comparison).
+available as a control. [Capture instructions](../../../../docs/performance-playtests.md#controlled-governor-comparison).
 
 The implementation was committed as `2cc103b`. The follow-up registered six
 quality dimensions and four timing metrics in GA; see [configuration and proof](GA-SETUP.md).

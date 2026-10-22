@@ -58,15 +58,15 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 
 ## Play it
 
-Live: <https://garyreckard.github.io/zerble-at-the-festival/> — or open `index.html` in any modern browser. That's it — no install, no build step.
+Play in a modern browser: <https://garyreckard.github.io/zerble-at-the-festival/>. There is no install or build step.
 
-To run a local dev server (recommended, so ES modules load with `file://` blocked):
+To play from a local checkout, serve it over HTTP so the browser can load ES modules:
 
 ```
-python3 .Codex/serve_nocache.py 8765
+python3 .claude/serve_nocache.py 8765
 ```
 
-Then visit `http://127.0.0.1:8765`.
+Then visit `http://127.0.0.1:8765`. For development, see the [contributor documentation](docs/README.md).
 
 ## Tech
 
@@ -74,7 +74,7 @@ Then visit `http://127.0.0.1:8765`.
 - [three.js](https://threejs.org) for rendering (loaded via CDN through the importmap).
 - Web Audio API for everything you hear.
 - Vanilla DOM for the HUD.
-- ~70 source files, all hand-rolled, all hot-editable.
+- Source files are hand-rolled and editable without a build.
 
 ## Performance tiers
 
