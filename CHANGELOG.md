@@ -4,6 +4,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-22
 
+### Added
+- **Healing Arts tents bring yoga by day and dancing after dark.** Occasional, independently seeded hubs now host a cream five-peak tensile canopy with bunting, hanging lights, and loose classes of 7–20 participants moving through standing, warrior, tree and forward-fold poses on colorful mats. At dusk the class trickles out as regular festivalgoers, while nearby available crowd members walk in and take over as dancers. At night the mats give way to a DJ booth, circulating dancers with glowsticks, warm pooled lighting and spatial dance music. The open tent has colliders only at its support poles, and chunk unloading releases animation and audio. The canopy has pointed tie-downs, a higher roof and a sign clear of the fabric. The entity sandbox includes a real-crowd changeover view, and the hub/map sandboxes and debug teleport picker expose the same placement path.
+
 ### Fixed
 - **Removing a moved registry entry clears its indexed cell.** Cleanup now uses the last indexed position, so despawning or unloading before the next frame sync cannot leave a collider behind.
 

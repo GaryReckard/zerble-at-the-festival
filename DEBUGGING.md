@@ -570,3 +570,14 @@ Run `node bin/test-nut-wagon` for route math and `/verification/nut-wagon/system
 Monk previews (always append mute=1): sandbox.html?entity=monk&mute=1 for the model, entity=monk_party for loose wandering, and entity=nut_wagon_monks for six-person boarding and riding. The __dbg.monks() helper reports party count, state, vehicle, amenity waiting and destination. The localhost forced-wagon overlay also shows monk count/state. verification/nut-wagon/monks.html?perf=low&mute=1 runs production party/Crowd checks; repeat with perf=mid. [Saved evidence](verification/nut-wagon/MONKS.md).
 
 The backtick panel’s Teleport picker includes **Nut Wagon (active)** and **Monks (active group)** in the current festival layout. Select one and press **Go** to move beside its live position, facing it. Missing encounters show a specific not-spawned message; teleporting does not force a spawn.
+
+### Healing Arts preview
+
+Open `sandbox.html?entity=healing_arts&seed=1977&mute=1` for the complete canopy,
+loose yoga class and circulating night dancers, or use
+`sandbox.html?entity=healing_arts_activity&mute=1` for a real crowd handoff.
+Click Noon, then Midnight to watch the staggered class exit and arrivals; the
+status line counts yoga participants, departures, arrivals and dancers. The
+backtick panel's Teleport picker includes **Healing Arts tent**, and its stats
+show live visitor counts. Seed `1234` has a tent near `(534, 15)`.
+[Verification and captures](verification/healing-arts/README.md).

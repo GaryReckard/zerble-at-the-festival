@@ -30,6 +30,8 @@ import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
 import { buildCampsite, buildCampChair, buildTorchField, buildVendorCamp, CAMPSITE_SCALE, campsiteFootprint } from './models/campsite.js';
+import { HealingArtsActivity } from './healingArtsActivity.js';
+import { buildHealingArts, updateHealingArts } from './models/healingArts.js';
 import { buildTent } from './models/tent.js';
 import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
@@ -53,6 +55,25 @@ const UNLOAD_RADIUS = PERF.chunkUnloadRadius; // hysteresis
 
 // Bands placed on stages — animated lightly each frame by the main loop.
 export const stagePerformers = [];
+export const healingArtsTents = [];
+
+export function updateHealingArtsTents(dt, time, nightness, playerPos) {
+  for (const entry of healingArtsTents) {
+    entry.activity?.update(dt, time, nightness);
+    const near = !playerPos || entry.group.position.distanceToSquared(playerPos) < 180 * 180;
+    if (near || entry.night !== (nightness > 0.5)) {
+      updateHealingArts(entry.group, dt, time, nightness);
+    }
+    entry.night = nightness > 0.5;
+    if (entry.night && !entry.music) {
+      entry.music = Sound.attachStageMusic(entry.group.position.x, 1.5, entry.group.position.z, entry.seed, 'dance');
+    } else if (!entry.night && entry.music) {
+      Sound.detachStageMusic(entry.music);
+      entry.music = null;
+    }
+  }
+}
+
 
 // Spatial music handles, one per stage, tagged by chunkKey so we can detach on unload.
 const stageMusic = [];
@@ -550,6 +571,12 @@ export function disposeChunkByKey(scene, group, key, crowd) {
   });
   scene.remove(group);
 
+  for (let i = healingArtsTents.length - 1; i >= 0; i--) {
+    if (healingArtsTents[i].chunkKey !== key) continue;
+    healingArtsTents[i].activity?.dispose();
+    Sound.detachStageMusic(healingArtsTents[i].music);
+    healingArtsTents.splice(i, 1);
+  }
   // Clean up registry + crowd + stage performers + stage music tagged with this chunk
   registry.removeChunk(key);
   if (crowd) crowd.unloadChunk(key);
@@ -1325,6 +1352,7 @@ function buildWorldgenKind(ctx, d) {
     case 'vendor_row':    buildVendorRowAt(cctx, d.x, d.z, d.yaw); break;
     case 'bubble_vendor': buildBubbleVendorAt(cctx, d.x, d.z, d.yaw); break;
     case 'welfare_post':  buildWelfarePostAt(cctx, d); break;
+    case 'healing_arts':  buildHealingArtsAt(cctx, d); break;
     case 'drum_circle':   buildWorldgenDrumCircle(cctx, d.x, d.z, d.yaw); buildDrumAccessPath(cctx, d.x, d.z); break;   // B2 — FULL leaf drum circle + winding access path
     case 'camp_village':  buildCampVillageAt(cctx, d.x, d.z, d.tents); break;   // D2 — tent count ∝ local crowd
     default: break;       // unknown kind → place nothing (forward-compatible)
@@ -3120,5 +3148,31 @@ function spawnAmbientCrowd(ctx, count) {
       chunkKey: ctx.key,
       rng: ctx.rng,
     });
+  }
+}
+
+// The canopy is walk-through; only its load-bearing poles are hard colliders.
+function buildHealingArtsAt(ctx, d) {
+  const group = buildHealingArts({rng:ctx.rng});
+  group.position.set(d.x,0,d.z);
+  group.rotation.y = d.yaw;
+  ctx.group.add(group);
+  const canWalk = (x,z) => {
+    if (isPointInLake(x,z)) return false;
+    let clear = true;
+    registry.collidersNear(x,z,.45,e=>{
+      if (Math.hypot(x-e.position.x,z-e.position.z)<e.collider.radius+.42) clear=false;
+    });
+    return clear;
+  };
+  const activity = ctx.crowd ? new HealingArtsActivity(group,ctx.crowd,
+    mulberry32(d.clusterSeed ^ 0x7EA11A),canWalk) : null;
+  healingArtsTents.push({group,activity,chunkKey:ctx.key,seed:d.clusterSeed,music:null,night:null});
+  registry.add({kind:'healing_arts',position:new THREE.Vector3(d.x,0,d.z),
+    footprint:d.footprint,chunkKey:ctx.key});
+  const c = Math.cos(d.yaw), s = Math.sin(d.yaw);
+  for (const pole of group.userData.healingArts.poleColliders) {
+    registry.add({kind:'tent',position:new THREE.Vector3(d.x+pole.x*c+pole.z*s,0,d.z-pole.x*s+pole.z*c),
+      footprint:pole.radius,collider:{radius:pole.radius,damage:0.12},chunkKey:ctx.key});
   }
 }

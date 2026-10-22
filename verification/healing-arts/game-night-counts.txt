@@ -1,0 +1,25 @@
+Browser tab: 2, Title: "Zerble at the Festival — A Bubble Adventure", URL: "http://127.0.0.1:8765/?seed=1234&perf=low&mute=1".
+The following is a diff from the previous accessibility tree with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+~				9 container Description: Bubble juice 48%, ID: juice-meter
+~				10 container Description: Late night, 95% through the day cycle, Help: Late night, ID: day-cycle
+~			109 text fps          61    
+frame        avg=16.7  p95=17.8  max=18.6ms
+quality      baseline
+draws        1,189 / 80 [!!]
+tris         367,985 / 150,000 [!!]
+gpu mem      geo 1550  tex 36  heap 94MB
+chunks       18 gen  slow=4  worst=253.5  last=0.9  avg=20.3ms
+running      true
+seed         1234 (0x000004d2)
+pos          535.7, 36.9
+heading      -4°  speed 0.00
+chunk        (6, 0)
+npcs         97  riding 2  watch 5  flee 0
+healing      yoga 0  out 0  in 0  dance 9
+registry     1360  colliders 1283
+time of day  t=0.95 night=1.00
+flags        god=false freezeNPCs=false colliderViz=false
+~			110 text t=0.95 night=1.00
+~			27 slider (settable, float) Value: 0.9490000009536743, Details: 0.949, ID: dbg-tod-slider
++			111 text MIDI not playing
+The focused UI element is 31 button Midnight

@@ -520,7 +520,7 @@ export class Crowd {
   }
 
   // Called by chunk generator.
-  spawn({ pos, chunkKey, rng = Math.random, forcePhotographer = false, allowPhotographer = true }) {
+  spawn({ pos, chunkKey, rng = Math.random, forcePhotographer = false, allowPhotographer = true, appearanceOverride = null }) {
     if (this.free.length === 0) return null;
     const idx = this.free.pop();
 
@@ -559,7 +559,8 @@ export class Crowd {
         if (pick !== legacyShirt) break;
       }
     }
-    const appearance = rollCrowdAppearance(crowdAppearanceRng(pos));
+    const rolledAppearance = rollCrowdAppearance(crowdAppearanceRng(pos));
+    const appearance = appearanceOverride ? {...rolledAppearance,...appearanceOverride} : rolledAppearance;
     const shirt = appearance.shirt;
     let tieDye = 0;
     if (appearance.tieDye) tieDye = appearance.tieDyeAmount;
@@ -926,6 +927,7 @@ export class Crowd {
   }
 
   _updateNpc(dt, npc, zerble, bubblePositions, cosCone, ctx) {
+    if (npc.festivalVisit) { this._writeMatrices(npc); return; }
     if (npc.smileTimeCooldown > 0) npc.smileTimeCooldown -= dt;
     if (!isPhotographerState(npc.state)) npc.stateTimer -= dt;
     if (!isPhotographerState(npc.state) && npc.photoFlashTimer > 0) {
@@ -1516,6 +1518,7 @@ export class Crowd {
   }
 
   _writeMatrices(npc) {
+    if (npc.festivalVisit?.hidden) { this._hideNpc(npc); return; }
     if (npc.party) { this._hideNpc(npc); npc.party.renderNpc(npc); return; }
     // Bo is rendered by the wagon, while the crowd still owns his reserved seat.
     if (npc.seatSlot?.permanent && npc.seatSlot.vehicle?.driverModel) {
@@ -2481,6 +2484,7 @@ export class Crowd {
   // Called from main.js when Zerble drives into an NPC. Knockback the victim,
   // put them into a fleeing state, and spook nearby NPCs (panic cascade).
   onZerbleHit(victim, pushX, pushZ) {
+    victim.festivalVisit?.owner.releaseNpc(victim);
     this._abandonSeat(victim);   // a rammed napper/diner gets up — free its claim
     victim.state = 'fleeing';
     victim.stateTimer = 3;

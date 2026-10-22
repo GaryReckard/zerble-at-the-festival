@@ -29,7 +29,7 @@ import { updateCampsiteProps } from './models/campsite.js';
 import { updatePortaPotty } from './models/portaPotty.js';
 import { updateLeafDrumCircle } from './models/leafDrumCircle.js';
 import { updateTribalFigures } from './models/tribalFigures.js';
-import { updateStagePerformers, updateStageLightShow, stageLightLenses, worldgenDrawCounts } from './chunks.js';
+import { updateHealingArtsTents, updateStagePerformers, updateStageLightShow, stageLightLenses, worldgenDrawCounts } from './chunks.js';
 import { updateSugarShackCooks } from './models/sugarShack.js';
 import { Zerble } from './zerble.js';
 import { Bubbles } from './bubbles.js';
@@ -1159,6 +1159,7 @@ function tickBody(dt) {
     }
     const nowS = performance.now() * 0.001;
     updateStagePerformers(nowS);
+    updateHealingArtsTents(dt, nowS, nightness, zerble.position);
     updateStageLightShow(nowS, nightness, zerble.position);
     updateSugarShackCooks(dt);
 

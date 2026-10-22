@@ -180,13 +180,13 @@
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
-            const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'chunks', 'forests',
+            const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
             const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'bo', 'monk', 'nutWagon', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'paradeLanterns', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
-                'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
+                'campsite', 'frisbeePlayer', 'hulaHooper', 'healingArts', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
             const base = new URL('./src/', document.baseURI).href;
             const imports = {
                 'three': 'https://unpkg.com/three@0.160.0/build/three.module.js',
@@ -237,6 +237,8 @@
             <option value="entrance_arch">Entrance arch</option>
             <option value="stage_main">Main stage (with band)</option>
             <option value="stage_side">Side stage (with band)</option>
+            <option value="healing_arts">Healing Arts (yoga / night DJ)</option>
+            <option value="healing_arts_activity">Healing Arts (real crowd changeover)</option>
             <option value="tent_stage">Tent stage (big white tent)</option>
             <option value="canoe">Canoe</option>
             <option value="lake">Lake (mini disc)</option>
@@ -588,6 +590,8 @@ import {buildShrub} from './src/models/shrub.js';
     import {buildPicnicTable} from './src/models/picnicTable.js';
     import {buildInfoKiosk} from './src/models/infoKiosk.js';
     import {FESTIVAL_TUNING} from './src/worldgen/tuning.js';
+    import {HealingArtsActivity} from './src/healingArtsActivity.js';
+    import {buildHealingArts, updateHealingArts} from './src/models/healingArts.js';
     import {buildLeafDrumCircle, updateLeafDrumCircle} from './src/models/leafDrumCircle.js';
     import {
         buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
@@ -1028,7 +1032,7 @@ import {buildShrub} from './src/models/shrub.js';
         food_truck: 'truck',
         kid: 'kid',
         wook: 'wook',
-        stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage',
+        stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage', healing_arts: 'tent', healing_arts_activity: 'tent',
         entrance_arch: 'arch',
         canoe: 'lake_edge',
         band_member_trumpet: 'brass', band_member_tuba: 'brass',
@@ -2115,6 +2119,51 @@ import {buildShrub} from './src/models/shrub.js';
             }
 
             // ----- Drum circle -----
+            case 'healing_arts':
+            case 'healing_arts_activity': {
+                const g = buildHealingArts({rng: mulberry32(Number(new URLSearchParams(location.search).get('seed') || 1977))});
+                currentEntity = g;
+                scene.add(g);
+                entityRoot = g;
+                let activity = null, people = null;
+                const fakeCart = {position:new THREE.Vector3(0,0,40),speed:0,
+                    forwardWorld:new THREE.Vector3(0,0,1),seatSlots:[]};
+                if (name === 'healing_arts_activity') {
+                    people = new Crowd({spawn(){},spawnLost(){}});
+                    scene.add(people.group);
+                    const rng = mulberry32(1978);
+                    activity = new HealingArtsActivity(g,people,rng,(x,z)=>
+                        !g.userData.healingArts.poleColliders.some(p=>Math.hypot(x-p.x,z-p.z)<p.radius+.42));
+                    for (let i=0;i<28;i++) people.spawn({pos:new THREE.Vector3((rng()-.5)*30,0,13+rng()*12),
+                        chunkKey:'healing-demo',rng,allowPhotographer:false});
+                    g.userData.activity = activity;
+                }
+                let elapsed = 0;
+                updateFn = dt => {
+                    elapsed += dt;
+                    people?.update(dt,fakeCart,null);
+                    activity?.update(dt,elapsed,tod.nightness);
+                    updateHealingArts(g, dt, elapsed, tod.nightness);
+                    if (activity) {
+                        const slots = activity.slots;
+                        info.textContent = `${activity.phase}: ${slots.filter(s=>s.role==='yoga').length} yoga · ${slots.filter(s=>s.role==='leaving').length} leaving · ${slots.filter(s=>s.role==='entering').length} arriving · ${slots.filter(s=>s.role==='dance').length} dancing · ${people.npcs.length} people total`;
+                    } else info.textContent = `Healing Arts · ${g.userData.healingArts.participantCount} participants`;
+
+                    if (tod.nightness > 0.5 && soundInitialised && !entityMusic) {
+                        entityMusic = Sound.attachStageMusic(0, 1.5, -5.75, 1977, 'dance');
+                    } else if (tod.nightness <= 0.5 && entityMusic) {
+                        Sound.detachStageMusic(entityMusic);
+                        entityMusic = null;
+                    }
+                };
+                updateFn(0);
+                cam.target.set(0, 2.5, 0);
+                cam.dist = 38;
+                cam.yaw = 0;
+                cam.pitch = 0.025;
+                applyCam();
+                break;
+            }
             case 'leaf_drum_circle':
             case 'leaf_drum_circle_day':
             case 'leaf_drum_circle_night': {

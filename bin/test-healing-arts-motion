@@ -1,0 +1,110 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+// Exercise the shipped pose/spacing routine without a GPU. Only rendering writes
+// are stubbed; retain its real constants, transitions, collision passes and math.
+const source = readFileSync(new URL('../src/models/healingArts.js', import.meta.url), 'utf8');
+const constantsStart = source.indexOf('const POSES');
+const constantsEnd = source.indexOf('/** Returns');
+const updaterStart = source.indexOf('export function updateHealingArts');
+assert(constantsStart >= 0 && constantsEnd > constantsStart && updaterStart > constantsEnd,
+  'model extraction anchors exist');
+const writes = [];
+const update = vm.runInNewContext(
+  source.slice(constantsStart, constantsEnd) +
+  source.slice(updaterStart).replace('export function', 'function') + ';updateHealingArts', {
+    THREE: { MathUtils: { smoothstep(x, a, b) {
+      const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    } } },
+    color: { setHex() {} },
+    instanceAt(batch, index, ...values) { if (batch.capture) writes.push({ kind: batch.name, index, values }); },
+    segment(batch, index, ...values) { if (batch.capture) writes.push({ kind: batch.name, index, values }); },
+    Number, Math,
+  });
+function random(seed) {
+  let state = seed + 1;
+  return () => ((state = (state * 1664525 + 1013904223) >>> 0) / 4294967296);
+}
+function batch(name) {
+  return { name, capture: false, setColorAt() {}, instanceColor: {}, instanceMatrix: {} };
+}
+function fixture(seed = 0, count = 20) {
+  const rng = random(seed);
+  const participants = Array.from({ length: count }, (_, i) => ({
+    x: -6 + (i % 5) * 2.8, z: -2 + Math.floor(i / 5) * 2.5,
+    yaw: 0, phase: rng() * .9, orbitPhase: rng() * Math.PI * 2,
+    orbitSpeed: (.085 + rng() * .045) * (i % 2 ? 1 : -1),
+    lane: 2.1 + (i % 3) * 1.85, activity: 'dance', shirt: 1, skin: 1,
+  }));
+  const u = {
+    participants, participantCount: count, managed: true,
+    positions: new Float32Array(count * 2), pose: new Float32Array(33),
+    poleColliders: [[0, 0], [-5, -4], [5, -4], [-5, 4], [5, 4]].map(([x, z]) => ({ x, z })),
+    light: {}, mats: batch('mats'), booth: batch('booth'), bulbs: batch('bulbs'),
+    bodies: batch('bodies'), heads: batch('heads'), hair: batch('hair'), glowsticks: batch('glowsticks'),
+  };
+  return { userData: { healingArts: u } };
+}
+let minimumPersonDistance = Infinity, minimumPoleDistance = Infinity, maximumRadius = 0;
+for (let seed = 0; seed < 30; seed++) {
+  const group = fixture(seed), u = group.userData.healingArts;
+  for (let time = 0; time < 200; time += .5) {
+    update(group, .016, time, 1);
+    for (let i = 0; i < u.participantCount; i++) {
+      const p = u.participants[i];
+      assert(Number.isFinite(p.heading), 'every dancer has a finite heading');
+      const radius = Math.hypot(p.currentX, p.currentZ);
+      maximumRadius = Math.max(maximumRadius, radius);
+      assert(radius <= 7.201, 'dancer centers stay inside the canopy');
+      assert(p.currentZ >= -4.251, 'dancers stay in front of the booth');
+      for (const pole of u.poleColliders) minimumPoleDistance = Math.min(minimumPoleDistance,
+        Math.hypot(p.currentX - pole.x, p.currentZ - pole.z));
+      for (let j = i + 1; j < u.participantCount; j++) {
+        const other = u.participants[j];
+        const distance = Math.hypot(p.currentX - other.currentX, p.currentZ - other.currentZ);
+        minimumPersonDistance = Math.min(minimumPersonDistance, distance);
+        assert(distance >= .8, 'dense dancefloor retains body clearance');
+      }
+    }
+  }
+}
+const managed = fixture(2, 3), u = managed.userData.healingArts;
+u.participants.forEach(p => { p.activity = 'yoga'; });
+for (const time of [0, 8, 18, 40]) {
+  update(managed, .016, time, 1);
+  for (const p of u.participants) {
+    assert(Math.abs(p.currentX - p.x) < .000001 && Math.abs(p.currentZ - p.z) < .000001,
+      'managed yoga remains on its mat even after dark');
+    assert.equal(p.mix, 0, 'managed yoga retains yoga poses');
+  }
+}
+const one = fixture(3, 1), entry = one.userData.healingArts, p = entry.participants[0];
+Object.assign(p, { entryX: 1.5, entryZ: 6.1, entryTime: 100 });
+update(one, .016, 100, 1);
+assert(Math.hypot(p.currentX - 1.5, p.currentZ - 6.1) < .000001, 'arrival starts at actual walking position');
+update(one, .016, 100.01, 1);
+assert(Math.hypot(p.currentX - 1.5, p.currentZ - 6.1) < .001, 'arrival begins continuously');
+update(one, .016, 104, 1);
+const completed = [p.currentX, p.currentZ];
+delete p.entryTime;
+update(one, .016, 104, 1);
+assert.deepEqual([p.currentX, p.currentZ], completed, 'arrival joins the normal orbit after four seconds');
+for (const name of ['mats', 'bodies', 'heads', 'hair', 'glowsticks']) entry[name].capture = true;
+p.activity = 'hidden'; writes.length = 0;
+update(one, .016, 105, 1);
+for (const write of writes) {
+  const scale = write.kind === 'bodies' || write.kind === 'glowsticks' ? write.values.slice(6) : write.values.slice(3, 6);
+  assert(scale.every(value => value === 0), `hidden participant has zero ${write.kind} scale`);
+}
+p.activity = 'dance'; writes.length = 0;
+update(one, .016, 106, 1);
+assert(writes.some(w => w.kind === 'glowsticks' && w.values[6] > 0), 'selected dancers carry a lit glowstick');
+assert(writes.filter(w => w.kind === 'mats').every(w => w.values[3] === 0), 'dancers do not keep yoga mats');
+console.log('PASS Healing Arts motion: 30 seeded configurations × 400 times × 20 dancers');
+console.log(JSON.stringify({ samples: 12000, maximumCenterRadius: maximumRadius,
+  minimumPersonCenterDistance: minimumPersonDistance, minimumPoleCenterDistance: minimumPoleDistance }, null, 2));
+console.log('PASS managed yoga homes, hidden render parts/glowsticks, dance glowsticks, and continuous four-second arrival');
+console.log('Scope: source-level motion verification with rendering writes stubbed; no GPU or visual validation.');

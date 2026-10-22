@@ -302,6 +302,10 @@ function locateLandmark(kind) {
       const b = nearestFestivalPOI(STAGE_KINDS);
       return b ? poiDest(b.poi, b.heart, `${b.poi.kind.replace('_', ' ')}`) : null;
     }
+    case 'healing_arts': {
+      const b = nearestFestivalPOI(new Set(['healing_arts']));
+      return b ? poiDest(b.poi, b.heart, 'Healing Arts tent') : null;
+    }
     case 'drum_circle': {
       const b = nearestFestivalPOI(new Set(['drum_circle']));
       return b ? poiDest(b.poi, b.heart, 'festival drum circle') : null;
@@ -708,6 +712,7 @@ function buildPanel() {
   const TP_OPTIONS = USE_WORLDGEN_V2 ? [
     ['hub',          'Festival hub (nearest major)'],
     ['stage',        'Stage (nearest)'],
+    ['healing_arts', 'Healing Arts tent'],
     ['drum_circle',  'Drum circle'],
     ['food_court',   'Food court'],
     ['arch',         'Entrance arch'],
@@ -1172,6 +1177,11 @@ function updatePanel(dt) {
   const fleeing = h.crowd.npcs.filter(n => n.state === 'fleeing').length;
   const registryCount = h.registry.entries.size;
   const colliderCount = [...h.registry.colliders()].length;
+  const healingRoles = {yoga:0,leaving:0,entering:0,dance:0,yoga_entering:0};
+  for (const npc of h.crowd.npcs) {
+    const role = npc.festivalVisit?.slot?.role;
+    if (role in healingRoles) healingRoles[role]++;
+  }
   const running = h.getRunning();
 
   const tod = h.getTimeOfDay && h.getTimeOfDay();
@@ -1242,6 +1252,7 @@ function updatePanel(dt) {
     `heading      ${(z.heading * 180 / Math.PI).toFixed(0)}°  speed ${z.speed.toFixed(2)}\n` +
     `chunk        (${cx}, ${cz})\n` +
     `npcs         ${npcs}  riding ${riders}  watch ${watching}  flee ${fleeing}\n` +
+    `healing      yoga ${healingRoles.yoga}  out ${healingRoles.leaving}  in ${healingRoles.entering+healingRoles.yoga_entering}  dance ${healingRoles.dance}\n` +
     `registry     ${registryCount}  colliders ${colliderCount}\n` +
     `time of day  ${todStr}\n` +
     `flags        god=${state.god} freezeNPCs=${state.freezeNPCs} colliderViz=${state.showColliders}`;

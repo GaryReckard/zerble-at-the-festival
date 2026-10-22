@@ -11,6 +11,7 @@ not physical-device acceptance.
 
 | Evidence | What it establishes |
 | --- | --- |
+| [Healing Arts tent, October 22](healing-arts/README.md) | Sparse placement, yoga/dance motion, real crowd changeover, lifecycle tests and day/night captures |
 | [Registry maintenance, October 22](performance/2026-10-22/index-maintenance/README.md) | Paired CPU measurements, exact candidate-order tests and Low/High streaming checks |
 | [Post-process first use, October 22](performance/2026-10-22/render-stall/README.md) | Bloom/Trip preparation, program-count probes and the limits of the device-stall attribution |
 | [Guided iPhone quality comparison, October 22](performance/2026-10-22/guided-quality-comparison.md) | Auto versus Sustained observations, differing routes, tagged lag and the phone-lock interruption |

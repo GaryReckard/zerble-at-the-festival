@@ -246,6 +246,7 @@ export function drumClearingsNear(minX, minZ, maxX, maxZ) {
   for (const h of hs) {
     for (const d of festivalPlan(h)) {
       if (d.kind === 'drum_circle') out.push({ x: d.x, z: d.z, r });
+      if (d.kind === 'healing_arts') out.push({x:d.x, z:d.z, r:d.footprint + 2});
     }
   }
   return out;
@@ -824,12 +825,60 @@ export function festivalPlan(heart) {
   // away a food court that a post was already slotted against, and a station left
   // standing alone in the grass is exactly the "prop, not a place" read the bundle
   // reframe exists to kill. Transactional on BOTH omission paths.
-  const plan = drop.size
+  let plan = drop.size
     ? base.filter(d => !drop.has(d.clusterSeed) && !(d.parentSeed !== undefined && drop.has(d.parentSeed)))
     : base;
+  const healing = healingArtsSpot(heart);
+  if (healing) plan = [...plan, healing];
   if (_seamedCache.size > 4000) _seamedCache.clear();
   _seamedCache.set(key, plan);
   return plan;
+}
+
+// One candidate hub per 3×3 macrocell, with its own stream. Existing plans and
+// their RNG draws remain untouched, and neighboring base plans avoid recursion.
+const HEALING_SALT = 0x6A71EAF;
+function healingCandidate(heart) {
+  const bx = Math.floor(heart.cx / 3), bz = Math.floor(heart.cz / 3);
+  const rng = cellRng(bx, bz, HEALING_SALT);
+  return heart.cx === bx * 3 + Math.floor(rng() * 3) &&
+    heart.cz === bz * 3 + Math.floor(rng() * 3);
+}
+function healingArtsSpot(heart) {
+  if (!healingCandidate(heart) || !_basePlan(heart).length) return null;
+  const rng = cellRng(heart.cx, heart.cz, HEALING_SALT + 1);
+  const radius = FESTIVAL_TUNING.KIND_FOOTPRINT.healing_arts;
+  const neighbors = heartsInBounds(heart.x-360, heart.z-360, heart.x+360, heart.z+360);
+  // Resolve close candidates by stable priority before choosing a position.
+  const priority = worldHash(heart.cx, heart.cz, HEALING_SALT + 2) >>> 0;
+  for (const h of neighbors) {
+    if (h.cx === heart.cx && h.cz === heart.cz) continue;
+    if (healingCandidate(h) && Math.hypot(h.x-heart.x,h.z-heart.z) < 340 &&
+        (worldHash(h.cx,h.cz,HEALING_SALT+2) >>> 0) < priority) return null;
+  }
+  const occupied = neighbors.flatMap(h => _basePlan(h));
+  const roads = roadsInBounds(heart.x-190,heart.z-190,heart.x+190,heart.z+190);
+  const start = rng() * Math.PI * 2;
+  for (let i = 0; i < 48; i++) {
+    const a = start + i * 2.399963229728653;
+    const distance = 45 + (i % 7) * 11;
+    const x = quantize(heart.x + Math.cos(a)*distance);
+    const z = quantize(heart.z + Math.sin(a)*distance);
+    const shapes = clusterShapes('healing_arts',1,x,z,0);
+    if (!shapesClearOfRoads(shapes,roads)) continue;
+    if (occupied.some(d => clustersOverlap(shapes,clusterShapes(d.kind,d.scale||1,d.x,d.z,d.yaw),4))) continue;
+    let dry = !queryPoint(x,z).noBuild;
+    for (let k = 0; dry && k < 24; k++) {
+      const angle = k / 24 * Math.PI * 2;
+      for (const r of [radius * 0.5, radius]) {
+        if (queryPoint(x+Math.cos(angle)*r,z+Math.sin(angle)*r).noBuild) { dry = false; break; }
+      }
+    }
+    if (!dry) continue;
+    return desc('healing_arts',x,z,Math.atan2(heart.x-x,heart.z-z),'district',heart.rank,false,
+      worldHash(heart.cx,heart.cz,HEALING_SALT+3) >>> 0);
+  }
+  return null;
 }
 
 // Pick one existing court near the entrance festival. The spawn heart often has

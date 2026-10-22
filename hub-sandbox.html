@@ -39,13 +39,13 @@
       h.endsWith('.local') || /^10\./.test(h) || /^192\.168\./.test(h) ||
       /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.includes('claude-preview') || h.includes('happycog');
     const v = isLocal ? '?v=' + Date.now() : '';
-    const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'chunks', 'forests',
+    const mods = ['monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
       'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
       'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes',
       'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
     const models = ['canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'bo', 'monk', 'nutWagon', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
       'entranceArch', 'leafBanner', 'puppet', 'paradeLanterns', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
-      'campsite', 'frisbeePlayer', 'hulaHooper', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
+      'campsite', 'frisbeePlayer', 'hulaHooper', 'healingArts', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
     const base = new URL('./src/', document.baseURI).href;
     const imports = {
       'three': base + 'threeShim.js' + v,
@@ -126,7 +126,8 @@ import { FESTIVAL_TUNING, setFestivalTuning } from './src/worldgen/tuning.js';
 import { bumpWorldgen } from './src/worldgen/constants.js';
 import { nearestMajorHeart, nearestHeart, heartsInBounds } from './src/worldgen/hearts.js';
 import { dancefloorRect } from './src/worldgen/festival.js';
-import { buildHubPreview, disposeChunkByKey, updateStageLightShow, updateStagePerformers } from './src/chunks.js';
+import * as ContextLights from './src/contextLights.js';
+import { updateHealingArtsTents, buildHubPreview, disposeChunkByKey, updateStageLightShow, updateStagePerformers } from './src/chunks.js';
 import { FarField } from './src/farField.js';
 import { FAR_FIELD_TIERS } from './src/perf.js';
 import { ownerCellCoord } from './src/worldgen/placement.js';
@@ -443,7 +444,9 @@ function frame() {
   smiles.update(dt, dummyZerble, () => {});   // drain any smiles the crowd emits at the cart
   updateStageLightShow(now / 1000, tod.nightness, dummyZerble.position);
   updateStagePerformers(now / 1000);
+  updateHealingArtsTents(dt, now / 1000, tod.nightness, dummyZerble.position);
   updateFarField(dt, now);
+  ContextLights.update(camera.position, scene);
   renderer.render(scene, camera);
   if (document.hidden) setTimeout(frame, 16); else requestAnimationFrame(frame);
 }

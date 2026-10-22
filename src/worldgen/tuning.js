@@ -199,7 +199,7 @@ export const FESTIVAL_TUNING = {
   // ── Cluster footprint envelopes (planner KIND_FOOTPRINT, festival.js:196) ──
   KIND_FOOTPRINT: {
     main_stage: 11, side_stage: 8, tent_stage: 13, arch: 6, food_court: 16,
-    vendor_row: 12, bubble_vendor: 3, drum_circle: 6, porta_bank: 3, welfare_post: 3.6,
+    healing_arts: 14, vendor_row: 12, bubble_vendor: 3, drum_circle: 6, porta_bank: 3, welfare_post: 3.6,
     camp_village: 32,
   },
 

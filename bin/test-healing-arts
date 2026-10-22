@@ -1,0 +1,129 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {setSeed, queryPoint} from '../src/worldgen/index.js';
+import {heartInCell} from '../src/worldgen/hearts.js';
+import {festivalPlan, drumClearingsNear} from '../src/worldgen/festival.js';
+import {clusterShapes, clustersOverlap} from '../src/worldgen/tuning.js';
+import {roadsInBounds, shapesClearOfRoads} from '../src/worldgen/roads.js';
+
+let total = 0, hubs = 0;
+for (const seed of [1234,42,9876,3948869160,8675309]) {
+  setSeed(seed);
+  const hearts = [];
+  for (let z=-5;z<=5;z++) for (let x=-5;x<=5;x++) {
+    const h=heartInCell(x,z); if(h) hearts.push(h);
+  }
+  const first = hearts.map(h=>festivalPlan(h));
+  const tents = first.flat().filter(d=>d.kind==='healing_arts');
+  total += tents.length; hubs += hearts.length;
+  assert(tents.length>0 && tents.length<hearts.length/5, 'tents are discoverable and occasional');
+  const cells=new Set();
+  for (const h of hearts) {
+    const d=festivalPlan(h).find(d=>d.kind==='healing_arts'); if(!d) continue;
+    const key=`${Math.floor(h.cx/3)},${Math.floor(h.cz/3)}`;
+    assert(!cells.has(key),'at most one tent per nine-cell region'); cells.add(key);
+    const shapes=clusterShapes(d.kind,1,d.x,d.z,d.yaw);
+    assert(shapesClearOfRoads(shapes,roadsInBounds(d.x-50,d.z-50,d.x+50,d.z+50)),'whole canopy clears roads');
+    assert(!queryPoint(d.x,d.z).noBuild,'center is dry');
+    for(let i=0;i<48;i++) for(const r of [7,14]) {
+      const a=i/48*Math.PI*2;
+      assert(!queryPoint(d.x+Math.cos(a)*r,d.z+Math.sin(a)*r).noBuild,'whole canopy clears water');
+    }
+    for(const other of first.flat()) {
+      if(other===d)continue;
+      assert(!clustersOverlap(shapes,clusterShapes(other.kind,other.scale||1,other.x,other.z,other.yaw),0),'canopy clears neighboring attractions');
+    }
+    const clearing=drumClearingsNear(d.x-1,d.z-1,d.x+1,d.z+1).find(c=>c.x===d.x&&c.z===d.z);
+    assert(clearing && clearing.r>=16,'tree clearing covers the canopy across chunk boundaries');
+  }
+  for(let i=0;i<tents.length;i++)for(let j=i+1;j<tents.length;j++)
+    assert(Math.hypot(tents[i].x-tents[j].x,tents[i].z-tents[j].z)>130,'neighboring tents keep their distance');
+  setSeed(seed+1); festivalPlan(heartInCell(0,0)); setSeed(seed);
+  const reversed=[...hearts].reverse().map(h=>festivalPlan(h)).reverse();
+  assert.deepEqual(reversed,first,'query order and seed changes preserve the plan');
+}
+
+const source=readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');
+const start=source.indexOf('export function updateHealingArtsTents(');
+const end=source.indexOf('\n// Spatial music handles',start);
+let attached=0,detached=0,animated=0;
+const tents=[{group:{position:{x:3,z:4,distanceToSquared:()=>0}},chunkKey:'test',seed:77,music:null,night:null}];
+const sound={attachStageMusic:()=>{attached++;return {stop(){}};},detachStageMusic:h=>{if(h)detached++;}};
+const context={healingArtsTents:tents,Sound:sound,updateHealingArts:()=>animated++};
+const tick=vm.runInNewContext(source.slice(start,end).replace('export function','function')+';updateHealingArtsTents',context);
+tick(.016,1,0); assert.equal(attached,0,'daytime is quiet');
+tick(.016,2,1); tick(.016,3,1); assert.equal(attached,1,'night music attaches once');
+tick(.016,4,0); assert.equal(detached,1,'dawn stops music');
+tick(.016,5,1);
+const disposeStart=source.indexOf('export function disposeChunkByKey(');
+const disposeEnd=source.indexOf('\nfunction ',disposeStart);
+Object.assign(context,{registry:{removeChunk:()=>{}},stagePerformers:[],stageMusic:[],stageLightLenses:[],stageBeamRefs:[],sugarShackCooks:[],forestAnimatables:[],forestDrumCircles:[],forestDrumMusic:[]});
+const dispose=vm.runInNewContext(source.slice(disposeStart,disposeEnd).replace('export function','function')+';disposeChunkByKey',context);
+dispose({remove:()=>{}},{traverse:()=>{}},'unrelated',null); assert.equal(tents.length,1,'unrelated unload retains tent');
+dispose({remove:()=>{}},{traverse:()=>{}},'test',null);
+assert.equal(tents.length,0,'unload removes animation references'); assert.equal(detached,2,'unload detaches night music');
+assert(animated>=5);
+console.log(`PASS Healing Arts: ${total}/${hubs} hubs across five seeds, full-footprint clearance, spacing, determinism, night audio and unload`);
+
+const {HealingArtsActivity}=await import('../src/healingArtsActivity.js');
+class V {
+  constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}
+  clone(){return new V(this.x,this.y,this.z);}
+  copy(p){Object.assign(this,{x:p.x,y:p.y,z:p.z});return this;}
+  set(x,y,z){Object.assign(this,{x,y,z});return this;}
+}
+function fixture(){
+  const participants=Array.from({length:7},(_,i)=>({x:(i-3)*2,z:1,shirt:1,skin:2,currentX:(i-3)*2,currentZ:1}));
+  const group={position:new V(30,0,20),rotation:{y:Math.PI/2},userData:{healingArts:{participants}}};
+  const crowd={npcs:[],spawn({pos,appearanceOverride}){
+    if(this.npcs.length>=60)return null;
+    const npc={idx:this.npcs.length,pos:pos.clone(),target:pos.clone(),vel:new V(),appearance:{shirt:3,skin:4,...appearanceOverride},state:'idle'};
+    this.npcs.push(npc);return npc;
+  },_writeMatrices(){}};
+  const activity=new HealingArtsActivity(group,crowd,()=>.5);
+  return {group,crowd,activity,participants};
+}
+const demo=fixture();
+assert.equal(demo.crowd.npcs.length,7,'class reserves real crowd identities');
+assert(demo.crowd.npcs.every(n=>n.festivalVisit.hidden),'yoga rig replaces the crowd render');
+demo.activity.update(.1,0,0);
+demo.activity.update(.1,.1,.25);
+assert.equal(demo.activity.slots.filter(s=>s.role==='leaving').length,1,'class begins leaving one person at a time');
+const regular=[];
+for(let i=0;i<9;i++)regular.push(demo.crowd.spawn({pos:demo.activity.point((i-4)*2,12)}));
+for(let i=1;i<=1600;i++)demo.activity.update(.05,i*.05,1);
+assert(demo.activity.slots.some(s=>s.role==='dance'),'regular festivalgoers arrive and dance');
+for(const slot of demo.activity.slots.filter(s=>s.role==='dance')){
+  assert(regular.includes(slot.npc),'dancers were assigned from regular festivalgoers');
+  assert(slot.npc.festivalVisit.hidden,'a dancer has only one visible render');
+  assert.equal(slot.p.shirt,slot.npc.appearance.shirt,'handoff retains appearance');
+  assert(Number.isFinite(slot.p.entryTime),'arrival supplies a smooth orbit entry');
+}
+assert.equal(demo.crowd.npcs.length,16,'changeover did not duplicate anyone');
+demo.activity.update(.05,81,.3);
+assert.equal(demo.activity.phase,'dawn','falling light starts the dawn departure');
+demo.activity.dispose();
+assert(demo.crowd.npcs.every(n=>!n.festivalVisit),'unload restores all regular crowd members');
+assert(demo.activity.slots.every(s=>s.p.activity==='hidden'),'unload hides every reserved rig');
+const full=fixture(); full.crowd.spawn=()=>null;
+for(const slot of full.activity.slots)full.activity.releaseNpc(slot.npc);
+full.activity.update(1,1,0);
+assert(full.activity.slots.every(s=>s.p.activity==='hidden'),'crowd capacity failure never creates phantom participants');
+console.log('PASS Healing Arts: staggered real-NPC handoff, incoming assignment, appearance, bounded population, dawn and unload');
+const incoming=fixture();
+const inc=incoming.activity.slots[0];inc.role='entering';inc.npc.festivalVisit.hidden=false;
+inc.npc.pos.set(2,0,3);incoming.activity.leave(inc);
+assert.deepEqual([inc.npc.pos.x,inc.npc.pos.z],[2,3],'an interrupted arrival leaves from its real position');
+inc.npc.state='fleeing';inc.npc.stateTimer=3;inc.npc.vel.set(4,0,2);
+const runner=inc.npc;incoming.activity.releaseNpc(runner);
+assert.equal(runner.state,'fleeing','release preserves honk and collision flee');
+assert.equal(runner.stateTimer,3);assert.equal(runner.vel.x,4);
+const walker=incoming.activity.slots[1].npc;
+const blocker=incoming.activity.slots[2].npc;
+walker.pos.set(0,0,0);blocker.pos.set(.05,0,0);
+const oldPos=walker.pos.clone();
+incoming.activity.move(walker,new V(10,0,0),.02);
+assert.deepEqual(walker.pos,oldPos,'walkers yield to a person using the alternate tent rig');
+console.log('PASS Healing Arts: interrupted arrivals, flee preservation and rig-aware walking separation');

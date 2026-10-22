@@ -23,7 +23,7 @@
       /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.includes('claude-preview') || h.includes('happycog');
     const v = isLocal ? '?v=' + Date.now() : '';
     const base = './src/';
-    const wg = ['monks', 'nutWagon', 'nutWagonRoute', 'upgradesMenu', 'crowdAppearance', 'rng', 'models/paradeLanterns', 'models/monk', 'models/bo', 'models/nutWagon', 'mergeDecor', 'boostStreaks', 'photographer', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water',
+    const wg = ['monks', 'nutWagon', 'nutWagonRoute', 'upgradesMenu', 'crowdAppearance', 'healingArtsActivity', 'rng', 'models/healingArts', 'models/paradeLanterns', 'models/monk', 'models/bo', 'models/nutWagon', 'mergeDecor', 'boostStreaks', 'photographer', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water',
       'worldgen/roads', 'worldgen/roles', 'worldgen/density', 'worldgen/index',
       'worldgen/selftest', 'worldgen/festival', 'worldgen/placement', 'worldgen/lint'];
     const imports = {};
@@ -348,6 +348,13 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(x - dirx * L, y - diry * L); ctx.lineTo(x + dirx * L, y + diry * L); ctx.stroke();
       } else if (p.kind === 'bubble_vendor') {
         ctx.fillStyle = '#5fd0ff'; ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+      } else if (p.kind === 'healing_arts') {
+        ctx.fillStyle = '#f2dba7'; ctx.beginPath();
+        for (let k = 0; k < 10; k++) {
+          const a = k / 10 * Math.PI * 2, r = k % 2 ? 4 : 8;
+          ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+        }
+        ctx.closePath(); ctx.fill();
       } else if (p.kind === 'drum_circle') {
         ctx.fillStyle = '#ff6a2a'; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = 'rgba(255,106,42,0.6)'; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.stroke();

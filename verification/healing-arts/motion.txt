@@ -1,0 +1,9 @@
+PASS Healing Arts motion: 30 seeded configurations × 400 times × 20 dancers
+{
+  "samples": 12000,
+  "maximumCenterRadius": 7.200000299377396,
+  "minimumPersonCenterDistance": 0.9808773994445801,
+  "minimumPoleCenterDistance": 0.7971994618919416
+}
+PASS managed yoga homes, hidden render parts/glowsticks, dance glowsticks, and continuous four-second arrival
+Scope: source-level motion verification with rendering writes stubbed; no GPU or visual validation.
