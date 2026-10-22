@@ -1,0 +1,44 @@
+{
+  "warm": false,
+  "preparation": null,
+  "preparationMs": 0,
+  "firstRenderMs": 18.300000190734863,
+  "secondRenderMs": 0.19999980926513672,
+  "before": 0,
+  "after": 8,
+  "newPrograms": [
+    {
+      "name": "",
+      "key": "0,1,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,,,false,0,,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,3,131072,srgb,onBeforeCompile( /* shaderobject, renderer */ ) {}"
+    },
+    {
+      "name": "",
+      "key": "2,3,KERNEL_RADIUS,3,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,,,false,0,,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,3,131072,srgb,onBeforeCompile( /* shaderobject, renderer */ ) {}"
+    },
+    {
+      "name": "",
+      "key": "2,3,KERNEL_RADIUS,5,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,,,false,0,,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,3,131072,srgb,onBeforeCompile( /* shaderobject, renderer */ ) {}"
+    },
+    {
+      "name": "",
+      "key": "2,3,KERNEL_RADIUS,7,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,,,false,0,,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,3,131072,srgb,onBeforeCompile( /* shaderobject, renderer */ ) {}"
+    },
+    {
+      "name": "",
+      "key": "2,3,KERNEL_RADIUS,9,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,,,false,0,,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,3,131072,srgb,onBeforeCompile( /* shaderobject, renderer */ ) {}"
+    },
+    {
+      "name": "",
+      "key": "2,3,KERNEL_RADIUS,11,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,,,false,0,,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,3,131072,srgb,onBeforeCompile( /* shaderobject, renderer */ ) {}"
+    },
+    {
+      "name": "",
+      "key": "2,4,NUM_MIPS,5,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,,,false,0,,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,3,131072,srgb,onBeforeCompile( /* shaderobject, renderer */ ) {}"
+    },
+    {
+      "name": "",
+      "key": "5,6,highp,srgb-linear,false,,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,,,false,0,,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,3,0,srgb,onBeforeCompile( /* shaderobject, renderer */ ) {}"
+    }
+  ],
+  "gpu": "WebKit WebGL"
+}

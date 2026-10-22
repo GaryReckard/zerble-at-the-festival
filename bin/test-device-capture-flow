@@ -171,7 +171,7 @@ assert.equal(failure.state.deviceCaptureResult, 'sent');
 const reportSource = source.slice(source.indexOf('function buildDeviceCaptureReport('), source.indexOf('function deviceCaptureUrl('));
 for (const policy of ['auto', 'baseline', 'sustained']) {
   const context = vm.createContext({
-    state: { hooks: {}, perfSamples: [], frameTelemetry: { events: [] }, deviceCaptureStartedAt: 1,
+    state: { hooks: { renderer: { __postprocessPreparation: { status: 'ready', materials: 9, durationMs: 25 } } }, perfSamples: [], frameTelemetry: { events: [] }, deviceCaptureStartedAt: 1,
       deviceCapturePhaseEvents: [], deviceCaptureMarks: [], deviceCaptureVisibility: [], deviceCaptureErrors: [],
       deviceCaptureQualityLocked: policy === 'baseline' },
     DEVICE_CAPTURE_PARAMS: new URLSearchParams(`?perfCapture=1&perfScenario=parked&perfQuality=${policy}&captureToken=secret`),
@@ -185,6 +185,8 @@ for (const policy of ['auto', 'baseline', 'sustained']) {
   });
   vm.runInContext(reportSource, context);
   const report = vm.runInContext('buildDeviceCaptureReport("complete")', context);
+  assert.equal(report.session.postprocessPreparation.status, 'ready');
+  assert.equal(report.session.postprocessPreparation.materials, 9);
   assert.equal(report.session.qualityPolicy, policy);
   assert.equal(report.session.qualityLockedFromFirstFrame, policy === 'baseline');
   assert.equal(report.session.governorEnabled, policy !== 'baseline');

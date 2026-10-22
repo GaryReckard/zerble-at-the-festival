@@ -1,0 +1,52 @@
+{
+  "tier": "high",
+  "results": [
+    {
+      "phase": "day",
+      "programs": 63,
+      "preparation": {
+        "status": "ready",
+        "materials": 9,
+        "durationMs": 23
+      },
+      "bloom": false,
+      "trip": false,
+      "draws": 3631
+    },
+    {
+      "phase": "dusk",
+      "programs": 66,
+      "preparation": {
+        "status": "ready",
+        "materials": 9,
+        "durationMs": 23
+      },
+      "bloom": true,
+      "trip": false,
+      "draws": 3637
+    },
+    {
+      "phase": "trip",
+      "programs": 67,
+      "preparation": {
+        "status": "ready",
+        "materials": 9,
+        "durationMs": 23
+      },
+      "bloom": true,
+      "trip": true,
+      "draws": 3722
+    }
+  ],
+  "effectVariants": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ]
+}

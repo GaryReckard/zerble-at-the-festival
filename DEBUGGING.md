@@ -10,6 +10,21 @@ console (or `preview_eval`) and call `window.__dbg.help()`.
 
 ## Desktop and phone performance playtests
 
+### Post-process first activation
+
+The [render-stall report](verification/performance/2026-10-22/render-stall/README.md)
+traces the tagged one-second iPhone stall to the same sample as bloom's first
+activation and eight new shader programs. Open
+`verification/performance/2026-10-22/render-stall/check.html?perf=low&mute=1`
+on the no-cache server to compare cold and prepared bloom. Add `trip=1` to
+include Trip. Each bounded probe disposes its renderer and targets after use.
+`game.html?perf=low&mute=1` in that folder embeds the real game and uses `__dbg`
+to check day, dusk and Trip; repeat on Mid and High. Shader error checks remain
+on in the embedded game. Its effect-material variant counts must stay at one.
+The guided device JSON records `session.postprocessPreparation`, including
+ready/failed status, material count and boot preparation time, so a rerun can
+verify the preparation actually preceded gameplay.
+
 ### Controlled governor comparison
 
 Run `bin/playtest-perf drive --tier low --quality auto --seed 3948869160`, then

@@ -59,6 +59,16 @@ profile or capture-only program-name logging around a repeat would narrow it.
 The on-device lock was approximately 80 seconds earlier, during the first
 parked phase, and cannot directly explain this later render-work spike.
 
+## Subsequent render investigation
+
+The [post-process follow-up](render-stall/README.md) found bloom first enabling
+in the same 112.7-second sample as the eight-program jump. An isolated first
+bloom draw creates exactly eight programs, and preparing those materials at
+boot eliminates new effect programs at later activation. That narrows this
+specific stall to a first-use effect hypothesis rather than the chunk handoff
+alone. The original measurements above remain unchanged; a phone rerun is
+still needed to establish how much the fix reduces the felt stall.
+
 ## Decision
 
 Keep the shipping Auto policy until the render stall and the differing frame-gap

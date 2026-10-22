@@ -1,0 +1,34 @@
+<!doctype html><meta charset="utf-8"><title>Post-process first-use probe</title>
+<style>body{font:16px system-ui;background:#18202c;color:#eee}button{font:inherit;margin:8px;padding:12px}pre{white-space:pre-wrap}canvas{width:256px;height:128px}</style>
+<script type="importmap">{"imports":{"three":"../../../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<h1>Post-process first-use probe</h1>
+<button id="cold">Measure cold activation</button><button id="warm">Measure prepared activation</button>
+<pre id="result">Ready</pre>
+<script type="module">
+import * as THREE from 'three';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { Trip } from '../../../../src/trip.js';
+const out=document.querySelector('#result');
+async function run(warm){
+ const renderer=new THREE.WebGLRenderer();renderer.setSize(256,128);renderer.toneMapping=THREE.ACESFilmicToneMapping;
+ renderer.debug.checkShaderErrors=true;document.body.append(renderer.domElement);
+ const source=new THREE.WebGLRenderTarget(256,128,{type:THREE.HalfFloatType});
+ const bloom=new UnrealBloomPass(new THREE.Vector2(256,128),.35,.7,.85);
+ const includeTrip=new URLSearchParams(location.search).has('trip');
+ const write=source.clone();
+ if(includeTrip)Trip.init();
+ const start=performance.now();
+ let preparation=null;
+ try{
+  if(warm){const {preparePostprocessing}=await import('../../../../src/preparePostprocessing.js');preparation=await preparePostprocessing(renderer,{bloomPass:bloom,tripPass:includeTrip?Trip.pass:null,renderTarget:source,writeBuffer:write});}
+  const before=renderer.info.programs.map(p=>({id:p.id,name:p.name,key:p.cacheKey}));
+  const t=performance.now();bloom.render(renderer,null,source,0,false);if(includeTrip)Trip.pass.render(renderer,write,source,0,false);const elapsed=performance.now()-t;
+  const after=renderer.info.programs.map(p=>({id:p.id,name:p.name,key:p.cacheKey}));
+  const second=performance.now();bloom.render(renderer,null,source,0,false);
+  if(warm&&after.length!==before.length)throw new Error(`Prepared effects compiled ${after.length-before.length} new programs`);
+  const result={warm,includeTrip,preparation,preparationMs:t-start,firstRenderMs:elapsed,secondRenderMs:performance.now()-second,before:before.length,after:after.length,newPrograms:after.filter(p=>!before.some(b=>b.id===p.id)).map(p=>({name:p.name,key:p.key})),gpu:renderer.getContext().getParameter(renderer.getContext().RENDERER)};
+  out.textContent=JSON.stringify(result,null,2);out.dataset.state='complete';
+ }finally{renderer.setRenderTarget(null);bloom.dispose();source.dispose();write.dispose();if(includeTrip)Trip.pass.dispose();renderer.dispose();renderer.domElement.remove();}
+}
+for(const [id,warm] of [['cold',false],['warm',true]])document.querySelector('#'+id).onclick=()=>{out.textContent='Running';out.dataset.state='running';run(warm).catch(e=>{out.textContent=e.stack;out.dataset.state='failed';});};
+</script>

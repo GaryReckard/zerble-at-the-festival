@@ -1,0 +1,14 @@
+{
+  "warm": true,
+  "includeTrip": true,
+  "preparation": {
+    "materials": 9
+  },
+  "preparationMs": 146.09999990463257,
+  "firstRenderMs": 0.19999980926513672,
+  "secondRenderMs": 0.10000038146972656,
+  "before": 9,
+  "after": 9,
+  "newPrograms": [],
+  "gpu": "WebKit WebGL"
+}

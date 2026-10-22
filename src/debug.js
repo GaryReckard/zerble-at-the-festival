@@ -2215,6 +2215,7 @@ function buildDeviceCaptureReport(reason, sampleTail = null) {
     session: {
       seed: getSessionSeed(),
       scenario: DEVICE_SCENARIO || 'free',
+      postprocessPreparation: hooks?.renderer?.__postprocessPreparation || null,
       qualityPolicyRequested: DEVICE_CAPTURE_PARAMS.get('perfQuality') || 'auto',
       qualityPolicy: CAPTURE_QUALITY_POLICY || 'auto',
       qualityPolicyApplied: CAPTURE_QUALITY_POLICY !== null,

@@ -87,6 +87,16 @@ WebGLRenderer  →  EffectComposer
 
 - `ACESFilmicToneMapping`, exposure `1.05`, sRGB output.
 - Pixel ratio capped at `PERF.pixelRatioCap`.
+- Before `HUD.onStart` arms the mode planks, `preparePostprocessing.js` awaits
+  compilation of the eight bloom materials and the Trip material, then draws
+  them once offscreen into the live composer buffers. Compilation uses the
+  composer target so its output color space and tone-mapping program keys match
+  later draws. Renderer target/clear state and pass policy are restored, the
+  temporary geometry is disposed, and the live passes retain their materials.
+  A failure warns and permits ordinary lazy compilation. This loading step
+  precedes the synchronous iOS audio gesture callback and the main frame loop.
+  Device reports record its status, material count and duration in
+  `session.postprocessPreparation`.
 - Shadows + shadow type are profile-gated.
 - The bloom pass makes its own half-resolution target from the composer's
   physical dimensions. `renderSizing.js` resizes renderer, composer, bloom,

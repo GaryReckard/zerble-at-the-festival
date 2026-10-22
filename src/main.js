@@ -68,6 +68,7 @@ import { StarPower } from './starPower.js';
 import { Analytics } from './analytics.js';
 import * as ContextLights from './contextLights.js';
 import * as AdaptiveQuality from './adaptiveQuality.js';
+import { preparePostprocessing } from './preparePostprocessing.js';
 import { Settings } from './settings.js';
 import { A11y } from './a11y.js';
 import { setSessionSeed, getSessionSeed } from './rng.js';
@@ -743,6 +744,26 @@ HUD.showTitle();
 // to start audio. A mode-plank tap drops the player back into the saved world.
 if (__resume) {
   HUD.setStartLabel('Resume');
+}
+// Await before arming the planks, never inside the iOS audio gesture callback.
+if (LAYOUT_CAPTURE_MODE) {
+  // This harness deliberately skips GPU work on software-rendered browsers.
+  renderer.__postprocessPreparation = { status: 'skipped-layout-capture' };
+} else {
+  const preparationStartedAt = performance.now();
+  try {
+    const prepared = await preparePostprocessing(renderer, {
+      bloomPass: PERF.bloom ? bloomPass : null, tripPass: Trip.pass,
+      renderTarget: composer.readBuffer, writeBuffer: composer.writeBuffer,
+    });
+    renderer.__postprocessPreparation = {
+      status: 'ready', materials: prepared.materials,
+      durationMs: Math.round(performance.now() - preparationStartedAt),
+    };
+  } catch (error) {
+    renderer.__postprocessPreparation = { status: 'failed' };
+    console.warn('[render] Post-process preparation failed; continuing with lazy compilation', error);
+  }
 }
 HUD.onStart(() => {
   HUD.hideTitle();

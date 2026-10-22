@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const source = readFileSync(new URL('../src/preparePostprocessing.js', import.meta.url), 'utf8')
+  .replace("import * as THREE from 'three';", '').replace('export async function', 'async function');
+let disposed = 0;
+class Scene { children = []; add(o) { this.children.push(o); } clear() { this.children = []; } }
+class Geometry { dispose() { disposed++; } }
+class Mesh { constructor(geometry, material) { Object.assign(this, { geometry, material }); } }
+const prepare = new Function('THREE', `${source};return preparePostprocessing;`)({
+  Scene, PlaneGeometry: Geometry, Mesh, OrthographicCamera: class {}, Color: class {},
+});
+function fixture() {
+  const oldTarget = {}, read = {}, write = {}, oldColor = {};
+  let target = oldTarget, face = 3, mip = 2, color = oldColor, alpha = 0.4;
+  const calls = [], materials = Array.from({ length: 9 }, () => ({}));
+  const renderer = {
+    autoClear: true, getRenderTarget: () => target, getActiveCubeFace: () => face,
+    getActiveMipmapLevel: () => mip, getClearColor: () => color, getClearAlpha: () => alpha,
+    setRenderTarget(t, f = 0, m = 0) { target = t; face = f; mip = m; },
+    setClearColor(c, a) { color = c; alpha = a; }, clear() { assert.equal(target, read); },
+    compileAsync(scene) {
+      assert.deepEqual(scene.children.map(o => o.material), materials);
+      assert.equal(target, read, 'compile must use composer output color space');
+      calls.push('compile'); return Promise.resolve();
+    },
+  };
+  const render = function(r, w, input) {
+    assert.equal(w, write); assert.equal(input, read);
+    assert.equal(this.renderToScreen, false, 'preparation may never draw to the canvas');
+    r.autoClear = false; r.setClearColor({}, 0); r.setRenderTarget(write);
+    calls.push('draw');
+  };
+  const bloom = { renderToScreen: true, enabled: false,
+    materialHighPassFilter: materials[0], separableBlurMaterials: materials.slice(1,6),
+    compositeMaterial: materials[6], blendMaterial: materials[7], render };
+  const trip = { renderToScreen: true, enabled: false, material: materials[8], render };
+  return { renderer, bloom, trip, read, write, calls,
+    options: { bloomPass: bloom, tripPass: trip, renderTarget: read, writeBuffer: write },
+    restored() {
+      assert.equal(target, oldTarget); assert.equal(face,3); assert.equal(mip,2);
+      assert.equal(color,oldColor); assert.equal(alpha,.4); assert.equal(renderer.autoClear,true);
+      assert.equal(bloom.renderToScreen,true); assert.equal(trip.renderToScreen,true);
+      assert.equal(bloom.enabled,false); assert.equal(trip.enabled,false);
+    },
+  };
+}
+const a=fixture();
+let finish;
+a.renderer.compileAsync = () => new Promise(resolve => { finish=resolve; });
+const pending=prepare(a.renderer,a.options);
+assert.equal(a.calls.length,0,'first draw waits for shader readiness');
+finish();assert.deepEqual(await pending,{materials:9});
+assert.deepEqual(a.calls,['draw','draw']);a.restored();assert.equal(disposed,1);
+const b=fixture();assert.deepEqual(await prepare(b.renderer,b.options),{materials:9});
+assert.deepEqual(b.calls,['compile','draw','draw']);b.restored();
+const c=fixture();c.renderer.compileAsync=async()=>{throw new Error('compile rejected');};
+await assert.rejects(prepare(c.renderer,c.options),/compile rejected/);c.restored();
+const d=fixture();d.bloom.render=()=>{d.renderer.autoClear=false;throw new Error('draw rejected');};
+await assert.rejects(prepare(d.renderer,d.options),/draw rejected/);d.restored();
+assert.equal(disposed,4,'temporary geometry released on success and either failure');
+assert.deepEqual(await prepare({},{}),{materials:0});
+console.log('PASS post-process preparation uses exact pass materials, waits, draws offscreen, preserves policy, and restores state on failure');
+
+const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+const boot = main.slice(main.indexOf('if (LAYOUT_CAPTURE_MODE) {\n  // This harness'), main.indexOf('HUD.onStart(() => {'));
+assert.ok(boot.includes('await preparePostprocessing'), 'exercise real boot preparation block');
+const bootstrap = new Function('preparePostprocessing','renderer','LAYOUT_CAPTURE_MODE','HUD','bloomPass','Trip','PERF','composer','console',
+  `return (async()=>{${boot}HUD.onStart();})();`);
+const r = {}; let armed = false, prepared = false, resolveBoot;
+const options = [{}, {pass:{}}, {bloom:true}, {readBuffer:{},writeBuffer:{}}, {warn(){}}];
+const loading = bootstrap(() => new Promise(resolve => { resolveBoot=()=>{prepared=true;resolve({materials:9});}; }),
+  r,false,{onStart(){assert.equal(prepared,true);armed=true;}},...options);
+assert.equal(armed,false,'planks remain unarmed while effects compile');
+resolveBoot();await loading;assert.equal(armed,true);assert.equal(r.__postprocessPreparation.status,'ready');
+await bootstrap(()=>{throw new Error('must not compile in layout capture');},r,true,{onStart(){}},...options);
+assert.equal(r.__postprocessPreparation.status,'skipped-layout-capture');
+armed=false;
+await bootstrap(async()=>{throw new Error('failed compilation');},r,false,{onStart(){armed=true;}},...options);
+assert.equal(armed,true,'failed optional preparation must still arm Start');
+assert.equal(r.__postprocessPreparation.status,'failed');
+console.log('PASS game boot waits before arming Start, skips GPU preparation in layout capture, and recovers from preparation failure');

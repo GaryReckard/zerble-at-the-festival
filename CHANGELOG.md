@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-22
+
+### Performance
+- **Bloom and Trip prepare their shaders before driving begins.** The tagged iPhone stall coincided with bloom first enabling and eight new programs, which the isolated bloom probe reproduced. The title loader now waits for those eight materials and the Trip material to compile and draw offscreen into the composer buffers, moving shader linking, target allocation and first uniform setup out of gameplay. Start and iOS audio initialization remain in the original synchronous gesture path. The Mac probe added zero programs on later activation, and Low/Mid/High game checks cover dusk and Trip; iPhone latency improvement still needs a device rerun. [Evidence and repeatable probes](verification/performance/2026-10-22/render-stall/README.md).
+
 ## 2026-10-21
 
 ### Added
