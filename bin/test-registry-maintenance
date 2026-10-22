@@ -1,0 +1,68 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { register } from 'node:module';
+register('./node-three-shim.mjs', import.meta.url);
+const { Registry }=await import('../src/registry.js');
+const { SpatialGrid }=await import('../src/spatialGrid.js');
+let seed=0xa34ef1;const rng=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+function entry(){return {kind:'prop',position:{x:rng()*160-80,z:rng()*160-80},footprint:[0,1,4,15.9,16,80][Math.floor(rng()*6)],collider:rng()<.7?{radius:rng()*8,damage:1}:null,chunkKey:Math.floor(rng()*5)};}
+function linearCandidates(reg,x,z,reach,colliders){
+ const entries=[...reg.entries.values()];
+ const small=entries.filter(e=>colliders?e.collider:e.footprint>0&&e.footprint<16);
+ const max=Math.max(0,...small.map(e=>colliders?e.collider.radius:e.footprint));
+ const cr=Math.ceil((reach+max)/8),cx=Math.floor(x/8),cz=Math.floor(z/8),out=[];
+ for(let iz=cz-cr;iz<=cz+cr;iz++)for(let ix=cx-cr;ix<=cx+cr;ix++){
+  for(const e of small)if(Math.floor(e.position.x/8)===ix&&Math.floor(e.position.z/8)===iz)out.push(e.id);
+ }
+ if(!colliders)for(const e of entries)if(e.footprint>=16)out.push(e.id);
+ return out;
+}
+function check(reg){
+ for(let i=0;i<4;i++){
+  const x=rng()*160-80,z=rng()*160-80,reach=rng()*4;
+  for(const colliders of [false,true]){
+   const got=[];reg[colliders?'collidersNear':'footprintsNear'](x,z,reach,e=>got.push(e.id));
+   assert.deepEqual(got,linearCandidates(reg,x,z,reach,colliders),'candidate membership AND order must match full rebuild');
+  }
+ }
+}
+const reg=new Registry();for(let i=0;i<70;i++)reg.add(entry());
+let checks=0;
+for(let tick=0;tick<1500;tick++){
+ const entries=[...reg.entries.values()];const e=entries[Math.floor(rng()*entries.length)];
+ switch(tick%8){
+  case 0:reg.add(entry());break;
+  case 1:if(e){e.position.x=rng()*160-80;e.position.z=rng()*160-80;}break;
+  case 2:if(e)e.footprint=[0,3,15.9,16,90][Math.floor(rng()*5)];break;
+  case 3:if(e)e.collider=rng()<.5?null:{radius:rng()*12,damage:2};break;
+  case 4:if(e){e.position.x+=300;reg.remove(e.id);for(const grid of [reg._fpGrid,reg._colGrid])for(const arr of grid.cells.values())assert.ok(!arr.includes(e),'move-then-remove left a phantom');}break;
+  case 5:reg.removeChunk(Math.floor(rng()*5));break;
+  case 6:for(let i=0;i<6;i++)reg.add(entry());break;
+  case 7:for(const e of entries){e.position.x+=.1;e.position.z-=.1;}break;
+ }
+ reg.rebuildSpatialIndex();check(reg);checks++;
+ assert.equal(reg._spatialState.size,reg.entries.size);
+}
+// Stable frames and within-cell motion must do no grid writes.
+const stable=new Registry();const mover={kind:'moving',position:{x:1,z:1},footprint:1,collider:{radius:2}};stable.add(mover);
+let writes=0;
+for(const g of [stable._fpGrid,stable._colGrid])for(const name of ['insert','remove','clear']){const fn=g[name];g[name]=function(...args){writes++;return fn.apply(this,args);};}
+stable.rebuildSpatialIndex();mover.position.x=2;stable.rebuildSpatialIndex();assert.equal(writes,0);
+mover.position.x=10;stable.rebuildSpatialIndex();assert.equal(writes,4);
+for(let i=0;i<600;i++){mover.position.x=i*8;stable.rebuildSpatialIndex();}
+assert.equal(stable._fpGrid.cells.size,1,'moving-only grid retains empty travelled cells');
+stable.remove(mover.id);assert.equal(stable._spatialState.size,0);assert.equal(stable._fpGrid.cells.size,0);assert.equal(stable._colGrid.cells.size,0);
+console.log(`PASS ${checks} moving/resizing/unloading states match full-rebuild candidate order; unchanged cells incur zero writes and removals leave no phantoms`);
+
+if(process.argv.includes('--bench')){
+ function fixture(){const r=new Registry();for(let i=0;i<4500;i++)r.add({kind:'tree',position:{x:i%90*3,z:Math.floor(i/90)*3},footprint:1,collider:{radius:1}});const movers=[];for(let i=0;i<12;i++){const e={kind:'moving',position:{x:i,z:i},footprint:2,collider:{radius:2}};r.add(e);movers.push(e);}return {r,movers};}
+ function full(r){r._fpGrid.clear();r._colGrid.clear();r._bigFp.length=0;let fp=0,col=0;for(const e of r.entries.values()){if(e.footprint>=16)r._bigFp.push(e);else if(e.footprint>0){r._fpGrid.insert(e.position.x,e.position.z,e);if(e.footprint>fp)fp=e.footprint;}if(e.collider){r._colGrid.insert(e.position.x,e.position.z,e);if(e.collider.radius>col)col=e.collider.radius;}}r._maxFp=fp;r._maxCol=col;}
+ const times={full:[],incremental:[]};
+ for(let trial=0;trial<5;trial++)for(const name of trial%2?['incremental','full']:['full','incremental']){
+  const {r,movers}=fixture();if(name==='full'){r._fpGrid=new SpatialGrid(8);r._colGrid=new SpatialGrid(8);}
+  const run=()=>{for(const e of movers){e.position.x+=.04;e.position.z+=.02;}if(name==='full')full(r);else r.rebuildSpatialIndex();};
+  for(let i=0;i<100;i++)run();const t=performance.now();for(let i=0;i<2000;i++)run();times[name].push(performance.now()-t);
+ }
+ const median=a=>[...a].sort((a,b)=>a-b)[2];
+ console.log(JSON.stringify({entries:4512,frames:2000,trials:times,medianMs:{full:median(times.full),incremental:median(times.incremental)}},null,2));
+}

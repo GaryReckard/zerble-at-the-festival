@@ -1110,9 +1110,8 @@ function tickBody(dt) {
         });
       }
     }
-    // Rebuild the registry broadphase once per frame, before every consumer
-    // (crowd steering, kid push-out, Zerble collision). Cheap O(entries) pass;
-    // the per-NPC queries it enables replace the old O(npcs × entries) scans.
+    // Sync live registry positions before crowd steering, kid push-out and
+    // collision. Unchanged static entries retain their existing grid cells.
     if (USE_WORLDGEN_V2 && !npcsFrozen()) nutWagon.update(dt, zerble.position, Trip.isActive(), nightness, camera);
     registry.rebuildSpatialIndex();
     if (!npcsFrozen()) crowd.update(dt, zerble, bubbles);

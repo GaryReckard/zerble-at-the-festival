@@ -10,6 +10,20 @@ console (or `preview_eval`) and call `window.__dbg.help()`.
 
 ## Desktop and phone performance playtests
 
+### Registry maintenance and streaming
+
+`node bin/test-registry-maintenance` compares spatial candidate membership and
+order against a full rebuild through movement, resizing and unloads. Add
+`--bench` for a synthetic workload, or run
+`node verification/performance/2026-10-22/index-maintenance/bench.mjs 674ed90`
+for an interleaved comparison against the actual prior registry source. The
+[verification report](verification/performance/2026-10-22/index-maintenance/README.md)
+records the CPU measurements separately from game frame delivery.
+`verification/performance/2026-10-22/index-maintenance/game.html?perf=low&mute=1`
+embeds the real game and checks collision and footprint queries after streaming
+across five locations and returning to spawn; repeat on High. Close its tab
+when finished to stop the embedded frame loop.
+
 ### Post-process first activation
 
 The [render-stall report](verification/performance/2026-10-22/render-stall/README.md)

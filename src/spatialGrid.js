@@ -15,8 +15,9 @@
 // candidates (still distance-tested) — it can't produce wrong results.
 
 export class SpatialGrid {
-  constructor(cellSize) {
+  constructor(cellSize, compare = null) {
     this.cellSize = cellSize;
+    this.compare = compare;
     this._inv = 1 / cellSize;
     this.cells = new Map(); // packed cell key -> array of items
   }
@@ -39,14 +40,22 @@ export class SpatialGrid {
   insert(x, z, item) {
     const k = this._key(Math.floor(x * this._inv), Math.floor(z * this._inv));
     const arr = this.cells.get(k);
-    if (arr) arr.push(item);
-    else this.cells.set(k, [item]);
+    if (arr) {
+      arr.push(item);
+      if (this.compare) {
+        let index = arr.length - 1;
+        while (index > 0 && this.compare(item, arr[index - 1]) < 0) {
+          arr[index] = arr[index - 1];
+          index--;
+        }
+        arr[index] = item;
+      }
+    } else this.cells.set(k, [item]);
   }
 
   // Remove `item` from the cell covering (x, z). Pass the SAME (x, z) the item
-  // was inserted at — for static entries that's just `e.position`; the registry
-  // never moves a building between insert and remove. Swap-pop: within-cell
-  // order doesn't matter (every consumer min/sums/avoids, never relies on it).
+  // was inserted at. An optional comparator keeps cell order stable for
+  // collision first-hit consumers; other grids retain the cheaper swap-pop.
   // No-op if the cell or item is absent, so a double-remove is harmless.
   remove(x, z, item) {
     const k = this._key(Math.floor(x * this._inv), Math.floor(z * this._inv));
@@ -54,8 +63,12 @@ export class SpatialGrid {
     if (!arr) return;
     const i = arr.indexOf(item);
     if (i === -1) return;
-    arr[i] = arr[arr.length - 1];
-    arr.pop();
+    if (this.compare) arr.splice(i, 1);
+    else {
+      arr[i] = arr[arr.length - 1];
+      arr.pop();
+    }
+    if (arr.length === 0) this.cells.delete(k);
   }
 
   // Visit every item in the cells covering [pos ± radius]. The visited set is a

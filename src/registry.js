@@ -16,6 +16,7 @@ let nextId = 1;
 // 16 m = 2 cells. Determinism is unaffected (queries still return a superset and
 // the caller's exact test runs per entry); only the candidate-pruning changes.
 const OVERSIZE_FP = 16;
+const SPATIAL_CELL_SIZE = 8;
 
 export class Registry {
   constructor() {
@@ -24,19 +25,13 @@ export class Registry {
     // Membership is fixed between add/remove; positions and attractor weights stay live.
     this._byChunk = new Map(); // chunkKey -> insertion-ordered Set<id>, including undefined/null
     this._attractors = new Map(); // id -> entry, in registry insertion order
-    // Broadphase grids for nearest-X queries. Maintained TWO ways, both needed:
-    //   - LIVE on add()/remove() — so a worldgen query (closestBuilding) sees
-    //     buildings added earlier in the SAME generation pass, and a chunk that
-    //     unloads mid-frame leaves no phantom behind. Static buildings never
-    //     move between add and remove, so incremental maintenance is exact.
-    //   - REBUILT once per frame by rebuildSpatialIndex() (from main.js) — so
-    //     moving entries (Lurleen, drifting hula-hoopers) re-index from their
-    //     live positions with nothing to invalidate, and _maxFp/_maxCol reset
-    //     to the exact frame max.
-    // ~8m cells. Query accelerators only — they consume no rng, so determinism
-    // is untouched; closestBuilding returns the same set a full scan would.
-    this._fpGrid = new SpatialGrid(8);
-    this._colGrid = new SpatialGrid(8);
+    // Keep live add/remove indexing for same-pass worldgen guards. Frame sync
+    // updates only changed cells; stable id order matches a full rebuild and
+    // preserves collision first-hit order when a mover re-enters a bucket.
+    const insertionOrder = (a, b) => a.id - b.id;
+    this._fpGrid = new SpatialGrid(SPATIAL_CELL_SIZE, insertionOrder);
+    this._colGrid = new SpatialGrid(SPATIAL_CELL_SIZE, insertionOrder);
+    this._spatialState = new Map();
     this._maxFp = 0;   // largest GRID footprint radius — pads query reach
     this._maxCol = 0;  // largest collider radius — pads query reach
     // Oversized footprints (>= OVERSIZE_FP: lakes, big festival zones) kept OUT
@@ -81,6 +76,11 @@ export class Registry {
       this._colGrid.insert(entry.position.x, entry.position.z, entry);
       if (entry.collider.radius > this._maxCol) this._maxCol = entry.collider.radius;
     }
+    this._spatialState.set(id, {
+      x: entry.position.x, z: entry.position.z,
+      footprint: entry.footprint >= OVERSIZE_FP ? 'big' : entry.footprint > 0 ? 'grid' : 'none',
+      collider: !!entry.collider,
+    });
     return id;
   }
 
@@ -93,17 +93,16 @@ export class Registry {
     ownerIds.delete(id);
     if (ownerIds.size === 0) this._byChunk.delete(entry.chunkKey);
     this._attractors.delete(id);
-    // Mirror add(): drop it from the live grids so a chunk unloading mid-frame
-    // can't leave a phantom for a later same-frame query. Static buildings don't
-    // move, so e.position addresses the same cell it was inserted into; movers
-    // get fully re-indexed by rebuildSpatialIndex() next frame regardless.
-    if (entry.footprint >= OVERSIZE_FP) {
-      const i = this._bigFp.indexOf(entry);
-      if (i !== -1) { this._bigFp[i] = this._bigFp[this._bigFp.length - 1]; this._bigFp.pop(); }
-    } else if (entry.footprint > 0) {
-      this._fpGrid.remove(entry.position.x, entry.position.z, entry);
+    // A mover can be removed after its position changed but before frame sync.
+    // Remove from its indexed cell, which need not be its live cell anymore.
+    const indexed = this._spatialState.get(id);
+    if (indexed.footprint === 'grid') this._fpGrid.remove(indexed.x, indexed.z, entry);
+    if (indexed.footprint === 'big') {
+      const bigIndex = this._bigFp.indexOf(entry);
+      if (bigIndex !== -1) this._bigFp.splice(bigIndex, 1);
     }
-    if (entry.collider) this._colGrid.remove(entry.position.x, entry.position.z, entry);
+    if (indexed.collider) this._colGrid.remove(indexed.x, indexed.z, entry);
+    this._spatialState.delete(id);
   }
 
   byChunk(chunkKey) {
@@ -137,29 +136,34 @@ export class Registry {
     }
   }
 
-  // ---- Spatial broadphase (rebuilt once per frame) ----
+  // ---- Spatial broadphase ----
 
-  // Re-index every footprint/collider entry from its CURRENT position. O(n),
-  // called once per frame from main.js before any consumer (crowd steering,
-  // kid push-out, Zerble collision). Cheap vs. the per-NPC full scans it
-  // replaces, and rebuilding from live positions means moving entries need no
-  // invalidation bookkeeping.
+  // Scan live values for movers and radius changes, but leave unchanged cells
+  // alone. Thousands of static shore/tree colliders no longer get cleared and
+  // reinserted every frame. Big-footprint order and query pads still refresh.
   rebuildSpatialIndex() {
-    this._fpGrid.clear();
-    this._colGrid.clear();
     this._bigFp.length = 0;
     let maxFp = 0, maxCol = 0;
     for (const e of this.entries.values()) {
-      if (e.footprint >= OVERSIZE_FP) {
-        this._bigFp.push(e);
-      } else if (e.footprint > 0) {
-        this._fpGrid.insert(e.position.x, e.position.z, e);
-        if (e.footprint > maxFp) maxFp = e.footprint;
+      const indexed = this._spatialState.get(e.id);
+      const x = e.position.x, z = e.position.z;
+      const footprint = e.footprint >= OVERSIZE_FP ? 'big' : e.footprint > 0 ? 'grid' : 'none';
+      const collider = !!e.collider;
+      const cellChanged = Math.floor(x / SPATIAL_CELL_SIZE) !== Math.floor(indexed.x / SPATIAL_CELL_SIZE) ||
+        Math.floor(z / SPATIAL_CELL_SIZE) !== Math.floor(indexed.z / SPATIAL_CELL_SIZE);
+      if (cellChanged || footprint !== indexed.footprint) {
+        if (indexed.footprint === 'grid') this._fpGrid.remove(indexed.x, indexed.z, e);
+        if (footprint === 'grid') this._fpGrid.insert(x, z, e);
       }
-      if (e.collider) {
-        this._colGrid.insert(e.position.x, e.position.z, e);
-        if (e.collider.radius > maxCol) maxCol = e.collider.radius;
+      if (cellChanged || collider !== indexed.collider) {
+        if (indexed.collider) this._colGrid.remove(indexed.x, indexed.z, e);
+        if (collider) this._colGrid.insert(x, z, e);
       }
+      if (footprint === 'big') this._bigFp.push(e);
+      else if (e.footprint > maxFp) maxFp = e.footprint;
+      if (collider && e.collider.radius > maxCol) maxCol = e.collider.radius;
+      indexed.x = x; indexed.z = z;
+      indexed.footprint = footprint; indexed.collider = collider;
     }
     this._maxFp = maxFp;
     this._maxCol = maxCol;

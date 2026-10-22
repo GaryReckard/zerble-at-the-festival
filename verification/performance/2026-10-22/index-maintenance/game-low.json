@@ -1,0 +1,47 @@
+{
+  "tier": "low",
+  "steps": [
+    {
+      "x": 300,
+      "z": -641,
+      "entries": 2465,
+      "snapshots": 2465,
+      "footprintCells": 520,
+      "colliderCells": 1065
+    },
+    {
+      "x": 463,
+      "z": 43,
+      "entries": 3742,
+      "snapshots": 3742,
+      "footprintCells": 695,
+      "colliderCells": 1576
+    },
+    {
+      "x": 800,
+      "z": 800,
+      "entries": 2594,
+      "snapshots": 2594,
+      "footprintCells": 444,
+      "colliderCells": 1069
+    },
+    {
+      "x": -800,
+      "z": -800,
+      "entries": 1919,
+      "snapshots": 1919,
+      "footprintCells": 359,
+      "colliderCells": 790
+    },
+    {
+      "x": 300,
+      "z": -641,
+      "entries": 3237,
+      "snapshots": 3237,
+      "footprintCells": 616,
+      "colliderCells": 1359
+    }
+  ],
+  "queries": 40,
+  "passed": true
+}

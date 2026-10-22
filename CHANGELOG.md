@@ -4,7 +4,11 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-22
 
+### Fixed
+- **Removing a moved registry entry clears its indexed cell.** Cleanup now uses the last indexed position, so despawning or unloading before the next frame sync cannot leave a collider behind.
+
 ### Performance
+- **Stationary collision entries retain their spatial cells.** The registry still checks live movers and radii each frame, while avoiding thousands of static removals and insertions. Ordered buckets preserve collision candidate order, and differential tests cover size/category changes and unloads. A paired synthetic benchmark against `674ed90` reduced median maintenance time from 473ms to 127ms over 2,000 updates at 4,512 entries; that is an operation-level CPU result, not a device FPS claim. [Tests, tradeoffs and streaming checks](verification/performance/2026-10-22/index-maintenance/README.md).
 - **Bloom and Trip prepare their shaders before driving begins.** The tagged iPhone stall coincided with bloom first enabling and eight new programs, which the isolated bloom probe reproduced. The title loader now waits for those eight materials and the Trip material to compile and draw offscreen into the composer buffers, moving shader linking, target allocation and first uniform setup out of gameplay. Start and iOS audio initialization remain in the original synchronous gesture path. The Mac probe added zero programs on later activation, and Low/Mid/High game checks cover dusk and Trip; iPhone latency improvement still needs a device rerun. [Evidence and repeatable probes](verification/performance/2026-10-22/render-stall/README.md).
 
 ## 2026-10-21

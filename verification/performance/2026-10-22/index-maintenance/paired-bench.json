@@ -1,0 +1,92 @@
+{
+  "baseRef": "674ed90",
+  "entries": 4512,
+  "syncIterations": 2000,
+  "addRemoveIterations": 10000,
+  "unloadReloadIterations": 1000,
+  "chunkEntries": 24,
+  "medians": {
+    "before": {
+      "syncMs": 472.8606669999999,
+      "addRemoveMs": 2.3140410000000884,
+      "unloadReloadMs": 6.887625000000071
+    },
+    "after": {
+      "syncMs": 127.06224999999995,
+      "addRemoveMs": 4.052666000000045,
+      "unloadReloadMs": 10.323709000000235
+    }
+  },
+  "rows": [
+    {
+      "label": "before",
+      "trial": 0,
+      "syncMs": 474.48883300000006,
+      "addRemoveMs": 3.213374999999928,
+      "unloadReloadMs": 8.21225000000004
+    },
+    {
+      "label": "after",
+      "trial": 0,
+      "syncMs": 132.05533300000002,
+      "addRemoveMs": 5.304459000000065,
+      "unloadReloadMs": 15.939792000000011
+    },
+    {
+      "label": "after",
+      "trial": 1,
+      "syncMs": 129.31616599999995,
+      "addRemoveMs": 4.73766599999999,
+      "unloadReloadMs": 11.322457999999983
+    },
+    {
+      "label": "before",
+      "trial": 1,
+      "syncMs": 472.8606669999999,
+      "addRemoveMs": 2.7525000000000546,
+      "unloadReloadMs": 6.887625000000071
+    },
+    {
+      "label": "before",
+      "trial": 2,
+      "syncMs": 462.94008399999984,
+      "addRemoveMs": 2.036292000000003,
+      "unloadReloadMs": 6.317082999999911
+    },
+    {
+      "label": "after",
+      "trial": 2,
+      "syncMs": 127.06224999999995,
+      "addRemoveMs": 3.8451249999998254,
+      "unloadReloadMs": 7.931084000000283
+    },
+    {
+      "label": "after",
+      "trial": 3,
+      "syncMs": 124.9119169999999,
+      "addRemoveMs": 4.052666000000045,
+      "unloadReloadMs": 10.323709000000235
+    },
+    {
+      "label": "before",
+      "trial": 3,
+      "syncMs": 467.61737500000027,
+      "addRemoveMs": 1.9496249999997417,
+      "unloadReloadMs": 9.500292000000172
+    },
+    {
+      "label": "before",
+      "trial": 4,
+      "syncMs": 484.45550000000003,
+      "addRemoveMs": 2.3140410000000884,
+      "unloadReloadMs": 6.559249999999793
+    },
+    {
+      "label": "after",
+      "trial": 4,
+      "syncMs": 124.92704099999992,
+      "addRemoveMs": 3.5150000000003274,
+      "unloadReloadMs": 8.794750000000022
+    }
+  ]
+}

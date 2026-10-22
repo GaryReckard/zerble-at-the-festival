@@ -1,0 +1,29 @@
+(node:4893) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 1500 moving/resizing/unloading states match full-rebuild candidate order; unchanged cells incur zero writes and removals leave no phantoms
+{
+  "entries": 4512,
+  "frames": 2000,
+  "trials": {
+    "full": [
+      452.428625,
+      432.4761249999999,
+      461.0706660000001,
+      426.0611250000002,
+      426.22583299999997
+    ],
+    "incremental": [
+      153.04329099999995,
+      145.407333,
+      149.67475000000013,
+      149.542375,
+      149.503334
+    ]
+  },
+  "medianMs": {
+    "full": 432.4761249999999,
+    "incremental": 149.542375
+  }
+}

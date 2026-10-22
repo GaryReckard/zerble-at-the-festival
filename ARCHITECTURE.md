@@ -306,7 +306,18 @@ A single store mapping `id → entry`. Every "thing in the world" registers itse
 Consumers:
 
 - **Crowd AI** queries footprints (avoidance) + attractors (points of interest).
-- **Collision system** in `main.js` reads `registry.colliders()` each frame.
+- **Collision system** in `main.js` queries `registry.collidersNear()` around the cart, then appends moving obstacles and nearby NPCs.
+
+`rebuildSpatialIndex()` synchronizes live positions, footprint classes and
+collider membership once per frame. It retains unchanged spatial cells rather
+than clearing and reinserting stationary props. Each resident entry has a small
+indexed-position record, removed with the entry. Movers crossing an 8m cell
+boundary are removed from their indexed cell and inserted in their new cell;
+ordered cell buckets preserve the candidate order of a full rebuild. The
+largest query pads and the ordered oversized-footprint list still refresh from
+live values each frame. A moved entry removed before frame sync uses its
+indexed position for cleanup, preventing stale colliders. Same-pass worldgen
+queries still see every add/remove immediately.
 
 ---
 
@@ -316,7 +327,7 @@ Centralized in `main.js#resolveCollision`. Each frame builds a list of candidate
 
 ```
 allColliders = [
-  ...registry.colliders(),
+  ...nearbyRegistryColliders,         // radius-padded spatial query
   ...puppets.colliders, ...band.colliders, ...kids.colliders, ...wooks.colliders,
   ...hoopers.colliders, ...frisbees.colliders,
   ...crowdNPCsWithinBroadphase,        // 6m broadphase reject
