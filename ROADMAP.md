@@ -13,6 +13,12 @@ reproduction lead, not proof that the current build still has the problem.
 
 ---
 
+## One-wheel rider NPC
+
+- Add a festivalgoer riding a One-wheel, with Astra responsible for the rider and board model. Match Gary's supplied [board close-up](docs/backlog/one-wheel/board-reference.png) and [night rider](docs/backlog/one-wheel/rider-reference.png): one broad central tire, footpads on either side, a sideways stance, a helmet, and restrained front/rear lights at night.
+- Give riders sensible festival behavior: cruise along dry paths, slow and yield around pedestrians and Zerble, avoid water and solid props, pause near gatherings, and lean with acceleration and turns while the tire rotates with travel. Keep encounters occasional, deterministic, and tied to the owning world's spawn/unload lifecycle.
+- Build an animated sandbox preview before integration, and verify day/night appearance, obstacle avoidance, crowd yielding, recovery from a blocked path, and cleanup. Requested by Gary on 2026-10-22; this is future work.
+
 ## Nut Wagon follow-ups
 
 The wagon now spawns on existing festival roads, cruises slowly, pauses near gatherings, boards regular NPCs, plays the existing spatial dub groove, and is ten times likelier on each encounter roll during a Trip. Gary selected rare normally / very likely during trips, regular NPCs first, and walking-pace cruising with gathering stops on 2026-10-13. [Current parameters and verification](verification/nut-wagon/GAMEPLAY.md).
