@@ -37,8 +37,6 @@ parameters, dated observations and unanswered decisions. Use the
 
 ## Bugs
 
-- **Align NPC hips with campsite chair fabric.** Gary observed seated bodies clipping through seats after the campsite pass. Check sling, director, low lounge and loveseat poses across NPC scales; the review is scheduled for October 23 at 11:02 a.m. Eastern.
-
 - **Measure remaining neighborhood-query cost before changing crowd scheduling.**
   The June unresponsive-page fixes shipped; query-radius inflation and staggered
   soft separation remain measurement-gated ideas. Preserve hard-overlap handling

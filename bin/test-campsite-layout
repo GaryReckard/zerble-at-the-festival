@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {planCampRecipe,planCampNeighborhood,CAMP_ARCHETYPES} from '../src/campPlanning.js';
-import {registerCampsite,canPlaceCampsite} from '../src/campRegistry.js';
+import {registerCampsite,canPlaceCampsite,campSeatApproaches} from '../src/campRegistry.js';
 const source=readFileSync(new URL('../src/models/campsite.js',import.meta.url),'utf8');
 class Group {
   constructor(){this.children=[];this.position={x:0,y:0,z:0,set(x,y,z){Object.assign(this,{x,y,z});return this;},clone(){return {x:this.x,y:this.y,z:this.z,set(x,y,z){Object.assign(this,{x,y,z});return this;}};}};this.rotation={y:0};this.quaternion={setFromUnitVectors(){}};this.scale={x:1,y:1,z:1,setScalar(s){this.x=this.y=this.z=s;},set(x,y,z){Object.assign(this,{x,y,z});}};}
@@ -40,6 +40,20 @@ for(const family of ['ridge','dome','octagon','cabin','multiroom'])for(const var
   assert(tent.shelter.capacity>=2);assert(tent.shelter.doorReach>tent.shelter.doorZ);
   assert.equal(tent.entrance.z,tent.shelter.doorReach);assert.equal(tent.footprint,tent.shelter.radius);
   assert(tent.group.children.length>=1,'each tent family builds real geometry');
+  assert.equal(tent.door.kind,family==='ridge'?'split-triangle':'curved-d');
+  assert.equal(tent.door.hinge,family==='ridge'?'centre':'left');
+  assert(tent.door.mesh.geometry.attributes.position.args[0].length>8,'doors use shaped cloth geometry');
+  if(family!=='ridge'){
+    const left=tent.door.outline.filter(p=>Math.abs(p[0]+tent.door.width/2)<1e-9);
+    assert(left.length>=2,'D doors preserve their straight left fabric hinge');
+    assert(tent.door.outline.length>20,'D zipper curves are sampled beyond rectangle corners');
+  }
+  if(family==='dome'){
+    const low=tent.door.surfaceZ(0,.1),high=tent.door.surfaceZ(0,tent.door.height);
+    assert(low-high>.25,'dome door follows the bowed shell depth');
+  }
+  if(family==='cabin'||family==='multiroom')assert(!tent.group.children.some(mesh=>mesh.geometry.kind==='PlaneGeometry'),'cabin tents have no rectangular window/door overlays');
+
   for(const mesh of tent.group.children){
     const geo=mesh.geometry,pts=[],a=geo.args;
     if(geo.attributes?.position) {const vertices=geo.attributes.position.args[0];for(let i=0;i<vertices.length;i+=3)pts.push([vertices[i],vertices[i+2]]);}
@@ -55,6 +69,18 @@ for(const size of Object.keys(cfg))for(const role of ['standalone','host','satel
   const camp=build(random(seed),size,options),other=build(random(seed),size,options);
   assert.equal(camp.tents.length,recipe.tentFamilies.length);
   assert.equal(camp.footprint,recipe.footprint);
+  const approaches=campSeatApproaches(camp);
+  assert(approaches.every(Boolean),`${size}/${role}/${archetype}/seed${seed}: every visible chair has a usable approach`);
+  for(let i=0;i<approaches.length;i++) {
+    const seat=camp.seats[i],approach=approaches[i],sx=seat.x*2,sz=seat.z*2;
+    const dx=approach.x-sx,dz=approach.z-sz,len=dx*dx+dz*dz;
+    for(const prop of camp.childColliders) {
+      if(prop.group===seat.group)continue;
+      const px=prop.x*2,pz=prop.z*2,t=Math.max(0,Math.min(1,((px-sx)*dx+(pz-sz)*dz)/len));
+      assert(Math.hypot(px-sx-t*dx,pz-sz-t*dz)>=prop.radius*2+.35-1e-8,
+        'complete chair approach clears every other prop, including furniture in the same camp');
+    }
+  }
   const data=c=>JSON.stringify({seats:c.seats.map(({x,z,y,yaw})=>({x,z,y,yaw})),tents:c.tents.map(({x,z,entry,family})=>({x,z,entry,family}))});
   assert.equal(data(camp),data(other),'reload reconstructs the same furniture and entrances');
   for(const seat of camp.seats){
@@ -172,12 +198,68 @@ for(let seed=1;seed<=100;seed++) {
       camp.group.position.set(candidate.x,0,candidate.z);
       camp.group.rotation.y=candidate.facing-camp.entranceYaw;
       if(!canPlaceCampsite(registry,camp,'test-neighborhood'))continue;
-      registerCampsite(registry,camp,{campNeighborhood:'test-neighborhood'});
+      const ids=registerCampsite(registry,camp,{campNeighborhood:'test-neighborhood'});
+      assert.equal(entries.get(ids[0]).campSeats.length,camp.seats.length,'accepted camps retain a reachable claim for every chair');
       placed=true;accepted++;break;
     }
     if(pitch.role==='host')assert(placed,'host must fit an empty neighborhood');
+  }
+  for(const entry of entries.values())for(const seat of entry.campSeats||[]) {
+    const dx=seat.approachX-seat.x,dz=seat.approachZ-seat.z,len=dx*dx+dz*dz;
+    for(const solid of entries.values()) {
+      if(!solid.collider||solid===seat.collider)continue;
+      const px=solid.position.x,pz=solid.position.z;
+      const t=Math.max(0,Math.min(1,((px-seat.x)*dx+(pz-seat.z)*dz)/len));
+      assert(Math.hypot(px-seat.x-t*dx,pz-seat.z-t*dz)>=solid.collider.radius+.35-1e-8,
+        'complete household preserves every earlier and later chair route against all neighboring furniture');
+    }
   }
   assert(accepted>=3,`compact neighborhood seed${seed} retains a useful group (${accepted})`);
   acceptedMinimum=Math.min(acceptedMinimum,accepted);acceptedMaximum=Math.max(acceptedMaximum,accepted);
 }
 console.log(`PASS 100 physical camp neighborhoods: ${acceptedMinimum}-${acceptedMaximum} camps, shared empty ground with solid/door/chair approach clearance.`);
+
+const clipDoor=vm.runInNewContext(tentSource.replace('export function buildCampTent','function buildCampTent')+';clipDoorToShell');
+const facetMesh={scale:{x:1,y:1,z:1},geometry:{attributes:{position:{array:[-1,0,1,1,0,.8,-1,2,.6,1,2,1.2]}},index:{array:[0,1,2,1,3,2]}}};
+const clippedDoor=clipDoor(facetMesh,[[-.5,.3],[.5,.3],[.5,1.7],[-.5,1.7]]);
+assert(clippedDoor.length>0);
+for(let i=0;i<clippedDoor.length;i+=3){
+  const x=clippedDoor[i],y=clippedDoor[i+1],z=clippedDoor[i+2]-.004;
+  const front=x+y<=1? .9-.1*x-.2*y : .5+.3*x+.2*y;
+  assert(Math.abs(z-front)<1e-8,'door vertices stay on the actual two differently tilted facets plus fixed cloth offset');
+}
+console.log('PASS tent doors: triangular split flaps, curved left-hinge D zippers, bowed dome mapping and exact faceted-shell clipping.');
+
+// Exercise the real glow constructor so moving silhouettes cannot regress into
+// per-frame shell clipping or hide the actual daytime door cloth.
+class GlowGeometry {
+  constructor(){this.attributes={};}
+  setAttribute(name,attribute){this.attributes[name]=attribute;return this;}
+  setDrawRange(start,count){this.drawRange={start,count};}
+}
+class GlowMaterial {
+  constructor(){this.userData={};this.emissive={setHex(){}};}
+  clone(){return new GlowMaterial();}
+}
+let silhouetteClips=0;
+const glowConstructorSource=source.slice(source.indexOf('const _TENT_SILHOUETTE_MATERIAL='),source.indexOf('// Retain each chair'));
+const makeGlow=vm.runInNewContext(glowConstructorSource+';addTentEveningGlow',{
+  THREE:{Mesh,BufferGeometry:GlowGeometry,Float32BufferAttribute:class{constructor(array){this.array=array;}},MeshBasicMaterial:GlowMaterial},
+  clipDoorToShell:(mesh,outline,offset)=>{silhouetteClips++;return [outline[0][0],outline[0][1],1+offset,outline[1][0],outline[1][1],1+offset,outline[2][0],outline[2][1],1+offset];},
+});
+const glowGroup=new Group(),doorCloth=new Mesh(null,new GlowMaterial());
+glowGroup.add(new Mesh(null,new GlowMaterial()),doorCloth);
+const glowHooks=[];
+makeGlow({group:glowGroup,door:{mesh:doorCloth,surfaceMesh:{},surfaceZ:()=>1}},glowHooks,.5);
+assert.equal(silhouetteClips,26,'thirteen two-part silhouette poses are prepared once');
+animate(0,0,glowHooks,.25);
+assert.equal(doorCloth.visible,true,'the actual zippered fabric door remains visible by day');
+assert.equal(glowHooks[0].silhouette.visible,false);
+for(let i=0;i<120;i++)animate(i/6,1,glowHooks,.65);
+assert.equal(silhouetteClips,26,'animation reuses prepared poses without shell clipping');
+assert(glowHooks[0].silhouette.geometry.drawRange.count>0);
+assert.equal(glowHooks[0].silhouette.geometry.attributes.position.needsUpdate,true);
+animate(21,1,glowHooks,.95);
+assert.equal(doorCloth.visible,true);assert.equal(glowHooks[0].silhouette.visible,false);
+assert.equal(glowHooks[0].material.emissiveIntensity,0);
+console.log('PASS actual door glow: daytime cloth retained, thirteen cached silhouette poses, fixed buffer updates and late-night extinction.');

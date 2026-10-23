@@ -125,6 +125,11 @@ const HOP_HZ = 2 * Math.PI * 2.6;
 const HOP_HEIGHT = 0.32;
 const PHOTOGRAPHER_ELIGIBLE = new Set(['idle', 'walking', 'watching', 'approaching']);
 
+const BODY_RADIUS = 0.26;
+const BODY_LENGTH = 0.55;
+const BODY_CENTER_Y = 1.0;
+const BODY_SEATED_BOTTOM = BODY_CENTER_Y - BODY_LENGTH / 2 - BODY_RADIUS;
+
 export class Crowd {
   constructor(smiles) {
     this.smiles = smiles;
@@ -182,8 +187,8 @@ export class Crowd {
     shoeL.dispose(); shoeR.dispose();
 
     // ---- Body (torso): capsule centered at y=1.0 ----
-    const bodyGeo = new THREE.CapsuleGeometry(0.26, 0.55, 3, 6);
-    bodyGeo.translate(0, 1.0, 0);
+    const bodyGeo = new THREE.CapsuleGeometry(BODY_RADIUS, BODY_LENGTH, 3, 6);
+    bodyGeo.translate(0, BODY_CENTER_Y, 0);
 
     // ---- Arms: two single-segment capsules merged, shoulders at (±0.30, 1.10, 0) ----
     const armL = new THREE.CapsuleGeometry(0.075, 0.5, 3, 6);
@@ -1120,7 +1125,7 @@ export class Crowd {
       laneDodgeTest(-dx, -dz, zerble.forwardWorld.x, zerble.forwardWorld.z, zerble.speed);
 
     if (dodging) {
-      this._abandonSeat(npc);            // interrupting a walk-to-table/hammock? free the claim
+      if(this._abandonSeat(npc)===false)return; // wait for a clear way out
       npc.state = 'fleeing';
       // Speed-scaled: calm sidestep for a cruising cart, urgent scramble for a
       // fast one (hits on fleeing NPCs count now — the dodge must be winnable).
@@ -1595,6 +1600,10 @@ export class Crowd {
     // Unhappy NPCs don't vibe — kill the bounce + sway while frowning.
     if (npc.frownTimer > 0 || photographing) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
 
+    // Chair contact stays fixed even near dancefloors or while smiling. A
+    // feet-origin bob/tilt moves the pelvis through the supporting fabric.
+    if (npc.state === 'camp_seated') { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
+
     let quat;
     if (npc.state === 'hammock_riding') {
       // Compose Y * X — applies X first (supine), then Y (align with hammock yaw)
@@ -1659,7 +1668,9 @@ export class Crowd {
       // slightly — so lift by only 0.16, not the full half-thickness.
       feetY = npc.hammockY + 0.16 + bobY + bounceY;
     } else if (npc.state === 'camp_seated' && npc.campSlot) {
-      feetY = npc.campSlot.y - 0.62 * npc.scale + bobY;
+      // The torso capsule extends below the leg pivot. Align its rounded
+      // bottom to the actual fabric height, keeping a centimetre of clearance.
+      feetY = npc.campSlot.y - BODY_SEATED_BOTTOM * npc.scale + 0.01;
     } else if (npc.state === 'table_seated' && npc.tableSeat) {
       // Butt on the bench cushion; bent legs hang forward (the `seated` leg bend).
       // Same -0.4 hip drop a seated cart rider uses so the hip lands on the seat.
@@ -2644,7 +2655,7 @@ export class Crowd {
   // put them into a fleeing state, and spook nearby NPCs (panic cascade).
   onZerbleHit(victim, pushX, pushZ) {
     victim.festivalVisit?.owner.releaseNpc(victim);
-    this._abandonSeat(victim);   // a rammed napper/diner gets up — free its claim
+    if(this._abandonSeat(victim)===false)return; // a trapped sitter waits
     victim.state = 'fleeing';
     victim.stateTimer = 3;
     victim.happiness = 0;
@@ -2660,7 +2671,7 @@ export class Crowd {
       if (dx * dx + dz * dz > 36) continue;
       // Bolder/calmer folks may shrug it off
       if (other.skittish < 0.15 && Math.random() < 0.5) continue;
-      this._abandonSeat(other);   // free any seat/hammock before the panic
+      if(this._abandonSeat(other)===false)continue;
       other.state = 'fleeing';
       other.stateTimer = 2.5;
     }
@@ -2670,9 +2681,13 @@ export class Crowd {
   // (rammed, cascade-panicked, or honk-scattered), so the slot is never stranded
   // "occupied". Safe to call on any NPC — no-op if it holds neither.
   _abandonSeat(npc) {
+    // A trapped sitter cannot stand inside its own solid chair. Keep the
+    // reservation until an exit opens, just as for a scheduled departure.
+    if(npc.campSlot && (npc.state==='camp_seated'||npc.state==='camp_sleeping') && !this._campExit(npc))return false;
     if (npc.tableSeat) this._releaseTable(npc);
     this._releaseCamp(npc);
     if (npc.hammockEntry) this._releaseHammock(npc);
+    return true;
   }
 
   // Star power love-magnet — called every frame from main.js while the buff is
@@ -2744,7 +2759,7 @@ export class Crowd {
             this._releaseSeat(npc.seatSlot);
             npc.seatSlot = null;
           }
-          this._abandonSeat(npc);   // get a seated diner/napper up + free the slot
+          if(this._abandonSeat(npc)===false)continue;
           npc.state = 'fleeing';
           npc.fleeUrgency = inFront ? urgency : Math.min(urgency, 1.3);  // behind = a flinch, not a sprint
           // Front flees commit longer (longer still at speed); a behind flinch is brief.

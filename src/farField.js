@@ -85,10 +85,8 @@ export const FOREST_DENSITY_THRESHOLD = 0.15;
 // Flat-color hex palettes (plain numbers at module scope — THREE.Color
 // instances are built at construction time, never module evaluation).
 const BEACON_PALETTE = [0xff5a4d, 0x4da2ff, 0xffd24d, 0xb56aff];
-// The REAL camp tent fabric (models/campsite.js TENT_COLORS). Saturated, and
-// deliberately nothing like the vendor cream — a camp and a market should read
-// as different districts from across the field, not as the same pale triangles.
-const VILLAGE_PALETTE = [0x2d5a3a, 0xc24b2a, 0x2c4d75, 0xd9a834, 0x6a3b6a, 0x8a3a2a];
+// Match the near camp's muted fabric palette so streaming does not recolor it.
+const VILLAGE_PALETTE = [0x75816a, 0x969d94, 0x667b6b, 0xb2a66f, 0xd0ceb9, 0xe0dfd1];
 // Darker cuts of tree.js's FOREST_GREENS — far masses read through fog.
 const FOREST_PALETTE = [0x355a32, 0x3f6d3a, 0x2d4e2a, 0x4a7a45];
 const TRUSS_HEX = 0x2e2a33;

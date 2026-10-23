@@ -326,6 +326,7 @@ function locateLandmark(kind) {
       const villages = campVillagesNear({ minX: zx - TP_BOX, minZ: zz - TP_BOX, maxX: zx + TP_BOX, maxZ: zz + TP_BOX });
       let best = null;
       for (const v of villages) {
+        if(v.kind !== 'camp_village')continue;
         const d = Math.hypot(v.x - zx, v.z - zz);
         if (!best || d < best.d) best = { v, d };
       }

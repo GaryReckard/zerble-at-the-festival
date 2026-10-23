@@ -24,7 +24,7 @@ export { buildCampChair } from './campChair.js';
 
 // ---------- Shared palettes ----------
 
-const TENT_COLORS = [0x2d5a3a, 0xc24b2a, 0x2c4d75, 0xd9a834, 0x6a3b6a, 0x8a3a2a];
+const TENT_COLORS = [0x75816a, 0x969d94, 0x667b6b, 0xb2a66f, 0xd0ceb9, 0xe0dfd1];
 const CHAIR_COLORS = [0xc44a4a, 0x3b7fbe, 0x4f9c4f, 0xd4c177, 0xb86bc7, 0x444b55];
 const EZUP_COLORS = [0xd86b3a, 0x3a82c0, 0x4ea15a, 0xc7385c];
 const TAPESTRY_COLORS = [
@@ -156,10 +156,88 @@ export function buildCampTent(rng = Math.random, options = {}) {
   }
 
   addTentPoles(group,[[[-w/2,.02,d/2],[0,h+.01,d/2]],[[0,h+.01,d/2],[w/2,.02,d/2]],[[0,h+.01,d/2],[0,h+.01,-d/2]]]);
-  const doorway=new THREE.Mesh(new THREE.PlaneGeometry(.72,.95),matFor(0x29352d));doorway.position.set(0,.48,d/2+.012);group.add(doorway);
+  const door=buildTentDoor(group,{family:'ridge',width:.9,height:1.18,bottom:.04,surfaceZ:()=>d/2+.004});
   const shelter={radius:(vestibule?Math.hypot(w/3,d/2+.7):Math.hypot(w/2,d/2))+.02,doorReach:vestibule?2.6:2.25,width:w,depth:d+(vestibule?.7:0),height:h,capacity:2,
     doorZ:d/2+.015,bounds:[{x:0,z:0,halfWidth:w/2,halfDepth:d/2},...(vestibule?[{x:0,z:d/2+.35,halfWidth:w/3,halfDepth:.35}]:[])]};
-  return { group,color,family:'ridge',footprint:shelter.radius,shelter,entrance:{x:0,z:shelter.doorReach} };
+  return { group,color,family:'ridge',footprint:shelter.radius,shelter,door,entrance:{x:0,z:shelter.doorReach} };
+}
+
+// Door cloth and zipper strips share the shelter surface. The dome sampler
+// intersects its actual faceted mesh, avoiding a flat sign floating in front.
+function tentMeshFrontZ(mesh,x,y,fallback) {
+  const position=mesh.geometry.attributes?.position?.array,index=mesh.geometry.index?.array;
+  if(!position||!index)return fallback(x,y);
+  let front=-Infinity;
+  const sx=mesh.scale.x,sy=mesh.scale.y,sz=mesh.scale.z;
+  for(let i=0;i<index.length;i+=3) {
+    const ids=[index[i]*3,index[i+1]*3,index[i+2]*3];
+    const ax=position[ids[0]]*sx,ay=position[ids[0]+1]*sy,bx=position[ids[1]]*sx,by=position[ids[1]+1]*sy,cx=position[ids[2]]*sx,cy=position[ids[2]+1]*sy;
+    const determinant=(by-cy)*(ax-cx)+(cx-bx)*(ay-cy);
+    if(Math.abs(determinant)<1e-10)continue;
+    const a=((by-cy)*(x-cx)+(cx-bx)*(y-cy))/determinant,b=((cy-ay)*(x-cx)+(ax-cx)*(y-cy))/determinant,c=1-a-b;
+    if(a< -1e-6||b< -1e-6||c< -1e-6)continue;
+    front=Math.max(front,(a*position[ids[0]+2]+b*position[ids[1]+2]+c*position[ids[2]+2])*sz);
+  }
+  return Number.isFinite(front)?front:fallback(x,y);
+}
+function clipDoorToShell(mesh,outline,offset=.004) {
+  const positions=mesh.geometry.attributes?.position?.array,index=mesh.geometry.index?.array;
+  if(!positions||!index)return null;
+  const winding=outline.reduce((sum,p,i)=>{const next=outline[(i+1)%outline.length];return sum+p[0]*next[1]-next[0]*p[1];},0)>=0?1:-1;
+  const vertices=[];
+  for(let i=0;i<index.length;i+=3) {
+    let polygon=[0,1,2].map(j=>{const v=index[i+j]*3;return {x:positions[v]*mesh.scale.x,y:positions[v+1]*mesh.scale.y,z:positions[v+2]*mesh.scale.z};});
+    if(polygon.every(p=>p.z<=0))continue;
+    for(let edge=0;edge<outline.length&&polygon.length;edge++) {
+      const a=outline[edge],b=outline[(edge+1)%outline.length],cross=p=>winding*((b[0]-a[0])*(p.y-a[1])-(b[1]-a[1])*(p.x-a[0]));
+      const clipped=[];
+      for(let j=0;j<polygon.length;j++) {
+        const p=polygon[j],q=polygon[(j+1)%polygon.length],cp=cross(p),cq=cross(q),insideP=cp>=-1e-8,insideQ=cq>=-1e-8;
+        if(insideP)clipped.push(p);
+        if(insideP!==insideQ){const t=cp/(cp-cq);clipped.push({x:p.x+t*(q.x-p.x),y:p.y+t*(q.y-p.y),z:p.z+t*(q.z-p.z)});}
+      }
+      polygon=clipped;
+    }
+    for(let j=1;j+1<polygon.length;j++)for(const point of [polygon[0],polygon[j],polygon[j+1]])vertices.push(point.x,point.y,point.z+offset);
+  }
+  return vertices;
+}
+function buildTentDoor(group,{family,width,height,bottom,surfaceZ,surfaceMesh}) {
+  const outline=[];
+  if(family==='ridge')outline.push([-width/2,bottom],[0,bottom+height],[width/2,bottom]);
+  else {
+    // The straight left side is the hinge; two quadratic curves form the D zip.
+    outline.push([-width/2,bottom],[-width/2,bottom+height]);
+    const curve=(a,b,c)=>{for(let i=1;i<=12;i++){const t=i/12,u=1-t;outline.push([u*u*a[0]+2*u*t*b[0]+t*t*c[0],u*u*a[1]+2*u*t*b[1]+t*t*c[1]]);}};
+    curve([-width/2,bottom+height],[width/2,bottom+height],[width/2,bottom+height/2]);
+    curve([width/2,bottom+height/2],[width/2,bottom],[-width/2,bottom]);
+    outline.pop();
+  }
+  const vertices=[],indices=[],zipVertices=[],zipIndices=[];
+  const centre=[-width*.06,bottom+height*.48];
+  vertices.push(centre[0],centre[1],surfaceZ(...centre));
+  outline.forEach(([x,y])=>vertices.push(x,y,surfaceZ(x,y)));
+  for(let i=0;i<outline.length;i++)indices.push(0,1+(i+1)%outline.length,i+1);
+  outline.forEach(([x,y],i)=>{
+    const dx=x-centre[0],dy=y-centre[1],length=Math.hypot(dx,dy),inset=.012;
+    for(const direction of [-1,1]) {const px=x+direction*dx/length*inset,py=y+direction*dy/length*inset;zipVertices.push(px,py,surfaceZ(px,py)+.003);}
+    const j=(i+1)%outline.length;zipIndices.push(i*2,j*2,i*2+1,i*2+1,j*2,j*2+1);
+  });
+  const clipped=surfaceMesh?clipDoorToShell(surfaceMesh,outline):null;
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(clipped||vertices,3));geometry.setIndex(clipped?Array.from({length:clipped.length/3},(_,i)=>i):indices);geometry.computeVertexNormals();
+  const mesh=new THREE.Mesh(geometry,matFor(0xb1b49c));mesh.name='tent-fabric-door';group.add(mesh);
+  let clippedZip=null;
+  if(surfaceMesh&&clipped){clippedZip=[];for(let i=0;i<outline.length;i++){
+    const j=(i+1)%outline.length,point=k=>[zipVertices[k*3],zipVertices[k*3+1]];
+    clippedZip.push(...clipDoorToShell(surfaceMesh,[point(i*2),point(j*2),point(j*2+1),point(i*2+1)],.007));
+  }}
+  const zipperGeometry=new THREE.BufferGeometry();zipperGeometry.setAttribute('position',new THREE.Float32BufferAttribute(clippedZip||zipVertices,3));zipperGeometry.setIndex(clippedZip?Array.from({length:clippedZip.length/3},(_,i)=>i):zipIndices);zipperGeometry.computeVertexNormals();
+  const zipper=new THREE.Mesh(zipperGeometry,matFor(0x586255));zipper.name='tent-door-zipper';group.add(zipper);
+  if(family==='ridge') {
+    // Split triangular fabric flaps meet along a visible central zip.
+    const split=new THREE.BufferGeometry();split.setAttribute('position',new THREE.Float32BufferAttribute([-.008,bottom,surfaceZ(0,bottom)+.003,.008,bottom,surfaceZ(0,bottom)+.003,0,bottom+height,surfaceZ(0,bottom+height)+.003],3));split.setIndex([0,1,2]);split.computeVertexNormals();group.add(new THREE.Mesh(split,matFor(0x586255)));
+  }
+  return {kind:family==='ridge'?'split-triangle':'curved-d',hinge:family==='ridge'?'centre':'left',mesh,zipper,outline,width,height,bottom,surfaceZ,surfaceMesh,surfaceConforming:!!clipped};
 }
 
 // Family shells have different load-bearing silhouettes: dome ribs, a high
@@ -168,7 +246,7 @@ function buildTentFamily(group,color,fabric,family,variation,vestibule) {
   const v=THREE.MathUtils.clamp(variation,0,1), scale=.94+v*.12;
   const add=(geometry,material,x,y,z,shadow=true)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=shadow;mesh.receiveShadow=true;group.add(mesh);return mesh;};
   const roofMaterial=matFor([0xd5c09a,0xbeb998,0x8b9c8b][Math.min(2,Math.floor(v*3))]);
-  let radius,width,depth,height,doorZ,capacity,bounds;
+  let radius,width,depth,height,doorZ,capacity,bounds,doorSurface,doorSurfaceMesh;
   const poles=[];
   const shell=(w,d,eave,x=0,z=0)=>{
     const hx=w/2,hz=d/2,cut=.18*scale;
@@ -186,7 +264,11 @@ function buildTentFamily(group,color,fabric,family,variation,vestibule) {
     for(const zz of [d/2,-d/2])for(const [xx,yy]of section)vertices.push(xx,yy,zz);
     for(let i=0;i<4;i++)indices.push(i,i+1,i+5,i+1,i+6,i+5);
     // Softly faceted end fabric closes the fly without a house-like gable wall.
-    for(let i=1;i<4;i++){indices.push(0,i,i+1,5,5+i+1,5+i);}
+    for(let i=1;i<4;i++){indices.push(0,i+1,i,5,5+i,5+i+1);}
+    // Rainfly valances overlap the tapered wall tops instead of leaving a
+    // daylight slit below an otherwise closed front/back gable.
+    vertices.push(-w/2,Math.max(.02,base-.16),d/2,w/2,Math.max(.02,base-.16),d/2,-w/2,Math.max(.02,base-.16),-d/2,w/2,Math.max(.02,base-.16),-d/2);
+    indices.push(10,11,0,11,4,0,12,5,13,13,5,9);
     const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setIndex(indices);g.computeVertexNormals();
     for(const zz of [d/2,-d/2])for(let i=0;i<4;i++)poles.push([[x+section[i][0],section[i][1]+.015,z+zz],[x+section[i+1][0],section[i+1][1]+.015,z+zz]]);
     return add(g,roofMaterial,x,0,z);
@@ -196,8 +278,9 @@ function buildTentFamily(group,color,fabric,family,variation,vestibule) {
     const wall=add(new THREE.CylinderGeometry(1.7*scale,1.7*scale,1.45*scale,8),fabric,0,.725*scale,0);
     wall.rotation.y=Math.PI/8;
     const peak=add(new THREE.ConeGeometry(radius,.9*scale,8),roofMaterial,0,1.9*scale,0);peak.rotation.y=Math.PI/8;
-    doorZ=1.7*scale*Math.cos(Math.PI/8)+.015;
-    add(new THREE.CylinderGeometry(1.7*scale,1.7*scale,.17*scale,8),matFor(0x343e37),0,.085*scale,0,false).rotation.y=Math.PI/8;
+    doorZ=1.7*scale*Math.cos(Math.PI/8)+.004;
+    doorSurface=()=>doorZ;
+    add(new THREE.CylinderGeometry(1.707*scale,1.707*scale,.17*scale,8),matFor(0x343e37),0,.085*scale,0,false).rotation.y=Math.PI/8;
     for(let i=0;i<8;i++) {
       const a=Math.PI/8+i*Math.PI/4,px=Math.sin(a)*1.69*scale,pz=Math.cos(a)*1.69*scale;
       poles.push([[px,.04,pz],[px,1.45*scale,pz]],[[px,1.45*scale,pz],[0,2.34*scale,0]]);
@@ -206,22 +289,24 @@ function buildTentFamily(group,color,fabric,family,variation,vestibule) {
   } else if(family==='dome') {
     radius=1.58*scale;width=depth=radius*2;height=1.65*scale;capacity=2;
     const dome=add(new THREE.SphereGeometry(radius,12,6,0,Math.PI*2,0,Math.PI/2),fabric,0,0,0);
-    dome.scale.y=height/radius;
-    add(new THREE.CylinderGeometry(radius*.996,radius,.14*scale,12),matFor(0x333f38),0,.07*scale,0,false);
-    for(const axis of [0,Math.PI/2])for(let i=0;i<10;i++){
+    dome.scale.y=height/radius;doorSurfaceMesh=dome;
+    add(new THREE.CylinderGeometry(radius*.998+.006,radius+.006,.14*scale,12),matFor(0x333f38),0,.07*scale,0,false);
+    for(const axis of [Math.PI/4,-Math.PI/4])for(let i=0;i<10;i++){
       const point=t=>[Math.cos(t)*radius*.99*Math.cos(axis),Math.sin(t)*height+.012,Math.cos(t)*radius*.99*Math.sin(axis)];
       poles.push([point(i*Math.PI/10),point((i+1)*Math.PI/10)]);
     }
     // A real vestibule projects from the curved dome instead of recolouring it.
-    roof(1.15*scale,.65*scale,.05,.85*scale,0,radius*.85);
+    add(new THREE.BoxGeometry(1.15*scale,.025,.65*scale),matFor(0x626c59),0,.0125,radius*.85,false);
     doorZ=radius*.94;
+    const domeRadius=radius,domeHeight=height;
+    doorSurface=(x,y)=>tentMeshFrontZ(dome,x,y,(px,py)=>domeRadius*Math.sqrt(Math.max(0,1-(px/domeRadius)**2-(py/domeHeight)**2)))+.004;
     bounds=[{x:0,z:0,radius}];
   } else {
     family=family==='multiroom'?'multiroom':'cabin';
-    width=2.5*scale;depth=2.5*scale;height=2.18*scale;capacity=family==='multiroom'?6:4;
-    shell(width,depth,1.5*scale);
+    width=2.5*scale;depth=2.5*scale;height=2.08*scale;capacity=family==='multiroom'?6:4;
+    shell(width,depth,1.62*scale);
     add(new THREE.BoxGeometry(width,.16*scale,depth),matFor(0x343c35),0,.08*scale,0,false);
-    roof(width+.08,depth+.12,1.5*scale,height);
+    roof(width+.08,depth+.12,1.62*scale,height);
     bounds=[{x:0,z:0,halfWidth:width/2+.04,halfDepth:depth/2+.06}];
     if(family==='multiroom') {
       const wx=1.25*scale,ww=1.3*scale,wd=1.9*scale;
@@ -231,11 +316,11 @@ function buildTentFamily(group,color,fabric,family,variation,vestibule) {
       bounds.push({x:wx,z:-.08*scale,halfWidth:ww/2+.04,halfDepth:wd/2+.05});
     }
     radius=Math.max(...bounds.map(b=>Math.hypot(Math.abs(b.x)+b.halfWidth,Math.abs(b.z)+b.halfDepth)));
-    doorZ=depth/2+.015;
-    for(const side of [-1,1])poles.push([[side*width/2,.02,depth/2],[side*width*.465,1.5*scale,depth*.465]],[[side*width/2,.02,-depth/2],[side*width*.465,1.5*scale,-depth*.465]]);
-    // Tall dark mesh windows make these read as standing-height cabin tents.
-    const windowMaterial=matFor(0x39484a);
-    for(const x of [-width*.32,width*.32])add(new THREE.PlaneGeometry(.42*scale,.42*scale),windowMaterial,x,1.04*scale,doorZ+.005,false);
+    doorZ=depth/2+.004;
+    const frontDepth=depth;
+    doorSurface=(x,y)=>frontDepth/2*(1-.07*y/(1.62*scale))+.004;
+    for(const side of [-1,1])poles.push([[side*width/2,.02,depth/2],[side*width*.465,1.62*scale,depth*.465]],[[side*width/2,.02,-depth/2],[side*width*.465,1.62*scale,-depth*.465]]);
+
   }
   if(family==='dome') {
     radius=Math.max(radius,Math.hypot(.575*scale,1.58*scale*.85+.325*scale));
@@ -245,10 +330,10 @@ function buildTentFamily(group,color,fabric,family,variation,vestibule) {
   const minX=Math.min(...bounds.map(b=>(b.x||0)-(b.radius??b.halfWidth))),maxX=Math.max(...bounds.map(b=>(b.x||0)+(b.radius??b.halfWidth)));
   const minZ=Math.min(...bounds.map(b=>(b.z||0)-(b.radius??b.halfDepth))),maxZ=Math.max(...bounds.map(b=>(b.z||0)+(b.radius??b.halfDepth)));
   width=maxX-minX;depth=maxZ-minZ;
-  const doorway=add(new THREE.PlaneGeometry(.7*scale,Math.min(1.35,height*.7)),matFor(0x3b3930),0,Math.min(1.35,height*.7)/2,doorZ+.01,false);
+  const door=buildTentDoor(group,{family,width:.8*scale,height:Math.min(1.28*scale,height*.72),bottom:.05*scale,surfaceZ:doorSurface,surfaceMesh:doorSurfaceMesh});
   if(poles.length)addTentPoles(group,poles);
   const shelter={radius,doorReach:Math.max(radius+.65,doorZ+.65),width,depth,height,capacity,doorZ,bounds};
-  return {group,color,family,variation:v,footprint:radius,shelter,entrance:{x:0,z:shelter.doorReach}};
+  return {group,color,family,variation:v,footprint:radius,shelter,door,entrance:{x:0,z:shelter.doorReach}};
 }
 
 // ---------- Camp chair (folding) ----------
@@ -798,23 +883,41 @@ function addCampLanterns(parent, animatables, hasTable=true) {
   parent.add(bulbs,frames);
   animatables.push({kind:'campLantern',material});
 }
+const _TENT_SILHOUETTE_MATERIAL=new THREE.MeshBasicMaterial({color:0x737a65});
+_TENT_SILHOUETTE_MATERIAL.userData.shared=true;
 function addTentEveningGlow(tent,animatables,phase) {
-  const material=new THREE.MeshStandardMaterial({color:0x9f784e,emissive:0xffad4f,emissiveIntensity:0,side:THREE.DoubleSide});
-  const doorZ=(tent.shelter?.doorZ??1.265)+.025;
-  const geometry=new THREE.BufferGeometry();
-  geometry.setAttribute('position',new THREE.Float32BufferAttribute([-.35,.03,doorZ,.35,.03,doorZ,0,1.19,doorZ],3));
-  geometry.setIndex([0,1,2]);geometry.computeVertexNormals();
-  const panel=new THREE.Mesh(geometry,material);panel.visible=false;
-  const silhouette=new THREE.InstancedMesh(_CAMP_BOX,matFor(0x51402e),2);
-  const m=new THREE.Matrix4();
-  [[0,.38,doorZ+.012,.22,.39,.016],[0,.67,doorZ+.012,.17,.18,.016]].forEach(([x,y,z,w,h,d],i)=>{m.makeScale(w,h,d);m.setPosition(x,y,z);silhouette.setMatrixAt(i,m);});
-  silhouette.instanceMatrix.needsUpdate=true;silhouette.visible=false;
+  const panel=tent.door.mesh,material=panel.material.clone();
+  material.userData.shared=false;material.emissive.setHex(0xffad4f);material.emissiveIntensity=0;
+  panel.material=material;
+  // The actual zippered cloth glows, rather than a separate triangular sign.
+  const silhouetteGeometry=new THREE.BufferGeometry();
+  const buffer=new Float32Array(512*3),position=new THREE.Float32BufferAttribute(buffer,3);
+  silhouetteGeometry.setAttribute('position',position);silhouetteGeometry.setDrawRange(0,0);
+  const silhouette=new THREE.Mesh(silhouetteGeometry,_TENT_SILHOUETTE_MATERIAL);silhouette.visible=false;
+  // Thirteen finite poses are clipped once during construction. Animation
+  // only copies a prepared pose into the owned fixed-size vertex buffer.
+  const frames=[];
+  for(let step=-6;step<=6;step++) {
+    const shift=step*.0125,vertices=[];
+    for(const [halfWidth,low,high] of [[.11,.2,.56],[.075,.59,.76]]) {
+      const outline=[[shift-halfWidth,low],[shift+halfWidth,low],[shift+halfWidth,high],[shift-halfWidth,high]];
+      const clipped=tent.door.surfaceMesh?clipDoorToShell(tent.door.surfaceMesh,outline,.009):null;
+      if(clipped)vertices.push(...clipped);
+      else for(const i of [0,1,2,0,2,3]){const [x,y]=outline[i];vertices.push(x,y,tent.door.surfaceZ(x,y)+.005);}
+    }
+    frames.push(new Float32Array(vertices));
+  }
+  let previousStep=Infinity;
+  const updateSilhouette=offset=>{
+    const step=Math.max(-6,Math.min(6,Math.round(offset/.0125)));if(step===previousStep)return;previousStep=step;
+    const vertices=frames[step+6];position.array.set(vertices);position.needsUpdate=true;
+    silhouetteGeometry.setDrawRange(0,vertices.length/3);
+  };
   const fabric=tent.group.children[0].material.clone();
-  fabric.userData.shared=false;
-  fabric.emissive.setHex(0xffaa55);fabric.emissiveIntensity=0;
+  fabric.userData.shared=false;fabric.emissive.setHex(0xffaa55);fabric.emissiveIntensity=0;
   tent.group.children[0].material=fabric;
-  tent.group.add(panel,silhouette);
-  animatables.push({kind:'tentGlow',panel,material,fabric,silhouette,phase,bedtime:.79+phase*.065});
+  tent.group.add(silhouette);
+  animatables.push({kind:'tentGlow',panel,panelAlwaysVisible:true,material,fabric,silhouette,updateSilhouette,phase,bedtime:.79+phase*.065});
 }
 
 // Retain each chair's empty transform group for seat metadata, but batch its
@@ -1032,7 +1135,10 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
   animatables.push(...torchField.animatables);
   canopyProps.forEach((ez,i)=>{
     const a=tentArcStart+Math.PI+(i-(canopyProps.length-1)/2)*1.05;
-    pose(ez.group,cfg.radius*.85+.35,a);
+    // Small camps need a real passing gap between the hearth chairs and the
+    // middle canopy seat; otherwise its neighbors seal the only walking fan.
+    const livingClearance=size==='small'?.45:0;
+    pose(ez.group,cfg.radius*.85+.35+livingClearance,a);
     const hasKitchen=recipe.kitchen&&i===0;
     if(hasKitchen)addCampKitchen(ez.group);
     addCanopyTwinkles(ez.group,animatables,localRandom());
@@ -1196,10 +1302,13 @@ export function updateCampsiteProps(t, nightness, props, dayT) {
     if(p.kind==='campLantern')p.material.emissiveIntensity=nightness*1.8;
     if(p.kind==='tentGlow') {
       const evening=Number.isFinite(dayT)?THREE.MathUtils.smoothstep(dayT,.51,.56)*(1-THREE.MathUtils.smoothstep(dayT,p.bedtime,p.bedtime+.025)):nightness;
-      p.panel.visible=p.silhouette.visible=evening>.01;
+      p.panel.visible=p.panelAlwaysVisible||evening>.01;
+      p.silhouette.visible=evening>.01;
       p.material.emissiveIntensity=evening*.35;
       if(p.fabric)p.fabric.emissiveIntensity=evening*.24;
-      p.silhouette.position.x=Math.sin(t*.55+p.phase*6)*.075;
+      const offset=Math.sin(t*.55+p.phase*6)*.075;
+      if(p.updateSilhouette){if(evening>.01)p.updateSilhouette(offset);}
+      else p.silhouette.position.x=offset;
     }
     if (p.kind === 'campTwinkle') { p.bulbMat.emissiveIntensity=nightness*2.2; }
     if (p.emberMat) {

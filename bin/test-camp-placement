@@ -35,3 +35,43 @@ console.log('PASS blocked host suppresses dependent satellite pitches');
 
 console.log(`Observed compact neighborhoods: ${compactCount}/6000`);
 assert(compactCount>4000&&compactCount<5500,'production mixes compact merged frontages and roomier neighborhoods');
+
+// Execute the real forest planner, including its path/body/clearing filters.
+// A filtered host cannot leave dependent sleeping-only satellites behind.
+const forestSource=fs.readFileSync(new URL('../src/forests.js',import.meta.url),'utf8');
+const forestPlanning=forestSource.slice(forestSource.indexOf('function computeInteriorCampsitePositions('),forestSource.indexOf('function roleFromOffset('));
+const forestCorridor=forestSource.slice(forestSource.indexOf('function pointInPathCorridor('),forestSource.indexOf('// ---------- Forest edge colliders'));
+const planForest=Function('planCampNeighborhood','mulberry32','campsiteFootprint',`${forestPlanning}\n${forestCorridor};return computeInteriorCampsitePositions;`)(planCampNeighborhood,mulberry32,fp);
+let forestPitches=0;
+for(let seed=0;seed<500;seed++) {
+  const forest={seed,centerX:0,centerZ:0,bodyRadius:105,pathDirIdx:0,backPathDirIdx:null,interiorContent:'campsite'};
+  const planned=planForest(forest);
+  assert.deepEqual(planned,planForest(forest),'forest filtering remains deterministic');
+  for(const neighborhood of new Set(planned.map(p=>p.neighborhood))) {
+    const household=planned.filter(p=>p.neighborhood===neighborhood);
+    assert.equal(household[0].role,'host',`forest seed ${seed}, household ${neighborhood} retains its shared host`);
+    assert.equal(household.filter(p=>p.role==='host').length,1);
+  }
+  forestPitches+=planned.length;
+}
+assert(forestPitches>0,'host gating must still build valid forest households');
+
+// Repeat the constraint after physical preflight, which can reject a planned
+// host because actual tree/neighbor geometry is unavailable to the pure plan.
+const forestBuild=forestSource.slice(forestSource.indexOf('function buildInteriorCampsites('),forestSource.indexOf('function buildForestCampsite('));
+const registered=[],built=[];
+let preflightCalls=0;
+const buildInterior=Function('mulberry32','hash2','buildCampsite','canPlaceCampsite','registry','pushCampsiteAnimatables','registerCampsite',
+  `${forestBuild};return buildInteriorCampsites;`)(mulberry32,(x,z)=>x+z,
+  (rng,size,options)=>{built.push(options.role);return {group:{position:{set(){}},rotation:{},traverse(){}},role:options.role};},
+  ()=>++preflightCalls!==1,{},()=>{},(registry,camp,options)=>registered.push({role:camp.role,owner:options.chunkKey}));
+buildInterior({key:'forest-owner',group:{add(){}}},{seed:12,interiorCampsitePositions:[
+  {x:0,z:0,size:'small',facing:0,role:'host',neighborhood:0},
+  {x:10,z:0,size:'small',facing:0,role:'satellite',neighborhood:0},
+  {x:50,z:0,size:'small',facing:0,role:'host',neighborhood:1},
+  {x:60,z:0,size:'small',facing:0,role:'satellite',neighborhood:1},
+]});
+assert.deepEqual(built,['host','host','satellite'],'physical host rejection skips only its own dependent household');
+assert.deepEqual(registered.map(c=>c.role),['host','satellite'],'another valid household still builds');
+assert(registered.every(c=>c.owner==='forest-owner'),'all forest household pieces retain their center-chunk owner');
+console.log(`PASS 500 real forest plans (${forestPitches} pitches): host filtering, deterministic groups, runtime rejection and center-chunk ownership`);

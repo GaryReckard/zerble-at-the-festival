@@ -64,3 +64,11 @@ console.log('camp boundaries: obstructed exits, photographer/character rig hidin
 
 assert.ok(source.slice(source.indexOf('  applyHonk(zerble)')).includes("if (npc.state === 'camp_sleeping' || npc.festivalVisit?.hidden) continue;"),'honk must not pull a hidden sleeper through tent geometry');
 assert.ok(source.includes("other.state === 'boarding' || other.state === 'camp_sleeping'"),'nearby panic must not pull sleepers through tent geometry');
+
+const abandonSource=source.slice(source.indexOf('  _abandonSeat(npc) {'),source.indexOf('  // Star power love-magnet'));
+const abandon=vm.runInNewContext(`({${abandonSource}})._abandonSeat`);
+const trapped=makeNpc(4);Object.assign(trapped,{state:'camp_seated',campSlot:chair,campEntry:camp,campBed:false});chair.occupied=true;
+registry.solids=[{position:{x:chair.approachX,z:chair.approachZ},collider:{radius:10}}];
+assert.equal(abandon.call(crowd,trapped),false);assert.equal(chair.occupied,true,'forced reactions retain a trapped sitter claim');
+registry.solids=[];assert.equal(abandon.call(crowd,trapped),true);assert.equal(chair.occupied,false,'forced reactions release the claim when an exit opens');
+console.log('PASS forced camp departure waits for physical exit clearance');

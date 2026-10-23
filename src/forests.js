@@ -224,7 +224,9 @@ function computeInteriorCampsitePositions(forest) {
     const pitches = planCampNeighborhood(5 + Math.floor(rng() * 3), {
       envelope: 48, phase: rng() * Math.PI * 2, seed: forest.seed + c * 977, density:(forest.seed+c)%5===0?'roomy':'compact',
     });
+    let hostAccepted = false;
     for (const pitch of pitches) {
+      if(pitch.role==='satellite' && !hostAccepted)continue;
       const x = centre.x + pitch.x, z = centre.z + pitch.z;
       const localR = Math.hypot(x - forest.centerX, z - forest.centerZ);
       if (localR + pitch.footprint > forest.bodyRadius - 2 || localR - pitch.footprint < Math.max(drumBuffer, centerBuffer)) continue;
@@ -236,6 +238,7 @@ function computeInteriorCampsitePositions(forest) {
       if (blocksPath) continue;
       if (placed.some(p => p.neighborhood!==c && Math.hypot(p.x-x,p.z-z) < p.footprint + pitch.footprint + 1.6)) continue;
       placed.push({ ...pitch, x, z, neighborhood:c });
+      if(pitch.role==='host')hostAccepted=true;
     }
   }
   return placed;
@@ -534,8 +537,10 @@ function populateDrumCircle(rng, dc, forest, facingAngle) {
 // campsite assemblies, registered with this chunk so they unload with it.
 function buildInteriorCampsites(ctx, forest) {
   if (!forest.interiorCampsitePositions || forest.interiorCampsitePositions.length === 0) return;
+  const acceptedHosts = new Set();
   for (let i = 0; i < forest.interiorCampsitePositions.length; i++) {
     const p = forest.interiorCampsitePositions[i];
+    if(p.role==='satellite' && !acceptedHosts.has(p.neighborhood))continue;
     const siteSeed = mulberry32(hash2(forest.seed * 211 + i * 71, i * 379 + 13));
     // Bias toward 'small' inside the body — trees are tight, big EZ-ups
     // would clip. Occasional 'medium' for variety.
@@ -544,7 +549,7 @@ function buildInteriorCampsites(ctx, forest) {
     camp.group.position.set(p.x, 0, p.z);
     camp.group.rotation.y = p.facing == null ? siteSeed() * Math.PI * 2 : p.facing - (camp.entranceYaw || 0);
     const neighborhood=`forest:${forest.seed}:${p.neighborhood}`;
-    if(!canPlaceCampsite(registry,camp,neighborhood)) {
+    if(!canPlaceCampsite(registry,camp,neighborhood,{forestOwnerKey:ctx.key})) {
       camp.group.traverse(obj=>{
         if(obj.isInstancedMesh)obj.dispose();
         if(obj.geometry&&!obj.geometry.userData.shared)obj.geometry.dispose();
@@ -555,6 +560,7 @@ function buildInteriorCampsites(ctx, forest) {
     ctx.group.add(camp.group);
     pushCampsiteAnimatables(ctx, camp);
     registerCampsite(registry, camp, { attractor: { radius: 5, weight: 0.6 }, chunkKey: ctx.key, campNeighborhood:neighborhood });
+    if(p.role==='host')acceptedHosts.add(p.neighborhood);
   }
 }
 

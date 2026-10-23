@@ -9,6 +9,11 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **Campers use their furniture and shelters.** Nearby NPCs reserve sling, director, low lounge and double loveseat seats for daytime rests and evening gatherings, then walk to tent doors at staggered bedtimes and disappear inside until morning. Obstructed exits wait for clearance, sleeping actors and their accessories hide, and interruptions/unloading release claims. Fires start after dusk and die down late at night; table and hanging lanterns, supported canopy twinkles, and softly glowing tent fabric with moving silhouettes bring camps to life before bedtime.
 - **The crowd has more hair variety.** Six instanced silhouettes include cropped hair, modeled curls, shoulder-length hair, ponytails, buns and twin braids, alongside fifteen natural and festival hair colors. Dedicated front/back hair, tent-family, chair-style, mixed-neighborhood and real-NPC daily-routine sandbox previews make the additions inspectable. [Checks, captures and limits](verification/campsites/README.md).
 
+### Fixed
+- **Tent doors follow the fabric rather than appearing as black rectangles.** A-frame tents use split triangular flaps, while dome, octagonal and cabin families use curved zipper doors with a straight left hinge on the D-shaped styles. Cabin windows are removed, the roof-to-wall seams are closed, and muted greens, greys, cream and yellow replace the red-heavy fabric palette. Evening glow follows the revised door cloth. The Camp village debug picker also ignores welfare markers when selecting its destination.
+- **Seated campers rest on the chair fabric.** Torso contact now follows the actual capsule bottom and body scale, while seated dance bobbing is suppressed. All four chair styles and both loveseat positions have transform regression coverage and a real-NPC seating preview. Blocked emergency exits retain the seated reservation until there is room to stand.
+- **Camp furniture leaves reachable chair approaches.** Placement and registration validate the whole final walk to every chair, preserve existing neighbors' routes, and move the small camp kitchen canopy outward to open its narrow hearth gap. Forest camps ignore only their own non-colliding forest reservation, and rejected hosts cannot leave satellites without shared facilities.
+
 ## 2026-10-22
 
 ### Added

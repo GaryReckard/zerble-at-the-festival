@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { registerCampsite, canPlaceCampsite } from '../src/campRegistry.js';
+import { registerCampsite, canPlaceCampsite, campSeatApproaches } from '../src/campRegistry.js';
 class Position {
   constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}
   clone(){return new Position(this.x,this.y,this.z);}
@@ -48,6 +48,49 @@ blockers=[];owner.campBeds=[{doorX:0,doorZ:.5}];gate.entries.set(9,owner);gate.b
 assert.equal(canPlaceCampsite(gate,candidate,'shared'),false,'new furniture cannot block an earlier tent door');
 assert.equal(gate.entries.size,1,'rejected candidates cause no partial registration');
 console.log('PASS compact placement rejects furniture/door conflicts and preserves external reservations without mutation');
+
+const forestEntry={kind:'forest',position:new Position(),footprint:100,chunkKey:'forest-center'};
+const forestGate={entries:new Map(),byKind:new Map(),footprintsNear(x,z,r,fn){fn(forestEntry);},
+  collidersNear(x,z,r,fn){blockers.forEach(fn);}};
+blockers=[];
+assert.equal(canPlaceCampsite(forestGate,candidate,'forest:1:0'),false,'ordinary placement respects forest reservation');
+assert.equal(canPlaceCampsite(forestGate,candidate,'forest:1:0',{forestOwnerKey:'forest-center'}),true,
+  'planned interior campsite can use its own containing forest');
+assert.equal(canPlaceCampsite(forestGate,candidate,'forest:1:0',{forestOwnerKey:'another-center'}),false,
+  'another forest owner remains reserved');
+forestEntry.collider={radius:100};
+assert.equal(canPlaceCampsite(forestGate,candidate,'forest:1:0',{forestOwnerKey:'forest-center'}),false,
+  'a solid forest boundary is never exempted');
+delete forestEntry.collider;
+blockers=[{kind:'tree',position:new Position(),collider:{radius:.9}}];
+assert.equal(canPlaceCampsite(forestGate,candidate,'forest:1:0',{forestOwnerKey:'forest-center'}),false,
+  'own-forest exemption does not permit overlap with tree trunks');
+console.log('PASS forest placement distinguishes containing owner reservations, foreign forests and physical tree solids');
+
+const ownChair={};
+const approachCamp={group:{position:new Position(),rotation:{y:0},scale:{x:1,y:1,z:1}},footprint:5,
+  seats:[{x:0,z:0,y:.4,yaw:0,group:ownChair}],tents:[],
+  childColliders:[{x:0,z:0,radius:.4,group:ownChair},{x:0,z:.8,radius:.2,group:{}}]};
+const routed=campSeatApproaches(approachCamp)[0];
+assert(routed&&Math.abs(routed.x)>.1,'a blocked straight approach selects a clear angled route');
+const segmentDistance=(point,a,b)=>{
+  const dx=b.x-a.x,dz=b.z-a.z,t=Math.max(0,Math.min(1,((point.x-a.x)*dx+(point.z-a.z)*dz)/(dx*dx+dz*dz)));
+  return Math.hypot(point.x-a.x-t*dx,point.z-a.z-t*dz);
+};
+assert(segmentDistance({x:0,z:.8},{x:0,z:0},routed)>=.55,'the complete route clears other furniture by NPC radius');
+approachCamp.childColliders[1].radius=10;
+assert.equal(campSeatApproaches(approachCamp)[0],null,'an enclosed seat never receives an invented valid approach');
+const unreachable=[];registerCampsite({add(e){unreachable.push(e);return unreachable.length;}},approachCamp);
+assert.equal(unreachable[0].campSeats.length,0,'unreachable furniture does not advertise a claim');
+approachCamp.childColliders[1].radius=.2;
+const routeRegistry={entries:new Map(),byKind:new Map(),footprintsNear(){},collidersNear(){}};
+const earlier={kind:'campsite',position:new Position(),footprint:5,campSeats:[{x:0,z:0,approachX:0,approachZ:4}]};
+routeRegistry.entries.set(1,earlier);routeRegistry.byKind.set('campsite',new Set([1]));
+const crossing={group:{position:new Position(),rotation:{y:0},scale:{x:1,y:1,z:1}},footprint:5,
+  seats:[],tents:[],childColliders:[{x:0,z:2,radius:.2}]};
+assert.equal(canPlaceCampsite(routeRegistry,crossing,'shared'),false,
+  'later furniture cannot cross an existing seat route when both endpoints remain clear');
+console.log('PASS chair approaches select a clear full route, omit unreachable claims and protect older routes from later camps');
 
 camp.tents[0].capacity=5;entries.length=0;registerCampsite(registry,camp);
 assert.equal(entries[0].campBeds.length,5,'large shelters use their modeled sleeping capacity');

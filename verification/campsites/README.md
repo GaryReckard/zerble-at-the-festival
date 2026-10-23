@@ -1,6 +1,6 @@
 # Campsite layouts and daily life
 
-October 23, 2026. Local working-tree verification; no deployment or commit was performed.
+October 23, 2026. The original implementation is committed as `61bced9`; the subsequent seating, placement and tent corrections are documented in the [11:02 review](review-1102/README.md). No deployment was performed.
 
 ## Implementation and evidence
 
@@ -39,6 +39,6 @@ The complete `npm run check` passed after the final source edits; [saved check o
 
 Lights use emissive geometry and the existing bounded proxy-light system; silhouettes are animated meshes on softly lit tent fabric rather than real shadow-map lights. Twinkles are attached to actual canopy posts, without invented tree attachments. Sleeping reservations follow each shelter's modeled capacity and share its entrance. Roads, water, neighboring existing structures and blocked entrances can reduce a generated neighborhood. Far-field camps remain coarse nominal silhouettes and cannot reproduce near-world collision rejections or retry offsets. No physical iPhone playtest or paired GPU/FPS benchmark was performed.
 
-## Follow-up reported after verification
+## Follow-up review
 
-Gary observed seated NPC bodies clipping through chair fabric. The checks above establish seat reservations and state transitions, but do not establish correct hip-to-seat alignment for every model/scale. A review and correction across all four chair styles is scheduled in this chat for October 23 at 11:02 a.m. Eastern. See the [roadmap](../../ROADMAP.md).
+The [11:02 review and corrections](review-1102/README.md) records the seated-body alignment fix, complete chair-approach clearance, forest host ownership corrections, and Gary's later tent-door, cabin-wall and fabric-color refinements. Its newer captures and check output supersede the original previews for those details.
