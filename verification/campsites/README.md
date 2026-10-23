@@ -42,3 +42,7 @@ Lights use emissive geometry and the existing bounded proxy-light system; silhou
 ## Follow-up review
 
 The [11:02 review and corrections](review-1102/README.md) records the seated-body alignment fix, complete chair-approach clearance, forest host ownership corrections, and Gary's later tent-door, cabin-wall and fabric-color refinements. Its newer captures and check output supersede the original previews for those details.
+
+## Optimization sweep
+
+The [subsequent optimization report](optimization/README.md) records reductions in invisible construction and NPC seeking work, exact layout/RNG comparisons, operation benchmarks and unchanged render counts.

@@ -1,0 +1,13 @@
+PASS 300 door clipping comparisons: exact vertices/order, thin strips, reversed winding, boundaries and scales.
+PASS 200 camp claim comparisons; distant scene slot-coordinate reads 548 -> 0.
+{
+  "scope": "synthetic operation medians in ms, seven measured rounds after two warmups; not GPU/FPS",
+  "clip600": {
+    "before": 6.633,
+    "after": 1.209
+  },
+  "seek1500_80camps_8slots": {
+    "before": 114.736,
+    "after": 17.491
+  }
+}

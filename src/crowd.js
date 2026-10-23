@@ -2100,7 +2100,15 @@ export class Crowd {
       let entry = null, slot = null, distance = 28;
       for (const id of registry.byKind.get('campsite') || []) {
         const camp = registry.entries.get(id);
-        for (const candidate of (sleep ? camp?.campBeds : camp?.campSeats) || []) {
+        if (!camp) continue;
+        // All seat/bed coordinates lie inside the registered camp footprint.
+        // A farther center cannot beat the current nearest claim, so avoid
+        // visiting every individual slot in distant loaded neighborhoods.
+        if (camp.position && Number.isFinite(camp.footprint)) {
+          const reach=distance+camp.footprint,dx=camp.position.x-npc.pos.x,dz=camp.position.z-npc.pos.z;
+          if(dx*dx+dz*dz>reach*reach)continue;
+        }
+        for (const candidate of (sleep ? camp.campBeds : camp.campSeats) || []) {
           if (candidate.occupied) continue;
           const d = Math.hypot(candidate.x - npc.pos.x, candidate.z - npc.pos.z);
           if (d < distance) { entry = camp; slot = candidate; distance = d; }

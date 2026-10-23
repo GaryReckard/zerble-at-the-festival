@@ -184,10 +184,20 @@ function clipDoorToShell(mesh,outline,offset=.004) {
   const positions=mesh.geometry.attributes?.position?.array,index=mesh.geometry.index?.array;
   if(!positions||!index)return null;
   const winding=outline.reduce((sum,p,i)=>{const next=outline[(i+1)%outline.length];return sum+p[0]*next[1]-next[0]*p[1];},0)>=0?1:-1;
-  const vertices=[];
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(const [x,y] of outline){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);}
+  const vertices=[],sx=mesh.scale.x,sy=mesh.scale.y,sz=mesh.scale.z;
   for(let i=0;i<index.length;i+=3) {
-    let polygon=[0,1,2].map(j=>{const v=index[i+j]*3;return {x:positions[v]*mesh.scale.x,y:positions[v+1]*mesh.scale.y,z:positions[v+2]*mesh.scale.z};});
-    if(polygon.every(p=>p.z<=0))continue;
+    const a=index[i]*3,b=index[i+1]*3,c=index[i+2]*3;
+    const ax=positions[a]*sx,bx=positions[b]*sx,cx=positions[c]*sx;
+    if(Math.max(ax,bx,cx)<minX-1e-6||Math.min(ax,bx,cx)>maxX+1e-6)continue;
+    const ay=positions[a+1]*sy,by=positions[b+1]*sy,cy=positions[c+1]*sy;
+    if(Math.max(ay,by,cy)<minY-1e-6||Math.min(ay,by,cy)>maxY+1e-6)continue;
+    const az=positions[a+2]*sz,bz=positions[b+2]*sz,cz=positions[c+2]*sz;
+    if(az<=0&&bz<=0&&cz<=0)continue;
+    // Reject disjoint facets before allocating polygon vertices and clipping
+    // buffers, especially for the narrow zipper strips and silhouette poses.
+    let polygon=[{x:ax,y:ay,z:az},{x:bx,y:by,z:bz},{x:cx,y:cy,z:cz}];
     for(let edge=0;edge<outline.length&&polygon.length;edge++) {
       const a=outline[edge],b=outline[(edge+1)%outline.length],cross=p=>winding*((b[0]-a[0])*(p.y-a[1])-(b[1]-a[1])*(p.x-a[0]));
       const clipped=[];
@@ -999,8 +1009,12 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
   const tentArcSpread = Math.PI * 0.6;
   for (let i = 0; i < tentCount; i++) {
     const family=recipe.tentFamilies[i];
-    const tent = buildCampTent(rng,{family:family||'ridge',variation:((Math.imul((tentArcStart*1e8)|0,i+17)>>>0)%1000)/1000});
-    if(!family){discardCampProp(root,tent.group);continue;}
+    if(!family) {
+      // An omitted historical slot still owns its colour/vestibule draws,
+      // but needs no temporary tent geometry or clipped doorway.
+      rng();rng();continue;
+    }
+    const tent = buildCampTent(rng,{family,variation:((Math.imul((tentArcStart*1e8)|0,i+17)>>>0)%1000)/1000});
     tentProps.push(tent);
     const t = tentCount === 1 ? 0.5 : i / (tentCount - 1);
     const theta = tentArcStart + (t - 0.5) * tentArcSpread;
@@ -1011,6 +1025,14 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
   const ezCount = pickCount(cfg.ezUps, rng);
   const ezArcStart = tentArcStart + Math.PI + (rng() - 0.5) * 0.5;
   for (let i = 0; i < ezCount; i++) {
+    if(i>=recipe.canopyLimit) {
+      // Omitted canopies retain their colour/skirt draws and each historical
+      // chair's colour/placement draws without constructing those props.
+      rng();rng();
+      const chairsHere=2+Math.floor(rng()*2);
+      for(let draw=0;draw<chairsHere*4;draw++)rng();
+      continue;
+    }
     const ez = buildEzUp(rng);
     canopyProps.push(ez);
     const theta = ezArcStart + (i - (ezCount - 1) / 2) * 0.55;
@@ -1063,6 +1085,12 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
   // Reserve historical tapestry draws before the privacy-border layout pass.
   const tapCount = pickCount(cfg.tapestries, rng);
   for (let i = 0; i < tapCount; i++) {
+    if(i>=recipe.screenLimit) {
+      // Width, height, palette, pattern and placement angle retain their
+      // historical draws without allocating a canvas for an absent screen.
+      for(let draw=0;draw<5;draw++)rng();
+      continue;
+    }
     const tap = buildTapestry(rng);
     tapestries.push(tap);
     const theta = rng() * Math.PI * 2;

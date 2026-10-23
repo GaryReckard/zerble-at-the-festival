@@ -14,6 +14,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **Seated campers rest on the chair fabric.** Torso contact now follows the actual capsule bottom and body scale, while seated dance bobbing is suppressed. All four chair styles and both loveseat positions have transform regression coverage and a real-NPC seating preview. Blocked emergency exits retain the seated reservation until there is room to stand.
 - **Camp furniture leaves reachable chair approaches.** Placement and registration validate the whole final walk to every chair, preserve existing neighbors' routes, and move the small camp kitchen canopy outward to open its narrow hearth gap. Forest camps ignore only their own non-colliding forest reservation, and rejected hosts cannot leave satellites without shared facilities.
 
+### Performance
+- **Camp construction and NPC seeking skip work outside their reach.** Door clipping rejects disjoint shell facets before allocating polygon buffers, and campers reject distant camp envelopes before walking their individual seat/bed claims. Builders consume the same deterministic draws while avoiding discarded shelters, canopy/chair groups and privacy-screen textures. Differential checks retain geometry, claims and RNG behavior; [operation measurements and browser evidence](verification/campsites/optimization/README.md) distinguish construction cost from gameplay performance.
+
 ## 2026-10-22
 
 ### Added

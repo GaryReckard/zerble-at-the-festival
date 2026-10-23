@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {performance} from 'node:perf_hooks';
+const model=readFileSync(new URL('../src/models/campsite.js',import.meta.url),'utf8');
+const crowd=readFileSync(new URL('../src/crowd.js',import.meta.url),'utf8');
+const clip=vm.runInNewContext(model.slice(model.indexOf('function clipDoorToShell('),model.indexOf('function buildTentDoor('))+';clipDoorToShell');
+// Deliberately retain the pre-optimization full triangle walk as the oracle.
+function reference(mesh,outline,offset=.004){
+  const positions=mesh.geometry.attributes.position.array,index=mesh.geometry.index.array;
+  const winding=outline.reduce((sum,p,i)=>{const next=outline[(i+1)%outline.length];return sum+p[0]*next[1]-next[0]*p[1];},0)>=0?1:-1;
+  const vertices=[];
+  for(let i=0;i<index.length;i+=3){
+    let polygon=[0,1,2].map(j=>{const v=index[i+j]*3;return {x:positions[v]*mesh.scale.x,y:positions[v+1]*mesh.scale.y,z:positions[v+2]*mesh.scale.z};});
+    if(polygon.every(p=>p.z<=0))continue;
+    for(let edge=0;edge<outline.length&&polygon.length;edge++){
+      const a=outline[edge],b=outline[(edge+1)%outline.length],cross=p=>winding*((b[0]-a[0])*(p.y-a[1])-(b[1]-a[1])*(p.x-a[0]));
+      const clipped=[];
+      for(let j=0;j<polygon.length;j++){
+        const p=polygon[j],q=polygon[(j+1)%polygon.length],cp=cross(p),cq=cross(q),insideP=cp>=-1e-8,insideQ=cq>=-1e-8;
+        if(insideP)clipped.push(p);
+        if(insideP!==insideQ){const t=cp/(cp-cq);clipped.push({x:p.x+t*(q.x-p.x),y:p.y+t*(q.y-p.y),z:p.z+t*(q.z-p.z)});}
+      }polygon=clipped;
+    }
+    for(let j=1;j+1<polygon.length;j++)for(const point of [polygon[0],polygon[j],polygon[j+1]])vertices.push(point.x,point.y,point.z+offset);
+  }return vertices;
+}
+const positions=[],indices=[];
+for(let y=0;y<=6;y++)for(let x=0;x<=12;x++){
+  const a=y*Math.PI/12,b=x*Math.PI/6;positions.push(1.58*Math.sin(a)*Math.cos(b),1.65*Math.cos(a),1.58*Math.sin(a)*Math.sin(b));
+}
+for(let y=0;y<6;y++)for(let x=0;x<12;x++){const i=y*13+x;indices.push(i,i+13,i+1,i+1,i+13,i+14);}
+const mesh={scale:{x:1,y:1,z:1},geometry:{attributes:{position:{array:positions}},index:{array:indices}}};
+const samples=[];
+for(let i=0;i<300;i++){
+  const x=-1.4+(i%30)*.093,y=.015+Math.floor(i/30)*.15,w=i%3===0?.012:.18,h=i%4===0?.04:.3;
+  const outline=[[x,y],[x+w,y],[x+w,y+h],[x,y+h]];if(i%2)outline.reverse();
+  mesh.scale={x:.94+(i%3)*.06,y:1,z:1};
+  assert.deepEqual(Array.from(clip(mesh,outline)),reference(mesh,outline),'culling preserves every clipped vertex and its order');
+  samples.push(outline);
+}
+console.log('PASS 300 door clipping comparisons: exact vertices/order, thin strips, reversed winding, boundaries and scales.');
+const fragment=crowd.slice(crowd.indexOf('  _campExit(npc) {'),crowd.indexOf('  // ----- Picnic-table seating -----'));
+const unbounded=fragment.replace(/        if \(camp.position && Number.isFinite\(camp.footprint\)\) \{[\s\S]*?\n        \}/,'');
+assert.notEqual(unbounded,fragment,'reference disables only the camp-center bound');
+let reads=0,campT=.6;
+const registry={entries:new Map(),byKind:new Map(),collidersNear(){}};
+const make=(text)=>new (vm.runInNewContext(`class Harness {${text}\n_writeMatrices() {}};Harness`,{registry,getTimeOfDay:()=>({t:campT}),wrapAngle:a=>a}))();
+const optimized=make(fragment),legacy=make(unbounded);
+const npc=(x=0,z=0)=>({idx:0,pos:{x,z},vel:{set(){}},energy:.8,yaw:0,state:'idle',stateTimer:0});
+function populate(seed){
+  registry.entries.clear();const ids=new Set();
+  for(let i=0;i<80;i++){
+    const angle=i*2.4,cx=Math.sin(angle)*(i?35+i*3:0),cz=Math.cos(angle)*(i?35+i*3:0),seats=[];
+    for(let j=0;j<8;j++){const x=cx+Math.sin(j)*8,z=cz+Math.cos(j)*8;seats.push({get x(){reads++;return x;},z,doorX:x,doorZ:z,approachX:x,approachZ:z,occupied:(seed+i+j)%7===0});}
+    registry.entries.set(i,{id:i,position:{x:cx,z:cz},footprint:10,campSeats:seats,campBeds:seats});ids.add(i);
+  }registry.byKind.set('campsite',ids);
+}
+for(let seed=0;seed<200;seed++){
+  campT=seed%2?.6:.93;
+  populate(seed);const a=npc(Math.sin(seed)*40,Math.cos(seed)*40);legacy._tickCamp(.05,a);
+  const result=[a.state,a.campEntry?.id,a.campSlot?.x,a.campSlot?.z,a.pos.x,a.pos.z];
+  populate(seed);const b=npc(Math.sin(seed)*40,Math.cos(seed)*40);optimized._tickCamp(.05,b);
+  assert.deepEqual([b.state,b.campEntry?.id,b.campSlot?.x,b.campSlot?.z,b.pos.x,b.pos.z],result,'same nearest reservation and walking result');
+}
+populate(0);const probe=npc(1000,1000);reads=0;legacy._tickCamp(.05,probe);const oldReads=reads;reads=0;optimized._tickCamp(.05,npc(1000,1000));const newReads=reads;
+assert.equal(newReads,0);assert(oldReads>500);
+console.log(`PASS 200 camp claim comparisons; distant scene slot-coordinate reads ${oldReads} -> ${newReads}.`);
+if(process.argv.includes('--bench')){
+  // Compile both pure clipping functions in the same native realm; VM global
+  // property lookups otherwise dominate Math.min/max rather than clipping.
+  const oracle=Function(`return (${reference.toString()})`)();
+  const nativeClip=Function(model.slice(model.indexOf('function clipDoorToShell('),model.indexOf('function buildTentDoor('))+';return clipDoorToShell')();
+  const median=values=>values.sort((a,b)=>a-b)[Math.floor(values.length/2)];
+  const measure=fn=>{const times=[];for(let r=0;r<9;r++){const t=performance.now();fn();if(r>1)times.push(performance.now()-t);}return +median(times).toFixed(3);};
+  mesh.scale={x:1,y:1,z:1};
+  const clipping=fn=>()=>{for(let j=0;j<2;j++)for(const outline of samples)fn(mesh,outline);};
+  populate(0);
+  const seeking=actor=>()=>{for(let i=0;i<1500;i++)actor._tickCamp(.05,npc(1000,1000));};
+  console.log(JSON.stringify({scope:'synthetic operation medians in ms, seven measured rounds after two warmups; not GPU/FPS',clip600:{before:measure(clipping(oracle)),after:measure(clipping(nativeClip))},seek1500_80camps_8slots:{before:measure(seeking(legacy)),after:measure(seeking(optimized))}},null,2));
+}

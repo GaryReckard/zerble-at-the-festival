@@ -23,9 +23,19 @@ const makeTent=vm.runInNewContext(tentSource.replace('export function buildCampT
 class Vec {constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}length(){return Math.hypot(this.x,this.y,this.z);}normalize(){const n=this.length();this.x/=n;this.y/=n;this.z/=n;return this;}}
 const chairSource=readFileSync(new URL('../src/models/campChair.js',import.meta.url),'utf8').replace("import * as THREE from 'three';",'').replace('export const CAMP_CHAIR_STYLES','const CAMP_CHAIR_STYLES').replace('export function buildCampChair','function buildCampChair');
 const makeChair=vm.runInNewContext(chairSource+';buildCampChair',{THREE:{...tentThree,Vector3:Vec,TorusGeometry:Geometry,DoubleSide:2,MeshStandardMaterial:class{constructor(options){Object.assign(this,options);this.userData={};}}}});
+const canopySource=source.slice(source.indexOf('export function buildEzUp('),source.indexOf('// ---------- Tapestry'));
+const makeCanopy=vm.runInNewContext(canopySource.replace('export function buildEzUp','function buildEzUp')+';buildEzUp',{
+  THREE:{...tentThree,DoubleSide:2,MeshStandardMaterial:class{constructor(options){Object.assign(this,options);}}},
+  EZUP_COLORS:[0x234523,0xc5b55c],matFor:()=>({userData:{shared:true}}),
+});
+for(const skirtDraw of [.4,.8]) {
+  let draws=0;makeCanopy(()=>{draws++;return skirtDraw;});
+  assert.equal(draws,2,'real canopies consume two caller draws with and without the skirt');
+}
 const builder=(rng)=>{rng();return {group:new Group()};};
+const tapestryBuilder=rng=>{for(let i=0;i<4;i++)rng();return {group:new Group()};};
 const context={THREE:{Group},PERF:{contextLights:false},SIZE_CONFIG:cfg,CAMPSITE_SCALE:2,
-  buildChiminea:builder,buildCampTent:makeTent,planCampRecipe,discardCampProp:()=>{},buildEzUp:builder,buildCampChair:makeChair,buildTapestry:builder,CHAIR_COLORS:[0xc44a4a,0x3b7fbe,0x4f9c4f,0xd4c177,0xb86bc7,0x444b55],
+  buildChiminea:builder,buildCampTent:makeTent,planCampRecipe,discardCampProp:()=>{},buildEzUp:makeCanopy,buildCampChair:makeChair,buildTapestry:tapestryBuilder,CHAIR_COLORS:[0xc44a4a,0x3b7fbe,0x4f9c4f,0xd4c177,0xb86bc7,0x444b55],
   buildTorchField:(positions,rng)=>{positions.forEach(p=>{if(p.phase==null)rng();});return {group:new Group(),animatables:[]};},
   addCampKitchen:()=>{},addCanopyTwinkles:()=>{},addCampLanterns:()=>{},addTentEveningGlow:()=>{},batchCampChairs:()=>{},campsiteFootprint:size=>(cfg[size].radius+3)*2};
 const fragment=source.slice(source.indexOf('function pickCount('),source.indexOf('// Shared unit geometry'))+source.slice(source.indexOf('export function buildCampsite('),source.indexOf('// ---------- Vendor backstage camp'));
@@ -113,19 +123,79 @@ for(const size of Object.keys(cfg))for(const role of ['standalone','host','satel
 console.log(`PASS ${examined} deterministic campsite layouts across all archetypes and roles: family fabric bounds, footprint, furniture, privacy and torch clearance.`);
 console.log('Scope: shipped assembler, tent and chair builders with rendering writes stubbed; browser verification covers GPU appearance and integration.');
 
+// Count real shelter/furniture builder calls and canvas allocations, independently
+// of elapsed time. The remaining primitive builders retain identical stubs.
+function instrumentAssembler(assemblerSource) {
+  const counts={tents:0,tapestries:0,canvases:0,canopies:0,chairs:0};
+  const tapSource=source.slice(source.indexOf('export function buildTapestry('),source.indexOf('// ---------- Campsite assembler'));
+  const makeTapestry=vm.runInNewContext(tapSource.replace('export function buildTapestry','function buildTapestry')+';buildTapestry',{
+    THREE:{...tentThree,DoubleSide:2,SRGBColorSpace:'srgb',RepeatWrapping:'repeat',
+      CanvasTexture:class {constructor(image){this.image=image;}dispose(){}},
+      MeshStandardMaterial:class {constructor(options){Object.assign(this,options);}addEventListener(){}},
+    },POLE_MAT:{},TAPESTRY_COLORS:[[0x112233,0x445566],[0x778899,0xaabbcc]],
+    document:{createElement(){counts.canvases++;return {getContext:()=>({fillRect(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){}})};}},
+  });
+  let draws=0;
+  makeTapestry(()=>{draws++;return .4;});
+  assert.equal(draws,4,'the real tapestry builder consumes width, height, palette and pattern draws');
+  counts.canvases=0;
+  const assembler=assemblerSource.slice(assemblerSource.indexOf('function pickCount('),assemblerSource.indexOf('// Shared unit geometry'))+
+    assemblerSource.slice(assemblerSource.indexOf('export function buildCampsite('),assemblerSource.indexOf('// ---------- Vendor backstage camp'));
+  const measured=vm.runInNewContext(assembler.replace('export function buildCampsite','function buildCampsite')+';buildCampsite',{
+    ...context,
+    buildCampTent(...args){counts.tents++;return makeTent(...args);},
+    buildTapestry(...args){counts.tapestries++;return makeTapestry(...args);},
+    buildEzUp(...args){counts.canopies++;return makeCanopy(...args);},
+    buildCampChair(...args){counts.chairs++;return makeChair(...args);},
+  });
+  return {build:measured,counts,reset(){for(const key of Object.keys(counts))counts[key]=0;}};
+}
+const measuredAssembler=instrumentAssembler(source);
+let constructionCases=0;
+for(const size of Object.keys(cfg))for(const role of ['standalone','host','satellite'])for(const archetype of CAMP_ARCHETYPES)for(let seed=1;seed<=10;seed++) {
+  measuredAssembler.reset();
+  const options={role,archetype,seed},recipe=planCampRecipe(size,options);
+  const camp=measuredAssembler.build(random(seed),size,options),counts=measuredAssembler.counts;
+  assert.equal(counts.tents,recipe.tentFamilies.length,'only retained tent slots invoke the real tent builder');
+  const screens=new Set(camp.childColliders.filter(p=>p.kind==='camp_tapestry').map(p=>p.group));
+  assert.equal(counts.tapestries,screens.size,'only retained screens invoke the real tapestry builder');
+  assert.equal(counts.canvases,screens.size,'every allocated canvas belongs to a retained screen');
+  const canopies=new Set(camp.childColliders.filter(p=>p.kind==='camp_post').map(p=>p.group));
+  assert.equal(counts.canopies,canopies.size,'only retained canopies invoke the real canopy builder');
+  if(recipe.canopyLimit===0) {
+    const chairs=camp.childColliders.filter(p=>p.kind==='camp_chair'||p.kind==='camp_loveseat');
+    assert.equal(counts.chairs,chairs.length,'omitted canopies construct no discarded chairs');
+  }
+  if(role==='satellite') {
+    assert.equal(counts.canvases,0,'shared satellites allocate no tapestry canvas');
+    assert.equal(counts.canopies,0,'shared satellites allocate no canopy');
+  }
+  constructionCases++;
+}
+console.log(`PASS construction counts: ${constructionCases} camps build only retained tents/screens/canopies; omitted canopies construct no discarded chairs.`);
+
 if(process.argv[2]) {
-  const baseline=readFileSync(process.argv[2],'utf8');
-  const oldFragment=baseline.slice(baseline.indexOf('function pickCount('),baseline.indexOf('// ---------- Vendor backstage camp'));
-  const oldBuild=vm.runInNewContext(oldFragment.replace('export function buildCampsite','function buildCampsite')+';buildCampsite',context);
-  for(const size of Object.keys(cfg))for(let seed=1;seed<=200;seed++) {
+  const oldAssembler=instrumentAssembler(readFileSync(process.argv[2],'utf8'));
+  const layout=camp=>JSON.stringify({footprint:camp.footprint,entranceYaw:camp.entranceYaw,
+    seats:camp.seats.map(({x,z,y,yaw,seatIndex,furniture})=>({x,z,y,yaw,seatIndex,furniture})),
+    tents:camp.tents.map(({x,z,yaw,entry,family,capacity,shelter})=>({x,z,yaw,entry,family,capacity,shelter})),
+    colliders:camp.childColliders.map(({kind,x,z,radius,group})=>({kind,x,z,radius,pose:group&&[group.position.x,group.position.y,group.position.z,group.rotation.y]})),
+  });
+  const before={tents:0,tapestries:0,canvases:0,canopies:0,chairs:0},after={...before};let comparisons=0;
+  for(const size of Object.keys(cfg))for(const role of ['standalone','host','satellite'])for(const archetype of CAMP_ARCHETYPES)for(let seed=1;seed<=50;seed++) {
     let oldCount=0,newCount=0;
-    const a=random(seed),b=random(seed);
-    oldBuild(()=>{oldCount++;return a();},size);
-    build(()=>{newCount++;return b();},size);
+    const a=random(seed),b=random(seed),options={role,archetype,seed};
+    oldAssembler.reset();measuredAssembler.reset();
+    const oldCamp=oldAssembler.build(()=>{oldCount++;return a();},size,options);
+    const newCamp=measuredAssembler.build(()=>{newCount++;return b();},size,options);
     assert.equal(newCount,oldCount,'caller RNG consumption remains unchanged');
     assert.equal(a(),b(),'caller RNG resumes at the identical next value');
+    assert.equal(layout(newCamp),layout(oldCamp),'all seats, tent entrances, capacities, colliders and retained prop poses match the baseline');
+    for(const key of Object.keys(before)){before[key]+=oldAssembler.counts[key];after[key]+=measuredAssembler.counts[key];}
+    comparisons++;
   }
-  console.log('PASS baseline comparison: 600 camps preserve the caller RNG stream exactly (primitive builders stubbed identically).');
+  console.log(`PASS baseline comparison: ${comparisons} camps preserve RNG and layout metadata; constructors before ${JSON.stringify(before)}, after ${JSON.stringify(after)}.`);
+  console.log('Scope: real tent/tapestry/canopy/chair builders with canvas drawing and remaining rendering primitives stubbed identically; counts establish construction savings, not GPU or device timing.');
 }
 
 // Execute the shipped batching helper, retaining each chair's metadata anchor.

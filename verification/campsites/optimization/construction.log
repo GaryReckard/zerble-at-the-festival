@@ -1,0 +1,16 @@
+PASS 1800 deterministic campsite layouts across all archetypes and roles: family fabric bounds, footprint, furniture, privacy and torch clearance.
+Scope: shipped assembler, tent and chair builders with rendering writes stubbed; browser verification covers GPU appearance and integration.
+PASS construction counts: 360 camps build only retained tents/screens/canopies; omitted canopies construct no discarded chairs.
+PASS baseline comparison: 1800 camps preserve RNG and layout metadata; constructors before {"tents":3600,"tapestries":2736,"canvases":2736,"canopies":1935,"chairs":10029}, after {"tents":2700,"tapestries":1824,"canvases":1824,"canopies":1225,"chairs":8239}.
+Scope: real tent/tapestry/canopy/chair builders with canvas drawing and remaining rendering primitives stubbed identically; counts establish construction savings, not GPU or device timing.
+PASS chair batching: shared resources, metadata anchors, all transforms retained and instance upload flagged.
+PASS fire schedule: cold daytime charcoal, evening flames and extinguished late-night fire.
+PASS lantern/tent lighting: noon cold, evening internally lit fabric and motion, late-night tents dark.
+PASS privacy texture ownership: distinct 64x64 canvas sources before the first render.
+PASS 100 physical camp neighborhoods: 7-7 camps, shared empty ground with solid/door/chair approach clearance.
+PASS tent doors: triangular split flaps, curved left-hinge D zippers, bowed dome mapping and exact faceted-shell clipping.
+PASS actual door glow: daytime cloth retained, thirteen cached silhouette poses, fixed buffer updates and late-night extinction.
+(node:53434) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/campPlanning.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
