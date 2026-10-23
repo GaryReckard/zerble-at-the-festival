@@ -1,0 +1,37 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { mulberry32 } from '../src/rng.js';
+import { planCampNeighborhood } from '../src/campPlanning.js';
+import { FESTIVAL_TUNING } from '../src/worldgen/tuning.js';
+const source=fs.readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');
+const village=source.slice(source.indexOf('function buildCampVillageAt('),source.indexOf('// The sandbox exercises'));
+const extract=Function('FESTIVAL_TUNING','campsiteFootprint','isPointInLake','registry','THREE','CLUSTER_GUARD_SKIP','placeSingleCampsite','planCampNeighborhood',`${village}; return buildCampVillageAt;`);
+const fp=size=>({small:14,medium:18,large:22}[size]);
+let minimum=Infinity,maximum=0,compactCount=0;
+for(let seed=0;seed<1000;seed++)for(const target of [5,7,8,12,20,22]){
+ const camps=[];
+ const registry={closestBuilding(p,r){return camps.some(c=>Math.hypot(c.x-p.x,c.z-p.z)<c.r+r);}};
+ const place=(ctx,x,z,size,yaw,options)=>{const r=options.footprint;camps.push({x,z,r,yaw,size,options});return {};};
+ const build=extract(FESTIVAL_TUNING,fp,()=>false,registry,{Vector3:class{constructor(x,y,z){Object.assign(this,{x,y,z});}}},new Set(),place,planCampNeighborhood);
+ build({rng:mulberry32(seed)},100,200,target);
+ assert.ok(camps.length >= (target>=12?6:4),`seed ${seed} target ${target} remains a mixed cluster`);
+ const tents=camps.reduce((n,c)=>n+({small:1,medium:2,large:3}[c.size]),0);
+ assert.ok(tents >= (target>=12 ? 10 : 5), 'village growth supplies useful tent capacity');
+ assert.equal(camps[0].options.role,'host');
+ assert.ok(camps.slice(1).every(c=>c.options.role==='satellite' && !c.options.plan.fire && !c.options.plan.kitchen),'satellites share the host living space');
+ for(const camp of camps) assert.ok(Math.hypot(camp.x-100,camp.z-200)+camp.r<=FESTIVAL_TUNING.KIND_FOOTPRINT.camp_village,'whole camp stays within planner reservation');
+ assert.ok(camps.every(c=>c.options.campNeighborhood===camps[0].options.campNeighborhood),'production builder tags shared reservations for exact physical clearance');
+ if(camps[0].size==='small'){compactCount++;assert(camps.slice(1).some(c=>Math.hypot(c.x-camps[0].x,c.z-camps[0].z)<c.r+camps[0].r),'compact neighborhood shares empty ground');}
+ minimum=Math.min(minimum,camps.length);maximum=Math.max(maximum,camps.length);
+}
+console.log(`PASS 6000 production village layouts: ${minimum}-${maximum} sites, planner bounds and shared frontages (physical clearance tested by test-campsite-layout)`);
+
+let attempts=0;
+const blockedHost=extract(FESTIVAL_TUNING,fp,()=>false,{}, {},new Set(),()=>{attempts++;return null;},planCampNeighborhood);
+blockedHost({rng:mulberry32(1)},0,0,16);
+assert.equal(attempts,1,'satellites must not appear without their shared host');
+console.log('PASS blocked host suppresses dependent satellite pitches');
+
+console.log(`Observed compact neighborhoods: ${compactCount}/6000`);
+assert(compactCount>4000&&compactCount<5500,'production mixes compact merged frontages and roomier neighborhoods');

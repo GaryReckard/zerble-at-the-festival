@@ -7,7 +7,7 @@ import {sampleWagonRoute} from './nutWagonRoute.js';
 
 const AMBIENT = new Set(['idle','walking','watching','approaching']);
 const BUSY = new Set(['seeking_potty','entering_potty','using_potty','exiting_potty',
-    'surprised_potty','walking_to_table','table_seated']);
+    'surprised_potty','walking_to_table','table_seated','camp_walking','camp_seated','camp_sleeping']);
 export class MonkParty {
     constructor(crowd,wagon=null) {
         this.crowd=crowd;this.wagon=wagon;this.members=[];this.clock=0;this.nextChoice=0;
@@ -155,7 +155,7 @@ export class MonkParty {
     }
     renderNpc(npc) {
         const g=npc.avatar;if(!g)return;
-        g.visible=npc.state!=='using_potty';
+        g.visible=npc.state!=='using_potty'&&npc.state!=='camp_sleeping'&&!npc.festivalVisit?.hidden;
         const riding=npc.state==='riding',sitting=(riding&&npc.seatSlot?.kind!=='standing')||npc.state==='table_seated'||npc.pottySitting;
         g.position.set(npc.pos.x,(sitting&&npc.seatY!=null?npc.seatY-.62*npc.scale:riding&&npc.seatY!=null?npc.seatY-(npc.seatSlot?.vehicle?0:1.05):0),npc.pos.z);
         g.rotation.set(0,npc.yaw,0);g.scale.setScalar(npc.scale);

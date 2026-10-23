@@ -37,21 +37,12 @@ parameters, dated observations and unanswered decisions. Use the
 
 ## Bugs
 
+- **Align NPC hips with campsite chair fabric.** Gary observed seated bodies clipping through seats after the campsite pass. Check sling, director, low lounge and loveseat poses across NPC scales; the review is scheduled for October 23 at 11:02 a.m. Eastern.
+
 - **Measure remaining neighborhood-query cost before changing crowd scheduling.**
   The June unresponsive-page fixes shipped; query-radius inflation and staggered
   soft separation remain measurement-gated ideas. Preserve hard-overlap handling
   and deterministic behavior. [Original diagnosis and decisions](docs/backlog/performance.md#june-unresponsive-page-diagnosis-historical).
-
-- **Campsite intra-layout has no clipping/spacing rules.** *(observed 2026-06-21,
-  seed `2259424481` @ x:1789, z:-1594)* The 2× prop resize (2026-06-19) made the
-  individual camp pieces read at the right scale, but a camp is assembled with no
-  sensible placement rules: tapestries clip through canopies + tents, firepits sit
-  under canopies or inside tents, and adjacent camps overlap each other's
-  components. Needs intra-camp layout logic — firepit wants clear sky above, a
-  tapestry hangs on a tent/structure edge (not floating), whole camps keep a
-  min-spacing. This is layout LOGIC, not a model bug (the models are fine). Lives in
-  [campsite.js](src/models/campsite.js) (single-camp assembly) + the camp-placement
-  builders in [chunks.js](src/chunks.js) / `src/worldgen/`.
 
 - **A stage tent spawned meters from a side-stage.** *(observed 2026-06-21, seed
   `2092344521` @ x:-12, z:-345)* Two festival stage POIs generated too close together

@@ -1,0 +1,183 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {planCampRecipe,planCampNeighborhood,CAMP_ARCHETYPES} from '../src/campPlanning.js';
+import {registerCampsite,canPlaceCampsite} from '../src/campRegistry.js';
+const source=readFileSync(new URL('../src/models/campsite.js',import.meta.url),'utf8');
+class Group {
+  constructor(){this.children=[];this.position={x:0,y:0,z:0,set(x,y,z){Object.assign(this,{x,y,z});return this;},clone(){return {x:this.x,y:this.y,z:this.z,set(x,y,z){Object.assign(this,{x,y,z});return this;}};}};this.rotation={y:0};this.quaternion={setFromUnitVectors(){}};this.scale={x:1,y:1,z:1,setScalar(s){this.x=this.y=this.z=s;},set(x,y,z){Object.assign(this,{x,y,z});}};}
+  add(...nodes){this.children.push(...nodes);}
+  remove(node){this.children.splice(this.children.indexOf(node),1);}
+}
+const cfg={small:{radius:4,tents:1,ezUps:[0,1],torches:2,tapestries:1,chairs:[1,2]},medium:{radius:6,tents:2,ezUps:[1,1],torches:3,tapestries:[1,2],chairs:[2,3]},large:{radius:8,tents:3,ezUps:[1,2],torches:4,tapestries:2,chairs:[3,4]}};
+class Geometry {
+  constructor(...args){this.args=args;this.userData={};}
+  setAttribute(name,value){this.attributes??={};this.attributes[name]=value;return this;}setIndex(){return this;}computeVertexNormals(){}dispose(){}
+}
+class Mesh extends Group {constructor(geometry,material){super();this.geometry=geometry;this.material=material;}}
+const tentThree={Group,Mesh,BufferGeometry:Geometry,Float32BufferAttribute:Geometry,BoxGeometry:Geometry,PlaneGeometry:Geometry,CylinderGeometry:Geometry,ConeGeometry:Geometry,SphereGeometry:Geometry,MathUtils:{clamp:(v,a,b)=>Math.max(a,Math.min(b,v))}};
+for(const key of ['BoxGeometry','PlaneGeometry','CylinderGeometry','ConeGeometry','SphereGeometry'])tentThree[key]=class extends Geometry{constructor(...args){super(...args);this.kind=key;}};
+const tentSource=source.slice(source.indexOf('export function buildCampTent('),source.indexOf('// ---------- Camp chair'));
+const makeTent=vm.runInNewContext(tentSource.replace('export function buildCampTent','function buildCampTent')+';buildCampTent',{THREE:tentThree,TENT_COLORS:[0x234523,0xc5b55c],matFor:()=>({userData:{shared:true}}),addTentPoles:()=>{}});
+class Vec {constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}length(){return Math.hypot(this.x,this.y,this.z);}normalize(){const n=this.length();this.x/=n;this.y/=n;this.z/=n;return this;}}
+const chairSource=readFileSync(new URL('../src/models/campChair.js',import.meta.url),'utf8').replace("import * as THREE from 'three';",'').replace('export const CAMP_CHAIR_STYLES','const CAMP_CHAIR_STYLES').replace('export function buildCampChair','function buildCampChair');
+const makeChair=vm.runInNewContext(chairSource+';buildCampChair',{THREE:{...tentThree,Vector3:Vec,TorusGeometry:Geometry,DoubleSide:2,MeshStandardMaterial:class{constructor(options){Object.assign(this,options);this.userData={};}}}});
+const builder=(rng)=>{rng();return {group:new Group()};};
+const context={THREE:{Group},PERF:{contextLights:false},SIZE_CONFIG:cfg,CAMPSITE_SCALE:2,
+  buildChiminea:builder,buildCampTent:makeTent,planCampRecipe,discardCampProp:()=>{},buildEzUp:builder,buildCampChair:makeChair,buildTapestry:builder,CHAIR_COLORS:[0xc44a4a,0x3b7fbe,0x4f9c4f,0xd4c177,0xb86bc7,0x444b55],
+  buildTorchField:(positions,rng)=>{positions.forEach(p=>{if(p.phase==null)rng();});return {group:new Group(),animatables:[]};},
+  addCampKitchen:()=>{},addCanopyTwinkles:()=>{},addCampLanterns:()=>{},addTentEveningGlow:()=>{},batchCampChairs:()=>{},campsiteFootprint:size=>(cfg[size].radius+3)*2};
+const fragment=source.slice(source.indexOf('function pickCount('),source.indexOf('// Shared unit geometry'))+source.slice(source.indexOf('export function buildCampsite('),source.indexOf('// ---------- Vendor backstage camp'));
+const build=vm.runInNewContext(fragment.replace('export function buildCampsite','function buildCampsite')+';buildCampsite',context);
+function random(seed){return()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};}
+let examined=0;
+const toLocal=(x,z,g)=>{const dx=x-g.position.x,dz=z-g.position.z,c=Math.cos(g.rotation.y),sn=Math.sin(g.rotation.y);return {x:dx*c-dz*sn,z:dx*sn+dz*c};};
+const inside=(x,z,tent,padding=0)=>{const p=toLocal(x,z,tent.group);return tent.shelter.bounds.some(b=>b.radius!=null?Math.hypot(p.x-b.x,p.z-b.z)<b.radius+padding:Math.abs(p.x-b.x)<b.halfWidth+padding&&Math.abs(p.z-b.z)<b.halfDepth+padding);};
+for(const family of ['ridge','dome','octagon','cabin','multiroom'])for(const variation of [0,.5,1]){
+  let draws=0;const tent=makeTent(()=>{draws++;return .4;},{family,variation});
+  assert.equal(draws,2,'all tent families preserve two legacy caller RNG draws');assert.equal(tent.family,family);
+  assert(tent.shelter.capacity>=2);assert(tent.shelter.doorReach>tent.shelter.doorZ);
+  assert.equal(tent.entrance.z,tent.shelter.doorReach);assert.equal(tent.footprint,tent.shelter.radius);
+  assert(tent.group.children.length>=1,'each tent family builds real geometry');
+  for(const mesh of tent.group.children){
+    const geo=mesh.geometry,pts=[],a=geo.args;
+    if(geo.attributes?.position) {const vertices=geo.attributes.position.args[0];for(let i=0;i<vertices.length;i+=3)pts.push([vertices[i],vertices[i+2]]);}
+    else if(geo.kind==='BoxGeometry')for(const x of [-a[0]/2,a[0]/2])for(const z of [-a[2]/2,a[2]/2])pts.push([x,z]);
+    else if(geo.kind==='PlaneGeometry')pts.push([-a[0]/2,0],[a[0]/2,0]);
+    else {const radius=geo.kind==='CylinderGeometry'?Math.max(a[0],a[1]):a[0];for(let i=0;i<64;i++)pts.push([Math.cos(i*Math.PI/32)*radius,Math.sin(i*Math.PI/32)*radius]);}
+    for(const [x,z]of pts){const sx=x*mesh.scale.x,sz=z*mesh.scale.z,c=Math.cos(mesh.rotation.y),sn=Math.sin(mesh.rotation.y);assert(Math.hypot(mesh.position.x+sx*c+sz*sn,mesh.position.z-sx*sn+sz*c)<=tent.footprint+.001,`${family} full geometry fits actual radial footprint`);}
+  }
+
+}
+for(const size of Object.keys(cfg))for(const role of ['standalone','host','satellite'])for(const archetype of CAMP_ARCHETYPES)for(let seed=1;seed<=50;seed++){
+  const options={role,archetype,seed},recipe=planCampRecipe(size,options);
+  const camp=build(random(seed),size,options),other=build(random(seed),size,options);
+  assert.equal(camp.tents.length,recipe.tentFamilies.length);
+  assert.equal(camp.footprint,recipe.footprint);
+  const data=c=>JSON.stringify({seats:c.seats.map(({x,z,y,yaw})=>({x,z,y,yaw})),tents:c.tents.map(({x,z,entry,family})=>({x,z,entry,family}))});
+  assert.equal(data(camp),data(other),'reload reconstructs the same furniture and entrances');
+  for(const seat of camp.seats){
+    for(const tent of camp.tents)assert(!inside(seat.x,seat.z,tent,.3),'seats stay outside actual family fabric');
+    for(const p of camp.childColliders.filter(p=>p.kind==='camp_kitchen'||p.kind==='camp_cooler'))assert(Math.hypot(seat.x-p.x,seat.z-p.z)>p.radius+.28,'chairs do not overlap kitchen furniture');
+  }
+  for(let i=0;i<camp.seats.length;i++)for(let j=i+1;j<camp.seats.length;j++)assert(camp.seats[i].group===camp.seats[j].group||Math.hypot(camp.seats[i].x-camp.seats[j].x,camp.seats[i].z-camp.seats[j].z)>.72,'independent chairs remain disjoint');
+  for(const p of camp.childColliders)assert(Math.hypot(p.x,p.z)+p.radius<=camp.footprint/2+.01,`${size}/${role}/${archetype}: prop collision bounds fit declared footprint`);
+  for(let i=0;i<camp.tents.length;i++)for(let j=i+1;j<camp.tents.length;j++)assert(Math.hypot(camp.tents[i].x-camp.tents[j].x,camp.tents[i].z-camp.tents[j].z)>camp.tents[i].shelter.radius+camp.tents[j].shelter.radius+.1,`${size}/${role}/${archetype}/${seed}: neighboring ${camp.tents[i].family}/${camp.tents[j].family} shelter radial bounds separate`);
+  for(const tent of camp.tents){assert((tent.entry.x-tent.x)*-tent.x+(tent.entry.z-tent.z)*-tent.z>0,'tent door faces the communal clearing');}
+  const canopies=[...new Set(camp.childColliders.filter(p=>p.kind==='camp_post').map(p=>p.group))];
+  for(const torch of camp.childColliders.filter(p=>p.kind==='camp_torch')) {
+    for(const tent of camp.tents)assert(!inside(torch.x,torch.z,tent,.15),'torch clears actual family fabric');
+    for(const canopy of canopies){const p=toLocal(torch.x,torch.z,canopy);assert(Math.abs(p.x)>1.6||Math.abs(p.z)>1.6,'torch clears full canopy roof and posts');}
+  }
+  const screens=[...new Set(camp.childColliders.filter(p=>p.kind==='camp_tapestry').map(p=>p.group))],endpoints=[];
+  for(const screen of screens){
+    const yaw=screen.rotation.y,c=Math.cos(yaw),sn=Math.sin(yaw);
+    for(let j=0;j<=20;j++){
+      const along=(j/20-.5)*2.6,x=screen.position.x+along*c,z=screen.position.z-along*sn;
+      assert(Math.hypot(x,z)<=camp.footprint/2,'full tapestry fabric stays in declared footprint');
+      for(const tent of camp.tents)assert(!inside(x,z,tent,.1),`${size}/${role}/${archetype}/${seed} ${tent.family}: screen (${x},${z}) clears family fabric`);
+    }
+    if(Math.hypot(screen.position.x,screen.position.z)>cfg[size].radius+1.5)endpoints.push([-1.3,1.3].map(along=>({x:screen.position.x+along*c,z:screen.position.z-along*sn})));
+  }
+  if(endpoints.length===2)assert(Math.min(...endpoints[0].flatMap(a=>endpoints[1].map(b=>Math.hypot(a.x-b.x,a.z-b.z))))>=.5,'privacy gaps preserve one world metre of clearance');
+  if(role==='satellite'){assert.equal(canopies.length,0);assert(!camp.childColliders.some(p=>p.kind==='campfire'||p.kind==='camp_kitchen'),'satellites use host shared spaces');}
+  examined++;
+}
+console.log(`PASS ${examined} deterministic campsite layouts across all archetypes and roles: family fabric bounds, footprint, furniture, privacy and torch clearance.`);
+console.log('Scope: shipped assembler, tent and chair builders with rendering writes stubbed; browser verification covers GPU appearance and integration.');
+
+if(process.argv[2]) {
+  const baseline=readFileSync(process.argv[2],'utf8');
+  const oldFragment=baseline.slice(baseline.indexOf('function pickCount('),baseline.indexOf('// ---------- Vendor backstage camp'));
+  const oldBuild=vm.runInNewContext(oldFragment.replace('export function buildCampsite','function buildCampsite')+';buildCampsite',context);
+  for(const size of Object.keys(cfg))for(let seed=1;seed<=200;seed++) {
+    let oldCount=0,newCount=0;
+    const a=random(seed),b=random(seed);
+    oldBuild(()=>{oldCount++;return a();},size);
+    build(()=>{newCount++;return b();},size);
+    assert.equal(newCount,oldCount,'caller RNG consumption remains unchanged');
+    assert.equal(a(),b(),'caller RNG resumes at the identical next value');
+  }
+  console.log('PASS baseline comparison: 600 camps preserve the caller RNG stream exactly (primitive builders stubbed identically).');
+}
+
+// Execute the shipped batching helper, retaining each chair's metadata anchor.
+class Matrix {
+  multiplyMatrices(parent,child){this.parent=parent;this.child=child;return this;}
+}
+class Instances {
+  constructor(geometry,material,count){Object.assign(this,{geometry,material,count,instanceMatrix:{needsUpdate:false},matrices:[]});}
+  setMatrixAt(i,matrix){this.matrices[i]=matrix;}
+}
+const batchFragment=source.slice(source.indexOf('function batchCampChairs('),source.indexOf('export function buildCampsite('));
+const batch=vm.runInNewContext(batchFragment+';batchCampChairs',{THREE:{Matrix4:Matrix,InstancedMesh:Instances}});
+const geometry={userData:{shared:true}},material={userData:{shared:true}};
+const chairFixture=()=>({group:{matrix:{},children:[0,1,2].map(()=>({geometry,material,matrix:{},updateMatrix(){}})),updateMatrix(){},remove(mesh){this.children.splice(this.children.indexOf(mesh),1);}}});
+const anchors=[chairFixture(),chairFixture()],root=new Group();
+batch(root,anchors);
+assert.equal(root.children.length,1,'matching chair parts collapse to one draw');
+assert.equal(root.children[0].count,6,'all original part transforms survive batching');
+assert.equal(root.children[0].instanceMatrix.needsUpdate,true,'batched transforms upload');
+assert.equal(root.children[0].geometry,geometry,'batch reuses shared geometry');
+assert.equal(root.children[0].material,material,'batch reuses shared material');
+assert(anchors.every(({group})=>group.children.length===0),'seat transform anchors survive without duplicate meshes');
+console.log('PASS chair batching: shared resources, metadata anchors, all transforms retained and instance upload flagged.');
+
+const animateSource=source.slice(source.indexOf('export function updateCampsiteProps(')).replace('export function','function');
+const smoothstep=(v,a,b)=>{const n=Math.max(0,Math.min(1,(v-a)/(b-a)));return n*n*(3-2*n);};
+const animate=vm.runInNewContext(animateSource+';updateCampsiteProps',{THREE:{MathUtils:{smoothstep,clamp:(v,a,b)=>Math.max(a,Math.min(b,v))}}});
+const flame={visible:true,scale:{y:1}},color={value:0,setHex(v){this.value=v;}};
+const fire={phase:.5,emberMat:{emissiveIntensity:1,color},fireFlame:flame};
+animate(1,0,[fire],.25);
+assert.equal(fire.emberMat.emissiveIntensity,0);assert.equal(color.value,0x30251e);assert.equal(flame.visible,false);
+animate(1,1,[fire],.7);assert(fire.emberMat.emissiveIntensity>1);assert.equal(flame.visible,true);
+animate(1,1,[fire],.95);assert.equal(fire.emberMat.emissiveIntensity,0);assert.equal(flame.visible,false);
+console.log('PASS fire schedule: cold daytime charcoal, evening flames and extinguished late-night fire.');
+
+{
+const panel={visible:true},silhouette={visible:true,position:{x:0}},material={emissiveIntensity:0},fabric={emissiveIntensity:0};
+const glow={kind:'tentGlow',panel,silhouette,material,fabric,phase:.5,bedtime:.82};
+const lantern={kind:'campLantern',material:{emissiveIntensity:0}};
+animate(10,0,[glow,lantern],.25);assert.equal(panel.visible,false);assert.equal(silhouette.visible,false);assert.equal(material.emissiveIntensity,0);assert.equal(fabric.emissiveIntensity,0);assert.equal(lantern.material.emissiveIntensity,0);
+animate(10,1,[glow,lantern],.65);assert.equal(panel.visible,true);assert.equal(silhouette.visible,true);assert(material.emissiveIntensity>0);assert(fabric.emissiveIntensity>0);assert(lantern.material.emissiveIntensity>0);
+const before=silhouette.position.x;animate(11,1,[glow],.65);assert.notEqual(before,silhouette.position.x,'silhouette moves gently while camper is awake');
+animate(12,1,[glow],.95);assert.equal(panel.visible,false);assert.equal(silhouette.visible,false);assert.equal(fabric.emissiveIntensity,0);
+console.log('PASS lantern/tent lighting: noon cold, evening internally lit fabric and motion, late-night tents dark.');
+
+}
+
+const textureSource=source.slice(source.indexOf('function tapestryTexture('),source.indexOf('// ---------- Campsite assembler'));
+const texture=vm.runInNewContext(textureSource+';tapestryTexture',{
+  document:{createElement:()=>({getContext:()=>({fillRect(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){}})})},
+  THREE:{CanvasTexture:class{constructor(image){this.image=image;}},SRGBColorSpace:'srgb',RepeatWrapping:'repeat'},
+});
+const firstTexture=texture(0x112233,0x445566,()=>0),secondTexture=texture(0x778899,0xaabbcc,()=>.7);
+assert.notEqual(firstTexture.image,secondTexture.image,'privacy screens own separate canvas pixels before GPU upload');
+assert.equal(firstTexture.image.width,64);assert.equal(secondTexture.image.height,64);
+console.log('PASS privacy texture ownership: distinct 64x64 canvas sources before the first render.');
+
+// Exercise real generated furniture against the production placement gate.
+let acceptedMinimum=Infinity,acceptedMaximum=0;
+for(let seed=1;seed<=100;seed++) {
+  const entries=new Map(),byKind=new Map();let next=1;
+  const registry={entries,byKind,add(entry){entry.id=next++;entries.set(entry.id,entry);if(!byKind.has(entry.kind))byKind.set(entry.kind,new Set());byKind.get(entry.kind).add(entry.id);return entry.id;},
+    footprintsNear(x,z,r,fn){for(const entry of entries.values())if(entry.footprint)fn(entry);},
+    collidersNear(x,z,r,fn){for(const entry of entries.values())if(entry.collider)fn(entry);}};
+  const pitches=planCampNeighborhood(16,{seed,envelope:60});let accepted=0;
+  for(const pitch of pitches) {
+    let placed=false;
+    for(const candidate of pitch.alternatives||[pitch]) {
+      const camp=build(random(seed*17+accepted),pitch.size,{plan:pitch.recipe});
+      camp.group.position.set(candidate.x,0,candidate.z);
+      camp.group.rotation.y=candidate.facing-camp.entranceYaw;
+      if(!canPlaceCampsite(registry,camp,'test-neighborhood'))continue;
+      registerCampsite(registry,camp,{campNeighborhood:'test-neighborhood'});
+      placed=true;accepted++;break;
+    }
+    if(pitch.role==='host')assert(placed,'host must fit an empty neighborhood');
+  }
+  assert(accepted>=3,`compact neighborhood seed${seed} retains a useful group (${accepted})`);
+  acceptedMinimum=Math.min(acceptedMinimum,accepted);acceptedMaximum=Math.max(acceptedMaximum,accepted);
+}
+console.log(`PASS 100 physical camp neighborhoods: ${acceptedMinimum}-${acceptedMaximum} camps, shared empty ground with solid/door/chair approach clearance.`);

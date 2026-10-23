@@ -852,7 +852,10 @@ export const Sound = {
 
   playCollision(kind) {
     if (!ctx) return;
-    (COLLISION_SOUNDS[kind] || COLLISION_SOUNDS.default)(ctx, sfxBus);
+    const campSound = { camp_tent: 'tent', camp_chair: 'bench_ring', camp_loveseat: 'bench_ring', camp_tapestry: 'tent', campfire: 'firepit',
+      camp_kitchen: 'bench_ring', camp_table: 'bench_ring', camp_cooler: 'tent',
+      camp_torch: 'lamppost', camp_post: 'lamppost', canopy_pole: 'lamppost' }[kind];
+    (COLLISION_SOUNDS[campSound || kind] || COLLISION_SOUNDS.default)(ctx, sfxBus);
   },
 
   playHonk() {

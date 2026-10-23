@@ -1,3 +1,4 @@
+import { registerCampsite } from './campRegistry.js';
 // Lakes are first-class world features, not chunk content. One lake per
 // macrocell — irregular elongated/lobed shape (a small fraction stay circular
 // for variety) — sealed at the perimeter so the cart and NPCs cannot enter
@@ -666,18 +667,14 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       // angle is still consumed, so a road just thins the ring there. (lake rng
       // stream unaffected — only the group.add/registry below are skipped.)
       if (ringRoads && nearAnyRoad(camX, camZ, ringRoads, RING_ROAD_HALF + camp.footprint)) continue;
+      if (camps.some(c => Math.hypot(c.x - camX, c.z - camZ) < c.r + camp.footprint + 2)) continue;
       camp.group.position.set(camX, 0, camZ);
-      camp.group.rotation.y = Math.atan2(cz - camZ, cx - camX);  // face the lake
+      camp.group.rotation.y = Math.atan2(cx - camX, cz - camZ) - (camp.entranceYaw || 0);  // face the lake
       group.add(camp.group);
       lakeAnimEntries.push(camp.animatables);
       camps.push({ x: camX, z: camZ, r: camp.footprint });
 
-      registryIds.push(registry.add({
-        kind: 'campsite',
-        position: new THREE.Vector3(camX, 0, camZ),
-        footprint: camp.footprint,
-        attractor: { radius: 6, weight: 1.4 },
-      }));
+      registryIds.push(...registerCampsite(registry, camp, { attractor: { radius: 6, weight: 1.4 } }));
     }
 
     // Forest ring around the lake — sparse near the camps, denser further out.

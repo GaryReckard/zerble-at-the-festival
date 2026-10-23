@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+// Exercise the complete builder against transform doubles. Browser checks
+// establish the actual raster appearance; these assertions cover the pooling,
+// deterministic palette contract and the dimensions consumed by camp life.
+let allocations = 0;
+class Vector3 {
+  constructor(x = 0, y = 0, z = 0) { this.set(x, y, z); }
+  set(x, y, z) { Object.assign(this, { x, y, z }); return this; }
+  length() { return Math.hypot(this.x, this.y, this.z); }
+  normalize() { const length = this.length(); return this.set(this.x / length, this.y / length, this.z / length); }
+}
+class Geometry {
+  constructor(...args) { allocations++; this.args = args; this.userData = {}; }
+  setAttribute(name, value) { (this.attributes ||= {})[name] = value; }
+  setIndex(value) { this.index = value; }
+  computeVertexNormals() {}
+}
+class Material { constructor(options) { Object.assign(this, options); this.userData = {}; } }
+class Group { constructor() { this.children = []; } add(child) { this.children.push(child); } }
+class Mesh {
+  constructor(geometry, material) {
+    Object.assign(this, { geometry, material, position: new Vector3(), scale: new Vector3(1, 1, 1),
+      rotation: { x: 0, y: 0, z: 0 }, castShadow: false,
+      quaternion: { setFromUnitVectors(a, b) { this.direction = { ...b }; } } });
+  }
+}
+const source = readFileSync(new URL('../src/models/campChair.js', import.meta.url), 'utf8');
+const build = vm.runInNewContext(source.replace(/^import .*;$/m, '').replace(/export /g, '') + ';buildCampChair', {
+  THREE: { Vector3, Group, Mesh, CylinderGeometry: Geometry, BoxGeometry: Geometry, TorusGeometry: Geometry,
+    BufferGeometry: Geometry, Float32BufferAttribute: class { constructor(values, itemSize) { Object.assign(this, { values, itemSize }); } },
+    MeshStandardMaterial: Material, DoubleSide: 2 },
+});
+const poolAllocations = allocations;
+const styles = ['sling', 'director', 'low', 'loveseat'];
+const signatures = new Set(), geometries = new Set(), materialSet = new Set();
+for (const style of styles) for (let seed = 0; seed < 60; seed++) {
+  let calls = 0;
+  const chair = build(() => { calls++; return seed / 60; }, { style });
+  assert.equal(calls, 1, 'every chair preserves the single historical palette draw');
+  assert.equal(chair.style, style);
+  assert.equal(chair.seatY, chair.seatHeight);
+  assert.equal(chair.seatOffsets.length, style === 'loveseat' ? 2 : 1);
+  assert(chair.footprint >= (style === 'loveseat' ? .65 : .4), 'collision metadata reserves the complete chair width');
+  if (style === 'low') assert(chair.seatY < .3, 'low chair provides a distinct low seat to resting NPCs');
+  if (style === 'director') assert(chair.seatY > .4, 'director chair has a taller upright seat');
+  signatures.add(JSON.stringify(chair.group.children.map(part => [part.position, part.scale, part.rotation])));
+  for (const part of chair.group.children) {
+    assert(part instanceof Mesh, 'all pieces remain direct meshes for campsite batching');
+    assert.equal(part.geometry.userData.shared, true);
+    assert.equal(part.material.userData.shared, true);
+    assert.equal(part.castShadow, false, 'chair hardware adds no shadow casters');
+    geometries.add(part.geometry); materialSet.add(part.material);
+    if (part.quaternion.direction) assert(Math.abs(Math.hypot(...Object.values(part.quaternion.direction)) - 1) < 1e-9);
+  }
+}
+assert.equal(signatures.size, 4, 'four styles have four distinct physical silhouettes');
+assert.equal(geometries.size, 4, 'all chairs share only four primitive topology buffers');
+assert.equal(allocations, poolAllocations, 'constructing chairs allocates no additional geometry');
+assert(materialSet.size <= 9, 'palette and hardware materials remain a bounded shared pool');
+const defaults = new Set(Array.from({ length: 60 }, (_, i) => build(() => i / 60).style));
+assert.equal(defaults.size, 3, 'ordinary seats vary between sling, director and low styles without unexpected double seats');
+console.log('PASS 240 camp chairs: four distinct styles, one RNG draw, pooled geometry/materials, batching compatibility, seat metadata and no shadow casters.');
+console.log('Scope: complete builder with rendering primitives stubbed; browser verification establishes actual silhouettes and shading.');

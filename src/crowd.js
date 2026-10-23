@@ -22,7 +22,8 @@ import * as THREE from 'three';
 // the `BufferGeometryUtils.mergeGeometries(...)` call style.
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { registry } from './registry.js';
-import { crowdAppearanceRng, rollCrowdAppearance } from './crowdAppearance.js';
+import { getTimeOfDay } from './world.js';
+import { CROWD_HAIR_STYLES, crowdAppearanceRng, rollCrowdAppearance } from './crowdAppearance.js';
 import { SpatialGrid } from './spatialGrid.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { CHUNK_SIZE } from './chunks.js';
@@ -78,6 +79,7 @@ const HONK_BOOST = 0.8;
 // States the star-power love-magnet leaves untouched (mid-interaction NPCs).
 const STAR_LOVE_SKIP = new Set([
   'riding', 'boarding', 'disembarking', 'fleeing',
+  'camp_walking', 'camp_seated', 'camp_sleeping',
   'hammock_riding', 'walking_to_hammock', 'table_seated', 'walking_to_table',
   'seeking_potty', 'entering_potty', 'using_potty', 'exiting_potty', 'surprised_potty',
   PHOTO_STATE_NOTICE, PHOTO_STATE_POSE,
@@ -156,8 +158,8 @@ export class Crowd {
     this._photoFree = [];
     this._drinkFree = [];
     this._drinkDrawCount = 0;
-    this._hairFree = [[], [], []];
-    this._hairDrawCounts = [0, 0, 0];
+    this._hairFree = CROWD_HAIR_STYLES.map(() => []);
+    this._hairDrawCounts = CROWD_HAIR_STYLES.map(() => 0);
 
     this._buildInstanced();
   }
@@ -249,13 +251,35 @@ export class Crowd {
     const sideL = new THREE.BoxGeometry(0.07, 0.18, 0.13); sideL.translate(-0.19, 1.67, -0.005);
     const sideR = new THREE.BoxGeometry(0.07, 0.18, 0.13); sideR.translate(0.19, 1.67, -0.005);
     const shortHair = mergeGeometrySet([hairCap, fringe, sideL, sideR]);
-    const curls = new THREE.IcosahedronGeometry(0.255, 1);
-    curls.scale(1.02, 0.96, 0.92); curls.translate(0, 1.78, 0.005);
+    const curlParts = [];
+    // A rounded crown plus separate coils reads as curls rather than a larger cap.
+    for (let ring = 0; ring < 2; ring++) for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4 + ring * .3;
+      const coil = new THREE.IcosahedronGeometry(.09, 0);
+      coil.translate(Math.cos(a) * (ring ? .17 : .13), ring ? 1.75 : 1.91, Math.sin(a) * (ring ? .16 : .12));
+      curlParts.push(coil);
+    }
+    const curls = mergeGeometrySet(curlParts);
     const longCap = new THREE.SphereGeometry(0.22, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.62);
     longCap.scale(1.02, 0.75, 0.94); longCap.translate(0, 1.79, 0.005);
-    const lockL = new THREE.CapsuleGeometry(0.06, 0.32, 2, 5); lockL.translate(-0.18, 1.48, 0.01);
-    const lockR = new THREE.CapsuleGeometry(0.06, 0.32, 2, 5); lockR.translate(0.18, 1.48, 0.01);
-    const longHair = mergeGeometrySet([longCap, lockL, lockR]);
+    const lockL = new THREE.CapsuleGeometry(0.075, 0.52, 2, 5); lockL.translate(-0.19, 1.36, 0.035);
+    const lockR = new THREE.CapsuleGeometry(0.075, 0.52, 2, 5); lockR.translate(0.19, 1.36, 0.035);
+    const backHair = new THREE.BoxGeometry(.35, .58, .13); backHair.translate(0, 1.4, .16);
+    const longHair = mergeGeometrySet([longCap, lockL, lockR, backHair]);
+    const ponyTail = new THREE.CapsuleGeometry(.085, .45, 2, 5);
+    ponyTail.rotateX(-.3); ponyTail.translate(0, 1.49, .3);
+    const ponytail = mergeGeometrySet([shortHair.clone(), ponyTail]);
+    const hairBun = new THREE.IcosahedronGeometry(.145, 1);
+    hairBun.scale(1, .9, 1); hairBun.translate(0, 1.95, .13);
+    const bun = mergeGeometrySet([shortHair.clone(), hairBun]);
+    const braidParts = [shortHair.clone()];
+    for (const side of [-1, 1]) for (let i = 0; i < 6; i++) {
+      const knot = new THREE.IcosahedronGeometry(.067 - i * .003, 0);
+      knot.scale(1, 1.2, 1);
+      knot.translate(side * (.19 + .018 * Math.sin(i * Math.PI / 2)), 1.64 - i * .095, .08 + (i % 2) * .02);
+      braidParts.push(knot);
+    }
+    const braids = mergeGeometrySet(braidParts);
 
     // The cup is held in local right hand space and shares the crowd transform.
     const cup = new THREE.CylinderGeometry(0.055, 0.043, 0.16, 7);
@@ -276,7 +300,7 @@ export class Crowd {
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true, vertexColors: true });
     const cameraMat = new THREE.MeshStandardMaterial({ color: 0x17151c, roughness: 0.58, metalness: 0.2, flatShading: true });
     const flashMat = new THREE.MeshBasicMaterial({ color: 0xfff2ad, toneMapped: false, depthWrite: true });
-    const hairGeos = [shortHair, curls, longHair];
+    const hairGeos = [shortHair, curls, longHair, ponytail, bun, braids];
     const hairMats = hairGeos.map(() => new THREE.MeshStandardMaterial({ roughness: 0.9, flatShading: true }));
     const drinkMat = new THREE.MeshStandardMaterial({ roughness: 0.72, flatShading: true });
 
@@ -730,6 +754,7 @@ export class Crowd {
       const dz = npc.pos.z - z;
       if (dx * dx + dz * dz > CHEER_RADIUS_SQ) continue;
       const s = npc.state;
+      if (s.startsWith('camp_')) continue;
       if (s === 'riding' || s === 'boarding' || s === 'disembarking' ||
           s === 'fleeing' || s === 'walking_to_hammock' || s === 'hammock_riding' ||
           s === 'walking_to_table' || s === 'table_seated' || isPhotographerState(s)) continue;
@@ -777,6 +802,7 @@ export class Crowd {
         if (npc.pottyEntry) { this._releasePotty(npc); }
         // Release any picnic-table seat claim (don't strand a seat "occupied").
         if (npc.tableSeat) { this._releaseTable(npc); }
+        this._releaseCamp(npc);
         // Remove from any group it belonged to so dead idx's don't leak.
         if (npc.groupId) {
           const g = this.groups.get(npc.groupId);
@@ -875,7 +901,7 @@ export class Crowd {
     // that turns each NPC's O(n) neighbour scan into a ~9-cell query.
     this._sepGrid.clear();
     for (const n of this.npcs) {
-      if (n.state !== 'riding') this._sepGrid.insert(n.pos.x, n.pos.z, n);
+      if (n.state !== 'riding' && n.state !== 'camp_sleeping') this._sepGrid.insert(n.pos.x, n.pos.z, n);
     }
 
     // D3 (perf-pass-4): one reusable ctx + passenger ref per frame instead of a
@@ -963,6 +989,8 @@ export class Crowd {
     const dx = zerble.position.x - npc.pos.x;
     const dz = zerble.position.z - npc.pos.z;
     const dToZerble = Math.hypot(dx, dz);
+
+    if (this._tickCamp(dt, npc)) return;
 
     // Photographer reactions use an isolated state machine and RNG stream.
     // Active shots take ownership of the pose for about 1.5 seconds, then hand
@@ -1518,7 +1546,7 @@ export class Crowd {
   }
 
   _writeMatrices(npc) {
-    if (npc.festivalVisit?.hidden) { this._hideNpc(npc); return; }
+    if (npc.state === 'camp_sleeping' || npc.festivalVisit?.hidden) { this._hideNpc(npc); return; }
     if (npc.party) { this._hideNpc(npc); npc.party.renderNpc(npc); return; }
     // Bo is rendered by the wagon, while the crowd still owns his reserved seat.
     if (npc.seatSlot?.permanent && npc.seatSlot.vehicle?.driverModel) {
@@ -1610,7 +1638,7 @@ export class Crowd {
     const seated = (npc.state === 'riding' && npc.seatSlot &&
       (npc.seatSlot.kind === 'bench' || npc.seatSlot.kind === 'driver_seat' || npc.seatSlot.kind === 'roof'))
       || npc.pottySitting                  // caught sitting on the potty — same forward leg bend
-      || npc.state === 'table_seated';     // sitting on a picnic bench — same forward leg bend
+      || npc.state === 'table_seated' || npc.state === 'camp_seated';     // sitting on a picnic bench — same forward leg bend
     let feetY;
     if (npc.pottySitting && npc.seatY != null) {
       // Butt on the toilet seat; bent legs hang forward. seatY is the seat-top
@@ -1630,6 +1658,8 @@ export class Crowd {
       // capsule is ~0.26 thick, but we want the back to SINK into the sag
       // slightly — so lift by only 0.16, not the full half-thickness.
       feetY = npc.hammockY + 0.16 + bobY + bounceY;
+    } else if (npc.state === 'camp_seated' && npc.campSlot) {
+      feetY = npc.campSlot.y - 0.62 * npc.scale + bobY;
     } else if (npc.state === 'table_seated' && npc.tableSeat) {
       // Butt on the bench cushion; bent legs hang forward (the `seated` leg bend).
       // Same -0.4 hip drop a seated cart rider uses so the hip lands on the seat.
@@ -1696,7 +1726,7 @@ export class Crowd {
     this.headMesh.setMatrixAt(npc.idx, m);
     this.eyesMesh.setMatrixAt(npc.idx, m);
     const hairStyle = npc.appearance?.hairStyle || 0;
-    const hairYScale = hairStyle === 1 ? 1.02 : hairStyle === 2 ? 0.96 : 0.92;
+    const hairYScale = hairStyle === 0 ? 0.92 : 1;
     this._tmpV3.set(0, 1.78 * (1 - hairYScale), 0);
     this._tmpScale.set(0.98, hairYScale, hairStyle === 2 ? 1.02 : 0.98);
     this._hairLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
@@ -1994,6 +2024,130 @@ export class Crowd {
     }
     npc.hammockEntry = null;
     npc.hammockY = undefined;
+  }
+
+  // Camps own the slots, while the crowd owns claims. Validate registry identity
+  // every tick because a lake or chunk can disappear during a walk or a nap.
+  _campExit(npc) {
+    const slot = npc.campSlot;
+    const x = npc.campBed ? slot.doorX : (slot.approachX ?? slot.x);
+    const z = npc.campBed ? slot.doorZ : (slot.approachZ ?? slot.z);
+    for (let i = 0; i < 33; i++) {
+      const radius = i ? Math.ceil(i / 8) * 0.8 : 0;
+      const angle = i * Math.PI / 4;
+      const candidate = {x: x + Math.cos(angle) * radius, z: z + Math.sin(angle) * radius};
+      let clear = true;
+      registry.collidersNear(candidate.x, candidate.z, 0.4, e => {
+        if (Math.hypot(candidate.x - e.position.x, candidate.z - e.position.z) < (e.collider?.radius || 0) + 0.35) clear = false;
+      });
+      if (clear) return candidate;
+    }
+    return null;
+  }
+
+  _releaseCamp(npc) {
+    if (npc.campSlot) {
+      if (npc.state === 'camp_sleeping' || npc.state === 'camp_seated') {
+        const exit = this._campExit(npc);
+        if (exit) { npc.pos.x = exit.x; npc.pos.z = exit.z; }
+      }
+      npc.campSlot.occupied = false;
+    }
+    npc.campSlot = null;
+    npc.campEntry = null;
+    npc.campCooldown = 12 + (npc.idx % 7) * 3;
+  }
+
+  _tickCamp(dt, npc) {
+    npc.campCooldown = Math.max(0, (npc.campCooldown || 0) - dt);
+    const t = this.campTimeOfDay?.t ?? getTimeOfDay()?.t ?? 0.25;
+    const stagger = ((npc.idx * 73 + 19) % 101) / 101;
+    const sleep = t >= 0.77 + stagger * 0.13 || t < 0.02 + stagger * 0.07;
+    const gathering = t >= 0.48 && t < 0.92;
+    const daytime = t >= 0.09 && t < 0.48;
+    if (npc.state === 'camp_seated') npc.campDwell -= dt;
+    const active = npc.state.startsWith('camp_');
+    if (active && (!npc.campEntry || registry.entries.get(npc.campEntry.id) !== npc.campEntry)) {
+      this._releaseCamp(npc);
+      npc.state = 'idle'; npc.stateTimer = 2;
+      this._writeMatrices(npc);
+      return true;
+    }
+    if (active && ((npc.campBed && !sleep) || (!npc.campBed && (sleep || (!gathering && (!daytime || npc.campDwell <= 0)))))) {
+      const exit = this._campExit(npc);
+      if (!exit) { this._writeMatrices(npc); return true; }
+      // Emerge at the clear door, and stand off the chair before releasing it.
+      npc.pos.x = exit.x;
+      npc.pos.z = exit.z;
+      this._releaseCamp(npc);
+      npc.state = 'idle'; npc.stateTimer = 2;
+      this._writeMatrices(npc);
+      return true;
+    }
+    if (!active) {
+      if (npc.party || npc.campCooldown || !['idle', 'walking'].includes(npc.state) || (!sleep && !gathering && !daytime)) return false;
+      let entry = null, slot = null, distance = 28;
+      for (const id of registry.byKind.get('campsite') || []) {
+        const camp = registry.entries.get(id);
+        for (const candidate of (sleep ? camp?.campBeds : camp?.campSeats) || []) {
+          if (candidate.occupied) continue;
+          const d = Math.hypot(candidate.x - npc.pos.x, candidate.z - npc.pos.z);
+          if (d < distance) { entry = camp; slot = candidate; distance = d; }
+        }
+      }
+      if (!slot) return false;
+      slot.occupied = true;
+      npc.campSlot = slot; npc.campEntry = entry; npc.campBed = sleep;
+      npc.state = 'camp_walking'; npc.stateTimer = distance * 2 + 12;
+      npc.campAtApproach = false;
+    }
+    const slot = npc.campSlot;
+    if (npc.state === 'camp_walking') {
+      const tx = npc.campBed ? slot.doorX : npc.campAtApproach ? slot.x : (slot.approachX ?? slot.x);
+      const tz = npc.campBed ? slot.doorZ : npc.campAtApproach ? slot.z : (slot.approachZ ?? slot.z);
+      const dx = tx - npc.pos.x, dz = tz - npc.pos.z, d = Math.hypot(dx, dz);
+      if (d < 0.25) {
+        if (!npc.campBed && !npc.campAtApproach) npc.campAtApproach = true;
+        else {
+          npc.pos.x = slot.x; npc.pos.z = slot.z;
+          npc.yaw = slot.yaw ?? npc.yaw;
+          npc.vel.set(0, 0, 0);
+          npc.state = npc.campBed ? 'camp_sleeping' : 'camp_seated';
+          npc.campDwell = 18 + stagger * 22;
+        }
+      } else if (npc.stateTimer <= 0) {
+        this._releaseCamp(npc); npc.state = 'idle'; npc.stateTimer = 3;
+      } else {
+        const step = Math.min(d, dt * (1.2 + npc.energy));
+        let nx = npc.pos.x + dx / d * step, nz = npc.pos.z + dz / d * step;
+        // Hard local solids remain authoritative during special-state walks.
+        // Sliding around a circle prevents the direct seek from cutting tents.
+        registry.collidersNear(nx, nz, 0.3, e => {
+          if (!npc.campBed && npc.campAtApproach && e === slot.collider) return;
+          const r = (e.collider?.radius || 0) + 0.28;
+          if (r <= 0.28) return;
+          const ox = nx - e.position.x, oz = nz - e.position.z, od = Math.hypot(ox, oz);
+          if (od < r) {
+            const a = Math.atan2(oz || dz, ox || dx) + step / r * (npc.idx % 2 ? 1 : -1);
+            nx = e.position.x + Math.cos(a) * r; nz = e.position.z + Math.sin(a) * r;
+          }
+        });
+        // Sequential projections can push into a second solid; reject any
+        // unresolved overlap rather than teleporting through a tight cluster.
+        let blocked = false;
+        registry.collidersNear(nx, nz, 0.3, e => {
+          if (!npc.campBed && npc.campAtApproach && e === slot.collider) return;
+          const r = (e.collider?.radius || 0) + 0.28;
+          if (r > 0.28 && Math.hypot(nx - e.position.x, nz - e.position.z) < r - 0.001) blocked = true;
+        });
+        if (blocked) { nx = npc.pos.x; nz = npc.pos.z; }
+        npc.vel.set((nx - npc.pos.x) / Math.max(dt, 0.001), 0, (nz - npc.pos.z) / Math.max(dt, 0.001));
+        npc.pos.x = nx; npc.pos.z = nz;
+        npc.yaw += wrapAngle(Math.atan2(-dx, -dz) - npc.yaw) * Math.min(1, dt * 6);
+      }
+    } else npc.vel.set(0, 0, 0);
+    this._writeMatrices(npc);
+    return true;
   }
 
   // ----- Picnic-table seating -----
@@ -2384,6 +2538,7 @@ export class Crowd {
     this._releaseSeat(npc.seatSlot);
     if (npc.hammockEntry) this._releaseHammock(npc);
     if (npc.tableSeat) this._releaseTable(npc);
+    this._releaseCamp(npc);
     if (npc.pottyEntry) this._releasePotty(npc);
     const group = this.groups.get(npc.groupId);
     if (group) {
@@ -2434,6 +2589,10 @@ export class Crowd {
     if (npc.hairSlot >= 0) this.hairMeshes[npc.appearance.hairStyle].setMatrixAt(npc.hairSlot, z);
     if (npc.drinkSlot >= 0) this.drinkMesh.setMatrixAt(npc.drinkSlot, z);
     if (npc.avatar) npc.avatar.visible = false;
+    if (npc.isPhotographer) {
+      this.cameraMesh.setMatrixAt(npc.photoSlot, z);
+      this.flashMesh.setMatrixAt(npc.photoSlot, z);
+    }
   }
 
   // Targeted unit vanished mid-visit (chunk unloaded). Drop the claim, pop back
@@ -2495,7 +2654,7 @@ export class Crowd {
     victim.pos.z += pushZ * 0.6;
     // Panic cascade: nearby NPCs (within 6m) of any reasonable skittishness flee too
     for (const other of this.npcs) {
-      if (other === victim || other.state === 'riding' || other.state === 'boarding') continue;
+      if (other === victim || other.state === 'riding' || other.state === 'boarding' || other.state === 'camp_sleeping') continue;
       const dx = other.pos.x - victim.pos.x;
       const dz = other.pos.z - victim.pos.z;
       if (dx * dx + dz * dz > 36) continue;
@@ -2512,6 +2671,7 @@ export class Crowd {
   // "occupied". Safe to call on any NPC — no-op if it holds neither.
   _abandonSeat(npc) {
     if (npc.tableSeat) this._releaseTable(npc);
+    this._releaseCamp(npc);
     if (npc.hammockEntry) this._releaseHammock(npc);
   }
 
@@ -2563,6 +2723,7 @@ export class Crowd {
     const vDir = (zerble.speed || 0) >= 0 ? 1 : -1;        // scatter along travel, not facing (reverse-safe)
 
     for (const npc of this.npcs) {
+      if (npc.state === 'camp_sleeping' || npc.festivalVisit?.hidden) continue;
       const dx = npc.pos.x - zerble.position.x;
       const dz = npc.pos.z - zerble.position.z;
 
@@ -2625,7 +2786,7 @@ function nearestFootprintAvoidance(pos, lookAheadRadius) {
   // the registry's max footprint radius). Same per-entry math as the old full
   // registry.footprints() walk, including the tree/path_node skip.
   registry.footprintsNear(pos.x, pos.z, lookAheadRadius, (e) => {
-    if (e.kind === 'tree' || e.kind === 'path_node') return;
+    if (e.kind === 'tree' || e.kind === 'path_node' || e.kind === 'campsite') return;
     const dx = pos.x - e.position.x;
     const dz = pos.z - e.position.z;
     const d = Math.hypot(dx, dz);

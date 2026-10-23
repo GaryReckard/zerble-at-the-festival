@@ -33,6 +33,7 @@ if (typeof globalThis.navigator === 'undefined') globalThis.navigator = { hardwa
 
 const { ownerCellCoord, vendorRowSlots } = await import('../src/worldgen/placement.js');
 const { mulberry32 } = await import('../src/rng.js');
+const { planCampNeighborhood } = await import('../src/campPlanning.js');
 const { FESTIVAL_TUNING } = await import('../src/worldgen/tuning.js');
 const { STAGE_SHAPES, STAGE_SURFACES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE } = await import('../src/festivalShapes.js');
 const { MeshLambertMaterial, MeshBasicMaterial } = await import('three');
@@ -354,7 +355,7 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
   // real campsite.js tent colours, so a camp reads as a different district from
   // a market rather than as more cream triangles.
   const village = {
-    kind: 'camp_village', x: -40, z: 210, yaw: 0, footprint: 32,
+    kind: 'camp_village', x: -40, z: 210, yaw: 0, footprint: 60,
     rank: 'minor', tents: 16, clusterSeed: 0x5eed1234,
   };
   const vr = copyVillageRecord(village);
@@ -368,14 +369,18 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
     'village record must copy scalars only — no reference into the shared plan survives');
 
   const expV = expandFarInstances([vr], 1);
-  const nExpected = Math.max(4, Math.min(14, Math.round(16 * 0.6)));
+  const campRng = mulberry32(vr.clusterSeed);
+  const phase = campRng() * Math.PI * 2, campSeed = Math.floor(campRng() * 0x100000000);
+  const campPlan = planCampNeighborhood(vr.tents, { envelope: vr.footprint, phase, seed: campSeed,
+    density: campSeed % 5 === 0 ? 'roomy' : 'compact' });
+  const nExpected = campPlan.reduce((sum, p) => sum + p.recipe.tentFamilies.length, 0);
   assert(expV.peak.length === nExpected, `a 16-pitch village should expand to ${nExpected} tent peaks, got ${expV.peak.length}`);
   assert(expV.warm.length === 1, 'a village should carry exactly one campfire marker');
-  assert(expV.canopy.length === 0 && expV.marqueeWall.length === 0 && expV.truss.length === 0 && expV.beacon.length === 0,
-    'a village is not a stage — no slab, truss or beacon');
+  assert(expV.canopy.length === 1 && expV.marqueeWall.length === 0 && expV.truss.length === 0 && expV.beacon.length === 0,
+    'a village shares one kitchen canopy and has no stage slab, truss or beacon');
   for (const i of expV.peak) {
-    assert(Math.abs(i.x - vr.x) <= 30 && Math.abs(i.z - vr.z) <= 30,
-      'village pitches must scatter inside the ±CAMP_RADIUS square the builder packs into');
+    assert(Math.hypot(i.x - vr.x, i.z - vr.z) + Math.max(i.sx,i.sz) <= vr.footprint,
+      'village pitched silhouettes stay inside the same reserved circle as the builder');
   }
   assert(expV.warm[0].x === vr.x && expV.warm[0].z === vr.z, 'the campfire sits at the village centre');
   // Pitch count tracks camp size, and the small end still reads as a camp.
@@ -385,6 +390,19 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
     'village pitch count must track tents, with a floor so a small camp still reads');
   assert(JSON.stringify(expandFarInstances([vr], 1)) === JSON.stringify(expV),
     'village expansion must be deterministic');
+  const expectedShelters = campPlan.flatMap(p => p.recipe.tentFamilies.map((family, i) => {
+    const yaw = p.facing - (i - (p.recipe.tentFamilies.length - 1) / 2) * p.recipe.tentArcStep;
+    return { x: vr.x + p.x - Math.sin(yaw) * p.recipe.tentRadius * 2,
+      z: vr.z + p.z - Math.cos(yaw) * p.recipe.tentRadius * 2 };
+  }));
+  for (let i = 0; i < expectedShelters.length; i++) {
+    assert(Math.hypot(expV.peak[i].x - expectedShelters[i].x, expV.peak[i].z - expectedShelters[i].z) < 1e-8,
+      'village silhouette follows the shared nominal shelter bays instead of an unrelated outer ring');
+  }
+  const thinner = expandFarInstances([vr], .45);
+  assert(thinner.peak.length > 0 && thinner.peak.length < expV.peak.length, 'lower density thins household shelters');
+  for (const peak of thinner.peak) assert(expV.peak.some(full => full.x === peak.x && full.z === peak.z),
+    'density thinning never moves surviving shelters');
 }
 
 {
@@ -871,8 +889,8 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
       assert(kept === demand,
         `tier ${tname}, seed 9876 at (320,320) must keep ${demand} visible ${name} surfaces, got ${kept}`);
     }
-    if (tname === 'low') assert(all.peak.filter((i) => Math.hypot(i.x - 320, i.z - 320) <= tier.radius).length === 194,
-      'seed 9876 low-tier peak reproduction must retain its 194 visible candidates after road-safe stage relocation');
+    // Tent families and compact/roomy plans vary the proxy count. The invariant
+    // above is retaining every visible planned surface, not the old scatter's count.
     surfaceProbe.dispose();
   }
   // The pool is ranked from the cell center and does not rebuild while the

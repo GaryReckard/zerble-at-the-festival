@@ -180,13 +180,13 @@
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
-            const mods = ['oneWheels', 'oneWheelMotion', 'monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
+            const mods = ['campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes',
                 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
             const models = ['oneWheelRider', 'canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'bo', 'monk', 'nutWagon', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
                 'entranceArch', 'leafBanner', 'puppet', 'paradeLanterns', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
-                'campsite', 'frisbeePlayer', 'hulaHooper', 'healingArts', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
+                'campChair', 'campsite', 'frisbeePlayer', 'hulaHooper', 'healingArts', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
             const base = new URL('./src/', document.baseURI).href;
             const imports = {
                 'three': 'https://unpkg.com/three@0.160.0/build/three.module.js',
@@ -260,6 +260,7 @@
             <option value="cheer_demo">Crowd cheer demo (jump + arms-up)</option>
             <option value="crowd_photographer">Crowd photographer (pose + flash)</option>
             <option value="crowd_lineup">Crowd appearance lineup</option>
+            <option value="crowd_hair">Crowd hair: six styles, front and back</option>
             <option value="puppet">Puppet (parade)</option>
             <option value="puppet_heron">Lantern: heron</option>
             <option value="puppet_dragon">Lantern: dragon</option>
@@ -304,7 +305,17 @@
         </optgroup>
         <optgroup label="Camping">
             <option value="camp_tent">Camp tent (sleeping)</option>
+            <option value="camp_tent_ridge">Tent: ridge / A-frame</option>
+            <option value="camp_tent_dome">Tent: dome</option>
+            <option value="camp_tent_octagon">Tent: octagonal family tent</option>
+            <option value="camp_tent_cabin">Tent: cabin</option>
+            <option value="camp_tent_multiroom">Tent: connected rooms</option>
             <option value="camp_chair">Camp chair (folding)</option>
+            <option value="camp_chair_sling">Camp chair: fabric sling</option>
+            <option value="camp_chair_director">Camp chair: director</option>
+            <option value="camp_chair_low">Camp chair: low lounge</option>
+            <option value="camp_chair_loveseat">Camp chair: loveseat</option>
+            <option value="camp_chair_lineup">Camp chairs: style lineup</option>
             <option value="chiminea">Chiminea / firepit</option>
             <option value="tiki_torch">Tiki torch</option>
             <option value="torch_field">Tiki torch field (instanced)</option>
@@ -313,6 +324,13 @@
             <option value="campsite_small">Campsite (small)</option>
             <option value="campsite_medium">Campsite (medium)</option>
             <option value="campsite_large">Campsite (large)</option>
+            <option value="campsite_light-travelers">Camp: Light travelers</option>
+            <option value="campsite_family-base">Camp: Family base</option>
+            <option value="campsite_social-lounge">Camp: Social lounge</option>
+            <option value="campsite_canvas-lodge">Camp: Canvas lodge</option>
+            <option value="campsite_cluster_roomy">Camp neighborhood: roomier variant</option>
+            <option value="campsite_cluster">Camp neighborhood: shared host + compact pitches</option>
+            <option value="campsite_activity">Campsite (real crowd daily routine)</option>
             <option value="vendor_camp">Vendor backstage camp (full)</option>
             <option value="vendor_camp_lean">Vendor backstage camp (lean)</option>
         </optgroup>
@@ -551,6 +569,8 @@
     import {mulberry32} from './src/rng.js';
     import {buildTent, TENT_VENDOR_PROFILES} from './src/models/tent.js';
     import {registry} from './src/registry.js';
+    import {registerCampsite} from './src/campRegistry.js';
+    import {buildCampClusterPreview} from './src/chunks.js';
     import {buildMonk} from './src/models/monk.js';
     import {MonkParty} from './src/monks.js';
     import {buildBo, seatBoInWagon} from './src/models/bo.js';
@@ -845,6 +865,7 @@ import {buildShrub} from './src/models/shrub.js';
     }
 
     function clearEntity() {
+        groundGroup.scale.setScalar(1);
         entityRoot?.userData?.cleanup?.();
         puppetControls?.remove();
         puppetControls = null;
@@ -1044,6 +1065,7 @@ import {buildShrub} from './src/models/shrub.js';
         band_member_sax: 'brass', band_member_drum: 'brass',
         band_member_trombone: 'brass', brass_band: 'brass',
         camp_tent: 'tent',
+        ...Object.fromEntries(['ridge','dome','octagon','cabin','multiroom'].map(kind=>[`camp_tent_${kind}`,'tent'])),
         chiminea: 'firepit',
         forest_tree_pine: 'forest_tree', forest_tree_oak: 'forest_tree',
         forest_tree_birch: 'forest_tree', forest_tree_random: 'forest_tree',
@@ -1701,7 +1723,8 @@ import {buildShrub} from './src/models/shrub.js';
                 applyCam();
                 break;
             }
-            case 'crowd_lineup': {
+            case 'crowd_lineup':
+            case 'crowd_hair': {
                 const lineupSmiles = new Smiles();
                 scene.add(lineupSmiles.group);
                 const fakeZerble = {
@@ -1712,18 +1735,21 @@ import {buildShrub} from './src/models/shrub.js';
                 scene.add(lineup.group);
                 let seed = 0x4a17c2;
                 const next = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
-                for (let i = 0; i < 28; i++) {
-                    const col = i % 14, row = Math.floor(i / 14);
-                    const pos = new THREE.Vector3((col - 6.5) * 1.35, 0, row * 2.4);
-                    const npc = lineup.spawn({pos, chunkKey: 'appearance-lineup', rng: next, allowPhotographer: false});
-                    npc.yaw = Math.PI;
+                const hairDemo = name === 'crowd_hair';
+                const columns = hairDemo ? 6 : 14;
+                for (let i = 0; i < (hairDemo ? 12 : 28); i++) {
+                    const col = i % columns, row = Math.floor(i / columns);
+                    const pos = new THREE.Vector3((col - (columns-1)/2) * 1.35, 0, row * 2.4);
+                    const npc = lineup.spawn({pos, chunkKey: 'appearance-lineup', rng: next, allowPhotographer: false,
+                        appearanceOverride:hairDemo?{hairStyle:i%6,outfit:0,hasDrink:false}:null});
+                    npc.yaw = hairDemo && npc.idx>=6 ? 0 : Math.PI;
                     lineup._writeMatrices(npc);
                 }
                 lineup.update(0, fakeZerble, null);
                 // The first zero-delta update establishes compact instance
                 // draw ranges; restore a deterministic, camera-facing lineup.
                 for (const npc of lineup.npcs) {
-                    npc.yaw = Math.PI;
+                    npc.yaw = hairDemo && npc.idx>=6 ? 0 : Math.PI;
                     lineup._writeMatrices(npc);
                 }
                 entityRoot = lineup.group;
@@ -1745,8 +1771,8 @@ import {buildShrub} from './src/models/shrub.js';
                 cheerButton.addEventListener('click', () => lineup.cheerNear(0, 0));
                 info.after(cheerButton);
                 lineup._sandboxAppearanceButton = cheerButton;
-                cam.target.set(0, 1.1, 1.0);
-                cam.dist = 18;
+                cam.target.set(hairDemo ? -1.1 : 0, 1.1, 1.0);
+                cam.dist = hairDemo ? 11 : 18;
                 applyCam();
                 break;
             }
@@ -2323,17 +2349,39 @@ import {buildShrub} from './src/models/shrub.js';
             }
 
             // ----- Camping -----
-            case 'camp_tent': {
-                const t = buildCampTent(Math.random);
+            case 'camp_tent':
+            case 'camp_tent_ridge':
+            case 'camp_tent_dome':
+            case 'camp_tent_octagon':
+            case 'camp_tent_cabin':
+            case 'camp_tent_multiroom': {
+                const family = name === 'camp_tent' ? 'ridge' : name.replace('camp_tent_', '');
+                const rng = mulberry32(Number(new URLSearchParams(location.search).get('seed') || 1977));
+                const t = buildCampTent(rng, {family});
                 scene.add(t.group);
                 entityRoot = t.group;
                 cam.target.set(0, 1.0, 0);
-                cam.dist = 5;
+                cam.dist = Math.max(5, (t.footprint || 1.8) * 3.5);
+                info.textContent = `Tent: ${t.family || family}`;
                 applyCam();
                 break;
             }
-            case 'camp_chair': {
-                const c = buildCampChair(Math.random);
+            case 'camp_chair_lineup': {
+                const root = new THREE.Group(); scene.add(root); entityRoot=root;
+                ['sling','director','low','loveseat'].forEach((style,i)=>{
+                    const chair=buildCampChair(mulberry32(1977+i),{style});
+                    chair.group.position.x=(i-1.5)*1.7;root.add(chair.group);
+                });
+                cam.target.set(-.7,.55,0);cam.dist=9;cam.yaw=.1;cam.pitch=.18;applyCam();
+                break;
+            }
+            case 'camp_chair':
+            case 'camp_chair_sling':
+            case 'camp_chair_director':
+            case 'camp_chair_low':
+            case 'camp_chair_loveseat': {
+                const style=name==='camp_chair'?'sling':name.replace('camp_chair_','');
+                const c = buildCampChair(mulberry32(1977),{style});
                 scene.add(c.group);
                 entityRoot = c.group;
                 cam.target.set(0, 0.5, 0);
@@ -2405,20 +2453,59 @@ import {buildShrub} from './src/models/shrub.js';
                 applyCam();
                 break;
             }
+            case 'campsite_cluster':
+            case 'campsite_cluster_roomy': {
+                const seed = Number(new URLSearchParams(location.search).get('seed') || 1977);
+                const preview = buildCampClusterPreview(scene, {seed, target:16,density:name==='campsite_cluster_roomy'?'roomy':'compact'});
+                groundGroup.scale.setScalar(3);
+                entityRoot = preview.group;
+                entityRoot.userData.cleanup = () => preview.dispose();
+                updateFn = () => {
+                    for (const camp of preview.camps) updateCampsiteProps(performance.now()/1000,tod.nightness,camp.animatables,tod.t);
+                };
+                info.textContent = `${preview.camps.length} connected camps · shared hearth and kitchen`;
+                cam.target.set(-9,1.5,0);cam.dist=name==='campsite_cluster_roomy'?100:88;cam.pitch=.5;applyCam();
+                break;
+            }
             case 'campsite_small':
             case 'campsite_medium':
-            case 'campsite_large': {
-                const size = name.split('_')[1];
-                const cs = buildCampsite(Math.random, size);
+            case 'campsite_large':
+            case 'campsite_light-travelers':
+            case 'campsite_family-base':
+            case 'campsite_social-lounge':
+            case 'campsite_canvas-lodge':
+            case 'campsite_activity': {
+                const archetype = ['light-travelers','family-base','social-lounge','canvas-lodge'].find(kind=>name===`campsite_${kind}`);
+                const size = archetype ? (archetype==='light-travelers'?'small':'large') : name === 'campsite_activity' ? 'large' : name.split('_')[1];
+                const rng = mulberry32(Number(new URLSearchParams(location.search).get('seed') || 1977));
+                const cs = buildCampsite(rng, size, archetype ? {archetype} : name==='campsite_activity' ? {archetype:'social-lounge'} : {});
                 scene.add(cs.group);
                 entityRoot = cs.group;
+                let people = null;
+                const ids = registerCampsite(registry, cs, {chunkKey: 'camp-preview'});
+                const fakeCart = {position: new THREE.Vector3(0,0,70), speed:0,
+                    forwardWorld:new THREE.Vector3(0,0,1), seatSlots:[]};
+                if (name === 'campsite_activity') {
+                    people = new Crowd({spawn(){},spawnLost(){}});
+                    people.campTimeOfDay = tod;
+                    scene.add(people.group);
+                    for (let i=0; i<10; i++) people.spawn({pos:new THREE.Vector3(
+                        (rng()-.5)*10,0,10+rng()*3),chunkKey:'camp-preview',rng,allowPhotographer:false});
+                }
+                cs.group.userData.cleanup = () => {
+                    if (people) for (const npc of [...people.npcs]) people.removeNpc(npc);
+                    for (const id of ids) registry.remove(id);
+                };
                 updateFn = (dt) => {
-                    updateCampsiteProps(performance.now() / 1000, tod.nightness, cs.animatables);
+                    registry.rebuildSpatialIndex();
+                    people?.update(dt, fakeCart, null);
+                    updateCampsiteProps(performance.now() / 1000, tod.nightness, cs.animatables, tod.t);
+                    if (people) info.textContent = `${people.npcs.filter(n=>n.state==='camp_seated').length} seated · ${people.npcs.filter(n=>n.state==='camp_walking').length} approaching · ${people.npcs.filter(n=>n.state==='camp_sleeping').length} sleeping`;
                 };
                 // Frame the whole site — radius scales with size.
                 const r = {small: 5, medium: 7, large: 9}[size];
-                cam.target.set(0, 1.2, 0);
-                cam.dist = r * 1.7;
+                cam.target.set(-r * 0.65, 1.2, 0);
+                cam.dist = r * 4.8;
                 applyCam();
                 break;
             }
@@ -2430,7 +2517,7 @@ import {buildShrub} from './src/models/shrub.js';
                 scene.add(vc.group);
                 entityRoot = vc.group;
                 updateFn = (dt) => {
-                    updateCampsiteProps(performance.now() / 1000, tod.nightness, vc.animatables);
+                    updateCampsiteProps(performance.now() / 1000, tod.nightness, vc.animatables, tod.t);
                 };
                 cam.target.set(0, 1.2, 0);
                 cam.dist = 9;

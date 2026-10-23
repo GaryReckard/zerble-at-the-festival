@@ -2,6 +2,13 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-23
+
+### Added
+- **Campsites have different households and a daily rhythm.** Light travelers, family bases, canvas lodges and social lounges mix ridge, dome, octagonal, cabin and connected-room tents, with varied fabric, rainflies, flexible pole details and accurate shelter bounds. Neighbors share a host fire and kitchen, while compact sleeping pitches merge their empty frontages into irregular common spaces; occasional roomier neighborhoods retain more separation. Kitchens, coolers, privacy borders and rear-canopy tapestries leave entrances open. Whole reserved circles can overlap within a household, while individual props, tent doors and chair approaches must remain clear.
+- **Campers use their furniture and shelters.** Nearby NPCs reserve sling, director, low lounge and double loveseat seats for daytime rests and evening gatherings, then walk to tent doors at staggered bedtimes and disappear inside until morning. Obstructed exits wait for clearance, sleeping actors and their accessories hide, and interruptions/unloading release claims. Fires start after dusk and die down late at night; table and hanging lanterns, supported canopy twinkles, and softly glowing tent fabric with moving silhouettes bring camps to life before bedtime.
+- **The crowd has more hair variety.** Six instanced silhouettes include cropped hair, modeled curls, shoulder-length hair, ponytails, buns and twin braids, alongside fifteen natural and festival hair colors. Dedicated front/back hair, tent-family, chair-style, mixed-neighborhood and real-NPC daily-routine sandbox previews make the additions inspectable. [Checks, captures and limits](verification/campsites/README.md).
+
 ## 2026-10-22
 
 ### Added

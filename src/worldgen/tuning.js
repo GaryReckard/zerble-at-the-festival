@@ -200,7 +200,7 @@ export const FESTIVAL_TUNING = {
   KIND_FOOTPRINT: {
     main_stage: 11, side_stage: 8, tent_stage: 13, arch: 6, food_court: 16,
     healing_arts: 14, vendor_row: 12, bubble_vendor: 3, drum_circle: 6, porta_bank: 3, welfare_post: 3.6,
-    camp_village: 32,
+    camp_village: 60,
   },
 
   // ── Food-court ring (builder buildFoodCourtAt, chunks.js:1303) ──
@@ -389,7 +389,7 @@ export function clusterExtent(kind, scale = 1) {
       return Math.hypot(halfLen, lateral);
     }
     case 'camp_village':
-      return T.CAMP_RADIUS + T.CAMP_MIN_SPACING;
+      return T.KIND_FOOTPRINT.camp_village;
     case 'main_stage': case 'side_stage': case 'tent_stage':
       // deck + dancefloor clearing scales with the stage
       return (T.KIND_FOOTPRINT[kind] || 11) + T.DANCEFLOOR_DEPTH_BASE * scale;

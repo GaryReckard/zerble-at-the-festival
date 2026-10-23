@@ -1190,12 +1190,12 @@ function tickBody(dt) {
     for (let i = 0; i < forestAnimatables.length; i++) {
       const e = forestAnimatables[i];
       if (_farFromPlayer(e.centerX, e.centerZ)) continue;
-      updateCampsiteProps(nowS, nightness, e.animatables);
+      updateCampsiteProps(nowS, nightness, e.animatables, tod?.t);
     }
     for (let i = 0; i < lakeAnimatables.length; i++) {
       const e = lakeAnimatables[i];
       if (_farFromPlayer(e.centerX, e.centerZ)) continue;
-      updateCampsiteProps(nowS, nightness, e.animatables);
+      updateCampsiteProps(nowS, nightness, e.animatables, tod?.t);
     }
     // LEAF drum-circle fire pulse + PointLight flicker + tribal figures
     // (drummers bobbing, dancers orbiting, firekeeper poking the fire).
@@ -1457,7 +1457,7 @@ function tickBody(dt) {
       for (let i = 0; i < frisbees.colliders.length; i++) _collScratch.push(frisbees.colliders[i]);
       const broadphaseR2 = 36; // 6m broadphase
       for (const n of crowd.npcs) {
-        if (n.state === 'riding' || n.state === 'boarding' || n.state === 'disembarking') continue;
+        if (n.state === 'riding' || n.state === 'boarding' || n.state === 'disembarking' || n.state === 'camp_sleeping' || n.festivalVisit?.hidden) continue;
         const dx = n.pos.x - zerble.position.x;
         const dz = n.pos.z - zerble.position.z;
         if (dx * dx + dz * dz > broadphaseR2) continue;
@@ -1839,6 +1839,17 @@ function toastForKind(kind) {
     case 'brass': return 'You blocked the brass band. Sorry, tuba.';
     case 'truck': return "Don't hit the food trucks!";
     case 'tent': return 'You knocked over a craft tent!';
+    case 'camp_tapestry': return 'Mind the camp privacy screens!';
+    case 'camp_tent': return 'Give the sleeping tents some room!';
+    case 'camp_loveseat':
+    case 'camp_chair': return 'Mind the camp chairs!';
+    case 'campfire': return 'Careful around the campfire!';
+    case 'camp_torch':
+    case 'camp_post':
+    case 'canopy_pole': return 'Mind the canopy poles!';
+    case 'camp_kitchen':
+    case 'camp_table': return 'Easy around the camp kitchen!';
+    case 'camp_cooler': return 'Watch the cooler!';
     case 'kid': return 'Oof — watch the kids!';
     case 'wook': return 'You spooked a wook.';
     case 'person': return 'Watch where you\'re going!';

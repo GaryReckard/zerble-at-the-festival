@@ -1,3 +1,5 @@
+import { planCampNeighborhood } from './campPlanning.js';
+import { registerCampsite, canPlaceCampsite } from './campRegistry.js';
 // Procedural festival, generated in chunks. Each chunk picks a theme based on its
 // (cx, cz) seed and lays out props + spawns NPCs accordingly. Chunks are generated
 // lazily as Zerble explores; for simplicity they stay loaded once created.
@@ -1333,11 +1335,9 @@ function buildWorldgenKind(ctx, d) {
   const realRng = mulberry32((d.clusterSeed >>> 0) || 0x1A2B3C);
   let _draws = 0;
   const cctx = { ...ctx, rng: () => { _draws++; return realRng(); } };
-  // C1-b phase audit: every case below except camp_village registers at least
-  // one collider, directly or through a helper. Those nine full builders stay in
-  // the synchronous structure phase until they are explicitly split at a safe
-  // internal boundary. camp_village is wholly collider-free and may defer as one
-  // unit. drum_circle's access path alone is collider-free, but its circle is not.
+  // Every cluster below registers colliders, including the campsite furniture.
+  // Keep these builders synchronous until a split preserves collider truth;
+  // drum_circle's access path alone is cosmetic, but its circle is solid.
   switch (d.kind) {
     case 'main_stage':    buildStage(cctx, d.x, d.z, true, d.yaw); break;
     case 'side_stage':    buildStage(cctx, d.x, d.z, false, d.yaw); break;
@@ -1641,14 +1641,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
           if (camp.animatables.length) {
             forestAnimatables.push({ chunkKey: ctx.key, animatables: camp.animatables });
           }
-          registry.add({
-            kind: 'campsite',
-            position: new THREE.Vector3(cw.x, 0, cw.z),
-            footprint: camp.footprint,
-            collider: { radius: 1.6, damage: 3 },
-            attractor: { radius: 4, weight: 0.5 },
-            chunkKey: ctx.key,
-          });
+          registerCampsite(registry, camp, { attractor: { radius: 4, weight: 0.5 }, chunkKey: ctx.key });
           hasCamp = true;
         }
       }
@@ -1799,33 +1792,50 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
 
 // A packed camp village centered at (x,z) — the "back of the festival" residential
 // cluster. Ports the legacy buildCampVillage packing engine (12-20 sites, 50/35/15
-// small/medium/large, 5.5 m spacing, 30 m envelope) but anchored to a worldgen
+// small/medium/large) but anchored to a worldgen
 // district cell instead of a chunk CORNER. The chunk-corner anchor was a chunk-grid
-// artifact — the packing rule was always good (CHANGELOG.md:611-613, the three failed
-// framings). Sites spill into neighbour chunks but stay parented to this chunk's
-// group, unloading as a unit.
+// artifact. Full scaled campsite envelopes now stay inside the planned village
+// circle, and all sites remain parented to this chunk for unloading as a unit.
 function buildCampVillageAt(ctx, x, z, tentTarget) {
-  // D2: target tent count comes from the plan (∝ local crowd density); falls back
-  // to the legacy 12-20 if a caller doesn't supply one (keeps the legacy path intact).
   const T = FESTIVAL_TUNING;
   const target = tentTarget != null ? tentTarget : T.CAMP_TARGET_BASE + Math.floor(ctx.rng() * T.CAMP_TARGET_SPAN);
-  const placed = [];
-  const MIN_SPACING = T.CAMP_MIN_SPACING, RADIUS = T.CAMP_RADIUS;
-  let attempts = 0;
-  while (placed.length < target && attempts < target * 16) {
-    attempts++;
-    const px = x + (ctx.rng() - 0.5) * 2 * RADIUS, pz = z + (ctx.rng() - 0.5) * 2 * RADIUS;
-    if (isPointInLake(px, pz)) continue;
-    if (nearestRoad(px, pz).dist < ROAD_RIBBON_WIDTH / 2 + 4) continue;   // footprint-aware: camps beside roads, never ON them (Gary 2026-06-14, strengthened 06-16 — onRoad corridor had an edge case)
-    if (registry.closestBuilding(new THREE.Vector3(px, 0, pz), T.CAMP_GUARD_RADIUS, CLUSTER_GUARD_SKIP)) continue;
-    let tooClose = false;
-    for (const p of placed) { const dx = p.x - px, dz = p.z - pz; if (dx * dx + dz * dz < MIN_SPACING * MIN_SPACING) { tooClose = true; break; } }
-    if (tooClose) continue;
-    const r = ctx.rng();
-    const size = r < T.CAMP_SIZE_SMALL_BELOW ? 'small' : (r < T.CAMP_SIZE_MEDIUM_BELOW ? 'medium' : 'large');
-    placeSingleCampsite(ctx, px, pz, size);
-    placed.push({ x: px, z: pz });
+  return buildCampNeighborhoodAt(ctx, x, z, target, T.KIND_FOOTPRINT.camp_village);
+}
+
+function buildCampNeighborhoodAt(ctx, x, z, target, envelope = 60, density = null) {
+  const phase = ctx.rng() * Math.PI * 2, seed = Math.floor(ctx.rng() * 0x100000000);
+  const pitches = planCampNeighborhood(target, { envelope, phase, seed, density:density || (seed%5===0?'roomy':'compact') });
+  const camps = [];
+  for (const pitch of pitches) {
+    let camp = null;
+    for(const candidate of pitch.alternatives || [pitch]) {
+      camp = placeSingleCampsite(ctx, x + candidate.x, z + candidate.z, pitch.size, candidate.facing,
+        { plan: pitch.recipe, footprint: pitch.footprint, role: pitch.role, archetype: pitch.archetype, seed,
+          campNeighborhood:`${ctx.key}:${x},${z}` });
+      if(camp)break;
+    }
+    if (camp) camps.push(camp);
+    else if(pitch.role==='host')break;
   }
+  return camps;
+}
+
+// The sandbox exercises the same planner, building path and registry lifecycle
+// as streamed camp villages; callers release this owner via dispose().
+export function buildCampClusterPreview(scene, options = {}) {
+  const seed = options.seed ?? 1234;
+  const key = `camp-preview:${seed}`;
+  const group = new THREE.Group();
+  scene.add(group);
+  const ctx = { key, group, rng: mulberry32(seed), cxWorld: 0, czWorld: 0, campPreview: true };
+  const camps = buildCampNeighborhoodAt(ctx, options.x || 0, options.z || 0, options.target || 14, options.envelope || 60, options.density);
+  return { group, camps, key, dispose() {
+    registry.removeChunk(key);
+    for (let i = forestAnimatables.length - 1; i >= 0; i--) if (forestAnimatables[i].chunkKey === key) forestAnimatables.splice(i, 1);
+    scene.remove(group);
+    group.traverse(obj => { if (obj.geometry && !obj.geometry.userData.shared) obj.geometry.dispose();
+      for (const mat of obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : []) if (!mat.userData.shared) mat.dispose(); });
+  } };
 }
 
 // ---------- Tree scattering ----------
@@ -2244,23 +2254,7 @@ function scatterWorldgenCampsites(ctx, qpc) {
     ccx = x; ccz = z; ok = true; break;
   }
   if (!ok) return;
-  // A tight clump of 3-5 mixed-size sites ("a crew camped out in the woods").
-  const n = 3 + Math.floor(ctx.rng() * 3);
-  const placed = [];
-  for (let i = 0; i < n; i++) {
-    const r = 4 + ctx.rng() * 5, a = ctx.rng() * Math.PI * 2;
-    const x = ccx + Math.cos(a) * r, z = ccz + Math.sin(a) * r;
-    // queryPoint.noBuild covers water/river; the authoritative nearestRoad check
-    // (footprint-aware) keeps the tent body off the visible road ribbon — the thin
-    // onRoad corridor test has an edge case that let tents onto roads (Gary 06-16).
-    if (queryPoint(x, z).noBuild || nearestRoad(x, z).dist < ROAD_RIBBON_WIDTH / 2 + 4) continue;
-    if (placed.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < 36)) continue;   // 6m between tents
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 3)) continue;
-    const sr = ctx.rng();
-    const size = sr < 0.5 ? 'small' : (sr < 0.85 ? 'medium' : 'large');
-    placeSingleCampsite(ctx, x, z, size);
-    placed.push({ x, z });
-  }
+  buildCampNeighborhoodAt(ctx, ccx, ccz, 5 + Math.floor(ctx.rng() * 4), 48);
 }
 
 // 4B.7 soft-buffer dressing: a sparse hedge of shrubs along each soft_buffer seam
@@ -2644,9 +2638,9 @@ function placeScatteredCampsites(ctx, count) {
 }
 
 // Place a tight cluster of 3-6 campsites around a single picked centre.
-// Sites are arranged on a small ring (radius 6-9m) with random angle so
-// they read as a cohesive group rather than a strict circle. Min 5m
-// between sites to keep props from overlapping.
+// Sites face a shared clearing with radial and angular variation. Each final
+// placement reserves its full scaled envelope plus a walking gap, rather than
+// trusting center spacing that ignores the canopy and tent spread.
 function placeCampsiteClump(ctx) {
   // Pick a clump centre off the path strip + clear of buildings.
   let centre = null;
@@ -2660,52 +2654,39 @@ function placeCampsiteClump(ctx) {
   }
   if (!centre) return;
 
-  const siteCount = 3 + Math.floor(ctx.rng() * 4);   // 3-6 sites
-  const placed = [];
-  const MIN_SPACING = 5 * CAMPSITE_SCALE;   // scales with the campsite size so bigger sites don't overlap
-  for (let i = 0; i < siteCount; i++) {
-    let chosen = null;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const a = ctx.rng() * Math.PI * 2;
-      const r = (4 + ctx.rng() * 6) * CAMPSITE_SCALE;   // spread the clump with the campsite size
-      const x = centre.x + Math.cos(a) * r;
-      const z = centre.z + Math.sin(a) * r;
-      // Spacing check vs prior placements
-      let tooClose = false;
-      for (let j = 0; j < placed.length; j++) {
-        const dx = placed[j].x - x, dz = placed[j].z - z;
-        if (dx * dx + dz * dz < MIN_SPACING * MIN_SPACING) { tooClose = true; break; }
-      }
-      if (tooClose) continue;
-      if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 3)) continue;
-      chosen = { x, z };
-      break;
-    }
-    if (!chosen) continue;
-    placeSingleCampsite(ctx, chosen.x, chosen.z);
-    placed.push(chosen);
-  }
+  buildCampNeighborhoodAt(ctx, centre.x, centre.z, 5 + Math.floor(ctx.rng() * 4), 48);
 }
 
-function placeSingleCampsite(ctx, x, z, size = 'small') {
+function placeSingleCampsite(ctx, x, z, size = 'small', facing = null, options = {}) {
   // A 4 m center guard misses the 12–20 m scaled vignette, including its tents.
-  if (USE_WORLDGEN_V2 && nearestRoad(x, z).dist < ROAD_RIBBON_WIDTH / 2 + campsiteFootprint(size)) return;
-  const camp = buildCampsite(ctx.rng, size);
+  const footprint = options.footprint ?? options.plan?.footprint ?? campsiteFootprint(size);
+  if (!ctx.campPreview && USE_WORLDGEN_V2 && nearestRoad(x, z).dist < ROAD_RIBBON_WIDTH / 2 + footprint) return;
+  if (!ctx.campPreview && isPointInLake(x, z)) return null;
+  for (let i = 0; i < 16; i++) {
+    const angle = i * Math.PI / 8;
+    if (!ctx.campPreview && isPointInLake(x + Math.cos(angle) * footprint, z + Math.sin(angle) * footprint)) return null;
+  }
+  if (!options.campNeighborhood && registry.closestBuilding(new THREE.Vector3(x, 0, z), footprint + 1.5)) return null;
+  const camp = buildCampsite(ctx.rng, size, options);
   camp.group.position.set(x, 0, z);
-  camp.group.rotation.y = ctx.rng() * Math.PI * 2;
+  const randomFacing = ctx.rng() * Math.PI * 2;
+  camp.group.rotation.y = facing == null ? randomFacing : facing - (camp.entranceYaw || 0);
+  if(options.campNeighborhood && !canPlaceCampsite(registry,camp,options.campNeighborhood)) {
+    camp.group.traverse(obj=>{
+      if(obj.isInstancedMesh)obj.dispose();
+      if(obj.geometry && !obj.geometry.userData.shared)obj.geometry.dispose();
+      for(const material of obj.material?(Array.isArray(obj.material)?obj.material:[obj.material]):[])if(!material.userData.shared)material.dispose();
+    });
+    return null;
+  }
   ctx.group.add(camp.group);
 
   if (camp.animatables && camp.animatables.length > 0) {
     forestAnimatables.push({ chunkKey: ctx.key, animatables: camp.animatables });
   }
 
-  registry.add({
-    kind: 'campsite',
-    position: new THREE.Vector3(x, 0, z),
-    footprint: camp.footprint,
-    attractor: { radius: 4, weight: 0.5 },
-    chunkKey: ctx.key,
-  });
+  registerCampsite(registry, camp, { attractor: { radius: 4, weight: 0.5 }, chunkKey: ctx.key, campNeighborhood:options.campNeighborhood });
+  return camp;
 }
 
 // Camp village theme — packs 12–20 campsites of varying sizes into a green
@@ -2758,8 +2739,7 @@ function buildCampVillage(ctx) {
     // Size mix: 50% small, 35% medium, 15% large.
     const r = ctx.rng();
     const size = r < 0.50 ? 'small' : (r < 0.85 ? 'medium' : 'large');
-    placeSingleCampsite(ctx, x, z, size);
-    placed.push({ x, z });
+    if (placeSingleCampsite(ctx, x, z, size, Math.atan2(cellX - x, cellZ - z))) placed.push({ x, z });
   }
 }
 

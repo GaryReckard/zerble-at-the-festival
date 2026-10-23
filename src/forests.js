@@ -1,3 +1,5 @@
+import { planCampNeighborhood } from './campPlanning.js';
+import { registerCampsite, canPlaceCampsite } from './campRegistry.js';
 // Forests — dense clumps of taller trees that Zerble cannot drive through.
 //
 // Forests are pinned to the chunk grid (NOT a parallel macrocell system like
@@ -22,7 +24,7 @@ import { registry } from './registry.js';
 import { hash2, worldHash, mulberry32 } from './rng.js';
 import { CHUNK_SIZE, buildCurvedPath } from './chunks.js';
 import { describeForestTree, buildForestInstanced, worldPerches, worldCrown } from './models/tree.js';
-import { buildCampsite } from './models/campsite.js';
+import { buildCampsite, campsiteFootprint } from './models/campsite.js';
 import { buildLeafDrumCircle } from './models/leafDrumCircle.js';
 import {
   buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
@@ -194,10 +196,9 @@ function computeInteriorCampsitePositions(forest) {
   // 2026-06-16: forests want "clusters of campsites"). Same per-area clump count
   // (~9-25 sites on a 100m body), just spatially bunched.
   const drumBuffer = forest.interiorContent === 'drum_circle' ? 30 : 0;
-  const centerBuffer = forest.interiorContent === 'campsite' ? 14 : 0;
-  const maxR = forest.bodyRadius - 6;
+  const centerBuffer = forest.interiorContent === 'campsite' ? campsiteFootprint('large') + campsiteFootprint('medium') + 2 : 0;
+  const maxR = forest.bodyRadius - campsiteFootprint('medium') - 2;
   const CLUSTER_SPACING = 30;   // keep clumps distinct from each other
-  const SITE_SPACING = 6;       // tents within one clump (props don't overlap)
   const nClusters = 4 + Math.floor(rng() * 3);   // 4-6 clumps per forest
   const centres = [];
   const placed = [];
@@ -220,18 +221,21 @@ function computeInteriorCampsitePositions(forest) {
     if (!centre) continue;
     centres.push(centre);
 
-    // A tight ring of 3-5 tents around the clump centre.
-    const perCluster = 3 + Math.floor(rng() * 3);
-    for (let i = 0; i < perCluster; i++) {
-      const rr = 4 + rng() * 5;            // 4-9m off the clump centre
-      const aa = rng() * Math.PI * 2;
-      const x = centre.x + Math.cos(aa) * rr;
-      const z = centre.z + Math.sin(aa) * rr;
+    const pitches = planCampNeighborhood(5 + Math.floor(rng() * 3), {
+      envelope: 48, phase: rng() * Math.PI * 2, seed: forest.seed + c * 977, density:(forest.seed+c)%5===0?'roomy':'compact',
+    });
+    for (const pitch of pitches) {
+      const x = centre.x + pitch.x, z = centre.z + pitch.z;
       const localR = Math.hypot(x - forest.centerX, z - forest.centerZ);
-      if (localR > maxR || localR < drumBuffer || localR < centerBuffer) continue;
-      if (pointInPathCorridor(x, z, forest)) continue;
-      if (placed.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < SITE_SPACING * SITE_SPACING)) continue;
-      placed.push({ x, z });
+      if (localR + pitch.footprint > forest.bodyRadius - 2 || localR - pitch.footprint < Math.max(drumBuffer, centerBuffer)) continue;
+      let blocksPath = pointInPathCorridor(x, z, forest);
+      for (let k = 0; !blocksPath && k < 12; k++) {
+        const a = k * Math.PI / 6;
+        blocksPath = pointInPathCorridor(x + Math.cos(a) * pitch.footprint, z + Math.sin(a) * pitch.footprint, forest);
+      }
+      if (blocksPath) continue;
+      if (placed.some(p => p.neighborhood!==c && Math.hypot(p.x-x,p.z-z) < p.footprint + pitch.footprint + 1.6)) continue;
+      placed.push({ ...pitch, x, z, neighborhood:c });
     }
   }
   return placed;
@@ -535,13 +539,22 @@ function buildInteriorCampsites(ctx, forest) {
     const siteSeed = mulberry32(hash2(forest.seed * 211 + i * 71, i * 379 + 13));
     // Bias toward 'small' inside the body — trees are tight, big EZ-ups
     // would clip. Occasional 'medium' for variety.
-    const size = siteSeed() < 0.75 ? 'small' : 'medium';
-    const camp = buildCampsite(siteSeed, size);
+    const size = p.size || (siteSeed() < 0.75 ? 'small' : 'medium');
+    const camp = buildCampsite(siteSeed, size, { plan: p.recipe, role: p.role, archetype: p.archetype });
     camp.group.position.set(p.x, 0, p.z);
-    camp.group.rotation.y = siteSeed() * Math.PI * 2;
+    camp.group.rotation.y = p.facing == null ? siteSeed() * Math.PI * 2 : p.facing - (camp.entranceYaw || 0);
+    const neighborhood=`forest:${forest.seed}:${p.neighborhood}`;
+    if(!canPlaceCampsite(registry,camp,neighborhood)) {
+      camp.group.traverse(obj=>{
+        if(obj.isInstancedMesh)obj.dispose();
+        if(obj.geometry&&!obj.geometry.userData.shared)obj.geometry.dispose();
+        for(const material of obj.material?(Array.isArray(obj.material)?obj.material:[obj.material]):[])if(!material.userData.shared)material.dispose();
+      });
+      continue;
+    }
     ctx.group.add(camp.group);
     pushCampsiteAnimatables(ctx, camp);
-    registerCampsiteFootprint(ctx, p.x, p.z, camp.footprint);
+    registerCampsite(registry, camp, { attractor: { radius: 5, weight: 0.6 }, chunkKey: ctx.key, campNeighborhood:neighborhood });
   }
 }
 
@@ -555,10 +568,10 @@ function buildForestCampsite(ctx, forest) {
   const camp = buildCampsite(rng, size);
   camp.group.position.set(forest.centerX, 0, forest.centerZ);
   // Rotate so the firepit faces the path entry direction
-  camp.group.rotation.y = pathDirToAngle(forest.pathDirIdx);
+  camp.group.rotation.y = Math.PI / 2 - pathDirToAngle(forest.pathDirIdx) - (camp.entranceYaw || 0);
   ctx.group.add(camp.group);
   pushCampsiteAnimatables(ctx, camp);
-  registerCampsiteFootprint(ctx, forest.centerX, forest.centerZ, camp.footprint);
+  registerCampsite(registry, camp, { attractor: { radius: 5, weight: 0.6 }, chunkKey: ctx.key });
 
   // The "wide open" zone in the corner chunks of the 3x3 — outside the dense
   // body, inside the block boundary — gets 2-3 additional satellite camps.
@@ -733,7 +746,7 @@ function scatterMeadowCampsites(ctx, forest, rng, opts) {
 
   const placed = [];
   // Each campsite needs ~10m clearance from the next to avoid prop overlap.
-  const MIN_SITE_SPACING = 14;
+  const MIN_SITE_SPACING = campsiteFootprint('medium') * 2 + 2;
 
   for (let i = 0; i < count; i++) {
     let chosen = null;
@@ -781,10 +794,10 @@ function scatterMeadowCampsites(ctx, forest, rng, opts) {
     camp.group.position.set(chosen.x, 0, chosen.z);
     // Face the firepit roughly toward the forest body (so the visual focal
     // point reads as "this camp belongs to the forest").
-    camp.group.rotation.y = chosen.theta + Math.PI;
+    camp.group.rotation.y = Math.PI / 2 - chosen.theta + Math.PI - (camp.entranceYaw || 0);
     ctx.group.add(camp.group);
     pushCampsiteAnimatables(ctx, camp);
-    registerCampsiteFootprint(ctx, chosen.x, chosen.z, camp.footprint);
+    registerCampsite(registry, camp, { attractor: { radius: 5, weight: 0.6 }, chunkKey: ctx.key });
     placed.push(chosen);
   }
 }
@@ -801,15 +814,6 @@ function pushCampsiteAnimatables(ctx, camp) {
   });
 }
 
-function registerCampsiteFootprint(ctx, x, z, footprint) {
-  registry.add({
-    kind: 'campsite',
-    position: new THREE.Vector3(x, 0, z),
-    footprint,
-    attractor: { radius: 5, weight: 0.6 },
-    chunkKey: ctx.key,
-  });
-}
 
 // ---------- Forest trees ----------
 
@@ -887,8 +891,8 @@ function scatterForestTrees(ctx, forest) {
         const cp = forest.interiorCampsitePositions[i];
         const cdx = cp.x - x;
         const cdz = cp.z - z;
-        // 6m radius around each campsite — enough room for an EZ-up + tent
-        if (cdx * cdx + cdz * cdz < 36) { onCampsite = true; break; }
+        // Reserve the scaled campsite envelope and a trunk clearance around it
+        if (cdx * cdx + cdz * cdz < ((cp.footprint || campsiteFootprint('medium')) + 2.5) ** 2) { onCampsite = true; break; }
       }
       if (onCampsite) continue;
     }

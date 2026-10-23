@@ -1,0 +1,55 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { registerCampsite, canPlaceCampsite } from '../src/campRegistry.js';
+class Position {
+  constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}
+  clone(){return new Position(this.x,this.y,this.z);}
+  set(x,y,z){Object.assign(this,{x,y,z});return this;}
+}
+const camp={group:{position:new Position(10,0,20),rotation:{y:Math.PI/2},scale:{x:2,y:2,z:2}},footprint:10,
+ seats:[{x:1,z:2,y:.45,yaw:0}],tents:[{x:-1,z:0,entry:{x:-1,z:3}}],
+ childColliders:[{kind:'tent',x:-1,z:0,radius:1.5},{kind:'camp_post',x:2,z:2,radius:.1}]};
+const entries=[];const registry={add(e){entries.push(e);return entries.length;}};
+assert.deepEqual(registerCampsite(registry,camp,{chunkKey:'4,5'}),[1,2,3]);
+const entry=entries[0];assert.equal(entry.collider,undefined);assert.equal(entry.footprint,10);
+assert.equal(entry.campSeats[0].x,14);assert.equal(entry.campSeats[0].z,18);
+assert.equal(entry.campSeats[0].yaw,Math.PI*1.5);assert.equal(entry.campSeats[0].approachX,15.2);
+assert.equal(entry.campSeats[0].y,.9);assert.equal(entry.campBeds[0].doorX,16);
+assert.equal(entries[1].collider.radius,3);assert.equal(entries[1].collider.damage,1);assert.equal(entries[1].position.z,22);
+assert.ok(entries.every(e=>e.chunkKey==='4,5'));
+entries.length=0;registerCampsite(registry,camp);assert.ok(entries.every(e=>!('chunkKey' in e)),'lake solids survive host chunk removal');
+console.log('PASS campsite transforms, granular collisions, seat/bed metadata, and owner lifetimes');
+
+const loveseat = {};
+camp.seats = [{x:1,z:2,y:.45,yaw:0,group:loveseat},{x:1.8,z:2,y:.45,yaw:0,group:loveseat}];
+camp.childColliders = [{kind:'camp_chair',x:1.4,z:2,radius:.7,group:loveseat}];
+entries.length=0; registerCampsite(registry,camp);
+assert.equal(entries[0].campSeats[0].collider,entries[1]);
+assert.equal(entries[0].campSeats[1].collider,entries[1]);
+entries[0].campSeats[0].occupied=true;
+assert.equal(entries[0].campSeats[1].occupied,false,'loveseat occupants reserve independently');
+console.log('PASS loveseat slots share the furniture collider while retaining independent reservations');
+
+for (const seat of entries[0].campSeats) assert.ok(Math.hypot(seat.approachX-entries[1].position.x,seat.approachZ-entries[1].position.z)>entries[1].collider.radius+.28,'loveseat approach remains outside its wider collision disc');
+
+const candidate={group:{position:new Position(),rotation:{y:0},scale:{x:1,y:1,z:1}},footprint:5,
+ childColliders:[{x:0,z:0,radius:1}],seats:[],tents:[{x:0,z:0,entry:{x:0,z:3}}]};
+const owner={kind:'campsite',position:new Position(2,0,0),footprint:5,campNeighborhood:'shared'};
+let blockers=[];
+const gate={entries:new Map(),byKind:new Map(),footprintsNear(x,z,r,fn){fn(owner);},
+ collidersNear(x,z,r,fn){blockers.forEach(fn);}};
+assert.equal(canPlaceCampsite(gate,candidate,'shared'),true,'empty reservations can overlap within a household');
+assert.equal(canPlaceCampsite(gate,candidate,'another'),false,'separate households retain their reserved grounds');
+blockers=[{position:new Position(),collider:{radius:.2}}];
+assert.equal(canPlaceCampsite(gate,candidate,'shared'),false,'shared ground does not permit overlapping furniture');
+blockers=[{position:new Position(0,0,3),collider:{radius:.2}}];
+assert.equal(canPlaceCampsite(gate,candidate,'shared'),false,'tent door remains accessible');
+blockers=[];owner.campBeds=[{doorX:0,doorZ:.5}];gate.entries.set(9,owner);gate.byKind.set('campsite',new Set([9]));
+assert.equal(canPlaceCampsite(gate,candidate,'shared'),false,'new furniture cannot block an earlier tent door');
+assert.equal(gate.entries.size,1,'rejected candidates cause no partial registration');
+console.log('PASS compact placement rejects furniture/door conflicts and preserves external reservations without mutation');
+
+camp.tents[0].capacity=5;entries.length=0;registerCampsite(registry,camp);
+assert.equal(entries[0].campBeds.length,5,'large shelters use their modeled sleeping capacity');
+entries[0].campBeds[0].occupied=true;
+assert.equal(entries[0].campBeds[1].occupied,false,'sleeping reservations remain independent within one shelter');

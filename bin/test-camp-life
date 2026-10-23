@@ -1,0 +1,66 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+const source = readFileSync(new URL('../src/crowd.js', import.meta.url), 'utf8');
+const methods = source.slice(source.indexOf('  _campExit(npc) {'), source.indexOf('  // ----- Picnic-table seating -----'));
+let t = .6;
+const registry = {entries: new Map(), byKind: new Map(), collidersNear(x,z,r,fn) { for (const e of this.solids || []) fn(e); }};
+const Crowd = vm.runInNewContext(`class CampHarness {${methods}\n_writeMatrices(npc) { npc.renderedState = npc.state; }}; CampHarness`, {
+ registry, getTimeOfDay: () => ({t}), wrapAngle: a => a,
+});
+const crowd = new Crowd();
+const vec = (x=0,z=0) => ({x,z,set(x,y,z) {this.x=x; this.z=z;}});
+const makeNpc = idx => ({idx, pos:vec(), vel:vec(), energy:.8, scale:1, yaw:0, state:'idle', stateTimer:0});
+const chair = {x:2,z:0,y:.5,yaw:1,approachX:1,approachZ:0,occupied:false};
+const bed = {x:4,z:0,doorX:3,doorZ:0,occupied:false};
+const camp = {id:5,campSeats:[chair],campBeds:[bed]};
+registry.entries.set(5,camp); registry.byKind.set('campsite',new Set([5]));
+const tick = (npc, count=1) => {for (let i=0;i<count;i++) {npc.stateTimer-=.05; crowd._tickCamp(.05,npc);}};
+const a = makeNpc(0), b = makeNpc(1);
+tick(a); tick(b);
+assert.equal(a.state,'camp_walking'); assert.equal(b.state,'idle','one chair cannot be claimed twice');
+tick(a,100); assert.equal(a.state,'camp_seated'); assert.equal(a.yaw,1);
+t=.93; tick(a); assert.equal(chair.occupied,false,'bedtime must release the chair');
+tick(a,400); assert.equal(a.state,'camp_sleeping'); assert.equal(bed.occupied,true);
+t=.15; tick(a); assert.equal(a.state,'idle'); assert.equal(a.pos.x,bed.doorX); assert.equal(bed.occupied,false);
+t=.6; a.campCooldown=0; tick(a,100); registry.entries.delete(5); tick(a);
+assert.equal(a.state,'idle','unloaded campsite must cancel interaction'); assert.equal(chair.occupied,false);
+registry.entries.set(5,camp); a.campCooldown=0; tick(a,100); crowd._abandonSeat = npc => crowd._releaseCamp(npc); crowd._abandonSeat(a);
+assert.equal(chair.occupied,false,'forced flee must release claim'); assert.equal(a.pos.x,chair.approachX);
+// A nearby solid must keep walkers outside its radius throughout their approach.
+a.state='idle'; a.pos=vec(); a.campCooldown=0; registry.solids=[{position:{x:.7,z:0},collider:{radius:.3}}];
+for(let i=0;i<30;i++) {tick(a); assert.ok(Math.hypot(a.pos.x-.7,a.pos.z)>=.579,'camp seek crossed a hard collider');}
+assert.ok(source.includes("if (npc.state === 'camp_sleeping' || npc.festivalVisit?.hidden)"),'sleep must hide every render instance');
+assert.ok(source.includes("if (npc.tableSeat) this._releaseTable(npc);\n    this._releaseCamp(npc);"),'forced abandonment must release campsite slots');
+// Two close solids must not let a projection tunnel through their shared gap.
+registry.solids.push({position:{x:.7,z:.9},collider:{radius:.3}});
+for(let i=0;i<30;i++) {tick(a); for(const solid of registry.solids) assert.ok(Math.hypot(a.pos.x-solid.position.x,a.pos.z-solid.position.z)>=.579);}
+t=.25; crowd._releaseCamp(a); registry.solids=[]; a.state='idle'; a.campCooldown=0; a.pos=vec(); tick(a,100);
+assert.equal(a.state,'camp_seated','daytime rest should use camp chairs'); tick(a,500);
+assert.equal(a.state,'idle','daytime rest should end');
+console.log('camp lifecycle: exclusive chair claims, sleep, wake, unload, abandonment and local collision passed');
+
+// Dawn waits when every door-side exit is obstructed, then chooses a safe
+// alternate point when a smaller obstacle covers only the doorway.
+crowd._releaseCamp(a); a.state='idle'; a.campCooldown=0; a.pos=vec(); t=.93; tick(a,200);
+assert.equal(a.state,'camp_sleeping');
+registry.solids=[{position:{x:bed.doorX,z:bed.doorZ},collider:{radius:10}}];
+t=.15; tick(a); assert.equal(a.state,'camp_sleeping','a blocked exit must keep its sleeper safely inside');
+registry.solids[0].collider.radius=.3; tick(a);
+assert.equal(a.state,'idle'); assert.ok(Math.hypot(a.pos.x-bed.doorX,a.pos.z-bed.doorZ)>=.65,'waking NPC emerged inside the door obstacle');
+// Execute the actual visibility helper against a photographer with extra rigs.
+const hideSource = source.slice(source.indexOf('  _hideNpc(npc) {'), source.indexOf('  // Targeted unit vanished mid-visit'));
+const HideHarness = vm.runInNewContext(`class HideHarness {${hideSource}}; HideHarness`);
+const hidden = new HideHarness(), calls=[]; hidden._zeroMat={zero:true};
+for(const name of ['legsMesh','shoesMesh','bodyMesh','armsMesh','headMesh','eyesMesh','mouthMesh','drinkMesh','cameraMesh','flashMesh']) hidden[name]={setMatrixAt:(slot,matrix)=>calls.push([name,slot,matrix])};
+hidden.hairMeshes={cap:{setMatrixAt:(slot,matrix)=>calls.push(['hair',slot,matrix])}};
+const actor={idx:4,hairSlot:2,appearance:{hairStyle:'cap'},drinkSlot:3,isPhotographer:true,photoSlot:1,avatar:{visible:true}};
+hidden._hideNpc(actor);
+assert.equal(calls.length,11); assert.ok(calls.every(call=>call[2]===hidden._zeroMat)); assert.equal(actor.avatar.visible,false);
+const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+assert.ok(/if \(n.state === 'riding'[^\n]*n.state === 'camp_sleeping'[^\n]*continue/.test(main),'hidden sleepers must not become player collision candidates');
+console.log('camp boundaries: obstructed exits, photographer/character rig hiding and player collision exclusions passed');
+
+assert.ok(source.slice(source.indexOf('  applyHonk(zerble)')).includes("if (npc.state === 'camp_sleeping' || npc.festivalVisit?.hidden) continue;"),'honk must not pull a hidden sleeper through tent geometry');
+assert.ok(source.includes("other.state === 'boarding' || other.state === 'camp_sleeping'"),'nearby panic must not pull sleepers through tent geometry');

@@ -116,6 +116,7 @@ export class MeshStandardMaterial {
   dispose() { this.disposeCount++; }
 }
 export class MeshBasicMaterial extends MeshStandardMaterial {}
+export class LineBasicMaterial extends MeshStandardMaterial {}
 export class MeshLambertMaterial extends MeshStandardMaterial {}
 export class MeshPhysicalMaterial extends MeshStandardMaterial {
   constructor(params = {}) { super(params); this.sheenColor = params.sheenColor || new Color(); }

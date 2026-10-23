@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { CAMP_ARCHETYPES, planCampRecipe, planCampNeighborhood } from '../src/campPlanning.js';
+
+const familyRadius = { ridge: 2.084, dome: 1.68, cabin: 2, octagon: 1.89, multiroom: 2.4 };
+for (const size of ['small', 'medium', 'large']) for (const archetype of CAMP_ARCHETYPES) {
+  for (const role of ['standalone', 'host', 'satellite']) {
+    const recipe = planCampRecipe(size, { archetype, role, seed: 123 });
+    assert.deepEqual(recipe, planCampRecipe(size, { archetype, role, seed: 123 }));
+    for (const family of recipe.tentFamilies) {
+      assert(recipe.tentRadius + familyRadius[family] < recipe.footprint / 2, 'shelter silhouettes fit their advertised reservation');
+    }
+    for (let i = 1; i < recipe.tentFamilies.length; i++) {
+      const separation = 2 * recipe.tentRadius * Math.sin(recipe.tentArcStep / 2);
+      assert(separation > familyRadius[recipe.tentFamilies[i - 1]] + familyRadius[recipe.tentFamilies[i]], 'neighboring shelters clear each other');
+    }
+    if (role === 'satellite') {
+      assert.equal(recipe.fire, false);
+      assert.equal(recipe.kitchen, false);
+      assert.equal(recipe.canopyLimit, 0);
+      assert.equal(recipe.screenLimit, 0);
+      assert(recipe.footprint < planCampRecipe(size).footprint);
+    }
+    if (role === 'host') { assert(recipe.fire); assert(recipe.kitchen); assert(recipe.canopyLimit >= 1, 'every host kitchen has a canopy'); }
+  }
+}
+
+let checked = 0;
+for (let seed = 0; seed < 1000; seed++) for (const target of [5, 7, 9, 12, 15, 20]) {
+  const options = { seed, phase: seed * .172, envelope: 60 };
+  const plan = planCampNeighborhood(target, options);
+  assert.deepEqual(plan, planCampNeighborhood(target, options));
+  assert.equal(plan.length, target >= 12 ? 7 : 1 + Math.min(5, Math.max(4, Math.ceil(target / 2))));
+  assert.equal(plan.filter(p => p.recipe.fire).length, 1, 'one shared hearth per neighborhood');
+  assert.equal(plan.filter(p => p.recipe.kitchen).length, 1, 'one shared kitchen per neighborhood');
+  for (let i = 0; i < plan.length; i++) {
+    const pitch = plan[i];
+    assert(Math.hypot(pitch.x, pitch.z) + pitch.footprint <= 60);
+    assert.equal(pitch.sharedEnvelope, true, 'household reservations may share empty common ground');
+    if (pitch.access) {
+      assert(pitch.x * Math.sin(pitch.facing) + pitch.z * Math.cos(pitch.facing) < 0, 'shared front faces the host');
+      assert.equal(pitch.access.width, 2);
+      assert(Math.hypot(pitch.access.to.x, pitch.access.to.z) < plan[0].footprint,
+        'shared approaches lead into host common ground instead of stopping at an empty reservation edge');
+      for (const alternative of pitch.alternatives) {
+        assert(Math.hypot(alternative.x, alternative.z) + pitch.footprint <= 60,
+          'actual-geometry collision retries remain inside the cluster reservation');
+      }
+    }
+  }
+  checked++;
+}
+assert.deepEqual(planCampNeighborhood(12, { envelope: 10 }), [], 'a host never exceeds an undersized reservation');
+const compact = planCampNeighborhood(12, { seed: 1977 });
+assert(compact.slice(1).every(p => Math.hypot(p.x, p.z) < 23), 'reference cluster is physically compact, not a 35-metre ring');
+assert(compact.slice(1).some(p => Math.hypot(p.x, p.z) < p.footprint + compact[0].footprint),
+  'empty circle overlap is required to merge a neighborhood');
+const distances = compact.slice(1).map(p => Math.hypot(p.x, p.z));
+assert(Math.max(...distances) - Math.min(...distances) > 3, 'satellite distances vary substantially');
+const roomy = planCampNeighborhood(12, { seed: 1977, density: 'roomy' });
+assert(roomy.slice(1).every(p => Math.hypot(p.x, p.z) > 24), 'roomy configurations remain explicitly available');
+console.log(`PASS camp recipes and ${checked} neighborhoods: bounded compact reservations, shelter spacing, deterministic fans, shared facilities and collision retry candidates.`);
+console.log('Scope: the pure planner reserves shared empty space; production canPlaceCampsite verifies actual prop and approach clearance before registration.');

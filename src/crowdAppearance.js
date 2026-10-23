@@ -1,7 +1,12 @@
 import { mulberry32, worldHash } from './rng.js';
 
 export const CROWD_SKIN = [0xf0c9a6, 0xdba77f, 0xc98e68, 0xa96f50, 0x80543f, 0x5b3b31];
-export const CROWD_HAIR = [0x201b1a, 0x44302a, 0x70462f, 0xb47b3f, 0xc6b8a1, 0x4c5360];
+export const CROWD_HAIR = [
+  0x171313, 0x30231f, 0x56372b, 0x815138, 0xa76a38, 0xd3a75b,
+  0xe4cf9d, 0xa5432c, 0x8b6651, 0xb9b7af, 0xe3dfd5, 0x51545b,
+  0x854d98, 0x397e83, 0xc45784,
+];
+export const CROWD_HAIR_STYLES = ['cropped', 'curls', 'long', 'ponytail', 'bun', 'braids'];
 export const CROWD_SHIRTS = [
   0xb95d67, 0xc38a50, 0x638978, 0x547c94, 0x8b719c, 0xd0b878,
   0x9c5942, 0x6c8390, 0x9d8069, 0x698365, 0xc16f54, 0x827a9b,
@@ -25,7 +30,7 @@ export function rollCrowdAppearance(rng) {
     shirt: pick(CROWD_SHIRTS),
     accent: pick(CROWD_ACCENTS),
     outfit: Math.floor(rng() * 4),
-    hairStyle: Math.floor(rng() * 3),
+    hairStyle: Math.floor(rng() * CROWD_HAIR_STYLES.length),
     tieDye,
     tieDyeAmount: tieDye ? 0.4 + rng() * 0.6 : 0,
     hasDrink,

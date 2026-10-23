@@ -426,7 +426,7 @@ http://127.0.0.1:8765/sandbox.html?entity=&mute=1<name>
 - Camera presets `1`–`6`, `R` reset, `L` ground toggle.
 - `window.__sandbox` exposes `{ scene, camera, currentEntity, Trip, midi, Sound,
   songStates, fireCheer }`.
-- Composite scenes for context (`puppet_lineup`, `campsite_small/medium/large`,
+- Composite scenes for context (`puppet_lineup`, `campsite_small/medium/large`, `campsite_activity`,
   `leaf_drum_circle_day/night`, `lake_with_beach`, `cheer_demo` — a small NPC
   cluster + a "Fire cheer" button / `__sandbox.fireCheer()` to iterate the
   jump + arms-up cheer pose in isolation).
@@ -596,3 +596,9 @@ use the seeded occasional encounter gate. `__dbg.oneWheels()` returns status,
 `__dbg.summonOneWheel()` requests a safe nearby encounter, and the backtick
 Teleport picker includes **One-wheel rider (active)**. The debug stats show
 its current behavior. [Evidence and lifecycle checks](verification/one-wheel/README.md).
+
+### Campsite daily-routine preview
+
+Open `sandbox.html?entity=campsite_activity&seed=1977&mute=1` for a seeded large camp using the production registry and crowd routines. The status line counts approaching, seated and sleeping people. Noon exercises short chair rests, Midnight exercises evening gathering, the time slider near `0.95` exercises tent entry and fire extinction, and Morning exercises emergence. Each shelter supplies independent sleeping reservations up to its modeled capacity, while visitors without a free spot continue their ordinary routines. Small/medium/large previews use the same seed parameter and frame the complete scaled site.
+
+Additional campsite previews use `entity=campsite_cluster` for compact mixed households, `campsite_cluster_roomy` for the roomier counterpart, `campsite_family-base` / `campsite_canvas-lodge` / `campsite_social-lounge` / `campsite_light-travelers` for archetypes, and `camp_tent_ridge` / `camp_tent_dome` / `camp_tent_octagon` / `camp_tent_cabin` / `camp_tent_multiroom` for shelters. `camp_chair_lineup` compares all four chair styles, while `crowd_hair` shows all six hair silhouettes from the front and back. Add `seed=1977&mute=1` for repeatable muted inspection. The neighborhood previews use the real planner, builders, registry and disposal path, with world roads and lakes intentionally absent from the isolated ground.

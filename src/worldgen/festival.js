@@ -1252,11 +1252,8 @@ export function campVillagesNear(bounds) {
       //
       // Sited just past the camp's edge on the ROAD side (`qp.facing` is already the
       // bearing to the nearest road — no extra road query), doors facing back into the
-      // camp. Tents scatter in a SQUARE of ±CAMP_RADIUS, so "the edge" is the square's
-      // boundary along the chosen bearing, not the radius: a diagonal bearing has to
-      // clear ~42 m, a cardinal one ~30 m. Getting that wrong puts the bank inside the
-      // pitch field, and the camp scatter skips potties in its guard so nothing would
-      // have pushed back.
+      // camp. The builder reserves whole campsite envelopes inside the village's
+      // circular footprint, so welfare sits beyond that same radius on every bearing.
       //
       // RNG-FREE by construction: it consumes no draw from this cell's stream, so no
       // village moves and the descriptor is purely additive to the POI golden.
@@ -1264,7 +1261,7 @@ export function campVillagesNear(bounds) {
       const baseA = qp.facing != null ? qp.facing : 0;
       for (let k = 0; k < 4; k++) {
         const a = baseA + (k % 2 ? -1 : 1) * Math.ceil(k / 2) * (Math.PI / 3);   // 0, ±60, +120
-        const edge = T.CAMP_RADIUS / Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a)));
+        const edge = T.KIND_FOOTPRINT.camp_village;
         const px = quantize(x + Math.cos(a) * (edge + T.VILLAGE_WELFARE_GAP));
         const pz = quantize(z + Math.sin(a) * (edge + T.VILLAGE_WELFARE_GAP));
         if (queryPoint(px, pz).noBuild) continue;

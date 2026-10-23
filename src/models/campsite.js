@@ -18,6 +18,9 @@
 import * as THREE from 'three';
 import { PERF } from '../perf.js';
 import { register as registerContextLight } from '../contextLights.js';
+import { planCampRecipe } from '../campPlanning.js';
+import { buildCampChair } from './campChair.js';
+export { buildCampChair } from './campChair.js';
 
 // ---------- Shared palettes ----------
 
@@ -71,10 +74,31 @@ const FABRIC_NEUTRAL_MAT = matFor(0xe6dfc8);
 //
 // Size: 2.2m wide × 1.7m tall × 2.5m deep — fits two campers.
 
-export function buildCampTent(rng = Math.random) {
+const _TENT_POLE_GEOMETRY=new THREE.CylinderGeometry(1,1,1,6);
+_TENT_POLE_GEOMETRY.userData.shared=true;
+function addTentPoles(group,segments) {
+  const poles=new THREE.InstancedMesh(_TENT_POLE_GEOMETRY,matFor(0xc8c9b7,{roughness:.55}),segments.length);
+  const up=new THREE.Vector3(0,1,0),matrix=new THREE.Matrix4();
+  segments.forEach(([a,b],i)=>{
+    const direction=new THREE.Vector3(b[0]-a[0],b[1]-a[1],b[2]-a[2]),length=direction.length();
+    const rotation=new THREE.Quaternion().setFromUnitVectors(up,direction.normalize());
+    matrix.compose(new THREE.Vector3((a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2),rotation,new THREE.Vector3(.016,length,.016));
+    poles.setMatrixAt(i,matrix);
+  });
+  poles.instanceMatrix.needsUpdate=true;group.add(poles);
+}
+
+export function buildCampTent(rng = Math.random, options = {}) {
   const group = new THREE.Group();
   const color = TENT_COLORS[Math.floor(rng() * TENT_COLORS.length)];
   const fabric = matFor(color);
+  const family=options.family||'ridge';
+  if(family!=='ridge') {
+    // Every shelter consumes the historical colour + vestibule pair, while
+    // family topology and dimensions use only the independent variation value.
+    const vestibule=rng()<.55;
+    return buildTentFamily(group,color,fabric,family,options.variation??.5,vestibule);
+  }
 
   const w = 2.2, h = 1.7, d = 2.5;
 
@@ -115,7 +139,8 @@ export function buildCampTent(rng = Math.random) {
 
   // Optional small vestibule flap — a triangle sticking out from the front
   // gable. Picks 50% of the time per rng.
-  if (rng() < 0.55) {
+  const vestibule=rng()<.55;
+  if (vestibule) {
     const flapVerts = [
       0,  h,  d/2,
       -w/3, 0, d/2 + 0.7,
@@ -130,65 +155,104 @@ export function buildCampTent(rng = Math.random) {
     group.add(flap);
   }
 
-  return { group, color, footprint: 1.8 };
+  addTentPoles(group,[[[-w/2,.02,d/2],[0,h+.01,d/2]],[[0,h+.01,d/2],[w/2,.02,d/2]],[[0,h+.01,d/2],[0,h+.01,-d/2]]]);
+  const doorway=new THREE.Mesh(new THREE.PlaneGeometry(.72,.95),matFor(0x29352d));doorway.position.set(0,.48,d/2+.012);group.add(doorway);
+  const shelter={radius:(vestibule?Math.hypot(w/3,d/2+.7):Math.hypot(w/2,d/2))+.02,doorReach:vestibule?2.6:2.25,width:w,depth:d+(vestibule?.7:0),height:h,capacity:2,
+    doorZ:d/2+.015,bounds:[{x:0,z:0,halfWidth:w/2,halfDepth:d/2},...(vestibule?[{x:0,z:d/2+.35,halfWidth:w/3,halfDepth:.35}]:[])]};
+  return { group,color,family:'ridge',footprint:shelter.radius,shelter,entrance:{x:0,z:shelter.doorReach} };
+}
+
+// Family shells have different load-bearing silhouettes: dome ribs, a high
+// octagonal lodge, upright cabin walls, or a connected side sleeping room.
+function buildTentFamily(group,color,fabric,family,variation,vestibule) {
+  const v=THREE.MathUtils.clamp(variation,0,1), scale=.94+v*.12;
+  const add=(geometry,material,x,y,z,shadow=true)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=shadow;mesh.receiveShadow=true;group.add(mesh);return mesh;};
+  const roofMaterial=matFor([0xd5c09a,0xbeb998,0x8b9c8b][Math.min(2,Math.floor(v*3))]);
+  let radius,width,depth,height,doorZ,capacity,bounds;
+  const poles=[];
+  const shell=(w,d,eave,x=0,z=0)=>{
+    const hx=w/2,hz=d/2,cut=.18*scale;
+    const outline=[[-hx+cut,hz],[hx-cut,hz],[hx,hz-cut],[hx,-hz+cut],[hx-cut,-hz],[-hx+cut,-hz],[-hx,-hz+cut],[-hx,hz-cut]];
+    const vertices=[],indices=[];
+    outline.forEach(([px,pz])=>vertices.push(px,0,pz));outline.forEach(([px,pz])=>vertices.push(px*.93,eave,pz*.93));
+    for(let i=0;i<8;i++){const j=(i+1)%8;indices.push(i,j,i+8,j,j+8,i+8);}
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setIndex(indices);g.computeVertexNormals();
+    return add(g,fabric,x,0,z);
+  };
+
+  const roof=(w,d,base,peak,x=0,z=0)=>{
+    const section=[[-w/2,base],[-w*.28,base+(peak-base)*.72],[0,peak],[w*.28,base+(peak-base)*.72],[w/2,base]];
+    const vertices=[],indices=[];
+    for(const zz of [d/2,-d/2])for(const [xx,yy]of section)vertices.push(xx,yy,zz);
+    for(let i=0;i<4;i++)indices.push(i,i+1,i+5,i+1,i+6,i+5);
+    // Softly faceted end fabric closes the fly without a house-like gable wall.
+    for(let i=1;i<4;i++){indices.push(0,i,i+1,5,5+i+1,5+i);}
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setIndex(indices);g.computeVertexNormals();
+    for(const zz of [d/2,-d/2])for(let i=0;i<4;i++)poles.push([[x+section[i][0],section[i][1]+.015,z+zz],[x+section[i+1][0],section[i+1][1]+.015,z+zz]]);
+    return add(g,roofMaterial,x,0,z);
+  };
+  if(family==='octagon') {
+    radius=1.78*scale;width=depth=radius*2;height=2.35*scale;capacity=5;
+    const wall=add(new THREE.CylinderGeometry(1.7*scale,1.7*scale,1.45*scale,8),fabric,0,.725*scale,0);
+    wall.rotation.y=Math.PI/8;
+    const peak=add(new THREE.ConeGeometry(radius,.9*scale,8),roofMaterial,0,1.9*scale,0);peak.rotation.y=Math.PI/8;
+    doorZ=1.7*scale*Math.cos(Math.PI/8)+.015;
+    add(new THREE.CylinderGeometry(1.7*scale,1.7*scale,.17*scale,8),matFor(0x343e37),0,.085*scale,0,false).rotation.y=Math.PI/8;
+    for(let i=0;i<8;i++) {
+      const a=Math.PI/8+i*Math.PI/4,px=Math.sin(a)*1.69*scale,pz=Math.cos(a)*1.69*scale;
+      poles.push([[px,.04,pz],[px,1.45*scale,pz]],[[px,1.45*scale,pz],[0,2.34*scale,0]]);
+    }
+    bounds=[{x:0,z:0,radius}];
+  } else if(family==='dome') {
+    radius=1.58*scale;width=depth=radius*2;height=1.65*scale;capacity=2;
+    const dome=add(new THREE.SphereGeometry(radius,12,6,0,Math.PI*2,0,Math.PI/2),fabric,0,0,0);
+    dome.scale.y=height/radius;
+    add(new THREE.CylinderGeometry(radius*.996,radius,.14*scale,12),matFor(0x333f38),0,.07*scale,0,false);
+    for(const axis of [0,Math.PI/2])for(let i=0;i<10;i++){
+      const point=t=>[Math.cos(t)*radius*.99*Math.cos(axis),Math.sin(t)*height+.012,Math.cos(t)*radius*.99*Math.sin(axis)];
+      poles.push([point(i*Math.PI/10),point((i+1)*Math.PI/10)]);
+    }
+    // A real vestibule projects from the curved dome instead of recolouring it.
+    roof(1.15*scale,.65*scale,.05,.85*scale,0,radius*.85);
+    doorZ=radius*.94;
+    bounds=[{x:0,z:0,radius}];
+  } else {
+    family=family==='multiroom'?'multiroom':'cabin';
+    width=2.5*scale;depth=2.5*scale;height=2.18*scale;capacity=family==='multiroom'?6:4;
+    shell(width,depth,1.5*scale);
+    add(new THREE.BoxGeometry(width,.16*scale,depth),matFor(0x343c35),0,.08*scale,0,false);
+    roof(width+.08,depth+.12,1.5*scale,height);
+    bounds=[{x:0,z:0,halfWidth:width/2+.04,halfDepth:depth/2+.06}];
+    if(family==='multiroom') {
+      const wx=1.25*scale,ww=1.3*scale,wd=1.9*scale;
+      shell(ww,wd,1.28*scale,wx,-.08*scale);
+      add(new THREE.BoxGeometry(ww,.16*scale,wd),matFor(0x343c35),wx,.08*scale,-.08*scale,false);
+      roof(ww+.08,wd+.1,1.28*scale,1.78*scale,wx,-.08*scale);
+      bounds.push({x:wx,z:-.08*scale,halfWidth:ww/2+.04,halfDepth:wd/2+.05});
+    }
+    radius=Math.max(...bounds.map(b=>Math.hypot(Math.abs(b.x)+b.halfWidth,Math.abs(b.z)+b.halfDepth)));
+    doorZ=depth/2+.015;
+    for(const side of [-1,1])poles.push([[side*width/2,.02,depth/2],[side*width*.465,1.5*scale,depth*.465]],[[side*width/2,.02,-depth/2],[side*width*.465,1.5*scale,-depth*.465]]);
+    // Tall dark mesh windows make these read as standing-height cabin tents.
+    const windowMaterial=matFor(0x39484a);
+    for(const x of [-width*.32,width*.32])add(new THREE.PlaneGeometry(.42*scale,.42*scale),windowMaterial,x,1.04*scale,doorZ+.005,false);
+  }
+  if(family==='dome') {
+    radius=Math.max(radius,Math.hypot(.575*scale,1.58*scale*.85+.325*scale));
+    bounds.push({x:0,z:1.58*scale*.85,halfWidth:.575*scale,halfDepth:.325*scale});
+  }
+  radius+=.02;
+  const minX=Math.min(...bounds.map(b=>(b.x||0)-(b.radius??b.halfWidth))),maxX=Math.max(...bounds.map(b=>(b.x||0)+(b.radius??b.halfWidth)));
+  const minZ=Math.min(...bounds.map(b=>(b.z||0)-(b.radius??b.halfDepth))),maxZ=Math.max(...bounds.map(b=>(b.z||0)+(b.radius??b.halfDepth)));
+  width=maxX-minX;depth=maxZ-minZ;
+  const doorway=add(new THREE.PlaneGeometry(.7*scale,Math.min(1.35,height*.7)),matFor(0x3b3930),0,Math.min(1.35,height*.7)/2,doorZ+.01,false);
+  if(poles.length)addTentPoles(group,poles);
+  const shelter={radius,doorReach:Math.max(radius+.65,doorZ+.65),width,depth,height,capacity,doorZ,bounds};
+  return {group,color,family,variation:v,footprint:radius,shelter,entrance:{x:0,z:shelter.doorReach}};
 }
 
 // ---------- Camp chair (folding) ----------
-//
-// Stylized folding chair: 4 angled legs forming an X-frame, a seat plane,
-// and a back-rest plane. ~0.55m wide, 0.85m tall.
-
-// Camp chair geometries — every chair shares these. With 6+ chairs per
-// campsite × multiple visible campsites that's hundreds of redundant
-// CylinderGeometry/BoxGeometry buffers without sharing.
-const _CHAIR_LEG_GEO  = new THREE.CylinderGeometry(0.025, 0.025, 0.7, 6);
-const _CHAIR_ARM_GEO  = new THREE.CylinderGeometry(0.022, 0.022, 0.4, 6);
-const _CHAIR_SEAT_GEO = new THREE.BoxGeometry(0.55, 0.04, 0.45);
-const _CHAIR_BACK_GEO = new THREE.BoxGeometry(0.55, 0.45, 0.04);
-for (const g of [_CHAIR_LEG_GEO, _CHAIR_ARM_GEO, _CHAIR_SEAT_GEO, _CHAIR_BACK_GEO]) {
-  g.userData.shared = true;
-}
-
-export function buildCampChair(rng = Math.random) {
-  const group = new THREE.Group();
-  const color = CHAIR_COLORS[Math.floor(rng() * CHAIR_COLORS.length)];
-  const fabric = matFor(color);
-  const metal = matFor(0x222626, { roughness: 0.5 });
-
-  // X-frame legs — 4 thin cylinders crossing under the seat
-  for (let i = 0; i < 4; i++) {
-    const leg = new THREE.Mesh(_CHAIR_LEG_GEO, metal);
-    const sx = (i % 2 === 0) ? -1 : 1;
-    const sz = (i < 2) ? -1 : 1;
-    leg.position.set(sx * 0.20, 0.35, sz * 0.18);
-    // Lean each leg toward the opposite top corner — X-frame effect
-    leg.rotation.z = sx * 0.20;
-    leg.rotation.x = sz * 0.18;
-    group.add(leg);
-  }
-
-  // Seat — flat slab
-  const seat = new THREE.Mesh(_CHAIR_SEAT_GEO, fabric);
-  seat.position.set(0, 0.45, 0);
-  // Camp chair seat/back — small detail meshes, skip shadow casting.
-  group.add(seat);
-
-  // Back — flat slab leaning slightly back
-  const back = new THREE.Mesh(_CHAIR_BACK_GEO, fabric);
-  back.position.set(0, 0.7, -0.22);
-  back.rotation.x = -0.12;
-  group.add(back);
-
-  // Arms — two short cylinders flanking the seat
-  for (const sx of [-1, 1]) {
-    const arm = new THREE.Mesh(_CHAIR_ARM_GEO, metal);
-    arm.position.set(sx * 0.28, 0.55, -0.05);
-    arm.rotation.x = Math.PI / 2;
-    group.add(arm);
-  }
-
-  return { group, color, footprint: 0.5 };
-}
+// Shared chair styles live in campChair.js and are re-exported above.
 
 // ---------- Chiminea (or ring firepit) ----------
 //
@@ -291,7 +355,11 @@ export function buildChiminea(rng = Math.random) {
   embers.position.y = 0.10;
   group.add(embers);
 
-  return { group, kind: 'firepit', emberMat, phase, footprint: 0.7 };
+  const fireFlame = new THREE.Mesh(_TORCH_FLAME_GEO, emberMat);
+  fireFlame.position.y=.38;
+  fireFlame.scale.set(1.8,1.4,1.8);
+  group.add(fireFlame);
+  return { group, kind: 'firepit', emberMat, fireFlame, phase, footprint: 0.7 };
 }
 
 // ---------- Tiki torch ----------
@@ -576,17 +644,18 @@ export function buildTapestry(rng = Math.random) {
   cloth.receiveShadow = true;
   group.add(cloth);
 
-  return { group, footprint: 0.6 };
+  return { group, width: w, footprint: 0.6 };
 }
 
 // Tiny procedural tapestry pattern: stripes / bands / diamonds. Drawn to a
 // 64x64 canvas — cheap, doesn't depend on external assets, and gives enough
 // detail that "tapestry" reads clearly at any zoom level.
-const _tapestryCanvas = document.createElement('canvas');
-_tapestryCanvas.width = 64;
-_tapestryCanvas.height = 64;
 function tapestryTexture(c1, c2, rng) {
-  const ctx = _tapestryCanvas.getContext('2d');
+  // CanvasTexture retains its source until upload, so each screen must own
+  // its pixels even when several camps build before the first render.
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 64;
+  const ctx = canvas.getContext('2d');
   const c1Str = '#' + c1.toString(16).padStart(6, '0');
   const c2Str = '#' + c2.toString(16).padStart(6, '0');
   ctx.fillStyle = c1Str;
@@ -614,33 +683,31 @@ function tapestryTexture(c1, c2, rng) {
     // Vertical stripes
     for (let x = 4; x < 64; x += 10) ctx.fillRect(x, 0, 3, 64);
   }
-  const tex = new THREE.CanvasTexture(_tapestryCanvas);
+  const tex = new THREE.CanvasTexture(canvas);
   // SRGB tagging matches the canvas's native color space — without this
   // three.js does an extra linear → sRGB conversion in the shader for
   // colored textures, which is wrong AND slower.
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.needsUpdate = true;
-  // We use a NEW canvas per call — but CanvasTexture clones the source pixels
-  // on first upload, so reusing a singleton canvas is safe. The image data is
-  // re-drawn before each new texture is created.
   return tex;
 }
 
 // ---------- Campsite assembler ----------
 //
-// Lays out a coherent campsite scene anchored at the origin: a central
-// firepit, 2-3 tents in a loose arc, 1-2 EZ-ups with chairs underneath,
-// 2-4 tiki torches at the perimeter, 1-2 tapestries hung between posts.
-// Caller positions/rotates the returned group.
+// Composes a camp recipe around an open frontage: family-specific sleeping
+// shelters behind it, a shared hearth/kitchen for hosts, and smaller sleeping
+// pitches for merged satellites. Privacy screens follow the back boundary or
+// canopy rear; torches stay on the open social side. Caller sets root pose.
 //
 // `size` controls the radius and prop count:
 //   'small'  → 4m radius, 1 tent, 0-1 EZ-up, 2 torches, 1 tapestry, 1-2 chairs
 //   'medium' → 6m radius, 2 tents, 1 EZ-up, 3 torches, 1-2 tapestries, 2-3 chairs
 //   'large'  → 8m radius, 3 tents, 1-2 EZ-ups, 4 torches, 2 tapestries, 3-4 chairs
 //
-// Returns { group, animatables, footprint } — animatables array goes into
-// the world's per-frame updater list so flames flicker / embers pulse.
+// Returns root, animation hooks, fixed recipe footprint, shelter/seat records
+// and granular child colliders. Metadata stays in native root-local units;
+// the registration helper applies root scale and world rotation exactly once.
 
 const SIZE_CONFIG = {
   small:  { radius: 4, tents: 1, ezUps: [0, 1], torches: 2, tapestries: 1, chairs: [1, 2] },
@@ -658,7 +725,7 @@ const SIZE_CONFIG = {
 export const CAMPSITE_SCALE = 2;
 
 export function campsiteFootprint(size) {
-  return ((SIZE_CONFIG[size] || SIZE_CONFIG.medium).radius + 2) * CAMPSITE_SCALE;
+  return ((SIZE_CONFIG[size] || SIZE_CONFIG.medium).radius + 3) * CAMPSITE_SCALE;
 }
 
 // Tiki torches built OUTSIDE a campsite (stage rings, food-court rings, forest
@@ -677,23 +744,143 @@ function pickCount(spec, rng) {
   return a + Math.floor(rng() * (b - a + 1));
 }
 
-export function buildCampsite(rng = Math.random, size = 'medium') {
+// Shared unit geometry keeps kitchen detail allocation bounded; each kitchen
+// batches its folding table, shelves and legs into one instanced draw.
+const _CAMP_BOX = new THREE.BoxGeometry(1, 1, 1);
+_CAMP_BOX.userData.shared = true;
+function addCampKitchen(parent) {
+  const parts = [[0,.77,-.85,2.05,.09,.65],[-.88,.38,-.85,.07,.76,.52],
+    [.88,.38,-.85,.07,.76,.52],[0,.2,-.85,1.85,.06,.5]];
+  const table = new THREE.InstancedMesh(_CAMP_BOX, matFor(0xbcb5a2), parts.length);
+  const m = new THREE.Matrix4();
+  parts.forEach(([x,y,z,w,h,d],i)=>{m.makeScale(w,h,d);m.setPosition(x,y,z);table.setMatrixAt(i,m);});
+  table.instanceMatrix.needsUpdate = true;
+  parent.add(table);
+  // Stove, water jug and cooler remain recognizable at the enlarged camp scale.
+  const gear = new THREE.InstancedMesh(_CAMP_BOX, matFor(0x386b72), 3);
+  [[-.5,.9,-.85,.65,.17,.4],[.65,1.02,-.85,.3,.45,.32],[1.9,.24,-.7,.65,.48,.48]]
+    .forEach(([x,y,z,w,h,d],i)=>{m.makeScale(w,h,d);m.setPosition(x,y,z);gear.setMatrixAt(i,m);});
+  gear.instanceMatrix.needsUpdate = true;
+  parent.add(gear);
+}
+
+const _CAMP_BULB = new THREE.IcosahedronGeometry(.055, 0);
+_CAMP_BULB.userData.shared = true;
+const _CAMP_WIRE_MAT = new THREE.LineBasicMaterial({color:0x343c32});
+_CAMP_WIRE_MAT.userData.shared = true;
+function addCanopyTwinkles(parent, animatables, variant) {
+  const bulbMat = new THREE.MeshStandardMaterial({color:variant>.5?0xffdf9a:0xffbd83,emissive:0xffb75b,emissiveIntensity:0});
+  const bulbs = new THREE.InstancedMesh(_CAMP_BULB,bulbMat,7);
+  const m = new THREE.Matrix4(), points=[];
+  for(let i=0;i<=8;i++) {
+    const x=-1.5+i*3/8,y=2.4-.24*Math.sin(i*Math.PI/8);
+    points.push(new THREE.Vector3(x,y,1.5));
+    if(i>0&&i<8){m.makeTranslation(x,y-.055,1.5);bulbs.setMatrixAt(i-1,m);}
+  }
+  bulbs.instanceMatrix.needsUpdate=true;
+  const wire=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),_CAMP_WIRE_MAT);
+  parent.add(wire,bulbs);
+  animatables.push({kind:'campTwinkle',bulbMat,bulbs});
+}
+
+function addCampLanterns(parent, animatables, hasTable=true) {
+  const material=new THREE.MeshStandardMaterial({color:0xffdda0,emissive:0xffbd65,emissiveIntensity:0});
+  const positions=hasTable?[[0,1.01,-.85],[0,2.05,0]]:[[0,2.05,0]];
+  const bulbs=new THREE.InstancedMesh(_CAMP_BULB,material,positions.length);
+  const frames=new THREE.InstancedMesh(_CAMP_BOX,matFor(0x454941),positions.length*2+1);
+  const m=new THREE.Matrix4();
+  positions.forEach(([x,y,z],i)=>{
+    m.makeScale(2.3,2.8,2.3);m.setPosition(x,y,z);bulbs.setMatrixAt(i,m);
+    for(let j=0;j<2;j++) {m.makeScale(.23,.04,.23);m.setPosition(x,y+(j===0?-.13:.13),z);frames.setMatrixAt(i*2+j,m);}
+  });
+  m.makeScale(.018,.55,.018);m.setPosition(0,2.455,0);frames.setMatrixAt(positions.length*2,m);
+  bulbs.instanceMatrix.needsUpdate=frames.instanceMatrix.needsUpdate=true;
+  parent.add(bulbs,frames);
+  animatables.push({kind:'campLantern',material});
+}
+function addTentEveningGlow(tent,animatables,phase) {
+  const material=new THREE.MeshStandardMaterial({color:0x9f784e,emissive:0xffad4f,emissiveIntensity:0,side:THREE.DoubleSide});
+  const doorZ=(tent.shelter?.doorZ??1.265)+.025;
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute([-.35,.03,doorZ,.35,.03,doorZ,0,1.19,doorZ],3));
+  geometry.setIndex([0,1,2]);geometry.computeVertexNormals();
+  const panel=new THREE.Mesh(geometry,material);panel.visible=false;
+  const silhouette=new THREE.InstancedMesh(_CAMP_BOX,matFor(0x51402e),2);
+  const m=new THREE.Matrix4();
+  [[0,.38,doorZ+.012,.22,.39,.016],[0,.67,doorZ+.012,.17,.18,.016]].forEach(([x,y,z,w,h,d],i)=>{m.makeScale(w,h,d);m.setPosition(x,y,z);silhouette.setMatrixAt(i,m);});
+  silhouette.instanceMatrix.needsUpdate=true;silhouette.visible=false;
+  const fabric=tent.group.children[0].material.clone();
+  fabric.userData.shared=false;
+  fabric.emissive.setHex(0xffaa55);fabric.emissiveIntensity=0;
+  tent.group.children[0].material=fabric;
+  tent.group.add(panel,silhouette);
+  animatables.push({kind:'tentGlow',panel,material,fabric,silhouette,phase,bedtime:.79+phase*.065});
+}
+
+// Retain each chair's empty transform group for seat metadata, but batch its
+// static metal/fabric parts so a social ring does not cost nine draws per seat.
+function batchCampChairs(root, chairs) {
+  const buckets=new Map();
+  for(const {group} of chairs) {
+    group.updateMatrix();
+    for(const mesh of [...group.children]) {
+      mesh.updateMatrix();
+      let materials=buckets.get(mesh.geometry);
+      if(!materials){materials=new Map();buckets.set(mesh.geometry,materials);}
+      let bucket=materials.get(mesh.material);
+      if(!bucket){bucket=[];materials.set(mesh.material,bucket);}
+      bucket.push(new THREE.Matrix4().multiplyMatrices(group.matrix,mesh.matrix));
+      group.remove(mesh);
+    }
+  }
+  for(const [geometry,materials] of buckets) for(const [material,matrices] of materials) {
+    const instances=new THREE.InstancedMesh(geometry,material,matrices.length);
+    matrices.forEach((matrix,i)=>instances.setMatrixAt(i,matrix));
+    instances.instanceMatrix.needsUpdate=true;
+    root.add(instances);
+  }
+}
+
+function discardCampProp(root,group) {
+  root.remove(group);
+  group.traverse(node=>{
+    if(node.geometry&&!node.geometry.userData.shared)node.geometry.dispose();
+    const materials=Array.isArray(node.material)?node.material:[node.material];
+    for(const material of materials)if(material&&!material.userData.shared)material.dispose();
+  });
+}
+
+export function buildCampsite(rng = Math.random, size = 'medium', options = {}) {
   const cfg = SIZE_CONFIG[size] || SIZE_CONFIG.medium;
   const root = new THREE.Group();
   const animatables = [];
+  const tentProps = [], canopyProps = [], fireChairs = [], canopyChairs = [], tapestries = [];
 
-  // Firepit in the dead centre — always the visual anchor
+  // Preserve the historical fire RNG draws even when a satellite shares its host hearth.
   const fire = buildChiminea(rng);
   root.add(fire.group);
   animatables.push(fire);
 
+  // Helper: place a prop at polar (r, theta) and face it toward the centre.
+  function placeAt(propGroup, r, theta, faceCenter = true) {
+    propGroup.position.set(Math.cos(theta) * r, 0, Math.sin(theta) * r);
+    if (faceCenter) {
+      propGroup.rotation.y = -theta + Math.PI / 2 + Math.PI;
+    }
+    root.add(propGroup);
+  }
+
+  // Historical tent slots consume identical RNG; recipe families may replace two smaller slots.
+  const tentCount = pickCount(cfg.tents, rng);
+  const tentArcStart = rng() * Math.PI * 2;
+  const recipe=options.plan||planCampRecipe(size,{...options,seed:options.seed??((tentArcStart*0x10000000)>>>0)});
   // Proxy PointLight — one per campsite, sitting at the firepit. Stands in
   // for the cumulative glow of the firepit + every tiki torch on the
   // perimeter. Intensity ramps with nightness (handled in
   // updateCampsiteProps) so the light is dim at noon and roaring at
   // midnight. PERF-gated so low-tier devices skip it and lean on emissive
   // + bloom to carry the visual.
-  if (PERF.contextLights) {
+  if (PERF.contextLights && recipe.fire) {
     const proxy = new THREE.PointLight(0xffb060, 0, 14, 1.2);
     proxy.position.set(0, 1.2, 0);                  // just above the firepit
     proxy.castShadow = false;                       // shadow-casting is too expensive at scale
@@ -706,21 +893,12 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
     registerContextLight(proxy);
   }
 
-  // Helper: place a prop at polar (r, theta) and face it toward the centre.
-  function placeAt(propGroup, r, theta, faceCenter = true) {
-    propGroup.position.set(Math.cos(theta) * r, 0, Math.sin(theta) * r);
-    if (faceCenter) {
-      propGroup.rotation.y = -theta + Math.PI / 2 + Math.PI;
-    }
-    root.add(propGroup);
-  }
-
-  // Tents — arranged in an arc on one side of the firepit
-  const tentCount = pickCount(cfg.tents, rng);
-  const tentArcStart = rng() * Math.PI * 2;
   const tentArcSpread = Math.PI * 0.6;
   for (let i = 0; i < tentCount; i++) {
-    const tent = buildCampTent(rng);
+    const family=recipe.tentFamilies[i];
+    const tent = buildCampTent(rng,{family:family||'ridge',variation:((Math.imul((tentArcStart*1e8)|0,i+17)>>>0)%1000)/1000});
+    if(!family){discardCampProp(root,tent.group);continue;}
+    tentProps.push(tent);
     const t = tentCount === 1 ? 0.5 : i / (tentCount - 1);
     const theta = tentArcStart + (t - 0.5) * tentArcSpread;
     placeAt(tent.group, cfg.radius * 0.75, theta);
@@ -731,12 +909,14 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
   const ezArcStart = tentArcStart + Math.PI + (rng() - 0.5) * 0.5;
   for (let i = 0; i < ezCount; i++) {
     const ez = buildEzUp(rng);
+    canopyProps.push(ez);
     const theta = ezArcStart + (i - (ezCount - 1) / 2) * 0.55;
     placeAt(ez.group, cfg.radius * 0.7, theta, false);
     // Plant a few chairs under each EZ-up
     const chairsHere = 2 + Math.floor(rng() * 2);
     for (let j = 0; j < chairsHere; j++) {
       const chair = buildCampChair(rng);
+      canopyChairs.push({ chair, canopy: i, index: j });
       const localR = 0.8 + rng() * 0.4;
       const localA = rng() * Math.PI * 2;
       chair.group.position.set(
@@ -753,6 +933,7 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
   const standaloneChairs = pickCount(cfg.chairs, rng);
   for (let i = 0; i < standaloneChairs; i++) {
     const chair = buildCampChair(rng);
+    fireChairs.push(chair);
     // Place on a ring just outside the firepit (~1.8m)
     const theta = rng() * Math.PI * 2;
     const r = 1.6 + rng() * 0.6;
@@ -762,11 +943,8 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
     root.add(chair.group);
   }
 
-  // Tiki torches — scattered at the perimeter, evenly spaced. Static woodwork
-  // collapses into 3 InstancedMesh via buildTorchField; flames stay per-torch.
-  // Positions carry no `phase`, so the field draws phases from `rng` in torch
-  // order — the same draw sequence the old per-torch loop used (torchOffset,
-  // then one phase per torch), keeping layouts deterministic across this change.
+  // Reserve the historical torch angle and phase draws, then reproject poles
+  // onto the open social edge below. Static woodwork remains instanced.
   const torchCount = pickCount(cfg.torches, rng);
   const torchOffset = rng() * Math.PI * 2;
   const torchPositions = [];
@@ -775,19 +953,137 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
     const r = cfg.radius * 1.05;
     torchPositions.push({ x: Math.cos(theta) * r, z: Math.sin(theta) * r });
   }
-  const torchField = buildTorchField(torchPositions, rng, 1);   // root already applies CAMPSITE_SCALE
-  root.add(torchField.group);
-  for (let i = 0; i < torchField.animatables.length; i++) {
-    animatables.push(torchField.animatables[i]);
-  }
+  // Reserve each historical phase draw here; final placement below consumes
+  // no external randomness and can keep torches out of every shelter.
+  for(const position of torchPositions)position.phase=rng()*Math.PI*2;
 
-  // Tapestries — between the torches, picked spots
+  // Reserve historical tapestry draws before the privacy-border layout pass.
   const tapCount = pickCount(cfg.tapestries, rng);
   for (let i = 0; i < tapCount; i++) {
     const tap = buildTapestry(rng);
+    tapestries.push(tap);
     const theta = rng() * Math.PI * 2;
     placeAt(tap.group, cfg.radius * 0.95, theta, false);
   }
+
+  // Layout variation uses a separate stream derived from an already drawn
+  // camp angle. The caller's RNG consumption remains byte-for-byte unchanged.
+  let layoutState = (tentArcStart * 0x10000000) >>> 0;
+  const localRandom = () => { layoutState = (Math.imul(layoutState, 1664525) + 1013904223) >>> 0; return layoutState / 4294967296; };
+  // Merged satellite camps retain sleeping quarters while the host owns the
+  // fire and kitchen. Historical props were built first to preserve RNG draws.
+  if(!recipe.fire){discardCampProp(root,fire.group);animatables.splice(0,1);}
+  for(let i=canopyProps.length-1;i>=recipe.canopyLimit;i--) {
+    discardCampProp(root,canopyProps[i].group);
+    canopyChairs.filter(v=>v.canopy===i).forEach(v=>{v.chair.skip=true;root.remove(v.chair.group);});
+    canopyProps.splice(i,1);
+  }
+  if(recipe.kitchen&&recipe.canopyLimit>0&&canopyProps.length===0) {
+    // Small historical camps may draw no canopy; a declared kitchen still
+    // needs shelter, supplied solely from the camp's independent stream.
+    const ez=buildEzUp(localRandom);canopyProps.push(ez);root.add(ez.group);
+    for(let j=0;j<2;j++) {const chair=buildCampChair(localRandom);canopyChairs.push({chair,canopy:0,index:j});root.add(chair.group);}
+  }
+  for(let i=tapestries.length-1;i>=recipe.screenLimit;i--){discardCampProp(root,tapestries[i].group);tapestries.splice(i,1);}
+  torchPositions.length=Math.min(torchPositions.length,recipe.torchLimit);
+  const childColliders = [], seats = [], tents = [];
+  const collider = (kind, group, radius, x=group.position.x, z=group.position.z) => {
+    childColliders.push({kind, group, x, z, radius});
+  };
+  if(recipe.fire)collider('campfire', fire.group, .8);
+  const face = (group,x,z) => { group.rotation.y = Math.atan2(x-group.position.x,z-group.position.z); };
+  const pose = (group,r,a) => { group.position.set(Math.cos(a)*r,0,Math.sin(a)*r); face(group,0,0); };
+  const largestShelter=Math.max(...tentProps.map(t=>t.shelter?.radius||1.8));
+  const bayStep=Math.max(recipe.tentArcStep,2*Math.asin(Math.min(.99,(largestShelter*2+.25)/(2*(recipe.tentRadius-.07)) ))+.1);
+  tentProps.forEach((tent,i)=>{
+    const a = tentArcStart + (i-(tentProps.length-1)/2)*bayStep + (localRandom()-.5)*.09;
+    pose(tent.group,recipe.tentRadius+(localRandom()-.5)*.14,a);
+    const {x,z} = tent.group.position, yaw = tent.group.rotation.y;
+    const shelter=tent.shelter||{radius:1.8,doorReach:2.25,bounds:[{x:0,z:0,halfWidth:1.1,halfDepth:1.25}]};
+    tents.push({x,z,yaw,group:tent.group,family:tent.family,capacity:shelter.capacity||2,shelter,entry:{x:x+Math.sin(yaw)*shelter.doorReach,z:z+Math.cos(yaw)*shelter.doorReach}});
+    collider('camp_tent',tent.group,shelter.radius);
+    if(localRandom()>.25)addTentEveningGlow(tent,animatables,localRandom());
+  });
+  const rearScreen=canopyProps.length&&localRandom()>.5?tapestries[0]:null;
+  const placeScreen=(tap,yaw,x,z)=>{
+    tap.group.rotation.y=yaw;tap.group.position.set(x,0,z);
+    const c=Math.cos(yaw),sn=Math.sin(yaw),width=tap.width||2.6;
+    for(let j=0;j<=4;j++) {
+      const offset=(j/4-.5)*width;
+      collider('camp_tapestry',tap.group,j===0||j===4?.1:.3,x+offset*c,z-offset*sn);
+    }
+  };
+  tapestries.forEach((tap,i)=>{
+    if(tap===rearScreen)return;
+    // Broken outer screens mark the sleeping boundary, leaving wide entry
+    // gaps and the social half open; some camps use a canopy rear screen.
+    const angle=tentArcStart+(i-(tapestries.length-1)/2)*.9;
+    const radius=cfg.radius+2.45;
+    placeScreen(tap,Math.atan2(-Math.cos(angle),-Math.sin(angle)),Math.cos(angle)*radius,Math.sin(angle)*radius);
+  });
+  torchPositions.forEach((position,i)=>{
+    const angle=tentArcStart+Math.PI/2+(i+.5)*Math.PI/torchPositions.length;
+    position.x=Math.cos(angle)*(recipe.role==='satellite'?recipe.footprint/2-.25:cfg.radius+1.6);
+    position.z=Math.sin(angle)*(recipe.role==='satellite'?recipe.footprint/2-.25:cfg.radius+1.6);
+    childColliders.push({kind:'camp_torch',x:position.x,z:position.z,radius:.1});
+  });
+  const torchField=buildTorchField(torchPositions,rng,1);
+  root.add(torchField.group);
+  animatables.push(...torchField.animatables);
+  canopyProps.forEach((ez,i)=>{
+    const a=tentArcStart+Math.PI+(i-(canopyProps.length-1)/2)*1.05;
+    pose(ez.group,cfg.radius*.85+.35,a);
+    const hasKitchen=recipe.kitchen&&i===0;
+    if(hasKitchen)addCampKitchen(ez.group);
+    addCanopyTwinkles(ez.group,animatables,localRandom());
+    addCampLanterns(ez.group,animatables,hasKitchen);
+    const yaw=ez.group.rotation.y, c=Math.cos(yaw), sn=Math.sin(yaw);
+    const transformed=(x,z)=>({x:ez.group.position.x+x*c+z*sn,z:ez.group.position.z-x*sn+z*c});
+    for(const x of [-1.5,1.5]) for(const z of [-1.5,1.5]) {
+      const p=transformed(x,z); collider('camp_post',ez.group,.12,p.x,p.z);
+    }
+    if(i===0&&rearScreen) {const p=transformed(0,-1.5);placeScreen(rearScreen,yaw,p.x,p.z);}
+    if(hasKitchen) {
+      const kitchen=transformed(0,-.85); collider('camp_kitchen',ez.group,1.08,kitchen.x,kitchen.z);
+      const cooler=transformed(1.9,-.7); collider('camp_cooler',ez.group,.42,cooler.x,cooler.z);
+    }
+    const row=canopyChairs.filter(v=>v.canopy===i);
+    const loveseat=localRandom()>.35;
+    if(loveseat) {
+      const original=row[0].chair;
+      row[0].chair=buildCampChair(()=>Math.max(0,CHAIR_COLORS.indexOf(original.color)+.1)/CHAIR_COLORS.length,{style:'loveseat'});
+      row[0].chair.loveseat=true;
+      discardCampProp(root,original.group);
+      root.add(row[0].chair.group);
+      row[1].chair.skip=true;
+      root.remove(row[1].chair.group);
+    }
+    row.forEach(({chair},j)=>{
+      if(chair.skip)return;
+      // The double chair replaces two singles, preserving capacity and the
+      // open counter aisle while giving larger camps a shared lounge seat.
+      const x=loveseat?(j===0?-.6:.9):(j-(row.length-1)/2)*1.1;
+      const p=transformed(x,.85);
+      chair.group.position.set(p.x,0,p.z); chair.group.rotation.y=yaw;
+    });
+  });
+  fireChairs.forEach((chair,i)=>{
+    // Even spacing with bounded jitter avoids stacked chairs and leaves an
+    // open approach on the tent side instead of sealing the fire in a ring.
+    const a=tentArcStart+Math.PI/2+(i+.5)*Math.PI/fireChairs.length+(localRandom()-.5)*.12;
+    pose(chair.group,1.85+localRandom()*.15,a);
+    if(recipe.sharedFront)face(chair.group,-Math.cos(tentArcStart)*recipe.footprint,-Math.sin(tentArcStart)*recipe.footprint);
+  });
+  for(const chair of [...fireChairs,...canopyChairs.map(v=>v.chair)]) {
+    if(chair.skip)continue;
+    const {x,z}=chair.group.position, yaw=chair.group.rotation.y;
+    for(const [seatIndex,offset] of (chair.seatOffsets||(chair.loveseat?[-.27,.27]:[0])).entries()) {
+      seats.push({x:x+Math.cos(yaw)*offset,z:z-Math.sin(yaw)*offset,y:chair.seatY??.45,yaw,group:chair.group,seatIndex,furniture:chair.loveseat?'loveseat':'chair'});
+    }
+    collider(chair.loveseat?'camp_loveseat':'camp_chair',chair.group,chair.footprint||(chair.loveseat?.7:.53));
+  }
+
+  batchCampChairs(root,[...fireChairs,...canopyChairs.map(v=>v.chair)].filter(c=>!c.skip));
 
   // Scale the whole vignette (props + their polar layout) uniformly. Props sit
   // at y=0 so they stay grounded under scale; the footprint grows to match so
@@ -797,7 +1093,8 @@ export function buildCampsite(rng = Math.random, size = 'medium') {
   return {
     group: root,
     animatables,
-    footprint: campsiteFootprint(size),
+    footprint: recipe.footprint, archetype:recipe.archetype, role:recipe.role,
+    childColliders, colliders: childColliders, seats, tents, entranceYaw: Math.atan2(-Math.cos(tentArcStart),-Math.sin(tentArcStart)),
   };
 }
 
@@ -824,6 +1121,7 @@ const VENDOR_CAMP_TENT_SCALE = 1.45;   // bigger than the old lone booth-tent, b
 export function buildVendorCamp(rng = Math.random, tier = 'full') {
   const root = new THREE.Group();
   const animatables = [];
+  const childColliders = [], seats = [], tents = [];
   const full = tier === 'full';
 
   // Tent at the back/outer edge, scaled up toward the enlarged campsite tents.
@@ -834,15 +1132,20 @@ export function buildVendorCamp(rng = Math.random, tier = 'full') {
   tent.group.position.set((rng() - 0.5) * 0.8, 0, -1.7);
   tent.group.rotation.y = (rng() - 0.5) * 0.3;
   root.add(tent.group);
+  const tentYaw=tent.group.rotation.y, tx=tent.group.position.x, tz=tent.group.position.z;
+  const doorReach=tent.shelter.doorReach*VENDOR_CAMP_TENT_SCALE;
+  tents.push({x:tx,z:tz,yaw:tentYaw,group:tent.group,family:tent.family,capacity:tent.shelter.capacity,shelter:tent.shelter,entry:{x:tx+Math.sin(tentYaw)*doorReach,z:tz+Math.cos(tentYaw)*doorReach}});
+  childColliders.push({kind:'camp_tent',x:tx,z:tz,radius:tent.shelter.radius*VENDOR_CAMP_TENT_SCALE,group:tent.group});
 
   // The living area sits OUT in front of the tent (toward the booth/aisle) so
   // the big tent doesn't swallow it. Fire is the anchor; lean camps skip it.
-  const fireCenter = { x: (rng() - 0.5) * 0.5, z: 1.1 };
+  const fireCenter = { x: -2.3 + (rng() - 0.5) * 0.5, z: 1.3 };
   if (full && rng() < 0.85) {
     const fire = buildChiminea(rng);
     fire.group.position.set(fireCenter.x, 0, fireCenter.z);
     root.add(fire.group);
     animatables.push(fire);
+    childColliders.push({kind:'campfire',x:fireCenter.x,z:fireCenter.z,radius:.7,group:fire.group});
   }
 
   // Chairs ringed around the fire on the aisle side (+z), facing back into it,
@@ -860,6 +1163,8 @@ export function buildVendorCamp(rng = Math.random, tier = 'full') {
     );
     chair.group.rotation.y = -theta + Math.PI / 2 + Math.PI;   // face the fire
     root.add(chair.group);
+    seats.push({x:chair.group.position.x,z:chair.group.position.z,y:chair.seatY??.45,yaw:chair.group.rotation.y,group:chair.group});
+    childColliders.push({kind:'camp_chair',x:chair.group.position.x,z:chair.group.position.z,radius:chair.footprint||.53,group:chair.group});
   }
 
   // A single tiki torch off to one front corner, near the stall.
@@ -874,7 +1179,7 @@ export function buildVendorCamp(rng = Math.random, tier = 'full') {
     animatables.push(torch);
   }
 
-  return { group: root, animatables, footprint: full ? 3.4 : 2.6 };
+  return { group: root, animatables, footprint: Math.max(...childColliders.map(p=>Math.hypot(p.x,p.z)+p.radius)), childColliders, colliders:childColliders, seats, tents };
 }
 
 // ---------- Central animator ----------
@@ -883,15 +1188,30 @@ export function buildVendorCamp(rng = Math.random, tier = 'full') {
 // a list of "animatable" props (chimineas, torches). One global updater walks
 // the list each frame and pulses the emissives / bobs the flames.
 
-export function updateCampsiteProps(t, nightness, props) {
+export function updateCampsiteProps(t, nightness, props, dayT) {
   // nightness 0..1: by day chimineas/torches are dim, by night they roar.
-  const baseIntensity = 0.4 + 4.0 * nightness;
+  const baseIntensity = 4.0 * nightness;
   for (let i = 0; i < props.length; i++) {
     const p = props[i];
+    if(p.kind==='campLantern')p.material.emissiveIntensity=nightness*1.8;
+    if(p.kind==='tentGlow') {
+      const evening=Number.isFinite(dayT)?THREE.MathUtils.smoothstep(dayT,.51,.56)*(1-THREE.MathUtils.smoothstep(dayT,p.bedtime,p.bedtime+.025)):nightness;
+      p.panel.visible=p.silhouette.visible=evening>.01;
+      p.material.emissiveIntensity=evening*.35;
+      if(p.fabric)p.fabric.emissiveIntensity=evening*.24;
+      p.silhouette.position.x=Math.sin(t*.55+p.phase*6)*.075;
+    }
+    if (p.kind === 'campTwinkle') { p.bulbMat.emissiveIntensity=nightness*2.2; }
     if (p.emberMat) {
       // Chiminea / firepit — gentle flicker
       const flick = 0.85 + 0.15 * Math.sin(t * 6 + p.phase);
-      p.emberMat.emissiveIntensity = baseIntensity * flick;
+      const ignition = .51 + ((p.phase || 0) / (Math.PI * 2)) * .045;
+      const lit = Number.isFinite(dayT)
+        ? THREE.MathUtils.smoothstep(dayT, ignition, ignition+.025) * (1-THREE.MathUtils.smoothstep(dayT,.82,.91))
+        : THREE.MathUtils.smoothstep(nightness,.12,.45);
+      p.emberMat.emissiveIntensity = baseIntensity * flick * lit;
+      p.emberMat.color.setHex(lit>.05 ? 0xff7733 : 0x30251e);
+      if (p.fireFlame) { p.fireFlame.visible=lit>.01; p.fireFlame.scale.y=1.4*(.8+.2*Math.sin(t*8+p.phase)); }
     }
     if (p.flameMat) {
       // Tiki torch flame — sharper, faster flicker, plus a small scale bob
@@ -899,7 +1219,7 @@ export function updateCampsiteProps(t, nightness, props) {
       p.flameMat.emissiveIntensity = baseIntensity * 1.5 * flick;
       // Tiki flame goes invisible during full day so it doesn't read as
       // "always lit." Fade in over the dusk band.
-      p.flameMat.opacity = THREE.MathUtils.clamp(0.2 + nightness * 1.2, 0, 0.95);
+      p.flameMat.opacity = THREE.MathUtils.clamp(nightness * 1.2, 0, 0.95);
       // Mild vertical wobble on the flame mesh itself, relative to the torch's
       // base size (instanced torch fields scale the flame mesh directly; a
       // campsite/buildTikiTorch flame rides its parent group's scale, baseScale 1).

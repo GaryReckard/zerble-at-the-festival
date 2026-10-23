@@ -11,6 +11,7 @@ not physical-device acceptance.
 
 | Evidence | What it establishes |
 | --- | --- |
+| [Campsite life and layouts, October 23](campsites/README.md) | Deterministic camp furniture, granular collisions, seating and sleeping lifecycle, lighting schedules and sandbox captures |
 | [One-wheel rider, October 22](one-wheel/README.md) | Seeded road encounters, pedestrian/cart yielding, model animation, resource cleanup and Low/High game checks |
 | [Healing Arts tent, October 22](healing-arts/README.md) | Sparse placement, yoga/dance motion, real crowd changeover, lifecycle tests and day/night captures |
 | [Registry maintenance, October 22](performance/2026-10-22/index-maintenance/README.md) | Paired CPU measurements, exact candidate-order tests and Low/High streaming checks |

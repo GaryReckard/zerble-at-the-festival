@@ -40,6 +40,7 @@ import { festivalPlan, campVillagesNear } from './worldgen/festival.js';
 import { roadsInBounds } from './worldgen/roads.js';
 import { treeDensity } from './worldgen/density.js';
 import { CONFIG } from './worldgen/constants.js';
+import { planCampNeighborhood } from './campPlanning.js';
 
 // Handoff dissolve length (design D4). Reduced motion skips it and snaps.
 export const HANDOFF_ENVELOPE_S = 0.3;
@@ -61,10 +62,6 @@ export const NIGHT_MARKER_THRESHOLD = 0.12;
 // The underlay ribbon is deliberately narrower than the authoritative road
 // (CONFIG.ROAD_WIDTH) so the real ribbon always covers it edge-to-edge.
 const FAR_ROAD_WIDTH_FRAC = 0.8;
-// Camp pitches scatter across a square, not a disc (chunks.js
-// buildCampVillageAt). Read the mutable radius per call for hub-viewer tuning;
-// pitches still need shared authoritative placement.
-
 // Coarse forest masses (the ROADMAP follow-up promoted 2026-08-28): the
 // density FIELD is sampled on a fixed global grid (tier.forestStep meters),
 // never the exact far-tree scatter — reproducing per-tree placement would
@@ -184,7 +181,7 @@ export function copyVillageRecord(v) {
     z: +v.z,
     yaw: +(v.yaw || 0),
     scale: 1,
-    footprint: +(v.footprint || FESTIVAL_TUNING.CAMP_RADIUS),
+    footprint: +(v.footprint || FESTIVAL_TUNING.KIND_FOOTPRINT.camp_village),
     rank: v.rank === 'major' ? 1 : 0,
     tents: v.tents | 0,
     clusterSeed: v.clusterSeed >>> 0,
@@ -415,26 +412,38 @@ export function expandFarInstances(records, densityMul) {
         color: BEACON_PALETTE[paletteIndex(r, BEACON_PALETTE.length)], ...own,
       });
     } else if (r.kind === 'camp_village') {
-      // A scatter of small pitched tents across the same ±CAMP_RADIUS square
-      // the builder packs into, plus one campfire glow at the middle. The
-      // positions are HASH-scattered rather than a replay of the builder's
-      // rejection sampling — reproducing per-tent placement is exactly the CPU
-      // this layer exists to avoid, and at 500 m what has to be true is "a camp
-      // of about this size sits here", not "that tent is at that metre".
-      // Reuses the `peak` cone pool, so a village costs no extra draw call.
-      const n = Math.max(4, Math.min(14, Math.round(r.tents * 0.6 * densityMul)));
+      // Match the real builder's first two cluster draws and shared pure plan.
+      // Registry-driven rejection and outward retries remain near-field truth;
+      // the horizon represents nominal pitches without constructing gameplay.
+      const rng = mulberry32((r.clusterSeed >>> 0) || 0x1A2B3C);
+      const phase = rng() * Math.PI * 2, seed = Math.floor(rng() * 0x100000000);
+      const pitches = planCampNeighborhood(r.tents, { envelope: r.footprint, phase, seed,
+        density: seed % 5 === 0 ? 'roomy' : 'compact' });
       const baseIdx = paletteIndex(r, VILLAGE_PALETTE.length);
-      for (let i = 0; i < n; i++) {
-        const ix = r.x + (instHash(r.clusterSeed, i * 2 + 1) - 0.5) * 2 * FESTIVAL_TUNING.CAMP_RADIUS;
-        const iz = r.z + (instHash(r.clusterSeed, i * 2 + 2) - 0.5) * 2 * FESTIVAL_TUNING.CAMP_RADIUS;
-        // The real camp tent is 2.2 m wide and 1.7 m tall (campsite.js buildCampTent).
-        const w = 1.25 + instHash(r.clusterSeed, i + 71) * 0.45;
-        const h = 1.7 + instHash(r.clusterSeed, i + 131) * 0.7;
-        out.peak.push({
-          x: ix, z: iz, y: h / 2, yaw: instHash(r.clusterSeed, i + 191) * Math.PI * 2,
-          sx: w, sy: h, sz: w,
-          color: VILLAGE_PALETTE[(baseIdx + i) % VILLAGE_PALETTE.length], ...own,
-        });
+      let index = 0;
+      for (const pitch of pitches) {
+        const { recipe } = pitch;
+        for (const [i, family] of recipe.tentFamilies.entries()) {
+          const slot = index++;
+          if (slot > 0 && densityMul < 1 && instHash(r.clusterSeed, slot + 401) >= densityMul) continue;
+          const yaw = pitch.facing - (i - (recipe.tentFamilies.length - 1) / 2) * recipe.tentArcStep;
+          const distance = recipe.tentRadius * 2;
+          const [w, h, d] = family === 'octagon' ? [7.12, 4.7, 7.12]
+            : family === 'multiroom' ? [6.4, 4.36, 5.1]
+            : family === 'cabin' ? [5.1, 4.36, 5.1]
+            : family === 'dome' ? [6.32, 3.3, 6.32] : [4.4, 3.4, 5];
+          out.peak.push({ x: r.x + pitch.x - Math.sin(yaw) * distance,
+            z: r.z + pitch.z - Math.cos(yaw) * distance, y: h / 2, yaw,
+            sx: w, sy: h, sz: d,
+            color: VILLAGE_PALETTE[(baseIdx + slot) % VILLAGE_PALETTE.length], ...own });
+        }
+        if (recipe.kitchen) {
+          const distance = (recipe.layoutRadius * .85 + .35) * 2;
+          out.canopy.push({ x: r.x + pitch.x + Math.sin(pitch.facing) * distance,
+            z: r.z + pitch.z + Math.cos(pitch.facing) * distance,
+            y: 5.15, yaw: pitch.facing, sx: 6, sy: .7, sz: 6,
+            color: 0x3a82c0, ...own });
+        }
       }
       const fs = 0.42 + instHash(r.clusterSeed, 7) * 0.16;
       out.warm.push({ x: r.x, z: r.z, y: 1.0, yaw: 0, sx: fs, sy: fs, sz: fs, ...own });
