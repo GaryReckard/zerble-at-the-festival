@@ -15,6 +15,8 @@ reproduction lead, not proof that the current build still has the problem.
 
 ## Terrain proof acceptance
 
+Follow the [bounded integration sequence](verification/terrain/2026-10-24-integration-plan.md), starting with map responsiveness before shared elevation previews.
+
 The [playable driving course](verification/terrain/2026-10-24-driving-proof.md)
 implements the bounded contact/driving experiment from the
 [elevation proposal](verification/terrain/2026-10-24-proposal.md). Gary confirmed smooth driving and good mobile play on October 24. Match the

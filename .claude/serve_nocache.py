@@ -27,7 +27,7 @@ MAX_CAPTURE_BYTES = 32 * 1024 * 1024
 CAPTURE_TOKEN = None
 LAN_MODE = False
 PUBLIC_FILES = {
-    '/', '/index.html', '/terrain-sandbox.html', '/styles.css', '/favicon.ico', '/favicon.svg',
+    '/', '/index.html', '/terrain-sandbox.html', '/map-sandbox.html', '/styles.css', '/favicon.ico', '/favicon.svg',
     '/favicon-96x96.png', '/apple-touch-icon.png', '/site.webmanifest',
     '/web-app-manifest-192x192.png', '/web-app-manifest-512x512.png',
 }
