@@ -12,6 +12,7 @@ not physical-device acceptance.
 | Evidence | What it establishes |
 | --- | --- |
 | [Slash commands, October 24](debug-commands/2026-10-24/README.md) | Twenty command grammars, bounded argument dispatch, actual game adapters, contextual completion and live-game checks |
+| [Terrain driving proof, October 24](terrain/2026-10-24-driving-proof.md) | Playable authored course, shared cart path, numerical regressions and rendered wheel-ray checks; isolated from the live world |
 | [Terrain proposal, October 24](terrain/2026-10-24-proposal.md) | Astra’s source-grounded options, dependencies and proposed acceptance gates; no terrain implementation or runtime acceptance |
 | [Campsite life and layouts, October 23](campsites/README.md) | Deterministic camp furniture, granular collisions, seating and sleeping lifecycle, lighting schedules and sandbox captures |
 | [One-wheel rider, October 22](one-wheel/README.md) | Seeded road encounters, pedestrian/cart yielding, model animation, resource cleanup and Low/High game checks |

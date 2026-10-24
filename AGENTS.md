@@ -87,7 +87,7 @@ measurement.
 1. **No implicit toolchain change.** The no-build loop remains the default.
    A build step needs a measured proposal and Gary's approval. Read
    [.claude/rules/no-build.md](.claude/rules/no-build.md). New source modules
-   must be represented in all four HTML importmaps; run `bin/check-importmaps`.
+   must be represented in all five HTML importmaps; run `bin/check-importmaps`.
 2. **Patch Three.js through `src/threeShim.js`.** ES module namespaces are
    frozen; assigning `THREE.X = Y` after import breaks spec-strict runtimes,
    including mobile Safari.
@@ -122,7 +122,7 @@ attractor and chunk ownership; see `src/registry.js` for the current contract.
 Comments should explain a non-obvious reason, constraint or workaround.
 
 Before adding a model, read
-[the sandbox checklist](.claude/rules/sandbox-and-testing.md). Update all four
+[the sandbox checklist](.claude/rules/sandbox-and-testing.md). Update all five
 importmaps, the sandbox selector and `loadEntity()` case, plus hit-kind/music
 mapping when applicable. An uninspectable model is unfinished work.
 

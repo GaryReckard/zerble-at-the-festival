@@ -40,6 +40,22 @@ and registry benchmarks. Measurements and their limits belong in dated
 [verification reports](verification/README.md), while pending acceptance stays
 in [ROADMAP.md](ROADMAP.md).
 
+## Terrain driving proof
+
+Open `http://127.0.0.1:8765/terrain-sandbox.html?mute=1` on the existing
+no-cache server, or follow **Drive the terrain course** in the entity sandbox.
+WASD/arrows drive, Space brakes, Shift boosts, and R resets the selected stretch.
+On-screen buttons also support touch; Boost ↑ combines forward throttle and boost.
+Enable engine sound starts the existing game engine audio inside that tap. The section picker jumps directly to the
+ascent, crest, descent, sideways slope or plateau; Chase, High and Orbit views,
+Noon/Midnight and wireframe help inspect contact. **Run repeatable drive** follows
+28 seconds of fixed simulation input and parks on the plateau. **Check wheel
+contacts** compares the sampler against 96 raycasts into the actual meshes.
+
+`node bin/test-terrain` covers the pure surface and movement contracts and is
+included in `npm run check`. This course is an isolated authored fixture, not
+procedural festival terrain. [Results and limitations](verification/terrain/2026-10-24-driving-proof.md).
+
 ## Silent agent launches
 
 Use `?mute=1` (or append `&mute=1`) on every agent-driven game or sandbox URL unless intentionally checking audio. It initializes the session-only output gate before AudioContext output connects, preserves saved volume levels, and remains effective across reloads. `Sound.setMuted(false)` can explicitly unmute for an audio test; restore mute afterward.

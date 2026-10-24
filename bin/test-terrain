@@ -1,0 +1,109 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { sampleTerrain, terrainVertexHeight } from '../src/terrainSurface.js';
+import { stepTerrainDrive, terrainReplayInput, TERRAIN_REPLAY_SECONDS } from '../src/terrainDriving.js';
+const close = (a,b,e=1e-8) => assert.ok(Math.abs(a-b)<e, `${a} != ${b}`);
+// Independent barycentric interpolation of the mesh's actual two triangles.
+for (let x=-58.7;x<59;x+=3.17) for(let z=-416.8;z<32;z+=2.37) {
+  const ix=Math.floor(x),iz=Math.floor(z),u=x-ix,v=z-iz;
+  const a=terrainVertexHeight(ix,iz),b=terrainVertexHeight(ix+1,iz),c=terrainVertexHeight(ix,iz+1),d=terrainVertexHeight(ix+1,iz+1);
+  const height=u>=v ? (1-u)*a+(u-v)*b+v*d : (1-v)*a+(v-u)*c+u*d;
+  close(sampleTerrain(x,z).height,height);
+  const p=sampleTerrain(x,z); close(Math.hypot(p.nx,p.ny,p.nz),1);
+}
+const points=[[0,-70],[0,-170],[12,-260],[-5.25,-340.7]];
+const before=points.map(([x,z])=>sampleTerrain(x,z));
+for (const [x,z] of [...points].reverse()) sampleTerrain(x,z);
+assert.deepEqual(points.map(([x,z])=>sampleTerrain(x,z)),before);
+for(const z of [-340,-260,-180,-100,-20]) close(sampleTerrain(3.2,z-1e-7).height,sampleTerrain(3.2,z+1e-7).height,1e-6);
+close(sampleTerrain(0,0).height,0); close(sampleTerrain(0,-370).height,10);
+assert.ok(sampleTerrain(0,-75).dz<0); assert.ok(sampleTerrain(0,-185).dz>0);
+close(sampleTerrain(0,-265).dx,0.14); assert.throws(()=>sampleTerrain(NaN,0));
+const plane = grade => (x,z,out={}) => Object.assign(out,{height:-z*grade,dx:0,dz:-grade,traversable:true});
+function run(grade,input,seconds=20,hz=60,speed=0) {
+ const cart={position:{x:0,z:0},heading:0,speed};
+ for(let i=0;i<seconds*hz;i++) stepTerrainDrive(cart,input,1/hz,plane(grade));
+ return cart;
+}
+const flat=run(0,{throttle:1}),up=run(.15,{throttle:1}),down=run(-.15,{throttle:1});
+assert.ok(up.speed<flat.speed && flat.speed<down.speed);
+assert.ok(run(-.2,{throttle:0},10,60,18).speed>18,'downhill coasting exceeds powered cap');
+for(const grade of [-.3,0,.3]) {
+ close(run(grade,{brake:true},5,60,20).speed,0);
+ close(run(grade,{throttle:0},20,60).position.z,0);
+ assert.ok(run(grade,{throttle:-1}).speed<0);
+}
+for(const hz of [30,120]) {
+ const other=run(.15,{throttle:1,steer:.03},10,hz),ref=run(.15,{throttle:1,steer:.03},10,60);
+ close(other.speed,ref.speed);close(other.position.x,ref.position.x);close(other.position.z,ref.position.z);
+}
+for(const heading of [0,Math.PI/4,Math.PI,Math.PI*1.5]) {
+ const cart={position:{x:56.9,z:-260},heading,speed:30};
+ for(let i=0;i<240;i++) stepTerrainDrive(cart,{throttle:1,boost:true},1/30,sampleTerrain);
+ assert.ok(sampleTerrain(cart.position.x,cart.position.z).traversable);
+}
+console.log('Terrain: triangle agreement, normals, order independence, seams, fixture grades, slope response, downhill coast, brake/hold/reverse, 30/60/120 Hz and bounds passed.');
+console.log(JSON.stringify({flat:flat.speed,ascent:up.speed,descent:down.speed}));
+
+const replayResults = [];
+for (const hz of [30,60,120]) {
+ const cart={position:{x:0,z:12},heading:0,speed:0}, input={};
+ // The page's fixed simulation accumulator, independent of display cadence.
+ let accumulated=0, ticks=0;
+ for(let frame=0;frame<hz*TERRAIN_REPLAY_SECONDS;frame++) {
+  accumulated+=1/hz;
+  while(accumulated>=1/120) {
+   terrainReplayInput((++ticks)/120,input);
+   stepTerrainDrive(cart,input,1/120,sampleTerrain); accumulated-=1/120;
+  }
+ }
+ assert.ok(cart.position.z < -360 && cart.position.z > -390,'replay reaches level plateau');
+ close(cart.speed,0);replayResults.push(cart.position.z);
+}
+close(replayResults[0],replayResults[1],1e-6);close(replayResults[1],replayResults[2],1e-6);
+console.log('Recorded ascent/coast/descent/plateau/brake replay is stable across 30/60/120 Hz:',replayResults);
+
+// Exercise the sandbox's actual pose capture/presentation/restoration helpers.
+// Rendering primitives are stubbed; the regression is uneven frame cadence
+// leaking fixed simulation steps into visible translation and wheel rotation.
+const { readFileSync } = await import('node:fs');
+const { default: vm } = await import('node:vm');
+class Vec {
+ constructor(x=0,y=0,z=0){this.x=x;this.y=y;this.z=z;}
+ copy(v){this.x=v.x;this.y=v.y;this.z=v.z;return this;}
+ lerpVectors(a,b,t){this.x=a.x+(b.x-a.x)*t;this.y=a.y+(b.y-a.y)*t;this.z=a.z+(b.z-a.z)*t;return this;}
+}
+class Quat { copy(){return this;} slerpQuaternions(){return this;} }
+const mockCart={position:new Vec(),root:{quaternion:new Quat()},heading:0,
+ wheels:[{group:{position:{y:0.6},rotation:{y:0}},spin:{rotation:{x:0}}}]};
+const source=readFileSync(new URL('../src/terrainSandbox.js',import.meta.url),'utf8');
+const helpers=source.slice(source.indexOf('function makePose()'),source.indexOf('// Shadows are deliberately off'));
+const context=vm.createContext({cart:mockCart,THREE:{Vector3:Vec,Quaternion:Quat,MathUtils:{lerp:(a,b,t)=>a+(b-a)*t}}});
+vm.runInContext(helpers+'\nthis.poseApi={capturePose,presentPose,restorePhysicsPose,previousPose,currentPose};',context);
+const api=context.poseApi;
+api.capturePose(api.previousPose);api.capturePose(api.currentPose);
+let accumulator=0, lastRaw=0, lastPresented=0, rawError=0, presentedError=0;
+for(let frame=0;frame<600;frame++) {
+ const dt=1/60+Math.sin(frame*1.7)*.001;
+ api.restorePhysicsPose();accumulator+=dt;
+ while(accumulator>=1/120) {
+  api.capturePose(api.previousPose);
+  mockCart.position.x+=17/120;mockCart.wheels[0].spin.rotation.x-=17/120/.6;
+  api.capturePose(api.currentPose);accumulator-=1/120;
+ }
+ const raw=mockCart.position.x;
+ api.presentPose(accumulator*120);
+ const presented=mockCart.position.x;
+ if(frame>2){rawError=Math.max(rawError,Math.abs((raw-lastRaw)/dt-17));presentedError=Math.max(presentedError,Math.abs((presented-lastPresented)/dt-17));}
+ close(mockCart.wheels[0].spin.rotation.x,-presented/.6,1e-7);
+ api.restorePhysicsPose();close(mockCart.position.x,raw);
+ lastRaw=raw;lastPresented=presented;
+}
+assert.ok(rawError>8,'fixture exposes pre-fix step jitter');
+assert.ok(presentedError<1e-7,'interpolated motion stays constant despite uneven rendering');
+console.log('Actual sandbox presentation: physics restoration and wheel continuity passed;',JSON.stringify({rawMaxSpeedError:rawError,interpolatedMaxSpeedError:presentedError}));
+
+const boosted=run(0,{throttle:1,boost:true});
+assert.ok(boosted.speed>flat.speed*1.4,'boost materially increases speed');
+close(run(0,{throttle:0,boost:true}).speed,0);
+console.log('Flat speed, normal/boost m/s:', flat.speed, boosted.speed);

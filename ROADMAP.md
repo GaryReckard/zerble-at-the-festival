@@ -13,6 +13,16 @@ reproduction lead, not proof that the current build still has the problem.
 
 ---
 
+## Terrain proof acceptance
+
+The [playable driving course](verification/terrain/2026-10-24-driving-proof.md)
+implements the bounded contact/driving experiment from the
+[elevation proposal](verification/terrain/2026-10-24-proposal.md). Gary confirmed smooth driving and good mobile play on October 24. Match the
+game’s baseline acceleration/boost before choosing final motor/grade tuning.
+Procedural terrain, graded venues/roads, lakes, walking NPCs, streaming/far-field
+handoffs and live-game camera modes remain the subsequent integration phases;
+the sandbox does not establish those contracts or mobile performance.
+
 ## Nut Wagon follow-ups
 
 The wagon now spawns on existing festival roads, cruises slowly, pauses near gatherings, boards regular NPCs, plays the existing spatial dub groove, and is ten times likelier on each encounter roll during a Trip. Gary selected rare normally / very likely during trips, regular NPCs first, and walking-pace cruising with gathering stops on 2026-10-13. [Current parameters and verification](verification/nut-wagon/GAMEPLAY.md).

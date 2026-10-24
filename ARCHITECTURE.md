@@ -152,6 +152,15 @@ Backgrounded tabs use `setTimeout(tick, 16)` instead of `requestAnimationFrame`,
 
 Three independent lifecycle systems own world content. They all share one registry.
 
+The isolated `terrain-sandbox.html` proof uses `terrainSurface.js` for a fixed
+world-space one-meter triangle lattice and `terrainDriving.js` for opt-in
+slope-aware movement. `Zerble.surfaceSampler` defaults to null; only this proof
+enables it, leaving the live movement and world sampler unchanged. Four wheel
+samples establish chassis pitch/roll, bounded suspension settles each wheel,
+and cart-local seat/nozzle transforms include the tilt. `terrainSandbox.js`
+owns the course meshes, controls, fixed-step replay and camera clearance checks.
+It does not stream or place festival content. [Verification](verification/terrain/2026-10-24-driving-proof.md).
+
 The flat ground is one player-following mesh in `world.js`. It moves in 40m
 world-aligned steps, which are multiples of its 10m vertex spacing, so the
 procedural vertex-color patches remain fixed under roads and props. A single

@@ -53,6 +53,7 @@ parallel roadmaps or automatic implementation requests.
 | [Bubble Upgrades plan](../BUBBLE-UPGRADES-PLAN.md) | Feature decisions and execution record; [handoff](../verification/bubble-upgrades/HANDOFF.md) for acceptance status |
 | [Lantern parade plan](../PUPPET-PARADE-PLAN.md) | Original handoff; [verification](../verification/puppet-parade/README.md) for delivered behavior and limits |
 | [June improvement plan](../PLAN.md) | Historical survey, not a current prioritized queue |
+| [Terrain driving proof, October 24](../verification/terrain/2026-10-24-driving-proof.md) | Playable bounded driving course and measured contact evidence; live-world integration remains separate |
 | [Festival elevation proposal, October 24](../verification/terrain/2026-10-24-proposal.md) | Astra’s terrain directions, surface dependencies and staged proof plan; no terrain implementation |
 | [OpenSpec](../openspec/specs/README.md) | Capability baseline; enter the change workflow only for an explicit planning/change task |
 

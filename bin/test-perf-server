@@ -18,6 +18,7 @@ spec = importlib.util.spec_from_file_location('zerble_perf_server', root / '.cla
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
+assert module.public_game_path('/terrain-sandbox.html?mute=1')
 assert module.public_game_path('/src/main.js')
 assert module.public_game_path('/assets/zerble.png')
 assert not module.public_game_path('/src/../.claude/settings.local.json')

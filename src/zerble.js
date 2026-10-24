@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import { steerDirFor } from './steering.js';
+import { stepTerrainDrive } from './terrainDriving.js';
 import { Input } from './input.js';
 import { PERF } from './perf.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
@@ -88,6 +89,9 @@ export class Zerble {
     this.nozzleWorld = new THREE.Vector3();
     this.forwardWorld = new THREE.Vector3();
 
+    this.surfaceSampler = null; // Enabled only by the terrain proof.
+    this._terrainPoint = new THREE.Vector3();
+    this._terrainSample = {};
     this._build();
   }
 
@@ -1085,6 +1089,10 @@ export class Zerble {
 
   // Convert a local seat slot to a world position. Used by the passenger system.
   worldSeatPosition(slot, out) {
+    if (this.surfaceSampler) {
+      this.root.updateMatrixWorld(true);
+      return this.root.localToWorld(out.set(slot.x, slot.y, slot.z));
+    }
     const cos = Math.cos(this.heading);
     const sin = Math.sin(this.heading);
     out.set(
@@ -1229,6 +1237,43 @@ export class Zerble {
     return new THREE.BoxGeometry(w, h, d, 2, 1, 2);
   }
 
+  // Four contacts establish a support plane; suspension then settles each tire.
+  // The sampler and rendered mesh share their triangles, including at seams.
+  groundOnSurface() {
+    const sample = this.surfaceSampler, p = this._terrainSample;
+    const c = Math.cos(this.heading), s = Math.sin(this.heading);
+    sample(this.position.x, this.position.z, p);
+    this.terrainGrade = -p.dx * s - p.dz * c;
+    let front = 0, back = 0, left = 0, right = 0;
+    for (let i = 0; i < this.wheels.length; i++) {
+      const w = this.wheels[i].group.position;
+      sample(this.position.x + w.x * c + w.z * s, this.position.z - w.x * s + w.z * c, p);
+      if (i < 2) front += p.height; else back += p.height;
+      if (i % 2) right += p.height; else left += p.height;
+    }
+    const pitch = Math.atan2((front - back) / 2, 2.9);
+    const roll = Math.atan2((right - left) / 2, 3.05);
+    this.root.rotation.set(pitch, this.heading, roll, 'YXZ');
+    this.position.y = (front + back) / 4;
+    this.root.updateMatrixWorld(true);
+    this.contactError = 0;
+    for (const w of this.wheels) {
+      w.group.position.y = w.baseY;
+      // Vertical suspension is local to the tilted chassis. Iterate because its
+      // travel also shifts the contact slightly in X/Z on a slope.
+      for (let j = 0; j < 4; j++) {
+        this._terrainPoint.copy(w.group.position).applyMatrix4(this.root.matrixWorld);
+        sample(this._terrainPoint.x, this._terrainPoint.z, p);
+        const error = p.height + this._tireR - this._terrainPoint.y;
+        w.group.position.y += error / (Math.cos(pitch) * Math.cos(roll));
+        w.group.position.y = THREE.MathUtils.clamp(w.group.position.y, w.baseY - 0.3, w.baseY + 0.3);
+      }
+      this._terrainPoint.copy(w.group.position).applyMatrix4(this.root.matrixWorld);
+      sample(this._terrainPoint.x, this._terrainPoint.z, p);
+      this.contactError = Math.max(this.contactError, Math.abs(p.height + this._tireR - this._terrainPoint.y));
+    }
+  }
+
   // ---------- UPDATE ----------
 
   update(dt, input, nightness = 0) {
@@ -1245,39 +1290,46 @@ export class Zerble {
     const maxFwd = MAX_SPEED * (slow ? SLOW_MULT : wantBoost ? BOOST_MULT : 1) * (this.sputtering ? 0.35 : 1);
     const maxRev = -REVERSE_MAX * (this.sputtering ? 0.35 : 1);
 
-    if (slow && this.speed > maxFwd) {
-      // Engaging slow mode should ease down to its cap instead of snapping
-      // velocity immediately, while preventing throttle from pushing faster.
-      const decel = throttle < 0 ? BRAKE : ACCEL;
-      this.speed = Math.max(maxFwd, this.speed - decel * SLOW_ACCEL_MULT * dt);
-    } else if (throttle !== 0) {
-      // If throttle opposes current velocity direction, brake harder.
-      const sameSign = Math.sign(throttle) === Math.sign(this.speed) || this.speed === 0;
-      const a = (sameSign ? ACCEL : BRAKE) * (slow ? SLOW_ACCEL_MULT : 1);
-      this.speed += throttle * a * dt;
+    if (this.surfaceSampler) {
+      stepTerrainDrive(this, input, dt, this.surfaceSampler);
     } else {
-      this.speed *= Math.pow(DRAG, dt * 4);
-      if (Math.abs(this.speed) < SPEED_SNAP) this.speed = 0;
+      if (slow && this.speed > maxFwd) {
+        // Engaging slow mode should ease down to its cap instead of snapping
+        // velocity immediately, while preventing throttle from pushing faster.
+        const decel = throttle < 0 ? BRAKE : ACCEL;
+        this.speed = Math.max(maxFwd, this.speed - decel * SLOW_ACCEL_MULT * dt);
+      } else if (throttle !== 0) {
+        // If throttle opposes current velocity direction, brake harder.
+        const sameSign = Math.sign(throttle) === Math.sign(this.speed) || this.speed === 0;
+        const a = (sameSign ? ACCEL : BRAKE) * (slow ? SLOW_ACCEL_MULT : 1);
+        this.speed += throttle * a * dt;
+      } else {
+        this.speed *= Math.pow(DRAG, dt * 4);
+        if (Math.abs(this.speed) < SPEED_SNAP) this.speed = 0;
+      }
+      this.speed = THREE.MathUtils.clamp(this.speed, maxRev, maxFwd);
+
+      // Steering scales with speed — feels arcade-y and forgiving.
+      const speedFactor = THREE.MathUtils.clamp(Math.abs(this.speed) / 6, 0.2, 1);
+      const dir = input.steeringDirection?.(this.speed) ?? steerDirFor(throttle, this.speed);
+      this.heading += steer * TURN_RATE * speedFactor * dir * dt;
+
+      // Move. Visual rotation in three.js: rotating Object3D by +heading around Y rotates
+      // its local -Z (cart's nose) to world (-sin(h), 0, -cos(h)). Movement must match.
+      const fx = -Math.sin(this.heading);
+      const fz = -Math.cos(this.heading);
+      this.position.x += fx * this.speed * dt;
+      this.position.z += fz * this.speed * dt;
+      this.root.rotation.y = this.heading;
     }
-    this.speed = THREE.MathUtils.clamp(this.speed, maxRev, maxFwd);
 
-    // Steering scales with speed — feels arcade-y and forgiving.
-    const speedFactor = THREE.MathUtils.clamp(Math.abs(this.speed) / 6, 0.2, 1);
-    const dir = input.steeringDirection?.(this.speed) ?? steerDirFor(throttle, this.speed);
-    this.heading += steer * TURN_RATE * speedFactor * dir * dt;
     this.steerAngle = THREE.MathUtils.lerp(this.steerAngle, steer * 0.35, Math.min(1, dt * 10));
-
-    // Move. Visual rotation in three.js: rotating Object3D by +heading around Y rotates
-    // its local -Z (cart's nose) to world (-sin(h), 0, -cos(h)). Movement must match.
-    const fx = -Math.sin(this.heading);
-    const fz = -Math.cos(this.heading);
-    this.position.x += fx * this.speed * dt;
-    this.position.z += fz * this.speed * dt;
-    this.root.rotation.y = this.heading;
 
     // (World is infinite — no clamp. Ground + mountains follow the player.)
     // Cart Y stays at 0 since the followed ground is flattened to a 0-center.
-    this.position.y = 0;
+    if (this.surfaceSampler) this.groundOnSurface();
+    else this.position.y = 0;
+    const fx = -Math.sin(this.heading), fz = -Math.cos(this.heading);
 
     // Cache useful world data for other systems
     this.forwardWorld.set(fx, 0, fz);
@@ -1287,6 +1339,12 @@ export class Zerble {
       this.position.y + 3.0,
       this.position.z + Math.cos(this.heading) * 2.7
     );
+
+    if (this.surfaceSampler) {
+      this.root.updateMatrixWorld(true);
+      this.root.localToWorld(this.nozzleWorld.set(0, 3, 2.7));
+      this.forwardWorld.set(0, 0, -1).applyQuaternion(this.root.quaternion);
+    }
 
     // ----- Animate wheels -----
     const wheelAngularSpeed = this.speed / (this._tireR || 0.55); // rad/s, matches tire radius
@@ -1300,7 +1358,7 @@ export class Zerble {
         w.group.rotation.y = THREE.MathUtils.lerp(w.group.rotation.y, this.steerAngle, Math.min(1, dt * 10));
       }
       // Tiny bounce to feel alive
-      w.group.position.y = w.baseY + Math.sin(performance.now() * 0.01 + w.group.position.x) * 0.02;
+      if (!this.surfaceSampler) w.group.position.y = w.baseY + Math.sin(performance.now() * 0.01 + w.group.position.x) * 0.02;
     }
 
     // ----- Animate eyes (idle wobble + look ahead) -----

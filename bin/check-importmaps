@@ -6,8 +6,8 @@
  * cache-buster array (guardrail #8 / no-build.md). Forgetting one means edits
  * silently stop reloading on local dev — a footgun that has bitten repeatedly.
  *
- * The FOUR consuming pages, and what each must cover:
- *   index.html / sandbox.html / hub-sandbox.html  (FULL — load the whole game):
+ * The FIVE consuming pages, and what each must cover:
+ *   index.html / sandbox.html / hub-sandbox.html / terrain-sandbox.html (FULL — load the whole game):
  *     every src/*.js in `mods`, every src/worldgen/*.js in `mods`,
  *     every src/models/*.js in `models`.
  *   map-sandbox.html  (worldgen-only): every src/worldgen/*.js (+ rng) in `wg`.
@@ -32,6 +32,7 @@ const MODELS = list('src/models');             // bare names: 'canoe', …
 const PAGES = {
   'index.html': 'full',
   'sandbox.html': 'full',
+  'terrain-sandbox.html': 'full',
   'hub-sandbox.html': 'full',
   'map-sandbox.html': 'wg',
 };
