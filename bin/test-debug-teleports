@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {createDebugCommands} from '../src/debugCommands.js';
+const source=fs.readFileSync(new URL('../src/debug.js',import.meta.url),'utf8');
+let seed=1977;
+const position={x:0,y:3,z:0,set(x,y,z){Object.assign(this,{x,y,z});}};
+const hearts=[100,200,300].map((x,i)=>({x,z:0,cx:i,cz:0,rank:'major'}));
+const entries=new Map([1,2,3].map(id=>[id,{id,kind:'lake',position:{x:id*100,z:0},footprint:12}]));
+const hooks={zerble:{position,speed:12,heading:0},registry:{entries}};
+const districts=[100,200,300].map(x=>({x,z:0,pitches:[{}],paths:[{}, {bx:x,bz:14}]}));
+const context=vm.createContext({state:{hooks},createDebugCommands,getSessionSeed:()=>seed,USE_WORLDGEN_V2:true,
+ heartsInBounds:()=>hearts,festivalPlan:h=>[{kind:'main_stage',x:h.x,z:0}],
+ nearestMajorHeart:(x,z,r,accept)=>hearts.filter(accept).sort((a,b)=>Math.abs(a.x-x)-Math.abs(b.x-x))[0],
+ computeFrontAxis:()=>({bearing:0}),FESTIVAL_TUNING:{KIND_FOOTPRINT:{}},
+ woodlandCampsNear:()=>[...districts],campVillagesNear:()=>hearts.map(h=>({...h,kind:'camp_village',tents:5})),
+ getForestAt:()=>null,api:()=>({teleport(x,z){position.set(x,position.y,z);hooks.zerble.speed=0;}}),
+});
+vm.runInContext(source.slice(source.indexOf('function landmarkKey('),source.indexOf('\nfunction api()'))+';this.tp=teleportLandmark;this.command=runDebugCommand;this.suggest=debugCommandSuggestions;',context);
+for(const kind of ['stage','hub','woodland_camp','camp_village','lake']){
+ position.set(0,3,0);
+ const first=context.tp(kind),second=context.tp(kind),third=context.tp(kind),wrap=context.tp(kind);
+ assert(first&&second&&third&&wrap,kind);
+ assert.equal(new Set([first.targetKey,second.targetKey,third.targetKey]).size,3,`${kind} must visit distinct landmarks before wrapping`);
+ assert.notEqual(wrap.targetKey,third.targetKey,`${kind} wrap cannot stay at the arrival`);
+ assert.equal(position.y,3);assert.equal(hooks.zerble.speed,0);
+ position.set(0,3,0);assert.equal(context.tp(kind).targetKey,first.targetKey,'driving away resets nearest search');
+}
+position.set(0,3,0);const a=context.tp('woodland_camp');seed++;
+assert.equal(context.tp('woodland_camp').targetKey,a.targetKey,'new seed clears itinerary');
+assert.match(context.command('/tp 12.5 -87'),/12.5/);assert.equal(position.x,12.5);assert.equal(position.z,-87);
+assert.match(context.command(' /TP CAMP '),/woodland/);
+const before={...position};assert.match(context.command('/tp Infinity 4'),/Use/);assert.equal(position.x,before.x);
+assert.match(context.command('/wat'),/Unknown/);assert.match(context.command('/help'),/Repeat/);
+const saved=[...districts];districts.splice(1);position.set(0,3,0);seed++;
+assert(context.tp('woodland_camp'));assert(context.tp('woodland_camp'),'singleton destinations remain usable');
+districts.splice(0);position.set(0,3,0);seed++;assert.equal(context.tp('woodland_camp'),null);
+console.log('PASS debug teleports: per-category cycling, wrap, singleton/missing destinations, drive-away and seed reset, arrival transforms and safe command parsing.');
+const inputSource=fs.readFileSync(new URL('../src/input.js',import.meta.url),'utf8');
+const listeners=new Map(),inputContext=vm.createContext({window:{addEventListener:(name,fn)=>listeners.set(name,fn)}});
+vm.runInContext(inputSource.slice(inputSource.indexOf('const held ='),inputSource.indexOf('// Combine a keyboard'))+';this.snapshot=()=>({held:[...held],edges:[...edges]});',inputContext);
+const plain={matches:()=>false},field={matches:()=>true};
+listeners.get('keydown')({key:'w',target:plain,preventDefault(){}});
+assert.equal(inputContext.snapshot().held.length,1);
+listeners.get('focusin')({target:field});assert.equal(inputContext.snapshot().held.length,0);assert.equal(inputContext.snapshot().edges.length,0);
+listeners.get('keydown')({key:'w',target:field});assert.equal(inputContext.snapshot().held.length,0,'typing cannot steer');
+console.log('PASS command input isolation: editable focus clears existing held/edge controls and subsequent text never enters gameplay input.');
+
+assert(context.suggest('/').length>=20);
+assert.equal(context.suggest('/t')[0].value,'/tp ');
+assert.equal(context.suggest('/tp')[0].value,'/tp ');
+assert(context.suggest('/tp ').length>=15,'argument discovery shows all usable targets');
+assert.deepEqual(Array.from(context.suggest('/tp ca'),s=>s.label),['camp','campsite']);
+assert(!context.suggest('/tp CAMP').some(s=>s.label==='camp'),'the exact argument is already complete');
+assert(context.suggest('/tp CAMP').some(s=>s.label==='campsite'),'longer prefix matches remain discoverable');
+assert.equal(context.suggest('/tp 12 ').length,0,'coordinate entry must not offer named targets');
+assert.equal(context.suggest('/wat ').length,0);
+assert.equal(context.suggest('/tp caMP',6)[0].value,'/tp camp','completion replaces the whole token at the caret');
+assert.equal(context.suggest('/he')[0].value,'/help ');
+console.log('PASS contextual autocomplete: command and argument discovery, prefix/case filtering, exact matches, coordinate isolation and caret-token replacement.');

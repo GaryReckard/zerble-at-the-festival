@@ -1,0 +1,100 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+const source = readFileSync(new URL('../src/campMusic.js', import.meta.url), 'utf8');
+const api = vm.runInNewContext(source.replace(/export /g, '') + ';({createCampJam,campJamNotes,CAMP_INSTRUMENTS})');
+const { createCampJam, campJamNotes, CAMP_INSTRUMENTS } = api;
+for (let seed = 0; seed < 120; seed++) {
+  const first = [], second = [], all = new Set();
+  for (let step = 0; step < 128; step++) {
+    const notes = campJamNotes(seed, CAMP_INSTRUMENTS, step);
+    first.push(notes); second.push(campJamNotes(seed, CAMP_INSTRUMENTS, step));
+    for (const note of notes) {
+      all.add(note.kind);
+      assert(note.midi >= 24 && note.midi <= 100);
+      assert(note.duration > 0 && note.duration < 2);
+      assert(note.gain > 0 && note.gain < .2);
+    }
+    const guitar = notes.filter(n => n.kind === 'guitar');
+    if (guitar.length) assert.deepEqual(Array.from(guitar, n => n.midi - guitar[0].midi), [0, 4, 7]);
+  }
+  assert.deepEqual(first, second, 'stateless score reproduces exactly');
+  assert.equal(all.size, 5, 'all five instruments contribute across a phrase');
+}
+function context() {
+  const nodes = [], events = [];
+  const param = () => ({ value: 0, setValueAtTime(v, t) { assert(Number.isFinite(v) && Number.isFinite(t)); },
+    exponentialRampToValueAtTime(v, t) { assert(v > 0 && Number.isFinite(t)); } });
+  const node = type => {
+    const item = { type, gain: param(), frequency: param(), Q: param(), connected: false,
+      connect() { this.connected = true; }, disconnect() { this.connected = false; },
+      start(time) { assert(time >= ctx.currentTime); events.push({ time, item }); }, stop(time) { this.stopped = time ?? true; } };
+    nodes.push(item); return item;
+  };
+  const ctx = { currentTime: 0, state: 'running', createGain: () => node('gain'),
+    createOscillator: () => node('oscillator'), createBiquadFilter: () => node('filter') };
+  return { ctx, nodes, events };
+}
+const { ctx, nodes, events } = context();
+const jam = createCampJam(ctx, {}, { seed: 31, instruments: ['bass', 'guitar', 'fiddle', 'banjo', 'mandolin', 'guitar', 'invalid'] });
+assert.equal(jam.instruments.length, 4, 'ensemble has at most four distinct valid instruments');
+assert(jam.bpm >= 80 && jam.bpm <= 102);
+jam.tick();
+assert(events.length > 0);
+const before = events.length;
+ctx.currentTime = 900; jam.tick();
+assert(events.length - before <= 16, 'resume does not burst-replay hundreds of expired measures');
+assert(jam.stats.skippedSteps > 1000, 'skipped progression advances coherently after a long absence');
+for (let i = 0; i < 100; i++) { ctx.currentTime += .4; jam.tick(); }
+assert(jam.stats.peakVoices <= 32, 'unended/future voices never exceed the hard voice budget');
+jam.stop(); jam.stop();
+assert.equal(jam.stats.activeVoices, 0);
+assert(nodes.every(n => !n.connected), 'all active audio nodes and ensemble bus disconnect');
+assert(events.every(e => e.item.stopped), 'all scheduled oscillators are stopped, including future starts');
+const stopped = events.length; jam.tick(10000); assert.equal(events.length, stopped);
+const suspended = context(); suspended.ctx.state = 'suspended';
+const asleep = createCampJam(suspended.ctx, {}, { seed: 1 }); asleep.tick();
+assert.equal(suspended.events.length, 0); asleep.stop();
+const ended = context(), short = createCampJam(ended.ctx, {});
+short.tick();
+for (const event of ended.events) event.item.onended();
+assert.equal(short.stats.activeVoices, 0, 'naturally ended voices release retained nodes');
+short.stop();
+assert(ended.nodes.every(n => !n.connected));
+
+// Exercise the actual Sound bridge before and after the synchronous gesture
+// creates its context. A canceled deferred handle must never revive afterward.
+const soundSource = readFileSync(new URL('../src/sound.js', import.meta.url), 'utf8');
+const bridgeStart = soundSource.indexOf('function createCampJamHandle(');
+const bridgeEnd = soundSource.indexOf('\nexport function scheduleUpgradeArpeggio', bridgeStart);
+const listenerStart = soundSource.indexOf('  updateAudioListener(');
+const listenerEnd = soundSource.indexOf('\n  // boost:', listenerStart);
+const bridge = vm.runInNewContext(`let ctx=null,musicBus=null;const _campJams=new Set();
+${soundSource.slice(bridgeStart, bridgeEnd)}
+const sound={${soundSource.slice(listenerStart, listenerEnd)}};
+({createCampJamHandle,sound,setContext(context,bus){ctx=context;musicBus=bus;},handles:_campJams});`, {
+  createCampJam,
+  createStagePanner(ctx, destination) {
+    const panner = { connected: true, destination, disconnect() { this.connected = false; } };
+    panners.push(panner); return panner;
+  },
+});
+const panners = [], deferredAudio = context();
+const canceled = bridge.createCampJamHandle(1, 2, 77, ['guitar', 'bass']); canceled.stop();
+const deferred = bridge.createCampJamHandle(3, 4, 91, ['banjo', 'fiddle']);
+assert.equal(panners.length, 0, 'pre-gesture camp activity allocates no audio nodes/context');
+deferredAudio.ctx.listener = {};
+const musicBus = {};
+bridge.setContext(deferredAudio.ctx, musicBus);
+bridge.sound.updateAudioListener(0, 1, 0, 0, 0, -1);
+assert.equal(panners.length, 1, 'listener update adopts only the surviving deferred ensemble');
+assert.equal(panners[0].destination, musicBus, 'camp music passes through saved music volume/duck/trip path');
+assert.equal(panners[0].refDistance, 5); assert.equal(panners[0].maxDistance, 65);
+assert(deferredAudio.events.length > 0);
+deferred.stop(); deferred.stop();
+assert.equal(bridge.handles.size, 0);
+assert(panners.every(panner => !panner.connected));
+assert(deferredAudio.nodes.every(node => !node.connected));
+console.log('PASS Camp music: five coherent deterministic parts, bounded four-player ensembles/32 voices, skipped overdue beats, suspended context safety and complete/idempotent teardown.');
+console.log('PASS Sound bridge: pre-gesture deferral/cancellation, listener-driven adoption, local spatial range and shared music bus, complete teardown.');

@@ -1,3 +1,4 @@
+import { woodlandCampsNear, woodlandCampingClearance } from './woodlandCamping.js';
 import { planCampNeighborhood } from './campPlanning.js';
 import { registerCampsite, canPlaceCampsite } from './campRegistry.js';
 // Procedural festival, generated in chunks. Each chunk picks a theme based on its
@@ -513,6 +514,11 @@ export class ChunkManager {
     placeWorldgenProps(ctx);     // Group D/D2 — festival clusters along the heart's roads
     if (CHUNK_TIMING) {
       recordChunkStage('props', performance.now() - stageStartedAt);
+      stageStartedAt = performance.now();
+    }
+    placeWoodlandCamping(ctx);
+    if (CHUNK_TIMING) {
+      recordChunkStage('woodland', performance.now() - stageStartedAt);
       stageStartedAt = performance.now();
     }
     scatterWorldgenTrees(ctx);   // Group F — treeDensity woods (dodge roads, water, clusters)
@@ -1091,7 +1097,9 @@ function scatterWorldgenTrees(ctx) {
     });
     placed.push({ x, z });
   };
+  const woodland=ctx.woodlandDistricts || woodlandCampsNear({minX,minZ,maxX:minX+CHUNK_SIZE,maxZ:minZ+CHUNK_SIZE});
   const clearOfStuff = (x, z, spacing) => {
+    if(woodlandCampingClearance(x,z,woodland,4))return false;
     if (pointInDancefloor(x, z, danceRects)) return false;          // keep the stage's audience side clear (A4)
     if (pointNearWorldgenRoad(x, z, chunkRoads, roadHalf)) return false;   // off EVERY nearby arterial, not just this region's
     for (let i = 0; i < drumClears.length; i++) { const dc = drumClears[i]; if ((dc.x - x) * (dc.x - x) + (dc.z - z) * (dc.z - z) < dc.r * dc.r) return false; }
@@ -1179,6 +1187,7 @@ function scatterWorldgenTrees(ctx) {
     } else {
       sx = minX + rng() * CHUNK_SIZE; sz = minZ + rng() * CHUNK_SIZE;
     }
+    if (woodlandCampingClearance(sx,sz,woodland,1.6)) continue;
     if (treeDensity(sx, sz) < 0.05) continue;
     if (pointNearWorldgenRoad(sx, sz, chunkRoads, roadHalf)) continue;
     if (pointInDancefloor(sx, sz, danceRects)) continue;
@@ -1818,6 +1827,74 @@ function buildCampNeighborhoodAt(ctx, x, z, target, envelope = 60, density = nul
     else if(pitch.role==='host')break;
   }
   return camps;
+}
+
+// Every chunk asks for the same pure plan, even when the owning host chunk
+// has not streamed yet. This keeps tree-free pitches and access load-order safe.
+const _WOODLAND_PATH_MAT=new THREE.MeshStandardMaterial({color:0x96806a,roughness:1,
+  polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,depthWrite:true});
+_WOODLAND_PATH_MAT.userData.shared=true;
+function placeWoodlandCamping(ctx) {
+  const half=CHUNK_SIZE/2;
+  const districts=ctx.woodlandDistricts || woodlandCampsNear({minX:ctx.cxWorld-half,minZ:ctx.czWorld-half,maxX:ctx.cxWorld+half,maxZ:ctx.czWorld+half});
+  ctx.woodlandDistricts=districts;
+  const camps=[];
+  for(const d of districts) {
+    if(!ctx.woodlandPreview && (ownerCellCoord(d.x,CHUNK_SIZE)!==ctx.cx || ownerCellCoord(d.z,CHUNK_SIZE)!==ctx.cz))continue;
+    let host=false;
+    const household=[];
+    for(const p of d.pitches) {
+      if(p.role==='satellite'&&!host)continue;
+      const local={...ctx,rng:mulberry32(p.seed)};
+      const camp=placeSingleCampsite(local,p.worldx,p.worldz,p.size,p.facing,{plan:p.recipe,
+        role:p.role,archetype:p.archetype,seed:p.seed,campNeighborhood:d.id});
+      if(!camp)continue;
+      camps.push(camp);household.push(camp);
+      if(p.role==='host')host=true;
+    }
+    if(!host)continue;
+    for(const path of d.paths) {
+      if(path.visible===false)continue;
+      if(Math.hypot(path.bx-path.ax,path.bz-path.az)<.01)continue;
+      ctx.group.add(buildRibbonFromPolyline([{x:path.ax,z:path.az},{x:path.bx,z:path.bz}],path.width,_WOODLAND_PATH_MAT));
+    }
+    // Deep woods have almost no ordinary ambient crowd. Add residents near
+    // the actual furniture, subject to the existing shared actor-pool cap.
+    if(ctx.crowd) {
+      const rng=mulberry32(d.seed^0x52455349);
+      for(let i=0;i<Math.min(10,household.length+3);i++)for(let attempt=0;attempt<12;attempt++) {
+        const p=d.pitches[i%d.pitches.length],angle=rng()*Math.PI*2,r=2+rng()*5;
+        const x=p.worldx+Math.cos(angle)*r,z=p.worldz+Math.sin(angle)*r;
+        let blocked=false;
+        registry.collidersNear(x,z,.4,e=>{if(Math.hypot(x-e.position.x,z-e.position.z)<(e.collider?.radius||0)+.4)blocked=true;});
+        if(blocked||isPointInLake(x,z))continue;
+        ctx.crowd.spawn({pos:new THREE.Vector3(x,0,z),chunkKey:ctx.key,rng,allowPhotographer:false});break;
+      }
+    }
+  }
+  return camps;
+}
+
+// An actual density-field district and its surrounding nine streamed tree
+// slices, using the production builder and the same deterministic clearances.
+export function buildWoodlandCampPreview(scene,options={}) {
+  const districts=woodlandCampsNear({minX:-900,minZ:-900,maxX:900,maxZ:900});
+  districts.sort((a,b)=>Math.hypot(a.x,a.z)-Math.hypot(b.x,b.z));
+  const district=districts[0];
+  if(!district)throw new Error('No woodland campground in this seed preview window');
+  const key='woodland-preview',group=new THREE.Group();scene.add(group);
+  const cx=ownerCellCoord(district.x,CHUNK_SIZE),cz=ownerCellCoord(district.z,CHUNK_SIZE);
+  const ctx={key,group,cx,cz,cxWorld:cx*CHUNK_SIZE,czWorld:cz*CHUNK_SIZE,rng:mulberry32(district.seed),campPreview:true,woodlandPreview:true,woodlandDistricts:[district],crowd:options.crowd};
+  const camps=placeWoodlandCamping(ctx);
+  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)scatterWorldgenTrees({...ctx,cx:cx+dx,cz:cz+dz,cxWorld:(cx+dx)*CHUNK_SIZE,czWorld:(cz+dz)*CHUNK_SIZE});
+  const trees=[...registry.byChunk(key)].filter(e=>e.kind==='forest_tree').length;
+  return {group,district,camps,trees,dispose(){
+    registry.removeChunk(key);
+    for(let i=forestAnimatables.length-1;i>=0;i--)if(forestAnimatables[i].chunkKey===key)forestAnimatables.splice(i,1);
+    scene.remove(group);
+    group.traverse(obj=>{if(obj.isInstancedMesh)obj.dispose();if(obj.geometry&&!obj.geometry.userData.shared)obj.geometry.dispose();
+      for(const mat of obj.material?(Array.isArray(obj.material)?obj.material:[obj.material]):[])if(!mat.userData.shared)mat.dispose();});
+  }};
 }
 
 // The sandbox exercises the same planner, building path and registry lifecycle
@@ -2671,7 +2748,7 @@ function placeSingleCampsite(ctx, x, z, size = 'small', facing = null, options =
   camp.group.position.set(x, 0, z);
   const randomFacing = ctx.rng() * Math.PI * 2;
   camp.group.rotation.y = facing == null ? randomFacing : facing - (camp.entranceYaw || 0);
-  if(options.campNeighborhood && !canPlaceCampsite(registry,camp,options.campNeighborhood)) {
+  if(options.campNeighborhood && !canPlaceCampsite(registry,camp,options.campNeighborhood,{waterChecked:!ctx.campPreview})) {
     camp.group.traverse(obj=>{
       if(obj.isInstancedMesh)obj.dispose();
       if(obj.geometry && !obj.geometry.userData.shared)obj.geometry.dispose();

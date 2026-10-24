@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
 import { registerCampsite, canPlaceCampsite, campSeatApproaches } from '../src/campRegistry.js';
 class Position {
   constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}
@@ -19,6 +21,11 @@ assert.equal(entries[1].collider.radius,3);assert.equal(entries[1].collider.dama
 assert.ok(entries.every(e=>e.chunkKey==='4,5'));
 entries.length=0;registerCampsite(registry,camp);assert.ok(entries.every(e=>!('chunkKey' in e)),'lake solids survive host chunk removal');
 console.log('PASS campsite transforms, granular collisions, seat/bed metadata, and owner lifetimes');
+const fireCamp = { ...camp, childColliders: [{kind:'campfire', x:2, z:-1, radius:.8}] };
+entries.length=0; registerCampsite(registry,fireCamp);
+assert.equal(entries[0].campFire.x,8); assert.equal(entries[0].campFire.z,16);
+assert(!('campFire' in entry),'a fireless satellite never invents a musical gathering center');
+console.log('PASS camp hearth metadata follows actual rotated/scaled fire position');
 
 const loveseat = {};
 camp.seats = [{x:1,z:2,y:.45,yaw:0,group:loveseat},{x:1.8,z:2,y:.45,yaw:0,group:loveseat}];
@@ -96,3 +103,44 @@ camp.tents[0].capacity=5;entries.length=0;registerCampsite(registry,camp);
 assert.equal(entries[0].campBeds.length,5,'large shelters use their modeled sleeping capacity');
 entries[0].campBeds[0].occupied=true;
 assert.equal(entries[0].campBeds[1].occupied,false,'sleeping reservations remain independent within one shelter');
+
+const lakeEnvelope={kind:'lake',position:new Position(),footprint:80};
+let lakeSolids=[],otherReservations=[];
+const lakeGate={entries:new Map(),byKind:new Map(),footprintsNear(x,z,r,fn){[lakeEnvelope,...otherReservations].forEach(fn);},collidersNear(x,z,r,fn){lakeSolids.forEach(fn);}};
+assert.equal(canPlaceCampsite(lakeGate,candidate,'woodland'),false,'unchecked callers retain broad lake protection');
+assert.equal(canPlaceCampsite(lakeGate,candidate,'woodland',{waterChecked:false}),false,'preview callers retain broad lake protection');
+assert.equal(canPlaceCampsite(lakeGate,candidate,'woodland',{waterChecked:true}),true,'exact dry checks authorize bypassing only a non-solid lake envelope');
+lakeEnvelope.collider={radius:80};
+assert.equal(canPlaceCampsite(lakeGate,candidate,'woodland',{waterChecked:true}),false,'a solid lake entry remains authoritative');
+delete lakeEnvelope.collider;
+lakeSolids=[{kind:'lake_edge',position:new Position(),collider:{radius:.8}}];
+assert.equal(canPlaceCampsite(lakeGate,candidate,'woodland',{waterChecked:true}),false,'shoreline solids remain authoritative after dry checks');
+lakeSolids=[];otherReservations=[{kind:'stage',position:new Position(),footprint:6}];
+assert.equal(canPlaceCampsite(lakeGate,candidate,'woodland',{waterChecked:true}),false,'dry checks cannot bypass unrelated venue reservations');
+console.log('PASS checked-water opt-in preserves unchecked/preview lake protection, shoreline solids and unrelated reservations');
+
+const chunkSource=readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');
+const preflightSource=chunkSource.slice(chunkSource.indexOf('function placeSingleCampsite('),chunkSource.indexOf('// Camp village theme'));
+let waterMode='dry',waterQueries=0,buildCount=0;
+const waterFlags=[];
+const place=vm.runInNewContext(preflightSource+';placeSingleCampsite',{
+  campsiteFootprint:()=>5,USE_WORLDGEN_V2:true,ROAD_RIBBON_WIDTH:8,nearestRoad:()=>({dist:Infinity}),THREE:{Vector3:Position},
+  isPointInLake:(x,z)=>{waterQueries++;return waterMode==='center'&&x===10&&z===20||waterMode==='rim'&&x===15&&z===20;},
+  registry:{},buildCampsite:()=>{buildCount++;return {group:{position:new Position(),rotation:{y:0}},animatables:[]};},
+  canPlaceCampsite:(registry,camp,neighborhood,options)=>{waterFlags.push(options.waterChecked);return true;},
+  registerCampsite(){},forestAnimatables:[],
+});
+const liveCtx={rng:()=>.5,group:{add(){}}};
+assert(place(liveCtx,10,20,'small',0,{campNeighborhood:'checked'}));
+assert.equal(waterQueries,17,'live placement checks actual water at center and sixteen perimeter points');
+assert.equal(waterFlags[0],true);
+waterQueries=0;
+assert(place({...liveCtx,campPreview:true},10,20,'small',0,{campNeighborhood:'preview'}));
+assert.equal(waterQueries,0);assert.equal(waterFlags[1],false,'preview cannot claim dry checks it skipped');
+waterQueries=0;waterMode='center';
+assert.equal(place(liveCtx,10,20,'small',0,{campNeighborhood:'wet'}),null);assert.equal(waterQueries,1);
+waterQueries=0;waterMode='rim';
+assert.equal(place(liveCtx,10,20,'small',0,{campNeighborhood:'wet-rim'}),null);assert.equal(waterQueries,2);
+assert.equal(buildCount,2,'wet center and wet rim return before constructing or authorizing a camp');
+assert.equal(waterFlags.length,2,'wet preflights never reach the opt-in placement guard');
+console.log('PASS production preflight: seventeen dry checks authorize opt-in; previews stay unchecked and wet center/rim stop before construction.');

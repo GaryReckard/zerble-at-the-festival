@@ -1,0 +1,114 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+const source = readFileSync(new URL('../src/campJamActivity.js', import.meta.url), 'utf8');
+const registry = { entries: new Map(), byKind: new Map([['campsite', new Set()]]), solids: [],
+  collidersNear(x, z, radius, fn) { for (const entry of this.solids) fn(entry); } };
+const sounds = [];
+const Sound = { attachCampJam(x, z, seed, instruments) {
+  const sound = { x, z, seed, instruments, stopped: false, stop() { this.stopped = true; } };
+  sounds.push(sound); return sound;
+} };
+const CampJamActivity = vm.runInNewContext(source.replace(/^import .*;$/gm, '').replace(/export /g, '') + ';CampJamActivity', {
+  registry, Sound, buildCampInstrument: kind => ({ kind, group: { kind } }), updateCampInstrument() {},
+});
+function vector(x = 0, z = 0) { return { x, y: 0, z, set(x, y, z) { Object.assign(this, { x, y, z }); } }; }
+function fixture(count = 4) {
+  registry.entries.clear(); registry.byKind.get('campsite').clear(); registry.solids = []; sounds.length = 0;
+  const slots = [-3, -1, 1, 3].map(x => ({ x, z: 3, y: .8, yaw: Math.PI, approachX: x, approachZ: 4.2, occupied: false }));
+  const host = { id: 'host', position: vector(), campFire: { x: 0, z: 0 }, campNeighborhood: 'household',
+    campBeds: [{ x: 5, z: 6, doorX: 5, doorZ: 4.5, occupied: false }], campSeats: slots };
+  const satellite = { id: 'satellite', position: vector(8, 0), campNeighborhood: 'household',
+    campBeds: [{ x: 8, z: 6, doorX: 8, doorZ: 4.5, occupied: false }], campSeats: [] };
+  for (const entry of [host, satellite]) { registry.entries.set(entry.id, entry); registry.byKind.get('campsite').add(entry.id); }
+  const crowd = { npcs: Array.from({ length: count }, (_, idx) => ({ idx, pos: vector(4 + idx * .7, 4.5),
+    vel: vector(), yaw: 0, energy: 1, state: 'idle' })), writes: 0,
+    group: { children: new Set(), add(group) { this.children.add(group); }, remove(group) { this.children.delete(group); } },
+    _writeMatrices() { this.writes++; },
+    _campExit(npc) { return this.blockedExit ? null : { x: npc.campSlot.approachX, z: npc.campSlot.approachZ }; } };
+  return { host, satellite, crowd, slots, manager: new CampJamActivity(crowd) };
+}
+const main = fixture(), phases = new Set();
+main.manager.nextScan = 0;
+for (let i = 0; i < 1350; i++) {
+  main.manager.update(.1, { position: vector() }, .62);
+  for (const npc of main.crowd.npcs) {
+    if (npc.campJam) phases.add(npc.campJam.stage);
+    main.manager.tickNpc(.1, npc);
+  }
+}
+for (const phase of ['fetch_walk', 'fetch', 'approach', 'seat', 'ready', 'playing', 'leave', 'return', 'putaway']) {
+  assert(phases.has(phase), `real activity reaches ${phase}`);
+}
+assert.equal(sounds.length, 1, 'one ensemble starts only after participants reach the fire');
+assert(sounds[0].instruments.length >= 2 && sounds[0].instruments.length <= 4);
+assert.equal(new Set(sounds[0].instruments).size, sounds[0].instruments.length);
+assert(sounds[0].stopped, 'ensemble stops before instruments return to tents');
+assert(main.slots.every(slot => !slot.occupied), 'normal completion returns every chair claim');
+assert(main.host.campBeds.every(bed => !bed.occupied), 'fetching instruments never consumes sleeping capacity');
+assert.equal(main.crowd.group.children.size, 0, 'returned instruments leave the crowd scene');
+assert(main.crowd.npcs.every(npc => !npc.campJam && !npc.campJamHidden && !npc.campInstrument));
+main.manager.dispose();
+
+const unloaded = fixture(); unloaded.manager.nextScan = 0; unloaded.manager.update(.1, vector(), .62);
+for (let i = 0; i < 200; i++) {
+  unloaded.manager.update(.1, vector(), .62);
+  for (const npc of unloaded.crowd.npcs) unloaded.manager.tickNpc(.1, npc);
+}
+assert(unloaded.crowd.group.children.size > 0, 'unload case owns carried instrument models');
+registry.entries.delete(unloaded.host.id);
+unloaded.manager.update(.1, vector(), .62);
+assert.equal(unloaded.manager.sessions.length, 0);
+assert.equal(unloaded.crowd.group.children.size, 0);
+assert(unloaded.slots.every(slot => !slot.occupied));
+assert(sounds.every(sound => sound.stopped));
+unloaded.manager.dispose();
+
+const canceled = fixture(); canceled.manager.nextScan = 0; canceled.manager.update(.1, vector(), .62);
+for (const npc of canceled.crowd.npcs) canceled.manager.releaseNpc(npc);
+assert.equal(canceled.manager.sessions.length, 0, 'interruption before fetch leaves no orphan session');
+assert(canceled.slots.every(slot => !slot.occupied));
+canceled.manager.dispose(); canceled.manager.dispose();
+
+const trapped = fixture(); trapped.manager.nextScan = 0; trapped.manager.update(.1, vector(), .62);
+const seatedJob = trapped.manager.sessions[0].jobs.find(job => job.slot);
+assert(seatedJob);
+seatedJob.npc.state = 'camp_seated'; seatedJob.stage = 'playing';
+seatedJob.instrument = { group: {} };
+trapped.manager._end(seatedJob.session); trapped.crowd.blockedExit = true;
+trapped.manager.tickNpc(70, seatedJob.npc);
+assert.equal(seatedJob.npc.state, 'camp_seated', 'timeout cannot stand a trapped musician inside their chair');
+assert(seatedJob.slot.occupied, 'blocked exit retains its chair claim');
+trapped.crowd.blockedExit = false; trapped.manager.tickNpc(.1, seatedJob.npc);
+assert.equal(seatedJob.npc.campSlot, null, 'an exit becomes releasable when it clears');
+trapped.manager.dispose();
+
+const sleepy = fixture(); sleepy.manager.nextScan = 0;
+sleepy.manager.update(5, vector(), .9);
+assert.equal(sleepy.manager.sessions.length, 0, 'late-night sleepers are not recruited');
+sleepy.manager.nextScan = 0; sleepy.manager.update(1, vector(200, 200), .62);
+assert.equal(sleepy.manager.sessions.length, 0, 'distant camps do not schedule invisible ensembles');
+sleepy.crowd.npcs.forEach(npc => { npc.party = {}; }); sleepy.manager.nextScan = 0;
+sleepy.manager.update(1, vector(), .62);
+assert.equal(sleepy.manager.sessions.length, 0, 'existing festival activities keep their actors');
+sleepy.manager.dispose();
+
+const distantChairs = fixture();
+for (const slot of distantChairs.slots) slot.z = 18;
+distantChairs.manager.nextScan = 0; distantChairs.manager.update(.1, vector(), .62);
+assert(distantChairs.manager.sessions.length > 0);
+assert(distantChairs.manager.sessions[0].jobs.every(job => !job.slot), 'kitchen chairs far from the hearth are not recruited as fire-circle seating');
+assert(distantChairs.manager.sessions[0].jobs.every(job => Math.hypot(job.target.x,job.target.z) <= 7));
+distantChairs.manager.dispose();
+
+const movement = fixture(1), mover = movement.crowd.npcs[0]; mover.pos.set(0, 0, 0);
+registry.solids = [{ position: vector(1.2, 0), collider: { radius: .6 } }];
+movement.manager._move(mover, { x: 5, z: 0 }, 10);
+assert(Math.hypot(mover.pos.x, mover.pos.z) < .7, 'a large delta cannot tunnel through a tent in one update');
+for (let i = 0; i < 300; i++) {
+  movement.manager._move(mover, { x: 5, z: 0 }, .05);
+  assert(Math.hypot(mover.pos.x - 1.2, mover.pos.z) >= .94, 'every admitted walking step stays outside the solid');
+}
+movement.manager.dispose();
+console.log('PASS Fireside activity: complete fetch/carry/seat/play/return lifecycle, shared household beds, unique 2–4 player parts, claims/model/audio cleanup, interruptions/unloads, time/distance gates and collision-safe bounded walking.');

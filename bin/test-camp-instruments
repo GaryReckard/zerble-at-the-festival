@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+let allocations = 0;
+class Geometry {
+  constructor(...args) { allocations++; this.args = args; this.userData = {}; }
+  translate() { return this; } rotateX() { return this; } dispose() { this.disposed = true; }
+}
+class Vector { set(x, y, z) { Object.assign(this, { x, y, z }); } }
+class Group {
+  constructor() { this.children = []; this.userData = {}; this.position = new Vector(); this.rotation = { x: 0, y: 0, z: 0 }; }
+  add(...nodes) { this.children.push(...nodes); }
+}
+class Mesh extends Group {
+  constructor(geometry, material) { super(); Object.assign(this, { geometry, material, castShadow: false }); }
+}
+const shape = class { moveTo() {} bezierCurveTo() {} };
+const source = readFileSync(new URL('../src/models/campInstruments.js', import.meta.url), 'utf8');
+const api = vm.runInNewContext(source.replace(/^import .*;$/gm, '').replace(/export /g, '') + ';({buildCampInstrument,updateCampInstrument,CAMP_INSTRUMENT_KINDS})', {
+  THREE: { Group, Mesh, BoxGeometry: Geometry, CylinderGeometry: Geometry, ExtrudeGeometry: Geometry, Shape: shape,
+    MeshStandardMaterial: class { constructor(options) { this.userData = {}; Object.assign(this, options); } } },
+  mergeGeometries: parts => { assert(parts.length > 0); return new Geometry(); },
+});
+const { buildCampInstrument, updateCampInstrument, CAMP_INSTRUMENT_KINDS } = api;
+const first = CAMP_INSTRUMENT_KINDS.map(kind => buildCampInstrument(kind));
+const warmed = allocations;
+for (let i = 0; i < 200; i++) for (const kind of CAMP_INSTRUMENT_KINDS) {
+  const instrument = buildCampInstrument(kind), original = first.find(x => x.kind === kind);
+  assert.equal(instrument.kind, kind);
+  assert(instrument.height > .6 && instrument.height < 1.9);
+  assert(instrument.width > .15 && instrument.width < .5);
+  assert(instrument.group.children.length <= 5, 'material merging keeps each carried instrument under six draws');
+  for (let j = 0; j < instrument.group.children.length; j++) {
+    const child = instrument.group.children[j];
+    if (child.geometry) {
+      assert.equal(child.geometry, original.group.children[j].geometry, 'copies reuse shared pooled geometry');
+      assert.equal(child.material, original.group.children[j].material);
+      assert(child.geometry.userData.shared && child.material.userData.shared);
+      assert.equal(child.castShadow, false, 'small instrument details never become shadow casters');
+    }
+  }
+  assert.equal(allocations, warmed, 'building and animating more copies allocates no new GPU resources');
+  updateCampInstrument(instrument, i / 3, true);
+}
+const fiddle = first.find(x => x.kind === 'fiddle'), bass = first.find(x => x.kind === 'bass');
+assert.equal(bass.posture, 'standing');
+assert(bass.height > first.find(x => x.kind === 'guitar').height);
+const idle = buildCampInstrument('fiddle');
+updateCampInstrument(fiddle, 2); assert.notEqual(fiddle.bow.position.x, idle.bow.position.x, 'bow animation is actor-owned');
+updateCampInstrument(fiddle, 2, false); assert.equal(fiddle.bow.position.x, .15, 'bow rests when playing ends');
+updateCampInstrument(fiddle, NaN); assert(Number.isFinite(fiddle.bow.position.x));
+assert.equal(buildCampInstrument('unknown').kind, 'guitar');
+
+// Run the actual crowd attachment method, preserving the composed local pose
+// for inspection. The main-game browser check establishes its raster result.
+const crowdSource = readFileSync(new URL('../src/crowd.js', import.meta.url), 'utf8');
+const attachStart = crowdSource.indexOf('\n  _writeCampInstrument(');
+const attachEnd = crowdSource.indexOf('\n  // ----- Passenger', attachStart);
+const RenderHarness = vm.runInNewContext(`class RenderHarness { ${crowdSource.slice(attachStart, attachEnd)} };RenderHarness`);
+const rig = new RenderHarness();
+rig._tmpV3 = new Vector(); rig._tmpScale = new Vector();
+rig._tmpEuler = { set(x,y,z) { Object.assign(this,{x,y,z}); return this; } };
+rig._tmpQuat = { setFromEuler(euler) { Object.assign(this,euler); return this; } };
+rig._instrumentLocalMat = { compose(pos,quat,scale) { this.pos={...pos};this.quat={...quat};this.scale={...scale};return this; } };
+for (const kind of CAMP_INSTRUMENT_KINDS) for (const scale of [.75,1,1.35]) for (const stage of ['approach','ready','playing','return']) {
+  const model = buildCampInstrument(kind);
+  model.group.matrix = { copy(body) { this.body=body;return this; }, multiply(local) { this.local={pos:{...local.pos},quat:{...local.quat}};return this; } };
+  rig._writeCampInstrument({campInstrument:model,campJam:{stage}}, {scale,feetY:kind==='bass'?0:.35});
+  assert.equal(model.group.matrixAutoUpdate,false,'instrument world matrix inherits the actual crowd body matrix');
+  assert(model.group.visible && model.group.matrixWorldNeedsUpdate);
+  const local=model.group.matrix.local;
+  assert(Object.values(local.pos).every(Number.isFinite));
+  if(kind==='bass') assert.equal(local.pos.y,.57,'upright bass endpin stays on its standing actor floor');
+  if(kind==='fiddle'&&['ready','playing'].includes(stage)) assert.equal(local.pos.y,1.43,'fiddle lifts under the chin only for playing');
+}
+console.log('PASS Camp instruments: five distinct pooled bodies, bounded material draws, no per-copy geometry/material allocation, no shadow casters, upright bass and independent fiddle bow. Browser checks establish raster appearance.');
+console.log('PASS 60 actual crowd instrument attachments: five kinds, three actor scales, carrying/ready/playing/return poses, grounded bass and fiddle at chin.');

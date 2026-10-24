@@ -31,7 +31,7 @@ assert.equal(chair.occupied,false,'forced flee must release claim'); assert.equa
 // A nearby solid must keep walkers outside its radius throughout their approach.
 a.state='idle'; a.pos=vec(); a.campCooldown=0; registry.solids=[{position:{x:.7,z:0},collider:{radius:.3}}];
 for(let i=0;i<30;i++) {tick(a); assert.ok(Math.hypot(a.pos.x-.7,a.pos.z)>=.579,'camp seek crossed a hard collider');}
-assert.ok(source.includes("if (npc.state === 'camp_sleeping' || npc.festivalVisit?.hidden)"),'sleep must hide every render instance');
+assert.ok(source.includes("if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc.festivalVisit?.hidden)"),'sleep and instrument fetching must hide every render instance');
 assert.ok(source.includes("if (npc.tableSeat) this._releaseTable(npc);\n    this._releaseCamp(npc);"),'forced abandonment must release campsite slots');
 // Two close solids must not let a projection tunnel through their shared gap.
 registry.solids.push({position:{x:.7,z:.9},collider:{radius:.3}});
@@ -55,14 +55,15 @@ const HideHarness = vm.runInNewContext(`class HideHarness {${hideSource}}; HideH
 const hidden = new HideHarness(), calls=[]; hidden._zeroMat={zero:true};
 for(const name of ['legsMesh','shoesMesh','bodyMesh','armsMesh','headMesh','eyesMesh','mouthMesh','drinkMesh','cameraMesh','flashMesh']) hidden[name]={setMatrixAt:(slot,matrix)=>calls.push([name,slot,matrix])};
 hidden.hairMeshes={cap:{setMatrixAt:(slot,matrix)=>calls.push(['hair',slot,matrix])}};
-const actor={idx:4,hairSlot:2,appearance:{hairStyle:'cap'},drinkSlot:3,isPhotographer:true,photoSlot:1,avatar:{visible:true}};
+const actor={idx:4,hairSlot:2,appearance:{hairStyle:'cap'},drinkSlot:3,isPhotographer:true,photoSlot:1,avatar:{visible:true},campInstrument:{group:{visible:true}}};
 hidden._hideNpc(actor);
 assert.equal(calls.length,11); assert.ok(calls.every(call=>call[2]===hidden._zeroMat)); assert.equal(actor.avatar.visible,false);
+assert.equal(actor.campInstrument.group.visible,false,'hidden fetch/putaway also hides any carried instrument');
 const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
 assert.ok(/if \(n.state === 'riding'[^\n]*n.state === 'camp_sleeping'[^\n]*continue/.test(main),'hidden sleepers must not become player collision candidates');
 console.log('camp boundaries: obstructed exits, photographer/character rig hiding and player collision exclusions passed');
 
-assert.ok(source.slice(source.indexOf('  applyHonk(zerble)')).includes("if (npc.state === 'camp_sleeping' || npc.festivalVisit?.hidden) continue;"),'honk must not pull a hidden sleeper through tent geometry');
+assert.ok(source.slice(source.indexOf('  applyHonk(zerble)')).includes("if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc.festivalVisit?.hidden) continue;"),'honk must not pull hidden campers through tent geometry');
 assert.ok(source.includes("other.state === 'boarding' || other.state === 'camp_sleeping'"),'nearby panic must not pull sleepers through tent geometry');
 
 const abandonSource=source.slice(source.indexOf('  _abandonSeat(npc) {'),source.indexOf('  // Star power love-magnet'));

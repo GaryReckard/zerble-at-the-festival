@@ -216,7 +216,7 @@ hot, which is what `perfPhase` / `tripAB` provide.
 | `perfPhase(label)` | Stamp a window label onto every subsequent sample (`''` clears it). `tripAB()` drives this automatically; set it by hand for any other one-variable comparison. |
 | `perfPhaseSummary()` | Collapse the recorded samples to one row per label — `fps`, `fAvg`, `fP95`, `fMax`, `draws`, `tripPass` — and print the table. Frame-time columns are averaged over **populated samples only**: `AdaptiveQuality` publishes no frame stats until its 90-frame window fills, so early samples carry a frame time of 0, and averaging those in would make the earliest window (usually the baseline) look *faster* than it was. The `warmup` column counts how many were skipped — if it approaches `n`, that row is warm-up noise and the window needs to be longer. |
 | `startDeviceCapture()` / `sendDeviceCapture()` | Start or manually upload the opt-in `?perfCapture=1` real-device report. Normal play starts this only after a real mode-plank tap; these calls exist for diagnostics. |
-| `chunkStages(reset = false)` | With `?debug=1` or `?perfCapture=1`, return count/total/average/max milliseconds for each v2 chunk stage (`region`, `roads`, `props`, `trees`, `crowd`, `jugs`, `campsites`, `hedges`). Pass `true` to return the current snapshot and zero the stage counters before a controlled drive or teleport. The normal production path does not take the per-stage timestamps. |
+| `chunkStages(reset = false)` | With `?debug=1` or `?perfCapture=1`, return count/total/average/max milliseconds for each v2 chunk stage (`region`, `roads`, `props`, `woodland`, `trees`, `crowd`, `jugs`, `campsites`, `hedges`). Pass `true` to return the current snapshot and zero the stage counters before a controlled drive or teleport. The normal production path does not take the per-stage timestamps. |
 | `foodCourtVisual()` | Jump directly to the deterministic food court at Midnight, wait for both chunk generation and registry population to settle while rendered frames continue advancing, then frame the court from inside its outer ring. |
 | `foodCourtCapture()` | Park at the same food court, freeze NPC AI, pin the camera and render quality, sample real scene draws/tris, and write `.claude/captures/foodcourt-<tier>-<mode>.json`. Pair the shipping default (`modelMerge=0`) with experimental `?modelMerge=1` for a one-variable before/after. |
 | `foodCourtLifecycle()` | Alternate between the same food court and a distant deterministic location for five settled load/unload cycles, then write the GPU-geometry plateau plus exact merged-geometry create/dispose ownership counters to `.claude/captures/`. |
@@ -604,3 +604,40 @@ Open `sandbox.html?entity=campsite_activity&seed=1977&mute=1` for a seeded large
 Use `entity=camp_seating` to inspect real seated NPCs on sling, director, low lounge and loveseat chairs at three body scales, including both loveseat positions. The preview deliberately exercises dance-floor flags and animation phases while the seated body remains aligned to the chair fabric. Keys 1–6 show the contact from different angles.
 
 Additional campsite previews use `entity=campsite_cluster` for compact mixed households, `campsite_cluster_roomy` for the roomier counterpart, `campsite_family-base` / `campsite_canvas-lodge` / `campsite_social-lounge` / `campsite_light-travelers` for archetypes, and `camp_tent_ridge` / `camp_tent_dome` / `camp_tent_octagon` / `camp_tent_cabin` / `camp_tent_multiroom` for shelters. `camp_chair_lineup` compares all four chair styles, while `crowd_hair` shows all six hair silhouettes from the front and back. Add `seed=1977&mute=1` for repeatable muted inspection. The neighborhood previews use the real planner, builders, registry and disposal path, with world roads and lakes intentionally absent from the isolated ground.
+
+### Woodland camping in the live generator
+
+Open `sandbox.html?entity=woodland_camping&seed=1977&mute=1` for a real density-field campground, surrounding instanced forest and resident crowd. Noon/Midnight and the late-night slider exercise the existing camp routines. The debug Teleport menu's **Woodland campground** destination uses the same pure planner and places the cart at the host's access frontage. The default v2 world generator now builds these groups before trees; the legacy `forests.js` interior algorithm remains separate.
+
+`entity=camp_instruments` compares the five pooled acoustic instruments. `entity=camp_jam&seed=1977&mute=1` starts a real crowd at evening time and displays each volunteer’s instrument, activity stage and elapsed stage time. Allow the tent-fetch walk before judging arrival; the normal time slider ends or restarts recruitment. Audio remains behind the normal user gesture and session mute.
+
+### Keyboard command prompt and teleport cycling
+
+Press `/` outside a text field to open the debug command prompt, then use `/tp camp` for woodland camping, `/tp village`, `/tp stage`, `/tp lake`, or `/help` for all targets. `/tp 120 -340` accepts explicit world coordinates. Matching commands appear as you type, and `/tp ` lists available destination arguments with descriptions. Tab completes a suggestion, Up/Down select one, clicking or Enter accepts the selection, and Enter with no selection runs the command. Alt+Up/Down recalls the last 30 commands, while ordinary Up/Down also recalls history when no suggestions are shown. Escape closes the prompt. Commands use an allowlisted parser and never evaluate JavaScript. Text entry suppresses driving and debug shortcuts, including previously held keys.
+
+The Teleport menu's Go button and `window.__debug.locate(kind)` share the same itinerary as `/tp`. Repeating a category within 30m of its last arrival skips visited matches before wrapping, while moving away or changing seed resets nearest-first selection. Moving actors and single destinations such as Spawn remain usable when no alternative exists. Searches retain the existing bounded procedural windows or loaded-registry scope, so a cycle covers available matches rather than promising every landmark in the infinite world. `bin/test-debug-teleports` covers cycling, wrap, missing/single matches, seed/position resets and command parsing.
+
+### Expanded slash commands (October 24)
+
+All commands share the same parser and autocomplete schema. Use `/help <command>` for its syntax, type a command followed by a space to discover arguments, and press Tab or select a suggestion. Invalid values or extra arguments do not partially execute. Commands require a running game, except for help.
+
+| Command | Purpose and limits |
+| --- | --- |
+| `/help [command]` | List all commands or explain one |
+| `/tp <destination>` or `/tp <x> <z>` | Existing landmark cycling or finite coordinates within ±10,000,000 |
+| `/time [preset or 0..1]` | Read or set dawn, morning, noon, dusk, evening or midnight; the cycle continues on subsequent simulation frames |
+| `/pause`, `/resume` | Pause simulation or resume it and clear queued steps |
+| `/step [1..120]` | Pause and replace the step queue with this many frames; default 1 |
+| `/god [on|off|toggle]` | Invincibility; default toggle |
+| `/colliders [on|off|toggle]` | Collision outlines; default toggle |
+| `/npc <status|freeze|resume|cheer>` | Inspect crowd states or use existing freeze/cheer behavior; cheering does not override seated, sleeping or other protected interactions |
+| `/juice [0..100]` | Read or set reserve meters; this is a debug input bound, not a gameplay stockpile cap |
+| `/smiles [1..100]` | Request collectible smile pickups near the cart, default 10; does not directly award score |
+| `/heading [0..360]` | Read degrees, or set heading and stop the cart |
+| `/stop`, `/where`, `/seed`, `/status` | Stop, locate the cart, show the seed or inspect simulation/world/scene counters |
+| `/inspect <camps|npcs|audio|world>` | Up to 20 built camps within 200m with chair/bed claims, crowd states, session audio/jams or world status; claims include approaching NPCs |
+| `/camera <chase|top> [20..600]` | Existing chase or top-down camera, with a top-down span in metres (default 120); paused worlds need a step/resume to render a changed view |
+| `/perf [status|on|off]` | True scene counters or existing local performance recording |
+| `/mute [on|off|toggle]` | Read or change session mute; no-argument form only reads |
+
+The grammar lives in `src/debugCommands.js`, with game adapters in `src/debug.js`. Focused checks are `bin/test-debug-commands`, `bin/test-debug-actions` and `bin/test-debug-teleports`; the [October 24 report](verification/debug-commands/2026-10-24/README.md) records browser evidence and boundaries.

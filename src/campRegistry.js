@@ -58,8 +58,10 @@ export function registerCampsite(registry, camp, options = {}) {
     const capacity=Math.max(1,Math.min(6,Math.floor(tent.capacity || 1)));
     return Array.from({length:capacity},()=>({...p,doorX:door.x,doorZ:door.z,occupied:false}));
   });
+  const fire = (camp.childColliders || camp.colliders || []).find(prop => prop.kind === 'campfire');
   const ids = [registry.add({ kind: 'campsite', position: root.position.clone(),
-    footprint: camp.footprint, campSeats, campBeds, campGroup: root, ...options })];
+    footprint: camp.footprint, campSeats, campBeds, campGroup: root,
+    ...(fire ? { campFire: point(fire.x, fire.z) } : {}), ...options })];
   for (const prop of camp.childColliders || camp.colliders || []) {
     const p = point(prop.x, prop.z), radius = prop.radius * Math.max(sx, sz);
     const child = { kind: prop.kind, position: position(p), footprint: radius,
@@ -87,6 +89,10 @@ export function canPlaceCampsite(registry, camp, neighborhood, options = {}) {
   let clear = true;
   registry.footprintsNear(root.position.x,root.position.z,camp.footprint+1.5,entry=>{
     if (entry.kind==='tree' || (neighborhood && entry.campNeighborhood===neighborhood)) return;
+    // A dry placement may lie inside an irregular lake's broad circle. Only
+    // callers that checked actual water can bypass this non-solid envelope;
+    // shoreline colliders and all other reservations still participate below.
+    if(options.waterChecked===true && entry.kind==='lake' && !entry.collider)return;
     // The center chunk reserves its whole forest before building the planned
     // interior camps. That containing marker is not a competing structure;
     // other forests and every actual solid still participate in clearance.

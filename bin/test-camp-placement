@@ -5,7 +5,7 @@ import { mulberry32 } from '../src/rng.js';
 import { planCampNeighborhood } from '../src/campPlanning.js';
 import { FESTIVAL_TUNING } from '../src/worldgen/tuning.js';
 const source=fs.readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');
-const village=source.slice(source.indexOf('function buildCampVillageAt('),source.indexOf('// The sandbox exercises'));
+const village=source.slice(source.indexOf('function buildCampVillageAt('),source.indexOf('// Every chunk asks'));
 const extract=Function('FESTIVAL_TUNING','campsiteFootprint','isPointInLake','registry','THREE','CLUSTER_GUARD_SKIP','placeSingleCampsite','planCampNeighborhood',`${village}; return buildCampVillageAt;`);
 const fp=size=>({small:14,medium:18,large:22}[size]);
 let minimum=Infinity,maximum=0,compactCount=0;

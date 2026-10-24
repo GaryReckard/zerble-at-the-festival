@@ -10,8 +10,10 @@
 //   window.__debug.spawnNPC(n=20)        — force-spawn n watchers near Zerble
 
 import * as THREE from 'three';
+import { createDebugCommands } from './debugCommands.js';
 import { Sound } from './sound.js';
 import { Analytics } from './analytics.js';
+import { woodlandCampsNear } from './woodlandCamping.js';
 import { getForestAt } from './forests.js';
 import { PERF, DETECTED_TIER, USE_WORLDGEN_V2 } from './perf.js';
 import { nearestMajorHeart, heartsInBounds } from './worldgen/hearts.js';
@@ -199,7 +201,9 @@ export function npcsFrozen() { return state.freezeNPCs; }
 // we don't need the forest to be loaded yet; we scan a chunk-coord window
 // around the player and pick the nearest matching center. For dynamic
 // things (lurleen, lakes, campsites) we walk the live registry.
-function locateLandmark(kind) {
+function landmarkKey(x,z) { return `${x.toFixed(2)},${z.toFixed(2)}`; }
+
+function locateLandmark(kind, excluded = new Set()) {
   const h = state.hooks;
   if (!h || !h.zerble) return null;
   const zx = h.zerble.position.x;
@@ -209,7 +213,7 @@ function locateLandmark(kind) {
   function nearestRegistryEntry(predicate) {
     let best = null;
     for (const e of h.registry.entries.values()) {
-      if (!predicate(e)) continue;
+      if (!predicate(e) || excluded.has(landmarkKey(e.position.x,e.position.z))) continue;
       const d = Math.hypot(e.position.x - zx, e.position.z - zz);
       if (!best || d < best.d) best = { entry: e, d };
     }
@@ -228,6 +232,7 @@ function locateLandmark(kind) {
         const f = getForestAt(cx, cz);
         if (!f || f.role !== 'center') continue;
         if (filter && !filter(f)) continue;
+        if(excluded.has(landmarkKey(f.centerX,f.centerZ)))continue;
         const d = Math.hypot(f.centerX - zx, f.centerZ - zz);
         if (!best || d < best.d) best = { f, d };
       }
@@ -246,7 +251,7 @@ function locateLandmark(kind) {
       case 2: z += off; heading = 0;                  break; // S → face north
       case 3: x -= off; heading = Math.PI / 2;        break; // W → face east
     }
-    return { x, z, heading };
+    return { x, z, heading, targetKey:landmarkKey(forest.centerX,forest.centerZ) };
   }
 
   // ---- v2 worldgen locators ----
@@ -273,7 +278,7 @@ function locateLandmark(kind) {
       x = poi.x + (dx / d) * fp;
       z = poi.z + (dz / d) * fp;
     }
-    return { x, z, heading: Math.atan2(poi.x - x, z - poi.z), label };
+    return { x, z, heading: Math.atan2(poi.x - x, z - poi.z), label, targetKey:landmarkKey(poi.x,poi.z) };
   }
 
   function nearestFestivalPOI(kindSet) {
@@ -281,7 +286,7 @@ function locateLandmark(kind) {
     let best = null;
     for (const h of hearts) {
       for (const p of festivalPlan(h)) {
-        if (!kindSet.has(p.kind)) continue;
+        if (!kindSet.has(p.kind) || excluded.has(landmarkKey(p.x,p.z))) continue;
         const d = Math.hypot(p.x - zx, p.z - zz);
         if (!best || d < best.d) best = { poi: p, heart: h, d };
       }
@@ -292,7 +297,7 @@ function locateLandmark(kind) {
   switch (kind) {
     // ── v2 festival landmarks ──
     case 'hub': {
-      const heart = nearestMajorHeart(zx, zz);
+      const heart = nearestMajorHeart(zx, zz, 28, heart=>{const stage=festivalPlan(heart).find(p=>STAGE_KINDS.has(p.kind));return stage&&!excluded.has(landmarkKey(stage.x,stage.z));});
       if (!heart) return null;
       const stage = festivalPlan(heart).find((p) => STAGE_KINDS.has(p.kind));
       if (!stage) return null;
@@ -322,18 +327,24 @@ function locateLandmark(kind) {
       const b = nearestFestivalPOI(new Set(['bubble_vendor']));
       return b ? poiDest(b.poi, b.heart, 'bubble vendor (refuel)') : null;
     }
+    case 'woodland_camp': {
+      const districts=woodlandCampsNear({minX:zx-900,minZ:zz-900,maxX:zx+900,maxZ:zz+900});
+      districts.sort((a,b)=>Math.hypot(a.x-zx,a.z-zz)-Math.hypot(b.x-zx,b.z-zz));
+      const d=districts.find(d=>!excluded.has(landmarkKey(d.x,d.z)));if(!d)return null;
+      const path=d.paths[1];return {x:path.bx,z:path.bz,heading:Math.atan2(path.bx-d.x,path.bz-d.z),targetKey:landmarkKey(d.x,d.z),label:`woodland campground (${d.pitches.length} camps)`};
+    }
     case 'camp_village': {
       const villages = campVillagesNear({ minX: zx - TP_BOX, minZ: zz - TP_BOX, maxX: zx + TP_BOX, maxZ: zz + TP_BOX });
       let best = null;
       for (const v of villages) {
-        if(v.kind !== 'camp_village')continue;
+        if(v.kind !== 'camp_village'||excluded.has(landmarkKey(v.x,v.z)))continue;
         const d = Math.hypot(v.x - zx, v.z - zz);
         if (!best || d < best.d) best = { v, d };
       }
       if (!best) return null;
       const v = best.v;
       const off = (v.footprint || 14) + 8;
-      return { x: v.x, z: v.z + off, heading: 0, label: `camp village (${v.tents} tents)` };
+      return { x: v.x, z: v.z + off, heading: 0, targetKey:landmarkKey(v.x,v.z),label: `camp village (${v.tents} tents)` };
     }
     // ── v1 legacy landmarks ──
     case 'drum_circle_forest': {
@@ -355,10 +366,10 @@ function locateLandmark(kind) {
       return { ...p, label: `forest at (${f.centerCx}, ${f.centerCz})` };
     }
     case 'one_wheel': {
-      const rider=h.oneWheels?.riders[0];if(!rider)return null;
+      const rider=[...(h.oneWheels?.riders||[])].filter(r=>!excluded.has(`rider:${r.entry.id}`)).sort((a,b)=>Math.hypot(a.entry.position.x-zx,a.entry.position.z-zz)-Math.hypot(b.entry.position.x-zx,b.entry.position.z-zz))[0];if(!rider)return null;
       const p=rider.entry.position,heading=rider.motion.heading;
       return {x:p.x-Math.sin(heading)*7,z:p.z-Math.cos(heading)*7,heading,
-        label:'One-wheel rider'};
+        targetKey:`rider:${rider.entry.id}`,label:'One-wheel rider'};
     }
     case 'nut_wagon':
     case 'monks': {
@@ -397,18 +408,179 @@ function locateLandmark(kind) {
         x: e.position.x + (dx / d) * reach,
         z: e.position.z + (dz / d) * reach,
         heading: Math.atan2(-dx, -dz),
-        label: 'nearest lake',
+        targetKey:landmarkKey(e.position.x,e.position.z),label: 'lake',
       };
     }
     case 'campsite': {
       const e = nearestRegistryEntry((e) => e.kind === 'campsite');
       if (!e) return null;
-      return { x: e.position.x + 4, z: e.position.z + 4, label: 'nearest campsite' };
+      return { x: e.position.x + 4, z: e.position.z + 4, targetKey:landmarkKey(e.position.x,e.position.z),label: 'campsite' };
     }
     case 'spawn':
       return { x: 0, z: 65, heading: 0, label: 'spawn' };
   }
   return null;
+}
+
+// Keep a small, seed-scoped itinerary only while the player remains at the
+// last arrival. Driving away restores the ordinary nearest-landmark behavior.
+const teleportTrips = new Map();
+function teleportLandmark(kind) {
+  const h=state.hooks;if(!h?.zerble)return null;
+  const seed=getSessionSeed(),pos=h.zerble.position;
+  let trip=teleportTrips.get(kind);
+  if(!trip || trip.seed!==seed || Math.hypot(pos.x-trip.x,pos.z-trip.z)>30)trip={seed,visited:new Set()};
+  let dest=locateLandmark(kind,trip.visited);
+  if(!dest && trip.visited.size){
+    // Wrap without immediately revisiting the arrival when alternatives exist.
+    trip.visited=new Set(trip.last?[trip.last]:[]);
+    dest=locateLandmark(kind,trip.visited) || locateLandmark(kind);
+  }
+  if(!dest)return null;
+  const key=dest.targetKey || kind;
+  trip.visited.add(key);Object.assign(trip,{x:dest.x,z:dest.z,last:key});
+  teleportTrips.set(kind,trip);
+  h.zerble.position.set(dest.x,pos.y,dest.z);h.zerble.speed=0;
+  if(Number.isFinite(dest.heading))h.zerble.heading=dest.heading;
+  return dest;
+}
+
+const COMMAND_TARGETS = {
+  camp: USE_WORLDGEN_V2?'woodland_camp':'campsite_forest', woodland:'woodland_camp',
+  village:'camp_village', stage:'stage', hub:'hub', healing:'healing_arts',
+  drum:'drum_circle', food:'food_court', arch:'arch', bubble:'bubble',
+  lake:'lake', lurleen:'lurleen', spawn:'spawn', rider:'one_wheel',
+  monks:'monks', wagon:'nut_wagon', forest:'any_forest', campsite:'campsite',
+};
+const COMMAND_DESCRIPTIONS = {
+  camp:'Woodland campground',woodland:'Woodland campground',village:'Camp village',
+  stage:'Music stage',hub:'Major festival hub',healing:'Healing Arts tent',drum:'Drum circle',
+  food:'Food court',arch:'Entrance arch',bubble:'Bubble vendor',lake:'Lake shore',
+  lurleen:'Lurleen',spawn:'Spawn point',rider:'One-wheel rider',monks:'Monk group',
+  wagon:'Nut Wagon',forest:'Forest entrance',campsite:'Loaded campsite',
+};
+function commandRenderStats() {
+  const renderer=state.hooks.renderer;
+  return renderer.__sceneInfo || renderer.info.render;
+}
+function commandStatus() {
+  const h=state.hooks,z=h.zerble,tod=h.getTimeOfDay?.();
+  return `seed ${getSessionSeed()} · x ${z.position.x.toFixed(1)}, z ${z.position.z.toFixed(1)} · heading ${((z.heading*180/Math.PI%360+360)%360).toFixed(1)}°
+`+
+    `simulation ${state.paused?'paused':'running'} · NPCs ${state.freezeNPCs?'frozen':'active'} · god ${state.god?'on':'off'} · colliders ${state.showColliders?'on':'off'}
+`+
+    `time ${tod?.t.toFixed(3)??'unavailable'} · ${h.crowd.npcs.length} NPCs · ${h.registry.entries.size} registry entries
+`+
+    `draws ${commandRenderStats().calls} · triangles ${commandRenderStats().triangles}`;
+}
+function inspectCommand(kind) {
+  const h=state.hooks;
+  if(kind==='world')return commandStatus();
+  if(kind==='audio')return `session mute ${Sound.isMuted()?'on':'off'} · audio ${Sound.isReady()?'ready':'awaiting gesture'}
+`+JSON.stringify(Sound.campJamStates(),null,2);
+  if(kind==='npcs'){
+    const counts={};for(const npc of h.crowd.npcs)counts[npc.state]=(counts[npc.state]||0)+1;
+    return `NPCs ${state.freezeNPCs?'frozen':'active'}
+`+JSON.stringify(counts,null,2);
+  }
+  const camps=[];
+  for(const entry of h.registry.entries.values())if(entry.kind==='campsite'&&Math.hypot(entry.position.x-h.zerble.position.x,entry.position.z-h.zerble.position.z)<=200){
+    camps.push({x:Math.round(entry.position.x),z:Math.round(entry.position.z),neighborhood:entry.campNeighborhood||'independent',
+      chairs:entry.campSeats?.length||0,seatedClaims:entry.campSeats?.filter(s=>s.occupied).length||0,
+      beds:entry.campBeds?.length||0,sleepClaims:entry.campBeds?.filter(b=>b.occupied).length||0,hearth:!!entry.campFire});
+  }
+  return camps.length?JSON.stringify(camps.slice(0,20),null,2):'No built camps within 200m.';
+}
+let commandController;
+function getCommandController() {
+  if(commandController)return commandController;
+  const h=()=>state.hooks;
+  const toggleValue=(mode,current)=>mode==='toggle'?!current:mode==='on';
+  commandController=createDebugCommands({
+    ready:()=>!!h()?.zerble&&(h().getRunning?.()??true),
+    teleport:(x,z)=>{api().teleport(x,z);return `Teleported to ${x}, ${z}.`;},
+    locate:kind=>{const dest=teleportLandmark(kind);return dest?`→ ${dest.label} (${Math.round(dest.x)}, ${Math.round(dest.z)})`:'No matching destination found nearby.';},
+    time:t=>{const tod=h().getTimeOfDay?.();if(!tod)return 'Time of day is not ready.';if(t!==undefined)tod.setT(t);return `Time ${tod.t.toFixed(3)} · night ${tod.nightness.toFixed(2)}`;},
+    pause:on=>{state.pendingSteps=0;api().pause(on);return on?'Simulation paused.':'Simulation resumed.';},
+    step:n=>{api().pause(true);state.pendingSteps=0;api().step(n);return `Advancing ${n} frame(s), then staying paused.`;},
+    god:mode=>{api().god(toggleValue(mode,state.god));return `Invincibility ${state.god?'on':'off'}.`;},
+    colliders:mode=>{api().showColliders(toggleValue(mode,state.showColliders));return `Collision outlines ${state.showColliders?'on':'off'}.`;},
+    npc:mode=>{
+      if(mode==='status')return inspectCommand('npcs');
+      if(mode==='cheer'){if(state.freezeNPCs)return 'Resume NPCs first with /npc resume.';h().crowd.cheerNear(h().zerble.position.x,h().zerble.position.z);return 'Triggered a cheer among available nearby NPCs.';}
+      api().freezeNPCs(mode==='freeze');return `NPCs ${state.freezeNPCs?'frozen':'resumed'}.`;
+    },
+    juice:n=>{if(n!==undefined)h().bubbles.juice=n;return `Bubble juice ${h().bubbles.juice.toFixed(2)} reserve meters.`;},
+    smiles:n=>{api().dropSmile(n);return `Requested ${n} collectible smiles near the cart.`;},
+    heading:degrees=>{if(degrees!==undefined){h().zerble.heading=(degrees%360)*Math.PI/180;h().zerble.speed=0;}return `Heading ${((h().zerble.heading*180/Math.PI%360+360)%360).toFixed(1)}°`;},
+    stop:()=>{h().zerble.speed=0;return 'Cart stopped.';},
+    where:()=>`x ${h().zerble.position.x.toFixed(2)} · z ${h().zerble.position.z.toFixed(2)} · heading ${((h().zerble.heading*180/Math.PI%360+360)%360).toFixed(1)}°`,
+    seed:()=>`Seed ${getSessionSeed()}`,
+    status:commandStatus,inspect:inspectCommand,
+    camera:(mode,span)=>{
+      if(!h().chaseCam)return 'Camera controls are not ready.';
+      if(mode==='chase'){h().chaseCam.dbgCamUnlock();return 'Chase camera restored.';}
+      const height=span/(2*Math.tan(h().camera.fov*Math.PI/360));h().chaseCam.dbgCamTopDown(h().zerble.position.x,h().zerble.position.z,height);return `Top-down camera · ${span}m span.`;
+    },
+    perf:mode=>{if(mode!=='status'){api().recordPerf(mode==='on');return `Performance recording ${state.perfRecording?'on':'off'}.`;}return `draws ${commandRenderStats().calls} · triangles ${commandRenderStats().triangles}
+recording ${state.perfRecording?'on':'off'} · ${state.perfSamples.length} samples`;},
+    mute:mode=>{if(mode!==undefined)Sound.setMuted(toggleValue(mode,Sound.isMuted()));return `Session mute ${Sound.isMuted()?'on':'off'}.`;},
+  },COMMAND_TARGETS,COMMAND_DESCRIPTIONS,USE_WORLDGEN_V2);
+  return commandController;
+}
+function runDebugCommand(text) { return getCommandController().run(text); }
+function debugCommandSuggestions(text,caret=text.length) { return getCommandController().suggest(text,caret); }
+
+function openCommandPrompt() {
+  let panel=document.getElementById('debug-command-prompt');
+  if(!panel){
+    panel=document.createElement('div');panel.id='debug-command-prompt';
+    panel.setAttribute('role','dialog');panel.setAttribute('aria-label','Debug commands');
+    panel.style.cssText='position:fixed;left:50%;top:18%;transform:translateX(-50%);width:min(620px,90vw);padding:14px;background:#0e1c28;color:#dff;border:1px solid #789;border-radius:8px;z-index:10001;font:14px monospace;box-sizing:border-box';
+    panel.innerHTML='<label for="debug-command-input">Debug command</label><input id="debug-command-input" role="combobox" aria-autocomplete="list" aria-controls="debug-command-options" aria-expanded="false" autocomplete="off" spellcheck="false" placeholder="/tp camp" style="display:block;box-sizing:border-box;width:100%;margin:8px 0;padding:8px;background:#06121c;color:#fff;border:1px solid #789;font:inherit"><div id="debug-command-options" role="listbox" aria-label="Command suggestions" style="max-height:240px;overflow:auto"></div><div style="margin:8px 0;font-size:12px;color:#abc">Tab completes · ↑/↓ select · Enter runs · Escape closes · Alt+↑/↓ history</div><div role="status" id="debug-command-result" style="white-space:pre-wrap;max-height:35vh;overflow:auto">Type a command to discover its arguments.</div>';
+    const input=panel.querySelector('input'),result=panel.querySelector('[role=status]'),list=panel.querySelector('[role=listbox]');
+    let suggestions=[],selected=-1;
+    const close=()=>{panel.hidden=true;input.blur();};
+    const history=[];let cursor=0;
+    const render=()=>{
+      list.replaceChildren();input.setAttribute('aria-expanded',String(suggestions.length>0));
+      input.removeAttribute('aria-activedescendant');
+      suggestions.forEach((item,i)=>{
+        const row=document.createElement('div');row.id='debug-command-option-'+i;row.setAttribute('role','option');
+        row.setAttribute('aria-selected',String(i===selected));
+        row.style.cssText='padding:6px 8px;cursor:pointer;border-radius:3px;'+(i===selected?'background:#294657;color:#fff':'color:#cde');
+        const label=document.createElement('strong');label.textContent=item.label;
+        const detail=document.createElement('span');detail.textContent='  '+item.detail;detail.style.color='#9ab';
+        row.append(label,detail);row.addEventListener('mousedown',e=>e.preventDefault());row.addEventListener('click',()=>complete(i));list.appendChild(row);
+        if(i===selected){input.setAttribute('aria-activedescendant',row.id);row.scrollIntoView({block:'nearest'});}
+      });
+    };
+    const refresh=()=>{suggestions=debugCommandSuggestions(input.value,input.selectionStart??input.value.length);selected=-1;render();};
+    const complete=i=>{
+      const item=suggestions[i];if(!item)return;
+      input.value=item.value;input.focus();input.setSelectionRange(input.value.length,input.value.length);refresh();
+    };
+    input.addEventListener('input',refresh);input.addEventListener('click',refresh);
+    input.addEventListener('keyup',e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key))refresh();});
+    panel.addEventListener('keydown',e=>{
+      e.stopPropagation();if(e.isComposing)return;
+      if(e.key==='Escape'){e.preventDefault();close();}
+      else if(e.key==='Tab'&&suggestions.length){e.preventDefault();complete(selected<0?0:selected);}
+      else if(e.key==='Enter'){
+        e.preventDefault();if(selected>=0){complete(selected);return;}
+        const text=input.value.trim();if(!text)return;
+        result.textContent=runDebugCommand(text);history.push(text);if(history.length>30)history.shift();cursor=history.length;
+        suggestions=[];selected=-1;render();input.select();
+      } else if(e.key==='ArrowUp'||e.key==='ArrowDown'){
+        e.preventDefault();
+        if(suggestions.length&&!e.altKey){selected=selected<0?(e.key==='ArrowUp'?suggestions.length-1:0):(selected+(e.key==='ArrowUp'?-1:1)+suggestions.length)%suggestions.length;render();}
+        else {cursor=Math.max(0,Math.min(history.length,cursor+(e.key==='ArrowUp'?-1:1)));input.value=history[cursor]||'';refresh();}
+      }
+    });
+    panel.addEventListener('command-open',refresh);
+    document.body.appendChild(panel);
+  }
+  panel.hidden=false;const input=panel.querySelector('input');input.value='/';input.focus();panel.dispatchEvent(new Event('command-open'));
 }
 
 function api() {
@@ -419,12 +591,7 @@ function api() {
       h.zerble.speed = 0;
     },
     locate(kind = 'food_court') {
-      const dest = locateLandmark(kind);
-      if (!dest) return null;
-      h.zerble.position.set(dest.x, h.zerble.position.y, dest.z);
-      h.zerble.speed = 0;
-      if (Number.isFinite(dest.heading)) h.zerble.heading = dest.heading;
-      return dest;
+      return teleportLandmark(kind);
     },
     god(on = true) { state.god = !!on; logToast(`god: ${state.god}`); },
     freezeNPCs(on = true) { state.freezeNPCs = !!on; logToast(`freezeNPCs: ${state.freezeNPCs}`); },
@@ -725,6 +892,7 @@ function buildPanel() {
     ['arch',         'Entrance arch'],
     ['bubble',       'Bubble vendor (refuel)'],
     ['camp_village', 'Camp village'],
+    ['woodland_camp', 'Woodland campground'],
     ['one_wheel', 'One-wheel rider (active)'],
     ['nut_wagon',    'Nut Wagon (active)'],
     ['monks',        'Monks (active group)'],
@@ -758,7 +926,7 @@ function buildPanel() {
   const tpSelect = tpContent.querySelector('#dbg-tp-select');
   const tpStatus = tpContent.querySelector('#dbg-tp-status');
   tpContent.querySelector('#dbg-tp-go').addEventListener('click', () => {
-    const dest = locateLandmark(tpSelect.value);
+    const dest = teleportLandmark(tpSelect.value);
     if (dest) {
       state.hooks.zerble.position.set(dest.x, state.hooks.zerble.position.y, dest.z);
       state.hooks.zerble.speed = 0;
@@ -1124,6 +1292,8 @@ function refreshMidiPanel() {
 
 function bindKeys() {
   window.addEventListener('keydown', (e) => {
+    if(e.defaultPrevented || e.isComposing || e.target?.matches?.('input, textarea, select, [contenteditable]'))return;
+    if(e.code==='Slash'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey){e.preventDefault();openCommandPrompt();return;}
     // Same input-field guard as KeyT/KeyK below: a player typing a backtick
     // into the title card's name field must not be handed the debug overlay
     // (Easter eggs stay discovered, not revealed).
@@ -1185,6 +1355,7 @@ function updatePanel(dt) {
   const fleeing = h.crowd.npcs.filter(n => n.state === 'fleeing').length;
   const registryCount = h.registry.entries.size;
   const colliderCount = [...h.registry.colliders()].length;
+  const woodlandCamps=[...(h.registry.byKind.get('campsite')||[])].map(id=>h.registry.entries.get(id)).filter(e=>e?.campNeighborhood?.startsWith('woodland:'));
   const wheelRiders=h.oneWheels?.status()||[];
   const healingRoles = {yoga:0,leaving:0,entering:0,dance:0,yoga_entering:0};
   for (const npc of h.crowd.npcs) {
@@ -1263,6 +1434,7 @@ function updatePanel(dt) {
     `npcs         ${npcs}  riding ${riders}  watch ${watching}  flee ${fleeing}\n` +
     `one-wheel    ${wheelRiders.length} · ${wheelRiders.map(r=>r.state+(r.reason?': '+r.reason:'')).join(', ')}\n` +
     `healing      yoga ${healingRoles.yoga}  out ${healingRoles.leaving}  in ${healingRoles.entering+healingRoles.yoga_entering}  dance ${healingRoles.dance}\n` +
+    `woodland     ${woodlandCamps.length} camps · ${woodlandCamps.reduce((sum,e)=>sum+(e.campSeats?.length||0),0)} chairs\n` +
     `registry     ${registryCount}  colliders ${colliderCount}\n` +
     `time of day  ${todStr}\n` +
     `flags        god=${state.god} freezeNPCs=${state.freezeNPCs} colliderViz=${state.showColliders}`;

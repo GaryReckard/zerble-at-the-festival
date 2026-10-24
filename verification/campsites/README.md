@@ -46,3 +46,7 @@ The [11:02 review and corrections](review-1102/README.md) records the seated-bod
 ## Optimization sweep
 
 The [subsequent optimization report](optimization/README.md) records reductions in invisible construction and NPC seeking work, exact layout/RNG comparisons, operation benchmarks and unchanged render counts.
+
+## Live woodland camping and acoustic ensembles
+
+The [woodland continuation report](woodland/README.md) records default-v2 forest households, tighter sleeping pitches without visible internal trails, real resident campers, and evening instrument fetch/play/return activities.

@@ -11,6 +11,8 @@ not physical-device acceptance.
 
 | Evidence | What it establishes |
 | --- | --- |
+| [Slash commands, October 24](debug-commands/2026-10-24/README.md) | Twenty command grammars, bounded argument dispatch, actual game adapters, contextual completion and live-game checks |
+| [Terrain proposal, October 24](terrain/2026-10-24-proposal.md) | Astra’s source-grounded options, dependencies and proposed acceptance gates; no terrain implementation or runtime acceptance |
 | [Campsite life and layouts, October 23](campsites/README.md) | Deterministic camp furniture, granular collisions, seating and sleeping lifecycle, lighting schedules and sandbox captures |
 | [One-wheel rider, October 22](one-wheel/README.md) | Seeded road encounters, pedestrian/cart yielding, model animation, resource cleanup and Low/High game checks |
 | [Healing Arts tent, October 22](healing-arts/README.md) | Sparse placement, yoga/dance motion, real crowd changeover, lifecycle tests and day/night captures |

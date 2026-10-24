@@ -27,6 +27,7 @@ export function planCampRecipe(size = 'medium', options = {}) {
   const archetype = CAMP_ARCHETYPES.includes(requested) ? requested
     : CAMP_ARCHETYPES[Math.floor(rng() * CAMP_ARCHETYPES.length)];
   const compact = role === 'satellite';
+  const tightSleeping=compact && size==='small' && options.tightSleeping===true;
   let tentFamilies;
   if (archetype === 'family-base') {
     tentFamilies = size === 'small' ? ['cabin'] : size === 'large' ? ['multiroom', 'dome'] : ['multiroom'];
@@ -38,15 +39,15 @@ export function planCampRecipe(size = 'medium', options = {}) {
     tentFamilies = Array.from({ length: cfg.count }, () => rng() < .55 ? 'ridge' : 'dome');
   }
   return {
-    archetype, role, tentFamilies, sharedFront: compact,
+    archetype, role, tentFamilies, sharedFront: compact, chairLimit:tightSleeping?0:undefined,
     fire: role === 'host' || (!compact && archetype !== 'light-travelers'),
     kitchen: role === 'host' || (!compact && archetype !== 'light-travelers'),
     canopyLimit: compact || (archetype === 'light-travelers' && role !== 'host') ? 0 : size === 'large' ? 2 : 1,
     screenLimit: compact ? 0 : size === 'small' ? 1 : 2,
     torchLimit: compact ? 0 : size === 'large' ? 4 : size === 'medium' ? 3 : 2,
-    footprint: compact ? cfg.compact : cfg.footprint,
-    layoutRadius: compact ? cfg.tentRadius : cfg.radius,
-    tentRadius: compact ? cfg.tentRadius : cfg.radius * .9 + .5,
+    footprint: tightSleeping ? 7 : compact ? cfg.compact : cfg.footprint,
+    layoutRadius: tightSleeping ? 1.3 : compact ? cfg.tentRadius : cfg.radius,
+    tentRadius: tightSleeping ? 1.3 : compact ? cfg.tentRadius : cfg.radius * .9 + .5,
     tentArcStep: compact ? (size === 'medium' ? 1.25 : .95) : (size === 'medium' ? .95 : .85),
   };
 }

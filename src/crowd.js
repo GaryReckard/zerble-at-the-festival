@@ -23,6 +23,7 @@ import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { registry } from './registry.js';
 import { getTimeOfDay } from './world.js';
+import { CampJamActivity } from './campJamActivity.js';
 import { CROWD_HAIR_STYLES, crowdAppearanceRng, rollCrowdAppearance } from './crowdAppearance.js';
 import { SpatialGrid } from './spatialGrid.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
@@ -458,6 +459,7 @@ export class Crowd {
     this.drinkMesh.castShadow = false;
 
     this.group = new THREE.Group();
+    this.campJams = new CampJamActivity(this);
     this.group.name = 'Crowd';
     for (const m of allMeshes) this.group.add(m);
 
@@ -535,6 +537,9 @@ export class Crowd {
       .multiply(new THREE.Matrix4().makeRotationX(ARMS_UP_BEND))
       .multiply(new THREE.Matrix4().makeTranslation(0, -SHOULDER_Y, 0));
     this._armsMat = new THREE.Matrix4();
+    this._musicArmMat = new THREE.Matrix4();
+    this._musicPivotMat = new THREE.Matrix4();
+    this._instrumentLocalMat = new THREE.Matrix4();
     this._photoArmsMat = new THREE.Matrix4()
       .makeTranslation(0, SHOULDER_Y, 0)
       .multiply(new THREE.Matrix4().makeRotationX(-1.52))
@@ -886,6 +891,7 @@ export class Crowd {
     // is intentionally distance-based (not chunk-based) so wandering NPCs
     // don't vanish when their spawn chunk unloads.
     this._despawnDistant(zerble);
+    this.campJams.update(dt, zerble, this.campTimeOfDay?.t ?? getTimeOfDay()?.t ?? .25);
     for (const party of this.parties) party.update(dt, zerble);
 
     const cosCone = Math.cos((SMILE_CONE_DEG * Math.PI) / 180);
@@ -906,7 +912,7 @@ export class Crowd {
     // that turns each NPC's O(n) neighbour scan into a ~9-cell query.
     this._sepGrid.clear();
     for (const n of this.npcs) {
-      if (n.state !== 'riding' && n.state !== 'camp_sleeping') this._sepGrid.insert(n.pos.x, n.pos.z, n);
+      if (n.state !== 'riding' && n.state !== 'camp_sleeping' && !n.campJamHidden) this._sepGrid.insert(n.pos.x, n.pos.z, n);
     }
 
     // D3 (perf-pass-4): one reusable ctx + passenger ref per frame instead of a
@@ -995,6 +1001,7 @@ export class Crowd {
     const dz = zerble.position.z - npc.pos.z;
     const dToZerble = Math.hypot(dx, dz);
 
+    if (this.campJams.tickNpc(dt, npc)) return;
     if (this._tickCamp(dt, npc)) return;
 
     // Photographer reactions use an isolated state machine and RNG stream.
@@ -1551,7 +1558,7 @@ export class Crowd {
   }
 
   _writeMatrices(npc) {
-    if (npc.state === 'camp_sleeping' || npc.festivalVisit?.hidden) { this._hideNpc(npc); return; }
+    if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc.festivalVisit?.hidden) { this._hideNpc(npc); return; }
     if (npc.party) { this._hideNpc(npc); npc.party.renderNpc(npc); return; }
     // Bo is rendered by the wagon, while the crowd still owns his reserved seat.
     if (npc.seatSlot?.permanent && npc.seatSlot.vehicle?.driverModel) {
@@ -1602,7 +1609,7 @@ export class Crowd {
 
     // Chair contact stays fixed even near dancefloors or while smiling. A
     // feet-origin bob/tilt moves the pelvis through the supporting fabric.
-    if (npc.state === 'camp_seated') { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
+    if (npc.state === 'camp_seated' || npc.campJam) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
 
     let quat;
     if (npc.state === 'hammock_riding') {
@@ -1618,14 +1625,14 @@ export class Crowd {
 
     // Happy bounce: while smile cooldown is active the body bobs up by a small
     // sin wave (~6cm amplitude) so the whole figure (body + mouth) hops.
-    const bouncing = npc.smileTimeCooldown > 0 && !photographing;
+    const bouncing = npc.smileTimeCooldown > 0 && !photographing && !npc.campJam;
     const bounceY = bouncing
       ? Math.abs(Math.sin(performance.now() * 0.012 + npc.bob)) * 0.06
       : 0;
 
     // Cheer jump: positive-half sine so NPCs hop upward without clipping the floor.
     // Seeded by the stable behavior slot so pooling stays visually decoupled.
-    const cheering = npc.cheerTimer > 0;
+    const cheering = npc.cheerTimer > 0 && !npc.campJam;
     const cheerY = cheering
       ? Math.max(0, Math.sin(performance.now() * 0.001 * HOP_HZ + npc.behaviorSeed * 1.3)) * HOP_HEIGHT
       : 0;
@@ -1724,7 +1731,15 @@ export class Crowd {
       this.shoesMesh.setMatrixAt(npc.idx, m);
     }
     this.bodyMesh.setMatrixAt(npc.idx, m);
-    if (photographing) {
+    if (npc.campInstrument) {
+      const active = npc.campJam?.stage === 'playing';
+      const bend = npc.campInstrument.kind === 'fiddle' ? 1.45 : 1.12;
+      this._musicArmMat.makeTranslation(0, 1.35, 0)
+        .multiply(this._tmpDanceMat.makeRotationX(bend + (active ? Math.sin(npc.bob * 7) * .07 : 0)))
+        .multiply(this._musicPivotMat.makeTranslation(0, -1.35, 0));
+      this._armsMat.multiplyMatrices(m, this._musicArmMat);
+      this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
+    } else if (photographing) {
       this._armsMat.multiplyMatrices(m, this._photoArmsMat);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     } else if (cheering || (npc.state === 'riding' && npc.seatSlot?.name === 'platform')) {
@@ -1743,7 +1758,7 @@ export class Crowd {
     this._hairLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
     this._hairMat.multiplyMatrices(m, this._hairLocalMat);
     this.hairMeshes[hairStyle].setMatrixAt(npc.hairSlot, this._hairMat);
-    if (npc.drinkSlot >= 0 && !photographing) {
+    if (npc.drinkSlot >= 0 && !photographing && !npc.campInstrument) {
       this._tmpV3.set(0.34, 0, -0.07);
       this._tmpScale.set(0.76, 0.76, 0.76);
       this._drinkLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
@@ -1752,6 +1767,7 @@ export class Crowd {
     } else if (npc.drinkSlot >= 0) {
       this.drinkMesh.setMatrixAt(npc.drinkSlot, this._zeroMat);
     }
+    if (npc.campInstrument) this._writeCampInstrument(npc, m);
 
     // ---- Mouth: child of the body matrix, with its own smile-pop scale ----
     // Mouth geometry is baked at origin. We build a local matrix that places it
@@ -1786,6 +1802,22 @@ export class Crowd {
         this.flashMesh.setMatrixAt(npc.photoSlot, this._zeroMat);
       }
     }
+  }
+
+  _writeCampInstrument(npc, bodyMatrix) {
+    const model = npc.campInstrument;
+    const performing = ['ready', 'playing'].includes(npc.campJam?.stage);
+    const bass = model.kind === 'bass', fiddle = model.kind === 'fiddle';
+    this._tmpV3.set(bass ? .38 : fiddle && performing ? .07 : .1,
+      bass ? .57 : fiddle && performing ? 1.43 : performing ? .95 : .85,
+      bass ? -.35 : fiddle && performing ? -.34 : -.4);
+    this._tmpScale.set(1, 1, 1);
+    this._tmpQuat.setFromEuler(this._tmpEuler.set(0, Math.PI, bass ? 0 : fiddle && performing ? -1.28 : performing ? -1.02 : -.25));
+    this._instrumentLocalMat.compose(this._tmpV3, this._tmpQuat, this._tmpScale);
+    model.group.matrixAutoUpdate = false;
+    model.group.matrix.copy(bodyMatrix).multiply(this._instrumentLocalMat);
+    model.group.matrixWorldNeedsUpdate = true;
+    model.group.visible = true;
   }
 
   // ----- Passenger system helpers -----
@@ -2057,6 +2089,7 @@ export class Crowd {
   }
 
   _releaseCamp(npc) {
+    this.campJams?.releaseNpc(npc);
     if (npc.campSlot) {
       if (npc.state === 'camp_sleeping' || npc.state === 'camp_seated') {
         const exit = this._campExit(npc);
@@ -2597,6 +2630,7 @@ export class Crowd {
 
   // Instance uploads are flagged globally each frame in update().
   _hideNpc(npc) {
+    if (npc.campInstrument) npc.campInstrument.group.visible = false;
     const z = this._zeroMat || (this._zeroMat = new THREE.Matrix4().makeScale(0, 0, 0));
     this.legsMesh.setMatrixAt(npc.idx, z);
     this.shoesMesh.setMatrixAt(npc.idx, z);
@@ -2673,7 +2707,7 @@ export class Crowd {
     victim.pos.z += pushZ * 0.6;
     // Panic cascade: nearby NPCs (within 6m) of any reasonable skittishness flee too
     for (const other of this.npcs) {
-      if (other === victim || other.state === 'riding' || other.state === 'boarding' || other.state === 'camp_sleeping') continue;
+      if (other === victim || other.state === 'riding' || other.state === 'boarding' || other.state === 'camp_sleeping' || other.campJamHidden) continue;
       const dx = other.pos.x - victim.pos.x;
       const dz = other.pos.z - victim.pos.z;
       if (dx * dx + dz * dz > 36) continue;
@@ -2707,7 +2741,7 @@ export class Crowd {
     const r2 = radius * radius;
     const px = zerble.position.x, pz = zerble.position.z;
     for (const npc of this.npcs) {
-      if (STAR_LOVE_SKIP.has(npc.state)) continue;
+      if (npc.campJam || STAR_LOVE_SKIP.has(npc.state)) continue;
       const dx = npc.pos.x - px, dz = npc.pos.z - pz;
       if (dx * dx + dz * dz > r2) continue;
       npc.happiness = HAPPINESS_THRESHOLD;        // smitten
@@ -2746,7 +2780,7 @@ export class Crowd {
     const vDir = (zerble.speed || 0) >= 0 ? 1 : -1;        // scatter along travel, not facing (reverse-safe)
 
     for (const npc of this.npcs) {
-      if (npc.state === 'camp_sleeping' || npc.festivalVisit?.hidden) continue;
+      if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc.festivalVisit?.hidden) continue;
       const dx = npc.pos.x - zerble.position.x;
       const dz = npc.pos.z - zerble.position.z;
 

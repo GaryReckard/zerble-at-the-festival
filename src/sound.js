@@ -11,6 +11,7 @@
 // arch, a "duuude" drone for the wooks, etc.
 
 import { mulberry32 } from './rng.js';
+import { createCampJam } from './campMusic.js';
 
 let ctx = null;
 let masterGain = null;
@@ -217,6 +218,36 @@ let _pendingNatureVol = null;
 // boot, but Sound.init must wait for a user gesture (Start tap on iOS). We
 // queue those requests here and drain them once the AudioContext exists.
 const _pendingStages = [];
+const _campJams = new Set();
+
+// Deferred adoption shares the start gesture's existing context and music bus.
+// Camp ensembles have no timer and are scheduled by the listener frame update.
+function createCampJamHandle(x, z, seed, instruments) {
+  const handle = {
+    seed, instruments: [...instruments], _jam: null, _panner: null, stopped: false,
+    tick() {
+      if (this.stopped || !ctx || !musicBus) return;
+      if (!this._jam) {
+        this._panner = createStagePanner(ctx, musicBus, x, .9, z);
+        this._panner.refDistance = 5;
+        this._panner.rolloffFactor = 1.7;
+        this._panner.maxDistance = 65;
+        this._jam = createCampJam(ctx, this._panner, { seed, instruments: this.instruments });
+      }
+      this._jam.tick(ctx.currentTime);
+    },
+    stop() {
+      if (this.stopped) return;
+      this.stopped = true;
+      this._jam?.stop(); this._panner?.disconnect();
+      this._jam = null; this._panner = null;
+      _campJams.delete(this);
+    },
+  };
+  _campJams.add(handle);
+  handle.tick();
+  return handle;
+}
 
 export function scheduleUpgradeArpeggio(audioContext, destination) {
   const start = audioContext.currentTime;
@@ -750,6 +781,15 @@ export const Sound = {
   },
 
   // ---- Spatial stage music ----
+  attachCampJam(x, z, seed, instruments) {
+    return createCampJamHandle(x, z, seed, instruments);
+  },
+
+  campJamStates() {
+    return [..._campJams].map(handle => ({ seed: handle.seed, instruments: [...handle.instruments],
+      initialized: !!handle._jam, ...(handle._jam ? { bpm: handle._jam.bpm, ...handle._jam.stats } : {}) }));
+  },
+
   // `style` picks the synth + pattern personality: 'jam' (main stage),
   // 'brass' (side stage), 'drum' (drum circle). Unknown styles default to jam.
   attachStageMusic(x, y, z, seed, style = 'jam', opts = {}) {
@@ -815,6 +855,7 @@ export const Sound = {
 
   updateAudioListener(px, py, pz, fx, fy, fz) {
     if (!ctx) return;
+    for (const handle of _campJams) handle.tick();
     const lis = ctx.listener;
     if (lis.positionX) {
       lis.positionX.value = px;

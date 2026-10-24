@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {createDebugCommands} from '../src/debugCommands.js';
+const source=fs.readFileSync(new URL('../src/debug.js',import.meta.url),'utf8');
+const calls=[];
+const tod={t:.15,nightness:0,setT(t){this.t=t;}};
+const entries=new Map([[1,{kind:'campsite',position:{x:0,z:0},campSeats:[{occupied:true},{occupied:false}],campBeds:[{occupied:false}],campFire:{x:1,z:1}}]]);
+const hooks={zerble:{position:{x:0,y:0,z:0},heading:0,speed:3},getRunning:()=>true,getTimeOfDay:()=>tod,
+ registry:{entries},crowd:{npcs:[{state:'camp_seated'},{state:'walking'}],cheerNear(x,z){calls.push(['cheer',x,z]);}},bubbles:{juice:1},
+ renderer:{__sceneInfo:{calls:120,triangles:9000},info:{render:{calls:1,triangles:1}}},camera:{fov:60},
+ chaseCam:{dbgCamTopDown(...args){calls.push(['camera',...args]);},dbgCamUnlock(){calls.push(['chase']);}}};
+const state={hooks,pendingSteps:99,paused:false,freezeNPCs:false,god:false,showColliders:false,perfSamples:[]};
+let mute=true;
+const context=vm.createContext({state,createDebugCommands,USE_WORLDGEN_V2:true,getSessionSeed:()=>1977,
+ Sound:{isMuted:()=>mute,isReady:()=>true,campJamStates:()=>[],setMuted:v=>mute=v},
+ api:()=>({pause:on=>state.paused=on,step:n=>state.pendingSteps+=n,god:on=>state.god=on,
+ showColliders:on=>state.showColliders=on,freezeNPCs:on=>state.freezeNPCs=on,
+ dropSmile:n=>calls.push(['smiles',n]),recordPerf:on=>state.perfRecording=on}),
+});
+vm.runInContext(source.slice(source.indexOf('const COMMAND_TARGETS ='),source.indexOf('\nfunction openCommandPrompt()'))+';this.run=runDebugCommand;',context);
+const run=text=>context.run(text);
+run('/step 10');assert.equal(state.paused,true);assert.equal(state.pendingSteps,10,'step replaces old pending work');
+run('/resume');assert.equal(state.paused,false);assert.equal(state.pendingSteps,0,'resume discards pending steps');
+run('/time evening');assert.equal(tod.t,.63);
+run('/heading 90');assert.equal(hooks.zerble.heading,Math.PI/2);assert.equal(hooks.zerble.speed,0);
+run('/npc freeze');assert(state.freezeNPCs);const count=calls.length;assert.match(run('/npc cheer'),/Resume NPCs first/);assert.equal(calls.length,count);
+run('/npc resume');run('/npc cheer');assert.equal(calls.at(-1)[0],'cheer');
+run('/juice 0');assert.equal(hooks.bubbles.juice,0);run('/smiles 2');assert.deepEqual(calls.at(-1),['smiles',2]);
+run('/god on');assert(state.god);run('/god toggle');assert(!state.god);
+run('/colliders on');assert(state.showColliders);run('/colliders off');assert(!state.showColliders);
+run('/camera top 120');assert(Math.abs(calls.at(-1)[3]-120/(2*Math.tan(Math.PI/6)))<1e-9);run('/camera chase');assert.equal(calls.at(-1)[0],'chase');
+assert.match(run('/status'),/draws 120 · triangles 9000/,'status must report scene counts, not the final fullscreen pass');
+assert.match(run('/perf'),/draws 120/);run('/perf on');assert(state.perfRecording);run('/perf off');assert(!state.perfRecording);
+assert.match(run('/inspect camps'),/"seatedClaims": 1/);assert.match(run('/inspect npcs'),/"camp_seated": 1/);
+assert.match(run('/inspect audio'),/session mute on/);assert.match(run('/seed'),/1977/);assert.match(run('/where'),/90.0°/);
+run('/mute off');assert(!mute);run('/mute on');assert(mute);
+console.log('PASS actual game command adapter: coherent pause/step queue, time/heading/juice, safe crowd states, scene-render counts, camera transforms, claims inspection and session mute.');

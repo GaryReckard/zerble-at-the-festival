@@ -1057,6 +1057,7 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
   // Standalone chairs around the firepit
   const standaloneChairs = pickCount(cfg.chairs, rng);
   for (let i = 0; i < standaloneChairs; i++) {
+    if(recipe.chairLimit===0){rng();rng();rng();continue;}
     const chair = buildCampChair(rng);
     fireChairs.push(chair);
     // Place on a ring just outside the firepit (~1.8m)

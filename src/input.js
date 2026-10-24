@@ -44,6 +44,11 @@ window.addEventListener('keyup', (e) => {
 
 window.addEventListener('blur', () => {
   held.clear();
+  edges.clear();
+});
+
+window.addEventListener('focusin', e => {
+  if(e.target?.matches?.('input, textarea, select, [contenteditable]')){held.clear();edges.clear();}
 });
 
 // Combine a keyboard {-1,0,1} digital axis with a touch [-1..1] analog axis.

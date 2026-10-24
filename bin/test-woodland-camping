@@ -1,0 +1,68 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {setSessionSeed,mulberry32} from '../src/rng.js';
+import {woodlandCampsNear,woodlandCampingClearance} from '../src/woodlandCamping.js';
+import {treeDensity} from '../src/worldgen/density.js';
+import {nearestRoad} from '../src/worldgen/roads.js';
+import {lakeAt} from '../src/worldgen/water.js';
+import {CONFIG} from '../src/worldgen/constants.js';
+import {clusterExtent} from '../src/worldgen/tuning.js';
+import {placeChunkProps,ownerCellCoord} from '../src/worldgen/placement.js';
+let count=0,pitches=0;
+for(const seed of [0,1977,42,9811,123456]){
+ setSessionSeed(seed);
+ const all=woodlandCampsNear({minX:-1100,minZ:-1100,maxX:1100,maxZ:1100});
+ assert(all.length>=4,'real density field produces inhabited woodland districts');
+ for(const d of all){
+  assert(d.pitches.length>=4&&d.pitches.length<=7);
+  assert.equal(d.pitches[0].role,'host');assert(d.pitches.slice(1).every(p=>p.role==='satellite'));
+  assert(d.paths.slice(2).every(p=>p.visible===false),'internal walking gaps leave the grass unpainted');
+  assert(d.pitches.slice(1).every(p=>p.recipe.chairLimit===0&&p.recipe.tentRadius===1.3),'dense sleeping pitches share the host furniture');
+  assert(treeDensity(d.x,d.z)>=.18);assert(d.paths.length>=d.pitches.length);
+  const again=woodlandCampsNear({minX:d.x-1,minZ:d.z-1,maxX:d.x+1,maxZ:d.z+1}).find(p=>p.id===d.id);
+  assert.deepEqual(again,d,'query windows cannot reseed or remove a district owned there');
+  const reserved=[];
+  const cx=ownerCellCoord(d.x),cz=ownerCellCoord(d.z);
+  for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++)reserved.push(...placeChunkProps(cx+dx,cz+dz));
+  for(const p of d.pitches){
+   assert(!reserved.some(v=>Math.hypot(p.worldx-v.x,p.worldz-v.z)<p.footprint+Math.max(v.footprint||0,clusterExtent(v.kind,v.scale||1))+4),'woodland tents cannot overlap actual festival descriptors');
+   assert(nearestRoad(p.worldx,p.worldz).dist>=p.footprint+CONFIG.ROAD_WIDTH/2+2);
+   assert(!lakeAt(p.worldx,p.worldz));assert(woodlandCampingClearance(p.worldx,p.worldz,[d],4));
+   for(let i=0;i<12;i++){const a=i*Math.PI/6;assert(!lakeAt(p.worldx+Math.cos(a)*p.footprint,p.worldz+Math.sin(a)*p.footprint));}
+  }
+  for(const path of d.paths)for(let i=0;i<=20;i++){
+   const x=path.ax+(path.bx-path.ax)*i/20,z=path.az+(path.bz-path.az)*i/20;
+   assert(!lakeAt(x,z),'access never crosses water');assert(woodlandCampingClearance(x,z,[d],1.3),'future tree colliders cannot seal planned access');
+  }
+  // Neighboring chunk queries see the same complete tree-clearance plan,
+  // including the road entry even when the host chunk has not been built.
+  const path=d.paths[0];assert(woodlandCampsNear({minX:path.ax-.1,minZ:path.az-.1,maxX:path.ax+.1,maxZ:path.az+.1}).some(p=>p.id===d.id));
+  if(count%9===0) {
+   const p=d.pitches[0],x=p.worldx+p.footprint+3,z=p.worldz;
+   setSessionSeed(seed^0x12345);woodlandCampsNear({minX:0,minZ:0,maxX:1,maxZ:1});setSessionSeed(seed);
+   const cold=woodlandCampsNear({minX:x-.1,minZ:z-.1,maxX:x+.1,maxZ:z+.1});
+   assert(cold.some(a=>a.id===d.id),'cold neighbor query includes trunk-clearance margins beyond tent bounds');
+   assert.deepEqual(cold.find(a=>a.id===d.id),d,'cheap cell culling cannot change a cold-query district');
+  }
+  count++;pitches+=d.pitches.length;
+ }
+}
+setSessionSeed(1977);const a=woodlandCampsNear({minX:-900,minZ:-900,maxX:900,maxZ:900});setSessionSeed(42);const b=woodlandCampsNear({minX:-900,minZ:-900,maxX:900,maxZ:900});assert.notDeepEqual(a,b);setSessionSeed(1977);assert.deepEqual(woodlandCampsNear({minX:-900,minZ:-900,maxX:900,maxZ:900}),a,'cache invalidates when session seed changes');
+console.log(`PASS woodland planning: ${count} districts / ${pitches} pitches, five seeds, woods/road/water bounds, shared hosts, access and query/seed invariance.`);
+
+const source=fs.readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');
+const body=source.slice(source.indexOf('function placeWoodlandCamping('),source.indexOf('// An actual density-field district'));
+const added=[],spawns=[],attempts=[];
+const district={id:'test',seed:1,x:0,z:0,pitches:[{role:'host',seed:1,worldx:0,worldz:0,recipe:{}},{role:'satellite',seed:2,worldx:12,worldz:0,recipe:{}}],paths:[{ax:-20,az:0,bx:0,bz:0,width:4},{ax:0,az:0,bx:12,bz:0,width:1.2,visible:false}]};
+let deny=false;
+const build=Function('CHUNK_SIZE','woodlandCampsNear','ownerCellCoord','mulberry32','placeSingleCampsite','buildRibbonFromPolyline','_WOODLAND_PATH_MAT','registry','isPointInLake','THREE',`${body};return placeWoodlandCamping;`)(80,()=>[district],ownerCellCoord,mulberry32,
+ (ctx,x,z,size,facing,options)=>{attempts.push(options.role);return deny?null:{animatables:[],options};},(...args)=>args,{}, {collidersNear(){}},()=>false,{Vector3:class{constructor(x,y,z){Object.assign(this,{x,y,z});}}});
+const rng=()=>{throw new Error('woodland must not advance the existing chunk RNG stream');};
+const ctx={cx:0,cz:0,cxWorld:0,czWorld:0,key:'0,0',rng,group:{add:n=>added.push(n)},crowd:{spawn:n=>spawns.push(n)}};
+assert.equal(build(ctx).length,2);assert.equal(added.length,1,'internal walking clearances must not create visible path meshes');assert(spawns.length>0&&spawns.every(n=>n.chunkKey==='0,0'));
+attempts.length=0;assert.equal(build({...ctx,cx:1}).length,0);assert.equal(attempts.length,0,'only the canonical owner builds a whole household');
+deny=true;assert.equal(build(ctx).length,0);assert.deepEqual(attempts,['host'],'a rejected host cannot leave orphan satellites');
+assert(source.indexOf('    placeWoodlandCamping(ctx);')<source.indexOf('    scatterWorldgenTrees(ctx);'),'live world builds camps before trees');
+assert(source.includes('woodlandCampingClearance(x,z,woodland,4)'),'actual tree scatter honors cross-chunk camp and path reservations');
+console.log('PASS production integration: live-v2 ordering, canonical ownership, no orphan satellites, isolated RNG and resident ownership.');

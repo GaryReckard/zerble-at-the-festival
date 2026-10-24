@@ -1457,7 +1457,7 @@ function tickBody(dt) {
       for (let i = 0; i < frisbees.colliders.length; i++) _collScratch.push(frisbees.colliders[i]);
       const broadphaseR2 = 36; // 6m broadphase
       for (const n of crowd.npcs) {
-        if (n.state === 'riding' || n.state === 'boarding' || n.state === 'disembarking' || n.state === 'camp_sleeping' || n.festivalVisit?.hidden) continue;
+        if (n.state === 'riding' || n.state === 'boarding' || n.state === 'disembarking' || n.state === 'camp_sleeping' || n.campJamHidden || n.festivalVisit?.hidden) continue;
         const dx = n.pos.x - zerble.position.x;
         const dz = n.pos.z - zerble.position.z;
         if (dx * dx + dz * dz > broadphaseR2) continue;
@@ -2741,7 +2741,7 @@ if (forceNutWagon) {
 }
 
 installDebug({
-  scene, camera, renderer, composer, bloomPass,
+  scene, camera, renderer, composer, bloomPass, chaseCam,
   zerble, crowd, bubbles, smiles, registry,
   puppets, band, kids, wooks,
   hoopers, frisbees,

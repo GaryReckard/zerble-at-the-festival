@@ -333,3 +333,54 @@ animate(21,1,glowHooks,.95);
 assert.equal(doorCloth.visible,true);assert.equal(glowHooks[0].silhouette.visible,false);
 assert.equal(glowHooks[0].material.emissiveIntensity,0);
 console.log('PASS actual door glow: daytime cloth retained, thirteen cached silhouette poses, fixed buffer updates and late-night extinction.');
+
+// Woodland pitch acceptance against real campsite geometry and pre-existing
+// neighboring-chunk trunks, with the same pure clearance predicate as the game.
+const {woodlandCampsNear,woodlandCampingClearance}=await import('../src/woodlandCamping.js');
+const {setSessionSeed,mulberry32}=await import('../src/rng.js');
+setSessionSeed(1977);
+const woodlandDistricts=woodlandCampsNear({minX:-900,minZ:-900,maxX:900,maxZ:900});
+let woodlandAccepted=0,woodlandPlanned=0;
+for(const district of woodlandDistricts){
+ const entries=new Map(),byKind=new Map();let next=1;
+ const reg={entries,byKind,add(e){e.id=next++;entries.set(e.id,e);if(!byKind.has(e.kind))byKind.set(e.kind,new Set());byKind.get(e.kind).add(e.id);return e.id;},footprintsNear(x,z,r,fn){for(const e of entries.values())if(e.footprint)fn(e);},collidersNear(x,z,r,fn){for(const e of entries.values())if(e.collider)fn(e);}};
+ for(let x=district.x-64;x<district.x+64;x+=8)for(let z=district.z-64;z<district.z+64;z+=8){
+  if(!woodlandCampingClearance(x,z,woodlandDistricts,4))reg.add({kind:'forest_tree',position:{x,z},footprint:2,collider:{radius:1.3}});
+ }
+ let count=0;
+ for(const p of district.pitches){
+  const camp=build(mulberry32(p.seed),p.size,{plan:p.recipe});camp.group.position.set(p.worldx,0,p.worldz);camp.group.rotation.y=p.facing-camp.entranceYaw;
+  const clear=canPlaceCampsite(reg,camp,district.id);
+  if(p.role==='host')assert(clear,'pre-existing neighboring forest trunks cannot reject their planned shared host');
+  if(!clear){if(process.env.WOODLAND_DIAG)console.log('rejected',district.id,p.archetype,'own',canPlaceCampsite({entries:new Map(),byKind:new Map(),footprintsNear(){},collidersNear(){}},camp,district.id));continue;}
+  registerCampsite(reg,camp,{campNeighborhood:district.id});count++;
+ }
+ assert(count>=3,`woodland ${district.id} retains a shared host and useful sleeping group (${count})`);
+ woodlandAccepted+=count;woodlandPlanned+=district.pitches.length;
+}
+assert(woodlandAccepted>=woodlandPlanned*.8,`physical camping retains most density-fitted woodland pitches (${woodlandAccepted}/${woodlandPlanned})`);
+console.log(`PASS ${woodlandDistricts.length} woodland groups against actual camp geometry and earlier neighbor trunks: ${woodlandAccepted}/${woodlandPlanned} pitches.`);
+
+// Seed 1977's second debug woodland destination is dry, but sits in the
+// conservative bounding circle of the irregular lake south of its host.
+const {lakesInBounds,lakeAt}=await import('../src/worldgen/water.js');
+const lakeDistrict=woodlandDistricts.find(d=>d.id==='woodland:1,-2');
+assert(lakeDistrict,'the reported second woodland destination exists');
+const hostPitch=lakeDistrict.pitches.find(p=>p.role==='host');
+const actualHost=build(mulberry32(hostPitch.seed),hostPitch.size,{plan:hostPitch.recipe});
+actualHost.group.position.set(hostPitch.worldx,0,hostPitch.worldz);actualHost.group.rotation.y=hostPitch.facing-actualHost.entranceYaw;
+const actualLake=lakesInBounds(100,-600,500,-100).find(l=>l.x===277&&l.z===-460);
+assert(actualLake,'reported southern irregular lake exists');
+const actualRadius=Math.max(...actualLake.outline.map(p=>Math.hypot(p.x-actualLake.x,p.z-actualLake.z)));
+const hostDistance=Math.hypot(hostPitch.worldx-actualLake.x,hostPitch.worldz-actualLake.z);
+assert(Math.abs(actualRadius-162.92636373527768)<1e-6);assert(Math.abs(hostDistance-164.97323199595965)<1e-6);
+assert(!lakeAt(hostPitch.worldx,hostPitch.worldz));
+for(let i=0;i<16;i++){const a=i*Math.PI/8;assert(!lakeAt(hostPitch.worldx+Math.cos(a)*actualHost.footprint,hostPitch.worldz+Math.sin(a)*actualHost.footprint),'every live preflight rim sample is dry');}
+let fixtureShore=[];
+const actualLakeGate={entries:new Map(),byKind:new Map(),footprintsNear(x,z,r,fn){fn({kind:'lake',position:{x:actualLake.x,z:actualLake.z},footprint:actualRadius});},collidersNear(x,z,r,fn){fixtureShore.forEach(fn);}};
+assert.equal(canPlaceCampsite(actualLakeGate,actualHost,lakeDistrict.id),false,'actual unchecked fixture reproduces lost host');
+assert.equal(canPlaceCampsite(actualLakeGate,actualHost,lakeDistrict.id,{waterChecked:true}),true,'actual dry host survives its broad lake-circle overlap');
+const firstSolid=actualHost.childColliders[0],yaw=actualHost.group.rotation.y;
+fixtureShore=[{kind:'lake_edge',position:{x:hostPitch.worldx+2*(firstSolid.x*Math.cos(yaw)+firstSolid.z*Math.sin(yaw)),z:hostPitch.worldz+2*(-firstSolid.x*Math.sin(yaw)+firstSolid.z*Math.cos(yaw))},collider:{radius:.5}}];
+assert.equal(canPlaceCampsite(actualLakeGate,actualHost,lakeDistrict.id,{waterChecked:true}),false,'the real host still rejects an overlapping shoreline collider');
+console.log('PASS seed1977 woodland: dry host at distance164.973 survives lake bounding radius162.926 only after exact water checks; shoreline solids still reject.');
