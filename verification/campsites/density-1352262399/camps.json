@@ -1,0 +1,142 @@
+[
+  {
+    "x": -192,
+    "z": -403,
+    "neighborhood": "-1,-1:camp:1",
+    "chairs": 4,
+    "seatedClaims": 0,
+    "beds": 5,
+    "sleepClaims": 0,
+    "hearth": true
+  },
+  {
+    "x": -287,
+    "z": -391,
+    "neighborhood": "-1,-1:camp:3",
+    "chairs": 2,
+    "seatedClaims": 0,
+    "beds": 4,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -198,
+    "z": -404,
+    "neighborhood": "-1,-1:camp:1",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 5,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -185,
+    "z": -398,
+    "neighborhood": "-1,-1:camp:1",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 4,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -196,
+    "z": -398,
+    "neighborhood": "-1,-1:camp:1",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 2,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -181,
+    "z": -403,
+    "neighborhood": "-1,-1:camp:1",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 4,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -182,
+    "z": -415,
+    "neighborhood": "-1,-1:camp:1",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 5,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -202,
+    "z": -414,
+    "neighborhood": "-1,-1:camp:1",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 4,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -208,
+    "z": -403,
+    "neighborhood": "-1,-1:camp:1",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 2,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -283,
+    "z": -387,
+    "neighborhood": "-1,-1:camp:3",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 2,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -294,
+    "z": -399,
+    "neighborhood": "-1,-1:camp:3",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 4,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -282,
+    "z": -402,
+    "neighborhood": "-1,-1:camp:3",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 5,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -276,
+    "z": -396,
+    "neighborhood": "-1,-1:camp:3",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 4,
+    "sleepClaims": 0,
+    "hearth": false
+  },
+  {
+    "x": -283,
+    "z": -379,
+    "neighborhood": "-1,-1:camp:3",
+    "chairs": 0,
+    "seatedClaims": 0,
+    "beds": 2,
+    "sleepClaims": 0,
+    "hearth": false
+  }
+]

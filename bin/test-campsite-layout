@@ -384,3 +384,36 @@ const firstSolid=actualHost.childColliders[0],yaw=actualHost.group.rotation.y;
 fixtureShore=[{kind:'lake_edge',position:{x:hostPitch.worldx+2*(firstSolid.x*Math.cos(yaw)+firstSolid.z*Math.sin(yaw)),z:hostPitch.worldz+2*(-firstSolid.x*Math.sin(yaw)+firstSolid.z*Math.cos(yaw))},collider:{radius:.5}}];
 assert.equal(canPlaceCampsite(actualLakeGate,actualHost,lakeDistrict.id,{waterChecked:true}),false,'the real host still rejects an overlapping shoreline collider');
 console.log('PASS seed1977 woodland: dry host at distance164.973 survives lake bounding radius162.926 only after exact water checks; shoreline solids still reject.');
+
+// Shared-clearing infill exercises actual tent/chair builders and transforms,
+// rather than treating whole campsite reservation circles as solid objects.
+const clearingSource=readFileSync(new URL('../src/campClearing.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace('export function populateCampClearing','function populateCampClearing');
+const populate=vm.runInNewContext(clearingSource+';populateCampClearing',{mulberry32,planCampRecipe,CAMP_ARCHETYPES,buildCampsite:build,canPlaceCampsite});
+let infillCount=0;
+for(let seed=1;seed<=24;seed++){
+ const entries=new Map(),byKind=new Map();let next=0;
+ const reg={entries,byKind,add(e){e.id=++next;entries.set(e.id,e);if(!byKind.has(e.kind))byKind.set(e.kind,new Set());byKind.get(e.kind).add(e.id);return e.id;},footprintsNear(x,z,r,fn){for(const e of entries.values())if(e.footprint)fn(e);},collidersNear(x,z,r,fn){for(const e of entries.values())if(e.collider)fn(e);}};
+ const host=build(mulberry32(seed),'small');host.group.rotation.y=seed*.31;
+ const neighborhood='infill:'+seed;registerCampsite(reg,host,{campNeighborhood:neighborhood});
+ const start=JSON.stringify(host.group.position),added=[];
+ const camps=populate(reg,host,{seed,neighborhood,canUsePitch:()=>true,onAccept:camp=>{
+   assert(canPlaceCampsite(reg,camp,neighborhood,{waterChecked:true}),'infill must preserve every existing solid and door/chair approach');
+   registerCampsite(reg,camp,{campNeighborhood:neighborhood});added.push(camp);
+ }});
+ assert(camps.length>=3,`seed${seed}: a dry existing clearing supports a useful sleeping group (${camps.length})`);
+ assert(camps.length<=8);assert.equal(camps.length,added.length);
+ assert.equal(JSON.stringify(host.group.position),start,'infill does not move the established social center');
+ for(const camp of camps){assert.equal(camp.tents.length,1);assert.equal(camp.seats.length,0);assert(Math.hypot(camp.group.position.x,camp.group.position.z)<=18);}
+ infillCount+=camps.length;
+}
+console.log(`PASS actual clearing infill: ${infillCount} sleeping tents around24 retained social centers, bounded18m placement, no redundant chairs or solid/door/chair conflicts.`);
+// Rejection paths must release private GPU resources without touching pools.
+let allocations=0,privateDisposals=0,sharedDisposals=0;
+const resource=shared=>({userData:{shared},dispose(){shared?sharedDisposals++:privateDisposals++;}});
+const rejectedPopulate=vm.runInNewContext(clearingSource+';populateCampClearing',{mulberry32,planCampRecipe,CAMP_ARCHETYPES,canPlaceCampsite:()=>false,buildCampsite(){allocations++;return{footprint:7,group:{position:{set(){}},rotation:{},traverse(fn){fn({geometry:resource(false),material:resource(false)});fn({geometry:resource(true),material:resource(true)});}}};}});
+const emptyHost={group:{position:{x:0,z:0},rotation:{y:0}}};
+assert.throws(()=>rejectedPopulate({},emptyHost,{seed:1}),/callbacks/);
+assert.equal(rejectedPopulate({},emptyHost,{seed:1,canUsePitch:()=>true,onAccept(){throw Error('rejected camp adopted');}}).length,0);
+assert.equal(allocations,6,'only one model allocated per intended pitch, not per candidate');
+assert.equal(privateDisposals,12);assert.equal(sharedDisposals,0);
+console.log('PASS rejected infill releases private resources, preserves shared pools and bounds allocation retries.');

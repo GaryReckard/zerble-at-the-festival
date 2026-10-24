@@ -1,0 +1,58 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+
+// Execute the production lake integration, keeping the separate clearing
+// planner/model geometry covered by its own tests and browser verification.
+const source=readFileSync(new URL('../src/lakes.js',import.meta.url),'utf8');
+const begin=source.indexOf('    // Populate each accepted lakeside clearing');
+const end=source.indexOf('    // Forest ring around the lake',begin);
+assert(begin>0&&end>begin);
+const hostA={group:{position:{x:20,z:0}}},hostB={group:{position:{x:-20,z:0}}};
+const camps=[{x:20,z:0,r:14,camp:hostA,campSeed:101,neighborhood:'lake:camp:0'},
+  {x:-20,z:0,r:18,camp:hostB,campSeed:202,neighborhood:'lake:camp:1'}];
+const registry={entries:new Map([[1,hostA],[2,hostB]])},registryIds=[1,2],lakeAnimEntries=[],attached=[],calls=[],roads=[];
+let nextId=3,wet=()=>false,waterCalls=0,roadBlocked=false;
+const registerCampsite=(reg,camp,options)=>{
+  assert.equal('chunkKey' in options,false,'sleeping pitches retain lake ownership');
+  const id=nextId++;reg.entries.set(id,{camp,options});return [id];
+};
+vm.runInNewContext(source.slice(begin,end),{
+  USE_WORLDGEN_V2:true,cx:0,cz:0,RING_ROAD_HALF:6,camps,registry,registryIds,lakeAnimEntries,
+  group:{add(camp){attached.push(camp);}},
+  roadsInBounds:(...bounds)=>{roads.push(bounds);return [{road:'expanded'}];},ringRoads:[],
+  isPointInLake:(x,z)=>{waterCalls++;return wet(x,z);},
+  nearAnyRoad:(x,z,nearby,padding)=>{assert.equal(nearby[0].road,'expanded');assert.equal(padding,13);return roadBlocked;},
+  registerCampsite,
+  populateCampClearing:(reg,host,options)=>{
+    calls.push({host,options});
+    const expected=host===hostA?2:4;
+    assert.equal(reg.entries.size,expected,'all hosts precede followers, and accepted followers register immediately');
+    const accepted=[];
+    for(let i=0;i<(host===hostA?2:1);i++){
+      const model={group:{position:{x:host.group.position.x+4+i,z:2}},footprint:7,animatables:[{i}]};
+      assert(options.canUsePitch(model.group.position.x,2,7));
+      options.onAccept(model);
+      assert.equal(reg.entries.size,expected+i+1,'the next candidate sees the just-accepted model');
+      accepted.push(model);
+    }
+    return accepted;
+  },
+  rng:()=>{throw new Error('followers must not consume the original lake RNG');},
+});
+assert.equal(calls.length,2,'the snapshot visits original hosts only');
+assert.equal(calls[0].options.seed,101);assert.equal(calls[1].options.seed,202);
+assert.equal(attached.length,3);assert.equal(lakeAnimEntries.length,3);assert.equal(registryIds.length,5);
+assert.equal(camps.length,5,'every accepted footprint protects the lake-owned tree scatter');
+assert.equal(new Set(registryIds).size,5,'accepted followers are not registered twice from the returned array');
+assert.equal(registry.entries.get(3).options.campNeighborhood,'lake:camp:0');
+assert.equal(registry.entries.get(5).options.campNeighborhood,'lake:camp:1');
+assert.deepEqual(roads[0],[-54,-54,54,54],'expanded road query covers host, 18m search reach, and full sleeping footprints');
+const canUsePitch=calls[0].options.canUsePitch;
+waterCalls=0;assert(canUsePitch(0,0,7));assert.equal(waterCalls,17,'a dry proposal checks its center and sixteen rim samples');
+wet=(x,z)=>x===0&&z===0;assert.equal(canUsePitch(0,0,7),false,'wet centers are rejected');
+wet=(x,z)=>x===7&&z===0;assert.equal(canUsePitch(0,0,7),false,'wet rim samples are rejected');
+wet=()=>false;roadBlocked=true;assert.equal(canUsePitch(0,0,7),false,'road clearance includes the entire sleeping footprint');
+assert(source.indexOf('const clearingHosts=camps.slice()')>source.indexOf('for (let i = 0; i < campCount; i++)'),'follower work starts after the original host loop');
+console.log('PASS lake clearing integration: original-host snapshot, isolated seeds, immediate registration, lake-owned lifetimes, tree clearances, exact dry preflight and footprint-aware roads.');

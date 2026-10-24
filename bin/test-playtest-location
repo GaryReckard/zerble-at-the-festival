@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync('src/main.js','utf8');
+const parser=source.slice(source.indexOf('const __location ='),source.indexOf('(function initSessionSeed()'));
+function parse(search){return vm.runInNewContext(parser+'JSON.stringify(__location)',{window:{location:{search}},URLSearchParams});}
+assert.deepEqual(JSON.parse(parse('?x=-201.67&z=-398.85&heading=-0.009&tod=0.217')),{x:-201.67,z:-398.85,heading:-0.009,tod:.217});
+for(const query of ['', '?x=2','?x=&z=2','?x=Infinity&z=2','?x=10000001&z=2'])assert.equal(parse(query),'null');
+assert.deepEqual(JSON.parse(parse('?x=0&z=0&heading=&tod=9')),{x:0,z:0,heading:null,tod:null});
+assert(source.indexOf('const __launch = __resume || __location')<source.indexOf('buildWorld(scene, crowd, zerble.position)'));
+assert(source.includes('Number.isFinite(__launch.tod)'));
+console.log('PASS playtest URL validation, zero coordinates, resume precedence and preload order');

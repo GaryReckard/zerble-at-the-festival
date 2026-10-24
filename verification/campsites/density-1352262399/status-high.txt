@@ -1,0 +1,4 @@
+seed 1352262399 · x -201.9, z -398.3 · heading 359.5°
+simulation running · NPCs active · god off · colliders off
+time 0.218 · 203 NPCs · 3879 registry entries
+draws 3443 · triangles 1223562

@@ -103,6 +103,20 @@ const __resume = (() => {
   } catch (e) { return null; }
 })();
 
+// A fresh playtest link can preload the world directly at a reported location.
+// Settings' explicit resume snapshot keeps precedence during Apply & restart.
+const __location = (() => {
+  const params = new URLSearchParams(window.location.search);
+  const number = key => {
+    const raw = params.get(key);
+    return raw !== null && raw.trim() !== '' && Number.isFinite(Number(raw)) ? Number(raw) : null;
+  };
+  const x = number('x'), z = number('z');
+  if (x === null || z === null || Math.abs(x) > 1e7 || Math.abs(z) > 1e7) return null;
+  const heading = number('heading'), tod = number('tod');
+  return {x, z, heading, tod: tod !== null && tod >= 0 && tod <= 1 ? tod : null};
+})();
+
 (function initSessionSeed() {
   // Resumed session: re-seed to the exact same world before anything generates.
   if (__resume && __resume.seed != null) {
@@ -444,14 +458,15 @@ StarPower.onEnd = () => {
 // origin) — the title-card backdrop + __dbg.start() then open on a loaded spawn.
 // Resumed session: override the fresh-spawn placement with the saved spot so the
 // world preloads around where the player left off.
-if (__resume && Number.isFinite(__resume.x) && Number.isFinite(__resume.z)) {
-  zerble.position.set(__resume.x, 0, __resume.z);
-  if (Number.isFinite(__resume.heading)) zerble.heading = __resume.heading;
+const __launch = __resume || __location;
+if (__launch && Number.isFinite(__launch.x) && Number.isFinite(__launch.z)) {
+  zerble.position.set(__launch.x, 0, __launch.z);
+  if (Number.isFinite(__launch.heading)) zerble.heading = __launch.heading;
 }
 buildWorld(scene, crowd, zerble.position);
 // Resumed session: restore the time of day so the sky matches where you left off
 // (the ToD instance is created inside buildWorld, so this must come after it).
-if (__resume && Number.isFinite(__resume.tod)) getTimeOfDay()?.setT(__resume.tod);
+if (__launch && Number.isFinite(__launch.tod)) getTimeOfDay()?.setT(__launch.tod);
 
 // ---------- Lurleen (love interest, persistent across the world) ----------
 // v2 (H1): start Lurleen a distance away from the player's actual hub spawn (random

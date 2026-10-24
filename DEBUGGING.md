@@ -465,6 +465,7 @@ Adding a model? It's not done until it has a sandbox entry — see
 | Flag | Effect |
 |---|---|
 | `?perf=low\|mid\|high` (or `window.__perfProfile`) | Force a performance tier ([perf.js](src/perf.js)). Test low/mid — high hides regressions that crush integrated GPUs. |
+| `?x=<number>&z=<number>&heading=<radians>&tod=<0..1>` | Preload a fresh game at a reported location; both coordinates are required and bounded to ±10 million. Heading/time are optional. Settings Apply & restart retains its saved session precedence. |
 | `?seed=<string\|int>` | Pin the procedural world layout ([main.js](src/main.js)); echoed in the debug HUD so a world is reproducible. |
 | `?perfCapture=1&captureToken=<token>` | Arm the local-device performance reporter. Use the complete tokenized URL printed by `serve_nocache.py --lan`; recording begins only after a real mode-plank tap. |
 | `?layoutCapture=1` | Localhost-only, data-only world-streaming mode used automatically by `bin/layout-snapshot capture`. It preserves registry updates while skipping pixels; it is not a visual test mode. |

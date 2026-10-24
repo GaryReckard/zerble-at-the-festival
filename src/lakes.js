@@ -1,4 +1,5 @@
 import { registerCampsite } from './campRegistry.js';
+import { populateCampClearing } from './campClearing.js';
 // Lakes are first-class world features, not chunk content. One lake per
 // macrocell — irregular elongated/lobed shape (a small fraction stay circular
 // for variety) — sealed at the perimeter so the cart and NPCs cannot enter
@@ -672,9 +673,39 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       camp.group.rotation.y = Math.atan2(cx - camX, cz - camZ) - (camp.entranceYaw || 0);  // face the lake
       group.add(camp.group);
       lakeAnimEntries.push(camp.animatables);
-      camps.push({ x: camX, z: camZ, r: camp.footprint });
+      const neighborhood=`${lakeKey}:camp:${i}`;
+      camps.push({ x: camX, z: camZ, r: camp.footprint, camp, campSeed, neighborhood });
 
-      registryIds.push(...registerCampsite(registry, camp, { attractor: { radius: 6, weight: 1.4 } }));
+      registryIds.push(...registerCampsite(registry, camp, { attractor: { radius: 6, weight: 1.4 }, campNeighborhood:neighborhood }));
+    }
+
+    // Populate each accepted lakeside clearing only after every original host
+    // has claimed its historic position. Independent seeds leave host RNG and
+    // angle selection intact, and immediate registration protects earlier beds.
+    const clearingHosts=camps.slice();
+    if(USE_WORLDGEN_V2&&clearingHosts.length) {
+      // Sleeping pitches can reach 18 m beyond a host. Extend the road query
+      // after host placement so full follower footprints are checked as well.
+      const reach=Math.max(...clearingHosts.map(c=>Math.hypot(c.x-cx,c.z-cz)))+18+10+RING_ROAD_HALF;
+      ringRoads=roadsInBounds(cx-reach,cz-reach,cx+reach,cz+reach);
+    }
+    for(const host of clearingHosts) {
+      populateCampClearing(registry,host.camp,{
+        seed:host.campSeed,neighborhood:host.neighborhood,
+        canUsePitch:(x,z,footprint)=>{
+          if(isPointInLake(x,z))return false;
+          for(let i=0;i<16;i++) {
+            const angle=i*Math.PI/8;
+            if(isPointInLake(x+Math.cos(angle)*footprint,z+Math.sin(angle)*footprint))return false;
+          }
+          return !nearAnyRoad(x,z,ringRoads,RING_ROAD_HALF+footprint);
+        },
+        onAccept:camp=>{
+          group.add(camp.group);lakeAnimEntries.push(camp.animatables);
+          registryIds.push(...registerCampsite(registry,camp,{attractor:{radius:6,weight:1.4},campNeighborhood:host.neighborhood}));
+          camps.push({x:camp.group.position.x,z:camp.group.position.z,r:camp.footprint});
+        },
+      });
     }
 
     // Forest ring around the lake — sparse near the camps, denser further out.

@@ -30,3 +30,7 @@ Both `continue-woodland-camps-and-fireside-music` and `explore-festival-terrain-
 ## October 24 save request
 
 Gary explicitly requested committing the completed work after verification. The campsite, woodland/music, slash-command and terrain-proposal artifacts are saved together by that authorized commit; use the current Git log for its revision. Earlier no-commit instructions applied before this explicit request. Terrain remains proposal-only.
+
+## Reported sparse lakeside clearing, October 24
+
+The [seed 1352262399 report](density-1352262399/README.md) records seven compact sleeping tents added around the existing lake-owned host, exact placement/ownership tests, Low/High game boots and direct-location links. Gary authorized committing this follow-up separately from the concurrent terrain work. Gary's concurrent terrain and vehicle edits were preserved; inspect current Git state before any save action. The test tab was closed and the existing server left alone.
