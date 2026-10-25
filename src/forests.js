@@ -1,3 +1,4 @@
+import { terrainHeight } from './worldgen/terrain.js';
 import { planCampNeighborhood } from './campPlanning.js';
 import { registerCampsite, canPlaceCampsite } from './campRegistry.js';
 // Forests — dense clumps of taller trees that Zerble cannot drive through.
@@ -315,7 +316,7 @@ export function buildForestChunk(ctx, forest) {
   if (forest.role === 'center') {
     registry.add({
       kind: 'forest',
-      position: new THREE.Vector3(forest.centerX, 0, forest.centerZ),
+      position: new THREE.Vector3(forest.centerX, terrainHeight(forest.centerX, forest.centerZ), forest.centerZ),
       footprint: forest.bodyRadius,
       chunkKey: ctx.key,
     });
@@ -419,7 +420,7 @@ function placePathLanterns(ctx, forest, startX, startZ, rng) {
     const tz = baseZ + perpZ * offDist * sideSign;
     torchPositions.push({ x: tx, z: tz, phase: rng() * Math.PI * 2 });
   }
-  const torchField = buildTorchField(torchPositions, rng);
+  const torchField = buildTorchField(torchPositions.map(p => ({ ...p, y: terrainHeight(p.x, p.z) })), rng);
   ctx.group.add(torchField.group);
   // Batch all torches for this path into one animatables entry so main.js
   // ticks them in one call per forest.
@@ -546,7 +547,7 @@ function buildInteriorCampsites(ctx, forest) {
     // would clip. Occasional 'medium' for variety.
     const size = p.size || (siteSeed() < 0.75 ? 'small' : 'medium');
     const camp = buildCampsite(siteSeed, size, { plan: p.recipe, role: p.role, archetype: p.archetype });
-    camp.group.position.set(p.x, 0, p.z);
+    camp.group.position.set(p.x, terrainHeight(p.x, p.z), p.z);
     camp.group.rotation.y = p.facing == null ? siteSeed() * Math.PI * 2 : p.facing - (camp.entranceYaw || 0);
     const neighborhood=`forest:${forest.seed}:${p.neighborhood}`;
     if(!canPlaceCampsite(registry,camp,neighborhood,{forestOwnerKey:ctx.key})) {
@@ -572,7 +573,7 @@ function buildForestCampsite(ctx, forest) {
              : forest.bodyRadius > 95 ? 'medium'
              : 'small';
   const camp = buildCampsite(rng, size);
-  camp.group.position.set(forest.centerX, 0, forest.centerZ);
+  camp.group.position.set(forest.centerX, terrainHeight(forest.centerX, forest.centerZ), forest.centerZ);
   // Rotate so the firepit faces the path entry direction
   camp.group.rotation.y = Math.PI / 2 - pathDirToAngle(forest.pathDirIdx) - (camp.entranceYaw || 0);
   ctx.group.add(camp.group);
@@ -602,27 +603,27 @@ function buildForestCampsite(ctx, forest) {
 export function buildWorldgenDrumCircle(ctx, x, z, facingAngle = 0) {
   const rng = ctx.rng;
   const dc = buildLeafDrumCircle(rng, { facingAngle });
-  dc.group.position.set(x, 0, z);
+  dc.group.position.set(x, terrainHeight(x, z), z);
   ctx.group.add(dc.group);
 
   const figures = populateDrumCircle(rng, dc, null, facingAngle);   // `forest` arg is unused
   forestDrumCircles.push({ chunkKey: ctx.key, dc, figures, fireCenter: { x, z } });
 
-  const musicHandle = Sound.attachStageMusic(x, 1.4, z, worldHash(Math.round(x), Math.round(z), 0x0D40_C1C7), 'forest_drum');
+  const musicHandle = Sound.attachStageMusic(x, terrainHeight(x, z) + 1.4, z, worldHash(Math.round(x), Math.round(z), 0x0D40_C1C7), 'forest_drum');
   if (musicHandle) {
     forestDrumMusic.push({ handle: musicHandle, chunkKey: ctx.key, centerX: x, centerZ: z, bodyRadius: 40 });
   }
 
   registry.add({
     kind: 'firepit',
-    position: new THREE.Vector3(x, 0.5, z),
+    position: new THREE.Vector3(x, terrainHeight(x, z) + 0.5, z),
     footprint: dc.firepitCollider.radius,
     collider: dc.firepitCollider,
     chunkKey: ctx.key,
   });
   registry.add({
     kind: 'bench_ring',
-    position: new THREE.Vector3(x, 0.4, z),
+    position: new THREE.Vector3(x, terrainHeight(x, z) + 0.4, z),
     footprint: 0,
     collider: dc.benchCollider,
     chunkKey: ctx.key,
@@ -644,7 +645,7 @@ function buildForestDrumCirclePlaceholder(ctx, forest) {
   // arrive across the fire.
   const facingAngle = pathDirToAngle(forest.pathDirIdx);
   const dc = buildLeafDrumCircle(rng, { facingAngle });
-  dc.group.position.set(x, 0, z);
+  dc.group.position.set(x, terrainHeight(x, z), z);
   ctx.group.add(dc.group);
 
   // ---- Populate the circle: drummers, dancers, firekeeper + spotter ----
@@ -659,7 +660,7 @@ function buildForestDrumCirclePlaceholder(ctx, forest) {
   // forest seed so two forests play different grooves. We track centerX/Z
   // + bodyRadius on the entry so main.js can drive the lowpass cutoff from
   // the player's distance to the fire each frame.
-  const musicHandle = Sound.attachStageMusic(x, 1.4, z, forest.seed * 9173 + 31, 'forest_drum');
+  const musicHandle = Sound.attachStageMusic(x, terrainHeight(x, z) + 1.4, z, forest.seed * 9173 + 31, 'forest_drum');
   if (musicHandle) {
     forestDrumMusic.push({
       handle: musicHandle,
@@ -673,7 +674,7 @@ function buildForestDrumCirclePlaceholder(ctx, forest) {
   // Firepit collider — Zerble can't drive into the hot stone wall.
   registry.add({
     kind: 'firepit',
-    position: new THREE.Vector3(x, 0.5, z),
+    position: new THREE.Vector3(x, terrainHeight(x, z) + 0.5, z),
     footprint: dc.firepitCollider.radius,
     collider: dc.firepitCollider,
     chunkKey: ctx.key,
@@ -682,7 +683,7 @@ function buildForestDrumCirclePlaceholder(ctx, forest) {
   // bench arc so it doesn't drive through the seated drummers.
   registry.add({
     kind: 'bench_ring',
-    position: new THREE.Vector3(x, 0.4, z),
+    position: new THREE.Vector3(x, terrainHeight(x, z) + 0.4, z),
     footprint: 0,
     collider: dc.benchCollider,
     chunkKey: ctx.key,
@@ -719,7 +720,7 @@ function buildForestDrumCirclePlaceholder(ctx, forest) {
   // + later phases can target these specifically without scanning all attractors.
   registry.add({
     kind: 'forest_drum_circle',
-    position: new THREE.Vector3(x, 0, z),
+    position: new THREE.Vector3(x, terrainHeight(x, z), z),
     footprint: 0,
     attractor: { radius: 8, weight: 1.4 },
     chunkKey: ctx.key,
@@ -797,7 +798,7 @@ function scatterMeadowCampsites(ctx, forest, rng, opts) {
     const siteSeed = mulberry32(hash2(forest.seed * 137 + i * 41, i * 311 + 7));
     const size = siteSeed() < 0.6 ? 'small' : 'medium';
     const camp = buildCampsite(siteSeed, size);
-    camp.group.position.set(chosen.x, 0, chosen.z);
+    camp.group.position.set(chosen.x, terrainHeight(chosen.x, chosen.z), chosen.z);
     // Face the firepit roughly toward the forest body (so the visual focal
     // point reads as "this camp belongs to the forest").
     camp.group.rotation.y = Math.PI / 2 - chosen.theta + Math.PI - (camp.entranceYaw || 0);
@@ -917,14 +918,14 @@ function scatterForestTrees(ctx, forest) {
     // Avoid stepping on any building registered by neighbouring chunks
     // (shouldn't happen inside the 3x3 since we suppress themes, but
     // belt + suspenders for the fringe).
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.5)) continue;
+    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 2.5)) continue;
 
     // CG3: same rng order as the old per-mesh path (builder stream then yaw),
     // but accumulate a descriptor instead of building a Group. Registry entry is
     // unchanged (dual-read worldPerches/worldCrown off the descriptor).
     const d = describeForestTree(rng);
     const rotY = rng() * Math.PI * 2;
-    treeInstances.push({ d, x, z, rotY });
+    treeInstances.push({ d, x, y: terrainHeight(x, z), z, rotY });
 
     // Forest trees DO get a hard collider — driving into them hurts.
     // Distinct kind so it can be tuned independently of the chunk-tree
@@ -932,15 +933,15 @@ function scatterForestTrees(ctx, forest) {
     // the 2x trunk (base radius ~0.8-1.1m now).
     registry.add({
       kind: 'forest_tree',
-      position: new THREE.Vector3(x, 0, z),
+      position: new THREE.Vector3(x, terrainHeight(x, z), z),
       footprint: 2.0,
       collider: { radius: 1.3, damage: 3 },
       chunkKey: ctx.key,
       // Canopy perch anchors (world-space) for the bird system — birds land
       // on the outer-lower foliage. Local offsets from tree.js, offset by the
       // trunk position (ring is radially symmetric, so yaw is irrelevant).
-      perches: worldPerches(d, x, z),
-      crown: worldCrown(d, x, z),
+      perches: worldPerches(d, x, z, terrainHeight(x, z)),
+      crown: worldCrown(d, x, z, terrainHeight(x, z)),
     });
 
     placed.push({ x, z });

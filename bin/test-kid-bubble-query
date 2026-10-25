@@ -63,6 +63,7 @@ function harness(code) {
   });
   const update = vm.runInNewContext(`({${code}}).update`, {
     Math: math,
+    terrainHeight: () => 0,
     KID_HARD_SEPARATION: 0.82,
     nudgeKidFromNeighbors: nudge,
     countLegacyScan: () => counts.scans++,

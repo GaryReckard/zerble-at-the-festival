@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {terrainHeight} from './worldgen/terrain.js';
 import {seatBoInWagon} from './models/bo.js';
 import {buildNutWagon, setNutWagonNightness, NUT_WAGON_MOUNTS} from './models/nutWagon.js';
 import {registry} from './registry.js';
@@ -45,7 +46,7 @@ export class NutWagon {
         sampleWagonRoute(route, d, this.sample);
         const dist = Math.hypot(this.sample.x - player.x, this.sample.z - player.z);
         if (dist < (force ? 12 : T.spawnMin) || dist > T.spawnMax) continue;
-        this._sphere.center.set(this.sample.x, 1.5, this.sample.z);
+        this._sphere.center.set(this.sample.x, terrainHeight(this.sample.x, this.sample.z) + 1.5, this.sample.z);
         if (!force && camera && this._frustum.intersectsSphere(this._sphere)) continue;
         candidates.push({route, distance: d, dist});
       }
@@ -63,7 +64,7 @@ export class NutWagon {
     this.active = true; this.state = 'parked'; this.stopTimer = T.stopSeconds; this.cruiseTimer = 0;
     this.gatheringStop = false; this.gatherTimer = 0; this.boardTimer = 0; this.blockedTimer = 0;
     sampleWagonRoute(route, distance, this.sample);
-    this.position.set(this.sample.x, 0, this.sample.z); this.root.position.copy(this.position);
+    this.position.set(this.sample.x, terrainHeight(this.sample.x, this.sample.z), this.sample.z); this.root.position.copy(this.position);
     this.root.rotation.y = this.sample.heading; this.heading = this.sample.heading + Math.PI;
     this.root.updateMatrixWorld(true);
     this.seatSlots = NUT_WAGON_MOUNTS.map(m => ({
@@ -87,7 +88,7 @@ export class NutWagon {
       this.crowd._writeMatrices(driver);
     }
     if (this.musicEnabled) {
-      this.music = Sound.attachStageMusic(this.position.x, 1, this.position.z, 0x6e775731, 'nut_wagon_reggae');
+      this.music = Sound.attachStageMusic(this.position.x, this.position.y + 1, this.position.z, 0x6e775731, 'nut_wagon_reggae');
       this.musicEntry = Sound.getStageHandleRegistry().find(e => e.handle === this.music);
     }
     return true;
@@ -101,7 +102,7 @@ export class NutWagon {
     this.root.position.copy(this.position); this.root.updateMatrixWorld(true);
     this.heading = this.root.rotation.y + Math.PI;
     for (const e of this.colliders) e.position.set(0, 0, e.localZ).applyMatrix4(this.root.matrixWorld);
-    this.music?.setPosition(this.position.x, 1, this.position.z);
+    this.music?.setPosition(this.position.x, this.position.y + 1, this.position.z);
     if (this.musicEntry) { this.musicEntry.x = this.position.x; this.musicEntry.z = this.position.z; }
   }
 
@@ -137,7 +138,7 @@ export class NutWagon {
     if (this.position.distanceToSquared(player) > T.despawnDistance ** 2) {
       if (camera) {
         this._frustum.setFromProjectionMatrix(this._matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-        this._sphere.center.copy(this.position); this._sphere.center.y = 2;
+        this._sphere.center.copy(this.position); this._sphere.center.y += 2;
       }
       if (!camera || !this._frustum.intersectsSphere(this._sphere)) {
         this.despawn(); this.encounterTimer = 8; return;
@@ -186,7 +187,7 @@ export class NutWagon {
         : Math.abs(delta) >= .12 ? 'aligning with road' : null;
       if (canTurn && !nearPlayer) this.root.rotation.y = nextYaw;
       if (canTurn && Math.abs(delta) < .12 && !nearPlayer && this.clearAt(this.nextSample.x, this.nextSample.z, nextYaw)) {
-        this.distance = next; this.position.set(this.nextSample.x, 0, this.nextSample.z); this.speed = this.direction * T.speed;
+        this.distance = next; this.position.set(this.nextSample.x, terrainHeight(this.nextSample.x, this.nextSample.z), this.nextSample.z); this.speed = this.direction * T.speed;
         for (const wheel of this.root.userData.wheels) wheel.rotation.x += this.speed * dt / (.315 * T.worldScale);
         this.cruiseTimer += dt; this.blockedTimer = 0;
       } else if (canTurn && Math.abs(delta) >= .12 && !nearPlayer) {

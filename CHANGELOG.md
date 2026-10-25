@@ -2,6 +2,15 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-25
+
+### Added
+- **The real festival has an opt-in rolling-terrain integration.** `terrain=1` shares a deterministic 10m triangle surface between the ground, cart, camera, roads, scenery and moving actors, with level gathering/camp pads and lake collars. The map has bounded elevation inspection, and the driving course can inspect the same seeded world surface. The flat game remains the default while integration acceptance continues. [Verification and remaining checks](verification/terrain/2026-10-25-integration.md).
+
+### Fixed
+- **Camp tents follow their local slope and grass stays anchored when the ground recenters.** Independent camp props receive local ground heights, sleeping tents fit a support plane without modifying shared geometry, and camp seat/registry anchors include elevation. The ground texture now compensates for the rotated plane's inverted V axis, preventing its phase from jumping on Z recentering. Regressions cover rotated tent contacts, repeated grounding and fixed world UVs.
+- **The map opens at a useful scale with bounded work.** Detailed festival planning and density sampling are capped at wide zooms, with a zoom-in explanation instead of enumerating an unbounded region. Festival placement's final tree-search nudge also honors the caller's rejection predicate without adding random draws. [Layout research review](verification/terrain/2026-10-24-layout-research-review.md).
+
 ## 2026-10-24
 
 ### Added

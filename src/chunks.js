@@ -1,3 +1,4 @@
+import { terrainHeight, terrainEnabled, TERRAIN_STEP } from './worldgen/terrain.js';
 import { woodlandCampsNear, woodlandCampingClearance } from './woodlandCamping.js';
 import { planCampNeighborhood } from './campPlanning.js';
 import { registerCampsite, canPlaceCampsite } from './campRegistry.js';
@@ -69,7 +70,7 @@ export function updateHealingArtsTents(dt, time, nightness, playerPos) {
     }
     entry.night = nightness > 0.5;
     if (entry.night && !entry.music) {
-      entry.music = Sound.attachStageMusic(entry.group.position.x, 1.5, entry.group.position.z, entry.seed, 'dance');
+      entry.music = Sound.attachStageMusic(entry.group.position.x, entry.group.position.y + 1.5, entry.group.position.z, entry.seed, 'dance');
     } else if (!entry.night && entry.music) {
       Sound.detachStageMusic(entry.music);
       entry.music = null;
@@ -772,13 +773,13 @@ function placePaths(ctx) {
   const padGeo = new THREE.CircleGeometry(5, 16);
   const pad = new THREE.Mesh(padGeo, mat);
   pad.rotation.x = -Math.PI / 2;
-  pad.position.set(ctx.cxWorld, 0.06, ctx.czWorld);
+  pad.position.set(ctx.cxWorld, terrainHeight(ctx.cxWorld, ctx.czWorld) + 0.06, ctx.czWorld);
   ctx.group.add(pad);
 
   // Register path waypoints for NPCs (chunk-local + 4 edge points)
   registry.add({
     kind: 'path_node',
-    position: new THREE.Vector3(ctx.cxWorld, 0, ctx.czWorld),
+    position: new THREE.Vector3(ctx.cxWorld, terrainHeight(ctx.cxWorld, ctx.czWorld), ctx.czWorld),
     footprint: 0,
     attractor: { radius: 6, weight: 0.5 },
     chunkKey: ctx.key,
@@ -790,7 +791,7 @@ function placePaths(ctx) {
 // (deterministic via the passed rng), and the ribbon has constant width with
 // edges offset perpendicular to the local tangent. Lying flat at y=0.06.
 export function buildCurvedPath(x1, z1, x2, z2, width, rng, material) {
-  const segments = 16;
+  const segments = terrainEnabled() ? Math.max(16, Math.ceil(Math.hypot(x2 - x1, z2 - z1) / 5)) : 16;
   const halfW = width / 2;
 
   // Build control points: start, 3 jittered interior, end.
@@ -827,23 +828,77 @@ export function buildCurvedPath(x1, z1, x2, z2, width, rng, material) {
     // Perpendicular in XZ plane (rotate tangent 90° around Y).
     const px = -tg.z;
     const pz = tg.x;
-    verts.push(p.x + px * halfW, 0, p.z + pz * halfW); // left
-    verts.push(p.x - px * halfW, 0, p.z - pz * halfW); // right
+    const lx = p.x + px * halfW, lz = p.z + pz * halfW;
+    const rx = p.x - px * halfW, rz = p.z - pz * halfW;
+    verts.push(lx, terrainHeight(lx, lz), lz); // left
+    verts.push(rx, terrainHeight(rx, rz), rz); // right
   }
   for (let i = 0; i < segments; i++) {
     const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
     indices.push(a, c, b);
     indices.push(b, c, d);
   }
-  const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-  geom.setIndex(indices);
-  geom.computeVertexNormals();
+  const geom = terrainRibbonGeometry(verts, indices);
 
   const mesh = new THREE.Mesh(geom, material);
   mesh.position.y = 0.06;
   mesh.receiveShadow = true;
   return mesh;
+}
+
+// A sampled road edge alone is insufficient: a road triangle can bridge a
+// terrain diagonal and cut through its crest. Clip each triangle to the actual
+// ground triangles so the complete road surface retains its six-centimetre lift.
+function terrainRibbonGeometry(vertices, indices) {
+  if (terrainEnabled()) {
+    const result = [], triangles = [];
+    const clip = (polygon, nx, nz, offset) => {
+      const out = [];
+      for (let i = 0; i < polygon.length; i++) {
+        const a = polygon[i], b = polygon[(i + 1) % polygon.length];
+        const da = a.x * nx + a.z * nz - offset, db = b.x * nx + b.z * nz - offset;
+        if (da <= 0) out.push(a);
+        if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
+          const t = da / (da - db);
+          out.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+        }
+      }
+      return out;
+    };
+    const emit = polygon => {
+      for (let i = 1; i + 1 < polygon.length; i++) {
+        const a = polygon[0], b = polygon[i], c = polygon[i + 1];
+        if (Math.abs((b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x)) < 1e-10) continue;
+        for (const p of [a,b,c]) {
+          triangles.push(result.length / 3);
+          result.push(p.x, terrainHeight(p.x,p.z), p.z);
+        }
+      }
+    };
+    for (let i = 0; i < indices.length; i += 3) {
+      const polygon = indices.slice(i,i+3).map(index => ({ x: vertices[index*3], z: vertices[index*3+2] }));
+      const x0 = Math.floor(Math.min(...polygon.map(p=>p.x))/TERRAIN_STEP)*TERRAIN_STEP;
+      const x1 = Math.floor(Math.max(...polygon.map(p=>p.x))/TERRAIN_STEP)*TERRAIN_STEP;
+      const z0 = Math.floor(Math.min(...polygon.map(p=>p.z))/TERRAIN_STEP)*TERRAIN_STEP;
+      const z1 = Math.floor(Math.max(...polygon.map(p=>p.z))/TERRAIN_STEP)*TERRAIN_STEP;
+      for (let z = z0; z <= z1; z += TERRAIN_STEP) for (let x = x0; x <= x1; x += TERRAIN_STEP) {
+        let cell = clip(polygon,-1,0,-x);
+        cell = clip(cell,1,0,x+TERRAIN_STEP);
+        cell = clip(cell,0,-1,-z);
+        cell = clip(cell,0,1,z+TERRAIN_STEP);
+        emit(clip(cell,1,1,x+z+TERRAIN_STEP));
+        emit(clip(cell,-1,-1,-x-z-TERRAIN_STEP));
+      }
+    }
+    vertices = result; indices = triangles;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
 }
 
 // ---------- v2 worldgen roads (Group C) ----------
@@ -939,6 +994,17 @@ function clipPolylineToBox(pts, minX, minZ, maxX, maxZ) {
 // always the chunk-boundary crossings — use the single adjacent-segment tangent, so
 // they match the neighbor chunk's ribbon edge exactly.
 function buildRibbonFromPolyline(pts, width, material) {
+  // Only this owned ribbon is subdivided; the memoized road plan stays intact.
+  // Edge heights use the same triangle surface as wheel contact and ground.
+  if (terrainEnabled()) {
+    const fine = [pts[0]];
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 5));
+      for (let j = 1; j <= steps; j++) fine.push({ x: a.x + (b.x - a.x) * j / steps, z: a.z + (b.z - a.z) * j / steps });
+    }
+    pts = fine;
+  }
   const halfW = width / 2;
   const n = pts.length;
   const verts = [];
@@ -957,17 +1023,16 @@ function buildRibbonFromPolyline(pts, width, material) {
     }
     const tl = Math.hypot(tx, tz) || 1;
     const pxn = -(tz / tl), pzn = (tx / tl);   // perpendicular in XZ
-    verts.push(cur.x + pxn * halfW, 0, cur.z + pzn * halfW);  // left edge
-    verts.push(cur.x - pxn * halfW, 0, cur.z - pzn * halfW);  // right edge
+    const lx = cur.x + pxn * halfW, lz = cur.z + pzn * halfW;
+    const rx = cur.x - pxn * halfW, rz = cur.z - pzn * halfW;
+    verts.push(lx, terrainHeight(lx, lz), lz);  // left edge
+    verts.push(rx, terrainHeight(rx, rz), rz);  // right edge
   }
   for (let i = 0; i < n - 1; i++) {
     const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
     indices.push(a, c, b, b, c, d);
   }
-  const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-  geom.setIndex(indices);
-  geom.computeVertexNormals();
+  const geom = terrainRibbonGeometry(verts, indices);
   const mesh = new THREE.Mesh(geom, material);
   mesh.position.y = 0.06;
   mesh.receiveShadow = true;
@@ -1016,7 +1081,7 @@ function placeRoadWaypoints(ctx, run) {
       const t = acc / segLen;
       registry.add({
         kind: 'path_node',
-        position: new THREE.Vector3(ax + ex * t, 0, az + ez * t),
+        position: new THREE.Vector3(ax + ex * t, terrainHeight(ax + ex * t, az + ez * t), az + ez * t),
         footprint: 0,
         attractor: { radius: WAYPOINT_RADIUS, weight: WAYPOINT_WEIGHT },
         chunkKey: ctx.key,
@@ -1085,15 +1150,15 @@ function scatterWorldgenTrees(ctx) {
     // dual-read worldPerches/worldCrown), so layout-snapshot stays byte-identical.
     const d = describeForestTree(rng);
     const rotY = rng() * Math.PI * 2;
-    treeInstances.push({ d, x, z, rotY });
+    treeInstances.push({ d, x, y: terrainHeight(x, z), z, rotY });
     registry.add({
       kind: 'forest_tree',
-      position: new THREE.Vector3(x, 0, z),
+      position: new THREE.Vector3(x, terrainHeight(x, z), z),
       footprint: 2.0,
       collider: { radius: 1.3, damage: 3 },
       chunkKey: ctx.key,
-      perches: worldPerches(d, x, z),
-      crown: worldCrown(d, x, z),
+      perches: worldPerches(d, x, z, terrainHeight(x, z)),
+      crown: worldCrown(d, x, z, terrainHeight(x, z)),
     });
     placed.push({ x, z });
   };
@@ -1104,7 +1169,7 @@ function scatterWorldgenTrees(ctx) {
     if (pointNearWorldgenRoad(x, z, chunkRoads, roadHalf)) return false;   // off EVERY nearby arterial, not just this region's
     for (let i = 0; i < drumClears.length; i++) { const dc = drumClears[i]; if ((dc.x - x) * (dc.x - x) + (dc.z - z) * (dc.z - z) < dc.r * dc.r) return false; }
     for (let i = 0; i < placed.length; i++) if (Math.hypot(placed[i].x - x, placed[i].z - z) < spacing) return false;
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.5, TREE_GUARD_SKIP)) return false;
+    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 2.5, TREE_GUARD_SKIP)) return false;
     return true;
   };
   for (let attempt = 0; attempt < target * 4 && placed.length < target; attempt++) {
@@ -1147,7 +1212,9 @@ function scatterWorldgenTrees(ctx) {
       const d = Math.hypot(placed[i].x - placed[j].x, placed[i].z - placed[j].z);
       if (d < 3.0 || d > 5.5) continue;
       if (rng() > 0.22) continue;
-      ctx.group.add(buildTreeHammock(placed[i].x, placed[i].z, placed[j].x, placed[j].z, rng).group);
+      const hammock = buildTreeHammock(placed[i].x, placed[i].z, placed[j].x, placed[j].z, rng);
+      hammock.group.position.y = terrainHeight((placed[i].x + placed[j].x) / 2, (placed[i].z + placed[j].z) / 2);
+      ctx.group.add(hammock.group);
       hammocks++;
       break;
     }
@@ -1191,9 +1258,9 @@ function scatterWorldgenTrees(ctx) {
     if (treeDensity(sx, sz) < 0.05) continue;
     if (pointNearWorldgenRoad(sx, sz, chunkRoads, roadHalf)) continue;
     if (pointInDancefloor(sx, sz, danceRects)) continue;
-    if (registry.closestBuilding(new THREE.Vector3(sx, 0, sz), 1.5, TREE_GUARD_SKIP)) continue;
+    if (registry.closestBuilding(new THREE.Vector3(sx, terrainHeight(sx, sz), sz), 1.5, TREE_GUARD_SKIP)) continue;
     const shrub = buildShrub(rng);
-    shrub.position.set(sx, 0, sz);
+    shrub.position.set(sx, terrainHeight(sx, sz), sz);
     ctx.group.add(shrub);
   }
   // CG3: collapse this chunk's whole woods into ~5 InstancedMeshes (one per
@@ -1283,10 +1350,10 @@ function placeWorldgenProps(ctx) {
     if (d.kind === 'drum_circle') {
       // Dodge an already-built neighbour cluster the bench ring would overlap (load-order backstop).
       const drumR = clusterExtent('drum_circle') + 2;   // firepit + bench arc
-      if (registry.closestBuilding(new THREE.Vector3(d.x, 0, d.z), drumR, CLUSTER_GUARD_SKIP)) continue;
+      if (registry.closestBuilding(new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z), drumR, CLUSTER_GUARD_SKIP)) continue;
     } else if (!d.anchor) {
       const guard = Math.min(8, Math.max(2, (d.footprint || 4) * 0.5));
-      if (registry.closestBuilding(new THREE.Vector3(d.x, 0, d.z), guard, CLUSTER_GUARD_SKIP)) continue;
+      if (registry.closestBuilding(new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z), guard, CLUSTER_GUARD_SKIP)) continue;
     }
     buildWorldgenKind(ctx, d);
   }
@@ -1391,7 +1458,7 @@ function buildWorldgenKind(ctx, d) {
 // rebuilds don't leak (the 10-rebuild check, 6.3).
 export function buildHubPreview(scene, heart, opts = {}) {
   const { crowd = null, lakes = null } = opts;
-  const pos = new THREE.Vector3(heart.x, 0, heart.z);
+  const pos = new THREE.Vector3(heart.x, terrainHeight(heart.x, heart.z), heart.z);
   if (lakes) lakes.update(scene, pos);     // register this hub's lakes first
 
   const key = `hub:${heart.cx},${heart.cz}`;
@@ -1418,7 +1485,7 @@ export function buildHubPreview(scene, heart, opts = {}) {
     if (isPointInLake(d.x, d.z)) return;
     if (!d.anchor) {
       const guard = Math.min(8, Math.max(2, (d.footprint || 4) * 0.5));
-      if (registry.closestBuilding(new THREE.Vector3(d.x, 0, d.z), guard, CLUSTER_GUARD_SKIP)) return;
+      if (registry.closestBuilding(new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z), guard, CLUSTER_GUARD_SKIP)) return;
     }
     buildWorldgenKind(ctx, d);
   };
@@ -1433,14 +1500,14 @@ export function buildHubPreview(scene, heart, opts = {}) {
 // stage. The "you've arrived" gateway (the spawn heart's arch is where Zerble spawns).
 function buildEntranceArchAt(ctx, x, z, yaw) {
   const arch = buildEntranceArchModel(leafBannerTextures('#fff4d0', '#ff6f9c', '#ffe066'));
-  arch.position.set(x, 0, z);
+  arch.position.set(x, terrainHeight(x, z), z);
   arch.rotation.y = yaw;
   ctx.group.add(arch);
   const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
   const rot = (lx, lz) => ({ x: x + lx * cosY + lz * sinY, z: z - lx * sinY + lz * cosY });
   for (const lx of [-6, 6]) {
     const w3 = rot(lx, 0);
-    registry.add({ kind: 'arch', position: new THREE.Vector3(w3.x, 1, w3.z), footprint: 0.8, collider: { radius: 1.0, damage: 4 }, chunkKey: ctx.key });
+    registry.add({ kind: 'arch', position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z) + 1, w3.z), footprint: 0.8, collider: { radius: 1.0, damage: 4 }, chunkKey: ctx.key });
   }
   // A festive string-light pair straddling the arch (poles just outside the posts).
   const a = rot(-9, 0), b = rot(9, 0);
@@ -1469,12 +1536,12 @@ function buildBubbleVendorAt(ctx, x, z, yaw) {
   // guaranteed booth AND two adjacent hubs each placing one near the seam.
   if (kindNear('bubble_vendor', x, z, 30)) return;
   const vendor = buildBubbleVendor(ctx.rng);
-  vendor.position.set(x, 0, z);
+  vendor.position.set(x, terrainHeight(x, z), z);
   vendor.rotation.y = yaw;
   ctx.group.add(vendor);
   registry.add({
     kind: 'bubble_vendor',
-    position: new THREE.Vector3(x, 0, z),
+    position: new THREE.Vector3(x, terrainHeight(x, z), z),
     footprint: 2.4,
     collider: { radius: 1.5, damage: 2 },
     attractor: { radius: 7, weight: 1.0 },
@@ -1536,14 +1603,14 @@ function buildWelfarePostAt(ctx, d) {
 
   if (tier.kiosk) {
     const k = at(0, 0);
-    if (!isPointInLake(k.x, k.z) && !registry.closestBuilding(new THREE.Vector3(k.x, 0, k.z), 1.6, CLUSTER_GUARD_SKIP)) {
+    if (!isPointInLake(k.x, k.z) && !registry.closestBuilding(new THREE.Vector3(k.x, terrainHeight(k.x, k.z), k.z), 1.6, CLUSTER_GUARD_SKIP)) {
       const kiosk = buildInfoKiosk(ctx.rng);
-      kiosk.group.position.set(k.x, 0, k.z);
+      kiosk.group.position.set(k.x, terrainHeight(k.x, k.z), k.z);
       kiosk.group.rotation.y = yaw;
       ctx.group.add(kiosk.group);
       registry.add({
         kind: 'info_kiosk',
-        position: new THREE.Vector3(k.x, 0, k.z),
+        position: new THREE.Vector3(k.x, terrainHeight(k.x, k.z), k.z),
         footprint: kiosk.footprint,
         collider: { radius: INFO_KIOSK_COLLIDER_R, damage: 3 },
         // A staffed point people loiter at — pulls a little ambient crowd so the
@@ -1556,23 +1623,23 @@ function buildWelfarePostAt(ctx, d) {
 
   if (tier.table) {
     const t = at(0, -T.WELFARE_TABLE_BACK);
-    if (!isPointInLake(t.x, t.z) && !registry.closestBuilding(new THREE.Vector3(t.x, 0, t.z), 1.9, CLUSTER_GUARD_SKIP)) {
+    if (!isPointInLake(t.x, t.z) && !registry.closestBuilding(new THREE.Vector3(t.x, terrainHeight(t.x, t.z), t.z), 1.9, CLUSTER_GUARD_SKIP)) {
       const pt = buildPicnicTable(ctx.rng);
       const tYaw = yaw + Math.PI / 2;   // long axis across the post, benches facing the row
-      pt.group.position.set(t.x, 0, t.z);
+      pt.group.position.set(t.x, terrainHeight(t.x, t.z), t.z);
       pt.group.rotation.y = tYaw;
       ctx.group.add(pt.group);
       const cosT = Math.cos(tYaw), sinT = Math.sin(tYaw);
       const tableSeats = pt.seats.map((sp) => ({
         x: t.x + sp.x * cosT + sp.z * sinT,
         z: t.z - sp.x * sinT + sp.z * cosT,
-        y: sp.y,
+        y: pt.group.position.y + sp.y,
         yaw: sp.yaw + tYaw,
         occupied: false,
       }));
       registry.add({
         kind: 'picnic_table',
-        position: new THREE.Vector3(t.x, 0, t.z),
+        position: new THREE.Vector3(t.x, terrainHeight(t.x, t.z), t.z),
         footprint: pt.footprint,
         collider: { radius: 1.8, damage: 3 },
         attractor: { radius: 4, weight: 0.6 },
@@ -1611,9 +1678,9 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       // Group-5 backstop: skip a booth that would clip an already-built solid (a stage
       // deck the row runs past, a neighbour's truck) — the graceful-degradation guard the
       // legacy theme builders had. Chunk-gen only; clusterSeed stream, so goldens unaffected.
-      if (registry.closestBuilding(new THREE.Vector3(w.x, 0, w.z), 2.2, CLUSTER_GUARD_SKIP)) continue;
+      if (registry.closestBuilding(new THREE.Vector3(w.x, terrainHeight(w.x, w.z), w.z), 2.2, CLUSTER_GUARD_SKIP)) continue;
       const tent = buildTent(ctx.rng, { rng: mulberry32(worldHash(Math.round(w.x * 256), Math.round(w.z * 256), 0x56454e44)) });
-      tent.position.set(w.x, 0, w.z);
+      tent.position.set(w.x, terrainHeight(w.x, w.z), w.z);
       // Face the central aisle (the road, after round-2 C). The two rows were
       // rotated to face OUTWARD; +π flips each booth's open front in toward the
       // aisle so the row reads as a market street you drive down.
@@ -1621,7 +1688,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       ctx.group.add(tent);
       registry.add({
         kind: 'tent',
-        position: new THREE.Vector3(w.x, 0, w.z),
+        position: new THREE.Vector3(w.x, terrainHeight(w.x, w.z), w.z),
         footprint: 2.6,
         collider: { radius: 2.2, damage: 5 },
         attractor: { radius: 4, weight: 0.5 },
@@ -1642,7 +1709,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
           // prop set — keeps the strip blended, not crowded.
           const tier = prevCamp[side] ? 'lean' : 'full';
           const camp = buildVendorCamp(ctx.rng, tier);
-          camp.group.position.set(cw.x, 0, cw.z);
+          camp.group.position.set(cw.x, terrainHeight(cw.x, cw.z), cw.z);
           // Same facing as the booth so the camp's seating (+z front) opens toward
           // the stall/aisle; small extra yaw jitter for variety.
           camp.group.rotation.y = yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI + (ctx.rng() - 0.5) * 0.4;
@@ -1683,13 +1750,13 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
   const placeShack = (sx, sz) => {
     if (!shackClear(sx, sz)) return false;
     const shack = buildSugarShack(ctx.rng);
-    shack.position.set(sx, 0, sz);
+    shack.position.set(sx, terrainHeight(sx, sz), sz);
     shack.rotation.y = Math.atan2(x - sx, z - sz);
     ctx.group.add(shack);
     if (shack.userData.cookEntry) shack.userData.cookEntry.chunkKey = ctx.key;
     registry.add({
       kind: 'truck',
-      position: new THREE.Vector3(sx, 1.5, sz),
+      position: new THREE.Vector3(sx, terrainHeight(sx, sz) + 1.5, sz),
       footprint: shackHalf + 0.5,
       collider: { radius: shackHalf - 0.2, damage: 10 },
       attractor: { radius: shackHalf + 6, weight: 1.4 },
@@ -1714,12 +1781,12 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
     const tr = T.FOOD_COURT_TRUCK_R_MULT * FOOD_TRUCK_SCALE;
     if (isPointInLake(tx, tz) || nearestRoad(tx, tz).dist < ROAD_RIBBON_WIDTH / 2 + 1 + tr || overlaps(tx, tz, tr)) continue;
     const truck = buildFoodTruck(ctx.rng);
-    truck.position.set(tx, 0, tz);
+    truck.position.set(tx, terrainHeight(tx, tz), tz);
     truck.rotation.y = Math.atan2(x - tx, z - tz);   // face inward
     ctx.group.add(truck);
     registry.add({
       kind: 'truck',
-      position: new THREE.Vector3(tx, 1.5 * FOOD_TRUCK_SCALE, tz),
+      position: new THREE.Vector3(tx, terrainHeight(tx, tz) + 1.5 * FOOD_TRUCK_SCALE, tz),
       footprint: tr,
       collider: { radius: 3.6 * FOOD_TRUCK_SCALE, damage: 12 },
       attractor: { radius: 8 * FOOD_TRUCK_SCALE, weight: 1.2 },
@@ -1756,7 +1823,7 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
     if (isPointInLake(tx, tz)) continue;
     if (tablesPlaced.some((p) => Math.hypot(p.x - tx, p.z - tz) < T.FOOD_COURT_TABLE_MIN_SPACING)) continue;
     const pt = buildPicnicTable(ctx.rng);
-    pt.group.position.set(tx, 0, tz);
+    pt.group.position.set(tx, terrainHeight(tx, tz), tz);
     const yaw0 = ctx.rng() * Math.PI * 2;
     pt.group.rotation.y = yaw0;
     ctx.group.add(pt.group);
@@ -1767,13 +1834,13 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
     const tableSeats = pt.seats.map((s) => ({
       x: tx + s.x * cos0 + s.z * sin0,
       z: tz - s.x * sin0 + s.z * cos0,
-      y: s.y,
+      y: pt.group.position.y + s.y,
       yaw: s.yaw + yaw0,
       occupied: false,
     }));
     registry.add({
       kind: 'picnic_table',
-      position: new THREE.Vector3(tx, 0, tz),
+      position: new THREE.Vector3(tx, terrainHeight(tx, tz), tz),
       footprint: pt.footprint,
       collider: { radius: 1.8, damage: 3 },   // scaled with the +50% table (was 1.2)
       attractor: { radius: 4, weight: 0.6 },
@@ -1793,7 +1860,7 @@ function buildFoodCourtAt(ctx, x, z, { isWelcome = false, clusterSeed = 0 } = {}
     if (!isPointInLake(tx, tz) && nearestRoad(tx, tz).dist >= ROAD_RIBBON_WIDTH / 2 + 1) courtTorches.push({ x: tx, z: tz });
   }
   if (courtTorches.length) {
-    const tf = buildTorchField(courtTorches, ctx.rng);
+    const tf = buildTorchField(courtTorches.map(p => ({ ...p, y: terrainHeight(p.x, p.z) })), ctx.rng);
     ctx.group.add(tf.group);
     if (tf.animatables && tf.animatables.length) forestAnimatables.push({ chunkKey: ctx.key, animatables: tf.animatables });
   }
@@ -1868,7 +1935,7 @@ function placeWoodlandCamping(ctx) {
         let blocked=false;
         registry.collidersNear(x,z,.4,e=>{if(Math.hypot(x-e.position.x,z-e.position.z)<(e.collider?.radius||0)+.4)blocked=true;});
         if(blocked||isPointInLake(x,z))continue;
-        ctx.crowd.spawn({pos:new THREE.Vector3(x,0,z),chunkKey:ctx.key,rng,allowPhotographer:false});break;
+        ctx.crowd.spawn({pos:new THREE.Vector3(x, terrainHeight(x, z), z),chunkKey:ctx.key,rng,allowPhotographer:false});break;
       }
     }
   }
@@ -1928,22 +1995,22 @@ function scatterTrees(ctx, density) {
     // Avoid the path strip and existing buildings
     if (Math.abs(x - ctx.cxWorld) < 4 && Math.abs(z - ctx.czWorld) < CHUNK_SIZE * 0.5) continue;
     if (Math.abs(z - ctx.czWorld) < 4 && Math.abs(x - ctx.cxWorld) < CHUNK_SIZE * 0.5) continue;
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.5)) continue;
+    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 2.5)) continue;
 
     const tree = buildTree(ctx.rng);
-    tree.position.set(x, 0, z);
+    tree.position.set(x, terrainHeight(x, z), z);
     tree.rotation.y = ctx.rng() * Math.PI * 2;
     ctx.group.add(tree);
 
     registry.add({
       kind: 'tree',
-      position: new THREE.Vector3(x, 0, z),
+      position: new THREE.Vector3(x, terrainHeight(x, z), z),
       footprint: 1.8,
       attractor: { radius: 4, weight: 0.15 },
       chunkKey: ctx.key,
       // Canopy perch anchors (world-space) for the bird system.
-      perches: worldPerches(tree, x, z),
-      crown: worldCrown(tree, x, z),
+      perches: worldPerches(tree, x, z, terrainHeight(x, z)),
+      crown: worldCrown(tree, x, z, terrainHeight(x, z)),
     });
     placed++;
   }
@@ -1982,7 +2049,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   // Worldgen passes a road-facing yaw; the legacy path draws a random one (same
   // rng position as before, after the tent build).
   const yaw = yawArg != null ? yawArg : ctx.rng() * Math.PI * 2;
-  tent.group.position.set(cx, 0, cz);
+  tent.group.position.set(cx, terrainHeight(cx, cz), cz);
   tent.group.rotation.y = yaw;
   ctx.group.add(tent.group);
 
@@ -1997,7 +2064,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   // ...and its audience-facing beams. The tent stage's world position is the
   // chunk center (tent.group.position is set to cxWorld/czWorld above).
   if (tent.stageBeams) {
-    const tentWorldPos = new THREE.Vector3(cx, 0, cz);
+    const tentWorldPos = new THREE.Vector3(cx, terrainHeight(cx, cz), cz);
     for (const b of tent.stageBeams) {
       stageBeamRefs.push({ ...b, chunkKey: ctx.key, scale: tent.stageScale || 1.0, stageWorldPos: tentWorldPos });
     }
@@ -2027,7 +2094,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
       const w3 = worldXZ(localX, localZ);
       registry.add({
         kind: 'stage',
-        position: new THREE.Vector3(w3.x, 1, w3.z),
+        position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z) + 1, w3.z),
         footprint: sphereR,
         collider: { radius: sphereR, damage: 9 },
         chunkKey: ctx.key,
@@ -2044,7 +2111,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
     const w3 = worldXZ(lx, lz);
     registry.add({
       kind: 'tent',
-      position: new THREE.Vector3(w3.x, 0, w3.z),
+      position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z), w3.z),
       footprint: 0.5,
       collider: { radius: 0.5, damage: 3 },
       chunkKey: ctx.key,
@@ -2056,7 +2123,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
     const w3 = worldXZ(tent.mixerPos.x, tent.mixerPos.z);
     registry.add({
       kind: 'tent',
-      position: new THREE.Vector3(w3.x, 0.5, w3.z),
+      position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z) + 0.5, w3.z),
       footprint: 1.4,
       collider: { radius: 1.4, damage: 5 },
       attractor: { radius: 3, weight: 0.6 },
@@ -2070,7 +2137,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
     const w3 = worldXZ(0, tent.stagePos.z + d / 2 + 4);
     registry.add({
       kind: 'stage_front',
-      position: new THREE.Vector3(w3.x, 0, w3.z),
+      position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z), w3.z),
       footprint: 0,
       attractor: { radius: 10, weight: 2.5 },
       chunkKey: ctx.key,
@@ -2084,7 +2151,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
     for (const spot of tent.crowdSpots) {
       const w3 = worldXZ(spot.x, spot.z);
       ctx.crowd.spawn({
-        pos: new THREE.Vector3(w3.x, 0, w3.z),
+        pos: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z), w3.z),
         chunkKey: ctx.key,
         rng: ctx.rng,
       });
@@ -2092,7 +2159,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
     // Sound engineer at the mixer
     const m3 = worldXZ(tent.mixerPos.x, tent.mixerPos.z + 0.6);
     ctx.crowd.spawn({
-      pos: new THREE.Vector3(m3.x, 0, m3.z),
+      pos: new THREE.Vector3(m3.x, terrainHeight(m3.x, m3.z), m3.z),
       chunkKey: ctx.key,
       rng: ctx.rng,
     });
@@ -2137,7 +2204,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
         const lz = clumpLocalZ + offZ;
         const w3 = worldXZ(lx, lz);
         const chair = buildCampChair(ctx.rng);
-        chair.group.position.set(w3.x, 0, w3.z);
+        chair.group.position.set(w3.x, terrainHeight(w3.x, w3.z), w3.z);
         // Face the stage: chair-local +Z is "forward"; the stage is at
         // tent-local -Z, so the chair needs to face tent-local -Z =
         // world (yaw + π) plus a small jitter.
@@ -2145,7 +2212,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
         ctx.group.add(chair.group);
         registry.add({
           kind: 'chair',
-          position: new THREE.Vector3(w3.x, 0, w3.z),
+          position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z), w3.z),
           footprint: 0.5,
           chunkKey: ctx.key,
         });
@@ -2165,12 +2232,12 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
         const lz = behindLocalZ + offZ;
         const w3 = worldXZ(lx, lz);
         const chair = buildCampChair(ctx.rng);
-        chair.group.position.set(w3.x, 0, w3.z);
+        chair.group.position.set(w3.x, terrainHeight(w3.x, w3.z), w3.z);
         chair.group.rotation.y = yaw + Math.PI + (ctx.rng() - 0.5) * 0.7;
         ctx.group.add(chair.group);
         registry.add({
           kind: 'chair',
-          position: new THREE.Vector3(w3.x, 0, w3.z),
+          position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z), w3.z),
           footprint: 0.5,
           chunkKey: ctx.key,
         });
@@ -2183,7 +2250,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   const tentStyleSeed = worldHash(ctx.cx * 13 + 23 + STYLE_SALT, ctx.cz * 19 + 17 + STYLE_SALT);
   const tentStyle = pickStageStyle(tentStyleSeed, ['jam', 'dance', 'world']);
   const m3 = worldXZ(0, tent.stagePos.z);
-  const handle = Sound.attachStageMusic(m3.x, 4, m3.z, musicSeed, tentStyle);
+  const handle = Sound.attachStageMusic(m3.x, terrainHeight(m3.x, m3.z) + 4, m3.z, musicSeed, tentStyle);
   if (handle) stageMusic.push({ handle, chunkKey: ctx.key });
 }
 
@@ -2211,7 +2278,7 @@ function buildFoodPlaza(ctx) {
       const x = centerX + Math.cos(ang) * shackRing;
       const z = centerZ + Math.sin(ang) * shackRing;
       const shack = buildSugarShack(ctx.rng);
-      shack.position.set(x, 0, z);
+      shack.position.set(x, terrainHeight(x, z), z);
       shack.rotation.y = Math.atan2(centerX - x, centerZ - z); // front faces inward
       ctx.group.add(shack);
       // Tag the cook patrol entry so chunk unload can sweep it.
@@ -2223,7 +2290,7 @@ function buildFoodPlaza(ctx) {
       const half = Math.hypot(SUGAR_SHACK_WIDTH, SUGAR_SHACK_DEPTH) / 2;
       registry.add({
         kind: 'truck',           // reuses the truck toast + sfx — "don't hit the food trucks"
-        position: new THREE.Vector3(x, 1.5, z),
+        position: new THREE.Vector3(x, terrainHeight(x, z) + 1.5, z),
         footprint: half + 0.5,
         collider: { radius: half - 0.2, damage: 10 },
         attractor: { radius: half + 6, weight: 1.4 },
@@ -2235,13 +2302,13 @@ function buildFoodPlaza(ctx) {
     const x = centerX + Math.cos(ang) * ring;
     const z = centerZ + Math.sin(ang) * ring;
     const truck = buildFoodTruck(ctx.rng);
-    truck.position.set(x, 0, z);
+    truck.position.set(x, terrainHeight(x, z), z);
     truck.rotation.y = Math.atan2(centerX - x, centerZ - z); // face inward
     ctx.group.add(truck);
 
     registry.add({
       kind: 'truck',
-      position: new THREE.Vector3(x, 1.5 * FOOD_TRUCK_SCALE, z),
+      position: new THREE.Vector3(x, terrainHeight(x, z) + 1.5 * FOOD_TRUCK_SCALE, z),
       footprint: 4.4 * FOOD_TRUCK_SCALE,
       collider: { radius: 3.6 * FOOD_TRUCK_SCALE, damage: 12 },
       attractor: { radius: 8 * FOOD_TRUCK_SCALE, weight: 1.2 },
@@ -2257,12 +2324,12 @@ function buildFoodPlaza(ctx) {
     const x = centerX + Math.cos(ang) * vr;
     const z = centerZ + Math.sin(ang) * vr;
     const vendor = buildBubbleVendor(ctx.rng);
-    vendor.position.set(x, 0, z);
+    vendor.position.set(x, terrainHeight(x, z), z);
     vendor.rotation.y = Math.atan2(centerX - x, centerZ - z);
     ctx.group.add(vendor);
     registry.add({
       kind: 'bubble_vendor',
-      position: new THREE.Vector3(x, 0, z),
+      position: new THREE.Vector3(x, terrainHeight(x, z), z),
       footprint: 2.4,
       // Solid booth — Zerble bounces off it (light bonk) instead of driving
       // through. Radius is smaller than the refuel range so you can still nose
@@ -2284,7 +2351,7 @@ function scatterBubbleJugs(ctx, inWater) {
   for (let attempt = 0; attempt < 8; attempt++) {
     const x = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE - 10);
     const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE - 10);
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 3)) continue;
+    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 3)) continue;
     // festival-run-stakes D3: the day-ramp scarcity filter gates ONLY this
     // final build/add, strictly AFTER the rng draws above — the kept and
     // dropped cases consume identical ctx.rng() draws, preserving draw-count
@@ -2293,11 +2360,11 @@ function scatterBubbleJugs(ctx, inWater) {
     // at a given day level on the same world.
     if (!jugKeptAt(x, z)) return;
     const jug = buildBubbleJug();
-    jug.position.set(x, 0.7, z);
+    jug.position.set(x, terrainHeight(x, z) + 0.7, z);
     ctx.group.add(jug);
     registry.add({
       kind: 'bubble_jug',
-      position: new THREE.Vector3(x, 0.7, z),
+      position: new THREE.Vector3(x, terrainHeight(x, z) + 0.7, z),
       chunkKey: ctx.key,
       obj: jug,
       juice: 1.0,            // a full meter — jugs stack past 1 (stockpile)
@@ -2327,7 +2394,7 @@ function scatterWorldgenCampsites(ctx, qpc) {
     const x = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.6);
     const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.6);
     if (queryPoint(x, z).noBuild) continue;              // off water + river + road corridor
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 12)) continue;
+    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 12)) continue;
     ccx = x; ccz = z; ok = true; break;
   }
   if (!ok) return;
@@ -2359,7 +2426,7 @@ function placeSeamHedges(ctx) {
       if (isPointInLake(x, z)) continue;
       if (nearestRoad(x, z).dist < ROAD_RIBBON_WIDTH / 2 + 0.5) continue;
       const shrub = buildShrub(sr);
-      shrub.position.set(x, 0, z);
+      shrub.position.set(x, terrainHeight(x, z), z);
       ctx.group.add(shrub);
     }
   }
@@ -2482,7 +2549,7 @@ function pottyRowClear(bx, bz, yaw, count) {
     // unskipped guard blocks on trees, the lakeshore sphere ring and sibling props —
     // so a bank inside a perfectly-valid welfare envelope silently vanished whenever a
     // neighbouring chunk's tree happened to register first (load-order dependent).
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 2.0, CLUSTER_GUARD_SKIP)) return false;
+    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 2.0, CLUSTER_GUARD_SKIP)) return false;
     if (isPointInLake(x, z)) return false;
   }
   return true;
@@ -2495,7 +2562,7 @@ function buildPottyBank(ctx, prng, bx, bz, yaw, count) {
     const off = (i - (count - 1) / 2) * POTTY_SPACING;
     const x = bx + rx * off, z = bz + rz * off;
     const built = buildPortaPotty(prng);
-    built.group.position.set(x, 0, z);
+    built.group.position.set(x, terrainHeight(x, z), z);
     built.group.rotation.y = yaw;
     ctx.group.add(built.group);
 
@@ -2504,7 +2571,7 @@ function buildPottyBank(ctx, prng, bx, bz, yaw, count) {
     potty.outZ = outZ;
     registry.add({
       kind: 'porta_potty',
-      position: new THREE.Vector3(x, 0, z),
+      position: new THREE.Vector3(x, terrainHeight(x, z), z),
       footprint: built.footprint,
       // Hard collider — a solid plastic box. Light damage (it's not a stage),
       // but it bonks. main.js reads `.potty` on the entry for the occupied gag.
@@ -2529,13 +2596,13 @@ function buildVendorRow(ctx) {
       const x = ctx.cxWorld + (axisH ? t * spacing : side * rowOffset);
       const z = ctx.czWorld + (axisH ? side * rowOffset : t * spacing);
       const tent = buildTent(ctx.rng, { rng: mulberry32(worldHash(Math.round(x * 256), Math.round(z * 256), 0x56454e44)) });
-      tent.position.set(x, 0, z);
+      tent.position.set(x, terrainHeight(x, z), z);
       tent.rotation.y = axisH ? (side < 0 ? 0 : Math.PI) : (side < 0 ? Math.PI / 2 : -Math.PI / 2);
       ctx.group.add(tent);
 
       registry.add({
         kind: 'tent',
-        position: new THREE.Vector3(x, 0, z),
+        position: new THREE.Vector3(x, terrainHeight(x, z), z),
         footprint: 2.6,
         collider: { radius: 2.2, damage: 5 },
         attractor: { radius: 4, weight: 0.5 },
@@ -2566,7 +2633,7 @@ function buildDrumCircleAt(ctx, x, z) {
       roughness: 0.8,
     })
   );
-  fire.position.set(x, 0.6, z);
+  fire.position.set(x, terrainHeight(x, z) + 0.6, z);
   ctx.group.add(fire);
 
   // Proxy PointLight — small chunk-level drum-circle pit. Single light per
@@ -2576,7 +2643,7 @@ function buildDrumCircleAt(ctx, x, z) {
   // group is removed from the scene and the light stops contributing.
   if (PERF.contextLights) {
     const proxy = new THREE.PointLight(0xff8540, 1.5, 12, 1.2);
-    proxy.position.set(x, 1.0, z);
+    proxy.position.set(x, terrainHeight(x, z) + 1.0, z);
     proxy.castShadow = false;
     ctx.group.add(proxy);
     registerContextLight(proxy);
@@ -2591,7 +2658,7 @@ function buildDrumCircleAt(ctx, x, z) {
       new THREE.IcosahedronGeometry(0.3 + ctx.rng() * 0.15, 0),
       new THREE.MeshStandardMaterial({ color: 0x6a6a78, roughness: 1, flatShading: true })
     );
-    stone.position.set(sx, 0.3, sz);
+    stone.position.set(sx, terrainHeight(sx, sz) + 0.3, sz);
     // Tiny rocks — skip shadow casting (firepit emissive does the work).
     ctx.group.add(stone);
   }
@@ -2601,14 +2668,14 @@ function buildDrumCircleAt(ctx, x, z) {
     new THREE.CylinderGeometry(0.7, 0.55, 1.4, 14),
     new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9, flatShading: true })
   );
-  drum.position.set(x + 3, 0.7, z + 1);
+  drum.position.set(x + 3, terrainHeight(x + 3, z + 1) + 0.7, z + 1);
   // Keep the drum itself off shadow casting too — the player walks past it
   // briefly, not worth a shadow draw per chunk.
   ctx.group.add(drum);
 
   registry.add({
     kind: 'drum_circle',
-    position: new THREE.Vector3(x, 0, z),
+    position: new THREE.Vector3(x, terrainHeight(x, z), z),
     footprint: 1.5,
     collider: { radius: 1.2, damage: 4 },
     attractor: { radius: 12, weight: 2.2 },
@@ -2618,7 +2685,7 @@ function buildDrumCircleAt(ctx, x, z) {
   // Polyrhythmic drum music, anchored at the fire pit. Lower pan height than
   // stages so it feels grounded.
   const drumSeed = worldHash(ctx.cx * 13 + 7, ctx.cz * 17 + 11);
-  const handle = Sound.attachStageMusic(x, 1, z, drumSeed, 'drum');
+  const handle = Sound.attachStageMusic(x, terrainHeight(x, z) + 1, z, drumSeed, 'drum');
   if (handle) stageMusic.push({ handle, chunkKey: ctx.key });
 }
 
@@ -2655,13 +2722,13 @@ function buildOpenLawn(ctx) {
       })
     );
     blanket.rotation.x = -Math.PI / 2;
-    blanket.position.set(x, 0.06, z);
+    blanket.position.set(x, terrainHeight(x, z) + 0.06, z);
     blanket.rotation.z = ctx.rng() * Math.PI * 2;
     ctx.group.add(blanket);
 
     registry.add({
       kind: 'picnic',
-      position: new THREE.Vector3(x, 0, z),
+      position: new THREE.Vector3(x, terrainHeight(x, z), z),
       footprint: 0,
       attractor: { radius: 3, weight: 0.4 },
       chunkKey: ctx.key,
@@ -2705,7 +2772,7 @@ function placeScatteredCampsites(ctx, count) {
       const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.7);
       // Stay off the chunk-grid path strip
       if (Math.abs(x - ctx.cxWorld) < 6 || Math.abs(z - ctx.czWorld) < 6) continue;
-      if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 4)) continue;
+      if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 4)) continue;
       chosen = { x, z };
       break;
     }
@@ -2725,7 +2792,7 @@ function placeCampsiteClump(ctx) {
     const cx = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.55);
     const cz = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.55);
     if (Math.abs(cx - ctx.cxWorld) < 12 || Math.abs(cz - ctx.czWorld) < 12) continue;
-    if (registry.closestBuilding(new THREE.Vector3(cx, 0, cz), 14)) continue;
+    if (registry.closestBuilding(new THREE.Vector3(cx, terrainHeight(cx, cz), cz), 14)) continue;
     centre = { x: cx, z: cz };
     break;
   }
@@ -2743,9 +2810,9 @@ function placeSingleCampsite(ctx, x, z, size = 'small', facing = null, options =
     const angle = i * Math.PI / 8;
     if (!ctx.campPreview && isPointInLake(x + Math.cos(angle) * footprint, z + Math.sin(angle) * footprint)) return null;
   }
-  if (!options.campNeighborhood && registry.closestBuilding(new THREE.Vector3(x, 0, z), footprint + 1.5)) return null;
+  if (!options.campNeighborhood && registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), footprint + 1.5)) return null;
   const camp = buildCampsite(ctx.rng, size, options);
-  camp.group.position.set(x, 0, z);
+  camp.group.position.set(x, terrainHeight(x, z), z);
   const randomFacing = ctx.rng() * Math.PI * 2;
   camp.group.rotation.y = facing == null ? randomFacing : facing - (camp.entranceYaw || 0);
   if(options.campNeighborhood && !canPlaceCampsite(registry,camp,options.campNeighborhood,{waterChecked:!ctx.campPreview})) {
@@ -2806,7 +2873,7 @@ function buildCampVillage(ctx) {
     attempts++;
     const x = cellX + (ctx.rng() - 0.5) * 2 * RADIUS;
     const z = cellZ + (ctx.rng() - 0.5) * 2 * RADIUS;
-    if (registry.closestBuilding(new THREE.Vector3(x, 0, z), 4)) continue;
+    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 4)) continue;
     let tooClose = false;
     for (const p of placed) {
       const dx = p.x - x, dz = p.z - z;
@@ -2843,9 +2910,9 @@ function placePicnicBlanket(ctx, x, z) {
   const blanket = new THREE.Mesh(BLANKET_GEO, blanketMat(BLANKET_COLORS[Math.floor(ctx.rng() * BLANKET_COLORS.length)]));
   blanket.rotation.x = -Math.PI / 2;
   blanket.rotation.z = ctx.rng() * Math.PI * 2;
-  blanket.position.set(x, 0.06, z);
+  blanket.position.set(x, terrainHeight(x, z) + 0.06, z);
   ctx.group.add(blanket);
-  registry.add({ kind: 'picnic', position: new THREE.Vector3(x, 0, z), footprint: 0, attractor: { radius: 3, weight: 0.4 }, chunkKey: ctx.key });
+  registry.add({ kind: 'picnic', position: new THREE.Vector3(x, terrainHeight(x, z), z), footprint: 0, attractor: { radius: 3, weight: 0.4 }, chunkKey: ctx.key });
 }
 
 function buildStage(ctx, x, z, isMain, yaw = 0) {
@@ -2863,7 +2930,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
     : T.STAGE_SCALE_MINOR_BASE + ctx.rng() * T.STAGE_SCALE_MINOR_SPAN;
   const leafTex = isMain ? leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a') : null;
   const stage = buildStageModel({ isMain, leafTexture: leafTex, rng: ctx.rng, scale });
-  stage.group.position.set(x, 0, z);
+  stage.group.position.set(x, terrainHeight(x, z), z);
   // The stage's audience side is local +Z (the crowd attractor sits in +Z). `yaw`
   // (0 in the legacy theme path → byte-identical; the worldgen anchor passes a
   // road-facing yaw) rotates the whole group — deck, banner, lights, beams, and
@@ -2884,7 +2951,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
   }
   // Track audience-facing spotlight beams. Store the stage's world position
   // so the spotlight pool can rank beams by distance to Zerble each frame.
-  const stageWorldPos = new THREE.Vector3(x, 0, z);
+  const stageWorldPos = new THREE.Vector3(x, terrainHeight(x, z), z);
   for (const b of stage.stageBeams) {
     stageBeamRefs.push({ ...b, chunkKey: ctx.key, scale, stageWorldPos });
   }
@@ -2906,7 +2973,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
       const w3 = rot(lx, lz);
       registry.add({
         kind: 'stage',
-        position: new THREE.Vector3(w3.x, 1, w3.z),
+        position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z) + 1, w3.z),
         footprint: sphereR,
         collider: { radius: sphereR, damage: collDamage },
         chunkKey: ctx.key,
@@ -2918,7 +2985,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
   const frontW = rot(0, d / 2 + 6 * scale);
   registry.add({
     kind: 'stage_front',
-    position: new THREE.Vector3(frontW.x, 0, frontW.z),
+    position: new THREE.Vector3(frontW.x, terrainHeight(frontW.x, frontW.z), frontW.z),
     footprint: 0,
     attractor: { radius: 14 * scale, weight: isMain ? 3.5 : 2.0 },
     chunkKey: ctx.key,
@@ -2941,7 +3008,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
       const v = Math.random() * 2.5;
       const ap = rot(u, frontLocalZ + rowDist + v);
       ctx.crowd.spawn({
-        pos: new THREE.Vector3(ap.x, 0, ap.z),
+        pos: new THREE.Vector3(ap.x, terrainHeight(ap.x, ap.z), ap.z),
         chunkKey: ctx.key,
         rng: ctx.rng,
       });
@@ -2976,7 +3043,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
       // buildCampChair returns { group, color, footprint } — not the Group.
       const chair = buildCampChair(ctx.rng);
       const cw = rot(clumpX + chairOffX, clumpZ + chairOffZ);
-      chair.group.position.set(cw.x, 0, cw.z);
+      chair.group.position.set(cw.x, terrainHeight(cw.x, cw.z), cw.z);
       // Face the stage: stage is at -Z direction in this local frame, but
       // chair default faces +Z (per buildCampChair), so we rotate π. The whole
       // layout rides `yaw`, so the chair's facing is yaw + π + a small jitter.
@@ -2985,7 +3052,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
       // Soft footprint so NPCs steer around the chair without big penalties.
       registry.add({
         kind: 'chair',
-        position: new THREE.Vector3(cw.x, 0, cw.z),
+        position: new THREE.Vector3(cw.x, terrainHeight(cw.x, cw.z), cw.z),
         footprint: 0.5,
         chunkKey: ctx.key,
       });
@@ -3004,7 +3071,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
     [-(lateralSpread + 2), d / 2 + 2], [(lateralSpread + 2), d / 2 + 2],
     [-(lateralSpread + 2), d / 2 + dancefloorDepth + 4], [(lateralSpread + 2), d / 2 + dancefloorDepth + 4],
   ].map(([lx, lz]) => { const w = rot(lx, lz); return { x: w.x, z: w.z }; });
-  const stageTorches = buildTorchField(torchWorld, ctx.rng);
+  const stageTorches = buildTorchField(torchWorld.map(p => ({ ...p, y: terrainHeight(p.x, p.z) })), ctx.rng);
   ctx.group.add(stageTorches.group);
   if (stageTorches.animatables && stageTorches.animatables.length) {
     forestAnimatables.push({ chunkKey: ctx.key, animatables: stageTorches.animatables });
@@ -3047,7 +3114,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
   // The origin (0,0) main stage opens its first song at the closing section so
   // a freshly-spawned player hears the band finish and the crowd applaud within
   // ~10s — the festival's first applause moment. Other stages play full songs.
-  const handle = Sound.attachStageMusic(x, 4, z, musicSeed, stageStyle,
+  const handle = Sound.attachStageMusic(x, terrainHeight(x, z) + 4, z, musicSeed, stageStyle,
     pinOrigin ? { introFinaleSeconds: 10 } : undefined);
   if (handle) stageMusic.push({ handle, chunkKey: ctx.key });
 
@@ -3076,19 +3143,19 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
 // EntranceArch wrapper — uses the model and registers post colliders.
 function buildEntranceArch(ctx, x, z) {
   const arch = buildEntranceArchModel(leafBannerTextures('#fff4d0', '#ff6f9c', '#ffe066'));
-  arch.position.set(x, 0, z);
+  arch.position.set(x, terrainHeight(x, z), z);
   ctx.group.add(arch);
 
   registry.add({
     kind: 'arch',
-    position: new THREE.Vector3(x - 6, 1, z),
+    position: new THREE.Vector3(x - 6, terrainHeight(x - 6, z) + 1, z),
     footprint: 0.8,
     collider: { radius: 1.0, damage: 4 },
     chunkKey: ctx.key,
   });
   registry.add({
     kind: 'arch',
-    position: new THREE.Vector3(x + 6, 1, z),
+    position: new THREE.Vector3(x + 6, terrainHeight(x + 6, z) + 1, z),
     footprint: 0.8,
     collider: { radius: 1.0, damage: 4 },
     chunkKey: ctx.key,
@@ -3098,11 +3165,13 @@ function buildEntranceArch(ctx, x, z) {
 // Hammock wrapper — uses the model and registers the entry crowd.js consults.
 function buildHammock(ctx, x, z, rng = ctx.rng) {
   const { group, seatPos, yaw } = buildHammockModel(x, z, rng);
+  group.position.y = terrainHeight(x, z);
+  seatPos.y += group.position.y;
   ctx.group.add(group);
 
   registry.add({
     kind: 'hammock',
-    position: new THREE.Vector3(x, 0, z),
+    position: new THREE.Vector3(x, terrainHeight(x, z), z),
     footprint: 1.6,
     attractor: { radius: 3, weight: 0.6 },
     chunkKey: ctx.key,
@@ -3125,19 +3194,19 @@ function placePolePair(ctx, ax, az, bx, bz) {
   const h = 6;
   for (const [px, pz] of [[ax, az], [bx, bz]]) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, h, 8), poleMat);
-    pole.position.set(px, h / 2, pz);
+    pole.position.set(px, terrainHeight(px, pz) + h / 2, pz);
     // Slim lamppost — skip shadow casting.
     ctx.group.add(pole);
     registry.add({
       kind: 'lamppost',
-      position: new THREE.Vector3(px, 0, pz),
+      position: new THREE.Vector3(px, terrainHeight(px, pz), pz),
       footprint: 0.5,
       collider: { radius: 0.4, damage: 2 },
       chunkKey: ctx.key,
     });
   }
-  const startTop = new THREE.Vector3(ax, h - 0.1, az);
-  const endTop = new THREE.Vector3(bx, h - 0.1, bz);
+  const startTop = new THREE.Vector3(ax, terrainHeight(ax, az) + h - 0.1, az);
+  const endTop = new THREE.Vector3(bx, terrainHeight(bx, bz) + h - 0.1, bz);
   const mid = startTop.clone().add(endTop).multiplyScalar(0.5);
   mid.y -= 0.6 + startTop.distanceTo(endTop) * 0.02;
   const curve = new THREE.QuadraticBezierCurve3(startTop, mid, endTop);
@@ -3195,13 +3264,13 @@ function spawnAmbientCrowd(ctx, count) {
       tries++;
       // Reject positions inside a lake's actual outline. Shore-attractor
       // spawns can land inside the water on lobed lakes; this catches them.
-      blocked = registry.closestBuilding(new THREE.Vector3(x, 0, z), 1.5)
+      blocked = registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 1.5)
         || isPointInLake(x, z);
     } while (blocked && tries < 8);
     if (blocked) continue;   // 8 retries blocked → skip this slot rather than spawn in water
 
     ctx.crowd.spawn({
-      pos: new THREE.Vector3(x, 0, z),
+      pos: new THREE.Vector3(x, terrainHeight(x, z), z),
       chunkKey: ctx.key,
       rng: ctx.rng,
     });
@@ -3211,7 +3280,7 @@ function spawnAmbientCrowd(ctx, count) {
 // The canopy is walk-through; only its load-bearing poles are hard colliders.
 function buildHealingArtsAt(ctx, d) {
   const group = buildHealingArts({rng:ctx.rng});
-  group.position.set(d.x,0,d.z);
+  group.position.set(d.x, terrainHeight(d.x, d.z), d.z);
   group.rotation.y = d.yaw;
   ctx.group.add(group);
   const canWalk = (x,z) => {
@@ -3225,11 +3294,11 @@ function buildHealingArtsAt(ctx, d) {
   const activity = ctx.crowd ? new HealingArtsActivity(group,ctx.crowd,
     mulberry32(d.clusterSeed ^ 0x7EA11A),canWalk) : null;
   healingArtsTents.push({group,activity,chunkKey:ctx.key,seed:d.clusterSeed,music:null,night:null});
-  registry.add({kind:'healing_arts',position:new THREE.Vector3(d.x,0,d.z),
+  registry.add({kind:'healing_arts',position:new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z),
     footprint:d.footprint,chunkKey:ctx.key});
   const c = Math.cos(d.yaw), s = Math.sin(d.yaw);
   for (const pole of group.userData.healingArts.poleColliders) {
-    registry.add({kind:'tent',position:new THREE.Vector3(d.x+pole.x*c+pole.z*s,0,d.z-pole.x*s+pole.z*c),
+    registry.add({kind:'tent',position:new THREE.Vector3(d.x+pole.x*c+pole.z*s, terrainHeight(d.x+pole.x*c+pole.z*s, d.z-pole.x*s+pole.z*c), d.z-pole.x*s+pole.z*c),
       footprint:pole.radius,collider:{radius:pole.radius,damage:0.12},chunkKey:ctx.key});
   }
 }

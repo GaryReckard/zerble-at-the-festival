@@ -19,16 +19,24 @@ export function stepTerrainDrive(cart, input, dt, sample) {
     const gravity = -9.81 * grade * tangent;
     const braking = input.brake || (throttle !== 0 && throttle * cart.speed < -0.05);
     if (braking) {
-      cart.speed = Math.sign(cart.speed) * Math.max(0, Math.abs(cart.speed) - (28 - Math.abs(gravity)) * h);
+      cart.speed = Math.sign(cart.speed) * Math.max(0, Math.abs(cart.speed) - (28 * (input.slow ? 0.45 : 1) - Math.abs(gravity)) * h);
     } else if (!throttle && Math.abs(cart.speed) < 0.15) {
       cart.speed = 0; // Parking hold on the supported fixture.
     } else {
       const poweredCap = throttle < 0 ? 7 : cap;
-      // Motor force tapers to zero at cruise; gravity can still add coasting speed.
-      const motor = throttle * 18 * Math.max(0, 1 - Math.max(0, cart.speed * Math.sign(throttle)) / poweredCap);
-      const drag = Math.sign(cart.speed) * (0.12 + 0.0015 * cart.speed * cart.speed);
-      cart.speed = clamp(cart.speed + (motor + gravity - drag) * h, -14, 36);
-      if (input.slow && cart.speed > cap) cart.speed = Math.max(cap, cart.speed - 8 * h);
+      // Match the game's acceleration, boost, slow mode and release drag on
+      // level ground. Grade changes propulsion without replacing its feel.
+      const slowScale = input.slow ? 0.45 : 1;
+      if (throttle) {
+        cart.speed += (throttle * 18 * slowScale + gravity) * h;
+        const gradeCap = poweredCap - grade * Math.sign(throttle) * 10;
+        cart.speed = clamp(cart.speed, throttle < 0 ? -Math.max(2, gradeCap) : -7,
+          throttle > 0 ? Math.max(2, gradeCap) : cap);
+      } else {
+        cart.speed = cart.speed * Math.pow(0.78, h * 4) + gravity * h;
+        if (Math.abs(cart.speed) < 0.3) cart.speed = 0;
+      }
+      if (input.slow && cart.speed > cap) cart.speed = Math.max(cap, cart.speed - 8.1 * h);
     }
     const x = cart.position.x + fx * cart.speed * tangent * h;
     const z = cart.position.z + fz * cart.speed * tangent * h;
@@ -43,7 +51,7 @@ export const TERRAIN_REPLAY_SECONDS = 28;
 // Recorded intent: accelerate up the ridge, coast over/down it, drive to the
 // plateau, then brake and hold. Time is simulation time, never wall time.
 export function terrainReplayInput(time, out = {}) {
-  out.throttle = time < 8.8 || (time >= 14.5 && time < 23.5) ? 1 : 0;
+  out.throttle = time < 8.8 || (time >= 10 && time < 23.5) ? 1 : 0;
   out.steer = 0; out.boost = false; out.brake = time >= 23.5;
   return out;
 }

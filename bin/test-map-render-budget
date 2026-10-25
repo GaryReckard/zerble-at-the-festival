@@ -1,0 +1,62 @@
+#!/usr/bin/env node
+// Exercise the map's actual render function without a browser or GPU.
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+const html = readFileSync(new URL('../map-sandbox.html', import.meta.url), 'utf8');
+const draw = html.slice(html.indexOf('function draw()'), html.indexOf('function markDirty()'));
+const helpers = html.includes('function mapRenderBudget(')
+  ? html.slice(html.indexOf('function mapRenderBudget('), html.indexOf('// --- true-extent overlay')) : '';
+const calls = { plan: 0, seams: 0, grammar: 0, roads: 0, density: 0 };
+let hearts = [];
+const layers = { hearts:true, roads:true, water:true, density:true, festival:true, grammar:true, seams:true, extent:true, grid:true };
+const ctx = new Proxy({}, { get: (_, k) => k === 'measureText' ? () => ({width:0}) : () => {}, set: () => true });
+const elements = {};
+const config = { HEART_CELL:200, ROAD_MAX_EDGE_CELLS:3 };
+const context = vm.createContext({
+ detailVisible:false, ctx, layers, CONFIG:config, view:{cx:0,cz:0,zoom:.06}, snapshot:null,
+ W:()=>1600,H:()=>900, visibleBounds:()=>({minX:-13333,minZ:-7500,maxX:13333,maxZ:7500}),
+ w2sx:x=>x,w2sy:z=>z,s2wx:x=>x,s2wz:z=>z, worldHash:()=>0,
+ treeDensity:()=>{calls.density++;return 0;},
+ queryRegion:()=>{calls.roads++;return {hearts,lakes:[],roads:[]};},
+ heartsInBounds:()=>hearts,lakesInBounds:()=>[],roadsInBounds:()=>{calls.roads++;return [];},
+ festivalPlan:()=>{calls.plan++;return [];},campVillagesNear:()=>[],
+ classifySeamsNear:()=>{calls.seams++;return [];},
+ computeFrontAxis:()=>{calls.grammar++;return {roadBins:[],gaps:[]};},
+ dancefloorRect:()=>({dirx:1,dirz:0,cx:0,cz:0,halfWidth:1,depth:1}),
+ nearestMajorHeart:()=>({heart:null}),clusterExtent:()=>1,getSeed:()=>0,
+ RANK_STYLE:{minor:{r:5,fill:'#fff'}},EXTENT_SCENERY:new Set(),TREE_SALT:1,
+ document:{getElementById:id=>elements[id]??=( {style:{},textContent:''} )},
+});
+vm.runInContext(helpers + '\n' + draw, context);
+const heart = {x:0,z:0,rank:'minor',core:30,district:80};
+hearts = Array.from({length:1000},()=>heart);
+vm.runInContext('draw()',context);
+assert.equal(calls.plan,0,'macro redraw must not plan festival clusters');
+assert.equal(calls.seams,0,'macro redraw must not classify seams');
+assert.equal(calls.grammar,0,'macro redraw must not compute grammar');
+assert.equal(calls.roads,0,'macro redraw must not enumerate roads');
+assert.ok(calls.density<=2048,'density sample count is bounded');
+assert.match(elements['detail-status'].textContent,/zoom in/i);
+// Seed changes discard generator caches; a second cold redraw must still skip work.
+vm.runInContext('draw()',context);assert.equal(calls.plan,0);
+hearts = [heart];
+context.visibleBounds=()=>({minX:-200,minZ:-200,maxX:200,maxZ:200});
+context.view.zoom=2;
+vm.runInContext('draw()',context);
+assert.ok(calls.plan>0,'local detail still uses the actual festival planner');
+assert.ok(calls.seams>0 && calls.grammar>0 && calls.roads>0,'local overlays remain available');
+const budget=vm.runInContext('mapRenderBudget',context);
+assert.equal(budget({minX:0,minZ:0,maxX:400,maxZ:400},24).detail,true);
+assert.equal(budget({minX:0,minZ:0,maxX:400,maxZ:400},25).detail,false);
+assert.equal(budget({minX:0,minZ:0,maxX:1e6,maxZ:1e6},0).detail,false,'enumeration backstop returning zero hearts must not unlock details');
+assert.match(html,/Number\.isFinite/,'URL and debug view input must reject non-finite coordinates');
+const viewSetter = html.slice(html.indexOf('function setMapView('), html.indexOf('// --- true-extent overlay'));
+vm.runInContext(viewSetter,context);
+vm.runInContext('setMapView(NaN,Infinity,-1)',context);
+assert.deepEqual({...context.view},{cx:0,cz:0,zoom:2});
+vm.runInContext('setMapView(20,-10,1e-9)',context);
+assert.deepEqual({...context.view},{cx:20,cz:-10,zoom:.02});
+vm.runInContext('setMapView(20,-10,Infinity)',context);
+assert.equal(context.view.zoom,.02);
+console.log('Map rendering: macro and cold redraw planner guards, bounded roads/density, local overlays, budget boundary and enumeration backstop passed.');

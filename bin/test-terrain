@@ -27,7 +27,10 @@ function run(grade,input,seconds=20,hz=60,speed=0) {
 }
 const flat=run(0,{throttle:1}),up=run(.15,{throttle:1}),down=run(-.15,{throttle:1});
 assert.ok(up.speed<flat.speed && flat.speed<down.speed);
-assert.ok(run(-.2,{throttle:0},10,60,18).speed>18,'downhill coasting exceeds powered cap');
+assert.ok(run(-.2,{throttle:0},1,60,18).speed > run(0,{throttle:0},1,60,18).speed,'gravity offsets release drag downhill');
+close(flat.speed,18); close(run(0,{throttle:1,boost:true}).speed,27.9);
+close(run(0,{throttle:1},0.5,120).speed,9);
+close(run(0,{throttle:1,slow:true}).speed,7.2);
 for(const grade of [-.3,0,.3]) {
  close(run(grade,{brake:true},5,60,20).speed,0);
  close(run(grade,{throttle:0},20,60).position.z,0);

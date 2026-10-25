@@ -52,7 +52,7 @@ const registry={add:e=>{entries.set(++nextId,e);return nextId;},remove:id=>entri
 const makeModel=()=>({position:new V(),rotation:{},removeFromParent(){removed++;},traverse(fn){fn({isMesh:true,geometry:{userData:{shared:true},dispose(){throw new Error('shared geometry disposed');}},material:[{userData:{shared:true},dispose(){throw new Error('shared material disposed');}},{userData:{},dispose(){disposedMaterials++;}}]});}});
 const source=readFileSync(new URL('../src/oneWheels.js',import.meta.url),'utf8');
 const stripped=source.replace(/^import .*;\n/gm,'').replace('export class OneWheels','class OneWheels');
-const Manager=vm.runInNewContext(stripped+';OneWheels',{THREE:{Vector3:V,Frustum:class{},Matrix4:class{},Sphere:class{constructor(center,radius){this.center=center;this.radius=radius;}}},OneWheelMotion,T,riderYieldReason,registry,buildOneWheelRider:makeModel,updateOneWheelRider:()=>animations++,mulberry32:()=>()=>.5,worldHash:()=>1});
+const Manager=vm.runInNewContext(stripped+';OneWheels',{terrainHeight:()=>0,THREE:{Vector3:V,Frustum:class{},Matrix4:class{},Sphere:class{constructor(center,radius){this.center=center;this.radius=radius;}}},OneWheelMotion,T,riderYieldReason,registry,buildOneWheelRider:makeModel,updateOneWheelRider:()=>animations++,mulberry32:()=>()=>.5,worldHash:()=>1});
 const manager=new Manager({add(){}},{npcs:[]},{procedural:false,isWater:(x,z)=>x>10});
 assert(!manager.clearAt(9.5,0),'full board envelope catches shoreline');
 const rider=manager.spawnOnRoute(route,2);assert(rider);assert.equal(entries.size,1);
@@ -70,7 +70,7 @@ assert.equal(braking.speed,0);
 const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
 assert(main.indexOf('oneWheels.update(dt')<main.indexOf('registry.rebuildSpatialIndex();'),'movers precede spatial index synchronization');
 assert(main.includes('if(!event.persisted)oneWheels.dispose()'),'back-forward cached pages retain their live manager');
-const RealManager=vm.runInNewContext(stripped+';OneWheels',{THREE:{Vector3:V,Frustum:class{},Matrix4:class{},Sphere:class{constructor(center,radius){this.center=center;this.radius=radius;}}},OneWheelMotion,T,riderYieldReason,registry,buildOneWheelRider:makeModel,updateOneWheelRider:()=>{},mulberry32,worldHash,nearestHeart,approachRoadsOf,wagonRoutes,sampleWagonRoute});
+const RealManager=vm.runInNewContext(stripped+';OneWheels',{terrainHeight:()=>0,THREE:{Vector3:V,Frustum:class{},Matrix4:class{},Sphere:class{constructor(center,radius){this.center=center;this.radius=radius;}}},OneWheelMotion,T,riderYieldReason,registry,buildOneWheelRider:makeModel,updateOneWheelRider:()=>{},mulberry32,worldHash,nearestHeart,approachRoadsOf,wagonRoutes,sampleWagonRoute});
 let snapshotsOfSeeds=[];
 for(const seed of [1234,42,9876,3948869160,8675309]){
  setSeed(seed);const h=spawnHeart(),player={x:h.x,z:h.z};

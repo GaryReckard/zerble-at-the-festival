@@ -89,7 +89,7 @@ export class Zerble {
     this.nozzleWorld = new THREE.Vector3();
     this.forwardWorld = new THREE.Vector3();
 
-    this.surfaceSampler = null; // Enabled only by the terrain proof.
+    this.surfaceSampler = null; // Opt-in shared terrain contact; null preserves the flat game.
     this._terrainPoint = new THREE.Vector3();
     this._terrainSample = {};
     this._build();

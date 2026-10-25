@@ -564,11 +564,11 @@ export function buildTorchField(positions, rng = Math.random, scale = TIKI_TORCH
   const m = new THREE.Matrix4();
   const s = scale;
   for (let i = 0; i < n; i++) {
-    const { x, z } = positions[i];
-    m.makeScale(s, s, s); m.setPosition(x, 0.85 * s, z); poleInst.setMatrixAt(i, m);
-    m.setPosition(x, 0.50 * s, z); jointInst.setMatrixAt(i * 2, m);
-    m.setPosition(x, 1.10 * s, z); jointInst.setMatrixAt(i * 2 + 1, m);
-    m.setPosition(x, 1.78 * s, z); cupInst.setMatrixAt(i, m);
+    const { x, y = 0, z } = positions[i];
+    m.makeScale(s, s, s); m.setPosition(x, y + 0.85 * s, z); poleInst.setMatrixAt(i, m);
+    m.setPosition(x, y + 0.50 * s, z); jointInst.setMatrixAt(i * 2, m);
+    m.setPosition(x, y + 1.10 * s, z); jointInst.setMatrixAt(i * 2 + 1, m);
+    m.setPosition(x, y + 1.78 * s, z); cupInst.setMatrixAt(i, m);
   }
   poleInst.instanceMatrix.needsUpdate = true;
   jointInst.instanceMatrix.needsUpdate = true;
@@ -577,7 +577,7 @@ export function buildTorchField(positions, rng = Math.random, scale = TIKI_TORCH
 
   // Per-torch flame (+ optional fancy-light), animated independently.
   for (let i = 0; i < n; i++) {
-    const { x, z } = positions[i];
+    const { x, y = 0, z } = positions[i];
     const phase = positions[i].phase ?? (rng() * Math.PI * 2);
     const flameMat = new THREE.MeshStandardMaterial({
       color: 0xffb04a,
@@ -588,14 +588,14 @@ export function buildTorchField(positions, rng = Math.random, scale = TIKI_TORCH
       opacity: 0.95,
     });
     const flame = new THREE.Mesh(_TORCH_FLAME_GEO, flameMat);
-    flame.position.set(x, 2.0 * s, z);
+    flame.position.set(x, y + 2.0 * s, z);
     flame.scale.setScalar(s);
     group.add(flame);
 
     let flameLight = null;
     if (PERF.fancyLights) {
       flameLight = new THREE.PointLight(0xff8830, 0, 3.5, 1.5);
-      flameLight.position.set(x, 2.0 * s, z);
+      flameLight.position.set(x, y + 2.0 * s, z);
       flameLight.castShadow = false;
       group.add(flameLight);
       registerContextLight(flameLight);

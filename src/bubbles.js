@@ -1,3 +1,4 @@
+import { terrainHeight } from './worldgen/terrain.js';
 // Bubble particle system. InstancedMesh of transmissive spheres with simple physics.
 
 import * as THREE from 'three';
@@ -399,7 +400,7 @@ export class Bubbles {
     p.vel.multiplyScalar(Math.pow(dampingExp, dt * 60));
     p.pos.addScaledVector(p.vel, dt);
     p.spin += dt * 0.5;
-    return p.pos.y < 0.2;
+    return p.pos.y < terrainHeight(p.pos.x, p.pos.z) + 0.2;
   }
 
   _popBubble(i, p) {

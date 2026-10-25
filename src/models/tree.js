@@ -84,16 +84,16 @@ function crownRing(cy, r, count, down = 0.5, out = 1.06) {
 // `src` is either a built Group (reads `.userData`) or a raw descriptor (reads
 // `.perches`/`.crown` directly) — the instanced forest path (CG3) has no
 // per-tree Group, so it passes the descriptor.
-export function worldPerches(src, x, z) {
+export function worldPerches(src, x, z, y = 0) {
   const local = src.userData ? src.userData.perches : src.perches;
   if (!local) return [];
-  return local.map((p) => ({ x: x + p.x, y: p.y, z: z + p.z }));
+  return local.map((p) => ({ x: x + p.x, y: y + p.y, z: z + p.z }));
 }
 
-export function worldCrown(src, x, z) {
+export function worldCrown(src, x, z, y = 0) {
   const c = src.userData ? src.userData.crown : src.crown;
   if (!c) return null;
-  return { x: x + c.x, y: c.y, z: z + c.z, r: c.r };
+  return { x: x + c.x, y: y + c.y, z: z + c.z, r: c.r };
 }
 
 export function buildTree(rng = Math.random) {
@@ -377,8 +377,8 @@ export function buildForestInstanced(instances) {
   // transform composed with the part's local offset. Off-centre parts (oak bumps,
   // birch puffs) get the yaw applied to their offset, matching the per-mesh Group;
   // the uniform scale (lakeside trees) scales the whole tree about its base.
-  const place = (b, sx, sy, sz, lx, ly, lz, x, z, rotY, scale, hex) => {
-    _IM.makeTranslation(x, 0, z);
+  const place = (b, sx, sy, sz, lx, ly, lz, x, y, z, rotY, scale, hex) => {
+    _IM.makeTranslation(x, y, z);
     _IR.makeRotationY(rotY); _IM.multiply(_IR);
     if (scale !== 1) { _IU.makeScale(scale, scale, scale); _IM.multiply(_IU); }
     _IT.makeTranslation(lx, ly, lz); _IM.multiply(_IT);
@@ -389,15 +389,15 @@ export function buildForestInstanced(instances) {
   };
 
   for (let k = 0; k < instances.length; k++) {
-    const { d, x, z, rotY } = instances[k];
+    const { d, x, y = 0, z, rotY } = instances[k];
     const scale = instances[k].scale ?? 1;
     const t = d.trunk;
     const trunkHex = d.trunkMat === 'birch' ? 0xe8e4d6 : 0x5a3f24;
-    place(_trunkBucket(d.type), t.rBot, t.h, t.rBot, 0, t.h / 2, 0, x, z, rotY, scale, trunkHex);
+    place(_trunkBucket(d.type), t.rBot, t.h, t.rBot, 0, t.h / 2, 0, x, y, z, rotY, scale, trunkHex);
     for (let i = 0; i < d.foliage.length; i++) {
       const f = d.foliage[i];
       const sz = f.shape === 'cone' ? f.height : f.radius;
-      place(_foliageBucket(f), f.radius, sz, f.radius, f.x, f.y, f.z, x, z, rotY, scale, d.colorHex);
+      place(_foliageBucket(f), f.radius, sz, f.radius, f.x, f.y, f.z, x, y, z, rotY, scale, d.colorHex);
     }
   }
 

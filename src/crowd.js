@@ -1,3 +1,4 @@
+import { terrainHeight } from './worldgen/terrain.js';
 // Crowd v2: pool of stateful NPCs spawned by chunks.
 //
 // Each NPC has:
@@ -130,6 +131,15 @@ const BODY_RADIUS = 0.26;
 const BODY_LENGTH = 0.55;
 const BODY_CENTER_Y = 1.0;
 const BODY_SEATED_BOTTOM = BODY_CENTER_Y - BODY_LENGTH / 2 - BODY_RADIUS;
+
+function groundNpc(npc) {
+  if (npc.state === 'riding' && npc.seatY != null) npc.pos.y = npc.seatY;
+  else if (npc.state === 'hammock_riding' && npc.hammockY != null) npc.pos.y = npc.hammockY;
+  else if (npc.state === 'camp_seated' && npc.campSlot) npc.pos.y = npc.campSlot.y;
+  else if (npc.state === 'table_seated' && npc.tableSeat) npc.pos.y = npc.tableSeat.y;
+  else if (npc.pottySitting && npc.seatY != null) npc.pos.y = npc.seatY;
+  else npc.pos.y = terrainHeight(npc.pos.x, npc.pos.z);
+}
 
 export class Crowd {
   constructor(smiles) {
@@ -1558,6 +1568,7 @@ export class Crowd {
   }
 
   _writeMatrices(npc) {
+    groundNpc(npc);
     if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc.festivalVisit?.hidden) { this._hideNpc(npc); return; }
     if (npc.party) { this._hideNpc(npc); npc.party.renderNpc(npc); return; }
     // Bo is rendered by the wagon, while the crowd still owns his reserved seat.
@@ -1647,7 +1658,7 @@ export class Crowd {
     // lands at the right visual position.
     //   - riding:        torso should sit at ≈ seatY - 0.05  →  feet Y = seatY - 1.05
     //   - hammock_riding: torso should sit at ≈ hammockY - 0.1 →  feet Y = hammockY - 1.1
-    //   - normal:        feet at ground (npc.pos.y = 0 always from behavior code)
+    //   - normal:        feet at the sampled ground position
     // Seated riders (bench / driver / roof) sit with their butt on the seat;
     // running-board riders stand. Computed here so it drives both the lift and
     // the leg bend below.
@@ -1683,7 +1694,7 @@ export class Crowd {
       // Same -0.4 hip drop a seated cart rider uses so the hip lands on the seat.
       feetY = npc.tableSeat.y - 0.4 + bobY;
     } else {
-      feetY = bobY + bounceY + cheerY; // feet on the ground; npc.pos.y is always 0
+      feetY = npc.pos.y + bobY + bounceY + cheerY; // authoritative ground position plus animation
     }
     if (photoPose && npc.photoCrouch) feetY -= 0.24 * photoPoseAmount;
 

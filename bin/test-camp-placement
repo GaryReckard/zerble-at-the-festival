@@ -61,8 +61,8 @@ assert(forestPitches>0,'host gating must still build valid forest households');
 const forestBuild=forestSource.slice(forestSource.indexOf('function buildInteriorCampsites('),forestSource.indexOf('function buildForestCampsite('));
 const registered=[],built=[];
 let preflightCalls=0;
-const buildInterior=Function('mulberry32','hash2','buildCampsite','canPlaceCampsite','registry','pushCampsiteAnimatables','registerCampsite',
-  `${forestBuild};return buildInteriorCampsites;`)(mulberry32,(x,z)=>x+z,
+const buildInterior=Function('terrainHeight','mulberry32','hash2','buildCampsite','canPlaceCampsite','registry','pushCampsiteAnimatables','registerCampsite',
+  `${forestBuild};return buildInteriorCampsites;`)(()=>0,mulberry32,(x,z)=>x+z,
   (rng,size,options)=>{built.push(options.role);return {group:{position:{set(){}},rotation:{},traverse(){}},role:options.role};},
   ()=>++preflightCalls!==1,{},()=>{},(registry,camp,options)=>registered.push({role:camp.role,owner:options.chunkKey}));
 buildInterior({key:'forest-owner',group:{add(){}}},{seed:12,interiorCampsitePositions:[

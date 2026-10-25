@@ -1,3 +1,4 @@
+import { terrainHeight, lakeSurfaceHeight } from './worldgen/terrain.js';
 import { registerCampsite } from './campRegistry.js';
 import { populateCampClearing } from './campClearing.js';
 // Lakes are first-class world features, not chunk content. One lake per
@@ -413,7 +414,7 @@ function placeSealedColliders(registryIds, cx, cz, outline) {
     const pz = cz + az + nz * SPHERE_R;
     registryIds.push(registry.add({
       kind: 'lake_edge',
-      position: new THREE.Vector3(px, 0.5, pz),
+      position: new THREE.Vector3(px, terrainHeight(px, pz) + 0.5, pz),
       footprint: 0,
       collider: { radius: SPHERE_R, damage: 1 },
     }));
@@ -479,6 +480,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
     flatShading: true,
   });
 
+  const level = lakeSurfaceHeight(wl || { x: cx, z: cz });
   const group = new THREE.Group();
   group.name = `lake(${mcx},${mcz})`;
   // Lakeside + island trees accumulate as descriptors and instance once at the
@@ -510,7 +512,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   const waterGeo = new THREE.ShapeGeometry(shape);
   const water = new THREE.Mesh(waterGeo, waterMat);
   water.rotation.x = Math.PI / 2;
-  water.position.set(cx, 0.08, cz);
+  water.position.set(cx, level + 0.08, cz);
   water.receiveShadow = true;
   water.renderOrder = 0;
   group.add(water);
@@ -528,7 +530,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
 
     const island = new THREE.Mesh(new THREE.CircleGeometry(islR, 24), grassMat);
     island.rotation.x = -Math.PI / 2;
-    island.position.set(ix, 0.16, iz);
+    island.position.set(ix, level + 0.16, iz);
     island.receiveShadow = true;
     island.renderOrder = 1;
     group.add(island);
@@ -544,7 +546,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       const tz = iz + Math.sin(tAng) * tDist;
       const d = describeForestTree(rng);
       const s = 0.85 + rng() * 0.30;
-      treeInstances.push({ d, x: tx, z: tz, rotY: 0, scale: s });
+      treeInstances.push({ d, x: tx, y: level + 0.16, z: tz, rotY: 0, scale: s });
       // No collider needed — island is unreachable; only the canoe could come
       // near, and canoes stay 4m off shore via the outline-based clamp.
     }
@@ -566,7 +568,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
     const bZ = cz + Math.sin(beachAng) * (shoreR + sandR * 0.2);
     const sandMesh = new THREE.Mesh(new THREE.CircleGeometry(sandR, 16), sandMat);
     sandMesh.rotation.x = -Math.PI / 2;
-    sandMesh.position.set(bX, 0.15, bZ);
+    sandMesh.position.set(bX, level + 0.15, bZ);
     sandMesh.receiveShadow = true;
     sandMesh.renderOrder = 2;
     group.add(sandMesh);
@@ -582,7 +584,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   const registryIds = [];
   registryIds.push(registry.add({
     kind: 'lake',
-    position: new THREE.Vector3(cx, 0, cz),
+    position: new THREE.Vector3(cx, terrainHeight(cx, cz), cz),
     footprint: maxR,
     outline,
     // v2 outlines are the true (rotated/lobed) worldgen polygon, so isPointInLake
@@ -599,7 +601,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   if (beachSpec) {
     registryIds.push(registry.add({
       kind: 'beach',
-      position: new THREE.Vector3(beachSpec.x, 0, beachSpec.z),
+      position: new THREE.Vector3(beachSpec.x, terrainHeight(beachSpec.x, beachSpec.z), beachSpec.z),
       footprint: 0,
       attractor: { radius: beachSpec.r * 0.9, weight: 2.4 },
     }));
@@ -610,9 +612,10 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   for (let i = 0; i < shoreSamples; i++) {
     const ang = (i / shoreSamples) * Math.PI * 2 + rng() * 0.3;
     const sR = outlineRAt(decoOutline, ang);
+    const x = cx + Math.cos(ang) * (sR + 5), z = cz + Math.sin(ang) * (sR + 5);
     registryIds.push(registry.add({
       kind: 'shore',
-      position: new THREE.Vector3(cx + Math.cos(ang) * (sR + 5), 0, cz + Math.sin(ang) * (sR + 5)),
+      position: new THREE.Vector3(x, terrainHeight(x, z), z),
       footprint: 0,
       attractor: { radius: 8, weight: 1.8 },
     }));
@@ -669,7 +672,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       // stream unaffected — only the group.add/registry below are skipped.)
       if (ringRoads && nearAnyRoad(camX, camZ, ringRoads, RING_ROAD_HALF + camp.footprint)) continue;
       if (camps.some(c => Math.hypot(c.x - camX, c.z - camZ) < c.r + camp.footprint + 2)) continue;
-      camp.group.position.set(camX, 0, camZ);
+      camp.group.position.set(camX, terrainHeight(camX, camZ), camZ);
       camp.group.rotation.y = Math.atan2(cx - camX, cz - camZ) - (camp.entranceYaw || 0);  // face the lake
       group.add(camp.group);
       lakeAnimEntries.push(camp.animatables);
@@ -740,18 +743,18 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       if (nearAnyRoad(treeX, treeZ, ringRoads, RING_ROAD_HALF)) continue;   // keep off arterials (v2)
       // Dodge festival buildings (v2-gated so v1 lakes stay byte-identical — players
       // are on v1; the short-circuit means no closestBuilding call, no rng-stream shift).
-      if (USE_WORLDGEN_V2 && registry.closestBuilding(new THREE.Vector3(treeX, 0, treeZ), 2.0, LAKE_TREE_SKIP)) continue;
+      if (USE_WORLDGEN_V2 && registry.closestBuilding(new THREE.Vector3(treeX, terrainHeight(treeX, treeZ), treeZ), 2.0, LAKE_TREE_SKIP)) continue;
 
       const d = describeForestTree(rng);
       const s = 0.85 + rng() * 0.35;
-      treeInstances.push({ d, x: treeX, z: treeZ, rotY: 0, scale: s });
+      treeInstances.push({ d, x: treeX, y: terrainHeight(treeX, treeZ), z: treeZ, rotY: 0, scale: s });
 
       // `forest_tree` collider — same kind as forests.js trees, so hitting one
       // hurts the same way and panics nearby NPCs. No chunkKey so the tree
       // survives chunk unload (it's bound to the lake's lifecycle).
       registryIds.push(registry.add({
         kind: 'forest_tree',
-        position: new THREE.Vector3(treeX, 0, treeZ),
+        position: new THREE.Vector3(treeX, terrainHeight(treeX, treeZ), treeZ),
         footprint: 1.0,
         collider: { radius: 1.0 * s, damage: 2 },
       }));
@@ -775,7 +778,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   const canoeRoll = rng();
   const canoeCount = canoeRoll < 0.30 ? 0 : (canoeRoll < 0.80 ? 1 : 2);
   for (let i = 0; i < canoeCount; i++) {
-    canoes.push(createLakeCanoe(group, cx, cz, decoOutline, rng));
+    canoes.push(createLakeCanoe(group, cx, cz, decoOutline, rng, level));
   }
 
   // Instance this lake's whole tree population (island + shore ring) into ~5-6
@@ -784,7 +787,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   for (let i = 0; i < treeMeshes.length; i++) group.add(treeMeshes[i]);
 
   return {
-    center: new THREE.Vector3(cx, 0, cz),
+    center: new THREE.Vector3(cx, terrainHeight(cx, cz), cz),
     radius: maxR,
     group,
     registryIds,
@@ -796,7 +799,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
 
 // ---- Canoe ----------------------------------------------------------------
 
-function createLakeCanoe(parentGroup, lakeCx, lakeCz, outline, rng) {
+function createLakeCanoe(parentGroup, lakeCx, lakeCz, outline, rng, level = 0) {
   const canoeGroup = new THREE.Group();
   canoeGroup.name = 'canoe';
   buildCanoe(canoeGroup, rng);
@@ -804,7 +807,7 @@ function createLakeCanoe(parentGroup, lakeCx, lakeCz, outline, rng) {
   const ang = rng() * Math.PI * 2;
   const shoreR = outlineRAt(outline, ang);
   const r = shoreR * 0.4;
-  canoeGroup.position.set(lakeCx + Math.cos(ang) * r, 0, lakeCz + Math.sin(ang) * r);
+  canoeGroup.position.set(lakeCx + Math.cos(ang) * r, level + 0.04, lakeCz + Math.sin(ang) * r);
   canoeGroup.rotation.y = rng() * Math.PI * 2;
   parentGroup.add(canoeGroup);
 
@@ -812,6 +815,7 @@ function createLakeCanoe(parentGroup, lakeCx, lakeCz, outline, rng) {
     group: canoeGroup,
     lakeCx,
     lakeCz,
+    level,
     outline,
     heading: canoeGroup.rotation.y,
     speed: 0.6 + rng() * 0.5,
@@ -874,7 +878,7 @@ function updateCanoe(canoe, dt) {
 
   // Gentle bob + sway.
   canoe.bobPhase += dt * 1.3;
-  canoe.group.position.y = 0.04 + Math.sin(canoe.bobPhase) * 0.04;
+  canoe.group.position.y = canoe.level + 0.04 + Math.sin(canoe.bobPhase) * 0.04;
   canoe.group.rotation.y = canoe.heading;
   canoe.group.rotation.x = Math.sin(canoe.bobPhase * 0.7) * 0.03;
   canoe.group.rotation.z = Math.cos(canoe.bobPhase * 0.5) * 0.04;

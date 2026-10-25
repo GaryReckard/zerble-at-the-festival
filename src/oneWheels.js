@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {terrainHeight} from './worldgen/terrain.js';
 import {buildOneWheelRider,updateOneWheelRider} from './models/oneWheelRider.js';
 import {OneWheelMotion,ONE_WHEEL_TUNING as T,riderYieldReason} from './oneWheelMotion.js';
 import {wagonRoutes,sampleWagonRoute} from './nutWagonRoute.js';
@@ -46,7 +47,7 @@ export class OneWheels {
       sampleWagonRoute(route,d,this.sample);
       const distance=Math.hypot(this.sample.x-player.x,this.sample.z-player.z);
       if(distance<(force?12:T.spawnMin)||distance>T.spawnMax)continue;
-      this.sphere.center.set(this.sample.x,1.2,this.sample.z);
+      this.sphere.center.set(this.sample.x,terrainHeight(this.sample.x,this.sample.z)+1.2,this.sample.z);
       if(!force&&camera&&this.frustum.intersectsSphere(this.sphere))continue;
       if(riderYieldReason(this.sample.x,this.sample.z,this.sample.heading,0,player,this.crowd.npcs))continue;
       choices.push({route,d,distance});
@@ -64,7 +65,7 @@ export class OneWheels {
     const motion=new OneWheelMotion(route,distance,direction);
     if(!this.clearAt(motion.x,motion.z))return null;
     const group=buildOneWheelRider({rng:mulberry32(seed)});
-    const position=new THREE.Vector3(motion.x,0,motion.z);
+    const position=new THREE.Vector3(motion.x,terrainHeight(motion.x,motion.z),motion.z);
     group.position.copy(position);group.rotation.y=motion.heading;this.scene.add(group);
     const entry={kind:'one_wheel',position,footprint:T.radius,collider:{radius:T.radius,damage:2}};
     const rider={group,motion,entry,id:registry.add(entry),animation:{},seed};
@@ -95,7 +96,7 @@ export class OneWheels {
       if(Math.hypot(m.x-player.x,m.z-player.z)>T.despawnDistance){this.remove(rider);continue;}
       const oldX=m.x,oldZ=m.z;
       m.update(dt,rider.environment);
-      rider.entry.position.set(m.x,0,m.z);rider.group.position.copy(rider.entry.position);
+      rider.entry.position.set(m.x,terrainHeight(m.x,m.z),m.z);rider.group.position.copy(rider.entry.position);
       rider.group.rotation.y=m.heading;
       const a=rider.animation;
       a.speed=dt>0?Math.hypot(m.x-oldX,m.z-oldZ)/dt:0;

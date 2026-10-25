@@ -73,6 +73,10 @@ import { preparePostprocessing } from './preparePostprocessing.js';
 import { Settings } from './settings.js';
 import { A11y } from './a11y.js';
 import { setSessionSeed, getSessionSeed } from './rng.js';
+import { setTerrainEnabled, terrainEnabled, terrainHeight, sampleTerrain } from './worldgen/terrain.js';
+
+// Keep rollout explicit until device and placement acceptance is complete.
+setTerrainEnabled(new URLSearchParams(location.search).get('terrain') === '1');
 import { MODEL_DECOR_MERGE_ENABLED, getMergeDecorStats } from './mergeDecor.js';
 import { BoostStreaks } from './boostStreaks.js';
 import { syncRenderPipelineSize } from './renderSizing.js';
@@ -317,6 +321,7 @@ Trip.onNarrate = () => {
 
 // ---------- Zerble + Smiles + Bubbles ----------
 const zerble = new Zerble();
+if (terrainEnabled()) zerble.surfaceSampler = sampleTerrain;
 zerble.position.set(0, 0, 65);
 zerble.heading = 0;
 scene.add(zerble.root);
@@ -2248,7 +2253,8 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
 
     // Move the cart to world (x, z), zeroing speed.
     teleport(x = 0, z = 0) {
-      zerble.position.set(x, zerble.position.y, z);
+      zerble.position.set(x, terrainHeight(x,z), z);
+      if (zerble.surfaceSampler) zerble.groundOnSurface();
       zerble.speed = 0;
       return `teleported to (${x}, ${z})`;
     },

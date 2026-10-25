@@ -701,6 +701,9 @@ function treedDistrictSpot(heart, rng, avoidBearing, reject) {
   // treeDensity is pure → deterministic; omitting here skips the drum's yaw draw the
   // same way a no-spot omission already does (the variable-draw class noted above).
   if (!finalSpot || treeDensity(finalSpot.x, finalSpot.z) < 0.25) return null;
+  // Road/water nudging can cross into a reserved zone even when the original
+  // candidate fit. Validate the final envelope too, without drawing more RNG.
+  if (reject && reject(finalSpot.x, finalSpot.z)) return null;
   return finalSpot;
 }
 
