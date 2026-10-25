@@ -91,7 +91,7 @@ export function createPassportMenu() {
     overlay.hidden = false;
     document.body.classList.add('passport-reading');
     options.onToggle?.(true);
-    overlay.querySelector('.passport-close').focus();
+    overlay.querySelector('.passport-panel').focus();
     options.onOpen?.();
   }
   return {
@@ -106,12 +106,13 @@ export function createPassportMenu() {
       overlay = document.createElement('div'); overlay.id = 'passport-overlay'; overlay.hidden = true;
       overlay.innerHTML = `
         <div class="passport-backdrop"></div>
-        <section class="passport-panel" role="dialog" aria-modal="true" aria-labelledby="passport-heading" aria-describedby="passport-intro">
-          <button class="passport-close" type="button" aria-label="Close Festival Passport">×</button>
+        <section class="passport-panel" role="dialog" aria-modal="true" aria-labelledby="passport-heading" aria-describedby="passport-intro" tabindex="-1">
+          <button class="passport-close" type="button" aria-label="Close Festival Passport"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
           <p class="passport-eyebrow">A little record of a lovely time</p>
           <h2 id="passport-heading">Festival Passport</h2>
           <p id="passport-intro">The places you wandered. The smiles you brought.</p>
           <p class="passport-pause-note">Gameplay pauses while your passport is open.</p>
+          <div class="passport-body"><div class="passport-records">
           <div class="passport-tabs" role="tablist" aria-label="Passport statistics">
             <button type="button" id="passport-tab-visit" role="tab" data-scope="visit" aria-controls="passport-stat-panel">This visit</button>
             <button type="button" id="passport-tab-allTime" role="tab" data-scope="allTime" aria-controls="passport-stat-panel">All time</button>
@@ -119,7 +120,9 @@ export function createPassportMenu() {
           <div id="passport-stat-panel" role="tabpanel" tabindex="0"><dl class="passport-stats"></dl><p class="passport-note"></p></div>
           <p class="passport-definitions">Smiles count pickups before score bonuses. Distances follow the ground plane, and stages count once per festival layout.</p>
           <p class="passport-relocated" hidden></p>
+          </div><div class="passport-memories">
           <h3>Festival memories</h3><p class="passport-stamp-count"></p><ul class="passport-stamps"></ul>
+          </div></div>
           <p class="passport-storage" role="status"></p>
         </section>`;
       document.body.append(overlay);
@@ -148,7 +151,7 @@ export function createPassportMenu() {
         if (key !== 'tab') return;
         const focusable = [...overlay.querySelectorAll('button, [tabindex="0"]')].filter(el => el.tabIndex >= 0);
         const first = focusable[0], last = focusable.at(-1);
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === overlay.querySelector('.passport-panel'))) { event.preventDefault(); last.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
       }, true);
     },

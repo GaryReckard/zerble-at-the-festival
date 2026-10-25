@@ -4,6 +4,8 @@
 
 The title-menu link, in-game book button and `P` open a read-only record of this visit and all-time memories. Gameplay pauses while it is open, including movement, pickups, juice consumption, collisions and Festival Run clocks. Closing clears held keyboard and touch actions, restores focus and resumes without catching up elapsed wall time.
 
+The desktop view places statistics beside the achievement cards in a panel up to 1,080px wide. Smaller screens stack the sections and scroll when necessary. The centered close icon retains a 44px hit target, and keyboard focus remains contained within the dialog.
+
 ## Measurements and persistence
 
 | Statistic | Definition |

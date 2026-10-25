@@ -47,3 +47,11 @@ No physical iOS audio-unlock test, touch hardware test, cross-browser Safari tes
 Implementation and checks ran in `/private/tmp/zerble-festival-passport` on `codex/festival-passport`, based on `92d3344`, independently of the concurrent uncommitted terrain integration. No standalone headless browser was launched. All created in-app tabs were closed, the temporary viewport override was reset, and the loopback server on 8774 was stopped. A direct `ps -p 41455` check returned exit 1 with no output, confirming that the exact owned server process was gone.
 
 The combined verification also closed its sole created game tab and stopped its temporary server; direct `ps -p 43468` returned exit 1 with no output.
+
+## Wider layout and close-control refinement
+
+Gary requested a cleaner close button and a wider modal that avoids constant scrolling. The panel now grows to 1,080px and, above the 1,000px breakpoint, places a three-column statistics grid beside compact achievement cards. At the default 1280 × 720 viewport, the populated preview measured 644px client height and 644px scroll height, so there was no vertical overflow. The real Low game measured 634px for both. Smaller screens retain the stacked, scrollable layout.
+
+The centered SVG close icon has a measured 44 × 44px target. Opening focuses the dialog, eliminating the automatic double-circle appearance; Tab gives the button its single inset focus outline. Shift-Tab from the initial dialog focus wraps to the statistics panel, and Tab wraps back to the close button. Native click and Escape closing were verified, and the 390 × 844 preview remained readable. The actual game booted through its mode button, and Noon/Midnight checks reported no console errors. `npm run check` exited 0; the focused integration suite and syntax check also passed after the final focus adjustment.
+
+[Wide populated preview](desktop-wide.jpg), [mobile close control](mobile-close.jpg), [live Noon](wide-noon.jpg), and [live Midnight](wide-midnight.jpg) show the revised layout. Earlier captures retain the original narrower design as historical evidence.
