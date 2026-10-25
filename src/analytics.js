@@ -9,6 +9,8 @@
 //     caller, reported once per session (see `firsts`/`features`), or rolled up
 //     into session_end. `time_in_run_s` rides along on most events.
 
+import { PASSPORT_STAMPS } from './playerStats.js';
+
 const SMILE_MILESTONES = [10, 25, 50, 100, 250, 500, 1000, 2500];
 const MAX_EXCEPTIONS = 8;        // cap field-error spam per page load
 
@@ -45,6 +47,29 @@ function secondsIn() {
 }
 
 export const Analytics = {
+  passportProgress(report = {}) {
+    // Keep this projection explicit: local saves contain coordinates and stage identities.
+    const params = {
+      mode: report.mode === 'festival' ? 'festival' : 'cruisin',
+      reason: ['interval', 'hide', 'restart', 'run_end'].includes(report.reason) ? report.reason : 'interval',
+      exploration_eligible: report.exploration_eligible === true,
+      visit_id: typeof report.visit_id === 'string' && /^[a-zA-Z0-9-]{1,80}$/.test(report.visit_id) ? report.visit_id : 'unknown',
+      transport_type: 'beacon',
+    };
+    for (const key of ['active_s_delta', 'distance_m_delta', 'smiles_delta', 'bubbles_delta',
+      'bonks_delta', 'passengers_delta', 'stages_delta', 'current_distance_m', 'max_distance_m']) {
+      params[key] = Number.isFinite(report[key]) ? Math.max(0, report[key]) : 0;
+    }
+    send('passport_progress', params);
+  },
+
+  passportStamp(id, mode, visitId) {
+    if (!PASSPORT_STAMPS.some(stamp => stamp.id === id) || !['festival', 'cruisin'].includes(mode)) return;
+    const params = { stamp: id, mode, time_in_run_s: secondsIn() };
+    if (typeof visitId === 'string' && /^[a-zA-Z0-9-]{1,80}$/.test(visitId)) params.visit_id = visitId;
+    send('passport_stamp', params);
+  },
+
   // `context` segments the whole session: { perf_tier, touch, seeded, returning }.
   gameStart(context = {}) {
     state.sessionStartMs = performance.now();

@@ -178,6 +178,7 @@ export class Bubbles {
     this._burstRemaining = 0;
     this._burstAcc = 0;
 
+    this.emittedCount = 0;
     this._spawnAcc = 0;
     this._tmpMat = new THREE.Matrix4();
     this._tmpPos = new THREE.Vector3();
@@ -510,6 +511,7 @@ export class Bubbles {
     p.spin = Math.random() * Math.PI * 2;
 
     this._writeInstance(idx, p.pos, p.size, p.spin);
+    this.emittedCount++;
   }
 
   _spawnSpecialOne(zerble, id) {
@@ -551,6 +553,7 @@ export class Bubbles {
     p.spin = Math.random() * Math.PI * 2;
     p.type = typeIndex;
     p.seed = Math.random();
+    this.emittedCount++;
     return true;
   }
 

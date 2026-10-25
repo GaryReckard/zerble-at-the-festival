@@ -11,6 +11,7 @@ import { steerDirFor, touchSteerDirFor } from './steering.js';
 
 const held = new Set();
 const edges = new Set();
+const untilRelease = new Set();
 
 function normalize(e) {
   if (e.key === ' ') return 'SPACE';
@@ -32,6 +33,10 @@ window.addEventListener('keydown', (e) => {
   // actions — the camera flips while you type. Editable target = not gameplay.
   if (e.target && e.target.matches && e.target.matches('input, textarea, select, [contenteditable]')) return;
   const k = normalize(e);
+  if (untilRelease.has(k)) {
+    if (e.repeat) return;
+    untilRelease.delete(k);
+  }
   if (!held.has(k)) edges.add(k);
   held.add(k);
   if (BLOCK_DEFAULT.has(k)) e.preventDefault();
@@ -40,6 +45,7 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
   const k = normalize(e);
   held.delete(k);
+  untilRelease.delete(k);
 });
 
 window.addEventListener('blur', () => {
@@ -59,6 +65,13 @@ function blendAxis(kbd, touch) {
 }
 
 export const Input = {
+  clear() {
+    for (const key of held) untilRelease.add(key);
+    held.clear();
+    edges.clear();
+    Touch.reset();
+  },
+
   isDown(k) {
     return held.has(k);
   },

@@ -37,6 +37,8 @@ import { BUBBLE_TYPES, charmLevel, visibleCatalog } from './bubbleTypes.js';
 import { createBubbleProgress } from './bubbleProgress.js';
 import { ChallengeTracker } from './bubbleChallenges.js';
 import { UpgradesMenu } from './upgradesMenu.js';
+import { createPlayerStats, PASSPORT_STAMPS } from './playerStats.js';
+import { PassportMenu } from './passportMenu.js';
 import { MidiPlayer } from './midiPlayer.js';
 import { Smiles } from './smiles.js';
 import { Fireworks } from './fireworks.js';
@@ -80,6 +82,16 @@ import { syncRenderPipelineSize } from './renderSizing.js';
 const bubbleProgress = createBubbleProgress({
   get: (key) => localStorage.getItem(key),
   set: (key, value) => localStorage.setItem(key, value),
+});
+
+const playerStats = createPlayerStats({
+  get: key => localStorage.getItem(key), set: (key, value) => localStorage.setItem(key, value),
+}, {
+  legacySmiles: bubbleProgress.lifetimeSmiles,
+  onStamp: id => {
+    Analytics.passportStamp(id, RunMode.name, playerStats.snapshot().visitId);
+    HUD.toast(`Passport stamped: ${PASSPORT_STAMPS.find(stamp => stamp.id === id)?.name || id}`, 2600);
+  },
 });
 
 // ---------- Session seed ----------
@@ -391,6 +403,7 @@ if (USE_WORLDGEN_V2) {
   }
 }
 
+const passportEntrance = { x: zerble.position.x, z: zerble.position.z };
 const bubbles = new Bubbles();
 if (__resume && Number.isFinite(__resume.juice)) bubbles.juice = __resume.juice;
 bubbles.setProgress(bubbleProgress);
@@ -498,6 +511,7 @@ const bubbleChallenges = new ChallengeTracker(bubbleProgress, {
   nightness: () => getTimeOfDay()?.nightness ?? 0,
   lurleenNear: () => lurleen.state === 'aware' || lurleen.state === 'following',
   stageFronts: (fn) => visitRegistryKind('stage_front', fn),
+  onStageVisit: (x, z) => { if (passportCanCollect()) playerStats.stage(x, z, getTimeOfDay()?.nightness ?? 0); },
   drumCircles: (fn) => { visitRegistryKind('bench_ring', fn); visitRegistryKind('drum_circle', fn); },
   isPointInLake,
   heartAt: (x, z) => {
@@ -655,7 +669,10 @@ crowd.onFrown = () => {
 };
 // An NPC climbed aboard — feed the passenger analytics (first board fires an
 // event; every board feeds the session_end count).
-crowd.onBoard = () => Analytics.passengerBoard();
+crowd.onBoard = () => {
+  Analytics.passengerBoard();
+  if (passportCanCollect()) playerStats.record('passengers');
+};
 
 // Nature-ambience proximity, recomputed every ~0.1s (see tick body).
 let _natureScanTimer = 0;
@@ -721,8 +738,12 @@ Settings.init({
   bubbles,
   // "Apply & restart" calls this to preserve a live session across the reload.
   // Returns null on the title card (nothing to resume) → a fresh boot.
-  captureState: () => running
-    ? { seed: window.__seed, x: zerble.position.x, z: zerble.position.z,
+  captureState: () => {
+    if (!running) return null;
+    // Consume telemetry before snapshotting so pagehide cannot replay a restart batch.
+    reportPassport('restart');
+    playerStats.flush();
+    return { passport: RunState.over ? null : playerStats.serializeVisit(), seed: window.__seed, x: zerble.position.x, z: zerble.position.z,
         // A dead run's score must not ride a snapshot into the next run
         // (adversary A11) — null BOTH scoring fields, matching `run` below.
         heading: zerble.heading,
@@ -730,10 +751,15 @@ Settings.init({
         scoring: RunState.over ? null : Scoring.serialize(),
         mode: RunMode.name, run: RunState.over ? null : RunState.serialize(),
         board: Leaderboard.serializeGlobal(),   // Worker token rides the resume (review 001)
-        juice: bubbles.juice, tod: getTimeOfDay()?.t }
-    : null,
+        juice: bubbles.juice, tod: getTimeOfDay()?.t };
+  },
 });
 UpgradesMenu.init(bubbleProgress);
+PassportMenu.init(playerStats, {
+  beforeOpen: () => { UpgradesMenu.close(); Settings.close(); },
+  onToggle: () => { Input.clear(); Sound.setEngineSpeed(0, 0); },
+  onOpen: () => Analytics.featureUsed('festival_passport'),
+});
 let nextUpgradeToastAt = 0;
 bubbleProgress.onUnlock(({ id, mode }) => {
   const type = BUBBLE_TYPES.find((entry) => entry.id === id);
@@ -819,6 +845,7 @@ HUD.onStart(() => {
     name_length: HUD.getPlayerName().length,
   });
   _sessionEndReported = false;
+  startPassport();
   // Sound.init() MUST run synchronously inside the tap handler on iOS — any
   // await/setTimeout boundary loses the "user gesture" status and the
   // AudioContext starts suspended (silent).
@@ -902,6 +929,21 @@ function finishIntroReveal() {
 // `beforeunload` is flaky on mobile. The guard resets when the tab returns, so
 // a session that briefly backgrounded still logs a fuller snapshot on the real
 // exit (the run rollup keeps accumulating across the gap).
+function passportCanCollect() {
+  return running && !document.hidden && !controlsLocked && !captureDriveLocked
+    && !PassportMenu.isOpen() && !(RunMode.isFestival() && RunState.over);
+}
+function startPassport() {
+  playerStats.start({ entrance: passportEntrance, position: zerble.position,
+    // This is a per-visit join key, independent of the world's seeded RNG stream.
+    id: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.round(performance.now() * 1000)}`,
+    worldSeed: window.__seed, gameMode: RunMode.name, resume: __resume?.passport });
+}
+function reportPassport(reason = 'interval') {
+  const report = playerStats.takeReport(reason);
+  if (report) Analytics.passportProgress(report);
+}
+
 function reportSessionEnd() {
   if (!running || _sessionEndReported) return;
   _sessionEndReported = true;
@@ -912,10 +954,10 @@ function reportSessionEnd() {
 // iOS suspends the AudioContext on tab switch / device lock. Resume on return.
 document.addEventListener('visibilitychange', () => {
   AdaptiveQuality.resetTiming();
-  if (document.hidden) { bubbleProgress.flush(); reportSessionEnd(); }
+  if (document.hidden) { bubbleProgress.flush(); playerStats.flush(); reportPassport('hide'); reportSessionEnd(); }
   else { _sessionEndReported = false; Sound.resume(); }
 });
-window.addEventListener('pagehide', () => { bubbleProgress.flush(); reportSessionEnd(); });
+window.addEventListener('pagehide', () => { bubbleProgress.flush(); playerStats.flush(); reportPassport('hide'); reportSessionEnd(); });
 window.addEventListener('pageshow', () => Sound.resume());
 // Belt-and-suspenders: any touch/click after we're running revives audio if
 // iOS dropped it for a reason we didn't see (route changes, headset unplug).
@@ -957,6 +999,11 @@ function tick() {
 }
 
 function tickBody(dt) {
+  // Keep the scene visible while all gameplay clocks and input consumers are paused.
+  if (PassportMenu.isOpen()) {
+    if (!LAYOUT_CAPTURE_MODE) composer.render();
+    return;
+  }
   if (running) {
     const tod = getTimeOfDay();
     const nightness = tod ? tod.nightness : 0;
@@ -965,7 +1012,10 @@ function tickBody(dt) {
     // During the opening reveal the player can't steer — feed Zerble a neutral
     // input so it idles while the camera does its thing.
     if (captureDriveLocked) zerble.speed = 0;
+    const passportActive = passportCanCollect();
+    const beforeDriveX = zerble.position.x, beforeDriveZ = zerble.position.z;
     zerble.update(dt, controlsLocked || captureDriveLocked ? NEUTRAL_INPUT : Input, nightness);
+    if (passportActive) playerStats.move(dt, beforeDriveX, beforeDriveZ, zerble.position.x, zerble.position.z);
     boostStreaks.update(dt, zerble, {
       reducedMotion: A11y.reducedMotion,
       effectsEnabled: AdaptiveQuality.bloomAllowed(),
@@ -1068,7 +1118,9 @@ function tickBody(dt) {
     zerble.setJuiceLevel(bubbles.juice);   // drives the bubble-machine liquid level + reserve jugs
     bubbleChallenges.tick(dt);
     bubbles.setSpecialContext(bubbleChallenges.context);
+    const emittedBefore = bubbles.emittedCount;
     bubbles.update(dt, zerble, nightness, camera);
+    if (passportCanCollect()) playerStats.record('bubbles', bubbles.emittedCount - emittedBefore);
     fireworks.update(dt, nightness, zerble.position, zerble.heading);
     HUD.setJuice(bubbles.juice);
     if (bubbles.juice > _maxJuiceReached) _maxJuiceReached = bubbles.juice;   // peak → session_end
@@ -1142,6 +1194,7 @@ function tickBody(dt) {
     smiles.update(dt, zerble, (n) => { _collectedThisFrame += n; });
     if (_collectedThisFrame > 0) {
       bubbleChallenges.onSmilesCollected(_collectedThisFrame);
+      if (passportCanCollect()) playerStats.record('smiles', _collectedThisFrame);
       Scoring.collect(_collectedThisFrame);
       Sound.playSmileCollect(_collectedThisFrame, Scoring.chain);
       HUD.setSmiles(Scoring.current);
@@ -1505,12 +1558,15 @@ function tickBody(dt) {
         }
         Sound.playCollision(hit.kind);
         Analytics.collision(hit.kind);
+        if (passportCanCollect()) playerStats.record('bonks');
       } else if (hit && hit.notify) {
         // Non-damaging but worth surfacing — e.g. Zerble bumps into Lurleen.
         HUD.toast(toastForKind(hit.kind), 1400);
         Sound.playSoftBump();
       }
     }
+
+    reportPassport();
 
     // Honk ring expansion
     if (honkAge < 1.2) {
@@ -1645,6 +1701,8 @@ function registerPeopleHit(hit) {
 // ---- Festival Run death + rescue ----
 function endFestivalRun(cause) {
   if (!RunState.endRun(cause)) return;
+  playerStats.flush();
+  reportPassport('run_end');
   zerble.sputtering = false;
   Sound.stopSputterLoop();
   Sound.playRunEndSting(cause);
@@ -1696,6 +1754,7 @@ function performLurleenRescue() {
     if (d2 < bestD) { bestD = d2; nearest = e; }
   }
   if (nearest) {
+    playerStats.relocate();
     const ang = Math.random() * Math.PI * 2;
     zerble.position.x = nearest.position.x + Math.cos(ang) * 6;
     zerble.position.z = nearest.position.z + Math.sin(ang) * 6;
@@ -1909,7 +1968,7 @@ if (window.visualViewport) {
 
 window.__game = {
   camera, zerble, scene, renderer, composer, bloomPass, fxaaPass, crowd, registry, chaseCam, lurleen, nutWagon, monks, oneWheels,
-  getTimeOfDay, Trip, StarPower, midi, birds, bubbles, bubbleProgress, bubbleChallenges, fireworks,
+  getTimeOfDay, Trip, StarPower, midi, birds, bubbles, bubbleProgress, bubbleChallenges, playerStats, fireworks,
   kids, wooks, puppets, band, hoopers, frisbees, smiles,
   sound: Sound, layoutCaptureMode: LAYOUT_CAPTURE_MODE,
 };
@@ -1949,6 +2008,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
 
   window.__dbg = {
     leaderboardInfo() { return Leaderboard.diagnostics(); },
+    passport(open = false) { if (open) PassportMenu.open(); return playerStats.snapshot(); },
     upgrades() {
       return {
         types: BUBBLE_TYPES.map(({ id, name, secret }) => ({ id, name, secret, earned: bubbleProgress.isEarned(id), enabled: bubbleProgress.isEnabled(id) })),
@@ -1985,6 +2045,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
       // mode-matched resume payload applies here exactly like the real tap.
       Scoring.configure({ stakes: RunMode.isFestival() });
       const dbgResumed = applyResumeGameState();
+      startPassport();
       Leaderboard.noteGameStart(RunMode.name, dbgResumed);
       if (RunMode.isFestival()) {
         if (!RunState.active) RunState.begin();
@@ -2248,6 +2309,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
 
     // Move the cart to world (x, z), zeroing speed.
     teleport(x = 0, z = 0) {
+      playerStats.relocate();
       zerble.position.set(x, zerble.position.y, z);
       zerble.speed = 0;
       return `teleported to (${x}, ${z})`;

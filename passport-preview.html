@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Festival Passport preview</title>
+<link rel="stylesheet" href="passport.css">
+<style>
+  body { margin: 0; background: #251b38; color: #fff6e6; font: 16px system-ui; padding: 24px; }
+  a { color: #f5d7a2; padding: 12px; display: inline-block; }
+  button { padding: 12px; }
+</style>
+<h1>Festival Passport preview</h1>
+<p>This preview uses memory only, without analytics, WebGL or player saves.</p>
+<nav aria-label="Preview fixtures">
+  <a href="?case=empty&mute=1">Empty</a><a href="?case=populated&mute=1">Populated</a>
+  <a href="?case=migrated&mute=1">Migrated smiles</a><a href="?case=long&mute=1">Long totals</a>
+  <a href="?case=blocked&mute=1">Saving unavailable</a>
+</nav>
+<button id="passport-open-title" type="button">Open Festival Passport</button>
+<script type="module">
+  import { createPlayerStats } from './src/playerStats.js';
+  import { createPassportMenu } from './src/passportMenu.js';
+  const fixture = new URLSearchParams(location.search).get('case') || 'populated';
+  const store = createPlayerStats({ get: () => null, set: () => { if (fixture === 'blocked') throw Error('Preview storage failure'); } },
+    { legacySmiles: fixture === 'migrated' ? 7800 : 0, now: () => Date.parse('2026-10-25T12:00:00Z') });
+  if (fixture !== 'empty' && fixture !== 'migrated') {
+    store.start({ entrance: { x: 0, z: 0 }, worldSeed: 1977 });
+    let x = 0;
+    for (let i = 0; i < 24; i++) { store.move(1, x, 0, x + 25, 0); x += 25; }
+    for (let i = 0; i < 24; i++) { store.move(1, x, 0, x - 25, 0); x -= 25; }
+    store.record('smiles', fixture === 'long' ? 123456789012 : 243);
+    store.record('bubbles', fixture === 'long' ? 987654321098 : 12840);
+    store.record('passengers', 8); store.record('bonks', 3);
+    store.stage(0, 0, 1); store.stage(200, 0); store.stage(600, 0);
+    store.flush();
+  }
+  const menu = createPassportMenu(); menu.init(store); menu.open();
+</script>
+</html>

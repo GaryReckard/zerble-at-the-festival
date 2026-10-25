@@ -36,6 +36,8 @@ Keep unresolved acceptance separate from shipped implementation.
 - [Leaderboard operations](../workers/leaderboard/README.md): Worker setup,
   diagnostics, deployment and request tracing.
 
+- [Festival Passport](passport.md): local progress, stamps, measurement rules, preview fixtures and GA4 reporting setup.
+
 ## Plans and backlog
 
 The [roadmap](../ROADMAP.md) is the pending-work index. Longer records preserve

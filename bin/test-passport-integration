@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { register } from 'node:module';
+import { Analytics } from '../src/analytics.js';
+import { createPlayerStats } from '../src/playerStats.js';
+import { createBubbleProgress } from '../src/bubbleProgress.js';
+import { ChallengeTracker } from '../src/bubbleChallenges.js';
+
+const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+const predicate = main.slice(main.indexOf('function passportCanCollect()'), main.indexOf('\nfunction startPassport()'));
+const state = { running: true, document: { hidden: false }, controlsLocked: false, captureDriveLocked: false,
+  PassportMenu: { isOpen: () => state.modal }, RunMode: { isFestival: () => state.festival }, RunState: { over: false } };
+const canCollect = vm.runInNewContext(predicate + ';passportCanCollect', state);
+assert.equal(canCollect(), true);
+for (const flag of ['running', 'controlsLocked', 'captureDriveLocked']) {
+  const previous = state[flag]; state[flag] = !previous; assert.equal(canCollect(), false, flag); state[flag] = previous;
+}
+state.document.hidden = true; assert.equal(canCollect(), false); state.document.hidden = false;
+state.modal = true; assert.equal(canCollect(), false); state.modal = false;
+state.festival = true; state.RunState.over = true; assert.equal(canCollect(), false); state.RunState.over = false;
+
+// Execute the actual pause branch, with a trap where gameplay would otherwise begin.
+const preamble = main.slice(main.indexOf('function tickBody(dt) {') + 'function tickBody(dt) {'.length, main.indexOf('  if (running) {', main.indexOf('function tickBody(dt) {')));
+let renders = 0;
+const paused = vm.runInNewContext(`(function(){${preamble}\nthrow Error('Gameplay advanced');})`, {
+  PassportMenu: { isOpen: () => true }, LAYOUT_CAPTURE_MODE: false, composer: { render() { renders++; } },
+});
+paused(); assert.equal(renders, 1, 'passport renders without executing gameplay');
+
+const events = [];
+globalThis.window = { gtag: (...args) => events.push(args) };
+const store = createPlayerStats({ get: () => null, set() {} }, { onStamp: id => Analytics.passportStamp(id, 'cruisin') });
+store.start({ entrance: { x: 0, z: 0 }, worldSeed: 4 });
+let eligible = false;
+const challenge = new ChallengeTracker(createBubbleProgress({ get: () => null, set() {} }), {
+  zerblePos: () => ({ x: 0, z: 0 }), stageFronts: fn => fn(0, 0),
+  onStageVisit: (x, z) => { if (eligible) store.stage(x, z); },
+});
+challenge.tick(0.5); assert.equal(store.snapshot().visit.stages, 0);
+eligible = true; challenge.tick(0.5); challenge.tick(0.5);
+assert.equal(store.snapshot().visit.stages, 1, 'hidden/intro stage entry cannot consume passport discovery');
+store.record('smiles', 3);
+const report = store.takeReport('restart');
+Analytics.passportProgress({ ...report, name: 'Do not send', x: 123, stageKeys: ['private'] });
+assert.equal(events.at(-1)[1], 'passport_progress');
+assert.equal(events.at(-1)[2].smiles_delta, 3);
+assert.equal(events.at(-1)[2].transport_type, 'beacon');
+assert.equal(Object.hasOwn(events.at(-1)[2], 'name'), false);
+assert.equal(Object.hasOwn(events.at(-1)[2], 'x'), false);
+assert.equal(Object.hasOwn(events.at(-1)[2], 'stageKeys'), false);
+assert.equal(store.takeReport('hide'), null);
+const eventCount = events.length;
+Analytics.passportStamp('invented', 'cruisin'); Analytics.passportStamp('wanderer', 'debug');
+assert.equal(events.length, eventCount);
+window.gtag = () => { throw Error('blocked'); };
+store.record('smiles', 1000);
+assert(store.snapshot().stamps.smile_spreader);
+assert.doesNotThrow(() => Analytics.passportProgress(store.takeReport('hide')));
+assert.equal(store.takeReport('hide'), null, 'failed transport does not replay later');
+delete window.gtag;
+assert.doesNotThrow(() => Analytics.passportStamp('wanderer', 'cruisin'));
+
+// Check successful emissions in the actual particle pools, including exhausted pools.
+register('./node-three-shim.mjs', import.meta.url);
+Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { hardwareConcurrency: 8, deviceMemory: 8, maxTouchPoints: 0 } });
+globalThis.location = { search: '' };
+globalThis.window = { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1, addEventListener() {} };
+globalThis.localStorage = { getItem: () => null };
+const { Bubbles } = await import('../src/bubbles.js');
+const { Vector3 } = await import('three');
+const bubbles = new Bubbles();
+const cart = { speed: 0, nozzleWorld: new Vector3(0, 2, 0), forwardWorld: new Vector3(0, 0, 1) };
+bubbles._spawnOne(cart); assert.equal(bubbles.emittedCount, 1);
+assert.equal(bubbles._spawnSpecialOne(cart, 'heart'), true); assert.equal(bubbles.emittedCount, 2);
+assert.equal(bubbles._spawnSpecialOne(cart, 'invalid'), false); assert.equal(bubbles.emittedCount, 2);
+for (const p of bubbles.particles) p.alive = true;
+for (const p of bubbles.specialParticles) p.alive = true;
+bubbles._spawnOne(cart); bubbles._spawnSpecialOne(cart, 'heart');
+assert.equal(bubbles.emittedCount, 2, 'pool exhaustion does not count attempts');
+for (const p of bubbles.specialParticles) p.alive = false;
+bubbles.setProgress(createBubbleProgress({ get: () => null, set() {} }));
+bubbles.unlockBurst('heart'); bubbles.update(0.1, cart);
+assert(Math.abs(bubbles._burstAcc - 0.6) < 1e-9, 'six births/second needs more than a tenth of a second');
+bubbles.update(0.1, cart);
+assert(bubbles.emittedCount > 2, 'unlock-burst births use the same counter');
+
+// Real keyboard/touch state must not survive a modal transition or repeat-held key.
+const listeners = {};
+window.addEventListener = (name, callback) => { listeners[name] = callback; };
+const { Input } = await import('../src/input.js');
+const { Touch } = await import('../src/touch.js');
+listeners.keydown({ key: 'w', preventDefault() {} });
+Object.assign(Touch.state, { throttle: 1, steer: 1, boost: true, honkLatched: true, camYawDelta: 1 });
+Input.clear();
+assert.equal(Input.throttle, 0); assert.equal(Input.steer, 0); assert.equal(Input.boost, false);
+assert.equal(Input.consumePressed('SPACE'), false); assert.equal(Input.camYaw, 0);
+listeners.keydown({ key: 'w', repeat: true, preventDefault() {} }); assert.equal(Input.throttle, 0);
+listeners.keyup({ key: 'w' });
+listeners.keydown({ key: 'w', preventDefault() {} }); assert.equal(Input.throttle, 1);
+Input.clear();
+console.log('PASS passport integration: real eligibility/pause branch, repeated stages, GA privacy/failure/checkpoints, successful emissions and cleared keyboard/touch');

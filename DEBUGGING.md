@@ -40,6 +40,12 @@ and registry benchmarks. Measurements and their limits belong in dated
 [verification reports](verification/README.md), while pending acceptance stays
 in [ROADMAP.md](ROADMAP.md).
 
+## Festival Passport preview
+
+Open `http://127.0.0.1:8765/passport-preview.html?case=populated&mute=1` on a loopback no-cache server. Fixtures `empty`, `populated`, `migrated`, `long` and `blocked` use the production menu with memory-only progress, without GA or WebGL. This preview is intentionally outside the LAN page allowlist. Test the live title and book buttons or `P` for integration; `__dbg.passport()` reads the live snapshot and `__dbg.passport(true)` opens it. A passport pauses gameplay, including Festival Run resource/timer changes, while preserving rendering.
+
+`node bin/test-player-stats` and `node bin/test-passport-integration` exercise travel/return, relocation, stage identity, migration, persistence, settings continuity, analytics privacy/checkpoints, real bubble births, and input release. Both are included in `npm run check`. [Contracts and analytics fields](docs/passport.md).
+
 ## Terrain driving proof
 
 Open `http://127.0.0.1:8765/terrain-sandbox.html?mute=1` on the existing

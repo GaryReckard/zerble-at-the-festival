@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-25
+
+### Added
+- **Players now have a Festival Passport.** The title menu, book button and `P` open visit/all-time records for distance from the original entrance, farthest adventure, distance driven, raw smiles, successful bubble emissions, distinct seeded stages, passengers, damaging bonks and active play time. Six permanent stamps celebrate wandering, coming home, stages, night visits, smiles and bubbles. The view pauses gameplay and releases held keyboard/touch gestures so reading cannot consume juice or cause damage. Browser-local saves import existing lifetime smiles once, survive settings restarts without duplicating totals, and keep working in memory when storage is unavailable. Relocations cannot inflate exploration records. Incremental GA4 batches run every 60 active seconds and on hide/restart/run end, with a per-visit join key, no names/coordinates and independent local persistence. The DOM preview, measurement contracts, analytics setup and verification are linked in [the passport guide](docs/passport.md).
+
 ## 2026-10-24
 
 ### Added

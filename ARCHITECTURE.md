@@ -597,6 +597,14 @@ Vanilla DOM, no framework.
 
 ---
 
+## Festival Passport (`playerStats.js`, `passportMenu.js`)
+
+The pure stats store owns versioned `zerble.passport` persistence, visit counters, all-time totals, stage identities and six permanent stamps. It imports BubbleProgress's existing lifetime raw-smile count once; BubbleProgress continues owning bubble unlocks. Main owns one eligibility predicate and brackets the actual cart update for planar travel, feeds raw smile collections, successful `Bubbles.emittedCount` increments, damaging collisions and boardings, and observes repeated stage proximity callbacks. Stage keys include the world seed and rounded coordinates, never registry object identities.
+
+The DOM menu provides This visit / All time tabs, an inert background, focus containment/restoration, and keyboard/touch access. Opening it pauses the gameplay tick while rendering continues; both transitions clear keyboard and touch gestures. Intro, hidden-tab, capture-lock and game-over observations are excluded. Relocation invalidates exploration records and new stage discoveries for the rest of that visit, but later actual driving and other counters still count. Settings restart preserves the original entrance and absolute visit state independently of run-mode restoration, flushing telemetry before capture. Ordinary reload starts a fresh visit. Local totals flush every ten active seconds, on stamps and on hide; storage failure leaves in-memory play working.
+
+[Measurement contracts, GA4 setup and preview](docs/passport.md). The DOM-only [preview](passport-preview.html?case=populated&mute=1) uses injected memory and no analytics or WebGL.
+
 ## Analytics (`analytics.js`)
 
 Thin `gtag` wrapper. Events:
@@ -607,6 +615,8 @@ Thin `gtag` wrapper. Events:
 - `personal_best`
 - `collision` (by kind)
 - `view_toggle` (mode)
+- `passport_progress` (incremental counters every 60 active seconds, on hide, settings restart and run end; current/max distance remain gauges)
+- `passport_stamp` (new permanent stamp, once locally; includes a per-visit join key)
 - `lurleen_found`
 
 `try`/`catch` around every `gtag` call so analytics failures (ad blockers, offline dev) never break gameplay.

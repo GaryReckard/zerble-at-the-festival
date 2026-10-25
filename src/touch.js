@@ -68,6 +68,17 @@ let $btnMusic = null;
 export const Touch = {
   state,
 
+  // A modal must release active gestures, not merely ignore their current axes.
+  reset() {
+    stickTouchId = dragTouchId = pinchIdA = pinchIdB = null;
+    honkTouchId = boostTouchId = slowTouchId = musicTouchId = null;
+    mouseDragging = false;
+    Object.assign(state, { throttle: 0, steer: 0, boost: false, slow: false,
+      honkLatched: false, musicLatched: false, camYawDelta: 0, camPitchDelta: 0, zoomMul: 1 });
+    if ($stickKnob) $stickKnob.style.transform = 'translate(0px, 0px)';
+    for (const button of [$btnHonk, $btnBoost, $btnSlow, $btnMusic]) button?.classList.remove('pressed');
+  },
+
   // "Show the touch UI" sniff. `(pointer: coarse)` is true on phones/tablets
   // where touch is the *primary* input, and false on desktops with a
   // secondary touchscreen — exactly what we want. iOS Safari, Android Chrome

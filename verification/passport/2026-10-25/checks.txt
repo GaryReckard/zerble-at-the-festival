@@ -1,0 +1,108 @@
+Command: npm run check
+Working tree: /private/tmp/zerble-festival-passport
+Branch: codex/festival-passport
+Exit code: 0
+
+Selected test output (Node module-type warnings omitted):
+PASS passport: movement/return, six stamps, raw counters, migration, corruption/blocked storage, stage identity, relocation, resume and incremental telemetry
+PASS passport integration: real eligibility/pause branch, repeated stages, GA privacy/failure/checkpoints, successful emissions and cleared keyboard/touch
+PASS actual game command adapter: coherent pause/step queue, time/heading/juice, safe crowd states, scene-render counts, camera transforms, claims inspection and session mute.
+PASS 20-command grammar: real argument dispatch, bounds/arity before mutation, readiness, failure feedback, prototype rejection and contextual nested completion.
+PASS debug teleports: per-category cycling, wrap, singleton/missing destinations, drive-away and seed reset, arrival transforms and safe command parsing.
+PASS command input isolation: editable focus clears existing held/edge controls and subsequent text never enters gameplay input.
+PASS contextual autocomplete: command and argument discovery, prefix/case filtering, exact matches, coordinate isolation and caret-token replacement.
+PASS Camp music: five coherent deterministic parts, bounded four-player ensembles/32 voices, skipped overdue beats, suspended context safety and complete/idempotent teardown.
+PASS Sound bridge: pre-gesture deferral/cancellation, listener-driven adoption, local spatial range and shared music bus, complete teardown.
+PASS Camp instruments: five distinct pooled bodies, bounded material draws, no per-copy geometry/material allocation, no shadow casters, upright bass and independent fiddle bow. Browser checks establish raster appearance.
+PASS 60 actual crowd instrument attachments: five kinds, three actor scales, carrying/ready/playing/return poses, grounded bass and fiddle at chin.
+PASS Fireside activity: complete fetch/carry/seat/play/return lifecycle, shared household beds, unique 2–4 player parts, claims/model/audio cleanup, interruptions/unloads, time/distance gates and collision-safe bounded walking.
+PASS woodland planning: 63 districts / 392 pitches, five seeds, woods/road/water bounds, shared hosts, access and query/seed invariance.
+PASS production integration: live-v2 ordering, canonical ownership, no orphan satellites, isolated RNG and resident ownership.
+PASS 300 door clipping comparisons: exact vertices/order, thin strips, reversed winding, boundaries and scales.
+PASS 200 camp claim comparisons; distant scene slot-coordinate reads 548 -> 0.
+PASS 240 camp chairs: four distinct styles, one RNG draw, pooled geometry/materials, batching compatibility, seat metadata and no shadow casters.
+PASS 100 real crowd chair-contact transforms: four styles, both loveseat seats, NPC scales and animation phases.
+PASS camp recipes and 6000 neighborhoods: bounded compact reservations, shelter spacing, deterministic fans, shared facilities and collision retry candidates.
+PASS 1800 deterministic campsite layouts across all archetypes and roles: family fabric bounds, footprint, furniture, privacy and torch clearance.
+PASS construction counts: 360 camps build only retained tents/screens/canopies; omitted canopies construct no discarded chairs.
+PASS chair batching: shared resources, metadata anchors, all transforms retained and instance upload flagged.
+PASS fire schedule: cold daytime charcoal, evening flames and extinguished late-night fire.
+PASS lantern/tent lighting: noon cold, evening internally lit fabric and motion, late-night tents dark.
+PASS privacy texture ownership: distinct 64x64 canvas sources before the first render.
+PASS 100 physical camp neighborhoods: 7-7 camps, shared empty ground with solid/door/chair approach clearance.
+PASS tent doors: triangular split flaps, curved left-hinge D zippers, bowed dome mapping and exact faceted-shell clipping.
+PASS actual door glow: daytime cloth retained, thirteen cached silhouette poses, fixed buffer updates and late-night extinction.
+PASS 11 woodland groups against actual camp geometry and earlier neighbor trunks: 61/67 pitches.
+PASS seed1977 woodland: dry host at distance164.973 survives lake bounding radius162.926 only after exact water checks; shoreline solids still reject.
+PASS actual clearing infill: 156 sleeping tents around24 retained social centers, bounded18m placement, no redundant chairs or solid/door/chair conflicts.
+PASS rejected infill releases private resources, preserves shared pools and bounds allocation retries.
+PASS campsite transforms, granular collisions, seat/bed metadata, and owner lifetimes
+PASS camp hearth metadata follows actual rotated/scaled fire position
+PASS loveseat slots share the furniture collider while retaining independent reservations
+PASS compact placement rejects furniture/door conflicts and preserves external reservations without mutation
+PASS forest placement distinguishes containing owner reservations, foreign forests and physical tree solids
+PASS chair approaches select a clear full route, omit unreachable claims and protect older routes from later camps
+PASS checked-water opt-in preserves unchecked/preview lake protection, shoreline solids and unrelated reservations
+PASS production preflight: seventeen dry checks authorize opt-in; previews stay unchecked and wet center/rim stop before construction.
+PASS 6000 production village layouts: 5-7 sites, planner bounds and shared frontages (physical clearance tested by test-campsite-layout)
+PASS blocked host suppresses dependent satellite pitches
+PASS 500 real forest plans (5937 pitches): host filtering, deterministic groups, runtime rejection and center-chunk ownership
+PASS forced camp departure waits for physical exit clearance
+PASS One-wheel motion: 30/60/120fps equivalence, corners/endpoints, pedestrian/cart/crossing yields, safe resumption, blocked/water recovery and gathering stops
+PASS One-wheel lifecycle: full-footprint water, live collider position, distant despawn, shared pools, owned LED disposal and idempotent teardown
+PASS One-wheel integration: smooth braking, BFCache lifecycle, pre-collision index sync and five-seed road encounter determinism
+PASS One-wheel collisions: normal people-hit classification and rider recovery pause
+PASS sandbox selection preserves session mute, tier and seed flags
+PASS One-wheel model: distance-based wheel rotation, time partitioning, stopped/reverse motion, bounded lean, settling and independent day/night LED updates.
+PASS Healing Arts: 53/573 hubs across five seeds, full-footprint clearance, spacing, determinism, night audio and unload
+PASS Healing Arts: staggered real-NPC handoff, incoming assignment, appearance, bounded population, dawn and unload
+PASS Healing Arts: interrupted arrivals, flee preservation and rig-aware walking separation
+PASS Healing Arts motion: 30 seeded configurations × 400 times × 20 dancers
+PASS managed yoga homes, hidden render parts/glowsticks, dance glowsticks, and continuous four-second arrival
+PASS muted launches, ordinary launches and explicit session overrides
+PASS  renderer/composer/bloom/FXAA dimensions across quality and viewport changes
+PASS post-process preparation uses exact pass materials, waits, draws offscreen, preserves policy, and restores state on failure
+PASS game boot waits before arming Start, skips GPU preparation in layout capture, and recovers from preparation failure
+PASS  bubbles hide when empty and render emission, popping, and refills
+PASS  bubble pops remove instantly, emit pooled outward droplets, then fade cleanly
+PASS bubble types: catalog, weighted picker, rates, charm, tint animations, and secret visibility
+PASS bubble progress: empty/corrupt/blocked storage, idempotence, toggles, round trips, and debounced smiles
+PASS bubble challenges: all unlock rules, negative cases, position identity, and context snapshot
+PASS  special emission rate, dry unlock burst, fixed pool, crowd visitation, and idle render visibility
+PASS bubble GA4 unlock and menu events, once-per-run gating, and unavailable-tag safety
+PASS upgrade sound: post-start guard, four rising scheduled notes, SFX bus routing and envelopes
+PASS smiles: bounded resources over 400 pickups, all removal paths, motion, scoring, colorblind marker, owner teardown
+PASS registry indexes: 11182 differential states; {"add":3556,"remove":1263,"unload":1601,"reload":809,"live":1544,"rebuild":1580}
+PASS 1500 moving/resizing/unloading states match full-rebuild candidate order; unchanged cells incur zero writes and removals leave no phantoms
+PASS  2016 frame comparisons; identical happiness, motion and scoring; 2752 fewer Math.hypot calls; range invariant holds
+PASS  kid target commitment, grab radius, personal space, state changes, center steering, angle wrap and speed at 30/60/120 fps
+PASS  shadow Off survives streaming and day/night; On restores without caster retention
+PASS  indexed lake queries preserve geometry and add/remove behavior
+PASS lake clearing integration: original-host snapshot, isolated seeds, immediate registration, lake-owned lifetimes, tree clearances, exact dry preflight and footprint-aware roads.
+PASS playtest URL validation, zero coordinates, resume precedence and preload order
+PASS  cached road neighbors match uncached results across seed and tuning changes
+PASS 288 stage clearances across five seeds, negative controls and query-order determinism
+PASS 170 food court rings clear of roads across five seeds
+PASS  welcome court selection and safe Sugar Shack fallback
+PASS  capture-only frame distributions, attribution, hidden-frame filtering, and event bounds
+PASS  capture phase ownership, parked controls, slow Trip, free resume, upload serialization, and frozen retry
+PASS  eager initial preload and bounded empty-residency admission
+PASS  cross-phase quality and physical render-size contamination
+PASS  desktop/phone URLs and LAN token checks
+PASS  6000 trials, 36000 queries (3007 post-rebuild, 12716 oversized) — grid+bigFp closestBuilding == linear scan (boolean + exact min distance)
+PASS  4000 seeds — buildForestTree (birch+oak+pine) + buildTree (leaf+cone) rng stream + crown/perches unchanged (sha256 badb6efd125e…)
+PASS  adaptive quality uses fresh samples, per-boundary recovery holds/backoff, and immediate safety drops
+PASS  low tier starts cheap, skips inert rungs, and respects the detailed-bubbles override
+PASS quality experiment, foreground timing, outcomes, recovery, summaries and GA payloads
+PASS  game-juice edges, accessibility gates, fixed pool, lifetime, and disposal safety
+PASS  photographer determinism, rare-role state machine, flash edge, pooling, and shadow safety
+PASS  stable crowd appearance, 6 skin tones, 6 hair forms, 12 shirts, 6.6% drinks, RNG isolation, slot pooling, no extra shadow casters
+PASS production hair geometry: shoulder-length curtain, rear ponytail, raised bun, two braids and modeled curls
+PASS  frisbee player has relaxed, one-arm catch, windup, and release poses
+PASS  far-field owner-cell fixtures, deterministic descriptor copying, worldgen-input immutability, fixed-capacity nearest selection, snapshot-planner supersession, the enablement truth table, handoff policy, palette + instHash stability, shared roofs and vendor slots, instance expansion, the real-worldgen pool drive (caps, determinism, bounds enclosure after a distant rewrite, night gating), the completion handoff (dither wiring, snap-then-envelope, shared-deadline remainder, reduced-motion snap, unload reappearance), long-travel resource plateaus + registry off-on identity + forcing controls + the no-builder/no-light/no-shadow source contract, coarse forest masses (grid ownership, threshold gating, jittered-owner handoff, per-tier tri-budget gate), and owner-only disposal idempotence
+PASS touch steering: real touch handlers, deadzones, 36 reversal scenarios at 30/60/120 fps, 45 unchanged keyboard trajectories, cancel/reanchor
+✔ leaderboard client diagnostics (offline, isolated browser globals) (43.510959ms)
+ℹ tests 41
+ℹ pass 41
+ℹ fail 0
+ℹ duration_ms 44.857334

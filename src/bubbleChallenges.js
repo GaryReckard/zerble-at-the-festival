@@ -136,6 +136,8 @@ export class ChallengeTracker {
     if (d2 <= 40 ** 2) this._nearStage = true;
     if (d2 <= CHALLENGE.stageRadius ** 2) {
       this.stagesSeen.add(positionKey(stageX, stageZ));
+      // Repeat observations so an ineligible (intro/hidden) encounter cannot consume discovery.
+      this.world.onStageVisit?.(stageX, stageZ);
     }
   }
 

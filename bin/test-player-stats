@@ -1,0 +1,123 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createPlayerStats, PASSPORT_KEY } from '../src/playerStats.js';
+
+const values = new Map();
+const storage = { get: key => values.get(key), set: (key, value) => values.set(key, value) };
+const earned = [];
+const options = { legacySmiles: 900, now: () => Date.parse('2026-10-25T12:00:00Z'), onStamp: id => earned.push(id) };
+const stats = createPlayerStats(storage, options);
+const start = (store, extra = {}) => store.start({ entrance: { x: 100, z: 200 }, worldSeed: 1977, id: 'test-visit', ...extra });
+assert.equal(stats.snapshot().allTime.smiles, 900);
+assert.equal(stats.takeReport('hide'), null, 'migration never becomes telemetry');
+assert(start(stats));
+let x = 100;
+function drive(store, target, from = x) {
+  while (Math.abs(target - from) > 0.001) {
+    const to = from + Math.sign(target - from) * Math.min(25, Math.abs(target - from));
+    store.move(1, from, 200, to, 200);
+    from = to;
+  }
+  return from;
+}
+x = drive(stats, 625);
+assert.equal(stats.snapshot().visit.currentDistance, 525);
+assert.equal(stats.snapshot().visit.distance, 525);
+assert.equal(stats.snapshot().allTime.farthest, 525);
+assert.deepEqual(earned, ['wanderer']);
+x = drive(stats, 100);
+assert.equal(stats.snapshot().visit.currentDistance, 0);
+assert.equal(stats.snapshot().visit.distance, 1050);
+assert.equal(stats.snapshot().visit.farthest, 525);
+assert(earned.includes('there_and_back'));
+stats.record('smiles', 100);
+stats.record('bubbles', 1000);
+stats.record('passengers', 2);
+stats.record('bonks');
+for (const key of ['smiles', 'bubbles', 'bonks']) { stats.record(key, NaN); stats.record(key, -2); }
+stats.record('distance', 1e6);
+stats.stage(10, 20, 0);
+stats.stage(10, 20, 1);
+stats.stage(30, 40);
+stats.stage(50, 60);
+assert.equal(stats.snapshot().visit.stages, 3);
+assert.equal(earned.length, 6, 'six permanent stamps, including a night revisit');
+stats.stage(50, 60, 1);
+assert.equal(earned.length, 6, 'stamps are idempotent');
+const report = stats.takeReport('hide');
+assert.equal(report.smiles_delta, 100, 'legacy smiles are excluded');
+assert.equal(report.visit_id, 'test-visit');
+assert.equal(report.distance_m_delta, 1050);
+assert.equal(report.stages_delta, 3);
+assert.equal(report.max_distance_m, 525);
+assert.equal(stats.takeReport('hide'), null, 'duplicate hide/pagehide cannot replay');
+stats.record('smiles', 1);
+assert.equal(stats.takeReport(), null, 'a minute of active simulation is required');
+for (let i = 0; i < 60; i++) stats.move(1, x, 200, x, 200);
+assert.equal(stats.takeReport().smiles_delta, 1);
+
+stats.flush();
+const visit = stats.serializeVisit();
+const resumed = createPlayerStats(storage, { ...options, legacySmiles: 999999 });
+start(resumed, { resume: visit, gameMode: 'festival' });
+assert.equal(resumed.snapshot().visitId, 'test-visit');
+assert.equal(resumed.snapshot().visit.distance, 1050);
+assert.equal(resumed.snapshot().allTime.distance, 1050, 'resume never re-adds visit totals');
+assert.equal(resumed.snapshot().allTime.smiles, 1001, 'migration happens once');
+assert.equal(resumed.takeReport('hide'), null, 'restart cannot replay consumed increments');
+resumed.stage(10, 20);
+assert.equal(resumed.snapshot().visit.stages, 3);
+assert.equal(resumed.takeReport('hide'), null);
+const fresh = createPlayerStats(storage, options);
+start(fresh);
+assert.equal(fresh.snapshot().visit.distance, 0);
+assert.equal(fresh.snapshot().allTime.distance, 1050);
+fresh.stage(10, 20);
+assert.equal(fresh.snapshot().allTime.stages, 3, 'same seeded stage is unique across visits');
+assert.equal(fresh.takeReport('hide').stages_delta, 1, 'telemetry measures this visit discoveries');
+const anotherWorld = createPlayerStats(storage, options);
+start(anotherWorld, { worldSeed: 1978 });
+anotherWorld.stage(10, 20);
+assert.equal(anotherWorld.snapshot().allTime.stages, 4);
+
+// Relocation plus later ordinary movement cannot promote remote records or stages.
+fresh.move(1, 5100, 200, 5101, 200);
+fresh.stage(5101, 200, 1);
+assert.equal(fresh.snapshot().visit.distance, 1);
+assert.equal(fresh.snapshot().visit.currentDistance, 5001);
+assert.equal(fresh.snapshot().visit.farthest, 0);
+assert.equal(fresh.snapshot().visit.stages, 1);
+assert.equal(fresh.snapshot().explorationEligible, false);
+fresh.move(1, 5101, 200, 100, 200);
+assert.equal(fresh.snapshot().visit.distance, 1, 'an internal jump is not driving');
+const afterRescue = createPlayerStats(storage, options);
+start(afterRescue);
+afterRescue.relocate();
+afterRescue.move(1, 100, 200, 101, 200);
+assert.equal(afterRescue.snapshot().visit.farthest, 0);
+const restoredRescue = createPlayerStats(storage, options);
+start(restoredRescue, { resume: afterRescue.serializeVisit() });
+assert.equal(restoredRescue.snapshot().explorationEligible, false);
+assert.equal(restoredRescue.start({ entrance: { x: NaN, z: 0 } }), false);
+
+const bad = createPlayerStats({ get: () => '{bad', set() {} }, options);
+assert.equal(bad.snapshot().allTime.smiles, 900);
+const malformed = createPlayerStats({ get: () => JSON.stringify({ v: 1, migrated: true,
+  totals: { smiles: -1, distance: '100', bubbles: null }, stageKeys: ['bad', '1977:1,2'],
+  stamps: { night_owl: 'no date', injected: '2026-10-25T12:00:00Z' } }), set() {} });
+assert.equal(malformed.snapshot().allTime.smiles, 0);
+assert.equal(malformed.snapshot().allTime.stages, 1);
+assert.deepEqual(malformed.snapshot().stamps, {});
+let blocked = true;
+const unavailable = createPlayerStats({ get() { throw Error('blocked'); }, set() { if (blocked) throw Error('blocked'); } }, options);
+start(unavailable);
+unavailable.record('smiles', 5);
+assert.equal(unavailable.snapshot().storageOK, false);
+assert.equal(unavailable.snapshot().allTime.smiles, 905);
+blocked = false;
+assert.equal(unavailable.flush(), true);
+assert.equal(unavailable.snapshot().allTime.smiles, 905, 'retry does not reimport');
+const detached = stats.snapshot(); detached.allTime.smiles = 99;
+assert.equal(stats.snapshot().allTime.smiles, 1001);
+assert.equal(JSON.parse(values.get(PASSPORT_KEY)).v, 1);
+console.log('PASS passport: movement/return, six stamps, raw counters, migration, corruption/blocked storage, stage identity, relocation, resume and incremental telemetry');

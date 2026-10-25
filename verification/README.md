@@ -7,6 +7,10 @@ report's date, source baseline, method and limitations before using its result.
 A desktop CPU benchmark is not a phone FPS measurement, and a passing render is
 not physical-device acceptance.
 
+## Player progression
+
+- [Festival Passport, October 25](passport/2026-10-25/README.md): pure/integration checks, Low/Mid boots, settings continuity, paused Festival Run and responsive captures.
+
 ## Recent investigations
 
 | Evidence | What it establishes |
