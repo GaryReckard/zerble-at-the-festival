@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {terrainHeight} from './worldgen/terrain.js';
 import {buildMonk} from './models/monk.js';
 import {registry} from './registry.js';
 import {lakeAt} from './worldgen/water.js';
@@ -157,7 +158,9 @@ export class MonkParty {
         const g=npc.avatar;if(!g)return;
         g.visible=npc.state!=='using_potty'&&npc.state!=='camp_sleeping'&&!npc.festivalVisit?.hidden;
         const riding=npc.state==='riding',sitting=(riding&&npc.seatSlot?.kind!=='standing')||npc.state==='table_seated'||npc.pottySitting;
-        g.position.set(npc.pos.x,(sitting&&npc.seatY!=null?npc.seatY-.62*npc.scale:riding&&npc.seatY!=null?npc.seatY-(npc.seatSlot?.vehicle?0:1.05):0),npc.pos.z);
+        const groundY = npc.state==='hammock_riding'&&npc.hammockY!=null?npc.hammockY
+            :npc.state==='camp_seated'&&npc.campSlot?npc.campSlot.y:terrainHeight(npc.pos.x,npc.pos.z);
+        g.position.set(npc.pos.x,(sitting&&npc.seatY!=null?npc.seatY-.62*npc.scale:riding&&npc.seatY!=null?npc.seatY-(npc.seatSlot?.vehicle?0:1.05):groundY),npc.pos.z);
         g.rotation.set(0,npc.yaw,0);g.scale.setScalar(npc.scale);
         const speed=riding?0:Math.hypot(npc.vel.x,npc.vel.z);
         g.userData.pose(npc.bob,speed,!!sitting,riding&&npc.seatSlot?.name==='platform');

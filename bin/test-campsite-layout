@@ -388,7 +388,7 @@ console.log('PASS seed1977 woodland: dry host at distance164.973 survives lake b
 // Shared-clearing infill exercises actual tent/chair builders and transforms,
 // rather than treating whole campsite reservation circles as solid objects.
 const clearingSource=readFileSync(new URL('../src/campClearing.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace('export function populateCampClearing','function populateCampClearing');
-const populate=vm.runInNewContext(clearingSource+';populateCampClearing',{mulberry32,planCampRecipe,CAMP_ARCHETYPES,buildCampsite:build,canPlaceCampsite});
+const populate=vm.runInNewContext(clearingSource+';populateCampClearing',{terrainHeight:()=>0,mulberry32,planCampRecipe,CAMP_ARCHETYPES,buildCampsite:build,canPlaceCampsite});
 let infillCount=0;
 for(let seed=1;seed<=24;seed++){
  const entries=new Map(),byKind=new Map();let next=0;
@@ -410,7 +410,7 @@ console.log(`PASS actual clearing infill: ${infillCount} sleeping tents around24
 // Rejection paths must release private GPU resources without touching pools.
 let allocations=0,privateDisposals=0,sharedDisposals=0;
 const resource=shared=>({userData:{shared},dispose(){shared?sharedDisposals++:privateDisposals++;}});
-const rejectedPopulate=vm.runInNewContext(clearingSource+';populateCampClearing',{mulberry32,planCampRecipe,CAMP_ARCHETYPES,canPlaceCampsite:()=>false,buildCampsite(){allocations++;return{footprint:7,group:{position:{set(){}},rotation:{},traverse(fn){fn({geometry:resource(false),material:resource(false)});fn({geometry:resource(true),material:resource(true)});}}};}});
+const rejectedPopulate=vm.runInNewContext(clearingSource+';populateCampClearing',{terrainHeight:()=>0,mulberry32,planCampRecipe,CAMP_ARCHETYPES,canPlaceCampsite:()=>false,buildCampsite(){allocations++;return{footprint:7,group:{position:{set(){}},rotation:{},traverse(fn){fn({geometry:resource(false),material:resource(false)});fn({geometry:resource(true),material:resource(true)});}}};}});
 const emptyHost={group:{position:{x:0,z:0},rotation:{y:0}}};
 assert.throws(()=>rejectedPopulate({},emptyHost,{seed:1}),/callbacks/);
 assert.equal(rejectedPopulate({},emptyHost,{seed:1,canUsePitch:()=>true,onAccept(){throw Error('rejected camp adopted');}}).length,0);

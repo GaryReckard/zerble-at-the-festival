@@ -1,3 +1,4 @@
+import { terrainHeight } from './worldgen/terrain.js';
 // Infill an existing camp's shared empty ground with sleeping pitches. The
 // owner supplies real water/road checks and adopts each accepted model before
 // the next preflight, so lake lifecycle and collision truth stay synchronous.
@@ -31,7 +32,7 @@ export function populateCampClearing(registry,host,{seed,neighborhood,canUsePitc
     let placed=false;
     for(const candidate of candidates){
       if(!canUsePitch(candidate.x,candidate.z,camp.footprint))continue;
-      camp.group.position.set(candidate.x,0,candidate.z);
+      camp.group.position.set(candidate.x, terrainHeight(candidate.x, candidate.z), candidate.z);
       const face=Math.atan2(origin.x-candidate.x,origin.z-candidate.z);
       camp.group.rotation.y=face-(camp.entranceYaw||0);
       if(!canPlaceCampsite(registry,camp,neighborhood,{waterChecked:true}))continue;

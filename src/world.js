@@ -6,7 +6,8 @@ import { buildMountains } from './mountains.js';
 import { ChunkManager } from './chunks.js';
 import { LakeManager } from './lakes.js';
 import { FarField } from './farField.js';
-import { hash2, terrainHeight } from './rng.js';
+import { hash2 } from './rng.js';
+import { terrainHeight, terrainEnabled } from './worldgen/terrain.js';
 import { TimeOfDay } from './timeOfDay.js';
 import { PERF, USE_FAR_FIELD } from './perf.js';
 import { A11y } from './a11y.js';
@@ -199,20 +200,20 @@ function resampleGroundSurface(mesh, originX, originZ) {
   const geo = mesh.geometry;
   const pos = geo.attributes.position;
   const colors = geo.attributes.color.array;
-  const centerOffset = terrainHeight(originX, originZ);
   for (let i = 0; i < pos.count; i++) {
     const lx = pos.getX(i);
     const lz = pos.getZ(i);
-    pos.setY(i, terrainHeight(originX + lx, originZ + lz) - centerOffset);
+    pos.setY(i, terrainHeight(originX + lx, originZ + lz));
     writeGroundColor(colors, i * 3, originX + lx, originZ + lz);
   }
   pos.needsUpdate = true;
   geo.attributes.color.needsUpdate = true;
   mesh.material.map.offset.set(
     (originX - GROUND_SIZE / 2) / GRASS_TILE_METERS,
-    (originZ - GROUND_SIZE / 2) / GRASS_TILE_METERS,
+    -(originZ + GROUND_SIZE / 2) / GRASS_TILE_METERS,
   );
-  // Normals stay close enough at this scale; recomputing them every 40m hurts perf.
+  // Changed relief needs matching lighting and bounds after every recenter.
+  if (terrainEnabled()) { geo.computeVertexNormals(); geo.computeBoundingSphere(); }
 }
 
 function smoothstep(t) {
@@ -528,13 +529,12 @@ function buildGround(scene, originX, originZ) {
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
 
-  // The ground follows the player; subtract the center's Y so the cart sits at y=0.
-  const centerOffset = terrainHeight(originX, originZ);
+  // The 10m lattice remains anchored in world space across 40m recenters.
 
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
-    pos.setY(i, terrainHeight(originX + x, originZ + z) - centerOffset);
+    pos.setY(i, terrainHeight(originX + x, originZ + z));
 
     writeGroundColor(colors, i * 3, originX + x, originZ + z);
   }
@@ -550,7 +550,7 @@ function buildGround(scene, originX, originZ) {
   });
   mat.map.offset.set(
     (originX - GROUND_SIZE / 2) / GRASS_TILE_METERS,
-    (originZ - GROUND_SIZE / 2) / GRASS_TILE_METERS,
+    -(originZ + GROUND_SIZE / 2) / GRASS_TILE_METERS,
   );
   const ground = new THREE.Mesh(geo, mat);
   ground.position.set(originX, 0, originZ);

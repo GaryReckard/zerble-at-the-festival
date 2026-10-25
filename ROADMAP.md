@@ -13,17 +13,18 @@ reproduction lead, not proof that the current build still has the problem.
 
 ---
 
-## Terrain proof acceptance
+## Terrain integration acceptance
 
-Follow the [bounded integration sequence](verification/terrain/2026-10-24-integration-plan.md), starting with map responsiveness before shared elevation previews.
-
-The [playable driving course](verification/terrain/2026-10-24-driving-proof.md)
-implements the bounded contact/driving experiment from the
-[elevation proposal](verification/terrain/2026-10-24-proposal.md). Gary confirmed smooth driving and good mobile play on October 24. Match the
-game’s baseline acceleration/boost before choosing final motor/grade tuning.
-Procedural terrain, graded venues/roads, lakes, walking NPCs, streaming/far-field
-handoffs and live-game camera modes remain the subsequent integration phases;
-the sandbox does not establish those contracts or mobile performance.
+The real game now supports opt-in `terrain=1`, with shared map/driving inspection,
+grounded consumers and matching flat acceleration/boost. See the
+[current evidence](verification/terrain/2026-10-25-integration.md) and
+[active checklist](openspec/changes/varying-elevation/tasks.md).
+Before default enablement, finish repeated streaming/unload/revisit checks,
+road-grade and collision-height audits, all camera modes, Noon/Midnight tier
+comparisons and device performance acceptance. Gary's positive mobile report
+covers the authored driving proof; it does not establish full-game iOS acceptance.
+The new tent support-plane fix still needs visual checks across shelter families
+and terrain creases.
 
 ## Nut Wagon follow-ups
 

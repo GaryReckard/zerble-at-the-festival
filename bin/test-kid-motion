@@ -27,6 +27,7 @@ const nudgeKidFromNeighbors = vm.runInNewContext(`(${source.slice(nudgeStart, nu
 });
 const update = vm.runInNewContext(`({${source.slice(start, end)}}).update`, {
   Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
+  terrainHeight: () => 0,
   KID_HARD_SEPARATION: 0.82,
   nudgeKidFromNeighbors,
   isPointInLake: (x, z) => testConstraints.lakeRadius > 0 && x * x + z * z < testConstraints.lakeRadius ** 2,

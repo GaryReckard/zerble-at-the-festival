@@ -1,0 +1,85 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+// Production movement classes run with rendering/audio replaced, against both
+// the disabled surface and an independent sloping fixture that cannot hide Y=0.
+const source = name => readFileSync(new URL('../src/'+name+'.js',import.meta.url),'utf8')
+  .replace(/^import\s[\s\S]*?;\s*$/gm,'').replace(/export class /g,'class ');
+class V {
+ constructor(x=0,y=0,z=0){this.set(x,y,z);}
+ set(x,y,z){Object.assign(this,{x,y,z});return this;}
+ copy(p){return this.set(p.x,p.y,p.z);} clone(){return new V(this.x,this.y,this.z);}
+ add(p){this.x+=p.x;this.y+=p.y;this.z+=p.z;return this;}
+ subVectors(a,b){return this.copy(a).sub(b);}
+ sub(p){this.x-=p.x;this.y-=p.y;this.z-=p.z;return this;}
+ multiplyScalar(s){this.x*=s;this.y*=s;this.z*=s;return this;}
+ normalize(){return this.multiplyScalar(1/(Math.hypot(this.x,this.y,this.z)||1));}
+ distanceTo(p){return Math.hypot(this.x-p.x,this.y-p.y,this.z-p.z);}
+ distanceToSquared(p){return this.distanceTo(p)**2;}
+ lerpVectors(a,b,t){return this.copy(a).multiplyScalar(1-t).add(b.clone().multiplyScalar(t));}
+ applyMatrix4(m){return this.add(m.position);}
+}
+class Node {
+ constructor(){this.position=new V();this.rotation={set(){},y:0};this.scale={setScalar(){}};this.userData={};this.children=[];this.visible=true;this.matrixWorld=this;}
+ add(n){this.children.push(n);n.parent=this;}
+ updateMatrixWorld(){} getWorldPosition(out){out.copy(this.position);for(let n=this.parent;n;n=n.parent)out.add(n.position);return out;}
+}
+const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
+for(const height of [()=>0,(x,z)=>17+.03*x-.02*z]) {
+ const model=()=>new Node(),entries=new Map([[1,{position:new V()}]]);
+ const registry={entries,collidersNear(){},closestBuilding(){return null;}};
+ const context=vm.createContext({Math,T:{despawnDistance:2000,speed:.8,worldScale:1,stallSeconds:10,cruiseSeconds:1000,minCruiseSeconds:10},performance:{now:()=>1000},terrainHeight:height,registry,
+  THREE:{Group:Node,Vector3:V,MathUtils:{clamp:(n,a,b)=>Math.max(a,Math.min(b,n))}},
+  getTimeOfDay:()=>({nightness:0}),projectOutOfLake:()=>null,isPointInLake:()=>false,
+  buildKid:model,buildWook:model,buildFrisbeePlayer:model,buildFrisbeeDisc:model,
+  buildBandMember:model,buildParasolMarshal:model,
+  PARADE_ROSTER:['heron'],buildPuppet:()=>{const p=model(),carrier=model();p.add(carrier);p.userData.rig={carriers:[carrier]};return p;},
+  tickKid:k=>{k.userData.bob=.2;},tickWook(){},tickHulaHooper(){},tickFrisbeePlayer(){},tickFrisbeeDisc(){},tickBandMember(){},tickParasolMarshal(){},tickPuppet(){},setPuppetNightness(){},
+  getFrisbeeHandPosition:(p,out)=>out.copy(p.position).add(new V(0,1,0)),
+  Sound:{attachStageMusic:()=>({setPosition(){}})},StarPower:{isActive:()=>false},laneDodgeTest:()=>false,
+ });
+ vm.runInContext(source('obstacles')+';this.classes={PuppetParade,BrassBand,KidGaggle,Wooks,HulaHoopers,Frisbees};',context);
+ const {PuppetParade,BrassBand,KidGaggle,Wooks,HulaHoopers,Frisbees}=context.classes;
+ for(const [Type,key,offset] of [[PuppetParade,'puppets',1],[BrassBand,'members',1],[KidGaggle,'kids',.6],[Wooks,'wooks',1]]) {
+  const unit=new Type();unit.update(.1);
+  for(let i=0;i<unit[key].length;i++){const p=unit[key][i].position;close(p.y,height(p.x,p.z));close(unit.colliders[i].position.y,p.y+offset);}
+  if(key==='kids')assert.equal(unit.kids[0].userData.bob,.2,'child animation survives grounding');
+ }
+ const hoop=new HulaHoopers(),h=model();h.position.set(3,0,5);h.userData={driftTimer:10,driftTargetX:4,driftTargetZ:6,footprintId:1};hoop.hoopers=[h];hoop.colliders=[{position:new V()}];hoop.update(.1);
+ close(h.position.y,height(h.position.x,h.position.z));close(entries.get(1).position.y,h.position.y);close(hoop.colliders[0].position.y,h.position.y+.9);
+ const frisbees=new Frisbees();const p=frisbees.pairs[0];frisbees.pairs=[p];frisbees._recycle(p,new V(20,0,30));frisbees.update(0);
+ close(p.disc.position.y,p.discHolder.position.y+1);
+ p.discState='flying';p.disc.position.set(0,height(0,0)-1,0);p.discCatcher.position.set(40,0,0);p.vel.set(0,-2,0);frisbees.update(.1);
+ assert.equal(p.discState,'landed');close(p.disc.position.y,height(0,0)+.05);
+ for(const player of [p.playerA,p.playerB]){close(player.position.y,height(player.position.x,player.position.z));close(player.userData.collider.position.y,player.position.y+.9);}
+ // Catch at world altitude, including a fixture entirely above the old range.
+ p.discState='flying';p.disc.position.copy(p.discCatcher.position).add(new V(0,1,0));p.vel.set(0,0,0);frisbees.update(0);assert.equal(p.discState,'held');
+ vm.runInContext(source('monks')+';this.MonkParty=MonkParty;',context);
+ const avatar=model(),npc={avatar,pos:new V(10,999,20),state:'walking',scale:1,vel:new V(),yaw:0};avatar.userData.pose=()=>{};
+ context.MonkParty.prototype.renderNpc.call({},npc);close(avatar.position.y,height(10,20));
+ npc.state='camp_seated';npc.campSlot={y:35};context.MonkParty.prototype.renderNpc.call({},npc);close(avatar.position.y,35);
+ npc.state='hammock_riding';npc.hammockY=41;context.MonkParty.prototype.renderNpc.call({},npc);close(avatar.position.y,41);
+ npc.state='riding';npc.seatY=50;npc.seatSlot={kind:'bench',vehicle:{}};context.MonkParty.prototype.renderNpc.call({},npc);close(avatar.position.y,49.38);
+ vm.runInContext(source('oneWheels')+';this.OneWheels=OneWheels;',context);
+ context.updateOneWheelRider=()=>{};
+ const rider={group:model(),motion:{x:5,z:6,heading:0,update(){this.x+=1;}},entry:{position:new V()},animation:{}};
+ context.OneWheels.prototype.update.call({riders:[rider],time:0,checkTimer:1,procedural:false},.1,new V(),0);
+ close(rider.entry.position.y,height(6,6));close(rider.group.position.y,rider.entry.position.y);
+ vm.runInContext(source('nutWagon')+';this.NutWagon=NutWagon;',context);
+ const wagon={root:model(),position:new V(8,height(8,9),9),colliders:[{position:new V(),localZ:2}]};context.NutWagon.prototype.sync.call(wagon);
+ close(wagon.root.position.y,height(8,9));close(wagon.colliders[0].position.y,wagon.position.y);
+ context.setNutWagonNightness=()=>{};
+ context.sampleWagonRoute=(_route,d,out)=>Object.assign(out,{x:8,z:d,heading:0});
+ context.wagonOverlapsCircle=()=>false;
+ Object.assign(wagon,{clock:0,active:true,state:'cruising',distance:20,direction:1,
+  crowd:{npcs:[]},gatherTimer:1,boardTimer:1,route:{length:100},nextSample:{},
+  cruiseTimer:0,blockedTimer:0,clearAt:()=>true,sync:context.NutWagon.prototype.sync});
+ wagon.root.userData.wheels=[];
+ context.NutWagon.prototype.update.call(wagon,.1,new V(100,0,0),false,0);
+ assert.ok(wagon.distance>20,'wagon advances on the real route updater');
+ close(wagon.position.y,height(wagon.position.x,wagon.position.z));
+ close(wagon.root.position.y,wagon.position.y);
+ const seat=new V();context.NutWagon.prototype.worldSeatPosition.call(wagon,{x:0,y:3,z:1},seat);close(seat.y,wagon.position.y+3);
+}
+console.log('Terrain movers: flat and sloping production updates, parade, band, kids, wooks, hooper footprint, frisbee hands/catch/landing, monk seats, one-wheel contact and wagon anchors passed.');

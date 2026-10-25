@@ -4,7 +4,22 @@ import { Zerble } from './zerble.js';
 import { terrainReplayInput, TERRAIN_REPLAY_SECONDS } from './terrainDriving.js';
 import { Sound } from './sound.js';
 import { PERF } from './perf.js';
-import { sampleTerrain, terrainVertexHeight, TERRAIN_BOUNDS, TERRAIN_STOPS } from './terrainSurface.js';
+import { sampleTerrain as sampleFixture, terrainVertexHeight as fixtureVertex, TERRAIN_BOUNDS, TERRAIN_STOPS as FIXTURE_STOPS } from './terrainSurface.js';
+import { sampleTerrain as sampleWorld, setTerrainEnabled } from './worldgen/terrain.js';
+import { setSessionSeed } from './rng.js';
+const params = new URLSearchParams(location.search);
+const worldMode = params.get('surface') === 'world';
+const finiteParam = (key, fallback) => params.has(key) && Number.isFinite(Number(params.get(key))) ? Number(params.get(key)) : fallback;
+const worldX = Math.round(finiteParam('x', 620) / 10) * 10, worldZ = Math.round(finiteParam('z', 180) / 10) * 10;
+if (worldMode) { setSessionSeed(finiteParam('seed', 1977)); setTerrainEnabled(true); }
+function sampleTerrain(x,z,out={}) {
+  if (!worldMode) return sampleFixture(x,z,out);
+  sampleWorld(x+worldX,z+worldZ,out);
+  out.traversable = out.traversable && x >= -57 && x <= 57 && z >= -417 && z <= 32;
+  return out;
+}
+const terrainVertexHeight = worldMode ? (x,z)=>sampleWorld(x+worldX,z+worldZ).height : fixtureVertex;
+const TERRAIN_STOPS = worldMode ? FIXTURE_STOPS.map((p,i)=>({z:p.z,name:`World sample ${i+1} · ${worldX}, ${worldZ+p.z}`})) : FIXTURE_STOPS;
 
 const $ = id => document.getElementById(id);
 const scene = new THREE.Scene();
@@ -34,7 +49,8 @@ for (let z0 = TERRAIN_BOUNDS.minZ; z0 < TERRAIN_BOUNDS.maxZ; z0 += 80) {
   }
   for (let row = 0; row < z1 - z0; row++) for (let col = 0; col < 120; col++) {
     const a = row * width + col, b = a + 1, c = a + width, d = c + 1;
-    indices.push(a, d, b, a, c, d);
+    if (worldMode) indices.push(a, c, b, b, c, d);
+    else indices.push(a, d, b, a, c, d);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));

@@ -6,6 +6,7 @@
 // Geometry lives in src/models/. This file owns path/AI behavior + colliders.
 
 import * as THREE from 'three';
+import {terrainHeight} from './worldgen/terrain.js';
 import { buildPuppet, tickPuppet, setPuppetNightness, PARADE_ROSTER } from './models/puppet.js';
 import { getTimeOfDay } from './world.js';
 import { buildBandMember, tickBandMember } from './models/bandMember.js';
@@ -207,6 +208,7 @@ export class PuppetParade {
       // Their "front" geometry (eyes/mouth) is at local -Z, so face the direction of travel
       // by setting yaw so that local -Z points along dir.
       const yaw = Math.atan2(-dir.x, -dir.z);
+      p.position.y = terrainHeight(p.position.x, p.position.z);
       p.rotation.y = yaw;
 
       // Per-puppet bob (sandbox calls the same tick — see models/puppet.js)
@@ -217,7 +219,7 @@ export class PuppetParade {
     this.group.updateMatrixWorld(true);
     for (const collider of this.colliders) {
       collider.carrier.getWorldPosition(collider.position);
-      collider.position.y = 1;
+      collider.position.y = collider.puppet.position.y + 1;
     }
   }
 }
@@ -301,7 +303,7 @@ export class BrassBand {
     // attachStageMusic returns a deferred handle that Sound.init adopts when
     // the AudioContext comes online; position updates before then are buffered.
     this._music = Sound.attachStageMusic(
-      this.path[0].x, 1, this.path[0].z, 0xb4a55, 'second_line',
+      this.path[0].x, terrainHeight(this.path[0].x, this.path[0].z) + 1, this.path[0].z, 0xb4a55, 'second_line',
     );
   }
 
@@ -357,6 +359,7 @@ export class BrassBand {
       const ox = off.x * cos + off.z * sin;
       const oz = -off.x * sin + off.z * cos;
       m.position.set(leadPos.x + ox + dodgeOX, 0, leadPos.z + oz + dodgeOZ);
+      m.position.y = terrainHeight(m.position.x, m.position.z);
       m.rotation.y = yaw;
 
       // Marching bob + (for the marshal) parasol twirl — both live in
@@ -368,13 +371,13 @@ export class BrassBand {
       }
 
       this.colliders[i].position.copy(m.position);
-      this.colliders[i].position.y = 1;
+      this.colliders[i].position.y = m.position.y + 1;
     }
 
     // Move the spatial music source to the band leader's current position so
     // the music actually walks around the festival with them.
     if (this._music && this._music.setPosition) {
-      this._music.setPosition(leadPos.x, 1, leadPos.z);
+      this._music.setPosition(leadPos.x, terrainHeight(leadPos.x, leadPos.z) + 1, leadPos.z);
     }
   }
 }
@@ -411,6 +414,7 @@ export class KidGaggle {
         k.position.copy(c);
         k.position.x += (Math.random() - 0.5) * 8;
         k.position.z += (Math.random() - 0.5) * 8;
+        k.position.y = terrainHeight(k.position.x, k.position.z);
         k.userData.center = c.clone();
         k.userData.heading = Math.random() * TAU;
         // displayedYaw is what actually rotates the mesh — it lerps toward
@@ -528,6 +532,9 @@ export class KidGaggle {
         }
       }
     }
+
+    // Ground before bubble/smile height queries, including recycled children.
+    for (const kid of this.kids) kid.position.y = terrainHeight(kid.position.x, kid.position.z);
 
     // Collect live bubble positions once per frame so we don't iterate the
     // whole pool inside every kid's loop.
@@ -719,8 +726,6 @@ export class KidGaggle {
         targetYaw: k.userData.heading,
       });
 
-      this.colliders[i].position.copy(k.position);
-      this.colliders[i].position.y = 0.6;
     }
 
     // Resolve all pair overlaps after movement, including exact coincidences
@@ -774,8 +779,10 @@ export class KidGaggle {
     }
     // The broad-phase/player colliders must follow the final resolved poses.
     for (let i = 0; i < this.kids.length; i++) {
-      this.colliders[i].position.copy(this.kids[i].position);
-      this.colliders[i].position.y = 0.6;
+      const kid = this.kids[i];
+      kid.position.y = terrainHeight(kid.position.x, kid.position.z);
+      this.colliders[i].position.copy(kid.position);
+      this.colliders[i].position.y += 0.6;
     }
   }
 }
@@ -1029,8 +1036,6 @@ export class Wooks {
       // See models/wook.js for the math; sandbox calls the same tick.
       tickWook(w, dt);
 
-      this.colliders[i].position.copy(w.position);
-      this.colliders[i].position.y = 1;
       // The wook walking up to dose Zerble is trying to GET close — its
       // collider would otherwise shove Zerble away (wook 0.9m + zerble 1.9m =
       // 2.8m minimum separation, which prevents the 2.5m proximity trigger
@@ -1053,6 +1058,9 @@ export class Wooks {
           w.userData.anchor.set(shore.x, 0, shore.z);
         }
       }
+      w.position.y = terrainHeight(w.position.x, w.position.z);
+      this.colliders[i].position.copy(w.position);
+      this.colliders[i].position.y += 1;
     }
   }
 }
@@ -1165,13 +1173,14 @@ export class HulaHoopers {
         // Keep registry footprint in sync so crowd avoidance follows the drift.
         if (u.footprintId != null) {
           const fp = registry.entries.get(u.footprintId);
-          if (fp) fp.position.set(h.position.x, 0, h.position.z);
+          if (fp) fp.position.set(h.position.x, terrainHeight(h.position.x, h.position.z), h.position.z);
         }
       }
 
+      h.position.y = terrainHeight(h.position.x, h.position.z);
       // Collider — at chest height, body radius only (hoop itself isn't solid)
       this.colliders[i].position.copy(h.position);
-      this.colliders[i].position.y = 0.9;
+      this.colliders[i].position.y += 0.9;
     }
   }
 
@@ -1236,7 +1245,7 @@ export class HulaHoopers {
         const z = e.position.z + Math.sin(ang) * rad;
         // Don't drop onto a hard collider
         if (registry.closestBuilding(new THREE.Vector3(x, 0, z), HOOPER_AVOID_RADIUS)) continue;
-        h.position.set(x, 0, z);
+        h.position.set(x, terrainHeight(x, z), z);
         // Face roughly inward toward the attractor center
         h.rotation.y = Math.atan2(e.position.x - x, e.position.z - z);
         h.visible = true;
@@ -1257,7 +1266,7 @@ export class HulaHoopers {
         // Update the registry footprint entry's position (single shared entry per hooper)
         if (h.userData.footprintId != null) {
           const fp = registry.entries.get(h.userData.footprintId);
-          if (fp) fp.position.set(x, 0, z);
+          if (fp) fp.position.set(x, terrainHeight(x, z), z);
         }
         break;
       }
@@ -1432,6 +1441,8 @@ export class Frisbees {
         }
       }
 
+      p.playerA.position.y = terrainHeight(p.playerA.position.x, p.playerA.position.z);
+      p.playerB.position.y = terrainHeight(p.playerB.position.x, p.playerB.position.z);
       tickFrisbeePlayer(p.playerA, dt, actionA, amountA);
       tickFrisbeePlayer(p.playerB, dt, actionB, amountB);
       tickFrisbeeDisc(p.disc, dt, p.discState, nightness);
@@ -1451,7 +1462,7 @@ export class Frisbees {
         p.pauseTimer -= dt;
         if (p.pauseTimer <= 0) this._toss(p);
       } else if (p.discState === 'flying') {
-        // Integrate disc with simple ballistic motion. Floor at y=0.
+        // Integrate disc with simple ballistic motion against the shared terrain surface.
         p.disc.position.x += p.vel.x * dt;
         p.disc.position.y += p.vel.y * dt;
         p.disc.position.z += p.vel.z * dt;
@@ -1461,7 +1472,7 @@ export class Frisbees {
         // (catch height ≈ 0.4m above ground) using current vel.y and y.
         //   y(t) = y + vy*t − 0.5*g*t²   →  solve for catch height
         const g = FRISBEE_TOSS_GRAVITY * 0.6;
-        const catchY = 0.4;
+        const catchY = terrainHeight(p.discCatcher.position.x, p.discCatcher.position.z) + 0.4;
         const vy = p.vel.y;
         const y0 = p.disc.position.y;
         // Quadratic: −0.5*g*t² + vy*t + (y0 − catchY) = 0
@@ -1507,15 +1518,15 @@ export class Frisbees {
         const dzD = p.disc.position.z - p.discCatcher.position.z;
         const planarHand = Math.hypot(dxD, dzD);
         if (
-          p.disc.position.y < 1.7 &&
-          p.disc.position.y > 0.6 &&
+          p.disc.position.y < terrainHeight(p.discCatcher.position.x, p.discCatcher.position.z) + 1.7 &&
+          p.disc.position.y > terrainHeight(p.discCatcher.position.x, p.discCatcher.position.z) + 0.6 &&
           planarHand < FRISBEE_CATCH_RADIUS
         ) {
           // Caught! Swap roles, brief pause, then toss back.
           this._catch(p);
-        } else if (p.disc.position.y <= 0.05) {
+        } else if (p.disc.position.y <= terrainHeight(p.disc.position.x, p.disc.position.z) + 0.05) {
           // Hit the ground — disc lies there, catcher walks over to pick it up
-          p.disc.position.y = 0.05;
+          p.disc.position.y = terrainHeight(p.disc.position.x, p.disc.position.z) + 0.05;
           p.discState = 'landed';
           p.target.set(p.disc.position.x, 0, p.disc.position.z);
         }
@@ -1542,14 +1553,16 @@ export class Frisbees {
         lookAt(p.discHolder, p.discCatcher.position.x, p.discCatcher.position.z);
       }
 
+      p.playerA.position.y = terrainHeight(p.playerA.position.x, p.playerA.position.z);
+      p.playerB.position.y = terrainHeight(p.playerB.position.x, p.playerB.position.z);
       // Update collider positions
       if (p.playerA.userData.collider) {
         p.playerA.userData.collider.position.copy(p.playerA.position);
-        p.playerA.userData.collider.position.y = 0.9;
+        p.playerA.userData.collider.position.y += 0.9;
       }
       if (p.playerB.userData.collider) {
         p.playerB.userData.collider.position.copy(p.playerB.position);
-        p.playerB.userData.collider.position.y = 0.9;
+        p.playerB.userData.collider.position.y += 0.9;
       }
     }
   }
@@ -1609,6 +1622,8 @@ export class Frisbees {
     const pairAng = Math.random() * TAU;
     p.playerA.position.set(cx + Math.cos(pairAng) * sep * 0.5, 0, cz + Math.sin(pairAng) * sep * 0.5);
     p.playerB.position.set(cx - Math.cos(pairAng) * sep * 0.5, 0, cz - Math.sin(pairAng) * sep * 0.5);
+    p.playerA.position.y = terrainHeight(p.playerA.position.x, p.playerA.position.z);
+    p.playerB.position.y = terrainHeight(p.playerB.position.x, p.playerB.position.z);
     p.discHolder = p.playerA;
     p.discCatcher = p.playerB;
     p.discState = 'held';

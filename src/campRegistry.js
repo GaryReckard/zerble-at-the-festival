@@ -1,3 +1,4 @@
+import { terrainHeight, terrainEnabled } from './worldgen/terrain.js';
 // Camp envelopes reserve ground for builders, while child props supply walkable collisions.
 const CAMP_WALK_CLEARANCE = .35;
 
@@ -36,18 +37,59 @@ export function campSeatApproaches(camp, registry = null) {
   });
 }
 
+// Settle each independent prop, rather than treating a whole uneven clearing as
+// one horizontal platform. Tent shells follow a sampled support plane; their
+// pooled geometries remain untouched. Called once after final placement.
+const campPropBaseY = new WeakMap();
+export function fitCampToTerrain(camp, sample = terrainHeight) {
+  const root = camp.group, yaw = root.rotation.y, c = Math.cos(yaw), s = Math.sin(yaw);
+  const world = (x,z) => ({x:root.position.x+c*x*root.scale.x+s*z*root.scale.z,
+    z:root.position.z-s*x*root.scale.x+c*z*root.scale.z});
+  const seen = new Set();
+  for (const prop of camp.childColliders || camp.colliders || []) {
+    const g = prop.group;
+    if (!g || seen.has(g)) continue;
+    seen.add(g);
+    const p = world(prop.x,prop.z);
+    if (!campPropBaseY.has(g)) campPropBaseY.set(g,g.position.y);
+    g.position.y = campPropBaseY.get(g) + (sample(p.x,p.z)-root.position.y)/root.scale.y;
+  }
+  for (const tent of camp.tents || []) {
+    const g = tent.group;
+    if (!g) continue;
+    const p = world(tent.x,tent.z), a = yaw + tent.yaw;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const radius = Math.max(.5,(tent.shelter?.radius || 1.8)*Math.max(root.scale.x,root.scale.z)*Math.max(g.scale?.x||1,g.scale?.z||1)/Math.SQRT2);
+    const at = (u,v) => sample(p.x+ca*u+sa*v,p.z-sa*u+ca*v);
+    const dx=(at(radius,0)-at(-radius,0))/(2*radius);
+    const dz=(at(0,radius)-at(0,-radius))/(2*radius);
+    const pitch=-Math.atan(dz), roll=Math.atan(dx*Math.cos(pitch));
+    g.rotation.order='YXZ'; g.rotation.x=pitch; g.rotation.z=roll;
+    // Use rotated support points to avoid burying an uphill corner.
+    let base=-Infinity;
+    for (const u of [-radius,radius]) for (const v of [-radius,radius]) {
+      const lx=Math.cos(roll)*u;
+      const ly=Math.cos(pitch)*Math.sin(roll)*u-Math.sin(pitch)*v;
+      const lz=Math.sin(pitch)*Math.sin(roll)*u+Math.cos(pitch)*v;
+      base=Math.max(base,at(lx,lz)-ly);
+    }
+    g.position.y=(base-root.position.y)/root.scale.y;
+  }
+}
+
 export function registerCampsite(registry, camp, options = {}) {
+  if (terrainEnabled()) fitCampToTerrain(camp);
   const root = camp.group;
   const yaw = root.rotation.y, c = Math.cos(yaw), s = Math.sin(yaw);
   const sx = root.scale.x, sz = root.scale.z;
   const point = (x, z) => ({ x: root.position.x + c * x * sx + s * z * sz,
     z: root.position.z - s * x * sx + c * z * sz });
-  const position = (p) => root.position.clone().set(p.x, 0, p.z);
+  const position = (p) => root.position.clone().set(p.x, terrainHeight(p.x,p.z), p.z);
   const approaches=campSeatApproaches(camp,registry.collidersNear?registry:null);
   const seatClaims = (camp.seats || []).map((seat,index) => {
     if(!approaches[index])return null;
     const p = point(seat.x, seat.z), facing = yaw + seat.yaw;
-    return {seat,slot:{ ...p, y: (seat.y || 0.45) * root.scale.y, yaw: facing + Math.PI,
+    return {seat,slot:{ ...p, y: terrainHeight(p.x,p.z) + (seat.y || 0.45) * root.scale.y, yaw: facing + Math.PI,
       approachX: approaches[index].x, approachZ: approaches[index].z, occupied: false }};
   }).filter(Boolean);
   const campSeats=seatClaims.map(claim=>claim.slot);

@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { runLint } from '../src/worldgen/lint.js';
+
+// Exercise the actual private helper with controlled landscape queries. This
+// reproduces the narrow failure regardless of the evolving seeded road layout:
+// a valid wooded candidate is moved into a previously reserved cluster.
+const source = readFileSync(new URL('../src/worldgen/festival.js', import.meta.url), 'utf8');
+const start = source.indexOf('function treedDistrictSpot(');
+const end = source.indexOf('// ── Per-heart festival plan', start);
+assert.ok(start >= 0 && end > start, 'private helper source remains discoverable');
+function scenario({ blockedFinal = false, bareFinal = false, noFinal = false, rejectCandidate = false } = {}) {
+  let draws = 0, nudges = 0;
+  const checks = [];
+  const final = { x: 999, z: 888 };
+  const context = vm.createContext({
+    Math,
+    FESTIVAL_TUNING: { DRUM_CORE_PAD: 10, DRUM_BAND: 30, DRUM_DISTRICT_FRAC: 1,
+      DRUM_FRONT_HALF: .7, KIND_FOOTPRINT: { drum_circle: 6 } },
+    quantize: Math.round,
+    lakeAt: () => false,
+    treeDensity: (x) => bareFinal && x === final.x ? 0 : .8,
+    nudgeOffDrum: () => { nudges++; return noFinal ? null : final; },
+  });
+  vm.runInContext(source.slice(start, end), context);
+  const reject = (x, z) => { checks.push([x, z]); return rejectCandidate || (blockedFinal && x === final.x); };
+  const result = context.treedDistrictSpot({ x: 0, z: 0, core: 20, district: 100 },
+    () => { draws++; return .5; }, 0, reject);
+  return { result, draws, nudges, checks, final };
+}
+const collision = scenario({ blockedFinal: true });
+assert.equal(collision.result, null, 'omit a drum nudged into an existing cluster envelope');
+assert.deepEqual(collision.checks.at(-1), [999, 888], 'validate the relocated envelope through the caller predicate');
+assert.equal(collision.draws, 2, 'final rejection adds no RNG draws');
+const valid = scenario();
+assert.equal(valid.result, valid.final, 'retain the accepted relocated candidate');
+assert.equal(valid.draws, collision.draws, 'accepted and rejected final candidates consume the same helper draws');
+assert.equal(scenario({ bareFinal: true }).result, null, 'retain the final wooded-pocket constraint');
+assert.equal(scenario({ noFinal: true }).result, null, 'retain omission when nudging finds no safe spot');
+const rejected = scenario({ rejectCandidate: true });
+assert.equal(rejected.result, null);
+assert.equal(rejected.draws, 24, 'keep the bounded twelve-candidate RNG sequence');
+assert.equal(rejected.nudges, 0, 'never nudge a rejected original candidate');
+
+// Historical seed 256 is coverage, not the controlled failure above. Its June
+// coordinates no longer reproduce a drum overlap in the current generator.
+const report = runLint({ seeds: [256], bounds: { minX: -2000, minZ: -2000, maxX: 2000, maxZ: 2000 } });
+assert.equal(report.violations.filter(v => v.rule === 'drum-in-trees').length, 0,
+  'historical seed retains wooded drum pockets outside other cluster centers');
+console.log('Festival layout: final relocated-envelope rejection, RNG bounds, wooded-pocket omission and historical seed 256 drum lint passed.', report.counts);

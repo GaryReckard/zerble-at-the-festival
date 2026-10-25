@@ -1,3 +1,4 @@
+import { terrainHeight, terrainEnabled } from './worldgen/terrain.js';
 // FarField — the render-only festival horizon (festival-horizon change).
 //
 // A PEER of ChunkManager/LakeManager owned by world.js, never another chunk
@@ -330,27 +331,28 @@ export function expandFarInstances(records, densityMul) {
       const rad = r.step * (0.14 + t * 0.44 + instHash(r.forestSeed, 3) * 0.12);
       const h = 13.0 + t * 7.0 + instHash(r.forestSeed, 4) * 2.0;
       out.forest.push({
-        x: r.x, z: r.z, y: h * 0.32, yaw: instHash(r.forestSeed, 5) * Math.PI * 2,
+        x: r.x, z: r.z, y: terrainHeight(r.x, r.z) + h * 0.32, yaw: instHash(r.forestSeed, 5) * Math.PI * 2,
         sx: rad, sy: h * 0.6, sz: rad * (0.85 + instHash(r.forestSeed, 6) * 0.3),
         color: FOREST_PALETTE[(r.forestSeed >>> 3) % FOREST_PALETTE.length],
         ownerCx: ownerCellCoord(r.x), ownerCz: ownerCellCoord(r.z),
       });
       continue;
     }
+    const ground = terrainHeight(r.x, r.z);
     const own = { ownerCx: r.ownerCx, ownerCz: r.ownerCz };
     if (STAGE_KINDS.has(r.kind)) {
       const s = r.scale;
       if (r.kind === 'tent_stage') {
         const rise = MARQUEE_SHAPE.ridgeHeight - MARQUEE_SHAPE.eaveHeight;
         out.canopy.push({
-          x: r.x, z: r.z, y: MARQUEE_SHAPE.eaveHeight + rise / 2, yaw: r.yaw,
+          x: r.x, z: r.z, y: ground + MARQUEE_SHAPE.eaveHeight + rise / 2, yaw: r.yaw,
           sx: MARQUEE_SHAPE.width, sy: rise, sz: MARQUEE_SHAPE.depth,
           color: MARQUEE_SHAPE.roofColor, ...own,
         });
         const backZ = -MARQUEE_SHAPE.depth / 2;
         out.marqueeWall.push({
           x: r.x + Math.sin(r.yaw) * backZ, z: r.z + Math.cos(r.yaw) * backZ,
-          y: 0, yaw: r.yaw,
+          y: ground, yaw: r.yaw,
           sx: MARQUEE_SHAPE.width, sy: MARQUEE_SHAPE.ridgeHeight, sz: 1,
           color: MARQUEE_SHAPE.roofColor, ...own,
         });
@@ -362,7 +364,7 @@ export function expandFarInstances(records, densityMul) {
         const rx = Math.sin(rightYaw), rz = Math.cos(rightYaw);
         const deckH = STAGE_SURFACES.deckHeight * s;
         out.truss.push({
-          x: r.x, z: r.z, y: deckH / 2, yaw: r.yaw,
+          x: r.x, z: r.z, y: ground + deckH / 2, yaw: r.yaw,
           sx: shape.width * s, sy: deckH, sz: shape.depth * s,
           color: STAGE_SURFACES.deckColor, ...own,
         });
@@ -373,14 +375,14 @@ export function expandFarInstances(records, densityMul) {
           : STAGE_SURFACES.sideBannerColors[Math.floor(bannerRng() * STAGE_SURFACES.sideBannerColors.length)];
         out.truss.push({
           x: r.x + Math.sin(r.yaw) * bannerZ, z: r.z + Math.cos(r.yaw) * bannerZ,
-          y: STAGE_SURFACES.bannerCenterY * s, yaw: r.yaw,
+          y: ground + STAGE_SURFACES.bannerCenterY * s, yaw: r.yaw,
           sx: shape.width * s, sy: STAGE_SURFACES.bannerHeight * s,
           sz: STAGE_SURFACES.bannerThickness * s,
           color: bannerColor, ...own,
         });
         if (shape.hasRoof) {
           out.canopy.push({
-            x: r.x, z: r.z, y: postH + shape.roofRise * s / 2,
+            x: r.x, z: r.z, y: ground + postH + shape.roofRise * s / 2,
             yaw: rightYaw,
             sx: (shape.depth + 2 * shape.roofOverhang) * s,
             sy: shape.roofRise * s,
@@ -390,15 +392,15 @@ export function expandFarInstances(records, densityMul) {
           const backZ = -(shape.depth / 2 + 0.3) * s;
           out.truss.push({
             x: r.x + Math.sin(r.yaw) * backZ, z: r.z + Math.cos(r.yaw) * backZ,
-            y: postH / 2, yaw: r.yaw,
+            y: ground + postH / 2, yaw: r.yaw,
             sx: shape.width * s, sy: postH, sz: 0.4 * s,
             color: shape.roofColor, ...own,
           });
         }
         out.truss.push(
-          { x: r.x + rx * postOff, z: r.z + rz * postOff, y: postH / 2, yaw: 0, sx: 0.5 * s, sy: postH, sz: 0.5 * s, color: TRUSS_HEX, ...own },
-          { x: r.x - rx * postOff, z: r.z - rz * postOff, y: postH / 2, yaw: 0, sx: 0.5 * s, sy: postH, sz: 0.5 * s, color: TRUSS_HEX, ...own },
-          { x: r.x, z: r.z, y: postH, yaw: rightYaw, sx: 0.4 * s, sy: 0.4 * s, sz: shape.width * s, color: TRUSS_HEX, ...own },
+          { x: r.x + rx * postOff, z: r.z + rz * postOff, y: ground + postH / 2, yaw: 0, sx: 0.5 * s, sy: postH, sz: 0.5 * s, color: TRUSS_HEX, ...own },
+          { x: r.x - rx * postOff, z: r.z - rz * postOff, y: ground + postH / 2, yaw: 0, sx: 0.5 * s, sy: postH, sz: 0.5 * s, color: TRUSS_HEX, ...own },
+          { x: r.x, z: r.z, y: ground + postH, yaw: rightYaw, sx: 0.4 * s, sy: 0.4 * s, sz: shape.width * s, color: TRUSS_HEX, ...own },
         );
       }
       const bs = 0.8 + instHash(r.clusterSeed, 3) * 0.3;
@@ -406,7 +408,7 @@ export function expandFarInstances(records, densityMul) {
         : (r.kind === 'main_stage' ? STAGE_SHAPES.main.trussHeight + STAGE_SHAPES.main.roofRise : STAGE_SHAPES.side.trussHeight) * s;
       const beaconY = roofTop + bs + 0.4 * (r.kind === 'tent_stage' ? 1 : s);
       out.beacon.push({
-        x: r.x, z: r.z, y: beaconY, yaw: 0, sx: bs, sy: bs, sz: bs,
+        x: r.x, z: r.z, y: ground + beaconY, yaw: 0, sx: bs, sy: bs, sz: bs,
         color: BEACON_PALETTE[paletteIndex(r, BEACON_PALETTE.length)], ...own,
       });
     } else if (r.kind === 'camp_village') {
@@ -421,6 +423,7 @@ export function expandFarInstances(records, densityMul) {
       let index = 0;
       for (const pitch of pitches) {
         const { recipe } = pitch;
+        const pitchGround = terrainHeight(r.x + pitch.x, r.z + pitch.z);
         for (const [i, family] of recipe.tentFamilies.entries()) {
           const slot = index++;
           if (slot > 0 && densityMul < 1 && instHash(r.clusterSeed, slot + 401) >= densityMul) continue;
@@ -431,7 +434,7 @@ export function expandFarInstances(records, densityMul) {
             : family === 'cabin' ? [5.1, 4.36, 5.1]
             : family === 'dome' ? [6.32, 3.3, 6.32] : [4.4, 3.4, 5];
           out.peak.push({ x: r.x + pitch.x - Math.sin(yaw) * distance,
-            z: r.z + pitch.z - Math.cos(yaw) * distance, y: h / 2, yaw,
+            z: r.z + pitch.z - Math.cos(yaw) * distance, y: pitchGround + h / 2, yaw,
             sx: w, sy: h, sz: d,
             color: VILLAGE_PALETTE[(baseIdx + slot) % VILLAGE_PALETTE.length], ...own });
         }
@@ -439,12 +442,12 @@ export function expandFarInstances(records, densityMul) {
           const distance = (recipe.layoutRadius * .85 + .35) * 2;
           out.canopy.push({ x: r.x + pitch.x + Math.sin(pitch.facing) * distance,
             z: r.z + pitch.z + Math.cos(pitch.facing) * distance,
-            y: 5.15, yaw: pitch.facing, sx: 6, sy: .7, sz: 6,
+            y: pitchGround + 5.15, yaw: pitch.facing, sx: 6, sy: .7, sz: 6,
             color: 0x3a82c0, ...own });
         }
       }
       const fs = 0.42 + instHash(r.clusterSeed, 7) * 0.16;
-      out.warm.push({ x: r.x, z: r.z, y: 1.0, yaw: 0, sx: fs, sy: fs, sz: fs, ...own });
+      out.warm.push({ x: r.x, z: r.z, y: ground + 1.0, yaw: 0, sx: fs, sy: fs, sz: fs, ...own });
     } else if (r.kind === 'vendor_row') {
       // The first cluster-local RNG draw is the real builder's booth count.
       // Lower tiers may omit slots, but surviving roofs stay on the exact
@@ -457,7 +460,7 @@ export function expandFarInstances(records, densityMul) {
         const { i, side, x: ix, z: iz } = slot;
         if (densityMul < 1 && instHash(r.clusterSeed, i * 2 + (side > 0 ? 1 : 0)) >= densityMul) continue;
         out.peak.push({
-          x: ix, z: iz, y: VENDOR_ROOF_SHAPE.centerY, yaw: r.yaw + Math.PI / 4,
+          x: ix, z: iz, y: terrainHeight(ix, iz) + VENDOR_ROOF_SHAPE.centerY, yaw: r.yaw + Math.PI / 4,
           sx: VENDOR_ROOF_SHAPE.radius, sy: VENDOR_ROOF_SHAPE.height, sz: VENDOR_ROOF_SHAPE.radius,
           color: VENDOR_ROOF_SHAPE.color, ...own,
         });
@@ -466,7 +469,7 @@ export function expandFarInstances(records, densityMul) {
         if (i % 2 === 0) {
           const ws = 0.32 + instHash(r.clusterSeed, i + (side > 0 ? 0 : 53) + 211) * 0.12;
           out.warm.push({
-            x: ix - px * 2.2 * side, z: iz - pz * 2.2 * side, y: 2.9, yaw: 0,
+            x: ix - px * 2.2 * side, z: iz - pz * 2.2 * side, y: terrainHeight(ix, iz) + 2.9, yaw: 0,
             sx: ws, sy: ws, sz: ws, ...own,
           });
         }
@@ -913,7 +916,16 @@ export class FarField {
     const ax = this._planAnchor.x, az = this._planAnchor.z;
     const reach = this.tier.radius + COARSE_CELL;
     const scored = [];
-    for (const flat of flats) {
+    for (const original of flats) {
+      let flat = original;
+      if (terrainEnabled()) {
+        flat = [original[0], original[1]];
+        for (let i = 2; i < original.length; i += 2) {
+          const ax = original[i - 2], az = original[i - 1], bx = original[i], bz = original[i + 1];
+          const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 10));
+          for (let j = 1; j <= steps; j++) flat.push(ax + (bx - ax) * j / steps, az + (bz - az) * j / steps);
+        }
+      }
       let best = Infinity;
       for (let i = 0; i < flat.length; i += 2) {
         const d = Math.hypot(flat[i] - ax, flat[i + 1] - az);
@@ -924,6 +936,7 @@ export class FarField {
     scored.sort((a, b) => a.d - b.d || a.flat[0] - b.flat[0] || a.flat[1] - b.flat[1]);
     let v = 0, ix = 0, clipped = 0;
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
     for (const { flat } of scored) {
       const n = flat.length / 2;
       if (n < 2) continue;
@@ -946,8 +959,10 @@ export class FarField {
         const tl = Math.hypot(tx, tz) || 1;
         const pxn = -(tz / tl), pzn = tx / tl;
         const o = (base + i * 2) * 3;
-        pos[o] = cxp + pxn * halfW; pos[o + 1] = 0; pos[o + 2] = czp + pzn * halfW;
-        pos[o + 3] = cxp - pxn * halfW; pos[o + 4] = 0; pos[o + 5] = czp - pzn * halfW;
+        pos[o] = cxp + pxn * halfW; pos[o + 1] = terrainHeight(pos[o], czp + pzn * halfW); pos[o + 2] = czp + pzn * halfW;
+        pos[o + 3] = cxp - pxn * halfW; pos[o + 4] = terrainHeight(pos[o + 3], czp - pzn * halfW); pos[o + 5] = czp - pzn * halfW;
+        minY = Math.min(minY, pos[o + 1], pos[o + 4]);
+        maxY = Math.max(maxY, pos[o + 1], pos[o + 4]);
         if (cxp - halfW < minX) minX = cxp - halfW;
         if (cxp + halfW > maxX) maxX = cxp + halfW;
         if (czp - halfW < minZ) minZ = czp - halfW;
@@ -967,8 +982,9 @@ export class FarField {
     mesh.visible = ix > 0;
     if (v > 0) {
       const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
-      geo.boundingSphere.center.set(cx, 0, cz);
-      geo.boundingSphere.radius = Math.hypot(maxX - cx, maxZ - cz) + 1;
+      const cy = (minY + maxY) / 2;
+      geo.boundingSphere.center.set(cx, cy, cz);
+      geo.boundingSphere.radius = Math.hypot(maxX - cx, maxY - cy, maxZ - cz) + 1;
     } else {
       geo.boundingSphere.center.set(0, 0, 0);
       geo.boundingSphere.radius = 0;

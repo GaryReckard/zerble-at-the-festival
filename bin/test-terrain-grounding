@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fitCampToTerrain} from '../src/campRegistry.js';
+const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
+for(const yaw of [0,.7,2.4]) {
+ const tent={position:{x:2,y:0,z:-1},rotation:{x:0,y:.3,z:0},scale:{x:1,y:1,z:1}};
+ const chair={position:{x:-2,y:.1,z:1},rotation:{y:0}};
+ const camp={group:{position:{x:10,y:4,z:20},rotation:{y:yaw},scale:{x:1,y:1,z:1}},
+  childColliders:[{x:2,z:-1,group:tent},{x:-2,z:1,group:chair}],
+  tents:[{x:2,z:-1,yaw:.3,group:tent,shelter:{radius:2}}]};
+ const ground=(x,z)=>4+.12*x-.08*z;
+ fitCampToTerrain(camp,ground);
+ const a=yaw+.3,c=Math.cos(a),s=Math.sin(a),pitch=tent.rotation.x,roll=tent.rotation.z;
+ const cx=10+Math.cos(yaw)*2-Math.sin(yaw),cz=20-Math.sin(yaw)*2-Math.cos(yaw);
+ for(const u of [-Math.SQRT2,0,Math.SQRT2])for(const v of [-Math.SQRT2,0,Math.SQRT2]){
+  const x=Math.cos(roll)*u,y=Math.cos(pitch)*Math.sin(roll)*u-Math.sin(pitch)*v,z=Math.sin(pitch)*Math.sin(roll)*u+Math.cos(pitch)*v;
+  near(4+tent.position.y+y,ground(cx+c*x+s*z,cz-s*x+c*z));
+ }
+ const before=JSON.stringify([tent,chair]);fitCampToTerrain(camp,ground);assert.equal(JSON.stringify([tent,chair]),before,'grounding is idempotent');
+}
+// Evaluate the two actual texture-offset expressions from ground construction
+// and recentering, then track fixed world points across +/-40m origins.
+const world=readFileSync(new URL('../src/world.js',import.meta.url),'utf8');
+const matches=[...world.matchAll(/(?:mesh\.material|mat)\.map\.offset\.set\(\s*([^,]+),\s*([^,]+),/g)];
+assert.equal(matches.length,2);
+for(const m of matches){
+ const offsets=Function('originX','originZ','GROUND_SIZE','GRASS_TILE_METERS',`return [${m[1]},${m[2]}]`);
+ for(const x of [-100,12,99])for(const z of [-95,13,105]){
+  let reference;
+  for(const ox of [-40,0,40])for(const oz of [-40,0,40]){
+   const [u,v]=offsets(ox,oz,1400,24);
+   const uv=[((x-ox)/1400+.5)*1400/24+u,(.5-(z-oz)/1400)*1400/24+v];
+   if(reference){near(uv[0],reference[0]);near(uv[1],reference[1]);}else reference=uv;
+  }
+ }
+}
+console.log('PASS terrain grounding: rotated tent contact planes, independent prop heights, idempotence, and grass world-UV invariance across recentering.');

@@ -42,7 +42,7 @@
     const mods = ['playerStats', 'passportMenu', 'terrainSurface', 'terrainDriving', 'terrainSandbox', 'campClearing', 'debugCommands', 'campJamActivity', 'campMusic', 'woodlandCamping', 'campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
       'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
       'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes',
-      'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
+      'worldgen/terrain', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
     const models = ['campInstruments', 'oneWheelRider', 'canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'bo', 'monk', 'nutWagon', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
       'entranceArch', 'leafBanner', 'puppet', 'paradeLanterns', 'bandMember', 'parasolMarshal', 'kid', 'wook', 'bird', 'bubbleJug', 'bubbleVendor',
       'campChair', 'campsite', 'frisbeePlayer', 'hulaHooper', 'healingArts', 'leafDrumCircle', 'tribalFigures', 'portaPotty', 'picnicTable', 'infoKiosk'];
@@ -122,6 +122,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TimeOfDay } from './src/timeOfDay.js';
 import { setSeed, getSeed } from './src/worldgen/index.js';
+import { terrainHeight, setTerrainEnabled } from './src/worldgen/terrain.js';
+setTerrainEnabled(new URLSearchParams(location.search).get('terrain') === '1');
 import { FESTIVAL_TUNING, setFestivalTuning } from './src/worldgen/tuning.js';
 import { bumpWorldgen } from './src/worldgen/constants.js';
 import { nearestMajorHeart, nearestHeart, heartsInBounds } from './src/worldgen/hearts.js';
@@ -170,10 +172,10 @@ tod.setT(0.30); tod.update(0);
 
 // Flat ground — a big disc so a whole hub (MAX_POI_REACH ~480m) sits on grass.
 const ground = new THREE.Mesh(
-  new THREE.CircleGeometry(700, 64),
+  new THREE.PlaneGeometry(1400, 1400, 140, 140).rotateX(-Math.PI / 2),
   new THREE.MeshStandardMaterial({ color: 0x6fae6c, roughness: 0.96, flatShading: true }),
 );
-ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+ground.receiveShadow = true;
 scene.add(ground);
 
 // One crowd + smiles + lake manager for the page, reused across rebuilds. Crowd
@@ -233,10 +235,15 @@ function build(seedRaw, hubN, at) {
   crowd.update(0, dummyZerble, null);
   const heart = resolveHeart(hubN, at);
   if (!heart) { info.textContent = 'no hub found near origin for this seed'; return; }
+  const gx = Math.round(heart.x / 10) * 10, gz = Math.round(heart.z / 10) * 10;
+  ground.position.set(gx, 0, gz);
+  const gp = ground.geometry.attributes.position;
+  for (let i = 0; i < gp.count; i++) gp.setY(i, terrainHeight(gx + gp.getX(i), gz + gp.getZ(i)));
+  gp.needsUpdate = true; ground.geometry.computeVertexNormals(); ground.geometry.computeBoundingSphere();
   current = buildHubPreview(scene, heart, { crowd, lakes });
   // Park the stand-in "player" at the hub so crowd.update keeps + animates the
   // NPCs here (a far zerble culls them as out-of-range).
-  dummyZerble.pos.set(heart.x, 0, heart.z);
+  dummyZerble.pos.set(heart.x, terrainHeight(heart.x, heart.z), heart.z);
   dummyZerble.position.copy(dummyZerble.pos);
   // Dancefloor-clearing overlay: a translucent patch over the cleared floor in
   // front of the stage (the same `dancefloorRect` the tree-scatter + linter use),

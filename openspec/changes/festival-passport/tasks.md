@@ -8,3 +8,6 @@
 ## 4. Verification and delivery
 - [x] 4.1 Run npm checks and boot actual game on Low/Mid; inspect Noon/Midnight and narrow/mobile UI; verify close/focus/reload behavior.
 - [x] 4.2 Update player/developer docs, analytics metric instructions, changelog and verification evidence; commit only this feature.
+
+## 5. Terrain integration
+- [x] 5.1 Merge the committed terrain branch in isolation, preserve both test suites/importmaps/teleport hooks, and verify the combined game before updating the shared branch.

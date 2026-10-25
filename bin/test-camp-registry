@@ -123,7 +123,7 @@ const chunkSource=readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8
 const preflightSource=chunkSource.slice(chunkSource.indexOf('function placeSingleCampsite('),chunkSource.indexOf('// Camp village theme'));
 let waterMode='dry',waterQueries=0,buildCount=0;
 const waterFlags=[];
-const place=vm.runInNewContext(preflightSource+';placeSingleCampsite',{
+const place=vm.runInNewContext(preflightSource+';placeSingleCampsite',{terrainHeight:()=>0,
   campsiteFootprint:()=>5,USE_WORLDGEN_V2:true,ROAD_RIBBON_WIDTH:8,nearestRoad:()=>({dist:Infinity}),THREE:{Vector3:Position},
   isPointInLake:(x,z)=>{waterQueries++;return waterMode==='center'&&x===10&&z===20||waterMode==='rim'&&x===15&&z===20;},
   registry:{},buildCampsite:()=>{buildCount++;return {group:{position:new Position(),rotation:{y:0}},animatables:[]};},

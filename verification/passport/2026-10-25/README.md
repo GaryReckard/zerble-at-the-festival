@@ -32,8 +32,18 @@ The pure store, live hooks and player menu passed the focused tests and the full
 
 The earlier Noon/Midnight captures precede the final short-duration display refinement from minutes to seconds; the final game and fixture captures show the shipped formatting.
 
+## Combined terrain integration
+
+After the isolated feature commit `6038b50`, Astra committed terrain as `4bf38de`. The two were merged in the passport worktree, preserving both suites, all importmap entries, both changelog entries, and both responsibilities of debug teleport: mark passport relocation and ground the cart on the terrain surface. The combined `npm run check` exited 0; [combined command evidence](combined-checks.txt) includes the new terrain regressions and passport cases.
+
+The actual merged `/?mute=1&perf=low&seed=1977&terrain=1` started through the ready Just Cruisin' button and recorded 27 m of real keyboard driving, 11 raw smiles and 155 successful emissions with no runtime errors. [Combined live capture](game-terrain.jpg).
+
+A subsequent `/tp 620 -20` followed by one second of actual keyboard driving showed a physical distance of 1.04 km but kept the exploration record at 44 m and total driven distance at 49 m. The passport displayed its relocation eligibility message, and the console remained clean. The smaller record had grown through legitimate coasting before the command, while the kilometre jump did not become driven distance or an exploration achievement. [Observed text](terrain-relocation.txt) and [capture](terrain-relocation.jpg) preserve that result. This is a passport/terrain compatibility smoke check, not a new claim of terrain release acceptance.
+
 ## Limits and cleanup
 
 No physical iOS audio-unlock test, touch hardware test, cross-browser Safari test, GA property configuration or production ingestion claim is made. The feature adds no geometry or shadow casters, and this was a functional UI/lifecycle check rather than device performance measurement. The existing game still simulates hidden tabs; passport observations are gated out during that time. The personal save uses one browser-origin key and does not merge simultaneous game tabs.
 
 Implementation and checks ran in `/private/tmp/zerble-festival-passport` on `codex/festival-passport`, based on `92d3344`, independently of the concurrent uncommitted terrain integration. No standalone headless browser was launched. All created in-app tabs were closed, the temporary viewport override was reset, and the loopback server on 8774 was stopped. A direct `ps -p 41455` check returned exit 1 with no output, confirming that the exact owned server process was gone.
+
+The combined verification also closed its sole created game tab and stopped its temporary server; direct `ps -p 43468` returned exit 1 with no output.

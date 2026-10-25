@@ -1,3 +1,4 @@
+import { terrainHeight, terrainEnabled } from './worldgen/terrain.js';
 // Chase camera with arrow-key orbit/tilt.
 //
 // Default behavior: sits behind Zerble at a fixed offset, smoothly following.
@@ -66,6 +67,22 @@ const INTRO_MATCH_LOOK_H = 2.7;           // aims up toward Zerble's face
 // easeInOutCubic — smooth accel/decel for the orbit + FOV sweep.
 function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// Clear the whole sightline, since a safe endpoint can still hide behind a crest.
+// Raising the camera preserves its stable horizon and requires no raycast objects.
+function clearTerrainSightline(position, target, firstPerson) {
+  if (!terrainEnabled()) return;
+  position.y = Math.max(position.y, terrainHeight(position.x, position.z) + 0.3);
+  if (firstPerson) return;
+  target.y = Math.max(target.y, terrainHeight(target.x, target.z) + 0.6);
+  const steps = Math.max(8, Math.ceil(Math.hypot(position.x - target.x, position.z - target.z) / 3));
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = target.x + (position.x - target.x) * t;
+    const z = target.z + (position.z - target.z) * t;
+    position.y = Math.max(position.y, target.y + (terrainHeight(x, z) + 0.5 - target.y) / t);
+  }
 }
 
 export class ChaseCamera {
@@ -201,6 +218,7 @@ export class ChaseCamera {
     this._computeTargets();
     this.camera.position.copy(this._desiredPos);
     this._currentLook.copy(this._desiredLook);
+    clearTerrainSightline(this.camera.position, this._currentLook, this.mode === 'first');
     this.camera.lookAt(this._currentLook);
   }
 
@@ -310,6 +328,7 @@ export class ChaseCamera {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
       this.camera.position.copy(this._desiredPos);
+      clearTerrainSightline(this.camera.position, this._currentLook, this.mode === 'first');
       this.camera.lookAt(this._currentLook);
       if (this._introT >= this._introDur) {
         this._introPhase = null;
@@ -411,6 +430,7 @@ export class ChaseCamera {
       // Smooth the look target so quick steering doesn't whip the camera
       this._currentLook.lerp(this._desiredLook, Math.min(1, dt * LOOK_LERP));
     }
+    clearTerrainSightline(this.camera.position, this._currentLook, this.mode === 'first');
     this.camera.lookAt(this._currentLook);
   }
 

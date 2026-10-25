@@ -1,0 +1,92 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {setSessionSeed, worldHash} from '../src/rng.js';
+import {bumpWorldgen} from '../src/worldgen/constants.js';
+import {queryPoint} from '../src/worldgen/index.js';
+import {woodlandCampsNear} from '../src/woodlandCamping.js';
+import {nearestRoad} from '../src/worldgen/roads.js';
+import {terrainHeight,terrainVertexHeight,sampleTerrain,setTerrainEnabled,terrainDescriptors,terrainCacheStats} from '../src/worldgen/terrain.js';
+const close=(a,b,e=1e-8)=>assert.ok(Math.abs(a-b)<e,`${a} != ${b}`);
+setSessionSeed(0);assert.equal(terrainHeight(12,34),0);setTerrainEnabled(true);
+const layoutBefore=JSON.stringify([queryPoint(17,31),queryPoint(-295,712)]);
+const hashBefore=worldHash(20,-12,123456);
+let start=performance.now();
+let low=Infinity,high=-Infinity,raised=0,total=0,maxGrade=0;
+for(let z=-700;z<=700;z+=10)for(let x=-700;x<=700;x+=10){const h=terrainVertexHeight(x,z);low=Math.min(low,h);high=Math.max(high,h);if(Math.abs(h)>.1)raised++;total++;}
+console.log('Cold 19,881 ground vertices:',{ms:performance.now()-start,low,high,nonflatPercent:100*raised/total});
+assert.ok(high-low>.5,'canonical grading must preserve visible relief');
+start=performance.now();for(let z=-700;z<=700;z+=10)for(let x=-700;x<=700;x+=10)terrainVertexHeight(x,z);console.log('Warm mesh resampling (ms):',performance.now()-start);
+assert.equal(JSON.stringify([queryPoint(17,31),queryPoint(-295,712)]),layoutBefore);
+assert.equal(worldHash(20,-12,123456),hashBefore);
+const points=[[-17.6,-31.2],[128.1,57.3],[972.2,-1231.9],[0,0]];
+const before=points.map(([x,z])=>sampleTerrain(x,z));
+for(let z=-234.5;z<210;z+=17.13)for(let x=-319.8;x<340;x+=13.27){
+ const ix=Math.floor(x/10)*10,iz=Math.floor(z/10)*10,u=(x-ix)/10,v=(z-iz)/10;
+ const a=terrainVertexHeight(ix,iz),b=terrainVertexHeight(ix+10,iz),c=terrainVertexHeight(ix,iz+10),d=terrainVertexHeight(ix+10,iz+10);
+ const h=u+v<=1?a*(1-u-v)+b*u+c*v:b*(1-v)+c*(1-u)+d*(u+v-1);
+ const p=sampleTerrain(x,z);close(p.height,h);close(Math.hypot(p.nx,p.ny,p.nz),1);maxGrade=Math.max(maxGrade,p.grade);assert.ok(p.grade<.5,`grade ${p.grade}`);
+}
+setSessionSeed(1234);const alternate=points.map(([x,z])=>terrainHeight(x,z));
+setSessionSeed(0);for(const [x,z] of [...points].reverse())terrainHeight(x,z);
+assert.deepEqual(points.map(([x,z])=>sampleTerrain(x,z)),before);
+assert.notDeepEqual(alternate,before.map(p=>p.height));
+const descriptors=terrainDescriptors({minX:-700,minZ:-700,maxX:700,maxZ:700});
+let pads=0,lakes=0,conflicts=0;
+for(const p of descriptors){
+ if(!p.graded){conflicts++;continue;}
+ if(p.kind==='lake')lakes++;else pads++;
+ for(let i=0;i<8;i++){const a=i*Math.PI/4;close(terrainHeight(p.x+Math.cos(a)*(p.radius-15),p.z+Math.sin(a)*(p.radius-15)),p.height,1e-6);}
+}
+assert.ok(pads>0&&lakes>0);assert.equal(conflicts,0,'overlapping pads and lakes share one compatible datum');
+const epochHeight=terrainHeight(972.2,-1231.9);bumpWorldgen();assert.equal(terrainCacheStats().vertices,0);close(terrainHeight(972.2,-1231.9),epochHeight);
+assert.throws(()=>sampleTerrain(NaN,0),RangeError);
+const out={};assert.equal(sampleTerrain(1,2,out),out);
+// Measure the complete initial 1.4 km square and a snapped recenter for
+// several seeds. These timings cover the sampler only, not Three.js uploads,
+// color writes, vertex-normal calculation or device frame time.
+const surveys=[];
+let routeCount=0,routeMaxGrade=0;
+for(const seed of [0,42,1234,3948869160]) {
+ setSessionSeed(seed);
+ let min=Infinity,max=-Infinity,nonflat=0;
+ const coldStart=performance.now();
+ for(let z=-700;z<=700;z+=10)for(let x=-700;x<=700;x+=10) {
+  const h=terrainVertexHeight(x,z);min=Math.min(min,h);max=Math.max(max,h);
+  assert.ok(Math.abs(h)<=15,'grading cannot exceed the relief envelope');
+  if(Math.abs(h)>.1)nonflat++;
+ }
+ const coldMs=performance.now()-coldStart;
+ const recenterStart=performance.now();
+ for(let z=-700;z<=700;z+=10)for(let x=-620;x<=780;x+=10)terrainVertexHeight(x,z);
+ const recenterMs=performance.now()-recenterStart;
+ assert.ok(nonflat/19881>.1,`seed ${seed}: dense venue/camp masks must retain visible country`);
+ assert.ok(max-min>5,`seed ${seed}: the local relief must remain visible`);
+ const checkRoute=(ax,az,bx,bz)=>{
+  routeCount++;
+  for(let i=0;i<=30;i++) {
+   const p=sampleTerrain(ax+(bx-ax)*i/30,az+(bz-az)*i/30);
+   routeMaxGrade=Math.max(routeMaxGrade,p.grade);
+   assert.ok(p.grade<=.2,`seed ${seed}: access grade ${p.grade} exceeds 20%`);
+  }
+ };
+ for(const district of woodlandCampsNear({minX:-700,minZ:-700,maxX:700,maxZ:700}))
+  for(const p of district.paths)checkRoute(p.ax,p.az,p.bx,p.bz);
+ for(const p of terrainDescriptors({minX:-650,minZ:-650,maxX:650,maxZ:650})) {
+  if(p.kind!=='venue'||!['drum_circle','welfare_post','camp_village'].includes(p.source.kind))continue;
+  const road=nearestRoad(p.x,p.z);
+  if(road.dist>150)continue;
+  checkRoute(p.x,p.z,p.x+Math.cos(road.dirAngle)*road.dist,p.z+Math.sin(road.dirAngle)*road.dist);
+ }
+ surveys.push({seed,min,max,nonflatPercent:100*nonflat/19881,coldMs,recenterMs});
+}
+assert.ok(routeCount>100,'the access fixture must cover real routes');
+console.log('Four-seed sampler surveys:',surveys,{routeCount,routeMaxGrade});
+// Force vertex eviction within one planned tile, then query in reverse order.
+// Eviction must alter retention only, never the field itself.
+const evictedPoints=points.map(([x,z])=>terrainHeight(x,z));
+for(let i=0;i<66000;i++)terrainVertexHeight(50+(i%300)/301,50+Math.floor(i/300)/301);
+assert.equal(terrainCacheStats().vertices,65536);
+assert.deepEqual([...points].reverse().map(([x,z])=>terrainHeight(x,z)).reverse(),evictedPoints);
+setTerrainEnabled(false);close(terrainHeight(1,2),0);close(sampleTerrain(1,2).height,0);
+assert.ok(terrainCacheStats().vertices<=65536);assert.ok(terrainCacheStats().tiles<=512);
+console.log('World terrain: triangle agreement, normals, negative coordinates, seed/query order, level accepted pads/lakes, compatible overlapping pads, unchanged X/Z queries/hash, epoch invalidation and cache bounds passed.',{pads,lakes,conflicts,maxGrade,cache:terrainCacheStats()});

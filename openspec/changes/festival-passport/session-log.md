@@ -23,3 +23,8 @@ None.
 **Event:** phase-change
 **What:** Implemented pure progress, accessible paused UI, authoritative observations and incremental privacy-limited analytics. Native browser checks covered both modes/tiers, settings restart, ordinary reload, fixed Noon/Midnight and responsive layouts. Full checks passed. The preview caught and helped repair a formatting-helper shadowing error before final smoke testing.
 **Refs:** verification/passport/2026-10-25/README.md; docs/passport.md. Terrain checkout remains independent.
+
+### 2026-10-25 -- Integrated committed terrain
+**Event:** decision
+**What:** Astra finished and committed terrain as 4bf38de while the passport was verified independently in 6038b50. Merged those commits in isolation, retaining both check suites, module lists, changelog entries and the terrain-grounding/passport-relocation teleport hooks. Combined checks and a real terrain-enabled drive/teleport smoke test passed. The shared branch can now fast-forward to the verified merge; no uncommitted terrain work is overwritten.
+**Refs:** verification/passport/2026-10-25/README.md, combined-checks.txt and terrain-relocation.txt.
