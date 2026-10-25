@@ -77,8 +77,8 @@ import { A11y } from './a11y.js';
 import { setSessionSeed, getSessionSeed } from './rng.js';
 import { setTerrainEnabled, terrainEnabled, terrainHeight, sampleTerrain } from './worldgen/terrain.js';
 
-// Keep rollout explicit until device and placement acceptance is complete.
-setTerrainEnabled(new URLSearchParams(location.search).get('terrain') === '1');
+// Rolling terrain is the default; retain an explicit flat-world debug fallback.
+setTerrainEnabled(new URLSearchParams(location.search).get('terrain') !== '0');
 import { MODEL_DECOR_MERGE_ENABLED, getMergeDecorStats } from './mergeDecor.js';
 import { BoostStreaks } from './boostStreaks.js';
 import { syncRenderPipelineSize } from './renderSizing.js';

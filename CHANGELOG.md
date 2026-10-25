@@ -9,6 +9,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **The real festival has an opt-in rolling-terrain integration.** `terrain=1` shares a deterministic 10m triangle surface between the ground, cart, camera, roads, scenery and moving actors, with level gathering/camp pads and lake collars. The map has bounded elevation inspection, and the driving course can inspect the same seeded world surface. The flat game remains the default while integration acceptance continues. [Verification and remaining checks](verification/terrain/2026-10-25-integration.md).
 
 ### Changed
+- **Rolling terrain is enabled for normal game launches.** The shared terrain integration now starts without a URL flag, while `terrain=0` retains the flat-world fallback. Gary requested default enablement after playtesting; the remaining device, streaming and visual checks remain tracked in the roadmap.
 - **The Festival Passport gives its memories room to breathe.** Desktop layouts now open up to 1,080px wide with stats beside compact achievement cards, fitting the populated view at 1280 × 720 without a scrollbar. The close control is a centered SVG X with a 44px target and a single keyboard focus outline; opening focuses the dialog instead of decorating the close button. Smaller screens retain the scrollable stacked layout.
 
 ### Fixed

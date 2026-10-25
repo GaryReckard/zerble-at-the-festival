@@ -48,3 +48,10 @@ remaining road-grading gap. The requested player-stats chat was resumed and
 reported that it would work in its isolated passport worktree. Delegated review
 and documentation work encountered the account usage limit; their unfinished
 acceptance work is explicitly retained in the checklist.
+
+## October 25, default enablement
+
+Gary explicitly requested merging, pushing and enabling terrain by default. The
+terrain integration was already merged into main with Festival Passport. Normal
+game launches now enable terrain, with `terrain=0` retaining the flat fallback.
+This release decision does not mark the remaining acceptance checklist complete.

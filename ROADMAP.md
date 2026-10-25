@@ -15,11 +15,11 @@ reproduction lead, not proof that the current build still has the problem.
 
 ## Terrain integration acceptance
 
-The real game now supports opt-in `terrain=1`, with shared map/driving inspection,
+The real game now enables terrain by default, with `terrain=0` as a flat fallback, with shared map/driving inspection,
 grounded consumers and matching flat acceleration/boost. See the
 [current evidence](verification/terrain/2026-10-25-integration.md) and
 [active checklist](openspec/changes/varying-elevation/tasks.md).
-Before default enablement, finish repeated streaming/unload/revisit checks,
+Remaining acceptance includes repeated streaming/unload/revisit checks,
 road-grade and collision-height audits, all camera modes, Noon/Midnight tier
 comparisons and device performance acceptance. Gary's positive mobile report
 covers the authored driving proof; it does not establish full-game iOS acceptance.
