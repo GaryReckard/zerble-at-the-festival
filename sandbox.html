@@ -572,7 +572,7 @@
     import {buildSimpleNPC} from './src/models/puppet.js';
     import {_buildCanoeMeshForSandbox, buildLake, setLakeNightness} from './src/lakes.js';
     import {mulberry32,setSessionSeed} from './src/rng.js';
-    import {buildTent, TENT_VENDOR_PROFILES} from './src/models/tent.js';
+    import {buildTent, updateTent, TENT_VENDOR_PROFILES} from './src/models/tent.js';
     import {registry} from './src/registry.js';
     import {registerCampsite} from './src/campRegistry.js';
     import {buildCampInstrument,updateCampInstrument,CAMP_INSTRUMENT_KINDS} from './src/models/campInstruments.js';
@@ -1415,6 +1415,7 @@ import {buildShrub} from './src/models/shrub.js';
                 const requestedProfile = new URLSearchParams(location.search).get('vendor');
                 const profile = TENT_VENDOR_PROFILES.find(p => p.id === requestedProfile)?.id;
                 const g = buildTent(mulberry32(157), { rng: mulberry32(719), profile });
+                updateFn = () => updateTent(g, tod.t, tod.nightness);
                 scene.add(g);
                 entityRoot = g;
                 cam.target.set(0, 1.5, 0);
@@ -1434,6 +1435,7 @@ import {buildShrub} from './src/models/shrub.js';
                     tents.add(t);
                 }
                 scene.add(tents);
+                updateFn = () => { for (const tent of tents.children) updateTent(tent, tod.t, tod.nightness); };
                 entityRoot = tents;
                 cam.target.set(0, 1.8, 0);
                 cam.dist = 30;

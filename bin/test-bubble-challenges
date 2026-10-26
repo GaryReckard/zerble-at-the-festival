@@ -158,6 +158,7 @@ function tick(tracker) { tracker.tick(0.5); }
   assert.equal(tracker.onSmilesCollected(1), true);
   assert.equal(progress.lifetimeSmiles, 1000);
   assert.equal(progress.isEarned('smile'), true);
+  assert.equal(tracker.onSmilesCollected(1), false, 'later pickups do not repeat the reward');
   world.lurleen = true;
   world.night = 0.7;
   world.trip = true;
@@ -177,3 +178,22 @@ function tick(tracker) { tracker.tick(0.5); }
 }
 
 process.stdout.write('PASS bubble challenges: all unlock rules, negative cases, position identity, and context snapshot\n');
+
+// Restored eligible totals recover once, save immediately and survive reload.
+for (const total of [1000, 1200]) {
+  let saved = JSON.stringify({v:1, earned:{}, disabled:[], lifetimeSmiles:total});
+  const storage = {get:()=>saved, set:(_,value)=>{saved=value;}};
+  const progress = createBubbleProgress(storage);
+  const tracker = new ChallengeTracker(progress, makeWorld());
+  let events = 0;
+  progress.onUnlock(({id})=>{if(id==='smile') events++;});
+  tick(tracker); tick(tracker);
+  assert.equal(progress.isEnabled('smile'), true);
+  assert.equal(events, 1);
+  const restored = createBubbleProgress(storage);
+  assert.equal(restored.isEnabled('smile'), true);
+  assert.equal(restored.lifetimeSmiles, total);
+  restored.onUnlock(()=>events++);
+  tick(new ChallengeTracker(restored, makeWorld()));
+  assert.equal(events, 1, 'reload does not repeat the celebration');
+}

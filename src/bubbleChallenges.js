@@ -84,6 +84,8 @@ export class ChallengeTracker {
   }
 
   _evaluate() {
+    // A restored eligible total must recover its reward without waiting for another pickup.
+    if (this.progress.lifetimeSmiles >= CHALLENGE.lifetimeSmiles) this._unlock('smile');
     const world = this.world;
     const pos = typeof world.zerblePos === 'function' ? world.zerblePos() : null;
     const x = Number.isFinite(pos?.x) ? pos.x : 0;

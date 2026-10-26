@@ -613,8 +613,11 @@ function api() {
         const a = Math.random() * Math.PI * 2;
         const r = 2 + Math.random() * 5;
         h.smiles.spawn(
-          h.zerble.position.x + Math.cos(a) * r,
-          h.zerble.position.z + Math.sin(a) * r
+          h.zerble.position.clone().set(
+            h.zerble.position.x + Math.cos(a) * r,
+            h.zerble.position.y,
+            h.zerble.position.z + Math.sin(a) * r
+          )
         );
       }
     },

@@ -34,6 +34,12 @@ const _ROOF_MAT = new THREE.MeshStandardMaterial({
 });
 _ROOF_MAT.userData.shared = true;
 
+const _BULB_GEO = new THREE.SphereGeometry(.095, 6, 4);
+const _BULB_MAT = new THREE.MeshBasicMaterial({color:0xffdc90});
+const _BED_GEO = new THREE.BoxGeometry(1.75, .22, .65);
+const _BED_MAT = new THREE.MeshStandardMaterial({color:0x586d80, roughness:1});
+for (const resource of [_BULB_GEO, _BULB_MAT, _BED_GEO, _BED_MAT]) resource.userData.shared = true;
+
 // Table geometry + cloth/trim material pools — keyed for reuse.
 const _TABLE_GEOS = new Map(); // 'lengthxdepth' → BoxGeometry
 function _tableGeo(length, depth) {
@@ -192,7 +198,59 @@ export function buildTent(callerRng = Math.random, options = {}) {
   // meshes — the booth's ~40 draws → ~2 + emissive art + the shopkeeper.
   if (options.merge !== false) mergeStaticDecor(g);
 
+  // Only the booth owns these clones; pooled materials remain untouched.
+  const materials = [];
+  for (const mesh of g.children) {
+    if (!mesh.isMesh || !mesh.material?.emissive || mesh.material.transparent) continue;
+    const mat = mesh.material.clone();
+    mat.userData.shared = false;
+    mat.emissive.setHex(0xffb351);
+    mat.emissiveIntensity = 0;
+    // Light the display height and preserve each product's baked color;
+    // the roof must not turn into an enormous glowing lantern.
+    mat.onBeforeCompile = (shader) => {
+      shader.vertexShader = 'varying float vDisplayHeight;\n' + shader.vertexShader.replace(
+        '#include <begin_vertex>', '#include <begin_vertex>\n vDisplayHeight = position.y;');
+      shader.fragmentShader = 'varying float vDisplayHeight;\n' + shader.fragmentShader.replace(
+        '#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance *= diffuseColor.rgb * smoothstep(0.3, 0.8, vDisplayHeight) * (1.0 - smoothstep(2.1, 2.5, vDisplayHeight));');
+    };
+    mat.customProgramCacheKey = () => 'vendor-display-v1';
+    mesh.material = mat;
+    materials.push(mat);
+  }
+  const lights = new THREE.InstancedMesh(_BULB_GEO, _BULB_MAT, 3);
+  const transform = new THREE.Matrix4();
+  for (let i = 0; i < 3; i++) lights.setMatrixAt(i, transform.makeTranslation((i - 1) * 1.4, 2.3, .6));
+  lights.instanceMatrix.needsUpdate = true;
+  lights.userData.noMerge = true;
+  lights.visible = false;
+  g.add(lights);
+  const bed = new THREE.Mesh(_BED_GEO, _BED_MAT);
+  bed.position.set(0, .13, .8);
+  bed.visible = false;
+  g.add(bed);
+  g.userData.evening = {vendor:shopkeeper, home:shopkeeper.position.clone(),
+    yaw:shopkeeper.rotation.y, lights, bed, materials};
   return g;
+}
+
+// t=0 is dawn and .75 is midnight, matching TimeOfDay rather than wall time.
+export function updateTent(tent, t, nightness) {
+  const state = tent.userData.evening;
+  if (!state) return;
+  const sleeping = t >= .75 || t < .04;
+  const closing = t >= .735 && t < .75 ? (t - .735) / .015 : 0;
+  const glow = !sleeping && t > .43 ? nightness * (1 - closing) : 0;
+  state.lights.visible = glow > .02;
+  for (const material of state.materials) material.emissiveIntensity = glow * .45;
+  state.bed.visible = sleeping;
+  const vendor = state.vendor;
+  vendor.rotation.x = 0;
+  vendor.rotation.z = sleeping ? Math.PI / 2 : 0;
+  vendor.rotation.y = sleeping ? Math.PI / 2 : state.yaw;
+  if (sleeping) vendor.position.set(.7, .28, .8);
+  else vendor.position.set(state.home.x * (1 - closing), state.home.y,
+    state.home.z + (.8 - state.home.z) * closing);
 }
 
 function consumeLegacyTableDraws(rng) {

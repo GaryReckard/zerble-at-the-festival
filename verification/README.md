@@ -13,6 +13,8 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Evening vendors, moonset and Smile Bubbles, October 25](nightlife/2026-10-25/README.md): midnight shop closure, celestial occlusion and the real 1,000-pickup unlock pipeline.
+
 | Evidence | What it establishes |
 | --- | --- |
 | [Slash commands, October 24](debug-commands/2026-10-24/README.md) | Twenty command grammars, bounded argument dispatch, actual game adapters, contextual completion and live-game checks |

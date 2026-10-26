@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { buildMountains } from './mountains.js';
-import { ChunkManager } from './chunks.js';
+import { ChunkManager, updateVendorTents } from './chunks.js';
 import { LakeManager } from './lakes.js';
 import { FarField } from './farField.js';
 import { hash2 } from './rng.js';
@@ -123,7 +123,10 @@ export function updateWorld(playerPos, dt = 0.016) {
   // streaming spend that consumes the wall first; time-of-day is not
   // streaming work and doesn't count against it.
   const streamRemainderMs = Math.max(0, PERF.chunkBudgetMs - (performance.now() - streamStartedAt));
-  if (timeOfDay) timeOfDay.update(dt);
+  if (timeOfDay) {
+    timeOfDay.update(dt);
+    updateVendorTents(timeOfDay.t, timeOfDay.nightness);
+  }
   if (farField && farField.enabled) {
     farField.update(playerPos.x, playerPos.z, {
       dt,
@@ -309,6 +312,7 @@ function buildSky(scene) {
   const skyGeo = new THREE.SphereGeometry(900, 32, 16);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
+    depthWrite: false,
     uniforms: {
       topColor: { value: new THREE.Color(SKY_TOP) },
       bottomColor: { value: new THREE.Color(SKY_BOTTOM) },
@@ -481,7 +485,20 @@ function buildMoon(scene) {
   );
   group.add(halo);
 
-  group.renderOrder = 0;  // after stars (-1), before bubbles
+  // Celestial depth belongs behind every ridge, independent of the compact
+  // orbit used to stay inside the camera's far plane. Keep the halo there too.
+  group.traverse((mesh) => {
+    if (!mesh.isMesh) return;
+    mesh.material.fog = false;
+    mesh.material.depthWrite = false;
+    mesh.material.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>',
+        '#include <project_vertex>\n gl_Position.z = gl_Position.w * 0.999999;');
+    };
+    mesh.material.customProgramCacheKey = () => 'celestial-depth-v1';
+  });
+  moon.renderOrder = 1;
+  mare.renderOrder = 2;
   group.visible = false;  // updateWorld toggles based on night phase
   scene.add(group);
   return group;

@@ -129,7 +129,7 @@ import { bumpWorldgen } from './src/worldgen/constants.js';
 import { nearestMajorHeart, nearestHeart, heartsInBounds } from './src/worldgen/hearts.js';
 import { dancefloorRect } from './src/worldgen/festival.js';
 import * as ContextLights from './src/contextLights.js';
-import { updateHealingArtsTents, buildHubPreview, disposeChunkByKey, updateStageLightShow, updateStagePerformers } from './src/chunks.js';
+import { updateHealingArtsTents, buildHubPreview, disposeChunkByKey, updateStageLightShow, updateStagePerformers, updateVendorTents } from './src/chunks.js';
 import { FarField } from './src/farField.js';
 import { FAR_FIELD_TIERS } from './src/perf.js';
 import { ownerCellCoord } from './src/worldgen/placement.js';
@@ -451,6 +451,7 @@ function frame() {
   smiles.update(dt, dummyZerble, () => {});   // drain any smiles the crowd emits at the cart
   updateStageLightShow(now / 1000, tod.nightness, dummyZerble.position);
   updateStagePerformers(now / 1000);
+  updateVendorTents(tod.t, tod.nightness);
   updateHealingArtsTents(dt, now / 1000, tod.nightness, dummyZerble.position);
   updateFarField(dt, now);
   ContextLights.update(camera.position, scene);

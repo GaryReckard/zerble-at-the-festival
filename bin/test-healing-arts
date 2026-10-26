@@ -59,11 +59,11 @@ tick(.016,4,0); assert.equal(detached,1,'dawn stops music');
 tick(.016,5,1);
 const disposeStart=source.indexOf('export function disposeChunkByKey(');
 const disposeEnd=source.indexOf('\nfunction ',disposeStart);
-Object.assign(context,{registry:{removeChunk:()=>{}},stagePerformers:[],stageMusic:[],stageLightLenses:[],stageBeamRefs:[],sugarShackCooks:[],forestAnimatables:[],forestDrumCircles:[],forestDrumMusic:[]});
+Object.assign(context,{registry:{removeChunk:()=>{}},vendorTents:[{chunkKey:'test'},{chunkKey:'neighbor'}],stagePerformers:[],stageMusic:[],stageLightLenses:[],stageBeamRefs:[],sugarShackCooks:[],forestAnimatables:[],forestDrumCircles:[],forestDrumMusic:[]});
 const dispose=vm.runInNewContext(source.slice(disposeStart,disposeEnd).replace('export function','function')+';disposeChunkByKey',context);
 dispose({remove:()=>{}},{traverse:()=>{}},'unrelated',null); assert.equal(tents.length,1,'unrelated unload retains tent');
 dispose({remove:()=>{}},{traverse:()=>{}},'test',null);
-assert.equal(tents.length,0,'unload removes animation references'); assert.equal(detached,2,'unload detaches night music');
+assert.equal(tents.length,0,'unload removes animation references'); assert.equal(context.vendorTents.length,1); assert.equal(context.vendorTents[0].chunkKey,'neighbor','vendor unload retains only other owners'); assert.equal(detached,2,'unload detaches night music');
 assert(animated>=5);
 console.log(`PASS Healing Arts: ${total}/${hubs} hubs across five seeds, full-footprint clearance, spacing, determinism, night audio and unload`);
 

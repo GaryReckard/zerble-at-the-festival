@@ -512,6 +512,7 @@ const visitRegistryKind = (kind, fn) => {
   }
 };
 const bubbleChallenges = new ChallengeTracker(bubbleProgress, {
+  mode: () => RunMode.name,
   zerblePos: () => zerble.position,
   nightness: () => getTimeOfDay()?.nightness ?? 0,
   lurleenNear: () => lurleen.state === 'aware' || lurleen.state === 'following',

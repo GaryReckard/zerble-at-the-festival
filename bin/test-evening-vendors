@@ -1,0 +1,53 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const source=fs.readFileSync(new URL('../src/models/tent.js',import.meta.url),'utf8');
+const code=source.slice(source.indexOf('export function updateTent('), source.indexOf('\nfunction consumeLegacyTableDraws'));
+const context=vm.createContext({Math});
+vm.runInContext(code.replace('export function','function')+';this.update=updateTent;',context);
+const position=()=>({x:0,y:0,z:0,set(x,y,z){Object.assign(this,{x,y,z});},copy(v){Object.assign(this,v);}});
+const vendor={position:position(),rotation:{x:0,y:0,z:0}};
+const material={emissiveIntensity:0};
+const tent={userData:{evening:{vendor,home:{x:1,y:0,z:-.6},yaw:Math.PI,lights:{visible:false},bed:{visible:false},materials:[material]}}};
+context.update(tent,.25,0);
+assert.equal(tent.userData.evening.lights.visible,false);
+assert.equal(vendor.position.x,1);
+context.update(tent,.63,1);
+assert.equal(tent.userData.evening.lights.visible,true);
+assert.ok(material.emissiveIntensity>0);
+context.update(tent,.745,1);
+assert.equal(tent.userData.evening.bed.visible,false);
+assert.ok(vendor.position.x<1,'vendor walks toward bed before midnight');
+context.update(tent,.75,1);
+assert.equal(tent.userData.evening.lights.visible,false);
+assert.equal(tent.userData.evening.bed.visible,true);
+assert.equal(vendor.rotation.z,Math.PI/2);
+context.update(tent,.99,1);assert.equal(tent.userData.evening.bed.visible,true);
+context.update(tent,.03,.5);assert.equal(tent.userData.evening.bed.visible,true);
+context.update(tent,.07,0);assert.equal(tent.userData.evening.bed.visible,false);
+assert.equal(vendor.rotation.z,0);assert.equal(vendor.position.x,1);
+console.log('PASS vendor dusk lighting, midnight bedtime, wrapped night and morning reopening');
+
+// The moon and halo must test at celestial depth, behind every physical ridge.
+const {register} = await import('node:module');
+register('./node-three-shim.mjs', import.meta.url);
+const THREE = await import('three');
+const worldSource=fs.readFileSync(new URL('../src/world.js',import.meta.url),'utf8');
+const moonCode=worldSource.slice(worldSource.indexOf('function buildMoon('),worldSource.indexOf('\nfunction buildLightsAndFog('));
+class MoonMesh extends THREE.Mesh { constructor(...args){super(...args);this.isMesh=true;} }
+class MoonGroup extends THREE.Group { traverse(fn){fn(this);for(const child of this.children)fn(child);} }
+const buildMoon=vm.runInNewContext(moonCode+';buildMoon',{THREE:{...THREE,Group:MoonGroup,Mesh:MoonMesh}});
+const moon=buildMoon(new THREE.Group());
+assert.equal(moon.children.length,3);
+for(const mesh of moon.children){
+  assert.equal(mesh.material.depthWrite,false);
+  assert.notEqual(mesh.material.depthTest,false);
+  assert.equal(mesh.material.fog,false);
+  const shader={vertexShader:'#include <project_vertex>'};
+  mesh.material.onBeforeCompile(shader);
+  assert.match(shader.vertexShader,/gl_Position.z = gl_Position.w \* 0.999999/);
+}
+const skyCode=worldSource.slice(worldSource.indexOf('function buildSky('),worldSource.indexOf('function buildStars('));
+assert.match(skyCode,/depthWrite: false/,'the sky cannot occlude celestial depth');
+console.log('PASS moon body, phase and additive halo use foreground-occluded celestial depth without extending the camera far plane');

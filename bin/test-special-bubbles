@@ -99,3 +99,51 @@ assert(dry.specialRoot.children.every((mesh) => mesh.castShadow === false),
   'specials add no shadow casters');
 
 process.stdout.write('PASS  special emission rate, dry unlock burst, fixed pool, crowd visitation, and idle render visibility\n');
+
+// The real pickup, challenge, unlock subscriber and special particle pipeline.
+const fs = await import('node:fs');
+const vm = await import('node:vm');
+const {createBubbleProgress} = await import('../src/bubbleProgress.js');
+const {ChallengeTracker} = await import('../src/bubbleChallenges.js');
+const {Smiles} = await import('../src/smiles.js');
+const {visibleCatalog} = await import('../src/bubbleTypes.js');
+const mainSource = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+const debugSource = fs.readFileSync(new URL('../src/debug.js', import.meta.url), 'utf8');
+for (const mode of ['cruisin', 'festival']) {
+  let saved;
+  const progress = createBubbleProgress({get:()=>null,set:(_,v)=>saved=v});
+  progress.addLifetimeSmiles(999);
+  const machine = new Bubbles(); machine.setProgress(progress);
+  const pickups = new Smiles();
+  const pickupCart = {position:new Vector3(12,7,-4)};
+  const tracker = new ChallengeTracker(progress, {mode:()=>mode});
+  const notices=[], sounds=[], events=[]; let unread=0;
+  const context = vm.createContext({bubbleProgress:progress,bubbles:machine,
+    BUBBLE_TYPES,visibleCatalog,performance:{now:()=>100},setTimeout:fn=>fn(),
+    HUD:{toast:text=>notices.push(text)},Sound:{playUpgradeUnlock:()=>sounds.push(true)},
+    Analytics:{bubbleUnlocked:(...args)=>events.push(args)},UpgradesMenu:{markUnread:()=>unread++}});
+  vm.runInContext(mainSource.slice(mainSource.indexOf('let nextUpgradeToastAt = 0;'),
+    mainSource.indexOf('// iOS Safari still fires deprecated GestureEvents')),context);
+  // Exercise the actual debug helper too: each spawn receives a finite Vector3
+  // at the cart's terrain height, rather than the former pair of numbers.
+  const spawnArgs=[];
+  const h={zerble:pickupCart,smiles:{spawn:(p)=>{spawnArgs.push(p);pickups.spawn(p);}}};
+  const drop = debugSource.slice(debugSource.indexOf('    dropSmile(n = 10) {'),debugSource.indexOf('    dropMarker(note'));
+  const actions = vm.runInNewContext('({' + drop + '})',{h,Math});
+  actions.dropSmile(1);
+  assert.equal(spawnArgs.length,1);assert.equal(spawnArgs[0].y,7);
+  assert.ok(Number.isFinite(spawnArgs[0].x)&&Number.isFinite(spawnArgs[0].z));
+  for(let i=0;i<600 && pickups.active.length;i++) pickups.update(1/60,pickupCart,n=>tracker.onSmilesCollected(n));
+  assert.equal(progress.lifetimeSmiles,1000);
+  assert.equal(progress.isEnabled('smile'),true);
+  assert.equal(JSON.parse(saved).earned.smile.mode,mode);
+  assert.equal(notices.length,1);assert.match(notices[0],/Smile Bubbles/);
+  assert.equal(sounds.length,1);assert.equal(unread,1);assert.equal(events.length,1);
+  run(machine,1);
+  let smileParticles=0;
+  machine.forEachAlive(p=>{if(BUBBLE_TYPES[p.type]?.id==='smile')smileParticles++;});
+  assert.ok(smileParticles>0,'the unlock burst emits real smile particles');
+  tracker.onSmilesCollected(3);
+  assert.equal(events.length,1,'later pickups do not repeat analytics or celebration');
+}
+console.log('PASS real 999→1000 smile pickup, both modes, save, toast, sound, unread badge, analytics and emitted Smile Bubbles');

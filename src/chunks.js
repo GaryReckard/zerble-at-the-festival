@@ -36,7 +36,7 @@ import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forest
 import { buildCampsite, buildCampChair, buildTorchField, buildVendorCamp, CAMPSITE_SCALE, campsiteFootprint } from './models/campsite.js';
 import { HealingArtsActivity } from './healingArtsActivity.js';
 import { buildHealingArts, updateHealingArts } from './models/healingArts.js';
-import { buildTent } from './models/tent.js';
+import { buildTent, updateTent } from './models/tent.js';
 import { buildFoodTruck, FOOD_TRUCK_SCALE } from './models/foodTruck.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
 import { buildBubbleVendor } from './models/bubbleVendor.js';
@@ -60,6 +60,10 @@ const UNLOAD_RADIUS = PERF.chunkUnloadRadius; // hysteresis
 // Bands placed on stages — animated lightly each frame by the main loop.
 export const stagePerformers = [];
 export const healingArtsTents = [];
+const vendorTents = [];
+export function updateVendorTents(t, nightness) {
+  for (const entry of vendorTents) updateTent(entry.group, t, nightness);
+}
 
 export function updateHealingArtsTents(dt, time, nightness, playerPos) {
   for (const entry of healingArtsTents) {
@@ -606,6 +610,9 @@ export function disposeChunkByKey(scene, group, key, crowd) {
   }
   for (let i = sugarShackCooks.length - 1; i >= 0; i--) {
     if (sugarShackCooks[i].chunkKey === key) sugarShackCooks.splice(i, 1);
+  }
+  for (let i = vendorTents.length - 1; i >= 0; i--) {
+    if (vendorTents[i].chunkKey === key) vendorTents.splice(i, 1);
   }
   // Sweep forest animatables (campsite firepit / torch flicker state).
   for (let i = forestAnimatables.length - 1; i >= 0; i--) {
@@ -1686,6 +1693,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       // aisle so the row reads as a market street you drive down.
       tent.rotation.y = yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI;
       ctx.group.add(tent);
+      vendorTents.push({group:tent, chunkKey:ctx.key});
       registry.add({
         kind: 'tent',
         position: new THREE.Vector3(w.x, terrainHeight(w.x, w.z), w.z),
@@ -2599,6 +2607,7 @@ function buildVendorRow(ctx) {
       tent.position.set(x, terrainHeight(x, z), z);
       tent.rotation.y = axisH ? (side < 0 ? 0 : Math.PI) : (side < 0 ? Math.PI / 2 : -Math.PI / 2);
       ctx.group.add(tent);
+      vendorTents.push({group:tent, chunkKey:ctx.key});
 
       registry.add({
         kind: 'tent',
