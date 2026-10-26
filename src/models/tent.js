@@ -12,7 +12,16 @@ import { VENDOR_ROOF_SHAPE } from '../festivalShapes.js';
 import { buildSimpleNPC } from './puppet.js';
 import { mergeStaticDecor } from '../mergeDecor.js';
 
-const CLOTH_COLORS = [0xfff4d0, 0xe7c995, 0xfddfa5, 0xd0c2a8, 0xf4d6c4];
+// Vendor canopies carry the festival color from a distance, while table cloth
+// stays a softer related shade so the merchandise remains easy to read.
+const TENT_PALETTES = [
+  { roof: 0xe87859, cloth: 0xf2c0a7 }, // coral
+  { roof: 0x4f9b69, cloth: 0xb8d59a }, // leaf green
+  { roof: 0x4f7faf, cloth: 0xaac9dc }, // blue
+  { roof: 0xc39437, cloth: 0xe6ce8a }, // marigold
+  { roof: 0x9165a5, cloth: 0xd0b3d8 }, // violet
+  { roof: 0x369b91, cloth: 0x9dd1bd }, // teal
+];
 const TRIM_COLORS  = [0xff6f9c, 0x6fcf6a, 0xffd28a, 0xb285ff, 0x66d9ff, 0xff8a5b];
 
 // ----- Shared resources --------------------------------------------------
@@ -29,10 +38,16 @@ const _LEG_MAT = new THREE.MeshStandardMaterial({
   color: 0x3a2e22, roughness: 0.8, flatShading: true,
 });
 _LEG_MAT.userData.shared = true;
-const _ROOF_MAT = new THREE.MeshStandardMaterial({
-  color: VENDOR_ROOF_SHAPE.color, roughness: 0.85, flatShading: true,
-});
-_ROOF_MAT.userData.shared = true;
+const _ROOF_MATS = new Map();
+function _roofMat(hex) {
+  let m = _ROOF_MATS.get(hex);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.85, flatShading: true });
+    m.userData.shared = true;
+    _ROOF_MATS.set(hex, m);
+  }
+  return m;
+}
 
 const _BULB_GEO = new THREE.SphereGeometry(.095, 6, 4);
 const _BULB_MAT = new THREE.MeshBasicMaterial({color:0xffdc90});
@@ -145,7 +160,8 @@ export function buildTent(callerRng = Math.random, options = {}) {
 
   // One cloth color per tent — every table in this booth shares it so the
   // booth reads as a single vendor's space rather than an improvised pile.
-  const baseColor = CLOTH_COLORS[Math.floor(rng() * CLOTH_COLORS.length)];
+  const palette = TENT_PALETTES[Math.floor(rng() * TENT_PALETTES.length)];
+  const baseColor = palette.cloth;
 
   // ----- Legs -----
   for (const [lx, lz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
@@ -154,8 +170,8 @@ export function buildTent(callerRng = Math.random, options = {}) {
     g.add(leg);
   }
 
-  // ----- Roof — always white festival canvas; angle jitter avoids clones.
-  const roof = new THREE.Mesh(_ROOF_GEO, _ROOF_MAT);
+  // ----- Roof — palette-colored festival canvas; jitter avoids clones.
+  const roof = new THREE.Mesh(_ROOF_GEO, _roofMat(palette.roof));
   roof.position.y = VENDOR_ROOF_SHAPE.centerY;
   roof.rotation.y = Math.PI / 4 + (rng() - 0.5) * 0.06;
   roof.castShadow = true;

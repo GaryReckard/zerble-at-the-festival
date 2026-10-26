@@ -24,7 +24,9 @@ export { buildCampChair } from './campChair.js';
 
 // ---------- Shared palettes ----------
 
-const TENT_COLORS = [0x75816a, 0x969d94, 0x667b6b, 0xb2a66f, 0xd0ceb9, 0xe0dfd1];
+// Campsite shells stay earthy, but give each shelter a clear fabric color so
+// clearings read as lived-in camps instead of a row of gray-green tents.
+const TENT_COLORS = [0xb76f5c, 0x568f83, 0xc09d4e, 0x6483a6, 0x8c6f99, 0x718957];
 const CHAIR_COLORS = [0xc44a4a, 0x3b7fbe, 0x4f9c4f, 0xd4c177, 0xb86bc7, 0x444b55];
 const EZUP_COLORS = [0xd86b3a, 0x3a82c0, 0x4ea15a, 0xc7385c];
 const TAPESTRY_COLORS = [
@@ -255,7 +257,7 @@ function buildTentDoor(group,{family,width,height,bottom,surfaceZ,surfaceMesh}) 
 function buildTentFamily(group,color,fabric,family,variation,vestibule) {
   const v=THREE.MathUtils.clamp(variation,0,1), scale=.94+v*.12;
   const add=(geometry,material,x,y,z,shadow=true)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=shadow;mesh.receiveShadow=true;group.add(mesh);return mesh;};
-  const roofMaterial=matFor([0xd5c09a,0xbeb998,0x8b9c8b][Math.min(2,Math.floor(v*3))]);
+  const roofMaterial=matFor([0xd39a61,0x78986f,0x7488b0][Math.min(2,Math.floor(v*3))]);
   let radius,width,depth,height,doorZ,capacity,bounds,doorSurface,doorSurfaceMesh;
   const poles=[];
   const shell=(w,d,eave,x=0,z=0)=>{

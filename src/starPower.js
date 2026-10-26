@@ -20,6 +20,7 @@
 import * as THREE from 'three';
 import { registry } from './registry.js';
 import { isPointInLake, projectOutOfLake } from './lakes.js';
+import { terrainHeight } from './worldgen/terrain.js';
 import { PERF } from './perf.js';
 import { A11y } from './a11y.js';
 
@@ -140,6 +141,7 @@ const SPAWN_FAR     = 300;
 const DESPAWN_DIST  = 360;    // drift this far and it expires + re-rolls
 const PICKUP_PAD    = 0.8;    // added to cart radius for the catch test
 const HUE_RATE      = 0.55;   // hue cycles / second
+const STAR_FOOTPRINT_RADIUS = 0.7;
 
 const THREE_TMP_COLOR = new THREE.Color();   // scratch, reused per-frame
 
@@ -374,7 +376,17 @@ export const StarPower = {
     pillar.frustumCulled = false;
     group.add(pillar);
 
-    group.position.set(x, 0, z);
+    // Give the star clearance over the full mesh footprint. Sampling only the
+    // centre lets the uphill edge disappear into rolling terrain on a slope.
+    let groundY = terrainHeight(x, z);
+    for (let i = 0; i < 8; i++) {
+      const angle = i * Math.PI / 4;
+      groundY = Math.max(groundY, terrainHeight(
+        x + Math.cos(angle) * STAR_FOOTPRINT_RADIUS,
+        z + Math.sin(angle) * STAR_FOOTPRINT_RADIUS,
+      ));
+    }
+    group.position.set(x, groundY, z);
     this.scene.add(group);
 
     let light = null;

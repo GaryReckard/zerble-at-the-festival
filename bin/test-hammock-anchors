@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { register } from 'node:module';
+register('./node-three-shim.mjs', import.meta.url);
+
+const { buildTreeHammock, treeHammockAnchors } = await import('../src/models/hammock.js');
+const { treeTrunkRadiusAt, treeTrunkRadiusAtWorldHeight } = await import('../src/models/tree.js');
+
+const testTree = { trunk: { rBot: 2, rTop: 1, h: 10 } };
+assert.equal(treeTrunkRadiusAt(testTree, 0), 2, 'the base profile uses rBot');
+assert.equal(treeTrunkRadiusAt(testTree, 1.6), 1.66, 'the first taper segment interpolates at 0.16h');
+assert.equal(treeTrunkRadiusAt(testTree, 4.1), 1.59, 'the middle taper segment interpolates at 0.41h');
+assert.equal(treeTrunkRadiusAt(testTree, 8.3), 1.26, 'the upper taper segment interpolates at 0.83h');
+assert.equal(treeTrunkRadiusAt(testTree, 10), 1, 'the top profile uses rTop');
+assert.equal(treeTrunkRadiusAt(testTree, -1), 2, 'heights below the trunk clamp to the base');
+assert.equal(treeTrunkRadiusAt(testTree, 12), 1, 'heights above the trunk clamp to the top');
+
+const ax = -3, az = 2, bx = 3, bz = 2;
+const supportWorldY = 6, treeGroundYA = 4.5, treeGroundYB = 5.25;
+const radiusA = treeTrunkRadiusAtWorldHeight(testTree, supportWorldY, treeGroundYA);
+const radiusB = treeTrunkRadiusAtWorldHeight(testTree, supportWorldY, treeGroundYB);
+assert.equal(radiusA, treeTrunkRadiusAt(testTree, 1.5), 'the lower tree uses its local support height on the slope');
+assert.equal(radiusB, treeTrunkRadiusAt(testTree, .75), 'the higher tree uses its local support height on the slope');
+assert.notEqual(radiusA, radiusB, 'sloped tree bases produce distinct contact radii');
+const clearance = .04;
+const anchors = treeHammockAnchors(ax, az, bx, bz, radiusA, radiusB, clearance);
+assert(Math.hypot(anchors.ax - ax, anchors.az - az) >= radiusA + clearance - 1e-9,
+  'the first suspension point stays outside the first trunk');
+assert(Math.hypot(anchors.bx - bx, anchors.bz - bz) >= radiusB + clearance - 1e-9,
+  'the second suspension point stays outside the second trunk');
+assert(anchors.ax > ax && anchors.bx < bx, 'anchors face into the gap between trees');
+assert.equal(anchors.cx, (anchors.ax + anchors.bx) / 2, 'the sling centers between its actual supports');
+assert.equal(anchors.halfSupport, (anchors.bx - anchors.ax) / 2, 'the sling span uses the bark-to-bark distance');
+
+let draws = 0;
+const { seatPos } = buildTreeHammock(ax, az, bx, bz, () => { draws++; return 0; }, radiusA, radiusB);
+assert.equal(draws, 1, 'the adjusted anchors add no random draws');
+assert.equal(seatPos.x, anchors.cx, 'the lounge seat follows the adjusted support midpoint');
+assert.equal(seatPos.z, anchors.cz, 'the lounge seat follows the adjusted support midpoint');
+
+process.stdout.write('PASS tree hammock anchors clear both trunk radii and preserve the RNG draw count\n');

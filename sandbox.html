@@ -220,6 +220,7 @@
         </optgroup>
         <optgroup label="Festival props">
             <option value="hammock">Hammock</option>
+            <option value="tree_hammock">Hammock between trees</option>
             <option value="hammock_with_npc">Hammock + person (lounging)</option>
             <option value="tent">Vendor tent</option>
             <option value="tent_row">Vendor tent row (7 trades)</option>
@@ -568,7 +569,7 @@
     import {buildStarPreview, STAR_UNIFORMS, StarPower} from './src/starPower.js';
     import {Lurleen, createHeartGeometry} from './src/lurleen.js';
     import {buildHammockStandalone} from './src/chunks.js';
-    import {buildHammock as buildHammockRaw} from './src/models/hammock.js';
+    import {buildHammock as buildHammockRaw, buildTreeHammock} from './src/models/hammock.js';
     import {buildSimpleNPC} from './src/models/puppet.js';
     import {_buildCanoeMeshForSandbox, buildLake, setLakeNightness} from './src/lakes.js';
     import {mulberry32,setSessionSeed} from './src/rng.js';
@@ -610,7 +611,7 @@ import {buildShrub} from './src/models/shrub.js';
         buildCampTent, buildCampChair, buildChiminea, buildTikiTorch, buildTorchField,
         buildEzUp, buildTapestry, buildCampsite, buildVendorCamp, updateCampsiteProps,
     } from './src/models/campsite.js';
-    import {buildTallPine, buildOak, buildBirch, buildForestTree, describeForestTree, buildForestInstanced} from './src/models/tree.js';
+    import {buildTallPine, buildOak, buildBirch, buildForestTree, describeForestTree, buildForestInstanced, treeTrunkRadiusAtWorldHeight} from './src/models/tree.js';
     import {buildBird, buildBirdFlock, BIRD_KEYS, BIRD_SPECIES} from './src/models/bird.js';
     import {buildBubbleJug} from './src/models/bubbleJug.js';
     import {buildBubbleVendor} from './src/models/bubbleVendor.js';
@@ -1225,6 +1226,24 @@ import {buildShrub} from './src/models/shrub.js';
                 scene.add(g);
                 entityRoot = g;
                 cam.target.set(0, 1.0, 0);
+                break;
+            }
+            case 'tree_hammock': {
+                const root = new THREE.Group();
+                const treeRngA = mulberry32(171), treeRngB = mulberry32(193);
+                const treeA = buildForestTree(treeRngA), treeB = buildForestTree(treeRngB);
+                const span = 4.5;
+                treeA.position.x = -span / 2;
+                treeB.position.x = span / 2;
+                const hammock = buildTreeHammock(-span / 2, 0, span / 2, 0,
+                    mulberry32(317), treeTrunkRadiusAtWorldHeight(treeA.userData.descriptor, 1.45, 0),
+                    treeTrunkRadiusAtWorldHeight(treeB.userData.descriptor, 1.45, 0));
+                root.add(treeA, treeB, hammock.group);
+                scene.add(root);
+                entityRoot = root;
+                cam.target.set(0, 2.5, 0);
+                cam.dist = 23;
+                applyCam();
                 break;
             }
             case 'picnic_table': {

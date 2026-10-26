@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import {planCampRecipe,planCampNeighborhood,CAMP_ARCHETYPES} from '../src/campPlanning.js';
 import {registerCampsite,canPlaceCampsite,campSeatApproaches} from '../src/campRegistry.js';
 const source=readFileSync(new URL('../src/models/campsite.js',import.meta.url),'utf8');
+const tentColors=vm.runInNewContext(source.match(/const TENT_COLORS = (\[[^\]]+\]);/)[1]);
 class Group {
   constructor(){this.children=[];this.position={x:0,y:0,z:0,set(x,y,z){Object.assign(this,{x,y,z});return this;},clone(){return {x:this.x,y:this.y,z:this.z,set(x,y,z){Object.assign(this,{x,y,z});return this;}};}};this.rotation={y:0};this.quaternion={setFromUnitVectors(){}};this.scale={x:1,y:1,z:1,setScalar(s){this.x=this.y=this.z=s;},set(x,y,z){Object.assign(this,{x,y,z});}};}
   add(...nodes){this.children.push(...nodes);}
@@ -19,7 +20,18 @@ class Mesh extends Group {constructor(geometry,material){super();this.geometry=g
 const tentThree={Group,Mesh,BufferGeometry:Geometry,Float32BufferAttribute:Geometry,BoxGeometry:Geometry,PlaneGeometry:Geometry,CylinderGeometry:Geometry,ConeGeometry:Geometry,SphereGeometry:Geometry,MathUtils:{clamp:(v,a,b)=>Math.max(a,Math.min(b,v))}};
 for(const key of ['BoxGeometry','PlaneGeometry','CylinderGeometry','ConeGeometry','SphereGeometry'])tentThree[key]=class extends Geometry{constructor(...args){super(...args);this.kind=key;}};
 const tentSource=source.slice(source.indexOf('export function buildCampTent('),source.indexOf('// ---------- Camp chair'));
-const makeTent=vm.runInNewContext(tentSource.replace('export function buildCampTent','function buildCampTent')+';buildCampTent',{THREE:tentThree,TENT_COLORS:[0x234523,0xc5b55c],matFor:()=>({userData:{shared:true}}),addTentPoles:()=>{}});
+const makeTent=vm.runInNewContext(tentSource.replace('export function buildCampTent','function buildCampTent')+';buildCampTent',{THREE:tentThree,TENT_COLORS:tentColors,matFor:(hex)=>({hex,userData:{shared:true}}),addTentPoles:()=>{}});
+for(let i=0;i<tentColors.length;i++){
+  const values=[(i+.25)/tentColors.length,.4];let draws=0;
+  const tent=makeTent(()=>values[draws++],{family:'ridge'});
+  assert.equal(draws,2,'palette changes preserve the two historical tent RNG draws');
+  assert.equal(tent.color,tentColors[i],'each indexed palette color reaches the built tent');
+  assert.equal(tent.group.children[0].material.hex,tentColors[i],'shell material uses the selected palette color');
+}
+for(const [variation,roofColor] of [[0,0xd39a61],[.5,0x78986f],[1,0x7488b0]]){
+  const tent=makeTent(()=>.4,{family:'cabin',variation});
+  assert(tent.group.children.some(mesh=>mesh.material.hex===roofColor),`cabin rainfly uses the ${roofColor.toString(16)} pooled color bucket`);
+}
 class Vec {constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}length(){return Math.hypot(this.x,this.y,this.z);}normalize(){const n=this.length();this.x/=n;this.y/=n;this.z/=n;return this;}}
 const chairSource=readFileSync(new URL('../src/models/campChair.js',import.meta.url),'utf8').replace("import * as THREE from 'three';",'').replace('export const CAMP_CHAIR_STYLES','const CAMP_CHAIR_STYLES').replace('export function buildCampChair','function buildCampChair');
 const makeChair=vm.runInNewContext(chairSource+';buildCampChair',{THREE:{...tentThree,Vector3:Vec,TorusGeometry:Geometry,DoubleSide:2,MeshStandardMaterial:class{constructor(options){Object.assign(this,options);this.userData={};}}}});

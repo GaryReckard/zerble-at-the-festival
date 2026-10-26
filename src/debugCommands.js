@@ -57,6 +57,10 @@ export function createDebugCommands(actions, targets, targetDescriptions, worldg
     const n=args.length?number(args[0],1,100,true):10;
     return args.length>1||n===null?use('smiles'):actions.smiles(n);
   });
+  add('star','Find the star-power pickup or create one near the cart','star [find|spawn|trigger|end]',[['find','spawn','trigger','end']],args=>{
+    if(args.length>1||args.length&&!['find','spawn','trigger','end'].includes(args[0]))return use('star');
+    return actions.star(args[0]||'find');
+  });
   add('heading','Read or set the cart heading in degrees','heading [0..360]',[['0','90','180','270']],args=>{
     const n=args.length?number(args[0],0,360):undefined;
     return args.length>1||n===null?use('heading'):actions.heading(n);

@@ -15,6 +15,8 @@ not physical-device acceptance.
 
 - [Evening vendors, moonset and Smile Bubbles, October 25](nightlife/2026-10-25/README.md): midnight shop closure, celestial occlusion and the real 1,000-pickup unlock pipeline.
 
+- [Wildlife and scenery, October 25](wildlife/2026-10-25/README.md): bird anatomy/motion, shared tree detail costs, hammock bark anchors, tent palettes and terrain-grounded star commands.
+
 | Evidence | What it establishes |
 | --- | --- |
 | [Slash commands, October 24](debug-commands/2026-10-24/README.md) | Twenty command grammars, bounded argument dispatch, actual game adapters, contextual completion and live-game checks |

@@ -1,0 +1,45 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {register} from 'node:module';
+import {readFileSync} from 'node:fs';
+import {pathToFileURL} from 'node:url';
+import vm from 'node:vm';
+let tree;
+if(process.env.BIRD_TEST_THREE){
+ const THREE=await import(pathToFileURL(process.env.BIRD_TEST_THREE));
+ const ctx=vm.createContext({THREE});
+ vm.runInContext(readFileSync(new URL('../src/models/tree.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replaceAll('export ','')+';this.api={buildTree,buildForestTree,describeForestTree,buildForestInstanced};',ctx);
+ tree=ctx.api;
+}else{
+ register('./node-three-shim.mjs',import.meta.url);
+ tree=await import('../src/models/tree.js');
+}
+function rng(seed){return ()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;};}
+const pools=new Set(),mats=new Set();
+for(let seed=0;seed<100;seed++)for(const builder of [tree.buildTree,tree.buildForestTree]){
+ const g=builder(rng(seed));
+ for(const part of g.children){
+  pools.add(part.geometry);mats.add(part.material);
+  assert.equal(part.geometry.userData.shared,true);assert.equal(part.material.userData.shared,true);
+  assert.equal(part.material.vertexColors,true);
+  const pos=part.geometry.attributes.position,color=part.geometry.attributes.color;
+  assert.equal(pos.count,color.count);assert([...pos.array].every(Number.isFinite));
+  assert([...color.array].every(v=>v>=0&&v<=1));
+ }
+}
+assert.equal(pools.size,4,'all trees share four unit geometries');assert(mats.size<=16,'bounded shared material palette');
+const random=rng(0x9e37),instances=[];
+for(let i=0;i<18;i++){
+ const d=tree.describeForestTree(random),ang=random()*Math.PI*2,r=3+random()*15;
+ instances.push({d,x:Math.cos(ang)*r,z:Math.sin(ang)*r,rotY:random()*Math.PI*2});
+}
+const meshes=tree.buildForestInstanced(instances);assert(meshes.length<=6,'detail never adds draw batches');
+let triangles=0;
+for(const m of meshes){
+ assert(pools.has(m.geometry),'preview and production use identical geometry');
+ triangles+=m.geometry.attributes.position.count/3*m.count;
+ assert.equal(m.geometry.userData.shared,true);
+ assert.equal(m.material.userData.shared,true);
+}
+assert(triangles<9000,'18-tree fixture stays below explicit geometry ceiling');
+console.log(`PASS tree detail: 200 builds, four pooled unit meshes, shared colors/materials, ${meshes.length} forest batches, ${triangles} fixture triangles.`);

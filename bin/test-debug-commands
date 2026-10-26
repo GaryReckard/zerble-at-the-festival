@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createDebugCommands} from '../src/debugCommands.js';
 const calls=[];let ready=true;
 const actions={ready:()=>ready};
-for(const name of ['teleport','locate','time','pause','step','god','colliders','npc','juice','smiles','heading','stop','where','seed','status','inspect','camera','perf','mute'])actions[name]=(...args)=>{calls.push({name,args});return name+':'+args.join(',');};
+for(const name of ['teleport','locate','time','pause','step','god','colliders','npc','juice','smiles','star','heading','stop','where','seed','status','inspect','camera','perf','mute'])actions[name]=(...args)=>{calls.push({name,args});return name+':'+args.join(',');};
 const grammar=createDebugCommands(actions,{camp:'woodland_camp',stage:'stage',forest:'any_forest'},{camp:'Woodland campground',stage:'Music stage'});
 for(const [text,name,args] of [
  ['/tp camp','locate',['woodland_camp']],['/tp -12.5 45','teleport',[-12.5,45]],
@@ -11,7 +11,7 @@ for(const [text,name,args] of [
  ['/pause','pause',[true]],['/resume','pause',[false]],['/step 60','step',[60]],['/step','step',[1]],
  ['/god','god',['toggle']],['/god off','god',['off']],['/colliders on','colliders',['on']],
  ['/npc freeze','npc',['freeze']],['/npc resume','npc',['resume']],['/npc cheer','npc',['cheer']],['/npc status','npc',['status']],
- ['/juice 0','juice',[0]],['/juice','juice',[undefined]],['/smiles 100','smiles',[100]],
+ ['/juice 0','juice',[0]],['/juice','juice',[undefined]],['/smiles 100','smiles',[100]],['/star','star',['find']],['/star spawn','star',['spawn']],['/star trigger','star',['trigger']],['/star end','star',['end']],
  ['/heading 360','heading',[360]],['/stop','stop',[]],['/where','where',[]],['/seed','seed',[]],['/status','status',[]],
  ['/inspect camps','inspect',['camps']],['/inspect audio','inspect',['audio']],
  ['/camera top 240','camera',['top',240]],['/camera chase','camera',['chase']],
@@ -21,7 +21,7 @@ for(const [text,name,args] of [
 }
 for(const text of ['/pause extra','/resume extra','/stop extra','/help tp extra','/time -1','/time 2','/time noon extra',
  '/tp Infinity 2','/tp 0 0 extra','/tp __proto__','/tp constructor','/step 0','/step 1.5','/step 121','/step Infinity',
- '/god maybe','/colliders on extra','/npc spawn','/juice -1','/juice 101','/smiles 0','/smiles 1000000','/heading 361',
+ '/god maybe','/colliders on extra','/npc spawn','/juice -1','/juice 101','/smiles 0','/smiles 1000000','/star nope','/star spawn extra','/heading 361',
  '/camera chase 100','/camera top 0','/camera top Infinity','/inspect arbitrary','/perf upload','/mute maybe','/eval alert(1)']){
  const count=calls.length;assert.match(grammar.run(text),/Use|Unknown/,text);assert.equal(calls.length,count,'invalid commands cannot partially mutate: '+text);
 }
@@ -30,10 +30,11 @@ ready=false;const count=calls.length;assert.match(grammar.run('/time noon'),/Sta
 assert(grammar.suggest('/').length>=20);
 assert.deepEqual(grammar.suggest('/time m').map(s=>s.label),['morning','midnight']);
 assert.equal(grammar.suggest('/npc fr')[0].value,'/npc freeze');
+assert.deepEqual(grammar.suggest('/star ').map(s=>s.label),['find','spawn','trigger','end']);
 assert.equal(grammar.suggest('/help ti')[0].value,'/help time');
 assert.equal(grammar.suggest('/camera TOP 2')[0].value,'/camera TOP 240');
 assert.equal(grammar.suggest('/tp caMP',6)[0].value,'/tp camp');
 assert.equal(grammar.suggest('/tp 12 ').length,0);
 assert.equal(grammar.suggest('/npc freeze ').length,0);
 const failing=createDebugCommands({...actions,status(){throw Error('not ready');}},{},{});assert.match(failing.run('/status'),/Command failed: not ready/);
-console.log('PASS 20-command grammar: real argument dispatch, bounds/arity before mutation, readiness, failure feedback, prototype rejection and contextual nested completion.');
+console.log('PASS 21-command grammar: real argument dispatch, bounds/arity before mutation, readiness, failure feedback, prototype rejection and contextual nested completion.');

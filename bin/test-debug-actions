@@ -7,7 +7,9 @@ const source=fs.readFileSync(new URL('../src/debug.js',import.meta.url),'utf8');
 const calls=[];
 const tod={t:.15,nightness:0,setT(t){this.t=t;}};
 const entries=new Map([[1,{kind:'campsite',position:{x:0,z:0},campSeats:[{occupied:true},{occupied:false}],campBeds:[{occupied:false}],campFire:{x:1,z:1}}]]);
-const hooks={zerble:{position:{x:0,y:0,z:0},heading:0,speed:3},getRunning:()=>true,getTimeOfDay:()=>tod,
+const starPower={_star:null,_cooldown:15,state:'idle',_phase:0,
+ _buildStar(x,z){this._star={x,z};},trigger(){this.state='active';},isActive(){return this.state!=='idle';}};
+const hooks={zerble:{position:{x:0,y:0,z:0},heading:0,speed:3,forwardWorld:{x:0,z:-1}},StarPower:starPower,getRunning:()=>true,getTimeOfDay:()=>tod,
  registry:{entries},crowd:{npcs:[{state:'camp_seated'},{state:'walking'}],cheerNear(x,z){calls.push(['cheer',x,z]);}},bubbles:{juice:1},
  renderer:{__sceneInfo:{calls:120,triangles:9000},info:{render:{calls:1,triangles:1}}},camera:{fov:60},
  chaseCam:{dbgCamTopDown(...args){calls.push(['camera',...args]);},dbgCamUnlock(){calls.push(['chase']);}}};
@@ -28,6 +30,10 @@ run('/heading 90');assert.equal(hooks.zerble.heading,Math.PI/2);assert.equal(hoo
 run('/npc freeze');assert(state.freezeNPCs);const count=calls.length;assert.match(run('/npc cheer'),/Resume NPCs first/);assert.equal(calls.length,count);
 run('/npc resume');run('/npc cheer');assert.equal(calls.at(-1)[0],'cheer');
 run('/juice 0');assert.equal(hooks.bubbles.juice,0);run('/smiles 2');assert.deepEqual(calls.at(-1),['smiles',2]);
+assert.match(run('/star'),/No star-power pickup is active/);
+starPower._star={x:30,z:40};assert.match(run('/star'),/50\.0m away/);
+assert.match(run('/star spawn'),/10m ahead/);assert.deepEqual(starPower._star,{x:0,z:-10});assert.equal(starPower._cooldown,0);
+run('/star trigger');assert.equal(starPower.state,'active');assert.match(run('/star end'),/fading out/);assert.equal(starPower._phase,0);
 run('/god on');assert(state.god);run('/god toggle');assert(!state.god);
 run('/colliders on');assert(state.showColliders);run('/colliders off');assert(!state.showColliders);
 run('/camera top 120');assert(Math.abs(calls.at(-1)[3]-120/(2*Math.tan(Math.PI/6)))<1e-9);run('/camera chase');assert.equal(calls.at(-1)[0],'chase');

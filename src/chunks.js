@@ -48,7 +48,7 @@ import { buildInfoKiosk, INFO_KIOSK_COLLIDER_R, INFO_KIOSK_FOOTPRINT } from './m
 import { buildEntranceArch as buildEntranceArchModel } from './models/entranceArch.js';
 import { buildStage as buildStageModel, placeBandOnStage } from './models/stage.js';
 import { buildTentStage } from './models/tentStage.js';
-import { buildTree, describeForestTree, buildForestInstanced, worldPerches, worldCrown } from './models/tree.js';
+import { buildTree, describeForestTree, buildForestInstanced, worldPerches, worldCrown, treeTrunkRadiusAtWorldHeight } from './models/tree.js';
 import { buildShrub } from './models/shrub.js';
 import { jugKeptAt } from './runMode.js';
 import { leafBannerTextures } from './models/leafBanner.js';
@@ -1157,17 +1157,18 @@ function scatterWorldgenTrees(ctx) {
     // dual-read worldPerches/worldCrown), so layout-snapshot stays byte-identical.
     const d = describeForestTree(rng);
     const rotY = rng() * Math.PI * 2;
-    treeInstances.push({ d, x, y: terrainHeight(x, z), z, rotY });
+    const groundY = terrainHeight(x, z);
+    treeInstances.push({ d, x, y: groundY, z, rotY });
     registry.add({
       kind: 'forest_tree',
-      position: new THREE.Vector3(x, terrainHeight(x, z), z),
+      position: new THREE.Vector3(x, groundY, z),
       footprint: 2.0,
       collider: { radius: 1.3, damage: 3 },
       chunkKey: ctx.key,
-      perches: worldPerches(d, x, z, terrainHeight(x, z)),
-      crown: worldCrown(d, x, z, terrainHeight(x, z)),
+      perches: worldPerches(d, x, z, groundY),
+      crown: worldCrown(d, x, z, groundY),
     });
-    placed.push({ x, z });
+    placed.push({ x, z, descriptor: d, groundY });
   };
   const woodland=ctx.woodlandDistricts || woodlandCampsNear({minX,minZ,maxX:minX+CHUNK_SIZE,maxZ:minZ+CHUNK_SIZE});
   const clearOfStuff = (x, z, spacing) => {
@@ -1219,8 +1220,14 @@ function scatterWorldgenTrees(ctx) {
       const d = Math.hypot(placed[i].x - placed[j].x, placed[i].z - placed[j].z);
       if (d < 3.0 || d > 5.5) continue;
       if (rng() > 0.22) continue;
-      const hammock = buildTreeHammock(placed[i].x, placed[i].z, placed[j].x, placed[j].z, rng);
-      hammock.group.position.y = terrainHeight((placed[i].x + placed[j].x) / 2, (placed[i].z + placed[j].z) / 2);
+      const centerX = (placed[i].x + placed[j].x) / 2;
+      const centerZ = (placed[i].z + placed[j].z) / 2;
+      const groupGroundY = terrainHeight(centerX, centerZ);
+      const supportWorldY = groupGroundY + 1.45;
+      const hammock = buildTreeHammock(placed[i].x, placed[i].z, placed[j].x, placed[j].z, rng,
+        treeTrunkRadiusAtWorldHeight(placed[i].descriptor, supportWorldY, placed[i].groundY),
+        treeTrunkRadiusAtWorldHeight(placed[j].descriptor, supportWorldY, placed[j].groundY));
+      hammock.group.position.y = groupGroundY;
       ctx.group.add(hammock.group);
       hammocks++;
       break;

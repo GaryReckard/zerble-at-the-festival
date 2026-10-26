@@ -13,7 +13,7 @@
 // layouts regenerate in the same spots, just taller.
 //
 // Canopy perch anchors: birds land on the outer-lower foliage surface — there
-// is deliberately no branch geometry (would blow the forest draw budget). Each
+// are compact branches baked into the shared trunk buffer. Each
 // tree exposes `userData.crown = {x,y,z,r}` (for the night roost-fade tuck
 // point) and `userData.perches = [{x,y,z}...]` (local-space points on the
 // canopy where a bird visibly sits). The ring is radially symmetric so the
@@ -25,33 +25,116 @@ import * as THREE from 'three';
 const TREE_GREENS = [0x4f8a4d, 0x5fa55d, 0x6dba6a, 0x4b7c4a, 0x82c277];
 const FOREST_GREENS = [0x355a32, 0x3f6d3a, 0x2d4e2a, 0x4a7a45, 0x537f4d, 0x325438, 0x2b5532];
 
+// Fixed unit meshes contain all detail, including branches. Neither the forest
+// descriptor RNG nor the number of instance/shadow buckets changes.
+function treeBuffer(positions, colors) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
+  g.computeVertexNormals(); g.userData.shared=true; return g;
+}
+function triangleWriter(positions, colors) {
+  return (a,b,c,shade=1) => {
+    positions.push(...a,...b,...c);
+    for(let i=0;i<3;i++) colors.push(shade,shade,shade);
+  };
+}
+function crownGeometry() {
+  const positions=[],colors=[],tri=triangleWriter(positions,colors),phi=(1+Math.sqrt(5))/2;
+  const vertices=[[-1,phi,0],[1,phi,0],[-1,-phi,0],[1,-phi,0],[0,-1,phi],[0,1,phi],
+    [0,-1,-phi],[0,1,-phi],[phi,0,-1],[phi,0,1],[-phi,0,-1],[-phi,0,1]];
+  const faces=[[0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],[1,5,9],[5,11,4],[11,10,2],
+    [10,7,6],[7,1,8],[3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],[4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1]];
+  // Overlapping leaf masses break the balloon silhouette without leaf alpha
+  // cards, texture fetches, transparency sorting or extra scene objects.
+  const lobes=[[0,.15,0,.70],[.49,-.03,.05,.47],[-.44,-.12,.18,.50],
+    [.12,-.05,.49,.47],[-.15,.02,-.47,.48],[.12,.57,-.08,.42],[0,-.39,0,.53]];
+  for(let n=0;n<lobes.length;n++) {
+    const [x,y,z,r]=lobes[n];
+    const points=vertices.map(v=>{const k=r/Math.hypot(...v);return [x+v[0]*k,y+v[1]*k,z+v[2]*k];});
+    for(const [a,b,c] of faces) {
+      const height=(points[a][1]+points[b][1]+points[c][1])/3;
+      tri(points[a],points[b],points[c],.70+.23*(height+1)/2+(n%3)*.025);
+    }
+  }
+  return treeBuffer(positions,colors);
+}
+function pineGeometry() {
+  const p=[],c=[],tri=triangleWriter(p,c),rings=[];
+  for(const [y,r] of [[-.5,1],[-.28,.68],[-.10,.72]]) {
+    rings.push(Array.from({length:8},(_,i)=>{
+      const a=i/8*Math.PI*2, irregular=1-.10*(.5+.5*Math.sin(i*2.4));
+      return [Math.cos(a)*r*irregular,y+(i%2)*.055,Math.sin(a)*r*irregular];
+    }));
+  }
+  for(let j=0;j<2;j++)for(let i=0;i<8;i++){
+    const k=(i+1)%8;tri(rings[j][i],rings[j+1][i],rings[j][k],.78+j*.08);
+    tri(rings[j][k],rings[j+1][i],rings[j+1][k],.81+j*.08);
+  }
+  for(let i=0;i<8;i++){const k=(i+1)%8;tri(rings[2][i],[0,.5,0],rings[2][k],.96);tri([0,-.5,0],rings[0][i],rings[0][k],.60);}
+  return treeBuffer(p,c);
+}
+function trunkGeometry(taper, branches=true) {
+  const p=[],c=[],tri=triangleWriter(p,c),rings=[];
+  for(const [y,r] of [[-.5,1],[-.34,.83],[.16,.76],[.5,taper]]) {
+    rings.push(Array.from({length:8},(_,i)=>{const a=i/8*Math.PI*2;return [Math.cos(a)*r,y,Math.sin(a)*r];}));
+  }
+  for(let j=0;j<3;j++)for(let i=0;i<8;i++) {
+    const k=(i+1)%8,shade=.64+(i%3)*.13;
+    tri(rings[j][i],rings[j+1][i],rings[j][k],shade);tri(rings[j][k],rings[j+1][i],rings[j+1][k],shade);
+  }
+  for(let i=0;i<8;i++){const k=(i+1)%8;tri([0,-.5,0],rings[0][i],rings[0][k],.7);tri([0,.5,0],rings[3][k],rings[3][i],.9);}
+  if(branches)for(let branch=0;branch<3;branch++){
+    const a=branch*2.4,ca=Math.cos(a),sa=Math.sin(a),start=[],end=[];
+    for(let i=0;i<6;i++){
+      const t=i/6*Math.PI*2,u=Math.cos(t),v=Math.sin(t);
+      start.push([ca*.45-sa*u*.28,.03+v*.035,sa*.45+ca*u*.28]);
+      end.push([ca*1.55-sa*u*.09,.68+v*.014,sa*1.55+ca*u*.09]);
+    }
+    for(let i=0;i<6;i++){const k=(i+1)%6;tri(start[i],end[i],start[k],.78);tri(start[k],end[i],end[k],.78);}
+  }
+  return treeBuffer(p,c);
+}
+const _unitConeGeo=pineGeometry();
+const _unitIcosaGeo=crownGeometry();
+const _unitTrunkPineGeo=trunkGeometry(.55,false);
+const _unitTrunkBroadGeo=trunkGeometry(.7);
+
 // Module-level pooled geo/mat. Tagged `userData.shared` so the chunk unload
 // disposal walk (chunks.js `_unload`) skips them — disposing a shared material
 // forces a shader recompile next frame for every other chunk still using it
 // (perf footgun #6). Chunk trees DO unload past UNLOAD_RADIUS, so this matters.
-const _trunkGeo = new THREE.CylinderGeometry(0.7, 1.0, 7.2, 8);
+const _trunkGeo = _unitTrunkBroadGeo;
 _trunkGeo.userData.shared = true;
 const _trunkMat = new THREE.MeshStandardMaterial({
-  color: 0x6a4a2a, roughness: 0.95, flatShading: true,
+  color: 0x6a4a2a, roughness: 0.95, flatShading: true, vertexColors: true,
 });
 _trunkMat.userData.shared = true;
 
 // Shared materials for forest trees so we don't allocate per-tree.
-// Caller still constructs new geometries (sizes vary) but materials pool.
+// Both geometry and materials pool; per-tree sizes use transforms.
 const _forestTrunkMat = new THREE.MeshStandardMaterial({
-  color: 0x5a3f24, roughness: 1.0, flatShading: true,
+  color: 0x5a3f24, roughness: 1.0, flatShading: true, vertexColors: true,
 });
 _forestTrunkMat.userData.shared = true;
 const _birchTrunkMat = new THREE.MeshStandardMaterial({
-  color: 0xe8e4d6, roughness: 0.95, flatShading: true,
+  color: 0xe8e4d6, roughness: 0.95, flatShading: true, vertexColors: true,
 });
 _birchTrunkMat.userData.shared = true;
 // Foliage materials by green index (so all trees of one shade share a mat).
 const _foliageMats = FOREST_GREENS.map((hex) => {
-  const m = new THREE.MeshStandardMaterial({ color: hex, roughness: 1.0, flatShading: true });
+  const m = new THREE.MeshStandardMaterial({ color: hex, roughness: 1.0, flatShading: true, vertexColors: true });
   m.userData.shared = true;
   return m;
 });
+
+const _festivalFoliageMats = TREE_GREENS.map(color => {
+  const material = new THREE.MeshStandardMaterial({color,roughness:.95,flatShading:true,vertexColors:true});
+  material.userData.shared=true;
+  return material;
+});
+const _festivalPineMat = new THREE.MeshStandardMaterial({color:0x2d5d3e,roughness:.95,flatShading:true,vertexColors:true});
+_festivalPineMat.userData.shared=true;
 
 // A ring of `count` anchor points at world height `y` and horizontal radius
 // `horizR`. Offsets are local-space; the registration code adds the tree's
@@ -100,21 +183,19 @@ export function buildTree(rng = Math.random) {
   const tree = new THREE.Group();
   const trunk = new THREE.Mesh(_trunkGeo, _trunkMat);
   trunk.position.y = 3.6;
+  trunk.scale.set(1,7.2,1);
   trunk.castShadow = true;
   tree.add(trunk);
 
   if (rng() < 0.65) {
     const r = 3.2 + rng() * 2.0;
     const leaf = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(r, 1),
-      new THREE.MeshStandardMaterial({
-        color: TREE_GREENS[Math.floor(rng() * TREE_GREENS.length)],
-        roughness: 0.95,
-        flatShading: true,
-      })
+      _unitIcosaGeo,
+      _festivalFoliageMats[Math.floor(rng() * TREE_GREENS.length)]
     );
     const leafY = 7.6 + rng() * 0.8;
     leaf.position.y = leafY;
+    leaf.scale.set(r,r,r);
     leaf.castShadow = true;
     tree.add(leaf);
     tree.userData.crown = { x: 0, y: leafY, z: 0, r };
@@ -123,11 +204,12 @@ export function buildTree(rng = Math.random) {
     const h = 8 + rng() * 5;
     const coneR = 2.8;
     const cone = new THREE.Mesh(
-      new THREE.ConeGeometry(coneR, h, 8),
-      new THREE.MeshStandardMaterial({ color: 0x2d5d3e, roughness: 0.95, flatShading: true })
+      _unitConeGeo,
+      _festivalPineMat
     );
     const coneCenterY = 4 + h / 2;
     cone.position.y = coneCenterY;
+    cone.scale.set(coneR,h,coneR);
     cone.castShadow = true;
     tree.add(cone);
     // Conifer: perch on the wide lower skirt, just outside the cone base.
@@ -250,6 +332,27 @@ export function describeForestTree(rng = Math.random) {
   return describeBirch(rng);
 }
 
+// Radius of the rendered trunk at a local height above its base. Keep these
+// profile samples aligned with trunkGeometry's rings, which are scaled by h.
+export function treeTrunkRadiusAt(d, localHeight) {
+  const { rBot, rTop, h } = d.trunk;
+  const y = Math.max(0, Math.min(1, localHeight / h));
+  const profile = [[0, 1], [.16, .83], [.66, .76], [1, rTop / rBot]];
+  for (let i = 1; i < profile.length; i++) {
+    const [upperY, upperRadius] = profile[i];
+    const [lowerY, lowerRadius] = profile[i - 1];
+    if (y <= upperY) {
+      const t = (y - lowerY) / (upperY - lowerY);
+      return rBot * (lowerRadius + (upperRadius - lowerRadius) * t);
+    }
+  }
+  return rTop;
+}
+
+export function treeTrunkRadiusAtWorldHeight(d, supportWorldY, treeGroundY) {
+  return treeTrunkRadiusAt(d, supportWorldY - treeGroundY);
+}
+
 // Build a Group from a descriptor — the exact (non-instanced) consumer. Stashes
 // the descriptor on userData so CG3's instanced path can read it back, and keeps
 // crown/perches on userData for worldPerches/worldCrown + the sandbox.
@@ -257,18 +360,20 @@ function buildForestFromDescriptor(d) {
   const group = new THREE.Group();
   const trunkMat = d.trunkMat === 'birch' ? _birchTrunkMat : _forestTrunkMat;
   const t = d.trunk;
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(t.rTop, t.rBot, t.h, t.seg), trunkMat);
+  const trunk = new THREE.Mesh((d.type === 'pine' ? _unitTrunkPineGeo : _unitTrunkBroadGeo), trunkMat);
   trunk.position.y = t.h / 2;
+  trunk.scale.set(t.rBot,t.h,t.rBot);
   trunk.castShadow = true;
   group.add(trunk);
   const mat = _foliageMats[d.greenIdx];
   for (let i = 0; i < d.foliage.length; i++) {
     const f = d.foliage[i];
     const geo = f.shape === 'cone'
-      ? new THREE.ConeGeometry(f.radius, f.height, 8)
-      : new THREE.IcosahedronGeometry(f.radius, 1);
+      ? _unitConeGeo
+      : _unitIcosaGeo;
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(f.x, f.y, f.z);
+    mesh.scale.set(f.radius,f.shape === 'cone' ? f.height : f.radius,f.radius);
     mesh.castShadow = f.cast;
     group.add(mesh);
   }
@@ -303,22 +408,10 @@ export function buildBirch(rng) { return buildForestFromDescriptor(describeBirch
 // they dispose with the chunk (chunks.js disposeChunkByKey frees them via
 // `obj.isInstancedMesh && obj.dispose()`). Buckets follow the EXACT per-mesh cast
 // lines the non-instanced trees used, so the 115→56 shadow-caster audit holds.
-const _unitConeGeo = new THREE.ConeGeometry(1, 1, 8);
-_unitConeGeo.userData.shared = true;
-const _unitIcosaGeo = new THREE.IcosahedronGeometry(1, 1);
-_unitIcosaGeo.userData.shared = true;
-// Two trunk tapers keep radii EXACT (pine rTop = 0.55·rBot; oak/birch = 0.7·rBot);
-// only the trunk segment count unifies 7→8 (imperceptible). Height + base radius
-// come from the per-instance scale.
-const _unitTrunkPineGeo = new THREE.CylinderGeometry(0.55, 1, 1, 8);
-_unitTrunkPineGeo.userData.shared = true;
-const _unitTrunkBroadGeo = new THREE.CylinderGeometry(0.7, 1, 1, 8);
-_unitTrunkBroadGeo.userData.shared = true;
-
 // White base so `instanceColor` (sRGB hex → linear, same path as a material's
 // `color`) is the final shade. roughness/flatShading match the pooled tree mats.
 function _makeInstMat() {
-  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1.0, flatShading: true });
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1.0, flatShading: true, vertexColors: true });
   m.userData.shared = true;
   return m;
 }

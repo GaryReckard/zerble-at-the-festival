@@ -656,6 +656,7 @@ All commands share the same parser and autocomplete schema. Use `/help <command>
 | `/npc <status|freeze|resume|cheer>` | Inspect crowd states or use existing freeze/cheer behavior; cheering does not override seated, sleeping or other protected interactions |
 | `/juice [0..100]` | Read or set reserve meters; this is a debug input bound, not a gameplay stockpile cap |
 | `/smiles [1..100]` | Request collectible smile pickups near the cart, default 10; does not directly award score |
+| `/star [find|spawn|trigger|end]` | Find the live star-power pickup and its distance, spawn one 10m ahead, start the buff directly, or fade an active buff |
 | `/heading [0..360]` | Read degrees, or set heading and stop the cart |
 | `/stop`, `/where`, `/seed`, `/status` | Stop, locate the cart, show the seed or inspect simulation/world/scene counters |
 | `/inspect <camps|npcs|audio|world>` | Up to 20 built camps within 200m with chair/bed claims, crowd states, session audio/jams or world status; claims include approaching NPCs |

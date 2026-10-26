@@ -75,6 +75,27 @@ function slingWithRopes(group, cx, cz, ux, uz, halfSupport, restY, sagDepth, wid
   }
 }
 
+// The rope endpoints sit on the facing sides of the trunks, outside the bark
+// by a small allowance for the rope's own radius. Callers pass the trunk radii
+// measured at the hammock's local support height.
+export function treeHammockAnchors(ax, az, bx, bz, radiusA, radiusB, clearance = .04) {
+  const dx = bx - ax, dz = bz - az;
+  const len = Math.hypot(dx, dz) || 1e-3;
+  const ux = dx / len, uz = dz / len;
+  const ra = Math.max(0, Number(radiusA) || 0) + clearance;
+  const rb = Math.max(0, Number(radiusB) || 0) + clearance;
+  const anchorA = { x: ax + ux * ra, z: az + uz * ra };
+  const anchorB = { x: bx - ux * rb, z: bz - uz * rb };
+  const anchorDx = anchorB.x - anchorA.x, anchorDz = anchorB.z - anchorA.z;
+  const halfSupport = Math.hypot(anchorDx, anchorDz) / 2;
+  return {
+    ax: anchorA.x, az: anchorA.z, bx: anchorB.x, bz: anchorB.z,
+    cx: (anchorA.x + anchorB.x) / 2, cz: (anchorA.z + anchorB.z) / 2,
+    ux: anchorDx / (halfSupport * 2 || 1), uz: anchorDz / (halfSupport * 2 || 1),
+    halfSupport,
+  };
+}
+
 export function buildHammock(x, z, rng = Math.random) {
   const group = new THREE.Group();
   group.name = 'hammock';
@@ -92,15 +113,13 @@ export function buildHammock(x, z, rng = Math.random) {
   return { group, seatPos: new THREE.Vector3(x, restY - sagDepth + .2, z), yaw };
 }
 
-export function buildTreeHammock(ax, az, bx, bz, rng = Math.random) {
+export function buildTreeHammock(ax, az, bx, bz, rng = Math.random, radiusA = .7, radiusB = radiusA) {
   const group = new THREE.Group();
   group.name = 'tree_hammock';
   const color = slingColors[Math.floor(rng() * slingColors.length)];
-  const dx = bx - ax, dz = bz - az;
-  const len = Math.hypot(dx, dz) || 1e-3;
-  const ux = dx / len, uz = dz / len;
-  const cx = (ax + bx) / 2, cz = (az + bz) / 2;
+  const anchors = treeHammockAnchors(ax, az, bx, bz, radiusA, radiusB);
   const restY = 1.45, sagDepth = .5;
-  slingWithRopes(group, cx, cz, ux, uz, len / 2, restY, sagDepth, .95, color);
-  return { group, seatPos: new THREE.Vector3(cx, restY - sagDepth + .2, cz) };
+  slingWithRopes(group, anchors.cx, anchors.cz, anchors.ux, anchors.uz,
+    anchors.halfSupport, restY, sagDepth, .95, color);
+  return { group, seatPos: new THREE.Vector3(anchors.cx, restY - sagDepth + .2, anchors.cz) };
 }

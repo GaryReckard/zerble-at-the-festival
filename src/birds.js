@@ -23,9 +23,10 @@
 // `bird_flock` / `bird_in_tree` sandbox entries cover the *model*.
 
 import * as THREE from 'three';
+import { terrainHeight } from './worldgen/terrain.js';
 import { PERF } from './perf.js';
 import { registry } from './registry.js';
-import { BIRD_SPECIES, BIRD_KEYS, birdInstanceGeo, birdInstanceMaterial } from './models/bird.js';
+import { BIRD_SPECIES, BIRD_KEYS, birdInstanceGeo, birdInstanceMaterial, birdWingAngle, birdGlide } from './models/bird.js';
 
 const CAPS = { low: 14, mid: 26, high: 40 };
 // Relative spawn weight per species (commons vs. rarer corvids).
@@ -66,7 +67,7 @@ const _quat = new THREE.Quaternion();
 const _euler = new THREE.Euler();
 const _pos = new THREE.Vector3();
 const _scl = new THREE.Vector3();
-const _mirror = new THREE.Matrix4().makeScale(-1, 1, 1);
+const _wingScale = new THREE.Matrix4();
 
 export class Birds {
   constructor() {
@@ -84,7 +85,7 @@ export class Birds {
       const geo = birdInstanceGeo(key);
       const body = new THREE.InstancedMesh(geo.body, mat, this.max);
       const wingL = new THREE.InstancedMesh(geo.wing, mat, this.max);
-      const wingR = new THREE.InstancedMesh(geo.wing, mat, this.max);
+      const wingR = new THREE.InstancedMesh(geo.wingR, mat, this.max);
       for (const im of [body, wingL, wingR]) {
         im.castShadow = false;       // small + airborne — shadows aren't worth the budget
         im.frustumCulled = false;    // we manage visibility via count
@@ -95,7 +96,11 @@ export class Birds {
     }
 
     this.birds = [];
-    for (let i = 0; i < this.max; i++) this.birds.push(this._spawnBird(pickSpecies(), null));
+    for (let i = 0; i < this.max; i++) {
+      const bird = this._spawnBird(pickSpecies(), null);
+      bird.pos.y += terrainHeight(bird.pos.x,bird.pos.z);
+      this.birds.push(bird);
+    }
   }
 
   // ---- spawn / placement ----
@@ -115,7 +120,8 @@ export class Birds {
       vel: new THREE.Vector3(Math.sin(heading) * speed, 0, Math.cos(heading) * speed),
       state: 'flying',
       flapPhase: Math.random() * Math.PI * 2,
-      flapHz: 4.5 + (1 - sp.size) * 3,
+      flapHz: sp.hz,
+      fold: 0, bank: 0, escapeTimer: 0,
       bobPhase: Math.random() * Math.PI * 2,
       perch: null,
       perchUrge: Math.random() * 0.4,
@@ -136,6 +142,7 @@ export class Birds {
       sp.altitude[0] + Math.random() * (sp.altitude[1] - sp.altitude[0]),
       playerPos.z + Math.sin(ang) * SPAWN_RADIUS * 0.9,
     );
+    bird.pos.y += terrainHeight(bird.pos.x,bird.pos.z);
     const speed = sp.speed * (0.7 + Math.random() * 0.5);
     bird.vel.set((playerPos.x - bird.pos.x), 0, (playerPos.z - bird.pos.z)).setLength(speed);
     bird.state = 'flying';
@@ -178,6 +185,8 @@ export class Birds {
   // ---- main update ----
 
   update(dt, playerPos, tod, playerSpeed = 0) {
+    if (!Number.isFinite(dt) || dt <= 0) return;
+    dt = Math.min(dt, 0.05);
     const t = tod ? tod.t : 0.2;
     const nightness = tod ? tod.nightness : 0;
     const activity = activityCurve(t, nightness);
@@ -190,7 +199,7 @@ export class Birds {
       const sp = BIRD_SPECIES[b.species];
 
       // Treadmill: keep density around the player.
-      if (b.state === 'flying') {
+      if (b.state !== 'perched') {
         const dxp = b.pos.x - playerPos.x;
         const dzp = b.pos.z - playerPos.z;
         if (dxp * dxp + dzp * dzp > DESPAWN_RADIUS * DESPAWN_RADIUS) {
@@ -199,23 +208,34 @@ export class Birds {
       }
 
       // Startle — a low/perched bird near a fast Zerble bursts away.
-      if ((b.state === 'perched' || (b.state === 'flying' && b.pos.y < 5)) && playerSpeed > 8) {
+      if (b.escapeTimer <= 0 && (b.state !== 'flying' || b.pos.y - terrainHeight(b.pos.x,b.pos.z) < 5) && playerSpeed > 8) {
         const dxp = b.pos.x - playerPos.x;
         const dzp = b.pos.z - playerPos.z;
         if (dxp * dxp + dzp * dzp < 7 * 7) {
           this._releasePerch(b);
           b.state = 'flying';
           b.scale = 1;
+          b.escapeTimer = 2;
+          b.perchUrge = 0;
           _tmp.set(dxp, 0, dzp).setLength(sp.speed * 1.6);
+          if (_tmp.lengthSq() < 1e-6) _tmp.set(sp.speed, 0, 0);
           b.vel.copy(_tmp);
           b.vel.y = 4 + Math.random() * 2;
           b.wantSong = 0;
         }
       }
 
+      const oldYaw = Math.atan2(b.vel.x, b.vel.z);
+      b.escapeTimer = Math.max(0, b.escapeTimer - dt);
       if (b.state === 'flying') this._updateFlying(b, sp, dt, playerPos, activity, roostiness);
       else if (b.state === 'descending') this._updateDescending(b, sp, dt);
       else if (b.state === 'perched') this._updatePerched(b, sp, dt, activity, roostiness, nightness);
+
+      const yaw = Math.atan2(b.vel.x, b.vel.z);
+      const turn = Math.atan2(Math.sin(yaw-oldYaw), Math.cos(yaw-oldYaw));
+      const targetBank = b.state === 'perched' ? 0 : THREE.MathUtils.clamp(-turn/dt*.18,-.55,.55);
+      b.bank += (targetBank-b.bank)*(1-Math.exp(-6*dt));
+      b.fold += ((b.state === 'perched' ? 1 : 0)-b.fold)*(1-Math.exp(-9*dt));
 
       // Song eagerness: builds during high activity, spikes while courting.
       b.songCooldown -= dt;
@@ -262,7 +282,7 @@ export class Birds {
     if (nSep > 0) b.vel.addScaledVector(_sep, dt * 6);
 
     // --- mate-seeking: steer toward nearest same-species bird during peaks ---
-    if (activity > 0.5 && b.mateTimer <= 0 && Math.random() < 0.02) {
+    if (activity > 0.5 && b.mateTimer <= 0 && Math.random() < 1-Math.exp(-1.2*dt)) {
       let mate = null, md = 1e9;
       for (let j = 0; j < birds.length; j++) {
         const o = birds[j];
@@ -278,11 +298,13 @@ export class Birds {
     }
 
     // --- altitude band: steer back toward [min,max], gentle vertical wander ---
-    const [aMin, aMax] = sp.altitude;
+    const ground = terrainHeight(b.pos.x,b.pos.z);
+    const aMin = ground+sp.altitude[0], aMax = ground+sp.altitude[1];
     if (b.pos.y < aMin) b.vel.y += (aMin - b.pos.y) * 0.6 * dt + dt * 1.5;
     else if (b.pos.y > aMax) b.vel.y -= (b.pos.y - aMax) * 0.6 * dt + dt * 1.5;
     else b.vel.y += Math.sin(b.bobPhase * 0.7) * 0.4 * dt;
-    b.vel.y *= 0.96;
+    b.vel.y *= Math.exp(-2.45*dt);
+    if (b.species === 'finch' && b.escapeTimer <= 0) b.vel.y += Math.sin(b.bobPhase*2.1)*dt*2.2;
 
     // --- horizontal wander + soft pull back toward the player's region ---
     b.vel.x += (Math.random() - 0.5) * sp.speed * 0.5 * dt;
@@ -296,7 +318,7 @@ export class Birds {
 
     // Clamp horizontal speed to the species cruise (keep vertical separate).
     const hs = Math.hypot(b.vel.x, b.vel.z);
-    const maxH = sp.speed * 1.3, minH = sp.speed * 0.45;
+    const maxH = sp.speed * (b.escapeTimer > 0 ? 1.7 : 1.3), minH = sp.speed * 0.45;
     if (hs > maxH) { b.vel.x *= maxH / hs; b.vel.z *= maxH / hs; }
     else if (hs < minH && hs > 1e-3) { b.vel.x *= minH / hs; b.vel.z *= minH / hs; }
     b.vel.y = THREE.MathUtils.clamp(b.vel.y, -3.5, 3.5);
@@ -305,7 +327,7 @@ export class Birds {
 
     // --- decide whether to land ---
     b.perchUrge += dt * (0.04 + roostiness * 0.6 + (1 - Math.min(1, this.activityLevel)) * 0.08);
-    if (b.perchUrge > 1 && b.mateTimer <= 0) {
+    if (b.perchUrge > 1 && b.mateTimer <= 0 && b.escapeTimer <= 0) {
       const perch = this._findPerch(b);
       if (perch) {
         b.perch = perch;
@@ -337,10 +359,11 @@ export class Birds {
       return;
     }
     // Ease in, slowing as it arrives.
-    const speed = Math.max(2.5, Math.min(sp.speed, d * 2.2));
+    const speed = Math.min(sp.speed, d * 2.2);
     _tmp.setLength(speed);
-    b.vel.lerp(_tmp, 0.25);
-    b.pos.addScaledVector(b.vel, dt);
+    b.vel.lerp(_tmp, 1-Math.exp(-10*dt));
+    // Bound each approach step so a slow frame cannot pass through the perch.
+    b.pos.addScaledVector(b.vel, Math.min(dt, d/Math.max(.001,b.vel.length())));
   }
 
   _updatePerched(b, sp, dt, activity, roostiness, nightness) {
@@ -361,6 +384,8 @@ export class Birds {
       b.scale = Math.max(0, b.scale - dt * 1.2);
       return;
     }
+    // Return from the hidden crown to the reserved surface before revealing.
+    b.pos.set(b.perch.pos.x,b.perch.pos.y,b.perch.pos.z);
     b.scale = Math.min(1, b.scale + dt * 2);
     b.restTimer -= dt;
     // Take off again when rested and the day is active (never mid-roost).
@@ -389,7 +414,7 @@ export class Birds {
       const yaw = Math.atan2(vx, vz);
       const speed = Math.hypot(vx, vy, vz) || 1;
       const pitch = b.state === 'perched' ? 0 : -Math.asin(THREE.MathUtils.clamp(vy / speed, -1, 1)) * 0.6;
-      _euler.set(pitch, yaw, 0, 'YXZ');
+      _euler.set(pitch, yaw, b.bank, 'YXZ');
       _quat.setFromEuler(_euler);
 
       const bob = b.state === 'perched'
@@ -400,19 +425,17 @@ export class Birds {
       _matW.compose(_pos, _quat, _scl);
       S.body.setMatrixAt(idx, _matW);
 
-      // Wing flap angle (folded when perched, symmetric flap when flying).
-      const flap = b.state === 'perched' ? -1.05 : (Math.sin(b.flapPhase) * 0.95 + 0.2);
-
-      // Left wing: body * T(+wingX, wingY, 0) * Rz(flap)
-      _hinge.makeTranslation(geo.wingX, geo.wingY, 0);
-      _flapM.makeRotationZ(flap);
-      _mat.copy(_matW).multiply(_hinge).multiply(_flapM);
-      S.wingL.setMatrixAt(idx, _mat);
-
-      // Right wing: body * T(-wingX, wingY, 0) * mirrorX * Rz(flap)
-      _hinge.makeTranslation(-geo.wingX, geo.wingY, 0);
-      _mat.copy(_matW).multiply(_hinge).multiply(_mirror).multiply(_flapM);
-      S.wingR.setMatrixAt(idx, _mat);
+      const glide = b.state === 'flying' && b.escapeTimer <= 0 ? birdGlide(b.species,b.bobPhase) : 0;
+      const flap = birdWingAngle(b.flapPhase,b.fold,glide);
+      _wingScale.makeScale(1-b.fold*.65,1,1);
+      // Both wings use positive transforms and baked left/right geometries.
+      for (let side = 1; side >= -1; side -= 2) {
+        _hinge.makeTranslation(side*geo.wingX,geo.wingY,0);
+        _euler.set(0,side*b.fold*1.12,side*flap,'YXZ');
+        _flapM.makeRotationFromEuler(_euler);
+        _mat.copy(_matW).multiply(_hinge).multiply(_flapM).multiply(_wingScale);
+        (side === 1 ? S.wingL : S.wingR).setMatrixAt(idx,_mat);
+      }
     }
 
     for (const key of BIRD_KEYS) {

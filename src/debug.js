@@ -512,6 +512,24 @@ function getCommandController() {
     },
     juice:n=>{if(n!==undefined)h().bubbles.juice=n;return `Bubble juice ${h().bubbles.juice.toFixed(2)} reserve meters.`;},
     smiles:n=>{api().dropSmile(n);return `Requested ${n} collectible smiles near the cart.`;},
+    star:mode=>{
+      const z=h().zerble,sp=h().StarPower;
+      if(mode==='spawn'){
+        const f=z.forwardWorld||{x:-Math.sin(z.heading),z:-Math.cos(z.heading)};
+        const x=z.position.x+f.x*10,worldZ=z.position.z+f.z*10;
+        sp._cooldown=0;sp._buildStar(x,worldZ);
+        return `Star-power pickup placed 10m ahead at (${x.toFixed(1)}, ${worldZ.toFixed(1)}).`;
+      }
+      if(mode==='trigger'){sp.trigger();return 'STAR POWER engaged.';}
+      if(mode==='end'){
+        if(!sp.isActive())return 'Star power is not active.';
+        sp.state='fading';sp._phase=0;return 'Star power fading out.';
+      }
+      const star=sp._star;
+      if(!star)return 'No star-power pickup is active. Use /star spawn to create one nearby.';
+      const dx=star.x-z.position.x,dz=star.z-z.position.z;
+      return `Nearest star-power pickup at (${star.x.toFixed(1)}, ${star.z.toFixed(1)}), ${Math.hypot(dx,dz).toFixed(1)}m away.`;
+    },
     heading:degrees=>{if(degrees!==undefined){h().zerble.heading=(degrees%360)*Math.PI/180;h().zerble.speed=0;}return `Heading ${((h().zerble.heading*180/Math.PI%360+360)%360).toFixed(1)}°`;},
     stop:()=>{h().zerble.speed=0;return 'Cart stopped.';},
     where:()=>`x ${h().zerble.position.x.toFixed(2)} · z ${h().zerble.position.z.toFixed(2)} · heading ${((h().zerble.heading*180/Math.PI%360+360)%360).toFixed(1)}°`,

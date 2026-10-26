@@ -1,0 +1,40 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+
+const source=fs.readFileSync(new URL('../src/starPower.js',import.meta.url),'utf8');
+const start=source.indexOf('  _buildStar(x, z) {');
+assert(start>=0,'star builder exists');
+const open=source.indexOf('{',start);let depth=0,end=-1;
+for(let i=open;i<source.length;i++){
+  if(source[i]==='{')depth++;
+  else if(source[i]==='}'&&--depth===0){end=i+1;break;}
+}
+assert(end>start,'star builder method has balanced braces');
+const method=source.slice(start,end);
+const samples=[];
+class Group {
+  constructor(){this.children=[];this.position={set:(x,y,z)=>Object.assign(this.position,{x,y,z})};}
+  add(child){this.children.push(child);}
+}
+class Mesh {
+  constructor(geometry,material){this.geometry=geometry;this.material=material;this.position={};this.rotation={};}
+}
+const context=vm.createContext({
+  THREE:{Group,Mesh,MeshStandardMaterial:class{constructor(options){Object.assign(this,options);this.userData={};}},
+    MeshBasicMaterial:class{constructor(options){Object.assign(this,options);this.userData={};}},
+    CylinderGeometry:class{} ,DoubleSide:2,AdditiveBlending:2},
+  PERF:{contextLights:false},STAR_FOOTPRINT_RADIUS:.7,
+  terrainHeight(x,z){samples.push([x,z]);return .1*x+.2*z;},
+  starGeometry:()=>({userData:{shared:true}}),beamTexture:()=>({userData:{shared:true}}),
+});
+const builder=vm.runInContext(`({${method}})`,context);
+const scene={add(group){this.group=group;}};
+const owner={scene,_star:null,_despawnStar(){this._star=null;}};
+builder._buildStar.call(owner,10,20);
+assert.equal(samples.length,9,'sample centre and eight points around the star footprint');
+const expected=Math.max(...samples.map(([x,z])=>.1*x+.2*z));
+assert.equal(scene.group.position.y,expected,'group clears the highest local terrain sample');
+assert(scene.group.position.y>.1*10+.2*20,'uphill star edge is kept above the centre ground height');
+console.log('PASS star pickup placement samples its footprint and anchors above the local terrain slope.');

@@ -1,0 +1,75 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {pathToFileURL} from 'node:url';
+const model=readFileSync(new URL('../src/models/bird.js',import.meta.url),'utf8');
+const source=readFileSync(new URL('../src/birds.js',import.meta.url),'utf8');
+class V {
+  constructor(x=0,y=0,z=0){this.set(x,y,z);}
+  set(x,y,z){Object.assign(this,{x,y,z});return this;}
+  copy(v){return this.set(v.x,v.y,v.z);}
+  add(v){return this.addScaledVector(v,1);}
+  sub(v){return this.addScaledVector(v,-1);}
+  multiplyScalar(k){return this.set(this.x*k,this.y*k,this.z*k);}
+  addScaledVector(v,k){return this.set(this.x+v.x*k,this.y+v.y*k,this.z+v.z*k);}
+  lengthSq(){return this.x*this.x+this.y*this.y+this.z*this.z;}
+  length(){return Math.sqrt(this.lengthSq());}
+  setLength(k){return this.multiplyScalar(k/(this.length()||1));}
+  distanceToSquared(v){return (this.x-v.x)**2+(this.y-v.y)**2+(this.z-v.z)**2;}
+  lerp(v,k){return this.set(this.x+(v.x-this.x)*k,this.y+(v.y-this.y)*k,this.z+(v.z-this.z)*k);}
+}
+class Matrix {makeScale(){return this;} makeTranslation(){return this;} makeRotationFromEuler(){return this;} compose(){return this;} copy(){return this;} multiply(){return this;}}
+class Group {constructor(){this.children=[];}add(...v){this.children.push(...v);}}
+class Instance {constructor(){this.instanceMatrix={};}setMatrixAt(){}}
+const THREE={Vector3:V,Matrix4:Matrix,Quaternion:class{setFromEuler(){}},Euler:class{set(){}},Group,InstancedMesh:Instance,
+ MathUtils:{clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),smoothstep:(x,a,b)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);}}};
+const registry={entries:new Map(),byKind:new Map()};
+let seed=9324;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;};
+const context=vm.createContext({THREE,PERF:{name:'high'},registry,terrainHeight:()=>12,Math:Object.assign(Object.create(Math),{random})});
+vm.runInContext(model.slice(model.indexOf('export const BIRD_SPECIES'),model.indexOf('function paint')).replaceAll('export ',''),context);
+vm.runInContext(model.slice(model.indexOf('export function birdWingAngle'),model.indexOf('export function buildBird(')).replaceAll('export ',''),context);
+context.birdInstanceGeo=()=>({body:{},wing:{},wingR:{},s:1,wingX:.16,wingY:.1});context.birdInstanceMaterial=()=>({});
+vm.runInContext(source.replace(/^import .*;\n/gm,'').replaceAll('export ','')+';this.Birds=Birds;',context);
+const flock=new context.Birds();assert.equal(flock.birds.length,40);assert.equal(flock.group.children.length,15);
+for(const b of flock.birds)assert(b.pos.y>=17,'spawns clear elevated terrain');
+const bird=flock.birds[0];flock.birds=[bird];const perch={treeId:1,idx:0,pos:{x:0,y:16,z:0},crown:{x:0,y:18,z:0}};
+registry.entries.set(1,{position:new V(),perches:[perch.pos]});registry.byKind.set('tree',new Set([1]));
+function seat(){bird.perch=perch;bird.state='perched';bird.pos.set(0,16,0);bird.vel.set(0,0,1);bird.scale=1;bird.escapeTimer=0;bird.restTimer=100;flock._occupied.add('1:0');}
+seat();flock.update(1/60,new V(0,12,0),{t:.25,nightness:0},12);
+assert.equal(bird.state,'flying');assert.equal(flock._occupied.size,0);assert(bird.vel.y>0&&Math.hypot(bird.vel.x,bird.vel.z)>0,'directly overhead startle has escape direction');
+assert(bird.escapeTimer>1.9);assert(bird.perchUrge<.1,'escape cannot immediately reland');
+seat();flock._updatePerched(bird,{},.5,0,1,1);assert(bird.pos.y>16);flock._updatePerched(bird,{},.05,0,0,0);assert.equal(bird.pos.y,16,'dawn returns to reserved surface');
+seat();registry.entries.delete(1);flock._updatePerched(bird,{},.01,0,0,0);assert.equal(bird.state,'flying');assert.equal(flock._occupied.size,0,'streamed tree releases reservation');
+registry.entries.set(1,{});seat();bird.state='descending';bird.pos.set(8,20,3);const sp={speed:8};
+for(let i=0;i<600&&bird.state!=='perched';i++)flock._updateDescending(bird,sp,1/60);
+assert.equal(bird.state,'perched','approach converges');assert.equal(bird.pos.y,16);
+const before=JSON.stringify(bird.pos);for(const dt of [0,-1,NaN,Infinity])flock.update(dt,new V(),{t:.25,nightness:0});assert.equal(JSON.stringify(bird.pos),before);
+seat();bird.state='descending';registry.entries.delete(1);flock._updateDescending(bird,sp,.01);assert.equal(bird.state,'flying');assert.equal(flock._occupied.size,0);
+for(let i=0;i<3600;i++)flock.update(1/60,new V(),{t:.25,nightness:0});
+assert([bird.pos.x,bird.pos.y,bird.pos.z,bird.bank,bird.fold].every(Number.isFinite));assert(Math.abs(bird.bank)<=.55);assert(bird.pos.y>12,'flight stays above elevated terrain');
+console.log('PASS birds: terrain spawn/cruise, zero-distance escape, cooldown, landing convergence, removed perches, dawn return, invalid dt, bounded motion, 15 draw batches.');
+// Optional real pinned Three.js geometry validation, using an external test cache.
+if(process.env.BIRD_TEST_THREE && process.env.BIRD_TEST_UTILS){
+ const real=await import(pathToFileURL(process.env.BIRD_TEST_THREE));
+ const utils=await import(pathToFileURL(process.env.BIRD_TEST_UTILS));
+ const c=vm.createContext({THREE:real,mergeGeometries:utils.mergeGeometries});
+ vm.runInContext(model.replace(/^import .*;\n/gm,'').replaceAll('export ','')+';this.api={BIRD_KEYS,buildBird,birdInstanceGeo};',c);
+ for(const key of c.api.BIRD_KEYS){
+  const g=c.api.birdInstanceGeo(key);assert.equal(c.api.birdInstanceGeo(key),g);
+  for(const geo of [g.body,g.wing,g.wingR]){assert(geo.userData.shared);assert([...geo.attributes.position.array].every(Number.isFinite));assert(geo.attributes.position.count>0);}
+  const b=c.api.buildBird(key);b.userData.anim(.12);b.updateMatrixWorld(true);
+  const {wingL,wingR}=b.userData.parts;
+  const l=new real.Vector3(g.s*.8,0,0).applyMatrix4(wingL.matrixWorld),r=new real.Vector3(-g.s*.8,0,0).applyMatrix4(wingR.matrixWorld);
+  assert(Math.abs(l.y-r.y)<1e-7,'wingtips rise together');assert(wingR.matrixWorld.determinant()>0);
+  b.userData.setPerched(true);for(let i=0;i<120;i++)b.userData.anim(1/60);assert(wingL.scale.x<.36);
+  console.log(key, 'triangles', (g.body.attributes.position.count+g.wing.attributes.position.count*2)/3);
+ }
+ Object.assign(c,{PERF:{name:'high'},registry:{entries:new Map(),byKind:new Map()},terrainHeight:()=>12});
+ vm.runInContext(source.replace(/^import .*;\n/gm,'').replaceAll('export ','')+';this.Flock=Birds;',c);
+ const live=new c.Flock();
+ for(let i=0;i<600;i++)live.update(1/60,new real.Vector3(),{t:.25,nightness:0});
+ for(const mesh of live.group.children)assert([...mesh.instanceMatrix.array].every(Number.isFinite),'live matrices remain finite');
+ assert.equal(live.group.children.reduce((n,m)=>n+m.count,0),120);
+ console.log('PASS real Three.js pooled buffers, finite geometry, mirrored wingtip symmetry, positive determinants and folding.');
+}

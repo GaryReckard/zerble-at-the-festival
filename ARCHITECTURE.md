@@ -198,6 +198,25 @@ mesh uses 140 segments per side, down from 220 before the texture was added.
 - Register colliders (radial wall) **without** a `chunkKey`, so chunk unload doesn't tear them down.
 - Lakes own: canoes, beaches, lakeside campsites. Chunks consult the registry to avoid placing paths or decorations on water.
 
+### Shared tree and bird rendering
+
+`src/models/tree.js` separates deterministic tree descriptors from their rendered
+shape. Four shared unit geometries provide clustered broadleaf crowns, irregular
+pine skirts, tapered trunks and forked trunks; standalone previews and the six
+forest instance buckets consume those same buffers. Crown and perch coordinates
+remain descriptor data, independent of visual detail. Tree hammocks calculate each
+facing bark contact at its world attachment height using the descriptor taper and
+the supporting tree's ground height.
+
+`src/models/bird.js` owns cached species anatomy, baked vertex colors and the wing
+pose helpers used by both previews and `src/birds.js`. Each species uses body,
+left-wing and right-wing instance batches, with positive transforms and a baked
+mirrored right wing. The controller follows terrain-relative cruise heights and
+registry perch/crown data, while tier population caps and the 15-batch ceiling
+bound rendering cost. Shared buffers and materials survive chunk disposal.
+[Measured costs and verification](verification/wildlife/2026-10-25/README.md)
+record the added triangle cost separately from draw counts and device performance.
+
 ### Determinism
 
 `rng.js` provides `hash2(x, y)` (32-bit mixing) and `mulberry32(seed)` (seeded PRNG). Every procedural decision — chunk theme, prop placement, lake position, forest contents — is hashed from grid coordinates plus a salt. The world is identical across reloads at the same coordinates.
