@@ -125,7 +125,7 @@ export function updateWorld(playerPos, dt = 0.016) {
   const streamRemainderMs = Math.max(0, PERF.chunkBudgetMs - (performance.now() - streamStartedAt));
   if (timeOfDay) {
     timeOfDay.update(dt);
-    updateVendorTents(timeOfDay.t, timeOfDay.nightness);
+    updateVendorTents(timeOfDay.t, timeOfDay.nightness, dt);
   }
   if (farField && farField.enabled) {
     farField.update(playerPos.x, playerPos.z, {

@@ -223,6 +223,7 @@
             <option value="tree_hammock">Hammock between trees</option>
             <option value="hammock_with_npc">Hammock + person (lounging)</option>
             <option value="tent">Vendor tent</option>
+            <option value="vendor_activity">Vendor market (browsing and shopping)</option>
             <option value="tent_row">Vendor tent row (7 trades)</option>
             <option value="monk">Tibetan monk</option>
             <option value="monk_party">Monks · wandering group</option>
@@ -1434,7 +1435,7 @@ import {buildShrub} from './src/models/shrub.js';
                 const requestedProfile = new URLSearchParams(location.search).get('vendor');
                 const profile = TENT_VENDOR_PROFILES.find(p => p.id === requestedProfile)?.id;
                 const g = buildTent(mulberry32(157), { rng: mulberry32(719), profile });
-                updateFn = () => updateTent(g, tod.t, tod.nightness);
+                updateFn = dt => updateTent(g, tod.t, tod.nightness, dt);
                 scene.add(g);
                 entityRoot = g;
                 cam.target.set(0, 1.5, 0);
@@ -1442,6 +1443,38 @@ import {buildShrub} from './src/models/shrub.js';
                 cam.pitch = 0.08;
                 cam.yaw = 0.2;
                 applyCam();
+                break;
+            }
+            case 'vendor_activity': {
+                const root = new THREE.Group(), tents = [], ids = [];
+                const people = new Crowd({spawn(){},spawnLost(){}});
+                people.campTimeOfDay = tod;
+                root.add(people.group);
+                for (const side of [-1, 1]) {
+                    const tent = buildTent(mulberry32(157), {rng:mulberry32(719)});
+                    tent.position.set(side * 6, 0, 0);
+                    tent.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+                    root.add(tent); tents.push(tent);
+                    ids.push(registry.add({kind:'tent', vendor:tent, position:tent.position.clone(),
+                        footprint:2.6,collider:{radius:2.2,damage:0},chunkKey:'market-preview'}));
+                }
+                const rng = mulberry32(1977);
+                for (let i=0;i<8;i++) people.spawn({pos:new THREE.Vector3((rng()-.5)*4,0,(rng()-.5)*10),
+                    chunkKey:'market-preview',rng,allowPhotographer:false});
+                const observer = {position:new THREE.Vector3(0,0,40),speed:0,
+                    forwardWorld:new THREE.Vector3(0,0,-1),seatSlots:[]};
+                root.userData.cleanup = () => {
+                    for (const npc of [...people.npcs]) people.removeNpc(npc);
+                    for (const id of ids) registry.remove(id);
+                };
+                updateFn = dt => {
+                    for (const tent of tents) updateTent(tent,tod.t,tod.nightness,dt);
+                    people.update(dt,observer,null);
+                    const count = state => people.npcs.filter(n=>n.state===state).length;
+                    info.textContent = `${count('market_walking')} approaching · ${count('market_browsing')} browsing · ${count('market_chatting')} chatting · ${count('market_buying')} buying · ${people.npcs.reduce((n,p)=>n+(p.marketPurchases||0),0)} purchases · ${people.npcs.filter(n=>n.shoppingBagTime>0).length} bags`;
+                };
+                scene.add(root); entityRoot=root;
+                cam.target.set(-2.5,1.2,0);cam.dist=19;cam.pitch=.3;cam.yaw=.15;applyCam();
                 break;
             }
             case 'tent_row': {
@@ -1454,7 +1487,7 @@ import {buildShrub} from './src/models/shrub.js';
                     tents.add(t);
                 }
                 scene.add(tents);
-                updateFn = () => { for (const tent of tents.children) updateTent(tent, tod.t, tod.nightness); };
+                updateFn = dt => { for (const tent of tents.children) updateTent(tent, tod.t, tod.nightness, dt); };
                 entityRoot = tents;
                 cam.target.set(0, 1.8, 0);
                 cam.dist = 30;

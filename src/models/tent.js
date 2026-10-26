@@ -120,9 +120,9 @@ export const TENT_VENDOR_PROFILES = Object.freeze([
 
 // Table slots, local to the tent canopy. Tent footprint is 4.5x4.5 with
 // legs at corners (±2, ±2); the opening faces +Z, the back wall is -Z.
-// Side slots are slightly shorter than the back to leave room for the
-// front opening.
-const SLOT_BACK   = { length: 3.0, depth: 0.8, x: 0,    z: -1.4, yaw: 0 };
+// The sales counter sits ahead of the keeper workspace; side displays leave
+// the customer frontage outside the canopy clear.
+const SLOT_COUNTER   = { length: 3.0, depth: 0.8, x: 0,    z: 0.65, yaw: 0 };
 const SLOT_LEFT   = { length: 2.6, depth: 0.8, x: -1.4, z: 0,    yaw: -Math.PI / 2 };
 const SLOT_RIGHT  = { length: 2.6, depth: 0.8, x: 1.4,  z: 0,    yaw:  Math.PI / 2 };
 const SLOT_CENTER = { length: 3.0, depth: 1.2, x: 0,    z: 0,    yaw: 0 };
@@ -132,10 +132,10 @@ const SLOT_CENTER = { length: 3.0, depth: 1.2, x: 0,    z: 0,    yaw: 0 };
 // L-shapes are the next most common; single-back and single-center keep the
 // original variety so a row of tents still feels mixed.
 const BOOTH_LAYOUTS = [
-  { name: 'u',       weight: 5, slots: [SLOT_BACK, SLOT_LEFT, SLOT_RIGHT] },
-  { name: 'l_left',  weight: 2, slots: [SLOT_BACK, SLOT_LEFT] },
-  { name: 'l_right', weight: 2, slots: [SLOT_BACK, SLOT_RIGHT] },
-  { name: 'back',    weight: 2, slots: [SLOT_BACK] },
+  { name: 'u',       weight: 5, slots: [SLOT_COUNTER, SLOT_LEFT, SLOT_RIGHT] },
+  { name: 'l_left',  weight: 2, slots: [SLOT_COUNTER, SLOT_LEFT] },
+  { name: 'l_right', weight: 2, slots: [SLOT_COUNTER, SLOT_RIGHT] },
+  { name: 'back',    weight: 2, slots: [SLOT_COUNTER] },
   { name: 'center',  weight: 2, slots: [SLOT_CENTER] },
 ];
 const _BOOTH_TOTAL = BOOTH_LAYOUTS.reduce((s, b) => s + b.weight, 0);
@@ -203,10 +203,10 @@ export function buildTent(callerRng = Math.random, options = {}) {
   }
   g.userData.vendorProfile = profile ? profile.id : 'legacy';
 
-  // ----- Shopkeeper — minds the booth. 70% inside (behind tables, facing
-  // out the tent opening), 30% out front (loitering, facing back in).
+  // The sales counter separates the keeper workspace from the customer frontage.
   const shopkeeper = buildShopkeeper(rng);
   placeShopkeeper(shopkeeper, booth.name, rng);
+  g.userData.market = {customer: null, open: true, time: 0, layout: booth.name};
   shopkeeper.userData.noMerge = true;   // animated/skinned — keep out of the static merge
   g.add(shopkeeper);
 
@@ -242,7 +242,7 @@ export function buildTent(callerRng = Math.random, options = {}) {
   lights.visible = false;
   g.add(lights);
   const bed = new THREE.Mesh(_BED_GEO, _BED_MAT);
-  bed.position.set(0, .13, .8);
+  bed.position.set(0, .13, -1.35);
   bed.visible = false;
   g.add(bed);
   g.userData.evening = {vendor:shopkeeper, home:shopkeeper.position.clone(),
@@ -251,7 +251,7 @@ export function buildTent(callerRng = Math.random, options = {}) {
 }
 
 // t=0 is dawn and .75 is midnight, matching TimeOfDay rather than wall time.
-export function updateTent(tent, t, nightness) {
+export function updateTent(tent, t, nightness, dt = 0) {
   const state = tent.userData.evening;
   if (!state) return;
   const sleeping = t >= .75 || t < .04;
@@ -260,13 +260,33 @@ export function updateTent(tent, t, nightness) {
   state.lights.visible = glow > .02;
   for (const material of state.materials) material.emissiveIntensity = glow * .45;
   state.bed.visible = sleeping;
+  const market = tent.userData.market;
+  if (market) { market.open = !sleeping && !closing; market.time += Math.max(0, dt); }
   const vendor = state.vendor;
   vendor.rotation.x = 0;
   vendor.rotation.z = sleeping ? Math.PI / 2 : 0;
   vendor.rotation.y = sleeping ? Math.PI / 2 : state.yaw;
-  if (sleeping) vendor.position.set(.7, .28, .8);
+  if (sleeping) vendor.position.set(.7, .28, -1.35);
   else vendor.position.set(state.home.x * (1 - closing), state.home.y,
-    state.home.z + (.8 - state.home.z) * closing);
+    state.home.z + (-1.35 - state.home.z) * closing);
+  if (market && !sleeping && !closing) {
+    const customer = market.customer;
+    const engaged = customer && customer.state !== 'market_walking';
+    const phase = market.time + state.home.x * 7;
+    // Small workspace shifts stay behind the sales counter and clear side tables.
+    vendor.position.x += Math.sin(phase * .55) * (engaged ? .035 : .14);
+    vendor.rotation.y += engaged ? 0 : Math.sin(phase * .36) * .16;
+    vendor.rotation.x = engaged ? -.045 * (1 + Math.sin(phase * 2)) : 0;
+    for (let i = 0; i < (vendor.userData?.shoulders?.length || 0); i++) {
+      vendor.userData.shoulders[i].rotation.x = engaged ? .5 + Math.sin(phase * 2.5 + i) * .16 : .08;
+      vendor.userData.elbows[i].rotation.x = engaged ? .65 : .12;
+    }
+  } else {
+    for (let i = 0; i < (vendor.userData?.shoulders?.length || 0); i++) {
+      vendor.userData.shoulders[i].rotation.x = 0;
+      vendor.userData.elbows[i].rotation.x = 0;
+    }
+  }
 }
 
 function consumeLegacyTableDraws(rng) {
@@ -683,11 +703,16 @@ function buildShopkeeper(rng) {
   return buildSimpleNPC(shirt, skin);
 }
 
-// 70% inside the booth (behind tables, facing the customer at +Z), 30% out
-// front (loitering on the customer side, facing back into the booth).
-// Interior spot depends on the booth layout — the shopkeeper has to fit
-// between whichever tables are there.
+// Every keeper faces the opening from the workspace behind the counter.
 function placeShopkeeper(npc, layoutName, rng) {
+  // Retain the old draw count, including the former outside-loiter branch, so
+  // this pose correction never shifts downstream chunk generation.
+  placeLegacyShopkeeper(npc, layoutName, rng);
+  npc.position.set(Math.max(-.4, Math.min(.4, npc.position.x)), 0, layoutName === 'center' ? -1.1 : -.35);
+  npc.rotation.y = Math.PI;
+}
+
+function placeLegacyShopkeeper(npc, layoutName, rng) {
   if (rng() < 0.30) {
     npc.position.set((rng() - 0.5) * 2.2, 0, 2.3 + rng() * 0.4);
     npc.rotation.y = 0;                // NPC default eyes face -Z (into booth)

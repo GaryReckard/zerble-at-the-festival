@@ -61,8 +61,8 @@ const UNLOAD_RADIUS = PERF.chunkUnloadRadius; // hysteresis
 export const stagePerformers = [];
 export const healingArtsTents = [];
 const vendorTents = [];
-export function updateVendorTents(t, nightness) {
-  for (const entry of vendorTents) updateTent(entry.group, t, nightness);
+export function updateVendorTents(t, nightness, dt = 0) {
+  for (const entry of vendorTents) updateTent(entry.group, t, nightness, dt);
 }
 
 export function updateHealingArtsTents(dt, time, nightness, playerPos) {
@@ -1703,6 +1703,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       vendorTents.push({group:tent, chunkKey:ctx.key});
       registry.add({
         kind: 'tent',
+        vendor: tent,
         position: new THREE.Vector3(w.x, terrainHeight(w.x, w.z), w.z),
         footprint: 2.6,
         collider: { radius: 2.2, damage: 5 },
@@ -2618,6 +2619,7 @@ function buildVendorRow(ctx) {
 
       registry.add({
         kind: 'tent',
+        vendor: tent,
         position: new THREE.Vector3(x, terrainHeight(x, z), z),
         footprint: 2.6,
         collider: { radius: 2.2, damage: 5 },

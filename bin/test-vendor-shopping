@@ -1,0 +1,87 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {mulberry32} from '../src/rng.js';
+const crowd = readFileSync(new URL('../src/crowd.js',import.meta.url),'utf8');
+const methods = crowd.slice(crowd.indexOf('  _releaseMarket(npc) {'), crowd.indexOf('  // ----- Picnic-table seating -----'));
+const vector = (x=0,y=0,z=0) => ({x,y,z,set(x,y,z){Object.assign(this,{x,y,z});}});
+const registry={entries:new Map(),byKind:new Map([['tent',new Set()]]),solids:[],collidersNear(x,z,r,fn){for(const e of this.solids)fn(e);}};
+let t=.25;
+const context={Math,mulberry32,registry,getTimeOfDay:()=>({t}),laneDodgeTest:()=>false,
+  wrapAngle:a=>Math.atan2(Math.sin(a),Math.cos(a))};
+const Harness=vm.runInNewContext(`class Harness {${methods}\n_writeMatrices(){} };\n${crowd.slice(crowd.indexOf('function isMarketSpotBlocked('))}\nHarness`,context);
+const system=new Harness();
+const cart={position:vector(0,0,40),forwardWorld:vector(0,0,-1),speed:0};
+const makeBooth=(id,yaw=0,x=0,z=0)=>{
+ const market={open:true,customer:null};
+ const entry={id,position:vector(x,0,z),collider:{radius:2.2},vendor:{rotation:{y:yaw},userData:{market}}};
+ registry.entries.set(id,entry);registry.byKind.get('tent').add(id);registry.solids.push(entry);return entry;
+};
+const npc=seed=>({idx:seed,behaviorSeed:seed,pos:vector(0,0,4),vel:vector(),target:vector(),yaw:0,energy:.8,state:'idle',stateTimer:2});
+const tick=(n,dt=.1)=>{n.stateTimer-=dt;n.marketCooldown=Math.max(0,(n.marketCooldown||0)-dt);system._tickMarket(dt,n,cart);};
+const booth=makeBooth(1), a=npc(1), b=npc(2);
+tick(a);assert.equal(booth.vendor.userData.market.customer,a);
+tick(b);assert.equal(b.marketVisit,undefined,'a booth cannot double-book its customer spot');
+const states=new Set();
+a.marketRng=()=>.2;
+for(let i=0;i<230;i++){tick(a);states.add(a.state);}
+for(const state of ['market_walking','market_browsing','market_chatting','market_buying','walking'])assert.ok(states.has(state),state);
+assert.equal(a.marketPurchases,1);assert.equal(a.shoppingBagTime,55);assert.equal(booth.vendor.userData.market.customer,null);
+assert.equal(a.target.z,7.2,'a buyer departs toward the aisle');
+// Non-buyers still browse and chat but leave without a bag.
+const c=npc(3);c.marketRng=()=>.9;
+for(let i=0;i<270;i++)tick(c);
+assert.equal(c.marketPurchases,undefined);assert.equal(c.marketVisit,null);
+// Closing, unloading, external state changes and forced departure free claims.
+for(const reason of ['closing','unload','honk','remove']){
+ const n=npc(4);tick(n);assert.ok(n.marketVisit);
+ if(reason==='closing')t=.74;
+ if(reason==='unload')registry.entries.delete(1);
+ if(reason==='honk')n.state='fleeing';
+ if(reason==='remove')system._releaseMarket(n);else tick(n);
+ assert.equal(booth.vendor.userData.market.customer,null,reason);assert.equal(n.marketVisit,null,reason);
+ t=.25;registry.entries.set(1,booth);
+}
+for(const time of [.02,.74,.75,.99]){t=time;const n=npc(5);tick(n);assert.equal(n.marketVisit,undefined,'closed shop cannot recruit');}t=.25;
+// Both row sides and arbitrary road rotations must put customers on +local Z.
+registry.entries.clear();registry.byKind.get('tent').clear();registry.solids=[];
+for(const yaw of [Math.PI/2,-Math.PI/2,1.23]){
+ const e=makeBooth(8,yaw);const n=npc(6);n.pos.set(Math.sin(yaw)*4,0,Math.cos(yaw)*4);tick(n);
+ assert.ok(Math.abs(n.marketVisit.x-Math.sin(yaw)*3.2)<1e-8);
+ assert.ok(Math.abs(n.marketVisit.z-Math.cos(yaw)*3.2)<1e-8);
+ system._releaseMarket(n);registry.entries.clear();registry.byKind.get('tent').clear();registry.solids=[];
+}
+// A blocked frontage is never claimed, and paths cannot cross solid geometry.
+const e=makeBooth(1);registry.solids.push({position:vector(0,0,3.2),collider:{radius:1}});
+const blocked=npc(7);tick(blocked);assert.equal(blocked.marketVisit,undefined);
+registry.solids.pop();const rear=npc(8);rear.pos.set(0,0,-4);tick(rear);
+for(let i=0;i<200&&rear.marketVisit;i++){
+ tick(rear);assert.ok(Math.hypot(rear.pos.x,rear.pos.z)>=2.549,'market walk crossed the booth collider');
+}
+const tent=readFileSync(new URL('../src/models/tent.js',import.meta.url),'utf8');
+const placement=vm.runInNewContext(tent.slice(tent.indexOf('function placeShopkeeper('))+';({placeShopkeeper,placeLegacyShopkeeper})',{Math});
+for(const layout of ['u','l_left','l_right','back','center'])for(let seed=0;seed<30;seed++){
+ const make=()=>({position:vector(),rotation:{}});const old=make(),current=make();
+ const legacyRng=mulberry32(seed),newRng=mulberry32(seed);
+ placement.placeLegacyShopkeeper(old,layout,legacyRng);placement.placeShopkeeper(current,layout,newRng);
+ assert.equal(newRng(),legacyRng(),'keeper pose must retain world RNG consumption');
+ assert.equal(current.rotation.y,Math.PI);assert.ok(Math.abs(current.position.x)<=.4);assert.ok(current.position.z<0);
+}
+console.log('PASS vendor visits: exclusive claims, browsing/chat/purchase/non-buyer/departure, bag, bedtime/unload/interruption, rotated frontage, solid avoidance and unchanged layout RNG');
+const update = vm.runInNewContext(tent.slice(tent.indexOf('export function updateTent('),tent.indexOf('\nfunction consumeLegacyTableDraws')).replace('export function','function')+';updateTent',{Math});
+const keeper={position:vector(),rotation:{},userData:{shoulders:[{rotation:{}}],elbows:[{rotation:{}}]}};
+const model={userData:{market:{open:true,time:0,customer:{state:'market_chatting'}},evening:{vendor:keeper,home:vector(0,0,-.35),yaw:Math.PI,lights:{},bed:{},materials:[]}}};
+update(model,.3,0,1);assert.ok(keeper.userData.shoulders[0].rotation.x>.3,'keeper gestures to the actual visitor');
+update(model,.75,1,1);assert.equal(model.userData.market.open,false);assert.equal(keeper.userData.shoulders[0].rotation.x,0);assert.equal(keeper.position.z,-1.35,'bed stays behind the counter');
+update(model,.15,0,1);assert.equal(model.userData.market.open,true);assert.equal(keeper.rotation.z,0);
+console.log('PASS keeper greeting, closing/reset, rear-bed clearance and morning reopening');
+const chunks=readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');
+const facingLine=chunks.slice(chunks.indexOf('function buildVendorRowAt(')).match(/tent.rotation.y = ([^;]+);/)[1];
+const rowFacing=vm.runInNewContext(`(yaw, side) => ${facingLine}`,{Math});
+for(const yaw of [0,.7,3.92])for(const side of [-1,1]){
+ const rotation=rowFacing(yaw,side);
+ const towardX=-side*Math.cos(yaw),towardZ=side*Math.sin(yaw);
+ assert.ok(Math.sin(rotation)*towardX+Math.cos(rotation)*towardZ>.999,'production booth front must face the central aisle');
+}
+console.log('PASS production vendor-row facing on both sides and rotated roads');

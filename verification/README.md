@@ -13,6 +13,8 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Vendor market activity, October 25](vendors/2026-10-25/README.md): opposing customer-facing keepers, real crowd browsing/purchases, bag draw cost, closure and lifecycle regressions.
+
 - [Evening vendors, moonset and Smile Bubbles, October 25](nightlife/2026-10-25/README.md): midnight shop closure, celestial occlusion and the real 1,000-pickup unlock pipeline.
 
 - [Wildlife and scenery, October 25](wildlife/2026-10-25/README.md): bird anatomy/motion, shared tree detail costs, hammock bark anchors, tent palettes and terrain-grounded star commands.

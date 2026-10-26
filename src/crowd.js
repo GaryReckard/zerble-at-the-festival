@@ -1,3 +1,4 @@
+import { mulberry32 } from './rng.js';
 import { terrainHeight } from './worldgen/terrain.js';
 // Crowd v2: pool of stateful NPCs spawned by chunks.
 //
@@ -306,6 +307,12 @@ export class Crowd {
     straw.translate(0.012, 1.14, -0.27);
     const drinkGeo = mergeGeometrySet([cup, cupLid, straw]);
 
+    const bagBox = new THREE.BoxGeometry(.25, .3, .13);
+    bagBox.translate(.38, .59, -.08);
+    const bagHandle = new THREE.TorusGeometry(.065, .012, 4, 8);
+    bagHandle.translate(.38, .78, -.08);
+    const bagGeo = mergeGeometrySet([bagBox, bagHandle]);
+
     // ---- Materials ----
     const legsMat  = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, flatShading: true });
     const shoesMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8,  flatShading: true });
@@ -401,6 +408,8 @@ export class Crowd {
     this.flashMesh = new THREE.InstancedMesh(flashGeo, flashMat, MAX_NPCS);
     this.hairMeshes = hairGeos.map((geo, style) => new THREE.InstancedMesh(geo, hairMats[style], MAX_NPCS));
     this.drinkMesh = new THREE.InstancedMesh(drinkGeo, drinkMat, MAX_NPCS);
+    this.shoppingBagMesh = new THREE.InstancedMesh(bagGeo,
+      new THREE.MeshStandardMaterial({color: 0xba864c, roughness: .95}), MAX_NPCS);
 
     // Per-NPC shirt color shared between body and arms (sleeves).
     this.bodyMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS * 3), 3);
@@ -455,7 +464,7 @@ export class Crowd {
     // invisible collisions, invisible smiles). Bubbles already disables
     // culling for the same reason. One drawcall per mesh either way.
     const allMeshes = [this.legsMesh, this.shoesMesh, this.bodyMesh, this.armsMesh, this.headMesh,
-      this.eyesMesh, this.mouthMesh, this.cameraMesh, this.flashMesh, ...this.hairMeshes, this.drinkMesh];
+      this.eyesMesh, this.mouthMesh, this.cameraMesh, this.flashMesh, ...this.hairMeshes, this.drinkMesh, this.shoppingBagMesh];
     for (const m of allMeshes) {
       m.castShadow = PERF.shadows;
       m.frustumCulled = false;
@@ -467,6 +476,7 @@ export class Crowd {
     this.flashMesh.castShadow = false;
     for (const mesh of this.hairMeshes) mesh.castShadow = false;
     this.drinkMesh.castShadow = false;
+    this.shoppingBagMesh.castShadow = false;
 
     this.group = new THREE.Group();
     this.campJams = new CampJamActivity(this);
@@ -822,6 +832,7 @@ export class Crowd {
         if (npc.pottyEntry) { this._releasePotty(npc); }
         // Release any picnic-table seat claim (don't strand a seat "occupied").
         if (npc.tableSeat) { this._releaseTable(npc); }
+        this._releaseMarket(npc);
         this._releaseCamp(npc);
         // Remove from any group it belonged to so dead idx's don't leak.
         if (npc.groupId) {
@@ -832,6 +843,7 @@ export class Crowd {
             if (g.members.length === 0) this.groups.delete(npc.groupId);
           }
         }
+        this.shoppingBagMesh.setMatrixAt(npc.idx, zero);
         this.legsMesh.setMatrixAt(npc.idx, zero);
         this.shoesMesh.setMatrixAt(npc.idx, zero);
         this.bodyMesh.setMatrixAt(npc.idx, zero);
@@ -971,6 +983,9 @@ export class Crowd {
     this.cameraMesh.count = this._photoDrawCount;
     this.flashMesh.count = this._photoDrawCount;
     this.drinkMesh.count = this._drinkDrawCount;
+    this.shoppingBagMesh.count = this._maxIdx + 1;
+    this.shoppingBagMesh.visible = this.npcs.some(n => n.shoppingBagTime > 0);
+    this.shoppingBagMesh.instanceMatrix.needsUpdate = true;
   }
 
   _updateNpc(dt, npc, zerble, bubblePositions, cosCone, ctx) {
@@ -1011,6 +1026,9 @@ export class Crowd {
     const dz = zerble.position.z - npc.pos.z;
     const dToZerble = Math.hypot(dx, dz);
 
+    npc.marketCooldown = Math.max(0, (npc.marketCooldown || 0) - dt);
+    npc.shoppingBagTime = Math.max(0, (npc.shoppingBagTime || 0) - dt);
+    if (this._tickMarket(dt, npc, zerble)) return;
     if (this.campJams.tickNpc(dt, npc)) return;
     if (this._tickCamp(dt, npc)) return;
 
@@ -1741,12 +1759,19 @@ export class Crowd {
       this.legsMesh.setMatrixAt(npc.idx, m);
       this.shoesMesh.setMatrixAt(npc.idx, m);
     }
+    this.shoppingBagMesh?.setMatrixAt(npc.idx, npc.shoppingBagTime > 0 ? m : this._zeroMat);
     this.bodyMesh.setMatrixAt(npc.idx, m);
     if (npc.campInstrument) {
       const active = npc.campJam?.stage === 'playing';
       const bend = npc.campInstrument.kind === 'fiddle' ? 1.45 : 1.12;
       this._musicArmMat.makeTranslation(0, 1.35, 0)
         .multiply(this._tmpDanceMat.makeRotationX(bend + (active ? Math.sin(npc.bob * 7) * .07 : 0)))
+        .multiply(this._musicPivotMat.makeTranslation(0, -1.35, 0));
+      this._armsMat.multiplyMatrices(m, this._musicArmMat);
+      this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
+    } else if (npc.state === 'market_chatting' || npc.state === 'market_buying') {
+      this._musicArmMat.makeTranslation(0, 1.35, 0)
+        .multiply(this._tmpDanceMat.makeRotationX(.65 + Math.sin(npc.bob * 3) * .14))
         .multiply(this._musicPivotMat.makeTranslation(0, -1.35, 0));
       this._armsMat.multiplyMatrices(m, this._musicArmMat);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
@@ -2213,6 +2238,104 @@ export class Crowd {
     return true;
   }
 
+  // A booth owns one customer frontage; the crowd owns the cancellable visit.
+  _releaseMarket(npc) {
+    const visit = npc.marketVisit;
+    if (!visit) return;
+    if (visit.market.customer === npc) visit.market.customer = null;
+    npc.marketVisit = null;
+    npc.marketCooldown = 30 + (npc.marketRng?.() ?? .5) * 25;
+    if (npc.state.startsWith('market_')) { npc.state = 'idle'; npc.stateTimer = 2; }
+  }
+
+  _tickMarket(dt, npc, zerble) {
+    const t = this.campTimeOfDay?.t ?? getTimeOfDay()?.t ?? .25;
+    const open = t >= .04 && t < .735;
+    let visit = npc.marketVisit;
+    if (visit && (!open || !visit.market.open || registry.entries.get(visit.entry.id) !== visit.entry ||
+        !npc.state.startsWith('market_') || npc.frownTimer > 0 ||
+        laneDodgeTest(npc.pos.x - zerble.position.x, npc.pos.z - zerble.position.z,
+          zerble.forwardWorld.x, zerble.forwardWorld.z, zerble.speed))) {
+      this._releaseMarket(npc);
+      return false;
+    }
+    if (!visit) {
+      if (!open || this.starActive || npc.cheerTimer > 0 || npc.frownTimer > 0 || npc.party || npc.campSlot || npc.campJam || npc.marketCooldown ||
+          npc.shoppingBagTime || !['idle', 'walking'].includes(npc.state)) return false;
+      // Separate seeded behavior stream, independent of appearance and world layout.
+      npc.marketRng ||= mulberry32((npc.behaviorSeed ^ 0x53484f50) >>> 0);
+      npc.marketCooldown = 3 + npc.marketRng() * 3;
+      let chosen = null, nearest = 16;
+      for (const id of registry.byKind.get('tent') || []) {
+        const entry = registry.entries.get(id), booth = entry?.vendor;
+        const market = booth?.userData.market;
+        if (!market?.open || market.customer) continue;
+        const yaw = booth.rotation.y;
+        const x = entry.position.x + Math.sin(yaw) * 3.2;
+        const z = entry.position.z + Math.cos(yaw) * 3.2;
+        const d = Math.hypot(x - npc.pos.x, z - npc.pos.z);
+        if (d < nearest && !isMarketSpotBlocked(x, z)) {
+          nearest = d; chosen = {entry, market, x, z, yaw, age: 0};
+        }
+      }
+      if (!chosen) return false;
+      visit = npc.marketVisit = chosen;
+      visit.market.customer = npc;
+      npc.state = 'market_walking'; npc.stateTimer = 24;
+    }
+    npc.onDancefloor = false;
+    visit.age += dt;
+    if (npc.state === 'market_walking') {
+      const dx = visit.x - npc.pos.x, dz = visit.z - npc.pos.z, d = Math.hypot(dx, dz);
+      if (d < .22) {
+        npc.vel.set(0, 0, 0);
+        npc.state = 'market_browsing'; npc.stateTimer = 5 + npc.marketRng() * 7;
+      } else if (npc.stateTimer <= 0) {
+        this._releaseMarket(npc); return false;
+      } else {
+        const step = Math.min(d, dt * (1.1 + npc.energy));
+        let nx = npc.pos.x + dx / d * step, nz = npc.pos.z + dz / d * step;
+        // Slide around solid booths instead of walking through the canopy center.
+        registry.collidersNear(nx, nz, .35, entry => {
+          const r = entry.collider.radius + .35;
+          const ox = nx - entry.position.x, oz = nz - entry.position.z, od = Math.hypot(ox, oz);
+          if (od < r) {
+            const a = Math.atan2(oz || dz, ox || dx) + step / r * (npc.idx % 2 ? 1 : -1);
+            nx = entry.position.x + Math.cos(a) * r; nz = entry.position.z + Math.sin(a) * r;
+          }
+        });
+        if (!isMarketSpotBlocked(nx, nz)) {
+          npc.vel.set((nx - npc.pos.x) / Math.max(dt, .001), 0, (nz - npc.pos.z) / Math.max(dt, .001));
+          npc.pos.x = nx; npc.pos.z = nz;
+        } else npc.vel.set(0, 0, 0);
+        npc.yaw += wrapAngle(Math.atan2(-dx, -dz) - npc.yaw) * Math.min(1, dt * 6);
+      }
+    } else {
+      npc.vel.set(0, 0, 0);
+      // Crowd faces -Z, while the booth's opening is +Z.
+      const yaw = visit.yaw + (npc.state === 'market_browsing' ? Math.sin(visit.age * .8) * .16 : 0);
+      npc.yaw += wrapAngle(yaw - npc.yaw) * Math.min(1, dt * 5);
+      if (npc.stateTimer <= 0) {
+        if (npc.state === 'market_browsing') {
+          npc.state = 'market_chatting'; npc.stateTimer = 3 + npc.marketRng() * 3;
+        } else if (npc.state === 'market_chatting' && npc.marketRng() < .65) {
+          npc.state = 'market_buying'; npc.stateTimer = 2.5;
+        } else {
+          if (npc.state === 'market_buying') {
+            npc.shoppingBagTime = 55;
+            npc.marketPurchases = (npc.marketPurchases || 0) + 1;
+          }
+          this._releaseMarket(npc);
+          // Give the frontage back, then walk out toward the aisle.
+          npc.target.set(visit.x + Math.sin(visit.yaw) * 4, 0, visit.z + Math.cos(visit.yaw) * 4);
+          npc.state = 'walking'; npc.stateTimer = 8;
+        }
+      }
+    }
+    this._writeMatrices(npc);
+    return true;
+  }
+
   // ----- Picnic-table seating -----
   //
   // Flow (mirrors the hammock): idle urge → claim a free seat on the nearest table
@@ -2596,6 +2719,7 @@ export class Crowd {
   }
 
   removeNpc(npc) {
+    this._releaseMarket(npc);
     const index = this.npcs.indexOf(npc);
     if (index < 0) return;
     this._releaseSeat(npc.seatSlot);
@@ -2641,6 +2765,7 @@ export class Crowd {
 
   // Instance uploads are flagged globally each frame in update().
   _hideNpc(npc) {
+    this.shoppingBagMesh?.setMatrixAt(npc.idx, this._zeroMat);
     if (npc.campInstrument) npc.campInstrument.group.visible = false;
     const z = this._zeroMat || (this._zeroMat = new THREE.Matrix4().makeScale(0, 0, 0));
     this.legsMesh.setMatrixAt(npc.idx, z);
@@ -2734,6 +2859,7 @@ export class Crowd {
   // (rammed, cascade-panicked, or honk-scattered), so the slot is never stranded
   // "occupied". Safe to call on any NPC — no-op if it holds neither.
   _abandonSeat(npc) {
+    this._releaseMarket(npc);
     // A trapped sitter cannot stand inside its own solid chair. Keep the
     // reservation until an exit opens, just as for a scheduled departure.
     if(npc.campSlot && (npc.state==='camp_seated'||npc.state==='camp_sleeping') && !this._campExit(npc))return false;
@@ -2870,4 +2996,13 @@ function nearestFootprintAvoidance(pos, lookAheadRadius) {
   if (strength <= 0) return null;
   const n = Math.hypot(pushX, pushZ) || 1;
   return { x: pushX / n, z: pushZ / n, strength: Math.min(1.2, strength) };
+}
+
+// All special market movement uses physical colliders, including other booths.
+function isMarketSpotBlocked(x, z) {
+  let blocked = false;
+  registry.collidersNear(x, z, .35, entry => {
+    if (Math.hypot(x - entry.position.x, z - entry.position.z) < entry.collider.radius + .349) blocked = true;
+  });
+  return blocked;
 }

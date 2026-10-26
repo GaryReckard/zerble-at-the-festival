@@ -101,6 +101,7 @@ export function buildSimpleNPC(shirtHex, skinHex, opts = {}) {
   const carry = armPose === 'carry';
   const upperRoot = carry ? new THREE.Group() : g;
   const walkLegs = [];
+  const shoulders = [], elbows = [];
   if (carry) g.add(upperRoot);
   for (const lx of [-0.12, 0.12]) {
     const pivot = carry ? new THREE.Group() : g;
@@ -146,6 +147,7 @@ export function buildSimpleNPC(shirtHex, skinHex, opts = {}) {
     lower.position.y = -0.18;
     elbow.add(lower);
     g.add(shoulder);
+    shoulders.push(shoulder); elbows.push(elbow);
   }
   const head = new THREE.Mesh(_HEAD_GEO, skinMat);
   head.position.y = 1.65;
@@ -162,5 +164,7 @@ export function buildSimpleNPC(shirtHex, skinHex, opts = {}) {
     upperRoot.add(grip);
     g.userData = { grip, carryRig: upperRoot, walkLegs };
   }
+  g.userData.shoulders = shoulders;
+  g.userData.elbows = elbows;
   return g;
 }

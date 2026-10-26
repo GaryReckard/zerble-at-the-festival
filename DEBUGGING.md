@@ -665,3 +665,14 @@ All commands share the same parser and autocomplete schema. Use `/help <command>
 | `/mute [on|off|toggle]` | Read or change session mute; no-argument form only reads |
 
 The grammar lives in `src/debugCommands.js`, with game adapters in `src/debug.js`. Focused checks are `bin/test-debug-commands`, `bin/test-debug-actions` and `bin/test-debug-teleports`; the [October 24 report](verification/debug-commands/2026-10-24/README.md) records browser evidence and boundaries.
+
+### Vendor-market activity preview
+
+Open `sandbox.html?entity=vendor_activity&perf=low&mute=1` for two opposing
+booths and eight regular NPCs using the production crowd controller. The status
+line counts approaches, browsing, conversations, purchases and carried bags.
+Noon exercises open stalls, Midnight cancels visits and puts keepers to bed,
+and Morning reopens them. Repeat with `perf=mid`. Run
+`node bin/test-vendor-shopping` for reservations, lifecycle, frontage rotation,
+collision clearance, non-buyers and world-RNG preservation.
+[Evidence and captures](verification/vendors/2026-10-25/README.md).
