@@ -43,8 +43,9 @@ export class FrisbeeActivity {
       if(!s.persons.every((p,i)=>this.people.readPerson(p,slot.views[i]))){s.finish('unavailable');continue;}
       slot.age+=dt;if(slot.age>45){s.finish('completed');continue;}
       const holder=slot.views[slot.holder],catcher=slot.views[slot.catcher],disc=slot.disc;
+      this.posePlayers(slot,dt);
       if(s.discState==='held'){
-        disc.position.set(holder.x,holder.y+1.15*holder.scale,holder.z);disc.visible=true;
+        this.people.readActivityHand(s.claims[slot.holder],disc.position);disc.visible=true;
         slot.timer-=dt;
         if(slot.timer<=0){const dx=catcher.x-holder.x,dz=catcher.z-holder.z,d=Math.hypot(dx,dz)||1;
           slot.velocity.set(dx/d*9.5,5.2,dz/d*9.5);s.discState='flying';}
@@ -64,6 +65,7 @@ export class FrisbeeActivity {
         if(d<.7){[slot.holder,slot.catcher]=[slot.catcher,slot.holder];slot.timer=1;s.discState='held';}
         else this.moveCatcher(slot,catcher,disc.position.x,disc.position.z,dt);
       }
+      if(s.discState==='held')this.people.readActivityHand(s.claims[slot.holder],disc.position);
       tickFrisbeeDisc(disc,dt,s.discState,frame.nightness);
     }
     if(this.scan>0)return;this.scan=3;
@@ -76,7 +78,19 @@ export class FrisbeeActivity {
         const d=Math.hypot(candidates[i].x-candidates[j].x,candidates[i].z-candidates[j].z);
         if(d>=8&&d<=18){a=candidates[i];b=candidates[j];break;}
       }
-      if(a&&slot.session.start(a.handle,b.handle)){slot.holder=0;slot.catcher=1;slot.timer=1;slot.age=0;slot.disc.position.set(a.x,terrainHeight(a.x,a.z)+1.15,a.z);slot.disc.visible=true;}
+      if(a&&slot.session.start(a.handle,b.handle)){slot.holder=0;slot.catcher=1;slot.timer=1;slot.age=0;this.posePlayers(slot,0);this.people.readActivityHand(slot.session.claims[slot.holder],slot.disc.position);slot.disc.visible=true;}
+    }
+  }
+  posePlayers(slot,dt){
+    const s=slot.session,disc=slot.disc;
+    // Face the partner, then pose the original body through its validated
+    // render claim. The disc's held origin is the same joint the GPU renders.
+    for(let i=0;i<2;i++){
+      const v=slot.views[i],other=slot.views[1-i];
+      this.people.writeActivityPose(s.claims[i],v.x,v.y,v.z,Math.atan2(v.x-other.x,v.z-other.z));
+      const throwing=s.discState==='held'&&i===slot.holder;
+      const reach=s.discState==='flying'&&i===slot.catcher?Math.max(0,1-Math.hypot(disc.position.x-v.x,disc.position.z-v.z)/4):0;
+      this.people.writeActivityArmPose(s.claims[i],throwing?'throw':reach>0?'catch':'relaxed',throwing?Math.min(1,(1-slot.timer)/.9):reach,dt);
     }
   }
   moveCatcher(slot,catcher,tx,tz,dt){

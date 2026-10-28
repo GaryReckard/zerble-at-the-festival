@@ -384,7 +384,15 @@ Live hula and frisbee participation uses Crowd-owned people and their existing
 colliders. `people/hulaActivity.js` owns hoops and attractor reservations, while
 `people/frisbeeActivity.js` owns open-ground pair sessions and discs. The frisbee
 disc follows a held, flying and landed state machine, and the catcher moves only
-through a current claim. The older standalone performer controllers remain available
+through a current claim. Crowd's `writeActivityArmPose(claim, action, amount, dt)`
+and `readActivityHand(claim, out)` lend the original body’s shoulder/elbow pose and
+hand origin only while its claim and ordinary visible binding remain valid. Pose
+revocation restores ordinary arms synchronously. The shared instanced arm geometry
+also supports dancers, with matching vertex-normal and sun-depth deformation and
+rest-space appearance attributes. The depth material is owned and disposed by Crowd.
+`personMotion.js` shares the original throw/catch targets and hula motion formulas;
+hula's accepted activity phase drives both its body and offset hoop pivot.
+The older standalone performer controllers remain available
 for their existing characterization and sandbox paths.
 
 ---

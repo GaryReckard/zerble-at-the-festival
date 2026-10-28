@@ -1,7 +1,7 @@
 <!doctype html><meta charset="utf-8"><title>Hula activity cycle</title>
 <script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
 <style>body{margin:24px;background:#17162a;color:#f8f3df;font:16px system-ui}canvas{max-width:100%;border:1px solid #716678}pre{white-space:pre-wrap}</style>
-<h1>One person, one hula activity</h1><p>This fixture uses the production Crowd, cart reaction, hula manager, registry and render bindings.</p><pre id="result">Running…</pre><button id="noon">Noon</button> <button id="midnight">Midnight</button>
+<h1>One person, one hula activity</h1><p>This fixture uses the production Crowd, cart reaction, hula manager, registry and render bindings.</p><pre id="result">Running…</pre><button id="replay">Animate five seconds</button> <button id="noon">Noon</button> <button id="midnight">Midnight</button>
 <script type="module">
 import * as THREE from 'three';
 import {Crowd} from '../../src/crowd.js';
@@ -15,14 +15,16 @@ let placeId=null;function cleanup(){runtime.dispose();if(placeId!==null)registry
 try{
  const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});scene.add(crowd.group);
  const hula=new HulaActivity({people:crowd,runtime});scene.add(hula.group);
- const person=crowd.spawnPerson({pos:new THREE.Vector3(0,0,0),rng:()=>.4,allowPhotographer:false});
+ const person=crowd.spawnPerson({pos:new THREE.Vector3(0,0,0),rng:()=>.4,allowPhotographer:false,appearanceOverride:{shirt:0x44aacc,accent:0xff55aa,tieDye:true,tieDyeAmount:.7,skin:0xb37e5a,hasDrink:false}});
  const npc=crowd.npcs[0],appearance=JSON.stringify(npc.appearance),cart={position:new THREE.Vector3(0,0,40),forwardWorld:new THREE.Vector3(0,0,1),speed:0},frame={zerble:cart,bubbles:null,nightness:0};
  placeId=registry.add({kind:'stage_front',position:new THREE.Vector3(),footprint:0,attractor:{radius:10,weight:1}});
+ const legacyArm=new THREE.CapsuleGeometry(.075,.5,3,6),armBudget={before:legacyArm.index.count*2/3,after:crowd.armsMesh.geometry.attributes.position.count/3};legacyArm.dispose();
  const checks=[];function check(value,label){if(!value)throw Error(label);checks.push(label);}
  function step(){runtime.beginFrame(.05);runtime.run('adults',frame);runtime.run('roaming',frame);}
  step();const slot=hula.slots.find(s=>s.session.person===person);check(!!slot,'The ordinary Crowd person joins at the registered place');
  for(let i=0;i<10&&slot.session.phase!=='hooping';i++)step();check(slot.session.phase==='hooping'&&slot.hoop.visible,'The person hoops with the ordinary body visible');
- const old=slot.session.claim,colliders=[];cart.position.set(0,0,-5);cart.speed=12;crowd.appendColliders(colliders,cart);check(colliders.filter(c=>c.personHandle===person).length===1,'Crowd publishes one collider for the participant');
+ const center=new THREE.Vector3();slot.hoop.getWorldPosition(center);for(let i=0;i<8;i++)step();const after=new THREE.Vector3();slot.hoop.getWorldPosition(after);check(center.distanceTo(after)>.1,'The offset hoop revolves visibly around the body');const bodyMatrix=new THREE.Matrix4();crowd.bodyMesh.getMatrixAt(npc.idx,bodyMatrix);check(Math.abs(bodyMatrix.elements[13]-npc.pos.y-Math.sin(slot.session.elapsed*5.25*2)*.03*npc.scale)<1e-5,'Body bob and hoop pivot use the same accepted activity phase');check(Math.abs(slot.pivot.rotation.y)>1&&Math.abs(slot.hoop.position.x-.27)<1e-6,'The original offset pivot drives hoop revolution');
+ check(armBudget.after<=armBudget.before,'Articulated arms add no triangles or draw calls: '+JSON.stringify(armBudget));const old=slot.session.claim,colliders=[];cart.position.set(0,0,-5);cart.speed=12;crowd.appendColliders(colliders,cart);check(colliders.filter(c=>c.personHandle===person).length===1,'Crowd publishes one collider for the participant');
  step();check(slot.session.phase==='interrupted'&&npc.state==='fleeing','The charging cart interrupts before activity movement');check(!crowd.writeActivityPose(old,99,0,99),'The revoked activity claim cannot move the person');
  crowd.applyHonk(cart);cart.position.set(0,0,60);cart.speed=0;slot.session.duration=.2;
  let resumed=false;for(let i=0;i<900&&slot.session.phase!=='idle';i++){step();if(slot.session.phase==='hooping')resumed=true;}
@@ -31,6 +33,7 @@ try{
  slot.session.duration=30;check(slot.session.start(person),'The same person can start a later visit');
  for(let i=0;i<100&&slot.session.phase!=='hooping';i++)step();
  function render(n){frame.nightness=n;step();renderer.render(scene,camera);}
+ let animation=null;document.querySelector('#replay').onclick=()=>{if(animation)return;let frames=0;function tick(){render(frame.nightness);if(++frames<100)animation=setTimeout(tick,50);else animation=null;}tick();};addEventListener('pagehide',()=>clearTimeout(animation),{once:true});
  document.querySelector('#noon').onclick=()=>render(0);document.querySelector('#midnight').onclick=()=>render(1);
  render(0);slot.hoop.visible=false;renderer.render(scene,camera);const baseline={draws:renderer.info.render.calls,triangles:renderer.info.render.triangles};
  slot.hoop.visible=true;renderer.render(scene,camera);const withHoop={draws:renderer.info.render.calls,triangles:renderer.info.render.triangles};

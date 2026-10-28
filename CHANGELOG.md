@@ -2,6 +2,15 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-28
+
+### Fixed
+- **Frisbee players throw and catch with articulated arms while keeping their own bodies and clothes.** The original shoulder/elbow poses now drive the shared Crowd arm batch, held discs follow the rendered hand, and interruption immediately revokes both players' arm poses as well as their movement. Initial pair acquisition also validates its reserved place before borrowing either person.
+- **Hula hoops revolve around the waist with coordinated hip motion.** The activity and original model share the offset pivot, lean, bob and wobble formulas, with the activity phase pausing during interruption. Hoopers raise their arms while keeping their ordinary appearance.
+
+### Rendering and verification
+- All ordinary Crowd adults share the jointed arm geometry, including dancing participants. The arm batch retains one draw and uses 240 triangles per person instead of 312; visible normals and sun-shadow silhouettes follow the joints, with rest-space shirt patterns and skin colors preserved. Specialist populations retain their existing render owners. [Native fixtures, screenshots and acceptance limits](verification/people/activity-animations.md).
+
 ## 2026-10-27
 
 ### Changed

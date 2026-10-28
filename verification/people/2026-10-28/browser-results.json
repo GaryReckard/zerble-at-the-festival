@@ -1,0 +1,44 @@
+{
+  "frisbeeMid": {
+    "state": "Browser tab: 27, Title: \"Frisbee activity cycle\", URL: \"http://127.0.0.1:8765/verification/people/frisbee-cycle.html?mute=1&perf=mid\".\nThere has been no change in the accessibility tree.\nThe focused UI element is 0 AXWebArea Frisbee activity cycle, URL: 127.0.0.1:8765/verification/people/frisbee-cycle.html?mute=1&perf=mid",
+    "logs": []
+  },
+  "hulaLow": {
+    "state": "Browser tab: 28, Title: \"Hula activity cycle\", URL: \"http://127.0.0.1:8765/verification/people/hula-cycle.html?mute=1&perf=low\".\nThere has been no change in the accessibility tree.\nThe focused UI element is 0 AXWebArea Hula activity cycle, URL: 127.0.0.1:8765/verification/people/hula-cycle.html?mute=1&perf=low",
+    "logs": []
+  },
+  "liveFrisbee": {
+    "state": "Browser tab: 29, Title: \"Live-game frisbee cycle\", URL: \"http://127.0.0.1:8765/verification/people/frisbee-live-game.html?mute=1\".\n0 AXWebArea Live-game frisbee cycle, URL: 127.0.0.1:8765/verification/people/frisbee-live-game.html?mute=1\n\t1 heading Frisbee cycle in the running game, Value: 1\n\t\t2 text Frisbee cycle in the running game\n\t3 button Run live pair, ID: run\n\t15 text PASS\nReal game loop: two Crowd people → articulated frisbee flight → charging cart → coordinated interruption → safe pair resumption, with identity and appearance preserved.\n\t5 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8765/?mute=1&perf=low&seed=1234\n\t\t6 container\n\t\t\t7 image game\n\t\t\t8 container hud\n\t\t\t\t9 container Description: Game status, ID: status-rail\n\t\t\t\t\t10 container Description: 0 smiles, personal best 173, ID: smile-status\n\t\t\t\t\t\t11 text 0\n\t\t\t\t\t\t16 text 173\n\t\t\t\t\t13 container Description: Bubble juice 100%, ID: juice-meter\n\t\t\t\t\t14 container Description: Morning, 15% through the day cycle, Help: Morning, ID: day-cycle\n\t\t\t17 button Description: Open settings, ID: settings-gear\n\t\t\t\t18 image\n\t\t\t19 button Description: Open bubble upgrades, ID: upgrades-btn\n\t\t\t20 button Description: Open Festival Passport, Help: Festival Passport (P), ID: passport-btn\n\nThe focused UI element is 3 button Run live pair, ID: run",
+    "logs": [
+      {
+        "level": "error",
+        "message": "Uncaught TypeError: Failed to execute 'observe' on 'MutationObserver': parameter 1 is not of type 'Node'.",
+        "timestamp": "2026-10-28T06:57:18.164Z"
+      }
+    ]
+  },
+  "liveHula": {
+    "state": "Browser tab: 30, Title: \"Live-game hula cycle\", URL: \"http://127.0.0.1:8765/verification/people/hula-live-game.html?mute=1\".\n0 AXWebArea Live-game hula cycle, URL: 127.0.0.1:8765/verification/people/hula-live-game.html?mute=1\n\t1 heading Hula cycle in the running game, Value: 1\n\t\t2 text Hula cycle in the running game\n\t3 text This controlled local fixture starts the actual game loop and uses the live Crowd, cart, registry and hula controller. The title-gesture path is checked separately.\n\t4 button Run live cycle, ID: run\n\t16 text PASS\nReal game loop: Crowd person → hula → charging cart → revoked claim → safe resume → departure, with identity and appearance preserved.\n\t6 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8765/?mute=1&perf=low\n\t\t7 container\n\t\t\t8 image game\n\t\t\t9 container hud\n\t\t\t\t10 container Description: Game status, ID: status-rail\n\t\t\t\t\t11 container Description: 15 smiles, personal best 173, ID: smile-status\n\t\t\t\t\t\t17 text 15\n\t\t\t\t\t\t13 text 173\n\t\t\t\t\t14 container Description: Bubble juice 80%, ID: juice-meter\n\t\t\t\t\t15 container Description: Afternoon, 23% through the day cycle, Help: Afternoon, ID: day-cycle\n\t\t\t18 button Description: Open settings, ID: settings-gear\n\t\t\t\t19 image\n\t\t\t20 button Description: Open bubble upgrades, ID: upgrades-btn\n\t\t\t21 button Description: Open Festival Passport, Help: Festival Passport (P), ID: passport-btn\n\nThe focused UI element is 4 button Run live cycle, ID: run",
+    "logs": [
+      {
+        "level": "error",
+        "message": "Uncaught TypeError: Failed to execute 'observe' on 'MutationObserver': parameter 1 is not of type 'Node'.",
+        "timestamp": "2026-10-28T06:57:28.441Z"
+      }
+    ]
+  },
+  "liveDance": {
+    "state": "Browser tab: 31, Title: \"Live-game dance cycle\", URL: \"http://127.0.0.1:8765/verification/people/dance-live-game.html?mute=1\".\nThere has been no change in the accessibility tree.\nThe focused UI element is 3 button Run live dance, ID: run",
+    "logs": [
+      {
+        "level": "error",
+        "message": "Uncaught TypeError: Failed to execute 'observe' on 'MutationObserver': parameter 1 is not of type 'Node'.",
+        "timestamp": "2026-10-28T06:57:58.862Z"
+      }
+    ]
+  },
+  "frisbeeLow": {
+    "state": "Browser tab: 32, Title: \"Frisbee activity cycle\", URL: \"http://127.0.0.1:8765/verification/people/frisbee-cycle.html?mute=1&perf=low\".\nThere has been no change in the accessibility tree.\nThe focused UI element is 10 button Midnight, ID: midnight",
+    "logs": []
+  }
+}

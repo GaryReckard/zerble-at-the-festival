@@ -11,8 +11,10 @@ export class FrisbeeSession {
     if(!this.people.readPerson(a,this.views[0])||!this.people.readPerson(b,this.views[1])||!this.views.every(this.eligible))return false;
     const reservation=this.place.reserve(a,b);if(!reservation)return false;
     this.persons=[a,b];this.reservation=reservation;this.phase='acquiring';this.discState='held';
-    if(!this.acquire()){this.finish('unavailable');return false;}
-    this.phase='playing';return true;
+    try {
+      if(!this.place.isLive(reservation)||!this.acquire()){this.finish('unavailable');return false;}
+      this.phase='playing';return true;
+    } catch(error){try{this.finish('failed');}catch(cleanup){throw new AggregateError([error,cleanup],'Frisbee acquisition and cleanup failed.');}throw error;}
   }
   acquire(){
     for(let i=0;i<2;i++){

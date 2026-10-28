@@ -12,8 +12,9 @@ const previousRandom=Math.random;let randomDraws=0;Math.random=()=>{randomDraws+
 const runtime=new PeopleRuntime(),activity=new FrisbeeActivity({people:crowd,runtime}),cart={position:new Vector(0,0,40),forwardWorld:{x:0,z:1},speed:0},frame={zerble:cart,nightness:0};
 function tick(){runtime.beginFrame(.05);runtime.run('roaming',frame);}
 tick();const slot=activity.slots.find(p=>p.session.phase==='playing');assert(slot,'two eligible Crowd adults form an open-ground session');
+const initialHand=new Vector();assert(crowd.readActivityHand(slot.session.claims[slot.holder],initialHand));assert.equal(slot.disc.position.x,initialHand.x);assert.equal(slot.disc.position.y,initialHand.y);assert.equal(slot.disc.position.z,initialHand.z);
 for(let i=0;i<100&&slot.session.discState!=='flying';i++)tick();assert.equal(slot.session.discState,'flying');
-const claims=[...slot.session.claims];crowd._abandonSeat=()=>true;const n=crowd.peopleHandles.resolve(a);cart.position.set(n.pos.x,0,n.pos.z-8);cart.speed=12;
-assert(crowd._interruptActivityForCart(n,cart));assert.equal(slot.session.phase,'interrupted');assert.equal(slot.session.discState,'landed');assert(claims.every(c=>!crowd.writeActivityPose(c,99,0,99)));
+assert(crowd.npcs.every(n=>n._activityArmPose),'both existing players use articulated poses');const claims=[...slot.session.claims];crowd._abandonSeat=()=>true;const n=crowd.peopleHandles.resolve(a);cart.position.set(n.pos.x,0,n.pos.z-8);cart.speed=12;
+assert(crowd._interruptActivityForCart(n,cart));assert.equal(slot.session.phase,'interrupted');assert(crowd.npcs.every(n=>!n._activityArmPose),'interruption clears both articulated bindings');assert(claims.every(c=>!crowd.writeActivityArmPose(c,'throw',.5)));assert.equal(slot.session.discState,'landed');assert(claims.every(c=>!crowd.writeActivityPose(c,99,0,99)));
 activity.dispose();assert(crowd.readPerson(a,{})&&crowd.readPerson(b,{}));assert.equal(crowd.activityClaims.current.size,0);runtime.dispose();
 console.log('PASS production frisbee manager: explicit paired selection, real disc flight, coordinated interruption and teardown.');

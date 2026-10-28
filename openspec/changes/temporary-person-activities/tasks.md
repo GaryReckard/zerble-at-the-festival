@@ -23,3 +23,9 @@
 - [x] 4.1 Run targeted tests, importmap checks and `npm run check`; confirm frame/scoring, RNG, audio and resource invariants.
 - [x] 4.2 Verify the fixture and real game through a ready title gesture, exercise the affected paths, inspect console and close owned resources.
 - [x] 4.3 Update specs, architecture, changelog, roadmap and verification evidence as appropriate.
+
+## 5. Activity animation follow-up
+
+- [x] 5.1 Restore shoulder/elbow animation on original Crowd bodies with validated activity authority and hand-attached discs; measure the shared articulation cost.
+- [x] 5.2 Restore offset-pivot hoop revolution and coordinated body motion using the original model's motion contract.
+- [x] 5.3 Verify native and live cycles, Low/Mid noon/midnight rendering, tests and documentation.

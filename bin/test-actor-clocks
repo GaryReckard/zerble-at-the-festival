@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import {sampleThrowPose} from '../src/personMotion.js';
 import {PeopleRuntime} from '../src/people/runtime.js';
 const baseline=process.argv.includes('--baseline');
 const specs=[['kid','kid','tickKid'],['wook','wook','tickWook'],['parasol','parasolMarshal','tickParasolMarshal'],['frisbee-player','frisbeePlayer','tickFrisbeePlayer']];
@@ -10,7 +11,7 @@ const read=p=>readFileSync(new URL(p,import.meta.url),'utf8');
 function model(){const body={position:{y:0},rotation:{x:0,y:0,z:0}};return {children:[body],rotation:{y:0},userData:{bouncePhase:.7,swayPhase:.4,bobPhase:.9,bodyGroup:body,armRigs:{left:{},right:{}},parasol:{rotation:{y:0}}}};}
 for(const [frozen,current,name] of specs){
  let wall=0;
- const scope={performance:{now:()=>wall*1000},RELAXED_SHOULDER_X:.1,RELAXED_SHOULDER_Z:.2,approachRotation(){},smooth01:x=>x*x*(3-2*x),lerp:(a,b,t)=>a+(b-a)*t};
+ const scope={sampleThrowPose,performance:{now:()=>wall*1000},RELAXED_SHOULDER_X:.1,RELAXED_SHOULDER_Z:.2,approachRotation(){},smooth01:x=>x*x*(3-2*x),lerp:(a,b,t)=>a+(b-a)*t};
  const old=runInNewContext(fn(read('../verification/people/2026-10-26/legacy-clock-'+frozen+'.js'),name)+';'+name,scope);
  const tick=runInNewContext(fn(read('../src/models/'+current+'.js'),name)+';'+name,scope);
  const a=model(),b=model();let elapsed=0;

@@ -16,6 +16,7 @@ try{
  check(!crowd.hasHiddenBinding(person)&&slot.p.renderOrdinary,'The dancer keeps the ordinary body and suppresses the place rig');const old=slot.claim;step();
  check(slot.pending?.person===person&&npc.state==='fleeing','The charging cart interrupts the dancer');check(!crowd.writeActivityPose(old,99,0,99),'The revoked dance claim cannot move the person');
  cart.position.set(0,0,60);cart.speed=0;let resumed=false;for(let i=0;i<500&&!resumed;i++){step();resumed=slot.person===person;}
+ for(let i=0;i<600&&slot.role!=='dance';i++)step();step();check(Math.abs(crowd.armsMesh.geometry.getAttribute('armPose').getZ(npc.idx))>.1,'The original dancer uses the shared articulated elbow after returning to the dance floor');
  check(resumed&&slot.claim!==old,'The same person safely reacquires the place');check(crowd.readPerson(person,{})&&JSON.stringify(npc.appearance)===appearance,'Identity and complete appearance survive');
  renderer.render(scene,camera);document.querySelector('#result').textContent='PASS\n'+checks.join('\n');
 }catch(error){document.querySelector('#result').textContent='FAIL\n'+error.stack;console.error(error);}

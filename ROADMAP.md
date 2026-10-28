@@ -38,7 +38,7 @@ populations, ordered participation and accepted actor clocks. Its
 current eligibility and measured results. The implementation is no longer a
 population-migration backlog.
 
-- Temporary-activity acceptance still needs matched render/performance comparisons, extended streaming playtests and physical-device observation; see [verification](verification/people/temporary-activities.md).
+- Temporary-activity acceptance still needs matched whole-game performance comparisons, extended streaming playtests and physical-device observation. The articulated-arm follow-up has isolated geometry/render comparisons and Low/Mid browser evidence in [activity animations](verification/people/activity-animations.md); see [verification](verification/people/temporary-activities.md).
 - Physical iPhone/Safari audio and mobile GPU acceptance remain unmeasured here;
   muted Mac runs do not substitute for device checks.
 - New gameplay such as food-truck service or child participation in adult venues

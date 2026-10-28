@@ -1,24 +1,41 @@
 <!doctype html><meta charset="utf-8"><title>Frisbee activity cycle</title>
 <script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
 <style>body{margin:24px;background:#17162a;color:#f8f3df;font:16px system-ui}canvas{max-width:100%;border:1px solid #716678}pre{white-space:pre-wrap}</style>
-<h1>Two people, one frisbee</h1><p>This fixture uses the production Crowd, cart reaction, pair controller and disc model.</p><pre id="result">Running…</pre>
+<h1>Two people, one frisbee</h1><p>This fixture uses the production Crowd, cart reaction, pair controller and disc model.</p><pre id="result">Running…</pre><button id="windup">Windup</button> <button id="release">Release</button> <button id="catch">Catch</button> <button id="play">Play five seconds</button> <button id="noon">Noon</button> <button id="midnight">Midnight</button>
 <script type="module">
-import * as THREE from 'three';import {Crowd} from '../../src/crowd.js';import {PeopleRuntime} from '../../src/people/runtime.js';import {FrisbeeActivity} from '../../src/people/frisbeeActivity.js';
+import * as THREE from 'three';import {Crowd} from '../../src/crowd.js';import {tickFrisbeeDisc} from '../../src/models/frisbeePlayer.js';import {PeopleRuntime} from '../../src/people/runtime.js';import {FrisbeeActivity} from '../../src/people/frisbeeActivity.js';
 const runtime=new PeopleRuntime(),scene=new THREE.Scene(),renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(800,420);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
-const camera=new THREE.PerspectiveCamera(40,800/420,.1,100);camera.position.set(5,10,20);camera.lookAt(5,0,0);scene.add(new THREE.AmbientLight(0xffffff,2));
+const camera=new THREE.PerspectiveCamera(40,800/420,.1,100);camera.position.set(3,3,7);camera.lookAt(2,1,0);scene.add(new THREE.AmbientLight(0xffffff,2));
 addEventListener('pagehide',()=>{runtime.dispose();renderer.dispose();},{once:true});
 try{
  const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});scene.add(crowd.group);const game=new FrisbeeActivity({people:crowd,runtime});scene.add(game.group);
- const a=crowd.spawnPerson({pos:new THREE.Vector3(0,0,0),rng:()=>.4,allowPhotographer:false}),b=crowd.spawnPerson({pos:new THREE.Vector3(10,0,0),rng:()=>.3,allowPhotographer:false});
+ const a=crowd.spawnPerson({pos:new THREE.Vector3(0,0,0),rng:()=>.4,allowPhotographer:false,appearanceOverride:{shirt:0x44aacc,accent:0xff55aa,tieDye:true,tieDyeAmount:.7,skin:0xb37e5a,hasDrink:false}}),b=crowd.spawnPerson({pos:new THREE.Vector3(10,0,0),rng:()=>.3,allowPhotographer:false,appearanceOverride:{shirt:0x44aacc,accent:0xff55aa,tieDye:true,tieDyeAmount:.7,skin:0xb37e5a,hasDrink:false}});
  const appearances=crowd.npcs.map(n=>JSON.stringify(n.appearance)),cart={position:new THREE.Vector3(0,0,45),forwardWorld:new THREE.Vector3(0,0,1),speed:0},frame={zerble:cart,bubbles:null,nightness:0},checks=[];
  function check(ok,label){if(!ok)throw Error(label);checks.push(label);}function step(){runtime.beginFrame(.05);runtime.run('adults',frame);runtime.run('roaming',frame);}
- step();const slot=game.slots.find(s=>s.session.phase==='playing');check(!!slot,'Two existing adults enter one session');for(let i=0;i<40&&slot.session.discState!=='flying';i++)step();check(slot.session.discState==='flying','The session launches the real disc');
- const before=[...slot.session.claims];cart.position.set(0,0,-8);cart.speed=12;step();check(slot.session.phase==='interrupted'&&slot.session.discState==='landed','Charging the pair settles the disc and interrupts both people');check(before.every(c=>!crowd.writeActivityPose(c,99,0,99)),'Both old claims reject pursuit writes');
+ step();const slot=game.slots.find(s=>s.session.phase==='playing');check(!!slot,'Two existing adults enter one session');const hand=new THREE.Vector3();check(crowd.readActivityHand(slot.session.claims[slot.holder],hand)&&hand.distanceTo(slot.disc.position)<1e-5,'The held disc follows the articulated hand from the first visible frame');check(crowd.npcs.every(n=>n._activityArmPose),'Both original people have articulated activity arms');for(let i=0;i<40&&slot.session.discState!=='flying';i++)step();check(slot.session.discState==='flying','The session launches the real disc');
+ const before=[...slot.session.claims];cart.position.set(0,0,-8);cart.speed=12;step();check(slot.session.phase==='interrupted'&&slot.session.discState==='landed','Charging the pair settles the disc and interrupts both people');check(crowd.npcs.every(n=>!n._activityArmPose),'Interruption releases both arm poses synchronously');check(before.every(c=>!crowd.writeActivityPose(c,99,0,99)&&!crowd.writeActivityArmPose(c,'throw',.5)),'Both old claims reject pursuit writes');
  cart.position.set(0,0,70);cart.speed=0;let resumed=false;for(let i=0;i<600&&slot.session.phase!=='idle';i++){step();if(slot.session.phase==='playing'){resumed=true;break;}}
  check(resumed,'Both people safely reacquire their claims');
  slot.disc.visible=false;renderer.render(scene,camera);const baseline={draws:renderer.info.render.calls,triangles:renderer.info.render.triangles};
  slot.disc.visible=true;renderer.render(scene,camera);const withDisc={draws:renderer.info.render.calls,triangles:renderer.info.render.triangles};
  checks.push('Two-person render: '+JSON.stringify({baseline,withDisc}));slot.session.finish('completed');check(crowd.readPerson(a,{})&&crowd.readPerson(b,{})&&crowd.npcs.every((n,i)=>JSON.stringify(n.appearance)===appearances[i]),'Both original people and appearances survive');
- renderer.render(scene,camera);document.querySelector('#result').textContent='PASS\n'+checks.join('\n');
+ // Compare the CPU hand origin against an independent native Object3D rig.
+ const joint=new THREE.Group(),elbow=new THREE.Group(),marker=new THREE.Object3D();
+ joint.position.set(.30,1.35,0);elbow.position.y=-.29;marker.position.y=-.29;joint.add(elbow);elbow.add(marker);
+ check(slot.session.start(a,b),'The original pair can play again');slot.timer=1;slot.age=0;
+ for(const [action,amount] of [['throw',.52],['throw',1],['catch',1]]){
+   crowd.writeActivityArmPose(slot.session.claims[0],action,amount);
+   const pose=crowd.npcs.find(n=>n.personHandle===a)._activityArmPose;
+   joint.rotation.set(pose.x,0,pose.z);elbow.rotation.z=pose.elbow;joint.updateMatrixWorld(true);
+   const body=new THREE.Matrix4();crowd.armsMesh.getMatrixAt(crowd.npcs.find(n=>n.personHandle===a).idx,body);
+   const native=marker.getWorldPosition(new THREE.Vector3()).applyMatrix4(body),actual=new THREE.Vector3();
+   check(crowd.readActivityHand(slot.session.claims[0],actual)&&native.distanceTo(actual)<1e-5,action+' hand agrees with native shoulder/elbow transforms');
+ }
+ function pose(action,amount){slot.disc.visible=true;const v={};crowd.readPerson(a,v);crowd.writeActivityPose(slot.session.claims[0],v.x,v.y,v.z,0);for(let i=0;i<25;i++)crowd.writeActivityArmPose(slot.session.claims[0],action,amount);crowd.readActivityHand(slot.session.claims[0],slot.disc.position);renderer.render(scene,camera);}
+ document.querySelector('#windup').onclick=()=>pose('throw',.52);document.querySelector('#release').onclick=()=>pose('throw',1);document.querySelector('#catch').onclick=()=>pose('catch',1);
+ let timer=null;document.querySelector('#play').onclick=()=>{if(timer)return;let frames=0;function tick(){step();renderer.render(scene,camera);if(++frames<100)timer=setTimeout(tick,50);else timer=null;}tick();};addEventListener('pagehide',()=>clearTimeout(timer),{once:true});
+ document.querySelector('#noon').onclick=()=>{frame.nightness=0;tickFrisbeeDisc(slot.disc,0,slot.session.discState,frame.nightness);renderer.render(scene,camera);};document.querySelector('#midnight').onclick=()=>{frame.nightness=1;tickFrisbeeDisc(slot.disc,0,slot.session.discState,frame.nightness);renderer.render(scene,camera);};
+ const sun=new THREE.DirectionalLight(0xffffff,1);sun.position.set(3,5,4);sun.castShadow=true;scene.add(sun);renderer.shadowMap.enabled=new URLSearchParams(location.search).get('perf')!=='low';
+ pose('throw',.52);document.querySelector('#result').textContent='PASS\n'+checks.join('\n');
 }catch(error){document.querySelector('#result').textContent='FAIL\n'+error.stack;console.error(error);}
 </script>

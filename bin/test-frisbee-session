@@ -66,8 +66,16 @@ console.log('PASS both players get an ordinary-behavior break after a completed 
 console.log('PASS paired cleanup continues after exit-metadata failures.');
 {
  const people=makePeopleCrowd(),a=people.spawnPerson({pos:new Vector()}),b=people.spawnPerson({pos:new Vector(8,0,0)});let resource=null;
- const place={reserve(){return resource={};},isLive(){throw Error('place failure');},release(){resource=null;},settle(){},hide(){}};
- const s=new FrisbeeSession({people,place,eligible:()=>true});assert(s.start(a,b));assert.throws(()=>s.update(.05),/place failure/);
+ const place={reserve(){return resource={};},isLive(){if(fail)throw Error('place failure');return true;},release(){resource=null;},settle(){},hide(){}};
+ let fail=false;const s=new FrisbeeSession({people,place,eligible:()=>true});assert(s.start(a,b));fail=true;assert.throws(()=>s.update(.05),/place failure/);
  assert.equal(resource,null);assert.equal(people.activityClaims.current.size,0);
 }
 console.log('PASS pair update failure releases both claims and resource.');
+
+{
+ const people=makePeopleCrowd(),a=people.spawnPerson({pos:new Vector()}),b=people.spawnPerson({pos:new Vector(8,0,0)});let resource=null,throws=false;
+ const place={reserve(){return resource={};},isLive(){if(throws)throw Error('validation failure');return false;},release(){resource=null;},hide(){}};
+ const s=new FrisbeeSession({people,place,eligible:()=>true});assert(!s.start(a,b));assert.equal(resource,null);assert.equal(people.activityClaims.current.size,0);
+ throws=true;assert.throws(()=>s.start(a,b),/validation failure/);assert.equal(resource,null);assert.equal(s.phase,'idle');
+}
+console.log('PASS initial invalid or throwing place validation cannot strand resources or acquire people.');

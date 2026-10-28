@@ -47,6 +47,17 @@ These steps are executable in `node bin/test-people-extension`, including the
 removal, and incoming-activity disposal during outgoing cleanup. Claim failure ordering
 is covered by `node bin/test-activity-claims`.
 
+Crowd additionally lends narrow ordinary-body animation through
+`writeActivityArmPose(claim, action, amount, dt)` and `readActivityHand(claim, out)`.
+Actions are relaxed, catch or throw; progress must be finite within 0–1 and delta
+within the accepted 0–0.05 seconds. Hidden/group-rendered bodies are excluded, and
+stale claims cannot read or write hand authority. Release clears the borrowed pose
+before ordinary rendering resumes. Hula's current owner supplies a finite copied
+body-motion sample through `sampleBodyPose(person, out)`; the population alone
+publishes body matrices, while the activity owns the hoop. These are optional
+Crowd render capabilities, not requirements for every population. See the
+[animation fixture and limits](../../../verification/people/activity-animations.md).
+
 ## Applying the boundary to the requested venues
 
 The existing live activities have migrated, while the reusable example proves the

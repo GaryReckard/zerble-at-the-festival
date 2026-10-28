@@ -30,6 +30,6 @@ before the forward vector initialized; the fixture now waits for a valid heading
 The live Low debug panel showed 1,321 draws and 350,370 triangles at one seed and
 camera; these figures are not comparable with a matched baseline. Extended streaming,
 matched whole-game Low/Mid performance, physical iPhone/Safari audio and mobile GPU
-behavior remain unmeasured. The new pair uses the existing disc model and ballistic
-motion but ordinary Crowd arms rather than the legacy independent player's articulated
-throwing rig. Independent nightness and synchronous audio startup were not moved.
+behavior remain unmeasured. The checkpoint used the existing disc model and ballistic motion with ordinary
+Crowd arms. The [October 28 animation follow-up](activity-animations.md) restores
+articulated throws/catches and coordinated hoop motion on those same bodies. Independent nightness and synchronous audio startup were not moved.

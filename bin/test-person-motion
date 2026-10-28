@@ -1,0 +1,23 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {sampleThrowPose,sampleArmHand,sampleHulaMotion} from '../src/personMotion.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+const near=(a,b)=>assert(Math.abs(a-b)<1e-9,`${a} != ${b}`);
+const hand=new Vector();sampleArmHand({x:0,z:0,elbow:0},hand);near(hand.x,.3);near(hand.y,.77);near(hand.z,0);
+sampleArmHand({x:0,z:0,elbow:-Math.PI/2},hand);near(hand.x,.01);near(hand.y,1.06);
+sampleArmHand({x:Math.PI/2,z:0,elbow:0},hand);near(hand.y,1.35);near(hand.z,-.58);
+const wind=sampleThrowPose('throw',.52,{}),release=sampleThrowPose('throw',1,{}),reach=sampleThrowPose('catch',1,{});
+near(wind.elbow,-Math.PI/2);near(release.elbow,.04);near(reach.z,1.98);assert.equal(wind.leftZ,-.1);
+const hula=sampleHulaMotion(Math.PI/2,1.65,{});near(hula.leanZ,.2);near(hula.leanX,0);near(hula.hoopX,.08);near(hula.hoopY,Math.PI/2*1.65);
+const crowd=makePeopleCrowd(),person=crowd.spawnPerson({pos:new Vector(10,0,20)}),view={},owner={};
+const claim=crowd.claimActivity(person,{owner}),npc=crowd.peopleHandles.resolve(person),appearance=JSON.stringify(npc.appearance);
+assert(crowd.writeActivityArmPose(claim,'throw',.52));const pose=npc._activityArmPose;
+assert(crowd.readActivityHand(claim,hand));near(pose.elbow,-Math.PI/2);
+assert(crowd.writeActivityArmPose(claim,'catch',1));assert.equal(npc._activityArmPose,pose,'steady pose writes reuse storage');
+assert.throws(()=>crowd.writeActivityArmPose(claim,'throw',NaN));assert.throws(()=>crowd.writeActivityArmPose(claim,'arbitrary',0));assert.throws(()=>crowd.writeActivityArmPose(claim,'throw',0,.1));
+assert(crowd.setActivityBinding(claim,true));assert(!crowd.writeActivityArmPose(claim,'throw',0));assert(!crowd.readActivityHand(claim,hand));assert(crowd.setActivityBinding(claim,false));
+const successor=crowd.claimActivity(person,{owner:{}});assert.equal(npc._activityArmPose,null,'replacement clears the old pose');
+assert(crowd.writeActivityArmPose(successor,'relaxed'));const successorPose=npc._activityArmPose;
+assert(!crowd.writeActivityArmPose(claim,'throw',.5));assert(!crowd.readActivityHand(claim,hand));assert(!crowd.releaseActivityBinding(claim));assert.equal(npc._activityArmPose,successorPose);
+crowd.endPersonActivity(successor);assert.equal(npc._activityArmPose,null);assert(crowd.readPerson(person,view));assert.equal(JSON.stringify(npc.appearance),appearance);near(view.x,10);near(view.z,20);
+console.log('PASS shared motion: joint endpoints, original throw/catch targets, synchronized hula, validated authority, storage reuse, stale replacement and appearance.');

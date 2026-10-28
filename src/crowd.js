@@ -1,3 +1,4 @@
+import {sampleThrowPose,sampleArmHand,armShader} from './personMotion.js';
 import {CampActivity} from './people/campActivity.js';
 import {MarketActivity} from './people/marketActivity.js';
 import {PottyActivity} from './people/pottyActivity.js';
@@ -243,13 +244,17 @@ export class Crowd {
     const bodyGeo = new THREE.CapsuleGeometry(BODY_RADIUS, BODY_LENGTH, 3, 6);
     bodyGeo.translate(0, BODY_CENTER_Y, 0);
 
-    // ---- Arms: two single-segment capsules merged, shoulders at (±0.30, 1.10, 0) ----
-    const armL = new THREE.CapsuleGeometry(0.075, 0.5, 3, 6);
-    armL.translate(-0.30, 1.10, 0);
-    const armR = new THREE.CapsuleGeometry(0.075, 0.5, 3, 6);
-    armR.translate(0.30, 1.10, 0);
-    const armsGeo = BufferGeometryUtils.mergeGeometries([armL, armR]);
-    armL.dispose(); armR.dispose();
+    // Two joints per arm, merged into the existing single instanced draw.
+    // Low-poly caps keep the joint upgrade close to the old triangle budget.
+    const armParts=[];
+    for(const side of [-1,1])for(const lower of [0,1]){
+      const geo=new THREE.CapsuleGeometry(.075,.29,1,6);
+      geo.translate(side*.30,lower?.915:1.205,0);
+      geo.setAttribute('armLower',new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count).fill(lower),1));
+      armParts.push(geo);
+    }
+    const armsGeo=mergeGeometrySet(armParts);
+    armsGeo.setAttribute('armPose',new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS*4),4));
 
     // ---- Head: icosahedron at y=1.65 ----
     const headGeo = new THREE.IcosahedronGeometry(0.26, 1);
@@ -431,17 +436,28 @@ export class Crowd {
       );
     };
     bodyMat.onBeforeCompile = (shader) => tieDyeBeforeCompile(shader, true);
-    armsMat.onBeforeCompile = (shader) => tieDyeBeforeCompile(shader, false);
+    armsMat.onBeforeCompile = shader => {
+      tieDyeBeforeCompile(shader,false);
+      shader.vertexShader=armShader+shader.vertexShader
+        .replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=articulateArm(objectNormal,true);')
+        .replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=articulateArm(transformed,false);');
+    };
     // onBeforeCompile-modified materials need a unique customProgramCacheKey
     // so three.js doesn't reuse a vanilla MeshStandardMaterial program.
     bodyMat.customProgramCacheKey = () => 'crowd-appearance-v2';
-    armsMat.customProgramCacheKey = () => 'crowd-appearance-v2';
+    armsMat.customProgramCacheKey = () => 'crowd-articulated-v1';
 
     // ---- InstancedMeshes ----
     this.legsMesh  = new THREE.InstancedMesh(legsGeo,  legsMat,  MAX_NPCS);
     this.shoesMesh = new THREE.InstancedMesh(shoesGeo, shoesMat, MAX_NPCS);
     this.bodyMesh  = new THREE.InstancedMesh(bodyGeo,  bodyMat,  MAX_NPCS);
     this.armsMesh  = new THREE.InstancedMesh(armsGeo,  armsMat,  MAX_NPCS);
+    // Shadow silhouettes must use the same joints as the visible body.
+    this.armsMesh.customDepthMaterial=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking});
+    this.armsMesh.customDepthMaterial.onBeforeCompile=shader=>{
+      shader.vertexShader=armShader+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=articulateArm(transformed,false);');
+    };
+    this.armsMesh.customDepthMaterial.customProgramCacheKey=()=> 'crowd-arm-depth-v1';
     this.headMesh  = new THREE.InstancedMesh(headWithNose, headMat, MAX_NPCS);
     this.eyesMesh  = new THREE.InstancedMesh(eyesGeo, eyeMat, MAX_NPCS);
     this.mouthMesh = new THREE.InstancedMesh(mouthGeo, featureMat, MAX_NPCS);
@@ -1572,6 +1588,9 @@ export class Crowd {
     // from a sum of sin terms at staggered frequencies — different `dance`
     // values produce visibly different rhythms within the crowd. Computed
     // BEFORE the quat composition so the yaw wiggle can layer onto npc.yaw.
+    const activityOwner=this.activityClaims.current.get(npc.personHandle)?.claim.owner;
+    const hula=activityOwner?.sampleBodyPose?.(npc.personHandle,this._activityBodyPose??={});
+    if(hula&&(!Number.isFinite(hula.bob)||!Number.isFinite(hula.leanX)||!Number.isFinite(hula.leanZ)))throw new TypeError('Activity body pose must be finite.');
     let bobY;
     let danceTilt;
     let danceYawWiggle = 0;
@@ -1590,6 +1609,7 @@ export class Crowd {
         ? Math.sin(npc.bob * 2) * 0.05 * (npc.dance - 0.5)
         : 0;
     }
+    if(hula){bobY=hula.bob*npc.scale;danceTilt=hula.leanZ;danceYawWiggle=0;}
     // Unhappy NPCs don't vibe — kill the bounce + sway while frowning.
     if (npc.frownTimer > 0 || photographing) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
 
@@ -1692,11 +1712,13 @@ export class Crowd {
     }
     scaleV.set(npc.scale, npc.scale, npc.scale);
     m.compose(posV, quat, scaleV);
-    if (danceTilt) {
+    if (danceTilt && !hula) {
       // Reuse scratch Matrix4 — avoids per-NPC allocation for dancing crowd.
       this._tmpDanceMat.makeRotationZ(danceTilt);
       m.multiply(this._tmpDanceMat);
     }
+
+    if(hula){this._tmpDanceMat.makeRotationFromEuler(this._tmpEuler.set(hula.leanX,0,hula.leanZ));m.multiply(this._tmpDanceMat);}
 
     // Write the same transform to legs/shoes/body/arms/head/eyes — per-part offsets live in geometry.
     // Eyes also use this matrix (eyes geometry has offsets baked in, no scale reaction).
@@ -1742,6 +1764,16 @@ export class Crowd {
       this._armsMat.copy(m);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     }
+    const armPose=npc._activityArmPose;
+    const armAttr=this.armsMesh.geometry.getAttribute('armPose');
+    const dancing=!seated&&!npc.campMusic&&!npc.campInstrument&&!photographing&&!npc.seatSlot&&npc.frownTimer<=0&&(npc.onDancefloor||activityOwner?.isDancePerson?.(npc.personHandle));
+    if(armPose&&this.activityClaims.canWrite(armPose.claim)){
+      armAttr.setXYZW(npc.idx,armPose.x,armPose.z,armPose.elbow,armPose.leftZ);
+      sampleArmHand(armPose,armPose.hand).applyMatrix4(this._armsMat);
+    }else if(hula){armAttr.setXYZW(npc.idx,.03,2.45,-.20,-2.45);}
+    else if(dancing){armAttr.setXYZW(npc.idx,-.25,1.1+Math.sin(npc.bob)*.3,-.45,-1.1);}
+    else {armAttr.setXYZW(npc.idx,0,0,0,0);}
+    armAttr.needsUpdate=true;
     this.headMesh.setMatrixAt(npc.idx, m);
     this.eyesMesh.setMatrixAt(npc.idx, m);
     const hairStyle = npc.appearance?.hairStyle || 0;
@@ -1751,7 +1783,7 @@ export class Crowd {
     this._hairLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
     this._hairMat.multiplyMatrices(m, this._hairLocalMat);
     this.hairMeshes[hairStyle].setMatrixAt(npc.hairSlot, this._hairMat);
-    if (npc.drinkSlot >= 0 && !photographing && !npc.campInstrument) {
+    if (npc.drinkSlot >= 0 && !photographing && !npc.campInstrument && !armPose && !hula) {
       this._tmpV3.set(0.34, 0, -0.07);
       this._tmpScale.set(0.76, 0.76, 0.76);
       this._drinkLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
@@ -2267,6 +2299,27 @@ export class Crowd {
     return true;
   }
 
+  writeActivityArmPose(claim,action,amount=0,dt=.05) {
+    if(!this.activityClaims.canWrite(claim))return false;
+    if((action!=='relaxed'&&action!=='catch'&&action!=='throw')||!Number.isFinite(amount)||amount<0||amount>1||!Number.isFinite(dt)||dt<0||dt>.05)throw new TypeError('Invalid activity arm pose.');
+    const npc=this.peopleHandles.resolve(claim.person);
+    if(npc._activityBinding?.hidden||npc.party)return false;
+    const pose=npc._activityArmPose??={claim,hand:new THREE.Vector3()};
+    const target=sampleThrowPose(action,amount,this._armTarget??={}),alpha=1-Math.exp(-14*dt);
+    if(pose.x===undefined){pose.x=target.x;pose.z=target.z;pose.elbow=target.elbow;pose.leftZ=target.leftZ;}
+    else {pose.x+=(target.x-pose.x)*alpha;pose.z+=(target.z-pose.z)*alpha;pose.elbow+=(target.elbow-pose.elbow)*alpha;pose.leftZ+=(target.leftZ-pose.leftZ)*alpha;}
+    pose.claim=claim;this._publishPerson(npc);return true;
+  }
+
+  readActivityHand(claim,out) {
+    if(!this.activityClaims.canWrite(claim))return false;
+    const npc=this.peopleHandles.resolve(claim.person);
+    if(npc._activityBinding?.hidden||npc.party)return false;
+    const pose=npc._activityArmPose;
+    if(pose?.claim!==claim)return false;
+    out.copy(pose.hand);return true;
+  }
+
   setActivityBinding(claim,hidden) {
     if(!this.activityClaims.canWrite(claim))return false;
     const npc=this.peopleHandles.resolve(claim.person);
@@ -2277,8 +2330,11 @@ export class Crowd {
   releaseActivityBinding(claim) {
     if(!this.activityClaims.canRelease(claim))return false;
     const npc=this.peopleHandles.entries.get(claim.person.slot)?.record;
-    if(npc?._activityBinding?.claim!==claim)return false;
-    npc._activityBinding=null;return true;
+    let released=false;
+    if(npc?._activityArmPose?.claim===claim){npc._activityArmPose=null;released=true;}
+    if(npc?._activityBinding?.claim===claim){npc._activityBinding=null;released=true;}
+    if(released&&this.peopleHandles.isLive(claim.person))this._publishPerson(npc);
+    return released;
   }
 
   endPersonActivity(claim,{targetX=null,targetZ=null,reason='ended'}={}) {
@@ -2374,6 +2430,7 @@ export class Crowd {
     for(const npc of [...this.npcs])release(()=>this.removeNpc(npc));
     release(()=>this.seatReservations.dispose());
     release(()=>this.peopleHandles.dispose());
+    release(()=>this.armsMesh.customDepthMaterial?.dispose());
     release(()=>disposeSceneResources(this.group));
     this.group.removeFromParent();
     if(errors.length)throw new AggregateError(errors,'Crowd teardown failed.');

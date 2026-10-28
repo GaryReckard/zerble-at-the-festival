@@ -1,3 +1,4 @@
+import {sampleHulaMotion} from '../personMotion.js';
 // Hula-hooper — festival-goer gyrating with a glowing hoop.
 //
 // Structure:
@@ -222,23 +223,10 @@ export function tickHulaHooper(model, dt, nightness = 0) {
   u.phase += dt * u.gyrSpeed;
   const p = u.phase;
 
-  // Elliptical hip orbit — sin on Z (forward/back lean), cos on X (side
-  // lean) at the same rate. Reads as a circular hip motion, not a
-  // figure-8. Amplitudes are subtle (in radians) — the body leans,
-  // doesn't lurch.
-  u.bodyGroup.rotation.z = Math.sin(p) * 0.20;
-  u.bodyGroup.rotation.x = Math.cos(p) * 0.20;
-  // Tiny vertical bob at 2× hip rate (the body rises slightly at the
-  // forward/back transit points). Kept small — 3cm peaks, easy to miss
-  // but adds life when you do notice it.
-  u.bodyGroup.position.y = Math.sin(p * 2) * 0.03;
-
-  // Hoop — spins independently around its own axis + wobbles a hair so
-  // it doesn't look perfectly rigid on the body. Same `p` so the
-  // wobble syncs with the hips, just at different multiples.
-  u.hoopPivot.rotation.y = p * u.hoopSpinMult;
-  u.hoopPivot.rotation.x = Math.sin(p) * 0.08;
-  u.hoopPivot.rotation.z = Math.cos(p) * 0.06;
+  const motion=sampleHulaMotion(p,u.hoopSpinMult,u.motion??={});
+  u.bodyGroup.rotation.set(motion.leanX,0,motion.leanZ);
+  u.bodyGroup.position.y=motion.bob;
+  u.hoopPivot.rotation.set(motion.hoopX,motion.hoopY,motion.hoopZ);
 
   // Glow — dim by day, bright at night. Caller passes nightness 0..1.
   u.hoopMat.emissiveIntensity = 0.05 + nightness * 3.0;

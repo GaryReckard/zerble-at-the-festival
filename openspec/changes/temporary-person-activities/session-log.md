@@ -1,11 +1,11 @@
 ---
 change: temporary-person-activities
 status: complete
-current_task: Complete; implementation and verification recorded
+current_task: Complete; animation follow-up and verification recorded
 blocked_by: null
 open_questions: 0
 started: 2026-10-27
-last_updated: 2026-10-27
+last_updated: 2026-10-28
 ref: null
 ---
 
@@ -71,3 +71,19 @@ ref: null
 **What:** The final full suite and strict OpenSpec validation pass. Controlled real-game hula, frisbee and dance cycles and native rendering fixtures pass; iframe observer noise is independently reproduced by a static probe. Physical-device and matched whole-game performance measurements remain explicitly recorded limits.
 
 **Refs:** `verification/people/temporary-activities.md`, `/private/tmp/zerble-temporary-activities-final-check-7.log`.
+
+### 2026-10-28 -- Activity animation follow-up
+
+**Event:** decision
+
+**What:** Checkpoint `651c99f` preserves the original implementation. The follow-up restores the original throw/catch targets and offset hoop pivot on existing Crowd bodies. Shared shader articulation gives all ordinary Crowd adults jointed arms in the same instanced draw; specialist populations retain their own rigs. It avoids individual scene objects and keeps appearance coordinates in rest space. Both visible and depth passes deform the arms. Animation claims revoke synchronously alongside movement. The original hula model and migrated activity share one phase sampler.
+
+**Refs:** `src/personMotion.js`, `src/crowd.js`, `src/people/frisbeeActivity.js`, `src/people/hulaActivity.js`, `verification/people/frisbee-cycle.html`, `verification/people/hula-cycle.html`.
+
+### 2026-10-28 -- Native and live animation verification complete
+
+**Event:** discovery
+
+**What:** The native shadow probe caught a GLSL newline boundary that ordinary visible rendering did not exercise; the final fresh Mid probe compiles cleanly. An uncontrolled live-pair observation did not establish arm ownership for the original pair, so the fixture now fixes seed 1234 and asserts participant continuity, and initial reserved-place validation runs before borrowing people. Native matrix/hand checks, first-frame attachment, joint revocation, coordinated hula and the full live hula/frisbee/dance cycles pass. The full suite passes, and direct Mid title gesture plus Space honk has a clean captured console. Shared arm geometry measures 312 to 240 triangles per person without another draw. Physical-device and matched whole-game timing limits remain explicit.
+
+**Refs:** `verification/people/activity-animations.md`, `verification/people/2026-10-28/browser-results.json`, `/private/tmp/zerble-activity-animations-final.log`.

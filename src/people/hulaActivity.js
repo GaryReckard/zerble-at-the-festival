@@ -17,8 +17,10 @@ export class HulaActivity {
     this.slots=[];this.clock=0;this.scan=0;this.disposed=false;this.view={};this.testPoint=new THREE.Vector3();
     try {
     for(let i=0;i<MAX;i++){
-      const hoop=new THREE.Mesh(this.geometry,this.material);hoop.visible=false;this.group.add(hoop);
-      const slot={hoop,entry:null,reservation:null,x:0,z:0};
+      const hoop=new THREE.Mesh(this.geometry,this.material);hoop.visible=false;
+      const pivot=new THREE.Group();pivot.add(hoop);hoop.rotation.x=Math.PI/2;hoop.position.x=.27;
+      const root=new THREE.Group();root.add(pivot);this.group.add(root);
+      const slot={hoop,pivot,root,motion:{},entry:null,reservation:null,x:0,z:0};
       const place={
         reserve:person=>{if(slot.reservation||!slot.entry||registry.entries.get(slot.entry.id)!==slot.entry)return null;return slot.reservation={person,entry:slot.entry};},
         isLive:r=>!!r&&slot.reservation===r&&registry.entries.get(r.entry.id)===r.entry,
@@ -45,9 +47,11 @@ export class HulaActivity {
       }
       session.update(dt,{safe});
       if(slot.hoop.visible&&session.person&&this.people.readPerson(session.person,this.view)){
-        slot.hoop.position.set(this.view.x+.22*this.view.scale*Math.cos(this.clock*3),this.view.y+.85*this.view.scale,this.view.z+.22*this.view.scale*Math.sin(this.clock*3));
-        slot.hoop.rotation.set(Math.PI/2+.13*Math.sin(this.clock*2),0,this.clock*3);
-        slot.hoop.scale.setScalar(this.view.scale);
+        const motion=session.sampleBodyPose(session.person,slot.motion);
+        slot.root.position.set(this.view.x,this.view.y,this.view.z);
+        slot.root.rotation.y=this.view.heading;slot.pivot.position.y=.85;
+        slot.root.scale.setScalar(this.view.scale);
+        slot.pivot.rotation.set(motion.hoopX,motion.hoopY,motion.hoopZ);
       }
     }
     this.material.emissiveIntensity=.05+2.5*frame.nightness;

@@ -1,3 +1,4 @@
+import {sampleHulaMotion} from '../personMotion.js';
 // A session retains its own place reservation while Crowd lends movement.
 // Revoked claims are never reused, including when the same person resumes.
 export class HulaSession {
@@ -7,7 +8,7 @@ export class HulaSession {
     this.activityKey='hula';this.interruptibleByCart=true;this.phase='idle';this.person=null;this.claim=null;this.reservation=null;
     this.elapsed=0;this.wait=0;this.phaseTime=0;this.view={};this.target={};this.disposed=false;
   }
-  isDancePerson(person) {return this.person===person&&this.phase==='hooping';}
+  sampleBodyPose(person,out){return this.person===person&&this.phase==='hooping'?sampleHulaMotion(this.elapsed*5.25,1.65,out):null;}
   start(person) {
     if(this.disposed||this.phase!=='idle'||!this.people.readPerson(person,this.view)||!this.eligible(this.view))return false;
     const reservation=this.place.reserve(person);if(!reservation)return false;
@@ -41,8 +42,8 @@ export class HulaSession {
     if(!this.claim||!this.people.isPersonActivityCurrent(this.claim)){this.finish('unavailable');return;}
     if(this.phase!=='hooping'&&(this.phaseTime+=dt)>this.timeout){this.finish('timeout');return;}
     if(this.phase==='hooping'){
-      this.people.writeActivityPose(this.claim,this.view.x,this.view.y,this.view.z,this.view.heading,this.view.bob+dt*4);
       this.elapsed+=dt;
+      this.people.writeActivityPose(this.claim,this.view.x,this.view.y,this.view.z,this.view.heading,this.view.bob+dt*4);
       if(this.elapsed>=this.duration){this.phase='leaving';this.phaseTime=0;this.place.show(this.reservation,false);}
       return;
     }
@@ -52,7 +53,7 @@ export class HulaSession {
       if(this.place.canMove(this.reservation,x,z))this.people.writeActivityPose(this.claim,x,this.target.y,z,Math.atan2(-dx,-dz));
       return;
     }
-    if(this.phase==='approaching'){this.phase='hooping';this.place.show(this.reservation,true);}
+    if(this.phase==='approaching'){this.phase='hooping';this.people.writeActivityPose(this.claim,this.view.x,this.view.y,this.view.z,this.view.heading);this.place.show(this.reservation,true);}
     else this.finish('completed');
     } catch(error){try{this.finish('failed');}catch(cleanup){throw new AggregateError([error,cleanup],'Hula update and cleanup failed.');}throw error;}
   }

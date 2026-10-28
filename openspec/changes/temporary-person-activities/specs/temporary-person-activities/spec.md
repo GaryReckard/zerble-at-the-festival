@@ -47,3 +47,23 @@ Population and venue policies SHALL select eligible people deliberately. Existin
 - **GIVEN** a population without an explicit compatible activity policy
 - **WHEN** a hula or frisbee place selects participants
 - **THEN** it does not recruit that population merely because its people are queryable
+
+### Requirement: Activity motion preserves the original person
+
+Frisbee participants SHALL use articulated throwing and catching arms on their
+population-owned bodies, with a held disc attached to the rendered hand. Arm
+writes SHALL require current authority and stop synchronously on interruption.
+Hula body motion and the offset revolving hoop SHALL share accepted activity time,
+including pauses during interruption, while keeping the person's complete appearance.
+
+#### Scenario: A throwing pair is interrupted
+
+- **GIVEN** two people are playing with a hand-attached disc and articulated arms
+- **WHEN** a cart reaction revokes either participant's claim
+- **THEN** both borrowed arm poses are released, stale hand/arm writes fail and the disc is safely settled before either activity resumes
+
+#### Scenario: A hooper resumes
+
+- **GIVEN** a person has paused hooping to react to a cart
+- **WHEN** the same person safely resumes at the valid place
+- **THEN** coordinated body motion and visible hoop revolution resume from accepted session time without replacing the body or collider

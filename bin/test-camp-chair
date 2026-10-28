@@ -84,11 +84,13 @@ const RenderHarness=vm.runInNewContext(`${bodyConstants};class RenderHarness{${w
 });
 const bodyShape=vm.runInNewContext(`${bodyConstants};({radius:BODY_RADIUS,length:BODY_LENGTH,center:BODY_CENTER_Y})`);
 const rig=new RenderHarness(),writes=new Map();
+rig.activityClaims={current:new Map()};
 for(const name of ['_mat4','_tmpDanceMat','_hairLocalMat','_hairMat','_mouthLocalMat','_mouthMat','_legMat','_armsMat','_sitLegMat','_armsUpMat'])rig[name]=new PoseMatrix();
 for(const name of ['_tmpV','_tmpV2','_tmpV3','_tmpScale'])rig[name]=new Vector3();
 rig._tmpEuler={set(x,y,z){Object.assign(this,{x,y,z});return this;}};
 rig._tmpQuat={setFromEuler(e){this.yaw=e.y;return this;}};rig._identityQuat={};
 for(const name of ['legsMesh','shoesMesh','bodyMesh','armsMesh','headMesh','eyesMesh','mouthMesh'])rig[name]={setMatrixAt:(slot,m)=>writes.set(name,{...m})};
+rig.armsMesh.geometry={getAttribute(){return {setXYZW(){}};}};
 rig.hairMeshes=Array.from({length:6},()=>({setMatrixAt(){}}));
 let contactCases=0;
 for(const style of ['sling','director','low','loveseat'])for(const scale of [.65,.85,1,1.25,1.6])for(const bob of [0,1,6,12]) {

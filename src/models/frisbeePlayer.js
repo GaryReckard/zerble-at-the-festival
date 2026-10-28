@@ -1,3 +1,4 @@
+import {sampleThrowPose} from '../personMotion.js';
 // Frisbee player — a festivalgoer with a small procedural arm rig.
 //
 // Structure:
@@ -22,15 +23,6 @@ const HAT_PALETTE = [0xff5577, 0x33d9ff, 0xc080ff, 0x6fcf6a, 0xffe066, 0x222];
 
 const RELAXED_SHOULDER_X = 0.03;
 const RELAXED_SHOULDER_Z = 0.10;
-
-function smooth01(t) {
-  const v = Math.max(0, Math.min(1, t));
-  return v * v * (3 - 2 * v);
-}
-
-function lerp(a, b, t) {
-  return a + (b - a) * t;
-}
 
 function approachRotation(joint, x, y, z, alpha) {
   joint.rotation.x += (x - joint.rotation.x) * alpha;
@@ -187,29 +179,8 @@ export function tickFrisbeePlayer(model, dt, action = 'relaxed', amount = 0) {
   const alpha = 1 - Math.exp(-14 * Math.min(dt, 0.25));
   const left = u.armRigs.left;
   const right = u.armRigs.right;
-  let rightShoulderX = RELAXED_SHOULDER_X;
-  let rightShoulderZ = RELAXED_SHOULDER_Z;
-  let rightElbowZ = 0;
-
-  if (action === 'catch') {
-    const reach = smooth01(amount);
-    rightShoulderX = lerp(RELAXED_SHOULDER_X, -0.38, reach);
-    rightShoulderZ = lerp(RELAXED_SHOULDER_Z, 1.98, reach);
-    rightElbowZ = lerp(0, -0.10, reach);
-  } else if (action === 'throw') {
-    const phase = Math.max(0, Math.min(1, amount));
-    if (phase < 0.52) {
-      const windup = smooth01(phase / 0.52);
-      rightShoulderX = lerp(RELAXED_SHOULDER_X, 1.04, windup);
-      rightShoulderZ = lerp(RELAXED_SHOULDER_Z, 0.38, windup);
-      rightElbowZ = lerp(0, -Math.PI / 2, windup);
-    } else {
-      const release = smooth01((phase - 0.52) / 0.48);
-      rightShoulderX = lerp(1.04, 1.24, release);
-      rightShoulderZ = lerp(0.38, 0.05, release);
-      rightElbowZ = lerp(-Math.PI / 2, 0.04, release);
-    }
-  }
+  const pose=sampleThrowPose(action,amount,u.throwPose??={});
+  const rightShoulderX=pose.x,rightShoulderZ=pose.z,rightElbowZ=pose.elbow;
 
   approachRotation(
     left.shoulder,
