@@ -105,6 +105,10 @@ p.activity = 'dance'; writes.length = 0;
 update(one, .016, 106, 1);
 assert(writes.some(w => w.kind === 'glowsticks' && w.values[6] > 0), 'selected dancers carry a lit glowstick');
 assert(writes.filter(w => w.kind === 'mats').every(w => w.values[3] === 0), 'dancers do not keep yoga mats');
+p.renderOrdinary=true;writes.length=0;update(one,.016,107,1);
+assert(writes.filter(w=>w.kind==='heads').every(w=>w.values[3]===0),'ordinary dancer suppresses the duplicate place head');
+assert(writes.filter(w=>w.kind==='glowsticks').every(w=>w.values[6]===0),'ordinary dancer suppresses place-owned rig props');
+p.renderOrdinary=false;
 console.log('PASS Healing Arts motion: 30 seeded configurations × 400 times × 20 dancers');
 console.log(JSON.stringify({ samples: 12000, maximumCenterRadius: maximumRadius,
   minimumPersonCenterDistance: minimumPersonDistance, minimumPoleCenterDistance: minimumPoleDistance }, null, 2));

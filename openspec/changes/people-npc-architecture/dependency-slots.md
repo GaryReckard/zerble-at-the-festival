@@ -11,7 +11,7 @@ order below, but that list is not an autonomous loop.
 | `adults` | Crowd | Crowd retains camp sessions, monk group intent, individuals and packed render publication in that order. Smile collection and score coalescing follow this slot. |
 | `formations` | Puppet parade, then brass band | Runs after collection/scoring and before children. |
 | `children` | Independent child population | Child smile emission remains after the collection barrier. |
-| `roaming` | Wooks, hoopers, frisbee pairs | Runs before the independent bird controller and Trip proximity update. |
+| `roaming` | Wooks, hula activity, frisbee activity | Runs before the independent bird controller and Trip proximity update. |
 | `relationship` | Lurleen's person facet forwards to her vehicle | Relationship physics stays after birds/Trip and before its HUD/audio observers. |
 | `place-performers` | Place-owned stage/tent performers | Uses explicit gameplay time; place rigs gain no interactive identities. |
 | `late-activities` | Healing Arts world places | Retains update-before-sample, prior-sample borrowing and the existing near/night sampling gate. Stage lighting remains afterward. |
@@ -26,7 +26,7 @@ Crowd barriers, rather than empty global placeholder slots or duplicate traversa
 
 Honk, parked honk and cheer are supported capabilities invoked at their existing
 input/audio callbacks. Collision candidates retain world-registry-first order,
-then parade, brass, children, wooks, hoopers, frisbees and adults. Nearby queries
+then parade, brass, children, wooks and adults; hula and frisbee participants use the adult collider provider. Nearby queries
 use explicit population/candidate filters; adding a provider does not implicitly
 make it eligible for another controller's behavior. A person identity alone grants
 neither movement authority nor a collider, seat or activity capability.

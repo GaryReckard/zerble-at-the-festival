@@ -96,7 +96,7 @@ for(let i=1;i<=1600;i++)demo.activity.update(.05,i*.05,1);
 assert(demo.activity.slots.some(s=>s.role==='dance'),'regular festivalgoers arrive and dance');
 for(const slot of demo.activity.slots.filter(s=>s.role==='dance')){
   assert(regular.some(n=>n.personHandle===slot.person),'dancers were assigned from regular festivalgoers');
-  assert(demo.crowd.hasHiddenBinding(slot.person),'a dancer has only one visible render');
+  assert(!demo.crowd.hasHiddenBinding(slot.person)&&slot.p.renderOrdinary,'a dancer keeps the Crowd body while the place rig is hidden');
   assert.equal(slot.p.shirt,demo.crowd.peopleHandles.resolve(slot.person).appearance.shirt,'handoff retains appearance');
   assert(Number.isFinite(slot.p.entryTime),'arrival supplies a smooth orbit entry');
 }

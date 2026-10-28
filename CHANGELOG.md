@@ -4,6 +4,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-27
 
+### Changed
+- **Festivalgoers can take a break from hooping, frisbee and dancing when a cart approaches.** Eligible existing adults keep their appearance and identity as they join and leave activities. Cart danger and honks interrupt their movement, and participants return only when their people and places are still available and the way is clear. Frisbee pairs stop together and settle their disc before resuming. [Verification and limits](verification/people/temporary-activities.md).
+
 ### Architecture and development
 - **People share explicit integration contracts while retaining specialized behavior.** Registered population owners, lifetime handles, claim-checked activities, resource adapters, ordered queries/collisions and named dependency slots replace private cross-owner writes and the obstacle facade. Stage/cook displays and vehicle query facets participate without acquiring inappropriate NPC authority. The extension guide proves one behavior across different population and place layouts, with explicit current eligibility for stages, potties, vendors/food trucks, Healing Arts and the wagon.
 - **Actor clocks use accepted gameplay time.** Person animation and social deadlines advance together without wall-time catch-up on skipped frames, while profiling, streaming and audio keep their appropriate clocks. Shared adult/child smile eligibility is equivalent, with distinct gains retained.

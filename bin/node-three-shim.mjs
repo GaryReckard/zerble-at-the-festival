@@ -46,6 +46,8 @@ class Object3DStub {
   add(...objs) { for (const o of objs) { this.children.push(o); o.parent = this; } return this; }
   remove(...objs) { this.children = this.children.filter((c) => !objs.includes(c)); for (const o of objs) o.parent = null; return this; }
   clear() { return this.remove(...this.children); }
+  removeFromParent() { if (this.parent) this.parent.remove(this); return this; }
+  traverse(fn) { fn(this); for (const child of this.children) child.traverse(fn); }
   updateMatrix() { return this; }
 }
 export class Object3D extends Object3DStub {}

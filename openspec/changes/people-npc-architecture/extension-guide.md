@@ -146,8 +146,8 @@ an old visitor's callback.
 | Wooks | Independent handles/query/parked-honk/colliders | Specialized movement owner; no implied adult claim facade |
 | Puppet carriers | Independent handles/query/honk/colliders; puppet is a prop | Formation movement owner |
 | Brass musicians | Independent handles/query/honk/colliders/audio | Formation movement owner |
-| Hoopers | Handles/query/active-place colliders | Hooper/place controller owns motion |
-| Frisbee players | Handles/query/colliders; pair owns disc intent | Pair controller owns motion |
+| Hooping participants | Crowd handles, query and adult colliders | Hula activity claims eligible adults and owns hoops and attractor reservations |
+| Frisbee participants | Crowd handles, query and adult colliders | Pair activity claims eligible adults and owns its disc and open-ground reservation |
 | Monk parties | Member handles stay in Crowd; group supplies intent/avatar | Group/public adult operations and atomic boarding, no second lifetime |
 | Wagon driver | Same Crowd handle survives wagon despawn | Existing public seat/passenger commands |
 | One-wheel riders | Query identity, registry-only collider | Vehicle physics owner, no activity capability implied |

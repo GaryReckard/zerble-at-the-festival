@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><title>Frisbee activity cycle</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{margin:24px;background:#17162a;color:#f8f3df;font:16px system-ui}canvas{max-width:100%;border:1px solid #716678}pre{white-space:pre-wrap}</style>
+<h1>Two people, one frisbee</h1><p>This fixture uses the production Crowd, cart reaction, pair controller and disc model.</p><pre id="result">Running…</pre>
+<script type="module">
+import * as THREE from 'three';import {Crowd} from '../../src/crowd.js';import {PeopleRuntime} from '../../src/people/runtime.js';import {FrisbeeActivity} from '../../src/people/frisbeeActivity.js';
+const runtime=new PeopleRuntime(),scene=new THREE.Scene(),renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(800,420);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(40,800/420,.1,100);camera.position.set(5,10,20);camera.lookAt(5,0,0);scene.add(new THREE.AmbientLight(0xffffff,2));
+addEventListener('pagehide',()=>{runtime.dispose();renderer.dispose();},{once:true});
+try{
+ const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});scene.add(crowd.group);const game=new FrisbeeActivity({people:crowd,runtime});scene.add(game.group);
+ const a=crowd.spawnPerson({pos:new THREE.Vector3(0,0,0),rng:()=>.4,allowPhotographer:false}),b=crowd.spawnPerson({pos:new THREE.Vector3(10,0,0),rng:()=>.3,allowPhotographer:false});
+ const appearances=crowd.npcs.map(n=>JSON.stringify(n.appearance)),cart={position:new THREE.Vector3(0,0,45),forwardWorld:new THREE.Vector3(0,0,1),speed:0},frame={zerble:cart,bubbles:null,nightness:0},checks=[];
+ function check(ok,label){if(!ok)throw Error(label);checks.push(label);}function step(){runtime.beginFrame(.05);runtime.run('adults',frame);runtime.run('roaming',frame);}
+ step();const slot=game.slots.find(s=>s.session.phase==='playing');check(!!slot,'Two existing adults enter one session');for(let i=0;i<40&&slot.session.discState!=='flying';i++)step();check(slot.session.discState==='flying','The session launches the real disc');
+ const before=[...slot.session.claims];cart.position.set(0,0,-8);cart.speed=12;step();check(slot.session.phase==='interrupted'&&slot.session.discState==='landed','Charging the pair settles the disc and interrupts both people');check(before.every(c=>!crowd.writeActivityPose(c,99,0,99)),'Both old claims reject pursuit writes');
+ cart.position.set(0,0,70);cart.speed=0;let resumed=false;for(let i=0;i<600&&slot.session.phase!=='idle';i++){step();if(slot.session.phase==='playing'){resumed=true;break;}}
+ check(resumed,'Both people safely reacquire their claims');
+ slot.disc.visible=false;renderer.render(scene,camera);const baseline={draws:renderer.info.render.calls,triangles:renderer.info.render.triangles};
+ slot.disc.visible=true;renderer.render(scene,camera);const withDisc={draws:renderer.info.render.calls,triangles:renderer.info.render.triangles};
+ checks.push('Two-person render: '+JSON.stringify({baseline,withDisc}));slot.session.finish('completed');check(crowd.readPerson(a,{})&&crowd.readPerson(b,{})&&crowd.npcs.every((n,i)=>JSON.stringify(n.appearance)===appearances[i]),'Both original people and appearances survive');
+ renderer.render(scene,camera);document.querySelector('#result').textContent='PASS\n'+checks.join('\n');
+}catch(error){document.querySelector('#result').textContent='FAIL\n'+error.stack;console.error(error);}
+</script>

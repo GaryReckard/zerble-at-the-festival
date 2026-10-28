@@ -1,0 +1,39 @@
+<!doctype html><meta charset="utf-8"><title>Hula activity cycle</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{margin:24px;background:#17162a;color:#f8f3df;font:16px system-ui}canvas{max-width:100%;border:1px solid #716678}pre{white-space:pre-wrap}</style>
+<h1>One person, one hula activity</h1><p>This fixture uses the production Crowd, cart reaction, hula manager, registry and render bindings.</p><pre id="result">Running…</pre><button id="noon">Noon</button> <button id="midnight">Midnight</button>
+<script type="module">
+import * as THREE from 'three';
+import {Crowd} from '../../src/crowd.js';
+import {PeopleRuntime} from '../../src/people/runtime.js';
+import {HulaActivity} from '../../src/people/hulaActivity.js';
+import {registry} from '../../src/registry.js';
+const runtime=new PeopleRuntime(),scene=new THREE.Scene(),renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(800,420);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(40,800/420,.1,100);camera.position.set(0,3,5);camera.lookAt(0,1,0);scene.add(new THREE.AmbientLight(0xffffff,2));
+let placeId=null;function cleanup(){runtime.dispose();if(placeId!==null)registry.remove(placeId);renderer.dispose();}addEventListener('pagehide',cleanup,{once:true});
+try{
+ const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});scene.add(crowd.group);
+ const hula=new HulaActivity({people:crowd,runtime});scene.add(hula.group);
+ const person=crowd.spawnPerson({pos:new THREE.Vector3(0,0,0),rng:()=>.4,allowPhotographer:false});
+ const npc=crowd.npcs[0],appearance=JSON.stringify(npc.appearance),cart={position:new THREE.Vector3(0,0,40),forwardWorld:new THREE.Vector3(0,0,1),speed:0},frame={zerble:cart,bubbles:null,nightness:0};
+ placeId=registry.add({kind:'stage_front',position:new THREE.Vector3(),footprint:0,attractor:{radius:10,weight:1}});
+ const checks=[];function check(value,label){if(!value)throw Error(label);checks.push(label);}
+ function step(){runtime.beginFrame(.05);runtime.run('adults',frame);runtime.run('roaming',frame);}
+ step();const slot=hula.slots.find(s=>s.session.person===person);check(!!slot,'The ordinary Crowd person joins at the registered place');
+ for(let i=0;i<10&&slot.session.phase!=='hooping';i++)step();check(slot.session.phase==='hooping'&&slot.hoop.visible,'The person hoops with the ordinary body visible');
+ const old=slot.session.claim,colliders=[];cart.position.set(0,0,-5);cart.speed=12;crowd.appendColliders(colliders,cart);check(colliders.filter(c=>c.personHandle===person).length===1,'Crowd publishes one collider for the participant');
+ step();check(slot.session.phase==='interrupted'&&npc.state==='fleeing','The charging cart interrupts before activity movement');check(!crowd.writeActivityPose(old,99,0,99),'The revoked activity claim cannot move the person');
+ crowd.applyHonk(cart);cart.position.set(0,0,60);cart.speed=0;slot.session.duration=.2;
+ let resumed=false;for(let i=0;i<900&&slot.session.phase!=='idle';i++){step();if(slot.session.phase==='hooping')resumed=true;}
+ check(resumed,'The person safely resumes with a fresh claim');check(slot.session.phase==='idle'&&npc.state==='walking','The person finishes and walks away');
+ check(crowd.readPerson(person,{})&&JSON.stringify(npc.appearance)===appearance,'The same identity and appearance survive the full cycle');
+ slot.session.duration=30;check(slot.session.start(person),'The same person can start a later visit');
+ for(let i=0;i<100&&slot.session.phase!=='hooping';i++)step();
+ function render(n){frame.nightness=n;step();renderer.render(scene,camera);}
+ document.querySelector('#noon').onclick=()=>render(0);document.querySelector('#midnight').onclick=()=>render(1);
+ render(0);slot.hoop.visible=false;renderer.render(scene,camera);const baseline={draws:renderer.info.render.calls,triangles:renderer.info.render.triangles};
+ slot.hoop.visible=true;renderer.render(scene,camera);const withHoop={draws:renderer.info.render.calls,triangles:renderer.info.render.triangles};
+ document.querySelector('#result').textContent='PASS\n'+checks.join('\n')+'\nOne-person render: '+JSON.stringify({baseline,withHoop});
+}catch(error){document.querySelector('#result').textContent='FAIL\n'+error.stack;console.error(error);}
+</script>

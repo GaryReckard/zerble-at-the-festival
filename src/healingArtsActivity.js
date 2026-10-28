@@ -1,4 +1,5 @@
 import {createHealingArtsMotion,sampleHealingArtsMotion} from './people/healingArtsMotion.js';
+import {laneDodgeTest} from './steering.js';
 const WALK_ANGLES = [0,.6,-.6,1.2,-1.2];
 
 // Population owners retain identity and storage. This place owns motion samples, rig slots
@@ -12,7 +13,7 @@ export class HealingArtsActivity {
     this.u.activityOwner?.dispose();
     this.u.managed=true;this.u.activityOwner=this;
     this.motion=createHealingArtsMotion(this.u,true);this.u.motion=this.motion;
-    this.slots=this.motion.participants.filter(p=>!p.dj).map(p=>({p,person:null,claim:null,role:null,wait:0,reservation:null}));
+    this.slots=this.motion.participants.filter(p=>!p.dj).map(p=>({p,person:null,claim:null,role:null,wait:0,reservation:null,pending:null}));
     this.visitors=new Set();this.byPerson=new Map();
     this.phase='day';this.clock=0;this.next=0;this.nextArrival=0;this.lastNightness=0;this.initialized=false;
     this.c=Math.cos(group.rotation.y);this.s=Math.sin(group.rotation.y);
@@ -31,12 +32,15 @@ export class HealingArtsActivity {
       this.people.activityCooldown(person,this.activityKey)<=this.time&&['idle','walking','watching'].includes(view.state);
   }
 
+  canInterruptForCart(person) {const role=this.byPerson.get(person)?.role;return role==='dance'||role==='entering';}
+  isDancePerson(person) {return this.byPerson.get(person)?.role==='dance';}
+
   adopt(slot,person,role) {
     if(!this.active)return false;
     const reservation={};
     const claim=this.people.claimActivity(person,{owner:this,
       prepare:attempt=>{
-        if(!this.active||slot.person||slot.reservation)return false;
+        if(!this.active||slot.person||slot.reservation||(slot.pending&&slot.pending.person!==person))return false;
         slot.reservation=reservation;
         attempt.own(()=>{if(slot.reservation===reservation){slot.reservation=null;slot.p.activity='hidden';}});
         return true;
@@ -45,7 +49,7 @@ export class HealingArtsActivity {
     });
     if(!claim)return false;
     if(!this.active){this.people.endPersonActivity(claim);return false;}
-    slot.person=person;slot.claim=claim;slot.role=role;slot.wait=0;
+    slot.person=person;slot.claim=claim;slot.role=role;slot.wait=0;slot.pending=null;
     this.visitors.add(person);this.byPerson.set(person,slot);
     this.people.readPerson(person,this.personScratch);
     slot.p.shirt=this.personScratch.shirt;slot.p.skin=this.personScratch.skin;
@@ -65,9 +69,11 @@ export class HealingArtsActivity {
     }
   }
 
-  released(slot,claim) {
+  released(slot,claim,reason) {
     if(slot.claim!==claim)return;
-    const exit={cooldownUntil:this.time+60};
+    const retry=(reason==='honk'||reason==='dodge')&&(slot.role==='dance'||slot.role==='entering');
+    if(retry)slot.pending={person:claim.person,expires:this.clock+30};
+    const exit=retry?{}:{cooldownUntil:this.time+60};
     if(this.people.readPerson(claim.person,this.personScratch)&&this.personScratch.state!=='fleeing') {
       const target=this.point((claim.person.slot%2?1:-1)*17,19);
       exit.targetX=target.x;exit.targetZ=target.z;
@@ -76,7 +82,7 @@ export class HealingArtsActivity {
     // this revoking activity never restores ordinary movement or a binding.
     this.people.requestActivityExit(claim,exit);
     this.visitors.delete(claim.person);this.byPerson.delete(claim.person);
-    slot.p.activity='hidden';slot.person=null;slot.claim=null;slot.role=null;
+    slot.p.activity='hidden';slot.p.renderOrdinary=false;slot.person=null;slot.claim=null;slot.role=null;
   }
 
   releasePerson(person) {
@@ -110,7 +116,7 @@ export class HealingArtsActivity {
     return false;
   }
 
-  update(dt,time,nightness) {
+  update(dt,time,nightness,cart=null) {
     if(!this.active)return;
     this.clock+=dt;this.time=time;
     if(!this.initialized){this.initialized=true;if(nightness>.5){for(const slot of this.slots)this.releasePerson(slot.person);this.phase='night';}}
@@ -127,19 +133,29 @@ export class HealingArtsActivity {
       this.next=this.clock+.8;
       if(!this.slots.some(s=>s.role==='dance'||s.role==='entering')&&nightness<.05)this.phase='day';
     }
-    if(this.phase==='day'&&this.clock>=this.next){const slot=this.slots.find(s=>!s.person);if(slot)this.addYoga(slot);this.next=this.clock+1.3;}
+    if(this.phase==='day'&&this.clock>=this.next){const slot=this.slots.find(s=>!s.person&&!s.pending);if(slot)this.addYoga(slot);this.next=this.clock+1.3;}
     if((this.phase==='night'||this.phase==='dusk')&&nightness>.5&&this.clock>=this.nextArrival){
-      const slot=this.slots.find(s=>!s.person);
+      const slot=this.slots.find(s=>!s.person&&!s.pending);
       if(slot){this.selection=null;this.selectionDistance=55;this.people.forEachPersonNear(this.group.position.x,this.group.position.z,55,this.selectClosest);if(this.selection)this.adopt(slot,this.selection,'entering');}
       this.nextArrival=this.clock+1.7;
     }
     for(const slot of this.slots){
+      const pending=slot.pending;
+      if(pending){
+        if(!this.active||nightness<=.5||this.phase==='dawn'||this.clock>pending.expires||!this.people.readPerson(pending.person,this.personScratch)){slot.pending=null;}
+        else if(cart?.position){
+          const v=this.personScratch,dx=v.x-cart.position.x,dz=v.z-cart.position.z;
+          const venue=this.point(slot.p.x,slot.p.z),vx=venue.x-cart.position.x,vz=venue.z-cart.position.z;
+          const safe=Math.hypot(dx,dz)>20&&Math.hypot(vx,vz)>20&&(!cart.forwardWorld||(!laneDodgeTest(dx,dz,cart.forwardWorld.x,cart.forwardWorld.z,cart.speed)&&!laneDodgeTest(vx,vz,cart.forwardWorld.x,cart.forwardWorld.z,cart.speed)&&!laneDodgeTest((dx+vx)/2,(dz+vz)/2,cart.forwardWorld.x,cart.forwardWorld.z,cart.speed)));
+          if(safe&&this.eligible(pending.person,v))this.adopt(slot,pending.person,'entering');
+        }
+      }
       const person=slot.person;if(!person)continue;
       if(!this.people.readPerson(person,this.personScratch)){this.releasePerson(person);continue;}
       if(this.personScratch.state==='fleeing'){this.releasePerson(person);continue;}
       if(slot.role==='yoga'||slot.role==='dance'){
         const p=this.point(slot.p.currentX??slot.p.x,slot.p.currentZ??slot.p.z);
-        this.people.writeActivityPose(slot.claim,p.x,p.y,p.z);continue;
+        this.people.writeActivityPose(slot.claim,p.x,p.y,p.z,slot.role==='dance'?slot.p.heading:null,slot.role==='dance'?time*3:null);continue;
       }
       slot.wait+=dt;
       const side=person.slot%2?1:-1;
@@ -149,7 +165,7 @@ export class HealingArtsActivity {
       if(arrived){
         if(slot.role==='yoga_entering'){slot.role='yoga';slot.p.activity='yoga';this.people.setActivityBinding(slot.claim,true);}
         else if(slot.role==='entering'){
-          slot.role='dance';slot.p.activity='dance';this.people.setActivityBinding(slot.claim,true);
+          slot.role='dance';slot.p.activity='dance';slot.p.renderOrdinary=true;this.people.setActivityBinding(slot.claim,false);
           slot.p.entryX=(this.personScratch.x-this.group.position.x)*this.c-(this.personScratch.z-this.group.position.z)*this.s;
           slot.p.entryZ=(this.personScratch.x-this.group.position.x)*this.s+(this.personScratch.z-this.group.position.z)*this.c;
           slot.p.entryTime=time;
@@ -165,6 +181,7 @@ export class HealingArtsActivity {
     if(!this.active)return;this.active=false;
     const errors=[];
     for(const person of [...this.visitors])try{this.releasePerson(person);}catch(error){errors.push(error);}
+    for(const slot of this.slots)slot.pending=null;
     this.motion.managed=false;
     if(this.u.activityOwner===this){this.u.activityOwner=null;this.u.managed=false;}
     if(errors.length)throw new AggregateError(errors,'Healing Arts cleanup failed.');

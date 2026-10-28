@@ -365,7 +365,7 @@ lifetime-validated callback at the existing scoring barrier. Candidate order is:
 ```
 allColliders = [
   ...nearbyRegistryColliders,         // radius-padded spatial query
-  ...orderedPeopleProviders,         // parade, band, children, wooks, hoopers, frisbees
+  ...orderedPeopleProviders,         // parade, band, children, wooks
   ...eligibleAdultProvider,           // 6m broadphase reject
 ]
 ```
@@ -380,13 +380,12 @@ This is what lets you brush against people at a crawl without losing smiles, whi
 
 `passive` colliders are visible to the registry but skipped here — they're proximity triggers, not physical objects.
 
-The global frisbee pairs in `people/frisbees.js` use a `held → flying → landed`
-disc state machine. Each player's two-joint arm rig is relaxed by default. The
-holder blends through an across-the-body 90-degree elbow windup and a straight
-forward release during the last 720ms of the hold, while the catcher raises one
-arm only as the disc comes within 3m. The held disc follows the real animated
-hand joint, and every pair owns one reusable hand-position vector so the update
-path does not allocate animation objects per frame.
+Live hula and frisbee participation uses Crowd-owned people and their existing
+colliders. `people/hulaActivity.js` owns hoops and attractor reservations, while
+`people/frisbeeActivity.js` owns open-ground pair sessions and discs. The frisbee
+disc follows a held, flying and landed state machine, and the catcher moves only
+through a current claim. The older standalone performer controllers remain available
+for their existing characterization and sandbox paths.
 
 ---
 
@@ -412,7 +411,7 @@ A pool of stateful NPCs spawned by chunks.
 - **States:** `idle → walking → watching → approaching → fleeing → smiling → riding/boarding`. A transient **cheer** (driven by `cheerNear`, fired on a stage song-end) adds a jump, arms-up pose, and smile for about five seconds. Rare photographers use a short `photographer_notice → photographer_pose → watching` branch, which faces Zerble, raises the pooled camera, optionally crouches, and fires one 120ms mesh flash.
 - **Steering:** seek target + repel from registry footprints + neighbor separation + path attraction.
 - **Smile mechanic:** eye contact with Zerble plus bubble proximity raises an internal happiness counter. On threshold → emit a smile pickup, record Zerble's at-smile position. The same NPC won't smile again until Zerble has driven `SMILE_RESET_DIST` away (prevents parking-near-crowd farming) **and** a cooldown elapses.
-- **Healing Arts visits:** `healingArtsActivity.js` temporarily claims available crowd members through `festivalVisit`; the tent supplies an articulated yoga/dance rig while the crowd retains identity, position and lifetime. At dusk, the class leaves at staggered intervals and regular visitors walk in to dance; dawn releases dancers. Tent unload releases every claim, while the normal distance sweep still owns eventual NPC despawning. `chunks.js` owns the tent update list and nighttime music handle.
+- **Healing Arts visits:** `healingArtsActivity.js` temporarily claims available crowd members; the tent supplies yoga rigs, while dancers retain their ordinary Crowd body and appearance. At dusk, the class leaves at staggered intervals and regular visitors walk in to dance; dawn releases dancers. Tent unload releases every claim, while the normal distance sweep still owns eventual NPC despawning. `chunks.js` owns the tent update list and nighttime music handle.
 - **Hit response:** `onZerbleHit(npc, nx, nz)` panics the victim, applies knockback, and infects nearby NPCs into a brief fleeing state.
 - **Photographer determinism and rendering:** `photographer.js` derives the rare role from quantized spawn position, session seed, and a dedicated salt, then keeps later cooldown rolls on the NPC's private stream. It consumes no chunk or crowd RNG calls. The camera and opaque, unlit flash use two `InstancedMesh` pools with a separately packed photographer slot range, add no lights or shadow casters, and are zeroed when a distant NPC despawns.
 
@@ -836,6 +835,24 @@ domain. World or vehicle resources own their slots, occupancy, transforms and
 lifetime; an activity borrows a person with a validated current claim, while a
 role or group retains that person's existing lifetime. These distinctions avoid
 turning every humanoid mesh into an autonomous NPC.
+
+### Temporary activities and cart reactions
+
+Hula selects eligible ungrouped adults near supported registered attractors; frisbee
+selects eligible pairs on open, dry ground. Both retain the Crowd lifetime, ordinary
+render and collider. Their sessions own props and reservations and use validated
+claims for every movement write. Crowd tests the same steering corridor before an
+interruptible external claim can skip its update, and revokes that claim before
+reacting. Honks use the existing Crowd dispatch. A pending session keeps its own
+reservation, waits for the cart to clear, revalidates people and resources, then
+acquires fresh claims; invalidation or timeout cancels it. A frisbee interruption
+stops both claims and settles its disc before either player can pursue it.
+
+Healing Arts dancing retains the original body, with its place rig suppressed, and
+reacquires its reserved slot only after a safe return. Yoga and physically constrained
+riders or potty occupants retain their own protected handling. Ordinary stage-front
+sway remains Crowd behavior. The fixture and evidence are documented in
+[temporary activity verification](verification/people/temporary-activities.md).
 
 ### Frame dependencies and accepted clocks
 

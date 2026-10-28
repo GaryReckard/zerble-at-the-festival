@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><title>Live-game frisbee cycle</title>
+<style>body{margin:20px;background:#17162a;color:#f8f3df;font:16px system-ui}iframe{width:100%;height:620px;border:1px solid #716678}pre{white-space:pre-wrap}</style>
+<h1>Frisbee cycle in the running game</h1><button id="run">Run live pair</button><pre id="result">Ready</pre><iframe id="game" src="/?mute=1&perf=low"></iframe>
+<script>
+const output=document.querySelector('#result'),frame=document.querySelector('#game');let running=false;
+const wait=async(predicate,label,timeout=20000)=>{const end=performance.now()+timeout;while(performance.now()<end){if(predicate())return;await new Promise(r=>setTimeout(r,50));}throw Error('Timed out: '+label);};
+document.querySelector('#run').onclick=async()=>{if(running)return;running=true;let game,slot;const people=[];
+ try{
+  await wait(()=>frame.contentWindow.__dbg,'game initialization');const w=frame.contentWindow;w.__dbg.start();game=w.__dbg.game;
+  await wait(()=>game.crowd.populationSize>0&&game.zerble.forwardWorld.lengthSq()>.9,'crowd and cart heading');
+  const cart=game.zerble,forward=cart.forwardWorld.clone(),point=cart.position.clone().addScaledVector(forward,8),side=forward.clone().set(-forward.z,0,forward.x);
+  const second=point.clone().addScaledVector(side,10);
+  for(const pos of [point,second]){const handle=game.crowd.spawnPerson({pos,rng:()=>.15,allowPhotographer:false});if(!handle)throw Error('No free person slot');people.push(handle);}
+  const appearances=people.map(p=>JSON.stringify(game.crowd.npcs.find(n=>n.personHandle===p).appearance));
+  slot=game.frisbees.slots.find(s=>s.session.phase==='idle')??game.frisbees.slots[0];if(slot.session.phase!=='idle')slot.session.finish('fixture-replaced');
+  if(!slot.session.start(...people))throw Error('Pair acquisition failed');slot.holder=0;slot.catcher=1;slot.timer=.2;slot.age=0;slot.disc.visible=true;
+  await wait(()=>slot.session.discState==='flying','disc flight');const old=[...slot.session.claims];
+  cart.speed=12;await wait(()=>slot.session.phase==='interrupted','cart interruption');
+  if(old.some(c=>game.crowd.writeActivityPose(c,999,0,999)))throw Error('A revoked pair claim wrote a pose');
+  if(slot.session.discState!=='landed')throw Error('Disc did not settle');
+  const far=point.clone().addScaledVector(forward,-60);w.__dbg.teleport(far.x,far.z);
+  await wait(()=>slot.session.phase==='playing','pair resumption');
+  if(!slot.session.claims.every((c,i)=>c!==old[i]&&game.crowd.isPersonActivityCurrent(c)))throw Error('Pair did not obtain fresh claims');
+  slot.session.finish('completed');
+  if(!people.every((p,i)=>game.crowd.readPerson(p,{})&&JSON.stringify(game.crowd.npcs.find(n=>n.personHandle===p).appearance)===appearances[i]))throw Error('Pair identity or appearance changed');
+  output.textContent='PASS\nReal game loop: two Crowd people → frisbee flight → charging cart → coordinated interruption → safe pair resumption, with identity and appearance preserved.';
+ }catch(error){output.textContent='FAIL\n'+error.stack;console.error(error);}
+ finally{if(slot&&slot.session.phase!=='idle')slot.session.finish('fixture-cleanup');if(game)for(const p of people)game.crowd.removePerson(p);running=false;}
+};
+</script>

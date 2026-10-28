@@ -66,9 +66,9 @@ export function updateVendorTents(t, nightness, dt = 0) {
   for (const entry of vendorTents) updateTent(entry.group, t, nightness, dt);
 }
 
-export function updateHealingArtsTents(dt, time, nightness, playerPos, display = true) {
+export function updateHealingArtsTents(dt, time, nightness, playerPos, display = true, cart = null) {
   for (const entry of healingArtsTents) {
-    entry.activity?.update(dt, time, nightness);
+    entry.activity?.update(dt, time, nightness, cart);
     const near = !playerPos || entry.group.position.distanceToSquared(playerPos) < 180 * 180;
     if (near || entry.night !== (nightness > 0.5)) {
       if(entry.activity)entry.activity.sample(time,nightness);

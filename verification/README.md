@@ -11,6 +11,10 @@ not physical-device acceptance.
 
 - [Festival Passport, October 25](passport/2026-10-25/README.md): pure/integration checks, Low/Mid boots, settings continuity, paused Festival Run and responsive captures.
 
+## Temporary activities
+
+- [Hula, frisbee and dance interruption verification](people/temporary-activities.md): production-backed contracts, native fixtures, controlled live-game hula run, and remaining measurement limits.
+
 ## People architecture acceptance
 
 - [Final coverage and limits](../openspec/changes/people-npc-architecture/acceptance.md): all 17 families, ownership/failure contracts, saved real-game traces and matched Low/Mid topology, with explicit CPU costs and physical-device limits.

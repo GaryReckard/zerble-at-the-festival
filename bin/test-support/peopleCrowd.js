@@ -1,5 +1,6 @@
 import * as smilePolicy from '../../src/people/smilePolicy.js';
 import * as photographer from '../../src/photographer.js';
+import * as steering from '../../src/steering.js';
 import {SeatReservations} from '../../src/people/seatReservations.js';
 import {loadGroupParticipation} from './groupParticipation.mjs';
 // Production Crowd protocol methods over recording render/resource boundaries.
@@ -11,7 +12,7 @@ import {PersonHandles} from '../../src/people/personHandle.js';
 import {ActivityClaims} from '../../src/people/activityClaims.js';
 const source=readFileSync(new URL('../../src/crowd.js',import.meta.url),'utf8');
 const motionConstants=source.match(/^const (?:(?:POTTY|CAMP|CAMP_MUSIC|MARKET|PICNIC|HAMMOCK)_STATES|HAMMOCK_OPTIONAL_FIELDS|REST_MOTION_FIELDS)=.*$/gm).join('\n');
-const Crowd=runInNewContext([source.match(/^const FROWN_DURATION.*$/m)[0],source.match(/^const ORDINARY_SOCIAL_STATES.*$/m)[0],motionConstants,source.slice(source.indexOf('export class Crowd')).replace('export class Crowd','class Crowd'),';Crowd'].join('\n'),{DESPAWN_R2:100000,...photographer,...smilePolicy,...loadGroupParticipation()});
+const Crowd=runInNewContext([source.match(/^const FROWN_DURATION.*$/m)[0],source.match(/^const ORDINARY_SOCIAL_STATES.*$/m)[0],motionConstants,source.slice(source.indexOf('export class Crowd')).replace('export class Crowd','class Crowd'),';Crowd'].join('\n'),{DESPAWN_R2:100000,HONK_RANGE:14,HONK_BOOST:.8,HAPPINESS_THRESHOLD:.7,SMILE_RESET_DIST:28,SMILE_TIME_COOLDOWN:3,...photographer,...smilePolicy,...steering,...loadGroupParticipation()});
 export class Vector {
  constructor(x=0,y=0,z=0){this.set(x,y,z);}
  set(x,y,z){Object.assign(this,{x,y,z});return this;}

@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>Dance interruption cycle</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{margin:24px;background:#17162a;color:#f8f3df;font:16px system-ui}canvas{max-width:100%;border:1px solid #716678}pre{white-space:pre-wrap}</style>
+<h1>One dancer, one visible body</h1><p>This fixture uses the production Crowd, Healing Arts activity, sampled place motion and render binding.</p><pre id="result">Running…</pre>
+<script type="module">
+import * as THREE from 'three';import {Crowd} from '../../src/crowd.js';import {PeopleRuntime} from '../../src/people/runtime.js';import {HealingArtsActivity} from '../../src/healingArtsActivity.js';import {buildHealingArts,updateHealingArts} from '../../src/models/healingArts.js';
+const runtime=new PeopleRuntime(),scene=new THREE.Scene(),renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(800,420);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(40,800/420,.1,100);camera.position.set(0,15,25);camera.lookAt(0,0,0);scene.add(new THREE.AmbientLight(0xffffff,2));let activity;
+addEventListener('pagehide',()=>{activity?.dispose();runtime.dispose();renderer.dispose();},{once:true});
+try{
+ const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});scene.add(crowd.group);const place=buildHealingArts({rng:()=>.3});scene.add(place);
+ activity=new HealingArtsActivity(place,crowd,()=>.3);const slot=activity.slots[0],person=slot.person,npc=crowd.npcs.find(n=>n.personHandle===person),appearance=JSON.stringify(npc.appearance);
+ slot.role='dance';slot.p.activity='dance';slot.p.renderOrdinary=true;crowd.setActivityBinding(slot.claim,false);activity.phase='night';activity.initialized=true;activity.lastNightness=1;
+ const cart={position:new THREE.Vector3(npc.pos.x,0,npc.pos.z-8),forwardWorld:new THREE.Vector3(0,0,1),speed:12},frame={zerble:cart,bubbles:null,nightness:1};let time=0;
+ const checks=[];function check(ok,label){if(!ok)throw Error(label);checks.push(label);}function step(){time+=.05;runtime.beginFrame(.05);runtime.run('adults',frame);activity.update(.05,time,1,cart);activity.sample(time,1);updateHealingArts(place,.05,time,1);}
+ check(!crowd.hasHiddenBinding(person)&&slot.p.renderOrdinary,'The dancer keeps the ordinary body and suppresses the place rig');const old=slot.claim;step();
+ check(slot.pending?.person===person&&npc.state==='fleeing','The charging cart interrupts the dancer');check(!crowd.writeActivityPose(old,99,0,99),'The revoked dance claim cannot move the person');
+ cart.position.set(0,0,60);cart.speed=0;let resumed=false;for(let i=0;i<500&&!resumed;i++){step();resumed=slot.person===person;}
+ check(resumed&&slot.claim!==old,'The same person safely reacquires the place');check(crowd.readPerson(person,{})&&JSON.stringify(npc.appearance)===appearance,'Identity and complete appearance survive');
+ renderer.render(scene,camera);document.querySelector('#result').textContent='PASS\n'+checks.join('\n');
+}catch(error){document.querySelector('#result').textContent='FAIL\n'+error.stack;console.error(error);}
+</script>

@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+import {HulaSession} from '../src/people/hulaSession.js';
+
+// Production Crowd handles, claims and pose commands over recording render boundaries.
+const crowd=makePeopleCrowd(),person=crowd.spawnPerson({pos:new Vector(0,0,0)});
+const npc=crowd.peopleHandles.resolve(person),appearance={...npc.appearance};
+let reservation=null,releases=0,visible=false;
+const place={
+ reserve(p){if(reservation)return null;return reservation={person:p};},
+ isLive(r){return reservation===r;},
+ release(r){if(reservation===r){reservation=null;releases++;}},
+ target(r,phase,out){if(!this.isLive(r))return false;Object.assign(out,{x:phase==='leaving'?4:2,y:0,z:0});return true;},
+ canMove(r){return this.isLive(r);},
+ show(r,on){assert(this.isLive(r));visible=on;},
+};
+const session=new HulaSession({people:crowd,place,duration:.3,speed:4,eligible:v=>!v.claimed&&['idle','walking'].includes(v.state)});
+assert(session.start(person));
+for(let i=0;i<30&&session.phase!=='hooping';i++)session.update(.05,{safe:true});
+assert.equal(session.phase,'hooping');assert(visible);assert.equal(crowd.hasHiddenBinding(person),false);
+const original=session.claim;
+crowd._abandonSeat=()=>true;
+const cart={position:new Vector(npc.pos.x,0,npc.pos.z-10),forwardWorld:{x:0,z:1},speed:12};
+assert(crowd._interruptActivityForCart(npc,cart),'production Crowd detects an approaching cart');
+assert.equal(npc.state,'fleeing');
+assert.equal(session.phase,'interrupted');assert(!visible);assert(!crowd.writeActivityPose(original,99,0,99));
+for(let i=0;i<20;i++)session.update(.05,{safe:false});
+assert.equal(session.phase,'interrupted');assert.equal(session.claim,null);
+npc.state='walking';npc.stateTimer=0;
+for(let i=0;i<200&&session.phase!=='idle';i++)session.update(.05,{safe:true});
+assert.equal(session.phase,'idle');assert.equal(reservation,null);assert.equal(releases,1);
+assert(crowd.readPerson(person,{}));assert.deepEqual(npc.appearance,appearance);assert.equal(npc.state,'walking');assert(npc.pos.x>=3.9);assert(npc.target.x>npc.pos.x,'ordinary walking continues away from the activity');assert.equal(crowd.activityCooldown(person,'hula'),20,'completion leaves a break before another hula visit');
+console.log('PASS hula session: production Crowd identity and claims, interrupted stale write, safe fresh acquisition, finish and exit.');
+// Venue loss and person-first teardown cannot resurrect a reservation or claim.
+for(const mode of ['venue','person','timeout']) {
+ const c=makePeopleCrowd(),p=c.spawnPerson({pos:new Vector()}),n=c.peopleHandles.resolve(p);
+ let held=null,cleaned=0,live=true;
+ const venue={reserve(person){return held={person};},isLive(r){return live&&r===held;},release(r){if(r===held){held=null;cleaned++;}},target(r,phase,out){Object.assign(out,{x:0,y:0,z:0});return true;},canMove(){return true;},show(){}};
+ const s=new HulaSession({people:c,place:venue,eligible:()=>true,timeout:.1});
+ assert(s.start(p));const old=s.claim;
+ c.activityClaims.removePerson(p,'honk');n.state='fleeing';
+ if(mode==='venue')live=false;
+ if(mode==='person')c.removePerson(p);
+ for(let i=0;i<4;i++)s.update(.05,{safe:false});
+ assert.equal(s.phase,'idle',mode);assert.equal(held,null);assert.equal(cleaned,1);assert(!c.writeActivityPose(old,8,0,8));
+ s.dispose();s.dispose();
+}
+console.log('PASS interrupted hula cancellation on place loss, person removal and bounded wait.');
+
+// The real honk route revokes the claim, and a reverse-moving cart uses its travel direction.
+{
+ const c=makePeopleCrowd(),p=c.spawnPerson({pos:new Vector(0,0,0)}),n=c.peopleHandles.resolve(p);n.smileTimeCooldown=1;
+ let held=null;const place={reserve(person){return held={person};},isLive(r){return held===r;},release(){held=null;},show(){},target(r,phase,out){Object.assign(out,{x:0,y:0,z:0});return true;},canMove(){return true;}};
+ const s=new HulaSession({people:c,place,eligible:()=>true});assert(s.start(p));const old=s.claim;c._abandonSeat=()=>true;
+ c.applyHonk({position:new Vector(0,0,8),forwardWorld:{x:0,z:1},speed:-12});
+ assert.equal(n.state,'fleeing');assert.equal(s.phase,'interrupted');assert(!c.writeActivityPose(old,5,0,5));s.dispose();assert.equal(held,null);
+}
+console.log('PASS production honk interrupts hula and honors reverse travel.');
+// Safety gates do not steal authority for reverse-away, star power, or blocked exits.
+for(const mode of ['reverse-away','star','blocked']){
+ const c=makePeopleCrowd(),p=c.spawnPerson({pos:new Vector()}),n=c.peopleHandles.resolve(p);let r=null;
+ const place={reserve(){return r={};},isLive:x=>x===r,release(){r=null;},show(){},target(x,phase,out){Object.assign(out,{x:0,y:0,z:0});return true;},canMove(){return true;}};
+ const s=new HulaSession({people:c,place,eligible:()=>true});assert(s.start(p));const claim=s.claim;
+ c._abandonSeat=()=>mode!=='blocked';c.starActive=mode==='star';
+ const cart={position:new Vector(0,0,-8),forwardWorld:{x:0,z:1},speed:mode==='reverse-away'?-12:12};
+ assert.equal(c._interruptActivityForCart(n,cart),false,mode);assert(c.isPersonActivityCurrent(claim));s.dispose();
+}
+console.log('PASS cart safety gates preserve authority for reverse-away travel, star power and blocked exits.');
+{
+ const c=makePeopleCrowd(),p=c.spawnPerson({pos:new Vector()});let held=null;
+ const place={reserve(){return held={};},isLive:r=>r===held,release(){held=null;},show(){},target(r,phase,out){Object.assign(out,{x:0,y:0,z:0});return true;},canMove(){return true;}};
+ const s=new HulaSession({people:c,place,eligible:()=>true});assert(s.start(p));c.requestActivityExit=()=>{throw Error('exit failure');};
+ assert.throws(()=>s.finish('completed'),AggregateError);assert.equal(held,null);assert.equal(c.activityClaims.current.size,0);
+}
+console.log('PASS hula cleanup continues after an exit-metadata failure.');
+{
+ const c=makePeopleCrowd(),p=c.spawnPerson({pos:new Vector()});let held=null;
+ const place={reserve(){return held={};},isLive(){throw Error('place failure');},release(){held=null;},show(){},target(){return true;},canMove(){return true;}};
+ const s=new HulaSession({people:c,place,eligible:()=>true});assert(s.start(p));assert.throws(()=>s.update(.05),/place failure/);
+ assert.equal(held,null);assert.equal(c.activityClaims.current.size,0);
+}
+console.log('PASS hula update failure releases its reservation and claim.');

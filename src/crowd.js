@@ -950,8 +950,22 @@ export class Crowd {
     this.frameTrace?.mark('crowd.render-publication');
   }
 
+  _interruptActivityForCart(npc, zerble) {
+    const active=this.activityClaims.current.get(npc.personHandle);
+    if(!active||!(active.claim.owner.canInterruptForCart?.(npc.personHandle)??active.claim.owner.interruptibleByCart)||this.starActive||!zerble?.forwardWorld)return false;
+    const dx=npc.pos.x-zerble.position.x,dz=npc.pos.z-zerble.position.z;
+    if(!laneDodgeTest(dx,dz,zerble.forwardWorld.x,zerble.forwardWorld.z,zerble.speed))return false;
+    if(this._abandonSeat(npc)===false)return false;
+    this.activityClaims.removePerson(npc.personHandle,'dodge');
+    npc.state='fleeing';npc.fleeUrgency=laneDodgeUrgency(zerble.speed);npc.stateTimer=DODGE.LOCK;
+    return true;
+  }
+
   _updateNpc(dt, npc, zerble, bubblePositions, cosCone, ctx) {
-    if (this.activityClaims.current.has(npc.personHandle)&&!this._inlineActivities.has(this.activityClaims.current.get(npc.personHandle).claim.owner)) { this._writeMatrices(npc); return; }
+    const external=this.activityClaims.current.get(npc.personHandle);
+    if (external&&!this._inlineActivities.has(external.claim.owner)) {
+      if(!this._interruptActivityForCart(npc,zerble)){this._writeMatrices(npc);return;}
+    }
     if (npc.smileTimeCooldown > 0) npc.smileTimeCooldown -= dt;
     if (!isPhotographerState(npc.state)) npc.stateTimer -= dt;
     if (!isPhotographerState(npc.state) && npc.photoFlashTimer > 0) {
@@ -1561,7 +1575,7 @@ export class Crowd {
     let bobY;
     let danceTilt;
     let danceYawWiggle = 0;
-    if (npc.onDancefloor) {
+    if (npc.onDancefloor || this.activityClaims.current.get(npc.personHandle)?.claim.owner.isDancePerson?.(npc.personHandle)) {
       const t = npc.bob;
       // Vertical bounce: a dominant low-frequency hop + a slight off-beat
       // ripple. Scale 0.06-0.10m so it reads clearly without floating.

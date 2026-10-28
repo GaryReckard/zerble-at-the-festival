@@ -1,0 +1,73 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+import {FrisbeeSession} from '../src/people/frisbeeSession.js';
+for(const discState of ['held','flying','landed']){
+ const people=makePeopleCrowd(),a=people.spawnPerson({pos:new Vector()}),b=people.spawnPerson({pos:new Vector(8,0,0)});
+ let resource=null,settled=0,released=0;
+ const place={reserve(){return resource={};},isLive:r=>resource===r,release:r=>{if(resource===r){resource=null;released++;}},settle(){settled++;},hide(){}};
+ const session=new FrisbeeSession({people,place,eligible:v=>!v.claimed});
+ assert(session.start(a,b));session.discState=discState;const old=[...session.claims];
+ people.activityClaims.removePerson(a,'honk');people.peopleHandles.resolve(a).state='fleeing';
+ assert.equal(session.phase,'interrupted');assert.equal(settled,1);assert.equal(session.discState,'landed');
+ assert(old.every(c=>!people.writeActivityPose(c,80,0,80)),'both claims are invalid before pursuit can continue');
+ session.update(.05,{safe:false});assert.equal(session.phase,'interrupted');
+ people.peopleHandles.resolve(a).state='walking';session.update(.05,{safe:true});assert.equal(session.phase,'playing');
+ assert(session.claims.every((c,i)=>c!==old[i]&&people.isPersonActivityCurrent(c)));
+ session.dispose();assert.equal(released,1);assert.equal(resource,null);assert(people.readPerson(a,{})&&people.readPerson(b,{}));
+}
+console.log('PASS paired session: held, flying and landed interruptions revoke both claims, settle the disc, and reacquire both people.');
+// Second-person acquisition failure rolls back the first claim and resource.
+{
+ const crowd=makePeopleCrowd(),a=crowd.spawnPerson({pos:new Vector()}),b=crowd.spawnPerson({pos:new Vector(8,0,0)});
+ const real=crowd.claimActivity.bind(crowd);crowd.claimActivity=(person,...args)=>person===b?null:real(person,...args);
+ let reserved=false;const place={reserve(){reserved=true;return {};},isLive(){return reserved;},release(){reserved=false;},hide(){},settle(){}};
+ const s=new FrisbeeSession({people:crowd,place,eligible:v=>!v.claimed});assert.equal(s.start(a,b),false);
+ assert.equal(reserved,false);assert.equal(crowd.activityClaims.current.size,0);assert(crowd.readPerson(a,{}));
+}
+console.log('PASS paired acquisition failure rolls back the first person and resource.');
+// Person loss, resource replacement, and prolonged danger cancel the whole pair.
+for(const mode of ['first','second','resource','timeout']){
+ const people=makePeopleCrowd(),a=people.spawnPerson({pos:new Vector()}),b=people.spawnPerson({pos:new Vector(8,0,0)});
+ let current=null,releases=0;
+ const place={reserve(){return current={};},isLive:r=>r===current,release:r=>{if(r===current){current=null;releases++;}},settle(){},hide(){}};
+ const s=new FrisbeeSession({people,place,eligible:()=>true,timeout:.1});assert(s.start(a,b));
+ people.activityClaims.removePerson(a,'honk');
+ if(mode==='first')people.removePerson(a);if(mode==='second')people.removePerson(b);
+ const replacement=mode==='resource'?{}:null;if(replacement)current=replacement;
+ for(let i=0;i<4;i++)s.update(.05,{safe:false});
+ assert.equal(s.phase,'idle');assert.equal(people.activityClaims.current.size,0);
+ if(replacement){assert.equal(current,replacement);assert.equal(releases,0);}else assert.equal(releases,1);
+ s.dispose();
+}
+console.log('PASS paired cancellation on either person loss, replaced resource and timeout.');
+// A participant who joined another activity is not silently reclaimed.
+{
+ const people=makePeopleCrowd(),a=people.spawnPerson({pos:new Vector()}),b=people.spawnPerson({pos:new Vector(8,0,0)});let resource=null;
+ const place={reserve(){return resource={};},isLive:r=>resource===r,release(){resource=null;},settle(){},hide(){}};
+ const s=new FrisbeeSession({people,place,eligible:v=>!v.claimed});assert(s.start(a,b));people.activityClaims.removePerson(a,'honk');
+ const competing=people.claimActivity(b,{owner:{activityKey:'another'}});assert(competing);s.update(.05,{safe:true});
+ assert.equal(s.phase,'idle');assert(people.isPersonActivityCurrent(competing));assert.equal(resource,null);
+}
+console.log('PASS a competing activity prevents pair reacquisition without losing its own claim.');
+{
+ const people=makePeopleCrowd(),a=people.spawnPerson({pos:new Vector()}),b=people.spawnPerson({pos:new Vector(8,0,0)});let resource=null;
+ const place={reserve(){return resource={};},isLive:r=>resource===r,release(){resource=null;},settle(){},hide(){}};
+ const s=new FrisbeeSession({people,place,eligible:v=>!v.claimed});assert(s.start(a,b));s.finish('completed');
+ assert.equal(people.activityCooldown(a,'frisbee'),20);assert.equal(people.activityCooldown(b,'frisbee'),20);
+}
+console.log('PASS both players get an ordinary-behavior break after a completed session.');
+{
+ const people=makePeopleCrowd(),a=people.spawnPerson({pos:new Vector()}),b=people.spawnPerson({pos:new Vector(8,0,0)});let resource=null;
+ const place={reserve(){return resource={};},isLive:r=>resource===r,release(){resource=null;},settle(){},hide(){}};
+ const s=new FrisbeeSession({people,place,eligible:()=>true});assert(s.start(a,b));people.requestActivityExit=()=>{throw Error('exit failure');};
+ assert.throws(()=>s.finish('completed'),AggregateError);assert.equal(resource,null);assert.equal(people.activityClaims.current.size,0);
+}
+console.log('PASS paired cleanup continues after exit-metadata failures.');
+{
+ const people=makePeopleCrowd(),a=people.spawnPerson({pos:new Vector()}),b=people.spawnPerson({pos:new Vector(8,0,0)});let resource=null;
+ const place={reserve(){return resource={};},isLive(){throw Error('place failure');},release(){resource=null;},settle(){},hide(){}};
+ const s=new FrisbeeSession({people,place,eligible:()=>true});assert(s.start(a,b));assert.throws(()=>s.update(.05),/place failure/);
+ assert.equal(resource,null);assert.equal(people.activityClaims.current.size,0);
+}
+console.log('PASS pair update failure releases both claims and resource.');

@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>Live-game dance cycle</title>
+<style>body{margin:20px;background:#17162a;color:#f8f3df;font:16px system-ui}iframe{width:100%;height:620px;border:1px solid #716678}pre{white-space:pre-wrap}</style>
+<h1>Healing Arts dance in the running game</h1><button id="run">Run live dance</button><pre id="result">Ready</pre><iframe id="game" src="/?mute=1&perf=low&seed=1234"></iframe>
+<script>
+const output=document.querySelector('#result'),frame=document.querySelector('#game');let running=false;
+const wait=async(predicate,label,timeout=30000)=>{const end=performance.now()+timeout;while(performance.now()<end){if(predicate())return;await new Promise(r=>setTimeout(r,50));}throw Error('Timed out: '+label);};
+document.querySelector('#run').onclick=async()=>{if(running)return;running=true;let game,person,activity,slot;
+ try{
+  await wait(()=>frame.contentWindow.__dbg,'game initialization');const w=frame.contentWindow;w.__dbg.start();game=w.__dbg.game;
+  w.__dbg.teleport(534,15);w.__dbg.tod(.75);
+  await wait(()=>{game.scene.traverse(o=>{if(o.userData.healingArts?.activityOwner)activity=o.userData.healingArts.activityOwner;});return !!activity;},'Healing Arts tent');
+  await wait(()=>game.crowd.populationSize>0,'crowd boot');slot=activity.slots[0];if(slot.person)activity.releasePerson(slot.person);
+  const candidate=activity.point(1.5,6.1).clone();person=game.crowd.spawnPerson({pos:candidate,rng:()=>.15,allowPhotographer:false});if(!person)throw Error('No free person slot');
+  const side=person.slot%2?1:-1,position=activity.point(side*1.5,6.1).clone(),record=game.crowd.npcs.find(n=>n.personHandle===person);record.pos.copy(position);
+  const appearance=JSON.stringify(record.appearance);activity.phase='night';activity.initialized=true;activity.lastNightness=1;
+  if(!activity.adopt(slot,person,'entering'))throw Error('Dance acquisition failed');
+  await wait(()=>slot.role==='dance','dance arrival');if(game.crowd.hasHiddenBinding(person)||!slot.p.renderOrdinary)throw Error('Ordinary dancer body is not active');
+  const old=slot.claim;w.__dbg.teleport(record.pos.x,record.pos.z+8);game.zerble.heading=0;
+  await wait(()=>game.zerble.forwardWorld.z<-.9,'cart heading');game.zerble.speed=12;
+  await wait(()=>slot.pending?.person===person,'cart interruption');if(game.crowd.writeActivityPose(old,999,0,999))throw Error('Revoked dance claim wrote a pose');
+  w.__dbg.teleport(record.pos.x,record.pos.z+60);
+  await wait(()=>slot.person===person&&slot.claim!==old,'dance return');
+  if(!game.crowd.readPerson(person,{})||JSON.stringify(record.appearance)!==appearance)throw Error('Identity or appearance changed');
+  output.textContent='PASS\nReal game loop: Healing Arts dancer → charging cart → revoked claim → safe slot reacquisition, with the original body and appearance.';
+ }catch(error){output.textContent='FAIL\n'+error.stack;console.error(error);}
+ finally{if(activity&&person)activity.releasePerson(person);if(game&&person)game.crowd.removePerson(person);running=false;}
+};
+</script>

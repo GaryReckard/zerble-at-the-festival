@@ -51,8 +51,8 @@ import {KidGaggle} from './people/children.js';
 import {Wooks} from './people/wooks.js';
 import {PuppetParade} from './people/puppetParade.js';
 import {BrassBand} from './people/brassBand.js';
-import {HulaHoopers} from './people/hoopers.js';
-import {Frisbees} from './people/frisbees.js';
+import {HulaActivity} from './people/hulaActivity.js';
+import {FrisbeeActivity} from './people/frisbeeActivity.js';
 import { PeopleBaseline,captureRenderInventory,withBaselineRandom } from './people/baseline.js';
 import { PeopleFrameTrace, savePeopleFrameTrace } from './people/frameTrace.js';
 import { MonkParty } from './monks.js';
@@ -528,7 +528,7 @@ new PlaceDisplay({runtime:people,key:'place-cooks',slot:'place-cooks',
 // These places own their activities and rigs. The directory only lends them
 // the existing dependency slot, between performers and stage lighting.
 const healingPlaceRoute={
-  update(dt,frame){updateHealingArtsTents(dt,people.time,frame.nightness,frame.zerble.position);},
+  update(dt,frame){updateHealingArtsTents(dt,people.time,frame.nightness,frame.zerble.position,true,frame.zerble);},
   inspect(out){out.places=healingArtsTents.length;},dispose(){},
 };
 people.register({key:'healing-arts-places',controller:healingPlaceRoute,schedule:[{slot:'late-activities',run:healingPlaceRoute.update}]});
@@ -653,9 +653,9 @@ const _wookPositions=[];
 scene.add(wooks.group);
 // Hula-hoopers attach to attractor POIs (stages, drum circles, fire pits).
 // Built lazily after buildWorld() runs so the first registry scan has data.
-const hoopers = HulaHoopers.create({runtime:people});
+const hoopers = new HulaActivity({people:crowd,runtime:people});
 scene.add(hoopers.group);
-const frisbees = withBaselineRandom(()=>new Frisbees({runtime:people}),0x46525342,peopleBaselineCohort);
+const frisbees = new FrisbeeActivity({people:crowd,runtime:people});
 scene.add(frisbees.group);
 // Birds — global flock that circles the festival + perches in trees. Built
 // after buildWorld so the registry already has trees to perch in.
@@ -1378,7 +1378,7 @@ function tickBody(dt) {
     peopleFrameTrace?.pickups('children-before', smiles);
     people.run('children',peopleFrame);
     peopleFrameTrace?.pickups('children-after', smiles);
-    peopleFrame.nightness=nightness;
+    peopleFrame.nightness=nightness;peopleFrame.npcsFrozen=npcsFrozen();
     people.run('roaming',peopleFrame);
     birds.update(dt, zerble.position, tod, Math.abs(zerble.speed));
     // Collect wook world positions for proximity detection

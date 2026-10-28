@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {register} from 'node:module';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+import {PeopleRuntime} from '../src/people/runtime.js';
+register('./node-three-shim.mjs',import.meta.url);
+const {registry}=await import('../src/registry.js');
+const {HulaActivity}=await import('../src/people/hulaActivity.js');
+const people=makePeopleCrowd(),person=people.spawnPerson({pos:new Vector(2,0,0)}),record=people.peopleHandles.resolve(person);record.scale=1;
+const placeId=registry.add({kind:'stage_front',position:new Vector(0,0,0),footprint:0,attractor:{radius:10,weight:1}});
+const previousRandom=Math.random;let randomDraws=0;Math.random=()=>{randomDraws++;return .5;};
+const runtime=new PeopleRuntime(),activity=new HulaActivity({people,runtime});
+const cart={position:new Vector(0,0,40),forwardWorld:{x:0,z:1},speed:0};
+const frame={zerble:cart,nightness:0};
+function tick(){runtime.beginFrame(.05);runtime.run('roaming',frame);}
+tick();const slot=activity.slots.find(s=>s.session.person===person);assert(slot,'actual manager selects an eligible Crowd person near a real registry attractor');
+tick();assert.equal(slot.session.phase,'hooping');assert(slot.hoop.visible);assert(!people.hasHiddenBinding(person));
+people._abandonSeat=()=>true;cart.position.set(2,0,-10);cart.speed=12;
+assert(people._interruptActivityForCart(record,cart));tick();assert.equal(slot.session.phase,'interrupted');assert(!slot.hoop.visible);
+registry.remove(placeId);tick();assert.equal(slot.session.phase,'idle');assert.equal(slot.reservation,null);assert(people.readPerson(person,{}));
+activity.dispose();activity.dispose();assert.equal(activity.geometry.disposeCount,1);assert.equal(activity.material.disposeCount,1);
+runtime.dispose();Math.random=previousRandom;assert.equal(randomDraws,0,'activity does not consume the shared random stream');console.log('PASS production hula manager: eligibility, registry lifetime, visible prop, interruption and teardown.');

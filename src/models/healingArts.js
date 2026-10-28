@@ -225,7 +225,7 @@ export function updateHealingArts(group, dt, time, nightness) {
       const x = pose[j*3], z = pose[j*3+2];
       pose[j*3] = x*c+z*s; pose[j*3+2] = -x*s+z*c;
     }
-    const hide = p.dj ? n <= .35 : motion.managed && p.activity === 'hidden';
+    const hide = p.dj ? n <= .35 : motion.managed && (p.activity === 'hidden' || p.renderOrdinary);
     for (let l = 0; l < LIMBS.length; l++) {
       const [start, end, radius] = LIMBS[l], ia = start * 3, ib = end * 3;
       segment(u.bodies, i * LIMBS.length + l, px + pose[ia], pose[ia + 1], pz + pose[ia + 2], px + pose[ib], pose[ib + 1], pz + pose[ib + 2], hide ? 0 : radius);
