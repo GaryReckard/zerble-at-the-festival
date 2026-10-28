@@ -1,4 +1,4 @@
-import {sampleThrowPose,sampleArmHand,armShader} from './personMotion.js';
+import {ARM_SHOULDER_Y,isStageDancing,sampleDanceArmPose,sampleThrowPose,sampleArmHand,armShader,crossLegShader} from './personMotion.js';
 import {CampActivity} from './people/campActivity.js';
 import {MarketActivity} from './people/marketActivity.js';
 import {PottyActivity} from './people/pottyActivity.js';
@@ -225,9 +225,9 @@ export class Crowd {
 
   _buildInstanced() {
     // ---- Legs: two cylinders merged, offsets baked into geometry ----
-    const legL = new THREE.CylinderGeometry(0.10, 0.10, 0.65, 6);
+    const legL = new THREE.CylinderGeometry(0.10, 0.10, 0.65, 6, 2);
     legL.translate(-0.12, 0.325, 0);
-    const legR = new THREE.CylinderGeometry(0.10, 0.10, 0.65, 6);
+    const legR = new THREE.CylinderGeometry(0.10, 0.10, 0.65, 6, 2);
     legR.translate(0.12, 0.325, 0);
     const legsGeo = BufferGeometryUtils.mergeGeometries([legL, legR]);
     legL.dispose(); legR.dispose();
@@ -240,6 +240,9 @@ export class Crowd {
     const shoesGeo = BufferGeometryUtils.mergeGeometries([shoeL, shoeR]);
     shoeL.dispose(); shoeR.dispose();
 
+    const crossed=new Float32Array(MAX_NPCS);
+    for(const geo of [legsGeo,shoesGeo])geo.setAttribute('crossLegged',new THREE.InstancedBufferAttribute(crossed,1));
+
     // ---- Body (torso): capsule centered at y=1.0 ----
     const bodyGeo = new THREE.CapsuleGeometry(BODY_RADIUS, BODY_LENGTH, 3, 6);
     bodyGeo.translate(0, BODY_CENTER_Y, 0);
@@ -249,11 +252,12 @@ export class Crowd {
     const armParts=[];
     for(const side of [-1,1])for(const lower of [0,1]){
       const geo=new THREE.CapsuleGeometry(.075,.29,1,6);
-      geo.translate(side*.30,lower?.915:1.205,0);
+      geo.translate(side*.30,ARM_SHOULDER_Y-(lower?.435:.145),0);
       geo.setAttribute('armLower',new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count).fill(lower),1));
       armParts.push(geo);
     }
     const armsGeo=mergeGeometrySet(armParts);
+    armsGeo.setAttribute('armLeftPose',new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS*2),2));
     armsGeo.setAttribute('armPose',new THREE.InstancedBufferAttribute(new Float32Array(MAX_NPCS*4),4));
 
     // ---- Head: icosahedron at y=1.65 ----
@@ -447,9 +451,20 @@ export class Crowd {
     bodyMat.customProgramCacheKey = () => 'crowd-appearance-v2';
     armsMat.customProgramCacheKey = () => 'crowd-articulated-v1';
 
+    for(const mat of [legsMat,shoesMat]){
+      mat.onBeforeCompile=shader=>{shader.vertexShader=crossLegShader+shader.vertexShader
+        .replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=foldPicnicLeg(objectNormal,true);')
+        .replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=foldPicnicLeg(transformed,false);');};
+      mat.customProgramCacheKey=()=> 'crowd-cross-legged-v1';
+    }
     // ---- InstancedMeshes ----
     this.legsMesh  = new THREE.InstancedMesh(legsGeo,  legsMat,  MAX_NPCS);
     this.shoesMesh = new THREE.InstancedMesh(shoesGeo, shoesMat, MAX_NPCS);
+    for(const mesh of [this.legsMesh,this.shoesMesh]){
+      mesh.customDepthMaterial=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking});
+      mesh.customDepthMaterial.onBeforeCompile=shader=>{shader.vertexShader=crossLegShader+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=foldPicnicLeg(transformed,false);');};
+      mesh.customDepthMaterial.customProgramCacheKey=()=> 'crowd-cross-legged-depth-v1';
+    }
     this.bodyMesh  = new THREE.InstancedMesh(bodyGeo,  bodyMat,  MAX_NPCS);
     this.armsMesh  = new THREE.InstancedMesh(armsGeo,  armsMat,  MAX_NPCS);
     // Shadow silhouettes must use the same joints as the visible body.
@@ -604,11 +619,9 @@ export class Crowd {
       .multiply(new THREE.Matrix4().makeTranslation(0, -HIP_Y, 0));
     this._legMat = new THREE.Matrix4();
 
-    // Arms-up cheer pose: translate to the shoulder pivot (arms geometry is
-    // centered at y≈1.10), rotate ~−150° about X (arms point up and slightly
-    // back), translate back. Precomputed once; multiplied onto the arms
-    // instance matrix when npc.cheerTimer > 0, mirroring _sitLegMat exactly.
-    const SHOULDER_Y = 1.10, ARMS_UP_BEND = -2.618; // −150° in radians
+    // Rigid poses and shader joints must share the same torso attachment.
+    // Rotating around the old arm center moved shoulders down toward the waist.
+    const SHOULDER_Y = ARM_SHOULDER_Y, ARMS_UP_BEND = -2.618;
     this._armsUpMat = new THREE.Matrix4()
       .makeTranslation(0, SHOULDER_Y, 0)
       .multiply(new THREE.Matrix4().makeRotationX(ARMS_UP_BEND))
@@ -968,9 +981,10 @@ export class Crowd {
 
   _interruptActivityForCart(npc, zerble) {
     const active=this.activityClaims.current.get(npc.personHandle);
-    if(!active||!(active.claim.owner.canInterruptForCart?.(npc.personHandle)??active.claim.owner.interruptibleByCart)||this.starActive||!zerble?.forwardWorld)return false;
+    if(!active||!(active.claim.owner.canInterruptForCart?.(npc.personHandle)??active.claim.owner.interruptibleByCart)||!zerble?.forwardWorld)return false;
     const dx=npc.pos.x-zerble.position.x,dz=npc.pos.z-zerble.position.z;
-    if(!laneDodgeTest(dx,dz,zerble.forwardWorld.x,zerble.forwardWorld.z,zerble.speed))return false;
+    const tooClose=Math.hypot(dx,dz)<(active.claim.owner.cartClearance??0);
+    if(!tooClose&&(this.starActive||!laneDodgeTest(dx,dz,zerble.forwardWorld.x,zerble.forwardWorld.z,zerble.speed)))return false;
     if(this._abandonSeat(npc)===false)return false;
     this.activityClaims.removePerson(npc.personHandle,'dodge');
     npc.state='fleeing';npc.fleeUrgency=laneDodgeUrgency(zerble.speed);npc.stateTimer=DODGE.LOCK;
@@ -1591,18 +1605,16 @@ export class Crowd {
     const activityOwner=this.activityClaims.current.get(npc.personHandle)?.claim.owner;
     const hula=activityOwner?.sampleBodyPose?.(npc.personHandle,this._activityBodyPose??={});
     if(hula&&(!Number.isFinite(hula.bob)||!Number.isFinite(hula.leanX)||!Number.isFinite(hula.leanZ)))throw new TypeError('Activity body pose must be finite.');
+    const danceActivity=!!activityOwner?.isDancePerson?.(npc.personHandle);
+    const stageDancing=!activityOwner&&isStageDancing(npc.state,npc.onDancefloor,npc.dance);
     let bobY;
     let danceTilt;
     let danceYawWiggle = 0;
-    if (npc.onDancefloor || this.activityClaims.current.get(npc.personHandle)?.claim.owner.isDancePerson?.(npc.personHandle)) {
-      const t = npc.bob;
-      // Vertical bounce: a dominant low-frequency hop + a slight off-beat
-      // ripple. Scale 0.06-0.10m so it reads clearly without floating.
-      bobY = (Math.sin(t * 1.8) * 0.07 + Math.sin(t * 3.7 + npc.dance * 6) * 0.025);
-      // Hip sway around Z axis — 0.18 rad peak (~10°) per personality.
-      danceTilt = Math.sin(t * 1.5 + npc.dance * 3) * 0.18;
-      // Yaw shimmy — a slow back-and-forth that varies per NPC.
-      danceYawWiggle = Math.sin(t * 0.9 + npc.dance * 5) * 0.20;
+    if (stageDancing || danceActivity) {
+      const beat=npc.bob*3.8+npc.dance*6;
+      bobY=Math.max(0,Math.sin(beat*2))*.12*npc.scale;
+      danceTilt=Math.sin(beat)*.13;
+      danceYawWiggle=Math.sin(beat*.5)*.12;
     } else {
       bobY = Math.sin(npc.bob) * 0.04;
       danceTilt = npc.dance > 0.6 && (npc.state === 'idle' || npc.state === 'watching' || npc.state === 'riding')
@@ -1615,7 +1627,7 @@ export class Crowd {
 
     // Chair contact stays fixed even near dancefloors or while smiling. A
     // feet-origin bob/tilt moves the pelvis through the supporting fabric.
-    if (npc.state === 'camp_seated' || npc.campMusic) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
+    if (npc.state === 'camp_seated' || npc.picnicCrossLegged || npc.campMusic) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
 
     let quat;
     if (npc.state === 'hammock_riding') {
@@ -1687,7 +1699,7 @@ export class Crowd {
     } else if (npc.state === 'table_seated' && npc.picnicY!=null) {
       // Butt on the bench cushion; bent legs hang forward (the `seated` leg bend).
       // Same -0.4 hip drop a seated cart rider uses so the hip lands on the seat.
-      feetY = npc.picnicY - 0.4 + bobY;
+      feetY = npc.picnicCrossLegged ? npc.picnicY-BODY_SEATED_BOTTOM*npc.scale+.01 : npc.picnicY - 0.4 + bobY;
     } else {
       feetY = npc.pos.y + bobY + bounceY + cheerY; // authoritative ground position plus animation
     }
@@ -1726,7 +1738,10 @@ export class Crowd {
     // their legs+shoes bent forward at the hip so they sit; the upright
     // body/arms/head still use `m`. Standing running-board riders keep straight legs.
     // Cheering NPCs get arms rotated up via _armsUpMat (same pattern as _sitLegMat).
-    if (photo.crouch) {
+    const folded=!!npc.picnicCrossLegged&&npc.state==='table_seated';
+    for(const mesh of [this.legsMesh,this.shoesMesh]){const a=mesh.geometry.getAttribute('crossLegged');a.setX(npc.idx,folded?1:0);a.needsUpdate=true;}
+    if(folded){this.legsMesh.setMatrixAt(npc.idx,m);this.shoesMesh.setMatrixAt(npc.idx,m);}
+    else if (photo.crouch) {
       this._legMat.multiplyMatrices(m, this._photoCrouchLegMat);
       this.legsMesh.setMatrixAt(npc.idx, this._legMat);
       this.shoesMesh.setMatrixAt(npc.idx, this._legMat);
@@ -1740,22 +1755,30 @@ export class Crowd {
     }
     this.shoppingBagMesh?.setMatrixAt(npc.idx, npc.shoppingBagTime > 0 ? m : this._zeroMat);
     this.bodyMesh.setMatrixAt(npc.idx, m);
+    const armPose=npc._activityArmPose;
+    const hasArmPose=!!armPose&&this.activityClaims.canWrite(armPose.claim);
+    const dancing=!seated&&!npc.campMusic&&!npc.campInstrument&&!photographing&&!npc.seatSlot&&npc.frownTimer<=0&&(stageDancing||danceActivity);
     if (npc.campInstrument) {
       const active = npc.campMusicStage === 'playing';
       const bend = npc.campInstrument.kind === 'fiddle' ? 1.45 : 1.12;
-      this._musicArmMat.makeTranslation(0, 1.35, 0)
+      this._musicArmMat.makeTranslation(0, ARM_SHOULDER_Y, 0)
         .multiply(this._tmpDanceMat.makeRotationX(bend + (active ? Math.sin(npc.bob * 7) * .07 : 0)))
-        .multiply(this._musicPivotMat.makeTranslation(0, -1.35, 0));
+        .multiply(this._musicPivotMat.makeTranslation(0, -ARM_SHOULDER_Y, 0));
       this._armsMat.multiplyMatrices(m, this._musicArmMat);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     } else if (npc.state === 'market_chatting' || npc.state === 'market_buying') {
-      this._musicArmMat.makeTranslation(0, 1.35, 0)
+      this._musicArmMat.makeTranslation(0, ARM_SHOULDER_Y, 0)
         .multiply(this._tmpDanceMat.makeRotationX(.65 + Math.sin(npc.bob * 3) * .14))
-        .multiply(this._musicPivotMat.makeTranslation(0, -1.35, 0));
+        .multiply(this._musicPivotMat.makeTranslation(0, -ARM_SHOULDER_Y, 0));
       this._armsMat.multiplyMatrices(m, this._musicArmMat);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     } else if (photographing) {
       this._armsMat.multiplyMatrices(m, this._photoArmsMat);
+      this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
+    } else if (hasArmPose || hula || dancing) {
+      // An articulated pose already rotates at each shoulder. A cheer can
+      // still move the body, but must not add a second arm-space rotation.
+      this._armsMat.copy(m);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     } else if (cheering || (npc.state === 'riding' && npc.seatSlot?.name === 'platform')) {
       this._armsMat.multiplyMatrices(m, this._armsUpMat);
@@ -1764,16 +1787,16 @@ export class Crowd {
       this._armsMat.copy(m);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     }
-    const armPose=npc._activityArmPose;
     const armAttr=this.armsMesh.geometry.getAttribute('armPose');
-    const dancing=!seated&&!npc.campMusic&&!npc.campInstrument&&!photographing&&!npc.seatSlot&&npc.frownTimer<=0&&(npc.onDancefloor||activityOwner?.isDancePerson?.(npc.personHandle));
-    if(armPose&&this.activityClaims.canWrite(armPose.claim)){
+    const leftAttr=this.armsMesh.geometry.getAttribute('armLeftPose');
+    leftAttr.setXY(npc.idx,(hasArmPose||hula) ? .03 : 0,0);
+    if(hasArmPose){
       armAttr.setXYZW(npc.idx,armPose.x,armPose.z,armPose.elbow,armPose.leftZ);
       sampleArmHand(armPose,armPose.hand).applyMatrix4(this._armsMat);
     }else if(hula){armAttr.setXYZW(npc.idx,.03,2.45,-.20,-2.45);}
-    else if(dancing){armAttr.setXYZW(npc.idx,-.25,1.1+Math.sin(npc.bob)*.3,-.45,-1.1);}
+    else if(dancing){const pose=sampleDanceArmPose(npc.bob,npc.dance,this._danceArmPose??={});armAttr.setXYZW(npc.idx,pose.x,pose.z,pose.elbow,pose.leftZ);leftAttr.setXY(npc.idx,pose.leftX,pose.leftElbow);}
     else {armAttr.setXYZW(npc.idx,0,0,0,0);}
-    armAttr.needsUpdate=true;
+    armAttr.needsUpdate=true;leftAttr.needsUpdate=true;
     this.headMesh.setMatrixAt(npc.idx, m);
     this.eyesMesh.setMatrixAt(npc.idx, m);
     const hairStyle = npc.appearance?.hairStyle || 0;
@@ -2037,7 +2060,7 @@ export class Crowd {
   }
   readPicnicMotion(handle,out) {
     const npc=this.peopleHandles.resolve(handle);if(!npc)return false;
-    this._readActivityMotion(npc,out);out.picnicY=npc.picnicY;return true;
+    this._readActivityMotion(npc,out);out.picnicY=npc.picnicY;out.picnicCrossLegged=npc.picnicCrossLegged;return true;
   }
 
   _applyRestMotion(claim,step,owner,states) {
@@ -2156,11 +2179,11 @@ export class Crowd {
     if(claim?.owner!==this.picnics||!this.activityClaims.canWrite(claim))return null;
     if(step.picnicY!==undefined&&!Number.isFinite(step.picnicY))throw new TypeError('Invalid picnic display profile.');
     const npc=this._applyRestMotion(claim,step,this.picnics,PICNIC_STATES);if(!npc)return null;
-    npc.picnicY=step.picnicY;return npc;
+    npc.picnicY=step.picnicY;npc.picnicCrossLegged=step.phase==='seated'&&step.picnicCrossLegged===true;return npc;
   }
   commitPicnicMotion(claim,step) {const npc=this._applyPicnicMotion(claim,step);if(!npc)return false;if(step.publish)this._writeMatrices(npc);return true;}
   finishPicnicMotion(claim,step) {const npc=this._applyPicnicMotion(claim,step);if(!npc)return false;this.activityClaims.release(claim,'rest-step');if(step.publish)this._writeMatrices(npc);return true;}
-  releasePicnicPose(claim) {if(claim?.owner!==this.picnics||!this.activityClaims.canRelease(claim))return false;this.peopleHandles.entries.get(claim.person.slot).record.picnicY=undefined;return true;}
+  releasePicnicPose(claim) {if(claim?.owner!==this.picnics||!this.activityClaims.canRelease(claim))return false;const npc=this.peopleHandles.entries.get(claim.person.slot).record;npc.picnicY=undefined;npc.picnicCrossLegged=false;return true;}
 
   // ----- Porta-potty seeking -----
   //
@@ -2430,7 +2453,7 @@ export class Crowd {
     for(const npc of [...this.npcs])release(()=>this.removeNpc(npc));
     release(()=>this.seatReservations.dispose());
     release(()=>this.peopleHandles.dispose());
-    release(()=>this.armsMesh.customDepthMaterial?.dispose());
+    for(const mesh of [this.armsMesh,this.legsMesh,this.shoesMesh])release(()=>mesh.customDepthMaterial?.dispose());
     release(()=>disposeSceneResources(this.group));
     this.group.removeFromParent();
     if(errors.length)throw new AggregateError(errors,'Crowd teardown failed.');

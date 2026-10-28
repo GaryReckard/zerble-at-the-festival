@@ -4,12 +4,13 @@
 //
 // Returned: { group, stagePos, mixerPos, crowdSpots, openingZ }
 //   - stagePos: world-relative position of the stage center
-//   - mixerPos: where the soundbooth platform lives (NPC stands here)
+//   - mixerPos: soundbooth platform centre; its display attendant stands behind the desk
 //   - crowdSpots: an array of XZ positions inside the tent for ambient crowd
 //   - openingZ: the Z value at which the tent opens (driving entrance)
 
 import * as THREE from 'three';
 import { buildStage, placeBandOnStage } from './stage.js';
+import { buildPerformer } from './performer.js';
 import { MARQUEE_SHAPE } from '../festivalShapes.js';
 
 // Tent dimensions
@@ -134,10 +135,8 @@ export function buildTentStage(opts = {}) {
     deckHeight: stageBuild.deckHeight, rng,
   });
 
-  // ---- Soundbooth at the BACK of the tent (audience-facing end) ----
-  // Wait — in a tent shape we have stage at z = -halfD (back) and the open
-  // entrance at z = +halfD. The soundbooth lives at the OPEN end so the
-  // engineer faces toward the stage. Place it on a small raised platform.
+  // ---- Soundbooth at the audience entrance ----
+  // Stage is at -Z and the engineer stands on +Z, looking toward the band.
   const boothMat = new THREE.MeshStandardMaterial({
     color: 0x3a2e22, roughness: 0.9, flatShading: true,
   });
@@ -154,9 +153,14 @@ export function buildTentStage(opts = {}) {
     new THREE.BoxGeometry(3.0, 0.18, 1.4),
     new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.5, metalness: 0.4 }),
   );
-  desk.position.set(0, 1.05, halfD - 3.4);
-  desk.rotation.x = -0.18;
+  desk.position.set(0, 1.55, halfD - 3.4);
+  desk.name = 'Soundboard';
+  // The engineer stands on +Z, so the control surface slopes down toward +Z.
+  desk.rotation.x = 0.18;
   group.add(desk);
+  const cabinet=new THREE.Mesh(new THREE.BoxGeometry(2.85,.88,1.18),desk.material);
+  cabinet.name='Soundboard cabinet';cabinet.position.set(0,1.0,halfD-3.4);
+  group.add(cabinet);
   // Sprinkle of LED indicator dots on the desk
   const ledColors = [0xff5577, 0xffe066, 0x66ff88, 0x66d9ff];
   for (let i = 0; i < 12; i++) {
@@ -168,12 +172,26 @@ export function buildTentStage(opts = {}) {
         emissiveIntensity: 1.4,
       }),
     );
-    led.position.set(-1.3 + i * 0.24, 1.16, halfD - 3.55);
-    group.add(led);
+    led.name = 'Mixer control';
+    led.position.set(-1.3 + i * 0.24, .12, -.35);
+    desk.add(led);
   }
 
-  // The mixer position — where an ambient NPC ("sound guy") can be parked.
+  const faders=new THREE.InstancedMesh(new THREE.BoxGeometry(.09,.045,.24),boothMat,12);
+  faders.name='Mixer faders';
+  const faderMatrix=new THREE.Matrix4();
+  for(let i=0;i<12;i++)faders.setMatrixAt(i,faderMatrix.makeTranslation(-1.3+i*.24,.12,.22));
+  faders.instanceMatrix.needsUpdate=true;desk.add(faders);
+
+  // The platform centre anchors its collision body in the world.
   const mixerPos = new THREE.Vector3(0, 0, halfD - 3);
+  // A place-owned display performer shares the stage lifecycle and consumes
+  // no additional world RNG draws. It never enters crowd population queries.
+  const engineer = buildPerformer('sound',()=>.4);
+  engineer.name = 'Sound engineer';
+  engineer.position.set(0,.5,halfD-2.4);
+  group.add(engineer);
+  performers.push(engineer);
 
   // Crowd spots inside the tent — a grid filling the middle. Skip the very
   // back (stage) and very front (booth) ends.

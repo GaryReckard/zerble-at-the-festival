@@ -13,6 +13,8 @@ not physical-device acceptance.
 
 ## Temporary activities
 
+- [Stage audience, parked-cart clearance, soundboard and road patch, October 28](people/stage-audience.md): shared dance motion, reserved chairs/blankets, production fixture results and the exact reported road regression.
+
 - [Hula, frisbee and dance interruption verification](people/temporary-activities.md): production-backed contracts, native fixtures, controlled live-game hula run, and remaining measurement limits.
 
 ## People architecture acceptance
@@ -67,3 +69,7 @@ capture server writes to ignored `.claude/captures/`. Promote only the evidence
 needed to support a change, with private details removed. Link unfinished
 acceptance from the roadmap and link the report from the relevant changelog
 entry when behavior ships.
+
+## Road surfaces and audience placement
+
+- [October 28 road surfaces and organic seating](roads/2026-10-28/README.md): deterministic major-hub asphalt/dirt assignment, shared procedural textures, terrain/distant-road safety, rear chair groups, multi-person blankets, native Low/Mid and real-game evidence.

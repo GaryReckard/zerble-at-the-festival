@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {runInNewContext} from 'node:vm';
+import {performance} from 'node:perf_hooks';
+import {setSessionSeed} from '../src/rng.js';
+import {roadsInBounds,approachRoadsOf,roadSurface,arterial,nearestRoad,shapesClearOfRoads} from '../src/worldgen/roads.js';
+import {heartInCell,heartsInBounds} from '../src/worldgen/hearts.js';
+import {queryPoint} from '../src/worldgen/index.js';
+import {festivalPlan} from '../src/worldgen/festival.js';
+import {lakeAt} from '../src/worldgen/water.js';
+const baseline=JSON.parse(readFileSync(new URL('../verification/roads/2026-10-28/route-baseline.json',import.meta.url)));
+const layout=JSON.parse(readFileSync(new URL('../verification/roads/2026-10-28/layout-baseline.json',import.meta.url)));
+let paved=0,dirt=0,samples=0;const started=performance.now();
+for(const seed of [0,42,1234,3248888364,42,0]){
+ setSessionSeed(seed);const roads=roadsInBounds(-600,-600,600,600);
+ const points=roads.map(r=>r.points).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
+ assert.equal(roads.length,baseline[seed].count);
+ assert.equal(createHash('sha256').update(JSON.stringify(points)).digest('hex'),baseline[seed].sha256,'pre-feature routes remain exact');
+ const again=roadsInBounds(-600,-600,600,600);assert.deepEqual(again,roads);
+ const records=[];for(let z=-300;z<=300;z+=37)for(let x=-300;x<=300;x+=41){const {onRoad,tier,dist,dirAngle}=nearestRoad(x,z);records.push([queryPoint(x,z),{onRoad,tier,dist,dirAngle}]);}
+ const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
+ assert.equal(hash(records),layout[seed].pointAndNearestSha256,'original point, noBuild, nearest centerline and facing fields remain byte-identical');
+ assert.equal(hash(heartsInBounds(-600,-600,600,600).map(h=>festivalPlan(h))),layout[seed].planSha256,'all original POI descriptors and planner RNG decisions remain unchanged');
+
+ for(const h of heartsInBounds(-300,-300,300,300).reverse())for(const r of approachRoadsOf(h)){
+  assert.deepEqual(roadSurface(h,r.neighbor),roadSurface(r.neighbor,h));
+  assert.equal(r.width,r.surface==='asphalt'?9:7);
+  const canonical=roads.find(x=>x.points===r.polyline);if(canonical){assert.equal(canonical.surface,r.surface);assert.equal(canonical.width,r.width);}
+  if(r.surface==='asphalt'){
+   paved++;assert(h.rank==='major'||r.neighbor.rank==='major','only major hub approaches paved');
+   for(let i=1;i<r.polyline.length;i++){
+    const a=r.polyline[i-1],b=r.polyline[i],len=Math.hypot(b.x-a.x,b.z-a.z),nx=-(b.z-a.z)/len,nz=(b.x-a.x)/len;
+    for(let k=0;k<=Math.ceil(len);k++)for(const side of [-4.5,0,4.5]){
+     const t=k/Math.ceil(len);assert(!lakeAt(a.x+(b.x-a.x)*t+nx*side,a.z+(b.z-a.z)*t+nz*side),'entire paved width dry');samples++;
+    }
+   }
+  }else dirt++;
+ }
+ const n=nearestRoad(0,0);assert([7,9].includes(n.width));assert(['dirt','asphalt'].includes(n.surface));
+}
+setSessionSeed(3248888364);const a=heartInCell(-1,-6),b=heartInCell(-1,-5);
+assert.equal(a.rank,'major');assert(arterial(a,b));assert.equal(roadSurface(a,b).surface,'dirt','known wider-ribbon shoreline conflict falls back as a whole edge');
+assert(paved>0&&dirt>0);
+// Run the production tile factory with allocation-only Three doubles. Real Low/Mid
+// shader compilation and UV placement are exercised by verification/roads/surfaces.html.
+class Material {constructor(p){Object.assign(this,p);this.userData={};}}
+class Texture {constructor(data,w,h){this.image={data,width:w,height:h};this.userData={};}}
+const THREE={MeshStandardMaterial:Material,DataTexture:Texture,RGBAFormat:1,SRGBColorSpace:2,RepeatWrapping:3,LinearFilter:4,LinearMipmapLinearFilter:5};
+const source=readFileSync(new URL('../src/roadMaterials.js',import.meta.url),'utf8').replace(/import .*?;\n/,'').replace('export function','function');
+const factory=runInNewContext(source+';roadMaterial',{THREE});
+const d=factory('dirt'),p=factory('asphalt');assert.equal(d,factory('dirt'));assert.notEqual(d,p);
+for(const m of [d,p]){assert(m.userData.shared&&m.map.userData.shared&&m.depthWrite);assert(m.map.generateMipmaps);assert.equal(m.map.image.data.byteLength,256*256*4);assert(new Set(m.map.image.data).size>30,'visible grain rather than a flat fill');}
+assert.notDeepEqual(d.map.image.data,p.map.image.data);
+console.log(`PASS road surfaces: exact four-seed old routes, reversed endpoint/seed restoration, ${paved} paved/${dirt} dirt approaches, ${samples} dry ribbon probes, shoreline fallback, bounded shared textures. Cold/warm mixed run ${(performance.now()-started).toFixed(0)}ms; not a frame-rate measurement.`);
+
+// Actual vendor canopy extent (4.5m trim and rotated 3.2m-radius roof) fits
+// a straight paved avenue, but neither a bend nor a second nearby road.
+{
+ const booth=x=>[{t:'rect',x,z:0,ux:1,uz:0,hl:2.35,hw:2.35}];
+ const avenue={points:[{x:0,z:-20},{x:0,z:20}],width:9};
+ assert(shapesClearOfRoads(booth(7),[avenue],4.5),'ordinary straight avenues keep both vendor rows');
+ assert(!shapesClearOfRoads(booth(6),[avenue],4.5),'full canopy clears a bend where the old centre guard passed');
+ assert(!shapesClearOfRoads(booth(7),[avenue,{points:[{x:12,z:-20},{x:12,z:20}],width:7}],4.5),'all candidate roads tested, not only a chosen centerline');
+ console.log('PASS physical vendor footprint: straight avenue retention, curved-road clearance and mixed-width neighboring roads.');
+}

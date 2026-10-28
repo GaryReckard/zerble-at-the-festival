@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8"><title>Arm attachment regression</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{background:#161629;color:#eee;font:16px system-ui;margin:24px}pre{white-space:pre-wrap}</style>
+<h1>Shoulders stay attached to the torso</h1><pre id="result">Running…</pre><button id="noon">Noon</button><button id="night">Midnight</button>
+<script type="module">
+import * as THREE from 'three';
+import {Crowd} from '../../src/crowd.js';
+import {PeopleRuntime} from '../../src/people/runtime.js';
+const runtime=new PeopleRuntime(),scene=new THREE.Scene(),renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(900,450);document.body.append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(40,2,.1,100);camera.position.set(0,2.8,-4.7);camera.lookAt(0,1,0);scene.add(new THREE.AmbientLight(0xffffff,2));
+addEventListener('pagehide',()=>{runtime.dispose();renderer.dispose();},{once:true});
+try{
+ const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});scene.add(crowd.group);
+ const handle=crowd.spawnPerson({pos:new THREE.Vector3(),rng:()=>.4,allowPhotographer:false,appearanceOverride:{shirt:0x44aacc,accent:0xff55aa,tieDye:true,tieDyeAmount:.7,hasDrink:false}}),npc=crowd.npcs[0];
+ const owner={isDancePerson:()=>mode==='dance',sampleBodyPose:(p,out)=>mode==='hula'?Object.assign(out,{leanX:.17,leanZ:-.12,bob:.02}):null};let mode='ordinary';
+ const claim=crowd.claimActivity(handle,{owner});let count=0;const body=new THREE.Matrix4(),arms=new THREE.Matrix4();
+ const cases=['ordinary','cheer','platform','photo','market','music','dance-cheer','hula-cheer','frisbee-cheer'];
+ for(const kind of cases)for(const scale of [.65,1,1.5])for(const yaw of [0,.7,2.4]){
+   mode=kind==='hula-cheer'?'hula':kind==='dance-cheer'?'dance':'ordinary';
+   Object.assign(npc,{scale,yaw,state:'idle',cheerTimer:kind.includes('cheer')?2:0,seatSlot:null,seatY:undefined,campInstrument:null,onDancefloor:false});
+   if(kind==='platform'){npc.state='riding';npc.seatY=1;npc.seatSlot={name:'platform',kind:'standing'};}
+   if(kind==='photo')npc.state='photographer_pose';
+   if(kind==='market')npc.state='market_chatting';
+   if(kind==='music')npc.campInstrument={kind:'fiddle',group:new THREE.Group()};
+   // Suppress only prop publication; the production instrument arm matrix runs.
+   crowd._writeCampInstrument=()=>{};
+   if(kind==='frisbee-cheer')crowd.writeActivityArmPose(claim,'throw',.52);else npc._activityArmPose=null;
+   crowd._publishPerson(npc);crowd.bodyMesh.getMatrixAt(npc.idx,body);crowd.armsMesh.getMatrixAt(npc.idx,arms);
+   for(const side of [-1,1]){
+     const point=new THREE.Vector3(side*.30,1.35,0),expected=point.clone().applyMatrix4(body),actual=point.clone().applyMatrix4(arms);
+     if(actual.distanceTo(expected)>1e-5)throw Error(kind+' detached shoulder by '+actual.distanceTo(expected).toFixed(3)+'m at scale '+scale+' yaw '+yaw);
+     count++;
+   }
+   if(kind.includes('cheer')&&kind!=='cheer'&&body.elements.some((v,i)=>Math.abs(v-arms.elements[i])>1e-5))throw Error(kind+' stacked an unrelated rigid arm pose');
+ }
+ npc._activityArmPose=null;mode='hula';Object.assign(npc,{scale:1,yaw:0,state:'idle',seatSlot:null,campInstrument:null,cheerTimer:2});crowd._publishPerson(npc);
+ const hoop=new THREE.Mesh(new THREE.TorusGeometry(.58,.035,6,24),new THREE.MeshStandardMaterial({color:0xff44aa,emissive:0xff44aa,emissiveIntensity:.05}));hoop.rotation.x=Math.PI/2;hoop.position.set(.27,npc.pos.y+.85,0);scene.add(hoop);
+ addEventListener('pagehide',()=>{hoop.geometry.dispose();hoop.material.dispose();},{once:true});
+ crowd._publishPopulationRanges();crowd.shoppingBagMesh.visible=false;
+ function render(n){hoop.material.emissiveIntensity=.05+n*2.5;renderer.render(scene,camera);}
+ document.querySelector('#noon').onclick=()=>render(0);document.querySelector('#night').onclick=()=>render(1);render(0);
+ document.querySelector('#result').textContent='PASS\n'+count+' native shoulder attachment checks: '+cases.join(', ')+' across scales and headings.\nRender: '+renderer.info.render.calls+' draws / '+renderer.info.render.triangles+' triangles.';
+}catch(error){document.querySelector('#result').textContent='FAIL\n'+error.stack;console.error(error);}
+</script>

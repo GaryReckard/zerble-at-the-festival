@@ -23,7 +23,7 @@
       /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.includes('claude-preview') || h.includes('happycog');
     const v = isLocal ? '?v=' + Date.now() : '';
     const base = './src/';
-    const wg = ['people/vehiclePersonFacet','people/placeDisplay','people/smilePolicy','collisionContacts','people/campResources','people/campActivity','people/marketActivity','people/pottyActivity','people/picnicActivity','people/hammockActivity','people/seatReservations','people/groupParticipation','people/frisbeeActivity','people/frisbeeSession','people/hulaActivity','people/hulaSession','people/placeVisit','people/frisbees','people/hoopers','people/brassBand','people/puppetParade','people/formationRoute','people/wooks','people/sceneResources','people/children','people/placement','people/frameTrace','people/baseline','people/runtime','people/personHandle','people/activityClaims','people/healingArtsMotion', 'people/workshop', 'playerStats', 'passportMenu', 'campClearing', 'terrainSurface', 'terrainDriving', 'terrainSandbox', 'campJamActivity', 'campMusic', 'models/campInstruments', 'woodlandCamping', 'campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'models/campChair', 'models/oneWheelRider', 'monks', 'nutWagon', 'nutWagonRoute', 'upgradesMenu', 'personMotion','crowdAppearance', 'healingArtsActivity', 'rng', 'models/healingArts', 'models/paradeLanterns', 'models/monk', 'models/bo', 'models/nutWagon', 'mergeDecor', 'boostStreaks', 'photographer', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes', 'worldgen/terrain', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water',
+    const wg = ['roadMaterials','people/vehiclePersonFacet','people/placeDisplay','people/smilePolicy','collisionContacts','people/campResources','people/campActivity','people/marketActivity','people/pottyActivity','people/picnicActivity','people/hammockActivity','people/seatReservations','people/groupParticipation','people/frisbeeActivity','people/frisbeeSession','people/hulaActivity','people/hulaSession','people/placeVisit','people/frisbees','people/hoopers','people/brassBand','people/puppetParade','people/formationRoute','people/wooks','people/sceneResources','people/children','people/placement','people/frameTrace','people/baseline','people/runtime','people/personHandle','people/activityClaims','people/healingArtsMotion', 'people/workshop', 'playerStats', 'passportMenu', 'campClearing', 'terrainSurface', 'terrainDriving', 'terrainSandbox', 'campJamActivity', 'campMusic', 'models/campInstruments', 'woodlandCamping', 'campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'models/campChair', 'models/oneWheelRider', 'monks', 'nutWagon', 'nutWagonRoute', 'upgradesMenu', 'personMotion','crowdAppearance', 'healingArtsActivity', 'rng', 'models/healingArts', 'models/paradeLanterns', 'models/monk', 'models/bo', 'models/nutWagon', 'mergeDecor', 'boostStreaks', 'photographer', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes', 'worldgen/terrain', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water',
       'worldgen/roads', 'worldgen/roles', 'worldgen/density', 'worldgen/index',
       'worldgen/selftest', 'worldgen/festival', 'worldgen/placement', 'worldgen/lint',
       // Complete cache-buster coverage does not execute these modules.
@@ -98,7 +98,7 @@
     <div class="row"><span>seed</span><input id="seed" type="text" value="0" /></div>
     <label><input type="checkbox" id="ly-elevation" /> elevation + 2m contours</label>
     <label><input type="checkbox" id="ly-hearts" checked /> hearts (rank)</label>
-    <label><input type="checkbox" id="ly-roads" checked /> roads (arterial — CG3)</label>
+    <label><input type="checkbox" id="ly-roads" checked /> roads (asphalt / dirt)</label>
     <label><input type="checkbox" id="ly-water" checked /> water (lakes)</label>
     <label><input type="checkbox" id="ly-density" checked /> forests</label>
     <label><input type="checkbox" id="ly-roles" /> role tiers</label>
@@ -359,10 +359,12 @@ function draw() {
     }
   }
 
-  // roads — arterials (stub until GATE 2 / CG3)
+  // The map uses the same planned surface and visible width as the game.
   if (layers.roads) {
     ctx.strokeStyle = '#b89570'; ctx.lineWidth = 2;
     for (const seg of region.roads) {
+      ctx.strokeStyle = seg.surface === 'asphalt' ? '#697078' : '#b89570';
+      ctx.lineWidth = Math.max(1, (seg.width ?? 7) * view.zoom);
       ctx.beginPath();
       seg.points.forEach((pt, i) => { const x = w2sx(pt.x), y = w2sy(pt.z); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
       ctx.stroke();
@@ -809,7 +811,11 @@ function paintTile(g, tw, th, vcx, vcz, z) {
   g.fillStyle = 'rgba(74,150,210,0.55)';
   for (const l of region.lakes) { g.beginPath(); l.outline.forEach((pt, k) => { const x = sx(pt.x), y = sy(pt.z); k ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); g.fill(); }
   g.strokeStyle = '#b89570'; g.lineWidth = 1.5;
-  for (const seg of region.roads) { g.beginPath(); seg.points.forEach((pt, k) => { const x = sx(pt.x), y = sy(pt.z); k ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); }
+  for (const seg of region.roads) {
+    g.strokeStyle = seg.surface === 'asphalt' ? '#697078' : '#b89570';
+    g.lineWidth = Math.max(1, (seg.width ?? 7) * z);
+    g.beginPath(); seg.points.forEach((pt, k) => { const x=sx(pt.x),y=sy(pt.z);k?g.lineTo(x,y):g.moveTo(x,y); });g.stroke();
+  }
   for (const ht of region.hearts) {
     for (const p of festivalPlan(ht)) {
       const x = sx(p.x), y = sy(p.z);

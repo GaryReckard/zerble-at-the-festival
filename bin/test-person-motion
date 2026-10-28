@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import {sampleThrowPose,sampleArmHand,sampleHulaMotion} from '../src/personMotion.js';
+import {readFileSync} from 'node:fs';
+import {ARM_SHOULDER_Y,isStageDancing,sampleDanceArmPose,sampleHealingDancePoint,HEALING_DANCE_REST,sampleThrowPose,sampleArmHand,sampleHulaMotion} from '../src/personMotion.js';
 import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
 const near=(a,b)=>assert(Math.abs(a-b)<1e-9,`${a} != ${b}`);
 const hand=new Vector();sampleArmHand({x:0,z:0,elbow:0},hand);near(hand.x,.3);near(hand.y,.77);near(hand.z,0);
@@ -21,3 +22,37 @@ assert(crowd.writeActivityArmPose(successor,'relaxed'));const successorPose=npc.
 assert(!crowd.writeActivityArmPose(claim,'throw',.5));assert(!crowd.readActivityHand(claim,hand));assert(!crowd.releaseActivityBinding(claim));assert.equal(npc._activityArmPose,successorPose);
 crowd.endPersonActivity(successor);assert.equal(npc._activityArmPose,null);assert(crowd.readPerson(person,view));assert.equal(JSON.stringify(npc.appearance),appearance);near(view.x,10);near(view.z,20);
 console.log('PASS shared motion: joint endpoints, original throw/catch targets, synchronized hula, validated authority, storage reuse, stale replacement and appearance.');
+
+// Execute the production rigid-pose initializers with an independent affine
+// reference. Native arm-attachments.html also verifies the complete matrix writer.
+class ReferenceMatrix {
+ constructor(){this.transform=p=>({...p});}
+ makeTranslation(x,y,z){this.transform=p=>({x:p.x+x,y:p.y+y,z:p.z+z});return this;}
+ makeRotationX(a){this.transform=p=>({x:p.x,y:Math.cos(a)*p.y-Math.sin(a)*p.z,z:Math.sin(a)*p.y+Math.cos(a)*p.z});return this;}
+ multiply(b){const left=this.transform,right=b.transform;this.transform=p=>left(right(p));return this;}
+}
+const source=readFileSync(new URL('../src/crowd.js',import.meta.url),'utf8');
+const init=source.slice(source.indexOf('    const SHOULDER_Y ='),source.indexOf('    this._photoCrouchLegMat ='));
+assert(init.includes('_armsUpMat')&&init.includes('_photoArmsMat'));
+const rigid=new Function('THREE','ARM_SHOULDER_Y',init+';return this;').call({}, {Matrix4:ReferenceMatrix},ARM_SHOULDER_Y);
+for(const name of ['_armsUpMat','_photoArmsMat'])for(const side of [-1,1]){
+ const shoulder={x:side*.30,y:1.35,z:0},actual=rigid[name].transform(shoulder);
+ near(actual.x,shoulder.x);near(actual.y,shoulder.y);near(actual.z,shoulder.z);
+}
+console.log('PASS production cheer/photo poses keep both shoulders fixed at the torso attachment.');
+
+assert(!isStageDancing('walking',true,.9));assert(!isStageDancing('fleeing',true,.9));assert(!isStageDancing('idle',false,.9));assert(!isStageDancing('idle',true,.1));assert(isStageDancing('watching',true,.8));
+const poses=Array.from({length:30},(_,i)=>sampleDanceArmPose(i*.4,.8,{}));
+assert(Math.max(...poses.map(p=>p.z))-Math.min(...poses.map(p=>p.z))>.6);assert(poses.every(p=>Object.values(p).every(Number.isFinite)));
+assert(Math.max(...poses.map(p=>p.leftElbow))-Math.min(...poses.map(p=>p.leftElbow))>.6);
+for(let j=0;j<11;j++)for(let time=0;time<5;time+=.13)for(const dj of [false,true]){
+ const phase=.4,beat=time*3.8+phase*6,actual=sampleHealingDancePoint(j,time,phase,dj,{});
+ let [x,y,z]=HEALING_DANCE_REST.slice(j*3,j*3+3);
+ x+=Math.sin(beat)*(j<7?.13:.04);y+=Math.max(0,Math.sin(beat*2))*.12;
+ if(j===3||j===5){y+=.3+Math.sin(beat+j)*.2;x*=1.5;}
+ if(j===4||j===6){y+=.75+Math.sin(beat+j)*.25;z+=dj?.55:.12;}
+ if(dj&&(j===3||j===5)){y=1.4;z=.25;}
+ if(dj&&(j===4||j===6)){y=1.45+.04*Math.sin(beat+j);z=.65;x=j===4?-.7:.7;}
+ near(actual.x,x);near(actual.y,y);near(actual.z,z);
+}
+console.log('PASS dance intent excludes walkers/reactions, respects personality and shares the original Healing Arts choreography with independent bending arms.');

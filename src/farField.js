@@ -1,4 +1,4 @@
-import { terrainHeight, terrainEnabled } from './worldgen/terrain.js';
+import { terrainHeight, terrainEnabled, drapeTerrainTriangles } from './worldgen/terrain.js';
 // FarField — the render-only festival horizon (festival-horizon change).
 //
 // A PEER of ChunkManager/LakeManager owned by world.js, never another chunk
@@ -306,7 +306,7 @@ export function instHash(seed, i) {
 export function expandFarInstances(records, densityMul) {
   const out = { canopy: [], marqueeWall: [], truss: [], peak: [], warm: [], beacon: [], forest: [], roads: [] };
   for (const r of records) {
-    if (r.kind === '__road') { out.roads.push(r.flat); continue; }
+    if (r.kind === '__road') { out.roads.push({flat:r.flat,width:r.width,surface:r.surface}); continue; }
     if (r.kind === '__forest') {
       // One squashed low-poly dome per sample. Radius overlaps the grid step
       // so adjacent qualifying samples merge into a continuous mass instead of
@@ -662,7 +662,7 @@ export class FarField {
       warm: mkMat(WARM_HEX),
       beacon: mkMat(0xffffff),
       forest: mkSurface(0xffffff),   // white base × per-instance FOREST_PALETTE color
-      road: mkMat(ROAD_HEX),     // opaque, depthWrite:true (default) — audit V12
+      road: new THREE.MeshBasicMaterial({color:0xffffff,vertexColors:true}),     // opaque, depthWrite:true (default) — audit V12
     };
     this._geos = {
       canopy: gableRoofGeometry(),
@@ -711,6 +711,9 @@ export class FarField {
     const idxAttr = new THREE.BufferAttribute(new Uint16Array(caps.roadIndices), 1);
     idxAttr.setUsage(THREE.DynamicDrawUsage);
     roadGeo.setAttribute('position', posAttr);
+    const colorAttr = new THREE.BufferAttribute(new Float32Array(caps.roadVerts * 3), 3);
+    colorAttr.setUsage(THREE.DynamicDrawUsage);
+    roadGeo.setAttribute('color', colorAttr);
     roadGeo.setIndex(idxAttr);
     roadGeo.setDrawRange(0, 0);
     roadGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 0);
@@ -721,7 +724,7 @@ export class FarField {
     roadMesh.castShadow = false;
     roadMesh.receiveShadow = false;
     roadMesh.name = 'farField:road';
-    this._road = { mesh: roadMesh, geo: roadGeo, posAttr, idxAttr };
+    this._road = { mesh: roadMesh, geo: roadGeo, posAttr, idxAttr, colorAttr };
     this.group.add(roadMesh);
 
     if (scene) scene.add(this.group);
@@ -795,7 +798,7 @@ export class FarField {
     for (const road of roadsInBounds(minX, minZ, maxX, maxZ)) {
       if (roadSeen.has(road.points)) continue;
       roadSeen.add(road.points);
-      out.push({ kind: '__road', flat: copyPolyline(road.points) });
+      out.push({ kind: '__road', flat: copyPolyline(road.points), width:road.width, surface:road.surface });
     }
     // Camp villages ride their own coarse grid, so they are gathered separately
     // from the hearts above — and deduped by the SAME owner-cell rule, since a
@@ -904,10 +907,10 @@ export class FarField {
   // skipped WHOLE (deterministic capacity behavior — never a half ribbon),
   // counted in stats.roadsClipped.
   _writeRoads(flats) {
-    const { geo, posAttr, idxAttr, mesh } = this._road;
+    const { geo, posAttr, idxAttr, colorAttr, mesh } = this._road;
     const capV = this.tier.caps.roadVerts, capI = this.tier.caps.roadIndices;
     const pos = posAttr.array, idx = idxAttr.array;
-    const halfW = (CONFIG.ROAD_WIDTH * FAR_ROAD_WIDTH_FRAC) / 2;
+
     // roadsInBounds pads its query by ROAD_MAX_EDGE_CELLS heart cells, so the
     // coarse-cell sweep discovers arterials far beyond the horizon. Keep only
     // polylines that come within radius(+one coarse cell) of the plan anchor,
@@ -916,7 +919,8 @@ export class FarField {
     const ax = this._planAnchor.x, az = this._planAnchor.z;
     const reach = this.tier.radius + COARSE_CELL;
     const scored = [];
-    for (const original of flats) {
+    for (const record of flats) {
+      const original=Array.isArray(record)||ArrayBuffer.isView(record)?record:record.flat;
       let flat = original;
       if (terrainEnabled()) {
         flat = [original[0], original[1]];
@@ -931,17 +935,18 @@ export class FarField {
         const d = Math.hypot(flat[i] - ax, flat[i + 1] - az);
         if (d < best) best = d;
       }
-      if (best <= reach) scored.push({ flat, d: best });
+      if (best <= reach) scored.push({ flat, d: best, width:record.width ?? CONFIG.ROAD_WIDTH, surface:record.surface });
     }
     scored.sort((a, b) => a.d - b.d || a.flat[0] - b.flat[0] || a.flat[1] - b.flat[1]);
     let v = 0, ix = 0, clipped = 0;
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
     let minY = Infinity, maxY = -Infinity;
-    for (const { flat } of scored) {
+    for (const { flat, width, surface } of scored) {
+      const halfW = width * FAR_ROAD_WIDTH_FRAC / 2;
       const n = flat.length / 2;
       if (n < 2) continue;
       if (v + n * 2 > capV || ix + (n - 1) * 6 > capI) { clipped++; continue; }
-      const base = v;
+      const base = v, firstIndex=ix;
       for (let i = 0; i < n; i++) {
         const cxp = flat[i * 2], czp = flat[i * 2 + 1];
         let tx, tz;
@@ -975,8 +980,24 @@ export class FarField {
         ix += 6;
       }
       v += n * 2;
+      if(terrainEnabled()){
+        const draped=drapeTerrainTriangles(Array.from(pos.slice(base*3,v*3)),Array.from(idx.slice(firstIndex,ix),i=>i-base));
+        const count=draped.vertices.length/3;
+        if(base+count>capV||firstIndex+draped.indices.length>capI){v=base;ix=firstIndex;clipped++;continue;}
+        pos.set(draped.vertices,base*3);
+        for(let i=0;i<draped.indices.length;i++)idx[firstIndex+i]=base+draped.indices[i];
+        v=base+count;ix=firstIndex+draped.indices.length;
+      }
+      const color=new THREE.Color(surface==='asphalt'?0x505458:ROAD_HEX);
+      for(let j=base;j<v;j++){const o=j*3;colorAttr.array[o]=color.r;colorAttr.array[o+1]=color.g;colorAttr.array[o+2]=color.b;}
+
     }
+    // Clipping introduces vertices on terrain creases, so derive bounds from
+    // the final committed buffer rather than the original ribbon endpoints.
+    minX=minY=minZ=Infinity;maxX=maxY=maxZ=-Infinity;
+    for(let i=0;i<v;i++){const o=i*3;minX=Math.min(minX,pos[o]);maxX=Math.max(maxX,pos[o]);minY=Math.min(minY,pos[o+1]);maxY=Math.max(maxY,pos[o+1]);minZ=Math.min(minZ,pos[o+2]);maxZ=Math.max(maxZ,pos[o+2]);}
     posAttr.needsUpdate = true;
+    colorAttr.needsUpdate = true;
     idxAttr.needsUpdate = true;
     geo.setDrawRange(0, ix);
     mesh.visible = ix > 0;
@@ -1011,7 +1032,7 @@ export class FarField {
     this._mats.forest.color.setScalar(dayB);
     this._mats.truss.color.setScalar(dayB);
     const roadB = ROAD_NIGHT_BRIGHTNESS + (ROAD_DAY_BRIGHTNESS - ROAD_NIGHT_BRIGHTNESS) * daylight;
-    this._mats.road.color.setHex(ROAD_HEX).multiplyScalar(roadB);
+    this._mats.road.color.setHex(0xffffff).multiplyScalar(roadB);
     this._nightOn = n > NIGHT_MARKER_THRESHOLD;
     const glow = this._nightOn ? Math.min(1, (n - NIGHT_MARKER_THRESHOLD) / 0.25) : 0;
     this._mats.warm.color.setHex(WARM_HEX).multiplyScalar(0.3 + 0.7 * glow);

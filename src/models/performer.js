@@ -79,6 +79,7 @@ function template(instrument,variant){
   let hands=strings?[[-.62,1.29,-.42],[.12,1.02,-.48]]
     :drum?[[-.36,1.20,-.48],[.36,1.18,-.5]]
     :instrument==='lead_vocal'?[[-.03,1.55,-.43],[.55,1.22,-.22]]
+    :instrument==='sound'?[[-.30,1.20,-.57],[.30,1.20,-.57]]
     :instrument==='sax'?[[-.04,1.25,-.37],[.25,1.02,-.46]]
     :[[-.10,1.45,-.5],[.19,1.42,-.64]];
   const arms=hands.map((hand,i)=>bakePerformancePart(({rod,oval})=>{
@@ -91,7 +92,11 @@ function template(instrument,variant){
     if(drum)rod(0xe7c38b,local(hand),local([hand[0]*1.2,1.02,-.93]),.013);
   }));
   const gear=bakePerformancePart(({add,oval,box,rod,tube})=>{
-    if(strings){
+    if(instrument==='sound'){
+      // Headphones, with no microphone stand between the engineer and desk.
+      tube(BLACK,[[-.20,1.69,0],[-.20,1.90,0],[0,1.97,0],[.20,1.90,0],[.20,1.69,0]],.025);
+      for(const x of [-.20,.20])box(BLACK,[x,1.69,0],[.07,.15,.13]);
+    }else if(strings){
       const bass=instrument==='bass',color=bass?0x265c76:[0xb65131,0x287475,0xd5a24d,0x86465a][variant];
       const shape=new THREE.Shape();
       shape.moveTo(-.18,.30);shape.bezierCurveTo(-.50,.27,-.47,-.35,-.13,-.37);

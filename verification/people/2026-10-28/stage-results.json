@@ -1,0 +1,17 @@
+{
+  "audience": "PASS: separated production chair rows, all four styles, existing Crowd chair reservation, cross-legged blanket occupant and stage dancers.\n20 draws / 14604 triangles.",
+  "soundboard": "PASS: production tent desk faces a stage-facing attendant, controls stay attached to the sloped desk, and attendant stays on platform.\n48 draws / 17378 triangles for complete tent. RNG draws: 41",
+  "frisbee": "PASS\nTwo existing adults enter one session\nThe held disc follows the articulated hand from the first visible frame\nBoth original people have articulated activity arms\nThe session launches the real disc\nCharging the pair settles the disc and interrupts both people\nInterruption releases both arm poses synchronously\nBoth old claims reject pursuit writes\nBoth people safely reacquire their claims\nTwo-person render: {\"baseline\":{\"draws\":9,\"triangles\":2338},\"withDisc\":{\"draws\":11,\"triangles\":2554}}\nBoth original people and appearances survive\nThe original pair can play again\nthrow hand agrees with native shoulder/elbow transforms\nthrow hand agrees with native shoulder/elbow transforms\ncatch hand agrees with native shoulder/elbow transforms",
+  "shoulders": "PASS\n162 native shoulder attachment checks: ordinary, cheer, platform, photo, market, music, dance-cheer, hula-cheer, frisbee-cheer across scales and headings.\nRender: 9 draws / 1532 triangles.",
+  "soundboardLive": "PASS: production covered-stage builder, persistent platform attendant, soundboard collider and actual hit toast: Easy around the soundboard!",
+  "parkedHula": "PASS: real-game parked-cart interruption, safe resumption, completion and walking departure with identity and appearance preserved",
+  "gameLow": {
+    "readyModeClick": "Just Cruisin",
+    "honk": "Space",
+    "consoleWarningsAndErrors": []
+  },
+  "soundboardSandbox": {
+    "hitControl": "Hit it (soundboard)",
+    "consoleWarningsAndErrors": []
+  }
+}

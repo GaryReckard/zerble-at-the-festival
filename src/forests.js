@@ -1,3 +1,4 @@
+import { roadMaterial } from './roadMaterials.js';
 import { terrainHeight } from './worldgen/terrain.js';
 import { planCampNeighborhood } from './campPlanning.js';
 import { registerCampsite, canPlaceCampsite } from './campRegistry.js';
@@ -344,21 +345,6 @@ export function buildForestChunk(ctx, forest) {
 // just leading into the woods."
 
 const PATH_WIDTH = 5;
-// Module-scope (reused by every forest center chunk) → MUST be tagged shared, or
-// the first forest-chunk unload disposes it and the next forest forces a shader
-// recompile (footgun #6 / R6). This was untagged historically — a latent
-// dispose-storm the v2-worldgen road work surfaced.
-const _forestPathMat = new THREE.MeshStandardMaterial({
-  color: 0xb89570,
-  roughness: 1,
-  metalness: 0,
-  polygonOffset: true,
-  polygonOffsetFactor: -2,
-  polygonOffsetUnits: -2,
-  depthWrite: false,
-});
-_forestPathMat.userData.shared = true;
-
 function buildForestPath(ctx, forest) {
   // Path enters at the OUTER edge of the path-chunk (3x3 block edge), 80m away
   // from center in the path direction; ends at the clearing centre.
@@ -378,7 +364,7 @@ function buildForestPath(ctx, forest) {
     forest.centerX, forest.centerZ,
     PATH_WIDTH,
     rng,
-    _forestPathMat,
+    roadMaterial('dirt'),
   );
   ctx.group.add(mesh);
 
@@ -701,7 +687,7 @@ function buildForestDrumCirclePlaceholder(ctx, forest) {
     backExitX, backExitZ,
     PATH_WIDTH,
     backRng,
-    _forestPathMat,
+    roadMaterial('dirt'),
   );
   ctx.group.add(backMesh);
 

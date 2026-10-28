@@ -934,7 +934,7 @@ function addTentEveningGlow(tent,animatables,phase) {
 
 // Retain each chair's empty transform group for seat metadata, but batch its
 // static metal/fabric parts so a social ring does not cost nine draws per seat.
-function batchCampChairs(root, chairs) {
+export function batchCampChairs(root, chairs) {
   const buckets=new Map();
   for(const {group} of chairs) {
     group.updateMatrix();

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {registry} from '../registry.js';
 import {terrainHeight} from '../worldgen/terrain.js';
 import {laneDodgeTest} from '../steering.js';
+import {buildHulaHoopGeometry,buildHulaHoopMaterial} from '../models/hulaHooper.js';
 import {HulaSession} from './hulaSession.js';
 
 const KINDS=new Set(['stage','stage_front','drum_circle','firepit','leaf_drum_circle']);
@@ -12,12 +13,12 @@ const eligible=v=>!v.claimed&&!v.grouped&&!v.photographer&&!v.seated&&!v.hidden&
 export class HulaActivity {
   constructor({people,runtime}) {
     this.people=people;this.runtime=runtime;this.group=new THREE.Group();this.group.name='HulaActivities';
-    this.geometry=new THREE.TorusGeometry(.58,.035,6,24);
-    this.material=new THREE.MeshStandardMaterial({color:0xff44aa,emissive:0xff44aa,emissiveIntensity:.05,roughness:.5});
-    this.slots=[];this.clock=0;this.scan=0;this.disposed=false;this.view={};this.testPoint=new THREE.Vector3();
+    this.geometries=[];this.material=buildHulaHoopMaterial();
+    this.slots=[];this.clock=0;this.scan=0;this.disposed=false;this.view={};this.neighborView={};this.testPoint=new THREE.Vector3();
     try {
     for(let i=0;i<MAX;i++){
-      const hoop=new THREE.Mesh(this.geometry,this.material);hoop.visible=false;
+      const geometry=buildHulaHoopGeometry(i);this.geometries.push(geometry);
+      const hoop=new THREE.Mesh(geometry,this.material);hoop.visible=false;
       const pivot=new THREE.Group();pivot.add(hoop);hoop.rotation.x=Math.PI/2;hoop.position.x=.27;
       const root=new THREE.Group();root.add(pivot);this.group.add(root);
       const slot={hoop,pivot,root,motion:{},entry:null,reservation:null,x:0,z:0};
@@ -62,7 +63,7 @@ export class HulaActivity {
         if(!e.attractor||!KINDS.has(e.kind)||Math.hypot(e.position.x-cart.position.x,e.position.z-cart.position.z)>120)continue;
         let selected=null,best=Infinity;
         this.people.forEachPersonNear(e.position.x,e.position.z,e.attractor.radius,(handle,view,distance)=>{
-          if(eligible(view)&&this.people.activityCooldown(handle,'hula')<=this.clock&&distance<best){selected=handle;best=distance;}
+          if(eligible(view)&&Math.hypot(view.x-cart.position.x,view.z-cart.position.z)>6&&!this.slots.some(other=>other.session.person&&this.people.readPerson(other.session.person,this.neighborView)&&Math.hypot(view.x-this.neighborView.x,view.z-this.neighborView.z)<2.2)&&this.people.activityCooldown(handle,'hula')<=this.clock&&distance<best){selected=handle;best=distance;}
         });
         if(!selected||!this.people.readPerson(selected,this.view))continue;
         slot.entry=e;slot.x=this.view.x;slot.z=this.view.z;
@@ -74,7 +75,7 @@ export class HulaActivity {
   dispose(){if(this.disposed)return;this.disposed=true;const errors=[];
     if(this.runtime.isRegistered(this.ownerToken))try{this.runtime.unregister(this.ownerToken,'activity-disposed');}catch(e){errors.push(e);}
     for(const slot of this.slots)try{slot.session.dispose();}catch(e){errors.push(e);}
-    this.group.removeFromParent();this.geometry.dispose();this.material.dispose();
+    this.group.removeFromParent();for(const geometry of this.geometries)geometry.dispose();this.material.dispose();
     if(errors.length)throw new AggregateError(errors,'Hula activity teardown failed.');
   }
 }

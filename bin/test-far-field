@@ -456,7 +456,7 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
       'vendor roof geometry and canvas color match the built tent');
   }
 }
-assert(exp1.roads.length === 1 && exp1.roads[0] instanceof Float64Array,
+assert(exp1.roads.length === 1 && exp1.roads[0].flat instanceof Float64Array,
   'road records must pass through as flat polylines');
 for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'warm', 'beacon']) {
   for (const inst of exp1[name]) {
@@ -941,3 +941,42 @@ process.stdout.write(
   'controls + the no-builder/no-light/no-shadow source contract, coarse forest masses (grid ownership, ' +
   'threshold gating, jittered-owner handoff, per-tier tri-budget gate), and owner-only disposal idempotence\n'
 );
+
+// Reported black patch: the coarse, dark road underlay bridged a terrain
+// crease and rose through the detailed road despite the lower endpoint lift.
+{
+ const {setTerrainEnabled,terrainHeight}=await import('../src/worldgen/terrain.js');
+ setSeed(3248888364);setTerrainEnabled(true);
+ const near=[];
+ for(const road of roadsInBounds(160,-680,185,-650))for(let i=1;i<road.points.length;i++){
+  const a=road.points[i-1],b=road.points[i];
+  if(Math.hypot((a.x+b.x)/2-171,(a.z+b.z)/2+665)<60)near.push(copyPolyline([a,b]));
+ }
+ assert(near.length>0,'the reported road must be covered by the fixture');
+ const probe=new FarField({enabled:true,tier:{...TEST_TIER,caps:{...TEST_TIER.caps,roadVerts:4096,roadIndices:6144}}});
+ probe._planAnchor={x:176.19,z:-674.37};probe._writeRoads(near);
+ const {posAttr,idxAttr,geo}=probe._road,p=posAttr.array,idx=idxAttr.array;let samples=0;
+ assert(probe.stats.roadVertsUsed>0&&geo.drawRange.count>0,'the fix retains actual road geometry rather than hiding the underlay');
+ for(let i=0;i<geo.drawRange.count;i+=3)for(const weights of [[1/3,1/3,1/3],[.1,.7,.2],[.7,.1,.2]]){
+  let x=0,y=0,z=0;for(let j=0;j<3;j++){const o=idx[i+j]*3;x+=p[o]*weights[j];y+=p[o+1]*weights[j];z+=p[o+2]*weights[j];}
+  assert(Math.abs(y-terrainHeight(x,z))<2e-5,'the complete underlay triangle conforms to the terrain, not just its vertices');
+  assert(y+ROAD_UNDERLAY_Y<terrainHeight(x,z)+.06,'the dark proxy remains below the detailed road');samples++;
+ }
+ const first=JSON.stringify([Array.from(p.slice(0,probe.stats.roadVertsUsed*3)),Array.from(idx.slice(0,geo.drawRange.count))]);probe._writeRoads(near);assert(JSON.stringify([Array.from(p.slice(0,probe.stats.roadVertsUsed*3)),Array.from(idx.slice(0,geo.drawRange.count))])===first,'draped rewrite is deterministic');
+ probe.dispose();
+ const tiny=new FarField({enabled:true,tier:{...TEST_TIER,caps:{...TEST_TIER.caps,roadVerts:8,roadIndices:12}}});tiny._planAnchor={x:176.19,z:-674.37};tiny._writeRoads(near);assert(tiny.stats.roadVertsUsed<=8&&tiny._road.geo.drawRange.count<=12,'draping preserves hard capacities');tiny.dispose();setTerrainEnabled(false);
+ console.log('PASS reported road patch: '+samples+' interior surface samples, strict underlay/detailed-road separation, retained geometry, deterministic rewrites and hard capacity limits.');
+}
+
+// Different widths and finishes share the same bounded draw. Check actual
+// committed attributes, including a stream rewrite with reversed road order.
+{
+ const probe=new FarField({enabled:true,tier:TEST_TIER});probe._planAnchor={x:0,z:0};
+ const roads=[{flat:new Float64Array([0,0,20,0]),width:7,surface:'dirt'},{flat:new Float64Array([0,20,20,20]),width:9,surface:'asphalt'}];
+ probe._writeRoads(roads);const p=probe._road.posAttr.array,c=probe._road.colorAttr.array;
+ assert(Math.abs(Math.abs(p[2]-p[5])-7*.8)<1e-5,'distant dirt remains narrower than its detail ribbon');
+ assert(Math.abs(Math.abs(p[14]-p[17])-9*.8)<1e-5,'distant asphalt retains its planned width fraction');
+ assert(c[0]!==c[12],'surface colors survive snapshot expansion into a single draw');
+ const before=Array.from(c.slice(0,24));probe._writeRoads(roads.slice().reverse());assert(JSON.stringify(before)===JSON.stringify(Array.from(c.slice(0,24))),'nearest-first rewrite preserves each surface color');
+ assert(probe._road.mesh.material.vertexColors);probe.dispose();console.log('PASS mixed road surfaces: actual width/color buffers, stable rewrites and one bounded vertex-color draw.');
+}

@@ -5,7 +5,7 @@ export class HulaSession {
   constructor({people,place,eligible,duration=20,speed=1.45,timeout=30,now=()=>0,cooldown=20}) {
     if(!people||!place||typeof eligible!=='function')throw new TypeError('Hula needs a population, place and eligibility policy.');
     this.people=people;this.place=place;this.eligible=eligible;this.duration=duration;this.speed=speed;this.timeout=timeout;this.now=now;this.cooldown=cooldown;
-    this.activityKey='hula';this.interruptibleByCart=true;this.phase='idle';this.person=null;this.claim=null;this.reservation=null;
+    this.activityKey='hula';this.interruptibleByCart=true;this.cartClearance=5;this.phase='idle';this.person=null;this.claim=null;this.reservation=null;
     this.elapsed=0;this.wait=0;this.phaseTime=0;this.view={};this.target={};this.disposed=false;
   }
   sampleBodyPose(person,out){return this.person===person&&this.phase==='hooping'?sampleHulaMotion(this.elapsed*5.25,1.65,out):null;}

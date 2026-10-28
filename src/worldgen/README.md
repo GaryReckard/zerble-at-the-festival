@@ -183,3 +183,17 @@ the tier-dependent `crowd.spawn`, and `registry.closestBuilding` guards can't be
 extracted without touching draw order. This harness change built the *eyes* (hub
 viewer, overlay) and the *ruler* (linter + baseline) that the extraction is
 measured against.
+
+### Planned road finishes
+
+`roadsInBounds` and `approachRoadsOf` add `edgeId`, `surface` and visible `width`
+to their original road records; `nearestRoad` adds the nearest centerline's
+surface and width while preserving its old fields. `queryPoint` stays unchanged.
+Major-heart edges are candidates for nine-metre asphalt, with conservative
+whole-edge dirt fallback near water; other edges remain seven-metre dirt.
+The original planner half-envelope remains 4.5m, allowing dirt shoulders or
+asphalt within the same reservation, without changing planner RNG execution.
+Detailed roads, distant roads and the map read those descriptors. Physical
+builder checks clear the widest ribbon and their occupied footprints; vendor
+canopies use full oriented boxes, rather than the former one-metre center guard.
+See the [verification and limitations](../../verification/roads/2026-10-28/README.md).

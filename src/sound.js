@@ -4093,6 +4093,7 @@ const COLLISION_SOUNDS = {
   one_wheel:   (c, d) => boop(c, d, 420, 650, 0.15, 0.3, 'sine'),
   kid:         (c, d) => boop(c, d, 720, 1150, 0.13, 0.35, 'sine'),
   wook:        (c, d) => duudeSound(c, d),
+  soundboard:  (c, d) => { thump(c, d, 72, 0.35, 0.45); woodKnock(c, d); },
   stage:       (c, d) => { thump(c, d, 52, 0.55, 0.62); woodKnock(c, d); },
   stage_front: (c, d) => thump(c, d, 75, 0.4, 0.45),
   arch:        (c, d) => woodKnock(c, d),

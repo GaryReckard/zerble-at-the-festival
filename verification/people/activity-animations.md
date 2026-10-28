@@ -116,3 +116,73 @@ was launched. The prior server PID 3465 no longer existed when checked, so this 
 started its own no-cache server, stopped PID 52699 after verification and confirmed
 that exact PID had exited. The in-app tab inventory is empty. Both the completed
 2:32am wakeup and the unused 7:32am fallback wakeup were removed.
+
+## Shoulder attachment correction
+
+Gary's subsequent low-arm report exposed a rigid-pose pivot mismatch: geometry and
+shader joints used shoulder height 1.35, while cheer/platform/photo transforms still
+rotated around the old arm center at 1.10. The new native
+[attachment fixture](arm-attachments.html) failed before the fix with a shoulder
+displaced 0.314m at scale 0.65. Hula/dance/frisbee could also combine their shader
+pose with a rigid cheer rotation.
+
+`ARM_SHOULDER_Y` in `personMotion.js` now supplies the geometry, shader, hand and
+rigid-pose anchor, and articulated activity/dance poses take precedence over the
+rigid cheer arm rotation. The body can still cheer and hop. The native fixture
+checks both torso-relative shoulder points across nine pose combinations, three
+scales and three headings, for 162 passing checks. The Node motion test executes
+the production cheer/photo initializers against an independent affine reference.
+The full suite passes in `/private/tmp/zerble-shoulder-attachment-check.log`;
+importmaps and whitespace checks also pass. This correction adds no geometry,
+render batch or shadow caster. Fresh Low/Mid attachment probes and a ready-title Mid game boot with Space honk
+have clean captured warnings/errors in [shoulder results](2026-10-28/shoulder-results.json).
+The isolated person/hoop scene remains 9 draws and 1,508 triangles. Captures:
+[Low noon](2026-10-28/shoulders-low-noon.png),
+[Low midnight](2026-10-28/shoulders-low-midnight.png),
+[Mid noon](2026-10-28/shoulders-mid-noon.png) and
+[Mid midnight](2026-10-28/shoulders-mid-midnight.png).
+All owned test tabs were closed and the task's verification server was stopped.
+
+## Hoop finishes and stage-dance adjustment
+
+The production [finish gallery](hoop-finishes.html) verifies eight distinct hoop
+color buffers, one shared material and matching vertex colors across the torus
+seams. Three solid finishes and five multicolor stripe/ribbon/check finishes use
+the existing 6-by-24 torus topology. All eight visible hoops draw 8 calls and 2,304
+triangles, the same topology and draw count as eight original plain hoops. The
+activity now owns eight bounded geometry variants rather than one shared plain
+geometry, and disposes every variant exactly once; it still owns one material.
+The material multiplies emissive light by the vertex colors on both Standard and
+Low's Lambert path, so glow keeps the patterned finish. The standalone sandbox
+model uses the same builders and reuses its existing single appearance RNG draw.
+
+Ordinary stage-area dance poses require an idle/watching state and a sufficiently
+music-inclined personality, with no competing activity owner. Walking and fleeing
+people retain relaxed arms. Explicit dance participants retain dance poses, whose
+arm angles now move through a lower, rhythmic range rather than holding a near
+horizontal pose. Hooping and frisbee still use their own claimed poses. Node and
+native tests cover these intent gates and temporal variation, while the complete
+project check passes in `/private/tmp/zerble-hoop-finishes-check.log`. The existing
+shoulder-attachment correction is retained.
+
+Fresh Low/Mid gallery probes, the complete native hula cycle, native Healing Arts
+return/dance checks, the original Low sandbox hooper at midnight and a ready-title
+Low game boot plus Space honk all passed with no captured warnings or errors in
+[finish results](2026-10-28/hoop-finishes-results.json). The gallery uses the game's
+ACES tone mapping and exposure. Captures: [Low noon](2026-10-28/hoops-low-noon.png),
+[Low midnight](2026-10-28/hoops-low-midnight.png),
+[Mid noon](2026-10-28/hoops-mid-noon.png) and
+[Mid midnight](2026-10-28/hoops-mid-midnight.png). Owned browser tabs and the task's
+local verification server are closed after the checks. Physical-device and matched
+whole-game timing limits remain as recorded above.
+
+
+## Stage follow-ups
+
+The later October 28 stage changes share the original Healing Arts dance sampler,
+add independently bending left elbows and folded blanket legs, and enforce
+parked-cart hoop clearance. See [stage audience verification](stage-audience.md)
+for the final source, current geometry counters, production fixtures and live-game
+results, including the soundboard and reported road patch. Earlier counts above
+remain measurements of their stated revisions; the folded-leg knee adds 24
+triangles per ordinary person while retaining the same body draws.

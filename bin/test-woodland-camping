@@ -56,8 +56,8 @@ const body=source.slice(source.indexOf('function placeWoodlandCamping('),source.
 const added=[],spawns=[],attempts=[];
 const district={id:'test',seed:1,x:0,z:0,pitches:[{role:'host',seed:1,worldx:0,worldz:0,recipe:{}},{role:'satellite',seed:2,worldx:12,worldz:0,recipe:{}}],paths:[{ax:-20,az:0,bx:0,bz:0,width:4},{ax:0,az:0,bx:12,bz:0,width:1.2,visible:false}]};
 let deny=false;
-const build=Function('terrainHeight','CHUNK_SIZE','woodlandCampsNear','ownerCellCoord','mulberry32','placeSingleCampsite','buildRibbonFromPolyline','_WOODLAND_PATH_MAT','registry','isPointInLake','THREE',`${body};return placeWoodlandCamping;`)(()=>0,80,()=>[district],ownerCellCoord,mulberry32,
- (ctx,x,z,size,facing,options)=>{attempts.push(options.role);return deny?null:{animatables:[],options};},(...args)=>args,{}, {collidersNear(){}},()=>false,{Vector3:class{constructor(x,y,z){Object.assign(this,{x,y,z});}}});
+const build=Function('terrainHeight','CHUNK_SIZE','woodlandCampsNear','ownerCellCoord','mulberry32','placeSingleCampsite','buildRibbonFromPolyline','roadMat','registry','isPointInLake','THREE',`${body};return placeWoodlandCamping;`)(()=>0,80,()=>[district],ownerCellCoord,mulberry32,
+ (ctx,x,z,size,facing,options)=>{attempts.push(options.role);return deny?null:{animatables:[],options};},(...args)=>args,()=>({}), {collidersNear(){}},()=>false,{Vector3:class{constructor(x,y,z){Object.assign(this,{x,y,z});}}});
 const rng=()=>{throw new Error('woodland must not advance the existing chunk RNG stream');};
 const ctx={cx:0,cz:0,cxWorld:0,czWorld:0,key:'0,0',rng,group:{add:n=>added.push(n)},crowd:{spawn:n=>spawns.push(n)}};
 assert.equal(build(ctx).length,2);assert.equal(added.length,1,'internal walking clearances must not create visible path meshes');assert(spawns.length>0&&spawns.every(n=>n.chunkKey==='0,0'));

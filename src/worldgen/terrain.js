@@ -147,3 +147,52 @@ export function lakeSurfaceHeight(_lakeOrX,_z) { return 0; }
 export function terrainCacheStats() {
   gate();return {version:TERRAIN_VERSION,vertices:vertexCache.size,tiles:tileCache.size,owners:ownerCache.size};
 }
+
+// Split surfaces on the same lattice and diagonal used by terrainHeight.
+// Sampling endpoints alone lets a triangle bridge a crease and poke through
+// another surface, even when every endpoint has the correct height.
+export function drapeTerrainTriangles(vertices, indices) {
+  if (terrainEnabled()) {
+    const result = [], triangles = [];
+    const clip = (polygon, nx, nz, offset) => {
+      const out = [];
+      for (let i = 0; i < polygon.length; i++) {
+        const a = polygon[i], b = polygon[(i + 1) % polygon.length];
+        const da = a.x * nx + a.z * nz - offset, db = b.x * nx + b.z * nz - offset;
+        if (da <= 0) out.push(a);
+        if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
+          const t = da / (da - db);
+          out.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+        }
+      }
+      return out;
+    };
+    const emit = polygon => {
+      for (let i = 1; i + 1 < polygon.length; i++) {
+        const a = polygon[0], b = polygon[i], c = polygon[i + 1];
+        if (Math.abs((b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x)) < 1e-10) continue;
+        for (const p of [a,b,c]) {
+          triangles.push(result.length / 3);
+          result.push(p.x, terrainHeight(p.x,p.z), p.z);
+        }
+      }
+    };
+    for (let i = 0; i < indices.length; i += 3) {
+      const polygon = indices.slice(i,i+3).map(index => ({ x: vertices[index*3], z: vertices[index*3+2] }));
+      const x0 = Math.floor(Math.min(...polygon.map(p=>p.x))/TERRAIN_STEP)*TERRAIN_STEP;
+      const x1 = Math.floor(Math.max(...polygon.map(p=>p.x))/TERRAIN_STEP)*TERRAIN_STEP;
+      const z0 = Math.floor(Math.min(...polygon.map(p=>p.z))/TERRAIN_STEP)*TERRAIN_STEP;
+      const z1 = Math.floor(Math.max(...polygon.map(p=>p.z))/TERRAIN_STEP)*TERRAIN_STEP;
+      for (let z = z0; z <= z1; z += TERRAIN_STEP) for (let x = x0; x <= x1; x += TERRAIN_STEP) {
+        let cell = clip(polygon,-1,0,-x);
+        cell = clip(cell,1,0,x+TERRAIN_STEP);
+        cell = clip(cell,0,-1,-z);
+        cell = clip(cell,0,1,z+TERRAIN_STEP);
+        emit(clip(cell,1,1,x+z+TERRAIN_STEP));
+        emit(clip(cell,-1,-1,-x-z-TERRAIN_STEP));
+      }
+    }
+    vertices = result; indices = triangles;
+  }
+  return {vertices,indices};
+}

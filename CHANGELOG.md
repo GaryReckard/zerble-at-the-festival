@@ -4,7 +4,18 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-28
 
+### Added
+- **Roads have dirt grain and planned asphalt access routes.** Existing edges leading to major hubs receive a nine-metre paved finish when the full ribbon clears water; smaller and shore-adjacent routes stay seven-metre dirt. Shared mipmapped textures follow world coordinates through streaming, access paths reuse dirt, and map/distant views retain the same surfaces and widths without adding road draws.
+- **Stage audiences can sit in camp chairs or rest cross-legged on picnic blankets.** Small groups of one to five chairs sit at varied depths behind the dancefloor and face loosely toward the stage center, draw from all four camp-chair styles, and reuse existing person/seat reservations with occasional visits and safe exits. Each stage blanket supports up to four independently reserved, stage-facing cross-legged occupants. Static chair parts share the campsite batcher.
+- **Hula hoops have eight festival finishes.** Solid pink, lagoon and sunshine hoops mix with candy stripes, rainbow ribbons, electric spirals, sunset bands and colorful checks. Vertex colors carry the patterns into the night glow, using a bounded geometry set and one shared material without extra draws or triangles. Live activity props and the original sandbox hooper use the same finish builders.
+
 ### Fixed
+- **Hoopers give parked carts room.** Recruitment excludes the cart footprint and nearby hoopers, while an approaching cart that stops still interrupts a hoop claim before its movement can pull the participant back into the cart.
+- **Stage dancers share the Healing Arts dance-party choreography.** The original authored rhythm now drives their body bounce and separately bending arms while retaining their clothes and fixed shoulder attachments.
+- **Covered-stage soundboards face their attendants.** The raised console has attached controls and a headphone-wearing sound engineer who remains at the booth, while collisions identify the soundboard instead of a craft tent.
+- **Distant roads stay beneath the detailed road on rolling terrain.** Both surfaces now split on the same terrain triangles, preventing dark coarse-road triangles from poking through. The reported seed/location has a production regression and before/after captures.
+- **People walking near a stage keep relaxed arms.** Stage-area dance poses now apply to stationary, music-inclined people and explicit dance participants, while dancers move their arms rhythmically instead of holding them out. Hula and frisbee retain their activity-specific poses.
+- **Arm poses keep both shoulders attached to the torso.** Cheer, rider and photo poses now use the same shoulder anchor as the articulated arm geometry, while hooping, dancing and frisbee poses no longer stack an unrelated rigid cheer rotation. Added native attachment checks across poses, scales and headings.
 - **Frisbee players throw and catch with articulated arms while keeping their own bodies and clothes.** The original shoulder/elbow poses now drive the shared Crowd arm batch, held discs follow the rendered hand, and interruption immediately revokes both players' arm poses as well as their movement. Initial pair acquisition also validates its reserved place before borrowing either person.
 - **Hula hoops revolve around the waist with coordinated hip motion.** The activity and original model share the offset pivot, lean, bob and wobble formulas, with the activity phase pausing during interruption. Hoopers raise their arms while keeping their ordinary appearance.
 

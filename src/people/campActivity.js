@@ -187,8 +187,9 @@ export class CampActivity {
     }
     if (
       active &&
-      ((npc.campBed && !sleep) ||
-        (!npc.campBed &&
+      ((npc.campEntry?.stageAudience && npc.campDwell <= 0) ||
+        (npc.campBed && !sleep) ||
+        (!npc.campBed && !npc.campEntry?.stageAudience &&
           (sleep || (!gathering && (!daytime || npc.campDwell <= 0)))))
     ) {
       const exit = this._campExit(npc);
@@ -217,9 +218,9 @@ export class CampActivity {
       let entry = null,
         slot = null,
         distance = 28;
-      for (const id of this.registry.byKind.get("campsite") || []) {
+      for (const kind of ["campsite", "chair"]) for (const id of this.registry.byKind.get(kind) || []) {
         const camp = this.registry.entries.get(id);
-        if (!camp) continue;
+        if (!camp || (camp.stageAudience && npc.idx % 5 !== 0)) continue;
         // All seat/bed coordinates lie inside the registered camp footprint.
         // A farther center cannot beat the current nearest claim, so avoid
         // visiting every individual slot in distant loaded neighborhoods.
@@ -229,7 +230,7 @@ export class CampActivity {
             dz = camp.position.z - npc.pos.z;
           if (dx * dx + dz * dz > reach * reach) continue;
         }
-        for (const candidate of (sleep ? camp.campBeds : camp.campSeats) ||
+        for (const candidate of (sleep && !camp.stageAudience ? camp.campBeds : camp.campSeats) ||
           []) {
           if (!campSlotAvailable(candidate)) continue;
           const d = Math.hypot(
@@ -244,7 +245,7 @@ export class CampActivity {
         }
       }
       if (!slot) return false;
-      if (!this._acquire(npc, entry, slot, sleep)) return false;
+      if (!this._acquire(npc, entry, slot, sleep && !entry.stageAudience)) return false;
       npc.state = "camp_walking";
       npc.stateTimer = distance * 2 + 12;
       npc.campAtApproach = false;

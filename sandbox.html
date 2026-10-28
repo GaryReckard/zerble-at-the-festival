@@ -180,7 +180,7 @@
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
-            const mods = ['people/vehiclePersonFacet','people/placeDisplay','people/smilePolicy','collisionContacts','people/campResources','people/campActivity','people/marketActivity','people/pottyActivity','people/picnicActivity','people/hammockActivity','people/seatReservations','people/groupParticipation','people/frisbeeActivity','people/frisbeeSession','people/hulaActivity','people/hulaSession','people/placeVisit','people/frisbees','people/hoopers','people/brassBand','people/puppetParade','people/formationRoute','people/wooks','people/sceneResources','people/children','people/placement','people/frameTrace','people/baseline','people/runtime','people/personHandle','people/activityClaims','people/healingArtsMotion', 'people/workshop', 'playerStats', 'passportMenu', 'terrainSurface', 'terrainDriving', 'terrainSandbox', 'campClearing', 'debugCommands', 'campJamActivity', 'campMusic', 'woodlandCamping', 'campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'personMotion','crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
+            const mods = ['roadMaterials','people/vehiclePersonFacet','people/placeDisplay','people/smilePolicy','collisionContacts','people/campResources','people/campActivity','people/marketActivity','people/pottyActivity','people/picnicActivity','people/hammockActivity','people/seatReservations','people/groupParticipation','people/frisbeeActivity','people/frisbeeSession','people/hulaActivity','people/hulaSession','people/placeVisit','people/frisbees','people/hoopers','people/brassBand','people/puppetParade','people/formationRoute','people/wooks','people/sceneResources','people/children','people/placement','people/frameTrace','people/baseline','people/runtime','people/personHandle','people/activityClaims','people/healingArtsMotion', 'people/workshop', 'playerStats', 'passportMenu', 'terrainSurface', 'terrainDriving', 'terrainSandbox', 'campClearing', 'debugCommands', 'campJamActivity', 'campMusic', 'woodlandCamping', 'campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'personMotion','crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
                 'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState',  'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes',
                 'worldgen/terrain', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
@@ -247,6 +247,7 @@
             <option value="healing_arts_activity">Healing Arts (real crowd changeover)</option>
             <option value="people_workshop">People workshop (mixed production controllers)</option>
             <option value="tent_stage">Tent stage (big white tent)</option>
+            <option value="soundboard">Soundboard and sound engineer</option>
             <option value="canoe">Canoe</option>
             <option value="lake">Lake (mini disc)</option>
             <option value="big_lake">Lake (big + small + causeway + island)</option>
@@ -1053,7 +1054,7 @@ import {buildShrub} from './src/models/shrub.js';
     const ENTITY_MUSIC_STYLE = {
         stage_main: 'jam',
         stage_side: 'brass',
-        tent_stage: 'jam',
+        tent_stage: 'jam', soundboard: 'jam',
         drum_circle_populated: 'forest_drum',
         leaf_drum_circle: 'forest_drum',
         leaf_drum_circle_day: 'forest_drum',
@@ -1083,7 +1084,7 @@ import {buildShrub} from './src/models/shrub.js';
         food_truck: 'truck',
         kid: 'kid', frisbee_pair:'person',
         wook: 'wook', wook_population:'wook', hooper_population:'hula_hoop',
-        stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage', one_wheel: 'one_wheel', one_wheel_route: 'one_wheel', healing_arts: 'tent', healing_arts_activity: 'tent',
+        stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage', soundboard: 'soundboard', one_wheel: 'one_wheel', one_wheel_route: 'one_wheel', healing_arts: 'tent', healing_arts_activity: 'tent',
         entrance_arch: 'arch',
         canoe: 'lake_edge',
         band_member_trumpet: 'brass', band_member_tuba: 'brass',
@@ -1724,14 +1725,15 @@ import {buildShrub} from './src/models/shrub.js';
                 applyCam();
                 break;
             }
+            case 'soundboard':
             case 'tent_stage': {
                 const tex = leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a');
                 const t = buildTentStage({rng: Math.random, leafTexture: tex});
                 scene.add(t.group);
                 entityRoot = t.group;
                 let elapsed=0;updateFn=(dt)=>{elapsed+=dt;t.performers.forEach(p=>p.userData.animate?.(elapsed));t.animateLights(elapsed,tod.nightness);};
-                cam.target.set(0, 4, 0);
-                cam.dist = 38;
+                cam.target.set(0, name==='soundboard'?1.3:4, name==='soundboard'?t.mixerPos.z:0);
+                cam.dist = name==='soundboard'?7:38;
                 applyCam();
                 break;
             }

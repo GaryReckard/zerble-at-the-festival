@@ -13,7 +13,7 @@
 // `__dbg.teleport` snippet for the live game.
 
 import { setSeed, getSeed, queryPoint } from './index.js';
-import { nearestRoad } from './roads.js';
+import { nearestRoad, PAVED_ROAD_WIDTH } from './roads.js';
 import { CONFIG } from './constants.js';
 import { heartsInBounds } from './hearts.js';
 import { festivalPlan, dancefloorRect, spawnHeart, MAX_POI_REACH } from './festival.js';
@@ -465,10 +465,10 @@ const REGISTRY_RULES = [
     // a cleared shoulder), so flag a booth only when it's within the ribbon half-width +
     // its own radius of the centerline — i.e. actually on the drive lane, not the shoulder.
     check(rctx, emit) {
-      const tol = CONFIG.ROAD_WIDTH / 2 + 1;   // visible ribbon half-width + grazing margin
+      const tol = Math.max(CONFIG.ROAD_WIDTH, PAVED_ROAD_WIDTH) / 2;   // visible ribbon half-width + grazing margin
       for (const e of rctx.solids) {
         if (e.kind !== 'tent') continue;
-        if (nearestRoad(e.x, e.z).dist < tol) emit(e.x, e.z, 'vendor booth sits on the road surface (blocks the aisle)', nearestHubOf(rctx.hubs, e.x, e.z));
+        if (nearestRoad(e.x, e.z).dist < tol + (e.colliderR ?? 1)) emit(e.x, e.z, 'vendor booth sits on the road surface (blocks the aisle)', nearestHubOf(rctx.hubs, e.x, e.z));
       }
     },
   },
@@ -586,10 +586,10 @@ const REGISTRY_RULES = [
     // (Gary playtest 2026-06-16). buildFoodCourtAt now skips those slots; this is the
     // regression tripwire. Same ribbon-half-width tolerance as `booth-on-road`.
     check(rctx, emit) {
-      const tol = CONFIG.ROAD_WIDTH / 2 + 1;
+      const tol = Math.max(CONFIG.ROAD_WIDTH, PAVED_ROAD_WIDTH) / 2;
       for (const e of rctx.solids) {
         if (e.kind !== 'truck') continue;
-        if (nearestRoad(e.x, e.z).dist < tol) emit(e.x, e.z, 'food truck / sugar shack sits on the road surface (blocks the lane)', nearestHubOf(rctx.hubs, e.x, e.z));
+        if (nearestRoad(e.x, e.z).dist < tol + (e.colliderR ?? 1)) emit(e.x, e.z, 'food truck / sugar shack sits on the road surface (blocks the lane)', nearestHubOf(rctx.hubs, e.x, e.z));
       }
     },
   },

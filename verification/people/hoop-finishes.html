@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>Hoop finishes and dance poses</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{margin:24px;background:#17162a;color:#f8f3df;font:16px system-ui}pre{white-space:pre-wrap}canvas{max-width:100%;height:auto}</style>
+<h1>Festival hoop finishes</h1><pre id="result">Running…</pre><button id="noon">Noon</button> <button id="night">Midnight</button><p>Top: hot pink · lagoon · sunshine · candy stripes<br>Bottom: rainbow ribbon · electric spiral · sunset bands · festival checks</p>
+<script type="module">
+import * as THREE from 'three';import {Crowd} from '../../src/crowd.js';import {PeopleRuntime} from '../../src/people/runtime.js';import {HulaActivity} from '../../src/people/hulaActivity.js';
+const runtime=new PeopleRuntime(),scene=new THREE.Scene(),renderer=new THREE.WebGLRenderer({antialias:false});renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;renderer.setSize(900,500);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
+const camera=new THREE.OrthographicCamera(-3.8,3.8,2.2,-2.2,.1,30);camera.position.set(0,7,4);camera.lookAt(0,0,0);scene.add(new THREE.AmbientLight(0xffffff,2));
+addEventListener('pagehide',()=>{runtime.dispose();renderer.dispose();},{once:true});
+try{
+ const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});
+ const person=crowd.spawnPerson({pos:new THREE.Vector3(),rng:()=>.4,allowPhotographer:false}),npc=crowd.npcs[0];
+ Object.assign(npc,{onDancefloor:true,dance:.9,cheerTimer:0,frownTimer:0});
+ for(const state of ['walking','fleeing']){npc.state=state;crowd._publishPerson(npc);const a=crowd.armsMesh.geometry.getAttribute('armPose');if([a.getX(npc.idx),a.getY(npc.idx),a.getZ(npc.idx),a.getW(npc.idx)].some(v=>v!==0))throw Error(state+' received a dance arm pose');}
+ npc.state='idle';npc.bob=0;crowd._publishPerson(npc);const first=crowd.armsMesh.geometry.getAttribute('armPose').getY(npc.idx);npc.bob=2;crowd._publishPerson(npc);if(Math.abs(first-crowd.armsMesh.geometry.getAttribute('armPose').getY(npc.idx))<.05)throw Error('Dancing arms did not move');crowd.removePerson(person);
+ const hula=new HulaActivity({people:crowd,runtime});scene.add(hula.group);
+ const seen=new Set();for(let i=0;i<hula.slots.length;i++){
+  const slot=hula.slots[i],color=slot.hoop.geometry.getAttribute('color'),position=slot.hoop.geometry.getAttribute('position');if(color.count!==position.count)throw Error('Incomplete vertex colors');seen.add(JSON.stringify(Array.from(color.array)));
+  for(let j=0;j<=6;j++)for(let c=0;c<3;c++)if(Math.abs(color.array[(j*25)*3+c]-color.array[(j*25+24)*3+c])>1e-6)throw Error('Pattern seam mismatch');
+  for(let i=0;i<=24;i++)for(let c=0;c<3;c++)if(Math.abs(color.array[i*3+c]-color.array[(6*25+i)*3+c])>1e-6)throw Error('Minor pattern seam mismatch');
+  slot.hoop.visible=true;slot.root.position.set((i%4-1.5)*1.75,0,(Math.floor(i/4)-.5)*2);slot.pivot.rotation.y=.3;
+ }
+ if(seen.size!==8)throw Error('Hoop finishes are not distinct');
+ function render(n){hula.material.emissiveIntensity=.05+2.5*n;renderer.render(scene,camera);}
+ document.querySelector('#noon').onclick=()=>render(0);document.querySelector('#night').onclick=()=>render(1);render(0);
+ document.querySelector('#result').textContent='PASS\nEight distinct production hoop finishes, complete seam-safe vertex colors and shared material.\nStage-area walkers/reacting people keep relaxed arms; idle dancers move their arms rhythmically.\n'+renderer.info.render.calls+' draws / '+renderer.info.render.triangles+' triangles for eight hoops.';
+}catch(error){document.querySelector('#result').textContent='FAIL\n'+error.stack;console.error(error);}
+</script>

@@ -19,7 +19,7 @@ class Geometry {setAttribute(k,v){this[k]=v;return this;}setIndex(v){this.index=
 class Attr {constructor(a){this.array=new Float32Array(a);}}
 class Mesh {constructor(geometry){this.geometry=geometry;this.position=new Vec();}}
 const context=vm.createContext({terrainHeight:height,terrainEnabled:()=>true,TERRAIN_STEP:10,THREE:{BufferGeometry:Geometry,Float32BufferAttribute:Attr,Mesh}});
-vm.runInContext(functionSource(source('chunks.js'),'terrainRibbonGeometry')+';'+functionSource(source('chunks.js'),'buildRibbonFromPolyline')+';this.build=buildRibbonFromPolyline;',context);
+vm.runInContext(functionSource(source('worldgen/terrain.js'),'drapeTerrainTriangles')+';'+functionSource(source('chunks.js'),'terrainRibbonGeometry')+';'+functionSource(source('chunks.js'),'buildRibbonFromPolyline')+';this.build=buildRibbonFromPolyline;',context);
 const ribbon=context.build([{x:-50,z:20},{x:40,z:20}],6,{});
 assert.ok(ribbon.geometry.position.array.length > 12, 'long roads are subdivided before draping');
 const vertices=ribbon.geometry.position.array;

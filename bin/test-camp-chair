@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {ARM_SHOULDER_Y,isStageDancing,sampleDanceArmPose} from '../src/personMotion.js';
 import {samplePhotographerPose} from '../src/photographer.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -80,7 +81,7 @@ class PoseMatrix {
   makeRotationZ(angle){this.angle=angle;return this;}
 }
 const RenderHarness=vm.runInNewContext(`${bodyConstants};class RenderHarness{${writeSource}};RenderHarness`,{
- samplePhotographerPose,isPhotographerState:()=>false,PHOTO_STATE_POSE:'photo_pose',HOP_HZ:16,HOP_HEIGHT:.32,performance:{now:()=>12345},
+ ARM_SHOULDER_Y,isStageDancing,sampleDanceArmPose,samplePhotographerPose,isPhotographerState:()=>false,PHOTO_STATE_POSE:'photo_pose',HOP_HZ:16,HOP_HEIGHT:.32,performance:{now:()=>12345},
 });
 const bodyShape=vm.runInNewContext(`${bodyConstants};({radius:BODY_RADIUS,length:BODY_LENGTH,center:BODY_CENTER_Y})`);
 const rig=new RenderHarness(),writes=new Map();
@@ -90,7 +91,8 @@ for(const name of ['_tmpV','_tmpV2','_tmpV3','_tmpScale'])rig[name]=new Vector3(
 rig._tmpEuler={set(x,y,z){Object.assign(this,{x,y,z});return this;}};
 rig._tmpQuat={setFromEuler(e){this.yaw=e.y;return this;}};rig._identityQuat={};
 for(const name of ['legsMesh','shoesMesh','bodyMesh','armsMesh','headMesh','eyesMesh','mouthMesh'])rig[name]={setMatrixAt:(slot,m)=>writes.set(name,{...m})};
-rig.armsMesh.geometry={getAttribute(){return {setXYZW(){}};}};
+for(const mesh of [rig.legsMesh,rig.shoesMesh])mesh.geometry={getAttribute(){return {setX(){}};}};
+rig.armsMesh.geometry={getAttribute(){return {setXYZW(){},setXY(){}};}};
 rig.hairMeshes=Array.from({length:6},()=>({setMatrixAt(){}}));
 let contactCases=0;
 for(const style of ['sling','director','low','loveseat'])for(const scale of [.65,.85,1,1.25,1.6])for(const bob of [0,1,6,12]) {

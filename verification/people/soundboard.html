@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Covered stage soundboard</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{background:#17162a;color:#fff;font:16px system-ui}canvas{max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
+<h1>Covered stage soundboard</h1><pre id="result">Running…</pre><button id="noon">Noon</button> <button id="night">Midnight</button>
+<script type="module">
+import * as THREE from 'three';import {buildTentStage} from '../../src/models/tentStage.js';
+const renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(850,550);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;document.body.append(renderer.domElement);
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(43,850/550,.1,150),light=new THREE.HemisphereLight(0xffffff,0x665544,3);scene.add(light);
+try{let draws=0;const stage=buildTentStage({rng:()=>{draws++;return .4;}});scene.add(stage.group);
+const desk=stage.group.getObjectByName('Soundboard'),engineer=stage.group.getObjectByName('Sound engineer');
+if(!desk||!engineer)throw Error('Missing inspectable soundboard or attendant');
+if(desk.rotation.x<=0)throw Error('Controls slope away from the engineer');
+if(engineer.position.z<=desk.position.z||engineer.position.y!==.5||engineer.rotation.y!==0)throw Error('Engineer must stand on platform behind desk, facing stage');
+if(desk.children.filter(n=>n.name==='Mixer control').length<12||!desk.getObjectByName('Mixer faders'))throw Error('Missing desk-local controls');
+const before=engineer.position.clone();for(let i=0;i<100;i++)engineer.userData.animate(i*.05);if(!engineer.position.equals(before))throw Error('Attendant left the booth');
+camera.position.set(5,4,stage.mixerPos.z+6);camera.lookAt(0,1.3,stage.mixerPos.z-.3);
+const render=n=>{light.intensity=n? .28:3;scene.background=new THREE.Color(n?0x101b16:0x8fc6db);renderer.render(scene,camera);document.querySelector('#result').textContent='PASS: production tent desk faces a stage-facing attendant, controls stay attached to the sloped desk, and attendant stays on platform.\n'+renderer.info.render.calls+' draws / '+renderer.info.render.triangles+' triangles for complete tent. RNG draws: '+draws;};
+document.querySelector('#noon').onclick=()=>render(0);document.querySelector('#night').onclick=()=>render(1);render(0);
+}catch(e){document.querySelector('#result').textContent='FAIL '+e.stack;console.error(e);}addEventListener('pagehide',()=>renderer.dispose(),{once:true});
+</script>

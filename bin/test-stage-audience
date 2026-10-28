@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {runInNewContext} from 'node:vm';import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';import {CampActivity} from '../src/people/campActivity.js';import {PicnicActivity} from '../src/people/picnicActivity.js';
+const source=readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');const start=source.indexOf('export function placeStageChairRows('),end=source.indexOf('\nfunction buildTentStageTheme',start);assert(start>0&&end>start);
+let cases=0;
+for(let seed=1;seed<101;seed++){
+ let state=seed,draws=0;const rng=()=>{draws++;state=(Math.imul(state,1664525)+1013904223)>>>0;return state/2**32;};
+ const entries=[],chairs=[];const registry={add:e=>entries.push(e)};
+ const place=runInNewContext(source.slice(start,end).replace('export function','function')+';placeStageChairRows',{registry,THREE:{Vector3:Vector},terrainHeight:()=>0,queryPoint:()=>({noBuild:false}),nearestRoad:()=>({dist:100}),ROAD_RIBBON_WIDTH:8,CAMP_CHAIR_STYLES:['sling','director','low','loveseat'],batchCampChairs(){},buildCampChair(random,{style}){random();return {style,footprint:style==='loveseat'?.7:.5,seatOffsets:style==='loveseat'?[-.27,.27]:[0],seatY:.4,group:{position:new Vector(),rotation:{},children:[]}};}});
+ const groups=2+seed%4;place({rng,key:'test',group:{add:g=>chairs.push(g)}},(x,z)=>({x,z}),0,8,22,11,groups);
+ const used=draws;let expected=0;state=seed;draws=0;for(let i=0;i<groups;i++){rng();rng();const count=3+Math.floor(rng()*4);for(let j=0;j<count;j++){rng();rng();rng();rng();}}expected=draws;assert.equal(used,expected,'seeded draw count stays byte-identical');
+ for(const a of entries)for(const b of entries)if(a!==b)assert(Math.hypot(a.position.x-b.position.x,a.position.z-b.position.z)>a.footprint+b.footprint+.15,'chairs clear each other');
+ const rows=new Map();for(const e of entries){const key=e.audienceGroup;rows.set(key,(rows.get(key)||0)+1);assert(e.campSeats.length>=1);for(const slot of e.campSeats){assert(Math.cos(slot.yaw)*(-e.position.z)+Math.sin(slot.yaw)*(-e.position.x)<0,'sitters face the stage within natural variation');assert(Math.hypot(slot.approachX-slot.x,slot.approachZ-slot.z)>.9);}}assert([...rows.values()].every(n=>n>=1&&n<=5));assert(new Set(entries.map(e=>e.position.z.toFixed(2))).size>=Math.min(entries.length,3),'groups and chairs do not form rigid transverse rows');cases++;
+}
+function fixture(kind){const crowd=makePeopleCrowd(),n=crowd.spawn({pos:new Vector()});n.energy=.8;n.campCooldown=0;const slot={x:0,z:0,y:.065,yaw:0,pose:'cross-legged',occupied:false};const entry={id:1,position:new Vector(),footprint:1,...(kind==='chair'?{campSeats:[{...slot,approachX:0,approachZ:0}],stageAudience:true}:{tableSeats:[slot]})};const registry={entries:new Map([[1,entry]]),byKind:new Map([[kind,new Set([1])]]),collidersNear(){}};return {crowd,n,entry,registry};}
+for(const time of [.3,.83]){
+ const {crowd,n,entry,registry}=fixture('chair');crowd.camps=new CampActivity(crowd,registry);assert(crowd.camps.tick(.05,n.personHandle,time));for(let i=0;i<4;i++)crowd.camps.tick(.05,n.personHandle,time);assert.equal(n.state,'camp_seated');assert(entry.campSeats[0].occupied);const record=crowd.camps.records.get(n.personHandle),claim=record.claim;record.campDwell=0;crowd.camps.tick(.05,n.personHandle,.6);assert.equal(entry.campSeats[0].occupied,false);assert.equal(crowd.activityClaims.canWrite(claim),false);
+}
+for(const reason of ['finish','unload','person','interruption']){
+ const {crowd,n,entry,registry}=fixture('picnic');crowd.picnics=new PicnicActivity(crowd,registry,{random:()=>.4});const appearance=JSON.stringify(n.appearance);assert(crowd.picnics.tryClaim(n.personHandle));const r=crowd.picnics.records.get(n.personHandle);crowd.picnics.tickWalking(.05,n.personHandle);assert(n.picnicCrossLegged);assert.equal(n.state,'table_seated');assert(entry.tableSeats[0].occupied);const contender=crowd.spawn({pos:new Vector()});assert.equal(crowd.picnics.tryClaim(contender.personHandle),false,'blanket contenders cannot share one reservation');
+ if(reason==='finish'){n.rideTimer=0;crowd.picnics.tickSeated(.05,n.personHandle);}else if(reason==='unload'){registry.entries.delete(1);crowd.picnics.tickSeated(.05,n.personHandle);}else if(reason==='person')crowd.removePerson(n.personHandle);else crowd.picnics.release(n.personHandle);
+ assert(!entry.tableSeats[0].occupied);assert(!n.picnicCrossLegged);assert(!crowd.commitPicnicMotion(r.claim,r.step));assert.equal(JSON.stringify(n.appearance),appearance);
+}
+{const {crowd,n,entry,registry}=fixture('picnic');entry.tableSeats=undefined;crowd.picnics=new PicnicActivity(crowd,registry);assert.equal(crowd.picnics.tryClaim(n.personHandle),false,'unconfigured lawn blankets do not become seating venues');}
+console.log('PASS stage audience: '+cases+' seeded row layouts, preserved RNG counts, separated 1–5 chair groups, seat metadata, occasional chair dwell, cross-legged reservation/finish/interruption/unload/person cleanup, stale-write rejection and appearance.');
+
+// The actual blanket builder publishes several separately reserved positions,
+// all facing the stage independently of the blanket's decorative rotation.
+{
+ const start=source.indexOf('export function placePicnicBlanket('),end=source.indexOf('\nfunction buildStage(',start);assert(start>0&&end>start);
+ const entries=new Map(),registry={entries,byKind:new Map(),byChunk:()=>[],add(e){e.id=entries.size+1;entries.set(e.id,e);this.byKind.set(e.kind,new Set([e.id]));}};
+ class Mesh{constructor(){this.rotation={};this.position=new Vector();}}
+ const place=runInNewContext(source.slice(start,end).replace('export function','function')+';placePicnicBlanket',{THREE:{Mesh,Vector3:Vector},BLANKET_GEO:{},BLANKET_COLORS:[0],blanketMat(){},terrainHeight:()=>0,queryPoint:()=>({noBuild:false}),nearestRoad:()=>({dist:100}),ROAD_RIBBON_WIDTH:7,registry});
+ let draws=0;place({rng:()=>{draws++;return .4;},group:{add(){}},key:'blanket'},0,0,true,.8);assert.equal(draws,2);const entry=entries.get(1);assert.equal(entry.tableSeats.length,4);
+ const crowd=makePeopleCrowd();crowd.picnics=new PicnicActivity(crowd,registry,{random:()=>.4});const handles=[];
+ for(const seat of entry.tableSeats){const n=crowd.spawn({pos:new Vector(seat.x,seat.y,seat.z)});handles.push(n.personHandle);n.energy=.8;assert(crowd.picnics.tryClaim(n.personHandle));crowd.picnics.tickWalking(.05,n.personHandle);assert(n.picnicCrossLegged);assert(Math.abs(n.yaw-.8)<.04);}
+ assert(entry.tableSeats.every(s=>s.occupied));const extra=crowd.spawn({pos:new Vector()});assert(!crowd.picnics.tryClaim(extra.personHandle));crowd.picnics.release(handles[0]);assert(crowd.picnics.tryClaim(extra.personHandle));entries.clear();for(const h of [...handles.slice(1),extra.personHandle]){crowd.picnics.tickSeated(.05,h);crowd.picnics.tickWalking(.05,h);}assert(entry.tableSeats.every(s=>!s.occupied));
+ console.log('PASS production blanket: four independent stage-facing slots, four concurrent original people, exclusive contention, vacancy reuse, unload cleanup and unchanged palette RNG.');
+}

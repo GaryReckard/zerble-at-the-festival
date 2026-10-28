@@ -1,0 +1,14 @@
+{
+  "low": {
+    "state": "Browser tab: 36, Title: \"Arm attachment regression\", URL: \"http://127.0.0.1:8765/verification/people/arm-attachments.html?mute=1&perf=low\".\n0 AXWebArea Arm attachment regression, URL: 127.0.0.1:8765/verification/people/arm-attachments.html?mute=1&perf=low\n\t1 heading Shoulders stay attached to the torso, Value: 1\n\t\t2 text Shoulders stay attached to the torso\n\t3 text PASS\n162 native shoulder attachment checks: ordinary, cheer, platform, photo, market, music, dance-cheer, hula-cheer, frisbee-cheer across scales and headings.\nRender: 9 draws / 1508 triangles.\n\t4 button Noon, ID: noon\n\t5 button Midnight, ID: night\n\nThe focused UI element is 5 button Midnight, ID: night",
+    "logs": []
+  },
+  "mid": {
+    "state": "Browser tab: 34, Title: \"Arm attachment regression\", URL: \"http://127.0.0.1:8765/verification/people/arm-attachments.html?mute=1&perf=mid\".\n0 AXWebArea Arm attachment regression, URL: 127.0.0.1:8765/verification/people/arm-attachments.html?mute=1&perf=mid\n\t1 heading Shoulders stay attached to the torso, Value: 1\n\t\t2 text Shoulders stay attached to the torso\n\t3 text PASS\n162 native shoulder attachment checks: ordinary, cheer, platform, photo, market, music, dance-cheer, hula-cheer, frisbee-cheer across scales and headings.\nRender: 9 draws / 1508 triangles.\n\t4 button Noon, ID: noon\n\t5 button Midnight, ID: night\n\nThe focused UI element is 0 AXWebArea Arm attachment regression, URL: 127.0.0.1:8765/verification/people/arm-attachments.html?mute=1&perf=mid",
+    "logs": []
+  },
+  "gameMid": {
+    "state": "Browser tab: 35, Title: \"Zerble at the Festival — A Bubble Adventure\", URL: \"http://127.0.0.1:8765/?mute=1&perf=mid&seed=1234\".\n0 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8765/?mute=1&perf=mid&seed=1234\n\t1 container\n\t\t2 image game\n\t\t3 container hud\n\t\t\t4 container Description: Game status, ID: status-rail\n\t\t\t\t5 container Description: 0 smiles, personal best 173, ID: smile-status\n\t\t\t\t\t6 text 0\n\t\t\t\t\t34 text 173\n\t\t\t\t8 container Description: Bubble juice 100%, ID: juice-meter\n\t\t\t\t9 container Description: Morning, 15% through the day cycle, Help: Morning, ID: day-cycle\n\t\t\t39 text Drive around — make people smile, dodge the parade.\n\t\t35 button Description: Open settings, ID: settings-gear\n\t\t\t36 image\n\t\t37 button Description: Open bubble upgrades, ID: upgrades-btn\n\t\t38 button Description: Open Festival Passport, Help: Festival Passport (P), ID: passport-btn\n\nThe focused UI element is 0 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8765/?mute=1&perf=mid&seed=1234",
+    "logs": []
+  }
+}

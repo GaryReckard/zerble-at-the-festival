@@ -13,7 +13,7 @@
 import { quantize, pairRng, cellRng, getSessionSeed } from '../rng.js';
 import { CONFIG, SALT, roadNeighborhoodCells, worldgenEpoch } from './constants.js';
 import { heartInCell } from './hearts.js';
-import { lakeAt, lakeContaining } from './water.js';
+import { lakeAt, lakeContaining, lakesInBounds } from './water.js';
 
 function lexLess(a, b) { return a.cx < b.cx || (a.cx === b.cx && a.cz < b.cz); }
 function edgeKey(a, b) {
@@ -87,6 +87,37 @@ export function heartProxy(h) {
 // Back-compat single anchor — now identical to the convergence proxy.
 export function roadAnchor(h) { return heartProxy(h); }
 
+// The planner already reserves a nine-metre envelope (7m + 1m shoulders).
+// Paving uses that existing space, never changing routes or planner RNG gates.
+export const PAVED_ROAD_WIDTH = 9;
+const _surfaceCache = new Map();
+let _surfaceGate = '';
+export function roadSurface(a, b, points = arterial(a, b)) {
+  const gate = getSessionSeed() + ':' + worldgenEpoch();
+  if (gate !== _surfaceGate) { _surfaceCache.clear(); _surfaceGate = gate; }
+  const key = edgeKey(a, b), cached = _surfaceCache.get(key);
+  if (cached) return cached;
+  let paved = !!points && (a.rank === 'major' || b.rank === 'major');
+  if (paved && points) {
+    // A lake's enclosing circle contains its complete irregular outline.
+    // Segment distance against that circle proves the full ribbon is dry,
+    // including interpolated joints. This intentionally rejects some dry shores.
+    const xs = points.map(p => p.x), zs = points.map(p => p.z);
+    const lakes = lakesInBounds(Math.min(...xs)-5, Math.min(...zs)-5, Math.max(...xs)+5, Math.max(...zs)+5);
+    for (const lake of lakes) {
+      for (let i = 1; i < points.length; i++) {
+        const u = points[i-1], v = points[i];
+        if (distToSeg(lake.x, lake.z, u.x, u.z, v.x, v.z) <= lake.maxR + PAVED_ROAD_WIDTH/2 + .01) { paved = false; break; }
+      }
+      if (!paved) break;
+    }
+  }
+  const result = Object.freeze({edgeId:key, surface: paved ? 'asphalt' : 'dirt', width: paved ? PAVED_ROAD_WIDTH : CONFIG.ROAD_WIDTH});
+  if (_surfaceCache.size >= 8192) _surfaceCache.delete(_surfaceCache.keys().next().value);
+  _surfaceCache.set(key, result);
+  return result;
+}
+
 // The roads LEADING INTO a heart — for the festival layer to line clusters along
 // a heart's streets (D2.2). For each neighbor edge: the arterial polyline, the
 // bearing it leaves the heart at, and its QUANTIZED length (a stable integer key
@@ -113,7 +144,7 @@ export function approachRoadsOf(heart) {
     const bearing = Math.atan2(p1.z - p0.z, p1.x - p0.x);
     let len = 0;
     for (let i = 0; i < n - 1; i++) len += Math.hypot(poly[i + 1].x - poly[i].x, poly[i + 1].z - poly[i].z);
-    out.push({ neighbor: nb, polyline: poly, oriented, fromHeart: { x: p0.x, z: p0.z }, bearing, lenQ: quantize(len) });
+    out.push({ ...roadSurface(heart, nb, poly), neighbor: nb, polyline: poly, oriented, fromHeart: { x: p0.x, z: p0.z }, bearing, lenQ: quantize(len) });
   }
   return out;
 }
@@ -289,7 +320,7 @@ function arterialsNear(x, z, windowCells = roadNeighborhoodCells()) {
         if (seen.has(k)) continue;
         seen.add(k);
         const poly = arterial(A, B);
-        if (poly) out.push(poly);
+        if (poly) out.push({points:poly, ...roadSurface(A,B,poly)});
       }
     }
   }
@@ -302,13 +333,14 @@ function arterialsNear(x, z, windowCells = roadNeighborhoodCells()) {
 // so float atan2 is fine; not hashed downstream).
 export function nearestRoad(x, z, windowCells = roadNeighborhoodCells()) {
   const qx = quantize(x), qz = quantize(z);
-  let best = Infinity, bx = 0, bz = 0;
-  for (const poly of arterialsNear(qx, qz, windowCells)) {
+  let best = Infinity, bx = 0, bz = 0, surface = null, width = CONFIG.ROAD_WIDTH;
+  for (const road of arterialsNear(qx, qz, windowCells)) {
+    const poly=road.points;
     for (let i = 0; i < poly.length - 1; i++) {
       const a = poly[i], b = poly[i + 1];
       const d = distToSeg(qx, qz, a.x, a.z, b.x, b.z);
       if (d < best) {
-        best = d;
+        best = d; surface=road.surface; width=road.width;
         // closest point on this segment (for facing)
         const vx = b.x - a.x, vz = b.z - a.z, wx = qx - a.x, wz = qz - a.z;
         const c2 = vx * vx + vz * vz || 1;
@@ -318,7 +350,7 @@ export function nearestRoad(x, z, windowCells = roadNeighborhoodCells()) {
     }
   }
   const onRoad = best <= CONFIG.ROAD_WIDTH;
-  return { onRoad, tier: onRoad ? 'arterial' : null, dist: best, dirAngle: Math.atan2(bz - qz, bx - qx) };
+  return { onRoad, tier: onRoad ? 'arterial' : null, dist: best, dirAngle: Math.atan2(bz - qz, bx - qx), surface, width };
 }
 
 export function roadAt(x, z) {
@@ -346,7 +378,7 @@ export function roadsInBounds(minX, minZ, maxX, maxZ) {
         if (seen.has(k)) continue;
         seen.add(k);
         const poly = arterial(A, B);
-        if (poly) out.push({ tier: 'arterial', points: poly });
+        if (poly) out.push({ tier: 'arterial', points: poly, ...roadSurface(A, B, poly) });
       }
     }
   }

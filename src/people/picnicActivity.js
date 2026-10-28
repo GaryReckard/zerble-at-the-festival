@@ -39,7 +39,7 @@ export class PicnicActivity {
     let best = null,
       seat = null,
       bestD2 = this.view.grouped ? 18 * 18 : 45 * 45;
-    for (const id of this.registry.byKind.get('picnic_table') ?? []) {
+    for (const kind of ['picnic_table','picnic']) for (const id of this.registry.byKind.get(kind) ?? []) {
       const e = this.registry.entries.get(id);
       if (!e?.tableSeats) continue;
       const dx = e.position.x - this.view.x,
@@ -117,6 +117,7 @@ export class PicnicActivity {
     const s = r.step;
     if (!this.people.readPicnicMotion(h, s)) return null;
     s.phase = s.state === 'table_seated' ? 'seated' : 'approach';
+    s.picnicCrossLegged=r.seat.pose==='cross-legged';
     s.publish = false;
     return s;
   }
@@ -134,7 +135,7 @@ export class PicnicActivity {
     if (d < 0.4) {
       s.x = seat.x;
       s.z = seat.z;
-      s.heading = Math.atan2(
+      s.heading = seat.yaw ?? Math.atan2(
         seat.x - r.entry.position.x,
         seat.z - r.entry.position.z
       );
@@ -170,7 +171,7 @@ export class PicnicActivity {
     s.rideTimer -= dt;
     s.x = r.seat.x;
     s.z = r.seat.z;
-    s.heading = Math.atan2(
+    s.heading = r.seat.yaw ?? Math.atan2(
       r.seat.x - r.entry.position.x,
       r.seat.z - r.entry.position.z
     );
@@ -189,7 +190,7 @@ export class PicnicActivity {
     return this.people.commitPicnicMotion(r.claim, s);
   }
   finish(r, s, exit) {
-    Object.assign(s, exit, { phase: 'idle', picnicY: undefined });
+    Object.assign(s, exit, { phase: 'idle', picnicY: undefined,picnicCrossLegged:false });
     return this.people.finishPicnicMotion(r.claim, s);
   }
   release(handle, reason = 'rest-interrupted') {

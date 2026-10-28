@@ -1,0 +1,26 @@
+{
+  "low": {
+    "state": "Browser tab: 41, Title: \"Hoop finishes and dance poses\", URL: \"http://127.0.0.1:8765/verification/people/hoop-finishes.html?mute=1&perf=low\".\n1 AXWebArea Hoop finishes and dance poses, URL: 127.0.0.1:8765/verification/people/hoop-finishes.html?mute=1&perf=low\n\t2 heading Festival hoop finishes, Value: 1\n\t\t3 text Festival hoop finishes\n\t4 text PASS\nEight distinct production hoop finishes, complete seam-safe vertex colors and shared material.\nStage-area walkers/reacting people keep relaxed arms; idle dancers move their arms rhythmically.\n8 draws / 2304 triangles for eight hoops.\n\t5 button Noon, ID: noon\n\t6 button Midnight, ID: night\n\t7 container\n\t\t8 text Top: hot pink · lagoon · sunshine · candy stripes\n\t\t9 text Bottom: rainbow ribbon · electric spiral · sunset bands · festival checks\n\nThe focused UI element is 6 button Midnight, ID: night",
+    "logs": []
+  },
+  "mid": {
+    "state": "Browser tab: 41, Title: \"Hoop finishes and dance poses\", URL: \"http://127.0.0.1:8765/verification/people/hoop-finishes.html?mute=1&perf=mid\".\n0 AXWebArea Hoop finishes and dance poses, URL: 127.0.0.1:8765/verification/people/hoop-finishes.html?mute=1&perf=mid\n\t1 heading Festival hoop finishes, Value: 1\n\t\t2 text Festival hoop finishes\n\t3 text PASS\nEight distinct production hoop finishes, complete seam-safe vertex colors and shared material.\nStage-area walkers/reacting people keep relaxed arms; idle dancers move their arms rhythmically.\n8 draws / 2304 triangles for eight hoops.\n\t4 button Noon, ID: noon\n\t5 button Midnight, ID: night\n\t6 container\n\t\t7 text Top: hot pink · lagoon · sunshine · candy stripes\n\t\t8 text Bottom: rainbow ribbon · electric spiral · sunset bands · festival checks\n\nThe focused UI element is 5 button Midnight, ID: night",
+    "logs": []
+  },
+  "game": {
+    "state": "Browser tab: 38, Title: \"Zerble at the Festival — A Bubble Adventure\", URL: \"http://127.0.0.1:8765/?mute=1&perf=low&seed=1234\".\n0 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8765/?mute=1&perf=low&seed=1234\n\t1 container\n\t\t2 image game\n\t\t3 container hud\n\t\t\t4 container Description: Game status, ID: status-rail\n\t\t\t\t5 container Description: 0 smiles, personal best 173, ID: smile-status\n\t\t\t\t\t6 text 0\n\t\t\t\t\t34 text 173\n\t\t\t\t8 container Description: Bubble juice 100%, ID: juice-meter\n\t\t\t\t9 container Description: Morning, 15% through the day cycle, Help: Morning, ID: day-cycle\n\t\t\t39 text Drive around — make people smile, dodge the parade.\n\t\t35 button Description: Open settings, ID: settings-gear\n\t\t\t36 image\n\t\t37 button Description: Open bubble upgrades, ID: upgrades-btn\n\t\t38 button Description: Open Festival Passport, Help: Festival Passport (P), ID: passport-btn\n\nThe focused UI element is 0 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8765/?mute=1&perf=low&seed=1234",
+    "logs": []
+  },
+  "hulaCycle": {
+    "state": "Browser tab: 39, Title: \"Hula activity cycle\", URL: \"http://127.0.0.1:8765/verification/people/hula-cycle.html?mute=1&perf=low\".\nThere has been no change in the accessibility tree.\nThe focused UI element is 0 AXWebArea Hula activity cycle, URL: 127.0.0.1:8765/verification/people/hula-cycle.html?mute=1&perf=low",
+    "logs": []
+  },
+  "danceCycle": {
+    "state": "Browser tab: 40, Title: \"Dance interruption cycle\", URL: \"http://127.0.0.1:8765/verification/people/dance-cycle.html?mute=1&perf=mid\".\n0 AXWebArea Dance interruption cycle, URL: 127.0.0.1:8765/verification/people/dance-cycle.html?mute=1&perf=mid\n\t1 heading One dancer, one visible body, Value: 1\n\t\t2 text One dancer, one visible body\n\t3 text This fixture uses the production Crowd, Healing Arts activity, sampled place motion and render binding.\n\t4 text PASS\nThe dancer keeps the ordinary body and suppresses the place rig\nThe charging cart interrupts the dancer\nThe revoked dance claim cannot move the person\nThe original dancer uses the shared articulated elbow after returning to the dance floor\nThe same person safely reacquires the place\nIdentity and complete appearance survive\n\nThe focused UI element is 0 AXWebArea Dance interruption cycle, URL: 127.0.0.1:8765/verification/people/dance-cycle.html?mute=1&perf=mid",
+    "logs": []
+  },
+  "sandbox": {
+    "loaded": "Loaded: hula_hooper",
+    "logs": []
+  }
+}

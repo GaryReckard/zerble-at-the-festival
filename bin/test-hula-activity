@@ -18,5 +18,16 @@ tick();assert.equal(slot.session.phase,'hooping');assert(slot.hoop.visible);asse
 people._abandonSeat=()=>true;cart.position.set(2,0,-10);cart.speed=12;
 assert(people._interruptActivityForCart(record,cart));tick();assert.equal(slot.session.phase,'interrupted');assert(!slot.hoop.visible);
 registry.remove(placeId);tick();assert.equal(slot.session.phase,'idle');assert.equal(slot.reservation,null);assert(people.readPerson(person,{}));
-activity.dispose();activity.dispose();assert.equal(activity.geometry.disposeCount,1);assert.equal(activity.material.disposeCount,1);
+const colors=activity.geometries.map(g=>Array.from(g.attributes.color.array));assert.equal(new Set(colors.map(c=>JSON.stringify(c))).size,8,'eight distinct hoop finishes');assert.equal(activity.material.vertexColors,true);
+activity.dispose();activity.dispose();assert.equal(activity.geometries.length,8);assert(activity.geometries.every(g=>g.disposeCount===1));assert.equal(activity.material.disposeCount,1);
 runtime.dispose();Math.random=previousRandom;assert.equal(randomDraws,0,'activity does not consume the shared random stream');console.log('PASS production hula manager: eligibility, registry lifetime, visible prop, interruption and teardown.');
+
+{
+ const people=makePeopleCrowd(),person=people.spawnPerson({pos:new Vector(2,0,0)});people.peopleHandles.resolve(person).scale=1;
+ const id=registry.add({kind:'stage_front',position:new Vector(),footprint:0,attractor:{radius:10,weight:1}}),runtime=new PeopleRuntime(),activity=new HulaActivity({people,runtime});
+ const cart={position:new Vector(),forwardWorld:{x:0,z:1},speed:0};activity.update(.05,{zerble:cart,nightness:0});assert(activity.slots.every(s=>!s.session.person),'parked cart excludes nearby hula recruitment');
+ cart.position.z=40;activity.scan=0;activity.update(.05,{zerble:cart,nightness:0});const slot=activity.slots.find(s=>s.session.person===person);assert(slot);activity.update(.05,{zerble:cart,nightness:0});
+ const old=slot.session.claim;cart.position.z=0;people._abandonSeat=()=>true;assert(people._interruptActivityForCart(people.peopleHandles.resolve(person),cart),'a parked cart revokes an overlapping activity');assert.equal(slot.session.phase,'interrupted');assert(!people.writeActivityPose(old,0,0,0));assert(!slot.hoop.visible);
+ activity.dispose();runtime.dispose();registry.remove(id);
+}
+console.log('PASS parked-cart hula exclusion and synchronous activity interruption without cart speed.');

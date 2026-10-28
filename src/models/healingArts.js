@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {HEALING_DANCE_REST,sampleHealingDancePoint} from '../personMotion.js';
 import { register } from '../contextLights.js';
 
 // The open tensile roof and the participant rig are shared by the game and sandbox.
@@ -81,7 +82,7 @@ function segment(batch, index, ax, ay, az, bx, by, bz, radius) {
 }
 // Hip, neck, head, left elbow/hand, right elbow/hand, left knee/foot, right knee/foot.
 const POSES = [
-  [0,1,0, 0,1.65,0, 0,1.95,0, -.4,1.35,0, -.34,1.03,0, .4,1.35,0, .34,1.03,0, -.19,.52,0, -.2,.09,0, .19,.52,0, .2,.09,0],
+  HEALING_DANCE_REST,
   [0,.88,0, 0,1.54,0, 0,1.85,0, -.62,1.48,0, -1.03,1.5,0, .62,1.48,0, 1.03,1.5,0, -.65,.5,0, -.68,.09,0, .46,.48,0, .82,.09,0],
   [0,1.04,0, 0,1.7,0, 0,2.01,0, -.36,2.02,0, -.05,2.35,0, .36,2.02,0, .05,2.35,0, -.19,.54,0, -.2,.09,0, .57,.78,0, .09,.53,0],
   [0,1.02,0, 0,.78,.57, 0,.61,.83, -.3,.43,.61, -.29,.1,.42, .3,.43,.61, .29,.1,.42, -.19,.53,0, -.2,.09,0, .19,.53,0, .2,.09,0],
@@ -206,14 +207,10 @@ export function updateHealingArts(group, dt, time, nightness) {
     const a = POSES[Math.floor(cycle)], b = POSES[(Math.floor(cycle) + 1) % POSES.length];
     const blend = THREE.MathUtils.smoothstep(cycle % 1, .65, 1), pose = u.pose;
     for (let j = 0; j < 33; j++) pose[j] = a[j] + (b[j] - a[j]) * blend;
-    const dance = p.dj ? 1 : p.mix, beat = t * 3.8 + p.phase * 6;
+    const dance = p.dj ? 1 : p.mix, point=u.dancePoint??={};
     for (let j = 0; j < 11; j++) {
-      let x = POSES[0][j * 3], y = POSES[0][j * 3 + 1], z = POSES[0][j * 3 + 2];
-      x += Math.sin(beat) * (j < 7 ? .13 : .04); y += Math.max(0, Math.sin(beat * 2)) * .12;
-      if (j === 3 || j === 5) { y += .3 + Math.sin(beat + j) * .2; x *= 1.5; }
-      if (j === 4 || j === 6) { y += .75 + Math.sin(beat + j) * .25; z += p.dj ? .55 : .12; }
-      if (p.dj && (j === 3 || j === 5)) { y = 1.4; z = .25; }
-      if (p.dj && (j === 4 || j === 6)) { y = 1.45 + .04 * Math.sin(beat + j); z = .65; x = j === 4 ? -.7 : .7; }
+      sampleHealingDancePoint(j,t,p.phase,p.dj,point);
+      const {x,y,z}=point;
       pose[j * 3] += (x - pose[j * 3]) * dance;
       pose[j * 3 + 1] += (y - pose[j * 3 + 1]) * dance;
       pose[j * 3 + 2] += (z - pose[j * 3 + 2]) * dance;

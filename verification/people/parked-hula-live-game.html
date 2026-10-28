@@ -1,0 +1,38 @@
+<!doctype html><meta charset="utf-8"><title>Parked-cart hula cycle</title>
+<style>body{margin:20px;background:#17162a;color:#f8f3df;font:16px system-ui}iframe{width:100%;height:620px;border:1px solid #716678}pre{white-space:pre-wrap}</style>
+<h1>Parked-cart clearance in the running game</h1><p>This controlled local fixture starts the actual game loop and uses the live Crowd, cart, registry and hula controller. The title-gesture path is checked separately.</p><button id="run">Run live cycle</button><pre id="result">Ready</pre><iframe id="game" src="/?mute=1&perf=low"></iframe>
+<script>
+const output=document.querySelector('#result'),frame=document.querySelector('#game');let running=false;
+const wait=async(predicate,label,timeout=20000)=>{const end=performance.now()+timeout;while(performance.now()<end){if(predicate())return;await new Promise(r=>setTimeout(r,50));}throw Error('Timed out: '+label);};
+document.querySelector('#run').onclick=async()=>{if(running)return;running=true;let game,person,entry,slot,originalFinish;
+ let trace=[];
+ try{
+  await wait(()=>frame.contentWindow.__dbg,'game initialization');const w=frame.contentWindow;w.__dbg.start();game=w.__dbg.game;
+  await wait(()=>game.crowd.populationSize>0&&game.zerble.forwardWorld.lengthSq()>.9,'crowd and cart heading');
+  const cart=game.zerble,point=cart.position.clone().addScaledVector(cart.forwardWorld,8);
+  person=game.crowd.spawnPerson({pos:point,rng:()=>.15,allowPhotographer:false});if(!person)throw Error('No free Crowd person slot');
+  const view={};if(!game.crowd.readPerson(person,view))throw Error('Person unavailable');
+  const appearance=JSON.stringify(game.crowd.npcs.find(n=>n.personHandle===person).appearance);
+  entry=game.registry.add({kind:'stage_front',position:point.clone(),footprint:0,attractor:{radius:5,weight:1}});
+  slot=game.hoopers.slots.find(s=>s.session.phase==='idle')??game.hoopers.slots[0];if(slot.session.phase!=='idle')slot.session.finish('fixture-replaced');
+  slot.entry=game.registry.entries.get(entry);slot.x=point.x;slot.z=point.z;slot.session.duration=1;
+  let finished=null;originalFinish=slot.session.finish;const finish=originalFinish.bind(slot.session);
+  slot.session.finish=(reason)=>{finish(reason);const view={};finished={reason,live:game.crowd.readPerson(person,view),state:view.state};};
+  if(!slot.session.start(person))throw Error('Person could not join hula');
+  await wait(()=>slot.session.phase==='hooping','hooping');const old=slot.session.claim;
+  w.__dbg.teleport(point.x-cart.forwardWorld.x*3,point.z-cart.forwardWorld.z*3);cart.speed=0;
+  const sample=()=>{const v={};game.crowd.readPerson(person,v);return {phase:slot.session.phase,state:v.state,speed:cart.speed,cart:[cart.position.x,cart.position.z],forward:[cart.forwardWorld.x,cart.forwardWorld.z],person:[v.x,v.z]};};
+  trace.push(sample());
+  await wait(()=>{if(trace.length<20)trace.push(sample());return slot.session.phase==='interrupted';},'cart interruption',3000);
+  if(game.crowd.writeActivityPose(old,999,0,999))throw Error('Revoked claim wrote a pose');
+  const fleeing={};if(!game.crowd.readPerson(person,fleeing)||fleeing.state!=='fleeing')throw Error('Person did not flee');
+  const far=point.clone().addScaledVector(cart.forwardWorld,-60);w.__dbg.teleport(far.x,far.z);
+  await wait(()=>slot.session.phase==='hooping','safe resumption');
+  await wait(()=>finished,'finish and departure');
+  if(finished.reason!=='completed'||!finished.live||finished.state!=='walking')throw Error('Departure result: '+JSON.stringify(finished));
+  if(JSON.stringify(game.crowd.npcs.find(n=>n.personHandle===person).appearance)!==appearance)throw Error('Appearance changed');
+  output.textContent='PASS\nReal game loop: Crowd person → hula → parked cart → revoked claim → safe resume → departure, with identity and appearance preserved.';
+ }catch(error){output.textContent='FAIL\n'+error.stack+'\n'+JSON.stringify(trace,null,2);console.error(error);}
+ finally{if(slot&&slot.session.phase!=='idle')slot.session.finish('fixture-cleanup');if(slot&&originalFinish)slot.session.finish=originalFinish;if(game&&person)game.crowd.removePerson(person);if(game&&entry!=null)game.registry.remove(entry);running=false;}
+};
+</script>

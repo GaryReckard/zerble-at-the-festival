@@ -2025,6 +2025,7 @@ function toastForKind(kind) {
     case 'brass': return 'You blocked the brass band. Sorry, tuba.';
     case 'truck': return "Don't hit the food trucks!";
     case 'tent': return 'You knocked over a craft tent!';
+    case 'soundboard': return 'Easy around the soundboard!';
     case 'camp_tapestry': return 'Mind the camp privacy screens!';
     case 'camp_tent': return 'Give the sleeping tents some room!';
     case 'camp_loveseat':

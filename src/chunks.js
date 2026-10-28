@@ -1,5 +1,6 @@
+import { roadMaterial } from './roadMaterials.js';
 import {sampleHealingArtsPreview} from './people/healingArtsMotion.js';
-import { terrainHeight, terrainEnabled, TERRAIN_STEP } from './worldgen/terrain.js';
+import { terrainHeight, terrainEnabled, TERRAIN_STEP, drapeTerrainTriangles } from './worldgen/terrain.js';
 import { woodlandCampsNear, woodlandCampingClearance } from './woodlandCamping.js';
 import { planCampNeighborhood } from './campPlanning.js';
 import { registerCampsite, canPlaceCampsite } from './campRegistry.js';
@@ -23,6 +24,7 @@ import * as THREE from 'three';
 import { registry } from './registry.js';
 import { hash2, worldHash, mulberry32 } from './rng.js';
 import { Sound } from './sound.js';
+import { CAMP_CHAIR_STYLES } from './models/campChair.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps, ownerCellCoord, vendorRowSlots, foodCourtShackFallback } from './worldgen/placement.js';
@@ -30,11 +32,11 @@ import { queryRegion, queryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
 import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, seamHedgesNear, welcomeFoodCourt, MAX_POI_REACH } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
-import { roadsInBounds, nearestRoad } from './worldgen/roads.js';
+import { roadsInBounds, nearestRoad, shapesClearOfRoads, PAVED_ROAD_WIDTH } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
-import { buildCampsite, buildCampChair, buildTorchField, buildVendorCamp, CAMPSITE_SCALE, campsiteFootprint } from './models/campsite.js';
+import { batchCampChairs, buildCampsite, buildCampChair, buildTorchField, buildVendorCamp, CAMPSITE_SCALE, campsiteFootprint } from './models/campsite.js';
 import { HealingArtsActivity } from './healingArtsActivity.js';
 import { buildHealingArts, updateHealingArts } from './models/healingArts.js';
 import { buildTent, updateTent } from './models/tent.js';
@@ -748,19 +750,7 @@ function placePaths(ctx) {
   // and we don't want paths submerging into the lake.
   if (chunkOverlapsLake(ctx.cxWorld, ctx.czWorld, CHUNK_SIZE / 2)) return;
 
-  const pathColor = 0xb89570;
-  const mat = new THREE.MeshStandardMaterial({
-    color: pathColor,
-    roughness: 1,
-    metalness: 0,
-    // polygonOffset pulls the path "toward camera" in depth so it draws on top
-    // of the ground even when the terrain has tiny variations. depthWrite off
-    // prevents the path from blocking decals stacked above it.
-    polygonOffset: true,
-    polygonOffsetFactor: -2,
-    polygonOffsetUnits: -2,
-    depthWrite: false,
-  });
+  const mat = roadMat();
 
   // E-W trail: enters at (cxWorld - chunk/2, czWorld), exits at (cxWorld + chunk/2, czWorld)
   const ewMesh = buildCurvedPath(
@@ -863,50 +853,11 @@ export function buildCurvedPath(x1, z1, x2, z2, width, rng, material) {
 // terrain diagonal and cut through its crest. Clip each triangle to the actual
 // ground triangles so the complete road surface retains its six-centimetre lift.
 function terrainRibbonGeometry(vertices, indices) {
-  if (terrainEnabled()) {
-    const result = [], triangles = [];
-    const clip = (polygon, nx, nz, offset) => {
-      const out = [];
-      for (let i = 0; i < polygon.length; i++) {
-        const a = polygon[i], b = polygon[(i + 1) % polygon.length];
-        const da = a.x * nx + a.z * nz - offset, db = b.x * nx + b.z * nz - offset;
-        if (da <= 0) out.push(a);
-        if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
-          const t = da / (da - db);
-          out.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
-        }
-      }
-      return out;
-    };
-    const emit = polygon => {
-      for (let i = 1; i + 1 < polygon.length; i++) {
-        const a = polygon[0], b = polygon[i], c = polygon[i + 1];
-        if (Math.abs((b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x)) < 1e-10) continue;
-        for (const p of [a,b,c]) {
-          triangles.push(result.length / 3);
-          result.push(p.x, terrainHeight(p.x,p.z), p.z);
-        }
-      }
-    };
-    for (let i = 0; i < indices.length; i += 3) {
-      const polygon = indices.slice(i,i+3).map(index => ({ x: vertices[index*3], z: vertices[index*3+2] }));
-      const x0 = Math.floor(Math.min(...polygon.map(p=>p.x))/TERRAIN_STEP)*TERRAIN_STEP;
-      const x1 = Math.floor(Math.max(...polygon.map(p=>p.x))/TERRAIN_STEP)*TERRAIN_STEP;
-      const z0 = Math.floor(Math.min(...polygon.map(p=>p.z))/TERRAIN_STEP)*TERRAIN_STEP;
-      const z1 = Math.floor(Math.max(...polygon.map(p=>p.z))/TERRAIN_STEP)*TERRAIN_STEP;
-      for (let z = z0; z <= z1; z += TERRAIN_STEP) for (let x = x0; x <= x1; x += TERRAIN_STEP) {
-        let cell = clip(polygon,-1,0,-x);
-        cell = clip(cell,1,0,x+TERRAIN_STEP);
-        cell = clip(cell,0,-1,-z);
-        cell = clip(cell,0,1,z+TERRAIN_STEP);
-        emit(clip(cell,1,1,x+z+TERRAIN_STEP));
-        emit(clip(cell,-1,-1,-x-z-TERRAIN_STEP));
-      }
-    }
-    vertices = result; indices = triangles;
-  }
+  ({vertices,indices}=drapeTerrainTriangles(vertices,indices));
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+  const uv=[];for(let i=0;i<vertices.length;i+=3)uv.push(vertices[i]/4,vertices[i+2]/4);
+  geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   geometry.computeBoundingBox();
@@ -924,37 +875,13 @@ function terrainRibbonGeometry(vertices, indices) {
 // uses, so the rendered road and the `noBuild`/`facing` gate agree (R1, RAW
 // source-of-truth). Roads are passable (no collider).
 
-// Shared dirt-road material. Created LAZILY on first use (during chunk
-// generation), NOT at module-eval — a `depthWrite:false` MeshStandardMaterial
-// constructed at module-eval time renders INVISIBLY in-game (its meshes draw
-// under the player-centered ground plane; verified by an in-game A/B). The
-// legacy `+`-grid path material (placePaths) renders fine precisely because it
-// is built per-chunk at RUNTIME; this mirrors that timing while staying a single
-// shared instance. Tagged `userData.shared` so the chunk-unload disposal walk
-// skips it (footgun #6 / R6) — otherwise the first chunk unload frees it and
-// every other chunk's road forces a shader recompile.
-let _roadMat = null;
-function roadMat() {
-  if (!_roadMat) {
-    _roadMat = new THREE.MeshStandardMaterial({
-      color: 0xb89570,
-      roughness: 1,
-      metalness: 0,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-      // The unlit far-road underlay must fail depth testing beneath this lit surface.
-      depthWrite: true,
-    });
-    _roadMat.userData.shared = true;
-  }
-  return _roadMat;
-}
+// Lazy shared tiles survive chunk unload; the renderer owns both pooled pairs.
+function roadMat() { return roadMaterial('dirt'); }
 
-// Visible ribbon width. The worldgen noBuild corridor is ±CONFIG.ROAD_WIDTH of the
-// centerline; rendering the ribbon at the full ROAD_WIDTH leaves a cleared shoulder
-// on each side (corridor − ribbon) so props sit beside the road, never on it.
-const ROAD_RIBBON_WIDTH = CONFIG.ROAD_WIDTH;
+// Conservative placement radius for mixed-width roads. The nearest centerline
+// need not be the nearest road edge, so physical prop gates use the widest road.
+// Actual rendering reads each edge descriptor (dirt 7m, asphalt 9m).
+const ROAD_RIBBON_WIDTH = Math.max(CONFIG.ROAD_WIDTH, PAVED_ROAD_WIDTH);
 
 // Liang-Barsky clip of segment a→b to the box. Returns the clipped endpoints plus
 // the t0/t1 params on the original segment (so the caller can tell whether a
@@ -1006,7 +933,7 @@ function clipPolylineToBox(pts, minX, minZ, maxX, maxZ) {
 // (miter) tangent for a smooth joint; run endpoints — which on a clipped run are
 // always the chunk-boundary crossings — use the single adjacent-segment tangent, so
 // they match the neighbor chunk's ribbon edge exactly.
-function buildRibbonFromPolyline(pts, width, material) {
+export function buildRibbonFromPolyline(pts, width, material) {
   // Only this owned ribbon is subdivided; the memoized road plan stays intact.
   // Edge heights use the same triangle surface as wheel contact and ground.
   if (terrainEnabled()) {
@@ -1060,11 +987,10 @@ function placeWorldgenRoads(ctx, roads) {
   const half = CHUNK_SIZE / 2;
   const minX = ctx.cxWorld - half, maxX = ctx.cxWorld + half;
   const minZ = ctx.czWorld - half, maxZ = ctx.czWorld + half;
-  const mat = roadMat();
   for (const road of roads) {
     const runs = clipPolylineToBox(road.points, minX, minZ, maxX, maxZ);
     for (const run of runs) {
-      ctx.group.add(buildRibbonFromPolyline(run, ROAD_RIBBON_WIDTH, mat));
+      ctx.group.add(buildRibbonFromPolyline(run, road.width ?? ROAD_RIBBON_WIDTH, roadMaterial(road.surface)));
       placeRoadWaypoints(ctx, run);   // Group G — crowd drifts ALONG the road via these
     }
   }
@@ -1496,6 +1422,12 @@ export function buildHubPreview(scene, heart, opts = {}) {
     group, region, crowd,
   };
 
+  // The hub surface must expose the same clipped road meshes as streamed chunks,
+  // otherwise a venue-only preview cannot verify asphalt width or road clearance.
+  for(let cz=Math.floor((heart.z-reach)/CHUNK_SIZE);cz<=Math.ceil((heart.z+reach)/CHUNK_SIZE);cz++)
+    for(let cx=Math.floor((heart.x-reach)/CHUNK_SIZE);cx<=Math.ceil((heart.x+reach)/CHUNK_SIZE);cx++)
+      placeWorldgenRoads({...ctx,cxWorld:cx*CHUNK_SIZE,czWorld:cz*CHUNK_SIZE},region.roads);
+
   // Same per-descriptor water-skip + non-anchor dodge guard as placeWorldgenProps,
   // but over the WHOLE hub (festivalPlan(heart) is NOT chunk-clipped) + its
   // back-of-festival camp villages within reach. The dodge runs against the PAGE
@@ -1694,7 +1626,10 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       // crosses a road"). Skip a booth that lands on the road ribbon — the row keeps a gap
       // at the bend instead of crossing. Chunk-gen only; same skip-before-buildTent pattern
       // as the backstops below, so the cluster-local rng + goldens are unaffected.
-      if (nearestRoad(w.x, w.z).dist < ROAD_RIBBON_WIDTH / 2 + 1) continue;
+      // Check the entire canopy/trim square, including the roof's ±.03rad
+      // decorative rotation. A center-only one-metre guard misses curved roads.
+      const boothRoads=ctx.region?.roads ?? roadsInBounds(w.x-4,w.z-4,w.x+4,w.z+4);
+      if (!shapesClearOfRoads([{t:'rect',x:w.x,z:w.z,ux:cosY,uz:-sinY,hl:2.35,hw:2.35}],boothRoads,ROAD_RIBBON_WIDTH/2)) continue;
       // Group-5 backstop: skip a booth that would clip an already-built solid (a stage
       // deck the row runs past, a neighbour's truck) — the graceful-degradation guard the
       // legacy theme builders had. Chunk-gen only; clusterSeed stream, so goldens unaffected.
@@ -1920,9 +1855,7 @@ function buildCampNeighborhoodAt(ctx, x, z, target, envelope = 60, density = nul
 
 // Every chunk asks for the same pure plan, even when the owning host chunk
 // has not streamed yet. This keeps tree-free pitches and access load-order safe.
-const _WOODLAND_PATH_MAT=new THREE.MeshStandardMaterial({color:0x96806a,roughness:1,
-  polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,depthWrite:true});
-_WOODLAND_PATH_MAT.userData.shared=true;
+
 function placeWoodlandCamping(ctx) {
   const half=CHUNK_SIZE/2;
   const districts=ctx.woodlandDistricts || woodlandCampsNear({minX:ctx.cxWorld-half,minZ:ctx.czWorld-half,maxX:ctx.cxWorld+half,maxZ:ctx.czWorld+half});
@@ -1945,7 +1878,7 @@ function placeWoodlandCamping(ctx) {
     for(const path of d.paths) {
       if(path.visible===false)continue;
       if(Math.hypot(path.bx-path.ax,path.bz-path.az)<.01)continue;
-      ctx.group.add(buildRibbonFromPolyline([{x:path.ax,z:path.az},{x:path.bx,z:path.bz}],path.width,_WOODLAND_PATH_MAT));
+      ctx.group.add(buildRibbonFromPolyline([{x:path.ax,z:path.az},{x:path.bx,z:path.bz}],path.width,roadMat()));
     }
     // Deep woods have almost no ordinary ambient crowd. Add residents near
     // the actual furniture, subject to the existing shared actor-pool cap.
@@ -2063,6 +1996,43 @@ function buildSideStage(ctx) {
 // The tent model is built FIRST so the legacy rng draw order (tent build, THEN the
 // fallback yaw draw) is byte-identical — never make `yaw` a default param (that
 // would draw rng before the body).
+// Keep the old chair population's draw count so later world generation retains
+// its seeded stream. Layout uses separated rows; every style remains eligible.
+export function placeStageChairRows(ctx, worldXZ, yaw, start, end, halfWidth, groups, focusZ = 0) {
+  const rows=Math.ceil(groups/2), spacing=1.85, placed=[], occupied=[];
+  for(let row=0;row<groups;row++){
+    const xRoll=ctx.rng(),zRoll=ctx.rng(),styleSeed=Math.floor(xRoll*4);
+    const size=ctx.rng(), oldCount=3+Math.floor(size*4);
+    const count=Math.min(1+Math.floor(size*5),Math.max(1,Math.floor(halfWidth*.85/spacing)+1));
+    const center=(row%2?1:-1)*halfWidth*.52+(xRoll-.5)*1.2;
+    const z=start+1.1+(rows===1?0:Math.floor(row/2)*(end-start-3)/(rows-1))+(zRoll-.5)*.6+(row%2)*.8;
+    const turn=Math.atan2(center,Math.max(1,z-focusZ));
+    for(let i=0;i<oldCount;i++){
+      const offsetRoll=ctx.rng(),depthRoll=ctx.rng();
+      const chair= i<count ? buildCampChair(ctx.rng,{style:CAMP_CHAIR_STYLES[(row+i+styleSeed)%CAMP_CHAIR_STYLES.length]}) : (ctx.rng(),null);
+      const facingRoll=ctx.rng();
+      if(!chair)continue;
+      const offset=(i-(count-1)/2)*spacing+(offsetRoll-.5)*.12;
+      const lx=center+offset*Math.cos(turn),lz=z-offset*Math.sin(turn)+(depthRoll-.5)*.15;
+      if(lz<start+.5||lz>end-.5||Math.abs(lx)+chair.footprint>halfWidth)continue;
+      const w=worldXZ(lx,lz), y=terrainHeight(w.x,w.z);
+      if(occupied.some(e=>Math.hypot(w.x-e.x,w.z-e.z)<chair.footprint+e.radius+.2))continue;
+      const chairYaw=yaw+Math.atan2(-lx,focusZ-lz)+(facingRoll-.5)*.24;
+      if(queryPoint(w.x,w.z).noBuild||nearestRoad(w.x,w.z).dist<ROAD_RIBBON_WIDTH/2+chair.footprint)continue;
+      chair.group.position.set(w.x,y,w.z);chair.group.rotation.y=chairYaw;
+      chair.group.name='Stage chair '+chair.style;ctx.group.add(chair.group);placed.push(chair);occupied.push({x:w.x,z:w.z,radius:chair.footprint});
+      const c=Math.cos(chairYaw),s=Math.sin(chairYaw);
+      const campSeats=chair.seatOffsets.map(offset=>({
+        x:w.x+c*offset,z:w.z-s*offset,y:y+chair.seatY,yaw:chairYaw+Math.PI,
+        approachX:w.x+c*offset+s*.95,approachZ:w.z-s*offset+c*.95,occupied:false,
+      }));
+      registry.add({kind:'chair',position:new THREE.Vector3(w.x,y,w.z),footprint:chair.footprint,
+        campSeats,stageAudience:true,audienceGroup:row,chairStyle:chair.style,chunkKey:ctx.key});
+    }
+  }
+  batchCampChairs(ctx.group,placed);
+}
+
 function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   const tex = leafBannerTextures('#fff4d0', '#6fcf6a', '#ffd28a');
   const tent = buildTentStage({ rng: ctx.rng, leafTexture: tex });
@@ -2144,7 +2114,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
   {
     const w3 = worldXZ(tent.mixerPos.x, tent.mixerPos.z);
     registry.add({
-      kind: 'tent',
+      kind: 'soundboard',
       position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z) + 0.5, w3.z),
       footprint: 1.4,
       collider: { radius: 1.4, damage: 5 },
@@ -2178,8 +2148,9 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
         rng: ctx.rng,
       });
     }
-    // Sound engineer at the mixer
-    const m3 = worldXZ(tent.mixerPos.x, tent.mixerPos.z + 0.6);
+    // Preserve this audience spawn and its RNG draws; the booth attendant is
+    // now a place-owned performer on the platform rather than a roaming NPC.
+    const m3 = worldXZ(-5, tent.mixerPos.z + 0.6);
     ctx.crowd.spawn({
       pos: new THREE.Vector3(m3.x, terrainHeight(m3.x, m3.z), m3.z),
       chunkKey: ctx.key,
@@ -2210,60 +2181,18 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
     const stageFrontZ = tent.stagePos.z + tent.stageDepth / 2;
     const audBackZ = tent.mixerPos.z - 1.5;       // just in front of the booth
     const audDepth = audBackZ - stageFrontZ;
-    const danceDepth = audDepth / 3;              // front third = dance
+    const danceDepth = audDepth / 2;              // front half stays clear for dancing
     const chairBandStart = stageFrontZ + danceDepth;
     const chairBandEnd = audBackZ;
     const lateralSpread = tent.width - 5;         // inside tent walls
     const clumpCount = 4 + Math.floor(ctx.rng() * 2);
-    for (let ci = 0; ci < clumpCount; ci++) {
-      const clumpLocalX = (ctx.rng() - 0.5) * lateralSpread;
-      const clumpLocalZ = chairBandStart + ctx.rng() * (chairBandEnd - chairBandStart);
-      const chairsInClump = 3 + Math.floor(ctx.rng() * 4);
-      for (let chi = 0; chi < chairsInClump; chi++) {
-        const offX = (ctx.rng() - 0.5) * 2.8;
-        const offZ = (ctx.rng() - 0.5) * 2.0;
-        const lx = clumpLocalX + offX;
-        const lz = clumpLocalZ + offZ;
-        const w3 = worldXZ(lx, lz);
-        const chair = buildCampChair(ctx.rng);
-        chair.group.position.set(w3.x, terrainHeight(w3.x, w3.z), w3.z);
-        // Face the stage: chair-local +Z is "forward"; the stage is at
-        // tent-local -Z, so the chair needs to face tent-local -Z =
-        // world (yaw + π) plus a small jitter.
-        chair.group.rotation.y = yaw + Math.PI + (ctx.rng() - 0.5) * 0.7;
-        ctx.group.add(chair.group);
-        registry.add({
-          kind: 'chair',
-          position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z), w3.z),
-          footprint: 0.5,
-          chunkKey: ctx.key,
-        });
-      }
-    }
-    // One extra clump BEHIND the sound booth (still under tent canvas) for
-    // variety — captures the "some can be behind the booth, that's fine"
-    // part of the design.
-    if (ctx.rng() < 0.7) {
-      const behindLocalX = (ctx.rng() - 0.5) * (lateralSpread - 4);
-      const behindLocalZ = tent.mixerPos.z + 1.5 + ctx.rng() * 2.0;
-      const chairsInClump = 2 + Math.floor(ctx.rng() * 3);
-      for (let chi = 0; chi < chairsInClump; chi++) {
-        const offX = (ctx.rng() - 0.5) * 2.5;
-        const offZ = (ctx.rng() - 0.5) * 1.5;
-        const lx = behindLocalX + offX;
-        const lz = behindLocalZ + offZ;
-        const w3 = worldXZ(lx, lz);
-        const chair = buildCampChair(ctx.rng);
-        chair.group.position.set(w3.x, terrainHeight(w3.x, w3.z), w3.z);
-        chair.group.rotation.y = yaw + Math.PI + (ctx.rng() - 0.5) * 0.7;
-        ctx.group.add(chair.group);
-        registry.add({
-          kind: 'chair',
-          position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z), w3.z),
-          footprint: 0.5,
-          chunkKey: ctx.key,
-        });
-      }
+    placeStageChairRows(ctx, worldXZ, yaw, chairBandStart, chairBandEnd, lateralSpread / 2, clumpCount, tent.stagePos.z);
+    // Consume the historical optional back-clump draws, but leave the narrow
+    // entrance and engineer's access to the booth clear.
+    if (ctx.rng() < .7) {
+      ctx.rng(); ctx.rng();
+      const oldCount = 2 + Math.floor(ctx.rng() * 3);
+      for(let i=0;i<oldCount;i++){ctx.rng();ctx.rng();ctx.rng();ctx.rng();}
     }
   }
 
@@ -2454,14 +2383,6 @@ function placeSeamHedges(ctx) {
   }
 }
 
-// Shared dirt-path material for the drum access footpaths (matches the v1 grid
-// path look). Tagged shared so chunk unload skips it.
-const _DRUM_PATH_MAT = new THREE.MeshStandardMaterial({
-  color: 0xb89570, roughness: 1, metalness: 0,
-  polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, depthWrite: false,
-});
-_DRUM_PATH_MAT.userData.shared = true;
-
 // A winding footpath from the nearest road into a drum circle's treed clearing —
 // the v1 "discover the drum down a path in the woods" composition (forests.js
 // buildForestPath), ported to the v2 district drums (which already sit in a
@@ -2475,11 +2396,11 @@ function buildDrumAccessPath(ctx, dx, dz) {
   if (nr.dist < 10 || nr.dist > 100) return;
   const ux = Math.cos(nr.dirAngle), uz = Math.sin(nr.dirAngle);          // drum → nearest road
   const ex = dx + ux * nr.dist, ez = dz + uz * nr.dist;                   // road entry point
-  const startX = ex - ux * (ROAD_RIBBON_WIDTH / 2 + 0.5), startZ = ez - uz * (ROAD_RIBBON_WIDTH / 2 + 0.5);
+  const startX = ex - ux * ((nr.width ?? CONFIG.ROAD_WIDTH) / 2 + 0.5), startZ = ez - uz * ((nr.width ?? CONFIG.ROAD_WIDTH) / 2 + 0.5);
   const clearR = (FESTIVAL_TUNING.KIND_FOOTPRINT.drum_circle || 6) + 1;
   const endX = dx + ux * clearR, endZ = dz + uz * clearR;                 // stop at the clearing edge, not the firepit
   const prng = mulberry32(worldHash(Math.round(dx), Math.round(dz), 0x9A7) >>> 0);
-  const pathMesh = buildCurvedPath(startX, startZ, endX, endZ, 3, prng, _DRUM_PATH_MAT);
+  const pathMesh = buildCurvedPath(startX, startZ, endX, endZ, 3, prng, roadMat());
   pathMesh.name = 'drum_path';
   ctx.group.add(pathMesh);
 }
@@ -2930,13 +2851,24 @@ function blanketMat(color) {
   }
   return m;
 }
-function placePicnicBlanket(ctx, x, z) {
+export function placePicnicBlanket(ctx, x, z, stageAudience = false, stageHeading = 0) {
   const blanket = new THREE.Mesh(BLANKET_GEO, blanketMat(BLANKET_COLORS[Math.floor(ctx.rng() * BLANKET_COLORS.length)]));
   blanket.rotation.x = -Math.PI / 2;
   blanket.rotation.z = ctx.rng() * Math.PI * 2;
   blanket.position.set(x, terrainHeight(x, z) + 0.06, z);
+  // Keep the complete blanket outside chairs, other blankets and roads, while
+  // consuming the original two palette/orientation draws even when omitted.
+  if(queryPoint(x,z).noBuild||nearestRoad(x,z).dist<ROAD_RIBBON_WIDTH/2+1.9)return;
+  for(const e of registry.byChunk(ctx.key))if((e.kind==='chair'||e.kind==='picnic')&&Math.hypot(x-e.position.x,z-e.position.z)<1.9+(e.kind==='chair'?e.footprint:1.9))return;
+
   ctx.group.add(blanket);
-  registry.add({ kind: 'picnic', position: new THREE.Vector3(x, terrainHeight(x, z), z), footprint: 0, attractor: { radius: 3, weight: 0.4 }, chunkKey: ctx.key });
+  registry.add({ kind: 'picnic', position: new THREE.Vector3(x, terrainHeight(x, z), z), footprint: 0,
+    tableSeats:stageAudience?[-1,1].flatMap(side=>[-1,1].map(row=>{
+      const right=side*.55,forward=row*.55,c=Math.cos(stageHeading),s=Math.sin(stageHeading);
+      const sx=x+c*right+s*forward,sz=z-s*right+c*forward;
+      return {x:sx,z:sz,y:terrainHeight(sx,sz)+.065,yaw:stageHeading+side*.035,pose:'cross-legged',occupied:false};
+    })):undefined,
+    attractor: { radius: 3, weight: 0.4 }, chunkKey: ctx.key });
 }
 
 function buildStage(ctx, x, z, isMain, yaw = 0) {
@@ -3039,55 +2971,19 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
     }
   }
 
-  // ----- Camp-chair clumps in the audience zone -----
-  // Festival-goers sit in loose clumps behind the dancefloor — not lined up,
-  // not at the front rail. The front "dancefloor" stays chair-free so people
-  // can dance there. Layout: 3-5 clumps in a band beyond the dancefloor, each
-  // clump 3-6 chairs facing the stage with a bit of rotation jitter so they
-  // don't look soldier-straight.
-  //
-  // Zones (in stage-local +Z = "in front of stage"):
-  //   Dancefloor (no chairs):  z + d/2  to  z + d/2 + dancefloorDepth
-  //   Chair band:              z + d/2 + dancefloorDepth  to  z + d/2 + chairBandEnd
-  //   Lateral spread: ±lateral from stage X axis
+  // Small chair rows behind the dancefloor leave aisles between groups.
   const dancefloorDepth = 9 * scale;
   const chairBandStart = d / 2 + dancefloorDepth;
   const chairBandEnd = d / 2 + dancefloorDepth + 14 * scale;
   const lateralSpread = 11 * scale;
   const clumpCount = isMain ? 4 + Math.floor(ctx.rng() * 2) : 2 + Math.floor(ctx.rng() * 2);
-  for (let ci = 0; ci < clumpCount; ci++) {
-    // Clump center — random offset within the audience band.
-    const clumpX = (ctx.rng() - 0.5) * lateralSpread * 2;
-    const clumpZ = chairBandStart + ctx.rng() * (chairBandEnd - chairBandStart);
-    const chairsInClump = 3 + Math.floor(ctx.rng() * 4);
-    for (let chi = 0; chi < chairsInClump; chi++) {
-      // Each chair sits within ~1.4m of the clump center.
-      const chairOffX = (ctx.rng() - 0.5) * 2.8;
-      const chairOffZ = (ctx.rng() - 0.5) * 2.0;
-      // buildCampChair returns { group, color, footprint } — not the Group.
-      const chair = buildCampChair(ctx.rng);
-      const cw = rot(clumpX + chairOffX, clumpZ + chairOffZ);
-      chair.group.position.set(cw.x, terrainHeight(cw.x, cw.z), cw.z);
-      // Face the stage: stage is at -Z direction in this local frame, but
-      // chair default faces +Z (per buildCampChair), so we rotate π. The whole
-      // layout rides `yaw`, so the chair's facing is yaw + π + a small jitter.
-      chair.group.rotation.y = yaw + Math.PI + (ctx.rng() - 0.5) * 0.7;
-      ctx.group.add(chair.group);
-      // Soft footprint so NPCs steer around the chair without big penalties.
-      registry.add({
-        kind: 'chair',
-        position: new THREE.Vector3(cw.x, terrainHeight(cw.x, cw.z), cw.z),
-        footprint: 0.5,
-        chunkKey: ctx.key,
-      });
-    }
-  }
+  placeStageChairRows(ctx, rot, yaw, chairBandStart, chairBandEnd, lateralSpread, clumpCount);
 
   // ----- G1: a few picnic blankets sprinkled near the stage (not carpeted) -----
   const blanketCount = isMain ? 4 + Math.floor(ctx.rng() * 2) : 2 + Math.floor(ctx.rng() * 2);
   for (let bi = 0; bi < blanketCount; bi++) {
     const bw = rot((ctx.rng() - 0.5) * lateralSpread * 2.4, chairBandStart + ctx.rng() * (chairBandEnd - chairBandStart + 6 * scale));
-    placePicnicBlanket(ctx, bw.x, bw.z);
+    placePicnicBlanket(ctx, bw.x, bw.z, true, Math.atan2(bw.x-x,bw.z-z));
   }
 
   // ----- C3: tiki torches marking the dancefloor boundary (4 at the corners) -----

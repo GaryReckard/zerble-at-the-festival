@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8"><title>Production road surfaces</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{background:#17162a;color:white;font:16px system-ui}canvas{max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
+<h1>Festival access roads and dirt routes</h1><pre id="result">Running…</pre>
+<button id="noon">Noon</button> <button id="night">Midnight</button> <button id="low">Cart-height view</button> <button id="rebuild">Unload and rebuild roads</button>
+<script type="module">
+import * as THREE from 'three';
+import {buildRibbonFromPolyline,disposeChunkByKey} from '../../src/chunks.js';
+import {roadMaterial} from '../../src/roadMaterials.js';
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(48,950/600,.1,250),renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(950,600);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;document.body.append(renderer.domElement);
+const light=new THREE.HemisphereLight(0xffffff,0x555644,2.5);scene.add(light);
+let roads,group,rebuilds=0,night=0;
+const started=performance.now(),originalMaterials=[];
+function buildRoads(){
+ roads=[];group=new THREE.Group();scene.add(group);
+ for(const [surface,x,width] of [['dirt',-7,7],['asphalt',7,9]]){
+  const material=roadMaterial(surface),mesh=buildRibbonFromPolyline([{x,z:25},{x,z:-40}],width,material);
+  group.add(mesh);roads.push(mesh);
+  const p=mesh.geometry.attributes.position,uv=mesh.geometry.attributes.uv;
+  if(!uv||uv.count!==p.count)throw Error('Missing final-vertex UVs');
+  for(let i=0;i<p.count;i++)if(Math.abs(uv.getX(i)-p.getX(i)/4)>1e-5||Math.abs(uv.getY(i)-p.getZ(i)/4)>1e-5)throw Error('Texture is not aligned in world metres');
+  if(material!==roadMaterial(surface)||!material.userData.shared||!material.map.userData.shared||!material.depthWrite||!material.map.generateMipmaps)throw Error('Material ownership or depth regression');
+  if(rebuilds&&material!==originalMaterials[roads.length-1])throw Error('Rebuild replaced a shared material');
+  if(!rebuilds)originalMaterials.push(material);
+ }
+}
+try{
+ buildRoads();const coldMs=performance.now()-started;
+ const ground=new THREE.Mesh(new THREE.PlaneGeometry(80,100),new THREE.MeshStandardMaterial({color:0x496a35}));ground.rotation.x=-Math.PI/2;scene.add(ground);
+ camera.position.set(27,26,30);camera.lookAt(0,0,-5);
+ const render=()=>{
+  light.intensity=night?.25:2.5;scene.background=new THREE.Color(night?0x122219:0x91c7db);renderer.render(scene,camera);
+  if(renderer.info.memory.textures!==2)throw Error('Road texture allocation count changed');
+  document.querySelector('#result').textContent='PASS: production dirt/asphalt, seven/nine metre ribbons, world-aligned UVs, shared mipmaps, retained depth policy.\n'+renderer.info.render.calls+' draws / '+renderer.info.render.triangles+' triangles / '+renderer.info.memory.textures+' textures. Cold tile + ribbon CPU '+coldMs.toFixed(1)+'ms; '+rebuilds+' production unload/rebuild cycles.';
+ };
+ document.querySelector('#noon').onclick=()=>{night=0;render();};
+ document.querySelector('#night').onclick=()=>{night=1;render();};
+ document.querySelector('#low').onclick=()=>{camera.position.set(1,2.6,18);camera.lookAt(0,.3,-15);render();};
+ document.querySelector('#rebuild').onclick=()=>{disposeChunkByKey(scene,group,'road-fixture',null);rebuilds++;buildRoads();render();};
+ render();
+}catch(e){document.querySelector('#result').textContent='FAIL '+e.stack;console.error(e);}
+addEventListener('pagehide',()=>{disposeChunkByKey(scene,group,'road-fixture',null);renderer.dispose();},{once:true});
+</script>

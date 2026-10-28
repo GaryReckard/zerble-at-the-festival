@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import {HEALING_DANCE_REST,sampleHealingDancePoint} from '../src/personMotion.js';
 import {sampleHealingArtsMotion} from '../src/people/healingArtsMotion.js';
 
 // Exercise the shipped pose/spacing routine without a GPU. Only rendering writes
@@ -23,7 +24,7 @@ const display = vm.runInNewContext(
     color: { setHex() {} },
     instanceAt(batch, index, ...values) { if (batch.capture) writes.push({ kind: batch.name, index, values }); },
     segment(batch, index, ...values) { if (batch.capture) writes.push({ kind: batch.name, index, values }); },
-    Number, Math,
+    Number, Math, HEALING_DANCE_REST,sampleHealingDancePoint,
   });
 const update=(group,dt,time,nightness)=>{sampleHealingArtsMotion(group.userData.healingArts,time,nightness);display(group,dt,time,nightness);};
 function random(seed) {
