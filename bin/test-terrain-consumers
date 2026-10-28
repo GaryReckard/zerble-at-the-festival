@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {ribbonTriangles,trimRoadTriangles,pavedCutters,footprintBounds} from '../src/roadGeometry.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -8,7 +9,7 @@ const source = name => readFileSync(new URL('../src/' + name, import.meta.url), 
 function functionSource(text, name) {
   const start = text.indexOf('function ' + name + '(');
   assert.ok(start >= 0, name + ' exists');
-  const body = text.indexOf('{', start); let depth = 1, end = body + 1;
+  const body = text.indexOf('{', text.indexOf(') {', start)); let depth = 1, end = body + 1;
   while (depth && end < text.length) { if(text[end] === '{')depth++;if(text[end] === '}')depth--;end++; }
   return text.slice(start,end);
 }
@@ -18,7 +19,7 @@ class Vec { constructor(x=0,y=0,z=0){this.set(x,y,z);} set(x,y,z){Object.assign(
 class Geometry {setAttribute(k,v){this[k]=v;return this;}setIndex(v){this.index=v;}computeVertexNormals(){}computeBoundingBox(){}computeBoundingSphere(){}}
 class Attr {constructor(a){this.array=new Float32Array(a);}}
 class Mesh {constructor(geometry){this.geometry=geometry;this.position=new Vec();}}
-const context=vm.createContext({terrainHeight:height,terrainEnabled:()=>true,TERRAIN_STEP:10,THREE:{BufferGeometry:Geometry,Float32BufferAttribute:Attr,Mesh}});
+const context=vm.createContext({ribbonTriangles,trimRoadTriangles,pavedCutters,footprintBounds,terrainHeight:height,terrainEnabled:()=>true,TERRAIN_STEP:10,THREE:{BufferGeometry:Geometry,Float32BufferAttribute:Attr,Mesh}});
 vm.runInContext(functionSource(source('worldgen/terrain.js'),'drapeTerrainTriangles')+';'+functionSource(source('chunks.js'),'terrainRibbonGeometry')+';'+functionSource(source('chunks.js'),'buildRibbonFromPolyline')+';this.build=buildRibbonFromPolyline;',context);
 const ribbon=context.build([{x:-50,z:20},{x:40,z:20}],6,{});
 assert.ok(ribbon.geometry.position.array.length > 12, 'long roads are subdivided before draping');
@@ -40,7 +41,7 @@ for(let i=0;i<indices.length;i+=3) {
  }
 }
 close(sampledArea,Math.hypot(45,19)*9);
-const npcContext=vm.createContext({terrainHeight:height});
+const npcContext=vm.createContext({ribbonTriangles,trimRoadTriangles,pavedCutters,footprintBounds,terrainHeight:height});
 vm.runInContext(functionSource(source('crowd.js'),'groundNpc')+';this.ground=groundNpc;',npcContext);
 for(const state of ['idle','walking','boarding','disembarking','camp_walking','walking_to_table']) {
  const npc={state,pos:{x:20,y:0,z:-30}};npcContext.ground(npc);close(npc.pos.y,height(20,-30));
@@ -48,9 +49,23 @@ for(const state of ['idle','walking','boarding','disembarking','camp_walking','w
 for(const [state,property,value] of [['riding','seatY',40],['hammock_riding','hammockY',31],['camp_seated','campY',28],['table_seated','picnicY',24]]) {
  const npc={state,pos:{x:20,y:0,z:-30},[property]:value};npcContext.ground(npc);close(npc.pos.y,typeof value==='number'?value:value.y);
 }
-const cameraContext=vm.createContext({terrainHeight:(x,z)=>Math.abs(x-5)<1?20:0,terrainEnabled:()=>true});
+const cameraContext=vm.createContext({ribbonTriangles,trimRoadTriangles,pavedCutters,footprintBounds,terrainHeight:(x,z)=>Math.abs(x-5)<1?20:0,terrainEnabled:()=>true});
 vm.runInContext(functionSource(source('camera.js'),'clearTerrainSightline')+';this.clear=clearTerrainSightline;',cameraContext);
 const camera=new Vec(10,3,0),look=new Vec(0,2,0);cameraContext.clear(camera,look,false);
 assert.ok(camera.y>35,'camera clears an intervening ridge even when its endpoint is safe');
 const fp=new Vec(5,1,0);cameraContext.clear(fp,new Vec(),true);assert.ok(fp.y>=20.3,'first-person endpoint clears ground');
 console.log('Terrain consumers: subdivided edge draping, ground and seated NPC position, chase ridge and first-person clearance passed.');
+
+// Production chunk mesh path must use subtraction before terrain clipping, not
+// merely expose a correct unused pure helper. A 9m paved avenue crosses 7m dirt.
+{
+ const pavement={surface:'asphalt',width:9,points:[{x:0,z:-40},{x:0,z:40}]};
+ const mesh=context.build([{x:-40,z:0},{x:40,z:0}],7,{userData:{roadSurface:'dirt'}},{roads:[pavement],bounds:{minX:-30,maxX:30,minZ:-30,maxZ:30}});
+ const p=mesh.geometry.position.array,idx=mesh.geometry.index;let overlap=0,kept=0;
+ for(let i=0;i<idx.length;i+=3){const ids=idx.slice(i,i+3),x=ids.reduce((s,j)=>s+p[j*3],0)/3,z=ids.reduce((s,j)=>s+p[j*3+2],0)/3;
+  if(Math.abs(x)<4.5-1e-5&&Math.abs(z)<40)overlap++;kept++;}
+ assert(kept>0&&overlap===0,'actual draped chunk triangles keep the dirt but leave no interior beneath pavement');
+ context.USE_WORLDGEN_V2=false;context.roadsInBounds=()=>{throw Error('legacy paths must not query unseen v2 pavement');};
+ const legacy=context.build([{x:-40,z:0},{x:40,z:0}],7,{userData:{roadSurface:'dirt'}});assert(legacy.geometry.index.length>0);
+ console.log('PASS production road junction: chunk mesh subtracts pavement before draping, retains dirt and never carves phantom v2 roads from legacy paths.');
+}

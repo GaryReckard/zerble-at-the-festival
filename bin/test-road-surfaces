@@ -46,13 +46,14 @@ assert(paved>0&&dirt>0);
 // Run the production tile factory with allocation-only Three doubles. Real Low/Mid
 // shader compilation and UV placement are exercised by verification/roads/surfaces.html.
 class Material {constructor(p){Object.assign(this,p);this.userData={};}}
-class Texture {constructor(data,w,h){this.image={data,width:w,height:h};this.userData={};}}
+class Texture {constructor(data,w,h){this.image={data,width:w,height:h};this.userData={};this.repeat={set(x,y){this.x=x;this.y=y;}};}}
 const THREE={MeshStandardMaterial:Material,DataTexture:Texture,RGBAFormat:1,SRGBColorSpace:2,RepeatWrapping:3,LinearFilter:4,LinearMipmapLinearFilter:5};
 const source=readFileSync(new URL('../src/roadMaterials.js',import.meta.url),'utf8').replace(/import .*?;\n/,'').replace('export function','function');
 const factory=runInNewContext(source+';roadMaterial',{THREE});
 const d=factory('dirt'),p=factory('asphalt');assert.equal(d,factory('dirt'));assert.notEqual(d,p);
-for(const m of [d,p]){assert(m.userData.shared&&m.map.userData.shared&&m.depthWrite);assert(m.map.generateMipmaps);assert.equal(m.map.image.data.byteLength,256*256*4);assert(new Set(m.map.image.data).size>30,'visible grain rather than a flat fill');}
+for(const m of [d,p]){assert(m.userData.shared&&m.map.userData.shared&&m.depthWrite);assert(m.map.generateMipmaps);assert.equal(m.map.image.data.byteLength,(m===d?512:256)**2*4);assert(new Set(m.map.image.data).size>30,'visible grain rather than a flat fill');}
 assert.notDeepEqual(d.map.image.data,p.map.image.data);
+assert.equal(d.map.userData.tileMetres,32);assert.equal(d.map.repeat.x,1/8);
 console.log(`PASS road surfaces: exact four-seed old routes, reversed endpoint/seed restoration, ${paved} paved/${dirt} dirt approaches, ${samples} dry ribbon probes, shoreline fallback, bounded shared textures. Cold/warm mixed run ${(performance.now()-started).toFixed(0)}ms; not a frame-rate measurement.`);
 
 // Actual vendor canopy extent (4.5m trim and rotated 3.2m-radius roof) fits

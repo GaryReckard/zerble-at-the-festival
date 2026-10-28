@@ -1,3 +1,4 @@
+import { ribbonTriangles, trimRoadTriangles, pavedCutters, footprintBounds } from './roadGeometry.js';
 import { roadMaterial } from './roadMaterials.js';
 import {sampleHealingArtsPreview} from './people/healingArtsMotion.js';
 import { terrainHeight, terrainEnabled, TERRAIN_STEP, drapeTerrainTriangles } from './worldgen/terrain.js';
@@ -841,7 +842,7 @@ export function buildCurvedPath(x1, z1, x2, z2, width, rng, material) {
     indices.push(a, c, b);
     indices.push(b, c, d);
   }
-  const geom = terrainRibbonGeometry(verts, indices);
+  const geom = terrainRibbonGeometry(verts, indices, material);
 
   const mesh = new THREE.Mesh(geom, material);
   mesh.position.y = 0.06;
@@ -852,7 +853,17 @@ export function buildCurvedPath(x1, z1, x2, z2, width, rng, material) {
 // A sampled road edge alone is insufficient: a road triangle can bridge a
 // terrain diagonal and cut through its crest. Clip each triangle to the actual
 // ground triangles so the complete road surface retains its six-centimetre lift.
-function terrainRibbonGeometry(vertices, indices) {
+function terrainRibbonGeometry(vertices, indices, material, options = {}) {
+  if(material?.userData?.roadSurface==='dirt'||options.bounds){
+    let triangles=[];
+    for(let i=0;i<indices.length;i+=3)triangles.push(indices.slice(i,i+3).map(j=>({x:vertices[j*3],z:vertices[j*3+2]})));
+    const bounds=options.bounds??footprintBounds(triangles.flat());
+    const roads=options.roads??(material?.userData?.roadSurface==='dirt'&&USE_WORLDGEN_V2?roadsInBounds(bounds.minX,bounds.minZ,bounds.maxX,bounds.maxZ):[]);
+    const cutters=material?.userData?.roadSurface==='dirt'?(options.cutters??pavedCutters(roads,bounds,terrainEnabled()?5:Infinity)):[];
+    triangles=trimRoadTriangles(triangles,cutters,options.bounds);
+    vertices=[];indices=[];
+    for(const triangle of triangles)for(const p of triangle){indices.push(indices.length);vertices.push(p.x,terrainHeight(p.x,p.z),p.z);}
+  }
   ({vertices,indices}=drapeTerrainTriangles(vertices,indices));
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
@@ -933,50 +944,16 @@ function clipPolylineToBox(pts, minX, minZ, maxX, maxZ) {
 // (miter) tangent for a smooth joint; run endpoints — which on a clipped run are
 // always the chunk-boundary crossings — use the single adjacent-segment tangent, so
 // they match the neighbor chunk's ribbon edge exactly.
-export function buildRibbonFromPolyline(pts, width, material) {
-  // Only this owned ribbon is subdivided; the memoized road plan stays intact.
-  // Edge heights use the same triangle surface as wheel contact and ground.
-  if (terrainEnabled()) {
-    const fine = [pts[0]];
-    for (let i = 1; i < pts.length; i++) {
-      const a = pts[i - 1], b = pts[i];
-      const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 5));
-      for (let j = 1; j <= steps; j++) fine.push({ x: a.x + (b.x - a.x) * j / steps, z: a.z + (b.z - a.z) * j / steps });
-    }
-    pts = fine;
-  }
-  const halfW = width / 2;
-  const n = pts.length;
-  const verts = [];
-  const indices = [];
-  for (let i = 0; i < n; i++) {
-    const prev = pts[i - 1], cur = pts[i], next = pts[i + 1];
-    let tx, tz;
-    if (prev && next) {
-      const d1x = cur.x - prev.x, d1z = cur.z - prev.z, l1 = Math.hypot(d1x, d1z) || 1;
-      const d2x = next.x - cur.x, d2z = next.z - cur.z, l2 = Math.hypot(d2x, d2z) || 1;
-      tx = d1x / l1 + d2x / l2; tz = d1z / l1 + d2z / l2;
-    } else if (next) {
-      tx = next.x - cur.x; tz = next.z - cur.z;
-    } else {
-      tx = cur.x - prev.x; tz = cur.z - prev.z;
-    }
-    const tl = Math.hypot(tx, tz) || 1;
-    const pxn = -(tz / tl), pzn = (tx / tl);   // perpendicular in XZ
-    const lx = cur.x + pxn * halfW, lz = cur.z + pzn * halfW;
-    const rx = cur.x - pxn * halfW, rz = cur.z - pzn * halfW;
-    verts.push(lx, terrainHeight(lx, lz), lz);  // left edge
-    verts.push(rx, terrainHeight(rx, rz), rz);  // right edge
-  }
-  for (let i = 0; i < n - 1; i++) {
-    const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
-    indices.push(a, c, b, b, c, d);
-  }
-  const geom = terrainRibbonGeometry(verts, indices);
-  const mesh = new THREE.Mesh(geom, material);
-  mesh.position.y = 0.06;
-  mesh.receiveShadow = true;
-  return mesh;
+export function buildRibbonFromPolyline(pts, width, material, options = {}) {
+  // Form the canonical full-edge footprint before clipping to chunk ownership,
+  // so cutter and render edges retain exactly the same bends at chunk seams.
+  const triangles=ribbonTriangles(pts,width,terrainEnabled()?5:Infinity),verts=[],indices=[];
+  for(const triangle of triangles)for(const p of triangle){indices.push(indices.length);verts.push(p.x,0,p.z);}
+  // Height sampling happens only after bounds/subtraction, not along off-screen
+  // portions of a shared canonical edge.
+  if(!options.bounds&&material?.userData?.roadSurface!=='dirt')for(let i=0;i<verts.length;i+=3)verts[i+1]=terrainHeight(verts[i],verts[i+2]);
+  const geom=terrainRibbonGeometry(verts,indices,material,options);
+  const mesh=new THREE.Mesh(geom,material);mesh.position.y=.06;mesh.receiveShadow=true;return mesh;
 }
 
 // Render the worldgen arterials passing through this chunk + register one
@@ -987,12 +964,14 @@ function placeWorldgenRoads(ctx, roads) {
   const half = CHUNK_SIZE / 2;
   const minX = ctx.cxWorld - half, maxX = ctx.cxWorld + half;
   const minZ = ctx.czWorld - half, maxZ = ctx.czWorld + half;
+  const bounds={minX,minZ,maxX,maxZ},cutters=pavedCutters(roads,bounds,terrainEnabled()?5:Infinity);
   for (const road of roads) {
-    const runs = clipPolylineToBox(road.points, minX, minZ, maxX, maxZ);
-    for (const run of runs) {
-      ctx.group.add(buildRibbonFromPolyline(run, road.width ?? ROAD_RIBBON_WIDTH, roadMaterial(road.surface)));
-      placeRoadWaypoints(ctx, run);   // Group G — crowd drifts ALONG the road via these
-    }
+    const runs=clipPolylineToBox(road.points,minX,minZ,maxX,maxZ);
+    const halfWidth=(road.width??ROAD_RIBBON_WIDTH)/2;
+    if(!clipPolylineToBox(road.points,minX-halfWidth,minZ-halfWidth,maxX+halfWidth,maxZ+halfWidth).length)continue;
+    const mesh=buildRibbonFromPolyline(road.points,road.width??ROAD_RIBBON_WIDTH,roadMaterial(road.surface),{roads,bounds,cutters});
+    if(mesh.geometry.index.count)ctx.group.add(mesh);else mesh.geometry.dispose();
+    for(const run of runs)placeRoadWaypoints(ctx,run);
   }
 }
 

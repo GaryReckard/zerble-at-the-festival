@@ -974,9 +974,42 @@ process.stdout.write(
  const probe=new FarField({enabled:true,tier:TEST_TIER});probe._planAnchor={x:0,z:0};
  const roads=[{flat:new Float64Array([0,0,20,0]),width:7,surface:'dirt'},{flat:new Float64Array([0,20,20,20]),width:9,surface:'asphalt'}];
  probe._writeRoads(roads);const p=probe._road.posAttr.array,c=probe._road.colorAttr.array;
- assert(Math.abs(Math.abs(p[2]-p[5])-7*.8)<1e-5,'distant dirt remains narrower than its detail ribbon');
- assert(Math.abs(Math.abs(p[14]-p[17])-9*.8)<1e-5,'distant asphalt retains its planned width fraction');
- assert(c[0]!==c[12],'surface colors survive snapshot expansion into a single draw');
- const before=Array.from(c.slice(0,24));probe._writeRoads(roads.slice().reverse());assert(JSON.stringify(before)===JSON.stringify(Array.from(c.slice(0,24))),'nearest-first rewrite preserves each surface color');
+ const spans=new Map();for(let i=0;i<probe.stats.roadVertsUsed;i++){const o=i*3,key=Array.from(c.slice(o,o+3)).join(',');const zs=spans.get(key)||[];zs.push(p[o+2]);spans.set(key,zs);}
+ const widths=[...spans.values()].map(zs=>Math.max(...zs)-Math.min(...zs)).sort();
+ assert(widths.length===2&&Math.abs(widths[0]-7*.8)<1e-5&&Math.abs(widths[1]-9*.8)<1e-5,'actual surface color groups retain their planned distant widths');
+ const used=probe.stats.roadVertsUsed*3,before=Array.from(c.slice(0,used));probe._writeRoads(roads.slice().reverse());assert(JSON.stringify(before)===JSON.stringify(Array.from(c.slice(0,used))),'nearest-first rewrite preserves each surface color');
  assert(probe._road.mesh.material.vertexColors);probe.dispose();console.log('PASS mixed road surfaces: actual width/color buffers, stable rewrites and one bounded vertex-color draw.');
+}
+
+// Exercise the actual far-field buffers at a mixed-surface crossing. Sampling
+// independently from the subtraction helper establishes that both colors no
+// longer compete for the same interior pixels.
+{
+ const probe=new FarField({enabled:true,tier:TEST_TIER});probe._planAnchor={x:0,z:0};
+ probe._writeRoads([{flat:new Float64Array([-40,0,40,0]),width:7,surface:'dirt'},{flat:new Float64Array([0,-40,0,40]),width:9,surface:'asphalt'}]);
+ const {posAttr,idxAttr,colorAttr,geo}=probe._road,p=posAttr.array,idx=idxAttr.array,c=colorAttr.array,triangles=[];
+ for(let i=0;i<geo.drawRange.count;i+=3)triangles.push({color:c[idx[i]*3],points:[0,1,2].map(j=>[p[idx[i+j]*3],p[idx[i+j]*3+2]])});
+ let overlaps=0,covered=0;
+ for(let z=-8.13;z<8;z+=.19)for(let x=-8.17;x<8;x+=.19){const colors=new Set();for(const t of triangles){const[a,b,d]=t.points;const cross=(a,b,x,z)=>(b[0]-a[0])*(z-a[1])-(b[1]-a[1])*(x-a[0]);const ds=[cross(a,b,x,z),cross(b,d,x,z),cross(d,a,x,z)];if(ds.every(v=>v>1e-6)||ds.every(v=>v< -1e-6))colors.add(t.color);}if(colors.size>1)overlaps++;if(colors.size)covered++;}
+ assert(overlaps===0&&covered>1000,'actual fixed-capacity road buffers retain the crossing without competing surface interiors');
+ probe.dispose();console.log('PASS distant junction: actual index/position/color buffers have zero competing color probes and retain the road crossing.');
+}
+
+// Budget selection must not let an omitted paved proxy erase retained dirt.
+{
+ const probe=new FarField({enabled:true,tier:{...TEST_TIER,caps:{...TEST_TIER.caps,roadVerts:8,roadIndices:12}}});probe._planAnchor={x:0,z:0};
+ const roads=[{flat:new Float64Array([10,-12,14,-12]),width:7,surface:'dirt'},{flat:new Float64Array([-20,0,20,0]),width:7,surface:'dirt'},{flat:new Float64Array([0,-40,0,40]),width:9,surface:'asphalt'}];
+ // Force the first two retained dirt roads to leave insufficient space for
+ // pavement; the bounded retry must restore their uncut surfaces.
+ probe._writeRoads(roads);const {geo,posAttr,idxAttr}=probe._road;
+ assert(probe.stats.roadVertsUsed<=8&&geo.drawRange.count<=12,'retry retains hard buffer limits');
+ assert(probe.stats.roadsClipped>0&&geo.drawRange.count>0,'capacity selection remains explicit and visible');
+ assert(probe.stats.roadVertsUsed===8&&geo.drawRange.count===12,'both original dirt quads are restored after their paved cutter was omitted');
+ let restored=false;
+ for(let i=0;i<geo.drawRange.count;i+=3){const ps=[0,1,2].map(j=>{const o=idxAttr.array[i+j]*3;return [posAttr.array[o],posAttr.array[o+2]];});const ds=ps.map((a,j)=>{const b=ps[(j+1)%3];return (b[0]-a[0])*(.17-a[1])-(b[1]-a[1])*(.13-a[0]);});if(ds.every(v=>v>0)||ds.every(v=>v<0))restored=true;}
+ assert(restored,'no hole remains under the omitted asphalt footprint');
+
+ const before=JSON.stringify([Array.from(posAttr.array),Array.from(idxAttr.array),geo.drawRange.count]);probe._writeRoads(roads);
+ assert(JSON.stringify([Array.from(posAttr.array),Array.from(idxAttr.array),geo.drawRange.count])===before,'bounded reservation retry is deterministic');
+ probe.dispose();console.log('PASS junction capacity: deterministic bounded rewrite retains hard limits when paved candidates overflow.');
 }

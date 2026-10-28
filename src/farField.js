@@ -1,3 +1,4 @@
+import { pavedCutters, trimRoadTriangles } from './roadGeometry.js';
 import { terrainHeight, terrainEnabled, drapeTerrainTriangles } from './worldgen/terrain.js';
 // FarField — the render-only festival horizon (festival-horizon change).
 //
@@ -906,9 +907,9 @@ export class FarField {
   // so joints read smoothly; a polyline that would overflow either cap is
   // skipped WHOLE (deterministic capacity behavior — never a half ribbon),
   // counted in stats.roadsClipped.
-  _writeRoads(flats) {
+  _writeRoads(flats, reservedPaved = null) {
     const { geo, posAttr, idxAttr, colorAttr, mesh } = this._road;
-    const capV = this.tier.caps.roadVerts, capI = this.tier.caps.roadIndices;
+
     const pos = posAttr.array, idx = idxAttr.array;
 
     // roadsInBounds pads its query by ROAD_MAX_EDGE_CELLS heart cells, so the
@@ -935,13 +936,22 @@ export class FarField {
         const d = Math.hypot(flat[i] - ax, flat[i + 1] - az);
         if (d < best) best = d;
       }
-      if (best <= reach) scored.push({ flat, d: best, width:record.width ?? CONFIG.ROAD_WIDTH, surface:record.surface });
+      if (best <= reach) scored.push({ flat, key:original, d: best, width:record.width ?? CONFIG.ROAD_WIDTH, surface:record.surface });
     }
     scored.sort((a, b) => a.d - b.d || a.flat[0] - b.flat[0] || a.flat[1] - b.flat[1]);
+    const cutters=pavedCutters(scored.filter(r=>!reservedPaved||r.surface!=='asphalt'||reservedPaved.has(r.key)).map(r=>({surface:r.surface,width:r.width,points:Array.from({length:r.flat.length/2},(_,i)=>({x:r.flat[i*2],z:r.flat[i*2+1]}))})),null,Infinity,FAR_ROAD_WIDTH_FRAC);
+    const committedPaved=new Map();
+    let reserveV=0,reserveI=0;
+    if(reservedPaved)for(const size of reservedPaved.values()){reserveV+=size.vertices;reserveI+=size.indices;}
     let v = 0, ix = 0, clipped = 0;
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
     let minY = Infinity, maxY = -Infinity;
-    for (const { flat, width, surface } of scored) {
+    for (const { flat, key, width, surface } of scored) {
+      if(reservedPaved&&surface==='asphalt'){
+        const size=reservedPaved.get(key);if(!size){clipped++;continue;}
+        reserveV-=size.vertices;reserveI-=size.indices;
+      }
+      const capV=this.tier.caps.roadVerts-reserveV,capI=this.tier.caps.roadIndices-reserveI;
       const halfW = width * FAR_ROAD_WIDTH_FRAC / 2;
       const n = flat.length / 2;
       if (n < 2) continue;
@@ -980,6 +990,14 @@ export class FarField {
         ix += 6;
       }
       v += n * 2;
+      if(surface!=='asphalt'&&cutters.length){
+        const triangles=[];
+        for(let j=firstIndex;j<ix;j+=3)triangles.push([0,1,2].map(k=>({x:pos[idx[j+k]*3],z:pos[idx[j+k]*3+2]})));
+        const trimmed=trimRoadTriangles(triangles,cutters),count=trimmed.length*3;
+        if(base+count>capV||firstIndex+count>capI){v=base;ix=firstIndex;clipped++;continue;}
+        v=base;ix=firstIndex;
+        for(const tri of trimmed)for(const p of tri){pos[v*3]=p.x;pos[v*3+1]=terrainHeight(p.x,p.z);pos[v*3+2]=p.z;idx[ix++]=v++;}
+      }
       if(terrainEnabled()){
         const draped=drapeTerrainTriangles(Array.from(pos.slice(base*3,v*3)),Array.from(idx.slice(firstIndex,ix),i=>i-base));
         const count=draped.vertices.length/3;
@@ -988,10 +1006,16 @@ export class FarField {
         for(let i=0;i<draped.indices.length;i++)idx[firstIndex+i]=base+draped.indices[i];
         v=base+count;ix=firstIndex+draped.indices.length;
       }
+      if(surface==='asphalt')committedPaved.set(key,{vertices:v-base,indices:ix-firstIndex});
       const color=new THREE.Color(surface==='asphalt'?0x505458:ROAD_HEX);
       for(let j=base;j<v;j++){const o=j*3;colorAttr.array[o]=color.r;colorAttr.array[o+1]=color.g;colorAttr.array[o+2]=color.b;}
 
     }
+    // A capacity-omitted paved road must not cut holes in retained dirt. If the
+    // first nearest-first pass dropped pavement, rewrite once using only kept
+    // paved footprints and reserve their exact sizes before admitting dirt.
+    // The second pass is bounded and cannot evict its reserved cutters.
+    if(!reservedPaved&&committedPaved.size<scored.filter(r=>r.surface==='asphalt').length)return this._writeRoads(flats,committedPaved);
     // Clipping introduces vertices on terrain creases, so derive bounds from
     // the final committed buffer rather than the original ribbon endpoints.
     minX=minY=minZ=Infinity;maxX=maxY=maxZ=-Infinity;

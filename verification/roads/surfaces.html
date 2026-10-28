@@ -15,7 +15,7 @@ const started=performance.now(),originalMaterials=[];
 function buildRoads(){
  roads=[];group=new THREE.Group();scene.add(group);
  for(const [surface,x,width] of [['dirt',-7,7],['asphalt',7,9]]){
-  const material=roadMaterial(surface),mesh=buildRibbonFromPolyline([{x,z:25},{x,z:-40}],width,material);
+  const material=roadMaterial(surface),mesh=buildRibbonFromPolyline([{x,z:25},{x,z:-40}],width,material,{roads:[]});
   group.add(mesh);roads.push(mesh);
   const p=mesh.geometry.attributes.position,uv=mesh.geometry.attributes.uv;
   if(!uv||uv.count!==p.count)throw Error('Missing final-vertex UVs');

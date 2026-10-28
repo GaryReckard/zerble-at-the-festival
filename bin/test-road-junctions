@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {setSessionSeed} from '../src/rng.js';
+import {roadsInBounds} from '../src/worldgen/roads.js';
+import {ribbonTriangles,pavedCutters,trimRoadTriangles,polygonArea} from '../src/roadGeometry.js';
+const area=triangles=>triangles.reduce((s,t)=>s+Math.abs(polygonArea(t)),0);
+// Independent barycentric point-in-triangle probe, deliberately excluding edges.
+function contains(tri,x,z){
+ const [a,b,c]=tri,den=(b.z-c.z)*(a.x-c.x)+(c.x-b.x)*(a.z-c.z);
+ if(Math.abs(den)<1e-10)return false;
+ const u=((b.z-c.z)*(x-c.x)+(c.x-b.x)*(z-c.z))/den,v=((c.z-a.z)*(x-c.x)+(a.x-c.x)*(z-c.z))/den;
+ return u>1e-7&&v>1e-7&&1-u-v>1e-7;
+}
+const dirt=ribbonTriangles([{x:-40,z:0},{x:40,z:0}],7,5),road={surface:'asphalt',width:9,points:[{x:0,z:-40},{x:0,z:40}]};
+const cutters=pavedCutters([road],null,5),clean=trimRoadTriangles(dirt,cutters);
+assert(Math.abs(area(clean)-(80*7-9*7))<1e-7,'crossing removes exactly the overlap, rather than hiding the whole dirt road');
+assert.equal(area(trimRoadTriangles(dirt,[{points:[{x:100,z:100},{x:101,z:100},{x:100,z:101}],bounds:{minX:100,maxX:101,minZ:100,maxZ:101}}])),560);
+assert.equal(trimRoadTriangles(dirt,pavedCutters([{surface:'asphalt',width:30,points:[{x:-50,z:0},{x:50,z:0}]}],null,5)).length,0,'complete containment safely emits no geometry');
+const bounds={minX:-30,minZ:-30,maxX:30,maxZ:30},left={...bounds,maxX:0},right={...bounds,minX:0};
+assert(Math.abs(area(trimRoadTriangles(dirt,cutters,bounds))-area(trimRoadTriangles(dirt,cutters,left))-area(trimRoadTriangles(dirt,cutters,right)))<1e-7,'adjacent chunk owners partition the full canonical surface without a seam gap');
+assert.equal(JSON.stringify(trimRoadTriangles(dirt,cutters,left)),JSON.stringify(trimRoadTriangles(dirt,cutters,left)));
+setSessionSeed(2791182655);let oldOverlaps=0,probes=0;
+for(const [x,z] of [[640.73,-210.08],[234.56,-1463.88]]){
+ const b={minX:x-12,minZ:z-12,maxX:x+12,maxZ:z+12};
+ const roads=roadsInBounds(b.minX,b.minZ,b.maxX,b.maxZ),masks=pavedCutters(roads,b,5);
+ const original=[],trimmed=[],paved=[];
+ for(const road of roads){const ts=trimRoadTriangles(ribbonTriangles(road.points,road.width,5),[],b);
+  if(road.surface==='asphalt')paved.push(...ts);else {original.push(...ts);trimmed.push(...trimRoadTriangles(ts,masks,b));}}
+ assert(original.length&&paved.length);
+ for(let dz=-12.07;dz<12;dz+=.23)for(let dx=-12.11;dx<12;dx+=.23){
+  const px=x+dx,pz=z+dz,p=paved.some(t=>contains(t,px,pz)),d=original.some(t=>contains(t,px,pz)),c=trimmed.some(t=>contains(t,px,pz));
+  if(p&&d)oldOverlaps++;assert(!(p&&c),'reported dirt/asphalt footprints have no competing interior');assert.equal(p||c,p||d,'the road union remains covered');probes++;
+ }
+}
+assert(oldOverlaps>100,'fixtures must actually reproduce the old competing surface area');
+console.log(`PASS junction geometry: ${oldOverlaps} former overlap probes, ${probes} independent report probes, union coverage, exact crossing area, containment, repeatability and chunk partition.`);

@@ -1,0 +1,35 @@
+<!doctype html><meta charset="utf-8"><title>Reported road junctions</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{background:#17162a;color:white;font:16px system-ui}canvas{max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
+<h1>Reported dirt/asphalt junctions, seed 2791182655</h1><button id="first">First report</button> <button id="second">Second report</button> <button id="camera">Move camera</button> <button id="noon">Noon</button> <button id="night">Midnight</button><pre id="result">Running…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {buildRibbonFromPolyline} from '../../src/chunks.js';
+import {roadMaterial} from '../../src/roadMaterials.js';
+import {roadsInBounds} from '../../src/worldgen/roads.js';
+import {setSessionSeed} from '../../src/rng.js';
+import {setTerrainEnabled,terrainHeight} from '../../src/worldgen/terrain.js';
+setSessionSeed(2791182655);setTerrainEnabled(true);
+const renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(1000,620);renderer.toneMapping=THREE.ACESFilmicToneMapping;document.body.append(renderer.domElement);
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(52,1000/620,.1,240),light=new THREE.HemisphereLight(0xffffff,0x667744,2.5);scene.add(light);
+let owned=[],center,step=0,night=false;
+function dispose(){for(const m of owned){scene.remove(m);m.geometry.dispose();if(!m.material.userData.shared)m.material.dispose();}owned=[];}
+function draw(){
+ const a=.6+step*.14;camera.position.set(center.x+Math.sin(a)*17,terrainHeight(center.x,center.z)+9,center.z+Math.cos(a)*17);camera.lookAt(center.x,terrainHeight(center.x,center.z),center.z);
+ light.intensity=night?.3:2.5;scene.background=new THREE.Color(night?0x14251d:0x92cadd);renderer.render(scene,camera);
+ document.querySelector('#result').textContent=JSON.stringify({position:center,cameraStep:step,draws:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures});
+}
+function build(x,z){
+ dispose();center={x,z};step=0;
+ const bounds={minX:x-45,minZ:z-45,maxX:x+45,maxZ:z+45};
+ const roads=roadsInBounds(bounds.minX,bounds.minZ,bounds.maxX,bounds.maxZ).filter(r=>r.points.some((p,i)=>{const q=r.points[i+1];return q&&Math.max(p.x,q.x)>=bounds.minX&&Math.min(p.x,q.x)<=bounds.maxX&&Math.max(p.z,q.z)>=bounds.minZ&&Math.min(p.z,q.z)<=bounds.maxZ;}));
+ for(const r of roads){const mesh=buildRibbonFromPolyline(r.points,r.width,roadMaterial(r.surface),{roads,bounds});scene.add(mesh);owned.push(mesh);}
+ const gx=Math.round(x/10)*10,gz=Math.round(z/10)*10,geo=new THREE.PlaneGeometry(140,140,14,14);geo.rotateX(-Math.PI/2);const p=geo.attributes.position;
+ for(let i=0;i<p.count;i++){p.setX(i,p.getX(i)+gx);p.setZ(i,p.getZ(i)+gz);p.setY(i,terrainHeight(p.getX(i),p.getZ(i)));}geo.computeVertexNormals();
+ const ground=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x496a35}));scene.add(ground);owned.push(ground);draw();
+}
+for(const [id,x,z] of [['first',640.73,-210.08],['second',234.56,-1463.88]])document.querySelector('#'+id).onclick=()=>build(x,z);
+document.querySelector('#camera').onclick=()=>{step++;draw();};document.querySelector('#noon').onclick=()=>{night=false;draw();};document.querySelector('#night').onclick=()=>{night=true;draw();};
+try{build(640.73,-210.08);}catch(e){document.querySelector('#result').textContent='FAIL '+e.stack;console.error(e);}
+addEventListener('pagehide',()=>{dispose();renderer.dispose();},{once:true});
+</script>
