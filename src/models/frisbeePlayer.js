@@ -180,7 +180,8 @@ export function buildFrisbeePlayer(rng = Math.random) {
 export function tickFrisbeePlayer(model, dt, action = 'relaxed', amount = 0) {
   const u = model.userData;
   if (!u.bodyGroup || !u.armRigs) return;
-  const t = performance.now() * 0.004 + u.bobPhase;
+  u.animationTime=(u.animationTime??0)+dt;
+  const t = u.animationTime * 4 + u.bobPhase;
   u.bodyGroup.position.y = Math.abs(Math.sin(t)) * 0.04;
 
   const alpha = 1 - Math.exp(-14 * Math.min(dt, 0.25));

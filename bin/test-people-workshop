@@ -1,0 +1,139 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { PeopleWorkshop } from '../src/people/workshop.js';
+import { HealingArtsActivity } from '../src/healingArtsActivity.js';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {makePeopleCrowd} from './test-support/peopleCrowd.js';
+
+// Test the actual verification driver against recording controller boundaries.
+// Existing behavior suites exercise the supplied production controllers' algorithms.
+function fixture() {
+  const calls = [], trace = [], entries = new Map([[1, {}], [2, {}], [99, {}]]);
+  const crowd = {
+    npcs: [{idx: 1}, {idx: 2}],
+    get populationSize(){return this.npcs.length;},
+    forEachPersonNear(_x,_z,_r,visit){for(const person of this.npcs)visit(person);},
+    update() { calls.push('adults'); },
+    applyHonk() { calls.push('adult-honk'); },
+    removePerson(npc) { calls.push('remove-person'); this.npcs.splice(this.npcs.indexOf(npc), 1); },
+    campJams: { jobs:new Map(),dispose() { calls.push('camp-release'); } },
+  };
+  const children = { populationSize:1,kids: [{}], update() { calls.push('children'); }, scatter() { calls.push('child-honk'); } };
+  const smiles = {
+    update(dt, cart, collect) { calls.push('collection'); collect(2); },
+    dispose() { calls.push('smiles-release'); },
+  };
+  const healing = {
+    activity: { visitors: new Set([{}]), update() { calls.push('healing-activity'); }, sample() { calls.push('healing-sample'); },
+      dispose() { calls.push('healing-release'); } },
+    animate() { calls.push('healing-display'); }, group: { visible: true }, registryIds: [1],
+  };
+  const registry = { entries, rebuildSpatialIndex() { calls.push('spatial'); },
+    remove(id) { calls.push(`remove-${id}`); entries.delete(id); } };
+  const party = { members: [{}], dispose() { calls.push('party-release'); this.members.length = 0; } };
+  const workshop = new PeopleWorkshop({ crowd, children, smiles, cart: {}, registry, healing, party,
+    camp: { animate() { calls.push('camp-display'); } }, ownedRegistryIds: [1, 2], trace: name => trace.push(name) });
+  return { workshop, calls, trace, registry, healing, crowd };
+}
+const day = { t: .25, nightness: 0 };
+{
+  const f = fixture();
+  f.workshop.step(.016, day);
+  assert.deepEqual(f.calls, ['spatial', 'adults', 'collection', 'children', 'healing-activity', 'healing-sample', 'healing-display', 'camp-display']);
+  assert.deepEqual(f.trace, ['spatial', 'adults', 'collection', 'children', 'healing-activity', 'healing-sample', 'healing-display']);
+  assert.equal(f.workshop.collected, 2);
+  assert.equal(f.workshop.frames, 1);
+  f.workshop.paused = true;
+  f.workshop.update(.016, day);
+  assert.equal(f.workshop.frames, 1, 'paused animation driver does not advance controllers');
+  f.workshop.step(.016, day);
+  assert.equal(f.workshop.frames, 2, 'explicit single step advances a paused workshop exactly once');
+  for (const dt of [-1, .1, NaN, Infinity]) assert.throws(() => f.workshop.step(dt, day), RangeError);
+  assert.equal(f.workshop.frames, 2, 'rejected deltas do not partially advance the fixture');
+  f.calls.length = 0;
+  f.workshop.honk();
+  assert.deepEqual(f.calls, ['adult-honk', 'child-honk']);
+}
+{
+  const f = fixture();
+  f.healing.activity.dispose = () => { f.calls.push('healing-release'); f.workshop.unloadHealing(); };
+  f.workshop.unloadHealing(); f.workshop.unloadHealing();
+  assert.deepEqual(f.calls, ['healing-release', 'remove-1'], 'unload revokes participation before a reentrant release');
+  assert(!f.healing.group.visible);
+  assert(f.registry.entries.has(99), 'an unrelated world entry survives');
+  f.calls.length = 0;
+  f.workshop.step(.016, day);
+  assert(!f.calls.some(name => name.startsWith('healing')), 'removed activity cannot tick again');
+}
+{
+  const f = fixture();
+  f.healing.activity.dispose = () => { f.calls.push('healing-release'); f.workshop.step(.016, day); };
+  f.workshop.dispose();
+  assert.deepEqual(f.calls, ['healing-release', 'remove-1', 'party-release', 'camp-release',
+    'remove-person', 'remove-person', 'remove-1', 'remove-2', 'smiles-release']);
+  assert.deepEqual([...f.registry.entries.keys()], [99]);
+  assert.equal(f.workshop.status().ownedEntries, 0);
+  assert.equal(f.workshop.status().registryEntries, 1, 'diagnostics retain the unrelated entry');
+  assert.equal(f.workshop.status().children, 0, 'disposed storage is not reported as an active population');
+  assert.equal(f.workshop.frames, 0, 'release callback cannot restart a disposing owner');
+  f.calls.length = 0;
+  f.workshop.dispose(); f.workshop.honk(); f.workshop.update(.016, day); f.workshop.step(.016, day);
+  assert.deepEqual(f.calls, [], 'repeated cleanup and commands after disposal are inert');
+}
+
+// A real HealingArtsActivity consumes its previous activity-owned sample; display writes cannot move it.
+class V {
+  constructor(x=0,y=0,z=0) { this.set(x,y,z); }
+  set(x,y,z) { Object.assign(this,{x,y,z}); return this; }
+  copy(p) { return this.set(p.x,p.y,p.z); }
+  clone() { return new V(this.x,this.y,this.z); }
+}
+{
+  const f = fixture();
+  const participant = {x:1,z:2,currentX:3,currentZ:4,shirt:1,skin:2,yaw:0,phase:0,orbitPhase:0,orbitSpeed:.1,lane:3};
+  const group = {position:new V(10,0,20),rotation:{y:0},visible:true,
+    userData:{healingArts:{participants:[participant]}}};
+  const crowd=makePeopleCrowd();
+  const activity = new HealingArtsActivity(group,crowd,()=>.5);
+  activity.motion.participants[0].currentX=3;activity.motion.participants[0].currentZ=4;
+  f.workshop.healing = {activity,group,registryIds:[1],animate() {
+    participant.currentX = 99; participant.currentZ = 99;
+  }};
+  f.workshop.step(.016,day);
+  assert.deepEqual([crowd.npcs[0].pos.x,crowd.npcs[0].pos.z],[13,24]);
+  f.workshop.step(.016,day);
+  assert.deepEqual([crowd.npcs[0].pos.x,crowd.npcs[0].pos.z],[11,22]);
+  f.workshop.unloadHealing();
+  assert.equal(activity.visitors.size,0);
+  assert.equal(crowd.activitySummary(crowd.npcs[0].personHandle),null);
+  assert.equal(crowd.npcs[0].state,'walking');
+}
+
+// Execute the production constructor with scene creation stubbed to characterize
+// preview bounds and prove default configuration keeps the identical RNG sequence.
+const source = readFileSync(new URL('../src/people/children.js',import.meta.url),'utf8');
+const start = source.indexOf('export class KidGaggle {');
+const end = source.indexOf('\n  // Honk-scatter trigger', start);
+assert(start>=0 && end>start);
+function construct(options) {
+  let draws=0, groups=0;
+  const Kid = vm.runInNewContext(source.slice(start,end).replace('export class','class')+'inspect(){} dispose(){} scatter(){} appendColliders(){} forEachPersonNear(){} };KidGaggle', {
+    THREE:{Group:class {constructor(){groups++;this.children=[];}add(k){this.children.push(k);}},Vector3:V},
+    Math:Object.assign(Object.create(Math),{random:()=>{draws++;return .5;}}),
+    AggregateError,PeopleRuntime,PersonHandles,RangeError, TAU:Math.PI*2, terrainHeight:()=>0, buildKid:()=>({position:new V(),userData:{}}),
+  });
+  const kids = options === undefined ? new Kid() : new Kid(options);
+  return {kids,draws,groups};
+}
+const original = construct(), explicit = construct({gaggleCount:8}), bounded = construct({gaggleCount:1});
+assert.equal(original.kids.kids.length,56);
+assert.equal(bounded.kids.kids.length,7);
+assert.equal(bounded.kids.colliders.length,7);
+assert.equal(original.draws,explicit.draws);
+assert.equal(original.draws,304,'the default controller retains its legacy random draw count with model construction stubbed');
+assert.deepEqual(JSON.parse(JSON.stringify(original.kids.kids)),JSON.parse(JSON.stringify(explicit.kids.kids)));
+for (const gaggleCount of [0,-1,9,1.5,NaN,'1']) assert.throws(()=>construct({gaggleCount}),RangeError);
+console.log('PASS people workshop: real driver order, pause/step, claims-first scoped teardown, reentrancy, production Healing Arts prior-sample handoff, and bounded children with unchanged default RNG.');

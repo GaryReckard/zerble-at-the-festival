@@ -1,0 +1,69 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {Vector} from './test-support/sceneObjects.mjs';
+import {makePeopleCrowd} from './test-support/peopleCrowd.js';
+import {MarketActivity} from '../src/people/marketActivity.js';
+import {laneDodgeTest} from '../src/steering.js';
+import {mulberry32} from '../src/rng.js';
+const legacy=readFileSync(new URL('../verification/people/2026-10-26/legacy-market-methods.js',import.meta.url),'utf8').replace('export class','class');
+function fixture(scenario,old=true){
+ let draws=0,writes=0,time=.25;const rngFactory=seed=>{const rng=mulberry32(seed);return ()=>{draws++;return scenario==='seeded'?rng():scenario==='nonbuyer'?.9:.2;};};
+ const market={open:true,customer:null},entry={id:1,position:new Vector(),collider:{radius:2.2},vendor:{rotation:{y:0},userData:{market}}};
+ const registry={entries:new Map([[1,entry]]),byKind:new Map([['tent',new Set([1])]]),collidersNear(x,z,r,fn){fn(entry);}};
+ const Class=runInNewContext(legacy+';MarketOracle',{Math,mulberry32:rngFactory,registry,getTimeOfDay:()=>({t:time}),laneDodgeTest,wrapAngle:a=>{while(a>Math.PI)a-=Math.PI*2;while(a< -Math.PI)a+=Math.PI*2;return a;}});
+ let owner=new Class(),npc={idx:0,behaviorSeed:1977,pos:new Vector(0,0,4),vel:new Vector(),target:new Vector(),yaw:0,energy:.8,state:'idle',stateTimer:2};
+ let state=npc;
+ if(!old){owner=makePeopleCrowd();const person=owner.spawn({pos:new Vector(0,0,4)});Object.assign(person,npc);npc=person;owner.markets=new MarketActivity(owner,registry,{rngFactory});owner._inlineActivities=new Set([owner.markets]);state=owner.markets._state(npc.personHandle);}
+ owner._writeMatrices=()=>writes++;
+ const cart={position:new Vector(0,0,40),forwardWorld:new Vector(0,0,-1),speed:0};
+ return {owner,npc,state,market,entry,registry,cart,set time(t){time=t;},get time(){return time;},get draws(){return draws;},get writes(){return writes;}};
+}
+for(const scenario of ['buyer','nonbuyer','seeded','closing','unload','interruption','lane']){
+ const before=fixture(scenario),after=fixture(scenario,process.argv.includes('--baseline'));const phases=new Set();
+ const snapshot=f=>{const n=f.npc,s=f.state,v=s.marketVisit;return [n.state,n.stateTimer,n.pos.x,n.pos.z,n.vel.x,n.vel.y,n.vel.z,n.yaw,n.target.x,n.target.z,n.shoppingBagTime,n.marketPurchases,s.marketCooldown,v?.entry.id,v?.age,v?.x,v?.z,f.market.customer?.state,f.draws,f.writes];};
+ for(let frame=0;frame<600;frame++){
+  for(const f of [before,after]){
+   if(frame===40){if(scenario==='closing')f.time=.8;if(scenario==='unload')f.registry.entries.delete(1);if(scenario==='interruption')f.npc.state='fleeing';if(scenario==='lane'){f.cart.position.set(0,0,12);f.cart.speed=10;}}
+   f.npc.stateTimer-=.05;f.npc.shoppingBagTime=Math.max(0,(f.npc.shoppingBagTime||0)-.05);
+   if(f.owner.markets)f.owner.markets.tick(.05,f.npc.personHandle,f.cart,f.time);
+   else {f.npc.marketCooldown=Math.max(0,(f.npc.marketCooldown||0)-.05);f.owner._tickMarket(.05,f.npc,f.cart);}
+  }
+  phases.add(after.npc.state);assert.deepEqual(snapshot(after),snapshot(before),scenario+' frame '+frame);
+ }
+ if(scenario==='buyer'){for(const phase of ['market_walking','market_browsing','market_chatting','market_buying','walking'])assert(phases.has(phase),phase);assert.equal(after.npc.marketPurchases,1);}
+ if(scenario==='nonbuyer')assert.equal(after.npc.marketPurchases,undefined);
+ console.log('PASS market '+scenario+': 600 exact actor/frontage/timer/purchase/publication/isolated-RNG frames.');
+}
+if(!process.argv.includes('--baseline')){
+ const begin=f=>{f.npc.stateTimer-=.05;f.npc.shoppingBagTime=0;assert(f.owner.markets.tick(.05,f.npc.personHandle,f.cart,.25));};
+ for(let cycle=0;cycle<2;cycle++){
+  const f=fixture('buyer',false),h=f.npc.personHandle;begin(f);const old=f.state.claim,presentation=f.market.customer;
+  assert.notEqual(presentation,f.npc);assert.deepEqual(Object.keys(presentation),['state']);
+  const contender=f.owner.spawn({pos:new Vector(0,0,4)});Object.assign(contender,{energy:.8,behaviorSeed:1});
+  assert.equal(f.owner.markets.tick(.05,contender.personHandle,f.cart,.25),false);assert.equal(f.owner.markets.records.size,1);
+  const replacement={...f.entry,vendor:{rotation:{y:0},userData:{market:{open:true,customer:null}}}};
+  f.registry.entries.set(1,replacement);f.owner.markets.tick(.05,h,f.cart,.25);assert.equal(f.market.customer,null);assert.equal(f.owner.markets.records.size,0);
+  assert.equal(f.owner.commitMarketMotion(old,{}),false);f.state.marketCooldown=0;
+  assert(f.owner.markets.tick(.05,h,f.cart,.25));assert(replacement.vendor.userData.market.customer);
+  assert.equal(f.owner.endPersonActivity(old),false);assert(replacement.vendor.userData.market.customer);
+  f.owner.removePerson(h);assert.equal(replacement.vendor.userData.market.customer,null);assert.equal(f.owner.markets.records.size,0);
+  const fresh=f.owner.spawn({pos:new Vector()});assert.notEqual(fresh.personHandle,h);assert.equal(f.owner.markets.tick(.05,h,f.cart,.25),false);
+ }
+ {
+  const f=fixture('buyer',false);begin(f);const old=f.state.claim;
+  f.owner.markets.dispose();assert.equal(f.market.customer,null);assert.equal(f.owner.activityClaims.current.size,0);
+  const draws=f.draws;assert.equal(f.owner.markets.tick(.1,f.npc.personHandle,f.cart,.25),false);assert.equal(f.draws,draws);assert.equal(f.owner.commitMarketMotion(old,{}),false);
+ }
+ for(const yaw of [Math.PI/2,-Math.PI/2,1.23]){
+  const f=fixture('buyer',false);f.entry.vendor.rotation.y=yaw;f.npc.pos.set(Math.sin(yaw)*4,0,Math.cos(yaw)*4);begin(f);
+  assert(Math.abs(f.state.marketVisit.x-Math.sin(yaw)*3.2)<1e-8);assert(Math.abs(f.state.marketVisit.z-Math.cos(yaw)*3.2)<1e-8);
+  f.owner.markets.release(f.npc.personHandle);assert.equal(f.market.customer,null);
+ }
+ {
+  const f=fixture('buyer',false);f.registry.collidersNear=(x,z,r,fn)=>{fn(f.entry);fn({position:new Vector(0,0,3.2),collider:{radius:1}});};
+  assert.equal(f.owner.markets.tick(.05,f.npc.personHandle,f.cart,.25),false);assert.equal(f.market.customer,null);
+ }
+ console.log('PASS market ownership: copied model presentation, contention, two replacement/revisit cycles, stale commands/releases/slots, person/activity teardown, rotated frontage and blocked access.');
+}

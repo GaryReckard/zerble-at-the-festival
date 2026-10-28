@@ -36,10 +36,13 @@ ES module bodies past `Cache-Control: no-store` in some cases). Production is
 unaffected by the missing entry (it loads modules unsuffixed) but local dev
 will silently bite you.
 
-**Run `bin/check-importmaps`** after touching `src/` or any importmap — it
-extracts the `mods`/`models`/`wg` arrays from all five pages and fails loudly
-(naming the file + module) when one drifts from the actual `src/` tree. It's the
-mechanical guard against this footgun.
+**Run `bin/check-importmaps`** after touching `src/` or any importmap. It
+recursively discovers JavaScript modules under `src/`, normalizes model-relative
+entries, and checks the `mods`/`models`/`wg` declarations on all five pages for
+missing or stale paths. The 2D map declares the same source URLs without importing
+them, so its executed modules remain worldgen-only. `node bin/test-importmaps`
+exercises missing and stale mappings, nested additions, namespaces, and missing
+pages/arrays; it also runs through `npm run check`.
 
 ## Three.js comes from a CDN
 

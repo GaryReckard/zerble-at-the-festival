@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {Vector} from './test-support/sceneObjects.mjs';
+import {makePeopleCrowd} from './test-support/peopleCrowd.js';
+import {CampActivity} from '../src/people/campActivity.js';
+const legacy=readFileSync(new URL('../verification/people/2026-10-26/legacy-camp-methods.js',import.meta.url),'utf8').replace('export class','class');
+function fixture(scenario,old=true){
+ let writes=0,time=scenario==='day'?.25:.93;
+ const seat={x:2,y:.8,z:0,yaw:1,approachX:1,approachZ:0,occupied:false},bed={x:4,z:0,doorX:3,doorZ:0,occupied:false},entry={id:1,position:new Vector(),campSeats:[seat],campBeds:[bed]};
+ const registry={entries:new Map([[1,entry]]),byKind:new Map([['campsite',new Set([1])]]),solids:[],collidersNear(x,z,r,fn){for(const e of this.solids)fn(e);}};
+ const Class=runInNewContext(legacy+';CampOracle',{Math,registry,getTimeOfDay:()=>({t:time}),wrapAngle:a=>{while(a>Math.PI)a-=Math.PI*2;while(a< -Math.PI)a+=Math.PI*2;return a;}});
+ let owner=new Class(),npc={idx:0,pos:new Vector(),vel:new Vector(),target:new Vector(),yaw:0,energy:.8,state:'idle',stateTimer:0,scale:1},state=npc;
+ if(!old){owner=makePeopleCrowd();const person=owner.spawn({pos:new Vector()});Object.assign(person,npc);npc=person;owner.camps=new CampActivity(owner,registry);owner._inlineActivities=new Set([owner.camps]);state=owner.camps._state(npc.personHandle);}
+ owner._writeMatrices=()=>writes++;
+ return {owner,npc,state,entry,seat,bed,registry,get time(){return time;},set time(t){time=t;},get writes(){return writes;}};
+}
+for(const scenario of ['day','sleep','unload','trapped','timeout']){
+ const before=fixture(scenario),after=fixture(scenario,process.argv.includes('--baseline'));const phases=new Set();
+ const snapshot=f=>[f.npc.state,f.npc.stateTimer,f.npc.pos.x,f.npc.pos.z,f.npc.vel.x,f.npc.vel.z,f.npc.yaw,f.state.campCooldown,f.state.campDwell,f.state.campAtApproach,f.state.campSlot?.x,f.state.campEntry?.id,f.seat.occupied,f.bed.occupied,f.writes];
+ for(let frame=0;frame<1200;frame++){
+  for(const f of [before,after]){
+   if(frame===200){if(scenario==='unload')f.registry.entries.delete(1);if(scenario==='trapped'){f.registry.solids=[{position:new Vector(3,0,0),collider:{radius:10}}];f.time=.15;}if(scenario==='sleep')f.time=.15;}
+   if(frame===400&&scenario==='trapped')f.registry.solids=[];
+   if(scenario==='timeout'&&frame===2)f.npc.stateTimer=0;
+   f.npc.stateTimer-=.05;if(f.owner.camps)f.owner.camps.tick(.05,f.npc.personHandle,f.time);else f.owner._tickCamp(.05,f.npc);
+  }
+  phases.add(after.npc.state);assert.deepEqual(snapshot(after),snapshot(before),scenario+' frame '+frame);
+ }
+ assert(phases.has('camp_walking'));if(scenario==='day')assert(phases.has('camp_seated'));if(scenario==='sleep'||scenario==='trapped')assert(phases.has('camp_sleeping'));
+ console.log('PASS camp '+scenario+': 1200 exact actor/slot/timing/publication frames.');
+}
+if(!process.argv.includes('--baseline')){
+ const sit=f=>{for(let i=0;i<300&&f.npc.state!=='camp_seated';i++){f.npc.stateTimer-=.05;f.owner.camps.tick(.05,f.npc.personHandle,.25);}assert.equal(f.npc.state,'camp_seated');};
+ for(let cycle=0;cycle<2;cycle++){
+  const f=fixture('day',false),h=f.npc.personHandle;sit(f);const old=f.state.claim,seat=f.seat;
+  const newSeat={...seat,occupied:false};f.entry.campSeats=[newSeat];f.owner.camps.tick(.05,h,.25);
+  assert(!seat.occupied);assert.equal(f.npc.state,'idle');assert(!f.owner.camps.has(h));assert.equal(f.owner.commitCampMotion(old,{}),false);
+  f.state.campCooldown=0;sit(f);assert(newSeat.occupied);f.owner.removePerson(h);assert(!newSeat.occupied);assert(!f.owner.camps.has(h));
+  const fresh=f.owner.spawn({pos:new Vector()});assert.notEqual(fresh.personHandle,h);assert.equal(f.owner.camps.tick(.05,h,.25),false);assert.equal(f.owner.commitCampMotion(old,{}),false);
+ }
+ {
+  const f=fixture('day',false),h=f.npc.personHandle;sit(f);const old=f.state.claim;
+  f.owner._releaseMarket=()=>{};f.owner._releasePotty=()=>{};
+  f.registry.solids=[{position:new Vector(1,0,0),collider:{radius:10}}];
+  f.owner.hitPerson(h,1,0);assert(f.seat.occupied);assert(f.owner.camps.has(h));assert.equal(f.npc.state,'camp_seated');
+  f.registry.solids=[];f.owner.hitPerson(h,1,0);assert(!f.seat.occupied);assert(!f.owner.camps.has(h));assert.equal(f.npc.state,'fleeing');assert.equal(f.npc.pos.x,1.6);
+  f.npc.state='idle';f.state.campCooldown=0;sit(f);f.owner.camps.dispose();assert(!f.seat.occupied);assert.equal(f.owner.activityClaims.current.size,0);assert.equal(f.owner.commitCampMotion(old,{}),false);
+ }
+ console.log('PASS camp ownership: two slot replacement/revisit cycles, stale motion/person/slot rejection, person/activity teardown and hit preflight preserving trapped seats and safe exit.');
+}

@@ -1,78 +1,68 @@
 #!/usr/bin/env node
-/*
- * bin/check-importmaps — fail loudly when an importmap module array drifts from
- * the actual src/ tree (worldgen-layout-harness task 6.5). The no-build repo has
- * NO bundler, so every html page that loads a module must list it in its inline
- * cache-buster array (guardrail #8 / no-build.md). Forgetting one means edits
- * silently stop reloading on local dev — a footgun that has bitten repeatedly.
- *
- * The FIVE consuming pages, and what each must cover:
- *   index.html / sandbox.html / hub-sandbox.html / terrain-sandbox.html (FULL — load the whole game):
- *     every src/*.js in `mods`, every src/worldgen/*.js in `mods`,
- *     every src/models/*.js in `models`.
- *   map-sandbox.html  (worldgen-only): every src/worldgen/*.js (+ rng) in `wg`.
- *
- * Exits 0 when consistent, 1 (naming file + module) otherwise. CommonJS so it
- * runs as an extensionless bin script, like bin/layout-snapshot / bin/lint.
- */
 'use strict';
 
+// Cache-buster declarations must cover every source module on all five pages.
+// Declaring a URL does not import it; the 2D map remains independent of Three.js.
 const fs = require('fs');
 const path = require('path');
+const PAGES = ['index.html', 'sandbox.html', 'hub-sandbox.html', 'terrain-sandbox.html', 'map-sandbox.html'];
 
-const ROOT = path.resolve(__dirname, '..');
-const list = (dir, prefix = '') =>
-  fs.readdirSync(path.join(ROOT, dir)).filter((f) => f.endsWith('.js')).map((f) => prefix + f.replace(/\.js$/, ''));
-
-const TOP = list('src');                       // bare names: 'main', 'chunks', …
-const WG = list('src/worldgen', 'worldgen/');  // 'worldgen/lint', …
-const MODELS = list('src/models');             // bare names: 'canoe', …
-
-// role: 'full' = mods (src + worldgen) + models; 'wg' = worldgen-only (+ rng).
-const PAGES = {
-  'index.html': 'full',
-  'sandbox.html': 'full',
-  'terrain-sandbox.html': 'full',
-  'hub-sandbox.html': 'full',
-  'map-sandbox.html': 'wg',
-};
-
-// Pull the quoted tokens out of every `const <name> = [ … ]` whose name is in
-// ARRS, across newlines. Returns the union as a Set.
-const ARRS = ['mods', 'models', 'wg'];
-function declaredTokens(src) {
-  const out = new Set();
-  for (const name of ARRS) {
-    const m = src.match(new RegExp('const\\s+' + name + '\\s*=\\s*\\[([\\s\\S]*?)\\]'));
-    if (!m) continue;
-    for (const t of m[1].matchAll(/'([^']+)'/g)) out.add(t[1]);
-  }
-  return out;
-}
-
-let failed = false;
-const problems = [];
-for (const [page, role] of Object.entries(PAGES)) {
-  const p = path.join(ROOT, page);
-  if (!fs.existsSync(p)) { problems.push(`${page}: MISSING file`); failed = true; continue; }
-  const declared = declaredTokens(fs.readFileSync(p, 'utf8'));
-  if (declared.size === 0) { problems.push(`${page}: no mods/models/wg array found`); failed = true; continue; }
-
-  const need = role === 'full' ? [...TOP, ...WG, ...MODELS] : [...WG, 'rng'];
-  for (const mod of need) {
-    if (!declared.has(mod)) { problems.push(`${page}: missing '${mod}'`); failed = true; }
-  }
-  // Reverse: a listed worldgen/* token must map to a real file (catch a deleted
-  // or mistyped module still referenced).
-  for (const t of declared) {
-    if (t.startsWith('worldgen/') && !WG.includes(t)) {
-      problems.push(`${page}: lists '${t}' but src/${t}.js does not exist`); failed = true;
+function sourceModules(root) {
+  const modules = new Set();
+  function visit(dir, prefix = '') {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      if (entry.name.startsWith('.')) continue;
+      const relative = prefix + entry.name;
+      if (entry.isDirectory()) visit(path.join(dir, entry.name), relative + '/');
+      else if (entry.isFile() && entry.name.endsWith('.js')) modules.add(relative.slice(0, -3));
     }
   }
+  visit(path.join(root, 'src'));
+  return modules;
 }
 
-if (failed) {
-  process.stderr.write('importmap drift:\n  ' + problems.join('\n  ') + '\n');
-  process.exit(1);
+function declaredModules(html) {
+  const modules = new Set();
+  let arrays = 0;
+  // models uses names relative to src/models; mods and wg use src-relative names.
+  for (const name of ['mods', 'models', 'wg']) {
+    const match = html.match(new RegExp('const\\s+' + name + '\\s*=\\s*\\[([\\s\\S]*?)\\]'));
+    if (!match) continue;
+    arrays++;
+    // Comments can describe removed mappings and must not satisfy coverage.
+    const tokens = /'([^']*)'|"([^"]*)"|\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
+    for (const token of match[1].matchAll(tokens)) {
+      const value = token[1] ?? token[2];
+      if (value !== undefined) modules.add((name === 'models' ? 'models/' : '') + value);
+    }
+  }
+  return { modules, arrays };
 }
-process.stdout.write(`importmaps OK — ${TOP.length} src + ${WG.length} worldgen + ${MODELS.length} models across ${Object.keys(PAGES).length} pages\n`);
+
+function checkImportmaps(root) {
+  const source = sourceModules(root);
+  const problems = [];
+  for (const page of PAGES) {
+    const file = path.join(root, page);
+    if (!fs.existsSync(file)) { problems.push(`${page}: MISSING file`); continue; }
+    const { modules, arrays } = declaredModules(fs.readFileSync(file, 'utf8'));
+    if (!arrays) { problems.push(`${page}: no mods/models/wg array found`); continue; }
+    for (const module of source) {
+      if (!modules.has(module)) problems.push(`${page}: missing '${module}'`);
+    }
+    for (const module of modules) {
+      if (!source.has(module)) problems.push(`${page}: lists '${module}' but src/${module}.js does not exist`);
+    }
+  }
+  return { problems, moduleCount: source.size, pageCount: PAGES.length };
+}
+
+if (require.main === module) {
+  const result = checkImportmaps(path.resolve(__dirname, '..'));
+  if (result.problems.length) {
+    process.stderr.write('importmap drift:\n  ' + result.problems.join('\n  ') + '\n');
+    process.exitCode = 1;
+  } else process.stdout.write(`importmaps OK: ${result.moduleCount} source modules across ${result.pageCount} pages\n`);
+}
+
+module.exports = { checkImportmaps };

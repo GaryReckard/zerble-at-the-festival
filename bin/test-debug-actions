@@ -10,7 +10,7 @@ const entries=new Map([[1,{kind:'campsite',position:{x:0,z:0},campSeats:[{occupi
 const starPower={_star:null,_cooldown:15,state:'idle',_phase:0,
  _buildStar(x,z){this._star={x,z};},trigger(){this.state='active';},isActive(){return this.state!=='idle';}};
 const hooks={zerble:{position:{x:0,y:0,z:0},heading:0,speed:3,forwardWorld:{x:0,z:-1}},StarPower:starPower,getRunning:()=>true,getTimeOfDay:()=>tod,
- registry:{entries},crowd:{npcs:[{state:'camp_seated'},{state:'walking'}],cheerNear(x,z){calls.push(['cheer',x,z]);}},bubbles:{juice:1},
+ people:{inspect(){return [{key:'children',details:{population:7}}];}},registry:{entries},crowd:{populationSize:2,forEachPersonNear(_x,_z,_r,visit){visit({}, {state:'camp_seated'});visit({}, {state:'walking'});},cheerNear(x,z){calls.push(['cheer',x,z]);}},bubbles:{juice:1},
  renderer:{__sceneInfo:{calls:120,triangles:9000},info:{render:{calls:1,triangles:1}}},camera:{fov:60},
  chaseCam:{dbgCamTopDown(...args){calls.push(['camera',...args]);},dbgCamUnlock(){calls.push(['chase']);}}};
 const state={hooks,pendingSteps:99,paused:false,freezeNPCs:false,god:false,showColliders:false,perfSamples:[]};
@@ -43,3 +43,5 @@ assert.match(run('/inspect camps'),/"seatedClaims": 1/);assert.match(run('/inspe
 assert.match(run('/inspect audio'),/session mute on/);assert.match(run('/seed'),/1977/);assert.match(run('/where'),/90.0°/);
 run('/mute off');assert(!mute);run('/mute on');assert(mute);
 console.log('PASS actual game command adapter: coherent pause/step queue, time/heading/juice, safe crowd states, scene-render counts, camera transforms, claims inspection and session mute.');
+
+assert.match(run('/inspect people'),/children/);

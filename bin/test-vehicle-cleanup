@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {disposeSceneResources} from '../src/people/sceneResources.js';
+import {OneWheelMotion,ONE_WHEEL_TUNING as T} from '../src/oneWheelMotion.js';
+import {makeWagonRoute} from '../src/nutWagonRoute.js';
+import {mulberry32} from '../src/rng.js';
+class Vector{constructor(x=0,y=0,z=0){this.set(x,y,z);}set(x,y,z){Object.assign(this,{x,y,z});return this;}copy(p){return this.set(p.x,p.y,p.z);}toArray(){return [this.x,this.y,this.z];}}
+const read=name=>readFileSync(new URL('../src/'+name,import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace('export class','class');
+const entries=new Map();let id=0,owned=0,shared=0,detached=0,builds=0;
+const registry={add:e=>{entries.set(++id,e);return id;},remove:i=>entries.delete(i),collidersNear(){}};
+const build=()=>{
+ const fail=builds++===0;
+ const material={userData:{},dispose(){owned++;if(fail)throw Error('injected GPU release failure');}};
+ return {position:new Vector(),rotation:{},removeFromParent(){detached++;},traverse(visit){visit({isMesh:true,geometry:{userData:{shared:true},dispose(){shared++;}},material});}};
+};
+const Wheels=runInNewContext(read('oneWheels.js')+';OneWheels',{PeopleRuntime,PersonHandles,disposeSceneResources,OneWheelMotion,T,mulberry32,registry,terrainHeight:()=>0,buildOneWheelRider:build,THREE:{Vector3:Vector,Frustum:class{},Matrix4:class{},Sphere:class{}}});
+const wheels=new Wheels({add(){}},{forEachPersonNear(){}},{procedural:false,isWater:()=>false});
+const route=makeWagonRoute([{x:0,z:0},{x:0,z:100}]);
+const first=wheels.spawnOnRoute(route,2),second=wheels.spawnOnRoute(route,20);
+assert(first&&second);const handles=[first.personHandle,second.personHandle];
+assert.throws(()=>wheels.dispose());
+assert.equal(wheels.riders.length,0,'GPU failure cannot strand a rider record');
+assert.equal(entries.size,0);assert.equal(owned,2);assert.equal(detached,2);assert.equal(shared,0);
+for(const h of handles)assert(!wheels.peopleHandles.isLive(h));
+wheels.dispose();assert.equal(owned,2);assert.equal(wheels.spawnOnRoute(route,2),null);
+console.log('PASS rider fault cleanup: all identities, registry entries, roots and owned resources retire despite one GPU failure; no shared disposal or repeated release');
+const order=[],Sound={detachStageMusic(handle){if(handle){order.push('audio');throw Error('injected audio failure');}}};
+const Wagon=runInNewContext(read('nutWagon.js')+';NutWagon',{registry,Sound,disposeSceneResources});
+const wagon=Object.create(Wagon.prototype);
+const resource={userData:{},dispose(){order.push('geometry');}};
+Object.assign(wagon,{crowd:{releaseVehiclePassengers(){order.push('passengers');}},ids:[registry.add({})],colliders:[{}],seatSlots:[{}],music:{},musicEntry:{},active:true,state:'parked',speed:1,driverModel:{},root:{removeFromParent(){order.push('root');},traverse(visit){visit({geometry:resource});visit({geometry:resource});}}});
+assert.throws(()=>wagon.despawn());
+assert.equal(wagon.root,null,'audio failure cannot strand a place-owned vehicle root');
+assert.equal(wagon.music,null);assert.equal(wagon.musicEntry,null);assert.equal(wagon.active,false);assert.equal(wagon.state,'absent');assert.equal(wagon.speed,0);assert.equal(wagon.driverModel,null);assert.equal(entries.size,0);
+assert.deepEqual(order,['passengers','audio','root','geometry']);
+wagon.despawn();assert.equal(order.filter(s=>s==='geometry').length,1);
+wagon.dispose();assert.equal(wagon.trySpawn({x:0,z:0}),false);assert.equal(wagon.spawnOnRoute(route,0),false);wagon.update(.02,{x:0,z:0},false,0);
+console.log('PASS wagon fault cleanup: passenger-first invalidation, consumed audio handle, root and unique owned GPU release despite audio failure; repeated cleanup and stopped owner are inert');

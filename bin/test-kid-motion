@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../src/obstacles.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/people/children.js', import.meta.url), 'utf8');
 const start = source.indexOf('  update(dt, bubbles, zerble, smiles) {', source.indexOf('export class KidGaggle {'));
 const end = source.indexOf('\n}\n', start);
 assert(start >= 0 && end > start, 'find the production KidGaggle.update method');

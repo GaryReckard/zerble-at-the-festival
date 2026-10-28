@@ -1,0 +1,70 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import * as role from '../src/photographer.js';
+import * as rng from '../src/rng.js';
+const legacy=readFileSync(new URL('../verification/people/2026-10-26/legacy-photographer.js',import.meta.url),'utf8');
+const oracle=runInNewContext(legacy.replace(/^import .*;$/gm,'').replace(/export /g,'')+';({photographerProfile,startPhotographerShot,advancePhotographerShot,tickPhotographerOpportunity})',{...rng});
+const fixture=(kernel,pos)=>({pos,...kernel.photographerProfile(pos,true),state:'idle',stateTimer:0,vel:{set(x,y,z){this.x=x;this.y=y;this.z=z;}}});
+for(let i=0;i<30;i++){
+ const pos={x:i*1.23-15,z:i*3.7-80},a=fixture(oracle,pos),b=fixture(role,pos);
+ assert.deepEqual(JSON.parse(JSON.stringify(b)),JSON.parse(JSON.stringify(a)));
+ for(let frame=0;frame<1200;frame++){
+  for(const [kernel,n] of [[oracle,a],[process.argv.includes('--baseline')?oracle:role,b]]){
+   if(frame%190===0)kernel.startPhotographerShot(n);
+   if(role.isPhotographerState(n.state))kernel.advancePhotographerShot(n,.017);
+   else kernel.tickPhotographerOpportunity(n,.017,frame%17===0?3:10,frame%29!==0);
+  }
+  assert.deepEqual(JSON.parse(JSON.stringify(b)),JSON.parse(JSON.stringify(a)));
+ }
+}
+console.log('PASS photographer: 30 profiles × 1200 exact salted role/notice/pose/flash/cooldown/opportunity frames.');
+// Evaluate the recorded render formulas directly, before the population renderer
+// is changed. The new sampler must overwrite caller scratch across actor types.
+function oldPose(state,timer,crouch,flash,out){
+ const photographing=state==='photographer_notice'||state==='photographer_pose',pose=state==='photographer_pose';let amount=0;
+ if(pose){const poseIn=Math.min(1,Math.max(0,(1.05-timer)*5)),poseOut=Math.min(1,Math.max(0,timer*5));amount=Math.min(poseIn,poseOut);}
+ out.photographing=photographing;out.pose=pose;out.crouch=pose&&!!crouch;out.crouchDrop=pose&&crouch ? .24*amount : 0;
+ out.flashVisible=flash>0;out.flashScale=flash>0?.72+Math.sin(Math.min(1,flash/.12)*Math.PI)*.55:0;return out;
+}
+const sample=process.argv.includes('--baseline')?oldPose:role.samplePhotographerPose;
+const scratch={};
+assert.equal(typeof sample,'function');
+for(const state of ['idle','photographer_notice','photographer_pose','riding','healing_arts','camp_seated'])for(const crouch of [false,true])for(let i=-10;i<120;i++)for(const flash of [0,.001,.06,.12,.6]){
+ assert.equal(sample(state,i/100,crouch,flash,scratch),scratch);assert.deepEqual(scratch,oldPose(state,i/100,crouch,flash,{}));
+}
+console.log('PASS photographer pose baseline: transition boundaries, crouch height, flash scale and cross-actor scratch reset.');
+const {makePeopleCrowd,Vector}=await import('./test-support/peopleCrowd.js');
+const commandsSource=readFileSync(new URL('../verification/people/2026-10-26/legacy-photographer-commands.js',import.meta.url),'utf8');
+const LegacyCommands=runInNewContext(commandsSource.replace('export class','class')+';PhotographerCommandOracle',{...role,PHOTOGRAPHER_ELIGIBLE:new Set(['idle','walking','watching','approaching'])});
+function population(old=false){
+ const owner=makePeopleCrowd();owner._photoFree=[5,4,3,2,1,0];owner._photoDrawCount=0;let writes=0;owner._writeMatrices=()=>writes++;
+ if(old)for(const key of Object.getOwnPropertyNames(LegacyCommands.prototype))if(key!=='constructor')owner[key]=LegacyCommands.prototype[key];
+ const n=owner.spawn({pos:new Vector(1,0,3)});Object.assign(n,{state:'idle',stateTimer:2,isPhotographer:false,photoSlot:-1});
+ return {owner,n,get writes(){return writes;}};
+}
+{
+ const before=population(true),after=population(),snapshot=f=>[f.n.state,f.n.stateTimer,f.n.isPhotographer,f.n.photoSeed,f.n.photoCrouch,f.n.photoNoticeTimer,f.n.photoCooldown,f.n.photoFlashTimer,f.n.photoShot,f.n.photoSlot,f.owner._photographerCount,f.owner._photoDrawCount,Array.from(f.owner._photoFree),f.writes];
+ for(const command of ['forcePhotographer','triggerPhotographer','previewPhotographerFlash']){
+  assert(before.owner[command](before.n));assert.equal(after.owner[command](after.n.personHandle),after.n.personHandle);assert.deepEqual(snapshot(after),snapshot(before));
+ }
+ assert.equal(after.owner.forcePhotographer(),after.n.personHandle);
+ const view={crouch:'stale',flash:10};assert(after.owner.readPhotographer(after.n.personHandle,view));assert(view.photographer);
+ const ordinary=after.owner.spawn({pos:new Vector()});assert(after.owner.readPhotographer(ordinary.personHandle,view));assert.equal(view.photographer,false);assert.equal(view.crouch,false);assert.equal(view.flash,0);
+}
+{
+ const f=population(),h=f.n.personHandle;
+ const held=f.owner.claimActivity(h,{owner:{}});assert.equal(f.owner.forcePhotographer(h),null);assert(f.owner.activityClaims.canWrite(held));assert.equal(f.owner._photographerCount,0);assert.equal(f.owner._photoFree.length,6);
+ f.owner.endPersonActivity(held);f.n.state='riding';assert.equal(f.owner.forcePhotographer(h),null);f.n.state='camp_sleeping';assert.equal(f.owner.forcePhotographer(h),null);
+ f.n.state='idle';f.n.party={};assert.equal(f.owner.forcePhotographer(h),null);f.n.party=null;
+ assert.equal(f.owner.forcePhotographer(h),h);assert.equal(f.owner._photographerCount,1);assert.equal(f.owner._photoFree.length,5);
+ f.owner.removePerson(h);assert.equal(f.owner._photographerCount,0);assert.equal(f.owner._photoFree.length,6);
+ const fresh=f.owner.spawn({pos:new Vector()});assert.equal(fresh.personHandle.slot,h.slot);assert.notEqual(fresh.personHandle,h);
+ assert.equal(f.owner.forcePhotographer(h),null);assert.equal(f.owner.triggerPhotographer(h),null);assert.equal(f.owner.previewPhotographerFlash(h),null);assert.equal(f.owner._photoFree.length,6);
+ f.owner.peopleHandles.runtime.unregister(f.owner.peopleHandles.ownerToken);assert.equal(f.owner.forcePhotographer(),null);
+}
+{
+ const f=population();f.owner._photoFree=[];assert.equal(f.owner.forcePhotographer(f.n.personHandle),null);assert.equal(f.n.isPhotographer,false);assert.equal(f.n.state,'idle');assert.equal(f.owner._photographerCount,0);
+}
+console.log('PASS photographer public commands: exact valid profile/pool/publication behavior, handle returns, protected activity/group/rider/sleeper states, atomic exhausted-pool failure, reader reset and stale slot/controller rejection.');

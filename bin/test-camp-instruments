@@ -66,7 +66,7 @@ rig._instrumentLocalMat = { compose(pos,quat,scale) { this.pos={...pos};this.qua
 for (const kind of CAMP_INSTRUMENT_KINDS) for (const scale of [.75,1,1.35]) for (const stage of ['approach','ready','playing','return']) {
   const model = buildCampInstrument(kind);
   model.group.matrix = { copy(body) { this.body=body;return this; }, multiply(local) { this.local={pos:{...local.pos},quat:{...local.quat}};return this; } };
-  rig._writeCampInstrument({campInstrument:model,campJam:{stage}}, {scale,feetY:kind==='bass'?0:.35});
+  rig._writeCampInstrument({campInstrument:model,campMusicStage:stage}, {scale,feetY:kind==='bass'?0:.35});
   assert.equal(model.group.matrixAutoUpdate,false,'instrument world matrix inherits the actual crowd body matrix');
   assert(model.group.visible && model.group.matrixWorldNeedsUpdate);
   const local=model.group.matrix.local;

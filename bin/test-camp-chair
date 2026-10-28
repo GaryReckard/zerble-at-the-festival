@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {samplePhotographerPose} from '../src/photographer.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -79,7 +80,7 @@ class PoseMatrix {
   makeRotationZ(angle){this.angle=angle;return this;}
 }
 const RenderHarness=vm.runInNewContext(`${bodyConstants};class RenderHarness{${writeSource}};RenderHarness`,{
- isPhotographerState:()=>false,PHOTO_STATE_POSE:'photo_pose',HOP_HZ:16,HOP_HEIGHT:.32,performance:{now:()=>12345},
+ samplePhotographerPose,isPhotographerState:()=>false,PHOTO_STATE_POSE:'photo_pose',HOP_HZ:16,HOP_HEIGHT:.32,performance:{now:()=>12345},
 });
 const bodyShape=vm.runInNewContext(`${bodyConstants};({radius:BODY_RADIUS,length:BODY_LENGTH,center:BODY_CENTER_Y})`);
 const rig=new RenderHarness(),writes=new Map();
@@ -95,7 +96,7 @@ for(const style of ['sling','director','low','loveseat'])for(const scale of [.65
  for(const x of chair.seatOffsets) {
   const seatY=chair.seatY*2;
   const npc={idx:0,state:'camp_seated',scale,bob,yaw:1.2,dance:.95,onDancefloor:true,
-    campSlot:{x,y:seatY,z:0},pos:{x,z:0},appearance:{hairStyle:contactCases%6},hairSlot:0,drinkSlot:-1,
+    campY:seatY,pos:{x,z:0},appearance:{hairStyle:contactCases%6},hairSlot:0,drinkSlot:-1,
     smileTimeCooldown:2,cheerTimer:0,frownTimer:0};
   rig._writeMatrices(npc);
   const body=writes.get('bodyMesh');

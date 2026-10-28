@@ -1,3 +1,4 @@
+import {resolveCollision,SOFT_PEOPLE_KINDS} from './collisionContacts.js';
 // Bootstraps three.js, runs the game loop, owns scene/postprocessing/collision/scoring.
 
 import * as THREE from 'three';
@@ -29,8 +30,8 @@ import { updateCampsiteProps } from './models/campsite.js';
 import { updatePortaPotty } from './models/portaPotty.js';
 import { updateLeafDrumCircle } from './models/leafDrumCircle.js';
 import { updateTribalFigures } from './models/tribalFigures.js';
-import { updateHealingArtsTents, updateStagePerformers, updateStageLightShow, stageLightLenses, worldgenDrawCounts } from './chunks.js';
-import { updateSugarShackCooks } from './models/sugarShack.js';
+import { updateHealingArtsTents, healingArtsTents, updateStagePerformers, stagePerformers, updateStageLightShow, stageLightLenses, worldgenDrawCounts } from './chunks.js';
+import { updateSugarShackCooks, sugarShackCooks } from './models/sugarShack.js';
 import { Zerble } from './zerble.js';
 import { Bubbles } from './bubbles.js';
 import { BUBBLE_TYPES, charmLevel, visibleCatalog } from './bubbleTypes.js';
@@ -43,6 +44,17 @@ import { MidiPlayer } from './midiPlayer.js';
 import { Smiles } from './smiles.js';
 import { Fireworks } from './fireworks.js';
 import { Crowd } from './crowd.js';
+import { PeopleRuntime } from './people/runtime.js';
+import {PlaceDisplay} from './people/placeDisplay.js';
+import {VehiclePersonFacet} from './people/vehiclePersonFacet.js';
+import {KidGaggle} from './people/children.js';
+import {Wooks} from './people/wooks.js';
+import {PuppetParade} from './people/puppetParade.js';
+import {BrassBand} from './people/brassBand.js';
+import {HulaHoopers} from './people/hoopers.js';
+import {Frisbees} from './people/frisbees.js';
+import { PeopleBaseline,captureRenderInventory,withBaselineRandom } from './people/baseline.js';
+import { PeopleFrameTrace, savePeopleFrameTrace } from './people/frameTrace.js';
 import { MonkParty } from './monks.js';
 import { OneWheels } from './oneWheels.js';
 import { NutWagon } from './nutWagon.js';
@@ -51,14 +63,6 @@ import { Birds } from './birds.js';
 import { ChaseCamera } from './camera.js';
 import { registry } from './registry.js';
 import { Sound } from './sound.js';
-import {
-  PuppetParade,
-  BrassBand,
-  KidGaggle,
-  Wooks,
-  HulaHoopers,
-  Frisbees,
-} from './obstacles.js';
 import { installDebug, shouldRunFrame, isGod, npcsFrozen, recordCaptureFrame } from './debug.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { nearestHeart, heartsInBounds } from './worldgen/hearts.js';
@@ -77,11 +81,101 @@ import { A11y } from './a11y.js';
 import { setSessionSeed, getSessionSeed } from './rng.js';
 import { setTerrainEnabled, terrainEnabled, terrainHeight, sampleTerrain } from './worldgen/terrain.js';
 
+const peopleFrameTrace = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) &&
+  new URLSearchParams(location.search).get('peopleTrace') === '1' ? new PeopleFrameTrace({
+    limit:Number(new URLSearchParams(location.search).get('peopleTraceFrames') || 120),
+  }) : null;
+const peopleBaseline = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) &&
+  new URLSearchParams(location.search).get('peopleBaseline') === '1' ? new PeopleBaseline() : null;
+let peopleBaselineButton = null;
+const peopleBaselineCohort=!!peopleBaseline&&new URLSearchParams(location.search).get('peopleBaselineCohort')==='1';
+let peopleBaselineAuto=new URLSearchParams(location.search).get('peopleBaselineAuto')==='1';
+function baselineSceneInventory(){return captureRenderInventory(scene,{adults:crowd.group,children:kids.group,
+  wooks:wooks.group,parade:puppets.group,band:band.group,hoopers:hoopers.group,frisbees:frisbees.group,
+  player:zerble.root,lurleen:lurleen.root,wagon:nutWagon.root,oneWheels:oneWheels.riders.map(r=>r.group),
+  bubbles:bubbles.mesh,bubbleSpecial:bubbles.specialRoot,smiles:smiles.group,fireworks:fireworks.group});}
+if (peopleBaseline) {
+  peopleBaselineButton=document.createElement('button');
+  peopleBaselineButton.textContent='Measure people baseline';
+  peopleBaselineButton.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9999';
+  peopleBaselineButton.addEventListener('click',async()=>{
+    if(!running)return;
+    if(peopleBaseline.report().complete) {
+      try {await savePeopleFrameTrace(peopleBaseline,`people-baseline-${PERF.name}`);peopleBaselineButton.textContent='People baseline saved';}
+      catch(error){peopleBaselineButton.textContent='Baseline save failed: retry';peopleBaselineButton.title=error.message;}
+      return;
+    }
+    if(peopleBaseline.active)return;
+    if(peopleFrameTrace)throw new Error('Use separate trace and baseline launches.');
+    AdaptiveQuality.setEnabled(false);AdaptiveQuality.applyLevel(0);
+    window.__dbg.tod(.3);
+    window.__dbg.camLock(zerble.position.x-12,terrainHeight(zerble.position.x,zerble.position.z)+12,zerble.position.z+16,zerble.position.x,2,zerble.position.z);
+    const gl=renderer.getContext(),extension=gl.getExtension('WEBGL_debug_renderer_info');
+    peopleBaseline.start({protocol:'accepted-frame-start-v3',fixedCohort:peopleBaselineCohort,seed:getSessionSeed(),tier:PERF.name,time:.3,qualityPinned:0,
+      inventory:baselineSceneInventory(),
+      camera:camera.position.toArray(),player:zerble.position.toArray(),
+      dpr:devicePixelRatio,viewport:[innerWidth,innerHeight],userAgent:navigator.userAgent,
+      gpu:extension?gl.getParameter(extension.UNMASKED_RENDERER_WEBGL):null,
+      initial:window.__debug.perfSnapshot(),foreground:!document.hidden,
+      initialPeople:crowd.npcs.map(n=>({slot:n.idx,state:n.state,x:n.pos.x,z:n.pos.z,seated:!!n.seatSlot,healing:crowd.isInActivity(n.personHandle,'healing-arts')})),
+      initialChildren:kids.populationSize,
+      scope:'Fixed camera, pinned quality and time; live people. Three isolated spawn/remove probes use a private constant fixture RNG.'});
+    for(const key of ['update','spawn','removeNpc','_despawnDistant'])peopleBaseline.watch(crowd,key,'crowd.'+key);
+    peopleBaseline.watch(kids,'update','children.update');peopleBaseline.watch(smiles,'update','smiles.update');
+    peopleBaseline.watch(renderer,'render','renderer.render');
+    crowd.group.traverse(object=>{if(object.isInstancedMesh)peopleBaseline.watch(object,'setMatrixAt','matrixWrites');});
+    peopleBaselineButton.textContent='Measuring people baseline';
+  });
+  document.body.appendChild(peopleBaselineButton);
+  window.addEventListener('pagehide',()=>peopleBaseline.stop(),{once:true});
+}
+let pendingPeopleScenario = null;
+if (peopleFrameTrace) {
+  const button = document.createElement('button');
+  button.textContent = 'Save people frame trace';
+  peopleFrameTrace.onEnd = (count, limit) => { button.textContent = `Save people frame trace (${count}/${limit})`; };
+  button.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:9999';
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try {
+      await savePeopleFrameTrace(peopleFrameTrace, `people-frames-${PERF.name}-${peopleFrameTrace.scenario ?? 'startup'}`);
+      button.textContent = 'People frame trace saved';
+      button.dataset.captureStatus = 'saved';
+    } catch (error) {
+      button.textContent = 'Trace save failed: retry';
+      button.title = error.message;
+      button.dataset.captureStatus = 'failed';
+    } finally {
+      button.disabled = false;
+    }
+  });
+  document.body.appendChild(button);
+  const pickups = document.createElement('button');
+  pickups.textContent = 'Trace: add two smile pickups';
+  pickups.style.cssText = 'position:fixed;right:12px;bottom:48px;z-index:9999';
+  pickups.addEventListener('click', () => { if (running) window.__debug.dropSmile(2); });
+  document.body.appendChild(pickups);
+  const scenarios = document.createElement('div');
+  scenarios.style.cssText='position:fixed;right:12px;bottom:84px;z-index:9999;display:flex;gap:4px';
+  for (const name of ['contact','star','stream','seats']) {
+    const action=document.createElement('button');
+    action.textContent=`Trace: ${name}`;
+    action.addEventListener('click',()=>{
+      if (!running) return;
+      peopleFrameTrace.restart(name);
+      button.textContent='Save people frame trace';
+      pendingPeopleScenario=name;
+    });
+    scenarios.appendChild(action);
+  }
+  document.body.appendChild(scenarios);
+}
+
 // Rolling terrain is the default; retain an explicit flat-world debug fallback.
 setTerrainEnabled(new URLSearchParams(location.search).get('terrain') !== '0');
 import { MODEL_DECOR_MERGE_ENABLED, getMergeDecorStats } from './mergeDecor.js';
 import { BoostStreaks } from './boostStreaks.js';
-import { syncRenderPipelineSize } from './renderSizing.js';
+import { syncRenderPipelineSize, readRenderPipelineSize } from './renderSizing.js';
 
 const bubbleProgress = createBubbleProgress({
   get: (key) => localStorage.getItem(key),
@@ -423,7 +517,22 @@ const smiles = new Smiles();
 scene.add(smiles.group);
 
 // ---------- Crowd (before world so chunks can spawn into it) ----------
-const crowd = new Crowd(smiles);
+const people = new PeopleRuntime();
+const adultQuery = {populations:new Set(['crowd']),scratch:{}};
+const crowd = new Crowd(smiles,{runtime:people});
+const peopleFrame = {zerble,bubbles,smiles};
+new PlaceDisplay({runtime:people,key:'place-performers',slot:'place-performers',
+  advance:(_dt,frame)=>updateStagePerformers(frame.displayTime),count:()=>stagePerformers.length});
+new PlaceDisplay({runtime:people,key:'place-cooks',slot:'place-cooks',
+  advance:dt=>updateSugarShackCooks(dt),count:()=>sugarShackCooks.length});
+// These places own their activities and rigs. The directory only lends them
+// the existing dependency slot, between performers and stage lighting.
+const healingPlaceRoute={
+  update(dt,frame){updateHealingArtsTents(dt,people.time,frame.nightness,frame.zerble.position);},
+  inspect(out){out.places=healingArtsTents.length;},dispose(){},
+};
+people.register({key:'healing-arts-places',controller:healingPlaceRoute,schedule:[{slot:'late-activities',run:healingPlaceRoute.update}]});
+if (peopleFrameTrace) crowd.frameTrace = peopleFrameTrace;
 scene.add(crowd.group);
 
 // ---------- Fireworks (night-gated; director schedules its own shows) ------
@@ -436,7 +545,7 @@ fireworks.onBurst = (bx, bz) => {
   const now = performance.now() / 1000;
   if (npcsFrozen() || now - _lastFireworkCheer < 4) return;
   _lastFireworkCheer = now;
-  crowd.cheerNear(zerble.position.x, zerble.position.z);
+  people.dispatch('cheer',zerble.position.x,zerble.position.z);
 };
 fireworks.onFinale = () => bubbleChallenges.onFireworksFinale();
 
@@ -444,7 +553,7 @@ fireworks.onFinale = () => bubbleChallenges.onFireworksFinale();
 // so we know the end-to-end path is working in the wild.
 let _cheerAnalyticsFired = false;
 Sound.onSongEnd((x, z) => {
-  if (!npcsFrozen()) crowd.cheerNear(x, z);
+  if (!npcsFrozen()) people.dispatch('cheer',x,z);
   if (!_cheerAnalyticsFired) {
     _cheerAnalyticsFired = true;
     Analytics.featureUsed('song_cheer');
@@ -490,20 +599,28 @@ if (__launch && Number.isFinite(__launch.tod)) getTimeOfDay()?.setT(__launch.tod
 // v2 (H1): start Lurleen a distance away from the player's actual hub spawn (random
 // direction), not the origin ring — so she's never right next to a hub-relocated Zerble.
 const lurleen = new Lurleen(scene, USE_WORLDGEN_V2 ? zerble.position.clone() : null);
+const lurleenPerson=new VehiclePersonFacet({runtime:people,key:'lurleen',vehicle:lurleen,
+  schedule:[{slot:'relationship',run(dt,frame){this.vehicle.update(dt,frame.zerble.position,frame.zerble.heading,frame.nightness);}}],
+  read:(vehicle,out)=>{out.x=vehicle.position.x;out.y=vehicle.position.y;out.z=vehicle.position.z;out.heading=vehicle.heading;out.state=vehicle.state;out.vx=Math.sin(vehicle.heading)*vehicle.speed;out.vz=Math.cos(vehicle.heading)*vehicle.speed;}});
 const nutWagon = new NutWagon(scene, crowd);
+const wagonPeopleRoute={
+  update(dt,frame){nutWagon.update(dt,frame.zerble.position,frame.tripActive,frame.nightness,frame.camera);},
+  inspect(out){Object.assign(out,nutWagon.status());},dispose(){nutWagon.dispose();},
+};
+people.register({key:'nut-wagon',controller:wagonPeopleRoute,schedule:[{slot:'vehicles',run:wagonPeopleRoute.update}]});
 const monks = new MonkParty(crowd, nutWagon);
-const oneWheels = new OneWheels(scene,crowd);
+const oneWheels = new OneWheels(scene,crowd,{runtime:people});
 const forceOneWheel = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get('onewheel') === '1';
 if(forceOneWheel && USE_WORLDGEN_V2)oneWheels.trySpawn(zerble.position,camera,true);
-window.addEventListener('pagehide',event=>{if(!event.persisted)oneWheels.dispose();});
+window.addEventListener('pagehide',event=>{if(!event.persisted){oneWheels.dispose();lurleenPerson.dispose();}});
 const forceNutWagon = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get('nutwagon') === '1';
 if (forceNutWagon && USE_WORLDGEN_V2) nutWagon.trySpawn(zerble.position, camera, true);
 let lurleenMet = false;     // first-contact toast latch
 
 // ---------- Moving obstacles (global — not chunk-bound) ----------
-const puppets = new PuppetParade();
+const puppets = new PuppetParade({runtime:people,parkedHonkOrder:1});
 scene.add(puppets.group);
-const band = new BrassBand();
+const band = new BrassBand({runtime:people,parkedHonkOrder:2});
 scene.add(band.group);
 const visitRegistryKind = (kind, fn) => {
   for (const id of registry.byKind.get(kind) || []) {
@@ -529,15 +646,16 @@ const bubbleChallenges = new ChallengeTracker(bubbleProgress, {
   tripActive: () => Trip.isActive(),
   mode: () => RunMode.isFestival() ? 'festival' : 'cruisin',
 }, ['heart', 'music', 'ember', 'firefly', 'rainbow', 'sparkler', 'lantern', 'smile', 'confetti', 'mushroom', 'brass']);
-const kids = new KidGaggle();
+const kids = withBaselineRandom(()=>new KidGaggle({runtime:people}),0x43484c44,peopleBaselineCohort);
 scene.add(kids.group);
-const wooks = new Wooks();
+const wooks = new Wooks({runtime:people});
+const _wookPositions=[];
 scene.add(wooks.group);
 // Hula-hoopers attach to attractor POIs (stages, drum circles, fire pits).
 // Built lazily after buildWorld() runs so the first registry scan has data.
-const hoopers = HulaHoopers.create();
+const hoopers = HulaHoopers.create({runtime:people});
 scene.add(hoopers.group);
-const frisbees = new Frisbees();
+const frisbees = withBaselineRandom(()=>new Frisbees({runtime:people}),0x46525342,peopleBaselineCohort);
 scene.add(frisbees.group);
 // Birds — global flock that circles the festival + perches in trees. Built
 // after buildWorld so the registry already has trees to perch in.
@@ -1011,6 +1129,36 @@ function tickBody(dt) {
     return;
   }
   if (running) {
+    if(peopleBaseline&&peopleBaselineAuto){peopleBaselineAuto=false;peopleBaselineButton.click();}
+    if(peopleBaseline?.active) {
+      getTimeOfDay().setT(.3);
+      peopleBaseline.begin();
+      if([150,180,210].includes(peopleBaseline.accepted)) {
+        const fixture=crowd.spawn({pos:zerble.position.clone(),rng:()=>.5,allowPhotographer:false});
+        if(fixture){peopleBaseline.count('successfulSpawnProbes',1);crowd.removeNpc(fixture);}
+      }
+    }
+    people.beginFrame(dt);
+    peopleFrameTrace?.begin(dt);
+    if (pendingPeopleScenario) {
+      peopleFrameTrace.mark('scenario',pendingPeopleScenario);
+      peopleFrameTrace.seats('scenario-seats-before',zerble,nutWagon,crowd);
+      if (pendingPeopleScenario==='star') window.__dbg.starPower();
+      if (pendingPeopleScenario==='stream') window.__dbg.teleport(zerble.position.x+1800,zerble.position.z+1800);
+      if (pendingPeopleScenario==='seats') window.__dbg.fillSeats();
+      if (pendingPeopleScenario==='contact') {
+        let person=null;
+        people.forEachPersonNear(zerble.position.x,zerble.position.z,400,(_handle,view)=>{
+          if(view.claimed||view.grouped||!['idle','walking','watching','approaching'].includes(view.state))return;
+          let blocked=false;
+          registry.collidersNear(view.x,view.z+1,zerble.radius+1,e=>{if(Math.hypot(e.position.x-view.x,e.position.z-view.z-1)<e.collider.radius+zerble.radius)blocked=true;});
+          if(!blocked){person={x:view.x,z:view.z};return false;}
+        },adultQuery);
+        if(person){window.__dbg.teleport(person.x,person.z+1);zerble.heading=0;zerble.speed=4;zerble.invulnLeft=0;}
+      }
+      peopleFrameTrace.seats('scenario-seats-after',zerble,nutWagon,crowd);
+      pendingPeopleScenario=null;
+    }
     const tod = getTimeOfDay();
     const nightness = tod ? tod.nightness : 0;
     HUD.setTimeOfDay(tod?.t, nightness);
@@ -1021,6 +1169,7 @@ function tickBody(dt) {
     const passportActive = passportCanCollect();
     const beforeDriveX = zerble.position.x, beforeDriveZ = zerble.position.z;
     zerble.update(dt, controlsLocked || captureDriveLocked ? NEUTRAL_INPUT : Input, nightness);
+    peopleFrameTrace?.mark('player');
     if (passportActive) playerStats.move(dt, beforeDriveX, beforeDriveZ, zerble.position.x, zerble.position.z);
     boostStreaks.update(dt, zerble, {
       reducedMotion: A11y.reducedMotion,
@@ -1043,20 +1192,18 @@ function tickBody(dt) {
     const hornHonk  = Input.consumePressed('H');
     if (!controlsLocked && (spaceHonk || bellHonk || hornHonk) && zerble.canHonk()) {
       zerble.honk();
+      peopleFrameTrace?.mark('honk');
       honkAge = 0;
       // No honk-scatter while the love buff is on — nobody flees a smitten Zerble.
       // crowd + kids share the speed-scaled honk (steering.js): they scatter at
       // ANY speed, harder the faster you're going.
       if (!StarPower.isActive()) {
-        crowd.applyHonk(zerble);
-        kids.scatter(zerble);
+        people.dispatch('honk',zerble);
       }
       // Puppets, brass band, and wooks still scatter on a PARKED honk only —
       // they're on fixed parade loops / formations and aren't speed-aware yet.
       if (Math.abs(zerble.speed || 0) < 0.5) {
-        wooks.scatter(zerble);
-        puppets.scatter(zerble);
-        band.scatter(zerble);
+        people.dispatch('parkedHonk',zerble);
       }
       if (bellHonk)      { Sound.playBicycleBell(); Analytics.featureUsed('honk_bell'); }
       else if (hornHonk) { Sound.playClownHorn();   Analytics.featureUsed('honk_clown'); }
@@ -1126,6 +1273,7 @@ function tickBody(dt) {
     bubbles.setSpecialContext(bubbleChallenges.context);
     const emittedBefore = bubbles.emittedCount;
     bubbles.update(dt, zerble, nightness, camera);
+    peopleFrameTrace?.mark('bubbles');
     if (passportCanCollect()) playerStats.record('bubbles', bubbles.emittedCount - emittedBefore);
     fireworks.update(dt, nightness, zerble.position, zerble.heading);
     HUD.setJuice(bubbles.juice);
@@ -1190,18 +1338,27 @@ function tickBody(dt) {
     }
     // Sync live registry positions before crowd steering, kid push-out and
     // collision. Unchanged static entries retain their existing grid cells.
-    if (USE_WORLDGEN_V2 && !npcsFrozen()) nutWagon.update(dt, zerble.position, Trip.isActive(), nightness, camera);
-    if (USE_WORLDGEN_V2 && !npcsFrozen()) oneWheels.update(dt,zerble.position,nightness,camera);
+    peopleFrame.nightness=nightness;peopleFrame.camera=camera;peopleFrame.tripActive=Trip.isActive();
+    if (USE_WORLDGEN_V2 && !npcsFrozen()) people.run('vehicles',peopleFrame);
+    peopleFrameTrace?.mark('vehicles');
+    peopleFrameTrace?.seats('vehicle-seats',zerble,nutWagon,crowd);
     registry.rebuildSpatialIndex();
-    if (!npcsFrozen()) crowd.update(dt, zerble, bubbles);
+    peopleFrameTrace?.mark('spatial');
+    peopleFrameTrace?.pickups('adults-before', smiles);
+    if (!npcsFrozen()) people.run('adults',peopleFrame);
+    peopleFrameTrace?.pickups('adults-after', smiles);
+    peopleFrameTrace?.population('adult-poses',crowd);
     // Same-frame collects coalesce into ONE scoring event (and, in group 5,
     // one audio chord) — a mega-burst never machine-guns the pipeline.
     _collectedThisFrame = 0;
     smiles.update(dt, zerble, (n) => { _collectedThisFrame += n; });
+    peopleFrameTrace?.pickups('collection', smiles);
+    peopleFrameTrace?.mark('collected', _collectedThisFrame);
     if (_collectedThisFrame > 0) {
       bubbleChallenges.onSmilesCollected(_collectedThisFrame);
       if (passportCanCollect()) playerStats.record('smiles', _collectedThisFrame);
       Scoring.collect(_collectedThisFrame);
+      peopleFrameTrace?.mark('score-collect', Scoring.current);
       Sound.playSmileCollect(_collectedThisFrame, Scoring.chain);
       HUD.setSmiles(Scoring.current);
       // zerble-best-smiles is the Just Cruisin' personal best ONLY — Festival
@@ -1213,20 +1370,21 @@ function tickBody(dt) {
       Analytics.smileScore(Scoring.current);
     }
     Scoring.tick(dt);
+    peopleFrameTrace?.mark('score-tick', Scoring.current);
     Scoring.setDoubler(lurleen.state === 'following');
     HUD.setCombo(Scoring.multiplier(), Scoring.chainFraction(), Scoring.doubler, Scoring.stakes);
 
-    puppets.update(dt, zerble.position);
-    band.update(dt, zerble.position);
-    kids.update(dt, bubbles, zerble, smiles);
-    wooks.update(dt, zerble.position, Math.abs(zerble.speed));
-    hoopers.update(dt, zerble.position, nightness);
-    frisbees.update(dt, zerble.position, nightness);
+    people.run('formations',peopleFrame);
+    peopleFrameTrace?.pickups('children-before', smiles);
+    people.run('children',peopleFrame);
+    peopleFrameTrace?.pickups('children-after', smiles);
+    peopleFrame.nightness=nightness;
+    people.run('roaming',peopleFrame);
     birds.update(dt, zerble.position, tod, Math.abs(zerble.speed));
     // Collect wook world positions for proximity detection
-    const _wookPositions = wooks.wooks.map(w => w.position);
+    wooks.copyPositions(_wookPositions);
     Trip.update(dt, zerble.position, Math.abs(zerble.speed), _wookPositions);
-    lurleen.update(dt, zerble.position, zerble.heading, nightness);
+    people.run('relationship',peopleFrame);
     HUD.setLurleenFollowing(lurleen.state === 'aware' || lurleen.state === 'following');
     // Her motor — spatialized to her position, pitch/volume track her real
     // speed whether she's wandering on her own or chasing Zerble.
@@ -1238,10 +1396,16 @@ function tickBody(dt) {
       Analytics.lurleenFound();
     }
     const nowS = performance.now() * 0.001;
-    updateStagePerformers(nowS);
-    updateHealingArtsTents(dt, nowS, nightness, zerble.position);
+    peopleFrame.displayTime=people.time;
+    people.run('place-performers',peopleFrame);
+    peopleFrameTrace?.mark('stage-performers');
+    people.run('late-activities',peopleFrame);
+    peopleFrameTrace?.mark('healing-arts');
     updateStageLightShow(nowS, nightness, zerble.position);
-    updateSugarShackCooks(dt);
+    people.run('place-cooks',peopleFrame);
+    peopleFrameTrace?.mark('cooks');
+    peopleFrameTrace?.population('late-poses',crowd);
+    peopleFrameTrace?.seats('late-seats',zerble,nutWagon,crowd);
 
     // Distance-gate per-frame animatable updates. A campsite ember pulse /
     // tiki-flame flicker / drum-circle figure animation 80m behind the
@@ -1491,7 +1655,9 @@ function tickBody(dt) {
 
     // Procedural world expands around Zerble.
     const worldStartedAt = PERF_CAPTURE_TIMING ? performance.now() : 0;
+    peopleFrameTrace?.mark('world-before', registry.entries.size);
     updateWorld(zerble.position, dt);
+    peopleFrameTrace?.mark('world-after', registry.entries.size);
     if (PERF_CAPTURE_TIMING) _perfWorldMs = performance.now() - worldStartedAt;
 
     // Star power: spawn director + buff state + rainbow/wave/trail visuals.
@@ -1499,12 +1665,14 @@ function tickBody(dt) {
     // frame. The love-magnet smile torrent runs while active.
     StarPower.update(dt, zerble, nightness, nowS);
     bubbles.setStarPower(StarPower.isActive());
-    if (StarPower.isActive() && !npcsFrozen()) crowd.applyStarLove(zerble, dt);
+    if (StarPower.isActive() && !npcsFrozen()) people.run('star-love',peopleFrame);
+    peopleFrameTrace?.mark('star-before-contacts', StarPower.isActive());
 
     // Collisions: deduct smiles only when Zerble is actively driving into the obstacle.
     // If something brushes a stationary Zerble, just resolve the overlap silently.
     // Star power = pure ghost mode: the whole resolver short-circuits, so Zerble
     // phases through every collider untouched.
+    peopleFrameTrace?.mark('contacts-eligible', zerble.invulnLeft <= 0 && !StarPower.isActive());
     if (zerble.invulnLeft <= 0 && !StarPower.isActive()) {
       // Build a per-frame collider list for nearby crowd NPCs so Zerble can actually
       // bump them. Skip riders + anyone more than 5m away (cheap broad-phase reject).
@@ -1519,25 +1687,14 @@ function tickBody(dt) {
       // first-hit semantics are preserved.
       _collScratch.length = 0;
       _regColPoolN = 0;
-      _npcColPoolN = 0;
       registry.collidersNear(zerble.position.x, zerble.position.z, zerble.radius + 1, (e) => {
         _collScratch.push(_regColWrap(e));
       });
-      for (let i = 0; i < puppets.colliders.length; i++) _collScratch.push(puppets.colliders[i]);
-      for (let i = 0; i < band.colliders.length; i++) _collScratch.push(band.colliders[i]);
-      for (let i = 0; i < kids.colliders.length; i++) _collScratch.push(kids.colliders[i]);
-      for (let i = 0; i < wooks.colliders.length; i++) _collScratch.push(wooks.colliders[i]);
-      for (let i = 0; i < hoopers.colliders.length; i++) _collScratch.push(hoopers.colliders[i]);
-      for (let i = 0; i < frisbees.colliders.length; i++) _collScratch.push(frisbees.colliders[i]);
-      const broadphaseR2 = 36; // 6m broadphase
-      for (const n of crowd.npcs) {
-        if (n.state === 'riding' || n.state === 'boarding' || n.state === 'disembarking' || n.state === 'camp_sleeping' || n.campJamHidden || n.festivalVisit?.hidden) continue;
-        const dx = n.pos.x - zerble.position.x;
-        const dz = n.pos.z - zerble.position.z;
-        if (dx * dx + dz * dz > broadphaseR2) continue;
-        _collScratch.push(_npcColWrap(n));
-      }
+      people.dispatch('colliders',_collScratch,zerble);
+      peopleFrameTrace?.candidates(_collScratch);
+      peopleBaseline?.count('collisionCandidates',_collScratch.length);
       const hit = resolveCollision(zerble, _collScratch);
+      peopleFrameTrace?.hit(hit);
       if (hit && hit.damaging && !isGod()) {
         Scoring.deduct(hit.damage);
         // Damaging PEOPLE hits snap the combo chain (scoring spec) and, in
@@ -1555,7 +1712,7 @@ function tickBody(dt) {
         // Ramming an OCCUPIED porta-potty ejects the flustered occupant +
         // gets its own mortified toast bank; otherwise the normal per-kind line.
         if (hit.kind === 'porta_potty' && hit.entry?.potty?.occupied) {
-          crowd.onPottyHit(hit.entry);
+          hit.onDamagingHit?.(hit.entry);
           HUD.toast(PORTA_POTTY_OCCUPIED_TOASTS[Math.floor(Math.random() * PORTA_POTTY_OCCUPIED_TOASTS.length)], 1700);
         } else if (!stakesToasted) {
           HUD.toast(HUD.withName(
@@ -1572,6 +1729,7 @@ function tickBody(dt) {
       }
     }
 
+    peopleFrameTrace?.mark('contacts-end', Scoring.current);
     reportPassport();
 
     // Honk ring expansion
@@ -1627,6 +1785,23 @@ function tickBody(dt) {
     composer.render();
     if (PERF_CAPTURE_TIMING) _perfRenderMs = performance.now() - renderStartedAt;
   }
+  peopleFrameTrace?.end();
+  if(peopleBaseline?.active) {
+    const complete=peopleBaseline.end(()=>({hidden:document.hidden,dt,
+      quality:AdaptiveQuality.getLevel(),...readRenderPipelineSize({renderer,composer,bloomPass}),
+      draws:sceneInfo.calls,triangles:sceneInfo.triangles,
+      geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,programs:renderer.info.programs.length,
+      adults:crowd.populationSize,children:kids.populationSize,registry:registry.entries.size,
+      riders:crowd.npcs.filter(n=>n.seatSlot).length,healing:crowd.npcs.filter(n=>crowd.isInActivity(n.personHandle,'healing-arts')).length,
+    }));
+    if(complete){
+      peopleBaseline.metadata.final=window.__debug.perfSnapshot();
+      peopleBaseline.metadata.finalCamera=camera.position.toArray();
+      peopleBaseline.metadata.finalInventory=baselineSceneInventory();
+      peopleBaseline.metadata.probesRestored=peopleBaseline.restores.length===0;
+      peopleBaselineButton.textContent='Save people baseline';
+    }
+  }
 }
 
 // RAF is throttled to ~0 fps when the tab is backgrounded (e.g. the Claude
@@ -1639,13 +1814,11 @@ function scheduleNext() {
 
 // Threshold: Zerble must be closing on the obstacle at least this fast (m/s) for it
 // to count as "driving into" — anything below this is a glancing/passive touch.
-const APPROACH_DAMAGE_THRESHOLD = 1.2;
 
 // Soft "people" collider kinds — when Zerble is parked, these never push him
 // around. Otherwise a curious NPC walking up to the cart would shove it
 // across the grass. Hard kinds (truck, tent, stage, arch, puppet, lurleen)
 // always block.
-const SOFT_PEOPLE_KINDS = new Set(['person', 'kid', 'wook', 'brass', 'hula_hoop', 'one_wheel']);
 
 // Witty per-hit toasts for hula-hoopers — random pick keeps it from getting
 // stale if Zerble bumps into a few in a row.
@@ -1669,7 +1842,7 @@ const DAY_UP_TOASTS = [
 // ---- Festival Run vibe strikes ----
 // D16: every stakes consequence of hitting a PERSON hangs off the ONE gate in
 // resolveCollision's caller — `hit.damaging && !isGod()` — never the raw
-// crowd.onZerbleHit.
+// person contact callbacks.
 // Both return true when they showed a player-facing beat (toast/death), so the
 // hit path can hold back its generic quip instead of overwriting it same-frame.
 function applyVibeStrike(weight) {
@@ -1698,7 +1871,7 @@ function registerPeopleHit(hit) {
       toasted = true;
     }
   }
-  if (hit.npc) crowd.frownAt(hit.npc);
+  hit.onPeoplePenalty?.();
   // Ordering: the whistle/ejection (rarer, more urgent) may overwrite the
   // heartbreak — that priority is intentional.
   return applyVibeStrike(VIBE.hitStrike) || toasted;
@@ -1819,13 +1992,17 @@ const PORTA_POTTY_OCCUPIED_TOASTS = [
 // ---- Per-frame collision scratch ----
 // Reused across frames so the collision pass allocates nothing steady-state:
 // `_collScratch` is the candidate list handed to resolveCollision; the two
-// pools hand out reusable wrapper objects (registry-collider + crowd-NPC
-// shapes) refilled each frame. Counters reset at the top of the collision block.
+// registry pool hands out borrowed wrappers refilled each frame; population
+// providers append their own persistent candidates in explicit legacy order.
 const _collScratch = [];
 const _regColPool = [];
 let _regColPoolN = 0;
-const _npcColPool = [];
-let _npcColPoolN = 0;
+// Registry wrappers are borrowed for this synchronous collision collection.
+// Person providers own their persistent lifetime-specific candidates.
+const REGISTRY_HIT_ROUTES=Object.freeze({
+  one_wheel:{contact:c=>{if(registry.entries.get(c.entry?.id)===c.entry)oneWheels.onHit(c.entry);}},
+  porta_potty:{damaging:entry=>crowd.onPottyHit(entry)},
+});
 function _regColWrap(e) {
   let w = _regColPool[_regColPoolN];
   if (!w) { w = {}; _regColPool[_regColPoolN] = w; }
@@ -1835,81 +2012,10 @@ function _regColWrap(e) {
   w.damage = e.collider.damage;
   w.kind = e.kind;
   w.passive = false;
-  w.npc = null;
+  w.onPeoplePenalty=null;
+  const route=REGISTRY_HIT_ROUTES[e.kind];w.onContact=route?.contact??null;w.onDamagingHit=route?.damaging??null;
   w.entry = e;          // porta-potty hit handling reads .potty off the entry
   return w;
-}
-function _npcColWrap(n) {
-  let w = _npcColPool[_npcColPoolN];
-  if (!w) { w = {}; _npcColPool[_npcColPoolN] = w; }
-  _npcColPoolN++;
-  w.position = n.pos;          // Vector3; resolveCollision reads .x/.z only
-  w.radius = 0.45;
-  // A hit is a hit, fleeing or not (Gary, 2026-08-31): the old fleeing→0
-  // exemption let a fast cart plow through a scattering crowd for free. The
-  // fairness lever moved into the dodge itself — laneDodgeUrgency scales flee
-  // speed with cart speed, so people CAN get out of the way of a clean line.
-  w.damage = 1;
-  w.kind = 'person';
-  w.passive = false;
-  w.npc = n;
-  w.entry = null;       // crowd NPCs carry no registry entry
-  return w;
-}
-
-function resolveCollision(zerble, colliders) {
-  // forward = (-sin(h), 0, -cos(h)); velocity = forward * speed
-  const fx = -Math.sin(zerble.heading);
-  const fz = -Math.cos(zerble.heading);
-  const velX = fx * zerble.speed;
-  const velZ = fz * zerble.speed;
-  const zerbleParked = Math.abs(zerble.speed) < APPROACH_DAMAGE_THRESHOLD;
-
-  for (const c of colliders) {
-    // Passive colliders (e.g. the wook walking up to dose Zerble) are visible
-    // but don't push Zerble or deal damage — otherwise their physical radius
-    // would prevent Zerble from being inside the proximity trigger range.
-    if (c.passive) continue;
-    // Parked Zerble can be crowded by people without being pushed around.
-    // (Approach-damage already needs Zerble to be moving fast, so this only
-    // suppresses the non-damaging position-nudge path below.)
-    if (zerbleParked && SOFT_PEOPLE_KINDS.has(c.kind)) continue;
-    const tox = c.position.x - zerble.position.x;
-    const toz = c.position.z - zerble.position.z;
-    const d = Math.hypot(tox, toz);
-    const minD = c.radius + zerble.radius;
-    if (d >= minD) continue;
-
-    const inv = 1 / (d || 0.0001);
-    const approachSpeed = (velX * tox + velZ * toz) * inv;
-
-    if (approachSpeed > APPROACH_DAMAGE_THRESHOLD) {
-      // Damaging — Zerble is driving into it
-      const pushDir = new THREE.Vector3(-tox * inv, 0, -toz * inv);
-      zerble.applyHit(pushDir);
-      // NPC-specific reaction: panic, knockback, infect neighbors.
-      if (c.kind === 'one_wheel') oneWheels.onHit(c.entry);
-      if (c.kind === 'person' && c.npc) {
-        crowd.onZerbleHit(c.npc, tox * inv, toz * inv);
-      }
-      // Damage > 0 means "deduct smiles". Damage 0 entries (e.g. Lurleen, a
-      // fleeing NPC) still need the bounce we just applied, plus a toast/SFX
-      // for the named ones — return `notify` so the caller can react.
-      const damaging = c.damage > 0;
-      const notify = !damaging && (c.kind === 'lurleen');
-      return { damaging, damage: c.damage, kind: c.kind, notify, entry: c.entry || null, npc: c.npc || null };
-    }
-
-    // Non-damaging contact: nudge Zerble out of overlap, kill any small approach speed.
-    const overlap = minD - d;
-    zerble.position.x -= tox * inv * overlap;
-    zerble.position.z -= toz * inv * overlap;
-    if (approachSpeed > 0 && zerble.speed > 0) {
-      zerble.speed = Math.max(0, zerble.speed - approachSpeed * 0.6);
-    }
-    return { damaging: false };
-  }
-  return null;
 }
 
 function toastForKind(kind) {
@@ -2013,6 +2119,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
   };
 
   window.__dbg = {
+    peopleFrames() { return peopleFrameTrace?.report() ?? null; },
     leaderboardInfo() { return Leaderboard.diagnostics(); },
     passport(open = false) { if (open) PassportMenu.open(); return playerStats.snapshot(); },
     upgrades() {
@@ -2189,8 +2296,8 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     },
 
     photographer() {
-      const npc = crowd.forcePhotographer();
-      return npc ? `photographer #${npc.idx} taking picture` : 'no crowd NPC available';
+      const person = crowd.forcePhotographer();
+      return person ? `photographer #${person.slot} taking picture` : 'no crowd NPC available';
     },
 
     // Force idle crowd NPC(s) into riding state in seats of the given kind.
@@ -2209,6 +2316,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     // Seat one free NPC in the first open slot of `kind`. Replicates the
     // boarding hand-off: claim slot → riding state → snap to worldSeatPosition
     // → write matrices → flag every crowd InstancedMesh dirty.
+    people() {return people.inspect();},
     monks() { return monks.status(); },
     oneWheels() { return oneWheels.status(); },
     summonOneWheel() { return oneWheels.trySpawn(zerble.position,camera,true); },
@@ -2217,24 +2325,12 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     rider(kind = 'bench') {
       const slot = zerble.seatSlots?.find((s) => s.kind === kind && !s.occupied);
       if (!slot) return null;
-      const npc = crowd.npcs.find((p) =>
-        !p.seatSlot && p.state !== 'riding' && p.state !== 'boarding' && p.state !== 'hammock_riding'
-      );
-      if (!npc) return null;
-      slot.occupied = true;
-      npc.seatSlot = slot;
-      npc.state = 'riding';
-      npc.rideTimer = 99999;   // stay put — don't time out mid-screenshot
-      const out = new THREE.Vector3();
-      zerble.worldSeatPosition(slot, out);
-      npc.pos.set(out.x, 0, out.z);
-      npc.seatY = out.y;
-      npc.yaw = zerble.heading + slot.yaw;
-      crowd._writeMatrices(npc);
-      for (const m of [crowd.legsMesh, crowd.shoesMesh, crowd.bodyMesh,
-                       crowd.armsMesh, crowd.headMesh, crowd.eyesMesh, crowd.mouthMesh]) {
-        m.instanceMatrix.needsUpdate = true;
-      }
+      let seated=false;
+      people.forEachPersonNear(zerble.position.x,zerble.position.z,Number.MAX_VALUE,(handle,person)=>{
+        if(person.grouped||person.claimed||!['idle','walking','watching','approaching'].includes(person.state))return;
+        if(crowd.seatPerson(handle,zerble,slot,{rideTime:99999})){seated=true;return false;}
+      },adultQuery);
+      if(!seated)return null;
       return slot.name;
     },
 
@@ -2826,7 +2922,7 @@ if (forceNutWagon) {
 
 installDebug({
   scene, camera, renderer, composer, bloomPass, chaseCam,
-  zerble, crowd, bubbles, smiles, registry,
+  zerble, crowd, people, bubbles, smiles, registry,
   puppets, band, kids, wooks,
   hoopers, frisbees,
   nutWagon, monks, oneWheels,           // live encounter teleport destinations

@@ -1,0 +1,59 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {disposeSceneResources} from '../src/people/sceneResources.js';
+class Vector {
+ constructor(x=0,y=0,z=0){this.set(x,y,z);}
+ set(x,y,z){Object.assign(this,{x,y,z});return this;}copy(p){return this.set(p.x,p.y,p.z);}clone(){return new Vector(this.x,this.y,this.z);}
+ distanceTo(p){return Math.hypot(this.x-p.x,this.y-p.y,this.z-p.z);}
+ subVectors(a,b){return this.set(a.x-b.x,a.y-b.y,a.z-b.z);}normalize(){const d=Math.hypot(this.x,this.y,this.z)||1;this.x/=d;this.y/=d;this.z/=d;return this;}
+ lerpVectors(a,b,t){return this.set(a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t,a.z+(b.z-a.z)*t);}
+}
+class Node {
+ constructor(){this.position=new Vector();this.rotation={y:0};this.userData={};this.children=[];this.visible=true;}
+ add(node){this.children.push(node);node.parent=this;}removeFromParent(){if(this.parent)this.parent.children.splice(this.parent.children.indexOf(this),1);this.parent=null;}
+ traverse(visit){visit(this);for(const child of this.children)child.traverse(visit);}updateMatrixWorld(){}
+ getWorldPosition(out){out.copy(this.position);for(let p=this.parent;p;p=p.parent){const c=Math.cos(p.rotation.y),s=Math.sin(p.rotation.y),x=out.x,z=out.z;out.set(x*c+z*s+p.position.x,out.y+p.position.y,-x*s+z*c+p.position.z);}return out;}
+}
+const strip=code=>code.replace(/^import\s[\s\S]*?;\s*$/gm,'').replace(/export (class|function|const) /g,'$1 ');
+const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
+const placement=strip(read('../src/people/placement.js')),route=strip(read('../src/people/formationRoute.js'));
+const legacy=strip(read('../verification/people/2026-10-26/legacy-formations.js'));
+function load(name,module,old=false) {
+ let seed=1977,draws=0,night=0;const ticks=[],audio=[],handles=[];
+ const math=Object.assign(Object.create(Math),{random(){draws++;seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;}});
+ const tick=(node,dt)=>ticks.push([node.position.x,node.position.y,node.position.z,node.rotation.y,dt]);
+ const code=placement+(old?legacy:route+strip(read('../src/people/'+module+'.js')));
+ const Class=runInNewContext(code+';'+name,{Math:math,PeopleRuntime,PersonHandles,disposeSceneResources,THREE:{Group:Node,Vector3:Vector},
+  terrainHeight:(x,z)=>17+.03*x-.02*z,projectOutOfLake:()=>null,isPointInLake:()=>false,getTimeOfDay:()=>({nightness:night}),
+  PARADE_ROSTER:['heron','dragon','seahorse','jellyfish','moon','star'],buildPuppet(kind){const p=new Node(),carriers=[];for(let i=0;i<(kind==='dragon'?3:1);i++){const c=new Node();c.position.x=i*.8;p.add(c);carriers.push(c);}p.userData={kind,rig:{carriers}};return p;},
+  buildBandMember:()=>new Node(),buildParasolMarshal:()=>new Node(),tickPuppet:tick,tickBandMember:tick,tickParasolMarshal:tick,setPuppetNightness:(p,n)=>ticks.push(['night',p.userData.kind,n]),
+  Sound:{attachStageMusic(...args){audio.push(['attach',...args]);const handle={setPosition(...args){audio.push(['position',...args]);}};handles.push(handle);return handle;},detachStageMusic(handle){assert(handles.includes(handle));audio.push(['detach']);}},
+ });
+ return {Class,ticks,audio,get draws(){return draws;},night(value){night=value;}};
+}
+for(const [name,module,array] of [['PuppetParade','puppetParade','puppets'],['BrassBand','brassBand','members']]) {
+ const old=load(name,module,true),now=load(name,module),before=new old.Class(),runtime=new PeopleRuntime(),after=new now.Class({runtime,parkedHonkOrder:1});
+ const cart={position:new Vector(),forwardWorld:new Vector(0,0,-1),speed:0},handles=Array.from(name==='BrassBand'?after.members:after.colliders,c=>name==='BrassBand'?c.userData.personHandle:c.personHandle);
+ for(let frame=0;frame<400;frame++){
+  if(frame===40){cart.position.copy(before[array][0].position);cart.position.z+=4;before.scatter(cart);runtime.dispatch('parkedHonk',cart);}
+  if(frame===120)cart.position.set(1000,0,1100);
+  if(frame===250){old.night(1);now.night(1);cart.position.set(-1000,0,-900);}
+  before.update(.05,cart.position);runtime.beginFrame(.05);runtime.run('formations',{zerble:cart});
+  const snap=unit=>Array.from(unit[array],node=>[node.position.x,node.position.y,node.position.z,node.rotation.y,node.userData.distance,node.userData.dodgeTimer,node.userData.dodgeDirX,node.userData.dodgeDirZ]);
+  assert.deepEqual(snap(after),snap(before));
+  const collisions=unit=>Array.from(unit.colliders,c=>[c.position.x,c.position.y,c.position.z,c.radius,c.damage,c.kind]);
+  assert.deepEqual(collisions(after),collisions(before));assert.deepEqual(now.ticks,old.ticks);now.ticks.length=old.ticks.length=0;
+  assert.equal(now.draws,old.draws);assert.deepEqual(now.audio,old.audio);
+  assert(handles.every(h=>after.peopleView.isLive(h)),'formation recycling preserves all person identities');
+ }
+ const count=after.colliders.length,publicBodies=[];after.appendColliders(publicBodies);assert.equal(publicBodies.length,count);
+ let queried=0;after.forEachPersonNear(0,0,100000,()=>queried++);assert.equal(queried,count);
+ runtime.dispose();after.dispose();after.update(.05,cart.position);after.scatter(cart);
+ assert.equal(after[array].length,0);assert.equal(after.colliders.length,0);assert(handles.every(h=>!after.peopleView.isLive(h)));
+ if(name==='BrassBand')assert.equal(now.audio.filter(e=>e[0]==='detach').length,1,'owned deferred music detaches once');
+ console.log('PASS '+name+': 400 exact route/pose/collider/nightness/RNG/audio frames, stable carrier/member identities, public queries and complete teardown.');
+}

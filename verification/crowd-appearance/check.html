@@ -48,7 +48,7 @@ try{
  assert(cheering.elements.some((n,i)=>Math.abs(n-initial.elements[i])>1e-4),'beverage did not follow the raised arm');
  npc.state='riding';npc.seatSlot={kind:'bench'};npc.seatY=0.8;npc.cheerTimer=0;crowd._writeMatrices(npc);
  assert(visible(matrix(crowd.drinkMesh,npc.drinkSlot)),'beverage disappeared from a seated passenger');
- crowd.forcePhotographer(npc);
+ crowd.forcePhotographer(crowd.peopleHandles.handleFor(npc));
  assert(!visible(matrix(crowd.drinkMesh,npc.drinkSlot)),'beverage overlaps the photographer camera pose');
  const slot=npc.drinkSlot,hairSlot=npc.hairSlot,idx=npc.idx,photoSlot=npc.photoSlot,removedPos=npc.pos.clone();crowd.removeNpc(npc);
  assert(crowd._photoFree.includes(photoSlot)&&crowd._photographerCount===0,'photographer slot lifecycle changed during ordinary NPC removal');

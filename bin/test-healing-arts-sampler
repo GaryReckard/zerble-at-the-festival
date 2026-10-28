@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {createHealingArtsMotion,sampleHealingArtsMotion} from '../src/people/healingArtsMotion.js';
+const smoothstep=(x,a,b)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
+const oracleSource=readFileSync(new URL('../verification/people/2026-10-26/legacy-healing-arts-updater.js',import.meta.url),'utf8');
+const legacy=runInNewContext(oracleSource.replace('export function','function')+';updateHealingArts',{
+ THREE:{MathUtils:{smoothstep}},color:{setHex(){}},instanceAt(){},segment(){},Math,Number,
+});
+const batch=()=>({setColorAt(){},instanceColor:{},instanceMatrix:{}});
+function layout(seed=0,managed=true){
+ const participants=Array.from({length:10},(_,i)=>({x:(i%5)*2-4,z:Math.floor(i/5)*2,yaw:i*.2,phase:(seed+i)*.37,orbitPhase:i*.9,orbitSpeed:(i%2?1:-1)*.1,lane:2.1+(i%3)*1.85,shirt:1,skin:2,activity:i%3?'dance':'yoga',entryTime:i%2?10:undefined,entryX:1.5,entryZ:6.1}));
+ participants.push({x:0,z:-5.75,yaw:0,phase:.1,shirt:1,skin:2,dj:true});
+ return {participants,participantCount:10,managed,positions:new Float32Array(20),pose:new Float32Array(33),poleColliders:[{x:0,z:0},{x:-5,z:-4},{x:5,z:4}],light:{},mats:batch(),booth:batch(),bulbs:batch(),bodies:batch(),heads:batch(),hair:batch(),glowsticks:batch()};
+}
+let samples=0;
+for(const managed of [false,true])for(let seed=0;seed<8;seed++) {
+ const original=layout(seed,managed),input=layout(seed,managed),motion=createHealingArtsMotion(input,managed),before=JSON.stringify(input.participants);
+ for(let frame=0;frame<100;frame++) {
+  const time=frame*.23,nightness=frame<20?0:frame<80?1:.3;
+  if(frame===45){original.participants[2].activity='hidden';motion.participants[2].activity='hidden';}
+  legacy({userData:{healingArts:original}},.016,time,nightness);
+  sampleHealingArtsMotion(motion,time,nightness);samples++;
+  assert.deepEqual(Array.from(motion.positions),Array.from(original.positions),'Float32 trajectory/constraint outputs match the frozen production oracle exactly');
+  for(let i=0;i<motion.participants.length;i++)for(const field of ['currentX','currentZ','heading'])assert.equal(motion.participants[i][field],original.participants[i][field],field);
+ }
+ assert.equal(JSON.stringify(input.participants),before,'sampler cannot mutate authored model records');
+}
+// Exercise the actual streaming cadence with the display function enabled/skipped.
+const chunks=readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');
+const start=chunks.indexOf('export function updateHealingArtsTents('),end=chunks.indexOf('\n// Spatial music handles',start);
+function cadence(display){
+ const motion=createHealingArtsMotion(layout(),true),reads=[];let samples=0,renders=0;
+ const entry={group:{position:{distanceToSquared:pos=>pos.near?0:1e9}},night:null,music:null,seed:1,activity:{
+  update(){reads.push(motion.participants[1].currentX);},sample(time,night){samples++;sampleHealingArtsMotion(motion,time,night);},
+ }};
+ const tick=runInNewContext(chunks.slice(start,end).replace('export function','function')+';updateHealingArtsTents',{
+  healingArtsTents:[entry],Sound:{attachStageMusic:()=>({}),detachStageMusic(){}},updateHealingArts(){renders++;},
+ });
+ for(const [time,night,near] of [[0,0,false],[1,0,false],[2,0,true],[3,1,false],[4,1,false],[5,.6,false],[6,.4,true],[7,0,true]])tick(.016,time,night,{near},display);
+ return {reads,positions:Array.from(motion.positions),samples,renders};
+}
+const visible=cadence(true),skipped=cadence(false);
+assert.deepEqual(visible.reads,skipped.reads);assert.deepEqual(visible.positions,skipped.positions);
+assert.equal(visible.samples,5);assert.equal(skipped.samples,5);assert.equal(visible.renders,5);assert.equal(skipped.renders,0);
+console.log(`PASS Healing Arts sampler: ${samples} exact frozen-oracle samples, private cache, prior-sample cadence, near/night transitions and display-skipped equivalence.`);

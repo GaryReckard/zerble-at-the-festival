@@ -1,0 +1,24 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+const source=readFileSync(new URL('../src/sound.js',import.meta.url),'utf8');
+const methods=source.slice(source.indexOf('  attachStageMusic('),source.indexOf('  updateAudioListener('));
+const a=source.indexOf('    const queued = _pendingStages.splice(0);'),b=source.indexOf('    setTimeout(drainQueue, 80);',a)+'    setTimeout(drainQueue, 80);'.length;
+const created=[],scheduled=[];
+const bridge=runInNewContext(`let ctx=null,musicBus=null;const _pendingStages=[],_stageHandleRegistry=[];
+const sound={${methods}};
+({sound,pending:_pendingStages,registry:_stageHandleRegistry,setContext(){ctx={};musicBus={};},adopt(){${source.slice(a,b)}}})`,{
+ setTimeout(run,ms){assert.equal(ms,80,'preserve the existing post-unlock adoption delay');scheduled.push(run);},
+ createStageMusic(context,bus,x,y,z,seed,style,opts){const real={stopped:false,positions:[],setPosition(...p){this.positions.push(p);},stop(){this.stopped=true;}};created.push(real);return real;},
+});
+for(let i=0;i<100;i++){const handle=bridge.sound.attachStageMusic(i,1,2,i,'second_line');bridge.sound.detachStageMusic(handle);bridge.sound.detachStageMusic(handle);}
+assert.equal(bridge.pending.length,0,'cancelled pre-gesture owners leave no pending descriptors');assert.equal(bridge.registry.length,0);
+const cancelled=bridge.sound.attachStageMusic(1,2,3,5),live=bridge.sound.attachStageMusic(4,5,6,8);
+live.setPosition(7,8,9);bridge.setContext();bridge.adopt();
+bridge.sound.detachStageMusic(cancelled);assert.equal(created.length,0,'adoption waits until the existing unlock drain callback');
+for(const run of scheduled)run();
+assert.equal(created.length,1,'a cancelled in-flight descriptor cannot adopt audio');
+assert.deepEqual(created[0].positions,[[7,8,9]],'adoption preserves buffered moving-source coordinates');
+bridge.sound.detachStageMusic(live);bridge.sound.detachStageMusic(live);assert(created[0].stopped);assert.equal(bridge.registry.length,0);
+console.log('PASS stage audio lifecycle: bounded pre-gesture cancellation, existing unlock/adoption delay, cancellation during drain, buffered positions and complete handle release.');

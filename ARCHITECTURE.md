@@ -42,7 +42,7 @@ src/
   bubbles.js                InstancedMesh bubble particle system
   smiles.js                 Smile pickup orbs
   crowd.js                  NPC pool, AI, state machine
-  obstacles.js              Puppet parade, brass band, kids, wooks, hoopers, frisbee pairs
+  people/                   Registered populations, stable lifetimes, activity claims and queries
   camera.js                 Chase / first-person / top-down camera
   input.js                  Keyboard + touch input blend
   touch.js                  Virtual thumbstick + camera drag
@@ -358,14 +358,15 @@ queries still see every add/remove immediately.
 
 ## Collision model
 
-Centralized in `main.js#resolveCollision`. Each frame builds a list of candidate colliders:
+The pure resolver lives in `src/collisionContacts.js`, while main composes registry-first
+candidates and registered people providers. The first selected contact invokes its
+lifetime-validated callback at the existing scoring barrier. Candidate order is:
 
 ```
 allColliders = [
   ...nearbyRegistryColliders,         // radius-padded spatial query
-  ...puppets.colliders, ...band.colliders, ...kids.colliders, ...wooks.colliders,
-  ...hoopers.colliders, ...frisbees.colliders,
-  ...crowdNPCsWithinBroadphase,        // 6m broadphase reject
+  ...orderedPeopleProviders,         // parade, band, children, wooks, hoopers, frisbees
+  ...eligibleAdultProvider,           // 6m broadphase reject
 ]
 ```
 
@@ -379,7 +380,7 @@ This is what lets you brush against people at a crawl without losing smiles, whi
 
 `passive` colliders are visible to the registry but skipped here — they're proximity triggers, not physical objects.
 
-The global frisbee pairs in `obstacles.js` use a `held → flying → landed`
+The global frisbee pairs in `people/frisbees.js` use a `held → flying → landed`
 disc state machine. Each player's two-joint arm rig is relaxed by default. The
 holder blends through an across-the-body 90-degree elbow windup and a straight
 forward release during the last 720ms of the hold, while the catcher raises one
@@ -669,9 +670,194 @@ After that, dip into any model file when you want to see how something specific 
 
 Wagon slots identify their owning vehicle. Crowd boarding/riding dispatches through that owner's `worldSeatPosition`, heading and stopped state; Zerble's passenger count, empty-juice rule and boarding-score callback remain specific to Zerble. Nine slots include the permanent driver and eight guests: two cargo, two roof, two rear seat, one passenger and one standing platform. Tall cartoon NPCs use the open roof bench or platform. On despawn, the wagon releases all claimed riders, removes registry entries, detaches the spatial dub handle and removes its root without disposing pooled model resources. Its music registry position and panner position both move with the vehicle. See `verification/nut-wagon/GAMEPLAY.md` for parameters and measured checks.
 
-The MonkParty controller in src/monks.js owns one four-to-six-person party registered with Crowd.parties. Members retain ordinary crowd records for walking, avoidance, smiles, bathroom and picnic behavior; pooled monk avatars replace their generic instanced bodies. The party owns destinations, loose offsets, all-or-none seat reservations and disembarking, and collective distant cleanup. It ticks before individual crowd updates, waits when one member uses an amenity, and cancels every reservation if boarding times out or the vehicle moves. Its independent seeded RNG does not alter world generation. Monks initially appear near a wagon, then persist independently if it disappears.
+`src/monks.js` owns four-to-six member handles, shared destinations and loose
+offsets, while `src/people/groupParticipation.js` is the population-internal
+boundary for membership, movement proposals, avatar publication and collective
+seat reservations. Crowd retains lifetime, ordinary walking/avoidance/smiles and
+amenity state; the party never receives mutable crowd records. Its lower-priority
+intent cannot overwrite an exclusive activity. Public group bindings consume a
+reused display pose and restore the same monk avatar after activity release.
+The party still ticks before individuals, waits for a busy amenity user, preserves
+its independent salted stream, and requests collective distance removal through
+Crowd. Boarding reserves every seat or none, validates reservation incarnations
+on arrival/release, and cancels on timeout or vehicle motion. Person removal also
+releases its avatar and membership, including after runtime dispatch has stopped.
+
 
 
 ### Debug command grammar
 
 `debugCommands.js` supplies a DOM-free allowlisted grammar, validation, command help and contextual completion. `debug.js` adapts it to the existing simulation, crowd, Sound, camera and registry APIs; the prompt owns keyboard history and combobox/listbox rendering. `main.js` supplies the existing chase-camera controller alongside the other debug hooks. Arguments are validated before mutations, count/frame helpers are bounded, and inspection distinguishes actual camp claims from visual occupancy. Scene draw/triangle inspection reads `renderer.__sceneInfo` before falling back to raw renderer information.
+
+
+### People ownership and composition
+
+`src/people/workshop.js` drives existing production controllers in the mixed people
+sandbox, preserving the adult/collection/child barrier and Healing Arts' previous
+sample order while exposing explicit claim/publication teardown. It does not own
+an independent clock, render loop or replacement person simulation. The sandbox
+retains scene/GPU ownership. `src/people/frameTrace.js` records bounded copied state
+at the existing real-game barriers only when explicitly enabled on localhost;
+recording does not introduce a new scheduling owner. Routine contracts and saved
+Low/Mid captures characterized the original paths before migration. Final ownership,
+trace, render and browser evidence is recorded in
+[acceptance](openspec/changes/people-npc-architecture/acceptance.md). See the
+[implementation checklist](openspec/changes/people-npc-architecture/tasks.md) and
+[verification scope](verification/people/2026-10-26/README.md).
+
+
+`src/people/runtime.js` registers specialized populations, optional capabilities and
+explicit dependency slots, while `personHandle.js` gives each interactive lifetime a
+registration token and lifetime generation. `activityClaims.js` orders tentative
+preparation, revocation, owned release and population-controlled resume. Crowd owns
+the raw-record resolver; published person views expose reads into caller scratch.
+Explicit and distance removal share a borrower-first core, with stable traversal
+through reentrant peer removal. The public pose/binding facade validates current
+claims and dirties only affected instance batches. All population/activity migrations are accounted for in the
+[coverage acceptance](openspec/changes/people-npc-architecture/acceptance.md); these
+modules own no scheduler and do not erase specialized movement or storage policies.
+
+Healing Arts trajectories now live in `src/people/healingArtsMotion.js`. An activity
+owns its cache, consumes the prior sample, then samples at the same near/night
+transition gate even when display updates are skipped. The model consumes cached
+position/heading and keeps appearance caches on its own visual records. Standalone
+previews sample outside the model, and authored yoga positions retain bootstrap
+Float32 rounding. The activity now uses public handles, claim-checked poses and bindings; tentative
+slot reservations and exit/cooldown metadata have explicit release ownership. Chunk
+unload returns borrowed people before disposing the rig's resources.
+
+`src/people/children.js` independently owns child meshes, identity and gameplay,
+registers the existing post-collection slot and honk/query/collision capabilities,
+and preserves identity during distant relocation. It releases owned resources only
+after execution and lifetime reads stop. Its bubble/chase/separation/smile rules are
+unchanged. `people/placement.js` shares the existing bounded lake-aware placement.
+
+`src/people/placeVisit.js` is an executable extension example over public operations
+and place/resource adapters. It is used by verification rather than automatically
+changing any live venue's eligibility. See the
+[extension guide](openspec/changes/people-npc-architecture/extension-guide.md) and
+[browser proof](verification/people/extension.html) for two storage/resource types
+and visible versus borrowed bindings. The guide distinguishes current live
+eligibility from deliberately adding compatible activities for another family.
+
+
+`src/people/wooks.js` owns the wook population, including its registered roaming
+update, parked-honk capability, lifetime/query/collider publication and cleanup.
+The main loop passes copied positions into the existing Trip barrier using reused
+caller vectors; the controller retains its approach/passive damage and recycle rules.
+`src/people/sceneResources.js` releases only a caller-owned subtree's non-shared
+resources, after that population has stopped execution and released its lifetimes.
+It does not own person state, registry claims or audio.
+
+
+`src/people/puppetParade.js` owns carrier identities and formation motion, while
+`src/people/brassBand.js` owns musician identities, formation intent and its spatial
+music handle. Display lanterns and the band's instruments do not become independent
+interactive people. `formationRoute.js` holds the unchanged loop placement/sampling
+math. The registered formation slot remains immediately before children, and optional
+per-capability order preserves interaction sequences independently of constructor and
+update order. Provider ordering is data in registration, not role logic in the runtime.
+Band disposal cancels audio before releasing owned graphics; cancelled pre-gesture
+stage descriptors are removed from Sound's pending queue as well as its handle registry.
+
+
+`src/people/seatReservations.js` is the common vehicle resource adapter for ordinary
+passengers, groups and permanent drivers. Acquisition validates person lifetime,
+vehicle/slot identity, occupancy and explicit permanent-seat eligibility before
+publishing any part of a multi-person reservation. Tokens remain releasable during
+owner teardown, but stale tokens cannot clear later occupants. The population keeps
+its existing boarding/riding movement kernel and protected-state precedence, with
+resource validity checked before pose writes; the seat adapter owns no actor loop.
+Vehicles recruit through public nearby views and boarding commands, release their
+passengers through the population owner, and retain their own physics and models.
+Diagnostic seating uses that same boundary and avoids people with active claims.
+
+
+Hammock and picnic visits now live in `src/people/hammockActivity.js` and
+`src/people/picnicActivity.js`. Each activity retains handles, its own reservation
+metadata, a reused movement snapshot/proposal and explicit resource identity checks.
+They read public motion views and submit specialized claim-checked approach/rest
+profiles; Crowd alone resolves records and commits the existing instance poses.
+Picnic display keeps a numeric seat height rather than an activity-owned seat object
+on the population record. World entries/slots remain place-owned, and old release
+callbacks cannot clear another reservation.
+
+These two inline activities execute at their original per-person barriers after the
+accepted-frame prelude. They do not add a second population traversal. Existing
+cooldown/bob/timer advancement and the legacy second dwell-timer decrement remain
+unchanged, with 800-frame characterizations for each activity. General external
+activities such as Healing Arts retain their separate phase and do not enter this
+inline set. Ordinary acquisition can preserve current velocity explicitly; each
+activity still chooses only its own permitted pose phases. Typed finish commands
+release resources before final publication while retaining timeout paths that did
+not publish until the next frame. Place replacement is detected before movement.
+
+Bathroom errands now live in `people/pottyActivity.js`: selection and motion use
+copied public profiles, while unit occupancy validates the person lifetime, claim
+and concrete registry/resource identity. Crowd retains inline timing and instanced
+hidden/seated display. The unit's numeric `occupantId` is diagnostic, never authority.
+
+Market visits now live in `people/marketActivity.js`, owning salted behavior RNG,
+retry cooldown, frontage reservations and copied motion. A tent's customer field
+contains only copied display state. The activity holds the lifetime-checked claim,
+and Crowd preserves the pre-camp movement/publication barrier and bag instancing.
+
+Camp seating and sleeping now live in `people/campActivity.js`; camp music remains
+in `campJamActivity.js` and now uses public person queries, copied motion and typed
+instrument bindings. Both reserve world-owned chairs through `people/campResources.js`,
+which validates the full person/claim, exact entry and current slot membership.
+Music can borrow an eligible seated camper through an ordered claim handoff; an
+old camp release cannot free the musician's replacement reservation. The population
+keeps only numeric camp height, stage/hidden hints and the claim-bound instrument
+representation, retaining the original session-before-party and per-person barriers.
+Physical exit preflight runs before hit revocation so trapped sitters retain their
+claims. Sound/model cleanup completes even if a sound stop reports an error.
+
+The photographer remains a role on a population-owned person, with no separate
+interactive identity. `photographer.js` owns its salted behavior kernel and reused
+pose-profile sampling; Crowd owns profile storage and camera/flash instancing.
+Public role commands use lifetime handles and protect existing activity/group/seat
+authority. Display inspection reads copied role fields rather than a mutable NPC.
+
+
+### Queries, vehicles and display participation
+
+Nearby consumers use copied views and caller scratch through `forEachPersonNear`,
+with explicit population and candidate filters. Each owner retains its storage and
+locality rules; no flattened global person array or per-frame handle allocation is
+required. Lost-smile effects track a handle and retain their last valid copied
+position when its lifetime ends. One-wheel riders publish query identities while
+the registry remains their sole collider publisher. Lurleen's read-only facet keeps
+her physics and relationship ownership intact.
+
+`PlaceDisplay` lends stage/cook update routes without creating interactive people.
+Vendor keepers remain tent-owned displays, and birds remain outside the people
+domain. World or vehicle resources own their slots, occupancy, transforms and
+lifetime; an activity borrows a person with a validated current claim, while a
+role or group retains that person's existing lifetime. These distinctions avoid
+turning every humanoid mesh into an autonomous NPC.
+
+### Frame dependencies and accepted clocks
+
+Main remains the composition root and calls named slots only at their existing
+barriers: vehicles and spatial sync, adults, pickup collection/scoring, formations,
+children, roaming families, birds/Trip, relationship, place performers, Healing Arts,
+lighting/cooks, world streaming, star-love, contacts and final rendering. The complete
+[slot map](openspec/changes/people-npc-architecture/dependency-slots.md) records these
+interleavings. Honk/cheer/collision capability order is independent of constructor
+order. A newly registered family declares support rather than acquiring unrelated
+adult behavior through a central type switch.
+
+Actor animation and stored social deadlines advance from accepted gameplay delta;
+a skipped frame does not accrue a wall-clock catch-up. Profiling, streaming budgets
+and Web Audio retain their own appropriate clocks, and independent global nightness
+polling remains intact. Claim-checked late binding/seat restoration publishes only
+the affected body before rendering. Removal invalidates authority, releases borrowers,
+detaches external publications, then disposes only exclusively owned resources,
+attempting every cleanup even when an audio or GPU release reports an error.
+
+The [extension guide](openspec/changes/people-npc-architecture/extension-guide.md)
+shows one behavior across different population and place layouts, documents current
+eligibility, and explains deliberate connections to stages, porta-potties, food
+trucks, Healing Arts and the nut wagon. `bin/test-people-boundaries` protects these
+dependency directions with negative fixtures as part of the routine suite.

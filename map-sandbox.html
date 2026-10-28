@@ -23,9 +23,25 @@
       /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.includes('claude-preview') || h.includes('happycog');
     const v = isLocal ? '?v=' + Date.now() : '';
     const base = './src/';
-    const wg = ['playerStats', 'passportMenu', 'campClearing', 'terrainSurface', 'terrainDriving', 'terrainSandbox', 'campJamActivity', 'campMusic', 'models/campInstruments', 'woodlandCamping', 'campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'models/campChair', 'models/oneWheelRider', 'monks', 'nutWagon', 'nutWagonRoute', 'upgradesMenu', 'crowdAppearance', 'healingArtsActivity', 'rng', 'models/healingArts', 'models/paradeLanterns', 'models/monk', 'models/bo', 'models/nutWagon', 'mergeDecor', 'boostStreaks', 'photographer', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes', 'worldgen/terrain', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water',
+    const wg = ['people/vehiclePersonFacet','people/placeDisplay','people/smilePolicy','collisionContacts','people/campResources','people/campActivity','people/marketActivity','people/pottyActivity','people/picnicActivity','people/hammockActivity','people/seatReservations','people/groupParticipation','people/placeVisit','people/frisbees','people/hoopers','people/brassBand','people/puppetParade','people/formationRoute','people/wooks','people/sceneResources','people/children','people/placement','people/frameTrace','people/baseline','people/runtime','people/personHandle','people/activityClaims','people/healingArtsMotion', 'people/workshop', 'playerStats', 'passportMenu', 'campClearing', 'terrainSurface', 'terrainDriving', 'terrainSandbox', 'campJamActivity', 'campMusic', 'models/campInstruments', 'woodlandCamping', 'campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'models/campChair', 'models/oneWheelRider', 'monks', 'nutWagon', 'nutWagonRoute', 'upgradesMenu', 'crowdAppearance', 'healingArtsActivity', 'rng', 'models/healingArts', 'models/paradeLanterns', 'models/monk', 'models/bo', 'models/nutWagon', 'mergeDecor', 'boostStreaks', 'photographer', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes', 'worldgen/terrain', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water',
       'worldgen/roads', 'worldgen/roles', 'worldgen/density', 'worldgen/index',
-      'worldgen/selftest', 'worldgen/festival', 'worldgen/placement', 'worldgen/lint'];
+      'worldgen/selftest', 'worldgen/festival', 'worldgen/placement', 'worldgen/lint',
+      // Complete cache-buster coverage does not execute these modules.
+      'a11y', 'adaptiveQuality', 'analytics', 'birds', 'bubbleChallenges',
+      'bubbleProgress', 'bubbleTypes', 'bubbles', 'camera', 'chunks',
+      'contextLights', 'crowd', 'debug', 'debugCommands', 'farField',
+      'fireworks', 'forests', 'hud', 'input', 'lakes',
+      'leaderboard', 'lurleen', 'main', 'midiPlayer', 'models/bandMember',
+      'models/bird', 'models/bubbleJug', 'models/bubbleVendor', 'models/campsite', 'models/canoe',
+      'models/entranceArch', 'models/foodTruck', 'models/frisbeePlayer', 'models/hammock', 'models/heart',
+      'models/hulaHooper', 'models/infoKiosk', 'models/kid', 'models/leafBanner', 'models/leafDrumCircle',
+      'models/parasolMarshal', 'models/performer', 'models/picnicTable', 'models/portaPotty', 'models/puppet',
+      'models/shrub', 'models/stage', 'models/sugarShack', 'models/tent', 'models/tentStage',
+      'models/tree', 'models/tribalFigures', 'models/wook', 'mountains',
+      'perf', 'registry', 'runMode', 'runState', 'scoring',
+      'settings', 'smiles', 'sound', 'spatialGrid', 'specialBubbles',
+      'starPower', 'steering', 'threeShim', 'timeOfDay', 'touch',
+      'trip', 'world', 'zerble'];
     const imports = {};
     for (const m of wg) imports[base + m + '.js'] = base + m + '.js' + v;
     const im = document.createElement('script');

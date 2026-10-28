@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-const source = readFileSync(new URL('../src/campJamActivity.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../verification/people/2026-10-26/legacy-camp-jam.js', import.meta.url), 'utf8');
 const registry = { entries: new Map(), byKind: new Map([['campsite', new Set()]]), solids: [],
   collidersNear(x, z, radius, fn) { for (const entry of this.solids) fn(entry); } };
 const sounds = [];

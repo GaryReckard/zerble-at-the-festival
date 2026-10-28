@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Festival people: before and after</title>
+<style>
+:root{color-scheme:light dark;font:16px/1.55 system-ui;--line:light-dark(#b7c3bf,#53645e);--soft:light-dark(#edf3f0,#202e28);--ink:light-dark(#193b2e,#bde0cc)}
+body{margin:0;padding:clamp(16px,4vw,48px);background:light-dark(#fafcfb,#131c18);color:light-dark(#1a2922,#ecf1ed)}
+main{max-width:1180px;margin:auto}code{overflow-wrap:anywhere}h1{font-size:clamp(26px,4vw,42px);line-height:1.15;font-weight:600;max-width:850px}h2{font-size:22px;font-weight:600}h3{font-size:17px;margin:0 0 7px}p{max-width:80ch}a{color:var(--ink)}
+.eyebrow{letter-spacing:.08em;text-transform:uppercase;font-size:13px;color:var(--ink)}.compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px}.lane{min-width:0}.step{padding:16px;background:var(--soft);border-left:3px solid var(--line)}.step p{margin:6px 0 0}.arrow{text-align:center;font-size:24px;color:var(--ink);padding:2px}.families{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.families span{border:1px solid var(--line);padding:3px 7px;font-size:14px}.route{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.route div{padding:12px;border-top:2px solid var(--line)}.route b{display:block;font-weight:600}details{border-top:1px solid var(--line);padding:12px 0}summary{cursor:pointer;font-weight:600}footer{margin-top:36px;border-top:1px solid var(--line);padding-top:16px;font-size:14px}@media(max-width:720px){.compare,.route{grid-template-columns:1fr}.compare{gap:20px}}
+</style>
+<main>
+<div class="eyebrow">Zerble · people architecture · October 27, 2026</div>
+<h1>Different characters.<br>Clear, reusable connections.</h1>
+<p>A population owns who exists, an activity can borrow movement, and a place or vehicle owns its resources. The refactor makes these connections explicit while retaining each family's behavior and rendering.</p>
+<div class="compare">
+<section class="lane" aria-labelledby="before"><h2 id="before">Before</h2>
+<div class="step"><h3>Main knows each route</h3>Separate update calls, honk callbacks and collision arrays, with scoring and streaming interleaved between them.</div><div class="arrow" aria-hidden="true">↓</div>
+<div class="step"><h3>Different owners, different interfaces</h3><div class="families"><span>Crowd adults</span><span>Children</span><span>Wooks</span><span>Puppet parade</span><span>Brass band</span><span>Hoopers</span><span>Frisbee pairs</span></div><p>Six specialized classes live together in obstacles.js; Crowd has its own storage and instance renderer.</p></div><div class="arrow" aria-hidden="true">↓</div>
+<div class="step"><h3>Borrowing crosses private boundaries</h3><p>Monks, Healing Arts and camp music reach into person/render state; vehicle consumers inspect raw Crowd records. A model computes Healing Arts trajectories that get copied back into people.</p></div><div class="arrow" aria-hidden="true">↓</div>
+<div class="step"><h3>Cleanup depends on the caller</h3><p>People, places, seats, instruments, models and audio have owners, but their borrowing and release seams differ.</p></div>
+</section>
+<section class="lane" aria-labelledby="after"><h2 id="after">After</h2>
+<div class="step"><h3>Main owns the frame; the directory dispatches</h3>Named dependency slots preserve collection/scoring, streaming and render barriers. Supported reactions, queries and collisions register in explicit order.</div><div class="arrow" aria-hidden="true">↓</div>
+<div class="step"><h3>Each population owns its people</h3><div class="families"><span>Crowd adults</span><span>Children</span><span>Wooks</span><span>Puppet parade</span><span>Brass band</span><span>Hoopers</span><span>Frisbee pairs</span></div><p>Independent controllers retain their storage, movement, models and removal policies. Handles distinguish person and owner lifetimes.</p></div><div class="arrow" aria-hidden="true">↓</div>
+<div class="step"><h3>One current movement authority</h3><p>Eligible activities use validated claims and copied views. The population commits movement/render changes, the place owns reservations, and the Healing Arts activity owns its motion samples.</p></div><div class="arrow" aria-hidden="true">↓</div>
+<div class="step"><h3>Release before disposal</h3><p>Stop authority → release borrowers → detach publications → dispose only owned resources. Old handles and callbacks cannot affect replacements.</p></div>
+</section></div>
+<h2>One behavior can connect to different places</h2>
+<div class="route" aria-label="Activity lifecycle"><div><b>1 · Select</b>Choose an explicitly eligible person handle.</div><div><b>2 · Prepare</b>Reserve person authority and place resources; failure preserves the old activity.</div><div><b>3 · Commit</b>Revoke the old writer, release it, activate the new one.</div><div><b>4 · Visit</b>Approach, participate and exit through compatible commands.</div><div><b>5 · Release</b>Restore ordinary binding and release resources on completion, interruption or unload.</div></div>
+<div class="families" aria-label="Place adapters"><span>Stage: audience destinations</span><span>Porta-potty: stall, door, safe exit</span><span>Food truck: explicit service adapter</span><span>Healing Arts: rigs and constraints</span><span>Nut wagon: moving seats</span></div>
+<p>The same visit implementation is proved across two population storage types, two place reservation layouts and two render bindings. A new food-truck service adapter is an extension point; existing truck collision geometry does not imply a service counter.</p>
+<h2>Where the other people fit</h2>
+<details open><summary>Roles and groups keep the same person</summary><p>Photographers retain their Crowd identity and pooled camera/flash rendering. Monk groups coordinate existing Crowd members through public intent, avatar and boarding commands. The nut-wagon driver remains the same Crowd person when the wagon releases him. Healing Arts borrows Crowd people and tent-owned rigs.</p></details>
+<details open><summary>Vehicle people keep their physics owner</summary><p>One-wheel riders and Lurleen expose copied person queries without granting activity or boarding authority. Rider collisions remain registry-only. The wagon owns its route, body, seats and music, while Crowd owns its occupants.</p></details>
+<details open><summary>Decorative people stay place-owned</summary><p>Stage performers and Sugar Shack cooks use lightweight display routes; vendor keepers remain tent-owned. They acquire no interactive lifetime merely for animation. Birds remain with their independent ambient flock/perch owner.</p></details>
+<p><b>Compatibility stays explicit.</b> Children retain gaggle, chase, dodge and smile behavior. Formation members retain group movement, and query registration does not make them eligible for adult venues. New cross-family behavior adds the compatible population policy and resource adapter it actually needs.</p>
+<footer>Before: immutable revision <code>9eaf2e5d73419f7c926c11ab06882f007b2bf1e4</code>.<br>
+<a href="../../openspec/changes/people-npc-architecture/architecture-visual.md">Diagrams and source grounding</a> · <a href="../../openspec/changes/people-npc-architecture/coverage-ledger.md">All 17 original family rows</a> · <a href="../../openspec/changes/people-npc-architecture/extension-guide.md">Extension and eligibility matrix</a> · <a href="../../openspec/changes/people-npc-architecture/acceptance.md">Acceptance and limits</a>
+<p>Matched initial Low/Mid topology adds no meshes, potential draws, triangles or shadow casters. CPU validation has a measured cost; muted Mac tests do not establish physical iOS audio or phone performance. This page has no game loop, dependencies or network calls.</p></footer>
+</main></html>

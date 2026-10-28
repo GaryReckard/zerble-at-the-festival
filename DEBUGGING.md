@@ -594,6 +594,77 @@ Monk previews (always append mute=1): sandbox.html?entity=monk&mute=1 for the mo
 
 The backtick panel’s Teleport picker includes **Nut Wagon (active)** and **Monks (active group)** in the current festival layout. Select one and press **Go** to move beside its live position, facing it. Missing encounters show a specific not-spawned message; teleporting does not force a spawn.
 
+### Mixed people workshop and frame characterization
+
+Open `sandbox.html?entity=people_workshop&seed=1977&mute=1` for production Crowd,
+children, photographer, monk party, campsite/camp-music and Healing Arts controllers.
+Pause/resume, single-step, honk, take a picture, unload Healing Arts and dispose the
+workshop through its controls, then switch away and back to check a fresh owner.
+The status includes active populations, visitors, music jobs and registry counts.
+Claim/publication cleanup precedes the sandbox's normal GPU-resource disposal on
+selector changes. The workshop uses the registered runtime and production ownership boundaries,
+with the same accepted-frame clocks and explicit cleanup as the game.
+
+For bounded real-game characterization, start the no-cache development server and
+open `/?mute=1&perf=low&seed=1977&peopleTrace=1&peopleTraceFrames=600` on localhost
+(or use `perf=mid`). Enter a mode through its ready title-card control, then use
+**Trace: add two smile pickups** before the recording fills. After the save control
+shows 600/600, click it to write `.claude/captures/people-frames-low-startup.json` or the Mid
+equivalent through the existing local sink. Saving has a five-second timeout and
+reports failure with a retry control. `__dbg.peopleFrames()` returns a copied report.
+Validate a saved JSON or gzip with `node bin/test-people-frame-trace <path>`.
+Recording is opt-in, retains copied state rather than actors, and stops after its
+bounded frame count (1–600, default 120); normal launches do not create a recorder.
+The recorder observes ordering, pickups and collision publication, and is **not a
+performance benchmark**. [Saved captures and coverage limits](verification/people/2026-10-26/README.md).
+
+The additional trace controls restart a bounded recording around a real moving
+person contact, star-love activation, a 1,800m streaming relocation, or the existing
+seat-fill diagnostic. Scenario captures use `people-frames-<tier>-<scenario>.json`.
+Seat inspection follows membership in each owner's slot array, including the cart's
+legacy slots which omit a vehicle reference. The capture oracle requires positive
+results for these named scenarios rather than passing on empty branches.
+
+Use a separate `/?mute=1&perf=low&seed=1977&peopleBaseline=1` launch (repeat Mid)
+to measure the implementation baseline. Click a ready mode, then **Measure people
+baseline**. It pins quality level 0, camera and time of day, warms for 120 accepted
+frames and records 180 more before restoring method probes. **Save people baseline**
+writes `people-baseline-<tier>.json` through the local sink. It records CPU timing
+and operation counts, live populations/claims, GPU/viewport/physical dimensions,
+visibility, scene resources, and three isolated spawn/remove probes using a private
+fixture RNG. Validate with `node bin/test-people-baseline <path>`. Compare only runs
+with matching recorded setup and the same instrumentation; background or software
+WebGL timings do not establish physical-device FPS. Closing the page releases probes.
+
+### People inspection and matched comparisons
+
+`/inspect people` and `__dbg.people()` show copied population/display counts, declared
+slots and capabilities. Query identity, interactive activity authority and decorative
+display participation are intentionally different. The
+[extension guide](openspec/changes/people-npc-architecture/extension-guide.md) contains
+the exact person/place contract and current eligibility matrix, and
+[dependency slots](openspec/changes/people-npc-architecture/dependency-slots.md)
+records the required scoring/streaming/render barriers.
+
+For a repeatable initial scene comparison, add `peopleBaselineAuto=1` and
+`peopleBaselineCohort=1` to the baseline URL, set the same viewport, and enter through
+the ready title-mode control. The optional cohort flag isolates child/frisbee
+construction only; normal launches retain their random streams. The auto flag starts
+on the first accepted gameplay frame. Save after the bounded window completes.
+`python3 bin/prepare-people-render-comparison` exports the immutable pre-refactor
+revision with just the current probes and prints its owned temporary path. Serve
+that export on a separate loopback port, then stop both owned servers and tabs.
+An optional existing export path refreshes only recognized probe files, without
+switching or resetting the working checkout.
+
+`node bin/check-people-render-comparison` validates the saved matched Low/Mid evidence,
+including exact initial topology buckets and bounded matrix writes. Cumulative
+renderer cache counts and live culled draws need not match when motion/effect/upload
+history differs. See [acceptance and measured costs](openspec/changes/people-npc-architecture/acceptance.md)
+for the actual CPU increase and physical-device limits. This is not a phone-FPS claim.
+`node bin/test-people-boundaries` checks the finalized dependency directions with
+rejecting fixtures. No people module owns an autonomous RAF or timer.
+
 ### Healing Arts preview
 
 Open `sandbox.html?entity=healing_arts&seed=1977&mute=1` for the complete canopy,
@@ -676,3 +747,92 @@ and Morning reopens them. Repeat with `perf=mid`. Run
 `node bin/test-vendor-shopping` for reservations, lifecycle, frontage rotation,
 collision clearance, non-buyers and world-RNG preservation.
 [Evidence and captures](verification/vendors/2026-10-25/README.md).
+
+
+### People ownership and extension contracts
+
+Open `/verification/people/contracts.html?mute=1&perf=low` for real Crowd/child
+lifetime, relocation, publication and disposal assertions. Open
+`/verification/people/extension.html?mute=1&perf=low` for the shared visit behavior
+across Crowd and an independent fixture population, standing slots and a counter,
+and an optional borrowed rig. Finish the visits to check ordinary binding and
+reservation restoration; the page renders on demand without an autonomous loop.
+Routine commands are `node bin/test-children-ownership`,
+`node bin/test-healing-arts-ownership` and `node bin/test-people-extension`, all
+included in `npm run check`. See the
+[extension guide](openspec/changes/people-npc-architecture/extension-guide.md).
+
+
+For the extracted wook controller, open
+`/sandbox.html?entity=wook_population&mute=1&perf=low`. The bounded initial spread
+keeps five production actors inspectable while retaining normal gameplay defaults.
+The controls exercise parked honk, driver motion, distant recycle and population
+cleanup; the status includes approach and public Trip-query counts.
+`node bin/test-wooks-ownership` compares frozen legacy frames and the actual Trip
+proximity/offer/accept state machine, and is part of the routine suite.
+
+
+The production parade preview remains
+`/sandbox.html?entity=puppet_parade&mute=1&perf=low`; its local clock drives preview
+nightness and its ground follows the route. Use
+`/sandbox.html?entity=brass_population&mute=1&perf=low` for the actual seven-musician
+controller, route/scatter and owned music cleanup, rather than only the stationary
+model lineup. `node bin/test-formations-ownership` compares 400 frozen legacy frames
+per formation, while `node bin/test-stage-audio-lifecycle` covers cancelled deferred
+stage descriptors and the existing adoption delay. Both run in the routine suite.
+
+
+The `monk_party` sandbox uses the public group boundary and includes **Clear group**
+and **Respawn five monks** controls. Clear should report zero population identities
+and leave only the ground draws; respawn creates fresh lifetimes and restores the
+five existing-model avatars. `nut_wagon_monks` exercises the real all-or-none group
+boarding path. `node bin/test-monks-ownership` compares recorded group intent and
+poses and checks contention, stale arrivals/releases, exclusive activity binding,
+person/owner-first cleanup and partial-spawn rollback.
+
+
+The `nut_wagon_monks` fixture also exposes **Park and board group**, **Leave wagon**,
+**Unload wagon** and **Revisit wagon**. Its count distinguishes occupied seats from
+live reservation claims, which should return to zero on unload. Revisit creates new
+vehicle slots; old passenger tokens must stay invalid. Former drivers retain the
+existing ordinary-person fallback and can become guests, so revisit counts need not
+match the initial seven-seat scene. `test-seat-reservations` and
+`test-boarding-ownership` are mandatory resource and movement checks.
+
+
+### Hammock and picnic ownership fixtures
+
+`sandbox.html?entity=hammock_activity&mute=1` and
+`sandbox.html?entity=picnic_activity&mute=1` run production Crowd and activity owners.
+Their controls start/interrupt a visit and unload/revisit the place, while the status
+reports phase, claims and occupancy. Both must return to zero claims and unoccupied
+old resources after active unload, then successfully acquire a fresh place.
+`node bin/test-rest-activities` compares 800 frames per activity and verifies
+contention, stale commands, resource replacement, group eligibility and cleanup.
+The frozen oracle intentionally retains the old double timer decrement. This is an
+ownership refactor, not a dwell-duration retune.
+
+The `potty_activity` sandbox exercises production bathroom visits, unlocked-door
+surprise, ramming, interruption and unload/revisit. `node bin/test-potty-ownership`
+compares frozen behavior and checks stale unit/person cleanup.
+
+The `vendor_activity` fixture now reports activity claims and frontage reservations,
+with explicit interruption/unload/revisit controls. `node bin/test-market-ownership`
+compares production behavior with frozen methods, including the actual salted stream
+and replacement-safe cleanup.
+
+Camp and music verification: `node bin/test-camp-ownership` compares seating/sleeping
+against frozen methods and checks safe exit, while `node bin/test-camp-music-ownership`
+compares ensemble phases and tests person/place teardown, handoff, rollback and an
+injected audio-stop failure. `campsite_activity` and `camp_jam` now expose owned
+rest/music claim counts and interruption/unload/revisit controls. The sandbox's
+**Hold time of day** checkbox holds the actual time; its readout tracks the live
+time when advancing, so an old preset label cannot misidentify a later phase.
+
+Photographer commands on Crowd take and return person handles: `forcePhotographer`,
+`triggerPhotographer`, `previewPhotographerFlash`; `readPhotographer` writes copied
+role/display fields into caller scratch. A competing activity/group/seat is protected
+from forced shots, and promotion requires a free camera slot. The production
+`crowd_photographer` fixture follows that public view; its picture and flash buttons
+use the same handle commands. Run `node bin/test-photographer-ownership` for exact
+role/pose comparisons and stale/protected-command checks.

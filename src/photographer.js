@@ -105,3 +105,17 @@ export function tickPhotographerOpportunity(npc, dt, distance, eligible) {
   startPhotographerShot(npc);
   return true;
 }
+
+// Rendering consumes a caller-owned profile, without retaining a population
+// record or allocating a pose for every actor/frame. Geometry and instance pools
+// remain the population's responsibility, so this role adds no second lifetime.
+export function samplePhotographerPose(state,stateTimer,crouch,flashTimer,out) {
+  const pose=state===PHOTO_STATE_POSE;
+  out.photographing=isPhotographerState(state);out.pose=pose;out.crouch=pose&&!!crouch;
+  let amount=0;
+  if(pose){const poseIn=Math.min(1,Math.max(0,(PHOTO_POSE_DURATION-stateTimer)*5)),poseOut=Math.min(1,Math.max(0,stateTimer*5));amount=Math.min(poseIn,poseOut);}
+  out.crouchDrop=pose&&crouch ? .24*amount : 0;
+  out.flashVisible=flashTimer>0;
+  out.flashScale=out.flashVisible ? .72+Math.sin(Math.min(1,flashTimer/PHOTO_FLASH_DURATION)*Math.PI)*.55 : 0;
+  return out;
+}

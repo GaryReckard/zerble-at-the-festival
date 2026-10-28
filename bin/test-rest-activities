@@ -1,0 +1,89 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {Vector} from './test-support/sceneObjects.mjs';
+import {makePeopleCrowd} from './test-support/peopleCrowd.js';
+import {HammockActivity} from '../src/people/hammockActivity.js';
+import {PicnicActivity} from '../src/people/picnicActivity.js';
+Vector.prototype.toArray=function(){return [this.x,this.y,this.z];};
+const legacy=readFileSync(new URL('../verification/people/2026-10-26/legacy-rest-activities.js',import.meta.url),'utf8').replace('export class','class');
+function fixture(kind,old=true){
+ let seed=1977,draws=0,writes=0;const math=Object.assign(Object.create(Math),{random(){draws++;seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;}});
+ const entry={id:1,position:new Vector(4,0,0),hammock:{seatPos:new Vector(4,1.3,0),yaw:.3,occupied:false},tableSeats:[{x:4,y:.8,z:0,occupied:false}]};
+ const registry={entries:new Map([[1,entry]]),byKind:new Map([[kind==='hammock'?'hammock':'picnic_table',new Set([1])]])};
+ const Class=runInNewContext(legacy+';RestOracle',{Math:math,registry,THREE:{MathUtils:{lerp:(a,b,t)=>(1-t)*a+t*b}},wrapAngle:a=>{while(a>Math.PI)a-=Math.PI*2;while(a< -Math.PI)a+=Math.PI*2;return a;}});
+ let owner=new Class();let npc={idx:0,pos:new Vector(),vel:new Vector(.1,0,.2),target:new Vector(),energy:.8,dance:.3,yaw:.2,bob:0,state:'idle',stateTimer:0};
+ if(!old){
+  owner=makePeopleCrowd();const person=owner.spawn({pos:new Vector()});Object.assign(person,npc);npc=person;
+  owner.hammocks=new HammockActivity(owner,registry,{random:math.random});
+  owner.picnics=new PicnicActivity(owner,registry,{random:math.random});owner._inlineActivities=new Set([owner.hammocks,owner.picnics]);
+ }
+ owner._writeMatrices=n=>{writes++;n.pos.y=n.state==='hammock_riding'?n.hammockY??0:n.state==='table_seated'?n.picnicY??n.tableSeat?.y??0:0;};
+ return {owner,npc,entry,registry,random:math.random,get draws(){return draws;},get writes(){return writes;}};
+}
+for(const kind of ['hammock','table']){
+ const before=fixture(kind),after=fixture(kind,process.argv.includes('--baseline'));
+ for(const f of [before,after])assert(kind==='hammock'?f.owner._tryClaimHammock(f.npc):f.owner._tryClaimTable(f.npc));
+ const phases=new Set(),snapshot=f=>[f.npc.state,f.npc.stateTimer,f.npc.rideTimer,f.npc.hammockBob,f.npc.hammockY,...f.npc.pos.toArray(),...f.npc.vel.toArray(),...f.npc.target.toArray(),f.npc.yaw,f.npc.bob,f.entry.hammock.occupied,f.entry.tableSeats[0].occupied,f.draws,f.writes];
+ for(let frame=0;frame<800;frame++){
+  for(const f of [before,after]){
+   const n=f.npc;n.stateTimer-=.05;n.bob+=.05*(1+.4*n.dance);if(n.rideTimer!=null)n.rideTimer-=.05;
+   if(n.state==='walking_to_hammock')f.owner._tickWalkingToHammock(.05,n);
+   else if(n.state==='hammock_riding')f.owner._tickHammockRiding(.05,n);
+   else if(n.state==='walking_to_table')f.owner._tickWalkingToTable(.05,n);
+   else if(n.state==='table_seated')f.owner._tickTableSeated(.05,n);
+  }
+  phases.add(after.npc.state);assert.deepEqual(snapshot(after),snapshot(before));
+ }
+ assert(phases.has(kind==='hammock'?'hammock_riding':'table_seated'));assert(phases.has('idle'));
+ console.log('PASS '+kind+': 800 exact approach/occupancy/pose/timer/publication/RNG frames, including the existing population plus activity timer decrement and normal exit.');
+}
+if(!process.argv.includes('--baseline')){
+ for(let cycle=0;cycle<2;cycle++){
+  const f=fixture('hammock',false),h=f.npc.personHandle;assert(f.owner.hammocks.tryClaim(h));
+  const record=f.owner.hammocks.records.get(h),old=f.entry.hammock;
+  const replacement={...f.entry,hammock:{...old,seatPos:old.seatPos.clone(),occupied:false}};
+  f.registry.entries.set(1,replacement);
+  f.owner.hammocks.tickWalking(.05,h);
+  assert.equal(old.occupied,false);assert.equal(f.npc.state,'idle');assert.equal(f.owner.hammocks.records.size,0);
+  assert.equal(f.owner.commitHammockMotion(record.claim,record.step),false);
+  assert(f.owner.hammocks.tryClaim(h));assert(replacement.hammock.occupied);
+  f.owner.removePerson(h);assert.equal(replacement.hammock.occupied,false);assert.equal(f.owner.hammocks.records.size,0);
+  const fresh=f.owner.spawn({pos:new Vector()});assert.equal(f.owner.hammocks.tryClaim(h),false);assert.notEqual(fresh.personHandle,h);
+ }
+ {
+  const f=fixture('hammock',false),h=f.npc.personHandle,old=f.owner.claimActivity(h,{owner:{activityKey:'other'}});
+  assert(old);assert.equal(f.owner.hammocks.tryClaim(h),false);assert(f.owner.activityClaims.canWrite(old));
+  f.owner.endPersonActivity(old);f.npc.state='idle';assert(f.owner.hammocks.tryClaim(h));
+  const record=f.owner.hammocks.records.get(h),incoming=f.owner.claimActivity(h,{owner:{activityKey:'replacement'}});
+  assert(incoming);assert.equal(f.entry.hammock.occupied,false);assert.equal(f.owner.commitHammockMotion(record.claim,record.step),false);assert(f.owner.activityClaims.canWrite(incoming));
+  f.owner.endPersonActivity(incoming);f.npc.state='idle';assert(f.owner.hammocks.tryClaim(h));
+  f.owner.hammocks.dispose();assert.equal(f.entry.hammock.occupied,false);assert.equal(f.owner.activityClaims.current.size,0);assert.equal(f.npc.state,'walking');
+  const draws=f.draws;f.owner.hammocks.tickRiding(.05,h);assert.equal(f.draws,draws);f.owner.hammocks.dispose();
+ }
+ console.log('PASS hammock ownership: two changed-place/revisit cycles, person-first removal, stale pose/slot rejection, preserved competing claim, ordered replacement, activity-first cleanup and inert stale ticks.');
+}
+if(!process.argv.includes('--baseline')){
+ for(let cycle=0;cycle<2;cycle++){
+  const f=fixture('table',false),h=f.npc.personHandle;assert(f.owner.picnics.tryClaim(h));
+  const record=f.owner.picnics.records.get(h),oldSeat=f.entry.tableSeats[0];
+  const second=f.owner.spawn({pos:new Vector()});second.energy=.8;
+  assert.equal(f.owner.picnics.tryClaim(second.personHandle),false,'same-frame contenders cannot double-own a picnic seat');
+  const replacement={...f.entry,tableSeats:[{...oldSeat,occupied:false}]};f.registry.entries.set(1,replacement);
+  f.owner.picnics.tickWalking(.05,h);assert.equal(oldSeat.occupied,false);assert.equal(f.npc.state,'idle');assert.equal(f.owner.picnics.records.size,0);
+  assert.equal(f.owner.commitPicnicMotion(record.claim,record.step),false);
+  assert(f.owner.picnics.tryClaim(h));assert(replacement.tableSeats[0].occupied);
+  f.owner.picnics.dispose();assert.equal(replacement.tableSeats[0].occupied,false);assert.equal(f.owner.activityClaims.current.size,0);
+  assert.equal(f.npc.picnicY,undefined);assert.equal(f.owner.picnics.tickSeated(.05,h),false);
+ }
+ {
+  const f=fixture('table',false),h=f.npc.personHandle;
+  f.npc.party={allowActivity:()=>false};assert.equal(f.owner.picnics.tryClaim(h),false,'a busy member retains collective amenity precedence');
+  f.npc.party.allowActivity=()=>true;f.entry.position.x=30;assert.equal(f.owner.picnics.tryClaim(h),false,'group members retain their shorter table search radius');
+  f.entry.position.x=4;assert(f.owner.picnics.tryClaim(h));const record=f.owner.picnics.records.get(h);
+  f.owner.removePerson(h);assert.equal(f.entry.tableSeats[0].occupied,false);assert.equal(f.owner.picnics.records.size,0);
+  assert.equal(f.owner.commitPicnicMotion(record.claim,{}),false);
+ }
+ console.log('PASS picnic ownership: contention, group eligibility/radius, two resource replacement/revisit cycles, stale pose rejection, person-first removal, activity-first teardown and display-height release.');
+}

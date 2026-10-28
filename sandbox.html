@@ -180,8 +180,8 @@
             // covers every transitive import (chunks/crowd/lakes pull in forests, perf,
             // contextLights, campsite, leafDrumCircle, tribalFigures, ...). Unused entries
             // are inert; sandbox's 'three' points straight at unpkg (no threeShim) by design.
-            const mods = ['playerStats', 'passportMenu', 'terrainSurface', 'terrainDriving', 'terrainSandbox', 'campClearing', 'debugCommands', 'campJamActivity', 'campMusic', 'woodlandCamping', 'campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
-                'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState', 'obstacles', 'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
+            const mods = ['people/vehiclePersonFacet','people/placeDisplay','people/smilePolicy','collisionContacts','people/campResources','people/campActivity','people/marketActivity','people/pottyActivity','people/picnicActivity','people/hammockActivity','people/seatReservations','people/groupParticipation','people/placeVisit','people/frisbees','people/hoopers','people/brassBand','people/puppetParade','people/formationRoute','people/wooks','people/sceneResources','people/children','people/placement','people/frameTrace','people/baseline','people/runtime','people/personHandle','people/activityClaims','people/healingArtsMotion', 'people/workshop', 'playerStats', 'passportMenu', 'terrainSurface', 'terrainDriving', 'terrainSandbox', 'campClearing', 'debugCommands', 'campJamActivity', 'campMusic', 'woodlandCamping', 'campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'monks', 'nutWagon', 'nutWagonRoute', 'main', 'world', 'zerble', 'bubbles', 'bubbleTypes', 'bubbleProgress', 'bubbleChallenges', 'specialBubbles', 'upgradesMenu', 'smiles', 'fireworks', 'crowd', 'crowdAppearance', 'healingArtsActivity', 'chunks', 'forests',
+                'mountains', 'camera', 'input', 'touch', 'hud', 'sound', 'leaderboard', 'runMode', 'scoring', 'runState',  'registry', 'rng', 'debug', 'perf', 'lakes', 'lurleen', 'trip',
                 'threeShim', 'midiPlayer', 'birds', 'adaptiveQuality', 'analytics', 'contextLights', 'timeOfDay', 'spatialGrid', 'starPower', 'steering', 'settings', 'a11y', 'mergeDecor', 'boostStreaks', 'photographer', 'farField', 'perfTelemetry', 'renderSizing','preparePostprocessing', 'festivalShapes',
                 'worldgen/terrain', 'worldgen/constants', 'worldgen/tuning', 'worldgen/hearts', 'worldgen/water', 'worldgen/roads', 'worldgen/density', 'worldgen/roles', 'worldgen/index', 'worldgen/selftest', 'worldgen/placement', 'worldgen/festival', 'worldgen/lint'];
             const models = ['campInstruments', 'oneWheelRider', 'canoe', 'hammock', 'tent', 'tentStage', 'foodTruck', 'bo', 'monk', 'nutWagon', 'sugarShack', 'tree', 'shrub', 'heart', 'stage', 'performer',
@@ -221,6 +221,7 @@
         <optgroup label="Festival props">
             <option value="hammock">Hammock</option>
             <option value="tree_hammock">Hammock between trees</option>
+            <option value="hammock_activity">Hammock (production visit / interruption / unload)</option>
             <option value="hammock_with_npc">Hammock + person (lounging)</option>
             <option value="tent">Vendor tent</option>
             <option value="vendor_activity">Vendor market (browsing and shopping)</option>
@@ -244,6 +245,7 @@
             <option value="one_wheel_route">One-wheel (route + crossing pedestrian)</option>
             <option value="healing_arts">Healing Arts (yoga / night DJ)</option>
             <option value="healing_arts_activity">Healing Arts (real crowd changeover)</option>
+            <option value="people_workshop">People workshop (mixed production controllers)</option>
             <option value="tent_stage">Tent stage (big white tent)</option>
             <option value="canoe">Canoe</option>
             <option value="lake">Lake (mini disc)</option>
@@ -251,8 +253,10 @@
             <option value="lake_with_beach">Lake (big + sand beach)</option>
             <option value="picnic_blanket">Picnic blanket</option>
             <option value="lamppost_pair">Lamppost pair + festoon string lights</option>
+            <option value="potty_activity">Bathroom (production visit / interruption / unload)</option>
             <option value="porta_potty">Porta-potty (demo: door + occupied + stink cycle)</option>
             <option value="porta_potty_bank">Porta-potty bank (5 — staggered use cycle)</option>
+            <option value="picnic_activity">Picnic (production visit / interruption / unload)</option>
             <option value="picnic_table">Picnic table</option>
             <option value="info_kiosk">Info kiosk (welfare board + pennant)</option>
             <option value="welfare_post_plaza">Welfare post — PLAZA tier (the full bundle)</option>
@@ -280,10 +284,13 @@
             <option value="band_member_trombone">Band member — trombone</option>
             <option value="parasol_marshal">Parasol grand marshal</option>
             <option value="brass_band">Brass band formation</option>
+            <option value="brass_population">Brass band (production route / scatter / cleanup)</option>
             <option value="shopkeeper">Vendor shopkeeper (alone)</option>
             <option value="kid">Kid</option>
             <option value="wook">Wook</option>
+            <option value="wook_population">Wooks (production approach / scatter / recycle)</option>
             <option value="hula_hooper">Hula-hooper</option>
+            <option value="hooper_population">Hoopers (production attractors / unload / pool)</option>
             <option value="hula_hooper_night">Hula-hooper (night — hoop glows)</option>
             <option value="frisbee_player">Frisbee player — relaxed</option>
             <option value="frisbee_player_catch">Frisbee player — one-arm catch reach</option>
@@ -411,6 +418,7 @@
                 Midnight
             </button>
         </div>
+        <label><input id="tod-hold" type="checkbox"> Hold time of day</label>
     </div>
 
     <!-- Audio panel — mirrors the in-game ` debug menu volume sliders so a
@@ -594,7 +602,10 @@ import {buildShrub} from './src/models/shrub.js';
     import {buildStage, placeBandOnStage} from './src/models/stage.js';
     import {buildTentStage} from './src/models/tentStage.js';
     import {buildPuppet, tickPuppet, setPuppetTime, setPuppetNightness, PARADE_ROSTER} from './src/models/puppet.js';
-    import {PuppetParade} from './src/obstacles.js';
+    import {PuppetParade} from './src/people/puppetParade.js';
+    import {BrassBand} from './src/people/brassBand.js';
+    import {HulaHoopers} from './src/people/hoopers.js';
+    import {Frisbees} from './src/people/frisbees.js';
     import {buildBandMember, tickBandMember} from './src/models/bandMember.js';
     import {buildParasolMarshal, tickParasolMarshal} from './src/models/parasolMarshal.js';
     import {buildKid, tickKid} from './src/models/kid.js';
@@ -636,6 +647,10 @@ import {buildShrub} from './src/models/shrub.js';
     import {BoostStreaks} from './src/boostStreaks.js';
     import {Fireworks, SHELL_TYPES} from './src/fireworks.js';
     import {Crowd} from './src/crowd.js';
+    import {KidGaggle} from './src/people/children.js';
+    import {Wooks} from './src/people/wooks.js';
+    import {PeopleWorkshop} from './src/people/workshop.js';
+    import {sampleHealingArtsPreview} from './src/people/healingArtsMotion.js';
     // Trip + MIDI imports for the audition panels added at the bottom of the
     // HUD. Trip needs its post-process pass slotted into a composer, so we
     // also import EffectComposer / RenderPass / OutputPass and switch the
@@ -689,6 +704,7 @@ import {buildShrub} from './src/models/shrub.js';
     // Time-of-day controller — drives sun/hemi/ambient/fog just like main.js.
     // No sky shader in the sandbox, so sky is null (TimeOfDay tolerates it).
     const tod = new TimeOfDay(scene, {startT: 0.15});
+    let holdTimeOfDay=false;document.getElementById('tod-hold').addEventListener('change',event=>{holdTimeOfDay=event.target.checked;});
     tod.attach({sky: null, sun, hemi, ambient});
 
     // Post-processing chain so the sandbox can drive the Trip ShaderPass.
@@ -1065,14 +1081,14 @@ import {buildShrub} from './src/models/shrub.js';
         ...Object.fromEntries(PARADE_ROSTER.map(kind => [`puppet_${kind}`, 'puppet'])),
         tent: 'tent', tent_row: 'tent',
         food_truck: 'truck',
-        kid: 'kid',
-        wook: 'wook',
+        kid: 'kid', frisbee_pair:'person',
+        wook: 'wook', wook_population:'wook', hooper_population:'hula_hoop',
         stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage', one_wheel: 'one_wheel', one_wheel_route: 'one_wheel', healing_arts: 'tent', healing_arts_activity: 'tent',
         entrance_arch: 'arch',
         canoe: 'lake_edge',
         band_member_trumpet: 'brass', band_member_tuba: 'brass',
         band_member_sax: 'brass', band_member_drum: 'brass',
-        band_member_trombone: 'brass', brass_band: 'brass',
+        band_member_trombone: 'brass', brass_band: 'brass', brass_population:'brass',
         camp_tent: 'tent',
         ...Object.fromEntries(['ridge','dome','octagon','cabin','multiroom'].map(kind=>[`camp_tent_${kind}`,'tent'])),
         chiminea: 'firepit',
@@ -1247,6 +1263,24 @@ import {buildShrub} from './src/models/shrub.js';
                 applyCam();
                 break;
             }
+            case 'picnic_activity': {
+                const root=new THREE.Group(),people=new Crowd({spawn(){}}),model=buildPicnicTable(mulberry32(919));
+                root.add(model.group,people.group);scene.add(root);entityRoot=root;currentEntity=root;
+                let placeId=null,seats=[];
+                const addPlace=()=>{if(placeId!==null)return;seats=model.seats.map(s=>({...s,occupied:false}));placeId=registry.add({kind:'picnic_table',position:new THREE.Vector3(),footprint:model.footprint,collider:{radius:1.8,damage:3},tableSeats:seats});model.group.visible=true;};
+                const removePlace=()=>{if(placeId!==null)registry.remove(placeId);placeId=null;model.group.visible=false;};addPlace();
+                const handle=people.spawnPerson({pos:new THREE.Vector3(-4,0,3),rng:mulberry32(891),allowPhotographer:false});
+                const observer={position:new THREE.Vector3(0,0,40),speed:0,heading:0,forwardWorld:new THREE.Vector3(0,0,-1),seatSlots:[]};
+                puppetControls=document.createElement('div');document.getElementById('hud').appendChild(puppetControls);
+                for(const [label,action] of [
+                    ['Start picnic visit',()=>people.picnics.tryClaim(handle)],['Interrupt picnic visit',()=>people.picnics.release(handle,'picnic-disposed')],
+                    ['Unload picnic table',removePlace],['Revisit picnic table',addPlace],
+                ]){const b=document.createElement('button');b.textContent=label;b.onclick=action;puppetControls.appendChild(b);}
+                people.picnics.tryClaim(handle);const view={};
+                updateFn=dt=>{registry.rebuildSpatialIndex();people.update(dt,observer,null);people.readPerson(handle,view);info.textContent=`${view.state} · ${people.picnics.records.size} picnic claims · ${seats.filter(s=>s.occupied).length}/4 occupied · place ${placeId===null?'absent':'live'}`;};
+                root.userData.cleanup=()=>{try{people.dispose();}finally{removePlace();}};
+                cam.target.set(0,1,0);cam.yaw=Math.PI+.3;cam.pitch=.28;cam.dist=9;applyCam();break;
+            }
             case 'picnic_table': {
                 const { group } = buildPicnicTable(Math.random);
                 scene.add(group);
@@ -1316,6 +1350,26 @@ import {buildShrub} from './src/models/shrub.js';
                 cam.pitch = tier.kiosk ? 0.62 : 0.45;   // look down on the island so the back table reads
                 applyCam();
                 break;
+            }
+            case 'hammock_activity': {
+                const root=new THREE.Group(),people=new Crowd({spawn(){}}),model=buildHammockRaw(0,0,mulberry32(817));
+                root.add(model.group,people.group);scene.add(root);entityRoot=root;currentEntity=root;
+                let placeId=null,place=null;
+                const addPlace=()=>{if(placeId!==null)return;place={seatPos:model.seatPos.clone(),yaw:model.yaw,occupied:false};placeId=registry.add({kind:'hammock',position:new THREE.Vector3(),footprint:0,hammock:place});model.group.visible=true;};
+                const removePlace=()=>{if(placeId!==null)registry.remove(placeId);placeId=null;model.group.visible=false;};
+                addPlace();
+                const handle=people.spawnPerson({pos:new THREE.Vector3(-3,0,2),rng:mulberry32(891),allowPhotographer:false});
+                const observer={position:new THREE.Vector3(0,0,40),speed:0,heading:0,forwardWorld:new THREE.Vector3(0,0,-1),seatSlots:[]};
+                puppetControls=document.createElement('div');document.getElementById('hud').appendChild(puppetControls);
+                for(const [label,action] of [
+                    ['Start hammock visit',()=>people.hammocks.tryClaim(handle)],
+                    ['Interrupt hammock visit',()=>people.hammocks.release(handle,'hammock-disposed')],
+                    ['Unload hammock',removePlace],['Revisit hammock',addPlace],
+                ]){const b=document.createElement('button');b.textContent=label;b.onclick=action;puppetControls.appendChild(b);}
+                people.hammocks.tryClaim(handle);const view={};
+                updateFn=dt=>{registry.rebuildSpatialIndex();people.update(dt,observer,null);people.readPerson(handle,view);info.textContent=`${view.state} · ${people.hammocks.records.size} hammock claims · occupied ${!!place?.occupied} · place ${placeId===null?'absent':'live'}`;};
+                root.userData.cleanup=()=>{try{people.dispose();}finally{removePlace();}};
+                cam.target.set(0,1,0);cam.yaw=Math.PI+.3;cam.pitch=.28;cam.dist=9;applyCam();break;
             }
             case 'hammock_with_npc': {
                 // Build a hammock at origin and drop a SUPINE NPC at the seat — back
@@ -1446,7 +1500,7 @@ import {buildShrub} from './src/models/shrub.js';
                 break;
             }
             case 'vendor_activity': {
-                const root = new THREE.Group(), tents = [], ids = [];
+                const root = new THREE.Group(), tents = [], ids = [],places=[];
                 const people = new Crowd({spawn(){},spawnLost(){}});
                 people.campTimeOfDay = tod;
                 root.add(people.group);
@@ -1455,23 +1509,25 @@ import {buildShrub} from './src/models/shrub.js';
                     tent.position.set(side * 6, 0, 0);
                     tent.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
                     root.add(tent); tents.push(tent);
-                    ids.push(registry.add({kind:'tent', vendor:tent, position:tent.position.clone(),
-                        footprint:2.6,collider:{radius:2.2,damage:0},chunkKey:'market-preview'}));
+                    const place={kind:'tent',vendor:tent,position:tent.position.clone(),footprint:2.6,collider:{radius:2.2,damage:0},chunkKey:'market-preview'};places.push(place);ids.push(registry.add(place));
                 }
                 const rng = mulberry32(1977);
                 for (let i=0;i<8;i++) people.spawn({pos:new THREE.Vector3((rng()-.5)*4,0,(rng()-.5)*10),
                     chunkKey:'market-preview',rng,allowPhotographer:false});
                 const observer = {position:new THREE.Vector3(0,0,40),speed:0,
                     forwardWorld:new THREE.Vector3(0,0,-1),seatSlots:[]};
-                root.userData.cleanup = () => {
-                    for (const npc of [...people.npcs]) people.removeNpc(npc);
-                    for (const id of ids) registry.remove(id);
-                };
+                puppetControls=document.createElement('div');document.getElementById('hud').appendChild(puppetControls);
+                for(const [label,action] of [
+                    ['Unload vendor market',()=>{for(const id of ids)registry.remove(id);ids.length=0;for(const tent of tents)tent.visible=false;}],
+                    ['Revisit vendor market',()=>{if(ids.length)return;for(const place of places)ids.push(registry.add(place));for(const tent of tents)tent.visible=true;}],
+                    ['Interrupt vendor visits',()=>{for(const h of [...people.markets.records.keys()])people.markets.release(h);}],
+                ]){const b=document.createElement('button');b.textContent=label;b.onclick=action;puppetControls.appendChild(b);}
+                root.userData.cleanup=()=>{try{people.dispose();}finally{for(const id of ids)registry.remove(id);}};
                 updateFn = dt => {
                     for (const tent of tents) updateTent(tent,tod.t,tod.nightness,dt);
                     people.update(dt,observer,null);
                     const count = state => people.npcs.filter(n=>n.state===state).length;
-                    info.textContent = `${count('market_walking')} approaching · ${count('market_browsing')} browsing · ${count('market_chatting')} chatting · ${count('market_buying')} buying · ${people.npcs.reduce((n,p)=>n+(p.marketPurchases||0),0)} purchases · ${people.npcs.filter(n=>n.shoppingBagTime>0).length} bags`;
+                    info.textContent = `${people.markets.records.size} claims · ${tents.filter(t=>t.userData.market.customer).length} frontages · ${count('market_walking')} approaching · ${count('market_browsing')} browsing · ${count('market_chatting')} chatting · ${count('market_buying')} buying · ${people.npcs.reduce((n,p)=>n+(p.marketPurchases||0),0)} purchases · ${people.npcs.filter(n=>n.shoppingBagTime>0).length} bags`;
                 };
                 scene.add(root); entityRoot=root;
                 cam.target.set(-2.5,1.2,0);cam.dist=19;cam.pitch=.3;cam.yaw=.15;applyCam();
@@ -1510,9 +1566,14 @@ import {buildShrub} from './src/models/shrub.js';
                 const observer = {position: new THREE.Vector3(0,0,40), speed:0, heading:0,
                     forwardWorld:new THREE.Vector3(0,0,-1), seatSlots:[]};
                 entityRoot = people.group; currentEntity = party;
+                people.group.userData.cleanup=()=>people.dispose();
+                puppetControls=document.createElement('div');document.getElementById('hud').appendChild(puppetControls);
+                for(const [label,action] of [['Clear group',()=>party.clear()],['Respawn five monks',()=>party.spawn(new THREE.Vector3(),5)]]){
+                    const button=document.createElement('button');button.textContent=label;button.onclick=action;puppetControls.appendChild(button);
+                }
                 updateFn = dt => {
                     people.update(dt, observer, null);
-                    info.textContent = 'Five monks · loose spacing · shared destination';
+                    const status=party.status();info.textContent=`${status.count} monks · ${status.state} · ${people.peopleHandles.entries.size} population identities`;
                 };
                 cam.target.set(0, .8, 0); cam.yaw = Math.PI + .4; cam.pitch = .25; cam.dist = 16;
                 applyCam(); break;
@@ -1546,11 +1607,22 @@ import {buildShrub} from './src/models/shrub.js';
                 const observer = {position: new THREE.Vector3(0, 0, 40), speed: 0, heading: 0,
                     forwardWorld: new THREE.Vector3(0, 0, -1), seatSlots: []};
                 currentEntity = wagon; entityRoot = wagon.root;
+                const previewRoute=makeWagonRoute([{x:-16,z:0},{x:16,z:0}]);
+                entityRoot.userData.cleanup=()=>{try{wagon.previewParty?.dispose();wagon.despawn();}finally{passengers.dispose();}};
+                if(wagon.previewParty){
+                    puppetControls=document.createElement('div');document.getElementById('hud').appendChild(puppetControls);
+                    for(const [label,action] of [
+                        ['Park and board group',()=>{if(!wagon.active)return;wagon.state='parked';wagon.stopTimer=60;wagon.previewParty.cooldown=0;wagon.previewParty.reserve(wagon);}],
+                        ['Leave wagon',()=>wagon.previewParty.leave()],
+                        ['Unload wagon',()=>wagon.despawn()],
+                        ['Revisit wagon',()=>wagon.spawnOnRoute(previewRoute,8)],
+                    ]){const button=document.createElement('button');button.textContent=label;button.onclick=action;puppetControls.appendChild(button);}
+                }
                 updateFn = dt => {
                     wagon.update(dt, observer.position, false, tod.nightness);
                     registry.rebuildSpatialIndex();
                     passengers.update(dt, observer, null);
-                    if (wagon.previewParty) info.textContent = 'Monks: ' + wagon.previewParty.status().state + ' · ' + wagon.status().passengers + '/9 aboard (Bo + eight guests)';
+                    if (wagon.previewParty) info.textContent = 'Monks: ' + wagon.previewParty.status().state + ' · ' + wagon.status().passengers + '/9 aboard (Bo + eight guests) · '+passengers.seatReservations.states.size+' seat claims';
                     cam.target.copy(wagon.position); cam.target.y = 1; applyCam();
                 };
                 cam.target.set(-6, 1, 0); cam.yaw = name === 'nut_wagon_monks' ? 1 : -.65; cam.pitch = .32; cam.dist = name === 'nut_wagon_monks' ? 14 : 22;
@@ -1752,7 +1824,7 @@ import {buildShrub} from './src/models/shrub.js';
                 };
                 const photoCrowd = new Crowd(photoSmiles);
                 scene.add(photoCrowd.group);
-                const photographer = photoCrowd.spawn({
+                const photographer = photoCrowd.spawnPerson({
                     pos: new THREE.Vector3(0, 0, 0),
                     chunkKey: 'photographer-demo',
                     rng: Math.random,
@@ -1760,7 +1832,8 @@ import {buildShrub} from './src/models/shrub.js';
                 });
                 entityRoot = photoCrowd.group;
                 currentEntity = photoCrowd;
-                updateFn = (dt) => photoCrowd.update(dt, fakeZerble, null);
+                const photoView={};
+                updateFn=dt=>{photoCrowd.update(dt,fakeZerble,null);photoCrowd.readPhotographer(photographer,photoView);cam.target.set(photoView.x,photoView.y+1.15,photoView.z);applyCam();info.textContent=`${photoView.state} · photographer ${photoView.photographer?'live':'absent'} · flash ${photoView.flash.toFixed(2)}s`;};
                 const trigger = () => photoCrowd.triggerPhotographer(photographer);
                 window.__sandbox.triggerPhotographer = trigger;
                 const photoBtn = document.createElement('button');
@@ -1890,9 +1963,11 @@ import {buildShrub} from './src/models/shrub.js';
                 scene.add(parade.group);
                 currentEntity = parade;
                 entityRoot = parade.group;
+                parade.group.userData.cleanup=()=>parade.dispose();
                 updateFn = (dt) => {
-                    parade.update(dt, null);
+                    parade.update(dt, null, tod.nightness);
                     const center = parade.puppets[2].position;
+                    groundGroup.position.set(center.x,0,center.z);
                     cam.target.set(center.x, 2.6, center.z);
                     applyCam();
                 };
@@ -1930,6 +2005,21 @@ import {buildShrub} from './src/models/shrub.js';
                 cam.target.set(0, 2, 0);
                 cam.dist = 6;
                 applyCam();
+                break;
+            }
+            case 'brass_population': {
+                const population=new BrassBand({preview:true});scene.add(population.group);
+                currentEntity=population;entityRoot=population.group;
+                population.group.userData.cleanup=()=>population.dispose();
+                const panel=document.createElement('div'),status={};
+                const describe=()=>{population.inspect(status);info.textContent=`${status.disposed?'Disposed':'Running'} · ${status.population} musicians · ${status.music?'owned music handle':'no music handle'}`;};
+                for(const [label,action] of [
+                    ['Honk at formation',()=>{const lead=population.members[0];if(lead)population.scatter({position:new THREE.Vector3(lead.position.x,0,lead.position.z+4),forwardWorld:new THREE.Vector3(0,0,-1)});}],
+                    ['Dispose formation',()=>population.dispose()]
+                ]){const button=document.createElement('button');button.textContent=label;button.addEventListener('click',()=>{action();describe();});panel.appendChild(button);}
+                info.after(panel);puppetControls=panel;
+                updateFn=dt=>{population.update(dt,null);const lead=population.members[0];if(lead){groundGroup.position.set(lead.position.x,0,lead.position.z);cam.target.set(lead.position.x,1.8,lead.position.z);applyCam();}describe();};
+                cam.target.set(0,1.8,0);cam.dist=16;cam.yaw=.3;cam.pitch=.35;applyCam();
                 break;
             }
             case 'brass_band': {
@@ -1983,6 +2073,25 @@ import {buildShrub} from './src/models/shrub.js';
                 applyCam();
                 break;
             }
+            case 'wook_population': {
+                const root=new THREE.Group();scene.add(root);entityRoot=root;
+                const population=new Wooks({initialNear:6,initialFar:12});root.add(population.group);
+                const cart={position:new THREE.Vector3(),forwardWorld:new THREE.Vector3(0,0,-1),speed:0};
+                const positions=[],status={};
+                const panel=document.createElement('div');
+                const describe=()=>{population.inspect(status);info.textContent=`${status.disposed?'Disposed':'Running'} · ${status.population} wooks · ${status.approaching} approaching · ${positions.length} Trip query positions · driver ${cart.speed===0?'parked':'moving'}`;};
+                for(const [label,action] of [
+                    ['Parked honk',()=>{if(Math.abs(cart.speed)<.5)population.scatter(cart);}],
+                    ['Toggle driver motion',()=>{cart.speed=cart.speed===0?9:0;}],
+                    ['Relocate driver',()=>{cart.position.x+=800;cart.position.z+=700;groundGroup.position.set(cart.position.x,0,cart.position.z);groundGroup.scale.setScalar(6);cam.target.copy(cart.position);cam.dist=330;applyCam();}],
+                    ['Dispose population',()=>{population.dispose();population.copyPositions(positions);}]
+                ]){const button=document.createElement('button');button.textContent=label;button.addEventListener('click',()=>{action();describe();});panel.appendChild(button);}
+                info.after(panel);puppetControls=panel;
+                updateFn=dt=>{population.update(dt,cart.position,Math.abs(cart.speed));population.copyPositions(positions);describe();};
+                root.userData.cleanup=()=>population.dispose();
+                cam.target.set(0,1,0);cam.dist=35;cam.yaw=.3;cam.pitch=.45;applyCam();
+                break;
+            }
             case 'wook': {
                 const g = buildWook(Math.random);
                 scene.add(g);
@@ -1993,6 +2102,29 @@ import {buildShrub} from './src/models/shrub.js';
                 cam.pitch = .12;
                 cam.dist = 5;
                 applyCam();
+                break;
+            }
+            case 'hooper_population': {
+                const root=new THREE.Group();scene.add(root);entityRoot=root;
+                const ids=[],markers=[],positions=[[-9,0],[9,0],[0,-12]];
+                for(const [x,z] of positions){
+                    const marker=new THREE.Mesh(new THREE.CylinderGeometry(5,5,.03,24),new THREE.MeshStandardMaterial({color:0x655178,roughness:1}));
+                    marker.position.set(x,.015,z);root.add(marker);markers.push(marker);
+                }
+                const addPlaces=()=>{if(ids.length)return;for(const [x,z] of positions)ids.push(registry.add({kind:'stage_front',position:new THREE.Vector3(x,0,z),footprint:0,attractor:{radius:7,weight:2.5}}));for(const marker of markers)marker.visible=true;};
+                addPlaces();
+                const population=HulaHoopers.create();root.add(population.group);
+                const player=new THREE.Vector3(),status={},bodies=[];
+                const describe=()=>{population.inspect(status);bodies.length=0;population.appendColliders(bodies);info.textContent=`${status.disposed?'Disposed':'Running'} · ${status.population} pool identities · ${status.active} active · ${bodies.length} published bodies · ${ids.length} places`;};
+                const removePlaces=()=>{for(const id of ids)registry.remove(id);ids.length=0;for(const marker of markers)marker.visible=false;};
+                const panel=document.createElement('div');
+                for(const [label,action] of [['Remove places',removePlaces],['Restore places',addPlaces],['Dispose pool',()=>{population.dispose();removePlaces();}]]){
+                    const button=document.createElement('button');button.textContent=label;button.addEventListener('click',()=>{action();describe();});panel.appendChild(button);
+                }
+                info.after(panel);puppetControls=panel;
+                updateFn=dt=>{registry.rebuildSpatialIndex();population.update(dt,player,tod.nightness);describe();};
+                root.userData.cleanup=()=>{try{population.dispose();}finally{removePlaces();}};
+                cam.target.set(0,1,-4);cam.dist=43;cam.yaw=.2;cam.pitch=.5;applyCam();
                 break;
             }
             case 'hula_hooper':
@@ -2046,154 +2178,18 @@ import {buildShrub} from './src/models/shrub.js';
                 break;
             }
             case 'frisbee_pair': {
-                // Two players ~12m apart playing catch; disc lobs back and forth
-                // with a small random aim jitter so the catcher has to chase.
-                const playerA = buildFrisbeePlayer(Math.random);
-                const playerB = buildFrisbeePlayer(Math.random);
-                const disc = buildFrisbeeDisc(Math.random);
-                playerA.position.set(-6, 0, 0);
-                playerB.position.set(6, 0, 0);
-                disc.position.set(-6, 1.45, 0);
-                scene.add(playerA);
-                scene.add(playerB);
-                scene.add(disc);
-                entityRoot = playerA;
-
-                const state = {
-                    holder: playerA,
-                    catcher: playerB,
-                    phase: 'held',       // 'held' | 'flying' | 'landed'
-                    pauseTimer: 1.2,
-                    pauseDuration: 1.2,
-                    vel: new THREE.Vector3(),
-                    handPosition: new THREE.Vector3(),
+                const population=new Frisbees({pairCount:1,preview:true});
+                scene.add(population.group);entityRoot=population.group;currentEntity=population;
+                population.group.userData.cleanup=()=>population.dispose();
+                const status={};
+                updateFn=dt=>{
+                    population.update(dt,null,tod.nightness);population.inspect(status);
+                    info.textContent=`${status.disposed?'Disposed':'Running'} · ${status.population} player identities · ${status.discs} pair-owned disc · ${status.flying} flying`;
                 };
-                currentEntity = {playerA, playerB, disc, state};
-                const GRAVITY = 9.8 * 0.6;
-                const TOSS_SPEED = 9.5;
-                const AIM_JITTER = 0.20;
-                const PLAYER_SPEED = 2.6;
-                const CATCH_RADIUS = 0.7;
-
-                const lookAt = (player, tx, tz) => {
-                    player.rotation.y = Math.atan2(tx - player.position.x, tz - player.position.z) + Math.PI;
-                };
-                const toss = () => {
-                    const dx = state.catcher.position.x - state.holder.position.x;
-                    const dz = state.catcher.position.z - state.holder.position.z;
-                    const baseAng = Math.atan2(dx, dz);
-                    const ang = baseAng + (Math.random() - 0.5) * 2 * AIM_JITTER;
-                    const planar = TOSS_SPEED * (0.85 + Math.random() * 0.35);
-                    state.vel.set(Math.sin(ang) * planar, 4.5 + Math.random() * 1.6, Math.cos(ang) * planar);
-                    state.phase = 'flying';
-                };
-
-                updateFn = (dt) => {
-                    let actionA = 'relaxed';
-                    let actionB = 'relaxed';
-                    let amountA = 0;
-                    let amountB = 0;
-                    if (state.phase === 'held') {
-                        const duration = Math.min(0.72, state.pauseDuration);
-                        const throwPhase = THREE.MathUtils.clamp(1 - state.pauseTimer / duration, 0, 1);
-                        if (state.holder === playerA) {
-                            actionA = 'throw';
-                            amountA = throwPhase;
-                        } else {
-                            actionB = 'throw';
-                            amountB = throwPhase;
-                        }
-                    } else if (state.phase === 'flying') {
-                        const dx = disc.position.x - state.catcher.position.x;
-                        const dz = disc.position.z - state.catcher.position.z;
-                        const reach = THREE.MathUtils.clamp(1 - Math.hypot(dx, dz) / 3, 0, 1);
-                        if (state.catcher === playerA) {
-                            actionA = 'catch';
-                            amountA = reach;
-                        } else {
-                            actionB = 'catch';
-                            amountB = reach;
-                        }
-                    }
-                    tickFrisbeePlayer(playerA, dt, actionA, amountA);
-                    tickFrisbeePlayer(playerB, dt, actionB, amountB);
-                    tickFrisbeeDisc(disc, dt, state.phase, tod.nightness);
-                    if (state.phase === 'held') {
-                        lookAt(state.holder, state.catcher.position.x, state.catcher.position.z);
-                        lookAt(state.catcher, state.holder.position.x, state.holder.position.z);
-                        getFrisbeeHandPosition(state.holder, state.handPosition);
-                        disc.position.copy(state.handPosition);
-                        state.pauseTimer -= dt;
-                        if (state.pauseTimer <= 0) toss();
-                    } else if (state.phase === 'flying') {
-                        disc.position.x += state.vel.x * dt;
-                        disc.position.y += state.vel.y * dt;
-                        disc.position.z += state.vel.z * dt;
-                        state.vel.y -= GRAVITY * dt;
-                        // Predict landing point + chase
-                        const g_ = GRAVITY, catchY = 0.4, vy = state.vel.y, y0 = disc.position.y;
-                        const A = -0.5 * g_, B = vy, C = y0 - catchY;
-                        const D = B * B - 4 * A * C;
-                        let tHit = 0;
-                        if (D >= 0) {
-                            const r1 = (-B - Math.sqrt(D)) / (2 * A);
-                            const r2 = (-B + Math.sqrt(D)) / (2 * A);
-                            const cands = [];
-                            if (r1 > 0 && isFinite(r1)) cands.push(r1);
-                            if (r2 > 0 && isFinite(r2)) cands.push(r2);
-                            if (cands.length) tHit = Math.min(...cands);
-                        }
-                        const tx = disc.position.x + state.vel.x * tHit;
-                        const tz = disc.position.z + state.vel.z * tHit;
-                        const dx = tx - state.catcher.position.x;
-                        const dz = tz - state.catcher.position.z;
-                        const d = Math.hypot(dx, dz);
-                        if (d > 0.05) {
-                            const inv = 1 / d;
-                            const step = Math.min(d, PLAYER_SPEED * dt);
-                            state.catcher.position.x += dx * inv * step;
-                            state.catcher.position.z += dz * inv * step;
-                        }
-                        lookAt(state.catcher, disc.position.x, disc.position.z);
-                        lookAt(state.holder, disc.position.x, disc.position.z);
-                        const dxD = disc.position.x - state.catcher.position.x;
-                        const dzD = disc.position.z - state.catcher.position.z;
-                        if (disc.position.y < 1.7 && disc.position.y > 0.6 && Math.hypot(dxD, dzD) < CATCH_RADIUS) {
-                            // Caught — swap and pause
-                            [state.holder, state.catcher] = [state.catcher, state.holder];
-                            state.phase = 'held';
-                            state.pauseTimer = 0.7 + Math.random() * 1.0;
-                            state.pauseDuration = state.pauseTimer;
-                        } else if (disc.position.y <= 0.05) {
-                            disc.position.y = 0.05;
-                            state.phase = 'landed';
-                        }
-                    } else if (state.phase === 'landed') {
-                        const dx = disc.position.x - state.catcher.position.x;
-                        const dz = disc.position.z - state.catcher.position.z;
-                        const d = Math.hypot(dx, dz);
-                        if (d < 0.7) {
-                            [state.holder, state.catcher] = [state.catcher, state.holder];
-                            state.phase = 'held';
-                            state.pauseTimer = 0.8 + Math.random() * 1.2;
-                            state.pauseDuration = state.pauseTimer;
-                        } else {
-                            const inv = 1 / d;
-                            const step = Math.min(d, PLAYER_SPEED * dt);
-                            state.catcher.position.x += dx * inv * step;
-                            state.catcher.position.z += dz * inv * step;
-                        }
-                        lookAt(state.catcher, disc.position.x, disc.position.z);
-                        lookAt(state.holder, state.catcher.position.x, state.catcher.position.z);
-                    }
-                };
-                // Bias the midpoint left so both players remain in the open
-                // canvas instead of placing player A beneath the HUD panel.
-                cam.target.set(-3.5, 1.0, 0);
-                cam.dist = 18;
-                applyCam();
+                cam.target.set(0,1,0);cam.dist=23;cam.yaw=.3;cam.pitch=.3;applyCam();
                 break;
             }
+
             case 'performer_lead_vocal':
             case 'performer_guitar':
             case 'performer_bass':
@@ -2220,14 +2216,14 @@ import {buildShrub} from './src/models/shrub.js';
                 }
                 const people=new Crowd({spawn(){},spawnLost(){}});root.add(people.group);
                 const walker=people.spawn({pos:new THREE.Vector3(0,0,4),rng:mulberry32(44),allowPhotographer:false});
-                walker.festivalVisit={hidden:false};
+                const crossingClaim=people.claimActivity(walker.personHandle,{owner:{activityKey:'preview-crossing'}});
                 const manager=new OneWheels(root,people,{procedural:false,isWater:()=>false});
                 manager.spawnOnRoute(makeWagonRoute([{x:-8,z:4},{x:8,z:4},{x:8,z:-5},{x:-8,z:-5}]),0,771);
                 const fakeCart={position:new THREE.Vector3(0,0,35),speed:0,forwardWorld:new THREE.Vector3(0,0,1),seatSlots:[]};
                 let time=0,yields=0,resumes=0,lastState=null;
                 updateFn=dt=>{
                     time+=dt;const crossing=time%16;
-                    walker.pos.set(1,0,crossing<8?crossing:16-crossing);
+                    people.writeActivityPose(crossingClaim,1,0,crossing<8?crossing:16-crossing,crossing<8?Math.PI:0);
                     walker.vel.set(0,0,crossing<8?1:-1);walker.yaw=walker.vel.z>0?Math.PI:0;
                     people.update(dt,fakeCart,null);manager.update(dt,fakeCart.position,tod.nightness);
                     const s=manager.status()[0];
@@ -2236,7 +2232,7 @@ import {buildShrub} from './src/models/shrub.js';
                     lastState=s?.state;
                     info.textContent=s?`${s.state}: ${s.reason||'following road'} · ${s.speed.toFixed(2)} m/s · yields ${yields}, resumes ${resumes}`:'No rider';
                 };
-                root.userData.cleanup=()=>manager.dispose();
+                root.userData.cleanup=()=>{try{manager.dispose();}finally{people.dispose();}};
                 cam.target.set(0,1,0);cam.dist=24;cam.yaw=.35;cam.pitch=.32;applyCam();
                 break;
             }
@@ -2254,6 +2250,80 @@ import {buildShrub} from './src/models/shrub.js';
                         turnRate:Math.sin(time*.35)*.22,nightness:tod.nightness,time});
                 };
                 cam.target.set(0,1.1,0);cam.dist=5.5;cam.yaw=.65;cam.pitch=.08;applyCam();
+                break;
+            }
+            case 'people_workshop': {
+                const root = new THREE.Group();
+                scene.add(root); entityRoot = root;
+                const rng = mulberry32(Number(new URLSearchParams(location.search).get('seed') || 1977));
+                const smiles = new Smiles();
+                const people = new Crowd(smiles);
+                people.campTimeOfDay = tod;
+                const children = new KidGaggle({gaggleCount: 1});
+                root.add(people.group, children.group, smiles.group);
+                const cart = {position: new THREE.Vector3(0,0,20), speed: 0, heading: 0,
+                    forwardWorld: new THREE.Vector3(0,0,-1), seatSlots: []};
+                for (const [i, kid] of children.kids.entries()) {
+                    kid.position.set((i-3)*1.6,0,13);
+                    kid.userData.center.copy(kid.position);
+                }
+                const tent = buildHealingArts({rng});
+                tent.position.set(-18,0,-10); root.add(tent);
+                const healingIds = tent.userData.healingArts.poleColliders.map(p => registry.add({
+                    kind: 'workshop_pole', position: new THREE.Vector3(p.x-18,0,p.z-10),
+                    footprint: p.radius, collider: {radius:p.radius,damage:1},
+                }));
+                const activity = new HealingArtsActivity(tent, people, rng, (x,z) =>
+                    !tent.userData.healingArts.poleColliders.some(p => Math.hypot(x-p.x+18,z-p.z+10)<p.radius+.42));
+                const camp = buildCampsite(rng, 'large', {archetype:'social-lounge'});
+                camp.group.position.set(22,0,-8); root.add(camp.group);
+                const campIds = registerCampsite(registry, camp, {chunkKey:'people-workshop'});
+                for (let i=0; i<16; i++) people.spawn({
+                    pos:new THREE.Vector3(i<8 ? 20+(rng()-.5)*8 : -8+(rng()-.5)*12,0,4+rng()*8),
+                    rng,allowPhotographer:false,
+                });
+                const photographer = people.spawnPerson({pos:new THREE.Vector3(-3,0,17),rng,forcePhotographer:true});
+                const party = new MonkParty(people);
+                // Try real spawn clearance at several dry-layout candidates.
+                for (const [x,z] of [[0,0],[0,10],[5,18]]) {
+                    if (party.spawn(new THREE.Vector3(x,0,z),4)) break;
+                }
+                const workshop = new PeopleWorkshop({crowd:people,children,smiles,cart,registry,party,
+                    healing:{activity,group:tent,registryIds:healingIds,
+                        animate:(dt,time,nightness)=>updateHealingArts(tent,dt,time,nightness)},
+                    camp:{animate:(time,day)=>updateCampsiteProps(time,day.nightness,camp.animatables,day.t)},
+                    ownedRegistryIds:[...healingIds,...campIds],
+                });
+                currentEntity = workshop;
+                const panel = document.createElement('div');
+                panel.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:8px';
+                const addAction = (label, action) => {
+                    const button=document.createElement('button');button.textContent=label;
+                    button.addEventListener('click',()=>{action();describe();});panel.appendChild(button);
+                };
+                const describe = () => {
+                    const s=workshop.status();
+                    info.textContent=`${s.disposed?'Disposed':s.paused?'Paused':'Running'} · ${s.frames} frames · ${s.adults} adults · ${s.children} children · ${s.monks} monks · ${s.visitors} Healing Arts · ${s.campJobs} music jobs · ${s.collected} smiles collected · registry ${s.ownedEntries} owned / ${s.registryEntries} total`;
+                    for(const button of panel.querySelectorAll('button'))button.disabled=s.disposed;
+                };
+                addAction('Pause / resume',()=>{workshop.paused=!workshop.paused;});
+                addAction('Step 1 frame',()=>{workshop.paused=true;workshop.step(1/60,tod);});
+                addAction('Honk',()=>workshop.honk());
+                addAction('Take picture',()=>{if(photographer)people.triggerPhotographer(photographer);});
+                addAction('Unload Healing Arts',()=>workshop.unloadHealing());
+                addAction('Dispose workshop',()=>{root.userData.cleanup();root.visible=false;});
+                info.after(panel);puppetControls=panel;
+                root.userData.cleanup=()=>{
+                    workshop.dispose();
+                    root.traverse(object=>{if(object.isLight)ContextLights.unregister(object);});
+                };
+                let nextDescription=0;
+                updateFn=dt=>{
+                    workshop.update(dt,tod);
+                    if(workshop.elapsed>=nextDescription){describe();nextDescription=workshop.elapsed+.25;}
+                };
+                describe();
+                cam.target.set(1,1,1);cam.dist=76;cam.pitch=.6;cam.yaw=.25;applyCam();
                 break;
             }
             case 'healing_arts':
@@ -2280,6 +2350,8 @@ import {buildShrub} from './src/models/shrub.js';
                     elapsed += dt;
                     people?.update(dt,fakeCart,null);
                     activity?.update(dt,elapsed,tod.nightness);
+                    if(activity)activity.sample(elapsed,tod.nightness);
+                    else sampleHealingArtsPreview(g,elapsed,tod.nightness);
                     updateHealingArts(g, dt, elapsed, tod.nightness);
                     if (activity) {
                         const slots = activity.slots;
@@ -2445,13 +2517,15 @@ import {buildShrub} from './src/models/shrub.js';
                         const entry=registry.entries.get(added[0]);
                         for(const slot of entry.campSeats) {
                             const npc=people.spawn({pos:new THREE.Vector3(slot.x,0,slot.z),rng,allowPhotographer:false});
-                            npc.scale=scale;npc.state='camp_seated';npc.campSlot=slot;npc.campEntry=entry;
-                            npc.campBed=false;npc.campDwell=40;slot.occupied=true;npc.yaw=slot.yaw;
+                            npc.scale=scale;npc.state='camp_seated';npc.campY=slot.y;
+                            npc.state='idle';people.camps.tick(0,npc.personHandle,.25);
+                            const visit=people.camps.records.get(npc.personHandle);
+                            if(visit){visit.pos.set(slot.x,0,slot.z);visit.vel.set(0,0,0);visit.yaw=slot.yaw;visit.state='camp_seated';visit.stateTimer=0;visit.campDwell=40;visit.campY=slot.y;visit.publication=true;people.commitCampMotion(visit.claim,visit);}
                         }
                     }
                 }
                 people.update(0,{position:new THREE.Vector3(0,0,60),speed:0,forwardWorld:new THREE.Vector3(0,0,1),seatSlots:[]},null);
-                root.userData.cleanup=()=>{for(const npc of [...people.npcs])people.removeNpc(npc);for(const id of ids)registry.remove(id);};
+                root.userData.cleanup=()=>{try{people.dispose();}finally{for(const id of ids)registry.remove(id);}};
                 updateFn=dt=>{
                     for(const npc of people.npcs){npc.bob+=dt;npc.onDancefloor=true;npc.smileTimeCooldown=2;people._writeMatrices(npc);}
                     for(const mesh of people.group.children)if(mesh.isInstancedMesh)mesh.instanceMatrix.needsUpdate=true;
@@ -2563,9 +2637,9 @@ import {buildShrub} from './src/models/shrub.js';
                 const fakeCart={position:new THREE.Vector3(preview.district.x+60,0,preview.district.z+60),speed:0,forwardWorld:new THREE.Vector3(0,0,1),seatSlots:[]};
                 groundGroup.scale.set(8,1,8);groundGroup.position.set(preview.district.x,0,preview.district.z);
                 entityRoot=preview.group;
-                entityRoot.userData.cleanup=()=>{for(const npc of [...people.npcs])people.removeNpc(npc);preview.dispose();};
+                entityRoot.userData.cleanup=()=>{try{people.dispose();}finally{preview.dispose();}};
                 updateFn=(dt)=>{registry.rebuildSpatialIndex();people.update(dt,fakeCart,null); for(const camp of preview.camps)updateCampsiteProps(performance.now()/1000,tod.nightness,camp.animatables,tod.t);
-                    info.textContent=`${preview.camps.length} woodland camps · ${preview.trees} trees · ${people.npcs.length} people · ${people.npcs.filter(n=>n.state==='camp_seated').length} seated · ${people.npcs.filter(n=>n.state==='camp_sleeping').length} sleeping${name==='camp_jam'?' · '+people.npcs.filter(n=>n.campJam).map(n=>n.campJam.kind+': '+n.campJam.stage+' '+Math.round(n.campJam.age)+'s ('+n.pos.x.toFixed(1)+','+n.pos.z.toFixed(1)+') door ('+n.campJam.door.x.toFixed(1)+','+n.campJam.door.z.toFixed(1)+')').join(', '):''}`;
+                    info.textContent=`${preview.camps.length} woodland camps · ${preview.trees} trees · ${people.npcs.length} people · ${people.npcs.filter(n=>n.state==='camp_seated').length} seated · ${people.npcs.filter(n=>n.state==='camp_sleeping').length} sleeping${name==='camp_jam'?' · '+[...people.campJams.jobs.values()].map(job=>job.kind+': '+job.stage+' '+Math.round(job.age)+'s').join(', '):''}`;
                 };
                 info.textContent=`${preview.camps.length} camps in a real woodland district · ${preview.trees} trees · ${Math.round(preview.district.x)}, ${Math.round(preview.district.z)}`;
                 cam.target.set(preview.district.x,2,preview.district.z);cam.dist=100;cam.pitch=.6;applyCam();
@@ -2601,7 +2675,7 @@ import {buildShrub} from './src/models/shrub.js';
                 const root=new THREE.Group();root.add(cs.group);scene.add(root);
                 entityRoot = root;
                 let people = null;
-                const ids = registerCampsite(registry, cs, {chunkKey: 'camp-preview'});
+                let ids=registerCampsite(registry,cs,{chunkKey:'camp-preview'});
                 const fakeCart = {position: new THREE.Vector3(0,0,70), speed:0,
                     forwardWorld:new THREE.Vector3(0,0,1), seatSlots:[]};
                 if (['campsite_activity','camp_jam'].includes(name)) {
@@ -2612,15 +2686,20 @@ import {buildShrub} from './src/models/shrub.js';
                     for (let i=0; i<10; i++) people.spawn({pos:new THREE.Vector3(
                         (rng()-.5)*10,0,10+rng()*3),chunkKey:'camp-preview',rng,allowPhotographer:false});
                 }
-                root.userData.cleanup = () => {
-                    if (people) for (const npc of [...people.npcs]) people.removeNpc(npc);
-                    for (const id of ids) registry.remove(id);
-                };
+                if(people){
+                    puppetControls=document.createElement('div');document.getElementById('hud').appendChild(puppetControls);
+                    for(const [label,action] of [
+                        ['Unload camp',()=>{for(const id of ids)registry.remove(id);ids=[];cs.group.visible=false;}],
+                        ['Revisit camp',()=>{if(ids.length)return;ids=registerCampsite(registry,cs,{chunkKey:'camp-preview'});cs.group.visible=true;}],
+                        ['Interrupt camp activities',()=>{for(const h of [...people.campJams.jobs.keys()])people.campJams.release(h);for(const h of [...people.camps.records.keys()])people.camps.release(h);}],
+                    ]){const b=document.createElement('button');b.textContent=label;b.onclick=action;puppetControls.appendChild(b);}
+                }
+                root.userData.cleanup=()=>{try{people?.dispose();}finally{for(const id of ids)registry.remove(id);}};
                 updateFn = (dt) => {
                     registry.rebuildSpatialIndex();
                     people?.update(dt, fakeCart, null);
                     updateCampsiteProps(performance.now() / 1000, tod.nightness, cs.animatables, tod.t);
-                    if (people) info.textContent = `${people.npcs.filter(n=>n.state==='camp_seated').length} seated · ${people.npcs.filter(n=>n.state==='camp_walking').length} approaching · ${people.npcs.filter(n=>n.state==='camp_sleeping').length} sleeping${name==='camp_jam'?' · '+people.npcs.filter(n=>n.campJam).map(n=>n.campJam.kind+': '+n.campJam.stage+' '+Math.round(n.campJam.age)+'s ('+n.pos.x.toFixed(1)+','+n.pos.z.toFixed(1)+') door ('+n.campJam.door.x.toFixed(1)+','+n.campJam.door.z.toFixed(1)+')').join(', '):''}`;
+                    if (people) info.textContent = `${people.camps.records.size} rest claims · ${people.campJams.jobs.size} music claims · ${people.npcs.filter(n=>n.state==='camp_seated').length} seated · ${people.npcs.filter(n=>n.state==='camp_walking').length} approaching · ${people.npcs.filter(n=>n.state==='camp_sleeping').length} sleeping${name==='camp_jam'?' · '+[...people.campJams.jobs.values()].map(job=>job.kind+': '+job.stage+' '+Math.round(job.age)+'s').join(', '):''}`;
                 };
                 // Frame the whole site — radius scales with size.
                 const r = {small: 5, medium: 7, large: 9}[size];
@@ -2646,6 +2725,26 @@ import {buildShrub} from './src/models/shrub.js';
                 break;
             }
 
+            case 'potty_activity': {
+                const root=new THREE.Group(),people=new Crowd({spawn(){}}),model=buildPortaPotty(mulberry32(2019));
+                root.add(model.group,people.group);scene.add(root);entityRoot=root;currentEntity=root;
+                let placeId=null,place=null,handle=people.spawnPerson({pos:new THREE.Vector3(0,0,4),rng:mulberry32(813),allowPhotographer:false});
+                const addPlace=()=>{if(placeId!==null)return;const potty=createPottyState(model);potty.outX=0;potty.outZ=1;place={kind:'porta_potty',position:new THREE.Vector3(),potty};placeId=registry.add(place);model.group.visible=true;};
+                const removePlace=()=>{if(placeId!==null)registry.remove(placeId);placeId=null;model.group.visible=false;};addPlace();
+                const observer={position:new THREE.Vector3(0,0,40),speed:0,heading:0,forwardWorld:new THREE.Vector3(0,0,-1),seatSlots:[]};
+                puppetControls=document.createElement('div');document.getElementById('hud').appendChild(puppetControls);
+                for(const [label,action] of [
+                    ['Start bathroom visit',()=>people.bathrooms.tryClaim(handle)],
+                    ['Interrupt bathroom visit',()=>people.bathrooms.release(handle,'bathroom-disposed')],
+                    ['Approach unlocked occupant',()=>{if(!place?.potty.occupied)return;place.potty.locked=false;const intruder=people.spawnPerson({pos:new THREE.Vector3(0,0,2.4),rng:mulberry32(814),allowPhotographer:false});people.bathrooms.tryClaim(intruder);}],
+                    ['Ram occupied unit',()=>people.onPottyHit(place)],
+                    ['Unload bathroom',removePlace],['Revisit bathroom',addPlace],
+                ]){const b=document.createElement('button');b.textContent=label;b.onclick=action;puppetControls.appendChild(b);}
+                people.bathrooms.tryClaim(handle);const view={};
+                updateFn=dt=>{registry.rebuildSpatialIndex();people.update(dt,observer,null);if(placeId!==null)updatePortaPotty(place.potty,dt,performance.now()/1000,tod.nightness);people.readPerson(handle,view);info.textContent=`${view.state} · ${people.bathrooms.records.size} bathroom claims · ${place?.potty.occupied?1:0}/1 occupied · place ${placeId===null?'absent':'live'}`;};
+                root.userData.cleanup=()=>{try{people.dispose();}finally{removePlace();}};
+                cam.target.set(0,1.5,0);cam.yaw=.3;cam.pitch=.3;cam.dist=9;applyCam();break;
+            }
             case 'porta_potty':
             case 'porta_potty_bank': {
                 const n = name === 'porta_potty_bank' ? 5 : 1;
@@ -3334,7 +3433,8 @@ import {buildShrub} from './src/models/shrub.js';
         const slider = document.getElementById('tod-slider');
         const readout = document.getElementById('tod-readout');
         const updateReadout = () => {
-            const t = parseFloat(slider.value);
+            const t = tod.t;
+            if(!holdTimeOfDay)slider.value=String(t);
             readout.textContent = `t=${t.toFixed(2)} night=${tod.nightness.toFixed(2)}`;
         };
         slider.addEventListener('input', () => {
@@ -3567,11 +3667,11 @@ import {buildShrub} from './src/models/shrub.js';
         if (document.hidden) setTimeout(tick, 16);
         else requestAnimationFrame(tick);
         const dt = Math.min(clock.getDelta(), 0.05);
-        tod.update(dt);
+        if(!holdTimeOfDay)tod.update(dt);
         // Drive the shared lake water material's night-shimmer uniforms.
         setLakeNightness(tod.nightness, performance.now() * 0.001);
         if (updateFn) updateFn(dt);
-        if(soundInitialised && ['camp_jam','woodland_camping','campsite_activity'].includes(select.value)) {
+        if(soundInitialised && ['camp_jam','woodland_camping','campsite_activity','people_workshop'].includes(select.value)) {
             camera.getWorldDirection(_audioForward);
             Sound.updateAudioListener(camera.position.x,camera.position.y,camera.position.z,_audioForward.x,_audioForward.y,_audioForward.z);
         }

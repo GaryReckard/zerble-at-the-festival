@@ -45,7 +45,7 @@ vm.runInContext(functionSource(source('crowd.js'),'groundNpc')+';this.ground=gro
 for(const state of ['idle','walking','boarding','disembarking','camp_walking','walking_to_table']) {
  const npc={state,pos:{x:20,y:0,z:-30}};npcContext.ground(npc);close(npc.pos.y,height(20,-30));
 }
-for(const [state,property,value] of [['riding','seatY',40],['hammock_riding','hammockY',31],['camp_seated','campSlot',{y:28}],['table_seated','tableSeat',{y:24}]]) {
+for(const [state,property,value] of [['riding','seatY',40],['hammock_riding','hammockY',31],['camp_seated','campY',28],['table_seated','picnicY',24]]) {
  const npc={state,pos:{x:20,y:0,z:-30},[property]:value};npcContext.ground(npc);close(npc.pos.y,typeof value==='number'?value:value.y);
 }
 const cameraContext=vm.createContext({terrainHeight:(x,z)=>Math.abs(x-5)<1?20:0,terrainEnabled:()=>true});

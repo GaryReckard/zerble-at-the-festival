@@ -1,0 +1,117 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
+import { PeopleFrameTrace, savePeopleFrameTrace } from '../src/people/frameTrace.js';
+
+const trace = new PeopleFrameTrace({limit:2,maxPickups:1,maxColliders:1});
+const pickup = {age:0,lost:false,mesh:{id:7,position:{x:1,y:2,z:3}}};
+const collider = {kind:'kid',radius:.6,damage:3,position:{x:4,y:0,z:5}};
+let ended=0;
+trace.onEnd=()=>ended++;
+trace.mark('outside-frame');trace.end();
+assert.equal(ended,0);
+assert.equal(trace.report().frames.length,0);
+for(const dt of [NaN,-1,.1])assert.throws(()=>trace.begin(dt),RangeError);
+trace.begin(.016);
+assert.throws(()=>trace.mark('live-object',pickup),TypeError,'generic markers cannot retain actor references');
+assert.throws(()=>trace.begin(.016),/not ended/);
+trace.pickups('adults-after',{active:[pickup,pickup]});
+trace.candidates([collider,collider]);
+trace.hit({kind:'kid',damage:3,damaging:true});
+pickup.age=2;pickup.mesh.position.x=99;collider.damage=99;
+trace.end();
+assert.equal(ended,1);
+const first=trace.report();
+assert.equal(first.complete,false);
+assert.equal(first.frames[0].events[1].pickups[0].age,0);
+assert.equal(first.frames[0].events[1].pickups[0].x,1);
+assert.equal(first.frames[0].events[1].count,2);
+assert.equal(first.frames[0].events[1].truncated,true);
+assert.equal(first.frames[0].events[2].candidates[0].damage,3);
+first.frames.length=0;
+assert.equal(trace.report().frames.length,1,'reports do not expose mutable capture storage');
+trace.begin(.02);trace.hit(null);trace.end();
+assert.equal(trace.report().complete,true);
+trace.begin(.02);trace.mark('after-cap');trace.pickups('after-cap',{get active(){throw Error('must not inspect live state after cap');}});trace.end();
+assert.equal(trace.report().frames.length,2);
+assert.equal(ended,2);
+for(const options of [{limit:0},{limit:601},{maxPickups:Infinity},{maxColliders:-1}])assert.throws(()=>new PeopleFrameTrace(options),RangeError);
+// Inspection snapshots must remain independent across identity/state changes.
+const inspecting=new PeopleFrameTrace({limit:1});
+const cart={seatSlots:[{kind:'bench',occupied:true}]},wagon={state:'parked',seatSlots:[]};
+// Cart seats intentionally omit vehicle; ownership follows the actual slot list.
+const person={idx:3,state:'riding',pos:{x:1,y:2,z:3},yaw:.5,seatSlot:cart.seatSlots[0]};
+inspecting.begin(.02);inspecting.seats('seats',cart,wagon,{npcs:[person]});inspecting.population('poses',{npcs:[person],isInActivity:()=>false});
+assert.throws(()=>inspecting.restart('midframe'),/active/);
+person.pos.x=99;person.state='walking';cart.seatSlots[0].occupied=false;
+inspecting.end();
+const copied=inspecting.report().frames[0].events;
+assert.equal(copied[1].vehicles[0].riders[0].state,'riding');
+assert.equal(copied[1].vehicles[0].seats[0].occupied,true);
+assert.equal(copied[2].people[0].x,1);
+inspecting.restart('star');assert.equal(inspecting.report().frames.length,0);assert.equal(inspecting.report().scenario,'star');
+console.log('PASS people frame trace: copied state, bounded recording, inert disabled/completed frames, accepted delta, report isolation, and scope markers.');
+
+let requestCount=0;
+assert.equal(await savePeopleFrameTrace(trace,'test-people',{request:async(url,options)=>{
+  requestCount++;assert.equal(url,'/__capture/test-people');assert.equal(options.method,'POST');
+  assert.equal(JSON.parse(options.body).frames.length,2);assert(!options.signal.aborted);
+  return {ok:true,text:async()=>'saved'};
+}}),'saved');
+await assert.rejects(savePeopleFrameTrace(trace,'../outside',{request:()=>{throw Error('must not request');}}),TypeError);
+assert.equal(requestCount,1);
+await assert.rejects(savePeopleFrameTrace(trace,'test-failure',{request:async()=>({ok:false,status:403,text:async()=>'denied'})}),/403/);
+await assert.rejects(savePeopleFrameTrace(trace,'test-timeout',{timeoutMs:10,request:(url,options)=>new Promise((resolve,reject)=>{
+  options.signal.addEventListener('abort',()=>reject(new Error('capture aborted')),{once:true});
+})}),/capture aborted/);
+console.log('PASS people trace persistence: scoped capture names, server acknowledgement/rejection, and bounded request cleanup.');
+
+// Optional captured-game oracle. This validates actual real-game artifacts rather
+// than inferring simulation order from text matches or a second fake game loop.
+const required=['begin','player','bubbles','vehicles','spatial','adults-before',
+  'crowd.despawn','crowd.camp-sessions','crowd.parties','crowd.individuals',
+  'crowd.render-publication','adults-after','collection','collected','score-tick',
+  'children-before','children-after','stage-performers','healing-arts','cooks',
+  'world-before','world-after','star-before-contacts','contacts-eligible','contacts-end','render-submitted'];
+for(const file of process.argv.slice(2)) {
+  const raw=readFileSync(file), report=JSON.parse(file.endsWith('.gz')?gunzipSync(raw):raw);
+  assert.equal(report.version,1);assert(report.complete);assert.equal(report.frames.length,report.limit);
+  for(const frame of report.frames) {
+    let previous=-1;
+    for(const name of required){const index=frame.events.findIndex(e=>e.name===name);assert(index>previous,`${file}: frame ${frame.index} barrier ${name}`);previous=index;}
+    const event=name=>frame.events.find(e=>e.name===name);
+    for(const [before,after,delta] of [['adults-after','collection',frame.dt],['children-before','children-after',0]]) {
+      const a=event(before),b=event(after);
+      if(a.truncated||b.truncated)continue;
+      const ages=new Map(a.pickups.map(p=>[p.id,p.age]));
+      for(const p of b.pickups) if(ages.has(p.id)) assert(Math.abs(p.age-ages.get(p.id)-delta)<1e-8,`${file}: pickup aging at ${after}`);
+    }
+    const scoringEvents=frame.events.filter(e=>e.name==='score-collect');
+    assert.equal(scoringEvents.length,event('collected').value>0?1:0,'same-frame collection coalesces into exactly one scoring call');
+    const index=name=>frame.events.findIndex(e=>e.name===name);
+    if(scoringEvents.length)assert(index('collected')<index('score-collect')&&index('score-collect')<index('score-tick'),'collection scores before the ordinary scoring tick');
+    if(event('contacts-eligible').value){
+      assert(event('collision-candidates'));assert(event('collision-result'));
+      assert(index('contacts-eligible')<index('collision-candidates')&&index('collision-candidates')<index('collision-result')&&index('collision-result')<index('contacts-end'),'candidate publication precedes resolution and hit consequences');
+      const hit=event('collision-result').value;
+      if(hit?.kind&&!event('collision-candidates').truncated)assert(event('collision-candidates').candidates.some(c=>c.kind===hit.kind));
+    }
+  }
+  const allEvents=report.frames.flatMap(f=>f.events);
+  if(report.scenario==='contact')assert(allEvents.some(e=>e.name==='collision-result'&&e.value?.damaging),'contact scenario needs a real damaging result');
+  if(report.scenario==='stream') {
+    const begun=allEvents.filter(e=>e.name==='chunk-dispose.begin').map(e=>e.value);
+    const ended=allEvents.filter(e=>e.name==='chunk-dispose.end').map(e=>e.value);
+    assert(begun.length>0,'stream scenario must unload actual chunks');assert.deepEqual(ended,begun,'every begun disposal completes in order');
+  }
+  if(report.scenario==='star') {
+    assert(allEvents.some(e=>e.name==='star-before-contacts'&&e.value),'star scenario must activate star-love');
+    for(const f of report.frames)if(f.events.find(e=>e.name==='star-before-contacts').value)assert.equal(f.events.find(e=>e.name==='contacts-eligible').value,false,'active star bypasses contacts');
+  }
+  if(report.scenario==='seats') {
+    const snapshot=allEvents.find(e=>e.name==='scenario-seats-after');
+    assert(snapshot.vehicles.some(v=>v.riders.length>0),'seat scenario must record real rider references by slot ownership');
+  }
+  console.log(`PASS captured game: ${report.frames.length} frames from ${file}, real frame barriers, pickup ages, coalesced score routing and collision publication.`);
+}

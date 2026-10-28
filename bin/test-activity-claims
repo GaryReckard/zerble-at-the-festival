@@ -1,0 +1,57 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {ActivityClaims} from '../src/people/activityClaims.js';
+const runtime=new PeopleRuntime(),ownerToken=runtime.register({key:'test',controller:{inspect(){},dispose(){}}});
+const people=new PersonHandles({runtime,ownerToken,read(){}}),handle=people.create(0,{x:0});
+let resumes=0;const log=[];
+const claims=new ActivityClaims({people,resume(){resumes++;},eligible:(person,owner)=>owner!=='forbidden'});
+const first=claims.acquire(handle,{owner:'first',prepare(attempt){attempt.own(()=>log.push('first-resource'));return true;},release(claim){
+ assert.equal(claims.canWrite(claim),false);assert(claims.canRelease(claim));
+ assert.equal(claims.acquire(handle,{owner:'reentrant'}),null);
+ log.push('first-release');
+}});
+assert(claims.canWrite(first));assert.equal(claims.acquire(handle,{owner:'forbidden'}),null);
+assert.equal(claims.acquire(handle,{owner:'failed',prepare(attempt){attempt.own(()=>log.push('rollback'));return false;}}),null);
+assert(claims.canWrite(first));assert.deepEqual(log,['rollback']);
+assert.throws(()=>claims.acquire(handle,{owner:'exception',prepare(attempt){attempt.own(()=>log.push('exception-rollback'));throw Error('expected');}}),/expected/);
+assert(claims.canWrite(first));
+const second=claims.acquire(handle,{owner:'second'});assert(second);assert(claims.canWrite(second));
+assert.equal(claims.canWrite(first),false);assert.equal(claims.canRelease(first),false);assert.equal(claims.release(first),false);
+assert.deepEqual(log,['rollback','exception-rollback','first-release','first-resource']);
+assert.equal(resumes,0,'replacement does not resume ordinary movement in the middle');
+assert(claims.release(second));assert.equal(resumes,1);assert.equal(claims.release(second),false);
+const third=claims.acquire(handle,{owner:'third',release(claim){assert(claims.canRelease(claim));assert.equal(claims.canWrite(claim),false);}});
+people.remove(handle,()=>claims.removePerson(handle));assert.equal(resumes,1,'removal does not restore dead ordinary binding');assert.equal(claims.canWrite(third),false);
+const reused=people.create(0,{});assert.equal(claims.acquire(handle,{owner:'stale'}),null);assert.equal(claims.release(third),false);
+const fourth=claims.acquire(reused,{owner:'fourth',prepare(attempt){attempt.own(()=>log.push('fourth-resource'));return true;}});
+claims.dispose();claims.dispose();assert.equal(claims.canWrite(fourth),false);assert.equal(claims.acquire(reused,{owner:'later'}),null);assert.equal(resumes,1);assert.equal(log.at(-1),'fourth-resource');
+console.log('PASS activity claims: tentative rollback, preserved old authority, synchronous replacement, reentrant rejection, stale writes/releases, removal and owned-resource cleanup.');
+
+const interruptedPeople=new PersonHandles({runtime,ownerToken,read(){}});
+const interruptedHandle=interruptedPeople.create(2,{});let oldReleased=0,attemptReleased=0,savedAttempt;
+const interrupted=new ActivityClaims({people:interruptedPeople});
+interrupted.acquire(interruptedHandle,{owner:'old',release(){oldReleased++;}});
+assert.equal(interrupted.acquire(interruptedHandle,{owner:'new',prepare(attempt){
+ savedAttempt=attempt;attempt.own(()=>attemptReleased++);
+ interruptedPeople.remove(interruptedHandle,()=>interrupted.removePerson(interruptedHandle));return true;
+}}),null);
+assert.equal(oldReleased,1);assert.equal(attemptReleased,1);assert.equal(interrupted.current.size,0);
+assert.throws(()=>savedAttempt.own(()=>{}),/ended/);
+const asyncHandle=interruptedPeople.create(3,{});
+assert.throws(()=>interrupted.acquire(asyncHandle,{owner:'async',prepare(){return Promise.resolve(true);}}),/synchronous/);
+console.log('PASS claim transition interruption: person removal releases the old owner and rolls back tentative work; expired/async preparation is rejected.');
+
+// Rollback must free the incoming reservation before fallback can move again.
+{
+ const person=interruptedPeople.create(4,{}),events=[];
+ const ordered=new ActivityClaims({people:interruptedPeople,resume(){
+  events.push('resume');assert.equal(ordered.acquire(person,{owner:'reentrant'}),null);
+ }});
+ ordered.acquire(person,{owner:'old',release(){events.push('outgoing');throw Error('outgoing release failed');}});
+ assert.throws(()=>ordered.acquire(person,{owner:'new',prepare(attempt){attempt.own(()=>events.push('rollback'));return true;}}),error=>error instanceof AggregateError&&error.errors.some(cause=>cause.message==='outgoing release failed'));
+ assert.deepEqual(events,['outgoing','rollback','resume']);
+ assert.equal(ordered.current.size,0);
+}
+console.log('PASS failed replacement frees tentative reservations before guarded ordinary resume.');

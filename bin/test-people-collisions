@@ -1,0 +1,91 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {Vector} from './test-support/sceneObjects.mjs';
+const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const legacy=readFileSync(new URL('../verification/people/2026-10-26/legacy-collision-resolver.js',import.meta.url),'utf8');
+const contacts=readFileSync(new URL('../src/collisionContacts.js',import.meta.url),'utf8').replace(/export /g,'');
+const current=contacts.slice(contacts.indexOf('function resolveCollision('));
+const constants=contacts.split('\n').filter(line=>/^const (APPROACH_DAMAGE_THRESHOLD|SOFT_PEOPLE_KINDS) =/.test(line)).join('\n');
+const resolverFactory=code=>new Function('THREE','oneWheels','crowd',constants+'\n'+code+';return resolveCollision;');
+const oldFactory=resolverFactory(legacy),newFactory=resolverFactory(current);
+function fixture(old=true){
+ const reactions=[];
+ const resolve=(old?oldFactory:newFactory)({Vector3:Vector},{onHit:entry=>reactions.push(['wheel',entry.id])},{onZerbleHit:(npc,x,z)=>reactions.push(['person',npc.id,x,z])});
+ const cart={position:new Vector(),heading:0,speed:0,radius:.8,hits:[],applyHit(v){this.hits.push([v.x,v.y,v.z]);}};
+ const candidate=(kind,x,z,damage,passive=false)=>({position:new Vector(x,0,z),radius:.45,kind,damage,passive,entry:{id:7},npc:kind==='person'?{id:9}:null,
+  onContact(c,px,pz){if(kind==='one_wheel')reactions.push(['wheel',c.entry.id]);if(kind==='person')reactions.push(['person',9,px,pz]);},
+ });
+ return {resolve,cart,candidate,reactions};
+}
+const normalize=result=>result?JSON.parse(JSON.stringify({damaging:result.damaging,damage:result.damage,kind:result.kind,notify:result.notify,entry:result.entry?.id})):null;
+let cases=0;
+for(const kind of ['person','kid','wook','brass','hula_hoop','one_wheel','puppet','porta_potty','lurleen','stage'])for(const speed of [-10,-1.2,-1,0,1,1.2,10])for(const heading of [0,Math.PI/2,Math.PI])for(const [x,z] of [[0,-.5],[0,.5],[.5,0],[0,-2],[0,0]])for(const damage of [0,1,5])for(const passive of [false,true]){
+ const a=fixture(),b=fixture(process.argv.includes('--baseline'));
+ for(const f of [a,b]){f.cart.speed=speed;f.cart.heading=heading;}
+ const before=a.resolve(a.cart,[a.candidate(kind,x,z,damage,passive)]),after=b.resolve(b.cart,[b.candidate(kind,x,z,damage,passive)]);
+ assert.deepEqual(normalize(after),normalize(before));assert.deepEqual(b.reactions,a.reactions);
+ assert.deepEqual([b.cart.position.x,b.cart.position.z,b.cart.speed,b.cart.hits],[a.cart.position.x,a.cart.position.z,a.cart.speed,a.cart.hits]);cases++;
+}
+for(const speed of [0,1,10]){
+ const a=fixture(),b=fixture(process.argv.includes('--baseline'));
+ const results=[a,b].map(f=>{f.cart.speed=speed;return f.resolve(f.cart,[f.candidate('wook',0,-.4,5,true),f.candidate('kid',0,-3,3),f.candidate('person',0,-.5,1),f.candidate('stage',0,-.5,4)]);});
+ assert.deepEqual(normalize(results[1]),normalize(results[0]));
+}
+console.log('PASS '+cases+' exact collision cases: passive/parked policy, approach threshold, forward/reverse/contact geometry, damage/notify, selected reactions, physical nudge and first-hit order.');
+const {PeopleRuntime}=await import('../src/people/runtime.js');
+const {makePeopleCrowd,Vector:PersonVector}=await import('./test-support/peopleCrowd.js');
+const oldCollection=readFileSync(new URL('../verification/people/2026-10-26/legacy-collision-collection.js',import.meta.url),'utf8');
+const oldAdultWrapper=readFileSync(new URL('../verification/people/2026-10-26/legacy-adult-collider.js',import.meta.url),'utf8');
+const newCollection=main.slice(main.indexOf('      _collScratch.length = 0;'),main.indexOf('      peopleFrameTrace?.candidates'));
+function collection(old=false){
+ const crowd=makePeopleCrowd(),runtime=new PeopleRuntime();
+ const states=['idle','riding','boarding','disembarking','camp_sleeping','idle','idle','idle','idle','fleeing'];
+ for(let i=0;i<states.length;i++){
+  const n=crowd.spawn({pos:new PersonVector(i===7?6:i===8?6.001:.5,0,0)});n.state=states[i];
+  if(i===5)n.campJamHidden=true;if(i===6)n._activityBinding={hidden:true};
+ }
+ const entries=[{id:1,kind:'stage',position:new Vector(),collider:{radius:2,damage:4}},{id:2,kind:'one_wheel',position:new Vector(),collider:{radius:1,damage:2}}],queries=[];
+ const registry={collidersNear(x,z,r,visit){queries.push([x,z,r]);for(const e of entries)visit(e);}};
+ const names=['puppets','band','kids','wooks','hoopers','frisbees'],movers=Object.fromEntries(names.map((name,i)=>[name,{appendColliders(out){out.push({position:new Vector(i,0,2),kind:name,radius:.5,damage:3});}}]));
+ runtime.register({key:'adult',controller:{inspect(){},dispose(){}},capabilities:{colliders:(out,cart)=>crowd.appendColliders(out,cart)},capabilityOrder:{colliders:70}});
+ for(let i=names.length-1;i>=0;i--)runtime.register({key:names[i],controller:{inspect(){},dispose(){}},capabilities:{colliders:movers[names[i]].appendColliders},capabilityOrder:{colliders:(i+1)*10}});
+ const collect=new Function('registry','people','crowd',...names,`
+ const _collScratch=[],_npcColPool=[];let _regColPoolN=0,_npcColPoolN=0;
+ const _regColWrap=e=>({position:e.position,radius:e.collider.radius,damage:e.collider.damage,kind:e.kind,passive:false,entry:e});
+ ${oldAdultWrapper}
+ return zerble=>{${old?oldCollection:newCollection};return _collScratch;};`)(registry,runtime,crowd,...names.map(n=>movers[n]));
+ return {collect,crowd,queries};
+}
+{
+ const before=collection(true),after=collection(),cart={position:new Vector(),radius:.8};
+ const snapshot=rows=>rows.map(c=>[c.kind,c.position.x,c.position.y,c.position.z,c.radius,c.damage,!!c.passive,c.personHandle?.slot??c.npc?.idx??null]);
+ const old=before.collect(cart),current=after.collect(cart);assert.deepEqual(snapshot(current),snapshot(old));assert.deepEqual(after.queries,before.queries);
+ assert.equal(current.filter(c=>c.kind==='one_wheel').length,1,'registry-owned movers are not appended a second time');
+ const actor=current.find(c=>c.personHandle?.slot===0),position=actor.position;
+ for(let i=0;i<20;i++){assert.equal(after.collect(cart),current);assert.equal(current.find(c=>c.personHandle?.slot===0),actor);assert.equal(actor.position,position);}
+ assert(!Object.hasOwn(actor,'npc'));assert.notEqual(position,after.crowd.npcs[0].pos);const x=after.crowd.npcs[0].pos.x;position.x=999;assert.equal(after.crowd.npcs[0].pos.x,x);after.collect(cart);
+ assert.deepEqual(current.filter(c=>c.personHandle).map(c=>c.personHandle.slot),[0,7,9],'all original protected/hidden/broadphase exclusions, including the six-meter boundary, are preserved');
+}
+{
+ const crowd=makePeopleCrowd(),n=crowd.spawn({pos:new PersonVector(0,0,-.5)}),h=n.personHandle,out=[];
+ crowd.appendColliders(out,{position:new Vector()});const candidate=out[0];assert(candidate.onPeoplePenalty());assert(n.frownTimer>0);
+ assert(candidate.onContact(candidate,1,0));assert.equal(n.state,'fleeing');const frown=n.frownTimer;assert.equal(candidate.onPeoplePenalty(),false);assert.equal(n.frownTimer,frown);
+ crowd.removePerson(h);const replacement=crowd.spawn({pos:new PersonVector()});assert.equal(replacement.personHandle.slot,h.slot);
+ assert.equal(candidate.onContact(candidate,1,0),false);assert.equal(candidate.onPeoplePenalty(),false);assert.equal(replacement.pos.x,0);assert.equal(replacement.frownTimer,undefined);
+ assert.throws(()=>crowd.hitPerson(replacement.personHandle,NaN,0),{name:'TypeError'});
+}
+console.log('PASS collision publication: frozen registry/family/adult order, unchanged local query and exclusions, single registered-mover publication, reused array/candidates/position, copied storage and stale selected callbacks.');
+const oldPenalty=readFileSync(new URL('../verification/people/2026-10-26/legacy-people-hit-policy.js',import.meta.url),'utf8');
+const newPenalty=main.slice(main.indexOf('function registerPeopleHit('),main.indexOf('// ---- Festival Run death'));
+for(const active of [false,true])for(const over of [false,true])for(const state of ['unaware','aware','following'])for(const strikeToasts of [false,true]){
+ const logs=[];
+ for(const code of [oldPenalty,newPenalty]){
+  const events=[],ctx={RunState:{active,over},lurleen:{state,isFollowing:state==='following',scareOff(){events.push('scare');return true;}},
+   HUD:{withName:()=>'',toast:()=>events.push('heartbreak')},crowd:{frownAt:()=>events.push('frown')},VIBE:{hitStrike:2},applyVibeStrike:()=>{events.push('vibe');return strikeToasts;}};
+  const fn=runInNewContext(code+';registerPeopleHit',ctx),result=fn({npc:{},onPeoplePenalty:()=>events.push('frown')});logs.push([events,result]);
+ }
+ assert.deepEqual(logs[1],logs[0]);
+}
+console.log('PASS 24 exact people-penalty cases: inactive/over gates and scare, heartbreak, selected frown, vibe priority ordering.');

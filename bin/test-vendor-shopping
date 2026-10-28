@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {mulberry32} from '../src/rng.js';
-const crowd = readFileSync(new URL('../src/crowd.js',import.meta.url),'utf8');
-const methods = crowd.slice(crowd.indexOf('  _releaseMarket(npc) {'), crowd.indexOf('  // ----- Picnic-table seating -----'));
+// Frozen characterization remains the placement/model oracle; production behavior
+// is compared to this oracle by test-market-ownership.
+const crowd = readFileSync(new URL('../verification/people/2026-10-26/legacy-market-methods.js',import.meta.url),'utf8');
+const methods = crowd.slice(crowd.indexOf('  _releaseMarket(npc) {'), crowd.indexOf('\n}\nfunction isMarketSpotBlocked'));
 const vector = (x=0,y=0,z=0) => ({x,y,z,set(x,y,z){Object.assign(this,{x,y,z});}});
 const registry={entries:new Map(),byKind:new Map([['tent',new Set()]]),solids:[],collidersNear(x,z,r,fn){for(const e of this.solids)fn(e);}};
 let t=.25;

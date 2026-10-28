@@ -4,7 +4,6 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {performance} from 'node:perf_hooks';
 const model=readFileSync(new URL('../src/models/campsite.js',import.meta.url),'utf8');
-const crowd=readFileSync(new URL('../src/crowd.js',import.meta.url),'utf8');
 const clip=vm.runInNewContext(model.slice(model.indexOf('function clipDoorToShell('),model.indexOf('function buildTentDoor('))+';clipDoorToShell');
 // Deliberately retain the pre-optimization full triangle walk as the oracle.
 function reference(mesh,outline,offset=.004){
@@ -41,13 +40,14 @@ for(let i=0;i<300;i++){
   samples.push(outline);
 }
 console.log('PASS 300 door clipping comparisons: exact vertices/order, thin strips, reversed winding, boundaries and scales.');
-const fragment=crowd.slice(crowd.indexOf('  _campExit(npc) {'),crowd.indexOf('  // ----- Picnic-table seating -----'));
+const campActivity=readFileSync(new URL('../src/people/campActivity.js',import.meta.url),'utf8');
+const fragment=campActivity.slice(campActivity.indexOf('  _tickCamp('),campActivity.lastIndexOf('}'));
 const unbounded=fragment.replace(/        if \(camp.position && Number.isFinite\(camp.footprint\)\) \{[\s\S]*?\n        \}/,'');
 assert.notEqual(unbounded,fragment,'reference disables only the camp-center bound');
 let reads=0,campT=.6;
 const registry={entries:new Map(),byKind:new Map(),collidersNear(){}};
-const make=(text)=>new (vm.runInNewContext(`class Harness {${text}\n_writeMatrices() {}};Harness`,{registry,getTimeOfDay:()=>({t:campT}),wrapAngle:a=>a}))();
-const optimized=make(fragment),legacy=make(unbounded);
+const make=(text)=>new (vm.runInNewContext(`class Harness {${text}\n_writeMatrices() {} _acquire(npc,entry,slot,sleep){slot.occupied=true;npc.campSlot=slot;npc.campEntry=entry;npc.campBed=sleep;return true;}};Harness`,{registry,campSlotAvailable:slot=>!slot.occupied,wrapAngle:a=>a}))();
+const optimized=make(fragment),legacy=make(unbounded);for(const owner of [optimized,legacy]){owner.registry=registry;Object.defineProperty(owner,'time',{get:()=>campT});}
 const npc=(x=0,z=0)=>({idx:0,pos:{x,z},vel:{set(){}},energy:.8,yaw:0,state:'idle',stateTimer:0});
 function populate(seed){
   registry.entries.clear();const ids=new Set();

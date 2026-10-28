@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+import {riderYieldReason} from './test-support/legacy-one-wheel-yield.mjs';
+import assert from 'node:assert/strict';
+import {riderYieldForPeople} from '../src/oneWheelMotion.js';
+import {makePeopleCrowd} from './test-support/peopleCrowd.js';
+import {Vector} from './test-support/sceneObjects.mjs';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {VehiclePersonFacet} from '../src/people/vehiclePersonFacet.js';
+const crowd=makePeopleCrowd();let seed=1977;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;};
+for(let i=0;i<40;i++){const n=crowd.spawn({pos:new Vector(random()*50-25,0,random()*50-25)});n.vel.set(random()*12-6,0,random()*12-6);n.state=['walking','riding','hammock_riding','table_seated','camp_sleeping','boarding'][i%6];}
+const scratch={};
+for(let i=0;i<12000;i++){
+ const x=random()*40-20,z=random()*40-20,heading=random()*Math.PI*2,speed=random()*5,player=i%3?null:{x:random()*30-15,z:random()*30-15};
+ assert.equal(riderYieldForPeople(x,z,heading,speed,player,crowd,scratch),riderYieldReason(x,z,heading,speed,player,crowd.npcs));
+}
+const wagon={};crowd.npcs[0].party={};crowd.npcs[0].state='boarding';crowd.npcs[0].seatSlot={vehicle:wagon};assert(crowd.hasBoardingGroup(wagon));assert(!crowd.hasBoardingGroup({}));
+for(let i=0;i<100;i++){
+ const x=random()*40-20,z=random()*40-20;let count=0;crowd.forEachPersonNear(x,z,9,(_h,n)=>{if(!n.seated)count++;},scratch);
+ assert.equal(count,crowd.npcs.filter(n=>!n.seatSlot&&Math.hypot(n.pos.x-x,n.pos.z-z)<9).length);
+}
+console.log('PASS vehicle queries: 12000 exact cart/current/predicted pedestrian yield cases, original seated exclusions, 100 wagon gathering counts and vehicle-specific group boarding');
+const runtime=new PeopleRuntime(),vehicle={position:new Vector(1,2,3),state:'wandering'};
+const facet=new VehiclePersonFacet({runtime,key:'lurleen',vehicle,read:(v,out)=>{out.x=v.position.x;out.y=v.position.y;out.z=v.position.z;out.state=v.state;}});
+const view={};assert(runtime.readPerson(facet.person,view));assert.equal(view.state,'wandering');vehicle.state='following';assert(runtime.readPerson(facet.person,view));assert.equal(view.state,'following');
+let count=0;runtime.forEachPersonNear(0,0,5,()=>count++);assert.equal(count,1);assert(!runtime.capabilities.has('colliders'));assert(!runtime.capabilities.has('honk'));
+runtime.dispose();assert(!runtime.readPerson(facet.person,view));assert.equal(vehicle.position.x,1);assert.equal(vehicle.state,'following');
+const next=new PeopleRuntime(),replacement=new VehiclePersonFacet({runtime:next,key:'lurleen',vehicle,read:(v,out)=>{out.x=v.position.x;out.z=v.position.z;}});assert(!next.readPerson(facet.person,view));assert(next.readPerson(replacement.person,view));next.dispose();
+console.log('PASS persistent vehicle facet: live relationship read, explicit query-only capabilities, no physics/rig teardown, stale owner and replacement rejection');

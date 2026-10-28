@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PlaceVisitActivity} from '../src/people/placeVisit.js';
+import {FixturePopulation} from '../verification/people/fixturePopulation.js';
+import {SlotPlace,CounterPlace} from '../verification/people/fixturePlaces.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+const eligible=view=>!view.claimed&&['idle','walking'].includes(view.state);
+const protocol=owner=>Object.freeze(Object.fromEntries(['readPerson','claimActivity','writeActivityPose','setActivityBinding','endPersonActivity'].map(name=>[name,owner[name].bind(owner)])));
+for(const storage of ['crowd','map'])for(const Place of [SlotPlace,CounterPlace])for(const hidden of [false,true]) {
+ const runtime=new PeopleRuntime(),owner=storage==='crowd'?makePeopleCrowd():new FixturePopulation(runtime);
+ const person=storage==='crowd'?owner.spawnPerson({pos:new Vector()}):owner.add();
+ let entered=0,released=0;const place=new Place({onEnter(){entered++;},onRelease(){released++;}});
+ const visit=new PlaceVisitActivity({people:protocol(owner),place,eligible,hidden,duration:.2,speed:4});
+ assert(visit.start(person));assert(!visit.start(person));
+ let sawVisiting=false;
+ for(let i=0;i<200&&visit.claim;i++){
+  visit.update(.05);
+  if(visit.phase==='visiting'){
+   sawVisiting=true;assert.equal(!!(storage==='crowd'?owner.hasHiddenBinding(person):owner.records.get(person.slot).binding),hidden,'only the selected role borrows a rig');
+  }
+ }
+ assert(sawVisiting);
+ assert.equal(visit.claim,null);assert.equal(entered,1);assert.equal(released,1);
+ const out={};assert(owner.readPerson(person,out));assert(Math.abs(out.x-place.x)<.06);assert(out.z>1.9);
+ assert.equal(!!(storage==='crowd'?owner.hasHiddenBinding(person):owner.records.get(person.slot).binding),false);
+ visit.dispose();visit.dispose();runtime.dispose();
+}
+// Same-frame capacity contention preserves a losing person's existing owner.
+{
+ const runtime=new PeopleRuntime(),people=new FixturePopulation(runtime),place=new CounterPlace();
+ const a=people.add(),b=people.add();const old=people.claimActivity(b,{owner:'previous'});
+ const eligibleAny=()=>true,first=new PlaceVisitActivity({people:protocol(people),place,eligible:eligibleAny});
+ const second=new PlaceVisitActivity({people:protocol(people),place,eligible:eligibleAny});
+ assert(first.start(a));assert.equal(second.start(b),false);assert(people.claims.canWrite(old));
+ place.unload();first.update(.05);assert.equal(first.claim,null);assert.equal(place.customer,null);
+ assert(people.handles.isLive(a));runtime.dispose();
+}
+// Person-first removal revokes authority and releases the place before node cleanup.
+{
+ const runtime=new PeopleRuntime(),people=new FixturePopulation(runtime),order=[];
+ const person=people.add({cleanup:()=>order.push('node')});
+ const place=new SlotPlace({onRelease:()=>order.push('reservation')});
+ const visit=new PlaceVisitActivity({people:protocol(people),place,eligible});
+ assert(visit.start(person));const claim=visit.claim;
+ people.removePerson(person);assert.deepEqual(order,['reservation','node']);
+ assert.equal(visit.claim,null);assert(!people.writeActivityPose(claim,99,0,99));
+ visit.dispose();runtime.dispose();
+}
+console.log('PASS extension: one behavior, production adult facade plus independent Map storage, two resource adapters, visible/borrowed bindings, approach/visit/exit, contention, unload and person-first cleanup.');
+
+// Outgoing release can synchronously remove the incoming activity.
+{
+ const runtime=new PeopleRuntime(),people=new FixturePopulation(runtime),person=people.add(),place=new CounterPlace();
+ const visit=new PlaceVisitActivity({people:protocol(people),place,eligible:()=>true});
+ people.claimActivity(person,{owner:'old',release(){visit.dispose();}});
+ assert.equal(visit.start(person),false);assert.equal(people.claims.current.size,0);assert.equal(place.customer,null);
+ runtime.dispose();
+}
+console.log('PASS incoming activity disposal during handoff cannot strand authority or resources.');

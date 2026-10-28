@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {makePeopleCrowd} from './test-support/peopleCrowd.js';
 import {setSeed, queryPoint} from '../src/worldgen/index.js';
 import {heartInCell} from '../src/worldgen/hearts.js';
 import {festivalPlan, drumClearingsNear} from '../src/worldgen/festival.js';
@@ -48,10 +49,10 @@ for (const seed of [1234,42,9876,3948869160,8675309]) {
 const source=readFileSync(new URL('../src/chunks.js',import.meta.url),'utf8');
 const start=source.indexOf('export function updateHealingArtsTents(');
 const end=source.indexOf('\n// Spatial music handles',start);
-let attached=0,detached=0,animated=0;
-const tents=[{group:{position:{x:3,z:4,distanceToSquared:()=>0}},chunkKey:'test',seed:77,music:null,night:null}];
-const sound={attachStageMusic:()=>{attached++;return {stop(){}};},detachStageMusic:h=>{if(h)detached++;}};
-const context={healingArtsTents:tents,Sound:sound,updateHealingArts:()=>animated++};
+let attached=0,detached=0,animated=0;const unloadOrder=[];
+const tents=[{group:{position:{x:3,z:4,distanceToSquared:()=>0}},chunkKey:'test',seed:77,music:null,night:null,activity:{update(){},sample(){},dispose(){unloadOrder.push('borrower');}}}];
+const sound={attachStageMusic:()=>{attached++;return {stop(){}};},detachStageMusic:h=>{if(h){detached++;unloadOrder.push('music');}}};
+const context={healingArtsTents:tents,Sound:sound,updateHealingArts:()=>animated++,sampleHealingArtsPreview(){}};
 const tick=vm.runInNewContext(source.slice(start,end).replace('export function','function')+';updateHealingArtsTents',context);
 tick(.016,1,0); assert.equal(attached,0,'daytime is quiet');
 tick(.016,2,1); tick(.016,3,1); assert.equal(attached,1,'night music attaches once');
@@ -62,7 +63,9 @@ const disposeEnd=source.indexOf('\nfunction ',disposeStart);
 Object.assign(context,{registry:{removeChunk:()=>{}},vendorTents:[{chunkKey:'test'},{chunkKey:'neighbor'}],stagePerformers:[],stageMusic:[],stageLightLenses:[],stageBeamRefs:[],sugarShackCooks:[],forestAnimatables:[],forestDrumCircles:[],forestDrumMusic:[]});
 const dispose=vm.runInNewContext(source.slice(disposeStart,disposeEnd).replace('export function','function')+';disposeChunkByKey',context);
 dispose({remove:()=>{}},{traverse:()=>{}},'unrelated',null); assert.equal(tents.length,1,'unrelated unload retains tent');
-dispose({remove:()=>{}},{traverse:()=>{}},'test',null);
+unloadOrder.length=0;
+dispose({remove:()=>{unloadOrder.push('detach');}},{traverse:()=>{unloadOrder.push('gpu');}},'test',null);
+assert.deepEqual(unloadOrder,['borrower','music','gpu','detach'],'place borrowers and audio release before rig GPU disposal');
 assert.equal(tents.length,0,'unload removes animation references'); assert.equal(context.vendorTents.length,1); assert.equal(context.vendorTents[0].chunkKey,'neighbor','vendor unload retains only other owners'); assert.equal(detached,2,'unload detaches night music');
 assert(animated>=5);
 console.log(`PASS Healing Arts: ${total}/${hubs} hubs across five seeds, full-footprint clearance, spacing, determinism, night audio and unload`);
@@ -75,19 +78,15 @@ class V {
   set(x,y,z){Object.assign(this,{x,y,z});return this;}
 }
 function fixture(){
-  const participants=Array.from({length:7},(_,i)=>({x:(i-3)*2,z:1,shirt:1,skin:2,currentX:(i-3)*2,currentZ:1}));
+  const participants=Array.from({length:7},(_,i)=>({x:(i-3)*2,z:1,shirt:1,skin:2,yaw:0,phase:0,orbitPhase:0,orbitSpeed:.1,lane:3,currentX:(i-3)*2,currentZ:1}));
   const group={position:new V(30,0,20),rotation:{y:Math.PI/2},userData:{healingArts:{participants}}};
-  const crowd={npcs:[],spawn({pos,appearanceOverride}){
-    if(this.npcs.length>=60)return null;
-    const npc={idx:this.npcs.length,pos:pos.clone(),target:pos.clone(),vel:new V(),appearance:{shirt:3,skin:4,...appearanceOverride},state:'idle'};
-    this.npcs.push(npc);return npc;
-  },_writeMatrices(){}};
+  const crowd=makePeopleCrowd();
   const activity=new HealingArtsActivity(group,crowd,()=>.5);
   return {group,crowd,activity,participants};
 }
 const demo=fixture();
 assert.equal(demo.crowd.npcs.length,7,'class reserves real crowd identities');
-assert(demo.crowd.npcs.every(n=>n.festivalVisit.hidden),'yoga rig replaces the crowd render');
+assert(demo.crowd.npcs.every(n=>demo.crowd.hasHiddenBinding(n.personHandle)),'yoga rig replaces the crowd render');
 demo.activity.update(.1,0,0);
 demo.activity.update(.1,.1,.25);
 assert.equal(demo.activity.slots.filter(s=>s.role==='leaving').length,1,'class begins leaving one person at a time');
@@ -96,34 +95,36 @@ for(let i=0;i<9;i++)regular.push(demo.crowd.spawn({pos:demo.activity.point((i-4)
 for(let i=1;i<=1600;i++)demo.activity.update(.05,i*.05,1);
 assert(demo.activity.slots.some(s=>s.role==='dance'),'regular festivalgoers arrive and dance');
 for(const slot of demo.activity.slots.filter(s=>s.role==='dance')){
-  assert(regular.includes(slot.npc),'dancers were assigned from regular festivalgoers');
-  assert(slot.npc.festivalVisit.hidden,'a dancer has only one visible render');
-  assert.equal(slot.p.shirt,slot.npc.appearance.shirt,'handoff retains appearance');
+  assert(regular.some(n=>n.personHandle===slot.person),'dancers were assigned from regular festivalgoers');
+  assert(demo.crowd.hasHiddenBinding(slot.person),'a dancer has only one visible render');
+  assert.equal(slot.p.shirt,demo.crowd.peopleHandles.resolve(slot.person).appearance.shirt,'handoff retains appearance');
   assert(Number.isFinite(slot.p.entryTime),'arrival supplies a smooth orbit entry');
 }
 assert.equal(demo.crowd.npcs.length,16,'changeover did not duplicate anyone');
 demo.activity.update(.05,81,.3);
 assert.equal(demo.activity.phase,'dawn','falling light starts the dawn departure');
 demo.activity.dispose();
-assert(demo.crowd.npcs.every(n=>!n.festivalVisit),'unload restores all regular crowd members');
+assert(demo.crowd.npcs.every(n=>!demo.crowd.activitySummary(n.personHandle)),'unload restores all regular crowd members');
 assert(demo.activity.slots.every(s=>s.p.activity==='hidden'),'unload hides every reserved rig');
 const full=fixture(); full.crowd.spawn=()=>null;
-for(const slot of full.activity.slots)full.activity.releaseNpc(slot.npc);
+for(const slot of full.activity.slots)full.activity.releasePerson(slot.person);
 full.activity.update(1,1,0);
 assert(full.activity.slots.every(s=>s.p.activity==='hidden'),'crowd capacity failure never creates phantom participants');
 console.log('PASS Healing Arts: staggered real-NPC handoff, incoming assignment, appearance, bounded population, dawn and unload');
 const incoming=fixture();
-const inc=incoming.activity.slots[0];inc.role='entering';inc.npc.festivalVisit.hidden=false;
-inc.npc.pos.set(2,0,3);incoming.activity.leave(inc);
-assert.deepEqual([inc.npc.pos.x,inc.npc.pos.z],[2,3],'an interrupted arrival leaves from its real position');
-inc.npc.state='fleeing';inc.npc.stateTimer=3;inc.npc.vel.set(4,0,2);
-const runner=inc.npc;incoming.activity.releaseNpc(runner);
+const inc=incoming.activity.slots[0];inc.role='entering';incoming.crowd.setActivityBinding(inc.claim,false);
+const incNpc=incoming.crowd.peopleHandles.resolve(inc.person);
+incNpc.pos.set(2,0,3);incoming.activity.leave(inc);
+assert.deepEqual([incNpc.pos.x,incNpc.pos.z],[2,3],'an interrupted arrival leaves from its real position');
+incNpc.state='fleeing';incNpc.stateTimer=3;incNpc.vel.set(4,0,2);
+const runner=incNpc;incoming.activity.releasePerson(runner.personHandle);
 assert.equal(runner.state,'fleeing','release preserves honk and collision flee');
 assert.equal(runner.stateTimer,3);assert.equal(runner.vel.x,4);
-const walker=incoming.activity.slots[1].npc;
-const blocker=incoming.activity.slots[2].npc;
+const walkerSlot=incoming.activity.slots[1];
+const walker=incoming.crowd.peopleHandles.resolve(walkerSlot.person);
+const blocker=incoming.crowd.peopleHandles.resolve(incoming.activity.slots[2].person);
 walker.pos.set(0,0,0);blocker.pos.set(.05,0,0);
 const oldPos=walker.pos.clone();
-incoming.activity.move(walker,new V(10,0,0),.02);
+incoming.activity.move(walkerSlot,new V(10,0,0),.02);
 assert.deepEqual(walker.pos,oldPos,'walkers yield to a person using the alternate tent rig');
 console.log('PASS Healing Arts: interrupted arrivals, flee preservation and rig-aware walking separation');

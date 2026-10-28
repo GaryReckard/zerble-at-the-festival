@@ -78,7 +78,9 @@ export class Smiles {
   // A smile leaving Zerble for a grumpy NPC. Spawns at `fromPos`, homes to the
   // NPC (tracked live as it walks away), then fades — purely a visual cue that
   // you lost a smile (the score deduction happens in crowd.onFrown).
-  spawnLost(fromPos, npc) {
+  spawnLost(fromPos, person, people) {
+    const target={};
+    if(!people?.read(person,target))return false;
     const mesh = new THREE.Mesh(this._geo, this._lostMat);
     mesh.position.copy(fromPos);
     mesh.position.y += 1.4;
@@ -90,7 +92,8 @@ export class Smiles {
     if (A11y.colorblind) {
       mesh.add(new THREE.Mesh(this._minusGeo, this._minusMat));
     }
-    this.active.push({ mesh, halo, age: 0, seeking: false, lost: true, npc });
+    this.active.push({ mesh, halo, age: 0, seeking: false, lost: true, person, people, target });
+    return true;
   }
 
   spawn(worldPos) {
@@ -125,7 +128,10 @@ export class Smiles {
       // Reverse "lost smile": fly from Zerble out to the (moving) grumpy NPC,
       // then fade. No collection, no score change.
       if (s.lost) {
-        const toNpc = this._toTarget.set(s.npc.pos.x, s.npc.pos.y + 1.5, s.npc.pos.z).sub(s.mesh.position);
+        // A removed lifetime leaves the last valid target in caller-owned
+        // scratch, rather than following a recycled population slot.
+        s.people.read(s.person,s.target);
+        const toNpc = this._toTarget.set(s.target.x, s.target.y + 1.5, s.target.z).sub(s.mesh.position);
         const dist = toNpc.length();
         if (s.age < RISE_TIME) {
           s.mesh.position.y += RISE_SPEED * dt;

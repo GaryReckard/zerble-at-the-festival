@@ -69,8 +69,8 @@ export function createDebugCommands(actions, targets, targetDescriptions, worldg
   add('where','Show world coordinates and heading','where',[],()=>actions.where());
   add('seed','Show the current procedural seed','seed',[],()=>actions.seed());
   add('status','Show simulation, world and rendering status','status',[],()=>actions.status());
-  add('inspect','Inspect nearby camps, NPC states, audio or world counts','inspect <camps|npcs|audio|world>',[['camps','npcs','audio','world']],args=>{
-    if(args.length!==1||!['camps','npcs','audio','world'].includes(args[0]))return use('inspect');
+  add('inspect','Inspect people controllers, nearby camps, NPC states, audio or world counts','inspect <people|camps|npcs|audio|world>',[['people','camps','npcs','audio','world']],args=>{
+    if(args.length!==1||!['people','camps','npcs','audio','world'].includes(args[0]))return use('inspect');
     return actions.inspect(args[0]);
   });
   add('camera','Switch to chase or a top-down view; optional span in metres','camera <chase|top> [20..600]',[['chase','top'],args=>args[0]==='top'?['60','120','240','480']:[]],args=>{

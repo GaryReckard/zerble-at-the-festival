@@ -9,6 +9,7 @@ reproduction lead, not proof that the current build still has the problem.
 - [Bugs](#bugs)
 - [World generation](#world-generation-procedural-map)
 - [Performance and phone validation](#performance)
+- [People and NPC architecture](#people-and-npc-architecture)
 - [Feature plans and decisions](docs/README.md#plans-and-backlog)
 
 ---
@@ -25,6 +26,23 @@ comparisons and device performance acceptance. Gary's positive mobile report
 covers the authored driving proof; it does not establish full-game iOS acceptance.
 The new tent support-plane fix still needs visual checks across shelter families
 and terrain creases.
+
+## People and NPC architecture
+
+The [people/NPC refactor](openspec/changes/people-npc-architecture/README.md) now
+implements explicit person/activity/resource ownership, registered specialized
+populations, ordered participation and accepted actor clocks. Its
+[extension guide](openspec/changes/people-npc-architecture/extension-guide.md),
+[before/after visual](verification/people/architecture.html) and
+[acceptance/limits](openspec/changes/people-npc-architecture/acceptance.md) explain
+current eligibility and measured results. The implementation is no longer a
+population-migration backlog.
+
+- Physical iPhone/Safari audio and mobile GPU acceptance remain unmeasured here;
+  muted Mac runs do not substitute for device checks.
+- New gameplay such as food-truck service or child participation in adult venues
+  requires explicit compatibility/selection and place adapters. The refactor
+  supplies and proves that integration boundary without silently enabling it.
 
 ## Nut Wagon follow-ups
 

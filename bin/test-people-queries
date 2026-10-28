@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+const source=readFileSync(new URL('../verification/people/2026-10-26/legacy-person-query.js',import.meta.url),'utf8').replace('export class','class');
+const Oracle=runInNewContext(source+';QueryOracle');
+const crowd=makePeopleCrowd();
+for(let i=0;i<100;i++)crowd.spawn({pos:new Vector(i%10-5,i*.01,Math.floor(i/10)-5)});
+for(const radius of [0,.1,1,2,5,9,Number.MAX_VALUE])for(const x of [-5,0,3])for(const z of [-4,0,5]) {
+ const actual=[],expected=[];
+ crowd.forEachPersonNear(x,z,radius,(h,v,d)=>actual.push([h,{...v},d]));
+ Oracle.prototype.forEachPersonNear.call(crowd,x,z,radius,(h,v,d)=>expected.push([h,{...v},d]));
+ assert.deepEqual(actual,expected);
+}
+const scratch={},held=[];
+crowd.forEachPersonNear(0,0,9,(h,v)=>{held.push(v);return held.length<3;},scratch);
+assert.equal(held.length,3);assert(held.every(v=>v===scratch));
+const snapshot={...scratch};crowd.npcs[0].pos.x=123;assert.deepEqual(scratch,snapshot);
+// The public runtime reads and selects multiple storage owners without exposing them.
+const runtime=new PeopleRuntime();
+const fixtures=[];
+for(const [key,order] of [['second',20],['first',10]]){
+ const owner=makePeopleCrowd();owner.spawn({pos:new Vector(1,0,0)});owner.spawn({pos:new Vector(2,0,0)});
+ const controller={inspect(){},dispose(){owner.peopleHandles.dispose();},readPerson:owner.readPerson.bind(owner),forEachPersonNear:owner.forEachPersonNear.bind(owner)};
+ const token=runtime.register({key,controller,capabilities:{nearby:controller.forEachPersonNear},capabilityOrder:{nearby:order}});
+ // These fixtures use the production population query/read methods, with its
+ // normal directory bound to this runtime registration.
+ owner.peopleHandles.runtime=runtime;owner.peopleHandles.ownerToken=token;
+ owner.peopleHandles.entries.clear();owner.peopleHandles.byRecord=new WeakMap();
+ for(const n of owner.npcs)n.personHandle=owner.peopleHandles.create(n.idx,n);
+ fixtures.push({owner,token,key});
+}
+const order=[],queryScratch={};
+assert.equal(runtime.forEachPersonNear(0,0,9,(h,v)=>{order.push(h.ownerToken);assert.equal(v,queryScratch);},{scratch:queryScratch}),4);
+assert.deepEqual(order,[fixtures[1].token,fixtures[1].token,fixtures[0].token,fixtures[0].token]);
+let visits=0;
+assert.equal(runtime.forEachPersonNear(0,0,9,()=>{visits++;return false;}),1);assert.equal(visits,1);
+const eligible=[];
+runtime.forEachPersonNear(0,0,9,(h,v)=>eligible.push(v.x),{populations:new Set(['second']),filter:(_h,v)=>v.x===2,scratch:queryScratch});assert.deepEqual(eligible,[2]);
+const h=fixtures[0].owner.npcs[0].personHandle;
+assert(runtime.readPerson(h,queryScratch));fixtures[0].owner.removePerson(h);assert(!runtime.readPerson(h,queryScratch));
+for(const bad of [NaN,-1,Infinity])assert.throws(()=>runtime.forEachPersonNear(0,0,bad,()=>{}));
+assert.throws(()=>runtime.forEachPersonNear(0,0,9,()=>{},{populations:['first']}));
+let nested=0;
+runtime.forEachPersonNear(0,0,9,(_h,v)=>{const before={...v};runtime.forEachPersonNear(1,0,1.1,()=>{nested++;},{scratch:{}});assert.deepEqual(v,before);},{scratch:{}});assert(nested>0);
+runtime.dispose();assert(!runtime.readPerson(h,queryScratch));assert.equal(runtime.forEachPersonNear(0,0,9,()=>{throw Error('disposed visit');}),0);
+crowd.peopleHandles.dispose();
+console.log('PASS nearby queries: 63 exact legacy scans, strict radius/order/early-stop, caller scratch, population and candidate filters, nested queries, stale reads and stopped-owner rejection');

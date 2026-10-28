@@ -207,7 +207,7 @@ export function buildHulaHooper(rng = Math.random) {
 }
 
 // Per-frame animation tick. Pure function over the model + a phase value.
-// Game (obstacles.js) and sandbox (sandbox.html) both call this so the
+// Game (people/hoopers.js) and sandbox (sandbox.html) both call this so the
 // motion definition lives in ONE place — no more drift between the two.
 // `nightness` (0..1) drives the hoop's emissive bump.
 //

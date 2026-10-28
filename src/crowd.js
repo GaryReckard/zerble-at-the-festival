@@ -1,3 +1,15 @@
+import {CampActivity} from './people/campActivity.js';
+import {MarketActivity} from './people/marketActivity.js';
+import {PottyActivity} from './people/pottyActivity.js';
+import {PicnicActivity} from './people/picnicActivity.js';
+import {HammockActivity} from './people/hammockActivity.js';
+import {SeatReservations} from './people/seatReservations.js';
+import {GroupParticipation,publishGroupBinding,hideGroupBinding,releaseGroupBinding} from './people/groupParticipation.js';
+import {canSmile,movedSinceSmile,resetSmile} from './people/smilePolicy.js';
+import { PeopleRuntime } from './people/runtime.js';
+import { PersonHandles } from './people/personHandle.js';
+import {disposeSceneResources} from './people/sceneResources.js';
+import { ActivityClaims } from './people/activityClaims.js';
 import { mulberry32 } from './rng.js';
 import { terrainHeight } from './worldgen/terrain.js';
 // Crowd v2: pool of stateful NPCs spawned by chunks.
@@ -31,15 +43,14 @@ import { SpatialGrid } from './spatialGrid.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { CHUNK_SIZE } from './chunks.js';
 import { DODGE, laneDodgeTest, laneDodgeDir, laneDodgeUrgency, honkScatterParams } from './steering.js';
-import { STINK_DUR, POTTY_DOOR_STAND, POTTY_SEAT_BACK, POTTY_SEAT_Y } from './models/portaPotty.js';
 import {
-  PHOTO_POSE_DURATION,
   PHOTO_FLASH_DURATION,
   PHOTO_STATE_NOTICE,
   PHOTO_STATE_POSE,
   advancePhotographerShot,
   isPhotographerState,
   photographerProfile,
+  samplePhotographerPose,
   startPhotographerShot,
   tickPhotographerOpportunity,
 } from './photographer.js';
@@ -115,10 +126,7 @@ const ARRIVE_RADIUS = 1.5;
 // not a stampede — at this rate you'll see one or two of a crowd peel off over
 // a minute. The search radius is generous (a potty a chunk over still counts).
 const POTTY_URGE_RATE = 0.0025;      // per-second chance from idle (kept low — ~a couple % of the crowd in a potty trip at any time)
-const POTTY_SEARCH_R2 = 90 * 90;     // only consider units within 90m
-const POTTY_USE_MIN = 6;             // seconds spent inside
-const POTTY_USE_MAX = 13;
-const POTTY_LOCK_CHANCE = 0.7;       // odds the occupant locks the door
+
 
 // Cheer: NPCs within this radius of a song-end position cheer for 5s.
 const CHEER_RADIUS = 16;
@@ -126,7 +134,15 @@ const CHEER_RADIUS_SQ = CHEER_RADIUS * CHEER_RADIUS;
 // Jump parameters: positive-half sine only so NPCs hop up, not bob through floor.
 const HOP_HZ = 2 * Math.PI * 2.6;
 const HOP_HEIGHT = 0.32;
-const PHOTOGRAPHER_ELIGIBLE = new Set(['idle', 'walking', 'watching', 'approaching']);
+const ORDINARY_SOCIAL_STATES = new Set(['idle', 'walking', 'watching', 'approaching']);
+const POTTY_STATES=Object.freeze({seeking_potty:'seeking_potty',entering_potty:'entering_potty',using_potty:'using_potty',exiting_potty:'exiting_potty',surprised_potty:'surprised_potty',idle:'idle',walking:'walking',fleeing:'fleeing'});
+const CAMP_STATES=Object.freeze({camp_walking:'camp_walking',camp_seated:'camp_seated',camp_sleeping:'camp_sleeping',idle:'idle',walking:'walking',fleeing:'fleeing'});
+const CAMP_MUSIC_STATES=Object.freeze({...CAMP_STATES,camp_music_walk:'camp_music_walk',camp_music_standing:'camp_music_standing'});
+const MARKET_STATES=Object.freeze({market_walking:'market_walking',market_browsing:'market_browsing',market_chatting:'market_chatting',market_buying:'market_buying',idle:'idle',walking:'walking',fleeing:'fleeing',watching:'watching',approaching:'approaching'});
+const PICNIC_STATES=Object.freeze({approach:'walking_to_table',seated:'table_seated',idle:'idle'});
+const HAMMOCK_STATES=Object.freeze({approach:'walking_to_hammock',swing:'hammock_riding',idle:'idle'});
+const HAMMOCK_OPTIONAL_FIELDS=Object.freeze(['rideTimer','hammockBob','hammockY']);
+const REST_MOTION_FIELDS=Object.freeze(['x','z','heading','vx','vy','vz','stateTimer','targetX','targetY','targetZ']);
 
 const BODY_RADIUS = 0.26;
 const BODY_LENGTH = 0.55;
@@ -136,17 +152,18 @@ const BODY_SEATED_BOTTOM = BODY_CENTER_Y - BODY_LENGTH / 2 - BODY_RADIUS;
 function groundNpc(npc) {
   if (npc.state === 'riding' && npc.seatY != null) npc.pos.y = npc.seatY;
   else if (npc.state === 'hammock_riding' && npc.hammockY != null) npc.pos.y = npc.hammockY;
-  else if (npc.state === 'camp_seated' && npc.campSlot) npc.pos.y = npc.campSlot.y;
-  else if (npc.state === 'table_seated' && npc.tableSeat) npc.pos.y = npc.tableSeat.y;
+  else if (npc.state === 'camp_seated' && npc.campY!==undefined) npc.pos.y = npc.campY;
+  else if (npc.state === 'table_seated' && npc.picnicY!=null) npc.pos.y = npc.picnicY;
   else if (npc.pottySitting && npc.seatY != null) npc.pos.y = npc.seatY;
   else npc.pos.y = terrainHeight(npc.pos.x, npc.pos.z);
 }
 
 export class Crowd {
-  constructor(smiles) {
+  constructor(smiles, {runtime=null,key='crowd',collisionOrder=70,honkOrder=10}={}) {
+    if(!Number.isFinite(collisionOrder)||!Number.isFinite(honkOrder))throw new TypeError('Crowd capability order must be finite.');
     this.smiles = smiles;
     // Set true from main.js when Zerble's bubble tank is dry — NPCs frown
-    // instead of smile. `onFrown(npc)` fires when a frown lands (score sink).
+    // instead of smile. `onFrown(handle)` fires when a frown lands (score sink).
     this.bubblesEmpty = false;
     // Set true from main.js while the star-power love buff is active — gates
     // the proximity flee so nobody runs from a Zerble everyone's smitten with.
@@ -179,6 +196,30 @@ export class Crowd {
     this._hairDrawCounts = CROWD_HAIR_STYLES.map(() => 0);
 
     this._buildInstanced();
+    this._disposed=false;this.actorTime=0;
+    this.peopleRuntime=runtime??new PeopleRuntime();
+    this.ownerToken=this.peopleRuntime.register({key,controller:this,
+      schedule:[{slot:'adults',run(dt,frame){this.update(dt,frame.zerble,frame.bubbles);}},{slot:'star-love',run(dt,frame){this.applyStarLove(frame.zerble,dt);}}],
+      capabilities:{honk:this.applyHonk,colliders:this.appendColliders,nearby:this.forEachPersonNear,cheer:this.cheerNear},
+      capabilityOrder:{nearby:collisionOrder,colliders:collisionOrder,honk:honkOrder},
+    });
+    this.peopleHandles=new PersonHandles({runtime:this.peopleRuntime,ownerToken:this.ownerToken,
+      read:(npc,out)=>this._readPerson(npc,out),
+    });
+    this.peopleView=this.peopleHandles.view;
+    this.seatReservations=new SeatReservations(this.peopleHandles);
+    this.activityClaims=new ActivityClaims({people:this.peopleHandles,
+      eligible:handle=>this._canAcquireActivity(handle),
+      resume:(handle,reason,claim)=>this._resumeActivityPerson(handle,reason,claim),
+      finalize:claim=>this._finalizeActivityRelease(claim),
+    });
+    this.hammocks=new HammockActivity(this,registry);
+    this.picnics=new PicnicActivity(this,registry);
+    this.bathrooms=new PottyActivity(this,registry);
+    this.markets=new MarketActivity(this,registry);
+    this.camps=new CampActivity(this,registry);
+    this.campJams=new CampJamActivity(this);
+    this._inlineActivities=new Set([this.hammocks,this.picnics,this.bathrooms,this.markets,this.camps,this.campJams]);
   }
 
   _buildInstanced() {
@@ -479,7 +520,6 @@ export class Crowd {
     this.shoppingBagMesh.castShadow = false;
 
     this.group = new THREE.Group();
-    this.campJams = new CampJamActivity(this);
     this.group.name = 'Crowd';
     for (const m of allMeshes) this.group.add(m);
 
@@ -525,6 +565,7 @@ export class Crowd {
     this._mouthLocalMat = new THREE.Matrix4();
     this._flashLocalMat = new THREE.Matrix4();
     this._flashMat = new THREE.Matrix4();
+    this._photoRenderProfile={};
     this._identityQuat = new THREE.Quaternion();
     // 180° about Z flips the smile arc into a frown (mouth geo is symmetric
     // about Y, so the x-mirror is harmless).
@@ -575,7 +616,7 @@ export class Crowd {
 
   // Called by chunk generator.
   spawn({ pos, chunkKey, rng = Math.random, forcePhotographer = false, allowPhotographer = true, appearanceOverride = null }) {
-    if (this.free.length === 0) return null;
+    if (this._disposed || this.free.length === 0) return null;
     const idx = this.free.pop();
 
     // Personality
@@ -662,21 +703,12 @@ export class Crowd {
       shuffleTimer: undefined,
       shuffleTarget: null,
       // After the NPC walks away, they won't re-engage with Zerble for
-      // this many seconds (epoch time). Lets you actually leave a crowd
+      // this many seconds (accepted population time). Lets you actually leave a crowd
       // behind instead of being permanently mobbed.
       disinterestedUntil: 0,
 
-      // Porta-potty seeking. pottyEntry = the registry entry being targeted;
-      // pottyTried = ids already attempted (occupied/locked) so "next closest"
-      // skips them. Both null/undefined until an urge strikes (see 'idle').
-      pottyEntry: null,
-      pottyTried: null,
-      pottyWait: 0,
-
-      // Picnic-table seating. tableEntry = the registry entry; tableSeat = the
-      // claimed world-space seat slot ({x,z,y,yaw,occupied}). Null until they sit.
-      tableEntry: null,
-      tableSeat: null,
+      // A seated display height, with reservation authority held by the activity.
+      picnicY: undefined,
 
       chunkKey,
     };
@@ -693,6 +725,7 @@ export class Crowd {
     }
 
     this.npcs.push(npc);
+    npc.personHandle=this.peopleHandles.create(npc.idx,npc);
 
     // Track the highest-ever slot index so we can narrow draw count each frame.
     if (idx > this._maxIdx) this._maxIdx = idx;
@@ -743,35 +776,34 @@ export class Crowd {
   // Cheap debug/sandbox trigger. If the loaded crowd has no organic
   // photographer, promote one existing NPC with the same isolated profile
   // initializer, then run the real notice -> pose -> flash state machine.
-  forcePhotographer(npc = null) {
-    const target = npc || this.npcs.find((n) => n.isPhotographer) ||
-      this.npcs.find((n) => PHOTOGRAPHER_ELIGIBLE.has(n.state)) || this.npcs[0];
-    if (!target) return null;
-    if (!target.isPhotographer) {
-      Object.assign(target, photographerProfile(target.pos, true));
-      target.photoSlot = this._photoFree.pop();
-      this._photographerCount++;
-      if (target.photoSlot + 1 > this._photoDrawCount) this._photoDrawCount = target.photoSlot + 1;
+  _photographerTarget(handle,requireRole=false) {
+    const eligible=n=>this.peopleHandles.isLive(n.personHandle)&&!n.party&&!n.seatSlot&&!this.activityClaims.current.has(n.personHandle)
+      &&(ORDINARY_SOCIAL_STATES.has(n.state)||isPhotographerState(n.state))&&(!requireRole||n.isPhotographer);
+    if(handle!==null){const n=this.peopleHandles.resolve(handle);return n&&eligible(n)?n:null;}
+    return this.npcs.find(n=>n.isPhotographer&&eligible(n))??(!requireRole?this.npcs.find(eligible):null)??null;
+  }
+  forcePhotographer(handle=null) {
+    const target=this._photographerTarget(handle);if(!target)return null;
+    if(!target.isPhotographer){
+      if(!this._photoFree.length)return null;
+      Object.assign(target,photographerProfile(target.pos,true));target.photoSlot=this._photoFree.pop();this._photographerCount++;
+      this._photoDrawCount=Math.max(this._photoDrawCount,target.photoSlot+1);
     }
-    startPhotographerShot(target);
-    this._writeMatrices(target);
-    return target;
+    startPhotographerShot(target);this._writeMatrices(target);return target.personHandle;
   }
-
-  triggerPhotographer(npc = null) {
-    const target = npc || this.npcs.find((n) => n.isPhotographer);
-    if (!target) return null;
-    startPhotographerShot(target);
-    this._writeMatrices(target);
-    return target;
+  triggerPhotographer(handle=null) {
+    const target=this._photographerTarget(handle,true);if(!target)return null;
+    startPhotographerShot(target);this._writeMatrices(target);return target.personHandle;
   }
-
-  previewPhotographerFlash(npc = null, duration = 0.6) {
-    const target = npc || this.npcs.find((n) => n.isPhotographer);
-    if (!target) return null;
-    target.photoFlashTimer = Math.max(PHOTO_FLASH_DURATION, duration);
-    this._writeMatrices(target);
-    return target;
+  previewPhotographerFlash(handle=null,duration=.6) {
+    const target=handle===null?this.npcs.find(n=>n.isPhotographer&&this.peopleHandles.isLive(n.personHandle)):this.peopleHandles.resolve(handle);
+    if(!target?.isPhotographer)return null;
+    if(!Number.isFinite(duration)||duration<0)throw new TypeError('Photographer preview duration must be finite and nonnegative.');
+    target.photoFlashTimer=Math.max(PHOTO_FLASH_DURATION,duration);this._writeMatrices(target);return target.personHandle;
+  }
+  readPhotographer(handle,out) {
+    const n=this.peopleHandles.resolve(handle);if(!n)return false;
+    this.peopleHandles.readOwnedRecord(n,out);out.photographer=!!n.isPhotographer;out.crouch=!!n.photoCrouch;out.flash=n.photoFlashTimer??0;return true;
   }
 
   // Trigger a cheer wave centered at (x, z) — called by main.js when a song ends.
@@ -806,115 +838,43 @@ export class Crowd {
   // Despawn NPCs farther than DESPAWN_RADIUS from Zerble. Skips riders and
   // boarders so passengers can't get yanked off the cart. Called from update().
   _despawnDistant(zerble) {
-    const zx = zerble.position.x;
-    const zz = zerble.position.z;
-    const kept = [];
-    const zero = this._zeroMat || (this._zeroMat = new THREE.Matrix4().makeScale(0, 0, 0));
-    let freed = 0;
-    for (const npc of this.npcs) {
-      if (npc.party || npc.state === 'riding' || npc.state === 'boarding') {
-        kept.push(npc);
-        continue;
+    if(this._removalSweep)return;
+    const zx=zerble.position.x,zz=zerble.position.z,kept=[];
+    let freed=0;let errors=null;
+    this._removalSweep=true;this._removedDuringSweep=false;
+    try {
+      for(const npc of this.npcs) {
+        if(npc._removing){freed++;continue;}
+        if(npc.party||npc.state==='riding'||npc.state==='boarding'){kept.push(npc);continue;}
+        const dx=npc.pos.x-zx,dz=npc.pos.z-zz;
+        if(dx*dx+dz*dz>DESPAWN_R2){try{this._releaseNpc(npc);}catch(error){(errors??=[]).push(error);}freed++;}
+        else kept.push(npc);
       }
-      const dx = npc.pos.x - zx;
-      const dz = npc.pos.z - zz;
-      if (dx * dx + dz * dz > DESPAWN_R2) {
-        if (npc.seatSlot) {
-          npc.seatSlot.occupied = false;
-          npc.seatSlot = null;
-        }
-        // Release any hammock claim so it can be re-used.
-        if (npc.hammockEntry && npc.hammockEntry.hammock) {
-          npc.hammockEntry.hammock.occupied = false;
-          npc.hammockEntry = null;
-        }
-        // Release any porta-potty claim (don't leave a unit stuck "occupied").
-        if (npc.pottyEntry) { this._releasePotty(npc); }
-        // Release any picnic-table seat claim (don't strand a seat "occupied").
-        if (npc.tableSeat) { this._releaseTable(npc); }
-        this._releaseMarket(npc);
-        this._releaseCamp(npc);
-        // Remove from any group it belonged to so dead idx's don't leak.
-        if (npc.groupId) {
-          const g = this.groups.get(npc.groupId);
-          if (g) {
-            const i = g.members.indexOf(npc.idx);
-            if (i >= 0) g.members.splice(i, 1);
-            if (g.members.length === 0) this.groups.delete(npc.groupId);
-          }
-        }
-        this.shoppingBagMesh.setMatrixAt(npc.idx, zero);
-        this.legsMesh.setMatrixAt(npc.idx, zero);
-        this.shoesMesh.setMatrixAt(npc.idx, zero);
-        this.bodyMesh.setMatrixAt(npc.idx, zero);
-        this.armsMesh.setMatrixAt(npc.idx, zero);
-        this.headMesh.setMatrixAt(npc.idx, zero);
-        this.eyesMesh.setMatrixAt(npc.idx, zero);
-        this.mouthMesh.setMatrixAt(npc.idx, zero);
-        this.hairMeshes[npc.appearance.hairStyle].setMatrixAt(npc.hairSlot, zero);
-        this._hairFree[npc.appearance.hairStyle].push(npc.hairSlot);
-        npc.hairSlot = -1;
-        if (npc.drinkSlot >= 0) {
-          this.drinkMesh.setMatrixAt(npc.drinkSlot, zero);
-          this._drinkFree.push(npc.drinkSlot);
-          npc.drinkSlot = -1;
-        }
-        if (npc.isPhotographer) {
-          this.cameraMesh.setMatrixAt(npc.photoSlot, zero);
-          this.flashMesh.setMatrixAt(npc.photoSlot, zero);
-          this._photoFree.push(npc.photoSlot);
-          this._photographerCount--;
-        }
-        this.free.push(npc.idx);
-        freed++;
-      } else {
-        kept.push(npc);
-      }
+    } finally {this._removalSweep=false;}
+    if(freed||this._removedDuringSweep){
+      // Borrower callbacks can remove a peer already visited by this sweep.
+      // Keep the source array stable until traversal ends, then compact once.
+      let live=0;for(const npc of kept)if(!npc._removing)kept[live++]=npc;
+      kept.length=live;this.npcs=kept;this._publishPopulationRanges();
     }
-    if (freed > 0) {
-      this.npcs = kept;
-      this._maxIdx = -1;
-      for (const npc of kept) this._maxIdx = Math.max(this._maxIdx, npc.idx);
-      let photoHigh = -1;
-      for (const npc of kept) {
-        if (npc.isPhotographer && npc.photoSlot > photoHigh) photoHigh = npc.photoSlot;
-      }
-      this._photoDrawCount = photoHigh + 1;
-      let drinkHigh = -1;
-      for (const npc of kept) if (npc.drinkSlot > drinkHigh) drinkHigh = npc.drinkSlot;
-      this._drinkDrawCount = drinkHigh + 1;
-      this._hairDrawCounts.fill(0);
-      for (const npc of kept) {
-        const style = npc.appearance.hairStyle;
-        this._hairDrawCounts[style] = Math.max(this._hairDrawCounts[style], npc.hairSlot + 1);
-      }
-      this.legsMesh.instanceMatrix.needsUpdate = true;
-      this.shoesMesh.instanceMatrix.needsUpdate = true;
-      this.bodyMesh.instanceMatrix.needsUpdate = true;
-      this.armsMesh.instanceMatrix.needsUpdate = true;
-      this.headMesh.instanceMatrix.needsUpdate = true;
-      this.eyesMesh.instanceMatrix.needsUpdate = true;
-      this.mouthMesh.instanceMatrix.needsUpdate = true;
-      for (let style = 0; style < this.hairMeshes.length; style++) {
-        this.hairMeshes[style].instanceMatrix.needsUpdate = true;
-        this.hairMeshes[style].count = this._hairDrawCounts[style];
-      }
-      this.cameraMesh.instanceMatrix.needsUpdate = true;
-      this.flashMesh.instanceMatrix.needsUpdate = true;
-      this.drinkMesh.instanceMatrix.needsUpdate = true;
-    }
+    if(errors)throw new AggregateError(errors,'Distance cleanup failed.');
   }
 
   // -------------- per-frame --------------
 
   update(dt, zerble, bubbles) {
+    if(this._disposed)return;
+    this.actorTime=(this.actorTime??0)+dt;
     if (this._perf.on) this._perf.frames++;
     // First sweep: free any NPC who has drifted too far from Zerble. Lifecycle
     // is intentionally distance-based (not chunk-based) so wandering NPCs
     // don't vanish when their spawn chunk unloads.
     this._despawnDistant(zerble);
+    this.frameTrace?.mark('crowd.despawn', this.npcs.length);
     this.campJams.update(dt, zerble, this.campTimeOfDay?.t ?? getTimeOfDay()?.t ?? .25);
+    this.frameTrace?.mark('crowd.camp-sessions');
     for (const party of this.parties) party.update(dt, zerble);
+    this.frameTrace?.mark('crowd.parties');
 
     const cosCone = Math.cos((SMILE_CONE_DEG * Math.PI) / 180);
 
@@ -949,6 +909,7 @@ export class Crowd {
       passengerRef.count = activePassengers;
       this._updateNpc(dt, npc, zerble, bubblePositions, cosCone, npcCtx);
     }
+    this.frameTrace?.mark('crowd.individuals');
 
     this.legsMesh.instanceMatrix.needsUpdate = true;
     this.shoesMesh.instanceMatrix.needsUpdate = true;
@@ -986,10 +947,11 @@ export class Crowd {
     this.shoppingBagMesh.count = this._maxIdx + 1;
     this.shoppingBagMesh.visible = this.npcs.some(n => n.shoppingBagTime > 0);
     this.shoppingBagMesh.instanceMatrix.needsUpdate = true;
+    this.frameTrace?.mark('crowd.render-publication');
   }
 
   _updateNpc(dt, npc, zerble, bubblePositions, cosCone, ctx) {
-    if (npc.festivalVisit) { this._writeMatrices(npc); return; }
+    if (this.activityClaims.current.has(npc.personHandle)&&!this._inlineActivities.has(this.activityClaims.current.get(npc.personHandle).claim.owner)) { this._writeMatrices(npc); return; }
     if (npc.smileTimeCooldown > 0) npc.smileTimeCooldown -= dt;
     if (!isPhotographerState(npc.state)) npc.stateTimer -= dt;
     if (!isPhotographerState(npc.state) && npc.photoFlashTimer > 0) {
@@ -1026,10 +988,9 @@ export class Crowd {
     const dz = zerble.position.z - npc.pos.z;
     const dToZerble = Math.hypot(dx, dz);
 
-    npc.marketCooldown = Math.max(0, (npc.marketCooldown || 0) - dt);
     npc.shoppingBagTime = Math.max(0, (npc.shoppingBagTime || 0) - dt);
     if (this._tickMarket(dt, npc, zerble)) return;
-    if (this.campJams.tickNpc(dt, npc)) return;
+    if (this.campJams.tickPerson(dt,npc.personHandle)) return;
     if (this._tickCamp(dt, npc)) return;
 
     // Photographer reactions use an isolated state machine and RNG stream.
@@ -1044,7 +1005,7 @@ export class Crowd {
       return;
     }
     if (tickPhotographerOpportunity(
-      npc, dt, dToZerble, PHOTOGRAPHER_ELIGIBLE.has(npc.state)
+      npc, dt, dToZerble, ORDINARY_SOCIAL_STATES.has(npc.state)
     )) {
       const photoYaw = Math.atan2(-dx, -dz);
       npc.yaw += wrapAngle(photoYaw - npc.yaw) * Math.min(1, dt * 7);
@@ -1145,7 +1106,7 @@ export class Crowd {
     // (see 'watching' case below), they walk away with a few seconds of
     // immunity from the proximity machine re-engaging them. Lets you
     // actually leave a crowd behind instead of being permanently mobbed.
-    const nowSec = performance.now() * 0.001;
+    const nowSec = this.actorTime??0;
     const disinterested = npc.disinterestedUntil > nowSec;
 
     // --- Trajectory dodge (highest priority): get out of an approaching cart's
@@ -1190,7 +1151,7 @@ export class Crowd {
           dToZerble < 12 &&
           Math.random() < PASSENGER_BOARD_CHANCE_PER_SEC * dt
         ) {
-          const slot = this._claimFreeSeat(zerble);
+          const slot = this._claimFreeSeat(zerble,npc);
           if (slot) {
             npc.state = 'boarding';
             npc.seatSlot = slot;
@@ -1231,7 +1192,7 @@ export class Crowd {
         // crowd rushing the tables at once. (The deeper food-truck → buy → carry →
         // eat loop is on ROADMAP; this is the sit half.)
         if (
-          (!npc.party || npc.party.allowActivity(npc)) && !npc.tableSeat &&
+          (!npc.party || npc.party.allowActivity(npc.personHandle)) && !this.picnics.has(npc.personHandle) &&
           npc.skittish < 0.6 &&
           npc.stateTimer < 5 &&
           Math.random() < dt * 0.5
@@ -1242,19 +1203,11 @@ export class Crowd {
         // low (POTTY_URGE_RATE) so it's an occasional realistic detour. Skittish
         // folks (who'd rather not) almost never go.
         if (
-          (!npc.party || npc.party.allowActivity(npc)) && !npc.pottyEntry &&
+          (!npc.party || npc.party.allowActivity(npc.personHandle)) && !this.bathrooms.has(npc.personHandle) &&
           npc.skittish < 0.75 &&
           Math.random() < dt * POTTY_URGE_RATE
         ) {
-          const e = this._findNearestPotty(npc, null);
-          if (e) {
-            npc.pottyEntry = e;
-            npc.pottyTried = [e.id];
-            npc.pottyWait = 0;
-            npc.state = 'seeking_potty';
-            npc.stateTimer = 30;   // overall give-up timer
-            break;
-          }
+          if (this.bathrooms.tryClaim(npc.personHandle)) break;
         }
         if (npc.party) break;
         if (npc.stateTimer <= 0) {
@@ -1398,7 +1351,7 @@ export class Crowd {
         // Small per-frame wobble so the dodge curves a touch instead of being
         // a clean rail. No stable per-NPC jitter here — a fixed offset could
         // rotate some NPCs back toward the lane we're trying to clear.
-        const wobble = Math.sin(performance.now() * 0.004 + npc.behaviorSeed) * 0.12;
+        const wobble = Math.sin((this.actorTime??0) * 4 + npc.behaviorSeed) * 0.12;
         const cosW = Math.cos(wobble);
         const sinW = Math.sin(wobble);
         desiredX = _dodgeOut.x * cosW - _dodgeOut.z * sinW;
@@ -1519,9 +1472,7 @@ export class Crowd {
 
     // --- charm logic --- (frownTimer is ticked + handled in the unhappy block above)
     if (
-      npc.smileTimeCooldown <= 0 &&
-      (npc.lastSmilePos === null || zerble.position.distanceTo(npc.lastSmilePos) > SMILE_RESET_DIST) &&
-      dToZerble < SMILE_RANGE
+      canSmile(npc,zerble.position,dToZerble,SMILE_RANGE,SMILE_RESET_DIST)
     ) {
       const fwd = zerble.forwardWorld;
       const ndx = npc.pos.x - zerble.position.x;
@@ -1548,8 +1499,8 @@ export class Crowd {
           npc.frownTimer = FROWN_DURATION;
           npc.smileTimeCooldown = 0;            // clear any leftover happy bounce/smile — they're not happy
           npc.lastSmilePos = zerble.position.clone();
-          this.smiles.spawnLost(zerble.position, npc);   // reddish "lost smile" flies out to them
-          if (this.onFrown) this.onFrown(npc);
+          this.smiles.spawnLost(zerble.position, npc.personHandle, this.peopleView);   // reddish "lost smile" flies out to them
+          if (this.onFrown) this.onFrown(npc.personHandle);
         }
       } else {
         npc.displeasure = Math.max(0, npc.displeasure - dt * 0.6);
@@ -1570,9 +1521,7 @@ export class Crowd {
         if (gain > 0) npc.happiness += gain * dt;
 
         if (npc.happiness >= HAPPINESS_THRESHOLD) {
-          npc.happiness = 0;
-          npc.smileTimeCooldown = SMILE_TIME_COOLDOWN;
-          npc.lastSmilePos = zerble.position.clone();
+          resetSmile(npc,zerble.position,SMILE_TIME_COOLDOWN);
           this.smiles.spawn(npc.pos);
         }
       }
@@ -1587,8 +1536,8 @@ export class Crowd {
 
   _writeMatrices(npc) {
     groundNpc(npc);
-    if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc.festivalVisit?.hidden) { this._hideNpc(npc); return; }
-    if (npc.party) { this._hideNpc(npc); npc.party.renderNpc(npc); return; }
+    if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc._activityBinding?.hidden) { this._hideNpc(npc); return; }
+    if (npc.party) { this._hideNpc(npc); publishGroupBinding(npc); return; }
     // Bo is rendered by the wagon, while the crowd still owns his reserved seat.
     if (npc.seatSlot?.permanent && npc.seatSlot.vehicle?.driverModel) {
       this._hideNpc(npc);
@@ -1599,14 +1548,8 @@ export class Crowd {
       return;
     }
     const m = this._mat4;
-    const photographing = isPhotographerState(npc.state);
-    const photoPose = npc.state === PHOTO_STATE_POSE;
-    let photoPoseAmount = 0;
-    if (photoPose) {
-      const poseIn = Math.min(1, Math.max(0, (PHOTO_POSE_DURATION - npc.stateTimer) * 5));
-      const poseOut = Math.min(1, Math.max(0, npc.stateTimer * 5));
-      photoPoseAmount = Math.min(poseIn, poseOut);
-    }
+    const photo=samplePhotographerPose(npc.state,npc.stateTimer,npc.photoCrouch,npc.photoFlashTimer,this._photoRenderProfile??={});
+    const photographing=photo.photographing;
     // Reuse scratch Quaternion/Euler — avoids ~30k allocations/sec at 500 NPCs × 60fps.
     // hammock_riding NPCs need a supine rotation (X=+π/2 face up, then Y=yaw); all
     // others just rotate around Y by yaw. Build the right quat per branch.
@@ -1638,7 +1581,7 @@ export class Crowd {
 
     // Chair contact stays fixed even near dancefloors or while smiling. A
     // feet-origin bob/tilt moves the pelvis through the supporting fabric.
-    if (npc.state === 'camp_seated' || npc.campJam) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
+    if (npc.state === 'camp_seated' || npc.campMusic) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
 
     let quat;
     if (npc.state === 'hammock_riding') {
@@ -1654,16 +1597,16 @@ export class Crowd {
 
     // Happy bounce: while smile cooldown is active the body bobs up by a small
     // sin wave (~6cm amplitude) so the whole figure (body + mouth) hops.
-    const bouncing = npc.smileTimeCooldown > 0 && !photographing && !npc.campJam;
+    const bouncing = npc.smileTimeCooldown > 0 && !photographing && !npc.campMusic;
     const bounceY = bouncing
-      ? Math.abs(Math.sin(performance.now() * 0.012 + npc.bob)) * 0.06
+      ? Math.abs(Math.sin((this.actorTime??0) * 12 + npc.bob)) * 0.06
       : 0;
 
     // Cheer jump: positive-half sine so NPCs hop upward without clipping the floor.
     // Seeded by the stable behavior slot so pooling stays visually decoupled.
-    const cheering = npc.cheerTimer > 0 && !npc.campJam;
+    const cheering = npc.cheerTimer > 0 && !npc.campMusic;
     const cheerY = cheering
-      ? Math.max(0, Math.sin(performance.now() * 0.001 * HOP_HZ + npc.behaviorSeed * 1.3)) * HOP_HEIGHT
+      ? Math.max(0, Math.sin((this.actorTime??0) * HOP_HZ + npc.behaviorSeed * 1.3)) * HOP_HEIGHT
       : 0;
 
     // All 5 body meshes share one matrix. The matrix's Y = "feet level" for this NPC.
@@ -1703,18 +1646,18 @@ export class Crowd {
       // capsule is ~0.26 thick, but we want the back to SINK into the sag
       // slightly — so lift by only 0.16, not the full half-thickness.
       feetY = npc.hammockY + 0.16 + bobY + bounceY;
-    } else if (npc.state === 'camp_seated' && npc.campSlot) {
+    } else if (npc.state === 'camp_seated' && npc.campY!==undefined) {
       // The torso capsule extends below the leg pivot. Align its rounded
       // bottom to the actual fabric height, keeping a centimetre of clearance.
-      feetY = npc.campSlot.y - BODY_SEATED_BOTTOM * npc.scale + 0.01;
-    } else if (npc.state === 'table_seated' && npc.tableSeat) {
+      feetY = npc.campY - BODY_SEATED_BOTTOM * npc.scale + 0.01;
+    } else if (npc.state === 'table_seated' && npc.picnicY!=null) {
       // Butt on the bench cushion; bent legs hang forward (the `seated` leg bend).
       // Same -0.4 hip drop a seated cart rider uses so the hip lands on the seat.
-      feetY = npc.tableSeat.y - 0.4 + bobY;
+      feetY = npc.picnicY - 0.4 + bobY;
     } else {
       feetY = npc.pos.y + bobY + bounceY + cheerY; // authoritative ground position plus animation
     }
-    if (photoPose && npc.photoCrouch) feetY -= 0.24 * photoPoseAmount;
+    feetY-=photo.crouchDrop;
 
     // CRITICAL: position and scale must be DISTINCT Vector3 instances.
     // Reusing this._tmpV for both args caused position to be overwritten by scale,
@@ -1747,7 +1690,7 @@ export class Crowd {
     // their legs+shoes bent forward at the hip so they sit; the upright
     // body/arms/head still use `m`. Standing running-board riders keep straight legs.
     // Cheering NPCs get arms rotated up via _armsUpMat (same pattern as _sitLegMat).
-    if (photoPose && npc.photoCrouch) {
+    if (photo.crouch) {
       this._legMat.multiplyMatrices(m, this._photoCrouchLegMat);
       this.legsMesh.setMatrixAt(npc.idx, this._legMat);
       this.shoesMesh.setMatrixAt(npc.idx, this._legMat);
@@ -1762,7 +1705,7 @@ export class Crowd {
     this.shoppingBagMesh?.setMatrixAt(npc.idx, npc.shoppingBagTime > 0 ? m : this._zeroMat);
     this.bodyMesh.setMatrixAt(npc.idx, m);
     if (npc.campInstrument) {
-      const active = npc.campJam?.stage === 'playing';
+      const active = npc.campMusicStage === 'playing';
       const bend = npc.campInstrument.kind === 'fiddle' ? 1.45 : 1.12;
       this._musicArmMat.makeTranslation(0, 1.35, 0)
         .multiply(this._tmpDanceMat.makeRotationX(bend + (active ? Math.sin(npc.bob * 7) * .07 : 0)))
@@ -1826,9 +1769,8 @@ export class Crowd {
       // Camera geometry has its local chest/face offset baked in, so it follows
       // the same pooled body matrix through walking, crouching, and posing.
       this.cameraMesh.setMatrixAt(npc.photoSlot, m);
-      if (npc.photoFlashTimer > 0) {
-        const flashT = npc.photoFlashTimer / PHOTO_FLASH_DURATION;
-        const flashScale = 0.72 + Math.sin(Math.min(1, flashT) * Math.PI) * 0.55;
+      if (photo.flashVisible) {
+        const flashScale=photo.flashScale;
         this._tmpV3.set(0, 1.20, -0.62);
         this._tmpScale.set(flashScale, flashScale, flashScale);
         this._flashLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
@@ -1842,7 +1784,7 @@ export class Crowd {
 
   _writeCampInstrument(npc, bodyMatrix) {
     const model = npc.campInstrument;
-    const performing = ['ready', 'playing'].includes(npc.campJam?.stage);
+    const performing = ['ready', 'playing'].includes(npc.campMusicStage);
     const bass = model.kind === 'bass', fiddle = model.kind === 'fiddle';
     this._tmpV3.set(bass ? .38 : fiddle && performing ? .07 : .1,
       bass ? .57 : fiddle && performing ? 1.43 : performing ? .95 : .85,
@@ -1858,7 +1800,7 @@ export class Crowd {
 
   // ----- Passenger system helpers -----
 
-  _claimFreeSeat(zerble) {
+  _claimFreeSeat(zerble,npc) {
     if (!zerble.seatSlots) return null;
     // Try slots in a randomized order so passengers don't all stack the same way
     const order = zerble.seatSlots.map((_, i) => i);
@@ -1868,32 +1810,64 @@ export class Crowd {
     }
     for (const idx of order) {
       const slot = zerble.seatSlots[idx];
-      if (!slot.occupied) {
-        slot.occupied = true;
-        return slot;
-      }
+      if(!slot.occupied&&this._reservePassenger(npc,zerble,slot))return slot;
     }
     return null;
   }
 
-  _releaseSeat(slot) {
-    if (slot) slot.occupied = false;
+  _reservePassenger(npc,vehicle,slot,{allowPermanent=false}={}) {
+    if(!this.peopleHandles.isLive(npc.personHandle)||npc.seatSlot||this.activityClaims.current.has(npc.personHandle))return false;
+    const reservation=this.seatReservations.reserve({person:npc.personHandle,vehicle,slot,allowPermanent});
+    if(!reservation)return false;
+    npc.seatSlot=slot;npc._seatReservation=reservation;return true;
+  }
+
+  beginBoarding(handle,vehicle,{slot,timeout=20,cooldownKey=null,cooldownUntil=null}={}) {
+    const npc=this.peopleHandles.resolve(handle);
+    if(!Number.isFinite(timeout)||timeout<0||(cooldownUntil!==null&&!Number.isFinite(cooldownUntil))
+      ||(cooldownUntil!==null&&(typeof cooldownKey!=='string'||!cooldownKey)))throw new TypeError('Boarding timing and cooldown ownership must be explicit.');
+    if(!npc||npc.party||!['idle','walking','watching','approaching'].includes(npc.state)||!this._reservePassenger(npc,vehicle,slot))return false;
+    npc.state='boarding';npc.stateTimer=timeout;
+    if(cooldownUntil!==null){npc._activityCooldowns??=new Map();npc._activityCooldowns.set(cooldownKey,cooldownUntil);}
+    return true;
+  }
+
+  seatPerson(handle,vehicle,slot,{rideTime=Infinity,allowPermanent=false,scale=null,snap=true}={}) {
+    const npc=this.peopleHandles.resolve(handle);
+    if((!Number.isFinite(rideTime)&&rideTime!==Infinity)||rideTime<0||(scale!==null&&(!Number.isFinite(scale)||scale<=0)))throw new TypeError('Passenger pose settings must be valid.');
+    if(!npc||npc.party||!['idle','walking','watching','approaching'].includes(npc.state)||!this._reservePassenger(npc,vehicle,slot,{allowPermanent}))return false;
+    npc.state='riding';npc.rideTimer=rideTime;if(scale!==null)npc.scale=scale;
+    if(snap){const out=this._tmpV;vehicle.worldSeatPosition(slot,out);npc.pos.set(out.x,0,out.z);npc.seatY=out.y;npc.yaw=vehicle.heading+slot.yaw;}
+    this._publishPerson(npc);return true;
+  }
+
+  _releaseSeat(npc) {
+    const released=this.seatReservations?.release(npc._seatReservation);
+    npc._seatReservation=null;return !!released;
+  }
+
+  releaseVehiclePassengers(vehicle) {
+    for(const npc of this.npcs)if(npc._seatReservation?.vehicle===vehicle){
+      this._releaseSeat(npc);npc.seatSlot=null;npc.seatY=undefined;npc.state='idle';npc.stateTimer=2;
+      this._publishPerson(npc);
+    }
+    this.seatReservations.releaseVehicle(vehicle);
   }
 
   _tickBoarding(dt, npc, zerble, ctx) {
     const vehicle = npc.seatSlot?.vehicle;
     if (vehicle) zerble = vehicle;
-    if (!npc.seatSlot || (vehicle ? vehicle.state !== 'parked' : !ctx.zerbleIdle)) {
+    if (!npc.seatSlot || !this.seatReservations.isLive(npc._seatReservation) || (vehicle ? vehicle.state !== 'parked' : !ctx.zerbleIdle)) {
       if (npc.party) { npc.party.leave(); return; }
       // Cart started moving (or we lost our slot) — abort
-      this._releaseSeat(npc.seatSlot);
+      this._releaseSeat(npc);
       npc.seatSlot = null;
       npc.state = 'watching';
       npc.stateTimer = 1;
       return;
     }
     const target = this._tmpV;
-    zerble.worldSeatPosition(npc.seatSlot, target);
+    this.seatReservations.readTarget(npc._seatReservation,target);
 
     const tdx = target.x - npc.pos.x;
     const tdz = target.z - npc.pos.z;
@@ -1902,7 +1876,7 @@ export class Crowd {
     if (td < BOARD_RANGE) {
       if (npc.party) {
         npc.vel.set(0, 0, 0);
-        npc.party.arrive(npc);
+        npc.party.arrive(npc.personHandle,npc._groupSeatReservation);
         if (npc.state === 'riding') this._tickRiding(0, npc, zerble);
         else this._writeMatrices(npc);
         return;
@@ -1933,7 +1907,7 @@ export class Crowd {
     // Timeout — give up if we can't reach the seat
     if (npc.stateTimer <= 0) {
       if (npc.party) { npc.party.leave(); return; }
-      this._releaseSeat(npc.seatSlot);
+      this._releaseSeat(npc);
       npc.seatSlot = null;
       npc.state = 'idle';
       npc.stateTimer = 2;
@@ -1945,14 +1919,15 @@ export class Crowd {
   _tickRiding(dt, npc, zerble) {
     const vehicle = npc.seatSlot?.vehicle;
     if (vehicle) zerble = vehicle;
-    if (!npc.seatSlot) {
+    if (!npc.seatSlot||!this.seatReservations.isLive(npc._seatReservation)) {
+      this._releaseSeat(npc);npc.seatSlot=null;npc.seatY=undefined;
       npc.state = 'idle';
       npc.stateTimer = 1;
       return;
     }
     // Lock position to the seat. Face the same way the cart is facing.
     const out = this._tmpV;
-    zerble.worldSeatPosition(npc.seatSlot, out);
+    this.seatReservations.readTarget(npc._seatReservation,out);
     npc.pos.x = out.x;
     npc.pos.z = out.z;
     // Stash seat Y on the npc — we use it in _writeMatrices to lift the body.
@@ -1967,7 +1942,7 @@ export class Crowd {
     // Disembark when the ride times out (and Zerble's idle), OR immediately if
     // the bubble tank ran dry — riders bail on a bubble-less cart.
     if (!npc.party && ((!vehicle && this.bubblesEmpty) || (npc.rideTimer <= 0 && (vehicle ? vehicle.state === 'parked' : Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED)))) {
-      this._releaseSeat(npc.seatSlot);
+      this._releaseSeat(npc);
       const seatPos = { x: out.x, z: out.z };
       npc.seatSlot = null;
       npc.seatY = undefined;
@@ -1995,346 +1970,124 @@ export class Crowd {
 
   // ----- Hammock riding -----
 
-  _tryClaimHammock(npc) {
-    // Find the nearest unoccupied hammock within 60m. (Was 30m — too tight for
-    // sparse hammock spawn density; NPCs would idle near a chunk boundary and
-    // never spot the hammock one chunk over.)
-    const ids = registry.byKind.get('hammock');
-    if (!ids) return false;
-    let best = null;
-    let bestD2 = 60 * 60;
-    for (const id of ids) {
-      const e = registry.entries.get(id);
-      if (!e || !e.hammock || e.hammock.occupied) continue;
-      const dx = e.position.x - npc.pos.x;
-      const dz = e.position.z - npc.pos.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 < bestD2) { bestD2 = d2; best = e; }
-    }
-    if (!best) return false;
-    best.hammock.occupied = true;
-    npc.hammockEntry = best;
-    npc.target.copy(best.position);
-    npc.state = 'walking_to_hammock';
-    npc.stateTimer = 18;             // give up if can't reach in 18s
-    return true;
+  _tryClaimHammock(npc) {return this.hammocks.tryClaim(npc.personHandle);}
+  _tickWalkingToHammock(dt,npc) {return this.hammocks.tickWalking(dt,npc.personHandle);}
+  _tickHammockRiding(dt,npc) {return this.hammocks.tickRiding(dt,npc.personHandle);}
+  _releaseHammock(npc) {return this.hammocks.release(npc.personHandle);}
+
+  readActivityMotion(handle,out) {
+    const npc=this.peopleHandles.resolve(handle);if(!npc)return false;
+    this._readActivityMotion(npc,out);return true;
+  }
+  _readActivityMotion(npc,out) {
+    this.peopleHandles.readOwnedRecord(npc,out);
+    out.vx=npc.vel.x;out.vy=npc.vel.y;out.vz=npc.vel.z;out.energy=npc.energy;
+    out.stateTimer=npc.stateTimer;out.rideTimer=npc.rideTimer;
+    out.targetX=npc.target.x;out.targetY=npc.target.y;out.targetZ=npc.target.z;
+  }
+  readHammockMotion(handle,out) {
+    const npc=this.peopleHandles.resolve(handle);if(!npc)return false;
+    this._readActivityMotion(npc,out);out.hammockBob=npc.hammockBob;out.hammockY=npc.hammockY;return true;
+  }
+  readPicnicMotion(handle,out) {
+    const npc=this.peopleHandles.resolve(handle);if(!npc)return false;
+    this._readActivityMotion(npc,out);out.picnicY=npc.picnicY;return true;
   }
 
-  _tickWalkingToHammock(dt, npc) {
-    // Returns true if we handled the NPC fully this frame (skip rest of update).
-    if (!npc.hammockEntry) {
-      npc.state = 'idle';
-      npc.stateTimer = 1;
-      return true;
-    }
-    const target = npc.hammockEntry.hammock.seatPos;
-    const tdx = target.x - npc.pos.x;
-    const tdz = target.z - npc.pos.z;
-    const td = Math.hypot(tdx, tdz);
-    if (td < 0.7) {
-      // Arrived — climb in
-      npc.state = 'hammock_riding';
-      npc.rideTimer = 12 + Math.random() * 18;  // 12-30s of swinging
-      npc.hammockBob = 0;
-      return true;
-    }
-    if (npc.stateTimer <= 0) {
-      // Couldn't reach in time — release and go idle
-      this._releaseHammock(npc);
-      npc.state = 'idle';
-      npc.stateTimer = 1;
-      return true;
-    }
-    // Walk toward the hammock at jog speed
-    const inv = 1 / (td || 1);
-    npc.vel.x = THREE.MathUtils.lerp(npc.vel.x, tdx * inv * 1.6 * npc.energy, Math.min(1, dt * 5));
-    npc.vel.z = THREE.MathUtils.lerp(npc.vel.z, tdz * inv * 1.6 * npc.energy, Math.min(1, dt * 5));
-    npc.pos.x += npc.vel.x * dt;
-    npc.pos.z += npc.vel.z * dt;
-    // Face direction of motion
-    const targetYaw = Math.atan2(-npc.vel.x, -npc.vel.z);
-    const diff = wrapAngle(targetYaw - npc.yaw);
-    npc.yaw += diff * Math.min(1, dt * 6);
-    this._writeMatrices(npc);
-    return true;
+  _applyRestMotion(claim,step,owner,states) {
+    if(claim?.owner!==owner||!this.activityClaims.canWrite(claim))return null;
+    const state=Object.hasOwn(states,step.phase)?states[step.phase]:null;
+    if(!state)throw new TypeError('Invalid rest motion phase.');
+    for(const key of REST_MOTION_FIELDS)if(!Number.isFinite(step[key]))throw new TypeError('Invalid rest motion profile.');
+    if(step.rideTimer!==undefined&&!Number.isFinite(step.rideTimer))throw new TypeError('Invalid rest timing profile.');
+    const npc=this.peopleHandles.resolve(claim.person);
+    npc.pos.x=step.x;npc.pos.z=step.z;npc.vel.x=step.vx;npc.vel.y=step.vy;npc.vel.z=step.vz;npc.yaw=step.heading;
+    npc.state=state;npc.stateTimer=step.stateTimer;npc.rideTimer=step.rideTimer;
+    npc.target.set(step.targetX,step.targetY,step.targetZ);return npc;
+  }
+  _applyHammockMotion(claim,step) {
+    if(claim?.owner!==this.hammocks||!this.activityClaims.canWrite(claim))return null;
+    for(const key of HAMMOCK_OPTIONAL_FIELDS)if(step[key]!==undefined&&!Number.isFinite(step[key]))throw new TypeError('Invalid hammock timing or display profile.');
+    const npc=this._applyRestMotion(claim,step,this.hammocks,HAMMOCK_STATES);if(!npc)return null;
+    npc.hammockBob=step.hammockBob;npc.hammockY=step.hammockY;return npc;
+  }
+  commitHammockMotion(claim,step) {const npc=this._applyHammockMotion(claim,step);if(!npc)return false;if(step.publish)this._writeMatrices(npc);return true;}
+  finishHammockMotion(claim,step) {
+    const npc=this._applyHammockMotion(claim,step);if(!npc)return false;
+    this.activityClaims.release(claim,'rest-step');
+    if(step.publish)this._writeMatrices(npc);return true;
+  }
+  releaseHammockPose(claim) {
+    if(claim?.owner!==this.hammocks||!this.activityClaims.canRelease(claim))return false;
+    this.peopleHandles.entries.get(claim.person.slot).record.hammockY=undefined;return true;
   }
 
-  _tickHammockRiding(dt, npc) {
-    if (!npc.hammockEntry) {
-      npc.state = 'idle';
-      npc.stateTimer = 1;
-      return;
-    }
-    npc.rideTimer -= dt;
-    npc.hammockBob += dt * 2.2;          // swing speed
-    const h = npc.hammockEntry.hammock;
-    const swingAmp = 0.18;
-    // Sway PERPENDICULAR to the hammock's long axis (i.e. side-to-side, not
-    // along its length) so it looks like the cloth is swinging.
-    const perpX = -Math.sin(h.yaw);
-    const perpZ = Math.cos(h.yaw);
-    const sway = Math.sin(npc.hammockBob) * swingAmp;
-    npc.pos.x = h.seatPos.x + perpX * sway;
-    npc.pos.z = h.seatPos.z + perpZ * sway;
-    npc.hammockY = h.seatPos.y + Math.sin(npc.hammockBob * 2) * 0.04;
-    // Spine aligned with hammock long axis. Hammock poles are placed in
-    // direction (cos(h.yaw), 0, sin(h.yaw)). _writeMatrices applies the supine
-    // rotation: X=+π/2 (face up) then Y=npc.yaw. After both rotations the
-    // body's head ends up in direction (sin(npc.yaw), 0, cos(npc.yaw)). For
-    // that to equal (cos(h.yaw), 0, sin(h.yaw)) we need npc.yaw = π/2 − h.yaw.
-    npc.yaw = Math.PI / 2 - h.yaw;
-    npc.vel.set(0, 0, 0);
-
-    if (npc.rideTimer <= 0) {
-      this._releaseHammock(npc);
-      npc.state = 'idle';
-      npc.stateTimer = 1 + Math.random() * 2;
-      // Step a bit out of the hammock so the next idle target makes sense
-      npc.pos.x += (Math.random() - 0.5) * 0.8;
-      npc.pos.z += (Math.random() - 0.5) * 0.8;
-      npc.hammockY = undefined;
-    }
-    this._writeMatrices(npc);
+  _campExit(npc) {return this.camps?.exit(npc.personHandle)??this.campJams?.exit(npc.personHandle)??null;}
+  _releaseCamp(npc) {this.campJams?.release(npc.personHandle);return this.camps?.release(npc.personHandle);}
+  _tickCamp(dt,npc) {return this.camps.tick(dt,npc.personHandle,this.campTimeOfDay?.t??getTimeOfDay()?.t??.25);}
+  isPersonActivityCurrent(claim) {return this.activityClaims.canWrite(claim);}
+  readCampPlace(handle,out) {return this.camps.readPlace(handle,out);}
+  setCampCooldown(handle,value) {return this.camps.setCooldown(handle,value);}
+  canPlayCampMusic(handle) {
+    const n=this.peopleHandles.resolve(handle);if(!n||n.party||!['idle','walking','camp_seated'].includes(n.state))return false;
+    const active=this.activityClaims.current.get(handle);return !active||active.claim.owner===this.camps;
+  }
+  _readCampMotion(n,out) {
+    this._readActivityMotion(n,out);out.pos.set(n.pos.x,n.pos.y,n.pos.z);out.vel.set(n.vel.x,n.vel.y,n.vel.z);out.target.set(n.target.x,n.target.y,n.target.z);out.yaw=n.yaw;
+  }
+  readCampMotion(handle,out) {const n=this.peopleHandles.resolve(handle);if(!n)return false;this._readCampMotion(n,out);return true;}
+  readCampMusicMotion(handle,out) {const n=this.peopleHandles.resolve(handle);if(!n)return false;this._readCampMotion(n,out);out.campJamHidden=!!n.campJamHidden;return true;}
+  _applyCampProfile(claim,step,owner,states) {
+    if(claim?.owner!==owner||!this.activityClaims.canWrite(claim))return null;
+    if(step.campY!==undefined&&!Number.isFinite(step.campY))throw new TypeError('Invalid camp display height.');
+    step.phase=step.state;step.x=step.pos.x;step.z=step.pos.z;step.heading=step.yaw;step.vx=step.vel.x;step.vy=step.vel.y;step.vz=step.vel.z;
+    step.targetX=step.target.x;step.targetY=step.target.y;step.targetZ=step.target.z;
+    const n=this._applyRestMotion(claim,step,owner,states);if(!n)return null;n.campY=step.campY;return n;
+  }
+  commitCampMotion(claim,step) {const n=this._applyCampProfile(claim,step,this.camps,CAMP_STATES);if(!n)return false;if(step.publication)this._writeMatrices(n);return true;}
+  finishCampMotion(claim,step) {const n=this._applyCampProfile(claim,step,this.camps,CAMP_STATES);if(!n)return false;this.activityClaims.release(claim,'rest-step');if(step.publication)this._writeMatrices(n);return true;}
+  releaseCampPose(claim) {if(claim?.owner!==this.camps||!this.activityClaims.canRelease(claim))return false;this.peopleHandles.entries.get(claim.person.slot).record.campY=undefined;return true;}
+  _applyCampMusicProfile(claim,step) {
+    if(claim?.owner!==this.campJams||!this.activityClaims.canWrite(claim))return null;
+    const n=this._applyCampProfile(claim,step,this.campJams,CAMP_MUSIC_STATES);if(!n)return null;
+    n.campMusic=!!step.campMusic;n.campMusicStage=step.campMusicStage;n.campJamHidden=!!step.campJamHidden;return n;
+  }
+  commitCampMusicMotion(claim,step) {const n=this._applyCampMusicProfile(claim,step);if(!n)return false;if(step.publication)this._writeMatrices(n);return true;}
+  finishCampMusicMotion(claim,step) {const n=this._applyCampMusicProfile(claim,step);if(!n)return false;this.activityClaims.release(claim,'rest-step');if(step.publication)this._writeMatrices(n);return true;}
+  attachCampInstrument(claim,instrument) {
+    if(claim?.owner!==this.campJams||!this.activityClaims.canWrite(claim))return false;
+    if(!instrument?.group)throw new TypeError('A camp instrument needs its owned model.');
+    const n=this.peopleHandles.resolve(claim.person);if(n._campInstrumentClaim&&n._campInstrumentClaim!==claim)return false;
+    n.campInstrument=instrument;n._campInstrumentClaim=claim;this.group.add(instrument.group);return true;
+  }
+  releaseCampMusicPose(claim) {
+    if(claim?.owner!==this.campJams||!this.activityClaims.canRelease(claim))return false;
+    const n=this.peopleHandles.entries.get(claim.person.slot).record;
+    try{if(n._campInstrumentClaim===claim)this.group.remove(n.campInstrument.group);}
+    finally{if(n._campInstrumentClaim===claim){n.campInstrument=null;n._campInstrumentClaim=null;}n.campY=undefined;n.campMusic=false;n.campMusicStage=null;n.campJamHidden=false;}return true;
   }
 
-  _releaseHammock(npc) {
-    if (npc.hammockEntry && npc.hammockEntry.hammock) {
-      npc.hammockEntry.hammock.occupied = false;
-    }
-    npc.hammockEntry = null;
-    npc.hammockY = undefined;
+  // Market movement retains the original pre-camp barrier. The activity owns
+  // its isolated RNG, cooldown and frontage; this population owns final display.
+  _releaseMarket(npc) {return this.markets?.release(npc.personHandle);}
+  _tickMarket(dt,npc,cart) {return this.markets.tick(dt,npc.personHandle,cart,this.campTimeOfDay?.t??getTimeOfDay()?.t??.25,this.starActive);}
+  readMarketMotion(handle,out) {
+    const n=this.peopleHandles.resolve(handle);if(!n)return false;
+    this._readActivityMotion(n,out);out.pos.set(n.pos.x,n.pos.y,n.pos.z);out.vel.set(n.vel.x,n.vel.y,n.vel.z);out.target.set(n.target.x,n.target.y,n.target.z);
+    out.yaw=n.yaw;out.behaviorSeed=n.behaviorSeed;out.cheerTimer=n.cheerTimer??0;out.frownTimer=n.frownTimer??0;
+    out.camping=!!this.camps?.has(handle);out.jamming=!!n.campMusic;out.shoppingBagTime=n.shoppingBagTime;out.marketPurchases=n.marketPurchases;out.onDancefloor=n.onDancefloor;return true;
   }
-
-  // Camps own the slots, while the crowd owns claims. Validate registry identity
-  // every tick because a lake or chunk can disappear during a walk or a nap.
-  _campExit(npc) {
-    const slot = npc.campSlot;
-    const x = npc.campBed ? slot.doorX : (slot.approachX ?? slot.x);
-    const z = npc.campBed ? slot.doorZ : (slot.approachZ ?? slot.z);
-    for (let i = 0; i < 33; i++) {
-      const radius = i ? Math.ceil(i / 8) * 0.8 : 0;
-      const angle = i * Math.PI / 4;
-      const candidate = {x: x + Math.cos(angle) * radius, z: z + Math.sin(angle) * radius};
-      let clear = true;
-      registry.collidersNear(candidate.x, candidate.z, 0.4, e => {
-        if (Math.hypot(candidate.x - e.position.x, candidate.z - e.position.z) < (e.collider?.radius || 0) + 0.35) clear = false;
-      });
-      if (clear) return candidate;
-    }
-    return null;
+  _applyMarketMotion(claim,step) {
+    if(claim?.owner!==this.markets||!this.activityClaims.canWrite(claim))return null;
+    if((step.shoppingBagTime!==undefined&&!Number.isFinite(step.shoppingBagTime))
+      ||(step.marketPurchases!==undefined&&(!Number.isSafeInteger(step.marketPurchases)||step.marketPurchases<0)))throw new TypeError('Invalid market purchase profile.');
+    step.phase=step.state;step.x=step.pos.x;step.z=step.pos.z;step.heading=step.yaw;
+    step.vx=step.vel.x;step.vy=step.vel.y;step.vz=step.vel.z;step.targetX=step.target.x;step.targetY=step.target.y;step.targetZ=step.target.z;
+    const n=this._applyRestMotion(claim,step,this.markets,MARKET_STATES);if(!n)return null;
+    n.shoppingBagTime=step.shoppingBagTime;n.marketPurchases=step.marketPurchases;n.onDancefloor=step.onDancefloor;return n;
   }
-
-  _releaseCamp(npc) {
-    this.campJams?.releaseNpc(npc);
-    if (npc.campSlot) {
-      if (npc.state === 'camp_sleeping' || npc.state === 'camp_seated') {
-        const exit = this._campExit(npc);
-        if (exit) { npc.pos.x = exit.x; npc.pos.z = exit.z; }
-      }
-      npc.campSlot.occupied = false;
-    }
-    npc.campSlot = null;
-    npc.campEntry = null;
-    npc.campCooldown = 12 + (npc.idx % 7) * 3;
-  }
-
-  _tickCamp(dt, npc) {
-    npc.campCooldown = Math.max(0, (npc.campCooldown || 0) - dt);
-    const t = this.campTimeOfDay?.t ?? getTimeOfDay()?.t ?? 0.25;
-    const stagger = ((npc.idx * 73 + 19) % 101) / 101;
-    const sleep = t >= 0.77 + stagger * 0.13 || t < 0.02 + stagger * 0.07;
-    const gathering = t >= 0.48 && t < 0.92;
-    const daytime = t >= 0.09 && t < 0.48;
-    if (npc.state === 'camp_seated') npc.campDwell -= dt;
-    const active = npc.state.startsWith('camp_');
-    if (active && (!npc.campEntry || registry.entries.get(npc.campEntry.id) !== npc.campEntry)) {
-      this._releaseCamp(npc);
-      npc.state = 'idle'; npc.stateTimer = 2;
-      this._writeMatrices(npc);
-      return true;
-    }
-    if (active && ((npc.campBed && !sleep) || (!npc.campBed && (sleep || (!gathering && (!daytime || npc.campDwell <= 0)))))) {
-      const exit = this._campExit(npc);
-      if (!exit) { this._writeMatrices(npc); return true; }
-      // Emerge at the clear door, and stand off the chair before releasing it.
-      npc.pos.x = exit.x;
-      npc.pos.z = exit.z;
-      this._releaseCamp(npc);
-      npc.state = 'idle'; npc.stateTimer = 2;
-      this._writeMatrices(npc);
-      return true;
-    }
-    if (!active) {
-      if (npc.party || npc.campCooldown || !['idle', 'walking'].includes(npc.state) || (!sleep && !gathering && !daytime)) return false;
-      let entry = null, slot = null, distance = 28;
-      for (const id of registry.byKind.get('campsite') || []) {
-        const camp = registry.entries.get(id);
-        if (!camp) continue;
-        // All seat/bed coordinates lie inside the registered camp footprint.
-        // A farther center cannot beat the current nearest claim, so avoid
-        // visiting every individual slot in distant loaded neighborhoods.
-        if (camp.position && Number.isFinite(camp.footprint)) {
-          const reach=distance+camp.footprint,dx=camp.position.x-npc.pos.x,dz=camp.position.z-npc.pos.z;
-          if(dx*dx+dz*dz>reach*reach)continue;
-        }
-        for (const candidate of (sleep ? camp.campBeds : camp.campSeats) || []) {
-          if (candidate.occupied) continue;
-          const d = Math.hypot(candidate.x - npc.pos.x, candidate.z - npc.pos.z);
-          if (d < distance) { entry = camp; slot = candidate; distance = d; }
-        }
-      }
-      if (!slot) return false;
-      slot.occupied = true;
-      npc.campSlot = slot; npc.campEntry = entry; npc.campBed = sleep;
-      npc.state = 'camp_walking'; npc.stateTimer = distance * 2 + 12;
-      npc.campAtApproach = false;
-    }
-    const slot = npc.campSlot;
-    if (npc.state === 'camp_walking') {
-      const tx = npc.campBed ? slot.doorX : npc.campAtApproach ? slot.x : (slot.approachX ?? slot.x);
-      const tz = npc.campBed ? slot.doorZ : npc.campAtApproach ? slot.z : (slot.approachZ ?? slot.z);
-      const dx = tx - npc.pos.x, dz = tz - npc.pos.z, d = Math.hypot(dx, dz);
-      if (d < 0.25) {
-        if (!npc.campBed && !npc.campAtApproach) npc.campAtApproach = true;
-        else {
-          npc.pos.x = slot.x; npc.pos.z = slot.z;
-          npc.yaw = slot.yaw ?? npc.yaw;
-          npc.vel.set(0, 0, 0);
-          npc.state = npc.campBed ? 'camp_sleeping' : 'camp_seated';
-          npc.campDwell = 18 + stagger * 22;
-        }
-      } else if (npc.stateTimer <= 0) {
-        this._releaseCamp(npc); npc.state = 'idle'; npc.stateTimer = 3;
-      } else {
-        const step = Math.min(d, dt * (1.2 + npc.energy));
-        let nx = npc.pos.x + dx / d * step, nz = npc.pos.z + dz / d * step;
-        // Hard local solids remain authoritative during special-state walks.
-        // Sliding around a circle prevents the direct seek from cutting tents.
-        registry.collidersNear(nx, nz, 0.3, e => {
-          if (!npc.campBed && npc.campAtApproach && e === slot.collider) return;
-          const r = (e.collider?.radius || 0) + 0.28;
-          if (r <= 0.28) return;
-          const ox = nx - e.position.x, oz = nz - e.position.z, od = Math.hypot(ox, oz);
-          if (od < r) {
-            const a = Math.atan2(oz || dz, ox || dx) + step / r * (npc.idx % 2 ? 1 : -1);
-            nx = e.position.x + Math.cos(a) * r; nz = e.position.z + Math.sin(a) * r;
-          }
-        });
-        // Sequential projections can push into a second solid; reject any
-        // unresolved overlap rather than teleporting through a tight cluster.
-        let blocked = false;
-        registry.collidersNear(nx, nz, 0.3, e => {
-          if (!npc.campBed && npc.campAtApproach && e === slot.collider) return;
-          const r = (e.collider?.radius || 0) + 0.28;
-          if (r > 0.28 && Math.hypot(nx - e.position.x, nz - e.position.z) < r - 0.001) blocked = true;
-        });
-        if (blocked) { nx = npc.pos.x; nz = npc.pos.z; }
-        npc.vel.set((nx - npc.pos.x) / Math.max(dt, 0.001), 0, (nz - npc.pos.z) / Math.max(dt, 0.001));
-        npc.pos.x = nx; npc.pos.z = nz;
-        npc.yaw += wrapAngle(Math.atan2(-dx, -dz) - npc.yaw) * Math.min(1, dt * 6);
-      }
-    } else npc.vel.set(0, 0, 0);
-    this._writeMatrices(npc);
-    return true;
-  }
-
-  // A booth owns one customer frontage; the crowd owns the cancellable visit.
-  _releaseMarket(npc) {
-    const visit = npc.marketVisit;
-    if (!visit) return;
-    if (visit.market.customer === npc) visit.market.customer = null;
-    npc.marketVisit = null;
-    npc.marketCooldown = 30 + (npc.marketRng?.() ?? .5) * 25;
-    if (npc.state.startsWith('market_')) { npc.state = 'idle'; npc.stateTimer = 2; }
-  }
-
-  _tickMarket(dt, npc, zerble) {
-    const t = this.campTimeOfDay?.t ?? getTimeOfDay()?.t ?? .25;
-    const open = t >= .04 && t < .735;
-    let visit = npc.marketVisit;
-    if (visit && (!open || !visit.market.open || registry.entries.get(visit.entry.id) !== visit.entry ||
-        !npc.state.startsWith('market_') || npc.frownTimer > 0 ||
-        laneDodgeTest(npc.pos.x - zerble.position.x, npc.pos.z - zerble.position.z,
-          zerble.forwardWorld.x, zerble.forwardWorld.z, zerble.speed))) {
-      this._releaseMarket(npc);
-      return false;
-    }
-    if (!visit) {
-      if (!open || this.starActive || npc.cheerTimer > 0 || npc.frownTimer > 0 || npc.party || npc.campSlot || npc.campJam || npc.marketCooldown ||
-          npc.shoppingBagTime || !['idle', 'walking'].includes(npc.state)) return false;
-      // Separate seeded behavior stream, independent of appearance and world layout.
-      npc.marketRng ||= mulberry32((npc.behaviorSeed ^ 0x53484f50) >>> 0);
-      npc.marketCooldown = 3 + npc.marketRng() * 3;
-      let chosen = null, nearest = 16;
-      for (const id of registry.byKind.get('tent') || []) {
-        const entry = registry.entries.get(id), booth = entry?.vendor;
-        const market = booth?.userData.market;
-        if (!market?.open || market.customer) continue;
-        const yaw = booth.rotation.y;
-        const x = entry.position.x + Math.sin(yaw) * 3.2;
-        const z = entry.position.z + Math.cos(yaw) * 3.2;
-        const d = Math.hypot(x - npc.pos.x, z - npc.pos.z);
-        if (d < nearest && !isMarketSpotBlocked(x, z)) {
-          nearest = d; chosen = {entry, market, x, z, yaw, age: 0};
-        }
-      }
-      if (!chosen) return false;
-      visit = npc.marketVisit = chosen;
-      visit.market.customer = npc;
-      npc.state = 'market_walking'; npc.stateTimer = 24;
-    }
-    npc.onDancefloor = false;
-    visit.age += dt;
-    if (npc.state === 'market_walking') {
-      const dx = visit.x - npc.pos.x, dz = visit.z - npc.pos.z, d = Math.hypot(dx, dz);
-      if (d < .22) {
-        npc.vel.set(0, 0, 0);
-        npc.state = 'market_browsing'; npc.stateTimer = 5 + npc.marketRng() * 7;
-      } else if (npc.stateTimer <= 0) {
-        this._releaseMarket(npc); return false;
-      } else {
-        const step = Math.min(d, dt * (1.1 + npc.energy));
-        let nx = npc.pos.x + dx / d * step, nz = npc.pos.z + dz / d * step;
-        // Slide around solid booths instead of walking through the canopy center.
-        registry.collidersNear(nx, nz, .35, entry => {
-          const r = entry.collider.radius + .35;
-          const ox = nx - entry.position.x, oz = nz - entry.position.z, od = Math.hypot(ox, oz);
-          if (od < r) {
-            const a = Math.atan2(oz || dz, ox || dx) + step / r * (npc.idx % 2 ? 1 : -1);
-            nx = entry.position.x + Math.cos(a) * r; nz = entry.position.z + Math.sin(a) * r;
-          }
-        });
-        if (!isMarketSpotBlocked(nx, nz)) {
-          npc.vel.set((nx - npc.pos.x) / Math.max(dt, .001), 0, (nz - npc.pos.z) / Math.max(dt, .001));
-          npc.pos.x = nx; npc.pos.z = nz;
-        } else npc.vel.set(0, 0, 0);
-        npc.yaw += wrapAngle(Math.atan2(-dx, -dz) - npc.yaw) * Math.min(1, dt * 6);
-      }
-    } else {
-      npc.vel.set(0, 0, 0);
-      // Crowd faces -Z, while the booth's opening is +Z.
-      const yaw = visit.yaw + (npc.state === 'market_browsing' ? Math.sin(visit.age * .8) * .16 : 0);
-      npc.yaw += wrapAngle(yaw - npc.yaw) * Math.min(1, dt * 5);
-      if (npc.stateTimer <= 0) {
-        if (npc.state === 'market_browsing') {
-          npc.state = 'market_chatting'; npc.stateTimer = 3 + npc.marketRng() * 3;
-        } else if (npc.state === 'market_chatting' && npc.marketRng() < .65) {
-          npc.state = 'market_buying'; npc.stateTimer = 2.5;
-        } else {
-          if (npc.state === 'market_buying') {
-            npc.shoppingBagTime = 55;
-            npc.marketPurchases = (npc.marketPurchases || 0) + 1;
-          }
-          this._releaseMarket(npc);
-          // Give the frontage back, then walk out toward the aisle.
-          npc.target.set(visit.x + Math.sin(visit.yaw) * 4, 0, visit.z + Math.cos(visit.yaw) * 4);
-          npc.state = 'walking'; npc.stateTimer = 8;
-        }
-      }
-    }
-    this._writeMatrices(npc);
-    return true;
-  }
+  commitMarketMotion(claim,step) {const n=this._applyMarketMotion(claim,step);if(!n)return false;if(step.publication)this._writeMatrices(n);return true;}
+  finishMarketMotion(claim,step) {if(claim?.owner!==this.markets||!this.activityClaims.canWrite(claim))return false;const current=this.peopleHandles.resolve(claim.person);if(!Object.hasOwn(MARKET_STATES,step.state)&&step.state===current.state){this.activityClaims.release(claim,'rest-step');return true;}const n=this._applyMarketMotion(claim,step);if(!n)return false;this.activityClaims.release(claim,'rest-step');if(step.publication)this._writeMatrices(n);return true;}
 
   // ----- Picnic-table seating -----
   //
@@ -2348,103 +2101,20 @@ export class Crowd {
 
   // The crowd's yaw convention is forward = (−sin yaw, −cos yaw); to face the table
   // CENTER from a seat, yaw = atan2(seat.x − center.x, seat.z − center.z).
-  _seatFacingYaw(npc) {
-    const c = npc.tableEntry.position, s = npc.tableSeat;
-    return Math.atan2(s.x - c.x, s.z - c.z);
+  _tryClaimTable(npc) {return this.picnics.tryClaim(npc.personHandle);}
+  _tickWalkingToTable(dt,npc) {return this.picnics.tickWalking(dt,npc.personHandle);}
+  _tickTableSeated(dt,npc) {return this.picnics.tickSeated(dt,npc.personHandle);}
+  _releaseTable(npc) {return this.picnics.release(npc.personHandle);}
+  canUsePicnic(handle) {const n=this.peopleHandles.resolve(handle);return !!n&&['idle','walking'].includes(n.state)&&(!n.party||n.party.allowActivity(handle));}
+  _applyPicnicMotion(claim,step) {
+    if(claim?.owner!==this.picnics||!this.activityClaims.canWrite(claim))return null;
+    if(step.picnicY!==undefined&&!Number.isFinite(step.picnicY))throw new TypeError('Invalid picnic display profile.');
+    const npc=this._applyRestMotion(claim,step,this.picnics,PICNIC_STATES);if(!npc)return null;
+    npc.picnicY=step.picnicY;return npc;
   }
-
-  _tryClaimTable(npc) {
-    const ids = registry.byKind.get('picnic_table');
-    if (!ids) return false;
-    // 45m — wide enough that the crowd ringing the food-court attractor can spot a
-    // table across the plaza, but close enough that the walk actually completes
-    // before the (distance-scaled) give-up timer below.
-    let best = null, bestSeat = null, bestD2 = npc.party ? 18 * 18 : 45 * 45;
-    for (const id of ids) {
-      const e = registry.entries.get(id);
-      if (!e || !e.tableSeats) continue;
-      const dx = e.position.x - npc.pos.x;
-      const dz = e.position.z - npc.pos.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 >= bestD2) continue;
-      const seat = e.tableSeats.find((s) => !s.occupied);
-      if (!seat) continue;
-      bestD2 = d2; best = e; bestSeat = seat;
-    }
-    if (!best) return false;
-    bestSeat.occupied = true;
-    npc.tableEntry = best;
-    npc.tableSeat = bestSeat;
-    npc.target.set(bestSeat.x, 0, bestSeat.z);
-    npc.state = 'walking_to_table';
-    // Give-up timer scaled to the walk (≈0.8 m/s effective at low energy) so a diner
-    // committing to a seat across the plaza actually arrives instead of timing out
-    // mid-walk and re-rolling. A flat 16s only covered ~16 m — far short of the 45 m
-    // claim radius, so nobody ever sat.
-    const d = Math.hypot(bestSeat.x - npc.pos.x, bestSeat.z - npc.pos.z);
-    npc.stateTimer = Math.min(62, Math.max(14, d * 1.4 + 5));
-    return true;
-  }
-
-  _tickWalkingToTable(dt, npc) {
-    if (!npc.tableSeat) { npc.state = 'idle'; npc.stateTimer = 1; return true; }
-    const seat = npc.tableSeat;
-    const tdx = seat.x - npc.pos.x;
-    const tdz = seat.z - npc.pos.z;
-    const td = Math.hypot(tdx, tdz);
-    if (td < 0.4) {
-      // Arrived — sit: snap to the seat, face the table, start the dwell timer.
-      npc.pos.x = seat.x;
-      npc.pos.z = seat.z;
-      npc.yaw = this._seatFacingYaw(npc);
-      npc.vel.set(0, 0, 0);
-      npc.state = 'table_seated';
-      npc.rideTimer = 18 + Math.random() * 30;   // 18–48s of sitting/eating
-      this._writeMatrices(npc);
-      return true;
-    }
-    if (npc.stateTimer <= 0) {
-      this._releaseTable(npc);
-      npc.state = 'idle';
-      npc.stateTimer = 1;
-      return true;
-    }
-    const inv = 1 / (td || 1);
-    npc.vel.x = THREE.MathUtils.lerp(npc.vel.x, tdx * inv * 1.9 * npc.energy, Math.min(1, dt * 5));
-    npc.vel.z = THREE.MathUtils.lerp(npc.vel.z, tdz * inv * 1.9 * npc.energy, Math.min(1, dt * 5));
-    npc.pos.x += npc.vel.x * dt;
-    npc.pos.z += npc.vel.z * dt;
-    const targetYaw = Math.atan2(-npc.vel.x, -npc.vel.z);
-    npc.yaw += wrapAngle(targetYaw - npc.yaw) * Math.min(1, dt * 6);
-    this._writeMatrices(npc);
-    return true;
-  }
-
-  _tickTableSeated(dt, npc) {
-    if (!npc.tableSeat) { npc.state = 'idle'; npc.stateTimer = 1; return; }
-    npc.rideTimer -= dt;
-    // Hold the seat, facing the table. The forward leg bend + butt-on-bench lift are
-    // applied in _writeMatrices (the `seated` / table_seated branches).
-    npc.pos.x = npc.tableSeat.x;
-    npc.pos.z = npc.tableSeat.z;
-    npc.yaw = this._seatFacingYaw(npc);
-    npc.vel.set(0, 0, 0);
-    if (npc.rideTimer <= 0) {
-      this._releaseTable(npc);
-      npc.state = 'idle';
-      npc.stateTimer = 1 + Math.random() * 2;
-      // Step off the bench so the next idle wander target makes sense.
-      npc.pos.x += (Math.random() - 0.5) * 0.8;
-      npc.pos.z += (Math.random() - 0.5) * 0.8;
-    }
-    this._writeMatrices(npc);
-  }
-
-  _releaseTable(npc) {
-    if (npc.tableSeat) npc.tableSeat.occupied = false;
-    npc.tableEntry = null;
-    npc.tableSeat = null;
-  }
+  commitPicnicMotion(claim,step) {const npc=this._applyPicnicMotion(claim,step);if(!npc)return false;if(step.publish)this._writeMatrices(npc);return true;}
+  finishPicnicMotion(claim,step) {const npc=this._applyPicnicMotion(claim,step);if(!npc)return false;this.activityClaims.release(claim,'rest-step');if(step.publish)this._writeMatrices(npc);return true;}
+  releasePicnicPose(claim) {if(claim?.owner!==this.picnics||!this.activityClaims.canRelease(claim))return false;this.peopleHandles.entries.get(claim.person.slot).record.picnicY=undefined;return true;}
 
   // ----- Porta-potty seeking -----
   //
@@ -2456,314 +2126,245 @@ export class Crowd {
   // NPC can never get permanently stuck, and the claimed unit is always released
   // on abort/despawn/chunk-unload (no unit left phantom-"occupied").
 
-  // Nearest registered porta-potty within range, skipping any in `tried`. The
-  // seeking logic discovers occupancy on ARRIVAL (that's the surprise gag), so
-  // this returns the closest candidate regardless of occupied state.
-  _findNearestPotty(npc, tried) {
-    const ids = registry.byKind.get('porta_potty');
-    if (!ids) return null;
-    let best = null, bestD2 = npc.party ? 22 * 22 : POTTY_SEARCH_R2;
-    for (const id of ids) {
-      if (tried && tried.includes(id)) continue;
-      const e = registry.entries.get(id);
-      if (!e || !e.potty) continue;
-      const dx = e.position.x - npc.pos.x;
-      const dz = e.position.z - npc.pos.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 < bestD2) { bestD2 = d2; best = e; }
-    }
-    return best;
+  canUsePotty(handle) {const n=this.peopleHandles.resolve(handle);return !!n&&['idle','walking'].includes(n.state)&&(!n.party||n.party.allowActivity(handle));}
+  readPottyMotion(handle,out) {
+    const n=this.peopleHandles.resolve(handle);if(!n)return false;
+    this._readActivityMotion(n,out);
+    out.pos.set(n.pos.x,n.pos.y,n.pos.z);out.vel.set(n.vel.x,n.vel.y,n.vel.z);out.target.set(n.target.x,n.target.y,n.target.z);
+    out.yaw=n.yaw;out.cheerTimer=n.cheerTimer??0;out.pottySitting=n.pottySitting??false;out.seatY=n.seatY;return true;
+  }
+  _applyPottyMotion(claim,step) {
+    if(claim?.owner!==this.bathrooms||!this.activityClaims.canWrite(claim))return null;
+    if(!Number.isFinite(step.cheerTimer)||(step.seatY!==undefined&&!Number.isFinite(step.seatY))
+      ||(step.publication!==null&&step.publication!=='show'&&step.publication!=='hide'))throw new TypeError('Invalid bathroom display profile.');
+    step.phase=step.state;step.x=step.pos.x;step.z=step.pos.z;step.heading=step.yaw;
+    step.vx=step.vel.x;step.vy=step.vel.y;step.vz=step.vel.z;
+    step.targetX=step.target.x;step.targetY=step.target.y;step.targetZ=step.target.z;
+    const n=this._applyRestMotion(claim,step,this.bathrooms,POTTY_STATES);if(!n)return null;
+    n.cheerTimer=step.cheerTimer;n.pottySitting=step.pottySitting;n.seatY=step.seatY;return n;
+  }
+  _publishPottyMotion(n,step) {if(step.publication==='show')this._writeMatrices(n);else if(step.publication==='hide')this._hideNpc(n);}
+  commitPottyMotion(claim,step) {const n=this._applyPottyMotion(claim,step);if(!n)return false;this._publishPottyMotion(n,step);return true;}
+  finishPottyMotion(claim,step) {const n=this._applyPottyMotion(claim,step);if(!n)return false;this.activityClaims.release(claim,'rest-step');this._publishPottyMotion(n,step);return true;}
+  releasePottyPose(claim) {if(claim?.owner!==this.bathrooms||!this.activityClaims.canRelease(claim))return false;const n=this.peopleHandles.entries.get(claim.person.slot).record;n.pottySitting=false;n.seatY=undefined;return true;}
+  _releasePotty(npc) {return this.bathrooms.release(npc.personHandle);}
+  _tickSeekingPotty(dt,npc) {return this.bathrooms.tick(dt,npc.personHandle);}
+  _tickEnteringPotty(dt,npc) {return this.bathrooms.tick(dt,npc.personHandle);}
+  _tickUsingPotty(dt,npc) {return this.bathrooms.tick(dt,npc.personHandle);}
+  _tickExitingPotty(dt,npc) {return this.bathrooms.tick(dt,npc.personHandle);}
+  _tickSurprisedPotty(dt,npc) {return this.bathrooms.tick(dt,npc.personHandle);}
+
+
+  _readPerson(npc,out) {
+    out.x=npc.pos.x;out.y=npc.pos.y;out.z=npc.pos.z;out.heading=npc.yaw;out.bob=npc.bob;out.state=npc.state;
+    out.shirt=npc.appearance.shirt;out.skin=npc.appearance.skin;out.scale=npc.scale;
+    out.grouped=!!npc.party;out.photographer=!!npc.isPhotographer;
+    out.vx=npc.vel.x;out.vz=npc.vel.z;out.seated=!!npc.seatSlot;
+    out.claimed=this.activityClaims.current.has(npc.personHandle);out.hidden=!!npc._activityBinding?.hidden;
   }
 
-  _npcByIdx(idx) {
-    for (const n of this.npcs) if (n.idx === idx) return n;
-    return null;
+  createPersonGroup(owner,root) {return new GroupParticipation(this,owner,root);}
+
+  readPerson(handle,out) {return this.peopleView.read(handle,out);}
+  spawnPerson(options) {return this.spawn(options)?.personHandle??null;}
+  get populationSize(){return this.npcs.length;}
+  invitePersonToWatch(handle){
+    const person=this.peopleHandles.resolve(handle);
+    if(!person||person.party||person.seatSlot||this.activityClaims.current.has(handle)||!ORDINARY_SOCIAL_STATES.has(person.state))return false;
+    person.state='watching';return true;
+  }
+  removePerson(handle) {const npc=this.peopleHandles.resolve(handle);if(!npc)return false;this.removeNpc(npc);return true;}
+  hasHiddenBinding(handle) {return !!this.peopleHandles.resolve(handle)?._activityBinding?.hidden;}
+  isInActivity(handle,key) {return this.peopleHandles.isLive(handle)&&this.activityClaims.current.get(handle)?.claim.owner.activityKey===key;}
+
+  activitySummary(handle,out={}) {
+    const state=this.activityClaims.current.get(handle);
+    if(!state||!this.peopleHandles.isLive(handle))return null;
+    out.key=state.claim.owner.activityKey??null;out.role=null;out.phase=null;
+    state.claim.owner.describePerson?.(handle,out);return out;
   }
 
-  // Free a porta-potty this NPC had claimed + reset its potty bookkeeping.
-  _releasePotty(npc) {
-    const e = npc.pottyEntry;
-    if (e && e.potty && e.potty.occupantId === npc.idx) {
-      e.potty.occupied = false;
-      e.potty.occupantId = null;
-      e.potty.locked = false;
-      e.potty.doorTarget = 0;
-    }
-    npc.pottyEntry = null;
-    npc.pottyTried = null;
-    npc.pottyWait = 0;
-    npc.useTimer = 0;
-    npc.pottyPeeked = 0;
-    npc.pottySitting = false;
-    npc.seatY = undefined;
-  }
-
-  // Give up the whole errand and return to ambient wandering.
-  _abortPotty(npc) {
-    this._releasePotty(npc);
-    npc.state = 'idle';
-    npc.stateTimer = 1 + Math.random() * 2;
-  }
-
-  // Common guard: the targeted entry vanished (chunk unloaded) → bail cleanly.
-  _pottyEntryGone(npc) {
-    const e = npc.pottyEntry;
-    return !e || !e.potty || !registry.entries.has(e.id);
-  }
-
-  _tickSeekingPotty(dt, npc) {
-    if (this._pottyEntryGone(npc)) { this._abortPotty(npc); this._writeMatrices(npc); return; }
-    if (npc.stateTimer <= 0) { this._abortPotty(npc); this._writeMatrices(npc); return; }
-    const e = npc.pottyEntry;
-    const p = e.potty;
-
-    // Walk to the door stand point.
-    const standX = e.position.x + p.outX * POTTY_DOOR_STAND;
-    const standZ = e.position.z + p.outZ * POTTY_DOOR_STAND;
-    const tdx = standX - npc.pos.x;
-    const tdz = standZ - npc.pos.z;
-    const td = Math.hypot(tdx, tdz);
-
-    if (td > 0.7) {
-      const inv = 1 / (td || 1);
-      const speed = 1.8 * npc.energy;
-      npc.vel.x = THREE.MathUtils.lerp(npc.vel.x, tdx * inv * speed, Math.min(1, dt * 5));
-      npc.vel.z = THREE.MathUtils.lerp(npc.vel.z, tdz * inv * speed, Math.min(1, dt * 5));
-      npc.pos.x += npc.vel.x * dt;
-      npc.pos.z += npc.vel.z * dt;
-      const yaw = Math.atan2(-npc.vel.x, -npc.vel.z);
-      npc.yaw += wrapAngle(yaw - npc.yaw) * Math.min(1, dt * 6);
-      this._writeMatrices(npc);
-      return;
-    }
-
-    // Arrived at the door. Face into the unit (toward the door = -outward).
-    npc.vel.set(0, 0, 0);
-    npc.yaw += wrapAngle(Math.atan2(p.outX, p.outZ) - npc.yaw) * Math.min(1, dt * 8);
-
-    if (!p.occupied) {
-      // Vacant → go in. Roll whether the occupant will lock the door behind them.
-      p.occupied = true;
-      p.occupantId = npc.idx;
-      p.locked = Math.random() < POTTY_LOCK_CHANCE;
-      p.doorTarget = 1;
-      npc.state = 'entering_potty';
-      npc.stateTimer = 6;
-      this._writeMatrices(npc);
-      return;
-    }
-
-    // Occupied + the occupant forgot to lock → SURPRISE. Yank the door open,
-    // both parties recoil. The occupant scrambles to lock it now.
-    if (!p.locked) {
-      if (!npc.pottyTried) npc.pottyTried = [];
-      if (!npc.pottyTried.includes(e.id)) npc.pottyTried.push(e.id);
-      p.doorTarget = 1;
-      p.locked = true;
-      const occ = this._npcByIdx(p.occupantId);
-      if (occ && occ.state === 'using_potty') occ.pottyPeeked = 1.2;  // pop into the doorway, startled
-      npc.state = 'surprised_potty';
-      npc.stateTimer = 1.3;
-      npc.cheerTimer = 1.3;   // arms-up startle pose (decayed inside the tick)
-      this._writeMatrices(npc);
-      return;
-    }
-
-    // Occupied + locked → wait a beat, then head to the next closest.
-    npc.pottyWait = (npc.pottyWait || 0) + dt;
-    if (npc.pottyWait < 2.5 && Math.random() < 0.6) { this._writeMatrices(npc); return; }
-    npc.pottyWait = 0;
-    if (!npc.pottyTried) npc.pottyTried = [];
-    if (!npc.pottyTried.includes(e.id)) npc.pottyTried.push(e.id);
-    const next = this._findNearestPotty(npc, npc.pottyTried);
-    if (next) { npc.pottyEntry = next; npc.stateTimer = 30; }
-    else { this._abortPotty(npc); }
-    this._writeMatrices(npc);
-  }
-
-  _tickEnteringPotty(dt, npc) {
-    if (this._pottyEntryGone(npc)) { this._abortPotty(npc); this._writeMatrices(npc); return; }
-    const e = npc.pottyEntry;
-    const p = e.potty;
-
-    const cx = e.position.x, cz = e.position.z;
-    const tdx = cx - npc.pos.x, tdz = cz - npc.pos.z;
-    const td = Math.hypot(tdx, tdz);
-
-    if (td > 0.25 && npc.stateTimer > 0) {
-      // Step in only once the door's actually open.
-      if (p.doorOpen > 0.5) {
-        const inv = 1 / (td || 1);
-        const speed = 1.1 * npc.energy;
-        npc.vel.x = THREE.MathUtils.lerp(npc.vel.x, tdx * inv * speed, Math.min(1, dt * 6));
-        npc.vel.z = THREE.MathUtils.lerp(npc.vel.z, tdz * inv * speed, Math.min(1, dt * 6));
-        npc.pos.x += npc.vel.x * dt;
-        npc.pos.z += npc.vel.z * dt;
-      }
-      npc.yaw += wrapAngle(Math.atan2(p.outX, p.outZ) - npc.yaw) * Math.min(1, dt * 8);
-      this._writeMatrices(npc);
-      return;
-    }
-
-    // Inside — snap to centre, shut the door, hide, start the visit.
-    npc.pos.x = cx;
-    npc.pos.z = cz;
-    npc.vel.set(0, 0, 0);
-    p.doorTarget = 0;
-    npc.state = 'using_potty';
-    npc.useTimer = POTTY_USE_MIN + Math.random() * (POTTY_USE_MAX - POTTY_USE_MIN);
-    this._hideNpc(npc);
-  }
-
-  _tickUsingPotty(dt, npc) {
-    if (this._pottyEntryGone(npc)) { this._unhideAbort(npc); return; }
-    const e = npc.pottyEntry;
-    const p = e.potty;
-
-    // Someone yanked the (unlocked) door open — caught sitting on the toilet,
-    // startled (arms up), facing the intruder, for a beat. Then they recover and
-    // duck back to invisible-inside and carry on.
-    if (npc.pottyPeeked > 0) {
-      npc.pottyPeeked -= dt;
-      npc.pottySitting = true;
-      npc.cheerTimer = Math.max(0, npc.pottyPeeked);   // arms-up "EEP!" pose
-      npc.seatY = POTTY_SEAT_Y;
-      npc.pos.x = e.position.x - p.outX * POTTY_SEAT_BACK;  // on the toilet (back of unit)
-      npc.pos.z = e.position.z - p.outZ * POTTY_SEAT_BACK;
-      npc.yaw = Math.atan2(-p.outX, -p.outZ);          // face the door/intruder
-      if (npc.pottyPeeked <= 0) {
-        npc.cheerTimer = 0;
-        npc.pottySitting = false;
-        npc.seatY = undefined;
-        npc.pos.x = e.position.x;
-        npc.pos.z = e.position.z;
-      }
-      this._writeMatrices(npc);
-      return;
-    }
-
-    npc.useTimer -= dt;
-    this._hideNpc(npc);
-    if (npc.useTimer <= 0) {
-      p.doorTarget = 1;            // open up to leave
-      npc.state = 'exiting_potty';
-      npc.stateTimer = 5;
-      npc.exitPhase = 0;
+  forEachPersonNear(x,z,radius,visit,queryScratch=null) {
+    if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||typeof visit!=='function')throw new TypeError('Invalid nearby-person query.');
+    const scratch=queryScratch??(this._personQueryScratch??={});
+    for(const npc of this.npcs){
+      if(!this.peopleHandles.isLive(npc.personHandle))continue;
+      const distance=Math.hypot(npc.pos.x-x,npc.pos.z-z);
+      if(distance>=radius)continue;
+      this.peopleHandles.readOwnedRecord(npc,scratch);
+      if(visit(npc.personHandle,scratch,distance)===false)return;
     }
   }
 
-  _tickExitingPotty(dt, npc) {
-    if (this._pottyEntryGone(npc)) { this._unhideAbort(npc); return; }
-    const e = npc.pottyEntry;
-    const p = e.potty;
+  hasPersonWithin(x,z,radius,except) {
+    for(const npc of this.npcs)if(npc.personHandle!==except&&!npc._removing&&Math.hypot(x-npc.pos.x,z-npc.pos.z)<radius)return true;
+    return false;
+  }
 
-    // Stay hidden until the door's open enough to step through.
-    if (npc.exitPhase === 0 && p.doorOpen < 0.55 && npc.stateTimer > 0) {
+  hasBoardingGroup(vehicle) {return this.npcs.some(n=>n.party&&n.state==='boarding'&&n.seatSlot?.vehicle===vehicle);}
+
+  activityCooldown(handle,key) {return this.peopleHandles.resolve(handle)?._activityCooldowns?.get(key)??0;}
+
+  requestActivityExit(claim,{targetX=null,targetZ=null,cooldownUntil=null}={}) {
+    if(!this.activityClaims.canRelease(claim))return false;
+    if((targetX!==null&&!Number.isFinite(targetX))||(targetZ!==null&&!Number.isFinite(targetZ))||(cooldownUntil!==null&&!Number.isFinite(cooldownUntil)))throw new TypeError('Activity exit policy must be finite.');
+    const key=claim.owner.activityKey;
+    if(cooldownUntil!==null&&(typeof key!=='string'||!key))throw new TypeError('Cooldown owner needs an activity key.');
+    const npc=this.peopleHandles.entries.get(claim.person.slot).record;
+    let plan=npc._activityReleasePlan;
+    if(plan?.claim!==claim)plan=npc._activityReleasePlan={claim,targetX:null,targetZ:null,cooldownUntil:null,key};
+    if(targetX!==null)plan.targetX=targetX;if(targetZ!==null)plan.targetZ=targetZ;if(cooldownUntil!==null)plan.cooldownUntil=cooldownUntil;
+    return true;
+  }
+
+  _finalizeActivityRelease(claim) {
+    if(!this.peopleHandles.owns(claim.person))return;
+    const npc=this.peopleHandles.entries.get(claim.person.slot).record,plan=npc._activityReleasePlan;
+    if(plan?.claim!==claim)return;
+    npc._activityReleasePlan=null;
+    if(plan.targetX!==null&&plan.targetZ!==null)npc.target.set(plan.targetX,0,plan.targetZ);
+    if(plan.cooldownUntil!==null){npc._activityCooldowns??=new Map();npc._activityCooldowns.set(plan.key,plan.cooldownUntil);}
+  }
+
+  _canAcquireActivity(handle) {const npc=this.peopleHandles.resolve(handle);return !!npc&&!['riding','boarding','disembarking','camp_sleeping'].includes(npc.state);}
+  _resumeActivityPerson(handle,reason,claim) {
+    if(this._inlineActivities?.has(claim?.owner)&&(reason==='rest-step'||reason==='rest-interrupted'))return;
+    const npc=this.peopleHandles.resolve(handle);
+    if(npc){if(npc.state!=='fleeing'){npc.state='walking';npc.stateTimer=12;npc.vel.set(0,0,0);}this._publishPerson(npc);}
+  }
+
+  claimActivity(handle,options={}, {preserveMotion=false}={}) {
+    const release=options.release;
+    const claim=this.activityClaims.acquire(handle,{...options,release:(current,reason)=>{
+      try {release?.(current,reason);}
+      finally {this.releaseActivityBinding(current);}
+    }});
+    if(claim&&!preserveMotion){const npc=this.peopleHandles.resolve(handle);npc.state='idle';npc.vel.set(0,0,0);}
+    return claim;
+  }
+
+  writeActivityPose(claim,x,y,z,heading=null,bob=null) {
+    if(!this.activityClaims.canWrite(claim))return false;
+    if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z)||(heading!==null&&!Number.isFinite(heading))||(bob!==null&&!Number.isFinite(bob)))throw new TypeError('Activity pose must be finite.');
+    const npc=this.peopleHandles.resolve(claim.person);
+    npc.pos.set(x,y,z);if(heading!==null)npc.yaw=heading;if(bob!==null)npc.bob=bob;
+    // Hidden rigs have no ordinary transform to publish; avoid redundant writes.
+    if(!npc._activityBinding?.hidden)this._publishPerson(npc);
+    return true;
+  }
+
+  setActivityBinding(claim,hidden) {
+    if(!this.activityClaims.canWrite(claim))return false;
+    const npc=this.peopleHandles.resolve(claim.person);
+    if(npc._activityBinding?.claim===claim&&npc._activityBinding.hidden===!!hidden)return true;
+    npc._activityBinding={claim,hidden:!!hidden};this._publishPerson(npc);return true;
+  }
+
+  releaseActivityBinding(claim) {
+    if(!this.activityClaims.canRelease(claim))return false;
+    const npc=this.peopleHandles.entries.get(claim.person.slot)?.record;
+    if(npc?._activityBinding?.claim!==claim)return false;
+    npc._activityBinding=null;return true;
+  }
+
+  endPersonActivity(claim,{targetX=null,targetZ=null,reason='ended'}={}) {
+    if(!claim||this.activityClaims.current.get(claim.person)?.claim!==claim)return false;
+    if(targetX!==null||targetZ!==null)this.requestActivityExit(claim,{targetX,targetZ});
+    return this.activityClaims.release(claim,reason);
+  }
+
+  _publishPerson(npc) {
+    // Legacy display grounding must not overwrite an activity's authoritative Y.
+    // The ordinary population update still grounds its records at its own barrier.
+    const y=npc.pos.y;
+    try {this._writeMatrices(npc);} finally {npc.pos.y=y;}
+    this.shoppingBagMesh.instanceMatrix.needsUpdate=true;
+    this.legsMesh.instanceMatrix.needsUpdate=true;this.shoesMesh.instanceMatrix.needsUpdate=true;
+    this.bodyMesh.instanceMatrix.needsUpdate=true;this.armsMesh.instanceMatrix.needsUpdate=true;
+    this.headMesh.instanceMatrix.needsUpdate=true;this.eyesMesh.instanceMatrix.needsUpdate=true;this.mouthMesh.instanceMatrix.needsUpdate=true;
+    if(npc.hairSlot>=0)this.hairMeshes[npc.appearance.hairStyle].instanceMatrix.needsUpdate=true;
+    if(npc.drinkSlot>=0)this.drinkMesh.instanceMatrix.needsUpdate=true;
+    if(npc.isPhotographer){this.cameraMesh.instanceMatrix.needsUpdate=true;this.flashMesh.instanceMatrix.needsUpdate=true;}
+  }
+
+  inspect(out) {out.population=this.npcs.length;out.disposed=this._disposed;out.claims=this.activityClaims.current.size;}
+
+  // Lifetime invalidation precedes borrowers, which still see retiring metadata
+  // and live render resources. Both explicit and distance removal use this core.
+  _releaseNpc(npc) {
+    if(npc._removing)return false;
+    npc._removing=true;
+    const handle=this.peopleHandles.handleFor(npc),errors=[];
+    const release=fn=>{try{fn();}catch(error){errors.push(error);}};
+    this.peopleHandles.remove(handle,()=>{
+      release(()=>this.activityClaims.removePerson(handle));
+      release(()=>this._releaseMarket(npc));
+      release(()=>this._releaseSeat(npc));
+      if(this.hammocks?.has(npc.personHandle))release(()=>this._releaseHammock(npc));
+      if(this.picnics?.has(npc.personHandle))release(()=>this._releaseTable(npc));
+      release(()=>this._releaseCamp(npc));
+      if(this.bathrooms?.has(npc.personHandle))release(()=>this._releasePotty(npc));
+      const group=this.groups.get(npc.groupId);
+      if(group){const index=group.members.indexOf(npc.idx);if(index>=0)group.members.splice(index,1);if(!group.members.length)this.groups.delete(npc.groupId);}
       this._hideNpc(npc);
-      return;
-    }
-
-    if (npc.exitPhase === 0) {
-      npc.exitPhase = 1;
-      // Step out to the stand point, free the unit, puff the stink, walk off.
-      npc.pos.x = e.position.x + p.outX * (POTTY_DOOR_STAND * 0.55);
-      npc.pos.z = e.position.z + p.outZ * (POTTY_DOOR_STAND * 0.55);
-      npc.yaw = Math.atan2(-p.outX, -p.outZ);   // face outward (away)
-      p.occupied = false;
-      p.occupantId = null;
-      p.locked = false;
-      p.doorTarget = 0;            // close behind them
-      p.stinkTimer = STINK_DUR;    // green puff
-      const r = 3 + Math.random() * 3;
-      npc.target.set(
-        e.position.x + p.outX * r + (Math.random() - 0.5) * 2,
-        0,
-        e.position.z + p.outZ * r + (Math.random() - 0.5) * 2,
-      );
-      npc.pottyEntry = null;
-      npc.pottyTried = null;
-      npc.pottyWait = 0;
-      npc.state = 'walking';       // actively walk away from the door (frees it for the next user)
-      npc.stateTimer = 6;
-      this._writeMatrices(npc);
-    }
+      if(npc.isPhotographer){this._photoFree.push(npc.photoSlot);this._photographerCount--;npc.photoSlot=-1;}
+      if(npc.drinkSlot>=0){this._drinkFree.push(npc.drinkSlot);npc.drinkSlot=-1;}
+      if(npc.hairSlot>=0){this._hairFree[npc.appearance.hairStyle].push(npc.hairSlot);npc.hairSlot=-1;}
+      if(npc._groupBinding)release(()=>releaseGroupBinding(npc,handle));npc.party=null;npc.seatSlot=null;
+      this.free.push(npc.idx);
+    });
+    if(errors.length)throw new AggregateError(errors,'Person borrower cleanup failed.');
+    return true;
   }
 
-  _tickSurprisedPotty(dt, npc) {
-    npc.stateTimer -= dt;
-    npc.cheerTimer = Math.max(0, npc.stateTimer);   // arms-up pose tracks the recoil
-    const e = npc.pottyEntry;
-    const p = e && e.potty;
-    if (p) {
-      npc.yaw += wrapAngle(Math.atan2(p.outX, p.outZ) - npc.yaw) * Math.min(1, dt * 8);
-      const sp = 2.6 * npc.energy;
-      npc.vel.x = THREE.MathUtils.lerp(npc.vel.x, p.outX * sp, Math.min(1, dt * 8));
-      npc.vel.z = THREE.MathUtils.lerp(npc.vel.z, p.outZ * sp, Math.min(1, dt * 8));
-      npc.pos.x += npc.vel.x * dt;
-      npc.pos.z += npc.vel.z * dt;
+  _publishPopulationRanges() {
+    this._maxIdx=-1;this._hairDrawCounts.fill(0);
+    let drinkHigh=-1,photoHigh=-1;
+    for(const npc of this.npcs){
+      this._maxIdx=Math.max(this._maxIdx,npc.idx);
+      const style=npc.appearance.hairStyle;
+      this._hairDrawCounts[style]=Math.max(this._hairDrawCounts[style],npc.hairSlot+1);
+      drinkHigh=Math.max(drinkHigh,npc.drinkSlot);
+      if(npc.isPhotographer)photoHigh=Math.max(photoHigh,npc.photoSlot);
     }
-    if (npc.stateTimer <= 0) {
-      npc.cheerTimer = 0;
-      if (p) p.doorTarget = 0;   // slam it shut
-      const next = this._findNearestPotty(npc, npc.pottyTried || []);
-      if (next) {
-        npc.pottyEntry = next;
-        npc.state = 'seeking_potty';
-        npc.stateTimer = 30;
-        npc.pottyWait = 0;
-      } else {
-        this._abortPotty(npc);
-      }
-    }
-    this._writeMatrices(npc);
+    this._drinkDrawCount=drinkHigh+1;this._photoDrawCount=photoHigh+1;
+    for(const mesh of [this.legsMesh,this.shoesMesh,this.bodyMesh,this.armsMesh,this.headMesh,this.eyesMesh,this.mouthMesh,this.shoppingBagMesh]){mesh.count=this._maxIdx+1;mesh.instanceMatrix.needsUpdate=true;}
+    for(let style=0;style<this.hairMeshes.length;style++){this.hairMeshes[style].count=this._hairDrawCounts[style];this.hairMeshes[style].instanceMatrix.needsUpdate=true;}
+    this.drinkMesh.count=this._drinkDrawCount;this.cameraMesh.count=this._photoDrawCount;this.flashMesh.count=this._photoDrawCount;
+    for(const mesh of [this.drinkMesh,this.cameraMesh,this.flashMesh])mesh.instanceMatrix.needsUpdate=true;
   }
 
   removeNpc(npc) {
-    this._releaseMarket(npc);
-    const index = this.npcs.indexOf(npc);
-    if (index < 0) return;
-    this._releaseSeat(npc.seatSlot);
-    if (npc.hammockEntry) this._releaseHammock(npc);
-    if (npc.tableSeat) this._releaseTable(npc);
-    this._releaseCamp(npc);
-    if (npc.pottyEntry) this._releasePotty(npc);
-    const group = this.groups.get(npc.groupId);
-    if (group) {
-      group.members = group.members.filter(id => id !== npc.idx);
-      if (!group.members.length) this.groups.delete(npc.groupId);
+    const index=this.npcs.indexOf(npc);
+    if(index<0||npc._removing)return;
+    try{this._releaseNpc(npc);}
+    finally {
+      if(this._removalSweep)this._removedDuringSweep=true;
+      else {const remaining=this.npcs.indexOf(npc);if(remaining>=0)this.npcs.splice(remaining,1);this._publishPopulationRanges();}
     }
-    this._hideNpc(npc);
-    if (npc.isPhotographer) {
-      this.cameraMesh.setMatrixAt(npc.photoSlot, this._zeroMat);
-      this.flashMesh.setMatrixAt(npc.photoSlot, this._zeroMat);
-      this._photoFree.push(npc.photoSlot); this._photographerCount--;
-    }
-    if (npc.drinkSlot >= 0) {
-      this.drinkMesh.setMatrixAt(npc.drinkSlot, this._zeroMat);
-      this._drinkFree.push(npc.drinkSlot);
-      npc.drinkSlot = -1;
-    }
-    if (npc.hairSlot >= 0) {
-      this._hairFree[npc.appearance.hairStyle].push(npc.hairSlot);
-      npc.hairSlot = -1;
-    }
-    npc.avatar?.removeFromParent(); npc.party = null; npc.seatSlot = null;
-    this.npcs.splice(index, 1); this.free.push(npc.idx);
-    this._maxIdx = -1;
-    this._hairDrawCounts.fill(0);
-    for (const remaining of this.npcs) {
-      this._maxIdx = Math.max(this._maxIdx, remaining.idx);
-      const style = remaining.appearance.hairStyle;
-      this._hairDrawCounts[style] = Math.max(this._hairDrawCounts[style], remaining.hairSlot + 1);
-    }
-    for (let style = 0; style < this.hairMeshes.length; style++) this.hairMeshes[style].count = this._hairDrawCounts[style];
-    let drinkHigh = -1;
-    for (const remaining of this.npcs) if (remaining.drinkSlot > drinkHigh) drinkHigh = remaining.drinkSlot;
-    this._drinkDrawCount = drinkHigh + 1;
-    this.drinkMesh.count = this._drinkDrawCount;
   }
 
-  // Instance uploads are flagged globally each frame in update().
+  dispose(reason='population-disposed') {
+    if(this._disposed)return;
+    this._disposed=true;
+    const errors=[],release=fn=>{try{fn();}catch(error){errors.push(error);}};
+    if(this.peopleRuntime.isRegistered(this.ownerToken))release(()=>this.peopleRuntime.unregister(this.ownerToken,reason));
+    release(()=>this.activityClaims.dispose());
+    release(()=>this.hammocks.dispose());
+    release(()=>this.picnics.dispose());
+    release(()=>this.bathrooms.dispose());
+    release(()=>this.markets.dispose());
+    release(()=>this.camps.dispose());
+    for(const party of [...this.parties])release(()=>party.dispose());
+    release(()=>this.campJams.dispose());
+    for(const npc of [...this.npcs])release(()=>this.removeNpc(npc));
+    release(()=>this.seatReservations.dispose());
+    release(()=>this.peopleHandles.dispose());
+    release(()=>disposeSceneResources(this.group));
+    this.group.removeFromParent();
+    if(errors.length)throw new AggregateError(errors,'Crowd teardown failed.');
+  }
+
   _hideNpc(npc) {
     this.shoppingBagMesh?.setMatrixAt(npc.idx, this._zeroMat);
     if (npc.campInstrument) npc.campInstrument.group.visible = false;
@@ -2777,20 +2378,11 @@ export class Crowd {
     this.mouthMesh.setMatrixAt(npc.idx, z);
     if (npc.hairSlot >= 0) this.hairMeshes[npc.appearance.hairStyle].setMatrixAt(npc.hairSlot, z);
     if (npc.drinkSlot >= 0) this.drinkMesh.setMatrixAt(npc.drinkSlot, z);
-    if (npc.avatar) npc.avatar.visible = false;
+    if(npc._groupBinding)hideGroupBinding(npc);
     if (npc.isPhotographer) {
       this.cameraMesh.setMatrixAt(npc.photoSlot, z);
       this.flashMesh.setMatrixAt(npc.photoSlot, z);
     }
-  }
-
-  // Targeted unit vanished mid-visit (chunk unloaded). Drop the claim, pop back
-  // to idle, and write a real matrix so the NPC reappears instead of staying hidden.
-  _unhideAbort(npc) {
-    this._releasePotty(npc);
-    npc.state = 'idle';
-    npc.stateTimer = 1 + Math.random() * 2;
-    this._writeMatrices(npc);
   }
 
   // Festival Run: a damaging hit flips the struck NPC's mouth to a frown for
@@ -2800,40 +2392,45 @@ export class Crowd {
   // victim keeps fleeing: the frown branch in _updateNpc force-writes
   // `walking`, which would strip the damage-0 anti-double-hit grace the
   // fleeing state carries — panic outranks a mouth flip.
-  frownAt(npc) {
-    if (npc && npc.state !== 'fleeing') npc.frownTimer = FROWN_DURATION;
+  frownPerson(handle) {
+    const n=this.peopleHandles.resolve(handle);if(!n||n.state==='fleeing')return false;
+    n.frownTimer=FROWN_DURATION;return true;
+  }
+
+  // A persistent candidate belongs to one person lifetime. Its copied position
+  // cannot mutate population storage, and its callbacks reject retired handles.
+  appendColliders(out,cart) {
+    if(this._disposed||!cart?.position)return;
+    for(const n of this.npcs){
+      const handle=n.personHandle;if(!this.peopleHandles.isLive(handle))continue;
+      if(n.state==='riding'||n.state==='boarding'||n.state==='disembarking'||n.state==='camp_sleeping'||n.campJamHidden||this.hasHiddenBinding(handle))continue;
+      const dx=n.pos.x-cart.position.x,dz=n.pos.z-cart.position.z;if(dx*dx+dz*dz>36)continue;
+      let c=n._personCollider;
+      if(!c)c=n._personCollider={position:{x:0,y:0,z:0},radius:.45,damage:1,kind:'person',passive:false,entry:null,personHandle:handle,
+        onContact:(_candidate,x,z)=>this.hitPerson(handle,x,z),onPeoplePenalty:()=>this.frownPerson(handle)};
+      c.position.x=n.pos.x;c.position.y=n.pos.y;c.position.z=n.pos.z;out.push(c);
+    }
+  }
+
+  hitPerson(handle,pushX,pushZ) {
+    const n=this.peopleHandles.resolve(handle);if(!n)return false;
+    if(!Number.isFinite(pushX)||!Number.isFinite(pushZ))throw new TypeError('Person hit direction must be finite.');
+    return this._onZerbleHit(n,pushX,pushZ);
   }
 
   // Called from main.js when Zerble rams a porta-potty that's in use: eject the
   // occupant (flustered, fleeing), fling the door open, puff the stink.
-  onPottyHit(entry) {
-    if (!entry || !entry.potty || !entry.potty.occupied) return;
-    const p = entry.potty;
-    const occ = this._npcByIdx(p.occupantId);
-    if (occ && occ.pottyEntry === entry) {
-      occ.pos.x = entry.position.x + p.outX * 1.0;
-      occ.pos.z = entry.position.z + p.outZ * 1.0;
-      occ.pottyEntry = null;
-      occ.pottyTried = null;
-      occ.useTimer = 0;
-      occ.pottyPeeked = 0;
-      occ.pottySitting = false;
-      occ.seatY = undefined;
-      occ.state = 'fleeing';
-      occ.stateTimer = 3;
-    }
-    p.occupied = false;
-    p.occupantId = null;
-    p.locked = false;
-    p.doorTarget = 1;
-    p.stinkTimer = STINK_DUR;
-  }
+  onPottyHit(entry) {return this.bathrooms.onHit(entry);}
 
   // Called from main.js when Zerble drives into an NPC. Knockback the victim,
   // put them into a fleeing state, and spook nearby NPCs (panic cascade).
-  onZerbleHit(victim, pushX, pushZ) {
-    victim.festivalVisit?.owner.releaseNpc(victim);
-    if(this._abandonSeat(victim)===false)return; // a trapped sitter waits
+  _onZerbleHit(victim, pushX, pushZ) {
+    const handle=this.peopleHandles.handleFor(victim);
+    if(!this.peopleHandles.isLive(handle))return false;
+    const hadActivity=this.activityClaims.current.has(handle);
+    // Preserve the physical exit preflight before revoking a camp reservation.
+    if(this._abandonSeat(victim)===false)return false; // a trapped sitter waits
+    this.activityClaims.removePerson(handle,'hit');
     victim.state = 'fleeing';
     victim.stateTimer = 3;
     victim.happiness = 0;
@@ -2841,6 +2438,7 @@ export class Crowd {
     // through the same NPC frame after frame.
     victim.pos.x += pushX * 0.6;
     victim.pos.z += pushZ * 0.6;
+    if(hadActivity)this._publishPerson(victim);
     // Panic cascade: nearby NPCs (within 6m) of any reasonable skittishness flee too
     for (const other of this.npcs) {
       if (other === victim || other.state === 'riding' || other.state === 'boarding' || other.state === 'camp_sleeping' || other.campJamHidden) continue;
@@ -2850,22 +2448,25 @@ export class Crowd {
       // Bolder/calmer folks may shrug it off
       if (other.skittish < 0.15 && Math.random() < 0.5) continue;
       if(this._abandonSeat(other)===false)continue;
+      this.activityClaims.removePerson(other.personHandle,'panic');
       other.state = 'fleeing';
       other.stateTimer = 2.5;
     }
+    return true;
   }
 
   // Free any picnic-table seat or hammock an NPC holds before it's force-fled
   // (rammed, cascade-panicked, or honk-scattered), so the slot is never stranded
   // "occupied". Safe to call on any NPC — no-op if it holds neither.
   _abandonSeat(npc) {
+    if(this.bathrooms?.has(npc.personHandle))this._releasePotty(npc);
     this._releaseMarket(npc);
     // A trapped sitter cannot stand inside its own solid chair. Keep the
     // reservation until an exit opens, just as for a scheduled departure.
-    if(npc.campSlot && (npc.state==='camp_seated'||npc.state==='camp_sleeping') && !this._campExit(npc))return false;
-    if (npc.tableSeat) this._releaseTable(npc);
+    if((this.camps?.has(npc.personHandle)||this.campJams?.has(npc.personHandle)) && (npc.state==='camp_seated'||npc.state==='camp_sleeping') && !this._campExit(npc))return false;
+    if (this.picnics?.has(npc.personHandle)) this._releaseTable(npc);
     this._releaseCamp(npc);
-    if (npc.hammockEntry) this._releaseHammock(npc);
+    if (this.hammocks?.has(npc.personHandle)) this._releaseHammock(npc);
     return true;
   }
 
@@ -2875,10 +2476,11 @@ export class Crowd {
   // stop-and-stare. NPCs busy in an interaction (riding, potty, hammock, table,
   // fleeing) are left alone so we don't yank them out of a state machine.
   applyStarLove(zerble, dt, radius = 25) {
+    if(this._disposed)return;
     const r2 = radius * radius;
     const px = zerble.position.x, pz = zerble.position.z;
     for (const npc of this.npcs) {
-      if (npc.campJam || STAR_LOVE_SKIP.has(npc.state)) continue;
+      if (this.activityClaims.current.has(npc.personHandle)||npc.campMusic || STAR_LOVE_SKIP.has(npc.state)) continue;
       const dx = npc.pos.x - px, dz = npc.pos.z - pz;
       if (dx * dx + dz * dz > r2) continue;
       npc.happiness = HAPPINESS_THRESHOLD;        // smitten
@@ -2900,6 +2502,7 @@ export class Crowd {
   }
 
   applyHonk(zerble) {
+    if(this._disposed)return;
     // A honk scatters the forward arc at ANY speed (it used to fire only when
     // parked). Two passes:
     //   1. Front arc — anyone in the forward ~hemisphere within a speed-scaled
@@ -2917,7 +2520,7 @@ export class Crowd {
     const vDir = (zerble.speed || 0) >= 0 ? 1 : -1;        // scatter along travel, not facing (reverse-safe)
 
     for (const npc of this.npcs) {
-      if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc.festivalVisit?.hidden) continue;
+      if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc._activityBinding?.hidden) continue;
       const dx = npc.pos.x - zerble.position.x;
       const dz = npc.pos.z - zerble.position.z;
 
@@ -2935,10 +2538,11 @@ export class Crowd {
         const inRange = inFront || (d2 < behindSq);
         if (inRange) {
           if (npc.state === 'boarding' && npc.seatSlot) {
-            this._releaseSeat(npc.seatSlot);
+            this._releaseSeat(npc);
             npc.seatSlot = null;
           }
           if(this._abandonSeat(npc)===false)continue;
+          this.activityClaims.removePerson(npc.personHandle,'honk');
           npc.state = 'fleeing';
           npc.fleeUrgency = inFront ? urgency : Math.min(urgency, 1.3);  // behind = a flinch, not a sprint
           // Front flees commit longer (longer still at speed); a behind flinch is brief.
@@ -2952,10 +2556,8 @@ export class Crowd {
         npc.happiness += HONK_BOOST * k;
         if (npc.happiness >= HAPPINESS_THRESHOLD) {
           // Apply the same distance/time gate as natural smiles
-          if (npc.lastSmilePos === null || zerble.position.distanceTo(npc.lastSmilePos) > SMILE_RESET_DIST) {
-            npc.happiness = 0;
-            npc.smileTimeCooldown = SMILE_TIME_COOLDOWN;
-            npc.lastSmilePos = zerble.position.clone();
+          if (movedSinceSmile(npc,zerble.position,SMILE_RESET_DIST)) {
+            resetSmile(npc,zerble.position,SMILE_TIME_COOLDOWN);
             this.smiles.spawn(npc.pos);
           } else {
             // They're charmed but already smiled recently — just hold at threshold
@@ -2996,13 +2598,4 @@ function nearestFootprintAvoidance(pos, lookAheadRadius) {
   if (strength <= 0) return null;
   const n = Math.hypot(pushX, pushZ) || 1;
   return { x: pushX / n, z: pushZ / n, strength: Math.min(1.2, strength) };
-}
-
-// All special market movement uses physical colliders, including other booths.
-function isMarketSpotBlocked(x, z) {
-  let blocked = false;
-  registry.collidersNear(x, z, .35, entry => {
-    if (Math.hypot(x - entry.position.x, z - entry.position.z) < entry.collider.radius + .349) blocked = true;
-  });
-  return blocked;
 }

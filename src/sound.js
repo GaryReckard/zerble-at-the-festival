@@ -832,6 +832,10 @@ export const Sound = {
         stop() {
           if (this._real) this._real.stop();
           else this.cancelled = true;
+          // A removed pre-gesture owner must not retain its queued descriptor.
+          // An already-drained descriptor still checks cancelled before adoption.
+          const pending = _pendingStages.findIndex(entry => entry.handle === this);
+          if (pending !== -1) _pendingStages.splice(pending, 1);
           // Remove from registry.
           const idx = _stageHandleRegistry.findIndex(e => e.handle === this);
           if (idx !== -1) _stageHandleRegistry.splice(idx, 1);

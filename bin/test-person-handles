@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+const controller={inspect(){},dispose(){}};
+const runtime=new PeopleRuntime(),ownerToken=runtime.register({key:'adults',controller});
+const directory=new PersonHandles({runtime,ownerToken,read:(person,out)=>{out.x=person.x;}});
+const person={x:1},handle=directory.create(7,person),scratch={};
+assert(Object.isFrozen(handle));assert.equal(directory.handleFor(person),handle);
+assert(directory.view.read(handle,scratch));assert.equal(scratch.x,1);
+scratch.photographer=true;scratch.claimed=true;scratch.shirt=123;scratch.grouped=true;
+assert(directory.view.read(handle,scratch));assert.equal(scratch.photographer,false);assert.equal(scratch.claimed,false);assert.equal(scratch.shirt,null);assert.equal(scratch.grouped,false);
+person.x=20;assert(directory.view.read(handle,scratch));assert.equal(scratch.x,20,'relocation retains identity');
+assert.throws(()=>directory.create(7,{}),TypeError);assert.throws(()=>directory.create(8,person),TypeError);
+assert.throws(()=>directory.read(handle),/scratch/);
+let releases=0;
+assert(directory.remove(handle,(record,current)=>{
+ releases++;assert.equal(record,person);assert.equal(current,handle);
+ assert(directory.owns(handle),'retiring resource metadata remains valid');assert.equal(directory.resolve(handle),null);
+ assert.equal(directory.remove(handle),false);assert.throws(()=>directory.create(7,{}),TypeError);
+}));
+assert.equal(releases,1);assert.equal(directory.remove(handle),false);assert.equal(directory.handleFor(person),null);
+const replacement=directory.create(7,{x:30});assert.notEqual(replacement.generation,handle.generation);
+assert.equal(directory.view.read(handle,scratch),false);assert.equal(directory.resolve(handle),null);assert(directory.isLive(replacement));
+runtime.unregister(ownerToken);assert.equal(directory.resolve(replacement),null,'retired registration rejects commands');
+assert(directory.owns(replacement),'owner cleanup can still identify its own retiring resources');
+const nextToken=runtime.register({key:'adults',controller});
+const next=new PersonHandles({runtime,ownerToken:nextToken,read:(p,out)=>{out.x=p.x;}});
+const sameSlot=next.create(7,{x:99});assert.equal(sameSlot.generation,1);assert.equal(next.resolve(handle),null);assert.equal(next.resolve(replacement),null);
+const otherRuntime=new PeopleRuntime(),otherToken=otherRuntime.register({key:'adults',controller});
+const other=new PersonHandles({runtime:otherRuntime,ownerToken:otherToken,read(){}});other.create(7,{});assert.equal(other.resolve(sameSlot),null,'full runtime replacement changes identity');
+const peer=next.create(8,{});let disposed=0;
+assert.throws(()=>next.dispose((record,current)=>{
+ disposed++;assert.equal(next.resolve(peer),null);assert.throws(()=>next.create(9,{}),/unavailable/);
+ if(current===sameSlot)throw Error('expected');
+}),AggregateError);
+assert.equal(disposed,2);assert.equal(next.entries.size,0);next.dispose();
+assert.equal(next.view.resolve,undefined,'public view exposes no raw-record resolver');
+console.log('PASS person handles: pooled generations, owner/runtime replacement, stable relocation, caller scratch with cleared cross-population flags, stale reads/commands and ordered exception-safe cleanup.');

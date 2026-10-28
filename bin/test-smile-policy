@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import * as policy from '../src/people/smilePolicy.js';
+import {Vector} from './test-support/sceneObjects.mjs';
+const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
+const adult=read('../src/crowd.js'),child=read('../src/people/children.js');
+const constants=`const SMILE_RANGE=18,SMILE_RESET_DIST=28,FROWN_THRESHOLD=.9,FROWN_DURATION=2.6,SMILE_TIME_COOLDOWN=3,BUBBLE_RANGE=6,HAPPINESS_THRESHOLD=.7;
+const KID_SMILE_RESET_DIST=28,KID_SMILE_RANGE=12,KID_PROXIMITY_GAIN=.4,KID_BUBBLE_GAIN_RANGE=1.5,KID_BUBBLE_GAIN=.6,KID_HAPPINESS_THRESHOLD=.7,KID_SMILE_TIME_COOLDOWN=3;`;
+function compile(block){return new Function(...Object.keys(policy),`return function(npc,k,zerble,dt,dToZerble,cosCone,bubblePositions,chaseD,smiles,fleeing){${constants}\n${block}\n}`)(...Object.values(policy));}
+const adultOld=compile(read('../verification/people/2026-10-26/legacy-adult-smiles.js'));
+const adultNew=compile(adult.slice(adult.indexOf('    // --- charm logic ---'),adult.indexOf('    // Write transform',adult.indexOf('    // --- charm logic ---'))));
+const childOld=compile(read('../verification/people/2026-10-26/legacy-child-smiles.js'));
+const start=child.indexOf('      if (smiles && zerble && !fleeing)');
+const childNew=compile(child.slice(start,child.indexOf('\n      if (fleeing)',start)));
+let seed=1977;const rng=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;};
+const clone=n=>({...n,pos:n.pos.clone(),lastSmilePos:n.lastSmilePos?.clone()??null});
+for(let i=0;i<12000;i++){
+ const position=new Vector(rng()*80-40,rng()*2,rng()*80-40),zerble={position,forwardWorld:new Vector(Math.sin(i),0,Math.cos(i))};
+ const state={pos:new Vector(rng()*30-15,0,rng()*30-15),smileTimeCooldown:[-1,0,.01,3][i%4],lastSmilePos:i%3?new Vector(position.x+[27.99,28,28.01,50][i%4],position.y,position.z):null,happiness:rng(),displeasure:rng(),state:['idle','walking','approaching','watching','fleeing'][i%5],personHandle:{slot:i}};
+ const bubbles=[new Vector(rng()*8-4,0,rng()*8-4),state.pos.clone()];
+ const distance=[0,11.999,12,17.999,18,30][i%6],dt=[0,.001,.02,.05][i%4];
+ function run(fn,kid){const n=clone(state),events=[],smiles={spawn:p=>events.push(['smile',p.x,p.y,p.z]),spawnLost:(p,h)=>events.push(['frown',p.x,p.y,p.z,h.slot])};const owner={smiles,peopleView:{},bubblesEmpty:i%2===0,frownRateMult:1+i%5,onFrown:h=>events.push(['score',h.slot])};fn.call(owner,n,{userData:n,position:n.pos},zerble,dt,distance,Math.cos(80*Math.PI/180),bubbles,[0,1.499,1.5,5][i%4],smiles,kid&&i%7===0);return {n,events};}
+ assert.deepEqual(run(adultNew,false),run(adultOld,false));
+ assert.deepEqual(run(childNew,true),run(childOld,true));
+}
+console.log('PASS smile policy: 12000 exact adult and 12000 exact child transitions, strict distance/time boundaries, distinct gains, dry-cart frowns, protected/fleeing states, reset poses and event ordering');

@@ -72,18 +72,18 @@ export class OneWheelMotion {
   }
 }
 
-// Test both the current pedestrian position and a short velocity prediction.
-// The envelope grows with speed so ordinary approaches stop before contact.
-export function riderYieldReason(x,z,heading,speed,player,pedestrians) {
+// Query copied public person fields while retaining the characterized yield envelope.
+export function riderYieldForPeople(x,z,heading,speed,player,people,scratch) {
   const fx=Math.sin(heading),fz=Math.cos(heading),look=2.2+speed*.8;
   const threatens=(px,pz,radius)=>{
     const dx=px-x,dz=pz-z,along=dx*fx+dz*fz,side=Math.abs(dx*fz-dz*fx);
-    return Math.hypot(dx,dz)<radius || (along>0&&along<look+radius&&side<radius);
+    return Math.hypot(dx,dz)<radius||(along>0&&along<look+radius&&side<radius);
   };
   if(player&&threatens(player.x,player.z,2.4))return 'yielding to Zerble';
-  for(const n of pedestrians||[]){
-    if(n.state==='riding'||n.state==='hammock_riding'||n.state==='table_seated')continue;
-    if(threatens(n.pos.x,n.pos.z,1.35)||threatens(n.pos.x+(n.vel?.x||0)*.7,n.pos.z+(n.vel?.z||0)*.7,1.35))return 'yielding to pedestrians';
-  }
-  return null;
+  let reason=null;
+  people.forEachPersonNear(x,z,Number.MAX_VALUE,(_handle,n)=>{
+    if(n.state==='riding'||n.state==='hammock_riding'||n.state==='table_seated')return;
+    if(threatens(n.x,n.z,1.35)||threatens(n.x+(n.vx||0)*.7,n.z+(n.vz||0)*.7,1.35)){reason='yielding to pedestrians';return false;}
+  },scratch);
+  return reason;
 }

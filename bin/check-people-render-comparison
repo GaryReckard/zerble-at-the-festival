@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const load=(side,tier)=>JSON.parse(readFileSync(new URL(`../verification/people/matched-${side}-${tier}-fixed-cohort-baseline.json`,import.meta.url)));
+for(const tier of ['low','mid']){
+  const before=load('original',tier),after=load('current',tier);
+  for(const report of [before,after]){
+    assert(report.complete&&report.frames.length===180&&report.warmup===120);
+    assert(report.metadata.fixedCohort&&report.metadata.foreground&&report.metadata.probesRestored);
+    assert.equal(report.metadata.tier,tier);
+    assert.equal(report.operations['crowd.update'].calls,180);
+    assert.equal(report.operations['children.update'].calls,180);
+    assert.equal(report.operations['crowd._despawnDistant'].calls,180);
+  }
+  for(const key of ['protocol','seed','tier','time','qualityPinned','camera','player','dpr','viewport','gpu','initialChildren'])
+    assert.deepEqual(after.metadata[key],before.metadata[key],key);
+  for(const key of ['canvasW','canvasH','targetW','targetH','qualityLevel','tex'])
+    assert.equal(after.metadata.final[key],before.metadata.final[key],key);
+  // Count source topology rather than upload-cache history or changing culling.
+  assert.deepEqual(after.metadata.inventory.buckets,before.metadata.inventory.buckets);
+  assert(after.metadata.inventory.resources.geometries<=before.metadata.inventory.resources.geometries);
+  assert.equal(after.metadata.inventory.resources.materials,before.metadata.inventory.resources.materials);
+  assert.equal(after.metadata.inventory.resources.materialTextures,before.metadata.inventory.resources.materialTextures);
+  assert(after.operations.matrixWrites.calls<=before.operations.matrixWrites.calls);
+  console.log(`PASS ${tier}: equivalent initial meshes/instances/draws/triangles/shadow casters, bounded writes, one population pass; CPU p50/p95 ${before.workMs.p50.toFixed(1)}/${before.workMs.p95.toFixed(1)} -> ${after.workMs.p50.toFixed(1)}/${after.workMs.p95.toFixed(1)} ms.`);
+}
+console.log('Scope: saved matched instrumented Mac windows, not a physical-phone FPS or heap-allocation proof.');

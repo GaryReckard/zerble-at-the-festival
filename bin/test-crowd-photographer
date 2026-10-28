@@ -54,8 +54,16 @@ assert(tickPhotographerOpportunity(opportunity, 1 / 60, 10, true), 'an eligible 
 const crowd = await readFile(new URL('../src/crowd.js', import.meta.url), 'utf8');
 assert(/cameraMesh\.castShadow = false/.test(crowd) && /flashMesh\.castShadow = false/.test(crowd),
   'the camera or flash became a shadow caster');
-assert(/this\.cameraMesh\.setMatrixAt\(npc\.photoSlot, zero\)[\s\S]*?this\.flashMesh\.setMatrixAt\(npc\.photoSlot, zero\)/.test(crowd),
-  'despawn does not clear both pooled photographer instances');
+const hideBody = crowd.match(/  _hideNpc\(npc\) \{([\s\S]*?)\n  \}/)?.[1];
+assert(hideBody, 'the production render-release method is present');
+const cleared = [];
+const zeroMatrix = {};
+const mesh = name => ({setMatrixAt(slot, matrix) { cleared.push({name, slot, matrix}); }});
+const renderOwner = {_zeroMat: zeroMatrix};
+for (const name of ['shoppingBag','legs','shoes','body','arms','head','eyes','mouth','camera','flash']) renderOwner[name+'Mesh'] = mesh(name);
+new Function('npc', hideBody).call(renderOwner, {idx:3,hairSlot:-1,drinkSlot:-1,isPhotographer:true,photoSlot:2});
+assert(['camera','flash'].every(name=>cleared.some(write=>write.name===name&&write.slot===2&&write.matrix===zeroMatrix)),
+  'production hiding clears both pooled photographer instances');
 assert(/this\.cameraMesh\.count = this\._photoDrawCount[\s\S]*?this\.flashMesh\.count = this\._photoDrawCount/.test(crowd),
   'photographer props are no longer submitted from their packed draw range');
 assert(!/new THREE\.(PointLight|SpotLight)[\s\S]{0,500}flash/i.test(crowd),

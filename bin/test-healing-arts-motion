@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import {sampleHealingArtsMotion} from '../src/people/healingArtsMotion.js';
 
 // Exercise the shipped pose/spacing routine without a GPU. Only rendering writes
 // are stubbed; retain its real constants, transitions, collision passes and math.
@@ -12,7 +13,7 @@ const updaterStart = source.indexOf('export function updateHealingArts');
 assert(constantsStart >= 0 && constantsEnd > constantsStart && updaterStart > constantsEnd,
   'model extraction anchors exist');
 const writes = [];
-const update = vm.runInNewContext(
+const display = vm.runInNewContext(
   source.slice(constantsStart, constantsEnd) +
   source.slice(updaterStart).replace('export function', 'function') + ';updateHealingArts', {
     THREE: { MathUtils: { smoothstep(x, a, b) {
@@ -24,6 +25,7 @@ const update = vm.runInNewContext(
     segment(batch, index, ...values) { if (batch.capture) writes.push({ kind: batch.name, index, values }); },
     Number, Math,
   });
+const update=(group,dt,time,nightness)=>{sampleHealingArtsMotion(group.userData.healingArts,time,nightness);display(group,dt,time,nightness);};
 function random(seed) {
   let state = seed + 1;
   return () => ((state = (state * 1664525 + 1013904223) >>> 0) / 4294967296);

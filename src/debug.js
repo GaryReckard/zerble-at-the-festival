@@ -379,10 +379,9 @@ function locateLandmark(kind, excluded = new Set()) {
         if (!wagon?.active) return null;
         target = wagon.position;
       } else {
-        for (const monk of h.monks?.members || []) {
-          if (!target || Math.hypot(monk.pos.x - zx, monk.pos.z - zz)
-              < Math.hypot(target.x - zx, target.z - zz)) target = monk.pos;
-        }
+        h.monks?.forEachMember((handle,view)=>{
+          if(!target||Math.hypot(view.x-zx,view.z-zz)<Math.hypot(target.x-zx,target.z-zz))target={x:view.x,z:view.z};
+        });
         if (!target) return null;
       }
       // Approach alongside the vehicle, clear of its long body and front platform.
@@ -469,17 +468,18 @@ function commandStatus() {
 `+
     `simulation ${state.paused?'paused':'running'} · NPCs ${state.freezeNPCs?'frozen':'active'} · god ${state.god?'on':'off'} · colliders ${state.showColliders?'on':'off'}
 `+
-    `time ${tod?.t.toFixed(3)??'unavailable'} · ${h.crowd.npcs.length} NPCs · ${h.registry.entries.size} registry entries
+    `time ${tod?.t.toFixed(3)??'unavailable'} · ${h.crowd.populationSize} NPCs · ${h.registry.entries.size} registry entries
 `+
     `draws ${commandRenderStats().calls} · triangles ${commandRenderStats().triangles}`;
 }
 function inspectCommand(kind) {
   const h=state.hooks;
   if(kind==='world')return commandStatus();
+  if(kind==='people')return JSON.stringify(h.people.inspect(),null,2);
   if(kind==='audio')return `session mute ${Sound.isMuted()?'on':'off'} · audio ${Sound.isReady()?'ready':'awaiting gesture'}
 `+JSON.stringify(Sound.campJamStates(),null,2);
   if(kind==='npcs'){
-    const counts={};for(const npc of h.crowd.npcs)counts[npc.state]=(counts[npc.state]||0)+1;
+    const counts={};h.crowd.forEachPersonNear(0,0,Number.MAX_VALUE,(_handle,person)=>{counts[person.state]=(counts[person.state]||0)+1;});
     return `NPCs ${state.freezeNPCs?'frozen':'active'}
 `+JSON.stringify(counts,null,2);
   }
@@ -642,17 +642,11 @@ function api() {
     dropMarker(note = '') { return dropMarker(note); },
     markers() { return loadMarkers(); },
     spawnNPC(n = 20) {
-      // Crowd has a private spawner; we cheat by promoting idle NPCs near Zerble
-      // into 'watching' state so they cluster on us.
       let promoted = 0;
-      for (const npc of h.crowd.npcs) {
-        if (promoted >= n) break;
-        const dx = npc.pos.x - h.zerble.position.x;
-        const dz = npc.pos.z - h.zerble.position.z;
-        if (dx * dx + dz * dz > 60 * 60) continue;
-        npc.state = 'watching';
-        promoted++;
-      }
+      h.crowd.forEachPersonNear(h.zerble.position.x,h.zerble.position.z,60,(handle)=>{
+        if(promoted>=n)return false;
+        if(h.crowd.invitePersonToWatch(handle))promoted++;
+      });
       logToast(`promoted ${promoted} NPC(s) to watching`);
     },
     recordPerf(on = true) { setPerfRecording(!!on); return state.perfRecording; },
@@ -1370,19 +1364,22 @@ function updatePanel(dt) {
   const cx = Math.floor(z.position.x / 80);
   const cz = Math.floor(z.position.z / 80);
   const fps = state.rafSamples.length;
-  const npcs = h.crowd.npcs.length;
-  const riders = h.crowd.npcs.filter(n => n.state === 'riding').length;
-  const watching = h.crowd.npcs.filter(n => n.state === 'watching').length;
-  const fleeing = h.crowd.npcs.filter(n => n.state === 'fleeing').length;
+  const npcs = h.crowd.populationSize;
+  let riders=0,watching=0,fleeing=0;
+  h.crowd.forEachPersonNear(0,0,Number.MAX_VALUE,(_handle,person)=>{
+    if(person.state==='riding')riders++;if(person.state==='watching')watching++;if(person.state==='fleeing')fleeing++;
+  });
   const registryCount = h.registry.entries.size;
   const colliderCount = [...h.registry.colliders()].length;
   const woodlandCamps=[...(h.registry.byKind.get('campsite')||[])].map(id=>h.registry.entries.get(id)).filter(e=>e?.campNeighborhood?.startsWith('woodland:'));
   const wheelRiders=h.oneWheels?.status()||[];
   const healingRoles = {yoga:0,leaving:0,entering:0,dance:0,yoga_entering:0};
-  for (const npc of h.crowd.npcs) {
-    const role = npc.festivalVisit?.slot?.role;
+  const activityScratch={};
+  h.crowd.forEachPersonNear(0,0,Number.MAX_VALUE,(handle)=>{
+    const activity = h.crowd.activitySummary(handle,activityScratch);
+    const role = activity?.key === 'healing-arts' ? activity.role : null;
     if (role in healingRoles) healingRoles[role]++;
-  }
+  });
   const running = h.getRunning();
 
   const tod = h.getTimeOfDay && h.getTimeOfDay();
@@ -1498,22 +1495,9 @@ function refreshColliderViz() {
     c.geometry?.dispose?.();
     c.material?.dispose?.();
   }
-  const sources = [
-    ...h.registry.colliders(),
-    ...h.puppets.colliders,
-    ...h.band.colliders,
-    ...h.kids.colliders,
-    ...h.wooks.colliders,
-  ];
-  for (const c of sources) addColliderRing(_colliderGroup, c.position.x, c.position.z, c.radius, 0xff7766);
-  // crowd NPCs use a synthetic radius (must match main.js)
-  for (const n of h.crowd.npcs) {
-    if (n.state === 'riding') continue;
-    const dx = n.pos.x - h.zerble.position.x;
-    const dz = n.pos.z - h.zerble.position.z;
-    if (dx * dx + dz * dz > 30 * 30) continue;
-    addColliderRing(_colliderGroup, n.pos.x, n.pos.z, 0.45, 0x66cc88);
-  }
+  const sources = [...h.registry.colliders()];
+  h.people.dispatch('colliders',sources,h.zerble);
+  for(const candidate of sources)addColliderRing(_colliderGroup,candidate.position.x,candidate.position.z,candidate.radius,candidate.kind==='person'?0x66cc88:0xff7766);
   // Zerble's own collider
   addColliderRing(_colliderGroup, h.zerble.position.x, h.zerble.position.z, h.zerble.radius, 0xffe066);
 }
@@ -2113,7 +2097,7 @@ function collectPerfSample() {
     // BASE_SMILES_PER_MIN ceiling needs. Scoring.current is post-multiplier and
     // cannot answer it.
     rawSmiles: h && h.Scoring ? h.Scoring.rawSmiles : -1,
-    npc: h && h.crowd ? h.crowd.npcs.length : -1,
+    npc: h && h.crowd ? h.crowd.populationSize : -1,
     reg: h && h.registry ? h.registry.entries.size : -1,
     col: h && h.registry ? [...h.registry.colliders()].length : -1,
     cgN: cg.count, cgSlow: cg.slowCount, cgWorst: r1(cg.slowest), cgLast: r1(cg.lastMs),

@@ -1,5 +1,5 @@
 // Shared pedestrian steering — used by BOTH the crowd (crowd.js, instanced
-// NPCs) and the kid gaggles (obstacles.js, individually-modelled). The two
+// NPCs) and the kid gaggles (people/children.js, individually-modelled). The two
 // systems render and spawn differently, but the *behaviour math* is the same;
 // keeping it here means a tweak ("dodge a bit earlier", "honk hits harder")
 // lands for everyone at once instead of needing a copy per system.

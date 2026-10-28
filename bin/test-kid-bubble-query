@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
+import * as smilePolicy from '../src/people/smilePolicy.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../src/obstacles.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/people/children.js', import.meta.url), 'utf8');
 const classStart = source.indexOf('export class KidGaggle {');
 const start = source.indexOf('  update(dt, bubbles, zerble, smiles) {', classStart);
 const end = source.indexOf('\n}\n', start);
@@ -61,7 +62,7 @@ function harness(code) {
   const nudge = vm.runInNewContext(`(${nudgeSource.replace('function nudgeKidFromNeighbors', 'function')})`, {
     KID_SOFT_SEPARATION: 1.4,
   });
-  const update = vm.runInNewContext(`({${code}}).update`, {
+  const update = vm.runInNewContext(`({${code}}).update`, {...smilePolicy,
     Math: math,
     terrainHeight: () => 0,
     KID_HARD_SEPARATION: 0.82,

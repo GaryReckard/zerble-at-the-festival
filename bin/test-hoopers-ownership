@@ -1,0 +1,72 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {register} from 'node:module';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {disposeSceneResources} from '../src/people/sceneResources.js';
+import {Vector,Node} from './test-support/sceneObjects.mjs';
+register('./node-three-shim.mjs',import.meta.url);
+const {Registry}=await import('../src/registry.js');
+const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
+const strip=code=>code.replace(/^import\s[\s\S]*?;\s*$/gm,'').replace(/export (class|function|const) /g,'$1 ');
+function load(path) {
+ const registry=new Registry(),ticks=[];let seed=1977,draws=0;
+ const math=Object.assign(Object.create(Math),{random(){draws++;seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;}});
+ const Class=runInNewContext(strip(read(path))+';HulaHoopers',{Math:math,registry,PeopleRuntime,PersonHandles,disposeSceneResources,THREE:{Group:Node,Vector3:Vector},
+  buildHulaHooper:()=>new Node(),tickHulaHooper:(h,dt,night)=>ticks.push([h.position.x,h.position.y,h.position.z,dt,night]),terrainHeight:(x,z)=>17+.03*x-.02*z,
+ });
+ return {Class,registry,ticks,get draws(){return draws;}};
+}
+const main=read('../src/collisionContacts.js').replace(/export /g,'');
+const collisionStart=main.indexOf('function resolveCollision('),collisionEnd=main.length;
+const constants=main.split('\n').filter(line=>/^const (APPROACH_DAMAGE_THRESHOLD|SOFT_PEOPLE_KINDS) =/.test(line)).join('\n');
+const resolveCollision=runInNewContext(constants+'\n'+main.slice(collisionStart,collisionEnd)+';resolveCollision',{THREE:{Vector3:Vector}});
+const cart=()=>({position:new Vector(0,0,1),heading:0,speed:8,radius:1.2,applyHit(){this.hit=true;}});
+const legacy=load('../verification/people/2026-10-26/legacy-hoopers-controller.js');
+const ghost=legacy.Class.create();
+assert(ghost.hoopers.every(h=>!h.visible));assert.equal(ghost.colliders.length,8);
+assert(legacy.registry.closestBuilding(new Vector(),.5),'baseline hidden pool publishes a live origin footprint despite Y=-1000');
+const baselineHit=resolveCollision(cart(),ghost.colliders);assert(baselineHit.damaging&&baselineHit.kind==='hula_hoop'&&baselineHit.damage===4,'actual collision resolver damages a driver for an invisible unplaced performer');
+console.log('CONFIRMED baseline defect: eight hidden pool bodies remain collision candidates and inactive footprints obstruct origin in X/Z queries.');
+if(process.argv.includes('--baseline'))process.exit(0);
+const current=load('../src/people/hoopers.js'),runtime=new PeopleRuntime(),now=current.Class.create({runtime});
+assert.equal(current.registry.closestBuilding(new Vector(),.5),null,'hidden pool has no avoidance footprint');
+const bodies=[];now.appendColliders(bodies);assert.equal(bodies.length,0,'hidden pool publishes no player collision bodies');
+assert.equal(resolveCollision(cart(),bodies),null,'inactive pool cannot produce a phantom player hit');
+const handles=now.hoopers.map(h=>h.userData.personHandle);
+// Compare the unchanged activity/motion algorithm with identical place acceptance.
+// Real registry eligibility and inactive-publication fixes are checked separately.
+legacy.registry.closestBuilding=()=>null;current.registry.closestBuilding=()=>null;
+for(const reg of [legacy.registry,current.registry])for(const [x,z] of [[100,0],[120,20],[80,-20]])reg.add({kind:'stage',position:new Vector(x,0,z),footprint:0,attractor:{radius:10,weight:2.5}});
+for(let frame=0;frame<400;frame++){
+ const night=frame<200?0:1;ghost.update(.05,new Vector(100,0,0),night);
+ runtime.beginFrame(.05);runtime.run('roaming',{zerble:{position:new Vector(100,0,0)},nightness:night});
+ const snap=(unit,reg)=>Array.from(unit.hoopers,h=>[h.visible,h.position.x,h.position.y,h.position.z,h.rotation.y,reg.entries.get(h.userData.attractorId)?.position.x,reg.entries.get(h.userData.attractorId)?.position.z,h.userData.phase,h.userData.driftTargetX,h.userData.driftTargetZ,h.userData.driftTimer]);
+ assert.deepEqual(snap(now,current.registry),snap(ghost,legacy.registry));assert.equal(current.draws,legacy.draws);assert.deepEqual(current.ticks,legacy.ticks);current.ticks.length=legacy.ticks.length=0;
+ assert(now.hoopers.every((h,i)=>h.userData.personHandle===handles[i]));
+}
+assert(now.hoopers.some(h=>h.visible),'equivalent acceptance actually places active performers');
+now.appendColliders(bodies);assert.equal(bodies.length,now.hoopers.filter(h=>h.visible).length);bodies.length=0;
+current.registry.closestBuilding=Registry.prototype.closestBuilding;
+// Disappearance and revisit retain pool identities while releasing spatial participation.
+for(const id of [...current.registry.byKind.get('stage')])current.registry.remove(id);
+for(let i=0;i<51;i++){runtime.beginFrame(.05);runtime.run('roaming',{zerble:{position:new Vector(100,0,0)},nightness:1});current.registry.rebuildSpatialIndex();}
+now.appendColliders(bodies);assert.equal(bodies.length,0);
+assert(now.hoopers.every(h=>!h.visible&&current.registry.entries.get(h.userData.footprintId).footprint===0));
+for(const h of now.hoopers)assert.equal(current.registry.closestBuilding(h.position,.5),null,'inactive performer leaves no effective avoidance footprint');
+for(let cycle=0;cycle<2;cycle++){
+ const place=current.registry.add({kind:'stage',position:new Vector(100,0,0),footprint:0,attractor:{radius:15,weight:2.5}});
+ for(let i=0;i<100;i++){runtime.beginFrame(.05);runtime.run('roaming',{zerble:{position:new Vector(100,0,0)},nightness:1});current.registry.rebuildSpatialIndex();}
+ assert(now.hoopers.some(h=>h.visible));assert(now.hoopers.every((h,i)=>h.userData.personHandle===handles[i]));
+ current.registry.remove(place);
+ for(let i=0;i<51;i++){runtime.beginFrame(.05);runtime.run('roaming',{zerble:{position:new Vector(100,0,0)},nightness:1});current.registry.rebuildSpatialIndex();}
+ assert(now.hoopers.every(h=>!h.visible));
+}
+const unrelated=current.registry.add({kind:'unrelated',position:new Vector(),footprint:0});
+const footprintIds=now.hoopers.map(h=>h.userData.footprintId);
+runtime.dispose();now.dispose();now.update(.05,new Vector(),1);
+assert.equal(now.colliders.length,0);assert.equal(now.hoopers.length,0);assert(handles.every(h=>!now.peopleView.isLive(h)));
+assert(footprintIds.every(id=>!current.registry.entries.has(id)));assert(current.registry.entries.has(unrelated));
+console.log('PASS hooper ownership: exact active motion/selection/RNG under equivalent place acceptance, inactive spatial retirement, persistent identities and scoped footprint/GPU cleanup.');

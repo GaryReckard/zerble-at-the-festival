@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {PeopleRuntime} from '../src/people/runtime.js';
+const baseline=process.argv.includes('--baseline');
+const specs=[['kid','kid','tickKid'],['wook','wook','tickWook'],['parasol','parasolMarshal','tickParasolMarshal'],['frisbee-player','frisbeePlayer','tickFrisbeePlayer']];
+function fn(source,name){const a=source.indexOf('export function '+name+'(');let depth=0;for(let i=source.indexOf('{',source.indexOf(') {',a));i<source.length;i++){if(source[i]==='{')depth++;if(source[i]==='}'&&!--depth)return source.slice(a,i+1).replace('export function','function');}throw Error('Missing tick');}
+const read=p=>readFileSync(new URL(p,import.meta.url),'utf8');
+function model(){const body={position:{y:0},rotation:{x:0,y:0,z:0}};return {children:[body],rotation:{y:0},userData:{bouncePhase:.7,swayPhase:.4,bobPhase:.9,bodyGroup:body,armRigs:{left:{},right:{}},parasol:{rotation:{y:0}}}};}
+for(const [frozen,current,name] of specs){
+ let wall=0;
+ const scope={performance:{now:()=>wall*1000},RELAXED_SHOULDER_X:.1,RELAXED_SHOULDER_Z:.2,approachRotation(){},smooth01:x=>x*x*(3-2*x),lerp:(a,b,t)=>a+(b-a)*t};
+ const old=runInNewContext(fn(read('../verification/people/2026-10-26/legacy-clock-'+frozen+'.js'),name)+';'+name,scope);
+ const tick=runInNewContext(fn(read('../src/models/'+current+'.js'),name)+';'+name,scope);
+ const a=model(),b=model();let elapsed=0;
+ for(let frame=0;frame<600;frame++){
+  const dt=[0,.01,.02,.05][frame%4];elapsed+=dt;wall=elapsed;
+  old(a,dt,{excited:frame%2===0,targetYaw:frame*.01});tick(b,dt,{excited:frame%2===0,targetYaw:frame*.01});
+  for(const key of ['position','rotation'])for(const axis of ['x','y','z'])if(a.children[0][key][axis]!==undefined)assert(Math.abs(a.children[0][key][axis]-b.children[0][key][axis])<1e-12,name+' pose at equivalent elapsed time');
+ }
+ if(!baseline){const before=JSON.stringify(b);wall+=3600;assert.equal(JSON.stringify(b),before);tick(b,0,{});assert.equal(b.userData.animationTime,elapsed);tick(b,.02,{});assert.equal(b.userData.animationTime,elapsed+.02);}
+}
+console.log('PASS actor clocks: 2400 equivalent-elapsed model poses; '+(baseline?'pre-migration baseline recorded':'zero-delta stability, skipped hour and accepted-delta-only resumption without wall-clock catch-up'));
+if(!baseline){
+ const runtime=new PeopleRuntime(),accepted=[.01,0,.02,.05];
+ let elapsed=0;for(const dt of accepted){runtime.beginFrame(dt);elapsed+=dt;assert.equal(runtime.time,elapsed);}
+ const before=runtime.time;assert.throws(()=>runtime.beginFrame(12));assert.equal(runtime.time,before);
+ const crowd=read('../src/crowd.js');
+ const compare=crowd.match(/const nowSec = [^;]+;\n    const disinterested = [^;]+;/)[0];
+ const set=crowd.match(/npc\.disinterestedUntil = nowSec \+ 6 \+ Math.random\(\) \* 4;/)[0];
+ const check=new Function('npc',compare+'return disinterested;');
+ const enter=new Function('npc',compare+set);
+ const owner={actorTime:10},npc={disinterestedUntil:0};enter.call(owner,npc);const deadline=npc.disinterestedUntil;
+ assert(deadline>=16&&deadline<20);assert(check.call(owner,npc));assert(check.call(owner,npc));owner.actorTime=deadline;assert(!check.call(owner,npc));
+ assert(!/performance\.now/.test(compare+set));
+ assert(crowd.includes('performance.now() - _tSep'),'profiling retains its measurement clock');
+ console.log('PASS clock domains: accepted runtime time, invalid-delta rejection, paused disinterest deadline and exact expiry; profiling remains independent');
+}

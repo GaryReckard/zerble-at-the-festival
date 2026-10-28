@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Export the immutable pre-refactor app with only the current opt-in probes.
+
+Does not switch/reset the checkout, start processes, or launch a browser.
+The caller owns the returned temporary directory and any server it starts there.
+"""
+import io
+from pathlib import Path
+import shutil
+import subprocess
+import tarfile
+import tempfile
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+REF = '9eaf2e5d73419f7c926c11ab06882f007b2bf1e4'
+
+def once(text, old, new):
+    if text.count(old) != 1:
+        raise RuntimeError(f'Expected one source boundary: {old[:80]!r}')
+    return text.replace(old, new, 1)
+
+current = (ROOT / 'src/main.js').read_text()
+original = subprocess.check_output(['git', 'show', f'{REF}:src/main.js'], cwd=ROOT, text=True)
+ui = current[current.index('const peopleBaseline ='):current.index('let pendingPeopleScenario =')]
+ui = ui.replace('crowd.populationSize', 'crowd.npcs.length').replace('kids.populationSize', 'kids.kids.length')
+ui = ui.replace("crowd.isInActivity(n.personHandle,'healing-arts')", '!!n.healingArts')
+ui = 'const peopleFrameTrace=null;\n' + ui
+begin_start = current.index('    if(peopleBaseline&&peopleBaselineAuto)')
+begin_end = current.index('    people.beginFrame(dt);', begin_start)
+begin = current[begin_start:begin_end]
+end_start = current.rindex('  if(peopleBaseline?.active) {')
+end_end = current.index('\n}\n\n// RAF', end_start)
+end = current[end_start:end_end]
+end = end.replace('crowd.populationSize', 'crowd.npcs.length').replace('kids.populationSize', 'kids.kids.length')
+end = end.replace("crowd.isInActivity(n.personHandle,'healing-arts')", '!!n.healingArts')
+original = "import {PeopleBaseline,captureRenderInventory,withBaselineRandom} from './people/baseline.js';\nimport {savePeopleFrameTrace} from './people/frameTrace.js';\nimport {readRenderPipelineSize} from './renderSizing.js';\n" + original
+original = once(original, 'const kids = new KidGaggle();', 'const kids = withBaselineRandom(()=>new KidGaggle(),0x43484c44,peopleBaselineCohort);')
+original = once(original, 'const frisbees = new Frisbees();', 'const frisbees = withBaselineRandom(()=>new Frisbees(),0x46525342,peopleBaselineCohort);')
+original = once(original, 'const scene = new THREE.Scene();', ui + '\nconst scene = new THREE.Scene();')
+original = once(original, '  if (running) {', '  if (running) {\n' + begin)
+original = once(original, 'const hit = resolveCollision(zerble, _collScratch);', "peopleBaseline?.count('collisionCandidates',_collScratch.length);\n      const hit = resolveCollision(zerble, _collScratch);")
+original = once(original, '\n}\n\n// RAF', '\n' + end + '\n}\n\n// RAF')
+
+if len(sys.argv) > 1:
+    snapshot = Path(sys.argv[1]).resolve()
+    marker = snapshot / '.people-comparison-source'
+    if (snapshot.parent != Path('/private/tmp') or not snapshot.name.startswith('zerble-people-original-')
+            or (snapshot / '.git').exists() or not marker.is_file()
+            or marker.read_text().splitlines()[0] != REF):
+        raise RuntimeError('Refusing to refresh an unrecognized comparison export')
+else:
+    snapshot = Path(tempfile.mkdtemp(prefix='zerble-people-original-', dir='/private/tmp'))
+    archive = subprocess.check_output(['git', 'archive', REF], cwd=ROOT)
+    with tarfile.open(fileobj=io.BytesIO(archive)) as files:
+        files.extractall(snapshot, filter='data')
+(snapshot / 'src/people').mkdir(parents=True, exist_ok=True)
+for name in ['baseline.js', 'frameTrace.js']:
+    shutil.copyfile(ROOT / 'src/people' / name, snapshot / 'src/people' / name)
+shutil.copyfile(ROOT / '.claude/serve_nocache.py', snapshot / '.claude/serve_nocache.py')
+(snapshot / 'src/main.js').write_text(original)
+(snapshot / '.people-comparison-source').write_text(REF + '\nOnly baseline/frame-trace helpers and main probe boundaries are injected.\n')
+print(snapshot)

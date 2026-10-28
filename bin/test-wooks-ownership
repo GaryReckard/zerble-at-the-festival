@@ -1,0 +1,69 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {disposeSceneResources} from '../src/people/sceneResources.js';
+class Vector {
+ constructor(x=0,y=0,z=0){this.set(x,y,z);}
+ set(x,y,z){Object.assign(this,{x,y,z});return this;}copy(p){return this.set(p.x,p.y,p.z);}
+ clone(){return new Vector(this.x,this.y,this.z);}
+}
+class Node {
+ constructor(){this.position=new Vector();this.rotation={y:0};this.userData={};this.children=[];}
+ add(node){this.children.push(node);node.parent=this;}removeFromParent(){if(this.parent)this.parent.children.splice(this.parent.children.indexOf(this),1);}
+ traverse(visit){visit(this);for(const child of this.children)child.traverse(visit);}
+}
+const strip=code=>code.replace(/^import\s[\s\S]*?;\s*$/gm,'').replace(/export (class|function|const) /g,'$1 ');
+const placement=strip(readFileSync(new URL('../src/people/placement.js',import.meta.url),'utf8'));
+function load(path) {
+ let seed=1977,draws=0;const poses=[];
+ const math=Object.assign(Object.create(Math),{random(){draws++;seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;}});
+ const code=placement+strip(readFileSync(new URL(path,import.meta.url),'utf8'));
+ const Class=runInNewContext(code+';Wooks',{Math:math,PeopleRuntime,PersonHandles,disposeSceneResources,THREE:{Group:Node,Vector3:Vector},buildWook:()=>new Node(),tickWook:(w,dt)=>poses.push([w.position.x,w.position.z,w.rotation.y,dt]),terrainHeight:(x,z)=>17+.03*x-.02*z,isPointInLake:()=>false,projectOutOfLake:()=>null});
+ return {Class,poses,get draws(){return draws;}};
+}
+function tripFixture(){
+ const code=strip(readFileSync(new URL('../src/trip.js',import.meta.url),'utf8'));
+ const trip=runInNewContext(code+';Trip',{Math:Object.assign(Object.create(Math),{random:()=>.5}),
+  ShaderPass:class{constructor({uniforms}){this.uniforms=uniforms;}},PERF:{name:'low'},A11y:{reducedMotion:false},Analytics:{tripStart(){},tripEnd(){}}});
+ trip.init();let offers=0;trip.onOffer=()=>offers++;
+ return {trip,get offers(){return offers;}};
+}
+const oldTrip=tripFixture(),newTrip=tripFixture();
+const old=load('../verification/people/2026-10-26/legacy-wooks-controller.js'),current=load('../src/people/wooks.js');
+const before=new old.Class(),runtime=new PeopleRuntime(),after=new current.Class({runtime});
+const cart={position:new Vector(),forwardWorld:new Vector(0,0,-1),speed:0},positions=[];
+const original=after.wooks[0].userData.personHandle;
+for(let frame=0;frame<400;frame++){
+ if(frame===20||frame===40){cart.position.copy(before.wooks[0].position);cart.position.z+=3;}
+ if(frame===40){before.scatter(cart);runtime.dispatch('parkedHonk',cart);assert(after.wooks[0].userData.dodgeTimer>0);}
+ if(frame===80)cart.speed=9;
+ if(frame===100)cart.position.set(800,0,700);
+ if(frame===200){cart.position.copy(before.wooks[0].position);cart.position.z+=2;cart.speed=0;}
+ before.update(.05,cart.position,Math.abs(cart.speed));runtime.beginFrame(.05);runtime.run('roaming',{zerble:cart});
+ for(let i=0;i<before.wooks.length;i++){
+  const a=before.wooks[i],b=after.wooks[i];
+  assert.deepEqual([b.position.x,b.position.y,b.position.z,b.rotation.y],[a.position.x,a.position.y,a.position.z,a.rotation.y]);
+  const snap=w=>JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(w.userData).filter(([key])=>key!=='personHandle'))));
+  assert.deepEqual(snap(b),snap(a));assert.deepEqual(JSON.parse(JSON.stringify(after.colliders[i])),JSON.parse(JSON.stringify(before.colliders[i])));
+ }
+ assert.deepEqual(current.poses,old.poses);current.poses.length=old.poses.length=0;
+ assert.equal(current.draws,old.draws,'unchanged random stream');
+ after.copyPositions(positions);assert.deepEqual(positions.map(p=>[p.x,p.y,p.z]),Array.from(before.wooks,w=>[w.position.x,w.position.y,w.position.z]));
+ oldTrip.trip.update(.05,cart.position,Math.abs(cart.speed),Array.from(before.wooks,w=>w.position));
+ newTrip.trip.update(.05,cart.position,Math.abs(cart.speed),positions);
+ if(frame===340){oldTrip.trip.acceptOffer();newTrip.trip.acceptOffer();}
+ for(const key of ['state','_proximityTimer','_nearestWookDist','_confirmTimer','_envelope'])assert.equal(newTrip.trip[key],oldTrip.trip[key],'production Trip '+key);
+ assert.equal(after.wooks[0].userData.personHandle,original,'recycling preserves identity');
+}
+assert(oldTrip.offers>0&&newTrip.offers===oldTrip.offers,'actual Trip state machine receives and offers from equivalent queries');
+assert(newTrip.trip.isActive(),'accepted wook offer enters the actual Trip pipeline');
+const firstCopy=positions[0];after.copyPositions(positions);assert.equal(positions[0],firstCopy,'Trip query reuses caller vectors');
+const first=after.wooks[0];let disposed=0;first.geometry={dispose(){assert(!after.peopleView.isLive(original));disposed++;},userData:{}};
+runtime.dispose();after.dispose();after.update(.05,cart.position,0);after.scatter(cart);after.copyPositions(positions);
+assert.equal(after.wooks.length,0);assert.equal(after.colliders.length,0);assert.equal(positions.length,0);assert.equal(disposed,1);
+const replacementRuntime=new PeopleRuntime(),replacement=new current.Class({runtime:replacementRuntime});
+assert(!replacement.readPerson(original,{}));replacementRuntime.dispose();
+console.log('PASS wook ownership: 400 exact legacy pose/state/RNG/collider frames, parked honk, approach/passive damage, recycle identity, pooled queries and actual Trip offer/accept pipeline, stale runtime and cleanup.');

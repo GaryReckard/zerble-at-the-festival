@@ -1,8 +1,8 @@
 # Capability: crowd-ai
 
 > **Source:** `src/crowd.js` (the pooled NPC crowd — spawn, state machine, steering,
-> smile mechanic), `src/obstacles.js` (the roaming themed groups: puppet parade,
-> brass band, kid gaggle, wooks). Crowd NPCs and obstacle groups both feed the
+> smile mechanic), focused `src/people/` controllers (puppet parade, brass band,
+> children, wooks, hoopers and frisbee pairs). Registered people providers feed the
 > collision pass in `registry-collision`; the humanoid geometry is in `models`;
 > bubbles/smiles in `feedback-systems`; the song-end cheer signal in
 > `audio-synthesis`.
@@ -12,7 +12,7 @@ small behavior state machine, that react to the player — making eye contact, s
 and dropping smile pickups, fleeing when plowed into. Separately, a few themed groups
 roam the field on placed loops as soft obstacles.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Pooled, personality-driven NPCs
 
@@ -107,22 +107,29 @@ riding/boarding skip at `crowd.js:511-518`).
 
 ### Requirement: Roaming obstacle groups on placed loops
 
-`obstacles.js` SHALL own the puppet parade, brass band, kid gaggle, and wooks — each
-marching a fixed-shape loop *placed* at a random anchor (0–150m from origin initially,
-recycled to a new anchor over time), each exposing a `colliders` array of
-`{ position, radius, damage, kind }` consumed by the collision pass. Geometry lives in
-`src/models/`; this module owns path/AI behavior. The puppet parade SHALL support
-honk-scatter (puppets ahead of a parked, honking player dodge laterally while the loop
-keeps marching) (`obstacles.js:1-9,51-61,93-166`).
+Focused population controllers SHALL own the puppet parade, brass band, kid gaggle,
+and wooks and SHALL participate through the people-runtime contracts. Loop-based
+groups SHALL preserve their existing placed-loop movement and relocation policies;
+children SHALL preserve their gaggle, bubble-chasing, scattering, and recycling
+behavior. Each controller SHALL publish its existing collision metadata
+`{ position, radius, damage, kind }` through an ordered collision source. Geometry
+SHALL remain in `src/models/`; controllers SHALL own behavior. The puppet parade
+SHALL retain honk-scatter, where puppets ahead of a parked, honking player dodge
+laterally while their loop continues marching.
 
 #### Scenario: A parade marches across the field, not just origin
 
-- **WHEN** a roaming group spawns or recycles
-- **THEN** its loop is placed at a random anchor so it appears across the field, with
-  its members registered as colliders
+- **WHEN** a roaming loop group spawns or recycles
+- **THEN** its loop is placed at a random anchor according to its existing policy
+  and its members are exposed as collision candidates
 
 #### Scenario: Honking scatters puppets ahead
 
 - **WHEN** the player honks while parked in front of the puppet parade
-- **THEN** the puppets in front dodge laterally for a moment while the parade loop
-  continues underneath
+- **THEN** the puppets in front dodge laterally for a moment while the parade loop continues
+
+#### Scenario: Children remain behaviorally distinct
+
+- **WHEN** the child controller participates through the common runtime
+- **THEN** children retain gaggle movement and bubble chasing without receiving
+  adult-only boarding or amenity behavior merely through registration

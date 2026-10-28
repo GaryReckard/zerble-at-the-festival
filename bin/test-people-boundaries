@@ -1,0 +1,35 @@
+#!/usr/bin/env node
+// Small architectural tripwires, with negative fixtures for each boundary.
+import assert from 'node:assert/strict';
+import {readFileSync,readdirSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const read=p=>readFileSync(path.join(root,p),'utf8');
+const imports=s=>[...s.matchAll(/(?:import|export)\s+(?:[^;'"\n]*?\s+from\s+)?['"]([^'"]+)['"]/g)].map(m=>m[1]);
+function boundary(name,source){
+  if(name==='src/people/runtime.js'){
+    assert.deepEqual(imports(source),[],'Runtime must not depend on concrete controllers or rendering');
+    assert(!/\b(?:requestAnimationFrame|setInterval|setTimeout)\s*\(/.test(source),'Runtime must not own a scheduler');
+  }
+  if(name.startsWith('src/models/'))for(const dependency of imports(source))
+    assert(!/people\/|(?:crowd|monks|oneWheels|nutWagon|healingArtsActivity|campJamActivity|main)\.js$/.test(dependency),'Models must not depend on person authority or composition');
+  if(/^src\/people\/(?:personHandle|activityClaims|seatReservations|smilePolicy)\.js$/.test(name))
+    for(const dependency of imports(source))assert(!/models\/|(?:crowd|main|chunks)\.js$/.test(dependency),'Ownership primitives must remain independent of storage and render owners');
+  if(/^src\/(?:monks|oneWheels|nutWagon|healingArtsActivity|campJamActivity|smiles|debug|debugCommands)\.js$/.test(name))
+    assert(!/\b(?:crowd|people)\.(?:npcs|_writeNpc|_markAllDirty|_zeroNpc|_personIndex)\b/.test(source),'External consumers must use public person operations');
+  assert(!imports(source).some(p=>p.endsWith('/obstacles.js')),'Removed obstacle facade must not return');
+}
+const files=['src/people/runtime.js','src/people/personHandle.js','src/people/activityClaims.js','src/people/seatReservations.js','src/people/smilePolicy.js',
+  ...readdirSync(path.join(root,'src/models')).filter(p=>p.endsWith('.js')).map(p=>'src/models/'+p),
+  ...['monks','oneWheels','nutWagon','healingArtsActivity','campJamActivity','smiles','debug','debugCommands','main'].map(p=>'src/'+p+'.js')];
+for(const file of files)boundary(file,read(file));
+for(const [file,bad] of [
+  ['src/people/runtime.js',"import {Crowd} from '../crowd.js';"],
+  ['src/people/runtime.js','setTimeout(tick,0);'],
+  ['src/models/kid.js',"import {PeopleRuntime} from '../people/runtime.js';"],
+  ['src/people/personHandle.js',"import {Crowd} from '../crowd.js';"],
+  ['src/oneWheels.js','for(const n of this.crowd.npcs){}'],
+  ['src/main.js',"import {Wooks} from './obstacles.js';"],
+])assert.throws(()=>boundary(file,bad),assert.AssertionError);
+console.log(`PASS people boundaries: ${files.length} sources, independent runtime/primitives, display leaves, public consumers and removed facade, with six rejecting fixtures.`);

@@ -176,11 +176,17 @@ export function buildHealingArts({ rng = () => 0.5 } = {}) {
   light.position.set(0, 3.1, .5); light.castShadow = false; group.add(light); register(light);
   group.userData.healingArts = { footprintRadius: 14, participantCount, light, glowsticks,
     positions: new Float32Array(participantCount*2), poleColliders, participants, mats, bodies, heads, hair, bulbs, booth, glow, nightMix: 0, pose: new Float32Array(33) };
+  const u=group.userData.healingArts;
+  for(let i=0;i<participants.length;i++){
+    const p=participants[i];
+    if(!p.dj){u.positions[i*2]=p.x;u.positions[i*2+1]=p.z;}
+    p.currentX=p.dj?p.x:u.positions[i*2];p.currentZ=p.dj?p.z:u.positions[i*2+1];p.heading=p.yaw;p.mix=0;
+  }
   updateHealingArts(group, 0, 0, 0);
   return group;
 }
 
-/** Absolute time keeps poses deterministic through stream unload/reload; dt is reserved. */
+/** Display consumes the owner's cached pose; dt remains reserved for rendering. */
 export function updateHealingArts(group, dt, time, nightness) {
   const u = group.userData.healingArts;
   if (!u) return;
@@ -188,61 +194,14 @@ export function updateHealingArts(group, dt, time, nightness) {
   const t = Number.isFinite(time) ? Math.max(0, time) : 0;
   u.nightMix = n; u.mats.visible = true; u.booth.visible = n > .35; u.bulbs.visible = n > .05;
   u.light.intensity = 2 + n * 33;
-  const positions = u.positions, count = u.participantCount;
-  for (let i = 0; i < count; i++) {
-    const p = u.participants[i], angle = p.orbitPhase + t*p.orbitSpeed;
-    const mix = u.managed ? (p.activity === 'dance' ? 1 : 0) : n;
-    p.mix = mix;
-    const radius = p.lane + .32*Math.sin(t*.19+p.phase*7);
-    positions[i*2] = p.x + (Math.cos(angle)*radius-p.x)*mix;
-    positions[i*2+1] = p.z + (.5+Math.sin(angle)*radius-p.z)*mix;
-    if (u.managed && p.activity === 'dance' && Number.isFinite(p.entryTime) && Number.isFinite(p.entryX) && Number.isFinite(p.entryZ)) {
-      const arrival = THREE.MathUtils.smoothstep(t-p.entryTime,0,4);
-      positions[i*2] = p.entryX+(positions[i*2]-p.entryX)*arrival;
-      positions[i*2+1] = p.entryZ+(positions[i*2+1]-p.entryZ)*arrival;
-    }
-  }
-  // Resolve close approaches against neighbours and poles without storing history:
-  // seeking, reloading and live playback therefore agree at the same absolute time.
-  if (u.managed || n > .01) for (let pass = 0; pass < 8; pass++) {
-    for (let i = 0; i < count; i++) for (let j = i+1; j < count; j++) {
-      const pi = u.participants[i], pj = u.participants[j];
-      if (u.managed && (pi.activity === 'hidden' || pj.activity === 'hidden' || (!pi.mix && !pj.mix))) continue;
-      let dx = positions[j*2]-positions[i*2], dz = positions[j*2+1]-positions[i*2+1];
-      let distance = Math.hypot(dx,dz);
-      if (distance >= 1.3) continue;
-      if (distance < .0001) { dx = .0001; dz = 0; distance = .0001; }
-      const push = (1.3-Math.min(distance,1.3))*.5;
-      const wi = u.managed && !pi.mix ? 0 : u.managed && !pj.mix ? 2 : 1;
-      const wj = u.managed && !pj.mix ? 0 : u.managed && !pi.mix ? 2 : 1;
-      positions[i*2] -= dx/distance*push*wi; positions[i*2+1] -= dz/distance*push*wi;
-      positions[j*2] += dx/distance*push*wj; positions[j*2+1] += dz/distance*push*wj;
-    }
-    for (let i = 0; i < count; i++) {
-      const p = u.participants[i];
-      if (u.managed && p.activity !== 'dance') continue;
-      let x = positions[i*2], z = positions[i*2+1];
-      for (const pole of u.poleColliders) {
-        let dx = x-pole.x, dz = z-pole.z, distance = Math.hypot(dx,dz);
-        if (distance >= 1.05) continue;
-        if (distance < .0001) { dx = .0001; dz = 0; distance = .0001; }
-        x = pole.x+dx/distance*1.05; z = pole.z+dz/distance*1.05;
-      }
-      // The final night dancefloor is in front of the booth, inside the canopy.
-      const limit = 12+(7.2-12)*p.mix;
-      const radius = Math.hypot(x,z);
-      if (radius > limit) { x *= limit/radius; z *= limit/radius; }
-      z = Math.max(z, -4.25);
-      positions[i*2] = x; positions[i*2+1] = z;
-    }
-  }
-  for (let i = 0; i < u.participants.length; i++) {
-    const p = u.participants[i], cycle = (t / 9 + p.phase) % POSES.length;
-    if (p.renderShirt !== p.shirt || p.renderSkin !== p.skin) {
+  const motion=u.motion??u,positions=motion.positions;
+  for (let i = 0; i < motion.participants.length; i++) {
+    const p = motion.participants[i], visual=u.participants[i], cycle = (t / 9 + p.phase) % POSES.length;
+    if (visual.renderShirt !== p.shirt || visual.renderSkin !== p.skin) {
       u.heads.setColorAt(i,color.setHex(p.skin));
       for (let limb=0; limb<LIMBS.length; limb++) u.bodies.setColorAt(i*LIMBS.length+limb,color.setHex(limb===0?p.shirt:limb>4?0x36434c:p.skin));
       u.heads.instanceColor.needsUpdate = true; u.bodies.instanceColor.needsUpdate = true;
-      p.renderShirt = p.shirt; p.renderSkin = p.skin;
+      visual.renderShirt = p.shirt; visual.renderSkin = p.skin;
     }
     const a = POSES[Math.floor(cycle)], b = POSES[(Math.floor(cycle) + 1) % POSES.length];
     const blend = THREE.MathUtils.smoothstep(cycle % 1, .65, 1), pose = u.pose;
@@ -260,17 +219,13 @@ export function updateHealingArts(group, dt, time, nightness) {
       pose[j * 3 + 2] += (z - pose[j * 3 + 2]) * dance;
     }
     const px = p.dj ? p.x : positions[i*2], pz = p.dj ? p.z : positions[i*2+1];
-    const angle = p.orbitPhase + t*p.orbitSpeed;
-    const targetHeading = p.dj ? 0 : Math.atan2(-Math.sin(angle)*p.orbitSpeed, Math.cos(angle)*p.orbitSpeed);
-    const heading = p.yaw + Math.atan2(Math.sin(targetHeading-p.yaw),Math.cos(targetHeading-p.yaw))*(p.dj ? n : p.mix);
-    const c = Math.cos(heading), s = Math.sin(heading);
-    p.currentX = px; p.currentZ = pz; p.heading = heading;
+    const c=Math.cos(p.heading),s=Math.sin(p.heading);
     // Rotate the complete articulated pose, including the folded head and hair.
     for (let j = 0; j < 11; j++) {
       const x = pose[j*3], z = pose[j*3+2];
       pose[j*3] = x*c+z*s; pose[j*3+2] = -x*s+z*c;
     }
-    const hide = p.dj ? n <= .35 : u.managed && p.activity === 'hidden';
+    const hide = p.dj ? n <= .35 : motion.managed && p.activity === 'hidden';
     for (let l = 0; l < LIMBS.length; l++) {
       const [start, end, radius] = LIMBS[l], ia = start * 3, ib = end * 3;
       segment(u.bodies, i * LIMBS.length + l, px + pose[ia], pose[ia + 1], pz + pose[ia + 2], px + pose[ib], pose[ib + 1], pz + pose[ib + 2], hide ? 0 : radius);

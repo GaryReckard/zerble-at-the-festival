@@ -1,3 +1,4 @@
+import {sampleHealingArtsPreview} from './people/healingArtsMotion.js';
 import { terrainHeight, terrainEnabled, TERRAIN_STEP } from './worldgen/terrain.js';
 import { woodlandCampsNear, woodlandCampingClearance } from './woodlandCamping.js';
 import { planCampNeighborhood } from './campPlanning.js';
@@ -65,12 +66,14 @@ export function updateVendorTents(t, nightness, dt = 0) {
   for (const entry of vendorTents) updateTent(entry.group, t, nightness, dt);
 }
 
-export function updateHealingArtsTents(dt, time, nightness, playerPos) {
+export function updateHealingArtsTents(dt, time, nightness, playerPos, display = true) {
   for (const entry of healingArtsTents) {
     entry.activity?.update(dt, time, nightness);
     const near = !playerPos || entry.group.position.distanceToSquared(playerPos) < 180 * 180;
     if (near || entry.night !== (nightness > 0.5)) {
-      updateHealingArts(entry.group, dt, time, nightness);
+      if(entry.activity)entry.activity.sample(time,nightness);
+      else sampleHealingArtsPreview(entry.group,time,nightness);
+      if(display)updateHealingArts(entry.group, dt, time, nightness);
     }
     entry.night = nightness > 0.5;
     if (entry.night && !entry.music) {
@@ -570,6 +573,14 @@ export class ChunkManager {
 // null (a crowd-less rebuild). Module-level `userData.shared` geos/mats survive
 // (footgun #6); InstancedMesh.dispose frees only its own instance buffers.
 export function disposeChunkByKey(scene, group, key, crowd) {
+  crowd?.frameTrace?.mark('chunk-dispose.begin', key);
+  // Return borrowed people while the place still owns live rig resources.
+  for (let i = healingArtsTents.length - 1; i >= 0; i--) {
+    if (healingArtsTents[i].chunkKey !== key) continue;
+    healingArtsTents[i].activity?.dispose();
+    Sound.detachStageMusic(healingArtsTents[i].music);
+    healingArtsTents.splice(i, 1);
+  }
   group.traverse((obj) => {
     if (obj.isMesh) {
       if (!obj.geometry?.userData?.shared) obj.geometry?.dispose();
@@ -584,12 +595,6 @@ export function disposeChunkByKey(scene, group, key, crowd) {
   });
   scene.remove(group);
 
-  for (let i = healingArtsTents.length - 1; i >= 0; i--) {
-    if (healingArtsTents[i].chunkKey !== key) continue;
-    healingArtsTents[i].activity?.dispose();
-    Sound.detachStageMusic(healingArtsTents[i].music);
-    healingArtsTents.splice(i, 1);
-  }
   // Clean up registry + crowd + stage performers + stage music tagged with this chunk
   registry.removeChunk(key);
   if (crowd) crowd.unloadChunk(key);
@@ -629,6 +634,7 @@ export function disposeChunkByKey(scene, group, key, crowd) {
       forestDrumMusic.splice(i, 1);
     }
   }
+  crowd?.frameTrace?.mark('chunk-dispose.end', key);
 }
 
 function chunkKey(cx, cz) {

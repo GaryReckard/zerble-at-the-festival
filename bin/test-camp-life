@@ -2,14 +2,16 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import {loadGroupParticipation} from './test-support/groupParticipation.mjs';
 const source = readFileSync(new URL('../src/crowd.js', import.meta.url), 'utf8');
-const methods = source.slice(source.indexOf('  _campExit(npc) {'), source.indexOf('  // ----- Picnic-table seating -----'));
+const legacy=readFileSync(new URL('../verification/people/2026-10-26/legacy-camp-methods.js',import.meta.url),'utf8');
+const methods=legacy.slice(legacy.indexOf('  _campExit(npc) {'),legacy.lastIndexOf('}'));
 let t = .6;
 const registry = {entries: new Map(), byKind: new Map(), collidersNear(x,z,r,fn) { for (const e of this.solids || []) fn(e); }};
 const Crowd = vm.runInNewContext(`class CampHarness {${methods}\n_writeMatrices(npc) { npc.renderedState = npc.state; }}; CampHarness`, {
  registry, getTimeOfDay: () => ({t}), wrapAngle: a => a,
 });
-const crowd = new Crowd();
+const crowd = new Crowd();crowd._releaseMarket=()=>{};
 const vec = (x=0,z=0) => ({x,z,set(x,y,z) {this.x=x; this.z=z;}});
 const makeNpc = idx => ({idx, pos:vec(), vel:vec(), energy:.8, scale:1, yaw:0, state:'idle', stateTimer:0});
 const chair = {x:2,z:0,y:.5,yaw:1,approachX:1,approachZ:0,occupied:false};
@@ -31,8 +33,11 @@ assert.equal(chair.occupied,false,'forced flee must release claim'); assert.equa
 // A nearby solid must keep walkers outside its radius throughout their approach.
 a.state='idle'; a.pos=vec(); a.campCooldown=0; registry.solids=[{position:{x:.7,z:0},collider:{radius:.3}}];
 for(let i=0;i<30;i++) {tick(a); assert.ok(Math.hypot(a.pos.x-.7,a.pos.z)>=.579,'camp seek crossed a hard collider');}
-assert.ok(source.includes("if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc.festivalVisit?.hidden)"),'sleep and instrument fetching must hide every render instance');
-assert.ok(source.includes("if (npc.tableSeat) this._releaseTable(npc);\n    this._releaseCamp(npc);"),'forced abandonment must release campsite slots');
+const renderMethod=source.slice(source.indexOf('  _writeMatrices(npc) {'),source.indexOf('  _writeCampInstrument(npc, bodyMatrix) {'));
+const Renderer=vm.runInNewContext(`class Renderer {${renderMethod} _hideNpc(npc){this.hidden=npc;}};Renderer`,{groundNpc(){}});
+for(const person of [{state:'camp_sleeping'},{state:'idle',campJamHidden:true},{state:'idle',_activityBinding:{hidden:true}}]){
+ const owner=new Renderer();owner._writeMatrices(person);assert.equal(owner.hidden,person,'sleep, instrument fetching and borrowed rigs hide every render instance');
+}
 // Two close solids must not let a projection tunnel through their shared gap.
 registry.solids.push({position:{x:.7,z:.9},collider:{radius:.3}});
 for(let i=0;i<30;i++) {tick(a); for(const solid of registry.solids) assert.ok(Math.hypot(a.pos.x-solid.position.x,a.pos.z-solid.position.z)>=.579);}
@@ -50,26 +55,37 @@ t=.15; tick(a); assert.equal(a.state,'camp_sleeping','a blocked exit must keep i
 registry.solids[0].collider.radius=.3; tick(a);
 assert.equal(a.state,'idle'); assert.ok(Math.hypot(a.pos.x-bed.doorX,a.pos.z-bed.doorZ)>=.65,'waking NPC emerged inside the door obstacle');
 // Execute the actual visibility helper against a photographer with extra rigs.
-const hideSource = source.slice(source.indexOf('  _hideNpc(npc) {'), source.indexOf('  // Targeted unit vanished mid-visit'));
-const HideHarness = vm.runInNewContext(`class HideHarness {${hideSource}}; HideHarness`);
+const hideSource = source.slice(source.indexOf('  _hideNpc(npc) {'), source.indexOf('  // Festival Run: a damaging hit'));
+const HideHarness = vm.runInNewContext(`class HideHarness {${hideSource}}; HideHarness`,loadGroupParticipation());
 const hidden = new HideHarness(), calls=[]; hidden._zeroMat={zero:true};
 for(const name of ['legsMesh','shoesMesh','bodyMesh','armsMesh','headMesh','eyesMesh','mouthMesh','drinkMesh','cameraMesh','flashMesh']) hidden[name]={setMatrixAt:(slot,matrix)=>calls.push([name,slot,matrix])};
 hidden.hairMeshes={cap:{setMatrixAt:(slot,matrix)=>calls.push(['hair',slot,matrix])}};
 const actor={idx:4,hairSlot:2,appearance:{hairStyle:'cap'},drinkSlot:3,isPhotographer:true,photoSlot:1,avatar:{visible:true},campInstrument:{group:{visible:true}}};
+actor._groupBinding={binding:{hide:()=>{actor.avatar.visible=false;}}};
 hidden._hideNpc(actor);
 assert.equal(calls.length,11); assert.ok(calls.every(call=>call[2]===hidden._zeroMat)); assert.equal(actor.avatar.visible,false);
 assert.equal(actor.campInstrument.group.visible,false,'hidden fetch/putaway also hides any carried instrument');
-const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
-assert.ok(/if \(n.state === 'riding'[^\n]*n.state === 'camp_sleeping'[^\n]*continue/.test(main),'hidden sleepers must not become player collision candidates');
-console.log('camp boundaries: obstructed exits, photographer/character rig hiding and player collision exclusions passed');
+// test-people-collisions executes the current provider against hidden sleepers.
+console.log('camp boundaries: obstructed exits and photographer/character rig hiding passed');
 
-assert.ok(source.slice(source.indexOf('  applyHonk(zerble)')).includes("if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc.festivalVisit?.hidden) continue;"),'honk must not pull hidden campers through tent geometry');
+const honkStart=source.indexOf('  applyHonk(zerble)'),honkEnd=source.indexOf('\n}\n\nfunction wrapAngle',honkStart);
+const HonkHarness=vm.runInNewContext(`class HonkHarness {${source.slice(honkStart,honkEnd)}};HonkHarness`,{honkScatterParams:()=>({t:0,frontRange:20,behindRange:8,urgency:1})});
+const honkOwner=new HonkHarness();
+honkOwner.npcs=[{state:'camp_sleeping'},{state:'idle',campJamHidden:true},{state:'idle',_activityBinding:{hidden:true}}];
+for(const npc of honkOwner.npcs)Object.defineProperty(npc,'pos',{get(){throw Error('honk inspected a hidden person');}});
+honkOwner.applyHonk({speed:0,forwardWorld:{x:0,z:-1}});
 assert.ok(source.includes("other.state === 'boarding' || other.state === 'camp_sleeping'"),'nearby panic must not pull sleepers through tent geometry');
 
 const abandonSource=source.slice(source.indexOf('  _abandonSeat(npc) {'),source.indexOf('  // Star power love-magnet'));
 const abandon=vm.runInNewContext(`({${abandonSource}})._abandonSeat`);
+crowd.camps={has:()=>true};
 const trapped=makeNpc(4);Object.assign(trapped,{state:'camp_seated',campSlot:chair,campEntry:camp,campBed:false});chair.occupied=true;
 registry.solids=[{position:{x:chair.approachX,z:chair.approachZ},collider:{radius:10}}];
 assert.equal(abandon.call(crowd,trapped),false);assert.equal(chair.occupied,true,'forced reactions retain a trapped sitter claim');
 registry.solids=[];assert.equal(abandon.call(crowd,trapped),true);assert.equal(chair.occupied,false,'forced reactions release the claim when an exit opens');
 console.log('PASS forced camp departure waits for physical exit clearance');
+
+const releaseOrder=[];
+const ordered={picnics:{has:()=>true},hammocks:{has:()=>true},_releaseMarket:()=>releaseOrder.push('market'),_releaseTable:()=>releaseOrder.push('table'),_releaseCamp:()=>releaseOrder.push('camp'),_releaseHammock:()=>releaseOrder.push('hammock')};
+assert.equal(abandon.call(ordered,{personHandle:{}}),true);
+assert.deepEqual(releaseOrder,['market','table','camp','hammock'],'forced abandonment preserves resource-release order through public activity ownership');

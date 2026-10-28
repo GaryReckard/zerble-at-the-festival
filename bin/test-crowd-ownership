@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {disposeSceneResources} from '../src/people/sceneResources.js';
+import {ActivityClaims} from '../src/people/activityClaims.js';
+// Execute the production class methods with recording render/resource boundaries.
+// Browser contracts separately construct the real Three/Crowd objects.
+const source=readFileSync(new URL('../src/crowd.js',import.meta.url),'utf8');
+const Crowd=runInNewContext(source.slice(source.indexOf('export class Crowd')).replace('export class Crowd','class Crowd')+';Crowd',{DESPAWN_R2:100,disposeSceneResources});
+function fixture() {
+ const crowd=Object.create(Crowd.prototype),log=[];
+ Object.assign(crowd,{npcs:[],free:[],groups:new Map(),_zeroMat:{},_hairDrawCounts:[0],_hairFree:[[]],_drinkFree:[],_photoFree:[],_photographerCount:0});
+ const runtime=new PeopleRuntime(),ownerToken=runtime.register({key:'fixture',controller:{inspect(){},dispose(){}}});
+ crowd.peopleHandles=new PersonHandles({runtime,ownerToken,read(){}});
+ crowd.activityClaims=new ActivityClaims({people:crowd.peopleHandles});
+ crowd.campJams={release(){log.push('camp-release');}};
+ for(const key of ['shoppingBag','legs','shoes','body','arms','head','eyes','mouth','drink','camera','flash'])crowd[key+'Mesh']={setMatrixAt(slot){log.push(key+':hide:'+slot);},instanceMatrix:{}};
+ crowd.hairMeshes=[{setMatrixAt(){},instanceMatrix:{}}];
+ const spawn=(idx,x=0)=>{
+  const npc={idx,pos:{x,z:0},appearance:{hairStyle:0},hairSlot:idx,drinkSlot:-1,photoSlot:-1,state:'idle'};
+  crowd.npcs.push(npc);crowd.peopleHandles.create(idx,npc);return npc;
+ };
+ return {crowd,spawn,log};
+}
+{
+ const {crowd,spawn,log}=fixture(),npc=spawn(0),handle=crowd.peopleHandles.handleFor(npc);
+ let releases=0;const frontage={occupied:true};
+ crowd.activityClaims.acquire(handle,{owner:'visit',release(claim){
+  assert.equal(crowd.peopleHandles.isLive(handle),false);assert(crowd.activityClaims.canRelease(claim));log.push('borrower');releases++;frontage.occupied=false;
+ }});
+ crowd.removeNpc(npc);crowd.removeNpc(npc);
+ assert(log.indexOf('borrower')<log.indexOf('body:hide:0'));assert.equal(releases,1);assert.equal(frontage.occupied,false);
+ assert.equal(crowd.free.filter(slot=>slot===0).length,1);assert.equal(crowd.peopleHandles.isLive(handle),false);
+}
+{
+ const {crowd,spawn}=fixture(),near=spawn(0),far=spawn(1,1000),third=spawn(2),party=spawn(3,1000),rider=spawn(4,1000);
+ party.party={};rider.state='riding';
+ crowd.activityClaims.acquire(crowd.peopleHandles.handleFor(far),{owner:'sweep',release(){crowd.removeNpc(near);}});
+ crowd._despawnDistant({position:{x:0,z:0}});
+ assert.deepEqual(Array.from(crowd.npcs,n=>n.idx),[2,3,4],'reentrant removal during sweep cannot resurrect a prior peer or skip a later live person');
+ assert.equal(crowd.free.length,2);assert.equal(crowd.peopleHandles.entries.size,3);
+ assert(crowd.npcs.includes(third));
+}
+console.log('PASS production Crowd ownership: claims-before-hide, repeated borrower/pool release safety, reentrant batch removal, live peers and party/rider exemptions.');

@@ -1,0 +1,25 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {SeatReservations} from '../src/people/seatReservations.js';
+const runtime=new PeopleRuntime(),token=runtime.register({key:'seated',controller:{inspect(){},dispose(){}}});
+const people=new PersonHandles({runtime,ownerToken:token,read(){}}),seats=new SeatReservations(people);
+const a=people.create(0,{}),b=people.create(1,{}),vehicle={active:true,seatSlots:[{occupied:false},{occupied:false},{occupied:false,permanent:true}],worldSeatPosition(slot,out){out.x=this.seatSlots.indexOf(slot);}};
+assert.equal(seats.reserveMany([{person:a,vehicle,slot:vehicle.seatSlots[0]},{person:b,vehicle,slot:vehicle.seatSlots[2]}]),null);
+assert(vehicle.seatSlots.every(s=>!s.occupied),'failed preparation does not publish partial occupancy');
+let group=seats.reserveMany([a,b].map((person,i)=>({person,vehicle,slot:vehicle.seatSlots[i]})));assert(group);
+assert.equal(seats.reserve({person:a,vehicle,slot:vehicle.seatSlots[2],allowPermanent:true}),null);
+const old=group[0];seats.release(old);const replacement=seats.reserve({person:a,vehicle,slot:old.slot});assert(replacement);
+assert.equal(seats.release(old),false);assert(old.slot.occupied);
+assert(seats.readTarget(replacement,{}));
+people.remove(a,()=>{assert(!seats.isLive(replacement));assert(seats.release(replacement));});
+const fresh=people.create(0,{});assert.equal(seats.reserve({person:a,vehicle,slot:old.slot}),null);
+const reused=seats.reserve({person:fresh,vehicle,slot:old.slot});assert(reused);assert.equal(seats.release(replacement),false);assert(reused.slot.occupied);
+vehicle.seatSlots=[{occupied:false},{occupied:false}];assert.equal(seats.isLive(reused),false);
+seats.releaseVehicle(vehicle);assert.equal(seats.states.size,0);
+const other=new SeatReservations(people),request={person:fresh,vehicle,slot:vehicle.seatSlots[0]};
+const claimed=seats.reserve(request);assert(claimed);assert.equal(other.reserve(request),null,'different adapters cannot double-own a vehicle slot');
+runtime.unregister(token);assert.equal(seats.isLive(claimed),false);seats.dispose();other.dispose();assert.equal(vehicle.seatSlots[0].occupied,false);
+assert.equal(seats.reserve(request),null);seats.dispose();
+console.log('PASS seat resources: atomic multi-person preparation, one lifetime/seat, permanent-slot eligibility, stale release and generation rejection, vehicle replacement, cross-owner contention and dispatch-stopped teardown.');

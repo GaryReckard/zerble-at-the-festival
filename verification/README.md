@@ -11,6 +11,11 @@ not physical-device acceptance.
 
 - [Festival Passport, October 25](passport/2026-10-25/README.md): pure/integration checks, Low/Mid boots, settings continuity, paused Festival Run and responsive captures.
 
+## People architecture acceptance
+
+- [Final coverage and limits](../openspec/changes/people-npc-architecture/acceptance.md): all 17 families, ownership/failure contracts, saved real-game traces and matched Low/Mid topology, with explicit CPU costs and physical-device limits.
+- [Before/after visual](people/architecture.html), [source-grounded diagrams](../openspec/changes/people-npc-architecture/architecture-visual.md) and [extension contract](../openspec/changes/people-npc-architecture/extension-guide.md).
+
 ## Recent investigations
 
 - [Vendor market activity, October 25](vendors/2026-10-25/README.md): opposing customer-facing keepers, real crowd browsing/purchases, bag draw cost, closure and lifecycle regressions.

@@ -4,7 +4,7 @@
  * registry.closestBuilding (perf "Slice 1B").
  *
  * WHY THIS EXISTS: closestBuilding is a placement guard called DURING worldgen
- * (chunks.js / forests.js / lakes.js / obstacles.js), against buildings added
+ * (chunks.js / forests.js / lakes.js / people/hoopers.js), against buildings added
  * earlier in the SAME generation pass. It went from an O(n) scan over every
  * registry entry to a grid (_fpGrid) broadphase. If the grid version ever
  * returned a DIFFERENT boolean than the scan for any registry state, a guard

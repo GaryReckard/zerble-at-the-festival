@@ -1,0 +1,107 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {HealingArtsActivity} from '../src/healingArtsActivity.js';
+import {HealingArtsActivity as LegacyActivity} from '../verification/people/2026-10-26/legacy-healing-arts-activity.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+const oracle=readFileSync(new URL('../verification/people/2026-10-26/legacy-healing-arts-updater.js',import.meta.url),'utf8');
+const smoothstep=(x,a,b)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
+const legacySample=runInNewContext(oracle.replace('export function','function')+';updateHealingArts',{THREE:{MathUtils:{smoothstep}},color:{setHex(){}},instanceAt(){},segment(){}});
+const batch=()=>({setColorAt(){},instanceColor:{},instanceMatrix:{}});
+const publicMethods=['spawnPerson','removePerson','readPerson','forEachPersonNear','hasPersonWithin','activityCooldown','claimActivity','setActivityBinding','writeActivityPose','requestActivityExit','endPersonActivity'];
+function protocol(crowd) {return Object.freeze(Object.fromEntries(publicMethods.map(name=>[name,crowd[name].bind(crowd)])));}
+function scene(Activity){
+ const participants=Array.from({length:7},(_,i)=>({x:(i-3)*2,z:1,shirt:1,skin:2,yaw:0,phase:i*.13,orbitPhase:i*.9,orbitSpeed:.1,lane:2.1+(i%3)*1.85}));
+ const group={position:new Vector(30,0,20),rotation:{y:Math.PI/2},userData:{healingArts:{participants,participantCount:7,positions:new Float32Array(14),pose:new Float32Array(33),poleColliders:[],light:{},mats:batch(),booth:batch(),bulbs:batch(),bodies:batch(),heads:batch(),hair:batch(),glowsticks:batch()}}};
+ legacySample(group,0,0,0);
+ const crowd=makePeopleCrowd(),activity=new Activity(group,Activity===LegacyActivity?crowd:protocol(crowd),()=>.5);
+ for(let i=0;i<9;i++)crowd.spawn({pos:activity.point((i-4)*2,12)});
+ return {group,crowd,activity};
+}
+const old=scene(LegacyActivity),now=scene(HealingArtsActivity);
+assert(now.activity.slots.every(slot=>slot.person?.ownerToken&&!slot.npc),'Activity retains stable handles rather than raw NPC records');
+let priorNight=null;
+for(let frame=0;frame<3600;frame++) {
+ const dt=.05,time=frame*dt,night=frame<20?0:frame<100?.25:frame<1700?1:frame<1900?.3:0;
+ old.activity.update(dt,time,night);now.activity.update(dt,time,night);
+ assert.equal(now.activity.phase,old.activity.phase,'phase');assert.equal(now.crowd.npcs.length,old.crowd.npcs.length,'single identity/population');
+ for(let i=0;i<old.crowd.npcs.length;i++) {
+  const a=old.crowd.npcs[i],b=now.crowd.npcs[i];
+  assert.deepEqual([b.pos.x,b.pos.y,b.pos.z,b.yaw,b.bob,b.state,b.stateTimer,b.target.x,b.target.z,b.vel.x,b.vel.z],[a.pos.x,a.pos.y,a.pos.z,a.yaw,a.bob,a.state,a.stateTimer,a.target.x,a.target.z,a.vel.x,a.vel.z],'movement/state frame '+frame+' person '+i);
+  assert.equal(now.crowd.activityCooldown(b.personHandle,'healing-arts'),a.healingCooldownUntil??0,'cooldown');
+  assert.equal(now.crowd.hasHiddenBinding(b.personHandle),!!a.festivalVisit?.hidden,'one visible binding');
+  assert.equal(now.crowd.activitySummary(b.personHandle)?.role??null,a.festivalVisit?.slot.role??null,'activity role');
+ }
+ const near=frame%40<20;
+ if(near||priorNight!==(night>.5)){legacySample(old.group,dt,time,night);now.activity.sample(time,night);}
+ priorNight=night>.5;
+}
+assert.equal(now.activity.phase,'day','dawn returns to daytime acquisition');
+assert(now.activity.slots.some(slot=>slot.role==='yoga'||slot.role==='yoga_entering'),'daytime class acquires people after dawn');
+const staleClaim=now.activity.slots.find(s=>s.claim)?.claim;
+now.activity.dispose();now.activity.dispose();assert.equal(now.activity.visitors.size,0);
+assert(!now.crowd.activityClaims.canWrite(staleClaim));
+assert(now.crowd.npcs.every(n=>!now.crowd.hasHiddenBinding(n.personHandle)),'unload restores ordinary binding');
+console.log('PASS Healing Arts public ownership: 3600 exact legacy movement/state/cooldown frames, prior-sample near/night cadence, singular identities, repeated unload and stale claims.');
+
+// Real population methods over recording boundaries prove ownership in both teardown orders.
+{
+ const f=scene(HealingArtsActivity),slot=f.activity.slots[0],person=slot.person,claim=slot.claim;
+ const incumbent=f.crowd.spawnPerson({pos:new Vector(0,0,0)});
+ const incumbentClaim=f.crowd.claimActivity(incumbent,{owner:{activityKey:'incumbent'}});
+ assert.equal(f.activity.adopt(slot,incumbent,'entering'),false,'occupied place rejects acquisition');
+ assert(f.crowd.activityClaims.canWrite(incumbentClaim),'failed reservation preserves previous activity');
+ assert.equal(slot.person,person);assert(f.crowd.activityClaims.canWrite(claim));
+ f.crowd.removePerson(person);
+ assert.equal(slot.person,null);assert.equal(slot.reservation,null);assert.equal(slot.p.activity,'hidden');
+ const replacement=f.crowd.spawnPerson({pos:new Vector()});
+ assert.equal(replacement.slot,person.slot);assert.notEqual(replacement.generation,person.generation);
+ assert(!f.crowd.writeActivityPose(claim,90,0,90));assert(!f.crowd.releaseActivityBinding(claim));
+ assert(f.activity.adopt(slot,replacement,'entering'));
+ f.activity.releasePerson(person);
+ assert.equal(slot.person,replacement,'stale person release cannot clear reused rig');
+ const freshClaim=slot.claim;
+ f.activity.dispose();f.activity.dispose();
+ assert(!f.crowd.hasHiddenBinding(replacement));assert(!f.crowd.activityClaims.canWrite(freshClaim));
+ assert.equal(f.crowd.activityCooldown(replacement,'healing-arts'),60);
+}
+{
+ const f=scene(HealingArtsActivity),old=f.activity;
+ const replacement=new HealingArtsActivity(f.group,protocol(f.crowd),()=>.5);
+ const currentMotion=f.group.userData.healingArts.motion;
+ old.update(.05,20,1);old.sample(20,1);old.dispose();
+ assert.equal(f.group.userData.healingArts.activityOwner,replacement);
+ assert.equal(f.group.userData.healingArts.motion,currentMotion);
+ assert(f.group.userData.healingArts.managed);
+ assert(replacement.slots.every(slot=>f.crowd.activityClaims.canWrite(slot.claim)));
+ replacement.dispose();
+ const revisited=new HealingArtsActivity(f.group,protocol(f.crowd),()=>.5);
+ assert(revisited.slots.every(slot=>f.crowd.activityClaims.canWrite(slot.claim)));
+ revisited.dispose();
+ assert.equal(f.crowd.activityClaims.current.size,0,'repeated unload/revisit leaves no activity authority');
+}
+{
+ const crowd=makePeopleCrowd(),person=crowd.spawnPerson({pos:new Vector(1,17,3)});
+ const claim=crowd.claimActivity(person,{owner:{activityKey:'grounding-test'}});
+ crowd._writeMatrices=npc=>{npc.pos.y=777;};
+ assert(crowd.writeActivityPose(claim,4,23,6));
+ assert.equal(crowd.peopleHandles.resolve(person).pos.y,23,'display grounding cannot overwrite the supplied authoritative pose');
+ crowd.endPersonActivity(claim);
+ const events=[];
+ const realFinalize=crowd._finalizeActivityRelease.bind(crowd);
+ crowd.activityClaims.finalize=released=>{events.push('finalize');realFinalize(released);};
+ crowd.activityClaims.resume=handle=>{
+  events.push('resume');assert.equal(crowd.activityCooldown(handle,'grounding-test'),91);
+  assert.equal(crowd.claimActivity(handle,{owner:'reentrant'}),null,'ordinary resume remains inside transition guard');
+ };
+ const exit=crowd.claimActivity(person,{owner:{activityKey:'grounding-test'},prepare(attempt){attempt.own(()=>events.push('resource'));return true;},release(released){
+  events.push('release');assert(crowd.requestActivityExit(released,{targetX:8,targetZ:9,cooldownUntil:91}));
+  assert(!crowd.writeActivityPose(released,99,99,99),'revoking owner cannot move the person');
+ }});
+ events.length=0;crowd.endPersonActivity(exit);
+ assert.deepEqual(events,['release','resource','finalize','resume']);
+ assert(!crowd.requestActivityExit(exit,{cooldownUntil:200}),'released owner cannot change successor cooldown');
+ const record=crowd.peopleHandles.resolve(person);assert.deepEqual([record.target.x,record.target.z],[8,9]);
+}
+console.log('PASS Healing Arts protocol-only dependency, reservation rollback, person-first removal, slot reuse, stale release, owner replacement, unload/revisit, pose ownership and ordered exit/resume.');

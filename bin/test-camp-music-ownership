@@ -1,0 +1,85 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+import {CampActivity} from '../src/people/campActivity.js';
+import * as resources from '../src/people/campResources.js';
+function fixture(old=true){
+ const sounds=[];let writes=0;
+ const registry={entries:new Map(),byKind:new Map([['campsite',new Set()]]),solids:[],collidersNear(x,z,r,fn){for(const e of this.solids)fn(e);}};
+ const seats=[-3,-1,1,3].map(x=>({x,z:3,y:.8,yaw:Math.PI,approachX:x,approachZ:4.2,occupied:false}));
+ const host={id:'host',position:new Vector(),campFire:{x:0,z:0},campNeighborhood:'family',campBeds:[{x:5,z:6,doorX:5,doorZ:4.5,occupied:false}],campSeats:seats};
+ const satellite={id:'satellite',position:new Vector(8,0,0),campNeighborhood:'family',campBeds:[{x:8,z:6,doorX:8,doorZ:4.5,occupied:false}],campSeats:[]};
+ for(const e of [host,satellite]){registry.entries.set(e.id,e);registry.byKind.get('campsite').add(e.id);}
+ const group={children:new Set(),add(g){this.children.add(g);},remove(g){this.children.delete(g);}};
+ const rows=Array.from({length:4},(_,idx)=>({idx,pos:new Vector(4+idx*.7,0,4.5),target:new Vector(),vel:new Vector(),yaw:0,energy:1,state:'idle',stateTimer:0}));
+ let owner={npcs:rows,group,_writeMatrices(){writes++;},_campExit(n){return resources.campExit(registry,n.campSlot,n.campBed);}};
+ if(!old){owner=makePeopleCrowd();owner.group=group;for(const row of rows){const n=owner.spawn({pos:row.pos});Object.assign(n,row);}owner._writeMatrices=()=>writes++;owner.camps=new CampActivity(owner,registry);}
+ const source=readFileSync(new URL(old?'../verification/people/2026-10-26/legacy-camp-jam.js':'../src/campJamActivity.js',import.meta.url),'utf8');
+ const Class=runInNewContext(source.replace(/import[\s\S]*?from ['"][^'"]+['"];?/g,'').replace('export class','class')+';CampJamActivity',{
+  registry,...resources,Sound:{attachCampJam(x,z,seed,kinds){const s={x,z,seed,kinds,stops:0,stop(){this.stops++;}};sounds.push(s);return s;}},
+  buildCampInstrument:kind=>({kind,group:{}}),updateCampInstrument(){},
+ });
+ const manager=new Class(owner,{places:registry});owner.campJams=manager;if(!old)owner._inlineActivities=new Set([manager,owner.camps]);manager.nextScan=0;
+ return {manager,owner,host,satellite,seats,registry,sounds,group,get writes(){return writes;}};
+}
+for(const scenario of ['normal','closing','unload','interrupt']){
+ const before=fixture(),after=fixture(process.argv.includes('--baseline')),phases=new Set();
+ const snapshot=f=>{
+  const jobs=f.manager.sessions.flatMap(s=>s.jobs),npcs=f.owner.npcs;
+  return [f.manager.clock,...npcs.flatMap(n=>{const j=f.manager.jobs?.get(n.personHandle)??n.campJam;return [n.state,n.stateTimer,n.pos.x,n.pos.z,n.vel.x,n.vel.z,n.yaw,!!n.campJamHidden,!!n.campInstrument,j?.kind,j?.stage,j?.age,j?.slot?.x,f.owner.camps?.states.get(n.personHandle)?.campCooldown??n.campCooldown??0];}),...f.seats.map(s=>s.occupied),f.group.children.size,f.writes,...f.sounds.flatMap(s=>[s.seed,...s.kinds,s.stops]),...f.manager.sessions.flatMap(s=>[s.created,s.playedAt,s.returning,s.jobs.length])];
+ };
+ for(let frame=0;frame<1400;frame++){
+  for(const f of [before,after]){
+   if(frame===200&&scenario==='unload')f.registry.entries.delete(f.host.id);
+   if(frame===200&&scenario==='interrupt')for(const n of f.owner.npcs){if(f.manager.jobs)f.manager.release(n.personHandle);else f.manager.releaseNpc(n);}
+   f.manager.update(.1,{position:new Vector()},scenario==='closing'&&frame>=200?.9:.62);
+   if(f===after)for(const j of f.manager.sessions.flatMap(s=>s.jobs))phases.add(j.stage);
+   for(const n of f.owner.npcs){n.stateTimer-=.1;if(f.manager.jobs)f.manager.tickPerson(.1,n.personHandle);else f.manager.tickNpc(.1,n);}
+  }
+  for(const j of after.manager.sessions.flatMap(s=>s.jobs))phases.add(j.stage);
+  assert.deepEqual(snapshot(after),snapshot(before),scenario+' frame '+frame);
+ }
+ if(scenario==='normal')for(const p of ['fetch_walk','fetch','approach','seat','ready','playing','leave','return','putaway'])assert(phases.has(p),p);
+ assert.equal(after.group.children.size,0);assert(after.seats.every(s=>!s.occupied));assert(after.sounds.every(s=>s.stops===1));
+ console.log('PASS camp music '+scenario+': 1400 exact actor/job/seat/model/audio/publication frames.');
+}
+if(!process.argv.includes('--baseline')){
+ const start=f=>{f.manager.update(.1,new Vector(),.62);assert(f.manager.jobs.size>=2);};
+ const advance=f=>{for(let i=0;i<250;i++){f.manager.update(.1,new Vector(),.62);for(const n of f.owner.npcs)f.manager.tickPerson(.1,n.personHandle);}};
+ for(let cycle=0;cycle<2;cycle++){
+  const f=fixture(false);start(f);advance(f);assert(f.group.children.size>0);
+  const job=f.manager.jobs.values().next().value,n=f.owner.peopleHandles.resolve(job.person),oldClaim=job.claim;
+  assert.notEqual(job.motion,n);assert(!Object.hasOwn(n,'campJam'));assert(!Object.hasOwn(n,'campSlot'));
+  f.owner.removePerson(job.person);assert(!f.manager.has(job.person));assert.equal(f.owner.commitCampMusicMotion(oldClaim,{}),false);
+  f.registry.entries.delete(f.host.id);f.manager.update(.1,new Vector(),.62);
+  assert.equal(f.manager.jobs.size,0);assert.equal(f.group.children.size,0);assert(f.seats.every(s=>!s.occupied));assert(f.sounds.every(s=>s.stops===1));
+  f.registry.entries.set(f.host.id,f.host);f.manager.cooldowns.clear();f.manager.nextScan=0;start(f);advance(f);
+  f.manager.dispose();assert.equal(f.manager.jobs.size,0);assert.equal(f.group.children.size,0);assert.equal(f.owner.activityClaims.current.size,0);assert(f.seats.every(s=>!s.occupied));assert(f.sounds.every(s=>s.stops===1));
+  const clock=f.manager.clock;f.manager.update(5,new Vector(),.62);assert.equal(f.manager.clock,clock);
+ }
+ {
+  const f=fixture(false),n=f.owner.npcs[0],h=n.personHandle;
+  f.owner.camps.tick(0,h,.62);const oldCamp=f.owner.camps.records.get(h),oldReservation=oldCamp.reservation;
+  n.state='camp_seated';n.pos.set(oldCamp.campSlot.x,0,oldCamp.campSlot.z);
+  start(f);assert(f.manager.has(h));assert(!f.owner.camps.has(h));assert.equal(resources.releaseCampSlot(oldReservation),false);
+  assert(f.manager.jobs.get(h).reservation===null||f.manager.jobs.get(h).slot.occupied);f.manager.dispose();assert(f.seats.every(s=>!s.occupied));
+ }
+ {
+  const f=fixture(false),claims=f.owner.npcs.map(n=>f.owner.claimActivity(n.personHandle,{owner:{}}));
+  assert.equal(f.manager._start(f.host),false);assert(claims.every(c=>f.owner.activityClaims.canWrite(c)));assert(f.seats.every(s=>!s.occupied));f.manager.dispose();
+ }
+ {
+  const f=fixture(false);f.owner.npcs.splice(1);assert.equal(f.manager._start(f.host),false);assert.equal(f.owner.activityClaims.current.size,0);assert(f.seats.every(s=>!s.occupied));assert.equal(f.group.children.size,0);
+ }
+ console.log('PASS camp music ownership: snapshots instead of people, two person/place removal and revisit cycles, stale commands, activity-first teardown, camp-to-music resource transfer, protected competing claims and partial ensemble rollback.');
+}
+if(!process.argv.includes('--baseline')){
+ const f=fixture(false);f.manager.update(.1,new Vector(),.62);
+ for(let i=0;i<250;i++){f.manager.update(.1,new Vector(),.62);for(const n of f.owner.npcs)f.manager.tickPerson(.1,n.personHandle);}
+ assert(f.sounds.length);f.sounds[0].stop=function(){this.stops++;throw new Error('injected audio stop failure');};
+ assert.throws(()=>f.manager.dispose(),{name:'AggregateError'});
+ assert.equal(f.manager.jobs.size,0);assert.equal(f.manager.sessions.length,0);assert.equal(f.owner.activityClaims.current.size,0);assert.equal(f.group.children.size,0);assert(f.seats.every(s=>!s.occupied));assert.equal(f.sounds[0].stops,1);
+ f.manager.dispose();console.log('PASS camp music teardown finishes all person, chair, model and sound cleanup after an injected audio-stop failure.');
+}

@@ -1,25 +1,43 @@
 import * as THREE from 'three';
 import {terrainHeight} from './worldgen/terrain.js';
 import {buildOneWheelRider,updateOneWheelRider} from './models/oneWheelRider.js';
-import {OneWheelMotion,ONE_WHEEL_TUNING as T,riderYieldReason} from './oneWheelMotion.js';
+import {OneWheelMotion,ONE_WHEEL_TUNING as T,riderYieldForPeople} from './oneWheelMotion.js';
 import {wagonRoutes,sampleWagonRoute} from './nutWagonRoute.js';
 import {registry} from './registry.js';
 import {nearestHeart} from './worldgen/hearts.js';
 import {approachRoadsOf} from './worldgen/roads.js';
 import {lakeAt} from './worldgen/water.js';
 import {worldHash,mulberry32} from './rng.js';
+import {PeopleRuntime} from './people/runtime.js';
+import {PersonHandles} from './people/personHandle.js';
+import {disposeSceneResources} from './people/sceneResources.js';
 
 const SALT=0x0A1E771;
 const WATER_OFFSETS=[[0,0],...[0,1,2,3,4,5,6,7].map(i=>[Math.sin(i*Math.PI/4)*.95,Math.cos(i*Math.PI/4)*.95])];
 
 export class OneWheels {
-  constructor(scene,crowd,{procedural=true,isWater=lakeAt}={}) {
+  constructor(scene,crowd,{procedural=true,isWater=lakeAt,runtime=null,key='one-wheels'}={}) {
     this.scene=scene;this.crowd=crowd;this.procedural=procedural;this.isWater=isWater;
     this.riders=[];this.visited=new Set();this.checkTimer=0;this.time=0;
     this.frustum=new THREE.Frustum();this.matrix=new THREE.Matrix4();
     this.sphere=new THREE.Sphere(new THREE.Vector3(),2);this.sample={};
-    this.disposed=false;
+    this.disposed=false;this._queryScratch={};
+    this.peopleRuntime=runtime??new PeopleRuntime();this._nextPersonSlot=0;
+    this.ownerToken=this.peopleRuntime.register({key,controller:this,
+      schedule:[{slot:'vehicles',run(dt,frame){this.update(dt,frame.zerble.position,frame.nightness,frame.camera);}}],
+      capabilities:{nearby:this.forEachPersonNear},capabilityOrder:{nearby:80}});
+    this.peopleHandles=new PersonHandles({runtime:this.peopleRuntime,ownerToken:this.ownerToken,read:(r,out)=>this._readPerson(r,out)});
+    this.peopleView=this.peopleHandles.view;
   }
+  _readPerson(r,out){out.x=r.entry.position.x;out.y=r.entry.position.y;out.z=r.entry.position.z;out.heading=r.motion.heading;out.state=r.motion.state;out.vx=Math.sin(r.motion.heading)*r.motion.speed;out.vz=Math.cos(r.motion.heading)*r.motion.speed;}
+  readPerson(handle,out){return this.peopleView.read(handle,out);}
+  forEachPersonNear(x,z,radius,visit,scratch=null){
+    if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(radius)||radius<0||typeof visit!=='function')throw new TypeError('Invalid nearby-person query.');
+    if(this.disposed)return;
+    const view=scratch??(this._facetScratch??={});
+    for(const r of this.riders){const d=Math.hypot(r.entry.position.x-x,r.entry.position.z-z);if(d>=radius)continue;this.peopleHandles.readOwnedRecord(r,view);if(visit(r.personHandle,view,d)===false)return;}
+  }
+  inspect(out){out.population=this.riders.length;out.disposed=this.disposed;out.collisionPublication='registry';}
   clearAt(x,z,ignore=null) {
     for(const [dx,dz] of WATER_OFFSETS)if(this.isWater(x+dx,z+dz))return false;
     let clear=true;
@@ -49,7 +67,7 @@ export class OneWheels {
       if(distance<(force?12:T.spawnMin)||distance>T.spawnMax)continue;
       this.sphere.center.set(this.sample.x,terrainHeight(this.sample.x,this.sample.z)+1.2,this.sample.z);
       if(!force&&camera&&this.frustum.intersectsSphere(this.sphere))continue;
-      if(riderYieldReason(this.sample.x,this.sample.z,this.sample.heading,0,player,this.crowd.npcs))continue;
+      if(riderYieldForPeople(this.sample.x,this.sample.z,this.sample.heading,0,player,this.crowd,this._queryScratch))continue;
       choices.push({route,d,distance});
     }
     if(!choices.length)return false;
@@ -69,20 +87,19 @@ export class OneWheels {
     group.position.copy(position);group.rotation.y=motion.heading;this.scene.add(group);
     const entry={kind:'one_wheel',position,footprint:T.radius,collider:{radius:T.radius,damage:2}};
     const rider={group,motion,entry,id:registry.add(entry),animation:{},seed};
+    rider.personHandle=this.peopleHandles.create(this._nextPersonSlot++,rider);
     // Reuse closures and options in the steady-state update.
     rider.environment={clear:(x,z)=>{
       if(!this.clearAt(x,z,entry))return false;
       if(this.player&&Math.hypot(x-this.player.x,z-this.player.z)<2.4)return false;
-      for(const npc of this.crowd.npcs){
-        if(npc.state==='riding'||npc.state==='hammock_riding'||npc.state==='table_seated')continue;
-        if(Math.hypot(x-npc.pos.x,z-npc.pos.z)<1.25)return false;
-      }
-      return true;
+      let clear=true;
+      this.crowd.forEachPersonNear(x,z,1.25,(_handle,n)=>{if(n.state!=='riding'&&n.state!=='hammock_riding'&&n.state!=='table_seated'){clear=false;return false;}},this._queryScratch);
+      return clear;
     },
-      yieldAhead:(x,z,heading,speed)=>riderYieldReason(x,z,heading,speed,this.player,this.crowd.npcs),
+      yieldAhead:(x,z,heading,speed)=>riderYieldForPeople(x,z,heading,speed,this.player,this.crowd,this._queryScratch),
       gathering:(x,z)=>{
         let count=0;
-        for(const n of this.crowd.npcs)if(n.state!=='riding'&&Math.hypot(n.pos.x-x,n.pos.z-z)<10)count++;
+        this.crowd.forEachPersonNear(x,z,10,(_handle,n)=>{if(n.state!=='riding')count++;},this._queryScratch);
         return count>=4;
       }};
     this.riders.push(rider);return rider;
@@ -110,17 +127,21 @@ export class OneWheels {
   }
   remove(rider) {
     const index=this.riders.indexOf(rider);if(index<0)return;
-    registry.remove(rider.id);rider.group.removeFromParent();
-    rider.group.traverse(o=>{
-      if(o.isMesh){
-        if(!o.geometry?.userData?.shared)o.geometry?.dispose();
-        for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m?.userData?.shared)m?.dispose?.();
-        if(o.isInstancedMesh)o.dispose();
-      }
-    });
     this.riders.splice(index,1);
+    this.peopleHandles.remove(rider.personHandle);
+    const errors=[],release=fn=>{try{fn();}catch(error){errors.push(error);}};
+    release(()=>registry.remove(rider.id));release(()=>rider.group.removeFromParent());
+    release(()=>disposeSceneResources(rider.group));
+    if(errors.length)throw new AggregateError(errors,'Rider removal failed.');
   }
-  dispose(){for(const rider of [...this.riders])this.remove(rider);this.disposed=true;}
+  dispose(){
+    if(this.disposed)return;this.disposed=true;
+    const errors=[],release=fn=>{try{fn();}catch(error){errors.push(error);}};
+    if(this.peopleRuntime.isRegistered(this.ownerToken))release(()=>this.peopleRuntime.unregister(this.ownerToken));
+    release(()=>this.peopleHandles.dispose());
+    for(const rider of [...this.riders])release(()=>this.remove(rider));
+    if(errors.length)throw new AggregateError(errors,'One-wheel teardown failed.');
+  }
   status(){return this.riders.map(r=>({state:r.motion.state,reason:r.motion.waitReason,
     speed:r.motion.speed,position:r.entry.position.toArray(),routeDistance:r.motion.distance,seed:r.seed}));}
 }

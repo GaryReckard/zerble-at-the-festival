@@ -125,7 +125,8 @@ export function buildWook(rng = Math.random) {
 }
 
 export function tickWook(model, dt) {
-  const t = performance.now() * .002 + model.userData.swayPhase;
+  model.userData.animationTime=(model.userData.animationTime??0)+dt;
+  const t = model.userData.animationTime * 2 + model.userData.swayPhase;
   const body = model.children[0];
   if (!body) return;
   body.rotation.z = Math.sin(t) * .10;

@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+import * as smilePolicy from '../src/people/smilePolicy.js';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {disposeSceneResources} from '../src/people/sceneResources.js';
+import * as steering from '../src/steering.js';
+class Vector {
+ constructor(x=0,y=0,z=0){this.set(x,y,z);}
+ set(x,y,z){Object.assign(this,{x,y,z});return this;}
+ copy(p){return this.set(p.x,p.y,p.z);}clone(){return new Vector(this.x,this.y,this.z);}
+ distanceTo(p){return Math.hypot(this.x-p.x,this.y-p.y,this.z-p.z);}
+}
+class Node {
+ constructor(){this.position=new Vector();this.rotation={y:0};this.userData={};this.children=[];this.visible=true;}
+ add(child){this.children.push(child);child.parent=this;}
+ removeFromParent(){if(this.parent)this.parent.children.splice(this.parent.children.indexOf(this),1);this.parent=null;}
+ traverse(visit){visit(this);for(const child of this.children)child.traverse(visit);}
+}
+const legacySource=readFileSync(new URL('../verification/people/2026-10-26/legacy-children-controller.js',import.meta.url),'utf8');
+const placement=readFileSync(new URL('../src/people/placement.js',import.meta.url),'utf8').replace(/^import[^\n]+/gm,'').replace('export function','function');
+const source=readFileSync(new URL('../src/people/children.js',import.meta.url),'utf8');
+function load(code,{failAfter=Infinity}={}) {
+ let random=1977,draws=0,star=false,builds=0;const smiles=[],animation=[];
+ const math=Object.assign(Object.create(Math),{random(){draws++;random=(Math.imul(random,1664525)+1013904223)>>>0;return random/2**32;}});
+ const context={...smilePolicy,Math:math,PeopleRuntime,PersonHandles,disposeSceneResources,THREE:{Group:Node,Vector3:Vector},...steering,
+  terrainHeight:(x,z)=>17+.03*x-.02*z,registry:{collidersNear(){}},
+  isPointInLake:()=>false,projectOutOfLake:()=>null,StarPower:{isActive:()=>star},
+  buildKid:()=>{if(builds++>=failAfter)throw Error('model construction failed');return new Node();},tickKid:(kid,dt,options)=>{animation.push([kid.position.x,kid.position.z,options.excited,options.targetYaw]);},
+ };
+ const Class=runInNewContext(code.replace(/^import\s[\s\S]*?;\s*$/gm,'').replace('export class KidGaggle','class KidGaggle')+';KidGaggle',context);
+ return {Class,smiles,animation,get draws(){return draws;},setStar(value){star=value;}};
+}
+const legacy=load(legacySource),current=load(placement+source);
+const before=new legacy.Class(),runtime=new PeopleRuntime(),after=new current.Class({runtime});
+assert.equal(current.draws,legacy.draws,'registration and identity allocate without random draws');
+const cart={position:new Vector(0,0,0),forwardWorld:new Vector(0,0,-1),nozzleWorld:new Vector(0,0,2),speed:0};
+const bubblePositions=[new Vector(0,18,2),new Vector(3,18,5)];
+const bubbles={forEachAlive(visit){for(const pos of bubblePositions)visit({pos});}};
+const oldSmiles={spawn:p=>legacy.smiles.push([p.x,p.y,p.z])},newSmiles={spawn:p=>current.smiles.push([p.x,p.y,p.z])};
+const snapshot=unit=>unit.kids.map(k=>({position:[k.position.x,k.position.y,k.position.z],data:Object.fromEntries(Object.entries(k.userData).filter(([key])=>key!=='personHandle'))}));
+const handle=after.kids[0].userData.personHandle;
+for(let frame=0;frame<400;frame++) {
+ if(frame===40){before.scatter(cart);runtime.dispatch('honk',cart);}
+ if(frame===100){cart.position.set(600,0,-700);cart.nozzleWorld.copy(cart.position);}
+ if(frame===180)cart.speed=9;
+ if(frame===240){legacy.setStar(true);current.setStar(true);}
+ before.update(.05,bubbles,cart,oldSmiles);
+ runtime.beginFrame(.05);runtime.run('children',{zerble:cart,bubbles,smiles:newSmiles});
+ assert.deepEqual(JSON.parse(JSON.stringify(snapshot(after))),JSON.parse(JSON.stringify(snapshot(before))),'unchanged child algorithm frame '+frame);
+ assert.deepEqual(current.animation,legacy.animation);current.animation.length=legacy.animation.length=0;
+ assert.deepEqual(current.smiles,legacy.smiles);assert.equal(current.draws,legacy.draws,'unchanged random stream frame '+frame);
+ assert.equal(after.kids[0].userData.personHandle,handle,'far relocation preserves lifetime identity');
+ for(let i=0;i<after.kids.length;i++)assert.deepEqual([after.colliders[i].position.x,after.colliders[i].position.y,after.colliders[i].position.z],[before.colliders[i].position.x,before.colliders[i].position.y,before.colliders[i].position.z]);
+}
+const query=[];after.forEachPersonNear(cart.position.x,cart.position.z,1000,(person,view)=>query.push([person,view.x,view.z]));
+assert.equal(query.length,after.kids.length);assert.equal(query[0][0],handle);
+const published=[];runtime.dispatch('colliders',published);assert.equal(published.length,after.kids.length);assert.equal(published[0],after.colliders[0]);
+const resources={owned:0,shared:0};const owned={userData:{},dispose(){resources.owned++;}},shared={userData:{shared:true},dispose(){resources.shared++;}};
+const mesh=new Node();mesh.geometry=owned;mesh.material=[owned,shared];after.kids[0].add(mesh);
+runtime.unregister(after.ownerToken);after.dispose();after.update(.05,bubbles,cart,newSmiles);after.scatter(cart);
+assert(!after.peopleView.isLive(handle));assert.equal(after.kids.length,0);assert.equal(after.colliders.length,0);
+assert.equal(resources.owned,1,'same owned resource is disposed once');assert.equal(resources.shared,0);
+const replacement=new current.Class({runtime,gaggleCount:1});assert.notEqual(replacement.kids[0].userData.personHandle.ownerToken,handle.ownerToken);
+assert.equal(replacement.readPerson(handle,{}),false,'reused controller key cannot revive old handles');
+runtime.dispose();runtime.dispose();assert.equal(replacement.kids.length,0);
+console.log('PASS children ownership: 400 exact legacy frames, constructor RNG, bubbles/honk/dodge/star/smiles/grounding/colliders, identity-preserving relocation, queries, stale/controller teardown and shared-resource safety.');
+
+const failedRuntime=new PeopleRuntime(),broken=load(placement+source,{failAfter:2});
+assert.throws(()=>new broken.Class({runtime:failedRuntime,gaggleCount:1}),/model construction failed/);
+assert.equal(failedRuntime.records.size,0,'partial child construction unregisters its execution owner');
+const replacementRuntime=new PeopleRuntime(),replacementOwner=new current.Class({runtime:replacementRuntime,gaggleCount:1});
+assert(!replacementOwner.readPerson(handle,{}),'full runtime replacement cannot revive a former child');
+replacementRuntime.dispose();
+console.log('PASS child construction rollback and full-runtime replacement.');

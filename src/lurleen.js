@@ -652,12 +652,13 @@ export class Lurleen {
   // ---------- Update ----------
 
   update(dt, zerblePos, zerbleHeading = 0, nightness = 0) {
+    this.actorTime=(this.actorTime??0)+dt;
     this._eyeMaterial.emissiveIntensity = nightness * 1.5;
     this._lipMaterial.emissiveIntensity = 0;
     this._lipOutlineMaterial.emissiveIntensity = nightness * 3;
     this._hairLightMaterial.emissiveIntensity = nightness * 3;
     if (nightness > 0) {
-      const time = performance.now()*0.001;
+      const time = this.actorTime;
       for (let i=0;i<this._hairLights.count;i++) {
         const shimmer=0.35+0.65*Math.pow(0.5+0.5*Math.sin(time*(1.1+i%5*0.13)+i*2.4),6);
         this._twinkleColor.setRGB(shimmer,shimmer,shimmer);
@@ -728,12 +729,12 @@ export class Lurleen {
       if (w.front) {
         w.mesh.rotation.y = THREE.MathUtils.lerp(w.mesh.rotation.y, this.steerAngle, Math.min(1, dt * 10));
       }
-      w.mesh.position.y = w.baseY + Math.sin(performance.now() * 0.01 + w.mesh.position.x) * 0.02;
+      w.mesh.position.y = w.baseY + Math.sin(this.actorTime * 10 + w.mesh.position.x) * 0.02;
     }
 
     // Eye wobble stays inside the shallow dome,
     // staying inside the rim. Lissajous-style motion mimics real googly eyes.
-    const t = performance.now() * 0.001;
+    const t = this.actorTime;
     for (const eye of this.eyes) {
       eye.root.position.y = eye.basePos.y + Math.sin(t * 1.4 + eye.basePos.x) * 0.03;
       eye.pupil.position.x = Math.sin(t * 0.9 + eye.basePos.x * 3) * eye.wobbleX;

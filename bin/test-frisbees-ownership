@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {disposeSceneResources} from '../src/people/sceneResources.js';
+import {Vector,Node} from './test-support/sceneObjects.mjs';
+const strip=code=>code.replace(/^import\s[\s\S]*?;\s*$/gm,'').replace(/export (class|function|const) /g,'$1 ');
+const height=(x,z)=>17+.03*x-.02*z;
+function load(path) {
+ let seed=1977,draws=0,lakeChecks=0;const ticks=[];
+ const math=Object.assign(Object.create(Math),{random(){draws++;seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;}});
+ const Class=runInNewContext(strip(readFileSync(new URL(path,import.meta.url),'utf8'))+';Frisbees',{
+  Math:math,RangeError,TypeError,PeopleRuntime,PersonHandles,disposeSceneResources,performance:{now:()=>1000},
+  THREE:{Group:Node,Vector3:Vector,MathUtils:{clamp:(x,a,b)=>Math.max(a,Math.min(b,x))}},
+  buildFrisbeePlayer:()=>new Node(),buildFrisbeeDisc:()=>new Node(),terrainHeight:height,
+  tickFrisbeePlayer:(p,dt,action,amount)=>ticks.push(['player',p.position.x,p.position.y,p.position.z,dt,action,amount]),
+  tickFrisbeeDisc:(d,dt,state,night)=>ticks.push(['disc',d.position.x,d.position.y,d.position.z,dt,state,night]),
+  getFrisbeeHandPosition:(p,out)=>out.copy(p.position).add(new Vector(0,1,0)),isPointInLake:(x,z)=>{lakeChecks++;return x<0&&z<0;},
+ });
+ return {Class,ticks,get draws(){return draws;},get lakeChecks(){return lakeChecks;}};
+}
+const old=load('../verification/people/2026-10-26/legacy-frisbees-controller.js'),now=load('../src/people/frisbees.js');
+const before=new old.Class(),runtime=new PeopleRuntime(),after=new now.Class({runtime});
+const handles=after.pairs.flatMap(p=>[p.playerA.userData.personHandle,p.playerB.userData.personHandle]);
+assert(after.pairs.every(p=>!p.disc.userData.personHandle),'discs are pair-owned props, not extra people');
+const cart={position:new Vector()},states=new Set();
+const vector=v=>[v.x,v.y,v.z];
+const snapshot=unit=>Array.from(unit.pairs,p=>({a:[...vector(p.playerA.position),p.playerA.rotation.y],b:[...vector(p.playerB.position),p.playerB.rotation.y],disc:vector(p.disc.position),anchor:vector(p.anchor),target:vector(p.target),vel:vector(p.vel),catcherTarget:vector(p.catcherTarget),hand:vector(p.handPosition),state:p.discState,holder:p.discHolder===p.playerA?'A':'B',pause:p.pauseTimer,duration:p.pauseDuration}));
+function compare(){
+ assert.deepEqual(snapshot(after),snapshot(before));assert.equal(now.draws,old.draws);assert.equal(now.lakeChecks,old.lakeChecks);assert.deepEqual(now.ticks,old.ticks);now.ticks.length=old.ticks.length=0;
+ const bodies=unit=>Array.from(unit.colliders,c=>[...vector(c.position),c.radius,c.damage,c.kind]);assert.deepEqual(bodies(after),bodies(before));
+ assert(handles.every(h=>after.peopleView.isLive(h)),'pair recycling preserves both player identities');
+}
+for(let frame=0;frame<600;frame++){
+ if(frame===150)cart.position.set(800,0,-700);if(frame===350)cart.position.set(-800,0,700);
+ const night=frame<300?0:1;before.update(.05,cart.position,night);runtime.beginFrame(.05);runtime.run('roaming',{zerble:cart,nightness:night});
+ for(const pair of after.pairs)states.add(pair.discState);compare();
+}
+assert(states.has('held')&&states.has('flying')&&states.has('landed'),'the differential covers the actual toss/land/pickup cycle');
+// Force only the local preconditions for caught and grounded branches, then run
+// the production update on both controllers; no duplicated pair state machine.
+for(const unit of [before,after]){
+ const p=unit.pairs[0];p.discState='flying';p.disc.position.set(p.discCatcher.position.x,height(p.discCatcher.position.x,p.discCatcher.position.z)+1,p.discCatcher.position.z);p.vel.set(0,0,0);
+}
+before.update(0,null,1);after.update(0,null,1);compare();assert.equal(after.pairs[0].discState,'held');
+for(const unit of [before,after]){
+ const p=unit.pairs[1];p.discState='flying';p.disc.position.set(p.discCatcher.position.x+10,-100,p.discCatcher.position.z);p.vel.set(0,0,0);
+}
+before.update(0,null,1);after.update(0,null,1);compare();assert.equal(after.pairs[1].discState,'landed');
+const published=[];after.appendColliders(published);assert.equal(published.length,10);assert.equal(published[0],after.colliders[0]);
+let count=0;after.forEachPersonNear(0,0,100000,()=>count++);assert.equal(count,10);
+runtime.dispose();after.dispose();after.update(.05,cart.position,1);assert.equal(after.pairs.length,0);assert.equal(after.colliders.length,0);assert(handles.every(h=>!after.peopleView.isLive(h)));
+console.log('PASS frisbee ownership: 600 exact pair/disc/pose/collider/RNG/water-query frames, actual catch/land/pickup branches, stable player identities, display-only discs, public providers and complete teardown.');
+
+const boundedRuntime=new PeopleRuntime(),bounded=new now.Class({runtime:boundedRuntime,pairCount:1,preview:true});
+assert.equal(bounded.pairs.length,1);assert.equal(bounded.colliders.length,2);
+assert.deepEqual([bounded.pairs[0].playerA.position.x,bounded.pairs[0].playerB.position.x],[-6,6]);
+assert.equal(bounded.readPerson(handles[0],{}),false,'new runtime/key cannot revive old players');
+boundedRuntime.dispose();
+for(const pairCount of [0,-1,6,1.5,NaN,'1'])assert.throws(()=>new now.Class({pairCount}),RangeError);
+console.log('PASS bounded production preview and stale replacement identity, with unchanged default five-pair RNG.');

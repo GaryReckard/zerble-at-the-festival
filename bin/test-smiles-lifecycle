@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { register } from 'node:module';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 import assert from 'node:assert/strict';
 register('./node-three-shim.mjs', import.meta.url);
 globalThis.localStorage = { getItem: () => null };
@@ -10,13 +12,15 @@ const { Vector3 } = await import('three');
 const smiles = new Smiles();
 const far = { position: new Vector3(1000, 0, 0) };
 const npc = { pos: new Vector3(-1000, 0, 0) };
+const handle=Object.freeze({slot:1,generation:1});let live=true;
+const people={read(h,out){if(h!==handle||!live)return false;Object.assign(out,{x:npc.pos.x,y:npc.pos.y,z:npc.pos.z});return true;}};
 const geometries = new Set(), materials = new Set();
 let collected = 0;
 const collect = n => { collected += n; };
 for (let cycle = 0; cycle < 10; cycle++) {
   for (let i = 0; i < 20; i++) {
     smiles.spawn(new Vector3());
-    smiles.spawnLost(new Vector3(), npc);
+    smiles.spawnLost(new Vector3(), handle, people);
   }
   for (const s of smiles.active) {
     geometries.add(s.halo.geometry);
@@ -39,14 +43,15 @@ smiles.update(0, { position: new Vector3() }, collect);
 assert.equal(collected, 1);
 assert.equal(smiles.active.length, 0);
 A11y.setColorblind(true);
-smiles.spawnLost(new Vector3(), { pos: new Vector3() });
+npc.pos.set(0,0,0);smiles.spawnLost(new Vector3(), handle, people);
 assert.equal(smiles.active[0].mesh.children.length, 2, 'lost halo retains the colorblind minus marker');
 smiles.update(0, far, collect);
 assert.equal(collected, 1, 'lost arrival must not award points');
 assert.equal(smiles.active.length, 0);
 
+npc.pos.set(-1000,0,0);
 smiles.spawn(new Vector3());
-smiles.spawnLost(new Vector3(), npc);
+smiles.spawnLost(new Vector3(), handle, people);
 const [earned, lost] = smiles.active;
 smiles.update(0.1, far, collect);
 assert.equal(earned.mesh.position.y, 1.6 + 2.8 * 0.1 + Math.sin(0.4) * 0.005);
@@ -57,6 +62,28 @@ assert.ok(lost.mesh.position.x < before.x, 'lost smiles still home toward their 
 assert.ok(earned.mesh.position.x > 0, 'earned smiles still home toward Zerble');
 assert.equal(earned.halo.geometry, lost.halo.geometry);
 assert.notEqual(earned.halo.scale, lost.halo.scale, 'pulses are per-mesh, not shared');
+
+
+// Compare the real updater with frozen motion for a live, moving target.
+smiles.active.length=0;smiles.group.clear();
+const oracleSource=readFileSync(new URL('../verification/people/2026-10-26/legacy-smiles-update.js',import.meta.url),'utf8').replace('export class','class');
+const Oracle=runInNewContext(oracleSource+';SmileOracle',{RISE_TIME:.25,RISE_SPEED:2.8,LOST_SEEK_SPEED:6,LIFETIME:14,PICKUP_RADIUS:2.4,SEEK_SPEED:14});
+const old=new Smiles();old.update=Oracle.prototype.update;
+smiles.spawnLost(new Vector3(),handle,people);old.spawnLost(new Vector3(),handle,people);old.active[0].npc=npc;
+for(let frame=0;frame<500;frame++){
+ npc.pos.set(-30+frame*.01,Math.sin(frame*.01),20+frame*.02);
+ smiles.update(.02,far,collect);old.update(.02,far,collect);
+ assert.equal(smiles.active.length,old.active.length);
+ if(smiles.active.length){const a=smiles.active[0],b=old.active[0];assert.deepEqual(a.mesh.position,b.mesh.position);assert.equal(a.age,b.age);assert.deepEqual(a.halo.scale,b.halo.scale);assert.equal(a.mesh.rotation.y,b.mesh.rotation.y);}
+}
+smiles.active.length=0;smiles.group.clear();npc.pos.set(-100,3,20);
+assert(smiles.spawnLost(new Vector3(),handle,people));smiles.update(.02,far,collect);
+const held=smiles.active[0],last={...held.target};live=false;npc.pos.set(900,900,900);
+smiles.update(.02,far,collect);assert.deepEqual(held.target,last,'removed target retains its last valid position');
+assert(!Object.hasOwn(held,'npc'),'pickup retains no raw population record');
+assert.equal(smiles.spawnLost(new Vector3(),handle,people),false,'stale lifetime cannot start a pickup');
+assert.equal(smiles.active.length,1);old.dispose();
+console.log('PASS lost target: 500 exact live-motion frames, last-valid-position fallback, stale spawn rejection and no raw person retention');
 
 const resources = [smiles._geo, smiles._faceGeo, smiles._minusGeo, smiles._haloGeo,
   smiles._mat, smiles._lostMat, smiles._faceMat, smiles._minusMat, smiles._haloMat, smiles._lostHaloMat];

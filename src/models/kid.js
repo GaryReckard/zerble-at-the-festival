@@ -243,6 +243,7 @@ export function tickKid(model, dt, opts = {}) {
   // hovering. The `Math.abs(sin)` envelope keeps the value non-negative so
   // they hop *up* from ground rather than oscillating through it.
   const bouncy = excited ? 0.13 : 0.08;
-  const tMs = performance.now() * 0.008 + u.bouncePhase;
+  u.animationTime=(u.animationTime??0)+dt;
+  const tMs = u.animationTime * 8 + u.bouncePhase;
   model.children[0].position.y = Math.abs(Math.sin(tMs * 2)) * bouncy;
 }

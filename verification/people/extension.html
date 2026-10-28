@@ -1,0 +1,57 @@
+<!doctype html><meta charset="utf-8"><title>People extension proof</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{margin:24px;background:#17162a;color:#f8f3df;font:16px system-ui}canvas{max-width:100%;border:1px solid #716678}pre{white-space:pre-wrap}button{padding:10px}</style>
+<h1>One visit behavior, different people and places</h1>
+<p>The adult on the left uses Crowd's instanced storage and a reserved standing spot. The fixture person on the right uses independent Map storage and an exclusive counter, with a gold stand-in rig while visiting.</p>
+<pre id="result">Checking…</pre><button id="leave" disabled>Finish visits and release reservations</button>
+<script type="module">
+import * as THREE from 'three';
+import {Crowd} from '../../src/crowd.js';
+import {PeopleRuntime} from '../../src/people/runtime.js';
+import {PlaceVisitActivity} from '../../src/people/placeVisit.js';
+import {FixturePopulation} from './fixturePopulation.js';
+import {SlotPlace,CounterPlace} from './fixturePlaces.js';
+const runtime=new PeopleRuntime(),scene=new THREE.Scene(),renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(900,420);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(40,900/420,.1,100);camera.position.set(0,12,18);camera.lookAt(0,0,0);
+scene.add(new THREE.AmbientLight(0xffffff,2));
+const resources=new Set(),checks=[];let cleaned=false;
+function assert(value,message){if(!value)throw Error(message);checks.push(message);}
+function box(color,x,y,z,w=1,h=1,d=1){
+ const geometry=new THREE.BoxGeometry(w,h,d),material=new THREE.MeshStandardMaterial({color,roughness:1});
+ resources.add(geometry);resources.add(material);const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);scene.add(mesh);return mesh;
+}
+function cleanup(){if(cleaned)return;cleaned=true;runtime.dispose();for(const resource of resources)resource.dispose();renderer.dispose();}
+addEventListener('pagehide',cleanup,{once:true});
+try {
+ const ground=box(0x456847,0,-.1,0,18,.1,10);
+ const adults=new Crowd({spawn(){}},{runtime,key:'extension-adults'});scene.add(adults.group);
+ const adult=adults.spawnPerson({pos:new THREE.Vector3(-7,0,0),rng:()=>.4,allowPhotographer:false});
+ const fixture=new FixturePopulation(runtime),body=box(0x7ebbd7,0,.5,0,.5,1,.5),node=new THREE.Group();
+ node.add(body);scene.add(node);node.position.set(4,0,0);
+ const person=fixture.add({x:4,z:0,node});
+ box(0x8f739e,-3,.03,0,2,.04,2);box(0xb76640,6,.4,-1,2,.8,.5);
+ const rig=box(0xffd45c,6,.6,0,.65,1.2,.65);rig.visible=false;
+ const places=[new SlotPlace({x:-3}),new CounterPlace({x:6,onEnter(){rig.visible=true;},onLeave(){rig.visible=false;},onRelease(){rig.visible=false;}})];
+ const owners=[adults,fixture],people=[adult,person];
+ const visits=owners.map((owner,index)=>new PlaceVisitActivity({people:owner,place:places[index],eligible:view=>!view.claimed&&['idle','walking'].includes(view.state),hidden:index===1,duration:30,speed:4}));
+ for(let index=0;index<visits.length;index++){
+  assert(visits[index].start(people[index]),'Population '+index+' accepts the identical behavior through public operations');
+  for(let frame=0;frame<100&&visits[index].phase!=='visiting';frame++)visits[index].update(.05);
+  assert(visits[index].phase==='visiting','Place '+index+' reserves, approaches and enters');
+ }
+ assert(node.visible===false&&rig.visible===true,'Selected render variation has exactly one visible representation');
+ assert(adults.peopleView.isLive(adult)&&fixture.handles.isLive(person),'Both populations retain their original lifetime identities');
+ renderer.render(scene,camera);document.querySelector('#result').textContent='PASS\n'+checks.join('\n');
+ const leave=document.querySelector('#leave');leave.disabled=false;
+ leave.addEventListener('click',()=>{
+  try {
+   for(const visit of visits){visit.duration=0;for(let frame=0;frame<100&&visit.claim;frame++)visit.update(.05);}
+   assert(visits.every(visit=>!visit.claim),'Both variants finish their exit and relinquish movement');
+   assert(node.visible&&!rig.visible,'Ordinary fixture binding is restored after the visit');
+   assert(places[0].slots.every(slot=>slot===null)&&places[1].customer===null,'Each place releases its own reservation format');
+   renderer.render(scene,camera);document.querySelector('#result').textContent='PASS\n'+checks.join('\n');leave.disabled=true;
+  } catch(error){document.querySelector('#result').textContent='FAIL\n'+error.stack;console.error(error);}
+ });
+} catch(error){document.querySelector('#result').textContent='FAIL\n'+error.stack;console.error(error);cleanup();}
+</script>

@@ -1,0 +1,384 @@
+<!doctype html><meta charset="utf-8"><title>People ownership contracts</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<pre id="result">Checking production Crowd ownership…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {Crowd} from '../../src/crowd.js';
+import {Wooks} from '../../src/people/wooks.js';
+import {PeopleRuntime} from '../../src/people/runtime.js';
+import {KidGaggle} from '../../src/people/children.js';
+import {PuppetParade} from '../../src/people/puppetParade.js';
+import {BrassBand} from '../../src/people/brassBand.js';
+import {HulaHoopers} from '../../src/people/hoopers.js';
+import {Frisbees} from '../../src/people/frisbees.js';
+import {registry} from '../../src/registry.js';
+import {MonkParty} from '../../src/monks.js';
+import {Smiles} from '../../src/smiles.js';
+import {PlaceDisplay} from '../../src/people/placeDisplay.js';
+import {OneWheels} from '../../src/oneWheels.js';
+import {NutWagon} from '../../src/nutWagon.js';
+import {makeWagonRoute} from '../../src/nutWagonRoute.js';
+import {buildKid,tickKid} from '../../src/models/kid.js';
+import {buildWook,tickWook} from '../../src/models/wook.js';
+import {buildFrisbeePlayer,tickFrisbeePlayer} from '../../src/models/frisbeePlayer.js';
+import {buildParasolMarshal,tickParasolMarshal} from '../../src/models/parasolMarshal.js';
+import {disposeSceneResources} from '../../src/people/sceneResources.js';
+const checks=[];
+const assert=(value,message)=>{if(!value)throw Error(message);checks.push(message);};
+let crowd;
+try {
+ const runtime=new PeopleRuntime();crowd=new Crowd({spawn(){}},{runtime});
+ const spawn=(x=0)=>crowd.spawn({pos:new THREE.Vector3(x,0,0),rng:()=>.4});
+ const person=spawn(),handle=crowd.peopleHandles.handleFor(person);
+ assert(crowd.peopleHandles.isLive(handle),'Production spawn registers one live lifetime');
+ let executions=0;const original=crowd.update;
+ crowd.update=function(dt,cart,bubbles){executions++;assert(dt===.02&&cart===42&&bubbles===43,'Runtime passes accepted delta and explicit services');};
+ runtime.beginFrame(.02);runtime.run('adults',{zerble:42,bubbles:43});crowd.update=original;
+ assert(executions===1,'Registered adult slot executes once');
+ const order=[];
+ const claim=crowd.activityClaims.acquire(handle,{owner:'fixture',prepare(attempt){attempt.own(()=>order.push('resource'));return true;},release(token){
+  assert(!crowd.peopleHandles.isLive(handle),'Removal denies commands before borrower release');
+  assert(crowd.activityClaims.canRelease(token),'Retiring claim can release only its owned resources');
+  assert(crowd.activityClaims.acquire(handle,{owner:'reentrant'})===null,'Cleanup cannot reacquire a removed person');
+  order.push('borrower');
+ }});
+ assert(crowd.activityClaims.canWrite(claim),'One active claim authorizes movement');
+ const hide=crowd._hideNpc;crowd._hideNpc=function(n){order.push('hide');return hide.call(this,n);};
+ crowd.removeNpc(person);crowd.removeNpc(person);
+ assert(order.join(',')==='borrower,resource,hide','Borrower and resource release precede hide exactly once');
+ const reused=spawn();assert(reused.idx===person.idx,'Production pool reuses the released slot');
+ assert(crowd.peopleHandles.handleFor(reused).generation!==handle.generation,'Reused slot has a fresh generation');
+ assert(crowd.peopleHandles.resolve(handle)===null&&!crowd.activityClaims.canWrite(claim),'Stale identity and movement cannot reach replacement');
+ assert(crowd.forcePhotographer(person)===null&&crowd.triggerPhotographer(person)===null,'Stale role commands cannot touch replacement pools');
+ const reusedX=reused.pos.x;crowd.hitPerson(handle,1,0);assert(reused.pos.x===reusedX,'Stale hit cannot move the replacement occupant');
+ const reusedHandle=crowd.peopleHandles.handleFor(reused);
+ const moving=crowd.claimActivity(reusedHandle,{owner:'pose-fixture'});
+ assert(crowd.writeActivityPose(moving,15,0,2,0),'Current activity can commit a pose');
+ const bodyPose=new THREE.Matrix4();crowd.bodyMesh.getMatrixAt(reused.idx,bodyPose);
+ assert(Math.abs(bodyPose.elements[12]-15)<.001,'Late activity pose reaches the instanced renderer immediately');
+ const beforeVersion=crowd.bodyMesh.instanceMatrix.version;
+ assert(crowd.setActivityBinding(moving,true),'Current claim can borrow the visible representation');
+ crowd.bodyMesh.getMatrixAt(reused.idx,bodyPose);assert(bodyPose.elements[0]===0,'Borrowed rig hides the ordinary body');
+ const replacement=crowd.claimActivity(reusedHandle,{owner:'replacement'});
+ crowd.setActivityBinding(replacement,true);
+ assert(!crowd.writeActivityPose(moving,99,0,99)&&!crowd.releaseActivityBinding(moving),'Stale claim cannot move or unbind its replacement');
+ crowd.endPersonActivity(replacement);
+ crowd.bodyMesh.getMatrixAt(reused.idx,bodyPose);
+ assert(bodyPose.elements[0]!==0&&crowd.bodyMesh.instanceMatrix.version>beforeVersion,'Late release restores and dirties only the affected actor before render');
+ const photo=crowd.spawn({pos:new THREE.Vector3(),rng:()=>.4,forcePhotographer:true});
+ const photoSlot=photo.photoSlot;crowd.removeNpc(photo);
+ const cameraMatrix=new THREE.Matrix4(),flashMatrix=new THREE.Matrix4();
+ crowd.cameraMesh.getMatrixAt(photoSlot,cameraMatrix);crowd.flashMesh.getMatrixAt(photoSlot,flashMatrix);
+ assert(cameraMatrix.elements[0]===0&&flashMatrix.elements[0]===0,'Production removal zeros pooled camera and flash transforms');
+ assert(crowd._photoFree.includes(photoSlot)&&crowd.cameraMesh.count===crowd._photoDrawCount,'Photographer pool and packed range release together');
+ const far=spawn(1000),farHandle=crowd.peopleHandles.handleFor(far);let released=0;
+ crowd.claimActivity(farHandle,{owner:{activityKey:'distance-test'},release(claim){assert(!crowd.peopleView.isLive(claim.person),'Distance sweep invalidates identity before borrower release');released++;}});
+ const party=spawn(1000);party.party={};const rider=spawn(1000);rider.state='riding';
+ crowd._despawnDistant({position:new THREE.Vector3()});
+ assert(!crowd.peopleHandles.isLive(farHandle)&&released===1,'Distance sweep uses the same borrower release core');
+ assert(crowd.npcs.includes(party)&&crowd.npcs.includes(rider),'Distance sweep retains party and rider exemptions');
+ const failingPerson=spawn(),failingHandle=crowd.peopleHandles.handleFor(failingPerson);let remainingResource=false;
+ crowd.activityClaims.acquire(failingHandle,{owner:'failing',prepare(attempt){attempt.own(()=>{remainingResource=true;});return true;},release(){throw Error('expected borrower failure');}});
+ let surfaced=false;try{crowd.removeNpc(failingPerson);}catch(error){surfaced=error instanceof AggregateError;}
+ assert(surfaced&&remainingResource&&!crowd.npcs.includes(failingPerson)&&!crowd.peopleHandles.isLive(failingHandle),'Borrower failure surfaces after completing resource and lifetime cleanup');
+ const geometry=crowd.bodyMesh.geometry;geometry.userData.shared=true;let destroyed=0;
+ geometry.addEventListener('dispose',()=>destroyed++);
+ runtime.dispose();runtime.dispose();
+ assert(crowd.npcs.length===0&&crowd.peopleHandles.entries.size===0,'Runtime teardown clears all production people');
+ assert(destroyed===0,'Shared geometry survives repeated teardown');
+ assert(crowd.spawn({pos:new THREE.Vector3(),rng:()=>.4})===null,'Disposed population rejects spawning');
+ crowd.update(.02);assert(true,'Disposed controller rejects stale direct ticks');
+ const childRuntime=new PeopleRuntime(),children=new KidGaggle({runtime:childRuntime,gaggleCount:1});
+ try {
+  const kid=children.kids[0],kidHandle=kid.userData.personHandle;
+  const cart={position:new THREE.Vector3(600,0,-700),nozzleWorld:new THREE.Vector3(600,0,-698),forwardWorld:new THREE.Vector3(0,0,-1),speed:0};
+  childRuntime.beginFrame(.02);childRuntime.run('children',{zerble:cart,bubbles:null,smiles:null});
+  assert(children.peopleView.isLive(kidHandle)&&kid.userData.personHandle===kidHandle,'Real child relocation retains the same lifetime');
+  assert(kid.position.distanceTo(cart.position)<150,'Far child actually relocates near the player');
+  const published=[];childRuntime.dispatch('colliders',published);
+  assert(published.length===children.kids.length&&published[0]===children.colliders[0],'Child collider provider reuses production wrappers');
+  assert(Math.abs(published[0].position.y-kid.position.y-.6)<1e-8,'Child collider follows final grounded production pose');
+  const geometry=kid.children[0].children[0].geometry;let childDisposals=0;
+  geometry.addEventListener('dispose',()=>{assert(!children.peopleView.isLive(kidHandle),'Child identity is unavailable before GPU disposal');childDisposals++;});
+  childRuntime.unregister(children.ownerToken);children.dispose();
+  assert(childDisposals===1&&children.kids.length===0&&children.colliders.length===0,'Child owner releases geometry/publications exactly once');
+  const replacementChildren=new KidGaggle({runtime:childRuntime,gaggleCount:1});
+  assert(!replacementChildren.readPerson(kidHandle,{})&&replacementChildren.kids[0].userData.personHandle.ownerToken!==kidHandle.ownerToken,'Replacement child controller rejects former handles');
+ } finally {childRuntime.dispose();children.dispose();}
+ const formations=new PeopleRuntime();
+ try {
+  const parade=new PuppetParade({runtime:formations,preview:true,parkedHonkOrder:1});
+  const band=new BrassBand({runtime:formations,preview:true,parkedHonkOrder:2});
+  const carrierHandles=parade.colliders.map(c=>c.personHandle),memberHandles=band.members.map(m=>m.userData.personHandle);
+  assert(carrierHandles.length===parade.peopleHandles.entries.size&&carrierHandles.every(h=>parade.peopleView.isLive(h)),'Parade carriers receive individual live identities');
+  assert(parade.puppets.every(p=>!p.userData.personHandle),'Lantern display rigs do not receive duplicate interactive identities');
+  assert(memberHandles.length===7&&memberHandles.every(h=>band.peopleView.isLive(h)),'All seven formation musicians retain their own identity');
+  formations.beginFrame(.02);formations.run('formations',{zerble:{position:new THREE.Vector3()}});
+  assert(parade.colliders.every(c=>Number.isFinite(c.position.y))&&band.colliders.every(c=>Number.isFinite(c.position.y)),'Real carrier and musician rigs publish grounded collision poses');
+  const music=band._music;let stopped=0;const originalStop=music.stop.bind(music);
+  music.stop=()=>{assert(band.peopleHandles.entries.size===0,'Band lifetimes end before its audio handle is released');stopped++;originalStop();};
+  formations.dispose();parade.dispose();band.dispose();
+  assert(stopped===1&&music.cancelled,'Deferred formation music cancels exactly once before a gesture');
+  assert(carrierHandles.every(h=>!parade.peopleView.isLive(h))&&memberHandles.every(h=>!band.peopleView.isLive(h)),'Disposed formations reject all former person identities');
+ } finally {formations.dispose();}
+ const roaming=new PeopleRuntime();
+ const unrelated=registry.add({kind:'fixture-unrelated',position:new THREE.Vector3(500,0,500),footprint:1});
+ try {
+  const hoopers=HulaHoopers.create({runtime:roaming}),pairs=new Frisbees({runtime:roaming,preview:true});
+  const hooperHandles=hoopers.hoopers.map(h=>h.userData.personHandle),pairHandles=pairs.pairs.flatMap(p=>[p.playerA.userData.personHandle,p.playerB.userData.personHandle]);
+  assert(hooperHandles.length===8&&hooperHandles.every(h=>hoopers.peopleView.isLive(h)),'All eight real pooled hoopers own live identities while unplaced');
+  const hiddenBodies=[];hoopers.appendColliders(hiddenBodies);
+  assert(hiddenBodies.length===0&&hoopers.hoopers.every(h=>registry.entries.get(h.userData.footprintId).footprint===0),'Unplaced hoopers publish neither phantom collisions nor positive footprints');
+  assert(pairHandles.length===10&&pairHandles.every(h=>pairs.peopleView.isLive(h))&&pairs.pairs.every(p=>!p.disc.userData.personHandle),'Five real pairs publish ten players, while discs remain pair-owned props');
+  roaming.beginFrame(.02);roaming.run('roaming',{zerble:{position:new THREE.Vector3()},nightness:1});
+  const bodies=[];pairs.appendColliders(bodies);
+  assert(bodies.length===10&&bodies.every(c=>Number.isFinite(c.position.y)),'Real player models publish ten grounded collider wrappers');
+  const footprintIds=hoopers.hoopers.map(h=>h.userData.footprintId);
+  roaming.dispose();hoopers.dispose();pairs.dispose();
+  assert(hooperHandles.every(h=>!hoopers.peopleView.isLive(h))&&pairHandles.every(h=>!pairs.peopleView.isLive(h)),'Roaming owner teardown invalidates every former hooper/player lifetime');
+  assert(footprintIds.every(id=>!registry.entries.has(id))&&registry.entries.has(unrelated),'Hooper cleanup removes only its owned registry footprints');
+ } finally {roaming.dispose();registry.remove(unrelated);}
+ const groupedRuntime=new PeopleRuntime(),groupedCrowd=new Crowd({spawn(){}},{runtime:groupedRuntime});
+ try {
+  const party=new MonkParty(groupedCrowd);party.clearAt=()=>true;
+  assert(party.spawn(new THREE.Vector3(),5),'Real monk group spawns five population-owned people');
+  const handles=party.members.map(m=>m.handle),view={};
+  assert(party.members.every(m=>!m.pos&&!m.state&&!m.personHandle)&&handles.every(h=>groupedCrowd.readPerson(h,view)&&view.grouped),'Group stores handles and intent rather than mutable Crowd people');
+  const matrix=new THREE.Matrix4();groupedCrowd.bodyMesh.getMatrixAt(handles[0].slot,matrix);
+  assert(matrix.elements[0]===0&&party.members[0].avatar.visible,'Public group binding hides ordinary instances and publishes the existing monk rig');
+  const claim=groupedCrowd.claimActivity(handles[0],{owner:{activityKey:'group-binding-test'}});
+  groupedCrowd.setActivityBinding(claim,true);
+  assert(!party.members[0].avatar.visible,'Exclusive activity binding hides the group avatar without changing identity');
+  groupedCrowd.endPersonActivity(claim);
+  assert(party.members[0].avatar.visible&&groupedCrowd.peopleView.isLive(handles[0]),'Activity release restores the same person through its group binding');
+  groupedCrowd.removePerson(handles[0]);
+  assert(party.members.length===4&&party.root.children.length===4,'Person-first removal releases its avatar and group membership together');
+  groupedRuntime.dispose();party.dispose();
+  assert(groupedCrowd.npcs.length===0&&party.members.length===0&&party.root.children.length===0,'Owner-first teardown releases group people and rigs after dispatch stops');
+  assert(handles.every(h=>!groupedCrowd.peopleView.isLive(h))&&!party.spawn(new THREE.Vector3(),5),'Disposed group rejects stale people and new spawns');
+ } finally {groupedRuntime.dispose();groupedCrowd.dispose();}
+ const passengersRuntime=new PeopleRuntime(),passengers=new Crowd({spawn(){}},{runtime:passengersRuntime});
+ try {
+  const vehicle={position:new THREE.Vector3(),heading:.4,speed:0,seatSlots:[{name:'bench',yaw:0,kind:'bench',occupied:false}],worldSeatPosition(slot,out){return out.set(3,2,4);}};
+  const handle=passengers.spawnPerson({pos:new THREE.Vector3(),rng:()=>.4,allowPhotographer:false});
+  assert(passengers.beginBoarding(handle,vehicle,{slot:vehicle.seatSlots[0]}),'Public boarding reserves an ordinary passenger seat');
+  const person=passengers.peopleHandles.resolve(handle),first=person._seatReservation;
+  assert(passengers.seatReservations.isLive(first)&&vehicle.seatSlots[0].occupied,'Person lifetime and vehicle slot jointly validate the reservation');
+  assert(passengers.claimActivity(handle,{owner:'conflict'})===null,'Boarding authority excludes a conflicting activity');
+  passengers.releaseVehiclePassengers(vehicle);
+  assert(!vehicle.seatSlots[0].occupied&&!person.seatSlot&&person.state==='idle','Vehicle cleanup restores an ordinary passenger through the population owner');
+  assert(passengers.seatPerson(handle,vehicle,vehicle.seatSlots[0],{rideTime:99999}),'Diagnostic seating uses the same resource ownership boundary');
+  const current=person._seatReservation;
+  assert(!passengers.seatReservations.release(first)&&vehicle.seatSlots[0].occupied,'An old boarding release cannot clear the replacement rider');
+  assert(person.pos.x===3&&person.pos.z===4&&person.seatY===2,'Public immediate seating publishes the existing passenger pose');
+  passengersRuntime.dispose();
+  assert(!vehicle.seatSlots[0].occupied&&passengers.seatReservations.states.size===0&&!passengers.seatReservations.isLive(current),'Dispatch-stopped teardown releases every remaining vehicle reservation');
+ } finally {passengersRuntime.dispose();passengers.dispose();}
+ const restRuntime=new PeopleRuntime(),rest=new Crowd({spawn(){}},{runtime:restRuntime});
+ const hammockEntry={kind:'hammock',position:new THREE.Vector3(),hammock:{seatPos:new THREE.Vector3(0,1.2,0),yaw:.3,occupied:false}};
+ const tableEntry={kind:'picnic_table',position:new THREE.Vector3(),tableSeats:[{x:0,y:.8,z:0,occupied:false}]};
+ const restIds=[registry.add(hammockEntry),registry.add(tableEntry)];
+ try {
+  const h=rest.spawnPerson({pos:new THREE.Vector3(),rng:()=>.4,allowPhotographer:false});
+  assert(rest.hammocks.tryClaim(h),'Real hammock activity acquires one public person claim');
+  rest.hammocks.tickWalking(0,h);rest.hammocks.tickRiding(.02,h);
+  const row=rest.peopleHandles.resolve(h),matrix=new THREE.Matrix4();rest.bodyMesh.getMatrixAt(h.slot,matrix);
+  assert(row.state==='hammock_riding'&&Math.abs(matrix.elements[13])>.1&&hammockEntry.hammock.occupied,'Claim-checked hammock motion reaches the actual supine instance');
+  registry.remove(restIds[0]);rest.hammocks.tickRiding(.02,h);
+  assert(!hammockEntry.hammock.occupied&&!rest.hammocks.has(h)&&row.state==='idle','Hammock place-first removal clears reservation and restores population authority');
+  row.pos.set(0,0,0);
+  assert(rest.picnics.tryClaim(h),'Real picnic activity acquires the same surviving person');
+  rest.picnics.tickWalking(0,h);rest.bodyMesh.getMatrixAt(h.slot,matrix);
+  assert(row.state==='table_seated'&&row.picnicY===.8&&tableEntry.tableSeats[0].occupied&&Number.isFinite(matrix.elements[13]),'Picnic display receives numeric seat height through the population binding');
+  restRuntime.dispose();
+  assert(!tableEntry.tableSeats[0].occupied&&rest.picnics.records.size===0&&rest.hammocks.records.size===0,'Owner-first rest activity teardown releases both place reservations');
+ } finally {restRuntime.dispose();rest.dispose();for(const id of restIds)registry.remove(id);}
+ const bathroomRuntime=new PeopleRuntime(),bathroom=new Crowd({spawn(){}},{runtime:bathroomRuntime});
+ const bathroomPlace={kind:'porta_potty',position:new THREE.Vector3(),potty:{outX:0,outZ:1,occupied:false,occupantId:null,locked:false,doorTarget:0,doorOpen:1,stinkTimer:0}};
+ const bathroomId=registry.add(bathroomPlace);
+ try {
+  const h=bathroom.spawnPerson({pos:new THREE.Vector3(0,0,2.4),rng:()=>.4,allowPhotographer:false});
+  assert(bathroom.bathrooms.tryClaim(h),'Bathroom reserves a person without reserving the unit before arrival');
+  assert(!bathroomPlace.potty.occupied,'Bathroom occupancy remains discoverable at the door');
+  const row=bathroom.peopleHandles.resolve(h),matrix=new THREE.Matrix4();
+  bathroom.bathrooms.tick(0,h);assert(bathroomPlace.potty.occupied&&row.state==='entering_potty','Arrival claims the concrete unit incarnation');
+  row.stateTimer=0;bathroom.bathrooms.tick(.02,h);bathroom.bodyMesh.getMatrixAt(h.slot,matrix);
+  assert(row.state==='using_potty'&&matrix.elements[0]===0,'Using the unit hides the actual instanced body');
+  bathroomPlace.potty.locked=false;
+  const other=bathroom.spawnPerson({pos:new THREE.Vector3(0,0,2.4),rng:()=>.4,allowPhotographer:false});
+  assert(bathroom.bathrooms.tryClaim(other),'A second person can approach an occupied unit');bathroom.bathrooms.tick(0,other);bathroom.bathrooms.tick(.02,h);bathroom.bodyMesh.getMatrixAt(h.slot,matrix);
+  assert(row.pottySitting&&row.seatY===.92&&matrix.elements[0]!==0,'Handle-safe door surprise shows the actual seated occupant');
+  bathroom.onPottyHit(bathroomPlace);
+  assert(row.state==='fleeing'&&!bathroomPlace.potty.occupied&&!bathroom.bathrooms.has(h),'Public collision ejects the current resource owner and releases its claim');
+  registry.remove(bathroomId);bathroom.bathrooms.tick(.02,other);
+  assert(!bathroom.bathrooms.has(other),'Place-first unload also cancels a surprised visitor');
+  bathroomRuntime.dispose();assert(bathroom.bathrooms.records.size===0,'Dispatch-stopped bathroom teardown releases all activities');
+ } finally {bathroomRuntime.dispose();bathroom.dispose();registry.remove(bathroomId);}
+ const shoppingRuntime=new PeopleRuntime(),shopping=new Crowd({spawn(){}},{runtime:shoppingRuntime});
+ const frontage={open:true,customer:null},shop={kind:'tent',position:new THREE.Vector3(),vendor:{rotation:{y:0},userData:{market:frontage}}},shopId=registry.add(shop);
+ try {
+  const h=shopping.spawnPerson({pos:new THREE.Vector3(0,0,4),rng:()=>.4,allowPhotographer:false}),row=shopping.peopleHandles.resolve(h);
+  const observer={position:new THREE.Vector3(0,0,40),forwardWorld:new THREE.Vector3(0,0,-1),speed:0};
+  assert(shopping.markets.tick(.02,h,observer,.25),'Real market activity borrows public person authority');
+  assert(frontage.customer!==row&&Object.keys(frontage.customer).join(',')==='state','Model customer presentation contains no mutable person record');
+  const oldClaim=shopping.markets.records.get(h).claim,phases=new Set();
+  for(let i=0;i<600;i++){row.stateTimer-=.05;row.shoppingBagTime=Math.max(0,(row.shoppingBagTime||0)-.05);shopping.markets.tick(.05,h,observer,.25);phases.add(row.state);}
+  assert(phases.has('market_browsing')&&phases.has('market_chatting')&&phases.has('walking'),'Real market visit browses, greets and exits through the instanced population');
+  assert(!frontage.customer&&!shopping.markets.has(h)&&!shopping.commitMarketMotion(oldClaim,{}),'Finished market visit releases frontage and rejects old movement');
+  shopping.markets.states.get(h).marketCooldown=0;row.shoppingBagTime=0;
+  assert(shopping.markets.tick(.02,h,observer,.25),'Surviving person can revisit a booth');
+  shoppingRuntime.dispose();assert(!frontage.customer&&shopping.markets.records.size===0,'Dispatch-stopped teardown clears copied shop presentation and claims');
+ } finally {shoppingRuntime.dispose();shopping.dispose();registry.remove(shopId);}
+ const campRuntime=new PeopleRuntime(),campPeople=new Crowd({spawn(){}},{runtime:campRuntime});
+ const campPlace={kind:'campsite',position:new THREE.Vector3(),campFire:{x:0,z:0},campSeats:[-3,3].map(x=>({x,y:.8,z:3,yaw:Math.PI,approachX:x,approachZ:4.2,occupied:false})),campBeds:[{x:5,z:6,doorX:5,doorZ:4.5,occupied:false}]};
+ const campId=registry.add(campPlace);
+ try {
+  const first=campPeople.spawnPerson({pos:new THREE.Vector3(3,0,3),rng:()=>.4,allowPhotographer:false});
+  campPeople.spawnPerson({pos:new THREE.Vector3(4,0,4.5),rng:()=>.4,allowPhotographer:false});
+  assert(campPeople.camps.tick(0,first,.25),'Real camping acquires a person and world chair');
+  const visit=campPeople.camps.records.get(first),oldClaim=visit.claim;
+  visit.state='camp_seated';visit.campY=.8;visit.publication=true;campPeople.commitCampMotion(oldClaim,visit);
+  const row=campPeople.peopleHandles.resolve(first),matrix=new THREE.Matrix4();campPeople.bodyMesh.getMatrixAt(first.slot,matrix);
+  assert(row.campY===.8&&Number.isFinite(matrix.elements[13])&&!Object.hasOwn(row,'campSlot'),'Camp renderer receives a numeric height and retains no place slot');
+  const observer={position:new THREE.Vector3(0,0,40),forwardWorld:new THREE.Vector3(0,0,-1),speed:0};campPeople.campJams.nextScan=0;
+  campPeople.campJams.update(.1,observer,.62);
+  assert(campPeople.campJams.jobs.size===2&&!campPeople.camps.has(first)&&!campPeople.commitCampMotion(oldClaim,{}),'Music publicly borrows the same camper and revokes old chair authority');
+  for(let i=0;i<600;i++){campPeople.campJams.update(.05,observer,.62);for(const job of campPeople.campJams.jobs.values())campPeople.campJams.tickPerson(.05,job.person);}
+  const jobs=[...campPeople.campJams.jobs.values()];
+  assert(jobs.some(job=>job.stage==='playing')&&jobs.every(job=>job.instrument&&job.motion!==campPeople.peopleHandles.resolve(job.person)),'Actual pooled instruments reach playing through copied motion and public binding');
+  assert(jobs.every(job=>job.instrument.group.parent===campPeople.group&&job.instrument.group.matrix.elements.every(Number.isFinite)),'Real instrument world matrices remain attached to their population pose');
+  registry.remove(campId);campPeople.campJams.update(.02,observer,.62);
+  assert(campPeople.campJams.jobs.size===0&&campPlace.campSeats.every(slot=>!slot.occupied)&&jobs.every(job=>job.instrument.group.parent===null),'Camp unload frees chair claims, instruments and deferred sound ownership');
+  campRuntime.dispose();assert(campPeople.camps.records.size===0,'Camp runtime disposal leaves no rest reservations');
+ } finally {campRuntime.dispose();campPeople.dispose();registry.remove(campId);}
+ const photoRuntime=new PeopleRuntime(),photoPeople=new Crowd({spawn(){}},{runtime:photoRuntime});
+ try {
+  const h=photoPeople.spawnPerson({pos:new THREE.Vector3(),rng:()=>.4,allowPhotographer:false});
+  assert(photoPeople.forcePhotographer(h)===h,'Photographer promotion retains the same public person lifetime');
+  const row=photoPeople.peopleHandles.resolve(h),cameraSlot=row.photoSlot,matrix=new THREE.Matrix4();photoPeople.cameraMesh.getMatrixAt(cameraSlot,matrix);
+  assert(photoPeople._photographerCount===1&&matrix.elements[0]!==0,'Promoted role uses the existing packed camera pool and actual body transform');
+  assert(photoPeople.previewPhotographerFlash(h)===h,'Flash preview accepts a public lifetime');photoPeople.flashMesh.getMatrixAt(cameraSlot,matrix);
+  assert(matrix.elements[0]!==0&&!photoPeople.flashMesh.castShadow,'Claim-free display variation reaches the actual opaque non-shadow flash');
+  row.photoCrouch=true;row.state='photographer_pose';row.stateTimer=.5;photoPeople.previewPhotographerFlash(h);
+  photoPeople.bodyMesh.getMatrixAt(h.slot,matrix);
+  assert(Math.abs(matrix.elements[13]-(row.pos.y-.24))<1e-6,'Sampled crouch reaches the actual population body matrix');
+  const owner=photoPeople.claimActivity(h,{owner:{activityKey:'held'}});
+  assert(photoPeople.forcePhotographer(h)===null&&photoPeople.triggerPhotographer(h)===null&&photoPeople.activityClaims.canWrite(owner),'Photographer commands preserve another activity authority');
+  photoPeople.endPersonActivity(owner);photoPeople.removePerson(h);photoPeople.cameraMesh.getMatrixAt(cameraSlot,matrix);
+  assert(matrix.elements[0]===0&&photoPeople._photographerCount===0,'Role removal hides the actual pooled camera and returns its slot');
+  const next=photoPeople.spawnPerson({pos:new THREE.Vector3(),rng:()=>.4,allowPhotographer:false});
+  assert(next.slot===h.slot&&next!==h&&photoPeople.forcePhotographer(h)===null,'Reused person slot rejects the old role command');
+  photoRuntime.dispose();assert(photoPeople.forcePhotographer(next)===null,'Unregistered population rejects role commands');
+ } finally {photoRuntime.dispose();photoPeople.dispose();}
+ const collisionRuntime=new PeopleRuntime(),providerOrder=[],honkOrder=[];
+ const providerTypes=[['frisbees',Frisbees,()=>new Frisbees({runtime:collisionRuntime,pairCount:1,preview:true})],
+  ['hoopers',HulaHoopers,()=>new HulaHoopers({runtime:collisionRuntime})],['wooks',Wooks,()=>new Wooks({runtime:collisionRuntime})],
+  ['children',KidGaggle,()=>new KidGaggle({runtime:collisionRuntime,gaggleCount:1})],['band',BrassBand,()=>new BrassBand({runtime:collisionRuntime,preview:true})],
+  ['parade',PuppetParade,()=>new PuppetParade({runtime:collisionRuntime,preview:true})],['adults',Crowd,()=>new Crowd({spawn(){}},{runtime:collisionRuntime})]];
+ const restore=[];let collisionCrowd;
+ try {
+  for(const [name,Class] of providerTypes){const original=Class.prototype.appendColliders;Class.prototype.appendColliders=function(...args){providerOrder.push(name);return original.apply(this,args);};restore.push(()=>{Class.prototype.appendColliders=original;});}
+  for(const [name,Class,method] of [['adults',Crowd,'applyHonk'],['children',KidGaggle,'scatter']]){const original=Class.prototype[method];Class.prototype[method]=function(...args){honkOrder.push(name);return original.apply(this,args);};restore.push(()=>{Class.prototype[method]=original;});}
+  for(const [name,Class,build] of providerTypes){const controller=build();if(name==='adults')collisionCrowd=controller;}
+  const h=collisionCrowd.spawnPerson({pos:new THREE.Vector3(),rng:()=>.4,allowPhotographer:false}),out=[{kind:'registry-first'}],cart={position:new THREE.Vector3(),speed:0,forwardWorld:new THREE.Vector3(0,0,-1)};
+  collisionRuntime.dispatch('colliders',out,cart);
+  assert(providerOrder.join(',')==='parade,band,children,wooks,hoopers,frisbees,adults','Actual constructors compile the exact legacy collision order despite reverse registration');
+  assert(out[0].kind==='registry-first'&&out.at(-1).personHandle===h,'World candidates stay first and the real adult provider stays last');
+  const body=out.at(-1);assert(!Object.hasOwn(body,'npc')&&body.position!==collisionCrowd.peopleHandles.resolve(h).pos,'Real adult candidate exposes copied position and a handle instead of population storage');
+  collisionRuntime.dispatch('honk',cart);assert(honkOrder.join(',')==='adults,children','Honk ordering also survives reversed registration');
+  const queryScratch={},queried=[];
+  collisionRuntime.forEachPersonNear(0,0,10000,(handle,view)=>{assert(view===queryScratch,'Native query reuses caller scratch');queried.push(handle);},{scratch:queryScratch});
+  assert(queried.includes(h),'Common query includes the real adult population');
+  let adultOnly=0;collisionRuntime.forEachPersonNear(0,0,10000,()=>adultOnly++,{populations:new Set(['crowd'])});
+  assert(adultOnly===1,'Explicit population filter retains an adult-only consumer');
+  assert(collisionRuntime.readPerson(h,queryScratch),'Runtime resolves a copied view through the current owner');
+  const lost=new Smiles();
+  try {
+   assert(lost.spawnLost(new THREE.Vector3(20,0,0),h,collisionCrowd.peopleView),'Lost pickup accepts a real public lifetime');
+   lost.update(.02,cart,()=>{throw Error('Lost pickup awarded points');});
+   const pickup=lost.active[0],last={...pickup.target};collisionCrowd.removePerson(h);
+   lost.update(.02,cart,()=>{throw Error('Lost pickup awarded points');});
+   assert(JSON.stringify(pickup.target)===JSON.stringify(last)&&!Object.hasOwn(pickup,'npc'),'Native lost pickup keeps the last valid position after person removal');
+  } finally {lost.dispose();}
+  collisionRuntime.dispose();assert(body.onContact(body,1,0)===false&&body.onPeoplePenalty()===false,'Retired provider callbacks cannot hit or frown after runtime teardown');
+ } finally {for(const fn of restore.reverse())fn();collisionRuntime.dispose();}
+ const displayRuntime=new PeopleRuntime(),placeRoot=new THREE.Group(),rig=new THREE.Group();placeRoot.add(rig);
+ const display=new PlaceDisplay({runtime:displayRuntime,key:'place-display',slot:'place-performers',advance:(_dt,frame)=>{rig.rotation.y=frame.displayTime;},count:()=>placeRoot.children.length});
+ displayRuntime.beginFrame(.02);displayRuntime.run('place-performers',{displayTime:1.25});
+ assert(rig.rotation.y===1.25&&displayRuntime.inspect()[0].details.population===0,'Native place display publishes a model pose without interactive identities');
+ displayRuntime.dispose();display.run(.02,{displayTime:7});
+ assert(rig.parent===placeRoot&&rig.rotation.y===1.25,'Stopped display adapter preserves place-owned rigs and rejects stale ticks');
+ const wheelsRuntime=new PeopleRuntime(),wheelScene=new THREE.Scene(),wheelCrowd=new Crowd({spawn(){}},{runtime:wheelsRuntime});
+ const wheels=new OneWheels(wheelScene,wheelCrowd,{runtime:wheelsRuntime,procedural:false,isWater:()=>false});
+ try {
+  const rider=wheels.spawnOnRoute(makeWagonRoute([{x:8000,z:8000},{x:8000,z:8040}]),5);
+  assert(!!rider,'Native one-wheel route acquires a real rider');
+  const view={},handle=rider.personHandle;
+  assert(wheelsRuntime.readPerson(handle,view)&&view.x===rider.entry.position.x,'One-wheel query facet follows the existing physics/registry position');
+  const initialZ=rider.entry.position.z;
+  wheelsRuntime.beginFrame(.02);const vehicleRuns=wheelsRuntime.run('vehicles',{zerble:{position:new THREE.Vector3(8000,0,8000)},nightness:0,camera:null});
+  assert(vehicleRuns===1&&wheelsRuntime.readPerson(handle,view)&&view.z>initialZ&&view.z===rider.entry.position.z,'Registered vehicle slot executes once and actually moves the same live rider before spatial publication');
+  assert(!wheelsRuntime.inspect().find(r=>r.key==='one-wheels').capabilities.includes('colliders'),'One-wheel person facet does not duplicate registry collision publication');
+  wheels.remove(rider);assert(!wheelsRuntime.readPerson(handle,view)&&!registry.entries.has(rider.id),'Rider removal invalidates identity and registry before a replacement');
+  const again=wheels.spawnOnRoute(makeWagonRoute([{x:8000,z:8000},{x:8000,z:8040}]),5);
+  assert(!!again&&!wheelsRuntime.readPerson(handle,view),'Revisited route cannot revive the removed rider lifetime');
+ } finally {wheelsRuntime.dispose();}
+ const clockRigs=[[buildKid(()=>.4),tickKid],[buildWook(()=>.4),tickWook],[buildFrisbeePlayer(()=>.4),tickFrisbeePlayer],[buildParasolMarshal(),tickParasolMarshal]];
+ try {
+  for(const [model,tick] of clockRigs){tick(model,.02);const time=model.userData.animationTime;model.visible=false;model.visible=true;tick(model,0);assert(model.userData.animationTime===time,'Native actor clock does not advance on visibility changes or zero delta');tick(model,.03);assert(model.userData.animationTime===.05,'Native actor clock advances only the accepted model delta');}
+ } finally {for(const [model] of clockRigs)disposeSceneResources(model);}
+ const commandCrowd=new Crowd({spawn(){},spawnLost(){}}),commandCart={position:new THREE.Vector3(),forwardWorld:new THREE.Vector3(0,0,-1),speed:0};
+ try {
+  const person=commandCrowd.spawnPerson({pos:new THREE.Vector3(0,0,-1),rng:()=>.4,allowPhotographer:false});
+  const claim=commandCrowd.claimActivity(person,{owner:'generic-behavior'});
+  commandCrowd.applyStarLove(commandCart,.02);
+  assert(commandCrowd.activityClaims.canWrite(claim)&&!commandCrowd.invitePersonToWatch(person),'Star love and debug invitations preserve a competing activity authority');
+  commandCrowd.applyHonk(commandCart);
+  const view={};commandCrowd.readPerson(person,view);
+  assert(!commandCrowd.activityClaims.canWrite(claim)&&view.state==='fleeing','Honk revokes unknown activity authority before changing movement state');
+  commandCrowd.removePerson(person);
+  const victim=commandCrowd.spawnPerson({pos:new THREE.Vector3(),rng:()=>.4,allowPhotographer:false});
+  const peer=commandCrowd.spawnPerson({pos:new THREE.Vector3(1,0,0),rng:()=>.4,allowPhotographer:false});
+  const peerClaim=commandCrowd.claimActivity(peer,{owner:'another-behavior'});
+  commandCrowd.hitPerson(victim,1,0);commandCrowd.readPerson(peer,view);
+  assert(!commandCrowd.activityClaims.canWrite(peerClaim)&&view.state==='fleeing','Panic handoff revokes the peer activity before issuing its new movement state');
+  assert(!commandCrowd.invitePersonToWatch(person),'Removed diagnostic target cannot change a reused slot');
+ } finally {commandCrowd.dispose();}
+ const wagonPeople=new Crowd({spawn(){}},{}),wagonScene=new THREE.Scene(),wagon=new NutWagon(wagonScene,wagonPeople,{music:false});
+ try {
+  for(let cycle=0;cycle<2;cycle++){
+   assert(wagon.spawnOnRoute(makeWagonRoute([{x:9000,z:9000},{x:9000,z:9080}]),20),'Native wagon revisits a route with its real permanent driver');
+   const root=wagon.root,held=[];wagonPeople.forEachPersonNear(9000,9000,100,handle=>held.push(handle));
+   let ownedDisposals=0,sharedDisposals=0;const listeners=[];
+   const owned=new THREE.Mesh(new THREE.BoxGeometry(.1,.1,.1),new THREE.MeshBasicMaterial());root.add(owned);
+   for(const resource of [owned.geometry,owned.material])resource.addEventListener('dispose',()=>{assert(wagonPeople.seatReservations.states.size===0,'Passengers release before vehicle-owned GPU resources');ownedDisposals++;});
+   const shared=new Set();root.traverse(o=>{if(o.geometry?.userData.shared)shared.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])if(m?.userData.shared)shared.add(m);});
+   for(const resource of shared){const callback=()=>sharedDisposals++;resource.addEventListener('dispose',callback);listeners.push([resource,callback]);}
+   wagon.despawn();
+   assert(wagon.root===null&&wagonScene.children.length===0&&wagonPeople.seatReservations.states.size===0&&held.every(h=>wagonPeople.peopleView.isLive(h)),'Native wagon unload releases seats/root/publication while preserving the existing Crowd driver lifetime');
+   const restored=new THREE.Matrix4();for(const h of held){wagonPeople.bodyMesh.getMatrixAt(h.slot,restored);assert(restored.determinant()>0,'Vehicle-first release restores the same ordinary body before the next population frame');}
+   assert(ownedDisposals===2&&sharedDisposals===0,'Native wagon unload disposes unique owned attachments and preserves the shared template');
+   for(const [resource,callback] of listeners)resource.removeEventListener('dispose',callback);
+  }
+  wagon.dispose();assert(!wagon.spawnOnRoute(makeWagonRoute([{x:9000,z:9000},{x:9000,z:9080}]),20),'Stopped vehicle owner cannot respawn an encounter');
+ } finally {wagon.dispose();wagonPeople.dispose();}
+ let formerPeople=[];
+ for(let cycle=0;cycle<2;cycle++){
+  const before=registry.entries.size,cycleRuntime=new PeopleRuntime(),adults=new Crowd({spawn(){},spawnLost(){}},{runtime:cycleRuntime});
+  const owners=[adults];
+  try {
+   owners.push(new KidGaggle({runtime:cycleRuntime,gaggleCount:1}),new Wooks({runtime:cycleRuntime}),new PuppetParade({runtime:cycleRuntime,preview:true}),new BrassBand({runtime:cycleRuntime,preview:true}),new HulaHoopers({runtime:cycleRuntime}),new Frisbees({runtime:cycleRuntime,pairCount:1,preview:true}));
+   adults.spawnPerson({pos:new THREE.Vector3(),rng:()=>.4,allowPhotographer:false});
+   const frame={zerble:{position:new THREE.Vector3(),forwardWorld:new THREE.Vector3(0,0,-1),speed:0},bubbles:null,smiles:{spawn(){}},nightness:0};
+   cycleRuntime.beginFrame(.02);cycleRuntime.run('formations',frame);cycleRuntime.run('children',frame);cycleRuntime.run('roaming',frame);
+   assert(formerPeople.every(h=>!cycleRuntime.readPerson(h,{})),'A fresh multi-family runtime rejects every prior controller lifetime');
+   const handles=owners.flatMap(owner=>[...owner.peopleHandles.entries.values()].map(e=>e.handle));
+   cycleRuntime.dispose();
+   assert(cycleRuntime.records.size===0&&handles.every(h=>!cycleRuntime.readPerson(h,{}))&&registry.entries.size===before,'Whole-population teardown clears every identity, slot and owned footprint on each revisit cycle');
+   formerPeople=handles;
+  } finally {cycleRuntime.dispose();}
+ }
+ document.querySelector('#result').textContent='PASS\n'+checks.join('\n');
+} catch(error) {document.querySelector('#result').textContent='FAIL\n'+error.stack;console.error(error);}
+finally {crowd?.dispose?.();}
+</script>

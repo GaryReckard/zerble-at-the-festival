@@ -41,7 +41,8 @@ ones in `openspec/changes/archive/`.
 |---|---|
 | [registry-collision](registry-collision/spec.md) | The world-entity store, spatial broadphase, the approach-speed collision model |
 | [carts](carts/spec.md) | Zerble's arcade physics + nightness lights; Lurleen's chase state machine |
-| [crowd-ai](crowd-ai/spec.md) | Pooled NPC state machine, smile mechanic, roaming obstacle groups |
+| [crowd-ai](crowd-ai/spec.md) | Pooled NPC state machine, smile mechanic, specialized registered populations |
+| [people-runtime](people-runtime/spec.md) | Registered ownership, identity, activity/resource handoffs, dependency slots and compatible extension |
 | [models](models/spec.md) | The `buildX→Group` contract, animatables, pooling, sandbox registration ([CATALOG](models/CATALOG.md)) |
 
 ### Player I/O + feedback

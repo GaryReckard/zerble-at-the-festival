@@ -1,0 +1,76 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {PersonHandles} from '../src/people/personHandle.js';
+import {SeatReservations} from '../src/people/seatReservations.js';
+import {Vector} from './test-support/sceneObjects.mjs';
+import {makePeopleCrowd} from './test-support/peopleCrowd.js';
+const source=readFileSync(new URL('../src/crowd.js',import.meta.url),'utf8');
+const legacy=readFileSync(new URL('../verification/people/2026-10-26/legacy-boarding-methods.js',import.meta.url),'utf8').replace('export class','class');
+function fixture(old){
+ let seed=1977,draws=0,boards=0;const math=Object.assign(Object.create(Math),{random(){draws++;seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;}});
+ const start=source.indexOf('  _claimFreeSeat('),end=source.indexOf('  // ----- Hammock riding -----',start);
+ const Class=runInNewContext((old?legacy:'class BoardingOracle {\n'+source.slice(start,end)+'}\n')+';BoardingOracle',{Math:math,THREE:{MathUtils:{lerp:(a,b,t)=>(1-t)*a+t*b}},BOARD_RANGE:1.3,RIDE_MIN_TIME:15,RIDE_MAX_TIME:75,ZERBLE_IDLE_SPEED:.6,ARRIVE_RADIUS:1.5,wrapAngle:a=>{while(a>Math.PI)a-=Math.PI*2;while(a< -Math.PI)a+=Math.PI*2;return a;}});
+ const owner=new Class(),runtime=new PeopleRuntime(),token=runtime.register({key:'passengers',controller:{inspect(){},dispose(){}}});
+ owner.peopleHandles=new PersonHandles({runtime,ownerToken:token,read(){}});owner.activityClaims={current:new Map()};owner.seatReservations=new SeatReservations(owner.peopleHandles);
+ Object.assign(owner,{_tmpV:new Vector(),_writeMatrices(){},bubblesEmpty:false,onBoard(){boards++;}});
+ const npc={idx:0,pos:new Vector(0,0,4),vel:new Vector(),target:new Vector(),energy:.8,dance:.3,yaw:0,bob:0,state:'idle',stateTimer:0};
+ npc.personHandle=owner.peopleHandles.create(0,npc);
+ const vehicle={position:new Vector(),speed:0,heading:0,seatSlots:Array.from({length:6},(_,i)=>({name:'seat'+i,yaw:i*.1,occupied:false})),worldSeatPosition(slot,out){return out.set(this.position.x+this.seatSlots.indexOf(slot)*.2,1,this.position.z);}};
+ return {owner,npc,vehicle,runtime,get draws(){return draws;},get boards(){return boards;}};
+}
+const old=fixture(true),now=fixture(process.argv.includes('--baseline'));
+for(const f of [old,now]){f.npc.seatSlot=f.owner._claimFreeSeat(f.vehicle,f.npc);f.npc.state='boarding';f.npc.stateTimer=20;}
+const states=new Set(),snapshot=f=>[f.npc.state,f.npc.stateTimer,f.npc.rideTimer,f.npc.seatY,f.npc.seatSlot?.name,...f.npc.pos.toArray(),...f.npc.vel.toArray(),...f.npc.target.toArray(),f.npc.yaw,f.npc.bob,...f.vehicle.seatSlots.map(s=>s.occupied),f.draws,f.boards];
+Vector.prototype.toArray=function(){return [this.x,this.y,this.z];};
+for(let frame=0;frame<240;frame++){
+ for(const f of [old,now]){
+  if(frame===100){f.vehicle.position.set(4,0,6);f.vehicle.heading=.7;}
+  if(frame===150)f.owner.bubblesEmpty=true;
+  f.npc.stateTimer-=.05;if(f.npc.rideTimer!=null)f.npc.rideTimer-=.05;
+  if(f.npc.state==='boarding')f.owner._tickBoarding(.05,f.npc,f.vehicle,{zerbleIdle:true});
+  else if(f.npc.state==='riding')f.owner._tickRiding(.05,f.npc,f.vehicle);
+  else if(f.npc.state==='disembarking')f.owner._tickDisembarking(.05,f.npc);
+ }
+ states.add(now.npc.state);assert.deepEqual(snapshot(now),snapshot(old));
+}
+assert(states.has('boarding')&&states.has('riding')&&states.has('disembarking'));
+assert.equal(now.boards,1);assert.equal(now.vehicle.seatSlots.some(s=>s.occupied),false);
+console.log('PASS passenger characterization: 240 exact steering/boarding/riding/disembarking frames, occupied slots, callback order and random draw counts.');
+if(!process.argv.includes('--baseline')){
+ const f=fixture(false);f.owner.npcs=[f.npc];f.owner._publishPerson=n=>f.owner._writeMatrices(n);
+ const slot=f.vehicle.seatSlots[0],handle=f.npc.personHandle;
+ f.owner.activityClaims.current.set(handle,{owner:'fixture'});
+ assert.equal(f.owner.beginBoarding(handle,f.vehicle,{slot}),false);assert.equal(slot.occupied,false);
+ f.owner.activityClaims.current.delete(handle);
+ assert(f.owner.beginBoarding(handle,f.vehicle,{slot,timeout:14,cooldownKey:'wagon',cooldownUntil:100}));
+ assert.equal(f.npc._activityCooldowns.get('wagon'),100);
+ const first=f.npc._seatReservation;
+ f.owner._tickBoarding(.05,f.npc,f.vehicle,{zerbleIdle:false});assert.equal(f.npc.state,'watching');assert.equal(slot.occupied,false);
+ assert(f.owner.seatPerson(handle,f.vehicle,slot,{rideTime:99999}));const second=f.npc._seatReservation;
+ assert.equal(f.owner.seatReservations.release(first),false);assert.equal(slot.occupied,true);
+ let releasePublications=0;const publish=f.owner._publishPerson;f.owner._publishPerson=n=>{assert.equal(n.state,'idle');assert.equal(n.seatSlot,null);releasePublications++;publish(n);};
+ f.owner.releaseVehiclePassengers(f.vehicle);assert.equal(slot.occupied,false);assert.equal(f.npc.state,'idle');assert.equal(releasePublications,1,'vehicle-first release publishes only the affected ordinary body immediately');f.owner._publishPerson=publish;
+ assert(f.owner.seatPerson(handle,f.vehicle,slot));f.vehicle.seatSlots=[];
+ f.owner._tickRiding(.05,f.npc,f.vehicle);assert.equal(f.npc.state,'idle');assert.equal(f.npc.seatSlot,null);assert.equal(f.owner.seatReservations.states.size,0);
+ assert.equal(f.owner.seatReservations.release(second),false);
+ f.runtime.unregister(handle.ownerToken);assert.equal(f.owner.beginBoarding(handle,f.vehicle,{slot}),false);f.owner.seatReservations.dispose();
+ console.log('PASS public passenger commands: exclusive activity rejection, owned cooldown, motion cancellation, stale release, vehicle-first removal, slot incarnation loss and stopped-owner rejection.');
+}
+
+if(!process.argv.includes('--baseline')){
+ const code=readFileSync(new URL('../src/nutWagon.js',import.meta.url),'utf8').replace(/^import\s[\s\S]*?;\s*$/gm,'').replace('export class NutWagon','class NutWagon');
+ const Wagon=runInNewContext(code+';NutWagon');
+ const crowd=makePeopleCrowd(),tall=crowd.spawn({pos:new Vector()}),short=crowd.spawn({pos:new Vector(1,0,0)});
+ tall.scale=1.2;short.scale=.9;
+ const wagon=Object.assign(Object.create(Wagon.prototype),{crowd,active:true,state:'parked',stopTimer:24,clock:0,position:new Vector(),seatSlots:[]});
+ wagon.seatSlots=[{name:'cabin',kind:'bench',occupied:false,vehicle:wagon},{name:'roof',kind:'roof',occupied:false,vehicle:wagon}];
+ wagon.boardNearby();assert.equal(tall.seatSlot.name,'roof');wagon.boardNearby();assert.equal(short.seatSlot.name,'cabin');
+ crowd.releaseVehiclePassengers(wagon);wagon.boardNearby();assert.equal(tall.seatSlot,null);assert.equal(short.seatSlot,null,'vehicle cooldown survives disembark');
+ wagon.clock=101;const claim=crowd.claimActivity(tall.personHandle,{owner:'visit'});assert(claim);
+ wagon.boardNearby();assert.equal(tall.seatSlot,null,'exclusive visitors cannot be silently recruited by the wagon');assert.equal(short.seatSlot.name,'cabin');
+ crowd.releaseVehiclePassengers(wagon);crowd.endPersonActivity(claim);crowd.seatReservations.dispose();
+ console.log('PASS actual wagon boarding provider: population insertion order, tall/open-roof eligibility, public lifetime/cooldown commands and exclusive visitor exclusion.');
+}

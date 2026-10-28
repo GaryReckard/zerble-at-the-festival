@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {PeopleRuntime} from '../src/people/runtime.js';
+const runtime=new PeopleRuntime({slots:['adults','children']});const log=[];
+const controller=name=>({inspect(out){out.name=name;},dispose(reason){log.push(name+':dispose:'+reason);}});
+const first=controller('first'),second=controller('second');
+const owner=runtime.register({key:'first',controller:first,schedule:[{slot:'adults',run(dt,ctx){assert.equal(this,first);log.push('first:'+dt+':'+ctx);}}],capabilities:{honk(){log.push('first:honk');}}});
+const owner2=runtime.register({key:'second',controller:second,schedule:[{slot:'adults',run(){log.push('second');}}]});
+const stable=runtime.scheduled.get('adults');
+assert.throws(()=>runtime.run('adults'),/Begin/);
+for(const dt of [-1,.06,NaN])assert.throws(()=>runtime.beginFrame(dt),RangeError);
+runtime.beginFrame(.02);assert.equal(runtime.run('adults','context'),2);assert.equal(runtime.scheduled.get('adults'),stable);
+assert.deepEqual(log,['first:0.02:context','second']);assert.throws(()=>runtime.run('adults'),/already/);
+assert.equal(runtime.dispatch('honk'),1);assert.equal(runtime.dispatch('unsupported'),0);
+const scratch=[];assert.equal(runtime.inspect(scratch),scratch);assert.deepEqual(scratch.map(x=>x.details.name),['first','second']);
+assert.throws(()=>runtime.register({key:'first',controller:first}),/unique/);
+assert.throws(()=>runtime.register({key:'bad',controller:first,schedule:[{slot:'missing',run(){}}]}),/schedule/);
+assert.throws(()=>runtime.register({key:'bad',controller:first,capabilities:{honk:true}}),/Capabilities/);
+assert.throws(()=>runtime.register({key:'bad',controller:{}}),/inspect/);
+for(const capabilities of [true,'honk',()=>{}])assert.throws(()=>runtime.register({key:'bad',controller:first,capabilities}),/Capabilities/);
+assert(runtime.unregister(owner));assert.equal(runtime.unregister(owner),false);assert.equal(runtime.isRegistered(owner),false);
+const replacement=runtime.register({key:'first',controller:first});assert.notEqual(replacement,owner);assert(runtime.isRegistered(replacement));
+runtime.dispose();runtime.dispose();assert.equal(runtime.isRegistered(owner2),false);assert.equal(runtime.run('adults'),0);assert.equal(runtime.dispatch('honk'),0);
+assert.throws(()=>runtime.register({key:'third',controller:first}),/disposed/);
+// A dispatch uses its stable list but suppresses a peer removed reentrantly.
+const reentrant=new PeopleRuntime({slots:['update']});let victim;
+reentrant.register({key:'a',controller:controller('a'),schedule:[{slot:'update',run(){reentrant.unregister(victim);}}]});
+victim=reentrant.register({key:'b',controller:controller('b'),schedule:[{slot:'update',run(){throw Error('removed peer ticked');}}]});
+reentrant.beginFrame(.01);assert.equal(reentrant.run('update'),1);
+// Full teardown makes every owner unavailable before the first callback, and
+// attempts all disposals even if a callback fails.
+const failing=new PeopleRuntime();let other;let cleaned=false;
+failing.register({key:'a',controller:{inspect(){},dispose(){assert.equal(failing.isRegistered(other),false);throw Error('expected');}}});
+other=failing.register({key:'b',controller:{inspect(){},dispose(){cleaned=true;}}});
+assert.throws(()=>failing.dispose(),AggregateError);assert(cleaned);failing.dispose();
+console.log('PASS people runtime: ordered once-per-frame slots, stable lists, capability validation, unsupported reactions, replacement tokens, reentrant removal and complete teardown.');
+
+// Interaction provider order is independent of constructor/update order.
+const ordered=new PeopleRuntime({slots:['update']}),interactions=[],ticks=[];
+for(const [key,order] of [['parade',1],['band',2],['wook',0]])ordered.register({key,
+ controller:{inspect(){},dispose(){}},capabilities:{parkedHonk(){interactions.push(key);}},capabilityOrder:{parkedHonk:order},
+ schedule:[{slot:'update',run(){ticks.push(key);}}],
+});
+const stableInteractions=ordered.capabilities.get('parkedHonk');
+ordered.dispatch('parkedHonk');ordered.beginFrame(.02);ordered.run('update');
+assert.deepEqual(interactions,['wook','parade','band']);assert.deepEqual(ticks,['parade','band','wook']);
+assert.equal(ordered.capabilities.get('parkedHonk'),stableInteractions);
+for(const capabilityOrder of [{missing:1},{parkedHonk:NaN},{parkedHonk:Infinity},null,[]])assert.throws(()=>ordered.register({key:'bad-order',controller:controller('bad-order'),capabilities:{parkedHonk(){}},capabilityOrder}),/order/);
+ordered.dispose();
+console.log('PASS independent capability ordering with stable compiled lists and unchanged scheduling order.');
