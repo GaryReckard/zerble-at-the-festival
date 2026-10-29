@@ -126,7 +126,9 @@ const fragmentShader = /* glsl */`
     float hsStr = hueShift * intensity;
     if (hsStr > 0.0) {
       vec3 hsv = rgb2hsv(col);
-      hsv.x = fract(hsv.x + hsStr * 0.5 + 0.15 * sin(time * 0.3));
+      // Both hue terms must vanish with the envelope, including when the
+      // pass first enables at an arbitrary world-clock phase.
+      hsv.x = fract(hsv.x + hsStr * (0.5 + 0.15 * sin(time * 0.3)));
       col = hsv2rgb(hsv);
     }
 
@@ -214,7 +216,7 @@ export const Trip = {
   fadeIn:              10,
   fadeOut:             3.0,
   cooldown:            5,
-  proximityThreshold:  2.5,
+  proximityThreshold:  3.5,       // offering distance stays outside both bodies
   restSpeed:           0.5,
   restDuration:        5,
 

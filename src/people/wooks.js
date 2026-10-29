@@ -213,14 +213,16 @@ export class Wooks {
           w.userData.phase = 0;
         }
       } else if (isApproaching) {
-        // Walk toward Zerble. Stop ~1.5m short so we don't standing-on-his-head.
+        // Leave room for Zerble's 1.9m footprint, the wook's 0.9m
+        // collider and a little clearance, even across a long frame.
         const dx = zerblePos.x - w.position.x;
         const dz = zerblePos.z - w.position.z;
         const d = Math.hypot(dx, dz);
-        if (d > 1.5) {
+        if (d > 3.1) {
           const inv = 1 / (d || 1);
-          w.position.x += dx * inv * APPROACH_SPEED * dt;
-          w.position.z += dz * inv * APPROACH_SPEED * dt;
+          const step = Math.min(APPROACH_SPEED * dt, d - 3.1);
+          w.position.x += dx * inv * step;
+          w.position.z += dz * inv * step;
         }
         // Face Zerble — local -z is forward
         w.rotation.y = Math.atan2(-dx, -dz);
@@ -238,11 +240,8 @@ export class Wooks {
       // See models/wook.js for the math; sandbox calls the same tick.
       tickWook(w, dt);
 
-      // The wook walking up to dose Zerble is trying to GET close — its
-      // collider would otherwise shove Zerble away (wook 0.9m + zerble 1.9m =
-      // 2.8m minimum separation, which prevents the 2.5m proximity trigger
-      // from ever firing). Mark this frame's approaching wook as passive so
-      // the main collision resolver skips it.
+      // An offering wook must not shove or damage the parked cart.
+      // Approach movement itself maintains clearance outside both footprints.
       this.colliders[i].passive = isApproaching;
       this.colliders[i].damage = isApproaching ? 0 : 5;
     }
