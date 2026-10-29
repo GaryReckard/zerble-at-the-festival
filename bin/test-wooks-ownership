@@ -20,7 +20,19 @@ const placement=strip(readFileSync(new URL('../src/people/placement.js',import.m
 function load(path) {
  let seed=1977,draws=0;const poses=[];
  const math=Object.assign(Object.create(Math),{random(){draws++;seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;}});
- const code=placement+strip(readFileSync(new URL(path,import.meta.url),'utf8'));
+ let source=readFileSync(new URL(path,import.meta.url),'utf8');
+ if(path.includes('/legacy-')){
+  // The archived ownership baseline predates the intentional cart-clearance
+  // fix. Apply only that policy change here, keeping the historical file intact
+  // and retaining exact pose/state/RNG comparisons for every other behavior.
+  assert.equal(source.split('if (d > 1.5)').length,2,'legacy approach threshold exists exactly once');
+  assert.equal(source.split('dx * inv * APPROACH_SPEED * dt').length,2,'legacy approach step exists exactly once');
+  source=source.replace('if (d > 1.5)', 'if (d > 3.1)')
+   .replace('w.position.x += dx * inv * APPROACH_SPEED * dt;\n          w.position.z += dz * inv * APPROACH_SPEED * dt;',
+    'const step = Math.min(APPROACH_SPEED * dt, d - 3.1);\n          w.position.x += dx * inv * step;\n          w.position.z += dz * inv * step;');
+  assert(!source.includes('inv * APPROACH_SPEED * dt'),'legacy approach uses the clamped clearance step');
+ }
+ const code=placement+strip(source);
  const Class=runInNewContext(code+';Wooks',{Math:math,PeopleRuntime,PersonHandles,disposeSceneResources,THREE:{Group:Node,Vector3:Vector},buildWook:()=>new Node(),tickWook:(w,dt)=>poses.push([w.position.x,w.position.y,w.position.z,w.rotation.y,dt]),terrainHeight:(x,z)=>17+.03*x-.02*z,isPointInLake:()=>false,projectOutOfLake:()=>null});
  return {Class,poses,get draws(){return draws;}};
 }
@@ -67,4 +79,4 @@ runtime.dispose();after.dispose();after.update(.05,cart.position,0);after.scatte
 assert.equal(after.wooks.length,0);assert.equal(after.colliders.length,0);assert.equal(positions.length,0);assert.equal(disposed,1);
 const replacementRuntime=new PeopleRuntime(),replacement=new current.Class({runtime:replacementRuntime});
 assert(!replacement.readPerson(original,{}));replacementRuntime.dispose();
-console.log('PASS wook ownership: 400 exact legacy pose/state/RNG/collider frames, parked honk, approach/passive damage, recycle identity, pooled queries and actual Trip offer/accept pipeline, stale runtime and cleanup.');
+console.log('PASS wook ownership: 400 exact legacy pose/state/RNG/collider frames with approved cart clearance, parked honk, approach/passive damage, recycle identity, pooled queries and actual Trip offer/accept pipeline, stale runtime and cleanup.');
