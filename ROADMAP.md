@@ -95,9 +95,7 @@ for the current generator and its live 3D integration. Pending ideas:
 - **Mega-heart rank** (a rare 2×2-cell super-hub with the biggest stage/court). Cut
   from this change (the multi-cell suppression is a determinism hot-spot); rank table
   is one constant to re-add.
-- **In-game map view.** Consume the same generator for a high-level landmark map. The
-  tuple already carries a continuous `heartInfluence` scalar so this is a read, not a
-  re-derivation.
+- **Festival map acceptance.** The discovery-based minimap and expanded live map are implemented; see [the active change](openspec/changes/festival-map/README.md) and [verification](verification/festival-map/README.md). Representative-phone performance, prolonged traversal/cache recycling, and confirmed BFCache restoration remain acceptance checks; do not infer them from desktop fixtures. Future quests can supply explicit objective pins without revealing unexplored terrain.
 - **Collector + footpath road tiers.** Only arterials shipped. Footpath density feel
   is an open question (sparse "midway" vs denser web).
 - **Map-sandbox polish:** a player-scale drive-time / traversal probe (guards the

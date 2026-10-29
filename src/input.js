@@ -33,6 +33,7 @@ window.addEventListener('keydown', (e) => {
   // actions — the camera flips while you type. Editable target = not gameplay.
   if (e.target && e.target.matches && e.target.matches('input, textarea, select, [contenteditable]')) return;
   const k = normalize(e);
+  if ((k === 'M' || k === 'J') && (e.metaKey || e.ctrlKey || e.altKey)) return;
   if (untilRelease.has(k)) {
     if (e.repeat) return;
     untilRelease.delete(k);
@@ -77,7 +78,7 @@ export const Input = {
   },
 
   // Edge press: keyboard keydown OR a per-key touch latch this frame. SPACE
-  // is honk; M is music-toggle. Other keys are keyboard-only.
+  // is honk; J is music-toggle. Other keys are keyboard-only.
   consumePressed(k) {
     const kbdEdge = edges.has(k);
     if (kbdEdge) edges.delete(k);
@@ -85,7 +86,7 @@ export const Input = {
       const touchEdge = Touch._consumeHonk();
       return kbdEdge || touchEdge;
     }
-    if (k === 'M') {
+    if (k === 'J') {
       const touchEdge = Touch._consumeMusic();
       return kbdEdge || touchEdge;
     }

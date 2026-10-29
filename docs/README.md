@@ -51,6 +51,7 @@ parallel roadmaps or automatic implementation requests.
 | --- | --- |
 | [Festival Run acceptance](backlog/festival-run.md) | Tuning, leaderboard operations, device checks and unresolved human decisions |
 | [Gameplay designs](backlog/gameplay.md) | Passenger quests, activities, juice economy and prop physics |
+| [Festival map plan](backlog/festival-map.md) | Map design and decisions; [active implementation](../openspec/changes/festival-map/README.md) and [verification](../verification/festival-map/README.md) track acceptance |
 | [Festival layout](backlog/festival-layout.md) | Original plan/build diagnosis, delivered slices and remaining acceptance |
 | [Festival research](backlog/festival-research.md) | Dated validation questions and design leads |
 | [Trip effects](backlog/trip-effects.md) | Tier policy, effect designs and shipped harness history |

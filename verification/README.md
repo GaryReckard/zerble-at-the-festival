@@ -84,3 +84,5 @@ entry when behavior ships.
 - [October 28 road surfaces and organic seating](roads/2026-10-28/README.md): deterministic major-hub asphalt/dirt assignment, shared procedural textures, terrain/distant-road safety, rear chair groups, multi-person blankets, native Low/Mid and real-game evidence.
 
 - [October 28 junction and dirt-repeat corrections](roads/2026-10-28-junctions/README.md): both reported mixed-surface junctions, geometry subtraction, camera-angle checks, a larger dirt tile, fixed-capacity proxy safety and full-game evidence.
+
+- [Festival map, October 29](festival-map/README.md): functional map/storage/input/worker evidence, captures, diagnostic snapshot and remaining device acceptance.

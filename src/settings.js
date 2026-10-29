@@ -143,6 +143,8 @@ export const Settings = {
 
         <div class="settings-tab is-hidden" data-tab="accessibility" role="tabpanel">
           <div class="settings-section">
+            ${toggleRow('set-map-visible', 'Festival minimap', 'M opens the larger map, even with the minimap hidden')}
+            <button id="set-map-reset" class="settings-apply">Reset this festival’s explored map</button>
             ${toggleRow('set-reduced-motion', 'Reduced motion', 'calm the strobes, warp &amp; pulses')}
             ${toggleRow('set-colorblind', 'Colorblind-friendly cues', 'mark a lost smile by shape, not just colour')}
           </div>
@@ -235,13 +237,17 @@ export const Settings = {
     bindSlider($('#set-vol-music'), 'music', (v) => Sound.setMusicVolume(v));
     bindSlider($('#set-vol-sfx'), 'sfx', (v) => Sound.setSfxVolume(v));
 
+    $('#set-map-visible').addEventListener('change', e => refs.festivalMap?.setCompact(e.target.checked));
+    $('#set-map-reset').addEventListener('click', () => {
+      if (confirm('Clear explored territory and known places for this festival? This cannot be undone.')) void refs.festivalMap?.reset();
+    });
     // --- Accessibility (live) ---
     $('#set-reduced-motion').addEventListener('change', (e) => A11y.setReducedMotion(e.target.checked));
     $('#set-colorblind').addEventListener('change', (e) => A11y.setColorblind(e.target.checked));
 
     // --- Restart (only shown when a reload-required change is pending; preserves
     //     the live session across the reload) ---
-    $('.settings-apply').addEventListener('click', () => {
+    $('.settings-restart .settings-apply').addEventListener('click', () => {
       const snap = refs.captureState?.();
       if (snap) { try { sessionStorage.setItem('zerble.resume', JSON.stringify(snap)); } catch (e) {} }
       location.reload();
@@ -274,6 +280,7 @@ export const Settings = {
     setSlider($('#set-vol-music'), Sound.getMusicVolume(), 'music');
     setSlider($('#set-vol-sfx'), Sound.getSfxVolume(), 'sfx');
     // Accessibility
+    $('#set-map-visible').checked = refs.festivalMap?.compact ?? true;
     $('#set-reduced-motion').checked = A11y.reducedMotion;
     $('#set-colorblind').checked = A11y.colorblind;
     this._refreshApply();

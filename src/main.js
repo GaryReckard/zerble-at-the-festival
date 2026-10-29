@@ -41,6 +41,9 @@ import { UpgradesMenu } from './upgradesMenu.js';
 import { createPlayerStats, PASSPORT_STAMPS } from './playerStats.js';
 import { PassportMenu } from './passportMenu.js';
 import { MidiPlayer } from './midiPlayer.js';
+import { FestivalMap } from './festivalMap/view.js';
+import { observeMapWorld, refreshMapLive } from './festivalMap/markers.js';
+import { CONFIG as MAP_CONFIG } from './worldgen/constants.js';
 import { Smiles } from './smiles.js';
 import { Fireworks } from './fireworks.js';
 import { Crowd } from './crowd.js';
@@ -509,7 +512,7 @@ bubbles.setProgress(bubbleProgress);
 scene.add(bubbles.mesh);
 scene.add(bubbles.specialRoot);
 
-// MIDI player — Tone.js loads lazily on the first M press so startup stays
+// MIDI player — Tone.js loads lazily on the first J press so startup stays
 // fast. Trip._envelope drives the warp chain each frame (see tick body).
 const midi = new MidiPlayer();
 
@@ -615,6 +618,8 @@ if(forceOneWheel && USE_WORLDGEN_V2)oneWheels.trySpawn(zerble.position,camera,tr
 window.addEventListener('pagehide',event=>{if(!event.persisted){oneWheels.dispose();lurleenPerson.dispose();}});
 const forceNutWagon = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get('nutwagon') === '1';
 if (forceNutWagon && USE_WORLDGEN_V2) nutWagon.trySpawn(zerble.position, camera, true);
+const festivalMap = new FestivalMap({ seed: getSessionSeed(), mode: USE_WORLDGEN_V2 ? 'v2' : 'v1', config: MAP_CONFIG, tier: PERF.name });
+let mapObservedAt = 0, mapLiveMarkers = [];
 let lurleenMet = false;     // first-contact toast latch
 
 // ---------- Moving obstacles (global — not chunk-bound) ----------
@@ -860,6 +865,7 @@ bubbles.setCheapMaterial(AdaptiveQuality.currentCheap());
 A11y.init();
 Settings.init({
   bubbles,
+  festivalMap,
   // "Apply & restart" calls this to preserve a live session across the reload.
   // Returns null on the title card (nothing to resume) → a fresh boot.
   captureState: () => {
@@ -1171,6 +1177,12 @@ function tickBody(dt) {
     zerble.update(dt, controlsLocked || captureDriveLocked ? NEUTRAL_INPUT : Input, nightness);
     peopleFrameTrace?.mark('player');
     if (passportActive) playerStats.move(dt, beforeDriveX, beforeDriveZ, zerble.position.x, zerble.position.z);
+    if (performance.now() - mapObservedAt > 200) {
+      mapLiveMarkers = observeMapWorld({registry,player:zerble.position,lurleen,nutWagon,star:StarPower._star,discovery:festivalMap.discovery,namespace:festivalMap.namespace});
+      mapObservedAt = performance.now();
+    }
+    const availableMapMarkers = refreshMapLive(mapLiveMarkers,{registry,player:zerble.position,lurleen,nutWagon,star:StarPower._star});
+    festivalMap.tick({player:zerble.position,heading:zerble.heading,live:availableMapMarkers,dt});
     boostStreaks.update(dt, zerble, {
       reducedMotion: A11y.reducedMotion,
       effectsEnabled: AdaptiveQuality.bloomAllowed(),
@@ -1232,10 +1244,11 @@ function tickBody(dt) {
       if (Trip.state === 'awaiting_confirm') Trip.acceptOffer();
     }
 
-    // M toggles the MIDI music player. First press lazy-loads Tone.js
-    // from the CDN (~250KB) and starts the AudioContext; the M press
+    // J toggles the MIDI music player. First press lazy-loads Tone.js
+    // from the CDN (~250KB) and starts the AudioContext; the J press
     // itself counts as the user gesture browsers require.
-    if (Input.consumePressed('M')) {
+    if (Input.consumePressed('M') && !PassportMenu.isOpen() && !UpgradesMenu.isOpen()) festivalMap.toggle();
+    if (Input.consumePressed('J')) {
       midi.toggle(HUD);
       Analytics.featureUsed('music_toggle');
     }
@@ -2123,6 +2136,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
   window.__dbg = {
     peopleFrames() { return peopleFrameTrace?.report() ?? null; },
     leaderboardInfo() { return Leaderboard.diagnostics(); },
+    festivalMap() { return festivalMap.snapshot(); },
     passport(open = false) { if (open) PassportMenu.open(); return playerStats.snapshot(); },
     upgrades() {
       return {

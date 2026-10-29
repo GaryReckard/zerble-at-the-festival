@@ -625,6 +625,14 @@ Vanilla DOM, no framework.
 
 ---
 
+## Festival map (`src/festivalMap/`)
+
+The main accepted game tick owns discovery and live marker updates. `model.js` contains pure projection, tile and discovery-cell contracts; `discovery.js` retains a bounded local block window, and `storage.js` uses transactional IndexedDB unions with reset epochs. Static landmarks are actual registry observations with world/kind/position identities, independent of registration order; live friends/pickups never retain stale positions. Explicit objective metadata can outlive loaded objects and appear over unexplored geography.
+
+`geography.js` owns one module worker with a numeric seed/config/mode handshake, bounded tile requests, 64 cached responses, and failure isolation without synchronous fallback. The worker reads pure worldgen; it never touches gameplay RNG state. `view.js` uses cached Canvas geography and discovery masks plus a live marker layer, with a capped backing size and 64 raster entries. It adds no Three.js objects. Keep map world/version namespaces in sync with incompatible layout changes, and never mutate generator-owned arrays.
+
+Compact, expanded, hidden, suspended and disposed states have different ownership. Hiding the UI stops map geography/render admissions but retains exploration during gameplay. Expanded is centered and zoomable without pausing, panning, or clearing driving input. Touch controls sit above the bottom-right map. See [the change](openspec/changes/festival-map/README.md) and [verification](verification/festival-map/README.md) for contracts and remaining device acceptance.
+
 ## Festival Passport (`playerStats.js`, `passportMenu.js`)
 
 The pure stats store owns versioned `zerble.passport` persistence, visit counters, all-time totals, stage identities and six permanent stamps. It imports BubbleProgress's existing lifetime raw-smile count once; BubbleProgress continues owning bubble unlocks. Main owns one eligibility predicate and brackets the actual cart update for planar travel, feeds raw smile collections, successful `Bubbles.emittedCount` increments, damaging collisions and boardings, and observes repeated stage proximity callbacks. Stage keys include the world seed and rounded coordinates, never registry object identities.

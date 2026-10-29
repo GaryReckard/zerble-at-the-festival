@@ -47,7 +47,8 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 | `↑` / `↓` (top-down) | Zoom in / out (or mouse wheel) |
 | `I` / `O` | Eye glow brighter / dimmer |
 | `G` (hold) | Bubble blast |
-| `M` | Toggle MIDI music |
+| `M` | Expand or close the festival map |
+| `J` | Toggle MIDI music |
 | `U` | Open Bubble Upgrades |
 | `P` | Open or close the Festival Passport |
 
@@ -58,6 +59,12 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 - Slow / Boost / Honk / Cam buttons — bottom right
 - Heart button — open Bubble Upgrades
 - Book button — open the Festival Passport
+
+## Finding your way
+
+The bottom-right map reveals the festival as you explore. Click or tap it, or press **M**, to open a larger translucent map while you keep driving. Zoom with the mouse wheel or a pinch, and click or tap a pin to track it; select it again to clear it. An off-map pin points toward your destination and grows as you approach, leaving you to choose the roads. Press M or Escape, or tap empty map space, to return to the small map.
+
+Settings → Accessibility lets you hide the minimap or reset this festival’s explored map. Exploration is saved in this browser for the same festival; a fresh random festival has its own map. Nearby friends and available supplies appear only while close enough.
 
 ## Play it
 

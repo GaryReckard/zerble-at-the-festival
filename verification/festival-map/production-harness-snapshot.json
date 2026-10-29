@@ -1,0 +1,33 @@
+{
+  "mainP95": 0.40000003576278687,
+  "mainMax": 1.4000000357627869,
+  "expanded": true,
+  "compact": true,
+  "markers": 1,
+  "discovery": {
+    "blocks": 36,
+    "dirty": 0,
+    "loading": 0,
+    "storageOK": true,
+    "epoch": 0
+  },
+  "geography": {
+    "workerMs": 1.699999988079071,
+    "bytes": 56659,
+    "commitMs": 0,
+    "requests": 16,
+    "status": "ready",
+    "tiles": 16,
+    "pending": 0,
+    "active": false
+  },
+  "rasters": 16,
+  "pixels": 1179648,
+  "drawMs": 0.3999999761581421,
+  "rasterMs": 0.8999999761581421,
+  "totalMs": 0.3999999761581421,
+  "position": {
+    "x": 0,
+    "z": 989.5799999999984
+  }
+}

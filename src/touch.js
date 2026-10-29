@@ -19,7 +19,7 @@ const state = {
   slow: false,
   // one-shot honk press, consumed by Input.consumePressed('SPACE').
   honkLatched: false,
-  // one-shot music-toggle press, consumed by Input.consumePressed('M').
+  // one-shot music-toggle press, consumed by Input.consumePressed('J').
   musicLatched: false,
   // accumulated camera drag, consumed per frame.
   camYawDelta: 0,
@@ -160,7 +160,7 @@ export const Touch = {
     return v;
   },
 
-  // Consumed each frame by Input.consumePressed('M').
+  // Consumed each frame by Input.consumePressed('J').
   _consumeMusic() {
     const v = state.musicLatched;
     state.musicLatched = false;

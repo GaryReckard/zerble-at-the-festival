@@ -1,0 +1,38 @@
+.festival-map-backdrop{position:fixed;inset:0;z-index:13;background:rgba(19,34,32,.32);opacity:0;pointer-events:none;transition:opacity .28s ease}
+.festival-map-backdrop.is-visible{opacity:1}
+.festival-map{position:fixed;right:max(14px,env(safe-area-inset-right));top:auto;bottom:max(14px,env(safe-area-inset-bottom));width:min(190px,36vw,28vh);height:min(190px,36vw,28vh);z-index:14;overflow:hidden;border:0;border-radius:50%;background:transparent;box-shadow:none;color:#fff5db;font:13px system-ui;transition:width .28s ease,height .28s ease,bottom .28s ease,right .28s ease,border-radius .28s ease;isolation:isolate;}
+.festival-map[hidden]{display:none!important}
+/* The compact disc appears only at its final size. Darkness never morphs
+   through the large moving panel on the way back to the corner. */
+.festival-map::before{content:"";position:absolute;inset:0;border-radius:inherit;background:rgba(19,34,32,.9);opacity:1;pointer-events:none;transition:opacity .12s ease}
+.festival-map.is-expanded::before{opacity:0}
+.festival-map.is-morphing::before{opacity:0;transition:none}
+.festival-map canvas{position:absolute;inset:0;width:100%;height:100%}
+.map-geography{pointer-events:none;opacity:.92;transition:opacity .28s ease}
+.is-expanded .map-geography{opacity:.4508}
+.map-markers{touch-action:none}
+.festival-map button{font:inherit;color:inherit;background:#203b33e8;border:1px solid #d7cca965;border-radius:8px;min-height:44px;cursor:pointer;padding:8px 12px;}
+.festival-map button:focus-visible{outline:3px solid #ffe59b;outline-offset:-3px}
+.map-expand{position:absolute;inset:0;width:100%;height:100%;display:flex;justify-content:center;gap:8px;align-items:flex-end;background:transparent!important;border:0!important;border-radius:inherit!important;font-size:10px!important;letter-spacing:.14em;}
+.map-footer{position:absolute;bottom:6px;left:8px;right:8px;pointer-events:none;display:flex;flex-direction:column;gap:4px;text-shadow:0 1px 3px #000}
+.map-selection,.map-status,.map-pin-options{display:none}
+.festival-map.is-expanded{right:0;top:auto;bottom:0;width:100vw;height:100dvh;border-radius:0;border:0;background:transparent;}
+.is-expanded .map-expand{display:none}
+.is-expanded .map-footer{left:25%;right:25%;bottom:max(30px,env(safe-area-inset-bottom));align-items:center;text-align:center;}
+.is-expanded .map-selection,.is-expanded .map-status{display:block;background:#19352bd9;border-radius:8px;padding:7px 12px;}
+.is-expanded .map-selection:empty,.is-expanded .map-status:empty{display:none}
+.is-expanded .map-pin-options{display:block;position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.reduced-motion .festival-map,.reduced-motion .festival-map::before,.reduced-motion .map-geography,.reduced-motion .festival-map-backdrop{transition:none}
+@media(prefers-reduced-motion:reduce){.festival-map,.festival-map::before,.map-geography,.festival-map-backdrop{transition:none}}
+@media(max-width:600px){.is-expanded .map-footer{bottom:180px;left:20%;right:20%}}
+@media(max-height:500px){.is-expanded .map-footer{bottom:12px;left:30%;right:30%}.is-expanded .map-status{font-size:10px;padding:3px}}
+
+/* Reserve the bottom-right corner for the map; driving fingers keep their
+   controls above it, with the stick retaining its original ownership. */
+body.is-touch .festival-map:not(.is-expanded){width:min(100px,30vw,24vh);height:min(100px,30vw,24vh)}
+body.is-touch .touch-btn{width:56px;height:56px;font-size:11px}
+body.is-touch #btn-honk{right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(128px + env(safe-area-inset-bottom,0px))}
+body.is-touch #btn-boost{right:calc(78px + env(safe-area-inset-right,0px));bottom:calc(128px + env(safe-area-inset-bottom,0px))}
+body.is-touch #btn-slow{right:calc(142px + env(safe-area-inset-right,0px));bottom:calc(196px + env(safe-area-inset-bottom,0px))}
+body.is-touch #btn-cam{right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(196px + env(safe-area-inset-bottom,0px))}
+body.is-touch #btn-music{right:calc(78px + env(safe-area-inset-right,0px));bottom:calc(196px + env(safe-area-inset-bottom,0px));font-size:22px}

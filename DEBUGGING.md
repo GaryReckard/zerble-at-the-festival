@@ -54,6 +54,12 @@ Open `http://127.0.0.1:8765/passport-preview.html?case=populated&mute=1` on the 
 
 `node bin/test-player-stats` and `node bin/test-passport-integration` exercise travel/return, relocation, stage identity, migration, persistence, settings continuity, analytics privacy/checkpoints, real bubble births, and input release. Both are included in `npm run check`. [Contracts and analytics fields](docs/passport.md).
 
+## Festival map workshop
+
+Open `/festival-map-preview.html?mute=1` for the production discovery/storage/worker/view without WebGL. **Check storage** exercises real IndexedDB concurrent unions, seed isolation, reset epochs, and stale-write rejection in an isolated temporary database; **Check input** exercises the actual touch stick, expansion/zoom/close preservation, music action separation, and Space isolation. **Check transitions** samples live animated viewport/backing agreement, rapid reversals, circular focus, border removal, and expanded opacity. **Drive / stop**, **Relocate**, and **Track unexplored stage** expose live reveal, teleport discontinuities and the objective fog exception. Diagnostics report rolling map main-thread time, raster/worker cost, payload bytes, caches, dirty blocks and backing pixels.
+
+Use `&viewport=portrait` or `&viewport=landscape` for 390×844 and 844×390 touch layout frames. These validate layout in the desktop browser, not real-device input or performance. `node bin/test-festival-map` runs pure/persistence/worker/live-marker regressions and is included in `npm run check`. The real game's `__dbg.festivalMap()` returns diagnostics. Browser tests must still start through a ready mode plank. [Evidence and limits](verification/festival-map/README.md).
+
 ## Terrain driving proof
 
 Open `http://127.0.0.1:8765/terrain-sandbox.html?mute=1` on the existing
