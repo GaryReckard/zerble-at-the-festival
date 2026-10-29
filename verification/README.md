@@ -24,6 +24,8 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Road snapshot CI portability, October 29](roads/2026-10-29-ci-layout/README.md): reproduced Linux x64 failure, field-by-field floating-point diagnosis, angle-only normalization and CI-equivalent validation.
+
 - [Vite migration, October 29](toolchain/2026-10-29-vite.md): build and capture tests, six browser entry pages, Low/Mid gameplay, Pages configuration and deployment limits.
 
 - [Vendor EZ-up continuity, October 29](vendors/2026-10-28-canopies/README.md): shared near/far colors, batched legs, fixed pool limits, native comparisons and live streaming/revisit checks.

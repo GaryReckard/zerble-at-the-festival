@@ -12,6 +12,20 @@ import {festivalPlan} from '../src/worldgen/festival.js';
 import {lakeAt} from '../src/worldgen/water.js';
 const baseline=JSON.parse(readFileSync(new URL('../verification/roads/2026-10-28/route-baseline.json',import.meta.url)));
 const layout=JSON.parse(readFileSync(new URL('../verification/roads/2026-10-28/layout-baseline.json',import.meta.url)));
+// atan2 may differ by a final bit across architectures. Only cosmetic angle
+// fields get a 1e-12-radian snapshot resolution; all other values stay exact.
+// Keep this out of production so no RNG, route or placement math changes.
+const angleFields=new Set(['facing','dirAngle','yaw']);
+const layoutHash=value=>createHash('sha256').update(JSON.stringify(value,(key,value)=>
+ angleFields.has(key)&&Number.isFinite(value)?Number(value.toFixed(12)):value)).digest('hex');
+for(const field of angleFields){
+ assert.equal(layoutHash({[field]:0.2762545928119428}),layoutHash({[field]:0.27625459281194287}),'last-bit angle variation is portable');
+ assert.notEqual(layoutHash({[field]:0.2762545928119428}),layoutHash({[field]:0.2762545929119428}),'meaningful angle changes still fail');
+}
+for(const field of ['x','z','dist','heartDist','treeDensity'])
+ assert.notEqual(layoutHash({[field]:0.2762545928119428}),layoutHash({[field]:0.27625459281194287}),`${field} stays byte-exact`);
+assert.notEqual(layoutHash({noBuild:false}),layoutHash({noBuild:true}),'existence decisions stay exact');
+assert.notEqual(layoutHash({facing:null}),layoutHash({facing:0}),'missing facing stays distinct from zero');
 let paved=0,dirt=0,samples=0;const started=performance.now();
 for(const seed of [0,42,1234,3248888364,42,0]){
  setSessionSeed(seed);const roads=roadsInBounds(-600,-600,600,600);
@@ -20,9 +34,8 @@ for(const seed of [0,42,1234,3248888364,42,0]){
  assert.equal(createHash('sha256').update(JSON.stringify(points)).digest('hex'),baseline[seed].sha256,'pre-feature routes remain exact');
  const again=roadsInBounds(-600,-600,600,600);assert.deepEqual(again,roads);
  const records=[];for(let z=-300;z<=300;z+=37)for(let x=-300;x<=300;x+=41){const {onRoad,tier,dist,dirAngle}=nearestRoad(x,z);records.push([queryPoint(x,z),{onRoad,tier,dist,dirAngle}]);}
- const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
- assert.equal(hash(records),layout[seed].pointAndNearestSha256,'original point, noBuild, nearest centerline and facing fields remain byte-identical');
- assert.equal(hash(heartsInBounds(-600,-600,600,600).map(h=>festivalPlan(h))),layout[seed].planSha256,'all original POI descriptors and planner RNG decisions remain unchanged');
+ assert.equal(layoutHash(records),layout[seed].pointAndNearestAngles12Sha256,'original point, noBuild and nearest fields remain exact, with portable facing angles');
+ assert.equal(layoutHash(heartsInBounds(-600,-600,600,600).map(h=>festivalPlan(h))),layout[seed].planAngles12Sha256,'original POI descriptors and planner RNG decisions remain exact, with portable yaw angles');
 
  for(const h of heartsInBounds(-300,-300,300,300).reverse())for(const r of approachRoadsOf(h)){
   assert.deepEqual(roadSurface(h,r.neighbor),roadSurface(r.neighbor,h));
@@ -54,7 +67,7 @@ const d=factory('dirt'),p=factory('asphalt');assert.equal(d,factory('dirt'));ass
 for(const m of [d,p]){assert(m.userData.shared&&m.map.userData.shared&&m.depthWrite);assert(m.map.generateMipmaps);assert.equal(m.map.image.data.byteLength,(m===d?512:256)**2*4);assert(new Set(m.map.image.data).size>30,'visible grain rather than a flat fill');}
 assert.notDeepEqual(d.map.image.data,p.map.image.data);
 assert.equal(d.map.userData.tileMetres,32);assert.equal(d.map.repeat.x,1/8);
-console.log(`PASS road surfaces: exact four-seed old routes, reversed endpoint/seed restoration, ${paved} paved/${dirt} dirt approaches, ${samples} dry ribbon probes, shoreline fallback, bounded shared textures. Cold/warm mixed run ${(performance.now()-started).toFixed(0)}ms; not a frame-rate measurement.`);
+console.log(`PASS road surfaces: exact four-seed old routes and non-angle layout values, portable angle snapshots with mutation controls, reversed endpoint/seed restoration, ${paved} paved/${dirt} dirt approaches, ${samples} dry ribbon probes, shoreline fallback, bounded shared textures. Cold/warm mixed run ${(performance.now()-started).toFixed(0)}ms; not a frame-rate measurement.`);
 
 // Actual vendor canopy extent (4.5m trim and rotated 3.2m-radius roof) fits
 // a straight paved avenue, but neither a bend nor a second nearby road.

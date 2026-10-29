@@ -50,6 +50,11 @@ all other current pure generator inputs. It records original queryPoint tuples,
 nearest centerline fields and complete nearby festival descriptors. The new
 metadata is deliberately excluded from old nearest-field comparisons.
 
+The original raw hashes remain recorded. The [October 29 CI portability
+follow-up](../2026-10-29-ci-layout/README.md) adds hashes with only facing/yaw
+angles normalized to 12 decimal places, after Linux x64 reproduced last-bit
+`atan2` differences. All other snapshot values and the route hashes stay exact.
+
 `node bin/test-road-surfaces` passes four-seed route hashes and layout/point
 hashes, reversed endpoints, seed restoration, actual approach/bounds metadata,
 42 paved and 585 dirt approach visits, 24,639 dry full-width probes, and the

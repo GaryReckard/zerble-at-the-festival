@@ -1,18 +1,26 @@
 {
   "0": {
     "pointAndNearestSha256": "3a0d640c85da330f5da83b46a9a7fc00cd28222dbc1e0a8a507918d7097ee415",
-    "planSha256": "14a09c41e2dbe7597fdfbd2b0415ebffd7019f667cba65ce352a8c4f285bd3d8"
+    "planSha256": "14a09c41e2dbe7597fdfbd2b0415ebffd7019f667cba65ce352a8c4f285bd3d8",
+    "pointAndNearestAngles12Sha256": "77b04a8b7790750ae7f95f52faaf6ca02e087a955d5e79beb97ac698ca307490",
+    "planAngles12Sha256": "6f42dee405dcc67990a9379c0ae55361fb8131aa717ffac3196a3175937214f2"
   },
   "42": {
     "pointAndNearestSha256": "a265a2a5b803a20dee826102441e44f2b681d0c18bc3adaf8ff2b9c2345c995f",
-    "planSha256": "85ff8c09c329ba0eedb961800f530eb1669e1916ed5d23168443c5bac3168e36"
+    "planSha256": "85ff8c09c329ba0eedb961800f530eb1669e1916ed5d23168443c5bac3168e36",
+    "pointAndNearestAngles12Sha256": "53aab4c39041faf8ba499557d42a5e11995ff5c2ee9c9232671ea6d10ddd448d",
+    "planAngles12Sha256": "873e91bbbe6fa4a929d6379eed7561e4f82380d8f13f9b208859389d40bca2c6"
   },
   "1234": {
     "pointAndNearestSha256": "4026a50c03922664f7bc69d7b9f8c32913f868f901ea388a721f993990fc0ac6",
-    "planSha256": "2a9021e8f0b1347ba84ad44827916d30bcffecf52bd29e531d98c1c9b0bc1d4f"
+    "planSha256": "2a9021e8f0b1347ba84ad44827916d30bcffecf52bd29e531d98c1c9b0bc1d4f",
+    "pointAndNearestAngles12Sha256": "ce03652d9289afaf4f58fc488446d20781a7c112d4f932bb5563a44163b47aca",
+    "planAngles12Sha256": "e1ca7a05036703612fa4fa7818b9a4055df5ebc71636ce704a8be7629a34e423"
   },
   "3248888364": {
     "pointAndNearestSha256": "e89a08e6d36fe18224ec5a6342df0d630ab57dd1d69f217d7d921b9fdb8a33c5",
-    "planSha256": "89019a273f6536650b5942cd3bdb71b0d82091ad53092ac3ebbaf302ba8cf9db"
+    "planSha256": "89019a273f6536650b5942cd3bdb71b0d82091ad53092ac3ebbaf302ba8cf9db",
+    "pointAndNearestAngles12Sha256": "e8b44c6dded2a9024bab30ec0f48b191427e4fa8bd1d7c6541970d93d0dd2fd8",
+    "planAngles12Sha256": "6db059954b198247273bae6e04e86b6a621e716ab1c798726f6deb5efb7acdd7"
   }
 }
