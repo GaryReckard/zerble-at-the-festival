@@ -4,6 +4,13 @@
 
 ## Daily agent workflow
 
+For an ordinary local play session, run `./start` (or `npm start`) and visit
+`http://127.0.0.1:8747`. The launcher installs dependencies if Vite is missing,
+starts Vite in the repository root, and stops with `Ctrl+C`. It uses a fixed
+port and reports an error if that port is already occupied; it never kills
+another server. Do not serve the source tree with `python3 -m http.server`,
+because source package imports require Vite's resolver.
+
 Use Node.js 24 (the CI version) and Python 3 for the existing verification tools.
 From the repository root:
 

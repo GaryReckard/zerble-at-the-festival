@@ -50,7 +50,8 @@ export class HulaSession {
     if(!this.place.target(this.reservation,this.phase,this.target)){this.finish('unavailable');return;}
     const dx=this.target.x-this.view.x,dz=this.target.z-this.view.z,d=Math.hypot(dx,dz);
     if(d>.05){const step=Math.min(d,this.speed*dt),x=this.view.x+dx/d*step,z=this.view.z+dz/d*step;
-      if(this.place.canMove(this.reservation,x,z))this.people.writeActivityPose(this.claim,x,this.target.y,z,Math.atan2(-dx,-dz));
+      if(this.place.canMove(this.reservation,x,z))this.people.writeActivityPose(this.claim,x,this.target.y,z,Math.atan2(-dx,-dz),null,dt);
+      else this.people.writeActivityPose(this.claim,this.view.x,this.view.y,this.view.z,this.view.heading);
       return;
     }
     if(this.phase==='approaching'){this.phase='hooping';this.people.writeActivityPose(this.claim,this.view.x,this.view.y,this.view.z,this.view.heading);this.place.show(this.reservation,true);}

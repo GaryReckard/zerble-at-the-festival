@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8"><title>People locomotion refinement</title>
+<style>body{margin:24px;background:#171c23;color:#efe9da;font:16px system-ui}canvas{max-width:100%;display:block;margin-top:18px}button{padding:8px 16px;margin-right:8px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<h1>People in motion</h1><p>Production Crowd bodies: idle, stroll, brisk walk, fleeing, seated, carrying a drink. Fixed seed, no extra detail meshes.</p>
+<button id="noon">Noon</button><button id="night">Midnight</button><button id="step">Next stride</button><button id="play">Play / pause</button><pre id="result">Loading…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {Crowd} from '../../src/crowd.js';
+import {PeopleRuntime} from '../../src/people/runtime.js';
+import {setSessionSeed,mulberry32} from '../../src/rng.js';
+setSessionSeed(814203);
+const runtime=new PeopleRuntime(),scene=new THREE.Scene(),renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(1100,470);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(37,1100/470,.1,100);camera.position.set(3,3,-12);camera.lookAt(0,1,0);
+const ambient=new THREE.HemisphereLight(0xe3f2ff,0x6e7950,2),sun=new THREE.DirectionalLight(0xfff2d2,2.5);sun.position.set(-3,8,-5);scene.add(ambient,sun);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(30,20),new THREE.MeshStandardMaterial({color:0x829466,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
+const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});scene.add(crowd.group);
+const speeds=[0,.65,1.4,3.5,0,1.4];
+for(let i=0;i<6;i++){
+ crowd.spawnPerson({pos:new THREE.Vector3((i-2.5)*1.65,0,0),rng:mulberry32(50+i),allowPhotographer:false,appearanceOverride:{hasDrink:i===5,hairStyle:i}});
+ const n=crowd.npcs[i];Object.assign(n,{state:i===0?'idle':i===3?'fleeing':i===4?'camp_seated':'walking',campY:.43,scale:1,yaw:.3,dance:.2,cheerTimer:0,smileTimeCooldown:0,bob:i*.55});n.vel.set(0,0,-speeds[i]);
+}
+let checks=0;
+function check(ok,label){if(!ok)throw Error(label);checks++;}
+const n=crowd.npcs[2],saved={...n},leg=crowd.legsMesh.geometry.getAttribute('walkStride'),shoe=crowd.shoesMesh.geometry.getAttribute('walkStride'),arms=crowd.armsMesh.geometry.getAttribute('armPose'),left=crowd.armsMesh.geometry.getAttribute('armLeftPose');
+for(const state of ['walking','fleeing','market_walking','camp_walking']){
+ n.state=state;n.vel.set(0,0,-1.4);crowd._publishPerson(n);
+ check(Math.abs(leg.getX(n.idx))>.01,state+' has a stride');check(leg.getX(n.idx)===shoe.getX(n.idx),'Shoes track the legs');
+ check(arms.getX(n.idx)*leg.getX(n.idx)<0,'Right arm opposes right leg');check(left.getX(n.idx)===-arms.getX(n.idx),'Arms oppose each other');
+}
+for(const state of ['idle','watching','riding','camp_seated','table_seated','hammock_riding','photographer_pose']){
+ n.state=state;n.seatSlot=state==='riding'?{kind:'bench'}:null;n.seatY=.8;n.hammockY=.8;n.picnicY=.43;
+ crowd._publishPerson(n);check(leg.getX(n.idx)===0,state+' clears the old stride');
+}
+Object.assign(n,saved);n.state='walking';n.drinkSlot=0;crowd._publishPerson(n);check(arms.getX(n.idx)===0,'Cup hand stays still');
+n.drinkSlot=-1;n.shoppingBagTime=2;crowd._publishPerson(n);check(left.getX(n.idx)===0,'Bag hand stays still');
+Object.assign(n,saved);n.shoppingBagTime=0;n.seatSlot=null;n.seatY=undefined;n.hammockY=undefined;n.picnicY=undefined;
+// Live borrowed activities publish travel through the validated Crowd boundary,
+// even though their underlying simulation state is idle and velocity is zero.
+const claim=crowd.claimActivity(n.personHandle,{owner:{}}),origin=n.pos.clone();
+crowd.writeActivityPose(claim,n.pos.x+.07,n.pos.y,n.pos.z,n.yaw,null,.05);
+check(Math.abs(leg.getX(n.idx))>.01,'Borrowed activity travel has a GPU stride');
+crowd.writeActivityArmPose(claim,'catch',1);
+check(Math.abs(arms.getX(n.idx)-n._activityArmPose.x)<1e-6,'Authored catch hand retains priority during travel');
+crowd.writeActivityPose(claim,n.pos.x,n.pos.y,n.pos.z,n.yaw);
+check(leg.getX(n.idx)===0,'Stopped activity clears stride without releasing its claim');
+check(crowd.isPersonActivityCurrent(claim),'Stopped activity retains its live claim');
+crowd.endPersonActivity(claim);Object.assign(n,saved);n.pos.copy(origin);n.vel.set(0,0,-1.4);n.shoppingBagTime=0;n.seatSlot=null;n.gaitX=n.pos.x;n.gaitZ=n.pos.z;
+let time=0,playing=false,last=0,raf;
+function render(dt=0){
+ time+=dt;
+ for(let i=0;i<6;i++){const n=crowd.npcs[i];n.bob+=dt*(1+.4*n.dance);n.pos.z-=speeds[i]*dt;crowd._publishPerson(n);n.pos.z+=speeds[i]*dt;if('gaitZ' in n)n.gaitZ=n.pos.z;}
+ crowd._publishPopulationRanges();renderer.render(scene,camera);
+ document.querySelector('#result').textContent=JSON.stringify({checksPassed:checks,time:+time.toFixed(2),draws:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,people:crowd.populationSize,strides:crowd.npcs.map(n=>+(crowd.legsMesh.geometry.getAttribute('walkStride')?.getX(n.idx)||0).toFixed(3)),materials:crowd.legsMesh.material.type});
+}
+function light(n){scene.background=new THREE.Color(n?0x101b35:0xc3d9df);ambient.intensity=n?.7:2;sun.intensity=n?.45:2.5;sun.color.set(n?0xa3baff:0xfff2d2);render();}
+document.querySelector('#noon').onclick=()=>light(0);document.querySelector('#night').onclick=()=>light(1);document.querySelector('#step').onclick=()=>render(.05);document.querySelector('#play').onclick=()=>{playing=!playing;};
+function tick(t){if(playing)render(Math.min(.05,(t-last)/1000));last=t;raf=requestAnimationFrame(tick);}raf=requestAnimationFrame(tick);light(0);
+addEventListener('pagehide',()=>{cancelAnimationFrame(raf);runtime.dispose();floor.geometry.dispose();floor.material.dispose();renderer.dispose();},{once:true});
+</script>

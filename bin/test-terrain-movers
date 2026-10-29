@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {sampleWalkMotion} from '../src/personMotion.js';
 import {PeopleRuntime} from '../src/people/runtime.js';
 import {PersonHandles} from '../src/people/personHandle.js';
 import {disposeSceneResources} from '../src/people/sceneResources.js';
@@ -32,7 +33,7 @@ const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
 for(const height of [()=>0,(x,z)=>17+.03*x-.02*z]) {
  const model=()=>new Node(),entries=new Map([[1,{position:new V()}]]);
  const registry={entries,collidersNear(){},closestBuilding(){return null;}};
- const context=vm.createContext({PeopleRuntime,PersonHandles,disposeSceneResources,Math,T:{despawnDistance:2000,speed:.8,worldScale:1,stallSeconds:10,cruiseSeconds:1000,minCruiseSeconds:10},performance:{now:()=>1000},terrainHeight:height,registry,
+ const context=vm.createContext({sampleWalkMotion,PeopleRuntime,PersonHandles,disposeSceneResources,Math,T:{despawnDistance:2000,speed:.8,worldScale:1,stallSeconds:10,cruiseSeconds:1000,minCruiseSeconds:10},performance:{now:()=>1000},terrainHeight:height,registry,
   THREE:{Group:Node,Vector3:V,MathUtils:{clamp:(n,a,b)=>Math.max(a,Math.min(b,n))}},
   getTimeOfDay:()=>({nightness:0}),projectOutOfLake:()=>null,isPointInLake:()=>false,
   buildKid:model,buildWook:model,buildFrisbeePlayer:model,buildFrisbeeDisc:model,

@@ -36,8 +36,9 @@ for(let frame=0;frame<400;frame++){
  assert.deepEqual(snapshot(now),snapshot(old));
  const rigs=f=>Array.from(f.party.members,m=>m.avatar);
  for(const f of [old,now])for(const n of f.crowd.npcs)f.crowd._writeMatrices(n);
- const poses=f=>rigs(f).map(g=>[...g.position.toArray(),g.rotation.y,g.scale.value,...g.lastPose]);
+ const poses=f=>rigs(f).map(g=>[...g.position.toArray(),g.rotation.y,g.scale.value,...g.lastPose.slice(0,4)]);
  assert.deepEqual(poses(now),poses(old));
+ if(!baseline)for(const g of rigs(now)){assert.equal(g.lastPose.length,6);assert(g.lastPose.slice(4).every(Number.isFinite),'group publication adds finite shared stride/arm channels');}
 }
 for(const f of [old,now]){
  vehicle.position.set(0,0,0);vehicle.speed=0;

@@ -1,3 +1,4 @@
+import {bindLocomotion,tickLocomotion} from './personLocomotion.js';
 // Sugar Shack — long white gable canopy behind a stand-alone signage facade.
 // Modelled on Tom's Sugar Shack at LEAF festival. Geometry split into two
 // parts:
@@ -73,6 +74,7 @@ export function updateSugarShackCooks(dt) {
         }
         e.targetIdx = next;
       }
+      tickLocomotion(e.cook,dt);
       continue;
     }
     const wp = e.waypoints[e.targetIdx];
@@ -86,6 +88,7 @@ export function updateSugarShackCooks(dt) {
       e.cook.rotation.y = wp.facing;
       e.currentIdx = e.targetIdx;
       e.holdLeft = wp.holdMin + Math.random() * (wp.holdMax - wp.holdMin);
+      tickLocomotion(e.cook,dt);
       continue;
     }
     const step = Math.min(e.walkSpeed * dt, d);
@@ -95,6 +98,7 @@ export function updateSugarShackCooks(dt) {
     // Face direction of travel: NPC local -Z is forward, so yaw rotates
     // -Z to align with (dx, dz). yaw = atan2(-dx, -dz).
     e.cook.rotation.y = Math.atan2(-dx, -dz);
+    tickLocomotion(e.cook,dt);
   }
 }
 
@@ -520,12 +524,12 @@ function buildTom() {
 }
 
 // Generic apron-wearing cook — solid shirt + white apron.
-function buildApronCook(rng = Math.random) {
+export function buildApronCook(rng = Math.random) {
   const shirtColors = [0xc63a2a, 0x3a72c2, 0xe09818, 0x6b513a];
   const skinTones   = [0xe6c098, 0xc09478, 0x8b6f50, 0xf2d4b2];
   const shirt = shirtColors[Math.floor(rng() * shirtColors.length)];
   const skin  = skinTones[Math.floor(rng() * skinTones.length)];
-  const g = buildSimpleNPC(shirt, skin, { pantsHex: 0x2a2a3c });
+  const g = buildSimpleNPC(shirt, skin, { pantsHex: 0x2a2a3c,walk:true });
 
   // Apron — flat panel covering the front of the torso. NPC's chest is -Z.
   const apronMat = new THREE.MeshStandardMaterial({
@@ -561,7 +565,9 @@ function buildApronCook(rng = Math.random) {
   hair.scale.set(1.02, 0.55, 1.02);
   g.add(hair);
 
-  return g;
+  const root=new THREE.Group();root.add(g);
+  bindLocomotion(root,{ground:.005,body:g,legs:g.userData.walkLegs,arms:g.userData.shoulders,height:1});
+  return root;
 }
 
 // ==================== Shared materials + geometries ====================

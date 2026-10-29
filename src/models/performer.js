@@ -1,3 +1,4 @@
+import {addStrideMorphs} from './personLocomotion.js';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -10,22 +11,23 @@ const BLACK=0x20202b, GOLD=0xd5ac51, SILVER=0xb7b6bb;
 
 export function bakePerformancePart(build){
   const pieces=[];
-  const add=(source,color,p=[0,0,0],scale=[1,1,1],rotation=[0,0,0])=>{
+  const add=(source,color,p=[0,0,0],scale=[1,1,1],rotation=[0,0,0],side=0)=>{
     const g=source.index?source.toNonIndexed():source.clone();source.dispose();
     g.deleteAttribute('uv');g.scale(...scale);
     g.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(...rotation)));
     g.translate(...p);
     const c=new THREE.Color(color),colors=new Float32Array(g.attributes.position.count*3);
     for(let i=0;i<colors.length;i+=3){colors[i]=c.r;colors[i+1]=c.g;colors[i+2]=c.b;}
+    g.setAttribute('strideSide',new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(side),1));
     g.setAttribute('color',new THREE.BufferAttribute(colors,3));pieces.push(g);
   };
-  const oval=(color,p,s)=>add(new THREE.SphereGeometry(1,10,7),color,p,s);
-  const box=(color,p,s,r)=>add(new THREE.BoxGeometry(1,1,1),color,p,s,r);
-  const rod=(color,a,b,r=.025)=>{
+  const oval=(color,p,s,side=0)=>add(new THREE.SphereGeometry(1,10,7),color,p,s,[0,0,0],side);
+  const box=(color,p,s,r,side=0)=>add(new THREE.BoxGeometry(1,1,1),color,p,s,r,side);
+  const rod=(color,a,b,r=.025,side=0)=>{
     const start=new THREE.Vector3(...a),end=new THREE.Vector3(...b),d=end.clone().sub(start);
     const g=new THREE.CylinderGeometry(r,r,d.length(),7);
     g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()));
-    add(g,color,start.add(end).multiplyScalar(.5).toArray());
+    add(g,color,start.add(end).multiplyScalar(.5).toArray(),[1,1,1],[0,0,0],side);
   };
   const tube=(color,points,r=.035)=>add(new THREE.TubeGeometry(
     new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p))),20,r,6,false),color);
@@ -43,10 +45,10 @@ function template(instrument,variant){
         rod(BLACK,[sx*.13,.78,.04],[sx*.22,.55,-.3],.105);
         rod(BLACK,[sx*.22,.55,-.3],[sx*.22,.13,-.42],.09);
       }else{
-        rod(BLACK,[sx*.13,.8,0],[sx*.19,.13,sx*.055],.095);
+        rod(BLACK,[sx*.13,.8,0],[sx*.19,.13,sx*.055],.095,sx);
       }
-      oval(0x111117,[sx*(instrument==='drum'?.22:.19),.07,instrument==='drum'?-.46:-.07],[.11,.075,.22]);
-      box(0xc4b6a4,[sx*(instrument==='drum'?.22:.19),.025,instrument==='drum'?-.47:-.08],[.21,.035,.33]);
+      oval(0x111117,[sx*(instrument==='drum'?.22:.19),.07,instrument==='drum'?-.46:-.07],[.11,.075,.22],instrument==='drum'?0:sx);
+      box(0xc4b6a4,[sx*(instrument==='drum'?.22:.19),.025,instrument==='drum'?-.47:-.08],[.21,.035,.33],undefined,instrument==='drum'?0:sx);
     }
     add(new THREE.CylinderGeometry(.27,.20,.62,10),shirt,[0,1.09,0],[1,1,.65]);
     box(BLACK,[0,.8,0],[.4,.055,.29]);
@@ -158,10 +160,12 @@ function template(instrument,variant){
       tube(BLACK,[[0,1.52,-.43],[.06,.75,-.47],[.12,.03,-.40],[.55,.025,.2]],.008);
     }
   });
+  for(const g of [...arms,gear])g.deleteAttribute('strideSide');
+  if(instrument==='drum')body.deleteAttribute('strideSide');
   return {body,arms,gear};
 }
 
-export function buildPerformer(instrument,rng=Math.random){
+export function buildPerformer(instrument,rng=Math.random,{locomotion=false}={}){
   const variant=Math.min(3,Math.floor(rng()*4)),key=instrument+':'+variant;
   // Preserve the former guitar body-color draw in the caller’s seeded stream.
   if(instrument==='guitar')rng();
@@ -169,7 +173,9 @@ export function buildPerformer(instrument,rng=Math.random){
   const t=cache.get(key),root=new THREE.Group(),body=new THREE.Group();root.add(body);
   root.name='Performer '+instrument;
   const mesh=(geo,parent=body)=>{const m=new THREE.Mesh(geo,material);m.receiveShadow=true;parent.add(m);return m;};
-  mesh(t.body).castShadow=true;
+  const bodyGeometry=locomotion?(t.strideBody??=addStrideMorphs(t.body.clone(),.8)):t.body;
+  const bodyMesh=mesh(bodyGeometry);bodyMesh.castShadow=true;
+  root.userData.strideMesh=bodyMesh;
   const arms=t.arms.map((geo,i)=>{const m=mesh(geo);m.position.set(i?.27:-.27,1.34,0);return m;});
   const gear=mesh(t.gear,instrument==='drum'||instrument==='lead_vocal'?root:body);
   const phase=variant*1.73;

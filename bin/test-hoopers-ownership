@@ -44,7 +44,7 @@ for(let frame=0;frame<400;frame++){
  const night=frame<200?0:1;ghost.update(.05,new Vector(100,0,0),night);
  runtime.beginFrame(.05);runtime.run('roaming',{zerble:{position:new Vector(100,0,0)},nightness:night});
  const snap=(unit,reg)=>Array.from(unit.hoopers,h=>[h.visible,h.position.x,h.position.y,h.position.z,h.rotation.y,reg.entries.get(h.userData.attractorId)?.position.x,reg.entries.get(h.userData.attractorId)?.position.z,h.userData.phase,h.userData.driftTargetX,h.userData.driftTargetZ,h.userData.driftTimer]);
- assert.deepEqual(snap(now,current.registry),snap(ghost,legacy.registry));assert.equal(current.draws,legacy.draws);assert.deepEqual(current.ticks,legacy.ticks);current.ticks.length=legacy.ticks.length=0;
+ assert.deepEqual(snap(now,current.registry),snap(ghost,legacy.registry));assert.equal(current.draws,legacy.draws);assert.deepEqual(current.ticks.map(t=>t.slice(3)),legacy.ticks.map(t=>t.slice(3)));assert.deepEqual(current.ticks.map(t=>t.slice(0,3)),Array.from(now.hoopers).filter(h=>h.visible).map(h=>[h.position.x,h.position.y,h.position.z]),'shuffle samples the final drift/ground position');current.ticks.length=legacy.ticks.length=0;
  assert(now.hoopers.every((h,i)=>h.userData.personHandle===handles[i]));
 }
 assert(now.hoopers.some(h=>h.visible),'equivalent acceptance actually places active performers');

@@ -79,7 +79,6 @@ export class HulaHoopers {
       const u = h.userData;
       // Body sway + hoop spin + glow all live in tickHulaHooper so the
       // sandbox and the game can't drift out of sync. See models/hulaHooper.js.
-      tickHulaHooper(h, dt, nightness);
 
       // Slight random drift: every few seconds pick a new tiny offset target
       // near the anchor, then ease toward it at a snail's pace. Keeps the
@@ -103,6 +102,7 @@ export class HulaHoopers {
       }
 
       h.position.y = terrainHeight(h.position.x, h.position.z);
+      tickHulaHooper(h,dt,nightness);
       // Collider — at chest height, body radius only (hoop itself isn't solid)
       this.colliders[i].position.copy(h.position);
       this.colliders[i].position.y += 0.9;

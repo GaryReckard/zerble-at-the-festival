@@ -398,10 +398,7 @@ export class KidGaggle {
 
       // Visual animation (smooth yaw + bounce) lives in tickKid so the
       // sandbox and game can't drift apart. See models/kid.js.
-      tickKid(k, dt, {
-        excited: !!target,
-        targetYaw: k.userData.heading,
-      });
+
 
     }
 
@@ -458,6 +455,7 @@ export class KidGaggle {
     for (let i = 0; i < this.kids.length; i++) {
       const kid = this.kids[i];
       kid.position.y = terrainHeight(kid.position.x, kid.position.z);
+      tickKid(kid,dt,{excited:!!kid.userData.chaseTarget,targetYaw:kid.userData.heading});
       this.colliders[i].position.copy(kid.position);
       this.colliders[i].position.y += 0.6;
     }

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {tickLocomotion} from '../src/models/personLocomotion.js';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
@@ -12,7 +13,7 @@ function fixture(old){
  const stages=[{group:{position:{y:0},rotation:{y:0,z:0},userData:{}},baseY:1,baseYaw:2,phase:.3}];
  const animation=[];stages.push({group:{userData:{animate:t=>animation.push(t)}},phase:1.7});
  const cooks=[{cook:{position:{x:0,z:0},rotation:{y:0}},waypoints:[{x:0,z:0,facing:1,holdMin:.1,holdMax:.4},{x:1,z:2,facing:2,holdMin:.1,holdMax:.3}],targetIdx:1,currentIdx:0,holdLeft:0,walkSpeed:2,chunkKey:'fixture'}];
- const compile=(s,name)=>runInNewContext(s.replace('export function','function')+';'+name,{stagePerformers:stages,sugarShackCooks:cooks,Math:math});
+ const compile=(s,name)=>runInNewContext(s.replace('export function','function')+';'+name,{tickLocomotion:node=>{if(node.userData)tickLocomotion(node,0);},stagePerformers:stages,sugarShackCooks:cooks,Math:math});
  const advanceStage=compile(old?read('../verification/people/2026-10-26/legacy-stage-displays.js'):stage,'updateStagePerformers');
  const advanceCook=compile(old?read('../verification/people/2026-10-26/legacy-cook-displays.js'):cook,'updateSugarShackCooks');
  return {stages,cooks,animation,advanceStage,advanceCook,get draws(){return draws;},snapshot(){return JSON.stringify({stages,cooks,animation,draws});}};

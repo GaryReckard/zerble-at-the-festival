@@ -1,3 +1,4 @@
+import {sampleWalkMotion} from '../personMotion.js';
 // Population-internal adapter for shared travel intent. Groups hold handles and
 // proposals; only this boundary touches the population's records and bindings.
 import {terrainHeight} from '../worldgen/terrain.js';
@@ -105,6 +106,8 @@ export function publishGroupBinding(npc){
   const riding=npc.state==='riding',sitting=(riding&&npc.seatSlot?.kind!=='standing')||npc.state==='table_seated'||npc.pottySitting;
   const groundY=npc.state==='hammock_riding'&&npc.hammockY!=null?npc.hammockY:npc.state==='camp_seated'&&npc.campY!==undefined?npc.campY:terrainHeight(npc.pos.x,npc.pos.z);
   const p=state.pose;
+  const walk=sampleWalkMotion(npc,state.walk??={});
+  p.stride=walk.stride;p.arm=walk.arm;
   p.visible=npc.state!=='using_potty'&&npc.state!=='camp_sleeping'&&!npc._activityBinding?.hidden;
   p.x=npc.pos.x;p.y=sitting&&npc.seatY!=null?npc.seatY-.62*npc.scale:riding&&npc.seatY!=null?npc.seatY-(npc.seatSlot?.vehicle?0:1.05):groundY;p.z=npc.pos.z;
   p.heading=npc.yaw;p.scale=npc.scale;p.bob=npc.bob;p.speed=riding?0:Math.hypot(npc.vel.x,npc.vel.z);p.sitting=!!sitting;p.pole=riding&&npc.seatSlot?.name==='platform';

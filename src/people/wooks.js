@@ -236,10 +236,6 @@ export class Wooks {
         w.rotation.y = -w.userData.phase + Math.PI;
       }
 
-      // Sway (applies to everyone — including the creep walking up to you).
-      // See models/wook.js for the math; sandbox calls the same tick.
-      tickWook(w, dt);
-
       // An offering wook must not shove or damage the parked cart.
       // Approach movement itself maintains clearance outside both footprints.
       this.colliders[i].passive = isApproaching;
@@ -260,6 +256,7 @@ export class Wooks {
         }
       }
       w.position.y = terrainHeight(w.position.x, w.position.z);
+      tickWook(w,dt);
       this.colliders[i].position.copy(w.position);
       this.colliders[i].position.y += 1;
     }

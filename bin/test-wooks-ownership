@@ -21,7 +21,7 @@ function load(path) {
  let seed=1977,draws=0;const poses=[];
  const math=Object.assign(Object.create(Math),{random(){draws++;seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2**32;}});
  const code=placement+strip(readFileSync(new URL(path,import.meta.url),'utf8'));
- const Class=runInNewContext(code+';Wooks',{Math:math,PeopleRuntime,PersonHandles,disposeSceneResources,THREE:{Group:Node,Vector3:Vector},buildWook:()=>new Node(),tickWook:(w,dt)=>poses.push([w.position.x,w.position.z,w.rotation.y,dt]),terrainHeight:(x,z)=>17+.03*x-.02*z,isPointInLake:()=>false,projectOutOfLake:()=>null});
+ const Class=runInNewContext(code+';Wooks',{Math:math,PeopleRuntime,PersonHandles,disposeSceneResources,THREE:{Group:Node,Vector3:Vector},buildWook:()=>new Node(),tickWook:(w,dt)=>poses.push([w.position.x,w.position.y,w.position.z,w.rotation.y,dt]),terrainHeight:(x,z)=>17+.03*x-.02*z,isPointInLake:()=>false,projectOutOfLake:()=>null});
  return {Class,poses,get draws(){return draws;}};
 }
 function tripFixture(){
@@ -49,7 +49,8 @@ for(let frame=0;frame<400;frame++){
   const snap=w=>JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(w.userData).filter(([key])=>key!=='personHandle'))));
   assert.deepEqual(snap(b),snap(a));assert.deepEqual(JSON.parse(JSON.stringify(after.colliders[i])),JSON.parse(JSON.stringify(before.colliders[i])));
  }
- assert.deepEqual(current.poses,old.poses);current.poses.length=old.poses.length=0;
+ assert.deepEqual(current.poses.map(p=>[p[0],p[2],p[3],p[4]]),old.poses.map(p=>[p[0],p[2],p[3],p[4]]));
+ for(let i=0;i<after.wooks.length;i++)assert.equal(current.poses[i][1],after.wooks[i].position.y,'wook animation samples its grounded final position');current.poses.length=old.poses.length=0;
  assert.equal(current.draws,old.draws,'unchanged random stream');
  after.copyPositions(positions);assert.deepEqual(positions.map(p=>[p.x,p.y,p.z]),Array.from(before.wooks,w=>[w.position.x,w.position.y,w.position.z]));
  oldTrip.trip.update(.05,cart.position,Math.abs(cart.speed),Array.from(before.wooks,w=>w.position));

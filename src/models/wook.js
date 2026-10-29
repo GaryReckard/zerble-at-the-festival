@@ -1,3 +1,4 @@
+import {bindLocomotion,addStrideMorphs,tickLocomotion} from './personLocomotion.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mulberry32 } from '../rng.js';
@@ -8,18 +9,19 @@ material.userData.shared = true;
 
 function geometry(build) {
   const pieces = [];
-  const add = (source, color, position = [0, 0, 0], scale = [1, 1, 1]) => {
+  const add = (source, color, position = [0, 0, 0], scale = [1, 1, 1],side=0) => {
     const g = source.index ? source.toNonIndexed() : source.clone();
     source.dispose();
     g.deleteAttribute('uv');
     g.scale(...scale); g.translate(...position);
     const c = new THREE.Color(color), colors = new Float32Array(g.attributes.position.count * 3);
     for (let i = 0; i < colors.length; i += 3) { colors[i] = c.r; colors[i + 1] = c.g; colors[i + 2] = c.b; }
+    g.setAttribute('strideSide',new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(side),1));
     g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     pieces.push(g);
   };
-  const oval = (color, position, scale) => add(new THREE.SphereGeometry(1, 10, 7), color, position, scale);
-  const box = (color, position, scale) => add(new THREE.BoxGeometry(1, 1, 1), color, position, scale);
+  const oval = (color, position, scale,side=0) => add(new THREE.SphereGeometry(1, 10, 7), color, position, scale,side);
+  const box = (color, position, scale,side=0) => add(new THREE.BoxGeometry(1, 1, 1), color, position, scale,side);
   const rope = (points, radius, color) => add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(...p))), 10, radius, 5, false), color);
   build({ add, oval, box, rope });
   const merged = mergeGeometries(pieces, false);
@@ -36,10 +38,10 @@ function template(variant) {
   const hairColors = [0x342b20, 0x4b3b27, 0x665033, 0x887047, 0xa18a60];
   const body = geometry(({ add, oval, box, rope }) => {
     for (const side of [-1, 1]) {
-      oval(0x494338, [side * .19, .42, .03], [.17, .34, .19]);
-      oval(skin, [side * .19, .12, -.09], [.14, .09, .24]);
-      box(0x302921, [side * .19, .045, -.08], [.29, .07, .47]);
-      box(dark, [side * .19, .16, -.13], [.27, .045, .10]);
+      oval(0x494338, [side * .19, .42, .03], [.17, .34, .19],side);
+      oval(skin, [side * .19, .12, -.09], [.14, .09, .24],side);
+      box(0x302921, [side * .19, .045, -.08], [.29, .07, .47],side);
+      box(dark, [side * .19, .16, -.13], [.27, .045, .10],side);
     }
     add(new THREE.CylinderGeometry(.39, .44, .98, 16, 1), cloth, [0, 1.14, 0], [1, 1, .8]);
     oval(cloth, [0, 1.59, .04], [.43, .19, .32]);
@@ -70,6 +72,7 @@ function template(variant) {
     add(new THREE.CylinderGeometry(.283, .293, .16, 20), 0x72502d, [0, 2.36, -.025], [1, 1, .90]);
     for (const y of [2.305, 2.365, 2.415]) add(new THREE.CylinderGeometry(.295, .295, .016, 20, 1, true), 0xa88148, [0, y, -.025], [1, 1, .90]);
   });
+  addStrideMorphs(body,.76);
   const hair = geometry(({ oval, rope }) => {
     oval(hairColors[0], [0, 2.39, .08], [.33, .23, .29]);
     for (let i = 0; i < 28; i++) {
@@ -94,6 +97,7 @@ function template(variant) {
     oval(skin, [0, -.66, -.015], [.105, .14, .095]);
     oval(skin, [.08, -.64, -.06], [.045, .075, .045]);
   });
+  hair.deleteAttribute('strideSide');arm.deleteAttribute('strideSide');
   return { body, hair, arm };
 }
 
@@ -114,21 +118,24 @@ export function buildWook(rng = Math.random) {
     const mesh = new THREE.Mesh(geo, material); mesh.name = name;
     mesh.castShadow = true; body.add(mesh);
   }
+  const walkArms=[];
   for (const side of [-1, 1]) {
     const arm = new THREE.Mesh(t.arm, material);
     arm.position.set(side * .43, 1.57, 0);
     arm.rotation.z = side * .12;
-    body.add(arm);
+    body.add(arm);walkArms.push(arm);
   }
   root.userData.swayPhase = phase;
+  bindLocomotion(root,{body,arms:walkArms,morphs:[body.children[0]],height:1.2,hip:.76,toe:.33,phase});
   return root;
 }
 
 export function tickWook(model, dt) {
   model.userData.animationTime=(model.userData.animationTime??0)+dt;
+  const walk=tickLocomotion(model,dt);
   const t = model.userData.animationTime * 2 + model.userData.swayPhase;
   const body = model.children[0];
   if (!body) return;
-  body.rotation.z = Math.sin(t) * .10;
-  body.rotation.x = Math.cos(t * .7) * .055;
+  body.rotation.z = Math.sin(t) * (walk?.active?.035:0);
+  body.rotation.x = Math.cos(t * .7) * (walk?.active?.02:0);
 }

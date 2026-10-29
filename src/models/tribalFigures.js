@@ -1,3 +1,5 @@
+import {sampleStridePose} from '../personMotion.js';
+import {bindLocomotion,stridePivot,applyLocomotionPose} from './personLocomotion.js';
 // Tribal-aesthetic figures for the LEAF drum circle: dancers orbiting the
 // fire, seated drummers on the benches, the firekeeper + spotter pair.
 //
@@ -88,6 +90,7 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
   // Drummers' legs are mostly hidden by the bench but we draw them anyway
   // so seated drummers have proper knees if the camera gets low.
   const legMat = isBlackClad ? lowerMat : skinMat;
+  const danceLegs=[];
   for (const lx of [-0.10, 0.10]) {
     const leg = new THREE.Mesh(
       new THREE.CylinderGeometry(0.085, 0.085, 0.55, 6),
@@ -96,6 +99,7 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
     leg.position.set(lx, 0.30, 0);
     // Slim leg — torso/head shadow carries the silhouette.
     g.add(leg);
+    if(pose==='dance')danceLegs.push(stridePivot(g,lx,.575,leg));
   }
   // No shoes — barefoot.
 
@@ -271,6 +275,10 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
   // The central updater pokes these refs each frame. Closures over local
   // state for things like phase offsets.
   const phase = rng() * Math.PI * 2;
+  if(pose==='dance'){
+    const body=new THREE.Group();for(const child of [...g.children])body.add(child);g.add(body);
+    bindLocomotion(g,{body,legs:danceLegs,height:.9,hip:.575,toe:.085,phase});
+  }
 
   return {
     group: g,
@@ -400,6 +408,8 @@ function smoothstep01(x) {
 }
 
 function updateDancer(t, f) {
+  const walk=f.group.userData.locomotion;
+  applyLocomotionPose(f.group,sampleStridePose(t*5+f.phase,.8,.9,walk.pose));
   // Figures are parented to the drum-circle group whose origin sits at the
   // fire — so dancers move in LOCAL coords with the fire at (0,0,0). Each
   // dancer has its own orbit speed + phase; the radius modulates so one

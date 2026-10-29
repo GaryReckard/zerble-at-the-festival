@@ -1,0 +1,146 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync,readdirSync} from 'node:fs';
+import * as THREE from 'three';
+import {sampleLocomotion,sampleWalkMotion} from '../src/personMotion.js';
+import {buildKid,tickKid} from '../src/models/kid.js';
+import {buildWook,tickWook} from '../src/models/wook.js';
+import {buildFrisbeePlayer,tickFrisbeePlayer} from '../src/models/frisbeePlayer.js';
+import {buildBandMember,tickBandMember} from '../src/models/bandMember.js';
+import {buildParasolMarshal,tickParasolMarshal} from '../src/models/parasolMarshal.js';
+import {buildHulaHooper,tickHulaHooper} from '../src/models/hulaHooper.js';
+import {buildPuppet,tickPuppet} from '../src/models/puppet.js';
+
+import {buildFireDancer,updateTribalFigures} from '../src/models/tribalFigures.js';
+import {tickLocomotion,applyLocomotionPose} from '../src/models/personLocomotion.js';
+import {HulaSession} from '../src/people/hulaSession.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+import {buildMonk} from '../src/models/monk.js';
+import {disposeSceneResources} from '../src/people/sceneResources.js';
+import {loadGroupParticipation} from './test-support/groupParticipation.mjs';
+globalThis.window={innerWidth:1200,innerHeight:800,__perfProfile:'low'};
+const {buildApronCook,updateSugarShackCooks,sugarShackCooks}=await import('../src/models/sugarShack.js');
+delete globalThis.window;
+const near=(a,b,tolerance=1e-7)=>assert(Math.abs(a-b)<tolerance,`${a} != ${b}`);
+const families=[
+ ['children',()=>buildKid(()=>.8),tickKid,3],
+ ['wooks',()=>buildWook(()=>.4),tickWook,1.2],
+ ['legacy frisbee',()=>buildFrisbeePlayer(()=>.4),tickFrisbeePlayer,2.6],
+ ['band',()=>buildBandMember('trumpet',37),tickBandMember,1.8],
+ ['marshal',buildParasolMarshal,tickParasolMarshal,1.8],
+ ['hoopers',()=>buildHulaHooper(()=>.4),tickHulaHooper,.25],
+ ['parade',()=>buildPuppet('heron',37),tickPuppet,2.4],
+ ['cook',()=>buildApronCook(()=>.4),tickLocomotion,1.1],
+];
+const borrowed=makePeopleCrowd(),handle=borrowed.spawnPerson({pos:new Vector()}),record=borrowed.peopleHandles.resolve(handle),claim=borrowed.claimActivity(handle,{owner:{}});
+record.scale=1;record.bob=.4;
+borrowed.writeActivityPose(claim,.05,0,0,0,null,.05);assert(sampleWalkMotion(record,{}).active,'borrowed actor strides while its state remains idle');
+borrowed.writeActivityPose(claim,.05,0,0,0);near(sampleWalkMotion(record,{}).stride,0);assert(borrowed.isPersonActivityCurrent(claim),'stopping retains the same activity claim');
+borrowed.writeActivityPose(claim,.1,0,0,0,null,0);assert(!sampleWalkMotion(record,{}).active,'zero-delta travel cannot animate');
+borrowed.writeActivityPose(claim,.15,0,0,0,null,.05);assert(sampleWalkMotion(record,{}).active);
+const successor=borrowed.claimActivity(handle,{owner:{}});assert(!borrowed.writeActivityPose(claim,.2,0,0,0,null,.05));assert.equal(record._activityWalk,null,'claim replacement clears stale travel');borrowed.endPersonActivity(successor);
+let canMove=true;
+const hula=new HulaSession({people:borrowed,eligible:()=>true,place:{reserve:()=>({}),isLive:()=>true,show(){},release(){},target(_r,_phase,out){Object.assign(out,{x:2,y:0,z:0});return true;},canMove:()=>canMove}});
+assert(hula.start(handle));hula.update(.05);assert(sampleWalkMotion(record,{}).active);const hulaClaim=hula.claim;
+canMove=false;hula.update(.05);assert.equal(hula.claim,hulaClaim);near(sampleWalkMotion(record,{}).stride,0);hula.dispose();
+// Orbiting fire dancers keep seekable choreography and gain shared footwork.
+const dancer=buildFireDancer(()=>.4);updateTribalFigures(1,1,[dancer]);
+assert(dancer.group.userData.locomotion.pose.active);const dancerPose=JSON.stringify(dancer.group.userData.locomotion.pose);
+updateTribalFigures(6,1,[dancer]);updateTribalFigures(1,1,[dancer]);assert.equal(JSON.stringify(dancer.group.userData.locomotion.pose),dancerPose,'absolute dancer footwork remains seekable');disposeSceneResources(dancer.group);
+// Cooks retain their patrol and stop while holding at a station.
+const cook=buildApronCook(()=>.4),cookEntry={cook,holdLeft:0,currentIdx:0,targetIdx:1,walkSpeed:1,waypoints:[{x:0,z:0},{x:1,z:0,facing:0,holdMin:1,holdMax:1}]};sugarShackCooks.push(cookEntry);
+updateSugarShackCooks(.05);assert(cook.userData.locomotion.pose.active);cookEntry.holdLeft=1;updateSugarShackCooks(.05);near(cook.userData.locomotion.pose.stride,0);sugarShackCooks.splice(sugarShackCooks.indexOf(cookEntry),1);disposeSceneResources(cook);
+let frames=0;const soleMeasurements=[];
+const point=new THREE.Vector3();
+function soleY(model,u){model.updateMatrixWorld(true);let min=Infinity;
+ const inspect=(mesh,morphed=false)=>{if(!mesh.geometry)return;const g=mesh.geometry;for(let i=0;i<g.attributes.position.count;i++){if(morphed){const d=g.morphAttributes.position[1];if(d.getY(i)===0&&d.getZ(i)===0)continue;}mesh.getVertexPosition(i,point);point.applyMatrix4(mesh.matrixWorld);min=Math.min(min,point.y);}};
+ for(const leg of u.legs)leg.traverse(o=>inspect(o));for(const mesh of u.morphs)inspect(mesh,true);return min;}
+for(const [name,build,tick,speed] of families){
+ const model=build(),u=model.userData.locomotion;
+ assert(u,`${name} publishes its shared locomotion adapter`);
+ let minSole=Infinity;
+ const snapshot=()=>({legs:u.legs.map(p=>p.rotation.x),arms:u.arms.map(p=>p?.rotation.x),morphs:u.morphs.map(m=>[...m.morphTargetInfluences]),pose:{...u.pose}});
+ for(let i=0;i<80;i++){
+  model.position.z-=speed/60;tick(model,1/60);frames++;
+  minSole=Math.min(minSole,soleY(model,u));
+  assert(u.pose.active,`${name} moving pose`);assert(Object.values(u.pose).every(x=>typeof x==='boolean'||Number.isFinite(x)));
+  if(u.legs.length){assert(u.legs[0].rotation.x*u.legs[1].rotation.x<=0,`${name} opposing legs`);near(Math.abs(u.legs[0].rotation.x),Math.abs(u.pose.stride));}
+  const before=snapshot();tick(model,0);assert.deepEqual(snapshot(),before,`${name} repeated render must preserve accepted pose`);
+ }
+ const phase=u.gaitPhase;model.position.x+=100;tick(model,1/60);near(u.gaitPhase,phase);near(u.pose.stride,0);
+ tick(model,1/60);assert(!u.pose.active,`${name} stationary pose`);near(u.pose.stride,0);if(u.body)near(u.body.position.y,u.ground);
+ assert(minSole>=-.005,`${name} soles remain within 5mm of the flat fixture floor (${minSole})`);
+ soleMeasurements.push({family:name,minY:+minSole.toFixed(5)});
+ // Reused pooled templates survive teardown of another instance.
+ disposeSceneResources(model);const replacement=build();replacement.position.z-=speed/60;tick(replacement,1/60);assert(replacement.userData.locomotion.pose.active);
+ disposeSceneResources(replacement);
+}
+// The pure adapter agrees across accepted frame rates without model-specific formulas.
+for(const scale of [.7,1,1.2]){
+ const result=[];for(const hz of [30,60,120]){const t={},out={};sampleLocomotion(t,0,0,1.4,scale,true,out,.4);for(let i=1;i<=hz;i++)sampleLocomotion(t,0,-i*1.4/hz,1.4,scale,true,out,.4);result.push(t.gaitPhase);}
+ near(result[0],result[1]);near(result[1],result[2]);
+}
+// Verify merged rotation and normal morphs against an independent rigid rotation.
+for(const model of [buildWook(()=>.4),buildBandMember('trumpet',37)]){
+ const mesh=model.userData.locomotion.morphs[0],g=mesh.geometry,p=g.attributes.position,n=g.attributes.normal,hip=model.name==='Wook'?.76:.8;
+ const bytes=[...g.morphAttributes.position,...g.morphAttributes.normal].reduce((sum,a)=>sum+a.array.byteLength,0);
+ console.log('Merged stride buffers: '+JSON.stringify({family:model.name,vertices:p.count,bytes}));
+ let moving=0,rigid=0;
+ for(let i=0;i<p.count;i++){
+  const d0=g.morphAttributes.position[0],d1=g.morphAttributes.position[1];
+  if(d0.getY(i)===0&&d0.getZ(i)===0&&d1.getY(i)===0&&d1.getZ(i)===0){rigid++;continue;}
+  moving++;const a=(p.getX(i)>0?1:-1)*.42,c=Math.cos(a),s=Math.sin(a),y=p.getY(i)-hip,z=p.getZ(i);
+  near(p.getY(i)+Math.sin(.42)*d0.getY(i)+(Math.cos(.42)-1)*d1.getY(i),hip+c*y-s*z);
+  near(p.getZ(i)+Math.sin(.42)*d0.getZ(i)+(Math.cos(.42)-1)*d1.getZ(i),s*y+c*z);
+  near(n.getY(i)+Math.sin(.42)*g.morphAttributes.normal[0].getY(i)+(Math.cos(.42)-1)*g.morphAttributes.normal[1].getY(i),c*n.getY(i)-s*n.getZ(i));
+ }
+ assert(moving>100&&rigid>100,'only tagged legs/shoes deform inside the merged body');
+ assert(g.userData.shared&&mesh.material.userData.shared,'merged gait retains pooled geometry/material ownership');
+ disposeSceneResources(model);
+}
+// Occupied child hands remain still. Free arms oppose legs without detaching props.
+for(const draw of [.1,.6,.8]){
+ const kid=buildKid(()=>draw),u=kid.userData.locomotion;
+ for(let i=0;i<5;i++){kid.position.z-=.05;tickKid(kid,1/60);}
+ assert(u.arms[0].rotation.x*u.legs[0].rotation.x<=0);
+ if(draw<.75){assert.equal(u.arms[1],null);near(kid.children[0].children.find(p=>p.position.x===.20)?.rotation.x??0,0);}
+ disposeSceneResources(kid);
+}
+// Throws and catches retain their authored right-hand targets while travelling.
+for(const action of ['catch','throw']){
+ const a=buildFrisbeePlayer(()=>.4),b=buildFrisbeePlayer(()=>.4);
+ for(let i=0;i<10;i++){a.position.z-=.04;tickFrisbeePlayer(a,1/60,action,.7);tickFrisbeePlayer(b,1/60,action,.7);}
+ assert.deepEqual(a.userData.armRigs.right.shoulder.rotation.toArray(),b.userData.armRigs.right.shoulder.rotation.toArray());
+ assert.deepEqual(a.userData.armRigs.right.elbow.rotation.toArray(),b.userData.armRigs.right.elbow.rotation.toArray());
+ disposeSceneResources(a);disposeSceneResources(b);
+}
+// Borrowed frisbee and hula actors travel through Crowd; authored body/arm poses
+// take priority at the activity site, where eligibility clears their old stride.
+for(const activity of ['frisbeeActivity','hulaSession']){
+ const source=readFileSync(new URL(`../src/people/${activity}.js`,import.meta.url),'utf8');
+ assert(source.includes('Math.atan2(-dx,-dz),null,dt)'),activity+' supplies accepted travel through its ownership interface');
+}
+for(const state of ['walking','fleeing','camp_walking','market_walking']){
+ const npc={pos:{x:0,z:0},vel:{x:1.4,z:0},state,scale:1,bob:.7};assert(sampleWalkMotion(npc,{}).active);
+ npc.state='idle';near(sampleWalkMotion(npc,{}).stride,0);
+}
+// Monks receive a copy of shared locomotion through their existing ownership
+// barrier; seats and stationary states cannot continue the feet's clock gait.
+const monk=buildMonk(),npc={state:'walking',pos:new THREE.Vector3(),vel:new THREE.Vector3(1.4,0,0),scale:1,bob:.4,yaw:0};
+let pose; npc._groupBinding={pose:{},binding:{publish:p=>pose={...p}}};const {publishGroupBinding}=loadGroupParticipation();
+publishGroupBinding(npc);npc.pos.x+=.1;publishGroupBinding(npc);assert(Math.abs(pose.stride)>.01);
+monk.userData.pose(pose.bob,pose.speed,pose.sitting,pose.pole,pose.stride,pose.arm);
+for(const state of ['idle','camp_seated','table_seated','riding','hammock_riding']){npc.state=state;publishGroupBinding(npc);near(pose.stride,0);}
+disposeSceneResources(monk);
+// Explicit inventory: a new population importing a humanoid builder requires a
+// documented motion policy, including intentionally stationary/display families.
+const inventory=JSON.parse(readFileSync(new URL('../verification/people/locomotion-families.json',import.meta.url),'utf8'));
+for(const family of inventory){assert(family.policy&&family.sources.length);for(const file of family.sources)assert(readFileSync(new URL('../'+file,import.meta.url),'utf8').length);}
+const owned=new Set(inventory.flatMap(f=>f.sources));
+for(const file of readdirSync(new URL('../src/people',import.meta.url)))if(file.endsWith('.js')){
+ const path='src/people/'+file,source=readFileSync(new URL('../'+path,import.meta.url),'utf8');
+ const modelBuilderImport=[...source.matchAll(/^import\s+([\s\S]*?)from\s+['"]([^'"]+)['"];?/gm)].some(([,names,module])=>module.includes('/models/')&&/\bbuild[A-Z]\w*/.test(names));
+ if(modelBuilderImport)assert(owned.has(path),'new model builder needs a family coverage policy: '+path);
+}
+console.log('Measured minimum moving sole Y in metres: '+JSON.stringify(soleMeasurements));
+console.log(`PASS family locomotion: ${families.length} native rigs, ${frames} moving/zero-delta frames, relocations/rest, exact merged position/normal morphs, protected hands, borrowed activities, monk ownership and ${inventory.length} documented family policies.`);

@@ -1,4 +1,4 @@
-import {ARM_SHOULDER_Y,isStageDancing,sampleDanceArmPose,sampleThrowPose,sampleArmHand,armShader,crossLegShader} from './personMotion.js';
+import {ARM_SHOULDER_Y,isStageDancing,sampleDanceArmPose,sampleThrowPose,sampleArmHand,sampleWalkMotion,walkingArrivalSpeed,idleSwayDelta,armShader,crossLegShader} from './personMotion.js';
 import {CampActivity} from './people/campActivity.js';
 import {MarketActivity} from './people/marketActivity.js';
 import {PottyActivity} from './people/pottyActivity.js';
@@ -242,6 +242,8 @@ export class Crowd {
 
     const crossed=new Float32Array(MAX_NPCS);
     for(const geo of [legsGeo,shoesGeo])geo.setAttribute('crossLegged',new THREE.InstancedBufferAttribute(crossed,1));
+    const strides=new Float32Array(MAX_NPCS);
+    for(const geo of [legsGeo,shoesGeo])geo.setAttribute('walkStride',new THREE.InstancedBufferAttribute(strides,1));
 
     // ---- Body (torso): capsule centered at y=1.0 ----
     const bodyGeo = new THREE.CapsuleGeometry(BODY_RADIUS, BODY_LENGTH, 3, 6);
@@ -455,7 +457,7 @@ export class Crowd {
       mat.onBeforeCompile=shader=>{shader.vertexShader=crossLegShader+shader.vertexShader
         .replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=foldPicnicLeg(objectNormal,true);')
         .replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=foldPicnicLeg(transformed,false);');};
-      mat.customProgramCacheKey=()=> 'crowd-cross-legged-v1';
+      mat.customProgramCacheKey=()=> 'crowd-stride-v2';
     }
     // ---- InstancedMeshes ----
     this.legsMesh  = new THREE.InstancedMesh(legsGeo,  legsMat,  MAX_NPCS);
@@ -463,7 +465,7 @@ export class Crowd {
     for(const mesh of [this.legsMesh,this.shoesMesh]){
       mesh.customDepthMaterial=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking});
       mesh.customDepthMaterial.onBeforeCompile=shader=>{shader.vertexShader=crossLegShader+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=foldPicnicLeg(transformed,false);');};
-      mesh.customDepthMaterial.customProgramCacheKey=()=> 'crowd-cross-legged-depth-v1';
+      mesh.customDepthMaterial.customProgramCacheKey=()=> 'crowd-stride-depth-v2';
     }
     this.bodyMesh  = new THREE.InstancedMesh(bodyGeo,  bodyMat,  MAX_NPCS);
     this.armsMesh  = new THREE.InstancedMesh(armsGeo,  armsMat,  MAX_NPCS);
@@ -1278,7 +1280,7 @@ export class Crowd {
           npc.stateTimer = 10 + Math.random() * 12;
         }
         // Tiny in-place sway driven by music dance
-        npc.yaw += Math.sin(npc.bob * 0.5) * 0.01 * npc.dance;
+        npc.yaw += idleSwayDelta(npc.bob,npc.dance,dt);
         break;
       }
 
@@ -1292,7 +1294,7 @@ export class Crowd {
         } else {
           desiredX = tdx / td;
           desiredZ = tdz / td;
-          speed = 1.4 * npc.energy;
+          speed = walkingArrivalSpeed(1.4*npc.energy,td,ARRIVE_RADIUS);
         }
         break;
       }
@@ -1591,6 +1593,7 @@ export class Crowd {
       }
       return;
     }
+    const walk=sampleWalkMotion(npc,this._walkPose??={});
     const m = this._mat4;
     const photo=samplePhotographerPose(npc.state,npc.stateTimer,npc.photoCrouch,npc.photoFlashTimer,this._photoRenderProfile??={});
     const photographing=photo.photographing;
@@ -1616,7 +1619,8 @@ export class Crowd {
       danceTilt=Math.sin(beat)*.13;
       danceYawWiggle=Math.sin(beat*.5)*.12;
     } else {
-      bobY = Math.sin(npc.bob) * 0.04;
+      // Idle feet stay grounded; locomotion owns the small hip rise/reach.
+      bobY = walk.active ? walk.bob : 0;
       danceTilt = npc.dance > 0.6 && (npc.state === 'idle' || npc.state === 'watching' || npc.state === 'riding')
         ? Math.sin(npc.bob * 2) * 0.05 * (npc.dance - 0.5)
         : 0;
@@ -1740,6 +1744,11 @@ export class Crowd {
     // Cheering NPCs get arms rotated up via _armsUpMat (same pattern as _sitLegMat).
     const folded=!!npc.picnicCrossLegged&&npc.state==='table_seated';
     for(const mesh of [this.legsMesh,this.shoesMesh]){const a=mesh.geometry.getAttribute('crossLegged');a.setX(npc.idx,folded?1:0);a.needsUpdate=true;}
+    for(const mesh of [this.legsMesh,this.shoesMesh]){
+      const stride=mesh.geometry.getAttribute('walkStride');
+      stride.setX(npc.idx,folded||seated||photo.crouch||hula||stageDancing||danceActivity?0:walk.stride);
+      stride.needsUpdate=true;
+    }
     if(folded){this.legsMesh.setMatrixAt(npc.idx,m);this.shoesMesh.setMatrixAt(npc.idx,m);}
     else if (photo.crouch) {
       this._legMat.multiplyMatrices(m, this._photoCrouchLegMat);
@@ -1795,6 +1804,11 @@ export class Crowd {
       sampleArmHand(armPose,armPose.hand).applyMatrix4(this._armsMat);
     }else if(hula){armAttr.setXYZW(npc.idx,.03,2.45,-.20,-2.45);}
     else if(dancing){const pose=sampleDanceArmPose(npc.bob,npc.dance,this._danceArmPose??={});armAttr.setXYZW(npc.idx,pose.x,pose.z,pose.elbow,pose.leftZ);leftAttr.setXY(npc.idx,pose.leftX,pose.leftElbow);}
+    else if(walk.active&&!seated&&!photographing&&!cheering&&!npc.campInstrument&&!npc.campMusic){
+      // Keep occupied hands steady so their existing rigid props stay attached.
+      armAttr.setXYZW(npc.idx,npc.drinkSlot>=0?0:walk.arm,0,0,0);
+      leftAttr.setXY(npc.idx,npc.shoppingBagTime>0?0:-walk.arm,0);
+    }
     else {armAttr.setXYZW(npc.idx,0,0,0,0);}
     armAttr.needsUpdate=true;leftAttr.needsUpdate=true;
     this.headMesh.setMatrixAt(npc.idx, m);
@@ -2308,14 +2322,18 @@ export class Crowd {
       try {release?.(current,reason);}
       finally {this.releaseActivityBinding(current);}
     }});
-    if(claim&&!preserveMotion){const npc=this.peopleHandles.resolve(handle);npc.state='idle';npc.vel.set(0,0,0);}
+    if(claim&&!preserveMotion){const npc=this.peopleHandles.resolve(handle);npc._activityWalk=null;npc.state='idle';npc.vel.set(0,0,0);}
     return claim;
   }
 
-  writeActivityPose(claim,x,y,z,heading=null,bob=null) {
+  writeActivityPose(claim,x,y,z,heading=null,bob=null,travelDt=null) {
     if(!this.activityClaims.canWrite(claim))return false;
     if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z)||(heading!==null&&!Number.isFinite(heading))||(bob!==null&&!Number.isFinite(bob)))throw new TypeError('Activity pose must be finite.');
+    if(travelDt!==null&&(!Number.isFinite(travelDt)||travelDt<0||travelDt>.05))throw new TypeError('Activity travel requires an accepted delta.');
     const npc=this.peopleHandles.resolve(claim.person);
+    const distance=Math.hypot(x-npc.pos.x,z-npc.pos.z);
+    if(travelDt!==null){const walk=npc._activityWalk??={};walk.claim=claim;walk.speed=travelDt>0&&distance<.5?distance/travelDt:0;}
+    else npc._activityWalk=null;
     npc.pos.set(x,y,z);if(heading!==null)npc.yaw=heading;if(bob!==null)npc.bob=bob;
     // Hidden rigs have no ordinary transform to publish; avoid redundant writes.
     if(!npc._activityBinding?.hidden)this._publishPerson(npc);
@@ -2354,6 +2372,7 @@ export class Crowd {
     if(!this.activityClaims.canRelease(claim))return false;
     const npc=this.peopleHandles.entries.get(claim.person.slot)?.record;
     let released=false;
+    if(npc?._activityWalk?.claim===claim){npc._activityWalk=null;released=true;}
     if(npc?._activityArmPose?.claim===claim){npc._activityArmPose=null;released=true;}
     if(npc?._activityBinding?.claim===claim){npc._activityBinding=null;released=true;}
     if(released&&this.peopleHandles.isLive(claim.person))this._publishPerson(npc);

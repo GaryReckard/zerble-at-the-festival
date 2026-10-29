@@ -19,6 +19,7 @@ not physical-device acceptance.
 
 ## People architecture acceptance
 
+- [People locomotion, October 29](people/locomotion.md), followed by the [specialist family coverage](people/locomotion-families.md): shared distance-driven strides, occupied hands, grounded stops, family policies, native Low/Mid evidence and measured buffer/geometry costs.
 - [Final coverage and limits](../openspec/changes/people-npc-architecture/acceptance.md): all 17 families, ownership/failure contracts, saved real-game traces and matched Low/Mid topology, with explicit CPU costs and physical-device limits.
 - [Before/after visual](people/architecture.html), [source-grounded diagrams](../openspec/changes/people-npc-architecture/architecture-visual.md) and [extension contract](../openspec/changes/people-npc-architecture/extension-guide.md).
 

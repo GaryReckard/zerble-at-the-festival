@@ -97,7 +97,7 @@ export class FrisbeeActivity {
     const dx=tx-catcher.x,dz=tz-catcher.z,d=Math.hypot(dx,dz);if(d<.05)return;
     const step=Math.min(d,2.6*dt),x=catcher.x+dx/d*step,z=catcher.z+dz/d*step,s=slot.session;
     if(!isPointInLake(x,z)&&!registry.closestBuilding(this.point.set(x,0,z),.45)&&!this.people.hasPersonWithin(x,z,.7,s.persons[slot.catcher]))
-      this.people.writeActivityPose(s.claims[slot.catcher],x,terrainHeight(x,z),z,Math.atan2(-dx,-dz));
+      this.people.writeActivityPose(s.claims[slot.catcher],x,terrainHeight(x,z),z,Math.atan2(-dx,-dz),null,dt);
   }
   inspect(out){out.active=this.slots.filter(s=>s.session.phase!=='idle').length;out.disposed=this.disposed;}
   dispose(){if(this.disposed)return;this.disposed=true;const errors=[];

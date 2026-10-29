@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>People locomotion in the game</title>
+<style>body{margin:20px;background:#171c23;color:#efe9da;font:15px system-ui}iframe{width:1100px;height:650px;border:0;transform:scale(.5);transform-origin:top left}.game{height:325px}pre{white-space:pre-wrap;overflow-wrap:anywhere}button{padding:8px}</style>
+<h1>Real-game people smoke test</h1><p>Click the ready Just Cruisin’ plank inside the game, then inspect the running population.</p>
+<button id="inspect">Inspect people</button><button id="noon">Noon</button><button id="midnight">Midnight</button><pre id="result">Awaiting the real start gesture.</pre><div class="game"><iframe id="game"></iframe></div>
+<script>
+const frame=document.querySelector('#game'),result=document.querySelector('#result');
+frame.src='/?mute=1&seed=1234&perf='+ (new URLSearchParams(location.search).get('perf')==='mid'?'mid':'low');
+function inspect(){const dbg=frame.contentWindow.__dbg,game=dbg?.game,c=game?.crowd;if(!c){result.textContent='Game is not ready';return;}
+ const a=c.legsMesh.geometry.getAttribute('walkStride');let moving=0,nonfinite=0,protectedStrides=0;
+ for(const n of c.npcs){const stride=a.getX(n.idx);if(Math.abs(stride)>.001)moving++;if(!Number.isFinite(stride))nonfinite++;if(['riding','camp_seated','table_seated','hammock_riding'].includes(n.state)&&stride!==0)protectedStrides++;}
+ const families=[['children',game.kids?.kids],['wooks',game.wooks?.wooks],['band',game.band?.members],['parade',game.puppets?.puppets]].map(([family,models])=>({family,count:models?.length??0,moving:models?.filter(m=>m.userData.locomotion?.pose.active).length??0,invalid:models?.filter(m=>!Number.isFinite(m.userData.locomotion?.pose.stride)).length??0}));
+ result.textContent=JSON.stringify({people:c.populationSize,moving,nonfinite,protectedStrides,families,activityTravellers:c.npcs.filter(n=>n._activityWalk?.speed>0).length,states:[...new Set(c.npcs.map(n=>n.state))]},null,2);
+}
+document.querySelector('#inspect').onclick=inspect;document.querySelector('#noon').onclick=()=>{frame.contentWindow.__dbg?.tod(.25);inspect();};document.querySelector('#midnight').onclick=()=>{frame.contentWindow.__dbg?.tod(.75);inspect();};
+addEventListener('pagehide',()=>{frame.src='about:blank';},{once:true});
+</script>

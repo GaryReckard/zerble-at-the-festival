@@ -66,11 +66,12 @@ Play in a modern browser: <https://garyreckard.github.io/zerble-at-the-festival/
 To play from a local checkout, install Node.js 24 and run:
 
 ```
-npm ci
-npm run dev
+./start
 ```
 
-Then visit `http://127.0.0.1:8765`. For development, see the [contributor documentation](docs/README.md).
+Then visit `http://127.0.0.1:8747`. The launcher installs dependencies on first use;
+press `Ctrl+C` to stop the server. `npm start` does the same thing. For development,
+see the [contributor documentation](docs/README.md).
 
 ## Tech
 

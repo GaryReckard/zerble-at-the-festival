@@ -64,12 +64,12 @@ export function buildMonk(variant=0) {
     const arms=[mesh(t.left),mesh(t.right)],feet=[mesh(t.foot),mesh(t.foot)];
     arms.forEach((m,i)=>m.position.set(i?-.21:.21,1.22,0));
     feet.forEach((m,i)=>m.position.set(i?-.105:.105,.12,0));
-    root.userData.pose=(phase,speed,sitting=false,pole=false)=>{
+    root.userData.pose=(phase,speed,sitting=false,pole=false,stride=0,arm=0)=>{
         skirt.visible=!sitting;seated.visible=sitting;
-        skirt.rotation.z=sitting?0:Math.sin(phase)*Math.min(speed,.8)*.025;
-        feet.forEach((m,i)=>{m.visible=!sitting;m.position.z=Math.sin(phase*3+i*Math.PI)*Math.min(speed,.8)*.11;});
+        skirt.rotation.z=sitting?0:stride*.04;
+        feet.forEach((m,i)=>{m.visible=!sitting;m.position.z=(i?-1:1)*stride*.24;});
         arms.forEach((m,i)=>{
-            m.rotation.x=sitting?.65:Math.sin(phase*3+i*Math.PI)*Math.min(speed,.8)*.18;
+            m.rotation.x=sitting?.65:pole&&i===0?0:(i?-1:1)*arm;
             m.rotation.z=pole&&i===0?2.5:0;
         });
     };

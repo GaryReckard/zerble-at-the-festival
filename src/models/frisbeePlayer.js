@@ -1,3 +1,4 @@
+import {bindLocomotion,stridePivot,tickLocomotion} from './personLocomotion.js';
 import {sampleThrowPose} from '../personMotion.js';
 // Frisbee player — a festivalgoer with a small procedural arm rig.
 //
@@ -50,6 +51,7 @@ export function buildFrisbeePlayer(rng = Math.random) {
   });
 
   // Legs
+  const walkLegs=[];
   const legGeo = new THREE.CylinderGeometry(0.10, 0.10, 0.65, 8);
   for (const sx of [-1, 1]) {
     const leg = new THREE.Mesh(legGeo, pantsMat);
@@ -62,6 +64,7 @@ export function buildFrisbeePlayer(rng = Math.random) {
     );
     shoe.position.set(sx * 0.12, 0.035, -0.06);
     body.add(shoe);
+    walkLegs.push(stridePivot(body,sx*.12,.65,leg,shoe));
   }
 
   // Torso
@@ -163,6 +166,7 @@ export function buildFrisbeePlayer(rng = Math.random) {
   g.userData.armRigs = armRigs;
   g.userData.bodyGroup = body;
   g.userData.bobPhase = Math.random() * 10;
+  bindLocomotion(g,{body,legs:walkLegs,height:1,phase:g.userData.bobPhase});
   return g;
 }
 
@@ -173,8 +177,7 @@ export function tickFrisbeePlayer(model, dt, action = 'relaxed', amount = 0) {
   const u = model.userData;
   if (!u.bodyGroup || !u.armRigs) return;
   u.animationTime=(u.animationTime??0)+dt;
-  const t = u.animationTime * 4 + u.bobPhase;
-  u.bodyGroup.position.y = Math.abs(Math.sin(t)) * 0.04;
+  const walk=tickLocomotion(model,dt);
 
   const alpha = 1 - Math.exp(-14 * Math.min(dt, 0.25));
   const left = u.armRigs.left;
@@ -184,13 +187,13 @@ export function tickFrisbeePlayer(model, dt, action = 'relaxed', amount = 0) {
 
   approachRotation(
     left.shoulder,
-    RELAXED_SHOULDER_X,
+    RELAXED_SHOULDER_X+(walk?.arm??0),
     0,
     -RELAXED_SHOULDER_Z,
     alpha,
   );
   approachRotation(left.elbow, 0, 0, 0, alpha);
-  approachRotation(right.shoulder, rightShoulderX, 0, rightShoulderZ, alpha);
+  approachRotation(right.shoulder, rightShoulderX+(action==='relaxed'?-(walk?.arm??0):0), 0, rightShoulderZ, alpha);
   approachRotation(right.elbow, 0, 0, rightElbowZ, alpha);
 }
 

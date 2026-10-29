@@ -1,3 +1,4 @@
+import {bindLocomotion,tickLocomotion} from './personLocomotion.js';
 // Grand marshal of a New Orleans second-line brass band — an NPC holding up
 // a big colorful spinning parasol with ribbon streamers. children[0] is the
 // body so the caller can bob it for the marching anim. userData.parasol is
@@ -16,7 +17,7 @@ export function buildParasolMarshal() {
   const g = new THREE.Group();
 
   // White-tie marshal jacket (a brighter red than the standard band).
-  const body = buildSimpleNPC(0xa31e2e, 0xe6c098);
+  const body = buildSimpleNPC(0xa31e2e, 0xe6c098,{walk:true});
   g.add(body);
 
   // Tall band leader's hat — taller drum-major-style topper.
@@ -125,6 +126,7 @@ export function buildParasolMarshal() {
 
   g.userData.parasol = parasol;
   g.userData.bobPhase = Math.random() * 10;
+  bindLocomotion(g,{ground:.005,body,legs:body.userData.walkLegs,arms:[body.userData.shoulders[0],null],height:1,phase:g.userData.bobPhase});
   return g;
 }
 
@@ -136,9 +138,6 @@ export function tickParasolMarshal(model, dt) {
   if (!body) return;
   const u = model.userData;
   u.animationTime=(u.animationTime??0)+dt;
-  const t = u.animationTime * 4 + u.bobPhase;
-  // Feet-on-ground rest (buildSimpleNPC is feet-at-zero); the old `0.85 +` base
-  // floated the marshal. Match bandMember.js.
-  body.position.y = Math.abs(Math.sin(t * 2)) * 0.08;
+  tickLocomotion(model,dt);
   if (u.parasol) u.parasol.rotation.y += dt * 2.4;
 }

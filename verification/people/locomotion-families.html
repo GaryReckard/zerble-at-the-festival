@@ -1,0 +1,35 @@
+<!doctype html><meta charset="utf-8"><title>People family locomotion</title>
+<style>body{margin:20px;background:#171c23;color:#efe9da;font:15px system-ui}canvas{width:100%;display:block}button{padding:8px}pre{white-space:pre-wrap}</style>
+<h1>People family locomotion</h1><p>Children, wooks, frisbee players, musicians, marshal, hoopers, parade carriers and monks, through their production model updaters. Stride advances along an isolated straight path; Reset / idle tests grounded rest.</p>
+<button id="step">Next stride</button><button id="play">Play / pause</button><button id="idle">Reset / idle</button><button id="noon">Noon</button><button id="midnight">Midnight</button><pre id="result">Loading…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {buildKid,tickKid} from '../../src/models/kid.js';
+import {buildWook,tickWook} from '../../src/models/wook.js';
+import {buildFrisbeePlayer,tickFrisbeePlayer} from '../../src/models/frisbeePlayer.js';
+import {buildBandMember,tickBandMember} from '../../src/models/bandMember.js';
+import {buildParasolMarshal,tickParasolMarshal} from '../../src/models/parasolMarshal.js';
+import {buildHulaHooper,tickHulaHooper} from '../../src/models/hulaHooper.js';
+import {buildPuppet,tickPuppet} from '../../src/models/puppet.js';
+import {sampleLocomotion} from '../../src/personMotion.js';
+import {buildApronCook} from '../../src/models/sugarShack.js';
+import {buildFireDancer,updateTribalFigures} from '../../src/models/tribalFigures.js';
+import {tickLocomotion} from '../../src/models/personLocomotion.js';
+import {buildMonk} from '../../src/models/monk.js';
+import {disposeSceneResources} from '../../src/people/sceneResources.js';
+const scene=new THREE.Scene(),renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(1100,570);renderer.setPixelRatio(1);document.querySelector('#result').before(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(40,1100/570,.1,100);camera.position.set(5,7,-18);camera.lookAt(0,1,1);
+const ambient=new THREE.HemisphereLight(0xe3f2ff,0x6e7950,2),sun=new THREE.DirectionalLight(0xfff2d2,2.5);sun.position.set(-3,8,-5);scene.add(ambient,sun);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(40,25),new THREE.MeshStandardMaterial({color:0x829466,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
+const cases=[['child',buildKid(()=>.8),tickKid,3],['wook',buildWook(()=>.4),tickWook,1.2],['frisbee',buildFrisbeePlayer(()=>.4),tickFrisbeePlayer,2.6],['band',buildBandMember('trumpet',37),tickBandMember,1.8],['marshal',buildParasolMarshal(),tickParasolMarshal,1.8],['hooper',buildHulaHooper(()=>.4),tickHulaHooper,.25],['parade',buildPuppet('heron',37),tickPuppet,2.4],['monk',buildMonk(0),(m,dt)=>{const u=m.userData;u.locomotion??={pose:{}};const walk=dt>0?sampleLocomotion(u.locomotion,m.position.x,m.position.z,dt>0?Math.hypot(m.position.x-(u.locomotion.gaitX??m.position.x),m.position.z-(u.locomotion.gaitZ??m.position.z))/dt:0,1,true,u.locomotion.pose,.5):u.locomotion.pose;m.userData.pose(0,1,false,false,walk.stride,walk.arm);},1]];
+if(new URLSearchParams(location.search).has('extended')){const dancer=buildFireDancer(()=>.4);cases.push(['cook',buildApronCook(()=>.4),tickLocomotion,1.1],['dancer',dancer.group,(_m,dt)=>updateTribalFigures(time,1,[dancer]),.8]);}
+for(let i=0;i<cases.length;i++){const [,m]=cases[i];m.position.set((i%4-1.5)*3.1,0,i<4?-2:3);m.rotation.y=.35;scene.add(m);}
+let playing=false,time=0,raf,last=0,nightness=0;
+function render(dt=0,moving=true){time+=dt;for(const [name,m,tick,speed] of cases){m.position.z-=moving?speed*dt:0;tick(m,dt,name==='hooper'?nightness:undefined);m.position.z+=moving?speed*dt:0;if(m.userData.locomotion)m.userData.locomotion.gaitZ=m.position.z;}
+ renderer.render(scene,camera);let meshes=0,casters=0;scene.traverse(o=>{if(o.isMesh){meshes++;if(o.castShadow)casters++;}});
+ document.querySelector('#result').textContent=JSON.stringify({time:+time.toFixed(2),draws:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,meshes,casters,material:floor.material.type,families:cases.map(([name,m])=>({name,stride:m.userData.locomotion?.pose?.stride??null}))});}
+function light(n){nightness=n;scene.background=new THREE.Color(n?0x101b35:0xc3d9df);ambient.intensity=n?.7:2;sun.intensity=n?.45:2.5;render();}
+document.querySelector('#step').onclick=()=>render(.05);document.querySelector('#play').onclick=()=>playing=!playing;document.querySelector('#idle').onclick=()=>{playing=false;render(.05,false);};document.querySelector('#noon').onclick=()=>light(0);document.querySelector('#midnight').onclick=()=>light(1);
+function loop(t){if(playing)render(Math.min(.05,(t-last)/1000));last=t;raf=requestAnimationFrame(loop);}raf=requestAnimationFrame(loop);render(.05);light(0);
+addEventListener('pagehide',()=>{cancelAnimationFrame(raf);disposeSceneResources(scene);renderer.dispose();},{once:true});
+</script>

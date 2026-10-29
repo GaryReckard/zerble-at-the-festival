@@ -4,7 +4,12 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-29
 
+### Added
+- **Start the local game with `./start` or `npm start`.** The launcher installs missing dependencies and runs Vite at `http://127.0.0.1:8747`, with a clear `Ctrl+C` stop instruction, so playing locally no longer requires remembering server flags.
+
 ### Changed
+- **Specialist people share the travel gait.** Children, wooks, frisbee players, marching musicians, the parasol marshal, parade carriers, monks and patrolling cooks step as they travel, while hoopers shuffle and orbiting fire dancers retain authored footwork. Borrowed hula/frisbee participants now publish travel through their existing activity claims; occupied hands, instrument/throw poses and vehicle/seated poses retain priority. The eight-family comparison retains 131 draws and 41,103 triangles; [family policies, grounding tests, captures and measured costs](verification/people/locomotion-families.md).
+- **Adult festivalgoers take visible strides and ease into their stops.** Distance-driven legs and opposing arm swings reuse the existing instanced bodies, while occupied hands stay steady and seated/activity poses retain priority. Idle feet lose the old below-ground bob, and idle sway uses accepted time instead of frame count. The six-person comparison retains 16 draws and 7,320 triangles; [tests, captures and measurement limits](verification/people/locomotion.md).
 - **Development and deployment use Vite.** Agents use standard dev/check/build/preview commands, and ordinary imports replace five manually maintained module lists. All six entry pages build with pinned Three.js, preserving Low-tier materials, the entity-viewer exception and guided capture workflows. GitHub Actions checks pull requests and builds/deploys `main` to Pages; generated output stays untracked. See [the toolchain guide](docs/toolchain.md).
 
 ### Fixed

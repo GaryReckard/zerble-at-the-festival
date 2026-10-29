@@ -1,0 +1,152 @@
+[
+  {
+    "family": "Crowd adults",
+    "policy": "Shared distance gait; seated, sleeping, hammock, potty, photos, dance and instrument poses retain priority.",
+    "sources": [
+      "src/crowd.js",
+      "src/personMotion.js"
+    ]
+  },
+  {
+    "family": "Borrowed frisbee participants",
+    "policy": "Claim-validated travel delta drives Crowd legs; throw/catch arm joints retain priority.",
+    "sources": [
+      "src/people/frisbeeActivity.js",
+      "src/people/frisbeeSession.js"
+    ]
+  },
+  {
+    "family": "Borrowed hula participants",
+    "policy": "Approach/exit supply accepted travel; stationary hooping retains authored hip and raised-arm pose.",
+    "sources": [
+      "src/people/hulaActivity.js",
+      "src/people/hulaSession.js"
+    ]
+  },
+  {
+    "family": "Children",
+    "policy": "Travel stride and free arm; right accessory hand protected; bubble waiting is grounded.",
+    "sources": [
+      "src/people/children.js",
+      "src/models/kid.js"
+    ]
+  },
+  {
+    "family": "Wooks",
+    "policy": "Distance gait through cached rigid rotation morphs; small travel sway; grounded rest.",
+    "sources": [
+      "src/people/wooks.js",
+      "src/models/wook.js"
+    ]
+  },
+  {
+    "family": "Legacy frisbee players",
+    "policy": "Leg stride and free left arm; throwing/catching hand retains authored target.",
+    "sources": [
+      "src/people/frisbees.js",
+      "src/models/frisbeePlayer.js"
+    ]
+  },
+  {
+    "family": "Legacy hoopers",
+    "policy": "Small foot shuffle when drifting; raised arms and hip/hoop choreography preserved.",
+    "sources": [
+      "src/people/hoopers.js",
+      "src/models/hulaHooper.js"
+    ]
+  },
+  {
+    "family": "Brass band",
+    "policy": "Distance gait in merged performer body; playing arms and instrument remain authored.",
+    "sources": [
+      "src/people/brassBand.js",
+      "src/models/bandMember.js",
+      "src/models/performer.js"
+    ]
+  },
+  {
+    "family": "Parasol marshal",
+    "policy": "Distance gait; left arm free and right parasol hand steady.",
+    "sources": [
+      "src/models/parasolMarshal.js"
+    ]
+  },
+  {
+    "family": "Parade carriers",
+    "policy": "Distance gait under retained carrying/pole animation; absolute setPuppetTime remains a seekable authored preview.",
+    "sources": [
+      "src/people/puppetParade.js",
+      "src/models/puppet.js"
+    ]
+  },
+  {
+    "family": "Monks",
+    "policy": "Shared Crowd stride arrives through copied group pose; robe feet step, pole hand and seated pose protected.",
+    "sources": [
+      "src/monks.js",
+      "src/models/monk.js",
+      "src/people/groupParticipation.js"
+    ]
+  },
+  {
+    "family": "Patrolling Sugar Shack cooks",
+    "policy": "Distance gait between local waypoints; grounded holding at cooking stations.",
+    "sources": [
+      "src/models/sugarShack.js"
+    ]
+  },
+  {
+    "family": "Drum circle dancers",
+    "policy": "Seekable authored footwork shares gait shape; orbit, twirl and raised arms remain authored.",
+    "sources": [
+      "src/models/tribalFigures.js"
+    ]
+  },
+  {
+    "family": "Stage performers and sound engineers",
+    "policy": "Stationary instrument performance, no travel stride.",
+    "sources": [
+      "src/models/stage.js",
+      "src/models/tentStage.js"
+    ]
+  },
+  {
+    "family": "Healing Arts participants and DJ",
+    "policy": "Authored stretches/dance and managed Crowd travel; no walking imposed on dance.",
+    "sources": [
+      "src/models/healingArts.js",
+      "src/people/healingArtsMotion.js",
+      "src/healingArtsActivity.js"
+    ]
+  },
+  {
+    "family": "Static vendors and proprietors",
+    "policy": "Stationary counter displays, no walking imposed.",
+    "sources": [
+      "src/models/tent.js",
+      "src/models/bubbleVendor.js"
+    ]
+  },
+  {
+    "family": "Seated and vehicle riders",
+    "policy": "Vehicle/seat/balance/paddling poses retain ownership; vehicle translation is not a walking stride.",
+    "sources": [
+      "src/people/vehiclePersonFacet.js",
+      "src/oneWheels.js",
+      "src/models/oneWheelRider.js",
+      "src/models/canoe.js",
+      "src/lurleen.js",
+      "src/nutWagon.js",
+      "src/models/nutWagon.js",
+      "src/zerble.js"
+    ]
+  },
+  {
+    "family": "Place display scheduling",
+    "policy": "Dispatches existing stage/cook display owners, never duplicates people.",
+    "sources": [
+      "src/people/placeDisplay.js",
+      "src/main.js"
+    ]
+  }
+]

@@ -2,6 +2,49 @@
 export const ARM_SHOULDER_Y=1.35;
 const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
 const mix=(a,b,t)=>a+(b-a)*t;
+
+// Visual stride follows distance, not the idle/dance clock. Repeated render
+// publications cannot advance it, and relocations cannot create a giant step.
+const WALK_STATES = new Set(['walking','approaching','fleeing','disembarking',
+  'boarding','camp_walking','walking_to_hammock','walking_to_table',
+  'seeking_potty','entering_potty','exiting_potty','market_walking']);
+// Population adapters decide eligibility and supply their accepted motion. The
+// tracker can be reused by mesh, instance or robe renderers without Crowd state.
+export function sampleLocomotion(track,x,z,speed,scale,eligible,out,initialPhase=0,pace=1.4) {
+  const distance=Math.hypot(x-(track.gaitX??x),z-(track.gaitZ??z));
+  track.gaitX=x;track.gaitZ=z;track.gaitPhase??=initialPhase;
+  speed=eligible?Math.max(0,speed):0;
+  if(eligible&&speed>.08&&distance<.5)track.gaitPhase=(track.gaitPhase+distance*7/Math.max(.5,scale))%(Math.PI*2);
+  return sampleStridePose(track.gaitPhase,speed,scale,out,pace,eligible);
+}
+export function locomotionHipOffset(stride,hip,toe) {
+  return toe*Math.abs(Math.sin(stride))-hip*(1-Math.cos(stride));
+}
+// Absolute choreography (for example orbiting dancers) can share the same gait
+// shape while retaining its seekable accepted display clock.
+export function sampleStridePose(phase,speed,scale,out,pace=1.4,eligible=true) {
+  const amount=smooth((speed-.08)/pace);
+  out.stride=Math.sin(phase)*(.42+Math.min(speed,4)*.035)*amount;
+  out.arm=-out.stride*.65;
+  out.bob=locomotionHipOffset(out.stride,.65*scale,.18*scale);
+  out.active=eligible&&speed>.08;
+  return out;
+}
+
+export function sampleWalkMotion(npc,out) {
+  const eligible=(WALK_STATES.has(npc.state)||!!npc._activityWalk)&&!npc.pottySitting&&!npc.campInstrument&&!npc._activityBinding?.hidden;
+  return sampleLocomotion(npc,npc.pos.x,npc.pos.z,eligible?(npc._activityWalk?.speed??Math.hypot(npc.vel.x,npc.vel.z)):0,npc.scale,eligible,out,npc.bob);
+}
+
+// Ease the last metre of an ordinary wander without changing flee/boarding
+// velocities or getting stuck just outside the arrival threshold.
+export function walkingArrivalSpeed(speed,distance,arrivalRadius) {
+  return speed*(.25+.75*smooth((distance-arrivalRadius)/1.2));
+}
+
+export function idleSwayDelta(phase,dance,dt) {
+  return Math.sin(phase*.5)*.6*dance*dt;
+}
 export function sampleThrowPose(action,amount,out){
   out.x=.03;out.z=.10;out.elbow=0;out.leftZ=-.10;
   if(action==='catch'){const t=smooth(amount);out.x=mix(.03,-.38,t);out.z=mix(.10,1.98,t);out.elbow=-.10*t;}
@@ -77,8 +120,19 @@ vec3 articulateArm(vec3 v,bool normalOnly){
 // pants color. Rest-space x identifies the leg even after the feet cross.
 export const crossLegShader=`
 attribute float crossLegged;
+attribute float walkStride;
+vec3 strideLeg(vec3 v,bool normalOnly){
+ float angle=position.x>0.0?walkStride:-walkStride;
+ if(angle==0.0)return v;
+ vec3 hip=vec3(position.x>0.0?.12:-.12,.65,0.0);
+ if(!normalOnly)v-=hip;
+ float c=cos(angle),s=sin(angle);
+ v=vec3(v.x,c*v.y-s*v.z,s*v.y+c*v.z);
+ if(!normalOnly)v+=hip;
+ return v;
+}
 vec3 foldPicnicLeg(vec3 v,bool normalOnly){
- if(crossLegged<.5)return v;
+ if(crossLegged<.5)return strideLeg(v,normalOnly);
  float side=position.x>0.0?1.0:-1.0;
  bool upper=position.y>.325;
  vec3 origin=vec3(side*.12,upper?.65:.325,0.0);

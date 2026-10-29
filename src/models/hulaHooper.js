@@ -1,3 +1,4 @@
+import {bindLocomotion,stridePivot,tickLocomotion} from './personLocomotion.js';
 import {sampleHulaMotion} from '../personMotion.js';
 // Hula-hooper — festival-goer gyrating with a glowing hoop.
 //
@@ -81,6 +82,7 @@ export function buildHulaHooper(rng = Math.random) {
   });
 
   // ----- Legs: two short pants cylinders, slight stance -----
+  const walkLegs=[];
   const legGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.55, 8);
   for (const sx of [-1, 1]) {
     const leg = new THREE.Mesh(legGeo, pantsMat);
@@ -94,6 +96,7 @@ export function buildHulaHooper(rng = Math.random) {
     );
     shoe.position.set(sx * 0.11, 0.03, -0.04);
     body.add(shoe);
+    walkLegs.push(stridePivot(body,sx*.11,.555,leg,shoe));
   }
 
   // ----- Torso (crop top vibe — short capsule above bare midriff implied) -----
@@ -230,6 +233,7 @@ export function buildHulaHooper(rng = Math.random) {
   g.userData.hoopSpinMult = 1.3 + Math.random() * 0.7; // hoop is 1.3-2.0× hip rate
   g.userData.phase        = Math.random() * Math.PI * 2;
 
+  bindLocomotion(g,{legs:walkLegs,height:.85,phase:g.userData.phase,pace:.4});
   return g;
 }
 
@@ -246,12 +250,18 @@ export function tickHulaHooper(model, dt, nightness = 0) {
   const u = model.userData;
   if (u.gyrSpeed === undefined) return;       // not a built hooper
 
+  tickLocomotion(model,dt);
   u.phase += dt * u.gyrSpeed;
   const p = u.phase;
 
   const motion=sampleHulaMotion(p,u.hoopSpinMult,u.motion??={});
   u.bodyGroup.rotation.set(motion.leanX,0,motion.leanZ);
-  u.bodyGroup.position.y=motion.bob;
+  // Rock from one supporting foot to the other without sending the tilted
+  // shoe through the lawn. The hoop and raised hands retain their hip orbit.
+  const stride=u.locomotion.pose.stride;
+  u.bodyGroup.position.y=Math.max(0,motion.bob)+u.locomotion.pose.bob
+    +Math.abs(Math.sin(motion.leanZ))*.18
+    +Math.abs(Math.sin(motion.leanX))*(.15+.555*Math.abs(Math.sin(stride)));
   u.hoopPivot.rotation.set(motion.hoopX,motion.hoopY,motion.hoopZ);
 
   // Glow — dim by day, bright at night. Caller passes nightness 0..1.

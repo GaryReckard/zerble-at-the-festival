@@ -155,7 +155,7 @@ export class MonkParty {
         const g=member.avatar;if(!g)return;
         g.visible=pose.visible;g.position.set(pose.x,pose.y,pose.z);
         g.rotation.set(0,pose.heading,0);g.scale.setScalar(pose.scale);
-        g.userData.pose(pose.bob,pose.speed,pose.sitting,pose.pole);
+        g.userData.pose(pose.bob,pose.speed,pose.sitting,pose.pole,pose.stride,pose.arm);
     }
     memberRemoved(handle) {
         const index=this.members.findIndex(m=>m.handle===handle);

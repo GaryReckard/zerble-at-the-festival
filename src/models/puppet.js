@@ -1,3 +1,4 @@
+import {bindLocomotion,tickLocomotion} from './personLocomotion.js';
 import * as THREE from 'three';
 import { buildLantern, puppetRandom } from './paradeLanterns.js';
 export { PARADE_ROSTER } from './paradeLanterns.js';
@@ -28,12 +29,13 @@ export function buildPuppet(kind = 'heron', seed = 0) {
   }
   root.userData = { kind, seed, phase: puppetRandom(seed, 101) * Math.PI * 2,
     time: 0, rig: { ...lantern, heldRig, carriers, poles } };
+  bindLocomotion(root,{bodies:carriers,ground:.005,legs:carriers.flatMap(c=>c.userData.walkLegs),height:1,phase:root.userData.phase});
   setPuppetNightness(root, 0);
   setPuppetTime(root, 0);
   return root;
 }
 
-export function setPuppetTime(model, seconds) {
+export function setPuppetTime(model, seconds,walk=null) {
   const u = model.userData, rig = u.rig;
   u.time = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   const gait = u.time * Math.PI * 2 / 1.8 + u.phase;
@@ -42,8 +44,9 @@ export function setPuppetTime(model, seconds) {
   for (const part of rig.moving) part.node.rotation[part.axis] = Math.sin(gait * part.rate + part.phase) * part.amount;
   for (let i = 0; i < rig.carriers.length; i++) {
     const carrier = rig.carriers[i];
+    carrier.position.y=walk?.bob??0;
     carrier.userData.carryRig.position.y = Math.sin(gait * 2) * 0.025;
-    for (let j = 0; j < 2; j++) carrier.userData.walkLegs[j].rotation.x = Math.sin(gait + j * Math.PI + i * 0.2) * 0.22;
+    for (let j = 0; j < 2; j++) carrier.userData.walkLegs[j].rotation.x = walk?(j?-1:1)*walk.stride:Math.sin(gait + j * Math.PI + i * 0.2) * 0.22;
   }
   model.updateMatrixWorld(true);
   for (const pole of rig.poles) {
@@ -68,7 +71,8 @@ export function setPuppetNightness(model, nightness) {
 }
 
 export function tickPuppet(model, dt) {
-  setPuppetTime(model, model.userData.time + (Number.isFinite(dt) ? Math.max(0, dt) : 0));
+  const walk=tickLocomotion(model,dt);
+  setPuppetTime(model, model.userData.time + (Number.isFinite(dt) ? Math.max(0, dt) : 0),walk);
 }
 
 const _npcMatPool = new Map();
@@ -93,7 +97,7 @@ const _EYE_GEO = new THREE.SphereGeometry(0.028, 6, 6);
 for (const geo of [_LEG_GEO, _SHOE_GEO, _TORSO_GEO, _UPPER_GEO, _LOWER_GEO, _HEAD_GEO, _EYE_GEO]) geo.userData.shared = true;
 
 export function buildSimpleNPC(shirtHex, skinHex, opts = {}) {
-  const { armPose = 'rest', pantsHex = 0x223a5c } = opts;
+  const { armPose = 'rest', pantsHex = 0x223a5c, walk=false } = opts;
   const g = new THREE.Group();
   const shirtMat = _npcMat(shirtHex, 0.9, 'shirt');
   const skinMat = _npcMat(skinHex, 0.9, 'skin');
@@ -104,13 +108,13 @@ export function buildSimpleNPC(shirtHex, skinHex, opts = {}) {
   const shoulders = [], elbows = [];
   if (carry) g.add(upperRoot);
   for (const lx of [-0.12, 0.12]) {
-    const pivot = carry ? new THREE.Group() : g;
-    if (carry) { pivot.position.set(lx, 0.65, 0); g.add(pivot); walkLegs.push(pivot); }
+    const pivot = carry||walk ? new THREE.Group() : g;
+    if (carry||walk) { pivot.position.set(lx, 0.65, 0); g.add(pivot); walkLegs.push(pivot); }
     const leg = new THREE.Mesh(_LEG_GEO, pantsMat);
-    leg.position.set(carry ? 0 : lx, carry ? -0.33 : 0.32, 0);
+    leg.position.set(carry||walk ? 0 : lx, carry||walk ? -0.33 : 0.32, 0);
     pivot.add(leg);
     const shoe = new THREE.Mesh(_SHOE_GEO, _SHOE_MAT);
-    shoe.position.set(carry ? 0 : lx, carry ? -0.62 : 0.03, -0.06);
+    shoe.position.set(carry||walk ? 0 : lx, carry||walk ? -0.62 : 0.03, -0.06);
     pivot.add(shoe);
   }
   const torso = new THREE.Mesh(_TORSO_GEO, shirtMat);
@@ -164,6 +168,7 @@ export function buildSimpleNPC(shirtHex, skinHex, opts = {}) {
     upperRoot.add(grip);
     g.userData = { grip, carryRig: upperRoot, walkLegs };
   }
+  g.userData.walkLegs=walkLegs;
   g.userData.shoulders = shoulders;
   g.userData.elbows = elbows;
   return g;

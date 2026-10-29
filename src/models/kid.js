@@ -1,11 +1,12 @@
 // Festival kid — a recognizable child silhouette (head, torso, arms, legs)
 // rather than a one-piece capsule. children[0] is the body group so the
-// caller can do a "lil hop" bob each frame.
+// shared locomotion adapter can move the hips without changing gameplay position.
 //
 // Variations baked in via rng: hairstyle (pigtails / cap / bare),
 // outfit color, glow-stick accessory.
 
 import * as THREE from 'three';
+import {bindLocomotion,stridePivot,tickLocomotion} from './personLocomotion.js';
 
 const SHIRT_PALETTE = [
   0xff5577, 0xffaa33, 0xffe066, 0x66ff88, 0x66d9ff, 0xc080ff,
@@ -40,6 +41,7 @@ export function buildKid(rng = Math.random) {
   });
 
   // ----- Legs — two short pants-colored cylinders, slightly apart -----
+  const walkLegs=[],walkArms=[];
   const legGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.45, 8);
   for (const lx of [-0.08, 0.08]) {
     const leg = new THREE.Mesh(legGeo, pantsMat);
@@ -53,6 +55,7 @@ export function buildKid(rng = Math.random) {
     );
     shoe.position.set(lx, 0.025, -0.04);
     body.add(shoe);
+    walkLegs.push(stridePivot(body,lx,.455,leg,shoe));
   }
 
   // ----- Torso — capsule sized for a kid -----
@@ -82,6 +85,7 @@ export function buildKid(rng = Math.random) {
     armGroup.rotation.z = sx * 0.08;       // slight outward splay
     // Kid arms are slim — skip shadow.
     body.add(armGroup);
+    walkArms.push(armGroup);
   }
 
   // ----- Head -----
@@ -200,25 +204,19 @@ export function buildKid(rng = Math.random) {
     body.add(balloon);
   }
 
-  // Per-kid bounce phase offset so two kids in the same gaggle don't bob
-  // in lockstep. Phase is in ms-space, scaled by 0.008 in tickKid.
+  // Retain the existing random draw as the initial gait phase so neighbours
+  // do not step in lockstep and spawn randomness remains unchanged.
   g.userData.bouncePhase = Math.random() * 1000;
 
+  bindLocomotion(g,{body,legs:walkLegs,arms:[walkArms[0],accRoll<.75?null:walkArms[1]],height:.7,hip:.455,toe:.12,phase:g.userData.bouncePhase});
   return g;
 }
 
-// Per-frame visual animation. Game (KidGaggle.update) and sandbox both
-// call this — animation lives in ONE place. Gameplay decisions (chase /
-// scatter / smile) stay in the caller; this only owns the hop and the
-// smooth-rotation lerp.
-//
-// `excited` flag bumps the bounce amplitude — caller passes true when
-// the kid is chasing a bubble. `targetYaw` (optional) is the heading the
-// kid wants to face; we lerp the displayed yaw toward it shortest-arc
-// so 180° heading flips don't visually snap.
+// The game and sandbox share this visual updater. Travel footwork is sampled
+// from the accepted displacement; optional target yaw still turns smoothly
+// along the shortest arc, while gameplay retains chase/scatter ownership.
 export function tickKid(model, dt, opts = {}) {
   const u = model.userData;
-  const excited = !!opts.excited;
   const targetYaw = opts.targetYaw;
 
   // Smooth-rotate displayed yaw toward target. Without this, any heading
@@ -233,17 +231,8 @@ export function tickKid(model, dt, opts = {}) {
     model.rotation.y = u.displayedYaw;
   }
 
-  // Bounce — amplitude depends on excitement. Toned down from earlier
-  // values (0.22 / 0.15) so kids look animated, not spasmodic.
-  //
-  // Resting position is body.y = 0 (the body group's children already bake
-  // the shoes' bottom at y=0, so feet are AT ground level when body.y is
-  // zero). Earlier this was `body.y = 0.55 + bounce`, which floated every
-  // kid 55cm above the ground at rest — visible in-game as the gaggle
-  // hovering. The `Math.abs(sin)` envelope keeps the value non-negative so
-  // they hop *up* from ground rather than oscillating through it.
-  const bouncy = excited ? 0.13 : 0.08;
+  // Excitement still chooses the gameplay sprint; the visual stride follows
+  // actual travel, so waiting beside a bubble keeps both feet grounded.
   u.animationTime=(u.animationTime??0)+dt;
-  const tMs = u.animationTime * 8 + u.bouncePhase;
-  model.children[0].position.y = Math.abs(Math.sin(tMs * 2)) * bouncy;
+  tickLocomotion(model,dt);
 }

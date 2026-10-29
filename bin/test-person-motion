@@ -56,3 +56,32 @@ for(let j=0;j<11;j++)for(let time=0;time<5;time+=.13)for(const dj of [false,true
  near(actual.x,x);near(actual.y,y);near(actual.z,z);
 }
 console.log('PASS dance intent excludes walkers/reactions, respects personality and shares the original Healing Arts choreography with independent bending arms.');
+
+// Distance-driven locomotion: no renderer allocations, no RNG, and no pose
+// leakage into seats, hammocks, performers, or pooled replacement occupants.
+const {sampleWalkMotion,walkingArrivalSpeed,idleSwayDelta}=await import('../src/personMotion.js');
+function walker(){return {state:'walking',pos:{x:0,z:0},vel:{x:0,z:-1.4},scale:1,bob:.5};}
+const w=walker(),walkOut={};assert.equal(sampleWalkMotion(w,walkOut),walkOut);
+const phase=w.gaitPhase;sampleWalkMotion(w,walkOut);near(w.gaitPhase,phase);
+w.pos.z=-.1;sampleWalkMotion(w,walkOut);near(w.gaitPhase,phase+.7);assert(walkOut.active);assert(walkOut.stride*walkOut.arm<0);
+const phaseBeforeTeleport=w.gaitPhase;w.pos.z=-100;sampleWalkMotion(w,walkOut);near(w.gaitPhase,phaseBeforeTeleport);
+for(const state of ['riding','table_seated','camp_seated','hammock_riding','photographer_pose','market_chatting','idle','watching']){
+ w.state=state;sampleWalkMotion(w,walkOut);near(walkOut.stride,0);near(walkOut.arm,0);assert(!walkOut.active,state);
+}
+w.state='walking';w.vel.z=0;sampleWalkMotion(w,walkOut);near(walkOut.stride,0);
+function travel(hz){const n=walker();sampleWalkMotion(n,{});for(let i=0;i<hz;i++){n.pos.z-=1.4/hz;sampleWalkMotion(n,{});}return n.gaitPhase;}
+near(travel(30),travel(60));near(travel(60),travel(120));
+for(const speed of [0,.1,.65,1.4,3.5,10])for(let i=0;i<100;i++){
+ const n=walker();n.vel.z=-speed;n.bob=i/10;sampleWalkMotion(n,walkOut);
+ assert(Object.values(walkOut).every(v=>typeof v==='boolean'||Number.isFinite(v)));assert(Math.abs(walkOut.stride)<=.56);
+}
+near(walkingArrivalSpeed(1.4,4,1.5),1.4);near(walkingArrivalSpeed(1.4,1.5,1.5),.35);
+let previous=0;for(let distance=1.5;distance<3;distance+=.01){const speed=walkingArrivalSpeed(1.4,distance,1.5);assert(speed>=previous&&speed<=1.4);previous=speed;}
+for(const hz of [30,60,120]){let yaw=0;for(let i=0;i<hz;i++)yaw+=idleSwayDelta(2,.7,1/hz);near(yaw,idleSwayDelta(2,.7,1));}
+console.log('PASS locomotion: distance/frame-rate invariance, repeated publication, teleports, protected poses, bounded stride, gradual arrival and time-based idle sway.');
+for(const hz of [30,60,120])for(const energy of [.5,1,1.5]){
+ let distance=5,velocity=0,elapsed=0;
+ while(distance>=1.5&&elapsed<20){const desired=walkingArrivalSpeed(1.4*energy,distance,1.5);velocity+=(desired-velocity)*Math.min(1,4/hz);distance-=velocity/hz;elapsed+=1/hz;}
+ assert(distance<1.5&&elapsed<20,'arrival easing must still reach its destination');
+}
+console.log('PASS arrival convergence across three energy levels and three frame rates.');
