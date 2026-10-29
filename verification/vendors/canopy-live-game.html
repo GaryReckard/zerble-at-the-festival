@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><title>Live vendor canopy continuity</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{background:#17162a;color:white;font:16px system-ui}iframe{width:100%;height:650px}pre{white-space:pre-wrap}</style>
+<h1>Vendor colors through live streaming</h1><p>Start a ready game mode below, then run the check. This uses existing vendors, the actual horizon instance buffers and chunk unload/revisit.</p><button id="run">Verify live handoff and revisit</button><pre id="result">Waiting for ready mode click</pre><iframe id="game" src="/?mute=1&perf=low&seed=1234"></iframe>
+<script type="module">
+import * as THREE from '../../src/threeShim.js';import{vendorCanopyAppearance}from '../../src/festivalShapes.js';import{setSessionSeed}from '../../src/rng.js';
+setSessionSeed(1234);const f=document.querySelector('#game'),out=document.querySelector('#result');let running=false;
+const wait=async(test,label)=>{const end=performance.now()+20000;while(performance.now()<end){if(test())return;await new Promise(r=>setTimeout(r,100));}throw Error('Timed out: '+label);};
+document.querySelector('#run').onclick=async()=>{if(running)return;running=true;let d;
+try{d=f.contentWindow.__dbg;const g=d.game;await wait(()=>[...g.registry.entries.values()].some(e=>e.kind==='tent'&&e.vendor?.userData.canopyAppearance),'loaded vendor');
+await wait(()=>d.horizon().committed,'initial horizon');
+const probe=new THREE.Matrix4();let e;
+await wait(()=>{const peak=g.scene.getObjectByName('farField:peak');if(!peak)return false;
+ const entries=[...g.registry.entries.values()].filter(e=>e.kind==='tent'&&e.vendor?.userData.canopyAppearance);
+ for(let i=0;i<peak.count;i++){peak.getMatrixAt(i,probe);e=entries.find(v=>Math.hypot(v.position.x-probe.elements[12],v.position.z-probe.elements[14])<.001);if(e)return true;}return false;},'a loaded booth retained by Low density');
+const{x,z}=e.position,appearance=vendorCanopyAppearance(x,z);
+if(JSON.stringify(e.vendor.userData.canopyAppearance)!==JSON.stringify(appearance))throw Error('Live builder appearance mismatch');
+d.teleport(x,z+15);d.tod(.25);d.camLock(x+20,e.position.y+16,z+23,x,e.position.y+2,z);d.horizon('replan');await wait(()=>d.horizon().committed,'horizon commit');
+const matrix=new THREE.Matrix4(),color=new THREE.Color();let roof=-1,legs=-1;
+const checkBuffers=()=>{const peak=g.scene.getObjectByName('farField:peak'),post=g.scene.getObjectByName('farField:vendorLegs');if(!peak||!post)return false;
+for(let i=0;i<peak.count;i++){peak.getMatrixAt(i,matrix);if(Math.hypot(matrix.elements[12]-x,matrix.elements[14]-z)<.001){roof=i;peak.getColorAt(i,color);if(color.getHex()!==appearance.roof)throw Error('Live instance color mismatch');}}
+for(let i=0;i<post.count;i++){post.getMatrixAt(i,matrix);if(Math.hypot(matrix.elements[12]-x,matrix.elements[14]-z)<.001)legs=i;}
+return roof>=0&&legs>=0;};await wait(checkBuffers,'paired live proxy');
+d.horizon('proxy');await new Promise(r=>requestAnimationFrame(r));d.horizon('live');
+const old=e.vendor;d.teleport(x+2500,z+2500);await wait(()=>![...g.registry.entries.values()].some(v=>v.vendor===old),'original vendor unload');d.teleport(x,z+15);
+let replacement;await wait(()=>{replacement=[...g.registry.entries.values()].find(v=>v.kind==='tent'&&Math.hypot(v.position.x-x,v.position.z-z)<.001);return replacement;},'vendor revisit');
+if(replacement.vendor===old||JSON.stringify(replacement.vendor.userData.canopyAppearance)!==JSON.stringify(appearance))throw Error('Revisit changed appearance or reused disposed vendor');
+out.textContent='PASS '+JSON.stringify({x,z,appearance,liveRoofIndex:roof,liveLegIndex:legs,newVendorAfterUnload:true,horizon:d.horizon().counts},null,2);
+}catch(error){out.textContent='FAIL '+error.stack;console.error(error);}finally{d?.horizon('live');running=false;}};
+</script>

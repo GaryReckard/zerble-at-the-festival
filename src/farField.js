@@ -36,7 +36,7 @@ import * as THREE from 'three';
 import { ownerCellCoord, vendorRowSlots } from './worldgen/placement.js';
 import { mulberry32 } from './rng.js';
 import { FESTIVAL_TUNING } from './worldgen/tuning.js';
-import { STAGE_SHAPES, STAGE_SURFACES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE } from './festivalShapes.js';
+import { STAGE_SHAPES, STAGE_SURFACES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE, VENDOR_LEG_SHAPE, vendorCanopyAppearance } from './festivalShapes.js';
 import { heartsInBounds } from './worldgen/hearts.js';
 import { festivalPlan, campVillagesNear } from './worldgen/festival.js';
 import { roadsInBounds } from './worldgen/roads.js';
@@ -305,7 +305,7 @@ export function instHash(seed, i) {
 // of roof peaks with warm light markers alongside. Sizes are coarse on purpose —
 // these read through 300-500m of fog, not up close.
 export function expandFarInstances(records, densityMul) {
-  const out = { canopy: [], marqueeWall: [], truss: [], peak: [], warm: [], beacon: [], forest: [], roads: [] };
+  const out = { canopy: [], marqueeWall: [], truss: [], peak: [], vendorLegs: [], warm: [], beacon: [], forest: [], roads: [] };
   for (const r of records) {
     if (r.kind === '__road') { out.roads.push({flat:r.flat,width:r.width,surface:r.surface}); continue; }
     if (r.kind === '__forest') {
@@ -460,11 +460,16 @@ export function expandFarInstances(records, densityMul) {
       for (const slot of vendorRowSlots(r.x, r.z, r.yaw, n, T)) {
         const { i, side, x: ix, z: iz } = slot;
         if (densityMul < 1 && instHash(r.clusterSeed, i * 2 + (side > 0 ? 1 : 0)) >= densityMul) continue;
+        const appearance = vendorCanopyAppearance(ix, iz);
         out.peak.push({
-          x: ix, z: iz, y: terrainHeight(ix, iz) + VENDOR_ROOF_SHAPE.centerY, yaw: r.yaw + Math.PI / 4,
+          x: ix, z: iz, y: terrainHeight(ix, iz) + VENDOR_ROOF_SHAPE.centerY,
+          yaw: r.yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI + appearance.roofYaw,
           sx: VENDOR_ROOF_SHAPE.radius, sy: VENDOR_ROOF_SHAPE.height, sz: VENDOR_ROOF_SHAPE.radius,
-          color: VENDOR_ROOF_SHAPE.color, ...own,
+          color: appearance.roof, vendor: true, ...own,
         });
+        out.vendorLegs.push({ x: ix, z: iz, y: terrainHeight(ix, iz),
+          yaw: r.yaw + (side < 0 ? -Math.PI / 2 : Math.PI / 2) + Math.PI,
+          sx: 1, sy: 1, sz: 1, ...own });
         // One warm marker per bay-pair, on the AISLE side — the strung lights
         // over the street you actually drive down.
         if (i % 2 === 0) {
@@ -551,6 +556,25 @@ function marqueeWallGeometry() {
   return geo;
 }
 
+// Four open-ended square posts, eight triangles each. No hidden end caps,
+// shadow pass, collider, or per-frame facing update is needed at this distance.
+function vendorLegGeometry() {
+  const positions = [], indices = [];
+  const { offset, height, width } = VENDOR_LEG_SHAPE, h = width / 2;
+  for (const x of [-offset, offset]) for (const z of [-offset, offset]) {
+    const base = positions.length / 3;
+    positions.push(x-h,0,z-h, x+h,0,z-h, x+h,0,z+h, x-h,0,z+h,
+      x-h,height,z-h, x+h,height,z-h, x+h,height,z+h, x-h,height,z+h);
+    for (let i = 0; i < 4; i++) {
+      const j = (i + 1) % 4;
+      indices.push(base+i,base+i+4,base+j,base+j,base+i+4,base+j+4);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geo.setIndex(indices); geo.computeVertexNormals(); return geo;
+}
+
 function peakRoofGeometry() {
   // An open square pyramid preserves the four-sided roof silhouette without
   // drawing the hidden underside on every vendor booth and camp pitch.
@@ -598,7 +622,7 @@ export class FarField {
     this._roadSeen = null;
     this._todQ = -1;
     this._nightOn = false;
-    this._active = { canopy: [], marqueeWall: [], truss: [], peak: [], warm: [], beacon: [], forest: [] };
+    this._active = { canopy: [], marqueeWall: [], truss: [], peak: [], vendorLegs: [], warm: [], beacon: [], forest: [] };
     this._ownerCells = new Map();   // 'cx,cz' -> { cx, cz, loaded, insts: [{pool, i}] }
     this._handoffs = [];            // active envelopes: { pool, i, target }
     this._ownershipOverride = null; // null (live) | 'proxy' (all shown) | 'real' (all dissolved)
@@ -660,6 +684,7 @@ export class FarField {
       marqueeWall: mkSurface(0xffffff, { side: THREE.DoubleSide }),
       truss: mkSurface(0xffffff),
       peak: mkSurface(0xffffff, { side: THREE.DoubleSide }),
+      vendorLegs: mkSurface(VENDOR_LEG_SHAPE.color),
       warm: mkMat(WARM_HEX),
       beacon: mkMat(0xffffff),
       forest: mkSurface(0xffffff),   // white base × per-instance FOREST_PALETTE color
@@ -670,6 +695,7 @@ export class FarField {
       marqueeWall: marqueeWallGeometry(),
       truss: new THREE.BoxGeometry(1, 1, 1),
       peak: peakRoofGeometry(),
+      vendorLegs: vendorLegGeometry(),
       warm: new THREE.OctahedronGeometry(1, 0),
       beacon: new THREE.OctahedronGeometry(1, 0),
       // Detail-0 icosa (20 tris) — the ROADMAP's sanctioned far-crown shape.
@@ -683,9 +709,10 @@ export class FarField {
     // owner-computed bounding spheres are still maintained after every
     // committed rewrite so bounds stay truthful for raycast/debug reads.
     this._pools = {};
-    const hasColor = { canopy: true, marqueeWall: true, truss: true, peak: true, warm: false, beacon: true, forest: true };
-    for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'warm', 'beacon', 'forest']) {
-      const mesh = new THREE.InstancedMesh(this._geos[name], this._mats[name], caps[name]);
+    const hasColor = { canopy: true, marqueeWall: true, truss: true, peak: true, vendorLegs: false, warm: false, beacon: true, forest: true };
+    for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon', 'forest']) {
+      const cap = name === 'vendorLegs' ? (caps.vendorLegs ?? caps.peak) : caps[name];
+      const mesh = new THREE.InstancedMesh(this._geos[name], this._mats[name], cap);
       mesh.count = 0;
       mesh.visible = false;
       mesh.frustumCulled = false;
@@ -695,11 +722,11 @@ export class FarField {
       mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 0);
       mesh.name = 'farField:' + name;
       // Per-instance dissolve state for the completion handoff (design D4).
-      const fade = new THREE.InstancedBufferAttribute(new Float32Array(caps[name]).fill(1), 1);
+      const fade = new THREE.InstancedBufferAttribute(new Float32Array(cap).fill(1), 1);
       fade.setUsage(THREE.DynamicDrawUsage);
       this._geos[name].setAttribute('aFade', fade);
       applyProxyDither(this._mats[name]);
-      this._pools[name] = { name, mesh, fade, hasColor: hasColor[name], cap: caps[name] };
+      this._pools[name] = { name, mesh, fade, hasColor: hasColor[name], cap };
       this.group.add(mesh);
     }
 
@@ -828,9 +855,18 @@ export class FarField {
     this._handoffs.length = 0;
     let active = 0, overflow = 0;
     const demandByPool = {}, overflowByPool = {};
-    for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'warm', 'beacon', 'forest']) {
+    // Legs follow only retained vendor roofs, including capacity pressure in
+    // the roof pool; both then use the same owner-cell completion envelope.
+    const key = p => `${p.x},${p.z}`;
+    for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon', 'forest']) {
       const pool = this._pools[name];
-      const sel = selectNearest(expanded[name], ax, az, pool.cap);
+      let candidates = expanded[name];
+      if (name === 'vendorLegs') {
+        const roofs = new Set(this._active.peak.filter(p => p.vendor).map(key));
+        candidates = candidates.filter(p => roofs.has(key(p)));
+      }
+      const sel = selectNearest(candidates, ax, az, pool.cap);
+      sel.overflow += expanded[name].length - candidates.length;
       demandByPool[name] = expanded[name].length;
       overflowByPool[name] = sel.overflow;
       this._active[name] = sel.kept;
@@ -883,7 +919,7 @@ export class FarField {
       if (inst.x > maxX) maxX = inst.x;
       if (inst.y > maxY) maxY = inst.y;
       if (inst.z > maxZ) maxZ = inst.z;
-      const e = Math.max(inst.sx, inst.sy, inst.sz);
+      const e = Math.max(inst.sx, inst.sy, inst.sz) * (pool.name === 'vendorLegs' ? 4 : 1);
       if (e > maxExt) maxExt = e;
     }
     mesh.count = kept.length;
@@ -1053,6 +1089,7 @@ export class FarField {
     this._mats.canopy.color.setScalar(dayB);
     this._mats.marqueeWall.color.setScalar(dayB);
     this._mats.peak.color.setScalar(dayB);
+    this._mats.vendorLegs.color.setHex(VENDOR_LEG_SHAPE.color).multiplyScalar(dayB);
     this._mats.forest.color.setScalar(dayB);
     this._mats.truss.color.setScalar(dayB);
     const roadB = ROAD_NIGHT_BRIGHTNESS + (ROAD_DAY_BRIGHTNESS - ROAD_NIGHT_BRIGHTNESS) * daylight;

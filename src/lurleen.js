@@ -15,6 +15,7 @@ import { registry } from './registry.js';
 import { createHeartGeometry, sharedHeartGeometry as _heartGeo } from './models/heart.js';
 import { worldHash, mulberry32, getSessionSeed } from './rng.js';
 import { isPointInLake, projectOutOfLake } from './lakes.js';
+import { terrainHeight } from './worldgen/terrain.js';
 
 // Lakes load within 720m of the player; main.js boots `buildWorld()` (which
 // triggers a lakeManager.update at origin) BEFORE constructing Lurleen, so any
@@ -82,6 +83,7 @@ export class Lurleen {
     this.heading = Math.PI;          // facing -z initially
     this.speed = 0;
     this.steerAngle = 0;
+    this._terrainPoint = new THREE.Vector3();
     this.radius = 1.9;
 
     this.state = 'wandering';
@@ -119,8 +121,7 @@ export class Lurleen {
     scene.add(this._heartGroup);
     this._activeHearts = [];
 
-    this.root.position.copy(this.position);
-    this.root.rotation.y = this.heading;
+    this.groundOnTerrain();
     scene.add(this.root);
 
     // Collider so Zerble bumps off her instead of driving through. Damage=0:
@@ -142,7 +143,7 @@ export class Lurleen {
     this.wanderTarget.set(x, 0, z);
     this.wanderTimer = 9 + Math.random() * 8;   // pause before picking next target
     this.speed = 0;
-    this.root.position.copy(this.position);
+    this.groundOnTerrain();
   }
 
   // Pick a fresh spot 150–220m from the player (mostly in their forward
@@ -167,7 +168,7 @@ export class Lurleen {
     this.setSpawnAt(nx, nz);
     // Face roughly back toward the player so she's not arbitrarily oriented.
     this.heading = Math.atan2(zerblePos.x - nx, zerblePos.z - nz) + Math.PI;
-    this.root.rotation.y = this.heading;
+    this.groundOnTerrain();
   }
 
   // ---------- Body ----------
@@ -649,6 +650,44 @@ export class Lurleen {
     this._rearBubbles.visible=liveBubbles>0;
   }
 
+  // Use the same four-wheel contact approach as Zerble without changing the
+  // autonomous X/Z steering, timers or random draws. Also called on teleports.
+  groundOnTerrain() {
+    const c = Math.cos(this.heading), s = Math.sin(this.heading);
+    let front = 0, back = 0, left = 0, right = 0;
+    for (const w of this._wheels) {
+      const p = w.mesh.position;
+      const h = terrainHeight(this.position.x + p.x * c + p.z * s,
+        this.position.z - p.x * s + p.z * c);
+      if (w.front) front += h; else back += h;
+      if (p.x < 0) left += h; else right += h;
+    }
+    const pitch = Math.atan2((front - back) / 2, 2);
+    const roll = Math.atan2((right - left) / 2, 2.06);
+    this.position.y = (front + back) / 4;
+    this.root.position.copy(this.position);
+    this.root.rotation.set(pitch, this.heading, roll, 'YXZ');
+    this.root.updateMatrixWorld(true);
+    const vertical = Math.cos(pitch) * Math.cos(roll), p = this._terrainPoint;
+    this.terrainContactError = 0;
+    for (const w of this._wheels) {
+      // Preserve the old two-centimetre wheel clearance and visual jiggle in
+      // the flat world; suspension compensates only for chassis/terrain tilt.
+      const rest = w.baseY + (this.actorTime == null ? 0 :
+        Math.sin(this.actorTime * 10 + w.mesh.position.x) * .02);
+      w.mesh.position.y = rest;
+      for (let i = 0; i < 4; i++) {
+        p.copy(w.mesh.position).applyMatrix4(this.root.matrixWorld);
+        const error = terrainHeight(p.x, p.z) + rest - p.y;
+        w.mesh.position.y = THREE.MathUtils.clamp(
+          w.mesh.position.y + error / vertical, w.baseY - .3, w.baseY + .3);
+      }
+      p.copy(w.mesh.position).applyMatrix4(this.root.matrixWorld);
+      this.terrainContactError = Math.max(this.terrainContactError,
+        Math.abs(p.y - terrainHeight(p.x, p.z) - rest));
+    }
+  }
+
   // ---------- Update ----------
 
   update(dt, zerblePos, zerbleHeading = 0, nightness = 0) {
@@ -720,17 +759,15 @@ export class Lurleen {
     // Apply movement: forward = (-sin(h), 0, -cos(h)) — same convention as Zerble.
     this.position.x += -Math.sin(this.heading) * this.speed * dt;
     this.position.z += -Math.cos(this.heading) * this.speed * dt;
-    this.root.position.copy(this.position);
-    this.root.rotation.y = this.heading;
-
     // Wheel anim: spin proportional to speed, front wheels steer.
     for (const w of this._wheels) {
       w.mesh.rotation.x += this.speed * dt * 1.5;
       if (w.front) {
         w.mesh.rotation.y = THREE.MathUtils.lerp(w.mesh.rotation.y, this.steerAngle, Math.min(1, dt * 10));
       }
-      w.mesh.position.y = w.baseY + Math.sin(this.actorTime * 10 + w.mesh.position.x) * 0.02;
     }
+
+    this.groundOnTerrain();
 
     // Eye wobble stays inside the shallow dome,
     // staying inside the rim. Lissajous-style motion mimics real googly eyes.

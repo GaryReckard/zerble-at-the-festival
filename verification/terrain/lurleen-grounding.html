@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Lurleen terrain contact</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{background:#17162a;color:white;font:16px system-ui}canvas{max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
+<h1>Lurleen at seed1200852794, 451.69,-877.87</h1><button id="noon">Noon</button><button id="night">Midnight</button><button id="move">Move across slope</button><button id="flat">Flat-world compatibility</button><pre id="result">Running…</pre>
+<script type="module">
+import * as THREE from 'three';import{Lurleen}from '../../src/lurleen.js';import{setSessionSeed}from '../../src/rng.js';import{setTerrainEnabled,terrainHeight}from '../../src/worldgen/terrain.js';
+setSessionSeed(1200852794);setTerrainEnabled(true);
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(48,1000/640,.1,150),renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(1000,640);renderer.toneMapping=THREE.ACESFilmicToneMapping;document.body.append(renderer.domElement);const light=new THREE.HemisphereLight(0xffffff,0x596947,2.5);scene.add(light);
+const l=new Lurleen(scene);l.autoRehome=false;l.setSpawnAt(451.69,-877.87);l.heading=-6.293;l.wanderTarget.copy(l.position);l.wanderTimer=1000;
+const groundGeo=new THREE.PlaneGeometry(100,100,10,10);groundGeo.rotateX(-Math.PI/2);const p=groundGeo.attributes.position;for(let i=0;i<p.count;i++){p.setX(i,p.getX(i)+450);p.setZ(i,p.getZ(i)-880);}const ground=new THREE.Mesh(groundGeo,new THREE.MeshStandardMaterial({color:0x496c39}));scene.add(ground);
+let night=0;const far=new THREE.Vector3(2000,0,2000),v=new THREE.Vector3();
+function draw(){for(let i=0;i<p.count;i++)p.setY(i,terrainHeight(p.getX(i),p.getZ(i)));p.needsUpdate=true;groundGeo.computeVertexNormals();l.update(0,far,0,night);scene.updateMatrixWorld(true);
+ const clearances=l._wheels.map(w=>{w.mesh.getWorldPosition(v);return v.y-.51-terrainHeight(v.x,v.z);});
+ camera.position.set(l.position.x+7,terrainHeight(l.position.x,l.position.z)+4,l.position.z-9);camera.lookAt(l.position.x,l.position.y+1.5,l.position.z);light.intensity=night?.35:2.5;scene.background=new THREE.Color(night?0x15241b:0x91c9de);renderer.render(scene,camera);
+ document.querySelector('#result').textContent=JSON.stringify({ground:terrainHeight(l.position.x,l.position.z),root:l.position.y,minTireClearance:Math.min(...clearances),maxTireClearance:Math.max(...clearances),pitch:l.root.rotation.x,roll:l.root.rotation.z,draws:renderer.info.render.calls,triangles:renderer.info.render.triangles});}
+document.querySelector('#noon').onclick=()=>{night=0;draw();};document.querySelector('#night').onclick=()=>{night=1;draw();};document.querySelector('#move').onclick=()=>{l.setSpawnAt(l.position.x+4,l.position.z-5);l.wanderTarget.copy(l.position);draw();};document.querySelector('#flat').onclick=()=>{setTerrainEnabled(false);draw();};draw();
+addEventListener('pagehide',()=>{renderer.dispose();},{once:true});
+</script>

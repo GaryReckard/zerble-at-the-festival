@@ -32,10 +32,10 @@ if (typeof globalThis.window === 'undefined') globalThis.window = { innerWidth: 
 if (typeof globalThis.navigator === 'undefined') globalThis.navigator = { hardwareConcurrency: 8, deviceMemory: 8 };
 
 const { ownerCellCoord, vendorRowSlots } = await import('../src/worldgen/placement.js');
-const { mulberry32 } = await import('../src/rng.js');
+const { mulberry32, setSessionSeed } = await import('../src/rng.js');
 const { planCampNeighborhood } = await import('../src/campPlanning.js');
 const { FESTIVAL_TUNING } = await import('../src/worldgen/tuning.js');
-const { STAGE_SHAPES, STAGE_SURFACES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE } = await import('../src/festivalShapes.js');
+const { STAGE_SHAPES, STAGE_SURFACES, MARQUEE_SHAPE, VENDOR_ROOF_SHAPE, vendorCanopyAppearance, VENDOR_CANOPY_PALETTES } = await import('../src/festivalShapes.js');
 const { MeshLambertMaterial, MeshBasicMaterial } = await import('three');
 const { setSeed } = await import('../src/worldgen/index.js');
 const { heartsInBounds } = await import('../src/worldgen/hearts.js');
@@ -449,18 +449,43 @@ assert(exp1.peak.every((roof, index) => roof.x === slots[index].x && roof.z === 
     'main-stage beacon bottom clears the roof ridge');
   assert(marquee.sy === expandFarInstances([{ ...EXPAND_FIXTURE[0], kind: 'tent_stage', scale: 1.5 }], 1).canopy[0].sy,
     'the marquee is unscaled — buildTentStage takes no scale argument');
-  // Vendor roofs are elevated white canvas, not colored ground-height cones.
+  // Vendor roofs retain the detailed booth's dimensions and seeded color.
   for (const pk of exp1.peak) {
     assert(pk.y === VENDOR_ROOF_SHAPE.centerY && pk.sy === VENDOR_ROOF_SHAPE.height &&
-      pk.sx === VENDOR_ROOF_SHAPE.radius && pk.color === VENDOR_ROOF_SHAPE.color,
+      pk.sx === VENDOR_ROOF_SHAPE.radius && pk.color === vendorCanopyAppearance(pk.x, pk.z).roof,
       'vendor roof geometry and canvas color match the built tent');
   }
 }
+// Appearance survives density thinning, skipped neighbours, visit order and
+// arbitrary cluster RNG consumption, including signed coordinates and sessions.
+for (const seed of [0, 1234, 1200852794, 0xffffffff]) {
+  setSessionSeed(seed);
+  for (const row of [vendor, {...vendor,x:-130,z:40}, {...vendor,x:-.25,z:-.5,yaw:-2.4}]) {
+    const full = expandFarInstances([row], 1).peak;
+    const thin = expandFarInstances([row], .6).peak;
+    for (const p of full) {
+      const slot = vendorRowSlots(row.x,row.z,row.yaw,vendorCount).find(s=>s.x===p.x&&s.z===p.z);
+      const appearance = vendorCanopyAppearance(p.x,p.z);
+      assert(VENDOR_CANOPY_PALETTES.some(a=>a.roof===appearance.roof),'palette is bounded');
+      assert(p.color===appearance.roof,'proxy uses that precise booth color');
+      assert(p.yaw===row.yaw+(slot.side<0?-Math.PI/2:Math.PI/2)+Math.PI+appearance.roofYaw,
+        'proxy roof shares full detailed roof orientation including jitter');
+      for(let i=0;i<37;i++)countRng();
+      assert(JSON.stringify(appearance)===JSON.stringify(vendorCanopyAppearance(p.x,p.z)),
+        'unrelated construction cannot affect appearance');
+    }
+    for (const p of thin) assert(full.some(f=>f.x===p.x&&f.z===p.z&&f.color===p.color&&f.yaw===p.yaw),
+      'density omission cannot recolor or turn surviving roofs');
+    assert(JSON.stringify(full)===JSON.stringify(expandFarInstances([row],1).peak),'revisit retains every roof');
+  }
+}
+setSessionSeed(0);
+console.log('PASS vendor canopy session/position appearance, exact proxy colors/yaws, density omissions and revisits');
 assert(exp1.roads.length === 1 && exp1.roads[0].flat instanceof Float64Array,
   'road records must pass through as flat polylines');
-for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'warm', 'beacon']) {
+for (const name of ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon']) {
   for (const inst of exp1[name]) {
-    const rec = name === 'peak' || name === 'warm' ? EXPAND_FIXTURE[1] : EXPAND_FIXTURE[0];
+    const rec = name === 'peak' || name === 'vendorLegs' || name === 'warm' ? EXPAND_FIXTURE[1] : EXPAND_FIXTURE[0];
     assert(inst.ownerCx === rec.ownerCx && inst.ownerCz === rec.ownerCz,
       `${name} instances must inherit the OWNING RECORD's chunk cell (cluster-level handoff)`);
     assert([inst.x, inst.y, inst.z, inst.sx, inst.sy, inst.sz].every(Number.isFinite),
@@ -478,9 +503,9 @@ const TEST_TIER = {
   radius: 300,
   densityMul: 1,
   forestStep: 48,
-  caps: { canopy: 8, marqueeWall: 8, truss: 24, peak: 40, warm: 24, beacon: 8, forest: 16, roadVerts: 512, roadIndices: 768 },
+  caps: { canopy: 8, marqueeWall: 8, truss: 24, peak: 40, vendorLegs: 40, warm: 24, beacon: 8, forest: 16, roadVerts: 512, roadIndices: 768 },
 };
-const POOL_NAMES = ['canopy', 'marqueeWall', 'truss', 'peak', 'warm', 'beacon', 'forest'];
+const POOL_NAMES = ['canopy', 'marqueeWall', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon', 'forest'];
 
 // Immutability hashes of the shared inputs the drive will consume.
 const driveHearts = heartsInBounds(-600, -600, 600, 600);
@@ -497,6 +522,30 @@ assert(wallGeo.normalsComputed, 'lit marquee rear wall needs vertex normals');
 const peakGeo = ff._geos.peak;
 assert(peakGeo.index.length === 12 && peakGeo.attributes.position.array.length === 15 && peakGeo.normalsComputed,
   'vendor and camp peaks use four lit side triangles with no hidden base');
+const legsGeo = ff._geos.vendorLegs;
+assert(legsGeo.index.length === 96 && legsGeo.normalsComputed,
+  'four open-ended vendor posts use exactly 32 lit triangles');
+const tiny = new FarField({enabled:true,tier:{...TEST_TIER,caps:{...TEST_TIER.caps,peak:3,vendorLegs:3}}});
+tiny._applySnapshot(EXPAND_FIXTURE);
+assert(tiny._active.vendorLegs.length===tiny._active.peak.filter(p=>p.vendor).length,
+  'roof capacity pressure retains complete roof/leg pairs');
+for(const p of tiny._active.vendorLegs) assert(tiny._active.peak.some(r=>r.vendor&&r.x===p.x&&r.z===p.z),
+  'a discarded roof leaves no orphan legs');
+assert(tiny._pools.vendorLegs.mesh.castShadow===false,'distant posts do not add shadow work');
+tiny.dispose();
+let boothLoaded = false;
+const paired = new FarField({enabled:true,tier:TEST_TIER,isLoaded:()=>boothLoaded});
+paired._applySnapshot([vendor]);
+for(const [loaded,dt,reduced] of [[true,.1,false],[true,.2,false],[false,.1,false],[false,.2,false],[true,.01,true]]) {
+  boothLoaded = loaded; paired._updateHandoffs(dt,reduced);
+  for(const [i,p] of paired._active.vendorLegs.entries()) {
+    const roof = paired._active.peak.findIndex(r=>r.vendor&&r.x===p.x&&r.z===p.z);
+    assert(paired._pools.vendorLegs.fade.array[i]===paired._pools.peak.fade.array[roof],
+      'paired legs and roofs share load/unload envelope and reduced-motion snap');
+  }
+}
+paired.dispose();
+
 assert(ff._mats.canopy instanceof MeshBasicMaterial && ff._mats.forest instanceof MeshBasicMaterial,
        'shipping default remains the measured unlit path while lighting is compared');
 ff._applyTimeOfDay(0);
@@ -849,7 +898,7 @@ assert(NIGHT_MARKER_THRESHOLD > 0 && NIGHT_MARKER_THRESHOLD < 1, 'night threshol
   // r160 geometries and the open four-triangle roof peak (box 12, octa 8;
   // icosa detail-0 is 20 by construction).
   const { FAR_FIELD_TIERS } = await import('../src/perf.js');
-  const TRIS = { canopy: 4, marqueeWall: 3, truss: 12, peak: 4, warm: 8, beacon: 8, forest: 20 };
+  const TRIS = { canopy: 4, marqueeWall: 3, truss: 12, peak: 4, vendorLegs: 32, warm: 8, beacon: 8, forest: 20 };
   for (const [tname, t] of Object.entries(FAR_FIELD_TIERS)) {
     assert(Number.isFinite(t.forestStep) && t.forestStep > 0,
       `tier ${tname} must define forestStep`);

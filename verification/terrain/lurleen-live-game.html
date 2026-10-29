@@ -1,0 +1,8 @@
+<!doctype html><meta charset="utf-8"><title>Lurleen live terrain</title>
+<style>body{background:#17162a;color:white;font:16px system-ui}iframe{width:100%;height:650px}pre{white-space:pre-wrap}</style>
+<h1>Lurleen terrain in the actual game</h1><p>Click a ready mode plank in the game, then place Lurleen. The live relationship updater drives her toward Zerble.</p><button id="place">Place at reported slope</button><button id="read">Read contacts</button><pre id="result">Waiting for game start</pre><iframe id="game" src="/?mute=1&perf=low&seed=1200852794"></iframe>
+<script>
+const f=document.querySelector('#game'),out=document.querySelector('#result');
+function read(){const g=f.contentWindow.__dbg?.game,l=g?.lurleen;if(!l)return;out.textContent=JSON.stringify({state:l.state,position:l.position,terrainContactError:l.terrainContactError,pitch:l.root.rotation.x,roll:l.root.rotation.z,colliderSharesPosition:[...g.registry.entries.values()].some(e=>e.position===l.position)},null,2);}
+document.querySelector('#place').onclick=()=>{const d=f.contentWindow.__dbg,l=d.game.lurleen;d.teleport(451.69,-894);d.tod(.346);l.autoRehome=false;l.setSpawnAt(451.69,-877.87);l.heading=-6.293;l.groundOnTerrain();d.camLock(461,6,-889,451,2,-881);read();};document.querySelector('#read').onclick=read;
+</script>

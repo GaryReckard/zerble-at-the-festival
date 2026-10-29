@@ -24,6 +24,10 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Vendor EZ-up continuity, October 29](vendors/2026-10-28-canopies/README.md): shared near/far colors, batched legs, fixed pool limits, native comparisons and live streaming/revisit checks.
+
+- [Lurleen terrain contact, October 28](terrain/2026-10-28-lurleen/README.md): reported seed reproduction, four-wheel support, unchanged behavioral traces and Low/Mid native and live-game checks.
+
 - [Vendor market activity, October 25](vendors/2026-10-25/README.md): opposing customer-facing keepers, real crowd browsing/purchases, bag draw cost, closure and lifecycle regressions.
 
 - [Evening vendors, moonset and Smile Bubbles, October 25](nightlife/2026-10-25/README.md): midnight shop closure, celestial occlusion and the real 1,000-pickup unlock pipeline.

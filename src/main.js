@@ -1940,6 +1940,7 @@ function performLurleenRescue() {
     zerble.speed = 0;
     lurleen.position.set(zerble.position.x + 3, 0, zerble.position.z + 3);
     lurleen.homePos.copy(lurleen.position);
+    lurleen.groundOnTerrain();
   }
   bubbles.addJuice(0.35, 1.0);
   zerble.sputtering = false;
@@ -2215,7 +2216,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
           ? ff.planner.pending.cells.length - ff.planner.pending.next : 0,
         committed: !!(ff.planner && ff.planner.committed),
         counts: Object.fromEntries(
-          ['canopy', 'truss', 'peak', 'warm', 'beacon', 'forest'].map((n) => [n, ff._pools[n].mesh.count]),
+          ['canopy', 'truss', 'peak', 'vendorLegs', 'warm', 'beacon', 'forest'].map((n) => [n, ff._pools[n].mesh.count]),
         ),
         activeHandoffs: ff._handoffs.length,
         override: ff._ownershipOverride,

@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-29
+
+### Fixed
+- **Distant vendor EZ-ups keep their colors when detailed booths load.** Nearby and horizon roofs share a position-seeded palette and roof rotation, while existing layout and merchandise random draws remain intact. Four simple posts per distant booth share one extra instanced draw, follow their roof through loading and unloading, and use bounded tier capacities. [Color, geometry-cost and streaming verification](verification/vendors/2026-10-28-canopies/README.md).
+
 ## 2026-10-28
 
 ### Added
@@ -13,6 +18,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **Dirt-road texture repeats less visibly.** The shared dirt tile now spans 32 metres with a 512px mipmapped texture, softer broad variation and fine grain, while asphalt retains its four-metre finish. World alignment and the two-material pool remain unchanged.
 
 ### Fixed
+- **Lurleen follows rolling terrain instead of sinking into it.** Four wheel probes set her height, pitch and roll, while bounded suspension keeps the wheels supported during wandering, following, spawning, offscreen relocation and rescue. Flat-world wheel motion and behavioral random draws are preserved. [Regression and native/live-game evidence](verification/terrain/2026-10-28-lurleen/README.md).
 - **Dirt and asphalt meet without camera-dependent flickering.** Detailed roads and access paths remove dirt geometry beneath the canonical paved footprint before terrain clipping, and chunk boundaries clip the same full-edge shape. Distant roads use the same subtraction rule within their existing fixed buffers, with a bounded retry that prevents omitted paved proxies from cutting holes in retained dirt. Added both reported seed/location regressions, independent coverage probes and real-game Low/Mid checks.
 - **Hoopers give parked carts room.** Recruitment excludes the cart footprint and nearby hoopers, while an approaching cart that stops still interrupts a hoop claim before its movement can pull the participant back into the cart.
 - **Stage dancers share the Healing Arts dance-party choreography.** The original authored rhythm now drives their body bounce and separately bending arms while retaining their clothes and fixed shoulder attachments.

@@ -160,10 +160,12 @@ const TABLE = {
       // At cell corners, nearest-first retention needs 232 peak slots even
       // when fewer roofs are visible; the open four-triangle pyramid lets us
       // reserve 288 without increasing the draw count or triangle ceiling.
-      marginalTriCap: 9700,   // worst case at full caps: 8,144 tris
+      // Vendor posts add one batched draw and 32 triangles per retained booth.
+      // Equal peak/leg capacities preserve roofs under dense snapshot pressure.
+      marginalTriCap: 17500,   // worst case at full caps: 17,360 tris including vendor legs
       maxColdStepMs: 2,
       forestStep: 72,         // coarse forest-mass sample grid (m)
-      caps: { canopy: 56, marqueeWall: 32, truss: 108, peak: 288, warm: 144, beacon: 32, forest: 96, roadVerts: 4096, roadIndices: 6144 },
+      caps: { canopy: 56, marqueeWall: 32, truss: 108, peak: 288, vendorLegs: 288, warm: 144, beacon: 32, forest: 96, roadVerts: 4096, roadIndices: 6144 },
     },
   },
   mid: {
@@ -187,7 +189,7 @@ const TABLE = {
     farField: {
       radius: 520,            // the fog-opaque limit (design D6)
       densityMul: 1.0,
-      marginalTriCap: 13300,  // worst case at full caps: 10,976 tris
+      marginalTriCap: 25500,  // worst case at full caps: 25,312 tris including vendor legs
       maxColdStepMs: 2,
       forestStep: 56,
       // canopy/truss/beacon raised 2026-08-28: measured within-radius demand
@@ -195,7 +197,7 @@ const TABLE = {
       // dense seeds dropped a VISIBLE stage. Sized from the same demand run
       // as low; peak/warm/forest re-sized in the 2026-08-31 fidelity pass (see
       // the low tier's note for what moved).
-      caps: { canopy: 56, marqueeWall: 32, truss: 120, peak: 448, warm: 192, beacon: 40, forest: 176, roadVerts: 4096, roadIndices: 6144 },
+      caps: { canopy: 56, marqueeWall: 32, truss: 120, peak: 448, vendorLegs: 448, warm: 192, beacon: 40, forest: 176, roadVerts: 4096, roadIndices: 6144 },
     },
   },
   high: {
@@ -222,10 +224,10 @@ const TABLE = {
     farField: {
       radius: 520,
       densityMul: 1.0,
-      marginalTriCap: 15000,  // worst case at full caps: 12,640 tris
+      marginalTriCap: 27000,  // worst case at full caps: 26,976 tris including vendor legs
       maxColdStepMs: 2,
       forestStep: 40,         // finest forest grid — high absorbs the tris
-      caps: { canopy: 56, marqueeWall: 32, truss: 120, peak: 448, warm: 192, beacon: 48, forest: 256, roadVerts: 4096, roadIndices: 6144 },
+      caps: { canopy: 56, marqueeWall: 32, truss: 120, peak: 448, vendorLegs: 448, warm: 192, beacon: 48, forest: 256, roadVerts: 4096, roadIndices: 6144 },
     },
   },
 };

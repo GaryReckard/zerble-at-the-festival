@@ -1,28 +1,11 @@
-// Vendor / craft tent — 4 legs, white pyramid roof, and an interior arranged
-// into one or more table "slots" (each filled with a product spread) plus a
-// shopkeeper standing the booth. Roof is always white per the festival
-// aesthetic; trim band + cloth color + slot arrangement + per-table product
-// spread + shopkeeper outfit all vary per-tent so a row of tents reads as a
-// real market lineup instead of clones.
+// Vendor / craft EZ-up with a colorful pyramid roof, tables and shopkeeper.
 //
 // Returns a THREE.Group anchored at (0,0,0), opening facing +Z.
 
 import * as THREE from 'three';
-import { VENDOR_ROOF_SHAPE } from '../festivalShapes.js';
+import { VENDOR_ROOF_SHAPE, VENDOR_LEG_SHAPE, VENDOR_CANOPY_PALETTES as TENT_PALETTES, VENDOR_TRIM_COLORS as TRIM_COLORS } from '../festivalShapes.js';
 import { buildSimpleNPC } from './puppet.js';
 import { mergeStaticDecor } from '../mergeDecor.js';
-
-// Vendor canopies carry the festival color from a distance, while table cloth
-// stays a softer related shade so the merchandise remains easy to read.
-const TENT_PALETTES = [
-  { roof: 0xe87859, cloth: 0xf2c0a7 }, // coral
-  { roof: 0x4f9b69, cloth: 0xb8d59a }, // leaf green
-  { roof: 0x4f7faf, cloth: 0xaac9dc }, // blue
-  { roof: 0xc39437, cloth: 0xe6ce8a }, // marigold
-  { roof: 0x9165a5, cloth: 0xd0b3d8 }, // violet
-  { roof: 0x369b91, cloth: 0x9dd1bd }, // teal
-];
-const TRIM_COLORS  = [0xff6f9c, 0x6fcf6a, 0xffd28a, 0xb285ff, 0x66d9ff, 0xff8a5b];
 
 // ----- Shared resources --------------------------------------------------
 // Each vendor row chunk spawns 10–14 tents; before pooling, every tent
@@ -30,12 +13,12 @@ const TRIM_COLORS  = [0xff6f9c, 0x6fcf6a, 0xffd28a, 0xb285ff, 0x66d9ff, 0xff8a5b
 // material. Pool by topology + color-key per .claude/rules/perf-pooling.md
 // so a row of tents shares draw-batchable resources. All entries are tagged
 // userData.shared = true so chunk-unload disposal walks skip them.
-const _LEG_GEO  = new THREE.BoxGeometry(0.15, 2.5, 0.15);   _LEG_GEO.userData.shared = true;
+const _LEG_GEO  = new THREE.BoxGeometry(VENDOR_LEG_SHAPE.width, VENDOR_LEG_SHAPE.height, VENDOR_LEG_SHAPE.width);   _LEG_GEO.userData.shared = true;
 const _ROOF_GEO = new THREE.ConeGeometry(VENDOR_ROOF_SHAPE.radius, VENDOR_ROOF_SHAPE.height, 4); _ROOF_GEO.userData.shared = true;
 const _TRIM_GEO = new THREE.BoxGeometry(4.5, 0.18, 4.5);    _TRIM_GEO.userData.shared = true;
 
 const _LEG_MAT = new THREE.MeshStandardMaterial({
-  color: 0x3a2e22, roughness: 0.8, flatShading: true,
+  color: VENDOR_LEG_SHAPE.color, roughness: 0.8, flatShading: true,
 });
 _LEG_MAT.userData.shared = true;
 const _ROOF_MATS = new Map();
@@ -160,25 +143,33 @@ export function buildTent(callerRng = Math.random, options = {}) {
 
   // One cloth color per tent — every table in this booth shares it so the
   // booth reads as a single vendor's space rather than an improvised pile.
-  const palette = TENT_PALETTES[Math.floor(rng() * TENT_PALETTES.length)];
+  const rolledPalette = TENT_PALETTES[Math.floor(rng() * TENT_PALETTES.length)];
+  const palette = options.appearance || rolledPalette;
   const baseColor = palette.cloth;
 
   // ----- Legs -----
-  for (const [lx, lz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
+  const offset = VENDOR_LEG_SHAPE.offset;
+  for (const [lx, lz] of [[-offset, -offset], [offset, -offset], [-offset, offset], [offset, offset]]) {
     const leg = new THREE.Mesh(_LEG_GEO, _LEG_MAT);
-    leg.position.set(lx, 1.25, lz);
+    leg.position.set(lx, VENDOR_LEG_SHAPE.height / 2, lz);
     g.add(leg);
   }
 
   // ----- Roof — palette-colored festival canvas; jitter avoids clones.
   const roof = new THREE.Mesh(_ROOF_GEO, _roofMat(palette.roof));
   roof.position.y = VENDOR_ROOF_SHAPE.centerY;
-  roof.rotation.y = Math.PI / 4 + (rng() - 0.5) * 0.06;
+  const rolledYaw = Math.PI / 4 + (rng() - 0.5) * 0.06;
+  roof.rotation.y = options.appearance?.roofYaw ?? rolledYaw;
   roof.castShadow = true;
   g.add(roof);
 
   // ----- Trim band — saturated festival color, vendor-personality cue.
-  const trimColor = TRIM_COLORS[Math.floor(rng() * TRIM_COLORS.length)];
+  const rolledTrim = TRIM_COLORS[Math.floor(rng() * TRIM_COLORS.length)];
+  const trimColor = options.appearance?.trim ?? rolledTrim;
+  // Retain all three historical draws above so layout, camps and stock keep
+  // their stream even when the world supplies a shared canopy descriptor.
+  g.userData.canopyAppearance = { roof: palette.roof, cloth: palette.cloth,
+    roofYaw: roof.rotation.y, trim: trimColor };
   const trim = new THREE.Mesh(_TRIM_GEO, _trimMat(trimColor));
   trim.position.y = 2.55;
   g.add(trim);

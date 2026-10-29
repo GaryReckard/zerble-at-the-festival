@@ -1,0 +1,49 @@
+(node:92174) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/worldgen/placement.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS vendor canopy session/position appearance, exact proxy colors/yaws, density omissions and revisits
+PASS  far-field owner-cell fixtures, deterministic descriptor copying, worldgen-input immutability, fixed-capacity nearest selection, snapshot-planner supersession, the enablement truth table, handoff policy, palette + instHash stability, shared roofs and vendor slots, instance expansion, the real-worldgen pool drive (caps, determinism, bounds enclosure after a distant rewrite, night gating), the completion handoff (dither wiring, snap-then-envelope, shared-deadline remainder, reduced-motion snap, unload reappearance), long-travel resource plateaus + registry off-on identity + forcing controls + the no-builder/no-light/no-shadow source contract, coarse forest masses (grid ownership, threshold gating, jittered-owner handoff, per-tier tri-budget gate), and owner-only disposal idempotence
+PASS reported road patch: 630 interior surface samples, strict underlay/detailed-road separation, retained geometry, deterministic rewrites and hard capacity limits.
+PASS mixed road surfaces: actual width/color buffers, stable rewrites and one bounded vertex-color draw.
+PASS distant junction: actual index/position/color buffers have zero competing color probes and retain the road crossing.
+PASS junction capacity: deterministic bounded rewrite retains hard limits when paved candidates overflow.

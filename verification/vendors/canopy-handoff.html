@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><title>Vendor canopy handoff</title>
+<script type="importmap">{"imports":{"three":"../../src/threeShim.js","three-actual":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<style>body{background:#17162a;color:white;font:16px system-ui}canvas{max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
+<h1>The same vendor row, distant and detailed</h1><button id="far">Distant roofs</button><button id="near">Detailed booths</button><button id="night">Noon / Midnight</button><button id="rebuild">Unload and revisit</button><pre id="result"></pre>
+<script type="module">
+import * as THREE from 'three';import * as shapes from '../../src/festivalShapes.js';import{buildTent,updateTent}from '../../src/models/tent.js';import{FarField,expandFarInstances}from '../../src/farField.js';import{vendorRowSlots}from '../../src/worldgen/placement.js';import{FESTIVAL_TUNING as T}from '../../src/worldgen/tuning.js';import{mulberry32,setSessionSeed}from '../../src/rng.js';import{setTerrainEnabled}from '../../src/worldgen/terrain.js';import{disposeChunkByKey}from '../../src/chunks.js';
+setSessionSeed(1234);setTerrainEnabled(false);const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(45,1000/650,.1,200),renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(1000,650);renderer.toneMapping=THREE.ACESFilmicToneMapping;document.body.append(renderer.domElement);const light=new THREE.HemisphereLight(0xffffff,0x655840,2.5);scene.add(light);camera.position.set(28,28,38);camera.lookAt(0,2,0);
+const record={kind:'vendor_row',x:0,z:0,yaw:.2,clusterSeed:123456789,ownerCx:0,ownerCz:0};const count=T.VENDOR_ROW_COUNT_BASE+Math.floor(mulberry32(record.clusterSeed)()*T.VENDOR_ROW_COUNT_SPAN),slots=vendorRowSlots(0,0,.2,count);
+const far=new FarField({enabled:true,scene,lighting:'lit',tier:{densityMul:1,caps:{canopy:1,marqueeWall:1,truss:1,peak:32,warm:32,beacon:1,forest:1,roadVerts:6,roadIndices:6}}});let group,tents=[],night=0,mode='far',visits=0,first;
+function build(){group=new THREE.Group();scene.add(group);tents=slots.map((s,i)=>{const a=shapes.vendorCanopyAppearance(s.x,s.z),g=buildTent(mulberry32(800+i),{appearance:a,rng:mulberry32(1600+i)});g.position.set(s.x,0,s.z);g.rotation.y=record.yaw+(s.side<0?-Math.PI/2:Math.PI/2)+Math.PI;group.add(g);return g;});far._applySnapshot([record]);}
+function verify(){
+ for(const [i,s] of slots.entries()){
+  const appearance=shapes.vendorCanopyAppearance(s.x,s.z),rngA=mulberry32(2400+i),rngB=mulberry32(2400+i);
+  const a=buildTent(rngA,{merge:false,rng:mulberry32(3600+i)}),b=buildTent(rngB,{merge:false,appearance,rng:mulberry32(3600+i)});
+  const roof=b.children.find(n=>n.position.y===shapes.VENDOR_ROOF_SHAPE.centerY);
+  const proxy=expandFarInstances([record],1).peak[i];
+  if(roof.material.color.getHex()!==proxy.color||roof.rotation.y!==appearance.roofYaw)throw Error('Rendered roof mismatch');
+  if(rngA()!==rngB())throw Error('Appearance changed caller RNG');
+  if(JSON.stringify(tents[i].userData.canopyAppearance)!==JSON.stringify(appearance))throw Error('Detailed descriptor mismatch');
+  const owner=new THREE.Group();owner.add(a,b);scene.add(owner);disposeChunkByKey(scene,owner,'probe',null);
+ }
+ return 'PASS rendered roof colors/yaw and unchanged builder RNG';
+}
+let checks;
+function draw(){group.visible=mode==='near';far.group.visible=mode==='far';light.intensity=night?.3:2.5;scene.background=new THREE.Color(night?0x14211c:0x91c9de);for(const t of tents)updateTent(t,night?.75:.25,night,0);far._applyTimeOfDay(night);renderer.render(scene,camera);const colors=expandFarInstances([record],1).peak.map(p=>p.color),stable=!first||JSON.stringify(first)===JSON.stringify(colors);if(!first)first=colors;document.querySelector('#result').textContent=JSON.stringify({checks,mode,night,visits,stable,distinctRoofColors:new Set(colors).size,draws:renderer.info.render.calls,triangles:renderer.info.render.triangles});}
+build();checks=verify();draw();document.querySelector('#far').onclick=()=>{mode='far';draw();};document.querySelector('#near').onclick=()=>{mode='near';draw();};document.querySelector('#night').onclick=()=>{night=1-night;draw();};document.querySelector('#rebuild').onclick=()=>{disposeChunkByKey(scene,group,'canopy-fixture',null);visits++;build();checks=verify();draw();};addEventListener('pagehide',()=>{disposeChunkByKey(scene,group,'canopy-fixture',null);far.dispose();renderer.dispose();},{once:true});
+</script>

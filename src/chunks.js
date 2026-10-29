@@ -1,3 +1,4 @@
+import { vendorCanopyAppearance } from './festivalShapes.js';
 import { ribbonTriangles, trimRoadTriangles, pavedCutters, footprintBounds } from './roadGeometry.js';
 import { roadMaterial } from './roadMaterials.js';
 import {sampleHealingArtsPreview} from './people/healingArtsMotion.js';
@@ -1613,7 +1614,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       // deck the row runs past, a neighbour's truck) — the graceful-degradation guard the
       // legacy theme builders had. Chunk-gen only; clusterSeed stream, so goldens unaffected.
       if (registry.closestBuilding(new THREE.Vector3(w.x, terrainHeight(w.x, w.z), w.z), 2.2, CLUSTER_GUARD_SKIP)) continue;
-      const tent = buildTent(ctx.rng, { rng: mulberry32(worldHash(Math.round(w.x * 256), Math.round(w.z * 256), 0x56454e44)) });
+      const tent = buildTent(ctx.rng, { appearance: vendorCanopyAppearance(w.x, w.z), rng: mulberry32(worldHash(Math.round(w.x * 256), Math.round(w.z * 256), 0x56454e44)) });
       tent.position.set(w.x, terrainHeight(w.x, w.z), w.z);
       // Face the central aisle (the road, after round-2 C). The two rows were
       // rotated to face OUTWARD; +π flips each booth's open front in toward the
