@@ -24,6 +24,8 @@ Keep unresolved acceptance separate from shipped implementation.
 
 ## Task guides
 
+- [Development and deployment](toolchain.md): Vite commands, dependency aliases, captures, build checks and GitHub Pages.
+
 - [Performance playtests](performance-playtests.md): guided phone/desktop
   capture, quality comparisons, shader probes and registry measurements.
 - [Layout verification](layout-verification.md): plan versus built truth,

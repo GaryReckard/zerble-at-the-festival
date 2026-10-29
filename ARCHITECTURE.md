@@ -14,9 +14,9 @@ full reference map, use the [documentation index](docs/README.md).
 
 ## Top-level shape
 
-- **No build step.** The game runs from source. `index.html` constructs an [importmap](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap) at boot and loads `src/main.js` as an ES module. Three.js is pulled from `unpkg` through that same importmap.
-- **Dev cache-buster.** On local hostnames (`localhost`, `127.0.0.1`, `*.local`, RFC1918, `claude-preview`, `happycog`) the importmap appends `?v=<Date.now()>` to every module URL, so edits show up on reload even when the preview proxy strips cache headers. Production loads modules unsuffixed so three.js can cache cleanly.
-- **Dev server.** `python3 .claude/serve_nocache.py 8765` — a `http.server` subclass that sends `Cache-Control: no-store` on every response. Use it instead of `python3 -m http.server` so ES module bodies don't get cached by the heuristic cache.
+- **Build and development.** Vite serves native modules with `npm run dev` and bundles six HTML entry pages with `npm run build`. GitHub Actions checks and deploys `dist/` on pushes to `main`; output is not committed. See [the toolchain guide](docs/toolchain.md).
+- **Module resolution.** `vite.config.mjs` maps `three` to `src/threeShim.js`, `three-actual` to pinned Three.js 0.160.0, and `three/addons/` to its matching addons. The entity sandbox retains raw Standard materials even on Low; game, hub and terrain retain the Low Lambert fallback. Module inventories and timestamp importmaps are gone.
+- **Iteration and captures.** Game JavaScript edits trigger full reloads. The loopback Vite development/preview servers accept `/__capture/<name>` uploads; the Python guided-playtest server builds and serves production output with its existing LAN token/QR workflow.
 - **Analytics.** GA4 (`G-CY1FNMY8H8`) loads inline in `index.html`. Every gameplay event flows through [analytics.js](src/analytics.js), which no-ops gracefully if `gtag` is missing.
 
 ---
@@ -24,10 +24,11 @@ full reference map, use the [documentation index](docs/README.md).
 ## File layout
 
 ```
-index.html                  Boot + importmap + title card + HUD scaffolding
+index.html                  Module entry + title card + HUD scaffolding
 styles.css                  HUD, title card, touch overlay
 sandbox.html                Standalone scene viewer (not part of the game)
-.claude/serve_nocache.py    Dev static server with no-cache headers
+vite.config.mjs             Entries, aliases, build and capture integration
+.claude/serve_nocache.py    Built-game guided playtests and LAN captures
 src/
   main.js                   Game bootstrap + main loop + collisions
   world.js                  Sky, lights, ground, fog, chunk + lake managers
@@ -481,7 +482,7 @@ than scattering mode checks.
   deployed URL is set in the file (`PROD_BOARD_URL`), with a localhost-gated
   `zerble-board-url` localStorage override for dev drills. The Worker itself
   lives at **`workers/leaderboard/`** — deliberately outside the game's
-  importmaps and perf surface; its deploy runbook (KV + secrets, Gary-only)
+  module wiring and perf surface; its deploy runbook (KV + secrets, Gary-only)
   is in `workers/leaderboard/README.md` + `wrangler.toml`, and
   `bin/test-leaderboard-worker` drives it in plain node with a mock KV.
 - **Resume**: the settings "Apply & restart" snapshot carries mode + serialized

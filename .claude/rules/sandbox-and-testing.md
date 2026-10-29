@@ -41,9 +41,8 @@ Already wired up:
 
 If you add a file to `src/models/`, the change is **not done** until you also:
 
-1. **Add it to `sandbox.html`'s importmap `models` array** (the list near the
-   top of the file). Without this, the dev cache-buster won't decorate the
-   URL with `?v=` and your edits won't reload locally.
+1. **Import the builder in `sandbox.html`.** Vite follows ordinary imports;
+   no module inventory or cache-buster registration is needed.
 2. **Add an `<option>` to the entity `<select>`** in the right `<optgroup>`
    (Festival props / People / Camping / Forest / Particles / Drum circle).
 3. **Add a `case '<key>':` to the `loadEntity()` switch** that calls your
@@ -53,9 +52,9 @@ If you add a file to `src/models/`, the change is **not done** until you also:
    it" button surfaces.
 5. **If it plays music** (stage, drum circle), add it to
    `ENTITY_MUSIC_STYLE`.
-6. **Update the module lists in all four HTML importmaps**, including
-   `index.html`, `hub-sandbox.html` and `map-sandbox.html`, then run
-   `bin/check-importmaps`. See [the importmap rule](no-build.md#importmap-maintenance).
+6. **Run `npm run check` and `npm run build`.** The build checks entry-point
+   module wiring; browser verification checks the actual scene and lifecycle.
+
 
 Then verify by opening `?entity=<your-key>` and confirming the model loads,
 animates, and looks right at all four ToD presets.

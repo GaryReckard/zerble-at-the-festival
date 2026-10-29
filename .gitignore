@@ -15,3 +15,6 @@ Trace-*.json.gz
 .claude/captures/
 
 CLAUDE.local.md
+
+# Generated production output
+dist/

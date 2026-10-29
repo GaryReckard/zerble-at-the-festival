@@ -13,9 +13,13 @@ browser console and call `window.__dbg.help()`.
 Run these from the repository root:
 
 ```sh
-python3 .claude/serve_nocache.py 8765
+npm ci
+npm run dev
 # In another terminal, for code changes:
 npm run check
+npm run build
+# Stop dev before serving the production build on the same port:
+npm run preview
 ```
 
 Reuse an existing server when possible. Open `http://127.0.0.1:8765/?mute=1`,
@@ -32,6 +36,10 @@ for streaming and integration. All browser URLs used by agents need `mute=1`.
 - [Layout verification](docs/layout-verification.md)
 - [Browser cleanup and software WebGL](docs/browser-verification.md)
 
+For build/deployment details, see [the toolchain guide](docs/toolchain.md).
+Game JavaScript edits trigger a full reload; CSS uses Vite updates. The capture
+endpoint is available in both development and production preview.
+
 ## Desktop and phone performance playtests
 
 Use the [performance playbook](docs/performance-playtests.md) for guided phone
@@ -42,14 +50,14 @@ in [ROADMAP.md](ROADMAP.md).
 
 ## Festival Passport preview
 
-Open `http://127.0.0.1:8765/passport-preview.html?case=populated&mute=1` on a loopback no-cache server. Fixtures `empty`, `populated`, `migrated`, `long` and `blocked` use the production menu with memory-only progress, without GA or WebGL. This preview is intentionally outside the LAN page allowlist. Test the live title and book buttons or `P` for integration; `__dbg.passport()` reads the live snapshot and `__dbg.passport(true)` opens it. A passport pauses gameplay, including Festival Run resource/timer changes, while preserving rendering.
+Open `http://127.0.0.1:8765/passport-preview.html?case=populated&mute=1` on the loopback Vite server. Fixtures `empty`, `populated`, `migrated`, `long` and `blocked` use the production menu with memory-only progress, without GA or WebGL. This preview is intentionally outside the LAN page allowlist. Test the live title and book buttons or `P` for integration; `__dbg.passport()` reads the live snapshot and `__dbg.passport(true)` opens it. A passport pauses gameplay, including Festival Run resource/timer changes, while preserving rendering.
 
 `node bin/test-player-stats` and `node bin/test-passport-integration` exercise travel/return, relocation, stage identity, migration, persistence, settings continuity, analytics privacy/checkpoints, real bubble births, and input release. Both are included in `npm run check`. [Contracts and analytics fields](docs/passport.md).
 
 ## Terrain driving proof
 
 Open `http://127.0.0.1:8765/terrain-sandbox.html?mute=1` on the existing
-no-cache server, or follow **Drive the terrain course** in the entity sandbox.
+Vite server, or follow **Drive the terrain course** in the entity sandbox.
 WASD/arrows drive, Space brakes, Shift boosts, and R resets the selected stretch.
 On-screen buttons also support touch; Boost ↑ combines forward throttle and boost.
 Enable engine sound starts the existing game engine audio inside that tap. The section picker jumps directly to the

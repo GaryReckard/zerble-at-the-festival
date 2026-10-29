@@ -1,8 +1,8 @@
 // Tier-aware three.js wrapper. Re-exports everything from real three.js
-// (which lives at the 'three-actual' importmap entry) and overrides
+// (resolved by the 'three-actual' Vite alias) and overrides
 // MeshStandardMaterial on low tier with a Lambert-returning shim.
 //
-// The importmap in index.html redirects 'three' → this file. Existing
+// The Vite config redirects 'three' → this file. Existing
 // `import * as THREE from 'three'` calls across the codebase resolve here
 // automatically — no caller changes. ES module spec resolution rules
 // guarantee that a direct named export (our MeshStandardMaterial) takes
@@ -43,7 +43,10 @@ const LAMBERT_COMPATIBLE = new Set([
   'toneMapped', 'premultipliedAlpha', 'dithering',
 ]);
 
-const SwapEnabled = PERF.name === 'low';
+// The entity viewer historically uses raw Standard materials even on Low.
+// Keep that exception while all entry pages share one dependency graph.
+const entitySandbox = /(?:^|\/)sandbox\.html$/.test(globalThis.location?.pathname || '');
+const SwapEnabled = PERF.name === 'low' && !entitySandbox;
 
 // Constructor function (NOT a class — we want `new X()` to return whatever
 // we hand back, including the wrong type for low-tier). Nothing in the

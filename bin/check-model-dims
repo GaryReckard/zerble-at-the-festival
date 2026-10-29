@@ -14,9 +14,8 @@
  *
  * It dynamic-imports tuning.js (which imports NOTHING, so it loads fine in node)
  * for MODEL_DIMS, and SOURCE-GREPS the model files for their live constants
- * (can't import them — three.js). Same regex-the-source approach as
- * bin/check-importmaps. Exits 0 in sync, 1 (naming the field + both values) on
- * drift. CommonJS extensionless bin script, like bin/lint / bin/check-importmaps.
+ * (can't import them — three.js). Exits 0 in sync, 1 (naming the field + both values) on
+ * drift. CommonJS extensionless bin script, like bin/lint.
  */
 'use strict';
 

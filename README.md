@@ -61,23 +61,24 @@ The crowd is watching. Glide past them. Let your bubbles drift. They will smile 
 
 ## Play it
 
-Play in a modern browser: <https://garyreckard.github.io/zerble-at-the-festival/>. There is no install or build step.
+Play in a modern browser: <https://garyreckard.github.io/zerble-at-the-festival/>. Players do not need to install anything.
 
-To play from a local checkout, serve it over HTTP so the browser can load ES modules:
+To play from a local checkout, install Node.js 24 and run:
 
 ```
-python3 .claude/serve_nocache.py 8765
+npm ci
+npm run dev
 ```
 
 Then visit `http://127.0.0.1:8765`. For development, see the [contributor documentation](docs/README.md).
 
 ## Tech
 
-- Plain ES modules + an importmap. No bundler, no transpiler.
-- [three.js](https://threejs.org) for rendering (loaded via CDN through the importmap).
+- Plain JavaScript ES modules, served and bundled with [Vite](https://vite.dev).
+- [three.js](https://threejs.org) for rendering, pinned and bundled with the game.
 - Web Audio API for everything you hear.
 - Vanilla DOM for the HUD.
-- Source files are hand-rolled and editable without a build.
+- GitHub Actions checks, builds and deploys the static game on pushes to `main`.
 
 ## Performance tiers
 

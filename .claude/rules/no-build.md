@@ -1,51 +1,40 @@
-# No-build development and importmaps
+# Development, build and deployment
 
-The game ships directly from source using ES modules and importmaps. Serve it
-over HTTP with the [no-cache server](../../DEBUGGING.md#quick-start); opening
-`index.html` through `file://` does not reliably load browser modules.
+The filename is retained so existing documentation links keep working. Gary
+approved replacing the no-build workflow on October 29, 2026 to reduce agent
+bookkeeping and catch module wiring failures before browser verification.
 
-## Toolchain policy
+## Commands
 
-The no-build development loop remains the default. Gary permits a build step
-only behind a measured performance proposal and an explicit decision, as
-recorded in the [performance backlog](../../docs/backlog/performance.md).
-Do not introduce a bundler as incidental cleanup or assume workers require one:
-the October pure-worldgen worker probe used native modules. Any proposed change
-must preserve a deployable static GitHub Pages game and identify the measured
-benefit, migration cost and verification plan.
+Use Node.js 24 and `npm ci`, then `npm run dev` for local development.
+Run `npm run check` and `npm run build` before completing code changes.
+`npm run preview` serves the generated `dist/` on the same loopback port, 8765;
+stop the development server first or pass `-- --port <port>`.
 
-## Importmap maintenance
+## Module maintenance
 
-When you add a new source file under `src/` (or `src/models/`), you must add its
-module path to the cache-busted importmap lists in **all five HTML files**:
+Ordinary imports discover dependencies. Do not add module inventories or
+importmaps to HTML. The build covers the game, entity, hub, terrain and map
+sandboxes, plus the Passport preview. New entry pages belong in
+`vite.config.mjs`; new source modules only need their normal imports.
 
-- `index.html` — `mods` (src + worldgen) + `models`
-- `sandbox.html` — `mods` + `models`
-- `hub-sandbox.html` — `mods` + `models` (the 3D hub viewer)
-- `terrain-sandbox.html` — `mods` + `models` (the playable elevation proof)
-- `map-sandbox.html` — `wg` (includes the worldgen and shared module paths)
+## Three.js
 
-```js
-const mods = ['main','world','zerble', /* ... */, 'worldgen/lint'];
-const models = ['canoe','hammock','tent', /* ... */, 'wook'];
-```
+Three.js stays pinned to 0.160.0 in package.json and package-lock.json.
+The exact `three` Vite alias resolves to `src/threeShim.js`; `three-actual`
+resolves to the real library and `three/addons/` to matching addons. The shim
+preserves the entity sandbox's raw Standard materials, while the game, hub
+and terrain retain the Low-tier Lambert fallback. Never bypass this alias
+as incidental cleanup. Upgrade Three.js separately and verify mobile behavior.
 
-Without that, the dev cache-buster won't decorate the URL with `?v=<timestamp>`
-on local dev — meaning your edits won't reload (Chrome's heuristic cache holds
-ES module bodies past `Cache-Control: no-store` in some cases). Production is
-unaffected by the missing entry (it loads modules unsuffixed) but local dev
-will silently bite you.
+## Deployment and captures
 
-**Run `bin/check-importmaps`** after touching `src/` or any importmap. It
-recursively discovers JavaScript modules under `src/`, normalizes model-relative
-entries, and checks the `mods`/`models`/`wg` declarations on all five pages for
-missing or stale paths. The 2D map declares the same source URLs without importing
-them, so its executed modules remain worldgen-only. `node bin/test-importmaps`
-exercises missing and stale mappings, nested additions, namespaces, and missing
-pages/arrays; it also runs through `npm run check`.
+GitHub Actions checks pull requests and checks/builds/deploys pushes to `main`.
+Only `dist/` is published, and generated output is not committed. GitHub Pages
+must use the GitHub Actions publishing source. JavaScript edits trigger full
+reloads instead of replacing live game state.
 
-## Three.js comes from a CDN
-
-`three` and `three/addons/` are pinned to unpkg `0.160.0` in the importmap.
-Don't `npm install three`. Don't vendor it locally. If you need to bump,
-update the URLs in the importmap and re-test on at least one mobile browser.
+Vite development and preview retain loopback capture uploads. Guided desktop
+and phone playtests retain the Python server, which builds before serving
+`dist/` and preserves token-protected LAN uploads and QR codes.
+See [the toolchain guide](../../docs/toolchain.md) for details and verification.

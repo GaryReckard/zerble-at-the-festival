@@ -1,6 +1,6 @@
-"""Dev-only static server that disables HTTP caching so module reloads pick up
-edited files. Plain `python3 -m http.server` sends Last-Modified but no
-Cache-Control, and Chrome's heuristic cache happily holds ES module bodies.
+"""Guided-playtest server for production output, with no-cache responses.
+The CLI builds the Vite game before serving dist. Historical comparison
+exports without Vite retain source serving. Use npm run dev for live edits.
 
 Also exposes a tiny capture sink: `POST /__capture/<name>` writes the request
 body to `.claude/captures/<name>.json`. This is the browser->repo bridge — the
@@ -12,6 +12,7 @@ default; explicit `--lan` mode protects remote writes with a generated token."""
 import argparse
 import errno
 import ipaddress
+import os
 import posixpath
 import re
 import secrets
@@ -27,7 +28,7 @@ MAX_CAPTURE_BYTES = 32 * 1024 * 1024
 CAPTURE_TOKEN = None
 LAN_MODE = False
 PUBLIC_FILES = {
-    '/', '/index.html', '/terrain-sandbox.html', '/map-sandbox.html', '/styles.css', '/passport.css', '/favicon.ico', '/favicon.svg',
+    '/', '/index.html', '/sandbox.html', '/hub-sandbox.html', '/terrain-sandbox.html', '/map-sandbox.html', '/styles.css', '/passport.css', '/favicon.ico', '/favicon.svg',
     '/favicon-96x96.png', '/apple-touch-icon.png', '/site.webmanifest',
     '/web-app-manifest-192x192.png', '/web-app-manifest-512x512.png',
 }
@@ -167,6 +168,12 @@ if __name__ == '__main__':
         parser.error('--quality baseline/sustained requires --playtest and --tier low')
     if args.desktop_open and (args.lan or not args.playtest):
         parser.error('--desktop-open requires a loopback --playtest')
+    # Guided playtests use exactly the bundled production game. Historical
+    # comparison exports without Vite retain their original source server.
+    root = Path(__file__).resolve().parent.parent
+    if (root / 'vite.config.mjs').exists():
+        subprocess.run(['npm', 'run', 'build'], cwd=root, check=True)
+        os.chdir(root / 'dist')
     port = args.port
     host = '0.0.0.0' if args.lan else '127.0.0.1'
     if args.lan:

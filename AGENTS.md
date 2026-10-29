@@ -7,8 +7,8 @@ read only the references relevant to the task.
 
 ## Project and documentation
 
-Zerble is a no-build browser game using plain ES modules, importmaps, Three.js
-from a CDN, and synthesized Web Audio. The [live GitHub Pages deployment](https://garyreckard.github.io/zerble-at-the-festival/)
+Zerble is a browser game using plain ES modules, Vite, pinned Three.js,
+and synthesized Web Audio. The [live GitHub Pages deployment](https://garyreckard.github.io/zerble-at-the-festival/)
 has real players; analytics calls go through `src/analytics.js`.
 
 | Need | Authoritative reference |
@@ -31,13 +31,15 @@ Historical scratch notes and plans are context, not additional current policy.
 Run commands from the repository root:
 
 ```sh
-python3 .claude/serve_nocache.py 8765
+npm ci
+npm run dev
 npm run check
+npm run build
 ```
 
 Reuse an existing suitable server and stop servers you start when finished.
-The no-cache server and local importmap cache-buster keep edits visible on
-reload. Use the browser tools available in the session; old `preview_*` names
+Vite reloads game modules after edits; `npm run preview` serves the production
+build. Use the browser tools available in the session; old `preview_*` names
 in reports do not require installing a particular integration.
 
 **Build the verification surface before the feature.** Choose the smallest
@@ -56,7 +58,8 @@ local game control surface: `help()`, `start()`, `teleport(x,z)`, `tod(t)`,
 expose the live references and interactive overlay API. Use these rather than
 stubbing input or fighting the chase camera.
 
-For code changes, run `npm run check` and verify the affected browser path.
+For code changes, run `npm run check` and `npm run build`, then verify the
+affected browser path.
 Always smoke-test the real game: title card, a ready mode-plank click, world
 boot, then console inspection after it runs. A sandbox pass cannot establish
 integration correctness. A scripted `__dbg.start()` bypasses the gesture and
@@ -84,10 +87,10 @@ measurement.
 
 ## Constraints that must survive edits
 
-1. **No implicit toolchain change.** The no-build loop remains the default.
-   A build step needs a measured proposal and Gary's approval. Read
-   [.claude/rules/no-build.md](.claude/rules/no-build.md). New source modules
-   must be represented in all five HTML importmaps; run `bin/check-importmaps`.
+1. **Keep the toolchain minimal.** Use `npm run dev`, `npm run check`,
+   `npm run build`, and `npm run preview`. Imports discover source modules;
+   there are no HTML module inventories. Read
+   [.claude/rules/no-build.md](.claude/rules/no-build.md) for build/deploy policy.
 2. **Patch Three.js through `src/threeShim.js`.** ES module namespaces are
    frozen; assigning `THREE.X = Y` after import breaks spec-strict runtimes,
    including mobile Safari.
@@ -122,8 +125,8 @@ attractor and chunk ownership; see `src/registry.js` for the current contract.
 Comments should explain a non-obvious reason, constraint or workaround.
 
 Before adding a model, read
-[the sandbox checklist](.claude/rules/sandbox-and-testing.md). Update all five
-importmaps, the sandbox selector and `loadEntity()` case, plus hit-kind/music
+[the sandbox checklist](.claude/rules/sandbox-and-testing.md). Update the module imports,
+sandbox selector and `loadEntity()` case, plus hit-kind/music
 mapping when applicable. An uninspectable model is unfinished work.
 
 Keep player copy warm and festival-focused, including “Bring the bubbles,

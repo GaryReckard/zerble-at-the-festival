@@ -4,6 +4,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-29
 
+### Changed
+- **Development and deployment use Vite.** Agents use standard dev/check/build/preview commands, and ordinary imports replace five manually maintained module lists. All six entry pages build with pinned Three.js, preserving Low-tier materials, the entity-viewer exception and guided capture workflows. GitHub Actions checks pull requests and builds/deploys `main` to Pages; generated output stays untracked. See [the toolchain guide](docs/toolchain.md).
+
 ### Fixed
 - **Distant vendor EZ-ups keep their colors when detailed booths load.** Nearby and horizon roofs share a position-seeded palette and roof rotation, while existing layout and merchandise random draws remain intact. Four simple posts per distant booth share one extra instanced draw, follow their roof through loading and unloading, and use bounded tier capacities. [Color, geometry-cost and streaming verification](verification/vendors/2026-10-28-canopies/README.md).
 

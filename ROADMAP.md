@@ -150,13 +150,7 @@ for the current procedure. Remaining work:
   worldgen v2" above* (the lean grammar fix didn't need it). Builders express
   sub-component layouts as pure data (descriptor in → positions/radii out, no
   three.js); feeds the overlay + linter plan-mode *exact* extents headlessly.
-- **Importmap bootstrap dedupe** *(parked 2026-06-10, beyond the harness
-  change — Gary call)*: the four html pages (index, sandbox, map-sandbox,
-  hub-sandbox) each carry a near-identical inline cache-buster/importmap
-  injector; they could collapse into one shared classic-script bootstrap. Not
-  urgent — `bin/check-importmaps` fails loudly on list drift — and it touches
-  prod loading, so it must not ride inside a golden-frozen change. See
-  `worldgen-layout-harness` deliberations/001-initial (Q6).
+
 
 ---
 
@@ -245,14 +239,10 @@ mechanics, tradeoffs, dependencies and original proposals.
   rejection rules, then validate lighting and moving handoffs on the phone.
 - **Retain the parked optimization ideas.** The [performance backlog](docs/backlog/performance.md)
   preserves slice status, measurements, rejected approaches, model pooling ideas,
-  and the evidence gate for a build step.
+  and the remaining device-performance measurement work.
 
 ---
 
 ## Out of scope (worth flagging)
 
-- **Bundler / build step:** permitted only through a measured proposal and
-  Gary's approval. The no-build loop remains the default; see the
-  [toolchain policy](.claude/rules/no-build.md) and
-  [parked performance proposal](docs/backlog/performance.md).
 - **Sample-based audio (mp3/wav).** Adding recorded audio means an asset pipeline and a CDN story. Synthesized stays the constraint for game SFX + stage music. MIDI playback uses Tone.js synthesis — no samples shipped.

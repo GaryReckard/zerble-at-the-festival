@@ -1,0 +1,6 @@
+
+> test:toolchain:http
+> node bin/test-toolchain-http.mjs
+
+PASS development: six pages, linked assets, manifest icons, stable runtime assets, capture writes and denied private/cross-origin access.
+PASS production project subpath: six pages, linked assets, manifest icons, stable runtime assets, capture writes and denied private/cross-origin access.

@@ -1,0 +1,199 @@
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+[perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+[perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+[perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier
+[perf] profile = mid {
+  name: 'mid',
+  pixelRatioCap: 1.5,
+  bloom: true,
+  bloomStrength: 0.5,
+  bloomRadius: 0.8,
+  bloomThreshold: 0.8,
+  shadows: true,
+  shadowType: 'basic',
+  crowdMax: 320,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 4,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 350,
+  fireworksPoolMax: 550,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 25500,
+    maxColdStepMs: 2,
+    forestStep: 56,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 40,
+      forest: 176,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS build: six entries, 2D isolation, automatic module discovery, missing-export failure, real Three.js aliases/material tiers, capture writes and access boundaries.

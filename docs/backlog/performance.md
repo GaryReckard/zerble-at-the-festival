@@ -88,13 +88,13 @@ ceiling rather than an automatic perf win.
   should establish the residual stalls before changing hidden-tab/audio
   schedulers or adding another far-field cache.
 
-### Build step — now on the table for perf *(parked, evidence-gated, 2026-06-19)*
+### Build tooling and remaining performance opportunities
 
-No longer ruled out (Gary relaxed the no-build constraint; see the reframed
-note under *Out of scope*). The pure-worldgen worker probe below shows that
-workers alone do not require a bundler. A build step remains parked until
-device captures show a specific benefit from compression or broader module
-resolution:
+Gary approved Vite on October 29, 2026 to reduce agent bookkeeping and catch
+module wiring failures before browser verification. The build migration and
+GitHub Actions workflow are documented in [the toolchain guide](../toolchain.md).
+This decision does not establish a device loading or FPS improvement; workers
+and compression still need their own measured justification.
 
 - **Web Workers, evidence-gated** — the 2026-10-08 module-worker probe imported
   pure worldgen code and produced byte-identical region data without a bundler.
@@ -103,7 +103,7 @@ resolution:
   code that imports browser-only or `three` modules may still need separate
   module resolution or a build step.
 - **Texture / mesh compression** — KTX2/Basis + Draco/meshopt: smaller GPU upload, lower memory (helps the iOS ≤2048 cap + mobile), faster boot. Makes texture-atlasing worthwhile.
-- **Recommended tool if pursued: Vite** — keeps fast HMR + static GitHub-Pages output, and could ship a committed-`dist/` or GitHub-Actions deploy so "the site just works on Pages" survives. Replaces the 4×importmap + threeShim CDN juggling. Decide on evidence after B0, not now.
+
 
 - **Crowd InstancedMesh churn.** When NPCs change state, their per-instance matrix flag has to flip. Worth profiling on low-end devices to see if writes per frame are an issue.
 - **Forest tree count on low tier — confirm the multiplier on a real device.** The tier-gated thin-out shipped (2026-06-02): `PERF.forestTreeDensityMul` cuts the low-tier forest target to **0.7** (~30% fewer trees, the bigger crowns fill the gaps). What's still open is the original deferral — the 0.7 was picked from the estimate, not a real low-end-device feel-test. Drive a forest on an actual integrated-GPU phone and confirm 0.7 is the right trade (looser if it still chugs, tighter if the woods read sparse).

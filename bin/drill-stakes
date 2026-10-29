@@ -3,7 +3,7 @@
 // node-only invariants live in bin/test-run-*). Runs the REAL game headless on
 // SwiftShader via the same out-of-repo Playwright harness as bin/verify-headless
 // (~/.zerble-verify; override ZERBLE_VERIFY_ROOT). Dev server must already be
-// on :8765 (python3 .claude/serve_nocache.py 8765).
+// on :8765 (npm run dev).
 //
 // Exists because review 001-groups-6-9 found both P0s in seams no drill
 // covered: (1) the CROSS-MODE RESUME boundary — the settings snapshot's

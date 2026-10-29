@@ -173,7 +173,7 @@ Retina iPhones report 3.0; rendering at 3× over a 1170-pixel-wide screen is
 ES module namespaces are frozen. Safari mobile (and any spec-strict runtime)
 throws "Cannot assign to property of [object Module]" on
 post-import reassignment. The whole boot dies. If you need a tier-aware
-override of a three.js export, do it via the `'three'` importmap entry
+override of a three.js export, do it via the `'three'` Vite alias
 pointing at `src/threeShim.js`, the same way the MeshStandardMaterial swap
 works. See the comment block at the top of `threeShim.js`.
 

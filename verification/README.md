@@ -24,6 +24,8 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Vite migration, October 29](toolchain/2026-10-29-vite.md): build and capture tests, six browser entry pages, Low/Mid gameplay, Pages configuration and deployment limits.
+
 - [Vendor EZ-up continuity, October 29](vendors/2026-10-28-canopies/README.md): shared near/far colors, batched legs, fixed pool limits, native comparisons and live streaming/revisit checks.
 
 - [Lurleen terrain contact, October 28](terrain/2026-10-28-lurleen/README.md): reported seed reproduction, four-wheel support, unchanged behavioral traces and Low/Mid native and live-game checks.

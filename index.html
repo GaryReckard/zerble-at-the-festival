@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <!-- Google tag (gtag.js) — gated to non-local hosts only so dev sessions
-       don't pollute production analytics. Same isLocal detection as the
-       importmap cache-buster below; localhost + LAN IPs + claude-preview/
+       don't pollute production analytics. Localhost, LAN IPs and claude-preview/
        happycog hostnames are treated as dev. -->
   <script>
     (function () {
@@ -48,7 +47,7 @@
 
   <title>Zerble at the Festival — A Bubble Adventure</title>
   <!-- Social share previews. Static meta — read by crawlers from the served HTML,
-       not routed through the importmap/cache-buster below. Absolute URLs point at
+       independent of the game module bootstrap. Absolute URLs point at
        the GitHub Pages deploy; a dedicated opaque ~1200x630 landscape share image
        is follow-up polish (assets/zerble.png is a near-square stopgap). -->
   <meta property="og:type" content="website" />
@@ -65,68 +64,7 @@
   <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="passport.css" />
-  <script>
-    // Dev cache-buster: inject importmap + main script with a per-load query string.
-    // The Claude Preview proxy ignores Cache-Control headers from python http.server,
-    // so without unique URLs edits don't show up on reload. We only enable this
-    // on local/preview hostnames so production (and mobile-over-cellular) doesn't
-    // re-pull three.js every load.
-    (function () {
-      const h = location.hostname;
-      const isLocal =
-        h === 'localhost' ||
-        h === '127.0.0.1' ||
-        h === '0.0.0.0' ||
-        h.endsWith('.local') ||
-        /^10\./.test(h) ||
-        /^192\.168\./.test(h) ||
-        /^172\.(1[6-9]|2\d|3[0-1])\./.test(h) ||
-        h.includes('claude-preview') ||
-        h.includes('happycog');
-      const v = isLocal ? '?v=' + Date.now() : '';
-      // Complete src/ + models/ lists — every module gets the ?v= cache-buster so
-      // transitive imports (e.g. chunks → forests, contextLights) reload too. Keep
-      // in sync with the directory; unused entries are inert (importmap mappings
-      // only resolve when something actually imports them).
-      const mods = ['roadGeometry','roadMaterials','people/vehiclePersonFacet','people/placeDisplay','people/smilePolicy','collisionContacts','people/campResources','people/campActivity','people/marketActivity','people/pottyActivity','people/picnicActivity','people/hammockActivity','people/seatReservations','people/groupParticipation','people/frisbeeActivity','people/frisbeeSession','people/hulaActivity','people/hulaSession','people/placeVisit','people/frisbees','people/hoopers','people/brassBand','people/puppetParade','people/formationRoute','people/wooks','people/sceneResources','people/children','people/placement','people/frameTrace','people/baseline','people/runtime','people/personHandle','people/activityClaims','people/healingArtsMotion', 'people/workshop', 'playerStats', 'passportMenu', 'terrainSurface', 'terrainDriving', 'terrainSandbox', 'campClearing', 'debugCommands', 'campJamActivity', 'campMusic', 'woodlandCamping', 'campPlanning', 'campRegistry', 'oneWheels', 'oneWheelMotion', 'monks', 'nutWagon', 'nutWagonRoute', 'main','world','zerble','bubbles','bubbleTypes','bubbleProgress','bubbleChallenges','specialBubbles','upgradesMenu','smiles','fireworks','crowd','personMotion','crowdAppearance', 'healingArtsActivity','chunks','forests',
-        'mountains','camera','input','touch','hud','sound','leaderboard','runMode','scoring','runState','registry','rng','debug','perf','lakes','lurleen','trip',
-        'threeShim','midiPlayer','birds','adaptiveQuality','analytics','contextLights','timeOfDay','spatialGrid','starPower','steering','settings','a11y','mergeDecor','boostStreaks','photographer','farField','perfTelemetry','renderSizing','preparePostprocessing','festivalShapes',
-        'worldgen/terrain', 'worldgen/constants','worldgen/tuning','worldgen/hearts','worldgen/water','worldgen/roads','worldgen/density','worldgen/roles','worldgen/index','worldgen/selftest','worldgen/placement','worldgen/festival','worldgen/lint'];
-      const models = ['campInstruments', 'oneWheelRider', 'canoe','hammock','tent','tentStage','foodTruck', 'bo', 'monk', 'nutWagon','sugarShack','tree','shrub', 'heart','stage','performer',
-        'entranceArch','leafBanner','puppet','paradeLanterns','bandMember','parasolMarshal','kid','wook','bird','bubbleJug','bubbleVendor',
-        'campChair','campsite','frisbeePlayer','hulaHooper','healingArts', 'leafDrumCircle','tribalFigures','portaPotty','picnicTable', 'infoKiosk'];
-      const base = new URL('./src/', document.baseURI).href;
-      // 'three' → local shim that overrides MeshStandardMaterial on low tier
-      // (see src/threeShim.js). 'three-actual' is the real three.js URL the
-      // shim re-exports from. Anything that imports from 'three' anywhere in
-      // the codebase automatically picks up the tier-aware override — no
-      // import-site churn required.
-      const imports = {
-        'three': base + 'threeShim.js' + v,
-        'three-actual': 'https://unpkg.com/three@0.160.0/build/three.module.js',
-        'three/addons/': 'https://unpkg.com/three@0.160.0/examples/jsm/',
-      };
-      for (const m of mods) imports[base + m + '.js'] = base + m + '.js' + v;
-      for (const m of models) imports[base + 'models/' + m + '.js'] = base + 'models/' + m + '.js' + v;
-      const im = document.createElement('script');
-      im.type = 'importmap';
-      im.textContent = JSON.stringify({ imports });
-      document.head.appendChild(im);
-      window.addEventListener('DOMContentLoaded', () => {
-        const loadMain = () => {
-          const s = document.createElement('script');
-          s.type = 'module';
-          s.src = './src/main.js' + v;
-          document.body.appendChild(s);
-        };
-        const delay = isLocal
-          ? Math.min(10000, Math.max(0, Number(new URLSearchParams(location.search).get('bootDelay')) || 0))
-          : 0;
-        if (delay) setTimeout(loadMain, delay);
-        else loadMain();
-      });
-    })();
-  </script>
+  <script type="module" src="./src/boot.js"></script>
 </head>
 <body>
   <canvas id="game"></canvas>
@@ -384,7 +322,7 @@
         phrase = (phrase + 1) % phrases.length;
         copy.textContent = phrases[phrase];
       }, 1300);
-      // A dead boot (CDN blocked, module 404) must not smile forever — after
+      // A dead boot (module load failure) must not smile forever — after
       // 20s of no ready(), trade the whimsy for a way out (adversary A12).
       const stuck = setTimeout(function () {
         if (ready) return;
