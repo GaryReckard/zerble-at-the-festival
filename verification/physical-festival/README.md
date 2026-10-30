@@ -2,7 +2,7 @@
 
 October 30, 2026. Started on `codex/physical-festival` at `17102a1`; continued on `codex/physical-festival-integration` at `4aa8d47`, which combines the photographer baseline with startup recovery.
 
-The [prop response checkpoint](2026-10-30-prop-feedback/README.md) separates simulated-chair slowdown from the person-hit reverse kick. Empty-object scoring and the remaining legacy response policy are unresolved.
+The [prop response checkpoint](2026-10-30-prop-feedback/README.md) separates simulated-chair slowdown from the person-hit reverse kick. The [fixed-object checkpoint](2026-10-30-solid-response/README.md) also removes the reverse kick for legacy scenery. Empty-object scoring, cooldown separation and occupied reactions remain unresolved.
 
 ## Latest production checkpoint
 

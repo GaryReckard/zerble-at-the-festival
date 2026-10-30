@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "4.1 (Empty-chair production contacts), with phone and boundary acceptance pending"
+current_task: "4.2 (Separate object and person contact response), with scoring and phone acceptance pending"
 blocked_by: null
 open_questions: 1
 started: 2026-10-29
@@ -219,3 +219,11 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** Gary objected to Zerble reacting identically to objects and people. The simulated-chair path called the existing person-hit reverse kick. Replaced that call with mass/approach-sensitive slowdown without a position jump or immunity. This is the first part of the response separation; fixed/legacy obstacles and occupied incidents remain unfinished. Asked whether empty-object collisions should also stop costing smiles; the answer is pending and scoring remains unchanged.
 
 **Refs:** [Response evidence](../../../verification/physical-festival/2026-10-30-prop-feedback/README.md); Q2 (Empty-object scoring) in [questions](questions-for-human.md).
+
+### 2026-10-30 -- Fixed scenery no longer reverses the cart
+
+**Event:** decision
+
+**What:** Extended Gary's object/person distinction to the legacy solid path, so unadmitted chairs and fixed scenery resolve overlap and lose incoming speed without the person reverse kick. Kept person reactions, numeric consequences and the existing collision cooldown unchanged. The cooldown still suppresses all legacy contacts temporarily; separating physical solidity from that consequence gate remains unfinished rather than hidden by the new response. Q2 (Empty-object scoring) remains unanswered.
+
+**Refs:** [Solid response evidence](../../../verification/physical-festival/2026-10-30-solid-response/README.md); Task 4.2 (Single response owner) in [tasks](tasks.md).

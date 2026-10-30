@@ -1,0 +1,22 @@
+Browser tab: 380986045, Title: "Zerble at the Festival — A Bubble Adventure", URL: "http://127.0.0.1:8766/?mute=1&perf=low&seed=1977&x=-534.43&z=-42.25&heading=0".
+0 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8766/?mute=1&perf=low&seed=1977&x=-534.43&z=-42.25&heading=0
+	1 container
+		2 image game
+		3 container hud
+			4 container Description: Game status, ID: status-rail
+				5 container Description: 25 smiles, personal best 54, ID: smile-status
+					43 text 25
+					34 text 54
+				8 container Description: Bubble juice 88%, ID: juice-meter
+				9 container Description: Morning, 19% through the day cycle, Help: Morning, ID: day-cycle
+			44 text Drive around — make people smile, dodge the parade.
+		35 container Description: Festival map, ID: festival-map
+			36 button (collapsed) Description: Expand festival map, Secondary Actions: Expand
+				37 text MAP
+				38 text ↗
+		39 button Description: Open settings, ID: settings-gear
+			40 image
+		41 button Description: Open bubble upgrades, ID: upgrades-btn
+		42 button Description: Open Festival Passport, Help: Festival Passport (P), ID: passport-btn
+
+The focused UI element is 0 AXWebArea Zerble at the Festival — A Bubble Adventure, URL: 127.0.0.1:8766/?mute=1&perf=low&seed=1977&x=-534.43&z=-42.25&heading=0

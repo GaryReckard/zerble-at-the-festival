@@ -30,7 +30,7 @@ The full [66-task checklist](tasks.md) is the progress authority. Pure sign rese
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 1/66 tasks complete (1%) · current: 4.1 (Empty-chair production contacts), with phone and boundary acceptance pending
+**in progress** — 1/66 tasks complete (1%) · current: 4.2 (Separate object and person contact response), with scoring and phone acceptance pending
 
 _Last updated: 2026-10-30_
 

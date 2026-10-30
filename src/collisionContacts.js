@@ -32,13 +32,18 @@ export function resolveCollision(zerble, colliders) {
     const approachSpeed = (velX * tox + velZ * toz) * inv;
 
     if (approachSpeed > APPROACH_DAMAGE_THRESHOLD) {
-      // Damaging — Zerble is driving into it
+      // People keep their authored kickback. Solid scenery instead removes
+      // the incoming motion and resolves overlap without forcing reverse.
       const pushDir = new THREE.Vector3(-tox * inv, 0, -toz * inv);
-      zerble.applyHit(pushDir);
+      if (SOFT_PEOPLE_KINDS.has(c.kind) || c.kind === 'lurleen' || c.kind === 'puppet') {
+        zerble.applyHit(pushDir);
+      } else {
+        zerble.applyObstacleHit(pushDir, approachSpeed, minD - d);
+      }
       // NPC-specific reaction: panic, knockback, infect neighbors.
       c.onContact?.(c,tox*inv,toz*inv);
       // Damage > 0 means "deduct smiles". Damage 0 entries (e.g. Lurleen, a
-      // fleeing NPC) still need the bounce we just applied, plus a toast/SFX
+      // fleeing NPC) still need their contact response, plus a toast/SFX
       // for the named ones — return `notify` so the caller can react.
       const damaging = c.damage > 0;
       const notify = !damaging && (c.kind === 'lurleen');

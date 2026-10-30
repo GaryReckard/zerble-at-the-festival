@@ -10,10 +10,14 @@ const current=contacts.slice(contacts.indexOf('function resolveCollision('));
 const constants=contacts.split('\n').filter(line=>/^const (APPROACH_DAMAGE_THRESHOLD|SOFT_PEOPLE_KINDS) =/.test(line)).join('\n');
 const resolverFactory=code=>new Function('THREE','oneWheels','crowd',constants+'\n'+code+';return resolveCollision;');
 const oldFactory=resolverFactory(legacy),newFactory=resolverFactory(current);
+const cartSource=readFileSync(new URL('../src/zerble.js',import.meta.url),'utf8');
+const obstacleStart=cartSource.indexOf('  applyObstacleHit('),obstacleEnd=cartSource.indexOf('  canHonk()',obstacleStart);
+assert(obstacleStart>0&&obstacleEnd>obstacleStart);
+const applyObstacleHit=new Function('return ({'+cartSource.slice(obstacleStart,obstacleEnd)+'}).applyObstacleHit')();
 function fixture(old=true){
  const reactions=[];
  const resolve=(old?oldFactory:newFactory)({Vector3:Vector},{onHit:entry=>reactions.push(['wheel',entry.id])},{onZerbleHit:(npc,x,z)=>reactions.push(['person',npc.id,x,z])});
- const cart={position:new Vector(),heading:0,speed:0,radius:.8,hits:[],applyHit(v){this.hits.push([v.x,v.y,v.z]);}};
+ const cart={position:new Vector(),heading:0,speed:0,radius:.8,hits:[],applyObstacleHit,applyHit(v){this.hits.push([v.x,v.y,v.z]);}};
  const candidate=(kind,x,z,damage,passive=false)=>({position:new Vector(x,0,z),radius:.45,kind,damage,passive,entry:{id:7},npc:kind==='person'?{id:9}:null,
   onContact(c,px,pz){if(kind==='one_wheel')reactions.push(['wheel',c.entry.id]);if(kind==='person')reactions.push(['person',9,px,pz]);},
  });
@@ -26,14 +30,20 @@ for(const kind of ['person','kid','wook','brass','hula_hoop','one_wheel','puppet
  for(const f of [a,b]){f.cart.speed=speed;f.cart.heading=heading;}
  const before=a.resolve(a.cart,[a.candidate(kind,x,z,damage,passive)]),after=b.resolve(b.cart,[b.candidate(kind,x,z,damage,passive)]);
  assert.deepEqual(normalize(after),normalize(before));assert.deepEqual(b.reactions,a.reactions);
- assert.deepEqual([b.cart.position.x,b.cart.position.z,b.cart.speed,b.cart.hits],[a.cart.position.x,a.cart.position.z,a.cart.speed,a.cart.hits]);cases++;
+ if(['porta_potty','stage'].includes(kind)&&a.cart.hits.length&&!process.argv.includes('--baseline')) {
+   assert.equal(b.cart.hits.length,0,'fixed objects do not call the person response');
+   assert(Math.abs(b.cart.speed)<=Math.abs(speed));
+   assert(b.cart.speed===0||Math.sign(b.cart.speed)===Math.sign(speed),'no forced reversal');
+   assert(Math.hypot(x-b.cart.position.x,z-b.cart.position.z)>=1.25,'solid contact leaves no overlap');
+   assert.equal(b.cart.invulnLeft,.7,'existing consequence cooldown is retained');
+ } else assert.deepEqual([b.cart.position.x,b.cart.position.z,b.cart.speed,b.cart.hits],[a.cart.position.x,a.cart.position.z,a.cart.speed,a.cart.hits]);cases++;
 }
 for(const speed of [0,1,10]){
  const a=fixture(),b=fixture(process.argv.includes('--baseline'));
  const results=[a,b].map(f=>{f.cart.speed=speed;return f.resolve(f.cart,[f.candidate('wook',0,-.4,5,true),f.candidate('kid',0,-3,3),f.candidate('person',0,-.5,1),f.candidate('stage',0,-.5,4)]);});
  assert.deepEqual(normalize(results[1]),normalize(results[0]));
 }
-console.log('PASS '+cases+' exact collision cases: passive/parked policy, approach threshold, forward/reverse/contact geometry, damage/notify, selected reactions, physical nudge and first-hit order.');
+console.log('PASS '+cases+' collision cases: unchanged people reactions and consequence selection, fixed-object separation without reverse, passive/parked policy and first-hit order.');
 const {PeopleRuntime}=await import('../src/people/runtime.js');
 const {makePeopleCrowd,Vector:PersonVector}=await import('./test-support/peopleCrowd.js');
 const oldCollection=readFileSync(new URL('../verification/people/2026-10-26/legacy-collision-collection.js',import.meta.url),'utf8');
@@ -96,3 +106,20 @@ console.log('PASS 24 exact people-penalty cases: inactive/over gates and scare, 
  assert(!candidates.some(candidate=>candidate.kind==='stage'),'owned physical entries bypass only legacy response');
  assert(candidates.some(candidate=>candidate.kind==='one_wheel'),'ordinary registry contacts retain their authority');
 }
+
+for(const kind of ['chair','camp_chair','camp_loveseat','cooler','tree','tent','stage','sign','porta_potty','nut_wagon']) {
+  for(const speed of [-10,10]) {
+    const f=fixture(false);f.cart.speed=speed;
+    const obstacle=f.candidate(kind,0,-Math.sign(speed)*.5,1);
+    const result=f.resolve(f.cart,[obstacle]);
+    assert.equal(result.damage,1);assert.equal(result.damaging,true);
+    assert.equal(f.cart.hits.length,0);assert.equal(Math.abs(f.cart.speed),0,'square solid impact stops');
+    assert(Math.hypot(obstacle.position.x-f.cart.position.x,obstacle.position.z-f.cart.position.z)>1.25);
+  }
+}
+{
+ const f=fixture(false);f.cart.speed=10;
+ f.resolve(f.cart,[f.candidate('tree',.4,-.3,1)]);
+ assert(f.cart.speed>0&&f.cart.speed<10,'glancing impact retains forward motion');
+}
+console.log('PASS fixed-object contacts: square and reverse hits stop, glancing hits retain motion, all tested props avoid person kickback and preserve current penalties.');
