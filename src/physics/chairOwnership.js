@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {createCoolerLid} from './coolerLid.js';
 import { chairRecipe, coolerRecipe } from './recipes.js';
 
 let serial = 0;
@@ -30,7 +31,7 @@ function poseAndScale(descriptor) {
   return { position, rotation, scale };
 }
 
-/** Transactional adoption for rigid empty chairs and closed coolers.
+/** Transactional adoption for chairs and articulated cooler assemblies.
  * The historical chair-owner API remains shared so origins use one authority. */
 export function createChairOwnership({ registry, adapter, budget, rendering, supportReady, campSlotAvailable, originAlive, occupants = null, maxChairs = 16 } = {}) {
   if (!Number.isSafeInteger(maxChairs) || maxChairs < 1 || maxChairs > 256) throw new RangeError('maxChairs must be an integer from 1 to 256');
@@ -117,6 +118,10 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     if(record.occupants&&!attempt(errors,'occupants',()=>{record.occupants.dispose();record.occupants=null;})) {
       record.state='cleanup-pending';records.set(record.key,record);return;
     }
+    if(record.lid&&!attempt(errors,'cooler-lid',()=>{record.lid.dispose();record.lid=null;})) {
+      record.cleanupErrors=errors.map(error=>({...error}));
+      record.state='cleanup-pending';records.set(record.key,record);return;
+    }
     if (record.bodyOwned) attempt(errors, 'physics-body', () => {
       if (!adapter.removeBody(record.bodyId) && adapter.readBody(record.bodyId)) throw new Error('Physics body removal failed');
       record.bodyOwned = false;
@@ -167,7 +172,10 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     let record;
     try {
       if (!descriptor.renderBinding || typeof descriptor.renderBinding.describe !== 'function' || typeof descriptor.renderBinding.setVisible !== 'function') throw new Rejection('admission', 'missing-origin-binding');
-      const pose = poseAndScale(descriptor), recipe = descriptor.kind === 'camp_cooler' ? coolerRecipe() : chairRecipe(descriptor.style), parts = descriptor.renderBinding.describe();
+      const pose = poseAndScale(descriptor), recipe = descriptor.kind === 'camp_cooler' ? coolerRecipe({articulated:true}) : chairRecipe(descriptor.style), parts = descriptor.renderBinding.describe();
+      const isCooler=descriptor.kind==='camp_cooler';
+      if(isCooler&&!parts.some(part=>part.partId==='lid'))throw new Rejection('admission','missing-lid-part');
+      if(isCooler&&(Math.abs(pose.scale.x-pose.scale.y)>1e-6||Math.abs(pose.scale.x-pose.scale.z)>1e-6))throw new Rejection('admission','cooler-uniform-scale-required');
       if (!parts.length) throw new Rejection('admission', 'missing-origin-parts');
       const bounds = new THREE.Box3(), partBounds = new THREE.Box3();
       for (const part of parts) {
@@ -179,6 +187,8 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
         bounds.expandByPoint(new THREE.Vector3(p.x - h.x, p.y - h.y, p.z - h.z));
         bounds.expandByPoint(new THREE.Vector3(p.x + h.x, p.y + h.y, p.z + h.z));
       }
+      // Contain the lid's complete hinge arc, not only its closed bounds.
+      if(isCooler){bounds.expandByPoint(new THREE.Vector3(-.31,.30,-.75));bounds.expandByPoint(new THREE.Vector3(.31,.9,.24));}
       const initialPose = { position: { x: pose.position.x, y: pose.position.y, z: pose.position.z },
         rotation: { x: pose.rotation.x, y: pose.rotation.y, z: pose.rotation.z, w: pose.rotation.w } };
       const original = { position: { x: entry.position.x, y: entry.position.y ?? 0, z: entry.position.z },
@@ -192,17 +202,19 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
         bodyOwned: false, renderOwned: false, transferred: false, hideAttempted: false, state: 'active',
         seats: descriptor.seatSlots.map(slot => ({ slot, had: own(slot, 'physicalUnavailable'), previous: slot.physicalUnavailable })) };
       record.lastPublication = originalPublication(record);
-      record.budgetToken = required(budget.reserve(`${namespace}:${key}`, { resident: { bodies: 1, colliders: recipe.length, renderSlots: parts.length }, release: {} }), 'budget').token;
+      record.budgetToken = required(budget.reserve(`${namespace}:${key}`, { resident: { bodies: isCooler?2:1, colliders: recipe.length+(isCooler?1:0), joints:isCooler?1:0, renderSlots: parts.length }, release: {} }), 'budget').token;
       record.registryToken = required(registry.enrollPhysical(entryId, key), 'registry').token;
       const initialMatrix = new THREE.Matrix4().compose(pose.position, pose.rotation, pose.scale);
       record.render = required(rendering.acquire(`${namespace}:${key}`, parts, initialMatrix), 'render').binding;
       record.renderOwned = true;
       const colliders = recipe.map(shape => ({ ...shape,
+        ...(shape.mass===undefined?{}:{mass:shape.mass*pose.scale.x*pose.scale.y*pose.scale.z}),
         position: Object.fromEntries(['x', 'y', 'z'].map(axis => [axis, shape.position[axis] * pose.scale[axis]])),
         halfExtents: Object.fromEntries(['x', 'y', 'z'].map(axis => [axis, shape.halfExtents[axis] * pose.scale[axis]])) }));
       const created = required(adapter.addBody({ id: record.bodyId, type: 'dynamic', pose: initialPose, colliders, ccd: true, linearDamping: .12, angularDamping: .2 }), 'physics');
       record.engineGeneration = created.generation;
       record.bodyOwned = true;
+      if(isCooler)record.lid=createCoolerLid({adapter,bodyId:record.bodyId,scale:record.scale,render:record.render});
       required(registry.transferOwner(entryId, record.owner), 'transfer'); record.transferred = true;
       const radius = footprint(record, initialMatrix);
       required(registry.publishPhysical(record.registryToken, { pose: initialPose, footprint: radius, colliderRadius: radius }), 'publication');
@@ -236,6 +248,7 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     const result = registry.publishPhysical(record.registryToken, publication);
     if (!result.ok) return result;
     try {
+      if(record.lid&&!record.lid.publish())throw new Rejection('publication','stale-lid-binding');
       if (!record.render.setWorldMatrix(matrix)) throw new Rejection('publication', 'stale-render-binding');
     } catch (error) {
       const cleanupErrors = [];
@@ -317,8 +330,11 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
   }
   return Object.freeze({ adopt, publish, release, registerOrigin, originEntryIds,
     requestDismount(token){return resolve(token)?.occupants?.requestDismount()??0;},
-    stepPeople(dt){for(const record of records.values())record.occupants?.step(dt);},
+    stepPeople(dt){for(const record of records.values()){if(dt>0)record.lid?.step();record.occupants?.step(dt);}},
     preparePeople(deadline,now){for(const record of records.values())if(now()<deadline)record.occupants?.prepare(deadline,now);},
+    ownsBody(token,id){const record=resolve(token);return !!record&&(record.bodyId===id||record.lid?.bodyId===id);},
+    impact(token){return resolve(token)?.lid?.unlatch()??false;},
+    propBodies(token){const record=resolve(token);return record?[record.bodyId,...(record.lid?[record.lid.bodyId]:[])].map(id=>adapter.readBody(id)).filter(Boolean):[];},
     personBodies(token){return resolve(token)?.occupants?.bodies()??[];},
     isAdopted(entryId) { return [...records.values()].some(record => record.entryId === entryId); },
     read(token) {
@@ -327,13 +343,13 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
         bodyId: record.bodyId, engineGeneration: record.engineGeneration,
         pose: copyPose(record.lastPublication.pose), footprint: record.lastPublication.footprint, supportRadius: record.supportRadius, originOwner: record.descriptor.originOwner,
         originRegistryId: record.descriptor.originRegistryId,
-        occupants:record.occupants?.inspect()??[],
+        occupants:record.occupants?.inspect()??[],lid:record.lid?.inspect()??null,
         state: record.state, resources: { body: record.bodyOwned, render: record.renderOwned, budget: !!record.budgetToken },
         cleanupErrors: record.cleanupErrors?.map(error => ({ ...error })) ?? [] } : null;
     },
     stats() { return { disposed, chairs: records.size, cleanupPending: [...records.values()].filter(record => record.state === 'cleanup-pending').length,
       originReplacements, originLifetimes: originLifetimes.size, originLifetimeCapacity: MAX_ORIGIN_LIFETIMES, capacity: maxChairs, rejections,
-      limitations: ['Chairs, eligible seated occupants and closed coolers; coherent arrangement reset is not integrated. Restored lake children follow their source batch lifetime.'] }; },
+      limitations: ['Chairs, eligible seated occupants and articulated coolers; coherent arrangement reset is not integrated. Restored lake children follow their source batch lifetime.'] }; },
     dispose() {
       disposed = true;
       const results = [];

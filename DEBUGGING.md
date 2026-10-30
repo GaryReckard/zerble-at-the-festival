@@ -60,6 +60,14 @@ Open `/festival-map-preview.html?mute=1` for the production discovery/storage/wo
 
 Use `&viewport=portrait` or `&viewport=landscape` for 390×844 and 844×390 touch layout frames. These validate layout in the desktop browser, not real-device input or performance. `node bin/test-festival-map` runs pure/persistence/worker/live-marker regressions and is included in `npm run check`. The real game's `__dbg.festivalMap()` returns diagnostics. Browser tests must still start through a ready mode plank. [Evidence and limits](verification/festival-map/README.md).
 
+## Live physics inspection
+
+With `?physics=1&mute=1`, use **Stage cooler encounter**, wait for **Target: active**,
+then **Inspect staged prop** and **Coast forward**. **Noon**/**Midnight** change
+lighting and **Chase camera** restores the normal camera. Physics diagnostics
+include cooler lid latch, angle, anchor error and generation. Current live lids
+are reserved with their shell; loose cooler contents remain unfinished.
+
 ## Terrain driving proof
 
 Open `http://127.0.0.1:8765/terrain-sandbox.html?mute=1` on the existing

@@ -601,8 +601,12 @@ let physicalWorld=null, physicalLoadError=null, physicalClosing=false;
 const physicalRequested=new URLSearchParams(location.search).get('physics')==='1';
 let physicalReadout=null,physicalDetails=null,physicalDiagnostics=null,physicalReportAt=0,physicalActionMessage='',physicalEncounterId=null,physicalPersonEncounter=null,physicalCoast=null;
 if(physicalRequested) {
-  const panel=document.createElement('div');panel.id='physical-world-panel';
+  const panel=document.createElement('details');panel.id='physical-world-panel';
+  const touchLayout=matchMedia('(pointer: coarse), (max-width: 800px)').matches;
+  panel.open=!touchLayout;
+  const panelToggle=document.createElement('summary');panelToggle.textContent='Physics tools';panel.append(panelToggle);
   Object.assign(panel.style,{position:'fixed',left:'12px',bottom:'12px',zIndex:'2000',background:'#17251fee',color:'white',padding:'10px',font:'12px monospace',maxWidth:'340px'});
+  if(touchLayout)Object.assign(panel.style,{top:'72px',bottom:'auto',maxWidth:'calc(100vw - 48px)',maxHeight:'calc(100dvh - 160px)',overflow:'auto'});
   physicalReadout=document.createElement('pre');physicalReadout.textContent='Loading physical props…';panel.append(physicalReadout);
   const stage=document.createElement('button');stage.textContent='Stage prop encounter';
   const stageEncounter=(kind=null)=>{
@@ -633,9 +637,17 @@ if(physicalRequested) {
   };
   const personTargetReady=()=>!!physicalPersonEncounter&&physicalWorld?.stats().ordinary?.people.some(p=>p.slot===physicalPersonEncounter.slot&&p.generation===physicalPersonEncounter.generation&&p.ready);
   const coast=physicalCoast=document.createElement('button');coast.textContent='Coast forward';coast.disabled=true;coast.onclick=()=>{if(personTargetReady()||physicalWorld?.owns(registry.entries.get(physicalEncounterId)??{}))zerble.speed=8;};
+  const inspect=document.createElement('button');inspect.textContent='Inspect staged prop';inspect.onclick=()=>{
+    const entry=registry.entries.get(physicalEncounterId);if(!entry)return;
+    const p=entry.position,dx=p.x-zerble.position.x,dz=p.z-zerble.position.z,length=Math.hypot(dx,dz)||1;
+    window.__dbg?.camLock(p.x+dz/length*4+dx/length*2,(p.y??0)+3,p.z-dx/length*4+dz/length*2,p.x,(p.y??0)+.6,p.z);
+  };
+  const chase=document.createElement('button');chase.textContent='Chase camera';chase.onclick=()=>window.__dbg?.camUnlock();
+  const noon=document.createElement('button');noon.textContent='Noon';noon.onclick=()=>getTimeOfDay()?.setT(.3);
+  const midnight=document.createElement('button');midnight.textContent='Midnight';midnight.onclick=()=>getTimeOfDay()?.setT(.75);
   physicalDetails=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Physics diagnostics';
   physicalDiagnostics=document.createElement('pre');Object.assign(physicalDiagnostics.style,{maxHeight:'200px',overflow:'auto'});physicalDetails.append(summary,physicalDiagnostics);
-  panel.append(stage,coolerStage,occupiedStage,pedestrianStage,toss,dismount,coast,physicalDetails);document.body.append(panel);
+  panel.append(stage,coolerStage,occupiedStage,pedestrianStage,toss,dismount,coast,inspect,chase,noon,midnight,physicalDetails);document.body.append(panel);
   import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera,people:crowd,isWet:isPointInLake})).then(world=>{
     if(physicalClosing)world.dispose();else physicalWorld=world;
   }).catch(error=>{physicalLoadError=error.message;physicalReadout.textContent=`Physics unavailable: ${error.message}`;console.error('Physical chair initialization failed',error);});

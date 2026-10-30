@@ -24,7 +24,7 @@ const poseOf = cart => ({position:{x:cart.position.x,y:cart.position.y,z:cart.po
 // Opt-in integration proof. The owner consumes the game's clock and streaming
 // deadline; it never creates a timer, animation loop or independent budget.
 export async function createLivePhysics({scene,registry,cart,camera,people=null,isWet=()=>false,now=()=>performance.now()}) {
-  const adapter = await createRapierAdapter({capacities:{bodies:256,colliders:512,events:256,supportedLoads:16,contactPairs:36}});
+  const adapter = await createRapierAdapter({capacities:{bodies:256,colliders:512,joints:8,events:256,supportedLoads:16,contactPairs:36}});
   let rendering,terrain,solids,owner,ordinary;
   try {
   const incidents=createIncidentLedger();
@@ -33,7 +33,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
   rendering = createActivePropRendering({maxBuckets:48,maxSlots:3072,slotsPerBucket:64});
   terrain = createTerrainResidency(adapter,{maxTiles:64,maxQueued:32,maxOwners:MAX_CHAIRS+4});
   solids = createStaticResidency({registry,adapter,isDynamic:entry=>!!entryRecords.get(entry.id)?.token,maxProxies:128,maxOwners:MAX_CHAIRS+4,maxQueued:128});
-  const budget = new AdmissionBudget({capacities:{bodies:256,colliders:512,joints:0,renderSlots:3072,events:256},maxRecords:MAX_CHAIRS*3+5});
+  const budget = new AdmissionBudget({capacities:{bodies:256,colliders:512,joints:8,renderSlots:3072,events:256},maxRecords:MAX_CHAIRS*3+5});
   // Reserve the worst-case fixed support and cart allocations before chairs.
   budget.reserve('world-support',{resident:{bodies:193,colliders:193,events:256}});
   let preparationCalls=0,lastCandidates=0,nearbyChairs=0,preferredEncounter=null;
@@ -88,7 +88,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
   function releaseUntouched(record) {
     if(!record.token||record.lastHit!==-Infinity||record.contacts.size||record.handoffPending)return false;
     const state=owner.read(record.token),entry=registry.entries.get(record.entryId),body=adapter.readBody(record.bodyId);
-    if(!state||!entry||!body?.sleeping||state.occupants?.some(p=>p.current)||incidents.read(record.incidentKey))return false;
+    if(!state||!entry||!body?.sleeping||(state.lid&&(!state.lid.latched||!state.lid.sleeping))||state.occupants?.some(p=>p.current)||incidents.read(record.incidentKey))return false;
     const p=body.pose.position,origin=entry.physicalProp.worldPose.position,q=body.pose.rotation,r=entry.physicalProp.worldPose.rotation;
     // Only solver settling within 2 cm / about one degree may return to the
     // authored instance. Displaced aftermath needs its own persistent pose.
@@ -208,13 +208,13 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     clock.advance(dt,(step,time)=>{
       incidents.advance(time);
       const incoming=new Map();
-      for(const record of records.values())if(record.token){const body=adapter.readBody(record.bodyId);if(body)incoming.set(body.id,{key:record.incidentKey,generation:body.generation,pose:body.pose,position:body.pose.position,velocity:body.linearVelocity});}
+      for(const record of records.values())if(record.token){for(const body of owner.propBodies(record.token))incoming.set(body.id,{key:record.incidentKey,generation:body.generation,pose:body.pose,position:body.pose.position,velocity:body.linearVelocity});}
       proxy.beforeStep(time);adapter.step(step);owner.stepPeople(step);ordinary?.step(step);
       const drained=adapter.drainEvents();overflow+=drained.overflow;
       for(const event of drained.events) {
         if(event.a!==cartId&&event.b!==cartId)continue;
         const bodyId=event.a===cartId?event.b:event.a;
-        const record=[...records.values()].find(record=>record.bodyId===bodyId);
+        const record=[...records.values()].find(record=>owner.ownsBody(record.token,bodyId));
         if(!record)continue;
         const pair=`${event.colliderA}:${event.colliderB}`;
         if(event.type==='contact-start') {
@@ -230,12 +230,12 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
         const dx=body.pose.position.x-cart.position.x,dz=body.pose.position.z-cart.position.z,d=Math.hypot(dx,dz)||1;
         const approach=(-Math.sin(cart.heading)*cart.speed*dx-Math.cos(cart.heading)*cart.speed*dz)/d;
         if(approach<=APPROACH_DAMAGE_THRESHOLD)continue;
-        record.lastHit=time;record.penalized=true;hits++;
+        record.lastHit=time;record.penalized=true;hits++;owner.impact(record.token);
         incidents.start(record.incidentKey,'zerble',time);
         // A furniture touch is not itself a person incident. The existing person
         // contact path owns occupant penalties and sends their physical impulse.
         hit??={damaging:false,damage:0,objectBump:eligible,kind:entry.kind,entry,physical:true,
-          mass:body.mass,approachSpeed:approach,push:{x:-dx/d,z:-dz/d}};
+          mass:owner.propBodies(record.token).reduce((sum,part)=>sum+part.mass,0),approachSpeed:approach,push:{x:-dx/d,z:-dz/d}};
       }
       relayPropIncidents({ledger:incidents,events:drained.events,before:incoming,time});
       ordinary?.strikeProps({before:incoming,dt:step,time,incidents});

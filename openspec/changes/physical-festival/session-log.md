@@ -1,6 +1,6 @@
 ---
 change: physical-festival
-status: in_progress
+status: paused
 current_task: "7.5 (Lid and contents experiment): compare controlled/physical lid motion and connect adopted parts; occupied-chair, moving-person and device acceptance remain open"
 blocked_by: null
 open_questions: 1
@@ -402,3 +402,21 @@ multibody-plus-impulse joint spike lost externally applied velocity on its next
 step, so its apparently stable impact results were rejected. Task 7.5 (Lid and
 contents experiment) still needs a verified hinge and live assembly admission.
 [Evidence](../../../verification/physical-festival/2026-10-30-adopted-lids/README.md).
+
+### October 30: live articulated cooler admission
+
+Connected the existing physical hinge to live cooler admission with two bodies,
+six colliders, one reserved joint and four reused render parts. Total mass is
+preserved; shell and lid share incident identity and full-assembly teardown.
+30/60/120 Hz cart tests verify actual articulation, and Chrome confirms live
+unlatching without overflow or support suspension. Known hard-impact hinge error
+remains visible and unresolved; live contents are not yet implemented. Task 7.5
+(Lid and contents experiment) stays open. [Evidence](../../../verification/physical-festival/2026-10-30-live-lids/README.md).
+
+### October 30: paused for usage conservation; integration prepared for main
+
+Gary paused autonomous physics work after observing high weekly usage. The phone
+physics panel now starts collapsed above the driving controls. Gary subsequently
+authorized committing, merging to main and pushing the current stable integration.
+The broader feature remains unfinished and paused; phone performance acceptance
+is still pending after the panel fix.

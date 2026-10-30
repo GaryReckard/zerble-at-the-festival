@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import {batchPropGroups} from '../src/propRendering.js';
 import {registerCampsite} from '../src/campRegistry.js';
 import {Registry} from '../src/registry.js';
+import {createCoolerLid} from '../src/physics/coolerLid.js';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
 import {createLivePhysics} from '../src/physics/liveWorld.js';
 import {setTerrainEnabled} from '../src/worldgen/terrain.js';
 
@@ -42,17 +44,21 @@ for(const hz of [30,60,120]) {
  let regenerated;
  try {
    for(let i=0;i<50&&!world.owns(entry);i++)world.prepare(performance.now()+100);
-   assert(world.owns(entry),'closed cooler is admitted without fake seat claims');
+   assert(world.owns(entry),'cooler assembly admitted: '+JSON.stringify(world.stats().lastReject));
+   assert.equal(world.stats().engine.joints,1);assert(world.stats().chairs.find(c=>c.entryId===entry.id).state.lid.latched);
    assert.equal(world.approach(()=>false,'camp_cooler')?.entryId,entry.id,'cooler-specific staging resolves this object');
-   let hits=0;
+   let hits=0,maxLidAngle=0;
    for(let frame=0;frame<hz*2;frame++) {
      cart.position.z=start.z+9-(frame+1)*8/hz;
      world.prepare(performance.now()+100);
      const hit=world.advance(1/hz);
+     const lid=world.stats().chairs.find(c=>c.entryId===entry.id).state.lid;assert(Number.isFinite(lid.angle));maxLidAngle=Math.max(maxLidAngle,lid.angle);
      if(hit){hits++;assert.equal(hit.kind,'camp_cooler');assert.equal(hit.damage,0);assert.equal(hit.damaging,false);assert(hit.mass>100,'scaled cooler is heavier than a chair');}
    }
    assert(hits>0,'real cart hull impacts the actual cooler model recipe');
+   assert.equal(world.stats().chairs.find(c=>c.entryId===entry.id).state.lid.latched,false,'real impact opens reserved hinge limits');
    assert(entry.position.distanceTo(start)>.5,'closed cooler moves under real solver contacts');
+   assert(maxLidAngle>.03,'lid visibly articulates after cart impact: '+maxLidAngle);
    assert.equal(world.stats().overflow,0);assert.equal(world.stats().blocked,null);
    cart.position.set(start.x+60,0,start.z);cart.speed=0;world.reset('teleport');
    for(let i=0;i<180;i++){world.prepare(performance.now()+100);world.advance(1/60);}
@@ -67,7 +73,7 @@ for(const hz of [30,60,120]) {
      const matrix=new THREE.Matrix4();part.mesh.getMatrixAt(part.slot,matrix);assert.equal(matrix.determinant(),0,'regenerated source is hidden, not duplicated');
    }
  } finally {
-   assert.equal(world.dispose().ok,true);assert.equal(world.stats().engine.engineBodies,0);assert.equal(world.stats().engine.engineColliders,0);
+   assert.equal(world.dispose().ok,true);assert.equal(world.stats().engine.engineBodies,0);assert.equal(world.stats().engine.engineJoints,0);assert.equal(world.stats().engine.engineColliders,0);
    assert.equal(world.stats().render.slots,0);registry.removeChunk('cooler-origin');assert.equal(registry.entries.size,0);
    camp.chairBatch.dispose();regenerated?.chairBatch.dispose();regenerated?.group.removeFromParent();
  }
@@ -125,3 +131,23 @@ for(const hz of [30,60,120]) {
  registry.removeChunk('terrain-cooler');camp.chairBatch.dispose();setTerrainEnabled(false);
  console.log('PASS cooler terrain fit: independent ground sample, matching source instances and physical pose under rotated/scaled campsite root.');
 }
+
+// Assembly reservations fail before visibility transfer, and old handles never
+// remove a replacement body with a reused id.
+for(const joints of [0,1]){
+ const adapter=await createRapierAdapter({capacities:{bodies:2,colliders:2,joints}});
+ const base={id:'base',type:'dynamic',pose:{position:{x:0,y:2,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:.3,y:.2,z:.2},mass:21.2}]};
+ assert(adapter.addBody(base).ok);
+ const render={setPartMatrix(id,m){assert.equal(id,'lid');assert(m.elements.every(Number.isFinite));return true;}};
+ try{
+  if(!joints){assert.throws(()=>createCoolerLid({adapter,bodyId:'base',scale:new THREE.Vector3(1,1,1),render}),/joint-capacity/);assert.equal(adapter.counts().bodies,1);assert.equal(adapter.counts().colliders,1);continue;}
+  const lid=createCoolerLid({adapter,bodyId:'base',scale:new THREE.Vector3(1,1,1),render});
+  const reserved=adapter.counts();assert.equal(reserved.bodies,2);assert.equal(reserved.joints,1);
+  assert(lid.unlatch());assert(lid.unlatch());assert(lid.publish());assert.deepEqual(adapter.counts(),reserved,'unlatching consumes no new resources');
+  assert.throws(()=>createCoolerLid({adapter,bodyId:'base',scale:new THREE.Vector3(1,2,1),render}),/uniform scale/);
+  const old=lid.inspect().generation;adapter.removeBody(lid.bodyId);assert(adapter.addBody({...base,id:lid.bodyId}).ok);
+  assert.notEqual(adapter.readBody(lid.bodyId).generation,old);assert.equal(lid.publish(),false);assert.equal(lid.unlatch(),false);
+  lid.dispose();lid.dispose();assert(adapter.readBody(lid.bodyId),'stale assembly disposal preserves replacement');assert.equal(adapter.counts().joints,0);
+ }finally{adapter.dispose();assert.equal(adapter.counts().engineBodies,0);assert.equal(adapter.counts().engineJoints,0);}
+}
+console.log('PASS live cooler assembly reservation: saturated joint rollback, no-allocation unlatch, finite publication, scale contract, stale replacement safety and disposal.');
