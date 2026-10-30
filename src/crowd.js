@@ -2257,6 +2257,27 @@ export class Crowd {
   }
   removePerson(handle) {const npc=this.peopleHandles.resolve(handle);if(!npc)return false;this.removeNpc(npc);return true;}
   hasHiddenBinding(handle) {return !!this.peopleHandles.resolve(handle)?._activityBinding?.hidden;}
+
+  // Physical reactions start with unclaimed ordinary adults. Occupied support
+  // needs its own prepared transfer; it must never bypass a seat's exit rules
+  // by using this entry point as a generic activity interruption.
+  canClaimPersonReaction(handle) {
+    const n=this.peopleHandles.resolve(handle);
+    return !!n&&!this._disposed&&!n.party&&!n.isPhotographer&&!n.seatSlot
+      &&!n.campSlot&&!n.campMusic&&!n.campInstrument&&!n.campJamHidden
+      &&!n._activityBinding?.hidden&&!this.activityClaims.current.has(handle)
+      &&(ORDINARY_SOCIAL_STATES.has(n.state)||n.state==='fleeing');
+  }
+
+  claimPersonReaction(handle,options) {
+    if(!options?.owner||!this.canClaimPersonReaction(handle))return null;
+    const prepare=options.prepare??(()=>true);
+    return this.claimActivity(handle,{...options,prepare:attempt=>{
+      const prepared=prepare(attempt);
+      if(prepared?.then)throw new TypeError('Reaction preparation must be synchronous.');
+      return prepared===true&&this.canClaimPersonReaction(handle);
+    }},{preserveMotion:true});
+  }
   isInActivity(handle,key) {return this.peopleHandles.isLive(handle)&&this.activityClaims.current.get(handle)?.claim.owner.activityKey===key;}
 
   activitySummary(handle,out={}) {

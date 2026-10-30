@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "7.2 (Closed cooler contacts), then occupied-person reactions; phone acceptance pending"
+current_task: "5.2 (Supported load and bracing), then fall/recovery; phone acceptance pending"
 blocked_by: null
 open_questions: 0
 started: 2026-10-29

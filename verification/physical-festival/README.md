@@ -6,6 +6,8 @@ The [prop response checkpoint](2026-10-30-prop-feedback/README.md) separates sim
 
 The [closed-cooler checkpoint](2026-10-30-cooler/README.md) adds independent cooler collision and bounded live adoption, with a recorded production impact. Gary gave positive early chair-motion feedback; device and full occupied-person acceptance remain open.
 
+The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests guarded ordinary-person claims; visible falls and occupied-support transfers remain unfinished.
+
 ## Latest production checkpoint
 
 The [bounded hinge proof](2026-10-30-joints/README.md) verifies the adapter contract needed for the later cooler lid experiment; no articulated cooler is enabled yet.

@@ -1,0 +1,73 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+
+// Execute the production population methods with real generation/claim owners.
+// GPU writes are recorded by the existing population fixture.
+const people=makePeopleCrowd();
+const spawn=()=>people.spawn({pos:new Vector(2,3,4)});
+const owner={activityKey:'physical-reaction'};
+for(const state of ['idle','walking','watching','approaching','fleeing']) {
+  const n=spawn();n.state=state;n.vel.set(1,0,2);
+  let releases=0;
+  const claim=people.claimPersonReaction(n.personHandle,{owner,
+    prepare(attempt){attempt.own(()=>releases++);return true;}});
+  assert(claim);assert.equal(n.state,state);assert.deepEqual(n.vel,new Vector(1,0,2));
+  assert.equal(people.claimPersonReaction(n.personHandle,{owner}),null,'repeat impact must use existing authority');
+  assert(people.writeActivityPose(claim,5,6,7));
+  assert(people.endPersonActivity(claim));assert.equal(releases,1);
+  assert.equal(n.state,state==='fleeing'?'fleeing':'walking');assert.equal(people.writeActivityPose(claim,99,99,99),false);
+  assert.equal(people.endPersonActivity(claim),false);assert.equal(releases,1);
+}
+for(const patch of [
+  ...['riding','boarding','disembarking','camp_sleeping','camp_seated','hammock_riding','picnic_seated','unknown'].map(state=>({state})),
+  {party:{}},{isPhotographer:true},{seatSlot:{}},{campSlot:{}},{campMusic:true},
+  {campInstrument:{}},{campJamHidden:true},{_activityBinding:{hidden:true}},
+]) {
+  const n=spawn();Object.assign(n,patch);let prepared=false;
+  assert.equal(people.claimPersonReaction(n.personHandle,{owner,prepare(){prepared=true;return true;}}),null);
+  assert.equal(prepared,false,'excluded people cannot allocate reaction resources');
+}
+{
+  const n=spawn(),old=people.claimActivity(n.personHandle,{owner:{activityKey:'hula'}});
+  assert.equal(people.claimPersonReaction(n.personHandle,{owner}),null);
+  assert(people.isPersonActivityCurrent(old));
+}
+{
+  const n=spawn();let cleanups=0;
+  assert.equal(people.claimPersonReaction(n.personHandle,{owner,prepare(attempt){attempt.own(()=>cleanups++);return false;}}),null);
+  assert.equal(cleanups,1);assert.equal(people.activityClaims.current.has(n.personHandle),false);
+  assert.throws(()=>people.claimPersonReaction(n.personHandle,{owner,prepare(attempt){attempt.own(()=>cleanups++);throw Error('allocation');}}),/allocation/);
+  assert.equal(cleanups,2);
+  assert.throws(()=>people.claimPersonReaction(n.personHandle,{owner,prepare:()=>Promise.resolve(true)}),/synchronous/);
+  assert.equal(people.activityClaims.current.has(n.personHandle),false);
+  assert.equal(people.claimPersonReaction(n.personHandle,{owner,prepare(attempt){attempt.own(()=>cleanups++);n.party={};return true;}}),null);
+  assert.equal(cleanups,3,'eligibility is rechecked after resource preparation');
+}
+{
+  const n=spawn(),handle=n.personHandle;let cleanup=0;
+  const claim=people.claimPersonReaction(handle,{owner,prepare(attempt){attempt.own(()=>cleanup++);return true;}});
+  people.peopleHandles.remove(handle,()=>people.activityClaims.removePerson(handle));
+  const replacement=people.peopleHandles.create(handle.slot,{...n,personHandle:null});
+  assert.equal(people.claimPersonReaction(handle,{owner}),null);
+  assert.equal(people.writeActivityPose(claim,99,99,99),false);
+  assert.equal(people.endPersonActivity(claim),false);assert.equal(cleanup,1);
+  assert(people.peopleHandles.isLive(replacement));
+}
+people.activityClaims.dispose();
+{
+  const population=makePeopleCrowd(),n=population.spawn({pos:new Vector()});let cleanup=0;
+  assert.equal(population.claimPersonReaction(n.personHandle,{owner,prepare(attempt){
+    attempt.own(()=>cleanup++);
+    population.peopleHandles.remove(n.personHandle,()=>population.activityClaims.removePerson(n.personHandle));
+    return true;
+  }}),null);
+  assert.equal(cleanup,1);assert.equal(population.activityClaims.current.size,0);
+  const next=population.spawn({pos:new Vector()});
+  const old=population.claimPersonReaction(next.personHandle,{owner});
+  const current=population.claimActivity(next.personHandle,{owner:{activityKey:'new-owner'}});
+  assert.equal(population.writeActivityPose(old,99,99,99),false);
+  assert.equal(population.endPersonActivity(old),false);assert(population.isPersonActivityCurrent(current));
+  population.activityClaims.dispose();
+}
+console.log('PASS person reaction boundary: ordinary eligibility, protected people/activities, preserved incoming motion, synchronous preparation rollback, repeat-claim rejection, stale generations and singular cleanup.');

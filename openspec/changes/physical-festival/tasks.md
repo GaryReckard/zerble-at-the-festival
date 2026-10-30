@@ -41,7 +41,7 @@ Each player-visible implementation slice updates CHANGELOG on the actual date an
 
 ## 5. Add occupied support, graduated reactions and recovery
 
-- [ ] 5.1 (Reaction activity boundary) Implement eligible ordinary-crowd reaction claims through public population capabilities; preserve specialist, hidden, rider and existing activity exclusions; test stale handles and failed claims.
+- [x] 5.1 (Reaction activity boundary) Implement eligible ordinary-crowd reaction claims through public population capabilities; preserve specialist, hidden, rider and existing activity exclusions; test stale handles and failed claims.
 - [ ] 5.2 (Supported load and bracing) Add independent per-seat support/load, self-contact filtering and bounded bracing with stability hysteresis; inspect a gentle wobble and a successful save without duplicating person mass.
 - [ ] 5.3 (Controlled dismount) Find a valid local foot/exit target and transfer seat/hand/movement authority coherently; test a blocked exit preserves valid state until a different reaction is required.
 - [ ] 5.4 (Fall handoff) Release unsupported sitters with continuous seat-point velocity, remove seated load once and separate collision proxies safely; test rotation, boost impacts and no-walking-exit falls for finite bounded energy. Saturate protected pools before forcing both loveseat occupants and their held/holder cups to release; assert reserved capacity, singular visuals, finite motion and no leaked claims.
