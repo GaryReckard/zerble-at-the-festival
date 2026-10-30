@@ -4,6 +4,8 @@ import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
 import {CampActivity} from '../src/people/campActivity.js';
 import {campSlotAvailable,releaseCampSlot} from '../src/people/campResources.js';
 import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+import {AdmissionBudget} from '../src/physics/admissionBudget.js';
+import {prepareSeatRelease} from '../src/physics/seatRelease.js';
 
 function fixture() {
   const people=makePeopleCrowd(),slots=[-.4,.4].map(x=>({x,y:.8,z:0,yaw:0,approachX:x,approachZ:1,occupied:false}));
@@ -87,18 +89,25 @@ console.log('PASS camp support transfer: real seated activities, failed preparat
 for(const capacity of [0,1]) {
   const f=fixture(),person=f.persons[0],old=f.people.camps.records.get(person).claim;
   const adapter=await createRapierAdapter({capacities:{supportedLoads:capacity}});
+  const budget=new AdmissionBudget({capacities:{bodies:2,colliders:4,joints:0,events:4,renderSlots:0}});
   try {
     const body=adapter.addBody({id:'seat',type:'dynamic',colliders:[{shape:'ball',radius:.2,mass:5}]});
     let support,load;
     const claim=f.people.claimActivity(person,{owner,prepare(attempt){
       support=f.people.preparePersonSupportTransfer(person,f.target,attempt);if(!support)return false;
-      load=adapter.addSupportedLoad({id:'sitter',bodyId:'seat',bodyGeneration:body.generation,position:{x:0,y:1,z:0},mass:70,radius:.2});
-      if(!load.ok)return false;
-      attempt.own(()=>adapter.removeSupportedLoad(load.token));return true;
+      load=prepareSeatRelease({adapter,budget,id:'sitter',bodyId:'seat',bodyGeneration:body.generation,position:{x:0,y:1,z:0},mass:70,radius:.2,attempt});
+      return load.ok;
     }},{preserveMotion:true});
     if(capacity===0){assert.equal(claim,null);assert(f.people.isPersonActivityCurrent(old));assert(f.slots[0].occupied);}
-    else {assert(support.commit(claim));assert.equal(adapter.readBody('seat').mass,75);f.registry.entries.delete(f.original.id);assert(support.isValid());f.people.endPersonActivity(claim);assert(!f.slots[0].occupied);}
+    else {
+      assert(support.commit(claim));assert.equal(adapter.readBody('seat').mass,75);
+      f.registry.entries.delete(f.original.id);assert(support.isValid());
+      assert(load.lease.fall().ok);assert(support.release());assert(!f.slots[0].occupied);
+      assert(f.people.isPersonActivityCurrent(claim),'falling retains reaction movement authority after seat release');
+      assert(load.lease.read().body.enabled);f.people.endPersonActivity(claim);assert.equal(load.lease.read(),null);
+    }
     assert.equal(adapter.counts().supportedLoads,0);assert.equal(adapter.readBody('seat').mass,5);
+    assert.equal(adapter.counts().bodies,1);assert.equal(budget.report().records,0);
   } finally {f.people.activityClaims.dispose();adapter.dispose();}
 }
 console.log('PASS real Rapier load plus person claim: exhausted load capacity preserves the sitter; committed support survives origin unload and releases seat/mass together.');

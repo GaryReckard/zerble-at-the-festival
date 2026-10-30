@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [reserved fall-body proof](2026-10-30-seat-release.md) verifies two occupied
+seat releases at saturated engine capacity without allocating during release.
+It composes with person/seat claims; live pose publication and recovery are next.
+
 The [prepared seat handoff](2026-10-30-seat-transfer.md) connects real camp and
 musician reservations to replacement activity claims, including failed
 preparation and late original-owner cleanup. Live occupied admission remains open.

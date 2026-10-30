@@ -216,9 +216,11 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       if (item.type !== 'dynamic') return {ok:false,reason:'not-dynamic'};
       const position = vector(spec.position, 'load position');
       const mass = positive(spec.mass, 'load mass'), radius = positive(spec.radius, 'load radius');
+      const halfHeight = scalar(spec.halfHeight ?? 0, 'load halfHeight', 0);
       // A mass-bearing sensor contributes inertia but has no contacts or events.
       // Its capacity still counts as a collider; it is not a second person body.
-      const desc = R.ColliderDesc.ball(radius).setMass(mass).setTranslation(position.x,position.y,position.z)
+      const shape = halfHeight ? R.ColliderDesc.capsule(halfHeight,radius) : R.ColliderDesc.ball(radius);
+      const desc = shape.setMass(mass).setTranslation(position.x,position.y,position.z)
         .setSensor(true).setCollisionGroups(0).setSolverGroups(0).setActiveEvents(0);
       const originVelocity = vector(item.body.velocityAtPoint(item.body.translation()),'origin velocity');
       let collider;
@@ -231,7 +233,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
         return {ok:false,reason:'engine-load-create-failed',message:error.message};
       }
       const serial = ++loadGeneration;
-      supportedLoads.set(spec.id,{collider,bodyId:spec.bodyId,bodyGeneration:item.generation,generation:serial,mass,radius,position});
+      supportedLoads.set(spec.id,{collider,bodyId:spec.bodyId,bodyGeneration:item.generation,generation:serial,mass,radius,halfHeight,position});
       item.colliders.push(collider.handle);
       colliders.set(collider.handle,{id:spec.bodyId,generation:item.generation,index:-1,sensor:true,shape:collider.shape,
         local:{position,rotation:{...IDENTITY}}});
@@ -241,7 +243,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       const load = loadRecord(token);
       if(!load)return null;
       const body = bodies.get(load.bodyId).body, position = vector(load.collider.translation(),'load world position');
-      return {bodyId:load.bodyId,bodyGeneration:load.bodyGeneration,mass:load.mass,radius:load.radius,
+      return {bodyId:load.bodyId,bodyGeneration:load.bodyGeneration,mass:load.mass,radius:load.radius,halfHeight:load.halfHeight,
         localPosition:{...load.position},position,rotation:rotation(body.rotation()),
         velocity:vector(body.velocityAtPoint(position),'load point velocity'),angularVelocity:vector(body.angvel(),'load angular velocity')};
     },

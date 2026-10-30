@@ -1,0 +1,72 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+import {AdmissionBudget} from '../src/physics/admissionBudget.js';
+import {prepareSeatRelease} from '../src/physics/seatRelease.js';
+import {chairRecipe} from '../src/physics/recipes.js';
+const capacities={bodies:4,colliders:12,joints:0,renderSlots:0,events:64};
+const near=(a,b)=>assert(Math.abs(a-b)<.002,`${a} != ${b}`);
+function preparation(){const cleanup=[];return {own:f=>cleanup.push(f),rollback(){for(const f of cleanup.splice(0).reverse())f();}};}
+const adapter=await createRapierAdapter({gravity:{x:0,y:0,z:0},capacities:{...capacities,supportedLoads:2}});
+const budget=new AdmissionBudget({capacities});
+try {
+  const chair=adapter.addBody({id:'chair',type:'dynamic',pose:{position:{x:0,y:3,z:0}},colliders:chairRecipe('loveseat')});assert(chair.ok);
+  const chairBudget=budget.reserve('chair',{resident:{bodies:1,colliders:6}}).token;
+  const baselineMass=adapter.readBody('chair').mass;
+  adapter.setVelocity('chair',{linear:{x:2,y:1,z:3},angular:{x:1,y:2,z:3}});
+  let allocationsAllowed=true;
+  const wrapped={...adapter,addBody(...args){assert(allocationsAllowed,'fall must not allocate');return adapter.addBody(...args);},addSupportedLoad(...args){assert(allocationsAllowed,'fall must not allocate');return adapter.addSupportedLoad(...args);}};
+  const attempts=[preparation(),preparation()];
+  const seats=[-.3,.3].map((x,i)=>prepareSeatRelease({adapter:wrapped,budget,id:`seat-${i}`,bodyId:'chair',bodyGeneration:chair.generation,position:{x,y:.9,z:0},mass:70,radius:.22,halfHeight:.3,attempt:attempts[i]}));
+  assert(seats.every(s=>s.ok));near(adapter.readBody('chair').mass,baselineMass+140);
+  assert(seats.every(s=>s.lease.read().body.enabled===false));
+  const optional=adapter.addBody({id:'optional',type:'dynamic',pose:{position:{x:50,y:0,z:0}},colliders:[{shape:'ball',radius:.1},{shape:'ball',radius:.1,position:{x:1,y:0,z:0}}]});assert(optional.ok);
+  const optionalBudget=budget.reserve('optional',{resident:{bodies:1,colliders:2}}).token;
+  assert.equal(adapter.counts().bodies,4);assert.equal(adapter.counts().colliders,12);
+  assert.equal(budget.report().available.bodies,0);assert.equal(budget.report().available.colliders,0);
+  const initial=seats.map(s=>s.lease.read().support),before=adapter.readBody('chair');
+  allocationsAllowed=false;
+  for(const [i,s] of seats.entries()) {
+    assert(s.lease.fall().ok);assert(s.lease.fall().ok,'repeat release is idempotent');
+    assert.equal(s.lease.read().state,'falling');assert(s.lease.read().body.enabled);
+    for(const axis of ['x','y','z']){near(s.lease.read().body.linearVelocity[axis],initial[i].velocity[axis]);near(s.lease.read().body.angularVelocity[axis],initial[i].angularVelocity[axis]);}
+  }
+  near(adapter.readBody('chair').mass,baselineMass);assert.equal(adapter.counts().bodies,4);assert.equal(adapter.counts().colliders,10);
+  for(const axis of ['x','y','z'])near(before.mass*before.linearVelocity[axis],adapter.readBody('chair').mass*adapter.readBody('chair').linearVelocity[axis]+seats.reduce((sum,s)=>sum+s.lease.read().body.mass*s.lease.read().body.linearVelocity[axis],0));
+  const copied=seats[0].lease.releaseSnapshot();copied.position.x=1000;assert.notEqual(seats[0].lease.releaseSnapshot().position.x,1000);
+  attempts.forEach(a=>a.rollback());assert.equal(adapter.counts().supportedLoads,0);assert.equal(adapter.counts().bodies,2);
+  assert.equal(seats[0].lease.read(),null);assert.equal(seats[0].lease.fall().reason,'disposed');
+  adapter.removeBody('optional');budget.release(optionalBudget);adapter.removeBody('chair');budget.release(chairBudget);
+  assert.equal(adapter.counts().bodies,0);assert.equal(adapter.counts().colliders,0);assert.equal(budget.report().records,0);
+} finally {adapter.dispose();}
+
+for(const failure of ['load-capacity','body-capacity','stale-body','expired-attempt','activation','body-reused','world-disposed']) {
+  const world=await createRapierAdapter({capacities:{bodies:failure==='body-capacity'?1:4,colliders:8,supportedLoads:failure==='load-capacity'?0:2}});
+  const ledger=new AdmissionBudget({capacities});
+  try {
+    const support=world.addBody({id:'support',type:'dynamic',colliders:[{shape:'ball',radius:.2,mass:5}]});assert(support.ok);
+    let failEnable=failure==='activation';
+    const wrapped={...world,setBodyEnabled(id,enabled){if(enabled&&failEnable){failEnable=false;throw Error('activation failed');}return world.setBodyEnabled(id,enabled);}};
+    const attempt=preparation(),args={adapter:wrapped,budget:ledger,id:'person',bodyId:'support',bodyGeneration:support.generation+(failure==='stale-body'?1:0),position:{x:0,y:1,z:0},mass:70,radius:.2,attempt};
+    if(failure==='expired-attempt'){assert.throws(()=>prepareSeatRelease({...args,attempt:{own(){throw Error('expired');}}}),/expired/);}
+    else {
+      const result=prepareSeatRelease(args);
+      if(['load-capacity','body-capacity','stale-body'].includes(failure))assert.equal(result.reason,failure);
+      else {
+        assert(result.ok);const lease=result.lease,body=lease.read().body;
+        if(failure==='activation') {
+          assert.throws(()=>lease.fall(),/activation failed/);assert.equal(lease.read().state,'activating');
+          assert.equal(world.counts().supportedLoads,0);near(world.readBody('support').mass,5);
+          assert(lease.fall().ok);assert(lease.read().body.enabled);assert.equal(world.counts().bodies,2);
+        } else if(failure==='body-reused') {
+          world.removeBody(body.id);assert(world.addBody({id:body.id,type:'dynamic',colliders:[{shape:'ball',radius:.1,mass:1}]}).ok);
+          assert.equal(lease.fall().reason,'reserved-body-missing');lease.dispose();assert(world.readBody(body.id),'old lease must not remove a new body generation');world.removeBody(body.id);
+        } else {world.dispose();assert.equal(lease.read(),null);assert.equal(lease.fall().reason,'adapter-disposed');}
+        lease.dispose();assert.equal(lease.dispose(),false);
+      }
+    }
+    attempt.rollback();assert.equal(ledger.report().records,0);assert.equal(world.counts().supportedLoads,0);
+    if(!world.counts().disposed){assert.equal(world.counts().bodies,1);assert.equal(world.counts().colliders,1);near(world.readBody('support').mass,5);}
+  } finally {world.dispose();}
+}
+console.log('PASS reserved seat release: both loveseat occupants fall with fully saturated engine/budget capacity and zero allocations, continuous momentum, idempotency, preparation rollback, activation retry, stale body isolation and either teardown order.');
