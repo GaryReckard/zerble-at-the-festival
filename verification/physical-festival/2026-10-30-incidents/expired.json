@@ -1,0 +1,18 @@
+{
+  "hits": 1,
+  "incidents": {
+    "bodies": 0,
+    "capacities": {
+      "maxAge": 5,
+      "maxBodies": 64,
+      "maxHops": 4,
+      "maxIncidents": 32,
+      "maxTargets": 32
+    },
+    "clock": 59.08333333333126,
+    "incidents": 0,
+    "rejections": 0,
+    "targets": 0
+  },
+  "props": []
+}

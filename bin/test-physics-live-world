@@ -92,6 +92,8 @@ async function encounter(hz,ghost=false,starved=false,stageAudience=false,eligib
       assert(live.stats().clock.steps>steps);assert.equal(live.stats().ownership.chairs,1);
     } else {assert.equal(result.clock.steps,120);assert.equal(result.blocked,null);}
     assert.equal(result.overflow,0);
+    if(ghost)assert.equal(result.incidents.incidents,0,'ghost creates no causal incident');
+    else {assert.equal(result.chairs[0].incident.instigator,'zerble');assert.equal(result.chairs[0].incident.hops,0);assert(result.chairs[0].incident.source.endsWith(':'+result.chairs[0].state.engineGeneration));}
     if(ghost){assert.equal(hitCount,0);assert(Math.abs(entry.position.z)<.15,'ghost does not push the chair');}
     else {assert(hitCount>0,'real cart hull produces an eligible impact');assert(Math.abs(entry.position.z)>1,'chair moves through real solver contacts');}
     assert.equal(registry.closestGenerationBuilding({x:0,z:0},.1,new Set(['campsite'])).id,id);
@@ -101,7 +103,7 @@ async function encounter(hz,ghost=false,starved=false,stageAudience=false,eligib
     assert.equal(live.stats().ownership.chairs,1);
     return result;
   } finally {
-    assert.equal(live.dispose().ok,true);assert.equal(registry.physicalChairOwner,undefined);
+    assert.equal(live.dispose().ok,true);assert.equal(live.stats().incidents.incidents,0);assert.equal(registry.physicalChairOwner,undefined);
     assert.equal(registry.entries.has(id),false);assert.equal(live.stats().engine.bodies,0);batch.dispose();
   }
 }

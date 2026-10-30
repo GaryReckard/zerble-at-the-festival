@@ -1,9 +1,9 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "Live seated/ordinary-person falls integrated; incident attribution, broader props and phone acceptance pending"
+current_task: "4.3 (Bounded incident provenance): prop relay implemented; person delivery and device acceptance pending"
 blocked_by: null
-open_questions: 0
+open_questions: 1
 started: 2026-10-29
 last_updated: 2026-10-30
 ref: "ROADMAP.md: Gameplay verbs / Physical props"
@@ -296,3 +296,13 @@ negative/capacity/repeat-hit tests and a real Chrome pedestrian encounter passed
 See [ordinary-person verification](../../../verification/physical-festival/2026-10-30-ordinary-people/README.md).
 Next: bounded incident attribution/secondary impacts, then cooler lids and contents.
 Device acceptance and graduated reactions remain open.
+
+## October 30: bounded prop attribution
+
+Added finite causal history and prop contact relay. A real browser cooler impact
+propagated its original instigator to a loveseat at hop one; later inspection
+proved expiration. Pure/real-engine tests cover capacity, lifetime, generations,
+deduplication and graph order. Person delivery and rotation-only contact evidence
+remain unfinished, so Task 4.3 (Bounded incident provenance) remains unchecked.
+See [verification](../../../verification/physical-festival/2026-10-30-incidents/README.md).
+The pending device playtest request is recorded as Q3 (Phone playtest results).

@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createIncidentLedger} from '../src/physics/incidents.js';
+{
+ const ledger=createIncidentLedger({maxHops:2,maxAge:5});
+ const first=ledger.start('chair:1','cart:1',0);assert(first.ok);
+ assert(ledger.propagate('chair:1','cooler:1',.1).changed);
+ assert(ledger.propagate('cooler:1','chair:2',.2).changed);
+ assert.equal(ledger.propagate('chair:2','chair:3',.3).reason,'hop-limit');
+ const victim=ledger.claimTarget('cooler:1','person:7:1',.4);assert(victim.ok);assert.equal(victim.incident.instigator,'cart:1');assert.equal(victim.incident.source,'chair:1');assert.equal(victim.incident.hops,1);
+ assert.equal(ledger.claimTarget('chair:2','person:7:1',.5).reason,'duplicate-target');
+ assert(ledger.claimTarget('chair:2','person:8:1',.5).ok,'separate people are independent');
+ assert(ledger.claimTarget('chair:2','person:7:2',.5).ok,'recycled person slot has fresh identity');
+ assert.equal(ledger.propagate('chair:2','chair:1',.6).changed,false,'cycle cannot extend life or hop budget');
+ const copied=ledger.read('cooler:1');copied.instigator='spoof';assert.equal(ledger.read('cooler:1').instigator,'cart:1');
+ assert.equal(ledger.read('cooler:1',5),null,'secondary contact does not refresh original age');assert.equal(ledger.stats().bodies,0);
+ const renewed=ledger.start('chair:1','cart:1',5.1);assert(renewed.incident.id>first.incident.id);assert(ledger.claimTarget('chair:1','person:7:1',5.1).ok);
+ ledger.forget('chair:1');assert.equal(ledger.stats().incidents,0);
+ assert.throws(()=>ledger.advance(4),/monotonic/);
+}
+{
+ const ledger=createIncidentLedger({maxIncidents:1,maxBodies:2,maxTargets:1});
+ assert(ledger.start('a:1','cart',0).ok);assert.equal(ledger.start('b:1','cart',0).reason,'incident-capacity');
+ assert(ledger.propagate('a:1','b:1',0).ok);assert.equal(ledger.propagate('a:1','c:1',0).reason,'body-capacity');
+ assert(ledger.claimTarget('a:1','p:1',0).ok);assert.equal(ledger.claimTarget('b:1','p:2',0).reason,'target-capacity');
+ assert.equal(ledger.start('a:1','cart',.1).reason,'incident-capacity','must not evict history still attached to b');
+ ledger.forget('b:1');assert(ledger.start('a:1','cart',.1).ok,'exclusive replacement reuses bounded slot');
+ ledger.clear();assert.equal(ledger.stats().targets,0);
+}
+{
+ const ledger=createIncidentLedger();ledger.start('old','cart',0);ledger.start('new','cart',.1);
+ const newer=ledger.read('new').id;assert.equal(ledger.propagate('old','new',.2).changed,false);assert.equal(ledger.read('new').id,newer);
+ for(let i=1;i<=500;i++){ledger.start(`chair:${i}`,'cart',i*6);ledger.claimTarget(`chair:${i}`,`person:${i}`,i*6);assert.equal(ledger.stats().incidents,1);assert.equal(ledger.stats().bodies,1);}
+ ledger.clear();assert.equal(ledger.stats().incidents,0);
+}
+console.log('PASS incidents: source/instigator retention, bounded hops/age/records/targets, per-person deduplication, recycled generations, renewed hits, conflicting sources, copied snapshots and 500 expiration cycles.');
+
+const {relayPropIncidents}=await import('../src/physics/propIncidents.js');
+{
+ const before=new Map(['a','b','c','d'].map((id,i)=>[id,{key:`${id}:1`,position:{x:i,y:0,z:0},velocity:{x:8-i*2,y:0,z:0}}]));
+ const events=[['a','b'],['b','c'],['c','d']].map(([a,b])=>({a,b,type:'contact-start'}));
+ for(const order of [events,[...events].reverse()]) {
+  const ledger=createIncidentLedger();ledger.start('a:1','zerble',0);
+  relayPropIncidents({ledger,events:order,before,time:.1});assert.equal(ledger.read('d:1').hops,3);
+  assert(ledger.claimTarget('b:1','person:1',.1).ok);assert.equal(ledger.claimTarget('d:1','person:1',.1).reason,'duplicate-target');
+ }
+ const ledger=createIncidentLedger();ledger.start('a:1','zerble',0);
+ relayPropIncidents({ledger,events:events.map(e=>({...e,type:'sensor-start'})),before,time:.1});assert.equal(ledger.read('b:1'),null);
+ const resting=new Map([...before].map(([id,row])=>[id,{...row,velocity:{x:0,y:0,z:0}}]));
+ relayPropIncidents({ledger,events:events.map(e=>({...e,type:'contact-force',units:'N',totalForceMagnitude:700})),before:resting,time:.2});assert.equal(ledger.read('b:1'),null,'resting force is not incoming impact');
+ relayPropIncidents({ledger,events:events.map(e=>({...e,type:'contact-force',units:'impulse',totalForceMagnitude:700})),before,time:.3});assert.equal(ledger.read('b:1'),null,'force units are explicit');
+}
+const {createRapierAdapter}=await import('../src/physics/rapierAdapter.js');
+{
+ const adapter=await createRapierAdapter({gravity:{x:0,y:0,z:0},capacities:{bodies:3,colliders:3,events:64}}),ledger=createIncidentLedger();
+ try {
+  for(const [i,id] of ['a','b','c'].entries())assert(adapter.addBody({id,type:'dynamic',pose:{position:{x:i*1.5,y:0,z:0}},colliders:[{shape:'ball',radius:.5,mass:1,restitution:.6,friction:0,collisionEvents:true,forceEvents:true,forceThreshold:2}]}).ok);
+  const keys=new Map(['a','b','c'].map(id=>[id,`${id}:${adapter.readBody(id).generation}`]));
+  ledger.start(keys.get('a'),'zerble',0);adapter.setVelocity('a',{linear:{x:6,y:0,z:0}});
+  let propagated=false;
+  for(let step=1;step<=90;step++) {
+   const before=new Map(['a','b','c'].map(id=>{const body=adapter.readBody(id);return [id,{key:keys.get(id),position:body.pose.position,velocity:body.linearVelocity}];}));
+   adapter.step(1/60);const {events,overflow}=adapter.drainEvents();assert.equal(overflow,0);
+   relayPropIncidents({ledger,events,before,time:step/60});
+   if(ledger.read(keys.get('c'))){propagated=true;break;}
+  }
+  assert(propagated,'real solid collision chain retains original instigator');assert.equal(ledger.read(keys.get('c')).instigator,'zerble');assert.equal(ledger.read(keys.get('c')).hops,2);
+ } finally {adapter.dispose();ledger.clear();}
+}
+console.log('PASS prop incident relay: order-independent contact graph, sensor/resting-force exclusion, explicit units and real-engine three-body chain.');
+{
+ const ledger=createIncidentLedger({maxHops:2});ledger.start('a','zerble',0);
+ ledger.propagate('a','b',0);ledger.propagate('b','c',0);
+ assert.equal(ledger.propagate('c','d',0).reason,'hop-limit');
+ assert(ledger.propagate('a','c',0).changed);assert.equal(ledger.read('c').hops,1);
+ assert(ledger.propagate('c','d',0).changed);assert.equal(ledger.read('d').hops,2);
+}
+console.log('PASS shorter causal paths recover remaining hop capacity without renewing age.');

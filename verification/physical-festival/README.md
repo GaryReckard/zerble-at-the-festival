@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [incident attribution checkpoint](2026-10-30-incidents/README.md) adds bounded
+source history and prop-to-prop relay, including an observed cooler-to-loveseat
+chain. Delivery to people and indirect scoring remain unfinished.
+
 The [ordinary-person checkpoint](2026-10-30-ordinary-people/README.md) adds bounded
 prewarming, direct-cart pedestrian falls and recovery through the live population.
 A real browser encounter completed; secondary impacts and full acceptance remain open.

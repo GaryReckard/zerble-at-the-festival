@@ -9,6 +9,8 @@ import { createActivePropRendering } from './activePropRendering.js';
 import { createChairOwnership } from './chairOwnership.js';
 import { createOccupiedSeats } from './occupiedSeats.js';
 import { createOrdinaryPeople } from './ordinaryPeople.js';
+import { createIncidentLedger } from './incidents.js';
+import { relayPropIncidents } from './propIncidents.js';
 import { sampleTerrain } from '../worldgen/terrain.js';
 import { campSlotAvailable } from '../people/campResources.js';
 import { findChairApproach } from './encounter.js';
@@ -25,6 +27,8 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
   const adapter = await createRapierAdapter({capacities:{bodies:256,colliders:512,events:256,supportedLoads:16,contactPairs:36}});
   let rendering,terrain,solids,owner,ordinary;
   try {
+  const incidents=createIncidentLedger();
+  const incidentKey=record=>`${record.bodyId}:${owner.read(record.token)?.engineGeneration}`;
   const clock = new FixedStepClock(), records = new Map(), entryRecords = new Map(), rejected = new Map();
   rendering = createActivePropRendering({maxBuckets:48,maxSlots:3072,slotsPerBucket:64});
   terrain = createTerrainResidency(adapter,{maxTiles:64,maxQueued:32,maxOwners:MAX_CHAIRS+4});
@@ -62,6 +66,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
   ordinary=people?createOrdinaryPeople({people,adapter,budget,terrain,solids,cart,isWet,now,registry}):null;
   function rejection(reason) {rejects++;lastReject=reason;}
   function forget(record) {
+    if(record.bodyId)incidents.forget(record.incidentKey??incidentKey(record));
     terrain.release(record.supportKey);solids.release(record.supportKey);
     entryRecords.delete(record.entryId);records.delete(record.key);
   }
@@ -142,7 +147,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
       record.bounds=record.wanted;
       if(!record.token && admissions<1) {
         const result=owner.adopt(record.entryId);
-        if(result.ok){record.token=result.token;record.bodyId=owner.read(result.token).bodyId;record.handoffPending=!solids.removeEntry(record.entryId).ok;admissions++;}
+        if(result.ok){record.token=result.token;record.bodyId=owner.read(result.token).bodyId;record.incidentKey=incidentKey(record);record.handoffPending=!solids.removeEntry(record.entryId).ok;admissions++;}
         else {rejection(result.reason);rejected.set(record.key,{entryId:record.entryId,reason:result.reason});forget(record);}
       }
     }
@@ -178,6 +183,9 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     proxy.accept(clock.time+clock.remainder,dt,poseOf(cart),{ghost,resetReason:reason});
     resetReason=null;suspended=false;
     clock.advance(dt,(step,time)=>{
+      incidents.advance(time);
+      const incoming=new Map();
+      for(const record of records.values())if(record.token){const body=adapter.readBody(record.bodyId);if(body)incoming.set(body.id,{key:record.incidentKey,position:body.pose.position,velocity:body.linearVelocity});}
       proxy.beforeStep(time);adapter.step(step);owner.stepPeople(step);ordinary?.step(step);
       const drained=adapter.drainEvents();overflow+=drained.overflow;
       for(const event of drained.events) {
@@ -193,18 +201,20 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
           record.contacts.delete(pair);record.lastTouch=time;continue;
         } else if(event.type!=='contact-force')continue;
         record.lastTouch=time;
-        if(ghost||hit||record.penalized)continue;
+        if(ghost||record.penalized)continue;
         const body=adapter.readBody(bodyId),entry=registry.entries.get(record.entryId);
         if(!body||!entry)continue;
         const dx=body.pose.position.x-cart.position.x,dz=body.pose.position.z-cart.position.z,d=Math.hypot(dx,dz)||1;
         const approach=(-Math.sin(cart.heading)*cart.speed*dx-Math.cos(cart.heading)*cart.speed*dz)/d;
         if(approach<=APPROACH_DAMAGE_THRESHOLD)continue;
         record.lastHit=time;record.penalized=true;hits++;
+        incidents.start(record.incidentKey,'zerble',time);
         // A furniture touch is not itself a person incident. The existing person
         // contact path owns occupant penalties and sends their physical impulse.
-        hit={damaging:false,damage:0,objectBump:eligible,kind:entry.kind,entry,physical:true,
+        hit??={damaging:false,damage:0,objectBump:eligible,kind:entry.kind,entry,physical:true,
           mass:body.mass,approachSpeed:approach,push:{x:-dx/d,z:-dz/d}};
       }
+      relayPropIncidents({ledger:incidents,events:drained.events,before:incoming,time});
     },{canStep});
     for(const record of records.values())if(record.token) {
       const result=owner.publish(record.token);
@@ -214,8 +224,8 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     return hit;
   }
   function stats() {return {enabled:!disposed,phase:'physical-props-prototype',preparationCalls,lastCandidates,nearbyChairs,rejectedCandidates:rejected.size,player:{x:cart.position.x,z:cart.position.z},frames,clock:{steps:clock.steps,dropped:clock.dropped},blocked,hits,overflow,rejects,lastReject,
-    chairs:[...records.values()].map(record=>({key:record.key,kind:registry.entries.get(record.entryId)?.kind,entryId:record.entryId,active:!!record.token,state:record.token?owner.read(record.token):null})),
-    ordinary:ordinary?.stats()??null,engine:adapter.counts(),terrain:terrain.stats(),solids:solids.stats(),render:rendering.stats(),ownership:owner.stats(),cart:proxy.state(),
+    chairs:[...records.values()].map(record=>({key:record.key,kind:registry.entries.get(record.entryId)?.kind,entryId:record.entryId,active:!!record.token,incident:record.incidentKey?incidents.read(record.incidentKey):null,state:record.token?owner.read(record.token):null})),
+    incidents:incidents.stats(),ordinary:ordinary?.stats()??null,engine:adapter.counts(),terrain:terrain.stats(),solids:solids.stats(),render:rendering.stats(),ownership:owner.stats(),cart:proxy.state(),
     limitations:['Occupied chair adoption is opt-in; full incident and device acceptance remain pending.','Static cylinders are conservative approximations.','Secondary-person attribution and device acceptance are pending.','Support-frontier exhaustion visibly stops this opt-in prototype.']};}
   function dispose() {
     if(disposed)return;disposed=true;
@@ -224,7 +234,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     for(const [name,action] of [['ordinary-people',()=>ordinary?.dispose()],['chairs',()=>owner.dispose()],['solids',()=>solids.dispose()],['terrain',()=>terrain.dispose()],['render',()=>rendering.dispose()],['engine',()=>adapter.dispose()]]) {
       try {const result=action();if(result?.ok===false)errors.push({name,result});}catch(error){errors.push({name,message:error.message});}
     }
-    rendering.root.removeFromParent();records.clear();entryRecords.clear();rejected.clear();
+    incidents.clear();rendering.root.removeFromParent();records.clear();entryRecords.clear();rejected.clear();
     return {ok:!errors.length,errors};
   }
   return {prepare,advance,stats,dispose,approachPerson:()=>ordinary?.approach()??null,reset(reason){resetReason=reason;},owns(entry){return !!entryRecords.get(entry.id)?.token;},

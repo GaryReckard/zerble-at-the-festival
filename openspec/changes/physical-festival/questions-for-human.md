@@ -1,6 +1,6 @@
 ---
 change: physical-festival
-open: 0
+open: 1
 answered: 2
 last_question: 2026-10-30
 last_answer: 2026-10-30
@@ -10,7 +10,14 @@ last_answer: 2026-10-30
 
 ## Open
 
-None. Phone results remain pending; hardware availability is confirmed.
+### Q3 (Phone playtest results)
+
+Requested October 30 through the asynchronous input tool and `say` notification.
+On the same Wi-Fi, use `http://192.168.1.160:8767/?physics=1&mute=1&perf=low&seed=1977&x=-1025&z=-482`,
+choose Just Cruisin', then Stage pedestrian encounter and Coast forward. Report
+the device model, responsiveness, falls/recovery and any visual problems after
+about a minute of driving. Hardware availability is already confirmed; results
+remain pending. This is initial feel/input feedback, not full measured acceptance.
 
 ## Answered
 
