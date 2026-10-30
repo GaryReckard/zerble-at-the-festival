@@ -1,0 +1,213 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { Registry } from '../src/registry.js';
+import { buildCampChair } from '../src/models/campChair.js';
+import { batchPropGroups } from '../src/propRendering.js';
+import { campSlotAvailable } from '../src/people/campResources.js';
+import { AdmissionBudget } from '../src/physics/admissionBudget.js';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { createActivePropRendering } from '../src/physics/activePropRendering.js';
+import { createChairOwnership } from '../src/physics/chairOwnership.js';
+import { chairRecipe } from '../src/physics/recipes.js';
+
+const close = (a, b) => assert(Math.abs(a - b) < 3e-5, `${a} != ${b}`);
+async function fixture({ style = 'sling', budgetSlots = 512, engineBodies = 8, poolSlots = 512 } = {}) {
+  const root = new THREE.Group(); root.position.set(12, 2, -8); root.rotation.set(.1, .4, .05); root.scale.set(2, 2.5, 1.8);
+  const chair = buildCampChair(() => .3, { style }); root.add(chair.group); root.updateWorldMatrix(true, true);
+  const position = new THREE.Vector3(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3();
+  chair.group.matrixWorld.decompose(position, rotation, scale);
+  const batch = batchPropGroups(root, [chair.group]), original = batch.bindings[0];
+  const descriptor = { logicalKey: `test-chair:${style}`, kind: style === 'loveseat' ? 'camp_loveseat' : 'camp_chair', style,
+    originOwner: 'chunk:origin', renderBinding: original,
+    worldPose: { position: { ...position }, rotation: { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w }, scale: { ...scale } },
+    seatSlots: chair.seatOffsets.map(() => ({ occupied: false })) };
+  const registry = new Registry();
+  const entry = { kind: descriptor.kind, physicalProp: descriptor, position: position.clone(), footprint: chair.footprint * 2.5,
+    collider: { radius: chair.footprint * 2.5, damage: 1 }, chunkKey: 'origin' };
+  const id = registry.add(entry);
+  const adapter = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 }, capacities: { bodies: engineBodies } });
+  const budget = new AdmissionBudget({ capacities: { bodies: 8, colliders: 64, joints: 0, renderSlots: budgetSlots, events: 0 } });
+  const rendering = createActivePropRendering({ maxSlots: poolSlots });
+  const state = { alive: true, support: true, removeFailure: false, publicationFailure: false, added: null, active: null };
+  const engine = { ...adapter,
+    addBody(spec) { state.added = spec; return adapter.addBody(spec); },
+    removeBody(key) { if (state.removeFailure) throw new Error('injected body teardown failure'); return adapter.removeBody(key); } };
+  const render = { ...rendering, acquire(...args) {
+    const result = rendering.acquire(...args);
+    if (result.ok) { state.active = result.binding; return { ...result, binding: { ...result.binding,
+      setWorldMatrix(matrix) { if (state.publicationFailure) throw new Error('injected render publication failure'); return result.binding.setWorldMatrix(matrix); } } }; }
+    return result;
+  } };
+  const owner = createChairOwnership({ registry, adapter: engine, budget, rendering: render, campSlotAvailable,
+    supportReady: () => state.support, originAlive: () => state.alive });
+  const visible = () => original.describe().every(part => { const matrix = new THREE.Matrix4(); part.mesh.getMatrixAt(part.slot, matrix); return Math.abs(matrix.determinant()) > 1e-10; });
+  const clean = () => {
+    assert.equal(adapter.counts().bodies, 0); assert.equal(adapter.counts().colliders, 0);
+    assert.equal(rendering.stats().props, 0); assert.equal(rendering.stats().slots, 0); assert.equal(rendering.stats().allocatedSlots, 0);
+    assert.equal(budget.report().records, 0); assert.equal(registry.physicalCounts().enrolled, 0); assert.equal(owner.stats().chairs, 0);
+  };
+  return { root, chair, batch, original, descriptor, registry, entry, id, adapter, budget, rendering, state, owner, visible, clean,
+    dispose() { state.removeFailure = false; owner.dispose(); rendering.dispose(); batch.dispose(); adapter.dispose(); } };
+}
+
+for (const style of ['sling', 'director', 'low', 'loveseat']) {
+  const f = await fixture({ style });
+  try {
+    const originalPosition = { ...f.entry.position }, originalFootprint = f.entry.footprint;
+    const adopted = f.owner.adopt(f.id); assert.equal(adopted.ok, true, JSON.stringify(adopted));
+    const token = adopted.token;
+    assert.equal(f.owner.read(token).bodyId, f.state.added.id);
+    assert.equal(f.owner.read(token).engineGeneration, f.adapter.readBody(f.state.added.id).generation);
+    assert.equal(f.visible(), false); assert.equal(f.entry.chunkKey, `physical:${f.descriptor.logicalKey}`);
+    assert(f.descriptor.seatSlots.every(slot => slot.physicalUnavailable && !campSlotAvailable(slot)));
+    assert.equal(f.budget.report().resident.bodies, 1); assert.equal(f.budget.report().resident.colliders, 6);
+    assert.equal(f.budget.report().resident.renderSlots, f.original.describe().length);
+    assert(Object.values(f.budget.report().reserved).every(value => value === 0), 'empty-only admission has no fictitious occupant release reserve');
+    const recipe = chairRecipe(style);
+    for (const [index, collider] of f.state.added.colliders.entries()) for (const axis of ['x', 'y', 'z']) {
+      close(collider.halfExtents[axis], recipe[index].halfExtents[axis] * f.descriptor.worldPose.scale[axis]);
+      close(collider.position[axis], recipe[index].position[axis] * f.descriptor.worldPose.scale[axis]);
+    }
+    const tipped = new THREE.Quaternion().setFromEuler(new THREE.Euler(.4, -.2, Math.PI / 2));
+    f.adapter.setPose(f.state.added.id, { position: { x: 45, y: 3, z: -32 }, rotation: { x: tipped.x, y: tipped.y, z: tipped.z, w: tipped.w } });
+    f.adapter.step(1 / 60);
+    const published = f.owner.publish(token); assert.equal(published.ok, true); f.rendering.flush();
+    close(f.entry.position.x, 45); close(f.entry.position.z, -32);
+    assert(f.entry.footprint > originalFootprint, 'tipping projects the elevated model and collider offsets into the live footprint');
+    for (const part of f.state.active.describe()) {
+      part.mesh.updateWorldMatrix(true, false);
+      const local = new THREE.Matrix4(); part.mesh.getMatrixAt(part.slot, local);
+      const matrix = new THREE.Matrix4().multiplyMatrices(part.mesh.matrixWorld, local);
+      const bounds = part.geometry.boundingBox;
+      for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
+        const p = new THREE.Vector3(x, y, z).applyMatrix4(matrix);
+        assert(Math.hypot(p.x - f.entry.position.x, p.z - f.entry.position.z) <= f.entry.footprint + 1e-5, 'published footprint contains every transformed visual corner');
+      }
+    }
+    const canonical = [];
+    f.registry.generationFootprintsNear(originalPosition.x, originalPosition.z, 2, entry => { if (entry.id === f.id) canonical.push(entry); });
+    assert.equal(canonical.length, 1); assert.deepEqual(canonical[0].position, originalPosition); assert.equal(canonical[0].footprint, originalFootprint);
+    const saved = f.owner.read(token); saved.pose.position.x = 900; assert.notEqual(f.owner.read(token).pose.position.x, 900);
+    assert.equal(f.owner.release(token, { mode: 'restore-original' }).ok, true);
+    f.clean(); assert.equal(f.visible(), true); assert.equal(f.entry.chunkKey, 'origin');
+    assert.deepEqual({ ...f.entry.position }, originalPosition); assert.equal(f.entry.footprint, originalFootprint);
+    assert(f.descriptor.seatSlots.every(slot => !Object.hasOwn(slot, 'physicalUnavailable')));
+    const next = f.owner.adopt(f.id); assert(next.token.generation > token.generation);
+    assert.equal(f.owner.publish(token).reason, 'stale-token'); assert.equal(f.owner.release(token, { mode: 'retire' }).reason, 'stale-token');
+    assert.equal(f.owner.stats().chairs, 1); assert.equal(f.owner.release(next.token, { mode: 'restore-original' }).ok, true); f.clean();
+    for (let cycle = 0; cycle < 8; cycle++) {
+      const again = f.owner.adopt(f.id); assert.equal(again.ok, true);
+      assert.equal(f.owner.release(again.token, { mode: 'restore-original' }).ok, true); f.clean();
+    }
+  } finally { f.dispose(); }
+}
+
+for (const [options, stage] of [[{ budgetSlots: 0 }, 'budget'], [{ poolSlots: 1 }, 'render'], [{ engineBodies: 0 }, 'physics']]) {
+  const f = await fixture(options);
+  try {
+    const result = f.owner.adopt(f.id); assert.equal(result.ok, false); assert.equal(result.stage, stage);
+    f.clean(); assert.equal(f.visible(), true); assert.equal(f.entry.chunkKey, 'origin'); assert(f.registry.entries.has(f.id));
+  } finally { f.dispose(); }
+}
+const refusal = await fixture({ style: 'loveseat' });
+try {
+  refusal.descriptor.seatSlots[1].occupied = true;
+  assert.equal(refusal.owner.adopt(refusal.id).reason, 'occupied-or-unavailable'); refusal.clean();
+  refusal.descriptor.seatSlots[1].occupied = false; refusal.state.support = false;
+  assert.equal(refusal.owner.adopt(refusal.id).reason, 'support-pending'); refusal.clean();
+  refusal.state.support = true; refusal.state.alive = false;
+  assert.equal(refusal.owner.adopt(refusal.id).reason, 'origin-unavailable'); refusal.clean();
+} finally { refusal.dispose(); }
+
+for (const fail of ['transfer', 'publication', 'hide']) {
+  const f = await fixture();
+  try {
+    if (fail === 'transfer') {
+      const transfer = f.registry.transferOwner.bind(f.registry);
+      f.registry.transferOwner = (id, owner) => owner?.startsWith('physical:') ? { ok: false, reason: 'injected-transfer' } : transfer(id, owner);
+    } else if (fail === 'publication') {
+      const publish = f.registry.publishPhysical.bind(f.registry); let first = true;
+      f.registry.publishPhysical = (...args) => { if (first) { first = false; return { ok: false, reason: 'injected-publication' }; } return publish(...args); };
+    } else {
+      const binding = f.descriptor.renderBinding;
+      f.descriptor.renderBinding = { ...binding, setVisible(value) { return value ? binding.setVisible(true) : false; } };
+    }
+    const result = f.owner.adopt(f.id); assert.equal(result.ok, false, fail); assert.equal(result.cleanupErrors, undefined, JSON.stringify(result));
+    f.clean(); assert.equal(f.visible(), true); assert.equal(f.entry.chunkKey, 'origin');
+  } finally { f.dispose(); }
+}
+
+const publication = await fixture();
+try {
+  const token = publication.owner.adopt(publication.id).token;
+  const before = { ...publication.entry.position };
+  publication.adapter.setPose(publication.state.added.id, { position: { x: 90, y: 5, z: 90 } });
+  publication.state.publicationFailure = true;
+  assert.equal(publication.owner.publish(token).reason, 'render-publication-failed');
+  assert.deepEqual({ ...publication.entry.position }, before, 'render publication exceptions restore the prior live registry pose');
+  publication.state.publicationFailure = false; assert.equal(publication.owner.publish(token).ok, true);
+  publication.state.alive = false; publication.registry.removeChunk('origin'); publication.batch.dispose();
+  assert(publication.registry.entries.has(publication.id), 'origin unload preserves the independently owned registry entry');
+  assert.equal(publication.owner.release(token, { mode: 'restore-original' }).reason, 'origin-unavailable');
+  assert.equal(publication.owner.stats().chairs, 1); assert.equal(publication.owner.publish(token).ok, true);
+  assert.equal(publication.owner.release(token, { mode: 'retire' }).ok, true); publication.clean();
+  assert.equal(publication.registry.entries.has(publication.id), false);
+} finally { publication.dispose(); }
+
+for (const rollback of [false, true]) {
+  const f = await fixture();
+  try {
+    let token;
+    if (rollback) {
+      const transfer = f.registry.transferOwner.bind(f.registry);
+      f.registry.transferOwner = (id, owner) => owner?.startsWith('physical:') ? { ok: false, reason: 'injected-transfer' } : transfer(id, owner);
+      f.state.removeFailure = true;
+      const failed = f.owner.adopt(f.id); assert.equal(failed.ok, false);
+      assert(failed.cleanupErrors.some(error => error.resource === 'physics-body')); token = failed.cleanupToken;
+      assert.equal(f.visible(), true); assert.equal(f.entry.chunkKey, 'origin');
+    } else {
+      token = f.owner.adopt(f.id).token; f.state.removeFailure = true;
+      const result = f.owner.release(token, { mode: 'retire' });
+      assert.equal(result.reason, 'cleanup-failed'); assert(result.cleanupErrors.some(error => error.resource === 'physics-body'));
+      assert.equal(f.registry.entries.has(f.id), false, 'registry teardown continues after a physics teardown exception');
+    }
+    assert.equal(f.rendering.stats().props, 0); assert.equal(f.registry.physicalCounts().enrolled, 0);
+    assert(f.descriptor.seatSlots.every(slot => slot.physicalUnavailable && !campSlotAvailable(slot)),
+      'a surviving failed-cleanup body keeps its original seat unavailable');
+    assert.equal(f.adapter.counts().bodies, 1); assert.equal(f.owner.stats().cleanupPending, 1);
+    assert.equal(f.budget.report().resident.bodies, 1); assert.equal(f.budget.report().resident.colliders, 6);
+    assert.equal(f.budget.report().resident.renderSlots, 0, 'only surviving resources retain budget');
+    assert.equal(f.owner.read(token).state, 'cleanup-pending'); assert.equal(f.owner.publish(token).reason, 'cleanup-pending');
+    f.state.removeFailure = false;
+    assert.equal(f.owner.release(token, { mode: 'retire' }).ok, true); f.clean();
+    if (rollback) {
+      assert(f.registry.entries.has(f.id), 'retrying failed adoption cleanup does not delete the restored original entry');
+      assert(f.descriptor.seatSlots.every(campSlotAvailable), 'successful adoption rollback eventually restores seats after all conflicting resources vanish');
+    }
+  } finally { f.dispose(); }
+}
+const retiredLive = await fixture();
+try {
+  const token = retiredLive.owner.adopt(retiredLive.id).token;
+  assert.equal(retiredLive.owner.release(token, { mode: 'retire' }).ok, true); retiredLive.clean();
+  assert.equal(retiredLive.state.alive, true); assert.equal(retiredLive.visible(), false);
+  assert.equal(retiredLive.registry.entries.has(retiredLive.id), false);
+  assert(retiredLive.descriptor.seatSlots.every(slot => slot.physicalUnavailable && !campSlotAvailable(slot)),
+    'retire while the camp is still live cannot create a seat on invisible furniture');
+} finally { retiredLive.dispose(); }
+const restoreFailure = await fixture();
+try {
+  const token = restoreFailure.owner.adopt(restoreFailure.id).token;
+  restoreFailure.state.removeFailure = true;
+  const failed = restoreFailure.owner.release(token, { mode: 'restore-original' });
+  assert.equal(failed.reason, 'cleanup-failed'); assert.equal(restoreFailure.visible(), true);
+  assert.equal(restoreFailure.entry.chunkKey, 'origin');
+  assert(restoreFailure.descriptor.seatSlots.every(slot => !campSlotAvailable(slot)),
+    'restoring original visibility cannot reopen seating while its dynamic body survives');
+  restoreFailure.state.removeFailure = false;
+  assert.equal(restoreFailure.owner.release(token, { mode: 'restore-original' }).ok, true);
+  restoreFailure.clean(); assert(restoreFailure.descriptor.seatSlots.every(campSlotAvailable));
+} finally { restoreFailure.dispose(); }
+console.log('PASS empty-chair ownership: four real chair styles, scaled Rapier colliders, admission/registry/render/body rollback, occupied/support refusal, solved pose/conservative footprints, canonical preservation, origin unload, stale tokens, repeated cleanup and independently retried teardown failures.');
+console.log('Scope: empty-chair ownership foundation; live origin-regeneration suppression, automatic distance reset and production contact scheduling remain pending.');

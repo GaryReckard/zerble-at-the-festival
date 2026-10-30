@@ -904,7 +904,7 @@ function scatterForestTrees(ctx, forest) {
     // Avoid stepping on any building registered by neighbouring chunks
     // (shouldn't happen inside the 3x3 since we suppress themes, but
     // belt + suspenders for the fringe).
-    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 2.5)) continue;
+    if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(x, terrainHeight(x, z), z), 2.5)) continue;
 
     // CG3: same rng order as the old per-mesh path (builder stream then yaw),
     // but accumulate a descriptor instead of building a Group. Registry entry is

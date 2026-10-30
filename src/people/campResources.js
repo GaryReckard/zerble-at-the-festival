@@ -2,7 +2,7 @@
 // one concrete slot and person/claim lifetime, including during owner teardown.
 const owners = new WeakMap();
 export function campSlotAvailable(slot) {
-  return !!slot && !slot.occupied && !owners.has(slot);
+  return !!slot && !slot.occupied && !slot.physicalUnavailable && !owners.has(slot);
 }
 export function reserveCampSlot(
   people,

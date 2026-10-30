@@ -30,7 +30,7 @@ The full [66-task checklist](tasks.md) is the progress authority. Pure sign rese
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 1/66 tasks complete (1%) · current: 2.4 (Admission and residency), with production fixture/frame integration still incomplete
+**in progress** — 1/66 tasks complete (1%) · current: 3.5 (World-owner adapters), with live frame integration still incomplete
 
 _Last updated: 2026-10-30_
 

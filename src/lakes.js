@@ -743,7 +743,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
       if (nearAnyRoad(treeX, treeZ, ringRoads, RING_ROAD_HALF)) continue;   // keep off arterials (v2)
       // Dodge festival buildings (v2-gated so v1 lakes stay byte-identical — players
       // are on v1; the short-circuit means no closestBuilding call, no rng-stream shift).
-      if (USE_WORLDGEN_V2 && registry.closestBuilding(new THREE.Vector3(treeX, terrainHeight(treeX, treeZ), treeZ), 2.0, LAKE_TREE_SKIP)) continue;
+      if (USE_WORLDGEN_V2 && (registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(treeX, terrainHeight(treeX, treeZ), treeZ), 2.0, LAKE_TREE_SKIP)) continue;
 
       const d = describeForestTree(rng);
       const s = 0.85 + rng() * 0.35;

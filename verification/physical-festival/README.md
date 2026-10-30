@@ -52,6 +52,10 @@ The [full check](2026-10-30-residency/check.log) and [production build](2026-10-
 
 Live body admission, registry/canonical-clearance publication, owner adoption and frontier enforcement still need to connect these primitives. In particular, the residency manager does not autonomously stop a body leaving its retained support; the physical owner must request and confirm support ahead of motion.
 
+## Canonical placement and independent render ownership
+
+The [ownership checkpoint](2026-10-30-ownership/README.md) adds stable campsite descriptors, generation-safe registry publication and transfer, a capped independent render pool, and the shared world preparation deadline. The placement regression tests preserve neighborhood and forest-owner exemptions even after adoption. These components pass the full check suite and production build; a real ready-button Low game boot has no captured warnings/errors. They are not yet connected to live physical activation or origin-regeneration suppression.
+
 ## Acceptance boundaries and next work
 
 Only Task 1.1 (Baseline and compatibility) is complete in the [66-task implementation plan](../../openspec/changes/physical-festival/tasks.md). Other foundation tasks have partial code, but remain unchecked where their full contracts require more evidence.

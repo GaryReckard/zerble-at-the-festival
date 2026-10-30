@@ -1,0 +1,192 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { register } from 'node:module';
+register('./node-three-shim.mjs', import.meta.url);
+const { Registry } = await import('../src/registry.js');
+const { canPlaceCampsite } = await import('../src/campRegistry.js');
+
+const prop = (x, z, extra = {}) => ({ kind: 'chair', position: { x, y: 0, z }, footprint: 1, collider: { radius: .8, damage: 1 }, chunkKey: 'origin', ...extra });
+const pose = (x, z, y = 0) => ({ position: { x, y, z } });
+const geometry = entry => ({ id: entry.id, kind: entry.kind, position: { ...entry.position }, footprint: entry.footprint, collider: entry.collider ? { radius: entry.collider.radius, damage: entry.collider.damage } : null });
+function enroll(registry, id, key) {
+  const result = registry.enrollPhysical(id, key); assert.equal(result.ok, true, JSON.stringify(result)); return result.token;
+}
+function exact(registry, method, x, z, reach) {
+  const collider = method.includes('Collider') || method === 'collidersNear';
+  const hits = [];
+  registry[method](x, z, reach, entry => {
+    const radius = collider ? entry.collider?.radius : entry.footprint;
+    if ((collider ? !!entry.collider : radius > 0) && Math.hypot(entry.position.x - x, entry.position.z - z) < radius + reach) hits.push(entry.id);
+  });
+  return hits.sort((a, b) => a - b);
+}
+function expected(entries, collider, x, z, reach) {
+  return [...entries].filter(entry => {
+    const radius = collider ? entry.collider?.radius : entry.footprint;
+    return (collider ? !!entry.collider : radius > 0) && Math.hypot(entry.position.x - x, entry.position.z - z) < radius + reach;
+  }).map(entry => entry.id).sort((a, b) => a - b);
+}
+
+const registry = new Registry({ maxPhysicalEntries: 2 });
+const moving = prop(0, 0), movingPosition = moving.position;
+const id = registry.add(moving), token = enroll(registry, id, 'chair-key');
+const ordinary = prop(2, 0, { kind: 'tent', chunkKey: 'adopted' }); const ordinaryId = registry.add(ordinary);
+const tree = prop(0, 0, { kind: 'tree', chunkKey: 'unrelated' }); registry.add(tree);
+assert.deepEqual(registry.publishPhysical(token, { pose: pose(40, -24, 2), footprint: 2, colliderRadius: 1.5 }), { ok: true });
+assert.equal(moving.position, movingPosition, 'publication preserves shared live position identity');
+assert.deepEqual(exact(registry, 'footprintsNear', 40, -24, .1), [id]);
+assert.deepEqual(exact(registry, 'collidersNear', 40, -24, .1), [id]);
+assert.equal(exact(registry, 'footprintsNear', 0, 0, .1).includes(id), false);
+assert.equal(exact(registry, 'generationFootprintsNear', 0, 0, .1).includes(id), true);
+assert.equal(exact(registry, 'generationCollidersNear', 0, 0, .1).includes(id), true);
+assert.equal(exact(registry, 'generationFootprintsNear', 40, -24, .1).includes(id), false);
+assert.equal(registry.closestBuilding({ x: 40, z: -24 }, .1).id, id);
+assert.equal(registry.closestGenerationBuilding({ x: 40, z: -24 }, .1), null);
+assert.equal(registry.closestGenerationBuilding({ x: 0, z: 0 }, .1).id, id);
+assert.equal([...registry.footprints()].find(entry => entry.kind === 'chair').position, moving.position);
+assert.equal([...registry.colliders()].find(entry => entry.kind === 'chair').position.x, 40);
+
+// Both canonical and ordinary geometry wrappers are copies, but untouched
+// entries still read their current live geometry when the query is made.
+registry.generationFootprintsNear(0, 0, 10, entry => { entry.position.x = 900; entry.footprint = 900; if (entry.collider) entry.collider.radius = 900; });
+assert.equal(registry.closestGenerationBuilding({ x: 0, z: 0 }, .1).position.x, 0);
+assert.equal(ordinary.position.x, 2); assert.equal(moving.collider.radius, 1.5);
+ordinary.position.x = 3; registry.rebuildSpatialIndex();
+assert.equal(registry.closestGenerationBuilding({ x: 3, z: 0 }, .1).id, ordinaryId);
+
+const savedEntry = geometry(moving), savedState = { ...registry._spatialState.get(id) };
+for (const invalid of [
+  { pose: pose(NaN, 0) }, { pose: pose(0, Infinity) }, { pose: pose(0, 0, null) },
+  { pose: { ...pose(1, 1), rotation: { x: 0, y: 0, z: 0, w: 0 } } },
+  { pose: pose(1, 1), footprint: -1 }, { pose: pose(1, 1), footprint: null },
+  { pose: pose(1, 1), colliderRadius: Infinity }, { pose: pose(1, 1), colliderRadius: -1 },
+]) {
+  assert.throws(() => registry.publishPhysical(token, invalid));
+  assert.deepEqual(geometry(moving), savedEntry); assert.deepEqual(registry._spatialState.get(id), savedState);
+  assert.deepEqual(exact(registry, 'collidersNear', 40, -24, .1), [id]);
+}
+assert.throws(() => registry.transferOwner(id, NaN)); assert.equal(moving.chunkKey, 'origin');
+assert.deepEqual(registry.transferOwner(id, 'adopted'), { ok: true });
+assert.deepEqual(registry.byChunk('origin'), []);
+assert.deepEqual(registry.byChunk('adopted').map(entry => entry.id), [id, ordinaryId], 'owner transfer retains registry insertion order');
+registry.removeChunk('origin'); assert.equal(registry.entries.get(id), moving, 'old owner teardown cannot remove an adopted prop');
+assert.equal(registry.closestGenerationBuilding({ x: 0, z: 0 }, .1).id, id, 'canonical origin survives adoption');
+assert.deepEqual(registry.unenrollPhysical(token), { ok: true });
+assert.equal(registry.closestGenerationBuilding({ x: 0, z: 0 }, .1), null);
+const nextToken = enroll(registry, id, 'chair-key');
+assert.ok(nextToken.generation > token.generation);
+assert.equal(registry.publishPhysical(token, { pose: pose(10, 10) }).reason, 'stale-token');
+assert.equal(registry.unenrollPhysical(token).reason, 'stale-token');
+assert.equal(registry.physicalCounts().enrolled, 1);
+registry.remove(id); registry.remove(id);
+assert.equal(registry.physicalCounts().enrolled, 0);
+assert.equal(registry.publishPhysical(nextToken, { pose: pose(0, 0) }).reason, 'stale-token');
+registry.removeChunk('adopted'); assert.equal(registry.entries.has(ordinaryId), false);
+
+// Owner-first cleanup and failed admission leave neither canonical suppression
+// nor a stale key that could block a replacement assembly.
+const cleanup = new Registry({ maxPhysicalEntries: 1 });
+const first = cleanup.add(prop(0, 0)), firstToken = enroll(cleanup, first, 'stable-key');
+const other = cleanup.add(prop(10, 10));
+assert.equal(cleanup.enrollPhysical(first, 'different').reason, 'already-enrolled');
+assert.equal(cleanup.enrollPhysical(other, 'stable-key').reason, 'duplicate-key');
+assert.equal(cleanup.enrollPhysical(other, 'another-key').reason, 'physical-capacity');
+cleanup.removeChunk('origin');
+assert.equal(cleanup.physicalCounts().enrolled, 0); assert.equal(cleanup.unenrollPhysical(firstToken).reason, 'stale-token');
+const replacement = cleanup.add(prop(0, 0)); const replacementToken = enroll(cleanup, replacement, 'stable-key');
+assert.notEqual(replacementToken.id, firstToken.id);
+assert.equal(cleanup.publishPhysical(firstToken, { pose: pose(99, 99) }).reason, 'stale-token');
+assert.equal(cleanup.entries.get(replacement).position.x, 0);
+cleanup.remove(replacement); assert.equal(cleanup._physicalKeys.size, 0);
+const invalidId = cleanup.add(prop(NaN, 0)); assert.throws(() => cleanup.enrollPhysical(invalidId, 'invalid')); assert.equal(cleanup.physicalCounts().enrolled, 0);
+assert.equal(new Registry({ maxPhysicalEntries: 0 }).enrollPhysical(123, 'missing').reason, 'missing-entry');
+assert.throws(() => new Registry({ maxPhysicalEntries: -1 }));
+
+// The production placement guard needs the same household and containing
+// owner IDs from generation wrappers even when nothing has been enrolled.
+const candidate = { group: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0 }, scale: { x: 1, y: 1, z: 1 } },
+  footprint: 5, seats: [], tents: [], childColliders: [] };
+const neighborhood = new Registry();
+const shared = prop(2, 0, { kind: 'campsite', footprint: 5, collider: null, chunkKey: 'camp-origin', campNeighborhood: 'shared-ground' });
+const sharedId = neighborhood.add(shared);
+assert.equal(canPlaceCampsite(neighborhood, candidate, 'shared-ground'), true, 'unenrolled shared neighborhood retains the ordinary placement exemption');
+assert.equal(canPlaceCampsite(neighborhood, candidate, 'other-ground'), false);
+const sharedToken = enroll(neighborhood, sharedId, 'shared-reservation');
+neighborhood.publishPhysical(sharedToken, { pose: pose(50, 50) });
+neighborhood.transferOwner(sharedId, 'adopted-camp');
+shared.campNeighborhood = 'live-new-ground';
+for (const method of ['generationFootprintsNear', 'generationCollidersNear']) {
+  neighborhood[method](0, 0, 10, entry => { entry.chunkKey = 'callback-owner'; entry.campNeighborhood = 'callback-ground'; });
+}
+const canonicalShared = neighborhood.closestGenerationBuilding({ x: 0, z: 0 }, 1);
+assert.equal(canonicalShared.chunkKey, 'camp-origin'); assert.equal(canonicalShared.campNeighborhood, 'shared-ground');
+assert.equal(shared.chunkKey, 'adopted-camp'); assert.equal(shared.campNeighborhood, 'live-new-ground');
+assert.equal(canPlaceCampsite(neighborhood, candidate, 'shared-ground'), true, 'canonical placement IDs remain those captured before adoption');
+assert.equal(canPlaceCampsite(neighborhood, candidate, 'live-new-ground'), false);
+
+const containing = new Registry();
+const forest = prop(0, 0, { kind: 'forest', footprint: 100, collider: null, chunkKey: 'forest-origin' });
+const forestId = containing.add(forest);
+assert.equal(canPlaceCampsite(containing, candidate, null, { forestOwnerKey: 'forest-origin' }), true, 'unenrolled forest owner exemption survives generation copying');
+assert.equal(canPlaceCampsite(containing, candidate, null, { forestOwnerKey: 'foreign-forest' }), false);
+const forestToken = enroll(containing, forestId, 'forest-reservation');
+containing.publishPhysical(forestToken, { pose: pose(300, 300) });
+containing.transferOwner(forestId, 'adopted-forest');
+assert.equal(containing.closestGenerationBuilding({ x: 0, z: 0 }, 1).chunkKey, 'forest-origin');
+assert.equal(canPlaceCampsite(containing, candidate, null, { forestOwnerKey: 'forest-origin' }), true);
+assert.equal(canPlaceCampsite(containing, candidate, null, { forestOwnerKey: 'adopted-forest' }), false);
+
+const colliderMetadata = new Registry();
+const colliderMetadataId = colliderMetadata.add(prop(0, 0, { chunkKey: 'collider-origin', campNeighborhood: 'collider-ground' }));
+for (const method of ['generationFootprintsNear', 'generationCollidersNear']) {
+  colliderMetadata[method](0, 0, 1, entry => {
+    assert.equal(entry.chunkKey, 'collider-origin'); assert.equal(entry.campNeighborhood, 'collider-ground');
+    entry.chunkKey = 'changed'; entry.campNeighborhood = 'changed';
+  });
+}
+assert.equal(colliderMetadata.entries.values().next().value.chunkKey, 'collider-origin');
+assert.equal(colliderMetadata.entries.values().next().value.campNeighborhood, 'collider-ground');
+enroll(colliderMetadata, colliderMetadataId, 'metadata-solid');
+colliderMetadata.transferOwner(colliderMetadataId, 'adopted-solid');
+for (const method of ['generationFootprintsNear', 'generationCollidersNear']) {
+  colliderMetadata[method](0, 0, 1, entry => {
+    assert.equal(entry.chunkKey, 'collider-origin'); assert.equal(entry.campNeighborhood, 'collider-ground');
+    entry.chunkKey = 'changed-canonical'; entry.campNeighborhood = 'changed-canonical';
+  });
+}
+assert.equal(colliderMetadata.closestGenerationBuilding({ x: 0, z: 0 }, 1).chunkKey, 'collider-origin');
+assert.equal(colliderMetadata.closestGenerationBuilding({ x: 0, z: 0 }, 1).campNeighborhood, 'collider-ground');
+
+// Immediate publication must match linear exact tests across cell boundaries,
+// footprint classes and collider creation/removal without a full frame rebuild.
+const movingRegistry = new Registry({ maxPhysicalEntries: 8 }), origins = new Map(), tokens = [];
+for (let i = 0; i < 20; i++) {
+  const entry = prop(i * 5 - 40, i % 4 * 8, { kind: i % 5 ? 'prop' : 'tree', footprint: i % 3 + 1 });
+  const entryId = movingRegistry.add(entry);
+  if (i < 8) { tokens.push(enroll(movingRegistry, entryId, `prop-${i}`)); origins.set(entryId, geometry(entry)); }
+}
+let random = 1977;
+const rng = () => { random = (Math.imul(random, 1664525) + 1013904223) >>> 0; return random / 4294967296; };
+for (let tick = 0; tick < 600; tick++) {
+  const movingToken = tokens[tick % tokens.length];
+  const x = rng() * 180 - 90, z = rng() * 180 - 90;
+  movingRegistry.publishPhysical(movingToken, { pose: pose(x, z), footprint: [0, 2, 15.9, 16, 40][tick % 5], colliderRadius: tick % 4 ? tick % 7 + .2 : null });
+  for (const [qx, qz] of [[x, z], [0, 0], [-40, 0]]) {
+    const canonical = [...movingRegistry.entries.values()].map(entry => origins.get(entry.id) ?? entry);
+    for (const collider of [false, true]) {
+      const liveMethod = collider ? 'collidersNear' : 'footprintsNear', generationMethod = collider ? 'generationCollidersNear' : 'generationFootprintsNear';
+      assert.deepEqual(exact(movingRegistry, liveMethod, qx, qz, 2), expected(movingRegistry.entries.values(), collider, qx, qz, 2));
+      assert.deepEqual(exact(movingRegistry, generationMethod, qx, qz, 2), expected(canonical, collider, qx, qz, 2));
+    }
+  }
+}
+// Enrolling and moving one prop does not reorder untouched grid candidates.
+const ordered = new Registry(); const ordinaryIds = [];
+for (let i = 0; i < 7; i++) ordinaryIds.push(ordered.add(prop(i % 3, i % 2)));
+const physicalId = ordinaryIds.splice(2, 1)[0], physicalToken = enroll(ordered, physicalId, 'ordered');
+ordered.publishPhysical(physicalToken, { pose: pose(30, 30) });
+for (const method of ['footprintsNear', 'collidersNear', 'generationFootprintsNear', 'generationCollidersNear']) {
+  const visited = []; ordered[method](0, 0, 2, entry => { if (entry.id !== physicalId) visited.push(entry.id); });
+  assert.deepEqual(visited, ordinaryIds);
+}
+console.log('PASS physical registry: immediate live/canonical spatial publication over 600 moves, radius/class changes, copied generation geometry/placement metadata, real campsite neighborhood/forest-owner guards, bounded enrollment, atomic validation, safe owner-index transfer, both teardown orders, stale/reused keys and untouched insertion order.');

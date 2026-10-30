@@ -1,0 +1,169 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { buildCampChair, CAMP_CHAIR_STYLES } from '../src/models/campChair.js';
+import { batchPropGroups } from '../src/propRendering.js';
+import { createActivePropRendering } from '../src/physics/activePropRendering.js';
+
+const identity = new THREE.Matrix4(), actual = new THREE.Matrix4(), world = new THREE.Matrix4();
+const nearMatrix = (a, b, message) => assert(a.elements.every((value, i) => Math.abs(value - b.elements[i]) < 3e-5), message);
+function checkWorld(binding, target) {
+  for (const part of binding.describe()) {
+    part.mesh.updateWorldMatrix(true, false);
+    part.mesh.getMatrixAt(part.slot, actual);
+    world.multiplyMatrices(part.mesh.matrixWorld, actual);
+    nearMatrix(world, new THREE.Matrix4().multiplyMatrices(target, part.localMatrix), 'adopted parts retain exact world pose through independent transformed parents');
+    assert.equal(part.mesh.castShadow, false);
+    const localBox = part.geometry.boundingBox.clone().applyMatrix4(actual);
+    assert(part.mesh.boundingBox.containsBox(localBox), 'airborne part is inside the published instanced bounds');
+    for (const x of [localBox.min.x, localBox.max.x]) for (const y of [localBox.min.y, localBox.max.y]) for (const z of [localBox.min.z, localBox.max.z]) {
+      assert(part.mesh.boundingSphere.distanceToPoint(new THREE.Vector3(x, y, z)) < 1e-7,
+        'the culling sphere encloses every transformed box corner, including sheared parts');
+    }
+  }
+}
+function liveOriginal(parts) {
+  return parts.every(part => { part.mesh.getMatrixAt(part.slot, actual); return Math.abs(actual.determinant()) > 1e-9; });
+}
+
+let sharedDisposals = 0, instanceDisposals = 0;
+for (const [index, style] of CAMP_CHAIR_STYLES.entries()) {
+  const sourceParent = new THREE.Group(), sourceRoot = new THREE.Group(); sourceParent.add(sourceRoot);
+  sourceParent.position.set(13, 2, -7); sourceParent.rotation.set(.2, .7, -.1); sourceParent.scale.set(1.4, 1.1, 1.7);
+  sourceRoot.position.set(-3, 1, 5); sourceRoot.rotation.set(.1, -.4, .05); sourceRoot.scale.setScalar(2);
+  const chair = buildCampChair(() => .12 + index * .2, { style });
+  chair.group.position.set(2, .1, -1); chair.group.rotation.y = .4; sourceRoot.add(chair.group);
+  sourceRoot.updateWorldMatrix(true, true);
+  const initial = chair.group.matrixWorld.clone();
+  const original = chair.group.children.map(mesh => mesh.matrixWorld.clone());
+  const batch = batchPropGroups(sourceRoot, [chair.group]), source = batch.bindings[0], parts = source.describe();
+  const pool = createActivePropRendering();
+  const activeParent = new THREE.Group(); activeParent.position.set(-8, 3, 11); activeParent.rotation.set(.2, -1.1, -.12); activeParent.scale.set(1.3, .8, 1.9);
+  activeParent.add(pool.root); pool.root.position.set(2, -1, 4); pool.root.rotation.set(-.1, .3, .2);
+  const resources = new Set(parts.flatMap(part => [part.geometry, part.material]));
+  const sharedListener = () => sharedDisposals++;
+  for (const resource of resources) { assert.equal(resource.userData.shared, true); resource.addEventListener('dispose', sharedListener); }
+  try {
+    const acquired = pool.acquire(`chair:${style}`, parts, initial);
+    assert.equal(acquired.ok, true); assert.equal(liveOriginal(parts), true, 'acquisition never hides the source before its caller commits adoption');
+    for (const [partIndex, part] of parts.entries()) {
+      part.mesh.updateWorldMatrix(true, false); part.mesh.getMatrixAt(part.slot, actual);
+      world.multiplyMatrices(part.mesh.matrixWorld, actual); nearMatrix(world, original[partIndex], 'allocation leaves all original slots unchanged');
+    }
+    const active = acquired.binding;
+    for (const mesh of new Set(active.describe().map(part => part.mesh))) mesh.addEventListener('dispose', () => instanceDisposals++);
+    assert(source.setVisible(false)); batch.flush();
+    assert.equal(liveOriginal(parts), false);
+    const firstUpload = pool.flush();
+    assert.equal(firstUpload.matrixBytes, pool.stats().matrixBufferBytes, 'initial buffer allocation is measured across actual bounded bucket capacities');
+    assert(pool.stats().matrixBufferBytes <= pool.stats().capacities.matrixBufferBytes);
+    checkWorld(active, initial);
+    const target = new THREE.Matrix4().compose(new THREE.Vector3(28, 12, -16),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(.4, .8, 1.2)), new THREE.Vector3(2.8, 2.1, 3.2));
+    assert(active.setWorldMatrix(target)); pool.flush(); checkWorld(active, target);
+    // A parent can move without changing the requested world pose.
+    activeParent.position.x += 10; assert(active.setWorldMatrix(target)); pool.flush(); checkWorld(active, target);
+    for (let step = 0; step < 100; step++) {
+      target.elements[12] += .01; active.setWorldMatrix(target); pool.flush();
+      assert(active.describe().every(part => part.mesh.instanceMatrix.updateRanges.length <= 1), 'pending upload metadata remains bounded before rendering');
+    }
+    const description = active.describe(); description[0].localMatrix.elements.fill(999);
+    assert.notEqual(active.describe()[0].localMatrix.elements[0], 999);
+    assert(active.setWorldMatrix(target)); assert.deepEqual(pool.flush(), { buckets: 0, matrixBytes: 0 });
+    // Origin disposal invalidates only its own bindings and instance buffers.
+    batch.meshes[0].dispose(); batch.dispose(); batch.dispose();
+    assert.equal(source.setVisible(true), false);
+    assert.equal(active.isLive(), true); checkWorld(active, target);
+    assert(active.setWorldMatrix(initial)); pool.flush(); checkWorld(active, initial);
+    assert(active.release()); assert.equal(active.release(), false); assert.equal(active.setWorldMatrix(target), false);
+    assert.equal(pool.stats().buckets, 0); assert.equal(pool.stats().allocatedSlots, 0); assert.equal(pool.root.children.length, 0);
+  } finally {
+    batch.dispose(); pool.dispose(); pool.dispose();
+    for (const resource of resources) resource.removeEventListener('dispose', sharedListener);
+  }
+}
+assert.equal(sharedDisposals, 0); assert(instanceDisposals > 0);
+
+const geometry = new THREE.BoxGeometry(), otherGeometry = new THREE.SphereGeometry(.4, 6, 4);
+const material = new THREE.MeshBasicMaterial({ color: 0x557744 }), otherMaterial = new THREE.MeshBasicMaterial({ color: 0xaabbcc });
+const part = (geometryValue = geometry, materialValue = material, localMatrix = identity) => ({ geometry: geometryValue, material: materialValue, localMatrix });
+let borrowedDisposals = 0;
+for (const resource of [geometry, otherGeometry, material, otherMaterial]) resource.addEventListener('dispose', () => borrowedDisposals++);
+const small = createActivePropRendering({ maxBuckets: 2, maxSlots: 4, slotsPerBucket: 2 });
+try {
+  const first = small.acquire('first', [part()], identity).binding;
+  const second = small.acquire('second', [part()], identity).binding;
+  small.flush();
+  const before = small.stats(), previous = first.describe();
+  const denied = small.acquire('partial', [part(otherGeometry, otherMaterial), part()], identity);
+  assert.equal(denied.ok, false); assert.equal(denied.reason, 'bucket-slot-capacity');
+  assert.equal(small.stats().slots, before.slots); assert.equal(small.stats().buckets, before.buckets);
+  assert.equal(small.root.children.length, 1, 'preflight rejection allocates no partial bucket');
+  assert.equal(small.acquire('first', [part()], identity).reason, 'duplicate-key');
+  second.setWorldMatrix(new THREE.Matrix4().makeTranslation(100, 0, 0)); small.flush();
+  const released = first.describe()[0]; assert(first.release()); small.flush();
+  released.mesh.getMatrixAt(released.slot, actual); assert.equal(actual.determinant(), 0, 'release zeros an occupied bucket slot');
+  assert(second.describe()[0].mesh.boundingBox.min.x > 99,
+    'released zero slots do not pin distant active culling bounds to the origin');
+  const next = small.acquire('first', [part()], identity).binding;
+  assert.equal(next.describe()[0].slot, previous[0].slot, 'free slots are reused');
+  assert.notEqual(next.describe()[0].generation, previous[0].generation);
+  assert(next.generation > first.generation);
+  assert.equal(first.setWorldMatrix(new THREE.Matrix4().makeTranslation(100, 0, 0)), false);
+  assert.equal(first.release(), false); assert.equal(next.isLive(), true);
+  assert.equal(small.stats().slots, 2, 'stale release cannot free the reused slot');
+  next.release(); second.release();
+  assert.equal(small.stats().allocatedSlots, 0);
+  for (let cycle = 0; cycle < 30; cycle++) {
+    const one = small.acquire('repeat', [part(), part(otherGeometry, otherMaterial)], identity);
+    assert.equal(one.ok, true); small.flush();
+    assert.equal(small.stats().matrixBufferBytes, 4 * 64);
+    one.binding.release(); small.flush();
+    assert.equal(small.stats().props, 0); assert.equal(small.stats().slots, 0);
+    assert.equal(small.stats().buckets, 0); assert.equal(small.stats().matrixBufferBytes, 0);
+    assert.equal(small.root.children.length, 0);
+  }
+  assert.throws(() => { small.stats().slots = 99; }, TypeError);
+  assert.throws(() => { small.stats().capacities.slots = 99; }, TypeError);
+} finally { small.dispose(); }
+assert.equal(borrowedDisposals, 0, 'all input geometry/material ownership remains outside the pool, including untagged resources');
+
+const capacity = createActivePropRendering({ maxBuckets: 1, maxSlots: 2, slotsPerBucket: 2 });
+try {
+  assert.equal(capacity.acquire('too-many', [part(), part(otherGeometry)], identity).reason, 'bucket-capacity');
+  assert.equal(capacity.stats().buckets, 0);
+} finally { capacity.dispose(); }
+const allocation = createActivePropRendering({ maxBuckets: 3, maxSlots: 5, slotsPerBucket: 2 });
+try {
+  allocation.acquire('original', [part()], identity);
+  assert.equal(allocation.acquire('more', [part(otherGeometry), part(geometry, otherMaterial)], identity).reason, 'slot-capacity');
+  assert.equal(allocation.stats().allocatedSlots, 2); assert.equal(allocation.stats().slots, 1);
+} finally { allocation.dispose(); }
+
+// Simulate a scene insertion failure after the first new bucket was allocated.
+const rollback = createActivePropRendering({ maxBuckets: 2, maxSlots: 4, slotsPerBucket: 2 });
+const add = rollback.root.add.bind(rollback.root); let calls = 0, rollbackDisposals = 0;
+rollback.root.add = mesh => { mesh.addEventListener('dispose', () => rollbackDisposals++); if (++calls === 2) throw new Error('injected scene insertion failure'); return add(mesh); };
+try {
+  const result = rollback.acquire('failed', [part(), part(otherGeometry, otherMaterial)], identity);
+  assert.equal(result.reason, 'allocation-failed'); assert.equal(rollbackDisposals, 2);
+  assert.equal(rollback.stats().slots, 0); assert.equal(rollback.stats().allocatedSlots, 0);
+  assert.equal(rollback.stats().buckets, 0); assert.equal(rollback.root.children.length, 0);
+  rollback.root.add = add;
+  const valid = rollback.acquire('valid', [part()], identity).binding;
+  const matrixBefore = new THREE.Matrix4(); valid.describe()[0].mesh.getMatrixAt(valid.describe()[0].slot, matrixBefore);
+  assert.throws(() => valid.setWorldMatrix(new THREE.Matrix4().makeScale(1e100, 1e100, 1e100)), /Float32/);
+  valid.describe()[0].mesh.getMatrixAt(valid.describe()[0].slot, actual); nearMatrix(actual, matrixBefore, 'failed publication leaves prior active pose intact');
+  rollback.root.scale.x = 0;
+  assert.throws(() => rollback.acquire('singular', [part()], identity), /singular/);
+  rollback.root.scale.x = 1;
+  valid.describe()[0].mesh.dispose();
+  assert.equal(rollback.stats().disposed, true, 'external active-bucket teardown invalidates the complete pool');
+  assert.equal(valid.setWorldMatrix(identity), false); assert.equal(valid.release(), false);
+  assert.equal(rollback.acquire('late', [part()], identity).reason, 'disposed');
+  assert.deepEqual(rollback.flush(), { buckets: 0, matrixBytes: 0 });
+} finally { rollback.dispose(); }
+assert.equal(borrowedDisposals, 0);
+for (const resource of [geometry, otherGeometry, material, otherMaterial]) resource.dispose();
+console.log('PASS active render adoption: four production chair styles, independent transformed owners, explicit source hide/late disposal, dirty ranges/bounds, bounded buffers, atomic allocation rollback, generation-safe slot reuse, borrowed resources and 30 flat-count cycles.');
+console.log('Scope: real Three.js instance buffers and transforms; requested bytes are CPU upload ranges, not measured GPU transfer cost.');

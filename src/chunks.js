@@ -1089,7 +1089,7 @@ function scatterWorldgenTrees(ctx) {
     if (pointNearWorldgenRoad(x, z, chunkRoads, roadHalf)) return false;   // off EVERY nearby arterial, not just this region's
     for (let i = 0; i < drumClears.length; i++) { const dc = drumClears[i]; if ((dc.x - x) * (dc.x - x) + (dc.z - z) * (dc.z - z) < dc.r * dc.r) return false; }
     for (let i = 0; i < placed.length; i++) if (Math.hypot(placed[i].x - x, placed[i].z - z) < spacing) return false;
-    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 2.5, TREE_GUARD_SKIP)) return false;
+    if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(x, terrainHeight(x, z), z), 2.5, TREE_GUARD_SKIP)) return false;
     return true;
   };
   for (let attempt = 0; attempt < target * 4 && placed.length < target; attempt++) {
@@ -1184,7 +1184,7 @@ function scatterWorldgenTrees(ctx) {
     if (treeDensity(sx, sz) < 0.05) continue;
     if (pointNearWorldgenRoad(sx, sz, chunkRoads, roadHalf)) continue;
     if (pointInDancefloor(sx, sz, danceRects)) continue;
-    if (registry.closestBuilding(new THREE.Vector3(sx, terrainHeight(sx, sz), sz), 1.5, TREE_GUARD_SKIP)) continue;
+    if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(sx, terrainHeight(sx, sz), sz), 1.5, TREE_GUARD_SKIP)) continue;
     const shrub = buildShrub(rng);
     shrub.position.set(sx, terrainHeight(sx, sz), sz);
     ctx.group.add(shrub);
@@ -1276,10 +1276,10 @@ function placeWorldgenProps(ctx) {
     if (d.kind === 'drum_circle') {
       // Dodge an already-built neighbour cluster the bench ring would overlap (load-order backstop).
       const drumR = clusterExtent('drum_circle') + 2;   // firepit + bench arc
-      if (registry.closestBuilding(new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z), drumR, CLUSTER_GUARD_SKIP)) continue;
+      if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z), drumR, CLUSTER_GUARD_SKIP)) continue;
     } else if (!d.anchor) {
       const guard = Math.min(8, Math.max(2, (d.footprint || 4) * 0.5));
-      if (registry.closestBuilding(new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z), guard, CLUSTER_GUARD_SKIP)) continue;
+      if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z), guard, CLUSTER_GUARD_SKIP)) continue;
     }
     buildWorldgenKind(ctx, d);
   }
@@ -1417,7 +1417,7 @@ export function buildHubPreview(scene, heart, opts = {}) {
     if (isPointInLake(d.x, d.z)) return;
     if (!d.anchor) {
       const guard = Math.min(8, Math.max(2, (d.footprint || 4) * 0.5));
-      if (registry.closestBuilding(new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z), guard, CLUSTER_GUARD_SKIP)) return;
+      if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(d.x, terrainHeight(d.x, d.z), d.z), guard, CLUSTER_GUARD_SKIP)) return;
     }
     buildWorldgenKind(ctx, d);
   };
@@ -1535,7 +1535,7 @@ function buildWelfarePostAt(ctx, d) {
 
   if (tier.kiosk) {
     const k = at(0, 0);
-    if (!isPointInLake(k.x, k.z) && !registry.closestBuilding(new THREE.Vector3(k.x, terrainHeight(k.x, k.z), k.z), 1.6, CLUSTER_GUARD_SKIP)) {
+    if (!isPointInLake(k.x, k.z) && !(registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(k.x, terrainHeight(k.x, k.z), k.z), 1.6, CLUSTER_GUARD_SKIP)) {
       const kiosk = buildInfoKiosk(ctx.rng);
       kiosk.group.position.set(k.x, terrainHeight(k.x, k.z), k.z);
       kiosk.group.rotation.y = yaw;
@@ -1555,7 +1555,7 @@ function buildWelfarePostAt(ctx, d) {
 
   if (tier.table) {
     const t = at(0, -T.WELFARE_TABLE_BACK);
-    if (!isPointInLake(t.x, t.z) && !registry.closestBuilding(new THREE.Vector3(t.x, terrainHeight(t.x, t.z), t.z), 1.9, CLUSTER_GUARD_SKIP)) {
+    if (!isPointInLake(t.x, t.z) && !(registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(t.x, terrainHeight(t.x, t.z), t.z), 1.9, CLUSTER_GUARD_SKIP)) {
       const pt = buildPicnicTable(ctx.rng);
       const tYaw = yaw + Math.PI / 2;   // long axis across the post, benches facing the row
       pt.group.position.set(t.x, terrainHeight(t.x, t.z), t.z);
@@ -1613,7 +1613,7 @@ function buildVendorRowAt(ctx, x, z, yaw) {
       // Group-5 backstop: skip a booth that would clip an already-built solid (a stage
       // deck the row runs past, a neighbour's truck) — the graceful-degradation guard the
       // legacy theme builders had. Chunk-gen only; clusterSeed stream, so goldens unaffected.
-      if (registry.closestBuilding(new THREE.Vector3(w.x, terrainHeight(w.x, w.z), w.z), 2.2, CLUSTER_GUARD_SKIP)) continue;
+      if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(w.x, terrainHeight(w.x, w.z), w.z), 2.2, CLUSTER_GUARD_SKIP)) continue;
       const tent = buildTent(ctx.rng, { appearance: vendorCanopyAppearance(w.x, w.z), rng: mulberry32(worldHash(Math.round(w.x * 256), Math.round(w.z * 256), 0x56454e44)) });
       tent.position.set(w.x, terrainHeight(w.x, w.z), w.z);
       // Face the central aisle (the road, after round-2 C). The two rows were
@@ -1930,7 +1930,7 @@ function scatterTrees(ctx, density) {
     // Avoid the path strip and existing buildings
     if (Math.abs(x - ctx.cxWorld) < 4 && Math.abs(z - ctx.czWorld) < CHUNK_SIZE * 0.5) continue;
     if (Math.abs(z - ctx.czWorld) < 4 && Math.abs(x - ctx.cxWorld) < CHUNK_SIZE * 0.5) continue;
-    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 2.5)) continue;
+    if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(x, terrainHeight(x, z), z), 2.5)) continue;
 
     const tree = buildTree(ctx.rng);
     tree.position.set(x, terrainHeight(x, z), z);
@@ -2282,7 +2282,7 @@ function scatterBubbleJugs(ctx, inWater) {
   for (let attempt = 0; attempt < 8; attempt++) {
     const x = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE - 10);
     const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE - 10);
-    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 3)) continue;
+    if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(x, terrainHeight(x, z), z), 3)) continue;
     // festival-run-stakes D3: the day-ramp scarcity filter gates ONLY this
     // final build/add, strictly AFTER the rng draws above — the kept and
     // dropped cases consume identical ctx.rng() draws, preserving draw-count
@@ -2325,7 +2325,7 @@ function scatterWorldgenCampsites(ctx, qpc) {
     const x = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.6);
     const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.6);
     if (queryPoint(x, z).noBuild) continue;              // off water + river + road corridor
-    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 12)) continue;
+    if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(x, terrainHeight(x, z), z), 12)) continue;
     ccx = x; ccz = z; ok = true; break;
   }
   if (!ok) return;
@@ -2472,7 +2472,7 @@ function pottyRowClear(bx, bz, yaw, count) {
     // unskipped guard blocks on trees, the lakeshore sphere ring and sibling props —
     // so a bank inside a perfectly-valid welfare envelope silently vanished whenever a
     // neighbouring chunk's tree happened to register first (load-order dependent).
-    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 2.0, CLUSTER_GUARD_SKIP)) return false;
+    if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(x, terrainHeight(x, z), z), 2.0, CLUSTER_GUARD_SKIP)) return false;
     if (isPointInLake(x, z)) return false;
   }
   return true;
@@ -2697,7 +2697,7 @@ function placeScatteredCampsites(ctx, count) {
       const z = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.7);
       // Stay off the chunk-grid path strip
       if (Math.abs(x - ctx.cxWorld) < 6 || Math.abs(z - ctx.czWorld) < 6) continue;
-      if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 4)) continue;
+      if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(x, terrainHeight(x, z), z), 4)) continue;
       chosen = { x, z };
       break;
     }
@@ -2717,7 +2717,7 @@ function placeCampsiteClump(ctx) {
     const cx = ctx.cxWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.55);
     const cz = ctx.czWorld + (ctx.rng() - 0.5) * (CHUNK_SIZE * 0.55);
     if (Math.abs(cx - ctx.cxWorld) < 12 || Math.abs(cz - ctx.czWorld) < 12) continue;
-    if (registry.closestBuilding(new THREE.Vector3(cx, terrainHeight(cx, cz), cz), 14)) continue;
+    if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(cx, terrainHeight(cx, cz), cz), 14)) continue;
     centre = { x: cx, z: cz };
     break;
   }
@@ -2735,7 +2735,7 @@ function placeSingleCampsite(ctx, x, z, size = 'small', facing = null, options =
     const angle = i * Math.PI / 8;
     if (!ctx.campPreview && isPointInLake(x + Math.cos(angle) * footprint, z + Math.sin(angle) * footprint)) return null;
   }
-  if (!options.campNeighborhood && registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), footprint + 1.5)) return null;
+  if (!options.campNeighborhood && (registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(x, terrainHeight(x, z), z), footprint + 1.5)) return null;
   const camp = buildCampsite(ctx.rng, size, options);
   camp.group.position.set(x, terrainHeight(x, z), z);
   const randomFacing = ctx.rng() * Math.PI * 2;
@@ -2798,7 +2798,7 @@ function buildCampVillage(ctx) {
     attempts++;
     const x = cellX + (ctx.rng() - 0.5) * 2 * RADIUS;
     const z = cellZ + (ctx.rng() - 0.5) * 2 * RADIUS;
-    if (registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 4)) continue;
+    if ((registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(x, terrainHeight(x, z), z), 4)) continue;
     let tooClose = false;
     for (const p of placed) {
       const dx = p.x - x, dz = p.z - z;
@@ -3164,7 +3164,7 @@ function spawnAmbientCrowd(ctx, count) {
       tries++;
       // Reject positions inside a lake's actual outline. Shore-attractor
       // spawns can land inside the water on lobed lakes; this catches them.
-      blocked = registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 1.5)
+      blocked = (registry.closestGenerationBuilding ?? registry.closestBuilding).call(registry, new THREE.Vector3(x, terrainHeight(x, z), z), 1.5)
         || isPointInLake(x, z);
     } while (blocked && tries < 8);
     if (blocked) continue;   // 8 retries blocked → skip this slot rather than spawn in water

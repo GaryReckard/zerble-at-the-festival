@@ -9,7 +9,9 @@ import {registerCampsite,canPlaceCampsite,campSeatApproaches} from '../src/campR
 const source=readFileSync(new URL('../src/models/campsite.js',import.meta.url),'utf8');
 const tentColors=vm.runInNewContext(source.match(/const TENT_COLORS = (\[[^\]]+\]);/)[1]);
 class Group {
-  constructor(){this.children=[];this.position={x:0,y:0,z:0,set(x,y,z){Object.assign(this,{x,y,z});return this;},clone(){return {x:this.x,y:this.y,z:this.z,set(x,y,z){Object.assign(this,{x,y,z});return this;}};}};this.rotation={y:0};this.quaternion={setFromUnitVectors(){}};this.scale={x:1,y:1,z:1,setScalar(s){this.x=this.y=this.z=s;},set(x,y,z){Object.assign(this,{x,y,z});}};}
+  constructor(){this.matrix=new NativeThree.Matrix4();this.matrixWorld=new NativeThree.Matrix4();this.children=[];this.position={x:0,y:0,z:0,set(x,y,z){Object.assign(this,{x,y,z});return this;},clone(){return {x:this.x,y:this.y,z:this.z,set(x,y,z){Object.assign(this,{x,y,z});return this;}};}};this.rotation={y:0};this.quaternion={setFromUnitVectors(){}};this.scale={x:1,y:1,z:1,setScalar(s){this.x=this.y=this.z=s;},set(x,y,z){Object.assign(this,{x,y,z});}};}
+  updateMatrix(){this.matrix.compose(new NativeThree.Vector3(this.position.x,this.position.y,this.position.z),new NativeThree.Quaternion().setFromAxisAngle(new NativeThree.Vector3(0,1,0),this.rotation.y),new NativeThree.Vector3(this.scale.x,this.scale.y,this.scale.z));}
+  updateWorldMatrix(){this.updateMatrix();this.matrixWorld.copy(this.matrix);}
   add(...nodes){this.children.push(...nodes);}
   remove(node){this.children.splice(this.children.indexOf(node),1);}
 }
@@ -51,7 +53,7 @@ const tapestryBuilder=rng=>{for(let i=0;i<4;i++)rng();return {group:new Group()}
 const context={THREE:{Group},PERF:{contextLights:false},SIZE_CONFIG:cfg,CAMPSITE_SCALE:2,
   buildChiminea:builder,buildCampTent:makeTent,planCampRecipe,discardCampProp:()=>{},buildEzUp:makeCanopy,buildCampChair:makeChair,buildTapestry:tapestryBuilder,CHAIR_COLORS:[0xc44a4a,0x3b7fbe,0x4f9c4f,0xd4c177,0xb86bc7,0x444b55],
   buildTorchField:(positions,rng)=>{positions.forEach(p=>{if(p.phase==null)rng();});return {group:new Group(),animatables:[]};},
-  addCampKitchen:()=>{},addCanopyTwinkles:()=>{},addCampLanterns:()=>{},addTentEveningGlow:()=>{},batchCampChairs:()=>{},campsiteFootprint:size=>(cfg[size].radius+3)*2};
+  addCampKitchen:()=>{},addCanopyTwinkles:()=>{},addCampLanterns:()=>{},addTentEveningGlow:()=>{},batchCampChairs:(root,chairs)=>{for(const chair of chairs)chair.group.updateMatrix();},campsiteFootprint:size=>(cfg[size].radius+3)*2};
 const fragment=source.slice(source.indexOf('function pickCount('),source.indexOf('// Shared unit geometry'))+source.slice(source.indexOf('export function buildCampsite('),source.indexOf('// ---------- Vendor backstage camp'));
 const build=vm.runInNewContext(fragment.replace('export function buildCampsite','function buildCampsite')+';buildCampsite',context);
 function random(seed){return()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};}

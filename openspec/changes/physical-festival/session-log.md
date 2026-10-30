@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "2.4 (Admission and residency), with production fixture/frame integration still incomplete"
+current_task: "3.5 (World-owner adapters), with live frame integration still incomplete"
 blocked_by: null
 open_questions: 0
 started: 2026-10-29
@@ -146,3 +146,21 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** Added shared terrain-tile residency with transactional replacement, explicit capacities/retries and a caller-provided deadline rather than a second streaming budget. Added an admission ledger that reserves mandatory sitter/cup releases before optional allocations, with generation-checked cleanup. Retained campsite chair semantic slots and part-to-instance bindings; the physics playground now uses those bindings for real solver motion. Matrix tests preserve all four styles, shared materials, original transforms and palette draws, then test transformed parents, bounds, visibility, dirty ranges and late callbacks after disposal. These are implementation primitives and fixture proofs; live activation, registry publication and owner adoption remain unconnected, so the broader tasks remain unchecked.
 
 **Refs:** `src/physics/terrainResidency.js`; `src/physics/admissionBudget.js`; `src/propRendering.js`; `bin/test-prop-rendering`; `bin/test-physics-terrain-residency`; `bin/test-physics-admission`.
+
+
+### 2026-10-30 -- Canonical placement and independent chair rendering
+
+**Event:** discovery
+
+**What:** Campsite registration now exports stable physical chair descriptors with the captured batched world pose and actual seat claims. Registry enrollment preserves canonical generation geometry while publishing moved live geometry and transferring chunk ownership. Integration testing caught missing neighborhood/forest-owner metadata in the generation copies; retaining those values preserves existing placement exemptions, including after owner transfer. An independent capped instance pool survives source-batch disposal. World streaming exposes one optional preparation callback against its existing absolute deadline; exhausted frames skip it and preparation reduces the horizon remainder. Production activation, origin-regeneration suppression, occupied support, contact policy and device acceptance remain unfinished.
+
+**Refs:** `src/campRegistry.js`; `src/registry.js`; `src/physics/activePropRendering.js`; `bin/test-registry-physical`; `bin/test-chunk-deadline`; [checkpoint verification](../../../verification/physical-festival/2026-10-30-ownership/README.md).
+
+
+### 2026-10-30 -- Empty-chair adoption transaction
+
+**Event:** discovery
+
+**What:** The chair owner now coordinates real solver bodies, registry enrollment, independent render slots and reserved capacity, rejecting occupied seats and unprepared support. Tests caught a ghost-seat hazard when retirement left the source camp alive; retired seats now remain unavailable, while successful restoration or rollback reopens them only after conflicting resources are released. Failed cleanup retains explicit diagnostics and accounted surviving resources for retry. No automatic distance choice or production activation is installed yet.
+
+**Refs:** `src/physics/chairOwnership.js`; `bin/test-physics-chair-ownership`; [checkpoint evidence](../../../verification/physical-festival/2026-10-30-ownership/README.md).

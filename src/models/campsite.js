@@ -1328,6 +1328,7 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
     ...canopyChairs.map(({chair,canopy,index}) => ({...chair, localKey:`canopy:${canopy}:${index}`})),
   ].filter(chair => !chair.skip);
   const chairBatch = batchCampChairs(root, physicalChairs);
+  for (const chair of physicalChairs) chair.originLocalTransform = chair.group.matrix.clone();
 
   // Scale the whole vignette (props + their polar layout) uniformly. Props sit
   // at y=0 so they stay grounded under scale; the footprint grows to match so

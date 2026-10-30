@@ -41,3 +41,22 @@ travel.update({ x: 2000, z: 2000 }, -Infinity);
 assert.equal(travel.generated.length, 0, 'empty residency never reopens the unbudgeted boot path');
 
 process.stdout.write('PASS  eager initial preload and bounded empty-residency admission\n');
+
+// Execute the production streaming prefix with a controlled clock, so the
+// optional physical owner cannot create another full preparation allowance.
+const worldSource = readFileSync(new URL('../src/world.js', import.meta.url), 'utf8');
+const worldPrefix = worldSource.slice(worldSource.indexOf('export function updateWorld('), worldSource.indexOf('  if (timeOfDay) {', worldSource.indexOf('export function updateWorld(')));
+for (const [lakeCost, chunkCost, physicalCost] of [[1, 1, 2], [3, 2, 2], [4, 3, 2]]) {
+  let now = 100, called = 0, chunkDeadline;
+  const updateStreaming = vm.runInNewContext(worldPrefix.replace('export ', '') + '\nreturn streamRemainderMs; } ; updateWorld', {
+    performance: {now: () => now}, PERF: {chunkBudgetMs: 5}, _scene: {},
+    lakeManager: {update(){now += lakeCost;}},
+    chunkManager: {update(position, deadline){chunkDeadline = deadline;now += chunkCost;}},
+  });
+  const remainder = updateStreaming({}, .016, deadline => {
+    called++; assert.equal(deadline, chunkDeadline); assert.equal(deadline, 105); now += physicalCost;
+  });
+  assert.equal(called, lakeCost + chunkCost < 5 ? 1 : 0);
+  assert.equal(remainder, Math.max(0, 5 - lakeCost - chunkCost - physicalCost * called));
+}
+console.log('PASS physical preparation shares the absolute world deadline and reduces horizon remainder; exhausted frames do not invoke it.');

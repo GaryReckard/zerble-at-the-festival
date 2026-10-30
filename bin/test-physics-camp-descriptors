@@ -1,0 +1,90 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { registerCampsite, canPlaceCampsite, campSeatApproaches } from '../src/campRegistry.js';
+import { createPhysicalPropKey } from '../src/physics/propIdentity.js';
+import { setTerrainEnabled } from '../src/worldgen/terrain.js';
+
+setTerrainEnabled(false);
+const seatGroup = new THREE.Group();
+seatGroup.position.set(1.25, 0.2, -0.75);
+seatGroup.rotation.y = Math.PI / 3;
+seatGroup.updateMatrix();
+const root = new THREE.Group();
+root.position.set(28, 2, -16);
+root.rotation.y = -Math.PI / 5;
+root.scale.set(1.5, 1.5, 1.5);
+const descriptor = {
+  group: seatGroup, localKey: 'canopy:0:loveseat', style: 'blue', loveseat: true,
+  originLocalTransform: seatGroup.matrix.clone(),
+  renderBinding: { group: seatGroup },
+};
+const fireGroup = new THREE.Group();
+fireGroup.position.set(-1, 0, .5);
+fireGroup.updateMatrix();
+const fireDescriptor = { group: fireGroup, localKey: 'fire:0', style: 'iron',
+  originLocalTransform: fireGroup.matrix.clone(), renderBinding: { group: fireGroup } };
+const seats = [
+  { x: 1.1, z: -0.55, y: .45, yaw: Math.PI / 3, group: seatGroup, seatIndex: 0 },
+  { x: 1.4, z: -0.95, y: .45, yaw: Math.PI / 3, group: seatGroup, seatIndex: 1 },
+];
+const camp = {
+  group: root, footprint: 8, seats, tents: [], physicalChairs: [descriptor, fireDescriptor],
+  childColliders: [{ kind: 'camp_loveseat', x: 1.25, z: -.75, radius: .7, group: seatGroup }],
+};
+const register = (target = camp) => {
+  const entries = [];
+  const registry = { add(entry) { entry.id = 700 + entries.length; entries.push(entry); return entry.id; } };
+  registerCampsite(registry, target, { chunkKey: '2,-1' });
+  return entries;
+};
+const entriesA = register(), entriesB = register();
+const prop = entriesA[1].physicalProp;
+assert.ok(prop, 'the rendered chair is attached to its matching child collider');
+assert.equal(entriesA[0].physicalChairs[0], prop, 'the owner entry publishes the same descriptor');
+assert.equal(prop.originRegistryId, entriesA[0].id, 'origin lifetime can be checked without scanning camps');
+assert.equal(prop.kind, 'camp_loveseat');
+assert.equal(prop.style, 'blue');
+assert.equal(prop.seatSlots.length, 2, 'loveseat preserves its two actual independent claims');
+assert.equal(prop.seatSlots[0], entriesA[0].campSeats[0]);
+assert.equal(prop.seatSlots[1], entriesA[0].campSeats[1]);
+assert.equal(prop.seatSlots[0].collider, entriesA[1]);
+assert.equal(prop.seatSlots[1].collider, entriesA[1]);
+assert.equal(prop.logicalKey, entriesB[0].physicalChairs[0].logicalKey, 'registration order and runtime IDs do not affect identity');
+const reversed = register({ ...camp, physicalChairs: [fireDescriptor, descriptor] });
+const keys = values => Object.fromEntries(values[0].physicalChairs.map(chair => [chair.localKey, chair.logicalKey]));
+assert.deepEqual(keys(entriesA), keys(reversed), 'descriptor insertion order does not affect per-chair identity');
+assert.deepEqual(prop.originLocalTransform.elements, descriptor.originLocalTransform.elements);
+
+const expected = new THREE.Matrix4().multiplyMatrices(root.matrix, descriptor.originLocalTransform);
+const expectedPosition = new THREE.Vector3().setFromMatrixPosition(expected);
+assert.ok(Math.abs(prop.worldPose.position.x - expectedPosition.x) < 1e-9);
+assert.ok(Math.abs(prop.worldPose.position.y - expectedPosition.y) < 1e-9);
+assert.ok(Math.abs(prop.worldPose.position.z - expectedPosition.z) < 1e-9,
+  'physical admission pose follows the batch-captured local visual transform and camp root');
+
+const base = { worldSeed: 1, worldgenEpoch: 2, originOwner: 'chunk:2,-1', origin: { x: 3, y: 0, z: 4 }, localKey: 'fire:0' };
+assert.equal(createPhysicalPropKey(base), createPhysicalPropKey({ ...base }), 'key is deterministic');
+for (const bad of [
+  { ...base, worldSeed: NaN }, { ...base, worldgenEpoch: -1 }, { ...base, originOwner: '' },
+  { ...base, origin: { x: 0, y: Infinity, z: 0 } }, { ...base, localKey: '' },
+]) assert.throws(() => createPhysicalPropKey(bad), TypeError);
+
+let liveQueries = 0, generationQueries = 0;
+const candidate = { group: new THREE.Group(), footprint: 2, childColliders: [], seats: [], tents: [] };
+const queryRegistry = {
+  entries: new Map(), byKind: new Map(),
+  footprintsNear() { liveQueries++; }, collidersNear() { liveQueries++; },
+  generationFootprintsNear() { generationQueries++; }, generationCollidersNear() { generationQueries++; },
+};
+canPlaceCampsite(queryRegistry, candidate, null);
+assert.ok(generationQueries > 0, 'generation placement prefers canonical generation queries');
+assert.equal(liveQueries, 0, 'generation placement does not accidentally consult live query APIs');
+const beforeGenerationApproach = generationQueries;
+campSeatApproaches(camp, queryRegistry, { generation: true });
+assert.ok(generationQueries > beforeGenerationApproach, 'initial seat approaches use canonical generation colliders');
+const beforeLiveApproach = liveQueries;
+campSeatApproaches(camp, queryRegistry);
+assert.ok(liveQueries > beforeLiveApproach, 'seat approach callers retain live queries by default');
+
+console.log('PASS physical campsite chair identity, render pose, loveseat claims and generation query routing');
