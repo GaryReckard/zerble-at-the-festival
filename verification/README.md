@@ -25,6 +25,8 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Startup download recovery, October 30](boot-recovery/README.md): injected HTTP 503, bounded automatic recovery, manual fallback and production game boot.
+
 - [Festival people and Gary, October 30](hair/README.md): hair across every human family, Gary’s complete seated pose and dark gray footwell, geometry/contact tests, day/night captures and Low-tier game smoke test.
 
 - [Camp coolers, October 29](coolers/README.md): pooled geometry, collision bounds, campsite integration, day/night captures and Low-tier game boot.

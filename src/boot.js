@@ -7,6 +7,9 @@ const local = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host) ||
 const delay = local
   ? Math.min(10000, Math.max(0, Number(new URLSearchParams(location.search).get('bootDelay')) || 0))
   : 0;
-const start = () => import('./main.js');
+const start = () => import('./main.js').catch(error => {
+  console.error('Festival startup failed:', error);
+  window.__zerbleBootLoader?.fail(error);
+});
 if (delay) setTimeout(start, delay);
 else start();

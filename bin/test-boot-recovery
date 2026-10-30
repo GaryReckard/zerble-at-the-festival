@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+const { runInNewContext } = require('node:vm');
+const html = readFileSync('index.html', 'utf8');
+const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]).find(s => s.includes('const retryKey'));
+assert.ok(script);
+function fixture(search = '') {
+  const events = {}, timers = [], navigations = [], elements = {};
+  for (const id of ['boot-copy', 'boot-retry']) elements[id] = {
+    hidden: true, textContent: '', classList: { add() {}, remove() {} },
+    addEventListener(name, fn) { this[name] = fn; },
+  };
+  const location = { href: `https://example.test/zerble-at-the-festival/?mute=1&seed=1977${search}#map`, replace(url) { navigations.push(url); } };
+  const history = { state: { keep: true }, replaceState(state, _, url) { this.state = state; location.href = url; } };
+  const window = { addEventListener(name, fn) { events[name] = fn; } };
+  const schedule = (fn, ms) => { const item = { fn, ms }; timers.push(item); return item; };
+  const cancel = item => { item.cancelled = true; };
+  runInNewContext(script, { window, location, history, URL, Date, document: { getElementById: id => elements[id] }, setTimeout: schedule, setInterval: schedule, clearTimeout: cancel, clearInterval: cancel });
+  return { window, events, timers, navigations, elements, location, history,
+    fire(ms) { for (const timer of [...timers]) if (timer.ms === ms && !timer.cancelled) timer.fn(); } };
+}
+let f = fixture();
+f.window.__zerbleBootLoader.fail(new TypeError('Failed to fetch dynamically imported module: x'));
+f.events['vite:preloadError']({ payload: new Error('network') });
+f.fire(1000);
+assert.equal(f.navigations.length, 1, 'duplicate failures must not duplicate navigation');
+let url = new URL(f.navigations[0]);
+assert.equal(url.pathname, '/zerble-at-the-festival/');
+assert.equal(url.searchParams.get('mute'), '1');
+assert.equal(url.searchParams.get('seed'), '1977');
+assert.equal(url.hash, '#map');
+assert.ok(url.searchParams.has('_bootRetry'));
+f = fixture('&_bootRetry=123');
+f.window.__zerbleBootLoader.fail(new Error('Importing a module script failed.'));
+f.fire(1000);
+assert.equal(f.navigations.length, 0);
+assert.equal(f.elements['boot-retry'].hidden, false);
+f.elements['boot-retry'].click();
+assert.equal(f.navigations.length, 1, 'manual retry remains available');
+f = fixture();
+f.events['vite:preloadError']({ payload: new Error('bad initialization') });
+f.window.__zerbleBootLoader.fail(new Error('bad initialization'));
+f.fire(1000);
+assert.equal(f.navigations.length, 0);
+assert.equal(f.elements['boot-retry'].hidden, false);
+f = fixture();
+f.events.error({ target: { tagName: 'IMG' } });
+f.fire(1000); assert.equal(f.navigations.length, 0);
+f.events.error({ target: { tagName: 'SCRIPT', type: 'module' } });
+f.fire(1000); assert.equal(f.navigations.length, 1);
+f = fixture('&_bootRetry=123');
+f.fire(20000); assert.equal(f.elements['boot-retry'].hidden, false);
+f.window.__zerbleBootLoader.ready();
+assert.equal(f.elements['boot-retry'].hidden, true);
+assert.equal(new URL(f.location.href).searchParams.has('_bootRetry'), false);
+assert.equal(f.history.state.keep, true);
+f.events['vite:preloadError']({ payload: new Error('late optional module') });
+f.fire(1000); assert.equal(f.navigations.length, 0, 'never reload an already-ready game');
+console.log('PASS boot recovery: bounded retry, manual fallback, entry failures, non-network errors, slow/ready transition and preserved URL/state.');

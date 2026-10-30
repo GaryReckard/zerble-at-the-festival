@@ -9,6 +9,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **Gary has a complete seated driving pose.** Taller proportions, rounded jeans with rear seams, bent knees and an extended right leg meet suspended angled pedals in a recessed dark gray footwell. Swept-back brown hair, gray temples and a rear bun follow the supplied references. [Driver views and contact checks](verification/hair/README.md).
 - **Waist hooping and choreographed flow share expressive body motion.** Regular hoopers now bend their knees over planted feet, move their arms independently and turn/tilt their heads. Flow scores add planted steps, contact-driven waist groove, moving-body isolations and dancing around seeded tosses ranging from 0.65 to 2.4 meters above release; compatible trick transitions carry hoop momentum, and a full chest roll crosses both outstretched arms into the opposite hand. The workshop exposes both modes and dedicated phrase inspection controls. [Grounded choreography verification](verification/hoops/grounded-choreography.md).
 
+### Fixed
+- **A failed game download now has a way back.** Startup catches module-download failures and tries one fresh-page navigation, preserving the project path and game options. If that attempt fails, the title screen offers a working retry button instead of waiting indefinitely. Slow startup also exposes the button, while ordinary initialization errors do not trigger automatic reload loops. [Verification](verification/boot-recovery/README.md).
+
 ## 2026-10-29
 
 ### Added
