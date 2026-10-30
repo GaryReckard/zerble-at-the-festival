@@ -1,0 +1,190 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { createTerrainResidency, sweptTerrainBounds } from '../src/physics/terrainResidency.js';
+import { getSessionSeed, setSessionSeed } from '../src/rng.js';
+import { sampleTerrain, terrainEnabled, setTerrainEnabled, terrainCacheStats } from '../src/worldgen/terrain.js';
+
+const tile = (x = 0, z = 0) => ({ minX: x + 1, minZ: z + 1, maxX: x + 19, maxZ: z + 19 });
+const pump = (residency, maxCreations = 256) => residency.pump({ deadline: performance.now() + 10000, now: () => performance.now(), maxCreations });
+const originalSeed = getSessionSeed(), originalEnabled = terrainEnabled();
+try {
+  setSessionSeed(0); setTerrainEnabled(true);
+  const adapter = await createRapierAdapter();
+  const residency = createTerrainResidency(adapter, { maxTiles: 8, maxQueued: 8, maxOwners: 3 });
+  try {
+    assert.equal(residency.request('chair', tile()).state, 'pending');
+    const cache = terrainCacheStats(), allocations = adapter.counts();
+    const noTime = residency.pump({ deadline: 0, now: () => 0, maxCreations: 3 });
+    assert.equal(noTime.attempted, 0); assert.equal(noTime.created, 0);
+    assert.deepEqual(adapter.counts(), allocations); assert.deepEqual(terrainCacheStats(), cache);
+    assert.equal(pump(residency, 0).attempted, 0);
+    assert.equal(pump(residency, 1).created, 1);
+    assert.equal(residency.status('chair').state, 'ready'); assert.equal(adapter.counts().bodies, 1);
+    assert.equal(residency.request('cooler', tile()).state, 'ready');
+    assert.equal(adapter.counts().bodies, 1, 'overlapping owners share the fixed tile');
+    assert.equal(residency.release('chair'), true); assert.equal(residency.release('chair'), false);
+    assert.equal(adapter.counts().bodies, 1, 'the remaining owner retains supporting ground');
+    const previous = residency.status('cooler');
+    assert.equal(residency.request('cooler', tile(40)).state, 'pending');
+    assert.deepEqual(residency.status('cooler').supporting, previous.supporting,
+      'old committed support survives while replacement is queued');
+    assert.equal(adapter.counts().bodies, 1);
+    assert.equal(pump(residency, 1).created, 1);
+    assert.equal(residency.stats().tiles, 1); assert.equal(adapter.counts().bodies, 1);
+    assert.equal(residency.status('cooler').supporting[0].bounds.minX, 40);
+    const external = residency.status('cooler'); external.tiles[0].bounds.minX = 999; external.supporting.length = 0;
+    assert.equal(residency.status('cooler').supporting[0].bounds.minX, 40, 'inspection data is copied');
+    const stats = residency.stats(); stats.capacities.tiles = 0; stats.timing.created = 999;
+    assert.equal(residency.stats().capacities.tiles, 8); assert.notEqual(residency.stats().timing.created, 999);
+    residency.request('one', tile(40)); residency.request('two', tile(40));
+    assert.equal(residency.request('three', tile(40)).reason, 'owner-capacity');
+    residency.release('one'); residency.release('two');
+    assert.equal(residency.release('cooler'), true); assert.equal(adapter.counts().bodies, 0);
+  } finally { residency.dispose(); adapter.dispose(); }
+  residency.dispose();
+  assert.equal(residency.stats().tiles, 0); assert.equal(residency.stats().owners, 0);
+  assert.equal(residency.status('chair').state, 'disposed');
+  assert.throws(() => residency.request('new', tile()), /disposed/);
+  assert.throws(() => pump(residency), /disposed/); assert.throws(() => residency.release('new'), /disposed/);
+
+  const limitedAdapter = await createRapierAdapter();
+  const limited = createTerrainResidency(limitedAdapter, { maxTiles: 2, maxQueued: 1 });
+  try {
+    limited.request('first', tile());
+    const before = limited.status('first');
+    assert.equal(limited.request('first', { minX: 1, minZ: 1, maxX: 59, maxZ: 19 }).reason, 'tile-capacity');
+    assert.deepEqual(limited.status('first'), before, 'capacity rejection also preserves an earlier pending request');
+    assert.equal(limited.request('second', tile(20)).reason, 'queue-capacity');
+    assert.deepEqual(limited.status('first'), before);
+    pump(limited);
+    limited.request('second', tile(20)); pump(limited);
+    const ready = limited.status('first');
+    assert.equal(limited.request('first', tile(40)).reason, 'tile-capacity');
+    assert.deepEqual(limited.status('first'), ready, 'saturated replacement leaves old support exactly intact');
+    assert.equal(limited.stats().tiles, 2); assert.equal(limitedAdapter.counts().bodies, 2);
+  } finally { limited.dispose(); assert.equal(limitedAdapter.counts().bodies, 0); limitedAdapter.dispose(); }
+
+  // A real adapter rejection exercises the bounded retry path without a fake
+  // solver. The old terrain must never disappear to make room for replacement.
+  const failingAdapter = await createRapierAdapter({ capacities: { bodies: 1, colliders: 1 } });
+  const failing = createTerrainResidency(failingAdapter, { maxTiles: 4, maxQueued: 4, maxRetries: 2 });
+  try {
+    failing.request('supported', tile()); pump(failing);
+    const old = failing.status('supported').supporting;
+    failing.request('supported', tile(20));
+    assert.equal(pump(failing).rejected, 1, 'one tile is attempted only once per pump');
+    assert.equal(failing.status('supported').state, 'pending');
+    assert.equal(pump(failing).rejected, 1);
+    assert.equal(failing.status('supported').state, 'failed');
+    assert.equal(failing.status('supported').rejection.reason, 'body-capacity');
+    assert.equal(pump(failing).attempted, 0, 'automatic retry stops at the explicit retry limit');
+    assert.deepEqual(failing.status('supported').supporting, old);
+    assert.equal(failingAdapter.counts().bodies, 1); assert.equal(failingAdapter.counts().colliders, 1);
+    assert.equal(failing.request('supported', tile(20)).state, 'pending', 'a caller can explicitly request a fresh bounded retry');
+    assert.equal(failing.status('supported').tiles[0].attempts, 0);
+    failing.release('supported');
+    assert.equal(failing.stats().tiles, 0); assert.equal(failingAdapter.counts().bodies, 0);
+  } finally { failing.dispose(); failingAdapter.dispose(); }
+
+  const timedAdapter = await createRapierAdapter();
+  let time = 0;
+  const timed = createTerrainResidency({ ...timedAdapter, addBody(spec) { const result = timedAdapter.addBody(spec); time += 2; return result; } },
+    { maxTiles: 8, maxQueued: 8 });
+  try {
+    const bounds = sweptTerrainBounds({ from: { x: 1, z: 1 }, to: { x: 59, z: 1 }, radius: .5 });
+    assert.deepEqual(bounds, { minX: .5, minZ: .5, maxX: 59.5, maxZ: 1.5 });
+    assert.equal(timed.requestSweep('moving', { from: { x: 1, z: 1 }, to: { x: 59, z: 1 }, radius: .5 }).pending, 3);
+    const result = timed.pump({ deadline: 1, now: () => time, maxCreations: 8 });
+    assert.equal(result.created, 1, 'the caller deadline prevents a second bounded work unit after an overrun');
+    assert.equal(result.pending, 2); assert.equal(result.timing.maxUnitMs, 2);
+    assert.equal(timed.pump({ deadline: 100, now: () => time, maxCreations: 1 }).created, 1);
+    assert.equal(timed.status('moving').state, 'pending', 'contact eligibility remains pending until the whole sweep is supported');
+    assert.equal(timed.pump({ deadline: 100, now: () => time, maxCreations: 1 }).created, 1);
+    assert.equal(timed.status('moving').state, 'ready');
+    assert.equal(timed.status('moving').supporting.length, 3);
+  } finally { timed.dispose(); timedAdapter.dispose(); }
+
+  const cycleAdapter = await createRapierAdapter();
+  const cycles = createTerrainResidency(cycleAdapter, { maxTiles: 4, maxQueued: 4 });
+  try {
+    for (let cycle = 0; cycle < 12; cycle++) {
+      cycles.requestSweep('cycle', { from: { x: 1, z: 1 }, to: { x: 39, z: 1 }, radius: .5 });
+      assert.equal(pump(cycles, 2).created, 2);
+      assert.equal(cycles.status('cycle').state, 'ready');
+      cycles.release('cycle');
+      assert.equal(cycles.stats().tiles, 0); assert.equal(cycles.stats().owners, 0);
+      assert.equal(cycleAdapter.counts().bodies, 0); assert.equal(cycleAdapter.counts().colliders, 0);
+      assert.equal(cycleAdapter.counts().meshVertices, 0); assert.equal(cycleAdapter.counts().meshTriangles, 0);
+    }
+    assert.equal(cycles.stats().timing.created, 24);
+  } finally { cycles.dispose(); cycleAdapter.dispose(); }
+
+  const thrownAdapter = await createRapierAdapter();
+  const thrown = createTerrainResidency({ ...thrownAdapter, addBody() { throw new Error('injected allocation failure'); } }, { maxRetries: 1 });
+  try {
+    thrown.request('failed', tile()); assert.equal(pump(thrown).rejected, 1);
+    assert.equal(thrown.status('failed').state, 'failed');
+    assert.equal(thrown.status('failed').rejection.reason, 'terrain-create-failed');
+    assert.equal(thrownAdapter.counts().bodies, 0);
+  } finally { thrown.dispose(); thrownAdapter.dispose(); }
+
+  for (const enabled of [true, false]) {
+    setTerrainEnabled(enabled); setSessionSeed(0);
+    const world = await createRapierAdapter();
+    const ground = createTerrainResidency(world, { maxTiles: 25, maxQueued: 25 });
+    try {
+      let x = 620, z = 180;
+      if (enabled) {
+        x = -680; z = -700;
+        assert(sampleTerrain(x, z).grade > .005, 'enabled landing fixture uses verified actual sloped terrain');
+      }
+      const seam = Math.floor(x / 20) * 20;
+      ground.request('landing', { minX: seam - 21, minZ: z - 21, maxX: seam + 21, maxZ: z + 21 });
+      while (ground.status('landing').state === 'pending') pump(ground, 2);
+      assert.equal(ground.status('landing').state, 'ready');
+      for (const [index, offset] of [-.7, 0, .7].entries()) {
+        const px = seam + offset, pz = z + index * 1.1, height = sampleTerrain(px, pz).height;
+        assert.equal(world.addBody({ id: `ball-${index}`, type: 'dynamic', canSleep: true, ccd: true,
+          pose: { position: { x: px, y: height + 2, z: pz } },
+          colliders: [{ shape: 'ball', radius: .25, friction: 1 }] }).ok, true);
+      }
+      for (let step = 0; step < 240; step++) { world.step(1 / 60); world.drainEvents(); }
+      for (let index = 0; index < 3; index++) {
+        const p = world.readBody(`ball-${index}`).pose.position;
+        assert(Object.values(p).every(Number.isFinite));
+        const clearance = p.y - sampleTerrain(p.x, p.z).height;
+        assert(clearance > .21 && clearance < .3, `a ${enabled ? 'sloped' : 'flat'} seam supports the sphere: ${clearance}`);
+      }
+      ground.dispose();
+      assert.equal(world.counts().bodies, 3, 'residency disposal preserves externally owned dynamic bodies');
+      assert.equal(world.counts().meshVertices, 0); assert.equal(world.counts().meshTriangles, 0);
+    } finally { ground.dispose(); world.dispose(); }
+  }
+
+  const validationAdapter = await createRapierAdapter();
+  const validation = createTerrainResidency(validationAdapter);
+  try {
+    for (const options of [{ maxTiles: 257 }, { maxQueued: 257 }, { maxOwners: 257 }, { maxRetries: 9 }, { tileSize: 15 }, { tileSize: 50 }]) {
+      assert.throws(() => createTerrainResidency(validationAdapter, options), RangeError);
+    }
+    for (const bounds of [null, {}, { minX: 0, minZ: 0, maxX: Infinity, maxZ: 10 }, tile(1e20)]) {
+      assert.throws(() => validation.request('invalid', bounds), RangeError);
+    }
+    assert.throws(() => validation.request('', tile()), TypeError);
+    assert.throws(() => validation.pump({ deadline: Infinity, now: () => 0, maxCreations: 1 }), TypeError);
+    assert.throws(() => validation.pump({ deadline: 1, now: () => NaN, maxCreations: 1 }), TypeError);
+    assert.throws(() => validation.pump({ deadline: 1, now: () => 0, maxCreations: 257 }), TypeError);
+    assert.throws(() => sweptTerrainBounds({ from: { x: 0, z: 0 }, to: { x: 1, z: 1 }, radius: 0 }), RangeError);
+    validation.request('source', tile()); pump(validation);
+    const before = validation.status('source');
+    setTerrainEnabled(!terrainEnabled());
+    assert.throws(() => validation.request('source', tile(20)), /source changed/);
+    assert.throws(() => pump(validation), /source changed/);
+    assert.deepEqual(validation.status('source'), before, 'source changes cannot silently replace supporting ground');
+    validation.release('source');
+    assert.equal(validationAdapter.counts().bodies, 0);
+  } finally { validation.dispose(); validationAdapter.dispose(); }
+} finally { setSessionSeed(originalSeed); setTerrainEnabled(originalEnabled); }
+
+console.log('PASS terrain residency: real Rapier sloped/flat seam landings, shared support, transactional replacement/capacity rollback, caller deadline/creation bounds, bounded retry, copied inspection, sweep readiness, source guards and owned teardown.');

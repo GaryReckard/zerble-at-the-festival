@@ -2,6 +2,8 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import * as NativeThree from 'three';
+import {batchPropGroups} from '../src/propRendering.js';
 import {planCampRecipe,planCampNeighborhood,CAMP_ARCHETYPES} from '../src/campPlanning.js';
 import {registerCampsite,canPlaceCampsite,campSeatApproaches} from '../src/campRegistry.js';
 const source=readFileSync(new URL('../src/models/campsite.js',import.meta.url),'utf8');
@@ -210,26 +212,22 @@ if(process.argv[2]) {
   console.log('Scope: real tent/tapestry/canopy/chair builders with canvas drawing and remaining rendering primitives stubbed identically; counts establish construction savings, not GPU or device timing.');
 }
 
-// Execute the shipped batching helper, retaining each chair's metadata anchor.
-class Matrix {
-  multiplyMatrices(parent,child){this.parent=parent;this.child=child;return this;}
-}
-class Instances {
-  constructor(geometry,material,count){Object.assign(this,{geometry,material,count,instanceMatrix:{needsUpdate:false},matrices:[]});}
-  setMatrixAt(i,matrix){this.matrices[i]=matrix;}
-}
+// Execute the shipped chair wrapper with actual Three matrices and bindings.
 const batchFragment=source.slice(source.indexOf('function batchCampChairs('),source.indexOf('export function buildCampsite('));
-const batch=vm.runInNewContext(batchFragment+';batchCampChairs',{THREE:{Matrix4:Matrix,InstancedMesh:Instances}});
-const geometry={userData:{shared:true}},material={userData:{shared:true}};
-const chairFixture=()=>({group:{matrix:{},children:[0,1,2].map(()=>({geometry,material,matrix:{},updateMatrix(){}})),updateMatrix(){},remove(mesh){this.children.splice(this.children.indexOf(mesh),1);}}});
-const anchors=[chairFixture(),chairFixture()],root=new Group();
-batch(root,anchors);
-assert.equal(root.children.length,1,'matching chair parts collapse to one draw');
-assert.equal(root.children[0].count,6,'all original part transforms survive batching');
-assert.equal(root.children[0].instanceMatrix.needsUpdate,true,'batched transforms upload');
-assert.equal(root.children[0].geometry,geometry,'batch reuses shared geometry');
-assert.equal(root.children[0].material,material,'batch reuses shared material');
-assert(anchors.every(({group})=>group.children.length===0),'seat transform anchors survive without duplicate meshes');
+const batch=vm.runInNewContext(batchFragment+';batchCampChairs',{batchPropGroups});
+const geometry=new NativeThree.BoxGeometry(),material=new NativeThree.MeshBasicMaterial();
+geometry.userData.shared=material.userData.shared=true;
+const chairFixture=()=>{const group=new NativeThree.Group();for(let i=0;i<3;i++)group.add(new NativeThree.Mesh(geometry,material));return {group};};
+const anchors=[chairFixture(),chairFixture()],root=new NativeThree.Group();
+anchors.forEach(({group})=>root.add(group));
+const chairBatch=batch(root,anchors);
+assert.equal(chairBatch.meshes.length,1,'matching chair parts collapse to one draw');
+assert.equal(chairBatch.meshes[0].count,6,'all original part transforms survive batching');
+assert(chairBatch.meshes[0].instanceMatrix.version>0,'batched transforms upload');
+assert.equal(chairBatch.meshes[0].geometry,geometry,'batch reuses shared geometry');
+assert.equal(chairBatch.meshes[0].material,material,'batch reuses shared material');
+assert(anchors.every(({group,renderBinding})=>group.children.length===0&&renderBinding.group===group),'seat anchors retain their part bindings without duplicate meshes');
+chairBatch.dispose();geometry.dispose();material.dispose();
 console.log('PASS chair batching: shared resources, metadata anchors, all transforms retained and instance upload flagged.');
 
 const animateSource=source.slice(source.indexOf('export function updateCampsiteProps(')).replace('export function','function');

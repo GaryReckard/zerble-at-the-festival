@@ -8,6 +8,7 @@ import { setTerrainEnabled, sampleTerrain } from '../worldgen/terrain.js';
 import { PERF } from '../perf.js';
 import { createPhysicalFixture } from './runtime.js';
 import { createFixtureCartDriver } from './cartDriver.js';
+import { batchPropGroups } from '../propRendering.js';
 
 const $ = id => document.getElementById(id);
 const inputs = ['fixture', 'style', 'seed', 'speed', 'angle', 'physics'];
@@ -24,7 +25,8 @@ $('physics').checked = params.get('physics') !== '0';
 $('ghost').checked = params.get('ghost') === '1';
 
 let renderer, orbit, fixture, frameHandle = 0, disposed = false, paused = true;
-let encounterStarted = false, cartDriver;
+let encounterStarted = false, cartDriver, chairBatch;
+let batchWrites = {buckets:0,matrixBytes:0};
 const cleanupErrors = [];
 let generation = 0, last = 0, latest, allocationMs = 0, uploadMs = 0, lastReadout = 0;
 let night = params.get('tod') === 'midnight';
@@ -171,7 +173,20 @@ function buildVisual(prop) {
   helper.visible = $('bounds').checked;
   bounds.add(helper);
   models.add(group);
-  visuals.set(prop.key, { group, helper, anchors });
+  visuals.set(prop.key, { group, helper, anchors, chair:!!chair });
+}
+
+function batchChairVisuals() {
+  const chairs = [...visuals.values()].filter(visual => visual.chair);
+  for (const visual of chairs) {
+    visual.group.remove(visual.anchors);
+    visual.localBounds = new THREE.Box3().setFromObject(visual.group);
+  }
+  chairBatch = batchPropGroups(models, chairs.map(visual => visual.group));
+  chairs.forEach((visual,index) => {
+    visual.binding = chairBatch.bindings[index];
+    visual.group.add(visual.anchors);
+  });
 }
 
 function updateCollisionGeometry() {
@@ -210,27 +225,34 @@ function publish(state) {
   for (const prop of state.props) {
     const visual = visuals.get(prop.key);
     if (!visual) continue;
+    visual.group.visible = prop.kind !== 'cart' || $('show-cart').checked;
     visual.group.position.copy(prop.position);
     visual.group.quaternion.copy(prop.rotation);
+    if (visual.binding) {
+      visual.group.updateWorldMatrix(true,false);
+      visual.binding.setWorldMatrix(visual.group.matrixWorld);
+    }
     visual.anchors.visible = $('sockets').checked;
-    visual.helper.visible = $('bounds').checked;
+    visual.helper.visible = $('bounds').checked && visual.group.visible;
     if (visual.helper.visible) {
       // Exclude inspection dots from the measured production silhouette.
       const visible = visual.anchors.visible;
       visual.group.remove(visual.anchors);
-      viewBox.setFromObject(visual.group);
+      if (visual.localBounds) viewBox.copy(visual.localBounds).applyMatrix4(visual.group.matrixWorld);
+      else viewBox.setFromObject(visual.group);
       visual.group.add(visual.anchors);
       visual.anchors.visible = visible;
       visual.helper.box.copy(viewBox);
     }
   }
+  batchWrites = chairBatch?.flush() || {buckets:0,matrixBytes:0};
   updateCollisionGeometry();
   uploadMs = performance.now() - started;
 }
 
 function report() {
   return { settings: readSettings(), timeOfDay: night ? 'midnight' : 'noon', paused,
-    playback: Number($('playback').value), allocationMs, publicationMs: uploadMs,
+    playback: Number($('playback').value), allocationMs, publicationMs: uploadMs, batchWrites:{...batchWrites}, showCart:$('show-cart').checked,
     lifecycle: { disposed, cleanupErrors:cleanupErrors.slice(), fixtureActive: !!fixture, rafActive: !disposed && frameHandle !== 0,
       listenersActive: !listeners.signal.aborted, renderObjects: visuals.size, sceneChildren: scene.children.length },
     rendering: renderer && !disposed ? { tier: PERF.name, pixelRatio: renderer.getPixelRatio(),
@@ -270,6 +292,7 @@ async function reset() {
   setPaused(true);
   encounterStarted = false;
   fixture?.dispose(); fixture = null;
+  chairBatch?.dispose(); chairBatch = null;
   latest = null;
   disposeTree(models); disposeTree(surfaces); disposeTree(bounds); visuals.clear();
   collisionLines.geometry.dispose(); collisionLines.geometry = new THREE.BufferGeometry();
@@ -303,6 +326,7 @@ async function reset() {
     const state = fixture.getState();
     buildSurface(state.ground,terrainPatch);
     for (const prop of state.props) buildVisual(prop);
+    batchChairVisuals();
     allocationMs = performance.now() - started;
     publish(state);
     for (const id of ['run', 'reset', 'pause', 'step']) $(id).disabled = false;
@@ -340,6 +364,7 @@ function dispose() {
     fixture=null;
   }
   cleanup('orbit controls',()=>orbit?.dispose());
+  cleanup('chair batch',()=>{chairBatch?.dispose();chairBatch=null;});
   cleanup('scene resources',()=>disposeTree(scene));
   visuals.clear();
   cleanup('renderer',()=>renderer?.dispose());
@@ -404,7 +429,7 @@ try {
   listen($('step'), 'click', () => debug.step());
   listen($('noon'), 'click', () => setLighting(false));
   listen($('midnight'), 'click', () => setLighting(true));
-  for (const id of ['colliders', 'bounds', 'sockets']) listen($(id), 'change', () => { if (latest) publish(latest); });
+  for (const id of ['colliders', 'bounds', 'sockets', 'show-cart']) listen($(id), 'change', () => { if (latest) publish(latest); });
   listen($('copy'), 'click', async () => {
     try { await navigator.clipboard.writeText(JSON.stringify(report(), null, 2)); $('copy').textContent = 'Report copied'; }
     catch { $('inspection').textContent = JSON.stringify(report(), null, 2); $('copy').textContent = 'Select report to copy'; }

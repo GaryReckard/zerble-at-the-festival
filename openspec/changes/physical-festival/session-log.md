@@ -137,3 +137,12 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** Added a reusable cart proxy bridge that consumes accepted trajectories and named reset reasons. Ghost exit and discontinuous relocation disable contacts until a bounded direct-shape query establishes clearance, clearing old kinematic targets and velocities before reactivation. This avoids an explosive overlap correction without moving the chair or cart artificially. Tests cover zero-step expiry, overlap waiting, clear reentry, every named reset and resumed real solver contact. The production-controller fixture exposes ghost mode; main-game transition calls and frame-barrier wiring remain unfinished, so Task 2.5 (Cart proxy and resets) remains unchecked.
 
 **Refs:** `src/physics/cartProxy.js`; `bin/test-physics-cart-proxy`; `bin/test-physics-controller`; `src/physics/rapierAdapter.js`.
+
+
+### 2026-10-30 -- Bounded preparation and retained chair bindings
+
+**Event:** decision
+
+**What:** Added shared terrain-tile residency with transactional replacement, explicit capacities/retries and a caller-provided deadline rather than a second streaming budget. Added an admission ledger that reserves mandatory sitter/cup releases before optional allocations, with generation-checked cleanup. Retained campsite chair semantic slots and part-to-instance bindings; the physics playground now uses those bindings for real solver motion. Matrix tests preserve all four styles, shared materials, original transforms and palette draws, then test transformed parents, bounds, visibility, dirty ranges and late callbacks after disposal. These are implementation primitives and fixture proofs; live activation, registry publication and owner adoption remain unconnected, so the broader tasks remain unchecked.
+
+**Refs:** `src/physics/terrainResidency.js`; `src/physics/admissionBudget.js`; `src/propRendering.js`; `bin/test-prop-rendering`; `bin/test-physics-terrain-residency`; `bin/test-physics-admission`.

@@ -20,6 +20,7 @@ import { PERF } from '../perf.js';
 import { register as registerContextLight } from '../contextLights.js';
 import { planCampRecipe } from '../campPlanning.js';
 import { buildCampChair } from './campChair.js';
+import { batchPropGroups } from '../propRendering.js';
 export { buildCampChair } from './campChair.js';
 
 // ---------- Shared palettes ----------
@@ -1052,25 +1053,9 @@ function addTentEveningGlow(tent,animatables,phase) {
 // Retain each chair's empty transform group for seat metadata, but batch its
 // static metal/fabric parts so a social ring does not cost nine draws per seat.
 export function batchCampChairs(root, chairs) {
-  const buckets=new Map();
-  for(const {group} of chairs) {
-    group.updateMatrix();
-    for(const mesh of [...group.children]) {
-      mesh.updateMatrix();
-      let materials=buckets.get(mesh.geometry);
-      if(!materials){materials=new Map();buckets.set(mesh.geometry,materials);}
-      let bucket=materials.get(mesh.material);
-      if(!bucket){bucket=[];materials.set(mesh.material,bucket);}
-      bucket.push(new THREE.Matrix4().multiplyMatrices(group.matrix,mesh.matrix));
-      group.remove(mesh);
-    }
-  }
-  for(const [geometry,materials] of buckets) for(const [material,matrices] of materials) {
-    const instances=new THREE.InstancedMesh(geometry,material,matrices.length);
-    matrices.forEach((matrix,i)=>instances.setMatrixAt(i,matrix));
-    instances.instanceMatrix.needsUpdate=true;
-    root.add(instances);
-  }
+  const batch = batchPropGroups(root, chairs.map(chair => chair.group));
+  chairs.forEach((chair, index) => { chair.renderBinding = batch.bindings[index]; });
+  return batch;
 }
 
 function discardCampProp(root,group) {
@@ -1338,7 +1323,11 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
     collider(chair.loveseat?'camp_loveseat':'camp_chair',chair.group,chair.footprint||(chair.loveseat?.7:.53));
   }
 
-  batchCampChairs(root,[...fireChairs,...canopyChairs.map(v=>v.chair)].filter(c=>!c.skip));
+  const physicalChairs = [
+    ...fireChairs.map((chair, index) => ({...chair, localKey:`fire:${index}`})),
+    ...canopyChairs.map(({chair,canopy,index}) => ({...chair, localKey:`canopy:${canopy}:${index}`})),
+  ].filter(chair => !chair.skip);
+  const chairBatch = batchCampChairs(root, physicalChairs);
 
   // Scale the whole vignette (props + their polar layout) uniformly. Props sit
   // at y=0 so they stay grounded under scale; the footprint grows to match so
@@ -1349,6 +1338,7 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
     group: root,
     animatables,
     footprint: recipe.footprint, archetype:recipe.archetype, role:recipe.role,
+    physicalChairs, chairBatch,
     childColliders, colliders: childColliders, seats, tents, entranceYaw: Math.atan2(-Math.cos(tentArcStart),-Math.sin(tentArcStart)),
   };
 }
