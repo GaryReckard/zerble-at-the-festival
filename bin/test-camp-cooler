@@ -27,7 +27,7 @@ for (let variant = 0; variant < 40; variant++) {
   cooler.group.updateMatrixWorld(true);
   const bounds = new THREE.Box3().setFromObject(cooler.group);
   assert(Math.abs(bounds.min.y) < 1e-6, 'base rests on the ground');
-  assert(bounds.max.y > .5, 'insulated lid has a readable raised silhouette');
+  assert(bounds.max.y > .44 && bounds.max.y < .46, 'lower cooler proportions retain an insulated lid');
   for (const mesh of cooler.group.children) {
     assert.equal(mesh.geometry.userData.shared, true);
     assert.equal(mesh.material.userData.shared, true);
@@ -47,9 +47,10 @@ for (let variant = 0; variant < 40; variant++) {
   }
   assert.equal(build(variant).color, cooler.color, 'finish is deterministic');
 }
-assert.equal(geometries.size, 2, 'all variants reuse body and recessed-lid geometry');
+assert.equal(geometries.size, 3, 'all variants reuse the three complete material geometries');
 assert.equal(colors.size, 4);
 assert.equal(cache.size, 6, 'four body finishes and two hardware materials');
+assert(triangles <= 1500, 'molded detail stays within the per-cooler geometry budget');
 // A downward ray must reach a well floor below the surrounding lid surface.
 const cooler = build();
 cooler.group.updateMatrixWorld(true);
@@ -58,9 +59,21 @@ const top = ray.intersectObject(cooler.group,true)[0].point.y;
 for(const x of [-.15,.15]) {
   ray.ray.origin.set(x,1,0);
   const floor = ray.intersectObject(cooler.group,true)[0].point.y;
-  assert(Math.abs(top-.53)<1e-6);
-  assert(Math.abs(floor-.505)<1e-6, 'two real 2.5cm-deep cup wells, without a surface covering them');
+  assert(Math.abs(top-.445)<1e-6);
+  assert(Math.abs(floor-.415)<1e-6, 'two real 3cm-deep cup wells, without a surface covering them');
+  const rimHeights=[];
+  for(let i=0;i<16;i++) {
+    const angle=i*Math.PI*2/16+.1;
+    ray.ray.origin.set(x+.06*Math.cos(angle),1,.06*Math.sin(angle));
+    rimHeights.push(ray.intersectObject(cooler.group,true)[0].point.y);
+  }
+  assert(Math.max(...rimHeights)-Math.min(...rimHeights)<1e-6, 'beveled cup rim has no closing-seam spike');
 }
+const shell = cooler.group.getObjectByName('cooler_body');
+const sideRay = new THREE.Raycaster(new THREE.Vector3(1,.07,0),new THREE.Vector3(-1,0,0));
+const lowerWidth = sideRay.intersectObject(shell)[0].point.x;
+sideRay.ray.origin.y = .32;
+assert(sideRay.intersectObject(shell)[0].point.x > lowerWidth+.02, 'molded shell tapers toward the base');
 console.log(`PASS camp coolers: 40 native Three builds, grounded collision bounds, two raycast-verified cup recesses, deterministic finishes, shared resources, 3 draws / ${triangles} triangles, no shadow casters.`);
 
 const kitchen = new THREE.Group();

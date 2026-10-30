@@ -1,50 +1,61 @@
 # Camp coolers, October 29, 2026
 
-Campsite kitchens previously represented a cooler with one teal box instance
-inside the stove/water-jug batch. They now call `buildCampCooler()` from
-`src/models/campsite.js`, which supplies a colored body, cream insulated lid
-with two circular cup recesses, dark gasket, two front latches and side handles. The existing kitchen location
-at local `(1.9, 0, -0.7)` and `camp_cooler` collision radius of `.42` remain.
-Kitchen-bearing camps get one cooler; light-traveler and satellite pitches
-continue to omit kitchens. This does not add a pickup or storage interaction.
+Campsite kitchens use `buildCampCooler()` in `src/models/campsite.js`.
+The refined model has a lower tapered shell, rounded molded corners, a beveled
+cream lid with two cup wells, continuous side handles, front latch catches,
+rear hinges, rubber feet, a drain cap and a small mountain badge.
+Kitchen-bearing camps get one cooler at local `(1.9, 0, -0.7)`; light-traveler
+and satellite pitches continue to omit kitchens. This is scenery with the
+existing `camp_cooler` collision, rather than a pickup or storage interaction.
 
-The body finish derives from an already sampled camp angle, without consuming
-caller or layout randomness. All four finishes share one box geometry, one
-recessed-lid geometry and six pooled materials. Geometry and materials carry the shared-resource disposal tag.
-The cooler has two instanced batches and one lid mesh, totaling 320 triangles,
-with zero shadow casters or new lights. Replacing the original box adds three draws and
-308 triangles to a kitchen-bearing camp. These are geometry costs, not measured
-device frame-time results.
+The four body finishes derive from an already sampled camp angle, without
+consuming caller or layout randomness. The complete model still fits the
+existing `.42` collision radius. Three lazily built material geometries and
+six materials are shared across instances, with the shared-resource disposal
+flag. Temporary construction geometries are disposed after merging.
+
+## Measured geometry cost
+
+The prior cup-holder model in commit `a64d63a` used three draws and 320
+triangles. The refinement uses three draws and 1,460 triangles, adding 1,140
+triangles and one pooled geometry while retaining zero shadow casters, lights
+and textures. The isolated sandbox including ground/helpers goes from five
+draws and 368 triangles to five draws and 1,508 triangles. This is a topology
+comparison, not a device frame-time measurement.
 
 ## Checks
 
-- `node bin/test-camp-cooler`: 40 builds using native Three.js, all four
-  deterministic finishes, ground contact, every part's bounds within the
-  existing collision radius, pooled resources and instance upload flags.
-  Downward raycasts prove both cup floors sit 2.5 cm below the surrounding lid, and the actual kitchen builder
-  installs the cooler at its reserved position.
-- `node bin/test-campsite-layout`: 1,800 camp layouts plus neighborhood,
-  door, chair-approach and woodland integration checks passed.
-- `npm run check` and `npm run build` passed. The existing build chunk-size
-  advisory and Node module-type warnings remain.
-- In-app browser, existing Vite server on port 8747: standalone cooler loaded
-  at Morning, Noon, Dusk and Midnight, and Low loaded without console errors.
-  The muted Hit it button exercised the existing `camp_cooler` sound mapping;
-  this establishes dispatch, not audible acceptance.
-- Standalone scene counters: five draws and 368 triangles, including sandbox
-  ground/helper geometry. The complete family-base campsite rendered with its
-  cooler beside the kitchen, at 75 draws and 5,210 triangles.
-- Real Low-tier game: clicked the ready Just Cruisin' mode plank, observed the
-  running world/HUD and inspected the console after boot, with no errors.
-  This is a desktop integration smoke test, not an iOS audio or phone FPS test.
+- `node bin/test-camp-cooler`: 40 native Three.js builds cover all four
+  deterministic finishes, grounded feet, every vertex within the collision
+  radius, shared resources and a 1,500-triangle ceiling. Horizontal raycasts
+  verify the tapered body. Downward raycasts verify both cup floors at `.415`,
+  below the `.445` lid top, and sixteen rim samples reject a closing-seam spike.
+  The production kitchen builder installs the cooler at its reserved location.
+- `npm run check` and `npm run build` passed after the final geometry change.
+  The suite includes 1,800 camp layouts, neighborhood/door/chair approaches,
+  registry ownership and woodland integration. Existing Node module-type
+  warnings and the build chunk-size advisory remain.
+- In-app sandbox: inspected the refined model at Noon and Midnight using
+  `perf=low&mute=1`, then inspected it beside the complete family-base kitchen.
+  The entity sandbox retains Standard materials even with Low requested;
+  the real game smoke test covers the Low-tier Lambert path.
+- Chrome: clicked the ready Just Cruisin' plank at `/?perf=low&mute=1`, observed
+  the running landscape world and HUD, and found no console errors. Test tabs
+  were closed afterward; the existing development server was reused.
+- These checks establish desktop rendering and integration, not phone FPS or
+  audible collision-sound acceptance. The existing sound mapping is unchanged.
 
 ## Captures
 
-Open `/sandbox.html?entity=camp_cooler&mute=1` for the isolated model, or
+Open `/sandbox.html?entity=camp_cooler&mute=1` for the isolated model or
 `/sandbox.html?entity=campsite_family-base&mute=1` for its kitchen context.
+The browser viewport changed during the session, so these captures illustrate
+appearance rather than providing a pixel-aligned comparison.
 
-![Cooler at noon](noon.png)
+![Before refinement](before-polish.png)
 
-![Cooler at midnight](midnight.png)
+![Refined cooler at noon](noon.png)
 
-![Cooler beside the camp kitchen](campsite.png)
+![Refined cooler at midnight](midnight.png)
+
+![Refined cooler beside its campsite kitchen](campsite.png)

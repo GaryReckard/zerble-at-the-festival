@@ -847,74 +847,116 @@ const _CAMP_BOX = new THREE.BoxGeometry(1, 1, 1);
 _CAMP_BOX.userData.shared = true;
 const COOLER_COLORS = [0x387f88, 0xb84d3c, 0x5478a2, 0x6c8553];
 
-// Cut actual cup wells into the lid so they read as recesses from every angle.
-let _coolerLidGeometry;
-function coolerLidGeometry() {
-  if (_coolerLidGeometry) return _coolerLidGeometry;
-  const outline = new THREE.Shape();
-  outline.moveTo(-.325,-.24);
-  outline.lineTo(.325,-.24);
-  outline.lineTo(.325,.24);
-  outline.lineTo(-.325,.24);
-  outline.closePath();
-  const floors = [];
-  for (const x of [-.15,.15]) {
-    const hole = new THREE.Path();
-    hole.absarc(x,0,.07,0,Math.PI*2,true);
-    outline.holes.push(hole);
-    const floor = new THREE.CircleGeometry(.07,16);
-    floor.rotateX(-Math.PI/2).translate(x,.505,0);
-    floors.push(floor.toNonIndexed());
-    floor.dispose();
+// Build once on first use: repeated camps share three complete material meshes.
+let _coolerGeometry;
+function coolerGeometry() {
+  if (_coolerGeometry) return _coolerGeometry;
+  const roundedOutline = (w,d,r) => {
+    const shape = new THREE.Shape(), x=w/2, z=d/2;
+    shape.moveTo(-x+r,-z);shape.lineTo(x-r,-z);
+    shape.quadraticCurveTo(x,-z,x,-z+r);shape.lineTo(x,z-r);
+    shape.quadraticCurveTo(x,z,x-r,z);shape.lineTo(-x+r,z);
+    shape.quadraticCurveTo(-x,z,-x,z-r);shape.lineTo(-x,-z+r);
+    shape.quadraticCurveTo(-x,-z,-x+r,-z);
+    return shape;
+  };
+  const extrude = (outline,depth,y,bevel,curveSegments=4) => {
+    const geometry = new THREE.ExtrudeGeometry(outline,{
+      depth,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel,
+      bevelSegments:1,curveSegments,steps:1,
+    });
+    return geometry.rotateX(-Math.PI/2).translate(0,y,0);
+  };
+  const box = (x,y,z,w,h,d) => new THREE.BoxGeometry(w,h,d).translate(x,y,z);
+  const cylinder = (x,y,z,r,length,axis) => {
+    const geometry = new THREE.CylinderGeometry(r,r,length,8);
+    if(axis==='x')geometry.rotateZ(Math.PI/2);
+    if(axis==='z')geometry.rotateX(Math.PI/2);
+    return geometry.translate(x,y,z);
+  };
+  // A slight taper and bevel catch light on the molded shell, even on Low.
+  const shell = extrude(roundedOutline(.57,.39,.035),.295,.045,.015);
+  const positions = shell.getAttribute('position');
+  for(let i=0;i<positions.count;i++) {
+    const taper=.87+.13*(positions.getY(i)-.03)/.325;
+    positions.setXYZ(i,positions.getX(i)*taper,positions.getY(i),positions.getZ(i)*taper);
   }
-  const lid = new THREE.ExtrudeGeometry(outline,{depth:.09,bevelEnabled:false,curveSegments:8,steps:1});
-  lid.rotateX(-Math.PI/2).translate(0,.44,0);
-  const geometry = new THREE.BufferGeometry();
-  for (const name of ['position','normal','uv']) {
-    const attributes = [lid,...floors].map(part=>part.getAttribute(name));
-    const values = new Float32Array(attributes.reduce((sum,attribute)=>sum+attribute.array.length,0));
-    let offset = 0;
-    for (const attribute of attributes) {
-      values.set(attribute.array,offset);
-      offset += attribute.array.length;
+  shell.computeVertexNormals();
+  const body = [shell];
+  const hardware = [], cream = [];
+  // Four feet ground the cooler; the narrow seam separates the insulated lid.
+  for(const x of [-.22,.22])for(const z of [-.14,.14])hardware.push(box(x,.018,z,.075,.036,.07));
+  hardware.push(extrude(roundedOutline(.596,.416,.04),.009,.356,.003));
+  const lidOutline=roundedOutline(.62,.45,.04);
+  for(const x of [-.15,.15]) {
+    // Close with the exact starting vertex; a near-duplicate 2π arc endpoint
+    // can create a thin bevel spike at the seam of an extruded circular hole.
+    const hole=new THREE.Path();hole.moveTo(x+.063,0);
+    for(let i=1;i<16;i++) {
+      const angle=-i*Math.PI*2/16;
+      hole.lineTo(x+.063*Math.cos(angle),.063*Math.sin(angle));
     }
-    geometry.setAttribute(name,new THREE.Float32BufferAttribute(values,attributes[0].itemSize));
+    hole.closePath();
+    lidOutline.holes.push(hole);
+    const floor=new THREE.CircleGeometry(.063,16);
+    cream.push(floor.rotateX(-Math.PI/2).translate(x,.415,0));
   }
-  lid.dispose();
-  floors.forEach(floor=>floor.dispose());
-  geometry.userData.shared = true;
-  return (_coolerLidGeometry = geometry);
+  cream.push(extrude(lidOutline,.054,.379,.012,8));
+  for(const x of [-.19,.19]) {
+    // Flexible latch straps sit against the front, with a cream catch above.
+    hardware.push(box(x,.335,.219,.038,.11,.022));
+    hardware.push(cylinder(x,.286,.222,.024,.018,'z'));
+    cream.push(box(x,.397,.234,.052,.026,.016));
+    hardware.push(cylinder(x,.372,-.223,.019,.075,'x'));
+  }
+  // Side handles have a real opening and continuous arms down to the grip.
+  for(const sign of [-1,1]) {
+    for(const z of [-.078,.078]) {
+      hardware.push(cylinder(sign*.302,.303,z,.022,.028,'x'));
+      cream.push(box(sign*.326,.274,z,.023,.078,.023));
+    }
+    cream.push(cylinder(sign*.326,.238,0,.017,.18,'z'));
+  }
+  // A tiny mountain badge and a ribbed drain cap add recognizable scale cues.
+  cream.push(box(0,.245,.201,.112,.053,.012));
+  for(const [x,angle] of [[-.018,-.65],[.003,.65]]) {
+    const peak=new THREE.BoxGeometry(.012,.035,.006);
+    hardware.push(peak.rotateZ(angle).translate(x,.246,.210));
+  }
+  hardware.push(cylinder(.205,.095,.190,.025,.022,'z'));
+  cream.push(box(.205,.095,.205,.032,.009,.007));
+  for(const x of [-.245,.245])body.push(box(x,.185,.190,.022,.19,.02));
+
+  const merge = parts => {
+    const geometry=new THREE.BufferGeometry();
+    const expanded=parts.map(part=>part.index?part.toNonIndexed():part);
+    for(const name of ['position','normal','uv']) {
+      const attributes=expanded.map(part=>part.getAttribute(name));
+      const values=new Float32Array(attributes.reduce((sum,attribute)=>sum+attribute.array.length,0));
+      let offset=0;
+      for(const attribute of attributes){values.set(attribute.array,offset);offset+=attribute.array.length;}
+      geometry.setAttribute(name,new THREE.Float32BufferAttribute(values,attributes[0].itemSize));
+    }
+    for(const part of new Set([...parts,...expanded]))part.dispose();
+    geometry.userData.shared=true;
+    return geometry;
+  };
+  return (_coolerGeometry={body:merge(body),hardware:merge(hardware),lid:merge(cream)});
 }
 
 // The complete silhouette fits the existing kitchen cooler's .42 radius.
-// Three material batches keep the handles and hardware cheap in busy camps.
 export function buildCampCooler(variant = 0) {
   const group = new THREE.Group();
   group.name = 'camp_cooler';
   const color = COOLER_COLORS[(variant >>> 0) % COOLER_COLORS.length];
-  const batches = [
-    [matFor(color), [[0,.235,0,.60,.43,.42]]],
-    [matFor(0x343d3d), [
-      [0,.437,0,.62,.018,.44],
-      [-.19,.415,.226,.045,.13,.025], [.19,.415,.226,.045,.13,.025],
-      [-.32,.33,-.075,.06,.04,.035], [-.32,.33,.075,.06,.04,.035],
-      [-.345,.29,0,.025,.04,.185],
-      [.32,.33,-.075,.06,.04,.035], [.32,.33,.075,.06,.04,.035],
-      [.345,.29,0,.025,.04,.185],
-      [0,.01,0,.55,.02,.36],
-    ]],
-  ];
-  const matrix = new THREE.Matrix4();
-  for (const [material, parts] of batches) {
-    const mesh = new THREE.InstancedMesh(_CAMP_BOX, material, parts.length);
-    parts.forEach(([x,y,z,w,h,d], i) => {
-      matrix.makeScale(w,h,d).setPosition(x,y,z);
-      mesh.setMatrixAt(i, matrix);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
+  const geometry=coolerGeometry();
+  for(const [name,material] of [
+    ['body',matFor(color)],['hardware',matFor(0x343d3d)],['lid',matFor(0xeee6cf)],
+  ]) {
+    const mesh=new THREE.Mesh(geometry[name],material);
+    mesh.name=`cooler_${name}`;
     group.add(mesh);
   }
-  group.add(new THREE.Mesh(coolerLidGeometry(), matFor(0xeee6cf)));
   return { group, color, footprint: .42 };
 }
 
