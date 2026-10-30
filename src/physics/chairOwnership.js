@@ -179,8 +179,12 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
         rotation: { x: pose.rotation.x, y: pose.rotation.y, z: pose.rotation.z, w: pose.rotation.w } };
       const original = { position: { x: entry.position.x, y: entry.position.y ?? 0, z: entry.position.z },
         footprint: entry.footprint ?? 0, colliderRadius: entry.collider?.radius ?? null, chunkKey: entry.chunkKey };
+      // A sphere around the body origin contains these scaled model/collider
+      // bounds under every rotation, including between pose publications.
+      const supportRadius = Math.hypot(...['x','y','z'].map(axis =>
+        Math.max(Math.abs(bounds.min[axis]),Math.abs(bounds.max[axis])) * pose.scale[axis]));
       record = { key, entryId, descriptor, generation: ++generation, bodyId: `${namespace}:${key}`,
-        bounds, scale: pose.scale, initialPose, original, owner: `physical:${key}`, colliderCount: recipe.length, partCount: parts.length,
+        bounds, supportRadius, scale: pose.scale, initialPose, original, owner: `physical:${key}`, colliderCount: recipe.length, partCount: parts.length,
         bodyOwned: false, renderOwned: false, transferred: false, hideAttempted: false, state: 'active',
         seats: descriptor.seatSlots.map(slot => ({ slot, had: own(slot, 'physicalUnavailable'), previous: slot.physicalUnavailable })) };
       record.lastPublication = originalPublication(record);
@@ -311,7 +315,7 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
       const record = resolve(token);
       return record ? { token: { key: record.key, generation: record.generation }, entryId: record.entryId,
         bodyId: record.bodyId, engineGeneration: record.engineGeneration,
-        pose: copyPose(record.lastPublication.pose), footprint: record.lastPublication.footprint, originOwner: record.descriptor.originOwner,
+        pose: copyPose(record.lastPublication.pose), footprint: record.lastPublication.footprint, supportRadius: record.supportRadius, originOwner: record.descriptor.originOwner,
         originRegistryId: record.descriptor.originRegistryId,
         state: record.state, resources: { body: record.bodyOwned, render: record.renderOwned, budget: !!record.budgetToken },
         cleanupErrors: record.cleanupErrors?.map(error => ({ ...error })) ?? [] } : null;

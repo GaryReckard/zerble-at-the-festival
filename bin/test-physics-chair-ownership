@@ -59,6 +59,8 @@ for (const style of ['sling', 'director', 'low', 'loveseat']) {
     const originalPosition = { ...f.entry.position }, originalFootprint = f.entry.footprint;
     const adopted = f.owner.adopt(f.id); assert.equal(adopted.ok, true, JSON.stringify(adopted));
     const token = adopted.token;
+    const supportRadius=f.owner.read(token).supportRadius;
+    assert(Number.isFinite(supportRadius)&&supportRadius>0);
     assert.equal(f.owner.read(token).bodyId, f.state.added.id);
     assert.equal(f.owner.read(token).engineGeneration, f.adapter.readBody(f.state.added.id).generation);
     assert.equal(f.visible(), false); assert.equal(f.entry.chunkKey, `physical:${f.descriptor.logicalKey}`);
@@ -86,6 +88,19 @@ for (const style of ['sling', 'director', 'low', 'loveseat']) {
         const p = new THREE.Vector3(x, y, z).applyMatrix4(matrix);
         assert(Math.hypot(p.x - f.entry.position.x, p.z - f.entry.position.z) <= f.entry.footprint + 1e-5, 'published footprint contains every transformed visual corner');
       }
+    }
+    for(let sample=0;sample<32;sample++) {
+      const rotation=new THREE.Quaternion().setFromEuler(new THREE.Euler(sample*.29,sample*.47,sample*.73));
+      f.adapter.setPose(f.state.added.id,{position:{x:45,y:3,z:-32},rotation:{x:rotation.x,y:rotation.y,z:rotation.z,w:rotation.w}});
+      // The support bound must already cover this orientation before publish.
+      assert.equal(f.owner.read(token).supportRadius,supportRadius);
+      for(const collider of f.state.added.colliders)for(const x of [-1,1])for(const y of [-1,1])for(const z of [-1,1]) {
+        const corner=new THREE.Vector3(collider.position.x+x*collider.halfExtents.x,
+          collider.position.y+y*collider.halfExtents.y,collider.position.z+z*collider.halfExtents.z).applyQuaternion(rotation);
+        assert(Math.hypot(corner.x,corner.z)<=supportRadius+1e-6,'support contains rotated collider corners before publication');
+      }
+      assert(f.owner.publish(token).ok);
+      assert(f.entry.footprint<=supportRadius+1e-5,'support sphere contains the published visual footprint');
     }
     const canonical = [];
     f.registry.generationFootprintsNear(originalPosition.x, originalPosition.z, 2, entry => { if (entry.id === f.id) canonical.push(entry); });

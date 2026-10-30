@@ -108,7 +108,7 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
       const state=record.token?owner.read(record.token):null;
       const p=state?.pose.position??record.origin;
       const body=record.token?adapter.readBody(record.bodyId):null;
-      const wanted=supportWindow(p,body?.linearVelocity,state?.footprint??2,record.wanted);
+      const wanted=supportWindow(p,body?.linearVelocity,state?.supportRadius??2,record.wanted);
       const ground=terrain.request(record.supportKey,wanted),nearby=solids.request(record.supportKey,wanted);
       if(!ground.ok||!nearby.ok){rejection(!ground.ok?ground.reason:nearby.reason);continue;}
       record.wanted=wanted;
@@ -136,14 +136,14 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
     // Check again before every substep: a contact impulse can change velocity
     // during the preceding step of the same presentation frame.
     function canStep(step) {
-    for(const record of records.values())if(record.token) {
-      if(record.handoffPending){blocked='static-handoff';suspended=true;return false;}
-      const state=owner.read(record.token),body=adapter.readBody(record.bodyId);
-      if(!state||!body)continue;
-      const predicted={x:body.pose.position.x+body.linearVelocity.x*step,z:body.pose.position.z+body.linearVelocity.z*step};
-      if(!containsSupport(record.bounds,predicted,state.footprint+.5)){blocked='support-frontier';suspended=true;return false;}
-    }
-    return true;
+      for(const record of records.values())if(record.token) {
+        if(record.handoffPending){blocked='static-handoff';suspended=true;return false;}
+        const state=owner.read(record.token),body=adapter.readBody(record.bodyId);
+        if(!state||!body)continue;
+        const predicted={x:body.pose.position.x+body.linearVelocity.x*step,z:body.pose.position.z+body.linearVelocity.z*step};
+        if(!containsSupport(record.bounds,predicted,state.supportRadius+.5)){blocked='support-frontier';suspended=true;return false;}
+      }
+      return true;
     }
     blocked=null;
     const reason=resetReason??(corrected?'legacy-correction':suspended?'dropped-time':null);

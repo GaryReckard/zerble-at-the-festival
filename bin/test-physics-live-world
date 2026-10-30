@@ -43,7 +43,7 @@ setTerrainEnabled(false);
   assert.equal(findChairApproach({...options,entries:Array(100).fill(target),isWet:()=>{samples++;return true;}}),null);
   assert.equal(samples,64*2*16,'search stays bounded even with many candidates');
 }
-async function encounter(hz,ghost=false) {
+async function encounter(hz,ghost=false,starved=false) {
   const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
   const chair=buildCampChair(()=>.3,{style:'sling'});root.add(chair.group);
   const batch=batchPropGroups(root,[chair.group]),parentId=registry.add({kind:'campsite',position:new THREE.Vector3(),footprint:8,chunkKey:'origin'});
@@ -52,6 +52,7 @@ async function encounter(hz,ghost=false) {
     renderBinding:batch.bindings[0],renderBatch:batch,seatSlots:[{occupied:false}]};
   const entry={kind:'camp_chair',position:new THREE.Vector3(0,.02,0),footprint:.8,collider:{radius:.8,damage:1},chunkKey:'origin',physicalProp:descriptor};
   const id=registry.add(entry),cart={position:new THREE.Vector3(0,0,9),root:new THREE.Group(),heading:0,speed:6};
+  if(starved)cart.speed=60;
   const live=await createLivePhysics({scene,registry,cart});
   try {
     for(let i=0;i<30&&!live.owns(entry);i++)live.prepare(performance.now()+100);
@@ -62,15 +63,25 @@ async function encounter(hz,ghost=false) {
     const before=live.stats().engine.bodies;live.prepare(-1);assert.equal(live.stats().engine.bodies,before);
     let hitCount=0;
     for(let frame=0;frame<hz*2;frame++) {
-      cart.position.z=9-Math.min(12,(frame+1)*6/hz);
-      live.prepare(performance.now()+100);
+      cart.position.z=9-Math.min(cart.speed*2,(frame+1)*cart.speed/hz);
+      live.prepare(starved?-1:performance.now()+100);
       const hit=live.advance(1/hz,{ghost});
       if(hit){hitCount++;assert.equal(hit.entry,entry);assert.equal(hit.damage,1);}
     }
     const result=live.stats();
-    assert.equal(result.clock.steps,120);
+    if(starved) {
+      assert.equal(result.blocked,'support-frontier','sustained preparation starvation reaches the explicit guard');
+      assert(result.clock.steps<120);assert(result.clock.dropped>0);
+      assert(Math.abs(entry.position.z)<8,'the tested chair remains inside its original support window');
+      const held={...entry.position},steps=result.clock.steps;
+      for(let frame=0;frame<30;frame++)live.advance(1/hz);
+      assert.deepEqual({...entry.position},held,'starvation does not teleport or advance the held chair');
+      cart.speed=0;
+      for(let frame=0;frame<60;frame++){live.prepare(performance.now()+100);live.advance(1/hz);}
+      assert.equal(live.stats().blocked,null,'renewed preparation resumes the simulation');
+      assert(live.stats().clock.steps>steps);assert.equal(live.stats().ownership.chairs,1);
+    } else {assert.equal(result.clock.steps,120);assert.equal(result.blocked,null);}
     assert.equal(result.overflow,0);
-    assert.equal(result.blocked,null);
     if(ghost){assert.equal(hitCount,0);assert(Math.abs(entry.position.z)<.15,'ghost does not push the chair');}
     else {assert(hitCount>0,'real cart hull produces an eligible impact');assert(Math.abs(entry.position.z)>1,'chair moves through real solver contacts');}
     assert.equal(registry.closestGenerationBuilding({x:0,z:0},.1,new Set(['campsite'])).id,id);
@@ -86,6 +97,7 @@ async function encounter(hz,ghost=false) {
 }
 for(const hz of [30,60,120])await encounter(hz);
 await encounter(60,true);
+await encounter(60,false,true);
 const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
 const star=main.indexOf('StarPower.update(dt,'),legacy=main.indexOf('hit = resolveCollision(zerble, _collScratch)'),physical=main.indexOf('physicalWorld?.advance(dt,');
 assert(star<legacy&&legacy<physical&&physical<main.indexOf("peopleFrameTrace?.mark('contacts-end'"),'late physics runs after same-frame ghost pickup and legacy correction');

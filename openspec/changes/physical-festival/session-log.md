@@ -182,3 +182,12 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** A frame-level velocity check cannot observe an impulse from an earlier solver step within the same frame. Moved the support guard to the fixed-step boundary and explicitly discard blocked time; tests exercise a real-engine velocity change after the first step. Support requests now preserve a stable margin and include bounded forward prediction. The full check/build and a fresh real-game encounter passed. This improves the prototype but does not accept arbitrary within-step impulses, rotational bounds or the global-stop overload policy. Gary asked to play, so a separate LAN preview is intentionally running; do not rebuild its dist files or stop it during his playtest.
 
 **Refs:** [support checkpoint](../../../verification/physical-festival/2026-10-30-frontier/README.md); `src/physics/supportWindow.js`; `bin/test-physics-runtime`.
+
+
+### 2026-10-30 -- Rotation-safe support bound
+
+**Event:** discovery
+
+**What:** The previous support guard used the last published horizontal footprint, which can understate a chair's reach during later rotation. Admission now records a conservative sphere from the union of scaled visual and collision bounds; support planning and guards consume it while registry avoidance retains its current footprint. Four-style, 32-orientation tests, full checks, an isolated production build and real ready-button encounter passed. A new real-engine starvation test holds one launched chair without pose drift and resumes after preparation returns. Multi-object pressure and the global-stop fallback remain unaccepted. Gary's playtest build/server were preserved.
+
+**Refs:** [rotation and starvation evidence](../../../verification/physical-festival/2026-10-30-rotation/README.md).
