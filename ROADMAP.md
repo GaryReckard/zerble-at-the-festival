@@ -217,7 +217,7 @@ harness history, tier contract and acceptance criteria.
 - **Physical festival:** implement the [documented plan](openspec/changes/physical-festival/README.md)
   for chair/occupant physics and recovery, the existing cooler, transferable drinks,
   route-aware damageable signs and bounded aftermath. The standalone engine fixture
-  and opt-in live chairs, articulated coolers and occupied-seat falls/recovery are implemented;
+  and default-enabled live chairs, articulated coolers and occupied-seat falls/recovery are implemented;
   ordinary pedestrians and swept prop-to-person activation are also implemented with bounded reserves.
   Real secondary fall/recovery and bounded incident provenance are verified; untouched offscreen
   residents can release slots without resetting displaced aftermath. Controlled seated exits

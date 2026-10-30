@@ -595,12 +595,13 @@ if (__launch && Number.isFinite(__launch.x) && Number.isFinite(__launch.z)) {
   if (Number.isFinite(__launch.heading)) zerble.heading = __launch.heading;
 }
 buildWorld(scene, crowd, zerble.position);
-// Opt-in live physics proof. Loading is independent of the synchronous audio
+// Live physics defaults on. Loading is independent of the synchronous audio
 // unlock gesture, and failure leaves every prop on its legacy path.
 let physicalWorld=null, physicalLoadError=null, physicalClosing=false;
-const physicalRequested=new URLSearchParams(location.search).get('physics')==='1';
+const physicalFlag=new URLSearchParams(location.search).get('physics');
+const physicalRequested=physicalFlag!=='0';
 let physicalReadout=null,physicalDetails=null,physicalDiagnostics=null,physicalReportAt=0,physicalActionMessage='',physicalEncounterId=null,physicalPersonEncounter=null,physicalCoast=null;
-if(physicalRequested) {
+if(physicalFlag==='1') {
   const panel=document.createElement('details');panel.id='physical-world-panel';
   const touchLayout=matchMedia('(pointer: coarse), (max-width: 800px)').matches;
   panel.open=!touchLayout;
@@ -648,9 +649,11 @@ if(physicalRequested) {
   physicalDetails=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Physics diagnostics';
   physicalDiagnostics=document.createElement('pre');Object.assign(physicalDiagnostics.style,{maxHeight:'200px',overflow:'auto'});physicalDetails.append(summary,physicalDiagnostics);
   panel.append(stage,coolerStage,occupiedStage,pedestrianStage,toss,dismount,coast,inspect,chase,noon,midnight,physicalDetails);document.body.append(panel);
+}
+if(physicalRequested) {
   import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera,people:crowd,isWet:isPointInLake})).then(world=>{
     if(physicalClosing)world.dispose();else physicalWorld=world;
-  }).catch(error=>{physicalLoadError=error.message;physicalReadout.textContent=`Physics unavailable: ${error.message}`;console.error('Physical chair initialization failed',error);});
+  }).catch(error=>{physicalLoadError=error.message;if(physicalReadout)physicalReadout.textContent=`Physics unavailable: ${error.message}`;console.error('Physical chair initialization failed',error);});
 }
 window.addEventListener('pagehide',event=>{if(!event.persisted){physicalClosing=true;physicalWorld?.dispose();}});
 window.addEventListener('pageshow',event=>{if(event.persisted)physicalWorld?.reset('dropped-time');});

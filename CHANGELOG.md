@@ -5,6 +5,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-10-30
 
 ### Added
+- **Physical props and NPC reactions now run by default.** Normal play enables the current physics integration without showing test controls; `?physics=1` exposes those controls and `?physics=0` disables physics. Initialization failure retains the legacy collision path.
 - **Physics tools no longer cover phone driving controls.** The opt-in panel starts collapsed near the top on touch devices and narrow screens, with a Physics tools disclosure for access.
 - **Live coolers now have impact-released physical lids.** Admission reserves the hollow body, lid and hinge together, preserves total mass, and publishes the lid through adopted instances. Source unload, regeneration and disposal cover the whole assembly. Added close-up and lighting controls to the opt-in physics panel; loose contents and hard-impact tuning remain unfinished. [Evidence](verification/physical-festival/2026-10-30-live-lids/README.md).
 - **Adopted coolers retain independently moving lids and cupholders.** Named part identities survive batching and source disposal; bounded active instances support individual transforms and world-space socket sampling without new meshes. The comparison fixture now exercises that path. Live lid/contents admission remains pending. [Verification](verification/physical-festival/2026-10-30-adopted-lids/README.md).
