@@ -845,7 +845,80 @@ function pickCount(spec, rng) {
 // batches its folding table, shelves and legs into one instanced draw.
 const _CAMP_BOX = new THREE.BoxGeometry(1, 1, 1);
 _CAMP_BOX.userData.shared = true;
-function addCampKitchen(parent) {
+const COOLER_COLORS = [0x387f88, 0xb84d3c, 0x5478a2, 0x6c8553];
+
+// Cut actual cup wells into the lid so they read as recesses from every angle.
+let _coolerLidGeometry;
+function coolerLidGeometry() {
+  if (_coolerLidGeometry) return _coolerLidGeometry;
+  const outline = new THREE.Shape();
+  outline.moveTo(-.325,-.24);
+  outline.lineTo(.325,-.24);
+  outline.lineTo(.325,.24);
+  outline.lineTo(-.325,.24);
+  outline.closePath();
+  const floors = [];
+  for (const x of [-.15,.15]) {
+    const hole = new THREE.Path();
+    hole.absarc(x,0,.07,0,Math.PI*2,true);
+    outline.holes.push(hole);
+    const floor = new THREE.CircleGeometry(.07,16);
+    floor.rotateX(-Math.PI/2).translate(x,.505,0);
+    floors.push(floor.toNonIndexed());
+    floor.dispose();
+  }
+  const lid = new THREE.ExtrudeGeometry(outline,{depth:.09,bevelEnabled:false,curveSegments:8,steps:1});
+  lid.rotateX(-Math.PI/2).translate(0,.44,0);
+  const geometry = new THREE.BufferGeometry();
+  for (const name of ['position','normal','uv']) {
+    const attributes = [lid,...floors].map(part=>part.getAttribute(name));
+    const values = new Float32Array(attributes.reduce((sum,attribute)=>sum+attribute.array.length,0));
+    let offset = 0;
+    for (const attribute of attributes) {
+      values.set(attribute.array,offset);
+      offset += attribute.array.length;
+    }
+    geometry.setAttribute(name,new THREE.Float32BufferAttribute(values,attributes[0].itemSize));
+  }
+  lid.dispose();
+  floors.forEach(floor=>floor.dispose());
+  geometry.userData.shared = true;
+  return (_coolerLidGeometry = geometry);
+}
+
+// The complete silhouette fits the existing kitchen cooler's .42 radius.
+// Three material batches keep the handles and hardware cheap in busy camps.
+export function buildCampCooler(variant = 0) {
+  const group = new THREE.Group();
+  group.name = 'camp_cooler';
+  const color = COOLER_COLORS[(variant >>> 0) % COOLER_COLORS.length];
+  const batches = [
+    [matFor(color), [[0,.235,0,.60,.43,.42]]],
+    [matFor(0x343d3d), [
+      [0,.437,0,.62,.018,.44],
+      [-.19,.415,.226,.045,.13,.025], [.19,.415,.226,.045,.13,.025],
+      [-.32,.33,-.075,.06,.04,.035], [-.32,.33,.075,.06,.04,.035],
+      [-.345,.29,0,.025,.04,.185],
+      [.32,.33,-.075,.06,.04,.035], [.32,.33,.075,.06,.04,.035],
+      [.345,.29,0,.025,.04,.185],
+      [0,.01,0,.55,.02,.36],
+    ]],
+  ];
+  const matrix = new THREE.Matrix4();
+  for (const [material, parts] of batches) {
+    const mesh = new THREE.InstancedMesh(_CAMP_BOX, material, parts.length);
+    parts.forEach(([x,y,z,w,h,d], i) => {
+      matrix.makeScale(w,h,d).setPosition(x,y,z);
+      mesh.setMatrixAt(i, matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    group.add(mesh);
+  }
+  group.add(new THREE.Mesh(coolerLidGeometry(), matFor(0xeee6cf)));
+  return { group, color, footprint: .42 };
+}
+
+function addCampKitchen(parent, coolerVariant = 0) {
   const parts = [[0,.77,-.85,2.05,.09,.65],[-.88,.38,-.85,.07,.76,.52],
     [.88,.38,-.85,.07,.76,.52],[0,.2,-.85,1.85,.06,.5]];
   const table = new THREE.InstancedMesh(_CAMP_BOX, matFor(0xbcb5a2), parts.length);
@@ -853,12 +926,14 @@ function addCampKitchen(parent) {
   parts.forEach(([x,y,z,w,h,d],i)=>{m.makeScale(w,h,d);m.setPosition(x,y,z);table.setMatrixAt(i,m);});
   table.instanceMatrix.needsUpdate = true;
   parent.add(table);
-  // Stove, water jug and cooler remain recognizable at the enlarged camp scale.
-  const gear = new THREE.InstancedMesh(_CAMP_BOX, matFor(0x386b72), 3);
-  [[-.5,.9,-.85,.65,.17,.4],[.65,1.02,-.85,.3,.45,.32],[1.9,.24,-.7,.65,.48,.48]]
+  const gear = new THREE.InstancedMesh(_CAMP_BOX, matFor(0x386b72), 2);
+  [[-.5,.9,-.85,.65,.17,.4],[.65,1.02,-.85,.3,.45,.32]]
     .forEach(([x,y,z,w,h,d],i)=>{m.makeScale(w,h,d);m.setPosition(x,y,z);gear.setMatrixAt(i,m);});
   gear.instanceMatrix.needsUpdate = true;
   parent.add(gear);
+  const cooler = buildCampCooler(coolerVariant);
+  cooler.group.position.set(1.9,0,-.7);
+  parent.add(cooler.group);
 }
 
 const _CAMP_BULB = new THREE.IcosahedronGeometry(.055, 0);
@@ -1171,7 +1246,8 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
     const livingClearance=size==='small'?.45:0;
     pose(ez.group,cfg.radius*.85+.35+livingClearance,a);
     const hasKitchen=recipe.kitchen&&i===0;
-    if(hasKitchen)addCampKitchen(ez.group);
+    // Derive the finish without consuming either existing random stream.
+    if(hasKitchen)addCampKitchen(ez.group, (tentArcStart * 0x10000000) >>> 0);
     addCanopyTwinkles(ez.group,animatables,localRandom());
     addCampLanterns(ez.group,animatables,hasKitchen);
     const yaw=ez.group.rotation.y, c=Math.cos(yaw), sn=Math.sin(yaw);

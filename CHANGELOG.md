@@ -5,6 +5,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-10-29
 
 ### Added
+- **Campsite kitchens have recognizable coolers.** Four seeded body colors, insulated cream lids with two recessed cup holders, front latches and side handles replace the plain gear box, retaining its existing placement and collision footprint. A standalone Camp cooler sandbox view includes the collision-sound trigger. [Verification](verification/coolers/README.md).
 - **Find your way around the festival.** A circular bottom-right minimap remembers explored terrain and discovered stages, camps and juice stands in the same festival. Click it or press M for a translucent, centered, zoomable map while driving continues; select a known destination to follow its distance-scaled boundary pin. Nearby Lurleen, the Nutwagon, juice jugs and collectible stars use live positions/availability. Settings can hide the minimap or reset exploration, and music moves to J while its touch button keeps working. Geographic generation runs in a bounded worker, with the same navigation information across quality tiers. Touch buttons now sit above the map. [Verification and device limits](verification/festival-map/README.md).
 - **Start the local game with `./start` or `npm start`.** The launcher installs missing dependencies and runs Vite at `http://127.0.0.1:8747`, with a clear `Ctrl+C` stop instruction, so playing locally no longer requires remembering server flags.
 

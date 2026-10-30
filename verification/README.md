@@ -25,6 +25,8 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Camp coolers, October 29](coolers/README.md): pooled geometry, collision bounds, campsite integration, day/night captures and Low-tier game boot.
+
 - [Road snapshot CI portability, October 29](roads/2026-10-29-ci-layout/README.md): reproduced Linux x64 failure, field-by-field floating-point diagnosis, angle-only normalization and CI-equivalent validation.
 
 - [Vite migration, October 29](toolchain/2026-10-29-vite.md): build and capture tests, six browser entry pages, Low/Mid gameplay, Pages configuration and deployment limits.

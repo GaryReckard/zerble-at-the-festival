@@ -287,6 +287,7 @@
             <option value="camp_tent_cabin">Tent: cabin</option>
             <option value="camp_tent_multiroom">Tent: connected rooms</option>
             <option value="camp_chair">Camp chair (folding)</option>
+            <option value="camp_cooler">Camp cooler</option>
             <option value="camp_chair_sling">Camp chair: fabric sling</option>
             <option value="camp_chair_director">Camp chair: director</option>
             <option value="camp_chair_low">Camp chair: low lounge</option>
@@ -586,7 +587,7 @@ import {buildShrub} from './src/models/shrub.js';
     } from './src/models/frisbeePlayer.js';
     import {buildPerformer} from './src/models/performer.js';
     import {
-        buildCampTent, buildCampChair, buildChiminea, buildTikiTorch, buildTorchField,
+        buildCampTent, buildCampChair, buildCampCooler, buildChiminea, buildTikiTorch, buildTorchField,
         buildEzUp, buildTapestry, buildCampsite, buildVendorCamp, updateCampsiteProps,
     } from './src/models/campsite.js';
     import {buildTallPine, buildOak, buildBirch, buildForestTree, describeForestTree, buildForestInstanced, treeTrunkRadiusAtWorldHeight} from './src/models/tree.js';
@@ -1056,6 +1057,7 @@ import {buildShrub} from './src/models/shrub.js';
         band_member_sax: 'brass', band_member_drum: 'brass',
         band_member_trombone: 'brass', brass_band: 'brass', brass_population:'brass',
         camp_tent: 'tent',
+        camp_cooler: 'camp_cooler',
         ...Object.fromEntries(['ridge','dome','octagon','cabin','multiroom'].map(kind=>[`camp_tent_${kind}`,'tent'])),
         chiminea: 'firepit',
         forest_tree_pine: 'forest_tree', forest_tree_oak: 'forest_tree',
@@ -2530,6 +2532,15 @@ import {buildShrub} from './src/models/shrub.js';
                 entityRoot = c.group;
                 cam.target.set(0, 0.5, 0);
                 cam.dist = 2.5;
+                applyCam();
+                break;
+            }
+            case 'camp_cooler': {
+                const cooler = buildCampCooler();
+                scene.add(cooler.group);
+                entityRoot = cooler.group;
+                cam.target.set(0, 0.25, 0);
+                cam.dist = 1.8;
                 applyCam();
                 break;
             }
