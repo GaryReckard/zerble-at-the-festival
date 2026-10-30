@@ -848,7 +848,7 @@ const _CAMP_BOX = new THREE.BoxGeometry(1, 1, 1);
 _CAMP_BOX.userData.shared = true;
 const COOLER_COLORS = [0x387f88, 0xb84d3c, 0x5478a2, 0x6c8553];
 
-// Build once on first use: repeated camps share three complete material meshes.
+// Build once on first use; body trim and hinged lid need independent transforms.
 let _coolerGeometry;
 function coolerGeometry() {
   if (_coolerGeometry) return _coolerGeometry;
@@ -876,18 +876,22 @@ function coolerGeometry() {
     return geometry.translate(x,y,z);
   };
   // A slight taper and bevel catch light on the molded shell, even on Low.
-  const shell = extrude(roundedOutline(.57,.39,.035),.295,.045,.015);
+  const shellOutline=roundedOutline(.57,.39,.035);
+  shellOutline.holes.push(roundedOutline(.47,.29,.025));
+  const shell = extrude(shellOutline,.295,.045,.015);
   const positions = shell.getAttribute('position');
   for(let i=0;i<positions.count;i++) {
     const taper=.87+.13*(positions.getY(i)-.03)/.325;
     positions.setXYZ(i,positions.getX(i)*taper,positions.getY(i),positions.getZ(i)*taper);
   }
   shell.computeVertexNormals();
-  const body = [shell];
-  const hardware = [], cream = [];
+  const body = [shell,box(0,.055,0,.45,.03,.27)];
+  const hardware = [], cream = [], lid = [];
   // Four feet ground the cooler; the narrow seam separates the insulated lid.
   for(const x of [-.22,.22])for(const z of [-.14,.14])hardware.push(box(x,.018,z,.075,.036,.07));
-  hardware.push(extrude(roundedOutline(.596,.416,.04),.009,.356,.003));
+  const seamOutline=roundedOutline(.596,.416,.04);
+  seamOutline.holes.push(roundedOutline(.47,.29,.025));
+  hardware.push(extrude(seamOutline,.009,.356,.003));
   const lidOutline=roundedOutline(.62,.45,.04);
   for(const x of [-.15,.15]) {
     // Close with the exact starting vertex; a near-duplicate 2π arc endpoint
@@ -900,14 +904,15 @@ function coolerGeometry() {
     hole.closePath();
     lidOutline.holes.push(hole);
     const floor=new THREE.CircleGeometry(.063,16);
-    cream.push(floor.rotateX(-Math.PI/2).translate(x,.415,0));
+    lid.push(floor.rotateX(-Math.PI/2).translate(x,.415,0));
+    lid.push(new THREE.CircleGeometry(.063,16).rotateX(Math.PI/2).translate(x,.409,0));
   }
-  cream.push(extrude(lidOutline,.054,.379,.012,8));
+  lid.push(extrude(lidOutline,.054,.379,.012,8));
   for(const x of [-.19,.19]) {
     // Flexible latch straps sit against the front, with a cream catch above.
     hardware.push(box(x,.335,.219,.038,.11,.022));
     hardware.push(cylinder(x,.286,.222,.024,.018,'z'));
-    cream.push(box(x,.397,.234,.052,.026,.016));
+    lid.push(box(x,.397,.234,.052,.026,.016));
     hardware.push(cylinder(x,.372,-.223,.019,.075,'x'));
   }
   // Side handles have a real opening and continuous arms down to the grip.
@@ -942,23 +947,48 @@ function coolerGeometry() {
     geometry.userData.shared=true;
     return geometry;
   };
-  return (_coolerGeometry={body:merge(body),hardware:merge(hardware),lid:merge(cream)});
+  return (_coolerGeometry={body:merge(body),hardware:merge(hardware),trim:merge(cream),lid:merge(lid).translate(0,-.372,.223)});
 }
 
-// The complete silhouette fits the existing kitchen cooler's .42 radius.
+// The closed silhouette fits the existing kitchen cooler's .42 radius.
 export function buildCampCooler(variant = 0) {
   const group = new THREE.Group();
   group.name = 'camp_cooler';
   const color = COOLER_COLORS[(variant >>> 0) % COOLER_COLORS.length];
   const geometry=coolerGeometry();
   for(const [name,material] of [
-    ['body',matFor(color)],['hardware',matFor(0x343d3d)],['lid',matFor(0xeee6cf)],
+    ['body',matFor(color)],['hardware',matFor(0x343d3d)],['trim',matFor(0xeee6cf)],['lid',matFor(0xeee6cf)],
   ]) {
     const mesh=new THREE.Mesh(geometry[name],material);
     mesh.name=`cooler_${name}`;
+    if(name==='lid')mesh.position.set(0,.372,-.223);
     group.add(mesh);
   }
-  return { group, color, footprint: .42 };
+  const lidMesh=group.getObjectByName('cooler_lid');
+  const cupWells=Object.freeze([-.15,.15].map((x,i)=>Object.freeze({
+    id:i?'right':'left',owner:'lid',position:Object.freeze({x,y:.415-.372,z:.223}),
+    axis:Object.freeze({x:0,y:1,z:0}),radius:.063,depth:.03,capacity:1,
+  })));
+  let angle=0;
+  const point=new THREE.Vector3(),direction=new THREE.Vector3();
+  const lid=Object.freeze({mesh:lidMesh,pivot:Object.freeze({x:0,y:.372,z:-.223}),
+    axis:Object.freeze({x:-1,y:0,z:0}),minAngle:0,maxAngle:1.85,
+    get angle(){return angle;},
+    setAngle(value){
+      if(!Number.isFinite(value))throw new TypeError('Cooler lid angle must be finite');
+      if(lidMesh.parent!==group)throw new Error('Batched cooler articulation requires its render binding');
+      angle=Math.max(0,Math.min(1.85,value));lidMesh.rotation.x=-angle;return angle;
+    },
+  });
+  function sampleCupWell(id,out){
+    const socket=cupWells.find(s=>s.id===id);if(!socket||lidMesh.parent!==group)return false;
+    lidMesh.updateWorldMatrix(true,false);
+    point.set(socket.position.x,socket.position.y,socket.position.z).applyMatrix4(lidMesh.matrixWorld);
+    direction.set(0,1,0).transformDirection(lidMesh.matrixWorld);
+    Object.assign(out.position,{x:point.x,y:point.y,z:point.z});
+    Object.assign(out.axis,{x:direction.x,y:direction.y,z:direction.z});return true;
+  }
+  return { group, color, footprint: .42, lid, cupWells, sampleCupWell };
 }
 
 function addCampKitchen(parent, coolerVariant = 0) {

@@ -60,8 +60,8 @@ Each player-visible implementation slice updates CHANGELOG on the actual date an
 
 - [x] 7.1 (Independent cooler descriptor) Return/reference the real cooler group from kitchen construction and bind its collider to that object, not the canopy; preserve current geometry, color and location tests.
 - [ ] 7.2 (Heavy closed-cooler behavior) Add a simple collision recipe, heavy sliding/tipping/settling and correct adopted lifetime; compare chair-to-cooler and cooler-to-chair impacts in the fixture and campsite.
-- [ ] 7.3 (Cup-well metadata) Expose named socket positions, depth, axis, dimensions and capacity derived from the actual model; validate against the existing raycast well tests.
-- [ ] 7.4 (Mechanical lid partition) Separate lid-mounted geometry from body handles/badge/drain while retaining pooling and appearance; add hinge pivot/limits and prove opening does not rotate body details.
+- [x] 7.3 (Cup-well metadata) Expose named socket positions, depth, axis, dimensions and capacity derived from the actual model; validate against the existing raycast well tests. [Evidence](../../../verification/physical-festival/2026-10-30-cooler-lid/README.md).
+- [x] 7.4 (Mechanical lid partition) Separate lid-mounted geometry from body handles/badge/drain while retaining pooling and appearance; add hinge pivot/limits and prove opening does not rotate body details. [Evidence](../../../verification/physical-festival/2026-10-30-cooler-lid/README.md).
 - [ ] 7.5 (Lid and contents experiment) Compare a controlled lid with a physical hinge/latch and a bounded contents pool. Record the selected behavior, capacity and evidence; do not silently require loose cans if the chosen scene has none.
 - [ ] 7.6 (Cooler acceptance) Extend the existing cooler sandbox and tests for body/lid/holder movement, disposal and budget changes, then verify actual campsite integration at Noon/Midnight and Low/Mid.
 

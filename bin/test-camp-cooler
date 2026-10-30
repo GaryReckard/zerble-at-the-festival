@@ -21,7 +21,7 @@ const geometries = new Set(), colors = new Set();
 let triangles = 0;
 for (let variant = 0; variant < 40; variant++) {
   const cooler = build(variant);
-  assert.equal(cooler.group.children.length, 3, 'three draw batches per cooler');
+  assert.equal(cooler.group.children.length, 4, 'four independently transformable draw batches per cooler');
   colors.add(cooler.color);
   triangles = 0;
   cooler.group.updateMatrixWorld(true);
@@ -33,7 +33,7 @@ for (let variant = 0; variant < 40; variant++) {
     assert.equal(mesh.material.userData.shared, true);
     assert.equal(mesh.castShadow, false);
     if(mesh.isInstancedMesh) assert(mesh.instanceMatrix.version > 0, 'instance transforms uploaded');
-    const transform = new THREE.Matrix4();
+    const transform = mesh.matrix.clone();
     for (let i = 0; i < (mesh.count ?? 1); i++) {
       if(mesh.isInstancedMesh) mesh.getMatrixAt(i, transform);
       const positions = mesh.geometry.attributes.position;
@@ -47,10 +47,10 @@ for (let variant = 0; variant < 40; variant++) {
   }
   assert.equal(build(variant).color, cooler.color, 'finish is deterministic');
 }
-assert.equal(geometries.size, 3, 'all variants reuse the three complete material geometries');
+assert.equal(geometries.size, 4, 'all variants reuse the four part geometries');
 assert.equal(colors.size, 4);
 assert.equal(cache.size, 6, 'four body finishes and two hardware materials');
-assert(triangles <= 1500, 'molded detail stays within the per-cooler geometry budget');
+assert(triangles <= 1850, 'molded detail stays within the per-cooler geometry budget');
 // A downward ray must reach a well floor below the surrounding lid surface.
 const cooler = build();
 cooler.group.updateMatrixWorld(true);
@@ -69,12 +69,16 @@ for(const x of [-.15,.15]) {
   }
   assert(Math.max(...rimHeights)-Math.min(...rimHeights)<1e-6, 'beveled cup rim has no closing-seam spike');
 }
+for(const x of [-.15,.15]){
+ const underneath=new THREE.Raycaster(new THREE.Vector3(x,.38,0),new THREE.Vector3(0,1,0));
+ assert(Math.abs(underneath.intersectObject(cooler.group.getObjectByName('cooler_lid'))[0].point.y-.409)<1e-6,'cup wells are sealed from below');
+}
 const shell = cooler.group.getObjectByName('cooler_body');
 const sideRay = new THREE.Raycaster(new THREE.Vector3(1,.07,0),new THREE.Vector3(-1,0,0));
 const lowerWidth = sideRay.intersectObject(shell)[0].point.x;
 sideRay.ray.origin.y = .32;
 assert(sideRay.intersectObject(shell)[0].point.x > lowerWidth+.02, 'molded shell tapers toward the base');
-console.log(`PASS camp coolers: 40 native Three builds, grounded collision bounds, two raycast-verified cup recesses, deterministic finishes, shared resources, 3 draws / ${triangles} triangles, no shadow casters.`);
+console.log(`PASS camp coolers: 40 native Three builds, grounded collision bounds, two raycast-verified cup recesses, deterministic finishes, shared resources, 4 draws / ${triangles} triangles, no shadow casters.`);
 
 const kitchen = new THREE.Group();
 addCampKitchen(kitchen,2);
@@ -83,3 +87,33 @@ assert(installed, 'actual kitchen builder installs the production cooler');
 assert.deepEqual(installed.position.toArray(),[1.9,0,-.7]);
 assert.equal(installed.children[0].material.color.getHex(),build(2).color);
 console.log('PASS actual kitchen integration: cooler present at the reserved location with the requested finish.');
+
+// Body details remain fixed, while wells stay on the actual rotating lid.
+const bodyParts=cooler.group.children.filter(m=>m!==cooler.lid.mesh);
+const closed=bodyParts.map(m=>m.matrixWorld.clone());
+const out={position:{},axis:{}};
+for(const socket of cooler.cupWells){
+ assert.equal(socket.capacity,1);assert.equal(socket.depth,.03);assert.equal(socket.radius,.063);
+ assert(cooler.sampleCupWell(socket.id,out));
+ assert(Math.abs(out.position.y-.415)<1e-8);assert.equal(out.axis.y,1);
+}
+cooler.lid.setAngle(Math.PI/2);cooler.group.updateMatrixWorld(true);
+bodyParts.forEach((m,i)=>assert(m.matrixWorld.equals(closed[i]),'opening does not rotate handles, badge, drain or shell'));
+for(const socket of cooler.cupWells){
+ assert(cooler.sampleCupWell(socket.id,out));assert(Math.abs(out.axis.y)<1e-6);assert(out.axis.z<-.999);
+ assert(Math.abs(out.position.y-(.372+.223))<1e-6,'well follows the lid hinge');
+}
+ray.ray.origin.set(0,1,0);const interior=ray.intersectObject(cooler.group,true)[0].point.y;
+assert(interior<.1&&interior>.03,'opening reveals the interior floor rather than a solid shell cap');
+assert.equal(cooler.lid.setAngle(-5),0);assert.equal(cooler.lid.setAngle(5),1.85);
+assert.throws(()=>cooler.lid.setAngle(NaN));
+cooler.lid.setAngle(.7);cooler.group.position.set(3,2,-4);cooler.group.rotation.y=.4;cooler.group.scale.setScalar(2);
+for(const socket of cooler.cupWells){
+ cooler.sampleCupWell(socket.id,out);
+ const origin=new THREE.Vector3(out.position.x,out.position.y,out.position.z).addScaledVector(new THREE.Vector3(out.axis.x,out.axis.y,out.axis.z),.1);
+ const probe=new THREE.Raycaster(origin,new THREE.Vector3(-out.axis.x,-out.axis.y,-out.axis.z));
+ const hit=probe.intersectObject(cooler.lid.mesh)[0];assert(hit);assert(hit.point.distanceTo(new THREE.Vector3(out.position.x,out.position.y,out.position.z))<1e-5,'transformed socket matches raycast cup floor');
+}
+console.log('PASS cooler articulation: fixed body trim, bounded hinge, open cavity and raycast-verified world cup sockets under rotation and scale.');
+
+cooler.group.clear();assert.equal(cooler.sampleCupWell('left',out),false,'detached source cannot publish a false world socket');assert.throws(()=>cooler.lid.setAngle(.5),/render binding/);

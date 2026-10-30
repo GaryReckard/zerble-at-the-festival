@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "7.3 (Cup-well metadata) and 7.4 (Mechanical lid partition): prepare cooler articulation; occupied-chair, moving-person and device acceptance remain open"
+current_task: "7.5 (Lid and contents experiment): compare controlled/physical lid motion and connect adopted parts; occupied-chair, moving-person and device acceptance remain open"
 blocked_by: null
 open_questions: 1
 started: 2026-10-29
@@ -359,3 +359,14 @@ complete occupied-chair feel gate remains open, including the simple-body
 acceptance decision and phone feedback. Next: cooler socket metadata and lid
 partition, then controlled/physical lid comparison and transferable drinks.
 [Evidence](../../../verification/physical-festival/2026-10-30-replay/README.md).
+
+## October 30: articulated cooler model and socket metadata
+
+Separated the lid from body trim, added a real cavity and sealed the cup wells
+from below after the open-lid inspection exposed their former single-sided floors.
+Native raycasts validate transformed sockets and stationary body details. Shared
+model cost is now four draws/1,832 triangles versus three/1,460; live closed
+cooler lifecycle tests and full checks pass. Sandbox Low/Mid lighting and main
+game admission passed. Native setters reject detached batched models, so the
+next lid experiment must connect adopted part transforms explicitly.
+[Evidence](../../../verification/physical-festival/2026-10-30-cooler-lid/README.md).

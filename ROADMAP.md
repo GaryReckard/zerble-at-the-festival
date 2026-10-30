@@ -221,7 +221,8 @@ harness history, tier contract and acceptance criteria.
   ordinary pedestrians and swept prop-to-person activation are also implemented with bounded reserves.
   Real secondary fall/recovery and bounded incident provenance are verified; untouched offscreen
   residents can release slots without resetting displaced aftermath. Controlled seated exits
-  retain support when blocked. Bracing uses free arms without adding geometry. Finish broader visual acceptance, moving-person sweeps, support-boundary and coherent
+  retain support when blocked. Bracing uses free arms without adding geometry; cooler model lids and cup-well sockets
+  are partitioned. Finish dynamic lid/contents behavior, broader visual acceptance, moving-person sweeps, support-boundary and coherent
   distance-reset policy, broader props and device acceptance.
   See the [first proof and remaining work](verification/physical-festival/README.md).
 - **Juice tuning:** keep variety costs and drain/frown feel as explicit design decisions.

@@ -2646,6 +2646,13 @@ import {buildShrub} from './src/models/shrub.js';
                 const cooler = buildCampCooler();
                 scene.add(cooler.group);
                 entityRoot = cooler.group;
+                const controls=document.createElement('div');
+                controls.style.cssText='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap';
+                for(const [label,angle] of [['Close lid',0],['Open lid',1.5],['Inspect hinge',Math.PI/2]]){
+                    const button=document.createElement('button');button.textContent=label;
+                    button.onclick=()=>cooler.lid.setAngle(angle);controls.append(button);
+                }
+                info.after(controls);entityRoot.userData.cleanup=()=>controls.remove();
                 cam.target.set(0, 0.25, 0);
                 cam.dist = 1.8;
                 applyCam();

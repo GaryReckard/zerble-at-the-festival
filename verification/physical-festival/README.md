@@ -10,6 +10,11 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [cooler lid checkpoint](2026-10-30-cooler-lid/README.md) supplies independent
+lid geometry, a cavity and moving cup-well socket metadata. Production coolers
+remain closed until the physical/controlled lid comparison and adopted render
+part integration are complete.
+
 The [occupied replay checkpoint](2026-10-30-replay/README.md) completes the
 supported-bracing inspection with a saved seat, independent exit/fall histories,
 slow playback and reset/disposal checks. Full player and device acceptance remains open.
