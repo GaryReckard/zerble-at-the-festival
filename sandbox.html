@@ -904,6 +904,7 @@ import {buildShrub} from './src/models/shrub.js';
         if (currentEntity && currentEntity._sandboxAppearanceButton) {
             currentEntity._sandboxAppearanceButton.remove();
         }
+        currentEntity?._sandboxPhotographerControls?.remove();
         if (currentEntity && currentEntity._sandboxPhotographerBtn) {
             currentEntity._sandboxPhotographerBtn.remove();
         }
@@ -1804,13 +1805,15 @@ import {buildShrub} from './src/models/shrub.js';
                 entityRoot = photoCrowd.group;
                 currentEntity = photoCrowd;
                 const photoView={};
-                updateFn=dt=>{photoCrowd.update(dt,fakeZerble,null);photoCrowd.readPhotographer(photographer,photoView);cam.target.set(photoView.x,photoView.y+1.15,photoView.z);applyCam();info.textContent=`${photoView.state} · photographer ${photoView.photographer?'live':'absent'} · flash ${photoView.flash.toFixed(2)}s`;};
+                let photoPaused=false;
+                const stepPhoto=dt=>{photoCrowd.update(dt,fakeZerble,null);photoCrowd.readPhotographer(photographer,photoView);cam.target.set(photoView.x,photoView.y+1.15,photoView.z);applyCam();info.textContent=`${photoView.state} · photographer ${photoView.photographer?'live':'absent'} · flash ${photoView.flash.toFixed(2)}s`;};
+                updateFn=dt=>{if(!photoPaused)stepPhoto(dt);};
                 const trigger = () => photoCrowd.triggerPhotographer(photographer);
                 window.__sandbox.triggerPhotographer = trigger;
                 const photoBtn = document.createElement('button');
                 photoBtn.textContent = 'Take picture';
                 photoBtn.style.cssText = 'margin-top:6px;width:100%;background:rgba(255,226,120,0.25);border:1px solid rgba(255,226,120,0.55);border-radius:6px;padding:5px;cursor:pointer;font:inherit;color:inherit';
-                photoBtn.addEventListener('click', trigger);
+                photoBtn.addEventListener('click', () => {photoPaused=false;trigger();});
                 info.after(photoBtn);
                 photoCrowd._sandboxPhotographerBtn = photoBtn;
                 const flashBtn = document.createElement('button');
@@ -1820,9 +1823,25 @@ import {buildShrub} from './src/models/shrub.js';
                 photoBtn.after(flashBtn);
                 photoCrowd._sandboxPhotographerFlashBtn = flashBtn;
                 window.__sandbox.previewPhotographerFlash = () => photoCrowd.previewPhotographerFlash(photographer);
+                const controls=document.createElement('div');
+                photoCrowd._sandboxPhotographerControls=controls;
+                flashBtn.after(controls);
+                const inspectPhoto=(elapsed)=>{
+                    photoPaused=true;trigger();
+                    for(let time=0;time<elapsed;time+=1/120)stepPhoto(Math.min(1/120,elapsed-time));
+                };
+                for(const [label,action] of [
+                    ['Inspect carry',()=>inspectPhoto(.01)],
+                    ['Inspect raise',()=>inspectPhoto(.57)],
+                    ['Inspect shot',()=>inspectPhoto(.90)],
+                    ['Inspect lower',()=>inspectPhoto(1.32)],
+                    ['Step 1/60s',()=>{photoPaused=true;stepPhoto(1/60);}],
+                    ['Resume',()=>{photoPaused=false;}],
+                ]){const button=document.createElement('button');button.textContent=label;button.style.cssText=photoBtn.style.cssText;button.onclick=action;controls.append(button);}
+
                 trigger();
                 cam.target.set(0, 1.15, 0);
-                cam.yaw = 0;
+                cam.yaw = .65;
                 cam.pitch = 0.18;
                 cam.dist = 5.2;
                 applyCam();

@@ -11,6 +11,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ### Fixed
 - **A failed game download now has a way back.** Startup catches module-download failures and tries one fresh-page navigation, preserving the project path and game options. If that attempt fails, the title screen offers a working retry button instead of waiting indefinitely. Slow startup also exposes the button, while ordinary initialization errors do not trigger automatic reload loops. [Verification](verification/boot-recovery/README.md).
+- **Photographers hold their cameras and bend their knees naturally.** Replaced the backward rigid-arm rotation with jointed two-hand grips, a smooth chest-to-eye lift and return, and a flash that follows the camera. Crouches keep both feet grounded at every character scale, while travel keeps the crowd gait. Added paused phase inspection and contact regressions without adding geometry or draw calls. [Verification](verification/photographer/README.md).
 
 ## 2026-10-29
 

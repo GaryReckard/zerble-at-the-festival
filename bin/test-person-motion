@@ -32,14 +32,14 @@ class ReferenceMatrix {
  multiply(b){const left=this.transform,right=b.transform;this.transform=p=>left(right(p));return this;}
 }
 const source=readFileSync(new URL('../src/crowd.js',import.meta.url),'utf8');
-const init=source.slice(source.indexOf('    const SHOULDER_Y ='),source.indexOf('    this._photoCrouchLegMat ='));
-assert(init.includes('_armsUpMat')&&init.includes('_photoArmsMat'));
+const init=source.slice(source.indexOf('    const SHOULDER_Y ='),source.indexOf('    // High-water mark:'));
+assert(init.includes('_armsUpMat'));
 const rigid=new Function('THREE','ARM_SHOULDER_Y',init+';return this;').call({}, {Matrix4:ReferenceMatrix},ARM_SHOULDER_Y);
-for(const name of ['_armsUpMat','_photoArmsMat'])for(const side of [-1,1]){
+for(const name of ['_armsUpMat'])for(const side of [-1,1]){
  const shoulder={x:side*.30,y:1.35,z:0},actual=rigid[name].transform(shoulder);
  near(actual.x,shoulder.x);near(actual.y,shoulder.y);near(actual.z,shoulder.z);
 }
-console.log('PASS production cheer/photo poses keep both shoulders fixed at the torso attachment.');
+console.log('PASS production cheer pose keeps both shoulders fixed at the torso attachment; articulated photo contacts are covered by test-photographer-ownership.');
 
 assert(!isStageDancing('walking',true,.9));assert(!isStageDancing('fleeing',true,.9));assert(!isStageDancing('idle',false,.9));assert(!isStageDancing('idle',true,.1));assert(isStageDancing('watching',true,.8));
 const poses=Array.from({length:30},(_,i)=>sampleDanceArmPose(i*.4,.8,{}));
