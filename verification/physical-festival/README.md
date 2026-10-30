@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [hinge comparison](2026-10-30-hinge-comparison/README.md) tests controlled
+and physical lids with six preallocated contents. Physical hinges are the
+provisional direction; hard-landing error and live assembly ownership remain open.
+
 The [cooler lid checkpoint](2026-10-30-cooler-lid/README.md) supplies independent
 lid geometry, a cavity and moving cup-well socket metadata. Production coolers
 remain closed until the physical/controlled lid comparison and adopted render

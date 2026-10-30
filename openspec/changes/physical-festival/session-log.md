@@ -370,3 +370,14 @@ cooler lifecycle tests and full checks pass. Sandbox Low/Mid lighting and main
 game admission passed. Native setters reject detached batched models, so the
 next lid experiment must connect adopted part transforms explicitly.
 [Evidence](../../../verification/physical-festival/2026-10-30-cooler-lid/README.md).
+
+## October 30: hinge alternatives measured
+
+Added a shared real-engine experiment and side-by-side production-model fixture
+with bounded six-can contents. Physical hinge attachment outperformed the tested
+kinematic controller, but the inverted landing showed 0.138 radian limit error.
+Next tighten that constraint and connect reserved live assembly ownership before
+closing Task 7.5 (Lid and contents experiment). The floor-edge false failure was
+verified from can positions and corrected in the fixture. Full check/build and
+Chrome teardown passed; phone measurements are still pending.
+[Results](../../../verification/physical-festival/2026-10-30-hinge-comparison/README.md).

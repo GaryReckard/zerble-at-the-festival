@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createCoolerExperiment} from '../src/physics/coolerExperiment.js';
+const results=[];
+for(const mode of ['controlled','physical'])for(const scenario of ['rest','impact','boost','inverted']){
+ const run=await createCoolerExperiment({mode,inverted:scenario==='inverted'});
+ try{
+  const initial=run.read();assert.equal(initial.counts.bodies,9);assert.equal(initial.counts.colliders,13);
+  assert.equal(initial.counts.joints,mode==='physical'?1:0);
+  assert.deepEqual(run.step(0),initial,'paused experiment has no hidden clock');
+  for(let step=0;step<480;step++){
+   if(step===30){if(scenario==='impact')run.impact();if(scenario==='boost')run.impact({x:20,y:10,z:-72});if(scenario==='inverted')run.unlatch();}
+   const state=run.step();
+   for(const body of [state.base,state.lid,...state.contents]){
+    assert([...Object.values(body.pose.position),...Object.values(body.pose.rotation),...Object.values(body.linearVelocity)].every(Number.isFinite));
+    assert(body.pose.position.y>-.2,'contents and parts remain above the floor');
+   }
+  }
+  const state=run.read();assert.equal(state.counts.totalOverflow,0);assert(state.maxima.speed<30,'bounded experiment energy');
+  if(mode==='physical'){assert(state.maxima.anchorError<.08,'physical hinge retains its anchors');assert(state.maxima.limitError<.15,'physical hinge respects angular limits');}
+  if(scenario==='rest')assert(Math.abs(state.angle)<.01,'latched lid stays closed');
+  if(scenario==='inverted')assert(state.maxima.angle>.3,'unlatched inverted lid opens');
+  results.push({mode,scenario,...state.maxima});
+ }finally{run.dispose();assert.equal(run.counts().engineBodies,0);assert.equal(run.counts().engineJoints,0);assert.equal(run.dispose(),false);}
+}
+await assert.rejects(()=>createCoolerExperiment({contents:7}),/Invalid/);
+console.log(JSON.stringify(results,null,2));
+console.log('PASS bounded cooler comparison: closed latch, impact, inversion, six real contents, paused time, finite energy, physical anchor/limit checks and disposal.');
