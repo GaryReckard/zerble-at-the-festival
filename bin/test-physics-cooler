@@ -1,0 +1,88 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import * as THREE from 'three';
+import {batchPropGroups} from '../src/propRendering.js';
+import {registerCampsite} from '../src/campRegistry.js';
+import {Registry} from '../src/registry.js';
+import {createLivePhysics} from '../src/physics/liveWorld.js';
+import {setTerrainEnabled} from '../src/worldgen/terrain.js';
+
+const source=readFileSync(new URL('../src/models/campsite.js',import.meta.url),'utf8');
+const materials=new Map();
+const matFor=color=>{if(!materials.has(color)){const m=new THREE.MeshStandardMaterial({color});m.userData.shared=true;materials.set(color,m);}return materials.get(color);};
+const fragment=source.slice(source.indexOf('const _CAMP_BOX ='),source.indexOf('const _CAMP_BULB ='));
+const {addCampKitchen}=vm.runInNewContext(fragment.replace('export function ','function ')+';({addCampKitchen})',{THREE,matFor});
+setTerrainEnabled(false);
+function build(origin={x:0,z:0}) {
+  const root=new THREE.Group(),canopy=new THREE.Group();root.add(canopy);
+  canopy.position.set(2,0,-1);canopy.rotation.y=.4;
+  const {cooler}=addCampKitchen(canopy,2);
+  cooler.group.updateWorldMatrix(true,false);
+  const before=cooler.group.matrixWorld.clone();root.attach(cooler.group);cooler.group.updateWorldMatrix(true,false);
+  assert(before.elements.every((v,i)=>Math.abs(v-cooler.group.matrixWorld.elements[i])<1e-12),'native reparenting preserves the kitchen cooler pose');
+  const prop={...cooler,kind:'camp_cooler',localKey:'canopy:0:cooler'};
+  const batch=batchPropGroups(root,[prop.group]);prop.renderBinding=batch.bindings[0];prop.originLocalTransform=prop.group.matrix.clone();
+  root.position.set(origin.x,0,origin.z);root.rotation.y=.25;root.scale.setScalar(2);
+  return {group:root,physicalChairs:[],physicalCoolers:[prop],chairBatch:batch,footprint:12,seats:[],tents:[],
+    childColliders:[{kind:'camp_cooler',group:prop.group,x:prop.group.position.x,z:prop.group.position.z,radius:.42}]};
+}
+for(const hz of [30,60,120]) {
+ const scene=new THREE.Scene(),registry=new Registry(),camp=build();scene.add(camp.group);
+ registerCampsite(registry,camp,{chunkKey:'cooler-origin'});
+ const entry=[...registry.entries.values()].find(e=>e.kind==='camp_cooler');
+ assert(entry?.physicalProp);assert.equal(entry.physicalProp.kind,'camp_cooler');assert.equal(entry.physicalProp.seatSlots.length,0);
+ const originalKey=entry.physicalProp.logicalKey,originalId=entry.id;
+ assert.equal(entry.physicalProp.renderBinding.group,camp.physicalCoolers[0].group);
+ assert.notEqual(camp.childColliders[0].group,camp.group.children[0],'collider belongs to the cooler, not the canopy');
+ const start=entry.position.clone();
+ const cart={position:new THREE.Vector3(start.x,0,start.z+9),root:new THREE.Group(),heading:0,speed:8};
+ const world=await createLivePhysics({scene,registry,cart});
+ let regenerated;
+ try {
+   for(let i=0;i<50&&!world.owns(entry);i++)world.prepare(performance.now()+100);
+   assert(world.owns(entry),'closed cooler is admitted without fake seat claims');
+   assert.equal(world.approach(()=>false,'camp_cooler')?.entryId,entry.id,'cooler-specific staging resolves this object');
+   let hits=0;
+   for(let frame=0;frame<hz*2;frame++) {
+     cart.position.z=start.z+9-(frame+1)*8/hz;
+     world.prepare(performance.now()+100);
+     const hit=world.advance(1/hz);
+     if(hit){hits++;assert.equal(hit.kind,'camp_cooler');assert.equal(hit.damage,0);assert.equal(hit.damaging,false);assert(hit.mass>100,'scaled cooler is heavier than a chair');}
+   }
+   assert(hits>0,'real cart hull impacts the actual cooler model recipe');
+   assert(entry.position.distanceTo(start)>.5,'closed cooler moves under real solver contacts');
+   assert.equal(world.stats().overflow,0);assert.equal(world.stats().blocked,null);
+   registry.removeChunk('cooler-origin');camp.chairBatch.dispose();camp.group.removeFromParent();
+   assert.equal(registry.entries.get(originalId),entry,'source unload does not remove adopted cooler');
+   regenerated=build();scene.add(regenerated.group);registerCampsite(registry,regenerated,{chunkKey:'cooler-origin'});
+   const coolers=[...registry.entries.values()].filter(e=>e.kind==='camp_cooler');
+   assert.equal(coolers.length,1);assert.equal(coolers[0].id,originalId);assert.equal(coolers[0].physicalProp.logicalKey,originalKey);
+   for(const part of regenerated.physicalCoolers[0].renderBinding.describe()) {
+     const matrix=new THREE.Matrix4();part.mesh.getMatrixAt(part.slot,matrix);assert.equal(matrix.determinant(),0,'regenerated source is hidden, not duplicated');
+   }
+ } finally {
+   assert.equal(world.dispose().ok,true);assert.equal(world.stats().engine.engineBodies,0);assert.equal(world.stats().engine.engineColliders,0);
+   assert.equal(world.stats().render.slots,0);registry.removeChunk('cooler-origin');assert.equal(registry.entries.size,0);
+   camp.chairBatch.dispose();regenerated?.chairBatch.dispose();regenerated?.group.removeFromParent();
+ }
+ console.log(`PASS cooler at ${hz} Hz: actual kitchen geometry, independent descriptor, real impact, zero smile damage, source unload, duplicate-free regeneration and complete owned cleanup.`);
+}
+
+{
+ setTerrainEnabled(true);
+ const camp=build({x:100,z:30}),registry=new Registry();registerCampsite(registry,camp,{chunkKey:'terrain-cooler'});
+ const entry=[...registry.entries.values()].find(e=>e.kind==='camp_cooler'),descriptor=entry.physicalProp;
+ assert(Math.abs(descriptor.worldPose.position.y-entry.position.y)<1e-8,'cooler visual/physical base follows its own terrain sample');
+ camp.group.updateWorldMatrix(true,true);
+ for(const part of descriptor.renderBinding.describe()) {
+   const matrix=new THREE.Matrix4();part.mesh.getMatrixAt(part.slot,matrix);matrix.premultiply(part.mesh.matrixWorld);
+   const expected=new THREE.Matrix4().compose(new THREE.Vector3(...Object.values(descriptor.worldPose.position)),
+     new THREE.Quaternion(descriptor.worldPose.rotation.x,descriptor.worldPose.rotation.y,descriptor.worldPose.rotation.z,descriptor.worldPose.rotation.w),
+     new THREE.Vector3(2,2,2)).multiply(part.localMatrix);
+   assert(matrix.elements.every((v,i)=>Math.abs(v-expected.elements[i])<1e-5),'terrain-fitted source instances match the physical descriptor');
+ }
+ registry.removeChunk('terrain-cooler');camp.chairBatch.dispose();setTerrainEnabled(false);
+ console.log('PASS cooler terrain fit: independent ground sample, matching source instances and physical pose under rotated/scaled campsite root.');
+}

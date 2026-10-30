@@ -603,20 +603,22 @@ let physicalReadout=null,physicalDetails=null,physicalDiagnostics=null,physicalR
 if(physicalRequested) {
   const panel=document.createElement('div');panel.id='physical-world-panel';
   Object.assign(panel.style,{position:'fixed',left:'12px',bottom:'12px',zIndex:'2000',background:'#17251fee',color:'white',padding:'10px',font:'12px monospace',maxWidth:'340px'});
-  physicalReadout=document.createElement('pre');physicalReadout.textContent='Loading physical chairs…';panel.append(physicalReadout);
-  const stage=document.createElement('button');stage.textContent='Stage chair encounter';
-  stage.onclick=()=>{
-    const approach=physicalWorld?.approach(isPointInLake);
-    if(!approach){physicalActionMessage='No empty chair with a clear cart approach is loaded.';return;}
+  physicalReadout=document.createElement('pre');physicalReadout.textContent='Loading physical props…';panel.append(physicalReadout);
+  const stage=document.createElement('button');stage.textContent='Stage prop encounter';
+  const stageEncounter=(kind=null)=>{
+    const approach=physicalWorld?.approach(isPointInLake,kind);
+    if(!approach){physicalActionMessage='No matching prop with a clear cart approach is loaded.';return;}
     physicalEncounterId=approach.entryId;
     physicalActionMessage='Prepared approach; wait for target admission, then coast.';
     playerStats.relocate();zerble.position.set(approach.x,terrainHeight(approach.x,approach.z),approach.z);
     zerble.heading=approach.heading;zerble.speed=0;zerble.groundOnSurface();physicalWorld.reset('teleport');
   };
+  stage.onclick=()=>stageEncounter();
+  const coolerStage=document.createElement('button');coolerStage.textContent='Stage cooler encounter';coolerStage.onclick=()=>stageEncounter('camp_cooler');
   const coast=physicalCoast=document.createElement('button');coast.textContent='Coast forward';coast.disabled=true;coast.onclick=()=>{if(physicalWorld?.owns(registry.entries.get(physicalEncounterId)??{}))zerble.speed=8;};
   physicalDetails=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Physics diagnostics';
   physicalDiagnostics=document.createElement('pre');Object.assign(physicalDiagnostics.style,{maxHeight:'200px',overflow:'auto'});physicalDetails.append(summary,physicalDiagnostics);
-  panel.append(stage,coast,physicalDetails);document.body.append(panel);
+  panel.append(stage,coolerStage,coast,physicalDetails);document.body.append(panel);
   import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera})).then(world=>{
     if(physicalClosing)world.dispose();else physicalWorld=world;
   }).catch(error=>{physicalLoadError=error.message;physicalReadout.textContent=`Physics unavailable: ${error.message}`;console.error('Physical chair initialization failed',error);});
@@ -1752,7 +1754,7 @@ function tickBody(dt) {
       const state=physicalWorld.stats();
       const targetReady=physicalWorld.owns(registry.entries.get(physicalEncounterId)??{});
       physicalCoast.disabled=!targetReady||state.cart.pendingClearance;
-      physicalReadout.textContent=`Empty-chair physics prototype\n${state.chairs.filter(chair=>chair.active).length} active / ${state.chairs.length} preparing | ${state.engine.bodies} bodies\n${state.hits} impacts | ${state.blocked??'running'}\nLast admission: ${state.lastReject??'ready'}\nOccupied chairs remain legacy.\nTarget: ${targetReady?'active':'not admitted'}\n${physicalActionMessage}`;
+      physicalReadout.textContent=`Physical props prototype\n${state.chairs.filter(chair=>chair.active).length} active / ${state.chairs.length} preparing | ${state.engine.bodies} bodies\n${state.hits} impacts | ${state.blocked??'running'}\nLast admission: ${state.lastReject??'ready'}\nOccupied chairs remain legacy.\nTarget: ${targetReady?'active':'not admitted'}\n${physicalActionMessage}`;
       if(physicalDetails.open)physicalDiagnostics.textContent=JSON.stringify(state,null,2);
     }
     peopleFrameTrace?.hit(hit);

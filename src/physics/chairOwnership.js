@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { chairRecipe } from './recipes.js';
+import { chairRecipe, coolerRecipe } from './recipes.js';
 
 let serial = 0;
 const ORIGIN_LIFETIME = Symbol('physicalChairOriginLifetime');
@@ -30,7 +30,8 @@ function poseAndScale(descriptor) {
   return { position, rotation, scale };
 }
 
-/** Transactional empty-chair adoption only. Origin regeneration and distance policy remain outside this owner. */
+/** Transactional adoption for rigid empty chairs and closed coolers.
+ * The historical chair-owner API remains shared so origins use one authority. */
 export function createChairOwnership({ registry, adapter, budget, rendering, supportReady, campSlotAvailable, originAlive, maxChairs = 16 } = {}) {
   if (!Number.isSafeInteger(maxChairs) || maxChairs < 1 || maxChairs > 256) throw new RangeError('maxChairs must be an integer from 1 to 256');
   if (!(registry?.entries instanceof Map) || ![registry.enrollPhysical, registry.publishPhysical, registry.transferOwner, registry.unenrollPhysical,
@@ -149,13 +150,13 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
   function adopt(entryId) {
     if (disposed) return reject('admission', 'disposed');
     const entry = registry.entries.get(entryId), descriptor = entry?.physicalProp;
-    if (!descriptor || !['camp_chair', 'camp_loveseat'].includes(descriptor.kind)) return reject('admission', 'not-a-chair');
+    if (!descriptor || !['camp_chair', 'camp_loveseat', 'camp_cooler'].includes(descriptor.kind)) return reject('admission', 'not-a-chair');
     if (typeof descriptor.logicalKey !== 'string' || !descriptor.logicalKey) return reject('admission', 'missing-key');
     const key = descriptor.logicalKey;
     if (records.has(key)) return reject('admission', 'already-owned');
     if (records.size >= maxChairs) return reject('admission', 'chair-capacity');
     if (originLifetimes.size + records.size - (descriptor[ORIGIN_LIFETIME] ? 1 : 0) >= MAX_ORIGIN_LIFETIMES) return reject('admission', 'origin-lifetime-capacity');
-    if (!Array.isArray(descriptor.seatSlots) || descriptor.seatSlots.length !== (descriptor.style === 'loveseat' ? 2 : 1)) return reject('admission', 'incomplete-seats');
+    if (!Array.isArray(descriptor.seatSlots) || descriptor.seatSlots.length !== (descriptor.kind === 'camp_cooler' ? 0 : descriptor.style === 'loveseat' ? 2 : 1)) return reject('admission', 'incomplete-seats');
     if (descriptor.seatSlots.some(slot => slot.occupied || campSlotAvailable(slot) !== true)) return reject('admission', 'occupied-or-unavailable');
     if (supportReady(descriptor, entry) !== true) return reject('admission', 'support-pending');
     if (originAlive(descriptor, entry) !== true) return reject('admission', 'origin-unavailable');
@@ -163,7 +164,7 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     let record;
     try {
       if (!descriptor.renderBinding || typeof descriptor.renderBinding.describe !== 'function' || typeof descriptor.renderBinding.setVisible !== 'function') throw new Rejection('admission', 'missing-origin-binding');
-      const pose = poseAndScale(descriptor), recipe = chairRecipe(descriptor.style), parts = descriptor.renderBinding.describe();
+      const pose = poseAndScale(descriptor), recipe = descriptor.kind === 'camp_cooler' ? coolerRecipe() : chairRecipe(descriptor.style), parts = descriptor.renderBinding.describe();
       if (!parts.length) throw new Rejection('admission', 'missing-origin-parts');
       const bounds = new THREE.Box3(), partBounds = new THREE.Box3();
       for (const part of parts) {
@@ -298,7 +299,7 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     const provenance = options.originOwner ?? (options.chunkKey !== undefined ? `chunk:${options.chunkKey}`
       : options.forestOwnerKey !== undefined ? `chunk:${options.forestOwnerKey}`
         : options.lakeOwnerKey !== undefined ? `lake:${options.lakeOwnerKey}` : null);
-    const localKeys = new Set((camp.physicalChairs ?? []).map(chair => chair.localKey));
+    const localKeys = new Set([...(camp.physicalChairs ?? []),...(camp.physicalCoolers ?? [])].map(chair => chair.localKey));
     const found = [];
     for (const record of records.values()) {
       const descriptor = record.descriptor, origin = descriptor.originPosition;
@@ -322,7 +323,7 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     },
     stats() { return { disposed, chairs: records.size, cleanupPending: [...records.values()].filter(record => record.state === 'cleanup-pending').length,
       originReplacements, originLifetimes: originLifetimes.size, originLifetimeCapacity: MAX_ORIGIN_LIFETIMES, capacity: maxChairs, rejections,
-      limitations: ['Empty chairs only; automatic distance reset is not integrated. Restored lake children follow their source batch lifetime.'] }; },
+      limitations: ['Empty chairs and closed coolers only; automatic distance reset is not integrated. Restored lake children follow their source batch lifetime.'] }; },
     dispose() {
       disposed = true;
       const results = [];

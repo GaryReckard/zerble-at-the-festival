@@ -118,6 +118,14 @@ export function fitCampToTerrain(camp, sample = terrainHeight) {
 
 export function registerCampsite(registry, camp, options = {}) {
   if (terrainEnabled()) fitCampToTerrain(camp);
+  // Cooler bodies are independent of the canopy and retain their terrain-fit
+  // pose in the source instances as well as their physical descriptor.
+  for (const cooler of camp.physicalCoolers || []) {
+    cooler.group.updateWorldMatrix(true, false);
+    cooler.renderBinding?.setWorldMatrix(cooler.group.matrixWorld);
+    cooler.originLocalTransform.copy(cooler.group.matrix);
+  }
+  if (camp.physicalCoolers?.length) camp.chairBatch?.flush();
   const root = camp.group;
   const yaw = root.rotation.y, c = Math.cos(yaw), s = Math.sin(yaw);
   const sx = root.scale.x, sz = root.scale.z;
@@ -150,7 +158,7 @@ export function registerCampsite(registry, camp, options = {}) {
     return Array.from({length:capacity},()=>({...p,doorX:door.x,doorZ:door.z,occupied:false}));
   });
   const fire = (camp.childColliders || camp.colliders || []).find(prop => prop.kind === 'campfire');
-  const physicalChairs = (camp.physicalChairs || []).map(chair => {
+  const physicalProps = [...(camp.physicalChairs || []),...(camp.physicalCoolers || [])].map(chair => {
     const localTransform = chair.originLocalTransform?.clone?.() || chair.originLocalTransform;
     if (!localTransform?.elements?.every(Number.isFinite))
       throw new TypeError(`Physical chair ${chair.localKey || '(missing localKey)'} needs a finite origin transform`);
@@ -164,7 +172,7 @@ export function registerCampsite(registry, camp, options = {}) {
     const logicalKey = keyFor(chair);
     return {
       logicalKey, originOwner, originPosition: { ...origin }, originNeighborhood: options.campNeighborhood, localKey: chair.localKey,
-      kind: chair.loveseat ? 'camp_loveseat' : 'camp_chair', style: chair.style,
+      kind: chair.kind === 'camp_cooler' ? 'camp_cooler' : chair.loveseat ? 'camp_loveseat' : 'camp_chair', style: chair.style,
       worldPose: { position: { x: position.x, y: position.y, z: position.z },
         rotation: { x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w },
         scale: { x: scale.x, y: scale.y, z: scale.z } },
@@ -174,15 +182,17 @@ export function registerCampsite(registry, camp, options = {}) {
       seatSlots: seatClaims.filter(({ seat }) => seat.group && seat.group === chair.group).map(({ slot }) => slot),
     };
   });
+  const physicalChairs = physicalProps.filter(prop => prop.kind !== 'camp_cooler');
   const ids = [registry.add({ kind: 'campsite', position: root.position.clone(),
     footprint: camp.footprint, campSeats, campBeds, campGroup: root,
     ...(physicalChairs.length ? { physicalChairs } : {}),
+    ...(physicalProps.length ? { physicalProps } : {}),
     ...(fire ? { campFire: point(fire.x, fire.z) } : {}), ...options })];
   // Runtime owner lookup is separate from the stable procedural identity.
-  for (const chair of physicalChairs) chair.originRegistryId = ids[0];
+  for (const chair of physicalProps) chair.originRegistryId = ids[0];
   try { for (const prop of camp.childColliders || camp.colliders || []) {
     const p = point(prop.x, prop.z), radius = prop.radius * Math.max(sx, sz);
-    const physicalProp = physicalChairs.find(chair => chair.renderBinding?.group === prop.group);
+    const physicalProp = physicalProps.find(chair => chair.renderBinding?.group === prop.group);
     const child = { kind: prop.kind, position: position(p), footprint: radius,
       collider: { radius, damage: prop.kind === 'camp_tent' ? 3 : 1 }, ...(options.chunkKey !== undefined ? { chunkKey: options.chunkKey } : {}),
       ...(physicalProp ? { physicalProp } : {}),

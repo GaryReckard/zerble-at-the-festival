@@ -1,6 +1,6 @@
 # Make the festival physically responsive
 
-> **Status:** <!--STATUS:LINE-->in progress · 1/66 tasks (1%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->in progress · 2/66 tasks (3%)<!--/STATUS:LINE-->
 
 ## TL;DR
 
@@ -30,7 +30,7 @@ The full [66-task checklist](tasks.md) is the progress authority. Pure sign rese
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 1/66 tasks complete (1%) · current: 4.2 (Separate object and person contact response), with phone and occupied-incident acceptance pending
+**in progress** — 2/66 tasks complete (3%) · current: 7.2 (Closed cooler contacts), then occupied-person reactions; phone acceptance pending
 
 _Last updated: 2026-10-30_
 
@@ -42,7 +42,7 @@ _Last updated: 2026-10-30_
 | 4. Finish empty-chair contact and incident behavior | 0/5 |
 | 5. Add occupied support, graduated reactions and recovery | 0/7 |
 | 6. Integrate and accept one real campsite | 0/4 |
-| 7. Add the cooler as the next distinct physical object | 0/6 |
+| 7. Add the cooler as the next distinct physical object | 1/6 |
 | 8. Turn existing beverages into transferable cups | 0/6 |
 | 9. Add route-aware damageable signs | 0/6 |
 | 10. Add bounded social aftermath | 0/5 |

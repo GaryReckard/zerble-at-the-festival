@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "4.2 (Separate object and person contact response), with phone and occupied-incident acceptance pending"
+current_task: "7.2 (Closed cooler contacts), then occupied-person reactions; phone acceptance pending"
 blocked_by: null
 open_questions: 0
 started: 2026-10-29
@@ -30,6 +30,8 @@ ref: "ROADMAP.md: Gameplay verbs / Physical props"
 - **D12 (implementation authorized):** On October 30 Gary confirmed clean main and authorized branching and implementation. Created `codex/physical-festival` from `17102a1`, which contains the completed hoop work and physics planning. This supersedes D10 (clean-branch implementation deferral). Real-device and feel gates still require their stated evidence.
 
 - **D13 (empty objects are not a smile penalty):** Gary answered Q2 (Empty-object scoring) with “No smile penalty for empty objects.” Empty contacts retain physical resistance and sound, while person incidents and explicit occupied-furniture behavior remain separate. This supersedes the initial numeric-baseline policy for empty props.
+
+- **D14 (cooler enrollment after positive chair feedback):** Gary said the work was “looking good to me so far,” asked for more smashable objects, specifically coolers, and reaffirmed people falling. Proceed with closed-cooler integration as the next object while retaining the uncompleted phone gate and occupied-person scope. This is early positive motion feedback, not approval of every feel/device scenario.
 
 ## Assumptions
 
@@ -245,3 +247,11 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** Gary selected no smile penalty for empty objects. The shared resolver now reports empty-object bumps as non-damaging, and the empty-chair physics adapter does the same. Main emits collision sound and existing bonk telemetry without smile deduction, hit flash, punitive toast or combo reset. Explicit occupied seat/porta-potty state retains the previous consequence until occupied reactions are implemented; this is not proof that an occupant was physically hit. Q2 (Empty-object scoring) is answered.
 
 **Refs:** D13 (empty objects are not a smile penalty); [policy evidence](../../../verification/physical-festival/2026-10-30-object-policy/README.md).
+
+### 2026-10-30 -- Closed coolers join the live prop simulation
+
+**Event:** decision
+
+**What:** Gary reaffirmed empty-object scoring, gave positive early chair feedback and requested coolers plus falling people. Following that requested sequence, separated the cooler from its canopy-owned collider and reused bounded prop ownership, terrain/static support, rendering and regeneration. Closed coolers now move in live campsites. The encounter helper had been rejecting valid cooler approaches by testing travel through the target into its kitchen; it now checks up to first contact. A real browser impact moved a cooler approximately 1.6 metres. Lid articulation, contents, holder drinks and occupied-person falls are not enabled by this slice.
+
+**Refs:** D14 (cooler enrollment after positive chair feedback); [cooler evidence](../../../verification/physical-festival/2026-10-30-cooler/README.md).

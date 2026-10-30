@@ -1,0 +1,22 @@
+2026-10-30
+node bin/test-physics-cooler: exit 0
+node bin/test-physics-live-world: exit 0
+npm run check: exit 0
+npm run build -- --outDir /tmp/zerble-cooler-final.qo9Izs: exit 0
+
+Selected check evidence:
+PASS camp coolers: 40 native Three builds, grounded collision bounds, two raycast-verified cup recesses, deterministic finishes, shared resources, 3 draws / 1460 triangles, no shadow casters.
+PASS cooler at 30 Hz: actual kitchen geometry, independent descriptor, real impact, zero smile damage, source unload, duplicate-free regeneration and complete owned cleanup.
+PASS cooler at 60 Hz: actual kitchen geometry, independent descriptor, real impact, zero smile damage, source unload, duplicate-free regeneration and complete owned cleanup.
+PASS cooler at 120 Hz: actual kitchen geometry, independent descriptor, real impact, zero smile damage, source unload, duplicate-free regeneration and complete owned cleanup.
+PASS cooler terrain fit: independent ground sample, matching source instances and physical pose under rotated/scaled campsite root.
+PASS live capacity (loveseat): eight active, ninth legacy, stable terrain allocations, source unload and full cleanup.
+PASS live physics: real chair adoption/support/cart impacts at 30/60/120 Hz, ghost passage, exhausted preparation deadline, canonical clearance, source unload and full cleanup; main late-contact ordering and singular authority.
+Scope: opt-in empty-chair integration; full-game browser and phone acceptance remain separate.
+PASS main-loop prop feedback: mass-sensitive forward/reverse slowdown, glancing contact, unchanged position/immunity and retained person-hit priority.
+
+Build excerpt:
+✓ 237 modules transformed.
+✓ built in 410ms
+
+Full temporary logs: /tmp/cooler-check-final.log and /tmp/cooler-build-final.log

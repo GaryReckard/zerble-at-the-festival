@@ -4,6 +4,8 @@ October 30, 2026. Started on `codex/physical-festival` at `17102a1`; continued o
 
 The [prop response checkpoint](2026-10-30-prop-feedback/README.md) separates simulated-chair slowdown from the person-hit reverse kick. The [fixed-object checkpoint](2026-10-30-solid-response/README.md) also removes the reverse kick for legacy scenery. The [cooldown checkpoint](2026-10-30-cooldown/README.md) keeps solids collidable during penalty immunity. The [approved object policy](2026-10-30-object-policy/README.md) removes smile penalties and punitive feedback for empty objects. Occupied reactions and phone acceptance remain unresolved.
 
+The [closed-cooler checkpoint](2026-10-30-cooler/README.md) adds independent cooler collision and bounded live adoption, with a recorded production impact. Gary gave positive early chair-motion feedback; device and full occupied-person acceptance remain open.
+
 ## Latest production checkpoint
 
 The [bounded hinge proof](2026-10-30-joints/README.md) verifies the adapter contract needed for the later cooler lid experiment; no articulated cooler is enabled yet.

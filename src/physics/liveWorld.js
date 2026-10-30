@@ -84,7 +84,7 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
         if(descriptor)nearbyChairs++;
         if(candidates.length<MAX_CHAIRS && descriptor && !records.has(descriptor.logicalKey) && !rejected.has(descriptor.logicalKey)
           && Math.hypot(entry.position.x-cart.position.x,entry.position.z-cart.position.z)<24
-          && descriptor.seatSlots.length && descriptor.seatSlots.every(campSlotAvailable)) candidates.push(entry);
+          && (descriptor.kind==='camp_cooler'||descriptor.seatSlots.length) && descriptor.seatSlots.every(campSlotAvailable)) candidates.push(entry);
       });
       lastCandidates=candidates.length;
       for(const entry of candidates) {
@@ -173,7 +173,7 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
         const approach=(-Math.sin(cart.heading)*cart.speed*dx-Math.cos(cart.heading)*cart.speed*dz)/d;
         if(approach<=APPROACH_DAMAGE_THRESHOLD)continue;
         record.lastHit=time;record.penalized=true;hits++;
-        // Only empty chairs are admitted by this prototype. A physical touch
+        // Only empty chairs and closed coolers are admitted by this prototype. A physical touch
         // is not a person incident, irrespective of the legacy collider cost.
         hit={damaging:false,damage:0,objectBump:eligible,kind:entry.kind,entry,physical:true,
           mass:body.mass,approachSpeed:approach,push:{x:-dx/d,z:-dz/d}};
@@ -186,8 +186,8 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
     rendering.flush();
     return hit;
   }
-  function stats() {return {enabled:!disposed,phase:'empty-chair-prototype',preparationCalls,lastCandidates,nearbyChairs,rejectedCandidates:rejected.size,player:{x:cart.position.x,z:cart.position.z},frames,clock:{steps:clock.steps,dropped:clock.dropped},blocked,hits,overflow,rejects,lastReject,
-    chairs:[...records.values()].map(record=>({key:record.key,entryId:record.entryId,active:!!record.token,state:record.token?owner.read(record.token):null})),
+  function stats() {return {enabled:!disposed,phase:'physical-props-prototype',preparationCalls,lastCandidates,nearbyChairs,rejectedCandidates:rejected.size,player:{x:cart.position.x,z:cart.position.z},frames,clock:{steps:clock.steps,dropped:clock.dropped},blocked,hits,overflow,rejects,lastReject,
+    chairs:[...records.values()].map(record=>({key:record.key,kind:registry.entries.get(record.entryId)?.kind,entryId:record.entryId,active:!!record.token,state:record.token?owner.read(record.token):null})),
     engine:adapter.counts(),terrain:terrain.stats(),solids:solids.stats(),render:rendering.stats(),ownership:owner.stats(),cart:proxy.state(),
     limitations:['Occupied chairs remain legacy.','Static cylinders are conservative approximations.','Secondary-person attribution and device acceptance are pending.','Support-frontier exhaustion visibly stops this opt-in prototype.']};}
   function dispose() {
@@ -201,11 +201,12 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
     return {ok:!errors.length,errors};
   }
   return {prepare,advance,stats,dispose,reset(reason){resetReason=reason;},owns(entry){return !!entryRecords.get(entry.id)?.token;},
-    approach(isWet){
+    approach(isWet,requestedKind=null){
       const candidates=[];
-      for(const kind of ['chair','camp_chair','camp_loveseat'])for(const id of registry.byKind.get(kind)??[]) {
+      for(const kind of ['chair','camp_chair','camp_loveseat','camp_cooler'])for(const id of registry.byKind.get(kind)??[]) {
         const entry=registry.entries.get(id),descriptor=entry?.physicalProp;
-        if(!descriptor?.seatSlots.length||(!entryRecords.get(id)?.token&&!descriptor.seatSlots.every(campSlotAvailable)))continue;
+        if(requestedKind&&descriptor?.kind!==requestedKind)continue;
+        if(!descriptor||(descriptor.kind!=='camp_cooler'&&!descriptor.seatSlots.length)||(!entryRecords.get(id)?.token&&!descriptor.seatSlots.every(campSlotAvailable)))continue;
         candidates.push(entry);
       }
       candidates.sort((a,b)=>(Number(!!entryRecords.get(b.id)?.token)-Number(!!entryRecords.get(a.id)?.token))||Math.hypot(a.position.x-cart.position.x,a.position.z-cart.position.z)-Math.hypot(b.position.x-cart.position.x,b.position.z-cart.position.z));

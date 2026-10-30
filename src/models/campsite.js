@@ -977,6 +977,7 @@ function addCampKitchen(parent, coolerVariant = 0) {
   const cooler = buildCampCooler(coolerVariant);
   cooler.group.position.set(1.9,0,-.7);
   parent.add(cooler.group);
+  return {cooler};
 }
 
 const _CAMP_BULB = new THREE.IcosahedronGeometry(.055, 0);
@@ -1266,6 +1267,7 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
   const torchField=buildTorchField(torchPositions,rng,1);
   root.add(torchField.group);
   animatables.push(...torchField.animatables);
+  const physicalCoolers = [];
   canopyProps.forEach((ez,i)=>{
     const a=tentArcStart+Math.PI+(i-(canopyProps.length-1)/2)*1.05;
     // Small camps need a real passing gap between the hearth chairs and the
@@ -1274,7 +1276,7 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
     pose(ez.group,cfg.radius*.85+.35+livingClearance,a);
     const hasKitchen=recipe.kitchen&&i===0;
     // Derive the finish without consuming either existing random stream.
-    if(hasKitchen)addCampKitchen(ez.group, (tentArcStart * 0x10000000) >>> 0);
+    const kitchenProps=hasKitchen?addCampKitchen(ez.group, (tentArcStart * 0x10000000) >>> 0):null;
     addCanopyTwinkles(ez.group,animatables,localRandom());
     addCampLanterns(ez.group,animatables,hasKitchen);
     const yaw=ez.group.rotation.y, c=Math.cos(yaw), sn=Math.sin(yaw);
@@ -1285,7 +1287,12 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
     if(i===0&&rearScreen) {const p=transformed(0,-1.5);placeScreen(rearScreen,yaw,p.x,p.z);}
     if(hasKitchen) {
       const kitchen=transformed(0,-.85); collider('camp_kitchen',ez.group,1.08,kitchen.x,kitchen.z);
-      const cooler=transformed(1.9,-.7); collider('camp_cooler',ez.group,.42,cooler.x,cooler.z);
+      const cooler=kitchenProps.cooler;
+      // Keep the exact modeled pose while giving this movable object its own
+      // root-level lifetime and batch binding, independent of the canopy.
+      root.attach(cooler.group);
+      physicalCoolers.push({...cooler,kind:'camp_cooler',localKey:`canopy:${i}:cooler`});
+      collider('camp_cooler',cooler.group,.42,cooler.group.position.x,cooler.group.position.z);
     }
     const row=canopyChairs.filter(v=>v.canopy===i);
     const loveseat=localRandom()>.35;
@@ -1327,8 +1334,8 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
     ...fireChairs.map((chair, index) => ({...chair, localKey:`fire:${index}`})),
     ...canopyChairs.map(({chair,canopy,index}) => ({...chair, localKey:`canopy:${canopy}:${index}`})),
   ].filter(chair => !chair.skip);
-  const chairBatch = batchCampChairs(root, physicalChairs);
-  for (const chair of physicalChairs) chair.originLocalTransform = chair.group.matrix.clone();
+  const chairBatch = batchCampChairs(root, [...physicalChairs,...physicalCoolers]);
+  for (const chair of [...physicalChairs,...physicalCoolers]) chair.originLocalTransform = chair.group.matrix.clone();
 
   // Scale the whole vignette (props + their polar layout) uniformly. Props sit
   // at y=0 so they stay grounded under scale; the footprint grows to match so
@@ -1339,7 +1346,7 @@ export function buildCampsite(rng = Math.random, size = 'medium', options = {}) 
     group: root,
     animatables,
     footprint: recipe.footprint, archetype:recipe.archetype, role:recipe.role,
-    physicalChairs, chairBatch,
+    physicalChairs, physicalCoolers, chairBatch,
     childColliders, colliders: childColliders, seats, tents, entranceYaw: Math.atan2(-Math.cos(tentArcStart),-Math.sin(tentArcStart)),
   };
 }

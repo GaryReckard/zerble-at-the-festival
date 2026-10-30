@@ -58,7 +58,7 @@ Each player-visible implementation slice updates CHANGELOG on the actual date an
 
 ## 7. Add the cooler as the next distinct physical object
 
-- [ ] 7.1 (Independent cooler descriptor) Return/reference the real cooler group from kitchen construction and bind its collider to that object, not the canopy; preserve current geometry, color and location tests.
+- [x] 7.1 (Independent cooler descriptor) Return/reference the real cooler group from kitchen construction and bind its collider to that object, not the canopy; preserve current geometry, color and location tests.
 - [ ] 7.2 (Heavy closed-cooler behavior) Add a simple collision recipe, heavy sliding/tipping/settling and correct adopted lifetime; compare chair-to-cooler and cooler-to-chair impacts in the fixture and campsite.
 - [ ] 7.3 (Cup-well metadata) Expose named socket positions, depth, axis, dimensions and capacity derived from the actual model; validate against the existing raycast well tests.
 - [ ] 7.4 (Mechanical lid partition) Separate lid-mounted geometry from body handles/badge/drain while retaining pooling and appearance; add hinge pivot/limits and prove opening does not rotate body details.
@@ -108,6 +108,6 @@ Each player-visible implementation slice updates CHANGELOG on the actual date an
 
 ## Dependency and efficiency notes
 
-The critical path is Groups 1–6, the occupied-chair production proof. Cooler work follows that proof; cup transfer uses its sockets and person authority. Pure sign-route research can proceed independently once the source baseline is stable, while physical sign rollout waits for prop lifecycle and contact acceptance. Aftermath follows reliable transfers and recovery. Avoid parallel edits to Crowd, camp builders or registry until ownership boundaries are settled; parallelize isolated tests, pure route planning and model preparation with explicit file ownership.
+The original critical path is Groups 1–6, the occupied-chair production proof. On October 30 Gary gave positive early chair feedback and explicitly requested cooler enrollment next (D14 in session-log.md), so the closed-cooler slice proceeds while device and occupied-person acceptance remain open. The remaining lid/contents work still follows the relevant ownership proofs; cup transfer uses its sockets and person authority. Pure sign-route research can proceed independently once the source baseline is stable, while physical sign rollout waits for prop lifecycle and contact acceptance. Aftermath follows reliable transfers and recovery. Avoid parallel edits to Crowd, camp builders or registry until ownership boundaries are settled; parallelize isolated tests, pure route planning and model preparation with explicit file ownership.
 
 Do not build all recipes before the first feel gate, generalize every attachment before two examples work, or rerun broad benchmarks without a new change/failure. Do complete the full ownership, teardown and negative-path tests at each accepted slice. The feature remains one coherent plan even though implementation is delivered in reviewable increments.

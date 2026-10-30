@@ -45,6 +45,12 @@ setTerrainEnabled(false);
   assert.equal(findChairApproach({...options,entries:Array(100).fill(target),isWet:()=>{samples++;return true;}}),null);
   assert.equal(samples,64*2*16,'search stays bounded even with many candidates');
 }
+{
+  const registry=new Registry(),target={kind:'camp_cooler',position:new THREE.Vector3(),collider:{radius:.84}};
+  registry.add(target);registry.add({kind:'camp_kitchen',position:new THREE.Vector3(0,0,-3.8),collider:{radius:2.16}});
+  const approach=findChairApproach({registry,entries:[target],radius:2.95,isWet:()=>false});
+  assert.equal(approach?.heading,0,'outside approach stops at first contact instead of requiring travel through a cooler into the kitchen');
+}
 async function encounter(hz,ghost=false,starved=false,stageAudience=false,eligible=true) {
   const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
   const chair=buildCampChair(()=>.3,{style:'sling'});root.add(chair.group);
