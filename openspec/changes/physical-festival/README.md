@@ -1,6 +1,6 @@
 # Make the festival physically responsive
 
-> **Status:** <!--STATUS:LINE-->in progress · 3/66 tasks (4%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->in progress · 4/66 tasks (6%)<!--/STATUS:LINE-->
 
 ## TL;DR
 
@@ -30,7 +30,7 @@ The full [66-task checklist](tasks.md) is the progress authority. Pure sign rese
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 3/66 tasks complete (4%) · current: 5.2 (Supported load and bracing), then fall/recovery; phone acceptance pending
+**in progress** — 4/66 tasks complete (6%) · current: 5.3 (Controlled dismount): finish graduated occupant reactions; moving-person sweeps and device acceptance remain open
 
 _Last updated: 2026-10-30_
 
@@ -39,7 +39,7 @@ _Last updated: 2026-10-30_
 | 1. Establish source baseline and the interaction playground | 1/5 |
 | 2. Prove the physics dependency and update loop | 0/6 |
 | 3. Establish prop identity, rendering and lifecycle | 0/7 |
-| 4. Finish empty-chair contact and incident behavior | 0/5 |
+| 4. Finish empty-chair contact and incident behavior | 1/5 |
 | 5. Add occupied support, graduated reactions and recovery | 1/7 |
 | 6. Integrate and accept one real campsite | 0/4 |
 | 7. Add the cooler as the next distinct physical object | 1/6 |

@@ -125,6 +125,10 @@ export function createOrdinaryPeople({people,adapter,budget,terrain,solids,cart,
   }
  }
  return Object.freeze({prepare,strikeProps,
+  preparedPeople(){const result=[];for(const r of records.values())if(!r.claim&&!r.cleanupPending&&ready(r)){
+   const view={};if(people.readPerson(r.handle,view)&&people.canClaimPersonReaction(r.handle)&&view.scale===r.scale)
+    result.push({handle:r.handle,key:r.key,...view});
+  }return result;},
   approach(){for(const r of records.values())if(!r.claim&&ready(r)){const v={};if(!people.readPerson(r.handle,v)||!people.canClaimPersonReaction(r.handle))continue;
    const result=findChairApproach({registry,entries:[{id:null,position:{x:v.x,y:v.y,z:v.z},collider:{radius:.45}}],radius:2.95,isWet});
    if(result)return {...result,person:{slot:r.handle.slot,generation:r.handle.generation}};

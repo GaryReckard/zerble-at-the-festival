@@ -10,6 +10,11 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [real secondary encounter checkpoint](2026-10-30-encounters/README.md) records
+chair-to-person falls and recovery in Chrome, production live-world regression
+tests, multiple-victim attribution, and safe reuse of untouched offscreen slots.
+The cooler staging saturation failure is fixed; broad acceptance remains open.
+
 The [prop-to-person checkpoint](2026-10-30-prop-people/README.md) connects bounded
 shape sweeps to ordinary pedestrian activation and incident target attribution.
 Real-engine tests cover translation, rotation and depleted momentum; rendered

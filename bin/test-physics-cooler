@@ -54,6 +54,10 @@ for(const hz of [30,60,120]) {
    assert(hits>0,'real cart hull impacts the actual cooler model recipe');
    assert(entry.position.distanceTo(start)>.5,'closed cooler moves under real solver contacts');
    assert.equal(world.stats().overflow,0);assert.equal(world.stats().blocked,null);
+   cart.position.set(start.x+60,0,start.z);cart.speed=0;world.reset('teleport');
+   for(let i=0;i<180;i++){world.prepare(performance.now()+100);world.advance(1/60);}
+   assert(world.owns(entry),'displaced furniture retains its ownership inside the distance-reset boundary');
+   assert(entry.position.distanceTo(start)>.5,'capacity reuse cannot restore moved aftermath');
    registry.removeChunk('cooler-origin');camp.chairBatch.dispose();camp.group.removeFromParent();
    assert.equal(registry.entries.get(originalId),entry,'source unload does not remove adopted cooler');
    regenerated=build();scene.add(regenerated.group);registerCampsite(registry,regenerated,{chunkKey:'cooler-origin'});
@@ -70,6 +74,41 @@ for(const hz of [30,60,120]) {
  console.log(`PASS cooler at ${hz} Hz: actual kitchen geometry, independent descriptor, real impact, zero smile damage, source unload, duplicate-free regeneration and complete owned cleanup.`);
 }
 
+{
+ const scene=new THREE.Scene(),registry=new Registry(),camps=[];
+ for(let i=0;i<9;i++){
+  const camp=build(i===8?{x:55,z:0}:{x:(i%4)*5-10,z:Math.floor(i/4)*7-7});
+  camps.push(camp);scene.add(camp.group);registerCampsite(registry,camp,{chunkKey:`dormant-${i}`});
+ }
+ const entries=[...registry.entries.values()].filter(e=>e.kind==='camp_cooler'),target=entries[8];
+ const cart={position:new THREE.Vector3(0,0,5),root:new THREE.Group(),heading:0,speed:0};
+ const camera=new THREE.PerspectiveCamera(90,1,.1,200);camera.position.set(60,20,0);camera.lookAt(0,0,0);
+ const world=await createLivePhysics({scene,registry,cart,camera});
+ try {
+  for(let i=0;i<360;i++){world.prepare(performance.now()+100);world.advance(1/60);}
+  assert.equal(entries.filter(e=>world.owns(e)).length,8,JSON.stringify({entries:entries.map(e=>({p:e.position,active:world.owns(e)})),reject:world.stats().lastReject}));assert(!world.owns(target));
+  cart.position.copy(target.position);cart.position.z+=9;world.reset('teleport');
+  for(let i=0;i<10;i++)world.prepare(performance.now()+100);
+  assert.equal(entries.filter(e=>world.owns(e)).length,8,'visible residents are never reset to make room');
+  assert(!world.owns(target));
+  camera.lookAt(120,20,0);world.prepare(-1);
+  assert.equal(entries.filter(e=>world.owns(e)).length,8,'expired preparation budget cannot release residents');
+  for(let i=0;i<60&&!world.owns(target);i++)world.prepare(performance.now()+100);
+  assert(world.owns(target),'untouched offscreen furniture frees capacity for the next cooler');
+  assert.equal(entries.filter(e=>world.owns(e)).length,1,'old originals remain registered without active simulation');
+  for(const entry of entries.slice(0,8)){
+   assert(registry.entries.has(entry.id));assert.equal(entry.position.x,entry.physicalProp.worldPose.position.x);
+   for(const part of entry.physicalProp.renderBinding.describe()){
+    const matrix=new THREE.Matrix4();part.mesh.getMatrixAt(part.slot,matrix);assert(Math.abs(matrix.determinant())>1e-8,'restored original is visible');
+   }
+  }
+  cart.position.set(0,0,5);world.reset('teleport');camera.lookAt(0,0,0);
+  for(let i=0;i<360;i++){world.prepare(performance.now()+100);world.advance(1/60);}
+  assert.equal(entries.slice(0,8).filter(e=>world.owns(e)).length,8,'returning neighborhood can be readmitted');
+  assert.equal(world.stats().overflow,0);
+ }finally{assert(world.dispose().ok);for(let i=0;i<camps.length;i++){registry.removeChunk(`dormant-${i}`);camps[i].chairBatch.dispose();}}
+ console.log('PASS cooler capacity reuse: eight untouched residents, visible/deadline protection, offscreen original restoration, ninth cooler admission and return readmission.');
+}
 {
  setTerrainEnabled(true);
  const camp=build({x:100,z:30}),registry=new Registry();registerCampsite(registry,camp,{chunkKey:'terrain-cooler'});

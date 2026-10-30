@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "4.3 (Bounded incident provenance): swept ordinary-person delivery implemented; rendered secondary encounters and device acceptance pending"
+current_task: "5.3 (Controlled dismount): finish graduated occupant reactions; moving-person sweeps and device acceptance remain open"
 blocked_by: null
 open_questions: 1
 started: 2026-10-29
@@ -48,6 +48,16 @@ ref: "ROADMAP.md: Gameplay verbs / Physical props"
 No unanswered question is blocking planning. Numeric tuning, measured capacity and animation/art acceptance are scheduled implementation gates in [tasks.md](tasks.md), not implied approvals or forgotten questions.
 
 ## Work Log
+
+### October 30: real secondary encounter and safe untouched capacity reuse
+
+The production toss harness completed a chair-to-person fall and recovery in
+Chrome, then a second encounter at Midnight. The full live-world test covers the
+same path without moving or claiming the person at launch, and the heavy-prop
+regression covers two attributed victims. Task 4.3 (bounded incident provenance)
+is complete; the score/social gate remains separate. Cooler staging now admits
+after safe restoration of untouched offscreen sleeping furniture; displaced props
+stay owned. [Evidence](../../../verification/physical-festival/2026-10-30-encounters/README.md).
 
 ### October 30: swept prop-to-person delivery
 

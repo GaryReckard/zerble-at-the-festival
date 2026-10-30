@@ -85,9 +85,33 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     if(!result.ok){rejection(result.reason);return false;}
     forget(record);rejected.clear();return true;
   }
+  function releaseUntouched(record) {
+    if(!record.token||record.lastHit!==-Infinity||record.contacts.size||record.handoffPending)return false;
+    const state=owner.read(record.token),entry=registry.entries.get(record.entryId),body=adapter.readBody(record.bodyId);
+    if(!state||!entry||!body?.sleeping||state.occupants?.some(p=>p.current)||incidents.read(record.incidentKey))return false;
+    const p=body.pose.position,origin=entry.physicalProp.worldPose.position,q=body.pose.rotation,r=entry.physicalProp.worldPose.rotation;
+    // Only solver settling within 2 cm / about one degree may return to the
+    // authored instance. Displaced aftermath needs its own persistent pose.
+    if(Math.hypot(p.x-origin.x,p.y-origin.y,p.z-origin.z)>.02||Math.abs(q.x*r.x+q.y*r.y+q.z*r.z+q.w*r.w)<.99995)return false;
+    if(Math.hypot(cart.position.x-p.x,cart.position.z-p.z)<32)return false;
+    if(camera){
+      camera.updateMatrixWorld();projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);frustum.setFromProjectionMatrix(projection);
+      sphere.center.set(p.x,p.y,p.z);sphere.radius=state.supportRadius+3;
+      if(frustum.intersectsSphere(sphere))return false;
+    }
+    const result=owner.release(record.token,{mode:'restore-original'});
+    if(!result.ok){rejection(result.reason);return false;}
+    forget(record);rejected.clear();return true;
+  }
   function prepare(deadline) {
     if(disposed)return;
     preparationCalls++;
+    // Free safe residents before admission, including a diagnostic target that
+    // teleported into range after the previous neighborhood filled the cap.
+    for(const record of [...records.values()]){
+      if(now()>=deadline)break;
+      if(!considerRetirement(record))releaseUntouched(record);
+    }
     for(const [key,failure] of rejected) {
       const entry=registry.entries.get(failure.entryId);
       if(!entry||Math.hypot(entry.position.x-cart.position.x,entry.position.z-cart.position.z)>48
@@ -116,7 +140,6 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     }
     for(const record of [...records.values()]) {
       if(now()>=deadline)break;
-      if(considerRetirement(record))continue;
       if(record.handoffPending) {
         record.handoffPending=!solids.removeEntry(record.entryId).ok;
         if(record.handoffPending){rejection('static-handoff');continue;}
@@ -239,6 +262,28 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     return {ok:!errors.length,errors};
   }
   return {prepare,advance,stats,dispose,approachPerson:()=>ordinary?.approach()??null,reset(reason){resetReason=reason;},owns(entry){return !!entryRecords.get(entry.id)?.token;},
+    tossAtPerson(){
+      if(disposed||!ordinary)return {ok:false,reason:'people-unavailable'};
+      let best=null;const flight=.4;
+      for(const person of ordinary.preparedPeople())for(const record of records.values()){
+        if(!record.token||record.handoffPending)continue;
+        const state=owner.read(record.token),body=adapter.readBody(record.bodyId);
+        if(!state||!body||state.occupants?.some(p=>p.current))continue;
+        const target={x:person.x+(person.vx??0)*flight,y:person.y+person.scale,z:person.z+(person.vz??0)*flight};
+        const distance=Math.hypot(target.x-body.centerOfMass.x,target.z-body.centerOfMass.z);
+        if(distance<1||distance>5||isWet(target.x,target.z)||!containsSupport(record.bounds,target,state.supportRadius+.5))continue;
+        const velocity={x:(target.x-body.centerOfMass.x)/flight,y:(target.y-body.centerOfMass.y)/flight+9.81*flight/2,z:(target.z-body.centerOfMass.z)/flight};
+        if(!best||distance<best.distance)best={record,body,person,velocity,distance};
+      }
+      if(!best)return {ok:false,reason:'no-prepared-prop-person-pair'};
+      const {record,body,person,velocity}=best;
+      const impulse=Object.fromEntries(['x','y','z'].map(axis=>[axis,body.mass*(velocity[axis]-body.linearVelocity[axis])]));
+      if(!adapter.applyImpulse(body.id,impulse,body.centerOfMass))return {ok:false,reason:'prop-unavailable'};
+      // This explicit diagnostic action launches a real resident prop. It does
+      // not move or freeze the pedestrian, or impersonate a scored cart hit.
+      incidents.start(record.incidentKey,'physics-fixture',clock.time);
+      return {ok:true,entryId:record.entryId,person:{slot:person.handle.slot,generation:person.handle.generation}};
+    },
     approach(isWet,requestedKind=null){
       const candidates=[];
       for(const kind of ['chair','camp_chair','camp_loveseat','camp_cooler'])for(const id of registry.byKind.get(kind)??[]) {

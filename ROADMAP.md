@@ -219,8 +219,9 @@ harness history, tier contract and acceptance criteria.
   route-aware damageable signs and bounded aftermath. The standalone engine fixture
   and opt-in live chairs, closed coolers and occupied-seat falls/recovery are implemented;
   ordinary pedestrians and swept prop-to-person activation are also implemented with bounded reserves.
-  Finish graduated person reactions, rendered secondary-impact acceptance, moving-person sweeps,
-  broader incident attribution, support-boundary and coherent
+  Real secondary fall/recovery and bounded incident provenance are verified; untouched offscreen
+  residents can release slots without resetting displaced aftermath. Finish graduated person
+  reactions, broader visual acceptance, moving-person sweeps, support-boundary and coherent
   distance-reset policy, broader props and device acceptance.
   See the [first proof and remaining work](verification/physical-festival/README.md).
 - **Juice tuning:** keep variety costs and drain/frown feel as explicit design decisions.

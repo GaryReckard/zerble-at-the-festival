@@ -5,12 +5,22 @@ import {Registry} from '../src/registry.js';
 import {createLivePhysics} from '../src/physics/liveWorld.js';
 import {resolveCollision} from '../src/collisionContacts.js';
 import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
-for(const mode of ['recover','repeat','despawn','dispose','unprepared','capacity']) {
+import {buildCampChair} from '../src/models/campChair.js';
+import {batchPropGroups} from '../src/propRendering.js';
+import {registerStageChair} from '../src/campRegistry.js';
+for(const mode of ['recover','repeat','despawn','dispose','unprepared','capacity','prop']) {
  const people=makePeopleCrowd(),registry=new Registry(),scene=new THREE.Scene();
  const n=people.spawn({pos:new Vector()});n.scale=1;
  const protectedPerson=people.spawn({pos:new Vector(7,0,0)});protectedPerson.isPhotographer=true;
  const cart={position:new THREE.Vector3(0,0,9),root:new THREE.Group(),heading:0,speed:8,radius:1.9,applyHit(){this.speed=-2;this.invulnLeft=1;}};
  if(mode==='capacity')for(let i=0;i<10;i++)Object.assign(people.spawn({pos:new Vector(i*.2,0,0)}),{scale:1});
+ let propEntry,propBatch;
+ if(mode==='prop'){
+  const chair=buildCampChair(()=>.3,{style:'sling'}),root=new THREE.Group();scene.add(root);root.add(chair.group);chair.group.position.z=3;
+  propBatch=batchPropGroups(root,[chair.group]);const parent=registry.add({kind:'stage_front',position:new THREE.Vector3(),chunkKey:'prop-origin'});
+  Object.assign(chair,{renderBinding:propBatch.bindings[0],audienceGroup:0,audienceSlot:0,campSeats:chair.seatOffsets.map(()=>({occupied:false}))});
+  propEntry=registerStageChair(registry,chair,{chunkKey:'prop-origin',origin:{x:0,y:0,z:0},originRegistryId:parent,batch:propBatch});
+ }
  const world=await createLivePhysics({scene,registry,cart,people});
  try {
   if(mode==='capacity') {
@@ -23,6 +33,21 @@ for(const mode of ['recover','repeat','despawn','dispose','unprepared','capacity
    for(let i=0;i<30&&!world.stats().ordinary.people.some(p=>p.ready);i++)world.prepare(performance.now()+100);
    assert.equal(world.stats().ordinary.people.length,1);assert(world.stats().ordinary.people[0].ready);
    assert.equal(people.activityClaims.current.size,0,'prewarming does not claim ordinary movement');
+  }
+  if(mode==='prop'){
+   for(let i=0;i<50&&!world.owns(propEntry);i++)world.prepare(performance.now()+100);
+   assert(world.owns(propEntry));const original={x:n.pos.x,y:n.pos.y,z:n.pos.z};
+   const toss=world.tossAtPerson();assert(toss.ok,JSON.stringify(toss));assert.equal(toss.entryId,propEntry.id);
+   assert.deepEqual({x:n.pos.x,y:n.pos.y,z:n.pos.z},original,'diagnostic toss does not place the victim');
+   assert.equal(people.activityClaims.current.size,0,'launch does not claim or freeze the person');
+   cart.speed=0;
+   for(let i=0;i<180&&!world.stats().ordinary.propHits;i++){world.prepare(performance.now()+100);world.advance(1/60);}
+   assert.equal(world.stats().ordinary.propHits,1,JSON.stringify(world.stats().ordinary));
+   assert.equal(world.stats().hits,0,'prop reaches person without a direct cart contact');
+   assert.equal(world.stats().incidents.targets,1);assert(people.isInActivity(n.personHandle,'physical-person'));
+   for(let i=0;i<900&&people.isInActivity(n.personHandle,'physical-person');i++){world.prepare(performance.now()+100);world.advance(1/60);}
+   assert.equal(world.stats().ordinary.completed,1,JSON.stringify(world.stats().ordinary));
+   assert.equal(world.stats().ordinary.propHits,1);continue;
   }
   cart.position.set(0,0,1);const candidates=[];people.appendColliders(candidates,cart);
   const hit=resolveCollision(cart,candidates);assert(hit.damaging);assert.equal(hit.kind,'person');assert.equal(cart.speed,-2);
@@ -45,7 +70,7 @@ for(const mode of ['recover','repeat','despawn','dispose','unprepared','capacity
   assert.equal(world.stats().ordinary.started,1);assert.equal(world.stats().ordinary.completed,1);
   assert.equal(n.state,'walking');assert.equal(n._reactionPose,null);if(mode==='repeat')assert(repeated);
   assert.equal(people.activityClaims.current.size,0);
- } finally {world.dispose();people.activityClaims.dispose();}
+ } finally {world.dispose();people.activityClaims.dispose();registry.removeChunk('prop-origin');propBatch?.dispose();}
  assert.equal(world.stats().engine.bodies,0);assert.equal(people._personImpactHandler,null);
 }
-console.log('PASS live ordinary people: prewarmed terrain, actual cart contact and incoming speed, protected photographer, tipping/recovery, repeat hit, despawn, world teardown and unprepared legacy fallback.');
+console.log('PASS live ordinary people: prewarmed terrain, actual cart contact and incoming speed, protected photographer, tipping/recovery, repeat hit, despawn, world teardown unprepared legacy fallback and real prop-to-person toss/recovery without moving or claiming the target at launch.');
