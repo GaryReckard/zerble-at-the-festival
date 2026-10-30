@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "4.3 (Bounded incident provenance): prop relay implemented; person delivery and device acceptance pending"
+current_task: "4.3 (Bounded incident provenance): swept ordinary-person delivery implemented; rendered secondary encounters and device acceptance pending"
 blocked_by: null
 open_questions: 1
 started: 2026-10-29
@@ -48,6 +48,17 @@ ref: "ROADMAP.md: Gameplay verbs / Physical props"
 No unanswered question is blocking planning. Numeric tuning, measured capacity and animation/art acceptance are scheduled implementation gates in [tasks.md](tasks.md), not implied approvals or forgotten questions.
 
 ## Work Log
+
+### October 30: swept prop-to-person delivery
+
+Added bounded real-shape sweeps against reserved ordinary pedestrians, including
+rotation-only crossings, actual contact-point inertia, opposing impulses and
+earliest-contact ordering. The multi-recipient regression confirms that an earlier
+recipient can consume enough momentum to spare a later one, independent of
+population slot order. The rendered smoke completed a direct fall/recovery, but
+did not produce a secondary hit. Preserve that acceptance gap and the newly
+observed cooler staging/admission issue rather than checking task 4.3 prematurely.
+See [evidence and next tests](../../../verification/physical-festival/2026-10-30-prop-people/README.md).
 
 ### October 30: clear stand-up recovery
 

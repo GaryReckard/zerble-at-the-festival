@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+import {createOrdinaryPeople} from '../src/physics/ordinaryPeople.js';
+import {createIncidentLedger} from '../src/physics/incidents.js';
+import {AdmissionBudget} from '../src/physics/admissionBudget.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+const pose=(x,y=1.4,z=0,angle=0)=>({position:{x,y,z},rotation:{x:0,y:Math.sin(angle/2),z:0,w:Math.cos(angle/2)}});
+for(const mode of ['crossing','crowd','miss','resting','rotation','unattributed','expired','unprepared','protected','stale']) {
+ const adapter=await createRapierAdapter({gravity:{x:0,y:0,z:0},capacities:{bodies:8,colliders:512,contactPairs:4}});
+ const people=makePeopleCrowd(),n=people.spawn({pos:new Vector(mode==='rotation'?1.6:0,0,0)});n.scale=1;
+ if(mode==='protected')n.isPhotographer=true;
+ const near=mode==='crowd'?people.spawn({pos:new Vector(-1.2,0,0)}):null;if(near)near.scale=1;
+ const budget=new AdmissionBudget({capacities:{bodies:4,colliders:4,joints:0,renderSlots:0,events:0}}),incidents=createIncidentLedger();
+ // This fixture isolates delivery from terrain streaming, which is exercised
+ // by test-physics-live-people. Shapes, claims and impulse response are real.
+ const support=()=>({request:()=>({ok:true}),status:()=>({state:'ready'}),release(){}});
+ assert(adapter.addBody({id:'live-cart',type:'kinematic',pose:pose(0,0,8),colliders:[{shape:'ball',radius:1}]}).ok);
+ const prop=adapter.addBody({id:'cooler',type:'dynamic',pose:pose(-4),colliders:[{shape:'cuboid',halfExtents:{x:mode==='rotation'?2:.3,y:.15,z:.1},mass:15}]});assert(prop.ok);
+ const service=createOrdinaryPeople({people,adapter,budget,terrain:support(),solids:support(),cart:{position:{x:0,z:8},speed:0},isWet:()=>false,now:()=>0,registry:{}});
+ try {
+  if(mode!=='unprepared')service.prepare(1);if(near)service.prepare(1);
+  const start=mode==='rotation'?pose(0,1.4,0,-Math.PI/4):pose(-4,1.4,mode==='miss'?2:0);
+  const end=mode==='rotation'?pose(0,1.4,0,Math.PI/4):mode==='resting'?start:pose(4,1.4,mode==='miss'?2:0);
+  const key=`cooler:${prop.generation}`,before=new Map([['cooler',{key,generation:mode==='stale'?prop.generation+1:prop.generation,pose:start}]]);
+  adapter.setPose('cooler',end);adapter.setVelocity('cooler',{linear:{x:mode==='rotation'?0:8,y:0,z:0},angular:{x:0,y:mode==='rotation'?4:0,z:0}});
+  if(mode!=='unattributed')incidents.start(key,'zerble',0);
+  const time=mode==='expired'?6:1,initial=adapter.readBody('cooler'),bodyCount=adapter.counts().bodies;
+  service.strikeProps({before,dt:1,time,incidents});
+  const expected=['crossing','crowd','rotation','unattributed','expired'].includes(mode);
+  assert.equal(service.stats().propHits,expected?1:0,mode);
+  assert.equal(people.isInActivity((near??n).personHandle,'physical-person'),expected,mode);
+  assert.equal(adapter.counts().bodies,bodyCount,'impact allocates no new body');
+  if(expected){
+   const active=service.stats().people[near?1:0].body;assert(active.enabled);assert.equal((near??n)._reactionPose.seatBlend,0);
+   const after=adapter.readBody('cooler');
+   for(const axis of ['x','y','z']){const recipients=service.stats().people.filter(p=>p.active).reduce((sum,p)=>sum+p.body.mass*p.body.linearVelocity[axis],0);assert(Math.abs(initial.mass*initial.linearVelocity[axis]-after.mass*after.linearVelocity[axis]-recipients)<.001,'equal opposing impulse '+axis);}
+   if(near)assert(!people.isInActivity(n.personHandle,'physical-person'),'earlier recipient consumes momentum before later target, independent of population slot');
+   assert.equal(incidents.stats().targets,['unattributed','expired'].includes(mode)?0:1);
+   const velocity={...active.linearVelocity};service.strikeProps({before,dt:1,time,incidents});
+   assert.deepEqual(service.stats().people[near?1:0].body.linearVelocity,velocity,'active body is solver-owned, no duplicate scripted kick');
+   assert.equal(service.stats().propHits,1);
+  }
+ }finally{service.dispose();people.activityClaims.dispose();adapter.dispose();}
+ assert.equal(budget.report().records,0);assert.equal(people.activityClaims.current.size,0);
+}
+console.log('PASS prop-to-person delivery: swept crossing and rotation, real claims, opposing momentum, misses, stationary debris, expired attribution, protected/unprepared/stale targets, no duplicate kick and cleanup.');

@@ -10,9 +10,14 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [prop-to-person checkpoint](2026-10-30-prop-people/README.md) connects bounded
+shape sweeps to ordinary pedestrian activation and incident target attribution.
+Real-engine tests cover translation, rotation and depleted momentum; rendered
+secondary encounters, moving-person sweeps and device acceptance remain open.
+
 The [incident attribution checkpoint](2026-10-30-incidents/README.md) adds bounded
 source history and prop-to-prop relay, including an observed cooler-to-loveseat
-chain. Delivery to people and indirect scoring remain unfinished.
+chain. Indirect scoring and broader person delivery remain unfinished.
 
 The [ordinary-person checkpoint](2026-10-30-ordinary-people/README.md) adds bounded
 prewarming, direct-cart pedestrian falls and recovery through the live population.

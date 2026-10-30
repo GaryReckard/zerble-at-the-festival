@@ -185,7 +185,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     clock.advance(dt,(step,time)=>{
       incidents.advance(time);
       const incoming=new Map();
-      for(const record of records.values())if(record.token){const body=adapter.readBody(record.bodyId);if(body)incoming.set(body.id,{key:record.incidentKey,position:body.pose.position,velocity:body.linearVelocity});}
+      for(const record of records.values())if(record.token){const body=adapter.readBody(record.bodyId);if(body)incoming.set(body.id,{key:record.incidentKey,generation:body.generation,pose:body.pose,position:body.pose.position,velocity:body.linearVelocity});}
       proxy.beforeStep(time);adapter.step(step);owner.stepPeople(step);ordinary?.step(step);
       const drained=adapter.drainEvents();overflow+=drained.overflow;
       for(const event of drained.events) {
@@ -215,6 +215,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
           mass:body.mass,approachSpeed:approach,push:{x:-dx/d,z:-dz/d}};
       }
       relayPropIncidents({ledger:incidents,events:drained.events,before:incoming,time});
+      ordinary?.strikeProps({before:incoming,dt:step,time,incidents});
     },{canStep});
     for(const record of records.values())if(record.token) {
       const result=owner.publish(record.token);

@@ -218,7 +218,9 @@ harness history, tier contract and acceptance criteria.
   for chair/occupant physics and recovery, the existing cooler, transferable drinks,
   route-aware damageable signs and bounded aftermath. The standalone engine fixture
   and opt-in live chairs, closed coolers and occupied-seat falls/recovery are implemented;
-  finish graduated person reactions, secondary impacts, incident attribution, support-boundary and coherent
+  ordinary pedestrians and swept prop-to-person activation are also implemented with bounded reserves.
+  Finish graduated person reactions, rendered secondary-impact acceptance, moving-person sweeps,
+  broader incident attribution, support-boundary and coherent
   distance-reset policy, broader props and device acceptance.
   See the [first proof and remaining work](verification/physical-festival/README.md).
 - **Juice tuning:** keep variety costs and drain/frown feel as explicit design decisions.

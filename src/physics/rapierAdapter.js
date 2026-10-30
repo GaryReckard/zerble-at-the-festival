@@ -1,3 +1,5 @@
+import {bodyMotion,sweepSeparation} from './bodySweep.js';
+
 // Engine proof boundary: callers own logical identity, admission priority and
 // mandatory-release reservations. This adapter owns every Rapier/WASM handle.
 let enginePromise;
@@ -140,6 +142,14 @@ function colliderDescriptor(R, spec) {
   descriptor.setActiveEvents(events);
   descriptor.setContactForceEventThreshold(scalar(spec.forceThreshold ?? 0, 'forceThreshold', 0));
   return descriptor;
+}
+
+function sweepRadius(spec) {
+  const p=pose(spec).position;
+  const radius=spec.shape==='cuboid'?Math.hypot(spec.halfExtents.x,spec.halfExtents.y,spec.halfExtents.z)
+    :spec.shape==='ball'?spec.radius:spec.shape==='capsule'?spec.radius+spec.halfHeight
+    :spec.shape==='cylinder'?Math.hypot(spec.radius,spec.halfHeight):null;
+  return radius===null?null:Math.hypot(p.x,p.y,p.z)+radius;
 }
 
 /** Async WASM initialization is isolated here; do not await this in an audio-unlock gesture chain. */
@@ -435,6 +445,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       meshVertexCount += addedVertices; meshTriangleCount += addedTriangles;
       created.forEach((c, index) => colliders.set(c.handle, {
         id: spec.id, generation: serial, index, sensor: c.isSensor(), shape: c.shape,
+        sweepRadius: sweepRadius(spec.colliders[index]),
         local: { position: vector(c.translationWrtParent(), 'collider local position'), rotation: rotation(c.rotationWrtParent()) },
       }));
       return { ok: true, id: spec.id, generation: serial };
@@ -451,6 +462,23 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
         ccd: item.body.isCcdEnabled(), enabled: item.body.isEnabled(),
       };
     },
+    readPointResponse(id,generation,point,normal,at=null) {
+      const item=record(id);if(!item||item.generation!==generation)return null;
+      const p=vector(point,'response point'),n=vector(normal,'response normal'),body=item.body;
+      const supplied=at?pose(at):null;
+      const center=supplied?composePose(supplied,{position:body.localCom(),rotation:IDENTITY}).position:body.worldCom();
+      const r={x:p.x-center.x,y:p.y-center.y,z:p.z-center.z};
+      let torque={x:r.y*n.z-r.z*n.y,y:r.z*n.x-r.x*n.z,z:r.x*n.y-r.y*n.x};
+      if(supplied){
+        const q=supplied.rotation;
+        const local=composePose({position:ZERO,rotation:{x:-q.x,y:-q.y,z:-q.z,w:q.w}},{position:torque,rotation:IDENTITY}).position;
+        torque=composePose({position:ZERO,rotation:body.rotation()},{position:local,rotation:IDENTITY}).position;
+      }
+      const inv=body.effectiveInvMass(),m=body.effectiveWorldInvInertia(),t=torque;
+      const inverseMass=n.x*n.x*inv.x+n.y*n.y*inv.y+n.z*n.z*inv.z
+        +t.x*(m.m11*t.x+m.m12*t.y+m.m13*t.z)+t.y*(m.m21*t.x+m.m22*t.y+m.m23*t.z)+t.z*(m.m31*t.x+m.m32*t.y+m.m33*t.z);
+      return {inverseMass,velocity:vector(body.velocityAtPoint(p),'point velocity')};
+    },
     setBodyEnabled(id, enabled) {
       const item = record(id);
       if (typeof enabled !== 'boolean') throw new TypeError('enabled must be a boolean');
@@ -460,6 +488,37 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       // separation before re-enabling an overlapping cart proxy.
       item.body.setEnabled(enabled);
       return true;
+    },
+    sweepBodies(a, b, {maxTests=limits.colliders,margin=.002,minClosingTravel=0}={}) {
+      live();limit(maxTests,'maxTests');scalar(margin,'sweep margin',0,.03);
+      scalar(minClosingTravel,'minimum closing travel',0);
+      if(maxTests>limits.colliders)throw new RangeError('Sweep exceeds collider capacity');
+      const source=bodies.get(a?.id),target=bodies.get(b?.id);
+      if(!source||!target||source.generation!==a.generation||target.generation!==b.generation)
+        return {ok:false,reason:'stale-body',hit:null,testedPairs:0};
+      if(source===target)return {ok:false,reason:'same-body',hit:null,testedPairs:0};
+      const aa=source.colliders.map(h=>colliders.get(h)).filter(c=>!c.sensor),bb=target.colliders.map(h=>colliders.get(h)).filter(c=>!c.sensor);
+      if([...aa,...bb].some(c=>c.sweepRadius===null))return {ok:false,reason:'unsupported-sweep-shape',hit:null,testedPairs:0};
+      const motionA=bodyMotion(pose(a.from),pose(a.to)),motionB=bodyMotion(pose(b.from),pose(b.to));
+      let testedPairs=0;
+      const result=sweepSeparation({motionA,motionB,radiusA:Math.max(0,...aa.map(c=>c.sweepRadius)),radiusB:Math.max(0,...bb.map(c=>c.sweepRadius)),margin,minClosingTravel,
+        query(pa,pb,prediction){
+          let closest=null;
+          for(const ca of aa)for(const cb of bb){
+            if(testedPairs===maxTests)return {ok:false,reason:'query-capacity',hit:null};
+            testedPairs++;
+            const ap=composePose(pa,ca.local),bp=composePose(pb,cb.local);
+            const c=ca.shape.contactShape(ap.position,ap.rotation,cb.shape,bp.position,bp.rotation,prediction);
+            if(c&&(!closest||c.distance<closest.distance))closest={distance:c.distance,
+              pointA:vector(c.point1,'sweep point'),pointB:vector(c.point2,'sweep point'),normal:vector(c.normal1,'sweep normal'),colliderA:ca.index,colliderB:cb.index};
+          }
+          return {ok:true,contact:closest};
+        }});
+      if(result.hit){
+        const h=result.hit,va=motionA.travelAt(h.pointA,h.fraction),vb=motionB.travelAt(h.pointB,h.fraction);
+        h.closingTravel=(va.x-vb.x)*h.normal.x+(va.y-vb.y)*h.normal.y+(va.z-vb.z)*h.normal.z;
+      }
+      return {...result,testedPairs};
     },
     queryBodyContacts(id, generation, value, {maxTests=limits.colliders,margin=.03}={}) {
       live();limit(maxTests,'maxTests');scalar(margin,'contact margin',0);

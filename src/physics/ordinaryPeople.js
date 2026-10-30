@@ -9,7 +9,7 @@ import {sampleTerrain} from '../worldgen/terrain.js';
 // claim only a still-eligible person whose actual landing support is resident.
 export function createOrdinaryPeople({people,adapter,budget,terrain,solids,cart,isWet,now,registry,maxPeople=4}) {
  const records=new Map(),activity={activityKey:'physical-person',onPersonImpact:hit};
- let disposed=false,lastReject=null,started=0,completed=0;
+ let disposed=false,lastReject=null,started=0,completed=0,propHits=0,sweepTests=0;
  function release(record) {
   record.controller?.dispose();record.recovery?.cancel();
   const errors=[];
@@ -47,7 +47,7 @@ export function createOrdinaryPeople({people,adapter,budget,terrain,solids,cart,
   const body=record.lease.read()?.body;if(!body)return false;
   record.recovery.cancel();
   const strength=body.mass*Math.min(6,Math.max(1,speed*.6));
-  adapter.applyImpulse(body.id,{x:x*strength,y:body.mass*.5,z:z*strength},{...body.pose.position,y:body.pose.position.y+.25*record.scale});
+  adapter.applyImpulse(body.id,impact?.propImpulse??{x:x*strength,y:body.mass*.5,z:z*strength},impact?.point??{...body.pose.position,y:body.pose.position.y+.25*record.scale});
   record.controller.step(0);return true;
  }
  function prepare(deadline) {
@@ -81,7 +81,50 @@ export function createOrdinaryPeople({people,adapter,budget,terrain,solids,cart,
    if(t.ok&&s.ok)record.bounds=wanted;else lastReject=t.ok?s.reason:t.reason;
   }
  }
- return Object.freeze({prepare,
+ function strikeProps({before,dt,time,incidents}) {
+  // Already-falling people are solver-owned. Never layer scripted impulses on
+  // their engine contacts. Walking people still own no active rigid body.
+  let remaining=512;sweepTests=0;const pending=[];
+  for(const record of records.values()) {
+   if(record.claim||record.cleanupPending||!ready(record))continue;
+   const view={};if(!people.readPerson(record.handle,view)||!people.canClaimPersonReaction(record.handle)||view.scale!==record.scale)continue;
+   if(!containsSupport(record.bounds,{x:view.x,z:view.z},record.scale*1.5+1))continue;
+   const person=record.lease.read()?.body;if(!person)continue;
+   const half=view.heading/2,at={position:{x:view.x,y:view.y+record.scale,z:view.z},rotation:{x:0,y:Math.sin(half),z:0,w:Math.cos(half)}};
+   let first=null;
+   for(const [id,previous] of before) {
+    const body=adapter.readBody(id);if(!body||body.generation!==previous.generation)continue;
+    if(!remaining){lastReject='person-sweep-capacity';break;}
+    const result=adapter.sweepBodies({id,generation:body.generation,from:previous.pose,to:body.pose},
+     {id:person.id,generation:person.generation,from:at,to:at},{maxTests:remaining,minClosingTravel:1.2*dt});
+    remaining-=result.testedPairs;sweepTests+=result.testedPairs;
+    if(!result.ok){lastReject=result.reason;continue;}
+    const contact=result.hit;if(!contact||contact.closingTravel/dt<=1.2)continue;
+    if(!first||contact.fraction<first.contact.fraction)first={body,previous,contact};
+   }
+   if(first)pending.push({...first,record,view,person,at});
+  }
+  // Resolve the earliest swept contacts first, independent of population slot
+  // order, so an earlier recipient consumes momentum before a later one.
+  pending.sort((a,b)=>a.contact.fraction-b.contact.fraction||a.record.handle.slot-b.record.handle.slot);
+  for(const {body,previous,contact,record,view,person,at} of pending) {
+   const a=adapter.readPointResponse(body.id,body.generation,contact.pointA,contact.normal);
+   const b=adapter.readPointResponse(person.id,person.generation,contact.pointB,contact.normal,at);
+   if(!a||!b||a.inverseMass+b.inverseMass<=0)continue;
+   // Re-evaluate after earlier recipients took momentum from the same prop.
+   // Include rotational inertia so off-center hits cannot create energy.
+   const closing=(a.velocity.x-(view.vx??0))*contact.normal.x+a.velocity.y*contact.normal.y+(a.velocity.z-(view.vz??0))*contact.normal.z;
+   const speed=Math.min(contact.closingTravel/dt,closing);if(speed<=1.2)continue;
+   const magnitude=Math.min(person.mass*6,1.1*speed/(a.inverseMass+b.inverseMass));
+   const impulse={x:contact.normal.x*magnitude,y:contact.normal.y*magnitude,z:contact.normal.z*magnitude};
+   if(!hit(record.handle,contact.normal.x,contact.normal.z,{approachSpeed:speed,propImpulse:impulse,point:contact.pointB}))continue;
+   adapter.applyImpulse(body.id,{x:-impulse.x,y:-impulse.y,z:-impulse.z},contact.pointA);propHits++;
+   // Response does not depend on blame history. Claim one target per incident
+   // without introducing an indirect smile fee.
+   if(incidents.read(previous.key,time))incidents.claimTarget(previous.key,record.key,time);
+  }
+ }
+ return Object.freeze({prepare,strikeProps,
   approach(){for(const r of records.values())if(!r.claim&&ready(r)){const v={};if(!people.readPerson(r.handle,v)||!people.canClaimPersonReaction(r.handle))continue;
    const result=findChairApproach({registry,entries:[{id:null,position:{x:v.x,y:v.y,z:v.z},collider:{radius:.45}}],radius:2.95,isWet});
    if(result)return {...result,person:{slot:r.handle.slot,generation:r.handle.generation}};
@@ -89,7 +132,7 @@ export function createOrdinaryPeople({people,adapter,budget,terrain,solids,cart,
   prepareRecovery(deadline){for(const r of records.values())if(now()<deadline&&r.controller?.inspect().phase==='settled')r.recovery.prepare(r.lease.read().body,{seatBlend:r.controller.inspect().seatBlend});},
   canStep(dt){for(const r of records.values())if(r.cleanupPending)return false;else if(r.claim){const body=r.lease.read()?.body;if(!body||!ready(r)||!containsSupport(r.bounds,{x:body.pose.position.x+body.linearVelocity.x*dt,z:body.pose.position.z+body.linearVelocity.z*dt},r.scale*1.5+.5))return false;}return true;},
   step(dt){for(const r of records.values())if(r.claim){const result=r.controller.step(dt);if(!result.ok)throw new Error(`Ordinary reaction: ${result.reason}`);}},
-  stats(){return {capacity:maxPeople,lastReject,started,completed,people:[...records.values()].map(r=>({slot:r.handle.slot,generation:r.handle.generation,ready:ready(r),active:!!r.claim,cleanupPending:!!r.cleanupPending,reaction:r.controller?.inspect()??null,body:r.claim?r.lease.read()?.body:null}))};},
+  stats(){return {capacity:maxPeople,lastReject,started,completed,propHits,sweepTests,people:[...records.values()].map(r=>({slot:r.handle.slot,generation:r.handle.generation,ready:ready(r),active:!!r.claim,cleanupPending:!!r.cleanupPending,reaction:r.controller?.inspect()??null,body:r.claim?r.lease.read()?.body:null}))};},
   dispose(){disposed=true;uninstall();const errors=[];for(const r of [...records.values()])try{if(r.claim&&people.isPersonActivityCurrent(r.claim))people.endPersonActivity(r.claim,{reason:'physical-world-removed'});else release(r);}catch(error){errors.push(error);}if(errors.length)throw new AggregateError(errors,'Ordinary people disposal failed');},
  });
 }
