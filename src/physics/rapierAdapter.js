@@ -461,6 +461,28 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       item.body.setEnabled(enabled);
       return true;
     },
+    queryBodyContacts(id, generation, value, {maxTests=limits.colliders,margin=.03}={}) {
+      live();limit(maxTests,'maxTests');scalar(margin,'contact margin',0);
+      if(maxTests>limits.colliders)throw new RangeError('Contact query exceeds collider capacity');
+      const source=bodies.get(id);
+      if(!source||source.generation!==generation)return {ok:false,reason:'stale-body',contacts:[],testedPairs:0};
+      const supplied=pose(value),contacts=[];let testedPairs=0;
+      for(const [targetId,target] of bodies) {
+        if(target===source||!target.body.isEnabled())continue;
+        const targetPose=pose({position:target.body.translation(),rotation:target.body.rotation()});
+        let distance=Infinity;
+        for(const aHandle of source.colliders)for(const bHandle of target.colliders) {
+          const a=colliders.get(aHandle),b=colliders.get(bHandle);if(a.sensor||b.sensor)continue;
+          if(testedPairs===maxTests)return {ok:false,reason:'query-capacity',contacts:[],testedPairs};
+          testedPairs++;
+          const ap=composePose(supplied,a.local),bp=composePose(targetPose,b.local);
+          const contact=a.shape.contactShape(ap.position,ap.rotation,b.shape,bp.position,bp.rotation,margin);
+          if(contact)distance=Math.min(distance,contact.distance);
+        }
+        if(distance!==Infinity)contacts.push({id:targetId,generation:target.generation,distance});
+      }
+      return {ok:true,contacts,testedPairs};
+    },
     queryDynamicOverlaps(id, value, { maxTests = limits.colliders, maxResults = limits.bodies } = {}) {
       live();
       const supplied = pose(value);

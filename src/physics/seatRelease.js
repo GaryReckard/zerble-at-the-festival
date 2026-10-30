@@ -66,6 +66,13 @@ export function prepareSeatRelease({adapter,budget,id,bodyId,bodyGeneration,posi
       if(!adapter.setBodyEnabled(fallId,true))return {ok:false,reason:'reserved-body-missing'};
       state='falling';return {ok:true,bodyId:fallId,generation:bodyGenerationOwned};
     },
+    moveForRecovery(pose) {
+      if(state!=='falling'||adapter.counts().disposed||!ownedBody())return false;
+      // The reaction controller checks current clearance before each bounded
+      // recovery increment; another impact may return this body to free motion.
+      if(!adapter.setPose(fallId,pose))return false;
+      return adapter.setVelocity(fallId,{linear:{x:0,y:0,z:0},angular:{x:0,y:0,z:0}});
+    },
     resumeSupportContacts(options) {
       if(state!=='falling')return {ok:false,reason:'not-falling'};
       if(adapter.counts().disposed)return {ok:false,reason:'adapter-disposed'};

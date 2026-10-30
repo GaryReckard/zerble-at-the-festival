@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+import {AdmissionBudget} from '../src/physics/admissionBudget.js';
+import {prepareSeatRelease} from '../src/physics/seatRelease.js';
+import {createSeatReaction} from '../src/physics/seatReaction.js';
+import {createStandRecovery} from '../src/physics/standRecovery.js';
+import {chairRecipe} from '../src/physics/recipes.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+for(const mode of ['clear','blocked','second-hit','changed-path','despawn']) {
+ const adapter=await createRapierAdapter({capacities:{bodies:5,colliders:12,supportedLoads:1,contactPairs:1}});
+ const budget=new AdmissionBudget({capacities:{bodies:3,colliders:10,joints:0,renderSlots:0,events:0}}),people=makePeopleCrowd(),n=people.spawn({pos:new Vector()});
+ let lease,reaction,released=0,interrupted=false,finished=false,maxStep=0,previous=null;
+ try {
+  const chair=adapter.addBody({id:'chair',type:'dynamic',pose:{position:{x:0,y:1,z:0},rotation:{x:0,y:0,z:Math.sin(.7),w:Math.cos(.7)}},colliders:chairRecipe('sling')});assert(chair.ok);
+  assert(adapter.addBody({id:'floor',type:'fixed',pose:{position:{x:0,y:-.1,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:10,y:.1,z:10}}]}).ok);
+  let walkable=mode!=='blocked';
+  const recovery=createStandRecovery({adapter,ground:()=>({height:0,normalY:1,traversable:walkable})});
+  const claim=people.claimActivity(n.personHandle,{owner:{activityKey:'physical-seat'},prepare(attempt){const r=prepareSeatRelease({adapter,budget,id:'person',bodyId:'chair',bodyGeneration:chair.generation,position:{x:0,y:.915,z:0},mass:70,radius:.3,halfHeight:.4,attempt});assert(r.ok);lease=r.lease;return true;}},{preserveMotion:true});assert(claim);
+  reaction=createSeatReaction({people,claim,lease,recovery,releaseSeat(){released++;},grounded(body){const q=body.pose.rotation;return body.pose.position.y-(.3+.4*Math.abs(1-2*(q.x*q.x+q.z*q.z)))<.04;}});
+  for(let i=0;i<600;i++) {
+   adapter.step(1/60);adapter.drainEvents();
+   const status=reaction.step(1/60);assert(status.ok);
+   if(previous)maxStep=Math.max(maxStep,Math.hypot(n.pos.x-previous.x,n.pos.y-previous.y,n.pos.z-previous.z));previous={...n.pos};
+   if(status.phase==='recovering'&&!interrupted&&recovery.inspect().elapsed>.8) {
+    if(mode==='second-hit'){adapter.applyImpulse(lease.read().bodyId,{x:140,y:0,z:0});interrupted=true;}
+    if(mode==='changed-path'){walkable=false;interrupted=true;}
+    if(mode==='despawn'){people.peopleHandles.remove(n.personHandle,()=>people.activityClaims.removePerson(n.personHandle));assert.equal(reaction.step(1/60).reason,'stale-reaction');interrupted=true;break;}
+   }
+   if(status.phase==='complete'){finished=true;break;}
+  }
+  assert.equal(released,1);assert(maxStep<.2,`visible discontinuity ${maxStep}`);
+  if(mode==='clear'||mode==='second-hit') {
+   assert(finished,`${mode} recovery must finish: ${JSON.stringify(reaction.inspect())}`);
+   assert.equal(n.state,'walking');assert.equal(n._reactionPose,null);assert.equal(budget.report().records,0);assert.equal(adapter.counts().bodies,2);
+   assert.equal(reaction.step(1/60).phase,'complete');
+  } else if(mode==='blocked'||mode==='changed-path') {assert(!finished);assert(people.isPersonActivityCurrent(claim),'no clear target retains authority');}
+  if(['second-hit','changed-path','despawn'].includes(mode))assert(interrupted);
+ } finally {reaction?.dispose();people.activityClaims.dispose();adapter.dispose();}
+ assert.equal(budget.report().records,0);
+}
+console.log('PASS stand recovery: real tilted-chair landing, bounded clear-path search, continuous slide/rise and leg blend, singular return to walking, blocked/changed ground, repeat impact and despawn cleanup.');
+// An empty destination is insufficient: the first two targets lie beyond a
+// thin wall, so the planner must choose the third, unobstructed direction.
+{
+ const adapter=await createRapierAdapter({gravity:{x:0,y:0,z:0},capacities:{bodies:3,colliders:3}});
+ try {
+  const person=adapter.addBody({id:'person',type:'dynamic',pose:{position:{x:0,y:1,z:0}},colliders:[{shape:'capsule',radius:.3,halfHeight:.4}]});assert(person.ok);
+  assert(adapter.addBody({id:'wall',type:'fixed',pose:{position:{x:.55,y:1,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:.025,y:2,z:2}}]}).ok);
+  const body=adapter.readBody('person');
+  assert.equal(adapter.queryBodyContacts(body.id,body.generation,{position:{x:1.1,y:1,z:0},rotation:body.pose.rotation}).contacts.length,0,'far side of wall is empty');
+  assert.equal(adapter.queryBodyContacts(body.id,body.generation,body.pose,{maxTests:0}).reason,'query-capacity');
+  assert.equal(adapter.queryBodyContacts(body.id,body.generation+1,body.pose).reason,'stale-body');
+  const recovery=createStandRecovery({adapter,ground:()=>({height:0,normalY:1,traversable:true})});
+  let third;for(let i=0;i<30;i++){const before=recovery.inspect().queries;third=recovery.step(body,1/60);assert(recovery.inspect().queries-before<=6,'bounded work includes final publication recheck');if(third.phase==='recovering')break;}
+  assert.equal(third.phase,'recovering');assert.equal(recovery.inspect().candidate,3);assert(Math.abs(third.pose.position.x)<1e-6);assert(third.pose.position.z>0);
+  assert(recovery.inspect().queries<=75,'one candidate per step remains bounded');
+ } finally {adapter.dispose();}
+}
+console.log('PASS recovery clearance: rejects routes through a thin wall despite clear endpoints; bounded query exhaustion and stale body generations fail closed.');

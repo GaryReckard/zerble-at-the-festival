@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [stand-up recovery proof](2026-10-30-stand-recovery/README.md) completes the
+fixture’s fall, bounded clear-route search and return to ordinary person control.
+Live occupied-chair adoption and terrain integration remain next.
+
 The [occupied reaction controller](2026-10-30-seat-reaction/README.md) now drives
 a real tipped-chair release and landing through production Crowd poses. Clear
 stand-up recovery and live campsite integration remain unfinished.

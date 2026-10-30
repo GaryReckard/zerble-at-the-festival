@@ -1,7 +1,7 @@
 <!doctype html><meta charset="utf-8"><title>Occupied chair reaction proof</title>
 <style>body{margin:20px;background:#19232b;color:#f5eedb;font:16px system-ui}button{padding:9px 14px;margin-right:8px}canvas{display:block;max-width:100%;margin-top:12px}pre{white-space:pre-wrap;max-height:150px;overflow:auto}</style>
 <h1>Occupied chair reaction</h1>
-<p>Real chair, reserved person body and production Crowd poses. Fixed 1/60 steps; the run stops after four simulated seconds. Stand-up recovery and live campsite adoption are not implemented here.</p>
+<p>Real chair, reserved person body and production Crowd poses. Fixed 1/60 steps; the run stops after four simulated seconds. The recovery searches a clear path on this flat floor. Live campsite adoption remains unfinished.</p>
 <button id="run" disabled>Run tipped-chair fall</button><button id="step" disabled>Single step</button><button id="noon">Noon</button><button id="midnight">Midnight</button><button id="dispose">Dispose fixture</button>
 <pre id="result">Loading…</pre>
 <script type="module">
@@ -14,6 +14,7 @@ import {createRapierAdapter} from '../../src/physics/rapierAdapter.js';
 import {AdmissionBudget} from '../../src/physics/admissionBudget.js';
 import {prepareSeatRelease} from '../../src/physics/seatRelease.js';
 import {createSeatReaction} from '../../src/physics/seatReaction.js';
+import {createStandRecovery} from '../../src/physics/standRecovery.js';
 import {chairRecipe} from '../../src/physics/recipes.js';
 setSessionSeed(1977);
 const result=document.querySelector('#result'),runtime=new PeopleRuntime(),scene=new THREE.Scene();
@@ -36,7 +37,7 @@ const claim=crowd.claimActivity(handle,{owner:{activityKey:'seat-reaction-fixtur
  const prepared=prepareSeatRelease({adapter,budget,id:'person',bodyId:'chair',bodyGeneration:admitted.generation,position:{x:0,y:chair.seatY+.535,z:0},mass:70,radius:.3,halfHeight:.4,attempt});
  if(!prepared.ok)throw Error(prepared.reason);lease=prepared.lease;return true;
 }},{preserveMotion:true});
-reaction=createSeatReaction({people:crowd,claim,lease,releaseSeat(){releases++;},grounded(body){const q=body.pose.rotation;return body.pose.position.y-(.3+.4*Math.abs(1-2*(q.x*q.x+q.z*q.z)))<.04;}});
+reaction=createSeatReaction({people:crowd,claim,lease,releaseSeat(){releases++;},recovery:createStandRecovery({adapter,ground:()=>({height:0,normalY:1,traversable:true})}),grounded(body){const q=body.pose.rotation;return body.pose.position.y-(.3+.4*Math.abs(1-2*(q.x*q.x+q.z*q.z)))<.04;}});
 function draw(){
  if(disposed)return;
  const body=adapter.readBody('chair');chair.group.position.copy(body.pose.position);chair.group.quaternion.copy(body.pose.rotation);

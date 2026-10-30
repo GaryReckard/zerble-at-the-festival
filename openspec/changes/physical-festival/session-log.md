@@ -49,6 +49,10 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 
 ## Work Log
 
+### October 30: clear stand-up recovery
+
+The fixture now completes a fall, bounded local path search, slide/rise with gradual leg unbending, and release back to ordinary person control. Real-engine tests include second impact, blocked/changed routes, despawn and a thin-wall negative case. Planning runs four path samples per accepted step rather than a whole candidate in one frame. Live occupied-chair admission, shared-budget accounting and production terrain support remain next; no broad acceptance box changed. See [proof](../../../verification/physical-festival/2026-10-30-stand-recovery/README.md).
+
 ### October 30: first composed visible sitter fall
 
 The supported/falling controller now publishes the existing Crowd instance through a real-engine tipped-chair fixture. Its continuity regression caught a stale collider world transform after setPose; load reads now compose current body and local transforms. Both tiers settle with one release and no added draws. Final chair/body overlap remains visible, so safe stand-up planning is required before acceptance or live rollout. See [proof](../../../verification/physical-festival/2026-10-30-seat-reaction/README.md).
