@@ -1,0 +1,333 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Matrix4,Vector3,Quaternion,Euler} from 'three';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+import {HulaSession} from '../src/people/hulaSession.js';
+import {HulaActivity} from '../src/people/hulaActivity.js';
+import {PeopleRuntime} from '../src/people/runtime.js';
+import {registry} from '../src/registry.js';
+
+// Production public Crowd claims/movement/publication over a recording renderer.
+// This matrix only records the public pose protocol; it is not the complete
+// rendered foot-lift/body geometry. GPU/shader/material acceptance belongs to
+// the production browser workshop/game.
+function population() {
+ const people=makePeopleCrowd(),published=[],matrices=new Map(),scratch={};
+ const q=new Quaternion(),e=new Euler(),pos=new Vector3(),scale=new Vector3(),lean=new Matrix4();
+ people._writeMatrices=npc=>{
+  const owner=people.activityClaims.current.get(npc.personHandle)?.claim.owner;
+  const sample=owner?.sampleBodyPose?.(npc.personHandle,scratch);
+  const m=matrices.get(npc.idx)??new Matrix4();matrices.set(npc.idx,m);
+  let bob=sample?.feet?sample.rootY:(sample?.bob??0);if(npc.frownTimer>0&&!sample?.feet)bob=0;
+  pos.set(npc.pos.x,npc.pos.y+bob*(npc.scale??1),npc.pos.z);scale.setScalar(npc.scale??1);
+  q.setFromEuler(e.set(0,npc.yaw,0));m.compose(pos,q,scale);
+  if(sample)m.multiply(lean.makeRotationFromEuler(e.set(sample.leanX,0,sample.leanZ)));
+  if(sample?.articulated) {
+   const cached=owner.style==='classic'?owner.classicSample:owner.flowSample;
+   assert.equal(sample.version,cached?.version??sample.version,'cache version is complete before synchronous Crowd publication');
+   if(cached){near(cached.time,owner.style==='classic'?owner.elapsed:owner.scoreTime,'cached accepted mode time');assert.deepEqual({...sample.arms},{...cached.arms});
+    if(cached.feet){assert.deepEqual(sample.feet,cached.feet,'foot targets are complete before synchronous publication');assert.notEqual(sample.feet,cached.feet,'provider copies foot storage into caller scratch');near(sample.rootY,cached.rootY,'published root displacement matches the same cached sample');}
+   }
+   published.push({handle:npc.personHandle,style:sample.style,generation:sample.generation,version:sample.version,time:owner.style==='classic'?owner.elapsed:owner.scoreTime,arms:{...sample.arms}});
+  }
+ };
+ people.armsMesh.getMatrixAt=(index,out)=>out.copy(matrices.get(index)??new Matrix4());
+ const spawn=(x=0,z=0)=>{const handle=people.spawnPerson({pos:new Vector(x,0,z)}),n=people.peopleHandles.resolve(handle);n.scale=1;n.frownTimer=0;return handle;};
+ return {people,spawn,published,matrices};
+}
+function sessionFixture({duration=12,style='flow',profile='lyrical',timeout=30}={}) {
+ const p=population(),person=p.spawn(),record=p.people.peopleHandles.resolve(person);
+ let reservation=null,releases=0,shown=false;
+ const place={
+  reserve(){if(reservation)return null;return reservation={};},isLive:r=>r===reservation,
+  release(r){if(r===reservation){reservation=null;releases++;}},show(r,on){shown=on;},
+  target(r,phase,out){if(r!==reservation)return false;out.x=phase==='leaving'?4:0;out.y=0;out.z=0;return true;},
+  canMove:r=>r===reservation,
+ };
+ const session=new HulaSession({people:p.people,place,eligible:v=>!v.claimed,duration,timeout,speed:4});
+ session.configure({style,duration,seed:1977,profile,hoops:1});
+ const start=()=>{assert(session.start(person));session.update(0);assert.equal(session.phase,'hooping');};
+ return {...p,person,record,place,session,start,get reservation(){return reservation;},get releases(){return releases;},get shown(){return shown;}};
+}
+const near=(a,b,label,tolerance=1e-10)=>assert(Math.abs(a-b)<=tolerance,label+': '+a+' vs '+b);
+function comparable(sample) {return {time:sample.time,segment:sample.segment,bob:sample.bob,leanX:sample.leanX,leanZ:sample.leanZ,rootY:sample.rootY??0,travelX:sample.travelX??0,travelZ:sample.travelZ??0,turn:sample.turn??0,stride:sample.stride??0,headYaw:sample.headYaw??0,headTilt:sample.headTilt??0,feet:sample.feet?structuredClone(sample.feet):null,arms:{...sample.arms},hoops:sample.hoops.map(h=>({...h}))};}
+function sameNumbers(a,b,label='sample') {
+ if(typeof a==='number'){near(a,b,label,1e-9);return;}
+ if(a&&typeof a==='object'){for(const key of Object.keys(a))sameNumbers(a[key],b[key],label+'.'+key);return;}
+ assert.equal(a,b,label);
+}
+{
+ const f=sessionFixture();f.start();assert(f.shown);assert.equal(f.session.flowSample.version,f.published.at(-1).version);
+ const before=f.session.scoreTime;f.session.update(0);near(f.session.scoreTime,before,'zero accepted time');
+ for(let i=0;i<150;i++)f.session.update(.05);
+ assert.equal(f.published.at(-1).version,f.session.version);assert(f.session.events.some(e=>e.type==='segment'));
+ const elapsed=f.session.elapsed,wait=f.session.wait,events=f.session.events.length;
+ assert(f.session.seekFlow(2));near(f.session.scoreTime,2,'isolated score seek');near(f.session.elapsed,elapsed,'seeking cannot rewind participation');near(f.session.wait,wait,'seeking cannot rewind waiting');assert.equal(f.session.events.length,events);assert.equal(f.people.activityCooldown(f.person,'hula'),0);
+ assert(!f.session.seekFlow(-1));assert(!f.session.seekFlow(Infinity));assert(!f.session.seekFlow(100));
+ for(const dt of [-1,.051,Infinity,NaN])assert.throws(()=>f.session.update(dt),RangeError);
+ f.session.dispose();assert.equal(f.people.activityClaims.current.size,0);assert.equal(f.releases,1);assert(!f.shown);
+}
+console.log('PASS flow session: cache-before-publication, same version, segment boundaries, zero/invalid delta and isolated score seeking.');
+{
+ const flow=sessionFixture(),classic=sessionFixture({style:'classic'}),scratch={};flow.start();classic.start();
+ flow.session.update(.05);assert.equal(flow.session.sampleBodyPose(flow.person,scratch).style,'flow');assert(Object.values(scratch.arms).some(x=>x!==0));
+ assert.equal(classic.session.sampleBodyPose(classic.person,scratch).style,'classic');assert.equal(scratch.articulated,true);assert.equal(scratch.hoopCount,0);assert(Object.values(scratch.arms).some(x=>x!==0),'waist mode has its own expressive arms');assert(scratch.feet);assert.equal(scratch.travelX,0);assert.equal(scratch.travelZ,0);assert.equal(scratch.turn,0);
+ assert.equal(flow.session.sampleBodyPose(classic.person,scratch),null);assert.equal(scratch.style,'inactive');assert.equal(scratch.hoopCount,0);assert.equal(scratch.arms,null);
+ assert.equal(flow.session.sampleBodyPose(flow.person,scratch).style,'flow');assert.equal(scratch.version,flow.session.flowSample.version);
+ flow.session.finish();assert.equal(flow.session.sampleBodyPose(flow.person,scratch),null);assert.equal(scratch.style,'inactive');
+ assert(flow.session.start(flow.person));flow.session.update(0);assert.equal(flow.session.sampleBodyPose(flow.person,scratch).style,'flow');assert.equal(scratch.generation,2);
+ flow.session.dispose();classic.session.dispose();
+}
+console.log('PASS mixed flow/classic/inactive/flow scratch, explicit discriminators and recycled session generations.');
+{
+ const a=sessionFixture(),b=sessionFixture();a.start();b.start();
+ for(let i=0;i<50;i++)a.session.update(.05);for(let i=0;i<100;i++)b.session.update(.025);
+ near(a.session.elapsed,b.session.elapsed,'accepted partition elapsed');sameNumbers(comparable(a.session.flowSample),comparable(b.session.flowSample));
+ const unchanged=comparable(a.session.flowSample);for(let i=0;i<20;i++)a.session.sampleBodyPose(a.person,{});assert.deepEqual(comparable(a.session.flowSample),unchanged,'repeated readers never advance state');
+ a.session.dispose();b.session.dispose();
+}
+console.log('PASS flow frame partitions and sample-reader order independence.');
+{
+ const f=sessionFixture();f.start();
+ const interrupt=()=>{
+  const elapsed=f.session.elapsed,epoch=f.session.scoreEpoch,claim=f.session.claim;
+  f.people.activityClaims.removePerson(f.person,'honk');assert.equal(f.session.phase,'interrupted');assert(!f.shown);assert(!f.people.writeActivityPose(claim,9,0,9));
+  f.session.update(.05,{safe:false});near(f.session.elapsed,elapsed,'interrupted wait is not participation');
+  f.session.update(.05,{safe:true});assert.equal(f.session.phase,'approaching');
+  // A flow phrase can travel away from its anchor. Reacquisition legitimately
+  // walks back before the fresh entrance; approach time is not participation.
+  f.session.update(0);
+  for(let step=0;step<200&&f.session.phase==='approaching';step++){f.session.update(.05);near(f.session.elapsed,elapsed,'return approach is not participation');}
+  assert.notEqual(f.session.phase,'approaching','bounded return reaches the anchor or ends safely');
+  if(f.session.phase==='hooping'){near(f.session.elapsed,elapsed,'restart preserves lifetime');near(f.session.scoreTime,0,'restart has fresh local score time');assert.equal(f.session.scoreEpoch,epoch+1);}
+ };
+ for(let cycle=0;cycle<3;cycle++){for(let i=0;i<40;i++)f.session.update(.05);interrupt();}
+ assert.equal(f.session.phase,'hooping');assert(f.session.elapsed>5.9);
+ for(let step=0;f.session.elapsed<8.1;step++){assert(step<200,'bounded lifetime advance');assert.equal(f.session.phase,'hooping');f.session.update(.05);}interrupt();
+ assert.equal(f.session.phase,'idle','remaining time below minimum entrance/resolution ends safely');assert(f.session.elapsed<12);assert.equal(f.releases,1);assert.equal(f.people.activityClaims.current.size,0);assert.equal(f.people.activityCooldown(f.person,'hula'),20);
+ f.session.dispose();
+}
+console.log('PASS repeated flow interruptions preserve participation and use bounded fresh score epochs near completion.');
+for(const mode of ['person','place','timeout','reacquire-denied']) {
+ const f=sessionFixture({timeout:.1});f.start();f.people.activityClaims.removePerson(f.person,'honk');
+ if(mode==='person')f.people.removePerson(f.person);
+ if(mode==='place')f.place.isLive=()=>false;
+ if(mode==='reacquire-denied')f.people.claimActivity=()=>null;
+ for(let i=0;i<4&&f.session.phase!=='idle';i++)f.session.update(.05,{safe:mode!=='timeout'});
+ assert.equal(f.session.phase,'idle',mode);assert.equal(f.people.activityClaims.current.size,0,mode);assert.equal(f.releases,1,mode);assert(!f.shown,mode);f.session.dispose();
+}
+{
+ const f=sessionFixture();f.people.claimActivity=()=>null;assert(!f.session.start(f.person));assert.equal(f.session.phase,'idle');assert.equal(f.releases,1);assert.equal(f.reservation,null);
+}
+console.log('PASS flow cancellation on person/place loss, timeout, initial/reacquisition failure and stale authority.');
+{
+ const f=sessionFixture();f.start();while(f.session.events.length<256)f.session.record('fixture');
+ assert(f.session.seekFlow(f.session.score.segments[1].start-.001));f.session.update(.01);
+ assert.equal(f.session.phase,'idle');assert.equal(f.session.incomplete,true);assert.equal(f.session.exportReplay().error,'event-overflow');assert.equal(f.session.events.length,256);assert.equal(f.people.activityClaims.current.size,0);assert.equal(f.releases,1);assert(!f.shown);
+}
+{
+ const f=sessionFixture();f.start();const calls=[],release=f.place.release;f.place.show=()=>{calls.push('hide');throw Error('hide failure');};f.place.release=r=>{calls.push('release');release(r);throw Error('release failure');};
+ assert.throws(()=>f.session.finish(),AggregateError);assert.deepEqual(calls,['hide','release']);assert.equal(f.session.phase,'idle');assert.equal(f.people.activityClaims.current.size,0);assert.equal(f.releases,1);f.session.dispose();f.session.dispose();
+}
+console.log('PASS flow bounded replay overflow ends safely and throwing cleanup attempts all releases exactly once.');
+
+function activityFixture(options={}) {
+ const p=population(),runtime=new PeopleRuntime(),activity=new HulaActivity({people:p.people,runtime,rootSeed:1977,autoRecruit:false,...options});
+ const id=registry.add({kind:'stage_front',position:new Vector3(),footprint:0,attractor:{radius:100,weight:1}}),entry=registry.entries.get(id);
+ const frame={zerble:{position:new Vector3(0,0,80),speed:0,forwardWorld:new Vector3(0,0,1)},nightness:0,npcsFrozen:false};
+ const tick=(dt=.05)=>{runtime.beginFrame(dt);runtime.run('roaming',frame);};
+ const cleanup=()=>{try{activity.dispose();}finally{runtime.dispose();registry.remove(id);}};
+ return {...p,runtime,activity,id,entry,frame,tick,cleanup};
+}
+{
+ const f=activityFixture(),person=f.spawn();assert(f.activity.startPerformance({person,entry:f.entry,x:0,z:0,style:'flow'}));f.tick(0);f.tick(.05);
+ const slot=f.activity.slots[0],session=slot.session;assert.equal(session.phase,'hooping');assert(slot.hoop.visible);assert.equal(f.activity.envelopes.size,1);assert.equal(slot.root.matrixAutoUpdate,false);
+ const matrix=new Matrix4();assert(f.people.readActivityPresentation(session.claim,matrix));assert.deepEqual(slot.root.matrix.elements,matrix.elements,'prop uses copied production presentation transform');
+ const time=session.scoreTime,elapsed=session.elapsed,clock=f.activity.clock,sample=comparable(session.flowSample);f.frame.npcsFrozen=true;f.tick(.05);
+ near(session.scoreTime,time,'freeze score');near(session.elapsed,elapsed,'freeze participation');near(f.activity.clock,clock,'freeze activity clock');assert.deepEqual(comparable(session.flowSample),sample);
+ f.frame.npcsFrozen=false;f.tick(.05);assert(session.scoreTime>time);
+ const bystander=f.spawn(.4,0);session.seekFlow(session.score.segments[1].start-.001);f.tick(.01);assert.equal(session.phase,'idle','dynamic obstruction cancels at score boundary');assert.equal(f.activity.envelopes.size,0);assert(!slot.hoop.visible);assert(f.people.readPerson(bystander,{}));
+ f.cleanup();
+}
+console.log('PASS real HulaActivity registration: copied presentation, freeze and dynamic-obstruction envelope release.');
+{
+ const f=activityFixture(),p=f.spawn(),obstacle=registry.add({kind:'test_obstacle',position:new Vector3(1,0,0),footprint:.5});
+ assert(!f.activity.startPerformance({person:p,entry:f.entry,style:'flow'}),'building blocks complete performance admission');assert.equal(f.activity.envelopes.size,0);registry.remove(obstacle);
+ const bystander=f.spawn(.7,0);assert(!f.activity.startPerformance({person:p,entry:f.entry,style:'flow'}),'bystander blocks hoop sweep');f.people.removePerson(bystander);
+ assert(f.activity.startPerformance({person:p,entry:f.entry,style:'flow'}));const second=f.spawn(2.7,0);
+ assert(!f.activity.startPerformance({slot:1,person:second,entry:f.entry,style:'flow'}),'another performance envelope cannot overlap');
+ f.cleanup();assert.equal(f.activity.envelopes.size,0);
+}
+{
+ const f=activityFixture();let geometricDisposals=0,materialDisposals=0;
+ for(const g of f.activity.geometries)g.addEventListener('dispose',()=>geometricDisposals++);f.activity.material.addEventListener('dispose',()=>materialDisposals++);
+ for(let i=0;i<8;i++){const person=f.spawn(i*6,0);assert(f.activity.startPerformance({slot:i,person,entry:f.entry,style:'flow',hoops:2}));}
+ f.tick(0);f.tick(.05);const out={};f.activity.inspect(out);assert.equal(out.active,8);assert.equal(out.hoops,16);assert.equal(f.activity.slots.flatMap(s=>s.hoops).length,16);assert(!f.activity.startPerformance({slot:8,person:f.spawn(55,0),entry:f.entry}));
+ f.cleanup();f.activity.dispose();assert.equal(geometricDisposals,8);assert.equal(materialDisposals,1);assert.equal(f.activity.envelopes.size,0);assert(f.activity.slots.flatMap(s=>s.hoops).every(h=>!h.visible));
+ for(let i=0;i<2;i++){const fresh=activityFixture();fresh.cleanup();fresh.activity.dispose();}
+}
+console.log('PASS activity swept admission, overlapping envelope rejection, eight-person/sixteen-prop cap and repeated owner-only disposal.');
+
+// A callback reached by synchronous person publication can revoke the activity.
+// The entry code must not show a prop after that revocation has completed.
+{
+ const f=sessionFixture(),write=f.people.writeActivityPose.bind(f.people);let revoke=true;
+ f.people.writeActivityPose=(claim,...args)=>{const result=write(claim,...args);if(revoke){revoke=false;f.session.finish('publication-revoked');}return result;};
+ assert(f.session.start(f.person));f.session.update(0);assert.equal(f.session.phase,'idle');assert.equal(f.reservation,null);assert(!f.shown,'entry publication cannot resurrect a hidden prop after synchronous revocation');assert.equal(f.people.activityClaims.current.size,0);f.session.dispose();
+}
+console.log('PASS flow entry publication reentrancy cannot resurrect props.');
+{
+ const f=sessionFixture({duration:4});f.start();const write=f.people.writeActivityPose.bind(f.people);let revoke=true;
+ f.people.writeActivityPose=(claim,...args)=>{const result=write(claim,...args);if(revoke&&f.session.elapsed>=f.session.duration){revoke=false;f.session.finish('completion-publication-revoked');}return result;};
+ for(let i=0;i<90&&f.session.phase!=='idle';i++)f.session.update(.05);
+ assert.equal(revoke,false,'fixture crosses the duration boundary');assert.equal(f.session.phase,'idle','completion cannot restore leaving after a synchronous finish');assert(!f.shown);assert.equal(f.reservation,null);assert.equal(f.releases,1);assert.equal(f.people.activityClaims.current.size,0);f.session.dispose();
+}
+{
+ const f=activityFixture(),person=f.spawn();
+ const obstacle=registry.add({kind:'exact_sweep_obstacle',position:new Vector3(2.2,0,0),footprint:.2});
+ assert(!f.activity.startPerformance({person,entry:f.entry,style:'flow'}),'compiled envelope is checked before claiming, beyond the former 1.8m estimate');
+ assert.equal(f.people.activityClaims.current.size,0);assert.equal(f.activity.envelopes.size,0);registry.remove(obstacle);
+ const bystander=f.spawn(2.35,0);assert(!f.activity.startPerformance({person,entry:f.entry,style:'flow'}),'exact compiled envelope includes a bystander beyond the former admission estimate');
+ f.people.removePerson(bystander);assert(f.activity.startPerformance({person,entry:f.entry,style:'flow'}));f.tick(0);
+ const slot=f.activity.slots[0];near(f.activity.envelopes.get(slot.reservation).radius,slot.session.score.envelope.radius,'reserved envelope equals compiled descriptor');
+ f.cleanup();
+}
+console.log('PASS completion publication reentrancy and exact compiled-envelope admission before claims.');
+
+{
+ const f=activityFixture(),person=f.spawn();assert(f.activity.startPerformance({person,entry:f.entry,style:'flow'}));f.tick(0);
+ const slot=f.activity.slots[0],epoch=slot.session.scoreEpoch;assert.equal(slot.lastSegment,0);f.people.activityClaims.removePerson(person,'honk');assert.equal(slot.session.phase,'interrupted');
+ const bystander=f.spawn(.2,0);f.tick(.05);f.tick(0);
+ assert.equal(slot.session.phase,'idle','a new score epoch revalidates its entrance even when segment index remains zero');assert(!slot.hoop.visible);assert.equal(f.activity.envelopes.size,0);assert(f.people.readPerson(bystander,{}));assert.equal(f.people.activityClaims.current.size,0);assert(slot.session.scoreEpoch>epoch);
+ f.cleanup();
+}
+console.log('PASS fresh score-epoch entrance clearance before publication/show after interruption.');
+{
+ const f=activityFixture(),a=f.spawn(-2,0),b=f.spawn(2,0),other=f.spawn(10,0);
+ const pair=f.activity.startPair({persons:[a,b],entry:f.entry});assert(pair);assert.equal(f.activity.pairSlots.length,2);assert.equal(f.activity.envelopes.size,1);assert.equal(f.people.activityClaims.current.size,2);
+ assert(!f.activity.startPerformance({slot:6,person:other,entry:f.entry,style:'flow'}),'a paired slot cannot admit an additional solo participant');
+ assert(!f.activity.startPerformance({slot:7,person:other,entry:f.entry,style:'classic'}),'both paired slots count toward capacity');
+ f.tick(0);let out={};f.activity.inspect(out);assert.equal(out.active,2);assert.equal(out.hoops,1);assert.equal(out.paired,true);
+ const old=[...pair.claims],bystander=f.spawn(.2,0);
+ for(let i=0;i<45&&f.activity.pairSession;i++)f.tick(.05);
+ assert.equal(f.activity.pairSession,null,'a changed contact boundary revalidates the live partner corridor');assert.equal(f.activity.envelopes.size,0);assert.equal(f.people.activityClaims.current.size,0);assert(f.activity.slots.every(slot=>slot.pairOwner===null));assert(f.activity.slots.flatMap(slot=>slot.hoops).every(h=>!h.visible));
+ assert(old.every(claim=>!f.people.writeActivityPose(claim,0,0,0)));assert(f.people.readPerson(bystander,{}));f.cleanup();
+}
+console.log('PASS activity pair integration: two-slot capacity, singular prop, dynamic corridor cancellation and full authority/resource release.');
+
+{
+ const f=activityFixture({autoRecruit:true}),classicHandles=[];
+ for(const [slot,x] of [[0,-20],[2,-30],[4,-40],[6,-50]]){const person=f.spawn(x,0);classicHandles.push(person);assert(f.activity.startPerformance({slot,person,entry:f.entry,style:'classic'}));}
+ const blocked=f.spawn(2,0),clear=f.spawn(10,0),obstacle=registry.add({kind:'blocked_flow_candidate',position:new Vector3(2,0,0),footprint:.3});
+ const previousRandom=Math.random;let draws=0;Math.random=()=>{draws++;return .5;};
+ try {
+  f.tick(0);const flow=f.activity.slots[1];assert.equal(flow.session.person,clear,'a blocked nearest candidate cannot starve a farther clear flow performer at the same venue');assert.equal(flow.session.style,'flow');near(flow.x,10,'nested clearance preserves selected candidate X');near(flow.z,0,'nested clearance preserves selected candidate Z');
+  assert(!f.activity.slots.some(slot=>slot.session.style==='flow'&&slot.session.person===blocked));
+  for(const [index,slot] of [0,2,4,6].entries())assert.equal(f.activity.slots[slot].session.person,classicHandles[index],'flow admission leaves existing classic ownership untouched');
+  assert.equal(draws,0,'recruitment and composition consume no shared random draws');
+ }finally{Math.random=previousRandom;registry.remove(obstacle);f.cleanup();}
+}
+console.log('PASS automatic flow recruitment considers farther clear candidates while preserving classic ownership and shared RNG draws.');
+{
+ const priorLocation=Object.getOwnPropertyDescriptor(globalThis,'location');
+ try {
+  for(const [hostname,override,expectedFlow] of [['localhost',undefined,0],['127.0.0.1',undefined,0],['::1',undefined,0],['festival.example',undefined,4],['localhost',true,4],['festival.example',false,0]]) {
+   Object.defineProperty(globalThis,'location',{configurable:true,value:{hostname,search:'?hoopFlow=0'}});
+   const options={autoRecruit:true};if(override!==undefined)options.flow=override;
+   const f=activityFixture(options);
+   try {
+    const handles=[];for(let i=0;i<8;i++)handles.push(f.spawn(i*6,0));
+    const random=Math.random;let draws=0;Math.random=()=>{draws++;return .5;};
+    try{f.tick(0);f.tick(0);}finally{Math.random=random;}
+    assert.equal(draws,0,'automatic classic/flow selection retains the shared RNG stream');
+    if(expectedFlow===0)assert.deepEqual(f.activity.slots.map(slot=>slot.session.person),handles,'classic selection keeps nearest-first stable order');
+    const status={};f.activity.inspect(status);
+    assert.equal(status.active,8,'all eight positions recruit on '+hostname+'/'+override);assert.equal(status.flow,expectedFlow,'local-only flag and explicit constructor override: '+hostname+'/'+override);assert.equal(status.classic,8-expectedFlow);
+   }finally{f.cleanup();}
+  }
+ }finally{if(priorLocation)Object.defineProperty(globalThis,'location',priorLocation);else delete globalThis.location;}
+}
+console.log('PASS localhost-only classic comparison flag, ignored remote flag and explicit flow overrides.');
+
+// Optional planted-leg channels share the same scratch across activity families.
+// This verifies ownership, complete publication and lifecycle, not leg geometry.
+{
+ const solo=sessionFixture(),classic=sessionFixture({style:'classic'}),paired=activityFixture(),scratch={};solo.start();classic.start();
+ const a=paired.spawn(-2,0),b=paired.spawn(2,0),pair=paired.activity.startPair({persons:[a,b],entry:paired.entry});assert(pair);
+ try {
+  solo.session.update(.05);const sample=solo.session.sampleBodyPose(solo.person,scratch);
+  assert(sample.feet,'flow exposes the planted-leg target contract');assert.equal(sample.style,'flow');assert(Number.isFinite(sample.rootY));
+  const feet=sample.feet,left=feet.left,right=feet.right,snapshot=structuredClone(feet);
+  assert.notEqual(feet,solo.session.flowSample.feet);assert.notEqual(left,solo.session.flowSample.feet.left);assert.notEqual(right,solo.session.flowSample.feet.right);
+  assert(solo.session.seekFlow(2));assert.deepEqual(feet,snapshot,'a later cached sample cannot mutate a previous caller copy');
+  solo.session.sampleBodyPose(solo.person,scratch);assert.equal(scratch.feet,feet,'caller foot buffer is reused');assert.equal(scratch.feet.left,left);assert.equal(scratch.feet.right,right);assert.deepEqual(scratch.feet,solo.session.flowSample.feet);
+  classic.session.sampleBodyPose(classic.person,scratch);assert.equal(scratch.style,'classic');assert.equal(scratch.articulated,true);assert(scratch.feet);assert.deepEqual(scratch.feet,classic.session.classicSample.feet);near(scratch.rootY,classic.session.classicSample.rootY,'classic restores its own compression');assert.equal(scratch.travelX,0);assert.equal(scratch.travelZ,0);assert.equal(scratch.turn,0);
+  solo.session.sampleBodyPose(classic.person,scratch);assert.equal(scratch.style,'inactive');assert.equal(scratch.feet,null);assert.equal(scratch.rootY,0);
+  scratch.feet=feet;scratch.rootY=9;assert(pair.sampleBodyPose(a,scratch));assert.equal(scratch.style,'flow');assert.equal(scratch.feet,null,'stationary pair cannot inherit solo leg targets');assert.equal(scratch.rootY,0);
+  solo.session.sampleBodyPose(solo.person,scratch);assert(scratch.feet);assert.equal(scratch.feet,feet);assert.deepEqual(scratch.feet,solo.session.flowSample.feet);near(scratch.rootY,solo.session.flowSample.rootY,'flow restores its current root displacement');
+  for(const foot of [scratch.feet.left,scratch.feet.right]){for(const key of ['x','y','z','qx','qy','qz','qw','plantId'])assert(Number.isFinite(foot[key]),'finite foot field '+key);assert.equal(typeof foot.planted,'boolean');near(Math.hypot(foot.qx,foot.qy,foot.qz,foot.qw),1,'foot orientation is normalized',1e-8);}
+ }finally{solo.session.dispose();classic.session.dispose();paired.cleanup();}
+}
+console.log('PASS planted-leg lifecycle: complete cache publication, copied/reused targets and flow/classic/inactive/pair/flow scratch isolation.');
+{
+ for(const profile of ['lyrical','playful','aerial']) {
+  const a=sessionFixture({duration:22,profile}),b=sessionFixture({duration:22,profile});a.start();b.start();
+  const target=12.347,pattern=[.01,.025,.015];
+  for(let step=0;a.session.scoreTime<target;step++){assert(step<5000,'bounded moving score advance');assert.equal(a.session.phase,'hooping');a.session.update(Math.min(.05,target-a.session.scoreTime));}
+  for(let step=0;b.session.scoreTime<target;step++){assert(step<5000,'bounded partitioned score advance');assert.equal(b.session.phase,'hooping');b.session.update(Math.min(pattern[step%pattern.length],target-b.session.scoreTime));}
+  sameNumbers(comparable(a.session.flowSample),comparable(b.session.flowSample),'moving-foot partition '+profile);
+  const before=comparable(a.session.flowSample),elapsed=a.session.elapsed,viewA={},viewB={};a.people.readPerson(a.person,viewA);b.people.readPerson(b.person,viewB);
+  near(viewA.x,viewB.x,'moving partition world x');near(viewA.y,viewB.y,'moving partition world y');near(viewA.z,viewB.z,'moving partition world z');near(viewA.heading,viewB.heading,'moving partition heading');
+  assert(a.session.seekFlow(3.142));assert(a.session.seekFlow(target));assert.deepEqual(comparable(a.session.flowSample),before,'absolute seek restores exact foot/root channels after movement');near(a.session.elapsed,elapsed,'seeking does not alter moving participation');
+  const epoch=a.session.scoreEpoch;a.people.activityClaims.removePerson(a.person,'honk');a.session.update(.05,{safe:true});
+  for(let step=0;step<200&&a.session.phase==='approaching';step++)a.session.update(.05);
+  assert.equal(a.session.phase,'hooping');assert.equal(a.session.scoreEpoch,epoch+1);near(a.session.elapsed,elapsed,'fresh entrance keeps previous participation');near(a.session.scoreTime,0,'fresh entrance foot score starts at zero');
+  const copied=a.session.sampleBodyPose(a.person,{});assert(copied.feet);assert.deepEqual(copied.feet,a.session.flowSample.feet);near(copied.rootY,a.session.flowSample.rootY,'reentry root uses fresh score sample');assert.equal(copied.version,a.session.flowSample.version);
+  a.session.dispose();b.session.dispose();
+ }
+}
+console.log('PASS planted-foot moving profiles: accepted partitions, seek round-trip and fresh reentry cache without lifetime reset.');
+
+function flowBodyMatrix(session,view,out=new Matrix4()) {
+ const sample=session.flowSample,scale=view.scale??1;
+ const root=new Vector3(view.x,view.y+sample.rootY*scale,view.z),q=new Quaternion().setFromEuler(new Euler(0,view.heading,0));
+ return out.compose(root,q,new Vector3(scale,scale,scale)).multiply(new Matrix4().makeRotationFromEuler(new Euler(sample.leanX,0,sample.leanZ)));
+}
+{
+ const f=sessionFixture({duration:22});f.place.groundAt=(x,z)=>.035*x-.025*z;f.start();
+ const previous={left:null,right:null},matrix=new Matrix4(),view={};let plantedComparisons=0,movingGround=false;
+ for(let step=0;step<180;step++) {
+  f.session.update(.05);assert.equal(f.session.phase,'hooping','mild affine terrain remains reachable');f.people.readPerson(f.person,view);flowBodyMatrix(f.session,view,matrix);
+  if(Math.abs(view.y)>1e-5)movingGround=true;
+  for(const side of ['left','right']) {
+   const foot=f.session.flowSample.feet[side],world=new Vector3(foot.x,foot.y,foot.z).applyMatrix4(matrix),last=previous[side];
+   if(foot.planted&&last?.planted&&foot.plantId===last.plantId){assert(world.distanceTo(last.world)<3e-6,'planted '+side+' sole does not drift on affine terrain');plantedComparisons++;}
+   previous[side]={plantId:foot.plantId,planted:foot.planted,world};
+  }
+ }
+ assert(plantedComparisons>60,'fixture exercises sustained planted phases');assert(movingGround,'performer moves through changing terrain height');f.session.dispose();
+}
+{
+ const flat=sessionFixture({duration:22,profile:'aerial'}),slope=sessionFixture({duration:22,profile:'aerial'});flat.place.groundAt=()=>0;slope.place.groundAt=(x,z)=>.035*x-.025*z;flat.start();slope.start();
+ const toss=flat.session.score.segments.find(segment=>segment.kind==='toss');assert(toss,'aerial score includes an inertial flight');
+ const ys=[],view={},world=new Vector3();let samples=0;
+ for(const fraction of [.25,.5,.75]) {
+  const time=toss.start+toss.duration*fraction;assert(flat.session.seekFlow(time));assert(slope.session.seekFlow(time));
+  flat.people.readPerson(flat.person,view);const h=flat.session.flowSample.hoops[0],a=new Vector3(h.x,h.y,h.z).applyMatrix4(flowBodyMatrix(flat.session,view));
+  slope.people.readPerson(slope.person,view);const sh=slope.session.flowSample.hoops[0],b=world.set(sh.x,sh.y,sh.z).applyMatrix4(flowBodyMatrix(slope.session,view));
+  assert(a.distanceTo(b)<3e-6,'inertial hoop keeps its world flight when the dancer follows a slope');ys.push(b.y);samples++;
+ }
+ const dt=toss.duration*.25;near((ys[0]-2*ys[1]+ys[2])/(dt*dt),-9.81,'world hoop gravity is stable through moving terrain',2e-5);assert.equal(samples,3);flat.session.dispose();slope.session.dispose();
+}
+for(const mode of ['nan-root-entry','extreme-foot-entry','nan-foot-entry','nan-update','nan-seek']) {
+ const f=sessionFixture();
+ if(mode==='nan-root-entry')f.place.groundAt=()=>NaN;
+ if(mode==='extreme-foot-entry')f.place.groundAt=x=>x>.01?5:0;
+ if(mode==='nan-foot-entry')f.place.groundAt=x=>x>.01?NaN:0;
+ assert(f.session.start(f.person));
+ if(mode==='nan-update'||mode==='nan-seek'){f.session.update(0);assert.equal(f.session.phase,'hooping');f.place.groundAt=()=>NaN;}
+ const published=f.published.length;
+ if(mode==='nan-seek')assert.equal(f.session.seekFlow(2),false);else f.session.update(mode==='nan-update'?.05:0);
+ assert.equal(f.session.phase,'idle',mode+' safely cancels');assert.equal(f.people.activityClaims.current.size,0,mode);assert.equal(f.reservation,null,mode);assert.equal(f.releases,1,mode);assert(!f.shown,mode);assert.equal(f.published.length,published,mode+' never publishes an invalid cached pose');assert(f.session.events.some(event=>event.type==='obstruction'&&event.detail==='terrain-reach'),mode+' records environmental cancellation');f.session.dispose();
+}
+console.log('PASS planted-foot terrain lifecycle: stationary world support on mild slopes, inertial gravity and safe cancellation before invalid publication.');

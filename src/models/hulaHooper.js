@@ -1,6 +1,9 @@
+import {HULA_HOOP_STYLES,buildHulaHoopGeometry,buildHulaHoopMaterial} from '../people/hoop/appearance.js';
 import {makePersonHair} from '../crowdHair.js';
 import {bindLocomotion,stridePivot,tickLocomotion} from './personLocomotion.js';
-import {sampleHulaMotion} from '../personMotion.js';
+import {sampleClassicHoopMotion} from '../people/hoop/classic.js';
+import {createHoopSample} from '../people/hoop/score.js';
+import {sampleHoopKnee,sampleHoopAnkle} from '../people/hoop/leg.js';
 // Hula-hooper — festival-goer gyrating with a glowing hoop.
 //
 // Structure:
@@ -12,8 +15,8 @@ import {sampleHulaMotion} from '../personMotion.js';
 //     caller can keep them roughly synced with the body when desired
 //   userData.bodyHeight — feet→shoulder distance (≈1.25); used for arm pose math
 //
-// Arms are baked in an "up and out" pose (like she's keeping the hoop spinning
-// with the upper body) so we don't need per-frame arm rotations.
+// The waist mode shares its joint angles and planted-foot targets with the
+// ordinary Crowd performer. This preview retains its own smaller proportions.
 //
 // Tie-dye / festival palette chosen to match the wook/crowd vibe.
 
@@ -24,40 +27,7 @@ const TIE_DYE_PALETTE = [
   0xff7b3c, 0x39d6c4, 0xff5577, 0xb7ff5b, 0xffaef7,
 ];
 
-export const HULA_HOOP_STYLES = [
-  {name:'Hot pink',colors:[0xff44aa]},
-  {name:'Lagoon',colors:[0x22eec6]},
-  {name:'Sunshine',colors:[0xffd23f]},
-  {name:'Candy stripes',colors:[0xff44aa,0xffffff,0x59e5ff]},
-  {name:'Rainbow ribbon',colors:[0xff4569,0xff963f,0xffe44a,0x59e89c,0x55baff,0xbb77ff]},
-  {name:'Electric spiral',colors:[0xaaff44,0x7733dd,0xffffff]},
-  {name:'Sunset bands',colors:[0xff7744,0xff44aa,0x994dff]},
-  {name:'Festival checks',colors:[0x55ddff,0xffffff,0xff5599,0xffdd44]},
-];
-
-export function buildHulaHoopGeometry(styleIndex=0){
-  const style=HULA_HOOP_STYLES[styleIndex%HULA_HOOP_STYLES.length];
-  const geometry=new THREE.TorusGeometry(.58,.035,6,24);
-  // Match TorusGeometry's major/minor seam grid. Repeated seam colors avoid
-  // a discontinuity, while minor-angle offsets give the ribbon a spiral wrap.
-  const palette=style.colors.map(hex=>new THREE.Color(hex)),data=new Float32Array(7*25*3);
-  for(let j=0;j<=6;j++)for(let i=0;i<=24;i++){
-    const u=i%24,v=j%6;
-    const band=styleIndex===5?Math.floor(u/3+v/3):styleIndex===7?Math.floor(u/3)+Math.floor(v/2):Math.floor(u/2);
-    const color=palette[band%palette.length],offset=(j*25+i)*3;
-    data[offset]=color.r;data[offset+1]=color.g;data[offset+2]=color.b;
-  }
-  geometry.setAttribute('color',new THREE.Float32BufferAttribute(data,3));
-  geometry.userData.hoopStyle=style.name;return geometry;
-}
-
-export function buildHulaHoopMaterial(){
-  const material=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,vertexColors:true,emissiveIntensity:.05,roughness:.5,metalness:.1});
-  // Standard and Low's Lambert both expose this chunk. Keep the same pattern
-  // in emissive light so the night glow cannot wash every stripe to white.
-  material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n#ifdef USE_COLOR\ntotalEmissiveRadiance *= vColor.rgb;\n#endif');};
-  material.customProgramCacheKey=()=> 'hula-hoop-colors-v1';return material;
-}
+export {HULA_HOOP_STYLES,buildHulaHoopGeometry,buildHulaHoopMaterial} from '../people/hoop/appearance.js';
 
 export function buildHulaHooper(rng = Math.random) {
   const g = new THREE.Group();
@@ -82,22 +52,18 @@ export function buildHulaHooper(rng = Math.random) {
     color: accentColor, roughness: 0.85, flatShading: true,
   });
 
-  // ----- Legs: two short pants cylinders, slight stance -----
-  const walkLegs=[];
-  const legGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.55, 8);
-  for (const sx of [-1, 1]) {
-    const leg = new THREE.Mesh(legGeo, pantsMat);
-    leg.position.set(sx * 0.11, 0.28, 0);
-    leg.castShadow = true;
-    body.add(leg);
-    // Tiny shoes
-    const shoe = new THREE.Mesh(
-      new THREE.BoxGeometry(0.14, 0.06, 0.22),
-      new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.8 }),
-    );
-    shoe.position.set(sx * 0.11, 0.03, -0.04);
-    body.add(shoe);
-    walkLegs.push(stridePivot(body,sx*.11,.555,leg,shoe));
+  // ----- Two-segment legs and shoes, at the preview's original height -----
+  const walkLegs=[],legRigs=[];
+  const scale=.85,length=.325*scale;
+  const legGeo=new THREE.CylinderGeometry(.09,.09,length,8);
+  const shoeGeo=new THREE.BoxGeometry(.16*scale,.07*scale,.24*scale);
+  const shoeMat=new THREE.MeshStandardMaterial({color:0x111,roughness:.8});
+  for(const side of ['left','right']){
+    const sx=side==='left'?-1:1,upper=new THREE.Mesh(legGeo,pantsMat),lower=new THREE.Mesh(legGeo,pantsMat),shoe=new THREE.Mesh(shoeGeo,shoeMat);
+    upper.castShadow=true;
+    body.add(upper,lower,shoe);
+    const pivot=stridePivot(body,sx*.12*scale,.65*scale,upper,lower,shoe);
+    walkLegs.push(pivot);legRigs.push({side,upper,lower,shoe,pivot});
   }
 
   // ----- Torso (crop top vibe — short capsule above bare midriff implied) -----
@@ -109,70 +75,47 @@ export function buildHulaHooper(rng = Math.random) {
   torso.castShadow = true;
   body.add(torso);
 
-  // ----- Arms held up and outward. -----
-  //
-  // Each arm is ONE rigid capsule (a long sleeve, no upper/lower split) plus
-  // a hand sphere at the end. The armGroup hangs vertically along local -Y;
-  // its Z rotation then swings the whole arm so locally-down lands as
-  // up-and-out in world space.
-  //
-  // For the right arm we want world dir ≈ (+0.5, +0.866) (up + right). 2D
-  // rotation of (0,-1) by +θ gives (sin θ, -cos θ); θ = 5π/6 (150°) gives
-  // (+0.5, +0.866). The left arm mirrors with -5π/6.
-  //
-  // Single-capsule sleeves avoid any chance of forearm/upper-arm
-  // misalignment that a two-segment build can produce when the rotation
-  // chain is misread.
-  const ARM_OUT = (5 * Math.PI) / 6;
-  const ARM_LEN = 0.70;            // shoulder-to-hand sleeve length
-  for (const sx of [-1, 1]) {
-    const armGroup = new THREE.Group();
-    armGroup.position.set(sx * 0.22, 1.20, 0);
-    armGroup.rotation.z = sx * ARM_OUT;
-    // Sleeve — one capsule from shoulder to hand
-    const sleeve = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.075, ARM_LEN, 4, 8),
-      shirtMat,
-    );
-    sleeve.position.y = -(ARM_LEN / 2 + 0.07);   // hangs straight down from shoulder
-    armGroup.add(sleeve);
-    // Hand at the far end
-    const hand = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.09, 0), skinMat,
-    );
-    hand.position.y = -(ARM_LEN + 0.16);
-    armGroup.add(hand);
-    body.add(armGroup);
+  // ----- Articulated raised arms -----
+  const armRigs={};
+  const armLength=.29*scale,armGeo=new THREE.CapsuleGeometry(.055,armLength-.11,3,6),handGeo=new THREE.IcosahedronGeometry(.075,0);
+  for(const side of ['left','right']){
+    const sx=side==='left'?-1:1,shoulder=new THREE.Group(),elbow=new THREE.Group();
+    shoulder.position.set(sx*.30*scale,1.35*scale,0);elbow.position.y=-armLength;
+    const upper=new THREE.Mesh(armGeo,shirtMat),lower=new THREE.Mesh(armGeo,shirtMat),hand=new THREE.Mesh(handGeo,skinMat);
+    upper.position.y=lower.position.y=-armLength/2;hand.position.y=-armLength;
+    shoulder.add(upper,elbow);elbow.add(lower,hand);body.add(shoulder);armRigs[side]={shoulder,elbow};
   }
 
   // ----- Head -----
+  const headRig=new THREE.Group();headRig.position.y=1.43;body.add(headRig);
   const head = new THREE.Mesh(
     new THREE.IcosahedronGeometry(0.24, 1),
     skinMat,
   );
-  head.position.y = 1.55;
+  head.position.y = 1.55-1.43;
   head.castShadow = true;
-  body.add(head);
+  headRig.add(head);
 
   // Eyes
   const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.8 });
   for (const ex of [-0.08, 0.08]) {
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), eyeMat);
-    eye.position.set(ex, 1.58, -0.20);
-    body.add(eye);
+    eye.position.set(ex, 1.58-1.43, -0.20);
+    headRig.add(eye);
   }
 
   const hairColor = [0x3a2a1a, 0x6a4a2a, 0xc97a3b, 0xd9a26e, 0x222, 0xff5577][Math.floor(rng() * 6)];
-  body.add(makePersonHair({style:'ponytail',color:hairColor,radii:[.24,.24,.24],center:[0,1.55,0]}));
+  const hair=makePersonHair({style:'ponytail',color:hairColor,radii:[.24,.24,.24],center:[0,1.55,0]});
+  hair.position.y=-1.43;headRig.add(hair);
 
   // Headband (matches accent)
   const band = new THREE.Mesh(
     new THREE.TorusGeometry(0.26, 0.025, 4, 16),
     accentMat,
   );
-  band.position.y = 1.65;
+  band.position.y = 1.65-1.43;
   band.rotation.x = Math.PI / 2;
-  body.add(band);
+  headRig.add(band);
 
   // ----- Hoop -----
   // The hoop sits around the hips/waist. hoopPivot is a child of the
@@ -217,6 +160,9 @@ export function buildHulaHooper(rng = Math.random) {
   g.userData.hoopRadius = HOOP_RADIUS;
   g.userData.hoopPivot = hoopPivot;
   g.userData.bodyGroup = body;
+  g.userData.armRigs=armRigs;g.userData.legRigs=legRigs;g.userData.headRig=headRig;
+  g.userData.motion=createHoopSample();g.userData.hoopMotionQuat=new THREE.Quaternion();g.userData.hoopMotionEuler=new THREE.Euler();
+  g.userData.walkFeet={left:{x:-.13,y:0,z:0,qx:0,qy:0,qz:0,qw:1},right:{x:.13,y:0,z:0,qx:0,qy:0,qz:0,qw:1}};
   // Per-hooper animation params. Picked once per build so every hooper has
   // a slightly different feel (some chill, some going harder). Range tuned
   // to real hooping tempo — hips at ~0.6-1.0 Hz, hoop at ~1.0-1.7 Hz.
@@ -226,6 +172,7 @@ export function buildHulaHooper(rng = Math.random) {
   g.userData.phase        = Math.random() * Math.PI * 2;
 
   bindLocomotion(g,{legs:walkLegs,height:.85,phase:g.userData.phase,pace:.4});
+  tickHulaHooper(g,0);
   return g;
 }
 
@@ -246,16 +193,46 @@ export function tickHulaHooper(model, dt, nightness = 0) {
   u.phase += dt * u.gyrSpeed;
   const p = u.phase;
 
-  const motion=sampleHulaMotion(p,u.hoopSpinMult,u.motion??={});
+  const motion=sampleClassicHoopMotion(p,u.hoopSpinMult,u.motion);
   u.bodyGroup.rotation.set(motion.leanX,0,motion.leanZ);
-  // Rock from one supporting foot to the other without sending the tilted
-  // shoe through the lawn. The hoop and raised hands retain their hip orbit.
-  const stride=u.locomotion.pose.stride;
-  u.bodyGroup.position.y=Math.max(0,motion.bob)+u.locomotion.pose.bob
-    +Math.abs(Math.sin(motion.leanZ))*.18
-    +Math.abs(Math.sin(motion.leanX))*(.15+.555*Math.abs(Math.sin(stride)));
-  u.hoopPivot.rotation.set(motion.hoopX,motion.hoopY,motion.hoopZ);
+  const stride=u.locomotion.pose.stride,walking=u.locomotion.pose.active;
+  if(walking){
+    u.bodyGroup.position.y=u.locomotion.pose.bob+Math.abs(Math.sin(motion.leanZ))*.18
+      +Math.abs(Math.sin(motion.leanX))*(.15+.555*Math.abs(Math.sin(stride)));
+  }else{
+    u.bodyGroup.position.y=motion.rootY*.85;
+    for(const rig of u.legRigs)rig.pivot.rotation.set(0,0,0);
+  }
+  poseClassicLegs(u,walking?u.walkFeet:motion.feet);
+  for(const side of ['left','right']){
+    const a=motion.arms,rig=u.armRigs[side],left=side==='left';
+    rig.shoulder.rotation.set(left?a.leftX:a.x,0,left?a.leftZ:a.z);rig.elbow.rotation.z=left?a.leftElbow:a.elbow;
+  }
+  u.headRig.rotation.set(motion.headTilt,motion.headYaw,0);
+  // Keep the waist orbit in the same presented body frame as the live mode.
+  u.hoopPivot.position.set(0,.85,0).applyQuaternion(u.bodyGroup.quaternion).add(u.bodyGroup.position);
+  u.hoopMotionQuat.setFromEuler(u.hoopMotionEuler.set(motion.hoopX,motion.hoopY,motion.hoopZ));
+  u.hoopPivot.quaternion.copy(u.bodyGroup.quaternion).multiply(u.hoopMotionQuat);
 
   // Glow — dim by day, bright at night. Caller passes nightness 0..1.
   u.hoopMat.emissiveIntensity = 0.05 + nightness * 3.0;
+}
+
+const legStart=new THREE.Vector3(),legEnd=new THREE.Vector3(),legDirection=new THREE.Vector3(),legMidpoint=new THREE.Vector3(),up=new THREE.Vector3(0,1,0);
+const kneePoint={x:0,y:0,z:0},anklePoint={x:0,y:0,z:0},shoeOffset=new THREE.Vector3();
+function placeLegSegment(mesh,start,end,pivot){
+  legDirection.subVectors(end,start).normalize();legMidpoint.addVectors(start,end).multiplyScalar(.5).sub(pivot.position);
+  mesh.position.copy(legMidpoint);mesh.quaternion.setFromUnitVectors(up,legDirection);
+}
+function poseClassicLegs(u,feet){
+  const scale=.85;
+  for(const rig of u.legRigs){
+    const foot=feet[rig.side],left=rig.side==='left';sampleHoopKnee(foot,rig.side,kneePoint);sampleHoopAnkle(foot,anklePoint);
+    legStart.set(left?-.12*scale:.12*scale,.65*scale,0);legEnd.set(kneePoint.x*scale,kneePoint.y*scale,kneePoint.z*scale);
+    placeLegSegment(rig.upper,legStart,legEnd,rig.pivot);
+    legStart.copy(legEnd);legEnd.set(anklePoint.x*scale,anklePoint.y*scale,anklePoint.z*scale);placeLegSegment(rig.lower,legStart,legEnd,rig.pivot);
+    rig.shoe.quaternion.set(foot.qx,foot.qy,foot.qz,foot.qw);
+    shoeOffset.set(0,.035*scale,-.06*scale).applyQuaternion(rig.shoe.quaternion);
+    rig.shoe.position.set(foot.x*scale,foot.y*scale,foot.z*scale).add(shoeOffset).sub(rig.pivot.position);
+  }
 }

@@ -6,14 +6,40 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const read=p=>readFileSync(path.join(root,p),'utf8');
-const imports=s=>[...s.matchAll(/(?:import|export)\s+(?:[^;'"\n]*?\s+from\s+)?['"]([^'"]+)['"]/g)].map(m=>m[1]);
-function boundary(name,source){
+const imports=source=>[
+  ...source.matchAll(/(?:^|[;\n])\s*(?:import|export)\s*(?:[^;'"`]*?\bfrom\s*)?['"]([^'"]+)['"]/g),
+  ...source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g),
+].map(match=>match[1]);
+const HOOP_PRESENTATION=new Set(['appearance','classic','score','dance','leg'].map(name=>'src/people/hoop/'+name+'.js'));
+const HOOP_CLOSURE=new Set([...HOOP_PRESENTATION,'src/personMotion.js','src/people/hoop/chestRoll.js']);
+const localDependency=(name,dependency)=>path.posix.normalize(path.posix.join(path.posix.dirname(name),dependency));
+function presentationClosure(name,load=read,seen=new Set()){
+  assert(HOOP_CLOSURE.has(name),'Presentation helpers must stay inside the reviewed value/geometry closure');
+  if(seen.has(name))return;seen.add(name);
+  const source=load(name);
+  assert(!/\bimport\s*\(/.test(source),'Presentation helpers cannot defer imports around dependency validation');
+  assert(!/\b(?:window|document|globalThis)\s*(?:\.|\[)|\b(?:requestAnimationFrame|setInterval|setTimeout|claimActivity|endPersonActivity|writeActivityPose|readPerson|register|unregister)\s*\(|\b(?:Math\.random|Date\.now|performance\.now)\s*\(/.test(source),'Presentation helpers cannot own person authority, ambient time/randomness or scheduling');
+  for(const dependency of imports(source)){
+    if(dependency==='three'){assert.equal(name,'src/people/hoop/appearance.js','Only the geometry/material helper imports Three.js');continue;}
+    assert(dependency.startsWith('.'),'Presentation helpers cannot acquire unreviewed external dependencies');
+    presentationClosure(localDependency(name,dependency),load,seen);
+  }
+}
+
+function boundary(name,source,load=read){
   if(name==='src/people/runtime.js'){
     assert.deepEqual(imports(source),[],'Runtime must not depend on concrete controllers or rendering');
     assert(!/\b(?:requestAnimationFrame|setInterval|setTimeout)\s*\(/.test(source),'Runtime must not own a scheduler');
   }
-  if(name.startsWith('src/models/'))for(const dependency of imports(source))
+  if(name.startsWith('src/models/')){
+    assert(!/\bimport\s*\(/.test(source),'Models cannot defer authority or presentation imports around validation');
+  }
+  if(name.startsWith('src/models/'))for(const dependency of imports(source)){
+    if(dependency.startsWith('.')&&HOOP_PRESENTATION.has(localDependency(name,dependency))){
+      presentationClosure(localDependency(name,dependency),load);continue;
+    }
     assert(!/people\/|(?:crowd|monks|oneWheels|nutWagon|healingArtsActivity|campJamActivity|main)\.js$/.test(dependency),'Models must not depend on person authority or composition');
+  }
   if(/^src\/people\/(?:personHandle|activityClaims|seatReservations|smilePolicy)\.js$/.test(name))
     for(const dependency of imports(source))assert(!/models\/|(?:crowd|main|chunks)\.js$/.test(dependency),'Ownership primitives must remain independent of storage and render owners');
   if(/^src\/(?:monks|oneWheels|nutWagon|healingArtsActivity|campJamActivity|smiles|debug|debugCommands)\.js$/.test(name))
@@ -32,4 +58,33 @@ for(const [file,bad] of [
   ['src/oneWheels.js','for(const n of this.crowd.npcs){}'],
   ['src/main.js',"import {Wooks} from './obstacles.js';"],
 ])assert.throws(()=>boundary(file,bad),assert.AssertionError);
-console.log(`PASS people boundaries: ${files.length} sources, independent runtime/primitives, display leaves, public consumers and removed facade, with six rejecting fixtures.`);
+const helperCases=[
+  ['src/people/hoop/classic.js',"import {HulaSession} from '../hulaSession.js';"],
+  ['src/people/hoop/dance.js',"export {registry} from '../../registry.js';"],
+  ['src/people/hoop/score.js',"export * from '../activityClaims.js';"],
+  ['src/people/hoop/classic.js',"const authority=import('../hulaSession.js');"],
+  ['src/people/hoop/dance.js','const authority=import(selectedModule);'],
+  ['src/people/hoop/score.js',"import {readFileSync} from 'node:fs';"],
+  ['src/people/hoop/leg.js','export function pose(people,person){return people.claimActivity(person);};'],
+  ['src/people/hoop/chestRoll.js',"import {PeopleRuntime} from '../runtime.js';"],
+  ['src/people/hoop/score.js','export const time=Date.now();'],
+  ['src/personMotion.js','export const phase=Math.random();'],
+];
+for(const [file,bad] of helperCases){
+  const load=name=>name===file?bad:read(name);
+  assert.throws(()=>presentationClosure(file,load),assert.AssertionError,'reject '+file+': '+bad);
+  // A transitive change must also fail when the only visible model import is
+  // the otherwise legitimate presentation leaf.
+  if(file!=='src/people/hoop/leg.js'&&file!=='src/people/hoop/chestRoll.js')assert.throws(()=>boundary('src/models/hulaHooper.js',"import {sampleClassicHoopMotion} from '../people/hoop/classic.js'; import {createHoopSample} from '../people/hoop/score.js';",load),assert.AssertionError);
+}
+for(const dependency of ['../people/hoop/pairSession.js','../people/hoop/classic.js?authority=1'])
+  assert.throws(()=>boundary('src/models/hulaHooper.js',`import * as helper from '${dependency}';`),assert.AssertionError);
+// Multiline reexports and dynamic imports cannot bypass the model guard.
+assert.throws(()=>boundary('src/models/kid.js',"export {\n PeopleRuntime\n} from '../people/runtime.js';"),assert.AssertionError);
+assert.throws(()=>boundary('src/models/kid.js',"const runtime=import('../people/runtime.js');"),assert.AssertionError);
+assert.throws(()=>boundary('src/models/kid.js',"import{PeopleRuntime}from'../people/runtime.js';"),assert.AssertionError);
+assert.throws(()=>boundary('src/models/kid.js',"export{PeopleRuntime}from'../people/runtime.js';"),assert.AssertionError);
+assert.throws(()=>boundary('src/models/kid.js',"const runtime=import(selectedModule);"),assert.AssertionError);
+assert.throws(()=>boundary('src/models/hulaHooper.js',"import {sampleHoopScore} from '../people/hoop/score.js';",name=>name==='src/people/hoop/score.js'?"import './chestRoll.js';":name==='src/people/hoop/chestRoll.js'?"import '../runtime.js';":read(name)),assert.AssertionError,'transitive chest math cannot acquire runtime authority');
+for(const helper of HOOP_CLOSURE)presentationClosure(helper);
+console.log(`PASS people boundaries: ${files.length} sources, independent owners, five reviewed hoop presentation leaves with seven-module transitive closure, public consumers and rejecting direct/transitive/dynamic fixtures.`);

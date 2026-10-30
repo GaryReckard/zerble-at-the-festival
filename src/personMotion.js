@@ -144,3 +144,35 @@ vec3 foldPicnicLeg(vec3 v,bool normalOnly){
  return a+axisX*local.x+(a-b)*(local.y/.325)+axisZ*local.z;
 }
 `;
+
+// This branch is enabled only by a current flow activity's complete foot pair.
+// It shares the existing instanced meshes with walking and seated characters.
+export const flowLegShader=`
+attribute vec4 flowLeftFoot;
+attribute vec4 flowRightFoot;
+attribute vec4 flowLeftQuat;
+attribute vec4 flowRightQuat;
+vec3 hoopFootRotate(vec4 q,vec3 v){return v+2.0*cross(q.xyz,cross(q.xyz,v)+q.w*v);}
+vec3 flowHoopLeg(vec3 v,bool normalOnly,bool shoe){
+ bool right=position.x>0.0;
+ vec4 target=right?flowRightFoot:flowLeftFoot;
+ if(target.w<.5)return foldPicnicLeg(v,normalOnly);
+ vec4 q=right?flowRightQuat:flowLeftQuat;
+ float side=right?1.0:-1.0;
+ vec3 sole=target.xyz,origin=vec3(side*.12,0.0,0.0);
+ if(shoe)return normalOnly?hoopFootRotate(q,v):sole+hoopFootRotate(q,v-origin);
+ vec3 hip=vec3(side*.12,.65,0.0),ankle=sole+hoopFootRotate(q,vec3(0.0,.07,0.0));
+ vec3 delta=ankle-hip;
+ float distance=length(delta);
+ vec3 axis=delta/max(distance,.000001),forward=vec3(0.0,0.0,-1.0);
+ vec3 bend=normalize(forward-axis*dot(forward,axis));
+ vec3 knee=hip+delta*.5+bend*sqrt(max(0.0,.325*.325-distance*distance*.25));
+ bool upper=position.y>.325;
+ vec3 a=upper?hip:knee,b=upper?knee:ankle;
+ vec3 axisY=normalize(a-b),axisX=normalize(cross(axisY,vec3(0.0,0.0,1.0))),axisZ=cross(axisX,axisY);
+ mat3 basis=mat3(axisX,axisY,axisZ);
+ if(normalOnly)return basis*v;
+ vec3 rest=vec3(side*.12,upper?.65:.325,0.0);
+ return a+basis*(v-rest);
+}
+`;

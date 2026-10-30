@@ -27,6 +27,21 @@ covers the authored driving proof; it does not establish full-game iOS acceptanc
 The new tent support-plane fix still needs visual checks across shelter families
 and terrain creases.
 
+## Generative hoop dancers
+
+The [flow-hooper implementation](openspec/changes/generative-hoop-dancers/README.md)
+retains classic hooping and adds seeded contact choreography, traveling dance
+steps/turns, supported rolls, toss/catch, two-hoop patterns and a bounded partner
+exchange through the existing Crowd activity system. The
+[verification record](verification/hoops/README.md) separates desktop contracts,
+Noon/Midnight captures, tier material/boot checks and CPU cost from physical-device
+acceptance. Remaining work is physical iPhone/Safari observation. The
+[combined research assessment](openspec/changes/generative-hoop-dancers/research-assessment-02.md)
+informed the implemented planted steps, waist groove, moving isolation and dance
+around airborne flight, with shared articulation in regular waist mode. See the
+[grounded choreography evidence](verification/hoops/grounded-choreography.md). Both reports are received; video timestamps and advanced
+trick variants still need direct demonstration checks before adoption.
+
 ## People and NPC architecture
 
 The [people/NPC refactor](openspec/changes/people-npc-architecture/README.md) now
@@ -199,8 +214,10 @@ harness history, tier contract and acceptance criteria.
   urgent porta-potty variant.
 - **Festival activities:** daily-seed challenge, boost/hop tricks, food-truck
   purchase-and-dining behavior and vendor power-ups.
-- **Physical props:** choose scripted tumbling or rigid-body interaction before
-  pursuing camp-chair instancing, since those designs compete for ownership.
+- **Physical festival:** implement the [documented plan](openspec/changes/physical-festival/README.md)
+  for chair/occupant physics and recovery, the existing cooler, transferable drinks,
+  route-aware damageable signs and bounded aftermath. Start with the production-backed
+  interaction playground; implementation and device acceptance remain unstarted.
 - **Juice tuning:** keep variety costs and drain/frown feel as explicit design decisions.
 
 The [gameplay design backlog](docs/backlog/gameplay.md) preserves the full

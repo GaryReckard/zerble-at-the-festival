@@ -255,6 +255,7 @@
             <option value="kid">Kid</option>
             <option value="wook">Wook</option>
             <option value="wook_population">Wooks (production approach / scatter / recycle)</option>
+            <option value="flow_hooper_workshop">Flow hoopers (choreography / contacts / replay)</option>
             <option value="hula_hooper">Hula-hooper</option>
             <option value="hooper_population">Hoopers (production attractors / unload / pool)</option>
             <option value="hula_hooper_night">Hula-hooper (night — hoop glows)</option>
@@ -572,6 +573,7 @@ import {buildShrub} from './src/models/shrub.js';
     import {PuppetParade} from './src/people/puppetParade.js';
     import {BrassBand} from './src/people/brassBand.js';
     import {HulaHoopers} from './src/people/hoopers.js';
+    import {HoopWorkshop} from './src/people/hoop/workshop.js';
     import {Frisbees} from './src/people/frisbees.js';
     import {buildBandMember, tickBandMember} from './src/models/bandMember.js';
     import {buildParasolMarshal, tickParasolMarshal} from './src/models/parasolMarshal.js';
@@ -1049,7 +1051,7 @@ import {buildShrub} from './src/models/shrub.js';
         tent: 'tent', tent_row: 'tent',
         food_truck: 'truck',
         kid: 'kid', frisbee_pair:'person',
-        wook: 'wook', wook_population:'wook', hooper_population:'hula_hoop',
+        wook: 'wook', wook_population:'wook', hooper_population:'hula_hoop', flow_hooper_workshop:'hula_hoop',
         stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage', soundboard: 'soundboard', one_wheel: 'one_wheel', one_wheel_route: 'one_wheel', healing_arts: 'tent', healing_arts_activity: 'tent',
         entrance_arch: 'arch',
         canoe: 'lake_edge',
@@ -2094,6 +2096,92 @@ import {buildShrub} from './src/models/shrub.js';
                 updateFn=dt=>{registry.rebuildSpatialIndex();population.update(dt,player,tod.nightness);describe();};
                 root.userData.cleanup=()=>{try{population.dispose();}finally{removePlaces();}};
                 cam.target.set(0,1,-4);cam.dist=43;cam.yaw=.2;cam.pitch=.5;applyCam();
+                break;
+            }
+            case 'flow_hooper_workshop': {
+                const query=new URLSearchParams(location.search);
+                const options={seed:Number(query.get('seed')??1977),profile:query.get('hoopProfile')??'lyrical',
+                    hoops:Number(query.get('hoops')??1),scale:Number(query.get('hoopScale')??1),
+                    heading:Number(query.get('hoopHeading')??0),mode:query.get('hoopMode')??'solo'};
+                let workshop=new HoopWorkshop(options);
+                scene.add(workshop.group);entityRoot=workshop.group;currentEntity=workshop;
+                const panel=document.createElement('div');panel.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;max-width:440px';
+                const status={},controls={},error=document.createElement('output');
+                error.style.cssText='display:block;width:100%;color:#ffb3bc;white-space:pre-wrap';
+                const invoke=action=>{try{action();error.textContent='';describe();}catch(cause){error.textContent=cause.message;}};
+                const addButton=(label,action)=>{const button=document.createElement('button');button.textContent=label;button.addEventListener('click',()=>invoke(action));panel.appendChild(button);return button;};
+                const readOptions=()=>({seed:Number(controls.seed.value),profile:controls.profile.value,hoops:Number(controls.hoops.value),
+                    scale:Number(controls.scale.value),heading:Number(controls.heading.value),mode:controls.mode.value});
+                const syncUrl=()=>{const url=new URL(location.href),chosen=readOptions();for(const [key,value] of Object.entries({seed:chosen.seed,hoopProfile:chosen.profile,hoops:chosen.hoops,hoopScale:chosen.scale,hoopHeading:chosen.heading,hoopMode:chosen.mode}))url.searchParams.set(key,value);history.replaceState(null,'',url);};
+                const restart=()=>{workshop.restart(readOptions());syncUrl();};
+                const field=(key,label,choices,value)=>{
+                    const wrapper=document.createElement('label');wrapper.textContent=label+' ';
+                    const input=document.createElement(choices?'select':'input');
+                    if(choices)for(const [title,choice] of choices){const option=document.createElement('option');option.textContent=title;option.value=choice;input.appendChild(option);}
+                    else{input.type='number';input.min='0';input.max='4294967295';input.step='1';input.style.width='100px';}
+                    input.value=String(value);input.setAttribute('aria-label',label);wrapper.appendChild(input);panel.appendChild(wrapper);controls[key]=input;
+                    if(choices)input.addEventListener('change',()=>invoke(restart));
+                    return input;
+                };
+                field('seed','Seed',null,options.seed);
+                field('profile','Profile',[['Lyrical','lyrical'],['Playful','playful'],['Aerial','aerial']],options.profile);
+                field('hoops','Hoops',[['One','1'],['Two','2']],options.hoops);
+                field('scale','Scale',[['0.75','0.75'],['1','1'],['1.35','1.35']],options.scale);
+                field('heading','Heading',[['0°','0'],['45°',String(Math.PI/4)],['90°',String(Math.PI/2)],['180°',String(Math.PI)]],options.heading);
+                field('mode','Mode',[['Waist hooping','baseline'],['Choreographed flow','solo'],['Partner exchange','partner']],options.mode);
+                const pause=addButton('Pause',()=>workshop.togglePause());
+                addButton('Step 1/60s',()=>{workshop.paused=true;workshop.step(1/60,tod.nightness);});
+                addButton('Step 1s',()=>{workshop.paused=true;for(let i=0;i<60;i++)workshop.step(1/60,tod.nightness);});
+                addButton('Replay / apply seed',restart);
+                for(const [label,kind,profile] of [['Planted step','hand-orbit',null],['Waist groove','body-orbit',null],['Moving isolation','isolation',null],['Toss flight','toss','aerial'],['Chest roll','chest-roll','lyrical']]){
+                    addButton(label,()=>{
+                        controls.mode.value='solo';if(kind==='body-orbit'||kind==='toss'||kind==='chest-roll')controls.hoops.value='1';
+                        if(profile)controls.profile.value=profile;
+                        restart();
+                        // Seed 2 selects the chest-roll variation for this isolated fixture.
+                        if(kind==='chest-roll'&&workshop.session.score.parameters.variation!==1){controls.seed.value='2';restart();}
+                        const segment=workshop.session.score.segments.find(part=>part.kind===kind);
+                        if(segment){workshop.seek(segment.start+segment.duration*.4);workshop.paused=true;}
+                        if(kind==='toss'){const rise=workshop.session.score.parameters.tossRise??.25,scale=Number(controls.scale.value);cam.target.set(2.5,(2.9+rise)*scale/2,0);cam.dist=Math.max(6,(3.1+rise)*scale*1.7);cam.pitch=.12;cam.yaw=Math.PI+.2;applyCam();}
+                    });
+                }
+                addButton('Contact markers',()=>workshop.toggleMarkers());
+                addButton('Honk interruption',()=>workshop.interrupt());
+                addButton('Remove venue',()=>workshop.removePlace());
+                addButton('Remove flow person',()=>workshop.removePerson());
+                addButton('Dispose',()=>workshop.dispose());
+                addButton('Recreate',()=>{workshop.dispose();workshop=new HoopWorkshop(readOptions());scene.add(workshop.group);entityRoot=workshop.group;currentEntity=workshop;syncUrl();});
+                // Crowd eyes and toes face local -Z, so these inspection views
+                // approach from the face side without changing dancer heading.
+                addButton('Normal-distance view',()=>{cam.target.set(0,1.2,0);cam.dist=18;cam.pitch=.35;cam.yaw=Math.PI+.1;applyCam();});
+                addButton('Contact close-up',()=>{cam.target.set(2.5,1.25,0);cam.dist=4.8;cam.pitch=.16;cam.yaw=Math.PI+.2;applyCam();});
+                const seekLabel=document.createElement('label');seekLabel.textContent='Seek score ';seekLabel.style.width='100%';
+                const seek=document.createElement('input');seek.type='range';seek.min='0';seek.max='22';seek.step='.01';seek.value='0';seek.style.width='75%';seek.setAttribute('aria-label','Seek hoop score');
+                seek.addEventListener('input',()=>invoke(()=>workshop.seek(Number(seek.value))));seekLabel.appendChild(seek);panel.appendChild(seekLabel);
+                const replay=document.createElement('textarea');replay.readOnly=true;replay.hidden=true;replay.rows=10;replay.style.cssText='width:100%;font:10px monospace';replay.setAttribute('aria-label','Exported hoop replay JSON');
+                addButton('Export replay JSON',()=>{replay.value=JSON.stringify(workshop.exportReplay(),null,2);replay.hidden=false;replay.select();});
+                const download=(href,filename)=>{const anchor=document.createElement('a');anchor.href=href;anchor.download=filename;document.body.appendChild(anchor);try{anchor.click();}finally{anchor.remove();}};
+                addButton('Save scene PNG',()=>{
+                    // Read the canvas in the same task as rendering so capture
+                    // works without retaining the WebGL drawing buffer.
+                    renderer.render(scene,camera);
+                    download(renderer.domElement.toDataURL('image/png'),'hoop-workshop.png');
+                });
+                addButton('Save diagnostics JSON',()=>{
+                    const diagnostics={status:workshop.inspect({}),replay:workshop.exportReplay(),
+                        camera:{position:camera.position.toArray(),target:cam.target.toArray(),distance:cam.dist,yaw:cam.yaw,pitch:cam.pitch},
+                        lighting:{time:tod.t,nightness:tod.nightness},render:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles}};
+                    download('data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(diagnostics,null,2)),'hoop-workshop-diagnostics.json');
+                });
+                panel.appendChild(replay);panel.appendChild(error);info.after(panel);puppetControls=panel;
+                const describe=()=>{
+                    workshop.inspect(status);pause.textContent=status.paused?'Resume':'Pause';
+                    seek.disabled=status.mode!=='solo'||status.disposed||status.phase!=='hooping';seek.title=status.mode==='partner'?'Use Replay to restart the isolated partner encounter':'Seek the isolated score without changing participation time';
+                    seek.max=String(status.duration);if(document.activeElement!==seek)seek.value=String(status.time);
+                    info.textContent=`${status.disposed?'Disposed':status.paused?'Paused':'Running'} · ${status.profile} · ${status.phase} · ${status.time.toFixed(2)} / ${status.duration}s · ${(status.kind??status.motif??'entrance').replaceAll('-',' ')}${status.stance?` · support: ${status.stance}`:''}${status.tossRise!==null?` · toss +${status.tossRise.toFixed(2)}m / ${status.tossDuration.toFixed(2)}s`:''} · ${status.hoops} hoop(s)${status.hoopSupport?` · ${status.hoopSupport.replaceAll('-',' ')}`:''} · contact ${status.contactCount?`${(status.contactError*1000).toFixed(2)}mm`:'no hand contact'} · ${status.draws} model draws / ${Math.round(status.triangles)} tris`;
+                };
+                updateFn=dt=>{workshop.update(dt,tod.nightness);describe();};
+                cam.target.set(0,1.2,0);cam.dist=10;cam.pitch=.25;cam.yaw=Math.PI+.05;applyCam();describe();
                 break;
             }
             case 'hula_hooper':

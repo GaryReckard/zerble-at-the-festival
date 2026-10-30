@@ -73,6 +73,7 @@ console.log('Scope: complete builder with rendering primitives stubbed; browser 
 const crowdSource=readFileSync(new URL('../src/crowd.js',import.meta.url),'utf8');
 const bodyConstants=crowdSource.slice(crowdSource.indexOf('const BODY_RADIUS ='),crowdSource.indexOf('export class Crowd'));
 const writeSource=crowdSource.slice(crowdSource.indexOf('  _writeMatrices(npc) {'),crowdSource.indexOf('  // ----- Passenger system helpers -----'));
+const footWriteSource=crowdSource.slice(crowdSource.indexOf('  _writeHoopFeet(npc,feet) {'),crowdSource.indexOf('  _hideNpc(npc) {'));
 class PoseMatrix {
   compose(pos,quat,scale){this.y=pos.y;this.scale=scale.y;this.yaw=quat.yaw;this.tilt=0;return this;}
   copy(m){Object.assign(this,m);return this;}
@@ -80,7 +81,7 @@ class PoseMatrix {
   multiplyMatrices(a,b){this.y=(a.y||0)+(b.y||0)*(a.scale||1);this.scale=(a.scale||1)*(b.scale||1);return this;}
   makeRotationZ(angle){this.angle=angle;return this;}
 }
-const RenderHarness=vm.runInNewContext(`${bodyConstants};class RenderHarness{${writeSource}};RenderHarness`,{
+const RenderHarness=vm.runInNewContext(`${bodyConstants};class RenderHarness{${writeSource}\n${footWriteSource}};RenderHarness`,{
  ARM_SHOULDER_Y,isStageDancing,sampleDanceArmPose,sampleWalkMotion,samplePhotographerPose,isPhotographerState:()=>false,PHOTO_STATE_POSE:'photo_pose',HOP_HZ:16,HOP_HEIGHT:.32,performance:{now:()=>12345},
 });
 const bodyShape=vm.runInNewContext(`${bodyConstants};({radius:BODY_RADIUS,length:BODY_LENGTH,center:BODY_CENTER_Y})`);
@@ -91,7 +92,7 @@ for(const name of ['_tmpV','_tmpV2','_tmpV3','_tmpScale'])rig[name]=new Vector3(
 rig._tmpEuler={set(x,y,z){Object.assign(this,{x,y,z});return this;}};
 rig._tmpQuat={setFromEuler(e){this.yaw=e.y;return this;}};rig._identityQuat={};
 for(const name of ['legsMesh','shoesMesh','bodyMesh','armsMesh','headMesh','eyesMesh','mouthMesh'])rig[name]={setMatrixAt:(slot,m)=>writes.set(name,{...m})};
-for(const mesh of [rig.legsMesh,rig.shoesMesh])mesh.geometry={getAttribute(){return {setX(){}};}};
+for(const mesh of [rig.legsMesh,rig.shoesMesh])mesh.geometry={getAttribute(){return {setX(){},setXYZW(){}};}};
 rig.armsMesh.geometry={getAttribute(){return {setXYZW(){},setXY(){}};}};
 rig.hairMeshes=Array.from({length:6},()=>({setMatrixAt(){}}));
 let contactCases=0;

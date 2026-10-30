@@ -1,10 +1,22 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import {register} from 'node:module';
+import * as actualThree from 'three';
 import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
 import {PeopleRuntime} from '../src/people/runtime.js';
 globalThis.window={innerWidth:1280,innerHeight:720};
 register('./node-three-shim.mjs',import.meta.url);
+// Addon imports use complete real Three math/buffers, while this ownership
+// fixture retains recording scene nodes. This is a CPU module-boundary check.
+const recordingThree=await import('three');
+const {mergeGeometries}=await import('three/addons/utils/BufferGeometryUtils.js');
+assert.notEqual(recordingThree.Vector3,actualThree.Vector3);
+const partA=new actualThree.BoxGeometry(),partB=new actualThree.BoxGeometry(),merged=mergeGeometries([partA,partB]);
+assert(merged instanceof actualThree.BufferGeometry);
+assert.equal(merged.attributes.position.count,partA.attributes.position.count+partB.attributes.position.count);
+assert.equal(merged.index.count,partA.index.count+partB.index.count);
+partA.dispose();partB.dispose();merged.dispose();
+
 const {FrisbeeActivity}=await import('../src/people/frisbeeActivity.js');
 const crowd=makePeopleCrowd(),a=crowd.spawnPerson({pos:new Vector(0,0,0)}),b=crowd.spawnPerson({pos:new Vector(10,0,0)});
 for(const n of crowd.npcs)n.scale=1;

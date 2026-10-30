@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Vector3,Quaternion,Euler} from 'three';
+import {sampleHoopAnkle,sampleHoopKnee,validateHoopFeet,HOOP_ANKLE_HEIGHT} from '../src/people/hoop/leg.js';
+
+const normal={x:0,y:0,z:0,qx:0,qy:0,qz:0,qw:1};
+let checks=0;
+for(const side of ['left','right'])for(const x of [-.12,0,.12])for(const y of [-.02,.04,.10])for(const z of [-.18,0,.18])for(const tilt of [-.15,0,.15]){
+ const q=new Quaternion().setFromEuler(new Euler(tilt,.25,tilt*.5));
+ const foot={...normal,x:(side==='left'?-.12:.12)+x,y,z,qx:q.x,qy:q.y,qz:q.z,qw:q.w};
+ const other={...normal,x:side==='left'?.12:-.12};const feet=side==='left'?{left:foot,right:other}:{left:other,right:foot};
+ assert(validateHoopFeet(feet));
+ const actualAnkle=sampleHoopAnkle(foot,{}),actualKnee=sampleHoopKnee(foot,side,{});
+ const referenceAnkle=new Vector3(0,HOOP_ANKLE_HEIGHT,0).applyQuaternion(q).add(new Vector3(foot.x,foot.y,foot.z));
+ assert(referenceAnkle.distanceTo(new Vector3(actualAnkle.x,actualAnkle.y,actualAnkle.z))<1e-12);
+ const hip=new Vector3(side==='left'?-.12:.12,.65,0),axis=new Vector3().subVectors(referenceAnkle,hip),distance=axis.length();axis.normalize();
+ const pole=new Vector3(0,0,-1).projectOnPlane(axis).normalize();
+ const knee=hip.clone().add(referenceAnkle).multiplyScalar(.5).addScaledVector(pole,Math.sqrt(.325*.325-distance*distance/4));
+ const actual=new Vector3(actualKnee.x,actualKnee.y,actualKnee.z);
+ assert(actual.distanceTo(knee)<1e-12);assert(Math.abs(actual.distanceTo(hip)-.325)<1e-12);assert(Math.abs(actual.distanceTo(referenceAnkle)-.325)<1e-12);
+ assert(actual.clone().sub(hip.clone().add(referenceAnkle).multiplyScalar(.5)).dot(pole)>=0);
+ checks++;
+}
+assert.equal(validateHoopFeet(null),false);
+const feet={left:{...normal,x:-.12},right:{...normal,x:.12}};
+for(const change of [{x:2},{qy:NaN},{qw:2}])assert.throws(()=>validateHoopFeet({left:{...feet.left,...change},right:feet.right}));
+assert.throws(()=>validateHoopFeet({left:feet.left}));
+console.log(`PASS planted hoop legs: ${checks} ankle-offset, fixed-length and forward-knee cases, finite/unit quaternion and unreachable target rejection.`);

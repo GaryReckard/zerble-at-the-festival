@@ -56,12 +56,18 @@ assert(/cameraMesh\.castShadow = false/.test(crowd) && /flashMesh\.castShadow = 
   'the camera or flash became a shadow caster');
 const hideBody = crowd.match(/  _hideNpc\(npc\) \{([\s\S]*?)\n  \}/)?.[1];
 assert(hideBody, 'the production render-release method is present');
+const footBody = crowd.match(/  _writeHoopFeet\(npc,feet\) \{([\s\S]*?)\n  \}/)?.[1];
+assert(footBody, 'the production foot-reset helper is present');
 const cleared = [];
 const zeroMatrix = {};
 const mesh = name => ({setMatrixAt(slot, matrix) { cleared.push({name, slot, matrix}); }});
-const renderOwner = {_zeroMat: zeroMatrix};
+const renderOwner = {_zeroMat: zeroMatrix,_writeHoopFeet:new Function('npc','feet',footBody)};
 for (const name of ['shoppingBag','legs','shoes','body','arms','head','eyes','mouth','camera','flash']) renderOwner[name+'Mesh'] = mesh(name);
+const resetFeet=[];
+for(const name of ['legs','shoes'])renderOwner[name+'Mesh'].geometry={getAttribute(attribute){return {setXYZW(slot,x,y,z,w){resetFeet.push({name,attribute,slot,values:[x,y,z,w]});}};}};
 new Function('npc', hideBody).call(renderOwner, {idx:3,hairSlot:-1,drinkSlot:-1,isPhotographer:true,photoSlot:2});
+assert(resetFeet.length===8&&resetFeet.every(write=>write.slot===3&&JSON.stringify(write.values)===JSON.stringify(write.attribute.endsWith('Foot')?[0,0,0,0]:[0,0,0,1])),
+  'production hiding resets both sole targets and quaternions before slot reuse');
 assert(['camera','flash'].every(name=>cleared.some(write=>write.name===name&&write.slot===2&&write.matrix===zeroMatrix)),
   'production hiding clears both pooled photographer instances');
 assert(/this\.cameraMesh\.count = this\._photoDrawCount[\s\S]*?this\.flashMesh\.count = this\._photoDrawCount/.test(crowd),

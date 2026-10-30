@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "status": "historical-summary-only",
+  "scoreVersion": 2,
+  "provenance": "Recovered summary from this session's recorded v2 benchmark command output. The v2 raw trials were overwritten by the v3 rerun and are not recoverable from the workspace; this is not the original complete report.",
+  "recoveredAt": "2026-10-30T03:43:47.012480+00:00",
+  "supersededBy": "grounded-cpu-benchmark.json",
+  "context": {
+    "node": "v24.10.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "logicalCPUs": 14,
+    "profile": "low",
+    "rendering": "CPU-only; no WebGL renderer"
+  },
+  "method": {
+    "trials": 5,
+    "warmupSteps": 250,
+    "timedSteps": 600,
+    "acceptedDelta": 0.016666666666666666,
+    "duration": 60,
+    "baseline": "Two v2 classic waist-hoopers before shared expressive planted-foot behavior; not comparable to the newer articulated waist baseline."
+  },
+  "recoveredSummary": [
+    {
+      "case": "classic-baseline",
+      "medianConstructionMs": 5.323833000000036,
+      "medianMeanTickMs": 0.008859375000000018,
+      "modelDraws": 11,
+      "modelTriangles": 2878
+    },
+    {
+      "case": "single-hoop-flow",
+      "medianConstructionMs": 6.113166999999976,
+      "medianMeanTickMs": 0.013828818333333288,
+      "modelDraws": 11,
+      "modelTriangles": 2878
+    },
+    {
+      "case": "two-hoop-flow",
+      "medianConstructionMs": 5.7986250000000155,
+      "medianMeanTickMs": 0.012852500000000001,
+      "modelDraws": 12,
+      "modelTriangles": 3166
+    }
+  ],
+  "rawTrials": null,
+  "limitations": [
+    "Original v2 raw trials/source hashes are unavailable, so only the recorded medians/counters are retained.",
+    "Use grounded-cpu-benchmark.json for the current planted-feet and expressive-waist implementation.",
+    "Neither report establishes GPU, browser frame-time, mobile or Safari performance."
+  ]
+}

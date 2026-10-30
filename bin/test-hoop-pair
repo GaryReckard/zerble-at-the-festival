@@ -1,0 +1,163 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Matrix4,Vector3,Quaternion,Euler} from 'three';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+import {HoopPairSession} from '../src/people/hoop/pairSession.js';
+
+function fixture(options={}) {
+  const people=makePeopleCrowd(),a=people.spawnPerson({pos:new Vector(-2,0,0)}),b=people.spawnPerson({pos:new Vector(2,.2,0)});
+  const aRecord=people.peopleHandles.resolve(a),bRecord=people.peopleHandles.resolve(b);
+  aRecord.scale=1;bRecord.scale=.9;
+  let reservation=null,releases=0,hides=0,shown=false;
+  const place={reserve(){if(reservation)return null;return reservation={};},isLive:r=>r===reservation,release(r){if(r===reservation){reservation=null;releases++;}},show(r,on){shown=on;if(!on)hides++;}};
+  const published=[],q=new Quaternion(),v=new Vector3(),scale=new Vector3();
+  people.readActivityPresentation=(claim,out)=>{
+    if(!people.isPersonActivityCurrent(claim))return false;
+    const n=people.peopleHandles.resolve(claim.person);
+    q.setFromEuler(new Euler(0,n.yaw,0));v.set(n.pos.x,n.pos.y,n.pos.z);scale.setScalar(n.scale??1);out.compose(v,q,scale);return true;
+  };
+  const session=new HoopPairSession({people,place,eligible:v=>!v.claimed,...options});
+  const write=people.writeActivityPose.bind(people);
+  people.writeActivityPose=(claim,...args)=>{
+    const sample=session.sampleBodyPose(claim.person,{});
+    if(sample)published.push({time:sample.time,version:sample.version,generation:sample.generation,pose:{...sample.arms}});
+    return write(claim,...args);
+  };
+  return {people,a,b,session,place,published,aRecord,bRecord,get reservation(){return reservation;},get releases(){return releases;},get hides(){return hides;},get shown(){return shown;}};
+}
+const tolerance=1e-9;
+function close(a,b,label){assert(Math.abs(a-b)<tolerance,label+': '+a+' vs '+b);}
+function ringPoint(hoop,angle,out=new Vector3()) {
+  return out.set(Math.cos(angle)*hoop.radius,Math.sin(angle)*hoop.radius,0).applyQuaternion(new Quaternion(hoop.qx,hoop.qy,hoop.qz,hoop.qw)).add(new Vector3(hoop.x,hoop.y,hoop.z));
+}
+// Independent shader-equivalent forward path, not the helper used by the session.
+function shaderHand(arms,side,matrix) {
+  const right=side==='right',elbow=right?arms.elbow:arms.leftElbow,z=right?arms.z:arms.leftZ,x=right?arms.x:arms.leftX;
+  const hand=new Vector3(0,-.29,0).applyAxisAngle(new Vector3(0,0,1),elbow).add(new Vector3(0,-.29,0)).applyAxisAngle(new Vector3(0,0,1),z).applyAxisAngle(new Vector3(1,0,0),x);
+  hand.x+=right?.30:-.30;hand.y+=1.35;return hand.applyMatrix4(matrix);
+}
+{
+ const f=fixture();assert(f.session.start(f.a,f.b));assert.equal(f.session.phase,'playing');assert(f.shown);assert.equal(f.people.activityClaims.current.size,2);
+ let flights=0;const matrix=new Matrix4();
+ for(let i=0;i<400;i++) {
+  f.session.update(.05);const h=f.session.hoop;
+  assert(Object.values(h).filter(v=>typeof v==='number').every(Number.isFinite));
+  assert.equal(f.published.at(-1).version,f.session.version,'complete current sample exists before synchronous publication');
+  if(h.contact==='flight')flights++;
+  else {
+   const side=h.contact==='right'?'right':'left',index=side==='right'?0:1;
+   f.people.readActivityPresentation(f.session.claims[index],matrix);
+   const expected=shaderHand(f.session.samples[index].arms,side,matrix),actual=ringPoint(h,h.contactAngle);
+   assert(expected.distanceTo(actual)<tolerance,'ring rim equals rendered '+side+' hand');
+  }
+ }
+ assert(flights>30);f.session.finish('completed');assert.equal(f.session.phase,'idle');assert.equal(f.reservation,null);assert.equal(f.people.activityClaims.current.size,0);assert.equal(f.releases,1);assert(!f.session.hoop.visible);
+ assert.equal(f.people.activityCooldown(f.a,'hula'),20);assert.equal(f.people.activityCooldown(f.b,'hula'),20);
+ f.session.dispose();f.session.dispose();assert.equal(f.releases,1);
+ const replay=f.session.exportReplay();assert(replay.events.some(e=>e.detail==='flight'));assert.doesNotThrow(()=>JSON.stringify(replay));
+}
+console.log('PASS hoop pair: exact shader/rim contacts, same-version publication, repeated exchanges, cooldown and owner teardown.');
+// Derivative and position continuity at release/catch and cycle boundaries.
+{
+ const f=fixture();assert(f.session.start(f.a,f.b));
+ const sample=t=>{f.session.elapsed=t;f.session._prepare(t);f.session._publish();return new Vector3(f.session.hoop.x,f.session.hoop.y,f.session.hoop.z);};
+ const epsilon=1e-5;
+ for(const boundary of [1.7,2.9,3.8,4.7,5.9,6.8,18.8]) {
+  const before=sample(boundary-epsilon),at=sample(boundary),after=sample(boundary+epsilon);
+  assert(before.distanceTo(after)<1e-7,'position continuity at '+boundary);
+  assert(at.clone().sub(before).multiplyScalar(1/epsilon).distanceTo(after.clone().sub(at).multiplyScalar(1/epsilon))<.002,'velocity continuity at '+boundary);
+ }
+ f.session.dispose();
+}
+console.log('PASS hoop exchange position/velocity continuity at all release/catch boundaries (1e-7 position / .002 derivative).');
+// Rotation/unequal-scale fixtures use actual presentation matrices for contact.
+for(const angle of [-Math.PI,-.7,Math.PI/2]) {
+ const f=fixture(),distance=4.5;f.aRecord.pos.set(0,.3,0);f.bRecord.pos.set(Math.cos(angle)*distance,.7,Math.sin(angle)*distance);f.aRecord.scale=1.2;f.bRecord.scale=.7;
+ assert(f.session.start(f.a,f.b));const m=new Matrix4();
+ for(let step=0;step<100;step++) {
+  f.session.update(.05);const h=f.session.hoop;if(h.contact==='flight')continue;
+  const i=h.contact==='right'?0:1,side=i?'left':'right';f.people.readActivityPresentation(f.session.claims[i],m);
+  assert(shaderHand(f.session.samples[i].arms,side,m).distanceTo(ringPoint(h,h.contactAngle))<tolerance);
+ }
+ f.session.dispose();
+}
+{
+ const f=fixture();f.bRecord.pos.x=-1;assert(!f.session.start(f.a,f.b),'overlapping sweep cannot become a partner exchange');assert.equal(f.reservation,null);
+ f.bRecord.pos.x=20;assert(!f.session.start(f.a,f.b),'corridor length is bounded');assert.equal(f.reservation,null);
+}
+console.log('PASS rotated/unequal-scale presentation parity and bounded partner corridor admission.');
+
+{
+ const f=fixture(),competing=f.people.claimActivity(f.b,{owner:{activityKey:'other'}});assert(competing);
+ assert.equal(f.session.start(f.a,f.b),false);assert(f.people.isPersonActivityCurrent(competing));assert.equal(f.people.activityClaims.current.size,1);assert.equal(f.reservation,null);
+}
+for(const failure of ['deny','claim-during-prepare','revoke-first','throw']) {
+ const f=fixture(),real=f.people.claimActivity.bind(f.people);let unrelated=null;
+ f.people.claimActivity=(person,options)=>{
+  if(person===f.b) {
+   if(failure==='deny')return null;
+   if(failure==='claim-during-prepare')unrelated=real(f.b,{owner:{activityKey:'other'}});
+   if(failure==='revoke-first')f.people.activityClaims.removePerson(f.a,'honk');
+   if(failure==='throw')throw Error('acquisition failed');
+  }
+  return real(person,options);
+ };
+ if(failure==='throw')assert.throws(()=>f.session.start(f.a,f.b),/acquisition failed/);else assert.equal(f.session.start(f.a,f.b),false,failure);
+ assert.equal(f.session.phase,'idle',failure);assert.equal(f.reservation,null,failure);assert.equal(f.releases,1,failure);
+ assert.equal(f.people.activityClaims.current.size,unrelated?1:0,failure);if(unrelated)assert(f.people.isPersonActivityCurrent(unrelated));
+}
+console.log('PASS hoop pair acquisition: no stealing before/inside acquisition, partial rollback, reentrant first-claim revocation and thrown acquisition.');
+for(const mode of ['honk','dodge','first-person','second-person','place','unsafe']) {
+ const f=fixture();assert(f.session.start(f.a,f.b));const stale=[...f.session.claims];
+ if(mode==='honk'||mode==='dodge')f.people.activityClaims.removePerson(f.a,mode);
+ if(mode==='first-person')f.people.removePerson(f.a);
+ if(mode==='second-person')f.people.removePerson(f.b);
+ if(mode==='place')f.place.isLive=()=>false;
+ f.session.update(.05,{safe:mode!=='unsafe'});
+ assert.equal(f.session.phase,'idle',mode);assert.equal(f.reservation,null,mode);assert(!f.session.hoop.visible,mode);assert.equal(f.people.activityClaims.current.size,0,mode);
+ assert(stale.every(claim=>!f.people.writeActivityPose(claim,0,0,0)),mode);
+ f.session.dispose();assert.equal(f.releases,1,mode);
+}
+console.log('PASS hoop pair cancellation: both claims and airborne state end on honk/dodge, either person, venue or corridor loss.');
+{
+ const f=fixture();assert(f.session.start(f.a,f.b));const calls=[];
+ f.people.requestActivityExit=()=>{calls.push('exit');throw Error('exit failed');};
+ f.place.show=()=>{calls.push('show');throw Error('show failed');};
+ const release=f.place.release;f.place.release=r=>{calls.push('release');release(r);throw Error('release failed');};
+ assert.throws(()=>f.session.finish('completed'),AggregateError);assert.deepEqual(calls,['exit','exit','show','release']);assert.equal(f.people.activityClaims.current.size,0);assert.equal(f.reservation,null);assert(!f.session.hoop.visible);
+ f.session.dispose();assert.equal(f.releases,1);
+}
+{
+ const f=fixture();assert(f.session.start(f.a,f.b));const before=f.session.elapsed;
+ for(const dt of [-1,.051,Infinity,NaN])assert.throws(()=>f.session.update(dt),RangeError);
+ close(f.session.elapsed,before,'invalid delta does not advance');
+ f.session.update(0);close(f.session.elapsed,before,'zero delta does not advance');f.session.dispose();
+}
+{
+ const f=fixture();assert(f.session.start(f.a,f.b));
+ while(f.session.events.length<256)f.session._record('fixture');
+ f.session.contact='force-new-contact';f.session.update(.01);
+ assert.equal(f.session.phase,'idle');assert.equal(f.session.complete,false);assert.equal(f.session.exportReplay().error,'event-capacity-exceeded');assert.equal(f.people.activityClaims.current.size,0);assert.equal(f.reservation,null);
+}
+console.log('PASS hoop pair: throwing cleanup attempts all releases, invalid/zero delta and bounded replay overflow cancellation.');
+
+{
+ const f=fixture(),realShow=f.place.show;f.place.show=(r,on)=>{realShow(r,on);if(on)f.people.activityClaims.removePerson(f.a,'honk');};
+ assert.equal(f.session.start(f.a,f.b),false,'reentrant show cannot resurrect a cancelled pair');assert.equal(f.session.phase,'idle');assert(!f.session.hoop.visible);assert.equal(f.reservation,null);assert.equal(f.people.activityClaims.current.size,0);
+ const scratch={style:'flow',hoopCount:2,arms:{x:1,z:1,elbow:1,leftX:1,leftZ:1,leftElbow:1}};
+ assert.equal(f.session.sampleBodyPose(f.a,scratch),null);assert.equal(scratch.style,'inactive');assert.equal(scratch.hoopCount,0);assert(Object.values(scratch.arms).every(x=>x===0));
+ for(const options of [{duration:NaN},{duration:0},{duration:-1},{duration:Infinity},{cooldown:-1},{cooldown:NaN},{now:1}])assert.throws(()=>new HoopPairSession({people:f.people,place:f.place,eligible:()=>true,...options}),TypeError);
+ f.session.dispose();f.session.dispose();
+}
+console.log('PASS finite pair configuration, inactive scratch reset and reentrant visibility-callback cancellation.');
+
+{
+ const f=fixture();assert(f.session.start(f.a,f.b));
+ const fields=['travelX','travelZ','turn','stride','headYaw','headTilt','rootY'];
+ const scratch={feet:{left:{x:99},right:{x:-99}}};for(const field of fields)scratch[field]=17;
+ assert.equal(f.session.sampleBodyPose(f.a,scratch).style,'flow');assert.equal(scratch.articulated,true);assert.equal(scratch.feet,null,'pair disables inherited solo foot targets');for(const field of fields)assert.equal(scratch[field],0,'stationary pair clears inherited '+field);
+ f.session.finish();scratch.feet={left:{x:99},right:{x:-99}};for(const field of fields)scratch[field]=-23;
+ assert.equal(f.session.sampleBodyPose(f.a,scratch),null);assert.equal(scratch.style,'inactive');assert.equal(scratch.articulated,false);assert.equal(scratch.feet,null,'inactive pair disables inherited solo foot targets');for(const field of fields)assert.equal(scratch[field],0,'inactive pair clears inherited '+field);
+ f.session.dispose();
+}
+console.log('PASS shared solo/pair scratch resets all travel, turn, stride and head channels on active and inactive reads.');

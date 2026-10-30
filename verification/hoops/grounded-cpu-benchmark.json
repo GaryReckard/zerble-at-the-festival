@@ -1,0 +1,690 @@
+{
+  "schema": 1,
+  "generatedAt": "2026-10-30T04:33:07.979Z",
+  "command": "node --expose-gc bin/bench-hoop-workshop --output /Users/garyreckard/Sites/zerble-at-the-festival/verification/hoops/grounded-cpu-benchmark.json",
+  "context": {
+    "node": "v24.10.0",
+    "v8": "13.6.233.10-node.28",
+    "platform": "darwin",
+    "arch": "arm64",
+    "kernel": "25.6.0",
+    "cpu": "Apple M4 Pro",
+    "logicalCPUs": 14,
+    "profile": "low",
+    "rendering": "none; CPU-only real Three.js geometry/matrices and production Crowd/HulaActivity",
+    "exposedGC": true
+  },
+  "sources": {
+    "scoreVersion": 6,
+    "sha256": {
+      "src/people/hoop/score.js": "606f810e9e08a255c7e934ea2131151c741da400ff55208cfb102b209be80f91",
+      "src/people/hoop/dance.js": "4ca316e2f05d9854dc4afbb08790a092a861530b6a2b24aeed464472e395eb40",
+      "src/people/hoop/classic.js": "a6a5f0e1f9627bac0e63f267c10ceb365deb1888621a2c86140629a98c3d3893",
+      "src/people/hoop/chestRoll.js": "0723d89953399184134da32e5e0e9d22ca9a59abab6a2b0cac49f0424672760a",
+      "src/people/hoop/appearance.js": "d4b765995a66bf00fe7eadc775822aaad012b7f80c18dfda572c5c45de3cca32",
+      "src/people/hoop/feet.js": "05aef6d3f0917794c38191d18f667ce3aebfdb1131596f1e97e90d860d5bc803",
+      "src/people/hoop/leg.js": "47250298e56286e254f08df98a3245f6ad13a708bcdc966faebb83947c9504e6",
+      "src/personMotion.js": "632f1c0183e790b158f7230d6bbf8f16507a44298c0bf94ed54c3bc57f21fda1",
+      "src/people/hoop/workshop.js": "f851573c272ab59ead0d605dfd1bd8fa46785dcbb4b4739de956a836793896f5",
+      "src/people/hulaActivity.js": "d9bcdc6576441a2656b4916a3a0058df6a4aedb2f0a83fbc8c4aeaf013d5b823",
+      "src/people/hulaSession.js": "3523e9b3f7701c236700df3e6a927a5040c8daab8605c0e71389fc975744fe92",
+      "src/crowd.js": "b3fdc308d1d6094130605113ac8fec24fbb8d0dbc3e078ba515d1da8b305a0e8"
+    }
+  },
+  "method": {
+    "baseline": "Two expressive classic waist-hoopers with planted feet and articulated arms/head; this supersedes the earlier rigid/classic baseline.",
+    "trials": 5,
+    "fixture": {
+      "seed": 1977,
+      "profile": "lyrical",
+      "scale": 1,
+      "heading": 0,
+      "duration": 60
+    },
+    "participants": 2,
+    "warmupSteps": 250,
+    "timedSteps": 600,
+    "acceptedDelta": 0.016666666666666666,
+    "timedAcceptedSeconds": 10,
+    "ordering": "case ordering rotates per trial",
+    "construction": "wall time for complete HoopWorkshop construction, including Crowd/geometry, session admission, compilation for flow and initial publication",
+    "tick": "wall time for a 600-call batch of warmed HoopWorkshop.step; includes production adult+roaming dispatch and workshop contact-marker math, excludes inspect traversal, rendering, DOM and GC",
+    "microbench": {
+      "compileIterations": 1000,
+      "sampleIterations": 20000,
+      "sampleTimeRange": [
+        0,
+        60
+      ],
+      "output": "reused numeric sample"
+    },
+    "memory": "GC runs outside timing before/after memory snapshots. Deltas describe live/retained JS heap, external and ArrayBuffer bytes; they are not allocation rates.",
+    "statistics": "Five raw trials per case. Min/median/max/mean summarize trial averages; no per-frame p95 or device claim."
+  },
+  "summary": [
+    {
+      "case": "classic-baseline",
+      "constructionMs": {
+        "samples": 5,
+        "min": 3.6633750000000305,
+        "median": 4.010457999999971,
+        "max": 12.216334000000003,
+        "mean": 5.563508400000009
+      },
+      "meanTickMs": {
+        "samples": 5,
+        "min": 0.00992347166666671,
+        "median": 0.01425909666666674,
+        "max": 0.02218854166666669,
+        "mean": 0.015349221999999996
+      },
+      "modelDraws": [
+        11
+      ],
+      "modelTriangles": [
+        3248
+      ],
+      "constructedLiveHeapDeltaBytes": {
+        "samples": 5,
+        "min": 333656,
+        "median": 388256,
+        "max": 1086632,
+        "mean": 518300.8
+      },
+      "retainedHeapDeltaAfterTimedTicksBytes": {
+        "samples": 5,
+        "min": 40448,
+        "median": 89504,
+        "max": 178072,
+        "mean": 99432
+      }
+    },
+    {
+      "case": "single-hoop-flow",
+      "constructionMs": {
+        "samples": 5,
+        "min": 4.707999999999998,
+        "median": 4.869916999999987,
+        "max": 6.461792000000003,
+        "mean": 5.142791799999992
+      },
+      "meanTickMs": {
+        "samples": 5,
+        "min": 0.018645208333333302,
+        "median": 0.025934166666666744,
+        "max": 0.027210069999999954,
+        "mean": 0.02358654166666666
+      },
+      "modelDraws": [
+        11
+      ],
+      "modelTriangles": [
+        3248
+      ],
+      "constructedLiveHeapDeltaBytes": {
+        "samples": 5,
+        "min": 443872,
+        "median": 474656,
+        "max": 672528,
+        "mean": 520838.4
+      },
+      "retainedHeapDeltaAfterTimedTicksBytes": {
+        "samples": 5,
+        "min": 45392,
+        "median": 107592,
+        "max": 208840,
+        "mean": 111956.8
+      }
+    },
+    {
+      "case": "two-hoop-flow",
+      "constructionMs": {
+        "samples": 5,
+        "min": 3.8704999999999927,
+        "median": 4.664541999999983,
+        "max": 5.385667000000012,
+        "mean": 4.549908399999981
+      },
+      "meanTickMs": {
+        "samples": 5,
+        "min": 0.019501944999999996,
+        "median": 0.023093124999999947,
+        "max": 0.02805444499999993,
+        "mean": 0.022859888999999974
+      },
+      "modelDraws": [
+        12
+      ],
+      "modelTriangles": [
+        3536
+      ],
+      "constructedLiveHeapDeltaBytes": {
+        "samples": 5,
+        "min": 389968,
+        "median": 443960,
+        "max": 525360,
+        "mean": 448585.6
+      },
+      "retainedHeapDeltaAfterTimedTicksBytes": {
+        "samples": 5,
+        "min": 43736,
+        "median": 86504,
+        "max": 106072,
+        "mean": 75684.8
+      }
+    }
+  ],
+  "relativeToBaseline": [
+    {
+      "case": "single-hoop-flow",
+      "medianMeanTickDeltaMs": 0.011675070000000004,
+      "medianMeanTickRatio": 1.8187804790813031,
+      "medianConstructionDeltaMs": 0.8594590000000153
+    },
+    {
+      "case": "two-hoop-flow",
+      "medianMeanTickDeltaMs": 0.008834028333333207,
+      "medianMeanTickRatio": 1.6195363240635272,
+      "medianConstructionDeltaMs": 0.6540840000000117
+    }
+  ],
+  "microbenchSummary": [
+    {
+      "hoops": 1,
+      "meanCompileMs": {
+        "samples": 5,
+        "min": 0.0612249579999999,
+        "median": 0.09163416699999993,
+        "max": 0.12619929100000002,
+        "mean": 0.09353127479999998
+      },
+      "meanSampleMs": {
+        "samples": 5,
+        "min": 0.00046491455000000314,
+        "median": 0.0004746145999999953,
+        "max": 0.0006265083000000004,
+        "mean": 0.0005090237300000002
+      }
+    },
+    {
+      "hoops": 2,
+      "meanCompileMs": {
+        "samples": 5,
+        "min": 0.018859375,
+        "median": 0.019755208000000038,
+        "max": 0.022522917000000007,
+        "mean": 0.02039224979999999
+      },
+      "meanSampleMs": {
+        "samples": 5,
+        "min": 0.0003681500000000028,
+        "median": 0.0003795479,
+        "max": 0.00039763539999999013,
+        "mean": 0.00038075123999999733
+      }
+    }
+  ],
+  "limitations": [
+    "This is a Node CPU-only benchmark on one host, not browser frame time, WebGL cost, GPU allocation or mobile/Safari performance.",
+    "Model draw/triangle counts are computed from production scene objects, not renderer.info from a GPU render. Ground, contact markers and postprocessing are excluded from these model counters.",
+    "Workshop step includes debug contact-marker math. Production game sampling does not include that inspector; this benchmark does not isolate a game-wide frame-time delta.",
+    "Construction includes cold/JIT and shared-cache variation; inspect all raw trials and medians rather than treating one run as a budget.",
+    "Forced-GC retained-memory deltas can be negative and do not measure churn or prove an absence of allocation/leaks.",
+    "Five trial averages provide a small-sample summary, not a reliable frame-tail percentile."
+  ],
+  "rawTrials": [
+    {
+      "trial": 1,
+      "order": 1,
+      "case": "classic-baseline",
+      "constructionMs": 12.216334000000003,
+      "timedBatchMs": 5.9540830000000255,
+      "meanTickMs": 0.00992347166666671,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 11,
+      "modelTriangles": 3248,
+      "participantCount": 2,
+      "activeHoops": 2,
+      "compiledSegments": 0,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 1086632,
+        "external": 600104,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 178072,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 1,
+      "order": 2,
+      "case": "single-hoop-flow",
+      "constructionMs": 6.461792000000003,
+      "timedBatchMs": 11.816708000000006,
+      "meanTickMs": 0.019694513333333344,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 11,
+      "modelTriangles": 3248,
+      "participantCount": 2,
+      "activeHoops": 2,
+      "compiledSegments": 23,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 672528,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 208840,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 1,
+      "order": 3,
+      "case": "two-hoop-flow",
+      "constructionMs": 4.664541999999983,
+      "timedBatchMs": 11.701166999999998,
+      "meanTickMs": 0.019501944999999996,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 12,
+      "modelTriangles": 3536,
+      "participantCount": 2,
+      "activeHoops": 3,
+      "compiledSegments": 11,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 461128,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 106072,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 2,
+      "order": 1,
+      "case": "single-hoop-flow",
+      "constructionMs": 4.707999999999998,
+      "timedBatchMs": 16.326041999999973,
+      "meanTickMs": 0.027210069999999954,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 11,
+      "modelTriangles": 3248,
+      "participantCount": 2,
+      "activeHoops": 2,
+      "compiledSegments": 23,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 548984,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 131392,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 2,
+      "order": 2,
+      "case": "two-hoop-flow",
+      "constructionMs": 5.385667000000012,
+      "timedBatchMs": 14.384082999999976,
+      "meanTickMs": 0.023973471666666624,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 12,
+      "modelTriangles": 3536,
+      "participantCount": 2,
+      "activeHoops": 3,
+      "compiledSegments": 11,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 525360,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 86504,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 2,
+      "order": 3,
+      "case": "classic-baseline",
+      "constructionMs": 3.6633750000000305,
+      "timedBatchMs": 8.555458000000044,
+      "meanTickMs": 0.01425909666666674,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 11,
+      "modelTriangles": 3248,
+      "participantCount": 2,
+      "activeHoops": 2,
+      "compiledSegments": 0,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 363992,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 79992,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 3,
+      "order": 1,
+      "case": "two-hoop-flow",
+      "constructionMs": 4.820082999999954,
+      "timedBatchMs": 16.832666999999958,
+      "meanTickMs": 0.02805444499999993,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 12,
+      "modelTriangles": 3536,
+      "participantCount": 2,
+      "activeHoops": 3,
+      "compiledSegments": 11,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 443960,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 43736,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 3,
+      "order": 2,
+      "case": "classic-baseline",
+      "constructionMs": 4.010457999999971,
+      "timedBatchMs": 13.313125000000014,
+      "meanTickMs": 0.02218854166666669,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 11,
+      "modelTriangles": 3248,
+      "participantCount": 2,
+      "activeHoops": 2,
+      "compiledSegments": 0,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 418968,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 89504,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 3,
+      "order": 3,
+      "case": "single-hoop-flow",
+      "constructionMs": 4.709167000000036,
+      "timedBatchMs": 11.18712499999998,
+      "meanTickMs": 0.018645208333333302,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 11,
+      "modelTriangles": 3248,
+      "participantCount": 2,
+      "activeHoops": 2,
+      "compiledSegments": 23,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 443872,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 45392,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 4,
+      "order": 1,
+      "case": "classic-baseline",
+      "constructionMs": 3.793875000000014,
+      "timedBatchMs": 10.261416999999938,
+      "meanTickMs": 0.017102361666666562,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 11,
+      "modelTriangles": 3248,
+      "participantCount": 2,
+      "activeHoops": 2,
+      "compiledSegments": 0,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 333656,
+        "external": 302448,
+        "arrayBuffers": 302448
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 40448,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 4,
+      "order": 2,
+      "case": "single-hoop-flow",
+      "constructionMs": 4.869916999999987,
+      "timedBatchMs": 15.560500000000047,
+      "meanTickMs": 0.025934166666666744,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 11,
+      "modelTriangles": 3248,
+      "participantCount": 2,
+      "activeHoops": 2,
+      "compiledSegments": 23,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 464152,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 66568,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 4,
+      "order": 3,
+      "case": "two-hoop-flow",
+      "constructionMs": 3.8704999999999927,
+      "timedBatchMs": 11.805875000000015,
+      "meanTickMs": 0.01967645833333336,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 12,
+      "modelTriangles": 3536,
+      "participantCount": 2,
+      "activeHoops": 3,
+      "compiledSegments": 11,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 389968,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 45056,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 5,
+      "order": 1,
+      "case": "single-hoop-flow",
+      "constructionMs": 4.965082999999936,
+      "timedBatchMs": 15.869249999999965,
+      "meanTickMs": 0.02644874999999994,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 11,
+      "modelTriangles": 3248,
+      "participantCount": 2,
+      "activeHoops": 2,
+      "compiledSegments": 23,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 474656,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 107592,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 5,
+      "order": 2,
+      "case": "two-hoop-flow",
+      "constructionMs": 4.008749999999964,
+      "timedBatchMs": 13.855874999999969,
+      "meanTickMs": 0.023093124999999947,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 12,
+      "modelTriangles": 3536,
+      "participantCount": 2,
+      "activeHoops": 3,
+      "compiledSegments": 11,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 422512,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 97056,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    },
+    {
+      "trial": 5,
+      "order": 3,
+      "case": "classic-baseline",
+      "constructionMs": 4.133500000000026,
+      "timedBatchMs": 7.963582999999971,
+      "meanTickMs": 0.013272638333333286,
+      "acceptedTime": 14.16666666666695,
+      "modelDraws": 11,
+      "modelTriangles": 3248,
+      "participantCount": 2,
+      "activeHoops": 2,
+      "compiledSegments": 0,
+      "constructedLiveMemoryDeltaBytes": {
+        "heapUsed": 388256,
+        "external": 600064,
+        "arrayBuffers": 600064
+      },
+      "retainedMemoryDeltaAfterTimedTicksBytes": {
+        "heapUsed": 109144,
+        "external": 0,
+        "arrayBuffers": 0
+      }
+    }
+  ],
+  "microbenchRawTrials": [
+    {
+      "trial": 1,
+      "hoops": 1,
+      "compileBatchMs": 61.2249579999999,
+      "meanCompileMs": 0.0612249579999999,
+      "sampleBatchMs": 12.530166000000008,
+      "meanSampleMs": 0.0006265083000000004,
+      "segments": 23
+    },
+    {
+      "trial": 2,
+      "hoops": 1,
+      "compileBatchMs": 126.19929100000002,
+      "meanCompileMs": 0.12619929100000002,
+      "sampleBatchMs": 10.241208000000029,
+      "meanSampleMs": 0.0005120604000000014,
+      "segments": 23
+    },
+    {
+      "trial": 3,
+      "hoops": 1,
+      "compileBatchMs": 91.25999999999999,
+      "meanCompileMs": 0.09126,
+      "sampleBatchMs": 9.492291999999907,
+      "meanSampleMs": 0.0004746145999999953,
+      "segments": 23
+    },
+    {
+      "trial": 4,
+      "hoops": 1,
+      "compileBatchMs": 97.33795800000007,
+      "meanCompileMs": 0.09733795800000007,
+      "sampleBatchMs": 9.340416000000005,
+      "meanSampleMs": 0.00046702080000000023,
+      "segments": 23
+    },
+    {
+      "trial": 5,
+      "hoops": 1,
+      "compileBatchMs": 91.63416699999993,
+      "meanCompileMs": 0.09163416699999993,
+      "sampleBatchMs": 9.298291000000063,
+      "meanSampleMs": 0.00046491455000000314,
+      "segments": 23
+    },
+    {
+      "trial": 1,
+      "hoops": 2,
+      "compileBatchMs": 18.859375,
+      "meanCompileMs": 0.018859375,
+      "sampleBatchMs": 7.5909580000000005,
+      "meanSampleMs": 0.0003795479,
+      "segments": 11
+    },
+    {
+      "trial": 2,
+      "hoops": 2,
+      "compileBatchMs": 19.633916,
+      "meanCompileMs": 0.019633915999999998,
+      "sampleBatchMs": 7.363000000000056,
+      "meanSampleMs": 0.0003681500000000028,
+      "segments": 11
+    },
+    {
+      "trial": 3,
+      "hoops": 2,
+      "compileBatchMs": 22.522917000000007,
+      "meanCompileMs": 0.022522917000000007,
+      "sampleBatchMs": 7.952707999999802,
+      "meanSampleMs": 0.00039763539999999013,
+      "segments": 11
+    },
+    {
+      "trial": 4,
+      "hoops": 2,
+      "compileBatchMs": 19.75520800000004,
+      "meanCompileMs": 0.019755208000000038,
+      "sampleBatchMs": 7.574832999999899,
+      "meanSampleMs": 0.00037874164999999495,
+      "segments": 11
+    },
+    {
+      "trial": 5,
+      "hoops": 2,
+      "compileBatchMs": 21.189832999999908,
+      "meanCompileMs": 0.021189832999999908,
+      "sampleBatchMs": 7.5936249999999745,
+      "meanSampleMs": 0.0003796812499999987,
+      "segments": 11
+    }
+  ],
+  "checksum": 142229.36946692687
+}

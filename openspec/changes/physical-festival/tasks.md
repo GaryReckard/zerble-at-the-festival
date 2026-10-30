@@ -1,0 +1,113 @@
+# Implementation tasks
+
+All boxes are intentionally unchecked: this handoff documents future work. Gary explicitly deferred coding until the hula-hoop work is finished and physics can begin on a clean branch. Execute groups in order unless a dependency below explicitly permits parallel preparation. A checked task requires its stated evidence, not merely code existence. [Verification](verification.md) defines cross-cutting acceptance, [design](design.md) explains the contracts, and [delegation](delegation.md) assigns model roles for every task.
+
+Each player-visible implementation slice updates CHANGELOG on the actual date and trims only its shipped ROADMAP scope. Run `npm run check` and `npm run build` plus the affected production browser path before accepting a slice. Preserve concurrent hoop/cooler work and recheck the branch/status before Git actions.
+
+## 1. Establish source baseline and the interaction playground
+
+- [ ] 1.1 (Baseline and compatibility) After the hula-hoop work is finished and recorded in Git, verify the intended clean base and create/use the agreed physics branch without disturbing dirty work. Re-read current chair, cooler, beverage, person-claim, collision and terrain code; record the starting revision and affected contracts, including the completed hoop hand-authority changes. Refresh evidence links and confirm the council mitigations and approved distance-reset amendment are represented before runtime edits. Include canonical generation-clearance consumers, occupied-seat origin ownership and the late contact/publication frame table in the baseline.
+- [ ] 1.2 (Owned harness lifecycle) Implement or reuse unique browser-session ownership, hard timeouts, `finally` teardown and exact-process orphan assertions before expanding standalone automation. Keep the known-broken layout capture path disabled until separately fixed.
+- [ ] 1.3 (Production fixture shell) Add the interaction page through Vite entry configuration using real models, controller adapters and ownership services; include speed/angle/seed controls, reset, slow motion, single-step and mute default.
+- [ ] 1.4 (Fixture instrumentation) Add optional collision/socket/bounds overlays, person claim inspection and counters for bodies, colliders, joints, render slots, terrain tiles, incidents and temporary ownership records; inspect allocation, step and upload time separately.
+- [ ] 1.5 (Baseline scenes) Record repeatable empty chair, chair pair, slope, nearby solid and occupied chair scenes using existing behavior before enabling new physics; save inputs and reference captures without claiming new feature acceptance.
+
+## 2. Prove the physics dependency and update loop
+
+- [ ] 2.1 (Engine loading proof) Pin the candidate Rapier package and minimal adapter; verify development and production asset/base-path loading, initialization failure handling and coherent disabled behavior without awaiting before the synchronous audio unlock. Record the exact distribution/version and demonstrate the event/joint APIs used; follow the corrected Vite premise in [research synthesis](research-synthesis.md), not the reports' obsolete import-map requirement.
+- [ ] 2.2 (Fixed-step clock) Implement accumulator, interpolation, bounded catch-up and pause/resume semantics; test 30/60/120Hz presentation sequences and a long background pause against invariant expectations. Verify the explicit frame barriers and pose-only republishing; distinguish hidden timer ticking, actual suspension, Passport pause and capture/input locks without a second scheduler.
+- [ ] 2.3 (Ground and static surroundings) Build terrain proxies from actual triangulated samples and simple nearby solid proxies; test enabled/disabled terrain, slopes, seams and an object landing beside a tent/tree proxy.
+- [ ] 2.4 (Admission and residency) Implement swept/prewarmed activation, sleeping, hysteresis and explicit capacity limits; protect active support groups and expose every rejection/exhaustion transition. Bound per-frame creations, queued work and static/terrain preparation within the shared streaming allowance, and reserve capacity for mandatory occupant/cup releases before assembly admission.
+- [ ] 2.5 (Cart proxy and resets) Feed accepted controller motion to the kinematic proxy; test teleport, rescue, restart and ghost-mode changes without stale sweeping or explosive correction. Trace same-frame star pickup and legacy-wall correction beside a physical chair, including zero/one/multiple substeps and trajectory sampling.
+- [ ] 2.6 (Early device gate) Record warm step time, activation spikes and initial capacities on a physical phone and desktop; prove production boot and iOS start-gesture audio. Resolve a failing candidate with evidence before building more content. Include sparse motion, dense piles, chain reactions, rapid activation and sleeping neighborhoods; record contact pairs, colliders per recipe, joints, CCD, substeps and mandatory/cosmetic event work separately.
+
+## 3. Establish prop identity, rendering and lifecycle
+
+- [ ] 3.1 (Stable keys and recipes) Introduce stable procedural/visit keys and explicit descriptors with origin, generation, kind, part-local transforms and sockets; prove order-independent identity without changing established RNG draws.
+- [ ] 3.2 (Chair instance bindings) Retain per-chair render bindings through batching, update moving matrices and conservative bounds, and verify unchanged static silhouettes/colors across all four chair styles. Compare one chair, mixed moving styles and multiple-origin adoption; record bucket counts, transform/bounds cost and uploaded bytes where inspectable. Compare full uploads with dirty ranges supported by the pinned renderer, and test translated/rotated parents plus slot identity and per-instance attribute remapping.
+- [ ] 3.3 (Registry synchronization) Add explicit physical publication/transfer operations for poses, avoidance footprints, colliders and seat references; compare spatial queries with a linear reference after movement and transfer. Separate canonical generation clearance from live avoidance, preserving established blockers and builder ordering; reconcile runtime props intersecting newly loaded canonical solids.
+- [ ] 3.4 (Moving render adoption) Transfer a prop from an unloading origin batch into bounded active rendering with exactly one visible representation; test acquisition failure and rollback without disposing shared geometry/materials. Compare existing-bucket updates against a bounded active pool with matched workloads, retaining chair color/style variety.
+- [ ] 3.5 (World-owner adapters) Wire chunk, forest and lake installations/teardown separately; preserve lake ownership conventions, suppress duplicate origin regeneration and test owner-first/prop-first removal. Transfer occupied resources into reaction-owned support through synchronous preparation/rollback; test both loveseat sitters, camp music, failed acquisition and late old-owner release. Verify displaced props/new sign timing do not perturb original generated content for matched seed/load order.
+- [ ] 3.6 (Distance reset and frontier) Implement the approved reset boundary/hysteresis and coherent arrangement teardown once distant, unobserved and free of relevant live dependencies. Keep followed/carried adopted props and temporary origin suppression valid; cancel eligible unseen claims without pinning abandoned areas forever. Test short return preserving damage, distant return restoring original placement, looking away without reset, long travel, capacity limits and no reward/progress reset. Do not implement historical pose serialization or visit-history eviction.
+- [ ] 3.7 (Lifecycle stress gate) Run repeated activation/adoption/settlement/unload/reset cycles, including stacked support retirement, and prove all owned counts return to declared baselines with no monotonic growth. Distinguish returning live counts from retained allocator capacity; measure the bounded post-warmup memory envelope separately from JS and GPU resources, and state unavailable telemetry explicitly.
+
+## 4. Finish empty-chair contact and incident behavior
+
+- [ ] 4.1 (Chair collision recipes) Tune simple compound shapes, mass distribution, friction and damping for sling/director/low/loveseat; preserve meaningful empty space and natural support without modeling every tube.
+- [ ] 4.2 (Single response owner) Route physical candidates away from legacy overlap/knockback and implement bounded cart feedback; prove one impulse/response per encounter and simulation through damage immunity. Verify the documented frame/publication sequence, continuous moving sockets and pose-only person updates without advancing activity clocks twice. Prove collision start/end, sensor overlaps and contact-force/manifold signals are not conflated; declare threshold units and test sustained resting contact separately from impacts.
+- [ ] 4.3 (Bounded incident provenance) Add source/instigator, lifetime/hop limits, per-target deduplication and renewed-contact rules; test chair-to-person attribution, multiple victims and expired resting debris.
+- [ ] 4.4 (Contact sound) Add synthesized material/energy-sensitive impact and scrape feedback with local relevance, thresholds and cooldowns; verify mute and avoid contact chatter.
+- [ ] 4.5 (Empty-chair feel gate) Compare gentle brush, square hit, off-center catch, boost-speed impact, second-chair collision and slope landing; record Gary's concrete feedback and selected tuning. Do not broaden until motion reads at normal camera distance.
+
+## 5. Add occupied support, graduated reactions and recovery
+
+- [ ] 5.1 (Reaction activity boundary) Implement eligible ordinary-crowd reaction claims through public population capabilities; preserve specialist, hidden, rider and existing activity exclusions; test stale handles and failed claims.
+- [ ] 5.2 (Supported load and bracing) Add independent per-seat support/load, self-contact filtering and bounded bracing with stability hysteresis; inspect a gentle wobble and a successful save without duplicating person mass.
+- [ ] 5.3 (Controlled dismount) Find a valid local foot/exit target and transfer seat/hand/movement authority coherently; test a blocked exit preserves valid state until a different reaction is required.
+- [ ] 5.4 (Fall handoff) Release unsupported sitters with continuous seat-point velocity, remove seated load once and separate collision proxies safely; test rotation, boost impacts and no-walking-exit falls for finite bounded energy. Saturate protected pools before forcing both loveseat occupants and their held/holder cups to release; assert reserved capacity, singular visuals, finite motion and no leaked claims.
+- [ ] 5.5 (Recovery and repeat impact) Implement landing, clear stand-up selection and blend back to ordinary control; test a second impact, no free recovery spot, person despawn and world reset mid-fall without snapping or double publishers.
+- [ ] 5.6 (Loveseat and seat validity) Test two independent sitters, one departure, both departures, displaced upright seating and overturned unavailability; revalidate approaches and prevent new claims during motion.
+- [ ] 5.7 (Occupied-chair gate) Replay the full incident at normal and slow speed, including a successful recovery and a fall; record visual acceptance, resource cleanup and the decision on whether a simple body meets the target.
+
+## 6. Integrate and accept one real campsite
+
+- [ ] 6.1 (Production campsite slice) Enable one controlled real campsite through production builders, terrain, crowd, score and sound paths; preserve coherent disabled behavior elsewhere.
+- [ ] 6.2 (Streaming and people integration) Drive away/back, cross an owner boundary, unload during flight and interrupt normal camp/music activities; verify person authority, stable keys, seat validity and render/registry agreement.
+- [ ] 6.3 (Score and social policy gate) Preserve current numeric consequences initially; compare empty-prop brushing, occupied support loss and indirect person hits. Record any approved tuning and test immunity, god/ghost mode, per-victim deduplication and bounded nearby reactions.
+- [ ] 6.4 (Production acceptance) Run required checks/build and real ready-title boot; capture Noon/Midnight on relevant Low/Mid/High paths and record device timing versus baseline. Publish evidence and remaining limitations before wider enrollment.
+
+## 7. Add the cooler as the next distinct physical object
+
+- [ ] 7.1 (Independent cooler descriptor) Return/reference the real cooler group from kitchen construction and bind its collider to that object, not the canopy; preserve current geometry, color and location tests.
+- [ ] 7.2 (Heavy closed-cooler behavior) Add a simple collision recipe, heavy sliding/tipping/settling and correct adopted lifetime; compare chair-to-cooler and cooler-to-chair impacts in the fixture and campsite.
+- [ ] 7.3 (Cup-well metadata) Expose named socket positions, depth, axis, dimensions and capacity derived from the actual model; validate against the existing raycast well tests.
+- [ ] 7.4 (Mechanical lid partition) Separate lid-mounted geometry from body handles/badge/drain while retaining pooling and appearance; add hinge pivot/limits and prove opening does not rotate body details.
+- [ ] 7.5 (Lid and contents experiment) Compare a controlled lid with a physical hinge/latch and a bounded contents pool. Record the selected behavior, capacity and evidence; do not silently require loose cans if the chosen scene has none.
+- [ ] 7.6 (Cooler acceptance) Extend the existing cooler sandbox and tests for body/lid/holder movement, disposal and budget changes, then verify actual campsite integration at Noon/Midnight and Low/Mid.
+
+## 8. Turn existing beverages into transferable cups
+
+- [ ] 8.1 (Beverage visual reuse) Extract/reuse local-origin cup geometry and packed bindings while preserving appearance/color/RNG and the existing drink participation threshold; compare static visuals before/after.
+- [ ] 8.2 (Possession and exclusive transfer) Separate current possession from appearance eligibility; implement hand/holder/support/free states with generation-checked claims and rollback, proving no duplicate/lost visuals under allocation failure. Distinguish voluntary rollback from unavoidable release through reserved capacity and test person despawn while holding a drink.
+- [ ] 8.3 (Ambient holder population) Add sparse independently seeded cups to compatible chair and cooler sockets; test fit, occupancy and no established world RNG changes. Treat optional cushion placement as an unavailable seat until removal.
+- [ ] 8.4 (Release and free motion) Release cups from moving/tilting holders and hands with correct support-point motion; use capped bodies and verify supported rest, retirement and incident expiry.
+- [ ] 8.5 (Drink posing and activity conflicts) Add modest sip/steady/put-down actions through hand authority; verify camera, instruments, hula, boarding and hidden presentation do not create phantom possession or competing arm writes.
+- [ ] 8.6 (Cup acceptance) Demonstrate one held drink, one chair-holder drink and one cooler-well drink, then tipping, dropping and reset; verify full game, tiers and bounded visual/audio spill effects if included.
+
+## 9. Add route-aware damageable signs
+
+- [ ] 9.1 (Route evidence survey) Inventory current road connectivity, POI identities and actual access information; define the bounded local graph/approach adapter without assuming every geometric crossing is connected or every planned target is built.
+- [ ] 9.2 (Pure sign intent planner) Select canonical sparse junction/entrance candidates and useful reachable destinations with independent salt/tie-breaks; preserve window/order invariance and existing descriptors. Bound node/edge/query work and preserve canonical clearance despite sign publication timing.
+- [ ] 9.3 (Next-hop and built-target truth) Compute arrows from verified outgoing route segments or proven clear approaches; reject lake-crossing bearings, disconnected destinations and omitted targets. Add multi-seed positive and negative route fixtures. Add unknown/accepted/rejected placement evidence keyed by destination/epoch/revision; compare sign-first and destination-first loading, unload/reload and actual rejection without force-loading destination graphics.
+- [ ] 9.4 (Sign model and placement) Build one readable pooled sign family with bounded label resources; place outside roads, doors and NPC approaches, orient for approach visibility and inspect through map/hub/entity surfaces. Bound label-cache count/bytes and planning/allocation work within the shared streaming allowance.
+- [ ] 9.5 (Damage recipe and local retention) Implement falling and/or flattened/folded rest as defined by the model; keep text attached to its pose and publish changed footprint. Preserve damage in the live neighborhood with automatic repair disabled; allow original regeneration only after coherent distance reset.
+- [ ] 9.6 (Sign integration gate) Verify actual travel from sign to advertised destinations, boundary duplication, target rejection, readability at Noon/Midnight and Low/Mid, and both short-range damaged-sign return and post-reset original regeneration without changing map discovery.
+
+## 10. Add bounded social aftermath
+
+- [ ] 10.1 (Aftermath claims) Add one target-generation reservation and bounded reachability/retry policy shared by chair-righting and drink-retrieval activities; test contention and target movement/unload.
+- [ ] 10.2 (Chair righting) Animate an eligible NPC restoring an unoccupied unsupported chair, then revalidate its seat/approach; reject attempts to right furniture supporting a person or other prop.
+- [ ] 10.3 (Drink retrieval) Move the same cup identity from ground/holder to an eligible free hand through the transfer API; test interruption, stale owner and a full hand without cloning the appearance drink.
+- [ ] 10.4 (Personality and local reactions) Add restrained looks, retreat, irritation or assistance selection using a separate runtime stream and bounded fan-out; ensure nearby reactions do not recursively create unlimited incidents.
+- [ ] 10.5 (Aftermath acceptance) Complete an occupied-chair incident, stand-up, righting and drink recovery in a real camp; verify signs remain excluded from automatic repair and all actors can return to normal behavior.
+
+## 11. Expand coverage and resolve conditional extensions
+
+- [ ] 11.1 (Camp variants and stage chairs) Enroll all intended camp styles and stage-chair rows explicitly; verify collider differences, audience claims and ownership in each path.
+- [ ] 11.2 (Cross-system regression matrix) Exercise optional terrain, moving props at lake/forest boundaries, ghost/immunity transitions, hoop/instrument/camera conflicts, long travel and saturated pools; preserve unadapted specialist behavior.
+- [ ] 11.3 (Physical character extension decision) Use the accepted occupied-chair recordings to decide whether a small articulated ragdoll materially improves visible behavior; implement and test it if justified, otherwise record the evidence and retained simple-body choice.
+- [ ] 11.4 (Optional expression decisions) Evaluate remaining candidate features from ideas.md: saved drinks, small spills, loose cooler contents, empty/full weight and assistance variations. Record each as implemented, rejected with evidence, or a specifically scoped future feature; none may disappear silently.
+- [ ] 11.5 (Final capacity and quality gates) Set numeric per-tier body/contact/render/temporary-state limits and percentile time budgets from measured devices; verify overload policy preserves interaction semantics and no visible owner reset occurs. Compare matched quality/DPR/viewport/population/time-of-day baselines, then separately test normal adaptive-quality behavior so automatic degradation cannot hide cost.
+
+## 12. Rollout, documentation and review
+
+- [ ] 12.1 (Release verification record) Complete verification.md's acceptance matrix with commands, versions, device/browser details, captures, timings and known limitations; do not convert an unrun device test into a pass.
+- [ ] 12.2 (Architecture and developer docs) Document the installed physical owner, prop recipe/holder contracts, person adapters, incident rules, sign planning and fixture controls; update DEBUGGING and relevant capability specs after verification.
+- [ ] 12.3 (Shipped-scope hygiene) Update CHANGELOG with actual shipped slices and date, trim ROADMAP accurately, remove obsolete duplicate paths and keep the interaction fixture and source evidence current.
+- [ ] 12.4 (Final verification and specialist review) Run OpenSpec verification and the requested/project-required specialist review workflow before archiving; resolve must-fix findings, refresh generated README status, and archive only when remaining tasks/decisions are honestly resolved.
+
+## Dependency and efficiency notes
+
+The critical path is Groups 1–6, the occupied-chair production proof. Cooler work follows that proof; cup transfer uses its sockets and person authority. Pure sign-route research can proceed independently once the source baseline is stable, while physical sign rollout waits for prop lifecycle and contact acceptance. Aftermath follows reliable transfers and recovery. Avoid parallel edits to Crowd, camp builders or registry until ownership boundaries are settled; parallelize isolated tests, pure route planning and model preparation with explicit file ownership.
+
+Do not build all recipes before the first feel gate, generalize every attachment before two examples work, or rerun broad benchmarks without a new change/failure. Do complete the full ownership, teardown and negative-path tests at each accepted slice. The feature remains one coherent plan even though implementation is delivered in reviewable increments.

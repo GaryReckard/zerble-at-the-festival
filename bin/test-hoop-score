@@ -1,0 +1,409 @@
+#!/usr/bin/env node
+// Acceptance tolerances are declared independently of the implementation.
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {compileHoopScore,createHoopSample,sampleHoopScore,sampleHoopHand,validateHoopScore,applyHoopGround} from '../src/people/hoop/score.js';
+
+const CONTACT=2e-10, POSITION=2e-5, VELOCITY=3e-3, QUATERNION=2e-5;
+const point=()=>({x:0,y:0,z:0});
+const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
+const TUBE=.035,BODY=.26,HEAD=.26;
+// Separate implementation of the actual shader sequence: lower around elbow,
+// complete chain around shoulder Z, then shoulder X, then shoulder translation.
+function shaderHand(a,left=false){
+  const e=left?a.leftElbow:a.elbow,z=left?a.leftZ:a.z,x=left?a.leftX:a.x;
+  const lower={x:Math.sin(e)*.29,y:-Math.cos(e)*.29,z:0};
+  lower.y-=.29;
+  const v={x:lower.x*Math.cos(z)-lower.y*Math.sin(z),y:lower.x*Math.sin(z)+lower.y*Math.cos(z),z:0};
+  return {x:(left?-.3:.3)+v.x,y:1.35+v.y*Math.cos(x),z:v.y*Math.sin(x)};
+}
+function shaderElbow(a,left=false){
+  const z=left?a.leftZ:a.z,x=left?a.leftX:a.x;
+  return {x:(left?-.3:.3)+.29*Math.sin(z),y:1.35-.29*Math.cos(z)*Math.cos(x),z:-.29*Math.cos(z)*Math.sin(x)};
+}
+function segmentDistance(a,b,p){
+  const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z;
+  const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy+(p.z-a.z)*dz)/(dx*dx+dy*dy+dz*dz)));
+  return Math.hypot(a.x+t*dx-p.x,a.y+t*dy-p.y,a.z+t*dz-p.z);
+}
+function presentation(p,scale,heading,leanX,leanZ,terrain){
+  const x=p.x*Math.cos(leanZ)-p.y*Math.sin(leanZ),y=p.x*Math.sin(leanZ)+p.y*Math.cos(leanZ);
+  const z=p.z*Math.cos(leanX)+y*Math.sin(leanX),yy=y*Math.cos(leanX)-p.z*Math.sin(leanX);
+  return {x:13+scale*(x*Math.cos(heading)+z*Math.sin(heading)),y:terrain+scale*yy,z:-8+scale*(z*Math.cos(heading)-x*Math.sin(heading))};
+}
+function bodyPresentation(p,sample){
+  const q=presentation(p,1,sample.turn,sample.leanX,sample.leanZ,0);
+  q.x+=sample.travelX-13;q.z+=sample.travelZ+8;
+  q.y+=sample.rootY;return q;
+}
+function worldFootQuaternion(foot,sample){
+  const a=sample.frame,b=foot;
+  return {x:a.qw*b.qx+a.qx*b.qw+a.qy*b.qz-a.qz*b.qy,
+    y:a.qw*b.qy-a.qx*b.qz+a.qy*b.qw+a.qz*b.qx,
+    z:a.qw*b.qz+a.qx*b.qy-a.qy*b.qx+a.qz*b.qw,
+    w:a.qw*b.qw-a.qx*b.qx-a.qy*b.qy-a.qz*b.qz};
+}
+function rim(h,angle){
+  const x=Math.cos(angle)*h.radius,y=Math.sin(angle)*h.radius;
+  const tx=-2*h.qz*y,ty=2*h.qz*x,tz=2*(h.qx*y-h.qy*x);
+  return {x:h.x+x+h.qw*tx+h.qy*tz-h.qz*ty,y:h.y+y+h.qw*ty+h.qz*tx-h.qx*tz,z:h.z+h.qw*tz+h.qx*ty-h.qy*tx};
+}
+function circleDistance(h,x,y,z){
+  x-=h.x;y-=h.y;z-=h.z;
+  const nx=2*(h.qx*h.qz+h.qw*h.qy),ny=2*(h.qy*h.qz-h.qw*h.qx),nz=1-2*(h.qx*h.qx+h.qy*h.qy);
+  const plane=x*nx+y*ny+z*nz;
+  return Math.hypot(plane,Math.sqrt(Math.max(0,x*x+y*y+z*z-plane*plane))-h.radius);
+}
+function finiteTree(v){if(typeof v==='number')assert.ok(Number.isFinite(v));else if(v&&typeof v==='object')for(const x of Object.values(v))finiteTree(x);}
+function checkSample(score,t,out){
+  assert.equal(sampleHoopScore(score,t,out),out);finiteTree(out);
+  assert.equal(out.style,'flow');assert.equal(out.hoopCount,score.hoops);
+  assert.ok(Math.hypot(out.travelX,out.travelZ)<=.47);
+  assert.ok(Math.abs(out.turn)<=.76&&Math.abs(out.stride)<=.45);
+  assert.ok(Math.abs(out.leanX)<=(out.kind.startsWith('chest-')?.38:.08)+1e-12&&Math.abs(out.leanZ)<=.11);
+  assert.ok(out.feet&&out.rootY>=-.10&&out.rootY<=1e-10,'bounded planted-foot body compression');
+  assert.ok(applyHoopGround(out,0,0,0),'pure contacts and legs remain reachable');
+  assert.equal(out.inertialContacts,out.kind==='isolation'||out.kind.startsWith('toss'));
+  for(let i=0;i<out.hoopCount;i++){
+    const h=out.hoops[i];assert.ok(Math.abs(Math.hypot(h.qx,h.qy,h.qz,h.qw)-1)<CONTACT);
+    if(h.contact==='right'||h.contact==='both')assert.ok(distance(shaderHand(out.arms),rim(h,h.contactAngle))<CONTACT,`right contact ${score.profile} ${t}`);
+    if(h.contact==='left'||h.contact==='both')assert.ok(distance(shaderHand(out.arms,true),rim(h,h.contact==='both'?h.leftContactAngle:h.contactAngle))<CONTACT,`left contact ${score.profile} ${t}`);
+    if((h.contact.endsWith('-palm')||h.contact.endsWith('-forearm'))&&out.kind!=='chest-roll'){
+      const left=h.contact.startsWith('left'),support={x:h.supportX,y:h.supportY,z:h.supportZ},hand=shaderHand(out.arms,left),elbow=shaderElbow(out.arms,left);
+      assert.ok(distance(support,rim(h,h.contactAngle))<CONTACT,'support curve meets ring exactly');
+      const ux=(elbow.x-hand.x)/.29,uy=(elbow.y-hand.y)/.29,uz=(elbow.z-hand.z)/.29;
+      const dx=support.x-hand.x,dy=support.y-hand.y,dz=support.z-hand.z;
+      const along=dx*ux+dy*uy+dz*uz;
+      assert.ok(Math.abs(along/.29-h.supportT)<CONTACT,'support stays on actual forearm');
+      assert.ok(Math.abs(Math.hypot(dx-along*ux,dy-along*uy,dz-along*uz)-h.supportRadius)<CONTACT);
+      if(h.contact==='left-forearm'){
+        assert.equal(h.supportRadius,.075+TUBE);
+        assert.ok(Math.abs(h.spin-score.segments[out.segment].spinStart+along/h.radius)<CONTACT,'no-slip rolling distance');
+      }
+    }
+    assert.ok(Math.hypot(h.x,h.z)+h.radius<=score.envelope.radius);
+    assert.ok(h.y+h.radius<=score.envelope.height);
+    assert.ok(h.y-h.radius>=0,'floor envelope');
+    // Sixteen circle points plus the radius*(1-cos(pi/16)) sagitta bound
+    // cover the continuous rim after travel/turn/lean and planned root height,
+    // not just its untransformed center bounds.
+    const circleMargin=TUBE+h.radius*(1-Math.cos(Math.PI/16));
+    for(let j=0;j<16;j++){
+      const p=bodyPresentation(rim(h,j*Math.PI/8),out);
+      assert.ok(Math.hypot(p.x,p.z)+circleMargin<=score.envelope.radius,`moving envelope ${out.kind}`);
+      assert.ok(p.y+circleMargin<=score.envelope.height,`moving height ${out.kind}`);
+      assert.ok(p.y-circleMargin>=0,`moving hoop clears floor ${score.profile} ${score.seed} ${out.kind} ${t}`);
+    }
+    if(h.contact==='right'||h.contact==='both')assert.ok(distance(bodyPresentation(shaderHand(out.arms),out),bodyPresentation(rim(h,h.contactAngle),out))<CONTACT);
+    if(h.contact==='left'||h.contact==='both')assert.ok(distance(bodyPresentation(shaderHand(out.arms,true),out),bodyPresentation(rim(h,h.contact==='both'?h.leftContactAngle:h.contactAngle),out))<CONTACT);
+    assert.ok(circleDistance(h,0,1.65,0)>=HEAD+TUBE-1e-10,`head clearance ${score.profile} ${out.kind} ${t}`);
+    if(out.kind==='body-orbit'||out.kind==='waist-feed'||out.kind==='waist-catch'){
+      // Horizontal ring: this is the exact capsule cylinder clearance, with
+      // the tube tangent during body contact and safely outside during feed.
+      assert.ok(h.radius-Math.hypot(h.x,h.z)>=BODY+TUBE-1e-10);
+      if(h.contact==='waist')assert.ok(Math.abs(h.radius-Math.hypot(h.x,h.z)-BODY-TUBE)<CONTACT);
+    }else if(out.kind==='chest-roll'){
+      assert.ok(circleDistance(h,0,1.275,0)>=BODY+TUBE-1e-10,'chest roll stays outside the actual top torso sphere');
+      const support={x:h.supportX,y:h.supportY,z:h.supportZ};
+      assert.ok(distance(support,rim(h,h.contactAngle))<CONTACT,'chest/arm support meets the rim');
+      if(h.contact==='chest')assert.ok(Math.abs(Math.hypot(support.x,support.y-1.275,support.z)-BODY-TUBE)<CONTACT,'exact expanded chest surface');
+      else{
+        const left=h.contact.startsWith('left'),hand=shaderHand(out.arms,left),elbow=shaderElbow(out.arms,left),shoulder={x:left?-.3:.3,y:1.35,z:0};
+        const upper=h.contact.includes('upperarm');
+        assert.ok(Math.abs(segmentDistance(upper?shoulder:elbow,upper?elbow:hand,support)-.11)<CONTACT,'exact expanded arm surface');
+      }
+    }else{
+      // The distance function is 1-Lipschitz. Testing each .025 centerline
+      // interval with an extra half-interval margin proves its unsampled gap.
+      for(let j=0;j<=22;j++)assert.ok(circleDistance(h,0,.725+j*.025,0)>=BODY+TUBE+.0125,`capsule clearance ${score.seed} ${out.kind} ${t}`);
+    }
+  }
+  for(const left of [false,true]){
+    assert.ok(distance(shaderHand(out.arms,left),sampleHoopHand(out.arms,left?'left':'right',point()))<CONTACT);
+    const hand=out.hands[left?'left':'right'];
+    assert.ok(Math.hypot(hand.x-(left?-.3:.3),hand.y-1.35,hand.z)<=(out.kind.startsWith('chest-')?.58+1e-12:.58-1e-4),'no reach clamping; chest arms deliberately reach the exact straight endpoint');
+    const elbow=shaderElbow(out.arms,left),shoulder={x:left?-.3:.3,y:1.35,z:0},head={x:0,y:1.65,z:0};
+    assert.ok(segmentDistance(elbow,hand,head)>=HEAD+.075,`forearm/head clearance ${out.kind}`);
+    assert.ok(segmentDistance(shoulder,elbow,head)>=HEAD+.075,`upper arm/head clearance ${out.kind}`);
+    assert.ok(Math.hypot(elbow.x,elbow.y-Math.max(.725,Math.min(1.275,elbow.y)),elbow.z)>=BODY+.075,`elbow-out branch ${out.kind}`);
+    const foot=out.feet[left?'left':'right'];
+    const ankle={x:foot.x+.14*(foot.qx*foot.qy-foot.qw*foot.qz),y:foot.y+.07*(1-2*(foot.qx*foot.qx+foot.qz*foot.qz)),z:foot.z+.14*(foot.qy*foot.qz+foot.qw*foot.qx)};
+    assert.ok(Math.hypot(ankle.x-(left?-.12:.12),ankle.y-.65,ankle.z)<.64,'planned leg reach stays inside the renderer limit');
+    // Independently reconstruct the knee using two cross products and the
+    // isosceles triangle height; the renderer projects the forward pole.
+    const hip={x:left?-.12:.12,y:.65,z:0},d=distance(hip,ankle);
+    const ux=(ankle.x-hip.x)/d,uy=(ankle.y-hip.y)/d,uz=(ankle.z-hip.z)/d,n=Math.hypot(ux,uy);
+    const nx=-uy/n,ny=ux/n,height=Math.sqrt(.325**2-d*d/4);
+    const knee={x:(hip.x+ankle.x)/2+ny*uz*height,y:(hip.y+ankle.y)/2-nx*uz*height,z:(hip.z+ankle.z)/2+(nx*uy-ny*ux)*height};
+    for(const [a,b] of [[hip,knee],[knee,ankle]])for(let j=0;j<=8;j++)for(let ring=0;ring<out.hoopCount;ring++){
+      const u=j/8;
+      // The half-interval Lipschitz margin covers every point of each .325
+      // bone, including its .10 radius and the hoop's .035 tube.
+      assert.ok(circleDistance(out.hoops[ring],a.x+(b.x-a.x)*u,a.y+(b.y-a.y)*u,a.z+(b.z-a.z)*u)>=.1+TUBE+.325/16,`articulated leg/hoop clearance ${out.kind}`);
+    }
+    const sole=bodyPresentation(foot,out);
+    assert.ok(sole.y>=-CONTACT,'sole never sinks through the session floor');
+    if(foot.planted)assert.ok(Math.abs(sole.y)<CONTACT,'stance sole is on the ground');
+    else assert.ok(foot.plantId===-1);
+  }
+}
+
+// Frozen descriptor + frozen JSON replay must be equally seekable, including
+// out-of-order readers, negative/overrun seeks and arbitrary frame partitions.
+const profiles=['lyrical','playful','aerial'];
+// Anchor facing to the actual production model, not to a second choreography
+// assumption. Eyes, nose and shoe toes all establish Crowd's local -Z front.
+const crowdSource=readFileSync(new URL('../src/crowd.js',import.meta.url),'utf8');
+for(const part of ['eyeL','eyeR','noseGeo','shoeL','shoeR']){
+  const match=crowdSource.match(new RegExp(`${part}\\.translate\\([^,]+,[^,]+,\\s*([-\\d.]+)\\)`));
+  assert.ok(match&&Number(match[1])<0,`${part} must establish the actual -Z facing contract`);
+}
+for(const profile of profiles){
+  const score=compileHoopScore({seed:19,profile}),out=createHoopSample();
+  for(const segment of score.segments.filter(s=>['hand-orbit','isolation','answer-orbit','motif-return'].includes(s.kind))){
+    for(let i=0;i<=64;i++){
+      sampleHoopScore(score,segment.start+segment.duration*i/64,out);
+      const h=out.hoops[0];assert.ok(h.z<0,'front-plane ring follows the face, not the back');
+      assert.ok(shaderHand(out.arms).z<0&&shaderHand(out.arms,true).z<0,'both authored hands are in front');
+      for(let j=0;j<16;j++)assert.ok(rim(h,j*Math.PI/8).z<0,'the entire front-plane circle is in front');
+    }
+  }
+}
+let samples=0;
+for(const profile of profiles)for(let seed=0;seed<40;seed++){
+  const score=compileHoopScore({seed,profile,slot:seed%8,generation:1+seed,duration:18+seed%8});
+  const replay=JSON.parse(JSON.stringify(score));validateHoopScore(replay);
+  assert.ok(Object.isFrozen(score));assert.ok(Object.isFrozen(score.segments));
+  assert.ok(Object.isFrozen(score.segments[0].bodyFrom)&&Object.isFrozen(score.segments[0].bodyTo));
+  assert.ok(score.segments.length<=32);assert.ok(score.candidateChecks<=score.segments.length*16);
+  assert.ok(score.stepCount<=128&&score.stepCount===score.segments.reduce((n,s)=>n+s.steps.length,0));
+  assert.ok(score.segments.every(s=>s.steps.length<=4&&Object.isFrozen(s.steps)));
+  const out=createHoopSample(),again=createHoopSample();
+  const plants=new Map();
+  for(let i=0;i<=320;i++){
+    const t=score.duration*i/320;checkSample(score,t,out);samples++;
+    sampleHoopScore(replay,t,again);assert.deepEqual(out,again);
+    if(i%43===0){sampleHoopScore(score,score.duration-t,again);sampleHoopScore(score,t,again);assert.deepEqual(out,again);}
+    for(const side of ['left','right']){
+      const foot=out.feet[side],q=worldFootQuaternion(foot,out);
+      assert.ok(Math.abs(q.x)<CONTACT&&Math.abs(q.z)<CONTACT,'the sole frame stays flat while the body leans');
+      if(!foot.planted)continue;
+      const key=`${side}:${foot.plantId}`,pose={p:bodyPresentation(foot,out),q};
+      if(plants.has(key)){
+        const old=plants.get(key);assert.ok(distance(pose.p,old.p)<CONTACT,'planted sole never slides');
+        for(const k of ['x','y','z','w'])assert.ok(Math.abs(pose.q[k]-old.q[k])<CONTACT,'planted sole never swivels');
+      }else plants.set(key,pose);
+    }
+  }
+  assert.equal(sampleHoopScore(score,0,again).rootY,0,'entrance has no added body-height snap');
+  assert.equal(sampleHoopScore(score,score.duration,again).rootY,0,'resolution has no added body-height snap');
+  for(const segment of score.segments)for(const step of segment.steps)for(const edge of [step.start,step.end]){
+    const t=segment.start+segment.duration*edge,h=Math.min(1e-6,segment.duration*1e-5),side=step.left?'left':'right';
+    const a=sampleHoopScore(score,t-h,createHoopSample()),b=sampleHoopScore(score,t,createHoopSample()),c=sampleHoopScore(score,t+h,createHoopSample());
+    const pa=bodyPresentation(a.feet[side],a),pb=bodyPresentation(b.feet[side],b),pc=bodyPresentation(c.feet[side],c);
+    assert.ok(distance(pa,pc)<POSITION,'lift and land positions are continuous');
+    for(const k of ['x','y','z'])assert.ok(Math.abs((pc[k]-pb[k])/h-(pb[k]-pa[k])/h)<VELOCITY,'lift and land velocity is continuous');
+  }
+  for(const segment of score.segments.slice(1)){
+    const t=segment.start,h=1e-5;
+    // Second-order one-sided estimates separate velocity continuity from
+    // the intentionally different acceleration on either side of a catch.
+    const before=sampleHoopScore(score,t-h,createHoopSample());
+    const before2=sampleHoopScore(score,t-2*h,createHoopSample());
+    const at=sampleHoopScore(score,t,createHoopSample());
+    const after=sampleHoopScore(score,t+h,createHoopSample());
+    const after2=sampleHoopScore(score,t+2*h,createHoopSample());
+    for(let i=0;i<score.hoops;i++){
+      // Compare the independently extrapolated boundary limits, so a valid
+      // nonzero launch velocity is not mistaken for a position discontinuity.
+      for(const k of ['x','y','z'])assert.ok(Math.abs(2*before.hoops[i][k]-before2.hoops[i][k]-(2*after.hoops[i][k]-after2.hoops[i][k]))<POSITION,`boundary position ${segment.kind}`);
+      for(const k of ['x','y','z','spin','qx','qy','qz','qw'])assert.ok(Math.abs((-3*at.hoops[i][k]+4*after.hoops[i][k]-after2.hoops[i][k])/(2*h)-(3*at.hoops[i][k]-4*before.hoops[i][k]+before2.hoops[i][k])/(2*h))<VELOCITY,`boundary velocity ${segment.kind} ${k}`);
+      for(const k of ['qx','qy','qz','qw'])assert.ok(Math.abs(before.hoops[i][k]-after.hoops[i][k])<QUATERNION,`quaternion sign ${segment.kind}`);
+    }
+    for(const k of ['x','z','elbow','leftX','leftZ','leftElbow']){
+      assert.ok(Math.abs(2*before.arms[k]-before2.arms[k]-(2*after.arms[k]-after2.arms[k]))<POSITION,`arm jump ${segment.kind} ${k}`);
+      assert.ok(Math.abs((-3*at.arms[k]+4*after.arms[k]-after2.arms[k])/(2*h)-(3*at.arms[k]-4*before.arms[k]+before2.arms[k])/(2*h))<VELOCITY,`arm velocity ${segment.kind} ${k}`);
+    }
+    for(const k of ['travelX','travelZ','turn','stride','rootY','bob','leanX','leanZ','headYaw','headTilt']){
+      assert.ok(Math.abs(2*before[k]-before2[k]-(2*after[k]-after2[k]))<POSITION,`body position ${segment.kind} ${k}`);
+      assert.ok(Math.abs((-3*at[k]+4*after[k]-after2[k])/(2*h)-(3*at[k]-4*before[k]+before2[k])/(2*h))<VELOCITY,`body velocity ${segment.kind} ${k}`);
+    }
+  }
+}
+for(const duration of [4,120])for(const profile of profiles){
+  const score=compileHoopScore({seed:217,profile,duration}),out=createHoopSample();
+  for(let i=0;i<=3000;i++){checkSample(score,duration*i/3000,out);samples++;}
+}
+// Higher throws use a separate seeded stream, with exact ballistic apex/time
+// and fixed requested session budgets even at the shortest legal duration.
+let minRise=Infinity,maxRise=0;
+for(let seed=0;seed<512;seed++){
+  const score=compileHoopScore({seed,profile:'aerial',duration:seed%2?4:22}),p=score.parameters;
+  minRise=Math.min(minRise,p.tossRise);maxRise=Math.max(maxRise,p.tossRise);
+  assert.ok(p.tossRise>=.65&&p.tossRise<=2.4);
+  assert.ok(Math.abs(p.tossSpeed*p.tossSpeed/(2*9.81)-p.tossRise)<CONTACT);
+  assert.ok(Math.abs(p.tossDuration-2*p.tossSpeed/9.81)<CONTACT);
+  assert.ok(Math.abs(score.segments.reduce((n,s)=>n+s.duration,0)-score.duration)<CONTACT);
+  assert.ok(score.segments.every(s=>s.duration>0));
+  const flight=score.segments.find(s=>s.kind==='toss');
+  const launch=sampleHoopScore(score,flight.start,createHoopSample()),apex=sampleHoopScore(score,flight.start+flight.duration/2,createHoopSample());
+  assert.ok(Math.abs(bodyPresentation(apex.hoops[0],apex).y-bodyPresentation(launch.hoops[0],launch).y-p.tossRise)<CONTACT);
+}
+assert.ok(minRise<.70&&maxRise>2.35,'the seeded range includes modest and clearly high throws');
+// Bridge acceptance checks the full neighborhood, not just one nonzero sample
+// at the old boundary. Brief geometric turnarounds may slow, but a hidden dwell
+// exceeding 40ms in a22s phrase is a regression. Same-direction phase profiles
+// additionally prove their analytic derivative never reverses or stops inside.
+const flowMetrics={bridges:0,monotone:0,reversals:0,joinSpeedMin:Infinity,joinSpeedMax:0,neighborhoodSpeedMin:Infinity,maxSlowSeconds:0,maxPositionError:0,maxVelocityError:0};
+for(const profile of profiles)for(let seed=0;seed<30;seed++){
+  const score=compileHoopScore({seed,profile}),out=createHoopSample();
+  for(const bridge of score.bridges){
+    flowMetrics.bridges++;if(bridge.monotone)flowMetrics.monotone++;else flowMetrics.reversals++;
+    let slowRun=0,maxSlow=0;
+    for(let i=0;i<=160;i++){
+      const t=bridge.start+(bridge.end-bridge.start)*i/160,h=1e-6;
+      checkSample(score,t,out);samples++;
+      const a=sampleHoopScore(score,t-h,createHoopSample()),b=sampleHoopScore(score,t+h,createHoopSample());
+      const speed=distance(a.hoops[0],b.hoops[0])/(2*h);
+      flowMetrics.neighborhoodSpeedMin=Math.min(flowMetrics.neighborhoodSpeedMin,speed);
+      slowRun=speed<.03?slowRun+1:0;maxSlow=Math.max(maxSlow,slowRun);
+      if(bridge.monotone&&i>0&&i<160){
+        const u=i/160,n=bridge.exponent;
+        const derivative=bridge.angle[1]*(1-u)**n+bridge.endSlope*u**n+bridge.bump*u*u*(1-u)**2;
+        assert.ok(Math.abs(derivative)>1e-8,'same-direction bridge keeps progressing');
+        assert.ok(derivative*(bridge.angle[1]+bridge.endSlope)>=0,'same-direction bridge cannot introduce a reversal');
+      }
+    }
+    flowMetrics.maxSlowSeconds=Math.max(flowMetrics.maxSlowSeconds,maxSlow*(bridge.end-bridge.start)/160);
+    assert.ok(maxSlow*(bridge.end-bridge.start)/160<.04,`bridge has no displaced pause ${profile} ${seed} ${bridge.boundary}`);
+    for(const t of [bridge.start,bridge.boundary,bridge.end]){
+      const h=1e-6,a=sampleHoopScore(score,t-2*h,createHoopSample()),b=sampleHoopScore(score,t-h,createHoopSample()),c=sampleHoopScore(score,t,createHoopSample()),d=sampleHoopScore(score,t+h,createHoopSample()),e=sampleHoopScore(score,t+2*h,createHoopSample());
+      if(t===bridge.boundary){const speed=distance(b.hoops[0],d.hoops[0])/(2*h);flowMetrics.joinSpeedMin=Math.min(flowMetrics.joinSpeedMin,speed);flowMetrics.joinSpeedMax=Math.max(flowMetrics.joinSpeedMax,speed);}
+      for(const section of ['arms','hands','hoops']){
+        const items=section==='hands'?['left','right']:section==='hoops'?[0]:[null];
+        for(const item of items){
+          const aa=item===null?a[section]:a[section][item],bb=item===null?b[section]:b[section][item],cc=item===null?c[section]:c[section][item],dd=item===null?d[section]:d[section][item],ee=item===null?e[section]:e[section][item];
+          const keys=section==='arms'?['x','z','elbow','leftX','leftZ','leftElbow']:section==='hoops'?['x','y','z','qx','qy','qz','qw']:['x','y','z'];
+          for(const k of keys){
+            flowMetrics.maxPositionError=Math.max(flowMetrics.maxPositionError,Math.abs(2*bb[k]-aa[k]-(2*dd[k]-ee[k])));
+            flowMetrics.maxVelocityError=Math.max(flowMetrics.maxVelocityError,Math.abs((-3*cc[k]+4*dd[k]-ee[k])/(2*h)-(3*cc[k]-4*bb[k]+aa[k])/(2*h)));
+            assert.ok(Math.abs(2*bb[k]-aa[k]-(2*dd[k]-ee[k]))<POSITION,`bridge edge position ${section} ${k}`);
+            assert.ok(Math.abs((-3*cc[k]+4*dd[k]-ee[k])/(2*h)-(3*cc[k]-4*bb[k]+aa[k])/(2*h))<VELOCITY,`bridge edge derivative ${section} ${k}`);
+          }
+        }
+      }
+    }
+  }
+}
+// A selected chest phrase replaces the short forearm phrase rather than
+// crowding every trick into every session. Its seven stages return to the same
+// held overhead anchor, so a subsequent flourish or body phrase remains legal.
+for(const profile of profiles)for(let seed=0;seed<40;seed++){
+  const score=compileHoopScore({seed,profile}),hasChest=score.segments.some(s=>s.kind==='chest-roll');
+  assert.equal(hasChest,score.parameters.variation===1);
+  assert.equal(score.segments.some(s=>s.kind==='forearm-roll'),!hasChest);
+  assert.ok(score.segments.length<=28&&score.stepCount<=128);
+  if(hasChest){
+    const entrance=score.segments.find(s=>s.kind==='chest-enter'),lift=score.segments.find(s=>s.kind==='chest-lift');
+    const a=sampleHoopScore(score,entrance.start,createHoopSample()),b=sampleHoopScore(score,lift.start+lift.duration,createHoopSample());
+    // Flow bridges may deliberately round the ring path around these old
+    // anchors; the original supporting-hand endpoint remains the same.
+    assert.ok(distance(a.hands.left,b.hands.left)<CONTACT,'chest development returns the supporting hand to its overhead anchor');
+    const central=score.segments.find(s=>s.kind==='chest-roll'),mid=sampleHoopScore(score,central.start+central.duration/2,createHoopSample());
+    assert.equal(mid.arms.elbow,0);assert.equal(mid.arms.leftElbow,0);
+    assert.ok(Math.abs(mid.leanX-.38)<CONTACT,'chest roll has its coordinated backwards lean');
+    assert.ok(Math.abs(mid.travelZ+.28)<CONTACT,'hips countershift forward during the backwards lean');
+    assert.ok(mid.feet.left.planted&&mid.feet.right.planted,'the chest roll keeps its stance planted');
+    const l=bodyPresentation(mid.feet.left,mid),r=bodyPresentation(mid.feet.right,mid),hip=bodyPresentation({x:0,y:.65,z:0},mid);
+    assert.ok(Math.hypot(hip.x-(l.x+r.x)/2,hip.z-(l.z+r.z)/2)<.05,'the countershift keeps the hips above the planted stance');
+    for(const step of entrance.steps)assert.ok(Math.abs(step.to.z)<CONTACT,'entry feet settle into their original stance instead of chasing the countershift');
+  }
+}
+// A common presentation matrix must preserve the contact contract under
+// heading, body lean, scale and terrain offsets, including negative headings.
+for(const scale of [.65,1,1.4])for(const heading of [-2.7,0,1.9])for(const terrain of [-3,0,4]){
+  const score=compileHoopScore({seed:7,profile:'aerial'}),out=createHoopSample();
+  for(let i=0;i<100;i++){
+    sampleHoopScore(score,score.duration*i/100,out);const h=out.hoops[0];
+    for(const left of [false,true])if(h.contact==='both'||h.contact===(left?'left':'right')){
+      const hand=shaderHand(out.arms,left),contact=rim(h,left&&h.contact==='both'?h.leftContactAngle:h.contactAngle);
+      assert.ok(distance(presentation(hand,scale,heading,.2,-.13,terrain),presentation(contact,scale,heading,.2,-.13,terrain))<CONTACT);
+    }
+  }
+}
+for(const profile of profiles){
+  const score=compileHoopScore({seed:7,profile});
+  const isolation=score.segments.find(s=>s.kind==='isolation');
+  const a=sampleHoopScore(score,isolation.start+isolation.duration*.25,createHoopSample());
+  const b=sampleHoopScore(score,isolation.start+isolation.duration*.75,createHoopSample());
+  assert.ok(distance(a.hoops[0],b.hoops[0])>1e-3,'local hoop pose must countertransform the moving body');
+  assert.notEqual(a.hoops[0].spin,b.hoops[0].spin,'material spin must continue during isolation');
+  assert.ok(distance(bodyPresentation(a.hoops[0],a),bodyPresentation(b.hoops[0],b))<CONTACT,'isolation is stationary after the complete body transform');
+  for(const angle of [0,Math.PI/2,Math.PI])assert.ok(distance(bodyPresentation(rim(a.hoops[0],angle),a),bodyPresentation(rim(b.hoops[0],angle),b))<CONTACT,'isolation rim frame remains inertial');
+  assert.ok(Math.hypot(a.travelX,a.travelZ)>1e-3&&Math.abs(a.turn-b.turn)>1e-3,'the isolation genuinely moves the dancer');
+  let travel=0,turn=0,stride=0;
+  for(let i=0;i<1000;i++){
+    const sample=sampleHoopScore(score,score.duration*i/1000,createHoopSample());
+    travel=Math.max(travel,Math.hypot(sample.travelX,sample.travelZ));turn=Math.max(turn,Math.abs(sample.turn));stride=Math.max(stride,Math.abs(sample.stride));
+  }
+  assert.ok(travel>.3&&turn>.4&&stride>.3,`${profile} must contain substantial travel, turns and alternating leg motion`);
+}
+// Waist drive is declared in the performer-forward axis and derives from the
+// same angular contact phase as the ring, including reversed/two-turn scores.
+for(const profile of profiles)for(let seed=0;seed<20;seed++){
+  const score=compileHoopScore({seed,profile}),segment=score.segments.find(s=>s.kind==='body-orbit'),out=createHoopSample();
+  for(let i=0;i<=100;i++){
+    sampleHoopScore(score,segment.start+segment.duration*i/100,out);
+    if(out.kind!=='body-orbit')continue;
+    assert.ok(Math.abs(out.waistPhase+out.hoops[0].contactAngle)<CONTACT);
+    assert.ok(Math.abs(out.waistDrive+.055*Math.sin(out.waistPhase)*score.parameters.bodyGain)<CONTACT);
+    assert.ok(Math.abs(out.compression-.012*Math.sin(out.waistPhase)**2*score.parameters.bodyGain)<CONTACT);
+  }
+}
+for(const profile of profiles)for(const duration of [4,22,120])for(let seed=0;seed<12;seed++){
+  const score=compileHoopScore({seed,profile,duration,hoops:2}),out=createHoopSample();
+  const hoops=out.hoops,arms=out.arms,hands=out.hands;
+  for(let i=0;i<=320;i++){
+    checkSample(score,duration*i/320,out);samples++;
+    assert.ok(distance(out.hoops[0],out.hoops[1])>out.hoops[0].radius+out.hoops[1].radius+2*TUBE,'two hoop swept sphere separation');
+    assert.equal(out.hoops,hoops);assert.equal(out.arms,arms);assert.equal(out.hands,hands);
+  }
+}
+// Launch/catch share exact position, velocity, orientation and unwrapped spin;
+// the airborne trajectory has actual constant gravitational acceleration.
+for(const duration of [4,18,25,120]){
+  const score=compileHoopScore({profile:'aerial',duration}),flight=score.segments.find(s=>s.kind==='toss');
+  const out=createHoopSample();
+  for(let i=1;i<100;i++){
+    const t=flight.start+flight.duration*i/100;
+    const sa=sampleHoopScore(score,t-.0001,createHoopSample()),sb=sampleHoopScore(score,t,out),sc=sampleHoopScore(score,t+.0001,createHoopSample());
+    const a=bodyPresentation(sa.hoops[0],sa),b=bodyPresentation(sb.hoops[0],sb),c=bodyPresentation(sc.hoops[0],sc);
+    assert.equal(sb.hoops[0].contact,'none');assert.ok(Math.abs((c.y-2*b.y+a.y)/1e-8+9.81)<1e-5);
+    assert.ok(Math.abs(a.x-c.x)<CONTACT&&Math.abs(a.z-c.z)<CONTACT,'flight stays on its inertial vertical line');
+    assert.ok(Math.hypot(out.travelX,out.travelZ)>0,'the dancer moves under the inertial flight');
+  }
+}
+// Compilation and sampling must not consume any ambient RNG stream.
+const ambientRandom=Math.random;
+try{Math.random=()=>{throw Error('ambient RNG consumed');};sampleHoopScore(compileHoopScore({seed:91}),4,createHoopSample());}finally{Math.random=ambientRandom;}
+const canonical=compileHoopScore({seed:31});
+assert.notDeepEqual(canonical.parameters,compileHoopScore({seed:31,slot:1}).parameters);
+assert.notDeepEqual(canonical.parameters,compileHoopScore({seed:31,generation:2}).parameters);
+assert.deepEqual(compileHoopScore({seed:31}),canonical);
+for(const count of [1,2,17,600]){
+  let time=0;for(let i=0;i<count;i++)time+=canonical.duration/count;
+  const a=sampleHoopScore(canonical,time,createHoopSample()),b=sampleHoopScore(canonical,canonical.duration,createHoopSample());
+  assert.ok(distance(a.hoops[0],b.hoops[0])<CONTACT);
+  assert.ok(Math.abs(a.hoops[0].spin-b.hoops[0].spin)<CONTACT);
+}
+for(const args of [{duration:NaN},{duration:0},{profile:'unknown'},{seed:Infinity},{slot:-1},{generation:0},{hoops:3}])assert.throws(()=>compileHoopScore(args));
+for(const t of [NaN,Infinity,-Infinity])assert.throws(()=>sampleHoopScore(compileHoopScore(),t,createHoopSample()));
+const broken=JSON.parse(JSON.stringify(compileHoopScore()));broken.segments[0].duration=-1;assert.throws(()=>validateHoopScore(broken));
+const brokenBody=JSON.parse(JSON.stringify(compileHoopScore()));brokenBody.segments[0].bodyTo.turn=Infinity;assert.throws(()=>validateHoopScore(brokenBody));
+assert.throws(()=>validateHoopScore({...compileHoopScore(),version:1}),'old replay semantics must not be silently reinterpreted');
+assert.throws(()=>validateHoopScore({...compileHoopScore(),version:2}),'unplanted version2 replays must not be silently reinterpreted');
+for(const version of [3,4,5])assert.throws(()=>validateHoopScore({...compileHoopScore(),version}));
+const brokenBridge=JSON.parse(JSON.stringify(compileHoopScore()));brokenBridge.bridges[0].angle[0]+=.1;assert.throws(()=>validateHoopScore(brokenBridge));
+const brokenStep=JSON.parse(JSON.stringify(compileHoopScore()));brokenStep.segments.find(s=>s.steps.length).steps[0].to.x+=1;assert.throws(()=>validateHoopScore(brokenStep));
+console.log('hoop flow metrics:',JSON.stringify(flowMetrics));
+console.log(`hoop score: ${samples} contact/replay samples; contact ${CONTACT}, boundary position ${POSITION}, boundary velocity ${VELOCITY}, quaternion ${QUATERNION}`);

@@ -558,6 +558,16 @@ Each file exports one or more `buildX(...)` functions that return a `THREE.Group
 
 Animated bits (firepit flicker, tiki flame, tapestry sway, tribal-figure motion) attach an updater closure or expose an `anim` object on the returned group. A central per-frame updater in `main.js` walks the animatables lists owned by chunks (`forestAnimatables`), lakes (`lakeAnimatables`), and drum circles (`forestDrumCircles`).
 
+Models can reuse the explicitly reviewed hoop presentation helpers in
+`people/hoop/appearance.js`, `classic.js`, `score.js`, `dance.js` and `leg.js`.
+These helpers accept numeric poses or build prop geometry, and they own no
+person identities, claims, registry entries or update scheduling. The boundary
+suite walks their complete local dependency closure, including `personMotion.js`
+and the internal `people/hoop/chestRoll.js` contact sampler, allows Three.js only in the appearance helper, and rejects unreviewed imports,
+reexports, deferred loads and authority/clock calls. This is a narrow shared
+presentation exception; models still cannot import activity controllers or
+ownership primitives. See `bin/test-people-boundaries` and its rejecting fixtures.
+
 Notable model files:
 
 - **`zerble.js`** + **`lurleen.js`** — full character carts. Stay in `src/` (not `models/`) because they carry physics + state, not just geometry.
@@ -870,6 +880,51 @@ reacquires its reserved slot only after a safe return. Yoga and physically const
 riders or potty occupants retain their own protected handling. Ordinary stage-front
 sway remains Crowd behavior. The fixture and evidence are documented in
 [temporary activity verification](verification/people/temporary-activities.md).
+
+### Flow hoop performance scores
+
+`people/hoop/score.js` compiles bounded, independently salted session scores and
+samples them into caller-owned buffers. `HulaSession` retains classic elapsed
+behavior and adds opt-in flow, with a monotonic participation clock separate
+from score-local time and restart epochs. It completes a versioned sample before
+`writeActivityPose` synchronously publishes the person's matrices. Crowd branches
+on an explicit articulated-pose capability and supplies a claim-validated copy of the
+published arm presentation matrix; the activity uses that exact transform for
+its hoops rather than approximating bob/lean/scale again. Absolute score travel
+and turns are applied around an entrance anchor through claim-checked movement,
+while a bounded stance/swing plan holds each planted sole in the session frame.
+Shared waist/flow leg articulation solves two fixed-length segments and ankle orientation
+inside the existing instanced meshes. `hoop/leg.js` validates the same targets,
+and `hoop/feet.js` retains the prior support calculation for paired poses.
+The session samples all four sole corners for terrain support and rejects
+unreachable adaptations before publication. A shared head pivot carries head,
+eyes, hair and mouth together. `hoop/classic.js` supplies the regular waist mode
+with periodic arm/head motion and fixed sole anchors while preserving its hoop
+orbit and accepted-time clock; the standalone preview uses the same sampler.
+
+Moving isolations and aerial phases inverse-transform session-space hoop and
+hand targets through the sampled body pose. This lets the body dance while the
+isolation stays fixed and flight retains gravity. Waist pulses follow the
+body-contact cycle. Compatible hand-owned joins use bounded grip-phase bridges
+with matched endpoint speed instead of stopping every trick. Seeded aerial rise
+derives launch speed and airtime from gravity. A seeded development variant
+uses `hoop/chestRoll.js` to roll over the analytical arm/chest envelope into the
+opposite palm, with entry, seating, regrip and a real handoff back to the shared
+overhead anchor. Root compression, foot swings and recovery use accepted
+time rather than frame counts, and score-version changes invalidate old replays.
+
+`HulaActivity` still owns eight participant slots and its exclusively owned
+geometry/material pool, with at most two hoops per participant. Token-bound
+swept-envelope reservations coordinate flow admission and are revalidated before
+entrance and at score boundaries, but do not create hard hoop colliders or exclude
+bystanders. `HoopPairSession` owns two revalidated, non-stealing claims and one
+world-space exchange hoop, counts both people within the existing cap and cancels
+both sides on interruption. No person, collision or physics owner is duplicated.
+
+The [flow workshop](DEBUGGING.md#flow-hoop-choreography-workshop) instantiates these
+production controllers, with isolated seeking, replay export and matched classic
+baselines. Pure score replay is separate from environmental interruption/clearance
+events; bounded replay overflow is explicitly incomplete and ends flow safely.
 
 ### Frame dependencies and accepted clocks
 

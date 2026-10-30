@@ -1,0 +1,81 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Vector3,Quaternion,Euler,Matrix4} from 'three';
+import {sampleChestRoll,CHEST_ROLL_ENTRY,CHEST_ROLL_EXIT,CHEST_ROLL_FRAME,CHEST_ROLL_LENGTH,CHEST_ROLL_SPIN_DELTA,CHEST_ROLL_LEAN_X} from '../src/people/hoop/chestRoll.js';
+import {createHoopSample} from '../src/people/hoop/score.js';
+import {writeDanceFrame,inversePoint,inverseOrientation} from '../src/people/hoop/dance.js';
+import {validateHoopFeet} from '../src/people/hoop/leg.js';
+const CONTACT=2e-10,POSITION=2e-7,VELOCITY=2e-3,R=.58,TUBE=.035;
+const near=(a,b,label,t=CONTACT)=>assert(Math.abs(a-b)<t,label+': '+a+' vs '+b);
+const sample=createHoopSample(),reverse=createHoopSample();
+function circleDistance(h,p){
+ const q=new Quaternion(h.qx,h.qy,h.qz,h.qw).invert(),v=p.clone().sub(new Vector3(h.x,h.y,h.z)).applyQuaternion(q);
+ return Math.hypot(Math.hypot(v.x,v.y)-h.radius,v.z);
+}
+function independentRim(h){return new Vector3(h.radius*Math.cos(h.contactAngle),h.radius*Math.sin(h.contactAngle),0).applyQuaternion(new Quaternion(h.qx,h.qy,h.qz,h.qw)).add(new Vector3(h.x,h.y,h.z));}
+function shaderEndpoint(arms,left,lower=true){
+ const x=left?arms.leftX:arms.x,z=left?arms.leftZ:arms.z,e=left?arms.leftElbow:arms.elbow;
+ const p=new Vector3(0,-.29,0);
+ if(lower)p.applyAxisAngle(new Vector3(0,0,1),e).add(new Vector3(0,-.29,0));
+ return p.applyEuler(new Euler(x,0,z)).add(new Vector3(left?-.3:.3,1.35,0));
+}
+function axisDistance(p,a,b){const v=b.clone().sub(a),t=Math.max(0,Math.min(1,p.clone().sub(a).dot(v)/v.lengthSq()));return p.distanceTo(a.clone().addScaledVector(v,t));}
+let minHead=Infinity,minNose=Infinity,minTorso=Infinity,minArms=Infinity,maxContactError=0;
+const contacts=[];
+for(let i=0;i<=4000;i++){
+ const u=i/4000;sampleChestRoll(u,sample,.3);sampleChestRoll(u,reverse,.3,-1);
+ const h=sample.hoops[0],rh=reverse.hoops[0],support=new Vector3(h.supportX,h.supportY,h.supportZ);
+ assert(Number.isFinite(h.x)&&Number.isFinite(h.y)&&Number.isFinite(h.z));near(Math.hypot(h.qx,h.qy,h.qz,h.qw),1,'unit roll plane');
+ maxContactError=Math.max(maxContactError,support.distanceTo(independentRim(h)));near(h.x,-rh.x,'mirrored center X');near(h.y,rh.y,'mirrored height');near(h.z,rh.z,'mirrored depth');near(h.spin-.3,-(rh.spin-.3),'mirrored rolling spin');
+ const leftHand=shaderEndpoint(sample.arms,true),rightHand=shaderEndpoint(sample.arms,false);near(leftHand.x,-.88,'fully stretched receiving arm');near(rightHand.x,.88,'fully stretched opposite arm');near(leftHand.y,1.35,'shoulder-height arms');near(rightHand.y,1.35,'shoulder-height arms');
+ const previous=contacts.at(-1);if(previous!==h.contact)contacts.push(h.contact);
+ if(h.contact==='chest')near(support.distanceTo(new Vector3(0,1.275,0)),.26+TUBE,'upper chest capsule surface/tube tangency');
+ else{
+  const left=h.contact.startsWith('left'),shoulder=new Vector3(left?-.3:.3,1.35,0),elbow=shaderEndpoint(sample.arms,left,false),hand=left?leftHand:rightHand;
+  near(Math.min(axisDistance(support,hand,elbow),axisDistance(support,elbow,shoulder)),.075+TUBE,'actual arm capsule surface/tube tangency');
+ }
+ // Every ring point stays above the torso axis endpoint, so moving down
+ // its vertical axis can only increase distance. This endpoint check covers
+ // the complete continuous capsule axis rather than only sampled positions.
+ assert(h.y-R*CHEST_ROLL_FRAME.vy>1.275);assert(circleDistance(h,new Vector3(0,1.275,0))>=.26+TUBE-1e-12);
+ const centerV=(h.y-1.35)*CHEST_ROLL_FRAME.vy+h.z*CHEST_ROLL_FRAME.vz;assert(centerV-R>=.075+TUBE-1e-12,'whole continuous arm axes lie behind the support rail');
+ minHead=Math.min(minHead,circleDistance(h,new Vector3(0,1.65,0))-.28-TUBE);
+ minNose=Math.min(minNose,circleDistance(h,new Vector3(.28*Math.sin(.30),1.65,.28*Math.cos(.30)))-.055-TUBE);
+ // Every continuous axis interval is bounded by the distance function's
+ // 1-Lipschitz property. The .00125 half-step closes the sampled gap.
+ for(let j=0;j<=220;j++)minTorso=Math.min(minTorso,circleDistance(h,new Vector3(0,.725+j*.0025,0))-.26-TUBE);
+ for(const left of [true,false])for(let j=0;j<=232;j++)minArms=Math.min(minArms,circleDistance(h,new Vector3((left?-1:1)*(.3+j*.0025),1.35,0))-.075-TUBE);
+}
+assert(maxContactError<CONTACT,'declared support is exactly on the ring');
+assert.deepEqual(contacts,['left-palm','left-forearm','left-upperarm','chest','right-upperarm','right-forearm','right-palm']);
+assert(minHead>.012,'actual head sphere clears the entire roll');assert(minNose>.06,'nose proxy clears the entire roll');assert(minTorso> -2e-10,'no torso capsule penetration');assert(minArms> -2e-10,'no arm capsule penetration');
+console.log('PASS full chest roll: 4001 samples, ordered anatomical support, independent rig FK/tangency, mirrored handedness and head/nose/torso/arm clearance.');
+{
+ const entry=createHoopSample(),exit=createHoopSample();sampleChestRoll(0,entry,.3);sampleChestRoll(1,exit,.3);
+ for(const key of ['x','y','z','qx','qy','qz','qw']){near(entry.hoops[0][key],CHEST_ROLL_ENTRY[key],'entry anchor '+key);near(exit.hoops[0][key],CHEST_ROLL_EXIT[key],'exit anchor '+key);}
+ near(exit.hoops[0].spin-entry.hoops[0].spin,CHEST_ROLL_SPIN_DELTA,'complete no-slip spin delta');near(CHEST_ROLL_SPIN_DELTA,-CHEST_ROLL_LENGTH/R,'path-length rolling');
+ for(const boundary of [0,CHEST_ROLL_FRAME.firstSwitch,CHEST_ROLL_FRAME.secondSwitch,1]){
+  const eps=1e-7,a=createHoopSample(),b=createHoopSample(),c=createHoopSample();sampleChestRoll(Math.max(0,boundary-eps),a);sampleChestRoll(boundary,b);sampleChestRoll(Math.min(1,boundary+eps),c);
+  const pa=new Vector3(a.hoops[0].x,a.hoops[0].y,a.hoops[0].z),pb=new Vector3(b.hoops[0].x,b.hoops[0].y,b.hoops[0].z),pc=new Vector3(c.hoops[0].x,c.hoops[0].y,c.hoops[0].z);
+  assert(pa.distanceTo(pc)<POSITION,'center continuity at contact boundary');assert(pb.clone().sub(pa).multiplyScalar(1/eps).distanceTo(pc.clone().sub(pb).multiplyScalar(1/eps))<VELOCITY,'center velocity continuity at contact boundary');
+ }
+ // The support corners are not hidden by a broad dwell. Sample a worst-case
+ // whole22-second roll and bound the consecutive sub-.08m/s neighborhood.
+ const dt=22/200000;let slow=0,maxSlow=0,last=null;
+ for(let i=0;i<=200000;i++){
+  sampleChestRoll(i/200000,sample);const h=sample.hoops[0],p=new Vector3(h.x,h.y,h.z);
+  if(last){if(p.distanceTo(last)/dt<.08)slow+=dt;else{maxSlow=Math.max(maxSlow,slow);slow=0;}}last=p;
+ }
+ maxSlow=Math.max(maxSlow,slow);assert(maxSlow<.04,'support transfer has no perceptible hold even at22s: '+maxSlow);
+ console.log('PASS chest roll C1/support-switch timing: '+JSON.stringify({length:CHEST_ROLL_LENGTH,spinDelta:CHEST_ROLL_SPIN_DELTA,maxSlowWindowSeconds:maxSlow}));
+}
+{
+ sampleChestRoll(.5,sample);sample.rootY=-.025;sample.turn=sample.travelX=sample.travelZ=0;writeDanceFrame(sample);
+ for(const [side,x] of [['left',-.13],['right',.13]]){const f=sample.feet[side];f.x=x;f.y=f.z=f.qx=f.qy=f.qz=0;f.qw=1;inversePoint(f,sample);inverseOrientation(f,sample);}assert(validateHoopFeet(sample.feet));
+ // Score reflection changes plane angle sign. Actual open-chest body lean
+ // then yields a visibly diagonal hoop, rather than a horizontal sliding ring.
+ const body=new Quaternion().setFromEuler(new Euler(CHEST_ROLL_LEAN_X,0,0)),ring=new Quaternion(-CHEST_ROLL_FRAME.qx,0,0,CHEST_ROLL_FRAME.qw),v=new Vector3(0,1,0).applyQuaternion(ring).applyQuaternion(body);
+ const elevation=Math.asin(Math.abs(v.y))*180/Math.PI;assert(elevation>39&&elevation<42);
+ for(const invalid of [-.1,1.1,NaN,Infinity])assert.throws(()=>sampleChestRoll(invalid,sample),RangeError);assert.throws(()=>sampleChestRoll(.5,sample,0,0),RangeError);
+ console.log('PASS chest opening pose: '+JSON.stringify({leanRadians:CHEST_ROLL_LEAN_X,planeElevationDegrees:elevation,minHead,minNose,minTorso,minArms,maxContactError}));
+}

@@ -1,0 +1,2022 @@
+{
+  "status": {
+    "seed": 1977,
+    "profile": "playful",
+    "mode": "solo",
+    "scale": 1,
+    "heading": 0,
+    "time": 2.2,
+    "duration": 22,
+    "segment": 1,
+    "motif": "motif",
+    "style": "flow",
+    "phase": "hooping",
+    "version": 11,
+    "hoops": 1,
+    "contactError": 5.551115123125783e-17,
+    "contactCount": 1,
+    "active": true,
+    "disposed": false,
+    "paused": true,
+    "frames": 7,
+    "markers": true,
+    "population": 2,
+    "placeLive": true,
+    "score": {
+      "version": 2,
+      "seed": 1977,
+      "slot": 1,
+      "generation": 258,
+      "profile": "playful",
+      "duration": 22,
+      "hoops": 1,
+      "parameters": {
+        "amplitude": 0.06751203933003125,
+        "tilt": 0.13782366679608823,
+        "spinRate": 3.758515503667295,
+        "direction": -1,
+        "phase": 5.483915981306829,
+        "turns": 2,
+        "variation": 2,
+        "bodyGain": 0.9394615702796728
+      },
+      "segments": [
+        {
+          "kind": "entrance",
+          "start": 0,
+          "duration": 0.8239957551733822,
+          "motif": "entrance",
+          "candidateChecks": 1,
+          "spinStart": 5.483915981306829,
+          "spinEnd": 2.3869151605316317,
+          "bodyFrom": {
+            "travelX": 0,
+            "travelZ": 0,
+            "turn": 0,
+            "leanX": 0,
+            "leanZ": 0,
+            "headYaw": 0,
+            "headTilt": 0
+          },
+          "bodyTo": {
+            "travelX": 0.037578462811186916,
+            "travelZ": 0,
+            "turn": -0.05636769421678037,
+            "leanX": -0.0046973078513983645,
+            "leanZ": -0.028183847108390184,
+            "headYaw": -0.09394615702796728,
+            "headTilt": -0.014091923554195092
+          }
+        },
+        {
+          "kind": "hand-orbit",
+          "start": 0.8239957551733822,
+          "duration": 1.8539904491401102,
+          "motif": "motif",
+          "candidateChecks": 1,
+          "spinStart": 2.3869151605316317,
+          "spinEnd": -4.581336686212564,
+          "bodyFrom": {
+            "travelX": 0.037578462811186916,
+            "travelZ": 0,
+            "turn": -0.05636769421678037,
+            "leanX": -0.0046973078513983645,
+            "leanZ": -0.028183847108390184,
+            "headYaw": -0.09394615702796728,
+            "headTilt": -0.014091923554195092
+          },
+          "bodyTo": {
+            "travelX": 0,
+            "travelZ": 0,
+            "turn": 0,
+            "leanX": 0,
+            "leanZ": 0,
+            "headYaw": 0,
+            "headTilt": 0
+          }
+        },
+        {
+          "kind": "isolation",
+          "start": 2.6779862043134925,
+          "duration": 1.0299946939667277,
+          "motif": "motif",
+          "candidateChecks": 1,
+          "spinStart": -4.581336686212564,
+          "spinEnd": -8.452587712181561,
+          "bodyFrom": {
+            "travelX": 0,
+            "travelZ": 0,
+            "turn": 0,
+            "leanX": 0,
+            "leanZ": 0,
+            "headYaw": 0,
+            "headTilt": 0
+          },
+          "bodyTo": {
+            "travelX": 0,
+            "travelZ": 0,
+            "turn": 0,
+            "leanX": 0,
+            "leanZ": 0,
+            "headYaw": 0,
+            "headTilt": 0
+          }
+        },
+        {
+          "kind": "transfer",
+          "start": 3.70798089828022,
+          "duration": 0.7553294422422672,
+          "motif": "motif",
+          "candidateChecks": 1,
+          "spinStart": -8.452587712181561,
+          "spinEnd": -11.291505131225493,
+          "bodyFrom": {
+            "travelX": 0,
+            "travelZ": 0,
+            "turn": 0,
+            "leanX": 0,
+            "leanZ": 0,
+            "headYaw": 0,
+            "headTilt": 0
+          },
+          "bodyTo": {
+            "travelX": -0.05636769421678037,
+            "travelZ": -0.018789231405593458,
+            "turn": 0.09394615702796728,
+            "leanX": -0.009394615702796729,
+            "leanZ": 0.037578462811186916,
+            "headYaw": 0.11273538843356073,
+            "headTilt": -0.014091923554195092
+          }
+        },
+        {
+          "kind": "answer-orbit",
+          "start": 4.463310340522487,
+          "duration": 1.52027216829489,
+          "motif": "answer",
+          "candidateChecks": 1,
+          "spinStart": -11.291505131225493,
+          "spinEnd": -17.005471645555733,
+          "bodyFrom": {
+            "travelX": -0.05636769421678037,
+            "travelZ": -0.018789231405593458,
+            "turn": 0.09394615702796728,
+            "leanX": -0.009394615702796729,
+            "leanZ": 0.037578462811186916,
+            "headYaw": 0.11273538843356073,
+            "headTilt": -0.014091923554195092
+          },
+          "bodyTo": {
+            "travelX": -0.05636769421678037,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.11273538843356073,
+            "leanX": -0.009394615702796729,
+            "leanZ": 0.037578462811186916,
+            "headYaw": 0.11273538843356073,
+            "headTilt": -0.018789231405593458
+          }
+        },
+        {
+          "kind": "overhead-rise",
+          "start": 5.983582508817378,
+          "duration": 0.9613283810356125,
+          "motif": "flourish",
+          "candidateChecks": 1,
+          "spinStart": -17.005471645555733,
+          "spinEnd": -20.618639269793462,
+          "bodyFrom": {
+            "travelX": -0.05636769421678037,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.11273538843356073,
+            "leanX": -0.009394615702796729,
+            "leanZ": 0.037578462811186916,
+            "headYaw": 0.11273538843356073,
+            "headTilt": -0.018789231405593458
+          },
+          "bodyTo": {
+            "travelX": -0.03288115495978855,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.07515692562237383,
+            "leanX": 0.03288115495978855,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.07515692562237383,
+            "headTilt": -0.042275770662585276
+          }
+        },
+        {
+          "kind": "thread-down",
+          "start": 6.9449108898529905,
+          "duration": 1.0299946939667277,
+          "motif": "flourish",
+          "candidateChecks": 1,
+          "spinStart": -20.618639269793462,
+          "spinEnd": -24.48989029576246,
+          "bodyFrom": {
+            "travelX": -0.03288115495978855,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.07515692562237383,
+            "leanX": 0.03288115495978855,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.07515692562237383,
+            "headTilt": -0.042275770662585276
+          },
+          "bodyTo": {
+            "travelX": -0.037578462811186916,
+            "travelZ": 0.02348653925699182,
+            "turn": 0.05636769421678037,
+            "leanX": 0.018789231405593458,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.09394615702796728,
+            "headTilt": -0.014091923554195092
+          }
+        },
+        {
+          "kind": "waist-lower",
+          "start": 7.9749055838197185,
+          "duration": 0.8926620681044974,
+          "motif": "body-development",
+          "candidateChecks": 1,
+          "spinStart": -24.48989029576246,
+          "spinEnd": -27.844974518268927,
+          "bodyFrom": {
+            "travelX": -0.037578462811186916,
+            "travelZ": 0.02348653925699182,
+            "turn": 0.05636769421678037,
+            "leanX": 0.018789231405593458,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.09394615702796728,
+            "headTilt": -0.014091923554195092
+          },
+          "bodyTo": {
+            "travelX": 0,
+            "travelZ": 0.028183847108390184,
+            "turn": 0,
+            "leanX": 0.014091923554195092,
+            "leanZ": 0,
+            "headYaw": 0,
+            "headTilt": 0.014091923554195092
+          }
+        },
+        {
+          "kind": "waist-feed",
+          "start": 8.867567651924215,
+          "duration": 0.6179968163800367,
+          "motif": "body-development",
+          "candidateChecks": 1,
+          "spinStart": -27.844974518268927,
+          "spinEnd": -30.167725133850325,
+          "bodyFrom": {
+            "travelX": 0,
+            "travelZ": 0.028183847108390184,
+            "turn": 0,
+            "leanX": 0.014091923554195092,
+            "leanZ": 0,
+            "headYaw": 0,
+            "headTilt": 0.014091923554195092
+          },
+          "bodyTo": {
+            "travelX": 0.05636769421678037,
+            "travelZ": 0,
+            "turn": -0.09394615702796728,
+            "leanX": 0.014091923554195092,
+            "leanZ": -0.037578462811186916,
+            "headYaw": -0.09394615702796728,
+            "headTilt": 0.018789231405593458
+          }
+        },
+        {
+          "kind": "body-orbit",
+          "start": 9.485564468304252,
+          "duration": 1.922656762071225,
+          "motif": "body-development",
+          "candidateChecks": 1,
+          "spinStart": -30.167725133850325,
+          "spinEnd": -37.39406038232578,
+          "bodyFrom": {
+            "travelX": 0.05636769421678037,
+            "travelZ": 0,
+            "turn": -0.09394615702796728,
+            "leanX": 0.014091923554195092,
+            "leanZ": -0.037578462811186916,
+            "headYaw": -0.09394615702796728,
+            "headTilt": 0.018789231405593458
+          },
+          "bodyTo": {
+            "travelX": 0.05636769421678037,
+            "travelZ": 0,
+            "turn": -0.09394615702796728,
+            "leanX": 0.014091923554195092,
+            "leanZ": -0.037578462811186916,
+            "headYaw": -0.09394615702796728,
+            "headTilt": 0.018789231405593458
+          }
+        },
+        {
+          "kind": "waist-catch",
+          "start": 11.408221230375478,
+          "duration": 0.6179968163800367,
+          "motif": "body-development",
+          "candidateChecks": 1,
+          "spinStart": -37.39406038232578,
+          "spinEnd": -39.71681099790718,
+          "bodyFrom": {
+            "travelX": 0.05636769421678037,
+            "travelZ": 0,
+            "turn": -0.09394615702796728,
+            "leanX": 0.014091923554195092,
+            "leanZ": -0.037578462811186916,
+            "headYaw": -0.09394615702796728,
+            "headTilt": 0.018789231405593458
+          },
+          "bodyTo": {
+            "travelX": 0,
+            "travelZ": 0.028183847108390184,
+            "turn": 0,
+            "leanX": 0.014091923554195092,
+            "leanZ": 0,
+            "headYaw": 0,
+            "headTilt": 0.014091923554195092
+          }
+        },
+        {
+          "kind": "waist-lift",
+          "start": 12.026218046755515,
+          "duration": 0.8926620681044974,
+          "motif": "body-development",
+          "candidateChecks": 1,
+          "spinStart": -39.71681099790718,
+          "spinEnd": -43.071895220413644,
+          "bodyFrom": {
+            "travelX": 0,
+            "travelZ": 0.028183847108390184,
+            "turn": 0,
+            "leanX": 0.014091923554195092,
+            "leanZ": 0,
+            "headYaw": 0,
+            "headTilt": 0.014091923554195092
+          },
+          "bodyTo": {
+            "travelX": -0.03288115495978855,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.07515692562237383,
+            "leanX": 0.03288115495978855,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.07515692562237383,
+            "headTilt": -0.042275770662585276
+          }
+        },
+        {
+          "kind": "thread-up",
+          "start": 12.918880114860013,
+          "duration": 1.0299946939667277,
+          "motif": "flourish",
+          "candidateChecks": 1,
+          "spinStart": -43.071895220413644,
+          "spinEnd": -46.94314624638264,
+          "bodyFrom": {
+            "travelX": -0.03288115495978855,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.07515692562237383,
+            "leanX": 0.03288115495978855,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.07515692562237383,
+            "headTilt": -0.042275770662585276
+          },
+          "bodyTo": {
+            "travelX": -0.03288115495978855,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.07515692562237383,
+            "leanX": 0.03288115495978855,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.07515692562237383,
+            "headTilt": -0.042275770662585276
+          }
+        },
+        {
+          "kind": "roll-enter",
+          "start": 13.94887480882674,
+          "duration": 0.8239957551733822,
+          "motif": "motif",
+          "candidateChecks": 1,
+          "spinStart": -46.94314624638264,
+          "spinEnd": -48.491646656770236,
+          "bodyFrom": {
+            "travelX": -0.03288115495978855,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.07515692562237383,
+            "leanX": 0.03288115495978855,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.07515692562237383,
+            "headTilt": -0.042275770662585276
+          },
+          "bodyTo": {
+            "travelX": -0.07515692562237383,
+            "travelZ": 0.014091923554195092,
+            "turn": 0.1315246198391542,
+            "leanX": 0.018789231405593458,
+            "leanZ": 0.05167038636538201,
+            "headYaw": 0.15031385124474766,
+            "headTilt": 0.02348653925699182
+          }
+        },
+        {
+          "kind": "roll-seat",
+          "start": 14.772870564000122,
+          "duration": 0.24033209525890312,
+          "motif": "motif",
+          "candidateChecks": 1,
+          "spinStart": -48.491646656770236,
+          "spinEnd": -48.491646656770236,
+          "bodyFrom": {
+            "travelX": -0.07515692562237383,
+            "travelZ": 0.014091923554195092,
+            "turn": 0.1315246198391542,
+            "leanX": 0.018789231405593458,
+            "leanZ": 0.05167038636538201,
+            "headYaw": 0.15031385124474766,
+            "headTilt": 0.02348653925699182
+          },
+          "bodyTo": {
+            "travelX": -0.07515692562237383,
+            "travelZ": 0.014091923554195092,
+            "turn": 0.1315246198391542,
+            "leanX": 0.018789231405593458,
+            "leanZ": 0.05167038636538201,
+            "headYaw": 0.15031385124474766,
+            "headTilt": 0.02348653925699182
+          }
+        },
+        {
+          "kind": "forearm-roll",
+          "start": 15.013202659259026,
+          "duration": 0.8926620681044974,
+          "motif": "motif",
+          "candidateChecks": 1,
+          "spinStart": -48.491646656770236,
+          "spinEnd": -48.491646656770236,
+          "bodyFrom": {
+            "travelX": -0.07515692562237383,
+            "travelZ": 0.014091923554195092,
+            "turn": 0.1315246198391542,
+            "leanX": 0.018789231405593458,
+            "leanZ": 0.05167038636538201,
+            "headYaw": 0.15031385124474766,
+            "headTilt": 0.02348653925699182
+          },
+          "bodyTo": {
+            "travelX": -0.07515692562237383,
+            "travelZ": 0.014091923554195092,
+            "turn": 0.1315246198391542,
+            "leanX": 0.018789231405593458,
+            "leanZ": 0.05167038636538201,
+            "headYaw": 0.15031385124474766,
+            "headTilt": 0.02348653925699182
+          }
+        },
+        {
+          "kind": "roll-regrip",
+          "start": 15.905864727363523,
+          "duration": 0.24033209525890312,
+          "motif": "motif",
+          "candidateChecks": 1,
+          "spinStart": -48.491646656770236,
+          "spinEnd": -48.491646656770236,
+          "bodyFrom": {
+            "travelX": -0.07515692562237383,
+            "travelZ": 0.014091923554195092,
+            "turn": 0.1315246198391542,
+            "leanX": 0.018789231405593458,
+            "leanZ": 0.05167038636538201,
+            "headYaw": 0.15031385124474766,
+            "headTilt": 0.02348653925699182
+          },
+          "bodyTo": {
+            "travelX": -0.07515692562237383,
+            "travelZ": 0.014091923554195092,
+            "turn": 0.1315246198391542,
+            "leanX": 0.018789231405593458,
+            "leanZ": 0.05167038636538201,
+            "headYaw": 0.15031385124474766,
+            "headTilt": 0.02348653925699182
+          }
+        },
+        {
+          "kind": "roll-return",
+          "start": 16.146196822622425,
+          "duration": 0.8239957551733822,
+          "motif": "motif",
+          "candidateChecks": 1,
+          "spinStart": -48.491646656770236,
+          "spinEnd": -50.04014706715783,
+          "bodyFrom": {
+            "travelX": -0.07515692562237383,
+            "travelZ": 0.014091923554195092,
+            "turn": 0.1315246198391542,
+            "leanX": 0.018789231405593458,
+            "leanZ": 0.05167038636538201,
+            "headYaw": 0.15031385124474766,
+            "headTilt": 0.02348653925699182
+          },
+          "bodyTo": {
+            "travelX": -0.03288115495978855,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.07515692562237383,
+            "leanX": 0.03288115495978855,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.07515692562237383,
+            "headTilt": -0.042275770662585276
+          }
+        },
+        {
+          "kind": "overhead-orbit",
+          "start": 16.970192577795807,
+          "duration": 1.098661006897843,
+          "motif": "flourish",
+          "candidateChecks": 1,
+          "spinStart": -50.04014706715783,
+          "spinEnd": -54.1694814948581,
+          "bodyFrom": {
+            "travelX": -0.03288115495978855,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.07515692562237383,
+            "leanX": 0.03288115495978855,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.07515692562237383,
+            "headTilt": -0.042275770662585276
+          },
+          "bodyTo": {
+            "travelX": -0.03288115495978855,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.07515692562237383,
+            "leanX": 0.03288115495978855,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.07515692562237383,
+            "headTilt": -0.042275770662585276
+          }
+        },
+        {
+          "kind": "overhead-return",
+          "start": 18.06885358469365,
+          "duration": 0.9613283810356125,
+          "motif": "flourish",
+          "candidateChecks": 1,
+          "spinStart": -54.1694814948581,
+          "spinEnd": -57.78264911909583,
+          "bodyFrom": {
+            "travelX": -0.03288115495978855,
+            "travelZ": -0.037578462811186916,
+            "turn": 0.07515692562237383,
+            "leanX": 0.03288115495978855,
+            "leanZ": 0.02348653925699182,
+            "headYaw": 0.07515692562237383,
+            "headTilt": -0.042275770662585276
+          },
+          "bodyTo": {
+            "travelX": -0.05636769421678037,
+            "travelZ": -0.018789231405593458,
+            "turn": 0.09394615702796728,
+            "leanX": -0.009394615702796729,
+            "leanZ": 0.037578462811186916,
+            "headYaw": 0.11273538843356073,
+            "headTilt": -0.014091923554195092
+          }
+        },
+        {
+          "kind": "return-transfer",
+          "start": 19.030181965729263,
+          "duration": 0.7553294422422672,
+          "motif": "motif",
+          "candidateChecks": 1,
+          "spinStart": -57.78264911909583,
+          "spinEnd": -60.62156653813976,
+          "bodyFrom": {
+            "travelX": -0.05636769421678037,
+            "travelZ": -0.018789231405593458,
+            "turn": 0.09394615702796728,
+            "leanX": -0.009394615702796729,
+            "leanZ": 0.037578462811186916,
+            "headYaw": 0.11273538843356073,
+            "headTilt": -0.014091923554195092
+          },
+          "bodyTo": {
+            "travelX": 0.037578462811186916,
+            "travelZ": 0,
+            "turn": -0.05636769421678037,
+            "leanX": -0.0046973078513983645,
+            "leanZ": -0.028183847108390184,
+            "headYaw": -0.09394615702796728,
+            "headTilt": -0.014091923554195092
+          }
+        },
+        {
+          "kind": "motif-return",
+          "start": 19.78551140797153,
+          "duration": 1.3904928368550828,
+          "motif": "return",
+          "candidateChecks": 1,
+          "spinStart": -60.62156653813976,
+          "spinEnd": -65.84775542319791,
+          "bodyFrom": {
+            "travelX": 0.037578462811186916,
+            "travelZ": 0,
+            "turn": -0.05636769421678037,
+            "leanX": -0.0046973078513983645,
+            "leanZ": -0.028183847108390184,
+            "headYaw": -0.09394615702796728,
+            "headTilt": -0.014091923554195092
+          },
+          "bodyTo": {
+            "travelX": 0.037578462811186916,
+            "travelZ": 0,
+            "turn": -0.05636769421678037,
+            "leanX": -0.0046973078513983645,
+            "leanZ": -0.028183847108390184,
+            "headYaw": -0.09394615702796728,
+            "headTilt": -0.014091923554195092
+          }
+        },
+        {
+          "kind": "resolution",
+          "start": 21.17600424482661,
+          "duration": 0.8239957551733887,
+          "motif": "resolution",
+          "candidateChecks": 1,
+          "spinStart": -65.84775542319791,
+          "spinEnd": -68.94475624397313,
+          "bodyFrom": {
+            "travelX": 0.037578462811186916,
+            "travelZ": 0,
+            "turn": -0.05636769421678037,
+            "leanX": -0.0046973078513983645,
+            "leanZ": -0.028183847108390184,
+            "headYaw": -0.09394615702796728,
+            "headTilt": -0.014091923554195092
+          },
+          "bodyTo": {
+            "travelX": 0,
+            "travelZ": 0,
+            "turn": 0,
+            "leanX": 0,
+            "leanZ": 0,
+            "headYaw": 0,
+            "headTilt": 0
+          }
+        }
+      ],
+      "envelope": {
+        "radius": 2.8,
+        "height": 3.4
+      },
+      "candidateChecks": 23,
+      "vocabulary": "hand-body-flight-v1"
+    },
+    "draws": 11,
+    "triangles": 2878
+  },
+  "replay": {
+    "workshop": {
+      "seed": 1977,
+      "profile": "playful",
+      "hoops": 1,
+      "scale": 1,
+      "heading": 0,
+      "mode": "solo",
+      "duration": 22
+    },
+    "performance": {
+      "version": 1,
+      "style": "flow",
+      "generation": 1,
+      "score": {
+        "version": 2,
+        "seed": 1977,
+        "slot": 1,
+        "generation": 258,
+        "profile": "playful",
+        "duration": 22,
+        "hoops": 1,
+        "parameters": {
+          "amplitude": 0.06751203933003125,
+          "tilt": 0.13782366679608823,
+          "spinRate": 3.758515503667295,
+          "direction": -1,
+          "phase": 5.483915981306829,
+          "turns": 2,
+          "variation": 2,
+          "bodyGain": 0.9394615702796728
+        },
+        "segments": [
+          {
+            "kind": "entrance",
+            "start": 0,
+            "duration": 0.8239957551733822,
+            "motif": "entrance",
+            "candidateChecks": 1,
+            "spinStart": 5.483915981306829,
+            "spinEnd": 2.3869151605316317,
+            "bodyFrom": {
+              "travelX": 0,
+              "travelZ": 0,
+              "turn": 0,
+              "leanX": 0,
+              "leanZ": 0,
+              "headYaw": 0,
+              "headTilt": 0
+            },
+            "bodyTo": {
+              "travelX": 0.037578462811186916,
+              "travelZ": 0,
+              "turn": -0.05636769421678037,
+              "leanX": -0.0046973078513983645,
+              "leanZ": -0.028183847108390184,
+              "headYaw": -0.09394615702796728,
+              "headTilt": -0.014091923554195092
+            }
+          },
+          {
+            "kind": "hand-orbit",
+            "start": 0.8239957551733822,
+            "duration": 1.8539904491401102,
+            "motif": "motif",
+            "candidateChecks": 1,
+            "spinStart": 2.3869151605316317,
+            "spinEnd": -4.581336686212564,
+            "bodyFrom": {
+              "travelX": 0.037578462811186916,
+              "travelZ": 0,
+              "turn": -0.05636769421678037,
+              "leanX": -0.0046973078513983645,
+              "leanZ": -0.028183847108390184,
+              "headYaw": -0.09394615702796728,
+              "headTilt": -0.014091923554195092
+            },
+            "bodyTo": {
+              "travelX": 0,
+              "travelZ": 0,
+              "turn": 0,
+              "leanX": 0,
+              "leanZ": 0,
+              "headYaw": 0,
+              "headTilt": 0
+            }
+          },
+          {
+            "kind": "isolation",
+            "start": 2.6779862043134925,
+            "duration": 1.0299946939667277,
+            "motif": "motif",
+            "candidateChecks": 1,
+            "spinStart": -4.581336686212564,
+            "spinEnd": -8.452587712181561,
+            "bodyFrom": {
+              "travelX": 0,
+              "travelZ": 0,
+              "turn": 0,
+              "leanX": 0,
+              "leanZ": 0,
+              "headYaw": 0,
+              "headTilt": 0
+            },
+            "bodyTo": {
+              "travelX": 0,
+              "travelZ": 0,
+              "turn": 0,
+              "leanX": 0,
+              "leanZ": 0,
+              "headYaw": 0,
+              "headTilt": 0
+            }
+          },
+          {
+            "kind": "transfer",
+            "start": 3.70798089828022,
+            "duration": 0.7553294422422672,
+            "motif": "motif",
+            "candidateChecks": 1,
+            "spinStart": -8.452587712181561,
+            "spinEnd": -11.291505131225493,
+            "bodyFrom": {
+              "travelX": 0,
+              "travelZ": 0,
+              "turn": 0,
+              "leanX": 0,
+              "leanZ": 0,
+              "headYaw": 0,
+              "headTilt": 0
+            },
+            "bodyTo": {
+              "travelX": -0.05636769421678037,
+              "travelZ": -0.018789231405593458,
+              "turn": 0.09394615702796728,
+              "leanX": -0.009394615702796729,
+              "leanZ": 0.037578462811186916,
+              "headYaw": 0.11273538843356073,
+              "headTilt": -0.014091923554195092
+            }
+          },
+          {
+            "kind": "answer-orbit",
+            "start": 4.463310340522487,
+            "duration": 1.52027216829489,
+            "motif": "answer",
+            "candidateChecks": 1,
+            "spinStart": -11.291505131225493,
+            "spinEnd": -17.005471645555733,
+            "bodyFrom": {
+              "travelX": -0.05636769421678037,
+              "travelZ": -0.018789231405593458,
+              "turn": 0.09394615702796728,
+              "leanX": -0.009394615702796729,
+              "leanZ": 0.037578462811186916,
+              "headYaw": 0.11273538843356073,
+              "headTilt": -0.014091923554195092
+            },
+            "bodyTo": {
+              "travelX": -0.05636769421678037,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.11273538843356073,
+              "leanX": -0.009394615702796729,
+              "leanZ": 0.037578462811186916,
+              "headYaw": 0.11273538843356073,
+              "headTilt": -0.018789231405593458
+            }
+          },
+          {
+            "kind": "overhead-rise",
+            "start": 5.983582508817378,
+            "duration": 0.9613283810356125,
+            "motif": "flourish",
+            "candidateChecks": 1,
+            "spinStart": -17.005471645555733,
+            "spinEnd": -20.618639269793462,
+            "bodyFrom": {
+              "travelX": -0.05636769421678037,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.11273538843356073,
+              "leanX": -0.009394615702796729,
+              "leanZ": 0.037578462811186916,
+              "headYaw": 0.11273538843356073,
+              "headTilt": -0.018789231405593458
+            },
+            "bodyTo": {
+              "travelX": -0.03288115495978855,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.07515692562237383,
+              "leanX": 0.03288115495978855,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.07515692562237383,
+              "headTilt": -0.042275770662585276
+            }
+          },
+          {
+            "kind": "thread-down",
+            "start": 6.9449108898529905,
+            "duration": 1.0299946939667277,
+            "motif": "flourish",
+            "candidateChecks": 1,
+            "spinStart": -20.618639269793462,
+            "spinEnd": -24.48989029576246,
+            "bodyFrom": {
+              "travelX": -0.03288115495978855,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.07515692562237383,
+              "leanX": 0.03288115495978855,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.07515692562237383,
+              "headTilt": -0.042275770662585276
+            },
+            "bodyTo": {
+              "travelX": -0.037578462811186916,
+              "travelZ": 0.02348653925699182,
+              "turn": 0.05636769421678037,
+              "leanX": 0.018789231405593458,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.09394615702796728,
+              "headTilt": -0.014091923554195092
+            }
+          },
+          {
+            "kind": "waist-lower",
+            "start": 7.9749055838197185,
+            "duration": 0.8926620681044974,
+            "motif": "body-development",
+            "candidateChecks": 1,
+            "spinStart": -24.48989029576246,
+            "spinEnd": -27.844974518268927,
+            "bodyFrom": {
+              "travelX": -0.037578462811186916,
+              "travelZ": 0.02348653925699182,
+              "turn": 0.05636769421678037,
+              "leanX": 0.018789231405593458,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.09394615702796728,
+              "headTilt": -0.014091923554195092
+            },
+            "bodyTo": {
+              "travelX": 0,
+              "travelZ": 0.028183847108390184,
+              "turn": 0,
+              "leanX": 0.014091923554195092,
+              "leanZ": 0,
+              "headYaw": 0,
+              "headTilt": 0.014091923554195092
+            }
+          },
+          {
+            "kind": "waist-feed",
+            "start": 8.867567651924215,
+            "duration": 0.6179968163800367,
+            "motif": "body-development",
+            "candidateChecks": 1,
+            "spinStart": -27.844974518268927,
+            "spinEnd": -30.167725133850325,
+            "bodyFrom": {
+              "travelX": 0,
+              "travelZ": 0.028183847108390184,
+              "turn": 0,
+              "leanX": 0.014091923554195092,
+              "leanZ": 0,
+              "headYaw": 0,
+              "headTilt": 0.014091923554195092
+            },
+            "bodyTo": {
+              "travelX": 0.05636769421678037,
+              "travelZ": 0,
+              "turn": -0.09394615702796728,
+              "leanX": 0.014091923554195092,
+              "leanZ": -0.037578462811186916,
+              "headYaw": -0.09394615702796728,
+              "headTilt": 0.018789231405593458
+            }
+          },
+          {
+            "kind": "body-orbit",
+            "start": 9.485564468304252,
+            "duration": 1.922656762071225,
+            "motif": "body-development",
+            "candidateChecks": 1,
+            "spinStart": -30.167725133850325,
+            "spinEnd": -37.39406038232578,
+            "bodyFrom": {
+              "travelX": 0.05636769421678037,
+              "travelZ": 0,
+              "turn": -0.09394615702796728,
+              "leanX": 0.014091923554195092,
+              "leanZ": -0.037578462811186916,
+              "headYaw": -0.09394615702796728,
+              "headTilt": 0.018789231405593458
+            },
+            "bodyTo": {
+              "travelX": 0.05636769421678037,
+              "travelZ": 0,
+              "turn": -0.09394615702796728,
+              "leanX": 0.014091923554195092,
+              "leanZ": -0.037578462811186916,
+              "headYaw": -0.09394615702796728,
+              "headTilt": 0.018789231405593458
+            }
+          },
+          {
+            "kind": "waist-catch",
+            "start": 11.408221230375478,
+            "duration": 0.6179968163800367,
+            "motif": "body-development",
+            "candidateChecks": 1,
+            "spinStart": -37.39406038232578,
+            "spinEnd": -39.71681099790718,
+            "bodyFrom": {
+              "travelX": 0.05636769421678037,
+              "travelZ": 0,
+              "turn": -0.09394615702796728,
+              "leanX": 0.014091923554195092,
+              "leanZ": -0.037578462811186916,
+              "headYaw": -0.09394615702796728,
+              "headTilt": 0.018789231405593458
+            },
+            "bodyTo": {
+              "travelX": 0,
+              "travelZ": 0.028183847108390184,
+              "turn": 0,
+              "leanX": 0.014091923554195092,
+              "leanZ": 0,
+              "headYaw": 0,
+              "headTilt": 0.014091923554195092
+            }
+          },
+          {
+            "kind": "waist-lift",
+            "start": 12.026218046755515,
+            "duration": 0.8926620681044974,
+            "motif": "body-development",
+            "candidateChecks": 1,
+            "spinStart": -39.71681099790718,
+            "spinEnd": -43.071895220413644,
+            "bodyFrom": {
+              "travelX": 0,
+              "travelZ": 0.028183847108390184,
+              "turn": 0,
+              "leanX": 0.014091923554195092,
+              "leanZ": 0,
+              "headYaw": 0,
+              "headTilt": 0.014091923554195092
+            },
+            "bodyTo": {
+              "travelX": -0.03288115495978855,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.07515692562237383,
+              "leanX": 0.03288115495978855,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.07515692562237383,
+              "headTilt": -0.042275770662585276
+            }
+          },
+          {
+            "kind": "thread-up",
+            "start": 12.918880114860013,
+            "duration": 1.0299946939667277,
+            "motif": "flourish",
+            "candidateChecks": 1,
+            "spinStart": -43.071895220413644,
+            "spinEnd": -46.94314624638264,
+            "bodyFrom": {
+              "travelX": -0.03288115495978855,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.07515692562237383,
+              "leanX": 0.03288115495978855,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.07515692562237383,
+              "headTilt": -0.042275770662585276
+            },
+            "bodyTo": {
+              "travelX": -0.03288115495978855,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.07515692562237383,
+              "leanX": 0.03288115495978855,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.07515692562237383,
+              "headTilt": -0.042275770662585276
+            }
+          },
+          {
+            "kind": "roll-enter",
+            "start": 13.94887480882674,
+            "duration": 0.8239957551733822,
+            "motif": "motif",
+            "candidateChecks": 1,
+            "spinStart": -46.94314624638264,
+            "spinEnd": -48.491646656770236,
+            "bodyFrom": {
+              "travelX": -0.03288115495978855,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.07515692562237383,
+              "leanX": 0.03288115495978855,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.07515692562237383,
+              "headTilt": -0.042275770662585276
+            },
+            "bodyTo": {
+              "travelX": -0.07515692562237383,
+              "travelZ": 0.014091923554195092,
+              "turn": 0.1315246198391542,
+              "leanX": 0.018789231405593458,
+              "leanZ": 0.05167038636538201,
+              "headYaw": 0.15031385124474766,
+              "headTilt": 0.02348653925699182
+            }
+          },
+          {
+            "kind": "roll-seat",
+            "start": 14.772870564000122,
+            "duration": 0.24033209525890312,
+            "motif": "motif",
+            "candidateChecks": 1,
+            "spinStart": -48.491646656770236,
+            "spinEnd": -48.491646656770236,
+            "bodyFrom": {
+              "travelX": -0.07515692562237383,
+              "travelZ": 0.014091923554195092,
+              "turn": 0.1315246198391542,
+              "leanX": 0.018789231405593458,
+              "leanZ": 0.05167038636538201,
+              "headYaw": 0.15031385124474766,
+              "headTilt": 0.02348653925699182
+            },
+            "bodyTo": {
+              "travelX": -0.07515692562237383,
+              "travelZ": 0.014091923554195092,
+              "turn": 0.1315246198391542,
+              "leanX": 0.018789231405593458,
+              "leanZ": 0.05167038636538201,
+              "headYaw": 0.15031385124474766,
+              "headTilt": 0.02348653925699182
+            }
+          },
+          {
+            "kind": "forearm-roll",
+            "start": 15.013202659259026,
+            "duration": 0.8926620681044974,
+            "motif": "motif",
+            "candidateChecks": 1,
+            "spinStart": -48.491646656770236,
+            "spinEnd": -48.491646656770236,
+            "bodyFrom": {
+              "travelX": -0.07515692562237383,
+              "travelZ": 0.014091923554195092,
+              "turn": 0.1315246198391542,
+              "leanX": 0.018789231405593458,
+              "leanZ": 0.05167038636538201,
+              "headYaw": 0.15031385124474766,
+              "headTilt": 0.02348653925699182
+            },
+            "bodyTo": {
+              "travelX": -0.07515692562237383,
+              "travelZ": 0.014091923554195092,
+              "turn": 0.1315246198391542,
+              "leanX": 0.018789231405593458,
+              "leanZ": 0.05167038636538201,
+              "headYaw": 0.15031385124474766,
+              "headTilt": 0.02348653925699182
+            }
+          },
+          {
+            "kind": "roll-regrip",
+            "start": 15.905864727363523,
+            "duration": 0.24033209525890312,
+            "motif": "motif",
+            "candidateChecks": 1,
+            "spinStart": -48.491646656770236,
+            "spinEnd": -48.491646656770236,
+            "bodyFrom": {
+              "travelX": -0.07515692562237383,
+              "travelZ": 0.014091923554195092,
+              "turn": 0.1315246198391542,
+              "leanX": 0.018789231405593458,
+              "leanZ": 0.05167038636538201,
+              "headYaw": 0.15031385124474766,
+              "headTilt": 0.02348653925699182
+            },
+            "bodyTo": {
+              "travelX": -0.07515692562237383,
+              "travelZ": 0.014091923554195092,
+              "turn": 0.1315246198391542,
+              "leanX": 0.018789231405593458,
+              "leanZ": 0.05167038636538201,
+              "headYaw": 0.15031385124474766,
+              "headTilt": 0.02348653925699182
+            }
+          },
+          {
+            "kind": "roll-return",
+            "start": 16.146196822622425,
+            "duration": 0.8239957551733822,
+            "motif": "motif",
+            "candidateChecks": 1,
+            "spinStart": -48.491646656770236,
+            "spinEnd": -50.04014706715783,
+            "bodyFrom": {
+              "travelX": -0.07515692562237383,
+              "travelZ": 0.014091923554195092,
+              "turn": 0.1315246198391542,
+              "leanX": 0.018789231405593458,
+              "leanZ": 0.05167038636538201,
+              "headYaw": 0.15031385124474766,
+              "headTilt": 0.02348653925699182
+            },
+            "bodyTo": {
+              "travelX": -0.03288115495978855,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.07515692562237383,
+              "leanX": 0.03288115495978855,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.07515692562237383,
+              "headTilt": -0.042275770662585276
+            }
+          },
+          {
+            "kind": "overhead-orbit",
+            "start": 16.970192577795807,
+            "duration": 1.098661006897843,
+            "motif": "flourish",
+            "candidateChecks": 1,
+            "spinStart": -50.04014706715783,
+            "spinEnd": -54.1694814948581,
+            "bodyFrom": {
+              "travelX": -0.03288115495978855,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.07515692562237383,
+              "leanX": 0.03288115495978855,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.07515692562237383,
+              "headTilt": -0.042275770662585276
+            },
+            "bodyTo": {
+              "travelX": -0.03288115495978855,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.07515692562237383,
+              "leanX": 0.03288115495978855,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.07515692562237383,
+              "headTilt": -0.042275770662585276
+            }
+          },
+          {
+            "kind": "overhead-return",
+            "start": 18.06885358469365,
+            "duration": 0.9613283810356125,
+            "motif": "flourish",
+            "candidateChecks": 1,
+            "spinStart": -54.1694814948581,
+            "spinEnd": -57.78264911909583,
+            "bodyFrom": {
+              "travelX": -0.03288115495978855,
+              "travelZ": -0.037578462811186916,
+              "turn": 0.07515692562237383,
+              "leanX": 0.03288115495978855,
+              "leanZ": 0.02348653925699182,
+              "headYaw": 0.07515692562237383,
+              "headTilt": -0.042275770662585276
+            },
+            "bodyTo": {
+              "travelX": -0.05636769421678037,
+              "travelZ": -0.018789231405593458,
+              "turn": 0.09394615702796728,
+              "leanX": -0.009394615702796729,
+              "leanZ": 0.037578462811186916,
+              "headYaw": 0.11273538843356073,
+              "headTilt": -0.014091923554195092
+            }
+          },
+          {
+            "kind": "return-transfer",
+            "start": 19.030181965729263,
+            "duration": 0.7553294422422672,
+            "motif": "motif",
+            "candidateChecks": 1,
+            "spinStart": -57.78264911909583,
+            "spinEnd": -60.62156653813976,
+            "bodyFrom": {
+              "travelX": -0.05636769421678037,
+              "travelZ": -0.018789231405593458,
+              "turn": 0.09394615702796728,
+              "leanX": -0.009394615702796729,
+              "leanZ": 0.037578462811186916,
+              "headYaw": 0.11273538843356073,
+              "headTilt": -0.014091923554195092
+            },
+            "bodyTo": {
+              "travelX": 0.037578462811186916,
+              "travelZ": 0,
+              "turn": -0.05636769421678037,
+              "leanX": -0.0046973078513983645,
+              "leanZ": -0.028183847108390184,
+              "headYaw": -0.09394615702796728,
+              "headTilt": -0.014091923554195092
+            }
+          },
+          {
+            "kind": "motif-return",
+            "start": 19.78551140797153,
+            "duration": 1.3904928368550828,
+            "motif": "return",
+            "candidateChecks": 1,
+            "spinStart": -60.62156653813976,
+            "spinEnd": -65.84775542319791,
+            "bodyFrom": {
+              "travelX": 0.037578462811186916,
+              "travelZ": 0,
+              "turn": -0.05636769421678037,
+              "leanX": -0.0046973078513983645,
+              "leanZ": -0.028183847108390184,
+              "headYaw": -0.09394615702796728,
+              "headTilt": -0.014091923554195092
+            },
+            "bodyTo": {
+              "travelX": 0.037578462811186916,
+              "travelZ": 0,
+              "turn": -0.05636769421678037,
+              "leanX": -0.0046973078513983645,
+              "leanZ": -0.028183847108390184,
+              "headYaw": -0.09394615702796728,
+              "headTilt": -0.014091923554195092
+            }
+          },
+          {
+            "kind": "resolution",
+            "start": 21.17600424482661,
+            "duration": 0.8239957551733887,
+            "motif": "resolution",
+            "candidateChecks": 1,
+            "spinStart": -65.84775542319791,
+            "spinEnd": -68.94475624397313,
+            "bodyFrom": {
+              "travelX": 0.037578462811186916,
+              "travelZ": 0,
+              "turn": -0.05636769421678037,
+              "leanX": -0.0046973078513983645,
+              "leanZ": -0.028183847108390184,
+              "headYaw": -0.09394615702796728,
+              "headTilt": -0.014091923554195092
+            },
+            "bodyTo": {
+              "travelX": 0,
+              "travelZ": 0,
+              "turn": 0,
+              "leanX": 0,
+              "leanZ": 0,
+              "headYaw": 0,
+              "headTilt": 0
+            }
+          }
+        ],
+        "envelope": {
+          "radius": 2.8,
+          "height": 3.4
+        },
+        "candidateChecks": 23,
+        "vocabulary": "hand-body-flight-v1"
+      },
+      "events": [
+        {
+          "type": "score",
+          "time": 0,
+          "epoch": 1,
+          "detail": {
+            "score": {
+              "version": 2,
+              "seed": 1977,
+              "slot": 1,
+              "generation": 258,
+              "profile": "playful",
+              "duration": 22,
+              "hoops": 1,
+              "parameters": {
+                "amplitude": 0.06751203933003125,
+                "tilt": 0.13782366679608823,
+                "spinRate": 3.758515503667295,
+                "direction": -1,
+                "phase": 5.483915981306829,
+                "turns": 2,
+                "variation": 2,
+                "bodyGain": 0.9394615702796728
+              },
+              "segments": [
+                {
+                  "kind": "entrance",
+                  "start": 0,
+                  "duration": 0.8239957551733822,
+                  "motif": "entrance",
+                  "candidateChecks": 1,
+                  "spinStart": 5.483915981306829,
+                  "spinEnd": 2.3869151605316317,
+                  "bodyFrom": {
+                    "travelX": 0,
+                    "travelZ": 0,
+                    "turn": 0,
+                    "leanX": 0,
+                    "leanZ": 0,
+                    "headYaw": 0,
+                    "headTilt": 0
+                  },
+                  "bodyTo": {
+                    "travelX": 0.037578462811186916,
+                    "travelZ": 0,
+                    "turn": -0.05636769421678037,
+                    "leanX": -0.0046973078513983645,
+                    "leanZ": -0.028183847108390184,
+                    "headYaw": -0.09394615702796728,
+                    "headTilt": -0.014091923554195092
+                  }
+                },
+                {
+                  "kind": "hand-orbit",
+                  "start": 0.8239957551733822,
+                  "duration": 1.8539904491401102,
+                  "motif": "motif",
+                  "candidateChecks": 1,
+                  "spinStart": 2.3869151605316317,
+                  "spinEnd": -4.581336686212564,
+                  "bodyFrom": {
+                    "travelX": 0.037578462811186916,
+                    "travelZ": 0,
+                    "turn": -0.05636769421678037,
+                    "leanX": -0.0046973078513983645,
+                    "leanZ": -0.028183847108390184,
+                    "headYaw": -0.09394615702796728,
+                    "headTilt": -0.014091923554195092
+                  },
+                  "bodyTo": {
+                    "travelX": 0,
+                    "travelZ": 0,
+                    "turn": 0,
+                    "leanX": 0,
+                    "leanZ": 0,
+                    "headYaw": 0,
+                    "headTilt": 0
+                  }
+                },
+                {
+                  "kind": "isolation",
+                  "start": 2.6779862043134925,
+                  "duration": 1.0299946939667277,
+                  "motif": "motif",
+                  "candidateChecks": 1,
+                  "spinStart": -4.581336686212564,
+                  "spinEnd": -8.452587712181561,
+                  "bodyFrom": {
+                    "travelX": 0,
+                    "travelZ": 0,
+                    "turn": 0,
+                    "leanX": 0,
+                    "leanZ": 0,
+                    "headYaw": 0,
+                    "headTilt": 0
+                  },
+                  "bodyTo": {
+                    "travelX": 0,
+                    "travelZ": 0,
+                    "turn": 0,
+                    "leanX": 0,
+                    "leanZ": 0,
+                    "headYaw": 0,
+                    "headTilt": 0
+                  }
+                },
+                {
+                  "kind": "transfer",
+                  "start": 3.70798089828022,
+                  "duration": 0.7553294422422672,
+                  "motif": "motif",
+                  "candidateChecks": 1,
+                  "spinStart": -8.452587712181561,
+                  "spinEnd": -11.291505131225493,
+                  "bodyFrom": {
+                    "travelX": 0,
+                    "travelZ": 0,
+                    "turn": 0,
+                    "leanX": 0,
+                    "leanZ": 0,
+                    "headYaw": 0,
+                    "headTilt": 0
+                  },
+                  "bodyTo": {
+                    "travelX": -0.05636769421678037,
+                    "travelZ": -0.018789231405593458,
+                    "turn": 0.09394615702796728,
+                    "leanX": -0.009394615702796729,
+                    "leanZ": 0.037578462811186916,
+                    "headYaw": 0.11273538843356073,
+                    "headTilt": -0.014091923554195092
+                  }
+                },
+                {
+                  "kind": "answer-orbit",
+                  "start": 4.463310340522487,
+                  "duration": 1.52027216829489,
+                  "motif": "answer",
+                  "candidateChecks": 1,
+                  "spinStart": -11.291505131225493,
+                  "spinEnd": -17.005471645555733,
+                  "bodyFrom": {
+                    "travelX": -0.05636769421678037,
+                    "travelZ": -0.018789231405593458,
+                    "turn": 0.09394615702796728,
+                    "leanX": -0.009394615702796729,
+                    "leanZ": 0.037578462811186916,
+                    "headYaw": 0.11273538843356073,
+                    "headTilt": -0.014091923554195092
+                  },
+                  "bodyTo": {
+                    "travelX": -0.05636769421678037,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.11273538843356073,
+                    "leanX": -0.009394615702796729,
+                    "leanZ": 0.037578462811186916,
+                    "headYaw": 0.11273538843356073,
+                    "headTilt": -0.018789231405593458
+                  }
+                },
+                {
+                  "kind": "overhead-rise",
+                  "start": 5.983582508817378,
+                  "duration": 0.9613283810356125,
+                  "motif": "flourish",
+                  "candidateChecks": 1,
+                  "spinStart": -17.005471645555733,
+                  "spinEnd": -20.618639269793462,
+                  "bodyFrom": {
+                    "travelX": -0.05636769421678037,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.11273538843356073,
+                    "leanX": -0.009394615702796729,
+                    "leanZ": 0.037578462811186916,
+                    "headYaw": 0.11273538843356073,
+                    "headTilt": -0.018789231405593458
+                  },
+                  "bodyTo": {
+                    "travelX": -0.03288115495978855,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.07515692562237383,
+                    "leanX": 0.03288115495978855,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.07515692562237383,
+                    "headTilt": -0.042275770662585276
+                  }
+                },
+                {
+                  "kind": "thread-down",
+                  "start": 6.9449108898529905,
+                  "duration": 1.0299946939667277,
+                  "motif": "flourish",
+                  "candidateChecks": 1,
+                  "spinStart": -20.618639269793462,
+                  "spinEnd": -24.48989029576246,
+                  "bodyFrom": {
+                    "travelX": -0.03288115495978855,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.07515692562237383,
+                    "leanX": 0.03288115495978855,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.07515692562237383,
+                    "headTilt": -0.042275770662585276
+                  },
+                  "bodyTo": {
+                    "travelX": -0.037578462811186916,
+                    "travelZ": 0.02348653925699182,
+                    "turn": 0.05636769421678037,
+                    "leanX": 0.018789231405593458,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.09394615702796728,
+                    "headTilt": -0.014091923554195092
+                  }
+                },
+                {
+                  "kind": "waist-lower",
+                  "start": 7.9749055838197185,
+                  "duration": 0.8926620681044974,
+                  "motif": "body-development",
+                  "candidateChecks": 1,
+                  "spinStart": -24.48989029576246,
+                  "spinEnd": -27.844974518268927,
+                  "bodyFrom": {
+                    "travelX": -0.037578462811186916,
+                    "travelZ": 0.02348653925699182,
+                    "turn": 0.05636769421678037,
+                    "leanX": 0.018789231405593458,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.09394615702796728,
+                    "headTilt": -0.014091923554195092
+                  },
+                  "bodyTo": {
+                    "travelX": 0,
+                    "travelZ": 0.028183847108390184,
+                    "turn": 0,
+                    "leanX": 0.014091923554195092,
+                    "leanZ": 0,
+                    "headYaw": 0,
+                    "headTilt": 0.014091923554195092
+                  }
+                },
+                {
+                  "kind": "waist-feed",
+                  "start": 8.867567651924215,
+                  "duration": 0.6179968163800367,
+                  "motif": "body-development",
+                  "candidateChecks": 1,
+                  "spinStart": -27.844974518268927,
+                  "spinEnd": -30.167725133850325,
+                  "bodyFrom": {
+                    "travelX": 0,
+                    "travelZ": 0.028183847108390184,
+                    "turn": 0,
+                    "leanX": 0.014091923554195092,
+                    "leanZ": 0,
+                    "headYaw": 0,
+                    "headTilt": 0.014091923554195092
+                  },
+                  "bodyTo": {
+                    "travelX": 0.05636769421678037,
+                    "travelZ": 0,
+                    "turn": -0.09394615702796728,
+                    "leanX": 0.014091923554195092,
+                    "leanZ": -0.037578462811186916,
+                    "headYaw": -0.09394615702796728,
+                    "headTilt": 0.018789231405593458
+                  }
+                },
+                {
+                  "kind": "body-orbit",
+                  "start": 9.485564468304252,
+                  "duration": 1.922656762071225,
+                  "motif": "body-development",
+                  "candidateChecks": 1,
+                  "spinStart": -30.167725133850325,
+                  "spinEnd": -37.39406038232578,
+                  "bodyFrom": {
+                    "travelX": 0.05636769421678037,
+                    "travelZ": 0,
+                    "turn": -0.09394615702796728,
+                    "leanX": 0.014091923554195092,
+                    "leanZ": -0.037578462811186916,
+                    "headYaw": -0.09394615702796728,
+                    "headTilt": 0.018789231405593458
+                  },
+                  "bodyTo": {
+                    "travelX": 0.05636769421678037,
+                    "travelZ": 0,
+                    "turn": -0.09394615702796728,
+                    "leanX": 0.014091923554195092,
+                    "leanZ": -0.037578462811186916,
+                    "headYaw": -0.09394615702796728,
+                    "headTilt": 0.018789231405593458
+                  }
+                },
+                {
+                  "kind": "waist-catch",
+                  "start": 11.408221230375478,
+                  "duration": 0.6179968163800367,
+                  "motif": "body-development",
+                  "candidateChecks": 1,
+                  "spinStart": -37.39406038232578,
+                  "spinEnd": -39.71681099790718,
+                  "bodyFrom": {
+                    "travelX": 0.05636769421678037,
+                    "travelZ": 0,
+                    "turn": -0.09394615702796728,
+                    "leanX": 0.014091923554195092,
+                    "leanZ": -0.037578462811186916,
+                    "headYaw": -0.09394615702796728,
+                    "headTilt": 0.018789231405593458
+                  },
+                  "bodyTo": {
+                    "travelX": 0,
+                    "travelZ": 0.028183847108390184,
+                    "turn": 0,
+                    "leanX": 0.014091923554195092,
+                    "leanZ": 0,
+                    "headYaw": 0,
+                    "headTilt": 0.014091923554195092
+                  }
+                },
+                {
+                  "kind": "waist-lift",
+                  "start": 12.026218046755515,
+                  "duration": 0.8926620681044974,
+                  "motif": "body-development",
+                  "candidateChecks": 1,
+                  "spinStart": -39.71681099790718,
+                  "spinEnd": -43.071895220413644,
+                  "bodyFrom": {
+                    "travelX": 0,
+                    "travelZ": 0.028183847108390184,
+                    "turn": 0,
+                    "leanX": 0.014091923554195092,
+                    "leanZ": 0,
+                    "headYaw": 0,
+                    "headTilt": 0.014091923554195092
+                  },
+                  "bodyTo": {
+                    "travelX": -0.03288115495978855,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.07515692562237383,
+                    "leanX": 0.03288115495978855,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.07515692562237383,
+                    "headTilt": -0.042275770662585276
+                  }
+                },
+                {
+                  "kind": "thread-up",
+                  "start": 12.918880114860013,
+                  "duration": 1.0299946939667277,
+                  "motif": "flourish",
+                  "candidateChecks": 1,
+                  "spinStart": -43.071895220413644,
+                  "spinEnd": -46.94314624638264,
+                  "bodyFrom": {
+                    "travelX": -0.03288115495978855,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.07515692562237383,
+                    "leanX": 0.03288115495978855,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.07515692562237383,
+                    "headTilt": -0.042275770662585276
+                  },
+                  "bodyTo": {
+                    "travelX": -0.03288115495978855,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.07515692562237383,
+                    "leanX": 0.03288115495978855,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.07515692562237383,
+                    "headTilt": -0.042275770662585276
+                  }
+                },
+                {
+                  "kind": "roll-enter",
+                  "start": 13.94887480882674,
+                  "duration": 0.8239957551733822,
+                  "motif": "motif",
+                  "candidateChecks": 1,
+                  "spinStart": -46.94314624638264,
+                  "spinEnd": -48.491646656770236,
+                  "bodyFrom": {
+                    "travelX": -0.03288115495978855,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.07515692562237383,
+                    "leanX": 0.03288115495978855,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.07515692562237383,
+                    "headTilt": -0.042275770662585276
+                  },
+                  "bodyTo": {
+                    "travelX": -0.07515692562237383,
+                    "travelZ": 0.014091923554195092,
+                    "turn": 0.1315246198391542,
+                    "leanX": 0.018789231405593458,
+                    "leanZ": 0.05167038636538201,
+                    "headYaw": 0.15031385124474766,
+                    "headTilt": 0.02348653925699182
+                  }
+                },
+                {
+                  "kind": "roll-seat",
+                  "start": 14.772870564000122,
+                  "duration": 0.24033209525890312,
+                  "motif": "motif",
+                  "candidateChecks": 1,
+                  "spinStart": -48.491646656770236,
+                  "spinEnd": -48.491646656770236,
+                  "bodyFrom": {
+                    "travelX": -0.07515692562237383,
+                    "travelZ": 0.014091923554195092,
+                    "turn": 0.1315246198391542,
+                    "leanX": 0.018789231405593458,
+                    "leanZ": 0.05167038636538201,
+                    "headYaw": 0.15031385124474766,
+                    "headTilt": 0.02348653925699182
+                  },
+                  "bodyTo": {
+                    "travelX": -0.07515692562237383,
+                    "travelZ": 0.014091923554195092,
+                    "turn": 0.1315246198391542,
+                    "leanX": 0.018789231405593458,
+                    "leanZ": 0.05167038636538201,
+                    "headYaw": 0.15031385124474766,
+                    "headTilt": 0.02348653925699182
+                  }
+                },
+                {
+                  "kind": "forearm-roll",
+                  "start": 15.013202659259026,
+                  "duration": 0.8926620681044974,
+                  "motif": "motif",
+                  "candidateChecks": 1,
+                  "spinStart": -48.491646656770236,
+                  "spinEnd": -48.491646656770236,
+                  "bodyFrom": {
+                    "travelX": -0.07515692562237383,
+                    "travelZ": 0.014091923554195092,
+                    "turn": 0.1315246198391542,
+                    "leanX": 0.018789231405593458,
+                    "leanZ": 0.05167038636538201,
+                    "headYaw": 0.15031385124474766,
+                    "headTilt": 0.02348653925699182
+                  },
+                  "bodyTo": {
+                    "travelX": -0.07515692562237383,
+                    "travelZ": 0.014091923554195092,
+                    "turn": 0.1315246198391542,
+                    "leanX": 0.018789231405593458,
+                    "leanZ": 0.05167038636538201,
+                    "headYaw": 0.15031385124474766,
+                    "headTilt": 0.02348653925699182
+                  }
+                },
+                {
+                  "kind": "roll-regrip",
+                  "start": 15.905864727363523,
+                  "duration": 0.24033209525890312,
+                  "motif": "motif",
+                  "candidateChecks": 1,
+                  "spinStart": -48.491646656770236,
+                  "spinEnd": -48.491646656770236,
+                  "bodyFrom": {
+                    "travelX": -0.07515692562237383,
+                    "travelZ": 0.014091923554195092,
+                    "turn": 0.1315246198391542,
+                    "leanX": 0.018789231405593458,
+                    "leanZ": 0.05167038636538201,
+                    "headYaw": 0.15031385124474766,
+                    "headTilt": 0.02348653925699182
+                  },
+                  "bodyTo": {
+                    "travelX": -0.07515692562237383,
+                    "travelZ": 0.014091923554195092,
+                    "turn": 0.1315246198391542,
+                    "leanX": 0.018789231405593458,
+                    "leanZ": 0.05167038636538201,
+                    "headYaw": 0.15031385124474766,
+                    "headTilt": 0.02348653925699182
+                  }
+                },
+                {
+                  "kind": "roll-return",
+                  "start": 16.146196822622425,
+                  "duration": 0.8239957551733822,
+                  "motif": "motif",
+                  "candidateChecks": 1,
+                  "spinStart": -48.491646656770236,
+                  "spinEnd": -50.04014706715783,
+                  "bodyFrom": {
+                    "travelX": -0.07515692562237383,
+                    "travelZ": 0.014091923554195092,
+                    "turn": 0.1315246198391542,
+                    "leanX": 0.018789231405593458,
+                    "leanZ": 0.05167038636538201,
+                    "headYaw": 0.15031385124474766,
+                    "headTilt": 0.02348653925699182
+                  },
+                  "bodyTo": {
+                    "travelX": -0.03288115495978855,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.07515692562237383,
+                    "leanX": 0.03288115495978855,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.07515692562237383,
+                    "headTilt": -0.042275770662585276
+                  }
+                },
+                {
+                  "kind": "overhead-orbit",
+                  "start": 16.970192577795807,
+                  "duration": 1.098661006897843,
+                  "motif": "flourish",
+                  "candidateChecks": 1,
+                  "spinStart": -50.04014706715783,
+                  "spinEnd": -54.1694814948581,
+                  "bodyFrom": {
+                    "travelX": -0.03288115495978855,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.07515692562237383,
+                    "leanX": 0.03288115495978855,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.07515692562237383,
+                    "headTilt": -0.042275770662585276
+                  },
+                  "bodyTo": {
+                    "travelX": -0.03288115495978855,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.07515692562237383,
+                    "leanX": 0.03288115495978855,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.07515692562237383,
+                    "headTilt": -0.042275770662585276
+                  }
+                },
+                {
+                  "kind": "overhead-return",
+                  "start": 18.06885358469365,
+                  "duration": 0.9613283810356125,
+                  "motif": "flourish",
+                  "candidateChecks": 1,
+                  "spinStart": -54.1694814948581,
+                  "spinEnd": -57.78264911909583,
+                  "bodyFrom": {
+                    "travelX": -0.03288115495978855,
+                    "travelZ": -0.037578462811186916,
+                    "turn": 0.07515692562237383,
+                    "leanX": 0.03288115495978855,
+                    "leanZ": 0.02348653925699182,
+                    "headYaw": 0.07515692562237383,
+                    "headTilt": -0.042275770662585276
+                  },
+                  "bodyTo": {
+                    "travelX": -0.05636769421678037,
+                    "travelZ": -0.018789231405593458,
+                    "turn": 0.09394615702796728,
+                    "leanX": -0.009394615702796729,
+                    "leanZ": 0.037578462811186916,
+                    "headYaw": 0.11273538843356073,
+                    "headTilt": -0.014091923554195092
+                  }
+                },
+                {
+                  "kind": "return-transfer",
+                  "start": 19.030181965729263,
+                  "duration": 0.7553294422422672,
+                  "motif": "motif",
+                  "candidateChecks": 1,
+                  "spinStart": -57.78264911909583,
+                  "spinEnd": -60.62156653813976,
+                  "bodyFrom": {
+                    "travelX": -0.05636769421678037,
+                    "travelZ": -0.018789231405593458,
+                    "turn": 0.09394615702796728,
+                    "leanX": -0.009394615702796729,
+                    "leanZ": 0.037578462811186916,
+                    "headYaw": 0.11273538843356073,
+                    "headTilt": -0.014091923554195092
+                  },
+                  "bodyTo": {
+                    "travelX": 0.037578462811186916,
+                    "travelZ": 0,
+                    "turn": -0.05636769421678037,
+                    "leanX": -0.0046973078513983645,
+                    "leanZ": -0.028183847108390184,
+                    "headYaw": -0.09394615702796728,
+                    "headTilt": -0.014091923554195092
+                  }
+                },
+                {
+                  "kind": "motif-return",
+                  "start": 19.78551140797153,
+                  "duration": 1.3904928368550828,
+                  "motif": "return",
+                  "candidateChecks": 1,
+                  "spinStart": -60.62156653813976,
+                  "spinEnd": -65.84775542319791,
+                  "bodyFrom": {
+                    "travelX": 0.037578462811186916,
+                    "travelZ": 0,
+                    "turn": -0.05636769421678037,
+                    "leanX": -0.0046973078513983645,
+                    "leanZ": -0.028183847108390184,
+                    "headYaw": -0.09394615702796728,
+                    "headTilt": -0.014091923554195092
+                  },
+                  "bodyTo": {
+                    "travelX": 0.037578462811186916,
+                    "travelZ": 0,
+                    "turn": -0.05636769421678037,
+                    "leanX": -0.0046973078513983645,
+                    "leanZ": -0.028183847108390184,
+                    "headYaw": -0.09394615702796728,
+                    "headTilt": -0.014091923554195092
+                  }
+                },
+                {
+                  "kind": "resolution",
+                  "start": 21.17600424482661,
+                  "duration": 0.8239957551733887,
+                  "motif": "resolution",
+                  "candidateChecks": 1,
+                  "spinStart": -65.84775542319791,
+                  "spinEnd": -68.94475624397313,
+                  "bodyFrom": {
+                    "travelX": 0.037578462811186916,
+                    "travelZ": 0,
+                    "turn": -0.05636769421678037,
+                    "leanX": -0.0046973078513983645,
+                    "leanZ": -0.028183847108390184,
+                    "headYaw": -0.09394615702796728,
+                    "headTilt": -0.014091923554195092
+                  },
+                  "bodyTo": {
+                    "travelX": 0,
+                    "travelZ": 0,
+                    "turn": 0,
+                    "leanX": 0,
+                    "leanZ": 0,
+                    "headYaw": 0,
+                    "headTilt": 0
+                  }
+                }
+              ],
+              "envelope": {
+                "radius": 2.8,
+                "height": 3.4
+              },
+              "candidateChecks": 23,
+              "vocabulary": "hand-body-flight-v1"
+            }
+          }
+        }
+      ],
+      "incomplete": false,
+      "error": null
+    }
+  },
+  "camera": {
+    "position": [
+      1.558567438091862,
+      2.0147273917483806,
+      -4.644232632813391
+    ],
+    "target": [
+      2.5,
+      1.25,
+      0
+    ],
+    "distance": 4.8,
+    "yaw": 3.3415926535897933,
+    "pitch": 0.16
+  },
+  "lighting": {
+    "time": 0.30429777777774475,
+    "nightness": 0
+  },
+  "render": {
+    "calls": 1,
+    "triangles": 1
+  }
+}

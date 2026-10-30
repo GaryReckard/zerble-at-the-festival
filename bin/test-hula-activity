@@ -7,6 +7,9 @@ register('./node-three-shim.mjs',import.meta.url);
 const {registry}=await import('../src/registry.js');
 const {HulaActivity}=await import('../src/people/hulaActivity.js');
 const people=makePeopleCrowd(),person=people.spawnPerson({pos:new Vector(2,0,0)}),record=people.peopleHandles.resolve(person);record.scale=1;
+// This ownership fixture records the public presentation read; real matrices
+// and articulated geometry are verified by test-hoop-workshop/classic.
+people.armsMesh.getMatrixAt=(_index,out)=>out;
 const placeId=registry.add({kind:'stage_front',position:new Vector(0,0,0),footprint:0,attractor:{radius:10,weight:1}});
 const previousRandom=Math.random;let randomDraws=0;Math.random=()=>{randomDraws++;return .5;};
 const runtime=new PeopleRuntime(),activity=new HulaActivity({people,runtime});
@@ -24,6 +27,7 @@ runtime.dispose();Math.random=previousRandom;assert.equal(randomDraws,0,'activit
 
 {
  const people=makePeopleCrowd(),person=people.spawnPerson({pos:new Vector(2,0,0)});people.peopleHandles.resolve(person).scale=1;
+ people.armsMesh.getMatrixAt=(_index,out)=>out;
  const id=registry.add({kind:'stage_front',position:new Vector(),footprint:0,attractor:{radius:10,weight:1}}),runtime=new PeopleRuntime(),activity=new HulaActivity({people,runtime});
  const cart={position:new Vector(),forwardWorld:{x:0,z:1},speed:0};activity.update(.05,{zerble:cart,nightness:0});assert(activity.slots.every(s=>!s.session.person),'parked cart excludes nearby hula recruitment');
  cart.position.z=40;activity.scan=0;activity.update(.05,{zerble:cart,nightness:0});const slot=activity.slots.find(s=>s.session.person===person);assert(slot);activity.update(.05,{zerble:cart,nightness:0});

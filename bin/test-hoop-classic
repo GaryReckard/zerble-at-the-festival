@@ -1,0 +1,81 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {sampleClassicHoopMotion} from '../src/people/hoop/classic.js';
+import {createHoopSample} from '../src/people/hoop/score.js';
+import {sampleHulaMotion} from '../src/personMotion.js';
+import {sampleHoopKnee,validateHoopFeet} from '../src/people/hoop/leg.js';
+import {buildHulaHooper,tickHulaHooper} from '../src/models/hulaHooper.js';
+import {disposeSceneResources} from '../src/people/sceneResources.js';
+const TAU=Math.PI*2,near=(a,b,label,t=1e-9)=>assert(Math.abs(a-b)<t,label+': '+a+' vs '+b);
+function armPoints(arms,left){
+ const x=left?arms.leftX:arms.x,z=left?arms.leftZ:arms.z,e=left?arms.leftElbow:arms.elbow;
+ const shoulder=new THREE.Vector3(left?-.30:.30,1.35,0),q=new THREE.Quaternion().setFromEuler(new THREE.Euler(x,0,z));
+ const elbow=new THREE.Vector3(0,-.29,0).applyQuaternion(q).add(shoulder);
+ const hand=new THREE.Vector3(0,-.29,0).applyAxisAngle(new THREE.Vector3(0,0,1),e).add(new THREE.Vector3(0,-.29,0)).applyQuaternion(q).add(shoulder);
+ return [shoulder,elbow,hand];
+}
+function bodyMatrix(m){return new THREE.Matrix4().makeTranslation(0,m.rootY,0).multiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(m.leanX,0,m.leanZ)));}
+function ringDistance(point,m){
+ const local=point.clone().sub(new THREE.Vector3(0,.85,0)).applyQuaternion(new THREE.Quaternion().setFromEuler(new THREE.Euler(m.hoopX,m.hoopY,m.hoopZ)).invert());local.x-=.27;
+ return Math.hypot(Math.hypot(local.x,local.z)-.58,local.y)-.035;
+}
+const sample=createHoopSample(),other=createHoopSample(),legacy={};let minHead=Infinity,minArmRing=Infinity,minWaist=Infinity;
+const ranges={right:{min:Infinity,max:-Infinity},left:{min:Infinity,max:-Infinity},headYaw:{min:Infinity,max:-Infinity},headTilt:{min:Infinity,max:-Infinity}};
+for(let i=0;i<2048;i++){
+ const phase=i/2048*TAU;sampleClassicHoopMotion(phase,1.65,sample);sampleHulaMotion(phase,1.65,legacy);
+ assert.equal(sample.style,'classic');assert.equal(sample.articulated,true);assert.equal(sample.inertialContacts,false);assert.equal(sample.hoopCount,0);
+ for(const key of ['hoopX','hoopY','hoopZ'])near(sample[key],legacy[key],'familiar waist ring '+key);
+ for(const key of ['travelX','travelZ','turn','stride'])assert.equal(sample[key],0,'classic remains at its waist-hooping anchor');
+ assert(sample.rootY>=-.038&&sample.rootY<=-.024);validateHoopFeet(sample.feet);
+ const body=bodyMatrix(sample),bodyQ=new THREE.Quaternion().setFromEuler(new THREE.Euler(sample.leanX,0,sample.leanZ));
+ for(const [side,x] of [['left',-.13],['right',.13]]){
+  const foot=sample.feet[side],sole=new THREE.Vector3(foot.x,foot.y,foot.z).applyMatrix4(body);
+  near(sole.x,x,side+' fixed sole x');near(sole.y,0,side+' fixed sole height');near(sole.z,0,side+' fixed sole z');assert(foot.planted);assert.equal(foot.plantId,side==='left'?0:1);
+  const q=bodyQ.clone().multiply(new THREE.Quaternion(foot.qx,foot.qy,foot.qz,foot.qw));near(Math.abs(q.w),1,'sole world orientation');
+  const knee={};sampleHoopKnee(foot,side,knee);
+  const ankle=new THREE.Vector3(0,.07,0).applyQuaternion(new THREE.Quaternion(foot.qx,foot.qy,foot.qz,foot.qw)).add(new THREE.Vector3(foot.x,foot.y,foot.z));
+  near(new THREE.Vector3(knee.x,knee.y,knee.z).distanceTo(new THREE.Vector3(side==='left'?-.12:.12,.65,0)),.325,'fixed upper leg length');near(ankle.distanceTo(new THREE.Vector3(knee.x,knee.y,knee.z)),.325,'fixed lower leg length');
+ }
+ for(const left of [false,true]){
+  const points=armPoints(sample.arms,left),range=ranges[left?'left':'right'];range.min=Math.min(range.min,points[2].y);range.max=Math.max(range.max,points[2].y);
+  for(let segment=0;segment<2;segment++)for(let step=0;step<=8;step++){
+   const p=points[segment].clone().lerp(points[segment+1],step/8);minHead=Math.min(minHead,p.distanceTo(new THREE.Vector3(0,1.78,0)));minArmRing=Math.min(minArmRing,ringDistance(p,sample));
+  }
+ }
+ for(let j=0;j<24;j++)minWaist=Math.min(minWaist,ringDistance(new THREE.Vector3(.22*Math.cos(j/24*TAU),.85,.22*Math.sin(j/24*TAU)),sample));
+ for(const key of ['headYaw','headTilt']){ranges[key].min=Math.min(ranges[key].min,sample[key]);ranges[key].max=Math.max(ranges[key].max,sample[key]);}
+ sampleClassicHoopMotion(phase+TAU,1.65,other);
+ for(const key of ['rootY','leanX','leanZ','headYaw','headTilt'])near(other[key],sample[key],'periodic '+key);
+ for(const key of Object.keys(sample.arms))near(other.arms[key],sample.arms[key],'periodic '+key);
+ for(const side of ['left','right'])for(const key of ['x','y','z','qx','qy','qz','qw'])near(other.feet[side][key],sample.feet[side][key],'periodic foot '+key);
+ near(other.hoopY-sample.hoopY,TAU*1.65,'waist spin remains unwrapped and continuous');
+}
+assert(ranges.right.max-ranges.right.min>.08);assert(ranges.left.max-ranges.left.min>.05);assert(ranges.headYaw.max-ranges.headYaw.min>.2);assert(ranges.headTilt.max-ranges.headTilt.min>.08);
+assert(minHead>.33,'raised arms clear the head plus sleeve radius');assert(minArmRing>.10,'raised arms clear the spinning waist ring');assert(minWaist>.04,'waist capsule clears the torus tube');
+console.log('PASS classic waist mode: 2048 phases, exact ring convention, grounded fixed-length legs, expressive arms/head, periodicity and measured clearances.');
+{
+ const previous=Math.random;Math.random=()=>{throw Error('sampling consumed global randomness');};
+ try{sampleClassicHoopMotion(.5,1.65,sample);}finally{Math.random=previous;}
+ for(const args of [[NaN,1],[Infinity,1],[0,NaN],[0,0],[0,-1]])assert.throws(()=>sampleClassicHoopMotion(args[0],args[1],sample),RangeError);
+ const before=JSON.stringify(sample);sampleClassicHoopMotion(.5,1.65,sample);assert.equal(JSON.stringify(sample),before,'same phase has no integration state');
+}
+{
+ let rngCalls=0;const model=buildHulaHooper(()=>{rngCalls++;return .4;}),u=model.userData;assert.equal(rngCalls,6,'model appearance preserves its injected RNG draw order/count');
+ let minimum=Infinity,maxSoleDrift=0,shadowCasters=0,draws=0,triangles=0;
+ model.traverse(o=>{if(o.isMesh){draws++;triangles+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3;if(o.castShadow)shadowCasters++;}});
+ for(let frame=0;frame<256;frame++){
+  u.phase=frame/256*TAU;tickHulaHooper(model,0);model.updateMatrixWorld(true);
+  for(const rig of u.legRigs){
+   const p=rig.shoe.geometry.attributes.position;
+   for(let i=0;i<p.count;i++){const v=new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i)).applyMatrix4(rig.shoe.matrixWorld);minimum=Math.min(minimum,v.y);}
+   const sole=new THREE.Vector3(0,-.035*.85,.06*.85).applyMatrix4(rig.shoe.matrixWorld);maxSoleDrift=Math.max(maxSoleDrift,sole.distanceTo(new THREE.Vector3(rig.side==='left'?-.13*.85:.13*.85,0,0)));
+   const kneeA=new THREE.Vector3(0,.325*.85/2,0).applyMatrix4(rig.upper.matrixWorld),kneeB=new THREE.Vector3(0,-.325*.85/2,0).applyMatrix4(rig.lower.matrixWorld);assert(kneeA.distanceTo(kneeB)<1e-8,'preview upper/lower knee joint stays welded');
+  }
+  const expected=sampleClassicHoopMotion(u.phase,u.hoopSpinMult,other);near(u.armRigs.right.shoulder.rotation.z,expected.arms.z,'preview shares right arm');near(u.armRigs.left.elbow.rotation.z,expected.arms.leftElbow,'preview shares left elbow');near(u.headRig.rotation.y,expected.headYaw,'preview shares head motion');
+ }
+ assert(minimum> -1e-7,'preview shoes remain above ground');assert(maxSoleDrift<1e-8,'preview planted soles do not slide');assert.equal(shadowCasters,4,'articulation adds no shadow casters');
+ const snapshot=JSON.stringify(u.motion);tickHulaHooper(model,0);assert.equal(JSON.stringify(u.motion),snapshot,'zero-delta preview preserves motion');
+ model.position.z-=.01;tickHulaHooper(model,.02);assert(u.locomotion.pose.active,'preview retains ordinary travel stride');disposeSceneResources(model);
+ console.log('PASS standalone classic joints/grounding/RNG/locomotion: '+JSON.stringify({draws,triangles,shadowCasters,minSoleY:minimum,maxSoleDrift,minHead,minArmRing,minWaist}));
+}

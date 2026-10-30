@@ -1,0 +1,399 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+
+// Real Three.js matrices and the production Crowd, runtime and activity, without
+// a GPU renderer. Browser captures still establish materials and visual quality.
+globalThis.window={innerWidth:1280,innerHeight:800};
+globalThis.location={search:'?perf=low&mute=1',pathname:'/sandbox.html',hostname:'127.0.0.1'};
+const {HoopWorkshop}=await import('../src/people/hoop/workshop.js');
+const {registry}=await import('../src/registry.js');
+const {Vector3,Matrix4,Quaternion,Triangle,Line3}=await import('three');
+const {compileHoopScore,sampleHoopHand}=await import('../src/people/hoop/score.js');
+const {terrainHeight}=await import('../src/worldgen/terrain.js');
+const nearMatrix=(actual,expected,label)=>{
+  for(let i=0;i<16;i++)assert(Math.abs(actual.elements[i]-expected.elements[i])<2e-5,`${label}, matrix component ${i}`);
+};
+function verifyBodyPresentation(workshop,label,plants){
+  const session=workshop.session,sample=session.style==='classic'?session.classicSample:session.flowSample,person=workshop.persons[1],slot=person.slot,view={};
+  assert(workshop.people.readPerson(person,view));
+  const anchor=session.flowAnchor,c=Math.cos(anchor.heading),s=Math.sin(anchor.heading);
+  const tx=(sample.travelX??0)*anchor.scale,tz=(sample.travelZ??0)*anchor.scale;
+  assert(Math.abs(view.x-(anchor.x+c*tx+s*tz))<1e-9,`${label}, anchored travel X`);
+  assert(Math.abs(view.z-(anchor.z-s*tx+c*tz))<1e-9,`${label}, anchored travel Z`);
+  assert(Math.abs(view.heading-anchor.heading-(sample.turn??0))<1e-9,`${label}, authored body turn`);
+  const ground=terrainHeight(view.x,view.z);assert(Math.abs(view.y-ground)<1e-9,`${label}, sampled ground`);
+  const shoes=workshop.people.shoesMesh,shoeMatrix=new Matrix4();shoes.getMatrixAt(slot,shoeMatrix);
+  const positions=shoes.geometry.getAttribute('position'),stride=shoes.geometry.getAttribute('walkStride').getX(slot);
+  assert.equal(shoes.geometry.getAttribute('crossLegged').getX(slot),0);
+  let minimum=Infinity;const point=new Vector3(),uploaded={};
+  if(sample.feet){
+    for(const side of ['left','right']){
+      const left=side==='left',foot=sample.feet[side],target=shoes.geometry.getAttribute(left?'flowLeftFoot':'flowRightFoot'),quat=shoes.geometry.getAttribute(left?'flowLeftQuat':'flowRightQuat');
+      assert.equal(target.getW(slot),1,`${label}, planted shader enabled`);
+      const targetV=new Vector3(target.getX(slot),target.getY(slot),target.getZ(slot)),q=new Quaternion(quat.getX(slot),quat.getY(slot),quat.getZ(slot),quat.getW(slot));
+      assert(targetV.distanceTo(new Vector3(foot.x,foot.y,foot.z))<2e-6,`${label}, uploaded sole target`);
+      const worldOrigin=targetV.clone().applyMatrix4(shoeMatrix),worldQ=new Quaternion().setFromRotationMatrix(new Matrix4().extractRotation(shoeMatrix)).multiply(q).normalize();
+      if(foot.planted&&plants){
+        assert(foot.plantId!==null&&foot.plantId!==undefined,`${label}, declared planted identity`);
+        const key=side+':'+foot.plantId,previous=plants.get(key);
+        if(previous){plants.repeated=(plants.repeated??0)+1;assert(worldOrigin.distanceTo(previous.position)<2e-5,`${label}, ${side} planted position stays fixed`);assert(worldQ.angleTo(previous.quaternion)<2e-5,`${label}, ${side} planted orientation stays fixed`);}
+        else plants.set(key,{position:worldOrigin,quaternion:worldQ});
+      }
+      uploaded[side]={target:targetV,quaternion:q,clearance:Infinity};
+    }
+  }else{
+    assert(Math.abs(stride-(sample.stride??0))<2e-7,`${label}, fallback published stride`);
+    for(const name of ['flowLeftFoot','flowRightFoot'])assert.equal(shoes.geometry.getAttribute(name).getW(slot),0,`${label}, no stale foot target`);
+  }
+  // Evaluate the shader independently on every actual shoe vertex. Planted
+  // soles use the uploaded quaternion and target, while pair/legacy poses keep
+  // the existing hip-stride path. Neither expected result calls leg.js.
+  for(let i=0;i<positions.count;i++){
+    const x=positions.getX(i),y=positions.getY(i),z=positions.getZ(i),side=x>0?'right':'left';
+    if(sample.feet){
+      const foot=uploaded[side];point.set(x-(x>0?.12:-.12),y,z).applyQuaternion(foot.quaternion).add(foot.target).applyMatrix4(shoeMatrix);
+      if(y<1e-6)foot.clearance=Math.min(foot.clearance,point.y-terrainHeight(point.x,point.z));
+    }else{
+      const angle=x>0?stride:-stride,cy=Math.cos(angle),sy=Math.sin(angle),localY=y-.65;
+      point.set(x,.65+cy*localY-sy*z,sy*localY+cy*z).applyMatrix4(shoeMatrix);
+    }
+    minimum=Math.min(minimum,point.y);
+  }
+  if(sample.feet){
+    for(const side of ['left','right']){
+      const clearance=uploaded[side].clearance,foot=sample.feet[side];
+      assert(clearance>=-2e-5,`${label}, ${side} shoe does not penetrate its actual terrain corners: ${clearance}`);
+      if(foot.planted)assert(Math.abs(clearance)<2e-5,`${label}, ${side} planted sole meets its actual terrain: ${clearance}`);
+      else if(plants)plants.maxSwing=Math.max(plants.maxSwing??0,clearance);
+    }
+  }else assert(Math.abs(minimum-ground)<2e-5,`${label}, fallback shoe minY=${minimum}, ground=${ground}`);
+  if(sample.feet){
+    const mesh=workshop.people.legsMesh,legMatrix=new Matrix4();mesh.getMatrixAt(slot,legMatrix);
+    const geometry=mesh.geometry.getAttribute('position'),normals=mesh.geometry.getAttribute('normal'),frames={};
+    for(const side of ['left','right']){
+      const sign=side==='right'?1:-1,foot=uploaded[side],hip=new Vector3(sign*.12,.65,0);
+      const ankle=new Vector3(0,.07,0).applyQuaternion(foot.quaternion).add(foot.target),axis=new Vector3().subVectors(ankle,hip),distance=axis.length();axis.normalize();
+      assert(distance<=.650002,`${label}, ${side} fixed leg reach`);
+      const pole=new Vector3(0,0,-1).projectOnPlane(axis).normalize();
+      const knee=new Vector3().addVectors(hip,ankle).multiplyScalar(.5).addScaledVector(pole,Math.sqrt(Math.max(0,.325*.325-distance*distance/4)));
+      assert(Math.abs(hip.distanceTo(knee)-.325)<2e-6&&Math.abs(knee.distanceTo(ankle)-.325)<2e-6,`${label}, two fixed-length segments`);
+      frames[side]=[true,false].map(upper=>{
+        const a=upper?hip:knee,b=upper?knee:ankle,up=new Vector3().subVectors(a,b).normalize();
+        const right=new Vector3().crossVectors(up,new Vector3(0,0,1)).normalize(),forward=new Vector3().crossVectors(right,up);
+        return {a,up,right,forward,rest:new Vector3(sign*.12,upper?.65:.325,0)};
+      });
+    }
+    for(let i=0;i<geometry.count;i++){
+      const x=geometry.getX(i),y=geometry.getY(i),z=geometry.getZ(i),frame=frames[x>0?'right':'left'][y>.325?0:1];
+      const dx=x-frame.rest.x,dy=y-frame.rest.y,dz=z-frame.rest.z;
+      point.copy(frame.a).addScaledVector(frame.right,dx).addScaledVector(frame.up,dy).addScaledVector(frame.forward,dz).applyMatrix4(legMatrix);
+      const clearance=point.y-terrainHeight(point.x,point.z);
+      assert(clearance>=-2e-5,`${label}, leg/cuff vertex stays above terrain: ${clearance}`);
+      const n=new Vector3().addScaledVector(frame.right,normals.getX(i)).addScaledVector(frame.up,normals.getY(i)).addScaledVector(frame.forward,normals.getZ(i));
+      assert(Math.abs(n.length()-1)<2e-6,`${label}, articulated normal stays unit length`);
+    }
+  }
+  const bodyMatrix=new Matrix4(),headMatrix=new Matrix4(),eyesMatrix=new Matrix4(),mouthMatrix=new Matrix4();
+  assert(workshop.people.readActivityPresentation(session.claim,bodyMatrix));
+  const a=workshop.people.armsMesh.geometry.getAttribute('armPose'),left=workshop.people.armsMesh.geometry.getAttribute('armLeftPose');
+  const armActual=[a.getX(slot),a.getY(slot),a.getZ(slot),a.getW(slot),left.getX(slot),left.getY(slot)];
+  const armExpected=[sample.arms.x,sample.arms.z,sample.arms.elbow,sample.arms.leftZ,sample.arms.leftX,sample.arms.leftElbow];
+  for(let i=0;i<6;i++)assert(Math.abs(armActual[i]-armExpected[i])<2e-7,`${label}, articulated arm ${i}`);
+
+  workshop.people.headMesh.getMatrixAt(slot,headMatrix);workshop.people.eyesMesh.getMatrixAt(slot,eyesMatrix);workshop.people.mouthMesh.getMatrixAt(slot,mouthMatrix);
+  const localHead=new Matrix4().makeTranslation(0,1.65,0)
+    .multiply(new Matrix4().makeRotationY(sample.headYaw??0))
+    .multiply(new Matrix4().makeRotationZ(sample.headTilt??0))
+    .multiply(new Matrix4().makeTranslation(0,-1.65,0));
+  nearMatrix(headMatrix,new Matrix4().multiplyMatrices(bodyMatrix,localHead),`${label}, head follows its neck pivot`);
+  nearMatrix(eyesMatrix,headMatrix,`${label}, eyes follow the head`);
+  // Check actual rendered head/nose and eye vertices against each torus tube
+  // after independent head motion. This is sampled CPU geometry evidence,
+  // rather than a claim that vertex checks prove all triangle intersections.
+  const headToBody=new Matrix4().multiplyMatrices(bodyMatrix.clone().invert(),headMatrix);
+  for(let h=0;h<(sample.hoops?(sample.hoopCount??0):0);h++){
+    const hoop=sample.hoops[h],ring=new Matrix4().makeRotationFromQuaternion(new Quaternion(hoop.qx,hoop.qy,hoop.qz,hoop.qw));ring.setPosition(hoop.x,hoop.y,hoop.z);
+    const headToHoop=new Matrix4().multiplyMatrices(ring.invert(),headToBody);
+    let clearance=Infinity;const vertex=new Vector3();
+    for(const mesh of [workshop.people.headMesh,workshop.people.eyesMesh]){
+      const position=mesh.geometry.getAttribute('position');
+      for(let i=0;i<position.count;i++){
+        vertex.fromBufferAttribute(position,i).applyMatrix4(headToHoop);
+        const distance=Math.hypot(Math.hypot(vertex.x,vertex.y)-hoop.radius,vertex.z);
+        clearance=Math.min(clearance,distance-.035);
+      }
+    }
+    assert(clearance>0,`${label}, ${sample.kind}, hoop ${h}, rendered head/nose/eyes tube clearance ${clearance}`);
+  }
+
+  const inverseHead=headMatrix.clone().invert(),localMouth=new Matrix4().multiplyMatrices(inverseHead,mouthMatrix);
+  assert(Math.abs(localMouth.elements[12])<2e-5&&Math.abs(localMouth.elements[13]-1.55)<2e-5&&Math.abs(localMouth.elements[14]+.215)<2e-5,`${label}, mouth stays face-local`);
+  let foundHair=false;
+  for(const [style,mesh] of workshop.people.hairMeshes.entries()){
+    const ys=style===0?.92:1;
+    const expected=new Matrix4().makeScale(.98,ys,style===2?1.02:.98);expected.setPosition(0,1.78*(1-ys),0);
+    for(let i=0;i<mesh.count;i++){
+      const matrix=new Matrix4();mesh.getMatrixAt(i,matrix);const local=new Matrix4().multiplyMatrices(inverseHead,matrix);
+      if(local.elements.every((value,j)=>Math.abs(value-expected.elements[j])<2e-5))foundHair=true;
+    }
+  }
+  assert(foundHair,`${label}, one rendered hair instance follows this head's presentation`);
+}
+function renderedArmRail(workshop){
+  const person=workshop.persons[1],geometry=workshop.people.armsMesh.geometry,pose=geometry.getAttribute('armPose'),leftPose=geometry.getAttribute('armLeftPose'),slot=person.slot;
+  const points={},transforms={};
+  for(const side of ['left','right']){
+    const left=side==='left',shoulder=new Vector3(left?-.30:.30,1.35,0),x=left?leftPose.getX(slot):pose.getX(slot),z=left?pose.getW(slot):pose.getY(slot),elbow=left?leftPose.getY(slot):pose.getZ(slot);
+    const upper=new Matrix4().makeTranslation(shoulder.x,shoulder.y,0).multiply(new Matrix4().makeRotationX(x)).multiply(new Matrix4().makeRotationZ(z)).multiply(new Matrix4().makeTranslation(-shoulder.x,-shoulder.y,0));
+    const restElbow=new Vector3(shoulder.x,1.06,0),lower=upper.clone().multiply(new Matrix4().makeTranslation(restElbow.x,restElbow.y,0)).multiply(new Matrix4().makeRotationZ(elbow)).multiply(new Matrix4().makeTranslation(-restElbow.x,-restElbow.y,0));
+    points[side]={shoulder,elbow:restElbow.clone().applyMatrix4(upper),hand:new Vector3(shoulder.x,.77,0).applyMatrix4(lower)};
+    transforms[side]={upper,lower};
+  }
+  const positions=geometry.getAttribute('position'),lowers=geometry.getAttribute('armLower'),vertices=[];
+  for(let i=0;i<positions.count;i++){
+    const v=new Vector3().fromBufferAttribute(positions,i),side=v.x>0?'right':'left';
+    v.applyMatrix4(lowers.getX(i)>.5?transforms[side].lower:transforms[side].upper);vertices.push(v);
+  }
+  return {points,vertices};
+}
+function meshSurfaceDistance(geometry,vertices,point){
+  const indices=geometry.index,triangle=new Triangle(),nearest=new Vector3();let distance=Infinity;
+  for(let i=0;i<(indices?.count??vertices.length);i+=3){
+    triangle.set(vertices[indices?indices.getX(i):i],vertices[indices?indices.getX(i+1):i+1],vertices[indices?indices.getX(i+2):i+2]);
+    triangle.closestPointToPoint(point,nearest);distance=Math.min(distance,nearest.distanceTo(point));
+  }
+  return distance;
+}
+function verifyChestSupport(workshop,label,metrics,expectedKind='chest-roll'){
+  const sample=workshop.session.flowSample,h=sample.hoops[0];
+  assert.equal(sample.kind,expectedKind,`${label}, support belongs to the declared roll/catch phase`);
+  const roles=['left-palm','left-forearm','left-upperarm','chest','right-upperarm','right-forearm','right-palm'];
+  assert(roles.includes(h.contact),`${label}, explicit bounded support role`);
+  if(metrics.roles.at(-1)!==h.contact)metrics.roles.push(h.contact);
+  const bodyMatrix=new Matrix4();assert(workshop.people.readActivityPresentation(workshop.session.claim,bodyMatrix));
+  workshop.activity.group.updateMatrixWorld(true);
+  const mesh=workshop.activity.slots[1].hoop,ringToBody=new Matrix4().multiplyMatrices(bodyMatrix.clone().invert(),mesh.matrixWorld);
+  // The actual torus mesh includes material spin, so remove it from the
+  // declared contact angle when locating that same geometric rim point.
+  const angle=h.contactAngle-h.spin,support=new Vector3(.58*Math.cos(angle),.58*Math.sin(angle),0).applyMatrix4(ringToBody);
+  assert(support.distanceTo(new Vector3(h.supportX,h.supportY,h.supportZ))<2e-5,`${label}, rendered rim agrees with declared support`);
+  const rail=renderedArmRail(workshop),torso=workshop.people.bodyMesh.geometry;
+  torso.computeBoundingBox();const bounds=torso.boundingBox,bodyY=(bounds.min.y+bounds.max.y)/2,bodyRadius=(bounds.max.z-bounds.min.z)/2,halfAxis=(bounds.max.y-bounds.min.y)/2-bodyRadius;
+  const low=bodyY-halfAxis,high=bodyY+halfAxis;
+  let expectedAxis,skinRadius,skinGeometry,skinVertices;
+  if(h.contact==='chest'){
+    expectedAxis=new Vector3(0,Math.max(low,Math.min(high,support.y)),0);skinRadius=bodyRadius;skinGeometry=torso;
+    skinVertices=Array.from({length:torso.attributes.position.count},(_,i)=>new Vector3().fromBufferAttribute(torso.attributes.position,i));
+    assert.equal(sample.kind,'chest-roll','torso contact is allowed only for the explicit chest roll, never as a global collision exemption');
+  }else{
+    const side=h.contact.startsWith('left')?'left':'right',limb=rail.points[side];skinRadius=.075;skinGeometry=workshop.people.armsMesh.geometry;skinVertices=rail.vertices;
+    assert(Math.abs(limb.shoulder.distanceTo(limb.hand)-.58)<2e-6,`${label}, both arm segments remain fully outstretched`);
+    assert(Math.abs(limb.hand.y-1.35)<2e-6&&Math.abs(limb.hand.z)<2e-6,`${label}, real rendered arm forms the rail`);
+    if(h.contact.endsWith('palm'))expectedAxis=limb.hand.clone();
+    else{
+      assert(h.supportT>=-2e-6&&h.supportT<=1+2e-6,`${label}, support parameter remains on its named segment`);
+      const start=h.contact.endsWith('forearm')?limb.hand:limb.elbow,end=h.contact.endsWith('forearm')?limb.elbow:limb.shoulder;
+      expectedAxis=start.clone().lerp(end,h.supportT);
+      const nearest=new Line3(start,end).closestPointToPoint(support,true,new Vector3());assert(nearest.distanceTo(expectedAxis)<2e-5,`${label}, contact is above the actual named limb coordinate`);
+    }
+  }
+  assert(Math.abs(h.supportRadius-(skinRadius+.035))<2e-5,`${label}, declared support radius includes skin and tube`);
+  assert(Math.abs(support.distanceTo(expectedAxis)-(skinRadius+.035))<2e-5,`${label}, actual rim is tangent to its declared skin proxy`);
+  const meshGap=meshSurfaceDistance(skinGeometry,skinVertices,support)-.035;
+  // The six-sided skin is inscribed inside its capsule proxy. Keep this
+  // measured faceting gap separate from analytical contact accuracy.
+  assert(meshGap>=-2e-5&&meshGap<.03,`${label}, rendered skin remains outside the tube with a bounded faceting gap: ${meshGap}`);
+  metrics.maxFacetingGap=Math.max(metrics.maxFacetingGap,meshGap);
+  const p=new Vector3(),nearest=new Vector3(),limbSegments=[];
+  for(const side of ['left','right']){const limb=rail.points[side];limbSegments.push(new Line3(limb.shoulder,limb.elbow),new Line3(limb.elbow,limb.hand));}
+  for(let i=0;i<192;i++){
+    const t=i/192*Math.PI*2;p.set(.58*Math.cos(t),.58*Math.sin(t),0).applyMatrix4(ringToBody);
+    const torsoDistance=Math.hypot(p.x,p.z,p.y<low?low-p.y:p.y>high?p.y-high:0)-bodyRadius;
+    // Tangency is valid, but no contact role disables the penetration test.
+    assert(torsoDistance>=.035-2e-5,`${label}, ring does not penetrate torso away from its support point`);
+    for(const segment of limbSegments){
+      segment.closestPointToPoint(p,true,nearest);assert(p.distanceTo(nearest)>=.11-2e-5,`${label}, ring does not pass through an arm`);
+    }
+  }
+}
+function renderedRing(workshop){
+  workshop.activity.group.updateMatrixWorld(true);
+  const ring=workshop.activity.slots[1].hoop;
+  return {center:ring.getWorldPosition(new Vector3()),normal:new Vector3(0,0,1).applyQuaternion(ring.getWorldQuaternion(new Quaternion())).normalize()};
+}
+const foreign=registry.add({kind:'test_foreign',position:new Vector3(1000,0,1000),footprint:1});
+const baseline=registry.entries.size;
+const workshop=new HoopWorkshop({seed:31,profile:'lyrical'}),status={};
+try{
+  workshop.inspect(status);assert.equal(status.phase,'hooping');assert.equal(status.population,2);assert.equal(status.placeLive,true);
+  for(const [mesh,shoe] of [[workshop.people.legsMesh,false],[workshop.people.shoesMesh,true]]){
+    const visible={vertexShader:'#include <beginnormal_vertex>\n#include <begin_vertex>'},depth={vertexShader:'#include <begin_vertex>'};
+    mesh.material.onBeforeCompile(visible);mesh.customDepthMaterial.onBeforeCompile(depth);
+    assert(visible.vertexShader.includes(`objectNormal=flowHoopLeg(objectNormal,true,${shoe});`));
+    assert(visible.vertexShader.includes(`transformed=flowHoopLeg(transformed,false,${shoe});`));
+    assert(depth.vertexShader.includes(`transformed=flowHoopLeg(transformed,false,${shoe});`));
+    assert(visible.vertexShader.includes('if(target.w<.5)return foldPicnicLeg(v,normalOnly);'),'classic and seated fallback remains in the compiled hook');
+    assert(Object.keys(mesh.geometry.attributes).length+5<=16,'custom data plus instanceMatrix/color stays within 16 vertex attribute slots');
+  }
+
+  const generation=workshop.session.generation,participation=workshop.session.elapsed;
+  workshop.paused=true;workshop.update(.05,1);assert.equal(workshop.session.elapsed,participation);assert.equal(workshop.nightness,1);
+  workshop.step(.05);assert.equal(workshop.session.elapsed,participation+.05);
+  const lifetime=workshop.session.elapsed,clock=workshop.runtime.time;
+  assert(workshop.seek(8));assert.equal(workshop.session.elapsed,lifetime);assert.equal(workshop.runtime.time,clock);assert.equal(workshop.session.generation,generation);
+  assert.equal(workshop.inspect(status).time,8);assert.equal(workshop.exportReplay().performance.style,'flow');
+  assert.throws(()=>workshop.seek(NaN));assert.throws(()=>workshop.step(.051));
+  const view={};assert(workshop.people.readPerson(workshop.persons[1],view));assert.equal(view.scale,1);
+  // Contacts are checked against actual copied instance matrices across poses,
+  // headings and scale. This is CPU/shader transform math, not a GPU test.
+  let contactChecks=0;const motion={travel:0,turn:0,stride:0,gaze:0};
+  for(const profile of ['lyrical','playful','aerial'])for(const hoops of [1,2])for(const scale of [.75,1,1.35])for(const heading of [0,Math.PI/4,Math.PI]){
+    workshop.restart({profile,scale,heading,hoops});const plants=new Map();
+    for(const time of Array.from({length:177},(_,i)=>i/8)){
+      assert(workshop.seek(time));workshop.inspect(status);
+      const sample=workshop.session.flowSample;assert(sample.feet?.left&&sample.feet?.right,'flow uses real planted foot descriptors');assert(Number.isFinite(sample.rootY));
+      for(const key of ['travelX','travelZ','turn','stride','headYaw','headTilt'])assert(Number.isFinite(sample[key]),`finite body field ${key}`);
+      motion.travel=Math.max(motion.travel,Math.hypot(sample.travelX,sample.travelZ));motion.turn=Math.max(motion.turn,Math.abs(sample.turn));
+      motion.stride=Math.max(motion.stride,Math.abs(sample.stride));motion.gaze=Math.max(motion.gaze,Math.hypot(sample.headYaw,sample.headTilt));
+      verifyBodyPresentation(workshop,`${profile}, ${hoops} hoops, scale ${scale}, heading ${heading}, t=${time}`,plants);
+      contactChecks+=status.contactCount;
+      assert(status.contactError<2e-5,`contact error ${status.contactError} at scale ${scale}, heading ${heading}, t=${time}`);
+    }
+    assert((plants.repeated??0)>20,'multiple frames retain each planted foot position/orientation');assert((plants.maxSwing??0)>.01,'the other foot lifts during a real swing');
+    assert(workshop.people.readPerson(workshop.persons[1],view));assert.equal(view.scale,scale);assert(Math.abs(view.heading-heading-(workshop.session.flowSample.turn??0))<1e-9);
+    // Contact alone can pass while the entire phrase happens behind the back.
+    // Take forward from actual rendered eyes/toes and compare the held hand.
+    const isolation=workshop.session.score.segments.find(segment=>segment.kind==='isolation');
+    assert(workshop.seek(isolation.start+isolation.duration/2));
+    const presentation=new Matrix4(),eyesMatrix=new Matrix4(),shoesMatrix=new Matrix4();
+    assert(workshop.people.readActivityPresentation(workshop.session.claim,presentation));
+    const slot=workshop.persons[1].slot;
+    workshop.people.eyesMesh.getMatrixAt(slot,eyesMatrix);workshop.people.shoesMesh.getMatrixAt(slot,shoesMatrix);
+    workshop.people.eyesMesh.geometry.computeBoundingBox();workshop.people.shoesMesh.geometry.computeBoundingBox();
+    const eyesForward=workshop.people.eyesMesh.geometry.boundingBox.getCenter(new Vector3());eyesForward.y=0;eyesForward.transformDirection(eyesMatrix);
+    const toesForward=workshop.people.shoesMesh.geometry.boundingBox.getCenter(new Vector3());toesForward.y=0;
+    if(workshop.session.flowSample.feet){const q=workshop.people.shoesMesh.geometry.getAttribute('flowRightQuat');toesForward.applyQuaternion(new Quaternion(q.getX(slot),q.getY(slot),q.getZ(slot),q.getW(slot)));}
+    toesForward.transformDirection(shoesMatrix);
+    const hand=sampleHoopHand(workshop.session.flowSample.arms,'right',new Vector3()).applyMatrix4(presentation);
+    const shoulder=new Vector3(.30,1.35,0).applyMatrix4(presentation);hand.sub(shoulder);
+    assert(eyesForward.dot(toesForward)>0,'the independently moving head remains in the same forward hemisphere as the feet');
+    assert(hand.dot(eyesForward)>.05*scale,'held isolation approaches the face side, not the back');
+    assert(hand.dot(toesForward)>.05*scale,'held isolation is in the direction of the rendered toes');
+    let heldRing=null,firstBody=null,movingDistance=0;
+    for(const u of [.12,.35,.60,.85]){
+      assert(workshop.seek(isolation.start+isolation.duration*u));const ring=renderedRing(workshop);
+      assert(workshop.people.readPerson(workshop.persons[1],view));const body=new Vector3(view.x,view.y,view.z);
+      if(heldRing){assert(ring.center.distanceTo(heldRing.center)<2e-5,'rendered isolation center stays fixed while body moves');assert(ring.normal.distanceTo(heldRing.normal)<2e-5,'rendered isolation plane stays fixed');movingDistance=Math.max(movingDistance,body.distanceTo(firstBody));}
+      else{heldRing=ring;firstBody=body;}
+      assert(workshop.inspect(status).contactError<2e-5,'moving isolation retains rendered hand contact');
+    }
+    assert(movingDistance>.005*scale,'the isolation is performed by a moving body, not an immobile root');
+    const toss=workshop.session.score.segments.find(segment=>segment.kind==='toss');
+    if(toss){
+      const h=toss.duration*.2,mid=toss.start+toss.duration*.5,centers=[];
+      for(const time of [mid-h,mid,mid+h]){assert(workshop.seek(time));centers.push(renderedRing(workshop).center);assert.equal(workshop.session.flowSample.hoops[0].contact,'none');}
+      const acceleration=(centers[2].y-2*centers[1].y+centers[0].y)/(h*h);
+      assert(Math.abs(acceleration+9.81*scale)<.002,'rendered toss retains unscaled-score gravity through root translation/lean/turn');
+      assert(Math.abs(centers[2].x-centers[0].x)<2e-5&&Math.abs(centers[2].z-centers[0].z)<2e-5,'rendered free-flight center is inertial rather than following the body');
+    }
+
+
+  }
+  for(const [kind,maximum] of Object.entries(motion))assert(maximum>1e-3,`the production score visibly exercises nonzero ${kind} rather than default zeros`);
+  assert(contactChecks>30,'the transformed fixtures include declared hand contacts, not just airborne zero-error frames');
+  // Select the chest family through its real bounded compiler, then prove
+  // actual publication/geometry across orientations and supported body scales.
+  const chestSeed=Array.from({length:128},(_,seed)=>seed).find(seed=>compileHoopScore({seed,slot:1,generation:258,profile:'lyrical',duration:22,hoops:1}).segments.some(segment=>segment.kind==='chest-roll'));
+  assert(chestSeed!==undefined,'a bounded seed set includes the complete chest-roll family');
+  let chestCases=0,maxChestFacetingGap=0;
+  for(const profile of ['lyrical','playful','aerial'])for(const scale of [.75,1,1.35])for(const heading of [0,Math.PI/4,Math.PI]){
+    workshop.restart({seed:chestSeed,profile,scale,heading,hoops:1});
+    const score=workshop.session.score,roll=score.segments.find(segment=>segment.kind==='chest-roll');assert(roll,'selected production encounter includes chest roll');
+    const metrics={roles:[],maxFacetingGap:0},plants=new Map();
+    for(let i=0;i<=128;i++){
+      const u=i/128;assert(workshop.seek(roll.start+roll.duration*u+(i===128?1e-10:0)));
+      // The half-open roll ends at the first opposite-palm regrip sample.
+      // Verify that real published catch instead of fabricating a roll frame.
+      const label=`chest ${profile}, scale ${scale}, heading ${heading}, u=${u}`;
+      verifyBodyPresentation(workshop,label,plants);verifyChestSupport(workshop,label,metrics,i===128?'chest-regrip':'chest-roll');chestCases++;
+    }
+    assert.deepEqual(metrics.roles,['left-palm','left-forearm','left-upperarm','chest','right-upperarm','right-forearm','right-palm'],'the real rolling support traverses both arms and upper chest in order');
+    maxChestFacetingGap=Math.max(maxChestFacetingGap,metrics.maxFacetingGap);
+    for(const kind of ['chest-enter','chest-seat','chest-regrip','chest-return','chest-handoff','chest-lift']){
+      const segment=score.segments.find(segment=>segment.kind===kind);assert(segment,`complete chest roll includes ${kind}`);
+      for(const u of [0,.25,.5,.75,1-1e-9]){assert(workshop.seek(segment.start+segment.duration*u));verifyBodyPresentation(workshop,`${kind}, ${profile}, scale ${scale}, heading ${heading}, u=${u}`);}
+    }
+    const seat=score.segments.find(segment=>segment.kind==='chest-seat'),regrip=score.segments.find(segment=>segment.kind==='chest-regrip'),held=score.segments.find(segment=>segment.kind==='chest-return');
+    assert(workshop.seek(seat.start+seat.duration*(1-1e-9)));assert.equal(workshop.session.flowSample.hoops[0].contact,'left-palm');assert(Math.abs(workshop.session.flowSample.hoops[0].supportRadius-.11)<2e-5,'initial hand seats hoop onto a real capsule support');
+    assert(workshop.seek(regrip.start+regrip.duration*(1-1e-9)));assert.equal(workshop.session.flowSample.hoops[0].contact,'right-palm');assert(Math.abs(workshop.session.flowSample.hoops[0].supportRadius)<2e-5,'opposite palm closes the support offset continuously');
+    for(const u of [.25,.5,.75]){
+      assert(workshop.seek(held.start+held.duration*u));assert.equal(workshop.session.flowSample.hoops[0].contact,'right','the opposite hand actually catches and carries the ring');
+      assert(workshop.inspect(status).contactCount>0&&status.contactError<2e-5,'real rendered opposite hand holds the caught hoop');
+    }
+  }
+  console.log(JSON.stringify({chestSeed,chestCases,maxChestFacetingGap,scope:'actual uploaded arm FK and ring matrices; exact analytical skin support; measured low-poly skin gap, not a GPU or triangle-intersection proof'}));
+
+  // Validation happens before teardown, so a bad control value cannot erase a
+  // currently inspectable encounter.
+  const person=workshop.persons[1];assert.throws(()=>workshop.restart({scale:0}));assert(workshop.people.readPerson(person,view));
+  workshop.interrupt();assert.equal(workshop.session.phase,'interrupted');assert.equal(workshop.activity.slots[1].hoop.visible,false);
+  workshop.removePlace();assert.equal(workshop.session.phase,'idle');assert.equal(workshop.activity.envelopes.size,0);
+  workshop.restart({seed:99,scale:1,heading:0});const removed=workshop.persons[1];assert(workshop.removePerson());assert(!workshop.people.readPerson(removed,view));assert.equal(workshop.session.phase,'idle');
+  for(const mesh of [workshop.people.legsMesh,workshop.people.shoesMesh])for(const side of ['Left','Right'])assert.equal(mesh.geometry.getAttribute('flow'+side+'Foot').getW(removed.slot),0,'retired instance resets planted data');
+  workshop.restart({mode:'baseline',profile:'lyrical',hoops:1,scale:1,heading:0});
+  assert.equal(workshop.session.style,'classic');assert.equal(workshop.inspect(status).population,2);
+  const classicPlants=new Map();
+  for(let i=0;i<180;i++){workshop.step(.05);verifyBodyPresentation(workshop,`classic waist t=${i*.05}`,classicPlants);}
+  assert((classicPlants.repeated??0)>100,'expressive waist hooping keeps both real feet planted');
+  for(const person of workshop.persons)for(const mesh of [workshop.people.legsMesh,workshop.people.shoesMesh])for(const side of ['Left','Right'])assert.equal(mesh.geometry.getAttribute('flow'+side+'Foot').getW(person.slot),1,'waist hooping shares articulated feet');
+  // Legacy providers explicitly opt out, even if a reused output buffer still
+  // contains foot and arm properties from an articulated activity.
+  const legacyPerson=workshop.persons[1];workshop.session.finish('legacy-fixture');
+  const legacyOwner={activityKey:'legacy-hula',sampleBodyPose(person,out){out.style='classic';out.articulated=false;out.bob=out.leanX=out.leanZ=0;out.feet={left:{x:NaN}};out.arms={x:NaN};return out;}};
+  const legacyClaim=workshop.people.claimActivity(legacyPerson,{owner:legacyOwner});assert(legacyClaim);
+  assert(workshop.people.readPerson(legacyPerson,view));assert(workshop.people.writeActivityPose(legacyClaim,view.x,view.y,view.z,view.heading));
+  for(const mesh of [workshop.people.legsMesh,workshop.people.shoesMesh])for(const side of ['Left','Right']){
+    const target=mesh.geometry.getAttribute('flow'+side+'Foot'),q=mesh.geometry.getAttribute('flow'+side+'Quat');
+    assert.equal(target.getW(legacyPerson.slot),0,'nonarticulated providers reset old foot targets');
+    assert.deepEqual([q.getX(legacyPerson.slot),q.getY(legacyPerson.slot),q.getZ(legacyPerson.slot),q.getW(legacyPerson.slot)],[0,0,0,1]);
+  }
+  const legacyArms=workshop.people.armsMesh.geometry.getAttribute('armPose');
+  assert(Math.abs(legacyArms.getY(legacyPerson.slot)-2.45)<2e-7,'nonarticulated hula retains original raised-arm branch');
+  workshop.people.endPersonActivity(legacyClaim);workshop.restart({mode:'baseline'});
+
+  for(let i=0;i<10;i++)workshop.step(.05);
+  workshop.inspect(status);assert.equal(status.style,'classic');assert(Math.abs(status.time-.5)<1e-12);assert.equal(status.contactCount,0);assert.equal(status.hoops,1);
+  assert.equal(workshop.seek(1),false);
+  const baselinePositions=workshop.persons.map(person=>{const view={};assert(workshop.people.readPerson(person,view));return [view.x,view.y,view.z,view.scale,view.shirt,view.skin];});
+  const baselineDraws=status.draws;
+  workshop.restart({mode:'solo'});workshop.inspect(status);
+  assert.deepEqual(workshop.persons.map(person=>{const view={};assert(workshop.people.readPerson(person,view));return [view.x,view.y,view.z,view.scale,view.shirt,view.skin];}),baselinePositions);
+  assert.equal(status.draws,baselineDraws,'single-hoop flow and classic baseline have matched production draws');
+  for(const scale of [.75,1,1.35]){
+    workshop.restart({mode:'partner',scale,heading:Math.PI/4});workshop.inspect(status);assert.equal(status.phase,'playing');assert.equal(status.population,3);assert.equal(status.hoops,1);
+    assert.throws(()=>workshop.seek(1),/Partner replay/);
+    let pairedContacts=0;
+    for(let i=0;i<240;i++){workshop.step(1/60);workshop.inspect(status);pairedContacts+=status.contactCount;assert(status.contactError<2e-5);}
+    assert(pairedContacts>30,'the exchange includes held hand contacts');
+    workshop.inspect(status);assert(Number.isFinite(status.contactError));assert(status.contactError<2e-5);
+    workshop.interrupt();assert.equal(workshop.session.phase,'idle');
+  }
+  workshop.restart({mode:'solo',scale:1});
+  let markerDisposals=0,activityDisposals=0;
+  workshop.markerGeometry.addEventListener('dispose',()=>markerDisposals++);
+  workshop.activity.material.addEventListener('dispose',()=>activityDisposals++);
+  const oldPeople=workshop.people,oldRuntime=workshop.runtime;workshop.dispose();workshop.dispose();
+  assert.equal(markerDisposals,1);assert.equal(activityDisposals,1);assert.equal(oldPeople.populationSize,0);assert.equal(oldRuntime.records.size,0);
+  assert.equal(workshop.group.children.length,0);assert.equal(registry.entries.size,baseline);assert(registry.entries.has(foreign));
+}finally{workshop.dispose();registry.remove(foreign);}
+const broken=new HoopWorkshop({seed:32});
+const brokenPeople=broken.people,brokenRuntime=broken.runtime;
+let secondaryRelease=0;
+broken.activity.material.addEventListener('dispose',()=>{throw new Error('injected activity cleanup failure');});
+broken.markerGeometry.addEventListener('dispose',()=>secondaryRelease++);
+assert.throws(()=>broken.dispose(),AggregateError);
+assert.equal(secondaryRelease,1,'a throwing child cleanup cannot suppress marker cleanup');
+assert.equal(brokenPeople.populationSize,0);assert.equal(brokenRuntime.records.size,0);assert.equal(broken.group.children.length,0);
+broken.dispose();
+assert.equal(registry.entries.size,baseline-1);
+console.log('PASS hoop workshop: production Crowd/runtime/activities, 9558 grounded shoe/head/torus vertex fixtures, nonzero body motion, transformed contacts, isolated seek/pause/step, interruption/lifetime loss, paired controls and owner teardown (CPU geometry only).');

@@ -1,4 +1,6 @@
-import {ARM_SHOULDER_Y,isStageDancing,sampleDanceArmPose,sampleThrowPose,sampleArmHand,sampleWalkMotion,walkingArrivalSpeed,idleSwayDelta,armShader,crossLegShader} from './personMotion.js';
+import {hoopFootLift} from './people/hoop/feet.js';
+import {validateHoopFeet} from './people/hoop/leg.js';
+import {ARM_SHOULDER_Y,isStageDancing,sampleDanceArmPose,sampleThrowPose,sampleArmHand,sampleWalkMotion,walkingArrivalSpeed,idleSwayDelta,armShader,crossLegShader,flowLegShader} from './personMotion.js';
 import {CampActivity} from './people/campActivity.js';
 import {MarketActivity} from './people/marketActivity.js';
 import {PottyActivity} from './people/pottyActivity.js';
@@ -245,6 +247,10 @@ export class Crowd {
     for(const geo of [legsGeo,shoesGeo])geo.setAttribute('crossLegged',new THREE.InstancedBufferAttribute(crossed,1));
     const strides=new Float32Array(MAX_NPCS);
     for(const geo of [legsGeo,shoesGeo])geo.setAttribute('walkStride',new THREE.InstancedBufferAttribute(strides,1));
+    for(const name of ['flowLeftFoot','flowRightFoot','flowLeftQuat','flowRightQuat']){
+      const data=new Float32Array(MAX_NPCS*4);
+      for(const geo of [legsGeo,shoesGeo])geo.setAttribute(name,new THREE.InstancedBufferAttribute(data,4));
+    }
 
     // ---- Body (torso): capsule centered at y=1.0 ----
     const bodyGeo = new THREE.CapsuleGeometry(BODY_RADIUS, BODY_LENGTH, 3, 6);
@@ -418,19 +424,20 @@ export class Crowd {
     bodyMat.customProgramCacheKey = () => 'crowd-appearance-v2';
     armsMat.customProgramCacheKey = () => 'crowd-articulated-v1';
 
-    for(const mat of [legsMat,shoesMat]){
-      mat.onBeforeCompile=shader=>{shader.vertexShader=crossLegShader+shader.vertexShader
-        .replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=foldPicnicLeg(objectNormal,true);')
-        .replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=foldPicnicLeg(transformed,false);');};
-      mat.customProgramCacheKey=()=> 'crowd-stride-v2';
+    for(const [mat,shoe] of [[legsMat,false],[shoesMat,true]]){
+      mat.onBeforeCompile=shader=>{shader.vertexShader=crossLegShader+flowLegShader+shader.vertexShader
+        .replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nobjectNormal=flowHoopLeg(objectNormal,true,'+shoe+');')
+        .replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=flowHoopLeg(transformed,false,'+shoe+');');};
+      mat.customProgramCacheKey=()=> 'crowd-planted-v1-'+(shoe?'shoes':'legs');
     }
     // ---- InstancedMeshes ----
     this.legsMesh  = new THREE.InstancedMesh(legsGeo,  legsMat,  MAX_NPCS);
     this.shoesMesh = new THREE.InstancedMesh(shoesGeo, shoesMat, MAX_NPCS);
     for(const mesh of [this.legsMesh,this.shoesMesh]){
       mesh.customDepthMaterial=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking});
-      mesh.customDepthMaterial.onBeforeCompile=shader=>{shader.vertexShader=crossLegShader+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=foldPicnicLeg(transformed,false);');};
-      mesh.customDepthMaterial.customProgramCacheKey=()=> 'crowd-stride-depth-v2';
+      const shoe=mesh===this.shoesMesh;
+      mesh.customDepthMaterial.onBeforeCompile=shader=>{shader.vertexShader=crossLegShader+flowLegShader+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed=flowHoopLeg(transformed,false,'+shoe+');');};
+      mesh.customDepthMaterial.customProgramCacheKey=()=> 'crowd-planted-depth-v1-'+(shoe?'shoes':'legs');
     }
     this.bodyMesh  = new THREE.InstancedMesh(bodyGeo,  bodyMat,  MAX_NPCS);
     this.armsMesh  = new THREE.InstancedMesh(armsGeo,  armsMat,  MAX_NPCS);
@@ -594,6 +601,7 @@ export class Crowd {
       .multiply(new THREE.Matrix4().makeRotationX(ARMS_UP_BEND))
       .multiply(new THREE.Matrix4().makeTranslation(0, -SHOULDER_Y, 0));
     this._armsMat = new THREE.Matrix4();
+    this._flowHeadMat = new THREE.Matrix4();this._flowHeadLocalMat = new THREE.Matrix4();
     this._musicArmMat = new THREE.Matrix4();
     this._musicPivotMat = new THREE.Matrix4();
     this._instrumentLocalMat = new THREE.Matrix4();
@@ -611,7 +619,8 @@ export class Crowd {
   }
 
   // Called by chunk generator.
-  spawn({ pos, chunkKey, rng = Math.random, forcePhotographer = false, allowPhotographer = true, appearanceOverride = null }) {
+  spawn({ pos, chunkKey, rng = Math.random, forcePhotographer = false, allowPhotographer = true, appearanceOverride = null, scale = null }) {
+    if(scale!==null&&(!Number.isFinite(scale)||scale<.5||scale>2))throw new RangeError('Person scale must be between .5 and 2.');
     if (this._disposed || this.free.length === 0) return null;
     const idx = this.free.pop();
 
@@ -763,6 +772,8 @@ export class Crowd {
     for (const a of this._skinAttrs) a.needsUpdate = true;
     this._styleAttrBody.needsUpdate = true;
 
+    // Keep the ordinary scale draw even in fixtures so later personality draws agree.
+    if(scale!==null)npc.scale=scale;
     // Initial transform
     this._writeMatrices(npc);
 
@@ -1573,6 +1584,10 @@ export class Crowd {
     const activityOwner=this.activityClaims.current.get(npc.personHandle)?.claim.owner;
     const hula=activityOwner?.sampleBodyPose?.(npc.personHandle,this._activityBodyPose??={});
     if(hula&&(!Number.isFinite(hula.bob)||!Number.isFinite(hula.leanX)||!Number.isFinite(hula.leanZ)))throw new TypeError('Activity body pose must be finite.');
+    const articulated=hula?.articulated===true;
+    const flowFeet=articulated?hula.feet:null;
+    if(flowFeet){validateHoopFeet(flowFeet);if(!Number.isFinite(hula.rootY))throw new TypeError('Planted flow requires a finite root height.');}
+    const flowSupport=articulated?(flowFeet?hula.rootY:hoopFootLift(hula.stride??0,hula.leanX,hula.leanZ))*npc.scale:0;
     const danceActivity=!!activityOwner?.isDancePerson?.(npc.personHandle);
     const stageDancing=!activityOwner&&isStageDancing(npc.state,npc.onDancefloor,npc.dance);
     let bobY;
@@ -1590,9 +1605,9 @@ export class Crowd {
         ? Math.sin(npc.bob * 2) * 0.05 * (npc.dance - 0.5)
         : 0;
     }
-    if(hula){bobY=hula.bob*npc.scale;danceTilt=hula.leanZ;danceYawWiggle=0;}
+    if(hula){bobY=articulated?flowSupport:hula.bob*npc.scale;danceTilt=hula.leanZ;danceYawWiggle=0;}
     // Unhappy NPCs don't vibe — kill the bounce + sway while frowning.
-    if (npc.frownTimer > 0 || photographing) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
+    if (npc.frownTimer > 0 || photographing) { bobY = flowSupport; danceTilt = 0; danceYawWiggle = 0; }
 
     // Chair contact stays fixed even near dancefloors or while smiling. A
     // feet-origin bob/tilt moves the pelvis through the supporting fabric.
@@ -1672,6 +1687,9 @@ export class Crowd {
     } else {
       feetY = npc.pos.y + bobY + bounceY + cheerY; // authoritative ground position plus animation
     }
+    // A planted score owns its full pelvis height; generic happy/cheer hops
+    // would slide both authored soles through their fixed ground contacts.
+    if(flowFeet)feetY=npc.pos.y+flowSupport;
     feetY-=photo.crouchDrop;
 
     // CRITICAL: position and scale must be DISTINCT Vector3 instances.
@@ -1707,11 +1725,12 @@ export class Crowd {
     // their legs+shoes bent forward at the hip so they sit; the upright
     // body/arms/head still use `m`. Standing running-board riders keep straight legs.
     // Cheering NPCs get arms rotated up via _armsUpMat (same pattern as _sitLegMat).
+    this._writeHoopFeet(npc,flowFeet);
     const folded=!!npc.picnicCrossLegged&&npc.state==='table_seated';
     for(const mesh of [this.legsMesh,this.shoesMesh]){const a=mesh.geometry.getAttribute('crossLegged');a.setX(npc.idx,folded?1:0);a.needsUpdate=true;}
     for(const mesh of [this.legsMesh,this.shoesMesh]){
       const stride=mesh.geometry.getAttribute('walkStride');
-      stride.setX(npc.idx,folded||seated||photo.crouch||hula||stageDancing||danceActivity?0:walk.stride);
+      stride.setX(npc.idx,articulated?(hula.stride??0):folded||seated||photo.crouch||hula||stageDancing||danceActivity?0:walk.stride);
       stride.needsUpdate=true;
     }
     if(folded){this.legsMesh.setMatrixAt(npc.idx,m);this.shoesMesh.setMatrixAt(npc.idx,m);}
@@ -1767,6 +1786,10 @@ export class Crowd {
     if(hasArmPose){
       armAttr.setXYZW(npc.idx,armPose.x,armPose.z,armPose.elbow,armPose.leftZ);
       sampleArmHand(armPose,armPose.hand).applyMatrix4(this._armsMat);
+    }else if(articulated){
+      const a=hula.arms;
+      if(!a||!Number.isFinite(a.x)||!Number.isFinite(a.z)||!Number.isFinite(a.elbow)||!Number.isFinite(a.leftX)||!Number.isFinite(a.leftZ)||!Number.isFinite(a.leftElbow))throw new TypeError('Flow arms must be finite.');
+      armAttr.setXYZW(npc.idx,a.x,a.z,a.elbow,a.leftZ);leftAttr.setXY(npc.idx,a.leftX,a.leftElbow);
     }else if(hula){armAttr.setXYZW(npc.idx,.03,2.45,-.20,-2.45);}
     else if(dancing){const pose=sampleDanceArmPose(npc.bob,npc.dance,this._danceArmPose??={});armAttr.setXYZW(npc.idx,pose.x,pose.z,pose.elbow,pose.leftZ);leftAttr.setXY(npc.idx,pose.leftX,pose.leftElbow);}
     else if(walk.active&&!seated&&!photographing&&!cheering&&!npc.campInstrument&&!npc.campMusic){
@@ -1776,14 +1799,20 @@ export class Crowd {
     }
     else {armAttr.setXYZW(npc.idx,0,0,0,0);}
     armAttr.needsUpdate=true;leftAttr.needsUpdate=true;
-    this.headMesh.setMatrixAt(npc.idx, m);
-    this.eyesMesh.setMatrixAt(npc.idx, m);
+    let headM=m;
+    if(articulated){
+      this._tmpDanceMat.makeRotationFromEuler(this._tmpEuler.set(0,hula.headYaw??0,hula.headTilt??0));
+      this._flowHeadLocalMat.makeTranslation(0,1.65,0).multiply(this._tmpDanceMat).multiply(this._musicPivotMat.makeTranslation(0,-1.65,0));
+      headM=this._flowHeadMat.multiplyMatrices(m,this._flowHeadLocalMat);
+    }
+    this.headMesh.setMatrixAt(npc.idx, headM);
+    this.eyesMesh.setMatrixAt(npc.idx, headM);
     const hairStyle = npc.appearance?.hairStyle || 0;
     const hairYScale = hairStyle === 0 ? 0.92 : 1;
     this._tmpV3.set(0, 1.78 * (1 - hairYScale), 0);
     this._tmpScale.set(0.98, hairYScale, hairStyle === 2 ? 1.02 : 0.98);
     this._hairLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
-    this._hairMat.multiplyMatrices(m, this._hairLocalMat);
+    this._hairMat.multiplyMatrices(headM, this._hairLocalMat);
     this.hairMeshes[hairStyle].setMatrixAt(npc.hairSlot, this._hairMat);
     if (npc.drinkSlot >= 0 && !photographing && !npc.campInstrument && !armPose && !hula) {
       this._tmpV3.set(0.34, 0, -0.07);
@@ -1810,7 +1839,7 @@ export class Crowd {
     this._tmpV3.set(0, 1.55, -0.215); // face-local offset, NPC body frame
     this._tmpScale.set(mouthScale, mouthScale, mouthScale);
     this._mouthLocalMat.compose(this._tmpV3, frowning ? this._frownQuat : this._identityQuat, this._tmpScale);
-    this._mouthMat.multiplyMatrices(m, this._mouthLocalMat);
+    this._mouthMat.multiplyMatrices(headM, this._mouthLocalMat);
     this.mouthMesh.setMatrixAt(npc.idx, this._mouthMat);
 
     if (npc.isPhotographer) {
@@ -2328,6 +2357,15 @@ export class Crowd {
     out.copy(pose.hand);return true;
   }
 
+  // Copy the published transform, including reaction precedence, instead of
+  // asking props to approximate the body's scale, bob and lean a second time.
+  readActivityPresentation(claim,out) {
+    if(!this.activityClaims.canWrite(claim))return false;
+    const npc=this.peopleHandles.resolve(claim.person);
+    if(npc._activityBinding?.hidden||npc.party)return false;
+    this.armsMesh.getMatrixAt(npc.idx,out);return true;
+  }
+
   setActivityBinding(claim,hidden) {
     if(!this.activityClaims.canWrite(claim))return false;
     const npc=this.peopleHandles.resolve(claim.person);
@@ -2445,7 +2483,22 @@ export class Crowd {
     if(errors.length)throw new AggregateError(errors,'Crowd teardown failed.');
   }
 
+  _writeHoopFeet(npc,feet) {
+    for(let meshIndex=0;meshIndex<2;meshIndex++){
+      const mesh=meshIndex===0?this.legsMesh:this.shoesMesh;
+      for(let side=0;side<2;side++){
+        const left=side===0,attr=mesh.geometry?.getAttribute(left?'flowLeftFoot':'flowRightFoot');
+        if(!attr)continue;
+        const quat=mesh.geometry.getAttribute(left?'flowLeftQuat':'flowRightQuat'),foot=feet?.[left?'left':'right'];
+        if(foot){attr.setXYZW(npc.idx,foot.x,foot.y,foot.z,1);quat.setXYZW(npc.idx,foot.qx,foot.qy,foot.qz,foot.qw);}
+        else{attr.setXYZW(npc.idx,0,0,0,0);quat.setXYZW(npc.idx,0,0,0,1);}
+        attr.needsUpdate=true;quat.needsUpdate=true;
+      }
+    }
+  }
+
   _hideNpc(npc) {
+    this._writeHoopFeet(npc,null);
     this.shoppingBagMesh?.setMatrixAt(npc.idx, this._zeroMat);
     if (npc.campInstrument) npc.campInstrument.group.visible = false;
     const z = this._zeroMat || (this._zeroMat = new THREE.Matrix4().makeScale(0, 0, 0));

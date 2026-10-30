@@ -1381,6 +1381,7 @@ function updatePanel(dt) {
     if (role in healingRoles) healingRoles[role]++;
   });
   const running = h.getRunning();
+  const hoopStats=state.hoopStats??={};h.hoopers?.inspect(hoopStats);
 
   const tod = h.getTimeOfDay && h.getTimeOfDay();
   const todStr = tod
@@ -1452,6 +1453,7 @@ function updatePanel(dt) {
     `npcs         ${npcs}  riding ${riders}  watch ${watching}  flee ${fleeing}\n` +
     `one-wheel    ${wheelRiders.length} · ${wheelRiders.map(r=>r.state+(r.reason?': '+r.reason:'')).join(', ')}\n` +
     `healing      yoga ${healingRoles.yoga}  out ${healingRoles.leaving}  in ${healingRoles.entering+healingRoles.yoga_entering}  dance ${healingRoles.dance}\n` +
+    `hoops        classic ${hoopStats.classic??0}  flow ${hoopStats.flow??0}  pair ${hoopStats.paired?'yes':'no'}  props ${hoopStats.hoops??0}  ${h.hoopers?.material?.type??'unavailable'}\n` +
     `woodland     ${woodlandCamps.length} camps · ${woodlandCamps.reduce((sum,e)=>sum+(e.campSeats?.length||0),0)} chairs\n` +
     `registry     ${registryCount}  colliders ${colliderCount}\n` +
     `time of day  ${todStr}\n` +

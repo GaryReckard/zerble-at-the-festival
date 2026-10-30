@@ -1,0 +1,43 @@
+# Second hoop research report: assessment and synthesis
+
+**TL/DR:** This report improves the reference trail and supports adding a visible waist groove to the earlier priorities of planted steps, moving isolation, and toss preparation/recovery. Its equations, exact anatomical prescriptions, timestamps and proposed combinations still require verification. Treat them as research input, not an implementation specification.
+
+## Input and review method
+
+The [second supplied report](research/02-hoop-dance-animation-research.md) is preserved byte-for-byte, including its 134 embedded equation images. Its prose, six phrases, reference list and equation images were inspected on 2026-10-29. The [first assessment](research-assessment.md) remains the record of the first report and the existing rig limits.
+
+Three instructional webpages were read directly: [HulaHooping.com's waist-hooping instructions](https://www.hulahooping.com/how-to-hoop.html), [HoopLovers' ghosting tutorial page](https://hooplovers.tv/ghosting-isolation-tutorial/), and [HoopLovers' isolation-flow page](https://hooplovers.tv/adding-isolations-to-your-hoop-dance-flow/). YouTube fetches for the cited chest-roll and pizza-toss videos failed; no video was watched and no timestamp is certified by this assessment. The report's claimed direct observations must remain attributed to the report until independently checked.
+
+## What the second report adds
+
+| Finding | Evidence and decision |
+| --- | --- |
+| Waist motion should visibly drive the hoop | The teaching page describes forward/back or side-to-side hip pushes, weight shifts and soft knee action. This supports a directional groove coupled to body contact. It does not supply the report's 70/60 percent weight distributions, fixed phase lead, or universal anatomical angles. [Waist instructions](https://www.hulahooping.com/how-to-hoop.html); report lines 42–74. |
+| A clearer vocabulary and reference trail | The second report identifies horizontal waist hooping and a horizontal pizza-toss variant, avoiding the first report's contradictory waist-plane description. Its 56 linked references provide specific demonstrations to inspect; their presence does not validate all 18 claimed techniques or six assembled phrases. See report lines 19–38 and 535–592. |
+| Moving isolation remains a strong direction | HoopLovers' ghosting page describes opposed hand motion, and its flow page encourages body movement and connected sequences. This supports the earlier moving-isolation proposal, without proving exact hand hover gaps or pelvis amplitudes. [Ghosting](https://hooplovers.tv/ghosting-isolation-tutorial/), [connected flow](https://hooplovers.tv/adding-isolations-to-your-hoop-dance-flow/). |
+| More expressive performer styles | Grounded groove, lyrical movement and technical illusion are useful authored directions from the report's personality table, lines 407–415. They are design proposals; the cited pages do not establish those exact parameter sets or a required body posture for each style. |
+
+## Corrections before implementation
+
+1. **Use consistent coordinates.** The report defines forward as negative Z, but its waist discussion describes backward motion along negative Z and forward along positive Z (lines 17 and 52; equation images 3 and 22). Preserve the game's verified forward direction and validate it with the rendered face/shoes, as already covered by [the workshop tests](../../../bin/test-hoop-workshop).
+
+2. **Choose the isolation's reference frame explicitly.** The report alternates between a stationary world anchor and a chest-root-relative anchor (lines 129–142 and 323). Those differ when the performer moves. A world-fixed illusion needs inverse-transformed hand targets and a separately anchored hoop; parenting the hoop to a moving chest cannot establish it. The current [body sampler](../../../src/people/hoop/score.js#L320) intentionally settles the root during isolation. The earlier assessment's moving-isolation acceptance remains applicable.
+
+3. **Keep ballistic signs and timing consistent.** Equation image 70 displays `P(t) = P0 - V0*t + 0.5*g*t²`, while image 131 uses downward acceleration `g = -9.81 m/s²`. If `V0` means the actual release velocity, the linear term must be positive. Our [existing toss](../../../src/people/hoop/score.js#L253) uses upward release speed and negative vertical acceleration correctly. The fourth phrase releases on beat 4 and catches on beat 10 at 120 BPM, giving three seconds of flight, despite specifying a peak only 1.2 metres above the head (report lines 348–352, image 114). For a same-height three-second ballistic flight, `height = gMagnitude*T²/8 = 11.03625 m` above release; catching higher requires an even larger release speed. The phrase's musical schedule must therefore be recomposed or its flight explicitly stylized.
+
+4. **Test hoop surfaces, not merely centers.** Equation image 76 constrains center separation to exceed hoop thickness minus an epsilon. That does not prevent ring intersections. As a counterexample, two unit-radius coplanar circles with centers one unit apart intersect, even though their centers are much farther apart than a thin tube's diameter. Test the actual transformed rim/tube clearance throughout a candidate transition, together with hand reach and body clearance, before admitting twin patterns. The current [score tests](../../../bin/test-hoop-score) are the relevant acceptance surface.
+
+5. **Express recovery in seconds.** The report calls for two-to-three, three and four-frame catch compressions in different sections (lines 236, 430 and 479). Four frames last about 133 ms at 30 FPS and 33 ms at 120 FPS. Define an accepted-time recovery curve, match release/catch boundary velocities, and verify partition independence. Frame counts are artistic shorthand, not runtime timing contracts.
+
+6. **Do not turn anatomical guesses into rig constants.** The report labels minimum shoulder and neck angles, load percentages, amplitude ranges and universal footwork as validated without identifying measurements. Its ghosting case-study stance observation even cites the weight-loss article numbered 3 rather than the named video (lines 495–497 and 539). Its claim that turning reduces gravity (line 89) also confuses changed relative motion with gravitational acceleration. The current [leg shader](../../../src/personMotion.js#L124) has whole-leg hip stride, and [shoe support](../../../src/people/hoop/feet.js#L4) corrects vertical height; neither provides independent dancing knees or horizontal foot planting. Deep crouches, spine arches and chest/back rolling tracks require explicit rig changes and geometric proof.
+
+The report's phrases also need prop bookkeeping: its duet begins with both dancers isolating hoops and later describes a single shared hoop without specifying what happens to the second one (lines 383–385). A transition must retain an owner and visible path for every prop. A claimed seamless combination is not proof of reachability, continuity or ownership.
+
+## Combined priorities for the next choreography refinement
+
+1. **Ground the dance.** Add explicit stance/swing phases and measure horizontal support-foot drift, then couple a directional hip groove to the waist contact cycle. Keep turning speed, hoop phase and pelvic pulse in a declared frame. Introduce independent knee articulation if needed to show compression while keeping the supporting shoe planted. This combines the first assessment's footwork priority with the second report's strongest verified teaching direction.
+2. **Move around the isolation.** Establish one bounded body sway/step around a fixed world-space hoop and prove rim contact, reach, center/plane stability and body clearance across scale and heading. Distinguish intentional traveling isolations from the stationary illusion.
+3. **Dance into and out of flight.** Keep the hoop's airborne path in an inertial frame while the performer prepares, moves and receives it. Derive the catch from a reachable future pose, then author the phrase around the feasible flight duration.
+4. **Expand vocabulary after those foundations.** Use the linked chest-roll, escalator, twin-fountain and partner demonstrations to define specific variants. Review footage before adopting the report's timestamps, gripping mechanics or named combinations, and extend only the joints those variants require.
+
+These are proposed refinements, not newly implemented behavior. Both reports are now received and assessed. Physical iPhone/Safari acceptance remains open in the [implementation checklist](tasks.md); the [desktop verification record](../../../verification/hoops/README.md) is unchanged by this documentation work.

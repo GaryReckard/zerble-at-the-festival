@@ -56,7 +56,8 @@ registry.solids[0].collider.radius=.3; tick(a);
 assert.equal(a.state,'idle'); assert.ok(Math.hypot(a.pos.x-bed.doorX,a.pos.z-bed.doorZ)>=.65,'waking NPC emerged inside the door obstacle');
 // Execute the actual visibility helper against a photographer with extra rigs.
 const hideSource = source.slice(source.indexOf('  _hideNpc(npc) {'), source.indexOf('  // Festival Run: a damaging hit'));
-const HideHarness = vm.runInNewContext(`class HideHarness {${hideSource}}; HideHarness`,loadGroupParticipation());
+const footWriteSource=source.slice(source.indexOf('  _writeHoopFeet(npc,feet) {'),source.indexOf('  _hideNpc(npc) {'));
+const HideHarness = vm.runInNewContext(`class HideHarness {${footWriteSource}\n${hideSource}}; HideHarness`,loadGroupParticipation());
 const hidden = new HideHarness(), calls=[]; hidden._zeroMat={zero:true};
 for(const name of ['legsMesh','shoesMesh','bodyMesh','armsMesh','headMesh','eyesMesh','mouthMesh','drinkMesh','cameraMesh','flashMesh']) hidden[name]={setMatrixAt:(slot,matrix)=>calls.push([name,slot,matrix])};
 hidden.hairMeshes={cap:{setMatrixAt:(slot,matrix)=>calls.push(['hair',slot,matrix])}};

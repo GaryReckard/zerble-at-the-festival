@@ -76,6 +76,47 @@ contacts** compares the sampler against 96 raycasts into the actual meshes.
 included in `npm run check`. This course is an isolated authored fixture, not
 procedural festival terrain. [Results and limitations](verification/terrain/2026-10-24-driving-proof.md).
 
+## Flow hoop choreography workshop
+
+Open `/sandbox.html?entity=flow_hooper_workshop&mute=1` for actual Crowd-owned
+classic and flow participants. Seed, Lyrical/Playful/Aerial profile, one/two
+hoops, scale and heading controls rebuild the same production activity. Mode
+offers Waist hooping, Choreographed flow and Partner exchange. Waist mode uses
+the same expressive arms, planted knees/feet and head animation contract. These fixtures
+own their people, venue and props, so replay/seek never rewinds the live game.
+
+The Planted step, Waist groove, Moving isolation, Toss flight and Chest roll buttons rebuild
+a compatible solo fixture and pause inside that phase. The support label identifies
+which foot is planted, while exported diagnostics include plant IDs, root height
+and whether contacts use an inertial frame. Chest roll selects the lyrical single-hoop
+variant, switching to seed 2 if the current seed chooses the short forearm roll.
+The hoop-support label distinguishes hand, arm, chest and waist contact. Aerial diagnostics show the seeded
+toss rise and flight duration; Toss flight also frames the full arc. Change Seed
+and replay to compare throws, or Resume to watch the catch.
+
+Pause, single-frame/one-second accepted steps and the score slider expose held isolations and contact transfers;
+contact markers compare shader-equivalent hand positions with the ring under
+the actual published person matrix. The displayed contact error covers declared
+hand contacts, not airborne or body-supported intervals. Honk, remove venue,
+remove person and dispose/recreate exercise normal claims and resource cleanup.
+Partner interruption cancels both sides, and Replay creates a fresh exchange.
+
+Normal-distance view checks whether a motif reads from the game camera's usual
+scale. Save scene PNG captures the current canvas, while Save diagnostics JSON
+records score/replay, camera, lighting and counters. The Classic baseline uses
+the same participant count/positions/appearance for cost comparisons. The
+sandbox deliberately retains Standard materials on Low; verify the actual
+Lambert material path in the full Low game too. The debug Stats hoop line shows
+classic/flow/pair counts, visible props and the actual material type. On localhost,
+`&hoopFlow=0` keeps the live activity entirely classic for a matched baseline;
+the flag is ignored on public hosts and does not change saved settings.
+
+`node bin/test-hoop-score`, `node bin/test-hoop-flow-session`,
+`node bin/test-hoop-pair`, `node bin/test-hoop-legs`, `node bin/test-hoop-classic`, `node bin/test-hoop-chest-roll`
+and `node bin/test-hoop-workshop` are included in
+`npm run check`. See [hoop verification](verification/hoops/README.md) for evidence
+and remaining device limitations.
+
 ## Silent agent launches
 
 Use `?mute=1` (or append `&mute=1`) on every agent-driven game or sandbox URL unless intentionally checking audio. It initializes the session-only output gate before AudioContext output connects, preserves saved volume levels, and remains effective across reloads. `Sound.setMuted(false)` can explicitly unmute for an audio test; restore mute afterward.

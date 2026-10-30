@@ -1,0 +1,123 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {performance} from 'node:perf_hooks';
+import {cpus,platform,arch,release} from 'node:os';
+import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {dirname,resolve} from 'node:path';
+
+// This exercises production CPU code and Three.js matrix/geometry objects, not
+// a WebGL context. Keep profiling time independent of accepted actor time.
+globalThis.window={innerWidth:1280,innerHeight:800};
+globalThis.location={search:'?perf=low&mute=1',pathname:'/sandbox.html',hostname:'127.0.0.1'};
+const {HoopWorkshop}=await import('../src/people/hoop/workshop.js');
+const {HOOP_SCORE_VERSION,compileHoopScore,createHoopSample,sampleHoopScore}=await import('../src/people/hoop/score.js');
+const {registry}=await import('../src/registry.js');
+
+const TRIALS=5,WARMUP_STEPS=250,TIMED_STEPS=600,DT=1/60;
+const FIXTURE=Object.freeze({seed:1977,profile:'lyrical',scale:1,heading:0,duration:60});
+const CASES=[{name:'classic-baseline',mode:'baseline',hoops:1},{name:'single-hoop-flow',mode:'solo',hoops:1},{name:'two-hoop-flow',mode:'solo',hoops:2}];
+const hasGC=typeof globalThis.gc==='function';
+const outputFlag=process.argv.indexOf('--output');
+const output=resolve(outputFlag<0?'verification/hoops/grounded-cpu-benchmark.json':process.argv[outputFlag+1]??'');
+if(outputFlag>=0&&!process.argv[outputFlag+1])throw new Error('--output needs a file path.');
+const compactMemory=()=>{const m=process.memoryUsage();return {heapUsed:m.heapUsed,external:m.external,arrayBuffers:m.arrayBuffers};};
+const collect=()=>{if(hasGC){globalThis.gc();globalThis.gc();}};
+const delta=(after,before)=>Object.fromEntries(Object.keys(before).map(key=>[key,after[key]-before[key]]));
+const numericStats=values=>{
+  const sorted=[...values].sort((a,b)=>a-b);
+  return {samples:values.length,min:sorted[0],median:sorted[Math.floor(sorted.length/2)],max:sorted.at(-1),mean:values.reduce((a,b)=>a+b,0)/values.length};
+};
+const fixtures=workshop=>workshop.persons.map(person=>{const out={};assert(workshop.people.readPerson(person,out));return {x:out.x,y:out.y,z:out.z,scale:out.scale,shirt:out.shirt,skin:out.skin};});
+const records=[],initialEntries=registry.entries.size;
+let referenceFixture=null;
+
+for(let trial=0;trial<TRIALS;trial++){
+  // Rotate ordering to avoid making one case always pay the cold/JIT cost.
+  const order=CASES.map((_,i)=>CASES[(i+trial)%CASES.length]);
+  for(let orderIndex=0;orderIndex<order.length;orderIndex++){
+    const configuration=order[orderIndex];let workshop;
+    collect();const beforeConstruct=compactMemory(),start=performance.now();
+    try{
+      workshop=new HoopWorkshop({...FIXTURE,mode:configuration.mode,hoops:configuration.hoops});
+      const constructionMs=performance.now()-start;
+      collect();const afterConstruct=compactMemory();
+      const fixture=fixtures(workshop);if(referenceFixture===null)referenceFixture=fixture;else assert.deepEqual(fixture,referenceFixture,'the cases must have matching people/appearance/placement');
+      assert.equal(workshop.people.populationSize,2);assert.equal(workshop.session.phase,'hooping');
+      for(let i=0;i<WARMUP_STEPS;i++)workshop.step(DT);
+      collect();const beforeTimed=compactMemory();
+      const timedStart=performance.now();
+      for(let i=0;i<TIMED_STEPS;i++)workshop.step(DT);
+      const timedBatchMs=performance.now()-timedStart;
+      collect();const afterTimed=compactMemory(),status=workshop.inspect({});
+      assert.equal(status.phase,'hooping','session completion must not contaminate timing');
+      assert(Math.abs(workshop.session.elapsed-(WARMUP_STEPS+TIMED_STEPS)*DT)<1e-9);
+      records.push({trial:trial+1,order:orderIndex+1,case:configuration.name,constructionMs,timedBatchMs,
+        meanTickMs:timedBatchMs/TIMED_STEPS,acceptedTime:workshop.session.elapsed,
+        modelDraws:status.draws,modelTriangles:status.triangles,participantCount:status.population,
+        activeHoops:configuration.mode==='baseline'?2:1+status.hoops,
+        compiledSegments:workshop.session.score?.segments.length??0,
+        constructedLiveMemoryDeltaBytes:hasGC?delta(afterConstruct,beforeConstruct):null,
+        retainedMemoryDeltaAfterTimedTicksBytes:hasGC?delta(afterTimed,beforeTimed):null});
+    }finally{workshop?.dispose();assert.equal(registry.entries.size,initialEntries,'benchmark must release its own registry entries');}
+  }
+}
+
+// Isolate score compilation from Crowd/geometry construction, then sample a
+// reusable output buffer across the complete routine rather than one pose.
+const COMPILES=1000,SAMPLES=20000,microRecords=[];
+let checksum=0;
+for(const hoops of [1,2]){
+  for(let trial=0;trial<TRIALS;trial++){
+    for(let i=0;i<100;i++)compileHoopScore({...FIXTURE,hoops,seed:FIXTURE.seed+i});
+    const start=performance.now();
+    for(let i=0;i<COMPILES;i++){const score=compileHoopScore({...FIXTURE,hoops,seed:FIXTURE.seed+i});checksum+=score.parameters.phase;}
+    const compileBatchMs=performance.now()-start;
+    const score=compileHoopScore({...FIXTURE,hoops}),sample=createHoopSample();
+    for(let i=0;i<1000;i++)sampleHoopScore(score,i/1000*FIXTURE.duration,sample);
+    const sampleStart=performance.now();
+    for(let i=0;i<SAMPLES;i++){sampleHoopScore(score,i/(SAMPLES-1)*FIXTURE.duration,sample);checksum+=sample.hoops[0].x;}
+    const sampleBatchMs=performance.now()-sampleStart;
+    microRecords.push({trial:trial+1,hoops,compileBatchMs,meanCompileMs:compileBatchMs/COMPILES,sampleBatchMs,meanSampleMs:sampleBatchMs/SAMPLES,segments:score.segments.length});
+  }
+}
+assert(Number.isFinite(checksum));
+const summaries=CASES.map(configuration=>{
+  const trials=records.filter(record=>record.case===configuration.name);
+  return {case:configuration.name,constructionMs:numericStats(trials.map(record=>record.constructionMs)),
+    meanTickMs:numericStats(trials.map(record=>record.meanTickMs)),
+    modelDraws:[...new Set(trials.map(record=>record.modelDraws))],modelTriangles:[...new Set(trials.map(record=>record.modelTriangles))],
+    constructedLiveHeapDeltaBytes:hasGC?numericStats(trials.map(record=>record.constructedLiveMemoryDeltaBytes.heapUsed)):null,
+    retainedHeapDeltaAfterTimedTicksBytes:hasGC?numericStats(trials.map(record=>record.retainedMemoryDeltaAfterTimedTicksBytes.heapUsed)):null};
+});
+const baseline=summaries[0];
+const report={
+  schema:1,generatedAt:new Date().toISOString(),command:`node --expose-gc bin/bench-hoop-workshop --output ${output}`,
+  context:{node:process.version,v8:process.versions.v8,platform:platform(),arch:arch(),kernel:release(),cpu:cpus()[0]?.model??null,logicalCPUs:cpus().length,
+    profile:'low',rendering:'none; CPU-only real Three.js geometry/matrices and production Crowd/HulaActivity',exposedGC:hasGC},
+  sources:{scoreVersion:HOOP_SCORE_VERSION,sha256:Object.fromEntries(['src/people/hoop/score.js','src/people/hoop/dance.js','src/people/hoop/classic.js','src/people/hoop/chestRoll.js','src/people/hoop/appearance.js','src/people/hoop/feet.js','src/people/hoop/leg.js','src/personMotion.js','src/people/hoop/workshop.js','src/people/hulaActivity.js','src/people/hulaSession.js','src/crowd.js'].map(path=>[path,createHash('sha256').update(readFileSync(path)).digest('hex')]))},
+  method:{baseline:'Two expressive classic waist-hoopers with planted feet and articulated arms/head; this supersedes the earlier rigid/classic baseline.',trials:TRIALS,fixture:FIXTURE,participants:2,warmupSteps:WARMUP_STEPS,timedSteps:TIMED_STEPS,acceptedDelta:DT,
+    timedAcceptedSeconds:TIMED_STEPS*DT,ordering:'case ordering rotates per trial',
+    construction:'wall time for complete HoopWorkshop construction, including Crowd/geometry, session admission, compilation for flow and initial publication',
+    tick:'wall time for a 600-call batch of warmed HoopWorkshop.step; includes production adult+roaming dispatch and workshop contact-marker math, excludes inspect traversal, rendering, DOM and GC',
+    microbench:{compileIterations:COMPILES,sampleIterations:SAMPLES,sampleTimeRange:[0,FIXTURE.duration],output:'reused numeric sample'},
+    memory:hasGC?'GC runs outside timing before/after memory snapshots. Deltas describe live/retained JS heap, external and ArrayBuffer bytes; they are not allocation rates.':'No exposed GC; retained-memory deltas are not reported.',
+    statistics:'Five raw trials per case. Min/median/max/mean summarize trial averages; no per-frame p95 or device claim.'},
+  summary:summaries,
+  relativeToBaseline:summaries.slice(1).map(summary=>({case:summary.case,
+    medianMeanTickDeltaMs:summary.meanTickMs.median-baseline.meanTickMs.median,
+    medianMeanTickRatio:summary.meanTickMs.median/baseline.meanTickMs.median,
+    medianConstructionDeltaMs:summary.constructionMs.median-baseline.constructionMs.median})),
+  microbenchSummary:[1,2].map(hoops=>{const values=microRecords.filter(record=>record.hoops===hoops);return {hoops,
+    meanCompileMs:numericStats(values.map(record=>record.meanCompileMs)),meanSampleMs:numericStats(values.map(record=>record.meanSampleMs))};}),
+  limitations:[
+    'This is a Node CPU-only benchmark on one host, not browser frame time, WebGL cost, GPU allocation or mobile/Safari performance.',
+    'Model draw/triangle counts are computed from production scene objects, not renderer.info from a GPU render. Ground, contact markers and postprocessing are excluded from these model counters.',
+    'Workshop step includes debug contact-marker math. Production game sampling does not include that inspector; this benchmark does not isolate a game-wide frame-time delta.',
+    'Construction includes cold/JIT and shared-cache variation; inspect all raw trials and medians rather than treating one run as a budget.',
+    'Forced-GC retained-memory deltas can be negative and do not measure churn or prove an absence of allocation/leaks.',
+    'Five trial averages provide a small-sample summary, not a reliable frame-tail percentile.'
+  ],rawTrials:records,microbenchRawTrials:microRecords,checksum,
+};
+mkdirSync(dirname(output),{recursive:true});writeFileSync(output,JSON.stringify(report,null,2)+'\n');
+console.log(JSON.stringify({output,summary:report.summary,relativeToBaseline:report.relativeToBaseline,microbenchSummary:report.microbenchSummary},null,2));
