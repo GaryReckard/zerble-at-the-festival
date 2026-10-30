@@ -4,6 +4,8 @@ October 30, 2026. Started on `codex/physical-festival` at `17102a1`; continued o
 
 ## Latest production checkpoint
 
+The [support follow-up](2026-10-30-frontier/README.md) adds bounded forward preparation and a per-substep guard, with tests and a fresh live encounter. Final overload behavior remains open.
+
 The [live empty-chair checkpoint](2026-10-30-live/README.md) now connects opt-in adoption, origin suppression and the main game contact barrier, with a captured physical impact and existing smile feedback. The sections below retain the earlier foundation history; statements about missing integration describe those earlier checkpoints. Final frontier/reset behavior, occupied encounters and phone acceptance remain open.
 
 ## What exists

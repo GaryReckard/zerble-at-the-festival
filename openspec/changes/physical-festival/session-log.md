@@ -173,3 +173,12 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** Connected empty-chair adoption and terrain/static residency to the production late contact barrier behind `physics=1`. Real browser testing exposed repeated admission churn from an undersized render bucket and staging against a chair claimed by an NPC. Increased bounded per-bucket capacity, added a bounded rejection cache, and required the selected target to be admitted before enabling the coast control. A subsequent real impact reduced smiles once; diagnostics recorded no admission rejection, overflow or support stop. Repeated origin replacement now preserves the adopted chair and prevents duplicates, including lake disposal. Full check/build and Low/Mid Noon/Midnight desktop captures passed; the staging helper also has obstruction, water and bounded-search tests. Full task contracts remain unchecked because phone performance, final frontier behavior and occupied support are unfinished.
 
 **Refs:** [live checkpoint and phone procedure](../../../verification/physical-festival/2026-10-30-live/README.md); `bin/test-physics-live-world`; `bin/test-physics-chair-ownership`; `bin/test-physics-static-residency`.
+
+
+### 2026-10-30 -- Support prediction and substep barrier
+
+**Event:** discovery
+
+**What:** A frame-level velocity check cannot observe an impulse from an earlier solver step within the same frame. Moved the support guard to the fixed-step boundary and explicitly discard blocked time; tests exercise a real-engine velocity change after the first step. Support requests now preserve a stable margin and include bounded forward prediction. The full check/build and a fresh real-game encounter passed. This improves the prototype but does not accept arbitrary within-step impulses, rotational bounds or the global-stop overload policy. Gary asked to play, so a separate LAN preview is intentionally running; do not rebuild its dist files or stop it during his playtest.
+
+**Refs:** [support checkpoint](../../../verification/physical-festival/2026-10-30-frontier/README.md); `src/physics/supportWindow.js`; `bin/test-physics-runtime`.

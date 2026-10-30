@@ -6,9 +6,22 @@ import { buildCampChair } from '../src/models/campChair.js';
 import { batchPropGroups } from '../src/propRendering.js';
 import { createLivePhysics } from '../src/physics/liveWorld.js';
 import { findChairApproach } from '../src/physics/encounter.js';
+import { containsSupport, supportWindow } from '../src/physics/supportWindow.js';
 import { setTerrainEnabled } from '../src/worldgen/terrain.js';
 import { readFileSync } from 'node:fs';
 setTerrainEnabled(false);
+{
+  const origin={x:0,z:0},initial=supportWindow(origin,null,2);
+  assert.deepEqual(initial,{minX:-8,maxX:8,minZ:-8,maxZ:8});
+  assert.equal(supportWindow({x:1,z:0},{x:1,z:0},2,initial),initial,'small motion retains the request');
+  const fast=supportWindow(origin,{x:40,z:0},2,initial);
+  assert.equal(fast.maxX,24,'fast motion prewarms ahead, bounded to sixteen metres');
+  assert(containsSupport(fast,{x:16,z:0},4));
+  const reverse=supportWindow(origin,{x:-40,z:0},2,fast);
+  assert.equal(reverse.minX,-24,'reversed motion requests the opposite frontier');
+  assert(containsSupport(reverse,origin,4),'replacement retains the current footprint');
+  assert.equal(supportWindow(origin,{x:1e6,z:0},2).maxX,24,'extreme speed cannot allocate an unbounded sweep');
+}
 {
   const registry=new Registry();
   const target={kind:'camp_chair',position:new THREE.Vector3(),collider:{radius:.8}};

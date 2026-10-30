@@ -2,6 +2,8 @@
 import assert from 'node:assert/strict';
 import { FixedStepClock } from '../src/physics/fixedStep.js';
 import { createPhysicalFixture } from '../src/physics/runtime.js';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { containsSupport } from '../src/physics/supportWindow.js';
 
 for (const hz of [30, 60, 120]) {
   const clock = new FixedStepClock(); let ticks = 0;
@@ -17,6 +19,36 @@ clock.singleStep(() => {}); assert.equal(clock.alpha, 0);
 assert.throws(() => clock.advance(NaN, () => {}));
 assert.throws(() => clock.advance(-1, () => {}));
 clock.reset(); assert.equal(clock.time, 0);
+{
+  const guarded=new FixedStepClock();let supported=true,ticks=0,checks=0;
+  assert.equal(guarded.advance(5/60,()=>{ticks++;supported=false;},{canStep:()=>{checks++;return supported;}}),1);
+  assert.equal(ticks,1);assert.equal(checks,2,'support is rechecked after the first step changes state');
+  assert.equal(guarded.time,1/60);assert.equal(guarded.remainder,0);
+  assert(Math.abs(guarded.dropped-4/60)<1e-12);
+  assert.equal(guarded.advance(1/60,()=>assert.fail(),{canStep:()=>false}),0);
+  assert.equal(guarded.time,1/60,'blocked steps do not advance simulation time');
+  assert.equal(guarded.advance(1/60,()=>ticks++),1,'resumption does not replay blocked time');
+  assert.equal(ticks,2);
+}
+
+{
+  const adapter=await createRapierAdapter(),guarded=new FixedStepClock();
+  try {
+    assert(adapter.addBody({id:'frontier-test',type:'dynamic',pose:{position:{x:0,y:2,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:.5,y:.5,z:.5},mass:1}]}).ok);
+    const supported={minX:-8,maxX:8,minZ:-8,maxZ:8};
+    const steps=guarded.advance(5/60,step=>{
+      adapter.step(step);
+      // Stand in for a contact impulse produced during this solver step.
+      adapter.applyImpulse('frontier-test',{x:10000,y:0,z:0});
+    },{canStep:step=>{
+      const body=adapter.readBody('frontier-test');
+      return containsSupport(supported,{x:body.pose.position.x+body.linearVelocity.x*step,z:body.pose.position.z},1);
+    }});
+    assert.equal(steps,1,'new engine velocity blocks the next substep in the same frame');
+    assert.equal(adapter.readBody('frontier-test').pose.position.x,0);
+    assert.equal(guarded.steps,1);assert.equal(guarded.remainder,0);
+  } finally {adapter.dispose();}
+}
 
 let runs = 0;
 const finals = [];

@@ -10,12 +10,11 @@ import { createChairOwnership } from './chairOwnership.js';
 import { campSlotAvailable } from '../people/campResources.js';
 import { findChairApproach } from './encounter.js';
 import { APPROACH_DAMAGE_THRESHOLD } from '../collisionContacts.js';
+import { containsSupport, supportWindow } from './supportWindow.js';
 
 const MAX_CHAIRS = 8;
-const boundsAt = (p, reach = 8) => ({minX:p.x-reach,maxX:p.x+reach,minZ:p.z-reach,maxZ:p.z+reach});
 const poseOf = cart => ({position:{x:cart.position.x,y:cart.position.y,z:cart.position.z},
   rotation:{x:cart.root.quaternion.x,y:cart.root.quaternion.y,z:cart.root.quaternion.z,w:cart.root.quaternion.w}});
-const within = (bounds,p,radius) => bounds && p.x-radius>=bounds.minX && p.x+radius<=bounds.maxX && p.z-radius>=bounds.minZ && p.z+radius<=bounds.maxZ;
 
 // Opt-in integration proof. The owner consumes the game's clock and streaming
 // deadline; it never creates a timer, animation loop or independent budget.
@@ -108,7 +107,8 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
       if(!record.token && Math.hypot(cart.position.x-record.origin.x,cart.position.z-record.origin.z)>32){forget(record);continue;}
       const state=record.token?owner.read(record.token):null;
       const p=state?.pose.position??record.origin;
-      const wanted=boundsAt(p,Math.max(8,(state?.footprint??2)+5));
+      const body=record.token?adapter.readBody(record.bodyId):null;
+      const wanted=supportWindow(p,body?.linearVelocity,state?.footprint??2,record.wanted);
       const ground=terrain.request(record.supportKey,wanted),nearby=solids.request(record.supportKey,wanted);
       if(!ground.ok||!nearby.ok){rejection(!ground.ok?ground.reason:nearby.reason);continue;}
       record.wanted=wanted;
@@ -133,15 +133,17 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
     if(disposed)return null;
     frames++;
     let hit=null;
-    // No visible teleport or falling through missing support at the boundary.
-    // This explicit diagnostic stop is a prototype limitation, not a device
-    // performance/overload acceptance claim.
+    // Check again before every substep: a contact impulse can change velocity
+    // during the preceding step of the same presentation frame.
+    function canStep(step) {
     for(const record of records.values())if(record.token) {
-      if(record.handoffPending){blocked='static-handoff';suspended=true;return null;}
+      if(record.handoffPending){blocked='static-handoff';suspended=true;return false;}
       const state=owner.read(record.token),body=adapter.readBody(record.bodyId);
       if(!state||!body)continue;
-      const predicted={x:body.pose.position.x+body.linearVelocity.x*Math.min(dt,.084),z:body.pose.position.z+body.linearVelocity.z*Math.min(dt,.084)};
-      if(!within(record.bounds,predicted,state.footprint+.5)){blocked='support-frontier';suspended=true;return null;}
+      const predicted={x:body.pose.position.x+body.linearVelocity.x*step,z:body.pose.position.z+body.linearVelocity.z*step};
+      if(!containsSupport(record.bounds,predicted,state.footprint+.5)){blocked='support-frontier';suspended=true;return false;}
+    }
+    return true;
     }
     blocked=null;
     const reason=resetReason??(corrected?'legacy-correction':suspended?'dropped-time':null);
@@ -173,7 +175,7 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
         record.lastHit=time;record.penalized=true;hits++;
         hit={damaging:entry.collider.damage>0,damage:entry.collider.damage,kind:entry.kind,entry,physical:true,push:{x:-dx/d,z:-dz/d}};
       }
-    });
+    },{canStep});
     for(const record of records.values())if(record.token) {
       const result=owner.publish(record.token);
       if(!result.ok){blocked=result.reason;rejection(result.reason);}
