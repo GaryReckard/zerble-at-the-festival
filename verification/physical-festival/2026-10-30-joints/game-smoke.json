@@ -1,0 +1,289 @@
+{
+  "enabled": true,
+  "phase": "empty-chair-prototype",
+  "preparationCalls": 446,
+  "lastCandidates": 0,
+  "nearbyChairs": 10,
+  "rejectedCandidates": 0,
+  "player": {
+    "x": -534.43,
+    "z": -42.25
+  },
+  "frames": 446,
+  "clock": {
+    "steps": 451,
+    "dropped": 0
+  },
+  "blocked": null,
+  "hits": 0,
+  "overflow": 0,
+  "rejects": 0,
+  "lastReject": null,
+  "chairs": [
+    {
+      "key": "camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:2:1",
+      "entryId": 1739,
+      "active": true,
+      "state": {
+        "token": {
+          "key": "camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:2:1",
+          "generation": 1
+        },
+        "entryId": 1739,
+        "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:2:1",
+        "engineGeneration": 10,
+        "pose": {
+          "position": {
+            "x": -528.354736328125,
+            "y": -0.000011295080184936523,
+            "z": -64.2401123046875
+          },
+          "rotation": {
+            "x": 3.2582585744671486e-7,
+            "y": 0.5235168570624444,
+            "z": 0.0000036987186993654037,
+            "w": 0.852015316973629
+          }
+        },
+        "footprint": 0.4742424805059976,
+        "supportRadius": 0.995768620289325,
+        "originOwner": "chunk:-6,-1",
+        "originRegistryId": 1734,
+        "state": "active",
+        "resources": {
+          "body": true,
+          "render": true,
+          "budget": true
+        },
+        "cleanupErrors": []
+      }
+    },
+    {
+      "key": "camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:3:0",
+      "entryId": 1740,
+      "active": true,
+      "state": {
+        "token": {
+          "key": "camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:3:0",
+          "generation": 2
+        },
+        "entryId": 1740,
+        "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:3:0",
+        "engineGeneration": 15,
+        "pose": {
+          "position": {
+            "x": -532.9549560546875,
+            "y": -0.000009953975677490234,
+            "z": -56.47282028198242
+          },
+          "rotation": {
+            "x": 1.0397359888246432e-7,
+            "y": 0.602908915994837,
+            "z": -0.0000010827282159681464,
+            "w": 0.7978100268940892
+          }
+        },
+        "footprint": 0.4742363931657534,
+        "supportRadius": 0.995768620289325,
+        "originOwner": "chunk:-6,-1",
+        "originRegistryId": 1734,
+        "state": "active",
+        "resources": {
+          "body": true,
+          "render": true,
+          "budget": true
+        },
+        "cleanupErrors": []
+      }
+    },
+    {
+      "key": "camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:3:1",
+      "entryId": 1741,
+      "active": true,
+      "state": {
+        "token": {
+          "key": "camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:3:1",
+          "generation": 3
+        },
+        "entryId": 1741,
+        "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:3:1",
+        "engineGeneration": 16,
+        "pose": {
+          "position": {
+            "x": -533.3456420898438,
+            "y": -0.000009179115295410156,
+            "z": -54.65526580810547
+          },
+          "rotation": {
+            "x": -0.000011595478348944134,
+            "y": 0.6497208106236682,
+            "z": 9.26922272799789e-7,
+            "w": 0.7601729198723203
+          }
+        },
+        "footprint": 0.5835219313416836,
+        "supportRadius": 1.0109756324982908,
+        "originOwner": "chunk:-6,-1",
+        "originRegistryId": 1734,
+        "state": "active",
+        "resources": {
+          "body": true,
+          "render": true,
+          "budget": true
+        },
+        "cleanupErrors": []
+      }
+    },
+    {
+      "key": "camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:3:4",
+      "entryId": 1744,
+      "active": true,
+      "state": {
+        "token": {
+          "key": "camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:3:4",
+          "generation": 4
+        },
+        "entryId": 1744,
+        "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:011:chunk:-6,-14:-5011:03:-4615:stage-chair:3:4",
+        "engineGeneration": 17,
+        "pose": {
+          "position": {
+            "x": -534.42578125,
+            "y": -0.000011175870895385742,
+            "z": -49.25224685668945
+          },
+          "rotation": {
+            "x": 9.08504479890835e-7,
+            "y": 0.6521510413457319,
+            "z": 0.000003603709463691888,
+            "w": 0.7580890576033038
+          }
+        },
+        "footprint": 0.47424248689756676,
+        "supportRadius": 0.995768620289325,
+        "originOwner": "chunk:-6,-1",
+        "originRegistryId": 1734,
+        "state": "active",
+        "resources": {
+          "body": true,
+          "render": true,
+          "budget": true
+        },
+        "cleanupErrors": []
+      }
+    }
+  ],
+  "engine": {
+    "bodies": 13,
+    "colliders": 33,
+    "joints": 0,
+    "engineJoints": 0,
+    "meshVertices": 36,
+    "meshTriangles": 32,
+    "engineBodies": 13,
+    "engineColliders": 33,
+    "events": 0,
+    "overflow": 0,
+    "totalOverflow": 0,
+    "steps": 451,
+    "disposed": false
+  },
+  "terrain": {
+    "disposed": false,
+    "tiles": 4,
+    "ready": 4,
+    "pending": 0,
+    "failed": 0,
+    "owners": 4,
+    "rejections": 0,
+    "source": {
+      "seed": 1977,
+      "enabled": true,
+      "epoch": 0,
+      "version": 1
+    },
+    "tileSize": 20,
+    "capacities": {
+      "tiles": 64,
+      "queued": 32,
+      "owners": 8,
+      "retries": 3
+    },
+    "timing": {
+      "pumps": 446,
+      "attempts": 4,
+      "created": 4,
+      "preparationMs": 0.20000004768371582,
+      "adapterMs": 1.6999999284744263,
+      "maxUnitMs": 1.399999976158142,
+      "lastPumpMs": 0
+    },
+    "lastRejection": null
+  },
+  "solids": {
+    "disposed": false,
+    "proxies": 4,
+    "ready": 4,
+    "pending": 0,
+    "failed": 0,
+    "cleanupPending": 0,
+    "owners": 4,
+    "rejections": 0,
+    "capacities": {
+      "proxies": 128,
+      "owners": 8,
+      "queued": 128,
+      "candidates": 256
+    },
+    "approximation": "ground-anchored cylinder; registered radius; half-height max(0.5 m, radius)",
+    "timing": {
+      "pumps": 445,
+      "attempts": 8,
+      "created": 8,
+      "maxUnitMs": 0.19999998807907104,
+      "lastPumpMs": 0
+    },
+    "lastRejection": null
+  },
+  "render": {
+    "disposed": false,
+    "props": 4,
+    "buckets": 6,
+    "slots": 68,
+    "allocatedSlots": 384,
+    "matrixBufferBytes": 24576,
+    "uploadRequestedBytes": 433664,
+    "rejections": 0,
+    "capacities": {
+      "buckets": 48,
+      "slots": 3072,
+      "slotsPerBucket": 64,
+      "matrixBufferBytes": 196608
+    }
+  },
+  "ownership": {
+    "disposed": false,
+    "chairs": 4,
+    "cleanupPending": 0,
+    "originReplacements": 0,
+    "originLifetimes": 0,
+    "originLifetimeCapacity": 256,
+    "capacity": 8,
+    "rejections": 0,
+    "limitations": [
+      "Empty chairs only; automatic distance reset is not integrated. Restored lake children follow their source batch lifetime."
+    ]
+  },
+  "cart": {
+    "ghost": false,
+    "pendingClearance": false,
+    "resets": 1,
+    "lastReset": "restart"
+  },
+  "limitations": [
+    "Occupied chairs remain legacy.",
+    "Static cylinders are conservative approximations.",
+    "Secondary-person attribution and device acceptance are pending.",
+    "Support-frontier exhaustion visibly stops this opt-in prototype."
+  ]
+}

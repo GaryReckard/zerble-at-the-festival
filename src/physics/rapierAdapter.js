@@ -1,6 +1,7 @@
 // Engine proof boundary: callers own logical identity, admission priority and
 // mandatory-release reservations. This adapter owns every Rapier/WASM handle.
 let enginePromise;
+let adapterSerial = 0;
 
 async function loadEngine() {
   if (!enginePromise) {
@@ -49,6 +50,14 @@ function positive(value, name) {
   scalar(value, name, 0);
   if (value === 0) throw new TypeError(`${name} must be positive`);
   return value;
+}
+
+function hingeLimits(value) {
+  if (!Array.isArray(value) || value.length !== 2) throw new TypeError('Hinge limits require [minimum, maximum] radians');
+  const lower = scalar(value[0], 'hinge minimum', -Math.PI, Math.PI);
+  const upper = scalar(value[1], 'hinge maximum', -Math.PI, Math.PI);
+  if (lower > upper) throw new RangeError('Hinge minimum must not exceed maximum');
+  return [lower, upper];
 }
 
 function composePose(parent, local) {
@@ -138,6 +147,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
   const limits = Object.freeze({
     bodies: limit(capacities.bodies ?? 64, 'bodies'),
     colliders: limit(capacities.colliders ?? 256, 'colliders'),
+    joints: limit(capacities.joints ?? 0, 'joints'),
     events: limit(capacities.events ?? 256, 'events'),
     // Configurable fixture storage bounds, not measured device budgets.
     meshVertices: limit(capacities.meshVertices ?? 65536, 'meshVertices'),
@@ -148,7 +158,8 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
   const world = new R.World(acceleration);
   let queue;
   try { queue = new R.EventQueue(true); } catch (error) { world.free(); throw error; }
-  const bodies = new Map(), colliders = new Map();
+  const bodies = new Map(), colliders = new Map(), joints = new Map(), jointOwner = ++adapterSerial;
+  let jointGeneration = 0;
   let pendingEvents = [], overflow = 0, totalOverflow = 0, disposed = false, generation = 0, steps = 0;
   let meshVertexCount = 0, meshTriangleCount = 0;
 
@@ -156,6 +167,11 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     if (disposed) throw new Error('Physics adapter has been disposed');
   }
   function record(id) { live(); return bodies.get(id); }
+  function jointRecord(token) {
+    live();
+    const item = token?.owner === jointOwner && joints.get(token.id);
+    return item && item.generation === token.generation ? item : null;
+  }
   function emit(event) {
     if (pendingEvents.length < limits.events) pendingEvents.push(event);
     else { overflow++; totalOverflow++; }
@@ -172,6 +188,59 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
   return Object.freeze({
     engineVersion: R.version(),
     capacities: limits,
+    addJoint(spec) {
+      live();
+      if (typeof spec?.id !== 'string' || !spec.id || spec.id.length > 200) throw new TypeError('Joint id must be a nonempty string of at most 200 characters');
+      if (spec.type !== 'revolute') throw new TypeError('Only revolute joints are supported');
+      if (joints.has(spec.id)) return { ok: false, reason: 'duplicate-joint' };
+      if (joints.size >= limits.joints) return { ok: false, reason: 'joint-capacity' };
+      const a = bodies.get(spec.bodyA), b = bodies.get(spec.bodyB);
+      if (!a || !b) return { ok: false, reason: 'missing-body' };
+      if (a === b) return { ok: false, reason: 'same-body' };
+      if (a.type !== 'dynamic' && b.type !== 'dynamic') return { ok: false, reason: 'no-dynamic-body' };
+      const anchorA = vector(spec.anchorA, 'anchorA'), anchorB = vector(spec.anchorB, 'anchorB');
+      const axis = vector(spec.axis, 'axis'), length = Math.hypot(axis.x, axis.y, axis.z);
+      if (length < 1e-12) throw new TypeError('Hinge axis must have nonzero length');
+      for (const key of ['x', 'y', 'z']) axis[key] /= length;
+      const bounds = hingeLimits(spec.limits);
+      const contactsEnabled = spec.contactsEnabled ?? false;
+      if (typeof contactsEnabled !== 'boolean') throw new TypeError('contactsEnabled must be a boolean');
+      let joint;
+      try {
+        joint = world.createImpulseJoint(R.JointData.revolute(anchorA, anchorB, axis), a.body, b.body, true);
+        joint.setContactsEnabled(contactsEnabled);
+        joint.setLimits(...bounds);
+      } catch (error) {
+        if (joint) world.removeImpulseJoint(joint, true);
+        return { ok: false, reason: 'engine-joint-create-failed', message: error.message };
+      }
+      const serial = ++jointGeneration;
+      joints.set(spec.id, { joint, generation: serial, axis, bodyA: spec.bodyA, bodyB: spec.bodyB,
+        generationA: a.generation, generationB: b.generation });
+      return { ok: true, token: Object.freeze({ owner: jointOwner, id: spec.id, generation: serial }) };
+    },
+    readJoint(token) {
+      const item = jointRecord(token);
+      return item ? { token: { ...token }, type: 'revolute', bodyA: item.bodyA, bodyB: item.bodyB,
+        generationA: item.generationA, generationB: item.generationB, axis: { ...item.axis },
+        anchorA: vector(item.joint.anchor1(), 'anchorA'), anchorB: vector(item.joint.anchor2(), 'anchorB'),
+        limits: [item.joint.limitsMin(), item.joint.limitsMax()], contactsEnabled: item.joint.contactsEnabled() } : null;
+    },
+    setJointLimits(token, value) {
+      const item = jointRecord(token);
+      if (!item) return false;
+      item.joint.setLimits(...hingeLimits(value));
+      bodies.get(item.bodyA)?.body.wakeUp(); bodies.get(item.bodyB)?.body.wakeUp();
+      return true;
+    },
+    removeJoint(token) {
+      if (disposed) return false;
+      const item = jointRecord(token);
+      if (!item) return false;
+      world.removeImpulseJoint(item.joint, true);
+      joints.delete(token.id);
+      return true;
+    },
     addBody(spec) {
       live();
       if (typeof spec?.id !== 'string' || !spec.id) return { ok: false, reason: 'invalid-id' };
@@ -352,7 +421,8 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     },
     counts() {
       return {
-        bodies: bodies.size, colliders: colliders.size, joints: 0,
+        bodies: bodies.size, colliders: colliders.size, joints: joints.size,
+        engineJoints: disposed ? 0 : world.impulseJoints.len(),
         meshVertices: meshVertexCount, meshTriangles: meshTriangleCount,
         engineBodies: disposed ? 0 : world.bodies.len(), engineColliders: disposed ? 0 : world.colliders.len(),
         events: pendingEvents.length, overflow, totalOverflow, steps, disposed,
@@ -363,6 +433,9 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       const item = bodies.get(id);
       if (!item) return false;
       world.removeRigidBody(item.body);
+      // Rapier removes attached impulse joints with the body. Mirror that
+      // lifetime here before a reused body id can resolve to a new generation.
+      for (const [key, joint] of joints) if (joint.bodyA === id || joint.bodyB === id) joints.delete(key);
       for (const handle of item.colliders) colliders.delete(handle);
       meshVertexCount -= item.meshVertices; meshTriangleCount -= item.meshTriangles;
       bodies.delete(id);
@@ -374,7 +447,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       // Both own WASM resources. Free the world even if queue teardown throws.
       try { queue.free(); } finally {
         try { world.free(); } finally {
-          bodies.clear(); colliders.clear(); pendingEvents = []; overflow = 0;
+          bodies.clear(); colliders.clear(); joints.clear(); pendingEvents = []; overflow = 0;
           meshVertexCount = meshTriangleCount = 0;
         }
       }

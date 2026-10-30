@@ -202,3 +202,12 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **Playtest server:** Gary's localhost failure was traced to an unrelated Python listener on 127.0.0.1:8765 alongside the owned wildcard Vite listener. Moved the preview to 8767 and verified HTTP 200 on localhost and LAN. The current user-requested preview serves `/tmp/zerble-stage-build.g6mhxQ` on 8767 (session 78833). Leave it running for Gary; port-8766 verification and browser tabs are closed.
 
 **Refs:** [stage/capacity evidence](../../../verification/physical-festival/2026-10-30-stage/README.md).
+
+
+### 2026-10-30 -- Bounded hinge API proof
+
+**Event:** decision
+
+**What:** Added only the revolute joint API needed by the planned lid experiment, rather than exposing the entire engine constraint API. Joint capacity defaults to zero; tokens carry world and generation identity. Real Rapier tests verify limits, anchors, latch constraints, body-removal cleanup, post-allocation rollback and repeated reuse. Full check/build and an isolated ready-button game boot passed with existing chairs and no joints allocated. This advances Task 2.1 (Engine loading proof) without accepting the cooler or bypassing the physical-device gate. Gary's stage preview remains on port 8767 from `/tmp/zerble-stage-build.g6mhxQ`, session 78833.
+
+**Refs:** [hinge adapter evidence](../../../verification/physical-festival/2026-10-30-joints/README.md); `bin/test-physics-joints`.

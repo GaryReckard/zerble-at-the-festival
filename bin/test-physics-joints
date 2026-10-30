@@ -1,0 +1,73 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as R from '@dimforge/rapier3d-compat';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+
+const spec={id:'hinge',type:'revolute',bodyA:'base',bodyB:'lid',anchorA:{x:0,y:0,z:0},anchorB:{x:0,y:1,z:0},axis:{x:0,y:0,z:2},limits:[-.3,.6]};
+function bodies(adapter) {
+  for(const [id,type,y] of [['base','fixed',2],['lid','dynamic',1]])assert(adapter.addBody({id,type,pose:{position:{x:0,y,z:0}},
+    colliders:[{shape:'cuboid',halfExtents:{x:.4,y:.1,z:.3},mass:1}]}).ok);
+}
+function joints(adapter,count) {assert.equal(adapter.counts().joints,count);assert.equal(adapter.counts().engineJoints,count);}
+const adapter=await createRapierAdapter({gravity:{x:0,y:0,z:0},capacities:{bodies:3,joints:1}});
+try {
+  bodies(adapter);
+  for(const invalid of [{axis:{x:0,y:0,z:0}},{limits:[1,-1]},{limits:[0,Infinity]},{contactsEnabled:1},{anchorA:{x:NaN,y:0,z:0}}]) {
+    assert.throws(()=>adapter.addJoint({...spec,...invalid}));joints(adapter,0);
+  }
+  assert.equal(adapter.addJoint({...spec,bodyA:'missing'}).reason,'missing-body');
+  assert.equal(adapter.addJoint({...spec,bodyB:'base'}).reason,'same-body');
+  assert(adapter.addBody({id:'fixed-two',type:'fixed',colliders:[{shape:'ball',radius:.1}]}).ok);
+  assert.equal(adapter.addJoint({...spec,bodyB:'fixed-two'}).reason,'no-dynamic-body');
+  adapter.removeBody('fixed-two');joints(adapter,0);
+  const created=adapter.addJoint(spec);assert(created.ok);const token=created.token;joints(adapter,1);
+  assert.equal(adapter.addJoint(spec).reason,'duplicate-joint');
+  assert.equal(adapter.addJoint({...spec,id:'overflow'}).reason,'joint-capacity');
+  const read=adapter.readJoint(token);assert.deepEqual(read.axis,{x:0,y:0,z:1});assert.equal(read.contactsEnabled,false);
+  read.axis.z=99;read.anchorA.y=100;read.limits[1]=99;
+  assert.equal(adapter.readJoint(token).axis.z,1);assert.equal(adapter.readJoint(token).anchorA.y,0);
+  assert(Math.abs(adapter.readJoint(token).limits[1]-.6)<1e-6);
+  adapter.setVelocity('lid',{angular:{x:0,y:0,z:5}});
+  let maxAngle=0,maxAnchorError=0;
+  for(let step=0;step<240;step++) {
+    adapter.step(1/60);
+    const {pose}=adapter.readBody('lid'),q=pose.rotation,angle=2*Math.atan2(q.z,q.w);
+    maxAngle=Math.max(maxAngle,Math.abs(angle));
+    maxAnchorError=Math.max(maxAnchorError,Math.hypot(pose.position.x-Math.sin(angle),pose.position.y+Math.cos(angle)-2,pose.position.z));
+    assert(Math.abs(q.x)<1e-5&&Math.abs(q.y)<1e-5,'hinge confines rotation to its axis');
+    assert(angle>=-.4&&angle<=.7,'real solver respects angular limits within transient tolerance');
+  }
+  assert(maxAngle>.2,'the joint allows actual rotation');assert(maxAnchorError<.03,`anchor separation ${maxAnchorError}`);
+  assert(adapter.setJointLimits(token,[0,0]));
+  for(let step=0;step<240;step++)adapter.step(1/60);
+  assert(Math.abs(adapter.readBody('lid').pose.rotation.z)<.01,'a closed limit returns the hinge to its latched orientation');
+  assert.throws(()=>adapter.setJointLimits(token,[1,-1]));
+  assert.deepEqual(adapter.readJoint(token).limits,[0,0],'invalid limit updates preserve the existing constraint');
+  const firstGeneration=adapter.readBody('lid').generation;
+  assert(adapter.removeBody('lid'));joints(adapter,0);assert.equal(adapter.readJoint(token),null);
+  assert.equal(adapter.removeJoint(token),false);
+  assert(adapter.addBody({id:'lid',type:'dynamic',pose:{position:{x:0,y:1,z:0}},colliders:[{shape:'ball',radius:.1}]}).ok);
+  const next=adapter.addJoint(spec).token;assert(next.generation>token.generation);
+  assert(adapter.readJoint(next).generationB>firstGeneration);
+  assert.equal(adapter.setJointLimits(token,[0,.1]),false);assert.equal(adapter.removeJoint(token),false);joints(adapter,1);
+  assert(adapter.removeJoint(next));assert.equal(adapter.removeJoint(next),false);joints(adapter,0);
+
+  const original=R.RevoluteImpulseJoint.prototype.setLimits;
+  try {
+    R.RevoluteImpulseJoint.prototype.setLimits=function(){throw new Error('injected post-allocation configuration failure');};
+    assert.equal(adapter.addJoint(spec).reason,'engine-joint-create-failed');joints(adapter,0);
+    assert.equal(adapter.counts().bodies,2);
+  } finally {R.RevoluteImpulseJoint.prototype.setLimits=original;}
+  for(let index=0;index<100;index++) {
+    const result=adapter.addJoint(spec);assert(result.ok);assert(adapter.removeJoint(result.token));joints(adapter,0);
+  }
+  const final=adapter.addJoint(spec).token;
+  const foreign=await createRapierAdapter({capacities:{joints:1}});
+  try {bodies(foreign);const other=foreign.addJoint({...spec,contactsEnabled:true}).token;assert.equal(foreign.readJoint(final),null);assert.equal(foreign.removeJoint(final),false);assert.equal(foreign.readJoint(other).contactsEnabled,true);}
+  finally {foreign.dispose();joints(foreign,0);}
+  adapter.removeBody('base');joints(adapter,0);assert.equal(adapter.readJoint(final),null);
+} finally {adapter.dispose();adapter.dispose();joints(adapter,0);}
+const disabled=await createRapierAdapter();
+try {bodies(disabled);assert.equal(disabled.addJoint(spec).reason,'joint-capacity');joints(disabled,0);}
+finally {disabled.dispose();}
+console.log('PASS real Rapier hinges: bounded admission, angular limits, anchor retention, latch limit, copied state, invalid-input atomicity, post-allocation rollback, attached-body removal, generation/world isolation, 100 removal cycles and disposal.');
