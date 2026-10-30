@@ -148,6 +148,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     bodies: limit(capacities.bodies ?? 64, 'bodies'),
     colliders: limit(capacities.colliders ?? 256, 'colliders'),
     joints: limit(capacities.joints ?? 0, 'joints'),
+    supportedLoads: limit(capacities.supportedLoads ?? 0, 'supportedLoads'),
     events: limit(capacities.events ?? 256, 'events'),
     // Configurable fixture storage bounds, not measured device budgets.
     meshVertices: limit(capacities.meshVertices ?? 65536, 'meshVertices'),
@@ -159,6 +160,8 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
   let queue;
   try { queue = new R.EventQueue(true); } catch (error) { world.free(); throw error; }
   const bodies = new Map(), colliders = new Map(), joints = new Map(), jointOwner = ++adapterSerial;
+  const supportedLoads = new Map();
+  let loadGeneration = 0;
   let jointGeneration = 0;
   let pendingEvents = [], overflow = 0, totalOverflow = 0, disposed = false, generation = 0, steps = 0;
   let meshVertexCount = 0, meshTriangleCount = 0;
@@ -167,6 +170,20 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     if (disposed) throw new Error('Physics adapter has been disposed');
   }
   function record(id) { live(); return bodies.get(id); }
+  function loadRecord(token) {
+    live();
+    const item = token?.owner === jointOwner && supportedLoads.get(token.id);
+    return item && item.generation === token.generation ? item : null;
+  }
+  function refreshMass(body, originVelocity) {
+    // Changing the COM changes what linvel describes. Keep the body's velocity
+    // field continuous so a departing sitter doesn't kick the remaining sitter.
+    body.recomputeMassPropertiesFromColliders();
+    const origin = body.translation(), com = body.worldCom(), w = body.angvel();
+    const x = com.x - origin.x, y = com.y - origin.y, z = com.z - origin.z;
+    body.setLinvel({x:originVelocity.x+w.y*z-w.z*y,
+      y:originVelocity.y+w.z*x-w.x*z,z:originVelocity.z+w.x*y-w.y*x},true);
+  }
   function jointRecord(token) {
     live();
     const item = token?.owner === jointOwner && joints.get(token.id);
@@ -188,6 +205,68 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
   return Object.freeze({
     engineVersion: R.version(),
     capacities: limits,
+    addSupportedLoad(spec) {
+      live();
+      if (typeof spec?.id !== 'string' || !spec.id || spec.id.length > 200) throw new TypeError('Load id must be a nonempty string of at most 200 characters');
+      if (supportedLoads.has(spec.id)) return {ok:false,reason:'duplicate-load'};
+      if (supportedLoads.size >= limits.supportedLoads) return {ok:false,reason:'load-capacity'};
+      if (colliders.size >= limits.colliders) return {ok:false,reason:'collider-capacity'};
+      const item = bodies.get(spec.bodyId);
+      if (!item || item.generation !== spec.bodyGeneration) return {ok:false,reason:'stale-body'};
+      if (item.type !== 'dynamic') return {ok:false,reason:'not-dynamic'};
+      const position = vector(spec.position, 'load position');
+      const mass = positive(spec.mass, 'load mass'), radius = positive(spec.radius, 'load radius');
+      // A mass-bearing sensor contributes inertia but has no contacts or events.
+      // Its capacity still counts as a collider; it is not a second person body.
+      const desc = R.ColliderDesc.ball(radius).setMass(mass).setTranslation(position.x,position.y,position.z)
+        .setSensor(true).setCollisionGroups(0).setSolverGroups(0).setActiveEvents(0);
+      const originVelocity = vector(item.body.velocityAtPoint(item.body.translation()),'origin velocity');
+      let collider;
+      try {
+        collider = world.createCollider(desc,item.body);
+        refreshMass(item.body,originVelocity);
+      } catch(error) {
+        if(collider)world.removeCollider(collider,true);
+        refreshMass(item.body,originVelocity);
+        return {ok:false,reason:'engine-load-create-failed',message:error.message};
+      }
+      const serial = ++loadGeneration;
+      supportedLoads.set(spec.id,{collider,bodyId:spec.bodyId,bodyGeneration:item.generation,generation:serial,mass,radius,position});
+      item.colliders.push(collider.handle);
+      colliders.set(collider.handle,{id:spec.bodyId,generation:item.generation,index:-1,sensor:true,shape:collider.shape,
+        local:{position,rotation:{...IDENTITY}}});
+      return {ok:true,token:Object.freeze({owner:jointOwner,id:spec.id,generation:serial})};
+    },
+    readSupportedLoad(token) {
+      const load = loadRecord(token);
+      if(!load)return null;
+      const body = bodies.get(load.bodyId).body, position = vector(load.collider.translation(),'load world position');
+      return {bodyId:load.bodyId,bodyGeneration:load.bodyGeneration,mass:load.mass,radius:load.radius,
+        localPosition:{...load.position},position,rotation:rotation(body.rotation()),
+        velocity:vector(body.velocityAtPoint(position),'load point velocity'),angularVelocity:vector(body.angvel(),'load angular velocity')};
+    },
+    moveSupportedLoad(token, value) {
+      const load = loadRecord(token);
+      if(!load)return false;
+      const position = vector(value,'load position'), body = bodies.get(load.bodyId).body;
+      const originVelocity = vector(body.velocityAtPoint(body.translation()),'origin velocity');
+      load.collider.setTranslationWrtParent(position);
+      load.position = position;
+      colliders.get(load.collider.handle).local.position = position;
+      refreshMass(body,originVelocity);
+      return true;
+    },
+    removeSupportedLoad(token) {
+      if(disposed)return false;
+      const load = loadRecord(token);
+      if(!load)return false;
+      const item = bodies.get(load.bodyId), handle = load.collider.handle;
+      const originVelocity = vector(item.body.velocityAtPoint(item.body.translation()),'origin velocity');
+      world.removeCollider(load.collider,true);
+      item.colliders.splice(item.colliders.indexOf(handle),1);colliders.delete(handle);supportedLoads.delete(token.id);
+      refreshMass(item.body,originVelocity);
+      return true;
+    },
     addJoint(spec) {
       live();
       if (typeof spec?.id !== 'string' || !spec.id || spec.id.length > 200) throw new TypeError('Joint id must be a nonempty string of at most 200 characters');
@@ -300,6 +379,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       if (!item) return null;
       return {
         id, generation: item.generation, type: item.type, mass: item.body.mass(),
+        centerOfMass: vector(item.body.worldCom(), 'world center of mass'),
         pose: { position: vector(item.body.translation(), 'solved position'), rotation: rotation(item.body.rotation()) },
         linearVelocity: vector(item.body.linvel(), 'solved linearVelocity'),
         angularVelocity: vector(item.body.angvel(), 'solved angularVelocity'), sleeping: item.body.isSleeping(),
@@ -421,7 +501,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     },
     counts() {
       return {
-        bodies: bodies.size, colliders: colliders.size, joints: joints.size,
+        bodies: bodies.size, colliders: colliders.size, joints: joints.size, supportedLoads: supportedLoads.size,
         engineJoints: disposed ? 0 : world.impulseJoints.len(),
         meshVertices: meshVertexCount, meshTriangles: meshTriangleCount,
         engineBodies: disposed ? 0 : world.bodies.len(), engineColliders: disposed ? 0 : world.colliders.len(),
@@ -436,6 +516,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       // Rapier removes attached impulse joints with the body. Mirror that
       // lifetime here before a reused body id can resolve to a new generation.
       for (const [key, joint] of joints) if (joint.bodyA === id || joint.bodyB === id) joints.delete(key);
+      for (const [key, load] of supportedLoads) if (load.bodyId === id) supportedLoads.delete(key);
       for (const handle of item.colliders) colliders.delete(handle);
       meshVertexCount -= item.meshVertices; meshTriangleCount -= item.meshTriangles;
       bodies.delete(id);
@@ -447,7 +528,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       // Both own WASM resources. Free the world even if queue teardown throws.
       try { queue.free(); } finally {
         try { world.free(); } finally {
-          bodies.clear(); colliders.clear(); joints.clear(); pendingEvents = []; overflow = 0;
+          bodies.clear(); colliders.clear(); joints.clear(); supportedLoads.clear(); pendingEvents = []; overflow = 0;
           meshVertexCount = meshTriangleCount = 0;
         }
       }

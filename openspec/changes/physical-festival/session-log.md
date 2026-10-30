@@ -49,6 +49,14 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 
 ## Work Log
 
+### 2026-10-30 -- Changing seated mass must preserve point motion
+
+**Event:** discovery
+
+**What:** Rapier linear velocity belongs to the center of mass, so adding or removing an off-center seat load cannot simply retain that vector. Added bounded per-seat mass sensors with no contacts and recomputed the center velocity to retain the supporting body's existing point motion. Real-engine loveseat tests prove independent loads, continuous remaining-seat velocity, and mass/linear-momentum continuity when one load becomes a free body. This advances Task 5.2 (Supported load and bracing), but does not enable occupied chairs or accept the bracing controller.
+
+**Refs:** [Supported-load proof and remaining work](../../../verification/physical-festival/2026-10-30-supported-loads.md); `bin/test-physics-supported-loads`.
+
 ### 2026-10-29 -- Existing implementation changes the starting point
 
 **Event:** discovery

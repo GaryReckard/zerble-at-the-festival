@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [occupied-seat load proof](2026-10-30-supported-loads.md) verifies independent
+loveseat weights and continuous release velocity in real Rapier. Live occupied
+chairs and fall/recovery remain unfinished.
+
 The [bounded hinge proof](2026-10-30-joints/README.md) verifies the adapter contract needed for the later cooler lid experiment; no articulated cooler is enabled yet.
 
 The [stage-chair fix](2026-10-30-stage/README.md) adds missing stage-audience collisions and physical descriptors, and makes all eight admission slots usable with repeated chair styles.

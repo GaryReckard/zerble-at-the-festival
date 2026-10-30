@@ -1,0 +1,114 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as R from '@dimforge/rapier3d-compat';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+import {chairRecipe} from '../src/physics/recipes.js';
+const near=(a,b,tolerance=2e-4)=>assert(Math.abs(a-b)<tolerance,`${a} != ${b}`);
+const nearVector=(a,b)=>{for(const axis of ['x','y','z'])near(a[axis],b[axis]);};
+const addChair=adapter=>adapter.addBody({id:'chair',type:'dynamic',pose:{position:{x:2,y:3,z:4},rotation:{x:0,y:Math.sin(.4),z:0,w:Math.cos(.4)}},colliders:chairRecipe('loveseat')});
+const adapter=await createRapierAdapter({gravity:{x:0,y:0,z:0},capacities:{bodies:3,colliders:9,supportedLoads:2}});
+try {
+  const chair=addChair(adapter);assert(chair.ok);
+  const base=adapter.readBody('chair');
+  const spec={id:'left',bodyId:'chair',bodyGeneration:chair.generation,position:{x:-.3,y:.9,z:0},mass:65,radius:.22};
+  for(const patch of [{mass:0},{mass:NaN},{radius:-1},{position:{x:0,y:Infinity,z:0}}])assert.throws(()=>adapter.addSupportedLoad({...spec,...patch}));
+  assert.equal(adapter.addSupportedLoad({...spec,bodyGeneration:chair.generation+1}).reason,'stale-body');
+  const fixed=adapter.addBody({id:'ground',type:'fixed',colliders:[{shape:'ball',radius:.1}]});
+  assert.equal(adapter.addSupportedLoad({...spec,bodyId:'ground',bodyGeneration:fixed.generation}).reason,'not-dynamic');
+  adapter.removeBody('ground');
+  adapter.setVelocity('chair',{linear:{x:2,y:1,z:-3},angular:{x:1,y:2,z:3}});
+  const before=adapter.readBody('chair');
+  const pointVelocity=(body,point)=>{
+    const r={x:point.x-body.centerOfMass.x,y:point.y-body.centerOfMass.y,z:point.z-body.centerOfMass.z},w=body.angularVelocity,v=body.linearVelocity;
+    return {x:v.x+w.y*r.z-w.z*r.y,y:v.y+w.z*r.x-w.x*r.z,z:v.z+w.x*r.y-w.y*r.x};
+  };
+  const a=adapter.addSupportedLoad(spec);assert(a.ok);
+  near(adapter.readBody('chair').mass,base.mass+65);
+  nearVector(pointVelocity(before,before.pose.position),pointVelocity(adapter.readBody('chair'),before.pose.position));
+  const aBefore=adapter.readSupportedLoad(a.token);
+  const b=adapter.addSupportedLoad({...spec,id:'right',mass:80,position:{x:.3,y:.9,z:0}});assert(b.ok);
+  near(adapter.readBody('chair').mass,base.mass+145);
+  nearVector(adapter.readSupportedLoad(a.token).velocity,aBefore.velocity);
+  assert.equal(adapter.counts().supportedLoads,2);assert.equal(adapter.counts().colliders,8);
+  assert.equal(adapter.addSupportedLoad({...spec,id:'overflow'}).reason,'load-capacity');
+  assert.equal(adapter.addSupportedLoad(spec).reason,'duplicate-load');
+  const read=adapter.readSupportedLoad(b.token);read.localPosition.x=99;read.position.x=99;read.velocity.x=99;
+  near(adapter.readSupportedLoad(b.token).localPosition.x,.3);
+  const bBefore=adapter.readSupportedLoad(b.token);
+  assert.throws(()=>adapter.moveSupportedLoad(b.token,{x:NaN,y:1,z:0}));
+  nearVector(adapter.readSupportedLoad(b.token).localPosition,{x:.3,y:.9,z:0});
+  const beforeBrace=adapter.readBody('chair');
+  assert(adapter.moveSupportedLoad(b.token,{x:.15,y:.8,z:.05}));
+  nearVector(pointVelocity(beforeBrace,beforeBrace.pose.position),pointVelocity(adapter.readBody('chair'),beforeBrace.pose.position));
+  assert(adapter.moveSupportedLoad(b.token,{x:.3,y:.9,z:0}));
+  assert(adapter.removeSupportedLoad(a.token));
+  near(adapter.readBody('chair').mass,base.mass+80);
+  nearVector(adapter.readSupportedLoad(b.token).velocity,bBefore.velocity);
+  assert.equal(adapter.removeSupportedLoad(a.token),false);
+  // A falling person inherits the actual support-point velocity exactly once.
+  const release=adapter.readSupportedLoad(b.token);
+  const combined=adapter.readBody('chair');
+  assert(adapter.removeSupportedLoad(b.token));near(adapter.readBody('chair').mass,base.mass);
+  const fallen=adapter.addBody({id:'person',type:'dynamic',pose:{position:release.position,rotation:release.rotation},linearVelocity:release.velocity,angularVelocity:release.angularVelocity,
+    colliders:[{shape:'ball',radius:release.radius,mass:release.mass}]});assert(fallen.ok);
+  near(adapter.readBody('chair').mass+adapter.readBody('person').mass,base.mass+80);
+  nearVector(adapter.readBody('person').linearVelocity,release.velocity);
+  nearVector(adapter.readBody('person').angularVelocity,release.angularVelocity);
+  for(const axis of ['x','y','z'])near(combined.mass*combined.linearVelocity[axis],
+    adapter.readBody('chair').mass*adapter.readBody('chair').linearVelocity[axis]+release.mass*release.velocity[axis],.002);
+  adapter.removeBody('person');
+  const next=adapter.addSupportedLoad(spec);assert(next.ok);assert(next.token.generation>a.token.generation);
+  assert.equal(adapter.removeSupportedLoad(a.token),false);
+  assert(adapter.removeSupportedLoad(next.token));
+
+  // Allocation failure does not alter mass, velocity, or owned resource counts.
+  const original=R.World.prototype.createCollider, saved=adapter.readBody('chair'), counts=adapter.counts();
+  try {
+    R.World.prototype.createCollider=function(){throw Error('injected allocation failure');};
+    assert.equal(adapter.addSupportedLoad(spec).reason,'engine-load-create-failed');
+  } finally {R.World.prototype.createCollider=original;}
+  near(adapter.readBody('chair').mass,saved.mass);nearVector(adapter.readBody('chair').linearVelocity,saved.linearVelocity);
+  assert.deepEqual(adapter.counts(),counts);
+  const recompute=R.RigidBody.prototype.recomputeMassPropertiesFromColliders;
+  let failOnce=true;
+  try {
+    R.RigidBody.prototype.recomputeMassPropertiesFromColliders=function(){if(failOnce){failOnce=false;throw Error('post-allocation mass failure');}return recompute.call(this);};
+    assert.equal(adapter.addSupportedLoad(spec).reason,'engine-load-create-failed');
+  } finally {R.RigidBody.prototype.recomputeMassPropertiesFromColliders=recompute;}
+  assert.deepEqual(adapter.counts(),counts);near(adapter.readBody('chair').mass,saved.mass);
+  for(let i=0;i<100;i++){const added=adapter.addSupportedLoad(spec);assert(added.ok);assert(adapter.removeSupportedLoad(added.token));}
+  near(adapter.readBody('chair').mass,base.mass);nearVector(adapter.readBody('chair').linearVelocity,saved.linearVelocity);
+  assert.deepEqual(adapter.counts(),counts);
+  const last=adapter.addSupportedLoad(spec).token;
+  const foreign=await createRapierAdapter({capacities:{supportedLoads:1}});
+  try {const other=addChair(foreign);const own=foreign.addSupportedLoad({...spec,bodyGeneration:other.generation});assert(own.ok);assert.equal(foreign.readSupportedLoad(last),null);assert.equal(foreign.removeSupportedLoad(last),false);}
+  finally {foreign.dispose();}
+  adapter.removeBody('chair');assert.equal(adapter.counts().supportedLoads,0);assert.equal(adapter.counts().engineColliders,0);
+  const replacement=addChair(adapter);assert(replacement.ok);
+  assert.equal(adapter.readSupportedLoad(last),null);assert.equal(adapter.addSupportedLoad(spec).reason,'stale-body');
+} finally {adapter.dispose();adapter.dispose();}
+assert.equal(adapter.counts().supportedLoads,0);
+assert.equal(adapter.removeSupportedLoad({}),false);
+
+// A noncolliding load can overlap another body without events or impulses.
+const isolated=await createRapierAdapter({gravity:{x:0,y:0,z:0},capacities:{supportedLoads:1}});
+try {
+  const body=isolated.addBody({id:'base',type:'dynamic',colliders:[{shape:'ball',radius:.1,mass:1}]});
+  const load=isolated.addSupportedLoad({id:'load',bodyId:'base',bodyGeneration:body.generation,position:{x:0,y:3,z:0},mass:70,radius:.3});assert(load.ok);
+  isolated.addBody({id:'overlap',type:'dynamic',pose:{position:{x:0,y:3,z:0}},colliders:[{shape:'ball',radius:.3,mass:70}]});
+  isolated.applyImpulse('base',{x:71,y:0,z:0});
+  for(let i=0;i<60;i++)isolated.step(1/60);
+  assert.equal(isolated.drainEvents().events.length,0);
+  nearVector(isolated.readBody('overlap').linearVelocity,{x:0,y:0,z:0});
+  nearVector(isolated.readBody('base').linearVelocity,{x:1,y:0,z:0});
+  near(isolated.readBody('base').mass,71);
+} finally {isolated.dispose();}
+for(const [capacities,reason] of [[{supportedLoads:0},'load-capacity'],[{supportedLoads:1,colliders:6},'collider-capacity']]) {
+  const bounded=await createRapierAdapter({capacities});
+  try {
+    const body=addChair(bounded),before=bounded.counts();
+    assert.equal(bounded.addSupportedLoad({id:'load',bodyId:'chair',bodyGeneration:body.generation,position:{x:0,y:1,z:0},mass:70,radius:.2}).reason,reason);
+    assert.deepEqual(bounded.counts(),before);
+  } finally {bounded.dispose();}
+}
+console.log('PASS supported loads: real loveseat independent mass/COM, continuous rotating support velocity, release into one person body, no self/other contacts, bounds, rollback, stale tokens, 100 cycles and cleanup.');
