@@ -627,11 +627,15 @@ if(physicalRequested) {
     const result=physicalWorld?.tossAtPerson();
     physicalActionMessage=result?.ok?'Nearby prop launched; pedestrian still moves normally.':`Cannot stage toss: ${result?.reason??'physics-loading'}`;
   };
+  const dismount=document.createElement('button');dismount.textContent='Try occupied-chair exit';dismount.onclick=()=>{
+    const result=physicalWorld?.requestDismount();
+    physicalActionMessage=result?.ok?'Occupants checking a clear exit; blocked exits keep their seats.':`Cannot stage exit: ${result?.reason??'physics-loading'}`;
+  };
   const personTargetReady=()=>!!physicalPersonEncounter&&physicalWorld?.stats().ordinary?.people.some(p=>p.slot===physicalPersonEncounter.slot&&p.generation===physicalPersonEncounter.generation&&p.ready);
   const coast=physicalCoast=document.createElement('button');coast.textContent='Coast forward';coast.disabled=true;coast.onclick=()=>{if(personTargetReady()||physicalWorld?.owns(registry.entries.get(physicalEncounterId)??{}))zerble.speed=8;};
   physicalDetails=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Physics diagnostics';
   physicalDiagnostics=document.createElement('pre');Object.assign(physicalDiagnostics.style,{maxHeight:'200px',overflow:'auto'});physicalDetails.append(summary,physicalDiagnostics);
-  panel.append(stage,coolerStage,occupiedStage,pedestrianStage,toss,coast,physicalDetails);document.body.append(panel);
+  panel.append(stage,coolerStage,occupiedStage,pedestrianStage,toss,dismount,coast,physicalDetails);document.body.append(panel);
   import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera,people:crowd,isWet:isPointInLake})).then(world=>{
     if(physicalClosing)world.dispose();else physicalWorld=world;
   }).catch(error=>{physicalLoadError=error.message;physicalReadout.textContent=`Physics unavailable: ${error.message}`;console.error('Physical chair initialization failed',error);});

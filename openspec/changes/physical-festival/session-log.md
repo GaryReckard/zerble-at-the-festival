@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "5.3 (Controlled dismount): finish graduated occupant reactions; moving-person sweeps and device acceptance remain open"
+current_task: "5.2 (Supported load and bracing): finish bracing visuals and occupied-chair acceptance; moving-person sweeps and device acceptance remain open"
 blocked_by: null
 open_questions: 1
 started: 2026-10-29
@@ -327,3 +327,14 @@ deduplication and graph order. Person delivery and rotation-only contact evidenc
 remain unfinished, so Task 4.3 (Bounded incident provenance) remains unchecked.
 See [verification](../../../verification/physical-festival/2026-10-30-incidents/README.md).
 The pending device playtest request is recorded as Q3 (Phone playtest results).
+
+## October 30: controlled occupied-chair exits
+
+Added bounded exit preparation, current-support validation before handoff and
+interrupted-exit fallback. Clear routes complete with one seat/load release while
+blocked routes preserve support; a settled wobble cancels the proposed departure.
+Real-engine tests pass both camp and stage independent loveseat exits. The full
+check/build passed, and Chrome completed a live sitter dismount without console
+errors. [Evidence and capture limits](../../../verification/physical-festival/2026-10-30-dismount/README.md).
+Task 5.3 (Controlled dismount) is complete. Next: bracing visuals and full occupied
+incident inspection, then cooler lids/drinks. Phone feedback remains pending.

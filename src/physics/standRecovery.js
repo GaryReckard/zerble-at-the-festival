@@ -8,9 +8,10 @@ function mixRotation(a,b,t) {
  const q={x:lerp(a.x,b.x*sign,t),y:lerp(a.y,b.y*sign,t),z:lerp(a.z,b.z*sign,t),w:lerp(a.w,b.w*sign,t)};
  const length=Math.hypot(q.x,q.y,q.z,q.w);for(const k of ['x','y','z','w'])q[k]/=length;return q;
 }
-export function createStandRecovery({adapter,ground,radius=.3,halfHeight=.4,rootHeight=1,duration=1.4,automaticPreparation=true}) {
+export function createStandRecovery({adapter,ground,radius=.3,halfHeight=.4,rootHeight=1,duration=1.4,automaticPreparation=true,motion='stand'}) {
  if(typeof adapter?.queryBodyContacts!=='function'||typeof ground!=='function')throw new TypeError('Recovery requires collision and ground capabilities');
  if(![radius,halfHeight,rootHeight,duration].every(Number.isFinite)||radius<=0||halfHeight<0||rootHeight<radius+halfHeight||duration<.5||duration>4)throw new RangeError('Invalid recovery dimensions or duration');
+ if(!['stand','dismount'].includes(motion))throw new RangeError('Invalid recovery motion');
  let plan=null,pending=null,candidate=0,elapsed=0,retry=0,lastReason=null,queries=0;
  function surface(x,z){const s=ground(x,z);return s?.traversable===true&&Number.isFinite(s.height)&&Number.isFinite(s.normalY)&&s.normalY>=.85?s:null;}
  function query(body,pose){queries++;return adapter.queryBodyContacts(body.id,body.generation,pose);}
@@ -23,12 +24,13 @@ export function createStandRecovery({adapter,ground,radius=.3,halfHeight=.4,root
   return true;
  }
  function sample(p,t) {
-  const slide=smooth(Math.min(1,t*2)),rise=smooth(Math.max(0,t*2-1));
+  const slide=motion==='dismount'?smooth(t):smooth(Math.min(1,t*2)),rise=motion==='dismount'?smooth(t):smooth(Math.max(0,t*2-1));
   const x=lerp(p.start.position.x,p.target.x,slide),z=lerp(p.start.position.z,p.target.z,slide),s=surface(x,z);
   if(!s)return null;
   const rotation=mixRotation(p.start.rotation,p.rotation,rise),extent=radius+halfHeight*Math.abs(1-2*(rotation.x*rotation.x+rotation.z*rotation.z));
   const slideY=Math.max(p.start.position.y,s.height+extent+.035);
-  const y=rise>0?s.height+extent+.035+(rootHeight-extent-.035)*rise:lerp(p.start.position.y,slideY,slide);
+  const y=motion==='dismount'?lerp(p.start.position.y,s.height+rootHeight,slide)+.08*Math.sin(Math.PI*t)
+   :rise>0?s.height+extent+.035+(rootHeight-extent-.035)*rise:lerp(p.start.position.y,slideY,slide);
   return {position:{x,y,z},rotation};
  }
  function prepare(body,seatBlend) {
@@ -53,6 +55,24 @@ export function createStandRecovery({adapter,ground,radius=.3,halfHeight=.4,root
  }
 
  return Object.freeze({
+  begin(body,dt=1/60){
+   if(!Number.isFinite(dt)||dt<=0||dt>.05)return false;
+   if(!plan)return false;
+   const q=body.pose.rotation,r=plan.start.rotation;
+   if(body.id!==plan.bodyId||body.generation!==plan.generation
+    ||Math.hypot(body.pose.position.x-plan.start.position.x,body.pose.position.y-plan.start.position.y,body.pose.position.z-plan.start.position.z)>.05
+    ||Math.abs(q.x*r.x+q.y*r.y+q.z*r.z+q.w*r.w)<.995){plan=null;pending=null;lastReason='start-moved';return false;}
+   const initial=query(body,body.pose);if(!initial.ok){lastReason=initial.reason;return false;}
+   // Bind the first frame to the current support rather than snapping back to
+   // the pose used by preparation. Every following increment checks clearance.
+   plan.start={position:{...body.pose.position},rotation:{...q}};
+   plan.initial=new Map(initial.contacts.map(c=>[key(c),c.distance]));
+   const first=sample(plan,dt/duration),last=sample(plan,1);
+   if(!first||!last||!allowed(query(body,first),plan.initial)||!allowed(query(body,last),plan.initial,true)){
+    plan=null;lastReason='exit-changed';return false;
+   }
+   elapsed=0;return true;
+  },
   prepare(body,{seatBlend=1}={}){if(!Number.isFinite(seatBlend)||seatBlend<0||seatBlend>1)throw new RangeError('Invalid recovery leg blend');return !!plan||prepare(body,seatBlend);},
   step(body,dt,{seatBlend=1}={}) {
    if(!Number.isFinite(seatBlend)||seatBlend<0||seatBlend>1)throw new RangeError('Invalid recovery leg blend');
@@ -67,7 +87,7 @@ export function createStandRecovery({adapter,ground,radius=.3,halfHeight=.4,root
    const nextTime=Math.min(duration,elapsed+dt),t=nextTime/duration,pose=sample(plan,t);
    if(!pose||!allowed(query(body,pose),plan.initial,t===1)) {plan=null;lastReason='path-changed';return {phase:'waiting',reason:lastReason};}
    elapsed=nextTime;
-   const phase=t===1?'complete':'recovering',legBlend=plan.seatBlend*(1-smooth(Math.max(0,t*2-1)));
+   const phase=t===1?'complete':'recovering',legBlend=plan.seatBlend*(1-smooth(motion==='dismount'?t:Math.max(0,t*2-1)));
    return {phase,pose,seatBlend:legBlend};
   },
   cancel(){plan=null;pending=null;elapsed=0;retry=0;},

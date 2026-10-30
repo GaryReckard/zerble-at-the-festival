@@ -1,6 +1,6 @@
 # Make the festival physically responsive
 
-> **Status:** <!--STATUS:LINE-->in progress · 4/66 tasks (6%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->in progress · 5/66 tasks (8%)<!--/STATUS:LINE-->
 
 ## TL;DR
 
@@ -30,7 +30,7 @@ The full [66-task checklist](tasks.md) is the progress authority. Pure sign rese
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 4/66 tasks complete (6%) · current: 5.3 (Controlled dismount): finish graduated occupant reactions; moving-person sweeps and device acceptance remain open
+**in progress** — 5/66 tasks complete (8%) · current: 5.2 (Supported load and bracing): finish bracing visuals and occupied-chair acceptance; moving-person sweeps and device acceptance remain open
 
 _Last updated: 2026-10-30_
 

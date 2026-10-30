@@ -1,5 +1,5 @@
 import {createStandRecovery} from './standRecovery.js';
-export function createPersonRecovery({adapter,people,handle,scale,ground}) {
+export function createPersonRecovery({adapter,people,handle,scale,ground,motion='stand',duration=1.4}) {
     // Treat nearby people like other clearance contacts: an initial overlap
     // may be escaped, but cannot deepen or remain at the stand-up endpoint.
     const recoveryQueries={queryBodyContacts(id,generation,pose,options){
@@ -13,5 +13,5 @@ export function createPersonRecovery({adapter,people,handle,scale,ground}) {
      });
      return result;
     }};
-    return createStandRecovery({adapter:recoveryQueries,ground,radius:.3*scale,halfHeight:.4*scale,rootHeight:scale,automaticPreparation:false});
+    return createStandRecovery({adapter:recoveryQueries,ground,radius:.3*scale,halfHeight:.4*scale,rootHeight:scale,automaticPreparation:false,motion,duration});
 }

@@ -7,7 +7,7 @@ import {batchPropGroups} from '../src/propRendering.js';
 import {createLivePhysics} from '../src/physics/liveWorld.js';
 import {CampActivity} from '../src/people/campActivity.js';
 import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
-for(const stage of [false,true]) {
+for(const stage of [false,true]) for(const controlledExit of [false,true]) {
  const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
  const chair=buildCampChair(()=>.3,{style:'loveseat'});root.add(chair.group);
  const batch=batchPropGroups(root,[chair.group]);
@@ -38,6 +38,15 @@ for(const stage of [false,true]) {
   assert.equal(registry.physicalChairOwner.registerOrigin(regenerated,{chunkKey:'origin'}),entry);
   assert.equal(entry.campSeats,slots,'regeneration preserves live reservation tokens');
   assert(replacementSlots.every(slot=>slot.physicalUnavailable));
+  if(controlledExit){
+   const request=live.requestDismount();assert(request.ok);assert.equal(request.count,2);
+   assert(slots.every(slot=>slot.occupied),'exit request does not release either seat before planning');
+   live.prepare(-1);assert.equal(live.stats().engine.supportedLoads,2,'expired preparation cannot hand off a sitter');
+   for(let i=0;i<900&&persons.some(p=>people.isInActivity(p,'physical-seat'));i++){live.prepare(performance.now()+100);live.advance(1/60);}
+   assert(persons.every(p=>!people.isInActivity(p,'physical-seat')),JSON.stringify(live.stats().chairs));
+   assert(slots.every(slot=>!slot.occupied));assert.equal(live.stats().engine.supportedLoads,0);
+   assert(live.stats().chairs[0].state.occupants.every(p=>p.reaction.completion==='dismount'),'both finish by dismount, not fall/recovery');
+  }else{
   assert(people.hitPerson(persons[0],1,0));assert(!slots[0].occupied&&slots[1].occupied);
   assert.equal(live.stats().engine.supportedLoads,1);
   const tick=()=>{live.prepare(performance.now()+100);live.advance(1/60);};
@@ -58,7 +67,8 @@ for(const stage of [false,true]) {
   assert(people.hitPerson(persons[1],-1,0));for(let i=0;i<600&&people.isInActivity(persons[1],'physical-seat');i++)tick();
   assert(!people.isInActivity(persons[1],'physical-seat'),JSON.stringify(live.stats()));
   assert.equal(live.stats().engine.supportedLoads,0);assert.equal(live.stats().engine.contactPairs,live.stats().ordinary.people.length);assert(slots.every(s=>!s.occupied));
+  }
   const result=live.dispose();assert(result.ok);assert.equal(live.stats().engine.bodies,0);assert.equal(people.activityClaims.current.size,0);
  } finally {people.activityClaims.dispose();live.dispose();batch.dispose();replacementBatch?.dispose();}
- console.log(`PASS live ${stage?'stage':'camp'} loveseat: two real activity transfers, source unload, independent physical person hits, terrain-backed falls/recovery, one remaining sitter and full cleanup.`);
+ console.log(`PASS live ${stage?'stage':'camp'} loveseat: ${controlledExit?'two independent controlled exits, no fall/recovery substitution':'independent physical hits and terrain-backed fall/recovery'}, real activity transfers, source regeneration and full cleanup.`);
 }

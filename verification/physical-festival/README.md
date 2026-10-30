@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [controlled exit checkpoint](2026-10-30-dismount/README.md) adds bounded
+step-off planning, blocked-exit support retention and independent loveseat exits.
+A real Chrome sitter completed a dismount; full visual and device acceptance remain open.
+
 The [real secondary encounter checkpoint](2026-10-30-encounters/README.md) records
 chair-to-person falls and recovery in Chrome, production live-world regression
 tests, multiple-victim attribution, and safe reuse of untouched offscreen slots.

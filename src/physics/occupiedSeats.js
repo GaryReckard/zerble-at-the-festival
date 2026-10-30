@@ -12,7 +12,7 @@ export function createOccupiedSeats({people,adapter,budget,cartId,cart,groundAt}
  function onPersonImpact(handle,x,z,impact=null) {
   const p=participants.get(handle);if(!p||!people.isPersonActivityCurrent(p.claim))return false;
   if(!p.lease.fall().ok)return false;
-  p.recovery.cancel();
+  p.recovery.cancel();p.dismount?.cancel();
   const body=p.lease.read()?.body;if(!body)return false;
   const incoming=Number.isFinite(impact?.approachSpeed)?impact.approachSpeed:Math.abs(cart.speed);
   const impulse=body.mass*Math.max(1,Math.min(6,incoming*.6));
@@ -47,7 +47,7 @@ export function createOccupiedSeats({people,adapter,budget,cartId,cart,groundAt}
     attempt.own(()=>adapter.removeContactSuppression(excluded.token));
     return true;
    },
-   release(){p.controller?.dispose();p.recovery?.cancel();participants.delete(p.handle);},
+   release(){p.controller?.dispose();p.recovery?.cancel();p.dismount?.cancel();participants.delete(p.handle);},
   })));
   if(!claims)return {ok:false,reason};
   try {
@@ -55,14 +55,19 @@ export function createOccupiedSeats({people,adapter,budget,cartId,cart,groundAt}
     p.claim=claims[i];if(!p.support.commit(p.claim))throw new Error('Prepared support commit failed');
     const ground=(x,z)=>groundAt(entry,x,z,p.scale);
     p.recovery=createPersonRecovery({adapter,people,handle:p.handle,scale:p.scale,ground});
-    p.controller=createSeatReaction({people,claim:p.claim,lease:p.lease,releaseSeat:()=>p.support.release(),facing:p.facing,rootOffset:{x:0,y:-p.scale,z:0},recovery:p.recovery,
+    p.dismount=createPersonRecovery({adapter,people,handle:p.handle,scale:p.scale,ground,motion:'dismount',duration:.8});
+    p.controller=createSeatReaction({people,claim:p.claim,lease:p.lease,releaseSeat:()=>p.support.release(),facing:p.facing,rootOffset:{x:0,y:-p.scale,z:0},recovery:p.recovery,dismount:p.dismount,
      grounded(body){const at=groundAt(entry,body.pose.position.x,body.pose.position.z,p.scale);if(!at?.traversable)return false;const r=body.pose.rotation;return body.pose.position.y-(.3*p.scale+.4*p.scale*Math.abs(1-2*(r.x*r.x+r.z*r.z)))<=at.height+.06;}});
     participants.set(p.handle,p);p.controller.step(0);
    });
   } catch(error) {for(const claim of claims)people.endPersonActivity(claim,{reason:'physical-admission-failed'});throw error;}
   return {ok:true,lease:Object.freeze({
+   requestDismount(){let count=0;for(const p of rows)if(people.isPersonActivityCurrent(p.claim)&&p.controller.requestDismount())count++;return count;},
    step(dt){for(const p of rows)if(people.isPersonActivityCurrent(p.claim)){const result=p.controller.step(dt);if(!result.ok)throw new Error(`Occupied reaction: ${result.reason}`);}},
-   prepare(deadline,now){for(const p of rows)if(now()<deadline&&people.isPersonActivityCurrent(p.claim)&&p.controller.inspect().phase==='settled'){const body=p.lease.read()?.body;if(body)p.recovery.prepare(body,{seatBlend:p.controller.inspect().seatBlend});}},
+   prepare(deadline,now){for(const p of rows)if(now()<deadline&&people.isPersonActivityCurrent(p.claim)){
+    if(p.controller.inspect().phase==='settled'){const body=p.lease.read()?.body;if(body)p.recovery.prepare(body,{seatBlend:p.controller.inspect().seatBlend});}
+    else p.controller.prepareDismount();
+   }},
    bodies(){return rows.filter(p=>people.isPersonActivityCurrent(p.claim)).flatMap(p=>{const state=p.lease.read();return state?.state==='falling'&&state.body?[{...state.body,radius:1.5*p.scale}]:[];});},
    active(){return rows.filter(p=>people.isPersonActivityCurrent(p.claim)).length;},
    inspect(){return rows.map(p=>({person:p.handle.slot,current:people.isPersonActivityCurrent(p.claim),reaction:p.controller.inspect()}));},

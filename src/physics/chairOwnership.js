@@ -316,6 +316,7 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     return found;
   }
   return Object.freeze({ adopt, publish, release, registerOrigin, originEntryIds,
+    requestDismount(token){return resolve(token)?.occupants?.requestDismount()??0;},
     stepPeople(dt){for(const record of records.values())record.occupants?.step(dt);},
     preparePeople(deadline,now){for(const record of records.values())if(now()<deadline)record.occupants?.prepare(deadline,now);},
     personBodies(token){return resolve(token)?.occupants?.bodies()??[];},

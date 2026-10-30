@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+import {AdmissionBudget} from '../src/physics/admissionBudget.js';
+import {prepareSeatRelease} from '../src/physics/seatRelease.js';
+import {createSeatReaction} from '../src/physics/seatReaction.js';
+import {createStandRecovery} from '../src/physics/standRecovery.js';
+import {chairRecipe} from '../src/physics/recipes.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+for(const mode of ['clear','saved-wobble','blocked-ground','blocked-wall','second-hit','moved-start','exit-changed','pause','despawn']){
+ // Zero gravity holds a gently tilted chair still while isolating exit
+ // planning. The chair, capsule, contacts, impulses and claims are real.
+ const adapter=await createRapierAdapter({gravity:{x:0,y:0,z:0},capacities:{bodies:4,colliders:16,supportedLoads:1,contactPairs:1}});
+ const budget=new AdmissionBudget({capacities:{bodies:2,colliders:3,joints:0,renderSlots:0,events:0}}),people=makePeopleCrowd(),n=people.spawn({pos:new Vector()});
+ let lease,reaction,releases=0,complete=false,changed=false,maxStep=0,previous=null,walkable=mode!=='blocked-ground';
+ const chairPose=(angle=.45,x=0)=>({position:{x,y:.4,z:0},rotation:{x:0,y:0,z:Math.sin(angle/2),w:Math.cos(angle/2)}});
+ try{
+  const chair=adapter.addBody({id:'chair',type:'dynamic',pose:chairPose(),colliders:chairRecipe('sling')});assert(chair.ok);
+  assert(adapter.addBody({id:'ground',type:'fixed',pose:{position:{x:0,y:-.1,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:10,y:.1,z:10}}]}).ok);
+  if(mode==='blocked-wall')assert(adapter.addBody({id:'blocked',type:'fixed',pose:{position:{x:0,y:2,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:5,y:2,z:5}}]}).ok);
+  const dismount=createStandRecovery({adapter,ground:()=>({height:0,normalY:1,traversable:walkable}),motion:'dismount',duration:.8,automaticPreparation:false});
+  const claim=people.claimActivity(n.personHandle,{owner:{activityKey:'physical-seat'},prepare(attempt){
+   const result=prepareSeatRelease({adapter,budget,id:'test',bodyId:'chair',bodyGeneration:chair.generation,position:{x:0,y:.915,z:0},mass:70,radius:.3,halfHeight:.4,attempt});assert(result.ok);lease=result.lease;return true;
+  }},{preserveMotion:true});assert(claim);
+  reaction=createSeatReaction({people,claim,lease,dismount,releaseSeat(){releases++;}});
+  reaction.step(1/60);assert.equal(reaction.inspect().phase,'bracing');
+  if(mode==='saved-wobble')adapter.setPose('chair',chairPose(0));
+  for(let frame=0;frame<180;frame++){
+   const before=dismount.inspect().queries;reaction.prepareDismount();assert(dismount.inspect().queries-before<=5,'bounded exit preparation');
+   if(dismount.inspect().active&&!changed){
+    if(mode==='moved-start'){adapter.setPose('chair',chairPose(.45,.3));previous=null;changed=true;}
+    if(mode==='exit-changed'){walkable=false;changed=true;}
+    if(mode==='pause'){reaction.step(0);assert.equal(releases,0);assert.equal(lease.read().state,'supported');changed=true;}
+   }
+   // The enclosure is query-only in this blocked-exit fixture; advancing it
+   // would eject the chair itself and test a different failure mode.
+   if(mode!=='blocked-wall')adapter.step(1/60);
+   const result=reaction.step(1/60);assert(result.ok,JSON.stringify(result));
+   if(previous)maxStep=Math.max(maxStep,Math.hypot(n.pos.x-previous.x,n.pos.y-previous.y,n.pos.z-previous.z));previous={...n.pos};
+   if(mode==='moved-start'&&changed&&frame<7)assert.equal(releases,0,'moving start invalidates the prepared exit before seat release');
+   if(result.phase==='dismounting'){
+    assert.equal(adapter.counts().supportedLoads,0,'seated mass removed at handoff');assert.equal(releases,1);
+    if(mode==='second-hit'&&dismount.inspect().elapsed>.2){adapter.applyImpulse(lease.read().bodyId,{x:140,y:0,z:0});reaction.step(1/60);assert.equal(reaction.inspect().phase,'falling');changed=true;break;}
+    if(mode==='despawn'){people.peopleHandles.remove(n.personHandle,()=>people.activityClaims.removePerson(n.personHandle));assert.equal(reaction.step(1/60).reason,'stale-reaction');changed=true;break;}
+   }
+   if(result.phase==='complete'){complete=true;break;}
+  }
+  if(['clear','moved-start','pause'].includes(mode)){
+   assert(complete,JSON.stringify({mode,state:reaction.inspect(),planner:dismount.inspect()}));assert.equal(releases,1);
+   assert.equal(n._reactionPose,null);assert.equal(n.state,'walking');assert(Math.abs(n.pos.y)<1e-5);
+   assert(maxStep<.15,'continuous step-off '+maxStep);assert.equal(budget.report().records,0);
+  }else if(mode==='saved-wobble'){assert.equal(releases,0);assert.equal(reaction.inspect().phase,'supported');assert.equal(lease.read().state,'supported');
+  }else if(['blocked-ground','blocked-wall','exit-changed'].includes(mode)){
+   assert(!complete);assert.equal(releases,0);assert.equal(lease.read().state,'supported');assert.equal(adapter.counts().supportedLoads,1);
+   adapter.setPose('chair',chairPose(1.4));reaction.step(1/60);
+   assert.equal(reaction.inspect().phase,'falling','unsafe support can still fall when there is no walking exit');assert.equal(releases,1);
+  }else assert(changed,mode);
+ }finally{reaction?.dispose();people.activityClaims.dispose();adapter.dispose();}
+ assert.equal(budget.report().records,0);
+}
+console.log('PASS controlled dismount: bounded real-shape planning, continuous step and leg blend, one support release, blocked/changed exits retain seats, stale start, pause, second hit and despawn cleanup.');

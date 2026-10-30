@@ -262,6 +262,11 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     return {ok:!errors.length,errors};
   }
   return {prepare,advance,stats,dispose,approachPerson:()=>ordinary?.approach()??null,reset(reason){resetReason=reason;},owns(entry){return !!entryRecords.get(entry.id)?.token;},
+    requestDismount(){
+      if(disposed)return {ok:false,reason:'disposed'};
+      for(const record of records.values())if(record.token){const count=owner.requestDismount(record.token);if(count)return {ok:true,count,entryId:record.entryId};}
+      return {ok:false,reason:'no-supported-occupants'};
+    },
     tossAtPerson(){
       if(disposed||!ordinary)return {ok:false,reason:'people-unavailable'};
       let best=null;const flight=.4;
