@@ -24,7 +24,7 @@ export function registerStageChair(registry, chair, {chunkKey, origin, originReg
   const adopted=registry.physicalChairOwner?.registerOrigin(descriptor,child);
   const entry=adopted||child;
   if(!adopted)registry.add(child);
-  else entry.campSeats=chair.campSeats;
+  // An adopted entry retains its live seat tokens across origin regeneration.
   for(const slot of chair.campSeats)slot.collider=entry;
   return entry;
 }
@@ -195,7 +195,7 @@ export function registerCampsite(registry, camp, options = {}) {
     const physicalProp = physicalProps.find(chair => chair.renderBinding?.group === prop.group);
     const child = { kind: prop.kind, position: position(p), footprint: radius,
       collider: { radius, damage: prop.kind === 'camp_tent' ? 3 : 1 }, ...(options.chunkKey !== undefined ? { chunkKey: options.chunkKey } : {}),
-      ...(physicalProp ? { physicalProp } : {}),
+      ...(physicalProp ? { physicalProp, campSeats:physicalProp.seatSlots } : {}),
       ...(options.campNeighborhood ? {campNeighborhood:options.campNeighborhood} : {}) };
     // An adopted chair keeps its live entry across origin regeneration. It is
     // deliberately omitted from this origin's teardown IDs, including lakes

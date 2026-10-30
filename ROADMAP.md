@@ -217,8 +217,9 @@ harness history, tier contract and acceptance criteria.
 - **Physical festival:** implement the [documented plan](openspec/changes/physical-festival/README.md)
   for chair/occupant physics and recovery, the existing cooler, transferable drinks,
   route-aware damageable signs and bounded aftermath. The standalone engine fixture
-  and opt-in live empty-chair encounter are implemented; finish support-boundary and
-  distance-reset policy, occupied ownership/reactions and device acceptance.
+  and opt-in live chairs, closed coolers and occupied-seat falls/recovery are implemented;
+  finish general-person falls, incident attribution, support-boundary and coherent
+  distance-reset policy, broader props and device acceptance.
   See the [first proof and remaining work](verification/physical-festival/README.md).
 - **Juice tuning:** keep variety costs and drain/frown feel as explicit design decisions.
 

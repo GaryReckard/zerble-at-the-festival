@@ -7,6 +7,8 @@ import { createStaticResidency } from './staticResidency.js';
 import { AdmissionBudget } from './admissionBudget.js';
 import { createActivePropRendering } from './activePropRendering.js';
 import { createChairOwnership } from './chairOwnership.js';
+import { createOccupiedSeats } from './occupiedSeats.js';
+import { sampleTerrain } from '../worldgen/terrain.js';
 import { campSlotAvailable } from '../people/campResources.js';
 import { findChairApproach } from './encounter.js';
 import { APPROACH_DAMAGE_THRESHOLD } from '../collisionContacts.js';
@@ -18,21 +20,28 @@ const poseOf = cart => ({position:{x:cart.position.x,y:cart.position.y,z:cart.po
 
 // Opt-in integration proof. The owner consumes the game's clock and streaming
 // deadline; it never creates a timer, animation loop or independent budget.
-export async function createLivePhysics({scene,registry,cart,camera,now=()=>performance.now()}) {
-  const adapter = await createRapierAdapter({capacities:{bodies:256,colliders:512,events:256}});
+export async function createLivePhysics({scene,registry,cart,camera,people=null,isWet=()=>false,now=()=>performance.now()}) {
+  const adapter = await createRapierAdapter({capacities:{bodies:256,colliders:512,events:256,supportedLoads:16,contactPairs:32}});
   let rendering,terrain,solids,owner;
   try {
   const clock = new FixedStepClock(), records = new Map(), entryRecords = new Map(), rejected = new Map();
   rendering = createActivePropRendering({maxBuckets:48,maxSlots:3072,slotsPerBucket:64});
   terrain = createTerrainResidency(adapter,{maxTiles:64,maxQueued:32,maxOwners:MAX_CHAIRS});
   solids = createStaticResidency({registry,adapter,isDynamic:entry=>!!entryRecords.get(entry.id)?.token,maxProxies:128,maxOwners:MAX_CHAIRS,maxQueued:128});
-  const budget = new AdmissionBudget({capacities:{bodies:256,colliders:512,joints:0,renderSlots:3072,events:256},maxRecords:MAX_CHAIRS+1});
+  const budget = new AdmissionBudget({capacities:{bodies:256,colliders:512,joints:0,renderSlots:3072,events:256},maxRecords:MAX_CHAIRS*3+1});
   // Reserve the worst-case fixed support and cart allocations before chairs.
   budget.reserve('world-support',{resident:{bodies:193,colliders:193,events:256}});
-  let preparationCalls=0,lastCandidates=0,nearbyChairs=0;
+  let preparationCalls=0,lastCandidates=0,nearbyChairs=0,preferredEncounter=null;
   let disposed=false, resetReason='restart', suspended=false, blocked=null, frames=0, hits=0, overflow=0, rejects=0, lastReject=null;
   const frustum=new THREE.Frustum(), projection=new THREE.Matrix4(), sphere=new THREE.Sphere();
-  owner = createChairOwnership({registry,adapter,budget,rendering,maxChairs:MAX_CHAIRS,campSlotAvailable,
+  const occupants=people?createOccupiedSeats({people,adapter,budget,cartId:'live-cart',cart,
+    groundAt(entry,x,z,scale){
+      const record=entryRecords.get(entry.id);
+      if(!record?.token||!containsSupport(record.bounds,{x,z},1.5*scale)||isWet(x,z))return null;
+      const surface=sampleTerrain(x,z,{});return {height:surface.height,normalY:surface.ny,traversable:surface.traversable};
+    }}):null;
+  const eligibleSeats=entry=>entry.physicalProp?.seatSlots.every(campSlotAvailable)||occupants?.canAdopt(entry)===true;
+  owner = createChairOwnership({registry,adapter,budget,rendering,occupants,maxChairs:MAX_CHAIRS,campSlotAvailable,
     originAlive:descriptor=>registry.entries.has(descriptor.originRegistryId),
     supportReady:descriptor=>{
       const record=records.get(descriptor.logicalKey);
@@ -57,7 +66,7 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
   function considerRetirement(record) {
     if(!record.token)return false;
     const state=owner.read(record.token),entry=registry.entries.get(record.entryId);
-    if(!state||!entry)return false;
+    if(!state||!entry||state.occupants?.some(p=>p.current))return false;
     const p=state.pose.position,origin=record.origin;
     if(Math.hypot(cart.position.x-p.x,cart.position.z-p.z)<180 || Math.hypot(cart.position.x-origin.x,cart.position.z-origin.z)<180)return false;
     if(camera) {
@@ -75,16 +84,19 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
     for(const [key,failure] of rejected) {
       const entry=registry.entries.get(failure.entryId);
       if(!entry||Math.hypot(entry.position.x-cart.position.x,entry.position.z-cart.position.z)>48
-        ||(failure.reason==='occupied-or-unavailable'&&entry.physicalProp?.seatSlots.every(campSlotAvailable)))rejected.delete(key);
+        ||(failure.reason==='occupied-or-unavailable'&&eligibleSeats(entry)))rejected.delete(key);
     }
     const candidates=[];nearbyChairs=0;
     if(records.size<MAX_CHAIRS && rejected.size<64 && now()<deadline) {
+      const preferred=registry.entries.get(preferredEncounter),preferredProp=preferred?.physicalProp;
+      if(preferredProp&&!records.has(preferredProp.logicalKey)&&!rejected.has(preferredProp.logicalKey)
+        &&Math.hypot(preferred.position.x-cart.position.x,preferred.position.z-cart.position.z)<24&&eligibleSeats(preferred))candidates.push(preferred);
       registry.collidersNear(cart.position.x,cart.position.z,24,entry=>{
         const descriptor=entry.physicalProp;
         if(descriptor)nearbyChairs++;
-        if(candidates.length<MAX_CHAIRS && descriptor && !records.has(descriptor.logicalKey) && !rejected.has(descriptor.logicalKey)
+        if(!candidates.includes(entry) && candidates.length<MAX_CHAIRS && descriptor && !records.has(descriptor.logicalKey) && !rejected.has(descriptor.logicalKey)
           && Math.hypot(entry.position.x-cart.position.x,entry.position.z-cart.position.z)<24
-          && (descriptor.kind==='camp_cooler'||descriptor.seatSlots.length) && descriptor.seatSlots.every(campSlotAvailable)) candidates.push(entry);
+          && (descriptor.kind==='camp_cooler'||descriptor.seatSlots.length) && eligibleSeats(entry)) candidates.push(entry);
       });
       lastCandidates=candidates.length;
       for(const entry of candidates) {
@@ -108,7 +120,12 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
       const state=record.token?owner.read(record.token):null;
       const p=state?.pose.position??record.origin;
       const body=record.token?adapter.readBody(record.bodyId):null;
-      const wanted=supportWindow(p,body?.linearVelocity,state?.supportRadius??2,record.wanted);
+      const wanted={...supportWindow(p,body?.linearVelocity,state?.supportRadius??2,record.wanted)};
+      for(const person of record.token?owner.personBodies(record.token):[]) {
+        const area=supportWindow(person.pose.position,person.linearVelocity,person.radius+2);
+        wanted.minX=Math.min(wanted.minX,area.minX);wanted.minZ=Math.min(wanted.minZ,area.minZ);
+        wanted.maxX=Math.max(wanted.maxX,area.maxX);wanted.maxZ=Math.max(wanted.maxZ,area.maxZ);
+      }
       const ground=terrain.request(record.supportKey,wanted),nearby=solids.request(record.supportKey,wanted);
       if(!ground.ok||!nearby.ok){rejection(!ground.ok?ground.reason:nearby.reason);continue;}
       record.wanted=wanted;
@@ -126,6 +143,7 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
         else {rejection(result.reason);rejected.set(record.key,{entryId:record.entryId,reason:result.reason});forget(record);}
       }
     }
+    owner.preparePeople(deadline,now);
     for(const record of records.values())registry.entries.get(record.entryId)?.physicalProp?.renderBatch?.flush();
     rendering.flush();
   }
@@ -142,6 +160,10 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
         if(!state||!body)continue;
         const predicted={x:body.pose.position.x+body.linearVelocity.x*step,z:body.pose.position.z+body.linearVelocity.z*step};
         if(!containsSupport(record.bounds,predicted,state.supportRadius+.5)){blocked='support-frontier';suspended=true;return false;}
+        for(const person of owner.personBodies(record.token)) {
+          const next={x:person.pose.position.x+person.linearVelocity.x*step,z:person.pose.position.z+person.linearVelocity.z*step};
+          if(!containsSupport(record.bounds,next,person.radius+.5)){blocked='person-support-frontier';suspended=true;return false;}
+        }
       }
       return true;
     }
@@ -151,7 +173,7 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
     proxy.accept(clock.time+clock.remainder,dt,poseOf(cart),{ghost,resetReason:reason});
     resetReason=null;suspended=false;
     clock.advance(dt,(step,time)=>{
-      proxy.beforeStep(time);adapter.step(step);
+      proxy.beforeStep(time);adapter.step(step);owner.stepPeople(step);
       const drained=adapter.drainEvents();overflow+=drained.overflow;
       for(const event of drained.events) {
         if(event.a!==cartId&&event.b!==cartId)continue;
@@ -173,8 +195,8 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
         const approach=(-Math.sin(cart.heading)*cart.speed*dx-Math.cos(cart.heading)*cart.speed*dz)/d;
         if(approach<=APPROACH_DAMAGE_THRESHOLD)continue;
         record.lastHit=time;record.penalized=true;hits++;
-        // Only empty chairs and closed coolers are admitted by this prototype. A physical touch
-        // is not a person incident, irrespective of the legacy collider cost.
+        // A furniture touch is not itself a person incident. The existing person
+        // contact path owns occupant penalties and sends their physical impulse.
         hit={damaging:false,damage:0,objectBump:eligible,kind:entry.kind,entry,physical:true,
           mass:body.mass,approachSpeed:approach,push:{x:-dx/d,z:-dz/d}};
       }
@@ -189,7 +211,7 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
   function stats() {return {enabled:!disposed,phase:'physical-props-prototype',preparationCalls,lastCandidates,nearbyChairs,rejectedCandidates:rejected.size,player:{x:cart.position.x,z:cart.position.z},frames,clock:{steps:clock.steps,dropped:clock.dropped},blocked,hits,overflow,rejects,lastReject,
     chairs:[...records.values()].map(record=>({key:record.key,kind:registry.entries.get(record.entryId)?.kind,entryId:record.entryId,active:!!record.token,state:record.token?owner.read(record.token):null})),
     engine:adapter.counts(),terrain:terrain.stats(),solids:solids.stats(),render:rendering.stats(),ownership:owner.stats(),cart:proxy.state(),
-    limitations:['Occupied chairs remain legacy.','Static cylinders are conservative approximations.','Secondary-person attribution and device acceptance are pending.','Support-frontier exhaustion visibly stops this opt-in prototype.']};}
+    limitations:['Occupied chair adoption is opt-in; full incident and device acceptance remain pending.','Static cylinders are conservative approximations.','Secondary-person attribution and device acceptance are pending.','Support-frontier exhaustion visibly stops this opt-in prototype.']};}
   function dispose() {
     if(disposed)return;disposed=true;
     if(registry.physicalChairOwner===owner)delete registry.physicalChairOwner;
@@ -205,12 +227,14 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
       const candidates=[];
       for(const kind of ['chair','camp_chair','camp_loveseat','camp_cooler'])for(const id of registry.byKind.get(kind)??[]) {
         const entry=registry.entries.get(id),descriptor=entry?.physicalProp;
-        if(requestedKind&&descriptor?.kind!==requestedKind)continue;
-        if(!descriptor||(descriptor.kind!=='camp_cooler'&&!descriptor.seatSlots.length)||(!entryRecords.get(id)?.token&&!descriptor.seatSlots.every(campSlotAvailable)))continue;
+        if(requestedKind==='occupied'){if(!descriptor?.seatSlots.some(slot=>slot.occupied))continue;}
+        else if(requestedKind&&descriptor?.kind!==requestedKind)continue;
+        if(!descriptor||(descriptor.kind!=='camp_cooler'&&!descriptor.seatSlots.length)||(!entryRecords.get(id)?.token&&!eligibleSeats(entry)))continue;
         candidates.push(entry);
       }
       candidates.sort((a,b)=>(Number(!!entryRecords.get(b.id)?.token)-Number(!!entryRecords.get(a.id)?.token))||Math.hypot(a.position.x-cart.position.x,a.position.z-cart.position.z)-Math.hypot(b.position.x-cart.position.x,b.position.z-cart.position.z));
-      return findChairApproach({registry,entries:candidates,radius:Math.max(2.95,cart.radius??0),isWet});
+      const approach=findChairApproach({registry,entries:candidates,radius:Math.max(2.95,cart.radius??0),isWet});
+      preferredEncounter=approach?.entryId??null;return approach;
     }};
   } catch(error) {
     if(registry.physicalChairOwner===owner)delete registry.physicalChairOwner;

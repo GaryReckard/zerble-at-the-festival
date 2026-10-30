@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {Registry} from '../src/registry.js';
+import {buildCampChair} from '../src/models/campChair.js';
+import {batchPropGroups} from '../src/propRendering.js';
+import {createLivePhysics} from '../src/physics/liveWorld.js';
+import {CampActivity} from '../src/people/campActivity.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+for(const stage of [false,true]) {
+ const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
+ const chair=buildCampChair(()=>.3,{style:'loveseat'});root.add(chair.group);
+ const batch=batchPropGroups(root,[chair.group]);
+ const slots=[-.3,.3].map(x=>({x,y:chair.seatY,z:0,yaw:Math.PI,approachX:x,approachZ:2,occupied:false}));
+ const parent={kind:'campsite',position:new THREE.Vector3(),footprint:8,chunkKey:'origin',campSeats:slots,campBeds:[]};registry.add(parent);
+ const descriptor={logicalKey:`occupied-${stage?'stage':'camp'}`,kind:'camp_loveseat',style:'loveseat',originOwner:'chunk:origin',originRegistryId:parent.id,
+  worldPose:{position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0,w:1},scale:{x:1,y:1,z:1}},renderBinding:batch.bindings[0],renderBatch:batch,seatSlots:slots};
+ const entry={kind:stage?'chair':'camp_loveseat',stageAudience:stage,position:new THREE.Vector3(),footprint:1,collider:{radius:1,damage:1},chunkKey:'origin',physicalProp:descriptor,campSeats:slots};registry.add(entry);slots.forEach(s=>s.collider=entry);
+ const people=makePeopleCrowd();people.camps=new CampActivity(people,registry);people._inlineActivities=new Set([people.camps]);
+ const persons=slots.map(slot=>{
+  const n=people.spawn({pos:new Vector(slot.x,0,2)});Object.assign(n,{scale:1,energy:1,stateTimer:1});
+  for(let i=0;i<300&&n.state!=='camp_seated';i++){n.stateTimer-=.05;people.camps.tick(.05,n.personHandle,.25);}
+  assert.equal(n.state,'camp_seated');return n.personHandle;
+ });
+ const cart={position:new THREE.Vector3(0,0,9),root:new THREE.Group(),heading:0,speed:6};
+ let replacementBatch=null;
+ const live=await createLivePhysics({scene,registry,cart,people});
+ try {
+  for(let i=0;i<30&&!live.owns(entry);i++)live.prepare(performance.now()+100);
+  assert(live.owns(entry),JSON.stringify(live.stats()));
+  assert.equal(live.stats().engine.supportedLoads,2);assert.equal(live.stats().engine.contactPairs,4);
+  assert(persons.every(p=>people.isInActivity(p,'physical-seat')));assert.equal(people.camps.records.size,0);
+  registry.removeChunk('origin');assert(registry.entries.has(entry.id),'adopted support survives source unloading');
+  const replacement=buildCampChair(()=>.3,{style:'loveseat'});root.add(replacement.group);
+  replacementBatch=batchPropGroups(root,[replacement.group]);
+  const replacementSlots=slots.map(slot=>({...slot,occupied:false}));
+  const regenerated={...descriptor,renderBinding:replacementBatch.bindings[0],renderBatch:replacementBatch,seatSlots:replacementSlots};
+  assert.equal(registry.physicalChairOwner.registerOrigin(regenerated,{chunkKey:'origin'}),entry);
+  assert.equal(entry.campSeats,slots,'regeneration preserves live reservation tokens');
+  assert(replacementSlots.every(slot=>slot.physicalUnavailable));
+  assert(people.hitPerson(persons[0],1,0));assert(!slots[0].occupied&&slots[1].occupied);
+  assert.equal(live.stats().engine.supportedLoads,1);
+  const tick=()=>{live.prepare(performance.now()+100);live.advance(1/60);};
+  let bystander=null;
+  for(let i=0;i<600&&people.isInActivity(persons[0],'physical-seat');i++) {
+   const reaction=live.stats().chairs.find(c=>c.entryId===entry.id)?.state?.occupants?.[0]?.reaction;
+   if(stage&&!bystander&&reaction?.phase==='settled') {
+    const n=people.peopleHandles.resolve(persons[0]),r=n._reactionPose;
+    const center=new THREE.Vector3(0,1,0).applyQuaternion(new THREE.Quaternion(r.qx,r.qy,r.qz,r.qw)).add(n.pos);
+    bystander=people.spawn({pos:new Vector(center.x+.1,0,center.z)});bystander.scale=1;
+   }
+   tick();
+  }
+  if(stage)assert(bystander,'test includes initial crowd overlap while recovering');
+  assert(!people.isInActivity(persons[0],'physical-seat'),JSON.stringify(live.stats()));
+  assert(people.isInActivity(persons[1],'physical-seat'),'one departure does not release the second sitter');
+  assert.equal(live.stats().engine.supportedLoads,1);assert.equal(live.stats().engine.contactPairs,2);
+  assert(people.hitPerson(persons[1],-1,0));for(let i=0;i<600&&people.isInActivity(persons[1],'physical-seat');i++)tick();
+  assert(!people.isInActivity(persons[1],'physical-seat'),JSON.stringify(live.stats()));
+  assert.equal(live.stats().engine.supportedLoads,0);assert.equal(live.stats().engine.contactPairs,0);assert(slots.every(s=>!s.occupied));
+  const result=live.dispose();assert(result.ok);assert.equal(live.stats().engine.bodies,0);assert.equal(people.activityClaims.current.size,0);
+ } finally {people.activityClaims.dispose();live.dispose();batch.dispose();replacementBatch?.dispose();}
+ console.log(`PASS live ${stage?'stage':'camp'} loveseat: two real activity transfers, source unload, independent physical person hits, terrain-backed falls/recovery, one remaining sitter and full cleanup.`);
+}

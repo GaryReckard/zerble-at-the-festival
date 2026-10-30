@@ -111,3 +111,25 @@ for(const capacity of [0,1]) {
   } finally {f.people.activityClaims.dispose();adapter.dispose();}
 }
 console.log('PASS real Rapier load plus person claim: exhausted load capacity preserves the sitter; committed support survives origin unload and releases seat/mass together.');
+
+// Both sitter preparations finish before either old activity is revoked.
+for(const failSecond of [true,false]) {
+ const f=fixture(),old=f.persons.map(p=>f.people.activityClaims.current.get(p).claim),prepared=[];let released=0;
+ assert.equal(f.people.findPersonOnSupport(f.slots[0]),f.persons[0]);
+ const claims=f.people.claimSupportReactions(f.persons.map((handle,i)=>({handle,owner,
+  prepare(attempt){
+   assert(old.every(c=>f.people.isPersonActivityCurrent(c)),'all old claims survive all preparation');
+   const support=f.people.preparePersonSupportTransfer(handle,f.target,attempt);assert(support);prepared.push(support);
+   attempt.own(()=>released++);return !(failSecond&&i===1);
+  },
+ })));
+ if(failSecond){assert.equal(claims,null);assert(old.every(c=>f.people.isPersonActivityCurrent(c)));assert(f.slots.every(s=>s.occupied));assert.equal(released,2);}
+ else {
+  assert.equal(claims.length,2);assert(claims.every((c,i)=>prepared[i].commit(c)));assert(old.every(c=>!f.people.isPersonActivityCurrent(c)));
+  f.registry.entries.delete(f.original.id);assert(prepared.every(s=>s.isValid()));
+  assert(prepared[0].release());assert(!f.slots[0].occupied&&f.slots[1].occupied);
+  f.people.endPersonActivity(claims[0]);assert(prepared[1].isValid());f.people.endPersonActivity(claims[1]);assert.equal(released,2);
+ }
+ f.people.activityClaims.dispose();
+}
+console.log('PASS loveseat batch: all preparation precedes revocation, second-seat rejection preserves both originals, successful transfers retain independent ownership across origin removal.');

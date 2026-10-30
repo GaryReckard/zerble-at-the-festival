@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "5.2 (Supported load and bracing), then fall/recovery; phone acceptance pending"
+current_task: "Live occupied-chair falls/recovery integrated; general-person impacts, broader props and phone acceptance pending"
 blocked_by: null
 open_questions: 0
 started: 2026-10-29
@@ -275,3 +275,14 @@ A real tilted-seat release can leave the body and chair overlapping after landin
 **What:** Gary reaffirmed empty-object scoring, gave positive early chair feedback and requested coolers plus falling people. Following that requested sequence, separated the cooler from its canopy-owned collider and reused bounded prop ownership, terrain/static support, rendering and regeneration. Closed coolers now move in live campsites. The encounter helper had been rejecting valid cooler approaches by testing travel through the target into its kitchen; it now checks up to first contact. A real browser impact moved a cooler approximately 1.6 metres. Lid articulation, contents, holder drinks and occupied-person falls are not enabled by this slice.
 
 **Refs:** D14 (cooler enrollment after positive chair feedback); [cooler evidence](../../../verification/physical-festival/2026-10-30-cooler/README.md).
+
+## October 30: live occupied-chair checkpoint
+
+Connected real campsite/stage sitters to physical furniture through atomic multi-person
+claim preparation. Live browser driving produced a fallen sitter who recovered and
+released its temporary body/load/contact resources. Fixed initial crowd-overlap escape
+and preserved physical authority during nearby panic. Tests cover independent loveseat
+release, source regeneration, teardown and rollback. See the
+[live report](../../../verification/physical-festival/2026-10-30-live-occupants/README.md).
+Next: ordinary-person physical impacts and incident ownership, followed by cooler
+lids/drinks and signs. Full acceptance remains open, including the iPhone/iPad test.

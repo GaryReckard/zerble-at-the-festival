@@ -615,11 +615,12 @@ if(physicalRequested) {
   };
   stage.onclick=()=>stageEncounter();
   const coolerStage=document.createElement('button');coolerStage.textContent='Stage cooler encounter';coolerStage.onclick=()=>stageEncounter('camp_cooler');
+  const occupiedStage=document.createElement('button');occupiedStage.textContent='Stage occupied encounter';occupiedStage.onclick=()=>stageEncounter('occupied');
   const coast=physicalCoast=document.createElement('button');coast.textContent='Coast forward';coast.disabled=true;coast.onclick=()=>{if(physicalWorld?.owns(registry.entries.get(physicalEncounterId)??{}))zerble.speed=8;};
   physicalDetails=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Physics diagnostics';
   physicalDiagnostics=document.createElement('pre');Object.assign(physicalDiagnostics.style,{maxHeight:'200px',overflow:'auto'});physicalDetails.append(summary,physicalDiagnostics);
-  panel.append(stage,coolerStage,coast,physicalDetails);document.body.append(panel);
-  import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera})).then(world=>{
+  panel.append(stage,coolerStage,occupiedStage,coast,physicalDetails);document.body.append(panel);
+  import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera,people:crowd,isWet:isPointInLake})).then(world=>{
     if(physicalClosing)world.dispose();else physicalWorld=world;
   }).catch(error=>{physicalLoadError=error.message;physicalReadout.textContent=`Physics unavailable: ${error.message}`;console.error('Physical chair initialization failed',error);});
 }
@@ -1754,7 +1755,7 @@ function tickBody(dt) {
       const state=physicalWorld.stats();
       const targetReady=physicalWorld.owns(registry.entries.get(physicalEncounterId)??{});
       physicalCoast.disabled=!targetReady||state.cart.pendingClearance;
-      physicalReadout.textContent=`Physical props prototype\n${state.chairs.filter(chair=>chair.active).length} active / ${state.chairs.length} preparing | ${state.engine.bodies} bodies\n${state.hits} impacts | ${state.blocked??'running'}\nLast admission: ${state.lastReject??'ready'}\nOccupied chairs remain legacy.\nTarget: ${targetReady?'active':'not admitted'}\n${physicalActionMessage}`;
+      physicalReadout.textContent=`Physical props prototype\n${state.chairs.filter(chair=>chair.active).length} active / ${state.chairs.length} preparing | ${state.engine.bodies} bodies\n${state.hits} impacts | ${state.blocked??'running'}\nLast admission: ${state.lastReject??'ready'}\n${state.chairs.reduce((sum,chair)=>sum+(chair.state?.occupants?.filter(p=>p.current).length??0),0)} active sitters\nTarget: ${targetReady?'active':'not admitted'}\n${physicalActionMessage}`;
       if(physicalDetails.open)physicalDiagnostics.textContent=JSON.stringify(state,null,2);
     }
     peopleFrameTrace?.hit(hit);

@@ -40,6 +40,53 @@ export class ActivityClaims {
     }
   }
 
+  // A shared support must reserve every sitter before replacing any of their
+  // activities. Individual acquire calls cannot roll back the first sitter
+  // when preparation for the second runs out of capacity.
+  acquireBatch(requests) {
+    if(!Array.isArray(requests)||!requests.length||requests.length>16||new Set(requests.map(r=>r.handle)).size!==requests.length)throw new TypeError('Activity batch requires 1–16 distinct people');
+    if(this.closing||requests.some(r=>this.transitioning.has(r.handle)||!this.people.isLive(r.handle)||!r.owner||!this.eligible(r.handle,r.owner)))return null;
+    const rows=requests.map(r=>({...r,resources:[],old:this.current.get(r.handle),revoked:false,preparing:false}));
+    for(const row of rows)this.transitioning.add(row.handle);
+    let transferred=false,failure=null;
+    try {
+      for(const row of rows) {
+        row.preparing=true;
+        const attempt=Object.freeze({own:cleanup=>{
+          if(!row.preparing)throw new Error('Activity preparation has ended.');
+          if(typeof cleanup!=='function')throw new TypeError('A tentative resource needs cleanup.');
+          row.resources.push(cleanup);
+        }});
+        const ready=(row.prepare??(()=>true))(attempt);row.preparing=false;
+        if(ready?.then)throw new TypeError('Activity preparation must be synchronous.');
+        if(ready!==true)return null;
+      }
+      if(this.closing||rows.some(r=>!this.people.isLive(r.handle)||!this.eligible(r.handle,r.owner)||this.current.get(r.handle)!==r.old))return null;
+      for(const row of rows)if(row.old) {
+        // A previous owner's cleanup may remove another batch participant.
+        if(this.closing||!this.people.isLive(row.handle)||this.current.get(row.handle)!==row.old)return null;
+        this.current.delete(row.handle);row.revoked=true;this.cleanup(row.old,'replaced');
+      }
+      if(this.closing||rows.some(r=>!this.people.isLive(r.handle)))return null;
+      const claims=rows.map(row=>{
+        const claim=Object.freeze({person:row.handle,owner:row.owner,incarnation:++this.serial});
+        const state={claim,status:'active',resources:row.resources,release:row.release??(()=>{})};
+        this.states.set(claim,state);this.current.set(row.handle,state);return claim;
+      });
+      transferred=true;return claims;
+    } catch(error) {failure=error;throw error;}
+    finally {
+      const errors=[];
+      for(const row of rows)row.preparing=false;
+      if(!transferred) {
+        for(const row of [...rows].reverse())try{this.releaseResources(row.resources);}catch(error){errors.push(error);}
+        for(const row of rows)if(row.revoked&&!this.closing&&this.people.isLive(row.handle))try{this.resume(row.handle,'replacement-failed',null);}catch(error){errors.push(error);}
+      }
+      for(const row of rows)this.transitioning.delete(row.handle);
+      if(errors.length)throw new AggregateError(failure?[failure,...errors]:errors,'Activity batch rollback failed.');
+    }
+  }
+
   canWrite(claim) {
     const state=claim&&this.states.get(claim);
     return !!state&&state.status==='active'&&this.current.get(claim.person)===state&&this.people.isLive(claim.person)&&!this.closing;

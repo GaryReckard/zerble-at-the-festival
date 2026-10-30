@@ -10,6 +10,11 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [live occupied-chair checkpoint](2026-10-30-live-occupants/README.md) connects
+camp/stage sitters, independent loveseat releases, terrain-backed recovery and
+source regeneration. A real-game stage sitter completed the fall/recovery sequence.
+General-person falls, broader props and device acceptance remain pending.
+
 The [stand-up recovery proof](2026-10-30-stand-recovery/README.md) completes the
 fixture’s fall, bounded clear-route search and return to ordinary person control.
 Live occupied-chair adoption and terrain integration remain next.

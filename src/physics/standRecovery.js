@@ -8,7 +8,7 @@ function mixRotation(a,b,t) {
  const q={x:lerp(a.x,b.x*sign,t),y:lerp(a.y,b.y*sign,t),z:lerp(a.z,b.z*sign,t),w:lerp(a.w,b.w*sign,t)};
  const length=Math.hypot(q.x,q.y,q.z,q.w);for(const k of ['x','y','z','w'])q[k]/=length;return q;
 }
-export function createStandRecovery({adapter,ground,radius=.3,halfHeight=.4,rootHeight=1,duration=1.4}) {
+export function createStandRecovery({adapter,ground,radius=.3,halfHeight=.4,rootHeight=1,duration=1.4,automaticPreparation=true}) {
  if(typeof adapter?.queryBodyContacts!=='function'||typeof ground!=='function')throw new TypeError('Recovery requires collision and ground capabilities');
  if(![radius,halfHeight,rootHeight,duration].every(Number.isFinite)||radius<=0||halfHeight<0||rootHeight<radius+halfHeight||duration<.5||duration>4)throw new RangeError('Invalid recovery dimensions or duration');
  let plan=null,pending=null,candidate=0,elapsed=0,retry=0,lastReason=null,queries=0;
@@ -53,6 +53,7 @@ export function createStandRecovery({adapter,ground,radius=.3,halfHeight=.4,root
  }
 
  return Object.freeze({
+  prepare(body,{seatBlend=1}={}){if(!Number.isFinite(seatBlend)||seatBlend<0||seatBlend>1)throw new RangeError('Invalid recovery leg blend');return !!plan||prepare(body,seatBlend);},
   step(body,dt,{seatBlend=1}={}) {
    if(!Number.isFinite(seatBlend)||seatBlend<0||seatBlend>1)throw new RangeError('Invalid recovery leg blend');
    if(!Number.isFinite(dt)||dt<0||dt>.05)throw new RangeError('Recovery requires accepted time');
@@ -60,6 +61,7 @@ export function createStandRecovery({adapter,ground,radius=.3,halfHeight=.4,root
    if(plan&&(body.id!==plan.bodyId||body.generation!==plan.generation)) {plan=null;return {phase:'waiting',reason:'stale-body'};}
    if(!plan) {
     retry=Math.max(0,retry-dt);if(retry>0)return {phase:'waiting',reason:lastReason};
+    if(!automaticPreparation)return {phase:'waiting',reason:lastReason??'planning'};
     if(!prepare(body,seatBlend)){if(!pending&&candidate===0)retry=.5;return {phase:'waiting',reason:lastReason};}
    }
    const nextTime=Math.min(duration,elapsed+dt),t=nextTime/duration,pose=sample(plan,t);

@@ -88,7 +88,7 @@ export function createSeatReaction({people,claim,lease,releaseSeat,rootOffset={x
       } else return {ok:false,reason:blocked??'activation-pending'};
       return {ok:true,phase,blocked};
     },
-    inspect(){return {phase,unstableTime,stableTime,settledTime,seatReleased,disposed,blocked};},
+    inspect(){return {phase,seatBlend:pose.seatBlend,unstableTime,stableTime,settledTime,seatReleased,disposed,blocked};},
     dispose(){if(disposed)return false;disposed=true;return true;},
   });
 }

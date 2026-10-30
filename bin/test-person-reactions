@@ -89,3 +89,14 @@ people.activityClaims.dispose();
   population.activityClaims.dispose();
 }
 console.log('PASS person reaction boundary: ordinary eligibility, protected people/activities, preserved incoming motion, synchronous preparation rollback, repeat-claim rejection, stale generations and singular cleanup.');
+
+{
+ const population=makePeopleCrowd(),sitter=population.spawn({pos:new Vector()}),victim=population.spawn({pos:new Vector(1,0,0)});
+ let hits=0;const reactive={activityKey:'physical-seat',onPersonImpact(){hits++;return true;}};
+ const claim=population.claimPersonReaction(sitter.personHandle,{owner:reactive});
+ assert(population.hitPerson(sitter.personHandle,1,0));assert.equal(hits,1);assert(population.isPersonActivityCurrent(claim));
+ population.hitPerson(victim.personHandle,1,0);
+ assert(population.isPersonActivityCurrent(claim),'nearby panic cannot revoke physical fall authority');
+ population.activityClaims.dispose();
+}
+console.log('PASS physical reactions retain authority through direct impacts and nearby panic.');

@@ -2124,6 +2124,24 @@ export class Crowd {
       ||(owner!==this.camps&&owner!==this.campJams))return false;
     return owner.readPlace(handle,out);
   }
+  findPersonOnSupport(slot) {
+    if(!slot?.occupied)return null;
+    const view=this._supportSearchView??={};
+    for(const npc of this.npcs)if(this.readPersonSupport(npc.personHandle,view)&&view.slot===slot)return npc.personHandle;
+    return null;
+  }
+  claimSupportReactions(requests) {
+    if(!Array.isArray(requests)||!requests.length||requests.length>2)throw new TypeError('Support reaction requires one or two sitters');
+    if(requests.some(r=>!this.readPersonSupport(r.handle,this._supportView??={})))return null;
+    return this.activityClaims.acquireBatch(requests.map(request=>({...request,
+      prepare:attempt=>{
+        const ready=request.prepare?.(attempt)??true;
+        if(ready?.then)throw new TypeError('Support preparation must be synchronous.');
+        return ready===true&&this.readPersonSupport(request.handle,this._supportView??={});
+      },
+      release:(claim,reason)=>{try{request.release?.(claim,reason);}finally{this.releaseActivityBinding(claim);}},
+    })));
+  }
   preparePersonSupportTransfer(handle,entry,attempt) {
     if(!this.readPersonSupport(handle,this._supportView??={}))return null;
     return this.activityClaims.current.get(handle).claim.owner.prepareSupportTransfer(handle,entry,attempt);
@@ -2622,6 +2640,8 @@ export class Crowd {
   _onZerbleHit(victim, pushX, pushZ) {
     const handle=this.peopleHandles.handleFor(victim);
     if(!this.peopleHandles.isLive(handle))return false;
+    const activity=this.activityClaims.current.get(handle)?.claim.owner;
+    if(typeof activity?.onPersonImpact==='function')return activity.onPersonImpact(handle,pushX,pushZ)===true;
     const hadActivity=this.activityClaims.current.has(handle);
     // Preserve the physical exit preflight before revoking a camp reservation.
     if(this._abandonSeat(victim)===false)return false; // a trapped sitter waits
@@ -2636,6 +2656,7 @@ export class Crowd {
     if(hadActivity)this._publishPerson(victim);
     // Panic cascade: nearby NPCs (within 6m) of any reasonable skittishness flee too
     for (const other of this.npcs) {
+      if (typeof this.activityClaims.current.get(other.personHandle)?.claim.owner.onPersonImpact === 'function') continue;
       if (other === victim || other.state === 'riding' || other.state === 'boarding' || other.state === 'camp_sleeping' || other.campJamHidden) continue;
       const dx = other.pos.x - victim.pos.x;
       const dz = other.pos.z - victim.pos.z;

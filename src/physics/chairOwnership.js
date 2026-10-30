@@ -32,7 +32,7 @@ function poseAndScale(descriptor) {
 
 /** Transactional adoption for rigid empty chairs and closed coolers.
  * The historical chair-owner API remains shared so origins use one authority. */
-export function createChairOwnership({ registry, adapter, budget, rendering, supportReady, campSlotAvailable, originAlive, maxChairs = 16 } = {}) {
+export function createChairOwnership({ registry, adapter, budget, rendering, supportReady, campSlotAvailable, originAlive, occupants = null, maxChairs = 16 } = {}) {
   if (!Number.isSafeInteger(maxChairs) || maxChairs < 1 || maxChairs > 256) throw new RangeError('maxChairs must be an integer from 1 to 256');
   if (!(registry?.entries instanceof Map) || ![registry.enrollPhysical, registry.publishPhysical, registry.transferOwner, registry.unenrollPhysical,
     adapter?.addBody, adapter?.removeBody, adapter?.readBody, budget?.reserve, budget?.release, budget?.update, budget?.read, rendering?.acquire,
@@ -114,6 +114,9 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     record.rollbackPending = !restored || !geometry || !owner;
   }
   function destroyOwned(record, errors) {
+    if(record.occupants&&!attempt(errors,'occupants',()=>{record.occupants.dispose();record.occupants=null;})) {
+      record.state='cleanup-pending';records.set(record.key,record);return;
+    }
     if (record.bodyOwned) attempt(errors, 'physics-body', () => {
       if (!adapter.removeBody(record.bodyId) && adapter.readBody(record.bodyId)) throw new Error('Physics body removal failed');
       record.bodyOwned = false;
@@ -157,7 +160,7 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     if (records.size >= maxChairs) return reject('admission', 'chair-capacity');
     if (originLifetimes.size + records.size - (descriptor[ORIGIN_LIFETIME] ? 1 : 0) >= MAX_ORIGIN_LIFETIMES) return reject('admission', 'origin-lifetime-capacity');
     if (!Array.isArray(descriptor.seatSlots) || descriptor.seatSlots.length !== (descriptor.kind === 'camp_cooler' ? 0 : descriptor.style === 'loveseat' ? 2 : 1)) return reject('admission', 'incomplete-seats');
-    if (descriptor.seatSlots.some(slot => slot.occupied || campSlotAvailable(slot) !== true)) return reject('admission', 'occupied-or-unavailable');
+    if (descriptor.seatSlots.some(slot => slot.occupied || campSlotAvailable(slot) !== true) && occupants?.canAdopt(entry)!==true) return reject('admission', 'occupied-or-unavailable');
     if (supportReady(descriptor, entry) !== true) return reject('admission', 'support-pending');
     if (originAlive(descriptor, entry) !== true) return reject('admission', 'origin-unavailable');
     if (generation === Number.MAX_SAFE_INTEGER) return reject('admission', 'generation-exhausted');
@@ -206,6 +209,8 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
       record.hideAttempted = true;
       if (descriptor.renderBinding.setVisible(false) !== true) throw new Rejection('origin', 'stale-origin-binding');
       for (const seat of record.seats) seat.slot.physicalUnavailable = true;
+      const occupied=occupants?.adopt({entry,descriptor,bodyId:record.bodyId,engineGeneration:record.engineGeneration,initialPose});
+      if(occupied){required(occupied,'occupants');record.occupants=occupied.lease;}
       detachOriginLifetime(descriptor);
       record.lastPublication = { pose: copyPose(initialPose), footprint: radius, colliderRadius: radius };
       records.set(key, record);
@@ -311,6 +316,9 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     return found;
   }
   return Object.freeze({ adopt, publish, release, registerOrigin, originEntryIds,
+    stepPeople(dt){for(const record of records.values())record.occupants?.step(dt);},
+    preparePeople(deadline,now){for(const record of records.values())if(now()<deadline)record.occupants?.prepare(deadline,now);},
+    personBodies(token){return resolve(token)?.occupants?.bodies()??[];},
     isAdopted(entryId) { return [...records.values()].some(record => record.entryId === entryId); },
     read(token) {
       const record = resolve(token);
@@ -318,12 +326,13 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
         bodyId: record.bodyId, engineGeneration: record.engineGeneration,
         pose: copyPose(record.lastPublication.pose), footprint: record.lastPublication.footprint, supportRadius: record.supportRadius, originOwner: record.descriptor.originOwner,
         originRegistryId: record.descriptor.originRegistryId,
+        occupants:record.occupants?.inspect()??[],
         state: record.state, resources: { body: record.bodyOwned, render: record.renderOwned, budget: !!record.budgetToken },
         cleanupErrors: record.cleanupErrors?.map(error => ({ ...error })) ?? [] } : null;
     },
     stats() { return { disposed, chairs: records.size, cleanupPending: [...records.values()].filter(record => record.state === 'cleanup-pending').length,
       originReplacements, originLifetimes: originLifetimes.size, originLifetimeCapacity: MAX_ORIGIN_LIFETIMES, capacity: maxChairs, rejections,
-      limitations: ['Empty chairs and closed coolers only; automatic distance reset is not integrated. Restored lake children follow their source batch lifetime.'] }; },
+      limitations: ['Chairs, eligible seated occupants and closed coolers; coherent arrangement reset is not integrated. Restored lake children follow their source batch lifetime.'] }; },
     dispose() {
       disposed = true;
       const results = [];
