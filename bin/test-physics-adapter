@@ -1,0 +1,338 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as R from '@dimforge/rapier3d-compat';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { chairRecipe } from '../src/physics/recipes.js';
+
+const box = (x, y, z, extra = {}) => ({ shape: 'cuboid', halfExtents: { x, y, z }, ...extra });
+const ball = (radius = .5, extra = {}) => ({ shape: 'ball', radius, ...extra });
+const pose = (x = 0, y = 0, z = 0) => ({ position: { x, y, z } });
+const near = (actual, expected, tolerance = 1e-4) => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
+function add(world, id, type, position, colliders, extra = {}) {
+  const result = world.addBody({ id, type, pose: position, colliders, ...extra });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  return result;
+}
+function ground(world) { add(world, 'ground', 'fixed', pose(0, -.1), [box(10, .1, 10)]); }
+function counts(world, bodies, colliders) {
+  const result = world.counts();
+  assert.equal(result.bodies, bodies); assert.equal(result.engineBodies, bodies);
+  assert.equal(result.colliders, colliders); assert.equal(result.engineColliders, colliders);
+}
+
+// The engine is real WASM, including async initialization. No motion/contact stubs.
+const world = await createRapierAdapter({ capacities: { bodies: 8, colliders: 16, events: 4096 } });
+try {
+  assert.match(world.engineVersion, /^0\.21\./);
+  ground(world);
+  add(world, 'falling', 'dynamic', pose(0, 2), [ball(.5, { forceEvents: true })], { canSleep: false });
+  let starts = 0, restingForces = 0, maxImpact = 0;
+  for (let step = 0; step < 240; step++) {
+    world.step(1 / 60);
+    const batch = world.drainEvents(); assert.equal(batch.overflow, 0);
+    for (const event of batch.events) {
+      if (event.type === 'contact-start') { starts++; assert.equal('totalForce' in event, false); }
+      if (event.type === 'contact-force') {
+        assert.equal(event.units, 'N'); assert.ok(event.totalForceMagnitude > 0);
+        assert.ok(Object.values(event.totalForce).every(Number.isFinite));
+        maxImpact = Math.max(maxImpact, event.totalForceMagnitude);
+        if (step > 70) restingForces++;
+      }
+    }
+  }
+  near(world.readBody('falling').pose.position.y, .5, .015);
+  assert.equal(starts, 1, 'resting support does not create a new collision-start every tick');
+  assert.ok(maxImpact > 100, 'falling impact reports a measured force');
+  assert.ok(restingForces > 0, 'sustained resting force is not a renewed impact-start');
+  const copied = world.readBody('falling'); copied.pose.position.y = 900;
+  assert.ok(world.readBody('falling').pose.position.y < 1, 'pose snapshots cannot mutate engine state');
+  world.setPose('falling', pose(0, 5)); world.step(1 / 60);
+  assert.ok(world.drainEvents().events.some(e => e.type === 'contact-end'));
+  const debug = world.debugRender(); assert.ok(debug.vertices.length > 0); assert.equal(debug.colors.length / 4, debug.vertices.length / 3);
+  const firstVertex = debug.vertices[0]; debug.vertices[0] = 999;
+  near(world.debugRender().vertices[0], firstVertex);
+  assert.equal(world.removeBody('falling'), true); assert.equal(world.removeBody('falling'), false);
+  counts(world, 1, 1); assert.equal(world.readBody('falling'), null);
+} finally { world.dispose(); world.dispose(); }
+counts(world, 0, 0); assert.equal(world.counts().disposed, true);
+assert.throws(() => world.step(1 / 60), /disposed/); assert.equal(world.removeBody('ground'), false);
+
+const clock = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 } });
+try {
+  add(clock, 'moving', 'dynamic', pose(), [ball()], { linearVelocity: { x: 2, y: 0, z: 0 } });
+  clock.step(.1); near(clock.readBody('moving').pose.position.x, .2);
+  clock.step(.05); near(clock.readBody('moving').pose.position.x, .3);
+  for (const bad of [0, -1, NaN, Infinity]) assert.throws(() => clock.step(bad));
+  assert.equal(clock.counts().steps, 2, 'invalid time never advances the engine');
+  assert.throws(() => clock.setPose('moving', { position: { x: NaN, y: 0, z: 0 } }));
+  near(clock.readBody('moving').pose.position.x, .3);
+  clock.applyImpulse('moving', { x: 1, y: 0, z: 0 }, { x: .3, y: .5, z: 0 });
+  assert.ok(clock.readBody('moving').linearVelocity.x > 2);
+  assert.ok(Math.abs(clock.readBody('moving').angularVelocity.z) > 0);
+} finally { clock.dispose(); }
+
+const kinematic = await createRapierAdapter();
+try {
+  ground(kinematic);
+  add(kinematic, 'cart', 'kinematic', pose(-2, .5), [box(.5, .5, .5)]);
+  add(kinematic, 'prop', 'dynamic', pose(0, .5), [box(.4, .5, .4)]);
+  for (let i = 1; i <= 90; i++) {
+    assert.equal(kinematic.setKinematicTarget('cart', pose(-2 + i * .04, .5)), true);
+    kinematic.step(1 / 60); kinematic.drainEvents();
+  }
+  near(kinematic.readBody('cart').pose.position.x, 1.6);
+  assert.ok(kinematic.readBody('prop').pose.position.x > 1, 'commanded kinematic motion transfers contact to a dynamic prop');
+  assert.equal(kinematic.setKinematicTarget('prop', pose()), false);
+  kinematic.setPose('cart', pose(-4, .5)); kinematic.step(1 / 60);
+  near(kinematic.readBody('cart').pose.position.x, -4, 1e-3);
+  near(kinematic.readBody('cart').linearVelocity.x, 0, 1e-3);
+} finally { kinematic.dispose(); }
+
+async function projectile(ccd) {
+  const test = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 } });
+  try {
+    add(test, 'wall', 'fixed', pose(), [box(.025, 2, 2)]);
+    add(test, 'projectile', 'dynamic', pose(-1), [ball(.05)], { ccd, linearVelocity: { x: 200, y: 0, z: 0 } });
+    assert.equal(test.readBody('projectile').ccd, ccd, 'requested CCD setting reaches the real engine');
+    test.step(1 / 60); return test.readBody('projectile').pose.position.x;
+  } finally { test.dispose(); }
+}
+assert.ok(await projectile(true) < 0, 'CCD prevents the fast small body crossing the thin wall');
+// Rapier 0.21 also stops the disabled-CCD control in this scene, so this proves
+// containment with CCD enabled but does not establish that CCD alone caused it.
+assert.ok(await projectile(false) < 0, 'record the same scene with CCD disabled');
+
+const ghost = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 } });
+try {
+  add(ghost, 'cart', 'kinematic', pose(-2), [box(.4, .4, .4, { forceEvents: true })]);
+  add(ghost, 'prop', 'dynamic', pose(), [box(.4, .4, .4, { forceEvents: true })]);
+  for (const bad of [undefined, null, 0, 1, 'false']) assert.throws(() => ghost.setBodyEnabled('cart', bad), /boolean/);
+  assert.equal(ghost.readBody('cart').enabled, true);
+  assert.equal(ghost.setBodyEnabled('absent', false), false);
+  assert.equal(ghost.setBodyEnabled('cart', false), true);
+  assert.equal(ghost.readBody('cart').enabled, false);
+  counts(ghost, 2, 2);
+  for (let i = 1; i <= 90; i++) {
+    ghost.setKinematicTarget('cart', pose(-2 + i * .04)); ghost.step(1 / 60);
+    assert.deepEqual(ghost.drainEvents(), { events: [], overflow: 0 }, 'disabled cart emits no collision or force events');
+  }
+  near(ghost.readBody('prop').pose.position.x, 0);
+  near(ghost.readBody('prop').linearVelocity.x, 0);
+  ghost.setKinematicTarget('cart', pose(99));
+  assert.equal(ghost.setBodyEnabled('cart', true), true);
+  ghost.setPose('cart', pose(-2)); ghost.step(1 / 60);
+  near(ghost.readBody('cart').pose.position.x, -2);
+  near(ghost.readBody('cart').linearVelocity.x, 0);
+  assert.equal(ghost.readBody('cart').enabled, true);
+  assert.deepEqual(ghost.drainEvents(), { events: [], overflow: 0 }, 'reset clears the disabled proxy target before re-entry');
+  let contact = false;
+  for (let i = 1; i <= 90; i++) {
+    ghost.setKinematicTarget('cart', pose(-2 + i * .04)); ghost.step(1 / 60);
+    if (ghost.drainEvents().events.some(event => event.type === 'contact-start')) contact = true;
+  }
+  assert.ok(contact, 'reenabled proxy produces real collision-start events');
+  assert.ok(ghost.readBody('prop').pose.position.x > 1, 'reenabled proxy transfers contact motion again');
+} finally { ghost.dispose(); }
+assert.throws(() => ghost.setBodyEnabled('cart', true), /disposed/);
+
+const sensors = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 } });
+try {
+  add(sensors, 'sensor', 'fixed', pose(), [ball(1, { sensor: true, forceEvents: true })]);
+  add(sensors, 'visitor', 'dynamic', pose(), [ball(.2, { forceEvents: true })]);
+  sensors.step(1 / 60);
+  const events = sensors.drainEvents().events;
+  assert.ok(events.some(e => e.type === 'sensor-start'));
+  assert.equal(events.some(e => e.type === 'contact-force' || e.type === 'contact-start'), false);
+  sensors.setPose('visitor', pose(5)); sensors.step(1 / 60);
+  assert.ok(sensors.drainEvents().events.some(e => e.type === 'sensor-end'));
+} finally { sensors.dispose(); }
+
+const bounded = await createRapierAdapter({ capacities: { bodies: 3, colliders: 4, events: 1 } });
+try {
+  ground(bounded);
+  add(bounded, 'compound', 'dynamic', pose(0, 2), [
+    box(.1, .5, .1, { position: { x: -.4, y: 0, z: 0 }, forceEvents: true }),
+    box(.1, .5, .1, { position: { x: .4, y: 0, z: 0 }, forceEvents: true }),
+    box(.5, .1, .1, { position: { x: 0, y: .4, z: 0 }, forceEvents: true }),
+  ]);
+  const before = bounded.counts();
+  assert.equal(bounded.addBody({ id: 'extra', type: 'dynamic', colliders: [ball()] }).reason, 'collider-capacity');
+  assert.deepEqual(bounded.counts(), before);
+  assert.equal(bounded.addBody({ id: 'compound', type: 'dynamic', colliders: [ball()] }).reason, 'duplicate-id');
+  for (let i = 0; i < 120; i++) bounded.step(1 / 60);
+  assert.ok(bounded.readBody('compound').pose.position.y > .3, 'compound body remains supported');
+  const overflowed = bounded.drainEvents(); assert.equal(overflowed.events.length, 1); assert.ok(overflowed.overflow > 0);
+  assert.equal(bounded.counts().events, 0); assert.equal(bounded.counts().overflow, 0);
+  assert.equal(bounded.counts().totalOverflow, overflowed.overflow);
+  bounded.removeBody('compound'); counts(bounded, 1, 1);
+} finally { bounded.dispose(); }
+
+const transactional = await createRapierAdapter({ capacities: { bodies: 1, colliders: 3, events: 0 } });
+try {
+  const invalid = transactional.addBody({ id: 'bad', type: 'dynamic', colliders: [ball(), ball(-1)] });
+  assert.equal(invalid.reason, 'invalid-descriptor'); counts(transactional, 0, 0);
+  // Fail the second real engine allocation, after the first collider exists.
+  // This exercises rollback rather than merely invalid-descriptor rejection.
+  const original = R.World.prototype.createCollider; let creations = 0;
+  try {
+    R.World.prototype.createCollider = function (...args) {
+      if (++creations === 2) throw new Error('injected collider allocation failure');
+      return original.apply(this, args);
+    };
+    assert.equal(transactional.addBody({ id: 'rollback', type: 'dynamic', colliders: [ball(), ball()] }).reason, 'engine-create-failed');
+  } finally { R.World.prototype.createCollider = original; }
+  counts(transactional, 0, 0);
+  for (let cycle = 0; cycle < 100; cycle++) {
+    add(transactional, 'reused', 'dynamic', pose(), [
+      { shape: 'capsule', radius: .1, halfHeight: .4 },
+      { shape: 'cylinder', radius: .2, halfHeight: .1 },
+    ]);
+    assert.equal(transactional.addBody({ id: 'full', type: 'dynamic', colliders: [ball()] }).reason, 'body-capacity');
+    transactional.step(1 / 60); transactional.drainEvents();
+    assert.equal(transactional.removeBody('reused'), true); counts(transactional, 0, 0);
+  }
+} finally { transactional.dispose(); }
+
+const overlaps = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 }, capacities: { bodies: 12, colliders: 24 } });
+try {
+  add(overlaps, 'cart', 'kinematic', pose(99), [box(1, .6, 1)]);
+  overlaps.setBodyEnabled('cart', false);
+  const chair = add(overlaps, 'chair', 'dynamic', pose(), chairRecipe('sling'));
+  const drink = add(overlaps, 'ball', 'dynamic', pose(0, .5), [ball(.1)]);
+  add(overlaps, 'sensor', 'dynamic', pose(0, .5), [ball(.2, { sensor: true })]);
+  add(overlaps, 'fixed', 'fixed', pose(0, .5), [box(1, 1, 1)]);
+  add(overlaps, 'other-cart', 'kinematic', pose(0, .5), [box(1, 1, 1)]);
+  add(overlaps, 'disabled', 'dynamic', pose(0, .5), [ball(.2)]);
+  overlaps.setBodyEnabled('disabled', false);
+  const supplied = pose(0, .5);
+  const before = overlaps.counts();
+  let result = overlaps.queryDynamicOverlaps('cart', supplied);
+  assert.deepEqual(result.overlaps, [{ id: 'chair', generation: chair.generation }, { id: 'ball', generation: drink.generation }]);
+  assert.equal(result.ok, true); assert.equal(result.exhausted, false);
+  assert.ok(result.testedPairs <= overlaps.capacities.colliders);
+  assert.deepEqual(overlaps.counts(), before, 'query neither steps nor mutates resource counts');
+  assert.equal(overlaps.readBody('cart').enabled, false);
+  near(overlaps.readBody('cart').pose.position.x, 99, 1e-5);
+  result.overlaps[0].id = 'mutated snapshot'; supplied.position.x = 500;
+  assert.equal(overlaps.queryDynamicOverlaps('cart', pose(0, .5)).overlaps[0].id, 'chair');
+  result = overlaps.queryDynamicOverlaps('cart', pose(0, .5), { maxResults: 1 });
+  assert.equal(result.overlaps.length, 1); assert.equal(result.exhausted, true);
+  result = overlaps.queryDynamicOverlaps('cart', pose(0, .5), { maxTests: 0 });
+  assert.equal(result.testedPairs, 0); assert.equal(result.exhausted, true);
+  result = overlaps.queryDynamicOverlaps('cart', pose(0, .5), { maxTests: 1 });
+  assert.equal(result.testedPairs, 1); assert.equal(result.exhausted, true);
+  assert.throws(() => overlaps.queryDynamicOverlaps('cart', { position: { x: NaN, y: 0, z: 0 } }));
+  assert.throws(() => overlaps.queryDynamicOverlaps('cart', { rotation: { x: 0, y: 0, z: 0, w: 0 } }));
+  assert.throws(() => overlaps.queryDynamicOverlaps('cart', pose(), { maxTests: 25 }));
+  assert.throws(() => overlaps.queryDynamicOverlaps('cart', pose(), { maxResults: -1 }));
+  assert.equal(overlaps.queryDynamicOverlaps('fixed', pose()).reason, 'not-kinematic');
+  assert.equal(overlaps.queryDynamicOverlaps('absent', pose()).reason, 'missing-body');
+  overlaps.setPose('chair', pose(20)); overlaps.setPose('ball', pose(20));
+  result = overlaps.queryDynamicOverlaps('cart', pose(0, .5));
+  assert.deepEqual(result.overlaps, []); assert.equal(result.exhausted, false, 'unstepped setPose immediately affects direct geometry queries');
+  overlaps.removeBody('chair'); overlaps.removeBody('ball');
+  assert.deepEqual(overlaps.queryDynamicOverlaps('cart', pose(0, .5)).overlaps, []);
+  const replacement = add(overlaps, 'ball', 'dynamic', pose(0, .5), [ball(.1)]);
+  assert.ok(replacement.generation > drink.generation);
+  assert.deepEqual(overlaps.queryDynamicOverlaps('cart', pose(0, .5)).overlaps, [{ id: 'ball', generation: replacement.generation }]);
+  overlaps.removeBody('cart'); assert.equal(overlaps.queryDynamicOverlaps('cart', pose()).exhausted, true);
+} finally { overlaps.dispose(); }
+assert.throws(() => overlaps.queryDynamicOverlaps('cart', pose()), /disposed/);
+
+const rotatedQuery = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 } });
+try {
+  const turn = { x: 0, y: Math.SQRT1_2, z: 0, w: Math.SQRT1_2 };
+  const local = { position: { x: 2, y: 0, z: 0 }, rotation: turn };
+  add(rotatedQuery, 'cart', 'kinematic', pose(100), [box(.8, .2, .1, local), box(.8, .2, .1, local), box(100, 100, 100, { sensor: true })]);
+  rotatedQuery.setBodyEnabled('cart', false);
+  const ballId = add(rotatedQuery, 'tip', 'dynamic', pose(.6, 0, -2), [ball(.1)]);
+  const at = { position: { x: 0, y: 0, z: 0 }, rotation: turn };
+  assert.deepEqual(rotatedQuery.queryDynamicOverlaps('cart', at).overlaps, [{ id: 'tip', generation: ballId.generation }], 'parent rotation rotates the offset and composes local collider rotation; compound hits are deduplicated');
+  assert.deepEqual(rotatedQuery.queryDynamicOverlaps('cart', pose()).overlaps, [], 'sensor hull does not cause a ghost-exit blockage');
+  rotatedQuery.removeBody('tip');
+  // The target also has both a rotated parent and a local offset/rotation.
+  const target = add(rotatedQuery, 'offset-target', 'dynamic', { position: { x: 1, y: 0, z: -2 }, rotation: turn }, [box(.8, .2, .1, { position: { x: 0, y: 0, z: -1 }, rotation: turn })]);
+  assert.deepEqual(rotatedQuery.queryDynamicOverlaps('cart', at).overlaps, [{ id: 'offset-target', generation: target.generation }]);
+  rotatedQuery.setPose('offset-target', pose(10));
+  assert.deepEqual(rotatedQuery.queryDynamicOverlaps('cart', at).overlaps, []);
+} finally { rotatedQuery.dispose(); }
+
+const quad = (height = 0) => ({ shape: 'trimesh',
+  vertices: new Float32Array([-2, height, -2, 2, height, -2, -2, height, 2, 2, height, 2]),
+  indices: new Uint32Array([0, 2, 3, 0, 3, 1]), friction: .7,
+});
+const terrain = await createRapierAdapter({ capacities: { bodies: 4, colliders: 4, meshVertices: 4, meshTriangles: 2 } });
+try {
+  const recipe = quad(); recipe.vertices[10] = 1;
+  let collider;
+  const original = R.World.prototype.createCollider;
+  try {
+    // Inspect the actual collider created through the adapter without adding
+    // raw engine handles to its public interface just for a ray-query test.
+    R.World.prototype.createCollider = function (...args) {
+      collider = original.apply(this, args); return collider;
+    };
+    add(terrain, 'nonplanar', 'fixed', pose(), [recipe]);
+  } finally { R.World.prototype.createCollider = original; }
+  assert.equal(terrain.counts().meshVertices, 4); assert.equal(terrain.counts().meshTriangles, 2);
+  recipe.vertices.fill(900); recipe.indices.fill(0);
+  for (const [x, z, height] of [[1, -1, .25], [-1, 1, .25], [0, 0, .5], [-1, -1, .25]]) {
+    const ray = new R.Ray({ x, y: 5, z }, { x: 0, y: -1, z: 0 });
+    near(collider.castRay(ray, 10, true), 5 - height, 1e-5);
+  }
+  const before = terrain.counts();
+  assert.equal(terrain.addBody({ id: 'too-many-vertices', type: 'fixed', colliders: [quad()] }).reason, 'mesh-vertex-capacity');
+  assert.deepEqual(terrain.counts(), before);
+  terrain.removeBody('nonplanar'); counts(terrain, 0, 0);
+  assert.equal(terrain.counts().meshVertices, 0); assert.equal(terrain.counts().meshTriangles, 0);
+  add(terrain, 'flat', 'fixed', pose(0, .25), [quad(.75)]);
+  add(terrain, 'lander', 'dynamic', pose(0, 3), [ball(.2)], { ccd: true });
+  for (let i = 0; i < 240; i++) { terrain.step(1 / 60); terrain.drainEvents(); }
+  near(terrain.readBody('lander').pose.position.y, 1.2, .015);
+} finally { terrain.dispose(); }
+assert.equal(terrain.counts().meshVertices, 0); assert.equal(terrain.counts().meshTriangles, 0);
+
+const meshValidation = await createRapierAdapter({ capacities: { bodies: 4, colliders: 4, meshVertices: 12, meshTriangles: 3 } });
+try {
+  const invalidMeshes = [
+    { vertices: [], indices: [] },
+    { vertices: [0, 0, 0, 1, 0, 0, 0, 0], indices: [0, 1, 2] },
+    { vertices: [0, 0, 0, 1, 0, 0, 0, 0, 1], indices: [0, 1] },
+    { vertices: [0, 0, 0, NaN, 0, 0, 0, 0, 1], indices: [0, 1, 2] },
+    { vertices: [0, 0, 0, 1e100, 0, 0, 0, 0, 1], indices: [0, 1, 2] },
+    { vertices: [0, 0, 0, '1', 0, 0, 0, 0, 1], indices: [0, 1, 2] },
+    ...[-1, .5, 3, NaN, 0x100000000].map(index => ({ vertices: [0, 0, 0, 1, 0, 0, 0, 0, 1], indices: [0, 1, index] })),
+    { vertices: [0, 0, 0, 1, 0, 0, 0, 0, 1], indices: [0, 1, 1] },
+    { vertices: [0, 0, 0, 1, 0, 0, 2, 0, 0], indices: [0, 1, 2] },
+    { vertices: [1, 0, 0, 1 + 1e-9, 0, 0, 1, 0, 1], indices: [0, 1, 2] },
+  ];
+  for (const data of invalidMeshes) {
+    const before = meshValidation.counts();
+    assert.equal(meshValidation.addBody({ id: 'invalid', type: 'fixed', colliders: [{ shape: 'trimesh', ...data }] }).reason, 'invalid-descriptor');
+    assert.deepEqual(meshValidation.counts(), before);
+  }
+  assert.equal(meshValidation.addBody({ id: 'moving-mesh', type: 'dynamic', colliders: [quad()] }).reason, 'invalid-descriptor');
+  const before = meshValidation.counts();
+  assert.equal(meshValidation.addBody({ id: 'compound-overflow', type: 'fixed', colliders: [quad(), quad()] }).reason, 'mesh-triangle-capacity');
+  assert.deepEqual(meshValidation.counts(), before);
+  add(meshValidation, 'first', 'fixed', pose(), [quad()]);
+  assert.equal(meshValidation.addBody({ id: 'second', type: 'fixed', colliders: [quad()] }).reason, 'mesh-triangle-capacity');
+  meshValidation.removeBody('first');
+  const original = R.World.prototype.createCollider; let creations = 0;
+  try {
+    R.World.prototype.createCollider = function (...args) {
+      if (++creations === 2) throw new Error('injected allocation failure after mesh');
+      return original.apply(this, args);
+    };
+    assert.equal(meshValidation.addBody({ id: 'mesh-rollback', type: 'fixed', colliders: [quad(), ball()] }).reason, 'engine-create-failed');
+  } finally { R.World.prototype.createCollider = original; }
+  counts(meshValidation, 0, 0); assert.equal(meshValidation.counts().meshVertices, 0); assert.equal(meshValidation.counts().meshTriangles, 0);
+  add(meshValidation, 'after-rollback', 'fixed', pose(), [quad()]);
+} finally { meshValidation.dispose(); }
+
+for (let cycle = 0; cycle < 12; cycle++) {
+  const fresh = await createRapierAdapter();
+  add(fresh, 'body', 'dynamic', pose(), [ball()]); fresh.step(1 / 60);
+  fresh.dispose(); fresh.dispose(); counts(fresh, 0, 0);
+}
+console.log('PASS real Rapier 0.21 adapter: support, compound primitives, copied poses/debug buffers, timestep, kinematic transfer, disabled proxy ghost contacts and safe target reset, bounded direct overlap queries with rotated local offsets and exhaustion, fast-body containment and CCD flag wiring, start/end/sensor/force distinctions, explicit overflow, capacity rejection, allocation rollback, 100 removal cycles and 12 world disposals; validated bounded trimeshes, copied geometry, nonplanar triangle ray hits, landing and mesh allocation rollback.');

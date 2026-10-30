@@ -1,0 +1,136 @@
+{
+  "settings": {
+    "fixture": "cooler",
+    "style": "sling",
+    "seed": 1977,
+    "speed": 6,
+    "angle": 0,
+    "physics": true
+  },
+  "timeOfDay": "noon",
+  "paused": true,
+  "playback": 1,
+  "allocationMs": 0.8999999761581421,
+  "publicationMs": 0,
+  "lifecycle": {
+    "disposed": false,
+    "fixtureActive": true,
+    "rafActive": true,
+    "listenersActive": true,
+    "renderObjects": 3,
+    "sceneChildren": 6
+  },
+  "rendering": {
+    "tier": "low",
+    "pixelRatio": 1.25,
+    "width": 2501,
+    "height": 1329,
+    "draws": 25,
+    "triangles": 1874,
+    "geometries": 10,
+    "textures": 0
+  },
+  "state": {
+    "props": [
+      {
+        "key": "chair-0",
+        "kind": "chair",
+        "style": "sling",
+        "colorSeed": 1141662568,
+        "variant": 1977,
+        "position": {
+          "x": 0,
+          "y": 0.015,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      {
+        "key": "cooler-0",
+        "kind": "cooler",
+        "style": "sling",
+        "colorSeed": 2679623017,
+        "variant": 1977,
+        "position": {
+          "x": 0.2,
+          "y": 0.015,
+          "z": -1.1
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      },
+      {
+        "key": "cart",
+        "kind": "cart",
+        "style": "sling",
+        "size": [
+          1,
+          0.8,
+          1.4
+        ],
+        "colorSeed": 771214689,
+        "variant": 1977,
+        "position": {
+          "x": 0,
+          "y": 0.4,
+          "z": 4
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "w": 1
+        }
+      }
+    ],
+    "ground": {
+      "slope": 0,
+      "width": 24,
+      "depth": 24
+    },
+    "physics": true,
+    "time": 0,
+    "events": [],
+    "stats": {
+      "bodies": 4,
+      "colliders": 9,
+      "joints": 0,
+      "engineBodies": 4,
+      "engineColliders": 9,
+      "events": 0,
+      "overflow": 0,
+      "totalOverflow": 0,
+      "steps": 0,
+      "disposed": false,
+      "droppedSeconds": 0,
+      "alpha": 0,
+      "stepMs": 0,
+      "maxStepMs": 0,
+      "meanStepMs": 0,
+      "activationMs": 0.3999999761581421,
+      "eventOverflow": 0,
+      "historyEvictions": 0,
+      "renderProps": 3
+    },
+    "limitations": [
+      "Experimental recipes and cart proxy; production controller/registry integration pending.",
+      "Slope is a fixture plane, not production terrain. No occupants, streaming or release claims yet.",
+      "Static reference mode is not the legacy game collision path. Capacities are experimental, not device limits."
+    ]
+  },
+  "limitations": [
+    "Cart contact proxy, production controller integration pending.",
+    "No people or production campsite ownership in this fixture.",
+    "Publication time measures CPU transform writes, not GPU upload time.",
+    "This fixture does not establish production or physical-device acceptance."
+  ]
+}

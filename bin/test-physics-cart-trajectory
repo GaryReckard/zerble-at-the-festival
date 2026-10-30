@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { CartTrajectory } from '../src/physics/cartTrajectory.js';
+import { FixedStepClock } from '../src/physics/fixedStep.js';
+const pose = (x, yaw = 0) => ({position:{x,y:0,z:0},rotation:{x:0,y:Math.sin(yaw/2),z:0,w:Math.cos(yaw/2)}});
+const traces = [];
+for (const hz of [30, 60, 120, 240]) {
+  const clock = new FixedStepClock(), path = new CartTrajectory(pose(0)), samples = [];
+  for (let i = 0; i < hz; i++) {
+    const time = clock.time + clock.remainder;
+    path.beginFrame(time, 1/hz, pose((i+1)/hz*6, (i+1)/hz));
+    clock.advance(1/hz, (_, boundary) => samples.push(path.sample(boundary)));
+  }
+  assert.equal(samples.length,60);
+  for (let i=0;i<samples.length;i++) {
+    assert(Math.abs(samples[i].position.x - (i+1)*.1) < 1e-10);
+    assert(Math.abs(samples[i].rotation.y - Math.sin((i+1)/120)) < 1e-10);
+  }
+  traces.push(samples);
+}
+const path = new CartTrajectory(pose(0));
+path.beginFrame(0, 1/30, pose(1));
+assert.equal(path.sample(1/60).position.x,.5);
+assert.equal(path.sample(1/30).position.x,1);
+const correction = pose(100);
+path.beginFrame(1/30,1/60,correction,{discontinuous:true});
+assert.equal(path.sample(1/30).position.x,100,'teleport resets both endpoints, no fast sweep');
+correction.position.x=999;
+assert.equal(path.sample(1).position.x,100,'input ownership is copied');
+assert.equal(path.beginFrame(.05,0,pose(200)),false);
+assert.equal(path.sample(.05).position.x,100,'pause does not publish movement');
+path.beginFrame(.05,0,pose(200),{discontinuous:true});
+assert.equal(path.sample(.05).position.x,200,'explicit reset works while paused');
+path.reset(pose(0,Math.PI-.1));
+path.beginFrame(0,1,pose(0,-Math.PI+.1));
+assert(Math.abs(path.sample(.5).rotation.w)<1e-8,'rotation takes short arc across wrap');
+const exposed=path.sample(.5);exposed.position.x=10;
+assert.equal(path.sample(.5).position.x,0);
+assert.throws(()=>path.beginFrame(NaN,1,pose(0)));
+assert.throws(()=>path.beginFrame(0,-1,pose(0)));
+assert.throws(()=>path.reset(pose(Infinity)));
+console.log('PASS accepted cart trajectory: 30/60/120/240 Hz boundary sampling, rotation wrap, zero-step/pause, discontinuity and copy safety.');

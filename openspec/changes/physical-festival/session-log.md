@@ -1,11 +1,11 @@
 ---
 change: physical-festival
-status: not_started
-current_task: null
+status: in_progress
+current_task: "2.4 (Admission and residency), with production fixture/frame integration still incomplete"
 blocked_by: null
 open_questions: 0
 started: 2026-10-29
-last_updated: 2026-10-29
+last_updated: 2026-10-30
 ref: "ROADMAP.md: Gameplay verbs / Physical props"
 ---
 
@@ -26,6 +26,8 @@ ref: "ROADMAP.md: Gameplay verbs / Physical props"
 
 - **D10 (clean-branch implementation deferral):** Gary explicitly clarified that the current work finishes delegation planning only. Finish the hula-hoop work before beginning physics implementation on a verified clean branch. No implementation workers or branch changes are authorized by the research handoff.
 - **D11 (research disposition):** Retain Rapier-first evaluation and the existing ownership/reset architecture. Use the external reports to sharpen failure tests; their performance numbers and incompatible lifecycle recommendations are not accepted evidence. Correct the no-build premise supplied in our own research prompt.
+
+- **D12 (implementation authorized):** On October 30 Gary confirmed clean main and authorized branching and implementation. Created `codex/physical-festival` from `17102a1`, which contains the completed hoop work and physics planning. This supersedes D10 (clean-branch implementation deferral). Real-device and feel gates still require their stated evidence.
 
 ## Assumptions
 
@@ -90,3 +92,48 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** Gary supplied four research reports. Preserved exact source copies with SHA-256 hashes and assessed consequential claims against official API/source documentation and the current checkout. The research brief had incorrectly supplied an obsolete no-build premise. The reports add useful test cases but do not demonstrate device performance; duplicate live cups, automatic retirement of support, an assumed Recast dependency, and a required skeletal migration are rejected. Strengthened four existing tasks and the verification plan without changing the 66-task scope or delegation. All implementation tasks remain unstarted, pending the completed hoop work and clean-branch gate.
 
 **Refs:** D10 (clean-branch implementation deferral); D11 (research disposition); [research synthesis](research-synthesis.md); [source archive](research/README.md); [delegation plan](delegation.md); [verification](verification.md).
+
+
+### 2026-10-30 -- First engine fixture verified
+
+**Event:** phase-change
+
+**What:** Implemented the standalone Rapier 0.21.0 adapter, fixed clock, provisional chair/cooler recipes and Vite interaction page. Real-engine tests cover contact, frame-rate invariants, allocation failure and teardown. Desktop development and production browser checks passed, including the real game's ready-mode click. This is partial work within the foundation groups, with only the source baseline task accepted. Controller, terrain, ownership, occupants, real-device and feel gates remain pending. The captured cold production fixture allocation was 313.6 ms and is not a warm performance result. A phone-availability question was presented to Gary; no response or device acceptance is recorded.
+
+**Refs:** [Evidence and next steps](../../../verification/physical-festival/README.md); [source baseline](../../../verification/physical-festival/2026-10-30-baseline.md).
+
+
+### 2026-10-30 -- Apple device available
+
+**Event:** decision
+
+**What:** Gary answered Q1 (Physical-phone availability), confirming an iPhone or iPad is available. Device model, OS, browser and measured results remain to be recorded during the playtest. This resolves availability without claiming device acceptance.
+
+**Refs:** [Answered question](questions-for-human.md#answered).
+
+
+### 2026-10-30 -- Startup side quest released
+
+**Event:** phase-change
+
+**What:** Gary requested merging and pushing the isolated startup recovery fix before returning to physics. Commit `094f144` is on main, GitHub Pages run `41063357506` passed, and the live game recovered from a download failure and reached a playable Just Cruisin' session. Physics remains on its original branch with uncommitted work preserved. Next physics checkpoint is completing the production fixture/controller and terrain contracts before the physical-phone acceptance run.
+
+**Refs:** [Release evidence](../../../verification/boot-recovery/README.md); [deployment](https://github.com/GaryReckard/zerble-at-the-festival/actions/runs/41063357506).
+
+
+### 2026-10-30 -- Controller and triangulated terrain proof
+
+**Event:** discovery
+
+**What:** Continued on `codex/physical-festival-integration` at `4aa8d47`, combining startup recovery and the photographer baseline while preserving the original worktree. Added fixed-step sampling of accepted real Zerble controller poses, isolated from interpolated presentation, and bounded exact production-terrain meshes. The real-controller regression passes at 30/60/120 Hz with flat and enabled terrain. A reduced one-ball reproduction traced a Rapier panic to a deficient test browser stub: defining `window` without `window.performance` breaks its timing import. Supplying the actual Node performance API resolves the panic; no solver workaround was introduced. The regression now runs in `npm run check` and `npm run test:physics`. Production frame barriers, ownership and physical-device acceptance remain pending.
+
+**Refs:** `bin/test-physics-controller`; `bin/test-physics-terrain`; `src/physics/cartTrajectory.js`; [verification](../../../verification/physical-festival/README.md).
+
+
+### 2026-10-30 -- Cart discontinuities and ghost clearance
+
+**Event:** decision
+
+**What:** Added a reusable cart proxy bridge that consumes accepted trajectories and named reset reasons. Ghost exit and discontinuous relocation disable contacts until a bounded direct-shape query establishes clearance, clearing old kinematic targets and velocities before reactivation. This avoids an explosive overlap correction without moving the chair or cart artificially. Tests cover zero-step expiry, overlap waiting, clear reentry, every named reset and resumed real solver contact. The production-controller fixture exposes ghost mode; main-game transition calls and frame-barrier wiring remain unfinished, so Task 2.5 (Cart proxy and resets) remains unchecked.
+
+**Refs:** `src/physics/cartProxy.js`; `bin/test-physics-cart-proxy`; `bin/test-physics-controller`; `src/physics/rapierAdapter.js`.

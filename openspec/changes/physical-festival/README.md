@@ -1,10 +1,10 @@
 # Make the festival physically responsive
 
-> **Status:** <!--STATUS:LINE-->not started · 0/66 tasks (0%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->in progress · 1/66 tasks (1%)<!--/STATUS:LINE-->
 
 ## TL;DR
 
-Build a small physical simulation around Zerble so chairs, their occupants, coolers, cups and signs respond to the way they are hit. Keep the cart's familiar controls, let people brace or fall and recover, and give displaced objects a coherent aftermath. This is a completed planning handoff from the October 29 discussion; implementation has not started and no device-performance result is claimed.
+Build a small physical simulation around Zerble so chairs, their occupants, coolers, cups and signs respond to the way they are hit. Keep the cart's familiar controls, let people brace or fall and recover, and give displaced objects a coherent aftermath. Implementation began October 30 from the completed hoop baseline. A standalone Rapier playground and real-engine tests now provide the first proof; production integration and physical-device acceptance remain pending. See the [implementation evidence](../../../verification/physical-festival/README.md).
 
 ## The Problem
 
@@ -30,13 +30,13 @@ The full [66-task checklist](tasks.md) is the progress authority. Pure sign rese
 ## Progress
 
 <!--STATUS:AUTO-->
-**not started** — 0/66 tasks complete (0%)
+**in progress** — 1/66 tasks complete (1%) · current: 2.4 (Admission and residency), with production fixture/frame integration still incomplete
 
-_Last updated: 2026-10-29_
+_Last updated: 2026-10-30_
 
 | Group | Progress |
 |---|---|
-| 1. Establish source baseline and the interaction playground | 0/5 |
+| 1. Establish source baseline and the interaction playground | 1/5 |
 | 2. Prove the physics dependency and update loop | 0/6 |
 | 3. Establish prop identity, rendering and lifecycle | 0/7 |
 | 4. Finish empty-chair contact and incident behavior | 0/5 |
@@ -92,4 +92,4 @@ No unanswered question blocks starting the first task. Measured engine/loading b
 
 ## First implementation action
 
-Gary explicitly deferred coding: finish the hula-hoop work first, then begin physics on a verified clean branch. When implementation is requested later, begin Task 1.1 (Baseline and compatibility), rechecking the completed baseline before editing. Follow the [model delegation plan](delegation.md), then build the production-backed playground. The initial target remains a complete occupied-chair encounter; the plan reaches it through independently verifiable steps.
+Gary authorized implementation after the hoop work landed. Task 1.1 (Baseline and compatibility) is complete, and the engine fixture is now being integrated on `codex/physical-festival-integration`, preserving the original worktree. Continue the incomplete production-fixture and engine contracts using the [model delegation plan](delegation.md); obtain physical-phone measurements before expanding content. The initial target remains a complete occupied-chair encounter; the plan reaches it through independently verifiable steps.

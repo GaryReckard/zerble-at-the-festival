@@ -217,7 +217,9 @@ harness history, tier contract and acceptance criteria.
 - **Physical festival:** implement the [documented plan](openspec/changes/physical-festival/README.md)
   for chair/occupant physics and recovery, the existing cooler, transferable drinks,
   route-aware damageable signs and bounded aftermath. Start with the production-backed
-  interaction playground; implementation and device acceptance remain unstarted.
+  interaction playground integration; the standalone engine fixture is implemented,
+  while production ownership, occupants and device acceptance remain pending.
+  See the [first proof and remaining work](verification/physical-festival/README.md).
 - **Juice tuning:** keep variety costs and drain/frown feel as explicit design decisions.
 
 The [gameplay design backlog](docs/backlog/gameplay.md) preserves the full

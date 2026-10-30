@@ -33,6 +33,18 @@ try {
     for (const dependency of chunk.imports) walk(chunks.get(dependency));
   }
   assert.ok(map); walk(map);
+  // The experimental physics page may share models with the game, but its
+  // engine must not become part of the game's initial download graph.
+  const gameEntry = [...chunks.values()].find(chunk => chunk.facadeModuleId?.endsWith('/index.html'));
+  const initialGameChunks = new Set();
+  function checkGameIsolation(chunk) {
+    if (initialGameChunks.has(chunk.fileName)) return;
+    initialGameChunks.add(chunk.fileName);
+    assert.ok(!Object.keys(chunk.modules).some(id => id.includes('@dimforge/rapier')), 'Game boot pulled in experimental Rapier');
+    for (const dependency of chunk.imports) checkGameIsolation(chunks.get(dependency));
+  }
+  assert.ok(gameEntry); checkGameIsolation(gameEntry);
+  assert.ok(output.some(item => item.fileName === 'physical-sandbox.html'), 'Missing physics proof entry');
   assert.ok([...chunks.values()].some(chunk => Object.keys(chunk.modules).some(id => id.endsWith('/src/threeShim.js'))));
 
   // A newly imported file needs no registry; a missing export must fail the

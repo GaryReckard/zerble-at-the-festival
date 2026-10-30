@@ -487,6 +487,12 @@ hosted collector with privacy, retention, abuse, and consent rules.
 
 ---
 
+## Physical furniture playground
+
+Open `/physical-sandbox.html?mute=1&perf=low&fixture=chair&seed=1977` on the Vite server. Choose a chair style and encounter, then use Run encounter, reset, slow motion or single step. Collision shapes, model bounds and seat anchors help inspect the provisional recipes. Inputs, contacts, and limits contains the copied report and Dispose scene control. Repeat Noon/Midnight and Low/Mid when changing presentation.
+
+This is an engine proof using the real Zerble controller, a conservative kinematic contact hull and either fixture ground or the exact production-terrain triangle surface. Cart ghost mode can change during an encounter; ending it inside a prop waits for clearance before restoring contacts. The report exposes ghost state and pending clearance. It does not exercise production occupants, streaming ownership or the main game contact barrier, and disabling physics shows a static reference rather than legacy collisions. See [evidence and limitations](verification/physical-festival/README.md). Run `npm run test:physics` for actual Rapier lifecycle/contact and fixed-clock tests.
+
 ## The sandbox — isolated entity viewer
 
 [sandbox.html](sandbox.html) is the **primary surface for any model/visual

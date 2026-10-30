@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Physical festival · Zerble playground</title>
+  <link rel="icon" href="favicon.svg">
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;height:100%;background:#e9e4d4;color:#263e35;font:14px/1.5 system-ui,sans-serif}body{display:grid;grid-template-columns:310px minmax(0,1fr)}button,input,select{font:inherit}button,select,input[type=number]{border:1px solid #b2bdae;border-radius:7px;background:#fffdf5;color:#263e35;padding:8px 10px}button{cursor:pointer}button:hover{background:#e5ecd9}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #d38c36;outline-offset:2px}aside{overflow:auto;padding:26px 22px;border-right:1px solid #c6cebb;background:#f6f2e7}h1{font:500 30px/1.1 Georgia,serif;margin:8px 0 14px}.eyebrow{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#697a61}p{font-size:12px;color:#63715c}label.control{display:grid;gap:5px;margin:15px 0;font-size:12px;font-weight:600}label.control>span{display:flex;justify-content:space-between}input[type=range]{width:100%;accent-color:#466b4b}select{width:100%}.row{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.row button{flex:1}.primary{background:#315b43;color:#fff8df;border-color:#315b43}.primary:hover{background:#244c36}hr{border:0;border-top:1px solid #d1d7c6;margin:20px 0}.checks{display:grid;gap:7px;font-size:12px}.checks label{display:flex;align-items:center;gap:6px}.checks input{accent-color:#466b4b}.note{padding:10px 12px;background:#e6ebdc;border-radius:7px}main{position:relative;min-width:0;overflow:hidden}canvas{display:block;width:100%;height:100%;touch-action:none}.badge{position:absolute;top:22px;left:24px;padding:9px 14px;border-radius:100px;background:#f7f3e8e8;font-size:12px;pointer-events:none}.badge i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#66935f;margin-right:7px}#diagnostics{position:absolute;bottom:20px;left:24px;right:24px;display:flex;align-items:end;justify-content:space-between;gap:16px;pointer-events:none}#counters{margin:0;padding:12px 16px;border-radius:10px;background:#f7f3e8ed;display:grid;grid-template-columns:repeat(4,auto);gap:2px 18px;font-size:11px;font-variant-numeric:tabular-nums}dt{color:#69745f}dd{margin:0;font-weight:600}#camera-note{max-width:210px;font-size:11px;text-align:right;color:#263e35}details{font-size:12px;margin-top:14px}summary{cursor:pointer}pre{font-size:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto;background:#e9eddf;padding:10px;border-radius:6px}#status{min-height:36px}#error{position:absolute;left:24px;right:24px;top:80px;background:#fff0de;color:#7b3e24;border:1px solid #bf8c5a;padding:14px;border-radius:9px}a{color:#315b43}#time{color:#496746}
+    @media(max-width:760px){body{grid-template-columns:240px minmax(0,1fr)}aside{padding:18px 14px}h1{font-size:25px}#counters{grid-template-columns:repeat(2,auto);gap:1px 14px}#diagnostics{left:12px;right:12px;bottom:12px}#camera-note{display:none}.badge{left:12px;top:12px;font-size:11px}}
+    @media(max-width:520px){body{height:auto;min-height:100%;display:flex;flex-direction:column}main{order:-1;height:51vh;min-height:300px}aside{overflow:visible;border-right:0;border-top:1px solid #c6cebb;padding:18px}aside>p:first-of-type{max-width:420px}.control{max-width:100%}#counters{font-size:10px;grid-template-columns:repeat(4,auto);gap:1px 12px}.badge{max-width:calc(100% - 24px)}}
+  </style>
+</head>
+<body>
+  <aside aria-label="Encounter controls">
+    <div class="eyebrow">Zerble / physical festival workshop</div>
+    <h1>A little room<br>to knock around.</h1>
+    <p>Repeat a contact, slow it down, and inspect how the real festival furniture settles.</p>
+    <label class="control">Encounter<select id="fixture"><option value="chair">Empty chair</option><option value="pair">Chair pair</option><option value="slope">Chair on a slope</option><option value="solid">Chair beside a solid</option><option value="terrain">Production terrain</option><option value="cooler">Closed cooler</option><option value="occupied" disabled>Occupied chair · unavailable</option></select></label>
+    <label class="control">Chair style<select id="style"><option value="sling">Sling</option><option value="director">Director</option><option value="low">Low chair</option><option value="loveseat">Loveseat</option></select></label>
+    <label class="control">Seed<input id="seed" type="number" min="0" max="4294967295" step="1" value="1977"></label>
+    <label class="control"><span>Approach speed <output id="speed-label">6 m/s</output></span><input id="speed" type="range" min="0.5" max="20" step="0.5" value="6"></label>
+    <label class="control"><span>Approach angle <output id="angle-label">0°</output></span><input id="angle" type="range" min="-70" max="70" step="5" value="0"></label>
+    <div class="row"><button class="primary" id="run" disabled>Run encounter</button><button id="reset" disabled>Reset</button></div>
+    <div class="row"><button id="pause" aria-pressed="true" disabled>Resume</button><button id="step" disabled>Single step</button></div>
+    <label class="control">Playback<select id="playback"><option value="1">Normal speed</option><option value="0.25">Quarter speed</option><option value="0.1">Tenth speed</option></select></label>
+    <p id="status" role="status">Preparing the physical playground…</p>
+    <hr>
+    <div class="row"><button id="noon" aria-pressed="true">Noon</button><button id="midnight" aria-pressed="false">Midnight</button></div>
+    <div class="checks"><label><input id="physics" type="checkbox" checked> Enable physical simulation</label><label><input id="ghost" type="checkbox"> Cart ghost mode</label><label><input id="colliders" type="checkbox"> Collision shapes</label><label><input id="bounds" type="checkbox"> Model bounds</label><label><input id="sockets" type="checkbox"> Seat anchors</label></div>
+    <p class="note">Audio is muted. Zerble uses the production driving controller. Occupants, person claims, cup transfers, and campsite ownership are pending. Disabling physics shows a static model reference.</p>
+    <details><summary>Inputs, contacts, and limits</summary><pre id="inspection">Waiting for the engine.</pre><div class="row"><button id="copy">Copy report</button><button id="dispose">Dispose scene</button></div></details>
+    <p><a href="sandbox.html?entity=camp_chair&amp;mute=1">Entity viewer</a> · <a href="index.html?mute=1">Festival</a></p>
+  </aside>
+  <main id="viewport"><canvas id="playground" aria-label="Physical furniture encounter. Drag to orbit, scroll to zoom."></canvas><div class="badge"><i></i><span id="scene-label">Empty chair</span> · <span id="time">Noon</span> · muted</div><div id="error" role="alert" hidden></div><div id="diagnostics"><dl id="counters"></dl><div id="camera-note">Drag to orbit · scroll to zoom<br>R resets · Space pauses · . steps</div></div></main>
+  <script type="module" src="./src/physics/playground.js"></script>
+</body>
+</html>

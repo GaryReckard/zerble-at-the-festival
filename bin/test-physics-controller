@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+// Canvas rendering is not tested here; the actual Zerble controller, Three.js
+// transforms, terrain sampler and Rapier solver execute without replacements.
+globalThis.window={performance:globalThis.performance,innerWidth:1200,innerHeight:800,__perfProfile:'low',addEventListener(){}};
+const gradient={addColorStop(){}};
+const context=new Proxy({}, {get:(_t,k)=>k==='createLinearGradient'||k==='createRadialGradient'?()=>gradient:k==='measureText'?()=>({width:50}):()=>{},set:()=>true});
+globalThis.document={createElement:()=>({getContext:()=>context})};
+const {createFixtureCartDriver}=await import('../src/physics/cartDriver.js');
+const {createPhysicalFixture}=await import('../src/physics/runtime.js');
+const {disposeSceneResources}=await import('../src/people/sceneResources.js');
+const {buildTerrainPatch}=await import('../src/physics/terrainProxy.js');
+const {setTerrainEnabled,sampleTerrain}=await import('../src/worldgen/terrain.js');
+const {setSessionSeed}=await import('../src/rng.js');
+setSessionSeed(1977);
+for(const enabled of [false,true]) {
+ setTerrainEnabled(enabled);
+ const x=650,z=210,y=sampleTerrain(x,z).height;
+ const terrainPatch=buildTerrainPatch({minX:x-20,minZ:z-20,maxX:x+20,maxZ:z+20});
+ for(let i=0;i<terrainPatch.vertices.length;i+=3){terrainPatch.vertices[i]+=terrainPatch.origin.x-x;terrainPatch.vertices[i+1]-=y;terrainPatch.vertices[i+2]+=terrainPatch.origin.z-z;}
+ const surfaceSampler=(lx,lz,out={})=>{sampleTerrain(x+lx,z+lz,out);out.height-=y;return out;};
+ const finals=[];
+ for(const hz of [30,60,120]) {
+  const driver=createFixtureCartDriver({speed:6,surfaceSampler});
+  const fixture=await createPhysicalFixture({fixture:'terrain',terrainPatch,surfaceSampler,cartDriver:driver});
+  try {
+   fixture.strike();
+   for(let i=0;i<hz*3;i++) {
+    const state=fixture.advance(1/hz);
+    // Emulate interpolated publication overwriting the visual/controller root.
+    const cart=state.props.find(p=>p.kind==='cart');
+    driver.root.position.copy(cart.position);driver.root.quaternion.copy(cart.rotation);
+   }
+   const solved=driver.pose();finals.push(solved);
+   const chair=fixture.getState().props.find(p=>p.kind==='chair');
+   assert(chair.position.z<-.5,'actual controller contact displaces the chair');
+   assert(chair.position.y>surfaceSampler(chair.position.x,chair.position.z).height-.1,'chair remains supported');
+   assert(Object.values(solved.position).every(Number.isFinite));
+   const before=driver.pose();fixture.advance(0);assert.deepEqual(driver.pose(),before);
+  } catch(error) { console.error('PRIMARY CONTROLLER FAILURE', error.message, error.stack?.split('\n').slice(-8).join('\n')); throw error; } finally {fixture.dispose();disposeSceneResources(driver.root);}
+  assert.equal(fixture.getState().stats.bodies,0);
+  assert.equal(fixture.getState().stats.meshVertices,0);
+ }
+ for(const state of finals.slice(1)) assert(Math.abs(state.position.z-finals[0].position.z)<.04,'controller path remains close across presentation rates');
+}
+console.log('PASS real Zerble controller + terrain triangles + Rapier contact at 30/60/120 Hz, enabled/flat terrain, presentation isolation and cleanup.');
+
+setTerrainEnabled(false);
+for (const speed of [6,12]) {
+const ghostDriver=createFixtureCartDriver({speed});
+const ghostFixture=await createPhysicalFixture({cartDriver:ghostDriver});
+try {
+ ghostFixture.setCartGhost(true);
+ ghostFixture.strike();
+ for(let i=0;i<180;i++) ghostFixture.advance(1/60);
+ const state=ghostFixture.getState();
+ assert.equal(state.cartProxy.ghost,true);
+ assert(Math.abs(state.props.find(p=>p.kind==='chair').position.z)<.1,'ghost cart passes through without pushing chair');
+ ghostFixture.setCartGhost(false);
+ ghostFixture.step();
+ assert.equal(ghostFixture.getState().cartProxy.pendingClearance,speed===6,'slow cart stops overlapping; faster cart clears and reactivates contact');
+} finally {ghostFixture.dispose();disposeSceneResources(ghostDriver.root);}
+}
+console.log('PASS production-controller fixture ghost passage, overlapping expiry and clear reentry.');

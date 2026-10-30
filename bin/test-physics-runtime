@@ -1,0 +1,99 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { FixedStepClock } from '../src/physics/fixedStep.js';
+import { createPhysicalFixture } from '../src/physics/runtime.js';
+
+for (const hz of [30, 60, 120]) {
+  const clock = new FixedStepClock(); let ticks = 0;
+  for (let i = 0; i < hz * 3; i++) clock.advance(1 / hz, () => ticks++);
+  assert.equal(ticks, 180); assert(Math.abs(clock.time - 3) < 1e-10);
+  assert(clock.alpha < 1e-8);
+}
+const clock = new FixedStepClock();
+assert.equal(clock.advance(0, () => assert.fail()), 0);
+assert.equal(clock.advance(60, () => {}), 5);
+assert(clock.dropped > 59);
+clock.singleStep(() => {}); assert.equal(clock.alpha, 0);
+assert.throws(() => clock.advance(NaN, () => {}));
+assert.throws(() => clock.advance(-1, () => {}));
+clock.reset(); assert.equal(clock.time, 0);
+
+let runs = 0;
+const finals = [];
+for (const hz of [30, 60, 120]) {
+  const fixture = await createPhysicalFixture({ fixture: 'pair', speed: 4, angle: 12 });
+  try {
+    assert.equal(fixture.strike(), true);
+    assert.equal(fixture.strike(), false, 'repeated trigger cannot teleport a running cart');
+    for (let i = 0; i < hz * 4; i++) fixture.advance(1 / hz);
+    // Single-step publishes current poses, independent of interpolation offset.
+    const state = fixture.step();
+    const chair = state.props.find(p => p.key === 'chair-0');
+    assert(Math.hypot(chair.position.x, chair.position.z) > .1, 'a real solver contact moves the chair');
+    assert.equal(state.stats.steps, 241);
+    finals.push(chair.position);
+    const copied = fixture.getState(); copied.props[0].position.x = 999;
+    assert.notEqual(fixture.getState().props[0].position.x, 999);
+    const debug = fixture.debugGeometry();
+    assert(debug.vertices.length > 0);
+    runs++;
+  } finally { fixture.dispose(); fixture.dispose(); }
+  assert.equal(fixture.getState().stats.bodies, 0);
+  assert.equal(fixture.getState().props.length, 0);
+  assert.throws(() => fixture.step(), /disposed/);
+}
+for (const position of finals.slice(1)) for (const axis of ['x', 'y', 'z']) {
+  assert(Math.abs(position[axis] - finals[0][axis]) < 1e-5, 'same fixed input produces same solved state');
+}
+for (const style of ['sling', 'director', 'low', 'loveseat']) {
+  for (const name of ['chair', 'pair', 'slope', 'solid', 'cooler']) {
+    const fixture = await createPhysicalFixture({ fixture: name, style });
+    try {
+      for (let i = 0; i < 180; i++) fixture.step();
+      for (const prop of fixture.getState().props) {
+        assert(Object.values(prop.position).every(Number.isFinite));
+        if (prop.kind === 'chair') assert(prop.position.y > -.2, 'supported chair does not fall through fixture ground');
+      }
+      runs++;
+    } finally { fixture.dispose(); }
+    assert.equal(fixture.getState().stats.colliders, 0);
+  }
+}
+const reference = await createPhysicalFixture({ physics: false });
+const before = reference.getState().props;
+reference.advance(1); assert.deepEqual(reference.getState().props, before);
+assert.equal(reference.strike(), false); reference.dispose();
+const manual = await createPhysicalFixture();
+try {
+  manual.strike();
+  const stepped = manual.step().props;
+  assert.deepEqual(manual.advance(0).props, stepped, 'zero accepted time must not rewind a manually published step');
+  const external = manual.getState().props.find(p => p.kind === 'cart'); external.size[0] = 999;
+  assert.equal(manual.getState().props.find(p => p.kind === 'cart').size[0], 1);
+  for (let i = 0; i < 300; i++) manual.step();
+  const history = manual.getState();
+  assert(history.stats.historyEvictions > 0, 'bounded diagnostic history reports eviction separately');
+  assert(history.events.length <= 64);
+} finally { manual.dispose(); }
+await assert.rejects(createPhysicalFixture({ capacity: 1 }), /admission rejected/);
+await assert.rejects(createPhysicalFixture({ fixture: 'occupied' }), /Unsupported/);
+await assert.rejects(createPhysicalFixture({ speed: Infinity }), /Invalid/);
+console.log(`PASS fixed clock 30/60/120 Hz, capped suspension, ${runs} real-engine fixtures, contact motion, copied state, static reference, capacity rejection and idempotent teardown.`);
+console.log('Scope: fixture engine proof only; production controller, terrain, claims and device acceptance remain pending.');
+
+// External controller publication is sampled at each substep, including frames
+// with no solver step. It must not jump to the endpoint for every substep.
+for (const hz of [30,60,120]) {
+  let elapsed=0;
+  const driver={pose:()=>({position:{x:0,y:0,z:5},rotation:{x:0,y:0,z:0,w:1}}),
+    advance(dt,running){if(running)elapsed+=dt;return {position:{x:0,y:0,z:5-elapsed*4},rotation:{x:0,y:0,z:0,w:1}};}};
+  const fixture=await createPhysicalFixture({cartDriver:driver});
+  try {
+    fixture.strike();
+    for(let i=0;i<hz;i++)fixture.advance(1/hz);
+    const cart=fixture.step().props.find(p=>p.key==='cart');
+    assert(Math.abs(cart.position.z-(1-4/60))<1e-5);
+    assert(fixture.getState().props.find(p=>p.kind==='chair').position.z<-.1);
+  } finally {fixture.dispose();}
+}
+console.log('PASS external controller trajectory integration at 30/60/120 Hz with actual Rapier chair contact.');

@@ -1,6 +1,24 @@
 # Source evidence and freshness
 
-Inspected 2026-10-29 in the shared working tree on `codex/generative-hoop-dancers`. Line anchors are navigation aids, not immutable revision pins. Cooler work and unrelated hoop planning are concurrent; recheck symbols and local diffs before implementation. This document distinguishes observed source from the proposed architecture elsewhere in this change. No runtime performance or browser acceptance was measured during documentation.
+Historical inspection: 2026-10-29 in the shared working tree on `codex/generative-hoop-dancers`. That dated source survey is retained as history. Line anchors are navigation aids, not immutable revision pins. This document distinguishes observed source from the proposed architecture elsewhere in this change. No runtime performance or browser acceptance was measured during documentation.
+
+## Refreshed baseline, 2026-10-30
+
+Task 1.1 (Baseline and compatibility) was rechecked on `codex/physical-festival` at `17102a1`, the clean post-hoop base recorded by the parent task. Existing production files referenced below had no diff from that revision during inspection. The shared worktree now contains uncommitted physics-package, harness, Vite, and session-log edits, so inspect the live worktree before relying on this revision boundary during implementation. The verified source ledger and integration table are in the [October 30 baseline report](../../../verification/physical-festival/2026-10-30-baseline.md). That report records source facts only and does not claim a phone, browser, visual, or performance result.
+
+The refreshed source anchors below supersede the corresponding navigation anchors in the historical survey where line numbers differ. They also add the completed hoop claim/presentation boundary, canonical generator and built-world clearance consumers, and occupied-seat origin ownership required by Task 1.1.
+
+| Refreshed contract | Current source anchor |
+| --- | --- |
+| Legacy contact response and eligibility | [`main.js` legacy collision pass](../../../src/main.js#L1684), gate at [line 1689](../../../src/main.js#L1689) |
+| Chair batches discard child-mesh identity while retaining groups | [`batchCampChairs`](../../../src/models/campsite.js#L1054) |
+| Cooler remains attached to canopy and has only its coarse collider | [`buildCampsite` kitchen/cooler placement](../../../src/models/campsite.js#L1301), child collider registration at [`registerCampsite`](../../../src/campRegistry.js#L107) |
+| Drinks are instanced and hidden under conflicting presentations | [`Crowd` drink allocation](../../../src/crowd.js#L721), [drink transform visibility](../../../src/crowd.js#L1817) |
+| Public activity claim, hand and presentation APIs | [`claimActivity`](../../../src/crowd.js#L2315), [`readActivityHand`](../../../src/crowd.js#L2351), [`readActivityPresentation`](../../../src/crowd.js#L2362) |
+| Hoop partner live claims and published hand-contact check | [`PairSession` claim acquisition](../../../src/people/hoop/pairSession.js#L40), [`workshop` partner contact check](../../../src/people/hoop/workshop.js#L173) |
+| Actual terrain triangle split | [`sampleTerrain`](../../../src/worldgen/terrain.js#L125) |
+| Deterministic versus live clearance consumers | [`festival.js` plan occupancy](../../../src/worldgen/festival.js#L955), [`placeSingleCampsite`](../../../src/chunks.js#L2729), [`canPlaceCampsite`](../../../src/campRegistry.js#L126), [`dancefloor-clear` built-world lint](../../../src/worldgen/lint.js#L436) |
+| Seat token and chunk-origin ownership | [`registerCampsite`](../../../src/campRegistry.js#L104), [`reserveCampSlot`](../../../src/people/campResources.js#L7), [`disposeChunkByKey`](../../../src/chunks.js#L579) |
 
 ## Contacts, people and ownership
 
