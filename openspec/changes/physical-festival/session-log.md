@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "Live occupied-chair falls/recovery integrated; general-person impacts, broader props and phone acceptance pending"
+current_task: "Live seated/ordinary-person falls integrated; incident attribution, broader props and phone acceptance pending"
 blocked_by: null
 open_questions: 0
 started: 2026-10-29
@@ -286,3 +286,13 @@ release, source regeneration, teardown and rollback. See the
 [live report](../../../verification/physical-festival/2026-10-30-live-occupants/README.md).
 Next: ordinary-person physical impacts and incident ownership, followed by cooler
 lids/drinks and signs. Full acceptance remains open, including the iPhone/iPad test.
+
+## October 30: ordinary pedestrian falls
+
+Added four bounded prewarmed ordinary-person bodies and support neighborhoods.
+Actual cart collision callbacks use captured incoming speed, claim movement only
+when support is resident, and restore ordinary walking after recovery. Real-engine
+negative/capacity/repeat-hit tests and a real Chrome pedestrian encounter passed.
+See [ordinary-person verification](../../../verification/physical-festival/2026-10-30-ordinary-people/README.md).
+Next: bounded incident attribution/secondary impacts, then cooler lids and contents.
+Device acceptance and graduated reactions remain open.

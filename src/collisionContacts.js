@@ -36,6 +36,9 @@ export function resolveCollision(zerble, colliders) {
     const approachSpeed = (velX * tox + velZ * toz) * inv;
 
     if (approachSpeed > APPROACH_DAMAGE_THRESHOLD) {
+      // Snapshot incoming motion before the cart response changes its speed.
+      // Reaction owners must not mistake the reverse kick for impact energy.
+      const impact={speed:zerble.speed,approachSpeed,velocity:{x:velX,y:0,z:velZ}};
       // People keep their authored kickback. Solid scenery instead removes
       // the incoming motion and resolves overlap without forcing reverse.
       const pushDir = new THREE.Vector3(-tox * inv, 0, -toz * inv);
@@ -46,7 +49,7 @@ export function resolveCollision(zerble, colliders) {
       }
       if (!eligible) return { damaging: false };
       // NPC-specific reaction: panic, knockback, infect neighbors.
-      c.onContact?.(c,tox*inv,toz*inv);
+      c.onContact?.(c,tox*inv,toz*inv,impact);
       const occupied = !!c.entry?.potty?.occupied ||
         (c.entry?.physicalProp?.seatSlots ?? c.entry?.campSeats ?? []).some(slot => slot.occupied);
       const objectBump = !person && !occupied;

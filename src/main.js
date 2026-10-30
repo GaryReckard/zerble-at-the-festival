@@ -599,7 +599,7 @@ buildWorld(scene, crowd, zerble.position);
 // unlock gesture, and failure leaves every prop on its legacy path.
 let physicalWorld=null, physicalLoadError=null, physicalClosing=false;
 const physicalRequested=new URLSearchParams(location.search).get('physics')==='1';
-let physicalReadout=null,physicalDetails=null,physicalDiagnostics=null,physicalReportAt=0,physicalActionMessage='',physicalEncounterId=null,physicalCoast=null;
+let physicalReadout=null,physicalDetails=null,physicalDiagnostics=null,physicalReportAt=0,physicalActionMessage='',physicalEncounterId=null,physicalPersonEncounter=null,physicalCoast=null;
 if(physicalRequested) {
   const panel=document.createElement('div');panel.id='physical-world-panel';
   Object.assign(panel.style,{position:'fixed',left:'12px',bottom:'12px',zIndex:'2000',background:'#17251fee',color:'white',padding:'10px',font:'12px monospace',maxWidth:'340px'});
@@ -608,7 +608,7 @@ if(physicalRequested) {
   const stageEncounter=(kind=null)=>{
     const approach=physicalWorld?.approach(isPointInLake,kind);
     if(!approach){physicalActionMessage='No matching prop with a clear cart approach is loaded.';return;}
-    physicalEncounterId=approach.entryId;
+    physicalPersonEncounter=null;physicalEncounterId=approach.entryId;
     physicalActionMessage='Prepared approach; wait for target admission, then coast.';
     playerStats.relocate();zerble.position.set(approach.x,terrainHeight(approach.x,approach.z),approach.z);
     zerble.heading=approach.heading;zerble.speed=0;zerble.groundOnSurface();physicalWorld.reset('teleport');
@@ -616,10 +616,18 @@ if(physicalRequested) {
   stage.onclick=()=>stageEncounter();
   const coolerStage=document.createElement('button');coolerStage.textContent='Stage cooler encounter';coolerStage.onclick=()=>stageEncounter('camp_cooler');
   const occupiedStage=document.createElement('button');occupiedStage.textContent='Stage occupied encounter';occupiedStage.onclick=()=>stageEncounter('occupied');
-  const coast=physicalCoast=document.createElement('button');coast.textContent='Coast forward';coast.disabled=true;coast.onclick=()=>{if(physicalWorld?.owns(registry.entries.get(physicalEncounterId)??{}))zerble.speed=8;};
+  const pedestrianStage=document.createElement('button');pedestrianStage.textContent='Stage pedestrian encounter';pedestrianStage.onclick=()=>{
+    const approach=physicalWorld?.approachPerson();
+    if(!approach){physicalActionMessage='No prepared pedestrian with a clear approach is nearby.';return;}
+    physicalEncounterId=null;physicalPersonEncounter=approach.person;physicalActionMessage='Pedestrian prepared; coast or drive forward.';
+    playerStats.relocate();zerble.position.set(approach.x,terrainHeight(approach.x,approach.z),approach.z);
+    zerble.heading=approach.heading;zerble.speed=0;zerble.groundOnSurface();physicalWorld.reset('teleport');
+  };
+  const personTargetReady=()=>!!physicalPersonEncounter&&physicalWorld?.stats().ordinary?.people.some(p=>p.slot===physicalPersonEncounter.slot&&p.generation===physicalPersonEncounter.generation&&p.ready);
+  const coast=physicalCoast=document.createElement('button');coast.textContent='Coast forward';coast.disabled=true;coast.onclick=()=>{if(personTargetReady()||physicalWorld?.owns(registry.entries.get(physicalEncounterId)??{}))zerble.speed=8;};
   physicalDetails=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Physics diagnostics';
   physicalDiagnostics=document.createElement('pre');Object.assign(physicalDiagnostics.style,{maxHeight:'200px',overflow:'auto'});physicalDetails.append(summary,physicalDiagnostics);
-  panel.append(stage,coolerStage,occupiedStage,coast,physicalDetails);document.body.append(panel);
+  panel.append(stage,coolerStage,occupiedStage,pedestrianStage,coast,physicalDetails);document.body.append(panel);
   import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera,people:crowd,isWet:isPointInLake})).then(world=>{
     if(physicalClosing)world.dispose();else physicalWorld=world;
   }).catch(error=>{physicalLoadError=error.message;physicalReadout.textContent=`Physics unavailable: ${error.message}`;console.error('Physical chair initialization failed',error);});
@@ -1753,9 +1761,9 @@ function tickBody(dt) {
     if(physicalReadout && physicalWorld && performance.now()-physicalReportAt>250) {
       physicalReportAt=performance.now();
       const state=physicalWorld.stats();
-      const targetReady=physicalWorld.owns(registry.entries.get(physicalEncounterId)??{});
+      const targetReady=physicalWorld.owns(registry.entries.get(physicalEncounterId)??{})||!!physicalPersonEncounter&&state.ordinary?.people.some(p=>p.slot===physicalPersonEncounter.slot&&p.generation===physicalPersonEncounter.generation&&p.ready);
       physicalCoast.disabled=!targetReady||state.cart.pendingClearance;
-      physicalReadout.textContent=`Physical props prototype\n${state.chairs.filter(chair=>chair.active).length} active / ${state.chairs.length} preparing | ${state.engine.bodies} bodies\n${state.hits} impacts | ${state.blocked??'running'}\nLast admission: ${state.lastReject??'ready'}\n${state.chairs.reduce((sum,chair)=>sum+(chair.state?.occupants?.filter(p=>p.current).length??0),0)} active sitters\nTarget: ${targetReady?'active':'not admitted'}\n${physicalActionMessage}`;
+      physicalReadout.textContent=`Physical props prototype\n${state.chairs.filter(chair=>chair.active).length} active / ${state.chairs.length} preparing | ${state.engine.bodies} bodies\n${state.hits} impacts | ${state.blocked??'running'}\nLast admission: ${state.lastReject??'ready'}\n${state.chairs.reduce((sum,chair)=>sum+(chair.state?.occupants?.filter(p=>p.current).length??0),0)} active sitters | ${state.ordinary?.people.filter(p=>p.active).length??0} falling pedestrians\n${state.ordinary?.started??0} pedestrian falls / ${state.ordinary?.completed??0} recovered\nTarget: ${targetReady?'active':'not admitted'}\n${physicalActionMessage}`;
       if(physicalDetails.open)physicalDiagnostics.textContent=JSON.stringify(state,null,2);
     }
     peopleFrameTrace?.hit(hit);

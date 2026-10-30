@@ -8,6 +8,7 @@ import { AdmissionBudget } from './admissionBudget.js';
 import { createActivePropRendering } from './activePropRendering.js';
 import { createChairOwnership } from './chairOwnership.js';
 import { createOccupiedSeats } from './occupiedSeats.js';
+import { createOrdinaryPeople } from './ordinaryPeople.js';
 import { sampleTerrain } from '../worldgen/terrain.js';
 import { campSlotAvailable } from '../people/campResources.js';
 import { findChairApproach } from './encounter.js';
@@ -21,14 +22,14 @@ const poseOf = cart => ({position:{x:cart.position.x,y:cart.position.y,z:cart.po
 // Opt-in integration proof. The owner consumes the game's clock and streaming
 // deadline; it never creates a timer, animation loop or independent budget.
 export async function createLivePhysics({scene,registry,cart,camera,people=null,isWet=()=>false,now=()=>performance.now()}) {
-  const adapter = await createRapierAdapter({capacities:{bodies:256,colliders:512,events:256,supportedLoads:16,contactPairs:32}});
-  let rendering,terrain,solids,owner;
+  const adapter = await createRapierAdapter({capacities:{bodies:256,colliders:512,events:256,supportedLoads:16,contactPairs:36}});
+  let rendering,terrain,solids,owner,ordinary;
   try {
   const clock = new FixedStepClock(), records = new Map(), entryRecords = new Map(), rejected = new Map();
   rendering = createActivePropRendering({maxBuckets:48,maxSlots:3072,slotsPerBucket:64});
-  terrain = createTerrainResidency(adapter,{maxTiles:64,maxQueued:32,maxOwners:MAX_CHAIRS});
-  solids = createStaticResidency({registry,adapter,isDynamic:entry=>!!entryRecords.get(entry.id)?.token,maxProxies:128,maxOwners:MAX_CHAIRS,maxQueued:128});
-  const budget = new AdmissionBudget({capacities:{bodies:256,colliders:512,joints:0,renderSlots:3072,events:256},maxRecords:MAX_CHAIRS*3+1});
+  terrain = createTerrainResidency(adapter,{maxTiles:64,maxQueued:32,maxOwners:MAX_CHAIRS+4});
+  solids = createStaticResidency({registry,adapter,isDynamic:entry=>!!entryRecords.get(entry.id)?.token,maxProxies:128,maxOwners:MAX_CHAIRS+4,maxQueued:128});
+  const budget = new AdmissionBudget({capacities:{bodies:256,colliders:512,joints:0,renderSlots:3072,events:256},maxRecords:MAX_CHAIRS*3+5});
   // Reserve the worst-case fixed support and cart allocations before chairs.
   budget.reserve('world-support',{resident:{bodies:193,colliders:193,events:256}});
   let preparationCalls=0,lastCandidates=0,nearbyChairs=0,preferredEncounter=null;
@@ -58,6 +59,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     const result=adapter.queryDynamicOverlaps(cartId,pose);
     return result.ok&&!result.exhausted&&!result.overlaps.length;
   }});
+  ordinary=people?createOrdinaryPeople({people,adapter,budget,terrain,solids,cart,isWet,now,registry}):null;
   function rejection(reason) {rejects++;lastReject=reason;}
   function forget(record) {
     terrain.release(record.supportKey);solids.release(record.supportKey);
@@ -130,6 +132,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
       if(!ground.ok||!nearby.ok){rejection(!ground.ok?ground.reason:nearby.reason);continue;}
       record.wanted=wanted;
     }
+    ordinary?.prepare(deadline);
     if(now()<deadline)terrain.pump({deadline,now,maxCreations:2});
     if(now()<deadline)solids.pump({deadline,now,maxCreations:2});
     let admissions=0;
@@ -144,6 +147,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
       }
     }
     owner.preparePeople(deadline,now);
+    ordinary?.prepareRecovery(deadline);
     for(const record of records.values())registry.entries.get(record.entryId)?.physicalProp?.renderBatch?.flush();
     rendering.flush();
   }
@@ -154,6 +158,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     // Check again before every substep: a contact impulse can change velocity
     // during the preceding step of the same presentation frame.
     function canStep(step) {
+      if(ordinary&&!ordinary.canStep(step)){blocked='ordinary-person-support-frontier';suspended=true;return false;}
       for(const record of records.values())if(record.token) {
         if(record.handoffPending){blocked='static-handoff';suspended=true;return false;}
         const state=owner.read(record.token),body=adapter.readBody(record.bodyId);
@@ -173,7 +178,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     proxy.accept(clock.time+clock.remainder,dt,poseOf(cart),{ghost,resetReason:reason});
     resetReason=null;suspended=false;
     clock.advance(dt,(step,time)=>{
-      proxy.beforeStep(time);adapter.step(step);owner.stepPeople(step);
+      proxy.beforeStep(time);adapter.step(step);owner.stepPeople(step);ordinary?.step(step);
       const drained=adapter.drainEvents();overflow+=drained.overflow;
       for(const event of drained.events) {
         if(event.a!==cartId&&event.b!==cartId)continue;
@@ -210,19 +215,19 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
   }
   function stats() {return {enabled:!disposed,phase:'physical-props-prototype',preparationCalls,lastCandidates,nearbyChairs,rejectedCandidates:rejected.size,player:{x:cart.position.x,z:cart.position.z},frames,clock:{steps:clock.steps,dropped:clock.dropped},blocked,hits,overflow,rejects,lastReject,
     chairs:[...records.values()].map(record=>({key:record.key,kind:registry.entries.get(record.entryId)?.kind,entryId:record.entryId,active:!!record.token,state:record.token?owner.read(record.token):null})),
-    engine:adapter.counts(),terrain:terrain.stats(),solids:solids.stats(),render:rendering.stats(),ownership:owner.stats(),cart:proxy.state(),
+    ordinary:ordinary?.stats()??null,engine:adapter.counts(),terrain:terrain.stats(),solids:solids.stats(),render:rendering.stats(),ownership:owner.stats(),cart:proxy.state(),
     limitations:['Occupied chair adoption is opt-in; full incident and device acceptance remain pending.','Static cylinders are conservative approximations.','Secondary-person attribution and device acceptance are pending.','Support-frontier exhaustion visibly stops this opt-in prototype.']};}
   function dispose() {
     if(disposed)return;disposed=true;
     if(registry.physicalChairOwner===owner)delete registry.physicalChairOwner;
     const errors=[];
-    for(const [name,action] of [['chairs',()=>owner.dispose()],['solids',()=>solids.dispose()],['terrain',()=>terrain.dispose()],['render',()=>rendering.dispose()],['engine',()=>adapter.dispose()]]) {
+    for(const [name,action] of [['ordinary-people',()=>ordinary?.dispose()],['chairs',()=>owner.dispose()],['solids',()=>solids.dispose()],['terrain',()=>terrain.dispose()],['render',()=>rendering.dispose()],['engine',()=>adapter.dispose()]]) {
       try {const result=action();if(result?.ok===false)errors.push({name,result});}catch(error){errors.push({name,message:error.message});}
     }
     rendering.root.removeFromParent();records.clear();entryRecords.clear();rejected.clear();
     return {ok:!errors.length,errors};
   }
-  return {prepare,advance,stats,dispose,reset(reason){resetReason=reason;},owns(entry){return !!entryRecords.get(entry.id)?.token;},
+  return {prepare,advance,stats,dispose,approachPerson:()=>ordinary?.approach()??null,reset(reason){resetReason=reason;},owns(entry){return !!entryRecords.get(entry.id)?.token;},
     approach(isWet,requestedKind=null){
       const candidates=[];
       for(const kind of ['chair','camp_chair','camp_loveseat','camp_cooler'])for(const id of registry.byKind.get(kind)??[]) {
@@ -239,7 +244,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
   } catch(error) {
     if(registry.physicalChairOwner===owner)delete registry.physicalChairOwner;
     const cleanupErrors=[];
-    for(const resource of [owner,solids,terrain,rendering,adapter])try{resource?.dispose();}catch(cleanup){cleanupErrors.push(cleanup.message);}
+    for(const resource of [ordinary,owner,solids,terrain,rendering,adapter])try{resource?.dispose();}catch(cleanup){cleanupErrors.push(cleanup.message);}
     rendering?.root.removeFromParent();
     if(cleanupErrors.length)error.cleanupErrors=cleanupErrors;
     throw error;

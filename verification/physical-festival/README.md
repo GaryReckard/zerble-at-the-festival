@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [ordinary-person checkpoint](2026-10-30-ordinary-people/README.md) adds bounded
+prewarming, direct-cart pedestrian falls and recovery through the live population.
+A real browser encounter completed; secondary impacts and full acceptance remain open.
+
 The [live occupied-chair checkpoint](2026-10-30-live-occupants/README.md) connects
 camp/stage sitters, independent loveseat releases, terrain-backed recovery and
 source regeneration. A real-game stage sitter completed the fall/recovery sequence.

@@ -2620,15 +2620,21 @@ export class Crowd {
       const dx=n.pos.x-cart.position.x,dz=n.pos.z-cart.position.z;if(dx*dx+dz*dz>36)continue;
       let c=n._personCollider;
       if(!c)c=n._personCollider={position:{x:0,y:0,z:0},radius:.45,damage:1,kind:'person',passive:false,entry:null,personHandle:handle,
-        onContact:(_candidate,x,z)=>this.hitPerson(handle,x,z),onPeoplePenalty:()=>this.frownPerson(handle)};
+        onContact:(_candidate,x,z,impact)=>this.hitPerson(handle,x,z,impact),onPeoplePenalty:()=>this.frownPerson(handle)};
       c.position.x=n.pos.x;c.position.y=n.pos.y;c.position.z=n.pos.z;out.push(c);
     }
   }
 
-  hitPerson(handle,pushX,pushZ) {
+  installPersonImpactHandler(handler) {
+    if(typeof handler!=='function'||this._personImpactHandler)throw new Error('Person impact handler already installed or invalid');
+    this._personImpactHandler=handler;
+    return ()=>{if(this._personImpactHandler===handler)this._personImpactHandler=null;};
+  }
+
+  hitPerson(handle,pushX,pushZ,impact=null) {
     const n=this.peopleHandles.resolve(handle);if(!n)return false;
     if(!Number.isFinite(pushX)||!Number.isFinite(pushZ))throw new TypeError('Person hit direction must be finite.');
-    return this._onZerbleHit(n,pushX,pushZ);
+    return this._onZerbleHit(n,pushX,pushZ,impact);
   }
 
   // Called from main.js when Zerble rams a porta-potty that's in use: eject the
@@ -2637,11 +2643,12 @@ export class Crowd {
 
   // Called from main.js when Zerble drives into an NPC. Knockback the victim,
   // put them into a fleeing state, and spook nearby NPCs (panic cascade).
-  _onZerbleHit(victim, pushX, pushZ) {
+  _onZerbleHit(victim, pushX, pushZ, impact=null) {
     const handle=this.peopleHandles.handleFor(victim);
     if(!this.peopleHandles.isLive(handle))return false;
     const activity=this.activityClaims.current.get(handle)?.claim.owner;
-    if(typeof activity?.onPersonImpact==='function')return activity.onPersonImpact(handle,pushX,pushZ)===true;
+    if(typeof activity?.onPersonImpact==='function')return activity.onPersonImpact(handle,pushX,pushZ,impact)===true;
+    if(this.canClaimPersonReaction(handle)&&this._personImpactHandler?.(handle,pushX,pushZ,impact)===true)return true;
     const hadActivity=this.activityClaims.current.has(handle);
     // Preserve the physical exit preflight before revoking a camp reservation.
     if(this._abandonSeat(victim)===false)return false; // a trapped sitter waits

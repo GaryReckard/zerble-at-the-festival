@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {prepareSeatRelease} from './seatRelease.js';
 import {createSeatReaction} from './seatReaction.js';
-import {createStandRecovery} from './standRecovery.js';
+import {createPersonRecovery} from './personRecovery.js';
 import {campSlotAvailable} from '../people/campResources.js';
 
 // Population access stays behind public capabilities. Each adopted furniture
@@ -9,12 +9,13 @@ import {campSlotAvailable} from '../people/campResources.js';
 export function createOccupiedSeats({people,adapter,budget,cartId,cart,groundAt}) {
  const activity={activityKey:'physical-seat',onPersonImpact};
  const participants=new Map();
- function onPersonImpact(handle,x,z) {
+ function onPersonImpact(handle,x,z,impact=null) {
   const p=participants.get(handle);if(!p||!people.isPersonActivityCurrent(p.claim))return false;
   if(!p.lease.fall().ok)return false;
   p.recovery.cancel();
   const body=p.lease.read()?.body;if(!body)return false;
-  const impulse=body.mass*Math.max(1,Math.min(6,Math.abs(cart.speed)*.6));
+  const incoming=Number.isFinite(impact?.approachSpeed)?impact.approachSpeed:Math.abs(cart.speed);
+  const impulse=body.mass*Math.max(1,Math.min(6,incoming*.6));
   adapter.applyImpulse(body.id,{x:x*impulse,y:body.mass*.5,z:z*impulse});
   p.controller.step(0);return true;
  }
@@ -53,20 +54,7 @@ export function createOccupiedSeats({people,adapter,budget,cartId,cart,groundAt}
    rows.forEach((p,i)=>{
     p.claim=claims[i];if(!p.support.commit(p.claim))throw new Error('Prepared support commit failed');
     const ground=(x,z)=>groundAt(entry,x,z,p.scale);
-    // Treat nearby people like other clearance contacts: an initial overlap
-    // may be escaped, but cannot deepen or remain at the stand-up endpoint.
-    const recoveryQueries={queryBodyContacts(id,generation,pose,options){
-     const result=adapter.queryBodyContacts(id,generation,pose,options);if(!result.ok)return result;
-     const q=pose.rotation,up=1-2*(q.x*q.x+q.z*q.z);
-     const reach=.3*p.scale+.4*p.scale*Math.sqrt(Math.max(0,1-up*up));
-     people.forEachPersonNear(pose.position.x,pose.position.z,reach+2,(other,view,distance)=>{
-      if(other===p.handle||view.hidden||Math.abs(view.y+view.scale-pose.position.y)>p.scale+view.scale)return;
-      const separation=distance-reach-.3*view.scale;
-      if(separation<.03)result.contacts.push({id:`person:${other.slot}`,generation:other.generation,distance:separation});
-     });
-     return result;
-    }};
-    p.recovery=createStandRecovery({adapter:recoveryQueries,ground,radius:.3*p.scale,halfHeight:.4*p.scale,rootHeight:p.scale,automaticPreparation:false});
+    p.recovery=createPersonRecovery({adapter,people,handle:p.handle,scale:p.scale,ground});
     p.controller=createSeatReaction({people,claim:p.claim,lease:p.lease,releaseSeat:()=>p.support.release(),facing:p.facing,rootOffset:{x:0,y:-p.scale,z:0},recovery:p.recovery,
      grounded(body){const at=groundAt(entry,body.pose.position.x,body.pose.position.z,p.scale);if(!at?.traversable)return false;const r=body.pose.rotation;return body.pose.position.y-(.3*p.scale+.4*p.scale*Math.abs(1-2*(r.x*r.x+r.z*r.z)))<=at.height+.06;}});
     participants.set(p.handle,p);p.controller.step(0);

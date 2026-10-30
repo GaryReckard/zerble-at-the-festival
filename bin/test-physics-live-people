@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {Registry} from '../src/registry.js';
+import {createLivePhysics} from '../src/physics/liveWorld.js';
+import {resolveCollision} from '../src/collisionContacts.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+for(const mode of ['recover','repeat','despawn','dispose','unprepared','capacity']) {
+ const people=makePeopleCrowd(),registry=new Registry(),scene=new THREE.Scene();
+ const n=people.spawn({pos:new Vector()});n.scale=1;
+ const protectedPerson=people.spawn({pos:new Vector(7,0,0)});protectedPerson.isPhotographer=true;
+ const cart={position:new THREE.Vector3(0,0,9),root:new THREE.Group(),heading:0,speed:8,radius:1.9,applyHit(){this.speed=-2;this.invulnLeft=1;}};
+ if(mode==='capacity')for(let i=0;i<10;i++)Object.assign(people.spawn({pos:new Vector(i*.2,0,0)}),{scale:1});
+ const world=await createLivePhysics({scene,registry,cart,people});
+ try {
+  if(mode==='capacity') {
+   world.prepare(performance.now()-1);assert.equal(world.stats().ordinary.people.length,0,'expired deadline forbids prewarm allocation');
+   for(let i=0;i<30;i++)world.prepare(performance.now()+100);
+   assert.equal(world.stats().ordinary.people.length,4);assert.equal(world.stats().engine.contactPairs,4);
+   assert(world.stats().terrain.owners<=12);assert.equal(people.activityClaims.current.size,0);continue;
+  }
+  if(mode!=='unprepared') {
+   for(let i=0;i<30&&!world.stats().ordinary.people.some(p=>p.ready);i++)world.prepare(performance.now()+100);
+   assert.equal(world.stats().ordinary.people.length,1);assert(world.stats().ordinary.people[0].ready);
+   assert.equal(people.activityClaims.current.size,0,'prewarming does not claim ordinary movement');
+  }
+  cart.position.set(0,0,1);const candidates=[];people.appendColliders(candidates,cart);
+  const hit=resolveCollision(cart,candidates);assert(hit.damaging);assert.equal(hit.kind,'person');assert.equal(cart.speed,-2);
+  if(mode==='unprepared'){assert.equal(n.state,'fleeing');assert(!people.isInActivity(n.personHandle,'physical-person'));continue;}
+  assert(people.isInActivity(n.personHandle,'physical-person'));assert.equal(n._reactionPose.seatBlend,0);
+  // Clear the cart after the accepted contact, preserving normal person scoring.
+  cart.position.set(0,0,9);cart.speed=0;world.reset('teleport');
+  if(mode==='dispose'){world.dispose();assert.equal(people.activityClaims.current.size,0);assert.equal(world.stats().engine.bodies,0);continue;}
+  if(mode==='despawn'){people.peopleHandles.remove(n.personHandle,()=>people.activityClaims.removePerson(n.personHandle));world.prepare(performance.now()+100);assert.equal(world.stats().ordinary.people.length,0);continue;}
+  let repeated=false,rotated=false;
+  for(let i=0;i<900&&people.isInActivity(n.personHandle,'physical-person');i++) {
+   world.prepare(performance.now()+100);world.advance(1/60);
+   rotated ||= Math.abs(n._reactionPose?.qx??0)+Math.abs(n._reactionPose?.qz??0)>.3;
+   if(mode==='repeat'&&!repeated&&world.stats().ordinary.people[0]?.reaction?.phase==='recovering') {
+    assert(people.hitPerson(n.personHandle,1,0,{approachSpeed:5}));repeated=true;
+   }
+  }
+  assert(rotated,'incoming contact tips the ordinary person');
+  assert(!people.isInActivity(n.personHandle,'physical-person'),mode+JSON.stringify(world.stats().ordinary));
+  assert.equal(world.stats().ordinary.started,1);assert.equal(world.stats().ordinary.completed,1);
+  assert.equal(n.state,'walking');assert.equal(n._reactionPose,null);if(mode==='repeat')assert(repeated);
+  assert.equal(people.activityClaims.current.size,0);
+ } finally {world.dispose();people.activityClaims.dispose();}
+ assert.equal(world.stats().engine.bodies,0);assert.equal(people._personImpactHandler,null);
+}
+console.log('PASS live ordinary people: prewarmed terrain, actual cart contact and incoming speed, protected photographer, tipping/recovery, repeat hit, despawn, world teardown and unprepared legacy fallback.');

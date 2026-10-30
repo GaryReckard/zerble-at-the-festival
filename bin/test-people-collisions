@@ -183,3 +183,13 @@ for(const entry of [
  assert.deepEqual(events,[['sound','camp_chair'],['analytics','camp_chair'],['record','bonks']]);
 }
 console.log('PASS empty-object policy: zero smile damage, no hit flash/toast/combo penalty, retained sound/bonk telemetry, and live occupied-to-empty seat/porta-potty transitions.');
+
+{
+ const f=fixture(false);f.cart.speed=8;let impact;
+ f.cart.applyHit=function(){this.speed=-2;};
+ const c=f.candidate('person',0,-.5,1);c.onContact=(_c,_x,_z,value)=>{impact=value;};
+ const hit=f.resolve(f.cart,[c]);assert(hit.damaging);assert.equal(f.cart.speed,-2);
+ assert.equal(impact.speed,8);assert.equal(impact.approachSpeed,8);
+ assert.equal(impact.velocity.z,-8,'person reaction receives pre-response incoming velocity');
+}
+console.log('PASS contact motion snapshot survives cart reverse kick.');

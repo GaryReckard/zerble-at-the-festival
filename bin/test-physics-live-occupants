@@ -54,10 +54,10 @@ for(const stage of [false,true]) {
   if(stage)assert(bystander,'test includes initial crowd overlap while recovering');
   assert(!people.isInActivity(persons[0],'physical-seat'),JSON.stringify(live.stats()));
   assert(people.isInActivity(persons[1],'physical-seat'),'one departure does not release the second sitter');
-  assert.equal(live.stats().engine.supportedLoads,1);assert.equal(live.stats().engine.contactPairs,2);
+  assert.equal(live.stats().engine.supportedLoads,1);assert.equal(live.stats().engine.contactPairs,2+live.stats().ordinary.people.length);
   assert(people.hitPerson(persons[1],-1,0));for(let i=0;i<600&&people.isInActivity(persons[1],'physical-seat');i++)tick();
   assert(!people.isInActivity(persons[1],'physical-seat'),JSON.stringify(live.stats()));
-  assert.equal(live.stats().engine.supportedLoads,0);assert.equal(live.stats().engine.contactPairs,0);assert(slots.every(s=>!s.occupied));
+  assert.equal(live.stats().engine.supportedLoads,0);assert.equal(live.stats().engine.contactPairs,live.stats().ordinary.people.length);assert(slots.every(s=>!s.occupied));
   const result=live.dispose();assert(result.ok);assert.equal(live.stats().engine.bodies,0);assert.equal(people.activityClaims.current.size,0);
  } finally {people.activityClaims.dispose();live.dispose();batch.dispose();replacementBatch?.dispose();}
  console.log(`PASS live ${stage?'stage':'camp'} loveseat: two real activity transfers, source unload, independent physical person hits, terrain-backed falls/recovery, one remaining sitter and full cleanup.`);

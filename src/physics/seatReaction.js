@@ -10,12 +10,13 @@ function rotate(v,q,out) {
   const x=2*(q.y*v.z-q.z*v.y),y=2*(q.z*v.x-q.x*v.z),z=2*(q.x*v.y-q.y*v.x);
   out.x=v.x+q.w*x+q.y*z-q.z*y;out.y=v.y+q.w*y+q.z*x-q.x*z;out.z=v.z+q.w*z+q.x*y-q.y*x;
 }
-export function createSeatReaction({people,claim,lease,releaseSeat,rootOffset={x:0,y:-1,z:0},facing=Math.PI,grounded=()=>false,recovery=null}) {
+export function createSeatReaction({people,claim,lease,releaseSeat,rootOffset={x:0,y:-1,z:0},facing=Math.PI,grounded=()=>false,recovery=null,initialSeatBlend=1}) {
   if(![people?.isPersonActivityCurrent,people?.writeReactionPose,lease?.read,lease?.fall,lease?.resumeSupportContacts,releaseSeat,grounded].every(f=>typeof f==='function'))throw new TypeError('Seat reaction needs population, claim, reserved body and seat-release capabilities');
   const offset=vector(rootOffset,'rootOffset');
   if(!Number.isFinite(facing))throw new TypeError('Facing must be finite');
+  if(!Number.isFinite(initialSeatBlend)||initialSeatBlend<0||initialSeatBlend>1)throw new RangeError('Invalid initial leg blend');
   const half=Math.sin(facing/2),cos=Math.cos(facing/2);
-  const pose={position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0,w:1},seated:true,seatBlend:1};
+  const pose={position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0,w:1},seated:initialSeatBlend>0,seatBlend:initialSeatBlend};
   let phase='supported',unstableTime=0,stableTime=0,settledTime=0,seatReleased=false,disposed=false,blocked=null;
   function publish(sample,seatBlend=pose.seatBlend) {
     pose.seatBlend=seatBlend;
