@@ -173,7 +173,9 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
         const approach=(-Math.sin(cart.heading)*cart.speed*dx-Math.cos(cart.heading)*cart.speed*dz)/d;
         if(approach<=APPROACH_DAMAGE_THRESHOLD)continue;
         record.lastHit=time;record.penalized=true;hits++;
-        hit={damaging:eligible&&entry.collider.damage>0,damage:entry.collider.damage,kind:entry.kind,entry,physical:true,
+        // Only empty chairs are admitted by this prototype. A physical touch
+        // is not a person incident, irrespective of the legacy collider cost.
+        hit={damaging:false,damage:0,objectBump:eligible,kind:entry.kind,entry,physical:true,
           mass:body.mass,approachSpeed:approach,push:{x:-dx/d,z:-dz/d}};
       }
     },{canStep});

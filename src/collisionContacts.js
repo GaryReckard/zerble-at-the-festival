@@ -47,12 +47,18 @@ export function resolveCollision(zerble, colliders) {
       if (!eligible) return { damaging: false };
       // NPC-specific reaction: panic, knockback, infect neighbors.
       c.onContact?.(c,tox*inv,toz*inv);
-      // Damage > 0 means "deduct smiles". Damage 0 entries (e.g. Lurleen, a
+      const occupied = !!c.entry?.potty?.occupied ||
+        (c.entry?.physicalProp?.seatSlots ?? c.entry?.campSeats ?? []).some(slot => slot.occupied);
+      const objectBump = !person && !occupied;
+      // Empty objects resist physically but never cost smiles. Occupied
+      // furniture retains its existing consequence until person handoff lands.
+      // Damage 0 entries (e.g. Lurleen, a
       // fleeing NPC) still need their contact response, plus a toast/SFX
       // for the named ones — return `notify` so the caller can react.
-      const damaging = c.damage > 0;
+      const damage = objectBump ? 0 : c.damage;
+      const damaging = damage > 0;
       const notify = !damaging && (c.kind === 'lurleen');
-      return { damaging, damage: c.damage, kind: c.kind, notify, entry:c.entry||null,onPeoplePenalty:c.onPeoplePenalty??null,onDamagingHit:c.onDamagingHit??null };
+      return { damaging, damage, kind: c.kind, notify, objectBump, entry:c.entry||null,onPeoplePenalty:c.onPeoplePenalty??null,onDamagingHit:c.onDamagingHit??null };
     }
 
     // Non-damaging contact: nudge Zerble out of overlap, kill any small approach speed.

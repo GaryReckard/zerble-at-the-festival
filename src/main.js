@@ -1762,7 +1762,7 @@ function tickBody(dt) {
         Scoring.deduct(hit.damage);
         // Damaging PEOPLE hits snap the combo chain (scoring spec) and, in
         // Festival Run, land a vibe strike + scare Lurleen + frown the struck
-        // NPC. Prop bonks just cost the smiles, same as always. There is ONE
+        // NPC. Empty props have their own sound-only feedback below. There is ONE
         // toast slot — a stakes beat (heartbreak/whistle) outranks the generic
         // quip, or a same-frame overwrite makes the beat invisible.
         let stakesToasted = false;
@@ -1782,6 +1782,10 @@ function tickBody(dt) {
             toastForKind(hit.kind),
             NAMED_HIT_TOASTS[Math.floor(Math.random() * NAMED_HIT_TOASTS.length)]), 1400);
         }
+        Sound.playCollision(hit.kind);
+        Analytics.collision(hit.kind);
+        if (passportCanCollect()) playerStats.record('bonks');
+      } else if (hit && hit.objectBump) {
         Sound.playCollision(hit.kind);
         Analytics.collision(hit.kind);
         if (passportCanCollect()) playerStats.record('bonks');

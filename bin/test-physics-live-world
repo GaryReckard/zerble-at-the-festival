@@ -70,7 +70,7 @@ async function encounter(hz,ghost=false,starved=false,stageAudience=false,eligib
       cart.position.z=9-Math.min(cart.speed*2,(frame+1)*cart.speed/hz);
       live.prepare(starved?-1:performance.now()+100);
       const hit=live.advance(1/hz,{ghost,eligible});
-      if(hit){hitCount++;assert.equal(hit.entry,entry);assert.equal(hit.damage,1);assert.equal(hit.damaging,eligible);assert(hit.mass>0);assert(hit.approachSpeed>1.2);}
+      if(hit){hitCount++;assert.equal(hit.entry,entry);assert.equal(hit.damage,0);assert.equal(hit.damaging,false);assert.equal(hit.objectBump,eligible);assert(hit.mass>0);assert(hit.approachSpeed>1.2);}
     }
     const result=live.stats();
     if(starved) {

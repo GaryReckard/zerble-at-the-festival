@@ -29,7 +29,9 @@ for(const kind of ['person','kid','wook','brass','hula_hoop','one_wheel','puppet
  const a=fixture(),b=fixture(process.argv.includes('--baseline'));
  for(const f of [a,b]){f.cart.speed=speed;f.cart.heading=heading;}
  const before=a.resolve(a.cart,[a.candidate(kind,x,z,damage,passive)]),after=b.resolve(b.cart,[b.candidate(kind,x,z,damage,passive)]);
- assert.deepEqual(normalize(after),normalize(before));assert.deepEqual(b.reactions,a.reactions);
+ const expected=normalize(before);
+ if(expected?.kind&&['stage','porta_potty'].includes(kind)&&!process.argv.includes('--baseline')) {expected.damage=0;expected.damaging=false;}
+ assert.deepEqual(normalize(after),expected);assert.deepEqual(b.reactions,a.reactions);
  if(['porta_potty','stage'].includes(kind)&&a.cart.hits.length&&!process.argv.includes('--baseline')) {
    assert.equal(b.cart.hits.length,0,'fixed objects do not call the person response');
    assert(Math.abs(b.cart.speed)<=Math.abs(speed));
@@ -112,7 +114,7 @@ for(const kind of ['chair','camp_chair','camp_loveseat','cooler','tree','tent','
     const f=fixture(false);f.cart.speed=speed;
     const obstacle=f.candidate(kind,0,-Math.sign(speed)*.5,1);
     const result=f.resolve(f.cart,[obstacle]);
-    assert.equal(result.damage,1);assert.equal(result.damaging,true);
+    assert.equal(result.damage,0);assert.equal(result.damaging,false);assert.equal(result.objectBump,true);
     assert.equal(f.cart.hits.length,0);assert.equal(Math.abs(f.cart.speed),0,'square solid impact stops');
     assert(Math.hypot(obstacle.position.x-f.cart.position.x,obstacle.position.z-f.cart.position.z)>1.25);
   }
@@ -122,7 +124,7 @@ for(const kind of ['chair','camp_chair','camp_loveseat','cooler','tree','tent','
  f.resolve(f.cart,[f.candidate('tree',.4,-.3,1)]);
  assert(f.cart.speed>0&&f.cart.speed<10,'glancing impact retains forward motion');
 }
-console.log('PASS fixed-object contacts: square and reverse hits stop, glancing hits retain motion, all tested props avoid person kickback and preserve current penalties.');
+console.log('PASS fixed-object contacts: square and reverse hits stop, glancing hits retain motion, all tested empty props avoid person kickback and smile penalties.');
 
 // Cooldown suppresses consequences and people reactions, never solid separation.
 for(const speed of [-10,10]) {
@@ -156,3 +158,28 @@ for(const speed of [-10,10]) {
  }
 }
 console.log('PASS cooldown separation: real main-loop gate preserves solid collision, suppresses repeated consequences and person callbacks, never extends immunity, and retains star-power ghost passage.');
+
+for(const entry of [
+ {potty:{occupied:true}},
+ {campSeats:[{occupied:false},{occupied:true}]},
+ {physicalProp:{seatSlots:[{occupied:true}]}}
+]) {
+ const f=fixture(false);f.cart.speed=10;
+ const candidate=f.candidate(entry.potty?'porta_potty':'camp_chair',0,-.5,3);candidate.entry=entry;
+ const occupied=f.resolve(f.cart,[candidate]);assert.equal(occupied.damage,3);assert.equal(occupied.damaging,true);assert.equal(occupied.objectBump,false);
+ if(entry.potty)entry.potty.occupied=false;
+ else for(const seat of entry.campSeats??entry.physicalProp.seatSlots)seat.occupied=false;
+ f.cart.invulnLeft=0;f.cart.position.set(0,0,0);f.cart.speed=10;
+ const empty=f.resolve(f.cart,[candidate]);assert.equal(empty.damage,0);assert.equal(empty.damaging,false);assert.equal(empty.objectBump,true);
+}
+{
+ const start=main.indexOf('      if (hit && hit.damaging && !isGod())');
+ const end=main.indexOf('\n    }\n\n    peopleFrameTrace?.mark',start);
+ assert(start>0&&end>start);
+ const events=[],forbidden=new Proxy({}, {get(){throw Error('Empty-object contact invoked punitive feedback');}});
+ runInNewContext(main.slice(start,end),{hit:{kind:'camp_chair',objectBump:true,damage:0,damaging:false},
+   Sound:{playCollision:kind=>events.push(['sound',kind])},Analytics:{collision:kind=>events.push(['analytics',kind])},
+   passportCanCollect:()=>true,playerStats:{record:key=>events.push(['record',key])},Scoring:forbidden,HUD:forbidden});
+ assert.deepEqual(events,[['sound','camp_chair'],['analytics','camp_chair'],['record','bonks']]);
+}
+console.log('PASS empty-object policy: zero smile damage, no hit flash/toast/combo penalty, retained sound/bonk telemetry, and live occupied-to-empty seat/porta-potty transitions.');

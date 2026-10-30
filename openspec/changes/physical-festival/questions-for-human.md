@@ -1,7 +1,7 @@
 ---
 change: physical-festival
-open: 1
-answered: 1
+open: 0
+answered: 2
 last_question: 2026-10-30
 last_answer: 2026-10-30
 ---
@@ -9,6 +9,10 @@ last_answer: 2026-10-30
 # Questions for Gary
 
 ## Open
+
+None. Phone results remain pending; hardware availability is confirmed.
+
+## Answered
 
 ### Q2 (Empty-object scoring)
 
@@ -18,9 +22,10 @@ last_answer: 2026-10-30
 
 **Question:** Should empty-object collisions stop costing smiles, or retain the current smile penalty with only the physical response changed?
 
-**Impact:** Keep scoring unchanged until answered. This does not block the physical response separation. Physical-device results also remain pending, while hardware availability is confirmed.
+**Answer:** Gary selected “No smile penalty for empty objects.”
 
-## Answered
+**Action:** Empty-object contacts keep physical resistance and collision sound but deduct no smiles and trigger no punitive flash/toast. Direct-person and explicitly occupied-furniture consequences remain separate. Physical-device results remain pending.
+
 
 ### Q1 (Physical-phone availability)
 

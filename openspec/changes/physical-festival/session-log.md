@@ -1,9 +1,9 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "4.2 (Separate object and person contact response), with scoring and phone acceptance pending"
+current_task: "4.2 (Separate object and person contact response), with phone and occupied-incident acceptance pending"
 blocked_by: null
-open_questions: 1
+open_questions: 0
 started: 2026-10-29
 last_updated: 2026-10-30
 ref: "ROADMAP.md: Gameplay verbs / Physical props"
@@ -28,6 +28,8 @@ ref: "ROADMAP.md: Gameplay verbs / Physical props"
 - **D11 (research disposition):** Retain Rapier-first evaluation and the existing ownership/reset architecture. Use the external reports to sharpen failure tests; their performance numbers and incompatible lifecycle recommendations are not accepted evidence. Correct the no-build premise supplied in our own research prompt.
 
 - **D12 (implementation authorized):** On October 30 Gary confirmed clean main and authorized branching and implementation. Created `codex/physical-festival` from `17102a1`, which contains the completed hoop work and physics planning. This supersedes D10 (clean-branch implementation deferral). Real-device and feel gates still require their stated evidence.
+
+- **D13 (empty objects are not a smile penalty):** Gary answered Q2 (Empty-object scoring) with “No smile penalty for empty objects.” Empty contacts retain physical resistance and sound, while person incidents and explicit occupied-furniture behavior remain separate. This supersedes the initial numeric-baseline policy for empty props.
 
 ## Assumptions
 
@@ -235,3 +237,11 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** The legacy main loop skipped every collision during the person-hit immunity timer, and the physical world suppressed cart feedback using the same eligibility flag. Separated those gates: fixed scenery still resolves while person response/penalties remain suppressed; physical chairs still return non-damaging resistance. Suppressed solid contact does not renew immunity. This resolves the solidity limitation in the preceding checkpoint without answering Q2 (Empty-object scoring).
 
 **Refs:** [Cooldown evidence](../../../verification/physical-festival/2026-10-30-cooldown/README.md); Task 4.2 (Single response owner).
+
+### 2026-10-30 -- Empty-object scoring decision implemented
+
+**Event:** decision
+
+**What:** Gary selected no smile penalty for empty objects. The shared resolver now reports empty-object bumps as non-damaging, and the empty-chair physics adapter does the same. Main emits collision sound and existing bonk telemetry without smile deduction, hit flash, punitive toast or combo reset. Explicit occupied seat/porta-potty state retains the previous consequence until occupied reactions are implemented; this is not proof that an occupant was physically hit. Q2 (Empty-object scoring) is answered.
+
+**Refs:** D13 (empty objects are not a smile penalty); [policy evidence](../../../verification/physical-festival/2026-10-30-object-policy/README.md).
