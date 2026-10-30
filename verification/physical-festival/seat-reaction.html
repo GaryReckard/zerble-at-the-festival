@@ -1,8 +1,8 @@
 <!doctype html><meta charset="utf-8"><title>Occupied chair reaction proof</title>
 <style>body{margin:20px;background:#19232b;color:#f5eedb;font:16px system-ui}button{padding:9px 14px;margin-right:8px}canvas{display:block;max-width:100%;margin-top:12px}pre{white-space:pre-wrap;max-height:150px;overflow:auto}</style>
 <h1>Occupied chair reaction</h1>
-<p>Real chair, reserved person body and production Crowd poses. Fixed 1/60 steps; the run stops after four simulated seconds. The recovery searches a clear path on this flat floor. Live campsite adoption remains unfinished.</p>
-<button id="run" disabled>Run tipped-chair fall</button><button id="step" disabled>Single step</button><button id="noon">Noon</button><button id="midnight">Midnight</button><button id="dispose">Dispose fixture</button>
+<p>Production Crowd and real reserved bodies. Wobble/save and exit prescribe the support pose to isolate the reaction; fall releases a dynamic chair under gravity. All modes use fixed 1/60 simulation steps and real clearance. Playback stops within ten simulated seconds.</p>
+<button id="save" disabled>Replay wobble and save</button><button id="exit" disabled>Replay controlled exit</button><button id="run" disabled>Replay fall and recovery</button><button id="brace" disabled>Inspect peak wobble</button><button id="pause" disabled>Pause / resume</button><button id="step" disabled>Single step</button><label>Playback <select id="speed"><option value="1">Normal</option><option value="0.25">Quarter speed</option></select></label><button id="noon">Noon</button><button id="midnight">Midnight</button><button id="dispose">Dispose fixture</button>
 <pre id="result">Loading…</pre>
 <script type="module">
 import * as THREE from 'three';
@@ -26,30 +26,74 @@ const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});scene.add(crowd.group
 const chair=buildCampChair(mulberry32(20),{style:'sling'});scene.add(chair.group);
 const adapter=await createRapierAdapter({capacities:{bodies:3,colliders:10,supportedLoads:1,contactPairs:1}});
 const budget=new AdmissionBudget({capacities:{bodies:3,colliders:10,joints:0,renderSlots:0,events:0}});
-const admitted=adapter.addBody({id:'chair',type:'dynamic',pose:{position:{x:0,y:1,z:0}},colliders:chairRecipe('sling')});
-if(!admitted.ok)throw Error(admitted.reason);
 adapter.addBody({id:'ground',type:'fixed',pose:{position:{x:0,y:-.1,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:9,y:.1,z:9}}]});
 const handle=crowd.spawnPerson({pos:new THREE.Vector3(),rng:mulberry32(70),allowPhotographer:false,appearanceOverride:{hasDrink:false,hairStyle:1}});
-// Only fixture setup reaches the raw record; the reaction uses public capabilities.
 crowd.peopleHandles.resolve(handle).scale=1;
-let lease,reaction,frame=0,ticks=0,remaining=0,releases=0,disposed=false;
-const claim=crowd.claimActivity(handle,{owner:{activityKey:'seat-reaction-fixture'},prepare(attempt){
- const prepared=prepareSeatRelease({adapter,budget,id:'person',bodyId:'chair',bodyGeneration:admitted.generation,position:{x:0,y:chair.seatY+.535,z:0},mass:70,radius:.3,halfHeight:.4,attempt});
- if(!prepared.ok)throw Error(prepared.reason);lease=prepared.lease;return true;
-}},{preserveMotion:true});
-reaction=createSeatReaction({people:crowd,claim,lease,releaseSeat(){releases++;},recovery:createStandRecovery({adapter,ground:()=>({height:0,normalY:1,traversable:true})}),grounded(body){const q=body.pose.rotation;return body.pose.position.y-(.3+.4*Math.abs(1-2*(q.x*q.x+q.z*q.z)))<.04;}});
+let lease,reaction,claim,frame=0,ticks=0,releases=0,disposed=false,mode='save',playing=false,previousTime=null,accumulator=0,runChecks=0;
+const history=[];
+function pose(angle,y=0){return {position:{x:0,y,z:0},rotation:{x:0,y:0,z:Math.sin(angle/2),w:Math.cos(angle/2)}};}
+function reset(nextMode){
+ if(disposed)return;
+ cancelAnimationFrame(frame);frame=0;playing=false;previousTime=null;accumulator=0;
+ reaction?.dispose();if(claim)crowd.endPersonActivity(claim,{reason:'fixture-reset'});
+ if(budget.report().records!==0)throw Error('Reset leaked a person reservation');
+ adapter.removeBody('chair');mode=nextMode;ticks=0;releases=0;runChecks=0;history.length=0;
+ const initial=mode==='fall'?pose(1.4,1):mode==='exit'?pose(.45,.325*Math.sin(.45)+.005):pose(0,.005);
+ const admitted=adapter.addBody({id:'chair',type:'dynamic',pose:initial,colliders:chairRecipe('sling')});if(!admitted.ok)throw Error(admitted.reason);
+ claim=crowd.claimActivity(handle,{owner:{activityKey:'seat-reaction-fixture'},prepare(attempt){
+  const prepared=prepareSeatRelease({adapter,budget,id:'person',bodyId:'chair',bodyGeneration:admitted.generation,position:{x:0,y:chair.seatY+.535,z:0},mass:70,radius:.3,halfHeight:.4,attempt});
+  if(!prepared.ok)throw Error(prepared.reason);lease=prepared.lease;return true;
+ }},{preserveMotion:true});
+ if(!claim)throw Error('Fixture claim rejected');
+ const ground=()=>({height:0,normalY:1,traversable:true});
+ reaction=createSeatReaction({people:crowd,claim,lease,releaseSeat(){releases++;},
+  recovery:createStandRecovery({adapter,ground}),
+  dismount:mode==='exit'?createStandRecovery({adapter,ground,motion:'dismount',duration:.8,automaticPreparation:false}):null,
+  grounded(body){const q=body.pose.rotation;return body.pose.position.y-(.3+.4*Math.abs(1-2*(q.x*q.x+q.z*q.z)))<.04;}});
+ reaction.step(0);draw();
+}
 function draw(){
  if(disposed)return;
  const body=adapter.readBody('chair');chair.group.position.copy(body.pose.position);chair.group.quaternion.copy(body.pose.rotation);
  crowd._publishPopulationRanges();renderer.render(scene,camera);
- result.textContent=JSON.stringify({ticks,releases,reaction:reaction.inspect(),body:lease.read()?.body?.pose,engine:adapter.counts(),draws:renderer.info.render.calls,triangles:renderer.info.render.triangles,material:crowd.bodyMesh.material.type},null,2);
+ result.textContent=JSON.stringify({mode,playing,ticks,runChecks,history,releases,reaction:reaction.inspect(),body:lease.read()?.body?.pose,engine:adapter.counts(),draws:renderer.info.render.calls,triangles:renderer.info.render.triangles,material:crowd.bodyMesh.material.type},null,2);
 }
-function step(){if(disposed)return;adapter.step(1/60);adapter.drainEvents();const status=reaction.step(1/60);if(!status.ok)throw Error(status.reason);ticks++;draw();}
-function animate(){frame=0;if(disposed||remaining<=0)return;step();remaining--;if(remaining>0)frame=requestAnimationFrame(animate);}
+function step(){
+ if(disposed||ticks>=600||runChecks)return;
+ let support=null;
+ if(mode!=='fall'){
+  const t=(ticks+1)/60,angle=mode==='save'?(t<1?.5*Math.sin(Math.PI*t):0):.45;
+  support=pose(angle,.325*Math.abs(Math.sin(angle))+.005);adapter.setPose('chair',support);adapter.setVelocity('chair');
+ }
+ reaction.prepareDismount();adapter.step(1/60);adapter.drainEvents();
+ // Prescribed support is deliberate here; the person and clearance stay physical.
+ if(support){adapter.setPose('chair',support);adapter.setVelocity('chair');}
+ const status=reaction.step(1/60);if(!status.ok)throw Error(status.reason);ticks++;
+ if(history.at(-1)?.phase!==status.phase)history.push({tick:ticks,phase:status.phase});
+ const state=reaction.inspect();
+ if((mode==='save'&&ticks>=180)||state.phase==='complete'){
+  if(mode==='save'&&(releases!==0||state.phase!=='supported'||state.brace>.01||adapter.counts().supportedLoads!==1))throw Error('Wobble did not preserve support');
+  if(mode!=='save'&&(releases!==1||state.completion!==(mode==='exit'?'dismount':'recovery')||budget.report().records!==0))throw Error('Wrong completion or leaked reservation');
+  runChecks++;playing=false;
+ }
+ if(ticks>=600){playing=false;if(!runChecks)throw Error('Reaction did not complete within ten seconds');}
+ draw();
+}
+function animate(now){
+ frame=0;if(disposed||!playing)return;
+ if(previousTime!==null)accumulator+=Math.min(.1,(now-previousTime)/1000)*Number(document.querySelector('#speed').value);
+ previousTime=now;let steps=0;
+ while(accumulator>=1/60&&playing&&steps++<6){accumulator-=1/60;step();}
+ if(playing)frame=requestAnimationFrame(animate);
+}
+function play(){if(disposed||ticks>=600||runChecks)return;playing=true;previousTime=null;frame=requestAnimationFrame(animate);draw();}
+function replay(nextMode){reset(nextMode);play();}
 function light(night){scene.background=new THREE.Color(night?0x101b35:0xc3d9df);ambient.intensity=night?.7:2;sun.intensity=night?.45:2.5;draw();}
-function dispose(){if(disposed)return;disposed=true;cancelAnimationFrame(frame);reaction.dispose();runtime.dispose();adapter.dispose();const geometries=new Set(),materials=new Set();scene.traverse(n=>{if(n.geometry&&!n.geometry.userData.shared)geometries.add(n.geometry);for(const m of n.material?(Array.isArray(n.material)?n.material:[n.material]):[])if(!m.userData.shared)materials.add(m);});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();renderer.forceContextLoss();result.textContent=JSON.stringify({disposed:true,engine:adapter.counts(),budget:budget.report().records});}
-document.querySelector('#run').disabled=false;document.querySelector('#step').disabled=false;
-document.querySelector('#run').onclick=()=>{if(disposed||ticks)return;adapter.setPose('chair',{position:{x:0,y:1,z:0},rotation:{x:0,y:0,z:Math.sin(.7),w:Math.cos(.7)}});remaining=240;animate();};
-document.querySelector('#step').onclick=step;document.querySelector('#noon').onclick=()=>light(false);document.querySelector('#midnight').onclick=()=>light(true);document.querySelector('#dispose').onclick=dispose;
-addEventListener('pagehide',dispose,{once:true});reaction.step(0);light(false);
+function dispose(){if(disposed)return;disposed=true;playing=false;for(const control of document.querySelectorAll('button,select'))control.disabled=true;cancelAnimationFrame(frame);reaction.dispose();runtime.dispose();adapter.dispose();const geometries=new Set(),materials=new Set();scene.traverse(n=>{if(n.geometry&&!n.geometry.userData.shared)geometries.add(n.geometry);for(const m of n.material?(Array.isArray(n.material)?n.material:[n.material]):[])if(!m.userData.shared)materials.add(m);});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();renderer.forceContextLoss();result.textContent=JSON.stringify({disposed:true,engine:adapter.counts(),budget:budget.report().records});}
+for(const id of ['save','exit','run','brace','pause','step'])document.querySelector('#'+id).disabled=false;
+document.querySelector('#save').onclick=()=>replay('save');document.querySelector('#exit').onclick=()=>replay('exit');document.querySelector('#run').onclick=()=>replay('fall');
+document.querySelector('#brace').onclick=()=>{reset('save');for(let i=0;i<30;i++)step();};
+document.querySelector('#pause').onclick=()=>{if(playing){playing=false;cancelAnimationFrame(frame);frame=0;draw();}else play();};
+document.querySelector('#step').onclick=()=>{playing=false;cancelAnimationFrame(frame);frame=0;step();};document.querySelector('#noon').onclick=()=>light(false);document.querySelector('#midnight').onclick=()=>light(true);document.querySelector('#dispose').onclick=dispose;
+addEventListener('pagehide',dispose,{once:true});reset('save');light(false);
 </script>

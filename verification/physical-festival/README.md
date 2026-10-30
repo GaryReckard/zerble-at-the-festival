@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [occupied replay checkpoint](2026-10-30-replay/README.md) completes the
+supported-bracing inspection with a saved seat, independent exit/fall histories,
+slow playback and reset/disposal checks. Full player and device acceptance remains open.
+
 The [bracing checkpoint](2026-10-30-bracing/README.md) adds bounded free-arm
 balance poses with a stable drink socket and unchanged fixture rendering counts.
 The complete dynamic sequence and phone acceptance remain open.

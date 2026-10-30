@@ -1,6 +1,6 @@
 # Make the festival physically responsive
 
-> **Status:** <!--STATUS:LINE-->in progress · 5/66 tasks (8%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->in progress · 6/66 tasks (9%)<!--/STATUS:LINE-->
 
 ## TL;DR
 
@@ -30,7 +30,7 @@ The full [66-task checklist](tasks.md) is the progress authority. Pure sign rese
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 5/66 tasks complete (8%) · current: 5.2 (Supported load and bracing): finish bracing visuals and occupied-chair acceptance; moving-person sweeps and device acceptance remain open
+**in progress** — 6/66 tasks complete (9%) · current: 7.3 (Cup-well metadata) and 7.4 (Mechanical lid partition): prepare cooler articulation; occupied-chair, moving-person and device acceptance remain open
 
 _Last updated: 2026-10-30_
 

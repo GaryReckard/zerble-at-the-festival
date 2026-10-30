@@ -1,0 +1,67 @@
+{
+  "mode": "save",
+  "playing": false,
+  "ticks": 180,
+  "runChecks": 1,
+  "history": [
+    {
+      "tick": 1,
+      "phase": "supported"
+    },
+    {
+      "tick": 15,
+      "phase": "bracing"
+    },
+    {
+      "tick": 68,
+      "phase": "supported"
+    }
+  ],
+  "releases": 0,
+  "reaction": {
+    "phase": "supported",
+    "seatBlend": 1,
+    "brace": 0.0000018816950000750928,
+    "unstableTime": 0,
+    "stableTime": 0,
+    "settledTime": 0,
+    "seatReleased": false,
+    "disposed": false,
+    "blocked": null,
+    "dismountRequested": false,
+    "completion": null
+  },
+  "body": {
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    }
+  },
+  "engine": {
+    "bodies": 3,
+    "colliders": 9,
+    "joints": 0,
+    "supportedLoads": 1,
+    "contactPairs": 1,
+    "engineJoints": 0,
+    "meshVertices": 0,
+    "meshTriangles": 0,
+    "engineBodies": 3,
+    "engineColliders": 9,
+    "events": 0,
+    "overflow": 0,
+    "totalOverflow": 0,
+    "steps": 180,
+    "disposed": false
+  },
+  "draws": 29,
+  "triangles": 2006,
+  "material": "MeshLambertMaterial"
+}

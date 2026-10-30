@@ -1,0 +1,58 @@
+{
+  "mode": "fall",
+  "playing": false,
+  "ticks": 151,
+  "runChecks": 1,
+  "history": [
+    {
+      "tick": 1,
+      "phase": "falling"
+    },
+    {
+      "tick": 60,
+      "phase": "settled"
+    },
+    {
+      "tick": 68,
+      "phase": "recovering"
+    },
+    {
+      "tick": 151,
+      "phase": "complete"
+    }
+  ],
+  "releases": 1,
+  "reaction": {
+    "phase": "complete",
+    "seatBlend": 0,
+    "brace": 0,
+    "unstableTime": 0.016666666666666666,
+    "stableTime": 0,
+    "settledTime": 0,
+    "seatReleased": true,
+    "disposed": false,
+    "blocked": null,
+    "dismountRequested": false,
+    "completion": "recovery"
+  },
+  "engine": {
+    "bodies": 2,
+    "colliders": 7,
+    "joints": 0,
+    "supportedLoads": 0,
+    "contactPairs": 0,
+    "engineJoints": 0,
+    "meshVertices": 0,
+    "meshTriangles": 0,
+    "engineBodies": 2,
+    "engineColliders": 7,
+    "events": 0,
+    "overflow": 0,
+    "totalOverflow": 0,
+    "steps": 388,
+    "disposed": false
+  },
+  "draws": 29,
+  "triangles": 2006,
+  "material": "MeshLambertMaterial"
+}

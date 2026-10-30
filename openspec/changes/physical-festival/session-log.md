@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "5.2 (Supported load and bracing): finish bracing visuals and occupied-chair acceptance; moving-person sweeps and device acceptance remain open"
+current_task: "7.3 (Cup-well metadata) and 7.4 (Mechanical lid partition): prepare cooler articulation; occupied-chair, moving-person and device acceptance remain open"
 blocked_by: null
 open_questions: 1
 started: 2026-10-29
@@ -348,3 +348,14 @@ A live Chrome controlled exit passed with no console errors. The static comparis
 does not prove the complete dynamic save/fall sequence, so Task 5.2 (Supported load
 and bracing) and the occupied-chair gate remain open.
 [Evidence](../../../verification/physical-festival/2026-10-30-bracing/README.md).
+
+## October 30: repeatable occupant replay
+
+The occupied fixture now resets without leaking reservations and replays save,
+exit and fall/recovery with pause and quarter speed. Normal/slow fall histories
+matched at steps 1/60/68/151 in Chrome; the save retained its seat and mass.
+Task 5.2 (Supported load and bracing) now has rendered inspection evidence. The
+complete occupied-chair feel gate remains open, including the simple-body
+acceptance decision and phone feedback. Next: cooler socket metadata and lid
+partition, then controlled/physical lid comparison and transferable drinks.
+[Evidence](../../../verification/physical-festival/2026-10-30-replay/README.md).
