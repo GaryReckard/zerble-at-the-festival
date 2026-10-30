@@ -49,6 +49,10 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 
 ## Work Log
 
+### October 30: first composed visible sitter fall
+
+The supported/falling controller now publishes the existing Crowd instance through a real-engine tipped-chair fixture. Its continuity regression caught a stale collider world transform after setPose; load reads now compose current body and local transforms. Both tiers settle with one release and no added draws. Final chair/body overlap remains visible, so safe stand-up planning is required before acceptance or live rollout. See [proof](../../../verification/physical-festival/2026-10-30-seat-reaction/README.md).
+
 ### October 30: settled support overlap
 
 A real tilted-seat release can leave the body and chair overlapping after landing. The contact exclusion must survive until shape queries prove clearance; a timer would reintroduce depenetration energy. Added reserved pair filtering and a negative-control regression. Live recovery still needs a clear standing target; no occupied-reaction acceptance checkbox changed. See [evidence](../../../verification/physical-festival/2026-10-30-support-contacts.md).

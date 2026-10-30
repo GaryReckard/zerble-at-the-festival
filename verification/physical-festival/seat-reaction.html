@@ -1,0 +1,54 @@
+<!doctype html><meta charset="utf-8"><title>Occupied chair reaction proof</title>
+<style>body{margin:20px;background:#19232b;color:#f5eedb;font:16px system-ui}button{padding:9px 14px;margin-right:8px}canvas{display:block;max-width:100%;margin-top:12px}pre{white-space:pre-wrap;max-height:150px;overflow:auto}</style>
+<h1>Occupied chair reaction</h1>
+<p>Real chair, reserved person body and production Crowd poses. Fixed 1/60 steps; the run stops after four simulated seconds. Stand-up recovery and live campsite adoption are not implemented here.</p>
+<button id="run" disabled>Run tipped-chair fall</button><button id="step" disabled>Single step</button><button id="noon">Noon</button><button id="midnight">Midnight</button><button id="dispose">Dispose fixture</button>
+<pre id="result">Loading…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {Crowd} from '../../src/crowd.js';
+import {PeopleRuntime} from '../../src/people/runtime.js';
+import {buildCampChair} from '../../src/models/campChair.js';
+import {mulberry32,setSessionSeed} from '../../src/rng.js';
+import {createRapierAdapter} from '../../src/physics/rapierAdapter.js';
+import {AdmissionBudget} from '../../src/physics/admissionBudget.js';
+import {prepareSeatRelease} from '../../src/physics/seatRelease.js';
+import {createSeatReaction} from '../../src/physics/seatReaction.js';
+import {chairRecipe} from '../../src/physics/recipes.js';
+setSessionSeed(1977);
+const result=document.querySelector('#result'),runtime=new PeopleRuntime(),scene=new THREE.Scene();
+const renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(1000,500);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(38,2,.1,40);camera.position.set(6,4,8);camera.lookAt(0,1,0);
+const ambient=new THREE.HemisphereLight(0xdfeeff,0x62794a,2),sun=new THREE.DirectionalLight(0xffedcf,2.5);sun.position.set(-3,7,4);scene.add(ambient,sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(18,18),new THREE.MeshStandardMaterial({color:0x77875f,roughness:1}));ground.rotation.x=-Math.PI/2;scene.add(ground);
+const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});scene.add(crowd.group);
+const chair=buildCampChair(mulberry32(20),{style:'sling'});scene.add(chair.group);
+const adapter=await createRapierAdapter({capacities:{bodies:3,colliders:10,supportedLoads:1,contactPairs:1}});
+const budget=new AdmissionBudget({capacities:{bodies:3,colliders:10,joints:0,renderSlots:0,events:0}});
+const admitted=adapter.addBody({id:'chair',type:'dynamic',pose:{position:{x:0,y:1,z:0}},colliders:chairRecipe('sling')});
+if(!admitted.ok)throw Error(admitted.reason);
+adapter.addBody({id:'ground',type:'fixed',pose:{position:{x:0,y:-.1,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:9,y:.1,z:9}}]});
+const handle=crowd.spawnPerson({pos:new THREE.Vector3(),rng:mulberry32(70),allowPhotographer:false,appearanceOverride:{hasDrink:false,hairStyle:1}});
+// Only fixture setup reaches the raw record; the reaction uses public capabilities.
+crowd.peopleHandles.resolve(handle).scale=1;
+let lease,reaction,frame=0,ticks=0,remaining=0,releases=0,disposed=false;
+const claim=crowd.claimActivity(handle,{owner:{activityKey:'seat-reaction-fixture'},prepare(attempt){
+ const prepared=prepareSeatRelease({adapter,budget,id:'person',bodyId:'chair',bodyGeneration:admitted.generation,position:{x:0,y:chair.seatY+.535,z:0},mass:70,radius:.3,halfHeight:.4,attempt});
+ if(!prepared.ok)throw Error(prepared.reason);lease=prepared.lease;return true;
+}},{preserveMotion:true});
+reaction=createSeatReaction({people:crowd,claim,lease,releaseSeat(){releases++;},grounded(body){const q=body.pose.rotation;return body.pose.position.y-(.3+.4*Math.abs(1-2*(q.x*q.x+q.z*q.z)))<.04;}});
+function draw(){
+ if(disposed)return;
+ const body=adapter.readBody('chair');chair.group.position.copy(body.pose.position);chair.group.quaternion.copy(body.pose.rotation);
+ crowd._publishPopulationRanges();renderer.render(scene,camera);
+ result.textContent=JSON.stringify({ticks,releases,reaction:reaction.inspect(),body:lease.read()?.body?.pose,engine:adapter.counts(),draws:renderer.info.render.calls,triangles:renderer.info.render.triangles,material:crowd.bodyMesh.material.type},null,2);
+}
+function step(){if(disposed)return;adapter.step(1/60);adapter.drainEvents();const status=reaction.step(1/60);if(!status.ok)throw Error(status.reason);ticks++;draw();}
+function animate(){frame=0;if(disposed||remaining<=0)return;step();remaining--;if(remaining>0)frame=requestAnimationFrame(animate);}
+function light(night){scene.background=new THREE.Color(night?0x101b35:0xc3d9df);ambient.intensity=night?.7:2;sun.intensity=night?.45:2.5;draw();}
+function dispose(){if(disposed)return;disposed=true;cancelAnimationFrame(frame);reaction.dispose();runtime.dispose();adapter.dispose();const geometries=new Set(),materials=new Set();scene.traverse(n=>{if(n.geometry&&!n.geometry.userData.shared)geometries.add(n.geometry);for(const m of n.material?(Array.isArray(n.material)?n.material:[n.material]):[])if(!m.userData.shared)materials.add(m);});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();renderer.forceContextLoss();result.textContent=JSON.stringify({disposed:true,engine:adapter.counts(),budget:budget.report().records});}
+document.querySelector('#run').disabled=false;document.querySelector('#step').disabled=false;
+document.querySelector('#run').onclick=()=>{if(disposed||ticks)return;adapter.setPose('chair',{position:{x:0,y:1,z:0},rotation:{x:0,y:0,z:Math.sin(.7),w:Math.cos(.7)}});remaining=240;animate();};
+document.querySelector('#step').onclick=step;document.querySelector('#noon').onclick=()=>light(false);document.querySelector('#midnight').onclick=()=>light(true);document.querySelector('#dispose').onclick=dispose;
+addEventListener('pagehide',dispose,{once:true});reaction.step(0);light(false);
+</script>

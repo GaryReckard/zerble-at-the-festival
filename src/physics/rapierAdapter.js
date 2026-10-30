@@ -302,7 +302,10 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     readSupportedLoad(token) {
       const load = loadRecord(token);
       if(!load)return null;
-      const body = bodies.get(load.bodyId).body, position = vector(load.collider.translation(),'load world position');
+      const body = bodies.get(load.bodyId).body;
+      // Collider world transforms may lag setPose until the next engine step.
+      // Release needs one coherent current body/local-load transform.
+      const position = composePose({position:body.translation(),rotation:rotation(body.rotation())},{position:load.position,rotation:IDENTITY}).position;
       return {bodyId:load.bodyId,bodyGeneration:load.bodyGeneration,mass:load.mass,radius:load.radius,halfHeight:load.halfHeight,
         localPosition:{...load.position},position,rotation:rotation(body.rotation()),
         velocity:vector(body.velocityAtPoint(position),'load point velocity'),angularVelocity:vector(body.angvel(),'load angular velocity')};

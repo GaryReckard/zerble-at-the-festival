@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [occupied reaction controller](2026-10-30-seat-reaction/README.md) now drives
+a real tipped-chair release and landing through production Crowd poses. Clear
+stand-up recovery and live campsite integration remain unfinished.
+
 The [support contact handoff](2026-10-30-support-contacts.md) reserves temporary
 chair/person collision exclusions and restores them only after geometric clearance,
 with real-engine overlap, ground-contact and tilted-release regressions.

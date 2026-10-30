@@ -1,0 +1,40 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+import {AdmissionBudget} from '../src/physics/admissionBudget.js';
+import {prepareSeatRelease} from '../src/physics/seatRelease.js';
+import {createSeatReaction} from '../src/physics/seatReaction.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+const adapter=await createRapierAdapter({gravity:{x:0,y:0,z:0},capacities:{bodies:3,colliders:5,supportedLoads:1,contactPairs:1}});
+const budget=new AdmissionBudget({capacities:{bodies:3,colliders:5,joints:0,renderSlots:0,events:0}});
+const people=makePeopleCrowd(),n=people.spawn({pos:new Vector()}),owner={activityKey:'physical-seat'};
+let lease,releases=0,reaction,isGround=false;
+try {
+ const chair=adapter.addBody({id:'chair',type:'dynamic',pose:{position:{x:0,y:3,z:0}},colliders:[{shape:'ball',radius:.2,mass:5}]});assert(chair.ok);
+ const claim=people.claimActivity(n.personHandle,{owner,prepare(attempt){
+  const prepared=prepareSeatRelease({adapter,budget,id:'person',bodyId:'chair',bodyGeneration:chair.generation,position:{x:0,y:1,z:0},mass:70,radius:.2,halfHeight:.3,attempt});assert(prepared.ok);lease=prepared.lease;return true;
+ }},{preserveMotion:true});assert(claim);
+ reaction=createSeatReaction({people,claim,lease,releaseSeat(){releases++;},grounded:()=>isGround});
+ const tilt=angle=>adapter.setPose('chair',{position:{x:0,y:3,z:0},rotation:{x:0,y:0,z:Math.sin(angle/2),w:Math.cos(angle/2)}});
+ assert.equal(reaction.step(1/60).phase,'supported');assert(Math.abs(n.pos.y-3)<1e-6);
+ tilt(.5);assert.equal(reaction.step(1/60).phase,'bracing');assert.equal(releases,0);
+ tilt(0);for(let i=0;i<20;i++)reaction.step(1/60);assert.equal(reaction.inspect().phase,'supported','gentle wobble is saved');
+ tilt(1);for(let i=0;i<4;i++)reaction.step(1/60);assert.equal(releases,0,'brief moderate instability does not release');
+ tilt(0);reaction.step(1/60);assert.equal(reaction.inspect().unstableTime,0,'stability resets release dwell');
+ tilt(1.4);reaction.step(0);assert.equal(releases,0,'pause cannot release a person');
+ const before=lease.read().support;
+ reaction.step(1/60);assert.equal(reaction.inspect().phase,'falling');assert.equal(releases,1);
+ const after=lease.read().body;
+ assert(Math.abs(after.pose.position.x-before.position.x)<1e-5,'continuous capsule position');
+ assert(Math.abs(n.pos.x)<1e-5&&Math.abs(n.pos.y-3)<1e-5,`continuous feet-origin pose through fall: ${JSON.stringify({before,after:after.pose,pos:n.pos})}`);
+ assert.equal(n._reactionPose.seated,true,'fall retains curled legs rather than snapping to a walking pose');
+ for(let i=0;i<40;i++)reaction.step(1/60);
+ assert.equal(reaction.inspect().phase,'falling','low velocity in midair is not a landing');assert.equal(releases,1);
+ isGround=true;for(let i=0;i<30;i++)reaction.step(1/60);assert.equal(reaction.inspect().phase,'settled');
+ adapter.applyImpulse(after.id,{x:140,y:0,z:0});reaction.step(1/60);assert.equal(reaction.inspect().phase,'falling','second impact returns existing reaction to motion');assert.equal(releases,1);
+ const next=people.claimActivity(n.personHandle,{owner:{activityKey:'replacement'}});assert(next);const pos=n.pos.clone();
+ assert.equal(reaction.step(1/60).reason,'stale-reaction');assert.deepEqual(n.pos,pos);assert.equal(adapter.counts().supportedLoads,0);assert.equal(adapter.counts().contactPairs,0);assert.equal(budget.report().records,0);
+ assert.throws(()=>reaction.step(.1),/accepted step/);assert(reaction.dispose());assert.equal(reaction.dispose(),false);
+ people.endPersonActivity(next);
+} finally {reaction?.dispose();people.activityClaims.dispose();adapter.dispose();}
+console.log('PASS seat reaction: gentle wobble/save hysteresis, paused inversion, continuous full pose into reserved fall, one seat release, grounded settling, repeat impact, stale authority and complete claim cleanup.');
