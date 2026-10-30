@@ -4,6 +4,8 @@ October 30, 2026. Started on `codex/physical-festival` at `17102a1`; continued o
 
 ## Latest production checkpoint
 
+The [stage-chair fix](2026-10-30-stage/README.md) adds missing stage-audience collisions and physical descriptors, and makes all eight admission slots usable with repeated chair styles.
+
 The [rotation follow-up](2026-10-30-rotation/README.md) reserves each chair’s full rotational reach and tests a real-engine support-starvation/resumption sequence.
 
 The [support follow-up](2026-10-30-frontier/README.md) adds bounded forward preparation and a per-substep guard, with tests and a fresh live encounter. Final overload behavior remains open.

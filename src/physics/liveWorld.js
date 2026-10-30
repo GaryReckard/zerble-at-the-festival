@@ -200,7 +200,7 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
   return {prepare,advance,stats,dispose,reset(reason){resetReason=reason;},owns(entry){return !!entryRecords.get(entry.id)?.token;},
     approach(isWet){
       const candidates=[];
-      for(const kind of ['camp_chair','camp_loveseat'])for(const id of registry.byKind.get(kind)??[]) {
+      for(const kind of ['chair','camp_chair','camp_loveseat'])for(const id of registry.byKind.get(kind)??[]) {
         const entry=registry.entries.get(id),descriptor=entry?.physicalProp;
         if(!descriptor?.seatSlots.length||(!entryRecords.get(id)?.token&&!descriptor.seatSlots.every(campSlotAvailable)))continue;
         candidates.push(entry);

@@ -2094,6 +2094,7 @@ function toastForKind(kind) {
     case 'camp_tapestry': return 'Mind the camp privacy screens!';
     case 'camp_tent': return 'Give the sleeping tents some room!';
     case 'camp_loveseat':
+    case 'chair':
     case 'camp_chair': return 'Mind the camp chairs!';
     case 'campfire': return 'Careful around the campfire!';
     case 'camp_torch':

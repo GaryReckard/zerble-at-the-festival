@@ -6,6 +6,29 @@ import { createPhysicalPropKey } from './physics/propIdentity.js';
 // Camp envelopes reserve ground for builders, while child props supply walkable collisions.
 const CAMP_WALK_CLEARANCE = .35;
 
+// Stage audiences use the same furniture, but retain kind 'chair' because the
+// crowd's audience activity discovers those entries independently of campsites.
+export function registerStageChair(registry, chair, {chunkKey, origin, originRegistryId, batch}) {
+  chair.group.updateWorldMatrix(true,false);
+  const position=new THREE.Vector3(),rotation=new THREE.Quaternion(),scale=new THREE.Vector3();
+  chair.group.matrixWorld.decompose(position,rotation,scale);
+  const originOwner=`chunk:${chunkKey}`,localKey=`stage-chair:${chair.audienceGroup}:${chair.audienceSlot}`;
+  const descriptor={logicalKey:createPhysicalPropKey({worldSeed:getSessionSeed(),worldgenEpoch:worldgenEpoch(),originOwner,origin,localKey}),
+    originOwner,originPosition:{...origin},localKey,originRegistryId,
+    kind:chair.loveseat?'camp_loveseat':'camp_chair',style:chair.style,
+    worldPose:{position:{x:position.x,y:position.y,z:position.z},rotation:{x:rotation.x,y:rotation.y,z:rotation.z,w:rotation.w},scale:{x:scale.x,y:scale.y,z:scale.z}},
+    renderBinding:chair.renderBinding,renderBatch:batch,seatSlots:chair.campSeats};
+  const radius=chair.footprint*Math.max(scale.x,scale.z);
+  const child={kind:'chair',position,footprint:radius,collider:{radius,damage:1},campSeats:chair.campSeats,
+    stageAudience:true,audienceGroup:chair.audienceGroup,chairStyle:chair.style,chunkKey,physicalProp:descriptor};
+  const adopted=registry.physicalChairOwner?.registerOrigin(descriptor,child);
+  const entry=adopted||child;
+  if(!adopted)registry.add(child);
+  else entry.campSeats=chair.campSeats;
+  for(const slot of chair.campSeats)slot.collider=entry;
+  return entry;
+}
+
 function withoutOriginEntries(registry, ignored) {
   if (!ignored.size) return registry;
   const view = Object.create(registry);

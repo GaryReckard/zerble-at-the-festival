@@ -191,3 +191,14 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** The previous support guard used the last published horizontal footprint, which can understate a chair's reach during later rotation. Admission now records a conservative sphere from the union of scaled visual and collision bounds; support planning and guards consume it while registry avoidance retains its current footprint. Four-style, 32-orientation tests, full checks, an isolated production build and real ready-button encounter passed. A new real-engine starvation test holds one launched chair without pose drift and resumes after preparation returns. Multi-object pressure and the global-stop fallback remain unaccepted. Gary's playtest build/server were preserved.
 
 **Refs:** [rotation and starvation evidence](../../../verification/physical-festival/2026-10-30-rotation/README.md).
+
+
+### 2026-10-30 -- Stage audience collision gap and render capacity
+
+**Event:** discovery
+
+**What:** Gary reported pass-through stage chairs. Their audience registry entries lacked both colliders and physical descriptors. Added shared registration with row/slot keys, actual batch bindings, seats and stage-front lifetime for open/tent stages, preserving audience kind and existing RNG draws. A separate nine-chair test found the per-bucket render limit admitted only six matching sling chairs despite an eight-chair service limit. The pool now fills matching buffers before adding another bounded buffer; four-style capacity, source-unload, regeneration and disposal tests pass. Full checks/build pass; browser evidence verifies stage admission/rendering, while real-engine tests prove impacts. The staging shortcut can choose a distant campsite when dense stage rows have no clear circular approach, and browser keyboard automation did not move the cart. Neither is counted as a stage-impact browser pass.
+
+**Playtest server:** Gary's localhost failure was traced to an unrelated Python listener on 127.0.0.1:8765 alongside the owned wildcard Vite listener. Moved the preview to 8767 and verified HTTP 200 on localhost and LAN. The current user-requested preview serves `/tmp/zerble-stage-build.g6mhxQ` on 8767 (session 78833). Leave it running for Gary; port-8766 verification and browser tabs are closed.
+
+**Refs:** [stage/capacity evidence](../../../verification/physical-festival/2026-10-30-stage/README.md).

@@ -4,7 +4,7 @@ let serial = 0;
 const HARD_CAPACITY = 512;
 const MAX_BOUNDS_SPAN = 256;
 const DEFAULT_KINDS = new Set([
-  'arch', 'bench_ring', 'camp_chair', 'camp_cooler', 'camp_loveseat', 'camp_tent', 'camp_torch', 'campfire',
+  'arch', 'bench_ring', 'chair', 'camp_chair', 'camp_cooler', 'camp_loveseat', 'camp_tent', 'camp_torch', 'campfire',
   'drum_circle', 'firepit', 'forest_drum_circle', 'forest_tree', 'hammock', 'info_kiosk', 'lake_edge', 'lamppost',
   'picnic', 'picnic_table', 'porta_potty', 'soundboard', 'stage', 'stage_front', 'tent', 'tree', 'truck',
 ]);

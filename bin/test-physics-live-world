@@ -7,6 +7,7 @@ import { batchPropGroups } from '../src/propRendering.js';
 import { createLivePhysics } from '../src/physics/liveWorld.js';
 import { findChairApproach } from '../src/physics/encounter.js';
 import { containsSupport, supportWindow } from '../src/physics/supportWindow.js';
+import { registerStageChair } from '../src/campRegistry.js';
 import { setTerrainEnabled } from '../src/worldgen/terrain.js';
 import { readFileSync } from 'node:fs';
 setTerrainEnabled(false);
@@ -43,15 +44,17 @@ setTerrainEnabled(false);
   assert.equal(findChairApproach({...options,entries:Array(100).fill(target),isWet:()=>{samples++;return true;}}),null);
   assert.equal(samples,64*2*16,'search stays bounded even with many candidates');
 }
-async function encounter(hz,ghost=false,starved=false) {
+async function encounter(hz,ghost=false,starved=false,stageAudience=false) {
   const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
   const chair=buildCampChair(()=>.3,{style:'sling'});root.add(chair.group);
   const batch=batchPropGroups(root,[chair.group]),parentId=registry.add({kind:'campsite',position:new THREE.Vector3(),footprint:8,chunkKey:'origin'});
   const descriptor={logicalKey:'live-test-chair',kind:'camp_chair',style:'sling',originOwner:'chunk:origin',originRegistryId:parentId,
     worldPose:{position:{x:0,y:.02,z:0},rotation:{x:0,y:0,z:0,w:1},scale:{x:1,y:1,z:1}},
     renderBinding:batch.bindings[0],renderBatch:batch,seatSlots:[{occupied:false}]};
-  const entry={kind:'camp_chair',position:new THREE.Vector3(0,.02,0),footprint:.8,collider:{radius:.8,damage:1},chunkKey:'origin',physicalProp:descriptor};
-  const id=registry.add(entry),cart={position:new THREE.Vector3(0,0,9),root:new THREE.Group(),heading:0,speed:6};
+  Object.assign(chair,{renderBinding:batch.bindings[0],audienceGroup:0,audienceSlot:0,campSeats:descriptor.seatSlots});
+  const entry=stageAudience?registerStageChair(registry,chair,{chunkKey:'origin',origin:{x:0,y:0,z:0},originRegistryId:parentId,batch})
+    :{kind:'camp_chair',position:new THREE.Vector3(0,.02,0),footprint:.8,collider:{radius:.8,damage:1},chunkKey:'origin',physicalProp:descriptor};
+  const id=stageAudience?entry.id:registry.add(entry),cart={position:new THREE.Vector3(0,0,9),root:new THREE.Group(),heading:0,speed:6};
   if(starved)cart.speed=60;
   const live=await createLivePhysics({scene,registry,cart});
   try {
@@ -98,6 +101,85 @@ async function encounter(hz,ghost=false,starved=false) {
 for(const hz of [30,60,120])await encounter(hz);
 await encounter(60,true);
 await encounter(60,false,true);
+await encounter(60,false,false,true);
+for(const style of ['sling','director','low','loveseat']) {
+  const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
+  const chairs=Array.from({length:9},(_,index)=>{
+    const chair=buildCampChair(()=>.3,{style}),angle=index*Math.PI*2/9;
+    chair.group.position.set(Math.sin(angle)*12,.02,Math.cos(angle)*12);root.add(chair.group);return chair;
+  });
+  const batch=batchPropGroups(root,chairs.map(chair=>chair.group));
+  const parentId=registry.add({kind:'stage_front',position:new THREE.Vector3(),footprint:0,chunkKey:'capacity-origin'});
+  const entries=chairs.map((chair,index)=>{
+    Object.assign(chair,{renderBinding:batch.bindings[index],audienceGroup:0,audienceSlot:index,campSeats:chair.seatOffsets.map(()=>({occupied:false}))});
+    const entry=registerStageChair(registry,chair,{chunkKey:'capacity-origin',origin:{x:0,y:0,z:0},originRegistryId:parentId,batch});
+    assert.equal(entry.kind,'chair');assert.equal(entry.collider.damage,1);
+    assert.equal(entry.physicalProp.originRegistryId,parentId);
+    assert(entry.campSeats.every(slot=>slot.collider===entry));
+    const collisions=[];registry.collidersNear(entry.position.x,entry.position.z,.1,e=>collisions.push(e));
+    assert(collisions.includes(entry),'stage chairs collide even before physics admission');
+    return entry;
+  });
+  const cart={position:new THREE.Vector3(),root:new THREE.Group(),heading:0,speed:0};
+  const live=await createLivePhysics({scene,registry,cart});
+  try {
+    for(let frame=0;frame<120;frame++) {
+      live.prepare(performance.now()+100);live.advance(1/60);
+      const state=live.stats();
+      assert(state.chairs.length<=8);assert(state.terrain.tiles<=64);assert(state.solids.proxies<=128);
+      assert(state.engine.bodies<=256);assert(state.engine.colliders<=512);assert.equal(state.overflow,0);
+    }
+    const active=entries.filter(entry=>live.owns(entry)),legacy=entries.filter(entry=>!live.owns(entry));
+    assert.equal(active.length,8,JSON.stringify({requirement:'all eight reserved chair slots can be used',lastReject:live.stats().lastReject,render:live.stats().render}));
+    assert.equal(legacy.length,1,'the ninth candidate stays on its original path');
+    assert.equal(legacy[0].chunkKey,'capacity-origin');
+    assert.equal(legacy[0].physicalProp.seatSlots[0].physicalUnavailable,undefined);
+    for(const part of legacy[0].physicalProp.renderBinding.describe()) {
+      const matrix=new THREE.Matrix4();part.mesh.getMatrixAt(part.slot,matrix);
+      assert(Math.abs(matrix.determinant())>1e-8,'capacity rejection preserves the original visual');
+    }
+    const ids=active.map(entry=>entry.id),before=live.stats();
+    for(let frame=0;frame<120;frame++){live.prepare(performance.now()+100);live.advance(1/60);}
+    assert.deepEqual(entries.filter(entry=>live.owns(entry)).map(entry=>entry.id),ids,'capacity pressure does not evict existing chairs');
+    assert.equal(live.stats().render.props,8);
+    assert.equal(live.stats().terrain.timing.created,before.terrain.timing.created,'settled residents do not churn terrain allocation');
+    registry.removeChunk('capacity-origin');batch.dispose();
+    for(let frame=0;frame<30;frame++){live.prepare(performance.now()+100);live.advance(1/60);}
+    assert.equal(registry.entries.size,8,'source unload preserves precisely the adopted chairs');
+    assert.equal(live.stats().ownership.chairs,8);assert.equal(live.stats().blocked,null);
+    const replacementRoot=new THREE.Group();scene.add(replacementRoot);
+    const replacementChairs=chairs.map(chair=>{
+      const next=buildCampChair(()=>.3,{style});next.group.position.copy(chair.group.position);replacementRoot.add(next.group);return next;
+    });
+    const replacementBatch=batchPropGroups(replacementRoot,replacementChairs.map(chair=>chair.group));
+    try {
+      const replacementOrigin=registry.add({kind:'stage_front',position:new THREE.Vector3(),footprint:0,chunkKey:'capacity-origin'});
+      const regenerated=replacementChairs.map((chair,index)=>{
+        Object.assign(chair,{renderBinding:replacementBatch.bindings[index],audienceGroup:0,audienceSlot:index,campSeats:chair.seatOffsets.map(()=>({occupied:false}))});
+        return registerStageChair(registry,chair,{chunkKey:'capacity-origin',origin:{x:0,y:0,z:0},originRegistryId:replacementOrigin,batch:replacementBatch});
+      });
+      assert.equal(registry.entries.size,10,'regeneration adds only the stage origin and the nonphysical chair');
+      for(let index=0;index<entries.length;index++)if(ids.includes(entries[index].id)) {
+        assert.equal(regenerated[index],entries[index]);
+        assert(regenerated[index].campSeats.every(slot=>slot.physicalUnavailable&&slot.collider===regenerated[index]));
+        assert.equal(regenerated[index].physicalProp.originRegistryId,replacementOrigin);
+        for(const part of replacementChairs[index].renderBinding.describe()) {
+          const matrix=new THREE.Matrix4();part.mesh.getMatrixAt(part.slot,matrix);
+          assert.equal(matrix.determinant(),0,'adopted stage chair suppresses its regenerated source visual');
+        }
+      }
+      registry.removeChunk('capacity-origin');
+      assert.equal(registry.entries.size,8);
+    } finally {replacementBatch.dispose();replacementRoot.removeFromParent();}
+    console.log(`PASS live capacity (${style}): eight active, ninth legacy, stable terrain allocations, source unload and full cleanup.`);
+  } finally {
+    registry.removeChunk('capacity-origin');
+    assert.equal(live.dispose().ok,true);batch.dispose();
+    assert.equal(live.stats().engine.bodies,0);assert.equal(live.stats().engine.colliders,0);
+    assert.equal(live.stats().render.props,0);assert.equal(registry.physicalChairOwner,undefined);
+    assert.equal(registry.entries.size,0);
+  }
+}
 const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
 const star=main.indexOf('StarPower.update(dt,'),legacy=main.indexOf('hit = resolveCollision(zerble, _collScratch)'),physical=main.indexOf('physicalWorld?.advance(dt,');
 assert(star<legacy&&legacy<physical&&physical<main.indexOf("peopleFrameTrace?.mark('contacts-end'"),'late physics runs after same-frame ghost pickup and legacy correction');

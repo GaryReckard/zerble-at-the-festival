@@ -5,7 +5,7 @@ import {sampleHealingArtsPreview} from './people/healingArtsMotion.js';
 import { terrainHeight, terrainEnabled, TERRAIN_STEP, drapeTerrainTriangles } from './worldgen/terrain.js';
 import { woodlandCampsNear, woodlandCampingClearance } from './woodlandCamping.js';
 import { planCampNeighborhood } from './campPlanning.js';
-import { registerCampsite, canPlaceCampsite } from './campRegistry.js';
+import { registerCampsite, canPlaceCampsite, registerStageChair } from './campRegistry.js';
 // Procedural festival, generated in chunks. Each chunk picks a theme based on its
 // (cx, cz) seed and lays out props + spawns NPCs accordingly. Chunks are generated
 // lazily as Zerble explores; for simplicity they stay loaded once created.
@@ -1978,7 +1978,7 @@ function buildSideStage(ctx) {
 // would draw rng before the body).
 // Keep the old chair population's draw count so later world generation retains
 // its seeded stream. Layout uses separated rows; every style remains eligible.
-export function placeStageChairRows(ctx, worldXZ, yaw, start, end, halfWidth, groups, focusZ = 0) {
+export function placeStageChairRows(ctx, worldXZ, yaw, start, end, halfWidth, groups, focusZ = 0, originRegistryId = null) {
   const rows=Math.ceil(groups/2), spacing=1.85, placed=[], occupied=[];
   for(let row=0;row<groups;row++){
     const xRoll=ctx.rng(),zRoll=ctx.rng(),styleSeed=Math.floor(xRoll*4);
@@ -2006,11 +2006,12 @@ export function placeStageChairRows(ctx, worldXZ, yaw, start, end, halfWidth, gr
         x:w.x+c*offset,z:w.z-s*offset,y:y+chair.seatY,yaw:chairYaw+Math.PI,
         approachX:w.x+c*offset+s*.95,approachZ:w.z-s*offset+c*.95,occupied:false,
       }));
-      registry.add({kind:'chair',position:new THREE.Vector3(w.x,y,w.z),footprint:chair.footprint,
-        campSeats,stageAudience:true,audienceGroup:row,chairStyle:chair.style,chunkKey:ctx.key});
+      Object.assign(chair,{campSeats,audienceGroup:row,audienceSlot:i});
     }
   }
-  batchCampChairs(ctx.group,placed);
+  const batch=batchCampChairs(ctx.group,placed),originXZ=worldXZ(0,0);
+  const origin={x:originXZ.x,y:terrainHeight(originXZ.x,originXZ.z),z:originXZ.z};
+  for(const chair of placed)registerStageChair(registry,chair,{chunkKey:ctx.key,origin,originRegistryId,batch});
 }
 
 function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
@@ -2103,11 +2104,12 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
     });
   }
 
+  let stageAudienceOriginId;
   // Attractor in front of the stage so crowds gather there even outside the
   // tent placement loop below.
   {
     const w3 = worldXZ(0, tent.stagePos.z + d / 2 + 4);
-    registry.add({
+    stageAudienceOriginId=registry.add({
       kind: 'stage_front',
       position: new THREE.Vector3(w3.x, terrainHeight(w3.x, w3.z), w3.z),
       footprint: 0,
@@ -2166,7 +2168,7 @@ function buildTentStageTheme(ctx, cxArg, czArg, yawArg) {
     const chairBandEnd = audBackZ;
     const lateralSpread = tent.width - 5;         // inside tent walls
     const clumpCount = 4 + Math.floor(ctx.rng() * 2);
-    placeStageChairRows(ctx, worldXZ, yaw, chairBandStart, chairBandEnd, lateralSpread / 2, clumpCount, tent.stagePos.z);
+    placeStageChairRows(ctx, worldXZ, yaw, chairBandStart, chairBandEnd, lateralSpread / 2, clumpCount, tent.stagePos.z, stageAudienceOriginId);
     // Consume the historical optional back-clump draws, but leave the narrow
     // entrance and engineer's access to the booth clear.
     if (ctx.rng() < .7) {
@@ -2919,7 +2921,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
 
   // Attractor in front of the stage so crowds gather there (scaled too).
   const frontW = rot(0, d / 2 + 6 * scale);
-  registry.add({
+  const stageAudienceOriginId=registry.add({
     kind: 'stage_front',
     position: new THREE.Vector3(frontW.x, terrainHeight(frontW.x, frontW.z), frontW.z),
     footprint: 0,
@@ -2957,7 +2959,7 @@ function buildStage(ctx, x, z, isMain, yaw = 0) {
   const chairBandEnd = d / 2 + dancefloorDepth + 14 * scale;
   const lateralSpread = 11 * scale;
   const clumpCount = isMain ? 4 + Math.floor(ctx.rng() * 2) : 2 + Math.floor(ctx.rng() * 2);
-  placeStageChairRows(ctx, rot, yaw, chairBandStart, chairBandEnd, lateralSpread, clumpCount);
+  placeStageChairRows(ctx, rot, yaw, chairBandStart, chairBandEnd, lateralSpread, clumpCount, 0, stageAudienceOriginId);
 
   // ----- G1: a few picnic blankets sprinkled near the stage (not carpeted) -----
   const blanketCount = isMain ? 4 + Math.floor(ctx.rng() * 2) : 2 + Math.floor(ctx.rng() * 2);

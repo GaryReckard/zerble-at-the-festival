@@ -96,7 +96,7 @@ try {
   small.flush();
   const before = small.stats(), previous = first.describe();
   const denied = small.acquire('partial', [part(otherGeometry, otherMaterial), part()], identity);
-  assert.equal(denied.ok, false); assert.equal(denied.reason, 'bucket-slot-capacity');
+  assert.equal(denied.ok, false); assert.equal(denied.reason, 'bucket-capacity');
   assert.equal(small.stats().slots, before.slots); assert.equal(small.stats().buckets, before.buckets);
   assert.equal(small.root.children.length, 1, 'preflight rejection allocates no partial bucket');
   assert.equal(small.acquire('first', [part()], identity).reason, 'duplicate-key');
@@ -127,6 +127,29 @@ try {
   assert.throws(() => { small.stats().capacities.slots = 99; }, TypeError);
 } finally { small.dispose(); }
 assert.equal(borrowedDisposals, 0, 'all input geometry/material ownership remains outside the pool, including untagged resources');
+
+const spill = createActivePropRendering({ maxBuckets: 3, maxSlots: 6, slotsPerBucket: 2 });
+try {
+  const first=spill.acquire('three-parts',[part(),part(),part()],identity);
+  assert(first.ok,'one prop can span buffers with the same geometry and material');
+  assert.equal(spill.stats().buckets,2);assert.equal(spill.stats().slots,3);
+  const second=spill.acquire('two-parts',[part(),part()],identity);
+  assert(second.ok);assert.equal(spill.stats().buckets,3);assert.equal(spill.stats().slots,5);
+  assert.equal(second.binding.describe()[0].mesh,first.binding.describe()[2].mesh,'existing space is used before adding another buffer');
+  const denied=spill.acquire('too-large',[part(),part()],identity);
+  assert.equal(denied.reason,'bucket-capacity');assert.equal(spill.stats().slots,5);
+  assert(first.binding.isLive());assert(second.binding.isLive());
+  first.binding.release();
+  const replacement=spill.acquire('reuse',[part()],identity);
+  assert(replacement.ok);assert.equal(spill.stats().buckets,2,'holes in retained buffers are reused');
+  spill.flush();
+  for(const binding of [second.binding,replacement.binding])for(const item of binding.describe()) {
+    assert(item.mesh.boundingBox&&!item.mesh.boundingBox.isEmpty());
+    assert(item.mesh.instanceMatrix.version>0);
+  }
+  second.binding.release();replacement.binding.release();
+  assert.equal(spill.stats().allocatedSlots,0);
+} finally {spill.dispose();}
 
 const capacity = createActivePropRendering({ maxBuckets: 1, maxSlots: 2, slotsPerBucket: 2 });
 try {

@@ -64,9 +64,13 @@ export function createActivePropRendering({ maxBuckets = 16, maxSlots = 512, slo
     for (const part of parts) {
       if (!part.geometry?.isBufferGeometry || !part.material?.isMaterial) throw new TypeError('Active parts require BufferGeometry and one Material');
       const localMatrix = matrix(part.localMatrix).clone();
-      let plan = plans.find(p => p.geometry === part.geometry && p.material === part.material);
+      let plan = plans.find(p => p.geometry === part.geometry && p.material === part.material
+        && p.needed < (p.bucket?.free.length ?? slotsPerBucket));
       if (!plan) {
-        const bucket = [...buckets].find(b => b.geometry === part.geometry && b.material === part.material);
+        // A geometry/material pair may occupy several fixed-size buffers. Use
+        // every existing free slot before planning another bounded allocation.
+        const bucket = [...buckets].find(b => b.geometry === part.geometry && b.material === part.material
+          && b.free.length && !plans.some(p => p.bucket === b));
         plan = { geometry: part.geometry, material: part.material, bucket, needed: 0 }; plans.push(plan);
       }
       plan.needed++;
@@ -75,7 +79,6 @@ export function createActivePropRendering({ maxBuckets = 16, maxSlots = 512, slo
     const additions = plans.filter(plan => !plan.bucket);
     if (buckets.size + additions.length > maxBuckets) return reject('bucket-capacity');
     if (allocatedSlots + additions.length * slotsPerBucket > maxSlots) return reject('slot-capacity');
-    if (plans.some(plan => plan.needed > (plan.bucket?.free.length ?? slotsPerBucket))) return reject('bucket-slot-capacity');
     const allocated = [];
     try {
       // Acquire every new buffer before touching any previously live slot.
