@@ -1,4 +1,5 @@
 import {resolveCollision,SOFT_PEOPLE_KINDS} from './collisionContacts.js';
+import {applyPropFeedback} from './physics/propFeedback.js';
 // Bootstraps three.js, runs the game loop, owns scene/postprocessing/collision/scoring.
 
 import * as THREE from 'three';
@@ -1744,8 +1745,7 @@ function tickBody(dt) {
       eligible:zerble.invulnLeft<=0&&!isGod()});
     if(physicalHit && !hit?.damaging) {
       hit=physicalHit;
-      zerble.applyHit(new THREE.Vector3(hit.push.x,0,hit.push.z));
-      physicalWorld.reset('legacy-correction');
+      applyPropFeedback(zerble,hit);
     }
     if(physicalReadout && physicalWorld && performance.now()-physicalReportAt>250) {
       physicalReportAt=performance.now();

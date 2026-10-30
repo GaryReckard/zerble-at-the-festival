@@ -299,7 +299,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       const item = record(id);
       if (!item) return null;
       return {
-        id, generation: item.generation, type: item.type,
+        id, generation: item.generation, type: item.type, mass: item.body.mass(),
         pose: { position: vector(item.body.translation(), 'solved position'), rotation: rotation(item.body.rotation()) },
         linearVelocity: vector(item.body.linvel(), 'solved linearVelocity'),
         angularVelocity: vector(item.body.angvel(), 'solved angularVelocity'), sleeping: item.body.isSleeping(),

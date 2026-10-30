@@ -5,6 +5,7 @@ import { Registry } from '../src/registry.js';
 import { buildCampChair } from '../src/models/campChair.js';
 import { batchPropGroups } from '../src/propRendering.js';
 import { createLivePhysics } from '../src/physics/liveWorld.js';
+import { applyPropFeedback } from '../src/physics/propFeedback.js';
 import { findChairApproach } from '../src/physics/encounter.js';
 import { containsSupport, supportWindow } from '../src/physics/supportWindow.js';
 import { registerStageChair } from '../src/campRegistry.js';
@@ -69,7 +70,7 @@ async function encounter(hz,ghost=false,starved=false,stageAudience=false) {
       cart.position.z=9-Math.min(cart.speed*2,(frame+1)*cart.speed/hz);
       live.prepare(starved?-1:performance.now()+100);
       const hit=live.advance(1/hz,{ghost});
-      if(hit){hitCount++;assert.equal(hit.entry,entry);assert.equal(hit.damage,1);}
+      if(hit){hitCount++;assert.equal(hit.entry,entry);assert.equal(hit.damage,1);assert(hit.mass>0);assert(hit.approachSpeed>1.2);}
     }
     const result=live.stats();
     if(starved) {
@@ -186,3 +187,32 @@ assert(star<legacy&&legacy<physical&&physical<main.indexOf("peopleFrameTrace?.ma
 assert.match(main,/if\(!physicalWorld\?\.owns\(e\)\) _collScratch.push/);
 console.log('PASS live physics: real chair adoption/support/cart impacts at 30/60/120 Hz, ghost passage, exhausted preparation deadline, canonical clearance, source unload and full cleanup; main late-contact ordering and singular authority.');
 console.log('Scope: opt-in empty-chair integration; full-game browser and phone acceptance remain separate.');
+
+// The real main-loop branch must use weight-sensitive slowdown without the
+// person-hit kickback, immunity timer or position correction.
+const feedbackSource=main.slice(main.indexOf('    if(physicalHit && !hit?.damaging)'),main.indexOf('    if(physicalReadout && physicalWorld'));
+const applyMainFeedback=new Function('physicalHit','hit','zerble','applyPropFeedback',feedbackSource+';return hit;');
+for(const direction of [-1,1]) {
+  const losses=[];
+  for(const mass of [.1,5,30,500]) {
+    const cart={speed:direction*10,position:{x:2,z:4},invulnLeft:0,applyHit(){throw Error('Person reaction used for a prop');}};
+    const event={physical:true,mass,approachSpeed:8};
+    assert.equal(applyMainFeedback(event,null,cart,applyPropFeedback),event);
+    assert.equal(Math.sign(cart.speed),direction,'props never force reverse');
+    assert.deepEqual(cart.position,{x:2,z:4});assert.equal(cart.invulnLeft,0);
+    losses.push(10-Math.abs(cart.speed));
+  }
+  assert(losses.every((loss,i)=>i===0||loss>losses[i-1]),'heavier props resist more');
+  assert(losses[0]<.01,'a cup-sized mass barely affects the cart');
+}
+{
+  const cart={speed:10,position:{x:0,z:0},invulnLeft:.3};
+  const personHit={damaging:true,kind:'person'};
+  assert.equal(applyMainFeedback({mass:5,approachSpeed:8},personHit,cart,applyPropFeedback),personHit);
+  assert.equal(cart.speed,10,'a same-frame damaging legacy hit retains priority');
+  for(const mass of [NaN,Infinity,-1,0])assert.equal(applyPropFeedback(cart,{mass,approachSpeed:8}),0);
+  const straight={speed:10},glance={speed:10};
+  applyPropFeedback(straight,{mass:5,approachSpeed:10});applyPropFeedback(glance,{mass:5,approachSpeed:2});
+  assert(glance.speed>straight.speed,'a glancing contact removes less speed');
+}
+console.log('PASS main-loop prop feedback: mass-sensitive forward/reverse slowdown, glancing contact, unchanged position/immunity and retained person-hit priority.');

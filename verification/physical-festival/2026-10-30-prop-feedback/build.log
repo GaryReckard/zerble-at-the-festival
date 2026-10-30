@@ -1,0 +1,77 @@
+
+> build
+> vite build --outDir /tmp/zerble-prop-feedback.y0PTje
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 237 modules transformed.
+
+(!) outDir /tmp/zerble-prop-feedback.y0PTje is not inside project root and will not be emptied.
+Use --emptyOutDir to override.
+
+rendering chunks...
+computing gzip size...
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/site-B5MDeBlm.webmanifest               0.47 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/passport-preview.html                          1.22 kB │ gzip:     0.62 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/festival-map-preview.html                      2.27 kB │ gzip:     1.03 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/press-start-2p-ClsvrIBJ.woff2           4.70 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/hub-sandbox.html                               4.84 kB │ gzip:     1.94 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/map-sandbox.html                               5.32 kB │ gzip:     1.98 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/terrain-sandbox.html                           5.92 kB │ gzip:     2.45 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/physical-sandbox.html                          8.14 kB │ gzip:     3.04 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/geography.worker-CfOfuWgs.js           11.47 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/favicon-96x96-CiQix8YV.png             14.86 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/favicon-B4CsU2Oo.ico                   15.08 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/bubble-DClPS2Xy.webp                   16.98 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/index.html                                    21.77 kB │ gzip:     6.97 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/sandbox.html                                  30.18 kB │ gzip:     7.29 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/apple-touch-icon-BQhTj2-O.png          36.30 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/plank-wood-BCbsHWqX.webp               89.16 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/plank-banner-BHaHfL8P.webp            100.19 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/layer-mountains-CwLXMh0S.webp         155.11 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/layer-sky-Bu6fjoNw.webp               215.13 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/title-logo-fn5cLAAo.webp              231.62 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/layer-festival-NXuRFGci.webp          318.99 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/layer-foreground-BFdSdmSd.webp        320.61 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/favicon-CPTTbEXi.svg                1,573.83 kB │ gzip: 1,185.22 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/view-Bi_AtTx_.css                       3.72 kB │ gzip:     1.12 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/passport-DUTWR86n.css                   4.98 kB │ gzip:     1.65 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/styles-CqZV424h.css                    47.69 kB │ gzip:    10.76 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/modulepreload-polyfill-P2Xu9kJm.js      0.67 kB │ gzip:     0.38 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/passport-preview-D-jWcGTZ.js            0.86 kB │ gzip:     0.56 kB │ map:     2.27 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/collisionContacts-DTv8-ahF.js           0.90 kB │ gzip:     0.56 kB │ map:     4.52 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/campResources-VbsHZXrU.js               1.02 kB │ gzip:     0.59 kB │ map:     3.95 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/constants-C5xxkg4k.js                   1.05 kB │ gzip:     0.59 kB │ map:     6.07 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/steering-DQx9jcmN.js                    1.11 kB │ gzip:     0.59 kB │ map:     7.94 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/index-CeCvPsgG.js                       1.28 kB │ gzip:     0.81 kB │ map:     1.42 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/preload-helper-CRzLMJPS.js              1.53 kB │ gzip:     0.80 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/playerStats-BQsGtzJB.js                 4.26 kB │ gzip:     2.10 kB │ map:    14.59 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/lint-D19iNlNa.js                        4.29 kB │ gzip:     2.02 kB │ map:    41.60 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/festival-map-preview-mlbjGfvR.js        6.98 kB │ gzip:     2.98 kB │ map:    16.15 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/input-Ctwlw6Wh.js                       7.68 kB │ gzip:     2.51 kB │ map:    31.19 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/passportMenu-Y1RvWOCS.js                7.70 kB │ gzip:     3.01 kB │ map:    16.80 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/hub-sandbox-uE_7P1wL.js                10.26 kB │ gzip:     4.65 kB │ map:    33.30 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/terrain-sandbox-ggDfHI1X.js            11.23 kB │ gzip:     5.14 kB │ map:    37.70 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/OrbitControls-YMxWlrvJ.js              12.42 kB │ gzip:     3.61 kB │ map:    51.87 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/recipes-DuGE3-mE.js                    18.16 kB │ gzip:     6.79 kB │ map:    60.52 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/physical-sandbox-DyTflILI.js           18.87 kB │ gzip:     8.01 kB │ map:    60.53 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/view-CCZea1cP.js                       25.50 kB │ gzip:     8.72 kB │ map:    68.61 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/map-sandbox-CvEaaN7v.js                25.72 kB │ gzip:     9.56 kB │ map:   103.42 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/zerble-C_WuZ_8g.js                     40.27 kB │ gzip:    14.66 kB │ map:   171.75 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/terrain-D6Yu5pOF.js                    44.61 kB │ gzip:    17.08 kB │ map:   263.92 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/liveWorld-dq81XcIA.js                  46.00 kB │ gzip:    15.44 kB │ map:   147.72 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/sound--5jV9Udt.js                      73.70 kB │ gzip:    21.31 kB │ map:   300.21 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/a11y-m1YXolo8.js                       86.24 kB │ gzip:    31.07 kB │ map:   411.73 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/sandbox-GzTFLeex.js                   103.57 kB │ gzip:    32.21 kB │ map:   379.34 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/main-Dmdn9ebR.js                      240.23 kB │ gzip:    80.95 kB │ map:   767.81 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/OutputPass-BP1CGEUD.js                243.40 kB │ gzip:    80.94 kB │ map:   824.45 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/smiles-DjuTYFrq.js                    347.85 kB │ gzip:   115.69 kB │ map: 1,440.49 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/threeShim-Czlf_3H8.js                 534.23 kB │ gzip:   135.85 kB │ map: 1,988.98 kB
+../../../../../../tmp/zerble-prop-feedback.y0PTje/assets/rapier-BcnL-M2-.js                  4,335.14 kB │ gzip: 1,670.00 kB │ map: 4,578.75 kB
+
+✓ built in 471ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

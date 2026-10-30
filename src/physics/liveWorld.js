@@ -173,7 +173,8 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
         const approach=(-Math.sin(cart.heading)*cart.speed*dx-Math.cos(cart.heading)*cart.speed*dz)/d;
         if(approach<=APPROACH_DAMAGE_THRESHOLD)continue;
         record.lastHit=time;record.penalized=true;hits++;
-        hit={damaging:entry.collider.damage>0,damage:entry.collider.damage,kind:entry.kind,entry,physical:true,push:{x:-dx/d,z:-dz/d}};
+        hit={damaging:entry.collider.damage>0,damage:entry.collider.damage,kind:entry.kind,entry,physical:true,
+          mass:body.mass,approachSpeed:approach,push:{x:-dx/d,z:-dz/d}};
       }
     },{canStep});
     for(const record of records.values())if(record.token) {

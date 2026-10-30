@@ -3,7 +3,7 @@ change: physical-festival
 status: in_progress
 current_task: "4.1 (Empty-chair production contacts), with phone and boundary acceptance pending"
 blocked_by: null
-open_questions: 0
+open_questions: 1
 started: 2026-10-29
 last_updated: 2026-10-30
 ref: "ROADMAP.md: Gameplay verbs / Physical props"
@@ -211,3 +211,11 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** Added only the revolute joint API needed by the planned lid experiment, rather than exposing the entire engine constraint API. Joint capacity defaults to zero; tokens carry world and generation identity. Real Rapier tests verify limits, anchors, latch constraints, body-removal cleanup, post-allocation rollback and repeated reuse. Full check/build and an isolated ready-button game boot passed with existing chairs and no joints allocated. This advances Task 2.1 (Engine loading proof) without accepting the cooler or bypassing the physical-device gate. Gary's stage preview remains on port 8767 from `/tmp/zerble-stage-build.g6mhxQ`, session 78833.
 
 **Refs:** [hinge adapter evidence](../../../verification/physical-festival/2026-10-30-joints/README.md); `bin/test-physics-joints`.
+
+### 2026-10-30 -- Object and person reactions must diverge
+
+**Event:** decision
+
+**What:** Gary objected to Zerble reacting identically to objects and people. The simulated-chair path called the existing person-hit reverse kick. Replaced that call with mass/approach-sensitive slowdown without a position jump or immunity. This is the first part of the response separation; fixed/legacy obstacles and occupied incidents remain unfinished. Asked whether empty-object collisions should also stop costing smiles; the answer is pending and scoring remains unchanged.
+
+**Refs:** [Response evidence](../../../verification/physical-festival/2026-10-30-prop-feedback/README.md); Q2 (Empty-object scoring) in [questions](questions-for-human.md).

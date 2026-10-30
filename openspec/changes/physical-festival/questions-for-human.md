@@ -1,6 +1,6 @@
 ---
 change: physical-festival
-open: 0
+open: 1
 answered: 1
 last_question: 2026-10-30
 last_answer: 2026-10-30
@@ -10,7 +10,15 @@ last_answer: 2026-10-30
 
 ## Open
 
-None. Physical-device results remain pending, but hardware availability is confirmed.
+### Q2 (Empty-object scoring)
+
+**Date:** October 30, 2026.
+
+**Context:** Gary requested different reactions when Zerble hits objects versus people. Physical response is being separated independently.
+
+**Question:** Should empty-object collisions stop costing smiles, or retain the current smile penalty with only the physical response changed?
+
+**Impact:** Keep scoring unchanged until answered. This does not block the physical response separation. Physical-device results also remain pending, while hardware availability is confirmed.
 
 ## Answered
 

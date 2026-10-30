@@ -2,6 +2,8 @@
 
 October 30, 2026. Started on `codex/physical-festival` at `17102a1`; continued on `codex/physical-festival-integration` at `4aa8d47`, which combines the photographer baseline with startup recovery.
 
+The [prop response checkpoint](2026-10-30-prop-feedback/README.md) separates simulated-chair slowdown from the person-hit reverse kick. Empty-object scoring and the remaining legacy response policy are unresolved.
+
 ## Latest production checkpoint
 
 The [bounded hinge proof](2026-10-30-joints/README.md) verifies the adapter contract needed for the later cooler lid experiment; no articulated cooler is enabled yet.
