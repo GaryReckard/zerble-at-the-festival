@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [support contact handoff](2026-10-30-support-contacts.md) reserves temporary
+chair/person collision exclusions and restores them only after geometric clearance,
+with real-engine overlap, ground-contact and tilted-release regressions.
+
 The [person pose proof](2026-10-30-person-pose/README.md) verifies full rotated
 publication through existing Crowd instances without walking or grounding overrides.
 Live occupied impacts, landing and recovery remain unfinished.

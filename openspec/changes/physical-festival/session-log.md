@@ -49,6 +49,10 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 
 ## Work Log
 
+### October 30: settled support overlap
+
+A real tilted-seat release can leave the body and chair overlapping after landing. The contact exclusion must survive until shape queries prove clearance; a timer would reintroduce depenetration energy. Added reserved pair filtering and a negative-control regression. Live recovery still needs a clear standing target; no occupied-reaction acceptance checkbox changed. See [evidence](../../../verification/physical-festival/2026-10-30-support-contacts.md).
+
 ### 2026-10-30 -- Changing seated mass must preserve point motion
 
 **Event:** discovery

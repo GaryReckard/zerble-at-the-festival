@@ -149,6 +149,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     colliders: limit(capacities.colliders ?? 256, 'colliders'),
     joints: limit(capacities.joints ?? 0, 'joints'),
     supportedLoads: limit(capacities.supportedLoads ?? 0, 'supportedLoads'),
+    contactPairs: limit(capacities.contactPairs ?? 0, 'contactPairs'),
     events: limit(capacities.events ?? 256, 'events'),
     // Configurable fixture storage bounds, not measured device budgets.
     meshVertices: limit(capacities.meshVertices ?? 65536, 'meshVertices'),
@@ -160,7 +161,8 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
   let queue;
   try { queue = new R.EventQueue(true); } catch (error) { world.free(); throw error; }
   const bodies = new Map(), colliders = new Map(), joints = new Map(), jointOwner = ++adapterSerial;
-  const supportedLoads = new Map();
+  const supportedLoads = new Map(), contactPairs = new Map();
+  let pairGeneration = 0;
   let loadGeneration = 0;
   let jointGeneration = 0;
   let pendingEvents = [], overflow = 0, totalOverflow = 0, disposed = false, generation = 0, steps = 0;
@@ -202,9 +204,67 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     };
   }
 
+  function refreshHooks(item) {
+    const active=[...contactPairs.values()].some(pair=>pair.a===item||pair.b===item);
+    for(const handle of item.colliders)world.getCollider(handle)?.setActiveHooks(active?R.ActiveHooks.FILTER_CONTACT_PAIRS:R.ActiveHooks.NONE);
+    item.body.wakeUp();
+  }
+  function suppressedPair(token) {
+    if(disposed||token?.owner!==jointOwner)return null;
+    const pair=contactPairs.get(token.generation);
+    return pair??null;
+  }
+  function removePair(token) {
+    const pair=suppressedPair(token);
+    if(!pair)return false;
+    contactPairs.delete(token.generation);
+    refreshHooks(pair.a);refreshHooks(pair.b);return true;
+  }
+  const hooks={
+    filterContactPair(a,b) {
+      const first=colliders.get(a),second=colliders.get(b);
+      for(const pair of contactPairs.values())if((first?.id===pair.idA&&second?.id===pair.idB)||(first?.id===pair.idB&&second?.id===pair.idA))return null;
+      return R.SolverFlags.COMPUTE_IMPULSE;
+    },
+    filterIntersectionPair(){return true;},
+  };
+
   return Object.freeze({
     engineVersion: R.version(),
     capacities: limits,
+    suppressBodyContacts({bodyA,generationA,bodyB,generationB}) {
+      live();
+      const a=bodies.get(bodyA),b=bodies.get(bodyB);
+      if(!a||!b||a.generation!==generationA||b.generation!==generationB)return {ok:false,reason:'stale-body'};
+      if(a===b)return {ok:false,reason:'same-body'};
+      for(const pair of contactPairs.values())if((pair.a===a&&pair.b===b)||(pair.a===b&&pair.b===a))return {ok:false,reason:'duplicate-pair'};
+      if(contactPairs.size>=limits.contactPairs)return {ok:false,reason:'contact-pair-capacity'};
+      const generation=++pairGeneration,token=Object.freeze({owner:jointOwner,generation});
+      contactPairs.set(generation,{a,b,idA:bodyA,idB:bodyB});
+      try {refreshHooks(a);refreshHooks(b);}catch(error){removePair(token);throw error;}
+      return {ok:true,token};
+    },
+    removeContactSuppression:removePair,
+    resumeSeparatedContacts(token,{margin=.03,maxTests=limits.colliders}={}) {
+      const pair=suppressedPair(token);
+      if(!pair)return {ok:false,reason:'stale-pair'};
+      scalar(margin,'separation margin',0);limit(maxTests,'maxTests');
+      if(maxTests>limits.colliders)throw new RangeError('Pair query exceeds collider capacity');
+      const aPose=pose({position:pair.a.body.translation(),rotation:pair.a.body.rotation()});
+      const bPose=pose({position:pair.b.body.translation(),rotation:pair.b.body.rotation()});
+      let testedPairs=0;
+      for(const aHandle of pair.a.colliders)for(const bHandle of pair.b.colliders) {
+        const a=colliders.get(aHandle),b=colliders.get(bHandle);
+        if(a.sensor||b.sensor)continue;
+        if(testedPairs===maxTests)return {ok:false,reason:'query-capacity',testedPairs};
+        testedPairs++;
+        const ap=composePose(aPose,a.local),bp=composePose(bPose,b.local);
+        // Current local shapes avoid stale broadphase transforms immediately
+        // after release. A margin prevents contact chatter at exact separation.
+        if(a.shape.contactShape(ap.position,ap.rotation,b.shape,bp.position,bp.rotation,margin))return {ok:false,reason:'not-separated',testedPairs};
+      }
+      removePair(token);return {ok:true,testedPairs};
+    },
     addSupportedLoad(spec) {
       live();
       if (typeof spec?.id !== 'string' || !spec.id || spec.id.length > 200) throw new TypeError('Load id must be a nonempty string of at most 200 characters');
@@ -475,7 +535,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     step(dt) {
       live(); positive(dt, 'dt');
       world.timestep = dt;
-      world.step(queue);
+      world.step(queue,contactPairs.size?hooks:undefined);
       steps++;
       queue.drainCollisionEvents((a, b, started) => {
         const contact = pair(a, b);
@@ -503,7 +563,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     },
     counts() {
       return {
-        bodies: bodies.size, colliders: colliders.size, joints: joints.size, supportedLoads: supportedLoads.size,
+        bodies: bodies.size, colliders: colliders.size, joints: joints.size, supportedLoads: supportedLoads.size, contactPairs: contactPairs.size,
         engineJoints: disposed ? 0 : world.impulseJoints.len(),
         meshVertices: meshVertexCount, meshTriangles: meshTriangleCount,
         engineBodies: disposed ? 0 : world.bodies.len(), engineColliders: disposed ? 0 : world.colliders.len(),
@@ -514,6 +574,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       if (disposed) return false;
       const item = bodies.get(id);
       if (!item) return false;
+      for(const [generation,pair] of contactPairs)if(pair.a===item||pair.b===item)removePair({owner:jointOwner,generation});
       world.removeRigidBody(item.body);
       // Rapier removes attached impulse joints with the body. Mirror that
       // lifetime here before a reused body id can resolve to a new generation.
@@ -530,7 +591,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       // Both own WASM resources. Free the world even if queue teardown throws.
       try { queue.free(); } finally {
         try { world.free(); } finally {
-          bodies.clear(); colliders.clear(); joints.clear(); supportedLoads.clear(); pendingEvents = []; overflow = 0;
+          bodies.clear(); colliders.clear(); joints.clear(); supportedLoads.clear(); contactPairs.clear(); pendingEvents = []; overflow = 0;
           meshVertexCount = meshTriangleCount = 0;
         }
       }

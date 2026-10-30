@@ -7,7 +7,7 @@ export function prepareSeatRelease({adapter,budget,id,bodyId,bodyGeneration,posi
   const reserved=budget.reserve(`seat-release:${id}`,{resident:{bodies:1,colliders:2}});
   if(!reserved.ok)return reserved;
   const fallId=`seat-release:${id}`,budgetToken=reserved.token;
-  let bodyGenerationOwned=null,loadToken=null,state='preparing',snapshot=null;
+  let bodyGenerationOwned=null,loadToken=null,contactToken=null,state='preparing',snapshot=null;
   function ownedBody() {
     const body=adapter.readBody(fallId);
     return body?.generation===bodyGenerationOwned?body:null;
@@ -20,7 +20,7 @@ export function prepareSeatRelease({adapter,budget,id,bodyId,bodyGeneration,posi
       if(loadToken){if(!adapter.removeSupportedLoad(loadToken)&&adapter.readSupportedLoad(loadToken))throw new Error('Seat load cleanup failed.');loadToken=null;}
       if(bodyGenerationOwned!==null&&ownedBody()&&!adapter.removeBody(fallId)&&ownedBody())throw new Error('Fall body cleanup failed.');
     }
-    budget.release(budgetToken);state='disposed';return true;
+    contactToken=null;budget.release(budgetToken);state='disposed';return true;
   }
   try {
     attempt.own(cleanup);
@@ -28,6 +28,9 @@ export function prepareSeatRelease({adapter,budget,id,bodyId,bodyGeneration,posi
     if(!body.ok){cleanup();return body;}
     bodyGenerationOwned=body.generation;
     if(!adapter.setBodyEnabled(fallId,false))throw new Error('Reserved fall body disappeared.');
+    const suppression=adapter.suppressBodyContacts({bodyA:bodyId,generationA:bodyGeneration,bodyB:fallId,generationB:bodyGenerationOwned});
+    if(!suppression.ok){cleanup();return suppression;}
+    contactToken=suppression.token;
     const load=adapter.addSupportedLoad({id:`seat-load:${id}`,bodyId,bodyGeneration,position,mass,radius,halfHeight});
     if(!load.ok){cleanup();return load;}
     loadToken=load.token;state='supported';
@@ -62,6 +65,17 @@ export function prepareSeatRelease({adapter,budget,id,bodyId,bodyGeneration,posi
       // second body, removing mass twice, or resampling a moving chair.
       if(!adapter.setBodyEnabled(fallId,true))return {ok:false,reason:'reserved-body-missing'};
       state='falling';return {ok:true,bodyId:fallId,generation:bodyGenerationOwned};
+    },
+    resumeSupportContacts(options) {
+      if(state!=='falling')return {ok:false,reason:'not-falling'};
+      if(adapter.counts().disposed)return {ok:false,reason:'adapter-disposed'};
+      if(!ownedBody())return {ok:false,reason:'reserved-body-missing'};
+      if(!contactToken)return {ok:true};
+      const result=adapter.resumeSeparatedContacts(contactToken,options);
+      // Removing the original support also removes its pair. A replacement
+      // using the same id has no inherited exclusion.
+      if(result.ok||result.reason==='stale-pair'){contactToken=null;return {ok:true};}
+      return result;
     },
     releaseSnapshot() {return snapshot?{...snapshot,position:{...snapshot.position},rotation:{...snapshot.rotation},velocity:{...snapshot.velocity},angularVelocity:{...snapshot.angularVelocity},localPosition:{...snapshot.localPosition}}:null;},
     dispose:cleanup,

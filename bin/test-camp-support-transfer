@@ -88,7 +88,7 @@ for(const failure of ['target-removed','person-removed','throw','expired-attempt
 console.log('PASS camp support transfer: real seated activities, failed preparation preserves owner, continuous seat exclusivity, two independent loveseat handoffs, origin unload, late old cleanup, person removal and target failure.');
 for(const capacity of [0,1]) {
   const f=fixture(),person=f.persons[0],old=f.people.camps.records.get(person).claim;
-  const adapter=await createRapierAdapter({capacities:{supportedLoads:capacity}});
+  const adapter=await createRapierAdapter({capacities:{supportedLoads:capacity,contactPairs:2}});
   const budget=new AdmissionBudget({capacities:{bodies:2,colliders:4,joints:0,events:4,renderSlots:0}});
   try {
     const body=adapter.addBody({id:'seat',type:'dynamic',colliders:[{shape:'ball',radius:.2,mass:5}]});
