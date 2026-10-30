@@ -109,12 +109,25 @@ export function tickPhotographerOpportunity(npc, dt, distance, eligible) {
 // Rendering consumes a caller-owned profile, without retaining a population
 // record or allocating a pose for every actor/frame. Geometry and instance pools
 // remain the population's responsibility, so this role adds no second lifetime.
+const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
 export function samplePhotographerPose(state,stateTimer,crouch,flashTimer,out) {
   const pose=state===PHOTO_STATE_POSE;
   out.photographing=isPhotographerState(state);out.pose=pose;out.crouch=pose&&!!crouch;
-  let amount=0;
-  if(pose){const poseIn=Math.min(1,Math.max(0,(PHOTO_POSE_DURATION-stateTimer)*5)),poseOut=Math.min(1,Math.max(0,stateTimer*5));amount=Math.min(poseIn,poseOut);}
-  out.crouchDrop=pose&&crouch ? .24*amount : 0;
+  const amount=pose?Math.min(ease((PHOTO_POSE_DURATION-stateTimer)/.30),ease(stateTimer/.30)):0;
+  out.amount=amount;
+  out.crouchDrop=pose&&crouch ? .18*amount : 0;
+  out.cameraY=1.20+.38*amount;
+  out.cameraZ=-.36;
+  // Solve the same two .29m segments used by the shared arm shader. Positive
+  // shoulder X brings hands forward (-Z); the old rigid negative rotation
+  // sent them behind the back. Opposite elbow signs keep elbows outside ribs.
+  const dx=-.13,dy=out.cameraY-1.35,r=Math.hypot(dy,out.cameraZ);
+  const elbow=-Math.acos(Math.max(-1,Math.min(1,(dx*dx+r*r-2*.29*.29)/(2*.29*.29))));
+  out.armX=Math.atan2(-out.cameraZ,-dy);
+  out.armZ=Math.atan2(dx,r)-Math.atan2(.29*Math.sin(elbow),.29+.29*Math.cos(elbow));
+  out.elbow=elbow;
+  out.feet??={left:{x:-.12,y:0,z:0,qx:0,qy:0,qz:0,qw:1},right:{x:.12,y:0,z:0,qx:0,qy:0,qz:0,qw:1}};
+  out.feet.left.y=out.feet.right.y=out.crouchDrop;
   out.flashVisible=flashTimer>0;
   out.flashScale=out.flashVisible ? .72+Math.sin(Math.min(1,flashTimer/PHOTO_FLASH_DURATION)*Math.PI)*.55 : 0;
   return out;

@@ -605,14 +605,8 @@ export class Crowd {
     this._musicArmMat = new THREE.Matrix4();
     this._musicPivotMat = new THREE.Matrix4();
     this._instrumentLocalMat = new THREE.Matrix4();
-    this._photoArmsMat = new THREE.Matrix4()
-      .makeTranslation(0, SHOULDER_Y, 0)
-      .multiply(new THREE.Matrix4().makeRotationX(-1.52))
-      .multiply(new THREE.Matrix4().makeTranslation(0, -SHOULDER_Y, 0));
-    this._photoCrouchLegMat = new THREE.Matrix4()
-      .makeTranslation(0, HIP_Y, 0)
-      .multiply(new THREE.Matrix4().makeRotationX(0.82))
-      .multiply(new THREE.Matrix4().makeTranslation(0, -HIP_Y, 0));
+    this._photoCameraMat = new THREE.Matrix4();
+    this._photoCameraLocalMat = new THREE.Matrix4();
 
     // High-water mark: highest occupied crowd slot, kept compact on release.
     this._maxIdx = -1;
@@ -1571,7 +1565,9 @@ export class Crowd {
     }
     const walk=sampleWalkMotion(npc,this._walkPose??={});
     const m = this._mat4;
-    const photo=samplePhotographerPose(npc.state,npc.stateTimer,npc.photoCrouch,npc.photoFlashTimer,this._photoRenderProfile??={});
+    const photo=npc.isPhotographer
+      ? samplePhotographerPose(npc.state,npc.stateTimer,npc.photoCrouch,npc.photoFlashTimer,this._photoRenderProfile??={})
+      : (this._noPhotoRenderProfile??={photographing:false,crouch:false,crouchDrop:0});
     const photographing=photo.photographing;
     // Reuse scratch Quaternion/Euler — avoids ~30k allocations/sec at 500 NPCs × 60fps.
     // hammock_riding NPCs need a supine rotation (X=+π/2 face up, then Y=yaw); all
@@ -1634,7 +1630,7 @@ export class Crowd {
 
     // Cheer jump: positive-half sine so NPCs hop upward without clipping the floor.
     // Seeded by the stable behavior slot so pooling stays visually decoupled.
-    const cheering = npc.cheerTimer > 0 && !npc.campMusic;
+    const cheering = npc.cheerTimer > 0 && !npc.campMusic && !photographing;
     const cheerY = cheering
       ? Math.max(0, Math.sin((this.actorTime??0) * HOP_HZ + npc.behaviorSeed * 1.3)) * HOP_HEIGHT
       : 0;
@@ -1690,7 +1686,7 @@ export class Crowd {
     // A planted score owns its full pelvis height; generic happy/cheer hops
     // would slide both authored soles through their fixed ground contacts.
     if(flowFeet)feetY=npc.pos.y+flowSupport;
-    feetY-=photo.crouchDrop;
+    feetY-=photo.crouchDrop*npc.scale;
 
     // CRITICAL: position and scale must be DISTINCT Vector3 instances.
     // Reusing this._tmpV for both args caused position to be overwritten by scale,
@@ -1725,7 +1721,10 @@ export class Crowd {
     // their legs+shoes bent forward at the hip so they sit; the upright
     // body/arms/head still use `m`. Standing running-board riders keep straight legs.
     // Cheering NPCs get arms rotated up via _armsUpMat (same pattern as _sitLegMat).
-    this._writeHoopFeet(npc,flowFeet);
+    // Keep the relaxed knee bend between shots, but leave travel and special
+    // activities to their own leg poses. Photo soles cancel the pelvis drop.
+    const plantedPhoto=npc.isPhotographer&&(photographing||ORDINARY_SOCIAL_STATES.has(npc.state))&&!walk.active&&!seated&&!hula&&!cheering;
+    this._writeHoopFeet(npc,flowFeet??(plantedPhoto?photo.feet:null));
     const folded=!!npc.picnicCrossLegged&&npc.state==='table_seated';
     for(const mesh of [this.legsMesh,this.shoesMesh]){const a=mesh.geometry.getAttribute('crossLegged');a.setX(npc.idx,folded?1:0);a.needsUpdate=true;}
     for(const mesh of [this.legsMesh,this.shoesMesh]){
@@ -1735,9 +1734,8 @@ export class Crowd {
     }
     if(folded){this.legsMesh.setMatrixAt(npc.idx,m);this.shoesMesh.setMatrixAt(npc.idx,m);}
     else if (photo.crouch) {
-      this._legMat.multiplyMatrices(m, this._photoCrouchLegMat);
-      this.legsMesh.setMatrixAt(npc.idx, this._legMat);
-      this.shoesMesh.setMatrixAt(npc.idx, this._legMat);
+      this.legsMesh.setMatrixAt(npc.idx, m);
+      this.shoesMesh.setMatrixAt(npc.idx, m);
     } else if (seated) {
       this._legMat.multiplyMatrices(m, this._sitLegMat);
       this.legsMesh.setMatrixAt(npc.idx, this._legMat);
@@ -1746,11 +1744,12 @@ export class Crowd {
       this.legsMesh.setMatrixAt(npc.idx, m);
       this.shoesMesh.setMatrixAt(npc.idx, m);
     }
-    this.shoppingBagMesh?.setMatrixAt(npc.idx, npc.shoppingBagTime > 0 ? m : this._zeroMat);
     this.bodyMesh.setMatrixAt(npc.idx, m);
     const armPose=npc._activityArmPose;
     const hasArmPose=!!armPose&&this.activityClaims.canWrite(armPose.claim);
-    const dancing=!seated&&!npc.campMusic&&!npc.campInstrument&&!photographing&&!npc.seatSlot&&npc.frownTimer<=0&&(stageDancing||danceActivity);
+    const holdingCamera=npc.isPhotographer&&(photographing||ORDINARY_SOCIAL_STATES.has(npc.state)||walk.active)&&!seated&&!npc.campInstrument&&!npc.campMusic&&!hasArmPose&&!hula&&!cheering;
+    this.shoppingBagMesh?.setMatrixAt(npc.idx, npc.shoppingBagTime > 0 && !holdingCamera ? m : this._zeroMat);
+    const dancing=!holdingCamera&&!seated&&!npc.campMusic&&!npc.campInstrument&&!photographing&&!npc.seatSlot&&npc.frownTimer<=0&&(stageDancing||danceActivity);
     if (npc.campInstrument) {
       const active = npc.campMusicStage === 'playing';
       const bend = npc.campInstrument.kind === 'fiddle' ? 1.45 : 1.12;
@@ -1759,14 +1758,14 @@ export class Crowd {
         .multiply(this._musicPivotMat.makeTranslation(0, -ARM_SHOULDER_Y, 0));
       this._armsMat.multiplyMatrices(m, this._musicArmMat);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
-    } else if (npc.state === 'market_chatting' || npc.state === 'market_buying') {
+    } else if (!holdingCamera && (npc.state === 'market_chatting' || npc.state === 'market_buying')) {
       this._musicArmMat.makeTranslation(0, ARM_SHOULDER_Y, 0)
         .multiply(this._tmpDanceMat.makeRotationX(.65 + Math.sin(npc.bob * 3) * .14))
         .multiply(this._musicPivotMat.makeTranslation(0, -ARM_SHOULDER_Y, 0));
       this._armsMat.multiplyMatrices(m, this._musicArmMat);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
-    } else if (photographing) {
-      this._armsMat.multiplyMatrices(m, this._photoArmsMat);
+    } else if (holdingCamera) {
+      this._armsMat.copy(m);
       this.armsMesh.setMatrixAt(npc.idx, this._armsMat);
     } else if (hasArmPose || hula || dancing) {
       // An articulated pose already rotates at each shoulder. A cheer can
@@ -1783,7 +1782,10 @@ export class Crowd {
     const armAttr=this.armsMesh.geometry.getAttribute('armPose');
     const leftAttr=this.armsMesh.geometry.getAttribute('armLeftPose');
     leftAttr.setXY(npc.idx,(hasArmPose||hula) ? .03 : 0,0);
-    if(hasArmPose){
+    if(holdingCamera){
+      armAttr.setXYZW(npc.idx,photo.armX,photo.armZ,photo.elbow,-photo.armZ);
+      leftAttr.setXY(npc.idx,photo.armX,-photo.elbow);
+    }else if(hasArmPose){
       armAttr.setXYZW(npc.idx,armPose.x,armPose.z,armPose.elbow,armPose.leftZ);
       sampleArmHand(armPose,armPose.hand).applyMatrix4(this._armsMat);
     }else if(articulated){
@@ -1814,7 +1816,7 @@ export class Crowd {
     this._hairLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
     this._hairMat.multiplyMatrices(headM, this._hairLocalMat);
     this.hairMeshes[hairStyle].setMatrixAt(npc.hairSlot, this._hairMat);
-    if (npc.drinkSlot >= 0 && !photographing && !npc.campInstrument && !armPose && !hula) {
+    if (npc.drinkSlot >= 0 && !holdingCamera && !photographing && !npc.campInstrument && !armPose && !hula) {
       this._tmpV3.set(0.34, 0, -0.07);
       this._tmpScale.set(0.76, 0.76, 0.76);
       this._drinkLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
@@ -1843,12 +1845,13 @@ export class Crowd {
     this.mouthMesh.setMatrixAt(npc.idx, this._mouthMat);
 
     if (npc.isPhotographer) {
-      // Camera geometry has its local chest/face offset baked in, so it follows
-      // the same pooled body matrix through walking, crouching, and posing.
-      this.cameraMesh.setMatrixAt(npc.photoSlot, m);
+      // The hands and prop share the same eased lift, including the flash.
+      this._photoCameraLocalMat.makeTranslation(0,photo.cameraY-1.20,0);
+      this._photoCameraMat.multiplyMatrices(m,this._photoCameraLocalMat);
+      this.cameraMesh.setMatrixAt(npc.photoSlot, this._photoCameraMat);
       if (photo.flashVisible) {
         const flashScale=photo.flashScale;
-        this._tmpV3.set(0, 1.20, -0.62);
+        this._tmpV3.set(0, photo.cameraY, -0.62);
         this._tmpScale.set(flashScale, flashScale, flashScale);
         this._flashLocalMat.compose(this._tmpV3, this._identityQuat, this._tmpScale);
         this._flashMat.multiplyMatrices(m, this._flashLocalMat);

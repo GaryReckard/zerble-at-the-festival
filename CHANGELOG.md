@@ -9,6 +9,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 - **Gary has a complete seated driving pose.** Taller proportions, rounded jeans with rear seams, bent knees and an extended right leg meet suspended angled pedals in a recessed dark gray footwell. Swept-back brown hair, gray temples and a rear bun follow the supplied references. [Driver views and contact checks](verification/hair/README.md).
 - **Waist hooping and choreographed flow share expressive body motion.** Regular hoopers now bend their knees over planted feet, move their arms independently and turn/tilt their heads. Flow scores add planted steps, contact-driven waist groove, moving-body isolations and dancing around seeded tosses ranging from 0.65 to 2.4 meters above release; compatible trick transitions carry hoop momentum, and a full chest roll crosses both outstretched arms into the opposite hand. The workshop exposes both modes and dedicated phrase inspection controls. [Grounded choreography verification](verification/hoops/grounded-choreography.md).
 
+### Fixed
+- **Photographers hold their cameras and bend their knees naturally.** Replaced the backward rigid-arm rotation with jointed two-hand grips, a smooth chest-to-eye lift and return, and a flash that follows the camera. Crouches keep both feet grounded at every character scale, while travel keeps the crowd gait. Added paused phase inspection and contact regressions without adding geometry or draw calls. [Verification](verification/photographer/README.md).
+
 ## 2026-10-29
 
 ### Added
