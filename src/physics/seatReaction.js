@@ -16,7 +16,7 @@ export function createSeatReaction({people,claim,lease,releaseSeat,rootOffset={x
   if(!Number.isFinite(facing))throw new TypeError('Facing must be finite');
   if(!Number.isFinite(initialSeatBlend)||initialSeatBlend<0||initialSeatBlend>1)throw new RangeError('Invalid initial leg blend');
   const half=Math.sin(facing/2),cos=Math.cos(facing/2);
-  const pose={position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0,w:1},seated:initialSeatBlend>0,seatBlend:initialSeatBlend};
+  const pose={position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0,w:1},seated:initialSeatBlend>0,seatBlend:initialSeatBlend,brace:0};
   let phase='supported',unstableTime=0,stableTime=0,settledTime=0,seatReleased=false,disposed=false,blocked=null,dismountRequested=false,completion=null;
   function publish(sample,seatBlend=pose.seatBlend) {
     pose.seatBlend=seatBlend;
@@ -74,6 +74,9 @@ export function createSeatReaction({people,claim,lease,releaseSeat,rootOffset={x
         } else return {ok:false,reason:'missing-support'};
       }
       const current=lease.read();if(!current)return {ok:false,reason:'missing-release'};
+      // Advance intent only on accepted simulation time, never pose-only redraws.
+      const braceTarget=current.state==='supported'&&phase==='bracing'?1:0;
+      pose.brace+=(braceTarget-pose.brace)*(1-Math.exp(-dt*(braceTarget?14:7)));
       if(current.state==='falling') {
         if(!seatReleased){releaseSeat();seatReleased=true;}
         const body=current.body;if(!body)return {ok:false,reason:'missing-fall-body'};
@@ -126,7 +129,7 @@ export function createSeatReaction({people,claim,lease,releaseSeat,rootOffset={x
       } else return {ok:false,reason:blocked??'activation-pending'};
       return {ok:true,phase,blocked};
     },
-    inspect(){return {phase,seatBlend:pose.seatBlend,unstableTime,stableTime,settledTime,seatReleased,disposed,blocked,dismountRequested,completion};},
+    inspect(){return {phase,seatBlend:pose.seatBlend,brace:pose.brace,unstableTime,stableTime,settledTime,seatReleased,disposed,blocked,dismountRequested,completion};},
     dispose(){if(disposed)return false;disposed=true;dismount?.cancel();return true;},
   });
 }

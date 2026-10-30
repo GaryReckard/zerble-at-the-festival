@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [bracing checkpoint](2026-10-30-bracing/README.md) adds bounded free-arm
+balance poses with a stable drink socket and unchanged fixture rendering counts.
+The complete dynamic sequence and phone acceptance remain open.
+
 The [controlled exit checkpoint](2026-10-30-dismount/README.md) adds bounded
 step-off planning, blocked-exit support retention and independent loveseat exits.
 A real Chrome sitter completed a dismount; full visual and device acceptance remain open.

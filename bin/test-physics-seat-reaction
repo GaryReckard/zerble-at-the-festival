@@ -18,7 +18,9 @@ try {
  const tilt=angle=>adapter.setPose('chair',{position:{x:0,y:3,z:0},rotation:{x:0,y:0,z:Math.sin(angle/2),w:Math.cos(angle/2)}});
  assert.equal(reaction.step(1/60).phase,'supported');assert(Math.abs(n.pos.y-3)<1e-6);
  tilt(.5);assert.equal(reaction.step(1/60).phase,'bracing');assert.equal(releases,0);
- tilt(0);for(let i=0;i<20;i++)reaction.step(1/60);assert.equal(reaction.inspect().phase,'supported','gentle wobble is saved');
+ const braced=reaction.inspect().brace;assert(braced>0&&braced<1);
+ reaction.step(0);assert.equal(reaction.inspect().brace,braced,'pose-only publication freezes brace');
+ tilt(0);for(let i=0;i<80;i++)reaction.step(1/60);assert.equal(reaction.inspect().phase,'supported','gentle wobble is saved');assert(reaction.inspect().brace<.01,'saved wobble relaxes arms');
  tilt(1);for(let i=0;i<4;i++)reaction.step(1/60);assert.equal(releases,0,'brief moderate instability does not release');
  tilt(0);reaction.step(1/60);assert.equal(reaction.inspect().unstableTime,0,'stability resets release dwell');
  tilt(1.4);reaction.step(0);assert.equal(releases,0,'pause cannot release a person');

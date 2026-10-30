@@ -63,8 +63,9 @@ people.activityClaims.dispose();
   pose.position.x=999;assert.equal(n.pos.x,4,'pose input is copied');
   assert(population.writeReactionPose(claim,{position:{x:5,y:8,z:10},rotation:{x:1,y:0,z:0,w:1}}));
   assert.equal(n._reactionPose,storage,'steady writes reuse storage');
+  assert(population.writeReactionPose(claim,{...pose,brace:.6}));assert.equal(storage.brace,.6);
   const before={...storage};
-  for(const bad of [{position:{x:NaN,y:0,z:0}},{rotation:{x:0,y:0,z:0,w:0}},{seated:'yes'},{seatBlend:-.1},{seatBlend:1.1},{seatBlend:NaN},{position:{x:1e300,y:0,z:0}}]) {
+  for(const bad of [{position:{x:NaN,y:0,z:0}},{rotation:{x:0,y:0,z:0,w:0}},{seated:'yes'},{seatBlend:-.1},{seatBlend:1.1},{seatBlend:NaN},{brace:NaN},{brace:-1},{brace:1.1},{position:{x:1e300,y:0,z:0}}]) {
     assert.throws(()=>population.writeReactionPose(claim,{...pose,...bad}));assert.deepEqual({...storage},before);
   }
   assert(population.writeActivityPose(claim,1,2,3));assert.equal(n._reactionPose,null,'ordinary pose publication clears the rotation override');

@@ -338,3 +338,13 @@ check/build passed, and Chrome completed a live sitter dismount without console
 errors. [Evidence and capture limits](../../../verification/physical-festival/2026-10-30-dismount/README.md).
 Task 5.3 (Controlled dismount) is complete. Next: bracing visuals and full occupied
 incident inspection, then cooler lids/drinks. Phone feedback remains pending.
+
+## October 30: bracing presentation
+
+Added a simulation-time brace blend through existing Crowd arm attributes, keeping
+the held-drink arm and supported hips fixed. Real-engine tests cover relaxation
+and paused publication; Low fixture captures retain the baseline render counts.
+A live Chrome controlled exit passed with no console errors. The static comparison
+does not prove the complete dynamic save/fall sequence, so Task 5.2 (Supported load
+and bracing) and the occupied-chair gate remain open.
+[Evidence](../../../verification/physical-festival/2026-10-30-bracing/README.md).

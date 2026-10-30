@@ -1791,7 +1791,13 @@ export class Crowd {
     const armAttr=this.armsMesh.geometry.getAttribute('armPose');
     const leftAttr=this.armsMesh.geometry.getAttribute('armLeftPose');
     leftAttr.setXY(npc.idx,(hasArmPose||hula) ? .03 : 0,0);
-    if(holdingCamera){
+    if(reaction?.brace>0){
+      // Keep the existing drink socket fixed until transferable drinks own it.
+      // The free arm reaches sideways for balance; neither pose moves the hips.
+      const b=reaction.brace,freeRight=npc.drinkSlot<0;
+      armAttr.setXYZW(npc.idx,freeRight?.25*b:0,freeRight?.95*b:0,freeRight?-.25*b:0,-.95*b);
+      leftAttr.setXY(npc.idx,.25*b,.25*b);
+    }else if(holdingCamera){
       armAttr.setXYZW(npc.idx,photo.armX,photo.armZ,photo.elbow,-photo.armZ);
       leftAttr.setXY(npc.idx,photo.armX,-photo.elbow);
     }else if(hasArmPose){
@@ -2400,17 +2406,17 @@ export class Crowd {
 
   // Full feet-origin transform for the current reaction. The population keeps
   // its existing instance slots, appearance and attachment transforms.
-  writeReactionPose(claim,{position,rotation,seated=false,seatBlend=seated?1:0}={}) {
+  writeReactionPose(claim,{position,rotation,seated=false,seatBlend=seated?1:0,brace=0}={}) {
     if(!this.activityClaims.canWrite(claim))return false;
     const npc=this.peopleHandles.resolve(claim.person);
     if(npc.party||npc.seatSlot||npc.isPhotographer||npc.campInstrument||npc.campJamHidden||npc._activityBinding?.hidden)return false;
     const values=[position?.x,position?.y,position?.z,rotation?.x,rotation?.y,rotation?.z,rotation?.w];
-    if(!values.every(value=>Number.isFinite(value)&&Number.isFinite(Math.fround(value)))||typeof seated!=='boolean'||!Number.isFinite(seatBlend)||seatBlend<0||seatBlend>1)throw new TypeError('Reaction pose requires finite position, quaternion and a seated boolean.');
+    if(!values.every(value=>Number.isFinite(value)&&Number.isFinite(Math.fround(value)))||typeof seated!=='boolean'||!Number.isFinite(seatBlend)||seatBlend<0||seatBlend>1||!Number.isFinite(brace)||brace<0||brace>1)throw new TypeError('Reaction pose requires finite position, quaternion and a seated boolean.');
     const length=Math.hypot(rotation.x,rotation.y,rotation.z,rotation.w);
     if(length<1e-12)throw new TypeError('Reaction rotation must have nonzero length.');
     const pose=npc._reactionPose??={};
     pose.claim=claim;pose.x=position.x;pose.y=position.y;pose.z=position.z;
-    pose.qx=rotation.x/length;pose.qy=rotation.y/length;pose.qz=rotation.z/length;pose.qw=rotation.w/length;pose.seated=seatBlend>0;pose.seatBlend=seatBlend;
+    pose.qx=rotation.x/length;pose.qy=rotation.y/length;pose.qz=rotation.z/length;pose.qw=rotation.w/length;pose.seated=seatBlend>0;pose.seatBlend=seatBlend;pose.brace=brace;
     npc._activityWalk=null;npc.pos.set(pose.x,pose.y,pose.z);
     this._publishPerson(npc);return true;
   }
