@@ -1,0 +1,81 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { Registry } from '../src/registry.js';
+import { buildCampChair } from '../src/models/campChair.js';
+import { batchPropGroups } from '../src/propRendering.js';
+import { createLivePhysics } from '../src/physics/liveWorld.js';
+import { findChairApproach } from '../src/physics/encounter.js';
+import { setTerrainEnabled } from '../src/worldgen/terrain.js';
+import { readFileSync } from 'node:fs';
+setTerrainEnabled(false);
+{
+  const registry=new Registry();
+  const target={kind:'camp_chair',position:new THREE.Vector3(),collider:{radius:.8}};
+  registry.add(target);
+  const options={registry,entries:[target],radius:1.8,isWet:()=>false};
+  const first=findChairApproach(options);
+  assert.equal(first.entryId,target.id);
+  assert.equal(first.z,7,'an unobstructed approach ignores only its target');
+  const obstacle={kind:'tent',position:new THREE.Vector3(0,0,7),collider:{radius:2}};
+  registry.add(obstacle);
+  const alternate=findChairApproach(options);
+  assert(alternate,'a blocked first approach finds another direction');
+  assert.notEqual(alternate.heading,first.heading);
+  assert.equal(findChairApproach({...options,isWet:()=>true}),null,'water rejects every route');
+  registry.add({kind:'tent',position:new THREE.Vector3(),collider:{radius:30}});
+  assert.equal(findChairApproach(options),null,'enclosed chairs cannot stage through nearby solids');
+  assert.equal(findChairApproach({...options,entries:[]}),null);
+  let samples=0;
+  assert.equal(findChairApproach({...options,entries:Array(100).fill(target),isWet:()=>{samples++;return true;}}),null);
+  assert.equal(samples,64*2*16,'search stays bounded even with many candidates');
+}
+async function encounter(hz,ghost=false) {
+  const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
+  const chair=buildCampChair(()=>.3,{style:'sling'});root.add(chair.group);
+  const batch=batchPropGroups(root,[chair.group]),parentId=registry.add({kind:'campsite',position:new THREE.Vector3(),footprint:8,chunkKey:'origin'});
+  const descriptor={logicalKey:'live-test-chair',kind:'camp_chair',style:'sling',originOwner:'chunk:origin',originRegistryId:parentId,
+    worldPose:{position:{x:0,y:.02,z:0},rotation:{x:0,y:0,z:0,w:1},scale:{x:1,y:1,z:1}},
+    renderBinding:batch.bindings[0],renderBatch:batch,seatSlots:[{occupied:false}]};
+  const entry={kind:'camp_chair',position:new THREE.Vector3(0,.02,0),footprint:.8,collider:{radius:.8,damage:1},chunkKey:'origin',physicalProp:descriptor};
+  const id=registry.add(entry),cart={position:new THREE.Vector3(0,0,9),root:new THREE.Group(),heading:0,speed:6};
+  const live=await createLivePhysics({scene,registry,cart});
+  try {
+    for(let i=0;i<30&&!live.owns(entry);i++)live.prepare(performance.now()+100);
+    assert(live.owns(entry),'prepared chair is actually adopted');
+    assert.equal(live.stats().chairs.length,1);
+    assert.equal(descriptor.seatSlots[0].physicalUnavailable,true);
+    // A frame with no preparation time must not create support or admissions.
+    const before=live.stats().engine.bodies;live.prepare(-1);assert.equal(live.stats().engine.bodies,before);
+    let hitCount=0;
+    for(let frame=0;frame<hz*2;frame++) {
+      cart.position.z=9-Math.min(12,(frame+1)*6/hz);
+      live.prepare(performance.now()+100);
+      const hit=live.advance(1/hz,{ghost});
+      if(hit){hitCount++;assert.equal(hit.entry,entry);assert.equal(hit.damage,1);}
+    }
+    const result=live.stats();
+    assert.equal(result.clock.steps,120);
+    assert.equal(result.overflow,0);
+    assert.equal(result.blocked,null);
+    if(ghost){assert.equal(hitCount,0);assert(Math.abs(entry.position.z)<.15,'ghost does not push the chair');}
+    else {assert(hitCount>0,'real cart hull produces an eligible impact');assert(Math.abs(entry.position.z)>1,'chair moves through real solver contacts');}
+    assert.equal(registry.closestGenerationBuilding({x:0,z:0},.1,new Set(['campsite'])).id,id);
+    registry.removeChunk('origin');batch.dispose();
+    assert(registry.entries.has(id),'old chunk disposal preserves adopted chair');
+    live.prepare(performance.now()+100);live.advance(1/hz,{ghost});
+    assert.equal(live.stats().ownership.chairs,1);
+    return result;
+  } finally {
+    assert.equal(live.dispose().ok,true);assert.equal(registry.physicalChairOwner,undefined);
+    assert.equal(registry.entries.has(id),false);assert.equal(live.stats().engine.bodies,0);batch.dispose();
+  }
+}
+for(const hz of [30,60,120])await encounter(hz);
+await encounter(60,true);
+const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const star=main.indexOf('StarPower.update(dt,'),legacy=main.indexOf('hit = resolveCollision(zerble, _collScratch)'),physical=main.indexOf('physicalWorld?.advance(dt,');
+assert(star<legacy&&legacy<physical&&physical<main.indexOf("peopleFrameTrace?.mark('contacts-end'"),'late physics runs after same-frame ghost pickup and legacy correction');
+assert.match(main,/if\(!physicalWorld\?\.owns\(e\)\) _collScratch.push/);
+console.log('PASS live physics: real chair adoption/support/cart impacts at 30/60/120 Hz, ghost passage, exhausted preparation deadline, canonical clearance, source unload and full cleanup; main late-contact ordering and singular authority.');
+console.log('Scope: opt-in empty-chair integration; full-game browser and phone acceptance remain separate.');

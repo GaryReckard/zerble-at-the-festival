@@ -1,0 +1,204 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { Registry } from '../src/registry.js';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { createStaticResidency } from '../src/physics/staticResidency.js';
+
+const bounds = (x, z = 0, radius = 2) => ({ minX: x - radius, maxX: x + radius, minZ: z - radius, maxZ: z + radius });
+const pump = (residency, maxCreations = 256) => residency.pump({ deadline: performance.now() + 10000,
+  now: () => performance.now(), maxCreations });
+const makeRegistry = () => new Registry();
+const add = (registry, kind, x, z, radius = .6) => registry.add({ kind, position: new THREE.Vector3(x, 99, z),
+  footprint: radius, collider: { radius, damage: 1 } });
+
+const registry = makeRegistry();
+const chairId = add(registry, 'camp_chair', 0, 0);
+add(registry, 'person', .3, .2, .4);
+const adapter = await createRapierAdapter();
+const residency = createStaticResidency({ registry, adapter, isDynamic: entry => entry.kind === 'person',
+  maxProxies: 4, maxOwners: 4, maxQueued: 4, maxCandidates: 8 });
+try {
+  const wanted = residency.request('cart', bounds(0));
+  assert.equal(wanted.state, 'pending');
+  assert.equal(wanted.candidates, 1, 'moving person collider is excluded');
+  const before = adapter.counts();
+  const noTime = residency.pump({ deadline: 0, now: () => 0, maxCreations: 2 });
+  assert.equal(noTime.attempted, 0); assert.deepEqual(adapter.counts(), before, 'expired absolute deadline creates no body');
+  assert.equal(pump(residency, 1).created, 1);
+  assert.equal(residency.status('cart').state, 'ready');
+  assert.equal(adapter.counts().bodies, 1); assert.equal(adapter.counts().colliders, 1);
+  const proxy = residency.status('cart').proxies[0];
+  assert.equal(proxy.entryId, chairId); assert.equal(proxy.position.y, 0, 'proxy center is anchored from terrain datum, not registry source y');
+  assert.equal(proxy.halfHeight, .6); assert.equal(proxy.position.y + proxy.halfHeight, .6,
+    'cylinder center is half its height above sampled ground');
+
+  assert.equal(adapter.addBody({ id: 'external-dynamic', type: 'dynamic', pose: { position: { x: 0, y: 3, z: 0 } },
+    colliders: [{ shape: 'ball', radius: .25 }] }).ok, true);
+  for (let i = 0; i < 180; i++) adapter.step(1 / 60);
+  const landed = adapter.readBody('external-dynamic').pose.position.y;
+  assert(landed > 1.3 && landed < 1.6, `real Rapier cylinder supports a falling body above the chair proxy, got ${landed}`);
+
+  assert.equal(residency.request('camera', bounds(0)).state, 'ready');
+  assert.equal(adapter.counts().bodies, 2, 'an overlapping owner shares one fixed proxy in addition to the external body');
+  assert.equal(residency.release('cart'), true);
+  assert.equal(adapter.counts().bodies, 2, 'another owner keeps the shared proxy resident');
+  assert.equal(residency.release('camera'), true);
+  assert.equal(adapter.counts().bodies, 1, 'last owner release removes only the fixed proxy');
+  assert.ok(adapter.readBody('external-dynamic'), 'residency never removes a body it did not create');
+} finally { residency.dispose(); adapter.dispose(); }
+
+// Replacement is transactional across creation failure. The previously committed
+// support remains in Rapier until the new support becomes ready.
+const replacementRegistry = makeRegistry();
+const oldId = add(replacementRegistry, 'camp_cooler', 0, 0, .42);
+const nextId = add(replacementRegistry, 'camp_chair', 30, 0, .6);
+const real = await createRapierAdapter();
+let failNew = true;
+const failOnceAdapter = Object.freeze({
+  addBody(spec) { if (failNew && spec.id.includes(`[${nextId},`)) return { ok: false, reason: 'injected-create-failure' }; return real.addBody(spec); },
+  removeBody: real.removeBody, readBody: real.readBody,
+});
+const replacement = createStaticResidency({ registry: replacementRegistry, adapter: failOnceAdapter,
+  isDynamic: () => false, maxProxies: 3, maxQueued: 3, maxRetries: 1 });
+try {
+  replacement.request('mover', bounds(0)); pump(replacement);
+  assert.equal(replacement.status('mover').state, 'ready');
+  const oldSupport = replacement.status('mover').supporting[0];
+  assert.equal(oldSupport.entryId, oldId);
+  replacementRegistry.entries.get(oldId).collider.radius = .8;
+  replacementRegistry.rebuildSpatialIndex();
+  assert.equal(replacement.request('mover', bounds(0)).state, 'pending', 'source geometry changes create a new proxy version');
+  assert.equal(replacement.status('mover').supporting[0].key, oldSupport.key, 'changed source retains its old support until replacement is ready');
+  assert.equal(pump(replacement, 1).created, 1);
+  assert.equal(replacement.status('mover').supporting[0].radius, .8);
+  assert.equal(real.counts().bodies, 1, 'changed-source commit removes the prior version after replacement');
+  const committedAfterChange = replacement.status('mover').supporting[0];
+  replacement.request('mover', bounds(30));
+  assert.equal(pump(replacement, 1).rejected, 1);
+  assert.equal(replacement.status('mover').state, 'failed');
+  assert.equal(replacement.status('mover').supporting[0].key, committedAfterChange.key, 'failed replacement retains prior committed support');
+  assert.equal(real.counts().bodies, 1, 'failed replacement allocates no new Rapier body');
+  failNew = false;
+  assert.equal(replacement.request('mover', bounds(30)).state, 'pending', 'a fresh request retries the failed candidate');
+  assert.equal(pump(replacement, 1).created, 1);
+  assert.equal(replacement.status('mover').supporting[0].entryId, nextId);
+  assert.equal(real.counts().bodies, 1, 'new support commits before old support is removed');
+
+  replacementRegistry.remove(nextId);
+  assert.equal(replacement.request('mover', bounds(30)).state, 'ready', 'removed sources refresh to empty support');
+  assert.equal(real.counts().bodies, 0, 'request refresh cleans removed registry entry proxies');
+} finally { replacement.dispose(); real.dispose(); }
+
+// A chair adopted dynamically must disappear from every shared static owner,
+// including an old committed set retained during a pending replacement.
+const handoffRegistry = makeRegistry();
+const handoffId = add(handoffRegistry, 'camp_chair', 0, 0);
+const unrelatedId = add(handoffRegistry, 'camp_cooler', 2, 0);
+const handoffAdapter = await createRapierAdapter();
+const dynamicEntries = new Set();
+const handoff = createStaticResidency({ registry: handoffRegistry, adapter: handoffAdapter,
+  isDynamic: entry => dynamicEntries.has(entry.id), kinds: null, maxProxies: 8, maxQueued: 8, maxOwners: 4 });
+try {
+  handoff.request('cart-a', bounds(1, 0, 5)); handoff.request('cart-b', bounds(1, 0, 5)); pump(handoff);
+  assert.equal(handoffAdapter.counts().bodies, 2);
+  handoffRegistry.entries.get(handoffId).collider.radius = .8;
+  handoffRegistry.rebuildSpatialIndex();
+  assert.equal(handoff.request('cart-a', bounds(1, 0, 5)).state, 'pending');
+  assert.equal(pump(handoff, 1).created, 1);
+  assert.equal(handoff.status('cart-a').supporting.filter(proxy => proxy.entryId === handoffId).length, 1);
+  assert.equal(handoff.status('cart-b').supporting.filter(proxy => proxy.entryId === handoffId).length, 1,
+    'independent owners can retain two versions of one registry entry');
+  assert.equal(handoffAdapter.counts().bodies, 3);
+  const arrivingId = add(handoffRegistry, 'tree', 4, 0, .8);
+  const expanded = bounds(2, 0, 6);
+  assert.equal(handoff.request('cart-a', expanded).state, 'pending');
+  assert.equal(handoff.request('cart-b', expanded).state, 'pending');
+  assert.equal(handoff.status('cart-a').supporting.some(proxy => proxy.entryId === handoffId), true,
+    'both owners still retain the old committed chair while new support is pending');
+  assert.equal(handoffAdapter.counts().bodies, 3, 'new tree support has not yet been admitted, while both chair versions remain');
+
+  dynamicEntries.add(handoffId);
+  const removed = handoff.removeEntry(handoffId);
+  assert.equal(removed.ok, true); assert.equal(removed.versions, 2); assert.equal(removed.removed, 2);
+  for (const key of ['cart-a', 'cart-b']) {
+    assert.equal(handoff.status(key).supporting.some(proxy => proxy.entryId === handoffId), false);
+    assert.equal(handoff.status(key).proxies.some(proxy => proxy.entryId === handoffId), false);
+  }
+  assert.equal(handoffAdapter.counts().bodies, 1, 'handoff removes both fixed chair versions while retaining unrelated committed cooler');
+  for (const key of ['cart-a', 'cart-b']) {
+    assert.equal(handoff.request(key, expanded).state, 'pending');
+    assert.equal(handoff.status(key).proxies.some(proxy => proxy.entryId === handoffId), false,
+      'requests after the caller marks the adopted entry dynamic do not recreate its static proxy');
+  }
+  assert.equal(pump(handoff, 1).created, 1);
+  for (const key of ['cart-a', 'cart-b']) {
+    assert.equal(handoff.status(key).state, 'ready');
+    assert.deepEqual(new Set(handoff.status(key).supporting.map(proxy => proxy.entryId)), new Set([unrelatedId, arrivingId]));
+  }
+} finally { handoff.dispose(); handoffAdapter.dispose(); }
+
+// Failed engine removal remains visible and retryable rather than deleting the
+// residency record while its Rapier body could still collide.
+const failedRemovalRegistry = makeRegistry();
+const failedRemovalId = add(failedRemovalRegistry, 'camp_chair', 0, 0);
+const failedRemovalAdapter = await createRapierAdapter();
+let refuseRemoval = true;
+const guardedAdapter = Object.freeze({
+  addBody: failedRemovalAdapter.addBody,
+  readBody: failedRemovalAdapter.readBody,
+  removeBody(id) { if (refuseRemoval && id.startsWith('static-prop:')) return false; return failedRemovalAdapter.removeBody(id); },
+});
+const failedRemoval = createStaticResidency({ registry: failedRemovalRegistry, adapter: guardedAdapter, isDynamic: () => false });
+try {
+  failedRemoval.request('owner', bounds(0)); pump(failedRemoval);
+  const result = failedRemoval.removeEntry(failedRemovalId);
+  assert.equal(result.ok, false); assert.equal(result.removed, 0); assert.equal(result.cleanupPending.length, 1);
+  assert.equal(failedRemoval.status('owner').state, 'cleanup-pending');
+  assert.equal(failedRemoval.stats().cleanupPending, 1);
+  assert.equal(failedRemovalAdapter.counts().bodies, 1, 'failure does not pretend the still-live Rapier body was removed');
+  refuseRemoval = false;
+  assert.equal(failedRemoval.removeEntry(failedRemovalId).ok, true, 'a later handoff retry completes cleanup');
+  assert.equal(failedRemoval.stats().cleanupPending, 0);
+  assert.equal(failedRemovalAdapter.counts().bodies, 0);
+} finally { failedRemoval.dispose(); failedRemovalAdapter.dispose(); }
+
+const capRegistry = makeRegistry();
+add(capRegistry, 'tree', 0, 0, .8);
+const capAdapter = await createRapierAdapter();
+const truncated = createStaticResidency({ registry: capRegistry, adapter: capAdapter, isDynamic: () => false,
+  kinds: null, maxCandidates: 1, maxProxies: 8, maxQueued: 8 });
+try {
+  truncated.request('wide', bounds(0)); pump(truncated);
+  const prior = truncated.status('wide').supporting[0];
+  add(capRegistry, 'camp_tent', 1, 0, .6);
+  assert.equal(truncated.request('wide', bounds(.5, 0, 5)).reason, 'candidate-capacity');
+  assert.equal(truncated.status('wide').state, 'truncated', 'truncated broadphase candidates never report ready');
+  assert.equal(pump(truncated).created, 0);
+  assert.equal(truncated.status('wide').state, 'truncated', 'pumping an older committed set cannot erase a rejected truncated request');
+  assert.equal(truncated.status('wide').supporting[0].key, prior.key, 'truncation retains prior committed support');
+  assert.equal(capAdapter.counts().bodies, 1);
+  truncated.release('wide'); assert.equal(capAdapter.counts().bodies, 0);
+} finally { truncated.dispose(); capAdapter.dispose(); }
+
+const limitsRegistry = makeRegistry();
+add(limitsRegistry, 'tree', 0, 0); add(limitsRegistry, 'tent', 12, 0);
+const limitsAdapter = await createRapierAdapter();
+const limits = createStaticResidency({ registry: limitsRegistry, adapter: limitsAdapter, isDynamic: () => false,
+  kinds: null, maxProxies: 1, maxQueued: 1, maxOwners: 1 });
+try {
+  assert.equal(limits.request('bounded', bounds(6, 0, 12)).reason, 'proxy-capacity');
+  assert.equal(limits.status('bounded').state, 'rejected');
+  assert.equal(limitsAdapter.counts().bodies, 0);
+  assert.equal(limits.request('bounded', bounds(0)).state, 'pending');
+  assert.equal(limits.request('second-owner', bounds(0)).reason, 'owner-capacity');
+  assert.equal(pump(limits, 1).created, 1);
+  assert.equal(limits.release('bounded'), true);
+  assert.equal(limitsAdapter.counts().bodies, 0);
+  for (const invalid of [null, {}, { minX: 0, maxX: 0, minZ: 0, maxZ: 2 }, { minX: 0, maxX: 300, minZ: 0, maxZ: 2 }]) {
+    assert.throws(() => limits.request('invalid', invalid), RangeError);
+  }
+  assert.throws(() => limits.pump({ deadline: 1, now: () => 0, maxCreations: 513 }), TypeError);
+} finally { limits.dispose(); limitsAdapter.dispose(); }
+
+console.log('PASS static residency: real Rapier cylinder support, dynamic filtering, shared ownership, deadline and hard caps, bounded truncation, transactional replacement, source-removal cleanup and owned teardown.');

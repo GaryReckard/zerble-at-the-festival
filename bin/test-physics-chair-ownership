@@ -10,6 +10,8 @@ import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
 import { createActivePropRendering } from '../src/physics/activePropRendering.js';
 import { createChairOwnership } from '../src/physics/chairOwnership.js';
 import { chairRecipe } from '../src/physics/recipes.js';
+import { registerCampsite, canPlaceCampsite } from '../src/campRegistry.js';
+import { terrainEnabled, setTerrainEnabled } from '../src/worldgen/terrain.js';
 
 const close = (a, b) => assert(Math.abs(a - b) < 3e-5, `${a} != ${b}`);
 async function fixture({ style = 'sling', budgetSlots = 512, engineBodies = 8, poolSlots = 512 } = {}) {
@@ -209,5 +211,115 @@ try {
   assert.equal(restoreFailure.owner.release(token, { mode: 'restore-original' }).ok, true);
   restoreFailure.clean(); assert(restoreFailure.descriptor.seatSlots.every(campSlotAvailable));
 } finally { restoreFailure.dispose(); }
+
+// Exercise the production registration boundary, including lakes whose owner
+// copies the returned IDs and therefore cannot acquire a restored child later.
+const oldTerrain = terrainEnabled(); setTerrainEnabled(false);
+try {
+  for (const lake of [false, true]) {
+    const registry = new Registry(), adapter = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 } });
+    const rendering = createActivePropRendering(), budget = new AdmissionBudget({ capacities: { bodies: 8, colliders: 64, joints: 0, renderSlots: 512, events: 0 } });
+    const owner = createChairOwnership({ registry, adapter, rendering, budget, campSlotAvailable, supportReady: () => true,
+      originAlive: descriptor => registry.entries.has(descriptor.originRegistryId) });
+    registry.physicalChairOwner = owner;
+    const options = { ...(lake ? { lakeOwnerKey: 'lake:test' } : { chunkKey: 'origin' }), campNeighborhood: 'test-origin-neighborhood' };
+    const batches = [];
+    let draws = 0;
+    const makeCamp = () => {
+      const group = new THREE.Group(); group.position.set(70, 0, 40); group.rotation.y = .3; group.scale.setScalar(2);
+      const chair = buildCampChair(() => { draws++; return .3; }, { style: 'loveseat' }); group.add(chair.group);
+      chair.group.updateMatrix();
+      const originLocalTransform = chair.group.matrix.clone(), batch = batchPropGroups(group, [chair.group]); batches.push(batch);
+      return { group, chair, chairBatch: batch, footprint: 6, tents: [],
+        seats: chair.seatOffsets.map(x => ({ x, z: 0, y: chair.seatY, yaw: 0, group: chair.group })),
+        physicalChairs: [{ group: chair.group, localKey: 'chair:0', style: chair.style, loveseat: true,
+          originLocalTransform, renderBinding: batch.bindings[0] }],
+        childColliders: [{ kind: 'camp_loveseat', x: 0, z: 0, radius: chair.footprint, group: chair.group }] };
+    };
+    const register = camp => {
+      const before = draws, ids = registerCampsite(registry, camp, options);
+      assert.equal(draws, before, 'origin registration consumes no model RNG draws');
+      return ids;
+    };
+    const visible = camp => camp.chairBatch.bindings[0].describe().every(part => {
+      const matrix = new THREE.Matrix4(); part.mesh.getMatrixAt(part.slot, matrix); return Math.abs(matrix.determinant()) > 1e-10;
+    });
+    const unload = ids => { for (const id of ids) if (!owner.isAdopted(id)) registry.remove(id); };
+    try {
+      let current = makeCamp(), ids = register(current);
+      const entryId = ids[1], originalEntry = registry.entries.get(entryId), token = owner.adopt(entryId).token;
+      const originalKey = originalEntry.physicalProp.logicalKey;
+      const bodyId = owner.read(token).bodyId;
+      adapter.setPose(bodyId, { position: { x: 100, y: 2, z: -40 } }); owner.publish(token);
+      unload(ids);
+      for (let cycle = 0; cycle < 5; cycle++) {
+        const next = makeCamp();
+        assert.equal(canPlaceCampsite(registry, next, options.campNeighborhood, options), true,
+          'its own adopted canonical chair cannot reject deterministic origin placement');
+        assert.deepEqual(owner.originEntryIds(next, options), [entryId]);
+        assert.deepEqual(owner.originEntryIds(next, { ...options, originOwner: 'wrong-owner' }), []);
+        assert.equal(canPlaceCampsite(registry, next, 'another-neighborhood', options), false,
+          'same coordinates cannot exempt a different origin neighborhood');
+        const other = { ...next, physicalChairs: next.physicalChairs.map(chair => ({ ...chair, localKey: 'unrelated-chair' })) };
+        assert.equal(canPlaceCampsite(registry, other, options.campNeighborhood, options), false,
+          'only the exact matching local chair key receives the origin exemption');
+        const blocker = registry.add({ kind: 'tent', position: new THREE.Vector3(71, 0, 40), footprint: 1, collider: { radius: 1 }, chunkKey: 'neighbor' });
+        assert.equal(canPlaceCampsite(registry, next, options.campNeighborhood, options), false, 'nearby unrelated solids still reject origin placement');
+        registry.remove(blocker);
+        const nextIds = register(next), parent = registry.entries.get(nextIds[0]);
+        assert.deepEqual(nextIds, [parent.id], 'suppressed adopted child never enters copied origin teardown IDs');
+        assert.equal(parent.physicalChairs[0], originalEntry.physicalProp);
+        assert.equal(parent.physicalChairs[0].logicalKey, originalKey);
+        assert.equal(parent.campSeats.length, 2, 'canonical self-exclusion preserves both regenerated seat claims');
+        assert(parent.campSeats.every(slot => slot.collider === originalEntry && !campSlotAvailable(slot)));
+        assert.equal(visible(next), false); assert.equal(owner.read(token).originRegistryId, parent.id);
+        current.chairBatch.dispose();
+        assert.equal(owner.publish(token).ok, true, 'late old source disposal cannot affect the adopted render');
+        assert.equal(registry.entries.get(entryId), originalEntry);
+        const canonical = [];
+        registry.generationCollidersNear(70, 40, 1, entry => { if (entry.id === entryId) canonical.push(entry); });
+        assert.equal(canonical.length, 1); close(canonical[0].position.x, 70); close(canonical[0].position.z, 40);
+        current = next; ids = nextIds;
+        if (cycle < 4) unload(ids);
+      }
+      const beforeFailure = registry.entries.size, priorOrigin = owner.read(token).originRegistryId;
+      const failedCamp = makeCamp(); failedCamp.physicalChairs[0].renderBinding = { ...failedCamp.physicalChairs[0].renderBinding, setVisible: () => false };
+      assert.throws(() => register(failedCamp), /source binding refused hide/);
+      assert.equal(registry.entries.size, beforeFailure, 'failed suppression rolls back its new parent without inserting a duplicate child');
+      assert.equal(owner.read(token).originRegistryId, priorOrigin, 'failed hide cannot replace the valid origin descriptor');
+      failedCamp.chairBatch.dispose();
+      assert.equal(owner.release(token, { mode: 'restore-original' }).ok, true);
+      assert.equal(visible(current), true); assert.equal(owner.stats().originLifetimes, 1);
+      assert(registry.entries.get(ids[0]).campSeats.every(campSlotAvailable));
+      unload(ids);
+      assert(registry.entries.has(entryId), 'restored child was absent from the copied origin IDs');
+      current.chairBatch.dispose();
+      assert.equal(registry.entries.has(entryId), false, 'source batch disposal removes the restored child even without a lake chunkKey');
+      assert.equal(owner.stats().originLifetimes, 0); assert.equal(owner.stats().chairs, 0);
+
+      // Restoration listeners detach on re-adoption and cannot remove a live
+      // physical entry when that source batch subsequently unloads.
+      const again = makeCamp(), againIds = register(again), againEntryId = againIds[1];
+      const first = owner.adopt(againEntryId).token;
+      assert.equal(owner.release(first, { mode: 'restore-original' }).ok, true);
+      assert.equal(owner.stats().originLifetimes, 1);
+      const second = owner.adopt(againEntryId).token;
+      assert.equal(owner.stats().originLifetimes, 0);
+      unload(againIds); again.chairBatch.dispose();
+      assert.equal(owner.isAdopted(againEntryId), true); assert.equal(owner.publish(second).ok, true);
+      const replacement = makeCamp(), replacementIds = register(replacement);
+      assert.equal(replacementIds.length, 1); assert.equal(visible(replacement), false);
+      assert.equal(owner.release(second, { mode: 'retire' }).ok, true);
+      assert(registry.entries.get(replacementIds[0]).campSeats.every(slot => !campSlotAvailable(slot)), 'retired regenerated furniture keeps its old slots unavailable');
+      assert.equal(registry.entries.has(againEntryId), false); unload(replacementIds); replacement.chairBatch.dispose();
+      const fresh = makeCamp(), freshIds = register(fresh);
+      assert.equal(freshIds.length, 2); assert.equal(visible(fresh), true, 'explicit retirement leaves no historical suppression on the next origin visit');
+      unload(freshIds); fresh.chairBatch.dispose();
+      assert.equal(registry.entries.size, 0); assert.equal(adapter.counts().bodies, 0);
+      assert.equal(rendering.stats().slots, 0); assert.equal(budget.report().records, 0);
+    } finally { owner.dispose(); rendering.dispose(); for (const batch of batches) batch.dispose(); adapter.dispose(); }
+  }
+} finally { setTerrainEnabled(oldTerrain); }
 console.log('PASS empty-chair ownership: four real chair styles, scaled Rapier colliders, admission/registry/render/body rollback, occupied/support refusal, solved pose/conservative footprints, canonical preservation, origin unload, stale tokens, repeated cleanup and independently retried teardown failures.');
-console.log('Scope: empty-chair ownership foundation; live origin-regeneration suppression, automatic distance reset and production contact scheduling remain pending.');
+console.log('PASS chunk/lake origin regeneration: exact self-clearance exclusion, neighboring blockers, both seat claims, singular registry/render publication, failed-hide rollback, latest-source restoration, bounded source lifetime listeners and re-adoption before source disposal.');
+console.log('Scope: empty-chair ownership and synchronous origin suppression; automatic distance reset and production contact scheduling remain pending.');

@@ -5,6 +5,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 ## 2026-10-30
 
 ### Added
+- **Empty campsite chairs can move in an opt-in live physics encounter.** Connected bounded terrain/static preparation, chair adoption, regenerated-origin suppression and independent rendering to the real game contact stage. Physical hits reuse existing smile feedback, while occupied chairs remain on the legacy path. Added staging controls and real-engine ownership/contact regressions; desktop captures establish the first live impact, with phone and full-feature acceptance still pending. [Checkpoint and playtest procedure](verification/physical-festival/2026-10-30-live/README.md).
 - **A physics playground makes furniture impacts repeatable.** Added isolated chair, chair-pair, slope, sampled production-terrain, solid-neighbor and cooler scenes with the real models, a pinned Rapier adapter, speed/angle/seed controls, slow motion, single stepping, collision overlays and explicit disposal diagnostics. The real Zerble controller drives a kinematic collision hull, with accepted trajectories sampled at fixed-step boundaries; a ghost-mode control verifies safe overlap handling, while occupants and live-world integration are pending. Real-engine regression tests and saved desktop evidence establish the initial proof without claiming phone acceptance. [Evidence and limitations](verification/physical-festival/README.md).
 
 

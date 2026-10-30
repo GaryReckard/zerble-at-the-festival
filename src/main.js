@@ -594,6 +594,35 @@ if (__launch && Number.isFinite(__launch.x) && Number.isFinite(__launch.z)) {
   if (Number.isFinite(__launch.heading)) zerble.heading = __launch.heading;
 }
 buildWorld(scene, crowd, zerble.position);
+// Opt-in live physics proof. Loading is independent of the synchronous audio
+// unlock gesture, and failure leaves every prop on its legacy path.
+let physicalWorld=null, physicalLoadError=null, physicalClosing=false;
+const physicalRequested=new URLSearchParams(location.search).get('physics')==='1';
+let physicalReadout=null,physicalDetails=null,physicalDiagnostics=null,physicalReportAt=0,physicalActionMessage='',physicalEncounterId=null,physicalCoast=null;
+if(physicalRequested) {
+  const panel=document.createElement('div');panel.id='physical-world-panel';
+  Object.assign(panel.style,{position:'fixed',left:'12px',bottom:'12px',zIndex:'2000',background:'#17251fee',color:'white',padding:'10px',font:'12px monospace',maxWidth:'340px'});
+  physicalReadout=document.createElement('pre');physicalReadout.textContent='Loading physical chairs…';panel.append(physicalReadout);
+  const stage=document.createElement('button');stage.textContent='Stage chair encounter';
+  stage.onclick=()=>{
+    const approach=physicalWorld?.approach(isPointInLake);
+    if(!approach){physicalActionMessage='No empty chair with a clear cart approach is loaded.';return;}
+    physicalEncounterId=approach.entryId;
+    physicalActionMessage='Prepared approach; wait for target admission, then coast.';
+    playerStats.relocate();zerble.position.set(approach.x,terrainHeight(approach.x,approach.z),approach.z);
+    zerble.heading=approach.heading;zerble.speed=0;zerble.groundOnSurface();physicalWorld.reset('teleport');
+  };
+  const coast=physicalCoast=document.createElement('button');coast.textContent='Coast forward';coast.disabled=true;coast.onclick=()=>{if(physicalWorld?.owns(registry.entries.get(physicalEncounterId)??{}))zerble.speed=8;};
+  physicalDetails=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Physics diagnostics';
+  physicalDiagnostics=document.createElement('pre');Object.assign(physicalDiagnostics.style,{maxHeight:'200px',overflow:'auto'});physicalDetails.append(summary,physicalDiagnostics);
+  panel.append(stage,coast,physicalDetails);document.body.append(panel);
+  import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera})).then(world=>{
+    if(physicalClosing)world.dispose();else physicalWorld=world;
+  }).catch(error=>{physicalLoadError=error.message;physicalReadout.textContent=`Physics unavailable: ${error.message}`;console.error('Physical chair initialization failed',error);});
+}
+window.addEventListener('pagehide',event=>{if(!event.persisted){physicalClosing=true;physicalWorld?.dispose();}});
+window.addEventListener('pageshow',event=>{if(event.persisted)physicalWorld?.reset('dropped-time');});
+
 // Resumed session: restore the time of day so the sky matches where you left off
 // (the ToD instance is created inside buildWorld, so this must come after it).
 if (__launch && Number.isFinite(__launch.tod)) getTimeOfDay()?.setT(__launch.tod);
@@ -1669,7 +1698,7 @@ function tickBody(dt) {
     // Procedural world expands around Zerble.
     const worldStartedAt = PERF_CAPTURE_TIMING ? performance.now() : 0;
     peopleFrameTrace?.mark('world-before', registry.entries.size);
-    updateWorld(zerble.position, dt);
+    updateWorld(zerble.position, dt, physicalWorld?.prepare);
     peopleFrameTrace?.mark('world-after', registry.entries.size);
     if (PERF_CAPTURE_TIMING) _perfWorldMs = performance.now() - worldStartedAt;
 
@@ -1685,6 +1714,8 @@ function tickBody(dt) {
     // If something brushes a stationary Zerble, just resolve the overlap silently.
     // Star power = pure ghost mode: the whole resolver short-circuits, so Zerble
     // phases through every collider untouched.
+    const physicalBeforeX=zerble.position.x,physicalBeforeZ=zerble.position.z;
+    let hit=null;
     peopleFrameTrace?.mark('contacts-eligible', zerble.invulnLeft <= 0 && !StarPower.isActive());
     if (zerble.invulnLeft <= 0 && !StarPower.isActive()) {
       // Build a per-frame collider list for nearby crowd NPCs so Zerble can actually
@@ -1701,13 +1732,32 @@ function tickBody(dt) {
       _collScratch.length = 0;
       _regColPoolN = 0;
       registry.collidersNear(zerble.position.x, zerble.position.z, zerble.radius + 1, (e) => {
-        _collScratch.push(_regColWrap(e));
+        if(!physicalWorld?.owns(e)) _collScratch.push(_regColWrap(e));
       });
       people.dispatch('colliders',_collScratch,zerble);
       peopleFrameTrace?.candidates(_collScratch);
       peopleBaseline?.count('collisionCandidates',_collScratch.length);
-      const hit = resolveCollision(zerble, _collScratch);
-      peopleFrameTrace?.hit(hit);
+      hit = resolveCollision(zerble, _collScratch);
+    }
+    const physicalHit=physicalWorld?.advance(dt,{ghost:StarPower.isActive(),
+      corrected:zerble.position.x!==physicalBeforeX||zerble.position.z!==physicalBeforeZ,
+      eligible:zerble.invulnLeft<=0&&!isGod()});
+    if(physicalHit && !hit?.damaging) {
+      hit=physicalHit;
+      zerble.applyHit(new THREE.Vector3(hit.push.x,0,hit.push.z));
+      physicalWorld.reset('legacy-correction');
+    }
+    if(physicalReadout && physicalWorld && performance.now()-physicalReportAt>250) {
+      physicalReportAt=performance.now();
+      const state=physicalWorld.stats();
+      const targetReady=physicalWorld.owns(registry.entries.get(physicalEncounterId)??{});
+      physicalCoast.disabled=!targetReady||state.cart.pendingClearance;
+      physicalReadout.textContent=`Empty-chair physics prototype\n${state.chairs.filter(chair=>chair.active).length} active / ${state.chairs.length} preparing | ${state.engine.bodies} bodies\n${state.hits} impacts | ${state.blocked??'running'}\nLast admission: ${state.lastReject??'ready'}\nOccupied chairs remain legacy.\nTarget: ${targetReady?'active':'not admitted'}\n${physicalActionMessage}`;
+      if(physicalDetails.open)physicalDiagnostics.textContent=JSON.stringify(state,null,2);
+    }
+    peopleFrameTrace?.hit(hit);
+    {
+
       if (hit && hit.damaging && !isGod()) {
         Scoring.deduct(hit.damage);
         // Damaging PEOPLE hits snap the combo chain (scoring spec) and, in
@@ -1936,6 +1986,7 @@ HUD.onScoreClose(() => { if (RunState.over) location.reload(); });
 // carts spec) and tips a minimal refill. No source resident → refill in place
 // (design D14; no undefined path, no soft-lock).
 function performLurleenRescue() {
+  physicalWorld?.reset('rescue');
   if (!RunState.useRescue()) { endFestivalRun('ran_dry'); return; }
   let nearest = null; let bestD = Infinity;
   for (const e of registry.entries.values()) {
@@ -2134,6 +2185,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
   };
 
   window.__dbg = {
+    physics() { return physicalWorld?.stats() ?? {requested:physicalRequested,error:physicalLoadError}; },
     peopleFrames() { return peopleFrameTrace?.report() ?? null; },
     leaderboardInfo() { return Leaderboard.diagnostics(); },
     festivalMap() { return festivalMap.snapshot(); },
@@ -2427,6 +2479,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
 
     // Move the cart to world (x, z), zeroing speed.
     teleport(x = 0, z = 0) {
+      physicalWorld?.reset('teleport');
       playerStats.relocate();
       zerble.position.set(x, terrainHeight(x,z), z);
       if (zerble.surfaceSampler) zerble.groundOnSurface();

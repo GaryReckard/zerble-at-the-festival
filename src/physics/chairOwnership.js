@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { chairRecipe } from './recipes.js';
 
 let serial = 0;
+const ORIGIN_LIFETIME = Symbol('physicalChairOriginLifetime');
+const MAX_ORIGIN_LIFETIMES = 256;
 const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const copyPose = value => ({ position: { ...value.position }, rotation: { ...value.rotation } });
 class Rejection extends Error {
@@ -34,9 +36,34 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
   if (!(registry?.entries instanceof Map) || ![registry.enrollPhysical, registry.publishPhysical, registry.transferOwner, registry.unenrollPhysical,
     adapter?.addBody, adapter?.removeBody, adapter?.readBody, budget?.reserve, budget?.release, budget?.update, budget?.read, rendering?.acquire,
     supportReady, campSlotAvailable, originAlive].every(value => typeof value === 'function')) throw new TypeError('Chair ownership requires registry, physics, budget, rendering and explicit support/seat/origin callbacks');
-  const namespace = `chair-ownership:${++serial}`, records = new Map();
+  const namespace = `chair-ownership:${++serial}`, records = new Map(), originLifetimes = new Set();
   const worldMatrix = new THREE.Matrix4(), point = new THREE.Vector3();
-  let generation = 0, disposed = false, rejections = 0;
+  let generation = 0, disposed = false, rejections = 0, originReplacements = 0;
+  function detachOriginLifetime(descriptor) { descriptor?.[ORIGIN_LIFETIME]?.(); }
+  function installOriginLifetime(record) {
+    const descriptor = record.descriptor, entryId = record.entryId, originalOwner = record.original.chunkKey;
+    const entry = registry.entries.get(entryId);
+    if (!entry) throw new Error('Restored chair registry entry is missing');
+    detachOriginLifetime(descriptor);
+    if (originLifetimes.size >= MAX_ORIGIN_LIFETIMES) throw new Error('Restored origin lifetime capacity exhausted');
+    const mesh = descriptor.renderBinding.describe()[0]?.mesh;
+    if (!mesh?.isInstancedMesh) throw new Error('A restored chair needs a live source instance mesh');
+    const detach = () => {
+      mesh.removeEventListener('dispose', onDispose); originLifetimes.delete(detach);
+      if (descriptor[ORIGIN_LIFETIME] === detach) delete descriptor[ORIGIN_LIFETIME];
+    };
+    const onDispose = () => {
+      detach();
+      // Lakes copy origin IDs before restoration. Their source batch is the
+      // lifetime adapter for a restored child that was excluded from that list.
+      if (registry.entries.get(entryId) === entry && entry.physicalProp === descriptor && entry.chunkKey === originalOwner) {
+        registry.remove(entryId);
+        for (const slot of descriptor.seatSlots) slot.physicalUnavailable = true;
+      }
+    };
+    descriptor[ORIGIN_LIFETIME] = detach; originLifetimes.add(detach);
+    mesh.addEventListener('dispose', onDispose);
+  }
   function resolve(token) {
     const record = token && records.get(token.key);
     return record && record.generation === token.generation ? record : null;
@@ -112,8 +139,11 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
         record.budgetToken = null;
       }
     });
+    if (!record.bodyOwned && !record.renderOwned && !record.budgetToken && record.cleanupMode === 'restored') {
+      record.originLifetimePending = !attempt(errors, 'origin-lifetime', () => installOriginLifetime(record));
+    }
     record.cleanupErrors = errors.map(error => ({ ...error }));
-    if (!record.bodyOwned && !record.renderOwned && !record.budgetToken && !record.rollbackPending && !record.registryRetirePending && record.seatsRestored) records.delete(record.key);
+    if (!record.bodyOwned && !record.renderOwned && !record.budgetToken && !record.rollbackPending && !record.registryRetirePending && !record.originLifetimePending && record.seatsRestored) records.delete(record.key);
     else { record.state = 'cleanup-pending'; records.set(record.key, record); }
   }
   function adopt(entryId) {
@@ -124,6 +154,7 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     const key = descriptor.logicalKey;
     if (records.has(key)) return reject('admission', 'already-owned');
     if (records.size >= maxChairs) return reject('admission', 'chair-capacity');
+    if (originLifetimes.size + records.size - (descriptor[ORIGIN_LIFETIME] ? 1 : 0) >= MAX_ORIGIN_LIFETIMES) return reject('admission', 'origin-lifetime-capacity');
     if (!Array.isArray(descriptor.seatSlots) || descriptor.seatSlots.length !== (descriptor.style === 'loveseat' ? 2 : 1)) return reject('admission', 'incomplete-seats');
     if (descriptor.seatSlots.some(slot => slot.occupied || campSlotAvailable(slot) !== true)) return reject('admission', 'occupied-or-unavailable');
     if (supportReady(descriptor, entry) !== true) return reject('admission', 'support-pending');
@@ -170,6 +201,7 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
       record.hideAttempted = true;
       if (descriptor.renderBinding.setVisible(false) !== true) throw new Rejection('origin', 'stale-origin-binding');
       for (const seat of record.seats) seat.slot.physicalUnavailable = true;
+      detachOriginLifetime(descriptor);
       record.lastPublication = { pose: copyPose(initialPose), footprint: radius, colliderRadius: radius };
       records.set(key, record);
       return { ok: true, token: Object.freeze({ key, generation: record.generation }) };
@@ -225,6 +257,7 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
       }
       record.registryToken = null; record.cleanupMode = 'restored'; record.hideAttempted = false;
     } else {
+      detachOriginLifetime(record.descriptor);
       record.cleanupMode = 'retire'; record.registryRetirePending = true;
       attempt(cleanupErrors, 'registry-entry', () => {
         registry.remove(record.entryId);
@@ -235,21 +268,62 @@ export function createChairOwnership({ registry, adapter, budget, rendering, sup
     destroyOwned(record, cleanupErrors);
     return cleanupErrors.length || records.has(record.key) ? { ok: false, reason: 'cleanup-failed', cleanupErrors } : { ok: true };
   }
-  return Object.freeze({ adopt, publish, release,
+  function registerOrigin(descriptor, child) {
+    const record = records.get(descriptor?.logicalKey);
+    if (!record) return null;
+    const entry = registry.entries.get(record.entryId);
+    if (!entry) throw new Error(`Cannot suppress regenerated chair ${record.key}: adopted registry entry is missing`);
+    if (child?.chunkKey !== record.original.chunkKey) throw new Error(`Cannot suppress regenerated chair ${record.key}: origin owner changed`);
+    if (descriptor.kind !== record.descriptor.kind || descriptor.style !== record.descriptor.style) throw new Error(`Cannot suppress regenerated chair ${record.key}: recipe changed without a new identity`);
+    if (!Array.isArray(descriptor.seatSlots) || descriptor.seatSlots.length !== record.seats.length) throw new Error(`Cannot suppress regenerated chair ${record.key}: seat claims changed`);
+    if (descriptor.seatSlots.some(slot => slot.occupied)) throw new Error(`Cannot suppress regenerated chair ${record.key}: new source is occupied`);
+    if (descriptor.renderBinding?.setVisible(false) !== true) throw new Error(`Cannot suppress regenerated chair ${record.key}: source binding refused hide`);
+    const seats = descriptor.seatSlots.map(slot => ({ slot, had: own(slot, 'physicalUnavailable'), previous: slot.physicalUnavailable }));
+    for (const seat of seats) seat.slot.physicalUnavailable = true;
+    detachOriginLifetime(record.descriptor);
+    record.descriptor = descriptor; record.seats = seats; record.hideAttempted = true;
+    entry.physicalProp = descriptor;
+    // This is the origin's deterministic child geometry, not a new live entry.
+    // The original canonical snapshot remains with registry.enrollPhysical.
+    originReplacements++;
+    return entry;
+  }
+  function originEntryIds(camp, options = {}) {
+    const position = camp?.group?.position;
+    if (!position) return [];
+    const provenance = options.originOwner ?? (options.chunkKey !== undefined ? `chunk:${options.chunkKey}`
+      : options.forestOwnerKey !== undefined ? `chunk:${options.forestOwnerKey}`
+        : options.lakeOwnerKey !== undefined ? `lake:${options.lakeOwnerKey}` : null);
+    const localKeys = new Set((camp.physicalChairs ?? []).map(chair => chair.localKey));
+    const found = [];
+    for (const record of records.values()) {
+      const descriptor = record.descriptor, origin = descriptor.originPosition;
+      if (!origin || !['x', 'y', 'z'].every(axis => origin[axis] === position[axis]) || !localKeys.has(descriptor.localKey)) continue;
+      if (provenance !== null && descriptor.originOwner !== provenance) continue;
+      if (options.campNeighborhood !== undefined && descriptor.originNeighborhood !== options.campNeighborhood) continue;
+      if (registry.entries.get(record.entryId)?.chunkKey === record.owner) found.push(record.entryId);
+    }
+    return found;
+  }
+  return Object.freeze({ adopt, publish, release, registerOrigin, originEntryIds,
+    isAdopted(entryId) { return [...records.values()].some(record => record.entryId === entryId); },
     read(token) {
       const record = resolve(token);
       return record ? { token: { key: record.key, generation: record.generation }, entryId: record.entryId,
         bodyId: record.bodyId, engineGeneration: record.engineGeneration,
         pose: copyPose(record.lastPublication.pose), footprint: record.lastPublication.footprint, originOwner: record.descriptor.originOwner,
+        originRegistryId: record.descriptor.originRegistryId,
         state: record.state, resources: { body: record.bodyOwned, render: record.renderOwned, budget: !!record.budgetToken },
         cleanupErrors: record.cleanupErrors?.map(error => ({ ...error })) ?? [] } : null;
     },
-    stats() { return { disposed, chairs: records.size, cleanupPending: [...records.values()].filter(record => record.state === 'cleanup-pending').length, capacity: maxChairs, rejections,
-      limitations: ['Empty chairs only; origin-regeneration suppression and distance reset are not integrated.'] }; },
+    stats() { return { disposed, chairs: records.size, cleanupPending: [...records.values()].filter(record => record.state === 'cleanup-pending').length,
+      originReplacements, originLifetimes: originLifetimes.size, originLifetimeCapacity: MAX_ORIGIN_LIFETIMES, capacity: maxChairs, rejections,
+      limitations: ['Empty chairs only; automatic distance reset is not integrated. Restored lake children follow their source batch lifetime.'] }; },
     dispose() {
       disposed = true;
       const results = [];
       for (const record of [...records.values()]) results.push(release({ key: record.key, generation: record.generation }, { mode: 'retire' }));
+      for (const detach of [...originLifetimes]) detach();
       return { ok: results.every(result => result.ok), results };
     },
   });

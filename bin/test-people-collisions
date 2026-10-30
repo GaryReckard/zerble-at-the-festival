@@ -39,7 +39,7 @@ const {makePeopleCrowd,Vector:PersonVector}=await import('./test-support/peopleC
 const oldCollection=readFileSync(new URL('../verification/people/2026-10-26/legacy-collision-collection.js',import.meta.url),'utf8');
 const oldAdultWrapper=readFileSync(new URL('../verification/people/2026-10-26/legacy-adult-collider.js',import.meta.url),'utf8');
 const newCollection=main.slice(main.indexOf('      _collScratch.length = 0;'),main.indexOf('      peopleFrameTrace?.candidates'));
-function collection(old=false){
+function collection(old=false,physicalWorld=null){
  const crowd=makePeopleCrowd(),runtime=new PeopleRuntime();
  const states=['idle','riding','boarding','disembarking','camp_sleeping','idle','idle','idle','idle','fleeing'];
  for(let i=0;i<states.length;i++){
@@ -51,11 +51,11 @@ function collection(old=false){
  const names=['puppets','band','kids','wooks','hoopers','frisbees'],movers=Object.fromEntries(names.map((name,i)=>[name,{appendColliders(out){out.push({position:new Vector(i,0,2),kind:name,radius:.5,damage:3});}}]));
  runtime.register({key:'adult',controller:{inspect(){},dispose(){}},capabilities:{colliders:(out,cart)=>crowd.appendColliders(out,cart)},capabilityOrder:{colliders:70}});
  for(let i=names.length-1;i>=0;i--)runtime.register({key:names[i],controller:{inspect(){},dispose(){}},capabilities:{colliders:movers[names[i]].appendColliders},capabilityOrder:{colliders:(i+1)*10}});
- const collect=new Function('registry','people','crowd',...names,`
+ const collect=new Function('registry','people','crowd','physicalWorld',...names,`
  const _collScratch=[],_npcColPool=[];let _regColPoolN=0,_npcColPoolN=0;
  const _regColWrap=e=>({position:e.position,radius:e.collider.radius,damage:e.collider.damage,kind:e.kind,passive:false,entry:e});
  ${oldAdultWrapper}
- return zerble=>{${old?oldCollection:newCollection};return _collScratch;};`)(registry,runtime,crowd,...names.map(n=>movers[n]));
+ return zerble=>{${old?oldCollection:newCollection};return _collScratch;};`)(registry,runtime,crowd,physicalWorld,...names.map(n=>movers[n]));
  return {collect,crowd,queries};
 }
 {
@@ -89,3 +89,10 @@ for(const active of [false,true])for(const over of [false,true])for(const state 
  assert.deepEqual(logs[1],logs[0]);
 }
 console.log('PASS 24 exact people-penalty cases: inactive/over gates and scare, heartbreak, selected frown, vibe priority ordering.');
+
+{
+ const f=collection(false,{owns:entry=>entry.id===1});
+ const candidates=f.collect({position:new Vector(),radius:.8});
+ assert(!candidates.some(candidate=>candidate.kind==='stage'),'owned physical entries bypass only legacy response');
+ assert(candidates.some(candidate=>candidate.kind==='one_wheel'),'ordinary registry contacts retain their authority');
+}

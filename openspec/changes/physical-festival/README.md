@@ -4,7 +4,7 @@
 
 ## TL;DR
 
-Build a small physical simulation around Zerble so chairs, their occupants, coolers, cups and signs respond to the way they are hit. Keep the cart's familiar controls, let people brace or fall and recover, and give displaced objects a coherent aftermath. Implementation began October 30 from the completed hoop baseline. A standalone Rapier playground and real-engine tests now provide the first proof; production integration and physical-device acceptance remain pending. See the [implementation evidence](../../../verification/physical-festival/README.md).
+Build a small physical simulation around Zerble so chairs, their occupants, coolers, cups and signs respond to the way they are hit. Keep the cart's familiar controls, let people brace or fall and recover, and give displaced objects a coherent aftermath. Implementation began October 30 from the completed hoop baseline. A standalone Rapier playground and real-engine tests now provide the first proof; an opt-in live empty-chair encounter now runs, while full production integration and physical-device acceptance remain pending. See the [implementation evidence](../../../verification/physical-festival/README.md).
 
 ## The Problem
 
@@ -30,7 +30,7 @@ The full [66-task checklist](tasks.md) is the progress authority. Pure sign rese
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 1/66 tasks complete (1%) · current: 3.5 (World-owner adapters), with live frame integration still incomplete
+**in progress** — 1/66 tasks complete (1%) · current: 4.1 (Empty-chair production contacts), with phone and boundary acceptance pending
 
 _Last updated: 2026-10-30_
 

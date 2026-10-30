@@ -914,7 +914,9 @@ function destroyLake(scene, lake) {
     }
   });
   scene.remove(lake.group);
-  for (const id of lake.registryIds) registry.remove(id);
+  for (const id of lake.registryIds) {
+    if (!registry.physicalChairOwner?.isAdopted(id)) registry.remove(id);
+  }
   if (lake.lakeKey) {
     for (let i = lakeAnimatables.length - 1; i >= 0; i--) {
       if (lakeAnimatables[i].lakeKey === lake.lakeKey) {

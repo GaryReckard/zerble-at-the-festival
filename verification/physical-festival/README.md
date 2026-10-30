@@ -2,6 +2,10 @@
 
 October 30, 2026. Started on `codex/physical-festival` at `17102a1`; continued on `codex/physical-festival-integration` at `4aa8d47`, which combines the photographer baseline with startup recovery.
 
+## Latest production checkpoint
+
+The [live empty-chair checkpoint](2026-10-30-live/README.md) now connects opt-in adoption, origin suppression and the main game contact barrier, with a captured physical impact and existing smile feedback. The sections below retain the earlier foundation history; statements about missing integration describe those earlier checkpoints. Final frontier/reset behavior, occupied encounters and phone acceptance remain open.
+
 ## What exists
 
 The [playground](../../physical-sandbox.html) runs the game's real chair and cooler models through a pinned `@dimforge/rapier3d-compat` 0.21.0 adapter. Its six scenes cover an empty chair, pair, slope, sampled production terrain, solid neighbor and closed cooler. The cart now uses the real Zerble controller with a conservative kinematic hull. Four chair styles, seed, approach speed/angle, slow motion, single step, static reference, day/night and diagnostic overlays make contacts repeatable. The [source baseline](2026-10-30-baseline.md) records the production contracts that integration must preserve.

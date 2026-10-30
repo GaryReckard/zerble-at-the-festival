@@ -489,6 +489,8 @@ hosted collector with privacy, retention, abuse, and consent rules.
 
 ## Physical furniture playground
 
+For the opt-in **live empty-chair encounter**, use `/?physics=1&mute=1&perf=low&seed=1977`. The [checkpoint procedure](verification/physical-festival/2026-10-30-live/README.md) gives a known campsite, staging controls, evidence and phone handoff. Occupied chairs and the broader feature remain unfinished.
+
 Open `/physical-sandbox.html?mute=1&perf=low&fixture=chair&seed=1977` on the Vite server. Choose a chair style and encounter, then use Run encounter, reset, slow motion or single step. Collision shapes, model bounds and seat anchors help inspect the provisional recipes. Show cart hides only its rendering so fallen furniture remains inspectable. Chair visuals use the production batch bindings; the report includes dirty matrix ranges requested for upload. Inputs, contacts, and limits contains the copied report and Dispose scene control. Repeat Noon/Midnight and Low/Mid when changing presentation.
 
 This is an engine proof using the real Zerble controller, a conservative kinematic contact hull and either fixture ground or the exact production-terrain triangle surface. Cart ghost mode can change during an encounter; ending it inside a prop waits for clearance before restoring contacts. The report exposes ghost state and pending clearance. It does not exercise production occupants, streaming ownership or the main game contact barrier, and disabling physics shows a static reference rather than legacy collisions. See [evidence and limitations](verification/physical-festival/README.md). Run `npm run test:physics` for actual Rapier lifecycle/contact and fixed-clock tests.

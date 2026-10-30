@@ -1,7 +1,7 @@
 ---
 change: physical-festival
 status: in_progress
-current_task: "3.5 (World-owner adapters), with live frame integration still incomplete"
+current_task: "4.1 (Empty-chair production contacts), with phone and boundary acceptance pending"
 blocked_by: null
 open_questions: 0
 started: 2026-10-29
@@ -164,3 +164,12 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** The chair owner now coordinates real solver bodies, registry enrollment, independent render slots and reserved capacity, rejecting occupied seats and unprepared support. Tests caught a ghost-seat hazard when retirement left the source camp alive; retired seats now remain unavailable, while successful restoration or rollback reopens them only after conflicting resources are released. Failed cleanup retains explicit diagnostics and accounted surviving resources for retry. No automatic distance choice or production activation is installed yet.
 
 **Refs:** `src/physics/chairOwnership.js`; `bin/test-physics-chair-ownership`; [checkpoint evidence](../../../verification/physical-festival/2026-10-30-ownership/README.md).
+
+
+### 2026-10-30 -- First production chair impact
+
+**Event:** discovery
+
+**What:** Connected empty-chair adoption and terrain/static residency to the production late contact barrier behind `physics=1`. Real browser testing exposed repeated admission churn from an undersized render bucket and staging against a chair claimed by an NPC. Increased bounded per-bucket capacity, added a bounded rejection cache, and required the selected target to be admitted before enabling the coast control. A subsequent real impact reduced smiles once; diagnostics recorded no admission rejection, overflow or support stop. Repeated origin replacement now preserves the adopted chair and prevents duplicates, including lake disposal. Full check/build and Low/Mid Noon/Midnight desktop captures passed; the staging helper also has obstruction, water and bounded-search tests. Full task contracts remain unchecked because phone performance, final frontier behavior and occupied support are unfinished.
+
+**Refs:** [live checkpoint and phone procedure](../../../verification/physical-festival/2026-10-30-live/README.md); `bin/test-physics-live-world`; `bin/test-physics-chair-ownership`; `bin/test-physics-static-residency`.

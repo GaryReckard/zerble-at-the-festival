@@ -6,6 +6,15 @@ import { createPhysicalPropKey } from './physics/propIdentity.js';
 // Camp envelopes reserve ground for builders, while child props supply walkable collisions.
 const CAMP_WALK_CLEARANCE = .35;
 
+function withoutOriginEntries(registry, ignored) {
+  if (!ignored.size) return registry;
+  const view = Object.create(registry);
+  for (const method of ['footprintsNear', 'generationFootprintsNear', 'collidersNear', 'generationCollidersNear']) if (registry[method]) {
+    view[method] = (x, z, reach, visit) => registry[method](x, z, reach, entry => { if (!ignored.has(entry.id)) visit(entry); });
+  }
+  return view;
+}
+
 function segmentDistanceSquared(px,pz,ax,az,bx,bz) {
   const dx=bx-ax,dz=bz-az,lengthSquared=dx*dx+dz*dz;
   const t=lengthSquared?Math.max(0,Math.min(1,((px-ax)*dx+(pz-az)*dz)/lengthSquared)):0;
@@ -92,8 +101,17 @@ export function registerCampsite(registry, camp, options = {}) {
   const point = (x, z) => ({ x: root.position.x + c * x * sx + s * z * sz,
     z: root.position.z - s * x * sx + c * z * sz });
   const position = (p) => root.position.clone().set(p.x, terrainHeight(p.x,p.z), p.z);
+  const owner = options.originOwner ?? (options.chunkKey !== undefined
+    ? `chunk:${options.chunkKey}`
+    : options.lakeOwnerKey !== undefined ? `lake:${options.lakeOwnerKey}` : null);
+  const origin = { x: root.position.x, y: root.position.y, z: root.position.z };
+  const originOwner = owner ?? `camp-origin:${origin.x},${origin.y},${origin.z}`;
+  const keyFor = chair => createPhysicalPropKey({ worldSeed: getSessionSeed(), worldgenEpoch: worldgenEpoch(),
+    originOwner, origin, localKey: chair.localKey });
+  const approachRegistry = withoutOriginEntries(registry,
+    new Set(registry.physicalChairOwner?.originEntryIds?.(camp, options) ?? []));
   const approaches=campSeatApproaches(camp,
-    registry.collidersNear || registry.generationCollidersNear ? registry : null,{generation:true});
+    registry.collidersNear || registry.generationCollidersNear ? approachRegistry : null,{generation:true});
   const seatClaims = (camp.seats || []).map((seat,index) => {
     if(!approaches[index])return null;
     const p = point(seat.x, seat.z), facing = yaw + seat.yaw;
@@ -109,9 +127,6 @@ export function registerCampsite(registry, camp, options = {}) {
     return Array.from({length:capacity},()=>({...p,doorX:door.x,doorZ:door.z,occupied:false}));
   });
   const fire = (camp.childColliders || camp.colliders || []).find(prop => prop.kind === 'campfire');
-  const owner = options.originOwner ?? (options.chunkKey !== undefined
-    ? `chunk:${options.chunkKey}`
-    : options.lakeOwnerKey !== undefined ? `lake:${options.lakeOwnerKey}` : null);
   const physicalChairs = (camp.physicalChairs || []).map(chair => {
     const localTransform = chair.originLocalTransform?.clone?.() || chair.originLocalTransform;
     if (!localTransform?.elements?.every(Number.isFinite))
@@ -123,12 +138,9 @@ export function registerCampsite(registry, camp, options = {}) {
     const worldMatrix = root.matrixWorld.clone().multiply(localTransform);
     const position = new THREE.Vector3(), quaternion = new THREE.Quaternion(), scale = new THREE.Vector3();
     worldMatrix.decompose(position, quaternion, scale);
-    const origin = { x: root.position.x, y: root.position.y, z: root.position.z };
-    const originOwner = owner ?? `camp-origin:${origin.x},${origin.y},${origin.z}`;
-    const logicalKey = createPhysicalPropKey({ worldSeed: getSessionSeed(), worldgenEpoch: worldgenEpoch(),
-      originOwner, origin, localKey: chair.localKey });
+    const logicalKey = keyFor(chair);
     return {
-      logicalKey, originOwner, localKey: chair.localKey,
+      logicalKey, originOwner, originPosition: { ...origin }, originNeighborhood: options.campNeighborhood, localKey: chair.localKey,
       kind: chair.loveseat ? 'camp_loveseat' : 'camp_chair', style: chair.style,
       worldPose: { position: { x: position.x, y: position.y, z: position.z },
         rotation: { x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w },
@@ -145,20 +157,30 @@ export function registerCampsite(registry, camp, options = {}) {
     ...(fire ? { campFire: point(fire.x, fire.z) } : {}), ...options })];
   // Runtime owner lookup is separate from the stable procedural identity.
   for (const chair of physicalChairs) chair.originRegistryId = ids[0];
-  for (const prop of camp.childColliders || camp.colliders || []) {
+  try { for (const prop of camp.childColliders || camp.colliders || []) {
     const p = point(prop.x, prop.z), radius = prop.radius * Math.max(sx, sz);
     const physicalProp = physicalChairs.find(chair => chair.renderBinding?.group === prop.group);
     const child = { kind: prop.kind, position: position(p), footprint: radius,
       collider: { radius, damage: prop.kind === 'camp_tent' ? 3 : 1 }, ...(options.chunkKey !== undefined ? { chunkKey: options.chunkKey } : {}),
       ...(physicalProp ? { physicalProp } : {}),
       ...(options.campNeighborhood ? {campNeighborhood:options.campNeighborhood} : {}) };
-    ids.push(registry.add(child));
+    // An adopted chair keeps its live entry across origin regeneration. It is
+    // deliberately omitted from this origin's teardown IDs, including lakes
+    // whose registryIds are copied into an explicit removal list.
+    const adopted = physicalProp ? registry.physicalChairOwner?.registerOrigin(physicalProp, child) : null;
+    const registeredChild = adopted || child;
+    if (!adopted) ids.push(registry.add(child));
     // A loveseat shares one furniture collider across two independent claims.
     seatClaims.forEach(({seat,slot}) => {
       if (seat.group && seat.group === prop.group) {
-        slot.collider = child;
+        slot.collider = registeredChild;
       }
     });
+  } } catch (error) {
+    // Suppression failure cannot leave a partially registered new origin. An
+    // adopted ID is never in this list, so rollback cannot remove its live prop.
+    for (const id of ids) registry.remove?.(id);
+    throw error;
   }
   return ids;
 }
@@ -167,13 +189,15 @@ export function registerCampsite(registry, camp, options = {}) {
 // entrances remain authoritative. This runs before registration, so rejection
 // leaves no partial registry state behind.
 export function canPlaceCampsite(registry, camp, neighborhood, options = {}) {
+  const queryRegistry = withoutOriginEntries(registry,
+    new Set(registry.physicalChairOwner?.originEntryIds?.(camp, { ...options, campNeighborhood: neighborhood }) ?? []));
   const root = camp.group, yaw = root.rotation.y;
   const c = Math.cos(yaw), s = Math.sin(yaw), scale = Math.max(root.scale.x, root.scale.z);
   const point = (x,z) => ({x:root.position.x+c*x*root.scale.x+s*z*root.scale.z,
     z:root.position.z-s*x*root.scale.x+c*z*root.scale.z});
   let clear = true;
-  const footprintsNear = registry.generationFootprintsNear || registry.footprintsNear;
-  footprintsNear.call(registry,root.position.x,root.position.z,camp.footprint+1.5,entry=>{
+  const footprintsNear = queryRegistry.generationFootprintsNear || queryRegistry.footprintsNear;
+  footprintsNear.call(queryRegistry,root.position.x,root.position.z,camp.footprint+1.5,entry=>{
     if (entry.kind==='tree' || (neighborhood && entry.campNeighborhood===neighborhood)) return;
     // A dry placement may lie inside an irregular lake's broad circle. Only
     // callers that checked actual water can bypass this non-solid envelope;
@@ -189,12 +213,12 @@ export function canPlaceCampsite(registry, camp, neighborhood, options = {}) {
   if (!clear) return false;
   const solids = (camp.childColliders || []).map(prop=>({...point(prop.x,prop.z),radius:prop.radius*scale}));
   const access = camp.tents.map(tent=>({...point(tent.entry.x,tent.entry.z),radius:.45}));
-  const approaches=campSeatApproaches(camp,registry,{generation:true});
+  const approaches=campSeatApproaches(camp,queryRegistry,{generation:true});
   if(approaches.some(approach=>!approach))return false;
   access.push(...approaches.map(approach=>({...approach,radius:.4})));
   for (const area of [...solids,...access]) {
-    const collidersNear = registry.generationCollidersNear || registry.collidersNear;
-    collidersNear.call(registry,area.x,area.z,area.radius+.35,entry=>{
+    const collidersNear = queryRegistry.generationCollidersNear || queryRegistry.collidersNear;
+    collidersNear.call(queryRegistry,area.x,area.z,area.radius+.35,entry=>{
       const distance=Math.hypot(area.x-entry.position.x,area.z-entry.position.z);
       if(distance<area.radius+(entry.collider?.radius||0)+.3) clear=false;
     });
