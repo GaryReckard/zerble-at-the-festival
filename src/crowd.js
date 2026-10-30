@@ -1551,7 +1551,8 @@ export class Crowd {
   }
 
   _writeMatrices(npc) {
-    groundNpc(npc);
+    const reaction=npc._reactionPose&&this.activityClaims.canWrite(npc._reactionPose.claim)?npc._reactionPose:null;
+    if(!reaction)groundNpc(npc);
     if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc._activityBinding?.hidden) { this._hideNpc(npc); return; }
     if (npc.party) { this._hideNpc(npc); publishGroupBinding(npc); return; }
     // Bo is rendered by the wagon, while the crowd still owns his reserved seat.
@@ -1563,7 +1564,7 @@ export class Crowd {
       }
       return;
     }
-    const walk=sampleWalkMotion(npc,this._walkPose??={});
+    const walk=reaction?(this._reactionWalkPose??={active:false,stride:0,arm:0,bob:0}):sampleWalkMotion(npc,this._walkPose??={});
     const m = this._mat4;
     const photo=npc.isPhotographer
       ? samplePhotographerPose(npc.state,npc.stateTimer,npc.photoCrouch,npc.photoFlashTimer,this._photoRenderProfile??={})
@@ -1578,13 +1579,13 @@ export class Crowd {
     // values produce visibly different rhythms within the crowd. Computed
     // BEFORE the quat composition so the yaw wiggle can layer onto npc.yaw.
     const activityOwner=this.activityClaims.current.get(npc.personHandle)?.claim.owner;
-    const hula=activityOwner?.sampleBodyPose?.(npc.personHandle,this._activityBodyPose??={});
+    const hula=!reaction&&activityOwner?.sampleBodyPose?.(npc.personHandle,this._activityBodyPose??={});
     if(hula&&(!Number.isFinite(hula.bob)||!Number.isFinite(hula.leanX)||!Number.isFinite(hula.leanZ)))throw new TypeError('Activity body pose must be finite.');
     const articulated=hula?.articulated===true;
     const flowFeet=articulated?hula.feet:null;
     if(flowFeet){validateHoopFeet(flowFeet);if(!Number.isFinite(hula.rootY))throw new TypeError('Planted flow requires a finite root height.');}
     const flowSupport=articulated?(flowFeet?hula.rootY:hoopFootLift(hula.stride??0,hula.leanX,hula.leanZ))*npc.scale:0;
-    const danceActivity=!!activityOwner?.isDancePerson?.(npc.personHandle);
+    const danceActivity=!reaction&&!!activityOwner?.isDancePerson?.(npc.personHandle);
     const stageDancing=!activityOwner&&isStageDancing(npc.state,npc.onDancefloor,npc.dance);
     let bobY;
     let danceTilt;
@@ -1608,6 +1609,7 @@ export class Crowd {
     // Chair contact stays fixed even near dancefloors or while smiling. A
     // feet-origin bob/tilt moves the pelvis through the supporting fabric.
     if (npc.state === 'camp_seated' || npc.picnicCrossLegged || npc.campMusic) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
+    if(reaction){bobY=0;danceTilt=0;danceYawWiggle=0;}
 
     let quat;
     if (npc.state === 'hammock_riding') {
@@ -1623,14 +1625,14 @@ export class Crowd {
 
     // Happy bounce: while smile cooldown is active the body bobs up by a small
     // sin wave (~6cm amplitude) so the whole figure (body + mouth) hops.
-    const bouncing = npc.smileTimeCooldown > 0 && !photographing && !npc.campMusic;
+    const bouncing = !reaction && npc.smileTimeCooldown > 0 && !photographing && !npc.campMusic;
     const bounceY = bouncing
       ? Math.abs(Math.sin((this.actorTime??0) * 12 + npc.bob)) * 0.06
       : 0;
 
     // Cheer jump: positive-half sine so NPCs hop upward without clipping the floor.
     // Seeded by the stable behavior slot so pooling stays visually decoupled.
-    const cheering = npc.cheerTimer > 0 && !npc.campMusic && !photographing;
+    const cheering = !reaction && npc.cheerTimer > 0 && !npc.campMusic && !photographing;
     const cheerY = cheering
       ? Math.max(0, Math.sin((this.actorTime??0) * HOP_HZ + npc.behaviorSeed * 1.3)) * HOP_HEIGHT
       : 0;
@@ -1649,7 +1651,7 @@ export class Crowd {
     // Seated riders (bench / driver / roof) sit with their butt on the seat;
     // running-board riders stand. Computed here so it drives both the lift and
     // the leg bend below.
-    const seated = (npc.state === 'riding' && npc.seatSlot &&
+    const seated = reaction?reaction.seated:(npc.state === 'riding' && npc.seatSlot &&
       (npc.seatSlot.kind === 'bench' || npc.seatSlot.kind === 'driver_seat' || npc.seatSlot.kind === 'roof'))
       || npc.pottySitting                  // caught sitting on the potty — same forward leg bend
       || npc.state === 'table_seated' || npc.state === 'camp_seated';     // sitting on a picnic bench — same forward leg bend
@@ -1706,6 +1708,7 @@ export class Crowd {
       posV.set(npc.pos.x, feetY, npc.pos.z);
     }
     scaleV.set(npc.scale, npc.scale, npc.scale);
+    if(reaction){posV.set(reaction.x,reaction.y,reaction.z);quat.set(reaction.qx,reaction.qy,reaction.qz,reaction.qw);}
     m.compose(posV, quat, scaleV);
     if (danceTilt && !hula) {
       // Reuse scratch Matrix4 — avoids per-NPC allocation for dancing crowd.
@@ -1725,7 +1728,7 @@ export class Crowd {
     // activities to their own leg poses. Photo soles cancel the pelvis drop.
     const plantedPhoto=npc.isPhotographer&&(photographing||ORDINARY_SOCIAL_STATES.has(npc.state))&&!walk.active&&!seated&&!hula&&!cheering;
     this._writeHoopFeet(npc,flowFeet??(plantedPhoto?photo.feet:null));
-    const folded=!!npc.picnicCrossLegged&&npc.state==='table_seated';
+    const folded=!reaction&&!!npc.picnicCrossLegged&&npc.state==='table_seated';
     for(const mesh of [this.legsMesh,this.shoesMesh]){const a=mesh.geometry.getAttribute('crossLegged');a.setX(npc.idx,folded?1:0);a.needsUpdate=true;}
     for(const mesh of [this.legsMesh,this.shoesMesh]){
       const stride=mesh.geometry.getAttribute('walkStride');
@@ -2361,6 +2364,7 @@ export class Crowd {
     if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z)||(heading!==null&&!Number.isFinite(heading))||(bob!==null&&!Number.isFinite(bob)))throw new TypeError('Activity pose must be finite.');
     if(travelDt!==null&&(!Number.isFinite(travelDt)||travelDt<0||travelDt>.05))throw new TypeError('Activity travel requires an accepted delta.');
     const npc=this.peopleHandles.resolve(claim.person);
+    if(npc._reactionPose)npc._reactionPose=null;
     const distance=Math.hypot(x-npc.pos.x,z-npc.pos.z);
     if(travelDt!==null){const walk=npc._activityWalk??={};walk.claim=claim;walk.speed=travelDt>0&&distance<.5?distance/travelDt:0;}
     else npc._activityWalk=null;
@@ -2368,6 +2372,23 @@ export class Crowd {
     // Hidden rigs have no ordinary transform to publish; avoid redundant writes.
     if(!npc._activityBinding?.hidden)this._publishPerson(npc);
     return true;
+  }
+
+  // Full feet-origin transform for the current reaction. The population keeps
+  // its existing instance slots, appearance and attachment transforms.
+  writeReactionPose(claim,{position,rotation,seated=false}={}) {
+    if(!this.activityClaims.canWrite(claim))return false;
+    const npc=this.peopleHandles.resolve(claim.person);
+    if(npc.party||npc.seatSlot||npc.isPhotographer||npc.campInstrument||npc.campJamHidden||npc._activityBinding?.hidden)return false;
+    const values=[position?.x,position?.y,position?.z,rotation?.x,rotation?.y,rotation?.z,rotation?.w];
+    if(!values.every(value=>Number.isFinite(value)&&Number.isFinite(Math.fround(value)))||typeof seated!=='boolean')throw new TypeError('Reaction pose requires finite position, quaternion and a seated boolean.');
+    const length=Math.hypot(rotation.x,rotation.y,rotation.z,rotation.w);
+    if(length<1e-12)throw new TypeError('Reaction rotation must have nonzero length.');
+    const pose=npc._reactionPose??={};
+    pose.claim=claim;pose.x=position.x;pose.y=position.y;pose.z=position.z;
+    pose.qx=rotation.x/length;pose.qy=rotation.y/length;pose.qz=rotation.z/length;pose.qw=rotation.w/length;pose.seated=seated;
+    npc._activityWalk=null;npc.pos.set(pose.x,pose.y,pose.z);
+    this._publishPerson(npc);return true;
   }
 
   writeActivityArmPose(claim,action,amount=0,dt=.05) {
@@ -2413,6 +2434,7 @@ export class Crowd {
     let released=false;
     if(npc?._activityWalk?.claim===claim){npc._activityWalk=null;released=true;}
     if(npc?._activityArmPose?.claim===claim){npc._activityArmPose=null;released=true;}
+    if(npc?._reactionPose?.claim===claim){npc._reactionPose=null;released=true;}
     if(npc?._activityBinding?.claim===claim){npc._activityBinding=null;released=true;}
     if(released&&this.peopleHandles.isLive(claim.person))this._publishPerson(npc);
     return released;

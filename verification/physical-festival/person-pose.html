@@ -1,0 +1,66 @@
+<!doctype html><meta charset="utf-8"><title>Physical person pose verification</title>
+<style>body{margin:20px;background:#19232b;color:#f5eedb;font:16px system-ui}button{padding:9px 14px;margin-right:8px}canvas{display:block;max-width:100%;margin-top:12px}pre{white-space:pre-wrap}</style>
+<h1>Person pose ownership</h1>
+<p>Production Crowd instances: upright sitter, tilted sitter, horizontal body. These are authored pose checks, not simulated falls.</p>
+<button id="noon">Noon</button><button id="midnight">Midnight</button><button id="tilt">Change chair tilt</button><button id="dispose">Dispose fixture</button>
+<pre id="result">Loading…</pre>
+<script type="module">
+import * as THREE from 'three';
+import {Crowd} from '../../src/crowd.js';
+import {PeopleRuntime} from '../../src/people/runtime.js';
+import {buildCampChair} from '../../src/models/campChair.js';
+import {mulberry32,setSessionSeed} from '../../src/rng.js';
+setSessionSeed(1977);
+const result=document.querySelector('#result'),runtime=new PeopleRuntime(),scene=new THREE.Scene();
+const renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(1000,500);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(40,2,.1,50);camera.position.set(4,3.2,10);camera.lookAt(0,.8,0);
+const ambient=new THREE.HemisphereLight(0xdfeeff,0x62794a,2),sun=new THREE.DirectionalLight(0xffedcf,2.5);sun.position.set(-3,7,4);scene.add(ambient,sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(16,8),new THREE.MeshStandardMaterial({color:0x77875f,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-.12;scene.add(ground);
+const crowd=new Crowd({spawn(){},spawnLost(){}},{runtime});scene.add(crowd.group);
+const rows=[],chairs=[],owner={activityKey:'physical-pose-fixture'};
+let checks=0,tilt=.55,disposed=false;
+function check(value,label){if(!value)throw Error(label);checks++;}
+const expected=new THREE.Matrix4(),actual=new THREE.Matrix4(),scale=new THREE.Vector3(1,1,1);
+function matrixClose(a,b){return a.elements.every((v,i)=>Math.abs(v-b.elements[i])<2e-5);}
+for(let i=0;i<3;i++) {
+ const handle=crowd.spawnPerson({pos:new THREE.Vector3((i-1)*3,0,0),rng:mulberry32(70+i),allowPhotographer:false,appearanceOverride:{hasDrink:false,hairStyle:i}});
+ const n=crowd.peopleHandles.resolve(handle);n.scale=1;n.state='walking';n.vel.set(2,0,3);n.bob=1.7;n.dance=.9;n.cheerTimer=2;n.smileTimeCooldown=3;
+ const claim=crowd.claimActivity(handle,{owner},{preserveMotion:true});rows.push({handle,claim,n});
+ if(i<2){const chair=buildCampChair(mulberry32(20+i),{style:'sling'});chairs.push(chair);scene.add(chair.group);}
+}
+crowd._publishPopulationRanges();renderer.render(scene,camera);
+const baseline={draws:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries};
+function draw() {
+ if(disposed)return;
+ checks=0;
+ rows.forEach((row,i)=>{
+  const q=new THREE.Quaternion(),position=new THREE.Vector3();
+  if(i<2){
+   const chair=chairs[i];chair.group.position.set((i-1)*3,0,0);chair.group.quaternion.setFromAxisAngle(new THREE.Vector3(0,0,1),i?tilt:0);
+   q.copy(chair.group.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI));
+   // Production seated bottom: body center 1 minus half cylinder .275 minus radius .26.
+   position.set(0,chair.seatY-(1-.275-.26)+.01,0).applyQuaternion(chair.group.quaternion).add(chair.group.position);
+  }else{position.set(3.7,.30,0);q.setFromAxisAngle(new THREE.Vector3(0,0,1),Math.PI/2);}
+  const clocks=[row.n.bob,row.n.stateTimer,row.n.cheerTimer];
+  check(crowd.writeReactionPose(row.claim,{position,rotation:q,seated:i<2}),'current pose accepted');
+  expected.compose(position,q,scale);
+  for(const name of ['body','arms','head','eyes']){crowd[name+'Mesh'].getMatrixAt(row.n.idx,actual);check(matrixClose(actual,expected),name+' retains full world pose');}
+  const legExpected=i<2?expected.clone().multiply(crowd._sitLegMat):expected;
+  for(const name of ['legs','shoes']){crowd[name+'Mesh'].getMatrixAt(row.n.idx,actual);check(matrixClose(actual,legExpected),name+' follows selected seated pose');}
+  check(crowd.legsMesh.geometry.getAttribute('walkStride').getX(row.n.idx)===0,'no walking stride during reaction');
+  check(crowd.armsMesh.geometry.getAttribute('armPose').getX(row.n.idx)===0,'no generic arm swing');
+  crowd._writeMatrices(row.n);crowd.bodyMesh.getMatrixAt(row.n.idx,actual);
+  check(matrixClose(actual,expected),'ordinary publication cannot ground or unrotate reaction');
+  check(row.n.pos.y===position.y,'authoritative height preserved');
+  check(clocks.every((v,j)=>v===[row.n.bob,row.n.stateTimer,row.n.cheerTimer][j]),'pose publication does not advance clocks');
+ });
+ crowd._publishPopulationRanges();renderer.render(scene,camera);
+ check(renderer.info.render.calls===baseline.draws,'no added draws');check(renderer.info.render.triangles===baseline.triangles,'no added triangles');check(renderer.info.memory.geometries===baseline.geometries,'no added geometry');
+ result.textContent=JSON.stringify({checksPassed:checks,people:crowd.populationSize,tilt,draws:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,baseline,material:crowd.bodyMesh.material.type},null,2);
+}
+function light(night){scene.background=new THREE.Color(night?0x101b35:0xc3d9df);ambient.intensity=night?.7:2;sun.intensity=night?.45:2.5;sun.color.set(night?0xa3baff:0xffedcf);draw();}
+function dispose(){if(disposed)return;disposed=true;runtime.dispose();const geometries=new Set(),materials=new Set();scene.traverse(n=>{if(n.geometry&&!n.geometry.userData.shared)geometries.add(n.geometry);for(const m of n.material?(Array.isArray(n.material)?n.material:[n.material]):[])if(!m.userData.shared)materials.add(m);});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();renderer.forceContextLoss();result.textContent='Disposed';}
+document.querySelector('#noon').onclick=()=>light(false);document.querySelector('#midnight').onclick=()=>light(true);document.querySelector('#tilt').onclick=()=>{tilt=tilt===.55?1.05:.55;draw();};document.querySelector('#dispose').onclick=dispose;
+addEventListener('pagehide',dispose,{once:true});
+try{light(false);}catch(error){result.textContent='FAIL: '+error.stack;throw error;}
+</script>
