@@ -381,3 +381,13 @@ closing Task 7.5 (Lid and contents experiment). The floor-edge false failure was
 verified from can positions and corrected in the fixture. Full check/build and
 Chrome teardown passed; phone measurements are still pending.
 [Results](../../../verification/physical-festival/2026-10-30-hinge-comparison/README.md).
+
+### October 30: solver/CCD sweep rejects a tuning-only hinge fix
+
+Completed 40 same-clock cooler cases with 0/1/2/4/8 extra solver iterations
+and assembly CCD on/off. Extra iterations improve some inversion limits but
+worsen strong-impact anchor separation; defaults remain unchanged. The pinned
+multibody joint runtime exposes no mutable limit controls, so a multibody
+comparison needs a deliberate latch/stop strategy. Evidence and repeat command:
+[solver follow-up](../../../verification/physical-festival/2026-10-30-hinge-comparison/README.md#solver-and-ccd-follow-up).
+Task 7.5 (Lid and contents experiment) remains open; no phone acceptance implied.

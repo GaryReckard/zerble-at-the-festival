@@ -428,6 +428,13 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
         bodyDesc.setCanSleep(spec.canSleep !== false);
         if (spec.linearDamping !== undefined) bodyDesc.setLinearDamping(scalar(spec.linearDamping, 'linearDamping', 0));
         if (spec.angularDamping !== undefined) bodyDesc.setAngularDamping(scalar(spec.angularDamping, 'angularDamping', 0));
+        if (spec.additionalSolverIterations !== undefined) {
+          const iterations = spec.additionalSolverIterations;
+          if (!Number.isInteger(iterations) || iterations < 0 || iterations > 8) throw new RangeError('additionalSolverIterations must be an integer within 0..8');
+          // Rapier applies this request to the connected contact/joint island.
+          // Bound it here so a recipe cannot request unbounded solver work.
+          bodyDesc.setAdditionalSolverIterations(iterations);
+        }
         colliderDescs = spec.colliders.map(c => colliderDescriptor(R, c));
       } catch (error) { return { ok: false, reason: 'invalid-descriptor', message: error.message }; }
       let body;

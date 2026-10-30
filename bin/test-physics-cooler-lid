@@ -2,8 +2,11 @@
 import assert from 'node:assert/strict';
 import {createCoolerExperiment} from '../src/physics/coolerExperiment.js';
 const results=[];
-for(const mode of ['controlled','physical'])for(const scenario of ['rest','impact','boost','inverted']){
- const run=await createCoolerExperiment({mode,inverted:scenario==='inverted'});
+const sweep=process.argv.includes('--solver-sweep');
+const configurations=sweep?[true,false].flatMap(assemblyCcd=>[0,1,2,4,8].map(additionalSolverIterations=>({mode:'physical',assemblyCcd,additionalSolverIterations}))):['controlled','physical'].map(mode=>({mode}));
+for(const configuration of configurations)for(const scenario of ['rest','impact','boost','inverted']){
+ const {mode}=configuration;
+ const run=await createCoolerExperiment({...configuration,inverted:scenario==='inverted'});
  try{
   const initial=run.read();assert.equal(initial.counts.bodies,9);assert.equal(initial.counts.colliders,13);
   assert.equal(initial.counts.joints,mode==='physical'?1:0);
@@ -20,9 +23,11 @@ for(const mode of ['controlled','physical'])for(const scenario of ['rest','impac
   if(mode==='physical'){assert(state.maxima.anchorError<.08,'physical hinge retains its anchors');assert(state.maxima.limitError<.15,'physical hinge respects angular limits');}
   if(scenario==='rest')assert(Math.abs(state.angle)<.01,'latched lid stays closed');
   if(scenario==='inverted')assert(state.maxima.angle>.3,'unlatched inverted lid opens');
-  results.push({mode,scenario,...state.maxima});
+  results.push({...configuration,scenario,...state.maxima});
  }finally{run.dispose();assert.equal(run.counts().engineBodies,0);assert.equal(run.counts().engineJoints,0);assert.equal(run.dispose(),false);}
 }
+for(const additionalSolverIterations of [-1,.5,9,NaN,Infinity,'4'])await assert.rejects(()=>createCoolerExperiment({additionalSolverIterations}),/Invalid/);
+await assert.rejects(()=>createCoolerExperiment({assemblyCcd:1}),/Invalid/);
 await assert.rejects(()=>createCoolerExperiment({contents:7}),/Invalid/);
 console.log(JSON.stringify(results,null,2));
 console.log('PASS bounded cooler comparison: closed latch, impact, inversion, six real contents, paused time, finite energy, physical anchor/limit checks and disposal.');

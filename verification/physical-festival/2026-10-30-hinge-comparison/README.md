@@ -79,3 +79,40 @@ preview. Next tighten the physical hinge's hard-landing constraint without
 silently changing the global simulation rate, then connect the cooler assembly
 to reserved admission and adopted render parts. Cups in holders/hands remain a
 separate unfinished transfer system.
+
+## Solver and CCD follow-up
+
+Reproduce with `node bin/test-physics-cooler-lid --solver-sweep`.
+The [40 recorded runs](solver-sweep.json) vary only the requested extra solver
+iterations (0, 1, 2, 4, 8) and assembly CCD (enabled/disabled), retaining the
+four scenarios, six contents, 480 steps and 60 Hz clock. Contents retain CCD.
+Every run checks finite transforms, floor support, bounded speed, zero event
+overflow and disposal. Invalid requests are rejected before engine allocation.
+
+Extra iterations are **not selected for live tuning**. With CCD enabled, eight
+extra iterations reduce inverted landing angular error from 0.138 to 0.0073
+radians, but increase strong-impact anchor separation from 41.9 to 59.7 mm.
+Disabling assembly CCD does not solve the problem: the zero-extra-iteration
+inverted landing still reaches 35.6 mm and 0.138 radians. Default fixture
+settings remain zero extra iterations and CCD enabled. These are constraint
+measurements, not phone performance results.
+
+The adapter now permits a bounded integer request of 0–8 additional iterations.
+Rapier applies it to connected bodies, so its cost is not limited to the body
+carrying the request. See the [official API](https://rapier.rs/javascript3d/classes/RigidBodyDesc.html).
+The option is currently used only by the comparison experiment.
+
+A runtime inspection of pinned Rapier 0.21 found that the returned revolute
+multibody joint exposes validity and contact controls but no mutable limit
+controls. The current latch depends on changing joint limits from closed to
+open. A multibody alternative therefore needs a separate verified latch/stop
+strategy before adoption; this inspection does not establish that multibodies
+are unsuitable. The next experiment should prove exact hinge attachment with
+that strategy before changing live rendering or admission.
+
+Follow-up verification: `npm run check` and production build passed. A fresh
+Chrome tab on the rebuilt preview started through **Play Just Cruisin’**, staged
+a cooler, admitted it, and recorded one impact after **Coast forward**, with no
+console errors. The tab and temporary preview were closed afterward. The user
+playtest preview on port 8769 remains separate and unchanged. No render geometry,
+materials or default motion changed in this follow-up.

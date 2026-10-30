@@ -24,6 +24,11 @@ function counts(world, bodies, colliders) {
 const world = await createRapierAdapter({ capacities: { bodies: 8, colliders: 16, events: 4096 } });
 try {
   assert.match(world.engineVersion, /^0\.21\./);
+  const beforeInvalid=world.counts();
+  for(const additionalSolverIterations of [-1,.5,9,NaN,Infinity,'4']) {
+    assert.equal(world.addBody({id:'invalid-iterations',type:'dynamic',pose:pose(),colliders:[ball()],additionalSolverIterations}).reason,'invalid-descriptor');
+    assert.deepEqual(world.counts(),beforeInvalid,'invalid solver requests allocate no engine resources');
+  }
   ground(world);
   add(world, 'falling', 'dynamic', pose(0, 2), [ball(.5, { forceEvents: true })], { canSleep: false });
   let starts = 0, restingForces = 0, maxImpact = 0;

@@ -10,8 +10,8 @@ function inverse(q){return {x:-q.x,y:-q.y,z:-q.z,w:q.w};}
 function worldPoint(p,v){const r=rotate(v,p.rotation);return {x:p.position.x+r.x,y:p.position.y+r.y,z:p.position.z+r.z};}
 function lidPose(base,angle){return {position:worldPoint(base,hinge),rotation:mul(base.rotation,{x:-Math.sin(angle/2),y:0,z:0,w:Math.cos(angle/2)})};}
 const box=(x,y,z,hx,hy,hz,mass)=>({shape:'cuboid',position:{x,y,z},halfExtents:{x:hx,y:hy,z:hz},mass,friction:.6,restitution:.05});
-export async function createCoolerExperiment({mode='physical',contents=6,inverted=false}={}) {
- if(!['physical','controlled'].includes(mode)||!Number.isInteger(contents)||contents<0||contents>6)throw new RangeError('Invalid cooler experiment');
+export async function createCoolerExperiment({mode='physical',contents=6,inverted=false,additionalSolverIterations=0,assemblyCcd=true}={}) {
+ if(!['physical','controlled'].includes(mode)||!Number.isInteger(contents)||contents<0||contents>6||typeof assemblyCcd!=='boolean'||!Number.isInteger(additionalSolverIterations)||additionalSolverIterations<0||additionalSolverIterations>8)throw new RangeError('Invalid cooler experiment');
  const adapter=await createRapierAdapter({capacities:{bodies:9,colliders:13,joints:1,contactPairs:1,events:64}});
  let joint=null,latched=true,angle=0,angularSpeed=0,previousVelocity={x:0,y:0,z:0},steps=0,disposed=false;
  let maxAngle=0,maxAnchorError=0,maxSpeed=0,maxLimitError=0;
@@ -20,11 +20,11 @@ export async function createCoolerExperiment({mode='physical',contents=6,inverte
  try {
   add({id:'floor',type:'fixed',pose:{position:{x:0,y:-.1,z:0}},colliders:[box(0,0,0,1000,.1,1000,1)]});
   const start={position:{x:0,y:inverted?1.4:.01,z:0},rotation:inverted?{x:0,y:0,z:1,w:0}:identity};
-  const base=add({id:'base',type:'dynamic',pose:start,ccd:true,linearDamping:.1,angularDamping:.2,colliders:[
+  const base=add({id:'base',type:'dynamic',pose:start,ccd:assemblyCcd,additionalSolverIterations,linearDamping:.1,angularDamping:.2,colliders:[
    box(0,.055,0,.285,.025,.195,2.4),box(-.265,.215,0,.025,.135,.195,2.4),box(.265,.215,0,.025,.135,.195,2.4),
    box(0,.215,-.17,.24,.135,.025,2.4),box(0,.215,.17,.24,.135,.025,2.4),
   ]});
-  const lid=add({id:'lid',type:mode==='physical'?'dynamic':'kinematic',pose:lidPose(start,0),ccd:true,angularDamping:.5,
+  const lid=add({id:'lid',type:mode==='physical'?'dynamic':'kinematic',pose:lidPose(start,0),ccd:assemblyCcd,angularDamping:.5,
    colliders:[box(0,.035,.223,.31,.035,.225,1.4)]});
   if(mode==='physical'){
    const result=adapter.addJoint({id:'lid-hinge',type:'revolute',bodyA:'base',bodyB:'lid',anchorA:hinge,anchorB:{x:0,y:0,z:0},axis:{x:-1,y:0,z:0},limits:[0,0],contactsEnabled:false});

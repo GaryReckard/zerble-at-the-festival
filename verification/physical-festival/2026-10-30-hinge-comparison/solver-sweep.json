@@ -1,0 +1,402 @@
+[
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 0,
+    "scenario": "rest",
+    "angle": 8.771735672854594e-05,
+    "anchorError": 0.00038136981672333816,
+    "speed": 0.8175002336502075,
+    "limitError": 0.0025491276140154335
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 0,
+    "scenario": "impact",
+    "angle": 0.0032084961120857026,
+    "anchorError": 0.0010126866935721752,
+    "speed": 1.8880015944553297,
+    "limitError": 0.0025491276140154335
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 0,
+    "scenario": "boost",
+    "angle": 1.8978140909246375,
+    "anchorError": 0.04185149634904088,
+    "speed": 9.615861687338192,
+    "limitError": 0.0478140909246374
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 0,
+    "scenario": "inverted",
+    "angle": 1.769177717102272,
+    "anchorError": 0.03557272704755453,
+    "speed": 4.741496562957764,
+    "limitError": 0.13791692480553008
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 1,
+    "scenario": "rest",
+    "angle": 0.0003594263412280317,
+    "anchorError": 0.00010040306827784484,
+    "speed": 0.9810000658035278,
+    "limitError": 0.0003741843088891437
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 1,
+    "scenario": "impact",
+    "angle": 0.0033098268621746434,
+    "anchorError": 0.0012020264737375387,
+    "speed": 1.9030368425014788,
+    "limitError": 0.0007247373702336274
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 1,
+    "scenario": "boost",
+    "angle": 1.9253669398373043,
+    "anchorError": 0.058583351080161834,
+    "speed": 9.644980798984804,
+    "limitError": 0.07536693983730425
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 1,
+    "scenario": "inverted",
+    "angle": 1.8694538086598584,
+    "anchorError": 0.03553873888980047,
+    "speed": 4.7586163097808525,
+    "limitError": 0.04767562005852032
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 2,
+    "scenario": "rest",
+    "angle": 6.40349868601243e-05,
+    "anchorError": 0.00019801292067788898,
+    "speed": 0.9809998273849487,
+    "limitError": 0.00022881055933517423
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 2,
+    "scenario": "impact",
+    "angle": 0.003958786555872685,
+    "anchorError": 0.0014117296489230052,
+    "speed": 1.930249812165549,
+    "limitError": 0.008705066581483368
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 2,
+    "scenario": "boost",
+    "angle": 1.9148004452839236,
+    "anchorError": 0.05905662375814254,
+    "speed": 9.585502380241977,
+    "limitError": 0.06480044528392348
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 2,
+    "scenario": "inverted",
+    "angle": 1.162275082681593,
+    "anchorError": 0.033224364894659804,
+    "speed": 4.741501331329346,
+    "limitError": 0.037931192914652995
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 4,
+    "scenario": "rest",
+    "angle": 8.098680950405236e-06,
+    "anchorError": 0.00012840868700010076,
+    "speed": 0.9809996485710144,
+    "limitError": 0.0002905978770315688
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 4,
+    "scenario": "impact",
+    "angle": 0.004893520335283777,
+    "anchorError": 0.0007571330450153308,
+    "speed": 1.9303970374558261,
+    "limitError": 0.008276175273881862
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 4,
+    "scenario": "boost",
+    "angle": 1.891585627313104,
+    "anchorError": 0.03787628405634966,
+    "speed": 9.679098112561524,
+    "limitError": 0.04158562731310389
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 4,
+    "scenario": "inverted",
+    "angle": 1.8533721485871946,
+    "anchorError": 0.0316848963104025,
+    "speed": 4.5780029296875,
+    "limitError": 0.07211513593039114
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 8,
+    "scenario": "rest",
+    "angle": 2.716557190102405e-05,
+    "anchorError": 1.2004313148454591e-05,
+    "speed": 0.9810008406639099,
+    "limitError": 9.005707368502296e-05
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 8,
+    "scenario": "impact",
+    "angle": 0.005105388484872563,
+    "anchorError": 1.2004313148454591e-05,
+    "speed": 1.950173223430151,
+    "limitError": 9.005707368502296e-05
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 8,
+    "scenario": "boost",
+    "angle": 1.9152915748690593,
+    "anchorError": 0.05974712786388602,
+    "speed": 9.526158229026533,
+    "limitError": 0.06529157486905923
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": true,
+    "additionalSolverIterations": 8,
+    "scenario": "inverted",
+    "angle": 1.8500268578771641,
+    "anchorError": 0.03014916784998105,
+    "speed": 5.38004923781058,
+    "limitError": 0.007311965794816755
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 0,
+    "scenario": "rest",
+    "angle": 8.771735672854594e-05,
+    "anchorError": 0.00038136981672333816,
+    "speed": 0.8175002336502075,
+    "limitError": 0.0025491276140154335
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 0,
+    "scenario": "impact",
+    "angle": 0.00841684175815529,
+    "anchorError": 0.0010126866935721752,
+    "speed": 1.8880015944553297,
+    "limitError": 0.0040431458343571595
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 0,
+    "scenario": "boost",
+    "angle": 1.8824810343167677,
+    "anchorError": 0.031162208682492015,
+    "speed": 9.474055189364165,
+    "limitError": 0.03248103431676763
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 0,
+    "scenario": "inverted",
+    "angle": 1.7689648737660337,
+    "anchorError": 0.03557272704755453,
+    "speed": 4.741496562957764,
+    "limitError": 0.13791692480553008
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 1,
+    "scenario": "rest",
+    "angle": 0.0003594263412280317,
+    "anchorError": 0.00010040306827784484,
+    "speed": 0.9810000658035278,
+    "limitError": 0.0003741843088891437
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 1,
+    "scenario": "impact",
+    "angle": 0.0033098268621746434,
+    "anchorError": 0.0012214127418594557,
+    "speed": 1.9030368425014788,
+    "limitError": 0.0009804987940833303
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 1,
+    "scenario": "boost",
+    "angle": 1.9130444469866468,
+    "anchorError": 0.058288789617527814,
+    "speed": 9.479890251490419,
+    "limitError": 0.06304444698664669
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 1,
+    "scenario": "inverted",
+    "angle": 1.8689363329791921,
+    "anchorError": 0.03553873888980047,
+    "speed": 4.7778656061240685,
+    "limitError": 0.04767562005852032
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 2,
+    "scenario": "rest",
+    "angle": 6.40349868601243e-05,
+    "anchorError": 0.00019801292067788898,
+    "speed": 0.9809998273849487,
+    "limitError": 0.00022881055933517423
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 2,
+    "scenario": "impact",
+    "angle": 0.003958786555872685,
+    "anchorError": 0.0011789353876889824,
+    "speed": 1.930249812165549,
+    "limitError": 0.0027050395611945906
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 2,
+    "scenario": "boost",
+    "angle": 1.9137101337541536,
+    "anchorError": 0.058111176399867875,
+    "speed": 9.533925759245664,
+    "limitError": 0.06371013375415346
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 2,
+    "scenario": "inverted",
+    "angle": 1.1656947282104546,
+    "anchorError": 0.033224364894659804,
+    "speed": 4.741501331329346,
+    "limitError": 0.037931192914652995
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 4,
+    "scenario": "rest",
+    "angle": 8.098680950405236e-06,
+    "anchorError": 0.00012840868700010076,
+    "speed": 0.9809996485710144,
+    "limitError": 0.0002905978770315688
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 4,
+    "scenario": "impact",
+    "angle": 0.004893520335283777,
+    "anchorError": 0.0008016422564065836,
+    "speed": 1.9303970374558261,
+    "limitError": 0.008695549128897858
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 4,
+    "scenario": "boost",
+    "angle": 1.9159351266476523,
+    "anchorError": 0.05908084187757288,
+    "speed": 9.566012074378115,
+    "limitError": 0.06593512664765222
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 4,
+    "scenario": "inverted",
+    "angle": 1.8561636728746829,
+    "anchorError": 0.0316848963104025,
+    "speed": 4.5780029296875,
+    "limitError": 0.07211513593039114
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 8,
+    "scenario": "rest",
+    "angle": 2.716557190102405e-05,
+    "anchorError": 1.2004313148454591e-05,
+    "speed": 0.9810008406639099,
+    "limitError": 9.005707368502296e-05
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 8,
+    "scenario": "impact",
+    "angle": 0.005105388484872563,
+    "anchorError": 1.2004313148454591e-05,
+    "speed": 1.950173223430151,
+    "limitError": 9.005707368502296e-05
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 8,
+    "scenario": "boost",
+    "angle": 1.9148095145326172,
+    "anchorError": 0.058422431923554966,
+    "speed": 9.423582419779773,
+    "limitError": 0.06480951453261707
+  },
+  {
+    "mode": "physical",
+    "assemblyCcd": false,
+    "additionalSolverIterations": 8,
+    "scenario": "inverted",
+    "angle": 1.850024611867644,
+    "anchorError": 0.03014916784998105,
+    "speed": 5.9221165870816455,
+    "limitError": 0.007311965794816755
+  }
+]
