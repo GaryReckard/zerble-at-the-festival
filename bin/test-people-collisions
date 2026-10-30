@@ -123,3 +123,36 @@ for(const kind of ['chair','camp_chair','camp_loveseat','cooler','tree','tent','
  assert(f.cart.speed>0&&f.cart.speed<10,'glancing impact retains forward motion');
 }
 console.log('PASS fixed-object contacts: square and reverse hits stop, glancing hits retain motion, all tested props avoid person kickback and preserve current penalties.');
+
+// Cooldown suppresses consequences and people reactions, never solid separation.
+for(const speed of [-10,10]) {
+ const f=fixture(false);f.cart.speed=speed;f.cart.invulnLeft=.25;
+ const person=f.candidate('person',0,-Math.sign(speed)*.3,5);
+ const solid=f.candidate('tree',0,-Math.sign(speed)*.5,4);
+ let callbacks=0;solid.onContact=()=>callbacks++;
+ const hit=f.resolve(f.cart,[person,solid]);
+ assert.equal(hit.damaging,false);assert.equal(callbacks,0);assert.equal(f.reactions.length,0);
+ assert.equal(Math.abs(f.cart.speed),0);assert.equal(f.cart.hits.length,0);
+ assert.equal(f.cart.invulnLeft,.25,'solid correction must not renew consequence immunity');
+ assert(Math.hypot(solid.position.x-f.cart.position.x,solid.position.z-f.cart.position.z)>1.25);
+}
+{
+ const start=main.indexOf('    if (!StarPower.isActive())',main.indexOf("peopleFrameTrace?.mark('contacts-eligible'"));
+ const end=main.indexOf('    const physicalHit=',start);
+ assert(start>0&&end>start);
+ const frame=new Function('zerble','registry','people','StarPower','resolveCollision',`
+ let hit=null,_regColPoolN=0;
+ const _collScratch=[],physicalWorld=null,peopleFrameTrace=null,peopleBaseline=null;
+ const _regColWrap=entry=>entry;
+ ${main.slice(start,end)}
+ return hit;`);
+ for(const ghost of [false,true]) {
+   const f=fixture(false);f.cart.speed=10;f.cart.invulnLeft=.25;
+   const solid=f.candidate('stage',0,-.5,4);let queries=0;
+   const hit=frame(f.cart,{collidersNear(x,z,r,visit){queries++;visit(solid);}},{dispatch(){}},{isActive:()=>ghost},f.resolve);
+   assert.equal(queries,ghost?0:1,'real main-loop gate keeps solids during immunity but excludes ghost');
+   assert.equal(Math.abs(f.cart.speed),ghost?10:0);assert.equal(f.cart.invulnLeft,.25);
+   assert.equal(hit?.damaging,ghost?undefined:false);
+ }
+}
+console.log('PASS cooldown separation: real main-loop gate preserves solid collision, suppresses repeated consequences and person callbacks, never extends immunity, and retains star-power ghost passage.');

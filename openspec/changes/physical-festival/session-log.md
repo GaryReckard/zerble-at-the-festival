@@ -227,3 +227,11 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** Extended Gary's object/person distinction to the legacy solid path, so unadmitted chairs and fixed scenery resolve overlap and lose incoming speed without the person reverse kick. Kept person reactions, numeric consequences and the existing collision cooldown unchanged. The cooldown still suppresses all legacy contacts temporarily; separating physical solidity from that consequence gate remains unfinished rather than hidden by the new response. Q2 (Empty-object scoring) remains unanswered.
 
 **Refs:** [Solid response evidence](../../../verification/physical-festival/2026-10-30-solid-response/README.md); Task 4.2 (Single response owner) in [tasks](tasks.md).
+
+### 2026-10-30 -- Cooldown protects consequences, not solid scenery
+
+**Event:** discovery
+
+**What:** The legacy main loop skipped every collision during the person-hit immunity timer, and the physical world suppressed cart feedback using the same eligibility flag. Separated those gates: fixed scenery still resolves while person response/penalties remain suppressed; physical chairs still return non-damaging resistance. Suppressed solid contact does not renew immunity. This resolves the solidity limitation in the preceding checkpoint without answering Q2 (Empty-object scoring).
+
+**Refs:** [Cooldown evidence](../../../verification/physical-festival/2026-10-30-cooldown/README.md); Task 4.2 (Single response owner).

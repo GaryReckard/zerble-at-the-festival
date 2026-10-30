@@ -6,6 +6,7 @@ export const APPROACH_DAMAGE_THRESHOLD = 1.2;
 export const SOFT_PEOPLE_KINDS = new Set(['person', 'kid', 'wook', 'brass', 'hula_hoop', 'one_wheel']);
 
 export function resolveCollision(zerble, colliders) {
+  const eligible = !(zerble.invulnLeft > 0);
   // forward = (-sin(h), 0, -cos(h)); velocity = forward * speed
   const fx = -Math.sin(zerble.heading);
   const fz = -Math.cos(zerble.heading);
@@ -18,6 +19,9 @@ export function resolveCollision(zerble, colliders) {
     // but don't push Zerble or deal damage — otherwise their physical radius
     // would prevent Zerble from being inside the proximity trigger range.
     if (c.passive) continue;
+    const person = SOFT_PEOPLE_KINDS.has(c.kind) || c.kind === 'lurleen' || c.kind === 'puppet';
+    // Preserve person immunity while retaining solid scenery during cooldown.
+    if (person && !eligible) continue;
     // Parked Zerble can be crowded by people without being pushed around.
     // (Approach-damage already needs Zerble to be moving fast, so this only
     // suppresses the non-damaging position-nudge path below.)
@@ -35,11 +39,12 @@ export function resolveCollision(zerble, colliders) {
       // People keep their authored kickback. Solid scenery instead removes
       // the incoming motion and resolves overlap without forcing reverse.
       const pushDir = new THREE.Vector3(-tox * inv, 0, -toz * inv);
-      if (SOFT_PEOPLE_KINDS.has(c.kind) || c.kind === 'lurleen' || c.kind === 'puppet') {
+      if (person) {
         zerble.applyHit(pushDir);
       } else {
-        zerble.applyObstacleHit(pushDir, approachSpeed, minD - d);
+        zerble.applyObstacleHit(pushDir, approachSpeed, minD - d, eligible);
       }
+      if (!eligible) return { damaging: false };
       // NPC-specific reaction: panic, knockback, infect neighbors.
       c.onContact?.(c,tox*inv,toz*inv);
       // Damage > 0 means "deduct smiles". Damage 0 entries (e.g. Lurleen, a

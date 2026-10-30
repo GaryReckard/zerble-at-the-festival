@@ -1718,7 +1718,7 @@ function tickBody(dt) {
     const physicalBeforeX=zerble.position.x,physicalBeforeZ=zerble.position.z;
     let hit=null;
     peopleFrameTrace?.mark('contacts-eligible', zerble.invulnLeft <= 0 && !StarPower.isActive());
-    if (zerble.invulnLeft <= 0 && !StarPower.isActive()) {
+    if (!StarPower.isActive()) {
       // Build a per-frame collider list for nearby crowd NPCs so Zerble can actually
       // bump them. Skip riders + anyone more than 5m away (cheap broad-phase reject).
       // Disembarking NPCs are also skipped entirely for the ~5s disembark window —

@@ -45,7 +45,7 @@ setTerrainEnabled(false);
   assert.equal(findChairApproach({...options,entries:Array(100).fill(target),isWet:()=>{samples++;return true;}}),null);
   assert.equal(samples,64*2*16,'search stays bounded even with many candidates');
 }
-async function encounter(hz,ghost=false,starved=false,stageAudience=false) {
+async function encounter(hz,ghost=false,starved=false,stageAudience=false,eligible=true) {
   const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
   const chair=buildCampChair(()=>.3,{style:'sling'});root.add(chair.group);
   const batch=batchPropGroups(root,[chair.group]),parentId=registry.add({kind:'campsite',position:new THREE.Vector3(),footprint:8,chunkKey:'origin'});
@@ -69,8 +69,8 @@ async function encounter(hz,ghost=false,starved=false,stageAudience=false) {
     for(let frame=0;frame<hz*2;frame++) {
       cart.position.z=9-Math.min(cart.speed*2,(frame+1)*cart.speed/hz);
       live.prepare(starved?-1:performance.now()+100);
-      const hit=live.advance(1/hz,{ghost});
-      if(hit){hitCount++;assert.equal(hit.entry,entry);assert.equal(hit.damage,1);assert(hit.mass>0);assert(hit.approachSpeed>1.2);}
+      const hit=live.advance(1/hz,{ghost,eligible});
+      if(hit){hitCount++;assert.equal(hit.entry,entry);assert.equal(hit.damage,1);assert.equal(hit.damaging,eligible);assert(hit.mass>0);assert(hit.approachSpeed>1.2);}
     }
     const result=live.stats();
     if(starved) {
@@ -103,6 +103,7 @@ for(const hz of [30,60,120])await encounter(hz);
 await encounter(60,true);
 await encounter(60,false,true);
 await encounter(60,false,false,true);
+await encounter(60,false,false,false,false);
 for(const style of ['sling','director','low','loveseat']) {
   const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
   const chairs=Array.from({length:9},(_,index)=>{

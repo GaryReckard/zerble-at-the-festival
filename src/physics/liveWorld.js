@@ -166,14 +166,14 @@ export async function createLivePhysics({scene,registry,cart,camera,now=()=>perf
           record.contacts.delete(pair);record.lastTouch=time;continue;
         } else if(event.type!=='contact-force')continue;
         record.lastTouch=time;
-        if(ghost||!eligible||hit||record.penalized)continue;
+        if(ghost||hit||record.penalized)continue;
         const body=adapter.readBody(bodyId),entry=registry.entries.get(record.entryId);
         if(!body||!entry)continue;
         const dx=body.pose.position.x-cart.position.x,dz=body.pose.position.z-cart.position.z,d=Math.hypot(dx,dz)||1;
         const approach=(-Math.sin(cart.heading)*cart.speed*dx-Math.cos(cart.heading)*cart.speed*dz)/d;
         if(approach<=APPROACH_DAMAGE_THRESHOLD)continue;
         record.lastHit=time;record.penalized=true;hits++;
-        hit={damaging:entry.collider.damage>0,damage:entry.collider.damage,kind:entry.kind,entry,physical:true,
+        hit={damaging:eligible&&entry.collider.damage>0,damage:entry.collider.damage,kind:entry.kind,entry,physical:true,
           mass:body.mass,approachSpeed:approach,push:{x:-dx/d,z:-dz/d}};
       }
     },{canStep});
