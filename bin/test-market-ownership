@@ -67,3 +67,20 @@ if(!process.argv.includes('--baseline')){
  }
  console.log('PASS market ownership: copied model presentation, contention, two replacement/revisit cycles, stale commands/releases/slots, person/activity teardown, rotated frontage and blocked access.');
 }
+
+if(!process.argv.includes('--baseline')){
+ const f=fixture('buyer',false);
+ f.npc.rideTimer=Infinity;
+ assert.equal(f.owner.markets.tick(.05,f.npc.personHandle,f.cart,.25),true,'a previous unlimited ride must not crash a market visit');
+ assert.equal(f.npc.rideTimer,Infinity);
+ const claim=f.state.claim;
+ for(const invalid of [NaN,-Infinity]){
+  f.state.rideTimer=invalid;
+  assert.throws(()=>f.owner.commitMarketMotion(claim,f.state),/Invalid rest timing profile/);
+  assert.equal(f.npc.rideTimer,Infinity,'invalid profiles cannot mutate the actor');
+ }
+ f.state.rideTimer=Infinity;
+ assert.equal(f.owner.markets.release(f.npc.personHandle),true);
+ assert.equal(f.market.customer,null);
+ console.log('PASS market inherited unlimited ride timer, release and invalid timer rejection.');
+}

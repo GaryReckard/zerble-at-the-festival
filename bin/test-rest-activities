@@ -87,3 +87,20 @@ if(!process.argv.includes('--baseline')){
  }
  console.log('PASS picnic ownership: contention, group eligibility/radius, two resource replacement/revisit cycles, stale pose rejection, person-first removal, activity-first teardown and display-height release.');
 }
+
+if(!process.argv.includes('--baseline')){
+ for(const kind of ['hammock','table']){
+  const f=fixture(kind,false),h=f.npc.personHandle;
+  f.npc.rideTimer=Infinity;
+  const activity=kind==='hammock'?f.owner.hammocks:f.owner.picnics;
+  assert.equal(activity.tryClaim(h),true,'rest approach accepts an inherited unlimited ride timer');
+  for(let frame=0;frame<200;frame++){
+   f.npc.stateTimer-=.05;
+   if(f.npc.state==='walking_to_hammock'||f.npc.state==='walking_to_table')activity.tickWalking(.05,h);
+   else break;
+  }
+  assert(Number.isFinite(f.npc.rideTimer),'the rest activity replaces the inherited timer on arrival');
+  activity.release(h);
+ }
+ console.log('PASS hammock and picnic approach replace inherited unlimited ride timers on arrival.');
+}

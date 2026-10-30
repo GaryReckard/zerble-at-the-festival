@@ -142,7 +142,7 @@ const CAMP_MUSIC_STATES=Object.freeze({...CAMP_STATES,camp_music_walk:'camp_musi
 const MARKET_STATES=Object.freeze({market_walking:'market_walking',market_browsing:'market_browsing',market_chatting:'market_chatting',market_buying:'market_buying',idle:'idle',walking:'walking',fleeing:'fleeing',watching:'watching',approaching:'approaching'});
 const PICNIC_STATES=Object.freeze({approach:'walking_to_table',seated:'table_seated',idle:'idle'});
 const HAMMOCK_STATES=Object.freeze({approach:'walking_to_hammock',swing:'hammock_riding',idle:'idle'});
-const HAMMOCK_OPTIONAL_FIELDS=Object.freeze(['rideTimer','hammockBob','hammockY']);
+const HAMMOCK_OPTIONAL_FIELDS=Object.freeze(['hammockBob','hammockY']);
 const REST_MOTION_FIELDS=Object.freeze(['x','z','heading','vx','vy','vz','stateTimer','targetX','targetY','targetZ']);
 
 const BODY_RADIUS = 0.26;
@@ -2082,7 +2082,9 @@ export class Crowd {
     const state=Object.hasOwn(states,step.phase)?states[step.phase]:null;
     if(!state)throw new TypeError('Invalid rest motion phase.');
     for(const key of REST_MOTION_FIELDS)if(!Number.isFinite(step[key]))throw new TypeError('Invalid rest motion profile.');
-    if(step.rideTimer!==undefined&&!Number.isFinite(step.rideTimer))throw new TypeError('Invalid rest timing profile.');
+    // Passenger seating uses +Infinity for unlimited rides; later activities
+    // copy that timer until they replace it with their own finite duration.
+    if(step.rideTimer!==undefined&&step.rideTimer!==Infinity&&!Number.isFinite(step.rideTimer))throw new TypeError('Invalid rest timing profile.');
     const npc=this.peopleHandles.resolve(claim.person);
     npc.pos.x=step.x;npc.pos.z=step.z;npc.vel.x=step.vx;npc.vel.y=step.vy;npc.vel.z=step.vz;npc.yaw=step.heading;
     npc.state=state;npc.stateTimer=step.stateTimer;npc.rideTimer=step.rideTimer;
