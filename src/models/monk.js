@@ -1,3 +1,4 @@
+import {copyPersonHairGeometry} from '../crowdHair.js';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -26,7 +27,7 @@ function template(variant) {
         add(new THREE.CylinderGeometry(.225,.17,.55,10),robe,[0,.98,0],[1,1,.65]);
         oval(skin,[0,1.31,0],[.075,.095,.075]);
         oval(skin,[0,1.52,0],[.148,.19,.135]);
-        oval(0x312823,[0,1.651,.005],[.132,.06,.12]);
+        add(copyPersonHairGeometry('close',[.148,.19,.135],[0,1.52,0]),0x312823);
         for(const side of [-1,1]){
             oval(skin,[side*.15,1.52,0],[.027,.05,.03]);
             oval(0x241b18,[side*.055,1.545,-.124],[.013,.013,.008]);

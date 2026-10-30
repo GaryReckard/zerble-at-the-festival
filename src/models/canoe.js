@@ -1,3 +1,4 @@
+import {makePersonHair} from '../crowdHair.js';
 // Open, pointed canoe. Long axis is Z; the caller owns placement and motion.
 import * as THREE from 'three';
 
@@ -5,7 +6,7 @@ const shared = resource => { resource.userData.shared = true; return resource; }
 const material = color => shared(new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: true }));
 const M = {
   hull: material(0x936134), rim: material(0x4f301e), seat: material(0xc49860),
-  skin: material(0xe6bb8c), hair: material(0x493125), paddle: material(0x6c4928),
+  skin: material(0xe6bb8c), paddle: material(0x6c4928),
   blade: material(0xc09359), shorts: material(0x34485c),
   shirts: [0x66d9ff, 0xff6f9c, 0xffd28a, 0x6fcf6a, 0xb285ff, 0xff8a5b].map(material),
 };
@@ -98,10 +99,7 @@ export function buildCanoe(group, rng = Math.random) {
     const head = new THREE.Mesh(G.head, M.skin);
     head.position.set(0, 1.16, z);
     group.add(head);
-    const hair = new THREE.Mesh(G.head, M.hair);
-    hair.scale.set(1.02, .38, 1.02);
-    hair.position.set(0, 1.30, z);
-    group.add(hair);
+    group.add(makePersonHair({color:0x493125,radii:[.19,.19,.19],center:[0,1.16,z]}));
 
     // Bent knees stay inside the gunwales, while the outside arm reaches the shaft.
     for (const legSide of [-1, 1]) {

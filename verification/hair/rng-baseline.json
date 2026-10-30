@@ -1,0 +1,37 @@
+{
+  "buildKid": [
+    7,
+    8,
+    15
+  ],
+  "buildFrisbeePlayer": [
+    5,
+    5,
+    5
+  ],
+  "buildHulaHooper": [
+    6,
+    6,
+    6
+  ],
+  "buildWook": [
+    172,
+    172,
+    200
+  ],
+  "buildFireDancer": [
+    6,
+    6,
+    6
+  ],
+  "buildApronCook": [
+    3,
+    3,
+    3
+  ],
+  "buildCanoe": [
+    3,
+    3,
+    2
+  ]
+}

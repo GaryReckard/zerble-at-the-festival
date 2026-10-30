@@ -1,3 +1,4 @@
+import {copyPersonHairGeometry,buildHairLock} from '../crowdHair.js';
 import {bindLocomotion,addStrideMorphs,tickLocomotion} from './personLocomotion.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -73,8 +74,8 @@ function template(variant) {
     for (const y of [2.305, 2.365, 2.415]) add(new THREE.CylinderGeometry(.295, .295, .016, 20, 1, true), 0xa88148, [0, y, -.025], [1, 1, .90]);
   });
   addStrideMorphs(body,.76);
-  const hair = geometry(({ oval, rope }) => {
-    oval(hairColors[0], [0, 2.39, .08], [.33, .23, .29]);
+  const hair = geometry(({ add, oval }) => {
+    add(copyPersonHairGeometry('close',[.275,.35,.25],[0,2.12,-.055]),hairColors[0]);
     for (let i = 0; i < 28; i++) {
       // Leave the front wedge open so the expression and headband stay readable.
       const angle = -.30 + i / 27 * (Math.PI + .60);
@@ -84,7 +85,7 @@ function template(variant) {
       const rootY = 2.40 + rng() * .13;
       const points = [[x * .22, rootY, z * .22 + .04], [x * .43, 2.48 + rng() * .12, z * .36 + .05], [x * spread, 2.15, z * .46], [x * (spread + .04) + (rng() - .5) * .10, 1.80, z * .49 - .025], [x * (spread - .04 + rng() * .10), rootY - length, z * .47 - .06]];
       const radius = .048 + rng() * .026;
-      rope(points, radius, hairColors[i % hairColors.length]);
+      add(buildHairLock(points,[0,radius,radius,radius*.95,radius*.9,radius*.8,radius*.7,radius*.6,radius*.45,radius*.25,0],5),hairColors[i % hairColors.length]);
       if (i % 5 === 0) {
         const p = points[3];
         oval(i % 2 ? 0x527d77 : 0xb98d47, p, [radius * 1.18, .05, radius * 1.18]);

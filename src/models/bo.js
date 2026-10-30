@@ -1,9 +1,10 @@
+import {copyPersonHairGeometry} from '../crowdHair.js';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
 // +Z faces forward. Seated origin is the cushion; standing origin is the ground.
 const templates = new Map();
-const colors = {skin: 0xe7ad8a, hair: 0x35291f, strand: 0x584332, shirt: 0xff751b,
+const colors = {skin: 0xe7ad8a, hair: 0x35291f, shirt: 0xff751b,
     black: 0x171821, shoe: 0x303337, navy: 0x171b43, pink: 0xd92c91, gold: 0xffab24};
 const material = new THREE.MeshStandardMaterial({vertexColors: true, roughness: .88});
 material.userData.shared = true;
@@ -60,13 +61,8 @@ function geometryFor(seated) {
         [.025,.365],[.035,.405],[.065,.35],[.115,.35],[.155,.395],
         [.145,.295],[.105,.32],[.085,.27],[.055,.29],[0,.235],
         [-.055,.29],[-.085,.27],[-.105,.32],[-.145,.295]],colors.black,.133);
-    // Straight hair curtain, with a center part and long locks framing the face.
-    oval(colors.hair,[0,hip+.64,-.095],[.18,.31,.085]);
+    add(copyPersonHairGeometry('long',[.145,.205,.132],[0,hip+.77,.01],Math.PI),colors.hair);
     for (const side of [-1,1]) {
-        oval(colors.hair,[side*.143,hip+.62,.025],[.061,.30,.074]);
-        oval(colors.hair,[side*.08,hip+.93,0],[.10,.052,.13]);
-        limb(colors.strand,[side*.17,hip+.82,.079],[side*.16,hip+.355,.083],.009);
-        limb(colors.strand,[side*.13,hip+.90,-.166],[side*.14,hip+.39,-.16],.008);
         oval(0xfff5e9,[side*.06,hip+.80,.132],[.033,.016,.011]);
         oval(0x403423,[side*.059,hip+.80,.142],[.010,.011,.004]);
         limb(colors.hair,[side*.025,hip+.836,.133],[side*.09,hip+.839,.119],.008);

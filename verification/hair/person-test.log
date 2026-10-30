@@ -1,0 +1,43 @@
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS 63 real models across 21 person families; finite geometry/transforms, shared disposal, adapted orientations and all seven styles.
+PASS crown/nape raycasts against smooth skulls and 21 historical RNG consumption comparisons.
+PASS Gary: seated hips, bent legs, exact pedal/sole contact, rear bun, gray temples, and no added shadow casters.
+PASS adult driver proportions, actual recessed deck raycast, and forward suspended accelerator.

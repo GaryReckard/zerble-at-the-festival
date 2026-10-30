@@ -1,0 +1,6 @@
+(node:8456) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/bin/test-crowd-appearance.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  stable crowd appearance, 6 skin tones, 6 hair forms, 12 shirts, 6.6% drinks, RNG isolation, slot pooling, no extra shadow casters
+PASS actual hair geometry: deterministic, finite, face clearance, shoulder silhouettes; triangles: 208, 640, 440, 256, 290, 544

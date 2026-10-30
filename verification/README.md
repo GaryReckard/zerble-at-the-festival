@@ -25,6 +25,8 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Festival people and Gary, October 30](hair/README.md): hair across every human family, Gary’s complete seated pose and dark gray footwell, geometry/contact tests, day/night captures and Low-tier game smoke test.
+
 - [Camp coolers, October 29](coolers/README.md): pooled geometry, collision bounds, campsite integration, day/night captures and Low-tier game boot.
 
 - [Road snapshot CI portability, October 29](roads/2026-10-29-ci-layout/README.md): reproduced Linux x64 failure, field-by-field floating-point diagnosis, angle-only normalization and CI-equivalent validation.

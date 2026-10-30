@@ -1,8 +1,9 @@
+import {makePersonHair} from '../crowdHair.js';
 // Festival kid — a recognizable child silhouette (head, torso, arms, legs)
 // rather than a one-piece capsule. children[0] is the body group so the
 // shared locomotion adapter can move the hips without changing gameplay position.
 //
-// Variations baked in via rng: hairstyle (pigtails / cap / bare),
+// Variations baked in via rng: hairstyle (braids / cap / swept crop),
 // outfit color, glow-stick accessory.
 
 import * as THREE from 'three';
@@ -35,9 +36,6 @@ export function buildKid(rng = Math.random) {
   });
   const skinMat = new THREE.MeshStandardMaterial({
     color: skin, roughness: 0.9, flatShading: true,
-  });
-  const hairMat = new THREE.MeshStandardMaterial({
-    color: hair, roughness: 1.0, flatShading: true,
   });
 
   // ----- Legs — two short pants-colored cylinders, slightly apart -----
@@ -108,24 +106,9 @@ export function buildKid(rng = Math.random) {
   // ----- Hair / hat — one of three styles -----
   const hairRoll = rng();
   if (hairRoll < 0.30) {
-    // Pigtails — two small spheres on the sides
-    for (const sx of [-1, 1]) {
-      const tail = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(0.07, 0),
-        hairMat,
-      );
-      tail.position.set(sx * 0.16, 1.00, 0.05);
-      body.add(tail);
-    }
-    // Hair cap on top
-    const cap = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.16, 1),
-      hairMat,
-    );
-    cap.scale.set(1, 0.55, 1);
-    cap.position.set(0, 1.10, 0);
-    body.add(cap);
+    body.add(makePersonHair({style:'braids',color:hair,radii:[.18,.18,.18],center:[0,1,0]}));
   } else if (hairRoll < 0.65) {
+    body.add(makePersonHair({style:'close',color:hair,radii:[.18,.18,.18],center:[0,1,0]}));
     // Baseball-style cap (festival kid)
     const hatColor = HAT_PALETTE[Math.floor(rng() * HAT_PALETTE.length)];
     const hatMat = new THREE.MeshStandardMaterial({
@@ -144,25 +127,9 @@ export function buildKid(rng = Math.random) {
     brim.position.set(0, 1.10, -0.16);
     body.add(brim);
   } else {
-    // Plain mussed hair — a half-sphere skull cap.
-    const skullCap = new THREE.Mesh(
-      new THREE.SphereGeometry(0.18, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-      hairMat,
-    );
-    skullCap.position.y = 1.00;
-    body.add(skullCap);
-    // A few unruly tufts
-    for (let i = 0; i < 3; i++) {
-      const tuft = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(0.04, 0), hairMat,
-      );
-      tuft.position.set(
-        (rng() - 0.5) * 0.20,
-        1.16 + rng() * 0.04,
-        (rng() - 0.5) * 0.18,
-      );
-      body.add(tuft);
-    }
+    body.add(makePersonHair({style:'cropped',color:hair,radii:[.18,.18,.18],center:[0,1,0]}));
+    // Keep the old three tuft-position draws per tuft in the spawn stream.
+    for (let i = 0; i < 9; i++) rng();
   }
 
   // ----- Accessory: 50% glow stick / lightsaber, 25% balloon, 25% nothing -----

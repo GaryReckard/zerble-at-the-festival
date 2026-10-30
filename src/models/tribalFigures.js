@@ -1,3 +1,4 @@
+import {makePersonHair} from '../crowdHair.js';
 import {sampleStridePose} from '../personMotion.js';
 import {bindLocomotion,stridePivot,applyLocomotionPose} from './personLocomotion.js';
 // Tribal-aesthetic figures for the LEAF drum circle: dancers orbiting the
@@ -73,9 +74,7 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
   const skinMat = new THREE.MeshStandardMaterial({
     color: skinHex, roughness: 0.92, flatShading: true,
   });
-  const hairMat = new THREE.MeshStandardMaterial({
-    color: hairHex, roughness: 0.95, flatShading: true,
-  });
+
   const torsoMat = new THREE.MeshStandardMaterial({
     color: torsoColor, roughness: 0.92, flatShading: true,
   });
@@ -198,55 +197,11 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
   head.castShadow = true;
   g.add(head);
 
-  // ----- Hair -----
-  // Earlier version used a horizontally-squashed icosphere sitting low on
-  // the head, which read as a balding "ear-to-ear semicircle" ring instead
-  // of hair (Gary's catch). New build:
-  //   * a slightly larger-than-head sphere PUSHED BACK so the front of the
-  //     head (face/eyes) is uncovered, and the sphere wraps the crown +
-  //     sides + back
-  //   * a long cone trailing down the back for the "long flowing" look
-  // Black-clad figures still get a tight cropped cap (no flow).
+  // Keep the existing sway pivot while fitting the shared style to this skull.
   const hairGroup = new THREE.Group();
-  hairGroup.position.set(0, 1.60, 0);
-  if (!isBlackClad) {
-    // Wig — bigger than the head, offset back so the face peeks out.
-    // Center at z = +0.12 means the wig's front face is at z = -0.14,
-    // safely behind the eyes (z = -0.18 in face-local coords).
-    const wig = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.26, 1), hairMat,
-    );
-    wig.position.set(0, 0.06, 0.12);
-    wig.scale.set(1.0, 1.05, 1.1);
-    // Wig is right on top of the head; head shadow absorbs this one.
-    hairGroup.add(wig);
-
-    // Long ponytail — earlier this used a plain cone with apex up which
-    // (1) had the wide end at the bottom (looked upside-down) and (2) was
-    // positioned at z=+0.12 which is INSIDE the torso capsule (torso radius
-    // 0.22 at z=0), so the tail clipped through the body. Fixed by:
-    //   * tapered cylinder, WIDER AT TOP narrow at bottom (real ponytail shape)
-    //   * geometry translated so the pivot is at the TOP of the tail — that
-    //     way rotating tilts the tip back without dragging the head into
-    //     the upper-arm space
-    //   * placed at z=+0.22 (just behind the torso edge) so the tail can't
-    //     intersect the body even at zero tilt
-    const ponytailGeo = new THREE.CylinderGeometry(0.14, 0.04, 0.70, 7);
-    ponytailGeo.translate(0, -0.35, 0);     // pivot moves to top of the cylinder
-    const ponytail = new THREE.Mesh(ponytailGeo, hairMat);
-    ponytail.position.set(0, -0.05, 0.22);
-    ponytail.rotation.x = -0.35;             // tip swings further back
-    // Skip ponytail shadow — too thin to read distinct from head shadow.
-    hairGroup.add(ponytail);
-  } else {
-    // Black-clad: tight cropped cap that hugs the head.
-    const cap = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.24, 1), hairMat,
-    );
-    cap.position.set(0, 0.04, 0.03);
-    cap.scale.set(1, 0.85, 1.05);
-    hairGroup.add(cap);
-  }
+  hairGroup.position.set(0,1.60,0);
+  hairGroup.add(makePersonHair({style:isBlackClad?'close':'ponytail',color:hairHex,
+    radii:[.22,.22,.22],center:[0,0,0]}));
   g.add(hairGroup);
 
   // ----- Eyes -----

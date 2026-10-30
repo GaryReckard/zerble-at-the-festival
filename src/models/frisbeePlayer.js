@@ -1,3 +1,4 @@
+import {makePersonHair} from '../crowdHair.js';
 import {bindLocomotion,stridePivot,tickLocomotion} from './personLocomotion.js';
 import {sampleThrowPose} from '../personMotion.js';
 // Frisbee player — a festivalgoer with a small procedural arm rig.
@@ -137,6 +138,7 @@ export function buildFrisbeePlayer(rng = Math.random) {
 
   // Hair / cap — 50/50
   if (rng() < 0.5) {
+    body.add(makePersonHair({style:'close'}));
     const hatColor = HAT_PALETTE[Math.floor(rng() * HAT_PALETTE.length)];
     const hatMat = new THREE.MeshStandardMaterial({ color: hatColor, roughness: 0.8, flatShading: true });
     const cap = new THREE.Mesh(
@@ -153,13 +155,7 @@ export function buildFrisbeePlayer(rng = Math.random) {
     body.add(brim);
   } else {
     const hairColor = [0x3a2a1a, 0x6a4a2a, 0xc97a3b, 0xd9a26e, 0x222][Math.floor(rng() * 5)];
-    const hairMat = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 1, flatShading: true });
-    const cap = new THREE.Mesh(
-      new THREE.SphereGeometry(0.28, 12, 8, 0, Math.PI * 2, 0, Math.PI / 1.7),
-      hairMat,
-    );
-    cap.position.y = 1.65;
-    body.add(cap);
+    body.add(makePersonHair({color:hairColor}));
   }
 
   g.userData.armPivots = armPivots;

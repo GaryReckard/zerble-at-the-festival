@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import vm from 'node:vm';
+import { buildCrowdHair } from '../src/crowdHair.js';
 import { readFile } from 'node:fs/promises';
 import { setSessionSeed } from '../src/rng.js';
 import { CROWD_HAIR, CROWD_HAIR_STYLES, CROWD_SHIRTS, CROWD_SKIN, crowdAppearanceRng, rollCrowdAppearance } from '../src/crowdAppearance.js';
@@ -38,7 +38,7 @@ assert(/for \(const mesh of this\.hairMeshes\) mesh\.castShadow = false/.test(cr
   'appearance additions became shadow casters');
 assert(/drinkMesh\.count = this\._drinkDrawCount/.test(crowd) && /_drinkFree\.push\(npc\.drinkSlot\)/.test(crowd),
   'beverage instances are not packed and returned to their slot pool');
-assert(/const hairGeos = \[shortHair, curls, longHair, ponytail, bun, braids\]/.test(crowd) && /hairMeshes\[appearance\.hairStyle\]/.test(crowd),
+assert(/const hairGeos = buildCrowdHair\(\)/.test(crowd) && /hairMeshes\[appearance\.hairStyle\]/.test(crowd),
   'distinct hair silhouettes no longer use their compact instanced style buckets');
 assert(/for \(let i = MAX_NPCS - 1; i >= 0; i--\) \{[\s\S]*?this\.free\.push\(i\)/.test(crowd),
   'crowd slots no longer allocate upward from zero');
@@ -49,30 +49,28 @@ assert(/if \(remaining\.hairSlot >= 0\)/.test(crowd) || /_hairFree\[npc\.appeara
 
 process.stdout.write(`PASS  stable crowd appearance, ${skins.size} skin tones, ${styles.size} hair forms, ${shirts.size} shirts, ${(drinkRate * 100).toFixed(1)}% drinks, RNG isolation, slot pooling, no extra shadow casters\n`);
 
-// Execute the production geometry construction with primitive surface bounds;
-// this catches long styles collapsing back into cap-sized silhouettes.
-class Geometry {
-  constructor(x,y=x,z=x) {
-    this.vertices=[];
-    for(const a of [-1,1])for(const b of [-1,1])for(const c of [-1,1])this.vertices.push([a*x,b*y,c*z]);
+// Test actual Three.js vertices rather than primitive bounding-box substitutes.
+const names = ['cropped', 'curls', 'long', 'ponytail', 'bun', 'braids'];
+const shapes = buildCrowdHair();
+const repeat = buildCrowdHair();
+const costs = [];
+for (const [i, g] of shapes.entries()) {
+  const positions = g.attributes.position.array;
+  assert(positions.every(Number.isFinite), `${names[i]} has invalid vertices`);
+  assert(g.attributes.normal.array.every(Number.isFinite), `${names[i]} has invalid normals`);
+  assert(positions.every((v, j) => v === repeat[i].attributes.position.array[j]), 'hair geometry must be deterministic');
+  g.computeBoundingBox();
+  costs.push(positions.length / 9);
+  assert(costs[i] <= 650, `${names[i]} exceeds the per-style triangle budget`);
+  assert(g.boundingBox.max.y < 2.15 && g.boundingBox.min.y > 1, `${names[i]} escapes head/shoulder bounds`);
+  // Hair over the forehead must leave both eyes and the nose unobscured.
+  for (let j = 0; j < positions.length; j += 3) {
+    const [x,y,z] = positions.slice(j,j+3);
+    assert(!(Math.abs(x)<.14 && y<1.73 && z<-.23), `${names[i]} covers the eyes`);
   }
-  translate(x,y,z){for(const v of this.vertices){v[0]+=x;v[1]+=y;v[2]+=z;}return this;}
-  scale(x,y,z){for(const v of this.vertices){v[0]*=x;v[1]*=y;v[2]*=z;}return this;}
-  rotateX(a){for(const v of this.vertices){const y=v[1],z=v[2];v[1]=Math.cos(a)*y-Math.sin(a)*z;v[2]=Math.sin(a)*y+Math.cos(a)*z;}return this;}
-  clone(){const g=new Geometry(0);g.vertices=this.vertices.map(v=>[...v]);return g;}
 }
-const geometryCode=crowd.slice(crowd.indexOf('    const hairCap ='),crowd.indexOf('    // The cup'));
-const shapes=vm.runInNewContext(`(()=>{${geometryCode};return {shortHair,curls,longHair,ponytail,bun,braids};})()`,{
- THREE:{SphereGeometry:class extends Geometry{constructor(r){super(r);}},IcosahedronGeometry:class extends Geometry{constructor(r){super(r);}},
- BoxGeometry:class extends Geometry{constructor(x,y,z){super(x/2,y/2,z/2);}},CapsuleGeometry:class extends Geometry{constructor(r,h){super(r,h/2+r,r);}}},
- mergeGeometrySet(parts){const g=new Geometry(0);g.vertices=parts.flatMap(p=>p.vertices);return g;},
-});
-const minY=g=>Math.min(...g.vertices.map(v=>v[1]));
-const maxY=g=>Math.max(...g.vertices.map(v=>v[1]));
-const maxZ=g=>Math.max(...g.vertices.map(v=>v[2]));
-assert(minY(shapes.longHair)<1.1 && minY(shapes.braids)<1.2,'long hair and braids must reach the shoulders/back');
-assert(maxZ(shapes.ponytail)>maxZ(shapes.shortHair)+.12,'ponytail must extend behind the head');
-assert(maxY(shapes.bun)>maxY(shapes.shortHair)+.1,'bun must visibly rise above the cropped crown');
-assert(shapes.curls.vertices.length>shapes.shortHair.vertices.length*2,'curls must have individually modeled coil volume');
-assert(/_hairFree = CROWD_HAIR_STYLES.map/.test(crowd),'all style pools must have fixed capacity');
-console.log('PASS production hair geometry: shoulder-length curtain, rear ponytail, raised bun, two braids and modeled curls');
+assert(shapes[2].boundingBox.min.y<1.1 && shapes[5].boundingBox.min.y<1.2, 'long styles must reach the shoulders');
+assert(shapes[3].boundingBox.max.z>shapes[0].boundingBox.max.z+.12, 'ponytail must extend behind the head');
+assert(shapes[4].boundingBox.max.y>shapes[0].boundingBox.max.y+.1, 'bun must rise above the cropped crown');
+for (const g of [...shapes,...repeat]) g.dispose();
+console.log('PASS actual hair geometry: deterministic, finite, face clearance, shoulder silhouettes; triangles:', costs.join(', '));

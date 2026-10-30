@@ -1,3 +1,4 @@
+import {copyPersonHairGeometry} from '../crowdHair.js';
 import {addStrideMorphs} from './personLocomotion.js';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
@@ -59,8 +60,7 @@ function template(instrument,variant){
     }
     oval(skin,[0,1.41,0],[.08,.13,.08]);
     oval(skin,[0,1.68,0],[.18,.225,.17]);
-    oval(0x302520,[0,1.84,.025],[.18,.105,.16]);
-    if(variant===1||variant===3)oval(0x302520,[0,1.70,.11],[.20,.23,.13]);
+    add(copyPersonHairGeometry(variant%2===0?'close':'long',[.18,.225,.17],[0,1.68,0]),0x302520);
     oval(skin,[0,1.665,-.169],[.032,.045,.038]);
     for(const x of [-.065,.065]){
       oval(0xffffff,[x,1.713,-.151],[.038,.027,.022]);

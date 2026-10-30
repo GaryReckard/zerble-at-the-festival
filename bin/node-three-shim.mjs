@@ -185,6 +185,12 @@ export class InstancedMesh {
 `;
 
 export async function resolve(specifier, context, nextResolve) {
+  // Ownership tests record scene objects, but a transitively imported addon
+  // still needs its complete real namespace. Never imitate merge algorithms
+  // with fake buffers; geometry tests exercise those against the real library.
+  if (specifier === 'three' && ['/three/examples/jsm/utils/BufferGeometryUtils.js', '/src/crowdHair.js', '/src/models/garyDriver.js'].some(path => context.parentURL?.endsWith(path))) {
+    return nextResolve(specifier, context);
+  }
   if (specifier === 'three') {
     return {
       url: 'data:text/javascript,' + encodeURIComponent(STUB),

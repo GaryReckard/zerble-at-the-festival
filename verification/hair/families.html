@@ -1,0 +1,56 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hair across festival people</title><style>
+body{margin:0;background:#252731;color:#eee;font:14px system-ui}header{height:90px;padding:12px 20px;box-sizing:border-box}h1{font-size:21px;margin:0 0 8px}button,a{color:#fff;background:#454755;border:1px solid #777;border-radius:5px;padding:6px 12px;font:inherit}#grid{display:grid;grid-template-columns:repeat(6,1fr)}.cell{height:160px;position:relative;border-top:1px solid #555}.label{position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:12px;z-index:1}canvas{position:absolute;top:90px;left:0;pointer-events:none}#status{margin-left:12px;font-size:12px}</style></head><body>
+<header><h1>Hair across festival people</h1><button id="view">Front</button> <button id="light">Noon</button> <a href="index.html?mute=1">Six-style comparison</a><span id="status"></span></header><div id="grid"></div>
+<script type="module">
+import * as THREE from 'three';
+import {buildKid} from '../../src/models/kid.js';
+import {buildFrisbeePlayer} from '../../src/models/frisbeePlayer.js';
+import {buildHulaHooper} from '../../src/models/hulaHooper.js';
+import {buildWook} from '../../src/models/wook.js';
+import {buildBo} from '../../src/models/bo.js';
+import {buildMonk} from '../../src/models/monk.js';
+import {buildPerformer} from '../../src/models/performer.js';
+import {buildBandMember} from '../../src/models/bandMember.js';
+import {buildParasolMarshal} from '../../src/models/parasolMarshal.js';
+import {buildSimpleNPC} from '../../src/models/puppet.js';
+import {buildApronCook,buildTom} from '../../src/models/sugarShack.js';
+import {buildFireDancer,buildHandDrummer,buildFirekeeper,buildSpotter} from '../../src/models/tribalFigures.js';
+import {buildOneWheelRider} from '../../src/models/oneWheelRider.js';
+import {buildCanoe} from '../../src/models/canoe.js';
+import {buildHealingArts,updateHealingArts} from '../../src/models/healingArts.js';
+import {Zerble} from '../../src/zerble.js';
+const r=()=>.4;
+const entries=[
+ ['Kid · braids',()=>buildKid(()=>.1),[0,1,0],.7],['Kid · cap',()=>buildKid(r),[0,1,0],.7],['Kid · crop',()=>buildKid(()=>.8),[0,1,0],.7],
+ ['Frisbee · cap',()=>buildFrisbeePlayer(r)],['Frisbee · crop',()=>buildFrisbeePlayer(()=>.8)],['Hooper',()=>buildHulaHooper(r),[0,1.55,0]],
+ ['Wook',()=>buildWook(r),[0,2.15,0],1.55],['Bo',()=>buildBo(),[0,1.56,.01],1.05,Math.PI],['Monk',()=>buildMonk(),[0,1.52,0],.7],
+ ['Performer · long',()=>buildPerformer('guitar',r),[0,1.68,0],.8],['Performer · hat',()=>buildPerformer('guitar',()=>.1),[0,1.68,0],.9],['Marching band',()=>buildBandMember('trumpet',37),[0,1.68,0],.9],
+ ['Parasol marshal',()=>buildParasolMarshal(),[0,1.8,0],1.25],['Shopkeeper',()=>buildSimpleNPC(0x558877,0xc98e68)],['Parade carrier',()=>buildSimpleNPC(0x425c55,0xd8b493,{armPose:'carry'})],
+ ['Apron cook',()=>buildApronCook(r)],['Tom',()=>buildTom()],['Fire dancer',()=>buildFireDancer(r).group,[0,1.6,0],.9],
+ ['Hand drummer',()=>buildHandDrummer(r).group,[0,1.1,0],.85],['Firekeeper',()=>buildFirekeeper(r).group,[0,1.6,0],.85],['Spotter',()=>buildSpotter(r).group,[0,1.6,0],.85],
+ ['One-wheel rider',()=>buildOneWheelRider({rng:r}),[0,1.945,0],.85, -.9-Math.PI/2],
+ ['Canoe paddler',()=>{const g=new THREE.Group();buildCanoe(g,r);return g;},[0,1.16,-.7],.75],
+ ['Cart driver',()=>{const owner={root:new THREE.Group()};Zerble.prototype._buildDriver.call(owner);return owner.root;},[-.55,2.75,-.35],1.05],
+];
+// The production yoga renderer is instanced; extract a posed participant without
+// substituting their head/hair geometry or material.
+const yoga=buildHealingArts({rng:r});updateHealingArts(yoga,0,0,0);
+const yogaPerson=new THREE.Group(),rig=yoga.userData.healingArts;
+for(const mesh of [rig.heads,rig.hair]){const material=mesh.material.clone();if(mesh.instanceColor)mesh.getColorAt(0,material.color);const m=new THREE.Mesh(mesh.geometry,material);mesh.getMatrixAt(0,m.matrix);m.matrix.decompose(m.position,m.quaternion,m.scale);yogaPerson.add(m);}
+const p=yogaPerson.children[0].position;entries.push(['Yoga / night DJ',()=>yogaPerson,[p.x,p.y,p.z],.85]);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setScissorTest(true);document.body.append(renderer.domElement);
+const grid=document.querySelector('#grid');let back=false,night=false;
+const scenes=entries.map(([name,build,center=[0,1.65,0],height=1,yaw=0])=>{
+ const cell=document.createElement('div');cell.className='cell';cell.innerHTML=`<div class="label">${name}</div>`;grid.append(cell);
+ const scene=new THREE.Scene();scene.background=new THREE.Color('#252731');scene.add(build());
+ const hemi=new THREE.HemisphereLight(0xdceaff,0x706451,2),sun=new THREE.DirectionalLight(0xffe7c4,3),rim=new THREE.DirectionalLight(0xb7cbff,1);sun.position.set(-3,5,-5);rim.position.set(3,3,4);scene.add(hemi,sun,rim);
+ return {scene,cell,center:new THREE.Vector3(...center),height,yaw,hemi,sun,rim,camera:new THREE.OrthographicCamera()};
+});
+function render(){const w=innerWidth,h=grid.offsetHeight;renderer.setSize(w,h);let draws=0,tris=0;
+ for(const e of scenes){const rect=e.cell.getBoundingClientRect(),x=rect.left,y=h-(e.cell.offsetTop-90)-rect.height;const a=rect.width/rect.height,c=e.camera;c.left=-e.height*a/2;c.right=e.height*a/2;c.top=e.height/2;c.bottom=-e.height/2;c.updateProjectionMatrix();
+ const angle=e.yaw+(back?Math.PI:0);c.position.copy(e.center).add(new THREE.Vector3(-Math.sin(angle)*5,.12,-Math.cos(angle)*5));c.lookAt(e.center);
+ e.hemi.intensity=night?.5:2;e.sun.intensity=night?.18:3;e.rim.intensity=night?.7:1;e.scene.background.set(night?'#111522':'#252731');
+ renderer.setViewport(x,y,rect.width,rect.height);renderer.setScissor(x,y,rect.width,rect.height);renderer.render(e.scene,c);draws+=renderer.info.render.calls;tris+=renderer.info.render.triangles;
+ }document.querySelector('#status').textContent=`${entries.length} portraits · ${draws} draws · ${tris.toLocaleString()} tris`;}
+document.querySelector('#view').onclick=e=>{back=!back;e.target.textContent=back?'Back':'Front';render();};document.querySelector('#light').onclick=e=>{night=!night;e.target.textContent=night?'Midnight':'Noon';render();};addEventListener('resize',render);render();
+</script></body></html>

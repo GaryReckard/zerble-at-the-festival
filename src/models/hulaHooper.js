@@ -1,3 +1,4 @@
+import {makePersonHair} from '../crowdHair.js';
 import {bindLocomotion,stridePivot,tickLocomotion} from './personLocomotion.js';
 import {sampleHulaMotion} from '../personMotion.js';
 // Hula-hooper — festival-goer gyrating with a glowing hoop.
@@ -161,17 +162,8 @@ export function buildHulaHooper(rng = Math.random) {
     body.add(eye);
   }
 
-  // Hair — flat hemisphere skull cap that hugs the head. (Previously had a
-  // chunky vertical capsule "ponytail" added behind the head — it stuck out
-  // like an extra limb, so it's gone now.)
   const hairColor = [0x3a2a1a, 0x6a4a2a, 0xc97a3b, 0xd9a26e, 0x222, 0xff5577][Math.floor(rng() * 6)];
-  const hairMat = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 1, flatShading: true });
-  const hairCap = new THREE.Mesh(
-    new THREE.SphereGeometry(0.26, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-    hairMat,
-  );
-  hairCap.position.y = 1.55;
-  body.add(hairCap);
+  body.add(makePersonHair({style:'ponytail',color:hairColor,radii:[.24,.24,.24],center:[0,1.55,0]}));
 
   // Headband (matches accent)
   const band = new THREE.Mesh(

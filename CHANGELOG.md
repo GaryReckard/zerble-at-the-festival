@@ -2,6 +2,12 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-10-30
+
+### Changed
+- **Hair improvements reach every human character family.** Six sculpted styles and a close cap now share head-sized geometry across crowds, children, performers and bands, vendors and cooks, parade carriers, hoopers, drum-circle figures, monks, paddlers, yoga participants, riders and the cart driver. Bo retains long hair and wooks retain tapered dreadlocks. Shared pools preserve seeded choices, existing animation and crowd instancing. [Before/after, geometry costs and verification limits](verification/hair/README.md).
+- **Gary has a complete seated driving pose.** Taller proportions, rounded jeans with rear seams, bent knees and an extended right leg meet suspended angled pedals in a recessed dark gray footwell. Swept-back brown hair, gray temples and a rear bun follow the supplied references. [Driver views and contact checks](verification/hair/README.md).
+
 ## 2026-10-29
 
 ### Added

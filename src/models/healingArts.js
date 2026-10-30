@@ -1,3 +1,4 @@
+import {getPersonHairGeometry} from '../crowdHair.js';
 import * as THREE from 'three';
 import {HEALING_DANCE_REST,sampleHealingDancePoint} from '../personMotion.js';
 import { register } from '../contextLights.js';
@@ -154,7 +155,7 @@ export function buildHealingArts({ rng = () => 0.5 } = {}) {
   participants.push({ x: 0, z: -6.6, phase: 1.7, yaw: 0, shirt: 0x36546e, skin: 0xa16c49, dj: true });
   const bodies = new THREE.InstancedMesh(TUBE, mat(0xffffff), participants.length * LIMBS.length);
   const heads = new THREE.InstancedMesh(BALL, mat(0xffffff), participants.length);
-  const hair = new THREE.InstancedMesh(BALL, mat(0x302820), participants.length);
+  const hair = new THREE.InstancedMesh(getPersonHairGeometry('bun'), mat(0x302820), participants.length);
   const glowsticks = new THREE.InstancedMesh(TUBE, mat(0x8effbb, {emissive:0x35ff83,emissiveIntensity:2}), participantCount);
   glowsticks.frustumCulled = false; group.add(glowsticks);
   participants.forEach((p, i) => {
@@ -239,7 +240,7 @@ export function updateHealingArts(group, dt, time, nightness) {
     }
     const size = hide ? 0 : 1;
     instanceAt(u.heads, i, px + pose[6], pose[7], pz + pose[8], .21 * size, .25 * size, .21 * size);
-    instanceAt(u.hair, i, px + pose[6], pose[7] + .15, pz + pose[8] - .025, .215 * size, .13 * size, .21 * size);
+    instanceAt(u.hair, i, px + pose[6], pose[7], pz + pose[8], .21 * size, .25 * size, .21 * size, p.heading);
   }
   for (const batch of [u.bodies, u.heads, u.hair, u.mats, u.glowsticks]) batch.instanceMatrix.needsUpdate = true;
 }

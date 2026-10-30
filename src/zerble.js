@@ -1,3 +1,4 @@
+import {buildGaryHair,buildGaryLowerBody,buildGaryArms,buildGaryFootwellGeometry,buildGaryFootwellLiner} from './models/garyDriver.js';
 // Zerble: the anthropomorphic golf cart. Geometry + arcade physics.
 
 import * as THREE from 'three';
@@ -112,13 +113,14 @@ export class Zerble {
     // "pickup bed" so back-seat riders have foot room. The rear gets a
     // black floorboard on top with LED light trim.
     const chassisFront = new THREE.Mesh(
-      this._roundedBoxGeometry(2.6, 0.9, 2.6, 0.18),
+      buildGaryFootwellGeometry(),
       mat(COLOR_BODY, { roughness: 0.55 })
     );
+    chassisFront.name = 'Front chassis deck';
     chassisFront.position.set(0, 0.85, -0.8);
     chassisFront.castShadow = true;
     chassisFront.receiveShadow = true;
-    this.root.add(chassisFront);
+    this.root.add(chassisFront,buildGaryFootwellLiner());
 
     const chassisRear = new THREE.Mesh(
       this._roundedBoxGeometry(2.6, 0.45, 1.6, 0.12),
@@ -131,10 +133,10 @@ export class Zerble {
 
     // Hood front (a small bulge at the front)
     const hood = new THREE.Mesh(
-      this._roundedBoxGeometry(2.6, 0.45, 1.0, 0.14),
+      this._roundedBoxGeometry(2.6, 0.125, 1.0, 0.14),
       mat(COLOR_BODY, { roughness: 0.55 })
     );
-    hood.position.set(0, 1.2, -1.8);
+    hood.position.set(0, 1.3625, -1.8);
     hood.castShadow = true;
     this.root.add(hood);
 
@@ -143,6 +145,7 @@ export class Zerble {
       this._roundedBoxGeometry(2.2, 0.55, 1.0, 0.1),
       mat(COLOR_SEAT, { roughness: 0.85 })
     );
+    frontSeat.name = 'Front bench cushion';
     frontSeat.position.set(0, 1.45, -0.4);
     // Seats sit inside the cart — chassis + roof already cast the cart's
     // silhouette shadow on the ground.
@@ -152,6 +155,7 @@ export class Zerble {
       this._roundedBoxGeometry(2.2, 1.0, 0.22, 0.08),
       mat(COLOR_SEAT, { roughness: 0.85 })
     );
+    frontSeatBack.name = 'Front bench back';
     frontSeatBack.position.set(0, 1.95, 0.1);
     this.root.add(frontSeatBack);
 
@@ -808,14 +812,22 @@ export class Zerble {
     const driver = new THREE.Group();
     driver.position.set(-0.55, 1.75, -0.35); // sitting in the front-left seat
 
+    driver.add(buildGaryLowerBody(),buildGaryArms());
+
     // Body — flannel shirt
     const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.32, 0.55, 4, 8),
+      new THREE.CapsuleGeometry(0.22, 0.50, 4, 8),
       new THREE.MeshStandardMaterial({ color: 0xa84a3b, roughness: 0.95, flatShading: true })
     );
-    body.position.y = 0.05;
+    body.position.y = 0.40;
     body.castShadow = true;
     driver.add(body);
+
+    const headRig = new THREE.Group();
+    headRig.name = 'Gary head';
+    headRig.scale.setScalar(.85);
+    headRig.position.y = 1.0 - .75 * .85;
+    driver.add(headRig);
 
     // Head
     const head = new THREE.Mesh(
@@ -824,35 +836,9 @@ export class Zerble {
     );
     head.position.y = 0.75;
     // Tiny driver head — body shadow already represents the driver.
-    driver.add(head);
+    headRig.add(head);
 
-    // (No hat — driver wears their own hair instead.)
-
-    // Brown hair, parted on the LEFT. Driver faces -Z, so driver-left = -X.
-    // Built as TWO icosahedra: a fuller main mass covering crown + back +
-    // right side, plus a smaller, shorter patch on the left. The size
-    // asymmetry reads as a side-part silhouette without needing a literal
-    // "part line" mesh (which wouldn't read at game-camera distance).
-    const hairMat = new THREE.MeshStandardMaterial({
-      color: 0x4a3220, roughness: 1.0, flatShading: true,
-    });
-    const hairMain = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.30, 1), hairMat,
-    );
-    // Slight +X offset = "swept to the right". Scale flattens it into a
-    // crown shape; the head's icosa-radius of 0.28 + this 0.30 leaves a
-    // ~2cm fluffy halo.
-    hairMain.position.set(0.025, 0.86, 0.03);
-    hairMain.scale.set(1.05, 0.62, 1.05);
-    driver.add(hairMain);
-    // Shorter, flatter left-side patch — the bit of hair that lies down
-    // across the part line. Without it the silhouette reads symmetric.
-    const hairLeft = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.18, 0), hairMat,
-    );
-    hairLeft.position.set(-0.16, 0.78, 0.02);
-    hairLeft.scale.set(1.0, 0.55, 1.0);
-    driver.add(hairLeft);
+    headRig.add(buildGaryHair());
 
     // Beard — dense cluster of icospheres, wide arc under chin hanging well below the head
     const beardMatA = new THREE.MeshStandardMaterial({ color: 0x4a352a, roughness: 1, flatShading: true });
@@ -878,7 +864,7 @@ export class Zerble {
         Math.sin(ang) * r * 0.75 - 0.06
       );
       tuft.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-      driver.add(tuft);
+      headRig.add(tuft);
     }
 
     // Handlebar mustache — two mirrored CatmullRom tubes, brown, curling up at tips
@@ -899,7 +885,7 @@ export class Zerble {
         driverMustacheMat
       );
       // Mustache tube on the driver — thin curl, skip shadow casting.
-      driver.add(mTube);
+      headRig.add(mTube);
     }
 
     // Blue eyes — sclera + iris on the front face of the head
@@ -909,10 +895,10 @@ export class Zerble {
     for (const ex of [-0.10, 0.10]) {
       const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), eyeSclMat);
       sclera.position.set(ex, 0.78, -0.22);
-      driver.add(sclera);
+      headRig.add(sclera);
       const iris = new THREE.Mesh(new THREE.SphereGeometry(0.025, 7, 5), eyeIrisMat);
       iris.position.set(ex, 0.78, -0.25);
-      driver.add(iris);
+      headRig.add(iris);
     }
 
     // ---- Mondrian-pattern Wayfarer shades ----
@@ -926,7 +912,7 @@ export class Zerble {
     // +20% chunkier per Gary's "embiggen" request — frames widen, lenses
     // grow, temples lengthen all in proportion.
     glasses.scale.setScalar(1.2);
-    driver.add(glasses);
+    headRig.add(glasses);
 
     // Mondrian frame texture — drawn into a canvas once per shack-er,
     // er, per Zerble. Small enough (256² · ~6KB) that we don't bother
@@ -1072,14 +1058,14 @@ export class Zerble {
     const handMat = new THREE.MeshStandardMaterial({ color: 0xd9a26e, roughness: 0.9 });
     for (const hx of [-0.18, 0.18]) {
       const hand = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), handMat);
-      hand.position.set(hx, 0.15, -0.45);
+      hand.position.set(hx, 0.32, -0.58);
       driver.add(hand);
     }
     const wheel = new THREE.Mesh(
       new THREE.TorusGeometry(0.22, 0.04, 6, 14),
       new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.4 })
     );
-    wheel.position.set(0, 0.15, -0.5);
+    wheel.position.set(0, 0.32, -0.63);
     wheel.rotation.x = Math.PI / 2;
     driver.add(wheel);
 

@@ -1,3 +1,4 @@
+import {copyPersonHairGeometry} from '../crowdHair.js';
 import * as THREE from 'three';
 import { bakePerformancePart } from './performer.js';
 
@@ -72,7 +73,7 @@ function riderParts(variant) {
   });
   const head = bakePerformancePart(({ add, oval, box, rod }) => {
     oval(skin, [0, 0, 0], [.155, .205, .16]);
-    oval(0x35262b, [-.055, .025, 0], [.13, .19, .165]);
+    add(copyPersonHairGeometry('ponytail',[.155,.205,.16],[0,0,0],-Math.PI/2),0x35262b);
     oval(skin, [.153, -.015, 0], [.035, .042, .035]);
     for (const s of [-1, 1]) {
       oval(skin, [0, -.02, s * .16], [.035, .06, .025]);
@@ -86,7 +87,7 @@ function riderParts(variant) {
       TEAL, [0, .075, 0], [.195, .19, .205]);
     oval(0x344a51, [0, .075, 0], [.20, .035, .21]);
     for (const z of [-.085, 0, .085]) box(0x31545a, [0, .252, z], [.105, .012, .024]);
-    oval(0x35262b, [-.145, -.105, 0], [.08, .14, .075]);
+
   });
   const arms = [-1, 1].map(s => bakePerformancePart(({ oval, rod }) => {
     rod(skin, [0, 0, 0], [.07, -.23, s * .10], .066);

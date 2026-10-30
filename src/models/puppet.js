@@ -1,3 +1,4 @@
+import {makePersonHair} from '../crowdHair.js';
 import {bindLocomotion,tickLocomotion} from './personLocomotion.js';
 import * as THREE from 'three';
 import { buildLantern, puppetRandom } from './paradeLanterns.js';
@@ -157,6 +158,9 @@ export function buildSimpleNPC(shirtHex, skinHex, opts = {}) {
   head.position.y = 1.65;
   head.castShadow = true;
   upperRoot.add(head);
+  if (opts.hair !== false) upperRoot.add(makePersonHair({
+    style:opts.hairStyle ?? 'cropped',color:opts.hairColor ?? 0x493125,
+  }));
   for (const ex of [-0.08, 0.08]) {
     const eye = new THREE.Mesh(_EYE_GEO, _EYE_MAT);
     eye.position.set(ex, 1.68, -0.22);

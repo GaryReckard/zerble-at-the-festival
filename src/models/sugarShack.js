@@ -1,3 +1,4 @@
+import {makePersonHair} from '../crowdHair.js';
 import {bindLocomotion,tickLocomotion} from './personLocomotion.js';
 // Sugar Shack — long white gable canopy behind a stand-alone signage facade.
 // Modelled on Tom's Sugar Shack at LEAF festival. Geometry split into two
@@ -458,10 +459,10 @@ function buildTieDyeTexture() {
 }
 
 // Tom — proprietor. Tie-dye shirt, white/grey ponytail, grey beard stubble.
-function buildTom() {
+export function buildTom() {
   // Build with a placeholder white shirt so we can identify-and-swap the
   // shirt-colored meshes for the tie-dye material below.
-  const g = buildSimpleNPC(0xffffff, 0xe6c098, { pantsHex: 0x4a3520 });
+  const g = buildSimpleNPC(0xffffff, 0xe6c098, { pantsHex: 0x4a3520, hair:false });
   const tieDyeMat = new THREE.MeshStandardMaterial({
     map: buildTieDyeTexture(), roughness: 0.9, flatShading: true,
   });
@@ -475,32 +476,7 @@ function buildTom() {
     }
   });
 
-  // White/grey hair — wraps the top of the head AND domes above it so the
-  // skin-colored crown isn't visible. Bigger than the head, positioned
-  // slightly back so the face stays exposed. NPC faces -Z, back of head +Z.
-  const hairMat = new THREE.MeshStandardMaterial({
-    color: 0xd6d2c8, roughness: 0.85, flatShading: true,
-  });
-  const topHair = new THREE.Mesh(new THREE.IcosahedronGeometry(0.30, 1), hairMat);
-  topHair.position.set(0, 1.78, 0.08);
-  topHair.scale.set(1.05, 0.80, 1.05);
-  g.add(topHair);
-  // Hair-band at the base of the skull where the ponytail starts.
-  const band = new THREE.Mesh(
-    new THREE.TorusGeometry(0.07, 0.025, 6, 12),
-    new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8, flatShading: true }),
-  );
-  band.position.set(0, 1.55, 0.20);
-  band.rotation.x = Math.PI / 2;
-  g.add(band);
-  // The ponytail — slight forward droop so it reads as hanging, not stuck on.
-  const ponytail = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05, 0.08, 0.48, 8),
-    hairMat,
-  );
-  ponytail.position.set(0, 1.34, 0.24);
-  ponytail.rotation.x = 0.12;
-  g.add(ponytail);
+  g.add(makePersonHair({style:'ponytail',color:0xd6d2c8}));
 
   // Grey beard stubble — small dots scattered along the jawline. NPC's face
   // is at -Z; jaw is right below the eyes at z ≈ -0.22.
@@ -529,7 +505,7 @@ export function buildApronCook(rng = Math.random) {
   const skinTones   = [0xe6c098, 0xc09478, 0x8b6f50, 0xf2d4b2];
   const shirt = shirtColors[Math.floor(rng() * shirtColors.length)];
   const skin  = skinTones[Math.floor(rng() * skinTones.length)];
-  const g = buildSimpleNPC(shirt, skin, { pantsHex: 0x2a2a3c,walk:true });
+  const g = buildSimpleNPC(shirt, skin, { pantsHex: 0x2a2a3c,walk:true,hair:false });
 
   // Apron — flat panel covering the front of the torso. NPC's chest is -Z.
   const apronMat = new THREE.MeshStandardMaterial({
@@ -551,19 +527,8 @@ export function buildApronCook(rng = Math.random) {
   strap.rotation.z = Math.PI;
   g.add(strap);
 
-  // Short cropped hair. The simple NPC head is a 0.26-radius sphere centered
-  // at y=1.65, so its crown sits at y≈1.91 — the dome needs to clear that or
-  // the bald scalp pokes through. Centered at 1.82 with scale.y=0.55 puts the
-  // hair's top at y≈1.97, comfortably over the head.
   const hairColors = [0x2a2018, 0x5a3920, 0x7b5a3a, 0xb8956a];
-  const hairMat = new THREE.MeshStandardMaterial({
-    color: hairColors[Math.floor(rng() * hairColors.length)],
-    roughness: 0.85, flatShading: true,
-  });
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.27, 10, 8), hairMat);
-  hair.position.set(0, 1.82, 0.03);
-  hair.scale.set(1.02, 0.55, 1.02);
-  g.add(hair);
+  g.add(makePersonHair({color:hairColors[Math.floor(rng()*hairColors.length)]}));
 
   const root=new THREE.Group();root.add(g);
   bindLocomotion(root,{ground:.005,body:g,legs:g.userData.walkLegs,arms:g.userData.shoulders,height:1});
