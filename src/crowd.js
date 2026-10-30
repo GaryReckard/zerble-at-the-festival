@@ -2109,6 +2109,16 @@ export class Crowd {
   _tickCamp(dt,npc) {return this.camps.tick(dt,npc.personHandle,this.campTimeOfDay?.t??getTimeOfDay()?.t??.25);}
   isPersonActivityCurrent(claim) {return this.activityClaims.canWrite(claim);}
   readCampPlace(handle,out) {return this.camps.readPlace(handle,out);}
+  readPersonSupport(handle,out) {
+    const n=this.peopleHandles.resolve(handle),owner=this.activityClaims.current.get(handle)?.claim.owner;
+    if(!n||this._disposed||n.state!=='camp_seated'||n.party||n.seatSlot||n.isPhotographer||n.campJamHidden||this.hasHiddenBinding(handle)
+      ||(owner!==this.camps&&owner!==this.campJams))return false;
+    return owner.readPlace(handle,out);
+  }
+  preparePersonSupportTransfer(handle,entry,attempt) {
+    if(!this.readPersonSupport(handle,this._supportView??={}))return null;
+    return this.activityClaims.current.get(handle).claim.owner.prepareSupportTransfer(handle,entry,attempt);
+  }
   setCampCooldown(handle,value) {return this.camps.setCooldown(handle,value);}
   canPlayCampMusic(handle) {
     const n=this.peopleHandles.resolve(handle);if(!n||n.party||!['idle','walking','camp_seated'].includes(n.state))return false;

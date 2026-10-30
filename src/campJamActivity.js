@@ -3,6 +3,7 @@ import {
   reserveCampSlot,
   campSlotValid,
   releaseCampSlot,
+  prepareCampSlotTransfer,
   campExit,
 } from "./people/campResources.js";
 import { registry } from "./registry.js";
@@ -23,6 +24,17 @@ function hash(n) {
 // This is an activity controller, not another crowd renderer or audio clock.
 // Claims belong to jobs and are released in one place on every interruption.
 export class CampJamActivity {
+  readPlace(handle, out) {
+    const job = this.jobs.get(handle);
+    if (!job || !campSlotValid(this.people,this.registry,job.reservation)) return false;
+    out.slot=job.slot;out.entry=job.entry;out.bed=false;return true;
+  }
+  prepareSupportTransfer(handle, entry, attempt) {
+    const job = this.jobs.get(handle);
+    if (this.disposed || !job || !this.people.readCampMusicMotion(handle,job.motion)
+      || job.motion.state !== 'camp_seated' || job.motion.campJamHidden) return null;
+    return prepareCampSlotTransfer(this.people,this.registry,job.reservation,entry,attempt);
+  }
   constructor(people, { places = registry } = {}) {
     this.registry = places;
     this.jobs = new Map();

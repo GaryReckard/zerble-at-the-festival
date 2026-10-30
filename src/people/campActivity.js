@@ -3,6 +3,7 @@ import {
   reserveCampSlot,
   campSlotValid,
   releaseCampSlot,
+  prepareCampSlotTransfer,
   campExit,
 } from "./campResources.js";
 const vector = () => ({
@@ -65,6 +66,12 @@ export class CampActivity {
     out.entry = s.campEntry;
     out.bed = s.campBed;
     return true;
+  }
+  prepareSupportTransfer(handle, entry, attempt) {
+    const s = this.records.get(handle);
+    if (this.disposed || !s || !this.people.readCampMotion(handle,s)
+      || s.state !== 'camp_seated' || s.campBed) return null;
+    return prepareCampSlotTransfer(this.people,this.registry,s.reservation,entry,attempt);
   }
   exit(handle) {
     const s = this.records.get(handle);

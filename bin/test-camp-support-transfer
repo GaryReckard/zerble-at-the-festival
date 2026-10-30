@@ -1,0 +1,104 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+import {CampActivity} from '../src/people/campActivity.js';
+import {campSlotAvailable,releaseCampSlot} from '../src/people/campResources.js';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+
+function fixture() {
+  const people=makePeopleCrowd(),slots=[-.4,.4].map(x=>({x,y:.8,z:0,yaw:0,approachX:x,approachZ:1,occupied:false}));
+  const original={id:1,position:new Vector(),campSeats:slots,campBeds:[]};
+  const target={id:2,position:new Vector(),campSeats:slots,campBeds:[]};
+  const registry={entries:new Map([[1,original],[2,target]]),byKind:new Map([['campsite',new Set([1])]]),collidersNear(){}};
+  people.camps=new CampActivity(people,registry);people._inlineActivities=new Set([people.camps]);
+  const persons=slots.map(slot=>{
+    const n=people.spawn({pos:new Vector(slot.x,0,1)});Object.assign(n,{scale:1,energy:1,stateTimer:1});
+    for(let i=0;i<300&&n.state!=='camp_seated';i++){n.stateTimer-=.05;people.camps.tick(.05,n.personHandle,.25);}
+    assert.equal(n.state,'camp_seated');return n.personHandle;
+  });
+  return {people,slots,persons,original,target,registry};
+}
+const owner={activityKey:'physical-seat-support'};
+{
+  const f=fixture(),person=f.persons[0],n=f.people.peopleHandles.resolve(person),view={};
+  assert(f.people.readPersonSupport(person,view));assert.equal(view.slot,f.slots[0]);assert.equal(view.entry,f.original);
+  for(const patch of [{state:'camp_sleeping'},{party:{}},{seatSlot:{}},{isPhotographer:true},{campJamHidden:true},{_activityBinding:{hidden:true}}]) {
+    const previous=Object.fromEntries(Object.keys(patch).map(key=>[key,n[key]]));Object.assign(n,patch);
+    assert.equal(f.people.readPersonSupport(person,view),false);
+    assert.equal(f.people.preparePersonSupportTransfer(person,f.target,{own(){throw Error('must not allocate');}}),null);
+    Object.assign(n,previous);
+  }
+  f.people.activityClaims.dispose();assert.equal(f.people.readPersonSupport(person,view),false);
+}
+{
+  const f=fixture(),[a,b]=f.persons,sa=f.people.camps.records.get(a),sb=f.people.camps.records.get(b);
+  const oldA=sa.claim,oldB=sb.claim,reservationA=sa.reservation,reservationB=sb.reservation;
+  let prepared;
+  assert.equal(f.people.claimActivity(a,{owner,prepare(attempt){prepared=f.people.preparePersonSupportTransfer(a,f.target,attempt);assert(prepared);assert.equal(prepared.commit(oldA),false);return false;}}),null);
+  assert(f.people.isPersonActivityCurrent(oldA));assert(f.people.camps.has(a));assert(f.slots.every(s=>s.occupied));
+  assert.equal(prepared.commit(oldA),false);
+  let support;
+  const claim=f.people.claimActivity(a,{owner,prepare(attempt){
+    support=f.people.preparePersonSupportTransfer(a,f.target,attempt);assert(support);
+    assert.equal(f.people.preparePersonSupportTransfer(a,f.target,attempt),null,'one prepared transfer per seat');
+    return true;
+  }},{preserveMotion:true});
+  assert(claim);assert.equal(f.people.camps.has(a),false);assert(f.people.isPersonActivityCurrent(oldB));
+  assert(f.slots.every(s=>s.occupied),'no seat becomes available between old release and new commit');
+  assert(f.slots.every(s=>!campSlotAvailable(s)));
+  assert(support.commit(claim));assert(support.isValid());assert.equal(support.commit(claim),false);
+  assert.equal(releaseCampSlot(reservationA),false,'late original cleanup cannot free replacement support');
+  // Transfer the second loveseat sitter independently before origin unload.
+  let supportB;
+  const claimB=f.people.claimActivity(b,{owner,prepare(attempt){supportB=f.people.preparePersonSupportTransfer(b,f.target,attempt);return !!supportB;}},{preserveMotion:true});
+  assert(supportB.commit(claimB));f.registry.entries.delete(f.original.id);
+  f.people.camps.dispose();assert(support.isValid());assert(supportB.isValid());
+  assert.equal(releaseCampSlot(reservationB),false);
+  assert(support.release());assert(!f.slots[0].occupied);assert(f.slots[1].occupied);assert(supportB.isValid());
+  assert.equal(support.release(),false);
+  f.people.endPersonActivity(claim);assert(f.slots[1].occupied);
+  f.people.endPersonActivity(claimB);assert(!f.slots[1].occupied);assert(!supportB.isValid());
+}
+for(const failure of ['target-removed','person-removed','throw','expired-attempt']) {
+  const f=fixture(),person=f.persons[0],old=f.people.camps.records.get(person).claim;let support;
+  if(failure==='expired-attempt') {
+    assert.throws(()=>f.people.preparePersonSupportTransfer(person,f.target,{own(){throw Error('expired');}}),/expired/);
+    assert(f.people.isPersonActivityCurrent(old));
+    const fresh=f.people.claimActivity(person,{owner,prepare(attempt){support=f.people.preparePersonSupportTransfer(person,f.target,attempt);return false;}});
+    assert.equal(fresh,null);assert(support);
+  } else if(failure==='throw') {
+    assert.throws(()=>f.people.claimActivity(person,{owner,prepare(attempt){support=f.people.preparePersonSupportTransfer(person,f.target,attempt);throw Error('no body capacity');}}),/no body capacity/);
+    assert(f.people.isPersonActivityCurrent(old));assert(f.slots[0].occupied);
+  } else {
+    const claim=f.people.claimActivity(person,{owner,prepare(attempt){
+      support=f.people.preparePersonSupportTransfer(person,f.target,attempt);
+      if(failure==='person-removed')f.people.peopleHandles.remove(person,()=>f.people.activityClaims.removePerson(person));
+      return true;
+    }},{preserveMotion:true});
+    if(failure==='person-removed'){assert.equal(claim,null);assert(!f.slots[0].occupied);}
+    else {
+      f.registry.entries.delete(f.target.id);assert.equal(support.commit(claim),false);
+      f.people.endPersonActivity(claim);assert(!f.slots[0].occupied);
+    }
+  }
+  f.people.activityClaims.dispose();assert(f.slots.every(s=>!s.occupied));
+}
+console.log('PASS camp support transfer: real seated activities, failed preparation preserves owner, continuous seat exclusivity, two independent loveseat handoffs, origin unload, late old cleanup, person removal and target failure.');
+for(const capacity of [0,1]) {
+  const f=fixture(),person=f.persons[0],old=f.people.camps.records.get(person).claim;
+  const adapter=await createRapierAdapter({capacities:{supportedLoads:capacity}});
+  try {
+    const body=adapter.addBody({id:'seat',type:'dynamic',colliders:[{shape:'ball',radius:.2,mass:5}]});
+    let support,load;
+    const claim=f.people.claimActivity(person,{owner,prepare(attempt){
+      support=f.people.preparePersonSupportTransfer(person,f.target,attempt);if(!support)return false;
+      load=adapter.addSupportedLoad({id:'sitter',bodyId:'seat',bodyGeneration:body.generation,position:{x:0,y:1,z:0},mass:70,radius:.2});
+      if(!load.ok)return false;
+      attempt.own(()=>adapter.removeSupportedLoad(load.token));return true;
+    }},{preserveMotion:true});
+    if(capacity===0){assert.equal(claim,null);assert(f.people.isPersonActivityCurrent(old));assert(f.slots[0].occupied);}
+    else {assert(support.commit(claim));assert.equal(adapter.readBody('seat').mass,75);f.registry.entries.delete(f.original.id);assert(support.isValid());f.people.endPersonActivity(claim);assert(!f.slots[0].occupied);}
+    assert.equal(adapter.counts().supportedLoads,0);assert.equal(adapter.readBody('seat').mass,5);
+  } finally {f.people.activityClaims.dispose();adapter.dispose();}
+}
+console.log('PASS real Rapier load plus person claim: exhausted load capacity preserves the sitter; committed support survives origin unload and releases seat/mass together.');

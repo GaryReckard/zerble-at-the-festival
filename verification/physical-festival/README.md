@@ -10,6 +10,10 @@ The [person reaction boundary](2026-10-30-reaction-boundary.md) adds and tests g
 
 ## Latest production checkpoint
 
+The [prepared seat handoff](2026-10-30-seat-transfer.md) connects real camp and
+musician reservations to replacement activity claims, including failed
+preparation and late original-owner cleanup. Live occupied admission remains open.
+
 The [occupied-seat load proof](2026-10-30-supported-loads.md) verifies independent
 loveseat weights and continuous release velocity in real Rapier. Live occupied
 chairs and fall/recovery remain unfinished.
