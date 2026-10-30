@@ -7,9 +7,15 @@ export function batchPropGroups(root, groups) {
   let disposed = false, teardownComplete = false;
   const disposedMeshes = new WeakSet();
   for (const group of groups) {
+    const partIds = new Set();
     if (group.parent !== root) throw new TypeError('Prop groups must be direct children of the batch root');
     for (const mesh of group.children) {
       if (!mesh.isMesh || mesh.isInstancedMesh || mesh.children.length) throw new TypeError('Prop batching requires direct leaf meshes');
+      const id = mesh.userData.physicalPart;
+      if (id !== undefined) {
+        if (typeof id !== 'string' || !id || id.length > 80 || partIds.has(id)) throw new TypeError('Physical part ids must be unique nonempty strings of at most 80 characters');
+        partIds.add(id);
+      }
     }
   }
   const scratch = new THREE.Matrix4(), inverse = new THREE.Matrix4();
@@ -30,7 +36,7 @@ export function batchPropGroups(root, groups) {
       if (!bucket) { bucket = { geometry: mesh.geometry, material: mesh.material, matrices: [] }; materials.set(mesh.material, bucket); }
       const slot = bucket.matrices.length, local = mesh.matrix.clone();
       bucket.matrices.push(new THREE.Matrix4().multiplyMatrices(group.matrix, local));
-      parts.push({ bucket, slot, local });
+      parts.push({ bucket, slot, local, partId: mesh.userData.physicalPart });
     }
     // Validate this group's full shape before detaching any of its parts.
     group.clear();
@@ -71,7 +77,7 @@ export function batchPropGroups(root, groups) {
         return true;
       },
       describe() {
-        return parts.map(({bucket,slot,local}) => ({geometry:bucket.geometry,material:bucket.material,
+        return parts.map(({bucket,slot,local,partId}) => ({partId,geometry:bucket.geometry,material:bucket.material,
           mesh:bucket.mesh,slot,localMatrix:local.clone()}));
       },
     });

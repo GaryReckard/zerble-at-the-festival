@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import * as THREE from 'three';
+import {batchPropGroups} from '../src/propRendering.js';
+import {createActivePropRendering} from '../src/physics/activePropRendering.js';
 
 // Run the actual production builder with native Three geometry/transforms.
 const source = readFileSync(new URL('../src/models/campsite.js', import.meta.url), 'utf8');
@@ -117,3 +119,49 @@ for(const socket of cooler.cupWells){
 console.log('PASS cooler articulation: fixed body trim, bounded hinge, open cavity and raycast-verified world cup sockets under rotation and scale.');
 
 cooler.group.clear();assert.equal(cooler.sampleCupWell('left',out),false,'detached source cannot publish a false world socket');assert.throws(()=>cooler.lid.setAngle(.5),/render binding/);
+
+// The production lid remains addressable after batching and source teardown.
+const sourceRoot=new THREE.Group(),adopted=build(1),neighbor=build(2);
+sourceRoot.add(adopted.group,neighbor.group);neighbor.group.position.x=2;
+sourceRoot.position.set(3,2,-4);sourceRoot.rotation.y=.4;sourceRoot.scale.setScalar(2);
+sourceRoot.updateWorldMatrix(true,true);
+const initialWorld=adopted.group.matrixWorld.clone(),neighborWorld=neighbor.group.matrixWorld.clone();
+const batch=batchPropGroups(sourceRoot,[adopted.group,neighbor.group]);
+assert.deepEqual(batch.bindings[0].describe().map(p=>p.partId),['body','hardware','trim','lid']);
+const pool=createActivePropRendering({maxBuckets:8,maxSlots:16,slotsPerBucket:2});
+const parent=new THREE.Group();parent.position.set(-7,1,3);parent.rotation.z=.2;parent.scale.set(1.2,.8,1.5);parent.add(pool.root);
+const active=pool.acquire('cooler',batch.bindings[0].describe(),initialWorld).binding;
+const other=pool.acquire('neighbor',batch.bindings[1].describe(),neighborWorld).binding;
+const nearMatrix=(a,b)=>assert(a.elements.every((v,i)=>Math.abs(v-b.elements[i])<2e-5));
+const sampled=new THREE.Matrix4(),actual=new THREE.Matrix4(),desired=new THREE.Matrix4().makeRotationX(-1.2);desired.setPosition(0,.372,-.223);
+const counts=pool.stats();pool.flush();
+// A renderer clears submitted ranges; model that acknowledgement before the next frame.
+for(const mesh of pool.root.children)mesh.instanceMatrix.clearUpdateRanges();
+const bodyBefore=active.describe().filter(p=>p.partId!=='lid').map(p=>p.localMatrix);
+batch.dispose();assert.equal(adopted.lid.setAngle(1.2,active),1.2);
+assert(active.samplePartWorldMatrix('lid',sampled));nearMatrix(sampled,new THREE.Matrix4().multiplyMatrices(initialWorld,desired));
+assert.equal(pool.flush().matrixBytes,64,'only one existing lid instance needs publication');
+assert.equal(pool.stats().allocatedSlots,counts.allocatedSlots);
+assert.equal(pool.stats().buckets,counts.buckets);
+active.describe().filter(p=>p.partId!=='lid').forEach((p,i)=>nearMatrix(p.localMatrix,bodyBefore[i]));
+const otherLid=other.describe().find(p=>p.partId==='lid');otherLid.mesh.getMatrixAt(otherLid.slot,actual);otherLid.mesh.updateWorldMatrix(true,false);
+nearMatrix(new THREE.Matrix4().multiplyMatrices(otherLid.mesh.matrixWorld,actual),new THREE.Matrix4().multiplyMatrices(neighborWorld,otherLid.localMatrix));
+for(const socket of adopted.cupWells){
+ const socketOut={position:{},axis:{}};assert(adopted.sampleCupWell(socket.id,socketOut,active));
+ const position=new THREE.Vector3().copy(socketOut.position),axis=new THREE.Vector3().copy(socketOut.axis);
+ assert(position.distanceTo(new THREE.Vector3(socket.position.x,socket.position.y,socket.position.z).applyMatrix4(sampled))<1e-8);
+ const lidPart=active.describe().find(p=>p.partId==='lid');lidPart.mesh.updateWorldMatrix(true,false);
+ const hit=new THREE.Raycaster(position.clone().addScaledVector(axis,.1),axis.clone().negate()).intersectObject(lidPart.mesh).find(h=>h.instanceId===lidPart.slot);
+ assert(hit);assert(hit.point.distanceTo(position)<1e-5,'adopted moving well still matches rendered floor');
+}
+assert(active.setPartMatrix('lid',desired));assert.equal(pool.flush().matrixBytes,0);
+assert.equal(active.setPartMatrix('missing',desired),false);assert.equal(active.samplePartWorldMatrix('missing',sampled),false);
+const invalid=desired.clone();invalid.elements[12]=Infinity;assert.throws(()=>active.setPartMatrix('lid',invalid),/finite/i);
+active.samplePartWorldMatrix('lid',sampled);nearMatrix(sampled,new THREE.Matrix4().multiplyMatrices(initialWorld,desired));
+const descriptions=active.describe();descriptions[1].partId=descriptions[0].partId;
+assert.throws(()=>pool.acquire('bad',descriptions,initialWorld),/unique/);assert.equal(pool.stats().allocatedSlots,counts.allocatedSlots);
+active.release();assert.equal(adopted.sampleCupWell('left',out,active),false);assert.throws(()=>adopted.lid.setAngle(.4,active),/no longer live/);assert.equal(adopted.lid.angle,1.2);assert.equal(active.setPartMatrix('lid',desired),false);assert.equal(active.samplePartWorldMatrix('lid',sampled),false);
+other.release();pool.dispose();assert.equal(pool.stats().allocatedSlots,0);
+const badRoot=new THREE.Group(),bad=build();badRoot.add(bad.group);bad.group.children[1].userData.physicalPart='body';
+assert.throws(()=>batchPropGroups(badRoot,[bad.group]),/unique/);assert.equal(bad.group.children.length,4);
+console.log('PASS adopted cooler articulation: named parts, source disposal, one-slot updates, isolated neighbor, transformed cup-floor raycasts, invalid input atomicity and stale binding rejection.');

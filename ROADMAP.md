@@ -222,7 +222,7 @@ harness history, tier contract and acceptance criteria.
   Real secondary fall/recovery and bounded incident provenance are verified; untouched offscreen
   residents can release slots without resetting displaced aftermath. Controlled seated exits
   retain support when blocked. Bracing uses free arms without adding geometry; cooler model lids and cup-well sockets
-  are partitioned. Finish dynamic lid/contents behavior, broader visual acceptance, moving-person sweeps, support-boundary and coherent
+  are partitioned and retain independent transforms after active render adoption. Finish dynamic lid/contents admission and hinge behavior, broader visual acceptance, moving-person sweeps, support-boundary and coherent
   distance-reset policy, broader props and device acceptance.
   See the [first proof and remaining work](verification/physical-festival/README.md).
 - **Juice tuning:** keep variety costs and drain/frown feel as explicit design decisions.

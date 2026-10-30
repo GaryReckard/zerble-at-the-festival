@@ -60,8 +60,12 @@ export function createActivePropRendering({ maxBuckets = 16, maxSlots = 512, slo
     if (records.has(key)) return reject('duplicate-key');
     if (!Array.isArray(parts) || !parts.length) throw new TypeError('Active prop parts must be a nonempty array');
     if (parts.length > maxSlots) return reject('slot-capacity');
-    const local = convert(worldMatrix).clone(), plans = [], prepared = [];
+    const local = convert(worldMatrix).clone(), plans = [], prepared = [], partIds = new Set();
     for (const part of parts) {
+      if (part.partId !== undefined) {
+        if (typeof part.partId !== 'string' || !part.partId || part.partId.length > 80 || partIds.has(part.partId)) throw new TypeError('Physical part ids must be unique nonempty strings of at most 80 characters');
+        partIds.add(part.partId);
+      }
       if (!part.geometry?.isBufferGeometry || !part.material?.isMaterial) throw new TypeError('Active parts require BufferGeometry and one Material');
       const localMatrix = matrix(part.localMatrix).clone();
       let plan = plans.find(p => p.geometry === part.geometry && p.material === part.material
@@ -74,7 +78,7 @@ export function createActivePropRendering({ maxBuckets = 16, maxSlots = 512, slo
         plan = { geometry: part.geometry, material: part.material, bucket, needed: 0 }; plans.push(plan);
       }
       plan.needed++;
-      prepared.push({ plan, localMatrix, initial: validateProduct(local, localMatrix) });
+      prepared.push({ plan, localMatrix, partId: part.partId, initial: validateProduct(local, localMatrix) });
     }
     const additions = plans.filter(plan => !plan.bucket);
     if (buckets.size + additions.length > maxBuckets) return reject('bucket-capacity');
@@ -101,7 +105,7 @@ export function createActivePropRendering({ maxBuckets = 16, maxSlots = 512, slo
       const slotGeneration = ++bucket.generations[slot];
       bucket.used.add(slot); bucket.mesh.count = Math.max(bucket.mesh.count, slot + 1);
       bucket.mesh.setMatrixAt(slot, part.initial); touch(bucket, slot); liveSlots++;
-      token.parts.push({ bucket, slot, slotGeneration, localMatrix: part.localMatrix });
+      token.parts.push({ bucket, slot, slotGeneration, localMatrix: part.localMatrix, partId: part.partId });
     }
     records.set(key, token);
     function isLive() {
@@ -118,9 +122,29 @@ export function createActivePropRendering({ maxBuckets = 16, maxSlots = 512, slo
         token.parts.forEach((part, index) => { part.bucket.mesh.setMatrixAt(part.slot, matrices[index]); touch(part.bucket, part.slot); });
         return true;
       },
+      setPartMatrix(partId, localMatrix) {
+        if (!isLive() || typeof partId !== 'string') return false;
+        const part = token.parts.find(p => p.partId === partId);
+        if (!part) return false;
+        matrix(localMatrix);
+        if (part.localMatrix.equals(localMatrix)) return true;
+        const next = validateProduct(token.local, localMatrix);
+        part.localMatrix.copy(localMatrix);
+        part.bucket.mesh.setMatrixAt(part.slot, next); touch(part.bucket, part.slot);
+        return true;
+      },
+      samplePartWorldMatrix(partId, out) {
+        if (!isLive() || typeof partId !== 'string') return false;
+        const part = token.parts.find(p => p.partId === partId);
+        if (!part) return false;
+        matrix(out);
+        root.updateWorldMatrix(true, false);
+        out.multiplyMatrices(root.matrixWorld, token.local).multiply(part.localMatrix);
+        return true;
+      },
       describe() {
         if (!isLive()) return [];
-        return token.parts.map(part => ({ geometry: part.bucket.geometry, material: part.bucket.material,
+        return token.parts.map(part => ({ partId: part.partId, geometry: part.bucket.geometry, material: part.bucket.material,
           mesh: part.bucket.mesh, slot: part.slot, generation: part.slotGeneration, localMatrix: part.localMatrix.clone() }));
       },
       release() {

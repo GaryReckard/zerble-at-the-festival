@@ -961,6 +961,7 @@ export function buildCampCooler(variant = 0) {
   ]) {
     const mesh=new THREE.Mesh(geometry[name],material);
     mesh.name=`cooler_${name}`;
+    mesh.userData.physicalPart=name;
     if(name==='lid')mesh.position.set(0,.372,-.223);
     group.add(mesh);
   }
@@ -970,21 +971,29 @@ export function buildCampCooler(variant = 0) {
     axis:Object.freeze({x:0,y:1,z:0}),radius:.063,depth:.03,capacity:1,
   })));
   let angle=0;
-  const point=new THREE.Vector3(),direction=new THREE.Vector3();
+  const point=new THREE.Vector3(),direction=new THREE.Vector3(),partWorld=new THREE.Matrix4(),partLocal=new THREE.Matrix4();
   const lid=Object.freeze({mesh:lidMesh,pivot:Object.freeze({x:0,y:.372,z:-.223}),
     axis:Object.freeze({x:-1,y:0,z:0}),minAngle:0,maxAngle:1.85,
     get angle(){return angle;},
-    setAngle(value){
+    setAngle(value,binding){
       if(!Number.isFinite(value))throw new TypeError('Cooler lid angle must be finite');
-      if(lidMesh.parent!==group)throw new Error('Batched cooler articulation requires its render binding');
-      angle=Math.max(0,Math.min(1.85,value));lidMesh.rotation.x=-angle;return angle;
+      const next=Math.max(0,Math.min(1.85,value));
+      if(binding){
+        partLocal.makeRotationX(-next).setPosition(0,.372,-.223);
+        if(!binding.setPartMatrix('lid',partLocal))throw new Error('Cooler render binding is no longer live');
+      }else{
+        if(lidMesh.parent!==group)throw new Error('Batched cooler articulation requires its render binding');
+        lidMesh.rotation.x=-next;
+      }
+      angle=next;return angle;
     },
   });
-  function sampleCupWell(id,out){
-    const socket=cupWells.find(s=>s.id===id);if(!socket||lidMesh.parent!==group)return false;
-    lidMesh.updateWorldMatrix(true,false);
-    point.set(socket.position.x,socket.position.y,socket.position.z).applyMatrix4(lidMesh.matrixWorld);
-    direction.set(0,1,0).transformDirection(lidMesh.matrixWorld);
+  function sampleCupWell(id,out,binding){
+    const socket=cupWells.find(s=>s.id===id);if(!socket)return false;
+    if(binding){if(!binding.samplePartWorldMatrix('lid',partWorld))return false;}
+    else{if(lidMesh.parent!==group)return false;lidMesh.updateWorldMatrix(true,false);partWorld.copy(lidMesh.matrixWorld);}
+    point.set(socket.position.x,socket.position.y,socket.position.z).applyMatrix4(partWorld);
+    direction.set(0,1,0).transformDirection(partWorld);
     Object.assign(out.position,{x:point.x,y:point.y,z:point.z});
     Object.assign(out.axis,{x:direction.x,y:direction.y,z:direction.z});return true;
   }

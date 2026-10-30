@@ -1,0 +1,97 @@
+{
+  "scenario": "inverted",
+  "playing": false,
+  "time": 7.999999999999977,
+  "stats": [
+    {
+      "mode": "controlled",
+      "angle": 1.5710208863092097,
+      "latched": false,
+      "counts": {
+        "bodies": 9,
+        "colliders": 13,
+        "joints": 0,
+        "supportedLoads": 0,
+        "contactPairs": 1,
+        "engineJoints": 0,
+        "meshVertices": 0,
+        "meshTriangles": 0,
+        "engineBodies": 9,
+        "engineColliders": 13,
+        "events": 0,
+        "overflow": 0,
+        "totalOverflow": 0,
+        "steps": 480,
+        "disposed": false
+      },
+      "maxima": {
+        "angle": 1.8500000200532771,
+        "anchorError": 0.07098346811532989,
+        "speed": 4.741496562957764,
+        "limitError": 0.0005744425138080417
+      },
+      "render": {
+        "disposed": false,
+        "props": 1,
+        "buckets": 4,
+        "slots": 4,
+        "allocatedSlots": 4,
+        "matrixBufferBytes": 256,
+        "uploadRequestedBytes": 44352,
+        "rejections": 0,
+        "capacities": {
+          "buckets": 4,
+          "slots": 4,
+          "slotsPerBucket": 1,
+          "matrixBufferBytes": 256
+        }
+      }
+    },
+    {
+      "mode": "physical",
+      "angle": -0.00008073189838666708,
+      "latched": false,
+      "counts": {
+        "bodies": 9,
+        "colliders": 13,
+        "joints": 1,
+        "supportedLoads": 0,
+        "contactPairs": 0,
+        "engineJoints": 1,
+        "meshVertices": 0,
+        "meshTriangles": 0,
+        "engineBodies": 9,
+        "engineColliders": 13,
+        "events": 0,
+        "overflow": 0,
+        "totalOverflow": 0,
+        "steps": 480,
+        "disposed": false
+      },
+      "maxima": {
+        "angle": 1.7691777171022718,
+        "anchorError": 0.03557272704755453,
+        "speed": 4.741496562957764,
+        "limitError": 0.13791692480553008
+      },
+      "render": {
+        "disposed": false,
+        "props": 1,
+        "buckets": 4,
+        "slots": 4,
+        "allocatedSlots": 4,
+        "matrixBufferBytes": 256,
+        "uploadRequestedBytes": 45312,
+        "rejections": 0,
+        "capacities": {
+          "buckets": 4,
+          "slots": 4,
+          "slotsPerBucket": 1,
+          "matrixBufferBytes": 256
+        }
+      }
+    }
+  ],
+  "draws": 21,
+  "triangles": 4242
+}

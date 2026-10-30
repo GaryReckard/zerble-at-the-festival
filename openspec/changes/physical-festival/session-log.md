@@ -391,3 +391,14 @@ multibody joint runtime exposes no mutable limit controls, so a multibody
 comparison needs a deliberate latch/stop strategy. Evidence and repeat command:
 [solver follow-up](../../../verification/physical-festival/2026-10-30-hinge-comparison/README.md#solver-and-ccd-follow-up).
 Task 7.5 (Lid and contents experiment) remains open; no phone acceptance implied.
+
+### October 30: adopted lid rendering and multibody spike result
+
+Named cooler part IDs now survive source batching and active adoption. The lid
+and its two cupholders can publish/sample independent transforms after source
+disposal, with actual geometry raycasts and stale-binding tests. The comparison
+fixture uses this owner without added draw calls or geometry. A temporary
+multibody-plus-impulse joint spike lost externally applied velocity on its next
+step, so its apparently stable impact results were rejected. Task 7.5 (Lid and
+contents experiment) still needs a verified hinge and live assembly admission.
+[Evidence](../../../verification/physical-festival/2026-10-30-adopted-lids/README.md).

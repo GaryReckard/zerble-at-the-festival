@@ -1,28 +1,33 @@
 <!doctype html><meta charset="utf-8"><title>Cooler lid comparison</title>
 <style>body{margin:20px;background:#19232b;color:#f5eedb;font:16px system-ui}button,select{padding:8px;margin-right:6px}canvas{display:block;max-width:100%;margin-top:12px}pre{white-space:pre-wrap;max-height:210px;overflow:auto}</style>
 <h1>Cooler lid comparison</h1>
-<p>Left: controlled kinematic lid. Right: physical hinge. Both have a hollow body and six reserved cans. Impulses are fixture inputs, not live cart tuning.</p>
+<p>Left: controlled kinematic lid. Right: physical hinge. Both use adopted instance parts after source disposal, a hollow body and six reserved cans. Impulses are fixture inputs, not live cart tuning.</p>
 <button id="rest">Rest latched</button><button id="impact">Impact</button><button id="boost">Strong corner impact</button><button id="inverted">Inverted landing</button><button id="pause">Pause / resume</button><button id="noon">Noon</button><button id="midnight">Midnight</button><button id="dispose">Dispose</button>
 <pre id="result">Loading…</pre>
 <script type="module">
 import * as THREE from 'three';
 import {buildCampCooler} from '../../src/models/campsite.js';
 import {createCoolerExperiment} from '../../src/physics/coolerExperiment.js';
+import {batchPropGroups} from '../../src/propRendering.js';
+import {createActivePropRendering} from '../../src/physics/activePropRendering.js';
 import {FixedStepClock} from '../../src/physics/fixedStep.js';
 const scene=new THREE.Scene(),renderer=new THREE.WebGLRenderer({antialias:false});renderer.setSize(1100,550);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
 const camera=new THREE.PerspectiveCamera(42,2,.1,100);camera.position.set(3,3.5,6);camera.lookAt(0,.3,0);
 const ambient=new THREE.HemisphereLight(0xdfeeff,0x62794a,2),sun=new THREE.DirectionalLight(0xffedcf,2.5);sun.position.set(-3,7,4);scene.add(ambient,sun);
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(24,24),new THREE.MeshStandardMaterial({color:0x77875f}));ground.rotation.x=-Math.PI/2;ground.position.y=-.01;scene.add(ground);
 const canGeometry=new THREE.CylinderGeometry(.04,.04,.14,12),canMaterial=new THREE.MeshStandardMaterial({color:0xe4b65e});
-const columns=['controlled','physical'].map((mode,i)=>{const cooler=buildCampCooler(i),root=new THREE.Group();root.position.x=i?1.2:-1.2;root.add(cooler.group);scene.add(root);const cans=Array.from({length:6},()=>{const m=new THREE.Mesh(canGeometry,canMaterial);root.add(m);return m;});return {mode,root,cooler,cans,run:null};});
+const columns=['controlled','physical'].map((mode,i)=>{const cooler=buildCampCooler(i),root=new THREE.Group();root.position.x=i?1.2:-1.2;root.add(cooler.group);scene.add(root);root.updateWorldMatrix(true,true);const batch=batchPropGroups(root,[cooler.group]),pool=createActivePropRendering({maxBuckets:4,maxSlots:4,slotsPerBucket:1});root.add(pool.root);const acquired=pool.acquire(mode,batch.bindings[0].describe(),cooler.group.matrixWorld);if(!acquired.ok)throw Error(acquired.reason);const binding=acquired.binding;batch.dispose();const cans=Array.from({length:6},()=>{const m=new THREE.Mesh(canGeometry,canMaterial);root.add(m);return m;});return {mode,root,cooler,cans,pool,binding,run:null};});
 let disposed=false,loading=false,playing=false,frame=0,previous=null,clock=new FixedStepClock(),scenario='rest',applied=false;
+const poseMatrix=new THREE.Matrix4(),lidMatrix=new THREE.Matrix4(),unit=new THREE.Vector3(1,1,1);
 const inverse=new THREE.Quaternion(),point=new THREE.Vector3(),q=new THREE.Quaternion(),result=document.querySelector('#result');
 function draw(){if(disposed)return;const stats=[];
  for(const row of columns){if(!row.run)continue;const s=row.run.read(),base=row.cooler.group,lid=row.cooler.lid.mesh;
  base.position.copy(s.base.pose.position);base.quaternion.copy(s.base.pose.rotation);inverse.copy(base.quaternion).invert();
  lid.position.copy(point.copy(s.lid.pose.position).sub(base.position).applyQuaternion(inverse));lid.quaternion.copy(q.copy(s.lid.pose.rotation).premultiply(inverse));
+ row.root.updateWorldMatrix(true,false);poseMatrix.compose(base.position,base.quaternion,unit).premultiply(row.root.matrixWorld);row.binding.setWorldMatrix(poseMatrix);
+ lidMatrix.compose(lid.position,lid.quaternion,unit);row.binding.setPartMatrix('lid',lidMatrix);row.pool.flush();
  s.contents.forEach((body,i)=>{row.cans[i].position.copy(body.pose.position);row.cans[i].quaternion.copy(body.pose.rotation);});
- stats.push({mode:row.mode,angle:s.angle,latched:s.latched,counts:s.counts,maxima:s.maxima});}
+ stats.push({mode:row.mode,angle:s.angle,latched:s.latched,counts:s.counts,maxima:s.maxima,render:row.pool.stats()});}
  renderer.render(scene,camera);result.textContent=JSON.stringify({scenario,playing,time:clock.time,stats,draws:renderer.info.render.calls,triangles:renderer.info.render.triangles},null,2);
 }
 function animate(now){frame=0;if(disposed||!playing)return;const dt=previous===null?0:Math.min(.1,(now-previous)/1000);previous=now;
@@ -37,7 +42,7 @@ async function reset(next){if(disposed||loading)return;loading=true;playing=fals
  finally{loading=false;}
 }
 function light(night){scene.background=new THREE.Color(night?0x101b35:0xc3d9df);ambient.intensity=night?.7:2;sun.intensity=night?.45:2.5;draw();}
-function dispose(){if(disposed)return;disposed=true;playing=false;cancelAnimationFrame(frame);for(const row of columns)row.run?.dispose();const counts=columns.map(r=>r.run?.counts());const geometries=new Set(),materials=new Set();scene.traverse(n=>{if(n.geometry&&!n.geometry.userData.shared)geometries.add(n.geometry);for(const m of n.material?(Array.isArray(n.material)?n.material:[n.material]):[])if(!m.userData.shared)materials.add(m);});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();renderer.forceContextLoss();for(const b of document.querySelectorAll('button'))b.disabled=true;result.textContent=JSON.stringify({disposed:true,counts});}
+function dispose(){if(disposed)return;disposed=true;playing=false;cancelAnimationFrame(frame);for(const row of columns){row.run?.dispose();row.binding.release();row.pool.dispose();}const counts=columns.map(r=>r.run?.counts());const geometries=new Set(),materials=new Set();scene.traverse(n=>{if(n.geometry&&!n.geometry.userData.shared)geometries.add(n.geometry);for(const m of n.material?(Array.isArray(n.material)?n.material:[n.material]):[])if(!m.userData.shared)materials.add(m);});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());renderer.dispose();renderer.forceContextLoss();for(const b of document.querySelectorAll('button'))b.disabled=true;result.textContent=JSON.stringify({disposed:true,counts,render:columns.map(r=>r.pool.stats())});}
 for(const id of ['rest','impact','boost','inverted'])document.querySelector('#'+id).onclick=()=>reset(id);
 document.querySelector('#pause').onclick=()=>{if(disposed||loading||clock.steps>=480)return;playing=!playing;previous=null;if(playing)frame=requestAnimationFrame(animate);else cancelAnimationFrame(frame);draw();};
 document.querySelector('#noon').onclick=()=>light(false);document.querySelector('#midnight').onclick=()=>light(true);document.querySelector('#dispose').onclick=dispose;addEventListener('pagehide',dispose,{once:true});
