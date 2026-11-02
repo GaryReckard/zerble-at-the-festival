@@ -1,10 +1,22 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 import { setSessionSeed } from '../src/rng.js';
 import { LANDSCAPE_CELL,LANDSCAPE_CANDIDATE_LIMIT,setLandscapeVersion,landscapeVersion,landscapeCandidateInCell,landscapeCandidatesInBounds,landscapeCandidateAt,landscapeToWorld,landscapeToLocal,landscapeVertexHeight,landscapeDeckSource,landscapeWaterAt,clearLandscapeCandidates,landscapeCandidateStats } from '../src/worldgen/landscapeCandidates.js';
 import { createTriangleSampler } from '../src/landscape/geometry.js';
 import { createSupportWorld } from '../src/landscape/support.js';
 import { validateRoute } from '../src/landscape/routes.js';
+// Execute the actual startup gate so omission, fallback and flat/legacy modes
+// cannot drift from the release contract while pure generators stay explicit.
+const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const gate=main.slice(main.indexOf("setTerrainEnabled(new URLSearchParams"),main.indexOf("import { MODEL_DECOR_MERGE_ENABLED"));
+assert.ok(gate.includes('setLandscapeVersion('),'startup gate remains discoverable');
+for(const [search,worldgen,expected]of [['',true,2],['?landscape=2',true,2],['?landscape=1',true,1],['?landscape=bogus',true,2],['?terrain=0',true,1],['?terrain=0&landscape=2',true,1],['',false,1]]){
+ let terrain=false,version=null;
+ runInNewContext(gate,{location:{search},URLSearchParams,USE_WORLDGEN_V2:worldgen,setTerrainEnabled:v=>{terrain=v;},terrainEnabled:()=>terrain,setLandscapeVersion:v=>{version=v;}});
+ assert.equal(version,expected,`public startup version for ${search||'(default)'}, worldgen ${worldgen}`);
+}
 const bounds={minX:-3200,maxX:3200,minZ:-3200,maxZ:3200};
 setSessionSeed(1977);assert.equal(landscapeVersion(),1);assert.deepEqual(landscapeCandidatesInBounds(bounds),[]);
 assert.equal(landscapeVertexHeight(-12,34,7),7,'current version leaves the prior terrain unchanged');

@@ -1,11 +1,11 @@
 ---
 change: landscape-and-travel
 status: in_progress
-current_task: "9.2 (physical-device acceptance), then 9.3 (player recognition and route choice)"
+current_task: "9.2 and 9.3 (post-release device and player-recognition follow-ups)"
 blocked_by: null
 open_questions: 0
 started: 2026-11-01
-last_updated: 2026-11-01
+last_updated: 2026-11-02
 ref: "ROADMAP.md: Landscape and travel, including Mountain Top camping"
 ---
 
@@ -19,6 +19,8 @@ ref: "ROADMAP.md: Landscape and travel, including Mountain Top camping"
 - **D4 (current toolchain authority):** Current AGENTS.md and Vite policy supersede stale injected no-build/importmap instructions. No global OpenSpec tooling cleanup is included.
 
 - **D5 (main merge authorization):** Gary explicitly requested merging current main into the landscape branch. Use an isolated managed worktree and retain the original checkout's separate uncommitted edits.
+
+- **D6 (public rollout authorization):** Gary said “ship it!” on November 2. Enable generation 2 by default and publish through main; preserve unmeasured phone/player checks as follow-ups.
 
 ## Assumptions
 
@@ -211,3 +213,7 @@ Main's live terrain residency now includes clipped deck slabs in existing tile b
 The actual combined-game night check exposed a stage-audience mismatch absent from the adapter-free legacy path: CampActivity selected a chair but sent the global sleeping flag to terrain validation, which attempted undefined bed doorway coordinates. Candidate eligibility now passes the actual bed classification, with finite endpoint validation before support queries and focused night/invalid-slot regressions. Owned failed tab 380986967 was closed immediately and confirmed absent.
 
 The following meadow check showed `origin-unavailable` while physical props remained static. Staged publication reassigns registry IDs, so main's new physical origin references needed an explicit old-to-live ID remap. The same descriptor objects remain shared between campsite parents and children. The staging regression now composes real publication with createLivePhysics and requires successful adoption before teardown; a registry-only pass is no longer sufficient. Owned tab 380986971 closed and confirmed absent after the observation.
+
+### 2026-11-02 -- Authorized public rollout
+
+Gary said “ship it!” after the main integration and desktop verification. This authorizes enabling generation 2 by default and publishing through main's existing GitHub Pages workflow. Phone/tablet and unprompted recognition evidence remain unchecked follow-ups, rather than fabricated release acceptance. Ordinary startup retains an explicit generation-1 fallback and the existing flat/legacy modes. The rollout synchronizes the landscape capability spec and current architecture/debug/roadmap records.

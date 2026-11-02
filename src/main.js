@@ -179,7 +179,7 @@ if (peopleFrameTrace) {
 
 // Rolling terrain is the default; retain an explicit flat-world debug fallback.
 setTerrainEnabled(new URLSearchParams(location.search).get('terrain') !== '0');
-setLandscapeVersion(terrainEnabled()&&USE_WORLDGEN_V2&&new URLSearchParams(location.search).get('landscape')==='2'?2:1);
+setLandscapeVersion(terrainEnabled()&&USE_WORLDGEN_V2&&new URLSearchParams(location.search).get('landscape')!=='1'?2:1);
 import { MODEL_DECOR_MERGE_ENABLED, getMergeDecorStats } from './mergeDecor.js';
 import { BoostStreaks } from './boostStreaks.js';
 import { syncRenderPipelineSize, readRenderPipelineSize } from './renderSizing.js';

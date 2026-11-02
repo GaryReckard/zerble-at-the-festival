@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-02
+
+### Changed
+- **The festival now uses the new landscape by default.** Enabled varied Mountain Top districts, stronger terrain, streams and working bridges for ordinary play, together with the integrated vehicle, people and furniture support. `landscape=1` retains the previous layout, while flat-terrain and legacy-world debug modes remain available. Gary authorized shipping after desktop verification; physical-device and unprompted player-recognition checks remain open. [Release record](verification/landscape/2026-11-02-release.md).
+
 ## 2026-11-01
 
 ### Added

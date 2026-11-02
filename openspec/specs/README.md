@@ -19,7 +19,7 @@ code, then [ARCHITECTURE.md](../../ARCHITECTURE.md) for the walkthrough and
 surface. In-flight *changes* to these capabilities live in `openspec/changes/`; archived
 ones in `openspec/changes/archive/`.
 
-## The 20 capabilities
+## Capabilities
 
 ### Core engine
 | Capability | What it owns |
@@ -33,6 +33,7 @@ ones in `openspec/changes/archive/`.
 | Capability | What it owns |
 |---|---|
 | [world-streaming](world-streaming/spec.md) | Global world build, chunk/forest/lake lifecycle + disposal, the v1↔v2 branch + v2 consumption pipeline |
+| [landscape-travel](landscape-travel/spec.md) | Default elevated districts, finite streams/bridges, shared support, route admission and ownership |
 | [worldgen-layout](worldgen-layout/spec.md) | The render-agnostic generator (hearts/roads/water/density/roles), the point-query contract, determinism goldens |
 | [festival-composition](festival-composition/spec.md) | The per-heart POI zone-slotter, cross-hub seam grammar, cluster-center ownership, FESTIVAL_TUNING |
 

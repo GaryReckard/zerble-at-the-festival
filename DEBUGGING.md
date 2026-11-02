@@ -93,7 +93,7 @@ check distinguish overlapping layers, and the repeatable drive uses the real
 cart along the side road. Add `&district=1` for the populated Mountain Top owner: denser irregular lower camping, an open upper lawn/firepit, a top road turn and a narrower wooded path to the drum clearing. Its repeatable drive completes the actual winding out-and-back route, while High view and Look downhill expose the layout. This remains opt-in authored content, not new live worldgen.
 `node bin/test-landscape-support`, `node bin/test-landscape-fixture`, `node bin/test-landscape-travel` and `node bin/test-landscape-district` cover support/solid rules, exact geometry, actual 30/60/120Hz cart calls, routes/corrections, production camps/people/passengers and owner rollback/retention/disposal; all are in `npm run check`. [Evidence, captures and remaining gates](verification/landscape/README.md).
 
-Use `/map-sandbox.html?landscape=2&seed=1977&mute=1` for the experimental generation and **Find nearby Mountain Top** to inspect an owner, its meadows and admitted access spur. The current world remains generation 1. Ready/rejected/pending status comes from an owned worker; version/seed changes invalidate old results, and leaving the page terminates it. `npm run test:landscape` covers the focused suite; `node bin/survey-landscape --out /tmp/landscape-survey.json` repeats the declared regional survey. This is map inspection, while production streaming and all-consumer integration remain pending.
+Use `/map-sandbox.html?landscape=2&seed=1977&mute=1` for the experimental generation and **Find nearby Mountain Top** to inspect an owner, its meadows and admitted access spur. The real game defaults to generation 2; this map workshop still selects it explicitly. Ready/rejected/pending status comes from an owned worker; version/seed changes invalidate old results, and leaving the page terminates it. `npm run test:landscape` covers the focused suite; `node bin/survey-landscape --out /tmp/landscape-survey.json` repeats the declared regional survey. This is map inspection, while production streaming and all-consumer integration remain pending.
 
 Add `&form=three-shelves&seed=1977` to the landscape course for a generated stream/pond/bridge and three meadows; `paired-meadows` and `long-ridge` are also available. `district=1` builds its production camps/crew. The same contact control checks generated meshes, and the repeatable drive follows the complete route out and back. `bin/test-landscape-stream` covers bank containment and pedestrian support; `bin/test-landscape-water-owner` covers lifecycle/vertical rails and the real physics adapter with native cut-bed triangles and coolers above/below the deck. These are included in the focused/full checks.
 
@@ -923,13 +923,13 @@ from forced shots, and promotion requires a free camera slot. The production
 use the same handle commands. Run `node bin/test-photographer-ownership` for exact
 role/pose comparisons and stale/protected-command checks.
 
-### Experimental world landscape manager
+### World landscape manager
 
 Use `/?landscape=2&seed=1977&x=-680&z=-438&heading=0&mute=1&perf=low` to boot the real game
 at one admitted Mountain Top's entry through the ordinary ready mode plank.
-This opts into the new world version; omit `landscape=2` for the existing default.
+The real game defaults to this world version; `landscape=1` selects the previous layout.
 The desktop mover/activity/physics-surface integration passes its scoped checks;
-physical-device and player acceptance still gate tuning and rollout. The festival map shows canonical
+Gary authorized rollout on November 2; physical-device and player acceptance remain tuning follow-ups. The festival map shows canonical
 mountain access and stream/pond geography while preserving generation-1 map
 exploration in its existing namespace. `bin/test-landscape-driving`,
 `bin/test-landscape-runtime` and `bin/test-landscape-map` are included in project

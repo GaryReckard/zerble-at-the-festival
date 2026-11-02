@@ -94,7 +94,7 @@ Depends on Group 8 (consumer/performance acceptance).
 - [x] 9.1 Complete full check/build, ready title-gesture real-game boot, camera modes, repeated streaming and noon/midnight tier captures; structural browser cleanup required.
 - [ ] 9.2 Obtain physical iPhone/iPad driving, readability and frame-delivery evidence with device/browser recorded; leave this unchecked until actually observed.
 - [ ] 9.3 Finish player recognition/route-choice playtest without announcing hill locations; record encounter opportunities separately; choose final tuning and rollout based on evidence.
-- [ ] 9.4 Enable the new version deliberately, update current specs/architecture/debug/changelog/roadmap and evidence, refresh README and verify change artifacts; Barn and first aid stay future work.
+- [x] 9.4 Enable the new version deliberately, update current specs/architecture/debug/changelog/roadmap and evidence, refresh README and verify change artifacts; Barn and first aid stay future work.
 
 ## Execution handoff rules
 
