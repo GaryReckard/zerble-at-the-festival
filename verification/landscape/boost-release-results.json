@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-01",
+  "method": "Actual stepTerrainDrive on an independently flat selected-support world, plus actual Zerble.update and 30/60/120Hz checks in bin/test-landscape-driving. Boost pickup starts at 18m/s and lasts 0.5 seconds; launch/coast last one second.",
+  "before": {
+    "launch": 6.788938268600934,
+    "boostPickup": 18.562218736368123,
+    "coast": 16.20430087441861,
+    "expectedCoast": 6.662710080000001
+  },
+  "after": {
+    "launch": 18,
+    "boostPickup": 26.999999999999915,
+    "coast": 6.662710080000027,
+    "expectedCoast": 6.662710080000001
+  },
+  "limits": "Focused controller measurements; human driving feel and physical-device acceptance remain separate."
+}

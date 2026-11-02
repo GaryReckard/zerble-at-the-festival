@@ -76,6 +76,19 @@ contacts** compares the sampler against 96 raycasts into the actual meshes.
 included in `npm run check`. This course is an isolated authored fixture, not
 procedural festival terrain. [Results and limitations](verification/terrain/2026-10-24-driving-proof.md).
 
+### Landscape engineering proof
+
+Use `/terrain-sandbox.html?surface=landscape&mute=1` on the local Vite server.
+The section picker exposes two meadows, the steep bank, side road, descending
+clearing, bridge deck and riverbed underneath. The support readout and contact
+check distinguish overlapping layers, and the repeatable drive uses the real
+cart along the side road. Add `&district=1` for the populated Mountain Top owner: denser irregular lower camping, an open upper lawn/firepit, a top road turn and a narrower wooded path to the drum clearing. Its repeatable drive completes the actual winding out-and-back route, while High view and Look downhill expose the layout. This remains opt-in authored content, not new live worldgen.
+`node bin/test-landscape-support`, `node bin/test-landscape-fixture`, `node bin/test-landscape-travel` and `node bin/test-landscape-district` cover support/solid rules, exact geometry, actual 30/60/120Hz cart calls, routes/corrections, production camps/people/passengers and owner rollback/retention/disposal; all are in `npm run check`. [Evidence, captures and remaining gates](verification/landscape/README.md).
+
+Use `/map-sandbox.html?landscape=2&seed=1977&mute=1` for the experimental generation and **Find nearby Mountain Top** to inspect an owner, its meadows and admitted access spur. The current world remains generation 1. Ready/rejected/pending status comes from an owned worker; version/seed changes invalidate old results, and leaving the page terminates it. `npm run test:landscape` covers the focused suite; `node bin/survey-landscape --out /tmp/landscape-survey.json` repeats the declared regional survey. This is map inspection, while production streaming and all-consumer integration remain pending.
+
+Add `&form=three-shelves&seed=1977` to the landscape course for a generated stream/pond/bridge and three meadows; `paired-meadows` and `long-ridge` are also available. `district=1` builds its production camps/crew. The same contact control checks generated meshes, and the repeatable drive follows the complete route out and back. `bin/test-landscape-stream` covers bank containment and pedestrian support; `bin/test-landscape-water-owner` covers lifecycle/vertical rails and the real physics adapter with native cut-bed triangles and coolers above/below the deck. These are included in the focused/full checks.
+
 ## Flow hoop choreography workshop
 
 Open `/sandbox.html?entity=flow_hooper_workshop&mute=1` for actual Crowd-owned
@@ -134,6 +147,8 @@ never have to juggle namespaces.
 ```js
 window.__dbg.help()          // prints the whole map — start here
 ```
+
+
 
 ### Drive the running game
 | Call | Does |
@@ -891,3 +906,26 @@ from forced shots, and promotion requires a free camera slot. The production
 `crowd_photographer` fixture follows that public view; its picture and flash buttons
 use the same handle commands. Run `node bin/test-photographer-ownership` for exact
 role/pose comparisons and stale/protected-command checks.
+
+### Experimental world landscape manager
+
+Use `/?landscape=2&seed=1977&x=-680&z=-438&heading=0&mute=1&perf=low` to boot the real game
+at one admitted Mountain Top's entry through the ordinary ready mode plank.
+This opts into the new world version; omit `landscape=2` for the existing default.
+The desktop mover/activity/physics-surface integration passes its scoped checks;
+physical-device and player acceptance still gate tuning and rollout. The festival map shows canonical
+mountain access and stream/pond geography while preserving generation-1 map
+exploration in its existing namespace. `bin/test-landscape-driving`,
+`bin/test-landscape-runtime` and `bin/test-landscape-map` are included in project
+checks. The workshop's lower camping is denser, while upper camping stays sparse;
+steep driving uses gravity/traction/momentum and always permits supported descent.
+
+
+In the experimental world, the backtick HUD includes district/owner/building,
+borrowed-owner and planning counts, plus maximum construction and water-owner
+phases. A parked district should finish construction rather than continually
+restart. Visible `/tp` and landmark jumps use the cart's selected-support
+relocation and refuse unsupported destinations. `bin/measure-landscape` reports
+Node allocation and a pre-frustum district census, while the
+[desktop verification report](verification/landscape/README.md#integrated-performance-and-desktop-acceptance)
+keeps actual tier snapshots and their device/performance limitations.

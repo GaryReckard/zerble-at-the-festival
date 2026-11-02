@@ -9,7 +9,8 @@ import {disposeSceneResources} from './sceneResources.js';
 import {LOOP_INITIAL_SPREAD,placeLoop,maybeRecycleLoop,pathLength,samplePath} from './formationRoute.js';
 
 export class PuppetParade {
-  constructor({ preview = false, runtime = null, key = 'puppet-parade', collisionOrder=10, parkedHonkOrder = 0 } = {}) {
+  constructor({ preview = false, runtime = null, key = 'puppet-parade', collisionOrder=10, parkedHonkOrder = 0 ,surfaceAccess=null} = {}) {
+    this.surfaceAccess=surfaceAccess;this._surfaceLoopReady=false;this._surfaceRetry=0;
     this.group = new THREE.Group();
     this.group.name = 'PuppetParade';
 
@@ -115,7 +116,7 @@ export class PuppetParade {
     const scratch=queryScratch??(this._personQueryScratch??={});
     for(const collider of this.colliders){const distance=Math.hypot(collider.position.x-x,collider.position.z-z);if(distance>=radius)continue;this.peopleHandles.readOwnedRecord(collider,scratch);if(visit(collider.personHandle,scratch,distance)===false)return;}
   }
-  appendColliders(out){if(!this._disposed)for(const collider of this.colliders)out.push(collider);}
+  appendColliders(out){if(!this._disposed&&(!this.surfaceAccess||this.group.visible))for(let i=0;i<this.colliders.length;i++){const c=this.colliders[i],actor=c.puppet;if(!this.surfaceAccess||this.surfaceAccess.collider(c,actor,8))out.push(c);}}
   inspect(out){out.population=this.colliders.length;out.formations=this.puppets.length;out.disposed=this._disposed;}
   dispose(reason='population-disposed'){
     if(this._disposed)return;this._disposed=true;
@@ -130,6 +131,15 @@ export class PuppetParade {
     if(this._disposed)return;
     const recycled = this._preview ? null : maybeRecycleLoop(this.path, this._basePath, this._anchor, zerblePos);
     if (recycled) this._anchor = recycled;
+    let resetSurface=!!recycled;
+    if(this.surfaceAccess){
+      this._surfaceRetry-=dt;
+      if(recycled||!this._surfaceLoopReady&&this._surfaceRetry<=0){
+        const anchor=this.surfaceAccess.prepareLoop(this.path,this._basePath,this._anchor,zerblePos);
+        this._surfaceLoopReady=!!anchor;this._surfaceRetry=2;if(anchor)this._anchor=anchor;resetSurface=true;
+      }
+      this.group.visible=this._surfaceLoopReady;if(!this._surfaceLoopReady)return;
+    }
     const totalLen = pathLength(this.path);
     for (let i = 0; i < this.puppets.length; i++) {
       const p = this.puppets[i];
@@ -150,7 +160,7 @@ export class PuppetParade {
       // Their "front" geometry (eyes/mouth) is at local -Z, so face the direction of travel
       // by setting yaw so that local -Z points along dir.
       const yaw = Math.atan2(-dir.x, -dir.z);
-      p.position.y = terrainHeight(p.position.x, p.position.z);
+      if(this.surfaceAccess)this.surfaceAccess.ground(p,{radius:1.5,relocate:resetSurface});else p.position.y = terrainHeight(p.position.x, p.position.z);
       p.rotation.y = yaw;
 
       // Per-puppet bob (sandbox calls the same tick — see models/puppet.js)

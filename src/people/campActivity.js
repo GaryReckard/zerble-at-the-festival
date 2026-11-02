@@ -233,6 +233,7 @@ export class CampActivity {
         for (const candidate of (sleep && !camp.stageAudience ? camp.campBeds : camp.campSeats) ||
           []) {
           if (!campSlotAvailable(candidate)) continue;
+          if (this.people?.canReachCampSlot && !this.people.canReachCampSlot(npc.person, candidate, sleep, camp.position?.y)) continue;
           const d = Math.hypot(
             candidate.x - npc.pos.x,
             candidate.z - npc.pos.z,

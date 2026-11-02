@@ -1,0 +1,82 @@
+{
+  "date": "2026-11-01",
+  "fixtureVersion": 4,
+  "scope": "authored populated district only; procedural and device acceptance pending",
+  "fixture": {
+    "vertices": 55781,
+    "triangles": 109200,
+    "batches": 6,
+    "results": [
+      {
+        "hz": 30,
+        "z": -402.0354404715924,
+        "contact": 2.1307279851612293e-07
+      },
+      {
+        "hz": 60,
+        "z": -402.0354404715924,
+        "contact": 2.1307279851612293e-07
+      },
+      {
+        "hz": 120,
+        "z": -402.0354404715924,
+        "contact": 2.1307279851612293e-07
+      }
+    ]
+  },
+  "travel": {
+    "valid": true,
+    "reason": null,
+    "distance": 346,
+    "samples": 48510,
+    "maxGrade": 0.17138192419825105,
+    "maxCrossfall": 0,
+    "endSurfaceId": "terrain"
+  },
+  "districtBuildCycles": [
+    {
+      "allocationMs": 46.887417,
+      "largestBuildMs": 13.88062499999998
+    },
+    {
+      "allocationMs": 25.443791000000004,
+      "largestBuildMs": 5.568416000000013
+    },
+    {
+      "allocationMs": 15.621125000000006,
+      "largestBuildMs": 4.8441250000000196
+    },
+    {
+      "allocationMs": 15.255207999999982,
+      "largestBuildMs": 4.863790999999992
+    }
+  ],
+  "campPitches": {
+    "lower": 11,
+    "upper": 7,
+    "hosts": 5
+  },
+  "routes": {
+    "mainRoadMeters": 530,
+    "mainMaxGrade": 0.17138192419825105,
+    "trailMeters": 62.52348879253318,
+    "trailMaxGrade": 0.2650356625796325,
+    "trailMaxCrossfall": 0.11925695879998995,
+    "clearingDriveMeters": 516.5234887925332
+  },
+  "browser": {
+    "surface": "built preview",
+    "engine": "real Chrome",
+    "lowContacts": {
+      "rays": 128,
+      "poses": 504,
+      "misses": 0,
+      "displayMeshErrorCm": 0,
+      "displayContactResidualCm": 0.0001
+    },
+    "ordinaryControlRoundTrip": "completed",
+    "consoleWarningsErrors": 0
+  },
+  "fullCheck": "passed",
+  "build": "passed"
+}

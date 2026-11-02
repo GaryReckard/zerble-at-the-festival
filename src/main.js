@@ -1,3 +1,5 @@
+import {FESTIVAL_TUNING} from './worldgen/tuning.js';
+import {setLandscapeVersion,landscapeVersion} from './worldgen/landscapeCandidates.js';
 import {resolveCollision,SOFT_PEOPLE_KINDS} from './collisionContacts.js';
 // Bootstraps three.js, runs the game loop, owns scene/postprocessing/collision/scoring.
 
@@ -23,7 +25,7 @@ import { Leaderboard } from './leaderboard.js';
 import { RunMode, VIBE, setJugKeepFraction } from './runMode.js';
 import { Scoring } from './scoring.js';
 import { RunState } from './runState.js';
-import { buildWorld, updateWorld, getTimeOfDay, getFarField } from './world.js';
+import { buildWorld, updateWorld, getTimeOfDay, getFarField, getLandscapeRuntime } from './world.js';
 import { forestAnimatables, forestDrumCircles, forestDrumMusic } from './forests.js';
 import { lakeAnimatables, setLakeNightness, isPointInLake } from './lakes.js';
 import { updateCampsiteProps } from './models/campsite.js';
@@ -176,6 +178,7 @@ if (peopleFrameTrace) {
 
 // Rolling terrain is the default; retain an explicit flat-world debug fallback.
 setTerrainEnabled(new URLSearchParams(location.search).get('terrain') !== '0');
+setLandscapeVersion(terrainEnabled()&&USE_WORLDGEN_V2&&new URLSearchParams(location.search).get('landscape')==='2'?2:1);
 import { MODEL_DECOR_MERGE_ENABLED, getMergeDecorStats } from './mergeDecor.js';
 import { BoostStreaks } from './boostStreaks.js';
 import { syncRenderPipelineSize, readRenderPipelineSize } from './renderSizing.js';
@@ -593,7 +596,21 @@ if (__launch && Number.isFinite(__launch.x) && Number.isFinite(__launch.z)) {
   zerble.position.set(__launch.x, 0, __launch.z);
   if (Number.isFinite(__launch.heading)) zerble.heading = __launch.heading;
 }
-buildWorld(scene, crowd, zerble.position);
+let landscapeRuntime=null,landscapeMovers=null,landscapePeople=null;
+if(landscapeVersion()===2){
+  const {LandscapeRuntime}=await import('./landscape/runtime.js');
+  const {createLandscapeMoverAdapter}=await import('./landscape/moverAdapter.js');
+  const {createLandscapePeopleAdapter}=await import('./landscape/peopleAdapter.js');
+  landscapeRuntime=new LandscapeRuntime(scene,{crowd});
+  const r=(PERF.chunkLoadRadius+.5)*80;
+  await landscapeRuntime.prepare({minX:zerble.position.x-r,maxX:zerble.position.x+r,minZ:zerble.position.z-r,maxZ:zerble.position.z+r});
+  landscapeRuntime.installPolicy();
+  // Bootstrap happens before mode readiness, outside the audio start gesture.
+  landscapeMovers=createLandscapeMoverAdapter(landscapeRuntime);landscapePeople=createLandscapePeopleAdapter(landscapeRuntime);
+  landscapeRuntime.player=zerble;landscapeRuntime.bindVehicle(zerble);
+  landscapeRuntime.update(zerble,{deadline:performance.now()+PERF.chunkBudgetMs});
+}
+buildWorld(scene, crowd, zerble.position,{landscape:landscapeRuntime});
 // Resumed session: restore the time of day so the sky matches where you left off
 // (the ToD instance is created inside buildWorld, so this must come after it).
 if (__launch && Number.isFinite(__launch.tod)) getTimeOfDay()?.setT(__launch.tod);
@@ -601,31 +618,32 @@ if (__launch && Number.isFinite(__launch.tod)) getTimeOfDay()?.setT(__launch.tod
 // ---------- Lurleen (love interest, persistent across the world) ----------
 // v2 (H1): start Lurleen a distance away from the player's actual hub spawn (random
 // direction), not the origin ring — so she's never right next to a hub-relocated Zerble.
-const lurleen = new Lurleen(scene, USE_WORLDGEN_V2 ? zerble.position.clone() : null);
+const lurleen = new Lurleen(scene, USE_WORLDGEN_V2 ? zerble.position.clone() : null,{surfaceAdapter:landscapeMovers});
 const lurleenPerson=new VehiclePersonFacet({runtime:people,key:'lurleen',vehicle:lurleen,
   schedule:[{slot:'relationship',run(dt,frame){this.vehicle.update(dt,frame.zerble.position,frame.zerble.heading,frame.nightness);}}],
   read:(vehicle,out)=>{out.x=vehicle.position.x;out.y=vehicle.position.y;out.z=vehicle.position.z;out.heading=vehicle.heading;out.state=vehicle.state;out.vx=Math.sin(vehicle.heading)*vehicle.speed;out.vz=Math.cos(vehicle.heading)*vehicle.speed;}});
-const nutWagon = new NutWagon(scene, crowd);
+const nutWagon = new NutWagon(scene, crowd,{surfaceAdapter:landscapeMovers});
 const wagonPeopleRoute={
   update(dt,frame){nutWagon.update(dt,frame.zerble.position,frame.tripActive,frame.nightness,frame.camera);},
   inspect(out){Object.assign(out,nutWagon.status());},dispose(){nutWagon.dispose();},
 };
 people.register({key:'nut-wagon',controller:wagonPeopleRoute,schedule:[{slot:'vehicles',run:wagonPeopleRoute.update}]});
 const monks = new MonkParty(crowd, nutWagon);
-const oneWheels = new OneWheels(scene,crowd,{runtime:people});
+const oneWheels = new OneWheels(scene,crowd,{runtime:people,surfaceAdapter:landscapeMovers});
+if(landscapeRuntime)landscapeRuntime.getMovers=()=>[lurleen,nutWagon,...oneWheels.riders];
 const forceOneWheel = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get('onewheel') === '1';
 if(forceOneWheel && USE_WORLDGEN_V2)oneWheels.trySpawn(zerble.position,camera,true);
 window.addEventListener('pagehide',event=>{if(!event.persisted){oneWheels.dispose();lurleenPerson.dispose();}});
 const forceNutWagon = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).get('nutwagon') === '1';
 if (forceNutWagon && USE_WORLDGEN_V2) nutWagon.trySpawn(zerble.position, camera, true);
-const festivalMap = new FestivalMap({ seed: getSessionSeed(), mode: USE_WORLDGEN_V2 ? 'v2' : 'v1', config: MAP_CONFIG, tier: PERF.name });
+const festivalMap = new FestivalMap({ seed: getSessionSeed(), mode: USE_WORLDGEN_V2 ? 'v2' : 'v1', config: MAP_CONFIG, tier: PERF.name, landscapeVersion:landscapeVersion(),tuning:FESTIVAL_TUNING });
 let mapObservedAt = 0, mapLiveMarkers = [];
 let lurleenMet = false;     // first-contact toast latch
 
 // ---------- Moving obstacles (global — not chunk-bound) ----------
-const puppets = new PuppetParade({runtime:people,parkedHonkOrder:1});
+const puppets = new PuppetParade({runtime:people,parkedHonkOrder:1,surfaceAccess:landscapePeople});
 scene.add(puppets.group);
-const band = new BrassBand({runtime:people,parkedHonkOrder:2});
+const band = new BrassBand({runtime:people,parkedHonkOrder:2,surfaceAccess:landscapePeople});
 scene.add(band.group);
 const visitRegistryKind = (kind, fn) => {
   for (const id of registry.byKind.get(kind) || []) {
@@ -651,9 +669,9 @@ const bubbleChallenges = new ChallengeTracker(bubbleProgress, {
   tripActive: () => Trip.isActive(),
   mode: () => RunMode.isFestival() ? 'festival' : 'cruisin',
 }, ['heart', 'music', 'ember', 'firefly', 'rainbow', 'sparkler', 'lantern', 'smile', 'confetti', 'mushroom', 'brass']);
-const kids = withBaselineRandom(()=>new KidGaggle({runtime:people}),0x43484c44,peopleBaselineCohort);
+const kids = withBaselineRandom(()=>new KidGaggle({runtime:people,surfaceAccess:landscapePeople}),0x43484c44,peopleBaselineCohort);
 scene.add(kids.group);
-const wooks = new Wooks({runtime:people});
+const wooks = new Wooks({runtime:people,surfaceAccess:landscapePeople});
 const _wookPositions=[];
 scene.add(wooks.group);
 // Hula-hoopers attach to attractor POIs (stages, drum circles, fire pits).
@@ -664,8 +682,10 @@ const frisbees = new FrisbeeActivity({people:crowd,runtime:people});
 scene.add(frisbees.group);
 // Birds — global flock that circles the festival + perches in trees. Built
 // after buildWorld so the registry already has trees to perch in.
-const birds = new Birds();
+if(landscapeRuntime)landscapeRuntime.getMovers=()=>[lurleen,nutWagon,...oneWheels.riders,...kids.kids,...wooks.wooks,...puppets.puppets,...band.members];
+const birds = new Birds({airFloor:landscapePeople?.airFloor});
 scene.add(birds.group);
+if(landscapeRuntime)window.addEventListener('pagehide',event=>{if(!event.persisted){try{monks.dispose();}finally{try{people.dispose('pagehide');}finally{landscapeRuntime.shutdown();}}}});
 
 // Refuel bubble-stream — a pool of glowing bubbles that arc from the bubble
 // vendor to the cart while it's topping off the tank. One InstancedMesh
@@ -1395,7 +1415,7 @@ function tickBody(dt) {
     people.run('roaming',peopleFrame);
     birds.update(dt, zerble.position, tod, Math.abs(zerble.speed));
     // Collect wook world positions for proximity detection
-    wooks.copyPositions(_wookPositions);
+    wooks.copyPositions(_wookPositions,zerble.position);
     Trip.update(dt, zerble.position, Math.abs(zerble.speed), _wookPositions);
     people.run('relationship',peopleFrame);
     HUD.setLurleenFollowing(lurleen.state === 'aware' || lurleen.state === 'following');
@@ -2023,6 +2043,8 @@ function _regColWrap(e) {
   _regColPoolN++;
   w.position = e.position;
   w.radius = e.collider.radius;
+  w.minY = e.collider.minY === undefined ? undefined : e.position.y + e.collider.minY;
+  w.maxY = e.collider.maxY === undefined ? undefined : e.position.y + e.collider.maxY;
   w.damage = e.collider.damage;
   w.kind = e.kind;
   w.passive = false;
@@ -2427,6 +2449,11 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
 
     // Move the cart to world (x, z), zeroing speed.
     teleport(x = 0, z = 0) {
+      if (zerble.surfaceBinding) {
+        if (!zerble.relocateOnSurface(x, z)) return 'Teleport blocked: unsupported destination';
+        playerStats.relocate();
+        return `teleported to (${x}, ${z})`;
+      }
       playerStats.relocate();
       zerble.position.set(x, terrainHeight(x,z), z);
       if (zerble.surfaceSampler) zerble.groundOnSurface();
@@ -2950,6 +2977,7 @@ installDebug({
   },
   getTimeOfDay,
   getFarField,                          // perf samples record horizon counters
+  getLandscapeRuntime,
   Scoring,                              // perf samples record the organic smile rate
   Trip, StarPower,
   midi,

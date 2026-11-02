@@ -52,6 +52,9 @@ export class Registry {
   //   chunkKey?: string         // optional, used to unload with chunks
   // }
   add(entry) {
+    if (entry.collider && (entry.collider.minY !== undefined || entry.collider.maxY !== undefined)) {
+      if (!Number.isFinite(entry.collider.minY) || !Number.isFinite(entry.collider.maxY) || entry.collider.maxY < entry.collider.minY) throw new TypeError('Collider vertical offsets must be finite and ordered');
+    }
     const id = nextId++;
     entry.id = id;
     if (!entry.position) entry.position = new THREE.Vector3();
@@ -125,7 +128,11 @@ export class Registry {
   // All hard colliders Zerble can run into.
   *colliders() {
     for (const e of this.entries.values()) {
-      if (e.collider) yield { position: e.position, radius: e.collider.radius, damage: e.collider.damage, kind: e.kind };
+      if (e.collider) {
+        const c = { position: e.position, radius: e.collider.radius, damage: e.collider.damage, kind: e.kind };
+        if (e.collider.minY !== undefined) { c.minY = e.position.y + e.collider.minY; c.maxY = e.position.y + e.collider.maxY; }
+        yield c;
+      }
     }
   }
 

@@ -9,6 +9,7 @@ export function stepTerrainDrive(cart, input, dt, sample) {
   while (remaining > 1e-9) {
     const h = Math.min(remaining, 1 / 120); remaining -= h;
     sample(cart.position.x, cart.position.z, probe);
+    const previousHeading = cart.heading;
     const throttle = clamp(input.throttle || 0, -1, 1);
     const cap = (input.slow ? 7.2 : input.boost && !cart.sputtering ? 27.9 : 18) * (cart.sputtering ? 0.35 : 1);
     const dir = input.steeringDirection?.(cart.speed) ?? steerDirFor(throttle, cart.speed);
@@ -17,6 +18,34 @@ export function stepTerrainDrive(cart, input, dt, sample) {
     const grade = probe.dx * fx + probe.dz * fz;
     const tangent = 1 / Math.hypot(1, grade);
     const gravity = -9.81 * grade * tangent;
+    if(cart.surfaceBinding?.allowSteepTerrain) {
+      // Speed is distance along the ground. Gravity and normal-load traction
+      // determine climbability, so a run-up can carry the cart past its motor's
+      // sustainable grade and a stalled climb naturally rolls back downhill.
+      const normalY=1/Math.hypot(1,probe.dx,probe.dz),normalLoad=9.81*normalY;
+      // Keep the original arcade launch grip on shallow ground, fading that
+      // assistance into the bank's lower grip as the surface steepens.
+      const grip=(probe.surfaceClass==='dirt'||probe.surfaceClass==='bridge'?1.05:.95)+normalY**4;
+      const traction=grip*normalLoad,poweredCap=throttle<0?7:cap;
+      const driveDirection=Math.sign(throttle),slowScale=input.slow?.45:1;
+      // Limit propulsion as it reaches its target, rather than tapering torque
+      // across the whole speed range or clamping existing downhill momentum.
+      const motor=throttle*Math.min(18*slowScale,traction,Math.max(0,(poweredCap-cart.speed*driveDirection)/h));
+      const slowing=input.slow&&cart.speed>cap;
+      const excess=Math.max(0,cart.speed*driveDirection-poweredCap);
+      let next=cart.speed;
+      if(!throttle&&!input.brake)next*=Math.pow(.78,h*4);
+      next+=(gravity+(input.brake||slowing?0:motor))*h;
+      if(input.brake||slowing||throttle&&excess>0){
+        const speed=Math.abs(cart.speed);
+        const resistance=(input.brake?28*slowScale:slowing?8.1:.15+.045*speed+.003*speed*speed+.03*excess*excess)*h;
+        next=Math.sign(next)*Math.max(0,Math.abs(next)-resistance);
+      }
+      // Preserve a clean flat-ground stop without introducing a parking hold
+      // that could block supported downhill travel on even a gentle slope.
+      if(!throttle&&!input.brake&&gravity===0&&Math.abs(next)<.3)next=0;
+      cart.speed=next;
+    } else {
     const braking = input.brake || (throttle !== 0 && throttle * cart.speed < -0.05);
     if (braking) {
       cart.speed = Math.sign(cart.speed) * Math.max(0, Math.abs(cart.speed) - (28 * (input.slow ? 0.45 : 1) - Math.abs(gravity)) * h);
@@ -38,11 +67,19 @@ export function stepTerrainDrive(cart, input, dt, sample) {
       }
       if (input.slow && cart.speed > cap) cart.speed = Math.max(cap, cart.speed - 8.1 * h);
     }
+    }
     const x = cart.position.x + fx * cart.speed * tangent * h;
     const z = cart.position.z + fz * cart.speed * tangent * h;
-    sample(x, z, nextProbe);
-    if (nextProbe.traversable === false) cart.speed = 0;
-    else { cart.position.x = x; cart.position.z = z; }
+    if (cart.surfaceBinding) cart.surfaceBinding.propose(x, z, nextProbe, cart.heading);
+    else sample(x, z, nextProbe);
+    if (nextProbe.traversable === false) {
+      cart.speed = 0;
+      if (cart.surfaceBinding) cart.heading = previousHeading;
+    }
+    else {
+      if (cart.surfaceBinding) cart.surfaceBinding.commit(x, z, nextProbe);
+      cart.position.x = x; cart.position.z = z;
+    }
     cart.terrainGrade = grade;
   }
 }

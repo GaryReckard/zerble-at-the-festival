@@ -1,0 +1,26 @@
+{
+  "reportedDate": "2026-11-01",
+  "generationFlag": "not included in supplied markers",
+  "reports": [
+    {
+      "seed": 3232217193,
+      "x": 1497.87,
+      "z": 868.42,
+      "heading": -0.077,
+      "tod": 0.518,
+      "sessionTime": 143.31,
+      "note": "porta-potties in the road",
+      "ts": 1793588390041
+    },
+    {
+      "seed": 3232217193,
+      "x": 971.45,
+      "z": 902.1,
+      "heading": 12.271,
+      "tod": 0.922,
+      "sessionTime": 293.56,
+      "note": "i went up this steep hill, and lurleen just got stuck, stopped following me",
+      "ts": 1793588540289
+    }
+  ]
+}

@@ -40,6 +40,19 @@ const STRAP_TONES = [
   0xc23a4a, 0x355a3a, 0x4a5fc7, 0xd9a04a,
 ];
 
+// Constant body/drum shapes and palette materials are immutable. Per-person
+// animation changes transforms only; the seeded skirt flare remains private.
+const GEOMETRY={
+  leg:new THREE.CylinderGeometry(.085,.085,.55,6),torso:new THREE.CapsuleGeometry(.22,.45,4,6),
+  upperArm:new THREE.CapsuleGeometry(.065,.28,4,6),lowerArm:new THREE.CapsuleGeometry(.055,.26,4,6),
+  head:new THREE.IcosahedronGeometry(.22,1),eye:new THREE.SphereGeometry(.025,6,6),
+  djembe:new THREE.CylinderGeometry(.22,.16,.5,12),drumhead:new THREE.CircleGeometry(.215,12),
+  pole:new THREE.CylinderGeometry(.045,.045,2.2,6),robe:new THREE.CylinderGeometry(.20,.26,.85,8)
+};
+for(const geometry of Object.values(GEOMETRY))geometry.userData.shared=true;
+const materials=new Map();
+function materialFor(options){const key=JSON.stringify(options);if(!materials.has(key)){const material=new THREE.MeshStandardMaterial(options);material.userData.shared=true;materials.set(key,material);}return materials.get(key);}
+
 // ---- Black-clad palette for firekeeper + spotter ----
 const BLACK_GARB = 0x14151a;
 const BLACK_GARB_DARKER = 0x0a0b0e;
@@ -71,14 +84,14 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
     : (strapHex !== null ? strapHex : skinHex);
   const lowerColor = isBlackClad ? BLACK_GARB_DARKER : wrapHex;
 
-  const skinMat = new THREE.MeshStandardMaterial({
+  const skinMat = materialFor({
     color: skinHex, roughness: 0.92, flatShading: true,
   });
 
-  const torsoMat = new THREE.MeshStandardMaterial({
+  const torsoMat = materialFor({
     color: torsoColor, roughness: 0.92, flatShading: true,
   });
-  const lowerMat = new THREE.MeshStandardMaterial({
+  const lowerMat = materialFor({
     color: lowerColor, roughness: 0.95, flatShading: true,
   });
 
@@ -92,7 +105,7 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
   const danceLegs=[];
   for (const lx of [-0.10, 0.10]) {
     const leg = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.085, 0.085, 0.55, 6),
+      GEOMETRY.leg,
       legMat,
     );
     leg.position.set(lx, 0.30, 0);
@@ -111,7 +124,7 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
   const wrapTopR = 0.20;
   const wrapBotR = isBlackClad ? 0.26 : (0.30 + rng() * 0.04);
   const wrap = new THREE.Mesh(
-    new THREE.CylinderGeometry(wrapTopR, wrapBotR, wrapH, 8),
+    isBlackClad?GEOMETRY.robe:new THREE.CylinderGeometry(wrapTopR, wrapBotR, wrapH, 8),
     lowerMat,
   );
   wrap.position.y = (wrapTop + wrapBot) / 2;
@@ -122,7 +135,7 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
   // Capsule, sized to a slim adult. Color is skin or strap depending on
   // top variant.
   const torso = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.22, 0.45, 4, 6),
+    GEOMETRY.torso,
     torsoMat,
   );
   torso.position.y = 1.05;
@@ -140,7 +153,7 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
     const shoulder = new THREE.Group();
     shoulder.position.set(sx * 0.26, 1.30, 0);
     const upper = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.065, 0.28, 4, 6),
+      GEOMETRY.upperArm,
       skinMat,    // arms are always bare skin for tribal figures
     );
     upper.position.y = -0.16;
@@ -149,7 +162,7 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
     elbow.position.y = -0.32;
     shoulder.add(elbow);
     const lower = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.055, 0.26, 4, 6),
+      GEOMETRY.lowerArm,
       skinMat,
     );
     lower.position.y = -0.16;
@@ -190,7 +203,7 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
 
   // ----- Head -----
   const head = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.22, 1),
+    GEOMETRY.head,
     skinMat,
   );
   head.position.y = 1.60;
@@ -205,9 +218,9 @@ function buildTribalFigure(rng = Math.random, opts = {}) {
   g.add(hairGroup);
 
   // ----- Eyes -----
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.8 });
+  const eyeMat = materialFor({ color: 0x111, roughness: 0.8 });
   for (const ex of [-0.07, 0.07]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), eyeMat);
+    const eye = new THREE.Mesh(GEOMETRY.eye, eyeMat);
     eye.position.set(ex, 1.63, -0.18);
     g.add(eye);
   }
@@ -262,8 +275,8 @@ export function buildHandDrummer(rng = Math.random) {
   // Earlier this was at +Z (behind the body) so the arms reached forward into
   // empty air; Gary called this out as "drums in them, not in front".
   const djembe = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.16, 0.50, 12),
-    new THREE.MeshStandardMaterial({
+    GEOMETRY.djembe,
+    materialFor({
       color: 0x6a3a18, roughness: 0.95, flatShading: true,
     }),
   );
@@ -272,8 +285,8 @@ export function buildHandDrummer(rng = Math.random) {
   figure.group.add(djembe);
   // Drumhead — pale skin, on top of the djembe body
   const drumhead = new THREE.Mesh(
-    new THREE.CircleGeometry(0.215, 12),
-    new THREE.MeshStandardMaterial({
+    GEOMETRY.drumhead,
+    materialFor({
       color: 0xd9b878, roughness: 0.9, flatShading: true, side: THREE.DoubleSide,
     }),
   );
@@ -288,8 +301,8 @@ export function buildFirekeeper(rng = Math.random) {
   const figure = buildTribalFigure(rng, { pose: 'firekeeper' });
   // Hand-held pole — long dark cylinder leaning forward like a hot-iron poker.
   const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.045, 0.045, 2.2, 6),
-    new THREE.MeshStandardMaterial({
+    GEOMETRY.pole,
+    materialFor({
       color: 0x2a1d12, roughness: 0.9, flatShading: true,
     }),
   );

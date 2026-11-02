@@ -59,6 +59,10 @@
   <div id="panel">
     <h1>ZERBLE · WORLD MAP (2D)</h1>
     <div class="row"><span>seed</span><input id="seed" type="text" value="0" /></div>
+    <label for="landscape-version">Landscape generation <select id="landscape-version" aria-label="Landscape generation"><option value="1">Current world (1)</option><option value="2">Landscape experiment (2)</option></select></label>
+    <label><input type="checkbox" id="ly-landscape" /> mountain districts + access</label>
+    <button id="landscape-find">Find nearby Mountain Top</button>
+    <div id="landscape-status" role="status" aria-label="Landscape planning status" style="color:#b3dfbe;font-size:11px;margin-top:6px"></div>
     <label><input type="checkbox" id="ly-elevation" /> elevation + 2m contours</label>
     <label><input type="checkbox" id="ly-hearts" checked /> hearts (rank)</label>
     <label><input type="checkbox" id="ly-roads" checked /> roads (asphalt / dirt)</label>
@@ -86,6 +90,8 @@
   </div>
 
 <script type="module">
+import { LandscapeMapLayer } from './src/landscape/mapLayer.js';
+import { landscapeVersion,setLandscapeVersion } from './src/worldgen/landscapeCandidates.js';
 import { setSeed, getSeed, queryPoint, queryRegion } from './src/worldgen/index.js';
 import { festivalPlan, campVillagesNear, computeFrontAxis, dancefloorRect, classifySeamsNear } from './src/worldgen/festival.js';
 import { lakesInBounds } from './src/worldgen/water.js';
@@ -106,10 +112,13 @@ const ctx = cv.getContext('2d');
 // --- view state (world coords at screen center + pixels-per-meter zoom) ------
 const DEFAULTS = { cx: 0, cz: 0, zoom: 2 };   // local festival detail; wheel out for the macro map
 const view = { ...DEFAULTS };
-const layers = { elevation: false, hearts: true, roads: true, water: true, density: true, roles: false, festival: true, grammar: true, seams: true, extent: false, grid: true };
+const layers = { landscape: false, elevation: false, hearts: true, roads: true, water: true, density: true, roles: false, festival: true, grammar: true, seams: true, extent: false, grid: true };
 let dirty = true;
 let lastInspect = null;
 let detailVisible = false;
+const landscapeLayer=new LandscapeMapLayer(markDirty);
+addEventListener('pagehide',()=>landscapeLayer.dispose(),{once:true});
+addEventListener('pageshow',e=>{if(e.persisted&&landscapeLayer.disposed)location.reload();});
 
 // These are viewer budgets, independent of generator tuning and RNG streams.
 // Count cells as well as hearts: a generator enumeration backstop can return an
@@ -175,6 +184,11 @@ function maybeFetchSnapshot() {
 // --- URL deep-link (CG2.4) ---------------------------------------------------
 function readURL() {
   const p = new URLSearchParams(location.search);
+  setLandscapeVersion(p.get('landscape')==='2'?2:1);
+  document.getElementById('landscape-version').value=String(landscapeVersion());
+  document.getElementById('btn-selftest').disabled=landscapeVersion()!==1;
+  document.getElementById('landscape-find').disabled=landscapeVersion()!==2;
+  if(landscapeVersion()===2&&!p.has('layers'))layers.landscape=true;
   if (p.has('seed')) document.getElementById('seed').value = p.get('seed');
   setMapView(p.has('cx') ? +p.get('cx') : view.cx,
     p.has('cz') ? +p.get('cz') : view.cz, p.has('zoom') ? +p.get('zoom') : view.zoom);
@@ -189,7 +203,7 @@ function writeURL() {
   urlTimer = setTimeout(() => {
     const on = Object.keys(layers).filter(k => layers[k]).join(',');
     const p = new URLSearchParams({
-      seed: document.getElementById('seed').value,
+      seed: document.getElementById('seed').value, landscape: landscapeVersion(),
       cx: Math.round(view.cx), cz: Math.round(view.cz),
       zoom: view.zoom.toFixed(4), layers: on,
     });
@@ -522,7 +536,7 @@ function draw() {
       ctx.stroke(); ctx.setLineDash([]);
     }
     // (b) exact built colliders from the snapshot (only if it's THIS seed)
-    if (snapshot && snapshot._num === getSeed()) {
+    if (snapshot && snapshot._num === getSeed() && (snapshot.landscapeVersion||1)===landscapeVersion()) {
       ctx.fillStyle = 'rgba(255,96,72,0.30)'; ctx.strokeStyle = 'rgba(255,140,110,0.55)'; ctx.lineWidth = 0.6;
       for (const e of snapshot.entries) {
         if (EXTENT_SCENERY.has(e.kind)) continue;
@@ -534,6 +548,8 @@ function draw() {
       }
     }
   }
+
+  document.getElementById('landscape-status').textContent=layers.landscape?landscapeLayer.draw(ctx,{bounds:b,zoom:view.zoom,x:w2sx,z:w2sy}):'';
 
   // origin crosshair
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
@@ -621,6 +637,7 @@ function inspect(wx, wz) {
     `treeDens   ${t.treeDensity.toFixed(3)}   lifecycle ${t.lifecycle}`;
   const surface = sampleTerrain(wx, wz);
   txt += `\nelevation  ${surface.height.toFixed(2)}m   grade ${(surface.grade * 100).toFixed(1)}%`;
+  txt+=landscapeLayer.inspect(wx,wz);
   if (layers.extent) txt += '\n' + extentInspect(wx, wz);
   document.getElementById('inspector').textContent = txt;
 }
@@ -629,7 +646,7 @@ function inspect(wx, wz) {
 // snapshot entries win (smallest container) over the approximate analytic
 // envelope; falls back to the plan-cluster envelope from the cursor's heart.
 function extentInspect(wx, wz) {
-  if (snapshot && snapshot._num === getSeed()) {
+  if (snapshot && snapshot._num === getSeed() && (snapshot.landscapeVersion||1)===landscapeVersion()) {
     let best = null, bestR = Infinity;
     for (const e of snapshot.entries) {
       if (EXTENT_SCENERY.has(e.kind)) continue;
@@ -688,9 +705,21 @@ cv.addEventListener('drop', e => {
 });
 document.getElementById('btn-reset').addEventListener('click', () => { Object.assign(view, DEFAULTS); markDirty(); writeURL(); });
 document.getElementById('btn-selftest').addEventListener('click', runTest);
+document.getElementById('landscape-version').addEventListener('change',e=>{
+  setLandscapeVersion(Number(e.target.value));landscapeLayer.planner.synchronize();layers.landscape=landscapeVersion()===2;
+  document.getElementById('btn-selftest').disabled=landscapeVersion()!==1;document.getElementById('landscape-find').disabled=landscapeVersion()!==2;
+  syncLayerCheckboxes();markDirty();writeURL();
+});
+document.getElementById('landscape-find').addEventListener('click',()=>{
+  const candidate=landscapeLayer.nearby(view.cx,view.cz);
+  if(!candidate){document.getElementById('landscape-status').textContent='No Mountain Top candidate in this bounded inspection window.';return;}
+  const b=candidate.bounds;setMapView((b.minX+b.maxX)/2,(b.minZ+b.maxZ)/2,Math.min(W()*.65/(b.maxX-b.minX),H()*.8/(b.maxZ-b.minZ)));
+  layers.landscape=true;syncLayerCheckboxes();markDirty();writeURL();
+});
 
 function runTest() {
   const out = document.getElementById('selftest');
+  if(landscapeVersion()!==1){out.textContent='The baseline golden suite applies to generation 1; use npm run test:landscape for the experiment.';return;}
   const r = runSelfTest();
   const lines = r.results.map(t => `${t.na ? '◦' : (t.pass ? '✓' : '✗')} ${t.name}${t.detail ? '\n    ' + t.detail : ''}`);
   out.innerHTML = `<span class="${r.pass ? 'ok' : 'bad'}">self-test ${r.pass ? 'PASS' : 'FAIL'}</span>  <span class="${r.teeth ? 'ok' : 'bad'}">teeth ${r.teeth ? 'OK' : 'N/A'}</span>  golden ${r.goldenHash}  POI ${r.poiGoldenHash}\n` + lines.join('\n');
@@ -873,6 +902,7 @@ window.__mapSandbox = {
   config: CONFIG,
   setConfig(patch) { Object.assign(CONFIG, patch); bumpWorldgen(); syncTune(); markDirty(); },
   runSelfTest, redraw: markDirty,
+  landscapeStats:()=>landscapeLayer.planner.stats(),
 };
 </script>
 </body>

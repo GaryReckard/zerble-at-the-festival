@@ -51,7 +51,7 @@ const context={THREE:{Group},PERF:{contextLights:false},SIZE_CONFIG:cfg,CAMPSITE
   buildTorchField:(positions,rng)=>{positions.forEach(p=>{if(p.phase==null)rng();});return {group:new Group(),animatables:[]};},
   addCampKitchen:()=>{},addCanopyTwinkles:()=>{},addCampLanterns:()=>{},addTentEveningGlow:()=>{},batchCampChairs:()=>{},campsiteFootprint:size=>(cfg[size].radius+3)*2};
 const fragment=source.slice(source.indexOf('function pickCount('),source.indexOf('// Shared unit geometry'))+source.slice(source.indexOf('export function buildCampsite('),source.indexOf('// ---------- Vendor backstage camp'));
-const build=vm.runInNewContext(fragment.replace('export function buildCampsite','function buildCampsite')+';buildCampsite',context);
+const build=vm.runInNewContext(fragment.replace(/^export /gm,'')+';buildCampsite',context);
 function random(seed){return()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};}
 let examined=0;
 const toLocal=(x,z,g)=>{const dx=x-g.position.x,dz=z-g.position.z,c=Math.cos(g.rotation.y),sn=Math.sin(g.rotation.y);return {x:dx*c-dz*sn,z:dx*sn+dz*c};};
@@ -153,7 +153,7 @@ function instrumentAssembler(assemblerSource) {
   counts.canvases=0;
   const assembler=assemblerSource.slice(assemblerSource.indexOf('function pickCount('),assemblerSource.indexOf('// Shared unit geometry'))+
     assemblerSource.slice(assemblerSource.indexOf('export function buildCampsite('),assemblerSource.indexOf('// ---------- Vendor backstage camp'));
-  const measured=vm.runInNewContext(assembler.replace('export function buildCampsite','function buildCampsite')+';buildCampsite',{
+  const measured=vm.runInNewContext(assembler.replace(/^export /gm,'')+';buildCampsite',{
     ...context,
     buildCampTent(...args){counts.tents++;return makeTent(...args);},
     buildTapestry(...args){counts.tapestries++;return makeTapestry(...args);},

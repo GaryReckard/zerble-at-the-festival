@@ -35,6 +35,7 @@ const GRASS_TEX_SIZE = 512;
 let chunkManager = null;
 let lakeManager = null;
 let farField = null;
+let landscapeRuntime = null;
 let groundMesh = null;
 let mountainsGroup = null;
 let skyMesh = null;
@@ -50,6 +51,8 @@ export function getTimeOfDay() {
   return timeOfDay;
 }
 
+export function getLandscapeRuntime() { return landscapeRuntime; }
+
 export function getFarField() {
   return farField;
 }
@@ -60,7 +63,8 @@ export function getFarField() {
 // otherwise the title-card backdrop + __dbg.start() briefly look at an unloaded
 // neighbourhood until the first post-Start updateWorld() streams it in. Defaults
 // to origin for any headless/legacy caller.
-export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0)) {
+export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0), {landscape=null}={}) {
+  landscapeRuntime=landscape;
   _scene = scene;
   skyMesh = buildSky(scene);
   starsMesh = buildStars(scene);
@@ -85,7 +89,7 @@ export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0))
   lakeManager = new LakeManager();
   lakeManager.update(scene, playerPos);
 
-  chunkManager = new ChunkManager(scene, crowd);
+  chunkManager = new ChunkManager(scene, crowd,{readyForChunk:landscape?bounds=>landscape.access.ready(bounds):null});
   // Pre-load the chunks around the player's spawn so the first frame (and the
   // title-card backdrop) looks alive at the actual spawn hub, not origin.
   chunkManager.update(playerPos);
@@ -103,7 +107,7 @@ export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0))
     isLoaded: (cx, cz) => chunkManager.isLoaded(cx, cz),
   });
 
-  return { chunkManager, lakeManager, farField };
+  return { chunkManager, lakeManager, farField, landscape:landscapeRuntime };
 }
 
 // Snap the moving ground to world coordinates so its colors and texture stay
@@ -117,6 +121,7 @@ export function updateWorld(playerPos, dt = 0.016) {
   // remainder. There is no second budget.
   const streamStartedAt = performance.now();
   // Lakes update first (same reason as boot: chunks consult lake footprints).
+  if(landscapeRuntime)landscapeRuntime.update(landscapeRuntime.player||playerPos,{deadline:streamStartedAt+PERF.chunkBudgetMs,time:performance.now()/1000,nightness:timeOfDay?.nightness||0,dt,movers:landscapeRuntime.getMovers?.()||[]});
   if (lakeManager) lakeManager.update(_scene, playerPos, dt);
   if (chunkManager) chunkManager.update(playerPos, streamStartedAt + PERF.chunkBudgetMs);
   // The horizon's remainder is measured HERE — lakes + full chunks are the

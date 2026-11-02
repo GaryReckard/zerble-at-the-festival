@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Scene,Vector3} from 'three';
+import {setSessionSeed} from '../src/rng.js';
+import {setTerrainEnabled} from '../src/worldgen/terrain.js';
+import {setLandscapeVersion,landscapeCandidateInCell} from '../src/worldgen/landscapeCandidates.js';
+import {landscapeContextFor} from '../src/worldgen/landscapeContext.js';
+import {createLandscapeAdmission} from '../src/worldgen/landscape.js';
+import {landscapeRoadPaths} from '../src/worldgen/landscapeRender.js';
+import {createLandscapeMoverAdapter} from '../src/landscape/moverAdapter.js';
+import {makeWagonRoute} from '../src/nutWagonRoute.js';
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:800,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {riderYieldForPeople}=await import('../src/oneWheelMotion.js');
+const {NutWagon}=await import('../src/nutWagon.js'),{OneWheels}=await import('../src/oneWheels.js'),{Lurleen}=await import('../src/lurleen.js'),{Crowd}=await import('../src/crowd.js'),{registry}=await import('../src/registry.js'),{disposeSceneResources}=await import('../src/sceneResources.js');
+setSessionSeed(1977);setLandscapeVersion(2);setTerrainEnabled(true);
+const candidate=landscapeCandidateInCell(-1,-1),context=landscapeContextFor(candidate),job=createLandscapeAdmission(candidate,context);while(!job.done)job.step({maxSteps:128,deadline:Infinity});assert.ok(job.result.valid);
+const scene=new Scene(),crowd=new Crowd({spawn(){},spawnLost(){}}),baseline=registry.entries.size;
+const adapter=createLandscapeMoverAdapter({supportWorld:context.surface.supportWorld,owners:new Map([[candidate.id,{candidate,state:job.result,water:{}}]]),access:{roads:()=>landscapeRoadPaths(candidate,job.result.plan)}});
+crowd.surfaceWorld=context.surface.supportWorld;
+const b=candidate.bridge.bounds,x=(b.minX+b.maxX)/2,route=makeWagonRoute([{x,z:b.maxZ+12},{x,z:b.minZ-30}]),player=new Vector3(x+80,0,b.minZ-20),reports=[];
+try {
+ for(const hz of [30,60,120]){
+  const wagon=new NutWagon(scene,crowd,{music:false,surfaceAdapter:adapter});assert.ok(wagon.spawnOnRoute(route,6));let seenDeck=false,returned=false,maxContact=0;
+  for(let i=0;i<hz*460;i++){
+   wagon.update(1/hz,player,false,0);const support=wagon.surfaceBinding.snapshot();seenDeck ||= support.surfaceId===candidate.bridge.id;returned ||= seenDeck&&wagon.direction<0&&wagon.position.z>b.maxZ+3;maxContact=Math.max(maxContact,wagon.terrainContactError||0);if(returned)break;
+  }
+  assert.ok(seenDeck&&returned,`wagon crosses the real bridge and returns at ${hz}Hz`);assert.ok(maxContact<.02,`wagon contact ${maxContact}`);reports.push({vehicle:'wagon',hz,maxContact});wagon.dispose();assert.equal(registry.entries.size,baseline);
+  // Wagon teardown deliberately releases its driver as a pedestrian. Remove
+  // that owned test person before measuring an independent rider route.
+  for(const npc of [...crowd.npcs])crowd.removeNpc(npc);assert.equal(crowd.npcs.length,0);
+  const riders=new OneWheels(scene,crowd,{procedural:false,surfaceAdapter:adapter}),rider=riders.spawnOnRoute(route,6);assert.ok(rider);seenDeck=false;returned=false;
+  for(let i=0;i<hz*160;i++){riders.update(1/hz,player,0);seenDeck ||= rider.surfaceBinding.snapshot().surfaceId===candidate.bridge.id;returned ||=seenDeck&&rider.motion.direction<0&&rider.entry.position.z>b.maxZ+3;if(returned)break;}
+  assert.ok(seenDeck&&returned,`one-wheel crosses and returns at ${hz}Hz: ${JSON.stringify({motion:rider.motion,support:rider.surfaceBinding.snapshot(),people:crowd.npcs.map(n=>({x:n.pos.x,z:n.pos.z,state:n.state}))})}`);assert.ok(Math.abs(rider.entry.position.y-adapter.height(rider.surfaceBinding,rider.motion.x,rider.motion.z))<1e-8);riders.dispose();assert.equal(registry.entries.size,baseline);reports.push({vehicle:'one-wheel',hz});
+ }
+ const slopeRoute=makeWagonRoute([{x,z:candidate.origin.z-90},{x,z:candidate.origin.z-220}]);
+ const climbing=new NutWagon(scene,crowd,{music:false,surfaceAdapter:adapter});assert.ok(climbing.spawnOnRoute(slopeRoute,6));climbing.state='cruising';const initialHeight=climbing.position.y;let hillContact=0;
+ for(let i=0;i<60*45;i++){climbing.update(1/60,new Vector3(x+100,0,candidate.origin.z-150),false,0);hillContact=Math.max(hillContact,climbing.terrainContactError);}
+ assert.ok(climbing.position.y>initialHeight+1,'the actual wagon climbs graded ground');assert.ok(hillContact<.02,`wagon hill suspension ${hillContact}`);reports.push({vehicle:'wagon-hill',hillContact,rise:climbing.position.y-initialHeight});climbing.dispose();for(const npc of [...crowd.npcs])crowd.removeNpc(npc);
+ const people={forEachPersonNear(_x,_z,_r,visit){visit(null,{x:0,z:1,y:-10,state:'idle'});}};assert.equal(riderYieldForPeople(0,0,0,1,null,people,{},0),null,'a pedestrian beneath a deck does not stop its rider');assert.equal(riderYieldForPeople(0,0,0,1,null,people,{},-10),'yielding to pedestrians');
+ const lurleen=new Lurleen(scene,new Vector3(x,0,b.maxZ+12),{surfaceAdapter:adapter});lurleen.autoRehome=false;assert.notEqual(lurleen.setSpawnAt(x,b.maxZ+12),false);lurleen.heading=0;lurleen.state='following';let seenDeck=false;
+ for(let i=0;i<60*25;i++){lurleen.state='following';lurleen.update(1/60,new Vector3(x,0,lurleen.position.z-40),0,0);seenDeck ||= lurleen.surfaceBinding.snapshot().surfaceId===candidate.bridge.id;if(seenDeck&&lurleen.position.z<b.minZ-5)break;}
+ assert.ok(seenDeck&&lurleen.position.z<b.minZ-5,'Lurleen follows across the selected deck');assert.ok(lurleen.terrainContactError<.02);
+ const below={kind:'prop',position:new Vector3(x,-10,(b.minZ+b.maxZ)/2),footprint:1,collider:{radius:2,minY:0,maxY:1}};registry.add(below);assert.ok(adapter.verticalOverlap(below,0)===false);registry.remove(below.id);
+ const lower=job.result.plan.shelves[0],upper=job.result.plan.shelves.at(-1),from={x:(lower.minX+lower.maxX)/2,z:(lower.minZ+lower.maxZ)/2},to={x:(upper.minX+upper.maxX)/2,z:(upper.minZ+upper.maxZ)/2};const goal=adapter.nextTarget(from,to);assert.ok(Math.hypot(goal.x-to.x,goal.z-to.z)>10,'Lurleen uses admitted road access between shelves instead of targeting the direct bank');
+ assert.notEqual(lurleen.setSpawnAt(from.x,from.z),false);lurleen.heading=0;lurleen.speed=0;
+ let meadowFrames=0;for(;meadowFrames<60*150&&Math.hypot(lurleen.position.x-to.x,lurleen.position.z-to.z)>15;meadowFrames++){lurleen.state='following';lurleen.update(1/60,new Vector3(to.x,0,to.z),0,0);}
+ assert.ok(meadowFrames<60*150,`Lurleen side-road controller reaches upper meadow ${lurleen.position.x},${lurleen.position.z}; target ${to.x},${to.z}`);reports.push({vehicle:'lurleen-meadows',seconds:meadowFrames/60});
+ registry.remove(lurleen._registryId);lurleen.root.removeFromParent();lurleen._heartGroup.removeFromParent();disposeSceneResources(lurleen.root);disposeSceneResources(lurleen._heartGroup);assert.equal(registry.entries.size,baseline);
+ console.log('PASS landscape vehicles: actual Nut Wagon and one-wheel controllers cross/return on selected bridge support at 30/60/120Hz, real wagon suspension, Lurleen bridge following/local side-road intent, vertical solids and owner teardown.',JSON.stringify(reports));
+}finally{for(const e of [...registry.entries.values()])if(e.id>baseline)registry.remove(e.id);setLandscapeVersion(1);setTerrainEnabled(false);setSessionSeed(0);}

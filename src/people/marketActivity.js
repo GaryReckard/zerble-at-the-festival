@@ -223,6 +223,7 @@ export class MarketActivity {
         const yaw = booth.rotation.y;
         const x = entry.position.x + Math.sin(yaw) * 3.2;
         const z = entry.position.z + Math.cos(yaw) * 3.2;
+        if(this.people.canReachPlace&&!this.people.canReachPlace(npc.person,{x,z,y:entry.position.y}))continue;
         const d = Math.hypot(x - npc.pos.x, z - npc.pos.z);
         if (d < nearest && !this._isSpotBlocked(x, z)) {
           nearest = d;

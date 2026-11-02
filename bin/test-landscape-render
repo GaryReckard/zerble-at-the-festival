@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {BufferGeometry,BufferAttribute} from 'three';
+import {validLandscapeRenderBuffers} from '../src/landscape/renderBuffers.js';
+import { setSessionSeed } from '../src/rng.js';
+import { CONFIG } from '../src/worldgen/constants.js';
+import { FESTIVAL_TUNING } from '../src/worldgen/tuning.js';
+import { setTerrainEnabled,sampleTerrain } from '../src/worldgen/terrain.js';
+import { setLandscapeVersion,landscapeCandidateInCell } from '../src/worldgen/landscapeCandidates.js';
+import { computeLandscapeTask } from '../src/worldgen/landscapeTask.js';
+setSessionSeed(1977);setTerrainEnabled(true);setLandscapeVersion(2);
+const task=c=>computeLandscapeTask({id:1,key:'render-proof',version:2,seed:1977,candidateId:c.id,cx:c.cx,cz:c.cz,fingerprint:JSON.stringify(c),config:structuredClone(CONFIG),tuning:structuredClone(FESTIVAL_TUNING),renderGeometry:true});
+try {
+  const candidate=landscapeCandidateInCell(-1,-1),result=task(candidate),data=result.render,b=candidate.bridge.bounds;
+  assert.ok(result.valid,result.reason);assert.equal(data.ownerId,candidate.id);assert.ok(data.roadPositions.length>100&&data.waterPositions.length>100);
+  assert.ok(JSON.stringify({...result,render:null}).length+data.roadPositions.byteLength+data.waterPositions.byteLength<512000);
+  assert.equal(validLandscapeRenderBuffers(data),true);
+  assert.equal(validLandscapeRenderBuffers({...data,roadUvs:new Float32Array(1)}),false);
+  for(const prefix of ['road','water']){
+    const geometry=new BufferGeometry();geometry.setAttribute('position',new BufferAttribute(data[prefix+'Positions'],3));geometry.computeVertexNormals();
+    const oracle=geometry.attributes.normal.array,prepared=data[prefix+'Normals'];assert.equal(prepared.length,oracle.length);
+    for(let i=0;i<oracle.length;i++)assert.ok(Math.abs(oracle[i]-prepared[i])<1e-6,'prepared normals match Three.js native non-indexed normal generation');geometry.dispose();
+  }
+  for(let i=0,j=0;i<data.roadPositions.length;i+=3){assert.equal(data.roadUvs[j++],Math.fround(data.roadPositions[i]/4));assert.equal(data.roadUvs[j++],Math.fround(data.roadPositions[i+2]/4));}
+  const p=data.roadPositions;
+  for(let i=0;i<p.length;i+=9){
+    const x=(p[i]+p[i+3]+p[i+6])/3,y=(p[i+1]+p[i+4]+p[i+7])/3,z=(p[i+2]+p[i+5]+p[i+8])/3;
+    assert.ok(Math.abs(sampleTerrain(x,z).height-y)<.001,'road interiors follow exact native terrain triangles');
+    assert.equal(x>b.minX+.001&&x<b.maxX-.001&&z>b.minZ+.001&&z<b.maxZ-.001,false,'road paint is cut out of the bridge deck instead of overlapping it');
+  }
+  const rejected=task(landscapeCandidateInCell(-2,-2));assert.equal(rejected.valid,false);assert.equal(rejected.plan,null);assert.ok(rejected.render.waterPositions.length>100,'the complete finite stream survives campsite-access rejection');
+  console.log('PASS landscape worker render buffers: actual canonical admitted paths, native-triangle road draping, deck cutouts, bounded transferable water/road data and complete unoccupied water systems after district rejection.',JSON.stringify({roadTriangles:p.length/9,waterTriangles:data.waterPositions.length/9,bytes:p.byteLength+data.waterPositions.byteLength,workerMs:result.workerMs}));
+} finally {setLandscapeVersion(1);setTerrainEnabled(false);}

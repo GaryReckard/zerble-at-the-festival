@@ -1,0 +1,75 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createSupportWorld, createSupportBinding, verticalIntervalsOverlap, MAX_LOCAL_SUPPORTS } from '../src/landscape/support.js';
+
+const ground = (x, z, out) => Object.assign(out, { height: z < -3 && z > -17 ? -3 : 0, dx: 0, dz: 0, traversable: true });
+const deck = { id: 'bridge', height: 0, bounds: { minX: -5, maxX: 5, minZ: -20, maxZ: 0 },
+  approaches: [{ minX: -5, maxX: 5, minZ: -3, maxZ: 2 }, { minX: -5, maxX: 5, minZ: -22, maxZ: -17 }] };
+const world = createSupportWorld({ sampleTerrain: ground, decks: [deck] });
+const a = createSupportBinding(world, { x: 0, z: 1 });
+const b = createSupportBinding(world, { x: 0, z: -10 });
+const initial = a.snapshot(), out = {};
+const enter = a.propose(0, -.1, out); assert.equal(enter.surfaceId, 'bridge');
+assert.deepEqual(a.snapshot(), initial, 'a proposal never commits');
+a.sample(0, -10, {}); a.sample(0, 1, {});
+assert.deepEqual(a.snapshot(), initial, 'wheel probe order never commits');
+a.commit(0, -.1, enter); assert.equal(a.snapshot().surfaceId, 'bridge');
+assert.equal(a.sample(0, -10).height, 0); assert.equal(b.sample(0, -10).height, -3);
+assert.equal(b.propose(0, -10).surfaceId, 'terrain', 'underneath actor is not snapped upward');
+assert.equal(a.sample(0, 1).geometryId, 'terrain', 'straddling endpoint samples real matching ground');
+assert.equal(a.sample(6, -10).valid, false, 'wheel off a closed side is invalid');
+const wide = createSupportBinding(world, { x: 0, z: -10, surfaceId: 'bridge' }, { footprint: [{ x: 2, z: 0 }] });
+assert.equal(wide.propose(4, -11).reason, 'unsupported-footprint');
+assert.equal(wide.snapshot().z, -10, 'rejected footprint leaves accepted pose unchanged');
+assert.equal(a.propose(6, -1).valid, false); assert.equal(a.snapshot().surfaceId, 'bridge');
+a.propose(0, -19, out); a.commit(0, -19, out);
+a.propose(0, -21, out); assert.equal(out.surfaceId, 'terrain'); a.commit(0, -21, out);
+a.propose(0, -19, out); assert.equal(out.surfaceId, 'bridge'); a.commit(0, -19, out);
+a.propose(0, -1, out); a.commit(0, -1, out);
+a.propose(0, 1, out); assert.equal(out.surfaceId, 'terrain'); a.commit(0, 1, out);
+assert.equal(world.sampleSelected(0, 0, 'deleted').reason, 'missing-support');
+assert.equal(world.propose(0, 0, { x: 0, z: 0, height: 0, surfaceId: 'deleted' }).valid, false);
+assert.throws(() => createSupportBinding(world, { x: 0, z: 0, surfaceId: 'deleted' }), /acquire/);
+assert.throws(() => a.commit(0, 0, { valid: false }), /blocked/);
+for (const v of [NaN, Infinity, -Infinity]) assert.throws(() => a.propose(v, 0), /finite/);
+assert.throws(() => createSupportWorld({ sampleTerrain: ground, decks: [deck, deck] }), /unique/);
+assert.throws(() => createSupportWorld({ sampleTerrain: ground, decks: Array(MAX_LOCAL_SUPPORTS + 1) }), /Too many/);
+assert.throws(() => createSupportWorld({ sampleTerrain: ground, decks: [{ ...deck, height: NaN }] }), /finite/);
+assert.throws(() => createSupportWorld({ sampleTerrain: ground, decks: [{ ...deck, bounds: { ...deck.bounds, maxX: -6 } }] }), /positive/);
+deck.bounds.minX = -100; assert.equal(world.descriptors[0].bounds.minX, -5, 'descriptor snapshot independent of caller mutation');
+assert.ok(Object.isFrozen(world.descriptors[0].approaches[0]));
+const other = { ...deck, id: 'another-bridge' };
+for (const decks of [[deck, other], [other, deck]]) {
+  assert.equal(createSupportWorld({ sampleTerrain: ground, decks }).propose(0, -.1, initial).surfaceId, 'another-bridge');
+}
+const mismatch = createSupportWorld({ sampleTerrain: ground, decks: [{ ...deck, height: .1 }] });
+assert.equal(mismatch.propose(0, -.1, initial).surfaceId, 'terrain');
+for (const tolerance of [.079, .081]) {
+  const state = { ...initial, height: tolerance };
+  assert.equal(world.propose(0, -.1, state).surfaceId, tolerance < .08 ? 'bridge' : 'terrain');
+}
+const intervals = [{ minY: 3, maxY: 5 }, { minY: -2, maxY: 1 }];
+assert.equal(verticalIntervalsOverlap(...intervals), false);
+assert.equal(verticalIntervalsOverlap(intervals[0], { minY: -2, maxY: 4 }), true, 'tall solid still intersects');
+assert.equal(verticalIntervalsOverlap(intervals[0], { minY: 5, maxY: 6 }), true, 'touching boundaries are conservative');
+assert.throws(() => verticalIntervalsOverlap({ minY: 4, maxY: 2 }, intervals[0]), /reversed/);
+assert.throws(() => verticalIntervalsOverlap({ minY: NaN, maxY: 2 }, intervals[0]), /finite/);
+const snapshot = a.snapshot();
+for (let i = 0; i < 10000; i++) assert.equal(a.sample(0, 1, out), out);
+assert.deepEqual(a.snapshot(), snapshot);
+// Streaming descriptors remain authoritative even after a previous successful read.
+let activeDeck={...world.descriptors[0],id:'streamed'};
+const source={near:()=>activeDeck?[activeDeck]:[],resolve:id=>activeDeck?.id===id?activeDeck:null};
+const streamed=createSupportWorld({sampleTerrain:ground,deckSource:source});
+const streamedBinding=createSupportBinding(streamed,initial);
+const streamedEntry=streamedBinding.propose(0,-.1);assert.equal(streamedEntry.surfaceId,'streamed');streamedBinding.commit(0,-.1,streamedEntry);
+activeDeck=null;
+assert.equal(streamedBinding.sample(0,-1).reason,'missing-support','descriptor disappearance cannot be hidden by an old normalized cache');
+assert.equal(streamedBinding.propose(0,-1).reason,'missing-support');
+assert.equal(streamedBinding.snapshot().surfaceId,'streamed','a missing occupied deck never falls back to terrain');
+assert.throws(()=>createSupportWorld({sampleTerrain:ground,deckSource:{}}),/source/);
+const excessive=createSupportWorld({sampleTerrain:ground,deckSource:{...source,near:()=>Array(65).fill(world.descriptors[0])}});
+assert.throws(()=>excessive.propose(0,-.1,initial),/Too many/);
+const duplicate=createSupportWorld({sampleTerrain:ground,deckSource:{near:()=>[world.descriptors[0],world.descriptors[0]],resolve:()=>world.descriptors[0]}});
+assert.throws(()=>duplicate.propose(0,-.1,initial),/Duplicate/);
+console.log('PASS landscape support: pure proposals, bidirectional approach transfers, locked wheel samples, underneath separation, closed/missing support, independent movers, immutable descriptors, finite inputs and vertical solids.');

@@ -1,3 +1,4 @@
+import {LURLEEN_SUPPORT_FOOTPRINT} from './landscape/moverAdapter.js';
 // Lurleen — Zerble's love interest. A second anthropomorphic golf cart with
 // pink puffy lips, googly eyes, gathered raffia/flower hair, and a wooden
 // rear platform with side shelves.
@@ -71,7 +72,8 @@ const FORWARD_CONE_CHANCE = 0.7;   // 70% of relocations bias toward player head
 const FORWARD_CONE_HALF_ANGLE = Math.PI / 4;  // ±45° = 90° forward cone
 
 export class Lurleen {
-  constructor(scene, center = null) {
+  constructor(scene, center = null, {surfaceAdapter=null}={}) {
+    this.surfaceAdapter=surfaceAdapter;
     this.scene = scene;
     this.root = new THREE.Group();
     this.root.name = 'Lurleen';
@@ -79,6 +81,7 @@ export class Lurleen {
     const spawn = pickInitialSpawn(center);
     const dry = avoidLake(spawn.x, spawn.z);
     if (dry) spawn.set(dry.x, 0, dry.z);
+    if(surfaceAdapter){const supported=surfaceAdapter.findSpawn(spawn.x,spawn.z,Math.PI,LURLEEN_SUPPORT_FOOTPRINT);if(!supported)throw new Error('Lurleen has no supported spawn');spawn.set(supported.x,0,supported.z);this.surfaceBinding=supported.binding;}
     this.position = spawn.clone();
     this.heading = Math.PI;          // facing -z initially
     this.speed = 0;
@@ -130,7 +133,7 @@ export class Lurleen {
       kind: 'lurleen',
       position: this.position,    // mutated each frame; registry holds the reference
       footprint: 2.0,
-      collider: { radius: 2.0, damage: 0 },
+      collider: { radius: 2.0, damage: 0, ...(surfaceAdapter?{minY:0,maxY:4.1}:{}) },
     });
   }
 
@@ -138,6 +141,7 @@ export class Lurleen {
   // she doesn't immediately race off toward her seeded spawn, and by the
   // off-camera re-home logic in update().
   setSpawnAt(x, z) {
+    if(this.surfaceAdapter){const pose=this.surfaceAdapter.findSpawn(x,z,this.heading,LURLEEN_SUPPORT_FOOTPRINT);if(!pose)return false;x=pose.x;z=pose.z;this.surfaceBinding=pose.binding;}
     this.position.set(x, 0, z);
     this.homePos.set(x, 0, z);
     this.wanderTarget.set(x, 0, z);
@@ -165,7 +169,7 @@ export class Lurleen {
     let nz = zerblePos.z + Math.sin(angle) * dist;
     const dry = avoidLake(nx, nz);
     if (dry) { nx = dry.x; nz = dry.z; }
-    this.setSpawnAt(nx, nz);
+    if(this.setSpawnAt(nx, nz)===false)return;
     // Face roughly back toward the player so she's not arbitrarily oriented.
     this.heading = Math.atan2(zerblePos.x - nx, zerblePos.z - nz) + Math.PI;
     this.groundOnTerrain();
@@ -653,11 +657,12 @@ export class Lurleen {
   // Use the same four-wheel contact approach as Zerble without changing the
   // autonomous X/Z steering, timers or random draws. Also called on teleports.
   groundOnTerrain() {
+    const heightAt=this.surfaceBinding?(x,z)=>this.surfaceBinding.sample(x,z,this._surfaceProbe||(this._surfaceProbe={})).height:terrainHeight;
     const c = Math.cos(this.heading), s = Math.sin(this.heading);
     let front = 0, back = 0, left = 0, right = 0;
     for (const w of this._wheels) {
       const p = w.mesh.position;
-      const h = terrainHeight(this.position.x + p.x * c + p.z * s,
+      const h = heightAt(this.position.x + p.x * c + p.z * s,
         this.position.z - p.x * s + p.z * c);
       if (w.front) front += h; else back += h;
       if (p.x < 0) left += h; else right += h;
@@ -678,13 +683,13 @@ export class Lurleen {
       w.mesh.position.y = rest;
       for (let i = 0; i < 4; i++) {
         p.copy(w.mesh.position).applyMatrix4(this.root.matrixWorld);
-        const error = terrainHeight(p.x, p.z) + rest - p.y;
+        const error = heightAt(p.x, p.z) + rest - p.y;
         w.mesh.position.y = THREE.MathUtils.clamp(
           w.mesh.position.y + error / vertical, w.baseY - .3, w.baseY + .3);
       }
       p.copy(w.mesh.position).applyMatrix4(this.root.matrixWorld);
       this.terrainContactError = Math.max(this.terrainContactError,
-        Math.abs(p.y - terrainHeight(p.x, p.z) - rest));
+        Math.abs(p.y - heightAt(p.x, p.z) - rest));
     }
   }
 
@@ -757,8 +762,9 @@ export class Lurleen {
     }
 
     // Apply movement: forward = (-sin(h), 0, -cos(h)) — same convention as Zerble.
-    this.position.x += -Math.sin(this.heading) * this.speed * dt;
-    this.position.z += -Math.cos(this.heading) * this.speed * dt;
+    const nextX=this.position.x-Math.sin(this.heading)*this.speed*dt,nextZ=this.position.z-Math.cos(this.heading)*this.speed*dt;
+    if(!this.surfaceBinding||this.surfaceAdapter.move(this.surfaceBinding,nextX,nextZ,this.heading)){this.position.x=nextX;this.position.z=nextZ;}
+    else {this.speed=0;this.heading=this.surfaceBinding.snapshot().heading;}
     // Wheel anim: spin proportional to speed, front wheels steer.
     for (const w of this._wheels) {
       w.mesh.rotation.x += this.speed * dt * 1.5;
@@ -825,7 +831,8 @@ export class Lurleen {
     const inv = 1 / (dToZerble || 1);
     const reachX = this.position.x + dx * inv * (dToZerble - FOLLOW_DIST);
     const reachZ = this.position.z + dz * inv * (dToZerble - FOLLOW_DIST);
-    this._driveToward(dt, reachX, reachZ, 1.0);
+    const goal=this.surfaceAdapter?this.surfaceAdapter.nextTarget(this.position,{x:reachX,z:reachZ}):{x:reachX,z:reachZ};
+    this._driveToward(dt, goal.x, goal.z, 1.0);
   }
 
   _faceToward(dt, dx, dz) {

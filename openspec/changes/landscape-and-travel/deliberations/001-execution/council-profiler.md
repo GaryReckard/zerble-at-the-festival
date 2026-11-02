@@ -1,0 +1,42 @@
+## Profiler's Position
+
+TL/DR: Proceed with the isolated support contract now, then give the authored fixture explicit size and cost bounds before constructing its mesh. Keep the expensive production acceptance gates later, but measure each new owner before procedural replication.
+
+### Priority Sequence
+
+1. Complete Task 1.1 (integration baseline) and Task 1.2 (proof defaults), recording the existing sandbox's counters and construction timing as well as successful check/build. The present evidence records successful commands but no render baseline; the harness already exposes renderer information and allocation timing, so this requires little new machinery (`tasks.md:9-10`, `evidence.md:5-15`, `src/terrainSandbox.js:268-274`). Paths abbreviated to tasks/design/evidence/spec in this document refer to this change's files.
+2. Implement Group 2 (support and solid contracts) with bounded descriptor lookup, caller-owned scratch and independent mover state. This adds no render work and settles correctness before mesh allocation or controller migration (`tasks.md:14-20`, `design.md:21-28`). Keep descriptor validation at creation/admission where possible, while retaining finite input validation at query boundaries; repeated queries must not rebuild descriptors. The sampling path already runs inside 1/120-second movement substeps (`src/terrainDriving.js:7-11,41-45`).
+3. Execute Group 3 (authored engineering proof) using the existing sandbox, its stats and teardown. Declare fixture bounds, segment counts and primitive inventory before building; keep exhaustive ray checks behind the verification control, as they are today (`design.md:32-34`, `src/terrainSandbox.js:195-225,268-282`). Prove both selected terrain and deck geometry without casting rays through the full mesh every movement step.
+4. Complete Group 4 (authoritative travel), then measure one complete populated owner during Group 5 (mountain district), before Group 6 (procedural admission) multiplies demand. Preserve atomic publication but permit bounded preparation; a completed plan need not imply one uninterruptible geometry build (`tasks.md:35-61`, `.claude/rules/performance.md:31-37`).
+5. Retain Group 8 (consumer/performance acceptance) and Group 9 (release acceptance) as the comprehensive moving/parked, streaming and physical-device gates. Do not demand production phone acceptance before a pure contract can land (`tasks.md:85-94`, `specs/landscape-travel/spec.md:55-61`).
+
+### Performance Risks Identified
+
+| Risk | Type | Severity | Trigger Condition |
+| --- | --- | --- | --- |
+| The one-meter mesh has no declared dimensions or triangle ceiling. | Tris/Alloc | Medium | Group 3 (authored engineering proof) expands its footprint while retaining uniform one-meter cells. Two triangles per square meter follow the existing grid topology (`design.md:34`, `src/terrainSandbox.js:41-58`). |
+| Support selection or route validation accidentally becomes a repeated planning operation. | SteadyState/Alloc | High | Per-mover sampling enumerates all district geometry or creates fresh scratch during each substep. The plan correctly requires caller-owned output, and current driving samples twice per substep, so enforce the separation between immutable plans and runtime queries (`design.md:21-26`, `src/terrainDriving.js:7-11,41-45`). |
+| Complete district construction exceeds a streaming frame despite finite admission. | Alloc | High | Real camp/drum builders and refined terrain are synchronously built together. The existing audit measured individual 196–220 ms chunks despite a 3/4/5 ms admission wall; finite alternatives alone do not solve this (`tasks.md:48-51`, `.claude/rules/performance.md:31-37`). |
+| Occupied-support retention grows residency beyond ordinary distance limits. | Alloc/SteadyState | Medium | Districts remain pinned while actors hold support. The plan requires pinning but does not yet state the release and maximum-residency behavior; verify this before repeated-owner admission (`design.md:28`, `tasks.md:51`, `specs/landscape-travel/spec.md:51-53`). |
+| Unload destroys resources referenced by another district, or rebuilt bridge details multiply draws. | Alloc/Draws/Shadow | High | Shared decks, rails, banks or camp materials enter owner groups without correct lifetime tags, or repeated details become individual casters. Existing pooling policy distinguishes module-shared resources from single-owner pools; the plan must preserve both (`design.md:52`, `.claude/rules/perf-pooling.md:21-34`, `.claude/rules/performance.md:90-95`). |
+
+### Budget Estimate
+
+- **Draw delta**: Group 2 (support contracts) adds zero render draws, and the first proof should add zero live-game draws because it remains outside the initial game import graph (`design.md:56`). For the sandbox, calculate terrain batches + deck batches + water batches + diagnostic batches minus replaced batches. Exact counts cannot be established before the fixture inventory exists. One shared material does not combine independent Mesh draws; repeated rail/marker details should use instances if counters justify them (`src/terrainSandbox.js:55-59,103-105`, `.claude/rules/performance.md:94-95`).
+- **Triangle delta**: For a regular one-meter rectangular terrain of W by H cells, terrain alone costs 2WH triangles, plus deck/water geometry; subtract replaced terrain for a net delta. This is topology math, not a measured result (`src/terrainSandbox.js:41-58`). Low is the tightest guide at 150,000 triangles and 80 draws, followed by Mid at 400,000/200 and High at 1,200,000/400 (`src/debug.js:44-46`). No remaining headroom is established by current evidence.
+- **Cost type**: Both. Geometry construction/uploads and cache misses affect cold work; visible triangles, caster count and repeated mover queries affect steady frame delivery. Measure them separately (`tasks.md:85`, `.claude/rules/performance.md:103-116`).
+- **Low/mid-tier verdict**: Safe to begin the isolated contract; the geometry and populated-owner slices need bounded inventories and measurements before replication. Retain the actual current Low pixel-ratio cap of 1.25 rather than restoring the historical 1.0 heuristic (`src/perf.js:98-112`, `ARCHITECTURE.md:585-601`). Preserve current shim, shadow and AA behavior; the plain sandbox renderer does not establish production composer cost (`AGENTS.md:86-107`, `src/terrainSandbox.js:25-35`).
+
+### Blocking Corrections and Later Acceptance Gates
+
+**Before fixture construction:** Add explicit X/Z bounds, maximum terrain/deck/water triangles and intended batch counts to Task 1.2 (proof defaults) or Task 3.1 (authored geometry). Capture the corresponding existing-harness baseline at the same viewport, camera, tier and time of day. This makes Task 3.4 (proof counters) actionable; it does not require guessing a phone FPS target (`tasks.md:10,26-29`, `evidence.md:13-15`). This correction does not block Group 2 (pure support contracts).
+
+**Before procedural admission:** Extend Task 5.4 (owner lifecycle verification) to record largest indivisible planning/build step, first upload/render cost, retained geometry/material counts and occupied-support release through repeated unload/revisit. If a measured step overruns the streaming wall, split preparation while retaining complete publication and synchronous collision truth; do not simply widen the deadline (`tasks.md:48-61`, `.claude/rules/performance.md:31-37`, `ARCHITECTURE.md:598-601`).
+
+**Later acceptance:** Keep Task 8.5 (consumer performance measurement) and Task 9.2 (physical-device evidence) open until measured. Compare fixed seed/version/route/camera/quality conditions, include cold-cache and warm-cache travel separately, and report baseline budget overruns separately from this change's delta. Audit counters first, then shadows, disposal, idle passes and repeated geometry before proposing broad optimization (`tasks.md:85,92`, `.claude/rules/performance.md:89-116`). No new post-process pass or extra per-element lights are required by the first proof (`design.md:30-34`).
+
+### Verdict
+
+- **Verdict**: Proceed with mitigations
+- **Key Concern**: A finite plan and atomic owner do not bound one synchronous geometry build or its replicated residency cost.
+- **Recommendation**: Start the pure contract immediately, set the fixture's concrete size/cost bounds before geometry, and measure the first populated owner before procedural replication. Preserve the existing later tier/device release gates.

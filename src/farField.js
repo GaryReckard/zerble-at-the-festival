@@ -1,3 +1,4 @@
+import {landscapeClearance} from './worldgen/landscapePolicy.js';
 import { pavedCutters, trimRoadTriangles } from './roadGeometry.js';
 import { terrainHeight, terrainEnabled, drapeTerrainTriangles } from './worldgen/terrain.js';
 // FarField — the render-only festival horizon (festival-horizon change).
@@ -838,7 +839,7 @@ export class FarField {
       if (ownerCellCoord(v.x, COARSE_CELL) !== cellCx || ownerCellCoord(v.z, COARSE_CELL) !== cellCz) continue;
       out.push(copyVillageRecord(v));
     }
-    out.push(...forestRecordsForCell(cellCx, cellCz, this.tier.forestStep || 48));
+    out.push(...forestRecordsForCell(cellCx, cellCz, this.tier.forestStep || 48,(x,z)=>landscapeClearance(x,z,3)?0:treeDensity(x,z)));
     return out;
   }
 

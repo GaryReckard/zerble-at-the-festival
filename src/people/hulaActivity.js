@@ -133,10 +133,12 @@ export class HulaActivity {
   startPerformance({slot:index=0,person,entry,x,z,style='flow',profile='lyrical',hoops=1,duration=22,seed=this.rootSeed}={}){
     const slot=this.slots[index];
     if(this.disposed||!slot||slot.pairOwner||slot.session.phase!=='idle'||registry.entries.get(entry?.id)!==entry||!this.people.readPerson(person,this.view))return false;
+    if(this.people.canReachPlace&&!this.people.canReachPlace(person,entry.position))return false;
     slot.entry=entry;slot.x=x??this.view.x;slot.z=z??this.view.z;slot.lastSegment=-1;
     slot.session.configure({style,seed,slot:index,profile,hoops,duration});
     // Validate the complete score before claiming a person or publishing props.
     const radius=style==='flow'?slot.session.planFlow().envelope.radius*this.view.scale:0;
+    if(this.people.canUseActivityGround&&!this.people.canUseActivityGround(person,slot.x,slot.z,Math.max(.5,radius)))return false;
     if(style==='flow'&&!this.envelopeClear(slot,radius,[person]))return false;
     if(!slot.session.start(person))return false;
     if(style==='flow')this.envelopes.set(slot.reservation,{x:slot.x,z:slot.z,radius});

@@ -78,18 +78,19 @@ export function fitCampToTerrain(camp, sample = terrainHeight) {
 }
 
 export function registerCampsite(registry, camp, options = {}) {
-  if (terrainEnabled()) fitCampToTerrain(camp);
+  const { heightAt = terrainHeight, ...metadata } = options;
+  if (terrainEnabled() || heightAt !== terrainHeight) fitCampToTerrain(camp, heightAt);
   const root = camp.group;
   const yaw = root.rotation.y, c = Math.cos(yaw), s = Math.sin(yaw);
   const sx = root.scale.x, sz = root.scale.z;
   const point = (x, z) => ({ x: root.position.x + c * x * sx + s * z * sz,
     z: root.position.z - s * x * sx + c * z * sz });
-  const position = (p) => root.position.clone().set(p.x, terrainHeight(p.x,p.z), p.z);
+  const position = (p) => root.position.clone().set(p.x, heightAt(p.x,p.z), p.z);
   const approaches=campSeatApproaches(camp,registry.collidersNear?registry:null);
   const seatClaims = (camp.seats || []).map((seat,index) => {
     if(!approaches[index])return null;
     const p = point(seat.x, seat.z), facing = yaw + seat.yaw;
-    return {seat,slot:{ ...p, y: terrainHeight(p.x,p.z) + (seat.y || 0.45) * root.scale.y, yaw: facing + Math.PI,
+    return {seat,slot:{ ...p, y: heightAt(p.x,p.z) + (seat.y || 0.45) * root.scale.y, yaw: facing + Math.PI,
       approachX: approaches[index].x, approachZ: approaches[index].z, occupied: false }};
   }).filter(Boolean);
   const campSeats=seatClaims.map(claim=>claim.slot);
@@ -103,12 +104,12 @@ export function registerCampsite(registry, camp, options = {}) {
   const fire = (camp.childColliders || camp.colliders || []).find(prop => prop.kind === 'campfire');
   const ids = [registry.add({ kind: 'campsite', position: root.position.clone(),
     footprint: camp.footprint, campSeats, campBeds, campGroup: root,
-    ...(fire ? { campFire: point(fire.x, fire.z) } : {}), ...options })];
+    ...(fire ? { campFire: point(fire.x, fire.z) } : {}), ...metadata })];
   for (const prop of camp.childColliders || camp.colliders || []) {
     const p = point(prop.x, prop.z), radius = prop.radius * Math.max(sx, sz);
     const child = { kind: prop.kind, position: position(p), footprint: radius,
-      collider: { radius, damage: prop.kind === 'camp_tent' ? 3 : 1 }, ...(options.chunkKey !== undefined ? { chunkKey: options.chunkKey } : {}),
-      ...(options.campNeighborhood ? {campNeighborhood:options.campNeighborhood} : {}) };
+      collider: { radius, damage: prop.kind === 'camp_tent' ? 3 : 1 }, ...(metadata.chunkKey !== undefined ? { chunkKey: metadata.chunkKey } : {}),
+      ...(metadata.campNeighborhood ? {campNeighborhood:metadata.campNeighborhood} : {}) };
     ids.push(registry.add(child));
     // A loveseat shares one furniture collider across two independent claims.
     seatClaims.forEach(({seat,slot}) => {

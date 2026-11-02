@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { Scene } from 'three';
+import { Registry } from '../src/registry.js';
+import { createGeneratedFixture } from '../src/landscape/generatedFixture.js';
+import { buildLandscapeWaterOwner } from '../src/landscape/waterOwner.js';
+import { buildHeightGrid } from '../src/landscape/geometry.js';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { coolerRecipe } from '../src/physics/recipes.js';
+const fixture=createGeneratedFixture(1977,'three-shelves'),scene=new Scene(),registry=new Registry();
+for(let pass=0;pass<4;pass++) {
+  const owner=buildLandscapeWaterOwner(scene,{stream:fixture.stream,bridge:fixture.deck,vertexHeight:fixture.vertexHeight,registry});
+  assert.equal(scene.children.length,1);assert.ok(registry.entries.size>20);assert.throws(()=>buildLandscapeWaterOwner(scene,{stream:fixture.stream,bridge:fixture.deck,vertexHeight:fixture.vertexHeight}),/already active/);
+  for(const entry of registry.entries.values()){assert.equal(entry.collider.minY,-.28);assert.equal(entry.collider.maxY,1.2);}
+  const resources=new Map();owner.root.traverse(o=>{for(const r of [o.geometry,...(Array.isArray(o.material)?o.material:[o.material])])if(r&&!resources.has(r)){resources.set(r,0);r.addEventListener('dispose',()=>resources.set(r,resources.get(r)+1));}});
+  const releaseA=owner.pin({}),releaseB=owner.pin({});assert.equal(owner.dispose(),false);releaseA();releaseA();assert.equal(owner.pinCount,1);releaseB();assert.equal(owner.dispose(),true);assert.equal(owner.dispose(),true);
+  for(const [resource,count]of resources)assert.equal(count,resource.userData.shared?0:1,'owned resources dispose once, shared pools remain alive');
+  assert.equal(scene.children.length,0);assert.equal(registry.entries.size,0);
+}
+let adds=0;const failing=new Registry(),add=failing.add.bind(failing);failing.add=entry=>{if(++adds===4)throw new Error('injected registration failure');return add(entry);};
+assert.throws(()=>buildLandscapeWaterOwner(scene,{stream:fixture.stream,bridge:fixture.deck,vertexHeight:fixture.vertexHeight,registry:failing}),/injected/);assert.equal(scene.children.length,0);assert.equal(failing.entries.size,0);
+// The actual terrain triangles and deck become separate fixed engine solids.
+// The representative cooler recipe can settle above or below that same deck.
+const physics=await createRapierAdapter({capacities:{bodies:8,colliders:16,events:256}}),b=fixture.stream.bounds;
+try {
+  const grid=buildHeightGrid(fixture.vertexHeight,{minX:Math.floor(b.minX/10)*10,maxX:Math.ceil(b.maxX/10)*10,minZ:Math.floor(b.minZ/10)*10,maxZ:Math.ceil(b.maxZ/10)*10,stepX:10,stepZ:10});
+  const mesh={shape:'trimesh',vertices:grid.positions,indices:grid.indices,friction:.8};
+  assert.equal(physics.addBody({id:'bed',type:'fixed',colliders:[mesh]}).ok,true);
+  grid.positions.fill(1000);grid.indices.fill(0); // The adapter owns a copy.
+  const deck=fixture.deck.bounds,x=fixture.form.road[0].x,z=-30;
+  assert.equal(physics.addBody({id:'deck',type:'fixed',pose:{position:{x:(deck.minX+deck.maxX)/2,y:-.14,z:(deck.minZ+deck.maxZ)/2}},colliders:[{shape:'cuboid',halfExtents:{x:(deck.maxX-deck.minX)/2,y:.14,z:(deck.maxZ-deck.minZ)/2}}]}).ok,true);
+  for(const [id,y]of [['above',3],['below',-1.1]])assert.equal(physics.addBody({id,type:'dynamic',pose:{position:{x,y,z}},colliders:coolerRecipe(),ccd:true}).ok,true);
+  for(let i=0;i<360;i++){physics.step(1/60);assert.equal(physics.drainEvents().overflow,0);}
+  const above=physics.readBody('above').pose.position,below=physics.readBody('below').pose.position,bed=fixture.sampleTerrain(below.x,below.z).height;
+  assert.ok(Math.abs(above.y)<.02,'cooler rests on top of the actual deck slab');
+  assert.ok(Math.abs(below.y-bed)<.03,`cooler below the deck settles on the native cut-bed mesh (${below.y}/${bed})`);
+  assert.ok(below.y<fixture.stream.receiver.height-.5,'water policy does not turn into an invisible physical floor');
+  const invalid={shape:'trimesh',vertices:new Float32Array([0,0,0,1,0,0,0,0,1]),indices:new Uint32Array([0,1,3])};
+  const before=physics.counts();assert.equal(physics.addBody({id:'bad',type:'fixed',colliders:[invalid]}).reason,'invalid-descriptor');assert.equal(physics.counts().bodies,before.bodies);
+  assert.equal(physics.addBody({id:'moving-mesh',type:'dynamic',colliders:[{...invalid,indices:new Uint16Array([0,1,2])}]}).reason,'invalid-descriptor','terrain meshes are fixed owners only');
+} finally {physics.dispose();}
+assert.equal(physics.counts().engineColliders,0);assert.equal(physics.counts().engineBodies,0);
+console.log('PASS complete water owner: actual bridge/stream geometry, vertical rail publication, counted occupied pins, duplicate refusal, four exact cleanup cycles, partial registration rollback, copied bounded fixed triangle meshes and real cooler physics above/below the same deck with complete engine teardown.');

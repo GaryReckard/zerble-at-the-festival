@@ -47,6 +47,7 @@ export class HammockActivity {
         reservations.has(entry.hammock)
       )
         continue;
+      if(this.people.canReachPlace&&!this.people.canReachPlace(handle,entry.position))continue;
       const dx = entry.position.x - this.view.x,
         dz = entry.position.z - this.view.z,
         d2 = dx * dx + dz * dz;

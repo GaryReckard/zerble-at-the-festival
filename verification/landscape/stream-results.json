@@ -1,0 +1,60 @@
+{
+  "date": "2026-11-01",
+  "scope": "bounded generated source-to-receiver proof; production consumer migration and devices pending",
+  "families": [
+    {
+      "family": "paired-meadows",
+      "stations": 30,
+      "waterTriangles": 356,
+      "source": -0.5,
+      "receiver": -0.6740000000000002,
+      "minimumDepth": 0.0015897567821885339
+    },
+    {
+      "family": "long-ridge",
+      "stations": 35,
+      "waterTriangles": 400,
+      "source": -0.5,
+      "receiver": -0.7040000000000002,
+      "minimumDepth": 0.0012296466736749778
+    },
+    {
+      "family": "three-shelves",
+      "stations": 32,
+      "waterTriangles": 362,
+      "source": -0.5,
+      "receiver": -0.6860000000000002,
+      "minimumDepth": 0.0012803777337537792
+    }
+  ],
+  "browser": {
+    "family": "three-shelves",
+    "seed": 1977,
+    "populated": true,
+    "low": {
+      "rays": 96,
+      "poses": 448,
+      "misses": 0,
+      "meshErrorCm": 0,
+      "contactResidualCm": 0.0056,
+      "courseBuildMs": 209,
+      "districtBuildMs": 37.2,
+      "largestPartMs": 8.3
+    },
+    "mid": {
+      "rays": 96,
+      "poses": 448,
+      "misses": 0,
+      "meshErrorCm": 0,
+      "contactResidualCm": 0.0056,
+      "courseBuildMs": 171,
+      "districtBuildMs": 24.5,
+      "largestPartMs": 5.6
+    }
+  },
+  "limits": [
+    "Desktop Chrome observations, not device benchmarks.",
+    "Synchronous workshop allocation remains over a streaming-step budget.",
+    "Physics uses the real fixed native-grid bed mesh, a separate deck slab and the actual cooler recipe. No global production physics migration claim."
+  ]
+}

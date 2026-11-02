@@ -72,11 +72,11 @@ export class FrisbeeActivity {
     for(const slot of this.slots){
       if(slot.session.phase!=='idle')continue;
       const candidates=[];
-      this.people.forEachPersonNear(cart.position.x,cart.position.z,80,(handle,v,d)=>{if(d>25&&eligible(v)&&this.people.activityCooldown(handle,'frisbee')<=this.clock&&!isPointInLake(v.x,v.z)&&!registry.closestBuilding(this.point.set(v.x,0,v.z),1))candidates.push({handle,x:v.x,z:v.z});});
+      this.people.forEachPersonNear(cart.position.x,cart.position.z,80,(handle,v,d)=>{if(d>25&&eligible(v)&&this.people.activityCooldown(handle,'frisbee')<=this.clock&&!isPointInLake(v.x,v.z)&&!registry.closestBuilding(this.point.set(v.x,0,v.z),1))candidates.push({handle,x:v.x,y:v.y,z:v.z});});
       let a=null,b=null;
       for(let i=0;i<candidates.length&&!a;i++)for(let j=i+1;j<candidates.length;j++){
         const d=Math.hypot(candidates[i].x-candidates[j].x,candidates[i].z-candidates[j].z);
-        if(d>=8&&d<=18){a=candidates[i];b=candidates[j];break;}
+        if(d>=8&&d<=18&&(!this.people.canReachPlace||this.people.canReachPlace(candidates[i].handle,candidates[j])&&this.people.canReachPlace(candidates[j].handle,candidates[i]))){a=candidates[i];b=candidates[j];break;}
       }
       if(a&&slot.session.start(a.handle,b.handle)){slot.holder=0;slot.catcher=1;slot.timer=1;slot.age=0;this.posePlayers(slot,0);this.people.readActivityHand(slot.session.claims[slot.holder],slot.disc.position);slot.disc.visible=true;}
     }

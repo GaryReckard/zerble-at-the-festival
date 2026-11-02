@@ -1,0 +1,84 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { Vector3 } from 'three';
+import { createSupportWorld, createSupportBinding } from '../src/landscape/support.js';
+import { rectangleFootprint, validateRoute, createRouteValidation, selectFeasibleRoute } from '../src/landscape/routes.js';
+import { createLandscapeFixture } from '../src/landscape/fixture.js';
+import { registry } from '../src/registry.js';
+import { resolveCollision } from '../src/collisionContacts.js';
+
+const flat = (x, z, out) => Object.assign(out, { height: 0, dx: 0, dz: 0, traversable: true });
+const world = createSupportWorld({ sampleTerrain: flat });
+const fixture = createLandscapeFixture();
+const route = [{ x: 80, z: 12 }, { x: 80, z: -334 }];
+const report = validateRoute(fixture.supportWorld, route);
+assert.ok(report.valid, JSON.stringify(report)); assert.equal(report.distance, 346); assert.ok(report.maxGrade < .18);
+const staged = createRouteValidation(fixture.supportWorld,route);
+assert.equal(staged.step({deadline:0}).steps,0,'an expired streaming deadline performs no route work');
+let slices=0;while(!staged.done){const slice=staged.step({maxSteps:7});assert.ok(slice.steps<=7);assert.ok(++slices<2000);}
+assert.deepEqual(staged.result,report,'cooperative admission uses exactly the synchronous geometry checks');
+const cancelled=createRouteValidation(fixture.supportWorld,route);cancelled.step({maxSteps:1});cancelled.cancel();assert.equal(cancelled.result.reason,'cancelled');assert.equal(cancelled.step().steps,0);
+assert.throws(()=>staged.step({maxSteps:Infinity}),/scheduling/);
+const blocked = validateRoute(fixture.supportWorld, [{ x: 0, z: -165 }, { x: 0, z: -300 }]);
+assert.equal(blocked.valid, false, 'direct route cannot hide a steep bank behind a gentle endpoint');
+assert.equal(validateRoute(world, [{ x: 0, z: 0 }, { x: 1000000, z: 0 }]).reason, 'sample-limit');
+assert.equal(validateRoute(world, [{ x: 0, z: 0 }, { x: 0, z: 0 }]).reason, 'zero-length');
+assert.throws(() => selectFeasibleRoute(world, Array(9)), /eight/);
+const selection = selectFeasibleRoute(fixture.supportWorld, [{ id: 'direct', points: [{ x: 0, z: -165 }, { x: 0, z: -300 }] }, { id: 'side', points: route }]);
+assert.equal(selection.route.id, 'side'); assert.equal(selection.rejected[0].id, 'direct');
+
+const edgeWorld = createSupportWorld({ sampleTerrain: (x, z, out) => Object.assign(out, { height: 0, dx: 0, dz: 0, traversable: Math.abs(x) < 2 }) });
+assert.equal(validateRoute(edgeWorld, [{ x: 0, z: 0 }, { x: 0, z: -20 }], { halfWidth: 3 }).valid, false, 'centerline does not prove road width');
+const turnWorld = createSupportWorld({ sampleTerrain: (x, z, out) => Object.assign(out, { height: 0, dx: 0, dz: 0,
+  traversable: Math.hypot(x - Math.sqrt(4.5), z - Math.sqrt(4.5)) > .15 }) });
+const turn = createSupportBinding(turnWorld, { x: 0, z: 0 }, { footprint: rectangleFootprint(1, 3) });
+const turnBefore = turn.snapshot();
+assert.equal(turn.propose(0, 0, {}, Math.PI / 2).valid, false, 'intermediate turn sweep catches a corner obstacle');
+assert.deepEqual(turn.snapshot(), turnBefore);
+const slitWorld = createSupportWorld({ sampleTerrain: (x, z, out) => Object.assign(out, { height: 0, dx: 0, dz: 0, traversable: !(z < -4.8 && z > -5.2) }) });
+const sweep = createSupportBinding(slitWorld, { x: 0, z: 0 });
+assert.equal(sweep.propose(0, -10).traversable, false, 'a large correction cannot jump an intermediate forbidden strip');
+assert.equal(sweep.propose(0, -1000).reason, 'sweep-limit');
+assert.equal(sweep.relocate({ x: 0, z: -5 }), false); assert.equal(sweep.snapshot().z, 0, 'failed relocation is not partially applied');
+
+// Real registry publication and the real resolver, including the live pooled wrapper.
+function published(minY, maxY, kind = 'landscape-test') {
+  const entry = { kind, position: new Vector3(0, 0, -.5), footprint: .5, collider: { radius: .5, damage: 1, minY, maxY } };
+  registry.add(entry); return entry;
+}
+const entry = published(-3, -1), rows = [...registry.colliders()].filter(c => c.kind === 'landscape-test');
+const cart = { position: new Vector3(), heading: 0, radius: 1, speed: 4, colliderHeight: 4, hits: 0, applyHit() { this.hits++; } };
+assert.equal(resolveCollision(cart, rows), null); assert.equal(cart.hits, 0);
+entry.collider.maxY = 5;
+assert.equal(resolveCollision(cart, [...registry.colliders()].filter(c => c.kind === 'landscape-test')).damaging, true, 'spanning solid still hits');
+registry.remove(entry.id);
+assert.throws(() => published(3, 1), /finite and ordered/);
+const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+const wrapSource = main.slice(main.indexOf('function _regColWrap(e)'), main.indexOf('\nfunction toastForKind'));
+const wrapper = new Function('let _regColPool=[],_regColPoolN=0; const REGISTRY_HIT_ROUTES={};' + wrapSource + ';return _regColWrap;')();
+const below = wrapper({ kind: 'prop', position: new Vector3(0, 10, 0), collider: { radius: 1, damage: 2, minY: -2, maxY: 1 } });
+assert.equal(below.minY, 8); assert.equal(below.maxY, 11);
+const legacy = wrapper({ kind: 'prop', position: new Vector3(), collider: { radius: 1, damage: 2 } });
+assert.equal(legacy.minY, undefined); assert.equal(legacy.maxY, undefined);
+
+globalThis.window = { addEventListener() {}, innerWidth: 1280, innerHeight: 800 };
+globalThis.document = { addEventListener() {}, createElement: () => ({ getContext: () => new Proxy({ createLinearGradient: () => ({ addColorStop() {} }) }, { get: (o,k) => k in o ? o[k] : () => {} }) }) };
+const { Zerble } = await import('../src/zerble.js');
+const real = new Zerble(); real.colliderHeight = 4.1;
+real.surfaceBinding = createSupportBinding(fixture.supportWorld, { x: 0, z: -195 }, { footprint: rectangleFootprint(1.9, 2.8) });
+real.surfaceSampler = real.surfaceBinding.sample; real.position.set(0,8,-195); real.groundOnSurface();
+const input = { throttle: 1, steer: 0, boost: true, brake: false };
+for (const hz of [30,60,120]) for (const heading of [0,.4,-.4]) {
+  assert.ok(real.relocateOnSurface(0,-195,{heading}));
+  for (let i=0;i<hz*3;i++) real.update(1/hz,input,0);
+  const before = real.surfaceBinding.snapshot();
+  real.applySurfaceCorrection(real.position.x, -240);
+  assert.deepEqual(real.surfaceBinding.snapshot(),before,'collision correction cannot tunnel through bank');
+  real.applyHit(new Vector3(0,0,-1));
+  assert.ok(real.surfaceBinding.propose(real.position.x,real.position.z,{},real.heading).valid);
+  assert.equal(real.relocateOnSurface(0,-215),false,'debug relocation rejects forbidden landing');
+  for(let i=0;i<hz*2;i++)real.update(1/hz,{...input,throttle:-1,boost:false},0);
+  assert.ok(real.position.z>before.z+2,'reverse remains available after barrier contact');
+}
+console.log('PASS authoritative travel: full-width routes, finite alternatives/work, intermediate turn and translation sweeps, legal relocations/corrections, registry/live pooled vertical publication, spanning solids and actual cart recovery.',JSON.stringify(report));

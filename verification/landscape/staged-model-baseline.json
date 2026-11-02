@@ -1,0 +1,15 @@
+{
+  "commit": "5ef3df22e4345e71e09fe9bb01da9e8261e82801",
+  "leafSeeds": 16,
+  "crewSeeds": 8,
+  "comparisonNote": "The prior approved heightAt injection is normalized to 7m on the HEAD crew root; all model hierarchy/buffers and RNG remain compared exactly.",
+  "maximumStepMs": 1.6813749999999459,
+  "steps": 1200,
+  "crewIncludesOriginalUnpooledTribalFigures": true,
+  "campSeeds": 8,
+  "campSizes": [
+    "small",
+    "medium",
+    "large"
+  ]
+}

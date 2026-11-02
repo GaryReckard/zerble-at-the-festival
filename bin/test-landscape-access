@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { setSessionSeed } from '../src/rng.js';
+import { setLandscapeVersion,landscapeCandidateInCell,landscapeToWorld,landscapeCandidateAt } from '../src/worldgen/landscapeCandidates.js';
+import { setTerrainEnabled } from '../src/worldgen/terrain.js';
+import { landscapeContextFor } from '../src/worldgen/landscapeContext.js';
+import { createLandscapeAdmission } from '../src/worldgen/landscape.js';
+import { LandscapeAccessIndex } from '../src/landscape/accessIndex.js';
+const states=new Map(),pending={status:'pending'},requests=new Set();let unoccupiedFallback=false;
+const planner={request(c){requests.add(c.id);return this.read(c);},read(c){return states.get(c.id)||(unoccupiedFallback?{status:'rejected',plan:null}:pending);}};
+const index=new LandscapeAccessIndex(planner),bounds={minX:0,maxX:1,minZ:0,maxZ:1};
+assert.deepEqual(index.query(bounds),[]);assert.equal(index.ready(bounds),true);
+setSessionSeed(1977);setLandscapeVersion(2);setTerrainEnabled(true);
+try {
+  const candidate=landscapeCandidateInCell(-1,-1),context=landscapeContextFor(candidate),admit=createLandscapeAdmission(candidate,context);while(!admit.done)admit.step({maxSteps:128,deadline:Infinity});assert.ok(admit.result.valid);
+  const plan=admit.result.plan,spur=plan.connection.points[0],window={minX:spur.x-.001,maxX:spur.x+.001,minZ:spur.z-.001,maxZ:spur.z+.001};
+  assert.equal(landscapeCandidateAt(spur.x,spur.z),null,'the external spur does not lie in the terrain influence');
+  assert.ok(index.query(window).some(r=>r.candidate.id===candidate.id));assert.ok(requests.has(candidate.id));assert.equal(index.ready(window),false);
+  assert.equal(index.clearance(spur.x,spur.z,1),true,'pending access cannot silently permit a tree across a future road');
+  assert.equal(index.roads(window).length,0,'pending plans do not invent a published access road');
+  states.set(candidate.id,{...admit.result,status:'ready'});unoccupiedFallback=true;assert.equal(index.ready(window),true);
+  assert.ok(index.roads(window).some(r=>r.ownerId===candidate.id));assert.equal(index.clearance(spur.x,spur.z,1),true);
+  const shelf=plan.shelves.at(-1),lawn={x:(shelf.minX+shelf.maxX)/2,z:(shelf.minZ+shelf.maxZ)/2};assert.equal(index.clearance(lawn.x,lawn.z,1),true,'the sparse upper lawn is protected from generic forest scatter');
+  const wild=landscapeToWorld(candidate,candidate.plan.bounds.minX+20,candidate.plan.bounds.minZ+20);assert.equal(index.clearance(wild.x,wild.z,1),false,'ordinary wilderness can still grow trees');assert.equal(index.clearance(wild.x,wild.z,1,{actors:true}),true,'ordinary actors cannot populate the inaccessible terrain reservation');
+  const a=plan.connection.points[0],b=plan.connection.points[1],x=(a.x+b.x)/2,z=(a.z+b.z)/2,road=index.nearestRoad(x,z,{dist:10000});assert.ok(road.edgeId.startsWith(candidate.id));assert.ok(road.dist<.001);
+  const snapshot=JSON.stringify(plan),paths=index.roadsFor(candidate,states.get(candidate.id));assert.ok(Object.isFrozen(paths)&&Object.isFrozen(paths[0].points[0]));assert.equal(index.roadsFor(candidate,states.get(candidate.id)),paths,'readiness/residency lookups reuse immutable path records');assert.equal(JSON.stringify(plan),snapshot);
+  const ownerBounds=index.boundsFor(candidate,states.get(candidate.id));assert.ok(spur.x>=ownerBounds.minX&&spur.x<=ownerBounds.maxX&&spur.z>=ownerBounds.minZ&&spur.z<=ownerBounds.maxZ,'complete owner bounds include the external road spur');assert.equal(index.boundsFor(candidate,states.get(candidate.id)),ownerBounds);
+  assert.throws(()=>index.clearance(0,0,-1),/clearance/);
+} finally {setLandscapeVersion(1);setTerrainEnabled(false);}
+console.log('PASS landscape access index: finite external-spur discovery, explicit pending readiness, conservative reservations before chunk placement, canonical admitted roads, sparse-lawn versus wilderness/actor policies, cached immutable paths and version-1 inertness.');

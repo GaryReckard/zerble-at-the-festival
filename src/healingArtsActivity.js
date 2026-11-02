@@ -37,6 +37,8 @@ export class HealingArtsActivity {
 
   adopt(slot,person,role) {
     if(!this.active)return false;
+    const ground=this.point(slot.p.x,slot.p.z);ground.y=this.group.position.y;
+    if(this.people.canReachPlace&&!this.people.canReachPlace(person,ground))return false;
     const reservation={};
     const claim=this.people.claimActivity(person,{owner:this,
       prepare:attempt=>{

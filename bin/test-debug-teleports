@@ -59,3 +59,15 @@ assert.equal(context.suggest('/wat ').length,0);
 assert.equal(context.suggest('/tp caMP',6)[0].value,'/tp camp','completion replaces the whole token at the caret');
 assert.equal(context.suggest('/he')[0].value,'/help ');
 console.log('PASS contextual autocomplete: command and argument discovery, prefix/case filtering, exact matches, coordinate isolation and caret-token replacement.');
+
+// Exercise the actual overlay API member as well as its command grammar. A
+// selected-support cart must reject an unsupported jump without moving first.
+const apiStart=source.indexOf('function api()'),member=source.slice(source.indexOf('    teleport(x =',apiStart),source.indexOf('    locate(kind',apiStart));
+const supportContext=vm.createContext({state:{hooks}}),teleport=vm.runInContext('(()=>{const h=state.hooks;return ({'+member+'}).teleport;})()',supportContext);
+hooks.zerble.surfaceBinding={};let allowed=false,relocations=0;
+hooks.zerble.relocateOnSurface=(x,z)=>{relocations++;if(!allowed)return false;position.set(x,12,z);hooks.zerble.speed=0;return true;};
+position.set(8,3,9);assert.equal(teleport(90,100),false);assert.equal(position.x,8);assert.equal(position.y,3);
+allowed=true;assert.equal(teleport(90,100),true);assert.equal(position.x,90);assert.equal(position.y,12);assert.equal(relocations,2);
+allowed=false;seed++;position.set(0,3,0);districts.push(...saved);assert.equal(context.tp('woodland_camp'),null);assert.equal(position.x,0,'blocked landmark relocation cannot bypass support');
+delete hooks.zerble.surfaceBinding;delete hooks.zerble.relocateOnSurface;
+console.log('PASS overlay and landmark teleports retain selected-support admission, refuse before position mutation and preserve existing ordinary teleport behavior.');

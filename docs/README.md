@@ -62,6 +62,7 @@ parallel roadmaps or automatic implementation requests.
 | [June improvement plan](../PLAN.md) | Historical survey, not a current prioritized queue |
 | [Terrain driving proof, October 24](../verification/terrain/2026-10-24-driving-proof.md) | Playable bounded driving course and measured contact evidence; live-world integration remains separate |
 | [Festival elevation proposal, October 24](../verification/terrain/2026-10-24-proposal.md) | Astra’s terrain directions, surface dependencies and staged proof plan; no terrain implementation |
+| [Landscape and travel, November 1](backlog/landscape-and-travel.md) | Stronger hills, steep barriers, Mountain Top camping shelves and reference photo, waterways/bridges, future hillside Barn, scope evolution and [fresh Astra critique](backlog/landscape-and-travel-astra-review.md); [execution change](../openspec/changes/landscape-and-travel/README.md) and [desktop integration evidence](../verification/landscape/README.md), with physical-device/player acceptance and rollout remaining |
 | [OpenSpec](../openspec/specs/README.md) | Capability baseline; enter the change workflow only for an explicit planning/change task |
 | [People and NPC refactor plan](../openspec/changes/people-npc-architecture/README.md) | Completed planning/council/Astra history, implementation acceptance, measured limits and before/after visual |
 

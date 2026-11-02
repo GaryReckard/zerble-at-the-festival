@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-01",
+  "tab": "380986934",
+  "rows": [
+    {
+      "phase": "normal-input",
+      "text": "\u25be\nStats\nfps          61    \nframe        avg=16.7  p95=17.3  max=17.7ms\nquality      baseline\ndraws        419 / 80 [!!]\ntris         240,888 / 150,000 [!!]\ngpu mem      geo 397  tex 19  heap 78MB\nchunks       12 gen  slow=6  worst=42.0  last=1.7  avg=13.5ms\nlandscape    1/1 districts/owners \u00b7 0 building \u00b7 2 borrowed \u00b7 0 failed\nlandscape cpu 2.40ms canopy-layout \u00b7 1.10ms water/validation \u00b7 0 planning\nrunning      true\nseed         1977 (0x000007b9)\npos          -680.0, -452.3\nheading      0\u00b0  speed 0.00\nchunk        (-9, -6)\nnpcs         13  riding 0  watch 0  flee 0\none-wheel    0 \u00b7 \nhealing      yoga 0  out 0  in 0  dance 0\nhoops        classic 0  flow 0  pair no  props 0  MeshLambertMaterial\nwoodland     0 camps \u00b7 0 chairs\nregistry     791  colliders 748\ntime of day  t=0.36 night=0.00\nflags        god=false freezeNPCs=false colliderViz=false\ncopy snapshot\n\u25b8\nPerf log\n\u25b8\nControls\n\u25be\nTime of day\nt=0.36 night=0.00\nMorning\nNoon\nDusk\nMidnight\n\u25b8\nTeleport\n\u25be\nAudio\nMaster\n0.55\nMusic\n1.60\nMIDI\n1.00\nSFX\n1.00\nNature\n0.90\nMute all\n\u25be\nRender\nLevel\nauto\nbaseline\npixel-87\nno-bloom\npixel-75\npixel-50\nBloom\nShadows\nCheap bubbles\nPixel ratio\nauto\n2\u00d7\n1.5\u00d7\n1\u00d7\n0.875\u00d7\n0.75\u00d7\n0.5\u00d7\nPick a level to lock and enable overrides.\n\u25b8\nLights\n\u25b8\nMarkers\n\u25be\nMIDI tracks\nMIDI not playing"
+    },
+    {
+      "phase": "after-release",
+      "text": "\u25be\nStats\nfps          61    \nframe        avg=16.7  p95=18.2  max=18.4ms\nquality      baseline\ndraws        425 / 80 [!!]\ntris         233,146 / 150,000 [!!]\ngpu mem      geo 416  tex 19  heap 74MB\nchunks       12 gen  slow=6  worst=42.0  last=1.7  avg=13.5ms\nlandscape    1/1 districts/owners \u00b7 0 building \u00b7 2 borrowed \u00b7 0 failed\nlandscape cpu 2.40ms canopy-layout \u00b7 1.10ms water/validation \u00b7 0 planning\nrunning      true\nseed         1977 (0x000007b9)\npos          -680.0, -486.2\nheading      0\u00b0  speed 0.00\nchunk        (-9, -7)\nnpcs         8  riding 1  watch 0  flee 0\none-wheel    0 \u00b7 \nhealing      yoga 0  out 0  in 0  dance 0\nhoops        classic 0  flow 0  pair no  props 0  MeshLambertMaterial\nwoodland     0 camps \u00b7 0 chairs\nregistry     791  colliders 748\ntime of day  t=0.48 night=0.43\nflags        god=false freezeNPCs=false colliderViz=false\ncopy snapshot\n\u25b8\nPerf log\n\u25b8\nControls\n\u25be\nTime of day\nt=0.48 night=0.43\nMorning\nNoon\nDusk\nMidnight\n\u25b8\nTeleport\n\u25be\nAudio\nMaster\n0.55\nMusic\n1.60\nMIDI\n1.00\nSFX\n1.00\nNature\n0.90\nMute all\n\u25be\nRender\nLevel\nauto\nbaseline\npixel-87\nno-bloom\npixel-75\npixel-50\nBloom\nShadows\nCheap bubbles\nPixel ratio\nauto\n2\u00d7\n1.5\u00d7\n1\u00d7\n0.875\u00d7\n0.75\u00d7\n0.5\u00d7\nPick a level to lock and enable overrides.\n\u25b8\nLights\n\u25b8\nMarkers\n\u25be\nMIDI tracks\nMIDI not playing"
+    }
+  ],
+  "observedBoostSpeed": 24.04,
+  "observedBoostPosition": {
+    "x": -680,
+    "z": -479.3
+  },
+  "method": "Ready-plank real Low game; ordinary W followed by Shift+W. AX immediately after 1.6 seconds of Shift+W displayed 24.04m/s. The later stopped snapshot includes a physical contact, so it does not isolate release drag. Exact acceleration/coasting are verified by the focused controller tests.",
+  "logs": []
+}

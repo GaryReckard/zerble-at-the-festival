@@ -1,0 +1,38 @@
+{
+  "vertices": 55781,
+  "triangles": 109200,
+  "batches": 6,
+  "results": [
+    {
+      "hz": 30,
+      "z": -401.0003835310532,
+      "contact": 1.3050366121092338e-08
+    },
+    {
+      "hz": 60,
+      "z": -401.0003835310532,
+      "contact": 1.3069625381945116e-08
+    },
+    {
+      "hz": 120,
+      "z": -401.0003835310532,
+      "contact": 1.3076481231166781e-08
+    }
+  ],
+  "date": "2026-11-01",
+  "fixtureVersion": 1,
+  "scope": "authored fixture only; no procedural/live-world acceptance",
+  "browserContacts": {
+    "tiers": [
+      "low",
+      "mid"
+    ],
+    "wheelRays": 128,
+    "supportPoses": 512,
+    "misses": 0
+  },
+  "fullCheck": "passed",
+  "productionBuild": "passed",
+  "realGameSmoke": "low ready-plank click, running world/HUD, no console errors/warnings",
+  "explicitInAppTabCleanup": "unconfirmed"
+}

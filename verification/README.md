@@ -1,5 +1,7 @@
 # Verification evidence
 
+- [Landscape and Mountain Top, November 1](landscape/README.md): shared terrain/support, varied populated districts, streams/bridges, real mover/activity and physics-surface integration, desktop tier/streaming evidence and remaining phone/player rollout gates.
+
 [Contributor documentation](../docs/README.md) · [Pending acceptance](../ROADMAP.md)
 
 These are saved observations, probes, screenshots and test logs. Read each
@@ -24,6 +26,8 @@ not physical-device acceptance.
 - [Before/after visual](people/architecture.html), [source-grounded diagrams](../openspec/changes/people-npc-architecture/architecture-visual.md) and [extension contract](../openspec/changes/people-npc-architecture/extension-guide.md).
 
 ## Recent investigations
+
+
 
 - [Festival people and Gary, October 30](hair/README.md): hair across every human family, Gary’s complete seated pose and dark gray footwell, geometry/contact tests, day/night captures and Low-tier game smoke test.
 

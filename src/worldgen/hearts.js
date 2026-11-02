@@ -10,6 +10,7 @@
 //
 // Reads CONFIG.* per-call so the sandbox's live sliders take effect instantly.
 
+import { landscapeReservationIntersects } from './landscapeCandidates.js';
 import { cellRng, quantize, getSessionSeed } from '../rng.js';
 import { CONFIG, SALT, heartNeighborhoodCells, worldgenEpoch } from './constants.js';
 
@@ -48,6 +49,7 @@ function _computeHeart(cx, cz) {
   const jz = (jr() * 2 - 1) * HEART_JITTER;
   const x = quantize((cx + 0.5 + jx) * HEART_CELL);
   const z = quantize((cz + 0.5 + jz) * HEART_CELL);
+  if(landscapeReservationIntersects({minX:x,maxX:x,minZ:z,maxZ:z}))return null;
   const dom = HEART_DOMAIN[rank];
   return { cx, cz, x, z, rank, core: dom.core, district: dom.district };
 }

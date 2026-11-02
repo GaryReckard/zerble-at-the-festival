@@ -102,7 +102,15 @@ parameters, dated observations and unanswered decisions. Use the
 Worldgen v2 is the shipped default. See [the architecture](ARCHITECTURE.md#4-worldgen-v2--the-procedural-map-generator-srcworldgen)
 for the current generator and its live 3D integration. Pending ideas:
 
-- **Rivers + bridges.** Cut from the 2D prototype on determinism grounds
+- **Landscape and travel, including Mountain Top camping.** Plan recognizable
+  hills, steep wooded barriers with routes around them, and coordinated mountain
+  district families with varied meadow shapes, elevation, camping density and coherent access routes. The authored reference has denser irregular lower camping, an open upper meadow and a right-side road that turns left before a wooded descent to the drum-circle clearing; generated districts should follow those spatial ideas without repeating an identical map. Integrate waterways, route feasibility and bridge
+  support in the same design; no guaranteed early hill encounter. The
+  [November 1 design record](docs/backlog/landscape-and-travel.md) preserves Gary's
+  photo/reference, scope evolution, proposed stages and the
+  [fresh Astra review](docs/backlog/landscape-and-travel-astra-review.md).
+  The [execution change](openspec/changes/landscape-and-travel/README.md) now has an ordered plan and a [populated authored Mountain Top proof](verification/landscape/README.md); varied procedural admission and finite stream/bridge proofs now pass in opt-in development surfaces, and the experimental real-game manager now stages districts behind complete access reservations. Lower camping is tightly packed while upper lawns stay sparse, and vehicle climbs follow power/momentum with unrestricted supported descent. Desktop mover/activity/physics-surface integration, tier captures, streaming/revisit and owned-resource checks pass. Physical-device frame delivery and player recognition/route-choice feedback still gate final tuning and rollout; construction outliers and cold teleport spikes remain documented limits. The separate physical-festival change still owns activation of live dynamic chairs. This is separate from current terrain integration acceptance.
+- **Rivers + bridges.** Coordinate with the landscape design above. Cut from the 2D prototype on determinism grounds
   (river-around-heart avoidance can depend on a heart outside the local window →
   could violate "never through a heart core"); the contract fields
   (`onRiver`/`bridge`) already exist as stubs. Needs a river×heart window-invariance
@@ -211,7 +219,7 @@ harness history, tier contract and acceptance criteria.
   leaderboard headroom and final performance/docs checks in the
   [feature plan](BUBBLE-UPGRADES-PLAN.md).
 - **Passenger quests:** rider destinations, shared monk-party quests and the
-  urgent porta-potty variant.
+  urgent porta-potty variant. Include a future **“Take me to the mountaintop”** request targeting a reachable, admitted mountain destination, with a legal arrival/drop-off area; this remains quest work, not part of the current terrain implementation.
 - **Festival activities:** daily-seed challenge, boost/hop tricks, food-truck
   purchase-and-dining behavior and vendor power-ups.
 - **Physical festival:** implement the [documented plan](openspec/changes/physical-festival/README.md)
@@ -227,6 +235,16 @@ mechanics, tradeoffs, dependencies and original proposals.
 
 ## World
 
+- **Car-camping vehicle designs.** Develop a varied set of parked festival vehicles that can participate in car-camping arrangements, such as cars, wagons, vans and camper-style vehicles alongside tents and shelters. Gary recorded this as a future idea on November 1, 2026; the model roster, interaction and driving behavior are not decided or required by the current landscape change.
+- **First-aid booth or tent.** Gary requested this as a future festival addition on
+  November 1, 2026, explicitly not for current implementation. Its appearance,
+  placement and any interactions remain undesigned; no healing mechanic or medical
+  simulation is implied. Reconcile with existing welfare amenities when designing it.
+- **Hillside Barn venue, later iteration.** A two-story building inspired by Gary's
+  LEAF reference, built into a hill so each floor has direct road/ground access at
+  its own elevation. Preserve layered support and access in the
+  [landscape design](docs/backlog/landscape-and-travel.md#support-navigation-collisions-and-the-future-barn),
+  but keep the building and its activities outside the current landscape scope.
 - **Lantern parade device playtest.** Gary approved the full six-subject replacement for commit on 2026-10-12. Physical-phone timing and repeatable cross-mode collision/SFX playtests remain unmeasured; see the [saved renders and verification limits](verification/puppet-parade/README.md). The original direction and handoff are in [PUPPET-PARADE-PLAN.md](PUPPET-PARADE-PLAN.md).
 - **Bubble inhabitants.** Once in a while a bubble drifts past with a tiny waving figure inside it (silhouette billboard, ~0.1m). Rare enough to read as an Easter egg. One mesh, low spawn rate, despawn with parent bubble.
 - **Bird polish follow-ups.** Birds shipped (see CHANGELOG 2026-06-01). Parked refinements: a quick wing-flutter SFX on startle; biasing flocks to spawn around stages/food (attractor-aware) rather than uniformly; and a "bird poops on the cart" easter egg.

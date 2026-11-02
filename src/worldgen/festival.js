@@ -40,6 +40,7 @@
 //    disparity + the 1m lake-shore wobble; it never regenerates a seeded world on one
 //    engine. Left as-is deliberately rather than over-quantizing a cosmetic.
 
+import { landscapeVersion,landscapeReservationIntersects } from './landscapeCandidates.js';
 import { cellRng, quantize, worldHash, mulberry32, cellHash, edgeHash } from '../rng.js';
 import { CONFIG, SALT, worldgenEpoch } from './constants.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterShapes, clustersOverlap, clusterExtent } from './tuning.js';
@@ -778,6 +779,15 @@ function _festivalSuppressed(heart) {
          lakeAt(quantize(heart.x), quantize(heart.z));
 }
 
+function outsideLandscapeReservations(plan) {
+  if(landscapeVersion()===1)return plan;
+  const blocked=new Set(plan.filter(d=>{
+    const r=Math.max(d.footprint||0,clusterExtent(d.kind,d.scale||1));
+    return landscapeReservationIntersects({minX:d.x-r,maxX:d.x+r,minZ:d.z-r,maxZ:d.z+r});
+  }).map(d=>d.clusterSeed));
+  return plan.filter(d=>!blocked.has(d.clusterSeed)&&!(d.parentSeed!==undefined&&blocked.has(d.parentSeed)));
+}
+
 // Seam-BLIND base plan — what the cross-hub seam pass reads (so it stays non-recursive,
 // N1) and the layer the base cache holds. Internal; callers want `festivalPlan` (seamed).
 function _basePlan(heart) {
@@ -787,7 +797,7 @@ function _basePlan(heart) {
   const key = heart.cx + ',' + heart.cz;
   const hit = _planCache.get(key);
   if (hit) return hit;
-  const plan = _computePlan(heart);
+  const plan = outsideLandscapeReservations(_computePlan(heart));
   _planCache.set(key, plan);
   return plan;
 }
@@ -832,7 +842,7 @@ export function festivalPlan(heart) {
     ? base.filter(d => !drop.has(d.clusterSeed) && !(d.parentSeed !== undefined && drop.has(d.parentSeed)))
     : base;
   const healing = healingArtsSpot(heart);
-  if (healing) plan = [...plan, healing];
+  if (healing) plan = outsideLandscapeReservations([...plan, healing]);
   if (_seamedCache.size > 4000) _seamedCache.clear();
   _seamedCache.set(key, plan);
   return plan;
@@ -1230,6 +1240,7 @@ export function campVillagesNear(bounds) {
       if (rng() > VP) continue;
       const jx = (rng() - 0.5) * VC * 0.6, jz = (rng() - 0.5) * VC * 0.6;
       const x = quantize((cx + 0.5) * VC + jx), z = quantize((cz + 0.5) * VC + jz);
+      if(landscapeReservationIntersects({minX:x,maxX:x,minZ:z,maxZ:z},FESTIVAL_TUNING.KIND_FOOTPRINT.camp_village))continue;
       const qp = queryPoint(x, z);
       if (qp.noBuild || qp.inLake) continue;       // off road + off water
       if (qp.roleTier === 'core') continue;          // villages are back-of-festival, not the core
@@ -1267,7 +1278,7 @@ export function campVillagesNear(bounds) {
         const edge = T.KIND_FOOTPRINT.camp_village;
         const px = quantize(x + Math.cos(a) * (edge + T.VILLAGE_WELFARE_GAP));
         const pz = quantize(z + Math.sin(a) * (edge + T.VILLAGE_WELFARE_GAP));
-        if (queryPoint(px, pz).noBuild) continue;
+        if (queryPoint(px, pz).noBuild || landscapeReservationIntersects({minX:px,maxX:px,minZ:pz,maxZ:pz},clusterExtent('welfare_post',1))) continue;
         out.push({
           kind: 'welfare_post', x: px, z: pz,
           yaw: Math.atan2(x - px, z - pz),        // +Z (the doors) faces back into the camp

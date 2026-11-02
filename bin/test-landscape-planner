@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { setSessionSeed } from '../src/rng.js';
+import { CONFIG } from '../src/worldgen/constants.js';
+import { FESTIVAL_TUNING } from '../src/worldgen/tuning.js';
+import { setTerrainEnabled } from '../src/worldgen/terrain.js';
+import { setLandscapeVersion,landscapeCandidatesInBounds } from '../src/worldgen/landscapeCandidates.js';
+import { computeLandscapeTask } from '../src/worldgen/landscapeTask.js';
+import { LandscapePlanner } from '../src/landscape/planner.js';
+import { districtAdmissionRecord } from '../src/worldgen/landscape.js';
+setSessionSeed(1977);setLandscapeVersion(2);setTerrainEnabled(true);
+const bounds={minX:-3200,maxX:3200,minZ:-3200,maxZ:3200};
+const first=landscapeCandidatesInBounds(bounds).find(c=>c.cx===-1&&c.cz===-1);
+const computed=computeLandscapeTask({id:1,key:'node-task',version:2,seed:1977,candidateId:first.id,cx:first.cx,cz:first.cz,fingerprint:JSON.stringify(first),config:structuredClone(CONFIG),tuning:structuredClone(FESTIVAL_TUNING)});
+assert.ok(computed.valid,computed.reason);assert.ok(computed.route.valid);assert.ok(computed.plan.connection.report.valid);
+const candidates=[first,...landscapeCandidatesInBounds(bounds).filter(c=>c.kind==='mountain-top'&&c.id!==first.id)];
+class FakeWorker {
+  constructor(){this.messages=[];this.terminations=0;}
+  postMessage(message){this.messages.push(structuredClone(message));}
+  terminate(){this.terminations++;}
+  respond(payload=computed){const m=this.messages.at(-1);this.onmessage({data:{...structuredClone(payload),id:m.id,key:m.key,candidateId:m.candidateId,fingerprint:m.fingerprint}});}
+}
+const workers=[],factory=()=>{const worker=new FakeWorker();workers.push(worker);return worker;};
+let changes=0;
+const planner=new LandscapePlanner({workerFactory:factory,onChange:()=>changes++,cacheLimit:2,maxPending:2});
+try {
+  assert.equal(planner.request(first).status,'pending');assert.equal(planner.request(first).status,'pending');assert.equal(workers[0].messages.length,1,'repeated reads do not queue duplicate work');
+  planner.request(candidates[1]);assert.equal(planner.request(candidates[2]).reason,'queue-capacity');assert.equal(planner.stats().pending,2);
+  workers[0].respond();const ready=planner.read(first);assert.equal(ready.status,'ready');assert.ok(districtAdmissionRecord(ready.receipt,ready.plan,ready.surface));assert.ok(changes>0);
+  assert.equal(workers[0].messages.length,2,'the next bounded request starts after the first result');
+  const old=workers[0];setSessionSeed(42);assert.equal(planner.read(first),null);assert.equal(old.terminations,1);old.respond();assert.equal(planner.stats().cached,0,'old worker replies cannot republish after a seed change');
+  assert.equal(planner.request(first).reason,'world-changed');
+} finally {planner.dispose();}
+assert.ok(planner.stats().disposed);assert.equal(planner.stats().pending,0);assert.equal(planner.stats().worker,false);
+setSessionSeed(1977);
+const recycled=[];const rotating=new LandscapePlanner({workerFactory:()=>{const w=new FakeWorker();recycled.push(w);return w;},maxJobs:1});
+rotating.request(first);recycled[0].respond();assert.equal(recycled[0].terminations,1,'a completed worker is rotated at the declared job limit');rotating.dispose();
+const timedWorkers=[],timed=new LandscapePlanner({workerFactory:()=>{const w=new FakeWorker();timedWorkers.push(w);return w;},timeoutMs:5});
+timed.request(first);await new Promise(resolve=>setTimeout(resolve,15));assert.equal(timed.stats().error,'worker-timeout');assert.equal(timedWorkers[0].terminations,1);assert.equal(timed.read(first),null,'a transport timeout is not a canonical district rejection');timed.dispose();
+assert.throws(()=>new LandscapePlanner({maxPending:Infinity}),/limits/);
+assert.throws(()=>new LandscapePlanner({cacheLimit:10000}),/limits/);
+// Couple an adopted worker proof to the actual renderer-side owner builder.
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:800,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {Scene}=await import('three'),{buildMountainDistrict}=await import('../src/landscape/district.js');
+const ownerPlanner=new LandscapePlanner({workerFactory:factory});
+ownerPlanner.request(first);workers.at(-1).respond();const ready=ownerPlanner.read(first),scene=new Scene();
+const owner=buildMountainDistrict(scene,ready.surface,{plan:ready.plan,admission:ready.receipt});assert.equal(owner.camps.length,ready.plan.camps.length);assert.ok(owner.dispose());assert.equal(scene.children.length,0);ownerPlanner.dispose();
+setLandscapeVersion(1);setTerrainEnabled(false);setSessionSeed(0);
+console.log('PASS landscape worker task/channel: real pure-world planning, bounded/unique queue, current plan/surface adoption and real model build, seed-change stale rejection, worker rotation, timeout distinction, disposal and exact owned-worker termination.',JSON.stringify({contextMs:computed.contextMs,workerMs:computed.workerMs,camps:computed.plan.camps.length}));

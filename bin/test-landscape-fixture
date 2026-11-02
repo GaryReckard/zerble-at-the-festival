@@ -1,0 +1,99 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createLandscapeFixture, sampleLandscapeTerrain, landscapeVertexHeight, buildLandscapeStrip, LANDSCAPE_BUDGET, LANDSCAPE_STOPS, BRIDGE_ID } from '../src/landscape/fixture.js';
+import { createSupportBinding } from '../src/landscape/support.js';
+import { rectangleFootprint } from '../src/landscape/routes.js';
+
+const near = (a, b, e = 1e-6) => assert.ok(Math.abs(a - b) <= e, `${a} != ${b}`);
+const fixture = createLandscapeFixture();
+let vertices = 0, triangles = 0, batches = 0, previous = null;
+for (let z = -420; z < 35; z += 80) {
+  const strip = buildLandscapeStrip(z, Math.min(35, z + 80));
+  vertices += strip.positions.length / 3; triangles += strip.indices.length / 3; batches++;
+  if (previous) assert.deepEqual(strip.positions.slice(0, 363), previous.positions.slice(-363), 'strip seam is exact');
+  previous = strip;
+  // Independent triangle barycentrics against the actual shared mesh buffers.
+  for (let t = 0; t < strip.indices.length; t += 193 * 3) {
+    const ids = [...strip.indices.slice(t, t + 3)], weights = [.17, .36, .47];
+    const p = [0, 0, 0];
+    ids.forEach((id, i) => { for (let axis = 0; axis < 3; axis++) p[axis] += strip.positions[id * 3 + axis] * weights[i]; });
+    near(sampleLandscapeTerrain(p[0], p[2]).height, p[1], 2e-6);
+  }
+}
+assert.equal(vertices, LANDSCAPE_BUDGET.terrainVertices); assert.equal(triangles, LANDSCAPE_BUDGET.terrainTriangles); assert.equal(batches, 6);
+near(sampleLandscapeTerrain(0, -165).height, 8); near(sampleLandscapeTerrain(0, -300).height, 18); near(sampleLandscapeTerrain(-60, -394).height, 10);
+assert.equal(sampleLandscapeTerrain(0, -215).traversable, false, 'direct bank is forbidden');
+for (let z = 12; z >= -334; z -= .5) {
+  if (z < -25 && z > -75) continue;
+  for (const x of [78, 80, 82]) assert.ok(sampleLandscapeTerrain(x, z).grade <= .18, 'side approach has a gentle driven corridor');
+}
+assert.equal(fixture.supportWorld.sampleSelected(80, -50, BRIDGE_ID).height, 0);
+assert.equal(fixture.supportWorld.sampleSelected(80, -50, 'terrain').height, -3);
+assert.ok(fixture.water.height > landscapeVertexHeight(80, -50) && fixture.water.height < fixture.deck.height);
+assert.throws(() => buildLandscapeStrip(-420, -339), /bounded/);
+assert.throws(() => sampleLandscapeTerrain(Infinity, 0), /finite/);
+
+// Only canvas painting and event registration are stubbed; geometry, movement,
+// wheel transforms, suspension and the entire Zerble.update are production code.
+globalThis.window = { addEventListener() {}, innerWidth: 1280, innerHeight: 800 };
+globalThis.document = { addEventListener() {}, createElement: () => ({ width: 0, height: 0,
+  getContext: () => new Proxy({ createLinearGradient: () => ({ addColorStop() {} }) }, { get: (o, k) => k in o ? o[k] : () => {} }) }) };
+const { Zerble } = await import('../src/zerble.js');
+const { Raycaster, Vector3, BufferGeometry, BufferAttribute, Mesh, MeshBasicMaterial, DoubleSide } = await import('three');
+const cart = new Zerble();
+const footprint = rectangleFootprint(1.9, 2.8);
+cart.surfaceBinding = createSupportBinding(fixture.supportWorld, { x: 80, z: 12 }, { footprint });
+cart.surfaceSampler = cart.surfaceBinding.sample;
+const input = { throttle: 1, steer: 0, boost: false, brake: false };
+const results = [];
+for (const hz of [30, 60, 120]) {
+  cart.surfaceBinding.reset({ x: 80, z: 12 }); cart.position.set(80, 0, 12); cart.heading = 0; cart.speed = 0;
+  let crossed = false, contact = 0;
+  for (let i = 0; i < hz * 24; i++) {
+    // These are actual rate-specific controller calls, not a fixed-Hz wrapper.
+    cart.update(1 / hz, input, 0);
+    crossed ||= cart.surfaceBinding.snapshot().surfaceId === BRIDGE_ID;
+    contact = Math.max(contact, cart.contactError);
+  }
+  assert.ok(crossed, `${hz}Hz uses the bridge`); assert.ok(cart.position.z < -350, `${hz}Hz reaches descending clearing`);
+  assert.ok(contact < .02, `${hz}Hz wheel support error ${contact}`);
+  results.push({ hz, z: cart.position.z, contact });
+}
+near(results[0].z, results[1].z, 1e-6); near(results[1].z, results[2].z, 1e-6);
+for (const hz of [30, 60, 120]) {
+  cart.surfaceBinding.reset({ x: 80, z: -90, heading: Math.PI }); cart.position.set(80, 0, -90); cart.heading = Math.PI; cart.speed = 0;
+  let crossed = false;
+  for (let i = 0; i < hz * 6; i++) {
+    cart.update(1 / hz, input, 0);
+    crossed ||= cart.surfaceBinding.snapshot().surfaceId === BRIDGE_ID;
+    assert.ok(cart.contactError < .02);
+  }
+  assert.ok(crossed && cart.position.z > -10, 'return direction crosses the same bridge');
+  assert.equal(cart.surfaceBinding.snapshot().surfaceId, 'terrain');
+}
+cart.surfaceBinding.reset({ x: 0, z: -195 }); cart.position.set(0, 8, -195); cart.heading = 0; cart.speed = 0;
+for (let i = 0; i < 240; i++) cart.update(1 / 60, { ...input, boost: true }, 0);
+assert.ok(cart.position.z > -215, 'boost cannot cross direct bank');
+const blocked = cart.position.z;
+for (let i = 0; i < 120; i++) cart.update(1 / 60, { ...input, throttle: -1 }, 0);
+assert.ok(cart.position.z > blocked + 4, 'ordinary reverse escapes the bank');
+
+// Independent rays deliberately select terrain/deck, even at overlapping X/Z.
+const material = new MeshBasicMaterial({ side: DoubleSide }), meshes = [];
+for (let z = -420; z < 35; z += 80) {
+  const data = buildLandscapeStrip(z, Math.min(35, z + 80)), g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(data.positions, 3)); g.setIndex(new BufferAttribute(data.indices, 1)); meshes.push(new Mesh(g, material));
+}
+const b = fixture.deck.bounds, deckGeometry = new BufferGeometry();
+deckGeometry.setAttribute('position', new BufferAttribute(new Float32Array([b.minX,0,b.minZ,b.maxX,0,b.minZ,b.minX,0,b.maxZ,b.maxX,0,b.maxZ]), 3));
+deckGeometry.setIndex([0,2,1,1,2,3]); const deckMesh = new Mesh(deckGeometry, material);
+const ray = new Raycaster(), down = new Vector3(0,-1,0);
+for (const stop of LANDSCAPE_STOPS) {
+  const id = stop.surfaceId || 'terrain';
+  const expected = fixture.supportWorld.sampleSelected(stop.x, stop.z, id);
+  ray.set(new Vector3(stop.x, 100, stop.z), down);
+  const hit = ray.intersectObjects(id === BRIDGE_ID ? [deckMesh] : meshes)[0];
+  assert.ok(hit); near(hit.point.y, expected.height, 2e-6);
+}
+for (const mesh of [...meshes, deckMesh]) mesh.geometry.dispose(); material.dispose();
+console.log('PASS landscape fixture: exact strip meshes/budgets, lower/upper/clearing profiles, steep bank/side-road contrast, distinct layer rays, actual cart bridge/ascent/return-control proof at 30/60/120Hz.', JSON.stringify({ vertices, triangles, batches, results }));

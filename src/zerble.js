@@ -92,6 +92,7 @@ export class Zerble {
 
     this.surfaceSampler = null; // Opt-in shared terrain contact; null preserves the flat game.
     this._terrainPoint = new THREE.Vector3();
+    this._terrainUp = new THREE.Vector3();
     this._terrainSample = {};
     this._build();
   }
@@ -1237,12 +1238,17 @@ export class Zerble {
       if (i < 2) front += p.height; else back += p.height;
       if (i % 2) right += p.height; else left += p.height;
     }
-    const pitch = Math.atan2((front - back) / 2, 2.9);
-    const roll = Math.atan2((right - left) / 2, 3.05);
+    const forceDriving=this.surfaceBinding?.allowSteepTerrain;
+    const foreGrade=(front-back)/2/2.9,sideGrade=(right-left)/2/3.05;
+    const pitch = Math.atan(foreGrade);
+    // YXZ composes the two tilts. Correct crossfall for the preceding pitch so
+    // the chassis up axis is the actual plane normal, including steep diagonals.
+    const roll = Math.atan2(sideGrade,forceDriving?Math.hypot(1,foreGrade):1);
     this.root.rotation.set(pitch, this.heading, roll, 'YXZ');
     this.position.y = (front + back) / 4;
     this.root.updateMatrixWorld(true);
     this.contactError = 0;
+    const up=this._terrainUp.set(0,1,0).applyQuaternion(this.root.quaternion);
     for (const w of this.wheels) {
       w.group.position.y = w.baseY;
       // Vertical suspension is local to the tilted chassis. Iterate because its
@@ -1250,13 +1256,15 @@ export class Zerble {
       for (let j = 0; j < 4; j++) {
         this._terrainPoint.copy(w.group.position).applyMatrix4(this.root.matrixWorld);
         sample(this._terrainPoint.x, this._terrainPoint.z, p);
-        const error = p.height + this._tireR - this._terrainPoint.y;
-        w.group.position.y += error / (Math.cos(pitch) * Math.cos(roll));
+        const clearance=this._tireR*(forceDriving?Math.hypot(1,p.dx,p.dz):1);
+        const error = p.height + clearance - this._terrainPoint.y;
+        const derivative=forceDriving?up.y-p.dx*up.x-p.dz*up.z:Math.cos(pitch)*Math.cos(roll);
+        w.group.position.y += error / Math.max(.05,derivative);
         w.group.position.y = THREE.MathUtils.clamp(w.group.position.y, w.baseY - 0.3, w.baseY + 0.3);
       }
       this._terrainPoint.copy(w.group.position).applyMatrix4(this.root.matrixWorld);
       sample(this._terrainPoint.x, this._terrainPoint.z, p);
-      this.contactError = Math.max(this.contactError, Math.abs(p.height + this._tireR - this._terrainPoint.y));
+      this.contactError = Math.max(this.contactError, Math.abs(p.height + this._tireR*(forceDriving?Math.hypot(1,p.dx,p.dz):1) - this._terrainPoint.y));
     }
   }
 
@@ -1497,6 +1505,27 @@ export class Zerble {
     if (this.honkCooldown > 0) this.honkCooldown -= dt;
   }
 
+  // All opt-in position corrections use the same swept support contract as
+  // driving, so contacts cannot push the cart onto an otherwise blocked bank.
+  applySurfaceCorrection(x, z) {
+    if (this.surfaceBinding) {
+      const p = this.surfaceBinding.propose(x, z, this._terrainSample, this.heading);
+      if (!p.valid || !p.traversable) return false;
+      this.surfaceBinding.commit(x, z, p, this.heading);
+    }
+    this.position.x = x; this.position.z = z;
+    if (this.surfaceSampler) this.groundOnSurface();
+    return true;
+  }
+
+  relocateOnSurface(x, z, { surfaceId = 'terrain', heading = this.heading } = {}) {
+    if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(heading)) throw new TypeError('Relocation pose must be finite');
+    if (this.surfaceBinding && !this.surfaceBinding.relocate({ x, z, heading, surfaceId })) return false;
+    this.position.x = x; this.position.z = z; this.heading = heading; this.speed = 0;
+    if (this.surfaceSampler) this.groundOnSurface();
+    return true;
+  }
+
   // Called by main on collision.
   applyHit(pushDir) {
     // Bounce back. Old kickback of -4 m/s combined with soft drag meant
@@ -1505,8 +1534,11 @@ export class Zerble {
     // with the new stronger DRAG, the cart settles back to a stop in
     // ~1.5s instead.
     this.speed = -Math.sign(this.speed || 1) * 2.5;
-    this.position.x += pushDir.x * 0.6;
-    this.position.z += pushDir.z * 0.6;
+    if (this.surfaceBinding) this.applySurfaceCorrection(this.position.x + pushDir.x * .6, this.position.z + pushDir.z * .6);
+    else {
+      this.position.x += pushDir.x * 0.6;
+      this.position.z += pushDir.z * 0.6;
+    }
     this.invulnLeft = 0.7;
   }
 

@@ -73,15 +73,16 @@ export class OneWheelMotion {
 }
 
 // Query copied public person fields while retaining the characterized yield envelope.
-export function riderYieldForPeople(x,z,heading,speed,player,people,scratch) {
+export function riderYieldForPeople(x,z,heading,speed,player,people,scratch,supportY=null) {
   const fx=Math.sin(heading),fz=Math.cos(heading),look=2.2+speed*.8;
   const threatens=(px,pz,radius)=>{
     const dx=px-x,dz=pz-z,along=dx*fx+dz*fz,side=Math.abs(dx*fz-dz*fx);
     return Math.hypot(dx,dz)<radius||(along>0&&along<look+radius&&side<radius);
   };
-  if(player&&threatens(player.x,player.z,2.4))return 'yielding to Zerble';
+  if(player&&(supportY===null||Math.abs((player.y||0)-supportY)<3)&&threatens(player.x,player.z,2.4))return 'yielding to Zerble';
   let reason=null;
   people.forEachPersonNear(x,z,Number.MAX_VALUE,(_handle,n)=>{
+    if(supportY!==null&&Math.abs((n.y||0)-supportY)>=3)return;
     if(n.state==='riding'||n.state==='hammock_riding'||n.state==='table_seated')return;
     if(threatens(n.x,n.z,1.35)||threatens(n.x+(n.vx||0)*.7,n.z+(n.vz||0)*.7,1.35)){reason='yielding to pedestrians';return false;}
   },scratch);

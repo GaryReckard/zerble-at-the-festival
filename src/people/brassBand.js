@@ -11,7 +11,8 @@ import {disposeSceneResources} from './sceneResources.js';
 import {LOOP_INITIAL_SPREAD,placeLoop,maybeRecycleLoop,pathLength,samplePath} from './formationRoute.js';
 
 export class BrassBand {
-  constructor({runtime=null,key='brass-band', collisionOrder=20,parkedHonkOrder=0,preview=false}={}) {
+  constructor({runtime=null,key='brass-band', collisionOrder=20,parkedHonkOrder=0,preview=false,surfaceAccess=null}={}) {
+    this.surfaceAccess=surfaceAccess;this._surfaceLoopReady=false;this._surfaceRetry=0;
     this.group = new THREE.Group();
     this.group.name = 'BrassBand';
 
@@ -136,7 +137,7 @@ export class BrassBand {
     const scratch=queryScratch??(this._personQueryScratch??={});
     for(const member of this.members){const distance=Math.hypot(member.position.x-x,member.position.z-z);if(distance>=radius)continue;this.peopleHandles.readOwnedRecord(member,scratch);if(visit(member.userData.personHandle,scratch,distance)===false)return;}
   }
-  appendColliders(out){if(!this._disposed)for(const collider of this.colliders)out.push(collider);}
+  appendColliders(out){if(!this._disposed&&(!this.surfaceAccess||this.group.visible))for(let i=0;i<this.colliders.length;i++){const c=this.colliders[i],actor=this.members[i];if(!this.surfaceAccess||this.surfaceAccess.collider(c,actor,3))out.push(c);}}
   inspect(out){out.population=this.members.length;out.disposed=this._disposed;out.music=!!this._music;}
   dispose(reason='population-disposed'){
     if(this._disposed)return;this._disposed=true;
@@ -152,6 +153,15 @@ export class BrassBand {
     if(this._disposed)return;
     const recycled = this._preview ? null : maybeRecycleLoop(this.path, this._basePath, this._anchor, zerblePos);
     if (recycled) this._anchor = recycled;
+    let resetSurface=!!recycled;
+    if(this.surfaceAccess){
+      this._surfaceRetry-=dt;
+      if(recycled||!this._surfaceLoopReady&&this._surfaceRetry<=0){
+        const anchor=this.surfaceAccess.prepareLoop(this.path,this._basePath,this._anchor,zerblePos);
+        this._surfaceLoopReady=!!anchor;this._surfaceRetry=2;if(anchor)this._anchor=anchor;resetSurface=true;
+      }
+      this.group.visible=this._surfaceLoopReady;if(!this._surfaceLoopReady)return;
+    }
     const totalLen = pathLength(this.path);
     this.distance = (this.distance + this.speed * dt + totalLen * 100) % totalLen;
     const { pos: leadPos, dir: leadDir } = samplePath(this.path, this.distance, this._tmpA, this._tmpB);
@@ -179,7 +189,7 @@ export class BrassBand {
       const ox = off.x * cos + off.z * sin;
       const oz = -off.x * sin + off.z * cos;
       m.position.set(leadPos.x + ox + dodgeOX, 0, leadPos.z + oz + dodgeOZ);
-      m.position.y = terrainHeight(m.position.x, m.position.z);
+      if(this.surfaceAccess)this.surfaceAccess.ground(m,{radius:0.65,relocate:resetSurface});else m.position.y = terrainHeight(m.position.x, m.position.z);
       m.rotation.y = yaw;
 
       // Marching bob + (for the marshal) parasol twirl — both live in

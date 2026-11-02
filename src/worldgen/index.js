@@ -33,6 +33,7 @@
 //   }
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { landscapeCandidateAt } from './landscapeCandidates.js';
 import { setSessionSeed, getSessionSeed, quantize } from '../rng.js';
 import { CONFIG } from './constants.js';
 import { nearestHeart, heartsInBounds, influenceFrom } from './hearts.js';
@@ -51,6 +52,7 @@ export function queryPoint(x, z) {
   const tier = roleTier(heart, dist);
   const road = nearestRoad(qx, qz);
   const inLake = lakeAt(qx, qz);
+  const landscape=landscapeCandidateAt(qx,qz);
   const onRiver = false;   // river layer cut (Q4) — contract slot kept
   const bridge = false;
   // Face the nearest road if one is reasonably near (the off-road anchor that
@@ -69,7 +71,7 @@ export function queryPoint(x, z) {
     inLake,
     onRiver,
     bridge,
-    noBuild: inLake || onRiver || road.onRoad,
+    noBuild: inLake || onRiver || road.onRoad || !!landscape,
     treeDensity: treeDensity(qx, qz),
     lifecycle: 'persistent',
     groundY: 0,

@@ -1,4 +1,5 @@
 // Pure, query-window-independent woodland households for the live generator.
+import { landscapeReservationIntersects } from './worldgen/landscapeCandidates.js';
 import { worldHash, mulberry32, getSessionSeed } from './rng.js';
 import { treeDensity } from './worldgen/density.js';
 import { nearestRoad } from './worldgen/roads.js';
@@ -38,6 +39,7 @@ function cellPlan(cx,cz){
     return reserved;
   };
   const blocked=(x,z,r)=>{
+    if(landscapeReservationIntersects({minX:x,maxX:x,minZ:z,maxZ:z},r))return true;
     if(nearestRoad(x,z).dist<r+CONFIG.ROAD_WIDTH/2+2)return true;
     for(let i=0;i<12;i++){const a=i*Math.PI/6;if(lakeAt(x+Math.cos(a)*r,z+Math.sin(a)*r))return true;}
     if(lakeAt(x,z))return true;

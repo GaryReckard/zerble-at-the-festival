@@ -436,10 +436,11 @@ function teleportLandmark(kind) {
     dest=locateLandmark(kind,trip.visited) || locateLandmark(kind);
   }
   if(!dest)return null;
+  if(h.zerble.surfaceBinding&&!h.zerble.relocateOnSurface(dest.x,dest.z,{heading:Number.isFinite(dest.heading)?dest.heading:h.zerble.heading}))return null;
   const key=dest.targetKey || kind;
   trip.visited.add(key);Object.assign(trip,{x:dest.x,z:dest.z,last:key});
   teleportTrips.set(kind,trip);
-  h.zerble.position.set(dest.x,pos.y,dest.z);h.zerble.speed=0;
+  if(!h.zerble.surfaceBinding)h.zerble.position.set(dest.x,pos.y,dest.z);h.zerble.speed=0;
   if(Number.isFinite(dest.heading))h.zerble.heading=dest.heading;
   return dest;
 }
@@ -498,7 +499,7 @@ function getCommandController() {
   const toggleValue=(mode,current)=>mode==='toggle'?!current:mode==='on';
   commandController=createDebugCommands({
     ready:()=>!!h()?.zerble&&(h().getRunning?.()??true),
-    teleport:(x,z)=>{api().teleport(x,z);return `Teleported to ${x}, ${z}.`;},
+    teleport:(x,z)=>api().teleport(x,z)===false?'Teleport blocked: unsupported destination.':`Teleported to ${x}, ${z}.`,
     locate:kind=>{const dest=teleportLandmark(kind);return dest?`→ ${dest.label} (${Math.round(dest.x)}, ${Math.round(dest.z)})`:'No matching destination found nearby.';},
     time:t=>{const tod=h().getTimeOfDay?.();if(!tod)return 'Time of day is not ready.';if(t!==undefined)tod.setT(t);return `Time ${tod.t.toFixed(3)} · night ${tod.nightness.toFixed(2)}`;},
     pause:on=>{state.pendingSteps=0;api().pause(on);return on?'Simulation paused.':'Simulation resumed.';},
@@ -605,6 +606,7 @@ function api() {
   const h = state.hooks;
   return {
     teleport(x = 0, z = 0) {
+      if(h.zerble.surfaceBinding)return h.zerble.relocateOnSurface(x,z);
       h.zerble.position.set(x, h.zerble.position.y, z);
       h.zerble.speed = 0;
     },
@@ -1437,6 +1439,8 @@ function updatePanel(dt) {
     ? `${cg.count} gen  slow=${cg.slowCount}  worst=${cg.slowest.toFixed(1)}  last=${cg.lastMs.toFixed(1)}  avg=${cg.avgMs.toFixed(1)}ms`
     : 'none yet';
 
+  const landscape=h.getLandscapeRuntime?.()?.stats();
+  const landscapeStr=landscape?`landscape    ${landscape.districts}/${landscape.owners} districts/owners · ${landscape.building} building · ${landscape.borrowed} borrowed · ${landscape.failures.length} failed\nlandscape cpu ${landscape.largestBuildStepMs.toFixed(2)}ms ${landscape.largestBuildPhase} · ${landscape.largestWaterMs.toFixed(2)}ms water/${landscape.largestWaterPhase} · ${landscape.planner.pending} planning\n`:'';
   state.textEl.textContent =
     `fps          ${fps}    ${state.paused ? '[PAUSED]' : ''}\n` +
     `frame        ${ftStr}\n` +
@@ -1445,6 +1449,7 @@ function updatePanel(dt) {
     `tris         ${trisStr}\n` +
     `gpu mem      geo ${geoCount}  tex ${texCount}${heap}\n` +
     `chunks       ${cgStr}\n` +
+    landscapeStr +
     `running      ${running}\n` +
     `seed         ${seedStr}\n` +
     `pos          ${z.position.x.toFixed(1)}, ${z.position.z.toFixed(1)}\n` +

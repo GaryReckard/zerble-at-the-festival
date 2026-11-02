@@ -1,3 +1,4 @@
+import {RIDER_SUPPORT_FOOTPRINT} from './landscape/moverAdapter.js';
 import * as THREE from 'three';
 import {terrainHeight} from './worldgen/terrain.js';
 import {buildOneWheelRider,updateOneWheelRider} from './models/oneWheelRider.js';
@@ -16,7 +17,8 @@ const SALT=0x0A1E771;
 const WATER_OFFSETS=[[0,0],...[0,1,2,3,4,5,6,7].map(i=>[Math.sin(i*Math.PI/4)*.95,Math.cos(i*Math.PI/4)*.95])];
 
 export class OneWheels {
-  constructor(scene,crowd,{procedural=true,isWater=lakeAt,runtime=null,key='one-wheels'}={}) {
+  constructor(scene,crowd,{procedural=true,isWater=lakeAt,runtime=null,key='one-wheels',surfaceAdapter=null}={}) {
+    this.surfaceAdapter=surfaceAdapter;
     this.scene=scene;this.crowd=crowd;this.procedural=procedural;this.isWater=isWater;
     this.riders=[];this.visited=new Set();this.checkTimer=0;this.time=0;
     this.frustum=new THREE.Frustum();this.matrix=new THREE.Matrix4();
@@ -39,10 +41,12 @@ export class OneWheels {
   }
   inspect(out){out.population=this.riders.length;out.disposed=this.disposed;out.collisionPublication='registry';}
   clearAt(x,z,ignore=null) {
+    if(this.surfaceAdapter&&!this.surfaceAdapter.supportsPose(x,z,0,RIDER_SUPPORT_FOOTPRINT))return false;
     for(const [dx,dz] of WATER_OFFSETS)if(this.isWater(x+dx,z+dz))return false;
     let clear=true;
     registry.collidersNear(x,z,T.radius,e=>{
       if(e===ignore)return;
+      if(this.surfaceAdapter&&!this.surfaceAdapter.verticalOverlap(e,this.surfaceAdapter.roadHeight(x,z),2.8))return;
       if(Math.hypot(x-e.position.x,z-e.position.z)<e.collider.radius+T.radius+.1)clear=false;
     });
     return clear;
@@ -57,7 +61,7 @@ export class OneWheels {
       if(this.visited.has(key))return false;
       if((worldHash(cellX,cellZ,SALT+1)>>>0)/4294967296>=T.encounterChance){this.remember(key);return false;}
     }
-    const routes=wagonRoutes(approachRoadsOf(heart).map(r=>r.oriented),player,
+    const routes=wagonRoutes([...approachRoadsOf(heart).map(r=>r.oriented),...(this.surfaceAdapter?.roadsNear(player)||[]).map(r=>r.points)],player,
       (x,z)=>this.clearAt(x,z),T.spawnMax+15);
     if(camera)this.frustum.setFromProjectionMatrix(this.matrix.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
     const choices=[];
@@ -82,21 +86,22 @@ export class OneWheels {
     if(this.disposed||this.riders.length>=T.maxRiders)return null;
     const motion=new OneWheelMotion(route,distance,direction);
     if(!this.clearAt(motion.x,motion.z))return null;
+    const support=this.surfaceAdapter?.binding(motion.x,motion.z,motion.heading+Math.PI,RIDER_SUPPORT_FOOTPRINT);if(this.surfaceAdapter&&!support)return null;
     const group=buildOneWheelRider({rng:mulberry32(seed)});
-    const position=new THREE.Vector3(motion.x,terrainHeight(motion.x,motion.z),motion.z);
+    const position=new THREE.Vector3(motion.x,support?this.surfaceAdapter.height(support,motion.x,motion.z):terrainHeight(motion.x,motion.z),motion.z);
     group.position.copy(position);group.rotation.y=motion.heading;this.scene.add(group);
-    const entry={kind:'one_wheel',position,footprint:T.radius,collider:{radius:T.radius,damage:2}};
-    const rider={group,motion,entry,id:registry.add(entry),animation:{},seed};
+    const entry={kind:'one_wheel',position,footprint:T.radius,collider:{radius:T.radius,damage:2,...(this.surfaceAdapter?{minY:0,maxY:2.8}:{})}};
+    const rider={group,motion,entry,position,surfaceBinding:support||null,id:registry.add(entry),animation:{},seed};
     rider.personHandle=this.peopleHandles.create(this._nextPersonSlot++,rider);
     // Reuse closures and options in the steady-state update.
     rider.environment={clear:(x,z)=>{
       if(!this.clearAt(x,z,entry))return false;
-      if(this.player&&Math.hypot(x-this.player.x,z-this.player.z)<2.4)return false;
+      if(this.player&&(!support||Math.abs(this.player.y-this.surfaceAdapter.height(support,x,z))<3)&&Math.hypot(x-this.player.x,z-this.player.z)<2.4)return false;
       let clear=true;
-      this.crowd.forEachPersonNear(x,z,1.25,(_handle,n)=>{if(n.state!=='riding'&&n.state!=='hammock_riding'&&n.state!=='table_seated'){clear=false;return false;}},this._queryScratch);
-      return clear;
+      this.crowd.forEachPersonNear(x,z,1.25,(_handle,n)=>{if(support&&Math.abs((n.y||0)-this.surfaceAdapter.height(support,x,z))>=3)return;if(n.state!=='riding'&&n.state!=='hammock_riding'&&n.state!=='table_seated'){clear=false;return false;}},this._queryScratch);
+      return clear&&(!support||this.surfaceAdapter.move(support,x,z,motion.heading+Math.PI));
     },
-      yieldAhead:(x,z,heading,speed)=>riderYieldForPeople(x,z,heading,speed,this.player,this.crowd,this._queryScratch),
+      yieldAhead:(x,z,heading,speed)=>riderYieldForPeople(x,z,heading,speed,this.player,this.crowd,this._queryScratch,support?this.surfaceAdapter.height(support,x,z):null),
       gathering:(x,z)=>{
         let count=0;
         this.crowd.forEachPersonNear(x,z,10,(_handle,n)=>{if(n.state!=='riding')count++;},this._queryScratch);
@@ -113,8 +118,11 @@ export class OneWheels {
       if(Math.hypot(m.x-player.x,m.z-player.z)>T.despawnDistance){this.remove(rider);continue;}
       const oldX=m.x,oldZ=m.z;
       m.update(dt,rider.environment);
-      rider.entry.position.set(m.x,terrainHeight(m.x,m.z),m.z);rider.group.position.copy(rider.entry.position);
-      rider.group.rotation.y=m.heading;
+      rider.entry.position.set(m.x,rider.surfaceBinding?this.surfaceAdapter.height(rider.surfaceBinding,m.x,m.z):terrainHeight(m.x,m.z),m.z);rider.group.position.copy(rider.entry.position);
+      if(rider.surfaceBinding){
+        const p=rider.surfaceBinding.sample(m.x,m.z,this._surfaceSample||(this._surfaceSample={})),c=Math.cos(m.heading),s=Math.sin(m.heading),fore=-p.dx*s-p.dz*c,side=p.dx*c-p.dz*s;
+        rider.group.rotation.set(Math.atan(fore),m.heading,Math.atan2(side,Math.hypot(1,fore)),'YXZ');
+      }else rider.group.rotation.y=m.heading;
       const a=rider.animation;
       a.speed=dt>0?Math.hypot(m.x-oldX,m.z-oldZ)/dt:0;
       a.acceleration=m.acceleration;a.turnRate=m.turnRate;a.nightness=nightness;a.time=this.time;

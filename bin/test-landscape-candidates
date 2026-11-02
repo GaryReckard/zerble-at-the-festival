@@ -1,0 +1,48 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { setSessionSeed } from '../src/rng.js';
+import { LANDSCAPE_CELL,LANDSCAPE_CANDIDATE_LIMIT,setLandscapeVersion,landscapeVersion,landscapeCandidateInCell,landscapeCandidatesInBounds,landscapeCandidateAt,landscapeToWorld,landscapeToLocal,landscapeVertexHeight,landscapeDeckSource,landscapeWaterAt,clearLandscapeCandidates,landscapeCandidateStats } from '../src/worldgen/landscapeCandidates.js';
+import { createTriangleSampler } from '../src/landscape/geometry.js';
+import { createSupportWorld } from '../src/landscape/support.js';
+import { validateRoute } from '../src/landscape/routes.js';
+const bounds={minX:-3200,maxX:3200,minZ:-3200,maxZ:3200};
+setSessionSeed(1977);assert.equal(landscapeVersion(),1);assert.deepEqual(landscapeCandidatesInBounds(bounds),[]);
+assert.equal(landscapeVertexHeight(-12,34,7),7,'current version leaves the prior terrain unchanged');
+const summary=[];
+try {
+  setLandscapeVersion(2);
+  for(const seed of [1977,42,2026]) {
+    setSessionSeed(seed);const all=landscapeCandidatesInBounds(bounds),snapshot=JSON.stringify(all);
+    assert.ok(all.length>3);assert.ok(all.some(c=>c.cx<0&&c.cz<0));
+    for(const c of [...all].reverse()) {
+      const b=c.bounds,center={x:(b.minX+b.maxX)/2,z:(b.minZ+b.maxZ)/2};
+      assert.ok(b.minX>c.cx*LANDSCAPE_CELL && b.maxX<(c.cx+1)*LANDSCAPE_CELL && b.minZ>c.cz*LANDSCAPE_CELL && b.maxZ<(c.cz+1)*LANDSCAPE_CELL,'whole influence is discoverable from its one cell');
+      for(const p of [{x:b.minX,z:b.minZ},{x:b.maxX,z:b.maxZ},center])assert.equal(landscapeCandidateAt(p.x,p.z).id,c.id);
+      const thin={minX:b.minX+.001,maxX:b.minX+.002,minZ:center.z,maxZ:center.z};
+      assert.ok(landscapeCandidatesInBounds(thin).some(p=>p.id===c.id),'a tiny edge window discovers the complete owner');
+      assert.equal(center.x>=thin.minX&&center.x<=thin.maxX,false,'center-only negative control misses that owner');
+      assert.equal(landscapeVertexHeight(b.minX,center.z,7),7,'influence boundary matches external datum exactly');
+      assert.ok(Math.abs(landscapeVertexHeight(b.minX+.001,center.z,7)-7)<1e-7,'outer collar is continuous');
+      const local=landscapeToLocal(c,c.ports[0].x,c.ports[0].z),port=c.plan.ports[0];
+      assert.deepEqual(local,{x:port.x,z:port.z});assert.equal(landscapeVertexHeight(c.ports[0].x,c.ports[0].z,19),0);
+      if(c.kind==='mountain-top') {
+        const sampler=createTriangleSampler((x,z)=>landscapeVertexHeight(x,z,0),{bounds:b}),world=createSupportWorld({sampleTerrain:sampler.sample,deckSource:landscapeDeckSource});
+        const main=validateRoute(world,c.plan.mainRoad.map(p=>landscapeToWorld(c,p.x,p.z)));
+        const trail=validateRoute(world,c.plan.narrowPath.map(p=>landscapeToWorld(c,p.x,p.z)),{halfWidth:2.8,maxGrade:.3});
+        assert.ok(main.valid&&trail.valid,`${c.id} actual world-grid rotation ${main.reason}/${trail.reason}`);
+      }
+    }
+    for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++) {
+      const a=all[i].bounds,b=all[j].bounds;assert.ok(a.maxX<b.minX||b.maxX<a.minX||a.maxZ<b.minZ||b.maxZ<a.minZ,'canonical influences never overlap');
+    }
+    for(let x=-200;x<200;x++)landscapeCandidateInCell(x,20);
+    assert.ok(landscapeCandidateStats().cached<=LANDSCAPE_CANDIDATE_LIMIT);
+    clearLandscapeCandidates();assert.equal(JSON.stringify(landscapeCandidatesInBounds(bounds)),snapshot,'order and eviction preserve every canonical field/port');
+    summary.push({seed,candidates:all.length,mountainTops:all.filter(c=>c.kind==='mountain-top').length,forms:[...new Set(all.map(c=>c.plan.form))]});
+  }
+  assert.throws(()=>landscapeCandidatesInBounds({minX:-1e6,maxX:1e6,minZ:-1e6,maxZ:1e6}),/cell limit/);
+  assert.throws(()=>landscapeCandidatesInBounds({minX:NaN,maxX:1,minZ:0,maxZ:1}),/finite/);
+  assert.throws(()=>setLandscapeVersion(3),/version/);
+  assert.throws(()=>landscapeCandidateInCell(.5,0),/cell/);
+} finally {setLandscapeVersion(1);setSessionSeed(0);}
+console.log('PASS bounded landscape candidates: isolated version gate, independently salted varied forms/ports, complete negative-coordinate and tiny-edge queries, strict nonoverlap, cache/order/seed invariance, native-world-grid rotated route validation and center-only negative control.',JSON.stringify(summary));

@@ -1,0 +1,37 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { setSessionSeed } from '../src/rng.js';
+import { setLandscapeVersion,landscapeCandidatesInBounds,landscapeVertexHeight,landscapeDeckSource,landscapeWaterAt,landscapeToWorld } from '../src/worldgen/landscapeCandidates.js';
+import { createLandscapeAdmission,districtAdmissionRecord } from '../src/worldgen/landscape.js';
+import { createTriangleSampler,segmentIntersectsBounds } from '../src/landscape/geometry.js';
+import { createSupportWorld } from '../src/landscape/support.js';
+assert.ok(segmentIntersectsBounds({x:-10,z:0},{x:10,z:0},{minX:-1,maxX:1,minZ:-1,maxZ:1}));
+assert.equal(segmentIntersectsBounds({x:-10,z:2},{x:10,z:2},{minX:-1,maxX:1,minZ:-1,maxZ:1}),false);
+setSessionSeed(1977);setLandscapeVersion(2);
+const candidates=landscapeCandidatesInBounds({minX:-3200,maxX:3200,minZ:-3200,maxZ:3200}).filter(c=>c.kind==='mountain-top'),reports=[];
+const finish=job=>{let calls=0,largestStepMs=0;while(!job.done){const begin=performance.now(),slice=job.step({maxSteps:32,deadline:Infinity});largestStepMs=Math.max(largestStepMs,performance.now()-begin);assert.ok(slice.steps<=32);assert.ok(++calls<10000);}return {...job.result,calls,largestStepMs};};
+try {
+  for(const candidate of candidates) {
+    const geometry=createTriangleSampler((x,z)=>landscapeVertexHeight(x,z,0)),surface=Object.freeze({sampleTerrain:geometry.sample,supportWorld:createSupportWorld({sampleTerrain:geometry.sample,deckSource:landscapeDeckSource})});
+    const x=candidate.plan.ports[0].x,roads=[{edgeId:'external:vertical',width:7,points:[landscapeToWorld(candidate,x+100,130),landscapeToWorld(candidate,x+100,250)]}],
+      obstacle={position:landscapeToWorld(candidate,x+50,70),radius:18};
+    const job=createLandscapeAdmission(candidate,{surface,roads,obstacles:[obstacle]});
+    assert.equal(job.step({deadline:0}).steps,0);
+    const result=finish(job);assert.ok(result.valid,JSON.stringify(result));
+    assert.ok(result.rejected.some(r=>r.reason==='protected-envelope'),'direct connector fails at a real occupied envelope');
+    assert.ok(result.plan.connection.id.endsWith('east-west-first'),'a finite alternate connector is selected');
+    assert.ok(districtAdmissionRecord(result.receipt,result.plan,surface));
+    assert.equal(districtAdmissionRecord({},result.plan,surface),null,'a boolean/fake receipt cannot bypass final-geometry validation');
+    assert.equal(districtAdmissionRecord(result.receipt,{...result.plan},surface),null);
+    assert.equal(districtAdmissionRecord(result.receipt,result.plan,{...surface}),null);
+    const again=finish(createLandscapeAdmission(candidate,{surface,roads:[...roads,...roads].reverse(),obstacles:[obstacle]}));
+    assert.deepEqual(again.plan,result.plan,'admission is independent of external query order');
+    const missing=finish(createLandscapeAdmission(candidate,{surface}));assert.equal(missing.reason,'no-road-within-600m');assert.ok(missing.calls<=1,'cheap impossibility rejects before expensive district route work');
+    const blocked=finish(createLandscapeAdmission(candidate,{surface,roads,obstacles:[{position:result.plan.ports[0],radius:50}]}));assert.equal(blocked.reason,'no-feasible-connection');assert.equal(blocked.receipt,null);
+    reports.push({id:candidate.id,form:result.plan.form,camps:result.plan.camps.length,connection:result.plan.connection.id,slices:result.calls,largestStepMs:result.largestStepMs});
+  }
+  const candidate=candidates[0],geometry=createTriangleSampler((x,z)=>landscapeVertexHeight(x,z,0)),surface={sampleTerrain:geometry.sample,supportWorld:createSupportWorld({sampleTerrain:geometry.sample,deckSource:landscapeDeckSource})};
+  const stale=createLandscapeAdmission(candidate,{surface});setSessionSeed(42);assert.equal(stale.step().result.reason,'world-changed');
+  setSessionSeed(1977);const cancelled=createLandscapeAdmission(candidate,{surface});cancelled.cancel();assert.equal(cancelled.result.reason,'cancelled');assert.equal(cancelled.step().steps,0);
+} finally {setLandscapeVersion(1);setSessionSeed(0);}
+console.log('PASS cooperative district admission: complete native-grid occupancy/routes/turns, cheap bounded impossibility, finite protected-connection alternatives, order invariance, exact plan/surface receipts and seed-change/cancel invalidation.',JSON.stringify(reports));

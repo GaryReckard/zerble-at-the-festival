@@ -1,0 +1,157 @@
+{
+  "date": "2026-11-01",
+  "rows": [
+    {
+      "id": "landscape:2:1977:-2,-2",
+      "valid": false,
+      "reason": "no-feasible-connection",
+      "bufferValid": true,
+      "bytes": 223184,
+      "workerMs": 923.815292
+    },
+    {
+      "id": "landscape:2:1977:-1,-1",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 387664,
+      "workerMs": 652.736125
+    },
+    {
+      "id": "landscape:2:1977:1,-1",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 352991,
+      "workerMs": 667.6450830000001
+    },
+    {
+      "id": "landscape:2:1977:-1,0",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 477150,
+      "workerMs": 405.29420800000025
+    },
+    {
+      "id": "landscape:2:1977:1,0",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 363178,
+      "workerMs": 385.14887499999986
+    },
+    {
+      "id": "landscape:2:1977:0,1",
+      "valid": false,
+      "reason": "no-feasible-connection",
+      "bufferValid": true,
+      "bytes": 234450,
+      "workerMs": 628.5452909999999
+    },
+    {
+      "id": "landscape:2:42:-1,-2",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 330043,
+      "workerMs": 825.6811250000005
+    },
+    {
+      "id": "landscape:2:42:1,-2",
+      "valid": false,
+      "reason": "no-feasible-connection",
+      "bufferValid": true,
+      "bytes": 226537,
+      "workerMs": 646.3409170000004
+    },
+    {
+      "id": "landscape:2:42:1,-1",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 376002,
+      "workerMs": 430.62104100000033
+    },
+    {
+      "id": "landscape:2:42:-1,0",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 367806,
+      "workerMs": 692.4628329999996
+    },
+    {
+      "id": "landscape:2:42:0,0",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 355593,
+      "workerMs": 360.71033400000033
+    },
+    {
+      "id": "landscape:2:42:1,0",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 389252,
+      "workerMs": 339.64991699999973
+    },
+    {
+      "id": "landscape:2:42:-1,1",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 451648,
+      "workerMs": 529.6016670000008
+    },
+    {
+      "id": "landscape:2:2026:-2,-2",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 471495,
+      "workerMs": 990.7774579999996
+    },
+    {
+      "id": "landscape:2:2026:0,-2",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 351784,
+      "workerMs": 666.8121250000004
+    },
+    {
+      "id": "landscape:2:2026:-1,-1",
+      "valid": false,
+      "reason": "no-feasible-connection",
+      "bufferValid": true,
+      "bytes": 222950,
+      "workerMs": 486.21875
+    },
+    {
+      "id": "landscape:2:2026:-2,0",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 495511,
+      "workerMs": 655.7753749999993
+    },
+    {
+      "id": "landscape:2:2026:-1,0",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 467383,
+      "workerMs": 321.93633299999965
+    },
+    {
+      "id": "landscape:2:2026:1,1",
+      "valid": true,
+      "reason": null,
+      "bufferValid": true,
+      "bytes": 396764,
+      "workerMs": 802.8997920000002
+    }
+  ]
+}

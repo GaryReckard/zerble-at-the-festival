@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { Scene } from 'three';
+import { setSessionSeed } from '../src/rng.js';
+import { setLandscapeVersion,landscapeCandidatesInBounds,landscapeVertexHeight,landscapeDeckSource,landscapeWaterAt } from '../src/worldgen/landscapeCandidates.js';
+import { createTriangleSampler } from '../src/landscape/geometry.js';
+import { createSupportWorld } from '../src/landscape/support.js';
+import { createLandscapeAdmission } from '../src/worldgen/landscape.js';
+import { landscapeToWorld } from '../src/worldgen/landscapeCandidates.js';
+import { createFormCamping } from '../src/landscape/campingPlan.js';
+import { placeDistrictPlan } from '../src/landscape/placePlan.js';
+
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:800,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {buildMountainDistrict}=await import('../src/landscape/district.js');
+const {registry}=await import('../src/registry.js');
+const scene=new Scene(),baseline=registry.entries.size,reports=[];
+setSessionSeed(1977);setLandscapeVersion(2);
+try {
+  const candidates=landscapeCandidatesInBounds({minX:-3200,maxX:3200,minZ:-3200,maxZ:3200}).filter(p=>p.kind==='mountain-top');
+  for(const candidate of candidates) {
+    const geometry=createTriangleSampler((x,z)=>landscapeVertexHeight(x,z,0)),surface={sampleTerrain:geometry.sample,supportWorld:createSupportWorld({sampleTerrain:geometry.sample,deckSource:landscapeDeckSource})};
+    const rejected=[];let admitted=null;
+    for(let attempt=0;attempt<3&&!admitted;attempt++) {
+      const local=createFormCamping(candidate.plan,{attempt});
+      if(!local.valid){rejected.push(local.reason);continue;}
+      let plan=placeDistrictPlan(candidate,local);
+      const x=candidate.plan.ports[0].x,roads=[{edgeId:'external:fixture',width:7,points:[landscapeToWorld(candidate,x-100,140),landscapeToWorld(candidate,x+100,140)]}];
+      const job=createLandscapeAdmission(candidate,{surface,roads});
+      while(!job.done)job.step({maxSteps:128,deadline:Infinity});
+      assert.ok(job.result.valid,job.result.reason);plan=job.result.plan;
+      assert.throws(()=>buildMountainDistrict(scene,surface,{plan,admission:{}}),/stale/);
+      try {
+        const owner=buildMountainDistrict(scene,surface,{plan,admission:job.result.receipt});
+        assert.equal(owner.camps.length,plan.camps.length);owner.update(10,.8);
+        assert.equal(!!owner.drum,plan.clearing.drum);assert.equal(!!owner.meadowFire,!!plan.meadowFire);
+        assert.ok(Object.isFrozen(plan.camps[0].recipe.tentFamilies));
+        admitted={id:candidate.id,form:plan.form,turns:candidate.turns,camps:plan.camps.length,rejected};
+        owner.dispose();
+      } catch(error) {rejected.push(error.message);}
+      assert.equal(registry.entries.size,baseline,'every rejected/published arrangement removes its owned entries');assert.equal(scene.children.length,0);
+    }
+    reports.push(admitted||{id:candidate.id,rejected});
+  }
+  assert.ok(reports.some(r=>r.form==='paired-meadows'));assert.ok(reports.some(r=>r.form==='long-ridge'));assert.ok(reports.some(r=>r.form==='three-shelves'));
+} finally {setLandscapeVersion(1);setSessionSeed(0);}
+console.log('PASS varied population: independently planned compact/sparse pitches, bounded arrangements, native-world-grid grounding, rotated campsite/drum entrances, optional fires/crews, production builder publication and complete rejection/disposal cleanup.',JSON.stringify(reports));

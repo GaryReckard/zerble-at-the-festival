@@ -70,7 +70,8 @@ const _scl = new THREE.Vector3();
 const _wingScale = new THREE.Matrix4();
 
 export class Birds {
-  constructor() {
+  constructor({airFloor=null}={}) {
+    this.airFloor=airFloor;
     this.group = new THREE.Group();
     this.group.name = 'birds';
     this.max = CAPS[PERF.name] || 20;
@@ -298,7 +299,7 @@ export class Birds {
     }
 
     // --- altitude band: steer back toward [min,max], gentle vertical wander ---
-    const ground = terrainHeight(b.pos.x,b.pos.z);
+    const ground = this.airFloor?this.airFloor(b.pos.x,b.pos.z):terrainHeight(b.pos.x,b.pos.z);
     const aMin = ground+sp.altitude[0], aMax = ground+sp.altitude[1];
     if (b.pos.y < aMin) b.vel.y += (aMin - b.pos.y) * 0.6 * dt + dt * 1.5;
     else if (b.pos.y > aMax) b.vel.y -= (b.pos.y - aMax) * 0.6 * dt + dt * 1.5;
@@ -324,6 +325,7 @@ export class Birds {
     b.vel.y = THREE.MathUtils.clamp(b.vel.y, -3.5, 3.5);
 
     b.pos.addScaledVector(b.vel, dt);
+    if(this.airFloor){const floor=this.airFloor(b.pos.x,b.pos.z)+.5;if(b.pos.y<floor){b.pos.y=floor;b.vel.y=Math.max(0,b.vel.y);}}
 
     // --- decide whether to land ---
     b.perchUrge += dt * (0.04 + roostiness * 0.6 + (1 - Math.min(1, this.activityLevel)) * 0.08);

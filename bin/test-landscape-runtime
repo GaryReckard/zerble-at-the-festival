@@ -1,0 +1,71 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Scene,Vector3} from 'three';
+import {setSessionSeed} from '../src/rng.js';
+import {setLandscapeVersion,landscapeCandidateInCell} from '../src/worldgen/landscapeCandidates.js';
+import {setTerrainEnabled} from '../src/worldgen/terrain.js';
+import {computeLandscapeTask} from '../src/worldgen/landscapeTask.js';
+import {CONFIG} from '../src/worldgen/constants.js';
+import {FESTIVAL_TUNING} from '../src/worldgen/tuning.js';
+import {LandscapePlanner} from '../src/landscape/planner.js';
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:800,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {LandscapeRuntime}=await import('../src/landscape/runtime.js'),{registry}=await import('../src/registry.js');
+let terminated=0,requests=0;
+const workerFactory=()=>({postMessage(data){requests++;queueMicrotask(()=>this.onmessage?.({data:computeLandscapeTask(data)}));},terminate(){terminated++;}});
+setSessionSeed(1977);setLandscapeVersion(2);setTerrainEnabled(true);
+const candidate=landscapeCandidateInCell(-1,-1),scene=new Scene(),before=registry.entries.size;
+// The in-process worker shim shares module state, so prime its settings epoch
+// before capturing renderer identity. Actual workers have separate module state.
+computeLandscapeTask({id:0,key:'prime',version:2,seed:1977,candidateId:candidate.id,cx:candidate.cx,cz:candidate.cz,fingerprint:JSON.stringify(candidate),config:structuredClone(CONFIG),tuning:structuredClone(FESTIVAL_TUNING)});
+const planner=new LandscapePlanner({workerFactory,renderGeometry:true}),runtime=new LandscapeRuntime(scene,{planner,loadRadius:100,unloadRadius:300});
+try {
+  const p={position:new Vector3(candidate.bridge.bounds.minX+12,0,candidate.bridge.bounds.maxZ+12),heading:0};
+  const bounds={minX:p.position.x-1,maxX:p.position.x+1,minZ:p.position.z-1,maxZ:p.position.z+1};
+  assert.equal(runtime.access.ready(bounds),false,'dependent chunks wait for planning');await runtime.prepare(bounds);assert.equal(runtime.access.ready(bounds),true);
+  let slices=0;do{runtime.update(p,{deadline:Infinity});assert.ok(++slices<2000);}while(runtime.stats().building||!runtime.stats().districts);
+  assert.equal(runtime.stats().failures.length,0);assert.equal(runtime.stats().owners,1);assert.equal(scene.children.length,2);assert.ok(registry.entries.size>before);
+  const district=[...runtime.owners.values()][0].district;assert.ok(district.visibility.roofCount>=district.camps.length);assert.ok(district.visibility.woodlandBins.length>1);
+  district.visibility.update(p.position,{detailRadius:1,woodlandRadius:100});assert.equal(district.visibility.proxy.count,district.visibility.roofCount);assert.ok(district.camps.every(c=>!c.group.visible));
+  district.visibility.update({x:p.position.x+5,z:p.position.z},{detailRadius:5000});assert.equal(district.visibility.proxy.count,0);assert.ok(district.camps.every(c=>c.group.visible));
+  const {queryRegion}=await import('../src/worldgen/index.js'),{nearestRoad}=await import('../src/worldgen/roads.js'),{terrainHeight}=await import('../src/worldgen/terrain.js');
+  const pure=()=>JSON.stringify([queryRegion(bounds),nearestRoad(p.position.x,p.position.z),terrainHeight(p.position.x,p.position.z)]),pureBefore=pure();
+  runtime.installPolicy();assert.equal(pure(),pureBefore,'runtime policy never changes canonical planning or final terrain');
+  const {landscapeClearance}=await import('../src/worldgen/landscapePolicy.js');assert.equal(landscapeClearance(candidate.plan?candidate.origin.x:0,candidate.origin.z,0,true),true);
+  const water=[...runtime.owners.values()][0].water,deck=candidate.bridge;
+  const {createRapierAdapter}=await import('../src/physics/rapierAdapter.js');
+  const physics=await createRapierAdapter(),surfaces=runtime.attachPhysics(physics,{origin:p.position});
+  assert.throws(()=>runtime.attachPhysics(physics),/already attached/);
+  try{
+    const pos={x:(deck.bounds.minX+deck.bounds.maxX)/2,z:(deck.bounds.minZ+deck.bounds.maxZ)/2,y:deck.height+2};
+    assert.equal(physics.addBody({id:'resident-prop',type:'dynamic',pose:{position:surfaces.toPhysics(pos)},colliders:[{shape:'ball',radius:.5}]}).ok,true);
+    assert.equal(surfaces.track('resident-prop').ready,true);assert.ok(water.pinCount>0);
+    const farPropTest={position:new Vector3(p.position.x+5000,0,p.position.z+5000)};
+    runtime.update(farPropTest,{deadline:0});assert.equal(runtime.stats().owners,1,'physical prop retains actual district/water after player leaves');
+    assert.equal(runtime.dispose(),false);assert.equal(runtime.disposed,false,'refused physical teardown does not revoke occupied support');
+    surfaces.release('resident-prop',{removeBody:true});assert.equal(water.pinCount,0);assert.equal(surfaces.dispose(),true);
+  }finally{surfaces.dispose({removeTracked:true});physics.dispose();}
+  const binding=runtime.bindVehicle(p);assert.ok(binding.allowSteepTerrain);
+  assert.ok(binding.relocate({x:p.position.x,z:(deck.bounds.minZ+deck.bounds.maxZ)/2,surfaceId:deck.id}));p.position.z=(deck.bounds.minZ+deck.bounds.maxZ)/2;
+  runtime.update(p,{deadline:0});assert.ok(water.pinCount>0);assert.ok(runtime.stats().borrowed>=1);
+  // Ask for a different residency window while an independent borrower remains.
+  const far={position:new Vector3(p.position.x+5000,0,p.position.z+5000)};runtime.update(far,{deadline:0,movers:[p]});assert.equal(runtime.stats().owners,1,'occupied bridge owner survives the distance threshold');
+  runtime.update(far,{deadline:0});assert.equal(runtime.stats().owners,0);assert.equal(scene.children.length,0);assert.equal(registry.entries.size,before);
+  // Revisit the same admitted district, using canonical cached plan/buffers.
+  const prior=requests;do{runtime.update(p,{deadline:Infinity});}while(runtime.stats().building||!runtime.stats().districts);
+  assert.equal(requests,prior,'revisit reuses canonical plan instead of replanning');
+  // The canonical discovery halo intentionally includes distant candidates.
+  // A residency manager must not build them outside its own load radius and
+  // cancel/restart them forever at the unload radius on a stationary player.
+  const live=[...runtime.owners.values()][0],actualQuery=runtime.access.query.bind(runtime.access),outside=Array.from({length:16},(_,i)=>landscapeCandidateInCell(10+i%4,10+Math.floor(i/4))).find(c=>c?.kind==='mountain-top'),rejected={status:'rejected',plan:null,render:live.state.render};
+  runtime.access.query=(bounds,options)=>[...actualQuery(bounds,options),{candidate:outside,state:rejected}];
+  const cpuBefore=runtime.stats().waterCpuMs;
+  for(let frame=0;frame<60;frame++)runtime.update(p,{deadline:Infinity});
+  assert.equal(runtime.owners.has(outside.id),false);assert.equal(runtime.stats().waterCpuMs,cpuBefore,'halo-only candidates never allocate or churn water/build jobs');
+  runtime.access.query=actualQuery;
+  const restored=[...runtime.owners.values()][0].water;assert.notEqual(restored,water);assert.equal(restored.bridge.id,water.bridge.id);
+  runtime.releaseMovers();assert.equal(runtime.dispose(),true);assert.equal(scene.children.length,0);assert.equal(registry.entries.size,before);assert.ok(terminated>0);assert.equal(planner.stats().worker,false);
+  await assert.rejects(runtime.prepare(bounds),/disposed/);assert.equal(binding.sample(p.position.x,p.position.z).reason,'world-changed');assert.equal(landscapeClearance(p.position.x,p.position.z,0,true),false,'disposed runtime revokes its optional policy');
+  const second=new LandscapeRuntime(scene,{planner:new LandscapePlanner({workerFactory,renderGeometry:true}),loadRadius:100,unloadRadius:300});const cancelled=second.prepare(bounds);second.dispose();await assert.rejects(cancelled,/changed/);
+  console.log('PASS landscape runtime: worker-first chunk readiness, real staged owner publication, resident-only bridge support, counted occupied retention, bounded unload/revisit with canonical reuse, registry/resource/worker teardown and pending preparation cancellation.',JSON.stringify({requests,terminated,slices,metrics:runtime.stats()}));
+} finally {runtime.releaseMovers();runtime.dispose();setLandscapeVersion(1);setTerrainEnabled(false);setSessionSeed(0);}

@@ -27,7 +27,9 @@ import { hash2, worldHash, mulberry32 } from './rng.js';
 import { CHUNK_SIZE, buildCurvedPath } from './chunks.js';
 import { describeForestTree, buildForestInstanced, worldPerches, worldCrown } from './models/tree.js';
 import { buildCampsite, campsiteFootprint } from './models/campsite.js';
-import { buildLeafDrumCircle } from './models/leafDrumCircle.js';
+import { buildLeafDrumCircle,buildLeafDrumCircleSteps } from './models/leafDrumCircle.js';
+import { disposeSceneResources } from './sceneResources.js';
+import { unregister as unregisterContextLight,register as registerContextLight } from './contextLights.js';
 import {
   buildFireDancer, buildHandDrummer, buildFirekeeper, buildSpotter,
 } from './models/tribalFigures.js';
@@ -452,7 +454,11 @@ function buildForestInteriorContent(ctx, forest) {
 // thresholds across the cast gives the "people drift in as evening comes
 // on" feel Gary asked for: a few core drummers + the firekeeper hold the
 // circle during the day, everyone else materialises as dusk advances.
-function populateDrumCircle(rng, dc, forest, facingAngle) {
+function populateDrumCircle(...args) {
+  const steps=populateDrumCircleSteps(...args);let step;do{step=steps.next();}while(!step.done);return step.value;
+}
+
+export function* populateDrumCircleSteps(rng, dc, forest, facingAngle) {
   const figures = [];
   const benchCentre = facingAngle + Math.PI;
   const benchRadii = [5.5, 6.5, 7.5];
@@ -482,6 +488,7 @@ function populateDrumCircle(rng, dc, forest, facingAngle) {
       dIdx++;
       dc.group.add(drummer.group);
       figures.push(drummer);
+      yield {group:drummer.group,phase:'drummer'};
     }
   }
 
@@ -496,6 +503,7 @@ function populateDrumCircle(rng, dc, forest, facingAngle) {
     dancer.wakeThreshold = dancerThresholds[i];
     dc.group.add(dancer.group);
     figures.push(dancer);
+    yield {group:dancer.group,phase:'dancer'};
   }
 
   // ---- Firekeeper + spotter (always present) ----
@@ -507,6 +515,7 @@ function populateDrumCircle(rng, dc, forest, facingAngle) {
   fk.wakeThreshold = 0;
   dc.group.add(fk.group);
   figures.push(fk);
+  yield {group:fk.group,phase:'firekeeper'};
 
   const spotter = buildSpotter(rng);
   const spotterA = facingAngle + 0.50;
@@ -516,6 +525,7 @@ function populateDrumCircle(rng, dc, forest, facingAngle) {
   spotter.wakeThreshold = 0;
   dc.group.add(spotter.group);
   figures.push(spotter);
+  yield {group:spotter.group,phase:'spotter'};
 
   return figures;
 }
@@ -586,34 +596,32 @@ function buildForestCampsite(ctx, forest) {
 // path. Pushes onto the shared forestDrumCircles / forestDrumMusic lists that main.js
 // already flickers + distance-attenuates each frame (empty in legacy v2 until now).
 // `ctx` carries the cluster-local rng + chunkKey + group from buildWorldgenKind.
-export function buildWorldgenDrumCircle(ctx, x, z, facingAngle = 0) {
-  const rng = ctx.rng;
-  const dc = buildLeafDrumCircle(rng, { facingAngle });
-  dc.group.position.set(x, terrainHeight(x, z), z);
-  ctx.group.add(dc.group);
+export function buildWorldgenDrumCircle(...args) {
+  const steps=buildWorldgenDrumCircleSteps(...args);let step;do{step=steps.next();}while(!step.done);return step.value;
+}
 
-  const figures = populateDrumCircle(rng, dc, null, facingAngle);   // `forest` arg is unused
-  forestDrumCircles.push({ chunkKey: ctx.key, dc, figures, fireCenter: { x, z } });
-
-  const musicHandle = Sound.attachStageMusic(x, terrainHeight(x, z) + 1.4, z, worldHash(Math.round(x), Math.round(z), 0x0D40_C1C7), 'forest_drum');
-  if (musicHandle) {
-    forestDrumMusic.push({ handle: musicHandle, chunkKey: ctx.key, centerX: x, centerZ: z, bodyRadius: 40 });
+export function* buildWorldgenDrumCircleSteps(ctx, x, z, facingAngle = 0) {
+  const rng=ctx.rng,groundY=(ctx.heightAt||terrainHeight)(x,z),targetRegistry=ctx.registry||registry;
+  let dc=null,complete=false;
+  try {
+    dc=yield* buildLeafDrumCircleSteps(rng,{facingAngle,registerLight:ctx.deferPublication?()=>{}:undefined});
+    dc.group.position.set(x,groundY,z);ctx.group.add(dc.group);
+    const figures=yield* populateDrumCircleSteps(rng,dc,null,facingAngle);
+    let musicHandle=null,activated=false;
+    const result={dc,figures,get musicHandle(){return musicHandle;},activate(){
+      if(activated)return;activated=true;
+      if(ctx.deferPublication)registerContextLight(dc.fireLight);
+      forestDrumCircles.push({chunkKey:ctx.key,dc,figures,fireCenter:{x,z}});
+      musicHandle=Sound.attachStageMusic(x,groundY+1.4,z,worldHash(Math.round(x),Math.round(z),0x0D40_C1C7),'forest_drum');
+      if(musicHandle)forestDrumMusic.push({handle:musicHandle,chunkKey:ctx.key,centerX:x,centerZ:z,bodyRadius:40});
+    }};
+    targetRegistry.add({kind:'firepit',position:new THREE.Vector3(x,groundY+.5,z),footprint:dc.firepitCollider.radius,collider:dc.firepitCollider,chunkKey:ctx.key});
+    targetRegistry.add({kind:'bench_ring',position:new THREE.Vector3(x,groundY+.4,z),footprint:0,collider:dc.benchCollider,chunkKey:ctx.key});
+    if(!ctx.deferPublication)result.activate();
+    complete=true;return result;
+  } finally {
+    if(!complete&&dc){dc.group.removeFromParent();dc.group.traverse(n=>{if(n.isLight)unregisterContextLight(n);});disposeSceneResources(dc.group);}
   }
-
-  registry.add({
-    kind: 'firepit',
-    position: new THREE.Vector3(x, terrainHeight(x, z) + 0.5, z),
-    footprint: dc.firepitCollider.radius,
-    collider: dc.firepitCollider,
-    chunkKey: ctx.key,
-  });
-  registry.add({
-    kind: 'bench_ring',
-    position: new THREE.Vector3(x, terrainHeight(x, z) + 0.4, z),
-    footprint: 0,
-    collider: dc.benchCollider,
-    chunkKey: ctx.key,
-  });
 }
 
 // LEAF-true drum circle visual — raised stone firepit, log cone, emissive

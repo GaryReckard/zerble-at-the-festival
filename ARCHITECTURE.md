@@ -155,12 +155,18 @@ Three independent lifecycle systems own world content. They all share one regist
 
 The isolated `terrain-sandbox.html` proof uses `terrainSurface.js` for a fixed
 world-space one-meter triangle lattice and `terrainDriving.js` for opt-in
-slope-aware movement. `Zerble.surfaceSampler` defaults to null; only this proof
-enables it, leaving the live movement and world sampler unchanged. Four wheel
+slope-aware movement. `Zerble.surfaceSampler` defaults to null, while the live game binds the shared
+worldgen terrain sampler when terrain is enabled. Four wheel
 samples establish chassis pitch/roll, bounded suspension settles each wheel,
 and cart-local seat/nozzle transforms include the tilt. `terrainSandbox.js`
 owns the course meshes, controls, fixed-step replay and camera clearance checks.
-It does not stream or place festival content. [Verification](verification/terrain/2026-10-24-driving-proof.md).
+The original course does not stream or place festival content. [Verification](verification/terrain/2026-10-24-driving-proof.md).
+
+The opt-in `surface=landscape` course uses `src/landscape/fixture.js` for bounded
+shared geometry and `src/landscape/support.js` for per-mover support identities.
+Read-only wheel/suspension samples stay on the selected layer; the optional
+`surfaceBinding` in terrain driving proposes and commits only accepted movement.
+The opt-in `district=1` owner uses production camp/drum builders, isolated height injection, shared route/footprint guards and real Crowd visitors/passengers. `registry` and live contact wrappers can publish explicit vertical solid intervals; legacy entries keep their prior behavior. Counted pins and rollback/disposal protect the authored owner. The experimental map and explicit game opt-in can select generation 2: `landscapeCandidates` owns upstream terrain reservations, `landscapeContext`/`landscape` perform downstream access admission, and `LandscapePlanner` owns a bounded worker plus current-world admission receipts. Version 1 remains the game default; the later streaming section describes the completed experimental consumer integration. Finite streams use `landscape/stream.js` for downhill source/receiver data, native-grid channel cuts and water clipped against the exact terrain triangles. `waterOwner.js` owns bridge/water meshes, vertical rail colliders and counted retention pins; missing streamed support blocks movement. The experimental physics adapter accepts bounded copied triangle meshes only for fixed owners, so dropped props can resolve the native bed separately from a bridge slab. The optional manager and physical-surface provider described below connect production consumers; activating live dynamic chairs remains separate physical-festival work. [Evidence and limits](verification/landscape/README.md).
 
 The flat ground is one player-following mesh in `world.js`. It moves in 40m
 world-aligned steps, which are multiples of its 10m vertex spacing, so the
@@ -771,7 +777,7 @@ eligibility from deliberately adding compatible activities for another family.
 update, parked-honk capability, lifetime/query/collider publication and cleanup.
 The main loop passes copied positions into the existing Trip barrier using reused
 caller vectors; the controller retains its approach/passive damage and recycle rules.
-`src/people/sceneResources.js` releases only a caller-owned subtree's non-shared
+`src/sceneResources.js` (also re-exported by the prior `src/people/sceneResources.js` path) releases only a caller-owned subtree's non-shared
 resources, after that population has stopped execution and released its lifetimes.
 It does not own person state, registry claims or audio.
 
@@ -950,3 +956,31 @@ shows one behavior across different population and place layouts, documents curr
 eligibility, and explains deliberate connections to stages, porta-potties, food
 trucks, Healing Arts and the nut wagon. `bin/test-people-boundaries` protects these
 dependency directions with negative fixtures as part of the routine suite.
+
+### Experimental landscape streaming
+
+`landscape=2` dynamically creates `LandscapeRuntime` before the ready mode plank.
+It owns the bounded planning worker, canonical access reservations, staged district
+publication, water/road geometry, selected resident decks and occupied leases.
+Chunks wait for completed access before generation. The optional
+`worldgen/landscapePolicy.js` interface is consumed only by runtime chunk
+placement and distant rendering; pure hearts, roads, terrain and district planning
+never read mutable worker/residency state. District detail uses actual shelter
+positions for pooled distant roofs and spatial woodland bins with canopy proxies.
+The festival-map worker independently computes the same bounded canonical plans
+and uses a separate exploration namespace for this opt-in layout. Version 1
+remains the default. [Current evidence and pending consumers](verification/landscape/README.md).
+
+
+The access index caches complete owner bounds, including external road spurs;
+render residency filters the planning discovery halo before construction, and
+uses those same bounds for unload hysteresis. Worker render buffers include
+native normals and road UVs under the combined payload ceiling. Crowd and
+independent populations retain per-mover support, while activity/place/contact
+eligibility also checks reachability and vertical separation. Birds use a
+separate terrain/water/deck air-clearance query. `getLandscapeRuntime()` exposes
+the current optional service, whose `attachPhysics()` adapts an existing engine
+without starting a new controller or importing WASM into ordinary startup. Its
+nearby-origin fixed meshes, swept prop preparation and independent counted
+leases prevent occupied surface teardown. The existing debug HUD reports
+owner/planning state and worst construction/water phases.

@@ -17,10 +17,11 @@ const _kidDodgeOut={x:0,z:0};
 const KID_SOFT_SEPARATION=1.4,KID_HARD_SEPARATION=.82;
 
 export class KidGaggle {
-  constructor({ gaggleCount = 8, runtime = null, key = 'children', collisionOrder=30, honkOrder=20 } = {}) {
+  constructor({ gaggleCount = 8, runtime = null, key = 'children', collisionOrder=30, honkOrder=20, surfaceAccess=null } = {}) {
     if (!Number.isInteger(gaggleCount) || gaggleCount < 1 || gaggleCount > 8) {
       throw new RangeError('Kid gaggle count must be an integer between 1 and 8.');
     }
+    this.surfaceAccess=surfaceAccess;
     this.group = new THREE.Group();
     this.group.name = 'Kids';
     this.kids = [];
@@ -57,7 +58,7 @@ export class KidGaggle {
           k.position.copy(c);
           k.position.x += (Math.random() - 0.5) * 8;
           k.position.z += (Math.random() - 0.5) * 8;
-          k.position.y = terrainHeight(k.position.x, k.position.z);
+          if(this.surfaceAccess)this.surfaceAccess.ground(k,{radius:.4,relocate:true});else k.position.y = terrainHeight(k.position.x, k.position.z);
           k.userData.center = c.clone();
           k.userData.heading = Math.random() * TAU;
           // displayedYaw is what actually rotates the mesh — it lerps toward
@@ -121,6 +122,7 @@ export class KidGaggle {
     const range = Math.max(frontRange, 12);
     const rangeSq = range * range;
     for (const k of this.kids) {
+      if(this.surfaceAccess&&Math.abs(k.position.y-zerble.position.y)>3)continue;
       const dx = k.position.x - zerble.position.x;
       const dz = k.position.z - zerble.position.z;
       if (dx * dx + dz * dz > rangeSq) continue;
@@ -154,7 +156,7 @@ export class KidGaggle {
       if(visit(kid.userData.personHandle,scratch,distance)===false)return;
     }
   }
-  appendColliders(out) {if(!this._disposed)for(const collider of this.colliders)out.push(collider);}
+  appendColliders(out) {if(!this._disposed)for(let i=0;i<this.colliders.length;i++){const c=this.colliders[i];if(!this.surfaceAccess||this.surfaceAccess.collider(c,this.kids[i],1.9))out.push(c);}}
 
   dispose(reason='population-disposed') {
     if(this._disposed)return;this._disposed=true;
@@ -193,6 +195,7 @@ export class KidGaggle {
           );
           k.position.set(p.x, 0, p.z);
           k.userData.center.set(p.x, 0, p.z);
+          if(this.surfaceAccess)k.userData.landscapeRelocate=true;
           k.userData.scatterTimer = 0;
         }
       }
@@ -217,7 +220,7 @@ export class KidGaggle {
     }
 
     // Ground before bubble/smile height queries, including recycled children.
-    for (const kid of this.kids) kid.position.y = terrainHeight(kid.position.x, kid.position.z);
+    for (const kid of this.kids){if(this.surfaceAccess){const reset=!!kid.userData.landscapeRelocate;this.surfaceAccess.ground(kid,{radius:.4,relocate:reset});if(reset)kid.userData.center.set(kid.position.x,0,kid.position.z);kid.userData.landscapeRelocate=false;}else kid.position.y=terrainHeight(kid.position.x,kid.position.z);}
 
     // Collect live bubble positions once per frame so we don't iterate the
     // whole pool inside every kid's loop.
@@ -266,10 +269,12 @@ export class KidGaggle {
 
     for (let i = 0; i < this.kids.length; i++) {
       const k = this.kids[i];
+      if(this.surfaceAccess&&k.userData.landscapeUnsupported)continue;
 
       // ---- Find nearest live bubble (if any) ----
       let chaseD = Infinity, nearestTarget = null, trackedD = Infinity;
       for (const bp of bubblePositions) {
+        if(this.surfaceAccess&&Math.abs(bp.y-k.position.y)>3)continue;
         const dx = bp.x - k.position.x;
         const dz = bp.z - k.position.z;
         const d = Math.hypot(dx, dz);
@@ -322,7 +327,7 @@ export class KidGaggle {
         const dzZ = k.position.z - zerble.position.z;
         const dToZerble = Math.hypot(dxZ, dzZ);
         if (
-          canSmile(k.userData,zerble.position,dToZerble,KID_SMILE_RANGE,KID_SMILE_RESET_DIST)
+          canSmile(k.userData,zerble.position,dToZerble,KID_SMILE_RANGE,KID_SMILE_RESET_DIST)&&(!this.surfaceAccess||Math.abs(k.position.y-zerble.position.y)<2.5)
         ) {
           let gain = 0;
           // Proximity to Zerble — linear falloff over SMILE_RANGE
@@ -454,7 +459,7 @@ export class KidGaggle {
     // The broad-phase/player colliders must follow the final resolved poses.
     for (let i = 0; i < this.kids.length; i++) {
       const kid = this.kids[i];
-      kid.position.y = terrainHeight(kid.position.x, kid.position.z);
+      if(this.surfaceAccess){const reset=!!kid.userData.landscapeRelocate;this.surfaceAccess.ground(kid,{radius:.4,relocate:reset});if(reset)kid.userData.center.set(kid.position.x,0,kid.position.z);kid.userData.landscapeRelocate=false;}else kid.position.y = terrainHeight(kid.position.x, kid.position.z);
       tickKid(kid,dt,{excited:!!kid.userData.chaseTarget,targetYaw:kid.userData.heading});
       this.colliders[i].position.copy(kid.position);
       this.colliders[i].position.y += 0.6;

@@ -22,6 +22,14 @@ export function resolveCollision(zerble, colliders) {
     // (Approach-damage already needs Zerble to be moving fast, so this only
     // suppresses the non-damaging position-nudge path below.)
     if (zerbleParked && SOFT_PEOPLE_KINDS.has(c.kind)) continue;
+    // X/Z broadphase remains useful across floors; explicit solid bounds decide
+    // whether a layered actor can actually touch this candidate.
+    if (zerble.colliderHeight !== undefined && c.minY !== undefined && c.maxY !== undefined) {
+      const bottom = zerble.position.y + (zerble.colliderBottom || 0);
+      const top = bottom + zerble.colliderHeight;
+      if (![bottom, top, c.minY, c.maxY].every(Number.isFinite) || top < bottom || c.maxY < c.minY) throw new TypeError('Invalid vertical collision interval');
+      if (top < c.minY || bottom > c.maxY) continue;
+    }
     const tox = c.position.x - zerble.position.x;
     const toz = c.position.z - zerble.position.z;
     const d = Math.hypot(tox, toz);
@@ -47,8 +55,10 @@ export function resolveCollision(zerble, colliders) {
 
     // Non-damaging contact: nudge Zerble out of overlap, kill any small approach speed.
     const overlap = minD - d;
-    zerble.position.x -= tox * inv * overlap;
-    zerble.position.z -= toz * inv * overlap;
+    const correctedX = zerble.position.x - tox * inv * overlap;
+    const correctedZ = zerble.position.z - toz * inv * overlap;
+    if (zerble.surfaceBinding) zerble.applySurfaceCorrection(correctedX, correctedZ);
+    else { zerble.position.x = correctedX; zerble.position.z = correctedZ; }
     if (approachSpeed > 0 && zerble.speed > 0) {
       zerble.speed = Math.max(0, zerble.speed - approachSpeed * 0.6);
     }

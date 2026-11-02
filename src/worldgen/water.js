@@ -14,6 +14,7 @@
 // cosmetic shoreline wobble, not an invariant violation; the 3D port can switch
 // to an integer orientation test if it ever matters. Reads CONFIG.* per-call.
 
+import { landscapeReservationIntersects } from './landscapeCandidates.js';
 import { cellRng, quantize, getSessionSeed } from '../rng.js';
 import { CONFIG, SALT, worldgenEpoch } from './constants.js';
 
@@ -29,7 +30,8 @@ export function lakeInCell(cx, cz) {
   if (_cache.size > 250000) _cache.clear();   // bound growth on long pans at one seed
   const key = cx + ',' + cz;
   if (_cache.has(key)) return _cache.get(key);
-  const v = _computeLake(cx, cz);
+  const raw = _computeLake(cx, cz);
+  const v=raw&&landscapeReservationIntersects({minX:raw.x-raw.maxR,maxX:raw.x+raw.maxR,minZ:raw.z-raw.maxR,maxZ:raw.z+raw.maxR})?null:raw;
   _cache.set(key, v);
   return v;
 }

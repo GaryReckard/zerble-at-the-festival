@@ -21,7 +21,8 @@
 // outer bench ring (radius 6, mild damage 4).
 
 import * as THREE from 'three';
-import { register as registerContextLight } from '../contextLights.js';
+import { register as registerContextLight,unregister as unregisterContextLight } from '../contextLights.js';
+import { disposeSceneResources } from '../sceneResources.js';
 
 // Shared materials. The fire/glow materials are NOT shared — each circle gets
 // its own so they pulse on independent phases.
@@ -76,9 +77,18 @@ _halfLogGeo.translate(0, 0, -BENCH_LOG_LEN / 2);
 // pointing FROM the fire toward the path entry. The bench semicircle opens
 // on that side, so as Zerble drives in the drummers face him across the fire.
 export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
+  const steps=buildLeafDrumCircleSteps(rng,opts);let step;do{step=steps.next();}while(!step.done);return step.value;
+}
+
+// Existing callers consume the same sequence synchronously. Streaming callers
+// retain the partial root and can cancel before publishing any world state.
+export function* buildLeafDrumCircleSteps(rng = Math.random, opts = {}) {
   const facingAngle = opts.facingAngle ?? 0;
   const group = new THREE.Group();
   group.name = 'leafDrumCircle';
+  let complete=false;const detached=[];
+  try {
+  yield {group,phase:'root'};
 
   // ---- Raised stone firepit ----
   // Short cylinder base + ring of irregular boulders. The cylinder gives
@@ -92,6 +102,7 @@ export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
   base.castShadow = true;
   base.receiveShadow = true;
   group.add(base);
+  yield {group,phase:'firepit-base'};
 
   // Rim boulders — 14-16 irregular icospheres sitting on top of the base
   // edge so the silhouette reads as natural rocks, not concrete.
@@ -110,6 +121,7 @@ export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
     stone.rotation.y = rng() * Math.PI * 2;
     // Rim stones are small — base + fire already cast the firepit shadow.
     group.add(stone);
+    yield {group,phase:'rim-stone'};
   }
 
   // ---- Log cone ----
@@ -118,6 +130,7 @@ export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
   // points from rim → apex.
   const logCone = new THREE.Group();
   logCone.name = 'logCone';
+  group.add(logCone);
   const apexY = FIREPIT_HEIGHT + LOG_CONE_HEIGHT;
   for (let i = 0; i < LOG_COUNT; i++) {
     const a = (i / LOG_COUNT) * Math.PI * 2;
@@ -146,8 +159,8 @@ export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
     log.quaternion.setFromAxisAngle(axis, tilt);
     // Slim log cylinder — 8 per cone; the firepit base already casts shadow.
     logCone.add(log);
+    yield {group,phase:'fire-log'};
   }
-  group.add(logCone);
 
   // ---- Emissive fire mesh ----
   // Cone of soft orange that scales with nightness. The base radius shrinks
@@ -197,7 +210,8 @@ export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
   // Distance-cull: the global manager turns this off when the player is
   // > 40m away. Forest drum-circle fires can be 100m+ from the player and
   // still contributing per-fragment lighting cost without this.
-  registerContextLight(fireLight);
+  (opts.registerLight||registerContextLight)(fireLight);
+  yield {group,phase:'fire-and-light'};
 
   // ---- Three-row bench semicircle ----
   // Centreline opposite the entrance: drummers face the fire and the
@@ -225,6 +239,7 @@ export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
   // drum circles being rare, this is fine.
   const supportGeo = new THREE.CylinderGeometry(0.07, 0.08, 0.35, 5);
   const supportsInstance = new THREE.InstancedMesh(supportGeo, BENCH_LOG_MAT, supportTotal);
+  group.add(logsInstance);group.add(supportsInstance);
   const _bmat = new THREE.Matrix4();
   const _be = new THREE.Euler();
   const _bq = new THREE.Quaternion();
@@ -254,10 +269,10 @@ export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
       }
     }
   }
+    yield {group,phase:'bench-ring'};
   logsInstance.instanceMatrix.needsUpdate = true;
   supportsInstance.instanceMatrix.needsUpdate = true;
-  group.add(logsInstance);
-  group.add(supportsInstance);
+
 
   // ---- Smoke column (discoverability beacon) ----
   // Tall semi-transparent grey cylinder rising from the firepit. Visible
@@ -289,6 +304,7 @@ export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
     transparent: true,
     opacity: 0,
   });
+  detached.push(sparkMat);
   const sparkGeo = new THREE.SphereGeometry(0.04, 4, 3);
   const sparks = [];
   const SPARK_COUNT = 14;
@@ -307,10 +323,11 @@ export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
       driftZ: (rng() - 0.5) * 0.12,
       rise: 1.6 + rng() * 0.8,
     });
+    yield {group,phase:'spark'};
   }
 
   // Caller animates these per frame.
-  return {
+  const result = {
     group,
     fireMesh, fireMat,
     ember, emberMat,
@@ -325,6 +342,11 @@ export function buildLeafDrumCircle(rng = Math.random, opts = {}) {
     firepitCollider: { radius: FIREPIT_RADIUS, damage: 9 },
     benchCollider: { radius: BENCH_RADII[BENCH_RADII.length - 1] + 0.4, damage: 4 },
   };
+  complete=true;return result;
+  } finally {
+    for(const resource of detached)resource.dispose();
+    if(!complete){group.traverse(n=>{if(n.isLight)unregisterContextLight(n);});disposeSceneResources(group);}
+  }
 }
 
 // Per-frame animator. Call once per visible drum circle, passing the

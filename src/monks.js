@@ -38,7 +38,7 @@ export class MonkParty {
         }
         try {
         for(let i=0;i<count;i++){
-            const handle=this.people.spawn({pos:spots[i],rng:this.rng,allowPhotographer:false});
+            const handle=this.people.spawn({pos:spots[i],rng:this.rng,allowPhotographer:false,...(this.wagon?.surfaceBinding?{surfaceId:this.wagon.surfaceBinding.snapshot().surfaceId}:{})});
             if(!handle){this.clear();return false;}
             const profile={scale:.87+this.rng()*.07,energy:.78+this.rng()*.12,
                 curiosity:.55,skittish:.15,dance:.15+this.rng()*.15};

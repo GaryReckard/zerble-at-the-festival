@@ -1,0 +1,35 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { setSeed,queryPoint,queryRegion } from '../src/worldgen/index.js';
+import { bumpWorldgen } from '../src/worldgen/constants.js';
+import { setTerrainEnabled,sampleTerrain,terrainGenerationKey } from '../src/worldgen/terrain.js';
+import { setLandscapeVersion,landscapeCandidateInCell,landscapeToWorld } from '../src/worldgen/landscapeCandidates.js';
+import { landscapeContextFor } from '../src/worldgen/landscapeContext.js';
+import { createLandscapeAdmission,districtAdmissionRecord,landscapeAdmissionCandidatesInBounds } from '../src/worldgen/landscape.js';
+const finish=job=>{let slices=0;while(!job.done){job.step({maxSteps:128,deadline:Infinity});assert.ok(++slices<10000);}return job.result;};
+const region={minX:-200,maxX:200,minZ:-200,maxZ:200};
+setSeed(1977);setTerrainEnabled(true);
+const baseline=JSON.stringify({region:queryRegion(region),point:queryPoint(12,34),height:sampleTerrain(12,34)});
+let result,context,candidate;
+try {
+  setLandscapeVersion(2);candidate=landscapeCandidateInCell(-1,-1);context=landscapeContextFor(candidate);
+  result=finish(createLandscapeAdmission(candidate,context));assert.ok(result.valid,result.reason);
+  const first=result.plan,point=first.connection.points[0];
+  assert.ok(first.bounds.minX<=point.x&&first.bounds.maxX>=point.x&&first.bounds.minZ<=point.z&&first.bounds.maxZ>=point.z,'the complete owner includes the external access spur');
+  assert.ok(landscapeAdmissionCandidatesInBounds({minX:point.x,maxX:point.x,minZ:point.z,maxZ:point.z}).some(c=>c.id===candidate.id),'a tiny external-road window discovers its remote mountain owner');
+  const shelf=candidate.plan.shelves[0],sample=landscapeToWorld(candidate,(shelf.minX+shelf.maxX)/2,(shelf.minZ+shelf.maxZ)/2);
+  assert.ok(Math.abs(sampleTerrain(sample.x,sample.z).height-shelf.height)<1e-8,'legacy zero pads cannot erase the owned mountain meadow');
+  assert.equal(queryPoint(sample.x,sample.z).noBuild,true,'ordinary legacy placements cannot repopulate the reserved mountain');
+  const reversed=finish(createLandscapeAdmission(candidate,{...context,roads:[...context.roads].reverse(),obstacles:[...context.obstacles].reverse(),shapes:[...context.shapes].reverse()}));
+  assert.deepEqual(reversed.plan,first,'the real surrounding-world input order does not choose the result');
+  const key=terrainGenerationKey();bumpWorldgen();assert.notEqual(terrainGenerationKey(),key);
+  assert.equal(districtAdmissionRecord(result.receipt,first,context.surface),null,'old epoch receipts cannot publish against changed terrain');
+  candidate=landscapeCandidateInCell(-1,-1);context=landscapeContextFor(candidate);
+  result=finish(createLandscapeAdmission(candidate,context));assert.deepEqual(result.plan,first,'cache/epoch invalidation with identical settings preserves every canonical plan field');
+  const blocked=landscapeCandidateInCell(-2,-2),blockedContext=landscapeContextFor(blocked),guarded=finish(createLandscapeAdmission(blocked,blockedContext));
+  assert.equal(guarded.valid,false);assert.equal(guarded.reason,'no-feasible-connection');
+  const unsafe=finish(createLandscapeAdmission(blocked,{...blockedContext,obstacles:[],shapes:[]}));assert.equal(unsafe.valid,true,'negative control: omitting actual festival occupancy would admit the protected crossing');
+  const pending=createLandscapeAdmission(candidate,context);setTerrainEnabled(false);assert.equal(pending.step().result.reason,'world-changed','terrain-disable invalidates pending work');
+} finally {setLandscapeVersion(1);setTerrainEnabled(true);setSeed(1977);}
+assert.equal(JSON.stringify({region:queryRegion(region),point:queryPoint(12,34),height:sampleTerrain(12,34)}),baseline,'disabling the experiment restores the exact existing generation and relief');
+console.log('PASS landscape world integration: real arterial/venue/woodland/lake context, full spur ownership/discovery, final native relief, legacy-placement exclusion, real order/cache/epoch/terrain-disable controls, protected-occupancy negative control and exact version-1 restoration.');

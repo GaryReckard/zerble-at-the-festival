@@ -11,8 +11,9 @@ import {_pickPositionAvoidingLakes} from './placement.js';
 const TAU=Math.PI*2;
 
 export class Wooks {
-  constructor({runtime=null,key='wooks', collisionOrder=40,initialNear=60,initialFar=160,parkedHonkOrder=0}={}) {
+  constructor({runtime=null,key='wooks', collisionOrder=40,initialNear=60,initialFar=160,parkedHonkOrder=0,surfaceAccess=null}={}) {
     if(!Number.isFinite(initialNear)||!Number.isFinite(initialFar)||initialNear<0||initialFar<initialNear)throw new RangeError('Invalid wook initial spread.');
+    this.surfaceAccess=surfaceAccess;
     this.group = new THREE.Group();
     this.group.name = 'Wooks';
     this.wooks = [];
@@ -99,10 +100,10 @@ export class Wooks {
     const scratch=queryScratch??(this._personQueryScratch??={});
     for(const w of this.wooks){const distance=Math.hypot(w.position.x-x,w.position.z-z);if(distance>=radius)continue;this.peopleHandles.readOwnedRecord(w,scratch);if(visit(w.userData.personHandle,scratch,distance)===false)return;}
   }
-  appendColliders(out){if(!this._disposed)for(const collider of this.colliders)out.push(collider);}
-  copyPositions(out) {
-    for(let i=0;i<this.wooks.length;i++){out[i]??=new THREE.Vector3();out[i].copy(this.wooks[i].position);}
-    out.length=this.wooks.length;return out;
+  appendColliders(out){if(!this._disposed)for(let i=0;i<this.colliders.length;i++){const c=this.colliders[i];if(!this.surfaceAccess||this.surfaceAccess.collider(c,this.wooks[i],2.8))out.push(c);}}
+  copyPositions(out,player=null) {
+    let count=0;for(const w of this.wooks){if(this.surfaceAccess&&(!w.visible||player&&Math.abs(w.position.y-player.y)>=3))continue;out[count]??=new THREE.Vector3();out[count++].copy(w.position);}
+    out.length=count;return out;
   }
   inspect(out){out.population=this.wooks.length;out.disposed=this._disposed;out.approaching=0;for(const collider of this.colliders)if(collider.passive)out.approaching++;}
   dispose(reason='population-disposed') {
@@ -158,7 +159,7 @@ export class Wooks {
               if (ddx * ddx + ddz * ddz < WOOK_SPREAD * WOOK_SPREAD) { tooClose = true; break; }
             }
             if (!tooClose) {
-              a.set(nx, 0, nz);
+              a.set(nx, 0, nz);if(this.surfaceAccess)w.userData.landscapeRelocate=true;
               placed = true;
               break;
             }
@@ -170,7 +171,7 @@ export class Wooks {
             const p = _pickPositionAvoidingLakes(
               zerblePos.x, zerblePos.z, RECYCLE_MIN, RECYCLE_MAX,
             );
-            a.set(p.x, 0, p.z);
+            a.set(p.x, 0, p.z);if(this.surfaceAccess)w.userData.landscapeRelocate=true;
           }
           // Re-randomize so all recycled wooks don't lock to the same orbit phase
           w.userData.phase = Math.random() * TAU;
@@ -185,6 +186,7 @@ export class Wooks {
       let bestD2 = DETECTION_RANGE * DETECTION_RANGE;
       for (let i = 0; i < this.wooks.length; i++) {
         const w = this.wooks[i];
+        if(this.surfaceAccess&&(w.userData.landscapeUnsupported||Math.abs(w.position.y-zerblePos.y)>2.5))continue;
         const dx = w.position.x - zerblePos.x;
         const dz = w.position.z - zerblePos.z;
         const d2 = dx * dx + dz * dz;
@@ -255,7 +257,7 @@ export class Wooks {
           w.userData.anchor.set(shore.x, 0, shore.z);
         }
       }
-      w.position.y = terrainHeight(w.position.x, w.position.z);
+      if(this.surfaceAccess){const reset=!!w.userData.landscapeRelocate,accepted=this.surfaceAccess.ground(w,{relocate:reset});if(reset&&!accepted)w.userData.anchor.set(w.position.x,0,w.position.z);w.userData.landscapeRelocate=false;}else w.position.y = terrainHeight(w.position.x, w.position.z);
       tickWook(w,dt);
       this.colliders[i].position.copy(w.position);
       this.colliders[i].position.y += 1;

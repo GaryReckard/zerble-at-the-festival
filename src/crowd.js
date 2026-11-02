@@ -1,3 +1,4 @@
+import {createSupportBinding} from './landscape/support.js';
 import {hoopFootLift} from './people/hoop/feet.js';
 import {validateHoopFeet} from './people/hoop/leg.js';
 import {ARM_SHOULDER_Y,isStageDancing,sampleDanceArmPose,sampleThrowPose,sampleArmHand,sampleWalkMotion,walkingArrivalSpeed,idleSwayDelta,armShader,crossLegShader,flowLegShader} from './personMotion.js';
@@ -60,6 +61,7 @@ import {
 } from './photographer.js';
 
 const MAX_NPCS = PERF.crowdMax;
+const WALK_SUPPORT_FOOTPRINT=Object.freeze([{x:-.35,z:0},{x:.35,z:0},{x:0,z:-.35},{x:0,z:.35}]);
 
 // Despawn NPCs that drift more than this far from Zerble. Anchored to the
 // chunk-load radius so we keep NPCs alive across the area that's actually
@@ -159,7 +161,10 @@ function groundNpc(npc) {
   else if (npc.state === 'camp_seated' && npc.campY!==undefined) npc.pos.y = npc.campY;
   else if (npc.state === 'table_seated' && npc.picnicY!=null) npc.pos.y = npc.picnicY;
   else if (npc.pottySitting && npc.seatY != null) npc.pos.y = npc.seatY;
-  else npc.pos.y = terrainHeight(npc.pos.x, npc.pos.z);
+  else if (npc.surfaceBinding) {
+    const sample = npc.surfaceBinding.sample(npc.pos.x, npc.pos.z, npc._surfaceSample || (npc._surfaceSample = {}));
+    npc.pos.y = sample.valid ? sample.height : npc.surfaceBinding.snapshot().height;
+  } else npc.pos.y = terrainHeight(npc.pos.x, npc.pos.z);
 }
 
 export class Crowd {
@@ -613,9 +618,11 @@ export class Crowd {
   }
 
   // Called by chunk generator.
-  spawn({ pos, chunkKey, rng = Math.random, forcePhotographer = false, allowPhotographer = true, appearanceOverride = null, scale = null }) {
+  spawn({ pos, chunkKey, rng = Math.random, forcePhotographer = false, allowPhotographer = true, appearanceOverride = null, scale = null, surfaceId = 'terrain' }) {
     if(scale!==null&&(!Number.isFinite(scale)||scale<.5||scale>2))throw new RangeError('Person scale must be between .5 and 2.');
     if (this._disposed || this.free.length === 0) return null;
+    let surfaceBinding=null;
+    if(this.surfaceWorld){try{surfaceBinding=createSupportBinding(this.surfaceWorld,{x:pos.x,z:pos.z,surfaceId},{footprint:WALK_SUPPORT_FOOTPRINT});}catch(error){if(error instanceof RangeError)return null;throw error;}}
     const idx = this.free.pop();
 
     // Personality
@@ -723,6 +730,7 @@ export class Crowd {
       if (npc.photoSlot + 1 > this._photoDrawCount) this._photoDrawCount = npc.photoSlot + 1;
     }
 
+    if(surfaceBinding)npc.surfaceBinding=surfaceBinding;
     this.npcs.push(npc);
     npc.personHandle=this.peopleHandles.create(npc.idx,npc);
 
@@ -953,6 +961,7 @@ export class Crowd {
 
   _interruptActivityForCart(npc, zerble) {
     const active=this.activityClaims.current.get(npc.personHandle);
+    if(npc.surfaceBinding&&Math.abs(npc.pos.y-zerble?.position.y)>3)return false;
     if(!active||!(active.claim.owner.canInterruptForCart?.(npc.personHandle)??active.claim.owner.interruptibleByCart)||!zerble?.forwardWorld)return false;
     const dx=npc.pos.x-zerble.position.x,dz=npc.pos.z-zerble.position.z;
     const tooClose=Math.hypot(dx,dz)<(active.claim.owner.cartClearance??0);
@@ -961,6 +970,62 @@ export class Crowd {
     this.activityClaims.removePerson(npc.personHandle,'dodge');
     npc.state='fleeing';npc.fleeUrgency=laneDodgeUrgency(zerble.speed);npc.stateTimer=DODGE.LOCK;
     return true;
+  }
+
+  bindSurface(handle, binding) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc || !binding?.sample || !binding?.propose || !binding?.commit) throw new TypeError('Invalid person support binding');
+    npc.surfaceBinding = binding; this._writeMatrices(npc);
+  }
+
+  _moveGroundNpc(npc, x, z, heading = npc.yaw) {
+    if (npc.surfaceBinding) {
+      const p = npc.surfaceBinding.propose(x, z, npc._surfaceSample || (npc._surfaceSample = {}), heading);
+      if (!p.valid || !p.traversable) { npc.vel.x = npc.vel.z = 0; return false; }
+      npc.surfaceBinding.commit(x, z, p, heading);
+    }
+    npc.pos.x = x; npc.pos.z = z; return true;
+  }
+
+  walkCorridor(handle, points) {
+    const npc=this.peopleHandles.resolve(handle);
+    if (!npc?.surfaceBinding || !['idle','walking'].includes(npc.state) || this.activityClaims.current.has(handle)) return false;
+    if (!Array.isArray(points) || points.length<2 || points.length>32 || points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.z))) throw new TypeError('Invalid local pedestrian corridor');
+    npc.corridorRoute={points:points.map(p=>({x:p.x,z:p.z})),index:0};return true;
+  }
+
+  _tickCorridor(dt,npc) {
+    const route=npc.corridorRoute;
+    if (!route) return false;
+    if (!['idle','walking'].includes(npc.state)) {npc.corridorRoute=null;return false;}
+    let goal=route.points[route.index], distance=Math.hypot(goal.x-npc.pos.x,goal.z-npc.pos.z);
+    while (distance<.2 && route.index<route.points.length-1) {goal=route.points[++route.index];distance=Math.hypot(goal.x-npc.pos.x,goal.z-npc.pos.z);}
+    if (distance<.2) {npc.corridorRoute=null;npc.vel.set(0,0,0);return false;}
+    const step=Math.min(distance,dt*2.4),dx=(goal.x-npc.pos.x)/distance,dz=(goal.z-npc.pos.z)/distance;
+    if (!this._moveGroundNpc(npc,npc.pos.x+dx*step,npc.pos.z+dz*step,Math.atan2(-dx,-dz))) {npc.corridorRoute=null;npc.vel.set(0,0,0);this._writeMatrices(npc);return true;}
+    npc.yaw=Math.atan2(-dx,-dz);npc.vel.set(dx*2.4,0,dz*2.4);npc.state='walking';npc.stateTimer=2;
+    this._writeMatrices(npc);return true;
+  }
+
+  canReachPlace(handle,point,{maxHeightDifference=2.5}={}){
+    const npc=this.peopleHandles.resolve(handle);if(!npc)return false;if(!npc.surfaceBinding)return true;
+    const p=npc.surfaceBinding.propose(point.x,point.z,npc._surfaceReach||(npc._surfaceReach={}));
+    return p.valid&&p.traversable&&(!Number.isFinite(point.y)||Math.abs(point.y-p.height)<=maxHeightDifference);
+  }
+
+  canUseActivityGround(handle,x,z,radius=0){
+    const npc=this.peopleHandles.resolve(handle);if(!npc)return false;if(!npc.surfaceBinding)return true;
+    if(![x,z,radius].every(Number.isFinite)||radius<0||radius>40)return false;
+    const p=npc.surfaceBinding.propose(x,z,npc._surfaceReach||(npc._surfaceReach={}));if(!p.valid||!p.traversable)return false;
+    const id=p.surfaceId,height=p.height,world=npc.surfaceBinding.world,steps=Math.max(1,Math.ceil(radius));
+    for(let iz=-steps;iz<=steps;iz++)for(let ix=-steps;ix<=steps;ix++){const dx=ix*radius/steps,dz=iz*radius/steps;if(dx*dx+dz*dz>radius*radius+.001)continue;world.sampleSelected(x+dx,z+dz,id,p);if(!p.valid||!p.traversable||p.grade>.15||Math.abs(p.height-height)>.15*radius+.02)return false;}return true;
+  }
+
+  canReachCampSlot(handle, slot, bed, groundY=undefined) {
+    const npc = this.peopleHandles.resolve(handle);
+    if (!npc?.surfaceBinding) return true;
+    const p = npc.surfaceBinding.propose(bed ? slot.doorX : (slot.approachX ?? slot.x), bed ? slot.doorZ : (slot.approachZ ?? slot.z), npc._surfaceReach || (npc._surfaceReach = {}));
+    return p.valid && p.traversable && (!Number.isFinite(groundY)||Math.abs(groundY-p.height)<1);
   }
 
   _updateNpc(dt, npc, zerble, bubblePositions, cosCone, ctx) {
@@ -986,7 +1051,7 @@ export class Crowd {
       let nearest = Infinity;
       for (const id of registry.byKind.get('stage_front')) {
         const e = registry.entries.get(id);
-        if (!e) continue;
+        if (!e||npc.surfaceBinding&&!this.canReachPlace(npc.personHandle,e.position)) continue;
         const fx = npc.pos.x - e.position.x;
         const fz = npc.pos.z - e.position.z;
         const fd = Math.hypot(fx, fz);
@@ -1002,11 +1067,12 @@ export class Crowd {
 
     const dx = zerble.position.x - npc.pos.x;
     const dz = zerble.position.z - npc.pos.z;
-    const dToZerble = Math.hypot(dx, dz);
+    const dToZerble = npc.surfaceBinding&&Math.abs(npc.pos.y-zerble.position.y)>3?Infinity:Math.hypot(dx, dz);
 
     npc.shoppingBagTime = Math.max(0, (npc.shoppingBagTime || 0) - dt);
     if (this._tickMarket(dt, npc, zerble)) return;
     if (this.campJams.tickPerson(dt,npc.personHandle)) return;
+    if (npc.corridorRoute && this._tickCorridor(dt, npc)) return;
     if (this._tickCamp(dt, npc)) return;
 
     // Photographer reactions use an isolated state machine and RNG stream.
@@ -1101,8 +1167,7 @@ export class Crowd {
       const sp = 1.9 * npc.energy;
       npc.vel.x = THREE.MathUtils.lerp(npc.vel.x, (awx / al) * sp, Math.min(1, dt * 4));
       npc.vel.z = THREE.MathUtils.lerp(npc.vel.z, (awz / al) * sp, Math.min(1, dt * 4));
-      npc.pos.x += npc.vel.x * dt;
-      npc.pos.z += npc.vel.z * dt;
+      this._moveGroundNpc(npc, npc.pos.x + npc.vel.x * dt, npc.pos.z + npc.vel.z * dt);
       const yawAway = Math.atan2(-npc.vel.x, -npc.vel.z);   // face the way they're walking (away)
       npc.yaw += wrapAngle(yawAway - npc.yaw) * Math.min(1, dt * 5);
       npc.state = 'walking';
@@ -1231,7 +1296,7 @@ export class Crowd {
           // Target a RING around the attractor (40-100% of its radius) so crowds
           // distribute around the POI instead of all piling on the same center spot.
           const at = registry.pickAttractor(Math.random);
-          if (at && Math.hypot(at.position.x - npc.pos.x, at.position.z - npc.pos.z) < 60) {
+          if (at && Math.hypot(at.position.x - npc.pos.x, at.position.z - npc.pos.z) < 60 && this.canReachPlace(npc.personHandle,at.position)) {
             const ang = Math.random() * Math.PI * 2;
             const rad = (0.4 + Math.random() * 0.6) * at.radius;
             npc.target.set(
@@ -1395,7 +1460,7 @@ export class Crowd {
     // frame's positions at the top of update()). Same math, pruned candidates.
     const _tSep = this._perf.on ? performance.now() : 0;
     this._sepGrid.forEachNear(npc.pos.x, npc.pos.z, SEPARATION_RADIUS, (other) => {
-      if (other === npc || other.state === 'riding') return;
+      if (other === npc || other.state === 'riding' || npc.surfaceBinding&&Math.abs(other.pos.y-npc.pos.y)>2.5) return;
       const ox = npc.pos.x - other.pos.x;
       const oz = npc.pos.z - other.pos.z;
       const d2 = ox * ox + oz * oz;
@@ -1416,8 +1481,7 @@ export class Crowd {
     });
     if (this._perf.on) this._perf.sepMs += performance.now() - _tSep;
     // Apply hard-overlap push instantly (so NPCs never visually stack)
-    npc.pos.x += overlapPushX;
-    npc.pos.z += overlapPushZ;
+    this._moveGroundNpc(npc, npc.pos.x + overlapPushX, npc.pos.z + overlapPushZ);
 
     // --- steering modifiers ---
     if (speed > 0) {
@@ -1476,8 +1540,8 @@ export class Crowd {
     }
 
     // Apply velocity
-    npc.pos.x += npc.vel.x * dt;
-    npc.pos.z += npc.vel.z * dt;
+    if (npc.surfaceBinding) this._moveGroundNpc(npc, npc.pos.x + npc.vel.x * dt, npc.pos.z + npc.vel.z * dt);
+    else { npc.pos.x += npc.vel.x * dt; npc.pos.z += npc.vel.z * dt; }
 
     // Face direction of motion when walking/fleeing/approaching
     if (Math.abs(npc.vel.x) + Math.abs(npc.vel.z) > 0.4 && npc.state !== 'watching') {
@@ -1523,6 +1587,7 @@ export class Crowd {
         let gain = 0;
         if (inView) gain += 1.4 * closeness * (0.4 + 0.6 * aim);
         for (const bp of bubblePositions) {
+          if(npc.surfaceBinding&&Math.abs(bp.y-npc.pos.y)>3)continue;
           const bd = Math.hypot(bp.x - npc.pos.x, bp.z - npc.pos.z);
           if (bd < BUBBLE_RANGE) {
             gain += 1.0 * (1 - bd / BUBBLE_RANGE);
@@ -1897,6 +1962,13 @@ export class Crowd {
 
   _reservePassenger(npc,vehicle,slot,{allowPermanent=false}={}) {
     if(!this.peopleHandles.isLive(npc.personHandle)||npc.seatSlot||this.activityClaims.current.has(npc.personHandle))return false;
+    if (npc.surfaceBinding) {
+      if (!vehicle.surfaceBinding || !vehicle.worldSeatPosition || !slot) return false;
+      vehicle.worldSeatPosition(slot, this._tmpV);
+      const support = npc.surfaceBinding.propose(this._tmpV.x, this._tmpV.z, npc._surfaceReach || (npc._surfaceReach = {}));
+      if (!support.valid || !support.traversable || support.surfaceId !== vehicle.surfaceBinding.snapshot().surfaceId
+          || Math.abs(support.height - vehicle.position.y) > .5) return false;
+    }
     const reservation=this.seatReservations.reserve({person:npc.personHandle,vehicle,slot,allowPermanent});
     if(!reservation)return false;
     npc.seatSlot=slot;npc._seatReservation=reservation;return true;
@@ -1927,11 +1999,13 @@ export class Crowd {
   }
 
   releaseVehiclePassengers(vehicle) {
+    let complete=true;
     for(const npc of this.npcs)if(npc._seatReservation?.vehicle===vehicle){
+      if(npc.surfaceBinding&&npc.state==='riding'&&!this._landPassenger(npc,vehicle)){complete=false;continue;}
       this._releaseSeat(npc);npc.seatSlot=null;npc.seatY=undefined;npc.state='idle';npc.stateTimer=2;
       this._publishPerson(npc);
     }
-    this.seatReservations.releaseVehicle(vehicle);
+    if(complete)this.seatReservations.releaseVehicle(vehicle);return complete;
   }
 
   _tickBoarding(dt, npc, zerble, ctx) {
@@ -1976,8 +2050,8 @@ export class Crowd {
     const speed = 2.4 * npc.energy;
     npc.vel.x = THREE.MathUtils.lerp(npc.vel.x, dx * speed, Math.min(1, dt * 6));
     npc.vel.z = THREE.MathUtils.lerp(npc.vel.z, dz * speed, Math.min(1, dt * 6));
-    npc.pos.x += npc.vel.x * dt;
-    npc.pos.z += npc.vel.z * dt;
+    if (npc.surfaceBinding) this._moveGroundNpc(npc, npc.pos.x + npc.vel.x * dt, npc.pos.z + npc.vel.z * dt);
+    else { npc.pos.x += npc.vel.x * dt; npc.pos.z += npc.vel.z * dt; }
 
     // Face direction of motion
     const targetYaw = Math.atan2(-npc.vel.x, -npc.vel.z);
@@ -2022,19 +2096,44 @@ export class Crowd {
     // Disembark when the ride times out (and Zerble's idle), OR immediately if
     // the bubble tank ran dry — riders bail on a bubble-less cart.
     if (!npc.party && ((!vehicle && this.bubblesEmpty) || (npc.rideTimer <= 0 && (vehicle ? vehicle.state === 'parked' : Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED)))) {
+      // A rider retains the seat when every nearby exit crosses a cliff or closed deck edge.
+      if (npc.surfaceBinding && !this._landPassenger(npc, zerble)) { this._writeMatrices(npc); return; }
       this._releaseSeat(npc);
-      const seatPos = { x: out.x, z: out.z };
+      const seatPos = { x: npc.pos.x, z: npc.pos.z };
       npc.seatSlot = null;
       npc.seatY = undefined;
       npc.state = 'disembarking';
       // Pick a destination 3-6m away from where we got off
       const a = Math.random() * Math.PI * 2;
       const r = 3 + Math.random() * 3;
-      npc.target.set(seatPos.x + Math.cos(a) * r, 0, seatPos.z + Math.sin(a) * r);
+      if (npc.surfaceBinding) npc.target.set(seatPos.x, 0, seatPos.z);
+      else npc.target.set(seatPos.x + Math.cos(a) * r, 0, seatPos.z + Math.sin(a) * r);
       npc.stateTimer = 5;
     }
 
     this._writeMatrices(npc);
+  }
+
+  _landPassenger(npc, vehicle) {
+    if (!npc.surfaceBinding) return true;
+    if (!vehicle?.surfaceBinding) return false;
+    const accepted = vehicle.surfaceBinding.snapshot();
+    let landing;
+    try { landing = npc.surfaceBinding.fork({x:vehicle.position.x,z:vehicle.position.z,heading:vehicle.heading,surfaceId:accepted.surfaceId}); }
+    catch (error) { if (error instanceof RangeError) return false; throw error; }
+    for (const offset of [Math.PI/2,-Math.PI/2,Math.PI,0,Math.PI/4,-Math.PI/4,3*Math.PI/4,-3*Math.PI/4]) {
+      const angle=vehicle.heading+offset, x=vehicle.position.x+Math.sin(angle)*3.8, z=vehicle.position.z+Math.cos(angle)*3.8;
+      const support=landing.propose(x,z,npc._surfaceReach || (npc._surfaceReach={}));
+      if (!support.valid || !support.traversable) continue;
+      let clear=true;registry.collidersNear(x,z,.4,e=>{
+        if(vehicle.colliders?.includes(e))return;
+        const c=e.collider;if(c.minY!==undefined&&c.maxY!==undefined&&(support.height>e.position.y+c.maxY||support.height+2.5<e.position.y+c.minY))return;
+        if(Math.hypot(e.position.x-x,e.position.z-z)<c.radius+.4)clear=false;
+      });
+      if(!clear||this.npcs.some(other=>other!==npc&&!['riding','boarding'].includes(other.state)&&Math.abs(other.pos.y-support.height)<2.5&&Math.hypot(other.pos.x-x,other.pos.z-z)<.8))continue;
+      landing.commit(x,z,support);npc.surfaceBinding=landing;npc.pos.set(x,support.height,z);return true;
+    }
+    return false;
   }
 
   _tickDisembarking(dt, npc) {
@@ -2083,7 +2182,8 @@ export class Crowd {
     // copy that timer until they replace it with their own finite duration.
     if(step.rideTimer!==undefined&&step.rideTimer!==Infinity&&!Number.isFinite(step.rideTimer))throw new TypeError('Invalid rest timing profile.');
     const npc=this.peopleHandles.resolve(claim.person);
-    npc.pos.x=step.x;npc.pos.z=step.z;npc.vel.x=step.vx;npc.vel.y=step.vy;npc.vel.z=step.vz;npc.yaw=step.heading;
+    if (!this._moveGroundNpc(npc,step.x,step.z,step.heading)) return null;
+    npc.vel.x=step.vx;npc.vel.y=step.vy;npc.vel.z=step.vz;npc.yaw=step.heading;
     npc.state=state;npc.stateTimer=step.stateTimer;npc.rideTimer=step.rideTimer;
     npc.target.set(step.targetX,step.targetY,step.targetZ);return npc;
   }
@@ -2333,7 +2433,8 @@ export class Crowd {
     const distance=Math.hypot(x-npc.pos.x,z-npc.pos.z);
     if(travelDt!==null){const walk=npc._activityWalk??={};walk.claim=claim;walk.speed=travelDt>0&&distance<.5?distance/travelDt:0;}
     else npc._activityWalk=null;
-    npc.pos.set(x,y,z);if(heading!==null)npc.yaw=heading;if(bob!==null)npc.bob=bob;
+    if (!this._moveGroundNpc(npc,x,z,heading??npc.yaw)) return false;
+    npc.pos.y=y;if(heading!==null)npc.yaw=heading;if(bob!==null)npc.bob=bob;
     // Hidden rigs have no ordinary transform to publish; avoid redundant writes.
     if(!npc._activityBinding?.hidden)this._publishPerson(npc);
     return true;
@@ -2544,7 +2645,8 @@ export class Crowd {
       let c=n._personCollider;
       if(!c)c=n._personCollider={position:{x:0,y:0,z:0},radius:.45,damage:1,kind:'person',passive:false,entry:null,personHandle:handle,
         onContact:(_candidate,x,z)=>this.hitPerson(handle,x,z),onPeoplePenalty:()=>this.frownPerson(handle)};
-      c.position.x=n.pos.x;c.position.y=n.pos.y;c.position.z=n.pos.z;out.push(c);
+      c.position.x=n.pos.x;c.position.y=n.pos.y;c.position.z=n.pos.z;
+      c.minY=n.surfaceBinding?n.pos.y:undefined;c.maxY=n.surfaceBinding?n.pos.y+2.6*n.scale:undefined;out.push(c);
     }
   }
 
@@ -2572,12 +2674,11 @@ export class Crowd {
     victim.happiness = 0;
     // Apply an instant positional knockback so the cart doesn't keep grinding
     // through the same NPC frame after frame.
-    victim.pos.x += pushX * 0.6;
-    victim.pos.z += pushZ * 0.6;
+    this._moveGroundNpc(victim,victim.pos.x+pushX*.6,victim.pos.z+pushZ*.6);
     if(hadActivity)this._publishPerson(victim);
     // Panic cascade: nearby NPCs (within 6m) of any reasonable skittishness flee too
     for (const other of this.npcs) {
-      if (other === victim || other.state === 'riding' || other.state === 'boarding' || other.state === 'camp_sleeping' || other.campJamHidden) continue;
+      if (other === victim || victim.surfaceBinding&&Math.abs(other.pos.y-victim.pos.y)>3 || other.state === 'riding' || other.state === 'boarding' || other.state === 'camp_sleeping' || other.campJamHidden) continue;
       const dx = other.pos.x - victim.pos.x;
       const dz = other.pos.z - victim.pos.z;
       if (dx * dx + dz * dz > 36) continue;
@@ -2616,7 +2717,7 @@ export class Crowd {
     const r2 = radius * radius;
     const px = zerble.position.x, pz = zerble.position.z;
     for (const npc of this.npcs) {
-      if (this.activityClaims.current.has(npc.personHandle)||npc.campMusic || STAR_LOVE_SKIP.has(npc.state)) continue;
+      if (this.activityClaims.current.has(npc.personHandle)||npc.campMusic || STAR_LOVE_SKIP.has(npc.state)||npc.surfaceBinding&&Math.abs(npc.pos.y-zerble.position.y)>3) continue;
       const dx = npc.pos.x - px, dz = npc.pos.z - pz;
       if (dx * dx + dz * dz > r2) continue;
       npc.happiness = HAPPINESS_THRESHOLD;        // smitten

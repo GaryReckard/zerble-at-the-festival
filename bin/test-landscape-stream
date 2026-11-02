@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createLandscapeForm,formVertexHeight,createFormSurface,LANDSCAPE_FORM_IDS } from '../src/landscape/forms.js';
+import { createFiniteStream,sampleStream,buildStreamWater,createStreamSampler } from '../src/landscape/stream.js';
+import { createTriangleSampler } from '../src/landscape/geometry.js';
+import { createSupportBinding } from '../src/landscape/support.js';
+import { rectangleFootprint } from '../src/landscape/routes.js';
+const reports=[];
+for(const family of LANDSCAPE_FORM_IDS) {
+  const plan=createLandscapeForm(1977,family),surface=createFormSurface(plan),stream=plan.stream,before=JSON.stringify(plan),ground=createTriangleSampler((x,z)=>formVertexHeight(plan,x,z)),water=createStreamSampler(stream);
+  for(let i=1;i<stream.points.length;i++)assert.ok(stream.points[i].height<stream.points[i-1].height,'every station flows downstream');
+  assert.equal(stream.points.at(-1).height,stream.receiver.height);
+  assert.ok(stream.receiver.height<0,'receiver is independent of unrelated zero-level lakes');
+  let previous=Infinity;
+  for(let i=1;i<stream.points.length;i++){const a=stream.points[i-1],b=stream.points[i];for(let t=0;t<=1;t+=.05){const h=water(a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t).height;assert.ok(h<=previous+1e-9,'the rendered water profile also flows downstream');previous=h;}}
+  const data=buildStreamWater(stream,(x,z)=>formVertexHeight(plan,x,z));assert.ok(data.triangles>20&&data.triangles<1000);
+  let minimumDepth=Infinity;
+  for(let i=0;i<data.positions.length;i+=9) {
+    for(const weights of [[1/3,1/3,1/3],[.01,.49,.5],[.8,.1,.1]]) {
+      const point=[0,0,0];for(let v=0;v<3;v++)for(let axis=0;axis<3;axis++)point[axis]+=data.positions[i+v*3+axis]*weights[v];
+      const depth=point[1]-ground.sample(point[0],point[2]).height;minimumDepth=Math.min(minimumDepth,depth);
+      assert.ok(depth>=.00098,`water must remain above the exact cut triangle (${depth})`);
+      assert.ok(Math.abs(water(point[0],point[2]).height-point[1])<3e-6,'water queries match rendered clipped triangles');
+    }
+  }
+  const x=plan.road[0].x,z=-30;
+  assert.equal(surface.sampleTerrain(x,z).traversable,false,'ordinary terrain travel cannot drive into deep stream water');
+  assert.equal(surface.supportWorld.sampleSelected(x,z,plan.bridge.id).height,0);
+  assert.ok(ground.sample(x,z).height<stream.receiver.height-.5,'a real cut bed exists beneath the deck');
+  for(const end of [-60,0])for(let offset=-3;offset<=3;offset+=.25)assert.equal(ground.sample(x,end+offset).height,0,'whole-cart bridge approaches are exactly level on adjacent native triangles');
+  const walker=createSupportBinding(surface.supportWorld,{x,z:12},{footprint:rectangleFootprint(.3,.3)});
+  for(let current=12;current>=-70;current-=.25){const proposal=walker.propose(x,current);assert.ok(proposal.valid);walker.commit(x,current,proposal);if(current===-30)assert.equal(walker.snapshot().surfaceId,plan.bridge.id);}
+  assert.equal(walker.snapshot().surfaceId,'terrain');
+  const offBridge=createSupportBinding(surface.supportWorld,{x:x-35,z:12},{footprint:rectangleFootprint(.3,.3)});
+  let blocked=false;for(let current=12;current>=-50;current-=.25){const proposal=offBridge.propose(x-35,current);if(!proposal.valid){blocked=true;break;}offBridge.commit(x-35,current,proposal);}assert.ok(blocked,'a parallel foot approach is stopped by water without a deck');
+  assert.equal(JSON.stringify(plan),before,'geometry and travel never mutate water ownership');
+  assert.throws(()=>buildStreamWater(stream,(x,z)=>formVertexHeight(plan,x,z),{maxTriangles:1}),/triangle limit/);
+  assert.throws(()=>createFiniteStream({...stream,receiver:{...stream.receiver,height:0}}),/receiver level/);
+  assert.throws(()=>createFiniteStream({...stream,points:[stream.points[1],stream.points[0]]}),/descend/);
+  reports.push({family,stations:stream.points.length,waterTriangles:data.triangles,source:stream.points[0].height,receiver:stream.receiver.height,minimumDepth});
+}
+console.log('PASS finite streams: bounded downhill source/receiver ownership, independent receiver level, actual cut native-grid banks, clipped water/query triangle agreement, exactly level whole-cart bridge approaches, real pedestrian support transfers, off-deck water refusal and finite geometry limits.',JSON.stringify(reports));
+const floating=createFiniteStream({id:'negative-control',points:[{x:0,z:0,height:1},{x:50,z:0,height:.5}],receiver:{x:50,z:0,height:.5,radius:10}});
+assert.throws(()=>buildStreamWater(floating,()=>0),/contained/,'a blue ribbon above uncut ground cannot pass bank containment');

@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createTriangleSampler} from '../src/landscape/geometry.js';
+import {createSupportWorld,createSupportBinding} from '../src/landscape/support.js';
+import {rectangleFootprint,followRouteInput} from '../src/landscape/routes.js';
+import {createLandscapeForm,createFormSurface,LANDSCAPE_FORM_IDS} from '../src/landscape/forms.js';
+import {stepTerrainDrive} from '../src/terrainDriving.js';
+const near=(a,b,t=1e-7)=>assert.ok(Math.abs(a-b)<t,`${a} != ${b}`);
+function slope(grade,{heading=0,speed=0,hz=60,seconds=10,throttle=0,brake=false,dx=0,boost=false,slowMode=false,sputtering=false}={}) {
+  const geometry=createTriangleSampler((x,z)=>dx*x-grade*z),world=createSupportWorld({sampleTerrain:geometry.sample});
+  const binding=createSupportBinding(world,{x:0,z:0,heading},{allowSteepTerrain:true,footprint:rectangleFootprint(1.9,2.8)});
+  const cart={position:{x:0,z:0},heading,speed,sputtering,surfaceBinding:binding};let peak=0,minSpeed=Infinity;
+  for(let i=0;i<hz*seconds;i++){stepTerrainDrive(cart,{throttle,brake,boost,slow:slowMode},1/hz,binding.sample);peak=Math.max(peak,-cart.position.z);minSpeed=Math.min(minSpeed,cart.speed);}
+  return {...cart,peak,minSpeed,binding,world};
+}
+// Flat controls retain the shipped arcade response even when slope forces are
+// enabled. Check boost both from launch and while already cruising at 18m/s.
+const launch=slope(0,{throttle:1,seconds:1}),boostPickup=slope(0,{throttle:1,speed:18,seconds:.5,boost:true}),coast=slope(0,{speed:18,seconds:1});
+console.log('flat driving regression probe',JSON.stringify({launch:launch.speed,boostPickup:boostPickup.speed,coast:coast.speed,expectedCoast:18*Math.pow(.78,4)}));
+near(launch.speed,18,1e-6);
+assert.ok(boostPickup.speed>=26.9,'boost at normal cruising speed must deliver the original immediate acceleration');
+near(coast.speed,18*Math.pow(.78,4),1e-6);
+for(const hz of [30,60,120]){
+  near(slope(0,{throttle:1,boost:true,hz,seconds:.5,speed:18}).speed,27,1e-6);
+  near(slope(0,{throttle:1,boost:true,hz,seconds:2}).speed,27.9,1e-6);
+  near(slope(0,{speed:18,hz,seconds:1}).speed,18*Math.pow(.78,4),1e-6);
+  near(slope(0,{throttle:1,slowMode:true,boost:true,hz,seconds:2}).speed,7.2,1e-6);
+  near(slope(0,{throttle:1,boost:true,sputtering:true,hz,seconds:2}).speed,6.3,1e-6);
+  near(slope(0,{throttle:-1,boost:true,hz,seconds:2}).speed,-7,1e-6);
+}
+const released=slope(0,{throttle:1,speed:27.9,seconds:1/120,hz:120});
+assert.ok(released.speed>27,'releasing boost must not delete momentum');
+const settled=slope(0,{throttle:1,speed:27.9,seconds:10});assert.ok(settled.speed>=17.9&&settled.speed<=18.1,'normal throttle must settle after boost is released');
+near(slope(0,{speed:.2,seconds:1}).speed,0);
+assert.ok(slope(.01,{heading:Math.PI,seconds:2}).position.z>0,'release drag must not create a downhill parking hold');
+const report=[];
+for(const grade of [.6,1.2,2,4,12])for(const heading of [Math.PI,Math.PI+.35,-.35]) {
+  const c=slope(grade,{heading,seconds:3});assert.ok(c.position.z>1,`downhill must move freely at grade ${grade}, heading ${heading}`);
+  assert.ok(c.binding.sample(c.position.x,c.position.z).traversable);report.push({grade,heading,downhillMeters:c.position.z});
+}
+const gentle=slope(.8,{throttle:1});assert.ok(gentle.position.z<-8,'the previously blocked moderate bank is climbable');
+const steep=slope(1.4,{throttle:1,speed:18,seconds:15});assert.ok(steep.peak>8&&steep.speed<0,'run-up climbs then naturally stalls and rolls back with throttle held');
+const still=slope(1.4,{throttle:1});assert.ok(still.position.z>1,'insufficient motor force cannot hold a steep ascent');
+const slow=slope(1.4,{throttle:1,speed:8});assert.ok(steep.peak>slow.peak*2,'more initial momentum carries the cart farther');
+const frame=slope(1.4,{speed:18,throttle:1,seconds:1/120,hz:120});assert.ok(frame.speed>17,'steep ground cannot zero momentum on contact');
+const held=slope(2,{brake:true});near(held.position.z,0);near(held.speed,0);
+const a=slope(1.4,{speed:18,throttle:1,hz:30}),b=slope(1.4,{speed:18,throttle:1,hz:60}),c=slope(1.4,{speed:18,throttle:1,hz:120});near(a.position.z,b.position.z);near(a.speed,c.speed);
+const strict=createSupportBinding(gentle.world,{x:0,z:0,heading:0},{allowSteepTerrain:true});assert.equal(strict.fork({x:0,z:0}).allowSteepTerrain,true);
+assert.throws(()=>createSupportBinding(gentle.world,{x:0,z:0}),/support/,'ordinary route/walker admission remains strict');
+const bounded=createTriangleSampler((x,z)=>-z,{bounds:{minX:-5,maxX:5,minZ:-5,maxZ:5}}),boundedBinding=createSupportBinding(createSupportWorld({sampleTerrain:bounded.sample}),{x:0,z:0},{allowSteepTerrain:true});
+assert.equal(boundedBinding.propose(6,0).traversable,false,'slope driving never bypasses world bounds');
+const form=createLandscapeForm(1977,'three-shelves'),surface=createFormSurface(form),wet=form.stream.points.find(p=>surface.sampleTerrain(p.x,p.z).blockedReason==='water');assert.ok(wet);
+assert.throws(()=>createSupportBinding(surface.supportWorld,wet,{allowSteepTerrain:true}),/support/,'water remains unsupported');
+const bridge=createSupportBinding(surface.supportWorld,{x:form.road[0].x,z:-30,surfaceId:form.bridge.id},{allowSteepTerrain:true});
+assert.equal(bridge.propose(form.bridge.bounds.maxX+1,-30).reason,'closed-edge','steep driving cannot bypass bridge side rails');
+
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:800,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {Zerble}=await import('../src/zerble.js');const cart=new Zerble();let maxPlaneContact=0;
+for(const grade of [.6,1.2,2,4])for(const heading of [0,.4,Math.PI]){
+  const plane=createTriangleSampler((x,z)=>.25*x-grade*z);cart.surfaceBinding=createSupportBinding(createSupportWorld({sampleTerrain:plane.sample}),{x:0,z:0,heading},{allowSteepTerrain:true,footprint:rectangleFootprint(1.9,2.8)});cart.surfaceSampler=cart.surfaceBinding.sample;cart.position.set(0,0,0);cart.heading=heading;cart.speed=0;cart.groundOnSurface();maxPlaneContact=Math.max(maxPlaneContact,cart.contactError);
+  assert.ok(cart.contactError<.02,`steep normal wheel clearance ${grade}/${heading}: ${cart.contactError}`);
+}
+const flatWorld=createSupportWorld({sampleTerrain:createTriangleSampler(()=>0).sample});
+function realFlat({speed=0,boost=false,throttle=1,seconds=1}){
+  cart.surfaceBinding=createSupportBinding(flatWorld,{x:0,z:0,heading:0},{allowSteepTerrain:true,footprint:rectangleFootprint(1.9,2.8)});cart.surfaceSampler=cart.surfaceBinding.sample;cart.position.set(0,0,0);cart.heading=0;cart.speed=speed;cart.groundOnSurface();
+  for(let i=0;i<seconds*60;i++)cart.update(1/60,{throttle,boost,steer:0},0);
+  return {speed:cart.speed,isBoosting:cart.isBoosting};
+}
+near(realFlat({}).speed,18,1e-6);const realBoost=realFlat({speed:18,boost:true,seconds:.5});near(realBoost.speed,27,1e-6);assert.equal(realBoost.isBoosting,true);
+const realCoast=realFlat({speed:18,throttle:0});near(realCoast.speed,18*Math.pow(.78,4),1e-6);assert.equal(realCoast.isBoosting,false);
+const routes=[];
+for(const id of LANDSCAPE_FORM_IDS){
+  const plan=createLandscapeForm(1977,id),surface=createFormSurface(plan),start=plan.route[0];cart.surfaceBinding=createSupportBinding(surface.supportWorld,start,{allowSteepTerrain:true,footprint:rectangleFootprint(1.9,2.8)});cart.surfaceSampler=cart.surfaceBinding.sample;cart.position.set(start.x,0,start.z);cart.heading=0;cart.speed=0;cart.groundOnSurface();
+  for(const points of [plan.route,[...plan.route].reverse()]){const state={},input={};let frames=0,maxContact=0;for(;frames<60*240&&!state.done;frames++){followRouteInput(cart,points,state,input);cart.update(1/60,input,0);maxContact=Math.max(maxContact,cart.contactError);}assert.ok(state.done,`${id} ordinary-control round trip ${cart.position.x},${cart.position.z}`);assert.ok(maxContact<.02,`${id} route contact ${maxContact}`);routes.push({id,seconds:frames/60,maxContact});}
+}
+console.log('PASS force-based landscape driving: original flat acceleration/boost/release drag, boost release/slow/sputter/reverse and real-cart sound-state agreement, downhill from rest at all tested grades, climbable moderate slopes, momentum/stall/rollback, brake hold, frame-rate equivalence, strict walker/placement policy, bounds/water/deck edges, real cart steep contacts and three-family return routes.',JSON.stringify({report,runUpMeters:steep.peak,slowRunUpMeters:slow.peak,maxPlaneContact,routes}));

@@ -240,7 +240,7 @@ export class PottyActivity {
     for (const id of ids) {
       if (tried && tried.includes(id)) continue;
       const e = this.registry.entries.get(id);
-      if (!e || !e.potty) continue;
+      if (!e || !e.potty||this.people.canReachPlace&&!this.people.canReachPlace(npc.person,e.position)) continue;
       const dx = e.position.x - npc.pos.x;
       const dz = e.position.z - npc.pos.z;
       const d2 = dx * dx + dz * dz;

@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Group,Vector3} from 'three';
+import {mulberry32} from '../src/rng.js';
+import {createTriangleSampler} from '../src/landscape/geometry.js';
+import {createSupportWorld} from '../src/landscape/support.js';
+import {createLandscapePeopleAdapter} from '../src/landscape/peopleAdapter.js';
+import {resolveCollision} from '../src/collisionContacts.js';
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:800,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {Crowd}=await import('../src/crowd.js'),{registry}=await import('../src/registry.js'),{KidGaggle}=await import('../src/people/children.js'),{Wooks}=await import('../src/people/wooks.js'),{PuppetParade}=await import('../src/people/puppetParade.js'),{BrassBand}=await import('../src/people/brassBand.js'),{Birds}=await import('../src/birds.js'),{BIRD_SPECIES}=await import('../src/models/bird.js'),{disposeSceneResources}=await import('../src/sceneResources.js');
+const baseline=registry.entries.size,crowd=new Crowd({spawn(){},spawnLost(){}}),deck={id:'people-test-deck',height:0,bounds:{minX:-80,maxX:80,minZ:-80,maxZ:80},approaches:[]};
+const lower=createTriangleSampler(()=>-10),world=createSupportWorld({sampleTerrain:lower.sample,decks:[deck]});crowd.surfaceWorld=world;
+const spawn=(surfaceId='terrain')=>{const n=crowd.spawn({pos:new Vector3(0,surfaceId==='terrain'?-10:0,-1),rng:mulberry32(4),allowPhotographer:false,surfaceId});assert.ok(n);n.groupId=null;return n;};
+const below=spawn(),above=spawn(deck.id),target={x:2,y:0,z:2};
+assert.equal(crowd.canReachPlace(below.personHandle,target),false);assert.equal(crowd.canReachPlace(above.personHandle,target),true);
+assert.equal(crowd.canReachCampSlot(below.personHandle,{x:2,z:2,approachX:2,approachZ:2},false,0),false,'a lower person cannot claim a higher camp seat');
+assert.equal(crowd.canReachCampSlot(below.personHandle,{x:2,z:2,doorX:2,doorZ:2},true,0),false,'a lower person cannot claim a higher sleeping tent');
+assert.equal(crowd.canUseActivityGround(above.personHandle,2,2,3),true);
+const table={kind:'picnic_table',position:new Vector3(2,0,2),footprint:1,tableSeats:[{x:2,y:1,z:2,yaw:0,occupied:false}]};registry.add(table);
+assert.equal(crowd.picnics.tryClaim(below.personHandle),false);assert.equal(crowd.picnics.tryClaim(above.personHandle),true);assert.equal(table.tableSeats[0].occupied,true);
+crowd.removeNpc(above);assert.equal(table.tableSeats[0].occupied,false);registry.remove(table.id);
+const hammock={kind:'hammock',position:new Vector3(2,0,2),footprint:1,hammock:{occupied:false}};registry.add(hammock);const upper=spawn(deck.id);
+assert.equal(crowd.hammocks.tryClaim(below.personHandle),false);assert.equal(crowd.hammocks.tryClaim(upper.personHandle),true);crowd.removeNpc(upper);assert.equal(hammock.hammock.occupied,false);registry.remove(hammock.id);
+const colliders=[];crowd.appendColliders(colliders,{position:new Vector3(),colliderHeight:4.1});assert.equal(colliders.length,1);assert.equal(colliders[0].minY,-10);assert.ok(colliders[0].maxY<0);
+const cart={position:new Vector3(),heading:0,speed:3,radius:1.9,colliderHeight:4.1,applyHit(){throw new Error('A different floor caused a hit');}};assert.equal(resolveCollision(cart,colliders),null);
+const before=below.surfaceBinding.snapshot();assert.equal(crowd._moveGroundNpc(below,81,-1),false,'person movement cannot bypass the bounded support sweep');
+// Terrain underneath remains free, so this is a distance-work refusal rather
+// than an implicit transfer to the deck above.
+assert.deepEqual(below.surfaceBinding.snapshot(),before);
+const edge=crowd.spawn({pos:new Vector3(79,0,0),rng:mulberry32(6),allowPhotographer:false,surfaceId:deck.id});assert.ok(edge);const edgeBefore=edge.surfaceBinding.snapshot();assert.equal(crowd._moveGroundNpc(edge,81,0),false);assert.deepEqual(edge.surfaceBinding.snapshot(),edgeBefore);crowd.removeNpc(edge);
+for(const npc of [...crowd.npcs])crowd.removeNpc(npc);assert.equal(registry.entries.size,baseline);
+
+const bank=createTriangleSampler((x)=>Math.max(0,x)*1.2),bankWorld=createSupportWorld({sampleTerrain:bank.sample});
+const access=createLandscapePeopleAdapter({supportWorld:bankWorld,owners:new Map(),access:{query:()=>[]}}),actor=new Group();actor.position.set(-3,0,0);assert.ok(access.ground(actor));actor.position.x=5;assert.equal(access.ground(actor),false);assert.equal(actor.position.x,-3,'a whole swept pedestrian move cannot cross the bank');actor.position.set(-8,0,0);assert.ok(access.ground(actor,{relocate:true}));
+const badLoop=[new Vector3(-20,0,-20),new Vector3(20,0,-20),new Vector3(20,0,20),new Vector3(-20,0,20)];assert.equal(access.loopAllowed(badLoop),false);const base=badLoop.map(p=>p.clone());assert.ok(access.prepareLoop(badLoop,base,{x:0,z:0},new Vector3(-200,0,0)));assert.ok(access.loopAllowed(badLoop));
+const kids=new KidGaggle({gaggleCount:1,surfaceAccess:access}),wooks=new Wooks({surfaceAccess:access,initialNear:0,initialFar:0}),puppets=new PuppetParade({surfaceAccess:access,preview:true}),band=new BrassBand({surfaceAccess:access,preview:true});
+try {
+ for(let i=0;i<kids.kids.length;i++){const kid=kids.kids[i];kid.position.set(-5,0,i*2);assert.ok(access.ground(kid,{radius:.4,relocate:true}));kid.userData.center.copy(kid.position);}
+ const player={position:new Vector3(8,10,0),heading:0,speed:0,forwardWorld:new Vector3(0,0,-1),nozzleWorld:new Vector3(8,11,0)};let smiles=0;
+ const bubbles={forEachAlive(visit){visit({pos:new Vector3(5,12,0)});}};
+ for(let i=0;i<120;i++){kids.update(1/60,bubbles,player,{spawn(){smiles++;}});wooks.update(1/60,player.position,0);puppets.update(1/60,new Vector3(-200,0,0),0);band.update(1/60,new Vector3(-200,0,0));}
+ assert.ok(puppets.group.visible&&band.group.visible,'both actual formations find a finite safe loop');assert.ok(wooks.wooks.some(w=>w.visible));
+ const distantFloor=[];wooks.copyPositions(distantFloor,new Vector3(0,20,0));assert.equal(distantFloor.length,0,'a wook on another floor cannot offer a trip through the ground');
+ assert.equal(smiles,0,'children do not smile at an unreachable cart on another floor');
+ for(const root of [...kids.kids,...wooks.wooks,...puppets.puppets,...band.members])if(root.visible){assert.ok(root.surfaceBinding,'every visible independent person has support');const p=root.surfaceBinding.sample(root.position.x,root.position.z);assert.ok(p.valid&&p.traversable);assert.ok(root.position.x<0,'independent people do not occupy the forbidden bank');}
+ const c=[];kids.appendColliders(c);wooks.appendColliders(c);puppets.appendColliders(c);band.appendColliders(c);assert.ok(c.length);assert.ok(c.every(p=>Number.isFinite(p.minY)&&Number.isFinite(p.maxY)&&p.maxY>=p.minY));
+}finally{kids.dispose();wooks.dispose();puppets.dispose();band.dispose();}
+const birds=new Birds({airFloor:()=>30}),bird=birds.birds[0];bird.pos.set(0,-10,0);bird.vel.set(1,0,0);bird.state='flying';birds._updateFlying(bird,BIRD_SPECIES[bird.species],1/60,new Vector3(),0,0);assert.ok(bird.pos.y>=30.5,'birds remain above raised terrain, water and deck air clearance');disposeSceneResources(birds.group);
+assert.equal(registry.entries.size,baseline);
+console.log('PASS landscape people: real pooled Crowd floor selection, unreachable seat/bed/table/hammock refusal, live vertical contacts, swept support/work bounds, finite formation alternatives, actual children/wooks/parade/band support and teardown, cross-floor child eligibility and raised bird air clearance.');

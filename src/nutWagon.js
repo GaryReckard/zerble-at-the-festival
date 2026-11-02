@@ -1,3 +1,4 @@
+import {WAGON_SUPPORT_FOOTPRINT} from './landscape/moverAdapter.js';
 import * as THREE from 'three';
 import {terrainHeight} from './worldgen/terrain.js';
 import {seatBoInWagon} from './models/bo.js';
@@ -12,7 +13,8 @@ import {NUT_WAGON_TUNING as T, wagonRoutes, sampleWagonRoute, wagonOverlapsCircl
 import {disposeSceneResources} from './people/sceneResources.js';
 
 export class NutWagon {
-  constructor(scene, crowd, {music = true} = {}) {
+  constructor(scene, crowd, {music = true,surfaceAdapter=null} = {}) {
+    this.surfaceAdapter=surfaceAdapter;
     this.scene = scene; this.crowd = crowd; this.musicEnabled = music;
     this.root = null; this.position = new THREE.Vector3(); this.heading = 0;
     this.speed = 0; this.waitReason = null; this.active = false; this.state = 'absent';
@@ -21,15 +23,17 @@ export class NutWagon {
     this.seatSlots = []; this.sample = {}; this.nextSample = {};
     this._frustum = new THREE.Frustum(); this._matrix = new THREE.Matrix4();
     this._sphere = new THREE.Sphere(new THREE.Vector3(), 8);
+    this._terrainPoint=new THREE.Vector3();this._terrainUp=new THREE.Vector3();this._terrainSample={};
     this.clock = 0; this.boardTimer = 0; this.gatherTimer = 0; this.gatheringStop = false;
     this.lastStop = new THREE.Vector3();this._queryScratch={};
   }
 
   clearAt(x, z, yaw = this.root?.rotation.y || 0) {
-    if (wagonTouchesWater(x, z, yaw, lakeAt)) return false;
+    if (wagonTouchesWater(x, z, yaw, lakeAt)||this.surfaceAdapter&&!this.surfaceAdapter.supportsPose(x,z,yaw+Math.PI,WAGON_SUPPORT_FOOTPRINT)) return false;
     let clear = true;
     registry.collidersNear(x, z, 6, e => {
       if (e.kind === 'nut_wagon' || e.kind === 'lurleen' || e.kind === 'puppet' || e.kind === 'brass_band') return;
+      if(this.surfaceAdapter&&!this.surfaceAdapter.verticalOverlap(e,this.surfaceAdapter.roadHeight(x,z),4))return;
       if (wagonOverlapsCircle(x, z, yaw, e.position.x, e.position.z, e.collider.radius)) clear = false;
     });
     return clear;
@@ -40,7 +44,7 @@ export class NutWagon {
     if (this.active) return true;
     const {heart} = nearestHeart(player.x, player.z);
     if (!heart) return false;
-    const routes = wagonRoutes(approachRoadsOf(heart).map(r => r.oriented), player, (x, z, yaw) => this.clearAt(x, z, yaw) && this.clearAt(x, z, yaw + Math.PI));
+    const routes = wagonRoutes([...approachRoadsOf(heart).map(r => r.oriented),...(this.surfaceAdapter?.roadsNear(player)||[]).map(r=>r.points)], player, (x, z, yaw) => this.clearAt(x, z, yaw) && this.clearAt(x, z, yaw + Math.PI));
     if (camera) this._frustum.setFromProjectionMatrix(this._matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     const candidates = [];
     for (const route of routes) {
@@ -62,12 +66,15 @@ export class NutWagon {
   spawnOnRoute(route, distance = 0) {
     if(this._disposed)return false;
     if (route.points.length < 2 || route.length <= 0) return false;
-    this.despawn(); this.route = route; this.distance = distance; this.direction = 1;
+    sampleWagonRoute(route,distance,this.sample);
+    const support=this.surfaceAdapter?.binding(this.sample.x,this.sample.z,this.sample.heading+Math.PI,WAGON_SUPPORT_FOOTPRINT);
+    if(this.surfaceAdapter&&!support)return false;
+    if(this.despawn()===false)return false;this.surfaceBinding=support||null; this.route = route; this.distance = distance; this.direction = 1;
     this.root = buildNutWagon(); this.root.scale.setScalar(T.worldScale); this.scene.add(this.root);
     this.active = true; this.state = 'parked'; this.stopTimer = T.stopSeconds; this.cruiseTimer = 0;
     this.gatheringStop = false; this.gatherTimer = 0; this.boardTimer = 0; this.blockedTimer = 0;
     sampleWagonRoute(route, distance, this.sample);
-    this.position.set(this.sample.x, terrainHeight(this.sample.x, this.sample.z), this.sample.z); this.root.position.copy(this.position);
+    this.position.set(this.sample.x, this.surfaceBinding?this.surfaceAdapter.height(this.surfaceBinding,this.sample.x,this.sample.z):terrainHeight(this.sample.x, this.sample.z), this.sample.z); this.root.position.copy(this.position);
     this.root.rotation.y = this.sample.heading; this.heading = this.sample.heading + Math.PI;
     this.root.updateMatrixWorld(true);
     this.seatSlots = NUT_WAGON_MOUNTS.map(m => ({
@@ -77,11 +84,11 @@ export class NutWagon {
     }));
     for (const z of [-1.35, .5, 2.5]) {
       const e = {kind: 'nut_wagon', position: new THREE.Vector3(), footprint: 1.5 * T.worldScale,
-        collider: {radius: (z === 2.5 ? 1 : 1.25) * T.worldScale, damage: .08}, localZ: z};
+        collider: {radius: (z === 2.5 ? 1 : 1.25) * T.worldScale, damage: .08,...(this.surfaceAdapter?{minY:0,maxY:4}:{})}, localZ: z};
       this.colliders.push(e); this.ids.push(registry.add(e));
     }
     this.sync(); this.lastStop.copy(this.position);
-    const driver=this.crowd.spawnPerson({pos:this.position.clone(),rng:this.rng});
+    const driver=this.crowd.spawnPerson({pos:this.position.clone(),rng:this.rng,...(this.surfaceBinding?{surfaceId:this.surfaceBinding.snapshot().surfaceId}:{})});
     if(!driver){this.despawn();return false;}
     this.driverModel=seatBoInWagon(this.root,NUT_WAGON_MOUNTS[0]);
     if(!this.crowd.seatPerson(driver,this,this.seatSlots[0],{allowPermanent:true,scale:.9,snap:false})){
@@ -98,7 +105,22 @@ export class NutWagon {
     return out.set(slot.x, slot.y, slot.z).applyMatrix4(this.root.matrixWorld);
   }
 
+  groundOnSupport(){
+    const sample=this.surfaceBinding.sample,probe=this._terrainSample,c=Math.cos(this.root.rotation.y),s=Math.sin(this.root.rotation.y),wheels=this.root.userData.wheels,scale=T.worldScale;
+    let front=0,back=0,left=0,right=0,spanZ=0,spanX=0;
+    for(const wheel of wheels){const p=wheel.position;sample(this.position.x+(p.x*c+p.z*s)*scale,this.position.z+(-p.x*s+p.z*c)*scale,probe);if(p.z<0)front+=probe.height;else back+=probe.height;if(p.x<0)left+=probe.height;else right+=probe.height;spanZ+=Math.abs(p.z)*scale/2;spanX+=Math.abs(p.x)*scale/2;}
+    const fore=(front-back)/2/spanZ,side=(right-left)/2/spanX,pitch=Math.atan(fore),roll=Math.atan2(side,Math.hypot(1,fore));
+    this.position.y=(front+back)/4;this.root.position.copy(this.position);this.root.rotation.set(pitch,this.root.rotation.y,roll,'YXZ');this.root.updateMatrixWorld(true);
+    const up=this._terrainUp.set(0,scale,0).applyQuaternion(this.root.quaternion);this.terrainContactError=0;
+    for(const wheel of wheels){
+      wheel.position.y=.315;
+      for(let i=0;i<4;i++){this._terrainPoint.copy(wheel.position).applyMatrix4(this.root.matrixWorld);sample(this._terrainPoint.x,this._terrainPoint.z,probe);const error=probe.height+.315*scale*Math.hypot(1,probe.dx,probe.dz)-this._terrainPoint.y;wheel.position.y=Math.max(.115,Math.min(.515,wheel.position.y+error/(up.y-probe.dx*up.x-probe.dz*up.z)));}
+      this._terrainPoint.copy(wheel.position).applyMatrix4(this.root.matrixWorld);sample(this._terrainPoint.x,this._terrainPoint.z,probe);this.terrainContactError=Math.max(this.terrainContactError,Math.abs(probe.height+.315*scale*Math.hypot(1,probe.dx,probe.dz)-this._terrainPoint.y));
+    }
+  }
+
   sync() {
+    if(this.surfaceBinding)this.groundOnSupport();
     this.root.position.copy(this.position); this.root.updateMatrixWorld(true);
     this.heading = this.root.rotation.y + Math.PI;
     for (const e of this.colliders) e.position.set(0, 0, e.localZ).applyMatrix4(this.root.matrixWorld);
@@ -172,15 +194,15 @@ export class NutWagon {
       const travelX = Math.sin(this.nextSample.heading) * this.direction;
       const travelZ = Math.cos(this.nextSample.heading) * this.direction;
       const playerAhead = (player.x - this.position.x) * travelX + (player.z - this.position.z) * travelZ > 0;
-      const nearPlayer = playerAhead && wagonOverlapsCircle(
+      const nearPlayer = playerAhead && (!this.surfaceBinding||Math.abs(player.y-this.position.y)<4) && wagonOverlapsCircle(
         this.nextSample.x, this.nextSample.z, nextYaw, player.x, player.z, 1.8,
       );
       this.waitReason = nearPlayer ? 'yielding to Zerble'
         : !canTurn ? 'blocked turn'
         : Math.abs(delta) >= .12 ? 'aligning with road' : null;
       if (canTurn && !nearPlayer) this.root.rotation.y = nextYaw;
-      if (canTurn && Math.abs(delta) < .12 && !nearPlayer && this.clearAt(this.nextSample.x, this.nextSample.z, nextYaw)) {
-        this.distance = next; this.position.set(this.nextSample.x, terrainHeight(this.nextSample.x, this.nextSample.z), this.nextSample.z); this.speed = this.direction * T.speed;
+      if (canTurn && Math.abs(delta) < .12 && !nearPlayer && this.clearAt(this.nextSample.x, this.nextSample.z, nextYaw) && (!this.surfaceBinding||this.surfaceAdapter.move(this.surfaceBinding,this.nextSample.x,this.nextSample.z,nextYaw+Math.PI))) {
+        this.distance = next; this.position.set(this.nextSample.x, this.surfaceBinding?this.surfaceAdapter.height(this.surfaceBinding,this.nextSample.x,this.nextSample.z):terrainHeight(this.nextSample.x, this.nextSample.z), this.nextSample.z); this.speed = this.direction * T.speed;
         for (const wheel of this.root.userData.wheels) wheel.rotation.x += this.speed * dt / (.315 * T.worldScale);
         this.cruiseTimer += dt; this.blockedTimer = 0;
       } else if (canTurn && Math.abs(delta) >= .12 && !nearPlayer) {
@@ -208,18 +230,18 @@ export class NutWagon {
 
   despawn() {
     const errors=[],release=fn=>{try{fn();}catch(error){errors.push(error);}};
-    release(()=>this.crowd.releaseVehiclePassengers(this));
+    let released=true;release(()=>{if(this.crowd.releaseVehiclePassengers(this)===false)released=false;});if(!released)return false;
     for (const id of this.ids) release(()=>registry.remove(id));
     this.ids.length = 0; this.colliders.length = 0; this.seatSlots.length = 0;
     const music=this.music;this.music = null; this.musicEntry = null;
     release(()=>Sound.detachStageMusic(music));
     const root=this.root;this.root = null; this.driverModel = null;
-    this.active = false; this.state = 'absent'; this.speed = 0;
+    this.active = false; this.state = 'absent'; this.speed = 0;this.surfaceBinding=null;
     if(root){release(()=>root.removeFromParent());release(()=>disposeSceneResources(root));}
     if(errors.length)throw new AggregateError(errors,'Nut wagon cleanup failed.');
   }
 
-  dispose(){if(this._disposed)return;this._disposed=true;this.despawn();}
+  dispose(){if(this._disposed)return true;if(this.despawn()===false)return false;this._disposed=true;return true;}
 
   status() {
     return {active: this.active, state: this.state, speed: this.speed, gear: this.direction < 0 ? 'reverse' : 'forward',

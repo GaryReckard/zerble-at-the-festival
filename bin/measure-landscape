@@ -1,0 +1,45 @@
+#!/usr/bin/env node
+// Bounded Node allocation/census probe. No renderer or device-FPS claims.
+import assert from 'node:assert/strict';
+import {writeFileSync} from 'node:fs';
+import {Scene} from 'three';
+import {setSessionSeed} from '../src/rng.js';
+import {setLandscapeVersion,landscapeCandidateInCell} from '../src/worldgen/landscapeCandidates.js';
+import {setTerrainEnabled} from '../src/worldgen/terrain.js';
+import {landscapeContextFor} from '../src/worldgen/landscapeContext.js';
+import {createLandscapeAdmission} from '../src/worldgen/landscape.js';
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:800,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {registry}=await import('../src/registry.js'),{createMountainDistrictBuild}=await import('../src/landscape/districtBuild.js');
+const scene=new Scene(),baseline=registry.entries.size,results=[];
+function census(root){
+ const geometries=new Set(),materials=new Set(),buffers=new Set();let draws=0,triangles=0,bytes=0,casters=0;
+ root.updateMatrixWorld(true);
+ root.traverseVisible(o=>{
+  if(!o.isMesh||!o.geometry)return;const n=o.isInstancedMesh?o.count:1;if(!n)return;
+  draws+=Array.isArray(o.material)?o.geometry.groups.length:1;triangles+=(o.geometry.index?.count||o.geometry.attributes.position.count)/3*n;casters+=o.castShadow?1:0;
+  geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);
+  for(const a of [o.geometry.index,...Object.values(o.geometry.attributes),o.instanceMatrix,o.instanceColor])if(a?.array&&!buffers.has(a.array.buffer)){buffers.add(a.array.buffer);bytes+=a.array.byteLength;}
+ });
+ return {drawsBeforeFrustum:draws,trianglesBeforeFrustum:triangles,geometries:geometries.size,materials:materials.size,bufferBytes:bytes,casters};
+}
+try{
+ setLandscapeVersion(2);setTerrainEnabled(true);setSessionSeed(1977);
+ const candidate=landscapeCandidateInCell(-1,-1),start=performance.now(),context=landscapeContextFor(candidate),contextMs=performance.now()-start;
+ const admission=createLandscapeAdmission(candidate,context),admitStart=performance.now();while(!admission.done)admission.step({maxSteps:128,deadline:Infinity});assert.ok(admission.result.valid);
+ const admissionMs=performance.now()-admitStart,options={plan:admission.result.plan,admission:admission.result.receipt,cullDetail:true};
+ for(let cycle=0;cycle<4;cycle++){
+  const job=createMountainDistrictBuild(scene,context.surface,options);while(!job.done)job.step({maxSteps:1,deadline:Infinity});assert.ok(job.result.valid,job.result.message);
+  const owner=job.result.owner,p=options.plan.shelves[0],near={x:(p.minX+p.maxX)/2,z:(p.minZ+p.maxZ)/2};
+  owner.visibility.update(near);const nearCensus=census(owner.root),startUpdate=performance.now();
+  for(let i=0;i<600;i++)owner.update(i/60,.7,1/60,{position:{x:near.x+Math.sin(i/60)*40,z:near.z}});
+  const updateMs=performance.now()-startUpdate;
+  owner.visibility.update({x:near.x+1500,z:near.z+1500});const farCensus=census(owner.root);
+  const resources=new Map();owner.root.traverse(o=>{for(const r of [o.isInstancedMesh?o:null,o.geometry,...(Array.isArray(o.material)?o.material:[o.material])])if(r&&!resources.has(r)){resources.set(r,0);r.addEventListener('dispose',()=>resources.set(r,resources.get(r)+1));}});
+  assert.equal(owner.dispose(),true);assert.equal(scene.children.length,0);assert.equal(registry.entries.size,baseline);
+  for(const [resource,count]of resources)assert.equal(count,resource.userData.shared?0:1,'instance buffers and private resources dispose once; shared pools survive');
+  results.push({cycle,...job.stats(),camps:owner.camps.length,near:nearCensus,far:farCensus,update600Ms:updateMs,resourceCount:resources.size});
+ }
+ const result={date:'2026-11-01',environment:{runtime:process.version,platform:process.platform,arch:process.arch,renderer:false},seed:1977,candidate:candidate.id,contextMs,admissionMs,results,limits:'Node model-allocation and pre-frustum district-only census; excludes surrounding world, GPU uploads, shadows passes, actual render culling and physical device frame delivery.'};
+ const out=process.argv.indexOf('--out');if(out>=0)writeFileSync(process.argv[out+1],JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));
+}finally{setLandscapeVersion(1);setTerrainEnabled(false);setSessionSeed(0);}

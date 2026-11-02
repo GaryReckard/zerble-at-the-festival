@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createTriangleSampler,buildHeightGrid } from '../src/landscape/geometry.js';
+import { LANDSCAPE_FORM_IDS,createLandscapeForm,formVertexHeight,createFormSurface,validateLandscapeForm } from '../src/landscape/forms.js';
+import { createSupportBinding } from '../src/landscape/support.js';
+import { rectangleFootprint,validateRoute,followRouteInput } from '../src/landscape/routes.js';
+
+const height=(x,z)=>Math.sin(x*.03)*7+Math.cos(z*.025)*4+x*z*.0001;
+const fine=createTriangleSampler(height,{stepX:2,stepZ:1}),coarse=createTriangleSampler(height,{cacheLimit:3});
+for(const [sampler,stepX,stepZ] of [[fine,2,1],[coarse,10,10]]) {
+  const mesh=buildHeightGrid(height,{minX:-60,maxX:60,minZ:-80,maxZ:40,stepX,stepZ});
+  for(let t=0;t<mesh.indices.length;t+=17*3) {
+    const p=[0,0,0],weights=[.19,.33,.48];
+    [...mesh.indices.slice(t,t+3)].forEach((id,i)=>{for(let a=0;a<3;a++)p[a]+=mesh.positions[id*3+a]*weights[i];});
+    assert.ok(Math.abs(sampler.sample(p[0],p[2]).height-p[1])<2e-6,'anisotropic and native grids agree with actual triangles');
+  }
+}
+const probes=[[-38.2,-71.8],[0,0],[14.2,39.9],[-.001,-.001],[58.9,-77.3]];
+const expected=probes.map(([x,z])=>coarse.sample(x,z));
+coarse.clearCache();
+for(let i=probes.length-1;i>=0;i--)assert.deepEqual(coarse.sample(...probes[i]),expected[i],'cache eviction/order is geometrically inert');
+assert.ok(coarse.cachedVertices<=3);
+assert.throws(()=>coarse.sample(Infinity,0),/finite/);
+assert.throws(()=>buildHeightGrid(height,{minX:0,maxX:1,minZ:0,maxZ:1,stepX:0}),/positive/);
+assert.throws(()=>buildHeightGrid(height,{minX:0,maxX:1000,minZ:0,maxZ:1000,stepX:1,stepZ:1}),/vertex limit/);
+assert.throws(()=>createTriangleSampler(height,{stepX:-1}),/positive/);
+
+const reports=[],fingerprints=new Set();
+for(const seed of [1977,1,42,2026,0xffffffff])for(const id of LANDSCAPE_FORM_IDS) {
+  const plan=createLandscapeForm(seed,id),before=JSON.stringify(plan),begin=performance.now(),report=validateLandscapeForm(plan);
+  assert.ok(report.valid,`${id}:${seed} ${JSON.stringify(report)}`);
+  assert.equal(JSON.stringify(plan),before,'admission does not alter plans');
+  assert.deepEqual(createLandscapeForm(seed,id),plan,'same seed and family reproduce data exactly');
+  fingerprints.add(JSON.stringify({steps:plan.steps,shelves:plan.shelves,road:plan.mainRoad}));
+  const surface=createFormSurface(plan),first=plan.shelves[0],last=plan.shelves.at(-1);
+  assert.equal(validateRoute(surface.supportWorld,[{x:0,z:(first.minZ+first.maxZ)/2},{x:0,z:(last.minZ+last.maxZ)/2}]).valid,false,'occupied shelves do not make direct banks drivable');
+  assert.equal(surface.sampleTerrain(plan.clearing.x,plan.clearing.z).height,plan.clearing.height);
+  reports.push({seed,id,shelves:plan.shelves.length,mainMeters:report.main.distance,maxMainGrade:report.main.maxGrade,maxMainCrossfall:report.main.maxCrossfall,trailMeters:report.trail.distance,maxTrailGrade:report.trail.maxGrade,planningMs:performance.now()-begin});
+}
+assert.equal(fingerprints.size,reports.length,'structural variants are not recolored/rotated duplicates in this survey');
+assert.throws(()=>createLandscapeForm(1977,'unknown'),/identity/);
+assert.throws(()=>createLandscapeForm(NaN),/identity/);
+
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:800,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {Zerble}=await import('../src/zerble.js');
+const cart=new Zerble(),input={},driving=[];
+for(const id of LANDSCAPE_FORM_IDS) {
+  const plan=createLandscapeForm(1977,id),surface=createFormSurface(plan),start=plan.route[0];
+  cart.surfaceBinding=createSupportBinding(surface.supportWorld,start,{footprint:rectangleFootprint(1.9,2.8)});
+  cart.surfaceSampler=cart.surfaceBinding.sample;cart.position.set(start.x,0,start.z);cart.heading=0;cart.speed=0;cart.groundOnSurface();
+  let maxContact=0;
+  for(const [direction,points] of [['outbound',plan.route],['return',[...plan.route].reverse()]]) {
+    const state={};let frames=0;
+    for(;frames<60*160&&!state.done;frames++) {
+      followRouteInput(cart,points,state,input);cart.update(1/60,input,0);maxContact=Math.max(maxContact,cart.contactError);
+    }
+    assert.ok(state.done,`${id} ${direction} must finish through ordinary controls (${cart.position.x},${cart.position.z})`);
+    assert.ok(maxContact<.02,`${id} native-grid suspension residual ${maxContact}`);
+    driving.push({id,direction,seconds:frames/60,maxContact});
+  }
+}
+console.log('PASS landscape families: exact anisotropic/native triangle geometry, bounded eviction, 15 structural variants, final native-grid route/bank admission and real-cart ordinary-control out-and-back for all three forms.',JSON.stringify({reports,driving}));

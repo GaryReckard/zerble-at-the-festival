@@ -10,6 +10,8 @@
 //
 // Reads CONFIG.* per-call. Endpoints/control points QUANTIZED to integers.
 
+import { landscapeVersion,landscapeCandidatesInBounds } from './landscapeCandidates.js';
+import { segmentIntersectsBounds } from '../landscape/geometry.js';
 import { quantize, pairRng, cellRng, getSessionSeed } from '../rng.js';
 import { CONFIG, SALT, roadNeighborhoodCells, worldgenEpoch } from './constants.js';
 import { heartInCell } from './hearts.js';
@@ -274,7 +276,12 @@ export function arterial(a, b) {
   const key = edgeKey(A, B);
   if (_arterialCache.has(key)) return _arterialCache.get(key);
   if (_arterialCache.size > 200000) _arterialCache.clear();   // bound long-pan growth
-  const v = _computeArterial(A, B);
+  let v = _computeArterial(A, B);
+  if(v&&landscapeVersion()===2) {
+    const xs=v.map(p=>p.x),zs=v.map(p=>p.z),margin=CONFIG.ROAD_WIDTH/2+6;
+    const reserved=landscapeCandidatesInBounds({minX:Math.min(...xs)-margin,maxX:Math.max(...xs)+margin,minZ:Math.min(...zs)-margin,maxZ:Math.max(...zs)+margin});
+    if(reserved.some(owner=>v.some((p,i)=>i&&segmentIntersectsBounds(v[i-1],p,owner.bounds,margin))))v=null;
+  }
   _arterialCache.set(key, v);
   return v;
 }

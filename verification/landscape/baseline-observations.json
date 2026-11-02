@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-01",
+  "seed": 1977,
+  "position": {
+    "x": -700,
+    "z": -660,
+    "heading": 0
+  },
+  "rows": [
+    {
+      "tier": "low",
+      "phase": "generation-1-noon",
+      "text": "▾\nStats\nfps          60    \nframe        avg=16.7  p95=18.1  max=18.6ms\nquality      baseline\ndraws        1,337 / 80 [!!]\ntris         509,059 / 150,000 [!!]\ngpu mem      geo 1230  tex 36  heap 107MB\nchunks       9 gen  slow=2  worst=23.6  last=6.5  avg=7.3ms\nrunning      true\nseed         1977 (0x000007b9)\npos          -700.0, -660.0\nheading      0°  speed 0.00\nchunk        (-9, -9)\nnpcs         94  riding 1  watch 2  flee 0\none-wheel    0 · \nhealing      yoga 0  out 0  in 0  dance 0\nhoops        classic 4  flow 4  pair no  props 9  MeshLambertMaterial\nwoodland     5 camps · 4 chairs\nregistry     2394  colliders 2267\ntime of day  t=0.30 night=0.00\nflags        god=false freezeNPCs=false colliderViz=false\ncopy snapshot\n▸\nPerf log\n▸\nControls\n▾\nTime of day\nt=0.30 night=0.00\nMorning\nNoon\nDusk\nMidnight\n▸\nTeleport\n▾\nAudio\nMaster\n0.55\nMusic\n1.60\nMIDI\n1.00\nSFX\n1.00\nNature\n0.90\nMute all\n▾\nRender\nLevel\nauto\nbaseline\npixel-87\nno-bloom\npixel-75\npixel-50\nBloom\nShadows\nCheap bubbles\nPixel ratio\nauto\n2×\n1.5×\n1×\n0.875×\n0.75×\n0.5×\nPick a level to lock and enable overrides.\n▸\nLights\n▸\nMarkers\n▾\nMIDI tracks\nMIDI not playing",
+      "logs": []
+    },
+    {
+      "tier": "mid",
+      "phase": "generation-1-noon",
+      "text": "▾\nStats\nfps          61    \nframe        avg=16.7  p95=17.7  max=18.9ms\nquality      cheap-bubs\ndraws        1,739 / 200 [!!]\ntris         916,700 / 400,000 [!!]\ngpu mem      geo 1428  tex 39  heap 156MB\nchunks       25 gen  slow=5  worst=22.8  last=1.4  avg=5.9ms\nrunning      true\nseed         1977 (0x000007b9)\npos          -700.0, -660.0\nheading      0°  speed 0.00\nchunk        (-9, -9)\nnpcs         257  riding 1  watch 3  flee 0\none-wheel    0 · \nhealing      yoga 0  out 0  in 0  dance 0\nhoops        classic 4  flow 3  pair no  props 5  MeshStandardMaterial\nwoodland     5 camps · 4 chairs\nregistry     3024  colliders 2791\ntime of day  t=0.30 night=0.00\nflags        god=false freezeNPCs=false colliderViz=false\ncopy snapshot\n▸\nPerf log\n▸\nControls\n▾\nTime of day\nt=0.30 night=0.00\nMorning\nNoon\nDusk\nMidnight\n▸\nTeleport\n▾\nAudio\nMaster\n0.55\nMusic\n1.60\nMIDI\n1.00\nSFX\n1.00\nNature\n0.90\nMute all\n▾\nRender\nLevel\nauto\nbaseline\npixel-87\nno-bloom\npixel-75\ncheap-bubs\nno-shadows\npixel-50\nBloom\nShadows\nCheap bubbles\nPixel ratio\nauto\n2×\n1.5×\n1×\n0.875×\n0.75×\n0.5×\nPick a level to lock and enable overrides.\n▸\nLights\n▸\nMarkers\n▾\nMIDI tracks\nMIDI not playing",
+      "logs": []
+    },
+    {
+      "tier": "high",
+      "phase": "generation-1-noon",
+      "text": "▾\nStats\nfps          29    \nframe        warming up…\nquality      pixel-75\ndraws        3,899 / 400 [!!]\ntris         1,886,656 / 1,200,000 [!!]\ngpu mem      geo 1647  tex 39  heap 138MB\nchunks       25 gen  slow=5  worst=22.1  last=1.5  avg=5.6ms\nrunning      true\nseed         1977 (0x000007b9)\npos          -700.0, -660.0\nheading      0°  speed 0.00\nchunk        (-9, -9)\nnpcs         257  riding 1  watch 1  flee 0\none-wheel    0 · \nhealing      yoga 0  out 0  in 0  dance 0\nhoops        classic 4  flow 1  pair no  props 5  MeshStandardMaterial\nwoodland     5 camps · 4 chairs\nregistry     3024  colliders 2791\ntime of day  t=0.30 night=0.00\nflags        god=false freezeNPCs=false colliderViz=false\ncopy snapshot\n▸\nPerf log\n▸\nControls\n▾\nTime of day\nt=0.30 night=0.00\nMorning\nNoon\nDusk\nMidnight\n▸\nTeleport\n▾\nAudio\nMaster\n0.55\nMusic\n1.60\nMIDI\n1.00\nSFX\n1.00\nNature\n0.90\nMute all\n▾\nRender\nLevel\nauto\nbaseline\npixel-87\nno-bloom\npixel-75\ncheap-bubs\nno-shadows\npixel-50\nBloom\nShadows\nCheap bubbles\nPixel ratio\nauto\n2×\n1.5×\n1×\n0.875×\n0.75×\n0.5×\nPick a level to lock and enable overrides.\n▸\nLights\n▸\nMarkers\n▾\nMIDI tracks\nMIDI not playing",
+      "logs": []
+    }
+  ],
+  "limits": "Generation 1 has different scenery and population at these coordinates. Active simulation and adaptive quality are recorded; no isolated performance gain is inferred."
+}

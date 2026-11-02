@@ -1,0 +1,610 @@
+{
+  "date": "2026-11-01T20:20:37.358Z",
+  "generationVersion": 2,
+  "seeds": [
+    1977,
+    42,
+    2026
+  ],
+  "bounds": {
+    "minX": -3200,
+    "maxX": 3200,
+    "minZ": -3200,
+    "maxZ": 3200
+  },
+  "nativeTriangleStep": 10,
+  "regionalHalo": 1200,
+  "method": "Canonical cells intersecting bounds; all occupied candidates attempted once in order. Cold context and admission timed separately in Node. Graph unions arterial endpoints within the stated finite halo; geometric road crossings are not assumed connected. No device/frame-time or infinite-world claim.",
+  "regions": [
+    {
+      "seed": 1977,
+      "candidates": 10,
+      "wilderness": 4,
+      "districts": 6,
+      "admitted": 5,
+      "forms": {
+        "paired-meadows": 3,
+        "long-ridge": 1,
+        "three-shelves": 2
+      },
+      "structuralClones": 0,
+      "rejectionReasons": {
+        "no-feasible-connection": 1
+      },
+      "admittedPerSquareKm": 0.12207031249999997,
+      "coldContextMs": {
+        "min": 148.92341699999997,
+        "median": 449.38887499999987,
+        "max": 751.583583
+      },
+      "admissionMs": {
+        "min": 112.59516699999995,
+        "median": 151.1627500000002,
+        "max": 161.09891599999992
+      },
+      "connectionDetour": {
+        "min": 1,
+        "median": 1,
+        "max": 1.2571998743031079
+      },
+      "regionalGraph": {
+        "roads": 3940,
+        "nodes": 2319,
+        "components": 2,
+        "largestNodeCount": 2304,
+        "admittedComponents": 1,
+        "largestDistrictComponent": 5,
+        "unresolvedAnchors": 0
+      },
+      "rows": [
+        {
+          "id": "landscape:2:1977:-2,-2",
+          "form": "paired-meadows",
+          "turns": 3,
+          "valid": true,
+          "reason": null,
+          "contextMs": 751.583583,
+          "admissionMs": 138.45895800000005,
+          "alternativesRejected": [],
+          "camps": 15,
+          "shelves": 2,
+          "topHeight": 21,
+          "edgeId": "-11,-14|-10,-13",
+          "connectionLength": 191.92706948213427,
+          "connectionDetour": 1,
+          "fullDriveLength": 640.7417036072443,
+          "regionalComponent": "5176,5240"
+        },
+        {
+          "id": "landscape:2:1977:-1,-1",
+          "form": "long-ridge",
+          "turns": 0,
+          "valid": true,
+          "reason": null,
+          "contextMs": 449.38887499999987,
+          "admissionMs": 151.1627500000002,
+          "alternativesRejected": [],
+          "camps": 22,
+          "shelves": 2,
+          "topHeight": 27,
+          "edgeId": "-3,-2|-2,-1",
+          "connectionLength": 173.34935823359714,
+          "connectionDetour": 1,
+          "fullDriveLength": 755.2041193644998,
+          "regionalComponent": "5176,5240"
+        },
+        {
+          "id": "landscape:2:1977:1,-1",
+          "form": "paired-meadows",
+          "turns": 0,
+          "valid": false,
+          "reason": "no-feasible-connection",
+          "contextMs": 460.10687499999995,
+          "admissionMs": 112.59516699999995,
+          "alternativesRejected": [
+            {
+              "id": "11,-2|12,-2:2:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "11,-2|12,-2:2:east-west-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "11,-2|12,-2:2:north-south-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "13,-4|13,-3:4:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "13,-4|13,-3:4:east-west-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "13,-4|13,-3:4:north-south-first",
+              "reason": "protected-envelope"
+            }
+          ],
+          "camps": 0,
+          "shelves": 2,
+          "topHeight": 19
+        },
+        {
+          "id": "landscape:2:1977:-1,0",
+          "form": "three-shelves",
+          "turns": 2,
+          "valid": true,
+          "reason": null,
+          "contextMs": 148.92341699999997,
+          "admissionMs": 161.09891599999992,
+          "alternativesRejected": [],
+          "camps": 27,
+          "shelves": 3,
+          "topHeight": 27,
+          "edgeId": "-6,2|-6,3",
+          "connectionLength": 150.00333329629711,
+          "connectionDetour": 1,
+          "fullDriveLength": 815.2092605190591,
+          "regionalComponent": "5176,5240"
+        },
+        {
+          "id": "landscape:2:1977:1,0",
+          "form": "paired-meadows",
+          "turns": 3,
+          "valid": true,
+          "reason": null,
+          "contextMs": 193.64150000000018,
+          "admissionMs": 127.55345800000032,
+          "alternativesRejected": [
+            {
+              "id": "14,2|14,3:1:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "14,2|14,3:1:east-west-first",
+              "reason": "protected-envelope"
+            }
+          ],
+          "camps": 16,
+          "shelves": 2,
+          "topHeight": 18,
+          "edgeId": "14,2|14,3",
+          "connectionLength": 266,
+          "connectionDetour": 1.1834969944188953,
+          "fullDriveLength": 664.4323882144234,
+          "regionalComponent": "5176,5240"
+        },
+        {
+          "id": "landscape:2:1977:0,1",
+          "form": "three-shelves",
+          "turns": 0,
+          "valid": true,
+          "reason": null,
+          "contextMs": 374.11558399999967,
+          "admissionMs": 161.07716699999992,
+          "alternativesRejected": [
+            {
+              "id": "3,14|4,14:6:direct",
+              "reason": "protected-envelope"
+            }
+          ],
+          "camps": 27,
+          "shelves": 3,
+          "topHeight": 28,
+          "edgeId": "3,14|4,14",
+          "connectionLength": 264,
+          "connectionDetour": 1.2571998743031079,
+          "fullDriveLength": 785.2092605190591,
+          "regionalComponent": "5176,5240"
+        }
+      ]
+    },
+    {
+      "seed": 42,
+      "candidates": 9,
+      "wilderness": 2,
+      "districts": 7,
+      "admitted": 6,
+      "forms": {
+        "paired-meadows": 3,
+        "long-ridge": 3,
+        "three-shelves": 1
+      },
+      "structuralClones": 0,
+      "rejectionReasons": {
+        "no-feasible-connection": 1
+      },
+      "admittedPerSquareKm": 0.14648437499999997,
+      "coldContextMs": {
+        "min": 123.9297919999999,
+        "median": 298.4327910000002,
+        "max": 667.026875
+      },
+      "admissionMs": {
+        "min": 120.65866600000027,
+        "median": 130.5676669999998,
+        "max": 150.70658300000014
+      },
+      "connectionDetour": {
+        "min": 1,
+        "median": 1,
+        "max": 1
+      },
+      "regionalGraph": {
+        "roads": 4031,
+        "nodes": 2373,
+        "components": 4,
+        "largestNodeCount": 2358,
+        "admittedComponents": 1,
+        "largestDistrictComponent": 6,
+        "unresolvedAnchors": 0
+      },
+      "rows": [
+        {
+          "id": "landscape:2:42:-1,-2",
+          "form": "paired-meadows",
+          "turns": 2,
+          "valid": true,
+          "reason": null,
+          "contextMs": 667.026875,
+          "admissionMs": 130.5676669999998,
+          "alternativesRejected": [],
+          "camps": 15,
+          "shelves": 2,
+          "topHeight": 20,
+          "edgeId": "-5,-15|-4,-15",
+          "connectionLength": 161.91355718407274,
+          "connectionDetour": 1,
+          "fullDriveLength": 652.9761611064578,
+          "regionalComponent": "4779,5270"
+        },
+        {
+          "id": "landscape:2:42:1,-2",
+          "form": "long-ridge",
+          "turns": 0,
+          "valid": false,
+          "reason": "no-feasible-connection",
+          "contextMs": 509.5772089999996,
+          "admissionMs": 130.03283399999964,
+          "alternativesRejected": [
+            {
+              "id": "13,-10|13,-9:1:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "13,-10|13,-9:1:east-west-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "13,-10|13,-9:1:north-south-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "13,-10|14,-9:1:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "13,-10|14,-9:1:east-west-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "13,-10|14,-9:1:north-south-first",
+              "reason": "protected-envelope"
+            }
+          ],
+          "camps": 0,
+          "shelves": 2,
+          "topHeight": 29
+        },
+        {
+          "id": "landscape:2:42:1,-1",
+          "form": "long-ridge",
+          "turns": 3,
+          "valid": true,
+          "reason": null,
+          "contextMs": 205.55383299999994,
+          "admissionMs": 137.15116600000056,
+          "alternativesRejected": [],
+          "camps": 22,
+          "shelves": 2,
+          "topHeight": 28,
+          "edgeId": "14,-5|14,-4",
+          "connectionLength": 158.90248582070706,
+          "connectionDetour": 1,
+          "fullDriveLength": 750.4879009690634,
+          "regionalComponent": "4779,5270"
+        },
+        {
+          "id": "landscape:2:42:-1,0",
+          "form": "paired-meadows",
+          "turns": 1,
+          "valid": true,
+          "reason": null,
+          "contextMs": 514.779708,
+          "admissionMs": 122.43199999999979,
+          "alternativesRejected": [
+            {
+              "id": "-8,2|-7,3:6:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "-8,2|-7,3:6:east-west-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "-8,2|-7,3:6:north-south-first",
+              "reason": "protected-envelope"
+            }
+          ],
+          "camps": 15,
+          "shelves": 2,
+          "topHeight": 20,
+          "edgeId": "-7,4|-7,5",
+          "connectionLength": 234.00854685246006,
+          "connectionDetour": 1,
+          "fullDriveLength": 660.7417036072443,
+          "regionalComponent": "4779,5270"
+        },
+        {
+          "id": "landscape:2:42:0,0",
+          "form": "paired-meadows",
+          "turns": 1,
+          "valid": true,
+          "reason": null,
+          "contextMs": 168.2280839999994,
+          "admissionMs": 120.65866600000027,
+          "alternativesRejected": [],
+          "camps": 16,
+          "shelves": 2,
+          "topHeight": 20,
+          "edgeId": "1,4|1,5",
+          "connectionLength": 173.97988389466178,
+          "connectionDetour": 1,
+          "fullDriveLength": 664.4323882144234,
+          "regionalComponent": "4779,5270"
+        },
+        {
+          "id": "landscape:2:42:1,0",
+          "form": "long-ridge",
+          "turns": 2,
+          "valid": true,
+          "reason": null,
+          "contextMs": 123.9297919999999,
+          "admissionMs": 141.12933299999986,
+          "alternativesRejected": [],
+          "camps": 22,
+          "shelves": 2,
+          "topHeight": 27,
+          "edgeId": "11,1|12,1",
+          "connectionLength": 235.83468786419016,
+          "connectionDetour": 1,
+          "fullDriveLength": 745.2041193644998,
+          "regionalComponent": "4779,5270"
+        },
+        {
+          "id": "landscape:2:42:-1,1",
+          "form": "three-shelves",
+          "turns": 1,
+          "valid": true,
+          "reason": null,
+          "contextMs": 298.4327910000002,
+          "admissionMs": 150.70658300000014,
+          "alternativesRejected": [],
+          "camps": 30,
+          "shelves": 3,
+          "topHeight": 26,
+          "edgeId": "-8,12|-7,12",
+          "connectionLength": 136.7808466123821,
+          "connectionDetour": 1,
+          "fullDriveLength": 801.5185759118799,
+          "regionalComponent": "4779,5270"
+        }
+      ]
+    },
+    {
+      "seed": 2026,
+      "candidates": 6,
+      "wilderness": 0,
+      "districts": 6,
+      "admitted": 4,
+      "forms": {
+        "three-shelves": 3,
+        "long-ridge": 3
+      },
+      "structuralClones": 0,
+      "rejectionReasons": {
+        "no-feasible-connection": 2
+      },
+      "admittedPerSquareKm": 0.09765624999999999,
+      "coldContextMs": {
+        "min": 61.35283299999901,
+        "median": 439.2256670000006,
+        "max": 730.2960419999999
+      },
+      "admissionMs": {
+        "min": 133.43404200000077,
+        "median": 145.80383299999994,
+        "max": 185.13808300000073
+      },
+      "connectionDetour": {
+        "min": 1,
+        "median": 1,
+        "max": 1
+      },
+      "regionalGraph": {
+        "roads": 4066,
+        "nodes": 2404,
+        "components": 1,
+        "largestNodeCount": 2404,
+        "admittedComponents": 1,
+        "largestDistrictComponent": 4,
+        "unresolvedAnchors": 0
+      },
+      "rows": [
+        {
+          "id": "landscape:2:2026:-2,-2",
+          "form": "three-shelves",
+          "turns": 3,
+          "valid": true,
+          "reason": null,
+          "contextMs": 730.2960419999999,
+          "admissionMs": 185.13808300000073,
+          "alternativesRejected": [
+            {
+              "id": "-10,-13|-10,-12:4:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "-10,-13|-10,-12:4:east-west-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "-10,-13|-10,-12:4:north-south-first",
+              "reason": "protected-envelope"
+            }
+          ],
+          "camps": 31,
+          "shelves": 3,
+          "topHeight": 26,
+          "edgeId": "-10,-12|-10,-11",
+          "connectionLength": 226.92069099136816,
+          "connectionDetour": 1,
+          "fullDriveLength": 815.2092605190591,
+          "regionalComponent": "5264,5134"
+        },
+        {
+          "id": "landscape:2:2026:0,-2",
+          "form": "long-ridge",
+          "turns": 2,
+          "valid": true,
+          "reason": null,
+          "contextMs": 439.2256670000006,
+          "admissionMs": 142.10250000000087,
+          "alternativesRejected": [],
+          "camps": 21,
+          "shelves": 2,
+          "topHeight": 27,
+          "edgeId": "2,-15|2,-14",
+          "connectionLength": 160.92992150972088,
+          "connectionDetour": 1,
+          "fullDriveLength": 726.7972163618842,
+          "regionalComponent": "5264,5134"
+        },
+        {
+          "id": "landscape:2:2026:-1,-1",
+          "form": "long-ridge",
+          "turns": 0,
+          "valid": true,
+          "reason": null,
+          "contextMs": 289.64300000000003,
+          "admissionMs": 141.0209159999995,
+          "alternativesRejected": [],
+          "camps": 22,
+          "shelves": 2,
+          "topHeight": 27,
+          "edgeId": "-3,-3|-2,-2",
+          "connectionLength": 202.29928324143907,
+          "connectionDetour": 1,
+          "fullDriveLength": 740.4879009690634,
+          "regionalComponent": "5264,5134"
+        },
+        {
+          "id": "landscape:2:2026:-2,0",
+          "form": "three-shelves",
+          "turns": 2,
+          "valid": false,
+          "reason": "no-feasible-connection",
+          "contextMs": 398.8821250000001,
+          "admissionMs": 145.80383299999994,
+          "alternativesRejected": [
+            {
+              "id": "-14,2|-14,3:1:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "-14,2|-14,3:1:east-west-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "-14,2|-14,3:1:north-south-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "-15,2|-14,2:6:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "-15,2|-14,2:6:east-west-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "-15,2|-14,2:6:north-south-first",
+              "reason": "protected-envelope"
+            }
+          ],
+          "camps": 0,
+          "shelves": 3,
+          "topHeight": 25
+        },
+        {
+          "id": "landscape:2:2026:-1,0",
+          "form": "three-shelves",
+          "turns": 2,
+          "valid": true,
+          "reason": null,
+          "contextMs": 61.35283299999901,
+          "admissionMs": 162.92587500000081,
+          "alternativesRejected": [],
+          "camps": 24,
+          "shelves": 3,
+          "topHeight": 27,
+          "edgeId": "-6,0|-5,0",
+          "connectionLength": 231.76851503080715,
+          "connectionDetour": 1,
+          "fullDriveLength": 813.7530334110934,
+          "regionalComponent": "5264,5134"
+        },
+        {
+          "id": "landscape:2:2026:1,1",
+          "form": "long-ridge",
+          "turns": 2,
+          "valid": false,
+          "reason": "no-feasible-connection",
+          "contextMs": 535.600375,
+          "admissionMs": 133.43404200000077,
+          "alternativesRejected": [
+            {
+              "id": "10,9|10,10:6:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "10,9|10,10:6:east-west-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "10,9|10,10:6:north-south-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "10,9|11,9:5:direct",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "10,9|11,9:5:east-west-first",
+              "reason": "protected-envelope"
+            },
+            {
+              "id": "10,9|11,9:5:north-south-first",
+              "reason": "protected-envelope"
+            }
+          ],
+          "camps": 0,
+          "shelves": 2,
+          "topHeight": 26
+        }
+      ]
+    }
+  ]
+}

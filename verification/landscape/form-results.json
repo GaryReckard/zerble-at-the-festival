@@ -1,0 +1,209 @@
+{
+  "reports": [
+    {
+      "seed": 1977,
+      "id": "paired-meadows",
+      "shelves": 2,
+      "mainMeters": 693,
+      "maxMainGrade": 0.1327846364883402,
+      "maxMainCrossfall": 0.05172413793103452,
+      "trailMeters": 64.74170360724438,
+      "maxTrailGrade": 0.2007191379611031,
+      "planningMs": 37.754791999999995
+    },
+    {
+      "seed": 1977,
+      "id": "long-ridge",
+      "shelves": 2,
+      "mainMeters": 774.05551275464,
+      "maxMainGrade": 0.14861111111111125,
+      "maxMainCrossfall": 0.05172413793103452,
+      "trailMeters": 64.74170360724438,
+      "maxTrailGrade": 0.20071913796110297,
+      "planningMs": 34.58170799999999
+    },
+    {
+      "seed": 1977,
+      "id": "three-shelves",
+      "shelves": 3,
+      "mainMeters": 813.7768723046356,
+      "maxMainGrade": 0.11618655692729773,
+      "maxMainCrossfall": 0.05172413793103452,
+      "trailMeters": 64.74170360724438,
+      "maxTrailGrade": 0.20071913796110297,
+      "planningMs": 30.625792000000004
+    },
+    {
+      "seed": 1,
+      "id": "paired-meadows",
+      "shelves": 2,
+      "mainMeters": 663,
+      "maxMainGrade": 0.14938271604938272,
+      "maxMainCrossfall": 0.05319148936170208,
+      "trailMeters": 81.80666791623183,
+      "maxTrailGrade": 0.20641329790326227,
+      "planningMs": 26.187292000000014
+    },
+    {
+      "seed": 1,
+      "id": "long-ridge",
+      "shelves": 2,
+      "mainMeters": 744.05551275464,
+      "maxMainGrade": 0.16099537037037043,
+      "maxMainCrossfall": 0.05319148936170208,
+      "trailMeters": 81.80666791623183,
+      "maxTrailGrade": 0.20641329790326227,
+      "planningMs": 28.508708999999982
+    },
+    {
+      "seed": 1,
+      "id": "three-shelves",
+      "shelves": 3,
+      "mainMeters": 793.7768723046356,
+      "maxMainGrade": 0.1327846364883402,
+      "maxMainCrossfall": 0.05172413793103452,
+      "trailMeters": 64.74170360724438,
+      "maxTrailGrade": 0.20071913796110297,
+      "planningMs": 29.492333000000002
+    },
+    {
+      "seed": 42,
+      "id": "paired-meadows",
+      "shelves": 2,
+      "mainMeters": 653,
+      "maxMainGrade": 0.14938271604938272,
+      "maxMainCrossfall": 0.052631578947368494,
+      "trailMeters": 73.1486066098599,
+      "maxTrailGrade": 0.2042405263463856,
+      "planningMs": 24.168791999999996
+    },
+    {
+      "seed": 42,
+      "id": "long-ridge",
+      "shelves": 2,
+      "mainMeters": 734.05551275464,
+      "maxMainGrade": 0.16099537037037043,
+      "maxMainCrossfall": 0.052631578947368494,
+      "trailMeters": 73.1486066098599,
+      "maxTrailGrade": 0.2042405263463856,
+      "planningMs": 27.55295799999999
+    },
+    {
+      "seed": 42,
+      "id": "three-shelves",
+      "shelves": 3,
+      "mainMeters": 793.7768723046356,
+      "maxMainGrade": 0.1327846364883402,
+      "maxMainCrossfall": 0.053030303030303115,
+      "trailMeters": 68.43238821442347,
+      "maxTrailGrade": 0.2078653526036036,
+      "planningMs": 29.267875000000004
+    },
+    {
+      "seed": 2026,
+      "id": "paired-meadows",
+      "shelves": 2,
+      "mainMeters": 663,
+      "maxMainGrade": 0.13818843878015485,
+      "maxMainCrossfall": 0.052631578947368494,
+      "trailMeters": 73.1486066098599,
+      "maxTrailGrade": 0.2042405263463856,
+      "planningMs": 24.203624999999988
+    },
+    {
+      "seed": 2026,
+      "id": "long-ridge",
+      "shelves": 2,
+      "mainMeters": 744.05551275464,
+      "maxMainGrade": 0.14108367626886179,
+      "maxMainCrossfall": 0.052631578947368494,
+      "trailMeters": 73.1486066098599,
+      "maxTrailGrade": 0.2042405263463856,
+      "planningMs": 27.361041999999998
+    },
+    {
+      "seed": 2026,
+      "id": "three-shelves",
+      "shelves": 3,
+      "mainMeters": 803.7768723046356,
+      "maxMainGrade": 0.12384259259259274,
+      "maxMainCrossfall": 0.05319148936170208,
+      "trailMeters": 81.80666791623183,
+      "maxTrailGrade": 0.20641329790326227,
+      "planningMs": 30.216417000000035
+    },
+    {
+      "seed": 4294967295,
+      "id": "paired-meadows",
+      "shelves": 2,
+      "mainMeters": 663,
+      "maxMainGrade": 0.1266727355484754,
+      "maxMainCrossfall": 0.05357142857142847,
+      "trailMeters": 76.97616110645782,
+      "maxTrailGrade": 0.20788767860257124,
+      "planningMs": 24.185249999999996
+    },
+    {
+      "seed": 4294967295,
+      "id": "long-ridge",
+      "shelves": 2,
+      "mainMeters": 744.05551275464,
+      "maxMainGrade": 0.1362268518518519,
+      "maxMainCrossfall": 0.05357142857142847,
+      "trailMeters": 76.97616110645782,
+      "maxTrailGrade": 0.20788767860257107,
+      "planningMs": 28.225167
+    },
+    {
+      "seed": 4294967295,
+      "id": "three-shelves",
+      "shelves": 3,
+      "mainMeters": 823.7768723046356,
+      "maxMainGrade": 0.11982222222222205,
+      "maxMainCrossfall": 0.05172413793103452,
+      "trailMeters": 64.74170360724438,
+      "maxTrailGrade": 0.20071913796110297,
+      "planningMs": 30.95987500000001
+    }
+  ],
+  "driving": [
+    {
+      "id": "paired-meadows",
+      "direction": "outbound",
+      "seconds": 44.36666666666667,
+      "maxContact": 6.026903776046311e-08
+    },
+    {
+      "id": "paired-meadows",
+      "direction": "return",
+      "seconds": 47.516666666666666,
+      "maxContact": 1.0346201406719047e-07
+    },
+    {
+      "id": "long-ridge",
+      "direction": "outbound",
+      "seconds": 53.15,
+      "maxContact": 6.099352134469882e-08
+    },
+    {
+      "id": "long-ridge",
+      "direction": "return",
+      "seconds": 55.68333333333333,
+      "maxContact": 1.0385572224436146e-07
+    },
+    {
+      "id": "three-shelves",
+      "direction": "outbound",
+      "seconds": 58.85,
+      "maxContact": 6.027019239240872e-08
+    },
+    {
+      "id": "three-shelves",
+      "direction": "return",
+      "seconds": 60.96666666666667,
+      "maxContact": 1.0346153089813015e-07
+    }
+  ],
+  "date": "2026-11-01",
+  "scope": "pure/native-grid form and real-controller proof; no procedural production rollout"
+}

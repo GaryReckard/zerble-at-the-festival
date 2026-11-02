@@ -1,0 +1,94 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { Scene, Vector3 } from 'three';
+import { createLandscapeFixture } from '../src/landscape/fixture.js';
+import { followRouteInput, rectangleFootprint } from '../src/landscape/routes.js';
+import { createSupportBinding } from '../src/landscape/support.js';
+import { resolveCollision } from '../src/collisionContacts.js';
+import { mountainDistrictPlan } from '../src/landscape/districtPlan.js';
+
+globalThis.window = { addEventListener() {}, innerWidth:1280, innerHeight:800, __perfProfile:'low' };
+globalThis.document = { addEventListener() {}, createElement:()=>({ getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})}, {get:(o,k)=>k in o?o[k]:()=>{}}) }) };
+const { buildMountainDistrict } = await import('../src/landscape/district.js');
+const { registry } = await import('../src/registry.js');
+const { forestDrumCircles, forestDrumMusic } = await import('../src/forests.js');
+const scene = new Scene(), fixture = createLandscapeFixture(), plan = mountainDistrictPlan();
+const baseline = { entries:registry.entries.size, drums:forestDrumCircles.length, music:forestDrumMusic.length };
+const measurements = [];
+for (let iteration=0;iteration<4;iteration++) {
+  const owner=buildMountainDistrict(scene,fixture,{plan});
+  assert.equal(owner.camps.length,plan.camps.length); assert.equal(owner.drum.dc.group.position.y,10); assert.ok(owner.drum.figures.length>15);
+  assert.equal(owner.meadowFire.kind,'firepit');assert.equal(owner.meadowFire.group.position.y,18);
+  assert.ok(plan.camps.filter(p=>p.shelf==='upper').length<plan.camps.filter(p=>p.shelf==='lower').length);
+  assert.ok(plan.camps.filter(p=>p.shelf==='upper').every(p=>Math.hypot(p.x-plan.commons.x,p.z-plan.commons.z)>plan.commons.radius+p.clearance));
+  assert.ok(owner.camps.every(c=>Math.abs(c.group.position.y-fixture.sampleTerrain(c.group.position.x,c.group.position.z).height)<1e-6));
+  for(const entry of registry.byChunk(plan.id)) {
+    if(entry.collider) assert.ok(Number.isFinite(entry.collider.minY)&&entry.collider.maxY>=entry.collider.minY);
+    for(const slot of entry.campSeats||[]) assert.ok(Number.isFinite(slot.y));
+  }
+  owner.update(10,.8,1/60);
+  assert.throws(()=>buildMountainDistrict(scene,fixture,{plan}),/already active/);
+  const owned=new Map(),shared=new Map();
+  owner.root.traverse(node=>{
+    for(const resource of [node.geometry,...(Array.isArray(node.material)?node.material:[node.material])]) {
+      if(!resource)continue;const bucket=resource.userData?.shared?shared:owned;
+      if(bucket.has(resource))continue;bucket.set(resource,0);
+      resource.addEventListener('dispose',()=>bucket.set(resource,bucket.get(resource)+1));
+    }
+  });
+  const release=owner.pin('cart'),releaseSecond=owner.pin('cart');
+  assert.equal(owner.dispose(),false); release(); assert.equal(owner.dispose(),false);releaseSecond();
+  assert.equal(owner.dispose(),true);assert.equal(owner.dispose(),true);
+  assert.ok([...owned.values()].every(n=>n===1),'reachable owned resources dispose exactly once');
+  assert.ok([...shared.values()].every(n=>n===0),'pooled resources survive district unload');
+  assert.equal(scene.children.length,0);assert.equal(registry.entries.size,baseline.entries);
+  assert.equal(forestDrumCircles.length,baseline.drums);assert.equal(forestDrumMusic.length,baseline.music);
+  assert.throws(()=>owner.pin('late'),/Cannot pin/);
+  measurements.push({allocationMs:owner.allocationMs,largestBuildMs:owner.largestBuildMs,stages:owner.stages});
+}
+for(const failAfter of [1,2,4]) {
+  assert.throws(()=>buildMountainDistrict(scene,fixture,{plan,failAfter}),/Injected/);
+  assert.equal(registry.entries.size,baseline.entries);assert.equal(scene.children.length,0);
+  assert.equal(forestDrumCircles.length,baseline.drums);assert.equal(forestDrumMusic.length,baseline.music);
+}
+const obstruction={kind:'stage',position:new Vector3(plan.camps[0].x,8,plan.camps[0].z),footprint:20,collider:{radius:20,damage:1}};
+const id=registry.add(obstruction);
+assert.throws(()=>buildMountainDistrict(scene,fixture,{plan}),/obstructed/);
+assert.equal(registry.entries.size,baseline.entries+1);registry.remove(id);
+const { Zerble } = await import('../src/zerble.js');
+const cart = new Zerble(); cart.colliderHeight=4.1;
+cart.surfaceBinding=createSupportBinding(fixture.supportWorld,{x:80,z:12},{footprint:rectangleFootprint(1.9,2.8)});cart.surfaceSampler=cart.surfaceBinding.sample;
+cart.position.set(80,0,12);cart.groundOnSurface();
+const drivingOwner=buildMountainDistrict(scene,fixture,{plan}), input={}, state={};
+for(let i=0;i<60*60&&!state.done;i++){followRouteInput(cart,plan.route,state,input);cart.update(1/60,input,0);resolveCollision(cart,drivingOwner.colliders);}
+assert.ok(state.done,'ordinary controls reach the clearing with production solids');
+const returning={};const reverseRoute=[...plan.route].reverse();
+for(let i=0;i<60*65&&!returning.done;i++){followRouteInput(cart,reverseRoute,returning,input);cart.update(1/60,input,0);resolveCollision(cart,drivingOwner.colliders);}
+assert.ok(returning.done,'ordinary controls return along the road and bridge');
+drivingOwner.dispose();
+const { Crowd }=await import('../src/crowd.js');
+const crowd=new Crowd({spawn(){}});scene.add(crowd.group);
+const player={position:new Vector3(0,8,-235),forwardWorld:new Vector3(0,0,-1),heading:0,speed:0,seatSlots:[],worldSeatPosition:()=>new Vector3()};
+const inhabited=buildMountainDistrict(scene,fixture,{plan,crowd});
+inhabited.update(0,0,1/60,player);assert.equal(inhabited.residents.length,6);
+const resident=inhabited.residents.find(r=>r.camp>=0).npc, before=resident.surfaceBinding.snapshot();
+assert.equal(crowd._moveGroundNpc(resident,0,-215),false);assert.deepEqual(resident.surfaceBinding.snapshot(),before);
+assert.equal(crowd.canReachCampSlot(resident.personHandle,{x:0,z:-294,approachX:0,approachZ:-294},false),false);
+for(let i=0;i<900;i++)crowd.update(1/60,player,null);
+for(const n of crowd.npcs){const p=n.surfaceBinding.sample(n.pos.x,n.pos.z);assert.ok(p.valid&&p.traversable);if(['walking','idle'].includes(n.state))assert.ok(Math.abs(n.pos.y-p.height)<1e-6);}
+const visitor=inhabited.residents.find(r=>r.camp===-1).npc;
+for(let i=0;i<14000 && visitor.corridorRoute;i++) crowd._tickCorridor(1/60,visitor);
+assert.equal(visitor.corridorRoute,null);assert.ok(visitor.pos.z<-312 && Math.abs(visitor.pos.y-18)<1e-6,'a real visitor follows bridge, side ascent and upper meadow corridor');
+crowd._releaseCamp(resident);resident.state='walking';
+assert.ok(cart.relocateOnSurface(80,12));
+assert.equal(crowd.beginBoarding(resident.personHandle,cart,{slot:cart.seatSlots[0]}),false,'a far/blocked approach cannot reserve a seat');
+assert.ok(cart.relocateOnSurface(resident.pos.x,resident.pos.z+3));
+assert.ok(crowd.seatPerson(resident.personHandle,cart,cart.seatSlots[0],{rideTime:0}));
+assert.equal(inhabited.dispose(),false,'borrowed resident keeps the owner alive');
+assert.ok(cart.relocateOnSurface(0,-290));crowd.bubblesEmpty=true;crowd._tickRiding(1/60,resident,cart);
+assert.equal(resident.state,'disembarking');
+assert.ok(Math.abs(resident.surfaceBinding.sample(resident.pos.x,resident.pos.z).height-18)<1e-6,'rider acquires the destination shelf, not the original shelf');
+resident.state='idle';
+assert.equal(inhabited.dispose(),true);assert.equal(crowd.npcs.length,0);crowd.dispose();
+assert.equal(registry.entries.size,baseline.entries);assert.equal(scene.children.length,0);
+console.log('PASS real mountain district: production camps, seated/animated drum crew/fire, grounded seats/colliders, unique owner publication, counted support pins, idempotent teardown and injected partial-build/obstruction rollback.',JSON.stringify(measurements));

@@ -8,8 +8,8 @@ export const MAP_VISIBLE_KEY='zerble.map.visible';
 const canvas=()=>document.createElement('canvas');
 const textDistance=n=>n>=1000?`${(n/1000).toFixed(1)} km`:`${Math.round(n)} m`;
 export class FestivalMap {
-  constructor({seed,mode='v2',config={},tier='mid',storage=createMapStorage(),namespace,preview=false}={}) {
-    this.namespace=namespace||`${VERSION}:${mode}:${seed}`;this.options={seed,mode,config};this.tier=tier;
+  constructor({seed,mode='v2',config={},tier='mid',landscapeVersion=1,tuning={},storage=createMapStorage(),namespace,preview=false}={}) {
+    this.namespace=namespace||`${VERSION}:${mode}:${seed}${landscapeVersion===2?':landscape-2':''}`;this.options={seed,mode,config,landscapeVersion,tuning};this.tier=tier;
     this.discovery=new Discovery(this.namespace,storage);this.rasters=new Map();this.objectives=new Map();this.live=[];
     this.player={x:0,z:0};this.heading=0;this.expanded=false;this.compact=true;this.preview=preview;
     this.samples=[];this.sampleIndex=0;this.zoom=1;this.scale=.55;this.stats={drawMs:0,rasterMs:0};this.scope=new AbortController();this.pointers=new Map();

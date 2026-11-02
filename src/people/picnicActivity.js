@@ -41,7 +41,7 @@ export class PicnicActivity {
       bestD2 = this.view.grouped ? 18 * 18 : 45 * 45;
     for (const kind of ['picnic_table','picnic']) for (const id of this.registry.byKind.get(kind) ?? []) {
       const e = this.registry.entries.get(id);
-      if (!e?.tableSeats) continue;
+      if (!e?.tableSeats||this.people.canReachPlace&&!this.people.canReachPlace(handle,e.position)) continue;
       const dx = e.position.x - this.view.x,
         dz = e.position.z - this.view.z,
         d2 = dx * dx + dz * dz;

@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+// A bounded regional survey, not an infinite-connectivity or device benchmark.
+import { writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { setSessionSeed } from '../src/rng.js';
+import { CONFIG } from '../src/worldgen/constants.js';
+import { setTerrainEnabled } from '../src/worldgen/terrain.js';
+import { roadsInBounds } from '../src/worldgen/roads.js';
+import { landscapeCandidatesInBounds,setLandscapeVersion } from '../src/worldgen/landscapeCandidates.js';
+import { landscapeContextFor } from '../src/worldgen/landscapeContext.js';
+import { createLandscapeAdmission } from '../src/worldgen/landscape.js';
+
+const args=process.argv.slice(2),value=(flag,fallback)=>{const i=args.indexOf(flag);return i<0?fallback:args[i+1];};
+if(args.some((a,i)=>i%2===0&&!['--seeds','--radius','--out'].includes(a))||args.length%2)throw new Error('Usage: node bin/survey-landscape [--seeds 1977,42,2026] [--radius 3200] [--out report.json]');
+const seeds=value('--seeds','1977,42,2026').split(',').map(Number),radius=Number(value('--radius','3200'));
+if(!seeds.length||seeds.length>8||seeds.some(s=>!Number.isSafeInteger(s))||!Number.isFinite(radius)||radius<800||radius>3200)throw new RangeError('Survey requires at most eight integer seeds and a radius of 800–3200m');
+const bounds={minX:-radius,maxX:radius,minZ:-radius,maxZ:radius},halo=600+CONFIG.ROAD_MAX_EDGE_CELLS*CONFIG.HEART_CELL;
+const length=points=>points.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-points[i].x,p.z-points[i].z),0);
+const summarize=values=>values.length?{min:Math.min(...values),median:[...values].sort((a,b)=>a-b)[Math.floor(values.length/2)],max:Math.max(...values)}:null;
+function regionalGraph(roads) {
+  const parent=new Map(),root=x=>{if(!parent.has(x))parent.set(x,x);let r=x;while(parent.get(r)!==r)r=parent.get(r);while(parent.get(x)!==x){const next=parent.get(x);parent.set(x,r);x=next;}return r;};
+  const endpoint=p=>`${p.x},${p.z}`,edgeNodes=new Map();
+  for(const road of roads){const a=endpoint(road.points[0]),b=endpoint(road.points.at(-1));parent.set(root(a),root(b));edgeNodes.set(road.edgeId,a);}
+  const sizes=new Map();for(const node of parent.keys()){const r=root(node);sizes.set(r,(sizes.get(r)||0)+1);}
+  return {nodes:parent.size,components:sizes.size,largestNodeCount:Math.max(0,...sizes.values()),componentOf:edge=>edgeNodes.has(edge)?root(edgeNodes.get(edge)):null};
+}
+const report={date:new Date().toISOString(),generationVersion:2,seeds,bounds,nativeTriangleStep:10,regionalHalo:halo,
+  method:'Canonical cells intersecting bounds; all occupied candidates attempted once in order. Cold context and admission timed separately in Node. Graph unions arterial endpoints within the stated finite halo; geometric road crossings are not assumed connected. No device/frame-time or infinite-world claim.',regions:[]};
+setLandscapeVersion(2);setTerrainEnabled(true);
+try {
+  for(const seed of seeds) {
+    setSessionSeed(seed);
+    const candidates=landscapeCandidatesInBounds(bounds),districts=candidates.filter(c=>c.kind==='mountain-top'),rows=[],forms={},signatures=new Map();
+    for(const candidate of districts) {
+      forms[candidate.plan.form]=(forms[candidate.plan.form]||0)+1;
+      const p=candidate.plan,signature=createHash('sha256').update(JSON.stringify({steps:p.steps,shelves:p.shelves,road:p.mainRoad,trail:p.narrowPath,clearing:p.clearing,fire:p.hasMeadowFire,drum:p.hasDrumClearing})).digest('hex');
+      signatures.set(signature,(signatures.get(signature)||0)+1);
+      const started=performance.now(),context=landscapeContextFor(candidate),contextMs=performance.now()-started,job=createLandscapeAdmission(candidate,context),admitStart=performance.now();let slices=0;
+      while(!job.done){job.step({maxSteps:128,deadline:Infinity});if(++slices>10000)throw new Error('Survey exceeded bounded admission work');}
+      const admissionMs=performance.now()-admitStart,result=job.result,plan=result.plan;
+      const row={id:candidate.id,form:p.form,turns:candidate.turns,valid:result.valid,reason:result.reason,contextMs,admissionMs,
+        alternativesRejected:result.rejected,camps:plan?.camps.length||0,shelves:p.shelves.length,topHeight:p.topHeight};
+      if(plan){row.edgeId=plan.connection.edgeId;row.connectionLength=length(plan.connection.points);row.connectionDetour=row.connectionLength/Math.hypot(plan.connection.points.at(-1).x-plan.connection.points[0].x,plan.connection.points.at(-1).z-plan.connection.points[0].z);row.fullDriveLength=length(plan.route);}
+      rows.push(row);console.error(`${seed} ${candidate.id} ${result.valid?'admitted':result.reason} (${(contextMs+admissionMs).toFixed(1)}ms)`);
+    }
+    const roads=roadsInBounds(bounds.minX-halo,bounds.minZ-halo,bounds.maxX+halo,bounds.maxZ+halo),graph=regionalGraph(roads),admitted=rows.filter(r=>r.valid),coverage=new Map();
+    for(const row of admitted){row.regionalComponent=graph.componentOf(row.edgeId);coverage.set(row.regionalComponent,(coverage.get(row.regionalComponent)||0)+1);}
+    const reasons={};for(const row of rows.filter(r=>!r.valid))reasons[row.reason]=(reasons[row.reason]||0)+1;
+    report.regions.push({seed,candidates:candidates.length,wilderness:candidates.length-districts.length,districts:districts.length,admitted:admitted.length,forms,
+      structuralClones:[...signatures.values()].reduce((n,count)=>n+Math.max(0,count-1),0),rejectionReasons:reasons,
+      admittedPerSquareKm:admitted.length/((radius*2/1000)**2),coldContextMs:summarize(rows.map(r=>r.contextMs)),admissionMs:summarize(rows.map(r=>r.admissionMs)),
+      connectionDetour:summarize(admitted.map(r=>r.connectionDetour)),regionalGraph:{roads:roads.length,nodes:graph.nodes,components:graph.components,largestNodeCount:graph.largestNodeCount,
+        admittedComponents:coverage.size,largestDistrictComponent:Math.max(0,...coverage.values()),unresolvedAnchors:admitted.filter(r=>r.regionalComponent===null).length},rows});
+  }
+} finally {setLandscapeVersion(1);setTerrainEnabled(false);}
+const serialized=JSON.stringify(report,null,2)+'\n',out=value('--out',null);if(out)writeFileSync(out,serialized);else process.stdout.write(serialized);

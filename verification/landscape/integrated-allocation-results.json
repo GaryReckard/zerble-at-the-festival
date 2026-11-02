@@ -1,0 +1,128 @@
+{
+  "date": "2026-11-01",
+  "environment": {
+    "runtime": "v24.10.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "renderer": false
+  },
+  "seed": 1977,
+  "candidate": "landscape:2:1977:-1,-1",
+  "contextMs": 657.694667,
+  "admissionMs": 244.48133400000006,
+  "results": [
+    {
+      "cycle": 0,
+      "done": true,
+      "cpuMs": 39.57405500000084,
+      "largestStepMs": 4.658415999999988,
+      "largestPhase": "drummer",
+      "steps": 585,
+      "phase": "ready",
+      "camps": 36,
+      "near": {
+        "drawsBeforeFrustum": 307,
+        "trianglesBeforeFrustum": 62204,
+        "geometries": 199,
+        "materials": 91,
+        "bufferBytes": 360888,
+        "casters": 33
+      },
+      "far": {
+        "drawsBeforeFrustum": 16,
+        "trianglesBeforeFrustum": 1040,
+        "geometries": 15,
+        "materials": 6,
+        "bufferBytes": 37464,
+        "casters": 0
+      },
+      "update600Ms": 9.816791000000194,
+      "resourceCount": 717
+    },
+    {
+      "cycle": 1,
+      "done": true,
+      "cpuMs": 18.741845999996713,
+      "largestStepMs": 1.5818329999999605,
+      "largestPhase": "root",
+      "steps": 585,
+      "phase": "ready",
+      "camps": 36,
+      "near": {
+        "drawsBeforeFrustum": 307,
+        "trianglesBeforeFrustum": 62204,
+        "geometries": 199,
+        "materials": 91,
+        "bufferBytes": 360888,
+        "casters": 33
+      },
+      "far": {
+        "drawsBeforeFrustum": 16,
+        "trianglesBeforeFrustum": 1040,
+        "geometries": 15,
+        "materials": 6,
+        "bufferBytes": 37464,
+        "casters": 0
+      },
+      "update600Ms": 5.761625000000095,
+      "resourceCount": 717
+    },
+    {
+      "cycle": 2,
+      "done": true,
+      "cpuMs": 15.275088000002143,
+      "largestStepMs": 1.5222089999999753,
+      "largestPhase": "fire",
+      "steps": 585,
+      "phase": "ready",
+      "camps": 36,
+      "near": {
+        "drawsBeforeFrustum": 307,
+        "trianglesBeforeFrustum": 62204,
+        "geometries": 199,
+        "materials": 91,
+        "bufferBytes": 360888,
+        "casters": 33
+      },
+      "far": {
+        "drawsBeforeFrustum": 16,
+        "trianglesBeforeFrustum": 1040,
+        "geometries": 15,
+        "materials": 6,
+        "bufferBytes": 37464,
+        "casters": 0
+      },
+      "update600Ms": 5.75262500000008,
+      "resourceCount": 717
+    },
+    {
+      "cycle": 3,
+      "done": true,
+      "cpuMs": 13.449905999997327,
+      "largestStepMs": 1.6558749999999236,
+      "largestPhase": "tent",
+      "steps": 585,
+      "phase": "ready",
+      "camps": 36,
+      "near": {
+        "drawsBeforeFrustum": 307,
+        "trianglesBeforeFrustum": 62204,
+        "geometries": 199,
+        "materials": 91,
+        "bufferBytes": 360888,
+        "casters": 33
+      },
+      "far": {
+        "drawsBeforeFrustum": 16,
+        "trianglesBeforeFrustum": 1040,
+        "geometries": 15,
+        "materials": 6,
+        "bufferBytes": 37464,
+        "casters": 0
+      },
+      "update600Ms": 5.322082999999793,
+      "resourceCount": 717
+    }
+  ],
+  "limits": "Node model-allocation and pre-frustum district-only census; excludes surrounding world, GPU uploads, shadows passes, actual render culling and physical device frame delivery."
+}

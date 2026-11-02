@@ -2,6 +2,21 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-01
+
+### Added
+- **An opt-in Mountain Top landscape brings varied elevation to the festival.** Three deterministic district families connect dense irregular lower camping, sparse upper meadows and separate wooded drum clearings through feasible side roads and trails. Complete local streams, cut beds and wooden bridges share exact terrain/support geometry with vehicles, people, activities and an additive physics-surface adapter. Worker planning, staged publication, near/far representation, occupied retention and cleanup have scoped desktop evidence; generation 1 remains the default while physical-device/player acceptance and two new location reports remain open. [Implementation and limits](verification/landscape/README.md).
+
+### Changed
+- **Steep driving follows power, traction and momentum.** Supported downhill movement remains available, while insufficient uphill power produces a natural stall and rollback. Flat-ground acceleration, boost pickup and throttle-release drag retain the original arcade response; boost release eases excess speed without an instant velocity cut.
+
+### Fixed
+- **Bridge approaches retain exact support without coplanar flicker.** Render depth bias covers the road/deck overlap without displacing contact geometry. Selected-layer contacts, seats, boarding, activities and debug relocations respect vertical separation and reachable support.
+- **Distant planning candidates no longer restart construction forever.** Complete owner bounds, including road spurs, now govern render residency and unload hysteresis separately from the broader discovery halo.
+
+### Performance
+- **Landscape planning and road attributes stay in an owned worker.** Native normals and UVs use bounded validated payloads, while production-backed camp/drum construction yields and publishes complete owners. Shared pools and district proxies reduce repeated allocation/detail; measured construction outliers and cold-jump spikes remain documented rather than claimed solved.
+
 ## 2026-10-30
 
 ### Changed

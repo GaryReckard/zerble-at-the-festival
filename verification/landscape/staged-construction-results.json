@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-01",
+  "scope": "staged construction groundwork for Group 8.1; no live manager integration yet",
+  "node": {
+    "beforePooling": {
+      "done": true,
+      "cpuMs": 28.475338000001784,
+      "largestStepMs": 6.185707999999977,
+      "largestPhase": "drummer",
+      "steps": 463,
+      "phase": "ready"
+    },
+    "afterPooling": {
+      "done": true,
+      "cpuMs": 23.020920000004025,
+      "largestStepMs": 5.321541000000025,
+      "largestPhase": "drummer",
+      "steps": 463,
+      "phase": "ready"
+    },
+    "mid": {
+      "done": true,
+      "cpuMs": 22.03559799999971,
+      "largestStepMs": 4.619666999999936,
+      "largestPhase": "drummer",
+      "steps": 463,
+      "phase": "ready"
+    }
+  },
+  "browser": {
+    "low": {
+      "rays": 96,
+      "poses": 448,
+      "misses": 0,
+      "contactResidualCm": 0.0056,
+      "courseMs": 209,
+      "districtMs": 34.3,
+      "largestPartMs": 7
+    },
+    "mid": {
+      "rays": 96,
+      "poses": 448,
+      "misses": 0,
+      "contactResidualCm": 0.0056,
+      "courseMs": 192,
+      "districtMs": 34.6,
+      "largestPartMs": 6.9
+    },
+    "realGame": {
+      "seed": 1977,
+      "tier": "low",
+      "start": "ready Just Cruisin mode plank",
+      "time": "late night",
+      "smiles": 52,
+      "juice": 0,
+      "warnings": 0,
+      "errors": 0
+    }
+  },
+  "limits": [
+    "Node largest-step outliers are not a strict frame-budget pass.",
+    "Workshop model consumption is synchronous; runtime job metrics exclude inter-step waiting.",
+    "No production landscape manager/consumer migration or physical-device acceptance."
+  ]
+}

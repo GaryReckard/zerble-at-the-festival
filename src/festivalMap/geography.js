@@ -1,14 +1,14 @@
 import { VERSION } from './model.js';
 export class Geography {
-  constructor({seed,mode,config},changed=()=>{}) {
-    this.options={seed,mode,config,version:VERSION}; this.changed=changed;
+  constructor({seed,mode,config,landscapeVersion=1,tuning={}},changed=()=>{}) {
+    this.options={seed,mode,config,landscapeVersion,tuning,version:VERSION}; this.changed=changed;
     this.tiles=new Map();this.desired=[];this.serial=0;this.generation=0;this.jobs=0;
     this.stats={workerMs:0,bytes:0,commitMs:0,requests:0};this.status=mode==='v2'?'loading':'legacy';
     if(mode==='v2')this.start();
   }
   start() {
     if(this.closed||this.status==='legacy')return;
-    this.ready=false;this.identity=`${VERSION}:${this.options.seed}:${++this.generation}`;
+    this.ready=false;this.identity=`${VERSION}:${this.options.seed}:${this.options.landscapeVersion}:${++this.generation}`;
     try {
       this.worker=new Worker(new URL('./geography.worker.js',import.meta.url),{type:'module'});
       this.worker.onmessage=({data})=>{

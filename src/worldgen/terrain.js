@@ -1,6 +1,7 @@
 // Opt-in rolling festival country. Layout remains unchanged, and every gathering
 // footprint and lake shares datum zero so overlapping constraints agree exactly.
 // The only randomness is an independent hash stream, never a layout RNG draw.
+import { landscapeVersion,landscapeInfluence,landscapeWaterAt } from './landscapeCandidates.js';
 import { getSessionSeed, worldHash } from '../rng.js';
 import { CONFIG, worldgenEpoch } from './constants.js';
 import { heartsInBounds } from './hearts.js';
@@ -19,6 +20,8 @@ const LAKE_CAMP_REACH = 6 + 18 + 18 + 7;
 const vertexCache = new Map(), tileCache = new Map(), ownerCache = new Map();
 let enabled = false, gateKey = '', planning = false;
 export function terrainEnabled() { return enabled; }
+export function terrainGenerationKey(){return `${getSessionSeed()}:${worldgenEpoch()}:${landscapeVersion()}:${enabled}`;}
+const landscapeProbe={},waterProbe={};
 export function setTerrainEnabled(value) { enabled = !!value; return enabled; }
 function gate() {
   const key = `${getSessionSeed()}:${worldgenEpoch()}:${TERRAIN_VERSION}`;
@@ -113,6 +116,13 @@ export function terrainVertexHeight(x,z) {
   gate();
   const key=`${x},${z}`;
   if(vertexCache.has(key))return vertexCache.get(key);
+  let landscapeWeight=0,landscapeHeight=0;
+  if(landscapeVersion()===2){
+    landscapeInfluence(x,z,landscapeProbe);landscapeWeight=landscapeProbe.weight;landscapeHeight=landscapeProbe.height;
+    // At full ownership the legacy datum term is exactly zero. Avoid planning
+    // unrelated festival pads for every new mountain-grid vertex.
+    if(landscapeWeight===1)return boundedSet(vertexCache,key,landscapeHeight,65536);
+  }
   const pads=tileDescriptors(Math.floor(x/TILE),Math.floor(z/TILE));
   let mask=1;
   for(const p of pads) {
@@ -120,7 +130,8 @@ export function terrainVertexHeight(x,z) {
     if(distance<=0){mask=0;break;}
     if(distance<SHOULDER)mask=Math.min(mask,smooth(distance/SHOULDER));
   }
-  return boundedSet(vertexCache,key,baseHeight(x,z)*mask,65536);
+  const baseline=baseHeight(x,z)*mask;
+  return boundedSet(vertexCache,key,baseline*(1-landscapeWeight)+landscapeHeight*landscapeWeight,65536);
 }
 export function sampleTerrain(x,z,out={}) {
   if(!Number.isFinite(x)||!Number.isFinite(z))throw new RangeError('Terrain coordinates must be finite');
@@ -136,7 +147,8 @@ export function sampleTerrain(x,z,out={}) {
   }
   const length=Math.hypot(dx,1,dz);
   out.height=height;out.dx=dx;out.dz=dz;out.nx=-dx/length;out.ny=1/length;out.nz=-dz/length;
-  out.grade=Math.hypot(dx,dz);out.traversable=out.grade<=.45;out.surfaceClass='grass';
+  out.grade=Math.hypot(dx,dz);out.blockedReason=out.grade>.45?'grade':null;out.traversable=!out.blockedReason;out.surfaceClass='grass';
+  if(enabled&&!planning&&landscapeVersion()===2){landscapeWaterAt(x,z,waterProbe);if(waterProbe.coverage>=0&&waterProbe.height>height+.001){out.traversable=false;out.blockedReason='water';out.surfaceClass='riverbed';}}
   return out;
 }
 const heightSample={};
@@ -145,7 +157,7 @@ export function terrainHeight(x,z) { return sampleTerrain(x,z,heightSample).heig
 // need no point lookup and overlapping bounding disks stay exactly coplanar.
 export function lakeSurfaceHeight(_lakeOrX,_z) { return 0; }
 export function terrainCacheStats() {
-  gate();return {version:TERRAIN_VERSION,vertices:vertexCache.size,tiles:tileCache.size,owners:ownerCache.size};
+  gate();return {version:landscapeVersion()===2?2:TERRAIN_VERSION,vertices:vertexCache.size,tiles:tileCache.size,owners:ownerCache.size};
 }
 
 // Split surfaces on the same lattice and diagonal used by terrainHeight.

@@ -1,0 +1,18 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {VERSION} from '../src/festivalMap/model.js';
+import {landscapeCandidateInCell,setLandscapeVersion} from '../src/worldgen/landscapeCandidates.js';
+import {CONFIG} from '../src/worldgen/constants.js';
+import {FESTIVAL_TUNING} from '../src/worldgen/tuning.js';
+import {Geography} from '../src/festivalMap/geography.js';
+const replies=[];globalThis.self={postMessage:r=>replies.push(r)};await import('../src/festivalMap/geography.worker.js');
+self.onmessage({data:{type:'init',seed:1977,mode:'v2',version:VERSION,config:structuredClone(CONFIG),tuning:structuredClone(FESTIVAL_TUNING),landscapeVersion:2,identity:'landscape-test'}});assert.equal(replies.at(-1).type,'ready');
+const candidate=landscapeCandidateInCell(-1,-1);assert.ok(candidate);
+for(const size of [256,512,1024]){
+ const tile={key:`landscape:${size}`,x:-1024,z:-1024,size};self.onmessage({data:{type:'tile',identity:'landscape-test',id:size,tile}});const r=replies.at(-1);assert.equal(r.type,'tile',r.message);assert.ok(r.roads.some(road=>road.width===12),'the real canonical mountain road is on the map');assert.ok(r.lakes.length>=2,'complete stream and receiving pond appear');assert.ok(r.bytes<512000);assert.equal(r.woods.length,144);for(const lake of r.lakes)assert.ok(lake.outline.every(p=>Number.isFinite(p.x+p.z)));console.log(JSON.stringify({size,bytes:r.bytes,workerMs:r.workerMs,roads:r.roads.length,lakes:r.lakes.length}));
+}
+class WorkerStub{postMessage(data){this.sent=data;}terminate(){this.terminated=true;}}
+globalThis.Worker=WorkerStub;const geography=new Geography({seed:1977,mode:'v2',config:{},tuning:{},landscapeVersion:2});assert.equal(geography.worker.sent.landscapeVersion,2);assert.ok(geography.identity.includes(':2:'));geography.dispose();
+self.onmessage({data:{type:'init',seed:1977,mode:'v2',version:VERSION,config:{},landscapeVersion:1,identity:'legacy'}});assert.equal(replies.at(-1).type,'ready');
+self.onmessage({data:{type:'tile',identity:'legacy',id:1,tile:{key:'old',x:-1024,z:-1024,size:512}}});assert.equal(replies.at(-1).type,'tile');assert.ok(!replies.at(-1).roads.some(road=>road.width===12));setLandscapeVersion(1);
+console.log('PASS landscape map: canonical admitted access, finite stream/receiver shapes, bounded tile payloads, explicit worker identity and independent generation-1 restoration.');

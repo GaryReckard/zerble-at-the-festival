@@ -1,3 +1,4 @@
+import {landscapeClearance,landscapeNearestRoad} from './worldgen/landscapePolicy.js';
 import { vendorCanopyAppearance } from './festivalShapes.js';
 import { ribbonTriangles, trimRoadTriangles, pavedCutters, footprintBounds } from './roadGeometry.js';
 import { roadMaterial } from './roadMaterials.js';
@@ -30,11 +31,11 @@ import { CAMP_CHAIR_STYLES } from './models/campChair.js';
 import { PERF, USE_WORLDGEN_V2 } from './perf.js';
 import { register as registerContextLight } from './contextLights.js';
 import { placeChunkProps, ownerCellCoord, vendorRowSlots, foodCourtShackFallback } from './worldgen/placement.js';
-import { queryRegion, queryPoint } from './worldgen/index.js';
+import { queryRegion, queryPoint as pureQueryPoint } from './worldgen/index.js';
 import { treeDensity } from './worldgen/density.js';
 import { dancefloorRectsNear, drumClearingsNear, festivalPlan, campVillagesNear, seamHedgesNear, welcomeFoodCourt, MAX_POI_REACH } from './worldgen/festival.js';
 import { CONFIG } from './worldgen/constants.js';
-import { roadsInBounds, nearestRoad, shapesClearOfRoads, PAVED_ROAD_WIDTH } from './worldgen/roads.js';
+import { roadsInBounds, nearestRoad as nearestArterialRoad, shapesClearOfRoads, PAVED_ROAD_WIDTH } from './worldgen/roads.js';
 import { FESTIVAL_TUNING, MODEL_DIMS, clusterExtent } from './worldgen/tuning.js';
 import { chunkOverlapsLake, chunkInLake, isPointInLake } from './lakes.js';
 import { getForestAt, buildForestChunk, chunkInForest, forestAnimatables, forestDrumCircles, forestDrumMusic, buildWorldgenDrumCircle } from './forests.js';
@@ -58,6 +59,10 @@ import { buildShrub } from './models/shrub.js';
 import { jugKeptAt } from './runMode.js';
 import { leafBannerTextures } from './models/leafBanner.js';
 
+// Runtime placement sees completed access reservations, while pure planning
+// stays independent of worker timing and scene residency.
+const queryPoint=(x,z)=>{const p=pureQueryPoint(x,z);if(landscapeClearance(x,z))p.noBuild=true;return p;};
+const nearestRoad=(x,z,window)=>landscapeNearestRoad(x,z,nearestArterialRoad(x,z,window));
 export const CHUNK_SIZE = 80;
 const LOAD_RADIUS = PERF.chunkLoadRadius;   // mobile: 1 (3x3), desktop: 2 (5x5)
 const UNLOAD_RADIUS = PERF.chunkUnloadRadius; // hysteresis
@@ -315,9 +320,10 @@ function recordChunkStage(name, ms) {
 // ---------- Public API ----------
 
 export class ChunkManager {
-  constructor(scene, crowd) {
+  constructor(scene, crowd, {readyForChunk=null}={}) {
     this.scene = scene;
     this.crowd = crowd;
+    this.readyForChunk=readyForChunk;
     this.loaded = new Map(); // key -> { group, cx, cz, theme }
     this._initialPreloadDone = false;
 
@@ -378,6 +384,7 @@ export class ChunkManager {
     const deadlineMs = streamDeadlineMs ?? performance.now() + PERF.chunkBudgetMs;
     for (const c of candidates) {
       if (!firstLoad && performance.now() >= deadlineMs) break;
+      if(this.readyForChunk&&!this.readyForChunk({minX:c.cx*CHUNK_SIZE-CHUNK_SIZE/2,maxX:c.cx*CHUNK_SIZE+CHUNK_SIZE/2,minZ:c.cz*CHUNK_SIZE-CHUNK_SIZE/2,maxZ:c.cz*CHUNK_SIZE+CHUNK_SIZE/2}))continue;
       const t0 = performance.now();
       this._generate(c.cx, c.cz);
       const ms = performance.now() - t0;
@@ -1084,7 +1091,7 @@ function scatterWorldgenTrees(ctx) {
   };
   const woodland=ctx.woodlandDistricts || woodlandCampsNear({minX,minZ,maxX:minX+CHUNK_SIZE,maxZ:minZ+CHUNK_SIZE});
   const clearOfStuff = (x, z, spacing) => {
-    if(woodlandCampingClearance(x,z,woodland,4))return false;
+    if(landscapeClearance(x,z,4)||woodlandCampingClearance(x,z,woodland,4))return false;
     if (pointInDancefloor(x, z, danceRects)) return false;          // keep the stage's audience side clear (A4)
     if (pointNearWorldgenRoad(x, z, chunkRoads, roadHalf)) return false;   // off EVERY nearby arterial, not just this region's
     for (let i = 0; i < drumClears.length; i++) { const dc = drumClears[i]; if ((dc.x - x) * (dc.x - x) + (dc.z - z) * (dc.z - z) < dc.r * dc.r) return false; }
@@ -3165,7 +3172,7 @@ function spawnAmbientCrowd(ctx, count) {
       // Reject positions inside a lake's actual outline. Shore-attractor
       // spawns can land inside the water on lobed lakes; this catches them.
       blocked = registry.closestBuilding(new THREE.Vector3(x, terrainHeight(x, z), z), 1.5)
-        || isPointInLake(x, z);
+        || isPointInLake(x, z) || landscapeClearance(x,z,1,true);
     } while (blocked && tries < 8);
     if (blocked) continue;   // 8 retries blocked → skip this slot rather than spawn in water
 
