@@ -502,6 +502,12 @@ hosted collector with privacy, retention, abuse, and consent rules.
 
 ---
 
+## Physical furniture playground
+
+Open `/physical-sandbox.html?mute=1&perf=low&fixture=chair&seed=1977` on the Vite server. Choose a chair style and encounter, then use Run encounter, reset, slow motion or single step. Collision shapes, model bounds and seat anchors help inspect the provisional recipes. Inputs, contacts, and limits contains the copied report and Dispose scene control. Repeat Noon/Midnight and Low/Mid when changing presentation.
+
+This is an engine proof with a kinematic cart box and fixture ground. It does not exercise production occupants, ownership or terrain, and disabling physics shows a static reference rather than legacy collisions. See [evidence and limitations](verification/physical-festival/README.md). Run `npm run test:physics` for actual Rapier lifecycle/contact and fixed-clock tests.
+
 ## The sandbox — isolated entity viewer
 
 [sandbox.html](sandbox.html) is the **primary surface for any model/visual

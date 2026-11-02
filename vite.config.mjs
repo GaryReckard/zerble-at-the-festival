@@ -6,7 +6,7 @@ import { captureMiddleware } from './tooling/capture.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 export const pages = ['index.html', 'sandbox.html', 'hub-sandbox.html',
-  'terrain-sandbox.html', 'map-sandbox.html', 'passport-preview.html', 'festival-map-preview.html'];
+  'physical-sandbox.html', 'terrain-sandbox.html', 'map-sandbox.html', 'passport-preview.html', 'festival-map-preview.html'];
 const staticFiles = ['favicon.ico', 'favicon.svg', 'favicon-96x96.png',
   'apple-touch-icon.png', 'site.webmanifest',
   'web-app-manifest-192x192.png', 'web-app-manifest-512x512.png'];

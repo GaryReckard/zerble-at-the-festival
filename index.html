@@ -193,6 +193,7 @@
 
         <button id="start-btn" class="title-sr-only" type="button" tabindex="-1" disabled aria-disabled="true" aria-busy="true">Warming up Zerble…</button>
         <span id="boot-copy" role="status" aria-live="polite">Pressurizing the bubble tank…</span>
+        <button id="boot-retry" type="button" hidden>Try loading again</button>
 
         <div class="title-links">
           <button id="howto-open" class="title-link" type="button" aria-expanded="false" aria-controls="title-page-howto">How to play</button>
@@ -307,6 +308,40 @@
       // The mode planks stay disabled until hud.js arms the trusted-gesture
       // start callback. This line narrates the wait without moving the menu.
       const copy = document.getElementById('boot-copy');
+      const retry = document.getElementById('boot-retry');
+      // Kept inline so recovery still works when the module entry cannot load.
+      // The URL marker bounds automatic recovery without depending on storage.
+      const retryKey = '_bootRetry';
+      let failed = false;
+      function reloadFresh() {
+        const url = new URL(location.href);
+        url.searchParams.set(retryKey, String(Date.now()));
+        location.replace(url.href);
+      }
+      retry.addEventListener('click', reloadFresh);
+      function fail(error, downloadFailure = false) {
+        if (ready || failed) return;
+        failed = true;
+        clearInterval(timer);
+        clearTimeout(stuck);
+        copy.classList.remove('is-done');
+        const networkError = downloadFailure || /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Unable to preload CSS/i.test(String(error?.message || error));
+        if (networkError && !new URL(location.href).searchParams.has(retryKey)) {
+          copy.textContent = 'The festival download stumbled. Trying again…';
+          setTimeout(function () { if (!ready) reloadFresh(); }, 1000);
+        } else {
+          copy.textContent = 'The festival could not finish loading.';
+          retry.hidden = false;
+        }
+      }
+      // Also cover the entry script itself; a catch inside boot.js cannot run
+      // when that file is unavailable. Ignore analytics and image failures.
+      window.addEventListener('error', function (event) {
+        if (event.target?.tagName === 'SCRIPT' && event.target.type === 'module') fail(event, true);
+      }, true);
+      window.addEventListener('vite:preloadError', function (event) {
+        fail(event.payload);
+      });
       const phrases = [
         'Pressurizing the bubble tank…',
         'Polishing the mustache…',
@@ -327,12 +362,20 @@
       const stuck = setTimeout(function () {
         if (ready) return;
         clearInterval(timer);
-        copy.textContent = "Something's stuck — try reloading?";
+        copy.textContent = 'Loading is taking longer than expected.';
+        retry.hidden = false;
       }, 20000);
       window.__zerbleBootLoader = {
+        fail: fail,
         ready: function () {
           if (ready) return;
           ready = true;
+          retry.hidden = true;
+          const url = new URL(location.href);
+          if (url.searchParams.has(retryKey)) {
+            url.searchParams.delete(retryKey);
+            history.replaceState(history.state, '', url.href);
+          }
           clearInterval(timer);
           clearTimeout(stuck);
           copy.textContent = 'Bubble pressure: magnificent.';

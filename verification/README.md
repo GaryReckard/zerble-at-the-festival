@@ -27,7 +27,9 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Startup download recovery, October 30](boot-recovery/README.md): injected HTTP 503, bounded automatic recovery, manual fallback and production game boot.
 
+- [Physical festival engine proof, October 30](physical-festival/README.md): real-engine adapter tests, standalone chair/cooler encounters, desktop captures and cleanup; production ownership and phone acceptance remain pending.
 
 - [Festival people and Gary, October 30](hair/README.md): hair across every human family, Gary’s complete seated pose and dark gray footwell, geometry/contact tests, day/night captures and Low-tier game smoke test.
 

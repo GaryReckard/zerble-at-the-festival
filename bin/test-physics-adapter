@@ -1,0 +1,167 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as R from '@dimforge/rapier3d-compat';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+
+const box = (x, y, z, extra = {}) => ({ shape: 'cuboid', halfExtents: { x, y, z }, ...extra });
+const ball = (radius = .5, extra = {}) => ({ shape: 'ball', radius, ...extra });
+const pose = (x = 0, y = 0, z = 0) => ({ position: { x, y, z } });
+const near = (actual, expected, tolerance = 1e-4) => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
+function add(world, id, type, position, colliders, extra = {}) {
+  const result = world.addBody({ id, type, pose: position, colliders, ...extra });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  return result;
+}
+function ground(world) { add(world, 'ground', 'fixed', pose(0, -.1), [box(10, .1, 10)]); }
+function counts(world, bodies, colliders) {
+  const result = world.counts();
+  assert.equal(result.bodies, bodies); assert.equal(result.engineBodies, bodies);
+  assert.equal(result.colliders, colliders); assert.equal(result.engineColliders, colliders);
+}
+
+// The engine is real WASM, including async initialization. No motion/contact stubs.
+const world = await createRapierAdapter({ capacities: { bodies: 8, colliders: 16, events: 4096 } });
+try {
+  assert.match(world.engineVersion, /^0\.21\./);
+  ground(world);
+  add(world, 'falling', 'dynamic', pose(0, 2), [ball(.5, { forceEvents: true })], { canSleep: false });
+  let starts = 0, restingForces = 0, maxImpact = 0;
+  for (let step = 0; step < 240; step++) {
+    world.step(1 / 60);
+    const batch = world.drainEvents(); assert.equal(batch.overflow, 0);
+    for (const event of batch.events) {
+      if (event.type === 'contact-start') { starts++; assert.equal('totalForce' in event, false); }
+      if (event.type === 'contact-force') {
+        assert.equal(event.units, 'N'); assert.ok(event.totalForceMagnitude > 0);
+        assert.ok(Object.values(event.totalForce).every(Number.isFinite));
+        maxImpact = Math.max(maxImpact, event.totalForceMagnitude);
+        if (step > 70) restingForces++;
+      }
+    }
+  }
+  near(world.readBody('falling').pose.position.y, .5, .015);
+  assert.equal(starts, 1, 'resting support does not create a new collision-start every tick');
+  assert.ok(maxImpact > 100, 'falling impact reports a measured force');
+  assert.ok(restingForces > 0, 'sustained resting force is not a renewed impact-start');
+  const copied = world.readBody('falling'); copied.pose.position.y = 900;
+  assert.ok(world.readBody('falling').pose.position.y < 1, 'pose snapshots cannot mutate engine state');
+  world.setPose('falling', pose(0, 5)); world.step(1 / 60);
+  assert.ok(world.drainEvents().events.some(e => e.type === 'contact-end'));
+  const debug = world.debugRender(); assert.ok(debug.vertices.length > 0); assert.equal(debug.colors.length / 4, debug.vertices.length / 3);
+  const firstVertex = debug.vertices[0]; debug.vertices[0] = 999;
+  near(world.debugRender().vertices[0], firstVertex);
+  assert.equal(world.removeBody('falling'), true); assert.equal(world.removeBody('falling'), false);
+  counts(world, 1, 1); assert.equal(world.readBody('falling'), null);
+} finally { world.dispose(); world.dispose(); }
+counts(world, 0, 0); assert.equal(world.counts().disposed, true);
+assert.throws(() => world.step(1 / 60), /disposed/); assert.equal(world.removeBody('ground'), false);
+
+const clock = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 } });
+try {
+  add(clock, 'moving', 'dynamic', pose(), [ball()], { linearVelocity: { x: 2, y: 0, z: 0 } });
+  clock.step(.1); near(clock.readBody('moving').pose.position.x, .2);
+  clock.step(.05); near(clock.readBody('moving').pose.position.x, .3);
+  for (const bad of [0, -1, NaN, Infinity]) assert.throws(() => clock.step(bad));
+  assert.equal(clock.counts().steps, 2, 'invalid time never advances the engine');
+  assert.throws(() => clock.setPose('moving', { position: { x: NaN, y: 0, z: 0 } }));
+  near(clock.readBody('moving').pose.position.x, .3);
+  clock.applyImpulse('moving', { x: 1, y: 0, z: 0 }, { x: .3, y: .5, z: 0 });
+  assert.ok(clock.readBody('moving').linearVelocity.x > 2);
+  assert.ok(Math.abs(clock.readBody('moving').angularVelocity.z) > 0);
+} finally { clock.dispose(); }
+
+const kinematic = await createRapierAdapter();
+try {
+  ground(kinematic);
+  add(kinematic, 'cart', 'kinematic', pose(-2, .5), [box(.5, .5, .5)]);
+  add(kinematic, 'prop', 'dynamic', pose(0, .5), [box(.4, .5, .4)]);
+  for (let i = 1; i <= 90; i++) {
+    assert.equal(kinematic.setKinematicTarget('cart', pose(-2 + i * .04, .5)), true);
+    kinematic.step(1 / 60); kinematic.drainEvents();
+  }
+  near(kinematic.readBody('cart').pose.position.x, 1.6);
+  assert.ok(kinematic.readBody('prop').pose.position.x > 1, 'commanded kinematic motion transfers contact to a dynamic prop');
+  assert.equal(kinematic.setKinematicTarget('prop', pose()), false);
+  kinematic.setPose('cart', pose(-4, .5)); kinematic.step(1 / 60);
+  near(kinematic.readBody('cart').pose.position.x, -4, 1e-3);
+  near(kinematic.readBody('cart').linearVelocity.x, 0, 1e-3);
+} finally { kinematic.dispose(); }
+
+async function projectile(ccd) {
+  const test = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 } });
+  try {
+    add(test, 'wall', 'fixed', pose(), [box(.025, 2, 2)]);
+    add(test, 'projectile', 'dynamic', pose(-1), [ball(.05)], { ccd, linearVelocity: { x: 200, y: 0, z: 0 } });
+    assert.equal(test.readBody('projectile').ccd, ccd, 'requested CCD setting reaches the real engine');
+    test.step(1 / 60); return test.readBody('projectile').pose.position.x;
+  } finally { test.dispose(); }
+}
+assert.ok(await projectile(true) < 0, 'CCD prevents the fast small body crossing the thin wall');
+// Rapier 0.21 also stops the disabled-CCD control in this scene, so this proves
+// containment with CCD enabled but does not establish that CCD alone caused it.
+assert.ok(await projectile(false) < 0, 'record the same scene with CCD disabled');
+
+const sensors = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 } });
+try {
+  add(sensors, 'sensor', 'fixed', pose(), [ball(1, { sensor: true, forceEvents: true })]);
+  add(sensors, 'visitor', 'dynamic', pose(), [ball(.2, { forceEvents: true })]);
+  sensors.step(1 / 60);
+  const events = sensors.drainEvents().events;
+  assert.ok(events.some(e => e.type === 'sensor-start'));
+  assert.equal(events.some(e => e.type === 'contact-force' || e.type === 'contact-start'), false);
+  sensors.setPose('visitor', pose(5)); sensors.step(1 / 60);
+  assert.ok(sensors.drainEvents().events.some(e => e.type === 'sensor-end'));
+} finally { sensors.dispose(); }
+
+const bounded = await createRapierAdapter({ capacities: { bodies: 3, colliders: 4, events: 1 } });
+try {
+  ground(bounded);
+  add(bounded, 'compound', 'dynamic', pose(0, 2), [
+    box(.1, .5, .1, { position: { x: -.4, y: 0, z: 0 }, forceEvents: true }),
+    box(.1, .5, .1, { position: { x: .4, y: 0, z: 0 }, forceEvents: true }),
+    box(.5, .1, .1, { position: { x: 0, y: .4, z: 0 }, forceEvents: true }),
+  ]);
+  const before = bounded.counts();
+  assert.equal(bounded.addBody({ id: 'extra', type: 'dynamic', colliders: [ball()] }).reason, 'collider-capacity');
+  assert.deepEqual(bounded.counts(), before);
+  assert.equal(bounded.addBody({ id: 'compound', type: 'dynamic', colliders: [ball()] }).reason, 'duplicate-id');
+  for (let i = 0; i < 120; i++) bounded.step(1 / 60);
+  assert.ok(bounded.readBody('compound').pose.position.y > .3, 'compound body remains supported');
+  const overflowed = bounded.drainEvents(); assert.equal(overflowed.events.length, 1); assert.ok(overflowed.overflow > 0);
+  assert.equal(bounded.counts().events, 0); assert.equal(bounded.counts().overflow, 0);
+  assert.equal(bounded.counts().totalOverflow, overflowed.overflow);
+  bounded.removeBody('compound'); counts(bounded, 1, 1);
+} finally { bounded.dispose(); }
+
+const transactional = await createRapierAdapter({ capacities: { bodies: 1, colliders: 3, events: 0 } });
+try {
+  const invalid = transactional.addBody({ id: 'bad', type: 'dynamic', colliders: [ball(), ball(-1)] });
+  assert.equal(invalid.reason, 'invalid-descriptor'); counts(transactional, 0, 0);
+  // Fail the second real engine allocation, after the first collider exists.
+  // This exercises rollback rather than merely invalid-descriptor rejection.
+  const original = R.World.prototype.createCollider; let creations = 0;
+  try {
+    R.World.prototype.createCollider = function (...args) {
+      if (++creations === 2) throw new Error('injected collider allocation failure');
+      return original.apply(this, args);
+    };
+    assert.equal(transactional.addBody({ id: 'rollback', type: 'dynamic', colliders: [ball(), ball()] }).reason, 'engine-create-failed');
+  } finally { R.World.prototype.createCollider = original; }
+  counts(transactional, 0, 0);
+  for (let cycle = 0; cycle < 100; cycle++) {
+    add(transactional, 'reused', 'dynamic', pose(), [
+      { shape: 'capsule', radius: .1, halfHeight: .4 },
+      { shape: 'cylinder', radius: .2, halfHeight: .1 },
+    ]);
+    assert.equal(transactional.addBody({ id: 'full', type: 'dynamic', colliders: [ball()] }).reason, 'body-capacity');
+    transactional.step(1 / 60); transactional.drainEvents();
+    assert.equal(transactional.removeBody('reused'), true); counts(transactional, 0, 0);
+  }
+} finally { transactional.dispose(); }
+
+for (let cycle = 0; cycle < 12; cycle++) {
+  const fresh = await createRapierAdapter();
+  add(fresh, 'body', 'dynamic', pose(), [ball()]); fresh.step(1 / 60);
+  fresh.dispose(); fresh.dispose(); counts(fresh, 0, 0);
+}
+console.log('PASS real Rapier 0.21 adapter: support, compound primitives, copied poses/debug buffers, timestep, kinematic transfer, fast-body containment and CCD flag wiring, start/end/sensor/force distinctions, explicit overflow, capacity rejection, allocation rollback, 100 removal cycles and 12 world disposals.');

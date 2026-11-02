@@ -19,6 +19,9 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-10-30
 
+### Added
+- **A physics playground makes furniture impacts repeatable.** Added isolated chair, chair-pair, slope, solid-neighbor and cooler scenes with the real models, a pinned Rapier adapter, speed/angle/seed controls, slow motion, single stepping, collision overlays and explicit disposal diagnostics. The cart remains a test proxy; occupants and live-world integration are pending. Real-engine regression tests and saved desktop evidence establish the initial proof without claiming phone acceptance. [Evidence and limitations](verification/physical-festival/README.md).
+
 ### Changed
 - **Hair improvements reach every human character family.** Six sculpted styles and a close cap now share head-sized geometry across crowds, children, performers and bands, vendors and cooks, parade carriers, hoopers, drum-circle figures, monks, paddlers, yoga participants, riders and the cart driver. Bo retains long hair and wooks retain tapered dreadlocks. Shared pools preserve seeded choices, existing animation and crowd instancing. [Before/after, geometry costs and verification limits](verification/hair/README.md).
 - **Gary has a complete seated driving pose.** Taller proportions, rounded jeans with rear seams, bent knees and an extended right leg meet suspended angled pedals in a recessed dark gray footwell. Swept-back brown hair, gray temples and a rear bun follow the supplied references. [Driver views and contact checks](verification/hair/README.md).
@@ -26,6 +29,7 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ### Fixed
 - **Photographers hold their cameras and bend their knees naturally.** Replaced the backward rigid-arm rotation with jointed two-hand grips, a smooth chest-to-eye lift and return, and a flash that follows the camera. Crouches keep both feet grounded at every character scale, while travel keeps the crowd gait. Added paused phase inspection and contact regressions without adding geometry or draw calls. [Verification](verification/photographer/README.md).
+- **A failed game download now has a way back.** Startup catches module-download failures and tries one fresh-page navigation, preserving the project path and game options. If that attempt fails, the title screen offers a working retry button instead of waiting indefinitely. Slow startup also exposes the button, while ordinary initialization errors do not trigger automatic reload loops.
 
 ## 2026-10-29
 

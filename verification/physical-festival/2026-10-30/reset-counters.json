@@ -1,0 +1,5 @@
+[
+  "Bodies\n4\nColliders\n9\nJoints\n0\nRender objects\n3\nSim time\n0.00 s\nAllocation\n1.3 ms\nStep CPU\n0.00 ms\nPose writes\n0.10 ms\nDraws / tris\n25 / 1,874\nGPU geometry / textures\n10 / 0\nSteps / discarded time\n0 / 0.00 s\nEvent overflow\n0",
+  "Bodies\n4\nColliders\n9\nJoints\n0\nRender objects\n3\nSim time\n0.00 s\nAllocation\n1.9 ms\nStep CPU\n0.00 ms\nPose writes\n0.00 ms\nDraws / tris\n25 / 1,874\nGPU geometry / textures\n10 / 0\nSteps / discarded time\n0 / 0.00 s\nEvent overflow\n0",
+  "Bodies\n4\nColliders\n9\nJoints\n0\nRender objects\n3\nSim time\n0.00 s\nAllocation\n0.9 ms\nStep CPU\n0.00 ms\nPose writes\n0.00 ms\nDraws / tris\n25 / 1,874\nGPU geometry / textures\n10 / 0\nSteps / discarded time\n0 / 0.00 s\nEvent overflow\n0"
+]
