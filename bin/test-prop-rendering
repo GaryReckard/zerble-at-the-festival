@@ -1,0 +1,75 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {buildCampChair,CAMP_CHAIR_STYLES} from '../src/models/campChair.js';
+import {batchPropGroups} from '../src/propRendering.js';
+
+const equalMatrix=(a,b,message)=>assert(a.elements.every((v,i)=>Math.abs(v-b.elements[i])<2e-5),message);
+const parent=new THREE.Group(),root=new THREE.Group();parent.add(root);
+parent.position.set(13,2,-7);parent.rotation.y=.7;parent.scale.setScalar(1.4);
+root.position.set(-3,1,5);root.rotation.set(.1,-.4,.05);root.scale.setScalar(2);
+let draws=0;
+const chairs=CAMP_CHAIR_STYLES.map((style,i)=>{
+ const chair=buildCampChair(()=>{draws++;return .12+i*.2;},{style});
+ chair.group.position.set(i*2,0,0);chair.group.rotation.y=i*.3;root.add(chair.group);
+ return chair;
+});
+root.updateWorldMatrix(true,true);
+const original=chairs.map(c=>c.group.children.map(m=>({matrix:m.matrixWorld.clone(),geometry:m.geometry,material:m.material})));
+const batch=batchPropGroups(root,chairs.map(c=>c.group));
+assert.equal(draws,4,'no extra palette draws');
+const actual=new THREE.Matrix4(),world=new THREE.Matrix4();
+root.updateWorldMatrix(true,true);
+for(let i=0;i<chairs.length;i++) {
+ const parts=batch.bindings[i].describe();
+ assert.equal(parts.length,original[i].length);
+ for(let j=0;j<parts.length;j++) {
+  const p=parts[j];p.mesh.getMatrixAt(p.slot,actual);world.multiplyMatrices(p.mesh.matrixWorld,actual);
+  equalMatrix(world,original[i][j].matrix,'initial world silhouette and part order unchanged');
+  assert.equal(p.geometry,original[i][j].geometry);assert.equal(p.material,original[i][j].material);
+ }
+ assert.equal(chairs[i].group.children.length,0,'no duplicate render meshes');
+}
+const target=new THREE.Matrix4().compose(new THREE.Vector3(28,12,-16),
+ new THREE.Quaternion().setFromEuler(new THREE.Euler(.4,.8,1.2)),new THREE.Vector3(2.8,2.8,2.8));
+assert(batch.bindings[0].setWorldMatrix(target));
+const report=batch.flush();assert(report.buckets>0);assert(report.matrixBytes>0);
+for(const p of batch.bindings[0].describe()) {
+ p.mesh.getMatrixAt(p.slot,actual);world.multiplyMatrices(p.mesh.matrixWorld,actual);
+ equalMatrix(world,new THREE.Matrix4().multiplyMatrices(target,p.localMatrix),'moved parts follow the world pose through transformed parents');
+ const localBox=p.geometry.boundingBox.clone().applyMatrix4(actual);
+ assert(p.mesh.boundingBox.containsBox(localBox),'updated bounds retain airborne geometry');
+ assert(p.mesh.instanceMatrix.version>1);
+ assert.equal(p.mesh.instanceMatrix.updateRanges.length,1);
+}
+// A neighboring chair in the same shared buckets must remain unchanged.
+for(const [j,p] of batch.bindings[1].describe().entries()) {
+ p.mesh.getMatrixAt(p.slot,actual);world.multiplyMatrices(p.mesh.matrixWorld,actual);
+ equalMatrix(world,original[1][j].matrix,'neighbor instance slots remain intact');
+}
+for(let i=0;i<100;i++){target.elements[12]+=.01;batch.bindings[0].setWorldMatrix(target);batch.flush();}
+assert(batch.meshes.every(m=>m.instanceMatrix.updateRanges.length<=1),'pending upload range metadata stays bounded without rendering');
+batch.bindings[0].setWorldMatrix(target);
+assert.deepEqual(batch.flush(),{buckets:0,matrixBytes:0},'unchanged batches do not request uploads');
+const descriptor=batch.bindings[0].describe();descriptor[0].localMatrix.elements.fill(999);
+assert.notEqual(batch.bindings[0].describe()[0].localMatrix.elements[0],999);
+assert(batch.bindings[0].setVisible(false));batch.flush();
+for(const p of batch.bindings[0].describe()){p.mesh.getMatrixAt(p.slot,actual);assert.equal(actual.determinant(),0);}
+assert(batch.bindings[0].setVisible(true));batch.flush();
+assert(batch.bindings[0].release());batch.flush();assert.equal(batch.bindings[0].setWorldMatrix(target),false);
+let sharedDisposals=0,instanceDisposals=0;
+const geos=new Set(batch.meshes.map(m=>m.geometry)),mats=new Set(batch.meshes.map(m=>m.material));
+const sharedListener=()=>sharedDisposals++;
+for(const r of [...geos,...mats])r.addEventListener('dispose',sharedListener);
+for(const mesh of batch.meshes)mesh.addEventListener('dispose',()=>instanceDisposals++);
+// External chunk teardown invalidates every binding immediately.
+batch.meshes[0].dispose();assert.equal(batch.bindings[1].setWorldMatrix(target),false);
+batch.dispose();batch.dispose();
+assert.equal(instanceDisposals,batch.meshes.length);assert.equal(sharedDisposals,0);
+for(const r of [...geos,...mats])r.removeEventListener('dispose',sharedListener);
+assert(batch.meshes.every(m=>m.parent===null));
+const badRoot=new THREE.Group(),good=new THREE.Group(),bad=new THREE.Group();badRoot.add(good,bad);
+good.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial()));bad.add(new THREE.Group());
+assert.throws(()=>batchPropGroups(badRoot,[good,bad]),/leaf/);assert.equal(good.children.length,1,'validation failure does not detach earlier groups');
+good.children[0].geometry.dispose();good.children[0].material.dispose();
+console.log('PASS real chair instance bindings: four styles, preserved palette/parts, transformed owners, moving bounds, isolated slots, bounded dirty ranges, visibility/release and shared-safe disposal.');

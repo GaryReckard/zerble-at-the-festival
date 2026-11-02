@@ -83,3 +83,21 @@ if(!process.argv.includes('--baseline')){
  assert.equal(f.manager.jobs.size,0);assert.equal(f.manager.sessions.length,0);assert.equal(f.owner.activityClaims.current.size,0);assert.equal(f.group.children.size,0);assert(f.seats.every(s=>!s.occupied));assert.equal(f.sounds[0].stops,1);
  f.manager.dispose();console.log('PASS camp music teardown finishes all person, chair, model and sound cleanup after an injected audio-stop failure.');
 }
+if(!process.argv.includes('--baseline')){
+ const f=fixture(false);f.manager.update(.1,new Vector(),.62);
+ for(let i=0;i<250;i++){f.manager.update(.1,new Vector(),.62);for(const n of f.owner.npcs)f.manager.tickPerson(.1,n.personHandle);}
+ const job=[...f.manager.jobs.values()].find(j=>j.slot&&j.motion.state==='camp_seated');assert(job);
+ const target={id:'physical-chair',campSeats:[job.slot]},old=job.claim,reservation=job.reservation;
+ f.registry.entries.set(target.id,target);let support;
+ const acquire=success=>f.owner.claimActivity(job.person,{owner:{activityKey:'physical-seat-support'},prepare(attempt){
+  support=f.owner.preparePersonSupportTransfer(job.person,target,attempt);assert(support);return success;
+ }},{preserveMotion:true});
+ assert.equal(acquire(false),null);assert(f.owner.isPersonActivityCurrent(old));assert(f.manager.has(job.person));
+ const modelCount=f.group.children.size,claim=acquire(true);assert(claim);assert(support.commit(claim));
+ assert(!f.manager.has(job.person));assert.equal(f.group.children.size,modelCount-1,'outgoing instrument is removed once');
+ assert.equal(resources.releaseCampSlot(reservation),false);
+ f.registry.entries.delete(f.host.id);f.manager.dispose();
+ assert(support.isValid());assert(job.slot.occupied);assert.equal(f.group.children.size,0);
+ f.owner.endPersonActivity(claim);assert(!job.slot.occupied);assert(!support.isValid());
+ console.log('PASS seated musician support handoff: failed preparation preserves music, committed transfer cleans the instrument, and late camp/music cleanup preserves replacement support.');
+}

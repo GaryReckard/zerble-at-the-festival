@@ -1,3 +1,4 @@
+import {landscapeTileSupport,landscapePhysicsGround} from './physicsTiles.js';
 import { LandscapePhysicsSurfaces } from './physicsSurfaces.js';
 import { LandscapePlanner } from './planner.js';
 import { LandscapeAccessIndex } from './accessIndex.js';
@@ -46,6 +47,8 @@ export class LandscapeRuntime {
     const binding=createSupportBinding(this.supportWorld,{x:vehicle.position.x,z:vehicle.position.z,heading:vehicle.heading||0},{footprint,allowSteepTerrain:true});
     vehicle.surfaceBinding=binding;vehicle.surfaceSampler=binding.sample;vehicle.colliderHeight=4.1;vehicle.groundOnSurface?.();return binding;
   }
+  physicsGround(x,z,y,out){return landscapePhysicsGround(this,x,z,y,out);}
+  physicsSupport(bounds,origin){return landscapeTileSupport(this,bounds,origin);}
   attachPhysics(adapter,options={}){
     if(this.disposed)throw new Error('Landscape runtime disposed');
     if(this.physics&&!this.physics.disposed)throw new Error('Landscape physics already attached');

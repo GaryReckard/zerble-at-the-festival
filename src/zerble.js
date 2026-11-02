@@ -1542,6 +1542,20 @@ export class Zerble {
     this.invulnLeft = 0.7;
   }
 
+  // Fixed scenery has effectively infinite mass. Project the approach out of
+  // our heading-constrained arcade velocity; a square hit stops, a glance
+  // retains some speed. Consequence cooldown never disables this separation.
+  applyObstacleHit(pushDir, approachSpeed, overlap, eligible = true) {
+    const speed = Math.abs(this.speed);
+    const incoming = Math.min(speed, Math.max(0, approachSpeed));
+    this.speed = Math.sign(this.speed) * (speed > 0 ? Math.max(0, speed - incoming * incoming / speed) : 0);
+    const x=this.position.x+pushDir.x*(Math.max(0,overlap)+.001);
+    const z=this.position.z+pushDir.z*(Math.max(0,overlap)+.001);
+    if(this.surfaceBinding)this.applySurfaceCorrection(x,z);
+    else {this.position.x=x;this.position.z=z;}
+    if (eligible) this.invulnLeft = 0.7;
+  }
+
   canHonk() {
     return this.honkCooldown <= 0;
   }

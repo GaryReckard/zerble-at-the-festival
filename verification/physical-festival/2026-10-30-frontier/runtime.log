@@ -1,0 +1,7 @@
+(node:96334) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/physics/fixedStep.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS fixed clock 30/60/120 Hz, capped suspension, 23 real-engine fixtures, contact motion, copied state, static reference, capacity rejection and idempotent teardown.
+Scope: fixture engine proof only; production controller, terrain, claims and device acceptance remain pending.
+PASS external controller trajectory integration at 30/60/120 Hz with actual Rapier chair contact.

@@ -55,3 +55,21 @@ console.log('PASS claim transition interruption: person removal releases the old
  assert.equal(ordered.current.size,0);
 }
 console.log('PASS failed replacement frees tentative reservations before guarded ordinary resume.');
+
+for(const mode of ['remove-next','dispose','throw','async','reentrant']) {
+ const population=new PersonHandles({runtime,ownerToken,read(){}});
+ const a=population.create(10,{}),b=population.create(11,{});
+ const released=[0,0];let rolledBack=0;
+ const batch=new ActivityClaims({people:population});
+ batch.acquire(a,{owner:'old-a',release(){released[0]++;if(mode==='remove-next')population.remove(b,()=>batch.removePerson(b));if(mode==='dispose')batch.dispose();if(mode==='throw')throw Error('old release failure');}});
+ const oldB=batch.acquire(b,{owner:'old-b',release(){released[1]++;}});
+ const requests=[a,b].map(handle=>({handle,owner:'new',prepare(attempt){attempt.own(()=>rolledBack++);if(mode==='reentrant')assert.equal(batch.acquire(b,{owner:'nested'}),null);return mode==='async'?Promise.resolve(true):true;}}));
+ if(mode==='throw'||mode==='async')assert.throws(()=>batch.acquireBatch(requests));
+ else if(mode==='reentrant'){const result=batch.acquireBatch(requests);assert.equal(result.length,2);assert(result.every(c=>batch.canWrite(c)));}
+ else assert.equal(batch.acquireBatch(requests),null);
+ if(mode==='remove-next'||mode==='dispose'){assert.deepEqual(released,[1,1]);assert.equal(rolledBack,2);}
+ if(mode==='throw'){assert(batch.canWrite(oldB));assert.equal(rolledBack,2);}
+ if(mode==='async'){assert(batch.canWrite(oldB));assert.equal(rolledBack,1);}
+ assert.equal(batch.transitioning.size,0);batch.dispose();
+}
+console.log('PASS batch claims: cross-person removal, disposal, release exceptions, async rejection and reentrant admission preserve cleanup and authority.');

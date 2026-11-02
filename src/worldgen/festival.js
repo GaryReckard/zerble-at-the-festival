@@ -1128,10 +1128,13 @@ function _computePlan(heart) {
     for (const c of cands) {
       const spot = nudgeOff(c.x, c.z, rng);
       if (!spot) continue;
-      const shapes = clusterShapes('welfare_post', tier.scale, spot.x, spot.z, 0);
-      if (placed.some((pl) => clustersOverlap(shapes, pl.s, 1))) continue;   // don't clip the parent or a sibling
-      // Face the parent: the station fronts the crowd it serves.
+      spot.x=quantize(spot.x);spot.z=quantize(spot.z);
+      // Reserve the entire bundle against curved roads, including the bank's
+      // flank and fallback slots. A clear center does not clear its toilets.
       const yaw = Math.atan2(par.x - spot.x, par.z - spot.z);
+      const shapes = clusterShapes('welfare_post', tier.scale, spot.x, spot.z, yaw);
+      if (!shapesClearOfRoads(shapes,roadsInBounds(spot.x-postR-20,spot.z-postR-20,spot.x+postR+20,spot.z+postR+20))) continue;
+      if (placed.some((pl) => clustersOverlap(shapes, pl.s, 1))) continue;   // don't clip the parent or a sibling
       const d = desc('welfare_post', spot.x, spot.z, yaw, 'core', heart.rank, false, clusterSeed(heart, par.idx));
       d.tier = par.tier;
       d.parentSeed = par.parentSeed;

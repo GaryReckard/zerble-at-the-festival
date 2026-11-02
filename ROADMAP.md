@@ -102,19 +102,7 @@ parameters, dated observations and unanswered decisions. Use the
 Worldgen v2 is the shipped default. See [the architecture](ARCHITECTURE.md#4-worldgen-v2--the-procedural-map-generator-srcworldgen)
 for the current generator and its live 3D integration. Pending ideas:
 
-- **Landscape and travel, including Mountain Top camping.** Plan recognizable
-  hills, steep wooded barriers with routes around them, and coordinated mountain
-  district families with varied meadow shapes, elevation, camping density and coherent access routes. The authored reference has denser irregular lower camping, an open upper meadow and a right-side road that turns left before a wooded descent to the drum-circle clearing; generated districts should follow those spatial ideas without repeating an identical map. Integrate waterways, route feasibility and bridge
-  support in the same design; no guaranteed early hill encounter. The
-  [November 1 design record](docs/backlog/landscape-and-travel.md) preserves Gary's
-  photo/reference, scope evolution, proposed stages and the
-  [fresh Astra review](docs/backlog/landscape-and-travel-astra-review.md).
-  The [execution change](openspec/changes/landscape-and-travel/README.md) now has an ordered plan and a [populated authored Mountain Top proof](verification/landscape/README.md); varied procedural admission and finite stream/bridge proofs now pass in opt-in development surfaces, and the experimental real-game manager now stages districts behind complete access reservations. Lower camping is tightly packed while upper lawns stay sparse, and vehicle climbs follow power/momentum with unrestricted supported descent. Desktop mover/activity/physics-surface integration, tier captures, streaming/revisit and owned-resource checks pass. Physical-device frame delivery and player recognition/route-choice feedback still gate final tuning and rollout; construction outliers and cold teleport spikes remain documented limits. The separate physical-festival change still owns activation of live dynamic chairs. This is separate from current terrain integration acceptance.
-- **Rivers + bridges.** Coordinate with the landscape design above. Cut from the 2D prototype on determinism grounds
-  (river-around-heart avoidance can depend on a heart outside the local window →
-  could violate "never through a heart core"); the contract fields
-  (`onRiver`/`bridge`) already exist as stubs. Needs a river×heart window-invariance
-  gate before it lands. The payoff (driving over a bridge) is a 3D thing.
+- **Landscape and travel acceptance.** Varied Mountain Top districts, dense lower camping and sparse upper meadows, force-limited climbs, finite streams and bridges are enabled by default, with main's live furniture/person physics integrated. Finish physical iPhone/iPad driving and frame-delivery checks, unprompted terrain recognition/route-choice playtests and resulting tuning. Construction outliers, cold teleport spikes and finite suspension travel remain measured limits. See the [execution change](openspec/changes/landscape-and-travel/README.md), [current evidence](verification/landscape/2026-11-01-main-integration.md), and [design/reference photos](docs/backlog/landscape-and-travel.md). There is no guaranteed early hill encounter.
 - **Mega-heart rank** (a rare 2×2-cell super-hub with the biggest stage/court). Cut
   from this change (the multi-cell suppression is a determinism hot-spot); rank table
   is one constant to re-add.
@@ -224,9 +212,14 @@ harness history, tier contract and acceptance criteria.
   purchase-and-dining behavior and vendor power-ups.
 - **Physical festival:** implement the [documented plan](openspec/changes/physical-festival/README.md)
   for chair/occupant physics and recovery, the existing cooler, transferable drinks,
-  route-aware damageable signs and bounded aftermath. Start with the production-backed
-  interaction playground integration; the standalone engine fixture is implemented,
-  while production ownership, occupants and device acceptance remain pending.
+  route-aware damageable signs and bounded aftermath. The standalone engine fixture
+  and default-enabled live chairs, articulated coolers and occupied-seat falls/recovery are implemented;
+  ordinary pedestrians and swept prop-to-person activation are also implemented with bounded reserves.
+  Real secondary fall/recovery and bounded incident provenance are verified; untouched offscreen
+  residents can release slots without resetting displaced aftermath. Controlled seated exits
+  retain support when blocked. Bracing uses free arms without adding geometry; cooler model lids and cup-well sockets
+  are partitioned and retain independent transforms after active render adoption. Live lids reserve and clean up with their shell. Finish loose contents, hard-impact hinge tuning, broader visual acceptance, moving-person sweeps, support-boundary and coherent
+  distance-reset policy, broader props and device acceptance.
   See the [first proof and remaining work](verification/physical-festival/README.md).
 - **Juice tuning:** keep variety costs and drain/frown feel as explicit design decisions.
 

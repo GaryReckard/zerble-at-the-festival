@@ -2,14 +2,18 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildCampChair } from '../models/campChair.js';
 import { buildCampCooler } from '../models/campsite.js';
-import { mulberry32 } from '../rng.js';
+import { mulberry32, setSessionSeed } from '../rng.js';
+import { buildTerrainPatch } from './terrainProxy.js';
+import { setTerrainEnabled, sampleTerrain } from '../worldgen/terrain.js';
 import { PERF } from '../perf.js';
 import { createPhysicalFixture } from './runtime.js';
+import { createFixtureCartDriver } from './cartDriver.js';
+import { batchPropGroups } from '../propRendering.js';
 
 const $ = id => document.getElementById(id);
 const inputs = ['fixture', 'style', 'seed', 'speed', 'angle', 'physics'];
 const params = new URLSearchParams(location.search);
-const fixtures = ['chair', 'pair', 'slope', 'solid', 'cooler'];
+const fixtures = ['chair', 'pair', 'slope', 'solid', 'cooler', 'terrain'];
 const styles = ['sling', 'director', 'low', 'loveseat'];
 if (fixtures.includes(params.get('fixture'))) $('fixture').value = params.get('fixture');
 if (styles.includes(params.get('style'))) $('style').value = params.get('style');
@@ -18,9 +22,12 @@ for (const key of ['seed', 'speed', 'angle']) {
   if (params.has(key) && Number.isFinite(value)) input.value = Math.min(Number(input.max), Math.max(Number(input.min), value));
 }
 $('physics').checked = params.get('physics') !== '0';
+$('ghost').checked = params.get('ghost') === '1';
 
 let renderer, orbit, fixture, frameHandle = 0, disposed = false, paused = true;
-let encounterStarted = false;
+let encounterStarted = false, cartDriver, chairBatch;
+let batchWrites = {buckets:0,matrixBytes:0};
+const cleanupErrors = [];
 let generation = 0, last = 0, latest, allocationMs = 0, uploadMs = 0, lastReadout = 0;
 let night = params.get('tod') === 'midnight';
 const listeners = new AbortController();
@@ -28,7 +35,7 @@ const scene = new THREE.Scene();
 const models = new THREE.Group(), surfaces = new THREE.Group(), bounds = new THREE.Group();
 scene.add(models, surfaces, bounds);
 const camera = new THREE.PerspectiveCamera(45, 1, .05, 160);
-camera.position.set(6, 4.6, 4.8);
+camera.position.set(12, 10, 14);
 const hemisphere = new THREE.HemisphereLight(0xcfe6e5, 0x6a6942, 2.2);
 const sun = new THREE.DirectionalLight(0xffedc5, 2.5);
 sun.position.set(-5, 10, 7);
@@ -63,7 +70,7 @@ function disposeTree(root) {
 
 function readSettings() {
   return { fixture: $('fixture').value, style: $('style').value, seed: Number($('seed').value) >>> 0,
-    speed: Number($('speed').value), angle: Number($('angle').value), physics: $('physics').checked };
+    speed: Number($('speed').value), angle: Number($('angle').value), physics: $('physics').checked, ghost: $('ghost').checked };
 }
 
 function saveInputs() {
@@ -91,9 +98,9 @@ function updateStatus() {
   if (!fixture || disposed) return;
   $('status').textContent = !latest?.physics ? 'Static reference. Physical simulation is disabled.'
     : paused ? encounterStarted ? 'The encounter is paused. Single step advances one physical tick.'
-      : 'Ready. Run the encounter to send the cart proxy through.'
+      : 'Ready. Run the encounter to coast Zerble through.'
       : encounterStarted ? 'The encounter is running. Reset restores the same seed and recipe.'
-        : 'The simulation is running. Run the encounter to send the cart proxy through.';
+        : 'The simulation is running. Run the encounter to coast Zerble through.';
 }
 
 function setLighting(value) {
@@ -109,20 +116,21 @@ function setLighting(value) {
   saveInputs();
 }
 
-function buildSurface(ground) {
+function buildSurface(ground, patch) {
   const width = ground.width, depth = ground.depth, slope = Math.tan(ground.slope);
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(patch ? patch.vertices : [
     -width / 2, -width / 2 * slope, -depth / 2,
     width / 2, width / 2 * slope, -depth / 2,
     -width / 2, -width / 2 * slope, depth / 2,
     width / 2, width / 2 * slope, depth / 2,
   ], 3));
-  geometry.setIndex([0, 2, 1, 1, 2, 3]);
+  geometry.setIndex(patch ? Array.from(patch.indices) : [0, 2, 1, 1, 2, 3]);
   geometry.computeVertexNormals();
   const material = new THREE.MeshStandardMaterial({ color: 0x8d9d70, roughness: 1, side: THREE.DoubleSide });
   const groundMesh = new THREE.Mesh(geometry, material);
   surfaces.add(groundMesh);
+  if (patch) return;
   const grid = new THREE.GridHelper(width, width, 0x657954, 0x7f9168);
   // Scale compensates for the rotation's horizontal shortening, so the grid
   // lies on the same sampled plane as both rendering and collision.
@@ -137,6 +145,8 @@ function buildVisual(prop) {
   if (prop.kind === 'chair') {
     chair = buildCampChair(mulberry32(prop.colorSeed), { style: prop.style });
     group = chair.group;
+  } else if (prop.kind === 'cart' && cartDriver) {
+    group = cartDriver.root;
   } else if (prop.kind === 'cooler') {
     group = buildCampCooler(prop.variant).group;
   } else {
@@ -163,7 +173,20 @@ function buildVisual(prop) {
   helper.visible = $('bounds').checked;
   bounds.add(helper);
   models.add(group);
-  visuals.set(prop.key, { group, helper, anchors });
+  visuals.set(prop.key, { group, helper, anchors, chair:!!chair });
+}
+
+function batchChairVisuals() {
+  const chairs = [...visuals.values()].filter(visual => visual.chair);
+  for (const visual of chairs) {
+    visual.group.remove(visual.anchors);
+    visual.localBounds = new THREE.Box3().setFromObject(visual.group);
+  }
+  chairBatch = batchPropGroups(models, chairs.map(visual => visual.group));
+  chairs.forEach((visual,index) => {
+    visual.binding = chairBatch.bindings[index];
+    visual.group.add(visual.anchors);
+  });
 }
 
 function updateCollisionGeometry() {
@@ -202,34 +225,41 @@ function publish(state) {
   for (const prop of state.props) {
     const visual = visuals.get(prop.key);
     if (!visual) continue;
+    visual.group.visible = prop.kind !== 'cart' || $('show-cart').checked;
     visual.group.position.copy(prop.position);
     visual.group.quaternion.copy(prop.rotation);
+    if (visual.binding) {
+      visual.group.updateWorldMatrix(true,false);
+      visual.binding.setWorldMatrix(visual.group.matrixWorld);
+    }
     visual.anchors.visible = $('sockets').checked;
-    visual.helper.visible = $('bounds').checked;
+    visual.helper.visible = $('bounds').checked && visual.group.visible;
     if (visual.helper.visible) {
       // Exclude inspection dots from the measured production silhouette.
       const visible = visual.anchors.visible;
       visual.group.remove(visual.anchors);
-      viewBox.setFromObject(visual.group);
+      if (visual.localBounds) viewBox.copy(visual.localBounds).applyMatrix4(visual.group.matrixWorld);
+      else viewBox.setFromObject(visual.group);
       visual.group.add(visual.anchors);
       visual.anchors.visible = visible;
       visual.helper.box.copy(viewBox);
     }
   }
+  batchWrites = chairBatch?.flush() || {buckets:0,matrixBytes:0};
   updateCollisionGeometry();
   uploadMs = performance.now() - started;
 }
 
 function report() {
   return { settings: readSettings(), timeOfDay: night ? 'midnight' : 'noon', paused,
-    playback: Number($('playback').value), allocationMs, publicationMs: uploadMs,
-    lifecycle: { disposed, fixtureActive: !!fixture, rafActive: !disposed && frameHandle !== 0,
+    playback: Number($('playback').value), allocationMs, publicationMs: uploadMs, batchWrites:{...batchWrites}, showCart:$('show-cart').checked,
+    lifecycle: { disposed, cleanupErrors:cleanupErrors.slice(), fixtureActive: !!fixture, rafActive: !disposed && frameHandle !== 0,
       listenersActive: !listeners.signal.aborted, renderObjects: visuals.size, sceneChildren: scene.children.length },
     rendering: renderer && !disposed ? { tier: PERF.name, pixelRatio: renderer.getPixelRatio(),
       width: renderer.domElement.width, height: renderer.domElement.height,
       draws: renderer.info.render.calls, triangles: renderer.info.render.triangles,
       geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures } : null,
-    state: latest, limitations: ['Cart contact proxy, production controller integration pending.',
+    state: latest, limitations: ['Production Zerble controller with a conservative kinematic contact hull; live-game frame integration pending.',
       'No people or production campsite ownership in this fixture.',
       'Publication time measures CPU transform writes, not GPU upload time.',
       'This fixture does not establish production or physical-device acceptance.'] };
@@ -262,6 +292,7 @@ async function reset() {
   setPaused(true);
   encounterStarted = false;
   fixture?.dispose(); fixture = null;
+  chairBatch?.dispose(); chairBatch = null;
   latest = null;
   disposeTree(models); disposeTree(surfaces); disposeTree(bounds); visuals.clear();
   collisionLines.geometry.dispose(); collisionLines.geometry = new THREE.BufferGeometry();
@@ -270,14 +301,32 @@ async function reset() {
   $('status').textContent = 'Preparing the encounter…';
   saveInputs();
   const started = performance.now();
-  let candidate;
+  let candidate, candidateDriver;
   try {
-    candidate = await createPhysicalFixture(readSettings());
-    if (disposed || token !== generation) { candidate.dispose(); return; }
+    const settings = readSettings();
+    setSessionSeed(settings.seed);
+    setTerrainEnabled(settings.fixture === 'terrain');
+    let terrainPatch, surfaceSampler;
+    if (settings.fixture === 'terrain') {
+      const x=650,z=210,y=sampleTerrain(x,z).height;
+      terrainPatch=buildTerrainPatch({minX:x-20,minZ:z-20,maxX:x+20,maxZ:z+20});
+      for(let i=0;i<terrainPatch.vertices.length;i+=3) {
+        terrainPatch.vertices[i]+=terrainPatch.origin.x-x;
+        terrainPatch.vertices[i+1]-=y;
+        terrainPatch.vertices[i+2]+=terrainPatch.origin.z-z;
+      }
+      surfaceSampler=(lx,lz,out={})=>{sampleTerrain(x+lx,z+lz,out);out.height-=y;return out;};
+    }
+    candidateDriver = createFixtureCartDriver({...settings, surfaceSampler, slope:settings.fixture === 'slope' ? .12 : 0});
+    candidate = await createPhysicalFixture({...settings,cartDriver:candidateDriver,terrainPatch,surfaceSampler});
+    if (disposed || token !== generation) { candidate.dispose(); disposeTree(candidateDriver.root); return; }
+    cartDriver = candidateDriver;
     fixture = candidate;
+    fixture.setCartGhost(settings.ghost);
     const state = fixture.getState();
-    buildSurface(state.ground);
+    buildSurface(state.ground,terrainPatch);
     for (const prop of state.props) buildVisual(prop);
+    batchChairVisuals();
     allocationMs = performance.now() - started;
     publish(state);
     for (const id of ['run', 'reset', 'pause', 'step']) $(id).disabled = false;
@@ -288,6 +337,7 @@ async function reset() {
     updateReadouts();
   } catch (error) {
     candidate?.dispose();
+    if (candidateDriver && !candidateDriver.root.parent) disposeTree(candidateDriver.root);
     if (token !== generation || disposed) return;
     fixture = null;
     disposeTree(models); disposeTree(surfaces); disposeTree(bounds); visuals.clear();
@@ -307,14 +357,20 @@ function dispose() {
   cancelAnimationFrame(frameHandle);
   frameHandle = 0;
   listeners.abort();
-  if (fixture) { fixture.dispose(); latest = fixture.getState(); fixture = null; }
-  orbit?.dispose();
-  disposeTree(scene);
+  const cleanup = (name, run) => { try { run(); } catch(error) { cleanupErrors.push(`${name}: ${error.message}`); } };
+  if (fixture) {
+    cleanup('physics',()=>fixture.dispose());
+    cleanup('final physics report',()=>{latest=fixture.getState();});
+    fixture=null;
+  }
+  cleanup('orbit controls',()=>orbit?.dispose());
+  cleanup('chair batch',()=>{chairBatch?.dispose();chairBatch=null;});
+  cleanup('scene resources',()=>disposeTree(scene));
   visuals.clear();
-  renderer?.dispose();
-  renderer?.forceContextLoss();
+  cleanup('renderer',()=>renderer?.dispose());
+  cleanup('graphics context',()=>renderer?.forceContextLoss());
   for (const control of document.querySelectorAll('aside input, aside select, aside button')) control.disabled = true;
-  $('status').textContent = 'The scene is disposed and its resources are released. Reload this page to restart.';
+  $('status').textContent = cleanupErrors.length ? 'The scene stopped, but resource cleanup failed. Reload this page.' : 'The scene is disposed and its resources are released. Reload this page to restart.';
   $('inspection').parentElement.open = true;
   $('inspection').textContent = JSON.stringify(report(), null, 2);
   updateReadouts();
@@ -324,7 +380,7 @@ function fail(error) {
   dispose();
   $('error').hidden = false;
   $('error').textContent = `The physical playground stopped: ${error.message}`;
-  $('status').textContent = 'The simulation was stopped and its resources were released. Reload to retry.';
+  $('status').textContent = cleanupErrors.length ? 'The simulation stopped. Cleanup also failed; inspect the report and reload.' : 'The simulation was stopped and its resources were released. Reload to retry.';
   for (const id of ['run', 'reset', 'pause', 'step']) $(id).disabled = true;
   console.error('[physical playground]', error);
 }
@@ -366,10 +422,14 @@ try {
   listen($('run'), 'click', () => debug.run());
   listen($('dispose'), 'click', dispose);
   listen($('pause'), 'click', () => setPaused(!paused));
+  listen($('ghost'), 'change', () => {
+    if (fixture) { fixture.setCartGhost($('ghost').checked); publish(fixture.getState()); }
+    saveInputs();
+  });
   listen($('step'), 'click', () => debug.step());
   listen($('noon'), 'click', () => setLighting(false));
   listen($('midnight'), 'click', () => setLighting(true));
-  for (const id of ['colliders', 'bounds', 'sockets']) listen($(id), 'change', () => { if (latest) publish(latest); });
+  for (const id of ['colliders', 'bounds', 'sockets', 'show-cart']) listen($(id), 'change', () => { if (latest) publish(latest); });
   listen($('copy'), 'click', async () => {
     try { await navigator.clipboard.writeText(JSON.stringify(report(), null, 2)); $('copy').textContent = 'Report copied'; }
     catch { $('inspection').textContent = JSON.stringify(report(), null, 2); $('copy').textContent = 'Select report to copy'; }

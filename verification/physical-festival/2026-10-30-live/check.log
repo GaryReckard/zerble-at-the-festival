@@ -1,0 +1,1780 @@
+
+> check
+> node bin/test-boot-recovery && node bin/test-festival-map && node bin/test-birds && node bin/test-tree-detail && node bin/test-hammock-anchors && node bin/test-star-power && node bin/test-player-stats && node bin/test-passport-integration && node bin/test-festival-terrain-layout && node bin/test-map-render-budget && node bin/test-world-terrain && node bin/test-terrain-consumers && node bin/test-terrain-movers && node bin/test-lurleen-terrain && node bin/test-terrain-grounding && node bin/test-terrain && node bin/test-debug-actions && node bin/test-debug-commands && node bin/test-debug-teleports && node bin/test-camp-music && node bin/test-stage-audio-lifecycle && node bin/test-camp-instruments && node bin/test-camp-jam-activity && node bin/test-woodland-camping && node bin/test-campsite-optimization && node bin/test-camp-chair && node bin/test-camp-cooler && node bin/test-stage-audience && node bin/test-soundboard && node bin/test-camp-planning && node bin/test-campsite-layout && node bin/test-camp-registry && node bin/test-camp-placement && node bin/test-camp-life && node bin/test-one-wheel && node bin/test-one-wheel-model && node bin/test-healing-arts && node bin/test-healing-arts-motion && node bin/test-healing-arts-sampler && node bin/test-healing-arts-ownership && node bin/test-nut-wagon && node bin/test-muted-launch && node bin/test-crowd-ownership && node bin/test-children-ownership && node bin/test-wooks-ownership && node bin/test-formations-ownership && node bin/test-hoopers-ownership && node bin/test-frisbees-ownership && node bin/test-monks-ownership && node bin/test-seat-reservations && node bin/test-boarding-ownership && node bin/test-rest-activities && node bin/test-potty-ownership && node bin/test-market-ownership && node bin/test-camp-ownership && node bin/test-camp-music-ownership && node bin/test-photographer-ownership && node bin/test-people-collisions && node bin/test-people-queries && node bin/test-smile-policy && node bin/test-place-displays && node bin/test-vehicle-people-queries && node bin/test-vehicle-cleanup && node bin/test-actor-clocks && node bin/test-people-extension && node bin/test-person-motion && node bin/test-person-family-motion && node bin/test-hula-session && node bin/test-hula-activity && node bin/test-hoop-score && node bin/test-hoop-flow-session && node bin/test-hoop-pair && node bin/test-hoop-legs && node bin/test-hoop-classic && node bin/test-hoop-chest-roll && node bin/test-hoop-workshop && node bin/test-frisbee-session && node bin/test-frisbee-activity && node bin/test-activity-claims && node bin/test-person-handles && node bin/test-people-runtime && node bin/test-people-boundaries && node bin/test-people-baseline && node bin/test-people-frame-trace && node bin/test-people-workshop && node bin/test-toolchain.mjs && node bin/test-render-sizing && node bin/test-prepare-postprocessing && node bin/test-bubbles-visibility && node bin/test-bubble-pop && node bin/test-bubble-types && node bin/test-bubble-progress && node bin/test-bubble-challenges && node bin/test-evening-vendors && node bin/test-vendor-shopping && node bin/test-special-bubbles && node bin/test-bubble-analytics && node bin/test-upgrade-sound && node bin/test-smiles-lifecycle && node bin/test-registry-indexes && node bin/test-registry-maintenance && node bin/test-kid-bubble-query && node bin/test-kid-motion && node bin/test-shadow-policy && node bin/test-lake-index && node bin/test-lakeside-clearing-integration && node bin/test-playtest-location && node bin/test-road-neighbors && node bin/test-road-surfaces && node bin/test-road-junctions && node bin/test-stage-road-clearance && node bin/test-food-court-road-clearance && node bin/test-sugar-shack-placement && node bin/test-perf-telemetry && node bin/test-device-capture-flow && node bin/test-chunk-deadline && python3 bin/test-perf-report && python3 bin/test-perf-server && bin/check-model-dims && bin/test-registry-grid && bin/test-forest-determinism && bin/test-adaptive-quality && bin/test-adaptive-quality-low && node bin/test-quality-telemetry && bin/test-game-juice && bin/test-crowd-photographer && node bin/test-crowd-appearance.js && node bin/test-person-hair.js && bin/test-frisbee-player && bin/test-far-field && bin/test-steering && node bin/test-touch-steering && bin/test-run-mode && bin/test-scoring && bin/test-run-state && bin/test-jug-filter && bin/test-leaderboard-worker && node bin/test-leaderboard-client && node bin/test-physics-adapter && node bin/test-physics-runtime && node bin/test-physics-cart-trajectory && node bin/test-physics-terrain && node bin/test-physics-controller && node bin/test-physics-cart-proxy && node bin/test-physics-terrain-residency && node bin/test-physics-admission && node bin/test-prop-rendering && node bin/test-registry-physical && node bin/test-physics-camp-descriptors && node bin/test-physics-render-adoption && node bin/test-physics-chair-ownership && node bin/test-physics-static-residency && node bin/test-physics-live-world
+
+PASS boot recovery: bounded retry, manual fallback, entry failures, non-network errors, slow/ready transition and preserved URL/state.
+Festival map geometry/discovery contracts pass
+(node:76452) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/festivalMap/model.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Festival map persistence/epoch/residency contracts pass
+Worker 256m: 7.10ms, 25383 bytes
+Worker 512m: 1.20ms, 29765 bytes
+Worker 1024m: 3.74ms, 53541 bytes
+Festival map worker bounds/failure contracts pass
+Festival map actual-world marker contracts pass
+Festival map actual arrow follows cart forward direction
+Festival map transition layout/backing contracts pass
+Festival map independent backdrop contract passes
+Festival map direct pin controls and Ctrl slow driving pass
+PASS birds: terrain spawn/cruise, zero-distance escape, cooldown, landing convergence, removed perches, dawn return, invalid dt, bounded motion, 15 draw batches.
+(node:76454) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/models/tree.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tree detail: 200 builds, four pooled unit meshes, shared colors/materials, 6 forest batches, 7244 fixture triangles.
+(node:76455) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/models/hammock.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tree hammock anchors clear both trunk radii and preserve the RNG draw count
+PASS star pickup placement samples its footprint and anchors above the local terrain slope.
+PASS passport: movement/return, six stamps, raw counters, migration, corruption/blocked storage, stage identity, relocation, resume and incremental telemetry
+(node:76457) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/playerStats.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:76458) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/analytics.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:76458) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS passport integration: real eligibility/pause branch, repeated stages, GA privacy/failure/checkpoints, successful emissions and cleared keyboard/touch
+Festival layout: final relocated-envelope rejection, RNG bounds, wooded-pocket omission and historical seed 256 drum lint passed. { 'stage-spacing': 15 }
+(node:76459) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/worldgen/lint.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Map rendering: macro and cold redraw planner guards, bounded roads/density, local overlays, budget boundary and enumeration backstop passed.
+Cold 19,881 ground vertices: {
+  ms: 1405.396166,
+  low: -5.022458244743055,
+  high: 10.799244115045626,
+  nonflatPercent: 22.312760927518738
+}
+Warm mesh resampling (ms): 2.260957999999846
+Four-seed sampler surveys: [
+  {
+    seed: 0,
+    min: -5.022458244743055,
+    max: 10.799244115045626,
+    nonflatPercent: 22.312760927518738,
+    coldMs: 566.413791,
+    recenterMs: 2.2774579999995694
+  },
+  {
+    seed: 42,
+    min: -4.378868842606731,
+    max: 12.412625903091648,
+    nonflatPercent: 23.81670942105528,
+    coldMs: 1304.2938330000006,
+    recenterMs: 2.410874999999578
+  },
+  {
+    seed: 1234,
+    min: -3.720424723827991,
+    max: 7.508918076069924,
+    nonflatPercent: 28.036819073487248,
+    coldMs: 1245.574125,
+    recenterMs: 2.435083999998824
+  },
+  {
+    seed: 3948869160,
+    min: -10.41801195114201,
+    max: 7.725759048308808,
+    nonflatPercent: 36.03440470801267,
+    coldMs: 1381.214333,
+    recenterMs: 3.613832999999431
+  }
+] { routeCount: 553, routeMaxGrade: 0.16584786498992135 }
+World terrain: triangle agreement, normals, negative coordinates, seed/query order, level accepted pads/lakes, compatible overlapping pads, unchanged X/Z queries/hash, epoch invalidation and cache bounds passed. {
+  pads: 330,
+  lakes: 5,
+  conflicts: 0,
+  maxGrade: 0.15403526053230274,
+  cache: { version: 1, vertices: 65536, tiles: 65, owners: 341 }
+}
+(node:76469) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Terrain consumers: subdivided edge draping, ground and seated NPC position, chase ridge and first-person clearance passed.
+PASS production road junction: chunk mesh subtracts pavement before draping, retains dirt and never carves phantom v2 roads from legacy paths.
+(node:76752) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/roadGeometry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Terrain movers: flat and sloping production updates, parade, band, kids, wooks, hooper footprint, frisbee hands/catch/landing, monk seats, one-wheel contact and wagon anchors passed.
+(node:76753) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/personMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Lurleen terrain: constructor/spawn, 240 moving state/heading frames, four wheel contacts, flat-world jiggle, unchanged X/Z/speed/heading/RNG, original collider position, early-return rehome and rescue.
+(node:76756) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS terrain grounding: rotated tent contact planes, independent prop heights, idempotence, and grass world-UV invariance across recentering.
+(node:76757) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/campRegistry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Terrain: triangle agreement, normals, order independence, seams, fixture grades, slope response, downhill coast, brake/hold/reverse, 30/60/120 Hz and bounds passed.
+{"flat":18,"ascent":16.5,"descent":19.5}
+Recorded ascent/coast/descent/plateau/brake replay is stable across 30/60/120 Hz: [ -383.041309664504, -383.041309664504, -383.041309664504 ]
+Actual sandbox presentation: physics restoration and wheel continuity passed; {"rawMaxSpeedError":8.497190309295007,"interpolatedMaxSpeedError":3.0482283364108298e-12}
+Flat speed, normal/boost m/s: 18 27.9
+(node:76758) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/terrainSurface.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actual game command adapter: coherent pause/step queue, time/heading/juice, safe crowd states, scene-render counts, camera transforms, claims inspection and session mute.
+(node:76759) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/debugCommands.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 21-command grammar: real argument dispatch, bounds/arity before mutation, readiness, failure feedback, prototype rejection and contextual nested completion.
+(node:76760) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/debugCommands.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS debug teleports: per-category cycling, wrap, singleton/missing destinations, drive-away and seed reset, arrival transforms and safe command parsing.
+PASS command input isolation: editable focus clears existing held/edge controls and subsequent text never enters gameplay input.
+PASS contextual autocomplete: command and argument discovery, prefix/case filtering, exact matches, coordinate isolation and caret-token replacement.
+(node:76761) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/debugCommands.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Camp music: five coherent deterministic parts, bounded four-player ensembles/32 voices, skipped overdue beats, suspended context safety and complete/idempotent teardown.
+PASS Sound bridge: pre-gesture deferral/cancellation, listener-driven adoption, local spatial range and shared music bus, complete teardown.
+PASS stage audio lifecycle: bounded pre-gesture cancellation, existing unlock/adoption delay, cancellation during drain, buffered positions and complete handle release.
+PASS Camp instruments: five distinct pooled bodies, bounded material draws, no per-copy geometry/material allocation, no shadow casters, upright bass and independent fiddle bow. Browser checks establish raster appearance.
+PASS 60 actual crowd instrument attachments: five kinds, three actor scales, carrying/ready/playing/return poses, grounded bass and fiddle at chin.
+PASS Fireside activity: complete fetch/carry/seat/play/return lifecycle, shared household beds, unique 2–4 player parts, claims/model/audio cleanup, interruptions/unloads, time/distance gates and collision-safe bounded walking.
+PASS woodland planning: 63 districts / 392 pitches, five seeds, woods/road/water bounds, shared hosts, access and query/seed invariance.
+PASS production integration: live-v2 ordering, canonical ownership, no orphan satellites, isolated RNG and resident ownership.
+(node:76766) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 300 door clipping comparisons: exact vertices/order, thin strips, reversed winding, boundaries and scales.
+PASS 200 camp claim comparisons; distant scene slot-coordinate reads 548 -> 0.
+PASS 240 camp chairs: four distinct styles, one RNG draw, pooled geometry/materials, batching compatibility, seat metadata and no shadow casters.
+Scope: complete builder with rendering primitives stubbed; browser verification establishes actual silhouettes and shading.
+PASS 100 real crowd chair-contact transforms: four styles, both loveseat seats, NPC scales and animation phases.
+(node:77164) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/personMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS camp coolers: 40 native Three builds, grounded collision bounds, two raycast-verified cup recesses, deterministic finishes, shared resources, 3 draws / 1460 triangles, no shadow casters.
+PASS actual kitchen integration: cooler present at the reserved location with the requested finish.
+PASS stage audience: 100 seeded row layouts, preserved RNG counts, separated 1–5 chair groups, seat metadata, occasional chair dwell, cross-legged reservation/finish/interruption/unload/person cleanup, stale-write rejection and appearance.
+PASS production blanket: four independent stage-facing slots, four concurrent original people, exclusive contention, vacancy reuse, unload cleanup and unchanged palette RNG.
+(node:77167) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS soundboard: production desk orientation, attached controls, engineer platform/heading, place-owned attendance, unchanged RNG count and specific collision toast/sound routing.
+(node:77188) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/festivalShapes.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS camp recipes and 6000 neighborhoods: bounded compact reservations, shelter spacing, deterministic fans, shared facilities and collision retry candidates.
+Scope: the pure planner reserves shared empty space; production canPlaceCampsite verifies actual prop and approach clearance before registration.
+(node:77207) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/campPlanning.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 1800 deterministic campsite layouts across all archetypes and roles: family fabric bounds, footprint, furniture, privacy and torch clearance.
+Scope: shipped assembler, tent and chair builders with rendering writes stubbed; browser verification covers GPU appearance and integration.
+PASS construction counts: 360 camps build only retained tents/screens/canopies; omitted canopies construct no discarded chairs.
+PASS chair batching: shared resources, metadata anchors, all transforms retained and instance upload flagged.
+PASS fire schedule: cold daytime charcoal, evening flames and extinguished late-night fire.
+PASS lantern/tent lighting: noon cold, evening internally lit fabric and motion, late-night tents dark.
+PASS privacy texture ownership: distinct 64x64 canvas sources before the first render.
+PASS 100 physical camp neighborhoods: 7-7 camps, shared empty ground with solid/door/chair approach clearance.
+PASS tent doors: triangular split flaps, curved left-hinge D zippers, bowed dome mapping and exact faceted-shell clipping.
+PASS actual door glow: daytime cloth retained, thirteen cached silhouette poses, fixed buffer updates and late-night extinction.
+PASS 11 woodland groups against actual camp geometry and earlier neighbor trunks: 61/67 pitches.
+PASS seed1977 woodland: dry host at distance164.973 survives lake bounding radius162.926 only after exact water checks; shoreline solids still reject.
+PASS actual clearing infill: 156 sleeping tents around24 retained social centers, bounded18m placement, no redundant chairs or solid/door/chair conflicts.
+PASS rejected infill releases private resources, preserves shared pools and bounds allocation retries.
+(node:77260) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/propRendering.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS campsite transforms, granular collisions, seat/bed metadata, and owner lifetimes
+PASS camp hearth metadata follows actual rotated/scaled fire position
+PASS loveseat slots share the furniture collider while retaining independent reservations
+PASS compact placement rejects furniture/door conflicts and preserves external reservations without mutation
+PASS forest placement distinguishes containing owner reservations, foreign forests and physical tree solids
+PASS chair approaches select a clear full route, omit unreachable claims and protect older routes from later camps
+PASS checked-water opt-in preserves unchecked/preview lake protection, shoreline solids and unrelated reservations
+PASS production preflight: seventeen dry checks authorize opt-in; previews stay unchecked and wet center/rim stop before construction.
+(node:77351) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/campRegistry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 6000 production village layouts: 5-7 sites, planner bounds and shared frontages (physical clearance tested by test-campsite-layout)
+PASS blocked host suppresses dependent satellite pitches
+Observed compact neighborhoods: 4704/6000
+PASS 500 real forest plans (5937 pitches): host filtering, deterministic groups, runtime rejection and center-chunk ownership
+(node:77352) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+camp lifecycle: exclusive chair claims, sleep, wake, unload, abandonment and local collision passed
+camp boundaries: obstructed exits and photographer/character rig hiding passed
+PASS forced camp departure waits for physical exit clearance
+(node:77353) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/personMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS One-wheel motion: 30/60/120fps equivalence, corners/endpoints, pedestrian/cart/crossing yields, safe resumption, blocked/water recovery and gathering stops
+PASS One-wheel lifecycle: full-footprint water, live collider position, distant despawn, shared pools, owned LED disposal and idempotent teardown
+PASS One-wheel integration: smooth braking, BFCache lifecycle, pre-collision index sync and five-seed road encounter determinism
+PASS One-wheel collisions: normal people-hit classification and rider recovery pause
+PASS sandbox selection preserves session mute, tier and seed flags
+(node:77354) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/sceneResources.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS One-wheel model: distance-based wheel rotation, time partitioning, stopped/reverse motion, bounded lean, settling and independent day/night LED updates.
+Scope: shipped updater with rendering writes stubbed; browser verification covers geometry, shared-resource ownership and appearance.
+PASS Healing Arts: 53/573 hubs across five seeds, full-footprint clearance, spacing, determinism, night audio and unload
+PASS Healing Arts: staggered real-NPC handoff, incoming assignment, appearance, bounded population, dawn and unload
+PASS Healing Arts: interrupted arrivals, flee preservation and rig-aware walking separation
+(node:77361) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Healing Arts motion: 30 seeded configurations × 400 times × 20 dancers
+{
+  "samples": 12000,
+  "maximumCenterRadius": 7.200000299377396,
+  "minimumPersonCenterDistance": 0.9808773994445801,
+  "minimumPoleCenterDistance": 0.7971994618919416
+}
+PASS managed yoga homes, hidden render parts/glowsticks, dance glowsticks, and continuous four-second arrival
+Scope: source-level motion verification with rendering writes stubbed; no GPU or visual validation.
+(node:77553) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/personMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Healing Arts sampler: 1600 exact frozen-oracle samples, private cache, prior-sample cadence, near/night transitions and display-skipped equivalence.
+(node:77792) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/healingArtsMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Healing Arts public ownership: 100 exact legacy yoga/dusk frames, ordinary dancer bindings, prior-sample near/night cadence, singular identities, repeated unload and stale claims.
+PASS Healing Arts protocol-only dependency, reservation rollback, person-first removal, slot reuse, stale release, owner replacement, unload/revisit, pose ownership and ordered exit/resume.
+PASS Healing Arts dance cart interruption, safe fresh claim and appearance continuity.
+(node:77868) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/healingArtsActivity.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Nut Wagon: route interpolation, dense obstacle splitting, short/blocked rejection, 10× trip chance passed
+Nut Wagon: full rotated footprint covers front platform, hatch and shoreline corners
+(node:77950) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/nutWagonRoute.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS muted launches, ordinary launches and explicit session overrides
+(node:77964) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/sound.js?case=%3Fmute%3D1 is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS production Crowd ownership: claims-before-hide, repeated borrower/pool release safety, reentrant batch removal, live peers and party/rider exemptions.
+(node:77990) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS children ownership: 400 exact legacy frames, constructor RNG, bubbles/honk/dodge/star/smiles/grounding/colliders, identity-preserving relocation, queries, stale/controller teardown and shared-resource safety.
+PASS child construction rollback and full-runtime replacement.
+(node:77995) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/smilePolicy.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS wook ownership: 400 exact legacy pose/state/RNG/collider frames with approved cart clearance, parked honk, approach/passive damage, recycle identity, pooled queries and actual Trip offer/accept pipeline, stale runtime and cleanup.
+(node:78000) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS PuppetParade: 400 exact route/pose/collider/nightness/RNG/audio frames, stable carrier/member identities, public queries and complete teardown.
+PASS BrassBand: 400 exact route/pose/collider/nightness/RNG/audio frames, stable carrier/member identities, public queries and complete teardown.
+(node:78001) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78002) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78002) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+CONFIRMED baseline defect: eight hidden pool bodies remain collision candidates and inactive footprints obstruct origin in X/Z queries.
+PASS hooper ownership: exact active motion/selection/RNG under equivalent place acceptance, inactive spatial retirement, persistent identities and scoped footprint/GPU cleanup.
+PASS frisbee ownership: 600 exact pair/disc/pose/collider/RNG/water-query frames, actual catch/land/pickup branches, stable player identities, display-only discs, public providers and complete teardown.
+PASS bounded production preview and stale replacement identity, with unchanged default five-pair RNG.
+(node:78004) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS monks: 400 exact group intent/profile/state frames, protected member activity, shared boarding/arrival/leave, collective cleanup and salted RNG.
+PASS monk boundary: public pose binding, all-or-none contention, stale reservation isolation, person-first/owner-first cleanup, activity precedence, full spawn rollback and replacement-safe commands.
+(node:78005) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS seat resources: atomic multi-person preparation, one lifetime/seat, permanent-slot eligibility, stale release and generation rejection, vehicle replacement, cross-owner contention and dispatch-stopped teardown.
+(node:78006) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS passenger characterization: 240 exact steering/boarding/riding/disembarking frames, occupied slots, callback order and random draw counts.
+PASS public passenger commands: exclusive activity rejection, owned cooldown, motion cancellation, stale release, vehicle-first removal, slot incarnation loss and stopped-owner rejection.
+PASS actual wagon boarding provider: population insertion order, tall/open-roof eligibility, public lifetime/cooldown commands and exclusive visitor exclusion.
+(node:78007) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS hammock: 800 exact approach/occupancy/pose/timer/publication/RNG frames, including the existing population plus activity timer decrement and normal exit.
+PASS table: 800 exact approach/occupancy/pose/timer/publication/RNG frames, including the existing population plus activity timer decrement and normal exit.
+PASS hammock ownership: two changed-place/revisit cycles, person-first removal, stale pose/slot rejection, preserved competing claim, ordered replacement, activity-first cleanup and inert stale ticks.
+PASS picnic ownership: contention, group eligibility/radius, two resource replacement/revisit cycles, stale pose rejection, person-first removal, activity-first teardown and display-height release.
+PASS hammock and picnic approach replace inherited unlimited ride timers on arrival.
+(node:78008) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS potty normal: 900 exact actor/resource/timer/publication/RNG frames against recorded place inputs.
+PASS potty locked: 900 exact actor/resource/timer/publication/RNG frames against recorded place inputs.
+PASS potty peek: 900 exact actor/resource/timer/publication/RNG frames against recorded place inputs.
+PASS potty unload: 900 exact actor/resource/timer/publication/RNG frames against recorded place inputs.
+PASS potty hit: 900 exact actor/resource/timer/publication/RNG frames against recorded place inputs.
+PASS bathroom ownership: two exact-resource replacement/revisit cycles, stale movement/hit/slot rejection, interruption cleanup, person-first and activity-first teardown, inert stale ticks.
+(node:78009) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS market buyer: 600 exact actor/frontage/timer/purchase/publication/isolated-RNG frames.
+PASS market nonbuyer: 600 exact actor/frontage/timer/purchase/publication/isolated-RNG frames.
+PASS market seeded: 600 exact actor/frontage/timer/purchase/publication/isolated-RNG frames.
+PASS market closing: 600 exact actor/frontage/timer/purchase/publication/isolated-RNG frames.
+PASS market unload: 600 exact actor/frontage/timer/purchase/publication/isolated-RNG frames.
+PASS market interruption: 600 exact actor/frontage/timer/purchase/publication/isolated-RNG frames.
+PASS market lane: 600 exact actor/frontage/timer/purchase/publication/isolated-RNG frames.
+PASS market ownership: copied model presentation, contention, two replacement/revisit cycles, stale commands/releases/slots, person/activity teardown, rotated frontage and blocked access.
+PASS market inherited unlimited ride timer, release and invalid timer rejection.
+(node:78010) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS camp day: 1200 exact actor/slot/timing/publication frames.
+PASS camp sleep: 1200 exact actor/slot/timing/publication frames.
+PASS camp unload: 1200 exact actor/slot/timing/publication frames.
+PASS camp trapped: 1200 exact actor/slot/timing/publication frames.
+PASS camp timeout: 1200 exact actor/slot/timing/publication frames.
+PASS camp ownership: two slot replacement/revisit cycles, stale motion/person/slot rejection, person/activity teardown and hit preflight preserving trapped seats and safe exit.
+(node:78011) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS camp music normal: 1400 exact actor/job/seat/model/audio/publication frames.
+PASS camp music closing: 1400 exact actor/job/seat/model/audio/publication frames.
+PASS camp music unload: 1400 exact actor/job/seat/model/audio/publication frames.
+PASS camp music interrupt: 1400 exact actor/job/seat/model/audio/publication frames.
+PASS camp music ownership: snapshots instead of people, two person/place removal and revisit cycles, stale commands, activity-first teardown, camp-to-music resource transfer, protected competing claims and partial ensemble rollback.
+PASS camp music teardown finishes all person, chair, model and sound cleanup after an injected audio-stop failure.
+(node:78012) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS photographer: 30 profiles × 1200 exact salted role/notice/pose/flash/cooldown/opportunity frames.
+PASS photographer pose: forward hand contacts throughout lift/lower, eye-level exposure, planted soles across scales, bent knees and scratch reset.
+PASS photographer public commands: exact valid profile/pool/publication behavior, handle returns, protected activity/group/rider/sleeper states, atomic exhausted-pool failure, reader reset and stale slot/controller rejection.
+(node:78013) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/photographer.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 6300 exact collision cases: passive/parked policy, approach threshold, forward/reverse/contact geometry, damage/notify, selected reactions, physical nudge and first-hit order.
+PASS collision publication: frozen registry/family/adult order, unchanged local query and exclusions, single registered-mover publication, reused array/candidates/position, copied storage and stale selected callbacks.
+PASS 24 exact people-penalty cases: inactive/over gates and scare, heartbreak, selected frown, vibe priority ordering.
+(node:78014) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS nearby queries: 63 exact legacy scans, strict radius/order/early-stop, caller scratch, population and candidate filters, nested queries, stale reads and stopped-owner rejection
+(node:78015) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS smile policy: 12000 exact adult and 12000 exact child transitions, strict distance/time boundaries, distinct gains, dry-cart frowns, protected/fleeing states, reset poses and event ordering
+(node:78016) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/smilePolicy.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS place displays: 1200 exact performer/cook frames including RNG and unload/revisit; no interactive identities/query/collision publication; borrowed ownership survives stopped directory; original interleaved barriers
+(node:78017) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/models/personLocomotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS vehicle queries: 12000 exact cart/current/predicted pedestrian yield cases, original seated exclusions, 100 wagon gathering counts and vehicle-specific group boarding
+PASS persistent vehicle facet: live relationship read, explicit query-only capabilities, no physics/rig teardown, stale owner and replacement rejection
+(node:78018) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/oneWheelMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS rider fault cleanup: all identities, registry entries, roots and owned resources retire despite one GPU failure; no shared disposal or repeated release
+PASS wagon fault cleanup: passenger-first invalidation, consumed audio handle, root and unique owned GPU release despite audio failure; repeated cleanup and stopped owner are inert
+(node:78019) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS actor clocks: 2400 accepted-delta steps, retained yaw/parasol timing; zero-delta stability, skipped hour and accepted-delta-only resumption without wall-clock catch-up
+PASS clock domains: accepted runtime time, invalid-delta rejection, paused disinterest deadline and exact expiry; profiling remains independent
+(node:78020) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/models/personLocomotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS extension: one behavior, production adult facade plus independent Map storage, two resource adapters, visible/borrowed bindings, approach/visit/exit, contention, unload and person-first cleanup.
+PASS incoming activity disposal during handoff cannot strand authority or resources.
+(node:78024) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS shared motion: joint endpoints, original throw/catch targets, synchronized hula, validated authority, storage reuse, stale replacement and appearance.
+PASS production cheer pose keeps both shoulders fixed at the torso attachment; articulated photo contacts are covered by test-photographer-ownership.
+PASS dance intent excludes walkers/reactions, respects personality and shares the original Healing Arts choreography with independent bending arms.
+PASS locomotion: distance/frame-rate invariance, repeated publication, teleports, protected poses, bounded stride, gradual arrival and time-based idle sway.
+PASS arrival convergence across three energy levels and three frame rates.
+(node:78025) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/personMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+Merged stride buffers: {"family":"Wook","vertices":10152,"bytes":487296}
+Merged stride buffers: {"family":"","vertices":5436,"bytes":260928}
+Measured minimum moving sole Y in metres: [{"family":"children","minY":0},{"family":"wooks","minY":-0.00266},{"family":"legacy frisbee","minY":0},{"family":"band","minY":-0.00326},{"family":"marshal","minY":0},{"family":"hoopers","minY":0.00004},{"family":"parade","minY":0},{"family":"cook","minY":0}]
+PASS family locomotion: 8 native rigs, 640 moving/zero-delta frames, relocations/rest, exact merged position/normal morphs, protected hands, borrowed activities, monk ownership and 18 documented family policies.
+(node:78026) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/personMotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS hula session: production Crowd identity and claims, interrupted stale write, safe fresh acquisition, finish and exit.
+PASS interrupted hula cancellation on place loss, person removal and bounded wait.
+PASS production honk interrupts hula and honors reverse travel.
+PASS cart safety gates preserve authority for reverse-away travel, star power and blocked exits.
+PASS hula cleanup continues after an exit-metadata failure.
+PASS hula update failure releases its reservation and claim.
+(node:78027) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78029) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78029) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS production hula manager: eligibility, registry lifetime, visible prop, interruption and teardown.
+PASS parked-cart hula exclusion and synchronous activity interruption without cart speed.
+hoop flow metrics: {"bridges":906,"monotone":738,"reversals":168,"joinSpeedMin":0.023613814621777866,"joinSpeedMax":1.4312245301528512,"neighborhoodSpeedMin":0.0005871704965355895,"maxSlowSeconds":0.020202534687888386,"maxPositionError":9.0217389114855e-11,"maxVelocityError":2.986499936241671e-8}
+hoop score: 237060 contact/replay samples; contact 2e-10, boundary position 0.00002, boundary velocity 0.003, quaternion 0.00002
+(node:78030) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/hoop/score.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS flow session: cache-before-publication, same version, segment boundaries, zero/invalid delta and isolated score seeking.
+PASS mixed flow/classic/inactive/flow scratch, explicit discriminators and recycled session generations.
+PASS flow frame partitions and sample-reader order independence.
+PASS repeated flow interruptions preserve participation and use bounded fresh score epochs near completion.
+PASS flow cancellation on person/place loss, timeout, initial/reacquisition failure and stale authority.
+PASS flow bounded replay overflow ends safely and throwing cleanup attempts all releases exactly once.
+PASS real HulaActivity registration: copied presentation, freeze and dynamic-obstruction envelope release.
+PASS activity swept admission, overlapping envelope rejection, eight-person/sixteen-prop cap and repeated owner-only disposal.
+PASS flow entry publication reentrancy cannot resurrect props.
+PASS completion publication reentrancy and exact compiled-envelope admission before claims.
+PASS fresh score-epoch entrance clearance before publication/show after interruption.
+PASS activity pair integration: two-slot capacity, singular prop, dynamic corridor cancellation and full authority/resource release.
+PASS automatic flow recruitment considers farther clear candidates while preserving classic ownership and shared RNG draws.
+PASS localhost-only classic comparison flag, ignored remote flag and explicit flow overrides.
+PASS planted-leg lifecycle: complete cache publication, copied/reused targets and flow/classic/inactive/pair/flow scratch isolation.
+PASS planted-foot moving profiles: accepted partitions, seek round-trip and fresh reentry cache without lifetime reset.
+PASS planted-foot terrain lifecycle: stationary world support on mild slopes, inertial gravity and safe cancellation before invalid publication.
+(node:78048) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS hoop pair: exact shader/rim contacts, same-version publication, repeated exchanges, cooldown and owner teardown.
+PASS hoop exchange position/velocity continuity at all release/catch boundaries (1e-7 position / .002 derivative).
+PASS rotated/unequal-scale presentation parity and bounded partner corridor admission.
+PASS hoop pair acquisition: no stealing before/inside acquisition, partial rollback, reentrant first-claim revocation and thrown acquisition.
+PASS hoop pair cancellation: both claims and airborne state end on honk/dodge, either person, venue or corridor loss.
+PASS hoop pair: throwing cleanup attempts all releases, invalid/zero delta and bounded replay overflow cancellation.
+PASS finite pair configuration, inactive scratch reset and reentrant visibility-callback cancellation.
+PASS shared solo/pair scratch resets all travel, turn, stride and head channels on active and inactive reads.
+(node:78049) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS planted hoop legs: 162 ankle-offset, fixed-length and forward-knee cases, finite/unit quaternion and unreachable target rejection.
+(node:78050) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/hoop/leg.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS classic waist mode: 2048 phases, exact ring convention, grounded fixed-length legs, expressive arms/head, periodicity and measured clearances.
+PASS standalone classic joints/grounding/RNG/locomotion: {"draws":19,"triangles":1960,"shadowCasters":4,"minSoleY":-6.854535827827135e-10,"maxSoleDrift":1.751641271108875e-16,"minHead":0.4939033105542903,"minArmRing":0.44907990810914633,"minWaist":0.05501756396478069}
+(node:78051) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/hoop/classic.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS full chest roll: 4001 samples, ordered anatomical support, independent rig FK/tangency, mirrored handedness and head/nose/torso/arm clearance.
+PASS chest roll C1/support-switch timing: {"length":1.8218814055216817,"spinDelta":-3.1411748371063477,"maxSlowWindowSeconds":0.028819999999999922}
+PASS chest opening pose: {"leanRadians":0.38,"planeElevationDegrees":40.435321099913764,"minHead":0.014309151146073201,"minNose":0.10862711666278246,"minTorso":-3.608224830031759e-16,"minArms":-1.3877787807814457e-17,"maxContactError":2.482534153247273e-16}
+(node:78053) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/hoop/chestRoll.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+{"chestSeed":2,"chestCases":3483,"maxChestFacetingGap":0.027567348763506833,"scope":"actual uploaded arm FK and ring matrices; exact analytical skin support; measured low-poly skin gap, not a GPU or triangle-intersection proof"}
+PASS hoop workshop: production Crowd/runtime/activities, 9558 grounded shoe/head/torus vertex fixtures, nonzero body motion, transformed contacts, isolated seek/pause/step, interruption/lifetime loss, paired controls and owner teardown (CPU geometry only).
+(node:78062) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/hoop/workshop.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS paired session: held, flying and landed interruptions revoke both claims, settle the disc, and reacquire both people.
+PASS paired acquisition failure rolls back the first person and resource.
+PASS paired cancellation on either person loss, replaced resource and timeout.
+PASS a competing activity prevents pair reacquisition without losing its own claim.
+PASS both players get an ordinary-behavior break after a completed session.
+PASS paired cleanup continues after exit-metadata failures.
+PASS pair update failure releases both claims and resource.
+PASS initial invalid or throwing place validation cannot strand resources or acquire people.
+(node:78084) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78085) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-support/peopleCrowd.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78085) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/frisbeeActivity.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS production frisbee manager: explicit paired selection, real disc flight, coordinated interruption and teardown.
+PASS activity claims: tentative rollback, preserved old authority, synchronous replacement, reentrant rejection, stale writes/releases, removal and owned-resource cleanup.
+PASS claim transition interruption: person removal releases the old owner and rolls back tentative work; expired/async preparation is rejected.
+PASS failed replacement frees tentative reservations before guarded ordinary resume.
+(node:78095) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS person handles: pooled generations, owner/runtime replacement, stable relocation, caller scratch with cleared cross-population flags, stale reads/commands and ordered exception-safe cleanup.
+(node:78110) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS people runtime: ordered once-per-frame slots, stable lists, capability validation, unsupported reactions, replacement tokens, reentrant removal and complete teardown.
+PASS independent capability ordering with stable compiled lists and unchanged scheduling order.
+(node:78113) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS people boundaries: 53 sources, independent owners, five reviewed hoop presentation leaves with seven-module transitive closure, public consumers and rejecting direct/transitive/dynamic fixtures.
+PASS people baseline: warmup, bounded samples, distributions, copied reports, exact probe restoration, concurrent replacement and exception cleanup.
+PASS scene inventory: named population roots, packed instance capacity, multi-material draw groups, shared resource deduplication and visibility-independent topology
+PASS comparison cohort: isolated construction salts, inert default and exact RNG restoration on success/failure
+(node:78130) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/baseline.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS people frame trace: copied state, bounded recording, inert disabled/completed frames, accepted delta, report isolation, and scope markers.
+(node:78152) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/frameTrace.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS people trace persistence: scoped capture names, server acknowledgement/rejection, and bounded request cleanup.
+PASS people workshop: real driver order, pause/step, claims-first scoped teardown, reentrancy, production Healing Arts prior-sample handoff, and bounded children with unchanged default RNG.
+(node:78167) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/workshop.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+[perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+[perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+[perf] Lambert fallback active (threeShim) — MeshStandardMaterial → MeshLambertMaterial on low tier
+[perf] profile = mid {
+  name: 'mid',
+  pixelRatioCap: 1.5,
+  bloom: true,
+  bloomStrength: 0.5,
+  bloomRadius: 0.8,
+  bloomThreshold: 0.8,
+  shadows: true,
+  shadowType: 'basic',
+  crowdMax: 320,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 4,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 350,
+  fireworksPoolMax: 550,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 25500,
+    maxColdStepMs: 2,
+    forestStep: 56,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 40,
+      forest: 176,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS build: six entries, 2D isolation, automatic module discovery, missing-export failure, real Three.js aliases/material tiers, capture writes and access boundaries.
+PASS  renderer/composer/bloom/FXAA dimensions across quality and viewport changes
+(node:78202) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/renderSizing.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS post-process preparation uses exact pass materials, waits, draws offscreen, preserves policy, and restores state on failure
+PASS game boot waits before arming Start, skips GPU preparation in layout capture, and recovers from preparation failure
+(node:78205) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS  bubbles hide when empty and render emission, popping, and refills
+(node:78206) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS  bubble pops remove instantly, emit pooled outward droplets, then fade cleanly
+PASS bubble types: catalog, weighted picker, rates, charm, tint animations, and secret visibility
+(node:78207) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/bubbleTypes.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS bubble progress: empty/corrupt/blocked storage, idempotence, toggles, round trips, and debounced smiles
+(node:78208) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/bubbleProgress.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS bubble challenges: all unlock rules, negative cases, position identity, and context snapshot
+(node:78209) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/bubbleProgress.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS vendor dusk lighting, midnight bedtime, wrapped night and morning reopening
+PASS moon body, phase and additive halo use foreground-occluded celestial depth without extending the camera far plane
+PASS vendor visits: exclusive claims, browsing/chat/purchase/non-buyer/departure, bag, bedtime/unload/interruption, rotated frontage, solid avoidance and unchanged layout RNG
+PASS keeper greeting, closing/reset, rear-bed clearance and morning reopening
+PASS production vendor-row facing on both sides and rotated roads
+(node:78212) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78213) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/bubbles.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS  special emission rate, dry unlock burst, fixed pool, crowd visitation, and idle render visibility
+PASS real 999→1000 smile pickup, both modes, save, toast, sound, unread badge, analytics and emitted Smile Bubbles
+PASS bubble GA4 unlock and menu events, once-per-run gating, and unavailable-tag safety
+(node:78214) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/analytics.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS upgrade sound: post-start guard, four rising scheduled notes, SFX bus routing and envelopes
+(node:78215) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/sound.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78216) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/smiles.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS lost target: 500 exact live-motion frames, last-valid-position fallback, stale spawn rejection and no raw person retention
+PASS smiles: bounded resources over 400 pickups, all removal paths, motion, scoring, colorblind marker, owner teardown
+(node:78217) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS registry indexes: 11182 differential states; {"add":3556,"remove":1263,"unload":1601,"reload":809,"live":1544,"rebuild":1580}
+(node:78218) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 1500 moving/resizing/unloading states match full-rebuild candidate order; unchanged cells incur zero writes and removals leave no phantoms
+PASS  2016 frame comparisons; identical happiness, motion and scoring; 2752 fewer Math.hypot calls; range invariant holds
+(node:78219) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/smilePolicy.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  kid target commitment, grab radius, personal space, state changes, center steering, angle wrap and speed at 30/60/120 fps
+(node:78221) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/models/personLocomotion.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78222) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/timeOfDay.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS  shadow Off survives streaming and day/night; On restores without caster retention
+(node:78223) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/lakes.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS  indexed lake queries preserve geometry and add/remove behavior
+PASS lake clearing integration: original-host snapshot, isolated seeds, immediate registration, lake-owned lifetimes, tree clearances, exact dry preflight and footprint-aware roads.
+PASS playtest URL validation, zero coordinates, resume precedence and preload order
+PASS  cached road neighbors match uncached results across seed and tuning changes
+(node:78226) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS road surfaces: exact four-seed old routes and non-angle layout values, portable angle snapshots with mutation controls, reversed endpoint/seed restoration, 42 paved/585 dirt approaches, 24639 dry ribbon probes, shoreline fallback, bounded shared textures. Cold/warm mixed run 3762ms; not a frame-rate measurement.
+PASS physical vendor footprint: straight avenue retention, curved-road clearance and mixed-width neighboring roads.
+(node:78227) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS junction geometry: 619 former overlap probes, 22050 independent report probes, union coverage, exact crossing area, containment, repeatability and chunk partition.
+(node:78262) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+marker stage 2577575099: (369,-103) → (340,-111); 1677 clear audience probes
+marker stage 659632957: (456,131) → (491,130); 1517 clear audience probes
+PASS 288 stage clearances across five seeds, negative controls and query-order determinism
+(node:78263) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/worldgen/index.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS 170 food court rings clear of roads across five seeds
+(node:78464) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/worldgen/index.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  welcome court selection and safe Sugar Shack fallback
+(node:78465) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/worldgen/index.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  capture-only frame distributions, attribution, hidden-frame filtering, and event bounds
+(node:78469) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/perfTelemetry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  capture phase ownership, parked controls, slow Trip, free resume, upload serialization, and frozen retry
+(node:78470) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/perfTelemetry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  eager initial preload and bounded empty-residency admission
+PASS physical preparation shares the absolute world deadline and reduces horizon remainder; exhausted frames do not invoke it.
+(node:78471) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/worldgen/placement.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  cross-phase quality and physical render-size contamination
+PASS  desktop/phone URLs and LAN token checks
+✓ MODEL_DIMS in sync with model sources (5 dims).
+(node:78482) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/worldgen/tuning.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78483) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  6000 trials, 36000 queries (3007 post-rebuild, 12716 oversized) — grid+bigFp closestBuilding == linear scan (boolean + exact min distance)
+(node:78485) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/models/tree.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  4000 seeds — buildForestTree (birch+oak+pine) + buildTree (leaf+cone) rng stream + crown/perches unchanged (sha256 badb6efd125e…)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS  adaptive quality uses fresh samples, per-boundary recovery holds/backoff, and immediate safety drops
+(node:78486) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/adaptiveQuality.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS  low tier starts cheap, skips inert rungs, and respects the detailed-bubbles override
+(node:78487) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/adaptiveQuality.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS quality experiment, foreground timing, outcomes, recovery, summaries and GA payloads
+(node:78488) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/perfTelemetry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78489) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/boostStreaks.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  game-juice edges, accessibility gates, fixed pool, lifetime, and disposal safety
+(node:78492) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  photographer determinism, rare-role state machine, flash edge, pooling, and shadow safety
+(node:78493) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-crowd-appearance.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  stable crowd appearance, 6 skin tones, 6 hair forms, 12 shirts, 6.6% drinks, RNG isolation, slot pooling, no extra shadow casters
+PASS actual hair geometry: deterministic, finite, face clearance, shoulder silhouettes; triangles: 208, 640, 440, 256, 290, 544
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS 63 real models across 21 person families; finite geometry/transforms, shared disposal, adapted orientations and all seven styles.
+PASS crown/nape raycasts against smooth skulls and 21 historical RNG consumption comparisons.
+PASS Gary: seated hips, bent legs, exact pedal/sole contact, rear bun, gray temples, and no added shadow casters.
+PASS adult driver proportions, actual recessed deck raycast, and forward suspended accelerator.
+(node:78494) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/bin/test-person-hair.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78496) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/models/frisbeePlayer.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS  frisbee player has relaxed, one-arm catch, windup, and release poses
+(node:78497) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/worldgen/placement.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = high {
+  name: 'high',
+  pixelRatioCap: 2,
+  bloom: true,
+  bloomStrength: 0.6,
+  bloomRadius: 0.85,
+  bloomThreshold: 0.78,
+  shadows: true,
+  shadowType: 'soft',
+  crowdMax: 500,
+  chunkLoadRadius: 2,
+  chunkUnloadRadius: 3,
+  chunkBudgetMs: 5,
+  cameraFar: 1040,
+  forestTreeDensityMul: 1,
+  bubblePoolMax: 600,
+  fireworksPoolMax: 1000,
+  farField: {
+    radius: 520,
+    densityMul: 1,
+    marginalTriCap: 27000,
+    maxColdStepMs: 2,
+    forestStep: 40,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 120,
+      peak: 448,
+      vendorLegs: 448,
+      warm: 192,
+      beacon: 48,
+      forest: 256,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+PASS vendor canopy session/position appearance, exact proxy colors/yaws, density omissions and revisits
+PASS  far-field owner-cell fixtures, deterministic descriptor copying, worldgen-input immutability, fixed-capacity nearest selection, snapshot-planner supersession, the enablement truth table, handoff policy, palette + instHash stability, shared roofs and vendor slots, instance expansion, the real-worldgen pool drive (caps, determinism, bounds enclosure after a distant rewrite, night gating), the completion handoff (dither wiring, snap-then-envelope, shared-deadline remainder, reduced-motion snap, unload reappearance), long-travel resource plateaus + registry off-on identity + forcing controls + the no-builder/no-light/no-shadow source contract, coarse forest masses (grid ownership, threshold gating, jittered-owner handoff, per-tier tri-budget gate), and owner-only disposal idempotence
+PASS reported road patch: 630 interior surface samples, strict underlay/detailed-road separation, retained geometry, deterministic rewrites and hard capacity limits.
+PASS mixed road surfaces: actual width/color buffers, stable rewrites and one bounded vertex-color draw.
+PASS distant junction: actual index/position/color buffers have zero competing color probes and retain the road crossing.
+PASS junction capacity: deterministic bounded rewrite retains hard limits when paved candidates overflow.
+OK bin/test-steering — dodge urgency, corridor invariants, steer-direction jitter all hold
+(node:78711) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/steering.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS touch steering: real touch handlers, deadzones, 36 reversal scenarios at 30/60/120 fps, 45 unchanged keyboard trajectories, cancel/reanchor
+(node:78712) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/steering.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+OK bin/test-run-mode — ramp, combo, and mode-gate invariants hold
+(node:78713) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/runMode.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+OK bin/test-scoring — chain, ratchet, doubler, pin, restore, organic counter all hold
+(node:78714) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/scoring.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+OK bin/test-run-state — day wrap, resume init, sputter, vibe, death all hold
+(node:78719) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/runState.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+OK bin/test-jug-filter — default-off, determinism, day-subset monotonicity hold
+(node:78748) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/runMode.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:78769) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/workers/leaderboard/worker.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+OK bin/test-leaderboard-worker — protocol e2e, sig binding, ceiling worked example, monotonic HW, killed-tab persistence, sanitation, quarantine, admin delete all hold
+OK diagnostics: 121 correlated outcomes, 26 injected storage-phase failures, corruption guards, exposed headers, sanitized errors, no secret leakage
+(node:78823) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/leaderboard.js?client-test=1 is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ leaderboard client diagnostics (offline, isolated browser globals)
+  ✔ Cruising start note and idle lifecycle events create no requests (4.203791ms)
+  ✔ Festival start obtains a token without exposing it or player identity (12.566375ms)
+  ✔ heartbeat preserves Worker outcome boards_written and request ID (1.692584ms)
+  ✔ heartbeat preserves Worker outcome run_persisted and request ID (1.323875ms)
+  ✔ heartbeat preserves Worker outcome skipped_cadence and request ID (1.10975ms)
+  ✔ heartbeat preserves Worker outcome skipped_no_change and request ID (0.938125ms)
+  ✔ heartbeat preserves Worker outcome quarantined and request ID (1.458916ms)
+  ✔ HTTP 400 records sanitized outcome/reason (bad_sig) (1.84025ms)
+  ✔ HTTP 400 records sanitized outcome/reason (implausible_rate) (1.425416ms)
+  ✔ HTTP 500 records sanitized outcome/reason (storage_error) (1.248958ms)
+  ✔ HTTP 500 records sanitized outcome/reason (internal_error) (1.2745ms)
+  ✔ HTTP 400 records sanitized outcome/reason (private-network-error) (1.264333ms)
+  ✔ unreadable rejection body and invalid request ID are sanitized (1.325833ms)
+  ✔ start network is swallowed and diagnosed (0.818875ms)
+  ✔ start timeout is swallowed and diagnosed (1.04125ms)
+  ✔ heartbeat network is swallowed and diagnosed (1.198333ms)
+  ✔ heartbeat timeout is swallowed and diagnosed (1.011792ms)
+  ✔ final network is swallowed and diagnosed (0.820792ms)
+  ✔ final timeout is swallowed and diagnosed (0.917667ms)
+  ✔ old Worker without diagnostic headers is acknowledged_unverified, not proof of a write (1.103208ms)
+  ✔ a final before the token waits, then flushes once with the original score (1.148041ms)
+  ✔ beacon true records queueing only, never acknowledgement (1.0045ms)
+  ✔ beacon false records queueing only, never acknowledgement (0.940042ms)
+  ✔ beacon throws records queueing only, never acknowledgement (1.119166ms)
+  ✔ failed local save is distinct from successful diagnostic persistence (0.7015ms)
+  ✔ board read success normalizes range daily and keeps names out of diagnostics (0.831083ms)
+  ✔ board read success normalizes range all and keeps names out of diagnostics (0.748875ms)
+  ✔ board read success normalizes range invalid-range and keeps names out of diagnostics (0.577792ms)
+  ✔ board read http500 falls back to null with diagnostics (0.739791ms)
+  ✔ board read network falls back to null with diagnostics (0.547917ms)
+  ✔ board read timeout falls back to null with diagnostics (1.226625ms)
+  ✔ board read invalid-json falls back to null with diagnostics (0.842333ms)
+  ✔ board read invalid-entries falls back to null with diagnostics (0.504333ms)
+  ✔ history caps at the newest 100 events and returns defensive copies (3.891125ms)
+  ✔ reload retains history, appends page_loaded, and still caps at 100 (1.067958ms)
+  ✔ reload tolerates invalid stored history (0.694084ms)
+  ✔ reload tolerates invalid stored history (0.445958ms)
+  ✔ reload tolerates oversized stored history (0.43ms)
+  ✔ blocked storage keeps a capped memory history and recovers on later writes (2.001542ms)
+  ✔ start timeout covers a stalled token response body (0.945167ms)
+✔ leaderboard client diagnostics (offline, isolated browser globals) (62.62475ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 64.267291
+(node:78910) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/physics/rapierAdapter.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS real Rapier 0.21 adapter: support, compound primitives, copied poses/debug buffers, timestep, kinematic transfer, disabled proxy ghost contacts and safe target reset, bounded direct overlap queries with rotated local offsets and exhaustion, fast-body containment and CCD flag wiring, start/end/sensor/force distinctions, explicit overflow, capacity rejection, allocation rollback, 100 removal cycles and 12 world disposals; validated bounded trimeshes, copied geometry, nonplanar triangle ray hits, landing and mesh allocation rollback.
+(node:79164) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/physics/fixedStep.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS fixed clock 30/60/120 Hz, capped suspension, 23 real-engine fixtures, contact motion, copied state, static reference, capacity rejection and idempotent teardown.
+Scope: fixture engine proof only; production controller, terrain, claims and device acceptance remain pending.
+PASS external controller trajectory integration at 30/60/120 Hz with actual Rapier chair contact.
+PASS accepted cart trajectory: 30/60/120/240 Hz boundary sampling, rotation wrap, zero-step/pause, discontinuity and copy safety.
+(node:79170) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/physics/cartTrajectory.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS physics terrain: 4026 production triangle-interior comparisons, 375 nonflat triangles, 195 wrong-diagonal rejections, exact lattice/seams, negative/distant origins, disabled terrain, copied arrays, upward winding and bounded failure paths.
+(node:79171) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/rng.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[perf] profile = low {
+  name: 'low',
+  pixelRatioCap: 1.25,
+  bloom: true,
+  bloomStrength: 0.35,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.85,
+  shadows: false,
+  shadowType: 'basic',
+  crowdMax: 180,
+  chunkLoadRadius: 1,
+  chunkUnloadRadius: 2,
+  chunkBudgetMs: 3,
+  cameraFar: 1040,
+  forestTreeDensityMul: 0.7,
+  bubblePoolMax: 200,
+  fireworksPoolMax: 280,
+  farField: {
+    radius: 520,
+    densityMul: 0.6,
+    marginalTriCap: 17500,
+    maxColdStepMs: 2,
+    forestStep: 72,
+    caps: {
+      canopy: 56,
+      marqueeWall: 32,
+      truss: 108,
+      peak: 288,
+      vendorLegs: 288,
+      warm: 144,
+      beacon: 32,
+      forest: 96,
+      roadVerts: 4096,
+      roadIndices: 6144
+    }
+  },
+  contextLights: false,
+  fancyLights: false
+}
+(node:79353) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/physics/cartDriver.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS real Zerble controller + terrain triangles + Rapier contact at 30/60/120 Hz, enabled/flat terrain, presentation isolation and cleanup.
+PASS production-controller fixture ghost passage, overlapping expiry and clear reentry.
+(node:79357) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/physics/rapierAdapter.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS cart proxy: named reset transitions, no phantom sweeps, overlapping ghost expiry, zero-step transition, safe reentry and resumed physical contact.
+(node:79370) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/physics/rapierAdapter.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS terrain residency: real Rapier sloped/flat seam landings, shared support, transactional replacement/capacity rollback, caller deadline/creation bounds, bounded retry, copied inspection, sweep readiness, source guards and owned teardown.
+PASS admission accounting: loveseat/two-sitter/two-cup mandatory release at full optional saturation, no double charge, fail-atomic multi-resource updates, partial/full rollback, independent record cap, copied state, generation-safe stale cleanup, invalid dimensions/counts, safe-integer boundaries and 10000 reuse cycles.
+(node:79375) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/physics/admissionBudget.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS real chair instance bindings: four styles, preserved palette/parts, transformed owners, moving bounds, isolated slots, bounded dirty ranges, visibility/release and shared-safe disposal.
+(node:79376) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/models/campChair.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:79377) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS physical registry: immediate live/canonical spatial publication over 600 moves, radius/class changes, copied generation geometry/placement metadata, real campsite neighborhood/forest-owner guards, bounded enrollment, atomic validation, safe owner-index transfer, both teardown orders, stale/reused keys and untouched insertion order.
+PASS physical campsite chair identity, render pose, loveseat claims and generation query routing
+(node:79378) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/campRegistry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS active render adoption: four production chair styles, independent transformed owners, explicit source hide/late disposal, dirty ranges/bounds, bounded buffers, atomic allocation rollback, generation-safe slot reuse, borrowed resources and 30 flat-count cycles.
+Scope: real Three.js instance buffers and transforms; requested bytes are CPU upload ranges, not measured GPU transfer cost.
+(node:79379) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/models/campChair.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:79380) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS empty-chair ownership: four real chair styles, scaled Rapier colliders, admission/registry/render/body rollback, occupied/support refusal, solved pose/conservative footprints, canonical preservation, origin unload, stale tokens, repeated cleanup and independently retried teardown failures.
+PASS chunk/lake origin regeneration: exact self-clearance exclusion, neighboring blockers, both seat claims, singular registry/render publication, failed-hide rollback, latest-source restoration, bounded source lifetime listeners and re-adoption before source disposal.
+Scope: empty-chair ownership and synchronous origin suppression; automatic distance reset and production contact scheduling remain pending.
+(node:79381) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS static residency: real Rapier cylinder support, dynamic filtering, shared ownership, deadline and hard caps, bounded truncation, transactional replacement, source-removal cleanup and owned teardown.
+(node:79385) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/registry.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS live physics: real chair adoption/support/cart impacts at 30/60/120 Hz, ghost passage, exhausted preparation deadline, canonical clearance, source unload and full cleanup; main late-contact ordering and singular authority.
+Scope: opt-in empty-chair integration; full-game browser and phone acceptance remain separate.

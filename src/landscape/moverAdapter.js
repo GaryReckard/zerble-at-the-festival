@@ -16,23 +16,23 @@ export const LURLEEN_SUPPORT_FOOTPRINT=rectangleFootprint(1.4,1.6,1);
 export function createLandscapeMoverAdapter(runtime){
   const world=runtime.supportWorld,probe={},proposal={};
   const roadSupport=(x,z)=>{for(const record of runtime.owners.values())if(record.water&&inside(record.candidate.bridge.bounds,{x,z}))return record.candidate.bridge.id;return 'terrain';};
-  function supportsPose(x,z,heading,footprint=LURLEEN_SUPPORT_FOOTPRINT){
+  function supportsPose(x,z,heading,footprint=LURLEEN_SUPPORT_FOOTPRINT,{allowSteepTerrain=false}={}){
     const id=roadSupport(x,z),c=Math.cos(heading),s=Math.sin(heading);
-    for(const p of footprint){world.sampleSelected(x+p.x*c+p.z*s,z-p.x*s+p.z*c,id,probe);if(!probe.valid||!probe.traversable||Math.abs(-probe.dx*s-probe.dz*c)>.3||Math.abs(probe.dx*c-probe.dz*s)>.25)return false;}
+    for(const p of footprint){world.sampleSelected(x+p.x*c+p.z*s,z-p.x*s+p.z*c,id,probe);if(!probe.valid||(!probe.traversable&&!(allowSteepTerrain&&probe.blockedReason==='grade'))||(!allowSteepTerrain&&(Math.abs(-probe.dx*s-probe.dz*c)>.3||Math.abs(probe.dx*c-probe.dz*s)>.25)))return false;}
     return true;
   }
-  function binding(x,z,heading,footprint=LURLEEN_SUPPORT_FOOTPRINT){
-    if(!supportsPose(x,z,heading,footprint))return null;
-    try{return createSupportBinding(world,{x,z,heading,surfaceId:roadSupport(x,z)},{footprint});}catch(error){if(error instanceof RangeError)return null;throw error;}
+  function binding(x,z,heading,footprint=LURLEEN_SUPPORT_FOOTPRINT,{allowSteepTerrain=false}={}){
+    if(!supportsPose(x,z,heading,footprint,{allowSteepTerrain}))return null;
+    try{return createSupportBinding(world,{x,z,heading,surfaceId:roadSupport(x,z)},{footprint,allowSteepTerrain});}catch(error){if(error instanceof RangeError)return null;throw error;}
   }
   function move(support,x,z,heading){const p=support.propose(x,z,proposal,heading);if(!p.valid||!p.traversable)return false;support.commit(x,z,p,heading);return true;}
-  function findSpawn(x,z,heading,footprint=LURLEEN_SUPPORT_FOOTPRINT){
-    const direct=binding(x,z,heading,footprint);if(direct)return {x,z,binding:direct};
+  function findSpawn(x,z,heading,footprint=LURLEEN_SUPPORT_FOOTPRINT,{allowSteepTerrain=false}={}){
+    const direct=binding(x,z,heading,footprint,{allowSteepTerrain});if(direct)return {x,z,binding:direct};
     const candidates=[];
     for(const road of runtime.access.roads({minX:x-200,maxX:x+200,minZ:z-200,maxZ:z+200})){const p=project({x,z},road.points);if(p)candidates.push(p);}
     for(const r of [20,40,80,160])for(let i=0;i<8;i++)candidates.push({x:x+Math.cos(i*Math.PI/4)*r,z:z+Math.sin(i*Math.PI/4)*r,dist:r});
     candidates.sort((a,b)=>a.dist-b.dist);
-    for(const p of candidates){const support=binding(p.x,p.z,heading,footprint);if(support)return {x:p.x,z:p.z,binding:support};}return null;
+    for(const p of candidates){const support=binding(p.x,p.z,heading,footprint,{allowSteepTerrain});if(support)return {x:p.x,z:p.z,binding:support};}return null;
   }
   function nextTarget(from,target){
     for(const record of runtime.owners.values()){

@@ -1,0 +1,41 @@
+{
+  "seed": 3232217193,
+  "landscape": 2,
+  "physics": 1,
+  "perf": "low",
+  "mute": 1,
+  "readyPlankClick": true,
+  "locationsVisited": [
+    [
+      1497.87,
+      868.42
+    ],
+    [
+      971.45,
+      902.1
+    ],
+    [
+      671.8,
+      -673.39
+    ]
+  ],
+  "finalMeadowPhysics": {
+    "active": 3,
+    "preparing": 3,
+    "bodies": 13,
+    "running": true,
+    "lastAdmission": "ready"
+  },
+  "finalNightWarnings": [],
+  "finalNightErrors": [],
+  "ownedTabsClosedAndInventoryVerified": [
+    380986967,
+    380986971,
+    380986975
+  ],
+  "limits": [
+    "Brief desktop smoke and admission check",
+    "No physical-device or long-duration performance claim",
+    "The earlier failed runs and their fixes are retained in the companion report"
+  ]
+}

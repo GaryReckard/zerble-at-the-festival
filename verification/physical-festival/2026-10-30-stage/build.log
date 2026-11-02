@@ -1,0 +1,77 @@
+
+> build
+> vite build --outDir /tmp/zerble-stage-build.g6mhxQ
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 236 modules transformed.
+
+(!) outDir /tmp/zerble-stage-build.g6mhxQ is not inside project root and will not be emptied.
+Use --emptyOutDir to override.
+
+rendering chunks...
+computing gzip size...
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/site-B5MDeBlm.webmanifest               0.47 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/passport-preview.html                          1.22 kB │ gzip:     0.62 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/festival-map-preview.html                      2.27 kB │ gzip:     1.03 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/press-start-2p-ClsvrIBJ.woff2           4.70 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/hub-sandbox.html                               4.84 kB │ gzip:     1.94 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/map-sandbox.html                               5.32 kB │ gzip:     1.98 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/terrain-sandbox.html                           5.92 kB │ gzip:     2.45 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/physical-sandbox.html                          8.14 kB │ gzip:     3.04 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/geography.worker-CfOfuWgs.js           11.47 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/favicon-96x96-CiQix8YV.png             14.86 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/favicon-B4CsU2Oo.ico                   15.08 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/bubble-DClPS2Xy.webp                   16.98 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/index.html                                    21.77 kB │ gzip:     6.97 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/sandbox.html                                  30.18 kB │ gzip:     7.29 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/apple-touch-icon-BQhTj2-O.png          36.30 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/plank-wood-BCbsHWqX.webp               89.16 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/plank-banner-BHaHfL8P.webp            100.19 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/layer-mountains-CwLXMh0S.webp         155.11 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/layer-sky-Bu6fjoNw.webp               215.13 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/title-logo-fn5cLAAo.webp              231.62 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/layer-festival-NXuRFGci.webp          318.99 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/layer-foreground-BFdSdmSd.webp        320.61 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/favicon-CPTTbEXi.svg                1,573.83 kB │ gzip: 1,185.22 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/view-Bi_AtTx_.css                       3.72 kB │ gzip:     1.12 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/passport-DUTWR86n.css                   4.98 kB │ gzip:     1.65 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/styles-CqZV424h.css                    47.69 kB │ gzip:    10.76 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/modulepreload-polyfill-P2Xu9kJm.js      0.67 kB │ gzip:     0.38 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/passport-preview-D-jWcGTZ.js            0.86 kB │ gzip:     0.56 kB │ map:     2.27 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/collisionContacts-DTv8-ahF.js           0.90 kB │ gzip:     0.56 kB │ map:     4.52 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/campResources-VbsHZXrU.js               1.02 kB │ gzip:     0.59 kB │ map:     3.95 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/constants-C5xxkg4k.js                   1.05 kB │ gzip:     0.59 kB │ map:     6.07 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/steering-DQx9jcmN.js                    1.11 kB │ gzip:     0.59 kB │ map:     7.94 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/index-Co7A6Hi9.js                       1.28 kB │ gzip:     0.81 kB │ map:     1.42 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/preload-helper-CRzLMJPS.js              1.53 kB │ gzip:     0.80 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/playerStats-BQsGtzJB.js                 4.26 kB │ gzip:     2.10 kB │ map:    14.59 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/lint-D19iNlNa.js                        4.29 kB │ gzip:     2.02 kB │ map:    41.60 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/festival-map-preview-mlbjGfvR.js        6.98 kB │ gzip:     2.98 kB │ map:    16.15 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/input-Ctwlw6Wh.js                       7.68 kB │ gzip:     2.51 kB │ map:    31.19 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/passportMenu-Y1RvWOCS.js                7.70 kB │ gzip:     3.01 kB │ map:    16.80 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/hub-sandbox-uE_7P1wL.js                10.26 kB │ gzip:     4.65 kB │ map:    33.30 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/terrain-sandbox-ggDfHI1X.js            11.23 kB │ gzip:     5.14 kB │ map:    37.70 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/OrbitControls-YMxWlrvJ.js              12.42 kB │ gzip:     3.61 kB │ map:    51.87 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/recipes-Ds4idLIY.js                    15.73 kB │ gzip:     6.02 kB │ map:    53.14 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/physical-sandbox-BQ5Iqff0.js           18.87 kB │ gzip:     8.01 kB │ map:    60.53 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/view-CCZea1cP.js                       25.50 kB │ gzip:     8.72 kB │ map:    68.61 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/map-sandbox-CvEaaN7v.js                25.72 kB │ gzip:     9.56 kB │ map:   103.42 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/zerble-C_WuZ_8g.js                     40.27 kB │ gzip:    14.66 kB │ map:   171.75 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/terrain-D6Yu5pOF.js                    44.61 kB │ gzip:    17.08 kB │ map:   263.92 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/liveWorld-uWtmMrRb.js                  45.96 kB │ gzip:    15.42 kB │ map:   147.61 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/sound--5jV9Udt.js                      73.70 kB │ gzip:    21.31 kB │ map:   300.21 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/a11y-m1YXolo8.js                       86.24 kB │ gzip:    31.07 kB │ map:   411.73 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/sandbox-GzTFLeex.js                   103.57 kB │ gzip:    32.21 kB │ map:   379.34 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/main-BSqiurPI.js                      240.01 kB │ gzip:    80.90 kB │ map:   766.60 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/OutputPass-BP1CGEUD.js                243.40 kB │ gzip:    80.94 kB │ map:   824.45 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/smiles-DjuTYFrq.js                    347.85 kB │ gzip:   115.69 kB │ map: 1,440.49 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/threeShim-Czlf_3H8.js                 534.23 kB │ gzip:   135.85 kB │ map: 1,988.98 kB
+../../../../../../tmp/zerble-stage-build.g6mhxQ/assets/rapier-BcnL-M2-.js                  4,335.14 kB │ gzip: 1,670.00 kB │ map: 4,578.75 kB
+
+✓ built in 372ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

@@ -1,0 +1,18 @@
+2026-10-30
+node bin/test-people-collisions: exit 0
+node bin/test-physics-live-world: exit 0
+npm run check: exit 0
+npm run build -- --outDir /tmp/zerble-object-policy.w5hRCE: exit 0
+
+Final check excerpt:
+PASS live capacity (low): eight active, ninth legacy, stable terrain allocations, source unload and full cleanup.
+PASS live capacity (loveseat): eight active, ninth legacy, stable terrain allocations, source unload and full cleanup.
+PASS live physics: real chair adoption/support/cart impacts at 30/60/120 Hz, ghost passage, exhausted preparation deadline, canonical clearance, source unload and full cleanup; main late-contact ordering and singular authority.
+Scope: opt-in empty-chair integration; full-game browser and phone acceptance remain separate.
+PASS main-loop prop feedback: mass-sensitive forward/reverse slowdown, glancing contact, unchanged position/immunity and retained person-hit priority.
+
+Build excerpt:
+✓ 237 modules transformed.
+✓ built in 405ms
+
+Full temporary logs: /tmp/physics-object-policy-check.log and /tmp/physics-object-policy-build.log

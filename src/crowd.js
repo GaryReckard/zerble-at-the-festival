@@ -1023,8 +1023,10 @@ export class Crowd {
 
   canReachCampSlot(handle, slot, bed, groundY=undefined) {
     const npc = this.peopleHandles.resolve(handle);
-    if (!npc?.surfaceBinding) return true;
-    const p = npc.surfaceBinding.propose(bed ? slot.doorX : (slot.approachX ?? slot.x), bed ? slot.doorZ : (slot.approachZ ?? slot.z), npc._surfaceReach || (npc._surfaceReach = {}));
+    const x=bed?slot?.doorX:(slot?.approachX??slot?.x),z=bed?slot?.doorZ:(slot?.approachZ??slot?.z);
+    if(!npc||!Number.isFinite(x)||!Number.isFinite(z))return false;
+    if (!npc.surfaceBinding) return true;
+    const p = npc.surfaceBinding.propose(x,z,npc._surfaceReach || (npc._surfaceReach = {}));
     return p.valid && p.traversable && (!Number.isFinite(groundY)||Math.abs(groundY-p.height)<1);
   }
 
@@ -1616,7 +1618,8 @@ export class Crowd {
   }
 
   _writeMatrices(npc) {
-    groundNpc(npc);
+    const reaction=npc._reactionPose&&this.activityClaims.canWrite(npc._reactionPose.claim)?npc._reactionPose:null;
+    if(!reaction)groundNpc(npc);
     if (npc.state === 'camp_sleeping' || npc.campJamHidden || npc._activityBinding?.hidden) { this._hideNpc(npc); return; }
     if (npc.party) { this._hideNpc(npc); publishGroupBinding(npc); return; }
     // Bo is rendered by the wagon, while the crowd still owns his reserved seat.
@@ -1628,7 +1631,7 @@ export class Crowd {
       }
       return;
     }
-    const walk=sampleWalkMotion(npc,this._walkPose??={});
+    const walk=reaction?(this._reactionWalkPose??={active:false,stride:0,arm:0,bob:0}):sampleWalkMotion(npc,this._walkPose??={});
     const m = this._mat4;
     const photo=npc.isPhotographer
       ? samplePhotographerPose(npc.state,npc.stateTimer,npc.photoCrouch,npc.photoFlashTimer,this._photoRenderProfile??={})
@@ -1643,13 +1646,13 @@ export class Crowd {
     // values produce visibly different rhythms within the crowd. Computed
     // BEFORE the quat composition so the yaw wiggle can layer onto npc.yaw.
     const activityOwner=this.activityClaims.current.get(npc.personHandle)?.claim.owner;
-    const hula=activityOwner?.sampleBodyPose?.(npc.personHandle,this._activityBodyPose??={});
+    const hula=!reaction&&activityOwner?.sampleBodyPose?.(npc.personHandle,this._activityBodyPose??={});
     if(hula&&(!Number.isFinite(hula.bob)||!Number.isFinite(hula.leanX)||!Number.isFinite(hula.leanZ)))throw new TypeError('Activity body pose must be finite.');
     const articulated=hula?.articulated===true;
     const flowFeet=articulated?hula.feet:null;
     if(flowFeet){validateHoopFeet(flowFeet);if(!Number.isFinite(hula.rootY))throw new TypeError('Planted flow requires a finite root height.');}
     const flowSupport=articulated?(flowFeet?hula.rootY:hoopFootLift(hula.stride??0,hula.leanX,hula.leanZ))*npc.scale:0;
-    const danceActivity=!!activityOwner?.isDancePerson?.(npc.personHandle);
+    const danceActivity=!reaction&&!!activityOwner?.isDancePerson?.(npc.personHandle);
     const stageDancing=!activityOwner&&isStageDancing(npc.state,npc.onDancefloor,npc.dance);
     let bobY;
     let danceTilt;
@@ -1673,6 +1676,7 @@ export class Crowd {
     // Chair contact stays fixed even near dancefloors or while smiling. A
     // feet-origin bob/tilt moves the pelvis through the supporting fabric.
     if (npc.state === 'camp_seated' || npc.picnicCrossLegged || npc.campMusic) { bobY = 0; danceTilt = 0; danceYawWiggle = 0; }
+    if(reaction){bobY=0;danceTilt=0;danceYawWiggle=0;}
 
     let quat;
     if (npc.state === 'hammock_riding') {
@@ -1688,14 +1692,14 @@ export class Crowd {
 
     // Happy bounce: while smile cooldown is active the body bobs up by a small
     // sin wave (~6cm amplitude) so the whole figure (body + mouth) hops.
-    const bouncing = npc.smileTimeCooldown > 0 && !photographing && !npc.campMusic;
+    const bouncing = !reaction && npc.smileTimeCooldown > 0 && !photographing && !npc.campMusic;
     const bounceY = bouncing
       ? Math.abs(Math.sin((this.actorTime??0) * 12 + npc.bob)) * 0.06
       : 0;
 
     // Cheer jump: positive-half sine so NPCs hop upward without clipping the floor.
     // Seeded by the stable behavior slot so pooling stays visually decoupled.
-    const cheering = npc.cheerTimer > 0 && !npc.campMusic && !photographing;
+    const cheering = !reaction && npc.cheerTimer > 0 && !npc.campMusic && !photographing;
     const cheerY = cheering
       ? Math.max(0, Math.sin((this.actorTime??0) * HOP_HZ + npc.behaviorSeed * 1.3)) * HOP_HEIGHT
       : 0;
@@ -1714,7 +1718,7 @@ export class Crowd {
     // Seated riders (bench / driver / roof) sit with their butt on the seat;
     // running-board riders stand. Computed here so it drives both the lift and
     // the leg bend below.
-    const seated = (npc.state === 'riding' && npc.seatSlot &&
+    const seated = reaction?reaction.seated:(npc.state === 'riding' && npc.seatSlot &&
       (npc.seatSlot.kind === 'bench' || npc.seatSlot.kind === 'driver_seat' || npc.seatSlot.kind === 'roof'))
       || npc.pottySitting                  // caught sitting on the potty — same forward leg bend
       || npc.state === 'table_seated' || npc.state === 'camp_seated';     // sitting on a picnic bench — same forward leg bend
@@ -1771,6 +1775,7 @@ export class Crowd {
       posV.set(npc.pos.x, feetY, npc.pos.z);
     }
     scaleV.set(npc.scale, npc.scale, npc.scale);
+    if(reaction){posV.set(reaction.x,reaction.y,reaction.z);quat.set(reaction.qx,reaction.qy,reaction.qz,reaction.qw);}
     m.compose(posV, quat, scaleV);
     if (danceTilt && !hula) {
       // Reuse scratch Matrix4 — avoids per-NPC allocation for dancing crowd.
@@ -1790,7 +1795,7 @@ export class Crowd {
     // activities to their own leg poses. Photo soles cancel the pelvis drop.
     const plantedPhoto=npc.isPhotographer&&(photographing||ORDINARY_SOCIAL_STATES.has(npc.state))&&!walk.active&&!seated&&!hula&&!cheering;
     this._writeHoopFeet(npc,flowFeet??(plantedPhoto?photo.feet:null));
-    const folded=!!npc.picnicCrossLegged&&npc.state==='table_seated';
+    const folded=!reaction&&!!npc.picnicCrossLegged&&npc.state==='table_seated';
     for(const mesh of [this.legsMesh,this.shoesMesh]){const a=mesh.geometry.getAttribute('crossLegged');a.setX(npc.idx,folded?1:0);a.needsUpdate=true;}
     for(const mesh of [this.legsMesh,this.shoesMesh]){
       const stride=mesh.geometry.getAttribute('walkStride');
@@ -1802,7 +1807,13 @@ export class Crowd {
       this.legsMesh.setMatrixAt(npc.idx, m);
       this.shoesMesh.setMatrixAt(npc.idx, m);
     } else if (seated) {
-      this._legMat.multiplyMatrices(m, this._sitLegMat);
+      let legPose=this._sitLegMat;
+      if(reaction&&reaction.seatBlend<1) {
+        const bend=1.25*reaction.seatBlend;
+        legPose=this._reactionLegMat??=new THREE.Matrix4();
+        legPose.makeRotationX(bend).setPosition(0,.62*(1-Math.cos(bend)),-.62*Math.sin(bend));
+      }
+      this._legMat.multiplyMatrices(m, legPose);
       this.legsMesh.setMatrixAt(npc.idx, this._legMat);
       this.shoesMesh.setMatrixAt(npc.idx, this._legMat);
     } else {
@@ -1847,7 +1858,13 @@ export class Crowd {
     const armAttr=this.armsMesh.geometry.getAttribute('armPose');
     const leftAttr=this.armsMesh.geometry.getAttribute('armLeftPose');
     leftAttr.setXY(npc.idx,(hasArmPose||hula) ? .03 : 0,0);
-    if(holdingCamera){
+    if(reaction?.brace>0){
+      // Keep the existing drink socket fixed until transferable drinks own it.
+      // The free arm reaches sideways for balance; neither pose moves the hips.
+      const b=reaction.brace,freeRight=npc.drinkSlot<0;
+      armAttr.setXYZW(npc.idx,freeRight?.25*b:0,freeRight?.95*b:0,freeRight?-.25*b:0,-.95*b);
+      leftAttr.setXY(npc.idx,.25*b,.25*b);
+    }else if(holdingCamera){
       armAttr.setXYZW(npc.idx,photo.armX,photo.armZ,photo.elbow,-photo.armZ);
       leftAttr.setXY(npc.idx,photo.armX,-photo.elbow);
     }else if(hasArmPose){
@@ -2209,6 +2226,34 @@ export class Crowd {
   _tickCamp(dt,npc) {return this.camps.tick(dt,npc.personHandle,this.campTimeOfDay?.t??getTimeOfDay()?.t??.25);}
   isPersonActivityCurrent(claim) {return this.activityClaims.canWrite(claim);}
   readCampPlace(handle,out) {return this.camps.readPlace(handle,out);}
+  readPersonSupport(handle,out) {
+    const n=this.peopleHandles.resolve(handle),owner=this.activityClaims.current.get(handle)?.claim.owner;
+    if(!n||this._disposed||n.state!=='camp_seated'||n.party||n.seatSlot||n.isPhotographer||n.campJamHidden||this.hasHiddenBinding(handle)
+      ||(owner!==this.camps&&owner!==this.campJams))return false;
+    return owner.readPlace(handle,out);
+  }
+  findPersonOnSupport(slot) {
+    if(!slot?.occupied)return null;
+    const view=this._supportSearchView??={};
+    for(const npc of this.npcs)if(this.readPersonSupport(npc.personHandle,view)&&view.slot===slot)return npc.personHandle;
+    return null;
+  }
+  claimSupportReactions(requests) {
+    if(!Array.isArray(requests)||!requests.length||requests.length>2)throw new TypeError('Support reaction requires one or two sitters');
+    if(requests.some(r=>!this.readPersonSupport(r.handle,this._supportView??={})))return null;
+    return this.activityClaims.acquireBatch(requests.map(request=>({...request,
+      prepare:attempt=>{
+        const ready=request.prepare?.(attempt)??true;
+        if(ready?.then)throw new TypeError('Support preparation must be synchronous.');
+        return ready===true&&this.readPersonSupport(request.handle,this._supportView??={});
+      },
+      release:(claim,reason)=>{try{request.release?.(claim,reason);}finally{this.releaseActivityBinding(claim);}},
+    })));
+  }
+  preparePersonSupportTransfer(handle,entry,attempt) {
+    if(!this.readPersonSupport(handle,this._supportView??={}))return null;
+    return this.activityClaims.current.get(handle).claim.owner.prepareSupportTransfer(handle,entry,attempt);
+  }
   setCampCooldown(handle,value) {return this.camps.setCooldown(handle,value);}
   canPlayCampMusic(handle) {
     const n=this.peopleHandles.resolve(handle);if(!n||n.party||!['idle','walking','camp_seated'].includes(n.state))return false;
@@ -2357,6 +2402,27 @@ export class Crowd {
   }
   removePerson(handle) {const npc=this.peopleHandles.resolve(handle);if(!npc)return false;this.removeNpc(npc);return true;}
   hasHiddenBinding(handle) {return !!this.peopleHandles.resolve(handle)?._activityBinding?.hidden;}
+
+  // Physical reactions start with unclaimed ordinary adults. Occupied support
+  // needs its own prepared transfer; it must never bypass a seat's exit rules
+  // by using this entry point as a generic activity interruption.
+  canClaimPersonReaction(handle) {
+    const n=this.peopleHandles.resolve(handle);
+    return !!n&&!this._disposed&&!n.party&&!n.isPhotographer&&!n.seatSlot
+      &&!n.campSlot&&!n.campMusic&&!n.campInstrument&&!n.campJamHidden
+      &&!n._activityBinding?.hidden&&!this.activityClaims.current.has(handle)
+      &&(ORDINARY_SOCIAL_STATES.has(n.state)||n.state==='fleeing');
+  }
+
+  claimPersonReaction(handle,options) {
+    if(!options?.owner||!this.canClaimPersonReaction(handle))return null;
+    const prepare=options.prepare??(()=>true);
+    return this.claimActivity(handle,{...options,prepare:attempt=>{
+      const prepared=prepare(attempt);
+      if(prepared?.then)throw new TypeError('Reaction preparation must be synchronous.');
+      return prepared===true&&this.canClaimPersonReaction(handle);
+    }},{preserveMotion:true});
+  }
   isInActivity(handle,key) {return this.peopleHandles.isLive(handle)&&this.activityClaims.current.get(handle)?.claim.owner.activityKey===key;}
 
   activitySummary(handle,out={}) {
@@ -2430,6 +2496,7 @@ export class Crowd {
     if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z)||(heading!==null&&!Number.isFinite(heading))||(bob!==null&&!Number.isFinite(bob)))throw new TypeError('Activity pose must be finite.');
     if(travelDt!==null&&(!Number.isFinite(travelDt)||travelDt<0||travelDt>.05))throw new TypeError('Activity travel requires an accepted delta.');
     const npc=this.peopleHandles.resolve(claim.person);
+    if(npc._reactionPose)npc._reactionPose=null;
     const distance=Math.hypot(x-npc.pos.x,z-npc.pos.z);
     if(travelDt!==null){const walk=npc._activityWalk??={};walk.claim=claim;walk.speed=travelDt>0&&distance<.5?distance/travelDt:0;}
     else npc._activityWalk=null;
@@ -2438,6 +2505,23 @@ export class Crowd {
     // Hidden rigs have no ordinary transform to publish; avoid redundant writes.
     if(!npc._activityBinding?.hidden)this._publishPerson(npc);
     return true;
+  }
+
+  // Full feet-origin transform for the current reaction. The population keeps
+  // its existing instance slots, appearance and attachment transforms.
+  writeReactionPose(claim,{position,rotation,seated=false,seatBlend=seated?1:0,brace=0}={}) {
+    if(!this.activityClaims.canWrite(claim))return false;
+    const npc=this.peopleHandles.resolve(claim.person);
+    if(npc.party||npc.seatSlot||npc.isPhotographer||npc.campInstrument||npc.campJamHidden||npc._activityBinding?.hidden)return false;
+    const values=[position?.x,position?.y,position?.z,rotation?.x,rotation?.y,rotation?.z,rotation?.w];
+    if(!values.every(value=>Number.isFinite(value)&&Number.isFinite(Math.fround(value)))||typeof seated!=='boolean'||!Number.isFinite(seatBlend)||seatBlend<0||seatBlend>1||!Number.isFinite(brace)||brace<0||brace>1)throw new TypeError('Reaction pose requires finite position, quaternion and a seated boolean.');
+    const length=Math.hypot(rotation.x,rotation.y,rotation.z,rotation.w);
+    if(length<1e-12)throw new TypeError('Reaction rotation must have nonzero length.');
+    const pose=npc._reactionPose??={};
+    pose.claim=claim;pose.x=position.x;pose.y=position.y;pose.z=position.z;
+    pose.qx=rotation.x/length;pose.qy=rotation.y/length;pose.qz=rotation.z/length;pose.qw=rotation.w/length;pose.seated=seatBlend>0;pose.seatBlend=seatBlend;pose.brace=brace;
+    npc._activityWalk=null;npc.pos.set(pose.x,pose.y,pose.z);
+    this._publishPerson(npc);return true;
   }
 
   writeActivityArmPose(claim,action,amount=0,dt=.05) {
@@ -2483,6 +2567,7 @@ export class Crowd {
     let released=false;
     if(npc?._activityWalk?.claim===claim){npc._activityWalk=null;released=true;}
     if(npc?._activityArmPose?.claim===claim){npc._activityArmPose=null;released=true;}
+    if(npc?._reactionPose?.claim===claim){npc._reactionPose=null;released=true;}
     if(npc?._activityBinding?.claim===claim){npc._activityBinding=null;released=true;}
     if(released&&this.peopleHandles.isLive(claim.person))this._publishPerson(npc);
     return released;
@@ -2644,16 +2729,22 @@ export class Crowd {
       const dx=n.pos.x-cart.position.x,dz=n.pos.z-cart.position.z;if(dx*dx+dz*dz>36)continue;
       let c=n._personCollider;
       if(!c)c=n._personCollider={position:{x:0,y:0,z:0},radius:.45,damage:1,kind:'person',passive:false,entry:null,personHandle:handle,
-        onContact:(_candidate,x,z)=>this.hitPerson(handle,x,z),onPeoplePenalty:()=>this.frownPerson(handle)};
+        onContact:(_candidate,x,z,impact)=>this.hitPerson(handle,x,z,impact),onPeoplePenalty:()=>this.frownPerson(handle)};
       c.position.x=n.pos.x;c.position.y=n.pos.y;c.position.z=n.pos.z;
       c.minY=n.surfaceBinding?n.pos.y:undefined;c.maxY=n.surfaceBinding?n.pos.y+2.6*n.scale:undefined;out.push(c);
     }
   }
 
-  hitPerson(handle,pushX,pushZ) {
+  installPersonImpactHandler(handler) {
+    if(typeof handler!=='function'||this._personImpactHandler)throw new Error('Person impact handler already installed or invalid');
+    this._personImpactHandler=handler;
+    return ()=>{if(this._personImpactHandler===handler)this._personImpactHandler=null;};
+  }
+
+  hitPerson(handle,pushX,pushZ,impact=null) {
     const n=this.peopleHandles.resolve(handle);if(!n)return false;
     if(!Number.isFinite(pushX)||!Number.isFinite(pushZ))throw new TypeError('Person hit direction must be finite.');
-    return this._onZerbleHit(n,pushX,pushZ);
+    return this._onZerbleHit(n,pushX,pushZ,impact);
   }
 
   // Called from main.js when Zerble rams a porta-potty that's in use: eject the
@@ -2662,9 +2753,12 @@ export class Crowd {
 
   // Called from main.js when Zerble drives into an NPC. Knockback the victim,
   // put them into a fleeing state, and spook nearby NPCs (panic cascade).
-  _onZerbleHit(victim, pushX, pushZ) {
+  _onZerbleHit(victim, pushX, pushZ, impact=null) {
     const handle=this.peopleHandles.handleFor(victim);
     if(!this.peopleHandles.isLive(handle))return false;
+    const activity=this.activityClaims.current.get(handle)?.claim.owner;
+    if(typeof activity?.onPersonImpact==='function')return activity.onPersonImpact(handle,pushX,pushZ,impact)===true;
+    if(this.canClaimPersonReaction(handle)&&this._personImpactHandler?.(handle,pushX,pushZ,impact)===true)return true;
     const hadActivity=this.activityClaims.current.has(handle);
     // Preserve the physical exit preflight before revoking a camp reservation.
     if(this._abandonSeat(victim)===false)return false; // a trapped sitter waits
@@ -2678,6 +2772,7 @@ export class Crowd {
     if(hadActivity)this._publishPerson(victim);
     // Panic cascade: nearby NPCs (within 6m) of any reasonable skittishness flee too
     for (const other of this.npcs) {
+      if (typeof this.activityClaims.current.get(other.personHandle)?.claim.owner.onPersonImpact === 'function') continue;
       if (other === victim || victim.surfaceBinding&&Math.abs(other.pos.y-victim.pos.y)>3 || other.state === 'riding' || other.state === 'boarding' || other.state === 'camp_sleeping' || other.campJamHidden) continue;
       const dx = other.pos.x - victim.pos.x;
       const dz = other.pos.z - victim.pos.z;

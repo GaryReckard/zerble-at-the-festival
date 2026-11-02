@@ -224,3 +224,7 @@ Gary's report exposed a driving-feel regression that the earlier hill traversal 
 
 
 The full project check and production build pass after this correction. A fresh Low real-game ready-plank boot accepts ordinary W and Shift+W, displays 24.04m/s after boost, and returns no warnings/errors. [Browser observations](boost-release-browser.json) include timing/contact limitations; the later stopped snapshot is not an isolated coast test. The owned verification tab is confirmed closed, and port 8766 serves the rebuilt fix.
+
+## Main integration and seeded playtest corrections
+
+[The November 1 integration report](2026-11-01-main-integration.md) supersedes the earlier checkpoint's statement that live physical-festival activation is still separate. It records the preserved `4521b19` checkpoint, integration of main `39e4797`, default live physics support above and below bridges, and both seed-3232217193 playtest fixes. Historical performance measurements above retain their original scope; they do not measure this combined branch or a physical phone.

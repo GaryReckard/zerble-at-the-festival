@@ -60,6 +60,14 @@ Open `/festival-map-preview.html?mute=1` for the production discovery/storage/wo
 
 Use `&viewport=portrait` or `&viewport=landscape` for 390×844 and 844×390 touch layout frames. These validate layout in the desktop browser, not real-device input or performance. `node bin/test-festival-map` runs pure/persistence/worker/live-marker regressions and is included in `npm run check`. The real game's `__dbg.festivalMap()` returns diagnostics. Browser tests must still start through a ready mode plank. [Evidence and limits](verification/festival-map/README.md).
 
+## Live physics inspection
+
+Physics runs by default. Use `?physics=0` for the legacy path, or `?physics=1&mute=1` to expose test controls. Then use **Stage cooler encounter**, wait for **Target: active**,
+then **Inspect staged prop** and **Coast forward**. **Noon**/**Midnight** change
+lighting and **Chase camera** restores the normal camera. Physics diagnostics
+include cooler lid latch, angle, anchor error and generation. Current live lids
+are reserved with their shell; loose cooler contents remain unfinished.
+
 ## Terrain driving proof
 
 Open `http://127.0.0.1:8765/terrain-sandbox.html?mute=1` on the existing
@@ -85,7 +93,7 @@ check distinguish overlapping layers, and the repeatable drive uses the real
 cart along the side road. Add `&district=1` for the populated Mountain Top owner: denser irregular lower camping, an open upper lawn/firepit, a top road turn and a narrower wooded path to the drum clearing. Its repeatable drive completes the actual winding out-and-back route, while High view and Look downhill expose the layout. This remains opt-in authored content, not new live worldgen.
 `node bin/test-landscape-support`, `node bin/test-landscape-fixture`, `node bin/test-landscape-travel` and `node bin/test-landscape-district` cover support/solid rules, exact geometry, actual 30/60/120Hz cart calls, routes/corrections, production camps/people/passengers and owner rollback/retention/disposal; all are in `npm run check`. [Evidence, captures and remaining gates](verification/landscape/README.md).
 
-Use `/map-sandbox.html?landscape=2&seed=1977&mute=1` for the experimental generation and **Find nearby Mountain Top** to inspect an owner, its meadows and admitted access spur. The current world remains generation 1. Ready/rejected/pending status comes from an owned worker; version/seed changes invalidate old results, and leaving the page terminates it. `npm run test:landscape` covers the focused suite; `node bin/survey-landscape --out /tmp/landscape-survey.json` repeats the declared regional survey. This is map inspection, while production streaming and all-consumer integration remain pending.
+Use `/map-sandbox.html?landscape=2&seed=1977&mute=1` for the experimental generation and **Find nearby Mountain Top** to inspect an owner, its meadows and admitted access spur. The real game defaults to generation 2; this map workshop still selects it explicitly. Ready/rejected/pending status comes from an owned worker; version/seed changes invalidate old results, and leaving the page terminates it. `npm run test:landscape` covers the focused suite; `node bin/survey-landscape --out /tmp/landscape-survey.json` repeats the declared regional survey. This is map inspection, while production streaming and all-consumer integration remain pending.
 
 Add `&form=three-shelves&seed=1977` to the landscape course for a generated stream/pond/bridge and three meadows; `paired-meadows` and `long-ridge` are also available. `district=1` builds its production camps/crew. The same contact control checks generated meshes, and the repeatable drive follows the complete route out and back. `bin/test-landscape-stream` covers bank containment and pedestrian support; `bin/test-landscape-water-owner` covers lifecycle/vertical rails and the real physics adapter with native cut-bed triangles and coolers above/below the deck. These are included in the focused/full checks.
 
@@ -504,9 +512,11 @@ hosted collector with privacy, retention, abuse, and consent rules.
 
 ## Physical furniture playground
 
-Open `/physical-sandbox.html?mute=1&perf=low&fixture=chair&seed=1977` on the Vite server. Choose a chair style and encounter, then use Run encounter, reset, slow motion or single step. Collision shapes, model bounds and seat anchors help inspect the provisional recipes. Inputs, contacts, and limits contains the copied report and Dispose scene control. Repeat Noon/Midnight and Low/Mid when changing presentation.
+Live chairs, articulated coolers and pedestrian falls run by default. To show their diagnostic controls, use `/?physics=1&mute=1&perf=low&seed=1977`. The [cooler checkpoint](verification/physical-festival/2026-10-30-cooler/README.md) gives a known campsite and the **Stage cooler encounter** / **Coast forward** controls. At `x=-1035&z=-478`, **Toss prop toward pedestrian** launches an existing nearby prop toward a prepared ordinary person without freezing or moving the target. It reports when no suitable pair is nearby. The [secondary encounter checkpoint](verification/physical-festival/2026-10-30-encounters/README.md) records the actual fall/recovery and capacity-reuse proof; broad acceptance and phone testing remain unfinished.
 
-This is an engine proof with a kinematic cart box and fixture ground. It does not exercise production occupants, ownership or terrain, and disabling physics shows a static reference rather than legacy collisions. See [evidence and limitations](verification/physical-festival/README.md). Run `npm run test:physics` for actual Rapier lifecycle/contact and fixed-clock tests.
+Open `/physical-sandbox.html?mute=1&perf=low&fixture=chair&seed=1977` on the Vite server. Choose a chair style and encounter, then use Run encounter, reset, slow motion or single step. Collision shapes, model bounds and seat anchors help inspect the provisional recipes. Show cart hides only its rendering so fallen furniture remains inspectable. Chair visuals use the production batch bindings; the report includes dirty matrix ranges requested for upload. Inputs, contacts, and limits contains the copied report and Dispose scene control. Repeat Noon/Midnight and Low/Mid when changing presentation.
+
+This is an engine proof using the real Zerble controller, a conservative kinematic contact hull and either fixture ground or the exact production-terrain triangle surface. Cart ghost mode can change during an encounter; ending it inside a prop waits for clearance before restoring contacts. The report exposes ghost state and pending clearance. It does not exercise production occupants, streaming ownership or the main game contact barrier, and disabling physics shows a static reference rather than legacy collisions. See [evidence and limitations](verification/physical-festival/README.md). Run `npm run test:physics` for actual Rapier lifecycle/contact and fixed-clock tests.
 
 ## The sandbox — isolated entity viewer
 
@@ -913,13 +923,13 @@ from forced shots, and promotion requires a free camera slot. The production
 use the same handle commands. Run `node bin/test-photographer-ownership` for exact
 role/pose comparisons and stale/protected-command checks.
 
-### Experimental world landscape manager
+### World landscape manager
 
 Use `/?landscape=2&seed=1977&x=-680&z=-438&heading=0&mute=1&perf=low` to boot the real game
 at one admitted Mountain Top's entry through the ordinary ready mode plank.
-This opts into the new world version; omit `landscape=2` for the existing default.
+The real game defaults to this world version; `landscape=1` selects the previous layout.
 The desktop mover/activity/physics-surface integration passes its scoped checks;
-physical-device and player acceptance still gate tuning and rollout. The festival map shows canonical
+Gary authorized rollout on November 2; physical-device and player acceptance remain tuning follow-ups. The festival map shows canonical
 mountain access and stream/pond geography while preserving generation-1 map
 exploration in its existing namespace. `bin/test-landscape-driving`,
 `bin/test-landscape-runtime` and `bin/test-landscape-map` are included in project

@@ -6,6 +6,7 @@ export const APPROACH_DAMAGE_THRESHOLD = 1.2;
 export const SOFT_PEOPLE_KINDS = new Set(['person', 'kid', 'wook', 'brass', 'hula_hoop', 'one_wheel']);
 
 export function resolveCollision(zerble, colliders) {
+  const eligible = !(zerble.invulnLeft > 0);
   // forward = (-sin(h), 0, -cos(h)); velocity = forward * speed
   const fx = -Math.sin(zerble.heading);
   const fz = -Math.cos(zerble.heading);
@@ -18,6 +19,9 @@ export function resolveCollision(zerble, colliders) {
     // but don't push Zerble or deal damage — otherwise their physical radius
     // would prevent Zerble from being inside the proximity trigger range.
     if (c.passive) continue;
+    const person = SOFT_PEOPLE_KINDS.has(c.kind) || c.kind === 'lurleen' || c.kind === 'puppet';
+    // Preserve person immunity while retaining solid scenery during cooldown.
+    if (person && !eligible) continue;
     // Parked Zerble can be crowded by people without being pushed around.
     // (Approach-damage already needs Zerble to be moving fast, so this only
     // suppresses the non-damaging position-nudge path below.)
@@ -40,17 +44,32 @@ export function resolveCollision(zerble, colliders) {
     const approachSpeed = (velX * tox + velZ * toz) * inv;
 
     if (approachSpeed > APPROACH_DAMAGE_THRESHOLD) {
-      // Damaging — Zerble is driving into it
+      // Snapshot incoming motion before the cart response changes its speed.
+      // Reaction owners must not mistake the reverse kick for impact energy.
+      const impact={speed:zerble.speed,approachSpeed,velocity:{x:velX,y:0,z:velZ}};
+      // People keep their authored kickback. Solid scenery instead removes
+      // the incoming motion and resolves overlap without forcing reverse.
       const pushDir = new THREE.Vector3(-tox * inv, 0, -toz * inv);
-      zerble.applyHit(pushDir);
+      if (person) {
+        zerble.applyHit(pushDir);
+      } else {
+        zerble.applyObstacleHit(pushDir, approachSpeed, minD - d, eligible);
+      }
+      if (!eligible) return { damaging: false };
       // NPC-specific reaction: panic, knockback, infect neighbors.
-      c.onContact?.(c,tox*inv,toz*inv);
-      // Damage > 0 means "deduct smiles". Damage 0 entries (e.g. Lurleen, a
-      // fleeing NPC) still need the bounce we just applied, plus a toast/SFX
+      c.onContact?.(c,tox*inv,toz*inv,impact);
+      const occupied = !!c.entry?.potty?.occupied ||
+        (c.entry?.physicalProp?.seatSlots ?? c.entry?.campSeats ?? []).some(slot => slot.occupied);
+      const objectBump = !person && !occupied;
+      // Empty objects resist physically but never cost smiles. Occupied
+      // furniture retains its existing consequence until person handoff lands.
+      // Damage 0 entries (e.g. Lurleen, a
+      // fleeing NPC) still need their contact response, plus a toast/SFX
       // for the named ones — return `notify` so the caller can react.
-      const damaging = c.damage > 0;
+      const damage = objectBump ? 0 : c.damage;
+      const damaging = damage > 0;
       const notify = !damaging && (c.kind === 'lurleen');
-      return { damaging, damage: c.damage, kind: c.kind, notify, entry:c.entry||null,onPeoplePenalty:c.onPeoplePenalty??null,onDamagingHit:c.onDamagingHit??null };
+      return { damaging, damage, kind: c.kind, notify, objectBump, entry:c.entry||null,onPeoplePenalty:c.onPeoplePenalty??null,onDamagingHit:c.onDamagingHit??null };
     }
 
     // Non-damaging contact: nudge Zerble out of overlap, kill any small approach speed.

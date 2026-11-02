@@ -1,0 +1,148 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { getSessionSeed, setSessionSeed, worldHash } from '../src/rng.js';
+import { TERRAIN_STEP, terrainEnabled, setTerrainEnabled, terrainVertexHeight, sampleTerrain,
+  terrainCacheStats } from '../src/worldgen/terrain.js';
+import { buildTerrainPatch, MAX_TERRAIN_PATCH_CELLS } from '../src/physics/terrainProxy.js';
+
+const close = (actual, expected, tolerance = 1e-6) => assert.ok(Math.abs(actual - expected) <= tolerance,
+  `${actual} differs from ${expected} by more than ${tolerance}`);
+function vertex(patch, index) {
+  return { x: patch.origin.x + patch.vertices[index * 3],
+    y: patch.origin.y + patch.vertices[index * 3 + 1], z: patch.origin.z + patch.vertices[index * 3 + 2] };
+}
+function checkVertices(patch) {
+  assert(patch.vertices instanceof Float32Array); assert(patch.indices instanceof Uint32Array);
+  assert.equal(patch.vertices.length, (patch.cells.x + 1) * (patch.cells.z + 1) * 3);
+  assert.equal(patch.indices.length, patch.cells.total * 6);
+  assert.equal(patch.cells.total, patch.cells.x * patch.cells.z);
+  assert(patch.cells.total <= MAX_TERRAIN_PATCH_CELLS);
+  assert.equal(patch.step, TERRAIN_STEP);
+  for (let index = 0; index < patch.vertices.length / 3; index++) {
+    const p = vertex(patch, index);
+    assert(Number.isInteger(p.x / TERRAIN_STEP)); assert(Number.isInteger(p.z / TERRAIN_STEP));
+    assert.equal(patch.vertices[index * 3 + 1], Math.fround(terrainVertexHeight(p.x, p.z)));
+    assert(p.y >= patch.bounds.minY && p.y <= patch.bounds.maxY);
+  }
+  for (const index of patch.indices) assert(index < patch.vertices.length / 3);
+}
+function checkTriangles(patch) {
+  let nonflat = 0, checked = 0, diagonalWitnesses = 0;
+  for (let index = 0; index < patch.indices.length; index += 3) {
+    const [a, b, c] = Array.from(patch.indices.subarray(index, index + 3), i => vertex(patch, i));
+    const up = (b.z - a.z) * (c.x - a.x) - (b.x - a.x) * (c.z - a.z);
+    assert(up > 0, 'every emitted triangle has upward winding');
+    if (Math.max(a.y, b.y, c.y) - Math.min(a.y, b.y, c.y) > 1e-5) nonflat++;
+    // Unequal barycentric weights probe triangle interiors instead of only
+    // rechecking vertices, exposing a reversed diagonal on a curved cell.
+    for (const [u, v, w] of [[.2, .3, .5], [.6, .15, .25], [.1, .8, .1]]) {
+      const x = a.x * u + b.x * v + c.x * w, z = a.z * u + b.z * v + c.z * w;
+      close(a.y * u + b.y * v + c.y * w, sampleTerrain(x, z).height);
+      checked++;
+    }
+    if (index % 6 === 0) {
+      const d = vertex(patch, patch.indices[index + 5]);
+      const u = .7, v = .2;
+      // The deliberately wrong a-d diagonal must disagree somewhere, proving
+      // this suite can distinguish the production split from either winding.
+      const wrongHeight = a.y * (1 - u) + c.y * (u - v) + d.y * v;
+      const sampled = sampleTerrain(a.x + u * TERRAIN_STEP, a.z + v * TERRAIN_STEP).height;
+      if (Math.abs(wrongHeight - sampled) > 1e-5) diagonalWitnesses++;
+    }
+  }
+  return { nonflat, checked, diagonalWitnesses };
+}
+function edge(patch, axis, value) {
+  const found = [];
+  for (let i = 0; i < patch.vertices.length / 3; i++) {
+    const p = vertex(patch, i);
+    if (p[axis] === value) found.push(p);
+  }
+  return found.sort((a, b) => a.x - b.x || a.z - b.z);
+}
+
+const originalSeed = getSessionSeed(), originalEnabled = terrainEnabled();
+let triangleChecks = 0, nonflat = 0, diagonalWitnesses = 0;
+try {
+  setTerrainEnabled(true);
+  for (const seed of [0, 1977, 3948869160]) {
+    setSessionSeed(seed);
+    const before = worldHash(19, -27, 0x50485953);
+    for (const bounds of [
+      { minX: 610, minZ: 170, maxX: 690, maxZ: 250 },
+      { minX: -310, minZ: -190, maxX: -230, maxZ: -110 },
+      { minX: -13.4, minZ: -24.6, maxX: 16.7, maxZ: 14.9 },
+      { minX: 940, minZ: -1260, maxX: 1020, maxZ: -1180 },
+    ]) {
+      const patch = buildTerrainPatch(bounds);
+      checkVertices(patch);
+      const result = checkTriangles(patch); triangleChecks += result.checked; nonflat += result.nonflat;
+      diagonalWitnesses += result.diagonalWitnesses;
+      assert(patch.bounds.minX <= bounds.minX && patch.bounds.maxX >= bounds.maxX);
+      assert(patch.bounds.minZ <= bounds.minZ && patch.bounds.maxZ >= bounds.maxZ);
+      assert.equal(patch.origin.x, patch.bounds.minX); assert.equal(patch.origin.z, patch.bounds.minZ);
+      assert.deepEqual(buildTerrainPatch(bounds), patch, 'repeating an input does not change its arrays');
+    }
+    const left = buildTerrainPatch({ minX: -80, minZ: -40, maxX: 0, maxZ: 40 });
+    const right = buildTerrainPatch({ minX: 0, minZ: -40, maxX: 80, maxZ: 40 });
+    assert.deepEqual(edge(left, 'x', 0), edge(right, 'x', 0), 'negative-to-positive adjacent tiles share every boundary height');
+    const lower = buildTerrainPatch({ minX: -80, minZ: -120, maxX: 0, maxZ: -40 });
+    assert.deepEqual(edge(lower, 'z', -40), edge(left, 'z', -40), 'z-adjacent tiles share every boundary height');
+    const wide = buildTerrainPatch({ minX: -80, minZ: -40, maxX: 80, maxZ: 40 });
+    for (const patch of [left, right]) for (let i = 0; i < patch.vertices.length / 3; i++) {
+      const p = vertex(patch, i);
+      const index = ((p.z - wide.origin.z) / TERRAIN_STEP * (wide.cells.x + 1) + (p.x - wide.origin.x) / TERRAIN_STEP);
+      assert.deepEqual(p, vertex(wide, index), 'changing patch origin never changes world vertex positions');
+    }
+    assert.equal(worldHash(19, -27, 0x50485953), before, 'building a proxy preserves established hash streams');
+    assert.equal(getSessionSeed(), seed); assert.equal(terrainEnabled(), true);
+  }
+  assert(nonflat > 100, 'interior agreement covers actual relief, rather than only flattened gathering pads');
+  assert(diagonalWitnesses > 0, 'the production samples reject the opposite-diagonal negative control');
+
+  const bounded = buildTerrainPatch({ minX: -320, minZ: -320, maxX: 320, maxZ: 320 }, { maxCells: MAX_TERRAIN_PATCH_CELLS });
+  assert.equal(bounded.cells.total, MAX_TERRAIN_PATCH_CELLS);
+  assert(bounded.vertices.length / 3 <= 65536); assert(bounded.indices.length / 3 <= 131072);
+  const long = buildTerrainPatch({ minX: 0, minZ: 0, maxX: MAX_TERRAIN_PATCH_CELLS * TERRAIN_STEP, maxZ: TERRAIN_STEP },
+    { maxCells: MAX_TERRAIN_PATCH_CELLS });
+  assert.equal(long.cells.total, MAX_TERRAIN_PATCH_CELLS);
+  assert(long.vertices.length / 3 <= 65536); assert(long.indices.length / 3 <= 131072);
+
+  const failures = [null, {}, { minX: NaN, minZ: 0, maxX: 10, maxZ: 10 },
+    { minX: 0, minZ: 0, maxX: Infinity, maxZ: 10 },
+    { minX: 10, minZ: 0, maxX: 0, maxZ: 10 }, { minX: 0, minZ: 0, maxX: 0, maxZ: 10 },
+    { minX: 0, minZ: 10, maxX: 10, maxZ: 10 },
+    { minX: -1e300, minZ: 0, maxX: 1e300, maxZ: 10 },
+    { minX: 0, minZ: 0, maxX: 170, maxZ: 170 }];
+  const cacheBefore = terrainCacheStats();
+  for (const bounds of failures) assert.throws(() => buildTerrainPatch(bounds), RangeError);
+  const oneCell = { minX: 0, minZ: 0, maxX: 10, maxZ: 10 };
+  for (const maxCells of [0, -1, .5, NaN, Infinity, MAX_TERRAIN_PATCH_CELLS + 1]) {
+    assert.throws(() => buildTerrainPatch(oneCell, { maxCells }), RangeError);
+  }
+  assert.throws(() => buildTerrainPatch({ minX: -.1, minZ: -.1, maxX: 10, maxZ: 10 }, { maxCells: 1 }), /after lattice alignment/);
+  assert.throws(() => buildTerrainPatch({ minX: 0, minZ: 0, maxX: 40970, maxZ: 10 },
+    { maxCells: MAX_TERRAIN_PATCH_CELLS }), /limit/);
+  assert.deepEqual(terrainCacheStats(), cacheBefore, 'invalid or oversized patches fail before sampling terrain');
+
+  setTerrainEnabled(false);
+  const flat = buildTerrainPatch({ minX: -25, minZ: -15, maxX: 35, maxZ: 25 });
+  checkVertices(flat); triangleChecks += checkTriangles(flat).checked;
+  assert.equal(flat.bounds.minY, 0); assert.equal(flat.bounds.maxY, 0);
+  for (let index = 1; index < flat.vertices.length; index += 3) assert.equal(flat.vertices[index], 0);
+  assert.equal(terrainEnabled(), false, 'the builder never enables terrain as a side effect');
+  const distant = buildTerrainPatch({ minX: 1e12 + .5, minZ: -1e12 - .5, maxX: 1e12 + 19, maxZ: -1e12 + 9 });
+  checkVertices(distant);
+  assert.equal(distant.origin.x, 1e12); assert.equal(distant.origin.z, -1e12 - 10);
+  assert.equal(distant.vertices[3] - distant.vertices[0], TERRAIN_STEP,
+    'local Float32 coordinates retain lattice precision far from the world origin');
+  setTerrainEnabled(true);
+  const restored = buildTerrainPatch({ minX: 940, minZ: -1260, maxX: 1020, maxZ: -1180 });
+  assert(checkTriangles(restored).nonflat > 0, 'reenabling terrain restores production relief');
+  const snapshot = restored.vertices.slice(); restored.vertices[0] = 999;
+  assert.deepEqual(buildTerrainPatch({ minX: 940, minZ: -1260, maxX: 1020, maxZ: -1180 }).vertices, snapshot,
+    'caller mutation cannot poison a cached patch or production terrain');
+} finally {
+  setSessionSeed(originalSeed); setTerrainEnabled(originalEnabled);
+}
+console.log(`PASS physics terrain: ${triangleChecks} production triangle-interior comparisons, ${nonflat} nonflat triangles, ${diagonalWitnesses} wrong-diagonal rejections, exact lattice/seams, negative/distant origins, disabled terrain, copied arrays, upward winding and bounded failure paths.`);

@@ -3,7 +3,7 @@ import { steerDirFor } from './steering.js';
 const probe = {};
 const nextProbe = {};
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
-export function stepTerrainDrive(cart, input, dt, sample) {
+export function stepTerrainDrive(cart, input, dt, sample, {maxForwardSpeed=18,releaseDrag=.78}={}) {
   // Bounded substeps keep grade transitions and braking stable at 30/60/120 Hz.
   let remaining = clamp(dt, 0, 0.1);
   while (remaining > 1e-9) {
@@ -11,7 +11,7 @@ export function stepTerrainDrive(cart, input, dt, sample) {
     sample(cart.position.x, cart.position.z, probe);
     const previousHeading = cart.heading;
     const throttle = clamp(input.throttle || 0, -1, 1);
-    const cap = (input.slow ? 7.2 : input.boost && !cart.sputtering ? 27.9 : 18) * (cart.sputtering ? 0.35 : 1);
+    const cap = (input.slow ? 7.2 : input.boost && !cart.sputtering ? 27.9 : maxForwardSpeed) * (cart.sputtering ? 0.35 : 1);
     const dir = input.steeringDirection?.(cart.speed) ?? steerDirFor(throttle, cart.speed);
     cart.heading += (input.steer || 0) * 2.1 * clamp(Math.abs(cart.speed) / 6, 0.2, 1) * dir * h;
     const fx = -Math.sin(cart.heading), fz = -Math.cos(cart.heading);
@@ -34,7 +34,7 @@ export function stepTerrainDrive(cart, input, dt, sample) {
       const slowing=input.slow&&cart.speed>cap;
       const excess=Math.max(0,cart.speed*driveDirection-poweredCap);
       let next=cart.speed;
-      if(!throttle&&!input.brake)next*=Math.pow(.78,h*4);
+      if(!throttle&&!input.brake)next*=Math.pow(releaseDrag,h*4);
       next+=(gravity+(input.brake||slowing?0:motor))*h;
       if(input.brake||slowing||throttle&&excess>0){
         const speed=Math.abs(cart.speed);

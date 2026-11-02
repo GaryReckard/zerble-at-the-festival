@@ -1,3 +1,4 @@
+import {stepTerrainDrive} from './terrainDriving.js';
 import {LURLEEN_SUPPORT_FOOTPRINT} from './landscape/moverAdapter.js';
 // Lurleen — Zerble's love interest. A second anthropomorphic golf cart with
 // pink puffy lips, googly eyes, gathered raffia/flower hair, and a wooden
@@ -81,7 +82,7 @@ export class Lurleen {
     const spawn = pickInitialSpawn(center);
     const dry = avoidLake(spawn.x, spawn.z);
     if (dry) spawn.set(dry.x, 0, dry.z);
-    if(surfaceAdapter){const supported=surfaceAdapter.findSpawn(spawn.x,spawn.z,Math.PI,LURLEEN_SUPPORT_FOOTPRINT);if(!supported)throw new Error('Lurleen has no supported spawn');spawn.set(supported.x,0,supported.z);this.surfaceBinding=supported.binding;}
+    if(surfaceAdapter){const supported=surfaceAdapter.findSpawn(spawn.x,spawn.z,Math.PI,LURLEEN_SUPPORT_FOOTPRINT,{allowSteepTerrain:true});if(!supported)throw new Error('Lurleen has no supported spawn');spawn.set(supported.x,0,supported.z);this.surfaceBinding=supported.binding;}
     this.position = spawn.clone();
     this.heading = Math.PI;          // facing -z initially
     this.speed = 0;
@@ -141,7 +142,7 @@ export class Lurleen {
   // she doesn't immediately race off toward her seeded spawn, and by the
   // off-camera re-home logic in update().
   setSpawnAt(x, z) {
-    if(this.surfaceAdapter){const pose=this.surfaceAdapter.findSpawn(x,z,this.heading,LURLEEN_SUPPORT_FOOTPRINT);if(!pose)return false;x=pose.x;z=pose.z;this.surfaceBinding=pose.binding;}
+    if(this.surfaceAdapter){const pose=this.surfaceAdapter.findSpawn(x,z,this.heading,LURLEEN_SUPPORT_FOOTPRINT,{allowSteepTerrain:true});if(!pose)return false;x=pose.x;z=pose.z;this.surfaceBinding=pose.binding;}
     this.position.set(x, 0, z);
     this.homePos.set(x, 0, z);
     this.wanderTarget.set(x, 0, z);
@@ -667,13 +668,16 @@ export class Lurleen {
       if (w.front) front += h; else back += h;
       if (p.x < 0) left += h; else right += h;
     }
-    const pitch = Math.atan2((front - back) / 2, 2);
-    const roll = Math.atan2((right - left) / 2, 2.06);
+    const forceDriving=this.surfaceBinding?.allowSteepTerrain;
+    const foreGrade=(front-back)/4,sideGrade=(right-left)/4.12;
+    const pitch = Math.atan(foreGrade);
+    const roll = Math.atan2(sideGrade,forceDriving?Math.hypot(1,foreGrade):1);
     this.position.y = (front + back) / 4;
     this.root.position.copy(this.position);
     this.root.rotation.set(pitch, this.heading, roll, 'YXZ');
     this.root.updateMatrixWorld(true);
     const vertical = Math.cos(pitch) * Math.cos(roll), p = this._terrainPoint;
+    const up=forceDriving?(this._terrainUp??=new THREE.Vector3()).set(0,1,0).applyQuaternion(this.root.quaternion):null;
     this.terrainContactError = 0;
     for (const w of this._wheels) {
       // Preserve the old two-centimetre wheel clearance and visual jiggle in
@@ -683,13 +687,17 @@ export class Lurleen {
       w.mesh.position.y = rest;
       for (let i = 0; i < 4; i++) {
         p.copy(w.mesh.position).applyMatrix4(this.root.matrixWorld);
-        const error = heightAt(p.x, p.z) + rest - p.y;
+        const height=heightAt(p.x,p.z),surface=this._surfaceProbe;
+        const clearance=rest*(forceDriving?Math.hypot(1,surface.dx,surface.dz):1);
+        const derivative=forceDriving?up.y-surface.dx*up.x-surface.dz*up.z:vertical;
+        const error = height + clearance - p.y;
         w.mesh.position.y = THREE.MathUtils.clamp(
-          w.mesh.position.y + error / vertical, w.baseY - .3, w.baseY + .3);
+          w.mesh.position.y + error / Math.max(.05,derivative), w.baseY - .3, w.baseY + .3);
       }
       p.copy(w.mesh.position).applyMatrix4(this.root.matrixWorld);
+      const height=heightAt(p.x,p.z),surface=this._surfaceProbe;
       this.terrainContactError = Math.max(this.terrainContactError,
-        Math.abs(p.y - heightAt(p.x, p.z) - rest));
+        Math.abs(p.y - height - rest*(forceDriving?Math.hypot(1,surface.dx,surface.dz):1)));
     }
   }
 
@@ -729,6 +737,8 @@ export class Lurleen {
       }
     }
 
+    const previousSpeed=this.speed;
+    this._terrainDriveTarget=0;
     // State machine
     if (this.scareCooldown > 0) this.scareCooldown -= dt;
     if (this.state === 'wandering') {
@@ -762,9 +772,17 @@ export class Lurleen {
     }
 
     // Apply movement: forward = (-sin(h), 0, -cos(h)) — same convention as Zerble.
-    const nextX=this.position.x-Math.sin(this.heading)*this.speed*dt,nextZ=this.position.z-Math.cos(this.heading)*this.speed*dt;
-    if(!this.surfaceBinding||this.surfaceAdapter.move(this.surfaceBinding,nextX,nextZ,this.heading)){this.position.x=nextX;this.position.z=nextZ;}
-    else {this.speed=0;this.heading=this.surfaceBinding.snapshot().heading;}
+    if(this.surfaceBinding?.allowSteepTerrain){
+      // Steering remains autonomous, while propulsion shares the player's finite
+      // traction, gravity and momentum instead of rejecting a bank by its grade.
+      this.speed=previousSpeed;
+      stepTerrainDrive(this,{throttle:this._terrainDriveTarget>0?1:0},dt,this.surfaceBinding.sample,
+        {maxForwardSpeed:this._terrainDriveTarget,releaseDrag:this.state==='aware'?.5:Math.pow(.5,.75)});
+    }else{
+      const nextX=this.position.x-Math.sin(this.heading)*this.speed*dt,nextZ=this.position.z-Math.cos(this.heading)*this.speed*dt;
+      if(!this.surfaceBinding||this.surfaceAdapter.move(this.surfaceBinding,nextX,nextZ,this.heading)){this.position.x=nextX;this.position.z=nextZ;}
+      else {this.speed=0;this.heading=this.surfaceBinding.snapshot().heading;}
+    }
     // Wheel anim: spin proportional to speed, front wheels steer.
     for (const w of this._wheels) {
       w.mesh.rotation.x += this.speed * dt * 1.5;
@@ -868,6 +886,7 @@ export class Lurleen {
     const aligned = Math.cos(diff);
     const driveFactor = Math.max(0.25, (aligned + 1) * 0.5);   // 0.25..1.0
     const target = SPEED_MAX * speedScale * driveFactor;
+    this._terrainDriveTarget=target;
     if (this.speed < target) {
       this.speed = Math.min(target, this.speed + ACCEL * dt);
     } else {

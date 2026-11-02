@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { CartProxy } from '../src/physics/cartProxy.js';
+
+const pose = x => ({position:{x,y:0,z:0},rotation:{x:0,y:0,z:0,w:1}});
+const adapter = await createRapierAdapter({gravity:{x:0,y:0,z:0}});
+try {
+  assert(adapter.addBody({id:'cart',type:'kinematic',pose:pose(-4),colliders:[
+    {shape:'cuboid',halfExtents:{x:.5,y:.5,z:.5},collisionEvents:true},
+  ]}).ok);
+  assert(adapter.addBody({id:'prop',type:'dynamic',pose:pose(0),colliders:[
+    {shape:'ball',radius:.3},
+  ]}).ok);
+  const proxy = new CartProxy({adapter,id:'cart',pose:pose(-4),isClear(candidate) {
+    const query = adapter.queryDynamicOverlaps('cart', candidate);
+    return query.ok && !query.exhausted && query.overlaps.length === 0;
+  }});
+  let time = 0;
+  function step(x, options = {}, duration = 1/60) {
+    proxy.accept(time,duration,pose(x),options);
+    time += duration;
+    proxy.beforeStep(time);
+    adapter.step(1/60);
+  }
+  for (const reason of ['teleport','rescue','restart','tier-change','legacy-correction','dropped-time']) {
+    step(4,{resetReason:reason});
+    step(-4,{resetReason:reason});
+    assert(Math.abs(adapter.readBody('prop').pose.position.x)<1e-6, `${reason} must not sweep through the prop`);
+    assert.equal(proxy.state().pendingClearance,false);
+  }
+  step(0,{ghost:true});
+  assert.equal(adapter.readBody('cart').enabled,false);
+  assert(Math.abs(adapter.readBody('prop').linearVelocity.x)<1e-6);
+  // Same-frame ghost expiry inside the prop remains disabled without ejecting
+  // either object, even when presentation produces zero accepted time.
+  proxy.accept(time,0,pose(0),{ghost:false});
+  assert.equal(adapter.readBody('cart').enabled,false);
+  for(let i=0;i<30;i++) step(0);
+  assert.equal(proxy.state().pendingClearance,true);
+  assert(Math.abs(adapter.readBody('prop').linearVelocity.x)<1e-6);
+  step(-2);
+  assert.equal(proxy.state().pendingClearance,false);
+  assert.equal(adapter.readBody('cart').enabled,true);
+  assert(Math.abs(adapter.readBody('cart').linearVelocity.x)<1e-6,'reenabling clears ghost displacement velocity');
+  // Ordinary travel becomes physical again, without a second launch impulse.
+  for(let i=1;i<=60;i++) step(-2+i/20);
+  assert(adapter.readBody('prop').pose.position.x>.5,'resumed solver contact displaces the prop');
+  const before=proxy.state();
+  assert.throws(()=>proxy.accept(time,0,pose(0),{resetReason:'typo'}),/reason/);
+  assert.throws(()=>proxy.accept(time,0,pose(0),{ghost:1}),/boolean/);
+  assert.deepEqual(proxy.state(),before);
+  const copy=proxy.state();copy.ghost=true;assert.equal(proxy.state().ghost,false);
+  const closed = new CartProxy({adapter,id:'cart',pose:pose(4),isClear:()=>undefined});
+  closed.accept(time,0,pose(4),{resetReason:'teleport'});
+  closed.beforeStep(time);
+  assert.equal(adapter.readBody('cart').enabled,false,'unproven or exhausted clearance fails closed');
+} finally {adapter.dispose();}
+assert.equal(adapter.counts().bodies,0);
+console.log('PASS cart proxy: named reset transitions, no phantom sweeps, overlapping ghost expiry, zero-step transition, safe reentry and resumed physical contact.');

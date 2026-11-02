@@ -1,0 +1,1661 @@
+{
+  "settings": {
+    "fixture": "terrain",
+    "style": "sling",
+    "seed": 1977,
+    "speed": 6,
+    "angle": 0,
+    "physics": true
+  },
+  "timeOfDay": "noon",
+  "paused": true,
+  "playback": 1,
+  "allocationMs": 797.8000000119209,
+  "publicationMs": 0.09999996423721313,
+  "lifecycle": {
+    "disposed": false,
+    "cleanupErrors": [],
+    "fixtureActive": true,
+    "rafActive": true,
+    "listenersActive": true,
+    "renderObjects": 2,
+    "sceneChildren": 6
+  },
+  "rendering": {
+    "tier": "low",
+    "pixelRatio": 1.25,
+    "width": 2501,
+    "height": 1417,
+    "draws": 261,
+    "triangles": 30337,
+    "geometries": 121,
+    "textures": 2
+  },
+  "state": {
+    "props": [
+      {
+        "key": "chair-0",
+        "kind": "chair",
+        "style": "sling",
+        "colorSeed": 1141662568,
+        "variant": 1977,
+        "sleeping": true,
+        "position": {
+          "x": 0.16757406294345856,
+          "y": -0.34072309732437134,
+          "z": -7.53607702255249
+        },
+        "rotation": {
+          "x": -0.7283554653830756,
+          "y": 0.014467821418027655,
+          "z": -0.016736851960627335,
+          "w": 0.6848422270687371
+        }
+      },
+      {
+        "key": "cart",
+        "kind": "cart",
+        "style": "sling",
+        "size": [
+          3.7,
+          1.2,
+          4.6
+        ],
+        "colorSeed": 2679623017,
+        "variant": 1977,
+        "sleeping": false,
+        "position": {
+          "x": 0,
+          "y": -0.37948521971702576,
+          "z": -5.014461040496826
+        },
+        "rotation": {
+          "x": -0.041268470615758,
+          "y": -0.001161598804773841,
+          "z": -0.02811223385790007,
+          "w": 0.998751854230455
+        }
+      }
+    ],
+    "ground": {
+      "slope": 0,
+      "width": 40,
+      "depth": 40,
+      "productionTerrain": true
+    },
+    "physics": true,
+    "time": 27.166666666666405,
+    "events": [
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 534,
+        "units": "N",
+        "totalForce": {
+          "x": 3.324690818786621,
+          "y": 42.305091857910156,
+          "z": -3.453390598297119
+        },
+        "totalForceMagnitude": 42.575809478759766,
+        "maxForceDirection": {
+          "x": 0.07808873057365417,
+          "y": 0.9936414957046509,
+          "z": -0.08111156523227692
+        },
+        "maxForceMagnitude": 21.915842056274414
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 535,
+        "units": "N",
+        "totalForce": {
+          "x": 3.3237814903259277,
+          "y": 42.29351806640625,
+          "z": -3.4524459838867188
+        },
+        "totalForceMagnitude": 42.56416702270508,
+        "maxForceDirection": {
+          "x": 0.07808873057365417,
+          "y": 0.9936414957046509,
+          "z": -0.08111156523227692
+        },
+        "maxForceMagnitude": 22.134178161621094
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 536,
+        "units": "N",
+        "totalForce": {
+          "x": 3.321376085281372,
+          "y": 42.262908935546875,
+          "z": -3.4499473571777344
+        },
+        "totalForceMagnitude": 42.53335952758789,
+        "maxForceDirection": {
+          "x": 0.07808873057365417,
+          "y": 0.9936414957046509,
+          "z": -0.08111156523227692
+        },
+        "maxForceMagnitude": 22.020944595336914
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 537,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1660900115966797,
+          "y": 40.28697204589844,
+          "z": -3.2886502742767334
+        },
+        "totalForceMagnitude": 40.544776916503906,
+        "maxForceDirection": {
+          "x": 0.07808873057365417,
+          "y": 0.9936414957046509,
+          "z": -0.08111156523227692
+        },
+        "maxForceMagnitude": 21.910064697265625
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 537,
+        "units": "N",
+        "totalForce": {
+          "x": 0.7176399230957031,
+          "y": 9.131623268127441,
+          "z": -0.7454199194908142
+        },
+        "totalForceMagnitude": 9.190057754516602,
+        "maxForceDirection": {
+          "x": 0.07808873057365417,
+          "y": 0.9936414957046509,
+          "z": -0.08111156523227692
+        },
+        "maxForceMagnitude": 9.190057754516602
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 538,
+        "units": "N",
+        "totalForce": {
+          "x": 1.92263662815094,
+          "y": 24.464628219604492,
+          "z": -1.9970626831054688
+        },
+        "totalForceMagnitude": 24.621191024780273,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 24.621191024780273
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 538,
+        "units": "N",
+        "totalForce": {
+          "x": 1.204459547996521,
+          "y": 15.326169967651367,
+          "z": -1.2510846853256226
+        },
+        "totalForceMagnitude": 15.424251556396484,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 15.424251556396484
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 539,
+        "units": "N",
+        "totalForce": {
+          "x": 2.933215856552124,
+          "y": 37.32376480102539,
+          "z": -3.046761989593506
+        },
+        "totalForceMagnitude": 37.5626220703125,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 23.739707946777344
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 539,
+        "units": "N",
+        "totalForce": {
+          "x": 0.3785533905029297,
+          "y": 4.816910266876221,
+          "z": -0.3932073712348938
+        },
+        "totalForceMagnitude": 4.847736835479736,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 4.847736835479736
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 540,
+        "units": "N",
+        "totalForce": {
+          "x": 3.321007251739502,
+          "y": 42.25822448730469,
+          "z": -3.4495649337768555
+        },
+        "totalForceMagnitude": 42.52865982055664,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 21.71498680114746
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 541,
+        "units": "N",
+        "totalForce": {
+          "x": 3.13362193107605,
+          "y": 39.873836517333984,
+          "z": -3.2549259662628174
+        },
+        "totalForceMagnitude": 40.12901306152344,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.435455322265625
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 541,
+        "units": "N",
+        "totalForce": {
+          "x": 0.23859940469264984,
+          "y": 3.0360631942749023,
+          "z": -0.24783571064472198
+        },
+        "totalForceMagnitude": 3.055492639541626,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 3.055492639541626
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 542,
+        "units": "N",
+        "totalForce": {
+          "x": 3.075181722640991,
+          "y": 39.13021469116211,
+          "z": -3.194223403930664
+        },
+        "totalForceMagnitude": 39.38063049316406,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.705591201782227
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 542,
+        "units": "N",
+        "totalForce": {
+          "x": 0.27454933524131775,
+          "y": 3.493508815765381,
+          "z": -0.2851772904396057
+        },
+        "totalForceMagnitude": 3.5158658027648926,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 3.5158658027648926
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 543,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1503937244415283,
+          "y": 40.08725357055664,
+          "z": -3.2723472118377686
+        },
+        "totalForceMagnitude": 40.34379196166992,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.290197372436523
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 543,
+        "units": "N",
+        "totalForce": {
+          "x": 0.20351220667362213,
+          "y": 2.589595317840576,
+          "z": -0.21139025688171387
+        },
+        "totalForceMagnitude": 2.6061675548553467,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.6061675548553467
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 544,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1260688304901123,
+          "y": 39.77772903442383,
+          "z": -3.2470805644989014
+        },
+        "totalForceMagnitude": 40.03228759765625,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.434669494628906
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 544,
+        "units": "N",
+        "totalForce": {
+          "x": 0.2309526801109314,
+          "y": 2.9387624263763428,
+          "z": -0.23989295959472656
+        },
+        "totalForceMagnitude": 2.957569122314453,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.957569122314453
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 545,
+        "units": "N",
+        "totalForce": {
+          "x": 3.133539915084839,
+          "y": 39.87279510498047,
+          "z": -3.254840612411499
+        },
+        "totalForceMagnitude": 40.127960205078125,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.394922256469727
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 545,
+        "units": "N",
+        "totalForce": {
+          "x": 0.2225140482187271,
+          "y": 2.8313846588134766,
+          "z": -0.23112766444683075
+        },
+        "totalForceMagnitude": 2.849504232406616,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.849504232406616
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 546,
+        "units": "N",
+        "totalForce": {
+          "x": 3.131242513656616,
+          "y": 39.843563079833984,
+          "z": -3.2524545192718506
+        },
+        "totalForceMagnitude": 40.098541259765625,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.408050537109375
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 546,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22511714696884155,
+          "y": 2.8645079135894775,
+          "z": -0.233831524848938
+        },
+        "totalForceMagnitude": 2.8828394412994385,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8828394412994385
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 547,
+        "units": "N",
+        "totalForce": {
+          "x": 3.131824016571045,
+          "y": 39.85095977783203,
+          "z": -3.253058433532715
+        },
+        "totalForceMagnitude": 40.105987548828125,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.40592384338379
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 547,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22446396946907043,
+          "y": 2.856196641921997,
+          "z": -0.2331530749797821
+        },
+        "totalForceMagnitude": 2.8744750022888184,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8744750022888184
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 548,
+        "units": "N",
+        "totalForce": {
+          "x": 3.131608724594116,
+          "y": 39.84822082519531,
+          "z": -3.2528347969055176
+        },
+        "totalForceMagnitude": 40.103233337402344,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.407697677612305
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 548,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22471009194850922,
+          "y": 2.859328269958496,
+          "z": -0.23340871930122375
+        },
+        "totalForceMagnitude": 2.877626657485962,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.877626657485962
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 549,
+        "units": "N",
+        "totalForce": {
+          "x": 3.131629705429077,
+          "y": 39.848487854003906,
+          "z": -3.252856492996216
+        },
+        "totalForceMagnitude": 40.10350036621094,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.40814971923828
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 549,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22468876838684082,
+          "y": 2.8590571880340576,
+          "z": -0.2333865910768509
+        },
+        "totalForceMagnitude": 2.8773539066314697,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8773539066314697
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 550,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1316146850585938,
+          "y": 39.84830093383789,
+          "z": -3.252840995788574
+        },
+        "totalForceMagnitude": 40.103309631347656,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.408662796020508
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 550,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22470612823963165,
+          "y": 2.8592779636383057,
+          "z": -0.23340460658073425
+        },
+        "totalForceMagnitude": 2.8775761127471924,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8775761127471924
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 551,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315972805023193,
+          "y": 39.84807586669922,
+          "z": -3.2528228759765625
+        },
+        "totalForceMagnitude": 40.103084564208984,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.409151077270508
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 551,
+        "units": "N",
+        "totalForce": {
+          "x": 0.2247283160686493,
+          "y": 2.859560251235962,
+          "z": -0.23342764377593994
+        },
+        "totalForceMagnitude": 2.8778600692749023,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8778600692749023
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 552,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315598487854004,
+          "y": 39.84760284423828,
+          "z": -3.252784252166748
+        },
+        "totalForceMagnitude": 40.10260772705078,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.409589767456055
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 552,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22477196156978607,
+          "y": 2.8601157665252686,
+          "z": -0.23347298800945282
+        },
+        "totalForceMagnitude": 2.8784191608428955,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8784191608428955
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 553,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315760612487793,
+          "y": 39.84780502319336,
+          "z": -3.252800703048706
+        },
+        "totalForceMagnitude": 40.102813720703125,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.409759521484375
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 553,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22475479543209076,
+          "y": 2.8598971366882324,
+          "z": -0.23345515131950378
+        },
+        "totalForceMagnitude": 2.8781991004943848,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8781991004943848
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 554,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315460205078125,
+          "y": 39.8474235534668,
+          "z": -3.252769708633423
+        },
+        "totalForceMagnitude": 40.10243225097656,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.410091400146484
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 554,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22478924691677094,
+          "y": 2.860335350036621,
+          "z": -0.2334909439086914
+        },
+        "totalForceMagnitude": 2.8786404132843018,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8786404132843018
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 555,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315407752990723,
+          "y": 39.847354888916016,
+          "z": -3.2527642250061035
+        },
+        "totalForceMagnitude": 40.10236358642578,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.410255432128906
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 555,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22479607164859772,
+          "y": 2.860422372817993,
+          "z": -0.23349802196025848
+        },
+        "totalForceMagnitude": 2.878727912902832,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.878727912902832
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 556,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315419673919678,
+          "y": 39.84737014770508,
+          "z": -3.252765417098999
+        },
+        "totalForceMagnitude": 40.10237503051758,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.410436630249023
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 556,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22479580342769623,
+          "y": 2.8604187965393066,
+          "z": -0.233497753739357
+        },
+        "totalForceMagnitude": 2.8787243366241455,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8787243366241455
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 557,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315419673919678,
+          "y": 39.847373962402344,
+          "z": -3.252765655517578
+        },
+        "totalForceMagnitude": 40.102378845214844,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.410499572753906
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 557,
+        "units": "N",
+        "totalForce": {
+          "x": 0.2247948944568634,
+          "y": 2.8604071140289307,
+          "z": -0.2334968000650406
+        },
+        "totalForceMagnitude": 2.8787126541137695,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8787126541137695
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 558,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315128803253174,
+          "y": 39.84700012207031,
+          "z": -3.252735137939453
+        },
+        "totalForceMagnitude": 40.10200500488281,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.41071128845215
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 558,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22482934594154358,
+          "y": 2.8608460426330566,
+          "z": -0.2335326075553894
+        },
+        "totalForceMagnitude": 2.8791539669036865,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8791539669036865
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 559,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315629482269287,
+          "y": 39.84763717651367,
+          "z": -3.2527871131896973
+        },
+        "totalForceMagnitude": 40.10264587402344,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.41057586669922
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 559,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22477146983146667,
+          "y": 2.860109567642212,
+          "z": -0.23347249627113342
+        },
+        "totalForceMagnitude": 2.878412961959839,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.878412961959839
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 560,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315090656280518,
+          "y": 39.84695053100586,
+          "z": -3.2527313232421875
+        },
+        "totalForceMagnitude": 40.10195541381836,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.410842895507812
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 560,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22483429312705994,
+          "y": 2.8609087467193604,
+          "z": -0.2335377335548401
+        },
+        "totalForceMagnitude": 2.8792173862457275,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8792173862457275
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 561,
+        "units": "N",
+        "totalForce": {
+          "x": 3.131517171859741,
+          "y": 39.8470573425293,
+          "z": -3.252739906311035
+        },
+        "totalForceMagnitude": 40.1020622253418,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.410871505737305
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 561,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22482514381408691,
+          "y": 2.860792398452759,
+          "z": -0.2335282266139984
+        },
+        "totalForceMagnitude": 2.8791000843048096,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8791000843048096
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 562,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315135955810547,
+          "y": 39.84701156616211,
+          "z": -3.2527360916137695
+        },
+        "totalForceMagnitude": 40.10201644897461,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.410888671875
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 562,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22482889890670776,
+          "y": 2.860840082168579,
+          "z": -0.2335321307182312
+        },
+        "totalForceMagnitude": 2.879148244857788,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.879148244857788
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 563,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315252780914307,
+          "y": 39.847164154052734,
+          "z": -3.2527482509613037
+        },
+        "totalForceMagnitude": 40.10216522216797,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.410913467407227
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 563,
+        "units": "N",
+        "totalForce": {
+          "x": 0.2248152792453766,
+          "y": 2.8606669902801514,
+          "z": -0.23351798951625824
+        },
+        "totalForceMagnitude": 2.878973960876465,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.878973960876465
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 564,
+        "units": "N",
+        "totalForce": {
+          "x": 3.131511688232422,
+          "y": 39.846988677978516,
+          "z": -3.2527341842651367
+        },
+        "totalForceMagnitude": 40.10198974609375,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.41098976135254
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 564,
+        "units": "N",
+        "totalForce": {
+          "x": 0.2248314917087555,
+          "y": 2.860872983932495,
+          "z": -0.2335348129272461
+        },
+        "totalForceMagnitude": 2.879181385040283,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.879181385040283
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 565,
+        "units": "N",
+        "totalForce": {
+          "x": 3.13151216506958,
+          "y": 39.84699249267578,
+          "z": -3.252734422683716
+        },
+        "totalForceMagnitude": 40.101993560791016,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.410999298095703
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 565,
+        "units": "N",
+        "totalForce": {
+          "x": 0.2248307168483734,
+          "y": 2.860863208770752,
+          "z": -0.23353400826454163
+        },
+        "totalForceMagnitude": 2.879171371459961,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.879171371459961
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 566,
+        "units": "N",
+        "totalForce": {
+          "x": 3.1315057277679443,
+          "y": 39.84690856933594,
+          "z": -3.252727746963501
+        },
+        "totalForceMagnitude": 40.10191345214844,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.411083221435547
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 566,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22483907639980316,
+          "y": 2.8609695434570312,
+          "z": -0.23354271054267883
+        },
+        "totalForceMagnitude": 2.8792786598205566,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.8792786598205566
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 1,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 567,
+        "units": "N",
+        "totalForce": {
+          "x": 3.131517171859741,
+          "y": 39.8470573425293,
+          "z": -3.252739906311035
+        },
+        "totalForceMagnitude": 40.1020622253418,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 22.41105842590332
+      },
+      {
+        "a": "ground",
+        "b": "chair-0",
+        "generationA": 1,
+        "generationB": 2,
+        "colliderA": 0,
+        "colliderB": 2,
+        "sensor": false,
+        "type": "contact-force",
+        "step": 567,
+        "units": "N",
+        "totalForce": {
+          "x": 0.22482484579086304,
+          "y": 2.860788345336914,
+          "z": -0.23352791368961334
+        },
+        "totalForceMagnitude": 2.879096269607544,
+        "maxForceDirection": {
+          "x": 0.0780886858701706,
+          "y": 0.9936411380767822,
+          "z": -0.08111153542995453
+        },
+        "maxForceMagnitude": 2.879096269607544
+      }
+    ],
+    "stats": {
+      "bodies": 3,
+      "colliders": 8,
+      "joints": 0,
+      "meshVertices": 25,
+      "meshTriangles": 32,
+      "engineBodies": 3,
+      "engineColliders": 8,
+      "events": 0,
+      "overflow": 0,
+      "totalOverflow": 0,
+      "steps": 1630,
+      "disposed": false,
+      "droppedSeconds": 0.38146666666666595,
+      "alpha": 0.10600000000036573,
+      "stepMs": 0.19999998807907104,
+      "maxStepMs": 133,
+      "meanStepMs": 0.3424539875764788,
+      "activationMs": 203.10000002384186,
+      "eventOverflow": 0,
+      "historyEvictions": 1740,
+      "renderProps": 2
+    },
+    "limitations": [
+      "Production controller; live-game contact barrier and registry integration pending.",
+      "Production terrain triangles in a bounded fixture. No occupants, streaming or release claims yet.",
+      "Static reference mode is not the legacy game collision path. Capacities are experimental, not device limits."
+    ]
+  },
+  "limitations": [
+    "Production Zerble controller with a conservative kinematic contact hull; live-game frame integration pending.",
+    "No people or production campsite ownership in this fixture.",
+    "Publication time measures CPU transform writes, not GPU upload time.",
+    "This fixture does not establish production or physical-device acceptance."
+  ]
+}

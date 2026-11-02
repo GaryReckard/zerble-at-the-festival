@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+const make=()=>createRapierAdapter({gravity:{x:0,y:0,z:0},capacities:{bodies:5,colliders:12,contactPairs:2}});
+const ball=(world,id,x,type='dynamic')=>world.addBody({id,type,pose:{position:{x,y:0,z:0}},colliders:[{shape:'ball',radius:.5,mass:1}],canSleep:false});
+const suppressed=await make(),control=await make();
+try {
+  for(const world of [suppressed,control]){assert(ball(world,'chair',0,'fixed').ok);assert(ball(world,'person',.2).ok);}
+  const token=suppressed.suppressBodyContacts({bodyA:'chair',generationA:suppressed.readBody('chair').generation,bodyB:'person',generationB:suppressed.readBody('person').generation}).token;
+  assert(token);assert.equal(suppressed.resumeSeparatedContacts(token).reason,'not-separated');
+  for(let i=0;i<30;i++){suppressed.step(1/60);control.step(1/60);}
+  assert(Math.abs(suppressed.readBody('person').pose.position.x-.2)<1e-6,'overlap must not eject the released person');
+  assert(control.readBody('person').pose.position.x>.8,'unfiltered negative control must expose the ejection');
+  assert(!suppressed.drainEvents().events.some(e=>e.a==='chair'||e.b==='chair'),'suppressed support creates no incident events');
+  assert.equal(control.resumeSeparatedContacts(token).reason,'stale-pair','token is world scoped');
+  assert.equal(suppressed.resumeSeparatedContacts(token,{maxTests:0}).reason,'query-capacity');
+  suppressed.setPose('person',{position:{x:1.01,y:0,z:0}});
+  assert.equal(suppressed.resumeSeparatedContacts(token).reason,'not-separated','clearance includes safety margin');
+  suppressed.setPose('person',{position:{x:1.1,y:0,z:0}});
+  assert(suppressed.resumeSeparatedContacts(token).ok,'current transforms work without solver/broadphase refresh');
+  assert.equal(suppressed.counts().contactPairs,0);
+  suppressed.setVelocity('person',{linear:{x:-2,y:0,z:0}});
+  for(let i=0;i<60;i++)suppressed.step(1/60);
+  assert(suppressed.readBody('person').pose.position.x>.95,'returning person collides with old chair again');
+  assert(suppressed.drainEvents().events.some(e=>e.type==='contact-start'),'restored contact is observable');
+} finally {suppressed.dispose();control.dispose();}
+
+const world=await createRapierAdapter({capacities:{bodies:5,colliders:12,contactPairs:2}});
+try {
+  const chair=ball(world,'chair',0,'fixed'),person=ball(world,'person',0),other=ball(world,'other',4);
+  assert(world.addBody({id:'ground',type:'fixed',pose:{position:{x:0,y:-2,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:10,y:.1,z:10}}]}).ok);
+  const args={bodyA:'chair',generationA:chair.generation,bodyB:'person',generationB:person.generation};
+  assert.equal(world.suppressBodyContacts({...args,generationA:999}).reason,'stale-body');
+  const first=world.suppressBodyContacts(args);assert(first.ok);
+  assert.equal(world.suppressBodyContacts(args).reason,'duplicate-pair');
+  const second=world.suppressBodyContacts({...args,bodyB:'other',generationB:other.generation});assert(second.ok);
+  assert.equal(world.suppressBodyContacts({bodyA:'person',generationA:person.generation,bodyB:'other',generationB:other.generation}).reason,'contact-pair-capacity');
+  for(let i=0;i<180;i++)world.step(1/60);
+  assert(Math.abs(world.readBody('person').pose.position.y+1.4)<.03,'released person still lands on ground');
+  assert(world.drainEvents().events.some(e=>e.type==='contact-start'&&(e.a==='ground'||e.b==='ground')));
+  world.removeBody('chair');assert.equal(world.counts().contactPairs,0,'support destruction clears both independent exclusions');
+  assert(ball(world,'chair',0,'fixed').ok);assert.equal(world.removeContactSuppression(first.token),false,'stale token cannot affect reused id');
+  world.removeBody('chair');
+  for(let i=0;i<100;i++) {
+    const a=ball(world,'chair',0,'fixed');
+    const pair=world.suppressBodyContacts({...args,generationA:a.generation});assert(pair.ok);
+    world.removeBody('chair');assert.equal(world.counts().contactPairs,0);
+  }
+} finally {world.dispose();}
+assert.equal(world.counts().contactPairs,0);
+console.log('PASS temporary support contact exclusion: negative-control overlap ejection, preserved ground contacts, margin-based reenable with current transforms, return collision, bounded pairs, stale/world tokens, body reuse and 100 cleanup cycles.');

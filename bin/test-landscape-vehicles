@@ -47,5 +47,26 @@ try {
  let meadowFrames=0;for(;meadowFrames<60*150&&Math.hypot(lurleen.position.x-to.x,lurleen.position.z-to.z)>15;meadowFrames++){lurleen.state='following';lurleen.update(1/60,new Vector3(to.x,0,to.z),0,0);}
  assert.ok(meadowFrames<60*150,`Lurleen side-road controller reaches upper meadow ${lurleen.position.x},${lurleen.position.z}; target ${to.x},${to.z}`);reports.push({vehicle:'lurleen-meadows',seconds:meadowFrames/60});
  registry.remove(lurleen._registryId);lurleen.root.removeFromParent();lurleen._heartGroup.removeFromParent();disposeSceneResources(lurleen.root);disposeSceneResources(lurleen._heartGroup);assert.equal(registry.entries.size,baseline);
+ // Replay the reported ridge with a moving player and an uninterrupted AI
+ // state machine. Resetting 'following' every frame would hide losing her.
+ setSessionSeed(3232217193);
+ const ridge=landscapeCandidateInCell(0,0),ridgeContext=landscapeContextFor(ridge);
+ const ridgeAdapter=createLandscapeMoverAdapter({supportWorld:ridgeContext.surface.supportWorld,owners:new Map(),access:{roads:()=>[]}});
+ const h=12.271,fx=-Math.sin(h),fz=-Math.cos(h),point=t=>new Vector3(971.45+fx*t,0,902.1+fz*t);
+ for(const hz of [30,60,120]){
+   const companion=new Lurleen(scene,point(-55),{surfaceAdapter:ridgeAdapter});companion.autoRehome=false;companion.heading=h;
+   const start=point(-55);assert.notEqual(companion.setSpawnAt(start.x,start.z),false);companion.state='following';
+   const startHeight=companion.position.y;let lost=false,maxContact=0;
+   for(let frame=0;frame<hz*25;frame++){
+     const player=point(Math.min(60,-40+frame/hz*10));companion.update(1/hz,player,h,0);
+     lost ||= companion.state!=='following';maxContact=Math.max(maxContact,companion.terrainContactError);
+   }
+   assert.equal(lost,false,`ridge companion keeps following at ${hz}Hz`);
+   assert.ok(companion.position.y>startHeight+10,`ridge companion climbs the reported bank at ${hz}Hz`);
+   assert.ok(Math.hypot(companion.position.x-point(60).x,companion.position.z-point(60).z)<15,`ridge companion catches up at ${hz}Hz`);
+   assert.ok(maxContact<.3,`nonplanar ridge contact remains within suspension travel (${maxContact} at ${hz}Hz)`);
+   reports.push({vehicle:'lurleen-reported-ridge',hz,rise:companion.position.y-startHeight,maxContact});
+   registry.remove(companion._registryId);companion.root.removeFromParent();companion._heartGroup.removeFromParent();disposeSceneResources(companion.root);disposeSceneResources(companion._heartGroup);
+ }
  console.log('PASS landscape vehicles: actual Nut Wagon and one-wheel controllers cross/return on selected bridge support at 30/60/120Hz, real wagon suspension, Lurleen bridge following/local side-road intent, vertical solids and owner teardown.',JSON.stringify(reports));
 }finally{for(const e of [...registry.entries.values()])if(e.id>baseline)registry.remove(e.id);setLandscapeVersion(1);setTerrainEnabled(false);setSessionSeed(0);}

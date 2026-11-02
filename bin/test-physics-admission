@@ -1,0 +1,131 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { AdmissionBudget, ADMISSION_DIMENSIONS } from '../src/physics/admissionBudget.js';
+
+const capacity = (amount = 20) => Object.fromEntries(ADMISSION_DIMENSIONS.map(d => [d, amount]));
+function reserve(ledger, key, value) {
+  const result = ledger.reserve(key, value); assert.equal(result.ok, true, JSON.stringify(result)); return result.token;
+}
+function invariant(ledger) {
+  const report = ledger.report();
+  for (const dimension of ADMISSION_DIMENSIONS) {
+    for (const section of ['resident', 'reserved', 'available']) assert.ok(Number.isSafeInteger(report[section][dimension]) && report[section][dimension] >= 0);
+    assert.equal(report.resident[dimension] + report.reserved[dimension] + report.available[dimension], report.capacities[dimension]);
+  }
+  assert.ok(report.records <= report.maxRecords);
+}
+
+// A loveseat must reserve both sitters and their two cups before activation.
+// Optional objects then fill every remaining dimension without taking the
+// capacity needed for any of those four mandatory releases.
+const ledger = new AdmissionBudget({ capacities: { bodies: 8, colliders: 12, joints: 3, renderSlots: 12, events: 10 }, maxRecords: 8 });
+const baseline = ledger.report();
+const loveseat = reserve(ledger, 'loveseat', {
+  resident: { bodies: 1, colliders: 6, joints: 1, renderSlots: 4, events: 1 },
+  release: { bodies: 4, colliders: 4, renderSlots: 4, events: 4 },
+});
+const optional = reserve(ledger, 'optional', { resident: { bodies: 3, colliders: 2, joints: 2, renderSlots: 4, events: 5 } });
+const saturated = ledger.report();
+assert.ok(ADMISSION_DIMENSIONS.every(d => saturated.available[d] === 0));
+assert.deepEqual(ledger.reserve('extra', { resident: { bodies: 1 } }), { ok: false, reason: 'capacity', dimension: 'bodies' });
+assert.equal(ledger.update(optional, { resident: { bodies: 4, colliders: 2, joints: 2, renderSlots: 4, events: 5 } }).reason, 'capacity');
+assert.deepEqual(ledger.report(), saturated, 'failed optional admission/update cannot steal another assembly reservation');
+const releaseCost = { bodies: 1, colliders: 1, renderSlots: 1, events: 1 };
+for (const participant of ['sitter-left', 'sitter-right', 'cup-left', 'cup-right']) {
+  assert.deepEqual(ledger.consume(loveseat, releaseCost), { ok: true }, participant);
+  assert.deepEqual(ledger.report().available, saturated.available, 'mandatory release transfers its existing reservation without a second capacity charge');
+  invariant(ledger);
+}
+assert.equal(ledger.read(loveseat).resident.bodies, 5);
+assert.equal(ledger.read(loveseat).release.bodies, 0);
+const afterRelease = ledger.report();
+assert.equal(ledger.consume(loveseat, releaseCost).reason, 'insufficient-reservation');
+assert.deepEqual(ledger.report(), afterRelease);
+assert.deepEqual(ledger.releaseResident(loveseat, releaseCost), { ok: true });
+assert.equal(ledger.report().available.bodies, 1);
+const oneMore = reserve(ledger, 'one-more', { resident: releaseCost });
+assert.deepEqual(ledger.release(loveseat), { ok: true });
+assert.deepEqual(ledger.release(optional), { ok: true });
+assert.deepEqual(ledger.release(oneMore), { ok: true });
+assert.deepEqual(ledger.report(), baseline, 'partial release followed by cleanup returns every dimension to baseline');
+
+// Failed multi-dimension operations must not commit earlier dimensions.
+const atomic = new AdmissionBudget({ capacities: capacity(10), maxRecords: 2 });
+const token = reserve(atomic, 'assembly', { resident: { bodies: 2, colliders: 2 }, release: { bodies: 3, colliders: 3 } });
+const before = atomic.report(), recordBefore = atomic.read(token);
+assert.equal(atomic.consume(token, { bodies: 1, colliders: 4 }).reason, 'insufficient-reservation');
+assert.equal(atomic.releaseResident(token, { bodies: 1, colliders: 3 }).reason, 'insufficient-resident');
+assert.equal(atomic.update(token, { resident: { bodies: 4, colliders: 9 } }).reason, 'capacity');
+assert.equal(atomic.reserve('failed', { resident: { bodies: 1, colliders: 10 } }).reason, 'capacity');
+assert.deepEqual(atomic.report(), before); assert.deepEqual(atomic.read(token), recordBefore);
+assert.deepEqual(atomic.update(token, { resident: { bodies: 1 } }), { ok: true });
+assert.equal(atomic.read(token).resident.colliders, 0, 'provided sections replace all dimensions in that section');
+assert.deepEqual(atomic.read(token).release, recordBefore.release, 'omitted sections retain their current reservation');
+assert.deepEqual(atomic.update(token, { release: { events: 4 } }), { ok: true });
+assert.equal(atomic.read(token).release.bodies, 0);
+const reservedOnly = reserve(atomic, 'future-only', { release: { bodies: 9 } });
+assert.equal(atomic.reserve('record-overflow', {}).reason, 'record-capacity', 'zero-resource records still consume the separate record budget');
+assert.deepEqual(atomic.release(reservedOnly), { ok: true });
+
+// Reports, request costs and returned token objects never alias internal data.
+const reports = atomic.report(); reports.resident.bodies = 900; reports.capacities.events = 0; reports.available.joints = 900;
+const copied = atomic.read(token); copied.resident.bodies = 900; copied.release.events = 900; copied.token.generation = -1;
+assert.equal(atomic.read(token).resident.bodies, 1); assert.equal(atomic.read(token).release.events, 4);
+const request = { resident: { bodies: 2 }, release: { events: 2 } };
+const independent = reserve(atomic, 'copied-cost', request); request.resident.bodies = 900; request.release.events = 900;
+assert.equal(atomic.read(independent).resident.bodies, 2); assert.equal(atomic.read(independent).release.events, 2);
+atomic.release(independent);
+const old = { ...token }; atomic.release(token);
+const replacement = reserve(atomic, 'assembly', { resident: { bodies: 5 }, release: { events: 5 } });
+assert.ok(replacement.generation > old.generation);
+const replacementBefore = atomic.report();
+for (const result of [atomic.release(old), atomic.consume(old, { events: 1 }), atomic.update(old, { resident: {} }), atomic.releaseResident(old, { bodies: 1 })]) {
+  assert.deepEqual(result, { ok: false, reason: 'stale-token' });
+}
+assert.equal(atomic.read(old), null); assert.deepEqual(atomic.report(), replacementBefore);
+atomic.release(replacement); assert.equal(atomic.release(replacement).reason, 'stale-token');
+
+for (const invalid of [NaN, Infinity, -1, .5, Number.MAX_SAFE_INTEGER + 1, '1', undefined]) {
+  const invalidCapacity = capacity(); invalidCapacity.bodies = invalid;
+  assert.throws(() => new AdmissionBudget({ capacities: invalidCapacity }), /safe integer/);
+}
+assert.throws(() => new AdmissionBudget({ capacities: { bodies: 1 } }), /Missing/);
+assert.throws(() => new AdmissionBudget({ capacities: { ...capacity(), mystery: 1 } }), /Unknown/);
+assert.throws(() => new AdmissionBudget({ capacities: capacity(), maxRecords: -1 }), /safe integer/);
+const validation = new AdmissionBudget({ capacities: capacity(), maxRecords: 3 });
+const valid = reserve(validation, 'valid', { resident: { bodies: 2 }, release: { bodies: 2 } });
+for (const invalidCost of [{ bodies: NaN }, { bodies: Infinity }, { bodies: -1 }, { bodies: .5 }, { bodies: '1' }, { unknown: 1 }, null, [], { [Symbol('bodies')]: 1 }]) {
+  const saved = validation.report();
+  for (const call of [
+    () => validation.reserve('bad', { resident: invalidCost }),
+    () => validation.reserve('bad', { release: invalidCost }),
+    () => validation.update(valid, { resident: invalidCost }),
+    () => validation.consume(valid, invalidCost),
+    () => validation.releaseResident(valid, invalidCost),
+  ]) assert.throws(call);
+  assert.deepEqual(validation.report(), saved);
+}
+assert.throws(() => validation.reserve('', {}));
+assert.throws(() => validation.reserve('bad', { extra: {} }), /Unknown/);
+assert.equal(validation.reserve('valid', {}).reason, 'duplicate-key');
+assert.equal(new AdmissionBudget({ capacities: capacity(), maxRecords: 0 }).reserve('empty', {}).reason, 'record-capacity');
+
+// Safe-integer edge accounting cannot wrap while comparing resident+reserve.
+const maximum = new AdmissionBudget({ capacities: capacity(Number.MAX_SAFE_INTEGER) });
+const max = reserve(maximum, 'max', { resident: { bodies: Number.MAX_SAFE_INTEGER - 1 }, release: { bodies: 1 } });
+assert.equal(maximum.consume(max, { bodies: 1 }).ok, true);
+assert.equal(maximum.report().resident.bodies, Number.MAX_SAFE_INTEGER);
+assert.equal(maximum.reserve('overflow', { resident: { bodies: 1 } }).reason, 'capacity');
+assert.equal(maximum.update(max, { release: { bodies: 1 } }).reason, 'capacity');
+maximum.release(max); invariant(maximum);
+
+const cycles = new AdmissionBudget({ capacities: capacity(8), maxRecords: 2 });
+const cycleBaseline = cycles.report();
+for (let i = 0; i < 10000; i++) {
+  const cycle = reserve(cycles, 'reused-key', { resident: { bodies: 1, colliders: 2, joints: 1 }, release: { bodies: 4, colliders: 4, renderSlots: 4, events: 4 } });
+  assert.equal(cycles.consume(cycle, releaseCost).ok, true);
+  assert.equal(cycles.releaseResident(cycle, releaseCost).ok, true);
+  assert.equal(cycles.release(cycle).ok, true);
+  assert.deepEqual(cycles.report(), cycleBaseline);
+}
+console.log('PASS admission accounting: loveseat/two-sitter/two-cup mandatory release at full optional saturation, no double charge, fail-atomic multi-resource updates, partial/full rollback, independent record cap, copied state, generation-safe stale cleanup, invalid dimensions/counts, safe-integer boundaries and 10000 reuse cycles.');

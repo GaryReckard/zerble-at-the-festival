@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+
+// Execute the production population methods with real generation/claim owners.
+// GPU writes are recorded by the existing population fixture.
+const people=makePeopleCrowd();
+const spawn=()=>people.spawn({pos:new Vector(2,3,4)});
+const owner={activityKey:'physical-reaction'};
+for(const state of ['idle','walking','watching','approaching','fleeing']) {
+  const n=spawn();n.state=state;n.vel.set(1,0,2);
+  let releases=0;
+  const claim=people.claimPersonReaction(n.personHandle,{owner,
+    prepare(attempt){attempt.own(()=>releases++);return true;}});
+  assert(claim);assert.equal(n.state,state);assert.deepEqual(n.vel,new Vector(1,0,2));
+  assert.equal(people.claimPersonReaction(n.personHandle,{owner}),null,'repeat impact must use existing authority');
+  assert(people.writeActivityPose(claim,5,6,7));
+  assert(people.endPersonActivity(claim));assert.equal(releases,1);
+  assert.equal(n.state,state==='fleeing'?'fleeing':'walking');assert.equal(people.writeActivityPose(claim,99,99,99),false);
+  assert.equal(people.endPersonActivity(claim),false);assert.equal(releases,1);
+}
+for(const patch of [
+  ...['riding','boarding','disembarking','camp_sleeping','camp_seated','hammock_riding','picnic_seated','unknown'].map(state=>({state})),
+  {party:{}},{isPhotographer:true},{seatSlot:{}},{campSlot:{}},{campMusic:true},
+  {campInstrument:{}},{campJamHidden:true},{_activityBinding:{hidden:true}},
+]) {
+  const n=spawn();Object.assign(n,patch);let prepared=false;
+  assert.equal(people.claimPersonReaction(n.personHandle,{owner,prepare(){prepared=true;return true;}}),null);
+  assert.equal(prepared,false,'excluded people cannot allocate reaction resources');
+}
+{
+  const n=spawn(),old=people.claimActivity(n.personHandle,{owner:{activityKey:'hula'}});
+  assert.equal(people.claimPersonReaction(n.personHandle,{owner}),null);
+  assert(people.isPersonActivityCurrent(old));
+}
+{
+  const n=spawn();let cleanups=0;
+  assert.equal(people.claimPersonReaction(n.personHandle,{owner,prepare(attempt){attempt.own(()=>cleanups++);return false;}}),null);
+  assert.equal(cleanups,1);assert.equal(people.activityClaims.current.has(n.personHandle),false);
+  assert.throws(()=>people.claimPersonReaction(n.personHandle,{owner,prepare(attempt){attempt.own(()=>cleanups++);throw Error('allocation');}}),/allocation/);
+  assert.equal(cleanups,2);
+  assert.throws(()=>people.claimPersonReaction(n.personHandle,{owner,prepare:()=>Promise.resolve(true)}),/synchronous/);
+  assert.equal(people.activityClaims.current.has(n.personHandle),false);
+  assert.equal(people.claimPersonReaction(n.personHandle,{owner,prepare(attempt){attempt.own(()=>cleanups++);n.party={};return true;}}),null);
+  assert.equal(cleanups,3,'eligibility is rechecked after resource preparation');
+}
+{
+  const n=spawn(),handle=n.personHandle;let cleanup=0;
+  const claim=people.claimPersonReaction(handle,{owner,prepare(attempt){attempt.own(()=>cleanup++);return true;}});
+  people.peopleHandles.remove(handle,()=>people.activityClaims.removePerson(handle));
+  const replacement=people.peopleHandles.create(handle.slot,{...n,personHandle:null});
+  assert.equal(people.claimPersonReaction(handle,{owner}),null);
+  assert.equal(people.writeActivityPose(claim,99,99,99),false);
+  assert.equal(people.endPersonActivity(claim),false);assert.equal(cleanup,1);
+  assert(people.peopleHandles.isLive(replacement));
+}
+people.activityClaims.dispose();
+{
+  const population=makePeopleCrowd(),n=population.spawn({pos:new Vector()}),person=n.personHandle;
+  const claim=population.claimPersonReaction(person,{owner}),pose={position:{x:4,y:7,z:9},rotation:{x:0,y:0,z:2,w:2},seated:true};
+  assert(population.writeReactionPose(claim,pose));const storage=n._reactionPose;
+  assert(Math.abs(storage.qz-Math.SQRT1_2)<1e-12);assert(Math.abs(storage.qw-Math.SQRT1_2)<1e-12);assert.equal(storage.seated,true);
+  pose.position.x=999;assert.equal(n.pos.x,4,'pose input is copied');
+  assert(population.writeReactionPose(claim,{position:{x:5,y:8,z:10},rotation:{x:1,y:0,z:0,w:1}}));
+  assert.equal(n._reactionPose,storage,'steady writes reuse storage');
+  assert(population.writeReactionPose(claim,{...pose,brace:.6}));assert.equal(storage.brace,.6);
+  const before={...storage};
+  for(const bad of [{position:{x:NaN,y:0,z:0}},{rotation:{x:0,y:0,z:0,w:0}},{seated:'yes'},{seatBlend:-.1},{seatBlend:1.1},{seatBlend:NaN},{brace:NaN},{brace:-1},{brace:1.1},{position:{x:1e300,y:0,z:0}}]) {
+    assert.throws(()=>population.writeReactionPose(claim,{...pose,...bad}));assert.deepEqual({...storage},before);
+  }
+  assert(population.writeActivityPose(claim,1,2,3));assert.equal(n._reactionPose,null,'ordinary pose publication clears the rotation override');
+  assert(population.writeReactionPose(claim,pose));
+  const next=population.claimActivity(person,{owner:{activityKey:'next'}});assert.equal(n._reactionPose,null);
+  assert.equal(population.writeReactionPose(claim,pose),false);assert.equal(population.releaseActivityBinding(claim),false);
+  assert(population.writeReactionPose(next,pose));population.endPersonActivity(next);assert.equal(n._reactionPose,null);
+}
+{
+  const population=makePeopleCrowd(),n=population.spawn({pos:new Vector()});let cleanup=0;
+  assert.equal(population.claimPersonReaction(n.personHandle,{owner,prepare(attempt){
+    attempt.own(()=>cleanup++);
+    population.peopleHandles.remove(n.personHandle,()=>population.activityClaims.removePerson(n.personHandle));
+    return true;
+  }}),null);
+  assert.equal(cleanup,1);assert.equal(population.activityClaims.current.size,0);
+  const next=population.spawn({pos:new Vector()});
+  const old=population.claimPersonReaction(next.personHandle,{owner});
+  const current=population.claimActivity(next.personHandle,{owner:{activityKey:'new-owner'}});
+  assert.equal(population.writeActivityPose(old,99,99,99),false);
+  assert.equal(population.endPersonActivity(old),false);assert(population.isPersonActivityCurrent(current));
+  population.activityClaims.dispose();
+}
+console.log('PASS person reaction boundary: ordinary eligibility, protected people/activities, preserved incoming motion, synchronous preparation rollback, repeat-claim rejection, stale generations and singular cleanup.');
+
+{
+ const population=makePeopleCrowd(),sitter=population.spawn({pos:new Vector()}),victim=population.spawn({pos:new Vector(1,0,0)});
+ let hits=0;const reactive={activityKey:'physical-seat',onPersonImpact(){hits++;return true;}};
+ const claim=population.claimPersonReaction(sitter.personHandle,{owner:reactive});
+ assert(population.hitPerson(sitter.personHandle,1,0));assert.equal(hits,1);assert(population.isPersonActivityCurrent(claim));
+ population.hitPerson(victim.personHandle,1,0);
+ assert(population.isPersonActivityCurrent(claim),'nearby panic cannot revoke physical fall authority');
+ population.activityClaims.dispose();
+}
+console.log('PASS physical reactions retain authority through direct impacts and nearby panic.');

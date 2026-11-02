@@ -1,0 +1,340 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { Registry } from '../src/registry.js';
+import { buildCampChair } from '../src/models/campChair.js';
+import { batchPropGroups } from '../src/propRendering.js';
+import { campSlotAvailable } from '../src/people/campResources.js';
+import { AdmissionBudget } from '../src/physics/admissionBudget.js';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { createActivePropRendering } from '../src/physics/activePropRendering.js';
+import { createChairOwnership } from '../src/physics/chairOwnership.js';
+import { chairRecipe } from '../src/physics/recipes.js';
+import { registerCampsite, canPlaceCampsite } from '../src/campRegistry.js';
+import { terrainEnabled, setTerrainEnabled } from '../src/worldgen/terrain.js';
+
+const close = (a, b) => assert(Math.abs(a - b) < 3e-5, `${a} != ${b}`);
+async function fixture({ style = 'sling', budgetSlots = 512, engineBodies = 8, poolSlots = 512 } = {}) {
+  const root = new THREE.Group(); root.position.set(12, 2, -8); root.rotation.set(.1, .4, .05); root.scale.set(2, 2.5, 1.8);
+  const chair = buildCampChair(() => .3, { style }); root.add(chair.group); root.updateWorldMatrix(true, true);
+  const position = new THREE.Vector3(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3();
+  chair.group.matrixWorld.decompose(position, rotation, scale);
+  const batch = batchPropGroups(root, [chair.group]), original = batch.bindings[0];
+  const descriptor = { logicalKey: `test-chair:${style}`, kind: style === 'loveseat' ? 'camp_loveseat' : 'camp_chair', style,
+    originOwner: 'chunk:origin', renderBinding: original,
+    worldPose: { position: { ...position }, rotation: { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w }, scale: { ...scale } },
+    seatSlots: chair.seatOffsets.map(() => ({ occupied: false })) };
+  const registry = new Registry();
+  const entry = { kind: descriptor.kind, physicalProp: descriptor, position: position.clone(), footprint: chair.footprint * 2.5,
+    collider: { radius: chair.footprint * 2.5, damage: 1 }, chunkKey: 'origin' };
+  const id = registry.add(entry);
+  const adapter = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 }, capacities: { bodies: engineBodies } });
+  const budget = new AdmissionBudget({ capacities: { bodies: 8, colliders: 64, joints: 0, renderSlots: budgetSlots, events: 0 } });
+  const rendering = createActivePropRendering({ maxSlots: poolSlots });
+  const state = { alive: true, support: true, removeFailure: false, publicationFailure: false, added: null, active: null };
+  const engine = { ...adapter,
+    addBody(spec) { state.added = spec; return adapter.addBody(spec); },
+    removeBody(key) { if (state.removeFailure) throw new Error('injected body teardown failure'); return adapter.removeBody(key); } };
+  const render = { ...rendering, acquire(...args) {
+    const result = rendering.acquire(...args);
+    if (result.ok) { state.active = result.binding; return { ...result, binding: { ...result.binding,
+      setWorldMatrix(matrix) { if (state.publicationFailure) throw new Error('injected render publication failure'); return result.binding.setWorldMatrix(matrix); } } }; }
+    return result;
+  } };
+  const owner = createChairOwnership({ registry, adapter: engine, budget, rendering: render, campSlotAvailable,
+    supportReady: () => state.support, originAlive: () => state.alive });
+  const visible = () => original.describe().every(part => { const matrix = new THREE.Matrix4(); part.mesh.getMatrixAt(part.slot, matrix); return Math.abs(matrix.determinant()) > 1e-10; });
+  const clean = () => {
+    assert.equal(adapter.counts().bodies, 0); assert.equal(adapter.counts().colliders, 0);
+    assert.equal(rendering.stats().props, 0); assert.equal(rendering.stats().slots, 0); assert.equal(rendering.stats().allocatedSlots, 0);
+    assert.equal(budget.report().records, 0); assert.equal(registry.physicalCounts().enrolled, 0); assert.equal(owner.stats().chairs, 0);
+  };
+  return { root, chair, batch, original, descriptor, registry, entry, id, adapter, budget, rendering, state, owner, visible, clean,
+    dispose() { state.removeFailure = false; owner.dispose(); rendering.dispose(); batch.dispose(); adapter.dispose(); } };
+}
+
+for (const style of ['sling', 'director', 'low', 'loveseat']) {
+  const f = await fixture({ style });
+  try {
+    const originalPosition = { ...f.entry.position }, originalFootprint = f.entry.footprint;
+    const adopted = f.owner.adopt(f.id); assert.equal(adopted.ok, true, JSON.stringify(adopted));
+    const token = adopted.token;
+    const supportRadius=f.owner.read(token).supportRadius;
+    assert(Number.isFinite(supportRadius)&&supportRadius>0);
+    assert.equal(f.owner.read(token).bodyId, f.state.added.id);
+    assert.equal(f.owner.read(token).engineGeneration, f.adapter.readBody(f.state.added.id).generation);
+    assert.equal(f.visible(), false); assert.equal(f.entry.chunkKey, `physical:${f.descriptor.logicalKey}`);
+    assert(f.descriptor.seatSlots.every(slot => slot.physicalUnavailable && !campSlotAvailable(slot)));
+    assert.equal(f.budget.report().resident.bodies, 1); assert.equal(f.budget.report().resident.colliders, 6);
+    assert.equal(f.budget.report().resident.renderSlots, f.original.describe().length);
+    assert(Object.values(f.budget.report().reserved).every(value => value === 0), 'empty-only admission has no fictitious occupant release reserve');
+    const recipe = chairRecipe(style);
+    for (const [index, collider] of f.state.added.colliders.entries()) for (const axis of ['x', 'y', 'z']) {
+      close(collider.halfExtents[axis], recipe[index].halfExtents[axis] * f.descriptor.worldPose.scale[axis]);
+      close(collider.position[axis], recipe[index].position[axis] * f.descriptor.worldPose.scale[axis]);
+    }
+    const tipped = new THREE.Quaternion().setFromEuler(new THREE.Euler(.4, -.2, Math.PI / 2));
+    f.adapter.setPose(f.state.added.id, { position: { x: 45, y: 3, z: -32 }, rotation: { x: tipped.x, y: tipped.y, z: tipped.z, w: tipped.w } });
+    f.adapter.step(1 / 60);
+    const published = f.owner.publish(token); assert.equal(published.ok, true); f.rendering.flush();
+    close(f.entry.position.x, 45); close(f.entry.position.z, -32);
+    assert(f.entry.footprint > originalFootprint, 'tipping projects the elevated model and collider offsets into the live footprint');
+    for (const part of f.state.active.describe()) {
+      part.mesh.updateWorldMatrix(true, false);
+      const local = new THREE.Matrix4(); part.mesh.getMatrixAt(part.slot, local);
+      const matrix = new THREE.Matrix4().multiplyMatrices(part.mesh.matrixWorld, local);
+      const bounds = part.geometry.boundingBox;
+      for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
+        const p = new THREE.Vector3(x, y, z).applyMatrix4(matrix);
+        assert(Math.hypot(p.x - f.entry.position.x, p.z - f.entry.position.z) <= f.entry.footprint + 1e-5, 'published footprint contains every transformed visual corner');
+      }
+    }
+    for(let sample=0;sample<32;sample++) {
+      const rotation=new THREE.Quaternion().setFromEuler(new THREE.Euler(sample*.29,sample*.47,sample*.73));
+      f.adapter.setPose(f.state.added.id,{position:{x:45,y:3,z:-32},rotation:{x:rotation.x,y:rotation.y,z:rotation.z,w:rotation.w}});
+      // The support bound must already cover this orientation before publish.
+      assert.equal(f.owner.read(token).supportRadius,supportRadius);
+      for(const collider of f.state.added.colliders)for(const x of [-1,1])for(const y of [-1,1])for(const z of [-1,1]) {
+        const corner=new THREE.Vector3(collider.position.x+x*collider.halfExtents.x,
+          collider.position.y+y*collider.halfExtents.y,collider.position.z+z*collider.halfExtents.z).applyQuaternion(rotation);
+        assert(Math.hypot(corner.x,corner.z)<=supportRadius+1e-6,'support contains rotated collider corners before publication');
+      }
+      assert(f.owner.publish(token).ok);
+      assert(f.entry.footprint<=supportRadius+1e-5,'support sphere contains the published visual footprint');
+    }
+    const canonical = [];
+    f.registry.generationFootprintsNear(originalPosition.x, originalPosition.z, 2, entry => { if (entry.id === f.id) canonical.push(entry); });
+    assert.equal(canonical.length, 1); assert.deepEqual(canonical[0].position, originalPosition); assert.equal(canonical[0].footprint, originalFootprint);
+    const saved = f.owner.read(token); saved.pose.position.x = 900; assert.notEqual(f.owner.read(token).pose.position.x, 900);
+    assert.equal(f.owner.release(token, { mode: 'restore-original' }).ok, true);
+    f.clean(); assert.equal(f.visible(), true); assert.equal(f.entry.chunkKey, 'origin');
+    assert.deepEqual({ ...f.entry.position }, originalPosition); assert.equal(f.entry.footprint, originalFootprint);
+    assert(f.descriptor.seatSlots.every(slot => !Object.hasOwn(slot, 'physicalUnavailable')));
+    const next = f.owner.adopt(f.id); assert(next.token.generation > token.generation);
+    assert.equal(f.owner.publish(token).reason, 'stale-token'); assert.equal(f.owner.release(token, { mode: 'retire' }).reason, 'stale-token');
+    assert.equal(f.owner.stats().chairs, 1); assert.equal(f.owner.release(next.token, { mode: 'restore-original' }).ok, true); f.clean();
+    for (let cycle = 0; cycle < 8; cycle++) {
+      const again = f.owner.adopt(f.id); assert.equal(again.ok, true);
+      assert.equal(f.owner.release(again.token, { mode: 'restore-original' }).ok, true); f.clean();
+    }
+  } finally { f.dispose(); }
+}
+
+for (const [options, stage] of [[{ budgetSlots: 0 }, 'budget'], [{ poolSlots: 1 }, 'render'], [{ engineBodies: 0 }, 'physics']]) {
+  const f = await fixture(options);
+  try {
+    const result = f.owner.adopt(f.id); assert.equal(result.ok, false); assert.equal(result.stage, stage);
+    f.clean(); assert.equal(f.visible(), true); assert.equal(f.entry.chunkKey, 'origin'); assert(f.registry.entries.has(f.id));
+  } finally { f.dispose(); }
+}
+const refusal = await fixture({ style: 'loveseat' });
+try {
+  refusal.descriptor.seatSlots[1].occupied = true;
+  assert.equal(refusal.owner.adopt(refusal.id).reason, 'occupied-or-unavailable'); refusal.clean();
+  refusal.descriptor.seatSlots[1].occupied = false; refusal.state.support = false;
+  assert.equal(refusal.owner.adopt(refusal.id).reason, 'support-pending'); refusal.clean();
+  refusal.state.support = true; refusal.state.alive = false;
+  assert.equal(refusal.owner.adopt(refusal.id).reason, 'origin-unavailable'); refusal.clean();
+} finally { refusal.dispose(); }
+
+for (const fail of ['transfer', 'publication', 'hide']) {
+  const f = await fixture();
+  try {
+    if (fail === 'transfer') {
+      const transfer = f.registry.transferOwner.bind(f.registry);
+      f.registry.transferOwner = (id, owner) => owner?.startsWith('physical:') ? { ok: false, reason: 'injected-transfer' } : transfer(id, owner);
+    } else if (fail === 'publication') {
+      const publish = f.registry.publishPhysical.bind(f.registry); let first = true;
+      f.registry.publishPhysical = (...args) => { if (first) { first = false; return { ok: false, reason: 'injected-publication' }; } return publish(...args); };
+    } else {
+      const binding = f.descriptor.renderBinding;
+      f.descriptor.renderBinding = { ...binding, setVisible(value) { return value ? binding.setVisible(true) : false; } };
+    }
+    const result = f.owner.adopt(f.id); assert.equal(result.ok, false, fail); assert.equal(result.cleanupErrors, undefined, JSON.stringify(result));
+    f.clean(); assert.equal(f.visible(), true); assert.equal(f.entry.chunkKey, 'origin');
+  } finally { f.dispose(); }
+}
+
+const publication = await fixture();
+try {
+  const token = publication.owner.adopt(publication.id).token;
+  const before = { ...publication.entry.position };
+  publication.adapter.setPose(publication.state.added.id, { position: { x: 90, y: 5, z: 90 } });
+  publication.state.publicationFailure = true;
+  assert.equal(publication.owner.publish(token).reason, 'render-publication-failed');
+  assert.deepEqual({ ...publication.entry.position }, before, 'render publication exceptions restore the prior live registry pose');
+  publication.state.publicationFailure = false; assert.equal(publication.owner.publish(token).ok, true);
+  publication.state.alive = false; publication.registry.removeChunk('origin'); publication.batch.dispose();
+  assert(publication.registry.entries.has(publication.id), 'origin unload preserves the independently owned registry entry');
+  assert.equal(publication.owner.release(token, { mode: 'restore-original' }).reason, 'origin-unavailable');
+  assert.equal(publication.owner.stats().chairs, 1); assert.equal(publication.owner.publish(token).ok, true);
+  assert.equal(publication.owner.release(token, { mode: 'retire' }).ok, true); publication.clean();
+  assert.equal(publication.registry.entries.has(publication.id), false);
+} finally { publication.dispose(); }
+
+for (const rollback of [false, true]) {
+  const f = await fixture();
+  try {
+    let token;
+    if (rollback) {
+      const transfer = f.registry.transferOwner.bind(f.registry);
+      f.registry.transferOwner = (id, owner) => owner?.startsWith('physical:') ? { ok: false, reason: 'injected-transfer' } : transfer(id, owner);
+      f.state.removeFailure = true;
+      const failed = f.owner.adopt(f.id); assert.equal(failed.ok, false);
+      assert(failed.cleanupErrors.some(error => error.resource === 'physics-body')); token = failed.cleanupToken;
+      assert.equal(f.visible(), true); assert.equal(f.entry.chunkKey, 'origin');
+    } else {
+      token = f.owner.adopt(f.id).token; f.state.removeFailure = true;
+      const result = f.owner.release(token, { mode: 'retire' });
+      assert.equal(result.reason, 'cleanup-failed'); assert(result.cleanupErrors.some(error => error.resource === 'physics-body'));
+      assert.equal(f.registry.entries.has(f.id), false, 'registry teardown continues after a physics teardown exception');
+    }
+    assert.equal(f.rendering.stats().props, 0); assert.equal(f.registry.physicalCounts().enrolled, 0);
+    assert(f.descriptor.seatSlots.every(slot => slot.physicalUnavailable && !campSlotAvailable(slot)),
+      'a surviving failed-cleanup body keeps its original seat unavailable');
+    assert.equal(f.adapter.counts().bodies, 1); assert.equal(f.owner.stats().cleanupPending, 1);
+    assert.equal(f.budget.report().resident.bodies, 1); assert.equal(f.budget.report().resident.colliders, 6);
+    assert.equal(f.budget.report().resident.renderSlots, 0, 'only surviving resources retain budget');
+    assert.equal(f.owner.read(token).state, 'cleanup-pending'); assert.equal(f.owner.publish(token).reason, 'cleanup-pending');
+    f.state.removeFailure = false;
+    assert.equal(f.owner.release(token, { mode: 'retire' }).ok, true); f.clean();
+    if (rollback) {
+      assert(f.registry.entries.has(f.id), 'retrying failed adoption cleanup does not delete the restored original entry');
+      assert(f.descriptor.seatSlots.every(campSlotAvailable), 'successful adoption rollback eventually restores seats after all conflicting resources vanish');
+    }
+  } finally { f.dispose(); }
+}
+const retiredLive = await fixture();
+try {
+  const token = retiredLive.owner.adopt(retiredLive.id).token;
+  assert.equal(retiredLive.owner.release(token, { mode: 'retire' }).ok, true); retiredLive.clean();
+  assert.equal(retiredLive.state.alive, true); assert.equal(retiredLive.visible(), false);
+  assert.equal(retiredLive.registry.entries.has(retiredLive.id), false);
+  assert(retiredLive.descriptor.seatSlots.every(slot => slot.physicalUnavailable && !campSlotAvailable(slot)),
+    'retire while the camp is still live cannot create a seat on invisible furniture');
+} finally { retiredLive.dispose(); }
+const restoreFailure = await fixture();
+try {
+  const token = restoreFailure.owner.adopt(restoreFailure.id).token;
+  restoreFailure.state.removeFailure = true;
+  const failed = restoreFailure.owner.release(token, { mode: 'restore-original' });
+  assert.equal(failed.reason, 'cleanup-failed'); assert.equal(restoreFailure.visible(), true);
+  assert.equal(restoreFailure.entry.chunkKey, 'origin');
+  assert(restoreFailure.descriptor.seatSlots.every(slot => !campSlotAvailable(slot)),
+    'restoring original visibility cannot reopen seating while its dynamic body survives');
+  restoreFailure.state.removeFailure = false;
+  assert.equal(restoreFailure.owner.release(token, { mode: 'restore-original' }).ok, true);
+  restoreFailure.clean(); assert(restoreFailure.descriptor.seatSlots.every(campSlotAvailable));
+} finally { restoreFailure.dispose(); }
+
+// Exercise the production registration boundary, including lakes whose owner
+// copies the returned IDs and therefore cannot acquire a restored child later.
+const oldTerrain = terrainEnabled(); setTerrainEnabled(false);
+try {
+  for (const lake of [false, true]) {
+    const registry = new Registry(), adapter = await createRapierAdapter({ gravity: { x: 0, y: 0, z: 0 } });
+    const rendering = createActivePropRendering(), budget = new AdmissionBudget({ capacities: { bodies: 8, colliders: 64, joints: 0, renderSlots: 512, events: 0 } });
+    const owner = createChairOwnership({ registry, adapter, rendering, budget, campSlotAvailable, supportReady: () => true,
+      originAlive: descriptor => registry.entries.has(descriptor.originRegistryId) });
+    registry.physicalChairOwner = owner;
+    const options = { ...(lake ? { lakeOwnerKey: 'lake:test' } : { chunkKey: 'origin' }), campNeighborhood: 'test-origin-neighborhood' };
+    const batches = [];
+    let draws = 0;
+    const makeCamp = () => {
+      const group = new THREE.Group(); group.position.set(70, 0, 40); group.rotation.y = .3; group.scale.setScalar(2);
+      const chair = buildCampChair(() => { draws++; return .3; }, { style: 'loveseat' }); group.add(chair.group);
+      chair.group.updateMatrix();
+      const originLocalTransform = chair.group.matrix.clone(), batch = batchPropGroups(group, [chair.group]); batches.push(batch);
+      return { group, chair, chairBatch: batch, footprint: 6, tents: [],
+        seats: chair.seatOffsets.map(x => ({ x, z: 0, y: chair.seatY, yaw: 0, group: chair.group })),
+        physicalChairs: [{ group: chair.group, localKey: 'chair:0', style: chair.style, loveseat: true,
+          originLocalTransform, renderBinding: batch.bindings[0] }],
+        childColliders: [{ kind: 'camp_loveseat', x: 0, z: 0, radius: chair.footprint, group: chair.group }] };
+    };
+    const register = camp => {
+      const before = draws, ids = registerCampsite(registry, camp, options);
+      assert.equal(draws, before, 'origin registration consumes no model RNG draws');
+      return ids;
+    };
+    const visible = camp => camp.chairBatch.bindings[0].describe().every(part => {
+      const matrix = new THREE.Matrix4(); part.mesh.getMatrixAt(part.slot, matrix); return Math.abs(matrix.determinant()) > 1e-10;
+    });
+    const unload = ids => { for (const id of ids) if (!owner.isAdopted(id)) registry.remove(id); };
+    try {
+      let current = makeCamp(), ids = register(current);
+      const entryId = ids[1], originalEntry = registry.entries.get(entryId), token = owner.adopt(entryId).token;
+      const originalKey = originalEntry.physicalProp.logicalKey;
+      const bodyId = owner.read(token).bodyId;
+      adapter.setPose(bodyId, { position: { x: 100, y: 2, z: -40 } }); owner.publish(token);
+      unload(ids);
+      for (let cycle = 0; cycle < 5; cycle++) {
+        const next = makeCamp();
+        assert.equal(canPlaceCampsite(registry, next, options.campNeighborhood, options), true,
+          'its own adopted canonical chair cannot reject deterministic origin placement');
+        assert.deepEqual(owner.originEntryIds(next, options), [entryId]);
+        assert.deepEqual(owner.originEntryIds(next, { ...options, originOwner: 'wrong-owner' }), []);
+        assert.equal(canPlaceCampsite(registry, next, 'another-neighborhood', options), false,
+          'same coordinates cannot exempt a different origin neighborhood');
+        const other = { ...next, physicalChairs: next.physicalChairs.map(chair => ({ ...chair, localKey: 'unrelated-chair' })) };
+        assert.equal(canPlaceCampsite(registry, other, options.campNeighborhood, options), false,
+          'only the exact matching local chair key receives the origin exemption');
+        const blocker = registry.add({ kind: 'tent', position: new THREE.Vector3(71, 0, 40), footprint: 1, collider: { radius: 1 }, chunkKey: 'neighbor' });
+        assert.equal(canPlaceCampsite(registry, next, options.campNeighborhood, options), false, 'nearby unrelated solids still reject origin placement');
+        registry.remove(blocker);
+        const nextIds = register(next), parent = registry.entries.get(nextIds[0]);
+        assert.deepEqual(nextIds, [parent.id], 'suppressed adopted child never enters copied origin teardown IDs');
+        assert.equal(parent.physicalChairs[0], originalEntry.physicalProp);
+        assert.equal(parent.physicalChairs[0].logicalKey, originalKey);
+        assert.equal(parent.campSeats.length, 2, 'canonical self-exclusion preserves both regenerated seat claims');
+        assert(parent.campSeats.every(slot => slot.collider === originalEntry && !campSlotAvailable(slot)));
+        assert.equal(visible(next), false); assert.equal(owner.read(token).originRegistryId, parent.id);
+        current.chairBatch.dispose();
+        assert.equal(owner.publish(token).ok, true, 'late old source disposal cannot affect the adopted render');
+        assert.equal(registry.entries.get(entryId), originalEntry);
+        const canonical = [];
+        registry.generationCollidersNear(70, 40, 1, entry => { if (entry.id === entryId) canonical.push(entry); });
+        assert.equal(canonical.length, 1); close(canonical[0].position.x, 70); close(canonical[0].position.z, 40);
+        current = next; ids = nextIds;
+        if (cycle < 4) unload(ids);
+      }
+      const beforeFailure = registry.entries.size, priorOrigin = owner.read(token).originRegistryId;
+      const failedCamp = makeCamp(); failedCamp.physicalChairs[0].renderBinding = { ...failedCamp.physicalChairs[0].renderBinding, setVisible: () => false };
+      assert.throws(() => register(failedCamp), /source binding refused hide/);
+      assert.equal(registry.entries.size, beforeFailure, 'failed suppression rolls back its new parent without inserting a duplicate child');
+      assert.equal(owner.read(token).originRegistryId, priorOrigin, 'failed hide cannot replace the valid origin descriptor');
+      failedCamp.chairBatch.dispose();
+      assert.equal(owner.release(token, { mode: 'restore-original' }).ok, true);
+      assert.equal(visible(current), true); assert.equal(owner.stats().originLifetimes, 1);
+      assert(registry.entries.get(ids[0]).campSeats.every(campSlotAvailable));
+      unload(ids);
+      assert(registry.entries.has(entryId), 'restored child was absent from the copied origin IDs');
+      current.chairBatch.dispose();
+      assert.equal(registry.entries.has(entryId), false, 'source batch disposal removes the restored child even without a lake chunkKey');
+      assert.equal(owner.stats().originLifetimes, 0); assert.equal(owner.stats().chairs, 0);
+
+      // Restoration listeners detach on re-adoption and cannot remove a live
+      // physical entry when that source batch subsequently unloads.
+      const again = makeCamp(), againIds = register(again), againEntryId = againIds[1];
+      const first = owner.adopt(againEntryId).token;
+      assert.equal(owner.release(first, { mode: 'restore-original' }).ok, true);
+      assert.equal(owner.stats().originLifetimes, 1);
+      const second = owner.adopt(againEntryId).token;
+      assert.equal(owner.stats().originLifetimes, 0);
+      unload(againIds); again.chairBatch.dispose();
+      assert.equal(owner.isAdopted(againEntryId), true); assert.equal(owner.publish(second).ok, true);
+      const replacement = makeCamp(), replacementIds = register(replacement);
+      assert.equal(replacementIds.length, 1); assert.equal(visible(replacement), false);
+      assert.equal(owner.release(second, { mode: 'retire' }).ok, true);
+      assert(registry.entries.get(replacementIds[0]).campSeats.every(slot => !campSlotAvailable(slot)), 'retired regenerated furniture keeps its old slots unavailable');
+      assert.equal(registry.entries.has(againEntryId), false); unload(replacementIds); replacement.chairBatch.dispose();
+      const fresh = makeCamp(), freshIds = register(fresh);
+      assert.equal(freshIds.length, 2); assert.equal(visible(fresh), true, 'explicit retirement leaves no historical suppression on the next origin visit');
+      unload(freshIds); fresh.chairBatch.dispose();
+      assert.equal(registry.entries.size, 0); assert.equal(adapter.counts().bodies, 0);
+      assert.equal(rendering.stats().slots, 0); assert.equal(budget.report().records, 0);
+    } finally { owner.dispose(); rendering.dispose(); for (const batch of batches) batch.dispose(); adapter.dispose(); }
+  }
+} finally { setTerrainEnabled(oldTerrain); }
+console.log('PASS empty-chair ownership: four real chair styles, scaled Rapier colliders, admission/registry/render/body rollback, occupied/support refusal, solved pose/conservative footprints, canonical preservation, origin unload, stale tokens, repeated cleanup and independently retried teardown failures.');
+console.log('PASS chunk/lake origin regeneration: exact self-clearance exclusion, neighboring blockers, both seat claims, singular registry/render publication, failed-hide rollback, latest-source restoration, bounded source lifetime listeners and re-adoption before source disposal.');
+console.log('Scope: empty-chair ownership and synchronous origin suppression; automatic distance reset and production contact scheduling remain pending.');

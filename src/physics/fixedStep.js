@@ -6,13 +6,20 @@ export class FixedStepClock {
     }
     Object.assign(this, { step, maxSteps, remainder: 0, time: 0, dropped: 0, steps: 0 });
   }
-  advance(delta, tick) {
+  advance(delta, tick, { canStep = () => true } = {}) {
     if (!Number.isFinite(delta) || delta < 0) throw new RangeError('Invalid accepted delta');
     const accepted = Math.min(delta, this.step * this.maxSteps);
     this.dropped += delta - accepted;
     this.remainder += accepted;
     let count = 0;
     while (this.remainder + 1e-12 >= this.step && count < this.maxSteps) {
+      // A missing support reservation must not advance simulation time or
+      // accumulate a later burst of catch-up steps while preparation catches up.
+      if (!canStep(this.step, this.time + this.step)) {
+        this.dropped += this.remainder;
+        this.remainder = 0;
+        break;
+      }
       tick(this.step, this.time + this.step);
       this.time += this.step;
       this.remainder = Math.max(0, this.remainder - this.step);

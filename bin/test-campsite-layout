@@ -2,14 +2,23 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import * as NativeThree from 'three';
+import {batchPropGroups} from '../src/propRendering.js';
 import {planCampRecipe,planCampNeighborhood,CAMP_ARCHETYPES} from '../src/campPlanning.js';
 import {registerCampsite,canPlaceCampsite,campSeatApproaches} from '../src/campRegistry.js';
 const source=readFileSync(new URL('../src/models/campsite.js',import.meta.url),'utf8');
 const tentColors=vm.runInNewContext(source.match(/const TENT_COLORS = (\[[^\]]+\]);/)[1]);
 class Group {
-  constructor(){this.children=[];this.position={x:0,y:0,z:0,set(x,y,z){Object.assign(this,{x,y,z});return this;},clone(){return {x:this.x,y:this.y,z:this.z,set(x,y,z){Object.assign(this,{x,y,z});return this;}};}};this.rotation={y:0};this.quaternion={setFromUnitVectors(){}};this.scale={x:1,y:1,z:1,setScalar(s){this.x=this.y=this.z=s;},set(x,y,z){Object.assign(this,{x,y,z});}};}
-  add(...nodes){this.children.push(...nodes);}
-  remove(node){this.children.splice(this.children.indexOf(node),1);}
+  constructor(){this.matrix=new NativeThree.Matrix4();this.matrixWorld=new NativeThree.Matrix4();this.children=[];this.position={x:0,y:0,z:0,set(x,y,z){Object.assign(this,{x,y,z});return this;},clone(){return {x:this.x,y:this.y,z:this.z,set(x,y,z){Object.assign(this,{x,y,z});return this;}};}};this.rotation={y:0};this.quaternion={setFromUnitVectors(){}};this.scale={x:1,y:1,z:1,setScalar(s){this.x=this.y=this.z=s;},set(x,y,z){Object.assign(this,{x,y,z});}};}
+  updateMatrix(){this.matrix.compose(new NativeThree.Vector3(this.position.x,this.position.y,this.position.z),new NativeThree.Quaternion().setFromAxisAngle(new NativeThree.Vector3(0,1,0),this.rotation.y),new NativeThree.Vector3(this.scale.x,this.scale.y,this.scale.z));}
+  updateWorldMatrix(){this.updateMatrix();this.matrixWorld.copy(this.matrix);}
+  add(...nodes){for(const node of nodes){node.parent?.remove(node);this.children.push(node);node.parent=this;}}
+  remove(node){const i=this.children.indexOf(node);if(i>=0)this.children.splice(i,1);node.parent=null;}
+  // Layout fixture uses only yaw and an identity root at this assembly stage.
+  // Native Three reparenting and instance transforms are checked separately.
+  attach(node){const p=node.parent,a=p.rotation.y,x=node.position.x,z=node.position.z;
+    node.position.set(p.position.x+Math.cos(a)*x+Math.sin(a)*z,node.position.y+p.position.y,p.position.z-Math.sin(a)*x+Math.cos(a)*z);
+    node.rotation.y+=a;this.add(node);return this;}
 }
 const cfg={small:{radius:4,tents:1,ezUps:[0,1],torches:2,tapestries:1,chairs:[1,2]},medium:{radius:6,tents:2,ezUps:[1,1],torches:3,tapestries:[1,2],chairs:[2,3]},large:{radius:8,tents:3,ezUps:[1,2],torches:4,tapestries:2,chairs:[3,4]}};
 class Geometry {
@@ -49,7 +58,7 @@ const tapestryBuilder=rng=>{for(let i=0;i<4;i++)rng();return {group:new Group()}
 const context={THREE:{Group},PERF:{contextLights:false},SIZE_CONFIG:cfg,CAMPSITE_SCALE:2,
   buildChiminea:builder,buildCampTent:makeTent,planCampRecipe,discardCampProp:()=>{},buildEzUp:makeCanopy,buildCampChair:makeChair,buildTapestry:tapestryBuilder,CHAIR_COLORS:[0xc44a4a,0x3b7fbe,0x4f9c4f,0xd4c177,0xb86bc7,0x444b55],
   buildTorchField:(positions,rng)=>{positions.forEach(p=>{if(p.phase==null)rng();});return {group:new Group(),animatables:[]};},
-  addCampKitchen:()=>{},addCanopyTwinkles:()=>{},addCampLanterns:()=>{},addTentEveningGlow:()=>{},batchCampChairs:()=>{},campsiteFootprint:size=>(cfg[size].radius+3)*2};
+  addCampKitchen:parent=>{const group=new Group();group.position.set(1.9,0,-.7);parent.add(group);return {cooler:{group,footprint:.42}};},addCanopyTwinkles:()=>{},addCampLanterns:()=>{},addTentEveningGlow:()=>{},batchCampChairs:(root,chairs)=>{for(const chair of chairs)chair.group.updateMatrix();},campsiteFootprint:size=>(cfg[size].radius+3)*2};
 const fragment=source.slice(source.indexOf('function pickCount('),source.indexOf('// Shared unit geometry'))+source.slice(source.indexOf('export function buildCampsite('),source.indexOf('// ---------- Vendor backstage camp'));
 const build=vm.runInNewContext(fragment.replace(/^export /gm,'')+';buildCampsite',context);
 function random(seed){return()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};}
@@ -210,26 +219,22 @@ if(process.argv[2]) {
   console.log('Scope: real tent/tapestry/canopy/chair builders with canvas drawing and remaining rendering primitives stubbed identically; counts establish construction savings, not GPU or device timing.');
 }
 
-// Execute the shipped batching helper, retaining each chair's metadata anchor.
-class Matrix {
-  multiplyMatrices(parent,child){this.parent=parent;this.child=child;return this;}
-}
-class Instances {
-  constructor(geometry,material,count){Object.assign(this,{geometry,material,count,instanceMatrix:{needsUpdate:false},matrices:[]});}
-  setMatrixAt(i,matrix){this.matrices[i]=matrix;}
-}
+// Execute the shipped chair wrapper with actual Three matrices and bindings.
 const batchFragment=source.slice(source.indexOf('function batchCampChairs('),source.indexOf('export function buildCampsite('));
-const batch=vm.runInNewContext(batchFragment+';batchCampChairs',{THREE:{Matrix4:Matrix,InstancedMesh:Instances}});
-const geometry={userData:{shared:true}},material={userData:{shared:true}};
-const chairFixture=()=>({group:{matrix:{},children:[0,1,2].map(()=>({geometry,material,matrix:{},updateMatrix(){}})),updateMatrix(){},remove(mesh){this.children.splice(this.children.indexOf(mesh),1);}}});
-const anchors=[chairFixture(),chairFixture()],root=new Group();
-batch(root,anchors);
-assert.equal(root.children.length,1,'matching chair parts collapse to one draw');
-assert.equal(root.children[0].count,6,'all original part transforms survive batching');
-assert.equal(root.children[0].instanceMatrix.needsUpdate,true,'batched transforms upload');
-assert.equal(root.children[0].geometry,geometry,'batch reuses shared geometry');
-assert.equal(root.children[0].material,material,'batch reuses shared material');
-assert(anchors.every(({group})=>group.children.length===0),'seat transform anchors survive without duplicate meshes');
+const batch=vm.runInNewContext(batchFragment+';batchCampChairs',{batchPropGroups});
+const geometry=new NativeThree.BoxGeometry(),material=new NativeThree.MeshBasicMaterial();
+geometry.userData.shared=material.userData.shared=true;
+const chairFixture=()=>{const group=new NativeThree.Group();for(let i=0;i<3;i++)group.add(new NativeThree.Mesh(geometry,material));return {group};};
+const anchors=[chairFixture(),chairFixture()],root=new NativeThree.Group();
+anchors.forEach(({group})=>root.add(group));
+const chairBatch=batch(root,anchors);
+assert.equal(chairBatch.meshes.length,1,'matching chair parts collapse to one draw');
+assert.equal(chairBatch.meshes[0].count,6,'all original part transforms survive batching');
+assert(chairBatch.meshes[0].instanceMatrix.version>0,'batched transforms upload');
+assert.equal(chairBatch.meshes[0].geometry,geometry,'batch reuses shared geometry');
+assert.equal(chairBatch.meshes[0].material,material,'batch reuses shared material');
+assert(anchors.every(({group,renderBinding})=>group.children.length===0&&renderBinding.group===group),'seat anchors retain their part bindings without duplicate meshes');
+chairBatch.dispose();geometry.dispose();material.dispose();
 console.log('PASS chair batching: shared resources, metadata anchors, all transforms retained and instance upload flagged.');
 
 const animateSource=source.slice(source.indexOf('export function updateCampsiteProps(')).replace('export function','function');

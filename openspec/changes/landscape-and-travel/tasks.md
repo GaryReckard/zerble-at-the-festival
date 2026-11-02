@@ -84,8 +84,8 @@ Depends on Groups 6 and 7 (procedural districts and complete crossings). Owners 
 - [x] 8.4 Connect physical-prop colliders to the same surface geometry/version/owner through the existing physics adapter, with teardown and occupied-support retention.
 - [x] 8.5 Measure cold planning, geometry allocation/uploads, moving/parked draws/tris and Low/Mid/High behavior against baseline. Fix measured regressions without broad unrelated optimization.
 
-- [ ] 8.6 Reproduce and correct Gary's seed-3232217193 report of porta-potties occupying the road at (1497.87, 868.42); validate built clearance against the actual road geometry.
-- [ ] 8.7 Reproduce and correct Lurleen stopping while following up the steep hill near (971.45, 902.1) at seed 3232217193; preserve independent controller behavior and feasible route following.
+- [x] 8.6 Reproduce and correct Gary's seed-3232217193 report of porta-potties occupying the road at (1497.87, 868.42); validate built clearance against the actual road geometry.
+- [x] 8.7 Reproduce and correct Lurleen stopping while following up the steep hill near (971.45, 902.1) at seed 3232217193; preserve independent controller behavior and feasible route following.
 
 ## 9. Release and preserve the handoff
 
@@ -94,7 +94,7 @@ Depends on Group 8 (consumer/performance acceptance).
 - [x] 9.1 Complete full check/build, ready title-gesture real-game boot, camera modes, repeated streaming and noon/midnight tier captures; structural browser cleanup required.
 - [ ] 9.2 Obtain physical iPhone/iPad driving, readability and frame-delivery evidence with device/browser recorded; leave this unchecked until actually observed.
 - [ ] 9.3 Finish player recognition/route-choice playtest without announcing hill locations; record encounter opportunities separately; choose final tuning and rollout based on evidence.
-- [ ] 9.4 Enable the new version deliberately, update current specs/architecture/debug/changelog/roadmap and evidence, refresh README and verify change artifacts; Barn and first aid stay future work.
+- [x] 9.4 Enable the new version deliberately, update current specs/architecture/debug/changelog/roadmap and evidence, refresh README and verify change artifacts; Barn and first aid stay future work.
 
 ## Execution handoff rules
 

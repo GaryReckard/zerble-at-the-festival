@@ -16,7 +16,7 @@
     <div class="eyebrow">Zerble / physical festival workshop</div>
     <h1>A little room<br>to knock around.</h1>
     <p>Repeat a contact, slow it down, and inspect how the real festival furniture settles.</p>
-    <label class="control">Encounter<select id="fixture"><option value="chair">Empty chair</option><option value="pair">Chair pair</option><option value="slope">Chair on a slope</option><option value="solid">Chair beside a solid</option><option value="cooler">Closed cooler</option><option value="occupied" disabled>Occupied chair · unavailable</option></select></label>
+    <label class="control">Encounter<select id="fixture"><option value="chair">Empty chair</option><option value="pair">Chair pair</option><option value="slope">Chair on a slope</option><option value="solid">Chair beside a solid</option><option value="terrain">Production terrain</option><option value="cooler">Closed cooler</option><option value="occupied" disabled>Occupied chair · unavailable</option></select></label>
     <label class="control">Chair style<select id="style"><option value="sling">Sling</option><option value="director">Director</option><option value="low">Low chair</option><option value="loveseat">Loveseat</option></select></label>
     <label class="control">Seed<input id="seed" type="number" min="0" max="4294967295" step="1" value="1977"></label>
     <label class="control"><span>Approach speed <output id="speed-label">6 m/s</output></span><input id="speed" type="range" min="0.5" max="20" step="0.5" value="6"></label>
@@ -27,8 +27,8 @@
     <p id="status" role="status">Preparing the physical playground…</p>
     <hr>
     <div class="row"><button id="noon" aria-pressed="true">Noon</button><button id="midnight" aria-pressed="false">Midnight</button></div>
-    <div class="checks"><label><input id="physics" type="checkbox" checked> Enable physical simulation</label><label><input id="colliders" type="checkbox"> Collision shapes</label><label><input id="bounds" type="checkbox"> Model bounds</label><label><input id="sockets" type="checkbox"> Seat anchors</label></div>
-    <p class="note">Audio is muted. The cart is a contact proxy; the production controller, occupants, person claims, cup transfers, and campsite ownership are pending. Disabling physics shows a static model reference.</p>
+    <div class="checks"><label><input id="physics" type="checkbox" checked> Enable physical simulation</label><label><input id="show-cart" type="checkbox" checked> Show cart</label><label><input id="ghost" type="checkbox"> Cart ghost mode</label><label><input id="colliders" type="checkbox"> Collision shapes</label><label><input id="bounds" type="checkbox"> Model bounds</label><label><input id="sockets" type="checkbox"> Seat anchors</label></div>
+    <p class="note">Audio is muted. Zerble uses the production driving controller. Occupants, person claims, cup transfers, and campsite ownership are pending. Disabling physics shows a static model reference.</p>
     <details><summary>Inputs, contacts, and limits</summary><pre id="inspection">Waiting for the engine.</pre><div class="row"><button id="copy">Copy report</button><button id="dispose">Dispose scene</button></div></details>
     <p><a href="sandbox.html?entity=camp_chair&amp;mute=1">Entity viewer</a> · <a href="index.html?mute=1">Festival</a></p>
   </aside>

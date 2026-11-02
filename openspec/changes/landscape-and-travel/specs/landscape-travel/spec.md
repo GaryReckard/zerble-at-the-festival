@@ -66,8 +66,20 @@ A stream SHALL have a bounded canonical owner, declared receiver, coherent downs
 
 ### Requirement: Cheap production-backed verification and rollout
 
-The existing terrain sandbox SHALL exercise shared support/geometry and the real cart with reproducible starts, ray/contact checks, surface diagnostics and Noon/Midnight inspection. Production enablement SHALL require real-game boot, consumer/lifecycle verification, check/build and tier/device evidence, with unmeasured gates explicit. No near-spawn encounter or Barn/first-aid implementation is required.
+The existing terrain sandbox SHALL exercise shared support/geometry and the real cart with reproducible starts, ray/contact checks, surface diagnostics and Noon/Midnight inspection. Production enablement SHALL require real-game boot, consumer/lifecycle verification, check/build and recorded tier evidence. Physical-device and player-recognition checks SHALL remain explicitly unmeasured until observed; the project owner MAY authorize rollout before those follow-ups. No near-spawn encounter or Barn/first-aid implementation is required.
 
 #### Scenario: Isolated proof passes
 - **WHEN** the authored fixture passes contact tests but production actors or device evidence remain unverified
-- **THEN** the change reports partial implementation and does not claim production release acceptance.
+- **THEN** the change reports the outstanding checks and does not claim device acceptance; any owner-authorized rollout is recorded separately.
+
+### Requirement: Default landscape selection and fallback
+
+Modern-world gameplay with terrain enabled SHALL select landscape generation 2 when the URL omits a landscape override. `landscape=1` SHALL select the previous layout without overwriting its map exploration namespace. Explicit flat terrain or legacy world generation SHALL retain landscape generation 1. Graphics quality SHALL NOT select the landscape version.
+
+#### Scenario: Ordinary release startup
+- **WHEN** a player opens the game without a landscape parameter
+- **THEN** the modern terrain world uses generation 2 and prepares its access reservations before the ready mode plank.
+
+#### Scenario: Previous-layout fallback
+- **WHEN** a developer opens the same seed with `landscape=1`
+- **THEN** generation 1 is selected and its prior map exploration remains separate from generation 2.

@@ -1,6 +1,7 @@
 import {FESTIVAL_TUNING} from './worldgen/tuning.js';
 import {setLandscapeVersion,landscapeVersion} from './worldgen/landscapeCandidates.js';
 import {resolveCollision,SOFT_PEOPLE_KINDS} from './collisionContacts.js';
+import {applyPropFeedback} from './physics/propFeedback.js';
 // Bootstraps three.js, runs the game loop, owns scene/postprocessing/collision/scoring.
 
 import * as THREE from 'three';
@@ -178,7 +179,7 @@ if (peopleFrameTrace) {
 
 // Rolling terrain is the default; retain an explicit flat-world debug fallback.
 setTerrainEnabled(new URLSearchParams(location.search).get('terrain') !== '0');
-setLandscapeVersion(terrainEnabled()&&USE_WORLDGEN_V2&&new URLSearchParams(location.search).get('landscape')==='2'?2:1);
+setLandscapeVersion(terrainEnabled()&&USE_WORLDGEN_V2&&new URLSearchParams(location.search).get('landscape')!=='1'?2:1);
 import { MODEL_DECOR_MERGE_ENABLED, getMergeDecorStats } from './mergeDecor.js';
 import { BoostStreaks } from './boostStreaks.js';
 import { syncRenderPipelineSize, readRenderPipelineSize } from './renderSizing.js';
@@ -611,6 +612,69 @@ if(landscapeVersion()===2){
   landscapeRuntime.update(zerble,{deadline:performance.now()+PERF.chunkBudgetMs});
 }
 buildWorld(scene, crowd, zerble.position,{landscape:landscapeRuntime});
+// Live physics defaults on. Loading is independent of the synchronous audio
+// unlock gesture, and failure leaves every prop on its legacy path.
+let physicalWorld=null, physicalLoadError=null, physicalClosing=false;
+const physicalFlag=new URLSearchParams(location.search).get('physics');
+const physicalRequested=physicalFlag!=='0';
+let physicalReadout=null,physicalDetails=null,physicalDiagnostics=null,physicalReportAt=0,physicalActionMessage='',physicalEncounterId=null,physicalPersonEncounter=null,physicalCoast=null;
+if(physicalFlag==='1') {
+  const panel=document.createElement('details');panel.id='physical-world-panel';
+  const touchLayout=matchMedia('(pointer: coarse), (max-width: 800px)').matches;
+  panel.open=!touchLayout;
+  const panelToggle=document.createElement('summary');panelToggle.textContent='Physics tools';panel.append(panelToggle);
+  Object.assign(panel.style,{position:'fixed',left:'12px',bottom:'12px',zIndex:'2000',background:'#17251fee',color:'white',padding:'10px',font:'12px monospace',maxWidth:'340px'});
+  if(touchLayout)Object.assign(panel.style,{top:'72px',bottom:'auto',maxWidth:'calc(100vw - 48px)',maxHeight:'calc(100dvh - 160px)',overflow:'auto'});
+  physicalReadout=document.createElement('pre');physicalReadout.textContent='Loading physical props…';panel.append(physicalReadout);
+  const stage=document.createElement('button');stage.textContent='Stage prop encounter';
+  const stageEncounter=(kind=null)=>{
+    const approach=physicalWorld?.approach(isPointInLake,kind);
+    if(!approach){physicalActionMessage='No matching prop with a clear cart approach is loaded.';return;}
+    physicalPersonEncounter=null;physicalEncounterId=approach.entryId;
+    physicalActionMessage='Prepared approach; wait for target admission, then coast.';
+    playerStats.relocate();zerble.position.set(approach.x,terrainHeight(approach.x,approach.z),approach.z);
+    zerble.heading=approach.heading;zerble.speed=0;zerble.groundOnSurface();physicalWorld.reset('teleport');
+  };
+  stage.onclick=()=>stageEncounter();
+  const coolerStage=document.createElement('button');coolerStage.textContent='Stage cooler encounter';coolerStage.onclick=()=>stageEncounter('camp_cooler');
+  const occupiedStage=document.createElement('button');occupiedStage.textContent='Stage occupied encounter';occupiedStage.onclick=()=>stageEncounter('occupied');
+  const pedestrianStage=document.createElement('button');pedestrianStage.textContent='Stage pedestrian encounter';pedestrianStage.onclick=()=>{
+    const approach=physicalWorld?.approachPerson();
+    if(!approach){physicalActionMessage='No prepared pedestrian with a clear approach is nearby.';return;}
+    physicalEncounterId=null;physicalPersonEncounter=approach.person;physicalActionMessage='Pedestrian prepared; coast or drive forward.';
+    playerStats.relocate();zerble.position.set(approach.x,terrainHeight(approach.x,approach.z),approach.z);
+    zerble.heading=approach.heading;zerble.speed=0;zerble.groundOnSurface();physicalWorld.reset('teleport');
+  };
+  const toss=document.createElement('button');toss.textContent='Toss prop toward pedestrian';toss.onclick=()=>{
+    const result=physicalWorld?.tossAtPerson();
+    physicalActionMessage=result?.ok?'Nearby prop launched; pedestrian still moves normally.':`Cannot stage toss: ${result?.reason??'physics-loading'}`;
+  };
+  const dismount=document.createElement('button');dismount.textContent='Try occupied-chair exit';dismount.onclick=()=>{
+    const result=physicalWorld?.requestDismount();
+    physicalActionMessage=result?.ok?'Occupants checking a clear exit; blocked exits keep their seats.':`Cannot stage exit: ${result?.reason??'physics-loading'}`;
+  };
+  const personTargetReady=()=>!!physicalPersonEncounter&&physicalWorld?.stats().ordinary?.people.some(p=>p.slot===physicalPersonEncounter.slot&&p.generation===physicalPersonEncounter.generation&&p.ready);
+  const coast=physicalCoast=document.createElement('button');coast.textContent='Coast forward';coast.disabled=true;coast.onclick=()=>{if(personTargetReady()||physicalWorld?.owns(registry.entries.get(physicalEncounterId)??{}))zerble.speed=8;};
+  const inspect=document.createElement('button');inspect.textContent='Inspect staged prop';inspect.onclick=()=>{
+    const entry=registry.entries.get(physicalEncounterId);if(!entry)return;
+    const p=entry.position,dx=p.x-zerble.position.x,dz=p.z-zerble.position.z,length=Math.hypot(dx,dz)||1;
+    window.__dbg?.camLock(p.x+dz/length*4+dx/length*2,(p.y??0)+3,p.z-dx/length*4+dz/length*2,p.x,(p.y??0)+.6,p.z);
+  };
+  const chase=document.createElement('button');chase.textContent='Chase camera';chase.onclick=()=>window.__dbg?.camUnlock();
+  const noon=document.createElement('button');noon.textContent='Noon';noon.onclick=()=>getTimeOfDay()?.setT(.3);
+  const midnight=document.createElement('button');midnight.textContent='Midnight';midnight.onclick=()=>getTimeOfDay()?.setT(.75);
+  physicalDetails=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Physics diagnostics';
+  physicalDiagnostics=document.createElement('pre');Object.assign(physicalDiagnostics.style,{maxHeight:'200px',overflow:'auto'});physicalDetails.append(summary,physicalDiagnostics);
+  panel.append(stage,coolerStage,occupiedStage,pedestrianStage,toss,dismount,coast,inspect,chase,noon,midnight,physicalDetails);document.body.append(panel);
+}
+if(physicalRequested) {
+  import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera,people:crowd,landscape:landscapeRuntime,isWet:isPointInLake})).then(world=>{
+    if(physicalClosing)world.dispose();else physicalWorld=world;
+  }).catch(error=>{physicalLoadError=error.message;if(physicalReadout)physicalReadout.textContent=`Physics unavailable: ${error.message}`;console.error('Physical chair initialization failed',error);});
+}
+window.addEventListener('pagehide',event=>{if(!event.persisted){physicalClosing=true;physicalWorld?.dispose();}});
+window.addEventListener('pageshow',event=>{if(event.persisted)physicalWorld?.reset('dropped-time');});
+
 // Resumed session: restore the time of day so the sky matches where you left off
 // (the ToD instance is created inside buildWorld, so this must come after it).
 if (__launch && Number.isFinite(__launch.tod)) getTimeOfDay()?.setT(__launch.tod);
@@ -1689,7 +1753,7 @@ function tickBody(dt) {
     // Procedural world expands around Zerble.
     const worldStartedAt = PERF_CAPTURE_TIMING ? performance.now() : 0;
     peopleFrameTrace?.mark('world-before', registry.entries.size);
-    updateWorld(zerble.position, dt);
+    updateWorld(zerble.position, dt, physicalWorld?.prepare);
     peopleFrameTrace?.mark('world-after', registry.entries.size);
     if (PERF_CAPTURE_TIMING) _perfWorldMs = performance.now() - worldStartedAt;
 
@@ -1705,8 +1769,10 @@ function tickBody(dt) {
     // If something brushes a stationary Zerble, just resolve the overlap silently.
     // Star power = pure ghost mode: the whole resolver short-circuits, so Zerble
     // phases through every collider untouched.
+    const physicalBeforeX=zerble.position.x,physicalBeforeZ=zerble.position.z;
+    let hit=null;
     peopleFrameTrace?.mark('contacts-eligible', zerble.invulnLeft <= 0 && !StarPower.isActive());
-    if (zerble.invulnLeft <= 0 && !StarPower.isActive()) {
+    if (!StarPower.isActive()) {
       // Build a per-frame collider list for nearby crowd NPCs so Zerble can actually
       // bump them. Skip riders + anyone more than 5m away (cheap broad-phase reject).
       // Disembarking NPCs are also skipped entirely for the ~5s disembark window —
@@ -1721,18 +1787,36 @@ function tickBody(dt) {
       _collScratch.length = 0;
       _regColPoolN = 0;
       registry.collidersNear(zerble.position.x, zerble.position.z, zerble.radius + 1, (e) => {
-        _collScratch.push(_regColWrap(e));
+        if(!physicalWorld?.owns(e)) _collScratch.push(_regColWrap(e));
       });
       people.dispatch('colliders',_collScratch,zerble);
       peopleFrameTrace?.candidates(_collScratch);
       peopleBaseline?.count('collisionCandidates',_collScratch.length);
-      const hit = resolveCollision(zerble, _collScratch);
-      peopleFrameTrace?.hit(hit);
+      hit = resolveCollision(zerble, _collScratch);
+    }
+    const physicalHit=physicalWorld?.advance(dt,{ghost:StarPower.isActive(),
+      corrected:zerble.position.x!==physicalBeforeX||zerble.position.z!==physicalBeforeZ,
+      eligible:zerble.invulnLeft<=0&&!isGod()});
+    if(physicalHit && !hit?.damaging) {
+      hit=physicalHit;
+      applyPropFeedback(zerble,hit);
+    }
+    if(physicalReadout && physicalWorld && performance.now()-physicalReportAt>250) {
+      physicalReportAt=performance.now();
+      const state=physicalWorld.stats();
+      const targetReady=physicalWorld.owns(registry.entries.get(physicalEncounterId)??{})||!!physicalPersonEncounter&&state.ordinary?.people.some(p=>p.slot===physicalPersonEncounter.slot&&p.generation===physicalPersonEncounter.generation&&p.ready);
+      physicalCoast.disabled=!targetReady||state.cart.pendingClearance;
+      physicalReadout.textContent=`Physical props prototype\n${state.chairs.filter(chair=>chair.active).length} active / ${state.chairs.length} preparing | ${state.engine.bodies} bodies\n${state.hits} impacts | ${state.blocked??'running'}\nLast admission: ${state.lastReject??'ready'}\n${state.chairs.reduce((sum,chair)=>sum+(chair.state?.occupants?.filter(p=>p.current).length??0),0)} active sitters | ${state.ordinary?.people.filter(p=>p.active).length??0} falling pedestrians\n${state.ordinary?.started??0} pedestrian falls / ${state.ordinary?.completed??0} recovered\nTarget: ${targetReady?'active':'not admitted'}\n${physicalActionMessage}`;
+      if(physicalDetails.open)physicalDiagnostics.textContent=JSON.stringify(state,null,2);
+    }
+    peopleFrameTrace?.hit(hit);
+    {
+
       if (hit && hit.damaging && !isGod()) {
         Scoring.deduct(hit.damage);
         // Damaging PEOPLE hits snap the combo chain (scoring spec) and, in
         // Festival Run, land a vibe strike + scare Lurleen + frown the struck
-        // NPC. Prop bonks just cost the smiles, same as always. There is ONE
+        // NPC. Empty props have their own sound-only feedback below. There is ONE
         // toast slot — a stakes beat (heartbreak/whistle) outranks the generic
         // quip, or a same-frame overwrite makes the beat invisible.
         let stakesToasted = false;
@@ -1752,6 +1836,10 @@ function tickBody(dt) {
             toastForKind(hit.kind),
             NAMED_HIT_TOASTS[Math.floor(Math.random() * NAMED_HIT_TOASTS.length)]), 1400);
         }
+        Sound.playCollision(hit.kind);
+        Analytics.collision(hit.kind);
+        if (passportCanCollect()) playerStats.record('bonks');
+      } else if (hit && hit.objectBump) {
         Sound.playCollision(hit.kind);
         Analytics.collision(hit.kind);
         if (passportCanCollect()) playerStats.record('bonks');
@@ -1956,6 +2044,7 @@ HUD.onScoreClose(() => { if (RunState.over) location.reload(); });
 // carts spec) and tips a minimal refill. No source resident → refill in place
 // (design D14; no undefined path, no soft-lock).
 function performLurleenRescue() {
+  physicalWorld?.reset('rescue');
   if (!RunState.useRescue()) { endFestivalRun('ran_dry'); return; }
   let nearest = null; let bestD = Infinity;
   for (const e of registry.entries.values()) {
@@ -2065,6 +2154,7 @@ function toastForKind(kind) {
     case 'camp_tapestry': return 'Mind the camp privacy screens!';
     case 'camp_tent': return 'Give the sleeping tents some room!';
     case 'camp_loveseat':
+    case 'chair':
     case 'camp_chair': return 'Mind the camp chairs!';
     case 'campfire': return 'Careful around the campfire!';
     case 'camp_torch':
@@ -2156,6 +2246,7 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
   };
 
   window.__dbg = {
+    physics() { return physicalWorld?.stats() ?? {requested:physicalRequested,error:physicalLoadError}; },
     peopleFrames() { return peopleFrameTrace?.report() ?? null; },
     leaderboardInfo() { return Leaderboard.diagnostics(); },
     festivalMap() { return festivalMap.snapshot(); },
@@ -2451,9 +2542,11 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     teleport(x = 0, z = 0) {
       if (zerble.surfaceBinding) {
         if (!zerble.relocateOnSurface(x, z)) return 'Teleport blocked: unsupported destination';
+        physicalWorld?.reset('teleport');
         playerStats.relocate();
         return `teleported to (${x}, ${z})`;
       }
+      physicalWorld?.reset('teleport');
       playerStats.relocate();
       zerble.position.set(x, terrainHeight(x,z), z);
       if (zerble.surfaceSampler) zerble.groundOnSurface();

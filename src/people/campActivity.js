@@ -3,6 +3,7 @@ import {
   reserveCampSlot,
   campSlotValid,
   releaseCampSlot,
+  prepareCampSlotTransfer,
   campExit,
 } from "./campResources.js";
 const vector = () => ({
@@ -65,6 +66,12 @@ export class CampActivity {
     out.entry = s.campEntry;
     out.bed = s.campBed;
     return true;
+  }
+  prepareSupportTransfer(handle, entry, attempt) {
+    const s = this.records.get(handle);
+    if (this.disposed || !s || !this.people.readCampMotion(handle,s)
+      || s.state !== 'camp_seated' || s.campBed) return null;
+    return prepareCampSlotTransfer(this.people,this.registry,s.reservation,entry,attempt);
   }
   exit(handle) {
     const s = this.records.get(handle);
@@ -230,10 +237,11 @@ export class CampActivity {
             dz = camp.position.z - npc.pos.z;
           if (dx * dx + dz * dz > reach * reach) continue;
         }
-        for (const candidate of (sleep && !camp.stageAudience ? camp.campBeds : camp.campSeats) ||
+        const bed=sleep && !camp.stageAudience;
+        for (const candidate of (bed ? camp.campBeds : camp.campSeats) ||
           []) {
           if (!campSlotAvailable(candidate)) continue;
-          if (this.people?.canReachCampSlot && !this.people.canReachCampSlot(npc.person, candidate, sleep, camp.position?.y)) continue;
+          if (this.people?.canReachCampSlot && !this.people.canReachCampSlot(npc.person, candidate, bed, camp.position?.y)) continue;
           const d = Math.hypot(
             candidate.x - npc.pos.x,
             candidate.z - npc.pos.z,

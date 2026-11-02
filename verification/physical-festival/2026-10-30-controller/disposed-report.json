@@ -1,0 +1,71 @@
+{
+  "settings": {
+    "fixture": "terrain",
+    "style": "sling",
+    "seed": 1977,
+    "speed": 6,
+    "angle": 0,
+    "physics": true
+  },
+  "timeOfDay": "midnight",
+  "paused": true,
+  "playback": 1,
+  "allocationMs": 797.8000000119209,
+  "publicationMs": 0.09999996423721313,
+  "lifecycle": {
+    "disposed": true,
+    "cleanupErrors": [],
+    "fixtureActive": false,
+    "rafActive": false,
+    "listenersActive": false,
+    "renderObjects": 0,
+    "sceneChildren": 0
+  },
+  "rendering": null,
+  "state": {
+    "props": [],
+    "ground": {
+      "slope": 0,
+      "width": 40,
+      "depth": 40,
+      "productionTerrain": true
+    },
+    "physics": true,
+    "time": 27.166666666666405,
+    "events": [],
+    "stats": {
+      "bodies": 0,
+      "colliders": 0,
+      "joints": 0,
+      "meshVertices": 0,
+      "meshTriangles": 0,
+      "engineBodies": 0,
+      "engineColliders": 0,
+      "events": 0,
+      "overflow": 0,
+      "totalOverflow": 0,
+      "steps": 1630,
+      "disposed": true,
+      "droppedSeconds": 0.38146666666666595,
+      "alpha": 0.10600000000036573,
+      "stepMs": 0.19999998807907104,
+      "maxStepMs": 133,
+      "meanStepMs": 0.3424539875764788,
+      "activationMs": 203.10000002384186,
+      "eventOverflow": 0,
+      "historyEvictions": 1740,
+      "renderProps": 0
+    },
+    "limitations": [
+      "Production controller; live-game contact barrier and registry integration pending.",
+      "Production terrain triangles in a bounded fixture. No occupants, streaming or release claims yet.",
+      "Static reference mode is not the legacy game collision path. Capacities are experimental, not device limits."
+    ]
+  },
+  "limitations": [
+    "Production Zerble controller with a conservative kinematic contact hull; live-game frame integration pending.",
+    "No people or production campsite ownership in this fixture.",
+    "Publication time measures CPU transform writes, not GPU upload time.",
+    "This fixture does not establish production or physical-device acceptance."
+  ]
+}
