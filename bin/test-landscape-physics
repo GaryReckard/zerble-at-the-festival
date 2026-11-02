@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import {Vector3,Quaternion} from 'three';
 import {setSessionSeed} from '../src/rng.js';
 import {setLandscapeVersion,landscapeCandidateInCell} from '../src/worldgen/landscapeCandidates.js';
-import {setTerrainEnabled,sampleTerrain,terrainVertexHeight} from '../src/worldgen/terrain.js';
+import {setTerrainEnabled,sampleTerrain,terrainVertexHeight,terrainGenerationKey} from '../src/worldgen/terrain.js';
 import {LandscapePhysicsSurfaces} from '../src/landscape/physicsSurfaces.js';
 import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+import {landscapeTileSupport,landscapePhysicsGround} from '../src/landscape/physicsTiles.js';
+import {createSupportWorld} from '../src/landscape/support.js';
+import {createTerrainResidency} from '../src/physics/terrainResidency.js';
 import {coolerRecipe} from '../src/physics/recipes.js';
 setSessionSeed(1977);setLandscapeVersion(2);setTerrainEnabled(true);
 const candidate=landscapeCandidateInCell(-1,-1),bridge=candidate.bridge,b=bridge.bounds;
@@ -59,6 +62,31 @@ try {
   assert.equal(surfaces.dispose({removeTracked:true}),true);assert.equal(pins,0);assert.equal(engine.counts().bodies,0);
   assert.equal(surfaces.dispose(),true);
 }finally{surfaces.dispose({removeTracked:true});engine.dispose();}
+// The default live engine uses its existing terrain residency, with deck solids
+// sharing tile bodies and owner leases. No duplicate terrain provider is attached.
+const liveEngine=await createRapierAdapter({capacities:{bodies:70,colliders:140,events:0}});
+const liveRuntime={disposed:false,key:terrainGenerationKey(),supportWorld:createSupportWorld({sampleTerrain,decks:[bridge]}),owners:runtime.owners,access:{query:()=>[{candidate,state:{status:'ready'}}]}};
+const liveTerrain=createTerrainResidency(liveEngine,{maxTiles:64,maxQueued:32,supportGeometry:(bounds,origin)=>landscapeTileSupport(liveRuntime,bounds,origin)});
+try{
+ const bounds={minX:origin.x-7,maxX:origin.x+7,minZ:origin.z-7,maxZ:origin.z+7};
+ assert.equal(liveTerrain.request('deck-test',bounds).ok,true);
+ // Missing visual support stays pending without exhausting retries or stepping.
+ liveRuntime.owners=new Map();
+ for(let i=0;i<5;i++)liveTerrain.pump({deadline:1,now:()=>0,maxCreations:32});
+ assert.equal(liveTerrain.status('deck-test').state,'pending');assert.equal(pins,0);
+ liveRuntime.owners=runtime.owners;
+ liveTerrain.pump({deadline:1,now:()=>0,maxCreations:32});assert.equal(liveTerrain.status('deck-test').state,'ready');
+ assert.ok(pins>0,'resident physics tiles retain their landscape owners');
+ for(const [id,y]of [['live-above',bridge.height+3],['live-below',bridge.height-1.1]])assert.ok(liveEngine.addBody({id,type:'dynamic',pose:{position:{...origin,y}},colliders:coolerRecipe(),ccd:true}).ok);
+ for(let i=0;i<360;i++)liveEngine.step(1/60);
+ const above=liveEngine.readBody('live-above').pose.position,below=liveEngine.readBody('live-below').pose.position;
+ assert.ok(Math.abs(above.y-bridge.height)<.03,`live tile deck floor ${above.y}`);
+ assert.ok(Math.abs(below.y-sampleTerrain(below.x,below.z).height)<.05,'live tile retains the actual bed underneath');
+ assert.equal(landscapePhysicsGround(liveRuntime,origin.x,origin.z,bridge.height+1).surfaceClass,'bridge','fallen people recover above the same deck as the solver');
+ assert.equal(landscapePhysicsGround(liveRuntime,origin.x,origin.z,bridge.height-1).height,sampleTerrain(origin.x,origin.z).height,'below-deck recovery stays on the bed');
+ const tiles=liveTerrain.stats().tiles;assert.equal(liveEngine.counts().bodies,tiles+2,'bridge colliders share existing terrain bodies');
+ liveTerrain.release('deck-test');assert.equal(pins,0,'last tile lease releases both landscape owners');assert.equal(liveEngine.counts().bodies,2);
+}finally{liveTerrain.dispose();liveEngine.dispose();}
 // Capacity admission rolls back only its own newly created support and retains
 // pre-existing bodies. Engine capacity remains an explicit retry/refusal.
 const tiny=await createRapierAdapter({capacities:{bodies:2,colliders:2,events:0}}),limited=new LandscapePhysicsSurfaces(runtime,tiny,{origin});

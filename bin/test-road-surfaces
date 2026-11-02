@@ -11,6 +11,7 @@ import {queryPoint} from '../src/worldgen/index.js';
 import {festivalPlan} from '../src/worldgen/festival.js';
 import {lakeAt} from '../src/worldgen/water.js';
 const baseline=JSON.parse(readFileSync(new URL('../verification/roads/2026-10-28/route-baseline.json',import.meta.url)));
+const welfareLayout=JSON.parse(readFileSync(new URL('../verification/landscape/2026-11-01-welfare-layout-baseline.json',import.meta.url)));
 const layout=JSON.parse(readFileSync(new URL('../verification/roads/2026-10-28/layout-baseline.json',import.meta.url)));
 // atan2 may differ by a final bit across architectures. Only cosmetic angle
 // fields get a 1e-12-radian snapshot resolution; all other values stay exact.
@@ -35,7 +36,7 @@ for(const seed of [0,42,1234,3248888364,42,0]){
  const again=roadsInBounds(-600,-600,600,600);assert.deepEqual(again,roads);
  const records=[];for(let z=-300;z<=300;z+=37)for(let x=-300;x<=300;x+=41){const {onRoad,tier,dist,dirAngle}=nearestRoad(x,z);records.push([queryPoint(x,z),{onRoad,tier,dist,dirAngle}]);}
  assert.equal(layoutHash(records),layout[seed].pointAndNearestAngles12Sha256,'original point, noBuild and nearest fields remain exact, with portable facing angles');
- assert.equal(layoutHash(heartsInBounds(-600,-600,600,600).map(h=>festivalPlan(h))),layout[seed].planAngles12Sha256,'original POI descriptors and planner RNG decisions remain exact, with portable yaw angles');
+ assert.equal(layoutHash(heartsInBounds(-600,-600,600,600).map(h=>festivalPlan(h))),welfareLayout[seed].planAngles12Sha256,'road-safe welfare placement and dependent amenities remain deterministic, with portable yaw angles');
 
  for(const h of heartsInBounds(-300,-300,300,300).reverse())for(const r of approachRoadsOf(h)){
   assert.deepEqual(roadSurface(h,r.neighbor),roadSurface(r.neighbor,h));
@@ -67,7 +68,7 @@ const d=factory('dirt'),p=factory('asphalt');assert.equal(d,factory('dirt'));ass
 for(const m of [d,p]){assert(m.userData.shared&&m.map.userData.shared&&m.depthWrite);assert(m.map.generateMipmaps);assert.equal(m.map.image.data.byteLength,(m===d?512:256)**2*4);assert(new Set(m.map.image.data).size>30,'visible grain rather than a flat fill');}
 assert.notDeepEqual(d.map.image.data,p.map.image.data);
 assert.equal(d.map.userData.tileMetres,32);assert.equal(d.map.repeat.x,1/8);
-console.log(`PASS road surfaces: exact four-seed old routes and non-angle layout values, portable angle snapshots with mutation controls, reversed endpoint/seed restoration, ${paved} paved/${dirt} dirt approaches, ${samples} dry ribbon probes, shoreline fallback, bounded shared textures. Cold/warm mixed run ${(performance.now()-started).toFixed(0)}ms; not a frame-rate measurement.`);
+console.log(`PASS road surfaces: exact four-seed old routes/point queries and current road-safe POI snapshots, portable angle snapshots with mutation controls, reversed endpoint/seed restoration, ${paved} paved/${dirt} dirt approaches, ${samples} dry ribbon probes, shoreline fallback, bounded shared textures. Cold/warm mixed run ${(performance.now()-started).toFixed(0)}ms; not a frame-rate measurement.`);
 
 // Actual vendor canopy extent (4.5m trim and rotated 3.2m-radius roof) fits
 // a straight paved avenue, but neither a bend nor a second nearby road.

@@ -18,4 +18,10 @@ export function chairRecipe(style = 'sling') {
   }
   return parts;
 }
-export function coolerRecipe() { return [box(0, .225, 0, .31, .225, .225, 180)]; }
+export function coolerRecipe({articulated=false}={}) {
+  if(!articulated)return [box(0, .225, 0, .31, .225, .225, 180)];
+  // Together with the 1.4 kg lid, preserve the original closed box's mass.
+  return [box(0,.025,0,.285,.025,.195),box(-.265,.215,0,.025,.135,.195),
+    box(.265,.215,0,.025,.135,.195),box(0,.215,-.17,.24,.135,.025),box(0,.215,.17,.24,.135,.025)]
+    .map(({density,...shape})=>({...shape,mass:(.62*.45*.45*180-1.4)/5}));
+}

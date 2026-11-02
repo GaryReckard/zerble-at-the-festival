@@ -16,6 +16,7 @@ const below=spawn(),above=spawn(deck.id),target={x:2,y:0,z:2};
 assert.equal(crowd.canReachPlace(below.personHandle,target),false);assert.equal(crowd.canReachPlace(above.personHandle,target),true);
 assert.equal(crowd.canReachCampSlot(below.personHandle,{x:2,z:2,approachX:2,approachZ:2},false,0),false,'a lower person cannot claim a higher camp seat');
 assert.equal(crowd.canReachCampSlot(below.personHandle,{x:2,z:2,doorX:2,doorZ:2},true,0),false,'a lower person cannot claim a higher sleeping tent');
+assert.equal(crowd.canReachCampSlot(below.personHandle,{x:2,z:2},true,-10),false,'a seat mislabeled as a sleeping bed cannot submit undefined support coordinates');
 assert.equal(crowd.canUseActivityGround(above.personHandle,2,2,3),true);
 const table={kind:'picnic_table',position:new Vector3(2,0,2),footprint:1,tableSeats:[{x:2,y:1,z:2,yaw:0,occupied:false}]};registry.add(table);
 assert.equal(crowd.picnics.tryClaim(below.personHandle),false);assert.equal(crowd.picnics.tryClaim(above.personHandle),true);assert.equal(table.tableSeats[0].occupied,true);

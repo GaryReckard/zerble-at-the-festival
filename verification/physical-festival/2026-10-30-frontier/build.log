@@ -1,0 +1,73 @@
+
+> build
+> vite build
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 236 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/assets/site-B5MDeBlm.webmanifest               0.47 kB
+dist/passport-preview.html                          1.22 kB │ gzip:     0.62 kB
+dist/festival-map-preview.html                      2.27 kB │ gzip:     1.03 kB
+dist/assets/press-start-2p-ClsvrIBJ.woff2           4.70 kB
+dist/hub-sandbox.html                               4.84 kB │ gzip:     1.94 kB
+dist/map-sandbox.html                               5.32 kB │ gzip:     1.98 kB
+dist/terrain-sandbox.html                           5.92 kB │ gzip:     2.45 kB
+dist/physical-sandbox.html                          8.14 kB │ gzip:     3.04 kB
+dist/assets/geography.worker-CfOfuWgs.js           11.47 kB
+dist/assets/favicon-96x96-CiQix8YV.png             14.86 kB
+dist/assets/favicon-B4CsU2Oo.ico                   15.08 kB
+dist/assets/bubble-DClPS2Xy.webp                   16.98 kB
+dist/index.html                                    21.77 kB │ gzip:     6.97 kB
+dist/sandbox.html                                  30.18 kB │ gzip:     7.29 kB
+dist/assets/apple-touch-icon-BQhTj2-O.png          36.30 kB
+dist/assets/plank-wood-BCbsHWqX.webp               89.16 kB
+dist/assets/plank-banner-BHaHfL8P.webp            100.19 kB
+dist/assets/layer-mountains-CwLXMh0S.webp         155.11 kB
+dist/assets/layer-sky-Bu6fjoNw.webp               215.13 kB
+dist/assets/title-logo-fn5cLAAo.webp              231.62 kB
+dist/assets/layer-festival-NXuRFGci.webp          318.99 kB
+dist/assets/layer-foreground-BFdSdmSd.webp        320.61 kB
+dist/assets/favicon-CPTTbEXi.svg                1,573.83 kB │ gzip: 1,185.22 kB
+dist/assets/view-Bi_AtTx_.css                       3.72 kB │ gzip:     1.12 kB
+dist/assets/passport-DUTWR86n.css                   4.98 kB │ gzip:     1.65 kB
+dist/assets/styles-CqZV424h.css                    47.69 kB │ gzip:    10.76 kB
+dist/assets/modulepreload-polyfill-P2Xu9kJm.js      0.67 kB │ gzip:     0.38 kB
+dist/assets/passport-preview-D-jWcGTZ.js            0.86 kB │ gzip:     0.56 kB │ map:     2.19 kB
+dist/assets/collisionContacts-DTv8-ahF.js           0.90 kB │ gzip:     0.56 kB │ map:     4.45 kB
+dist/assets/campResources-VbsHZXrU.js               1.02 kB │ gzip:     0.59 kB │ map:     3.88 kB
+dist/assets/constants-C5xxkg4k.js                   1.05 kB │ gzip:     0.59 kB │ map:     6.00 kB
+dist/assets/steering-DQx9jcmN.js                    1.11 kB │ gzip:     0.59 kB │ map:     7.87 kB
+dist/assets/index-leMkvJss.js                       1.28 kB │ gzip:     0.81 kB │ map:     1.34 kB
+dist/assets/preload-helper-CRzLMJPS.js              1.53 kB │ gzip:     0.80 kB
+dist/assets/playerStats-BQsGtzJB.js                 4.26 kB │ gzip:     2.10 kB │ map:    14.51 kB
+dist/assets/lint-D19iNlNa.js                        4.29 kB │ gzip:     2.02 kB │ map:    41.52 kB
+dist/assets/festival-map-preview-mlbjGfvR.js        6.98 kB │ gzip:     2.98 kB │ map:    16.00 kB
+dist/assets/input-Ctwlw6Wh.js                       7.68 kB │ gzip:     2.51 kB │ map:    31.03 kB
+dist/assets/passportMenu-Y1RvWOCS.js                7.70 kB │ gzip:     3.01 kB │ map:    16.73 kB
+dist/assets/hub-sandbox-DKQYjbjb.js                10.26 kB │ gzip:     4.65 kB │ map:    33.22 kB
+dist/assets/terrain-sandbox-DmCZMVmo.js            11.23 kB │ gzip:     5.14 kB │ map:    37.55 kB
+dist/assets/OrbitControls-YMxWlrvJ.js              12.42 kB │ gzip:     3.61 kB │ map:    51.79 kB
+dist/assets/recipes-Ds4idLIY.js                    15.73 kB │ gzip:     6.02 kB │ map:    52.68 kB
+dist/assets/physical-sandbox-BT9djPBE.js           18.87 kB │ gzip:     8.01 kB │ map:    60.30 kB
+dist/assets/view-CCZea1cP.js                       25.50 kB │ gzip:     8.72 kB │ map:    68.14 kB
+dist/assets/map-sandbox-CvEaaN7v.js                25.72 kB │ gzip:     9.56 kB │ map:   103.26 kB
+dist/assets/zerble-s5dd4mYO.js                     40.27 kB │ gzip:    14.66 kB │ map:   171.43 kB
+dist/assets/terrain-D6Yu5pOF.js                    44.61 kB │ gzip:    17.08 kB │ map:   262.98 kB
+dist/assets/liveWorld-Ci6NPNOi.js                  45.84 kB │ gzip:    15.37 kB │ map:   146.31 kB
+dist/assets/sound-Vq5QADbs.js                      73.68 kB │ gzip:    21.31 kB │ map:   300.02 kB
+dist/assets/a11y-3_cJyzA9.js                       85.26 kB │ gzip:    30.81 kB │ map:   407.65 kB
+dist/assets/sandbox-CQmNNxNY.js                   103.57 kB │ gzip:    32.21 kB │ map:   378.88 kB
+dist/assets/main-C9728G3u.js                      240.00 kB │ gzip:    80.89 kB │ map:   764.54 kB
+dist/assets/OutputPass-BlrbWRQL.js                243.40 kB │ gzip:    80.95 kB │ map:   820.79 kB
+dist/assets/smiles-CRTTgE11.js                    347.78 kB │ gzip:   115.64 kB │ map: 1,435.72 kB
+dist/assets/threeShim-Czlf_3H8.js                 534.23 kB │ gzip:   135.85 kB │ map: 1,988.75 kB
+dist/assets/rapier-BcnL-M2-.js                  4,335.14 kB │ gzip: 1,670.00 kB │ map: 4,578.67 kB
+
+✓ built in 406ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

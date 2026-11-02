@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createRapierAdapter} from '../src/physics/rapierAdapter.js';
+import {AdmissionBudget} from '../src/physics/admissionBudget.js';
+import {preparePersonFall} from '../src/physics/personFall.js';
+import {createSeatReaction} from '../src/physics/seatReaction.js';
+import {createStandRecovery} from '../src/physics/standRecovery.js';
+import {makePeopleCrowd,Vector} from './test-support/peopleCrowd.js';
+for(const mode of ['recover','repeat-impact','despawn','capacity','stale']) {
+ const adapter=await createRapierAdapter({capacities:{bodies:2,colliders:2}});
+ const budget=new AdmissionBudget({capacities:{bodies:1,colliders:1,joints:0,renderSlots:0,events:0}});
+ const population=makePeopleCrowd(),n=population.spawn({pos:new Vector()}),cleanups=[];
+ try {
+  assert(adapter.addBody({id:'floor',type:'fixed',pose:{position:{x:0,y:-.1,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:20,y:.1,z:20}}]}).ok);
+  if(mode==='capacity')assert(adapter.addBody({id:'full',type:'fixed',colliders:[{shape:'ball',radius:.1}]}).ok);
+  const prepared=preparePersonFall({adapter,budget,id:'ordinary',attempt:{own:fn=>cleanups.push(fn)}});
+  if(mode==='capacity'){assert(!prepared.ok);assert.equal(budget.report().records,0);continue;}
+  const lease=prepared.lease,id=lease.read().bodyId;assert.equal(lease.read().body.enabled,false);
+  assert.equal(adapter.counts().bodies,2,'preparation consumes the last body slot');
+  if(mode==='stale') {
+   adapter.removeBody(id);const replacement=adapter.addBody({id,type:'dynamic',colliders:[{shape:'ball',radius:.2}]});assert(replacement.ok);
+   assert.equal(lease.activate({pose:{position:{x:0,y:1,z:0}}}).reason,'reserved-body-missing');lease.dispose();assert(adapter.readBody(id));continue;
+  }
+  const claim=population.claimPersonReaction(n.personHandle,{owner:{activityKey:'physical-person'},prepare(attempt){attempt.own(()=>lease.dispose());return true;}});assert(claim);
+  const recovery=createStandRecovery({adapter,ground:()=>({height:0,normalY:1,traversable:true})});
+  const controller=createSeatReaction({people:population,claim,lease,recovery,initialSeatBlend:0,facing:0,releaseSeat(){},grounded(body){const q=body.pose.rotation;return body.pose.position.y-(.3+.4*Math.abs(1-2*(q.x*q.x+q.z*q.z)))<.06;}});
+  const initial={pose:{position:{x:0,y:1,z:0},rotation:{x:0,y:0,z:0,w:1}},linear:{x:4,y:1,z:0},angular:{x:0,y:0,z:-3}};
+  assert(lease.activate(initial).ok);assert.equal(lease.activate(initial).reason,'already-active');assert.equal(adapter.counts().bodies,2);
+  assert(controller.step(0).ok);assert.equal(n._reactionPose.seatBlend,0,'standing legs do not snap to a seated pose');
+  let interrupted=false,complete=false,rotated=false;
+  for(let i=0;i<900;i++) {
+   adapter.step(1/60);adapter.drainEvents();const result=controller.step(1/60);assert(result.ok);
+   rotated ||= Math.abs(n._reactionPose?.qz??0)>.3;
+   if(result.phase==='recovering'&&!interrupted) {
+    if(mode==='repeat-impact'){adapter.applyImpulse(id,{x:140,y:20,z:0});interrupted=true;}
+    if(mode==='despawn'){population.peopleHandles.remove(n.personHandle,()=>population.activityClaims.removePerson(n.personHandle));assert.equal(controller.step(1/60).reason,'stale-reaction');interrupted=true;break;}
+   }
+   if(result.phase==='complete'){complete=true;break;}
+  }
+  assert(rotated,'standing body visibly tips');
+  if(mode!=='despawn'){assert(complete,JSON.stringify(controller.inspect()));assert.equal(n.state,'walking');assert.equal(n._reactionPose,null);}
+  if(mode!=='recover')assert(interrupted);
+  assert.equal(adapter.counts().bodies,1);assert.equal(budget.report().records,0);
+ } finally {population.activityClaims.dispose();for(const cleanup of cleanups.reverse())cleanup();adapter.dispose();}
+ assert.equal(budget.report().records,0);
+}
+console.log('PASS ordinary fall reservation: allocation-free activation at capacity, standing pose, physical tipping/landing/recovery, repeat hit, despawn, failed allocation and stale generation cleanup.');

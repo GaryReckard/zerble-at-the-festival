@@ -1,0 +1,67 @@
+{
+  "settings": {
+    "fixture": "cooler",
+    "style": "sling",
+    "seed": 1977,
+    "speed": 6,
+    "angle": 0,
+    "physics": true
+  },
+  "timeOfDay": "noon",
+  "paused": true,
+  "playback": 1,
+  "allocationMs": 0.8999999761581421,
+  "publicationMs": 0,
+  "lifecycle": {
+    "disposed": true,
+    "fixtureActive": false,
+    "rafActive": false,
+    "listenersActive": false,
+    "renderObjects": 0,
+    "sceneChildren": 0
+  },
+  "rendering": null,
+  "state": {
+    "props": [],
+    "ground": {
+      "slope": 0,
+      "width": 24,
+      "depth": 24
+    },
+    "physics": true,
+    "time": 0,
+    "events": [],
+    "stats": {
+      "bodies": 0,
+      "colliders": 0,
+      "joints": 0,
+      "engineBodies": 0,
+      "engineColliders": 0,
+      "events": 0,
+      "overflow": 0,
+      "totalOverflow": 0,
+      "steps": 0,
+      "disposed": true,
+      "droppedSeconds": 0,
+      "alpha": 0,
+      "stepMs": 0,
+      "maxStepMs": 0,
+      "meanStepMs": 0,
+      "activationMs": 0.3999999761581421,
+      "eventOverflow": 0,
+      "historyEvictions": 0,
+      "renderProps": 0
+    },
+    "limitations": [
+      "Experimental recipes and cart proxy; production controller/registry integration pending.",
+      "Slope is a fixture plane, not production terrain. No occupants, streaming or release claims yet.",
+      "Static reference mode is not the legacy game collision path. Capacities are experimental, not device limits."
+    ]
+  },
+  "limitations": [
+    "Cart contact proxy, production controller integration pending.",
+    "No people or production campsite ownership in this fixture.",
+    "Publication time measures CPU transform writes, not GPU upload time.",
+    "This fixture does not establish production or physical-device acceptance."
+  ]
+}

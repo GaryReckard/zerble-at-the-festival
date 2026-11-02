@@ -21,6 +21,7 @@ import { register as registerContextLight,unregister as unregisterContextLight }
 import { disposeSceneResources } from '../sceneResources.js';
 import { planCampRecipe } from '../campPlanning.js';
 import { buildCampChair } from './campChair.js';
+import { batchPropGroups } from '../propRendering.js';
 export { buildCampChair } from './campChair.js';
 
 // ---------- Shared palettes ----------
@@ -850,7 +851,7 @@ const _CAMP_BOX = new THREE.BoxGeometry(1, 1, 1);
 _CAMP_BOX.userData.shared = true;
 const COOLER_COLORS = [0x387f88, 0xb84d3c, 0x5478a2, 0x6c8553];
 
-// Build once on first use: repeated camps share three complete material meshes.
+// Build once on first use; body trim and hinged lid need independent transforms.
 let _coolerGeometry;
 function coolerGeometry() {
   if (_coolerGeometry) return _coolerGeometry;
@@ -878,18 +879,22 @@ function coolerGeometry() {
     return geometry.translate(x,y,z);
   };
   // A slight taper and bevel catch light on the molded shell, even on Low.
-  const shell = extrude(roundedOutline(.57,.39,.035),.295,.045,.015);
+  const shellOutline=roundedOutline(.57,.39,.035);
+  shellOutline.holes.push(roundedOutline(.47,.29,.025));
+  const shell = extrude(shellOutline,.295,.045,.015);
   const positions = shell.getAttribute('position');
   for(let i=0;i<positions.count;i++) {
     const taper=.87+.13*(positions.getY(i)-.03)/.325;
     positions.setXYZ(i,positions.getX(i)*taper,positions.getY(i),positions.getZ(i)*taper);
   }
   shell.computeVertexNormals();
-  const body = [shell];
-  const hardware = [], cream = [];
+  const body = [shell,box(0,.055,0,.45,.03,.27)];
+  const hardware = [], cream = [], lid = [];
   // Four feet ground the cooler; the narrow seam separates the insulated lid.
   for(const x of [-.22,.22])for(const z of [-.14,.14])hardware.push(box(x,.018,z,.075,.036,.07));
-  hardware.push(extrude(roundedOutline(.596,.416,.04),.009,.356,.003));
+  const seamOutline=roundedOutline(.596,.416,.04);
+  seamOutline.holes.push(roundedOutline(.47,.29,.025));
+  hardware.push(extrude(seamOutline,.009,.356,.003));
   const lidOutline=roundedOutline(.62,.45,.04);
   for(const x of [-.15,.15]) {
     // Close with the exact starting vertex; a near-duplicate 2π arc endpoint
@@ -902,14 +907,15 @@ function coolerGeometry() {
     hole.closePath();
     lidOutline.holes.push(hole);
     const floor=new THREE.CircleGeometry(.063,16);
-    cream.push(floor.rotateX(-Math.PI/2).translate(x,.415,0));
+    lid.push(floor.rotateX(-Math.PI/2).translate(x,.415,0));
+    lid.push(new THREE.CircleGeometry(.063,16).rotateX(Math.PI/2).translate(x,.409,0));
   }
-  cream.push(extrude(lidOutline,.054,.379,.012,8));
+  lid.push(extrude(lidOutline,.054,.379,.012,8));
   for(const x of [-.19,.19]) {
     // Flexible latch straps sit against the front, with a cream catch above.
     hardware.push(box(x,.335,.219,.038,.11,.022));
     hardware.push(cylinder(x,.286,.222,.024,.018,'z'));
-    cream.push(box(x,.397,.234,.052,.026,.016));
+    lid.push(box(x,.397,.234,.052,.026,.016));
     hardware.push(cylinder(x,.372,-.223,.019,.075,'x'));
   }
   // Side handles have a real opening and continuous arms down to the grip.
@@ -944,23 +950,57 @@ function coolerGeometry() {
     geometry.userData.shared=true;
     return geometry;
   };
-  return (_coolerGeometry={body:merge(body),hardware:merge(hardware),lid:merge(cream)});
+  return (_coolerGeometry={body:merge(body),hardware:merge(hardware),trim:merge(cream),lid:merge(lid).translate(0,-.372,.223)});
 }
 
-// The complete silhouette fits the existing kitchen cooler's .42 radius.
+// The closed silhouette fits the existing kitchen cooler's .42 radius.
 export function buildCampCooler(variant = 0) {
   const group = new THREE.Group();
   group.name = 'camp_cooler';
   const color = COOLER_COLORS[(variant >>> 0) % COOLER_COLORS.length];
   const geometry=coolerGeometry();
   for(const [name,material] of [
-    ['body',matFor(color)],['hardware',matFor(0x343d3d)],['lid',matFor(0xeee6cf)],
+    ['body',matFor(color)],['hardware',matFor(0x343d3d)],['trim',matFor(0xeee6cf)],['lid',matFor(0xeee6cf)],
   ]) {
     const mesh=new THREE.Mesh(geometry[name],material);
     mesh.name=`cooler_${name}`;
+    mesh.userData.physicalPart=name;
+    if(name==='lid')mesh.position.set(0,.372,-.223);
     group.add(mesh);
   }
-  return { group, color, footprint: .42 };
+  const lidMesh=group.getObjectByName('cooler_lid');
+  const cupWells=Object.freeze([-.15,.15].map((x,i)=>Object.freeze({
+    id:i?'right':'left',owner:'lid',position:Object.freeze({x,y:.415-.372,z:.223}),
+    axis:Object.freeze({x:0,y:1,z:0}),radius:.063,depth:.03,capacity:1,
+  })));
+  let angle=0;
+  const point=new THREE.Vector3(),direction=new THREE.Vector3(),partWorld=new THREE.Matrix4(),partLocal=new THREE.Matrix4();
+  const lid=Object.freeze({mesh:lidMesh,pivot:Object.freeze({x:0,y:.372,z:-.223}),
+    axis:Object.freeze({x:-1,y:0,z:0}),minAngle:0,maxAngle:1.85,
+    get angle(){return angle;},
+    setAngle(value,binding){
+      if(!Number.isFinite(value))throw new TypeError('Cooler lid angle must be finite');
+      const next=Math.max(0,Math.min(1.85,value));
+      if(binding){
+        partLocal.makeRotationX(-next).setPosition(0,.372,-.223);
+        if(!binding.setPartMatrix('lid',partLocal))throw new Error('Cooler render binding is no longer live');
+      }else{
+        if(lidMesh.parent!==group)throw new Error('Batched cooler articulation requires its render binding');
+        lidMesh.rotation.x=-next;
+      }
+      angle=next;return angle;
+    },
+  });
+  function sampleCupWell(id,out,binding){
+    const socket=cupWells.find(s=>s.id===id);if(!socket)return false;
+    if(binding){if(!binding.samplePartWorldMatrix('lid',partWorld))return false;}
+    else{if(lidMesh.parent!==group)return false;lidMesh.updateWorldMatrix(true,false);partWorld.copy(lidMesh.matrixWorld);}
+    point.set(socket.position.x,socket.position.y,socket.position.z).applyMatrix4(partWorld);
+    direction.set(0,1,0).transformDirection(partWorld);
+    Object.assign(out.position,{x:point.x,y:point.y,z:point.z});
+    Object.assign(out.axis,{x:direction.x,y:direction.y,z:direction.z});return true;
+  }
+  return { group, color, footprint: .42, lid, cupWells, sampleCupWell };
 }
 
 function addCampKitchen(parent, coolerVariant = 0) {
@@ -979,6 +1019,7 @@ function addCampKitchen(parent, coolerVariant = 0) {
   const cooler = buildCampCooler(coolerVariant);
   cooler.group.position.set(1.9,0,-.7);
   parent.add(cooler.group);
+  return {cooler};
 }
 
 const _CAMP_BULB = new THREE.IcosahedronGeometry(.055, 0);
@@ -1055,25 +1096,9 @@ function addTentEveningGlow(tent,animatables,phase) {
 // Retain each chair's empty transform group for seat metadata, but batch its
 // static metal/fabric parts so a social ring does not cost nine draws per seat.
 export function batchCampChairs(root, chairs) {
-  const buckets=new Map();
-  for(const {group} of chairs) {
-    group.updateMatrix();
-    for(const mesh of [...group.children]) {
-      mesh.updateMatrix();
-      let materials=buckets.get(mesh.geometry);
-      if(!materials){materials=new Map();buckets.set(mesh.geometry,materials);}
-      let bucket=materials.get(mesh.material);
-      if(!bucket){bucket=[];materials.set(mesh.material,bucket);}
-      bucket.push(new THREE.Matrix4().multiplyMatrices(group.matrix,mesh.matrix));
-      group.remove(mesh);
-    }
-  }
-  for(const [geometry,materials] of buckets) for(const [material,matrices] of materials) {
-    const instances=new THREE.InstancedMesh(geometry,material,matrices.length);
-    matrices.forEach((matrix,i)=>instances.setMatrixAt(i,matrix));
-    instances.instanceMatrix.needsUpdate=true;
-    root.add(instances);
-  }
+  const batch = batchPropGroups(root, chairs.map(chair => chair.group));
+  chairs.forEach((chair, index) => { chair.renderBinding = batch.bindings[index]; });
+  return batch;
 }
 
 function discardCampProp(root,group) {
@@ -1299,6 +1324,7 @@ export function* buildCampsiteSteps(rng = Math.random, size = 'medium', options 
   const torchField=buildTorchField(torchPositions,rng,1);
   root.add(torchField.group);
   animatables.push(...torchField.animatables);
+  const physicalCoolers = [];
   for(const [i,ez] of canopyProps.entries()){
     const a=tentArcStart+Math.PI+(i-(canopyProps.length-1)/2)*1.05;
     // Small camps need a real passing gap between the hearth chairs and the
@@ -1307,7 +1333,7 @@ export function* buildCampsiteSteps(rng = Math.random, size = 'medium', options 
     pose(ez.group,cfg.radius*.85+.35+livingClearance,a);
     const hasKitchen=recipe.kitchen&&i===0;
     // Derive the finish without consuming either existing random stream.
-    if(hasKitchen)addCampKitchen(ez.group, (tentArcStart * 0x10000000) >>> 0);
+    const kitchenProps=hasKitchen?addCampKitchen(ez.group, (tentArcStart * 0x10000000) >>> 0):null;
     addCanopyTwinkles(ez.group,animatables,localRandom());
     addCampLanterns(ez.group,animatables,hasKitchen);
     const yaw=ez.group.rotation.y, c=Math.cos(yaw), sn=Math.sin(yaw);
@@ -1318,7 +1344,12 @@ export function* buildCampsiteSteps(rng = Math.random, size = 'medium', options 
     if(i===0&&rearScreen) {const p=transformed(0,-1.5);placeScreen(rearScreen,yaw,p.x,p.z);}
     if(hasKitchen) {
       const kitchen=transformed(0,-.85); collider('camp_kitchen',ez.group,1.08,kitchen.x,kitchen.z);
-      const cooler=transformed(1.9,-.7); collider('camp_cooler',ez.group,.42,cooler.x,cooler.z);
+      const cooler=kitchenProps.cooler;
+      // Keep the exact modeled pose while giving this movable object its own
+      // root-level lifetime and batch binding, independent of the canopy.
+      root.attach(cooler.group);
+      physicalCoolers.push({...cooler,kind:'camp_cooler',localKey:`canopy:${i}:cooler`});
+      collider('camp_cooler',cooler.group,.42,cooler.group.position.x,cooler.group.position.z);
     }
     const row=canopyChairs.filter(v=>v.canopy===i);
     const loveseat=localRandom()>.35;
@@ -1358,7 +1389,12 @@ export function* buildCampsiteSteps(rng = Math.random, size = 'medium', options 
   }
 
   yield {group:root,phase:'seats-and-colliders'};
-  batchCampChairs(root,[...fireChairs,...canopyChairs.map(v=>v.chair)].filter(c=>!c.skip));
+  const physicalChairs = [
+    ...fireChairs.map((chair, index) => ({...chair, localKey:`fire:${index}`})),
+    ...canopyChairs.map(({chair,canopy,index}) => ({...chair, localKey:`canopy:${canopy}:${index}`})),
+  ].filter(chair => !chair.skip);
+  const chairBatch = batchCampChairs(root, [...physicalChairs,...physicalCoolers]);
+  for (const chair of [...physicalChairs,...physicalCoolers]) chair.originLocalTransform = chair.group.matrix.clone();
 
   // Scale the whole vignette (props + their polar layout) uniformly. Props sit
   // at y=0 so they stay grounded under scale; the footprint grows to match so
@@ -1369,6 +1405,7 @@ export function* buildCampsiteSteps(rng = Math.random, size = 'medium', options 
     group: root,
     animatables,
     footprint: recipe.footprint, archetype:recipe.archetype, role:recipe.role,
+    physicalChairs, physicalCoolers, chairBatch,
     childColliders, colliders: childColliders, seats, tents, entranceYaw: Math.atan2(-Math.cos(tentArcStart),-Math.sin(tentArcStart)),
   };
   complete=true;return result;

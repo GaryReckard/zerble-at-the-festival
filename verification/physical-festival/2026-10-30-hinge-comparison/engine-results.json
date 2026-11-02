@@ -1,0 +1,66 @@
+[
+  {
+    "mode": "controlled",
+    "scenario": "rest",
+    "angle": 0.0009118919751558835,
+    "anchorError": 0.012557858109475135,
+    "speed": 0.8175002336502075,
+    "limitError": 0.0009485377069096331
+  },
+  {
+    "mode": "controlled",
+    "scenario": "impact",
+    "angle": 0.059230993608220914,
+    "anchorError": 0.03854178462278986,
+    "speed": 2.4022136811935044,
+    "limitError": 0.061799187353977325
+  },
+  {
+    "mode": "controlled",
+    "scenario": "boost",
+    "angle": 0.44219532121915517,
+    "anchorError": 0.1503352110282203,
+    "speed": 9.94094447756859,
+    "limitError": 0.20167245484912114
+  },
+  {
+    "mode": "controlled",
+    "scenario": "inverted",
+    "angle": 1.850000020053277,
+    "anchorError": 0.07098346811532989,
+    "speed": 4.741496562957764,
+    "limitError": 0.0005744425138080417
+  },
+  {
+    "mode": "physical",
+    "scenario": "rest",
+    "angle": 8.771735672854594e-05,
+    "anchorError": 0.00038136981672333816,
+    "speed": 0.8175002336502075,
+    "limitError": 0.0025491276140154335
+  },
+  {
+    "mode": "physical",
+    "scenario": "impact",
+    "angle": 0.0032084961120857026,
+    "anchorError": 0.0010126866935721752,
+    "speed": 1.8880015944553297,
+    "limitError": 0.0025491276140154335
+  },
+  {
+    "mode": "physical",
+    "scenario": "boost",
+    "angle": 1.8978140909246375,
+    "anchorError": 0.04185149634904088,
+    "speed": 9.615861687338192,
+    "limitError": 0.0478140909246374
+  },
+  {
+    "mode": "physical",
+    "scenario": "inverted",
+    "angle": 1.769177717102272,
+    "anchorError": 0.03557272704755453,
+    "speed": 4.741496562957764,
+    "limitError": 0.13791692480553008
+  }
+]

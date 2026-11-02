@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { Scene } from 'three';
+import { Scene,Group,Vector3 } from 'three';
 import { setSessionSeed } from '../src/rng.js';
 import { setLandscapeVersion,landscapeCandidateInCell } from '../src/worldgen/landscapeCandidates.js';
 import { setTerrainEnabled } from '../src/worldgen/terrain.js';
@@ -29,6 +29,20 @@ try {
   while(!job.done){const slice=job.step({maxSteps:3,deadline:Infinity});assert.ok(slice.steps<=3);if(!job.done)unpublished();assert.ok(++calls<2000);}
   assert.ok(job.result.valid,job.result.message);assert.equal(scene.children.length,1);assert.ok(registry.entries.size>baseline.entries);assert.ok(forestDrumCircles.length>baseline.circles);
   for(const entry of registry.byChunk(current.plan.id))if(entry.kind==='campsite')for(const slot of entry.campSeats)if(slot.collider)assert.equal(registry.entries.get(slot.collider.id),slot.collider,'transferred seat claims keep the actual live collider object');
+  const physicalEntries=[...registry.byChunk(current.plan.id)].filter(entry=>entry.physicalProp);
+  assert.ok(physicalEntries.length>0,'published district has physical furniture');
+  for(const entry of physicalEntries){
+    const origin=registry.entries.get(entry.physicalProp.originRegistryId);
+    assert.equal(origin?.kind,'campsite','every physical descriptor resolves its published live origin');
+    assert.ok(origin.physicalProps.includes(entry.physicalProp),'parent and child keep the same descriptor reference');
+  }
+  const {createLivePhysics}=await import('../src/physics/liveWorld.js');
+  const target=physicalEntries[0],cart={position:target.position.clone().add(new Vector3(0,0,5)),root:new Group(),heading:0,speed:0};
+  const physics=await createLivePhysics({scene,registry,cart});
+  try{
+    for(let i=0;i<30&&!physics.owns(target);i++)physics.prepare(performance.now()+10000);
+    assert.ok(physics.owns(target),`published district furniture enters main physics: ${JSON.stringify(physics.stats().lastReject)}`);
+  }finally{physics.dispose();}
   assert.ok(job.result.owner.dispose());unpublished();
   // A failed/cancelled staged owner must not poison duplicate-owner admission.
   const failed=createMountainDistrictBuild(scene,refreshedContext.surface,{...current,failAfter:1});while(!failed.done)failed.step({maxSteps:4,deadline:Infinity});assert.equal(failed.result.reason,'build-rejected');unpublished();

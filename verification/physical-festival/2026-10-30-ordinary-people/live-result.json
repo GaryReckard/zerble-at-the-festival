@@ -1,0 +1,46 @@
+{
+  "blocked": null,
+  "engine": {
+    "bodies": 23,
+    "colliders": 63,
+    "contactPairs": 2,
+    "disposed": false,
+    "engineBodies": 23,
+    "engineColliders": 63,
+    "engineJoints": 0,
+    "events": 0,
+    "joints": 0,
+    "meshTriangles": 48,
+    "meshVertices": 54,
+    "overflow": 0,
+    "steps": 3565,
+    "supportedLoads": 0,
+    "totalOverflow": 0
+  },
+  "ordinary": {
+    "capacity": 4,
+    "completed": 1,
+    "lastReject": null,
+    "people": [
+      {
+        "active": false,
+        "body": null,
+        "cleanupPending": false,
+        "generation": 1,
+        "reaction": null,
+        "ready": true,
+        "slot": 6
+      },
+      {
+        "active": false,
+        "body": null,
+        "cleanupPending": false,
+        "generation": 1,
+        "reaction": null,
+        "ready": true,
+        "slot": 29
+      }
+    ],
+    "started": 1
+  }
+}

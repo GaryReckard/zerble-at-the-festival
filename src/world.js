@@ -115,7 +115,7 @@ export function buildWorld(scene, crowd, playerPos = new THREE.Vector3(0, 0, 0),
 let _groundLastResampleX = NaN;
 let _groundLastResampleZ = NaN;
 
-export function updateWorld(playerPos, dt = 0.016) {
+export function updateWorld(playerPos, dt = 0.016, preparePhysical = null) {
   // One world-owned streaming deadline (festival-horizon design D3): lakes +
   // full chunks consume it first; the far-field horizon plans only in the
   // remainder. There is no second budget.
@@ -124,7 +124,11 @@ export function updateWorld(playerPos, dt = 0.016) {
   if(landscapeRuntime)landscapeRuntime.update(landscapeRuntime.player||playerPos,{deadline:streamStartedAt+PERF.chunkBudgetMs,time:performance.now()/1000,nightness:timeOfDay?.nightness||0,dt,movers:landscapeRuntime.getMovers?.()||[]});
   if (lakeManager) lakeManager.update(_scene, playerPos, dt);
   if (chunkManager) chunkManager.update(playerPos, streamStartedAt + PERF.chunkBudgetMs);
-  // The horizon's remainder is measured HERE — lakes + full chunks are the
+  // Physical terrain/prop preparation shares the existing streaming wall.
+  // The callback receives an absolute deadline and must bound its work units.
+  const streamDeadline = streamStartedAt + PERF.chunkBudgetMs;
+  if (preparePhysical && performance.now() < streamDeadline) preparePhysical(streamDeadline);
+  // The horizon's remainder is measured HERE — lakes + full chunks + physical preparation are the
   // streaming spend that consumes the wall first; time-of-day is not
   // streaming work and doesn't count against it.
   const streamRemainderMs = Math.max(0, PERF.chunkBudgetMs - (performance.now() - streamStartedAt));

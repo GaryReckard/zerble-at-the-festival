@@ -1,0 +1,493 @@
+{
+  "enabled": true,
+  "phase": "physical-props-prototype",
+  "preparationCalls": 2852,
+  "lastCandidates": 0,
+  "nearbyChairs": 7,
+  "rejectedCandidates": 0,
+  "player": {
+    "x": -1145.602085728724,
+    "z": -559.4460944704198
+  },
+  "frames": 2856,
+  "clock": {
+    "steps": 2865,
+    "dropped": 0
+  },
+  "blocked": null,
+  "hits": 2,
+  "overflow": 0,
+  "rejects": 0,
+  "lastReject": null,
+  "chairs": [
+    {
+      "key": "camp-prop-v1:4:19771:012:chunk:-14,-719:-1135.44520787149671:018:-563.457828905433415:canopy:0:cooler",
+      "kind": "camp_cooler",
+      "entryId": 2803,
+      "active": true,
+      "incident": null,
+      "state": {
+        "token": {
+          "key": "camp-prop-v1:4:19771:012:chunk:-14,-719:-1135.44520787149671:018:-563.457828905433415:canopy:0:cooler",
+          "generation": 9
+        },
+        "entryId": 2803,
+        "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:012:chunk:-14,-719:-1135.44520787149671:018:-563.457828905433415:canopy:0:cooler",
+        "engineGeneration": 53,
+        "pose": {
+          "position": {
+            "x": -1142.353759765625,
+            "y": -0.06330069899559021,
+            "z": -558.2665405273438
+          },
+          "rotation": {
+            "x": 0.003559402949292938,
+            "y": 0.9420583984530821,
+            "z": 0.016376861510227048,
+            "w": 0.33503000307693837
+          }
+        },
+        "footprint": 1.7083683059284152,
+        "supportRadius": 2.4414331827037876,
+        "originOwner": "chunk:-14,-7",
+        "originRegistryId": 2788,
+        "occupants": [],
+        "lid": {
+          "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:012:chunk:-14,-719:-1135.44520787149671:018:-563.457828905433415:canopy:0:cooler:lid",
+          "latched": false,
+          "sleeping": false,
+          "generation": 54,
+          "angle": -0.00032793890390794687,
+          "anchorError": 0.00009048361674954797
+        },
+        "state": "active",
+        "resources": {
+          "body": true,
+          "render": true,
+          "budget": true
+        },
+        "cleanupErrors": []
+      }
+    },
+    {
+      "key": "camp-prop-v1:4:19771:012:chunk:-14,-719:-1151.949304935568521:-0.03993952646383676418:-564.32821826774176:fire:0",
+      "kind": "camp_chair",
+      "entryId": 2812,
+      "active": true,
+      "incident": null,
+      "state": {
+        "token": {
+          "key": "camp-prop-v1:4:19771:012:chunk:-14,-719:-1151.949304935568521:-0.03993952646383676418:-564.32821826774176:fire:0",
+          "generation": 10
+        },
+        "entryId": 2812,
+        "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:012:chunk:-14,-719:-1151.949304935568521:-0.03993952646383676418:-564.32821826774176:fire:0",
+        "engineGeneration": 55,
+        "pose": {
+          "position": {
+            "x": -1148.1600341796875,
+            "y": -0.00818932056427002,
+            "z": -564.13525390625
+          },
+          "rotation": {
+            "x": 0.0005117684716076839,
+            "y": 0.6859299664344551,
+            "z": 0.00048298423229481765,
+            "w": 0.7276672219953912
+          }
+        },
+        "footprint": 0.950192319382176,
+        "supportRadius": 1.99153724057865,
+        "originOwner": "chunk:-14,-7",
+        "originRegistryId": 2810,
+        "occupants": [
+          {
+            "person": 86,
+            "current": true,
+            "reaction": {
+              "phase": "supported",
+              "seatBlend": 1,
+              "brace": 0,
+              "unstableTime": 0,
+              "stableTime": 0,
+              "settledTime": 0,
+              "seatReleased": false,
+              "disposed": false,
+              "blocked": null,
+              "dismountRequested": false,
+              "completion": null
+            }
+          }
+        ],
+        "lid": null,
+        "state": "active",
+        "resources": {
+          "body": true,
+          "render": true,
+          "budget": true
+        },
+        "cleanupErrors": []
+      }
+    },
+    {
+      "key": "camp-prop-v1:4:19771:012:chunk:-14,-719:-1135.44520787149671:018:-563.457828905433410:canopy:0:0",
+      "kind": "camp_loveseat",
+      "entryId": 2805,
+      "active": true,
+      "incident": null,
+      "state": {
+        "token": {
+          "key": "camp-prop-v1:4:19771:012:chunk:-14,-719:-1135.44520787149671:018:-563.457828905433410:canopy:0:0",
+          "generation": 11
+        },
+        "entryId": 2805,
+        "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:012:chunk:-14,-719:-1135.44520787149671:018:-563.457828905433410:canopy:0:0",
+        "engineGeneration": 58,
+        "pose": {
+          "position": {
+            "x": -1138.729736328125,
+            "y": -0.04174232482910156,
+            "z": -557.5032348632812
+          },
+          "rotation": {
+            "x": 0.0027915016831938865,
+            "y": 0.9424741610929451,
+            "z": 0.007875878650288125,
+            "w": 0.334174555772859
+          }
+        },
+        "footprint": 1.4253237874953193,
+        "supportRadius": 2.362170361665164,
+        "originOwner": "chunk:-14,-7",
+        "originRegistryId": 2788,
+        "occupants": [
+          {
+            "person": 88,
+            "current": true,
+            "reaction": {
+              "phase": "supported",
+              "seatBlend": 1,
+              "brace": 0,
+              "unstableTime": 0,
+              "stableTime": 0,
+              "settledTime": 0,
+              "seatReleased": false,
+              "disposed": false,
+              "blocked": null,
+              "dismountRequested": false,
+              "completion": null
+            }
+          }
+        ],
+        "lid": null,
+        "state": "active",
+        "resources": {
+          "body": true,
+          "render": true,
+          "budget": true
+        },
+        "cleanupErrors": []
+      }
+    },
+    {
+      "key": "camp-prop-v1:4:19771:012:chunk:-14,-719:-1135.44520787149671:018:-563.45782890543346:fire:0",
+      "kind": "camp_chair",
+      "entryId": 2804,
+      "active": true,
+      "incident": null,
+      "state": {
+        "token": {
+          "key": "camp-prop-v1:4:19771:012:chunk:-14,-719:-1135.44520787149671:018:-563.45782890543346:fire:0",
+          "generation": 12
+        },
+        "entryId": 2804,
+        "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:012:chunk:-14,-719:-1135.44520787149671:018:-563.45782890543346:fire:0",
+        "engineGeneration": 61,
+        "pose": {
+          "position": {
+            "x": -1137.868408203125,
+            "y": -0.000033020973205566406,
+            "z": -560.3997802734375
+          },
+          "rotation": {
+            "x": 0.00005422846880126584,
+            "y": 0.9443931542630519,
+            "z": 0.0001223234348663291,
+            "w": 0.32881841839734804
+          }
+        },
+        "footprint": 1.1674438308300918,
+        "supportRadius": 2.0219512649965816,
+        "originOwner": "chunk:-14,-7",
+        "originRegistryId": 2788,
+        "occupants": [
+          {
+            "person": 92,
+            "current": true,
+            "reaction": {
+              "phase": "supported",
+              "seatBlend": 1,
+              "brace": 0,
+              "unstableTime": 0,
+              "stableTime": 0,
+              "settledTime": 0,
+              "seatReleased": false,
+              "disposed": false,
+              "blocked": null,
+              "dismountRequested": false,
+              "completion": null
+            }
+          }
+        ],
+        "lid": null,
+        "state": "active",
+        "resources": {
+          "body": true,
+          "render": true,
+          "budget": true
+        },
+        "cleanupErrors": []
+      }
+    },
+    {
+      "key": "camp-prop-v1:4:19771:012:chunk:-14,-717:-1135.301609987771:018:-581.15025174157896:fire:0",
+      "kind": "camp_chair",
+      "entryId": 2815,
+      "active": true,
+      "incident": null,
+      "state": {
+        "token": {
+          "key": "camp-prop-v1:4:19771:012:chunk:-14,-717:-1135.301609987771:018:-581.15025174157896:fire:0",
+          "generation": 13
+        },
+        "entryId": 2815,
+        "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:012:chunk:-14,-717:-1135.301609987771:018:-581.15025174157896:fire:0",
+        "engineGeneration": 70,
+        "pose": {
+          "position": {
+            "x": -1135.3590087890625,
+            "y": -0.000011563301086425781,
+            "z": -577.4208984375
+          },
+          "rotation": {
+            "x": -0.0000014145142285015408,
+            "y": -0.003214977121974243,
+            "z": 5.544392256772958e-7,
+            "w": 0.9999948319465439
+          }
+        },
+        "footprint": 0.9909706831950451,
+        "supportRadius": 2.1350805169674465,
+        "originOwner": "chunk:-14,-7",
+        "originRegistryId": 2813,
+        "occupants": [],
+        "lid": null,
+        "state": "active",
+        "resources": {
+          "body": true,
+          "render": true,
+          "budget": true
+        },
+        "cleanupErrors": []
+      }
+    },
+    {
+      "key": "camp-prop-v1:4:19771:012:chunk:-14,-718:-1119.0331803902261:018:-566.55438342830756:fire:0",
+      "kind": "camp_chair",
+      "entryId": 2809,
+      "active": true,
+      "incident": null,
+      "state": {
+        "token": {
+          "key": "camp-prop-v1:4:19771:012:chunk:-14,-718:-1119.0331803902261:018:-566.55438342830756:fire:0",
+          "generation": 14
+        },
+        "entryId": 2809,
+        "bodyId": "chair-ownership:1:camp-prop-v1:4:19771:012:chunk:-14,-718:-1119.0331803902261:018:-566.55438342830756:fire:0",
+        "engineGeneration": 75,
+        "pose": {
+          "position": {
+            "x": -1122.74755859375,
+            "y": -0.000013649463653564453,
+            "z": -566.0504760742188
+          },
+          "rotation": {
+            "x": 2.7015788242253293e-7,
+            "y": -0.6336053248485979,
+            "z": -2.39474943539776e-7,
+            "w": 0.773656443341211
+          }
+        },
+        "footprint": 1.1670059862695714,
+        "supportRadius": 2.0219512649965816,
+        "originOwner": "chunk:-14,-7",
+        "originRegistryId": 2807,
+        "occupants": [
+          {
+            "person": 91,
+            "current": true,
+            "reaction": {
+              "phase": "supported",
+              "seatBlend": 1,
+              "brace": 0,
+              "unstableTime": 0,
+              "stableTime": 0,
+              "settledTime": 0,
+              "seatReleased": false,
+              "disposed": false,
+              "blocked": null,
+              "dismountRequested": false,
+              "completion": null
+            }
+          }
+        ],
+        "lid": null,
+        "state": "active",
+        "resources": {
+          "body": true,
+          "render": true,
+          "budget": true
+        },
+        "cleanupErrors": []
+      }
+    }
+  ],
+  "incidents": {
+    "incidents": 0,
+    "bodies": 0,
+    "targets": 0,
+    "rejections": 0,
+    "clock": 47.74999999999857,
+    "capacities": {
+      "maxIncidents": 32,
+      "maxBodies": 64,
+      "maxTargets": 32,
+      "maxHops": 4,
+      "maxAge": 5
+    }
+  },
+  "ordinary": {
+    "capacity": 4,
+    "lastReject": null,
+    "started": 0,
+    "completed": 0,
+    "propHits": 0,
+    "sweepTests": 0,
+    "people": []
+  },
+  "engine": {
+    "bodies": 28,
+    "colliders": 61,
+    "joints": 1,
+    "supportedLoads": 4,
+    "contactPairs": 8,
+    "engineJoints": 1,
+    "meshVertices": 72,
+    "meshTriangles": 64,
+    "engineBodies": 28,
+    "engineColliders": 61,
+    "events": 0,
+    "overflow": 0,
+    "totalOverflow": 0,
+    "steps": 2865,
+    "disposed": false
+  },
+  "terrain": {
+    "disposed": false,
+    "tiles": 8,
+    "ready": 8,
+    "pending": 0,
+    "failed": 0,
+    "owners": 6,
+    "rejections": 0,
+    "source": {
+      "seed": 1977,
+      "enabled": true,
+      "epoch": 0,
+      "version": 1
+    },
+    "tileSize": 20,
+    "capacities": {
+      "tiles": 64,
+      "queued": 32,
+      "owners": 12,
+      "retries": 3
+    },
+    "timing": {
+      "pumps": 2851,
+      "attempts": 16,
+      "created": 16,
+      "preparationMs": 0.5,
+      "adapterMs": 1.5000000596046448,
+      "maxUnitMs": 0.800000011920929,
+      "lastPumpMs": 0
+    },
+    "lastRejection": null
+  },
+  "solids": {
+    "disposed": false,
+    "proxies": 8,
+    "ready": 8,
+    "pending": 0,
+    "failed": 0,
+    "cleanupPending": 0,
+    "owners": 6,
+    "rejections": 0,
+    "capacities": {
+      "proxies": 128,
+      "owners": 12,
+      "queued": 128,
+      "candidates": 256
+    },
+    "approximation": "ground-anchored cylinder; registered radius; half-height max(0.5 m, radius)",
+    "timing": {
+      "pumps": 2850,
+      "attempts": 33,
+      "created": 33,
+      "maxUnitMs": 0.20000004768371582,
+      "lastPumpMs": 0
+    },
+    "lastRejection": null
+  },
+  "render": {
+    "disposed": false,
+    "props": 6,
+    "buckets": 13,
+    "slots": 92,
+    "allocatedSlots": 832,
+    "matrixBufferBytes": 53248,
+    "uploadRequestedBytes": 1065472,
+    "rejections": 0,
+    "capacities": {
+      "buckets": 48,
+      "slots": 3072,
+      "slotsPerBucket": 64,
+      "matrixBufferBytes": 196608
+    }
+  },
+  "ownership": {
+    "disposed": false,
+    "chairs": 6,
+    "cleanupPending": 0,
+    "originReplacements": 0,
+    "originLifetimes": 8,
+    "originLifetimeCapacity": 256,
+    "capacity": 8,
+    "rejections": 0,
+    "limitations": [
+      "Chairs, eligible seated occupants and articulated coolers; coherent arrangement reset is not integrated. Restored lake children follow their source batch lifetime."
+    ]
+  },
+  "cart": {
+    "ghost": false,
+    "pendingClearance": false,
+    "resets": 8,
+    "lastReset": "legacy-correction"
+  },
+  "limitations": [
+    "Occupied chair adoption is opt-in; full incident and device acceptance remain pending.",
+    "Static cylinders are conservative approximations.",
+    "Secondary-person attribution and device acceptance are pending.",
+    "Support-frontier exhaustion visibly stops this opt-in prototype."
+  ]
+}

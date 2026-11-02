@@ -1,6 +1,6 @@
 # Landscape and travel
 
-> **Status:** <!--STATUS:LINE-->in progress · 31/36 tasks (86%)<!--/STATUS:LINE-->
+> **Status:** <!--STATUS:LINE-->in progress · 33/36 tasks (91%)<!--/STATUS:LINE-->
 
 ## TL;DR
 
@@ -16,16 +16,16 @@ Use the [ordered execution plan](tasks.md). First record baseline behavior and i
 
 ## Current checkpoint
 
-The opt-in generation-2 game streams varied Mountain Top districts with dense irregular lower camping, sparse upper lawns/firepits, side roads and wooded descents to separate drum clearings. Native stream beds, water and working bridges share terrain/support truth with vehicles, people and activities. An additive physics-surface provider retains occupied owners for the existing engine without activating the separate physical-festival controller.
+The opt-in generation-2 game streams varied Mountain Top districts with dense irregular lower camping, sparse upper lawns/firepits, side roads and wooded descents to separate drum clearings. Native stream beds, water and working bridges share terrain/support truth with vehicles, people and activities. The merged main branch's default live physics shares terrain tiles, bridge slabs and landscape-owner leases, including chair/cooler and pedestrian reactions.
 
 The recorded desktop implementation and verification checks pass, including full project checks/build, ready-plank game boots, Low/Mid/High captures, camera modes, repeated streaming/revisit and explicit owned-tab cleanup. A measured distant-owner rebuild loop is fixed, and road normals/UVs are prepared off-thread. [Current measurements and limitations](../../../verification/landscape/README.md#integrated-performance-and-desktop-acceptance) include construction outliers, adaptive quality changes and cold teleport spikes, so they do not establish phone performance.
 
-**Next:** reproduce and fix the two new seed/location reports for road obstruction and Lurleen hill following, then obtain physical iPhone/iPad and player recognition evidence before final tuning/rollout. The [task checklist](tasks.md) is the acceptance record, and [the session log](session-log.md) records the current branch gap from main.
+**Next:** obtain physical iPhone/iPad and player recognition evidence before final tuning/rollout. Both seeded reports are corrected, with regressions for full toilet-row road clearance and Lurleen's uninterrupted ridge following. [Main integration](../../../verification/landscape/2026-11-01-main-integration.md) records the merged revision and verification limits. The [task checklist](tasks.md) remains the acceptance record.
 
 ## Progress
 
 <!--STATUS:AUTO-->
-**in progress** — 31/36 tasks complete (86%) · current: 8.6 (reported road obstruction), then 8.7 (Lurleen steep-hill following)
+**in progress** — 33/36 tasks complete (91%) · current: 9.2 (physical-device acceptance), then 9.3 (player recognition and route choice)
 
 _Last updated: 2026-11-01_
 
@@ -38,7 +38,7 @@ _Last updated: 2026-11-01_
 | 5. Build one complete populated mountain district | 4/4 ✅ |
 | 6. Add bounded procedural admission | 4/4 ✅ |
 | 7. Complete water systems and crossings | 4/4 ✅ |
-| 8. Migrate all affected consumers and measure | 5/7 |
+| 8. Migrate all affected consumers and measure | 7/7 ✅ |
 | 9. Release and preserve the handoff | 1/4 |
 | Execution handoff rules | 0/0 |
 <!--/STATUS:AUTO-->

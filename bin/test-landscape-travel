@@ -48,10 +48,10 @@ function published(minY, maxY, kind = 'landscape-test') {
   registry.add(entry); return entry;
 }
 const entry = published(-3, -1), rows = [...registry.colliders()].filter(c => c.kind === 'landscape-test');
-const cart = { position: new Vector3(), heading: 0, radius: 1, speed: 4, colliderHeight: 4, hits: 0, applyHit() { this.hits++; } };
+const cart = { position: new Vector3(), heading: 0, radius: 1, speed: 4, colliderHeight: 4, hits: 0, applyHit() { this.hits++; }, applyObstacleHit() { this.hits++; } };
 assert.equal(resolveCollision(cart, rows), null); assert.equal(cart.hits, 0);
 entry.collider.maxY = 5;
-assert.equal(resolveCollision(cart, [...registry.colliders()].filter(c => c.kind === 'landscape-test')).damaging, true, 'spanning solid still hits');
+assert.equal(resolveCollision(cart, [...registry.colliders()].filter(c => c.kind === 'landscape-test')).objectBump, true, 'spanning solid still makes physical contact without an empty-object smile penalty');assert.equal(cart.hits,1);
 registry.remove(entry.id);
 assert.throws(() => published(3, 1), /finite and ordered/);
 const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
@@ -75,6 +75,9 @@ for (const hz of [30,60,120]) for (const heading of [0,.4,-.4]) {
   const before = real.surfaceBinding.snapshot();
   real.applySurfaceCorrection(real.position.x, -240);
   assert.deepEqual(real.surfaceBinding.snapshot(),before,'collision correction cannot tunnel through bank');
+  real.applyObstacleHit(new Vector3(0,0,-1),4,60,false);
+  assert.deepEqual(real.surfaceBinding.snapshot(),before,'main obstacle separation cannot push a bound cart through a forbidden bank');
+  assert.equal(real.position.z,before.z,'physical and logical support poses remain synchronized after a refused obstacle push');
   real.applyHit(new Vector3(0,0,-1));
   assert.ok(real.surfaceBinding.propose(real.position.x,real.position.z,{},real.heading).valid);
   assert.equal(real.relocateOnSurface(0,-215),false,'debug relocation rejects forbidden landing');

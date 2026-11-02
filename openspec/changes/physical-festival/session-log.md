@@ -1,11 +1,11 @@
 ---
 change: physical-festival
-status: not_started
-current_task: null
+status: paused
+current_task: "7.5 (Lid and contents experiment): compare controlled/physical lid motion and connect adopted parts; occupied-chair, moving-person and device acceptance remain open"
 blocked_by: null
-open_questions: 0
+open_questions: 1
 started: 2026-10-29
-last_updated: 2026-10-29
+last_updated: 2026-10-30
 ref: "ROADMAP.md: Gameplay verbs / Physical props"
 ---
 
@@ -27,6 +27,12 @@ ref: "ROADMAP.md: Gameplay verbs / Physical props"
 - **D10 (clean-branch implementation deferral):** Gary explicitly clarified that the current work finishes delegation planning only. Finish the hula-hoop work before beginning physics implementation on a verified clean branch. No implementation workers or branch changes are authorized by the research handoff.
 - **D11 (research disposition):** Retain Rapier-first evaluation and the existing ownership/reset architecture. Use the external reports to sharpen failure tests; their performance numbers and incompatible lifecycle recommendations are not accepted evidence. Correct the no-build premise supplied in our own research prompt.
 
+- **D12 (implementation authorized):** On October 30 Gary confirmed clean main and authorized branching and implementation. Created `codex/physical-festival` from `17102a1`, which contains the completed hoop work and physics planning. This supersedes D10 (clean-branch implementation deferral). Real-device and feel gates still require their stated evidence.
+
+- **D13 (empty objects are not a smile penalty):** Gary answered Q2 (Empty-object scoring) with “No smile penalty for empty objects.” Empty contacts retain physical resistance and sound, while person incidents and explicit occupied-furniture behavior remain separate. This supersedes the initial numeric-baseline policy for empty props.
+
+- **D14 (cooler enrollment after positive chair feedback):** Gary said the work was “looking good to me so far,” asked for more smashable objects, specifically coolers, and reaffirmed people falling. Proceed with closed-cooler integration as the next object while retaining the uncompleted phone gate and occupied-person scope. This is early positive motion feedback, not approval of every feel/device scenario.
+
 ## Assumptions
 
 | Assumption | Confidence | Status | Resolution |
@@ -42,6 +48,47 @@ ref: "ROADMAP.md: Gameplay verbs / Physical props"
 No unanswered question is blocking planning. Numeric tuning, measured capacity and animation/art acceptance are scheduled implementation gates in [tasks.md](tasks.md), not implied approvals or forgotten questions.
 
 ## Work Log
+
+### October 30: real secondary encounter and safe untouched capacity reuse
+
+The production toss harness completed a chair-to-person fall and recovery in
+Chrome, then a second encounter at Midnight. The full live-world test covers the
+same path without moving or claiming the person at launch, and the heavy-prop
+regression covers two attributed victims. Task 4.3 (bounded incident provenance)
+is complete; the score/social gate remains separate. Cooler staging now admits
+after safe restoration of untouched offscreen sleeping furniture; displaced props
+stay owned. [Evidence](../../../verification/physical-festival/2026-10-30-encounters/README.md).
+
+### October 30: swept prop-to-person delivery
+
+Added bounded real-shape sweeps against reserved ordinary pedestrians, including
+rotation-only crossings, actual contact-point inertia, opposing impulses and
+earliest-contact ordering. The multi-recipient regression confirms that an earlier
+recipient can consume enough momentum to spare a later one, independent of
+population slot order. The rendered smoke completed a direct fall/recovery, but
+did not produce a secondary hit. Preserve that acceptance gap and the newly
+observed cooler staging/admission issue rather than checking task 4.3 prematurely.
+See [evidence and next tests](../../../verification/physical-festival/2026-10-30-prop-people/README.md).
+
+### October 30: clear stand-up recovery
+
+The fixture now completes a fall, bounded local path search, slide/rise with gradual leg unbending, and release back to ordinary person control. Real-engine tests include second impact, blocked/changed routes, despawn and a thin-wall negative case. Planning runs four path samples per accepted step rather than a whole candidate in one frame. Live occupied-chair admission, shared-budget accounting and production terrain support remain next; no broad acceptance box changed. See [proof](../../../verification/physical-festival/2026-10-30-stand-recovery/README.md).
+
+### October 30: first composed visible sitter fall
+
+The supported/falling controller now publishes the existing Crowd instance through a real-engine tipped-chair fixture. Its continuity regression caught a stale collider world transform after setPose; load reads now compose current body and local transforms. Both tiers settle with one release and no added draws. Final chair/body overlap remains visible, so safe stand-up planning is required before acceptance or live rollout. See [proof](../../../verification/physical-festival/2026-10-30-seat-reaction/README.md).
+
+### October 30: settled support overlap
+
+A real tilted-seat release can leave the body and chair overlapping after landing. The contact exclusion must survive until shape queries prove clearance; a timer would reintroduce depenetration energy. Added reserved pair filtering and a negative-control regression. Live recovery still needs a clear standing target; no occupied-reaction acceptance checkbox changed. See [evidence](../../../verification/physical-festival/2026-10-30-support-contacts.md).
+
+### 2026-10-30 -- Changing seated mass must preserve point motion
+
+**Event:** discovery
+
+**What:** Rapier linear velocity belongs to the center of mass, so adding or removing an off-center seat load cannot simply retain that vector. Added bounded per-seat mass sensors with no contacts and recomputed the center velocity to retain the supporting body's existing point motion. Real-engine loveseat tests prove independent loads, continuous remaining-seat velocity, and mass/linear-momentum continuity when one load becomes a free body. This advances Task 5.2 (Supported load and bracing), but does not enable occupied chairs or accept the bracing controller.
+
+**Refs:** [Supported-load proof and remaining work](../../../verification/physical-festival/2026-10-30-supported-loads.md); `bin/test-physics-supported-loads`.
 
 ### 2026-10-29 -- Existing implementation changes the starting point
 
@@ -90,3 +137,286 @@ No unanswered question is blocking planning. Numeric tuning, measured capacity a
 **What:** Gary supplied four research reports. Preserved exact source copies with SHA-256 hashes and assessed consequential claims against official API/source documentation and the current checkout. The research brief had incorrectly supplied an obsolete no-build premise. The reports add useful test cases but do not demonstrate device performance; duplicate live cups, automatic retirement of support, an assumed Recast dependency, and a required skeletal migration are rejected. Strengthened four existing tasks and the verification plan without changing the 66-task scope or delegation. All implementation tasks remain unstarted, pending the completed hoop work and clean-branch gate.
 
 **Refs:** D10 (clean-branch implementation deferral); D11 (research disposition); [research synthesis](research-synthesis.md); [source archive](research/README.md); [delegation plan](delegation.md); [verification](verification.md).
+
+
+### 2026-10-30 -- First engine fixture verified
+
+**Event:** phase-change
+
+**What:** Implemented the standalone Rapier 0.21.0 adapter, fixed clock, provisional chair/cooler recipes and Vite interaction page. Real-engine tests cover contact, frame-rate invariants, allocation failure and teardown. Desktop development and production browser checks passed, including the real game's ready-mode click. This is partial work within the foundation groups, with only the source baseline task accepted. Controller, terrain, ownership, occupants, real-device and feel gates remain pending. The captured cold production fixture allocation was 313.6 ms and is not a warm performance result. A phone-availability question was presented to Gary; no response or device acceptance is recorded.
+
+**Refs:** [Evidence and next steps](../../../verification/physical-festival/README.md); [source baseline](../../../verification/physical-festival/2026-10-30-baseline.md).
+
+
+### 2026-10-30 -- Apple device available
+
+**Event:** decision
+
+**What:** Gary answered Q1 (Physical-phone availability), confirming an iPhone or iPad is available. Device model, OS, browser and measured results remain to be recorded during the playtest. This resolves availability without claiming device acceptance.
+
+**Refs:** [Answered question](questions-for-human.md#answered).
+
+
+### 2026-10-30 -- Startup side quest released
+
+**Event:** phase-change
+
+**What:** Gary requested merging and pushing the isolated startup recovery fix before returning to physics. Commit `094f144` is on main, GitHub Pages run `41063357506` passed, and the live game recovered from a download failure and reached a playable Just Cruisin' session. Physics remains on its original branch with uncommitted work preserved. Next physics checkpoint is completing the production fixture/controller and terrain contracts before the physical-phone acceptance run.
+
+**Refs:** [Release evidence](../../../verification/boot-recovery/README.md); [deployment](https://github.com/GaryReckard/zerble-at-the-festival/actions/runs/41063357506).
+
+
+### 2026-10-30 -- Controller and triangulated terrain proof
+
+**Event:** discovery
+
+**What:** Continued on `codex/physical-festival-integration` at `4aa8d47`, combining startup recovery and the photographer baseline while preserving the original worktree. Added fixed-step sampling of accepted real Zerble controller poses, isolated from interpolated presentation, and bounded exact production-terrain meshes. The real-controller regression passes at 30/60/120 Hz with flat and enabled terrain. A reduced one-ball reproduction traced a Rapier panic to a deficient test browser stub: defining `window` without `window.performance` breaks its timing import. Supplying the actual Node performance API resolves the panic; no solver workaround was introduced. The regression now runs in `npm run check` and `npm run test:physics`. Production frame barriers, ownership and physical-device acceptance remain pending.
+
+**Refs:** `bin/test-physics-controller`; `bin/test-physics-terrain`; `src/physics/cartTrajectory.js`; [verification](../../../verification/physical-festival/README.md).
+
+
+### 2026-10-30 -- Cart discontinuities and ghost clearance
+
+**Event:** decision
+
+**What:** Added a reusable cart proxy bridge that consumes accepted trajectories and named reset reasons. Ghost exit and discontinuous relocation disable contacts until a bounded direct-shape query establishes clearance, clearing old kinematic targets and velocities before reactivation. This avoids an explosive overlap correction without moving the chair or cart artificially. Tests cover zero-step expiry, overlap waiting, clear reentry, every named reset and resumed real solver contact. The production-controller fixture exposes ghost mode; main-game transition calls and frame-barrier wiring remain unfinished, so Task 2.5 (Cart proxy and resets) remains unchecked.
+
+**Refs:** `src/physics/cartProxy.js`; `bin/test-physics-cart-proxy`; `bin/test-physics-controller`; `src/physics/rapierAdapter.js`.
+
+
+### 2026-10-30 -- Bounded preparation and retained chair bindings
+
+**Event:** decision
+
+**What:** Added shared terrain-tile residency with transactional replacement, explicit capacities/retries and a caller-provided deadline rather than a second streaming budget. Added an admission ledger that reserves mandatory sitter/cup releases before optional allocations, with generation-checked cleanup. Retained campsite chair semantic slots and part-to-instance bindings; the physics playground now uses those bindings for real solver motion. Matrix tests preserve all four styles, shared materials, original transforms and palette draws, then test transformed parents, bounds, visibility, dirty ranges and late callbacks after disposal. These are implementation primitives and fixture proofs; live activation, registry publication and owner adoption remain unconnected, so the broader tasks remain unchecked.
+
+**Refs:** `src/physics/terrainResidency.js`; `src/physics/admissionBudget.js`; `src/propRendering.js`; `bin/test-prop-rendering`; `bin/test-physics-terrain-residency`; `bin/test-physics-admission`.
+
+
+### 2026-10-30 -- Canonical placement and independent chair rendering
+
+**Event:** discovery
+
+**What:** Campsite registration now exports stable physical chair descriptors with the captured batched world pose and actual seat claims. Registry enrollment preserves canonical generation geometry while publishing moved live geometry and transferring chunk ownership. Integration testing caught missing neighborhood/forest-owner metadata in the generation copies; retaining those values preserves existing placement exemptions, including after owner transfer. An independent capped instance pool survives source-batch disposal. World streaming exposes one optional preparation callback against its existing absolute deadline; exhausted frames skip it and preparation reduces the horizon remainder. Production activation, origin-regeneration suppression, occupied support, contact policy and device acceptance remain unfinished.
+
+**Refs:** `src/campRegistry.js`; `src/registry.js`; `src/physics/activePropRendering.js`; `bin/test-registry-physical`; `bin/test-chunk-deadline`; [checkpoint verification](../../../verification/physical-festival/2026-10-30-ownership/README.md).
+
+
+### 2026-10-30 -- Empty-chair adoption transaction
+
+**Event:** discovery
+
+**What:** The chair owner now coordinates real solver bodies, registry enrollment, independent render slots and reserved capacity, rejecting occupied seats and unprepared support. Tests caught a ghost-seat hazard when retirement left the source camp alive; retired seats now remain unavailable, while successful restoration or rollback reopens them only after conflicting resources are released. Failed cleanup retains explicit diagnostics and accounted surviving resources for retry. No automatic distance choice or production activation is installed yet.
+
+**Refs:** `src/physics/chairOwnership.js`; `bin/test-physics-chair-ownership`; [checkpoint evidence](../../../verification/physical-festival/2026-10-30-ownership/README.md).
+
+
+### 2026-10-30 -- First production chair impact
+
+**Event:** discovery
+
+**What:** Connected empty-chair adoption and terrain/static residency to the production late contact barrier behind `physics=1`. Real browser testing exposed repeated admission churn from an undersized render bucket and staging against a chair claimed by an NPC. Increased bounded per-bucket capacity, added a bounded rejection cache, and required the selected target to be admitted before enabling the coast control. A subsequent real impact reduced smiles once; diagnostics recorded no admission rejection, overflow or support stop. Repeated origin replacement now preserves the adopted chair and prevents duplicates, including lake disposal. Full check/build and Low/Mid Noon/Midnight desktop captures passed; the staging helper also has obstruction, water and bounded-search tests. Full task contracts remain unchecked because phone performance, final frontier behavior and occupied support are unfinished.
+
+**Refs:** [live checkpoint and phone procedure](../../../verification/physical-festival/2026-10-30-live/README.md); `bin/test-physics-live-world`; `bin/test-physics-chair-ownership`; `bin/test-physics-static-residency`.
+
+
+### 2026-10-30 -- Support prediction and substep barrier
+
+**Event:** discovery
+
+**What:** A frame-level velocity check cannot observe an impulse from an earlier solver step within the same frame. Moved the support guard to the fixed-step boundary and explicitly discard blocked time; tests exercise a real-engine velocity change after the first step. Support requests now preserve a stable margin and include bounded forward prediction. The full check/build and a fresh real-game encounter passed. This improves the prototype but does not accept arbitrary within-step impulses, rotational bounds or the global-stop overload policy. Gary asked to play, so a separate LAN preview is intentionally running; do not rebuild its dist files or stop it during his playtest.
+
+**Refs:** [support checkpoint](../../../verification/physical-festival/2026-10-30-frontier/README.md); `src/physics/supportWindow.js`; `bin/test-physics-runtime`.
+
+
+### 2026-10-30 -- Rotation-safe support bound
+
+**Event:** discovery
+
+**What:** The previous support guard used the last published horizontal footprint, which can understate a chair's reach during later rotation. Admission now records a conservative sphere from the union of scaled visual and collision bounds; support planning and guards consume it while registry avoidance retains its current footprint. Four-style, 32-orientation tests, full checks, an isolated production build and real ready-button encounter passed. A new real-engine starvation test holds one launched chair without pose drift and resumes after preparation returns. Multi-object pressure and the global-stop fallback remain unaccepted. Gary's playtest build/server were preserved.
+
+**Refs:** [rotation and starvation evidence](../../../verification/physical-festival/2026-10-30-rotation/README.md).
+
+
+### 2026-10-30 -- Stage audience collision gap and render capacity
+
+**Event:** discovery
+
+**What:** Gary reported pass-through stage chairs. Their audience registry entries lacked both colliders and physical descriptors. Added shared registration with row/slot keys, actual batch bindings, seats and stage-front lifetime for open/tent stages, preserving audience kind and existing RNG draws. A separate nine-chair test found the per-bucket render limit admitted only six matching sling chairs despite an eight-chair service limit. The pool now fills matching buffers before adding another bounded buffer; four-style capacity, source-unload, regeneration and disposal tests pass. Full checks/build pass; browser evidence verifies stage admission/rendering, while real-engine tests prove impacts. The staging shortcut can choose a distant campsite when dense stage rows have no clear circular approach, and browser keyboard automation did not move the cart. Neither is counted as a stage-impact browser pass.
+
+**Playtest server:** Gary's localhost failure was traced to an unrelated Python listener on 127.0.0.1:8765 alongside the owned wildcard Vite listener. Moved the preview to 8767 and verified HTTP 200 on localhost and LAN. The current user-requested preview serves `/tmp/zerble-stage-build.g6mhxQ` on 8767 (session 78833). Leave it running for Gary; port-8766 verification and browser tabs are closed.
+
+**Refs:** [stage/capacity evidence](../../../verification/physical-festival/2026-10-30-stage/README.md).
+
+
+### 2026-10-30 -- Bounded hinge API proof
+
+**Event:** decision
+
+**What:** Added only the revolute joint API needed by the planned lid experiment, rather than exposing the entire engine constraint API. Joint capacity defaults to zero; tokens carry world and generation identity. Real Rapier tests verify limits, anchors, latch constraints, body-removal cleanup, post-allocation rollback and repeated reuse. Full check/build and an isolated ready-button game boot passed with existing chairs and no joints allocated. This advances Task 2.1 (Engine loading proof) without accepting the cooler or bypassing the physical-device gate. Gary's stage preview remains on port 8767 from `/tmp/zerble-stage-build.g6mhxQ`, session 78833.
+
+**Refs:** [hinge adapter evidence](../../../verification/physical-festival/2026-10-30-joints/README.md); `bin/test-physics-joints`.
+
+### 2026-10-30 -- Object and person reactions must diverge
+
+**Event:** decision
+
+**What:** Gary objected to Zerble reacting identically to objects and people. The simulated-chair path called the existing person-hit reverse kick. Replaced that call with mass/approach-sensitive slowdown without a position jump or immunity. This is the first part of the response separation; fixed/legacy obstacles and occupied incidents remain unfinished. Asked whether empty-object collisions should also stop costing smiles; the answer is pending and scoring remains unchanged.
+
+**Refs:** [Response evidence](../../../verification/physical-festival/2026-10-30-prop-feedback/README.md); Q2 (Empty-object scoring) in [questions](questions-for-human.md).
+
+### 2026-10-30 -- Fixed scenery no longer reverses the cart
+
+**Event:** decision
+
+**What:** Extended Gary's object/person distinction to the legacy solid path, so unadmitted chairs and fixed scenery resolve overlap and lose incoming speed without the person reverse kick. Kept person reactions, numeric consequences and the existing collision cooldown unchanged. The cooldown still suppresses all legacy contacts temporarily; separating physical solidity from that consequence gate remains unfinished rather than hidden by the new response. Q2 (Empty-object scoring) remains unanswered.
+
+**Refs:** [Solid response evidence](../../../verification/physical-festival/2026-10-30-solid-response/README.md); Task 4.2 (Single response owner) in [tasks](tasks.md).
+
+### 2026-10-30 -- Cooldown protects consequences, not solid scenery
+
+**Event:** discovery
+
+**What:** The legacy main loop skipped every collision during the person-hit immunity timer, and the physical world suppressed cart feedback using the same eligibility flag. Separated those gates: fixed scenery still resolves while person response/penalties remain suppressed; physical chairs still return non-damaging resistance. Suppressed solid contact does not renew immunity. This resolves the solidity limitation in the preceding checkpoint without answering Q2 (Empty-object scoring).
+
+**Refs:** [Cooldown evidence](../../../verification/physical-festival/2026-10-30-cooldown/README.md); Task 4.2 (Single response owner).
+
+### 2026-10-30 -- Empty-object scoring decision implemented
+
+**Event:** decision
+
+**What:** Gary selected no smile penalty for empty objects. The shared resolver now reports empty-object bumps as non-damaging, and the empty-chair physics adapter does the same. Main emits collision sound and existing bonk telemetry without smile deduction, hit flash, punitive toast or combo reset. Explicit occupied seat/porta-potty state retains the previous consequence until occupied reactions are implemented; this is not proof that an occupant was physically hit. Q2 (Empty-object scoring) is answered.
+
+**Refs:** D13 (empty objects are not a smile penalty); [policy evidence](../../../verification/physical-festival/2026-10-30-object-policy/README.md).
+
+### 2026-10-30 -- Closed coolers join the live prop simulation
+
+**Event:** decision
+
+**What:** Gary reaffirmed empty-object scoring, gave positive early chair feedback and requested coolers plus falling people. Following that requested sequence, separated the cooler from its canopy-owned collider and reused bounded prop ownership, terrain/static support, rendering and regeneration. Closed coolers now move in live campsites. The encounter helper had been rejecting valid cooler approaches by testing travel through the target into its kitchen; it now checks up to first contact. A real browser impact moved a cooler approximately 1.6 metres. Lid articulation, contents, holder drinks and occupied-person falls are not enabled by this slice.
+
+**Refs:** D14 (cooler enrollment after positive chair feedback); [cooler evidence](../../../verification/physical-festival/2026-10-30-cooler/README.md).
+
+## October 30: live occupied-chair checkpoint
+
+Connected real campsite/stage sitters to physical furniture through atomic multi-person
+claim preparation. Live browser driving produced a fallen sitter who recovered and
+released its temporary body/load/contact resources. Fixed initial crowd-overlap escape
+and preserved physical authority during nearby panic. Tests cover independent loveseat
+release, source regeneration, teardown and rollback. See the
+[live report](../../../verification/physical-festival/2026-10-30-live-occupants/README.md).
+Next: ordinary-person physical impacts and incident ownership, followed by cooler
+lids/drinks and signs. Full acceptance remains open, including the iPhone/iPad test.
+
+## October 30: ordinary pedestrian falls
+
+Added four bounded prewarmed ordinary-person bodies and support neighborhoods.
+Actual cart collision callbacks use captured incoming speed, claim movement only
+when support is resident, and restore ordinary walking after recovery. Real-engine
+negative/capacity/repeat-hit tests and a real Chrome pedestrian encounter passed.
+See [ordinary-person verification](../../../verification/physical-festival/2026-10-30-ordinary-people/README.md).
+Next: bounded incident attribution/secondary impacts, then cooler lids and contents.
+Device acceptance and graduated reactions remain open.
+
+## October 30: bounded prop attribution
+
+Added finite causal history and prop contact relay. A real browser cooler impact
+propagated its original instigator to a loveseat at hop one; later inspection
+proved expiration. Pure/real-engine tests cover capacity, lifetime, generations,
+deduplication and graph order. Person delivery and rotation-only contact evidence
+remain unfinished, so Task 4.3 (Bounded incident provenance) remains unchecked.
+See [verification](../../../verification/physical-festival/2026-10-30-incidents/README.md).
+The pending device playtest request is recorded as Q3 (Phone playtest results).
+
+## October 30: controlled occupied-chair exits
+
+Added bounded exit preparation, current-support validation before handoff and
+interrupted-exit fallback. Clear routes complete with one seat/load release while
+blocked routes preserve support; a settled wobble cancels the proposed departure.
+Real-engine tests pass both camp and stage independent loveseat exits. The full
+check/build passed, and Chrome completed a live sitter dismount without console
+errors. [Evidence and capture limits](../../../verification/physical-festival/2026-10-30-dismount/README.md).
+Task 5.3 (Controlled dismount) is complete. Next: bracing visuals and full occupied
+incident inspection, then cooler lids/drinks. Phone feedback remains pending.
+
+## October 30: bracing presentation
+
+Added a simulation-time brace blend through existing Crowd arm attributes, keeping
+the held-drink arm and supported hips fixed. Real-engine tests cover relaxation
+and paused publication; Low fixture captures retain the baseline render counts.
+A live Chrome controlled exit passed with no console errors. The static comparison
+does not prove the complete dynamic save/fall sequence, so Task 5.2 (Supported load
+and bracing) and the occupied-chair gate remain open.
+[Evidence](../../../verification/physical-festival/2026-10-30-bracing/README.md).
+
+## October 30: repeatable occupant replay
+
+The occupied fixture now resets without leaking reservations and replays save,
+exit and fall/recovery with pause and quarter speed. Normal/slow fall histories
+matched at steps 1/60/68/151 in Chrome; the save retained its seat and mass.
+Task 5.2 (Supported load and bracing) now has rendered inspection evidence. The
+complete occupied-chair feel gate remains open, including the simple-body
+acceptance decision and phone feedback. Next: cooler socket metadata and lid
+partition, then controlled/physical lid comparison and transferable drinks.
+[Evidence](../../../verification/physical-festival/2026-10-30-replay/README.md).
+
+## October 30: articulated cooler model and socket metadata
+
+Separated the lid from body trim, added a real cavity and sealed the cup wells
+from below after the open-lid inspection exposed their former single-sided floors.
+Native raycasts validate transformed sockets and stationary body details. Shared
+model cost is now four draws/1,832 triangles versus three/1,460; live closed
+cooler lifecycle tests and full checks pass. Sandbox Low/Mid lighting and main
+game admission passed. Native setters reject detached batched models, so the
+next lid experiment must connect adopted part transforms explicitly.
+[Evidence](../../../verification/physical-festival/2026-10-30-cooler-lid/README.md).
+
+## October 30: hinge alternatives measured
+
+Added a shared real-engine experiment and side-by-side production-model fixture
+with bounded six-can contents. Physical hinge attachment outperformed the tested
+kinematic controller, but the inverted landing showed 0.138 radian limit error.
+Next tighten that constraint and connect reserved live assembly ownership before
+closing Task 7.5 (Lid and contents experiment). The floor-edge false failure was
+verified from can positions and corrected in the fixture. Full check/build and
+Chrome teardown passed; phone measurements are still pending.
+[Results](../../../verification/physical-festival/2026-10-30-hinge-comparison/README.md).
+
+### October 30: solver/CCD sweep rejects a tuning-only hinge fix
+
+Completed 40 same-clock cooler cases with 0/1/2/4/8 extra solver iterations
+and assembly CCD on/off. Extra iterations improve some inversion limits but
+worsen strong-impact anchor separation; defaults remain unchanged. The pinned
+multibody joint runtime exposes no mutable limit controls, so a multibody
+comparison needs a deliberate latch/stop strategy. Evidence and repeat command:
+[solver follow-up](../../../verification/physical-festival/2026-10-30-hinge-comparison/README.md#solver-and-ccd-follow-up).
+Task 7.5 (Lid and contents experiment) remains open; no phone acceptance implied.
+
+### October 30: adopted lid rendering and multibody spike result
+
+Named cooler part IDs now survive source batching and active adoption. The lid
+and its two cupholders can publish/sample independent transforms after source
+disposal, with actual geometry raycasts and stale-binding tests. The comparison
+fixture uses this owner without added draw calls or geometry. A temporary
+multibody-plus-impulse joint spike lost externally applied velocity on its next
+step, so its apparently stable impact results were rejected. Task 7.5 (Lid and
+contents experiment) still needs a verified hinge and live assembly admission.
+[Evidence](../../../verification/physical-festival/2026-10-30-adopted-lids/README.md).
+
+### October 30: live articulated cooler admission
+
+Connected the existing physical hinge to live cooler admission with two bodies,
+six colliders, one reserved joint and four reused render parts. Total mass is
+preserved; shell and lid share incident identity and full-assembly teardown.
+30/60/120 Hz cart tests verify actual articulation, and Chrome confirms live
+unlatching without overflow or support suspension. Known hard-impact hinge error
+remains visible and unresolved; live contents are not yet implemented. Task 7.5
+(Lid and contents experiment) stays open. [Evidence](../../../verification/physical-festival/2026-10-30-live-lids/README.md).
+
+### October 30: paused for usage conservation; integration prepared for main
+
+Gary paused autonomous physics work after observing high weekly usage. The phone
+physics panel now starts collapsed above the driving controls. Gary subsequently
+authorized committing, merging to main and pushing the current stable integration.
+The broader feature remains unfinished and paused; phone performance acceptance
+is still pending after the panel fix.

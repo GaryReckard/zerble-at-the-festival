@@ -84,8 +84,8 @@ Depends on Groups 6 and 7 (procedural districts and complete crossings). Owners 
 - [x] 8.4 Connect physical-prop colliders to the same surface geometry/version/owner through the existing physics adapter, with teardown and occupied-support retention.
 - [x] 8.5 Measure cold planning, geometry allocation/uploads, moving/parked draws/tris and Low/Mid/High behavior against baseline. Fix measured regressions without broad unrelated optimization.
 
-- [ ] 8.6 Reproduce and correct Gary's seed-3232217193 report of porta-potties occupying the road at (1497.87, 868.42); validate built clearance against the actual road geometry.
-- [ ] 8.7 Reproduce and correct Lurleen stopping while following up the steep hill near (971.45, 902.1) at seed 3232217193; preserve independent controller behavior and feasible route following.
+- [x] 8.6 Reproduce and correct Gary's seed-3232217193 report of porta-potties occupying the road at (1497.87, 868.42); validate built clearance against the actual road geometry.
+- [x] 8.7 Reproduce and correct Lurleen stopping while following up the steep hill near (971.45, 902.1) at seed 3232217193; preserve independent controller behavior and feasible route following.
 
 ## 9. Release and preserve the handoff
 

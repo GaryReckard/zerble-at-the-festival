@@ -1,0 +1,10 @@
+PASS 6300 collision cases: unchanged people reactions and consequence selection, fixed-object separation without reverse, passive/parked policy and first-hit order.
+PASS collision publication: frozen registry/family/adult order, unchanged local query and exclusions, single registered-mover publication, reused array/candidates/position, copied storage and stale selected callbacks.
+PASS 24 exact people-penalty cases: inactive/over gates and scare, heartbreak, selected frown, vibe priority ordering.
+PASS fixed-object contacts: square and reverse hits stop, glancing hits retain motion, all tested empty props avoid person kickback and smile penalties.
+PASS cooldown separation: real main-loop gate preserves solid collision, suppresses repeated consequences and person callbacks, never extends immunity, and retains star-power ghost passage.
+PASS empty-object policy: zero smile damage, no hit flash/toast/combo penalty, retained sound/bonk telemetry, and live occupied-to-empty seat/porta-potty transitions.
+(node:83555) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/people/runtime.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

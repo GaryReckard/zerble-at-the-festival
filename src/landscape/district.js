@@ -39,7 +39,9 @@ export function* buildMountainDistrictSteps(scene, fixture, { plan = mountainDis
     byKind:{get:kind=>({*[Symbol.iterator](){yield* worldRegistry.byKind.get(kind)||[];yield* staging.byKind.get(kind)||[];}})},
     removeChunk:key=>{staging.removeChunk(key);worldRegistry.removeChunk(key);},
     footprintsNear(...args){worldRegistry.footprintsNear(...args);staging.footprintsNear(...args);},
-    collidersNear(...args){worldRegistry.collidersNear(...args);staging.collidersNear(...args);}
+    collidersNear(...args){worldRegistry.collidersNear(...args);staging.collidersNear(...args);},
+    generationFootprintsNear(...args){worldRegistry.generationFootprintsNear(...args);staging.generationFootprintsNear(...args);},
+    generationCollidersNear(...args){worldRegistry.generationCollidersNear(...args);staging.generationCollidersNear(...args);}
   };
   const deferLights=group=>group.traverse(n=>{if(n.isLight){unregisterContextLight(n);n.visible=false;deferredLights.add(n);}});
   function* consume(iterator){let step;try{do{step=iterator.next();if(!step.done){if(step.value?.group)deferLights(step.value.group);yield step.value;}}while(!step.done);return step.value;}finally{if(!step?.done)iterator.return();}}
@@ -143,7 +145,12 @@ export function* buildMountainDistrictSteps(scene, fixture, { plan = mountainDis
     // Staged registry entries never enter live broadphase queries. Recheck
     // surrounding occupancy, then transfer the same entry/seat references.
     for(const camp of camps)if(!canPlaceCampsite(worldRegistry,camp,plan.id))throw new Error('District changed while staged');
-    for(const entry of [...staging.byChunk(plan.id)]){staging.remove(entry.id);worldRegistry.add(entry);}
+    const publishedEntries=[...staging.byChunk(plan.id)],publishedIds=new Map();
+    for(const entry of publishedEntries){const oldId=entry.id;staging.remove(oldId);publishedIds.set(oldId,worldRegistry.add(entry));}
+    // Physics descriptors refer to the camp's registry identity. Publication
+    // allocates live IDs, while seat/collider object references remain shared.
+    const descriptors=new Set(publishedEntries.flatMap(entry=>[...(entry.physicalProps||[]),...(entry.physicalChairs||[]),...(entry.physicalProp?[entry.physicalProp]:[])]));
+    for(const descriptor of descriptors){const id=publishedIds.get(descriptor.originRegistryId);if(id!==undefined)descriptor.originRegistryId=id;}
     scene.add(root);published=true;
     for(const light of deferredLights)if(light!==drum?.dc.fireLight)registerContextLight(light);
     drum?.activate();

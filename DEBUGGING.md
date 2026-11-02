@@ -60,6 +60,14 @@ Open `/festival-map-preview.html?mute=1` for the production discovery/storage/wo
 
 Use `&viewport=portrait` or `&viewport=landscape` for 390×844 and 844×390 touch layout frames. These validate layout in the desktop browser, not real-device input or performance. `node bin/test-festival-map` runs pure/persistence/worker/live-marker regressions and is included in `npm run check`. The real game's `__dbg.festivalMap()` returns diagnostics. Browser tests must still start through a ready mode plank. [Evidence and limits](verification/festival-map/README.md).
 
+## Live physics inspection
+
+Physics runs by default. Use `?physics=0` for the legacy path, or `?physics=1&mute=1` to expose test controls. Then use **Stage cooler encounter**, wait for **Target: active**,
+then **Inspect staged prop** and **Coast forward**. **Noon**/**Midnight** change
+lighting and **Chase camera** restores the normal camera. Physics diagnostics
+include cooler lid latch, angle, anchor error and generation. Current live lids
+are reserved with their shell; loose cooler contents remain unfinished.
+
 ## Terrain driving proof
 
 Open `http://127.0.0.1:8765/terrain-sandbox.html?mute=1` on the existing
@@ -501,6 +509,14 @@ collecting reports from remote players would require a separately designed
 hosted collector with privacy, retention, abuse, and consent rules.
 
 ---
+
+## Physical furniture playground
+
+Live chairs, articulated coolers and pedestrian falls run by default. To show their diagnostic controls, use `/?physics=1&mute=1&perf=low&seed=1977`. The [cooler checkpoint](verification/physical-festival/2026-10-30-cooler/README.md) gives a known campsite and the **Stage cooler encounter** / **Coast forward** controls. At `x=-1035&z=-478`, **Toss prop toward pedestrian** launches an existing nearby prop toward a prepared ordinary person without freezing or moving the target. It reports when no suitable pair is nearby. The [secondary encounter checkpoint](verification/physical-festival/2026-10-30-encounters/README.md) records the actual fall/recovery and capacity-reuse proof; broad acceptance and phone testing remain unfinished.
+
+Open `/physical-sandbox.html?mute=1&perf=low&fixture=chair&seed=1977` on the Vite server. Choose a chair style and encounter, then use Run encounter, reset, slow motion or single step. Collision shapes, model bounds and seat anchors help inspect the provisional recipes. Show cart hides only its rendering so fallen furniture remains inspectable. Chair visuals use the production batch bindings; the report includes dirty matrix ranges requested for upload. Inputs, contacts, and limits contains the copied report and Dispose scene control. Repeat Noon/Midnight and Low/Mid when changing presentation.
+
+This is an engine proof using the real Zerble controller, a conservative kinematic contact hull and either fixture ground or the exact production-terrain triangle surface. Cart ghost mode can change during an encounter; ending it inside a prop waits for clearance before restoring contacts. The report exposes ghost state and pending clearance. It does not exercise production occupants, streaming ownership or the main game contact barrier, and disabling physics shows a static reference rather than legacy collisions. See [evidence and limitations](verification/physical-festival/README.md). Run `npm run test:physics` for actual Rapier lifecycle/contact and fixed-clock tests.
 
 ## The sandbox — isolated entity viewer
 

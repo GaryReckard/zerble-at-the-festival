@@ -2604,3 +2604,8 @@ body.reduced-motion .best-confetti {
   #title-ui .card-page:not([hidden]) { animation: none; }
   .mode-btn, .title-link { transition: none; }
 }
+
+/* Available even when the game modules never arrive. */
+#boot-retry { padding: 5px 12px; border: 1px solid #fff6e6; border-radius: 4px;
+  background: #332218; color: #fff6e6; font: inherit; font-size: 12px; cursor: pointer; }
+#boot-retry[hidden] { display: none; }

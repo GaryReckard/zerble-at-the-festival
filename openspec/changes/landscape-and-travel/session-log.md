@@ -1,7 +1,7 @@
 ---
 change: landscape-and-travel
 status: in_progress
-current_task: "8.6 (reported road obstruction), then 8.7 (Lurleen steep-hill following)"
+current_task: "9.2 (physical-device acceptance), then 9.3 (player recognition and route choice)"
 blocked_by: null
 open_questions: 0
 started: 2026-11-01
@@ -17,6 +17,8 @@ ref: "ROADMAP.md: Landscape and travel, including Mountain Top camping"
 - **D2 (bounded first proof):** Complete shared support/solid contracts and the authored existing-sandbox mode before procedural admission or any default generation change.
 - **D3 (council contract closure):** Pure samples never commit support, missing occupied supports block, movement commits only accepted transitions, approach footprints have explicit margins, and ray checks select the declared layer.
 - **D4 (current toolchain authority):** Current AGENTS.md and Vite policy supersede stale injected no-build/importmap instructions. No global OpenSpec tooling cleanup is included.
+
+- **D5 (main merge authorization):** Gary explicitly requested merging current main into the landscape branch. Use an isolated managed worktree and retain the original checkout's separate uncommitted edits.
 
 ## Assumptions
 
@@ -195,3 +197,17 @@ ref: "ROADMAP.md: Landscape and travel, including Mountain Top camping"
 Gary requested a commit before further fixes and supplied two exact seed/location markers. The reports are saved in `verification/landscape/player-reports-2026-11-01.json`, with follow-up tasks for built road clearance and steep-hill Lurleen following. Neither report is marked fixed or reproduced yet.
 
 The working checkout is on `codex/physical-festival` at `5ef3df2`; fetched `main`/`origin/main` are at `39e4797`, 37 commits newer, including production physics enabled by default. Landscape work remained in this shared checkout while other work advanced main. The landscape checkpoint includes its minimal existing Rapier/recipe dependencies but leaves separate playground, startup-recovery and physical-festival planning changes unstaged. Those newer production changes require explicit integration and validation, rather than treating this checkout as current main. Gary's present commit authorization supersedes the earlier no-commit session constraint.
+
+### 2026-11-01 -- Checkpoint, main integration and seeded playtest fixes
+
+Committed the landscape checkpoint as `4521b19` while preserving separate startup/playground edits in the original checkout. Local and fetched main both resolved to `39e4797`, 37 commits beyond the shared base. Gary explicitly requested merging main into this branch; the integration uses managed worktree `landscape-main-integration` and branch `codex/landscape-and-travel`, leaving the shared checkout intact. Main's default physics, occupied chairs/coolers, ordinary people and startup recovery are retained.
+
+The reported potty marker lies 0.097m from an ordinary paved road centerline in both generations. Full welfare envelopes and individual built row units now clear roads; a regression caught the additional case where rounding a previously clear location back onto the road edge invalidated admission. Four audited baseline seeds retain original road/point queries, while welfare posts and dependent bubble/arch/healing placement intentionally change. Historical snapshots are preserved separately.
+
+The Lurleen marker lies on a wooded ridge, rather than a populated mountain district. Her strict footprint grade check stopped her despite a physically feasible climb. She now uses shared force-limited driving without changing wagon/rider conservative limits. A normal moving-player replay retains following and climbs 12.08–12.89m at 30/60/120Hz. Wheel contact is measured separately; the nonplanar ridge can leave approximately 0.2m residual within the finite suspension range, so this is not an all-terrain suspension accuracy claim.
+
+Main's live terrain residency now includes clipped deck slabs in existing tile bodies, with independent landscape-owner leases and bounded preparation. Missing bridge residency stays pending; people above and below bridges recover against their actual layer. No second physics clock or duplicate terrain provider is installed. See the dated integration report for final checks and browser evidence. Physical-device/player acceptance and deliberate default rollout remain open.
+
+The actual combined-game night check exposed a stage-audience mismatch absent from the adapter-free legacy path: CampActivity selected a chair but sent the global sleeping flag to terrain validation, which attempted undefined bed doorway coordinates. Candidate eligibility now passes the actual bed classification, with finite endpoint validation before support queries and focused night/invalid-slot regressions. Owned failed tab 380986967 was closed immediately and confirmed absent.
+
+The following meadow check showed `origin-unavailable` while physical props remained static. Staged publication reassigns registry IDs, so main's new physical origin references needed an explicit old-to-live ID remap. The same descriptor objects remain shared between campsite parents and children. The staging regression now composes real publication with createLivePhysics and requires successful adoption before teardown; a registry-only pass is no longer sufficient. Owned tab 380986971 closed and confirmed absent after the observation.

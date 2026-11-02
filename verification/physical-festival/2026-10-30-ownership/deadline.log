@@ -1,0 +1,6 @@
+PASS  eager initial preload and bounded empty-residency admission
+PASS physical preparation shares the absolute world deadline and reduces horizon remainder; exhausted frames do not invoke it.
+(node:57012) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/src/worldgen/placement.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/.codex/worktrees/startup-recovery/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

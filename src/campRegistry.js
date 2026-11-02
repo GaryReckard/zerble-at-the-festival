@@ -1,6 +1,42 @@
+import * as THREE from 'three';
 import { terrainHeight, terrainEnabled } from './worldgen/terrain.js';
+import { getSessionSeed } from './rng.js';
+import { worldgenEpoch } from './worldgen/constants.js';
+import { createPhysicalPropKey } from './physics/propIdentity.js';
 // Camp envelopes reserve ground for builders, while child props supply walkable collisions.
 const CAMP_WALK_CLEARANCE = .35;
+
+// Stage audiences use the same furniture, but retain kind 'chair' because the
+// crowd's audience activity discovers those entries independently of campsites.
+export function registerStageChair(registry, chair, {chunkKey, origin, originRegistryId, batch}) {
+  chair.group.updateWorldMatrix(true,false);
+  const position=new THREE.Vector3(),rotation=new THREE.Quaternion(),scale=new THREE.Vector3();
+  chair.group.matrixWorld.decompose(position,rotation,scale);
+  const originOwner=`chunk:${chunkKey}`,localKey=`stage-chair:${chair.audienceGroup}:${chair.audienceSlot}`;
+  const descriptor={logicalKey:createPhysicalPropKey({worldSeed:getSessionSeed(),worldgenEpoch:worldgenEpoch(),originOwner,origin,localKey}),
+    originOwner,originPosition:{...origin},localKey,originRegistryId,
+    kind:chair.loveseat?'camp_loveseat':'camp_chair',style:chair.style,
+    worldPose:{position:{x:position.x,y:position.y,z:position.z},rotation:{x:rotation.x,y:rotation.y,z:rotation.z,w:rotation.w},scale:{x:scale.x,y:scale.y,z:scale.z}},
+    renderBinding:chair.renderBinding,renderBatch:batch,seatSlots:chair.campSeats};
+  const radius=chair.footprint*Math.max(scale.x,scale.z);
+  const child={kind:'chair',position,footprint:radius,collider:{radius,damage:1},campSeats:chair.campSeats,
+    stageAudience:true,audienceGroup:chair.audienceGroup,chairStyle:chair.style,chunkKey,physicalProp:descriptor};
+  const adopted=registry.physicalChairOwner?.registerOrigin(descriptor,child);
+  const entry=adopted||child;
+  if(!adopted)registry.add(child);
+  // An adopted entry retains its live seat tokens across origin regeneration.
+  for(const slot of chair.campSeats)slot.collider=entry;
+  return entry;
+}
+
+function withoutOriginEntries(registry, ignored) {
+  if (!ignored.size) return registry;
+  const view = Object.create(registry);
+  for (const method of ['footprintsNear', 'generationFootprintsNear', 'collidersNear', 'generationCollidersNear']) if (registry[method]) {
+    view[method] = (x, z, reach, visit) => registry[method](x, z, reach, entry => { if (!ignored.has(entry.id)) visit(entry); });
+  }
+  return view;
+}
 
 function segmentDistanceSquared(px,pz,ax,az,bx,bz) {
   const dx=bx-ax,dz=bz-az,lengthSquared=dx*dx+dz*dz;
@@ -11,7 +47,7 @@ function segmentDistanceSquared(px,pz,ax,az,bx,bz) {
 // Return one reachable world-space approach per seat, preserving input order.
 // A claim is usable only if the complete final walk clears other furniture;
 // testing its endpoint alone can put that walk through a neighboring chair.
-export function campSeatApproaches(camp, registry = null) {
+export function campSeatApproaches(camp, registry = null, { generation = false } = {}) {
   const root=camp.group,yaw=root.rotation.y,c=Math.cos(yaw),s=Math.sin(yaw);
   const scale=Math.max(root.scale.x,root.scale.z);
   const point=(x,z)=>({x:root.position.x+c*x*root.scale.x+s*z*root.scale.z,
@@ -22,7 +58,10 @@ export function campSeatApproaches(camp, registry = null) {
     const own=seat.group?solids.find(solid=>solid.group===seat.group):null;
     const base=Math.max(1.2,(own?.radius||.36*scale)+.45);
     const obstacles=solids.filter(solid=>!seat.group||solid.group!==seat.group);
-    registry?.collidersNear(p.x,p.z,base+2+CAMP_WALK_CLEARANCE,entry=>{
+    const query = generation && registry?.generationCollidersNear
+      ? registry.generationCollidersNear.bind(registry)
+      : registry?.collidersNear?.bind(registry);
+    query?.(p.x,p.z,base+2+CAMP_WALK_CLEARANCE,entry=>{
       obstacles.push({x:entry.position.x,z:entry.position.z,radius:entry.collider?.radius||0});
     });
     for(const offset of [0,Math.PI/8,-Math.PI/8,Math.PI/4,-Math.PI/4,3*Math.PI/8,-3*Math.PI/8,Math.PI/2,-Math.PI/2]) {
@@ -80,13 +119,31 @@ export function fitCampToTerrain(camp, sample = terrainHeight) {
 export function registerCampsite(registry, camp, options = {}) {
   const { heightAt = terrainHeight, ...metadata } = options;
   if (terrainEnabled() || heightAt !== terrainHeight) fitCampToTerrain(camp, heightAt);
+  // Cooler bodies are independent of the canopy and retain their terrain-fit
+  // pose in the source instances as well as their physical descriptor.
+  for (const cooler of camp.physicalCoolers || []) {
+    cooler.group.updateWorldMatrix(true, false);
+    cooler.renderBinding?.setWorldMatrix(cooler.group.matrixWorld);
+    cooler.originLocalTransform.copy(cooler.group.matrix);
+  }
+  if (camp.physicalCoolers?.length) camp.chairBatch?.flush();
   const root = camp.group;
   const yaw = root.rotation.y, c = Math.cos(yaw), s = Math.sin(yaw);
   const sx = root.scale.x, sz = root.scale.z;
   const point = (x, z) => ({ x: root.position.x + c * x * sx + s * z * sz,
     z: root.position.z - s * x * sx + c * z * sz });
   const position = (p) => root.position.clone().set(p.x, heightAt(p.x,p.z), p.z);
-  const approaches=campSeatApproaches(camp,registry.collidersNear?registry:null);
+  const owner = options.originOwner ?? (options.chunkKey !== undefined
+    ? `chunk:${options.chunkKey}`
+    : options.lakeOwnerKey !== undefined ? `lake:${options.lakeOwnerKey}` : null);
+  const origin = { x: root.position.x, y: root.position.y, z: root.position.z };
+  const originOwner = owner ?? `camp-origin:${origin.x},${origin.y},${origin.z}`;
+  const keyFor = chair => createPhysicalPropKey({ worldSeed: getSessionSeed(), worldgenEpoch: worldgenEpoch(),
+    originOwner, origin, localKey: chair.localKey });
+  const approachRegistry = withoutOriginEntries(registry,
+    new Set(registry.physicalChairOwner?.originEntryIds?.(camp, options) ?? []));
+  const approaches=campSeatApproaches(camp,
+    registry.collidersNear || registry.generationCollidersNear ? approachRegistry : null,{generation:true});
   const seatClaims = (camp.seats || []).map((seat,index) => {
     if(!approaches[index])return null;
     const p = point(seat.x, seat.z), facing = yaw + seat.yaw;
@@ -102,21 +159,62 @@ export function registerCampsite(registry, camp, options = {}) {
     return Array.from({length:capacity},()=>({...p,doorX:door.x,doorZ:door.z,occupied:false}));
   });
   const fire = (camp.childColliders || camp.colliders || []).find(prop => prop.kind === 'campfire');
+  const physicalProps = [...(camp.physicalChairs || []),...(camp.physicalCoolers || [])].map(chair => {
+    const localTransform = chair.originLocalTransform?.clone?.() || chair.originLocalTransform;
+    if (!localTransform?.elements?.every(Number.isFinite))
+      throw new TypeError(`Physical chair ${chair.localKey || '(missing localKey)'} needs a finite origin transform`);
+    // The batch builder captures this source transform before terrain metadata
+    // fitting. That is the published render pose, while chair.group.position.y
+    // and seat/collider anchors are separately grounded for worldgen gameplay.
+    root.updateWorldMatrix(true, false);
+    const worldMatrix = root.matrixWorld.clone().multiply(localTransform);
+    const position = new THREE.Vector3(), quaternion = new THREE.Quaternion(), scale = new THREE.Vector3();
+    worldMatrix.decompose(position, quaternion, scale);
+    const logicalKey = keyFor(chair);
+    return {
+      logicalKey, originOwner, originPosition: { ...origin }, originNeighborhood: options.campNeighborhood, localKey: chair.localKey,
+      kind: chair.kind === 'camp_cooler' ? 'camp_cooler' : chair.loveseat ? 'camp_loveseat' : 'camp_chair', style: chair.style,
+      worldPose: { position: { x: position.x, y: position.y, z: position.z },
+        rotation: { x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w },
+        scale: { x: scale.x, y: scale.y, z: scale.z } },
+      originLocalTransform: localTransform,
+      renderBinding: chair.renderBinding || null,
+      renderBatch: camp.chairBatch || null,
+      seatSlots: seatClaims.filter(({ seat }) => seat.group && seat.group === chair.group).map(({ slot }) => slot),
+    };
+  });
+  const physicalChairs = physicalProps.filter(prop => prop.kind !== 'camp_cooler');
   const ids = [registry.add({ kind: 'campsite', position: root.position.clone(),
     footprint: camp.footprint, campSeats, campBeds, campGroup: root,
+    ...(physicalChairs.length ? { physicalChairs } : {}),
+    ...(physicalProps.length ? { physicalProps } : {}),
     ...(fire ? { campFire: point(fire.x, fire.z) } : {}), ...metadata })];
-  for (const prop of camp.childColliders || camp.colliders || []) {
+  // Runtime owner lookup is separate from the stable procedural identity.
+  for (const chair of physicalProps) chair.originRegistryId = ids[0];
+  try { for (const prop of camp.childColliders || camp.colliders || []) {
     const p = point(prop.x, prop.z), radius = prop.radius * Math.max(sx, sz);
+    const physicalProp = physicalProps.find(chair => chair.renderBinding?.group === prop.group);
     const child = { kind: prop.kind, position: position(p), footprint: radius,
       collider: { radius, damage: prop.kind === 'camp_tent' ? 3 : 1 }, ...(metadata.chunkKey !== undefined ? { chunkKey: metadata.chunkKey } : {}),
+      ...(physicalProp ? { physicalProp, campSeats:physicalProp.seatSlots } : {}),
       ...(metadata.campNeighborhood ? {campNeighborhood:metadata.campNeighborhood} : {}) };
-    ids.push(registry.add(child));
+    // An adopted chair keeps its live entry across origin regeneration. It is
+    // deliberately omitted from this origin's teardown IDs, including lakes
+    // whose registryIds are copied into an explicit removal list.
+    const adopted = physicalProp ? registry.physicalChairOwner?.registerOrigin(physicalProp, child) : null;
+    const registeredChild = adopted || child;
+    if (!adopted) ids.push(registry.add(child));
     // A loveseat shares one furniture collider across two independent claims.
     seatClaims.forEach(({seat,slot}) => {
       if (seat.group && seat.group === prop.group) {
-        slot.collider = child;
+        slot.collider = registeredChild;
       }
     });
+  } } catch (error) {
+    // Suppression failure cannot leave a partially registered new origin. An
+    // adopted ID is never in this list, so rollback cannot remove its live prop.
+    for (const id of ids) registry.remove?.(id);
+    throw error;
   }
   return ids;
 }
@@ -125,12 +223,15 @@ export function registerCampsite(registry, camp, options = {}) {
 // entrances remain authoritative. This runs before registration, so rejection
 // leaves no partial registry state behind.
 export function canPlaceCampsite(registry, camp, neighborhood, options = {}) {
+  const queryRegistry = withoutOriginEntries(registry,
+    new Set(registry.physicalChairOwner?.originEntryIds?.(camp, { ...options, campNeighborhood: neighborhood }) ?? []));
   const root = camp.group, yaw = root.rotation.y;
   const c = Math.cos(yaw), s = Math.sin(yaw), scale = Math.max(root.scale.x, root.scale.z);
   const point = (x,z) => ({x:root.position.x+c*x*root.scale.x+s*z*root.scale.z,
     z:root.position.z-s*x*root.scale.x+c*z*root.scale.z});
   let clear = true;
-  registry.footprintsNear(root.position.x,root.position.z,camp.footprint+1.5,entry=>{
+  const footprintsNear = queryRegistry.generationFootprintsNear || queryRegistry.footprintsNear;
+  footprintsNear.call(queryRegistry,root.position.x,root.position.z,camp.footprint+1.5,entry=>{
     if (entry.kind==='tree' || (neighborhood && entry.campNeighborhood===neighborhood)) return;
     // A dry placement may lie inside an irregular lake's broad circle. Only
     // callers that checked actual water can bypass this non-solid envelope;
@@ -146,11 +247,12 @@ export function canPlaceCampsite(registry, camp, neighborhood, options = {}) {
   if (!clear) return false;
   const solids = (camp.childColliders || []).map(prop=>({...point(prop.x,prop.z),radius:prop.radius*scale}));
   const access = camp.tents.map(tent=>({...point(tent.entry.x,tent.entry.z),radius:.45}));
-  const approaches=campSeatApproaches(camp,registry);
+  const approaches=campSeatApproaches(camp,queryRegistry,{generation:true});
   if(approaches.some(approach=>!approach))return false;
   access.push(...approaches.map(approach=>({...approach,radius:.4})));
   for (const area of [...solids,...access]) {
-    registry.collidersNear(area.x,area.z,area.radius+.35,entry=>{
+    const collidersNear = queryRegistry.generationCollidersNear || queryRegistry.collidersNear;
+    collidersNear.call(queryRegistry,area.x,area.z,area.radius+.35,entry=>{
       const distance=Math.hypot(area.x-entry.position.x,area.z-entry.position.z);
       if(distance<area.radius+(entry.collider?.radius||0)+.3) clear=false;
     });

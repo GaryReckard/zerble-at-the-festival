@@ -1,0 +1,32 @@
+{
+  "0": {
+    "planAngles12Sha256": "85037a94cdf60f3c5c1071131082378aa4131f932171f828a725f71a34dd4ffd",
+    "changedKinds": [
+      "welfare_post",
+      "bubble_vendor"
+    ]
+  },
+  "42": {
+    "planAngles12Sha256": "b244b21f4295fef0c37b562c87fae1b47c6061a69c66a80d15b0aa38d676165e",
+    "changedKinds": [
+      "welfare_post",
+      "bubble_vendor",
+      "arch"
+    ]
+  },
+  "1234": {
+    "planAngles12Sha256": "e0217c39f95c9fef00d49f7ab945280b60f1e020411745260b8a62ef2cf8a11f",
+    "changedKinds": [
+      "welfare_post",
+      "bubble_vendor",
+      "healing_arts"
+    ]
+  },
+  "3248888364": {
+    "planAngles12Sha256": "588ccbfea7a59425b67ae88c29ee0b962a72c99a567bf5931626794f7ad29bc1",
+    "changedKinds": [
+      "welfare_post",
+      "bubble_vendor"
+    ]
+  }
+}

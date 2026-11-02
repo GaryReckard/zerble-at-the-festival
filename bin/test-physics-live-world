@@ -1,0 +1,227 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { Registry } from '../src/registry.js';
+import { buildCampChair } from '../src/models/campChair.js';
+import { batchPropGroups } from '../src/propRendering.js';
+import { createLivePhysics } from '../src/physics/liveWorld.js';
+import { applyPropFeedback } from '../src/physics/propFeedback.js';
+import { findChairApproach } from '../src/physics/encounter.js';
+import { containsSupport, supportWindow } from '../src/physics/supportWindow.js';
+import { registerStageChair } from '../src/campRegistry.js';
+import { setTerrainEnabled } from '../src/worldgen/terrain.js';
+import { readFileSync } from 'node:fs';
+setTerrainEnabled(false);
+{
+  const origin={x:0,z:0},initial=supportWindow(origin,null,2);
+  assert.deepEqual(initial,{minX:-8,maxX:8,minZ:-8,maxZ:8});
+  assert.equal(supportWindow({x:1,z:0},{x:1,z:0},2,initial),initial,'small motion retains the request');
+  const fast=supportWindow(origin,{x:40,z:0},2,initial);
+  assert.equal(fast.maxX,24,'fast motion prewarms ahead, bounded to sixteen metres');
+  assert(containsSupport(fast,{x:16,z:0},4));
+  const reverse=supportWindow(origin,{x:-40,z:0},2,fast);
+  assert.equal(reverse.minX,-24,'reversed motion requests the opposite frontier');
+  assert(containsSupport(reverse,origin,4),'replacement retains the current footprint');
+  assert.equal(supportWindow(origin,{x:1e6,z:0},2).maxX,24,'extreme speed cannot allocate an unbounded sweep');
+}
+{
+  const registry=new Registry();
+  const target={kind:'camp_chair',position:new THREE.Vector3(),collider:{radius:.8}};
+  registry.add(target);
+  const options={registry,entries:[target],radius:1.8,isWet:()=>false};
+  const first=findChairApproach(options);
+  assert.equal(first.entryId,target.id);
+  assert.equal(first.z,7,'an unobstructed approach ignores only its target');
+  const obstacle={kind:'tent',position:new THREE.Vector3(0,0,7),collider:{radius:2}};
+  registry.add(obstacle);
+  const alternate=findChairApproach(options);
+  assert(alternate,'a blocked first approach finds another direction');
+  assert.notEqual(alternate.heading,first.heading);
+  assert.equal(findChairApproach({...options,isWet:()=>true}),null,'water rejects every route');
+  registry.add({kind:'tent',position:new THREE.Vector3(),collider:{radius:30}});
+  assert.equal(findChairApproach(options),null,'enclosed chairs cannot stage through nearby solids');
+  assert.equal(findChairApproach({...options,entries:[]}),null);
+  let samples=0;
+  assert.equal(findChairApproach({...options,entries:Array(100).fill(target),isWet:()=>{samples++;return true;}}),null);
+  assert.equal(samples,64*2*16,'search stays bounded even with many candidates');
+}
+{
+  const registry=new Registry(),target={kind:'camp_cooler',position:new THREE.Vector3(),collider:{radius:.84}};
+  registry.add(target);registry.add({kind:'camp_kitchen',position:new THREE.Vector3(0,0,-3.8),collider:{radius:2.16}});
+  const approach=findChairApproach({registry,entries:[target],radius:2.95,isWet:()=>false});
+  assert.equal(approach?.heading,0,'outside approach stops at first contact instead of requiring travel through a cooler into the kitchen');
+}
+async function encounter(hz,ghost=false,starved=false,stageAudience=false,eligible=true) {
+  const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
+  const chair=buildCampChair(()=>.3,{style:'sling'});root.add(chair.group);
+  const batch=batchPropGroups(root,[chair.group]),parentId=registry.add({kind:'campsite',position:new THREE.Vector3(),footprint:8,chunkKey:'origin'});
+  const descriptor={logicalKey:'live-test-chair',kind:'camp_chair',style:'sling',originOwner:'chunk:origin',originRegistryId:parentId,
+    worldPose:{position:{x:0,y:.02,z:0},rotation:{x:0,y:0,z:0,w:1},scale:{x:1,y:1,z:1}},
+    renderBinding:batch.bindings[0],renderBatch:batch,seatSlots:[{occupied:false}]};
+  Object.assign(chair,{renderBinding:batch.bindings[0],audienceGroup:0,audienceSlot:0,campSeats:descriptor.seatSlots});
+  const entry=stageAudience?registerStageChair(registry,chair,{chunkKey:'origin',origin:{x:0,y:0,z:0},originRegistryId:parentId,batch})
+    :{kind:'camp_chair',position:new THREE.Vector3(0,.02,0),footprint:.8,collider:{radius:.8,damage:1},chunkKey:'origin',physicalProp:descriptor};
+  const id=stageAudience?entry.id:registry.add(entry),cart={position:new THREE.Vector3(0,0,9),root:new THREE.Group(),heading:0,speed:6};
+  if(starved)cart.speed=60;
+  const live=await createLivePhysics({scene,registry,cart});
+  try {
+    for(let i=0;i<30&&!live.owns(entry);i++)live.prepare(performance.now()+100);
+    assert(live.owns(entry),'prepared chair is actually adopted');
+    assert.equal(live.stats().chairs.length,1);
+    assert.equal(descriptor.seatSlots[0].physicalUnavailable,true);
+    // A frame with no preparation time must not create support or admissions.
+    const before=live.stats().engine.bodies;live.prepare(-1);assert.equal(live.stats().engine.bodies,before);
+    let hitCount=0;
+    for(let frame=0;frame<hz*2;frame++) {
+      cart.position.z=9-Math.min(cart.speed*2,(frame+1)*cart.speed/hz);
+      live.prepare(starved?-1:performance.now()+100);
+      const hit=live.advance(1/hz,{ghost,eligible});
+      if(hit){hitCount++;assert.equal(hit.entry,entry);assert.equal(hit.damage,0);assert.equal(hit.damaging,false);assert.equal(hit.objectBump,eligible);assert(hit.mass>0);assert(hit.approachSpeed>1.2);}
+    }
+    const result=live.stats();
+    if(starved) {
+      assert.equal(result.blocked,'support-frontier','sustained preparation starvation reaches the explicit guard');
+      assert(result.clock.steps<120);assert(result.clock.dropped>0);
+      assert(Math.abs(entry.position.z)<8,'the tested chair remains inside its original support window');
+      const held={...entry.position},steps=result.clock.steps;
+      for(let frame=0;frame<30;frame++)live.advance(1/hz);
+      assert.deepEqual({...entry.position},held,'starvation does not teleport or advance the held chair');
+      cart.speed=0;
+      for(let frame=0;frame<60;frame++){live.prepare(performance.now()+100);live.advance(1/hz);}
+      assert.equal(live.stats().blocked,null,'renewed preparation resumes the simulation');
+      assert(live.stats().clock.steps>steps);assert.equal(live.stats().ownership.chairs,1);
+    } else {assert.equal(result.clock.steps,120);assert.equal(result.blocked,null);}
+    assert.equal(result.overflow,0);
+    if(ghost)assert.equal(result.incidents.incidents,0,'ghost creates no causal incident');
+    else {assert.equal(result.chairs[0].incident.instigator,'zerble');assert.equal(result.chairs[0].incident.hops,0);assert(result.chairs[0].incident.source.endsWith(':'+result.chairs[0].state.engineGeneration));}
+    if(ghost){assert.equal(hitCount,0);assert(Math.abs(entry.position.z)<.15,'ghost does not push the chair');}
+    else {assert(hitCount>0,'real cart hull produces an eligible impact');assert(Math.abs(entry.position.z)>1,'chair moves through real solver contacts');}
+    assert.equal(registry.closestGenerationBuilding({x:0,z:0},.1,new Set(['campsite'])).id,id);
+    registry.removeChunk('origin');batch.dispose();
+    assert(registry.entries.has(id),'old chunk disposal preserves adopted chair');
+    live.prepare(performance.now()+100);live.advance(1/hz,{ghost});
+    assert.equal(live.stats().ownership.chairs,1);
+    return result;
+  } finally {
+    assert.equal(live.dispose().ok,true);assert.equal(live.stats().incidents.incidents,0);assert.equal(registry.physicalChairOwner,undefined);
+    assert.equal(registry.entries.has(id),false);assert.equal(live.stats().engine.bodies,0);batch.dispose();
+  }
+}
+for(const hz of [30,60,120])await encounter(hz);
+await encounter(60,true);
+await encounter(60,false,true);
+await encounter(60,false,false,true);
+await encounter(60,false,false,false,false);
+for(const style of ['sling','director','low','loveseat']) {
+  const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
+  const chairs=Array.from({length:9},(_,index)=>{
+    const chair=buildCampChair(()=>.3,{style}),angle=index*Math.PI*2/9;
+    chair.group.position.set(Math.sin(angle)*12,.02,Math.cos(angle)*12);root.add(chair.group);return chair;
+  });
+  const batch=batchPropGroups(root,chairs.map(chair=>chair.group));
+  const parentId=registry.add({kind:'stage_front',position:new THREE.Vector3(),footprint:0,chunkKey:'capacity-origin'});
+  const entries=chairs.map((chair,index)=>{
+    Object.assign(chair,{renderBinding:batch.bindings[index],audienceGroup:0,audienceSlot:index,campSeats:chair.seatOffsets.map(()=>({occupied:false}))});
+    const entry=registerStageChair(registry,chair,{chunkKey:'capacity-origin',origin:{x:0,y:0,z:0},originRegistryId:parentId,batch});
+    assert.equal(entry.kind,'chair');assert.equal(entry.collider.damage,1);
+    assert.equal(entry.physicalProp.originRegistryId,parentId);
+    assert(entry.campSeats.every(slot=>slot.collider===entry));
+    const collisions=[];registry.collidersNear(entry.position.x,entry.position.z,.1,e=>collisions.push(e));
+    assert(collisions.includes(entry),'stage chairs collide even before physics admission');
+    return entry;
+  });
+  const cart={position:new THREE.Vector3(),root:new THREE.Group(),heading:0,speed:0};
+  const live=await createLivePhysics({scene,registry,cart});
+  try {
+    for(let frame=0;frame<120;frame++) {
+      live.prepare(performance.now()+100);live.advance(1/60);
+      const state=live.stats();
+      assert(state.chairs.length<=8);assert(state.terrain.tiles<=64);assert(state.solids.proxies<=128);
+      assert(state.engine.bodies<=256);assert(state.engine.colliders<=512);assert.equal(state.overflow,0);
+    }
+    const active=entries.filter(entry=>live.owns(entry)),legacy=entries.filter(entry=>!live.owns(entry));
+    assert.equal(active.length,8,JSON.stringify({requirement:'all eight reserved chair slots can be used',lastReject:live.stats().lastReject,render:live.stats().render}));
+    assert.equal(legacy.length,1,'the ninth candidate stays on its original path');
+    assert.equal(legacy[0].chunkKey,'capacity-origin');
+    assert.equal(legacy[0].physicalProp.seatSlots[0].physicalUnavailable,undefined);
+    for(const part of legacy[0].physicalProp.renderBinding.describe()) {
+      const matrix=new THREE.Matrix4();part.mesh.getMatrixAt(part.slot,matrix);
+      assert(Math.abs(matrix.determinant())>1e-8,'capacity rejection preserves the original visual');
+    }
+    const ids=active.map(entry=>entry.id),before=live.stats();
+    for(let frame=0;frame<120;frame++){live.prepare(performance.now()+100);live.advance(1/60);}
+    assert.deepEqual(entries.filter(entry=>live.owns(entry)).map(entry=>entry.id),ids,'capacity pressure does not evict existing chairs');
+    assert.equal(live.stats().render.props,8);
+    assert.equal(live.stats().terrain.timing.created,before.terrain.timing.created,'settled residents do not churn terrain allocation');
+    registry.removeChunk('capacity-origin');batch.dispose();
+    for(let frame=0;frame<30;frame++){live.prepare(performance.now()+100);live.advance(1/60);}
+    assert.equal(registry.entries.size,8,'source unload preserves precisely the adopted chairs');
+    assert.equal(live.stats().ownership.chairs,8);assert.equal(live.stats().blocked,null);
+    const replacementRoot=new THREE.Group();scene.add(replacementRoot);
+    const replacementChairs=chairs.map(chair=>{
+      const next=buildCampChair(()=>.3,{style});next.group.position.copy(chair.group.position);replacementRoot.add(next.group);return next;
+    });
+    const replacementBatch=batchPropGroups(replacementRoot,replacementChairs.map(chair=>chair.group));
+    try {
+      const replacementOrigin=registry.add({kind:'stage_front',position:new THREE.Vector3(),footprint:0,chunkKey:'capacity-origin'});
+      const regenerated=replacementChairs.map((chair,index)=>{
+        Object.assign(chair,{renderBinding:replacementBatch.bindings[index],audienceGroup:0,audienceSlot:index,campSeats:chair.seatOffsets.map(()=>({occupied:false}))});
+        return registerStageChair(registry,chair,{chunkKey:'capacity-origin',origin:{x:0,y:0,z:0},originRegistryId:replacementOrigin,batch:replacementBatch});
+      });
+      assert.equal(registry.entries.size,10,'regeneration adds only the stage origin and the nonphysical chair');
+      for(let index=0;index<entries.length;index++)if(ids.includes(entries[index].id)) {
+        assert.equal(regenerated[index],entries[index]);
+        assert(regenerated[index].campSeats.every(slot=>slot.physicalUnavailable&&slot.collider===regenerated[index]));
+        assert.equal(regenerated[index].physicalProp.originRegistryId,replacementOrigin);
+        for(const part of replacementChairs[index].renderBinding.describe()) {
+          const matrix=new THREE.Matrix4();part.mesh.getMatrixAt(part.slot,matrix);
+          assert.equal(matrix.determinant(),0,'adopted stage chair suppresses its regenerated source visual');
+        }
+      }
+      registry.removeChunk('capacity-origin');
+      assert.equal(registry.entries.size,8);
+    } finally {replacementBatch.dispose();replacementRoot.removeFromParent();}
+    console.log(`PASS live capacity (${style}): eight active, ninth legacy, stable terrain allocations, source unload and full cleanup.`);
+  } finally {
+    registry.removeChunk('capacity-origin');
+    assert.equal(live.dispose().ok,true);batch.dispose();
+    assert.equal(live.stats().engine.bodies,0);assert.equal(live.stats().engine.colliders,0);
+    assert.equal(live.stats().render.props,0);assert.equal(registry.physicalChairOwner,undefined);
+    assert.equal(registry.entries.size,0);
+  }
+}
+const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const star=main.indexOf('StarPower.update(dt,'),legacy=main.indexOf('hit = resolveCollision(zerble, _collScratch)'),physical=main.indexOf('physicalWorld?.advance(dt,');
+assert(star<legacy&&legacy<physical&&physical<main.indexOf("peopleFrameTrace?.mark('contacts-end'"),'late physics runs after same-frame ghost pickup and legacy correction');
+assert.match(main,/if\(!physicalWorld\?\.owns\(e\)\) _collScratch.push/);
+console.log('PASS live physics: real chair adoption/support/cart impacts at 30/60/120 Hz, ghost passage, exhausted preparation deadline, canonical clearance, source unload and full cleanup; main late-contact ordering and singular authority.');
+console.log('Scope: opt-in empty-chair integration; full-game browser and phone acceptance remain separate.');
+
+// The real main-loop branch must use weight-sensitive slowdown without the
+// person-hit kickback, immunity timer or position correction.
+const feedbackSource=main.slice(main.indexOf('    if(physicalHit && !hit?.damaging)'),main.indexOf('    if(physicalReadout && physicalWorld'));
+const applyMainFeedback=new Function('physicalHit','hit','zerble','applyPropFeedback',feedbackSource+';return hit;');
+for(const direction of [-1,1]) {
+  const losses=[];
+  for(const mass of [.1,5,30,500]) {
+    const cart={speed:direction*10,position:{x:2,z:4},invulnLeft:0,applyHit(){throw Error('Person reaction used for a prop');}};
+    const event={physical:true,mass,approachSpeed:8};
+    assert.equal(applyMainFeedback(event,null,cart,applyPropFeedback),event);
+    assert.equal(Math.sign(cart.speed),direction,'props never force reverse');
+    assert.deepEqual(cart.position,{x:2,z:4});assert.equal(cart.invulnLeft,0);
+    losses.push(10-Math.abs(cart.speed));
+  }
+  assert(losses.every((loss,i)=>i===0||loss>losses[i-1]),'heavier props resist more');
+  assert(losses[0]<.01,'a cup-sized mass barely affects the cart');
+}
+{
+  const cart={speed:10,position:{x:0,z:0},invulnLeft:.3};
+  const personHit={damaging:true,kind:'person'};
+  assert.equal(applyMainFeedback({mass:5,approachSpeed:8},personHit,cart,applyPropFeedback),personHit);
+  assert.equal(cart.speed,10,'a same-frame damaging legacy hit retains priority');
+  for(const mass of [NaN,Infinity,-1,0])assert.equal(applyPropFeedback(cart,{mass,approachSpeed:8}),0);
+  const straight={speed:10},glance={speed:10};
+  applyPropFeedback(straight,{mass:5,approachSpeed:10});applyPropFeedback(glance,{mass:5,approachSpeed:2});
+  assert(glance.speed>straight.speed,'a glancing contact removes less speed');
+}
+console.log('PASS main-loop prop feedback: mass-sensitive forward/reverse slowdown, glancing contact, unchanged position/immunity and retained person-hit priority.');
