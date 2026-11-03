@@ -202,3 +202,15 @@ try {
 } finally { limits.dispose(); limitsAdapter.dispose(); }
 
 console.log('PASS static residency: real Rapier cylinder support, dynamic filtering, shared ownership, deadline and hard caps, bounded truncation, transactional replacement, source-removal cleanup and owned teardown.');
+
+// Layered bridge rails must remain at deck height, rather than blocking the bed.
+{
+ const r=new Registry();r.add({kind:'bridge_rail',position:new THREE.Vector3(0,12,0),footprint:1.3,collider:{radius:1.3,minY:-.28,maxY:1.2,damage:0}});
+ const a=await createRapierAdapter();const owner=createStaticResidency({registry:r,adapter:a,kinds:null,isDynamic:()=>false});
+ try{assert.equal(owner.request('bridge',bounds(0)).ok,true);pump(owner);const rail=owner.status('bridge').proxies[0];
+  assert(Math.abs(rail.position.y-11.72)<1e-7);assert(Math.abs(rail.halfHeight-.74)<1e-7);
+  assert.equal(a.addBody({id:'below',type:'dynamic',pose:{position:{x:0,y:0,z:0}},colliders:[{shape:'ball',radius:.4}]}).ok,true);
+  for(let i=0;i<6;i++)a.step(1/60);assert(Math.abs(a.readBody('below').pose.position.x)<.01,'bridge rail does not push a body in the stream bed');
+ }finally{owner.dispose();a.dispose();}
+}
+console.log('PASS layered bridge rail retains its authored vertical interval.');

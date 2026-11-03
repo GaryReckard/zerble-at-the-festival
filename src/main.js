@@ -36,6 +36,7 @@ import { updateTribalFigures } from './models/tribalFigures.js';
 import { updateHealingArtsTents, healingArtsTents, updateStagePerformers, stagePerformers, updateStageLightShow, stageLightLenses, worldgenDrawCounts } from './chunks.js';
 import { updateSugarShackCooks, sugarShackCooks } from './models/sugarShack.js';
 import { Zerble } from './zerble.js';
+import { engineDemand } from './engineDemand.js';
 import { Bubbles } from './bubbles.js';
 import { BUBBLE_TYPES, charmLevel, visibleCatalog } from './bubbleTypes.js';
 import { createBubbleProgress } from './bubbleProgress.js';
@@ -613,7 +614,7 @@ if(landscapeVersion()===2){
 }
 buildWorld(scene, crowd, zerble.position,{landscape:landscapeRuntime});
 // Live physics defaults on. Loading is independent of the synchronous audio
-// unlock gesture, and failure leaves every prop on its legacy path.
+// unlock gesture; failure falls back to classic driving and prop contacts.
 let physicalWorld=null, physicalLoadError=null, physicalClosing=false;
 const physicalFlag=new URLSearchParams(location.search).get('physics');
 const physicalRequested=physicalFlag!=='0';
@@ -654,7 +655,7 @@ if(physicalFlag==='1') {
     physicalActionMessage=result?.ok?'Occupants checking a clear exit; blocked exits keep their seats.':`Cannot stage exit: ${result?.reason??'physics-loading'}`;
   };
   const personTargetReady=()=>!!physicalPersonEncounter&&physicalWorld?.stats().ordinary?.people.some(p=>p.slot===physicalPersonEncounter.slot&&p.generation===physicalPersonEncounter.generation&&p.ready);
-  const coast=physicalCoast=document.createElement('button');coast.textContent='Coast forward';coast.disabled=true;coast.onclick=()=>{if(personTargetReady()||physicalWorld?.owns(registry.entries.get(physicalEncounterId)??{}))zerble.speed=8;};
+  const coast=physicalCoast=document.createElement('button');coast.textContent='Coast forward';coast.disabled=true;coast.onclick=()=>{if(personTargetReady()||physicalWorld?.owns(registry.entries.get(physicalEncounterId)??{}))physicalWorld.setSpeed(8);};
   const inspect=document.createElement('button');inspect.textContent='Inspect staged prop';inspect.onclick=()=>{
     const entry=registry.entries.get(physicalEncounterId);if(!entry)return;
     const p=entry.position,dx=p.x-zerble.position.x,dz=p.z-zerble.position.z,length=Math.hypot(dx,dz)||1;
@@ -668,9 +669,9 @@ if(physicalFlag==='1') {
   panel.append(stage,coolerStage,occupiedStage,pedestrianStage,toss,dismount,coast,inspect,chase,noon,midnight,physicalDetails);document.body.append(panel);
 }
 if(physicalRequested) {
-  import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera,people:crowd,landscape:landscapeRuntime,isWet:isPointInLake})).then(world=>{
+  import('./physics/liveWorld.js').then(module=>module.createLivePhysics({scene,registry,cart:zerble,camera,people:crowd,landscape:landscapeRuntime,isWet:isPointInLake,drivePlayer:true})).then(world=>{
     if(physicalClosing)world.dispose();else physicalWorld=world;
-  }).catch(error=>{physicalLoadError=error.message;if(physicalReadout)physicalReadout.textContent=`Physics unavailable: ${error.message}`;console.error('Physical chair initialization failed',error);});
+  }).catch(error=>{physicalLoadError=error.message;if(physicalReadout)physicalReadout.textContent=`Physics unavailable: ${error.message}`;HUD.toast('Physical driving could not load; classic driving is available.',5000);console.error('Physical driving initialization failed',error);});
 }
 window.addEventListener('pagehide',event=>{if(!event.persisted){physicalClosing=true;physicalWorld?.dispose();}});
 window.addEventListener('pageshow',event=>{if(event.persisted)physicalWorld?.reset('dropped-time');});
@@ -846,6 +847,7 @@ function applyResumeGameState() {
   if (!__resume || RunMode.name !== __resume.mode) return false;
   if (__resume.scoring) Scoring.restore(__resume.scoring);
   else if (Number.isFinite(__resume.score)) Scoring.reset({ current: __resume.score });
+  if(Number.isFinite(__resume.vehicleDamage))zerble.condition.damage=Math.max(0,Math.min(99.99,__resume.vehicleDamage));
   if (__resume.run) RunState.restore(__resume.run);   // day/clock/vibe/prevT/rescue
   HUD.setSmiles(Scoring.current);
   return true;
@@ -909,6 +911,9 @@ let _sessionEndReported = false; // session_end fires once per leave; resets on 
 // Opening intro: while true, the world simulates but the player can't drive
 // (the camera is mid-reveal). Zerble gets a neutral input so it idles in place.
 let controlsLocked = false;
+let vehicleGameOver = null;
+let lastPhysicalDamageAt = -1;
+const engineEnvelope = {};
 let captureDriveLocked = false;
 const NEUTRAL_INPUT = { throttle: 0, steer: 0, boost: false, slow: false };
 
@@ -953,7 +958,7 @@ Settings.init({
   // "Apply & restart" calls this to preserve a live session across the reload.
   // Returns null on the title card (nothing to resume) → a fresh boot.
   captureState: () => {
-    if (!running) return null;
+    if (!running||vehicleGameOver) return null;
     // Consume telemetry before snapshotting so pagehide cannot replay a restart batch.
     reportPassport('restart');
     playerStats.flush();
@@ -965,7 +970,7 @@ Settings.init({
         scoring: RunState.over ? null : Scoring.serialize(),
         mode: RunMode.name, run: RunState.over ? null : RunState.serialize(),
         board: Leaderboard.serializeGlobal(),   // Worker token rides the resume (review 001)
-        juice: bubbles.juice, tod: getTimeOfDay()?.t };
+        vehicleDamage:zerble.condition.damage, juice: bubbles.juice, tod: getTimeOfDay()?.t };
   },
 });
 UpgradesMenu.init(bubbleProgress);
@@ -1144,7 +1149,7 @@ function finishIntroReveal() {
 // a session that briefly backgrounded still logs a fuller snapshot on the real
 // exit (the run rollup keeps accumulating across the gap).
 function passportCanCollect() {
-  return running && !document.hidden && !controlsLocked && !captureDriveLocked
+  return running && !vehicleGameOver && !document.hidden && !controlsLocked && !captureDriveLocked
     && !PassportMenu.isOpen() && !(RunMode.isFestival() && RunState.over);
 }
 function startPassport() {
@@ -1218,7 +1223,7 @@ function tickBody(dt) {
     if (!LAYOUT_CAPTURE_MODE) composer.render();
     return;
   }
-  if (running) {
+  if (running && !vehicleGameOver) {
     if(peopleBaseline&&peopleBaselineAuto){peopleBaselineAuto=false;peopleBaselineButton.click();}
     if(peopleBaseline?.active) {
       getTimeOfDay().setT(.3);
@@ -1255,10 +1260,20 @@ function tickBody(dt) {
     if (nightness > 0.5) Analytics.sawNight();   // once: played into nightfall
     // During the opening reveal the player can't steer — feed Zerble a neutral
     // input so it idles while the camera does its thing.
-    if (captureDriveLocked) zerble.speed = 0;
+    if (captureDriveLocked) { if(physicalWorld)physicalWorld.setSpeed(0);else zerble.speed=0; }
     const passportActive = passportCanCollect();
     const beforeDriveX = zerble.position.x, beforeDriveZ = zerble.position.z;
-    zerble.update(dt, controlsLocked || captureDriveLocked ? NEUTRAL_INPUT : Input, nightness);
+    const driveInput=controlsLocked||captureDriveLocked?NEUTRAL_INPUT:Input;
+    StarPower.update(dt,zerble,nightness,performance.now()*.001);
+    const physicalFrameHit=physicalWorld?.advance(dt,{input:driveInput,ghost:StarPower.isActive(),eligible:zerble.invulnLeft<=0&&!isGod(),consequences:!isGod()});
+    zerble.update(physicalRequested&&!physicalWorld&&!physicalLoadError?0:dt,driveInput,nightness);
+    HUD.setDamage(zerble.condition.damage/100,zerble.condition.submersion);
+    if(zerble.lastPhysicalDamage&&zerble.lastPhysicalDamage.time!==lastPhysicalDamageAt){
+      lastPhysicalDamageAt=zerble.lastPhysicalDamage.time;
+      Sound.playCollision('tree');
+      HUD.toast(zerble.condition.damage>=70?'Zerble is badly banged up. Take it easy!':'Ouch! That left a dent.',1800);
+    }
+    if(zerble.condition.cause&&!isGod())endVehicleRun(zerble.condition.cause);
     peopleFrameTrace?.mark('player');
     if (passportActive) playerStats.move(dt, beforeDriveX, beforeDriveZ, zerble.position.x, zerble.position.z);
     if (performance.now() - mapObservedAt > 200) {
@@ -1271,7 +1286,8 @@ function tickBody(dt) {
       reducedMotion: A11y.reducedMotion,
       effectsEnabled: AdaptiveQuality.bloomAllowed(),
     });
-    Sound.setEngineSpeed(zerble.speed, zerble.isBoosting ? 1 : 0);
+    const demand=zerble.physicsDriven?engineDemand({...zerble.engineState,speed:Math.hypot(zerble.velocity.x,zerble.velocity.z),immersion:zerble.submersion,stopped:!!vehicleGameOver},engineEnvelope):null;
+    Sound.setEngineSpeed(zerble.speed, zerble.isBoosting ? 1 : 0,demand);
     if (zerble.isBoosting) Analytics.featureUsed('boost');   // once per run
     // Push nightness into the audio module so the forest drum engine can
     // gate voices + the crackling-fire bed against the day/night cycle.
@@ -1760,7 +1776,6 @@ function tickBody(dt) {
     // Star power: spawn director + buff state + rainbow/wave/trail visuals.
     // Runs before collision so a pickup this frame engages ghost mode the same
     // frame. The love-magnet smile torrent runs while active.
-    StarPower.update(dt, zerble, nightness, nowS);
     bubbles.setStarPower(StarPower.isActive());
     if (StarPower.isActive() && !npcsFrozen()) people.run('star-love',peopleFrame);
     peopleFrameTrace?.mark('star-before-contacts', StarPower.isActive());
@@ -1769,7 +1784,6 @@ function tickBody(dt) {
     // If something brushes a stationary Zerble, just resolve the overlap silently.
     // Star power = pure ghost mode: the whole resolver short-circuits, so Zerble
     // phases through every collider untouched.
-    const physicalBeforeX=zerble.position.x,physicalBeforeZ=zerble.position.z;
     let hit=null;
     peopleFrameTrace?.mark('contacts-eligible', zerble.invulnLeft <= 0 && !StarPower.isActive());
     if (!StarPower.isActive()) {
@@ -1794,19 +1808,18 @@ function tickBody(dt) {
       peopleBaseline?.count('collisionCandidates',_collScratch.length);
       hit = resolveCollision(zerble, _collScratch);
     }
-    const physicalHit=physicalWorld?.advance(dt,{ghost:StarPower.isActive(),
-      corrected:zerble.position.x!==physicalBeforeX||zerble.position.z!==physicalBeforeZ,
-      eligible:zerble.invulnLeft<=0&&!isGod()});
+    const physicalHit=physicalFrameHit;
     if(physicalHit && !hit?.damaging) {
       hit=physicalHit;
-      applyPropFeedback(zerble,hit);
+      if(!zerble.physicsDriven)applyPropFeedback(zerble,hit);
     }
     if(physicalReadout && physicalWorld && performance.now()-physicalReportAt>250) {
       physicalReportAt=performance.now();
       const state=physicalWorld.stats();
       const targetReady=physicalWorld.owns(registry.entries.get(physicalEncounterId)??{})||!!physicalPersonEncounter&&state.ordinary?.people.some(p=>p.slot===physicalPersonEncounter.slot&&p.generation===physicalPersonEncounter.generation&&p.ready);
       physicalCoast.disabled=!targetReady||state.cart.pendingClearance;
-      physicalReadout.textContent=`Physical props prototype\n${state.chairs.filter(chair=>chair.active).length} active / ${state.chairs.length} preparing | ${state.engine.bodies} bodies\n${state.hits} impacts | ${state.blocked??'running'}\nLast admission: ${state.lastReject??'ready'}\n${state.chairs.reduce((sum,chair)=>sum+(chair.state?.occupants?.filter(p=>p.current).length??0),0)} active sitters | ${state.ordinary?.people.filter(p=>p.active).length??0} falling pedestrians\n${state.ordinary?.started??0} pedestrian falls / ${state.ordinary?.completed??0} recovered\nTarget: ${targetReady?'active':'not admitted'}\n${physicalActionMessage}`;
+      physicalReadout.dataset.vehicle=JSON.stringify({cart:state.cart,condition:state.condition,residency:state.playerResidency,surface:state.surface,engine:state.engine});
+      physicalReadout.textContent=`Physical driving\n${state.cart.contacts??0}/4 wheels · ${state.cart.surface??'loading'} · ${(state.cart.speed??0).toFixed(1)} m/s\nHeight ${(state.cart.position?.y??0).toFixed(2)} · immersion ${(state.cart.immersion??0).toFixed(2)} m\nDamage ${(state.condition?.damage??0).toFixed(0)}% · ${state.condition?.cause??'drivable'}\nSupport ${state.playerResidency.ready?'ready':'preparing'} · ${state.blocked??'running'}\nPhysics ${state.playerResidency.stepMs.toFixed(2)} ms · max ${state.playerResidency.maxStepMs.toFixed(2)} ms\n${state.chairs.filter(chair=>chair.active).length} active / ${state.chairs.length} preparing | ${state.engine.bodies} bodies\n${state.hits} impacts | ${state.blocked??'running'}\nLast admission: ${state.lastReject??'ready'}\n${state.chairs.reduce((sum,chair)=>sum+(chair.state?.occupants?.filter(p=>p.current).length??0),0)} active sitters | ${state.ordinary?.people.filter(p=>p.active).length??0} falling pedestrians\n${state.ordinary?.started??0} pedestrian falls / ${state.ordinary?.completed??0} recovered\nTarget: ${targetReady?'active':'not admitted'}\n${physicalActionMessage}`;
       if(physicalDetails.open)physicalDiagnostics.textContent=JSON.stringify(state,null,2);
     }
     peopleFrameTrace?.hit(hit);
@@ -1871,6 +1884,7 @@ function tickBody(dt) {
     chaseCam.dbgCamLock(p.x+Math.cos(h)*4-Math.sin(h)*4,3,
       p.z-Math.sin(h)*4-Math.cos(h)*4,p.x,1.1,p.z);
   }
+  physicalWorld?.beginRender();
   chaseCam.update(dt, Input);
 
   // Keep spatial audio in sync with the camera
@@ -1906,6 +1920,7 @@ function tickBody(dt) {
     composer.render();
     if (PERF_CAPTURE_TIMING) _perfRenderMs = performance.now() - renderStartedAt;
   }
+  physicalWorld?.endRender();
   peopleFrameTrace?.end();
   if(peopleBaseline?.active) {
     const complete=peopleBaseline.end(()=>({hidden:document.hidden,dt,
@@ -2026,18 +2041,30 @@ function endFestivalRun(cause) {
   HUD.setSputter(null);
   HUD.setVibe(0, false);
   HUD.showScoreScreen({
-    cause: cause === 'vibed_out'
-      ? `The marshals walked you out on Day ${days}…`
-      : `Zerble ran dry on Day ${days}…`,
+    cause: runEndMessage(cause,days),
     score: Scoring.highWater, days, bestCombo: Scoring.bestCombo,
     board: Leaderboard.localTop(), highlightRank: rank,
   });
+}
+function runEndMessage(cause,days){
+  if(cause==='submerged')return 'Zerble got in too deep. Time to dry out…';
+  if(cause==='wrecked')return 'Zerble needs a little TLC. That’s enough dents for today…';
+  return cause==='vibed_out'?`The marshals walked you out on Day ${days}…`:`Zerble ran dry on Day ${days}…`;
+}
+function endVehicleRun(cause){
+  if(vehicleGameOver)return;
+  vehicleGameOver=cause;controlsLocked=true;
+  if(RunMode.isFestival()){endFestivalRun(cause);return;}
+  playerStats.flush();reportPassport('run_end');
+  Sound.stopSputterLoop();Sound.playRunEndSting(cause);
+  Sound.setEngineSpeed(0,0,{revs:0,volume:0,muffle:1});
+  HUD.showScoreScreen({cause:runEndMessage(cause,1),score:Scoring.current,days:1,bestCombo:Scoring.bestCombo,board:Leaderboard.localTop()});
 }
 // Both score-screen actions restart via a plain reload — the mode + name
 // persist, so "Run it again!" is one Start tap away (iOS needs the gesture
 // for audio anyway; there is no silent mid-session restart path).
 HUD.onScoreAgain(() => location.reload());
-HUD.onScoreClose(() => { if (RunState.over) location.reload(); });
+HUD.onScoreClose(() => { if (RunState.over||vehicleGameOver) location.reload(); });
 
 // Once per run: the sputter grace expired while Lurleen was smitten — she
 // stages the pair next to the nearest juice source (teleport-adjacent per the

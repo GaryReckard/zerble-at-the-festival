@@ -45,9 +45,14 @@ function snapshot(entry) {
   const radius = stableNumber(entry.collider?.radius, 'entry.collider.radius');
   if (radius <= 0) throw new TypeError('Static collider radius must be positive');
   if (typeof entry.kind !== 'string' || !entry.kind || entry.kind.length > 80) throw new TypeError('Static collider kind must be a nonempty string of at most 80 characters');
-  const kind = entry.kind, y = stableNumber(terrainHeight(x, z), 'terrainHeight');
-  const signature = JSON.stringify([id, kind, x, y, z, radius]);
-  const halfHeight = Math.max(.5, radius);
+  const kind = entry.kind;
+  // Layered colliders such as bridge rails carry their own vertical interval;
+  // anchoring those to the creek bed makes a rail block boats while leaving the
+  // cart free to drive off the deck. Legacy entries still use ground datum.
+  const explicit=entry.collider.minY!==undefined;
+  const y = explicit ? stableNumber(entry.position.y+entry.collider.minY,'solid bottom') : stableNumber(terrainHeight(x,z),'terrainHeight');
+  const halfHeight = explicit ? Math.max(.005,(entry.collider.maxY-entry.collider.minY)/2) : Math.max(.5,radius);
+  const signature = JSON.stringify([id, kind, x, y, z, radius, halfHeight]);
   return { key: signature, entryId: id, kind, x, y, z, radius, halfHeight,
     bounds: { minX: x - radius, maxX: x + radius, minZ: z - radius, maxZ: z + radius } };
 }
@@ -61,10 +66,10 @@ function copyProxy(proxy) {
 
 /**
  * Bounded mirror of nearby static registry colliders for live physics movers.
- * Each source collider becomes a ground-anchored cylinder with its registered
- * horizontal radius and a conservative 2×radius vertical extent (minimum 1 m).
- * This intentionally approximates the source shape; it does not mirror moving
- * objects, source height, authored rotations, or detailed meshes.
+ * Each source collider becomes a cylinder with its registered horizontal radius.
+ * Explicit vertical intervals are preserved; other entries use the terrain
+ * datum and a conservative 2×radius extent (minimum 1 m). This intentionally
+ * approximates source shapes, rotations, and detailed meshes.
  */
 export function createStaticResidency({ registry, adapter, isDynamic, kinds = DEFAULT_KINDS,
   maxProxies = 128, maxOwners = 32, maxQueued = 64, maxCandidates = 256, maxRetries = 3,
@@ -228,7 +233,7 @@ export function createStaticResidency({ registry, adapter, isDynamic, kinds = DE
       const unitStart = readTime();
       let result;
       try {
-        result = adapter.addBody({ id: proxy.bodyId, type: 'fixed',
+        result = adapter.addBody({ id: proxy.bodyId, type: 'fixed', vehicleSupport:false,
           pose: { position: { x: proxy.x, y: proxy.y + proxy.halfHeight, z: proxy.z } },
           colliders: [{ shape: 'cylinder', halfHeight: proxy.halfHeight, radius: proxy.radius, friction: .8, restitution: 0 }] });
       } catch (error) { result = { ok: false, reason: 'static-proxy-create-failed', message: error.message }; }

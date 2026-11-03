@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import {VehicleCondition} from '../src/vehicleCondition.js';
+import {engineDemand} from '../src/engineDemand.js';
+for(const hz of [30,60,120]){
+  const c=new VehicleCondition();
+  for(let i=0;i<hz*3;i++){c.impact(1,i/hz,'parked');c.step(1/hz,.6);}
+  assert.equal(c.damage,0);assert.equal(c.cause,null);
+  const crash=c.impact(18,3,'tree');assert(crash>50&&crash<100);
+  assert.equal(c.impact(18,3.1,'tree'),0);
+  c.restore(20);assert.equal(c.damage,crash-20);
+  c.impact(27.9,4,'tree');assert.equal(c.cause,'wrecked');
+  assert.equal(c.impact(30,5,'other'),0);assert.equal(c.restore(100),100);
+  const wet=new VehicleCondition();for(let i=0;i<hz;i++)wet.step(1/hz,1.8);
+  assert.equal(wet.cause,null);for(let i=0;i<hz;i++)wet.step(1/hz,1.8);
+  assert.equal(wet.cause,'submerged');
+  const splash=new VehicleCondition();splash.step(.4,1.8);splash.step(.3,0);assert.equal(splash.submersion,0);
+}
+const coast=engineDemand({speed:18,throttle:0,grounded:true});
+const climb=engineDemand({speed:2,throttle:1,load:1,grounded:true});
+assert(climb.volume>coast.volume,'loaded engine is louder even at low speed');
+assert(engineDemand({speed:0,throttle:1,grounded:false}).revs>engineDemand({speed:0,throttle:0,grounded:false}).revs);
+assert.equal(engineDemand({speed:0,verticalSpeed:30,throttle:0}).revs,engineDemand({speed:0,throttle:0}).revs);
+assert.equal(engineDemand({speed:18,throttle:1,immersion:1.7}).volume,0);
+assert.throws(()=>new VehicleCondition().restore(-1));
+console.log('PASS vehicle condition: impact severity, persistent-contact dedup, parked immunity, restoration, shallow water, sustained submersion and rational engine demand at 30/60/120Hz.');
+
+// Execute the real mode-neutral terminal adapter with trapped reporting paths.
+const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+const terminal=main.slice(main.indexOf('function runEndMessage('),main.indexOf('HUD.onScoreAgain('));
+for(const festival of [false,true])for(const cause of ['wrecked','submerged']){
+ const calls={festival:0,screen:0,flush:0,report:0,sound:0};
+ const scope={vehicleGameOver:null,controlsLocked:false,RunMode:{isFestival:()=>festival},
+  endFestivalRun(value){assert.equal(value,cause);calls.festival++;},
+  playerStats:{flush(){calls.flush++;}},reportPassport(){calls.report++;},
+  Sound:{stopSputterLoop(){},playRunEndSting(){calls.sound++;},setEngineSpeed(){}},
+  HUD:{showScoreScreen(view){calls.screen++;assert(view.cause.includes(cause==='submerged'?'deep':'dents'));}},
+  Scoring:{current:42,bestCombo:1},Leaderboard:{localTop:()=>[]}};
+ const end=vm.runInNewContext(terminal+';endVehicleRun',scope);
+ end(cause);end(cause);assert.equal(scope.vehicleGameOver,cause);assert.equal(scope.controlsLocked,true);
+ assert.equal(calls.festival,festival?1:0);assert.equal(calls.screen,festival?0:1);
+ assert.equal(calls.flush,festival?0:1);assert.equal(calls.report,festival?0:1);
+}
+assert.match(main,/HUD.onScoreClose[^\n]*RunState.over\|\|vehicleGameOver/);
+console.log('PASS actual game terminal adapter: damage/water exactly once in both modes, Cruisin stays off Festival reporting, close restarts either mode.');

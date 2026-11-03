@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { createPlayerVehicle } from '../src/physics/playerVehicle.js';
+import { FixedStepClock } from '../src/physics/fixedStep.js';
+import { Vector3, Quaternion } from 'three';
+const vec=(x=0,y=0,z=0)=>({x,y,z,copy(v){Object.assign(this,v);return this;},set(x,y,z){Object.assign(this,{x,y,z});return this;}});
+const quat=()=>({x:0,y:0,z:0,w:1,copy(q){Object.assign(this,q);return this;}});
+const cartAt=(x=0,y=0,z=0)=>{const position=vec(x,y,z);return {position,root:{position,quaternion:quat(),updateMatrixWorld(){}},heading:0,speed:0,_tireR:.62};};
+const near=(a,b,t=.001)=>assert.ok(Math.abs(a-b)<t,`${a} != ${b}`);
+async function fixture({surface='asphalt',drop=false,renderHz=60,throttle=1,seconds=5,water=null,recovery=false,boost=false}={}) {
+ const adapter=await createRapierAdapter({capacities:{bodies:12,colliders:24,vehicles:2,events:4096}});
+ const add=(id,position,halfExtents)=>assert(adapter.addBody({id,type:'fixed',pose:{position},colliders:[{shape:'cuboid',halfExtents}]}).ok);
+ if(drop){add('upper',{x:0,y:-.5,z:15},{x:20,y:.5,z:15});add('lower',{x:0,y:-10.5,z:-40},{x:70,y:.5,z:40});}
+ else add('ground',{x:0,y:-.5,z:0},{x:200,y:.5,z:200});
+ const cart=cartAt(0,.15,drop?8:0),vehicle=createPlayerVehicle({adapter,cart,sampleSurface:(x,z,out={})=>Object.assign(out,{surfaceClass:surface,height:drop&&z<0?-10:0,nx:0,ny:1,nz:0}),canRecover:()=>recovery,sampleWater:water?((x,z,out={})=>Object.assign(out,water)):undefined});
+ const clock=new FixedStepClock();let airborne=false,landed=false,maxFall=0,maxImpact=0;
+ const tick=()=>{vehicle.beforeStep(1/60,{throttle:0,steer:0,brake:true});adapter.step(1/60);vehicle.afterStep(1/60);};
+ for(let i=0;i<120;i++)tick();
+ assert(vehicle.state().contacts>=3,'flat resting suspension supports the chassis');
+ const restingY=cart.position.y;
+ assert(Math.abs(restingY)<.2,`ground-root datum remains near zero: ${restingY}`);
+ if(drop){cart.speed=12;vehicle.reset('teleport');}
+ // Recovery must start overturned on ample support, independently of where a
+ // particular coasting tune bounces after the separate ledge replay.
+ if(recovery){cart.position.set(0,4,0);cart.root.quaternion.copy({x:1,y:0,z:0,w:0});cart.speed=0;vehicle.reset('teleport');}
+ for(let i=0;i<renderHz*seconds;i++)clock.advance(1/renderHz,dt=>{
+  vehicle.beforeStep(dt,{throttle:drop?0:throttle,steer:0,boost});adapter.step(dt);vehicle.afterStep(dt);
+  const s=vehicle.state();maxFall=Math.max(maxFall,-s.velocity.y);maxImpact=Math.max(maxImpact,s.impactSpeed);
+  if(drop&&s.contacts===0&&cart.position.z<0)airborne=true;
+  if(airborne&&cart.position.y<-5&&s.contacts>0)landed=true;
+ });
+ const state=vehicle.state(),result={position:{x:cart.position.x,y:cart.position.y,z:cart.position.z},speed:cart.speed,airborne,landed,maxFall,maxImpact,engine:{...cart.engineState},state};
+ vehicle.dispose();assert.equal(adapter.counts().vehicles,0);assert.equal(adapter.readBody('live-cart'),null);adapter.dispose();assert.equal(adapter.counts().bodies,0);return result;
+}
+const dry=await fixture();assert(dry.speed>15&&dry.speed<19,'ordinary acceleration reaches practical target');
+const grass=await fixture({surface:'grass'});assert(grass.speed<dry.speed,'grass resistance differs from asphalt');
+const boosted=await fixture({surface:'grass',boost:true});assert(boosted.speed>grass.speed+5,'boost delivers a substantial speed increase on grass');
+{
+ const a=await createRapierAdapter({capacities:{bodies:4,colliders:8}}),position=new Vector3(0,10,0);
+ const c={position,root:{position,quaternion:new Quaternion(),updateMatrixWorld(){}},heading:0,speed:0,_tireR:.62};
+ const v=createPlayerVehicle({adapter:a,cart:c});v.beforeStep(1/60,{});a.step(1/60);v.afterStep(1/60);
+ const solved=position.clone();v.beginRender(.5);assert(position.y>solved.y&&position.y<10,'render pose interpolates between physics steps');
+ assert(Number.isFinite(c.root.quaternion.w),'interpolated orientation stays valid');v.endRender();near(position.y,solved.y,1e-9);
+ v.dispose();a.dispose();
+}
+const shallow=await fixture({water:{wet:true,height:.65,depth:.65}});assert(shallow.speed<dry.speed*.85,'shallow water resists movement but remains passable');assert(shallow.speed>1,'shallow water is not an invisible wall');
+const drops=[];for(const renderHz of [30,60,120])drops.push(await fixture({drop:true,renderHz,seconds:4}));
+for(const drop of drops){assert(drop.airborne,'ledge releases wheel support');assert(drop.maxFall>8,'gravity accelerates flight');assert(drop.position.y<-5,'cart reaches lower surface');}
+for(const other of drops.slice(1)){near(other.position.x,drops[0].position.x);near(other.position.y,drops[0].position.y);near(other.position.z,drops[0].position.z);}
+const recovered=await fixture({throttle:0,seconds:10,recovery:true});assert(recovered.state.recoveries>0,'settled overturned chassis can recover on verified support');assert(recovered.state.up.y>.8,'recovered chassis stands upright');
+const adapter=await createRapierAdapter({capacities:{vehicles:1}}),cart=cartAt(0,20,0),vehicle=createPlayerVehicle({adapter,cart});
+for(let i=0;i<30;i++){vehicle.beforeStep(1/60,{throttle:1,steer:1,boost:true});adapter.step(1/60);vehicle.afterStep(1/60);}
+assert.equal(vehicle.state().contacts,0);near(adapter.readBody(vehicle.id).angularVelocity.y,0);near(cart.velocity.x,0);near(cart.velocity.z,0);assert(cart.velocity.y< -4);
+vehicle.beforeStep(1/60,{});assert(cart.engineState.revs<.3,'pure fall speed does not rev engine');
+for(const reason of ['teleport','rescue','restart','tier-change','legacy-correction','dropped-time']){cart.position.set(0,20,0);cart.root.quaternion.copy({x:0,y:Math.sin(.4),z:0,w:Math.cos(.4)});cart.speed=3;vehicle.reset(reason);near(adapter.readBody('live-cart').pose.rotation.y,Math.sin(.4));assert.equal(vehicle.state().lastReset,reason);}
+vehicle.setEnabled(false);assert.equal(adapter.readVehicle(vehicle.token).enabled,false);vehicle.beforeStep(1/60,{});assert.equal(adapter.readVehicle(vehicle.token).enabled,false,'ordinary control writes preserve disabled state');vehicle.setEnabled(true);
+assert.throws(()=>vehicle.setEnabled('yes'),/boolean/);
+
+const before=adapter.counts().vehicles;assert.equal(before,1);adapter.removeBody('live-cart');assert.equal(adapter.counts().vehicles,0,'chassis removal releases controller');vehicle.dispose();adapter.dispose();
+// Sustained slope support and physical reverse steering use the same 60 Hz owner.
+async function handling({grade=0,steer=0,reverse=false,surface='asphalt',boost=false}={}) {
+ const angle=Math.atan(grade),a=await createRapierAdapter({capacities:{bodies:4,colliders:8}});
+ assert(a.addBody({id:'slope',type:'fixed',pose:{position:{x:0,y:-.5,z:0},rotation:{x:Math.sin(angle/2),y:0,z:0,w:Math.cos(angle/2)}},colliders:[{shape:'cuboid',halfExtents:{x:150,y:.5,z:150}}]}).ok);
+ const c=cartAt(0,.15,0);c.root.quaternion.copy({x:Math.sin(angle/2),y:0,z:0,w:Math.cos(angle/2)});
+ const v=createPlayerVehicle({adapter:a,cart:c,sampleSurface:(x,z,out={})=>Object.assign(out,{surfaceClass:surface,height:-grade*z})});
+ let maxAngular=0;
+ for(let i=0;i<420;i++){
+  const running=i>=120;
+  v.beforeStep(1/60,{throttle:running?(reverse?-1:1):0,steer:running?steer:0,boost});a.step(1/60);v.afterStep(1/60);
+  const body=a.readBody('live-cart');maxAngular=Math.max(maxAngular,Math.hypot(body.angularVelocity.x,body.angularVelocity.y,body.angularVelocity.z));
+ }
+ const state=v.state();v.dispose();a.dispose();return {...state,maxAngular,heading:c.heading};
+}
+const forwardTurn=await handling({steer:.2}),reverseTurn=await handling({steer:.2,reverse:true});
+assert(forwardTurn.position.x< -5&&forwardTurn.heading>0,'left steering rotates and turns forward motion left');
+assert(reverseTurn.position.x< -1&&reverseTurn.heading<0,'left steering reverses yaw with reverse travel');
+assert(forwardTurn.contacts>=3&&reverseTurn.contacts>=3,'moderate steering retains suspension support');
+const climbing=await handling({grade:.3,surface:'grass'});assert(climbing.position.y>5&&climbing.position.z< -15,'grass climb makes sustained uphill progress');assert(climbing.contacts===4&&climbing.up.y>.8,'sustained moderate grade remains supported and stable');assert(climbing.engine.load>dry.engine.load,'engine load rises uphill');
+assert(climbing.maxAngular<2,'moderate incline stays dynamically stable at 60 Hz');
+const steep=await handling({grade:1.4,surface:'grass'});assert(steep.position.z>0,'insufficient steep-bank traction permits natural rollback');
+const boostedClimb=await handling({grade:.3,surface:'grass',boost:true});assert(boostedClimb.contacts===4&&boostedClimb.up.y>.8,'stronger boost retains front-wheel support on a sustained uphill grade');
+assert(boostedClimb.position.z<climbing.position.z-20,'boost makes a useful difference uphill');
+// Ghost mode keeps native ground contacts while excluding admitted obstacles.
+{
+ const a=await createRapierAdapter({capacities:{bodies:8,colliders:16,vehicles:1}});
+ const floor=a.addBody({id:'floor',type:'fixed',pose:{position:{x:0,y:-.5,z:0}},colliders:[{shape:'cuboid',halfExtents:{x:20,y:.5,z:20}}]});assert(floor.ok);
+ assert(a.addBody({id:'obstacle',type:'fixed',vehicleSupport:false,pose:{position:{x:0,y:1,z:-7}},colliders:[{shape:'cuboid',halfExtents:{x:2,y:1,z:1}}]}).ok);
+ const c=cartAt(0,0,0),v=createPlayerVehicle({adapter:a,cart:c,sampleSurface:(_x,_z,out={})=>Object.assign(out,{surfaceClass:'asphalt',height:0})});
+ const stale=v.token;
+ for(let i=0;i<120;i++){v.beforeStep(1/60,{throttle:0});a.step(1/60);v.afterStep(1/60);}
+ assert.equal(a.isBodyClearOfObstacles('live-cart').clear,true,'ground support is not a ghost-exit obstruction');
+ a.setBodyGhost('live-cart',true);
+ for(let i=0;i<90;i++){v.beforeStep(1/60,{throttle:1});a.step(1/60);v.afterStep(1/60);}
+ assert(c.position.z<-10,'ghost cart passes through scenery');assert(Math.abs(c.position.y)<.2,'ghost cart retains wheel suspension');
+ a.setPose('live-cart',{position:{x:0,y:0,z:-7},rotation:{x:0,y:0,z:0,w:1}});
+ assert.equal(a.isBodyClearOfObstacles('live-cart').clear,false,'overlapping scenery delays solid reentry');
+ assert.equal(a.isBodyClearOfObstacles('live-cart',{maxTests:0}).exhausted,true,'bounded clearance fails closed');
+ v.dispose();assert.equal(a.readVehicle(stale),null,'removed chassis invalidates controller token');
+ assert(a.addBody({id:'live-cart',type:'dynamic',pose:{position:{x:0,y:10,z:0}},colliders:[{shape:'ball',radius:1}]}).ok);
+ assert.equal(a.readVehicle(stale),null,'body id reuse cannot revive stale controller');a.dispose();
+}
+console.log('PASS physical vehicle: suspension datum, surfaces and shallow water, continuous cliff fall, fixed-step cadence, air controls/engine, resets and controller teardown.',JSON.stringify({asphalt:dry.speed,grass:grass.speed,boostedGrass:boosted.speed,water:shallow.speed,drop:drops[0].position}));

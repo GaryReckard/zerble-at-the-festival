@@ -14,6 +14,11 @@ reproduction lead, not proof that the current build still has the problem.
 
 ---
 
+## Physical driving acceptance
+
+- **Handling, water and damage on physical devices.** The physical player, surface response, damage and submersion paths have deterministic and desktop evidence in [the driving verification record](verification/driving/2026-11-02/README.md). Verify iPhone/iPad controls, iOS engine audio, frame delivery, rollover recovery and unprompted handling/terrain recognition; tune against those observations. Capture allocation spikes and compare graphics budgets against a reproducible baseline.
+- **Repair Zerble.** Gary proposed a golf-cart mechanic, repair shop or restorative item for a future feature. `VehicleCondition.restore()` is the bounded integration point; no repair interaction is available yet.
+
 ## Terrain integration acceptance
 
 The real game now enables terrain by default, with `terrain=0` as a flat fallback, with shared map/driving inspection,

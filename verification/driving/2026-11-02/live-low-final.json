@@ -1,0 +1,103 @@
+{
+  "cart": {
+    "airTime": 0,
+    "bodyGeneration": 1,
+    "contacts": 4,
+    "disposed": false,
+    "engine": {
+      "boost": false,
+      "grounded": true,
+      "load": 0,
+      "revs": 0.10221052913624452,
+      "running": true,
+      "submersion": 0.1551258134841919,
+      "throttle": 0,
+      "wet": 0.0940156445358739
+    },
+    "grounded": true,
+    "id": "live-cart",
+    "immersion": 0.15516527175903322,
+    "impactNormal": {
+      "x": -0.0005566911305489815,
+      "y": 0.999786805716992,
+      "z": -0.02064057192036351
+    },
+    "impactSpeed": 0.15501615204130448,
+    "landingSpeed": 0,
+    "lastReset": "restart",
+    "position": {
+      "x": -1049.9951171875,
+      "y": -0.0751652717590332,
+      "z": -1464.9825439453125
+    },
+    "recoveries": 0,
+    "resets": 2,
+    "speed": 0.13260683759104364,
+    "surface": "grass",
+    "up": {
+      "x": -0.010666565253755136,
+      "y": 0.9996059589330192,
+      "z": -0.02596442279902146
+    },
+    "velocity": {
+      "x": -0.0029762499034404755,
+      "y": -0.06367706507444382,
+      "z": -0.1309875100851059
+    },
+    "water": {
+      "depth": 0.1826136712554271,
+      "kind": "lake",
+      "surfaceY": 0.08,
+      "wet": true
+    }
+  },
+  "condition": {
+    "cause": null,
+    "damage": 0,
+    "fraction": 0,
+    "submersion": 0
+  },
+  "engine": {
+    "bodies": 3,
+    "colliders": 4,
+    "contactPairs": 0,
+    "disposed": false,
+    "engineBodies": 3,
+    "engineColliders": 4,
+    "engineJoints": 0,
+    "events": 0,
+    "joints": 0,
+    "meshTriangles": 16,
+    "meshVertices": 18,
+    "overflow": 0,
+    "steps": 678,
+    "supportedLoads": 0,
+    "totalOverflow": 0,
+    "vehicles": 1
+  },
+  "residency": {
+    "blockedSeconds": 0.05,
+    "maxStepAt": 1,
+    "maxStepMs": 39,
+    "maxSurfacePrepMs": 0.7999999523162842,
+    "meanStepMs": 0.3091445457970498,
+    "ready": true,
+    "stepMs": 0.20000004768371585,
+    "steps": 678,
+    "wanted": {
+      "maxX": -1040.9964599609375,
+      "maxZ": -1453.673828125,
+      "minX": -1059.0002802629024,
+      "minZ": -1472.5503336191175
+    }
+  },
+  "surface": {
+    "blockedReason": null,
+    "disposed": false,
+    "lakes": 3,
+    "preparations": 1,
+    "queries": 1,
+    "roadTriangles": 210,
+    "streams": 0
+  }
+}

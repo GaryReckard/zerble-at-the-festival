@@ -16,6 +16,9 @@ const $juiceMeter = document.getElementById('juice-meter');
 const $juiceFill = document.getElementById('juice-fill');
 const $juiceReserve = document.getElementById('juice-reserve');
 const $juiceReserveN = document.getElementById('juice-reserve-n');
+const $damageMeter = document.getElementById('damage-meter');
+const $damageFill = document.getElementById('damage-fill');
+const $damageValue = document.getElementById('damage-value');
 const $smileStatus = document.getElementById('smile-status');
 const $cycleStatus = document.getElementById('day-cycle');
 const $cycleSymbol = document.getElementById('cycle-symbol');
@@ -25,6 +28,7 @@ let _juiceState = '';     // '', 'low', or 'empty'
 let _juiceReserveN = -1;
 let _juiceBar = -1;
 let _juiceAria = '';
+let _damagePercent = -1, _damageSubmerged = false;
 let _smileN = 0;
 let _bestN = 0;
 let _cycleStep = -1;
@@ -237,6 +241,23 @@ function clearToastTap() {
 }
 
 export const HUD = {
+  setDamage(fraction,submersion=0) {
+    if(!$damageMeter)return;
+    const percent=Math.round(Math.max(0,Math.min(1,fraction))*100);
+    if(percent!==_damagePercent){
+      _damagePercent=percent;
+      $damageMeter.setAttribute('aria-valuenow',String(percent));
+      $damageMeter.setAttribute('aria-valuetext',`${percent}% damage`);
+      if($damageFill)$damageFill.style.transform=`scaleX(${percent/100})`;
+      if($damageValue)$damageValue.textContent=`${percent}%`;
+      $damageMeter.classList.toggle('damage-critical',percent>=70);
+    }
+    const submerged=submersion>0;
+    if(submerged!==_damageSubmerged){
+      _damageSubmerged=submerged;$damageMeter.classList.toggle('damage-submerged',submerged);
+      $damageMeter.setAttribute('aria-label',submerged?'Cart damage; engine underwater, find shallow ground':'Cart damage');
+    }
+  },
   showTitle() {
     $title.classList.remove('hidden');
   },

@@ -6,6 +6,7 @@ export const APPROACH_DAMAGE_THRESHOLD = 1.2;
 export const SOFT_PEOPLE_KINDS = new Set(['person', 'kid', 'wook', 'brass', 'hula_hoop', 'one_wheel']);
 
 export function resolveCollision(zerble, colliders) {
+  if(zerble.physicsDriven&&!zerble.grounded)return null;
   const eligible = !(zerble.invulnLeft > 0);
   // forward = (-sin(h), 0, -cos(h)); velocity = forward * speed
   const fx = -Math.sin(zerble.heading);
@@ -20,6 +21,7 @@ export function resolveCollision(zerble, colliders) {
     // would prevent Zerble from being inside the proximity trigger range.
     if (c.passive) continue;
     const person = SOFT_PEOPLE_KINDS.has(c.kind) || c.kind === 'lurleen' || c.kind === 'puppet';
+    if(zerble.physicsDriven&&!person)continue;
     // Preserve person immunity while retaining solid scenery during cooldown.
     if (person && !eligible) continue;
     // Parked Zerble can be crowded by people without being pushed around.
@@ -76,6 +78,7 @@ export function resolveCollision(zerble, colliders) {
     const overlap = minD - d;
     const correctedX = zerble.position.x - tox * inv * overlap;
     const correctedZ = zerble.position.z - toz * inv * overlap;
+    if (zerble.physicsDriven) return {damaging:false};
     if (zerble.surfaceBinding) zerble.applySurfaceCorrection(correctedX, correctedZ);
     else { zerble.position.x = correctedX; zerble.position.z = correctedZ; }
     if (approachSpeed > 0 && zerble.speed > 0) {

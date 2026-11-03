@@ -158,6 +158,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     bodies: limit(capacities.bodies ?? 64, 'bodies'),
     colliders: limit(capacities.colliders ?? 256, 'colliders'),
     joints: limit(capacities.joints ?? 0, 'joints'),
+    vehicles: limit(capacities.vehicles ?? 1, 'vehicles'),
     supportedLoads: limit(capacities.supportedLoads ?? 0, 'supportedLoads'),
     contactPairs: limit(capacities.contactPairs ?? 0, 'contactPairs'),
     events: limit(capacities.events ?? 256, 'events'),
@@ -171,7 +172,8 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
   let queue;
   try { queue = new R.EventQueue(true); } catch (error) { world.free(); throw error; }
   const bodies = new Map(), colliders = new Map(), joints = new Map(), jointOwner = ++adapterSerial;
-  const supportedLoads = new Map(), contactPairs = new Map();
+  const supportedLoads = new Map(), contactPairs = new Map(), vehicles = new Map();
+  let vehicleGeneration = 0;
   let pairGeneration = 0;
   let loadGeneration = 0;
   let jointGeneration = 0;
@@ -215,7 +217,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
   }
 
   function refreshHooks(item) {
-    const active=[...contactPairs.values()].some(pair=>pair.a===item||pair.b===item);
+    const active=item.ghost || [...contactPairs.values()].some(pair=>pair.a===item||pair.b===item);
     for(const handle of item.colliders)world.getCollider(handle)?.setActiveHooks(active?R.ActiveHooks.FILTER_CONTACT_PAIRS:R.ActiveHooks.NONE);
     item.body.wakeUp();
   }
@@ -230,9 +232,24 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     contactPairs.delete(token.generation);
     refreshHooks(pair.a);refreshHooks(pair.b);return true;
   }
+  function vehicleRecord(token) {
+    if (disposed) return null;
+    const item = token?.owner === jointOwner && vehicles.get(token.id);
+    return item && item.generation === token.generation ? item : null;
+  }
+  function removeVehicle(token) {
+    const item = vehicleRecord(token);
+    if (!item) return false;
+    world.removeVehicleController(item.controller);
+    vehicles.delete(token.id);
+    return true;
+  }
   const hooks={
     filterContactPair(a,b) {
       const first=colliders.get(a),second=colliders.get(b);
+      const firstBody=first&&bodies.get(first.id),secondBody=second&&bodies.get(second.id);
+      if ((firstBody?.ghost && (secondBody?.type!=='fixed'||second?.vehicleSupport===false))
+        || (secondBody?.ghost && (firstBody?.type!=='fixed'||first?.vehicleSupport===false))) return null;
       for(const pair of contactPairs.values())if((first?.id===pair.idA&&second?.id===pair.idB)||(first?.id===pair.idB&&second?.id===pair.idA))return null;
       return R.SolverFlags.COMPUTE_IMPULSE;
     },
@@ -242,6 +259,86 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
   return Object.freeze({
     engineVersion: R.version(),
     capacities: limits,
+    // Vehicle handles stay inside the adapter just like joints and supported loads.
+    // Wheel rays only use admitted fixed supports, never the chassis, people or sensors.
+    addVehicle(spec) {
+      live();
+      if (typeof spec?.id !== 'string' || !spec.id || spec.id.length > 200) return {ok:false,reason:'invalid-id'};
+      if (vehicles.has(spec.id)) return {ok:false,reason:'duplicate-vehicle'};
+      if (vehicles.size >= limits.vehicles) return {ok:false,reason:'vehicle-capacity'};
+      const chassis = bodies.get(spec.bodyId);
+      if (!chassis || chassis.generation !== spec.bodyGeneration || chassis.type !== 'dynamic') return {ok:false,reason:'invalid-chassis'};
+      if ([...vehicles.values()].some(v=>v.chassis===chassis)) return {ok:false,reason:'duplicate-chassis'};
+      if (!Array.isArray(spec.wheels) || spec.wheels.length < 1 || spec.wheels.length > 8) return {ok:false,reason:'invalid-wheels'};
+      let controller;
+      try {
+        const wheels = spec.wheels.map(w => ({
+          position:vector(w.position,'wheel position'), direction:vector(w.direction ?? {x:0,y:-1,z:0},'wheel direction'),
+          axle:vector(w.axle ?? {x:-1,y:0,z:0},'wheel axle'),
+          restLength:positive(w.restLength ?? .65,'wheel restLength'), radius:positive(w.radius ?? .62,'wheel radius'),
+          stiffness:positive(w.stiffness ?? 30,'wheel stiffness'), compression:positive(w.compression ?? 4.4,'wheel compression'),
+          relaxation:positive(w.relaxation ?? 3.2,'wheel relaxation'), travel:positive(w.travel ?? .35,'wheel travel'),
+          maxForce:positive(w.maxForce ?? 12000,'wheel maxForce'), frictionSlip:positive(w.frictionSlip ?? 2.5,'wheel frictionSlip'),
+          sideFrictionStiffness:positive(w.sideFrictionStiffness ?? 1,'wheel sideFrictionStiffness'),
+        }));
+        if (spec.filter !== undefined && typeof spec.filter !== 'function') throw new TypeError('Vehicle filter must be a function');
+        controller = world.createVehicleController(chassis.body);
+        controller.indexUpAxis = 1;
+        controller.setIndexForwardAxis = 2;
+        for (const [index,w] of wheels.entries()) {
+          controller.addWheel(w.position,w.direction,w.axle,w.restLength,w.radius);
+          controller.setWheelSuspensionStiffness(index,w.stiffness);
+          controller.setWheelSuspensionCompression(index,w.compression);
+          controller.setWheelSuspensionRelaxation(index,w.relaxation);
+          controller.setWheelMaxSuspensionTravel(index,w.travel);
+          controller.setWheelMaxSuspensionForce(index,w.maxForce);
+          controller.setWheelFrictionSlip(index,w.frictionSlip);
+          controller.setWheelSideFrictionStiffness(index,w.sideFrictionStiffness);
+        }
+        const generation = ++vehicleGeneration, token = Object.freeze({owner:jointOwner,id:spec.id,generation});
+        vehicles.set(spec.id,{controller,chassis,bodyId:spec.bodyId,generation,wheels,enabled:true,
+          filter:c => {
+            const entry=colliders.get(c.handle), body=entry&&bodies.get(entry.id);
+            return !!entry && !entry.sensor && body?.type==='fixed' && entry.vehicleSupport!==false
+              && (!spec.filter || spec.filter({bodyId:entry.id,generation:entry.generation,colliderIndex:entry.index}) === true);
+          }});
+        return {ok:true,token};
+      } catch(error) {
+        if (controller) world.removeVehicleController(controller);
+        return {ok:false,reason:'invalid-vehicle',message:error.message};
+      }
+    },
+    setVehicleControls(token,{wheels=[],enabled=true}={}) {
+      live();
+      const item=vehicleRecord(token);if(!item)return false;
+      if(typeof enabled!=='boolean'||!Array.isArray(wheels)||wheels.length>item.wheels.length)throw new TypeError('Invalid vehicle controls');
+      const values=wheels.map(w=>({engineForce:scalar(w.engineForce??0,'engine force',-100000,100000),
+        brake:scalar(w.brake??0,'wheel brake',0,100000),steering:scalar(w.steering??0,'wheel steering',-1.5,1.5),
+        frictionSlip:positive(w.frictionSlip??2.5,'wheel grip'),sideFrictionStiffness:positive(w.sideFrictionStiffness??1,'wheel side friction')}));
+      for(const [index,w] of values.entries()){
+        item.controller.setWheelEngineForce(index,w.engineForce);item.controller.setWheelBrake(index,w.brake);
+        item.controller.setWheelSteering(index,w.steering);item.controller.setWheelFrictionSlip(index,w.frictionSlip);
+        item.controller.setWheelSideFrictionStiffness(index,w.sideFrictionStiffness);
+      }
+      item.enabled=enabled;return true;
+    },
+    readVehicle(token) {
+      live();const item=vehicleRecord(token);if(!item)return null;
+      const controller=item.controller;
+      return {bodyId:item.bodyId,bodyGeneration:item.chassis.generation,enabled:item.enabled,
+        wheels:item.wheels.map((definition,index)=>{
+          const contact=controller.wheelIsInContact(index)===true,ground=contact?controller.wheelGroundObject(index):null;
+          const owner=ground?colliders.get(ground.handle):null;
+          return {position:{...definition.position},radius:definition.radius,restLength:definition.restLength,
+            suspensionLength:controller.wheelSuspensionLength(index)??definition.restLength,
+            suspensionForce:controller.wheelSuspensionForce(index)??0,rotation:controller.wheelRotation(index)??0,
+            steering:controller.wheelSteering(index)??0,contact,
+            point:contact?vector(controller.wheelContactPoint(index),'wheel contact'):null,
+            normal:contact?vector(controller.wheelContactNormal(index),'wheel normal'):null,
+            groundBodyId:owner?.id??null,groundGeneration:owner?.generation??null,groundColliderIndex:owner?.index??null};
+        })};
+    },
+    removeVehicle,
     suppressBodyContacts({bodyA,generationA,bodyB,generationB}) {
       live();
       const a=bodies.get(bodyA),b=bodies.get(bodyB);
@@ -448,10 +545,11 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
         return { ok: false, reason: 'engine-create-failed', message: error.message };
       }
       const serial = ++generation;
-      bodies.set(spec.id, { body, type: spec.type, generation: serial, colliders: created.map(c => c.handle), meshVertices: addedVertices, meshTriangles: addedTriangles });
+      bodies.set(spec.id, { body, ghost:false, type: spec.type, generation: serial, colliders: created.map(c => c.handle), meshVertices: addedVertices, meshTriangles: addedTriangles });
       meshVertexCount += addedVertices; meshTriangleCount += addedTriangles;
       created.forEach((c, index) => colliders.set(c.handle, {
         id: spec.id, generation: serial, index, sensor: c.isSensor(), shape: c.shape,
+        vehicleSupport: spec.colliders[index].vehicleSupport ?? spec.vehicleSupport ?? true,
         sweepRadius: sweepRadius(spec.colliders[index]),
         local: { position: vector(c.translationWrtParent(), 'collider local position'), rotation: rotation(c.rotationWrtParent()) },
       }));
@@ -485,6 +583,31 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       const inverseMass=n.x*n.x*inv.x+n.y*n.y*inv.y+n.z*n.z*inv.z
         +t.x*(m.m11*t.x+m.m12*t.y+m.m13*t.z)+t.y*(m.m21*t.x+m.m22*t.y+m.m23*t.z)+t.z*(m.m31*t.x+m.m32*t.y+m.m33*t.z);
       return {inverseMass,velocity:vector(body.velocityAtPoint(p),'point velocity')};
+    },
+    setBodyGhost(id, enabled) {
+      live();if(typeof enabled!=='boolean')throw new TypeError('Ghost state must be boolean');
+      const item=bodies.get(id);if(!item)return false;
+      item.ghost=enabled;refreshHooks(item);return true;
+    },
+    isBodyClearOfObstacles(id,{maxTests=limits.colliders,margin=.025}={}) {
+      live();limit(maxTests,'maxTests');scalar(margin,'obstacle margin',0);
+      if(maxTests>limits.colliders)throw new RangeError('Obstacle query exceeds admitted capacity');
+      const source=bodies.get(id);if(!source)return {clear:false,exhausted:false,reason:'missing-body',testedPairs:0};
+      let testedPairs=0;
+      const sourcePose=pose({position:source.body.translation(),rotation:source.body.rotation()});
+      for(const target of bodies.values()){
+        if(target===source||!target.body.isEnabled())continue;
+        const targetPose=pose({position:target.body.translation(),rotation:target.body.rotation()});
+        for(const aHandle of source.colliders)for(const bHandle of target.colliders){
+          const a=colliders.get(aHandle),b=colliders.get(bHandle);
+          if(a.sensor||b.sensor||(target.type==='fixed'&&b.vehicleSupport!==false))continue;
+          if(testedPairs===maxTests)return {clear:false,exhausted:true,testedPairs};
+          testedPairs++;
+          const ap=composePose(sourcePose,a.local),bp=composePose(targetPose,b.local);
+          if(a.shape.contactShape(ap.position,ap.rotation,b.shape,bp.position,bp.rotation,margin))return {clear:false,exhausted:false,testedPairs};
+        }
+      }
+      return {clear:true,exhausted:false,testedPairs};
     },
     setBodyEnabled(id, enabled) {
       const item = record(id);
@@ -555,7 +678,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       limit(maxTests, 'maxTests'); limit(maxResults, 'maxResults');
       if (maxTests > limits.colliders || maxResults > limits.bodies) throw new RangeError('Overlap query limits exceed admitted capacities');
       const source = bodies.get(id);
-      if (!source || source.type !== 'kinematic') {
+      if (!source || (source.type !== 'kinematic' && source.type !== 'dynamic')) {
         return { ok: false, reason: source ? 'not-kinematic' : 'missing-body', overlaps: [], testedPairs: 0, exhausted: true };
       }
       const hulls = source.colliders.map(handle => colliders.get(handle)).filter(c => !c.sensor)
@@ -626,7 +749,10 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     step(dt) {
       live(); positive(dt, 'dt');
       world.timestep = dt;
-      world.step(queue,contactPairs.size?hooks:undefined);
+      for (const item of vehicles.values()) if(item.enabled && item.chassis.body.isEnabled()) {
+        item.controller.updateVehicle(dt,R.QueryFilterFlags.EXCLUDE_DYNAMIC | R.QueryFilterFlags.EXCLUDE_KINEMATIC | R.QueryFilterFlags.EXCLUDE_SENSORS,undefined,item.filter);
+      }
+      world.step(queue,hooks);
       steps++;
       queue.drainCollisionEvents((a, b, started) => {
         const contact = pair(a, b);
@@ -654,7 +780,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     },
     counts() {
       return {
-        bodies: bodies.size, colliders: colliders.size, joints: joints.size, supportedLoads: supportedLoads.size, contactPairs: contactPairs.size,
+        bodies: bodies.size, colliders: colliders.size, joints: joints.size, vehicles: vehicles.size, supportedLoads: supportedLoads.size, contactPairs: contactPairs.size,
         engineJoints: disposed ? 0 : world.impulseJoints.len(),
         meshVertices: meshVertexCount, meshTriangles: meshTriangleCount,
         engineBodies: disposed ? 0 : world.bodies.len(), engineColliders: disposed ? 0 : world.colliders.len(),
@@ -666,6 +792,7 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
       const item = bodies.get(id);
       if (!item) return false;
       for(const [generation,pair] of contactPairs)if(pair.a===item||pair.b===item)removePair({owner:jointOwner,generation});
+      for(const [key,vehicle] of vehicles)if(vehicle.chassis===item)removeVehicle({owner:jointOwner,id:key,generation:vehicle.generation});
       world.removeRigidBody(item.body);
       // Rapier removes attached impulse joints with the body. Mirror that
       // lifetime here before a reused body id can resolve to a new generation.
@@ -678,11 +805,12 @@ export async function createRapierAdapter({ gravity = { x: 0, y: -9.81, z: 0 }, 
     },
     dispose() {
       if (disposed) return;
+      for(const [key,vehicle] of vehicles)removeVehicle({owner:jointOwner,id:key,generation:vehicle.generation});
       disposed = true;
       // Both own WASM resources. Free the world even if queue teardown throws.
       try { queue.free(); } finally {
         try { world.free(); } finally {
-          bodies.clear(); colliders.clear(); joints.clear(); supportedLoads.clear(); contactPairs.clear(); pendingEvents = []; overflow = 0;
+          bodies.clear(); colliders.clear(); joints.clear(); vehicles.clear(); supportedLoads.clear(); contactPairs.clear(); pendingEvents = []; overflow = 0;
           meshVertexCount = meshTriangleCount = 0;
         }
       }

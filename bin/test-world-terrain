@@ -5,6 +5,7 @@ import {bumpWorldgen} from '../src/worldgen/constants.js';
 import {queryPoint} from '../src/worldgen/index.js';
 import {woodlandCampsNear} from '../src/woodlandCamping.js';
 import {nearestRoad} from '../src/worldgen/roads.js';
+import {lakeAt} from '../src/worldgen/water.js';
 import {terrainHeight,terrainVertexHeight,sampleTerrain,setTerrainEnabled,terrainDescriptors,terrainCacheStats} from '../src/worldgen/terrain.js';
 const close=(a,b,e=1e-8)=>assert.ok(Math.abs(a-b)<e,`${a} != ${b}`);
 setSessionSeed(0);assert.equal(terrainHeight(12,34),0);setTerrainEnabled(true);
@@ -35,7 +36,11 @@ let pads=0,lakes=0,conflicts=0;
 for(const p of descriptors){
  if(!p.graded){conflicts++;continue;}
  if(p.kind==='lake')lakes++;else pads++;
- for(let i=0;i<8;i++){const a=i*Math.PI/4;close(terrainHeight(p.x+Math.cos(a)*(p.radius-15),p.z+Math.sin(a)*(p.radius-15)),p.height,1e-6);}
+ for(let i=0;i<8;i++){
+  const a=i*Math.PI/4,x=p.x+Math.cos(a)*(p.radius-15),z=p.z+Math.sin(a)*(p.radius-15),height=terrainHeight(x,z);
+  if(lakeAt(x,z))assert.ok(height<=p.height+1e-6,'native lake basins intentionally cut the shared datum');
+  else close(height,p.height,1e-6);
+ }
 }
 assert.ok(pads>0&&lakes>0);assert.equal(conflicts,0,'overlapping pads and lakes share one compatible datum');
 const epochHeight=terrainHeight(972.2,-1231.9);bumpWorldgen();assert.equal(terrainCacheStats().vertices,0);close(terrainHeight(972.2,-1231.9),epochHeight);
@@ -89,4 +94,4 @@ assert.equal(terrainCacheStats().vertices,65536);
 assert.deepEqual([...points].reverse().map(([x,z])=>terrainHeight(x,z)).reverse(),evictedPoints);
 setTerrainEnabled(false);close(terrainHeight(1,2),0);close(sampleTerrain(1,2).height,0);
 assert.ok(terrainCacheStats().vertices<=65536);assert.ok(terrainCacheStats().tiles<=512);
-console.log('World terrain: triangle agreement, normals, negative coordinates, seed/query order, level accepted pads/lakes, compatible overlapping pads, unchanged X/Z queries/hash, epoch invalidation and cache bounds passed.',{pads,lakes,conflicts,maxGrade,cache:terrainCacheStats()});
+console.log('World terrain: triangle agreement, normals, negative coordinates, seed/query order, level dry pads/shorelines and native lake basins, unchanged X/Z queries/hash, epoch invalidation and cache bounds passed.',{pads,lakes,conflicts,maxGrade,cache:terrainCacheStats()});

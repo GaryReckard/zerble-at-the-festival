@@ -1,0 +1,149 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { Registry } from '../src/registry.js';
+import { VehicleCondition } from '../src/vehicleCondition.js';
+import { createLivePhysics } from '../src/physics/liveWorld.js';
+import { setTerrainEnabled } from '../src/worldgen/terrain.js';
+
+setTerrainEnabled(false);
+const reports=[];
+function makeSurface(depth=0) {
+  let disposed=false,preparations=0;
+  return {
+    prepare(){preparations++;return !disposed;},
+    sampleSurface(_x,_z,out){return Object.assign(out,{surfaceClass:'asphalt',height:0});},
+    sampleWater(_x,_z,out){return Object.assign(out,{wet:depth>0,surfaceY:depth,bedY:0,depth,kind:depth>0?'fixture':null});},
+    stats(){return {disposed,preparations};},
+    dispose(){disposed=true;}
+  };
+}
+async function fixture({depth=0,trees=[],scenery=[]}={}) {
+  const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
+  const cart={root,position:root.position,heading:0,speed:0,radius:2.95,_tireR:.62,condition:new VehicleCondition()};
+  for(const z of trees)registry.add({kind:'tree',position:new THREE.Vector3(0,0,z),footprint:.9,collider:{radius:.9,damage:1}});
+  for(const item of scenery)registry.add({kind:item.kind,position:new THREE.Vector3(0,0,item.z),footprint:.9,collider:{radius:.9,damage:1}});
+  const drivingSurface=makeSurface(depth);
+  const live=await createLivePhysics({scene,registry,cart,drivePlayer:true,drivingSurface});
+  function prepare(){for(let i=0;i<32;i++){live.prepare(performance.now()+100);if(live.stats().playerResidency.ready)return;}assert.fail('player support never prepared');}
+  function step(input={},options={}){if(options.prepare!==false)live.prepare(performance.now()+100);return live.advance(1/60,{input,ghost:!!options.ghost,consequences:options.consequences!==false});}
+  function frames(count,input={},options={}){for(let i=0;i<count;i++)step(input,options);return live.stats();}
+  function close(){
+    assert.equal(live.dispose().ok,true);
+    const after=live.stats();
+    assert.equal(after.engine.bodies,0);assert.equal(after.engine.colliders,0);assert.equal(after.engine.vehicles,0);
+    assert.equal(after.terrain.tiles,0);assert.equal(after.solids.proxies,0);assert.equal(registry.physicalChairOwner,undefined);
+    assert.equal(drivingSurface.stats().disposed,true,'the live owner disposes its injected surface source');
+    assert.equal(cart.physicsDriven,false);assert.equal(cart.physicalImpulse,undefined);
+  }
+  try {
+    prepare();
+    assert.equal(cart.position,cart.root.position,'the published dynamic position aliases the render root');
+    assert.ok(drivingSurface.stats().preparations>0,'the fixture exercises the injected physical surface');
+  } catch(error) {live.dispose();throw error;}
+  return {cart,live,step,frames,prepare,close};
+}
+
+{
+  const f=await fixture();
+  try {
+    const resident=f.frames(90,{brake:true});
+    assert.equal(resident.terrain.owners,1);assert.equal(resident.solids.owners,1);
+    assert.equal(resident.engine.vehicles,1);assert.equal(resident.cart.contacts,4);assert.equal(resident.condition.damage,0);
+    const initialZ=f.cart.position.z;
+    const starved=f.frames(180,{throttle:1},{prepare:false});
+    assert.equal(starved.blocked,'player-support-frontier');assert.ok(starved.clock.dropped>0);
+    assert.ok(f.cart.position.z<initialZ-1,'the dynamic chassis moves before reaching the reserved frontier');
+    assert.ok(f.cart.position.y>-.15,'a preparation stall never steps the cart into missing ground');
+    const held=f.cart.position.clone(),steps=starved.clock.steps;
+    f.frames(60,{throttle:1},{prepare:false});
+    assert.ok(f.cart.position.distanceTo(held)<1e-8,'the frontier guard retains the entire solved transform');
+    assert.equal(f.live.stats().clock.steps,steps);
+    const resumed=f.frames(240,{throttle:1});
+    assert.equal(resumed.blocked,null);assert.ok(resumed.clock.steps>steps);assert.ok(f.cart.position.z<held.z-20);
+    assert.ok(f.cart.position.y>-.15);assert.ok(resumed.terrain.tiles<=64);assert.ok(resumed.solids.proxies<=128);
+    assert.equal(resumed.condition.damage,0,'ordinary suspension and repeated flat tile crossings cause no damage');
+    reports.push({fixture:'frontier',blockedSeconds:resumed.playerResidency.blockedSeconds,travel:-f.cart.position.z});
+  } finally {f.close();}
+}
+
+{
+  const f=await fixture({trees:[-18]});
+  try {
+    f.frames(60,{brake:true});
+    let first=null,episodes=0,previous=0;
+    for(let i=0;i<240;i++){
+      f.step({throttle:1});
+      const damage=f.cart.condition.damage;
+      if(damage>previous){episodes++;first??={frame:i,damage,speed:f.cart.lastPhysicalDamage?.speed};}
+      previous=damage;
+    }
+    assert.ok(first,'a real static tree chassis impact increases the condition damage meter');
+    assert.equal(episodes,1,'pressing the accelerator against the same obstacle does not repeat the impact episode');
+    assert.ok(f.cart.position.z>-18,'the real static collider blocks the dynamic player');
+    const damage=f.cart.condition.damage;
+    f.frames(240,{brake:true});
+    assert.equal(f.cart.condition.damage,damage,'parked sustained contact does not drain condition');
+    assert.equal(f.cart.condition.cause,null);
+    reports.push({fixture:'tree',...first,episodes});
+  } finally {f.close();}
+}
+
+// The player must collide with solid registry kinds outside the old prop-only whitelist.
+{
+ const f=await fixture({scenery:[{kind:'camp_kitchen',z:-18}]});
+ try{
+  f.frames(60,{brake:true});f.frames(200,{throttle:1});
+  assert.ok(f.cart.position.z>-18,'an admitted kitchen stops the physical chassis');
+  assert.ok(f.cart.condition.damage>0,'an unlisted solid produces physical impact damage');
+ }finally{f.close();}
+}
+
+let dryTravel,shallowTravel;
+for(const depth of [0,.6,1.4,2.5]){
+  const f=await fixture({depth});
+  try {
+    f.frames(180,{throttle:1});
+    const state=f.live.stats(),travel=-f.cart.position.z;
+    assert.ok(f.cart.position.y>-.15,'water forces retain the actual physical ground');
+    if(depth===0){dryTravel=travel;assert.equal(state.condition.cause,null);}
+    else if(depth===.6){shallowTravel=travel;assert.equal(state.condition.cause,null);assert.ok(travel>5,'shallow water remains physically passable');assert.equal(state.condition.submersion,0);}
+    else if(depth===1.4){assert.equal(state.condition.cause,null);assert.equal(state.cart.engine.running,true);assert.ok(travel>2,'a typical creek can still be crossed under power');}
+    else {assert.equal(state.condition.cause,'submerged');assert.ok(state.condition.submersion>=1.5);assert.equal(state.cart.engine.running,false);}
+    reports.push({fixture:'water',depth,travel,immersion:state.cart.immersion,cause:state.condition.cause});
+  } finally {f.close();}
+}
+assert.ok(shallowTravel<dryTravel*.85,`shallow drag reduces actual travel (${shallowTravel} versus ${dryTravel})`);
+
+// The local invulnerability control must not accumulate a latent fatal dunk.
+{
+ const f=await fixture({depth:2.5});
+ try{f.frames(180,{throttle:1},{consequences:false});assert.equal(f.cart.condition.cause,null);assert.equal(f.cart.condition.submersion,0);}
+ finally{f.close();}
+}
+
+{
+  const f=await fixture({trees:[-18,-44]});
+  try {
+    f.frames(60,{brake:true});
+    let frames=0;
+    while(f.cart.position.z>-17.5&&frames++<240)f.step({throttle:1},{ghost:true});
+    assert.ok(f.cart.position.z<=-17.5,'StarPower ghost mode enters the real tree footprint');
+    assert.equal(f.cart.condition.damage,0);
+    let previousSpeed=f.cart.velocity.z;
+    while(f.cart.position.z>-24&&frames++<300){
+      f.step({throttle:1},{ghost:false});
+      assert.equal(f.cart.condition.damage,0,'ghost expiration inside a tree does not restore overlap impulses');
+      assert.ok(f.cart.velocity.z<-1,'the cart continues through the overlapping tree during safe re-entry');
+      assert.ok(Math.abs(f.cart.velocity.z-previousSpeed)<1,'re-entry never causes a solver velocity spike');
+      previousSpeed=f.cart.velocity.z;
+    }
+    assert.ok(f.cart.position.z<-24,'the cart exits the first obstacle continuously');
+    assert.ok(f.cart.position.y>-.15,'ghost mode keeps real terrain wheel support');
+    f.frames(180,{throttle:1});
+    assert.ok(f.cart.condition.damage>0,'solid collisions return after safe re-entry and hit the next tree');
+    assert.ok(f.cart.position.z>-44);
+    reports.push({fixture:'ghost',damageAfterReentry:f.cart.condition.damage,finalZ:f.cart.position.z});
+  } finally {f.close();}
+}
+console.log('PASS live player driving: reserved terrain/static support, paused frontier and resume, real tree damage episode, parked stability, passable shallow water, sustained deep submersion, StarPower passage/safe re-entry, and exact body/collider/controller teardown.',JSON.stringify(reports));

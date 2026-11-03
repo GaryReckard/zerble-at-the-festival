@@ -192,9 +192,9 @@ for(const style of ['sling','director','low','loveseat']) {
 }
 const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
 const star=main.indexOf('StarPower.update(dt,'),legacy=main.indexOf('hit = resolveCollision(zerble, _collScratch)'),physical=main.indexOf('physicalWorld?.advance(dt,');
-assert(star<legacy&&legacy<physical&&physical<main.indexOf("peopleFrameTrace?.mark('contacts-end'"),'late physics runs after same-frame ghost pickup and legacy correction');
+assert(star<physical&&physical<main.indexOf('playerStats.move(dt,')&&physical<legacy,'dynamic player solves after ghost pickup and before gameplay consumers; legacy people reactions remain later');
 assert.match(main,/if\(!physicalWorld\?\.owns\(e\)\) _collScratch.push/);
-console.log('PASS live physics: real chair adoption/support/cart impacts at 30/60/120 Hz, ghost passage, exhausted preparation deadline, canonical clearance, source unload and full cleanup; main late-contact ordering and singular authority.');
+console.log('PASS live physics: real chair adoption/support/cart impacts at 30/60/120 Hz, ghost passage, exhausted preparation deadline, canonical clearance, source unload and full cleanup; main authoritative solve ordering and singular authority.');
 console.log('Scope: opt-in empty-chair integration; full-game browser and phone acceptance remain separate.');
 
 // The real main-loop branch must use weight-sensitive slowdown without the

@@ -1,0 +1,26 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Vector3,Matrix4,Quaternion,Euler} from 'three';
+import {mulberry32} from '../src/rng.js';
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:800,__perfProfile:'low'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {Crowd}=await import('../src/crowd.js'),{Zerble}=await import('../src/zerble.js');
+const crowd=new Crowd({spawn(){},spawnLost(){}}),cart=new Zerble();cart.physicsDriven=true;cart.grounded=true;cart.speed=0;
+const first=crowd.spawn({pos:new Vector3(0,0,-1),rng:mulberry32(4),allowPhotographer:false});
+const next=crowd.spawn({pos:new Vector3(2,0,-1),rng:mulberry32(5),allowPhotographer:false});
+assert(first&&next);first.groupId=null;next.groupId=null;first.dance=0;first.bob=0;
+const slot=cart.seatSlots[0];assert(crowd.seatPerson(first.personHandle,cart,slot,{rideTime:100}));
+cart.root.position.set(3,7,-2);cart.root.quaternion.setFromEuler(new Euler(.55,.4,-.35,'YXZ'));cart.root.updateMatrixWorld(true);
+crowd._tickRiding(0,first,cart);crowd._writeMatrices(first);
+const matrix=new Matrix4(),pos=new Vector3(),rotation=new Quaternion(),scale=new Vector3();crowd.bodyMesh.getMatrixAt(first.idx,matrix);matrix.decompose(pos,rotation,scale);
+const expected=cart.root.quaternion.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0,1,0),slot.yaw));
+assert.ok(Math.abs(rotation.dot(expected))>.99999,'rider inherits chassis pitch and roll');
+const seat=cart.worldSeatPosition(slot,new Vector3()),local=pos.clone().sub(seat).applyQuaternion(expected.clone().invert());
+assert.ok(Math.abs(local.x)<1e-5&&Math.abs(local.z)<1e-5,'rider remains attached to the tilted seat axis');
+cart.grounded=false;first.rideTimer=-1;crowd._tickRiding(.1,first,cart);assert.equal(first.state,'riding','passengers cannot exit while airborne');
+assert.equal(crowd.beginBoarding(next.personHandle,cart,{slot:cart.seatSlots[1]}),false,'passengers cannot board while airborne');
+cart.grounded=true;cart.engineState={immersion:.5};assert.equal(crowd.beginBoarding(next.personHandle,cart,{slot:cart.seatSlots[1]}),false,'passengers cannot board in deep water');
+const neutral={throttle:0,steer:0};cart.grounded=false;cart.update(0,neutral);assert.equal(cart._shadowDisc.visible,false,'contact shadow is hidden while airborne');
+cart.grounded=true;cart.update(0,neutral);assert.equal(cart._shadowDisc.visible,true,'contact shadow returns on landing');
+for(const npc of [...crowd.npcs])crowd.removeNpc(npc);
+console.log('PASS physical passengers: full tilted seat transform and airborne/water boarding and exit guards.');

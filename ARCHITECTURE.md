@@ -38,7 +38,7 @@ src/
   lakes.js                  Macrocell lake bodies
   mountains.js              Blue Ridge backdrop
   registry.js               Central world-entity registry
-  zerble.js                 The player cart — geometry + arcade physics
+  zerble.js                 The player cart model, animation and legacy fixture driving
   lurleen.js                Zerble's love interest — a second cart
   bubbles.js                InstancedMesh bubble particle system
   smiles.js                 Smile pickup orbs
@@ -156,9 +156,7 @@ Three independent lifecycle systems own world content. They all share one regist
 The isolated `terrain-sandbox.html` proof uses `terrainSurface.js` for a fixed
 world-space one-meter triangle lattice and `terrainDriving.js` for opt-in
 slope-aware movement. `Zerble.surfaceSampler` defaults to null, while the live game binds the shared
-worldgen terrain sampler when terrain is enabled. Four wheel
-samples establish chassis pitch/roll, bounded suspension settles each wheel,
-and cart-local seat/nozzle transforms include the tilt. `terrainSandbox.js`
+worldgen terrain sampler when terrain is enabled. The historical arcade fixture samples four wheel heights to establish chassis pitch/roll and settles each wheel. The live physical cart instead derives its pose from Rapier; cart-local seat/nozzle transforms include its full tilt. `terrainSandbox.js`
 owns the course meshes, controls, fixed-step replay and camera clearance checks.
 The original course does not stream or place festival content. [Verification](verification/terrain/2026-10-24-driving-proof.md).
 
@@ -202,7 +200,7 @@ mesh uses 140 segments per side, down from 220 before the texture was added.
 - Body radius 70–100m (large) or 25–40m (small), placed deterministically within the macrocell.
 - Load when within `LOAD_RADIUS` of the player, unload past `LOAD_RADIUS_UNLOAD` — so they don't pop in/out at chunk boundaries.
 - Their unload hysteresis can retain lake groups out to 1,500m, while fog is fully opaque by 520m. The gameplay camera's `PERF.cameraFar = 1040` drops that invisible tail but remains beyond every recentered backdrop (sky 900m, stars 850m, worst-case mountain geometry ~1,012m).
-- Register colliders (radial wall) **without** a `chunkKey`, so chunk unload doesn't tear them down.
+- Register pedestrian shore colliders **without** a `chunkKey`, so chunk unload does not tear them down. The physical player excludes these barriers and can enter the lake.
 - Lakes own: canoes, beaches, lakeside campsites. Chunks consult the registry to avoid placing paths or decorations on water.
 
 ### Shared tree and bird rendering
@@ -365,9 +363,7 @@ queries still see every add/remove immediately.
 
 ## Collision model
 
-The pure resolver lives in `src/collisionContacts.js`, while main composes registry-first
-candidates and registered people providers. The first selected contact invokes its
-lifetime-validated callback at the existing scoring barrier. Candidate order is:
+The default physical player collides with bounded Rapier terrain and scenery proxies; significant chassis contacts feed the damage meter. People reactions and smile penalties still use the pure resolver in `src/collisionContacts.js`, with registry-first candidates and registered people providers. The legacy `?physics=0` path uses that resolver for scenery as well. Candidate order is:
 
 ```
 allColliders = [
@@ -377,11 +373,11 @@ allColliders = [
 ]
 ```
 
-For each collider closer than `c.radius + zerble.radius`:
+For each eligible legacy/person collider closer than `c.radius + zerble.radius`:
 
 - Compute **approach speed** as the dot of Zerble's velocity with the contact normal.
 - If `approachSpeed > APPROACH_DAMAGE_THRESHOLD` (1.2 m/s) → **damaging hit**. Apply knockback to Zerble, panic the NPC, deduct smiles, play kind-specific SFX, show toast.
-- Else → **silent overlap-resolve.** Project Zerble out of the radius, bleed off the small approach speed. No score change.
+- Else → **silent overlap-resolve.** The legacy cart is projected out of the radius; the physical cart keeps its solver-owned position. No score change.
 
 This is what lets you brush against people at a crawl without losing smiles, while still getting punished for driving full speed into a crowd.
 
@@ -434,13 +430,15 @@ A pool of stateful NPCs spawned by chunks.
 
 ## Zerble (`zerble.js`)
 
-Anthropomorphic golf cart. ~950 lines of geometry + physics.
+Anthropomorphic golf cart. The default live path uses one dynamic Rapier chassis and four raycast wheels in `physics/playerVehicle.js`, stepped by `physics/liveWorld.js` on its shared 60 Hz clock. `zerble.js` owns the model and non-motion animation; its legacy terrain controller remains available to isolated fixtures and `?physics=0`.
 
-- Arcade driving: throttle/brake/turn/drag/boost. `MAX_SPEED = 18 m/s`, `BOOST_MULT = 1.55`, `TURN_RATE = 2.1 rad/s`.
+- Grounded throttle/braking use bounded contact-plane impulses; lateral grip and a target-yaw torque pair own steering while native wheel lateral friction is negligible, avoiding competing controllers. Native wheels retain suspension and visual spin, with front-wheel steering presented separately. Assistance fades with partial/steep support and water, and never writes a pose. Throttle, braking, steering and boost drive the physical vehicle; cached `drivingSurface.js` queries distinguish asphalt, dirt, grass, bridge and riverbed contacts. Wheel suspension has finite reach, so momentum and gravity carry the chassis off ridges. Signed forward speed and the full velocity/rotation are published separately.
+- `vehicleCondition.js` accumulates impact severity once per short contact episode. A full meter or sustained water over the engine ends either mode. `restore()` is available for a future repair interaction. Water uses native-grid lake beds or stream cuts; submerged propulsion and `engineDemand.js` audio follow the same threshold.
+- The player reserves bounded terrain and scenery before optional props. Missing collision support blocks the next physics step rather than creating a false fall. Bridge rails retain their authored vertical intervals, wheel rays exclude scenery, and Star Power suppresses obstacle contacts until clearance is proven on re-entry. See [driving verification](verification/driving/2026-11-02/README.md).
 - Boosting above the streak threshold feeds `BoostStreaks`, a fixed eight-instance pool of cart-sized golden torus wake rings. They spawn beyond the rear bumper, remain in world space as Zerble moves away, expand, then return to zero-scale matrices. The immutable geometry is shared, while each pool owns its one material so sandbox teardown cannot invalidate a later preview. Reduced motion and the live player/quality effects gate both stop emission, and the update path creates no per-frame objects.
 - Visible parts: red body, gold roof, blue seat, glowing cyan eyes, purple mustache, four wheels.
 - Eye glow ramps with `nightness` and can be hand-tuned with `I` / `O`.
-- World-bounded by `WORLD_BOUND = 230` so the player can't outrun the festival's "feel."
+- World streaming is unbounded; collision readiness limits accepted steps while nearby support is prepared.
 - `applyHit(pushDir)` adds an invulnerability window and a knockback impulse.
 
 ---
@@ -523,7 +521,7 @@ Drives:
 
 All synthesized — no audio files shipped. ~3000 lines of Web Audio nodes.
 
-- **Engine.** A pair of detuned sawtooth oscillators (gas-engine buzz) mixed with LPF-filtered noise (rumble). Speed scales gain + pitch + a putt-putt LFO. Boost engages a second tier with extra harmonics. At zero speed, fades to silence in ~80ms. `createEngine(ctx, dest, opts)` is profile-driven: the defaults are Zerble's wheezy gas-engine (mono, direct to `sfxBus`, fed `Sound.setEngineSpeed` with his explicit boost). **Lurleen** runs a second instance with a higher/brighter/cleaner profile (raised `pitchMul`, gentler tanh soft-clip, less noise) so her motor reads as a distinct, lighter sibling. Hers is `spatial: true` — wrapped in an `equalpower` PannerNode driven to her world position by `Sound.setLurleenEngine(speed, x, z)` (called from main.js after `lurleen.update()`), so it pans + attenuates with distance. She has no throttle, so `accelBoost` derives the rev from her *acceleration* — it growls up as she speeds to catch the player, eases off when she coasts.
+- **Engine.** A pair of detuned sawtooth oscillators (gas-engine buzz) mixed with LPF-filtered noise (rumble). Zerble’s throttle, engine load, horizontal speed, boost and immersion shape the gain, pitch and filter; a dunk stalls the engine. Lurleen retains her speed-based response. `createEngine(ctx, dest, opts)` is profile-driven: the defaults are Zerble's wheezy gas-engine (mono, direct to `sfxBus`, fed `Sound.setEngineSpeed` with his explicit boost). **Lurleen** runs a second instance with a higher/brighter/cleaner profile (raised `pitchMul`, gentler tanh soft-clip, less noise) so her motor reads as a distinct, lighter sibling. Hers is `spatial: true` — wrapped in an `equalpower` PannerNode driven to her world position by `Sound.setLurleenEngine(speed, x, z)` (called from main.js after `lurleen.update()`), so it pans + attenuates with distance. She has no throttle, so `accelBoost` derives the rev from her *acceleration* — it growls up as she speeds to catch the player, eases off when she coasts.
 - **Collisions.** Per-`kind` one-shot synth hits: drums for stages, metallic clangs for trucks/lampposts, nasal boops for kids/puppets, brass for the band, wood knocks for the arch, a "duuude" drone for wooks.
 - **Honks.** Bicycle bell (struck-tine + trill envelope) or clown horn (2-phase honk + inhale fifth up).
 - **Bubble juice.** The nonempty-to-empty edge in `main.js` calls one synthesized sputter made from a falling saw voice, a square-wave flutter, and a closing low-pass filter. The latch resets only after juice becomes nonempty again, so an empty tank cannot spam audio. The sound is added behind the existing synchronous `Sound.init()` title-tap chain rather than introducing another initialization path.

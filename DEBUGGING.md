@@ -48,6 +48,10 @@ and registry benchmarks. Measurements and their limits belong in dated
 [verification reports](verification/README.md), while pending acceptance stays
 in [ROADMAP.md](ROADMAP.md).
 
+## Physical driving course
+
+Open `http://127.0.0.1:8765/player-driving.html?mute=1` for the real dynamic chassis on repeatable surface, ridge, creek, lake and tree fixtures. Use the course selector, drive or replay, and inspect wheel contact, depth, damage and solver timing in the readout. The course supports Noon/Midnight, pause and reset; it owns and disposes its physics world. `node bin/test-player-vehicle`, `node bin/test-player-handling`, `node bin/test-driving-surface`, `node bin/test-vehicle-condition` and `node bin/test-player-driving-live` cover deterministic behavior and live ownership. In the real game, `?physics=1&mute=1` exposes the player and reservation diagnostics alongside prop staging. A course pass is not a substitute for the normal title-plank/game smoke test.
+
 ## Festival Passport preview
 
 Open `http://127.0.0.1:8765/passport-preview.html?case=populated&mute=1` on the loopback Vite server. Fixtures `empty`, `populated`, `migrated`, `long` and `blocked` use the production menu with memory-only progress, without GA or WebGL. This preview is intentionally outside the LAN page allowlist. Test the live title and book buttons or `P` for integration; `__dbg.passport()` reads the live snapshot and `__dbg.passport(true)` opens it. A passport pauses gameplay, including Festival Run resource/timer changes, while preserving rendering.

@@ -880,9 +880,9 @@ export const Sound = {
 
   // boost: 0..1 — when > 0, the engine revs higher and growls louder, like
   // the driver dropped a gear. Wired from Zerble's `wantBoost` state.
-  setEngineSpeed(speed, boost = 0) {
+  setEngineSpeed(speed, boost = 0, demand = null) {
     if (!engineNodes) return;
-    engineNodes.update(Math.abs(speed), boost);
+    engineNodes.update(Math.abs(speed), boost, demand);
   },
 
   // Lurleen's motor. Position drives the panner (so it comes from where she is)
@@ -1525,7 +1525,7 @@ function createEngine(ctx, dest, opts = {}) {
   let lastAbsSpeed = 0;       // for the accel-derived boost (autonomous carts)
 
   return {
-    update(absSpeed, boost = 0) {
+    update(absSpeed, boost = 0, demand = null) {
       const now = ctx.currentTime;
       const dt = Math.min(0.1, now - lastUpdate);
       lastUpdate = now;
@@ -1545,7 +1545,7 @@ function createEngine(ctx, dest, opts = {}) {
       // Boost raises the effective "throttle" so the engine reads as revving
       // harder even when at the max speed cap. Adds up to +30% to t.
       const baseT = Math.min(1, absSpeed / speedRef);
-      const t = Math.min(1, baseT + boostSmoothed * 0.3);
+      const t = demand ? Math.max(0,Math.min(1,demand.revs)) : Math.min(1, baseT + boostSmoothed * 0.3);
 
       // Chug speeds up with throttle. Irregular rhythm: slight noise on the rate.
       const lfoHz = chugBase + t * chugSpan + Math.sin(lfoPhase * 0.31) * 1.2;
@@ -1566,7 +1566,7 @@ function createEngine(ctx, dest, opts = {}) {
       // Volume ramps with speed * chug * misfire. At 0 speed → 0 volume → silent.
       // Boost also adds a flat +20% gain so the engine sounds "louder", not just
       // higher-pitched, when the player floors it.
-      const targetVol = t * volScale * chug * misfireMul * (1 + boostSmoothed * 0.2);
+      const targetVol = (demand ? demand.volume : t) * volScale * chug * misfireMul * (1 + boostSmoothed * 0.2);
       engineGain.gain.setTargetAtTime(targetVol, now, 0.04);
 
       // Pitch climbs with speed + slow warble for the wheezy old-cart wobble.
@@ -1592,7 +1592,7 @@ function createEngine(ctx, dest, opts = {}) {
       osc2.frequency.setTargetAtTime(f * harmonic, now, 0.07);
 
       // Open the filter at high revs (brighter), tighten at low (muddier)
-      const filterFreq = lpfBase + t * lpfSpan;
+      const filterFreq = (lpfBase + t * lpfSpan) * (1-(demand?.muffle??0)*.7);
       lpf.frequency.setTargetAtTime(filterFreq, now, 0.1);
 
       // Drive the grind band-pass slightly with speed so the crunch peaks shift

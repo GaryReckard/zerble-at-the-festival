@@ -1,0 +1,99 @@
+{
+  "cart": {
+    "airTime": 0,
+    "bodyGeneration": 1,
+    "contacts": 4,
+    "disposed": false,
+    "engine": {
+      "boost": false,
+      "grounded": true,
+      "load": 0,
+      "revs": 0.10296699668421871,
+      "running": true,
+      "submersion": 0.07519574642181397,
+      "throttle": 0,
+      "wet": 0.045573179649584225
+    },
+    "grounded": true,
+    "id": "live-cart",
+    "immersion": 0.07520999193191528,
+    "impactNormal": {
+      "x": 0.000016226167715354666,
+      "y": 0.9999865687187446,
+      "z": -0.005182867818377244
+    },
+    "impactSpeed": 0.15940307741229792,
+    "landingSpeed": 0,
+    "lastReset": "restart",
+    "position": {
+      "x": -1049.9969482421875,
+      "y": 0.004790008068084717,
+      "z": -1459.6434326171875
+    },
+    "recoveries": 0,
+    "resets": 2,
+    "speed": 0.17542482809928278,
+    "surface": "grass",
+    "up": {
+      "x": -0.003893824492582926,
+      "y": 0.999950675873943,
+      "z": -0.009136955185700726
+    },
+    "velocity": {
+      "x": -0.00023802052601240575,
+      "y": -0.06227947026491165,
+      "z": -0.17486360669136047
+    },
+    "water": {
+      "depth": 0.08,
+      "kind": "lake",
+      "surfaceY": 0.08,
+      "wet": true
+    }
+  },
+  "condition": {
+    "cause": null,
+    "damage": 0,
+    "fraction": 0,
+    "submersion": 0
+  },
+  "engine": {
+    "bodies": 3,
+    "colliders": 4,
+    "contactPairs": 0,
+    "disposed": false,
+    "engineBodies": 3,
+    "engineColliders": 4,
+    "engineJoints": 0,
+    "events": 0,
+    "joints": 0,
+    "meshTriangles": 16,
+    "meshVertices": 18,
+    "overflow": 0,
+    "steps": 312,
+    "supportedLoads": 0,
+    "totalOverflow": 0,
+    "vehicles": 1
+  },
+  "residency": {
+    "blockedSeconds": 0.03333333333333333,
+    "maxStepMs": 52.79999995231629,
+    "ready": true,
+    "stepMs": 0.10000002384185792,
+    "wanted": {
+      "maxX": -1041,
+      "maxZ": -1445.61474609375,
+      "minX": -1059.0000000340297,
+      "minZ": -1466.6073491573334
+    }
+  },
+  "surface": {
+    "blockedReason": null,
+    "disposed": false,
+    "lakes": 3,
+    "preparations": 1,
+    "queries": 1,
+    "roadTriangles": 210,
+    "streams": 0
+  }
+}

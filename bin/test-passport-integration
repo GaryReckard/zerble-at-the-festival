@@ -11,7 +11,7 @@ import { ChallengeTracker } from '../src/bubbleChallenges.js';
 const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
 const predicate = main.slice(main.indexOf('function passportCanCollect()'), main.indexOf('\nfunction startPassport()'));
 const state = { running: true, document: { hidden: false }, controlsLocked: false, captureDriveLocked: false,
-  PassportMenu: { isOpen: () => state.modal }, RunMode: { isFestival: () => state.festival }, RunState: { over: false } };
+  PassportMenu: { isOpen: () => state.modal }, RunMode: { isFestival: () => state.festival }, RunState: { over: false }, vehicleGameOver: null };
 const canCollect = vm.runInNewContext(predicate + ';passportCanCollect', state);
 assert.equal(canCollect(), true);
 for (const flag of ['running', 'controlsLocked', 'captureDriveLocked']) {
@@ -22,7 +22,7 @@ state.modal = true; assert.equal(canCollect(), false); state.modal = false;
 state.festival = true; state.RunState.over = true; assert.equal(canCollect(), false); state.RunState.over = false;
 
 // Execute the actual pause branch, with a trap where gameplay would otherwise begin.
-const preamble = main.slice(main.indexOf('function tickBody(dt) {') + 'function tickBody(dt) {'.length, main.indexOf('  if (running) {', main.indexOf('function tickBody(dt) {')));
+const preamble = main.slice(main.indexOf('function tickBody(dt) {') + 'function tickBody(dt) {'.length, main.indexOf('  if (running && !vehicleGameOver) {', main.indexOf('function tickBody(dt) {')));
 let renders = 0;
 const paused = vm.runInNewContext(`(function(){${preamble}\nthrow Error('Gameplay advanced');})`, {
   PassportMenu: { isOpen: () => true }, LAYOUT_CAPTURE_MODE: false, composer: { render() { renders++; } },

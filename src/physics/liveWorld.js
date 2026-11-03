@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { createRapierAdapter } from './rapierAdapter.js';
 import { FixedStepClock } from './fixedStep.js';
 import { CartProxy } from './cartProxy.js';
+import { createPlayerVehicle } from './playerVehicle.js';
+import { createDrivingSurface } from '../drivingSurface.js';
 import { createTerrainResidency } from './terrainResidency.js';
 import { createStaticResidency } from './staticResidency.js';
 import { AdmissionBudget } from './admissionBudget.js';
@@ -18,21 +20,26 @@ import { APPROACH_DAMAGE_THRESHOLD } from '../collisionContacts.js';
 import { containsSupport, supportWindow } from './supportWindow.js';
 
 const MAX_CHAIRS = 8;
+const MOVING_COLLIDER_KINDS = new Set(['kid','lurleen','nut_wagon','one_wheel','person','puppet','wook','brass','hula_hoop']);
 const poseOf = cart => ({position:{x:cart.position.x,y:cart.position.y,z:cart.position.z},
   rotation:{x:cart.root.quaternion.x,y:cart.root.quaternion.y,z:cart.root.quaternion.z,w:cart.root.quaternion.w}});
 
-// Opt-in integration proof. The owner consumes the game's clock and streaming
-// deadline; it never creates a timer, animation loop or independent budget.
-export async function createLivePhysics({scene,registry,cart,camera,people=null,landscape=null,isWet=()=>false,now=()=>performance.now()}) {
+// This owner consumes the game's clock and streaming deadline without creating
+// a timer or independent budget. Fixtures can retain the kinematic cart while
+// the live game explicitly requests the dynamic player.
+export async function createLivePhysics({scene,registry,cart,camera,people=null,landscape=null,isWet=()=>false,now=()=>performance.now(),drivePlayer=false,drivingSurface=null}) {
   const adapter = await createRapierAdapter({capacities:{bodies:256,colliders:512,joints:8,events:256,supportedLoads:16,contactPairs:36}});
-  let rendering,terrain,solids,owner,ordinary;
+  let rendering,terrain,solids,owner,ordinary,vehicle,surface;
+  let playerWanted=null,playerBounds=null,playerBlockedSeconds=0,playerStepMs=0,maxPlayerStepMs=0,maxPlayerStepAt=0,totalPlayerStepMs=0,playerSteps=0,maxSurfacePrepMs=0,surfaceReady=false,playerGhost=false;
   try {
   const incidents=createIncidentLedger();
   const incidentKey=record=>`${record.bodyId}:${owner.read(record.token)?.engineGeneration}`;
   const clock = new FixedStepClock(), records = new Map(), entryRecords = new Map(), rejected = new Map();
   rendering = createActivePropRendering({maxBuckets:48,maxSlots:3072,slotsPerBucket:64});
   terrain = createTerrainResidency(adapter,{maxTiles:64,maxQueued:32,maxOwners:MAX_CHAIRS+4,supportGeometry:landscape?(bounds,origin)=>landscape.physicsSupport(bounds,origin):null});
-  solids = createStaticResidency({registry,adapter,isDynamic:entry=>!!entryRecords.get(entry.id)?.token,maxProxies:128,maxOwners:MAX_CHAIRS+4,maxQueued:128});
+  solids = createStaticResidency({registry,adapter,kinds:drivePlayer?null:undefined,
+    isDynamic:entry=>drivePlayer&&(entry.kind==='lake_edge'||MOVING_COLLIDER_KINDS.has(entry.kind))||!!entryRecords.get(entry.id)?.token,
+    maxProxies:128,maxOwners:MAX_CHAIRS+4,maxQueued:128});
   const budget = new AdmissionBudget({capacities:{bodies:256,colliders:512,joints:8,renderSlots:3072,events:256},maxRecords:MAX_CHAIRS*3+5});
   // Reserve the worst-case fixed support and cart allocations before chairs.
   budget.reserve('world-support',{resident:{bodies:193,colliders:landscape?257:193,events:256}});
@@ -59,12 +66,32 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
   registry.physicalChairOwner=owner;
   scene.add(rendering.root);
   const cartId='live-cart';
-  const admitted=adapter.addBody({id:cartId,type:'kinematic',pose:poseOf(cart),colliders:[{shape:'cuboid',halfExtents:{x:1.85,y:.6,z:2.3},position:{x:0,y:.65,z:-.17},friction:.4,collisionEvents:true,forceEvents:true,forceThreshold:2}]});
-  if(!admitted.ok) {dispose();throw new Error(`Cart proxy: ${admitted.reason}`);}
-  const proxy=new CartProxy({adapter,id:cartId,pose:poseOf(cart),isClear:pose=>{
-    const result=adapter.queryDynamicOverlaps(cartId,pose);
-    return result.ok&&!result.exhausted&&!result.overlaps.length;
-  }});
+  let proxy=null;
+  if(drivePlayer){
+    // First regional query belongs to the same deadline as later prewarming.
+    surface=drivingSurface??createDrivingSurface({landscape,registry});
+    vehicle=createPlayerVehicle({adapter,cart,id:cartId,sampleSurface:surface.sampleSurface,sampleWater:surface.sampleWater,
+      canRecover:pose=>{
+        if(!playerBounds||!containsSupport(playerBounds,pose.position,5))return false;
+        const query=adapter.queryDynamicOverlaps(cartId,pose);
+        if(!query.ok||query.exhausted||query.overlaps.length)return false;
+        let blocked=false;
+        registry.collidersNear(pose.position.x,pose.position.z,cart.radius+3,entry=>{
+          if(entry.kind==='lake_edge'||entry.kind==='lake')return;
+          if(Math.hypot(entry.position.x-pose.position.x,entry.position.z-pose.position.z)<(entry.collider?.radius??0)+cart.radius)blocked=true;
+        });
+        return !blocked;
+      }});
+    cart.physicsDriven=true;
+    cart.physicalImpulse=(direction,speed)=>adapter.applyImpulse(cartId,{x:direction.x*320*speed,y:0,z:direction.z*320*speed});
+  }else{
+    const admitted=adapter.addBody({id:cartId,type:'kinematic',pose:poseOf(cart),colliders:[{shape:'cuboid',halfExtents:{x:1.85,y:.6,z:2.3},position:{x:0,y:.65,z:-.17},friction:.4,collisionEvents:true,forceEvents:true,forceThreshold:2}]});
+    if(!admitted.ok) {dispose();throw new Error(`Cart proxy: ${admitted.reason}`);}
+    proxy=new CartProxy({adapter,id:cartId,pose:poseOf(cart),isClear:pose=>{
+      const result=adapter.queryDynamicOverlaps(cartId,pose);
+      return result.ok&&!result.exhausted&&!result.overlaps.length;
+    }});
+  }
   ordinary=people?createOrdinaryPeople({people,adapter,budget,terrain,solids,cart,isWet,now,registry,sampleGround:landscape?(x,z,y)=>landscape.physicsGround(x,z,y,{}):undefined}):null;
   function rejection(reason) {rejects++;lastReject=reason;}
   function forget(record) {
@@ -108,6 +135,19 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
   function prepare(deadline) {
     if(disposed)return;
     preparationCalls++;
+    // The player is mandatory and prepares before optional furniture admission.
+    if(vehicle&&now()<deadline){
+      const prepStarted=now();surfaceReady=surface.prepare(cart.position,deadline);
+      maxSurfacePrepMs=Math.max(maxSurfacePrepMs,now()-prepStarted);
+      const wanted=supportWindow(cart.position,cart.velocity,4,playerWanted);
+      if(wanted!==playerWanted){
+        const ground=terrain.request('player-vehicle',wanted),nearby=solids.request('player-vehicle',wanted);
+        if(ground.ok&&nearby.ok)playerWanted=wanted;
+      }
+      if(now()<deadline)terrain.pump({deadline,now,maxCreations:2});
+      if(now()<deadline)solids.pump({deadline,now,maxCreations:4});
+      if(terrain.status('player-vehicle').state==='ready'&&solids.status('player-vehicle').state==='ready')playerBounds=playerWanted;
+    }
     // Free safe residents before admission, including a diagnostic target that
     // teleported into range after the previous neighborhood filled the cap.
     for(const record of [...records.values()]){
@@ -181,13 +221,19 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
     for(const record of records.values())registry.entries.get(record.entryId)?.physicalProp?.renderBatch?.flush();
     rendering.flush();
   }
-  function advance(dt,{ghost=false,corrected=false,eligible=true}={}) {
+  function advance(dt,{ghost=false,corrected=false,eligible=true,consequences=true,input={}}={}) {
     if(disposed)return null;
     frames++;
     let hit=null;
     // Check again before every substep: a contact impulse can change velocity
     // during the preceding step of the same presentation frame.
     function canStep(step) {
+      if(vehicle){
+        const predicted={x:cart.position.x+(cart.velocity?.x??0)*step,z:cart.position.z+(cart.velocity?.z??0)*step};
+        if(!surfaceReady||!playerBounds||!containsSupport(playerBounds,predicted,5)){
+          blocked='player-support-frontier';playerBlockedSeconds+=step;return false;
+        }
+      }
       if(ordinary&&!ordinary.canStep(step)){blocked='ordinary-person-support-frontier';suspended=true;return false;}
       for(const record of records.values())if(record.token) {
         if(record.handoffPending){blocked='static-handoff';suspended=true;return false;}
@@ -203,16 +249,52 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
       return true;
     }
     blocked=null;
-    const reason=resetReason??(corrected?'legacy-correction':suspended?'dropped-time':null);
-    if(dt===0&&!reason&&ghost===proxy.ghost)return null;
-    proxy.accept(clock.time+clock.remainder,dt,poseOf(cart),{ghost,resetReason:reason});
+    const reason=resetReason??(!vehicle&&corrected?'legacy-correction':!vehicle&&suspended?'dropped-time':null);
+    if(vehicle){if(reason)vehicle.reset(reason);}
+    else{
+      if(dt===0&&!reason&&ghost===proxy.ghost)return null;
+      proxy.accept(clock.time+clock.remainder,dt,poseOf(cart),{ghost,resetReason:reason});
+    }
     resetReason=null;suspended=false;
     clock.advance(dt,(step,time)=>{
       incidents.advance(time);
       const incoming=new Map();
       for(const record of records.values())if(record.token){for(const body of owner.propBodies(record.token))incoming.set(body.id,{key:record.incidentKey,generation:body.generation,pose:body.pose,position:body.pose.position,velocity:body.linearVelocity});}
-      proxy.beforeStep(time);adapter.step(step);owner.stepPeople(step);ordinary?.step(step);
+      const beforeVehicle=vehicle?adapter.readBody(cartId):null;
+      const stepStarted=vehicle?now():0;
+      if(vehicle){
+        if(ghost&&!playerGhost){adapter.setBodyGhost(cartId,true);playerGhost=true;}
+        else if(!ghost&&playerGhost&&adapter.isBodyClearOfObstacles(cartId).clear){adapter.setBodyGhost(cartId,false);playerGhost=false;}
+        vehicle.beforeStep(step,input);
+      }else proxy.beforeStep(time);
+      adapter.step(step);
+      const vehicleState=vehicle?.afterStep(step);
+      if(vehicleState?.grounded&&vehicleState.immersion<.15&&cart.surfaceBinding
+        &&(vehicleState.surface==='bridge'||cart.surfaceBinding.snapshot().surfaceId!=='terrain')){
+        const selected=surface.sampleSurface(cart.position.x,cart.position.z,{},cart.position.y);
+        if(selected.surfaceId!==cart.surfaceBinding.snapshot().surfaceId)cart.surfaceBinding.relocate({x:cart.position.x,z:cart.position.z,heading:cart.heading,surfaceId:selected.surfaceId??'terrain'});
+      }
+      if(vehicle){
+        playerStepMs=now()-stepStarted;totalPlayerStepMs+=playerStepMs;playerSteps++;
+        if(playerStepMs>maxPlayerStepMs){maxPlayerStepMs=playerStepMs;maxPlayerStepAt=playerSteps;}
+      }
+      owner.stepPeople(step);ordinary?.step(step);
       const drained=adapter.drainEvents();overflow+=drained.overflow;
+      if(vehicle&&cart.condition&&consequences){
+        // Suspension forces never create chassis contact events. Use the actual
+        // solver impulse projected against incoming motion, once per episode.
+        let severity=vehicleState.landingSpeed;
+        for(const event of drained.events){
+          if(event.type!=='contact-force'||event.a!==cartId&&event.b!==cartId)continue;
+          const direction=event.maxForceDirection,v=beforeVehicle.linearVelocity;
+          const incoming=Math.abs(v.x*direction.x+v.y*direction.y+v.z*direction.z);
+          const impulseSpeed=event.totalForceMagnitude*step/beforeVehicle.mass;
+          severity=Math.max(severity,Math.min(incoming,impulseSpeed));
+        }
+        const added=playerGhost?0:cart.condition.impact(severity,time,'chassis');
+        if(added>0)cart.lastPhysicalDamage={amount:added,speed:severity,time};
+        cart.condition.step(step,vehicleState.immersion);
+      }
       for(const event of drained.events) {
         if(event.a!==cartId&&event.b!==cartId)continue;
         const bodyId=event.a===cartId?event.b:event.a;
@@ -230,7 +312,8 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
         const body=adapter.readBody(bodyId),entry=registry.entries.get(record.entryId);
         if(!body||!entry)continue;
         const dx=body.pose.position.x-cart.position.x,dz=body.pose.position.z-cart.position.z,d=Math.hypot(dx,dz)||1;
-        const approach=(-Math.sin(cart.heading)*cart.speed*dx-Math.cos(cart.heading)*cart.speed*dz)/d;
+        const incomingVelocity=beforeVehicle?.linearVelocity;
+        const approach=incomingVelocity?(incomingVelocity.x*dx+incomingVelocity.z*dz)/d:(-Math.sin(cart.heading)*cart.speed*dx-Math.cos(cart.heading)*cart.speed*dz)/d;
         if(approach<=APPROACH_DAMAGE_THRESHOLD)continue;
         record.lastHit=time;record.penalized=true;hits++;owner.impact(record.token);
         incidents.start(record.incidentKey,'zerble',time);
@@ -251,19 +334,27 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
   }
   function stats() {return {enabled:!disposed,phase:'physical-props-prototype',preparationCalls,lastCandidates,nearbyChairs,rejectedCandidates:rejected.size,player:{x:cart.position.x,z:cart.position.z},frames,clock:{steps:clock.steps,dropped:clock.dropped},blocked,hits,overflow,rejects,lastReject,
     chairs:[...records.values()].map(record=>({key:record.key,kind:registry.entries.get(record.entryId)?.kind,entryId:record.entryId,active:!!record.token,incident:record.incidentKey?incidents.read(record.incidentKey):null,state:record.token?owner.read(record.token):null})),
-    incidents:incidents.stats(),ordinary:ordinary?.stats()??null,engine:adapter.counts(),terrain:terrain.stats(),solids:solids.stats(),render:rendering.stats(),ownership:owner.stats(),cart:proxy.state(),
+    incidents:incidents.stats(),ordinary:ordinary?.stats()??null,engine:adapter.counts(),terrain:terrain.stats(),solids:solids.stats(),render:rendering.stats(),ownership:owner.stats(),cart:vehicle?.state()??proxy.state(),condition:cart.condition?.snapshot(),playerResidency:{ready:!!playerBounds,wanted:playerWanted,blockedSeconds:playerBlockedSeconds,stepMs:playerStepMs,meanStepMs:totalPlayerStepMs/(playerSteps||1),maxStepMs:maxPlayerStepMs,maxStepAt:maxPlayerStepAt,maxSurfacePrepMs,steps:playerSteps},surface:surface?.stats(),
     limitations:['Occupied chair adoption is opt-in; full incident and device acceptance remain pending.','Static cylinders are conservative approximations.','Secondary-person attribution and device acceptance are pending.','Support-frontier exhaustion visibly stops this opt-in prototype.']};}
   function dispose() {
     if(disposed)return;disposed=true;
     if(registry.physicalChairOwner===owner)delete registry.physicalChairOwner;
     const errors=[];
-    for(const [name,action] of [['ordinary-people',()=>ordinary?.dispose()],['chairs',()=>owner.dispose()],['solids',()=>solids.dispose()],['terrain',()=>terrain.dispose()],['render',()=>rendering.dispose()],['engine',()=>adapter.dispose()]]) {
+    for(const [name,action] of [['vehicle',()=>vehicle?.dispose()],['surface',()=>surface?.dispose()],['ordinary-people',()=>ordinary?.dispose()],['chairs',()=>owner.dispose()],['solids',()=>solids.dispose()],['terrain',()=>terrain.dispose()],['render',()=>rendering.dispose()],['engine',()=>adapter.dispose()]]) {
       try {const result=action();if(result?.ok===false)errors.push({name,result});}catch(error){errors.push({name,message:error.message});}
     }
     incidents.clear();rendering.root.removeFromParent();records.clear();entryRecords.clear();rejected.clear();
+    if(vehicle){cart.physicsDriven=false;delete cart.physicalImpulse;}
     return {ok:!errors.length,errors};
   }
-  return {prepare,advance,stats,dispose,approachPerson:()=>ordinary?.approach()??null,reset(reason){resetReason=reason;},owns(entry){return !!entryRecords.get(entry.id)?.token;},
+  return {prepare,advance,stats,dispose,
+    beginRender(){vehicle?.beginRender(blocked?1:clock.alpha);},endRender(){vehicle?.endRender();},
+    setSpeed(speed){
+      if(!Number.isFinite(speed))throw new TypeError('Vehicle speed must be finite');
+      cart.speed=speed;
+      if(vehicle){const current=adapter.readBody(cartId);adapter.setVelocity(cartId,{linear:{x:-Math.sin(cart.heading)*speed,y:current.linearVelocity.y,z:-Math.cos(cart.heading)*speed},angular:current.angularVelocity});}
+    },
+    approachPerson:()=>ordinary?.approach()??null,reset(reason){resetReason=reason;if(vehicle){playerWanted=playerBounds=null;terrain.release('player-vehicle');solids.release('player-vehicle');surfaceReady=false;}},owns(entry){return !!entryRecords.get(entry.id)?.token;},
     requestDismount(){
       if(disposed)return {ok:false,reason:'disposed'};
       for(const record of records.values())if(record.token){const count=owner.requestDismount(record.token);if(count)return {ok:true,count,entryId:record.entryId};}
@@ -307,7 +398,7 @@ export async function createLivePhysics({scene,registry,cart,camera,people=null,
   } catch(error) {
     if(registry.physicalChairOwner===owner)delete registry.physicalChairOwner;
     const cleanupErrors=[];
-    for(const resource of [ordinary,owner,solids,terrain,rendering,adapter])try{resource?.dispose();}catch(cleanup){cleanupErrors.push(cleanup.message);}
+    for(const resource of [vehicle,surface,ordinary,owner,solids,terrain,rendering,adapter])try{resource?.dispose();}catch(cleanup){cleanupErrors.push(cleanup.message);}
     rendering?.root.removeFromParent();
     if(cleanupErrors.length)error.cleanupErrors=cleanupErrors;
     throw error;

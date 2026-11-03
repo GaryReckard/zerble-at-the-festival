@@ -1,0 +1,107 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { createDrivingSurface, MAX_DRIVING_ROAD_TRIANGLES, MAX_DRIVING_LAKES } from '../src/drivingSurface.js';
+import { setSessionSeed, worldHash } from '../src/rng.js';
+import { setTerrainEnabled, terrainHeight, terrainVertexHeight, sampleTerrain, lakeContains, lakeBedVertexHeight, LAKE_MAX_DEPTH } from '../src/worldgen/terrain.js';
+import { lakesInBounds } from '../src/worldgen/water.js';
+import { roadsInBounds } from '../src/worldgen/roads.js';
+import { queryPoint } from '../src/worldgen/index.js';
+import { setLandscapeVersion, landscapeCandidateInCell, landscapeWaterAt } from '../src/worldgen/landscapeCandidates.js';
+import { landscapeRoadPaths } from '../src/worldgen/landscapeRender.js';
+import { buildTerrainPatch } from '../src/physics/terrainProxy.js';
+
+const close=(a,b,tolerance=1e-6)=>assert.ok(Math.abs(a-b)<tolerance,`${a} differs from ${b}`);
+setSessionSeed(0);setLandscapeVersion(1);setTerrainEnabled(true);
+const surface=createDrivingSurface();
+assert.equal(surface.prepare({x:0,z:0},-Infinity),false);
+assert.equal(surface.stats().blockedReason,'deadline');
+assert.equal(surface.prepare({x:0,z:0}),true);
+const dry=surface.sampleWater(0,0,{});assert.equal(dry.wet,false);assert.equal(dry.depth,0);assert.equal(dry.kind,null);
+const layouts=JSON.stringify([queryPoint(17,31),queryPoint(-295,712)]),hash=worldHash(20,-12,123456);
+
+const lakes=lakesInBounds(-1400,-1400,1400,1400);assert.ok(lakes.length);
+const lake=lakes.find(l=>lakeBedVertexHeight(l,l.x,l.z)<-3);assert.ok(lake,'a deterministic native lake has an engine-deep centre');
+assert.equal(surface.prepare({x:lake.x,z:lake.z}),true);
+const wet=surface.sampleWater(lake.x,lake.z,{});
+assert.equal(wet.wet,true);assert.equal(wet.kind,'lake');close(wet.surfaceY,.08);close(wet.bedY,terrainHeight(lake.x,lake.z));
+assert.ok(wet.depth>3&&wet.depth<=LAKE_MAX_DEPTH+.081,'the physical bed can submerge the engine');
+assert.equal(sampleTerrain(lake.x,lake.z).traversable,false,'pedestrian admission still rejects native water');
+assert.equal(surface.sampleSurface(lake.x,lake.z,{}).surfaceClass,'riverbed');
+// The shoreline's neighbouring dry triangles retain their original datum.
+for(const edge of lake.outline){
+ const dx=edge.x-lake.x,dz=edge.z-lake.z,length=Math.hypot(dx,dz),x=edge.x+dx/length*5,z=edge.z+dz/length*5;
+ if(!lakes.some(l=>lakeContains(l,x,z)))close(terrainHeight(x,z),0);
+}
+const patch=buildTerrainPatch({minX:lake.x-10,minZ:lake.z-10,maxX:lake.x+10,maxZ:lake.z+10});
+for(let i=0;i<patch.indices.length;i+=3){
+ let x=0,y=0,z=0;
+ for(let j=0;j<3;j++){const k=patch.indices[i+j]*3;x+=patch.vertices[k]/3;y+=patch.vertices[k+1]/3;z+=patch.vertices[k+2]/3;}
+ close(terrainHeight(x+patch.origin.x,z+patch.origin.z),y,1e-5);
+}
+for(let i=0;i<patch.vertices.length;i+=3)close(patch.vertices[i+1],terrainVertexHeight(patch.vertices[i]+patch.origin.x,patch.vertices[i+2]+patch.origin.z),1e-5);
+assert.equal(JSON.stringify([queryPoint(17,31),queryPoint(-295,712)]),layouts,'lake beds never change placement descriptors');
+assert.equal(worldHash(20,-12,123456),hash,'no existing RNG/hash stream is consumed');
+
+// Real generated roads must use their visible width rather than the worldgen
+// no-build corridor, and asphalt wins at overlap junctions like the renderer.
+const roads=roadsInBounds(-1400,-1400,1400,1400);let asphalt=0,dirt=0,grass=0;
+for(const road of roads){
+ if(asphalt&&dirt&&grass)break;
+ for(let i=1;i<road.points.length;i++){
+  const a=road.points[i-1],b=road.points[i],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz);
+  if(len<30)continue;
+  const x=(a.x+b.x)/2,z=(a.z+b.z)/2;
+  if(!surface.prepare({x,z}))continue;
+  const middle=surface.sampleSurface(x,z,{});
+  if(road.surface==='asphalt'&&middle.surfaceClass==='asphalt')asphalt++;
+  if(road.surface!=='asphalt'&&middle.surfaceClass==='dirt')dirt++;
+  const offset=(road.width||7)/2+.3;
+  if(surface.sampleSurface(x-dz/len*offset,z+dx/len*offset,{}).surfaceClass==='grass')grass++;
+ }
+}
+assert.ok(asphalt&&dirt&&grass,`visible road classes ${JSON.stringify({asphalt,dirt,grass})}`);
+const before=surface.stats();const scratch={};
+for(let i=0;i<240;i++){surface.sampleSurface(0,0,scratch);surface.sampleWater(0,0,scratch);}
+assert.equal(surface.stats().queries,before.queries,'wheel samples never enumerate regional road/lake candidates');
+assert.ok(surface.stats().roadTriangles<=MAX_DRIVING_ROAD_TRIANGLES);
+assert.throws(()=>surface.prepare({x:NaN,z:0}),RangeError);
+surface.dispose();assert.equal(surface.prepare({x:0,z:0}),false);assert.equal(surface.sampleWater(0,0,{}).wet,false);
+
+setSessionSeed(1977);setLandscapeVersion(2);
+const candidate=landscapeCandidateInCell(-1,-1);assert.ok(candidate?.bridge&&candidate.stream);
+const state={status:'ready',plan:null};let accessQueries=0;
+const owners=new Map(),landscape={owners,access:{
+ query(){accessQueries++;return [{candidate,state}];},
+ roadsFor(c){return landscapeRoadPaths(c).map(road=>({...road,surface:'dirt'}));}
+}};
+const streamSurface=createDrivingSurface({landscape}),bridge=candidate.bridge;
+const x=(bridge.bounds.minX+bridge.bounds.maxX)/2,z=(bridge.bounds.minZ+bridge.bounds.maxZ)/2;
+assert.equal(streamSurface.prepare({x,z}),true);
+owners.set(candidate.id,{water:{}});
+assert.equal(streamSurface.prepare({x,z}),true,'a newly resident bridge enters the local cache without a regional rescan');
+assert.equal(accessQueries,1);
+const stream=streamSurface.sampleWater(x,z,{}),native=landscapeWaterAt(x,z,{});
+assert.equal(stream.wet,true);assert.equal(stream.kind,'stream');close(stream.surfaceY,native.height);close(stream.bedY,terrainHeight(x,z));
+assert.ok(stream.depth>.1);assert.ok(stream.surfaceY<bridge.height,'the stream remains below the real deck');
+assert.equal(streamSurface.sampleSurface(x,z,{},bridge.height).surfaceClass,'bridge');
+close(streamSurface.sampleSurface(x,z,{},bridge.height).height,bridge.height);
+assert.equal(streamSurface.sampleSurface(x,z,{},stream.bedY).surfaceClass,'riverbed');
+close(streamSurface.sampleSurface(x,z,{},stream.bedY).height,stream.bedY);
+assert.equal(sampleTerrain(x,z).traversable,false,'pedestrians cannot mistake the bed for a bridge');
+const waterOut={};assert.equal(streamSurface.sampleWater(x,z,waterOut),waterOut);
+for(let i=0;i<240;i++){streamSurface.sampleWater(x,z,waterOut);streamSurface.sampleSurface(x,z,scratch,bridge.height);}
+assert.equal(accessQueries,1,'stream/wheel queries never re-enter landscape admission');
+owners.clear();streamSurface.prepare({x,z});assert.notEqual(streamSurface.sampleSurface(x,z,{},bridge.height).surfaceClass,'bridge');
+streamSurface.dispose();
+
+// Legacy registry water remains queryable, with an explicit capacity failure
+// rather than silently losing a lake when the bounded cache fills.
+setLandscapeVersion(1);setTerrainEnabled(false);
+const legacy={kind:'lake',position:{x:0,z:0},footprint:10,waterSurfaceY:2,
+ outline:[{x:-10,z:-10},{x:10,z:-10},{x:10,z:10},{x:-10,z:10}]};
+const fallback=createDrivingSurface({registry:{footprintsNear(_x,_z,_r,visit){visit(legacy);}}});
+assert.equal(fallback.prepare({x:0,z:0}),true);assert.equal(fallback.sampleWater(0,0,{}).depth,2);assert.equal(fallback.sampleWater(11,0,{}).wet,false);
+const overflow=createDrivingSurface({registry:{footprintsNear(_x,_z,_r,visit){for(let i=0;i<=MAX_DRIVING_LAKES;i++)visit(legacy);}}});
+assert.equal(overflow.prepare({x:0,z:0}),false);assert.equal(overflow.stats().blockedReason,'lake-capacity');
+fallback.dispose();overflow.dispose();setSessionSeed(0);
+console.log('PASS driving surfaces: exact visible grass/dirt/asphalt footprints, unchanged placement/RNG, shared native lake render/collision bed, dry shoreline, real stream/deck separation, late bridge residency, local query bounds, legacy water and teardown.');

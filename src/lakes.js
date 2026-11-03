@@ -1,11 +1,10 @@
-import { terrainHeight, lakeSurfaceHeight } from './worldgen/terrain.js';
+import { terrainHeight, lakeSurfaceHeight, LAKE_WATER_OFFSET } from './worldgen/terrain.js';
 import { registerCampsite } from './campRegistry.js';
 import { populateCampClearing } from './campClearing.js';
 // Lakes are first-class world features, not chunk content. One lake per
 // macrocell — irregular elongated/lobed shape (a small fraction stay circular
-// for variety) — sealed at the perimeter so the cart and NPCs cannot enter
-// the water. The only entities inside a lake are 0/1/2 canoes that drift
-// around its interior.
+// for variety). Shore colliders protect pedestrians, while the physical player
+// can enter the water and encounter the lake bed. Canoes drift on the surface.
 //
 // On a "treatment" lake (~60%), the lake is wrapped by:
 //   shore (water edge)
@@ -512,7 +511,7 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
   const waterGeo = new THREE.ShapeGeometry(shape);
   const water = new THREE.Mesh(waterGeo, waterMat);
   water.rotation.x = Math.PI / 2;
-  water.position.set(cx, level + 0.08, cz);
+  water.position.set(cx, level + LAKE_WATER_OFFSET, cz);
   water.receiveShadow = true;
   water.renderOrder = 0;
   group.add(water);
@@ -591,10 +590,11 @@ export function buildLake(scene, mcx, mcz, rng, opts = {}) {
     // tests point-in-poly against it (matching worldgen lakeAt). Legacy outlines are
     // angularly-ordered, so they keep the cheaper outlineRAt radial test.
     exactPoly: !!wl,
+    waterSurfaceY: level + LAKE_WATER_OFFSET,
   }));
 
-  // Sealed collider ring — no gaps for causeways or paths. The cart cannot
-  // drive into a lake; only canoes (already inside) live on water.
+  // Keep the sealed ring for pedestrian avoidance. The dynamic player's
+  // collision policy excludes these invisible barriers and uses the real bed.
   placeSealedColliders(registryIds, cx, cz, outline);
 
   // Beach attractor — NPCs hang out on the sand.

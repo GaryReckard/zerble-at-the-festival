@@ -1776,6 +1776,13 @@ export class Crowd {
     }
     scaleV.set(npc.scale, npc.scale, npc.scale);
     if(reaction){posV.set(reaction.x,reaction.y,reaction.z);quat.set(reaction.qx,reaction.qy,reaction.qz,reaction.qw);}
+    if(npc.state==='riding'&&npc._rideQuaternion&&npc.seatY!=null){
+      quat.copy(npc._rideQuaternion);
+      this._supineQuatY.setFromAxisAngle(this._axisY,npc.seatSlot?.yaw??0);
+      quat.multiply(this._supineQuatY);
+      this._tmpV3.set(0,feetY-npc.seatY,0).applyQuaternion(quat);
+      posV.set(npc.pos.x,npc.seatY,npc.pos.z).add(this._tmpV3);
+    }
     m.compose(posV, quat, scaleV);
     if (danceTilt && !hula) {
       // Reuse scratch Matrix4 — avoids per-NPC allocation for dancing crowd.
@@ -1978,6 +1985,7 @@ export class Crowd {
   }
 
   _reservePassenger(npc,vehicle,slot,{allowPermanent=false}={}) {
+    if(vehicle.physicsDriven&&(!vehicle.grounded||(vehicle.engineState?.immersion??0)>.4||Math.abs(vehicle.speed)>1.2))return false;
     if(!this.peopleHandles.isLive(npc.personHandle)||npc.seatSlot||this.activityClaims.current.has(npc.personHandle))return false;
     if (npc.surfaceBinding) {
       if (!vehicle.surfaceBinding || !vehicle.worldSeatPosition || !slot) return false;
@@ -2103,6 +2111,7 @@ export class Crowd {
     npc.pos.z = out.z;
     // Stash seat Y on the npc — we use it in _writeMatrices to lift the body.
     npc.seatY = out.y;
+    npc._rideQuaternion=zerble.physicsDriven?zerble.root.quaternion:null;
 
     // Yaw matches cart heading (passengers face forward like the cart) plus slot's offset
     npc.yaw = zerble.heading + npc.seatSlot.yaw;
@@ -2112,7 +2121,7 @@ export class Crowd {
 
     // Disembark when the ride times out (and Zerble's idle), OR immediately if
     // the bubble tank ran dry — riders bail on a bubble-less cart.
-    if (!npc.party && ((!vehicle && this.bubblesEmpty) || (npc.rideTimer <= 0 && (vehicle ? vehicle.state === 'parked' : Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED)))) {
+    if (!(zerble.physicsDriven&&(!zerble.grounded||(zerble.engineState?.immersion??0)>.4)) && !npc.party && ((!vehicle && this.bubblesEmpty) || (npc.rideTimer <= 0 && (vehicle ? vehicle.state === 'parked' : Math.abs(zerble.speed) < ZERBLE_IDLE_SPEED)))) {
       // A rider retains the seat when every nearby exit crosses a cliff or closed deck edge.
       if (npc.surfaceBinding && !this._landPassenger(npc, zerble)) { this._writeMatrices(npc); return; }
       this._releaseSeat(npc);

@@ -4,6 +4,11 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ## 2026-11-02
 
+### Added
+- **Zerble now drives on suspension, with damage and water depth.** His shared Rapier chassis keeps momentum over ridges, responds to asphalt, dirt, grass and creek beds, and lands using real collision. Hard impacts fill a damage meter; deep water stalls the engine, and sustained submersion or a wreck ends either game mode. Engine sound follows throttle, load and immersion. A bounded driving course and replay fixtures cover the new controller, while live player collision reservations retain terrain, scenery and bridge rails. [Desktop evidence and device limits](verification/driving/2026-11-02/README.md).
+- **Driving responds more smoothly to the road.** Powered rolling resistance and steering preserve a more lively feel, boost adds acceleration, and render interpolation smooths fixed-step motion. The course camera follows suspension movement without aiming abruptly, and the contact shadow disappears when the cart is airborne.
+- **Driving uses a grounded arcade force controller.** Acceleration and steering now target a consistent response across ordinary hills and surfaces, with bounded traction and physical suspension, falls, collisions and water drag retained. Boost returns to the specified 27.9 m/s road target, and throttle release slows promptly on asphalt as well as grass. [Before/after handling replays](verification/driving/2026-11-02/handling-pass.md) cover both steering signs, boost and grades; Gary accepted the revised handling after the focused pass.
+
 ### Changed
 - **The festival now uses the new landscape by default.** Enabled varied Mountain Top districts, stronger terrain, streams and working bridges for ordinary play, together with the integrated vehicle, people and furniture support. `landscape=1` retains the previous layout, while flat-terrain and legacy-world debug modes remain available. Gary authorized shipping after desktop verification; physical-device and unprompted player-recognition checks remain open. [Release record](verification/landscape/2026-11-02-release.md).
 

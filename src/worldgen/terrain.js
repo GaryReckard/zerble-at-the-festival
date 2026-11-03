@@ -1,5 +1,5 @@
 // Opt-in rolling festival country. Layout remains unchanged, and every gathering
-// footprint and lake shares datum zero so overlapping constraints agree exactly.
+// footprint and lake shoreline shares datum zero; lake basins cut below it.
 // The only randomness is an independent hash stream, never a layout RNG draw.
 import { landscapeVersion,landscapeInfluence,landscapeWaterAt } from './landscapeCandidates.js';
 import { getSessionSeed, worldHash } from '../rng.js';
@@ -12,6 +12,8 @@ import { woodlandCampsNear } from '../woodlandCamping.js';
 
 export const TERRAIN_VERSION = 1;
 export const TERRAIN_STEP = 10;
+export const LAKE_WATER_OFFSET = .08;
+export const LAKE_MAX_DEPTH = 4.5;
 const TILE = 200, SHOULDER = 90, SALT = 0x54455252;
 // lakes.js places a medium host 6 + 18 m beyond shore, then campClearing.js
 // accepts sleeping pitches within 18 m with a 7 m footprint. Grade the full
@@ -34,6 +36,30 @@ function boundedSet(cache, key, value, limit) {
   cache.set(key, value); return value;
 }
 const smooth = t => t * t * (3 - 2 * t);
+// Pure polygon geometry, shared by the native bed and player water queries.
+// Its inputs are existing descriptors, so changing depth consumes no layout RNG.
+export function lakeContains(lake,x,z) {
+  if(Math.abs(x-lake.x)>lake.maxR||Math.abs(z-lake.z)>lake.maxR)return false;
+  let inside=false;const points=lake.outline;
+  for(let i=0,j=points.length-1;i<points.length;j=i++){
+    const a=points[i],b=points[j];
+    if((a.z>z)!==(b.z>z)&&x<(b.x-a.x)*(z-a.z)/(b.z-a.z)+a.x)inside=!inside;
+  }
+  return inside;
+}
+export function lakeBedVertexHeight(lake,x,z) {
+  if(!lakeContains(lake,x,z))return 0;
+  let distanceSq=Infinity;const points=lake.outline;
+  for(let i=0,j=points.length-1;i<points.length;j=i++){
+    const a=points[j],b=points[i],dx=b.x-a.x,dz=b.z-a.z;
+    const t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz||1)));
+    distanceSq=Math.min(distanceSq,(x-a.x-t*dx)**2+(z-a.z-t*dz)**2);
+  }
+  // Keep every triangle touching dry land at the old datum, preserving the
+  // shoreline camps and roads. The native grid then slopes into a deep basin.
+  const inward=Math.max(0,Math.sqrt(distanceSq)-TERRAIN_STEP*Math.SQRT2);
+  return -LAKE_MAX_DEPTH*smooth(Math.min(1,inward/24));
+}
 function baseHeight(x, z) {
   const size = 800, ix = Math.floor(x / size), iz = Math.floor(z / size);
   const u = smooth(x / size - ix), v = smooth(z / size - iz);
@@ -131,9 +157,13 @@ export function terrainVertexHeight(x,z) {
     if(distance<SHOULDER)mask=Math.min(mask,smooth(distance/SHOULDER));
   }
   const baseline=baseHeight(x,z)*mask;
-  return boundedSet(vertexCache,key,baseline*(1-landscapeWeight)+landscapeHeight*landscapeWeight,65536);
+  let height=baseline*(1-landscapeWeight)+landscapeHeight*landscapeWeight;
+  for(const p of pads)if(p.kind==='lake'){
+    const bed=lakeBedVertexHeight(p.source,x,z);if(bed<0)height=Math.min(height,bed);
+  }
+  return boundedSet(vertexCache,key,height,65536);
 }
-export function sampleTerrain(x,z,out={}) {
+export function sampleTerrainGround(x,z,out={}) {
   if(!Number.isFinite(x)||!Number.isFinite(z))throw new RangeError('Terrain coordinates must be finite');
   let height=0,dx=0,dz=0;
   if(enabled && !planning) {
@@ -148,11 +178,18 @@ export function sampleTerrain(x,z,out={}) {
   const length=Math.hypot(dx,1,dz);
   out.height=height;out.dx=dx;out.dz=dz;out.nx=-dx/length;out.ny=1/length;out.nz=-dz/length;
   out.grade=Math.hypot(dx,dz);out.blockedReason=out.grade>.45?'grade':null;out.traversable=!out.blockedReason;out.surfaceClass='grass';
+  return out;
+}
+export function sampleTerrain(x,z,out={}) {
+  sampleTerrainGround(x,z,out);const height=out.height;
+  if(enabled&&!planning)for(const p of tileDescriptors(Math.floor(x/TILE),Math.floor(z/TILE))){
+    if(p.kind==='lake'&&lakeContains(p.source,x,z)){out.traversable=false;out.blockedReason='water';out.surfaceClass='riverbed';break;}
+  }
   if(enabled&&!planning&&landscapeVersion()===2){landscapeWaterAt(x,z,waterProbe);if(waterProbe.coverage>=0&&waterProbe.height>height+.001){out.traversable=false;out.blockedReason='water';out.surfaceClass='riverbed';}}
   return out;
 }
 const heightSample={};
-export function terrainHeight(x,z) { return sampleTerrain(x,z,heightSample).height; }
+export function terrainHeight(x,z) { return sampleTerrainGround(x,z,heightSample).height; }
 // Shared initial datum. Accept a descriptor or coordinates so water consumers
 // need no point lookup and overlapping bounding disks stay exactly coplanar.
 export function lakeSurfaceHeight(_lakeOrX,_z) { return 0; }

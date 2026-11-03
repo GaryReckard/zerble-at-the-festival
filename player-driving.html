@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Zerble · Physical driving course</title><link rel="icon" href="favicon.svg">
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,sans-serif;color:#fff6dd;background:#183a32}canvas{display:block;width:100%;height:100%;touch-action:none}.panel{position:fixed;left:18px;top:18px;width:310px;padding:18px;border:1px solid #7aab8866;border-radius:16px;background:#173c32ee;box-shadow:0 8px 30px #10221b44}h1{font:600 26px Georgia,serif;margin:2px 0 10px}p{font-size:13px;line-height:1.5;color:#d2e3cf}button,select{font:inherit;font-size:13px;color:inherit;background:#315b47;border:1px solid #90b29388;border-radius:8px;padding:9px;cursor:pointer}button:focus-visible,select:focus-visible{outline:3px solid #ffcb71}select{width:100%}.row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}#readout{position:fixed;right:18px;top:18px;min-width:220px;padding:16px;border-radius:16px;background:#173c32ed;font:12px/1.8 ui-monospace,monospace;white-space:pre-wrap}#touch{position:fixed;bottom:25px;left:20px;right:20px;display:flex;justify-content:space-between;pointer-events:none}#touch div{display:flex;gap:8px}#touch button{pointer-events:auto;touch-action:none;min-width:48px;min-height:48px;background:#173c32d9}#error{display:none;position:fixed;inset:20%;padding:24px;background:#592d32;color:white;white-space:pre-wrap}#status{font-size:12px;color:#ffd58a}footer{position:fixed;left:20px;bottom:90px;font-size:11px;color:#173c32;background:#f4eedbce;padding:6px 10px;border-radius:8px}
+@media(max-width:650px){.panel{left:10px;top:10px;width:235px;padding:12px}h1{font-size:21px}.panel p{display:none}#readout{top:auto;bottom:95px;right:10px;min-width:170px;padding:10px;font-size:10px}footer{display:none}}
+</style>
+</head>
+<body>
+<canvas id="course" aria-label="Physical driving verification course"></canvas>
+<section class="panel"><h1>Leave the ground</h1><p>Drive the real Zerble chassis through a bounded course. Compare surfaces, take the ridge at speed, ford a creek, or test deep-water entry.</p>
+<label for="fixture">Course</label><select id="fixture"><option value="surfaces">Asphalt · dirt · grass</option><option value="ridge">Ridge and cliff</option><option value="creek">Shallow creek</option><option value="lake">Deep lake</option><option value="obstacle">Solid tree impact</option></select>
+<div class="row"><button id="reset">Reset</button><button id="replay">Drive replay</button><button id="pause">Pause</button></div>
+<div class="row"><button id="noon">Noon</button><button id="midnight">Midnight</button><button id="audio">Enable sound</button></div>
+<p>WASD to drive, Shift to boost, Space to brake. Drag to orbit when paused.</p><div id="status" role="status">Preparing physics…</div></section>
+<output id="readout" aria-label="Vehicle diagnostics"></output>
+<footer id="budget"></footer>
+<div id="touch" aria-label="Driving controls"><div><button data-drive="left" aria-label="Steer left">←</button><button data-drive="right" aria-label="Steer right">→</button></div><div><button data-drive="reverse">Reverse</button><button data-drive="brake">Brake</button><button data-drive="forward">Drive</button><button data-drive="boost">Boost</button></div></div>
+<pre id="error" role="alert"></pre>
+<script type="module" src="/src/playerDrivingSandbox.js"></script>
+</body></html>

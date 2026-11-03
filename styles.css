@@ -211,6 +211,13 @@ body {
   100% { transform: translate(var(--x), var(--y)) rotate(var(--r)); opacity: 0; }
 }
 
+.damage-status { gap: 5px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.damage-track { display:block; width:36px; height:7px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,.15); }
+#damage-fill { display:block; width:100%; height:100%; transform:scaleX(0); transform-origin:left; background:#ffc76b; }
+.damage-critical #damage-fill { background:#ff776f; }
+.damage-submerged { color:#83dcff; }
+@media (max-width:600px) { .damage-track { width:24px; } .damage-status { gap:3px; font-size:10px; } }
+
 /* ----- Bubble-juice meter ----- */
 #juice-meter {
   position: relative;

@@ -1,0 +1,70 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import { Vector3, Quaternion } from 'three';
+import { createRapierAdapter } from '../src/physics/rapierAdapter.js';
+import { createPlayerVehicle } from '../src/physics/playerVehicle.js';
+
+async function drive({surface='grass',boost=false,steer=1,grade=0}={}) {
+  const adapter=await createRapierAdapter({capacities:{bodies:4,colliders:8,vehicles:1}});
+  const angle=Math.atan(grade),rotation={x:Math.sin(angle/2),y:0,z:0,w:Math.cos(angle/2)};
+  assert(adapter.addBody({id:'ground',type:'fixed',pose:{position:{x:0,y:-.5,z:0},rotation},colliders:[{shape:'cuboid',halfExtents:{x:1000,y:.5,z:1000}}]}).ok);
+  const position=new Vector3(0,.12,0),cart={position,root:{position,quaternion:new Quaternion(),updateMatrixWorld(){}},heading:0,speed:0,_tireR:.62};
+  cart.root.quaternion.copy(rotation);
+  const vehicle=createPlayerVehicle({adapter,cart,sampleSurface:(_x,_z,out={})=>Object.assign(out,{surfaceClass:surface,height:-grade*_z})});
+  const tick=input=>{vehicle.beforeStep(1/60,input);adapter.step(1/60);vehicle.afterStep(1/60);};
+  try {
+    for(let i=0;i<120;i++)tick({throttle:0});
+    const held=adapter.readBody(vehicle.id);
+    vehicle.setEnabled(false);vehicle.beforeStep(1/60,{throttle:1,steer:1,boost:true});
+    assert.deepEqual(adapter.readBody(vehicle.id).linearVelocity,held.linearVelocity,'disabled ground controller adds no propulsion');
+    assert.deepEqual(adapter.readBody(vehicle.id).angularVelocity,held.angularVelocity,'disabled ground controller adds no yaw impulse');
+    vehicle.setEnabled(true);
+    for(let i=0;i<60;i++)tick({throttle:1});
+    const launch=cart.speed;
+    for(let i=0;i<180;i++)tick({throttle:1});
+    const cruise=cart.speed;
+    for(let i=0;i<60;i++)tick({throttle:1,boost});
+    const pickup=cart.speed;
+    for(let i=0;i<180;i++)tick({throttle:1,boost});
+    const top=cart.speed;
+    let yaw=0,minUp=1,minContacts=4,travel=0;
+    for(let i=0;i<90;i++){
+      const before=position.clone();tick({throttle:1,steer,boost});
+      const body=adapter.readBody(vehicle.id),state=vehicle.state();
+      yaw+=body.angularVelocity.y/60;minUp=Math.min(minUp,state.up.y);minContacts=Math.min(minContacts,state.contacts);travel+=position.distanceTo(before);
+    }
+    const finalSpeed=cart.speed;
+    for(let i=0;i<30;i++)tick({throttle:1,steer:-steer,boost});
+    const countersteer=adapter.readBody(vehicle.id).angularVelocity.y;
+    for(let i=0;i<120;i++)tick({throttle:1});
+    const releaseStart=cart.speed;
+    for(let i=0;i<60;i++)tick({});
+    const coast=cart.speed/releaseStart;
+    for(let i=0;i<120;i++)tick({throttle:-1});
+    const reverse=cart.speed;
+    for(let i=0;i<60;i++)tick({brake:true});
+    const stopped=cart.speed;
+    return {surface,boost,steer,grade,launch,coast,reverse,stopped,cruise,pickup,top,yaw,minUp,minContacts,travel,finalSpeed,countersteer};
+  } finally {vehicle.dispose();adapter.dispose();}
+}
+const results=[];
+for(const grade of [0,.3,-.3])for(const surface of ['grass','asphalt'])for(const boost of [false,true])for(const steer of [-1,1])results.push(await drive({surface,boost,steer,grade}));
+if(!process.argv.includes('--measure'))for(const result of results){
+  const tag=`${result.surface}, grade ${result.grade}, boost ${result.boost}`;
+  assert(result.yaw*result.steer>2.3,`${tag}: sustained turn remains useful`);
+  assert(result.minUp>.94&&result.minContacts===4,`${tag}: turn retains four-wheel support`);
+  assert(result.countersteer*result.steer<-1,`${tag}: opposite steering responds within half a second`);
+  assert(result.launch>10,`${tag}: launch makes useful progress within one second`);
+  assert(result.coast>.15&&result.coast<.5,`${tag}: release slows promptly without snapping`);
+  assert(result.reverse<-5,`${tag}: opposite throttle brakes and reaches reverse`);
+  assert(Math.abs(result.stopped)<.15,`${tag}: brake arrests reverse travel`);
+  const road=results.find(r=>r.grade===result.grade&&r.surface==='asphalt'&&r.boost===result.boost&&r.steer===result.steer);
+  assert(Math.abs(result.yaw-road.yaw)<.2,`${tag}: ordinary surfaces preserve steering response`);
+  if(result.boost){
+    const ordinary=results.find(r=>r.grade===result.grade&&r.surface===result.surface&&!r.boost&&r.steer===result.steer);
+    assert(result.top>ordinary.top*1.35,`${tag}: boost raises powered speed substantially`);
+    assert(result.pickup>ordinary.top+5,`${tag}: boost responds within one second`);
+    assert(Math.abs(result.yaw)>=Math.abs(ordinary.yaw)*.95,`${tag}: boost preserves steering authority`);
+  }
+}
+console.log(JSON.stringify(results,null,2));

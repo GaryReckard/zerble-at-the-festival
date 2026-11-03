@@ -4,6 +4,7 @@ import {buildGaryHair,buildGaryLowerBody,buildGaryArms,buildGaryFootwellGeometry
 import * as THREE from 'three';
 import { steerDirFor } from './steering.js';
 import { stepTerrainDrive } from './terrainDriving.js';
+import { VehicleCondition } from './vehicleCondition.js';
 import { Input } from './input.js';
 import { PERF } from './perf.js';
 import { buildBubbleJug } from './models/bubbleJug.js';
@@ -71,6 +72,8 @@ export class Zerble {
     this.position = this.root.position; // alias
     this.heading = 0;
     this.speed = 0;
+    this.condition = new VehicleCondition();
+    this.physicsDriven = false;
     this.sputtering = false;   // Festival Run limp mode (see update())
     this.steerAngle = 0;
     this.radius = 1.9;
@@ -787,6 +790,7 @@ export class Zerble {
     shadowDisc.rotation.x = -Math.PI / 2;
     shadowDisc.position.y = 0.02;
     this.root.add(shadowDisc);
+    this._shadowDisc = shadowDisc;
 
     // ----- Permanent bearded driver in the front-left seat -----
     this._buildDriver();
@@ -1076,7 +1080,7 @@ export class Zerble {
 
   // Convert a local seat slot to a world position. Used by the passenger system.
   worldSeatPosition(slot, out) {
-    if (this.surfaceSampler) {
+    if (this.surfaceSampler || this.physicsDriven) {
       this.root.updateMatrixWorld(true);
       return this.root.localToWorld(out.set(slot.x, slot.y, slot.z));
     }
@@ -1271,6 +1275,8 @@ export class Zerble {
   // ---------- UPDATE ----------
 
   update(dt, input, nightness = 0) {
+    // The inexpensive contact shadow belongs on the ground, not in midair.
+    this._shadowDisc.visible = !this.physicsDriven || this.grounded;
     // ----- Drive -----
     const throttle = input.throttle;
     const steer = input.steer;
@@ -1284,6 +1290,7 @@ export class Zerble {
     const maxFwd = MAX_SPEED * (slow ? SLOW_MULT : wantBoost ? BOOST_MULT : 1) * (this.sputtering ? 0.35 : 1);
     const maxRev = -REVERSE_MAX * (this.sputtering ? 0.35 : 1);
 
+    if (!this.physicsDriven) {
     if (this.surfaceSampler) {
       stepTerrainDrive(this, input, dt, this.surfaceSampler);
     } else {
@@ -1317,12 +1324,15 @@ export class Zerble {
       this.root.rotation.y = this.heading;
     }
 
+    }
     this.steerAngle = THREE.MathUtils.lerp(this.steerAngle, steer * 0.35, Math.min(1, dt * 10));
 
     // (World is infinite — no clamp. Ground + mountains follow the player.)
     // Cart Y stays at 0 since the followed ground is flattened to a 0-center.
-    if (this.surfaceSampler) this.groundOnSurface();
-    else this.position.y = 0;
+    if (!this.physicsDriven) {
+      if (this.surfaceSampler) this.groundOnSurface();
+      else this.position.y = 0;
+    }
     const fx = -Math.sin(this.heading), fz = -Math.cos(this.heading);
 
     // Cache useful world data for other systems
@@ -1334,7 +1344,7 @@ export class Zerble {
       this.position.z + Math.cos(this.heading) * 2.7
     );
 
-    if (this.surfaceSampler) {
+    if (this.surfaceSampler || this.physicsDriven) {
       this.root.updateMatrixWorld(true);
       this.root.localToWorld(this.nozzleWorld.set(0, 3, 2.7));
       this.forwardWorld.set(0, 0, -1).applyQuaternion(this.root.quaternion);
@@ -1343,6 +1353,7 @@ export class Zerble {
     // ----- Animate wheels -----
     const wheelAngularSpeed = this.speed / (this._tireR || 0.55); // rad/s, matches tire radius
     for (const w of this.wheels) {
+      if (this.physicsDriven) continue;
       // Negative: with the tire axis along +X, forward travel (-Z) rolls the
       // wheel tops toward -Z, which is a negative rotation about +X. (Was +=,
       // which made the tires visibly spin backward while driving forward.)
@@ -1528,6 +1539,7 @@ export class Zerble {
 
   // Called by main on collision.
   applyHit(pushDir) {
+    if(this.physicsDriven){this.physicalImpulse?.(pushDir,2.5);this.invulnLeft=.7;return;}
     // Bounce back. Old kickback of -4 m/s combined with soft drag meant
     // ~3 full seconds of unwanted reverse momentum after a bonk —
     // genuinely hard to recover from. Knocked down to -2.5 m/s; combined
@@ -1546,6 +1558,7 @@ export class Zerble {
   // our heading-constrained arcade velocity; a square hit stops, a glance
   // retains some speed. Consequence cooldown never disables this separation.
   applyObstacleHit(pushDir, approachSpeed, overlap, eligible = true) {
+    if(this.physicsDriven){if(eligible)this.invulnLeft=.7;return;}
     const speed = Math.abs(this.speed);
     const incoming = Math.min(speed, Math.max(0, approachSpeed));
     this.speed = Math.sign(this.speed) * (speed > 0 ? Math.max(0, speed - incoming * incoming / speed) : 0);
