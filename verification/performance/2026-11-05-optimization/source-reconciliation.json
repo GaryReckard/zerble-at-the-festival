@@ -1,0 +1,14 @@
+{
+  "state": "passed",
+  "currentSourceMatchesCandidate": true,
+  "checkedSourceFiles": 303,
+  "baselineSnapshotVerified": true,
+  "candidateSnapshotVerified": true,
+  "collectorIdentityMatches": true,
+  "baselineApp": "a646eae93819e10db20aae5f36676b79aa1c00fc13b5e6af4ad03a9806c6c2b0",
+  "candidateApp": "ea6e76e25f5444ebaecdd77580df82859e0f182521fe88b052c1198fe6911839",
+  "candidateBuild": "4f7cc2459c564d1026062d5bfd11463021ebf9ebbd3de8df71d705414d3ab19c",
+  "harness": "4ffdedbb5bc4d595d212a276ca3be24f2be0545d488b55aa0790d0b3c1f4c935",
+  "checks": "Full npm check/build logs were captured before final source freeze; no runtime edits afterward",
+  "limitations": "Does not turn the separate original-model allocation experiment into an original-build FPS comparison"
+}

@@ -1,0 +1,961 @@
+{
+  "protocol": "render-subtraction-v1",
+  "scope": "Parked scene: main-scene renderer CPU, composer GPU time where supported, and submissions. Excludes gameplay CPU; not a device FPS claim. Subtraction removes visible meshes and their shadows; reduced content is diagnostic, not an optimization result.",
+  "viewport": [
+    1280,
+    720,
+    1
+  ],
+  "seed": 2404796662,
+  "position": [
+    -230.3000030517578,
+    0.009247660636901855,
+    -691.7957763671875
+  ],
+  "camera": {
+    "mode": "third",
+    "position": [
+      -242.3000030517578,
+      12.009247660636902,
+      -675.7957763671875
+    ],
+    "quaternion": [
+      -0.21796275840160825,
+      -0.3077683537175253,
+      -0.07265425280053608,
+      0.923305061152576
+    ],
+    "fov": 62,
+    "zoom": 1,
+    "projection": [
+      0.9361572088221665,
+      0,
+      0,
+      0,
+      0,
+      1.664279482350518,
+      0,
+      0,
+      0,
+      0,
+      -1.000962000962001,
+      -1,
+      0,
+      0,
+      -1.0004810004810005,
+      0
+    ]
+  },
+  "renderSize": {
+    "width": 1280,
+    "height": 720,
+    "targetWidth": 1280,
+    "targetHeight": 720
+  },
+  "phases": [
+    {
+      "name": "baseline",
+      "renderCpuMs": {
+        "p50": 7.700000047683716,
+        "p95": 8.799999952316284
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 3.194666,
+        "p95": 3.935749
+      },
+      "counts": {
+        "calls": 2462,
+        "triangles": 977466
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 638
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "chunk-v2(-1,-11)",
+          "callsPerFrame": 163
+        },
+        {
+          "name": "chunk-v2(-3,-11)",
+          "callsPerFrame": 145
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-1,-9)",
+          "callsPerFrame": 88
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "BrassBand",
+          "callsPerFrame": 39
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 24
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 22
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-11)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-2,-11)",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 17
+        }
+      ]
+    },
+    {
+      "name": "without-children",
+      "renderCpuMs": {
+        "p50": 9.200000047683716,
+        "p95": 11
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 3.071999,
+        "p95": 3.5535
+      },
+      "counts": {
+        "calls": 1776,
+        "triangles": 893102
+      },
+      "drawFamilies": [
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "chunk-v2(-1,-11)",
+          "callsPerFrame": 163
+        },
+        {
+          "name": "chunk-v2(-3,-11)",
+          "callsPerFrame": 145
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-1,-9)",
+          "callsPerFrame": 88
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "BrassBand",
+          "callsPerFrame": 39
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 24
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 22
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-11)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-2,-11)",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "chunk-v2(-1,-8)/TentStage",
+          "callsPerFrame": 16
+        },
+        {
+          "name": "chunk-v2(-2,-10)/shrub",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        }
+      ],
+      "hiddenMeshes": 713
+    },
+    {
+      "name": "restored-after-children",
+      "renderCpuMs": {
+        "p50": 10.799999952316284,
+        "p95": 11.399999976158142
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 5.754375,
+        "p95": 8.589625
+      },
+      "counts": {
+        "calls": 2462,
+        "triangles": 977466
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 638
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "chunk-v2(-1,-11)",
+          "callsPerFrame": 163
+        },
+        {
+          "name": "chunk-v2(-3,-11)",
+          "callsPerFrame": 145
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-1,-9)",
+          "callsPerFrame": 88
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "BrassBand",
+          "callsPerFrame": 39
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 24
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 22
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-11)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-2,-11)",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 17
+        }
+      ]
+    },
+    {
+      "name": "without-adults",
+      "renderCpuMs": {
+        "p50": 10.5,
+        "p95": 12
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 4.999625,
+        "p95": 7.868875
+      },
+      "counts": {
+        "calls": 2423,
+        "triangles": 552679
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 638
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "chunk-v2(-1,-11)",
+          "callsPerFrame": 163
+        },
+        {
+          "name": "chunk-v2(-3,-11)",
+          "callsPerFrame": 145
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-1,-9)",
+          "callsPerFrame": 88
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "BrassBand",
+          "callsPerFrame": 39
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 24
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-11)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-2,-11)",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "chunk-v2(-1,-8)/TentStage",
+          "callsPerFrame": 16
+        },
+        {
+          "name": "chunk-v2(-2,-10)/shrub",
+          "callsPerFrame": 15
+        }
+      ],
+      "hiddenMeshes": 39
+    },
+    {
+      "name": "restored-after-adults",
+      "renderCpuMs": {
+        "p50": 11,
+        "p95": 11.899999976158142
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 6.151875,
+        "p95": 8.338208
+      },
+      "counts": {
+        "calls": 2462,
+        "triangles": 977466
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 638
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "chunk-v2(-1,-11)",
+          "callsPerFrame": 163
+        },
+        {
+          "name": "chunk-v2(-3,-11)",
+          "callsPerFrame": 145
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-1,-9)",
+          "callsPerFrame": 88
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "BrassBand",
+          "callsPerFrame": 39
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 24
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 22
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-11)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-2,-11)",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 17
+        }
+      ]
+    },
+    {
+      "name": "without-other-people",
+      "renderCpuMs": {
+        "p50": 10.100000023841858,
+        "p95": 13.299999952316284
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 4.810958,
+        "p95": 9.057
+      },
+      "counts": {
+        "calls": 2396,
+        "triangles": 958588
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 638
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "chunk-v2(-1,-11)",
+          "callsPerFrame": 163
+        },
+        {
+          "name": "chunk-v2(-3,-11)",
+          "callsPerFrame": 145
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-1,-9)",
+          "callsPerFrame": 88
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 24
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 22
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-11)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-2,-11)",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "chunk-v2(-1,-8)/TentStage",
+          "callsPerFrame": 16
+        }
+      ],
+      "hiddenMeshes": 282
+    },
+    {
+      "name": "restored-after-other-people",
+      "renderCpuMs": {
+        "p50": 11.299999952316284,
+        "p95": 12.5
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 5.409749,
+        "p95": 8.150833
+      },
+      "counts": {
+        "calls": 2462,
+        "triangles": 977466
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 638
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "chunk-v2(-1,-11)",
+          "callsPerFrame": 163
+        },
+        {
+          "name": "chunk-v2(-3,-11)",
+          "callsPerFrame": 145
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-1,-9)",
+          "callsPerFrame": 88
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "BrassBand",
+          "callsPerFrame": 39
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 24
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 22
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-11)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-2,-11)",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 17
+        }
+      ]
+    },
+    {
+      "name": "without-world",
+      "renderCpuMs": {
+        "p50": 5.699999928474426,
+        "p95": 6.299999952316284
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 3.417333,
+        "p95": 7.0015
+      },
+      "counts": {
+        "calls": 1095,
+        "triangles": 639823
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 638
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "BrassBand",
+          "callsPerFrame": 39
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 24
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 22
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 11
+        },
+        {
+          "name": "BrassBand/Performer trumpet",
+          "callsPerFrame": 8
+        },
+        {
+          "name": "nut_wagon/hatch",
+          "callsPerFrame": 6
+        },
+        {
+          "name": "nut_wagon/hatch_supports",
+          "callsPerFrame": 5
+        },
+        {
+          "name": "BrassBand/Performer trombone",
+          "callsPerFrame": 4
+        },
+        {
+          "name": "BrassBand/Performer tuba",
+          "callsPerFrame": 4
+        },
+        {
+          "name": "BrassBand/Performer march_drum",
+          "callsPerFrame": 4
+        },
+        {
+          "name": "BrassBand/Performer sax",
+          "callsPerFrame": 4
+        },
+        {
+          "name": "Zerble/HeadlightLens",
+          "callsPerFrame": 4
+        },
+        {
+          "name": "nut_wagon/front_platform",
+          "callsPerFrame": 3
+        }
+      ],
+      "hiddenMeshes": 3670
+    },
+    {
+      "name": "restored-after-world",
+      "renderCpuMs": {
+        "p50": 10.5,
+        "p95": 13
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 3.737541,
+        "p95": 8.439125
+      },
+      "counts": {
+        "calls": 2462,
+        "triangles": 977466
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 638
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "chunk-v2(-1,-11)",
+          "callsPerFrame": 163
+        },
+        {
+          "name": "chunk-v2(-3,-11)",
+          "callsPerFrame": 145
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-1,-9)",
+          "callsPerFrame": 88
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "BrassBand",
+          "callsPerFrame": 39
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 24
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 22
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-1,-11)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "chunk-v2(-2,-11)",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 17
+        }
+      ]
+    }
+  ],
+  "hardware": {
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+    "visible": true,
+    "focused": true,
+    "width": 1280,
+    "height": 720,
+    "targetWidth": 1280,
+    "targetHeight": 720
+  }
+}

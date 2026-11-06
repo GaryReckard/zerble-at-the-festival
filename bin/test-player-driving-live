@@ -5,6 +5,8 @@ import { Registry } from '../src/registry.js';
 import { VehicleCondition } from '../src/vehicleCondition.js';
 import { createLivePhysics } from '../src/physics/liveWorld.js';
 import { setTerrainEnabled } from '../src/worldgen/terrain.js';
+import { buildCampChair } from '../src/models/campChair.js';
+import { batchPropGroups } from '../src/propRendering.js';
 
 setTerrainEnabled(false);
 const reports=[];
@@ -18,11 +20,21 @@ function makeSurface(depth=0) {
     dispose(){disposed=true;}
   };
 }
-async function fixture({depth=0,trees=[],scenery=[]}={}) {
+async function fixture({depth=0,trees=[],scenery=[],dynamicChair=false}={}) {
   const registry=new Registry(),scene=new THREE.Scene(),root=new THREE.Group();scene.add(root);
   const cart={root,position:root.position,heading:0,speed:0,radius:2.95,_tireR:.62,condition:new VehicleCondition()};
   for(const z of trees)registry.add({kind:'tree',position:new THREE.Vector3(0,0,z),footprint:.9,collider:{radius:.9,damage:1}});
   for(const item of scenery)registry.add({kind:item.kind,position:new THREE.Vector3(0,0,item.z),footprint:.9,collider:{radius:.9,damage:1}});
+  let chairEntry,batch;
+  if(dynamicChair){
+    const chair=buildCampChair(()=>.3,{style:'sling'}),group=new THREE.Group();group.add(chair.group);scene.add(group);
+    batch=batchPropGroups(group,[chair.group]);
+    const parentId=registry.add({kind:'campsite',position:new THREE.Vector3(0,0,-18),footprint:8,chunkKey:'chair-origin'});
+    chairEntry={kind:'camp_chair',position:new THREE.Vector3(0,.02,-18),footprint:.8,collider:{radius:.8,damage:1},chunkKey:'chair-origin',
+      physicalProp:{logicalKey:'damage-chair',kind:'camp_chair',style:'sling',originOwner:'chunk:chair-origin',originRegistryId:parentId,
+        worldPose:{position:{x:0,y:.02,z:-18},rotation:{x:0,y:0,z:0,w:1},scale:{x:1,y:1,z:1}},renderBinding:batch.bindings[0],renderBatch:batch,seatSlots:[{occupied:false}]}};
+    registry.add(chairEntry);
+  }
   const drivingSurface=makeSurface(depth);
   const live=await createLivePhysics({scene,registry,cart,drivePlayer:true,drivingSurface});
   function prepare(){for(let i=0;i<32;i++){live.prepare(performance.now()+100);if(live.stats().playerResidency.ready)return;}assert.fail('player support never prepared');}
@@ -35,13 +47,14 @@ async function fixture({depth=0,trees=[],scenery=[]}={}) {
     assert.equal(after.terrain.tiles,0);assert.equal(after.solids.proxies,0);assert.equal(registry.physicalChairOwner,undefined);
     assert.equal(drivingSurface.stats().disposed,true,'the live owner disposes its injected surface source');
     assert.equal(cart.physicsDriven,false);assert.equal(cart.physicalImpulse,undefined);
+    batch?.dispose();
   }
   try {
     prepare();
     assert.equal(cart.position,cart.root.position,'the published dynamic position aliases the render root');
     assert.ok(drivingSurface.stats().preparations>0,'the fixture exercises the injected physical surface');
   } catch(error) {live.dispose();throw error;}
-  return {cart,live,step,frames,prepare,close};
+  return {cart,live,step,frames,prepare,close,chairEntry};
 }
 
 {
@@ -100,6 +113,18 @@ async function fixture({depth=0,trees=[],scenery=[]}={}) {
 }
 
 let dryTravel,shallowTravel;
+{
+ const f=await fixture({dynamicChair:true});
+ try{f.frames(60,{brake:true});assert(f.live.owns(f.chairEntry),'chair damage replay uses an adopted dynamic chair');
+   const result=f.frames(200,{throttle:1});assert(result.hits>0,'the cart really hits the physical chair');
+   assert(f.cart.condition.damage<=3,'throwing a lightweight dynamic chair causes at most a small dent');}
+ finally{f.close();}
+}
+for(const kind of ['chair','camp_chair','camp_loveseat']){
+ const f=await fixture({scenery:[{kind,z:-18}]});
+ try{f.frames(60,{brake:true});f.frames(200,{throttle:1});assert.ok(f.cart.condition.damage>0&&f.cart.condition.damage<=3,`${kind}: an actual fixed-proxy chair collision causes at most a small dent`);}
+ finally{f.close();}
+}
 for(const depth of [0,.6,1.4,2.5]){
   const f=await fixture({depth});
   try {

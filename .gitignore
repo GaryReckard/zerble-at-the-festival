@@ -14,6 +14,10 @@ Trace-*.json.gz
 # Browser->repo capture sink (__dbg.capture() / serve_nocache.py POST /__capture)
 .claude/captures/
 
+# Machine-specific capture endpoints and foreground process inventories
+verification/performance/**/config.json
+verification/performance/**/pre-window-processes.json
+
 CLAUDE.local.md
 
 # Generated production output

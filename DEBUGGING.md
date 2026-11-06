@@ -148,6 +148,25 @@ Use `?mute=1` (or append `&mute=1`) on every agent-driven game or sandbox URL un
 
 ## The one door: `window.__dbg` (local dev only)
 
+For a bounded scene-rendering comparison, open the real game with `?sceneProbe=1&mute=1`, start through a ready mode plank, then click **Measure scene rendering**. The local diagnostic parks gameplay, measures the same scene with ordinary detail, simpler bubbles and disabled shadows, then restores quality, material, pause state and render hooks. Each phase has a deadline and cancels its animation callback on completion, failure or page exit. Results report main-scene render CPU, draw families and composer GPU timing when WebGL timer queries are supported. GPU queries are bounded, discarded on disjoint results and deleted on every exit path. Gameplay CPU is excluded, and the probe is not a device-FPS measurement. See the [render-load evidence](verification/performance/2026-11-02-render-load/README.md).
+
+Use `?sceneProbe=subtract&mute=1` for controlled rendering subtraction. It hides
+children, adults, other people and world meshes one family at a time, restoring
+and remeasuring the baseline after each intervention. This also removes the
+selected meshes' shadows. The JSON in `#scene-probe-result` declares the
+`render-subtraction-v1` protocol and hidden mesh counts. It does not remove
+actors, colliders or registry entries, and reduced-content timings are
+diagnostic rather than optimization verdicts. See the
+[November 5 work record](verification/performance/2026-11-05-optimization/README.md)
+for verification status and the current experiment order.
+
+`__dbg.childRendering()` reads the child presentation status, while a boolean
+argument switches between instanced and individual rendering without changing
+the live rigs. `kidBatch=0` is the localhost launch control; ordinary play uses
+instances. `sandbox.html?entity=kid_gaggle&mute=1` shows sixteen animated models,
+with `kidBatch=0` for the individual-rendering comparison. The owner releases
+presentation buffers before shared model resources during teardown.
+
 `__dbg` ([main.js](src/main.js)) is the **automation control surface** — it drives
 the running game programmatically, bypassing the UX that resists scripting (see
 [Why `__dbg` exists](#why-__dbg-exists-the-footguns) below). It's gated to
@@ -949,3 +968,7 @@ relocation and refuse unsupported destinations. `bin/measure-landscape` reports
 Node allocation and a pre-frustum district census, while the
 [desktop verification report](verification/landscape/README.md#integrated-performance-and-desktop-acceptance)
 keeps actual tier snapshots and their device/performance limitations.
+
+## Repeatable performance lab
+
+See [the lab guide](docs/performance-lab.md) for verified runner/analyzer commands, explicit browser ownership and the completed two-scenario desktop acceptance bundle. Do not launch its foreground Chrome profiles until Gary explicitly assigns a quiet-Mac window. Contract and mocked runtime/process/HTTP tests do not substitute for real-game, route or device performance evidence.

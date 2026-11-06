@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+import json,sys,tempfile
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tooling'))
+from performance_lab import capability
+from performance_lab.supervisor import atomic
+capability.signature=lambda:'backend-v1'
+with tempfile.TemporaryDirectory(prefix='zerble-lab-capability-') as tmp:
+ root=Path(tmp)
+ try:capability.require(root);raise AssertionError('missing proof accepted')
+ except ValueError:pass
+ for kind in ['normal','worker-death','page-hang']:
+  d=root/kind;d.mkdir();owner=dict(state='collected' if kind=='normal' else 'failed',cleanup={'ok':True})
+  if kind!='normal':owner['error']='Control worker exited -9' if kind=='worker-death' else 'Overall run deadline'
+  atomic(d/'ownership.json',owner)
+  if kind=='normal':atomic(d/'probe.json',dict(gpu='Apple M4 Pro',gpuVerified=True,visible=True,focused=True,titleGesture=True))
+  if kind!='normal':atomic(d/'fault-entered.json',dict(kind=kind,entered=True,targetId='owned-target',runId=d.name))
+  capability.record(root,d,kind)
+ assert capability.require(root)['signature']=='backend-v1'
+ try:capability.require(root,collection=True);raise AssertionError('missing collection accepted')
+ except ValueError:pass
+ proof=root/'page-hang/fault-entered.json';saved=proof.read_bytes();proof.unlink()
+ try:capability.require(root);raise AssertionError('timeout before fault entry accepted')
+ except ValueError:pass
+ proof.write_bytes(saved)
+ capability.invalidate(root,'later probe failed')
+ try:capability.require(root);raise AssertionError('revoked capability accepted')
+ except ValueError:pass
+ capability.record(root,root/'normal','normal')
+ for kind in ('worker-death','page-hang'):capability.record(root,root/kind,kind)
+ p=root/'page-hang/ownership.json';v=json.loads(p.read_text());v['cleanup']['ok']=False;atomic(p,v)
+ try:capability.require(root);raise AssertionError('failed cleanup accepted')
+ except ValueError:pass
+ capability.signature=lambda:'backend-v2'
+ try:capability.require(root);raise AssertionError('changed backend accepted')
+ except ValueError:pass
+print('PASS capability gate: no browser launch permitted without exact-backend hardware/fault proofs, failed cleanup and changed backends refused; no browser launched')

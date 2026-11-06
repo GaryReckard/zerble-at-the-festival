@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Vector3} from 'three';
+import {mulberry32} from '../src/rng.js';
+import {createSupportWorld} from '../src/landscape/support.js';
+globalThis.window={addEventListener(){},innerWidth:1280,innerHeight:720,__perfProfile:'high'};
+globalThis.document={addEventListener(){},createElement:()=>({getContext:()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>k in o?o[k]:()=>{}})})};
+const {Crowd}=await import('../src/crowd.js'),{registry}=await import('../src/registry.js');
+const crowd=new Crowd({spawn(){},spawnLost(){}});
+crowd.surfaceWorld=createSupportWorld({sampleTerrain:(_x,_z,out)=>Object.assign(out,{height:0,dx:0,dz:0,traversable:true})});
+const person=crowd.spawn({pos:new Vector3(),rng:mulberry32(44),allowPhotographer:false});assert(person);
+person.groupId=null;
+// End the isolated update immediately after dance detection; reachability itself
+// remains the real footprint/swept-support implementation.
+const originalMarket=crowd._tickMarket;crowd._tickMarket=()=>true;
+const original=crowd.canReachPlace;let sweeps=0;
+crowd.canReachPlace=function(...args){sweeps++;return original.apply(this,args);};
+const ids=[];
+const stage=(x,y=0,z=0)=>{const id=registry.add({kind:'stage_front',position:new Vector3(x,y,z),attractor:{radius:9,weight:1}});ids.push(id);return id;};
+const update=()=>{sweeps=0;crowd._updateNpc(1/60,person,{position:new Vector3(100,0,100),forwardWorld:new Vector3(0,0,-1),speed:0,seatSlots:[]},[],0,{});};
+try{
+  for(let i=0;i<40;i++)stage(20+i);
+  update();assert.equal(person.onDancefloor,false);assert.equal(sweeps,0,'distant stages never invoke a swept terrain route');
+  const edge=stage(9);update();assert.equal(person.onDancefloor,false);assert.equal(sweeps,0,'the nine-metre boundary retains the original strict comparison');
+  registry.remove(edge);
+  const upper=stage(3,10);update();assert.equal(person.onDancefloor,false);assert.equal(sweeps,1,'a nearby stage on another floor still fails real support reachability');
+  const near=stage(8.9);update();assert.equal(person.onDancefloor,true);assert.equal(sweeps,2,'a nearby reachable stage still enables dancing despite a blocked closer stage');
+  registry.remove(near);registry.remove(upper);update();assert.equal(person.onDancefloor,false,'leaving the nearby stage resets dancing');
+  crowd._tickMarket=originalMarket;
+  let moves=0;const originalMove=crowd._moveGroundNpc;
+  crowd._moveGroundNpc=function(...args){moves++;return originalMove.apply(this,args);};
+  person.state='walking';person.stateTimer=10;person.target=new Vector3(100,0,0);person.vel.set(.3,0,0);
+  update();assert.equal(moves,1,'without a hard overlap, only the actual velocity move sweeps and validates support');
+  assert(person.pos.x!==0||person.pos.z!==0,'the ordinary terrain-supported movement still advances');
+  const neighbour=crowd.spawn({pos:person.pos.clone().add(new Vector3(.1,0,0)),rng:mulberry32(45),allowPhotographer:false});assert(neighbour);
+  neighbour.groupId=null;crowd._sepGrid.clear();crowd._sepGrid.insert(neighbour.pos.x,neighbour.pos.z,neighbour);
+  moves=0;update();assert.equal(moves,2,'a real hard-overlap correction still validates separately before ordinary movement');
+}finally{for(const id of ids)registry.remove(id);crowd.dispose();}
+console.log('PASS dancefloor reachability: distant-stage route work is eliminated while strict radius, cross-floor rejection, reachable alternatives and departure behavior remain intact.');

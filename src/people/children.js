@@ -17,7 +17,7 @@ const _kidDodgeOut={x:0,z:0};
 const KID_SOFT_SEPARATION=1.4,KID_HARD_SEPARATION=.82;
 
 export class KidGaggle {
-  constructor({ gaggleCount = 8, runtime = null, key = 'children', collisionOrder=30, honkOrder=20, surfaceAccess=null } = {}) {
+  constructor({ gaggleCount = 8, runtime = null, key = 'children', collisionOrder=30, honkOrder=20, surfaceAccess=null, constructionRandom=Math.random } = {}) {
     if (!Number.isInteger(gaggleCount) || gaggleCount < 1 || gaggleCount > 8) {
       throw new RangeError('Kid gaggle count must be an integer between 1 and 8.');
     }
@@ -44,31 +44,31 @@ export class KidGaggle {
       const GAGGLE_COUNT = gaggleCount;
       const centers = [];
       for (let i = 0; i < GAGGLE_COUNT; i++) {
-        const ang = (i / GAGGLE_COUNT) * TAU + Math.random() * 0.3;
+        const ang = (i / GAGGLE_COUNT) * TAU + constructionRandom() * 0.3;
         // 25-75m out from origin so gaggles fan out across the visible startup
         // area rather than all clustering near the stages.
-        const r = 25 + Math.random() * 50;
+        const r = 25 + constructionRandom() * 50;
         centers.push(new THREE.Vector3(Math.cos(ang) * r, 0, Math.sin(ang) * r));
       }
 
       for (const c of centers) {
-        const gaggleSize = 5 + Math.floor(Math.random() * 4);  // 5-8 kids
+        const gaggleSize = 5 + Math.floor(constructionRandom() * 4);  // 5-8 kids
         for (let i = 0; i < gaggleSize; i++) {
           const k = buildKid();
           k.position.copy(c);
-          k.position.x += (Math.random() - 0.5) * 8;
-          k.position.z += (Math.random() - 0.5) * 8;
+          k.position.x += (constructionRandom() - 0.5) * 8;
+          k.position.z += (constructionRandom() - 0.5) * 8;
           if(this.surfaceAccess)this.surfaceAccess.ground(k,{radius:.4,relocate:true});else k.position.y = terrainHeight(k.position.x, k.position.z);
           k.userData.center = c.clone();
-          k.userData.heading = Math.random() * TAU;
+          k.userData.heading = constructionRandom() * TAU;
           // displayedYaw is what actually rotates the mesh — it lerps toward
           // userData.heading instead of snapping. Without this, any time the
           // heading flips ~180° (chasing a bubble that just passed behind
           // them, or hitting a wander-direction reroll), the model would
           // instantly spin around — looked like a glitch.
           k.userData.displayedYaw = k.userData.heading;
-          k.userData.turnTimer = Math.random() * 2;
-          k.userData.speed = 3 + Math.random() * 2;
+          k.userData.turnTimer = constructionRandom() * 2;
+          k.userData.speed = 3 + constructionRandom() * 2;
           k.userData.chaseTarget = null;
           // Honk-scatter timer: while > 0, the kid runs away from Zerble at
           // FLEE_SPEED. Set by KidGaggle.scatter() (honk) or the trajectory
@@ -163,6 +163,7 @@ export class KidGaggle {
     const errors=[],release=fn=>{try{fn();}catch(error){errors.push(error);}};
     if(this.peopleRuntime.isRegistered(this.ownerToken))release(()=>this.peopleRuntime.unregister(this.ownerToken,reason));
     release(()=>this.peopleHandles.dispose());
+    release(()=>this.presentation?.dispose());this.presentation=null;
     release(()=>disposeSceneResources(this.group));
     this.group.removeFromParent();this.kids.length=0;this.colliders.length=0;
     if(errors.length)throw new AggregateError(errors,'Children teardown failed.');

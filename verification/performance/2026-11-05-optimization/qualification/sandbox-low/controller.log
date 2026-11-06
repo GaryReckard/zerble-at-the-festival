@@ -1,0 +1,3 @@
+{"directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261105-180119-sandbox-low-f4978bcb", "task": "sandbox", "tier": "low"}
+{"stage":"navigated","task":"sandbox"}
+{"directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261105-180119-sandbox-low-f4978bcb", "state": "collected", "cleanup": {"ok": true, "remaining": [], "checkedPids": [21575, 21577, 21588, 21589, 21593, 21594, 21598, 21599, 21600, 21604, 21605, 21609, 21610, 21621, 21698, 21700, 21702, 21703], "inspectionError": null, "terminationErrors": []}}

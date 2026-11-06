@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+import copy,hashlib,json,runpy,sys,tempfile
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tooling'))
+from performance_lab.contract import canonical,digest,load_run
+from performance_lab.snapshot import verify
+fixture=runpy.run_path(str(Path(__file__).with_name('test-performance-lab-contract')))['fixture']
+with tempfile.TemporaryDirectory(prefix='zerble-lab-integrity-') as tmp:
+ root=Path(tmp);(root/'dist').mkdir();(root/'source.js').write_text('original');(root/'dist/app.js').write_text('built')
+ host=root/'live';(host/'bin').mkdir(parents=True);(root/'bin').mkdir();(host/'bin/perf-lab').write_text('host');(root/'bin/perf-lab').write_text('host')
+ manifest={'files':{'source.js':hashlib.sha256(b'original').hexdigest(),'bin/perf-lab':hashlib.sha256(b'host').hexdigest()},'build':digest({'app.js':hashlib.sha256(b'built').hexdigest()})}
+ verify(root,manifest,host_root=host);(root/'dist/app.js').write_text('changed')
+ try:verify(root,manifest,host_root=host);raise AssertionError('build drift accepted')
+ except RuntimeError:pass
+ (root/'dist/app.js').write_text('built');(root/'source.js').write_text('changed')
+ try:verify(root,manifest,host_root=host);raise AssertionError('source drift accepted')
+ except RuntimeError:pass
+ (root/'source.js').write_text('original');(host/'bin/perf-lab').write_text('new host')
+ try:verify(root,manifest,host_root=host);raise AssertionError('live host drift accepted under old snapshot hash')
+ except RuntimeError as error:assert 'Live host harness drift' in str(error)
+ (host/'bin/perf-lab').write_text('host');(host/'source.js').write_text('new game work')
+ verify(root,manifest,host_root=host) # The frozen game can differ from live game edits.
+ raw=fixture();raw['state']='exporting';raw.pop('cleanup');raw.pop('exportHash');(root/'capture.json').write_bytes(canonical(raw))
+ final=copy.deepcopy(raw);final.update(state='completed',cleanup={'ok':True},exportHash=digest(raw));(root/'run.json').write_bytes(canonical(final));assert load_run(root/'run.json')==final
+ final['frames'][0][0]=999;(root/'run.json').write_bytes(canonical(final))
+ try:load_run(root/'run.json');raise AssertionError('payload corruption accepted')
+ except ValueError:pass
+print('PASS lab integrity: source/build drift and acknowledged raw-payload tampering rejected, valid complete projection retained')

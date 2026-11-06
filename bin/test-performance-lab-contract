@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+import copy,sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tooling'))
+from performance_lab.contract import *
+
+def fixture():
+ return dict(schema=SCHEMA,state='completed',identity=dict(runId='r',app='app',build='build',harness='h',scenario='dense-festival-v1',policy=POLICY,instrumentation='light-v1'),conditions=dict(gpu='Apple M4 Pro',gpuVerified=True,browser='Chrome',tier='high',width=1280,height=720,dpr=1,quiet=True,seed=1977,hiddenFrames=0),progress=dict(acceptedSeconds=30,wallSeconds=30.184,outerLost=.15,physicsDropped=0,physicsSteps=1800,complete=True),semantic=dict(contentPolicy='festival-v1',routePolicy='parked-v1',populationMin=300,populationMax=305,childrenMin=57,childrenMax=57),cost=dict(drawsMin=2400,drawsMax=2500),cleanup={'ok':True},exportHash='receipt',frames=[[16,8,0,0,0] for _ in range(1874)]+[[200,100,0,.15,0]],errors=[])
+p=fixture();assert errors(p)==[];assert summarize(p)['wallP95']==16;assert summarize(p)['worstWall']==200
+q=copy.deepcopy(p);q['cost']['drawsMax']=1200;assert compatibility(p)==compatibility(q)
+for mutate,reason in [(lambda p:p.update(state='interrupted'),'incomplete'),(lambda p:p.update(frames=[]),'frames-missing'),(lambda p:p['conditions'].update(gpu='SwiftShader'),'software-gpu'),(lambda p:p['conditions'].update(hiddenFrames=1),'hidden'),(lambda p:p['progress'].update(complete=False),'workload-incomplete'),(lambda p:p.update(frames=[[float('nan'),0,0,0,0]]),'frame-format')]:
+ q=copy.deepcopy(p);mutate(q);assert reason in errors(q),(reason,errors(q))
+assert digest(p)==digest(copy.deepcopy(p));assert quantile([1,2,3,100],.95)==100
+print('PASS performance-lab contract: exact quantiles, identity vs cost, missing/invalid/incomplete/software/hidden captures and stable hashes')
+q=copy.deepcopy(p);q['identity']['policy']='future-policy';assert 'unsupported-policy' in errors(q)
+q=copy.deepcopy(p);q['semantic'].update(childrenMin=60,childrenMax=57);assert 'children-range' in errors(q)

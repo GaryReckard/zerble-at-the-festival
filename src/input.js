@@ -10,6 +10,7 @@ import { Touch } from './touch.js';
 import { steerDirFor, touchSteerDirFor } from './steering.js';
 
 const held = new Set();
+let diagnostic = null;
 const edges = new Set();
 const untilRelease = new Set();
 
@@ -28,6 +29,7 @@ function normalize(e) {
 const BLOCK_DEFAULT = new Set(['W', 'A', 'S', 'D', 'SPACE', 'SHIFT', 'UP', 'DOWN', 'LEFT', 'RIGHT']);
 
 window.addEventListener('keydown', (e) => {
+  if(diagnostic){untilRelease.add(normalize(e));e.preventDefault();if(e.key==='Escape')diagnostic.abort();return;}
   // Never let a keystroke aimed at a text field drive the cart. Without this,
   // typing a marker note (or any future input) fires V/B/H/Y/M/G/I/O as game
   // actions — the camera flips while you type. Editable target = not gameplay.
@@ -66,6 +68,12 @@ function blendAxis(kbd, touch) {
 }
 
 export const Input = {
+  acquireDiagnostic(source, abort = () => {}) {
+    if(diagnostic)throw new Error('Input already owned');
+    this.clear();const owner={source,abort};diagnostic=owner;
+    return ()=>{if(diagnostic===owner){diagnostic=null;this.clear();}};
+  },
+  get brake() { return diagnostic ? !!diagnostic.source.brake : false; },
   clear() {
     for (const key of held) untilRelease.add(key);
     held.clear();
@@ -74,12 +82,13 @@ export const Input = {
   },
 
   isDown(k) {
-    return held.has(k);
+    return diagnostic ? false : held.has(k);
   },
 
   // Edge press: keyboard keydown OR a per-key touch latch this frame. SPACE
   // is honk; J is music-toggle. Other keys are keyboard-only.
   consumePressed(k) {
+    if(diagnostic)return false;
     const kbdEdge = edges.has(k);
     if (kbdEdge) edges.delete(k);
     if (k === 'SPACE') {
@@ -95,31 +104,38 @@ export const Input = {
 
   // ----- Driving (WASD + thumbstick) -----
   get throttle() {
+    if(diagnostic)return diagnostic.source.throttle||0;
     const kbd = (held.has('W') ? 1 : 0) - (held.has('S') ? 1 : 0);
     return blendAxis(kbd, Touch.state.throttle);
   },
   get steer() {
+    if(diagnostic)return diagnostic.source.steer||0;
     const kbd = (held.has('A') ? 1 : 0) - (held.has('D') ? 1 : 0);
     return blendAxis(kbd, Touch.state.steer);
   },
   steeringDirection(speed) {
+    if(diagnostic)return steerDirFor(diagnostic.source.throttle||0,speed);
     return Touch.state.steer !== 0
       ? touchSteerDirFor(speed)
       : steerDirFor(this.throttle, speed);
   },
   get boost() {
+    if(diagnostic)return !!diagnostic.source.boost;
     return held.has('SHIFT') || Touch.state.boost;
   },
   get slow() {
+    if(diagnostic)return !!diagnostic.source.slow;
     return held.has('CONTROL') || Touch.state.slow;
   },
 
   // ----- Camera (arrow keys — rate-based, persistent) -----
   get camYaw() {
+    if(diagnostic)return 0;
     // LEFT yaws the camera left around Zerble; RIGHT yaws right.
     return (held.has('LEFT') ? 1 : 0) - (held.has('RIGHT') ? 1 : 0);
   },
   get camPitch() {
+    if(diagnostic)return 0;
     // UP tilts the camera up; DOWN tilts down.
     return (held.has('UP') ? 1 : 0) - (held.has('DOWN') ? 1 : 0);
   },
@@ -127,6 +143,7 @@ export const Input = {
   // ----- Camera drag (touch — direct one-shot deltas in radians) -----
   // ChaseCamera consumes these each frame in addition to camYaw/camPitch.
   consumeCamDeltas() {
+    if(diagnostic){Touch._consumeCamDeltas();return {yaw:0,pitch:0};}
     return Touch._consumeCamDeltas();
   },
 
@@ -134,6 +151,7 @@ export const Input = {
   // 1 = no change, >1 = zoom in (fingers spreading), <1 = zoom out.
   // ChaseCamera routes this to the active mode's zoom axis via _applyZoom.
   consumeZoom() {
+    if(diagnostic){Touch._consumeZoom();return 1;}
     return Touch._consumeZoom();
   },
 };

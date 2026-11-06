@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+const win={},dom={};globalThis.window={addEventListener:(n,f)=>win[n]=f};
+globalThis.document={hidden:false,addEventListener:(n,f)=>dom[n]=f,removeEventListener:(n)=>delete dom[n]};
+let now=0;Object.defineProperty(globalThis,'performance',{value:{now:()=>now},configurable:true});
+let bodies=[],failOnce=false;globalThis.fetch=async(_url,options)=>{bodies.push(options.body);if(failOnce){failOnce=false;throw Error('lost ack');}return {ok:true,json:async()=>({saved:true,hash:'durable-hash'})};};
+const {installPerformanceLab}=await import('../src/performanceLab/runtime.js');
+const {Input}=await import('../src/input.js');
+function install(){
+ const tod={t:.6,setT(t){this.t=t;}};let unlocked=0,level=2,enabled=true;
+ const game={getTimeOfDay:()=>tod,chaseCam:{dbgCamLock(){},dbgCamUnlock(){unlocked++;}},
+  renderer:{getSize:o=>o.set(1280,720),getPixelRatio:()=>1,domElement:{width:1280,height:720},getContext:()=>({getExtension:()=>({UNMASKED_RENDERER_WEBGL:1}),getParameter:()=> 'Apple test GPU'}),info:{render:{calls:100,triangles:10000},programs:[],memory:{geometries:10}}},
+  composer:{readBuffer:{width:1280,height:720}},zerble:{position:{x:-230.3,y:0,z:-691.8},condition:{cause:null},heading:0,speed:0},crowd:{populationSize:300},kids:{populationSize:57},registry:{entries:new Map()}};
+ const q={getLevel:()=>level,isEnabled:()=>enabled,setEnabled:v=>enabled=v,applyLevel:v=>level=v};
+ const api=installPerformanceLab({game,quality:q,clockState:()=>({steps:Math.floor(now/1000*60),dropped:0,blockedSeconds:0}),owners:{chunkManager:{loaded:new Map([['start',{}]])}},isRunning:()=>true});
+ return {api,tod,q,game,get unlocked(){return unlocked;}};
+}
+const envelope=()=>({schema:'zerble-performance-lab-v1',identity:{runId:'runtime',app:'app',build:'b',harness:'h',scenario:'dense-festival-v1',policy:'conservative-paired-v1',instrumentation:'light-v1',injectionMs:0},conditions:{tier:'high',seed:2404796662,quiet:true},exportUrl:'http://127.0.0.1/__lab/token/runtime'});
+let x=install();assert.equal(x.api.status().state,'ready');assert.equal(Input.throttle,0);x.api.start(envelope());assert.equal(x.q.getLevel(),0);failOnce=true;
+for(let i=0;i<3002;i++){now+=1000/60;x.api.begin(1/60,1/60);x.api.end(1000/60,5);}
+for(let i=0;i<10;i++)await Promise.resolve();
+assert.equal(x.api.status().state,'completed');assert.equal(x.api.status().saved,true);assert.equal(bodies.length,2);assert.equal(bodies[0],bodies[1],'lost acknowledgements retry identical bytes');
+const run=JSON.parse(bodies[0]);assert(run.frames.length>1700);assert.equal(run.progress.complete,true);assert.equal(run.semantic.populationMin,300);assert.equal(x.q.getLevel(),2);assert.equal(x.tod.t,.6);assert(x.unlocked);assert.equal(Input.brake,false);
+bodies=[];x=install();x.api.start(envelope());document.hidden=true;dom.visibilitychange();for(let i=0;i<8;i++)await Promise.resolve();assert.equal(x.api.status().state,'failed');assert.equal(Input.brake,false);assert(JSON.parse(bodies[0]).errors.includes('foreground-lost'));document.hidden=false;
+bodies=[];x=install();x.api.start(envelope());dom.click({target:{closest:()=>true},preventDefault(){},stopImmediatePropagation(){}});for(let i=0;i<8;i++)await Promise.resolve();assert.equal(x.api.status().state,'failed');assert.equal(Input.brake,false);
+bodies=[];x=install();const driving=envelope();driving.identity.scenario='streaming-drive-v1';x.api.start(driving);
+for(let i=0;i<402;i++){now+=50;x.api.begin(.05,.05);x.api.end(50,5);}
+assert.equal(Input.throttle,1);assert(Input.steer>0,'normal controller turns toward the first road');
+x.game.zerble.position.x=-326;x.game.zerble.position.z=-658;now+=100;x.api.begin(.1,.05);x.api.end(100,5);
+now+=50;x.api.begin(.05,.05);x.api.end(50,5);assert.equal(Input.throttle,1);
+x.api.abort('fixture-stop');for(let i=0;i<8;i++)await Promise.resolve();
+const stopped=JSON.parse(bodies[0]);assert(stopped.progress.outerLost>=.05);assert.equal(stopped.progress.checkpoints.length,1);assert.equal(stopped.progress.complete,false);assert.equal(Input.throttle,0);
+console.log('PASS lab runtime: active collection, exact frames, retry-byte stability, acknowledged completion, quality/time/input restoration, hidden/HUD invalidation and no production scheduler');
+bodies=[];x=install();const interrupted=envelope();interrupted.interruptAfter=22;x.api.start(interrupted);
+for(let i=0;i<441;i++){now+=50;x.api.begin(.05,.05);x.api.end(50,5);}
+for(let i=0;i<8;i++)await Promise.resolve();
+assert.equal(x.api.status().state,'failed');assert.equal(x.api.status().saved,true);assert.equal(Input.brake,false);
+assert(JSON.parse(bodies[0]).errors.includes('declared-interruption'));assert(JSON.parse(bodies[0]).frames.length>0);
+console.log('PASS declared interruption preserves partial measured evidence and acknowledges failure after restoring ownership');

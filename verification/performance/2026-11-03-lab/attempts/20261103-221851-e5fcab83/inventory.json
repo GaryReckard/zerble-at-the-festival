@@ -1,0 +1,1 @@
+{"acceptedMeasurementMinutes":36,"calibrationPerScenario":4,"hardwareScope":"reserved Mac, not proven OS isolation","holdoutPerScenario":8,"injectionMs":40.0,"injectionPerScenario":8,"overheadPerScenario":4,"quiet":true,"scenarios":["dense-festival-v1","streaming-drive-v1"],"totalRuns":48}

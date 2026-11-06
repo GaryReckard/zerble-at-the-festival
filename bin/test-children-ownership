@@ -76,3 +76,18 @@ const replacementRuntime=new PeopleRuntime(),replacementOwner=new current.Class(
 assert(!replacementOwner.readPerson(handle,{}),'full runtime replacement cannot revive a former child');
 replacementRuntime.dispose();
 console.log('PASS child construction rollback and full-runtime replacement.');
+
+const {childConstructionRandom}=await import('../src/performanceLab/config.js');
+const seededLeft=load(placement+source),seededRight=load(placement+source);
+const unrelated=new seededRight.Class();unrelated.dispose();
+const rightDraws=seededRight.draws;
+const cohortA=new seededLeft.Class({constructionRandom:childConstructionRandom(2404796662)});
+const cohortB=new seededRight.Class({constructionRandom:childConstructionRandom(2404796662)});
+assert.equal(seededLeft.draws,0,'private construction does not consume the global stream with model writes stubbed');
+assert.equal(seededRight.draws,rightDraws);
+assert.deepEqual(JSON.parse(JSON.stringify(snapshot(cohortA))),JSON.parse(JSON.stringify(snapshot(cohortB))),'initial construction ignores unrelated random draws');
+assert(cohortA.populationSize>=40&&cohortA.populationSize<=64,'normal eight-gaggle population, no actor removal or padding');
+cohortA.update(.05,bubbles,cart,{spawn(){}});
+assert(seededLeft.draws>0,'live child behavior still uses its ordinary random stream');
+cohortA.dispose();cohortB.dispose();
+console.log('PASS isolated diagnostic construction: stable full population/initial layout, unrelated global draws preserved, live randomness retained; default 400-frame legacy equivalence above remains exact');

@@ -1,0 +1,961 @@
+{
+  "protocol": "render-subtraction-v1",
+  "scope": "Parked scene: main-scene renderer CPU, composer GPU time where supported, and submissions. Excludes gameplay CPU; not a device FPS claim. Subtraction removes visible meshes and their shadows; reduced content is diagnostic, not an optimization result.",
+  "viewport": [
+    1280,
+    720,
+    1
+  ],
+  "seed": 2404796662,
+  "position": [
+    -230.3000030517578,
+    0.009247660636901855,
+    -691.7957763671875
+  ],
+  "camera": {
+    "mode": "third",
+    "position": [
+      -242.3000030517578,
+      12.009247660636902,
+      -675.7957763671875
+    ],
+    "quaternion": [
+      -0.21796275840160825,
+      -0.3077683537175253,
+      -0.07265425280053608,
+      0.923305061152576
+    ],
+    "fov": 62,
+    "zoom": 1,
+    "projection": [
+      0.9361572088221665,
+      0,
+      0,
+      0,
+      0,
+      1.664279482350518,
+      0,
+      0,
+      0,
+      0,
+      -1.000962000962001,
+      -1,
+      0,
+      0,
+      -1.0004810004810005,
+      0
+    ]
+  },
+  "renderSize": {
+    "width": 1280,
+    "height": 720,
+    "targetWidth": 1280,
+    "targetHeight": 720
+  },
+  "phases": [
+    {
+      "name": "baseline",
+      "renderCpuMs": {
+        "p50": 4.400000095367432,
+        "p95": 4.699999928474426
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 3.056166,
+        "p95": 3.795916
+      },
+      "counts": {
+        "calls": 1764,
+        "triangles": 524131
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 618
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "lake(-1,-2)/tent-fabric-door",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/tent-door-zipper",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/canoe",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "chunk-v2(-2,-9)/Hair: cropped",
+          "callsPerFrame": 10
+        },
+        {
+          "name": "chunk-v2(-3,-9)",
+          "callsPerFrame": 9
+        }
+      ]
+    },
+    {
+      "name": "without-children",
+      "renderCpuMs": {
+        "p50": 4.100000023841858,
+        "p95": 4.399999976158142
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 2.772916,
+        "p95": 2.936208
+      },
+      "counts": {
+        "calls": 1099,
+        "triangles": 445347
+      },
+      "drawFamilies": [
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "lake(-1,-2)/tent-fabric-door",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/tent-door-zipper",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/canoe",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "chunk-v2(-2,-9)/Hair: cropped",
+          "callsPerFrame": 10
+        },
+        {
+          "name": "chunk-v2(-3,-9)",
+          "callsPerFrame": 9
+        },
+        {
+          "name": "chunk-v2(-2,-10)/portaPotty",
+          "callsPerFrame": 9
+        },
+        {
+          "name": "chunk-v2(-2,-9)/tent-fabric-door",
+          "callsPerFrame": 7
+        },
+        {
+          "name": "chunk-v2(-2,-9)/tent-door-zipper",
+          "callsPerFrame": 7
+        },
+        {
+          "name": "chunk-v2(-3,-10)/Hair: cropped",
+          "callsPerFrame": 6
+        }
+      ],
+      "hiddenMeshes": 718
+    },
+    {
+      "name": "restored-after-children",
+      "renderCpuMs": {
+        "p50": 5.5,
+        "p95": 6.200000047683716
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 3.728875,
+        "p95": 4.318708
+      },
+      "counts": {
+        "calls": 1764,
+        "triangles": 524131
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 618
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "lake(-1,-2)/tent-fabric-door",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/tent-door-zipper",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/canoe",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "chunk-v2(-2,-9)/Hair: cropped",
+          "callsPerFrame": 10
+        },
+        {
+          "name": "chunk-v2(-3,-9)",
+          "callsPerFrame": 9
+        }
+      ]
+    },
+    {
+      "name": "without-adults",
+      "renderCpuMs": {
+        "p50": 5.200000047683716,
+        "p95": 6.299999952316284
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 2.555374,
+        "p95": 3.329541
+      },
+      "counts": {
+        "calls": 1732,
+        "triangles": 357741
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 618
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "lake(-1,-2)/tent-fabric-door",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/tent-door-zipper",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/canoe",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "chunk-v2(-2,-9)/Hair: cropped",
+          "callsPerFrame": 10
+        },
+        {
+          "name": "chunk-v2(-3,-9)",
+          "callsPerFrame": 9
+        },
+        {
+          "name": "chunk-v2(-2,-10)/portaPotty",
+          "callsPerFrame": 9
+        },
+        {
+          "name": "chunk-v2(-2,-9)/tent-fabric-door",
+          "callsPerFrame": 7
+        }
+      ],
+      "hiddenMeshes": 39
+    },
+    {
+      "name": "restored-after-adults",
+      "renderCpuMs": {
+        "p50": 5.100000023841858,
+        "p95": 5.600000023841858
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 3.123458,
+        "p95": 4.326041
+      },
+      "counts": {
+        "calls": 1764,
+        "triangles": 524131
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 618
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "lake(-1,-2)/tent-fabric-door",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/tent-door-zipper",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/canoe",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "chunk-v2(-2,-9)/Hair: cropped",
+          "callsPerFrame": 10
+        },
+        {
+          "name": "chunk-v2(-3,-9)",
+          "callsPerFrame": 9
+        }
+      ]
+    },
+    {
+      "name": "without-other-people",
+      "renderCpuMs": {
+        "p50": 4.899999976158142,
+        "p95": 5.300000071525574
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 2.987999,
+        "p95": 3.056416
+      },
+      "counts": {
+        "calls": 1752,
+        "triangles": 507651
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 618
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "lake(-1,-2)/tent-fabric-door",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/tent-door-zipper",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/canoe",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "chunk-v2(-2,-9)/Hair: cropped",
+          "callsPerFrame": 10
+        },
+        {
+          "name": "chunk-v2(-3,-9)",
+          "callsPerFrame": 9
+        }
+      ],
+      "hiddenMeshes": 278
+    },
+    {
+      "name": "restored-after-other-people",
+      "renderCpuMs": {
+        "p50": 5.200000047683716,
+        "p95": 5.800000071525574
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 3.057625,
+        "p95": 4.29375
+      },
+      "counts": {
+        "calls": 1764,
+        "triangles": 524131
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 618
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "lake(-1,-2)/tent-fabric-door",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/tent-door-zipper",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/canoe",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "chunk-v2(-2,-9)/Hair: cropped",
+          "callsPerFrame": 10
+        },
+        {
+          "name": "chunk-v2(-3,-9)",
+          "callsPerFrame": 9
+        }
+      ]
+    },
+    {
+      "name": "without-world",
+      "renderCpuMs": {
+        "p50": 3.3000000715255737,
+        "p95": 3.8000000715255737
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 1.746958,
+        "p95": 1.778958
+      },
+      "counts": {
+        "calls": 993,
+        "triangles": 332351
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 618
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "nut_wagon/hatch",
+          "callsPerFrame": 6
+        },
+        {
+          "name": "nut_wagon/hatch_supports",
+          "callsPerFrame": 5
+        },
+        {
+          "name": "Wooks/Wook",
+          "callsPerFrame": 4
+        },
+        {
+          "name": "Zerble/HeadlightLens",
+          "callsPerFrame": 4
+        },
+        {
+          "name": "FrisbeeActivities",
+          "callsPerFrame": 4
+        },
+        {
+          "name": "nut_wagon/wheel_right_rear",
+          "callsPerFrame": 3
+        },
+        {
+          "name": "nut_wagon/wheel_left_rear",
+          "callsPerFrame": 3
+        },
+        {
+          "name": "Zerble/Gary sleeves, forearms and ears",
+          "callsPerFrame": 2
+        },
+        {
+          "name": "Wooks/Wook/dreadlocks",
+          "callsPerFrame": 2
+        },
+        {
+          "name": "Wooks/Wook/hoodie and face",
+          "callsPerFrame": 2
+        }
+      ],
+      "hiddenMeshes": 1812
+    },
+    {
+      "name": "restored-after-world",
+      "renderCpuMs": {
+        "p50": 5.299999952316284,
+        "p95": 5.799999952316284
+      },
+      "renderGpuMs": {
+        "samples": 30,
+        "disjoint": false,
+        "p50": 3.076041,
+        "p95": 4.275499
+      },
+      "counts": {
+        "calls": 1764,
+        "triangles": 524131
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 618
+        },
+        {
+          "name": "chunk-v2(-2,-9)",
+          "callsPerFrame": 405
+        },
+        {
+          "name": "lake(-1,-2)",
+          "callsPerFrame": 118
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-3,-10)",
+          "callsPerFrame": 87
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "Kids/Hair: cropped",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "nut_wagon",
+          "callsPerFrame": 21
+        },
+        {
+          "name": "chunk-v2(-3,-10)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 17
+        },
+        {
+          "name": "Crowd/Monk travelling party/Tibetan monk",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "lake(-1,-2)/tent-fabric-door",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/tent-door-zipper",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 14
+        },
+        {
+          "name": "lake(-1,-2)/canoe",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 12
+        },
+        {
+          "name": "chunk-v2(-2,-9)/Hair: cropped",
+          "callsPerFrame": 10
+        },
+        {
+          "name": "chunk-v2(-3,-9)",
+          "callsPerFrame": 9
+        }
+      ]
+    }
+  ],
+  "hardware": {
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+    "visible": true,
+    "focused": true,
+    "width": 1280,
+    "height": 720,
+    "targetWidth": 1280,
+    "targetHeight": 720
+  }
+}

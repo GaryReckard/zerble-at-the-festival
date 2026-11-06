@@ -1,3 +1,5 @@
+import {PERFORMANCE_LAB,childConstructionRandom} from './performanceLab/config.js';
+let performanceLab = null;
 import {FESTIVAL_TUNING} from './worldgen/tuning.js';
 import {setLandscapeVersion,landscapeVersion} from './worldgen/landscapeCandidates.js';
 import {resolveCollision,SOFT_PEOPLE_KINDS} from './collisionContacts.js';
@@ -86,6 +88,7 @@ import { preparePostprocessing } from './preparePostprocessing.js';
 import { Settings } from './settings.js';
 import { A11y } from './a11y.js';
 import { setSessionSeed, getSessionSeed } from './rng.js';
+import {createChildPresentation} from './people/childPresentation.js';
 import { setTerrainEnabled, terrainEnabled, terrainHeight, sampleTerrain } from './worldgen/terrain.js';
 
 const peopleFrameTrace = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) &&
@@ -276,7 +279,7 @@ const canvas = document.getElementById('game');
 const LAYOUT_CAPTURE_MODE =
   ['localhost', '127.0.0.1'].includes(location.hostname) &&
   new URLSearchParams(location.search).get('layoutCapture') === '1';
-const PERF_CAPTURE_TIMING = new URLSearchParams(location.search).get('perfCapture') === '1';
+const PERF_CAPTURE_TIMING = PERFORMANCE_LAB || new URLSearchParams(location.search).get('perfCapture') === '1';
 
 // ---------- Renderer ----------
 // MSAA (renderer-level antialias) is expensive on integrated / mobile GPUs,
@@ -612,7 +615,7 @@ if(landscapeVersion()===2){
   landscapeRuntime.player=zerble;landscapeRuntime.bindVehicle(zerble);
   landscapeRuntime.update(zerble,{deadline:performance.now()+PERF.chunkBudgetMs});
 }
-buildWorld(scene, crowd, zerble.position,{landscape:landscapeRuntime});
+const labWorldOwners=buildWorld(scene, crowd, zerble.position,{landscape:landscapeRuntime});
 // Live physics defaults on. Loading is independent of the synchronous audio
 // unlock gesture; failure falls back to classic driving and prop contacts.
 let physicalWorld=null, physicalLoadError=null, physicalClosing=false;
@@ -734,7 +737,13 @@ const bubbleChallenges = new ChallengeTracker(bubbleProgress, {
   tripActive: () => Trip.isActive(),
   mode: () => RunMode.isFestival() ? 'festival' : 'cruisin',
 }, ['heart', 'music', 'ember', 'firefly', 'rainbow', 'sparkler', 'lantern', 'smile', 'confetti', 'mushroom', 'brass']);
-const kids = withBaselineRandom(()=>new KidGaggle({runtime:people,surfaceAccess:landscapePeople}),0x43484c44,peopleBaselineCohort);
+const kids = withBaselineRandom(()=>new KidGaggle({runtime:people,surfaceAccess:landscapePeople,
+  ...(PERFORMANCE_LAB?{constructionRandom:childConstructionRandom(getSessionSeed())}:{})}),0x43484c44,peopleBaselineCohort);
+// Retain a local individual-rendering control for frozen-scene comparisons.
+if(!(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&new URLSearchParams(location.search).get('kidBatch')==='0')){
+  try{kids.presentation=createChildPresentation({scene,source:kids.group,seed:getSessionSeed()});}
+  catch(error){console.warn('Child presentation retained individual rendering',error);}
+}
 scene.add(kids.group);
 const wooks = new Wooks({runtime:people,surfaceAccess:landscapePeople});
 const _wookPositions=[];
@@ -1204,7 +1213,9 @@ function tick() {
     _perfWorldMs = 0;
     _perfRenderMs = 0;
   }
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const rawDelta = clock.getDelta();
+  const dt = Math.min(rawDelta, 0.05);
+  performanceLab?.begin(rawDelta,dt);
   if (shouldRunFrame(dt)) tickBody(dt);
   if (PERF_CAPTURE_TIMING) {
     const workMs = performance.now() - frameStartedAt;
@@ -1212,6 +1223,7 @@ function tick() {
       ts: Date.now(), wallMs, workMs, previousWorkMs: _perfPreviousWorkMs,
       worldMs: _perfWorldMs, renderMs: _perfRenderMs, hidden: document.hidden,
     });
+    performanceLab?.end(wallMs,workMs);
     _perfPreviousWorkMs = workMs;
   }
   scheduleNext();
@@ -1284,7 +1296,6 @@ function tickBody(dt) {
     festivalMap.tick({player:zerble.position,heading:zerble.heading,live:availableMapMarkers,dt});
     boostStreaks.update(dt, zerble, {
       reducedMotion: A11y.reducedMotion,
-      effectsEnabled: AdaptiveQuality.bloomAllowed(),
     });
     const demand=zerble.physicsDriven?engineDemand({...zerble.engineState,speed:Math.hypot(zerble.velocity.x,zerble.velocity.z),immersion:zerble.submersion,stopped:!!vehicleGameOver},engineEnvelope):null;
     Sound.setEngineSpeed(zerble.speed, zerble.isBoosting ? 1 : 0,demand);
@@ -2238,6 +2249,10 @@ window.__game = {
   kids, wooks, puppets, band, hoopers, frisbees, smiles,
   sound: Sound, layoutCaptureMode: LAYOUT_CAPTURE_MODE,
 };
+if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&['1','subtract'].includes(new URLSearchParams(location.search).get('sceneProbe'))){
+  import('./sceneProbe.js').then(({installSceneProbe})=>installSceneProbe({game:window.__game,quality:AdaptiveQuality,debug:window.__debug,
+    subtract:new URLSearchParams(location.search).get('sceneProbe')==='subtract'}));
+}
 
 // ---- Local-dev debug backdoor (window.__dbg) ----
 // Hooks for verifying the *running* game programmatically, because the real
@@ -2347,6 +2362,13 @@ if (['localhost', '127.0.0.1'].includes(location.hostname) || location.hostname.
     camUnlock() {
       chaseCam.dbgCamUnlock();
       return 'cam unlocked';
+    },
+    childRendering(enabled) {
+      if(enabled===undefined)return {enabled:!!kids.presentation&&!kids.presentation.disposed,fallback:kids.presentation?.fallbackReason??null};
+      if(typeof enabled!=='boolean')throw new TypeError('Child rendering expects a boolean');
+      kids.presentation?.dispose();kids.presentation=null;
+      if(enabled)kids.presentation=createChildPresentation({scene,source:kids.group,seed:getSessionSeed()});
+      return {enabled:!!kids.presentation&&!kids.presentation.disposed,fallback:kids.presentation?.fallbackReason??null};
     },
 
     // Far-field horizon debug surface (festival-horizon change; inert when
@@ -3170,4 +3192,10 @@ if (window.__dbg) {
   }
 }
 
+if(PERFORMANCE_LAB){
+  import('./performanceLab/runtime.js').then(({installPerformanceLab})=>{
+    performanceLab=installPerformanceLab({game:window.__game,quality:AdaptiveQuality,owners:labWorldOwners,
+      isRunning:()=>running&&!vehicleGameOver,clockState:()=>physicalWorld?.labClock()||{steps:0,dropped:0,blockedSeconds:0}});
+  });
+}
 tick();

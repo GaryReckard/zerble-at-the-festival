@@ -1,0 +1,16 @@
+{"runId": "20261105-180301-462487b2", "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261105-180301-462487b2", "scenario": "dense-festival-v1", "deadline": 180, "quiet": true}
+{"stage":"debugging endpoint"}
+{"stage":"websocket"}
+{"stage":"create target"}
+{"stage":"attach target"}
+{"stage":"enable protocol"}
+{"stage":"navigate"}
+{"stage":"title ready"}
+{"stage":"title gesture"}
+{"stage":"hit test {\"x\":345,\"y\":370.3984375,\"hit\":\"\",\"width\":1280,\"height\":720,\"dpr\":1,\"scale\":1}"}
+{"stage":"gesture observed {\"focused\":true,\"hidden\":false,\"active\":\"mode-cruisin\",\"button\":\"<button id=\\\"mode-cruisin\\\" class=\\\"mode-btn is-ready\\\" type=\\\"button\\\" aria-label=\\\"Play Just Cruisin'\\\" aria-describedby=\\\"cruisin-description\\\" data-selected=\\\"true\\\" aria-disabled=\\\"false\\\">\\n            <span class=\\\"mode-cursor\\\" aria-hidden=\\\"true\\\"></span>\\n            <span class=\\\"mode-text\\\">\\n              <span class=\\\"mode-name\\\">Just Cruisin'</span>\\n              <span class=\\\"mode-desc\\\" id=\\\"cruisin-description\\\">Explore freely. Mind your cart.</span>\\n            </span>\\n          </button>\"}"}
+{"stage":"started"}
+{"state":"settling","saved":false,"elapsed":0.03109999990463257,"segment":0,"errors":[]}
+{"state":"measuring","saved":false,"elapsed":20.51560000002385,"segment":0,"errors":[]}
+{"state":"completed","saved":true,"elapsed":50.01360000002478,"segment":0,"errors":[]}
+{"directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261105-180301-462487b2", "state": "collected", "error": null, "cleanup": {"ok": true, "remaining": [], "checkedPids": [23119, 23123, 23128, 23129, 23130, 23131, 23132, 23133, 23134, 23137, 23138, 23139, 23140, 23192, 23993, 23994, 23995, 24000, 24002], "inspectionError": null, "terminationErrors": []}}

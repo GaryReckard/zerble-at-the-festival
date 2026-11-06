@@ -1,0 +1,58 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {Group} from 'three';
+import {createSupportWorld,createSupportBinding} from '../src/landscape/support.js';
+import {createLandscapePeopleAdapter as current} from '../src/landscape/peopleAdapter.js';
+import {createLandscapePeopleAdapter as legacy} from '../verification/performance/2026-11-05-optimization/legacy-people-adapter.js';
+
+const deck={id:'grounding-cost-deck',height:.01,bounds:{minX:0,maxX:4,minZ:-1,maxZ:1},
+  approaches:[{minX:-1,maxX:.3,minZ:-.6,maxZ:.6},{minX:3.7,maxX:5,minZ:-.6,maxZ:.6}]};
+const footprint=[{x:0,z:0},{x:.2,z:0},{x:-.2,z:0},{x:0,z:.2},{x:0,z:-.2}];
+function pair({bridge=false,unsupported=false,initial={x:-2,z:0,heading:0,surfaceId:'terrain'}}={}){
+  const control={current:true,deck:true,unsupported},units=[];
+  for(const factory of [legacy,current]){
+    let samples=0;
+    const world=createSupportWorld({sampleTerrain(x,z,out){samples++;Object.assign(out,{height:0,dx:0,dz:0,traversable:!control.unsupported});},
+      isCurrent:()=>control.current,...(bridge?{deckSource:{near:()=>control.deck?[deck]:[],resolve:id=>control.deck&&id===deck.id?deck:null}}:{})});
+    const runtime={supportWorld:world,owners:new Map(),access:{query:()=>[]}},adapter=factory(runtime),actor=new Group();
+    actor.position.set(initial.x,initial.surfaceId===deck.id ? .01 : 0,initial.z);
+    if(!unsupported)actor.surfaceBinding=createSupportBinding(world,initial,{footprint});
+    units.push({actor,adapter,get samples(){return samples;},resetSamples(){samples=0;}});
+  }
+  function move(x,z,heading=0,options={}){
+    const results=units.map(({actor,adapter})=>{
+      actor.position.x=x;actor.position.z=z;actor.rotation.y=heading;
+      const accepted=adapter.ground(actor,options),collider={};adapter.collider(collider,actor);
+      return {accepted,position:actor.position.toArray(),rotation:actor.rotation.toArray(),visible:actor.visible,
+        userData:{...actor.userData},support:actor.surfaceBinding?.snapshot(),collider};
+    });
+    assert.deepEqual(results[1],results[0],'atomic adapter preserves the complete published result');return results[1];
+  }
+  return {control,units,move};
+}
+{
+  const p=pair();for(const unit of p.units)unit.resetSamples();
+  assert.equal(p.move(-1.8,.1,.12).accepted,true);
+  assert.equal(p.units[0].samples,p.units[1].samples*2,'successful turning/translation halves terrain sampling');
+  assert(p.units[1].samples>0,'the atomic path still performs a full support sweep');
+  assert.equal(p.move(200,0).accepted,false,'bounded sweep limit remains enforced');
+  p.control.current=false;assert.equal(p.move(-1.7,.1).accepted,false,'stale worlds remain blocked');
+}
+{
+  const p=pair({bridge:true,initial:{x:-1,z:0,heading:0,surfaceId:'terrain'}});
+  assert.equal(p.move(1,0).support.surfaceId,deck.id,'approach enters actual deck support');
+  assert.equal(p.move(1,.95).accepted,false,'unsupported footprint cannot leave the side');
+  assert.equal(p.move(3.9,0).accepted,true);
+  assert.equal(p.move(4.5,0).support.surfaceId,'terrain','exit returns to actual terrain');
+}
+{
+  const p=pair({bridge:true,initial:{x:2,z:0,heading:0,surfaceId:deck.id}});
+  p.control.deck=false;const result=p.move(2.1,0);assert.equal(result.accepted,false);assert.equal(result.position[1],.01,'missing deck keeps the accepted height');
+}
+{
+  const p=pair({unsupported:true});assert.equal(p.move(-2,0).accepted,false,'initial unsupported placement is rejected');
+  assert.equal(p.units[1].actor.visible,false);
+  p.control.unsupported=false;const result=p.move(-2,0,0,{relocate:true});
+  assert.equal(result.accepted,true);assert.equal(result.visible,true,'relocation can show the actor again');
+}
+console.log('PASS atomic people grounding: exact legacy movement/turning/bridge/footprint/sweep-limit/stale-world/missing-deck/hidden-placement/relocation publications, with half the terrain sampling for successful immediate moves.');

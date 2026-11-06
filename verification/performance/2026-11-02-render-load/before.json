@@ -1,0 +1,295 @@
+{
+  "scope": "Instrumented parked scene; render CPU and submissions, not isolated GPU time or device FPS.",
+  "viewport": [
+    1280,
+    720,
+    2
+  ],
+  "seed": 2404796662,
+  "position": [
+    -230.29627990722656,
+    0.00924760103225708,
+    -691.8019409179688
+  ],
+  "phases": [
+    {
+      "name": "baseline",
+      "renderCpuMs": {
+        "p50": 28.200000047683716,
+        "p95": 41.299999952316284
+      },
+      "counts": {
+        "calls": 4588,
+        "triangles": 1727596
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 858
+        },
+        {
+          "name": "chunk-v2(-4,-7)",
+          "callsPerFrame": 823
+        },
+        {
+          "name": "chunk-v2(-5,-8)",
+          "callsPerFrame": 538
+        },
+        {
+          "name": "chunk-v2(-3,-8)",
+          "callsPerFrame": 391
+        },
+        {
+          "name": "lake(-1,-1)",
+          "callsPerFrame": 353
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 191
+        },
+        {
+          "name": "Lurleen",
+          "callsPerFrame": 159
+        },
+        {
+          "name": "chunk-v2(-5,-9)",
+          "callsPerFrame": 154
+        },
+        {
+          "name": "chunk-v2(-4,-8)",
+          "callsPerFrame": 153
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 132
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 106
+        },
+        {
+          "name": "lake(-1,-1)/tent-fabric-door",
+          "callsPerFrame": 50
+        },
+        {
+          "name": "lake(-1,-1)/tent-door-zipper",
+          "callsPerFrame": 50
+        },
+        {
+          "name": "chunk-v2(-3,-7)",
+          "callsPerFrame": 40
+        },
+        {
+          "name": "chunk-v2(-4,-7)/portaPotty",
+          "callsPerFrame": 36
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 32
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 30
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 30
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "chunk-v2(-3,-8)/portaPotty",
+          "callsPerFrame": 18
+        }
+      ]
+    },
+    {
+      "name": "cheap-bubbles",
+      "renderCpuMs": {
+        "p50": 9,
+        "p95": 10.800000071525574
+      },
+      "counts": {
+        "calls": 2334,
+        "triangles": 878904
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 429
+        },
+        {
+          "name": "chunk-v2(-4,-7)",
+          "callsPerFrame": 422
+        },
+        {
+          "name": "chunk-v2(-5,-8)",
+          "callsPerFrame": 275
+        },
+        {
+          "name": "chunk-v2(-3,-8)",
+          "callsPerFrame": 197
+        },
+        {
+          "name": "lake(-1,-1)",
+          "callsPerFrame": 181
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-4,-8)",
+          "callsPerFrame": 80
+        },
+        {
+          "name": "Lurleen",
+          "callsPerFrame": 80
+        },
+        {
+          "name": "chunk-v2(-5,-9)",
+          "callsPerFrame": 78
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "lake(-1,-1)/tent-fabric-door",
+          "callsPerFrame": 25
+        },
+        {
+          "name": "lake(-1,-1)/tent-door-zipper",
+          "callsPerFrame": 25
+        },
+        {
+          "name": "chunk-v2(-3,-7)",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "chunk-v2(-4,-7)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 16
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 10
+        },
+        {
+          "name": "chunk-v2(-3,-8)/portaPotty",
+          "callsPerFrame": 9
+        }
+      ]
+    },
+    {
+      "name": "cheap-bubbles-no-shadows",
+      "renderCpuMs": {
+        "p50": 8,
+        "p95": 8.600000023841858
+      },
+      "counts": {
+        "calls": 2334,
+        "triangles": 878904
+      },
+      "drawFamilies": [
+        {
+          "name": "Kids",
+          "callsPerFrame": 429
+        },
+        {
+          "name": "chunk-v2(-4,-7)",
+          "callsPerFrame": 422
+        },
+        {
+          "name": "chunk-v2(-5,-8)",
+          "callsPerFrame": 275
+        },
+        {
+          "name": "chunk-v2(-3,-8)",
+          "callsPerFrame": 197
+        },
+        {
+          "name": "lake(-1,-1)",
+          "callsPerFrame": 181
+        },
+        {
+          "name": "Zerble",
+          "callsPerFrame": 98
+        },
+        {
+          "name": "chunk-v2(-4,-8)",
+          "callsPerFrame": 80
+        },
+        {
+          "name": "Lurleen",
+          "callsPerFrame": 80
+        },
+        {
+          "name": "chunk-v2(-5,-9)",
+          "callsPerFrame": 78
+        },
+        {
+          "name": "Zerble/ZerbleMustache",
+          "callsPerFrame": 66
+        },
+        {
+          "name": "Zerble/Gary head",
+          "callsPerFrame": 54
+        },
+        {
+          "name": "lake(-1,-1)/tent-fabric-door",
+          "callsPerFrame": 25
+        },
+        {
+          "name": "lake(-1,-1)/tent-door-zipper",
+          "callsPerFrame": 25
+        },
+        {
+          "name": "chunk-v2(-3,-7)",
+          "callsPerFrame": 20
+        },
+        {
+          "name": "chunk-v2(-4,-7)/portaPotty",
+          "callsPerFrame": 18
+        },
+        {
+          "name": "Crowd",
+          "callsPerFrame": 16
+        },
+        {
+          "name": "Kids/Hair: close",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "birds",
+          "callsPerFrame": 15
+        },
+        {
+          "name": "Kids/Hair: braids",
+          "callsPerFrame": 10
+        },
+        {
+          "name": "chunk-v2(-3,-8)/portaPotty",
+          "callsPerFrame": 9
+        }
+      ]
+    }
+  ]
+}

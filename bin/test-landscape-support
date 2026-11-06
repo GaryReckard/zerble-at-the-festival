@@ -73,3 +73,25 @@ assert.throws(()=>excessive.propose(0,-.1,initial),/Too many/);
 const duplicate=createSupportWorld({sampleTerrain:ground,deckSource:{near:()=>[world.descriptors[0],world.descriptors[0]],resolve:()=>world.descriptors[0]}});
 assert.throws(()=>duplicate.propose(0,-.1,initial),/Duplicate/);
 console.log('PASS landscape support: pure proposals, bidirectional approach transfers, locked wheel samples, underneath separation, closed/missing support, independent movers, immutable descriptors, finite inputs and vertical solids.');
+// Immediate movement shares the same full sweep, with one validation rather
+// than validating a held proposal again. Delayed commits still reject staleness.
+{
+ let samples=0,current=true;
+ const counted=createSupportWorld({sampleTerrain:(x,z,out)=>{samples++;return ground(x,z,out);},decks:[world.descriptors[0]],isCurrent:()=>current});
+ const options={footprint:[{x:-.2,z:0},{x:.2,z:0},{x:0,z:-.2},{x:0,z:.2}]};
+ const delayed=createSupportBinding(counted,{x:0,z:1},options),immediate=createSupportBinding(counted,{x:0,z:1},options);
+ samples=0;const proposal=delayed.propose(.1,.9,{});delayed.commit(.1,.9,proposal);const twoPhase=samples;
+ samples=0;assert(immediate.move(.1,.9,{}).valid);assert.equal(samples*2,twoPhase,'atomic movement runs the exact support/footprint checks once');
+ assert.deepEqual(immediate.snapshot(),delayed.snapshot());
+ for(const z of [-.1,-10,-19,-21,-19,-1,1]){
+   const p=delayed.propose(0,z,{});assert(p.valid);delayed.commit(0,z,p);
+   assert(immediate.move(0,z,{}).valid);assert.deepEqual(immediate.snapshot(),delayed.snapshot(),'atomic movement preserves bridge transfers and accepted layers');
+ }
+ const held=immediate.snapshot();assert.equal(immediate.move(1000,0,{}).reason,'sweep-limit');assert.deepEqual(immediate.snapshot(),held);
+ const pending=delayed.propose(0,.9,{});current=false;
+ assert.throws(()=>delayed.commit(0,.9,pending),/Stale/,'held proposals retain generation revalidation');
+ assert.equal(immediate.move(0,.9,{}).reason,'world-changed');assert.deepEqual(immediate.snapshot(),held);
+ const locked=createSupportBinding(world,{x:0,z:-10,surfaceId:'bridge'},options),onDeck=locked.snapshot();
+ assert.equal(locked.move(6,-10,{}).valid,false);assert.deepEqual(locked.snapshot(),onDeck,'atomic movement cannot cross a closed bridge side');
+}
+console.log('PASS atomic support movement: identical swept footprints and bridge transitions, half the repeated sampling, blocked-state retention and unchanged stale-proposal guards.');

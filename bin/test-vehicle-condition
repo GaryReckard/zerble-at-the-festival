@@ -9,6 +9,8 @@ for(const hz of [30,60,120]){
   for(let i=0;i<hz*3;i++){c.impact(1,i/hz,'parked');c.step(1/hz,.6);}
   assert.equal(c.damage,0);assert.equal(c.cause,null);
   const crash=c.impact(18,3,'tree');assert(crash>50&&crash<100);
+  const chair=new VehicleCondition();assert(chair.impact(18,3,'chassis','camp_chair')<=3,'full-speed folding-chair impact causes only a small dent');
+  assert(chair.damage<crash*.1,'a chair is far less damaging than a tree at matching speed');
   assert.equal(c.impact(18,3.1,'tree'),0);
   c.restore(20);assert.equal(c.damage,crash-20);
   c.impact(27.9,4,'tree');assert.equal(c.cause,'wrecked');

@@ -1,0 +1,3 @@
+{"directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261105-180125-sandbox-high-22e88038", "task": "sandbox", "tier": "high"}
+{"stage":"navigated","task":"sandbox"}
+{"directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261105-180125-sandbox-high-22e88038", "state": "collected", "cleanup": {"ok": true, "remaining": [], "checkedPids": [21722, 21726, 21729, 21730, 21737, 21738, 21739, 21740, 21741, 21742, 21743, 21744, 21745, 21747, 21777, 21778, 21780], "inspectionError": null, "terminationErrors": []}}

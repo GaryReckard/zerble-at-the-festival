@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-05",
+  "scope": "Offline pooled-child candidate and subtraction preparation; browser/camera/streaming acceptance pending.",
+  "files": {
+    "src/models/kid.js": "78d5172fdeca211b564911aca8b6c3018293ea85925aa6cfec581b724ea7e0d0",
+    "bin/test-kid-pooling": "c2992c57c39a8c2be8dbf6cc70110a8cba4dd83a4bd9f06015b807fc1d8aba9f",
+    "src/sceneProbe.js": "66bd60a43390bd9b4f2a401ada8a25105c681147f301b3e9fe44dafcc702816a",
+    "src/renderSubtraction.js": "b05939c85743222bcd381ffee4c129a48f8c8226cfff4b00bb2e18da9edee730",
+    "bin/test-render-subtraction": "47aa19dd6bacfcf5076f04f52f20f69ea863ddf536906a3ec9adf62b5068441c",
+    "bin/test-scene-probe": "345c04eb943efd0b67396436c5c1f64b5b807a8dd1175779650bac1b64ed5158",
+    "package.json": "97890152e2a6b102c9913414b1cd7c47bd8eab1770bcac26f56ec392f7b63791"
+  }
+}

@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {CampActivity} from '../src/people/campActivity.js';
+
+function select(slots,{sleep=false,blocked=new Set(),extraCamps=[],index=0}={}){
+  const calls=[],camp={id:1,position:{x:0,y:.4,z:0},footprint:40,campSeats:slots,campBeds:slots},
+    entries=[camp,...extraCamps],registry={entries:new Map(entries.map(e=>[e.id,e])),byKind:new Map([['campsite',new Set(entries.map(e=>e.id))]])};
+  const people={canReachCampSlot(person,slot,bed,y){calls.push({slot,bed,y});return !blocked.has(slot);}},activity=new CampActivity(people,registry);
+  let chosen=null;activity._acquire=(npc,entry,slot,bed)=>{chosen={entry,slot,bed};return false;};
+  activity.time=sleep?.95:.3;
+  activity._tickCamp(1/60,{person:{},idx:index,pos:{x:0,z:0},state:'idle',campCooldown:0});
+  return {chosen,calls};
+}
+const seat=(x,z=0,extra={})=>({x,z,y:.8,occupied:false,...extra});
+{
+  const far=seat(40),boundary=seat(28),inside=seat(27.999),nearest=seat(2),tie=seat(2),after=seat(9),occupied=seat(1,0,{occupied:true});
+  const r=select([far,boundary,inside,nearest,tie,after,occupied]);
+  assert.equal(r.chosen.slot,nearest);assert.deepEqual(r.calls.map(c=>c.slot),[inside,nearest]);
+  assert(r.calls.every(c=>c.bed===false&&c.y===.4),'reachability retains seat mode and camp floor');
+}
+{
+  const blockedNear=seat(1),reachable=seat(4),nearerBlocked=seat(2),tied=seat(4),r=select([blockedNear,reachable,nearerBlocked,tied],{blocked:new Set([blockedNear,nearerBlocked])});
+  assert.equal(r.chosen.slot,reachable,'unreachable nearer slots do not displace the reachable selection');
+  assert.deepEqual(r.calls.map(c=>c.slot),[blockedNear,reachable,nearerBlocked]);
+}
+{
+  const first=seat(2),same=seat(2),r=select([first,same]);assert.equal(r.chosen.slot,first,'registry/slot order still resolves exact ties');
+}
+{
+  const bed=seat(2,0,{doorX:30,doorZ:0}),r=select([bed],{sleep:true});
+  assert.equal(r.chosen.slot,bed);assert.equal(r.calls[0].bed,true,'bed selection uses bed coordinates while the full query still validates its door approach');
+}
+{
+  const near=seat(2),far=seat(20),other={id:2,position:{x:20,y:0,z:0},footprint:30,campSeats:[far],campBeds:[]};
+  const r=select([near],{extraCamps:[other]});assert.equal(r.chosen.slot,near);assert.deepEqual(r.calls.map(c=>c.slot),[near],'closer claims prune slots in later camps too');
+}
+assert.equal(select([seat(28),seat(40),seat(Number.NaN)]).chosen,null,'no out-of-range or invalid candidate can acquire a claim');
+console.log('PASS camp reachability: strict 28m boundary, exact ties/order, occupied/unreachable/invalid slots, nearest reachable choice across camps, and distinct bed-door support semantics without redundant sweeps.');

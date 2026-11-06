@@ -1,0 +1,6 @@
+
+DevTools listening on ws://127.0.0.1:58464/devtools/browser/685b337b-9b10-4a2e-a021-584ad4bc0c1a
+Trying to load the allocator multiple times. This is *not* supported.
+[21575:35283087:1105/180124.264085:ERROR:content/browser/network_service_instance_impl.cc:652] Network service crashed or was terminated, restarting service.
+[21575:35283087:1105/180124.264575:ERROR:content/browser/gpu/gpu_process_host.cc:1042] GPU process exited unexpectedly: exit_code=15
+aperitif: Failed to initialize sandbox

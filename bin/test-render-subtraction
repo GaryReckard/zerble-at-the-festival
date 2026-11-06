@@ -1,0 +1,26 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {renderSubtractionTargets,withoutRendering} from '../src/renderSubtraction.js';
+
+const scene=new THREE.Scene(),adults=new THREE.Group(),kids=new THREE.Group(),hidden=new THREE.Group();
+const adult=new THREE.Mesh(),child=new THREE.Mesh(),world=new THREE.Mesh(),unseen=new THREE.Mesh(),vehicle=new THREE.Mesh();
+adults.add(adult);kids.add(child);hidden.add(unseen);hidden.visible=false;
+scene.add(adults,kids,hidden,world,vehicle);
+const game={scene,crowd:{group:adults},kids:{group:kids},zerble:{root:vehicle}};
+const groups=renderSubtractionTargets(game);
+assert.deepEqual(groups.get('adults'),[adult]);assert.deepEqual(groups.get('children'),[child]);
+assert.deepEqual(groups.get('world'),[world]);assert.deepEqual(groups.get('vehicles'),[vehicle]);
+const childrenBefore=[...scene.children],geometry=child.geometry,material=child.material;
+await withoutRendering([child,child],async()=>{
+  assert.equal(child.visible,false);assert.equal(adult.visible,true);assert.equal(world.visible,true);
+});
+assert.equal(child.visible,true);
+await assert.rejects(withoutRendering([child],()=>{throw new Error('draw failed');}),/draw failed/);
+assert.equal(child.visible,true);
+await assert.rejects(withoutRendering([child],async()=>{throw new Error('async draw failed');}),/async draw failed/);
+assert.equal(child.visible,true);
+assert.deepEqual(scene.children,childrenBefore);assert.equal(child.geometry,geometry);assert.equal(child.material,material);
+const streamed=new THREE.Mesh();kids.add(streamed);
+assert.deepEqual(renderSubtractionTargets(game).get('children'),[child,streamed]);
+console.log('PASS render subtraction: real scene family boundaries, hidden ancestors, streamed children, exact failure restoration, unchanged resources and ownership.');

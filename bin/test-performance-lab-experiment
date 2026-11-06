@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""Controller integration with synthetic captures; no processes or browser."""
+import contextlib,copy,io,json,runpy,sys,tempfile
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tooling'))
+from performance_lab import experiment as controller
+from performance_lab.contract import canonical,digest,errors
+from performance_lab.analysis import calibrate,compare,ORDER
+from performance_lab.supervisor import atomic,CleanupFailure
+fixture=runpy.run_path(str(Path(__file__).with_name('test-performance-lab-contract')))['fixture']
+controller.verify=lambda *_:None
+calls=[];fail_cleanup=False
+
+def fake_supervise(directory,root,run,deadline):
+ directory.mkdir(parents=True);calls.append((run['identity']['scenario'],run['identity']['label'],run['identity']['injectionMs']))
+ if fail_cleanup:return dict(state='failed',cleanup={'ok':False})
+ value=fixture();value['identity']=copy.deepcopy(run['identity']);scenario=value['identity']['scenario'];dose=value['identity']['injectionMs'];seconds=30 if scenario=='dense-festival-v1' else 60
+ n=seconds*20;interval=50+dose
+ value['conditions']['seed']=run['conditions']['seed']
+ value['frames']=[[interval,8+dose,min(4,i*5//n) if seconds==60 else 0,dose/1000,dose] for i in range(n)]
+ value['progress'].update(acceptedSeconds=seconds,wallSeconds=n*interval/1000,physicsSteps=seconds*60,outerLost=n*dose/1000)
+ if seconds==60:
+  value['semantic']['routePolicy']='waypoint-v1'
+  value['progress'].update(routeWallSeconds=n*interval/1000*.8,loads=1,unloads=1,streamingEvents=[[1,'load','new'],[2,'unload','old']],checkpoints=[dict(segment=i,t=seconds*(i+1)/5,wallSeconds=n*interval/1000*(i+1)/5,x=0,z=i) for i in range(4)])
+ value['state']='exporting';value.pop('cleanup');value.pop('exportHash');atomic(directory/'capture.json',value)
+ final=copy.deepcopy(value);final.update(state='completed',cleanup={'ok':True},exportHash=digest(value));assert errors(final)==[],errors(final);atomic(directory/'run.json',final)
+ return dict(state='collected',cleanup={'ok':True})
+controller.supervise=fake_supervise
+with tempfile.TemporaryDirectory(prefix='zerble-lab-controller-') as tmp:
+ root=Path(tmp);snapshot=root/'snapshot';snapshot.mkdir();atomic(snapshot/'manifest.json',dict(app='app',build='build',harness='h'))
+ with contextlib.redirect_stdout(io.StringIO()):result=controller.experiment(snapshot,root/'pass',40)
+ assert len(calls)==48
+ assert json.loads((result/'result.json').read_text())['state']=='accepted'
+ for scenario in ('dense-festival-v1','streaming-drive-v1'):
+  report=json.loads((result/scenario/'sensitivity.json').read_text());assert report['verdict']=='regressed';assert report['metrics']['segment-0-wallP95']['direction']==1
+  assert json.loads((result/scenario/'holdout.json').read_text())['verdict']=='no detectable change'
+ # An overall gain must not conceal a slower protected segment.
+ sample=json.loads(next(result.glob('*/run.json')).read_text())
+ def segmented(index,candidate=False):
+  r=copy.deepcopy(sample);r['identity'].update(runId='segment-'+str(index),scenario='streaming-drive-v1',injectionMs=0)
+  if candidate:r['identity'].update(app='candidate-app',build='candidate-build')
+  r['semantic']['routePolicy']='waypoint-v1';r['frames']=[];points=[];wall=0
+  for segment in range(5):
+   interval=(80 if segment==1 else 100) if candidate else (50 if segment==1 else 150)
+   r['frames'] += [[interval,10,segment,max(0,interval/1000-.05),0] for _ in range(240)]
+   wall+=interval*240/1000
+   if segment<4:points.append(dict(segment=segment,t=(segment+1)*12,wallSeconds=wall,x=segment,z=0))
+  r['progress'].update(acceptedSeconds=60,wallSeconds=wall,outerLost=sum(f[3] for f in r['frames']),physicsSteps=3600,routeWallSeconds=points[-1]['wallSeconds'],checkpoints=points,loads=1,unloads=1,streamingEvents=[[1,'load','new'],[2,'unload','old']])
+  assert not errors(r),errors(r)
+  return r
+ cal=calibrate([segmented('cal-'+str(i)) for i in range(4)])
+ held=compare([segmented('hold-'+str(i)) for i in range(8)],cal,validation=True)
+ mixed=compare([segmented('trial-'+str(i),label=='B') for i,label in enumerate(ORDER)],cal,held)
+ assert mixed['metrics']['wallP95']['direction']==-1
+ assert mixed['metrics']['segment-1-wallP95']['direction']==1
+ assert mixed['verdict']=='regressed',mixed
+ calls.clear();fail_cleanup=True
+ try:
+  with contextlib.redirect_stdout(io.StringIO()):controller.experiment(snapshot,root/'fail',40)
+  raise AssertionError('cleanup failure accepted')
+ except CleanupFailure:pass
+ assert len(calls)==1,'no subsequent run may follow cleanup failure'
+ record=next((root/'fail/experiments').glob('*/result.json'));assert json.loads(record.read_text())['state']=='failed'
+print('PASS experiment controller: full 48-run ordering, independent calibration/holdout/injection and segment reports, durable failure and immediate cleanup-stop; all data synthetic, no browser launched')

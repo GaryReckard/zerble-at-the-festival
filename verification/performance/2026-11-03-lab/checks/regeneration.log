@@ -1,0 +1,9 @@
+dense-festival-v1: calibration regenerated exactly
+dense-festival-v1: overhead agrees with raw-frame quantiles and saved threshold
+dense-festival-v1: holdout regenerated exactly, no detectable change
+dense-festival-v1: sensitivity regenerated exactly, regressed
+streaming-drive-v1: calibration regenerated exactly
+streaming-drive-v1: overhead agrees with raw-frame quantiles and saved threshold
+streaming-drive-v1: holdout regenerated exactly, no detectable change
+streaming-drive-v1: sensitivity regenerated exactly, regressed
+Two-scenario injected-cost acceptance: accepted

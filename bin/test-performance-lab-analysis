@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+import copy,runpy,sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tooling'))
+from performance_lab.analysis import *
+fixture=runpy.run_path(str(Path(__file__).with_name('test-performance-lab-contract')))['fixture']
+
+def set_frames(r,ms,work=8,injected=0):
+ n=round(30/min(ms/1000,.05));r['frames']=[[ms,work,0,max(0,ms/1000-.05),injected] for _ in range(n)]
+ r['progress']['wallSeconds']=n*ms/1000;r['progress']['outerLost']=sum(f[3] for f in r['frames'])
+
+def rows(prefix,ms=16):
+ result=[]
+ for i in range(8):
+  r=fixture();r['identity']['runId']=prefix+str(i);set_frames(r,ms);result.append(r)
+ return result
+cal=calibrate(rows('cal')[:4]);assert cal['state']=='frozen'
+base=rows('hold');held=compare(base,cal,validation=True);assert held['verdict']=='no detectable change'
+trial=rows('trial')
+for i in [1,2,5,6]:
+ set_frames(trial[i],32,24,16);trial[i]['identity']['injectionMs']=16
+r=compare(trial,cal,held);assert r['verdict']=='regressed',r
+fast=rows('fast',32)
+for i in [1,2,5,6]:set_frames(fast[i],16)
+assert compare(fast,cal,held)['verdict']=='improved'
+# CPU work without a crossed wall deadline is not a displayed-frame regression.
+spare=rows('spare')
+for i in [1,2,5,6]:set_frames(spare[i],16,12,4);spare[i]['identity']['injectionMs']=4
+assert compare(spare,cal,held)['verdict']=='no detectable change'
+# Draw reductions are outcomes, content reductions change eligibility.
+cheap=rows('cheap')
+for i in [1,2,5,6]:cheap[i]['cost']['drawsMax']=100
+assert compare(cheap,cal,held)['verdict']=='no detectable change'
+cheap[2]['semantic']['populationMin']=100
+assert compare(cheap,cal,held)['verdict']=='comparison invalid'
+assert compare(rows('trial'),cal,None)['verdict']=='comparison invalid'
+assert compare(base,cal,held)['verdict']=='comparison invalid'
+dirty=rows('dirty');dirty[0]['state']='failed';assert compare(dirty,cal,held)['verdict']=='comparison invalid'
+drift=rows('drift');set_frames(drift[7],100,80);assert compare(drift,cal,validation=True)['verdict']=='comparison invalid'
+for mutate in [lambda r:r['conditions'].update(tier='low'),lambda r:r['conditions'].update(width=None),lambda r:r['semantic'].update(childrenMin=1),lambda r:r['identity'].update(runId='bad0')]:
+ bad=rows('bad');mutate(bad[1]);assert compare(bad,cal,held)['verdict']=='comparison invalid'
+assert suite_verdict({'parked':{'verdict':'improved'},'drive':{'verdict':'regressed'}})=='regressed'
+assert suite_verdict({'parked':{'verdict':'improved'},'drive':{'verdict':'comparison invalid'}})=='comparison invalid'
+for bad in [None,[],False,{'identity':None},{'identity':{'runId':['not','a','string']}}]:
+ assert calibrate([bad]*4)['verdict']=='comparison invalid'
+ assert compare([bad]*8,cal,held)['verdict']=='comparison invalid'
+other=rows('other')
+for row in other:row['identity']['app']='different-source'
+assert compare(other,cal,validation=True)['verdict']=='comparison invalid'
+other=rows('other-build')
+for row in other:row['identity']['build']='different-build'
+assert compare(other,cal,held)['verdict']=='comparison invalid'
+for mutate in [lambda r:r.update(cleanup=None),lambda r:r['identity'].update(scenario=['invalid'])]:
+ malformed=rows('nested');mutate(malformed[0]);assert compare(malformed,cal,held)['verdict']=='comparison invalid'
+assert suite_verdict({})=='comparison invalid'
+original=copy.deepcopy(trial);assert compare(trial,cal,held)==r;assert trial==original
+print('PASS performance-lab analysis: fresh holdouts, CPU headroom, comparable cost reductions, content loss, drift, failed runs, no reuse and deterministic unmutated outputs')

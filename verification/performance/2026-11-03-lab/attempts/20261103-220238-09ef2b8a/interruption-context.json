@@ -1,0 +1,5 @@
+{
+  "reason": "Operator returned briefly and explicitly confirmed causing the focus loss, then reassigned the quiet Mac",
+  "originalAttemptRemainsFailed": true,
+  "reuseCalibration": false
+}

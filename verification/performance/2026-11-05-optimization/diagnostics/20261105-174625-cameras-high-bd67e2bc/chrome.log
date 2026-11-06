@@ -1,0 +1,10 @@
+
+DevTools listening on ws://127.0.0.1:54424/devtools/browser/710bc9ad-33e1-4fc3-ad2f-0424a5c52564
+Trying to load the allocator multiple times. This is *not* supported.
+[9825:35230097:1105/174701.517939:ERROR:components/policy/core/browser/policy_conversions_client.cc:332] DeveloperToolsDisabled has an error of type: Ignored because it was overridden by DeveloperToolsAvailability.
+[9825:35230097:1105/174701.630314:ERROR:content/browser/network_service_instance_impl.cc:652] Network service crashed or was terminated, restarting service.
+[9825:35230097:1105/174701.631525:ERROR:content/browser/gpu/gpu_process_host.cc:1042] GPU process exited unexpectedly: exit_code=15
+[10716:35233931:1105/174701.658997:ERROR:base/apple/mach_port_rendezvous_mac.cc:256] bootstrap_look_up com.google.Chrome.MachPortRendezvousServer.1: Permission denied (1100)
+[10716:35233931:1105/174701.659153:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)
+[10717:35233934:1105/174701.669583:ERROR:base/apple/mach_port_rendezvous_mac.cc:256] bootstrap_look_up com.google.Chrome.MachPortRendezvousServer.1: Permission denied (1100)
+[10717:35233934:1105/174701.669820:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)

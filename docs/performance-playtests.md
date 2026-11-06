@@ -166,3 +166,7 @@ The desktop Chrome and iPhone Safari drive and Trip captures were collected on
 are in [the guided playtest report](../verification/performance/2026-10-09/guided-playtests.md),
 with follow-up work tracked in [ROADMAP.md](../ROADMAP.md). Keep that performance
 work separate from the far-field visual review.
+
+## Repeatable lab scenarios
+
+The [local performance lab](performance-lab.md) extends the capture/report path with immutable source snapshots, exact frames and script-owned comparisons. Both scenarios passed real hardware, overhead, calibration, fresh holdout and injected-cost sensitivity checks on the reserved Mac; its foreground Chrome controller requires an explicitly assigned quiet window for captures. Existing guided desktop/phone playtests remain supported.

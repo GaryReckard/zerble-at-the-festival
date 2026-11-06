@@ -27,6 +27,10 @@ export class BoostStreaks {
       color: 0xff8f32,
       side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
+      // Draw after opaque scenery. Additive blending alone does not put the
+      // mesh in the transparent pass, so later terrain could erase the wake.
+      transparent: true,
+      forceSinglePass: true,
       depthWrite: false,
       toneMapped: false,
     });

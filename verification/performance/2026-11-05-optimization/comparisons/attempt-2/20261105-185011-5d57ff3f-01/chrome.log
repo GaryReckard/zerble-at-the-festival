@@ -1,0 +1,6 @@
+
+DevTools listening on ws://127.0.0.1:50577/devtools/browser/713e1111-c7cf-4496-8642-d139a6d22b11
+Trying to load the allocator multiple times. This is *not* supported.
+[61286:35511683:1105/185108.888925:ERROR:components/policy/core/browser/policy_conversions_client.cc:332] DeveloperToolsDisabled has an error of type: Ignored because it was overridden by DeveloperToolsAvailability.
+[61953:35516609:1105/185109.019264:ERROR:base/apple/mach_port_rendezvous_mac.cc:256] bootstrap_look_up com.google.Chrome.MachPortRendezvousServer.1: Permission denied (1100)
+[61953:35516609:1105/185109.019438:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)

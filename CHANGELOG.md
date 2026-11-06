@@ -2,6 +2,30 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-05
+
+### Added
+- **Local rendering subtraction probe.** `sceneProbe=subtract` isolates children, adults, other people and world rendering in a parked scene, restoring and repeating the baseline between interventions. Visibility, hooks, GPU queries and scheduling restore after success, errors, timeout and page exit. Offline regressions and Low/High hardware attribution captures pass; equal-content calibrated optimization measurements remain separate. [Work record](verification/performance/2026-11-05-optimization/README.md).
+
+### Changed
+- **Child models share fixed shapes and palette materials.** Lazy page-lifetime pools retain the same meshes, appearance, animated poses, shadows and construction random draws. A fixed 50-child Node inventory uses 14 geometry objects instead of 490 and 43 materials instead of 375; construction measurements and exact legacy/disposal regressions are saved. Real-game and sandbox qualification pass; physical-device validation remains open. [Candidate evidence](verification/performance/2026-11-05-optimization/README.md#first-candidate-shared-child-resources).
+- **People avoid terrain work that cannot affect their choices.** Immediate specialist moves use the existing atomic support API, while nearest-place searches reject losing candidates before terrain sweeps. Bridge, floor, footprint, reservation, tie-order and behavior tests retain their prior results. Together with child presentation instancing, fixed High desktop median run p95 fell from 30.5 to 18.3 ms in the festival and 31.3 to 19.9 ms on the route. Low's primary delivered-frame verdict is no detectable change, with lower recorded CPU work. [Calibrated results and preserved failed holdout](verification/performance/2026-11-05-optimization/README.md#calibrated-comparison-ledger).
+- **Children retain their models while using camera-aware instanced rendering.** Original rigs still own animation, collision and interactions, while current camera visibility filters submitted instances and offscreen shadow casters remain available. Prepared Low/High chase, first-person and top-down comparisons at Noon/Midnight retain near-identical world pixels; unsupported rig/render-state changes fall back to ordinary rendering. Full checks, tier qualification and calibrated comparisons pass; physical-device timing remains open. [Evidence](verification/performance/2026-11-05-optimization/README.md#camera-aware-child-presentation).
+
+## 2026-11-04
+
+### Fixed
+- **Performance-lab provenance and input restoration survive edge cases.** Before and after each launch, live host CLI/tooling hashes must match the immutable snapshot, so an older snapshot cannot label a newer collector with an old harness identity. Keys first pressed during diagnostic ownership remain suppressed through auto-repeat until released. Focused regressions and independent review cover both fixes; the prior frozen-source timing bundle retains its original identities.
+
+## 2026-11-03
+
+### Fixed
+- **Lab child construction is explicit and comparable.** A private seeded construction dependency gives diagnostic launches the same initial full child population, while live behavior remains random and ordinary gameplay retains its exact prior random draws. A prior trial that failed its child-population guard is preserved, and the revised content recipe requires fresh calibration.
+- **Performance-lab comparisons and failure proof are stricter.** Calibration and holdouts bind to the exact baseline build, reports include protected route-segment timings, deliberate faults must prove entry, and unverified cleanup revokes capability and retains the exclusive lease. Synthetic controller tests cover the complete run sequence, while both real-game scenarios passed a complete 48-run hardware acceptance trial with fresh unchanged-source holdouts and comparable injected regressions.
+
+### Added
+- **Local performance-lab foundation.** Added bounded exact-frame capture, immutable source/build snapshots, a supervised full-Chrome controller and deterministic offline calibration/comparison reports. Logical input isolation and localhost publication guards keep diagnostic runs separate from ordinary play. The operating skill wraps verified commands. Hardware ownership/failure cleanup, ordinary/diagnostic tier integration and a full 48-run two-scenario acceptance trial passed on the reserved Mac. Both fresh holdouts reported no detectable change, both declared injected variants regressed, and all six offline CLI reports regenerated exactly. [Current evidence and limitations](verification/performance/2026-11-03-lab/README.md).
+
 ## 2026-11-02
 
 ### Added
@@ -11,6 +35,14 @@ All notable changes to Zerble at the Festival. Newest at top. Following [Keep a 
 
 ### Changed
 - **The festival now uses the new landscape by default.** Enabled varied Mountain Top districts, stronger terrain, streams and working bridges for ordinary play, together with the integrated vehicle, people and furniture support. `landscape=1` retains the previous layout, while flat-terrain and legacy-world debug modes remain available. Gary authorized shipping after desktop verification; physical-device and unprompted player-recognition checks remain open. [Release record](verification/landscape/2026-11-02-release.md).
+
+### Fixed
+- **Chairs cause small dents instead of tree-sized damage.** Lightweight seating uses 6% of solid-obstacle damage with a three-point incident cap, for both static and physically adopted chairs. Trees, hard landings and simultaneous harder contacts retain their severity.
+- **Boost rings render beyond the cart instead of looking cut to its silhouette.** The additive wake now uses the transparent render pass, so later opaque terrain cannot erase it. The bounded eight-ring pool retains one instanced draw and normal depth testing, and bloom quality changes no longer switch the wake off. Reduced motion and the existing speed threshold still apply. [Rendering checks](verification/boost-wake/2026-11-02/README.md).
+
+### Performance
+- **Crowds avoid terrain-route checks for distant dancefloors.** Stage distance is checked before support reachability, a zero hard-overlap push skips redundant support movement, and immediate NPC movement validates its swept footprint once. Nearby and cross-floor stage checks and delayed-proposal revalidation remain intact. A matched Chrome High baseline traced the reported slowdown to adult updates and measured median frame work falling from 86.8 to 30.9 ms; [CPU profiles and the pasted capture](verification/performance/2026-11-02-render-load/README.md#follow-up-capture-and-crowd-cpu) record the investigation and live-cohort limits.
+- **Detailed bubbles no longer redraw the festival for refraction.** Alpha-transparent soap shells keep iridescence and sheen while removing the scene-wide transmission pass. A parked High-tier comparison exposed roughly twice the scene submissions with the old material; the bounded local rendering probe and [before/after evidence](verification/performance/2026-11-02-render-load/README.md) separate renderer costs from physics and device FPS.
 
 ## 2026-11-01
 

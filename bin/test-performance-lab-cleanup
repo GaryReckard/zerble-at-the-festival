@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""Fault-model tests; no OS processes, server, or browser is launched."""
+import signal,sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tooling'))
+from performance_lab.supervisor import cleanup_owned
+class Process:
+ def __init__(self,pid,alive):self.pid=pid;self.alive=alive
+ def poll(self):return None if self.alive else 0
+owned={101:{},102:{}}
+# If inspection fails, direct live child groups are still terminated, but
+# uncertain descendant PIDs are never blindly killed or declared absent.
+signals=[]
+def unavailable(_):raise PermissionError('inspection unavailable')
+r=cleanup_owned(owned,[Process(101,True),Process(999,False)],inspect=unavailable,signal_group=lambda pid,sig:signals.append(('group',pid,sig)),signal_pid=lambda pid,sig:signals.append(('pid',pid,sig)),wait=lambda _:None)
+assert not r['ok'];assert r['inspectionError'];assert ('group',101,signal.SIGTERM) in signals
+assert all(kind=='group' and pid==101 for kind,pid,_ in signals)
+# A previously exited root group is never signalled. Only currently verified
+# task descendants receive termination, and no unrelated PID enters the set.
+alive={102};signals=[]
+def inspect(_):return sorted(alive)
+def terminate(pid,sig):signals.append((pid,sig));alive.discard(pid)
+r=cleanup_owned(owned,[Process(101,False)],inspect=inspect,signal_group=lambda *_:(_ for _ in ()).throw(AssertionError('stale group')),signal_pid=terminate,wait=lambda _:None)
+assert r['ok'];assert signals==[(102,signal.SIGTERM)];assert r['remaining']==[]
+checks=0
+def transient(_):
+ global checks
+ checks+=1
+ return [102] if checks==1 else []
+def denied(*_):raise PermissionError('helper is exiting')
+r=cleanup_owned(owned,[],inspect=transient,signal_pid=denied,wait=lambda _:None)
+assert r['ok'] and r['terminationErrors'][0]['pid']==102 and not r['inspectionError']
+r=cleanup_owned(owned,[],inspect=lambda _:[102],signal_pid=denied,wait=lambda _:None)
+assert not r['ok'] and r['remaining']==[102] and r['terminationErrors']
+print('PASS cleanup fault model: inspector failure cannot bypass teardown or claim success, stale groups and unverified/unrelated PIDs are never signalled')

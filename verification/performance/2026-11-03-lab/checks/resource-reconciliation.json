@@ -1,0 +1,36 @@
+{
+  "ownershipManifestsChecked": 144,
+  "uniqueRecordedBrowserPids": 2777,
+  "remainingOwnedIdentities": [],
+  "reusedRecordedPids": [],
+  "unrelatedResources": [
+    {
+      "pid": 67017,
+      "started": "Tue Nov 3 16:40:36 2026",
+      "kind": "user-server",
+      "preserved": true
+    },
+    {
+      "pid": 11627,
+      "started": "Sat Oct 24 23:20:50 2026",
+      "kind": "preexisting-keepawake",
+      "preserved": true
+    },
+    {
+      "pid": 50357,
+      "started": "Mon Nov 2 16:19:03 2026",
+      "kind": "preexisting-chrome",
+      "preserved": true
+    }
+  ],
+  "keepawake": {
+    "pid": 81280,
+    "stopped": true,
+    "replacedPid": 39016,
+    "parentExited": true
+  },
+  "userServerHttpStatus": 200,
+  "exclusiveLeaseAbsent": true,
+  "inspection": "Direct ps -p query for the exact recorded PID set, comparing birth identities",
+  "postReviewReconciled": true
+}

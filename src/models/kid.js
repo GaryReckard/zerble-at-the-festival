@@ -18,6 +18,51 @@ const HAIR_PALETTE = [0x3a2a1a, 0x6a4a2a, 0x8b5a2b, 0xd9a26e, 0xc97a3b, 0x222];
 const SKIN_PALETTE = [0xe6c098, 0xd1a070, 0xb37e5a, 0x8a5a3a];
 const HAT_PALETTE = [0xff5577, 0x33d9ff, 0xc080ff, 0x6fcf6a, 0xffe066];
 
+// Fixed shapes and palette materials live for the page, like person hair.
+// Keep them shared so removing one gaggle or sandbox model cannot dispose
+// buffers/materials still used by another. Animation only changes transforms.
+const geometryFactories = {
+  leg:()=>new THREE.CylinderGeometry(0.07,0.07,0.45,8),
+  shoe:()=>new THREE.BoxGeometry(0.10,0.05,0.16),
+  torso:()=>new THREE.CapsuleGeometry(0.16,0.30,4,8),
+  arm:()=>new THREE.CapsuleGeometry(0.055,0.32,4,6),
+  head:()=>new THREE.IcosahedronGeometry(0.18,1),
+  eye:()=>new THREE.SphereGeometry(0.022,6,6),
+  cap:()=>new THREE.CylinderGeometry(0.16,0.16,0.08,14),
+  brim:()=>new THREE.BoxGeometry(0.32,0.025,0.10),
+  stick:()=>new THREE.CylinderGeometry(0.022,0.022,0.5,6),
+  string:()=>new THREE.CylinderGeometry(0.005,0.005,0.55,4),
+  balloon:()=>new THREE.IcosahedronGeometry(0.12,1),
+};
+const materialStyles = {
+  shirt:{roughness:.85,flatShading:true},
+  cloth:{roughness:.9,flatShading:true},
+  dark:{roughness:.8},
+  hat:{roughness:.7,flatShading:true},
+  stick:{emissiveIntensity:1.4,roughness:.4},
+  string:{roughness:.9},
+  balloon:{roughness:.5,emissiveIntensity:.25},
+};
+const geometries=new Map(),materials=new Map();
+// Three's resource UUIDs consume the global random stream. Reuse must retain
+// that allocation's UUID draw so the next palette, accessory and world draws
+// stay in place. The legacy-equivalence test covers cold and warm pool paths.
+function geometry(kind){
+  if(!geometries.has(kind)){
+    const value=geometryFactories[kind]();value.userData.shared=true;geometries.set(kind,value);
+  }else THREE.MathUtils.generateUUID();
+  return geometries.get(kind);
+}
+function material(style,color){
+  const key=`${style}:${color}`;
+  if(!materials.has(key)){
+    const options={color,...materialStyles[style]};
+    if(style==='stick'||style==='balloon')options.emissive=color;
+    const value=new THREE.MeshStandardMaterial(options);value.userData.shared=true;materials.set(key,value);
+  }else THREE.MathUtils.generateUUID();
+  return materials.get(key);
+}
+
 export function buildKid(rng = Math.random) {
   const g = new THREE.Group();
   const body = new THREE.Group();
@@ -28,19 +73,13 @@ export function buildKid(rng = Math.random) {
   const hair = HAIR_PALETTE[Math.floor(rng() * HAIR_PALETTE.length)];
   const skin = SKIN_PALETTE[Math.floor(rng() * SKIN_PALETTE.length)];
 
-  const shirtMat = new THREE.MeshStandardMaterial({
-    color: shirt, roughness: 0.85, flatShading: true,
-  });
-  const pantsMat = new THREE.MeshStandardMaterial({
-    color: pants, roughness: 0.9, flatShading: true,
-  });
-  const skinMat = new THREE.MeshStandardMaterial({
-    color: skin, roughness: 0.9, flatShading: true,
-  });
+  const shirtMat = material('shirt',shirt);
+  const pantsMat = material('cloth',pants);
+  const skinMat = material('cloth',skin);
 
   // ----- Legs — two short pants-colored cylinders, slightly apart -----
   const walkLegs=[],walkArms=[];
-  const legGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.45, 8);
+  const legGeo = geometry('leg');
   for (const lx of [-0.08, 0.08]) {
     const leg = new THREE.Mesh(legGeo, pantsMat);
     leg.position.set(lx, 0.23, 0);
@@ -48,8 +87,8 @@ export function buildKid(rng = Math.random) {
     body.add(leg);
     // Tiny shoes
     const shoe = new THREE.Mesh(
-      new THREE.BoxGeometry(0.10, 0.05, 0.16),
-      new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.8 }),
+      geometry('shoe'),
+      material('dark',0x111),
     );
     shoe.position.set(lx, 0.025, -0.04);
     body.add(shoe);
@@ -58,7 +97,7 @@ export function buildKid(rng = Math.random) {
 
   // ----- Torso — capsule sized for a kid -----
   const torso = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.16, 0.30, 4, 8),
+    geometry('torso'),
     shirtMat,
   );
   torso.position.y = 0.65;
@@ -66,7 +105,7 @@ export function buildKid(rng = Math.random) {
   body.add(torso);
 
   // ----- Arms — two thin capsules dangling at the sides -----
-  const armGeo = new THREE.CapsuleGeometry(0.055, 0.32, 4, 6);
+  const armGeo = geometry('arm');
   for (const sx of [-1, 1]) {
     // Sleeve (shirt color, upper portion)
     const armGroup = new THREE.Group();
@@ -88,7 +127,7 @@ export function buildKid(rng = Math.random) {
 
   // ----- Head -----
   const head = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.18, 1),
+    geometry('head'),
     skinMat,
   );
   head.position.y = 1.00;
@@ -96,9 +135,9 @@ export function buildKid(rng = Math.random) {
   body.add(head);
 
   // Eyes — two tiny black dots facing forward
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.8 });
+  const eyeMat = material('dark',0x111);
   for (const ex of [-0.06, 0.06]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 6), eyeMat);
+    const eye = new THREE.Mesh(geometry('eye'), eyeMat);
     eye.position.set(ex, 1.03, -0.16);
     body.add(eye);
   }
@@ -111,17 +150,15 @@ export function buildKid(rng = Math.random) {
     body.add(makePersonHair({style:'close',color:hair,radii:[.18,.18,.18],center:[0,1,0]}));
     // Baseball-style cap (festival kid)
     const hatColor = HAT_PALETTE[Math.floor(rng() * HAT_PALETTE.length)];
-    const hatMat = new THREE.MeshStandardMaterial({
-      color: hatColor, roughness: 0.7, flatShading: true,
-    });
+    const hatMat = material('hat',hatColor);
     const cap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.16, 0.16, 0.08, 14),
+      geometry('cap'),
       hatMat,
     );
     cap.position.y = 1.14;
     body.add(cap);
     const brim = new THREE.Mesh(
-      new THREE.BoxGeometry(0.32, 0.025, 0.10),
+      geometry('brim'),
       hatMat,
     );
     brim.position.set(0, 1.10, -0.16);
@@ -138,10 +175,8 @@ export function buildKid(rng = Math.random) {
     const accColors = [0xff5577, 0xffe066, 0x66ff88, 0x66d9ff, 0xc080ff];
     const accColor = accColors[Math.floor(rng() * accColors.length)];
     const stick = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.022, 0.022, 0.5, 6),
-      new THREE.MeshStandardMaterial({
-        color: accColor, emissive: accColor, emissiveIntensity: 1.4, roughness: 0.4,
-      }),
+      geometry('stick'),
+      material('stick',accColor),
     );
     // Position at the right hand: kid's right shoulder is at (0.20, 0.72, 0)
     // with a slight outward splay. The arm hangs ~0.50 long so the hand sits
@@ -154,17 +189,14 @@ export function buildKid(rng = Math.random) {
     // Balloon on a string
     const balloonColor = SHIRT_PALETTE[Math.floor(rng() * SHIRT_PALETTE.length)];
     const string = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.005, 0.005, 0.55, 4),
-      new THREE.MeshStandardMaterial({ color: 0x333, roughness: 0.9 }),
+      geometry('string'),
+      material('string',0x333),
     );
     string.position.set(0.22, 1.05, 0);
     body.add(string);
     const balloon = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.12, 1),
-      new THREE.MeshStandardMaterial({
-        color: balloonColor, roughness: 0.5, emissive: balloonColor,
-        emissiveIntensity: 0.25,
-      }),
+      geometry('balloon'),
+      material('balloon',balloonColor),
     );
     balloon.position.set(0.22, 1.42, 0);
     balloon.scale.set(1, 1.2, 1);

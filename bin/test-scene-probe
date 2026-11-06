@@ -1,0 +1,55 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {installSceneProbe} from '../src/sceneProbe.js';
+
+async function run({paused=false,failure=null,gpu=false,subtract=false}={}){
+  const elements=[],frames=new Map(),timers=new Map(),events=new Map();let serial=0,rendered=0;
+  globalThis.document={createElement:()=>({style:{},remove(){this.removed=true;}}),body:{append(...nodes){elements.push(...nodes);}}};
+  globalThis.window={__seed:1,addEventListener(name,fn){events.set(name,fn);}};
+  globalThis.innerWidth=1280;globalThis.innerHeight=720;globalThis.devicePixelRatio=2;
+  globalThis.requestAnimationFrame=fn=>{const id=++serial;frames.set(id,fn);return id;};
+  globalThis.cancelAnimationFrame=id=>frames.delete(id);
+  globalThis.setTimeout=fn=>{const id=++serial;timers.set(id,fn);return id;};
+  globalThis.clearTimeout=id=>timers.delete(id);
+  const originalBefore=function(){},node=Object.assign(Object.create({onBeforeRender:originalBefore}),{isMesh:true,name:'test',material:{type:'test'}});
+  const scene={children:[node],traverse(fn){fn(node);}};node.parent=scene;
+  const detailed={name:'detailed'},cheap={name:'cheap'};
+  const queryObjects=new Set();let activeQuery=null;
+  const gl={QUERY_RESULT_AVAILABLE:1,QUERY_RESULT:2,getExtension:()=>({TIME_ELAPSED_EXT:3,GPU_DISJOINT_EXT:4}),
+    createQuery(){const q={};queryObjects.add(q);return q;},beginQuery(_target,q){assert.equal(activeQuery,null);activeQuery=q;},endQuery(){activeQuery=null;},
+    getParameter:()=>false,getQueryParameter:(_q,kind)=>kind===1?true:1000000,deleteQuery:q=>queryObjects.delete(q)};
+  const originalRender=function(s){if(s===scene){node.onBeforeRender();if(failure==='render'&&++rendered===(subtract?55:15))throw new Error('render failure');}};
+  const game={scene,renderer:{render:originalRender,__sceneInfo:{calls:1,triangles:12},shadowMap:{enabled:true}},
+    kids:{group:node},bubbles:{mesh:{material:detailed},setCheapMaterial(on){this.mesh.material=on?cheap:detailed;}},zerble:{position:{toArray:()=>[0,0,0]}}};
+  game.composer={render:()=>game.renderer.render(scene)};
+  if(gpu)game.renderer.getContext=()=>gl;
+  let enabled=true,level=2,isPaused=paused;
+  const quality={isEnabled:()=>enabled,getLevel:()=>level,setEnabled(v){enabled=v;},applyLevel(v){level=v;}};
+  const debug={isPaused:()=>isPaused,pause(v){isPaused=v;}};
+  installSceneProbe({game,quality,debug,subtract});
+  const button=elements.find(e=>e.id==='scene-probe-run'),output=elements.find(e=>e.id==='scene-probe-result');
+  const pending=button.onclick();let count=0;
+  while(button.disabled&&count++<300){
+    const next=frames.entries().next().value;
+    if(next){frames.delete(next[0]);next[1]();}
+    if(count===(subtract?55:15)&&failure==='pagehide')events.get('pagehide')();
+    if(count===(subtract?55:15)&&failure==='timeout')timers.values().next().value();
+    await Promise.resolve();
+  }
+  await pending;
+  assert(count<300,'probe must terminate');
+  assert.equal(frames.size,0,'completion/failure/page exit cancels every owned animation callback');
+  assert.equal(timers.size,0,'completion/failure/page exit clears the phase deadline');
+  assert.equal(queryObjects.size,0,'every GPU query is released');assert.equal(activeQuery,null,'no GPU query is left active');
+  assert.equal(game.renderer.render,originalRender,'the renderer hook is restored');
+  assert.equal(node.onBeforeRender,originalBefore,'every per-mesh hook is restored');
+  assert.equal(Object.hasOwn(node,'onBeforeRender'),false,'an inherited callback is restored without retaining an own-property override');
+  assert.equal(game.bubbles.mesh.material,detailed);assert.equal(game.renderer.shadowMap.enabled,true);
+  assert.equal(node.visible,undefined,'subtraction restores the exact original visibility value');
+  assert.equal(enabled,true);assert.equal(level,2);assert.equal(isPaused,paused,'the original gameplay pause state is restored');
+  if(!failure){const phases=JSON.parse(output.textContent).phases;assert.equal(phases.length,3);if(gpu)for(const phase of phases){assert.equal(phase.renderGpuMs.samples,30);assert.equal(phase.renderGpuMs.p50,1);}}
+  else assert.match(output.textContent,/failure|interrupted|deadline/);
+  events.get('pagehide')();assert(elements.every(e=>e.removed),'page exit removes diagnostic UI');
+}
+for(const subtract of [false,true])for(const paused of [false,true])for(const failure of [null,'render','pagehide','timeout'])for(const gpu of [false,true])await run({paused,failure,gpu,subtract});
+console.log('PASS scene probe: bounded successful comparisons, render errors, phase timeouts, page exit, exact hook/timer/frame cleanup and original pause/material/quality restoration.');

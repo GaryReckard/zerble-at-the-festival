@@ -290,6 +290,7 @@ export function createStaticResidency({ registry, adapter, isDynamic, kinds = DE
       timing: { ...timing }, lastRejection: lastRejection ? { ...lastRejection } : null };
   }
   return Object.freeze({ request, pump, status, release, removeEntry, stats,
+    bodyKind(id) { for(const proxy of proxies.values())if(proxy.bodyId===id)return proxy.kind;return null; },
     dispose() {
       if (disposed) return;
       const errors = [];

@@ -254,6 +254,10 @@ mechanics, tradeoffs, dependencies and original proposals.
 
 ## Performance
 
+- **Validate the November 5 optimization on older-iPad Safari and actual Auto driving.** Child resource pooling, camera-aware presentation instancing and irrelevant terrain-query rejection are implemented. Four fixed-tier desktop comparisons passed, with High festival/route median run p95 improving to 18.3/19.9 ms and no detectable primary delivered-frame change on Low. Candidate route worst frames still reached roughly 140–168 ms, so trace those remaining spikes before choosing the next streaming change. The code is local and has not been deployed. Follow the [saved results](verification/performance/2026-11-05-optimization/README.md) and [device procedure](verification/performance/2026-11-05-optimization/ipad-acceptance.md).
+
+- **Desktop Auto follow-up.** The [November 2 investigation](verification/performance/2026-11-02-render-load/README.md) removed detailed bubbles' duplicate scene render and distant-stage terrain sweeps after Gary reported 15 FPS on Auto. The matched High Chrome profile reduced median frame work from 86.8 to 30.9 ms with about 300 adults retained. Gary's actual Auto driving frame delivery still needs a fresh playtest; the parked profile is not a route replay or a 60 FPS acceptance result. Keep further changes tied to measured remaining costs.
+
 - **Validate the October 22 changes on the phone.** Repeat first dusk and first
   Trip with post-process preparation enabled, then compare driving frame delivery
   after the registry optimization. Desktop probes establish avoided shader work

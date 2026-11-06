@@ -9,6 +9,8 @@
 //     caller, reported once per session (see `firsts`/`features`), or rolled up
 //     into session_end. `time_in_run_s` rides along on most events.
 
+import { PERFORMANCE_LAB } from './performanceLab/config.js';
+
 import { PASSPORT_STAMPS } from './playerStats.js';
 
 const SMILE_MILESTONES = [10, 25, 50, 100, 250, 500, 1000, 2500];
@@ -33,6 +35,7 @@ function emptyRun() {
 }
 
 function send(name, params) {
+  if(PERFORMANCE_LAB)return;
   try {
     if (typeof window === 'undefined') return;
     if (typeof window.gtag !== 'function') return;

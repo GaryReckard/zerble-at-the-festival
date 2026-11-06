@@ -1,0 +1,13 @@
+{
+  "signature": "6be46d3347469a0addfb06315a1f58a5032a769409a6011fbe223c823f9e7662",
+  "proofs": {
+    "collection": "proofs/collection",
+    "normal": "proofs/normal",
+    "page-hang": "proofs/page-hang",
+    "worker-death": "proofs/worker-death"
+  },
+  "snapshot": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/9188f890a7f7b85b6d5c769e3d0762f26eaa4c5337d7e3c04b50b4a7f53077e8",
+  "quietWindow": "Explicit assignment and re-assignment after Gary confirmed his brief focus interruption",
+  "competingKnownGameTabs": 0,
+  "scope": "Mac M4 Pro, Chrome 157, High rung 0, 1280x720 DPR 1; fixed content recipe live-festival-v2, road-follow-v2"
+}

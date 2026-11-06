@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""Exercise CLI lease handling with injected inert adapters, never a browser."""
+import contextlib,io,json,runpy,sys,tempfile
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tooling'))
+from performance_lab import supervisor,snapshot,capability
+script=Path(__file__).with_name('perf-lab').resolve();calls=[];revoked=[]
+with tempfile.TemporaryDirectory(prefix='zerble-lab-runner-') as tmp:
+ root=Path(tmp);source=root/'snapshot';source.mkdir();(source/'manifest.json').write_text(json.dumps(dict(app='a',build='b',harness='h')))
+ saved=(snapshot.ROOT,snapshot.verify,supervisor.supervise,capability.require,capability.invalidate,sys.argv)
+ snapshot.ROOT=root;snapshot.verify=lambda *_:None;capability.require=lambda *_,**__:None
+ capability.invalidate=lambda output,reason:revoked.append(reason)
+ def failed(*args,**kwargs):calls.append(1);return dict(state='failed',cleanup={'ok':False})
+ supervisor.supervise=failed;sys.argv=[str(script),'run','--quiet','--snapshot',str(source),'--output',str(root/'output')]
+ try:
+  with contextlib.redirect_stdout(io.StringIO()):
+   try:runpy.run_path(str(script),run_name='__main__');raise AssertionError('failed cleanup accepted')
+   except supervisor.CleanupFailure:pass
+  assert (root/'.claude/captures/performance-lab.lock').exists()
+  assert len(calls)==1 and len(revoked)==1
+  with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):
+   try:runpy.run_path(str(script),run_name='__main__');raise AssertionError('second run accepted')
+   except SystemExit as error:assert error.code==2
+  assert len(calls)==1,'a retained failed-cleanup lease must prevent a second launch'
+ finally:snapshot.ROOT,snapshot.verify,supervisor.supervise,capability.require,capability.invalidate,sys.argv=saved
+print('PASS runner: cleanup failure revokes capability and retains the exclusive lease, a second launch is refused; no browser or OS child launched')
+from performance_lab import experiment as controller
+with tempfile.TemporaryDirectory(prefix='zerble-lab-experiment-cli-') as tmp:
+ root=Path(tmp);source=root/'snapshot';source.mkdir();(source/'manifest.json').write_text(json.dumps(dict(app='a',build='b',harness='h')))
+ destination=root/'output/experiments/accepted'
+ saved=(snapshot.ROOT,snapshot.verify,capability.require,controller.experiment,sys.argv)
+ snapshot.ROOT=root;snapshot.verify=lambda *_:None;capability.require=lambda *_,**__:None
+ controller.experiment=lambda *_:destination
+ sys.argv=[str(script),'experiment','--quiet','--snapshot',str(source),'--output',str(root/'output')]
+ output=io.StringIO()
+ try:
+  with contextlib.redirect_stdout(output):
+   try:runpy.run_path(str(script),run_name='__main__')
+   except SystemExit as error:assert error.code==0
+  lines=output.getvalue().splitlines();assert json.loads(lines[0])['operation']=='experiment'
+  assert json.loads(lines[-1])['directory']==str(destination),'CLI must identify the actual experiment bundle, not an unused run directory'
+  assert not (root/'.claude/captures/performance-lab.lock').exists()
+ finally:snapshot.ROOT,snapshot.verify,capability.require,controller.experiment,sys.argv=saved
+print('PASS experiment CLI reports the actual accepted bundle and releases its lease; no browser launched')
+import hashlib
+from performance_lab.contract import digest
+with tempfile.TemporaryDirectory(prefix='zerble-lab-stale-host-cli-') as tmp:
+ root=Path(tmp);source=root/'snapshot';(source/'bin').mkdir(parents=True);(source/'dist').mkdir();(root/'bin').mkdir()
+ (source/'bin/perf-lab').write_text('old host');(root/'bin/perf-lab').write_text('new host');(source/'dist/app.js').write_text('built')
+ (source/'manifest.json').write_text(json.dumps(dict(app='a',harness='old-harness',build=digest({'app.js':hashlib.sha256(b'built').hexdigest()}),files={'bin/perf-lab':hashlib.sha256(b'old host').hexdigest()})))
+ saved=(snapshot.ROOT,capability.require,supervisor.supervise,sys.argv)
+ snapshot.ROOT=root;capability.require=lambda *_,**__:None
+ launched=[];supervisor.supervise=lambda *_args,**_kwargs:launched.append(True)
+ sys.argv=[str(script),'run','--quiet','--snapshot',str(source),'--output',str(root/'output')]
+ try:
+  with contextlib.redirect_stdout(io.StringIO()):
+   try:runpy.run_path(str(script),run_name='__main__');raise AssertionError('old harness label accepted after live host changed')
+   except RuntimeError as error:assert 'Live host harness drift' in str(error)
+  assert not launched and not (root/'.claude/captures/performance-lab.lock').exists()
+ finally:snapshot.ROOT,capability.require,supervisor.supervise,sys.argv=saved
+print('PASS CLI rejects a stale host/snapshot identity before acquiring the lease or launching any browser, even with accepted backend probes')

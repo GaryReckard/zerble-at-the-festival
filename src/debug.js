@@ -621,6 +621,7 @@ function api() {
       logToast(`showColliders: ${state.showColliders}`);
     },
     pause(on = true) { state.paused = !!on; logToast(`paused: ${state.paused}`); },
+    isPaused() { return state.paused; },
     step(n = 1) { state.pendingSteps += Math.max(1, n | 0); },
     toggle() {
       state.visible = !state.visible;

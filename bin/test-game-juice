@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
-import { register } from 'node:module';
-register('./node-three-shim.mjs', import.meta.url);
 import { readFile } from 'node:fs/promises';
+import { WebGLRenderLists } from 'three/src/renderers/webgl/WebGLRenderLists.js';
 
 const {
   BoostStreaks,
@@ -32,6 +31,18 @@ assert(!shouldShowBoostStreaks({boosting: false, speed: 18, reducedMotion: false
   'ordinary high speed should not emit boost streaks');
 
 const streaks = new BoostStreaks();
+assert(streaks.mesh.material.transparent,
+  'the additive wake must render after opaque scenery so terrain cannot erase it');
+assert(streaks.mesh.material.depthTest && !streaks.mesh.material.depthWrite,
+  'the wake must respect scenery occlusion without masking later transparent effects');
+assert(streaks.mesh.material.forceSinglePass,
+  'the additive double-sided wake should retain one instanced draw');
+const lists = new WebGLRenderLists();
+const renderList = lists.get({}, 0);
+renderList.init();
+renderList.push(streaks.mesh, streaks.mesh.geometry, streaks.mesh.material, 0, 0, null);
+assert(renderList.opaque.length === 0 && renderList.transparent[0]?.object === streaks.mesh,
+  'the real Three.js renderer must schedule the wake in the transparent queue');
 const zerble = {position: {x: 3, y: 0, z: -2}, heading: 0.4, speed: 23, isBoosting: true};
 streaks.trigger({position: {x: 0, y: 0, z: 0}, heading: 0});
 assert(streaks._x[0] === 0 && Math.abs(streaks._z[0] - BOOST_STREAK_REAR) < 1e-5,

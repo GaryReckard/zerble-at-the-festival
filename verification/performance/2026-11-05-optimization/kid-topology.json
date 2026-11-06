@@ -1,0 +1,315 @@
+{
+  "recipe": "50-kid-topology-v1",
+  "seed": 1347175240,
+  "scope": "Unculled detailed model topology in Node with real Three.js. Not actual submissions, GPU memory, allocation timing or FPS. Visual gait phase uses the ordinary random draw but does not change topology.",
+  "children": 50,
+  "meshes": 737,
+  "triangles": 86400,
+  "shadowCasters": 100,
+  "sceneNodes": 1037,
+  "geometryObjects": 490,
+  "distinctGeometryContents": 14,
+  "materialObjects": 375,
+  "perKid": [
+    {
+      "meshes": 14,
+      "triangles": 1944,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 16,
+      "triangles": 1628,
+      "casters": 2,
+      "nodes": 22
+    },
+    {
+      "meshes": 15,
+      "triangles": 1680,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 13,
+      "triangles": 1920,
+      "casters": 2,
+      "nodes": 19
+    },
+    {
+      "meshes": 15,
+      "triangles": 1604,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 13,
+      "triangles": 1584,
+      "casters": 2,
+      "nodes": 19
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 14,
+      "triangles": 1944,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 16,
+      "triangles": 1628,
+      "casters": 2,
+      "nodes": 22
+    },
+    {
+      "meshes": 15,
+      "triangles": 1680,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 15,
+      "triangles": 1604,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 16,
+      "triangles": 1628,
+      "casters": 2,
+      "nodes": 22
+    },
+    {
+      "meshes": 13,
+      "triangles": 1920,
+      "casters": 2,
+      "nodes": 19
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 17,
+      "triangles": 1700,
+      "casters": 2,
+      "nodes": 23
+    },
+    {
+      "meshes": 13,
+      "triangles": 1920,
+      "casters": 2,
+      "nodes": 19
+    },
+    {
+      "meshes": 17,
+      "triangles": 1700,
+      "casters": 2,
+      "nodes": 23
+    },
+    {
+      "meshes": 15,
+      "triangles": 1604,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 16,
+      "triangles": 1628,
+      "casters": 2,
+      "nodes": 22
+    },
+    {
+      "meshes": 14,
+      "triangles": 1944,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 14,
+      "triangles": 1944,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 15,
+      "triangles": 2016,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 16,
+      "triangles": 1628,
+      "casters": 2,
+      "nodes": 22
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 15,
+      "triangles": 1604,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 15,
+      "triangles": 2016,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 16,
+      "triangles": 1628,
+      "casters": 2,
+      "nodes": 22
+    },
+    {
+      "meshes": 15,
+      "triangles": 1604,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 15,
+      "triangles": 2016,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 15,
+      "triangles": 2016,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 16,
+      "triangles": 1628,
+      "casters": 2,
+      "nodes": 22
+    },
+    {
+      "meshes": 16,
+      "triangles": 1628,
+      "casters": 2,
+      "nodes": 22
+    },
+    {
+      "meshes": 16,
+      "triangles": 1628,
+      "casters": 2,
+      "nodes": 22
+    },
+    {
+      "meshes": 13,
+      "triangles": 1920,
+      "casters": 2,
+      "nodes": 19
+    },
+    {
+      "meshes": 15,
+      "triangles": 2016,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 14,
+      "triangles": 1944,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 15,
+      "triangles": 1680,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 14,
+      "triangles": 1608,
+      "casters": 2,
+      "nodes": 20
+    },
+    {
+      "meshes": 17,
+      "triangles": 1700,
+      "casters": 2,
+      "nodes": 23
+    },
+    {
+      "meshes": 15,
+      "triangles": 1604,
+      "casters": 2,
+      "nodes": 21
+    },
+    {
+      "meshes": 15,
+      "triangles": 2016,
+      "casters": 2,
+      "nodes": 21
+    }
+  ]
+}

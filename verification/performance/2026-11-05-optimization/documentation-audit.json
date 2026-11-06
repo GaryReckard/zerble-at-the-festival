@@ -1,0 +1,512 @@
+{
+  "state": "passed",
+  "scope": "Final report and authored supporting documents, with ordered outlines/references; external report is supplied research rather than authored instructions",
+  "documents": [
+    {
+      "file": "README.md",
+      "outline": [
+        {
+          "line": 1,
+          "heading": "# Festival optimization, November 5, 2026"
+        },
+        {
+          "line": 3,
+          "heading": "## Current state"
+        },
+        {
+          "line": 39,
+          "heading": "## Baseline and published version"
+        },
+        {
+          "line": 61,
+          "heading": "## Method"
+        },
+        {
+          "line": 90,
+          "heading": "## Offline topology lead"
+        },
+        {
+          "line": 104,
+          "heading": "## First candidate: shared child resources"
+        },
+        {
+          "line": 135,
+          "heading": "## Terrain-query work"
+        },
+        {
+          "line": 168,
+          "heading": "## Camera-aware child presentation"
+        },
+        {
+          "line": 211,
+          "heading": "## Physical-device follow-up"
+        },
+        {
+          "line": 218,
+          "heading": "## Calibrated comparison ledger"
+        },
+        {
+          "line": 302,
+          "heading": "## Diagnostic entry point"
+        },
+        {
+          "line": 317,
+          "heading": "## Verification ledger"
+        }
+      ],
+      "references": [
+        {
+          "line": 12,
+          "label": "Deep Research report",
+          "target": "external-research.md",
+          "exists": true
+        },
+        {
+          "line": 13,
+          "label": "the assessment",
+          "target": "research-review.md",
+          "exists": true
+        },
+        {
+          "line": 15,
+          "label": "qualification receipts",
+          "target": "qualification/results.json",
+          "exists": true
+        },
+        {
+          "line": 16,
+          "label": "final source manifest",
+          "target": "final-candidate-manifest.json",
+          "exists": true
+        },
+        {
+          "line": 17,
+          "label": "three Astra consultations",
+          "target": "astra-review.md",
+          "exists": true
+        },
+        {
+          "line": 35,
+          "label": "derived summary",
+          "target": "comparison-summary.json",
+          "exists": true
+        },
+        {
+          "line": 41,
+          "label": "The baseline manifest",
+          "target": "baseline-manifest.json",
+          "exists": true
+        },
+        {
+          "line": 49,
+          "label": "published dancefloor code",
+          "target": "published-dancefloor.txt",
+          "exists": true
+        },
+        {
+          "line": 50,
+          "label": "asset/source-map hashes and workflow metadata",
+          "target": "published-version.json",
+          "exists": true
+        },
+        {
+          "line": 55,
+          "label": "November 2 measurements",
+          "target": "../2026-11-02-render-load/README.md",
+          "exists": true
+        },
+        {
+          "line": 92,
+          "label": "50-child model inventory",
+          "target": "kid-topology.json",
+          "exists": true
+        },
+        {
+          "line": 93,
+          "label": "this script",
+          "target": "kid-topology.mjs",
+          "exists": true
+        },
+        {
+          "line": 107,
+          "label": "frozen original model",
+          "target": "legacy-kid-model.js",
+          "exists": true
+        },
+        {
+          "line": 112,
+          "label": "independent-process construction experiment",
+          "target": "kid-construction.json",
+          "exists": true
+        },
+        {
+          "line": 113,
+          "label": "this script",
+          "target": "kid-construction.mjs",
+          "exists": true
+        },
+        {
+          "line": 131,
+          "label": "focused log",
+          "target": "checks/kid-pooling.log",
+          "exists": true
+        },
+        {
+          "line": 137,
+          "label": "source-mapped High CPU profile",
+          "target": "diagnostics/baseline-high-cpu-attribution.json",
+          "exists": true
+        },
+        {
+          "line": 144,
+          "label": "people adapter",
+          "target": "../../../src/landscape/peopleAdapter.js",
+          "exists": true
+        },
+        {
+          "line": 147,
+          "label": "Differential tests",
+          "target": "../../../bin/test-people-grounding-cost",
+          "exists": true
+        },
+        {
+          "line": 151,
+          "label": "Campsite",
+          "target": "../../../src/people/campActivity.js",
+          "exists": true
+        },
+        {
+          "line": 156,
+          "label": "camp",
+          "target": "../../../bin/test-camp-reachability",
+          "exists": true
+        },
+        {
+          "line": 157,
+          "label": "other-place",
+          "target": "../../../bin/test-place-reachability",
+          "exists": true
+        },
+        {
+          "line": 170,
+          "label": "The presenter",
+          "target": "../../../src/people/childPresentation.js",
+          "exists": true
+        },
+        {
+          "line": 180,
+          "label": "presentation regression",
+          "target": "../../../bin/test-child-presentation",
+          "exists": true
+        },
+        {
+          "line": 199,
+          "label": "Low raster metrics",
+          "target": "diagnostics/20261105-174549-cameras-low-219e3149/raster-comparison.json",
+          "exists": true
+        },
+        {
+          "line": 200,
+          "label": "High raster metrics",
+          "target": "diagnostics/20261105-174625-cameras-high-bd67e2bc/raster-comparison.json",
+          "exists": true
+        },
+        {
+          "line": 201,
+          "label": "standard-library PNG comparison",
+          "target": "compare-raster.mjs",
+          "exists": true
+        },
+        {
+          "line": 213,
+          "label": "older-iPad Safari acceptance procedure",
+          "target": "ipad-acceptance.md",
+          "exists": true
+        },
+        {
+          "line": 220,
+          "label": "first declared attempt",
+          "target": "comparisons/attempt-1/inventory.json",
+          "exists": true
+        },
+        {
+          "line": 223,
+          "label": "terminal failure",
+          "target": "comparisons/attempt-1/result.json",
+          "exists": true
+        },
+        {
+          "line": 227,
+          "label": "improved",
+          "target": "comparisons/attempt-1/high-dense-festival-v1/comparison.json",
+          "exists": true
+        },
+        {
+          "line": 232,
+          "label": "unchanged-baseline holdout",
+          "target": "comparisons/attempt-1/high-streaming-drive-v1/holdout.json",
+          "exists": true
+        },
+        {
+          "line": 243,
+          "label": "the regeneration receipt",
+          "target": "comparisons/attempt-1/regeneration.json",
+          "exists": true
+        },
+        {
+          "line": 252,
+          "label": "second experiment",
+          "target": "comparisons/attempt-2/inventory.json",
+          "exists": true
+        },
+        {
+          "line": 259,
+          "label": "completed",
+          "target": "comparisons/attempt-2/result.json",
+          "exists": true
+        },
+        {
+          "line": 265,
+          "label": "regenerated exactly",
+          "target": "comparisons/attempt-2/regeneration.json",
+          "exists": true
+        },
+        {
+          "line": 271,
+          "label": "Promotion",
+          "target": "promote-comparison.py",
+          "exists": true
+        },
+        {
+          "line": 288,
+          "label": "303 frozen application and collector inputs match the final candidate",
+          "target": "source-reconciliation.json",
+          "exists": true
+        },
+        {
+          "line": 291,
+          "label": "final check",
+          "target": "checks/final-npm-check.log",
+          "exists": true
+        },
+        {
+          "line": 291,
+          "label": "final build",
+          "target": "checks/final-npm-build.log",
+          "exists": true
+        },
+        {
+          "line": 294,
+          "label": "Final ownership reconciliation",
+          "target": "resource-cleanup.json",
+          "exists": true
+        },
+        {
+          "line": 305,
+          "label": "the lab guide",
+          "target": "../../../docs/performance-lab.md",
+          "exists": true
+        },
+        {
+          "line": 325,
+          "label": "the saved log",
+          "target": "checks/npm-check.log",
+          "exists": true
+        },
+        {
+          "line": 326,
+          "label": "production build",
+          "target": "checks/npm-build.log",
+          "exists": true
+        },
+        {
+          "line": 329,
+          "label": "passed",
+          "target": "qualification/results.json",
+          "exists": true
+        },
+        {
+          "line": 339,
+          "label": "full suite",
+          "target": "checks/kid-pooling-full-check.log",
+          "exists": true
+        },
+        {
+          "line": 340,
+          "label": "build log",
+          "target": "checks/kid-pooling-build.log",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "file": "research-review.md",
+      "outline": [
+        {
+          "line": 1,
+          "heading": "# External research assessment, November 5"
+        },
+        {
+          "line": 9,
+          "heading": "## Useful experiments to retain"
+        },
+        {
+          "line": 19,
+          "heading": "## Corrections before using the recommendations"
+        }
+      ],
+      "references": [
+        {
+          "line": 13,
+          "label": "Existing real-GPU merge rejection",
+          "target": "../../../docs/backlog/performance.md",
+          "exists": true
+        },
+        {
+          "line": 13,
+          "label": "Child topology",
+          "target": "kid-topology.json",
+          "exists": true
+        },
+        {
+          "line": 14,
+          "label": "camera",
+          "target": "../../../src/camera.js",
+          "exists": true
+        },
+        {
+          "line": 15,
+          "label": "LandscapePlanner",
+          "target": "../../../src/landscape/planner.js",
+          "exists": true
+        },
+        {
+          "line": 16,
+          "label": "Low's shim",
+          "target": "../../../src/threeShim.js",
+          "exists": true
+        },
+        {
+          "line": 17,
+          "label": "Low",
+          "target": "../../../src/perf.js",
+          "exists": true
+        },
+        {
+          "line": 17,
+          "label": "adaptive quality",
+          "target": "../../../src/adaptiveQuality.js",
+          "exists": true
+        },
+        {
+          "line": 28,
+          "label": "Three r160 WebGLInfo implementation",
+          "target": "https://github.com/mrdoob/three.js/blob/r160/src/renderers/webgl/WebGLInfo.js",
+          "exists": true
+        },
+        {
+          "line": 29,
+          "label": "texture-allocation counter",
+          "target": "https://github.com/mrdoob/three.js/blob/r160/src/renderers/webgl/WebGLTextures.js#L297",
+          "exists": true
+        },
+        {
+          "line": 30,
+          "label": "scene probe",
+          "target": "../../../src/sceneProbe.js",
+          "exists": true
+        },
+        {
+          "line": 36,
+          "label": "palette colors",
+          "target": "../../../src/models/kid.js",
+          "exists": true
+        },
+        {
+          "line": 37,
+          "label": "road DataTextures",
+          "target": "../../../src/roadMaterials.js",
+          "exists": true
+        },
+        {
+          "line": 38,
+          "label": "sign CanvasTextures",
+          "target": "../../../src/models/sugarShack.js",
+          "exists": true
+        },
+        {
+          "line": 42,
+          "label": "earlier desktop inspection",
+          "target": "../2026-11-02-render-load/README.md",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "file": "astra-review.md",
+      "outline": [
+        {
+          "line": 1,
+          "heading": "# Astra consultations"
+        }
+      ],
+      "references": [
+        {
+          "line": 28,
+          "label": "renderer",
+          "target": "../../../src/people/childPresentation.js",
+          "exists": true
+        },
+        {
+          "line": 29,
+          "label": "presentation tests",
+          "target": "../../../bin/test-child-presentation",
+          "exists": true
+        },
+        {
+          "line": 30,
+          "label": "atomic grounding tests",
+          "target": "../../../bin/test-people-grounding-cost",
+          "exists": true
+        },
+        {
+          "line": 31,
+          "label": "source-map CPU attribution",
+          "target": "diagnostics/baseline-high-cpu-attribution.json",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "file": "ipad-acceptance.md",
+      "outline": [
+        {
+          "line": 1,
+          "heading": "# Older-iPad Safari acceptance"
+        },
+        {
+          "line": 9,
+          "heading": "## Record the device and build"
+        },
+        {
+          "line": 19,
+          "heading": "## Capture the actual symptom"
+        }
+      ],
+      "references": [
+        {
+          "line": 6,
+          "label": "published-version receipt",
+          "target": "published-version.json",
+          "exists": true
+        },
+        {
+          "line": 21,
+          "label": "guided capture workflow",
+          "target": "../../../docs/performance-playtests.md#capture-workflow",
+          "exists": true
+        }
+      ]
+    }
+  ]
+}

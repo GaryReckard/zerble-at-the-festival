@@ -164,6 +164,11 @@ The opt-in `surface=landscape` course uses `src/landscape/fixture.js` for bounde
 shared geometry and `src/landscape/support.js` for per-mover support identities.
 Read-only wheel/suspension samples stay on the selected layer; the optional
 `surfaceBinding` in terrain driving proposes and commits only accepted movement.
+Crowd movement uses the binding's synchronous `move` method, which sweeps the
+route and footprint once before accepting it. Separate `propose`/`commit` calls
+still revalidate held proposals against current support. Dancefloor detection
+rejects stages outside its nine-metre radius before checking route reachability,
+and zero hard-overlap corrections skip a redundant support move.
 The opt-in `district=1` owner uses production camp/drum builders, isolated height injection, shared route/footprint guards and real Crowd visitors/passengers. `registry` and live contact wrappers can publish explicit vertical solid intervals; legacy entries keep their prior behavior. Counted pins and rollback/disposal protect the authored owner. The game defaults to generation 2, with `landscape=1` retaining the previous layout; the map workshop selects generation 2 explicitly: `landscapeCandidates` owns upstream terrain reservations, `landscapeContext`/`landscape` perform downstream access admission, and `LandscapePlanner` owns a bounded worker plus current-world admission receipts. Flat-terrain and legacy-world debug modes retain generation 1; the later streaming section describes the consumer integration. Finite streams use `landscape/stream.js` for downhill source/receiver data, native-grid channel cuts and water clipped against the exact terrain triangles. `waterOwner.js` owns bridge/water meshes, vertical rail colliders and counted retention pins; missing streamed support blocks movement. The experimental physics adapter accepts bounded copied triangle meshes only for fixed owners, so dropped props can resolve the native bed separately from a bridge slab. The optional manager and physical-surface provider described below connect production consumers; main's default live physics adds clipped deck slabs to existing terrain tiles and retains their landscape owners. [Evidence and limits](verification/landscape/README.md).
 
 The flat ground is one player-following mesh in `world.js`. It moves in 40m
@@ -433,9 +438,9 @@ A pool of stateful NPCs spawned by chunks.
 Anthropomorphic golf cart. The default live path uses one dynamic Rapier chassis and four raycast wheels in `physics/playerVehicle.js`, stepped by `physics/liveWorld.js` on its shared 60 Hz clock. `zerble.js` owns the model and non-motion animation; its legacy terrain controller remains available to isolated fixtures and `?physics=0`.
 
 - Grounded throttle/braking use bounded contact-plane impulses; lateral grip and a target-yaw torque pair own steering while native wheel lateral friction is negligible, avoiding competing controllers. Native wheels retain suspension and visual spin, with front-wheel steering presented separately. Assistance fades with partial/steep support and water, and never writes a pose. Throttle, braking, steering and boost drive the physical vehicle; cached `drivingSurface.js` queries distinguish asphalt, dirt, grass, bridge and riverbed contacts. Wheel suspension has finite reach, so momentum and gravity carry the chassis off ridges. Signed forward speed and the full velocity/rotation are published separately.
-- `vehicleCondition.js` accumulates impact severity once per short contact episode. A full meter or sustained water over the engine ends either mode. `restore()` is available for a future repair interaction. Water uses native-grid lake beds or stream cuts; submerged propulsion and `engineDemand.js` audio follow the same threshold.
+- `vehicleCondition.js` accumulates impact severity once per short contact episode. Lightweight chairs use 6% of solid-obstacle damage, capped at three meter points per incident; static proxies and adopted dynamic chairs both retain their source kind. Simultaneous contacts select the greatest resulting damage so a chair cannot soften a tree or landing. A full meter or sustained water over the engine ends either mode. `restore()` is available for a future repair interaction. Water uses native-grid lake beds or stream cuts; submerged propulsion and `engineDemand.js` audio follow the same threshold.
 - The player reserves bounded terrain and scenery before optional props. Missing collision support blocks the next physics step rather than creating a false fall. Bridge rails retain their authored vertical intervals, wheel rays exclude scenery, and Star Power suppresses obstacle contacts until clearance is proven on re-entry. See [driving verification](verification/driving/2026-11-02/README.md).
-- Boosting above the streak threshold feeds `BoostStreaks`, a fixed eight-instance pool of cart-sized golden torus wake rings. They spawn beyond the rear bumper, remain in world space as Zerble moves away, expand, then return to zero-scale matrices. The immutable geometry is shared, while each pool owns its one material so sandbox teardown cannot invalidate a later preview. Reduced motion and the live player/quality effects gate both stop emission, and the update path creates no per-frame objects.
+- Boosting above the streak threshold feeds `BoostStreaks`, a fixed eight-instance pool of cart-sized golden torus wake rings. They spawn beyond the rear bumper, remain in world space as Zerble moves away, expand, then return to zero-scale matrices. The immutable geometry is shared, while each pool owns its one material so sandbox teardown cannot invalidate a later preview. Reduced motion stops emission; bloom quality does not gate this geometric effect. Its additive material uses the transparent queue with one instanced pass, and the update path creates no per-frame objects.
 - Visible parts: red body, gold roof, blue seat, glowing cyan eyes, purple mustache, four wheels.
 - Eye glow ramps with `nightness` and can be hand-tuned with `I` / `O`.
 - World streaming is unbounded; collision readiness limits accepted steps while nearby support is prepared.
@@ -578,6 +583,20 @@ Notable model files:
 - **`leafDrumCircle.js`** + **`tribalFigures.js`** — the centerpiece of the forest drum-circle theme.
 - **`campsite.js`** — five shelter families, private sleeping borders, canopy kitchens, lanterns, supported twinkle strands and animated evening tent interiors. Pure `campPlanning.js` supplies archetype recipes and irregular host/satellite neighborhoods; compact pitches share a host's hearth and kitchen, and roomier variants preserve more ground. `models/campChair.js` supplies four pooled chair styles and actual seat heights/offsets. Native-space collider, seat and tent-door metadata feeds `campRegistry.js`, which checks real prop and access clearance before registration. Household reservation envelopes may overlap where the shared ground is empty; actual solids and door/chair approaches cannot. Child entries retain chunk/lake ownership. Crowd NPCs reserve seats, rest by day, gather in the evening and hide inside tents overnight, releasing claims on waking, interruption or unloading. `updateCampsiteProps` accepts the day fraction for staggered fire ignition, late-night extinction and tent lights-out; ambient lanterns still follow the global nightness contract.
 - **`puppet.js`** — also exports `buildSimpleNPC` used as the base humanoid for band members, kids, and crowd NPCs.
+
+- **`kid.js`** keeps eleven fixed body/accessory geometries and finite palette
+  materials in lazy page-lifetime pools, alongside the existing shared hair.
+  They carry `userData.shared` so gaggle/sandbox disposal cannot invalidate
+  other models. Cache hits preserve Three's UUID random draw to retain the
+  existing construction RNG stream; each child still owns its transform rig.
+
+- **`people/childPresentation.js`** leaves those rigs in their original scene
+  hierarchy and borrows mesh layers to replace submissions with owned
+  instances. A scene callback synchronizes current world transforms before
+  projection/upload, filters against the active camera, and keeps offscreen
+  casters for shadow rendering. `KidGaggle` owns disposal. Unsupported local
+  shear or changed render state restores ordinary rendering before projection;
+  original geometry/materials remain borrowed shared resources.
 - **`paradeLanterns.js`** builds the six named paper-and-rib lanterns. `puppet.js` assembles carriers and moving support poles, and advances deterministic child poses without changing root transforms. `PuppetParade` owns travel/scatter and eight carrier-centered collision circles, including the dragon's three-person team. Lantern surfaces use opaque emissive materials and a shared 64px paper texture, with no additional lights or render passes.
 
 ---
@@ -603,6 +622,14 @@ After the eager spawn ring, chunk streaming starts the closest missing chunk and
 keeps starting additional chunks only while the profile's generation wall remains.
 The wall prevents a second chunk from compounding an already-expensive frame; the
 separate phased-deferral path is responsible for splitting one dense chunk itself.
+
+Ordinary soap bubbles use alpha transparency on both quality paths. The detailed
+material retains physical iridescence and sheen without screen-space transmission,
+which otherwise redraws most of the opaque scene for a single particle mesh.
+The opt-in localhost `?sceneProbe=1` diagnostic compares the parked scene, simpler
+bubbles and shadows with bounded samples and restores its render hooks and quality
+settings afterward. Measurements and limits are recorded in
+[the render-load investigation](verification/performance/2026-11-02-render-load/README.md).
 
 `adaptiveQuality.js` layers a live seven-rung governor over the boot profile. It
 drops quickly under sustained slow or severely hitched frames, but recovery is
@@ -980,3 +1007,9 @@ the current landscape service. Main's existing live physics engine consumes its 
 nearby-origin fixed meshes, swept prop preparation and independent counted
 leases prevent occupied surface teardown. The existing debug HUD reports
 owner/planning state and worst construction/water phases.
+
+## Opt-in performance lab
+
+Local `performanceLab=1` sessions install their diagnostic hooks after ordinary module startup and before the agent starts measurement. Publication guards and fixed quality resolve before the real title gesture, which retains synchronous audio initialization. The lab uses the existing tick and normal controller, an exclusive input owner, bounded exact-frame storage and separate wall/accepted/physics progress. It observes owner-published loaded chunks without changing streaming ownership or production RNG. Heavy attribution remains separate from ordinary timing.
+
+The host supervisor owns a disposable full-Chrome profile and bounded control worker, with exact resource cleanup independent of page JavaScript. The offline contract/analyzer separates semantic content from implementation cost and requires acknowledged payload integrity. Both scenarios passed real hardware ownership/failure cleanup, tier integration, overhead/calibration/fresh holdouts and comparable injected sensitivity. The explicit `live-festival-v2` fixture supplies a private child-construction RNG before boot without replacing global randomness or freezing live behavior. See the [lab guide](docs/performance-lab.md) and [current evidence](verification/performance/2026-11-03-lab/README.md).

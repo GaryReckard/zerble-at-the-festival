@@ -1,0 +1,3 @@
+interface:
+  display_name: "Performance Lab"
+  short_description: "Run and analyze comparable Zerble performance captures"

@@ -1,0 +1,114 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {buildKid,tickKid} from '../src/models/kid.js';
+import {mulberry32} from '../src/rng.js';
+import {createChildPresentation} from '../src/people/childPresentation.js';
+import {captureRenderInventory} from '../src/people/baseline.js';
+
+const scene=new THREE.Scene(),parent=new THREE.Group(),source=new THREE.Group();
+scene.add(parent);parent.add(source);parent.position.set(31,4,-17);parent.rotation.set(.1,.4,-.1);parent.scale.set(1.2,.8,1.1);
+source.position.set(-7,2,9);source.rotation.y=.2;
+const random=mulberry32(1977),kids=Array.from({length:50},(_,i)=>{
+  const kid=buildKid(random);kid.position.set(i%10*2,0,Math.floor(i/10)*2);source.add(kid);return kid;
+}),records=[];
+source.traverse(node=>{if(node.isMesh)records.push({node,layers:node.layers.mask});});
+const originalHook=scene.onBeforeRender,oldRandom=Math.random;let globalDraws=0,presentation;
+const inventoryBefore=captureRenderInventory(scene,{children:source}).buckets.children;
+Math.random=()=>{globalDraws++;return .42;};
+try{presentation=createChildPresentation({scene,source,seed:1977});assert.equal(Math.random() , .42);assert.equal(globalDraws,1,'presentation consumes no global random draws');}
+finally{Math.random=oldRandom;}
+assert.equal(source.parent,parent,'the original rig remains in its original scene hierarchy');
+assert(records.every(r=>r.node.layers.mask===0),'original meshes cannot render a duplicate');
+assert(presentation.group.children.length<100,'repeated parts replace hundreds of ordinary submissions');
+const inventoryAfter=captureRenderInventory(scene,{children:source}).buckets.children;
+assert.equal(inventoryAfter.potentialTriangles,inventoryBefore.potentialTriangles,'muted source layers do not duplicate potential submitted triangles');
+assert(inventoryAfter.potentialDraws<inventoryBefore.potentialDraws);
+const matrix=new THREE.Matrix4(),worldMatrix=new THREE.Matrix4(),vertex=new THREE.Vector3(),projection=new THREE.Matrix4(),frustum=new THREE.Frustum();let visibleChecks=0;
+function visible(node){for(let p=node;p;p=p.parent){if(!p.visible)return false;if(p===source)return true;}return false;}
+function retained(node){
+  if(node.castShadow)return true;
+  const sphere=node.geometry.boundingSphere.clone().applyMatrix4(node.matrixWorld);sphere.radius+=.002;
+  return frustum.intersectsSphere(sphere);
+}
+function frame(camera=new THREE.PerspectiveCamera()){
+  scene.updateMatrixWorld(true);
+  const center=new THREE.Vector3();source.getWorldPosition(center);camera.position.copy(center).add(new THREE.Vector3(25,20,25));camera.lookAt(center);camera.updateMatrixWorld(true);
+  frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+  scene.onBeforeRender({shadowMap:{enabled:true}},scene,camera,null);
+  for(const mesh of presentation.group.children){
+    const expected=records.filter(r=>r.node.geometry===mesh.geometry&&r.node.material===mesh.material&&r.node.castShadow===mesh.castShadow&&
+      r.node.receiveShadow===mesh.receiveShadow&&r.node.renderOrder===mesh.renderOrder&&r.layers===mesh.layers.mask&&visible(r.node)&&
+      retained(r.node));
+    assert.equal(mesh.count,expected.length);
+    for(let i=0;i<expected.length;i++){
+      mesh.getMatrixAt(i,matrix);worldMatrix.multiplyMatrices(mesh.matrixWorld,matrix);
+      assert(worldMatrix.elements.every((v,k)=>Math.abs(v-expected[i].node.matrixWorld.elements[k])<.0002),'world matrices match the animated source under transformed parents');
+      const sphere=mesh.geometry.boundingSphere.clone().applyMatrix4(expected[i].node.matrixWorld),bound=mesh.boundingSphere.clone().applyMatrix4(mesh.matrixWorld);
+      assert(bound.center.distanceTo(sphere.center)+sphere.radius<=bound.radius+.0003,'current bounds retain every visible instance and shadow caster');
+      if(frustum.intersectsSphere(sphere)){visibleChecks++;assert(frustum.intersectsObject(mesh),'a visible source cannot be rejected by the batch frustum');}
+      const positions=mesh.geometry.attributes.position;
+      for(let j=0;j<positions.count;j++){
+        vertex.fromBufferAttribute(positions,j).applyMatrix4(expected[i].node.matrixWorld);
+        assert(vertex.distanceToSquared(bound.center)<=(bound.radius+.0003)**2,'every transformed source vertex lies inside its submitted batch bound');
+      }
+    }
+  }
+}
+for(let frameIndex=0;frameIndex<8;frameIndex++){
+  for(const [i,kid]of kids.entries()){kid.position.x+=.03;tickKid(kid,1/60,{targetYaw:frameIndex*.3});}
+  frame();
+}
+kids[0].visible=false;frame();source.visible=false;frame();assert(presentation.group.children.every(m=>m.count===0));
+source.visible=true;kids[0].visible=true;kids[0].position.x=500;frame(new THREE.OrthographicCamera(-10,10,10,-10,.1,1000));
+kids[1].removeFromParent();frame();
+assert(visibleChecks>0,'camera/frustum checks are not vacuous');
+const chosen=presentation.group.children[0];chosen.visible=false;frame();assert.equal(chosen.visible,false,'render-time synchronization respects diagnostic visibility subtraction');chosen.visible=true;
+let resourceDisposals=0,instanceDisposals=0;
+for(const resource of new Set(records.flatMap(r=>[r.node.geometry,r.node.material])))resource.addEventListener('dispose',()=>resourceDisposals++);
+for(const mesh of presentation.group.children)mesh.addEventListener('dispose',()=>instanceDisposals++);
+const count=presentation.group.children.length;presentation.dispose();presentation.dispose();
+assert.equal(scene.onBeforeRender,originalHook);assert.equal(Object.hasOwn(scene,'onBeforeRender'),false);
+assert(records.every(r=>r.node.layers.mask===r.layers));assert.equal(presentation.group.parent,null);
+assert.equal(resourceDisposals,0);assert.equal(instanceDisposals,count,'owned instance buffers are released exactly once');
+{
+  const a=new THREE.Group(),b=new THREE.Group();a.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshLambertMaterial()));b.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshLambertMaterial()));scene.add(a,b);
+  const first=createChildPresentation({scene,source:a}),second=createChildPresentation({scene,source:b});
+  first.dispose();scene.updateMatrixWorld(true);scene.onBeforeRender();assert.equal(second.group.children[0].count,1);second.dispose();assert.equal(scene.onBeforeRender,originalHook);
+}
+{
+  const bad=new THREE.Group(),mesh=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial({transparent:true}));bad.add(mesh);scene.add(bad);
+  assert.throws(()=>createChildPresentation({scene,source:bad}),/Unsupported/);assert.equal(mesh.layers.mask,1);assert.equal(bad.children.length,1);assert.equal(scene.onBeforeRender,originalHook);assert.equal(Math.random,oldRandom);
+}
+{
+  const brokenScene=new THREE.Scene(),root=new THREE.Group(),geometry=new THREE.BoxGeometry(),material=new THREE.MeshLambertMaterial();root.add(new THREE.Mesh(geometry,material),new THREE.Mesh(geometry,material));brokenScene.add(root);
+  let created=0,released=0,borrowed=0;
+  geometry.addEventListener('dispose',()=>borrowed++);material.addEventListener('dispose',()=>borrowed++);
+  const add=root.add;root.add=function(child){add.call(this,child);child.traverse(n=>{if(n.isInstancedMesh){created++;n.addEventListener('dispose',()=>released++);}});return this;};
+  Object.defineProperty(brokenScene,'onBeforeRender',{configurable:true,get:()=>originalHook,set(){throw Error('hook installation failed');}});
+  assert.throws(()=>createChildPresentation({scene:brokenScene,source:root}),/hook installation/);
+  assert(created>0);assert.equal(released,created);assert.equal(root.children.length,2);assert(root.children.every(n=>n.layers.mask===1));assert.equal(borrowed,0);assert.equal(Math.random,oldRandom);
+}
+{
+  const root=new THREE.Group(),pivot=new THREE.Group(),mesh=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshLambertMaterial());scene.add(root);root.add(pivot);pivot.add(mesh);
+  const p=createChildPresentation({scene,source:root});pivot.scale.set(2,1,1);mesh.rotation.z=.4;
+  scene.updateMatrixWorld(true);scene.onBeforeRender();assert.equal(p.fallbackReason,'sheared-instance');assert.equal(p.disposed,true);assert.equal(mesh.layers.mask,1,'unsupported rig edits fall back to ordinary rendering in the same frame');
+}
+{
+  const root=new THREE.Group();root.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshLambertMaterial()));scene.add(root);
+  const p=createChildPresentation({scene,source:root});let calls=0;const external=()=>calls++;scene.onBeforeRender=external;p.dispose();assert.equal(scene.onBeforeRender,external);
+  const next=createChildPresentation({scene,source:root});scene.updateMatrixWorld(true);scene.onBeforeRender();assert.equal(calls,1);assert.equal(next.group.children[0].count,1);next.dispose();assert.equal(scene.onBeforeRender,external);delete scene.onBeforeRender;
+}
+{
+  const scene=new THREE.Scene(),root=new THREE.Group(),geometry=new THREE.BoxGeometry(),material=new THREE.MeshLambertMaterial(),camera=new THREE.PerspectiveCamera(60,1,.1,100);
+  const front=new THREE.Mesh(geometry,material),back=new THREE.Mesh(geometry,material),caster=new THREE.Mesh(geometry,material);
+  front.position.z=-4;back.position.z=4;caster.position.z=4;caster.castShadow=true;root.add(front,back,caster);scene.add(root);
+  const p=createChildPresentation({scene,source:root});
+  const render=shadows=>{scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);scene.onBeforeRender({shadowMap:{enabled:shadows}},scene,camera);return p.group.children.reduce((sum,m)=>sum+m.count,0);};
+  assert.equal(render(false),1,'Low skips every offscreen instance, including inactive casters');
+  assert.equal(render(true),2,'High keeps the offscreen shadow caster while skipping other hidden parts');
+  camera.rotation.y=Math.PI;assert.equal(render(false),2,'a camera switch selects the newly visible instances immediately');
+  camera.rotation.y=0;camera.position.z=8;assert.equal(render(false),3,'camera movement restores all visible instances immediately');
+  p.dispose();
+}
+console.log('PASS child presentation: exact animated instance matrices, transformed parents, visibility/reappearance, recycled bounds, view-independent shadow retention, no duplicate draws/global RNG, Lambert, shared-resource safety, multi-owner hook cleanup and constructor rollback.');

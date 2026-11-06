@@ -18,10 +18,10 @@ export function captureRenderInventory(scene,roots={}) {
       const b=buckets[label]??={meshes:0,instances:0,potentialDraws:0,potentialTriangles:0,shadowDraws:0,visibleMeshes:0,materialTypes:{}};
       const count=node.isInstancedMesh?node.count:1,geometry=node.geometry;
       const list=Array.isArray(node.material)?node.material:[node.material];
-      const draws=count>0?(Array.isArray(node.material)?geometry?.groups?.length||1:1):0;
+      const draws=count>0&&node.layers?.mask!==0?(Array.isArray(node.material)?geometry?.groups?.length||1:1):0;
       b.meshes++;b.instances+=count;b.potentialDraws+=draws;
-      b.potentialTriangles+=(geometry?.index?.count??geometry?.attributes?.position?.count??0)/3*count;
-      if(node.castShadow)b.shadowDraws+=draws;if(visible&&count>0)b.visibleMeshes++;
+      b.potentialTriangles+=(geometry?.index?.count??geometry?.attributes?.position?.count??0)/3*(node.layers?.mask===0?0:count);
+      if(node.castShadow)b.shadowDraws+=draws;if(visible&&count>0&&node.layers?.mask!==0)b.visibleMeshes++;
       if(geometry)geometries.add(geometry);
       for(const material of list)if(material){
         materials.add(material);b.materialTypes[material.type]=(b.materialTypes[material.type]??0)+1;
@@ -32,7 +32,7 @@ export function captureRenderInventory(scene,roots={}) {
     for(const child of node.children??[])visit(child,label,visible);
   };
   visit(scene);
-  return {scope:'Scene topology and potential submissions, independent of frustum/history; not GPU memory or measured draws.',buckets,
+  return {scope:'Scene topology and potential submissions from current instance counts, which may reflect producer culling; ignores object-level frustum/history. Not GPU memory or measured draws.',buckets,
     resources:{geometries:geometries.size,materials:materials.size,materialTextures:textures.size}};
 }
 

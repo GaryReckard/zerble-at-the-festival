@@ -1,0 +1,113 @@
+
+docs/performance-lab.md
+# Local performance lab
+  -> performance-playtests.md
+  -> ../openspec/changes/repeatable-performance-lab/README.md
+## Current acceptance
+  -> ../verification/performance/2026-11-03-lab/README.md
+## Offline commands
+## Browser commands
+## Evidence and operating skill
+  -> ../verification/performance/2026-11-03-lab/README.md
+  -> ../.agents/skills/performance-lab/SKILL.md
+  -> ../verification/performance/2026-11-03-lab/post-review/results.json
+
+.agents/skills/performance-lab/SKILL.md
+# Performance lab
+  -> ../../../docs/performance-lab.md
+## Choose the work
+## Prepare and establish collection
+## Compare honestly
+## Ownership and reporting
+
+verification/performance/2026-11-03-lab/README.md
+# Repeatable performance lab, November 3, 2026
+## TL;DR
+  -> acceptance/result.json
+  -> checks/cli-regeneration.json
+  -> source-manifest.json
+## Conditions and identity
+  -> hardware-context.json
+## Results
+  -> acceptance/dense-festival-v1/sensitivity.json
+  -> acceptance/dense-festival-v1/holdout.json
+  -> acceptance/streaming-drive-v1/sensitivity.json
+  -> acceptance/streaming-drive-v1/holdout.json
+  -> acceptance/inventory.json
+  -> acceptance/dense-festival-v1/calibration.json
+  -> acceptance/streaming-drive-v1/calibration.json
+  -> checks/acceptance-controller.log
+## Real-game and ownership proof
+  -> proofs/normal/probe.json
+  -> proofs/normal/ownership.json
+  -> proofs/worker-death/fault-entered.json
+  -> proofs/worker-death/ownership.json
+  -> proofs/page-hang/fault-entered.json
+  -> proofs/page-hang/ownership.json
+  -> integration/results.json
+  -> integration/interrupted/capture.json
+  -> integration/interrupted/run.json
+  -> integration/interrupted/ownership.json
+  -> checks/resource-reconciliation.json
+  -> checks/npm-check.log
+  -> checks/npm-build.log
+## Preserved failed attempts and revisions
+  -> attempts/20261103-220238-09ef2b8a/result.json
+  -> attempts/20261103-220238-09ef2b8a/interruption-context.json
+  -> attempts/20261103-221851-e5fcab83/dense-festival-v1/sensitivity.json
+  -> attempts/20261103-214248-90524405/run.json
+  -> attempts/20261103-212851-e4adab94/worker-result.json
+  -> attempts/20261103-213130-cfa22d14/ownership.json
+  -> attempts/20261103-213130-cfa22d14/cleanup-recovery.json
+  -> offline-preparation.md
+## Reproduce the analysis
+  -> checks/cli-regeneration.json
+  -> evidence-sha256.json
+  -> ../../../docs/performance-lab.md
+  -> ../../../.agents/skills/performance-lab/SKILL.md
+## Post-trial review fixes
+  -> checks/post-trial-source-reconciliation.json
+  -> post-review/results.json
+  -> post-review/checks/stale-snapshot-refusal.json
+  -> post-review/source-manifest.json
+## Limits
+
+openspec/changes/repeatable-performance-lab/README.md
+# A trustworthy performance lab for Zerble
+## TL;DR
+## The Problem
+  -> ../../../verification/performance/2026-11-02-render-load/README.md
+## Proposed Fix
+## Progress
+## Key Decisions
+  -> deliberations/001-initial/results.md
+  -> deliberations/002-plan-review/results.md
+## Risks & Watch-outs
+## Where Things Live
+  -> proposal.md
+  -> design.md
+  -> verification.md
+  -> reviews/001-implementation/review-summary.md
+  -> tasks.md
+  -> specs/performance-lab/spec.md
+  -> deliberations/002-plan-review/results.md
+  -> deliberations/001-initial/results.md
+  -> deliberations/000-index.md
+  -> session-log.md
+  -> questions-for-human.md
+  -> ../../../docs/performance-lab.md
+  -> ../../../verification/performance/2026-11-03-lab/README.md
+  -> ../../../.agents/skills/performance-lab/SKILL.md
+
+openspec/changes/repeatable-performance-lab/verification.md
+# Verification: repeatable-performance-lab
+## Summary
+## Scope
+  -> specs/performance-lab/spec.md
+  -> ../../../verification/performance/2026-11-03-lab/README.md
+## Requirement and scenario coverage
+## Completeness, correctness and coherence
+## Specialist review
+  -> reviews/001-implementation/review-summary.md
+
+PASS 68 ordered cross-references and document outlines

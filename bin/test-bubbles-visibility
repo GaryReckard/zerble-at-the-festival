@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-import { register } from 'node:module';
 import assert from 'node:assert/strict';
-register('./node-three-shim.mjs', import.meta.url);
+import { WebGLRenderLists } from 'three/src/renderers/webgl/WebGLRenderLists.js';
 
 Object.defineProperty(globalThis, 'navigator', {
   configurable: true,
@@ -14,6 +13,14 @@ globalThis.localStorage = { getItem: () => null };
 const { Bubbles } = await import('../src/bubbles.js');
 const { Vector3 } = await import('three');
 const bubbles = new Bubbles();
+for(const cheap of [false,true]){
+  bubbles.setCheapMaterial(cheap);
+  const list=new WebGLRenderLists().get({},0);list.init();
+  list.push(bubbles.mesh,bubbles.mesh.geometry,bubbles.mesh.material,0,0,null);
+  assert.equal(list.transmissive.length,0,'neither bubble quality may trigger a full-scene transmission pass');
+  assert.equal(list.transparent.length,1,'soap shells retain ordinary transparency');
+}
+bubbles.setCheapMaterial(false);
 const cart = { speed: 0, nozzleWorld: new Vector3(0, 2, 0), forwardWorld: new Vector3(0, 0, 1) };
 
 assert.equal(bubbles.mesh.visible, false, 'empty pool must not enter the render pipeline');

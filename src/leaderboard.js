@@ -15,6 +15,8 @@
 // (only the Festival Run layer in main.js calls into this half). Disabled
 // entirely until GLOBAL_BOARD_URL below is set post-deploy (Gary-only).
 
+import { PERFORMANCE_LAB } from './performanceLab/config.js';
+
 const LOCAL_KEY = 'zerble-leaderboard-local';
 const CAP = 10;
 
@@ -63,6 +65,7 @@ const PROD_BOARD_URL = 'https://zerble-leaderboard.garbonzo-net.workers.dev';
 // likelier to carry one.
 const trimOrigin = (u) => (u || '').replace(/\/+$/, '');
 export const GLOBAL_BOARD_URL = (() => {
+  if(PERFORMANCE_LAB)return '';
   try {
     const h = location.hostname;
     const isLocal = h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0'

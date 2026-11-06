@@ -43,6 +43,14 @@ def latest_report():
 
 def summarize(path):
     report = json.loads(path.read_text())
+    if report.get('schema') == 'zerble-performance-lab-v1':
+        import sys
+        sys.path.insert(0, str(ROOT / 'tooling'))
+        from performance_lab.contract import errors, summarize
+        print(f'Lab report: {path}')
+        print(json.dumps({'validation': errors(report), 'summary': summarize(report) if not errors(report) else None}, indent=2))
+        return
+
     samples = report.get('samples') or []
     session = report.get('session') or {}
     device = report.get('device') or {}

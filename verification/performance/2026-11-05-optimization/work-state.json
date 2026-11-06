@@ -1,0 +1,85 @@
+{
+  "stage": "implementation, four comparison conditions, evidence regeneration, source/doc audit and process cleanup complete",
+  "candidateSnapshot": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/ea6e76e25f5444ebaecdd77580df82859e0f182521fe88b052c1198fe6911839",
+  "baselineSnapshot": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/a646eae93819e10db20aae5f36676b79aa1c00fc13b5e6af4ad03a9806c6c2b0",
+  "quietMacAssigned": true,
+  "caffeinatePid": 58710,
+  "caffeinateSession": 53528,
+  "finalCheckLog": "/private/tmp/zerble-final-optimization-check.log",
+  "camerasLow": ".claude/captures/performance-lab/diagnostics/20261105-174549-cameras-low-219e3149",
+  "camerasHigh": ".claude/captures/performance-lab/diagnostics/20261105-174625-cameras-high-bd67e2bc",
+  "astraConsultationsUsed": 3,
+  "plannedComparisons": "4 calibration +8 fresh holdout +8 candidate per tier/scenario; High and Low, parked and driving =80runs",
+  "remaining": [],
+  "ownership": "accepted supervisor, one standalone browser at a time, no git mutations; preserve all existing dirty work",
+  "comparisonSession": null,
+  "qualification": "qualification/results.json",
+  "finalCheckSession": null,
+  "qualifiedCandidate": true,
+  "comparisonDirectory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/comparisons/20261105-185011-5d57ff3f",
+  "comparisonLog": "/private/tmp/zerble-optimization-comparison-v2.log",
+  "comparisonOuterSession": null,
+  "finalRuntimeSourceFrozen": true,
+  "checksComplete": true,
+  "astraFinalReview": "no promotion-blocking defect",
+  "timingClaims": "Fixed-tier desktop captures only; no Auto, subjective, published or physical-iPad acceptance",
+  "nextActions": [],
+  "manualCameraVerified": {
+    "low": {
+      "topYaw": 0.153,
+      "height": 72.72727272727272
+    },
+    "high": {
+      "topYaw": 0.15335999987125398,
+      "height": 72.72727272727272
+    }
+  },
+  "ipadProcedure": "ipad-acceptance.md",
+  "regenerationScript": "regenerate.py",
+  "earlyComparison": {
+    "condition": "high dense-festival-v1",
+    "verdict": "improved",
+    "wallP95PairedChangeMs": -11.950000047683716,
+    "frozenWallP95ThresholdMs": 8.799999833106995,
+    "status": "independent condition complete; suite pending"
+  },
+  "attempt1": {
+    "evidence": "comparisons/attempt-1",
+    "runs": 32,
+    "highFestival": "improved",
+    "highDriving": "comparison invalid: baseline-only segment0 holdout",
+    "cleanup": "all32 passed, exact owned identities absent, lease absent",
+    "regeneration": "5 CLI reports matched exact JSON"
+  },
+  "attempt2Plan": {
+    "conditions": [
+      "low:dense-festival-v1",
+      "low:streaming-drive-v1",
+      "high:streaming-drive-v1"
+    ],
+    "calibration": 8,
+    "holdout": 8,
+    "candidate": 8,
+    "totalRuns": 72,
+    "policy": "unchanged conservative-paired-v1",
+    "rule": "one fresh attempt; preserve failures and old frozen thresholds; do not retry a second failed baseline without verifying every assumption from scratch"
+  },
+  "watcherCell": null,
+  "acceptedLowFestival": "no detectable change",
+  "taskCaffeinateStopped": true,
+  "comparisons": "comparison-summary.json",
+  "sourceAudit": "source-reconciliation.json",
+  "processAudit": "resource-cleanup.json",
+  "documentationAudit": "documentation-audit.json",
+  "finalEvidence": {
+    "comparisonCaptures": 104,
+    "ownershipManifests": 130,
+    "ownedProcessIdentitiesVerifiedAbsent": 2680,
+    "exactCliRegenerations": 14,
+    "highFestival": "improved",
+    "highDriving": "improved",
+    "lowFestival": "no detectable change",
+    "lowDriving": "no detectable change",
+    "initialFailedHoldout": "preserved; candidate not run for that condition"
+  }
+}

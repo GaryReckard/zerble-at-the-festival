@@ -1,0 +1,65 @@
+[
+  {
+    "label": "ordinary-low",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261103-224922-34f3177e",
+    "exit": 0,
+    "ok": true,
+    "error": null
+  },
+  {
+    "label": "ordinary-mid",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261103-224934-205c0d0b",
+    "exit": 0,
+    "ok": true,
+    "error": null
+  },
+  {
+    "label": "ordinary-high",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261103-224945-0289156e",
+    "exit": 0,
+    "ok": true,
+    "error": null
+  },
+  {
+    "label": "parked-high",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261103-224957-8af79f0a",
+    "exit": 0,
+    "ok": true,
+    "error": null
+  },
+  {
+    "label": "interrupted",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261103-225056-6078b518",
+    "exit": 2,
+    "ok": true,
+    "error": "Page reported incomplete or invalid work"
+  },
+  {
+    "label": "parked-low",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261103-225126-f4d87d6b",
+    "exit": 0,
+    "ok": true,
+    "error": null
+  },
+  {
+    "label": "parked-mid",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261103-225224-846a7769",
+    "exit": 0,
+    "ok": true,
+    "error": null
+  },
+  {
+    "label": "drive-repeat",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261103-225322-ff2170f5",
+    "exit": 0,
+    "ok": true,
+    "error": null
+  },
+  {
+    "label": "drive-injected",
+    "directory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261103-225450-f3639f7d",
+    "exit": 0,
+    "ok": true,
+    "error": null
+  }
+]

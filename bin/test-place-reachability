@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {HammockActivity} from '../src/people/hammockActivity.js';
+import {PicnicActivity} from '../src/people/picnicActivity.js';
+import {MarketActivity} from '../src/people/marketActivity.js';
+import {PottyActivity} from '../src/people/pottyActivity.js';
+
+function fixture(kind,limit){
+  const xs=[limit+1,limit,1,4,3,2,2,6],entries=xs.map((x,id)=>({id,position:{x,y:0,z:0},
+    hammock:{occupied:false},tableSeats:[{x,y:0,z:0,occupied:false}],potty:{}}));
+  const registry={entries:new Map(entries.map(e=>[e.id,e])),byKind:new Map([[kind,new Set(entries.map(e=>e.id))]]),collidersNear(){}};
+  const calls=[],people={canReachPlace(handle,p){calls.push(p.x);return p.x!==1&&p.x!==3;}};
+  return {entries,registry,calls,people};
+}
+for(const [Type,kind,limit]of [[HammockActivity,'hammock',60],[PicnicActivity,'picnic_table',45]]){
+  const f=fixture(kind,limit),handle={},resource=e=>kind==='hammock'?e.hammock:e.tableSeats[0];let selected=null;
+  f.people.readHammockMotion=f.people.readPicnicMotion=(h,out)=>{Object.assign(out,{x:0,y:0,z:0,state:'idle',claimed:false,grouped:false});return true;};
+  f.people.canUsePicnic=()=>true;
+  f.people.claimActivity=(h,options)=>{
+    const releases=[];assert.equal(options.prepare({own:fn=>releases.push(fn)}),true);
+    selected=f.entries.find(e=>resource(e).occupied);
+    for(const release of releases.reverse())release();return null;
+  };
+  const activity=new Type(f.people,f.registry);activity.tryClaim(handle);
+  assert.equal(selected,f.entries[5],kind+' keeps the first nearest reachable candidate');
+  assert.deepEqual(f.calls,[1,4,3,2],kind+' skips out-of-range, losing and tied candidates before support sweeps');
+  assert(f.entries.every(e=>!resource(e).occupied),'failed claim preparation rolls back every reservation');
+}
+{
+  const f=fixture('tent',16);let rngCalls=0,selected=null;
+  for(const e of f.entries){e.position.z=-3.2;e.vendor={rotation:{y:0},userData:{market:{open:true,customer:null}}};}
+  const activity=new MarketActivity(f.people,f.registry,{rngFactory:()=>()=>{rngCalls++;return .5;}});
+  activity._acquireVisit=(npc,visit)=>{selected=visit.entry;return false;};
+  const npc={person:{},state:'idle',pos:{x:0,z:0},behaviorSeed:1977};
+  activity._tickMarket(1/60,npc,null);
+  assert.equal(selected,f.entries[5]);assert.deepEqual(f.calls,[1,4,3,2]);
+  assert.equal(rngCalls,1,'selection retains its behavior RNG draw');assert.equal(npc.marketCooldown,4.5);
+}
+for(const grouped of [false,true]){
+  const f=fixture('porta_potty',grouped?22:90),activity=new PottyActivity(f.people,f.registry),npc={person:{},pos:{x:0,z:0},grouped};
+  assert.equal(activity._findNearestPotty(npc),f.entries[5]);assert.deepEqual(f.calls,[1,4,3,2]);
+  f.calls.length=0;assert.equal(activity._findNearestPotty(npc,[5]),f.entries[6],'tried locations retain their exclusion and tie order');
+}
+console.log('PASS place reachability: hammocks, picnics, markets and bathrooms retain strict range/tie/nearest-reachable decisions, failed-claim cleanup, grouped bathroom range, tried exclusions and market RNG while skipping losing terrain queries.');

@@ -27,6 +27,10 @@ not physical-device acceptance.
 
 ## Recent investigations
 
+- [Festival optimization, November 5](performance/2026-11-05-optimization/README.md): child resource pooling and camera-aware instancing, avoided terrain queries, High festival/driving frame-time improvements, Low CPU headroom, a preserved failed baseline holdout, four accepted fixed-tier comparisons, deterministic raw-data regeneration and exact process cleanup; physical-iPad acceptance remains separate.
+
+- [Repeatable performance lab, November 3](performance/2026-11-03-lab/README.md): complete 48-run desktop acceptance, real GPU/process ownership, fresh unchanged-source holdouts, comparable injected regressions and deterministic offline replay.
+
 - [Physical festival engine proof, October 30](physical-festival/README.md): standalone engine verification; integration and device acceptance pending.
 
 - [Startup download recovery, October 30](boot-recovery/README.md): injected HTTP 503, bounded automatic recovery, manual fallback and production game boot.

@@ -1,0 +1,38 @@
+{
+  "npm-check": {
+    "exitCode": 0,
+    "sha256": "b469c37363174676663ec0b861d3f1ac5988ca866f7639b0141d334902303742",
+    "localLog": ".claude/captures/performance-lab/offline/npm-check-prepared.log"
+  },
+  "npm-build": {
+    "exitCode": 0,
+    "sha256": "c54820f982914f72908b325edbb18fed380f8018dde9bc3ee39f24f57de1a281",
+    "localLog": ".claude/captures/performance-lab/offline/npm-build-prepared.log"
+  },
+  "runtime": {
+    "exitCode": 0,
+    "sha256": "b9e46794f8684ecc0d7fba55aee29997917db6d4d24f03d9d764cea20722fe78",
+    "localLog": ".claude/captures/performance-lab/offline/runtime.log"
+  },
+  "snapshot": {
+    "app": "e093197fb8022851cb8cea3652c9933ec4159c35eb81eae31dc46b4d4c81057e",
+    "build": "e09a5222cdab4424876942c19c09fa44a00af6a494f07b7a6e89e422f39e6117",
+    "head": "7e7fd38eef4667e67802191a9df3acd43697ebfa",
+    "fileCount": 301
+  },
+  "acceptance": {
+    "offlineCodeTasks": 12,
+    "totalTasks": 27,
+    "browserAccepted": false,
+    "performanceMeasured": false,
+    "reason": "No more browser launches until explicit quiet-Mac window"
+  },
+  "additionalOfflinePreparation": {
+    "baselineBuildBinding": true,
+    "faultEntryProofRequired": true,
+    "segmentGuardrails": true,
+    "syntheticControllerRunCount": 48,
+    "cleanupFailureBlocksRelaunch": true,
+    "browsersLaunched": 0
+  }
+}

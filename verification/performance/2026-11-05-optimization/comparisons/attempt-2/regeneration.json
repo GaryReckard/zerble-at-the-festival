@@ -1,0 +1,59 @@
+{
+  "state": "passed",
+  "reports": [
+    {
+      "report": "low-dense-festival-v1/calibration.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    },
+    {
+      "report": "low-dense-festival-v1/holdout.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    },
+    {
+      "report": "low-dense-festival-v1/comparison.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    },
+    {
+      "report": "low-streaming-drive-v1/calibration.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    },
+    {
+      "report": "low-streaming-drive-v1/holdout.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    },
+    {
+      "report": "low-streaming-drive-v1/comparison.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    },
+    {
+      "report": "high-streaming-drive-v1/calibration.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    },
+    {
+      "report": "high-streaming-drive-v1/holdout.json",
+      "verdict": "no detectable change",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    },
+    {
+      "report": "high-streaming-drive-v1/comparison.json",
+      "verdict": "improved",
+      "exitCode": 0,
+      "exactJsonMatch": true
+    }
+  ]
+}

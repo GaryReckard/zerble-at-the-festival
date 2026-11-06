@@ -241,16 +241,18 @@ export class CampActivity {
         for (const candidate of (bed ? camp.campBeds : camp.campSeats) ||
           []) {
           if (!campSlotAvailable(candidate)) continue;
-          if (this.people?.canReachCampSlot && !this.people.canReachCampSlot(npc.person, candidate, bed, camp.position?.y)) continue;
           const d = Math.hypot(
             candidate.x - npc.pos.x,
             candidate.z - npc.pos.z,
           );
-          if (d < distance) {
-            entry = camp;
-            slot = candidate;
-            distance = d;
-          }
+          // Reachability sweeps validate the entire terrain route/footprint.
+          // A slot that cannot beat the nearest reachable candidate cannot
+          // change this selection, including exact-distance ties.
+          if (!(d < distance)) continue;
+          if (this.people?.canReachCampSlot && !this.people.canReachCampSlot(npc.person, candidate, bed, camp.position?.y)) continue;
+          entry = camp;
+          slot = candidate;
+          distance = d;
         }
       }
       if (!slot) return false;

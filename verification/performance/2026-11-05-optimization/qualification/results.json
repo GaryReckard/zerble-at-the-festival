@@ -1,0 +1,78 @@
+{
+  "state": "passed",
+  "candidate": "ea6e76e25f5444ebaecdd77580df82859e0f182521fe88b052c1198fe6911839",
+  "checks": [
+    {
+      "operation": "sandbox",
+      "tier": "low",
+      "exitCode": 0,
+      "log": "/private/tmp/zerble-final-qualification-sandbox-low.log",
+      "sourceDirectory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261105-180119-sandbox-low-f4978bcb",
+      "evidence": "qualification/sandbox-low",
+      "cleanup": true
+    },
+    {
+      "operation": "sandbox",
+      "tier": "high",
+      "exitCode": 0,
+      "log": "/private/tmp/zerble-final-qualification-sandbox-high.log",
+      "sourceDirectory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/diagnostics/20261105-180125-sandbox-high-22e88038",
+      "evidence": "qualification/sandbox-high",
+      "cleanup": true
+    },
+    {
+      "operation": "smoke",
+      "tier": "low",
+      "exitCode": 0,
+      "log": "/private/tmp/zerble-final-qualification-smoke-low.log",
+      "sourceDirectory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261105-180128-96794080",
+      "evidence": "qualification/smoke-low",
+      "cleanup": true
+    },
+    {
+      "operation": "smoke",
+      "tier": "mid",
+      "exitCode": 0,
+      "log": "/private/tmp/zerble-final-qualification-smoke-mid.log",
+      "sourceDirectory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261105-180139-397a1aef",
+      "evidence": "qualification/smoke-mid",
+      "cleanup": true
+    },
+    {
+      "operation": "smoke",
+      "tier": "high",
+      "exitCode": 0,
+      "log": "/private/tmp/zerble-final-qualification-smoke-high.log",
+      "sourceDirectory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261105-180153-05209066",
+      "evidence": "qualification/smoke-high",
+      "cleanup": true
+    },
+    {
+      "operation": "run",
+      "tier": "low",
+      "exitCode": 0,
+      "log": "/private/tmp/zerble-final-qualification-run-low.log",
+      "sourceDirectory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261105-180204-e7d580b8",
+      "evidence": "qualification/run-low",
+      "cleanup": true
+    },
+    {
+      "operation": "run",
+      "tier": "mid",
+      "exitCode": 0,
+      "log": "/private/tmp/zerble-final-qualification-run-mid.log",
+      "sourceDirectory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261105-180301-462487b2",
+      "evidence": "qualification/run-mid",
+      "cleanup": true
+    },
+    {
+      "operation": "run",
+      "tier": "high",
+      "exitCode": 0,
+      "log": "/private/tmp/zerble-final-qualification-run-high.log",
+      "sourceDirectory": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/runs/20261105-180359-82691546",
+      "evidence": "qualification/run-high",
+      "cleanup": true
+    }
+  ]
+}

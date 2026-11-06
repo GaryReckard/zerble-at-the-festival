@@ -1,0 +1,92 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {buildKid,tickKid} from '../src/models/kid.js';
+import {buildKid as legacyBuild,tickKid as legacyTick} from '../verification/performance/2026-11-05-optimization/legacy-kid-model.js';
+import {disposeSceneResources} from '../src/sceneResources.js';
+import {makePersonHair} from '../src/crowdHair.js';
+import {spawnSync} from 'node:child_process';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+
+if(['legacy','pooled'].includes(process.argv[2])){
+  const sample=construct(process.argv[2]==='legacy'?legacyBuild:buildKid,1977);
+  console.log(JSON.stringify({draws:sample.draws,phase:sample.model.userData.bouncePhase,
+    shape:createHash('sha256').update(JSON.stringify(describe(sample.model))).digest('hex')}));
+  process.exit(0);
+}
+
+const fixtureUrl=new URL('../verification/performance/2026-11-05-optimization/legacy-kid-model.js',import.meta.url);
+const original=readFileSync(fixtureUrl,'utf8').replace(/^\/\/ Frozen[^\n]*\n/,'')
+  .replace("from '../../../src/crowdHair.js'","from '../crowdHair.js'")
+  .replace("from '../../../src/models/personLocomotion.js'","from './personLocomotion.js'");
+const manifest=JSON.parse(readFileSync(new URL('./baseline-manifest.json',fixtureUrl),'utf8'));
+assert.equal(createHash('sha256').update(original).digest('hex'),manifest.files['src/models/kid.js'],'fixture body matches preserved source exactly');
+const cold=[];
+for(const variant of ['legacy','pooled']){
+  const result=spawnSync(process.execPath,[fileURLToPath(import.meta.url),variant],{encoding:'utf8',timeout:10000});
+  assert.equal(result.status,0,result.stderr);cold.push(JSON.parse(result.stdout));
+}
+assert.deepEqual(cold[1],cold[0],'isolated cold hair/resource caches preserve initial model and global RNG');
+
+// Both builders share the existing hair cache in this process. Prime it before
+// either comparison so a first-use hair allocation cannot bias their RNG.
+for(const style of ['cropped','close','braids'])for(const color of [0x3a2a1a,0x6a4a2a,0x8b5a2b,0xd9a26e,0xc97a3b,0x222])makePersonHair({style,color});
+
+function construct(builder,seed){
+  const old=Math.random;let state=seed>>>0,draws=0;
+  Math.random=()=>{draws++;state=(Math.imul(state,1664525)+1013904223)>>>0;return state/2**32;};
+  try{return {model:builder(),draws};}finally{Math.random=old;}
+}
+function shape(geometry){
+  const hash=createHash('sha256');
+  for(const [key,attr]of Object.entries(geometry.attributes)){
+    hash.update(JSON.stringify([key,attr.itemSize,attr.normalized,attr.array.constructor.name]));
+    hash.update(new Uint8Array(attr.array.buffer,attr.array.byteOffset,attr.array.byteLength));
+  }
+  if(geometry.index)hash.update(new Uint8Array(geometry.index.array.buffer,geometry.index.array.byteOffset,geometry.index.array.byteLength));
+  return hash.digest('hex');
+}
+function materialDescription(material){
+  const json=structuredClone(material.toJSON());delete json.uuid;delete json.metadata;
+  if(json.userData){delete json.userData.shared;if(!Object.keys(json.userData).length)delete json.userData;}
+  return json;
+}
+function describe(root){
+  root.updateMatrixWorld(true);const nodes=[];
+  root.traverse(node=>nodes.push({type:node.type,name:node.name,visible:node.visible,
+    castShadow:node.castShadow,receiveShadow:node.receiveShadow,frustumCulled:node.frustumCulled,
+    matrix:node.matrixWorld.toArray(),...(node.isMesh?{geometry:shape(node.geometry),groups:node.geometry.groups,
+      material:materialDescription(node.material)}:{})}));
+  return nodes;
+}
+const sharedGeometries=new Set(),sharedMaterials=new Set(),sources=new Set();
+for(let seed=1;seed<=72;seed++){
+  const old=construct(legacyBuild,seed),next=construct(buildKid,seed);
+  assert.equal(next.draws,old.draws,'construction preserves every random draw');
+  assert.deepEqual(describe(next.model),describe(old.model),'exact initial buffers, materials, transforms and shadows');
+  for(let frame=0;frame<6;frame++){
+    for(const model of [old.model,next.model])model.position.set(frame*.031,.2,frame*-.043);
+    const dt=frame===2?0:1/60,options={targetYaw:frame*.31,excited:frame%2===0};
+    legacyTick(old.model,dt,options);tickKid(next.model,dt,options);
+    assert.deepEqual(describe(next.model),describe(old.model),'animated transforms remain exact, including zero delta');
+  }
+  next.model.traverse(node=>{
+    if(!node.isMesh)return;
+    assert.equal(node.geometry.userData.shared,true);assert.equal(node.material.userData.shared,true);
+    sharedGeometries.add(node.geometry);sharedMaterials.add(node.material);
+    sources.add(shape(node.geometry));
+  });
+  disposeSceneResources(old.model);disposeSceneResources(next.model);
+}
+assert.equal(sharedGeometries.size,14,'eleven fixed body/accessory shapes and three hair shapes');
+assert.equal(sources.size,14);
+assert(sharedMaterials.size<=45,'fixed palettes bound page-lifetime material retention');
+let disposed=0;
+for(const resource of [...sharedGeometries,...sharedMaterials])resource.addEventListener('dispose',()=>disposed++);
+const first=construct(buildKid,1977).model,second=construct(buildKid,1977).model;
+const before=describe(second);disposeSceneResources(first);
+assert.equal(disposed,0,'disposing one owner cannot dispose pooled resources');
+assert.deepEqual(describe(second),before,'another live model retains its exact resources and pose');
+disposeSceneResources(second);assert.equal(disposed,0);
+console.log('PASS kid pools: 72 exact legacy variants and six animated poses each, RNG/material/buffer/shadow equivalence, bounded shared resources and multi-owner disposal safety.');

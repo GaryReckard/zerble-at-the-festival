@@ -980,9 +980,10 @@ export class Crowd {
 
   _moveGroundNpc(npc, x, z, heading = npc.yaw) {
     if (npc.surfaceBinding) {
-      const p = npc.surfaceBinding.propose(x, z, npc._surfaceSample || (npc._surfaceSample = {}), heading);
+      const atomic=typeof npc.surfaceBinding.move==='function';
+      const p = npc.surfaceBinding[atomic?'move':'propose'](x, z, npc._surfaceSample || (npc._surfaceSample = {}), heading);
       if (!p.valid || !p.traversable) { npc.vel.x = npc.vel.z = 0; return false; }
-      npc.surfaceBinding.commit(x, z, p, heading);
+      if(!atomic)npc.surfaceBinding.commit(x, z, p, heading);
     }
     npc.pos.x = x; npc.pos.z = z; return true;
   }
@@ -1053,9 +1054,14 @@ export class Crowd {
       let nearest = Infinity;
       for (const id of registry.byKind.get('stage_front')) {
         const e = registry.entries.get(id);
-        if (!e||npc.surfaceBinding&&!this.canReachPlace(npc.personHandle,e.position)) continue;
+        if (!e) continue;
         const fx = npc.pos.x - e.position.x;
         const fz = npc.pos.z - e.position.z;
+        // Reachability sweeps sample the whole route and support footprint.
+        // Only a stage within the dance radius can affect this flag, so reject
+        // distant stages before paying for that path check for every person.
+        if (fx*fx+fz*fz>=81) continue;
+        if(npc.surfaceBinding&&!this.canReachPlace(npc.personHandle,e.position))continue;
         const fd = Math.hypot(fx, fz);
         if (fd < nearest) nearest = fd;
       }
@@ -1483,7 +1489,9 @@ export class Crowd {
     });
     if (this._perf.on) this._perf.sepMs += performance.now() - _tSep;
     // Apply hard-overlap push instantly (so NPCs never visually stack)
-    this._moveGroundNpc(npc, npc.pos.x + overlapPushX, npc.pos.z + overlapPushZ);
+    // The velocity move below still validates support each frame. A zero
+    // overlap correction need not sweep and commit that same footprint first.
+    if(overlapPushX!==0||overlapPushZ!==0)this._moveGroundNpc(npc, npc.pos.x + overlapPushX, npc.pos.z + overlapPushZ);
 
     // --- steering modifiers ---
     if (speed > 0) {

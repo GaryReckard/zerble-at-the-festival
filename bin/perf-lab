@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Bounded real-GPU performance lab. No browser is launched without --quiet."""
+import argparse,json,sys,time,uuid,os
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tooling'))
+from performance_lab.supervisor import supervise,CleanupFailure
+from performance_lab.snapshot import snapshot,verify,ROOT
+from performance_lab.contract import SCHEMA,POLICY
+
+p=argparse.ArgumentParser(description=__doc__)
+p.add_argument('command',choices=['probe','snapshot','smoke','run','experiment'])
+p.add_argument('--quiet',action='store_true',help='Operator attests the reserved Mac is idle for this experiment')
+p.add_argument('--output',type=Path,default=ROOT/'.claude/captures/performance-lab')
+p.add_argument('--fault',choices=['worker-death','page-hang'])
+p.add_argument('--deadline',type=int,default=180)
+p.add_argument('--snapshot',type=Path)
+p.add_argument('--scenario',choices=['dense-festival-v1','streaming-drive-v1'],default='dense-festival-v1')
+p.add_argument('--injection',type=float,default=0)
+p.add_argument('--collector',choices=['full','sentinel'],default='full')
+p.add_argument('--tier',choices=['low','mid','high'],default='high')
+p.add_argument('--interrupt-after',type=float,help='Diagnostic abort after this many accepted seconds, including settling')
+a=p.parse_args()
+if a.command=='snapshot':
+ target,manifest=snapshot(a.output/'snapshots');print(json.dumps(dict(path=str(target),**manifest)));sys.exit()
+if not a.quiet:p.error('--quiet is required for a reserved-Mac browser session')
+if a.deadline<5 or a.deadline>240:p.error('deadline must be 5..240 seconds')
+if not 0<=a.injection<=80:p.error('injection must be 0..80 ms')
+if a.interrupt_after is not None and (a.command!='run' or not 0<a.interrupt_after<=80):p.error('--interrupt-after requires run and 0..80 seconds')
+id=time.strftime('%Y%m%d-%H%M%S')+'-'+uuid.uuid4().hex[:8];directory=a.output/'runs'/id
+run=None;root=ROOT
+if a.command in ('smoke','run','experiment'):
+ from performance_lab.capability import require
+ try:require(a.output,collection=a.command=='experiment')
+ except (ValueError,OSError) as error:p.error(str(error))
+ if not a.snapshot:p.error('--snapshot must name an existing immutable snapshot')
+ root=a.snapshot/'dist';manifest=json.loads((a.snapshot/'manifest.json').read_text());verify(a.snapshot,manifest)
+ run=dict(schema=SCHEMA,state='prepared',identity=dict(runId=id,app=manifest['app'],build=manifest['build'],harness=manifest['harness'],scenario=a.scenario,policy=POLICY,instrumentation='light-v1' if a.collector=='full' else 'sentinel-v1',injectionMs=a.injection),conditions=dict(tier=a.tier,seed=2404796662,quiet=True),collector=a.collector)
+ if a.interrupt_after is not None:run['interruptAfter']=a.interrupt_after
+print(json.dumps(dict(operation=a.command,directory=str(a.output/'experiments'),scenarios=['dense-festival-v1','streaming-drive-v1'],quiet=True) if a.command=='experiment' else dict(runId=id,directory=str(directory),scenario=a.scenario,deadline=a.deadline,quiet=True)),flush=True)
+lock=ROOT/'.claude/captures/performance-lab.lock'
+lock.parent.mkdir(parents=True,exist_ok=True)
+try:
+ fd=os.open(lock,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+except FileExistsError:
+ p.error(f'Another lab supervisor owns {lock}; inspect its PID before recovery')
+os.write(fd,str(os.getpid()).encode());os.close(fd)
+cleanup_ok=True
+try:
+ if a.command=='experiment':
+  from performance_lab.experiment import experiment
+  destination=experiment(a.snapshot,a.output,a.injection or 40)
+  directory=destination
+  print(f'Accepted experiment: {destination}',flush=True)
+  m=dict(state='collected',cleanup={'ok':True})
+ else:
+  m=supervise(directory,root,run=run,probe=a.command=='probe',fault=a.fault,deadline=a.deadline,**({'smoke':True} if a.command=='smoke' else {}))
+  if not m['cleanup']['ok']:raise CleanupFailure(f'Unverified cleanup: {directory}')
+except CleanupFailure as error:
+ cleanup_ok=False
+ from performance_lab.capability import invalidate
+ invalidate(a.output,str(error))
+ raise
+finally:
+ if cleanup_ok:lock.unlink()
+ if a.snapshot:verify(a.snapshot,manifest)
+
+from performance_lab.capability import record,invalidate
+if a.command=='probe' and m['cleanup']['ok']:
+ expected= m['state']=='collected' if not a.fault else m.get('error')==('Control worker exited -9' if a.fault=='worker-death' else 'Overall run deadline')
+ if expected:
+  try:record(a.output,directory,a.fault or 'normal')
+  except ValueError as error:invalidate(a.output,str(error))
+ else:invalidate(a.output,m.get('error','Probe failed'))
+if a.command=='run' and m['state']=='collected' and m['cleanup']['ok'] and a.scenario=='dense-festival-v1':record(a.output,directory,'collection')
+print(json.dumps(dict(directory=str(directory),state=m['state'],error=m.get('error'),cleanup=m['cleanup'])),flush=True)
+sys.exit(0 if m['state']=='collected' and m['cleanup']['ok'] else 2)

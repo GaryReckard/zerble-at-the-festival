@@ -1,0 +1,6 @@
+
+DevTools listening on ws://127.0.0.1:58550/devtools/browser/c352cf37-33cb-4ceb-9101-034e4900b125
+Trying to load the allocator multiple times. This is *not* supported.
+[21722:35284473:1105/180128.138808:ERROR:content/browser/network_service_instance_impl.cc:652] Network service crashed or was terminated, restarting service.
+[21784:35285152:1105/180128.173919:ERROR:base/apple/mach_port_rendezvous_mac.cc:256] bootstrap_look_up com.google.Chrome.MachPortRendezvousServer.1: Permission denied (1100)
+[21784:35285152:1105/180128.174191:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)

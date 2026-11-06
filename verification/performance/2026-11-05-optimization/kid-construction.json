@@ -1,0 +1,200 @@
+{
+  "scope": "Exploratory model-construction CPU timings in independent Node processes while Mac is in use. ABBA order, identical model recipe, no WebGL or browser-frame improvement claim. Geometry bytes are CPU buffer storage, not GPU memory.",
+  "node": "v24.10.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "summaries": {
+    "legacy": {
+      "n": 8,
+      "coldP50Ms": 24.022792000000003,
+      "coldP95Ms": 27.235333999999998,
+      "warmP50Ms": 13.265333000000005,
+      "warmP95Ms": 14.974208999999995
+    },
+    "pooled": {
+      "n": 8,
+      "coldP50Ms": 13.545250000000003,
+      "coldP95Ms": 14.374375,
+      "warmP50Ms": 3.149583,
+      "warmP95Ms": 6.174084000000001
+    }
+  },
+  "samples": [
+    {
+      "variant": "legacy",
+      "coldMs": 24.022792000000003,
+      "warmMs": 14.236000000000004,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 490,
+      "materialObjects": 375,
+      "uniqueGeometryBufferBytes": 1629120
+    },
+    {
+      "variant": "pooled",
+      "coldMs": 14.329083999999998,
+      "warmMs": 4.038916,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 14,
+      "materialObjects": 43,
+      "uniqueGeometryBufferBytes": 96016
+    },
+    {
+      "variant": "pooled",
+      "coldMs": 13.441374999999997,
+      "warmMs": 3.149583,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 14,
+      "materialObjects": 43,
+      "uniqueGeometryBufferBytes": 96016
+    },
+    {
+      "variant": "legacy",
+      "coldMs": 24.80070899999999,
+      "warmMs": 13.854250000000008,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 490,
+      "materialObjects": 375,
+      "uniqueGeometryBufferBytes": 1629120
+    },
+    {
+      "variant": "legacy",
+      "coldMs": 24.340708999999997,
+      "warmMs": 13.091915999999998,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 490,
+      "materialObjects": 375,
+      "uniqueGeometryBufferBytes": 1629120
+    },
+    {
+      "variant": "pooled",
+      "coldMs": 12.866834,
+      "warmMs": 3.0173750000000013,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 14,
+      "materialObjects": 43,
+      "uniqueGeometryBufferBytes": 96016
+    },
+    {
+      "variant": "pooled",
+      "coldMs": 14.328292000000001,
+      "warmMs": 3.3542500000000004,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 14,
+      "materialObjects": 43,
+      "uniqueGeometryBufferBytes": 96016
+    },
+    {
+      "variant": "legacy",
+      "coldMs": 22.462374999999998,
+      "warmMs": 12.689333999999995,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 490,
+      "materialObjects": 375,
+      "uniqueGeometryBufferBytes": 1629120
+    },
+    {
+      "variant": "legacy",
+      "coldMs": 22.258416999999998,
+      "warmMs": 13.792499999999997,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 490,
+      "materialObjects": 375,
+      "uniqueGeometryBufferBytes": 1629120
+    },
+    {
+      "variant": "pooled",
+      "coldMs": 13.545250000000003,
+      "warmMs": 6.174084000000001,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 14,
+      "materialObjects": 43,
+      "uniqueGeometryBufferBytes": 96016
+    },
+    {
+      "variant": "pooled",
+      "coldMs": 14.374375,
+      "warmMs": 2.8352920000000026,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 14,
+      "materialObjects": 43,
+      "uniqueGeometryBufferBytes": 96016
+    },
+    {
+      "variant": "legacy",
+      "coldMs": 27.235333999999998,
+      "warmMs": 14.974208999999995,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 490,
+      "materialObjects": 375,
+      "uniqueGeometryBufferBytes": 1629120
+    },
+    {
+      "variant": "legacy",
+      "coldMs": 24.857709,
+      "warmMs": 13.265333000000005,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 490,
+      "materialObjects": 375,
+      "uniqueGeometryBufferBytes": 1629120
+    },
+    {
+      "variant": "pooled",
+      "coldMs": 12.883584000000003,
+      "warmMs": 2.6742910000000037,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 14,
+      "materialObjects": 43,
+      "uniqueGeometryBufferBytes": 96016
+    },
+    {
+      "variant": "pooled",
+      "coldMs": 13.742124999999998,
+      "warmMs": 4.024000000000001,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 14,
+      "materialObjects": 43,
+      "uniqueGeometryBufferBytes": 96016
+    },
+    {
+      "variant": "legacy",
+      "coldMs": 23.772042000000003,
+      "warmMs": 11.85775000000001,
+      "children": 50,
+      "meshes": 737,
+      "triangles": 86400,
+      "geometryObjects": 490,
+      "materialObjects": 375,
+      "uniqueGeometryBufferBytes": 1629120
+    }
+  ]
+}

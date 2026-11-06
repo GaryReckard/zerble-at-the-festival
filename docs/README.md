@@ -26,6 +26,7 @@ Keep unresolved acceptance separate from shipped implementation.
 
 - [Development and deployment](toolchain.md): Vite commands, dependency aliases, captures, build checks and GitHub Pages.
 
+- [Performance lab](performance-lab.md): verified reserved-Mac scenarios, calibrated comparisons, ownership and operating skill.
 - [Performance playtests](performance-playtests.md): guided phone/desktop
   capture, quality comparisons, shader probes and registry measurements.
 - [Layout verification](layout-verification.md): plan versus built truth,
@@ -57,6 +58,7 @@ parallel roadmaps or automatic implementation requests.
 | [Festival research](backlog/festival-research.md) | Dated validation questions and design leads |
 | [Trip effects](backlog/trip-effects.md) | Tier policy, effect designs and shipped harness history |
 | [Performance](backlog/performance.md) | Measured work, rejected approaches, paused slices and parked ideas |
+| [Repeatable performance lab](../openspec/changes/repeatable-performance-lab/README.md) | Implemented real-game capture, quiet-Mac browser ownership, calibrated analysis and operating skill; both desktop scenarios accepted with fresh holdouts and injected-cost sensitivity |
 | [Bubble Upgrades plan](../BUBBLE-UPGRADES-PLAN.md) | Feature decisions and execution record; [handoff](../verification/bubble-upgrades/HANDOFF.md) for acceptance status |
 | [Lantern parade plan](../PUPPET-PARADE-PLAN.md) | Original handoff; [verification](../verification/puppet-parade/README.md) for delivered behavior and limits |
 | [June improvement plan](../PLAN.md) | Historical survey, not a current prioritized queue |

@@ -1,0 +1,8 @@
+{
+  "exit": 1,
+  "refusedBeforeLaunch": true,
+  "oldSnapshot": "/Users/garyreckard/Sites/zerble-at-the-festival/.claude/captures/performance-lab/snapshots/9188f890a7f7b85b6d5c769e3d0762f26eaa4c5337d7e3c04b50b4a7f53077e8",
+  "error": "RuntimeError: Live host harness drift: tooling/performance_lab/snapshot.py; prepare a current snapshot before launching",
+  "currentApp": "8d660f511eba50bcc6a379bb4b5173ad2caf6848296653c22969279448bc879f",
+  "currentHarness": "4ffdedbb5bc4d595d212a276ca3be24f2be0545d488b55aa0790d0b3c1f4c935"
+}

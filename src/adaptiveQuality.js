@@ -31,10 +31,11 @@
 // Usage from main.js (per frame):
 //   AdaptiveQuality.tick(dt);
 
+import { PERFORMANCE_LAB } from './performanceLab/config.js';
 import { PERF } from './perf.js';
 import { resolveCaptureQualityPolicy } from './perfTelemetry.js';
 
-export const CAPTURE_QUALITY_POLICY = resolveCaptureQualityPolicy(
+export const CAPTURE_QUALITY_POLICY = PERFORMANCE_LAB ? 'baseline' : resolveCaptureQualityPolicy(
   typeof location === 'undefined' ? '' : location.search, PERF.name,
 );
 

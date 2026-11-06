@@ -27,8 +27,11 @@ export function createLandscapePeopleAdapter(runtime){
       if(relocate(actor,{radius})){actor.userData.landscapeUnsupported=false;return true;}
       if(!actor.surfaceBinding){actor.userData.landscapeUnsupported=true;actor.userData.landscapeHidden=true;actor.visible=false;return false;}
     }
-    const binding=actor.surfaceBinding,p=binding.propose(actor.position.x,actor.position.z,probe,actor.rotation?.y||0);
-    if(p.valid&&p.traversable){binding.commit(actor.position.x,actor.position.z,p);actor.position.y=p.height;actor.userData.landscapeUnsupported=false;return true;}
+    // This immediate move holds no proposal across a mutation boundary. The
+    // atomic API retains the complete route/footprint sweep without a second
+    // identical validation; held proposals elsewhere still use commit().
+    const binding=actor.surfaceBinding,p=binding.move(actor.position.x,actor.position.z,probe,actor.rotation?.y||0);
+    if(p.valid&&p.traversable){actor.position.y=p.height;actor.userData.landscapeUnsupported=false;return true;}
     const accepted=binding.snapshot();actor.position.set(accepted.x,accepted.height,accepted.z);actor.userData.landscapeUnsupported=false;return false;
   }
   function collider(c,actor,height=2.5){c.minY=actor.position.y;c.maxY=actor.position.y+height;return !actor.userData.landscapeUnsupported;}

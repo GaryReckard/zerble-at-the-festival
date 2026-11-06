@@ -1,0 +1,131 @@
+{
+  "scope": "Frozen same-scene individual/instance raster comparison. Excludes top135px, physics HUD x<365/y>360 and minimap x>1060/y>500. Reports differences, not a subjective quality verdict.",
+  "rows": [
+    {
+      "mode": "third",
+      "time": 0.3,
+      "width": 1280,
+      "height": 720,
+      "comparedPixels": 569804,
+      "changedPixels": 501,
+      "pixelsOver8": 6,
+      "fractionOver8": 0.00001052993660978161,
+      "meanAbsChannel": 0.000624191242368721,
+      "rmse": 0.08915350330160982,
+      "maxChannelDifference": 77,
+      "sha256": [
+        "0b7e292b562f6be6a0ae6d89cc7b7a809e020f9adbd14d60a21a773523c327fe",
+        "6a78cf742749fc42095654b8c19b8d839ecc6038212a6be2da0aaf954fb497f9"
+      ],
+      "images": [
+        "third-0.3-instanced.png",
+        "third-0.3-individual.png"
+      ]
+    },
+    {
+      "mode": "third",
+      "time": 0.75,
+      "width": 1280,
+      "height": 720,
+      "comparedPixels": 569804,
+      "changedPixels": 15417,
+      "pixelsOver8": 48,
+      "fractionOver8": 0.00008423949287825288,
+      "meanAbsChannel": 0.012611939076126762,
+      "rmse": 0.24181499743306295,
+      "maxChannelDifference": 146,
+      "sha256": [
+        "abe5090a2c92c160565b999e86613ea1ccf6e16e5287c6e65d775be44c724463",
+        "a5ec3224e96a5b2ac4e31bf734f1068c8e9275bcdcce84c958ddd1e1bce04964"
+      ],
+      "images": [
+        "third-0.75-instanced.png",
+        "third-0.75-individual.png"
+      ]
+    },
+    {
+      "mode": "first",
+      "time": 0.3,
+      "width": 1280,
+      "height": 720,
+      "comparedPixels": 569804,
+      "changedPixels": 545,
+      "pixelsOver8": 3,
+      "fractionOver8": 0.000005264968304890805,
+      "meanAbsChannel": 0.0006505160838931749,
+      "rmse": 0.12250510052586414,
+      "maxChannelDifference": 102,
+      "sha256": [
+        "13f1185706cdca1e6ae498e4645e98ce01fef6d267c54fd900d4509b96de73bf",
+        "6b4c9f79c699b86a01bb181e3678f0475d4fa2473149da2a9945c80452f7ec1c"
+      ],
+      "images": [
+        "first-0.3-instanced.png",
+        "first-0.3-individual.png"
+      ]
+    },
+    {
+      "mode": "first",
+      "time": 0.75,
+      "width": 1280,
+      "height": 720,
+      "comparedPixels": 569804,
+      "changedPixels": 4572,
+      "pixelsOver8": 2,
+      "fractionOver8": 0.000003509978869927203,
+      "meanAbsChannel": 0.0030800064583611205,
+      "rmse": 0.08641458236761967,
+      "maxChannelDifference": 53,
+      "sha256": [
+        "d72263ff0da0b104a7ac3d852cc88f5d59c0616067e65547c96d67c2a1721088",
+        "63e5ce0c58dc0ae5153b3ae722679bdd82dfb77ebdf4d312f028f50912d24fd8"
+      ],
+      "images": [
+        "first-0.75-instanced.png",
+        "first-0.75-individual.png"
+      ]
+    },
+    {
+      "mode": "top",
+      "time": 0.3,
+      "width": 1280,
+      "height": 720,
+      "comparedPixels": 569804,
+      "changedPixels": 9,
+      "pixelsOver8": 0,
+      "fractionOver8": 0,
+      "meanAbsChannel": 0.000008189950696496808,
+      "rmse": 0.003059402499368007,
+      "maxChannelDifference": 2,
+      "sha256": [
+        "ddc0246585fc3852ca9817f13bb27d967233b7ae65913013ad4f4484e81acbee",
+        "a6c9e55e2f0d7bc59073689a801889da4361f8ee1db3c8b6784fba24b7fcb317"
+      ],
+      "images": [
+        "top-0.3-instanced.png",
+        "top-0.3-individual.png"
+      ]
+    },
+    {
+      "mode": "top",
+      "time": 0.75,
+      "width": 1280,
+      "height": 720,
+      "comparedPixels": 569804,
+      "changedPixels": 3,
+      "pixelsOver8": 0,
+      "fractionOver8": 0,
+      "meanAbsChannel": 0.0000017549894349636015,
+      "rmse": 0.0013247601424271496,
+      "maxChannelDifference": 1,
+      "sha256": [
+        "6ac9bcafba8f15d915c528cdb8e63460b342235fa32429631abb7c8fbd0d15c2",
+        "bfbdf2b4b359e2a3be8faf421e8117aa84ee0d801731827c3064d056f25ac242"
+      ],
+      "images": [
+        "top-0.75-instanced.png",
+        "top-0.75-individual.png"
+      ]
+    }
+  ]
+}

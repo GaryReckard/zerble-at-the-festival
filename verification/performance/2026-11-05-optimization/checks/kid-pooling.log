@@ -1,0 +1,5 @@
+PASS kid pools: 72 exact legacy variants and six animated poses each, RNG/material/buffer/shadow equivalence, bounded shared resources and multi-owner disposal safety.
+(node:8835) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/garyreckard/Sites/zerble-at-the-festival/src/models/kid.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/garyreckard/Sites/zerble-at-the-festival/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

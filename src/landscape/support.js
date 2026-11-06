@@ -171,19 +171,29 @@ export function createSupportBinding(world, initial, { footprint = [], sweepStep
     state.x = x; state.z = z; state.height = scratch.height; state.surfaceId = surfaceId; state.heading = heading;
     acceptedPlane.dx=scratch.dx;acceptedPlane.dz=scratch.dz;
   }
+  function accept(x,z,proposal,heading){
+    state.x=x;state.z=z;state.height=proposal.height;state.surfaceId=proposal.surfaceId;state.heading=heading;
+    acceptedPlane.dx=proposal.dx;acceptedPlane.dz=proposal.dz;
+  }
   function commit(x, z, proposal, heading = proposal.heading ?? state.heading) {
     finite(x, 'x'); finite(z, 'z');
     if (!proposal?.valid || !proposal.traversable) throw new RangeError('Cannot commit blocked support');
     propose(x, z, scratch, heading);
     if (!scratch.valid || scratch.surfaceId !== proposal.surfaceId || scratch.height !== proposal.height) throw new RangeError('Stale support proposal');
-    state.x = x; state.z = z; state.height = scratch.height; state.surfaceId = scratch.surfaceId; state.heading = heading;
-    acceptedPlane.dx=scratch.dx;acceptedPlane.dz=scratch.dz;
+    accept(x,z,scratch,heading);
+  }
+  function move(x,z,out={},heading=state.heading){
+    // Proposal and acceptance are synchronous here, with no external mutation
+    // window. Keep commit's revalidation for callers that hold a proposal.
+    const proposal=propose(x,z,out,heading);
+    if(proposal.valid&&proposal.traversable)accept(x,z,proposal,heading);
+    return proposal;
   }
   function relocate(pose) {
     try { reset(pose); return true; } catch (error) { if (error instanceof RangeError) return false; throw error; }
   }
   reset(initial);
-  return Object.freeze({ reset, relocate, commit, allowSteepTerrain, world,
+  return Object.freeze({ reset, relocate, commit, move, allowSteepTerrain, world,
     fork: pose => createSupportBinding(world, pose, { footprint: contacts, sweepStep, turnStep, maxSweepSteps, allowSteepTerrain }),
     sample: (x, z, out = {}) => {
       drivingSample(world.sampleSelected(x,z,state.surfaceId,out));

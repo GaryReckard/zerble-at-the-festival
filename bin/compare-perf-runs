@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""Offline performance lab analysis. Inputs are explicit, ordered immutable runs."""
+import argparse,json,sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tooling'))
+from performance_lab.contract import load_run
+from performance_lab.analysis import calibrate,compare,readable
+p=argparse.ArgumentParser(description=__doc__)
+p.add_argument('runs',nargs='+',type=Path);p.add_argument('--calibrate',action='store_true');p.add_argument('--calibration',type=Path);p.add_argument('--holdout',type=Path);p.add_argument('--validate-holdout',action='store_true');p.add_argument('--json',action='store_true');p.add_argument('--output',type=Path)
+a=p.parse_args()
+try:
+ runs=[load_run(p) for p in a.runs]
+ if a.calibrate:r=calibrate(runs)
+ elif a.calibration:r=compare(runs,json.loads(a.calibration.read_text()),json.loads(a.holdout.read_text()) if a.holdout else None,validation=a.validate_holdout)
+ else:p.error('Specify --calibrate or --calibration')
+except (ValueError,OSError,KeyError,TypeError) as error:r=dict(verdict='comparison invalid',reasons=[str(error)])
+if a.output:a.output.write_text(json.dumps(r,sort_keys=True,indent=2)+'\n')
+print(json.dumps(r,sort_keys=True,indent=2) if a.json else readable(r))
+sys.exit(2 if r['verdict']=='comparison invalid' else 1 if r['verdict']=='regressed' else 0)

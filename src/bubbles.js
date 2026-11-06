@@ -1,5 +1,5 @@
 import { terrainHeight } from './worldgen/terrain.js';
-// Bubble particle system. InstancedMesh of transmissive spheres with simple physics.
+// Bubble particle system. Instanced iridescent soap shells with simple physics.
 
 import * as THREE from 'three';
 import { PERF } from './perf.js';
@@ -54,17 +54,19 @@ export class Bubbles {
   constructor() {
     const geo = new THREE.IcosahedronGeometry(0.11, 1); // about half the previous size
 
-    // Fancy material — full physical (transmission, iridescence, sheen).
+    // Detailed soap shells keep physical iridescence and sheen, but use alpha
+    // transparency. Screen-space transmission redraws the entire opaque world
+    // for this one tiny-particle mesh, doubling submissions on dense High scenes.
     // Built once here so adaptive downgrades never trigger a shader compile.
     this._fancyMat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       roughness: 0.05,
       metalness: 0,
-      transmission: 0.95,
-      thickness: 0.4,
+      transmission: 0,
       ior: 1.2,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.2,
+      depthWrite: false,
       side: THREE.DoubleSide,
       // Iridescent rim tint
       iridescence: 0.6,

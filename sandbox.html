@@ -253,6 +253,7 @@
             <option value="brass_population">Brass band (production route / scatter / cleanup)</option>
             <option value="shopkeeper">Vendor shopkeeper (alone)</option>
             <option value="kid">Kid</option>
+            <option value="kid_gaggle">Children (rendering comparison)</option>
             <option value="wook">Wook</option>
             <option value="wook_population">Wooks (production approach / scatter / recycle)</option>
             <option value="flow_hooper_workshop">Flow hoopers (choreography / contacts / replay)</option>
@@ -578,6 +579,7 @@ import {buildShrub} from './src/models/shrub.js';
     import {buildBandMember, tickBandMember} from './src/models/bandMember.js';
     import {buildParasolMarshal, tickParasolMarshal} from './src/models/parasolMarshal.js';
     import {buildKid, tickKid} from './src/models/kid.js';
+    import {createChildPresentation} from './src/people/childPresentation.js';
     import {buildWook, tickWook} from './src/models/wook.js';
     import {buildHulaHooper, tickHulaHooper} from './src/models/hulaHooper.js';
     import {
@@ -1051,7 +1053,7 @@ import {buildShrub} from './src/models/shrub.js';
         ...Object.fromEntries(PARADE_ROSTER.map(kind => [`puppet_${kind}`, 'puppet'])),
         tent: 'tent', tent_row: 'tent',
         food_truck: 'truck',
-        kid: 'kid', frisbee_pair:'person',
+        kid: 'kid', kid_gaggle:'kid', frisbee_pair:'person',
         wook: 'wook', wook_population:'wook', hooper_population:'hula_hoop', flow_hooper_workshop:'hula_hoop',
         stage_main: 'stage', stage_side: 'stage', tent_stage: 'stage', soundboard: 'soundboard', one_wheel: 'one_wheel', one_wheel_route: 'one_wheel', healing_arts: 'tent', healing_arts_activity: 'tent',
         entrance_arch: 'arch',
@@ -2061,6 +2063,23 @@ import {buildShrub} from './src/models/shrub.js';
                 cam.target.set(0, 0.8, 0);
                 cam.dist = 4;
                 applyCam();
+                break;
+            }
+            case 'kid_gaggle': {
+                const root=new THREE.Group();root.name='Kids';scene.add(root);entityRoot=root;
+                const random=mulberry32(1977),models=[];
+                for(let i=0;i<16;i++){
+                    const model=buildKid(random),x=(i%4-1.5)*1.7,z=(Math.floor(i/4)-1.5)*1.7;
+                    model.position.set(x,0,z);model.userData.bouncePhase=i*.37;model.userData.locomotion.phase=i*.37;
+                    root.add(model);models.push({model,x,z});
+                }
+                const batched=new URLSearchParams(location.search).get('kidBatch')!=='0';
+                const presentation=batched?createChildPresentation({scene,source:root,seed:1977}):null;
+                root.userData.cleanup=()=>presentation?.dispose();
+                let elapsed=0;
+                updateFn=dt=>{elapsed+=dt;for(const {model,x}of models){model.position.x=x+.35*Math.sin(elapsed*2+model.userData.bouncePhase);tickKid(model,dt,{targetYaw:.15*Math.sin(elapsed)});}};
+                info.textContent=batched?'Instanced children; kidBatch=0 compares individual rendering':'Individual children; kidBatch=1 compares instances';
+                cam.target.set(0,.8,0);cam.dist=14;applyCam();
                 break;
             }
             case 'wook_population': {

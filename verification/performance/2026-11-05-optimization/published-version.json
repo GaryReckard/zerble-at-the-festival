@@ -1,0 +1,23 @@
+{
+  "checkedDate": "2026-11-05",
+  "publicUrl": "https://garyreckard.github.io/zerble-at-the-festival/",
+  "htmlSha256": "33447119b4ef97fd40390b5b8fc94cd813910becca38b87cc177bcc9928d65b1",
+  "entryBundle": "assets/index-rjRUKaMa.js",
+  "mainBundle": "assets/main-84fXKdOq.js",
+  "crowdMapUrl": "https://garyreckard.github.io/zerble-at-the-festival/assets/crowd-CdBLKMfJ.js.map",
+  "crowdSourceSha256": "c67ea8209ffbbe8e6959197cfcb355cb36fc276817fc80f4ffba4b34f57c9751",
+  "crowdMapSha256": "5c7de3f9b98d98f471b72baac9de9a15a92a157efe7734e40ea87f46eacfc403",
+  "latestSuccessfulMainWorkflow": {
+    "name": "Check, build, and deploy",
+    "head_sha": "fdaecb1d17d064cbe08820e8c96d344a1f5c7e61",
+    "updated_at": "2026-11-02T19:50:44Z",
+    "html_url": "https://github.com/GaryReckard/zerble-at-the-festival/actions/runs/41512799183",
+    "conclusion": "success"
+  },
+  "verifiedFinding": "Published crowd code checks terrain reachability before dance-radius rejection; local src/crowd.js checks squared distance first. Workflow revision is supporting metadata, not proof of asset-to-commit identity.",
+  "limitations": [
+    "No iPad capture yet.",
+    "No assumption that the published app and current local build have equal performance.",
+    "No browser launched during preparation."
+  ]
+}

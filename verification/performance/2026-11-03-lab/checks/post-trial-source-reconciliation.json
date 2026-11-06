@@ -1,0 +1,18 @@
+{
+  "snapshot": "9188f890a7f7b85b6d5c769e3d0762f26eaa4c5337d7e3c04b50b4a7f53077e8",
+  "allInventoriedLiveFilesMatched": true,
+  "filesChecked": 301,
+  "hostFiles": [
+    "bin/compare-perf-runs",
+    "bin/perf-lab",
+    "bin/report-perf-playtest",
+    "tooling/performance_lab/analysis.py",
+    "tooling/performance_lab/capability.py",
+    "tooling/performance_lab/contract.py",
+    "tooling/performance_lab/experiment.py",
+    "tooling/performance_lab/snapshot.py",
+    "tooling/performance_lab/supervisor.py",
+    "tooling/performance_lab/worker.mjs"
+  ],
+  "reason": "Recorded before applying review fixes; establishes actual frozen-trial host/source matches its declared snapshot"
+}

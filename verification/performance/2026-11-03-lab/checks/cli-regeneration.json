@@ -1,0 +1,42 @@
+{
+  "dense-festival-v1": [
+    {
+      "stage": "calibration",
+      "exit": 0,
+      "exact": true,
+      "hash": "3cd29aadb73d4a6cc7a78d70ef88e61227d15c994ef75701901fa8815369ab10"
+    },
+    {
+      "stage": "holdout",
+      "exit": 0,
+      "exact": true,
+      "hash": "4e0e251177e24f3e73336215c1f608c985ebb750a641d9a66d3fe659a97cec05"
+    },
+    {
+      "stage": "sensitivity",
+      "exit": 1,
+      "exact": true,
+      "hash": "d5013c74ad8b6143164ef949928d01eeddde67c52fee80f917b0de89c0013dea"
+    }
+  ],
+  "streaming-drive-v1": [
+    {
+      "stage": "calibration",
+      "exit": 0,
+      "exact": true,
+      "hash": "bdcbf869eaa69f6ea0f771eda7c75ee3bffe1710d9f34fc4fca26c58c58d40e4"
+    },
+    {
+      "stage": "holdout",
+      "exit": 0,
+      "exact": true,
+      "hash": "8328ec0879e212d0bc913a2e65df6c5a745e1758b7bde5321e1ef33b5edd267a"
+    },
+    {
+      "stage": "sensitivity",
+      "exit": 1,
+      "exact": true,
+      "hash": "af3735c8aa44bfe004209eee48fa9ebd25e998315faa4b6713614d30f1fd2a31"
+    }
+  ]
+}

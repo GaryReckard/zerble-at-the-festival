@@ -240,10 +240,12 @@ export class PottyActivity {
     for (const id of ids) {
       if (tried && tried.includes(id)) continue;
       const e = this.registry.entries.get(id);
-      if (!e || !e.potty||this.people.canReachPlace&&!this.people.canReachPlace(npc.person,e.position)) continue;
+      if (!e || !e.potty) continue;
       const dx = e.position.x - npc.pos.x;
       const dz = e.position.z - npc.pos.z;
       const d2 = dx * dx + dz * dz;
+      if(d2>=bestD2)continue;
+      if(this.people.canReachPlace&&!this.people.canReachPlace(npc.person,e.position))continue;
       if (d2 < bestD2) {
         bestD2 = d2;
         best = e;
