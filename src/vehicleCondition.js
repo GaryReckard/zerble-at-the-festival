@@ -1,9 +1,13 @@
 import { ENGINE_WATER_HEIGHT, SUBMERSION_GRACE_SECONDS } from './vehicleTuning.js';
 const LIGHT_CHAIRS=new Set(['chair','camp_chair','camp_loveseat']);
+const SOLID_DAMAGE_SCALE=20/(18-4)**2;
 export function impactDamageFor(closingSpeed,kind='solid') {
-  const damage=Math.max(0,closingSpeed-4)**2*.32;
+  const severity=Math.max(0,closingSpeed-4)**2;
   // Lightweight seating should dent the cart slightly, not count as a tree.
-  return LIGHT_CHAIRS.has(kind)?Math.min(3,damage*.06):damage;
+  if(LIGHT_CHAIRS.has(kind))return Math.min(3,severity*.32*.06);
+  // A head-on hit at the normal 18 m/s target costs 20 points. Boost and
+  // hard landings can hurt more, but cannot wreck a healthy cart in one hit.
+  return Math.min(25,severity*SOLID_DAMAGE_SCALE);
 }
 // Consequences consume solved impacts, never render-frame overlap or speed alone.
 export class VehicleCondition {

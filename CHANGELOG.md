@@ -2,6 +2,11 @@
 
 All notable changes to Zerble at the Festival. Newest at top. Following [Keep a Changelog](https://keepachangelog.com); the project isn't versioned yet, so entries are grouped by date.
 
+## 2026-11-06
+
+### Changed
+- **A single crash no longer wrecks a healthy Zerble.** Solid impacts now cause 20 damage at the normal 18 m/s target and at most 25 per impact, including boosted hits and hard landings. Separate hits still accumulate to game over; lightweight chairs retain their small dents and three-point cap.
+
 ## 2026-11-05
 
 ### Added

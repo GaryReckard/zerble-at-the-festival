@@ -92,6 +92,7 @@ async function fixture({depth=0,trees=[],scenery=[],dynamicChair=false}={}) {
       previous=damage;
     }
     assert.ok(first,'a real static tree chassis impact increases the condition damage meter');
+    assert.ok(first.damage<=25,'one real tree impact respects the damage cap');
     assert.equal(episodes,1,'pressing the accelerator against the same obstacle does not repeat the impact episode');
     assert.ok(f.cart.position.z>-18,'the real static collider blocks the dynamic player');
     const damage=f.cart.condition.damage;
